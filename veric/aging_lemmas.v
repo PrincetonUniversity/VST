@@ -91,10 +91,10 @@ Lemma jstep_age_sim {G C} {csem : @semantics.CoreSemantics G C mem} {ge c c' jm1
     age jm1' jm2' /\
     jstep csem ge c jm2 c' jm2'.
 Proof.
-  intros A [step [rd lev]] nz.
+  intros A [step [rd [lev Hg]]] nz.
   destruct (age1 jm1') as [jm2'|] eqn:E.
   - exists jm2'. split; auto.
-    split; [|split]; auto.
+    split; [|split; [|split]]; auto.
     + exact_eq step.
       f_equal; apply age_jm_dry; auto.
     + eapply (age_resource_decay _ (m_phi jm1) (m_phi jm1')).
@@ -106,12 +106,15 @@ Proof.
     + apply age_level in E.
       apply age_level in A.
       omega.
+    + rewrite (age1_ghost_of _ _ (age_jm_phi A)), (age1_ghost_of _ _ (age_jm_phi E)), Hg.
+      apply age_level in A; rewrite A in lev; inv lev.
+      rewrite !level_juice_level_phi; congruence.
   - apply age1_level0 in E.
     apply age_level in A.
     omega.
 Qed.
 
-Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
+(*Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age jm jmaged ->
   le n (level jmaged) ->
@@ -160,7 +163,7 @@ Proof.
   intros x y H L.
   apply jsafeN_age; auto.
   omega.
-Qed.
+Qed.*)
 
 Lemma m_dry_age_to n jm : m_dry (age_to n jm) = m_dry jm.
 Proof.

@@ -1,27 +1,56 @@
 Require Import VST.floyd.base.
+Require Export VST.floyd.functional_base.
 
-Lemma isptr_offset_val':
- forall i p, isptr p -> isptr (offset_val i p).
-Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
-Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val'.
-Hint Resolve isptr_offset_val': norm.
+Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
+Proof. destruct v; simpl; try solve [right; intros N; trivial].
+destruct i.
++ destruct s.
+    * destruct (zle Byte.min_signed (Int.signed i0)); [| right; omega].
+      destruct (zle (Int.signed i0) Byte.max_signed). left; omega. right; omega.
+    * destruct (zle (Int.unsigned i0) Byte.max_unsigned). left; omega. right; omega.
++ destruct s.
+    * destruct (zle (-32768) (Int.signed i0)); [| right; omega].
+      destruct (zle (Int.signed i0) 32767). left; omega. right; omega.
+    * destruct (zle (Int.unsigned i0) 65535). left; omega. right; omega.
++ left; trivial.
++ destruct (Int.eq_dec i0 Int.zero); subst. left; left; trivial.
+    destruct (Int.eq_dec i0 Int.one); subst. left; right; trivial.
+    right. intros N; destruct N; contradiction.
+Defined.
 
-Lemma offset_val_force_ptr:
-  offset_val 0 = force_ptr.
-Proof. extensionality v. destruct v; try reflexivity.
-simpl. rewrite Int.add_zero; auto.
-Qed.
-Hint Rewrite <- offset_val_force_ptr : norm.
+Lemma tc_val_dec t v: {tc_val t v} + {~ tc_val t v}.
+Proof. destruct t; simpl.
++ right; intros N; trivial.
++ apply is_int_dec.
++ apply is_long_dec.
++ destruct f. apply is_single_dec. apply is_float_dec.
++ destruct ((eqb_type t Tvoid &&
+    eqb_attr a
+      {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool).
+  apply is_pointer_or_integer_dec.
+  apply is_pointer_or_null_dec.
++ apply is_pointer_or_null_dec.
++ apply is_pointer_or_null_dec.
++ apply isptr_dec.
++ apply isptr_dec.
+Defined.
 
 Lemma sem_add_pi_ptr:
-   forall {cs: compspecs}  t p i,
+   forall {cs: compspecs}  t p i si,
     isptr p ->
-    sem_add_pi t p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+    match si with
+    | Signed => Int.min_signed <= i <= Int.max_signed
+    | Unsigned => 0 <= i <= Int.max_unsigned
+    end ->
+    Cop.sem_add_ptr_int cenv_cs t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
   intros. destruct p; try contradiction.
-  unfold offset_val.
-  rewrite <- mul_repr.
-  reflexivity.
+  unfold offset_val, Cop.sem_add_ptr_int.
+  unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  f_equal. f_equal. f_equal.
+  destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
+  rewrite Int.signed_repr by omega; auto.
+  rewrite Int.unsigned_repr by omega; auto.
 Qed.
 Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
@@ -36,18 +65,13 @@ Proof.
 Qed.
 Hint Rewrite sem_cast_i2i_correct_range using (solve [auto with norm]) : norm.
 
-Lemma force_val_e:
- forall v, force_val (Some v) = v.
-Proof. reflexivity. Qed.
-Hint Rewrite force_val_e: norm.
-
 Lemma sem_cast_neutral_ptr:
-  forall p, isptr p -> sem_cast_neutral p = Some p.
+  forall p, isptr p -> sem_cast_pointer p = Some p.
 Proof. intros. destruct p; try contradiction; reflexivity. Qed.
 Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
 
 Lemma sem_cast_neutral_Vint: forall v,
-  sem_cast_neutral (Vint v) = Some (Vint v).
+  sem_cast_pointer (Vint v) = Some (Vint v).
 Proof.
   intros. reflexivity.
 Qed.
@@ -69,7 +93,7 @@ Hint Resolve is_int_I32_Vint.
 
 Lemma sem_cast_neutral_int: forall v,
   isVint v ->
-  sem_cast_neutral v = Some v.
+  sem_cast_pointer v = Some v.
 Proof.
 destruct v; simpl; intros; try contradiction; auto.
 Qed.
@@ -87,6 +111,7 @@ Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
 Hint Rewrite eval_id_same : norm.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
 Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
+Hint Rewrite Ptrofs.sub_idem Ptrofs.sub_zero_l  Ptrofs.add_neg_zero : norm.
 
 Lemma eval_expr_Etempvar:
   forall {cs: compspecs}  i t, eval_expr (Etempvar i t) = eval_id i.
@@ -112,6 +137,7 @@ Qed.
 Hint Resolve  @eval_expr_Etempvar'.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
+Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.
 
 Lemma eval_var_env_set:
   forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
@@ -123,65 +149,6 @@ Proof. reflexivity. Qed.
 Lemma eval_expropt_None: forall  {cs: compspecs} , eval_expropt None = `None.
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expropt_Some @eval_expropt_None : eval.
-
-Lemma offset_offset_val:
-  forall v i j, offset_val j (offset_val i v) = offset_val (i + j) v.
-Proof. intros; unfold offset_val.
- destruct v; auto. rewrite <- add_repr, Int.add_assoc; auto.
-Qed.
-Hint Rewrite offset_offset_val: norm.
-
-Hint Rewrite add_repr : norm.
-Hint Rewrite mul_repr : norm.
-Hint Rewrite sub_repr : norm.
-Hint Rewrite and_repr : norm.
-Hint Rewrite or_repr : norm.
-
-Lemma ltu_repr: forall i j,
- (0 <= i <= Int.max_unsigned ->
-  0 <= j <= Int.max_unsigned ->
-  Int.ltu (Int.repr i) (Int.repr j) = true -> i<j)%Z.
-Proof.
-intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
-repeat rewrite Int.unsigned_repr in H2 by assumption.
-auto.
-Qed.
-
-Lemma ltu_repr_false: forall i j,
- (0 <= i <= Int.max_unsigned ->
-  0 <= j <= Int.max_unsigned ->
-  Int.ltu (Int.repr i) (Int.repr j) = false -> i>=j)%Z.
-Proof.
-intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
-repeat rewrite Int.unsigned_repr in H2 by assumption.
-auto.
-Qed.
-
-Lemma int_add_assoc1:
-  forall z i j, Int.add (Int.add z (Int.repr i)) (Int.repr j) = Int.add z (Int.repr (i+j)).
-Proof.
-intros.
-rewrite Int.add_assoc. f_equal. apply add_repr.
-Qed.
-Hint Rewrite int_add_assoc1 : norm.
-
-Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
-Proof.
-  intros.
-  pose proof zeq b 0.
-  destruct H0; unfold Z.divide in H; unfold align.
-  + destruct H. subst.
-    repeat rewrite Zdiv_0_r.
-    simpl.
-    omega.
-  + destruct H.
-    subst.
-    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by omega.
-    rewrite Z_div_plus_full_l.
-    rewrite Z.mul_add_distr_r.
-    reflexivity.
-    omega.
-Qed.
 
 Lemma deref_noload_tarray:
   forall ty n, deref_noload (tarray ty n) = (fun v => v).
@@ -197,74 +164,9 @@ Proof.
 Qed.
 Hint Rewrite deref_noload_Tarray : norm.
 
-Definition ptr_eq (v1 v2: val) : Prop :=
-      match v1,v2 with
-      | Vint n1, Vint n2 =>  Int.cmpu Ceq n1 n2 = true  /\ Int.cmpu Ceq n1 (Int.repr 0) = true
-      | Vptr b1 ofs1,  Vptr b2 ofs2  =>
-            b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
-      | _,_ => False
-      end.
-
-Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
-
-Lemma ptr_eq_e: forall v1 v2, ptr_eq v1 v2 -> v1=v2.
-Proof.
-intros. destruct v1; destruct v2; simpl in H; try contradiction.
-pose proof (Int.eq_spec i i0). destruct H.
-rewrite H in H0. subst; auto.
-destruct H; subst.
-f_equal.
-pose proof (Int.eq_spec i i0). rewrite H0 in H; auto.
-Qed.
-
-Lemma ptr_eq_True':
-   forall p, isptr p -> ptr_eq p p = True.
-Proof. intros.
- apply prop_ext; intuition. destruct p; inv H; simpl; auto.
- rewrite Int.eq_true. auto.
-Qed.
-(* Hint Rewrite ptr_eq_True' using solve[auto] : norm. *)
-
-Lemma ptr_eq_True:
-   forall p, is_pointer_or_null p -> ptr_eq p p = True.
-Proof. intros.
- apply prop_ext; intuition. destruct p; inv H; simpl; auto.
- rewrite Int.eq_true. auto.
-Qed.
-Hint Rewrite ptr_eq_True using solve[auto] : norm.
-
-Lemma ptr_eq_is_pointer_or_null: forall x y, ptr_eq x y -> is_pointer_or_null x.
-Proof.
-  intros.
-  unfold ptr_eq, is_pointer_or_null in *.
-  destruct x; destruct y; try tauto.
-  destruct H as [_ ?].
-  unfold Int.cmpu in H.
-  exact (binop_lemmas2.int_eq_true _ _ (eq_sym H)).
-Qed.
-
-Lemma ptr_eq_sym: forall x y, ptr_eq x y -> ptr_eq y x.
-Proof.
-   intros.
-   pose proof ptr_eq_is_pointer_or_null _ _ H.
-   apply ptr_eq_e in H.
-   rewrite H in *.
-   rewrite ptr_eq_True; tauto.
-Qed.
-
-Lemma ptr_eq_trans: forall x y z, ptr_eq x y -> ptr_eq y z -> ptr_eq x z.
-Proof.
-   intros.
-   pose proof ptr_eq_is_pointer_or_null _ _ H.
-   apply ptr_eq_e in H.
-   apply ptr_eq_e in H0.
-   subst.
-   rewrite ptr_eq_True; tauto.
-Qed.
-
 Lemma flip_lifted_eq:
   forall (v1: environ -> val) (v2: val),
-    `eq v1 `v2 = `(eq v2) v1.
+    `eq v1 `(v2) = `(eq v2) v1.
 Proof.
 intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
 Qed.
@@ -276,122 +178,14 @@ Proof. intros. destruct v; inv H; simpl; auto.
 Qed.
 Hint Resolve isptr_is_pointer_or_null.
 
-Definition repable_signed (z: Z) :=
-  Int.min_signed <= z <= Int.max_signed.
-
-Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
-Proof.
- intros. unfold repable_signed.
- destruct (zlt z Int.min_signed).
- right; intros [? _]; unfold Int.min_signed; omega.
- destruct (zlt Int.max_signed z).
- right; intros [_ ?]; unfold Int.max_signed; omega.
- left; split; omega.
-Defined.
-
-Definition add_ptr_int'  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
-  if repable_signed_dec (sizeof ty * i)
-   then match v with
-      | Vptr b ofs =>
-           Vptr b (Int.add ofs (Int.repr (sizeof ty * i)))
-      | Vint n1 =>
-           Vint (Int.add n1 (Int.repr (sizeof ty * i)))
-      | _ => Vundef
-      end
-  else Vundef.
-
 Definition add_ptr_int  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
-           eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
-
-Lemma repable_signed_mult2:
-  forall i j, i<>0 -> (j <= Int.max_signed \/ i <> -1) ->
-   repable_signed (i*j) -> repable_signed j.
-Proof.
-intros until 1. intro HACK. intros.
-assert (MAX: 0 < Int.max_signed) by (compute; auto).
-assert (MIN: Int.min_signed < 0) by (compute; auto).
-hnf in H0|-*.
-assert (0 < i \/ i < 0) by omega; clear H.
-destruct H1.
-replace i with ((i-1)+1) in H0 by omega.
-rewrite Z.mul_add_distr_r in H0.
-rewrite Z.mul_1_l in H0.
-assert (j < 0 \/ 0 <= j) by omega. destruct H1.
-assert ((i-1)*j <= 0) by (apply Z.mul_nonneg_nonpos; omega).
-omega.
-assert (0 <= (i-1)*j) by (apply Z.mul_nonneg_nonneg; omega).
-omega.
-replace i with ((i+1)-1) in H0 by omega.
-rewrite Z.mul_sub_distr_r in H0.
-rewrite Z.mul_1_l in H0.
-assert (MINMAX: Int.min_signed = -Int.max_signed - 1) by reflexivity.
-assert (j < 0 \/ 0 <= j) by omega. destruct H1.
-assert (0 <= (i+1)*j) by (apply Z.mul_nonpos_nonpos; omega).
-rewrite MINMAX in H0|-*.
-omega.
-assert ((i+1)*j <= 0) by (apply Z.mul_nonpos_nonneg; omega).
-rewrite MINMAX in H0|-*.
-split; try omega.
-clear MIN MINMAX.
-destruct H0 as [? _].
-assert (- Int.max_signed <= 1 + (i+1)*j - j) by omega; clear H0.
-assert (-1 - (i + 1) * j + j <= Int.max_signed) by omega; clear H3.
-destruct HACK; auto.
-assert (i < -1) by omega.
-destruct (zlt 0 j); try omega.
-assert ((i+1)*j < 0).
-rewrite Z.mul_add_distr_r.
-replace i with ((i+1)-1) by omega.
-rewrite Z.mul_sub_distr_r.
-assert ((i+1)*j<0); [ | omega].
-apply Z.mul_neg_pos; auto. omega.
-omega.
-Qed.
-
-Lemma repable_signed_mult1:
-  forall i j, j<>0 ->  (i <= Int.max_signed \/ j <> -1) ->
-              repable_signed (i*j) -> repable_signed i.
-Proof.
-intros.
- rewrite Zmult_comm in H1.
- apply repable_signed_mult2 in H0; auto.
-Qed.
-
-Lemma add_ptr_int_eq:
-  forall  {cs: compspecs}  ty v i,
-       repable_signed (sizeof ty * i) ->
-       add_ptr_int' ty v i = add_ptr_int ty v i.
-Proof.
- intros.
- unfold add_ptr_int, add_ptr_int'.
- rewrite if_true by auto.
- destruct v; simpl; auto;
- rewrite mul_repr; auto.
-Qed.
-
+           eval_binop Cop.Oadd (tptr ty) tint v (Vint (Int.repr i)).
 
 Lemma add_ptr_int_offset:
   forall  {cs: compspecs}  t v n,
   repable_signed (sizeof t) ->
   repable_signed n ->
   add_ptr_int t v n = offset_val (sizeof t * n) v.
-Proof.
- unfold add_ptr_int; intros.
- unfold eval_binop, force_val2; destruct v; simpl; auto.
- rewrite Int.mul_signed.
- rewrite Int.signed_repr by auto.
-  rewrite Int.signed_repr by auto.
- auto.
-Abort. (* broken in CompCert 2.7 *)
-
-Lemma add_ptr_int'_offset:
-  forall  {cs: compspecs}  t v n,
-  repable_signed (sizeof t * n) ->
-  add_ptr_int' t v n = offset_val (sizeof t * n) v.
-Proof.
- intros.
- unfold add_ptr_int'.
- rewrite if_true by auto. destruct v; simpl; auto.
 Abort. (* broken in CompCert 2.7 *)
 
 Lemma typed_false_cmp:
@@ -401,9 +195,13 @@ Lemma typed_false_cmp:
 Proof.
 intros.
 unfold sem_cmp in H.
-unfold classify_cmp in H. simpl in H.
+unfold Cop.classify_cmp in H. simpl in H.
 rewrite Int.negate_cmp.
-destruct (Int.cmp op i j); auto. inv H.
+unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+destruct (Int.cmp op i j); inv H; auto.
+rewrite Hp in H.
+destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
 Lemma typed_true_cmp:
@@ -413,8 +211,12 @@ Lemma typed_true_cmp:
 Proof.
 intros.
 unfold sem_cmp in H.
-unfold classify_cmp in H. simpl in H.
-destruct (Int.cmp op i j); auto. inv H.
+unfold Cop.classify_cmp in H. simpl in H.
+unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
+destruct Archi.ptr64 eqn:Hp; simpl in H.
+destruct (Int.cmp op i j); inv H; auto.
+rewrite Hp in H.
+destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
 Definition Zcmp (op: comparison) : Z -> Z -> Prop :=
@@ -460,7 +262,6 @@ repeat match type of H1 with
  destruct op; auto; simpl in *; try discriminate; omega.
 Qed.
 
-
 Lemma typed_false_cmp_repr:
   forall op i j,
    repable_signed i -> repable_signed j ->
@@ -500,127 +301,8 @@ unfold deref_noload. rewrite H. reflexivity.
 Qed.
 Hint Rewrite isptr_deref_noload using reflexivity : norm.
 
-Lemma isptr_offset_val_zero:
-  forall v, isptr v -> offset_val 0 v = v.
-Proof. intros. destruct v; inv H; subst; simpl.  rewrite Int.add_zero; reflexivity.
-Qed.
-
-Hint Rewrite isptr_offset_val_zero using solve [auto] : norm.
-
-Lemma isptr_offset_val:
- forall i p, isptr (offset_val i p) = isptr p.
-Proof.
-intros.
-unfold isptr.
-destruct p; simpl; auto.
-Qed.
-Hint Rewrite isptr_offset_val : norm.
-
-Lemma isptr_force_ptr: forall v, isptr v -> force_ptr v = v.
-Proof. intros. destruct v; inv H; auto. Qed.
-Hint Rewrite isptr_force_ptr using solve [auto] : norm.
-
-Lemma isptr_force_ptr' : forall p, isptr (force_ptr p) =  isptr p.
-Proof.
-intros. destruct p; reflexivity.
-Qed.
-Hint Rewrite isptr_force_ptr' : norm.
-
-Ltac no_evars P := (has_evar P; fail 1) || idtac.
-
-
-Ltac putable x :=
- match x with
- | O => idtac
- | S ?x => putable x
- | Z.lt ?x ?y => putable x; putable y
- | Z.le ?x ?y => putable x; putable y
- | Z.gt ?x ?y => putable x; putable y
- | eq?x ?y => putable x; putable y
- | ?x <> ?y => putable x; putable y
- | Zpos ?x => putable x
- | Zneg ?x => putable x
- | Z0 => idtac
- | xH => idtac
- | xI ?x => putable x
- | xO ?x => putable x
- | Z.add ?x ?y => putable x; putable y
- | Z.sub ?x ?y => putable x; putable y
- | Z.mul ?x ?y => putable x; putable y
- | Z.div ?x ?y => putable x; putable y
- | Zmod ?x ?y => putable x; putable y
- | Z.max ?x ?y => putable x; putable y
- | Z.opp ?x => putable x
- | Int.eq ?x ?y => putable x; putable y
- | Int.lt ?x ?y => putable x; putable y
- | Int.ltu ?x ?y => putable x; putable y
- | Int.add ?x ?y => putable x; putable y
- | Int.sub ?x ?y => putable x; putable y
- | Int.mul ?x ?y => putable x; putable y
- | Int.neg ?x => putable x
- | Ceq => idtac
- | Cne => idtac
- | Clt => idtac
- | Cle => idtac
- | Cgt => idtac
- | Cge => idtac
- | Int.cmp ?op ?x ?y => putable op; putable x; putable y
- | Int.cmpu ?op ?x ?y => putable op; putable x; putable y
- | Int.repr ?x => putable x
- | Int.signed ?x => putable x
- | Int.unsigned ?x => putable x
- | two_power_nat ?x => putable x
- | Int.max_unsigned => idtac
- | Int.min_signed => idtac
- | Int.max_signed => idtac
- | Int.modulus => idtac
- | ?x /\ ?y => putable x; putable y
- | Int.zwordsize => idtac
-end.
-
-Ltac computable := match goal with |- ?x =>
- no_evars x;
- putable x;
- compute; clear; repeat split; auto; congruence
-end.
-
-Lemma sign_ext_range2:
-   forall lo n i hi,
-      0 < n < Int.zwordsize ->
-      lo = - two_p (n-1) ->
-      hi = two_p (n-1) - 1 ->
-      lo <= Int.signed (Int.sign_ext n i) <= hi.
-Proof.
-intros.
-subst. apply expr_lemmas3.sign_ext_range'; auto.
-Qed.
-
-Lemma zero_ext_range2:
-  forall n i lo hi,
-      0 <= n < Int.zwordsize ->
-      lo = 0 ->
-      hi = two_p n - 1 ->
-      lo <= Int.unsigned (Int.zero_ext n i) <= hi.
-Proof.
-intros; subst; apply expr_lemmas3.zero_ext_range'; auto.
-Qed.
-
-Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
-    (apply sign_ext_range2; [computable | reflexivity | reflexivity]).
-
-Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
-    (apply zero_ext_range2; [computable | reflexivity | reflexivity]).
-
-Hint Rewrite sign_ext_inrange using assumption : norm.
-Hint Rewrite zero_ext_inrange using assumption : norm.
-
-Lemma force_signed_int_e:
-  forall i, force_signed_int (Vint i) = Int.signed i.
-Proof. reflexivity. Qed.
-Hint Rewrite force_signed_int_e : norm.
-
 Definition headptr (v: val): Prop :=
-  exists b,  v = Vptr b Int.zero.
+  exists b,  v = Vptr b Ptrofs.zero.
 
 Lemma headptr_isptr: forall v,
   headptr v -> isptr v.
@@ -640,34 +322,16 @@ Proof.
   + destruct H as [b ?]; subst.
     destruct v; try solve [inv H].
     simpl in H.
-    remember (Int.add i (Int.repr 0)).
+    remember (Ptrofs.add i (Ptrofs.repr 0)).
     inversion H; subst.
-    rewrite Int.add_zero in H2; subst.
+    rewrite Ptrofs.add_zero in H2; subst.
     hnf; eauto.
   + destruct H as [b ?]; subst.
     exists b.
     reflexivity.
 Qed.
 
-(* Equality proofs for all constants from the Compcert Int module: *)
-Definition int_wordsize_eq : Int.wordsize = 32%nat := eq_refl.
-Definition int_zwordsize_eq : Int.zwordsize = 32 := eq_refl.
-Definition int_modulus_eq : Int.modulus = 4294967296 := eq_refl.
-Definition int_half_modulus_eq : Int.half_modulus = 2147483648 := eq_refl.
-Definition int_max_unsigned_eq : Int.max_unsigned = 4294967295 := eq_refl.
-Definition int_max_signed_eq : Int.max_signed = 2147483647 := eq_refl.
-Definition int_min_signed_eq : Int.min_signed = -2147483648 := eq_refl.
-
-Ltac repable_signed := 
-   pose proof int_wordsize_eq;
-   pose proof int_zwordsize_eq;
-   pose proof int_modulus_eq;
-   pose proof int_half_modulus_eq;
-   pose proof int_max_unsigned_eq;
-   pose proof int_max_signed_eq;
-   pose proof int_min_signed_eq;
-   unfold repable_signed in *;
-   omega.
+(* Equality proofs for all constants from the Compcert Int, Int64, Ptrofs modules: *)
 
 Lemma typed_false_ptr:
   forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
@@ -683,7 +347,7 @@ Lemma typed_true_ptr:
 Proof.
 unfold typed_true, strict_bool_val; simpl; intros.
 destruct v; try discriminate.
-if_tac in H; inv H. simpl. auto.
+destruct (Int.eq i Int.zero); inv H. simpl. auto.
 Qed.
 
 Lemma int_cmp_repr':
@@ -727,9 +391,9 @@ Lemma typed_true_tint:
 Proof.
 intros.
  hnf in H. destruct v; inv H.
- destruct (Int.eq i Int.zero) eqn:?; inv H1.
- unfold nullval; intro. inv H.
- rewrite Int.eq_true in Heqb. inv Heqb.
+ intro. unfold nullval in H.
+ destruct Archi.ptr64; inv H.
+ rewrite Int.eq_true in H1. inv H1.
 Qed.
 
 Lemma typed_false_tint_Vint:
@@ -760,8 +424,13 @@ Ltac fancy_intro aggressive :=
  intro H;
  try simple apply ptr_eq_e in H;
  try simple apply Vint_inj in H;
+ try match type of H with
+ | tc_val _ _ => unfold tc_val in H; try change (eqb_type _ _) with false in H; cbv iota in H
+ end;
  match type of H with
- | ?P => clear H; (((assert (H:P) by immediate; fail 1) || fail 1) || idtac)
+ | ?P => clear H; 
+              match goal with H': P |- _ => idtac end (* work around bug number 6998 in Coq *)
+             + (((assert (H:P) by (clear; immediate); fail 1) || fail 1) || idtac)
                 (* do it in this complicated way because the proof will come out smaller *)
  | ?x = ?y => constr_eq aggressive true;
                      first [subst x | subst y
@@ -813,4 +482,10 @@ Ltac fold_types1 :=
   match goal with |- _ -> ?A =>
   let a := fresh "H" in set (a:=A); fold_types; subst a
   end.
+
+Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
+Proof.
+intros. simpl. normalize. rewrite Int.signed_repr by rep_omega. rep_omega.
+Qed.
+Hint Resolve is_int_Vbyte.
 

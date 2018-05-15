@@ -10,7 +10,7 @@ Definition encryption_loop_body_Delta' DS :=
      [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
      _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
      _b3__3; _t'4; _t'3; _t'2; _t'1]
-     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog))).
+     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil))).
 
 Definition encryption_after_loop : statement :=
    ltac:(find_statement_in_body
@@ -51,7 +51,7 @@ forall (Espec : OracleKind) (ctx input output : val)
  (Eq: forall i : Z,
   0 <= i < 60 ->
   force_val
-    (sem_add_pi tuint
+    (sem_add_ptr_int tuint Signed
        (field_address t_struct_aesctx [ArraySubsc i; StructField _buf] ctx)
        (Vint (Int.repr 1))) =
   field_address t_struct_aesctx [ArraySubsc (i + 1); StructField _buf] ctx),
@@ -108,7 +108,7 @@ intros.
   deadvars!. rewrite EqY3; clear EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
-  assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
+  assert (forall i, Int.unsigned (Znth i FSb) <= Byte.max_unsigned). {
     intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. omega.
   }
   assert (Hfinal := final_aes_eq buf plaintext S0 S12 S13 (eq_refl _) HeqS12 HeqS13);

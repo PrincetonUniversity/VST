@@ -964,8 +964,8 @@ Module Knot_CovariantHeredPropOth (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH)
     case_eq (age1 k); intros.
     rewrite H2 in H0.
     inv H0.
-    spec H k k0 k0.
-    spec H o0 o0.
+    specialize ( H k k0 k0).
+    specialize ( H o0 o0).
     spec H.
     apply rt_step; auto.
     spec H.
@@ -1203,8 +1203,8 @@ Module Knot_CovariantHeredProp (KI':KNOT_INPUT__COVARIANT_HERED_PROP)
     rewrite K0.hered_spec in H.
     hnf in H0.
     simpl in H0.
-    spec H a a' a'.
-    spec H tt tt.
+    specialize ( H a a' a').
+    specialize ( H tt tt).
     spec H.
     apply rt_step; auto.
     spec H.
@@ -1453,8 +1453,8 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
     rewrite K0.hered_spec in H.
     hnf in H0.
     simpl in H0.
-    spec H a a' a'.
-    spec H tt tt.
+    specialize ( H a a' a').
+    specialize ( H tt tt).
     spec H.
     apply rt_step; auto.
     spec H.

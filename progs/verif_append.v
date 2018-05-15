@@ -30,14 +30,17 @@ Definition append_spec :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
+Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
+Proof. intros; apply andp_left2; auto. Qed.
+
 Lemma body_append: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
 forward_if (PROP (False) LOCAL () SEP ()).
 *
- subst x. normalize.
  forward.
  Exists y.
+ simpl app.
  entailer!.
 *
  forward.
@@ -84,9 +87,5 @@ forward_if (PROP (False) LOCAL () SEP ()).
     cancel.
    apply (list_append_null LS).
 *
-  intros.
-  unfold POSTCONDITION, abbreviate, overridePost.
-  if_tac; normalize.
   entailer!.
-  apply andp_left2. apply derives_refl.
 Qed.

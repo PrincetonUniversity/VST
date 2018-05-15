@@ -26,40 +26,34 @@ Definition thread_func_spec :=
   WITH y : val, x : val * share * val * val * val
   PRE [ _args OF (tptr tvoid) ]
          let '(data, sh, lock, lockt, cond) := x in
-         PROP  ()
+         PROP  (readable_share sh)
          LOCAL (temp _args y; gvar _data data; gvar _mutex lock; gvar _tlock lockt;
                 gvar _cond cond)
-         SEP   ((!!readable_share sh && emp); cond_var sh cond;
+         SEP   (cond_var sh cond;
                 lock_inv sh lock (dlock_inv data);
                 lock_inv sh lockt (tlock_inv sh lockt lock cond data))
   POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
-         SEP (emp).
+         SEP ().
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   thread_func_spec; main_spec]).
 
-Lemma inv_precise : forall p,
-  precise (dlock_inv p).
+Lemma inv_exclusive : forall p, exclusive_mpred (dlock_inv p).
 Proof.
-  intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tint); auto.
-  intros ? (? & H); apply data_at_data_at_ in H; eauto.
+  intro; eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tint); simpl; auto; try omega.
+  unfold dlock_inv.
+  Intros i; cancel.
 Qed.
-
-Lemma inv_positive : forall ctr,
-  positive_mpred (dlock_inv ctr).
-Proof.
-  intro; apply ex_positive; auto.
-Qed.
-Hint Resolve inv_precise inv_positive.
+Hint Resolve inv_exclusive.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
@@ -73,7 +67,6 @@ Proof.
   Intro i.
   forward.
   forward_call (cond, sh).
-  rewrite field_at_isptr; Intros.
   forward_call (lock, sh, dlock_inv data).
   { lock_props.
     unfold dlock_inv; Exists 1; cancel. }
@@ -81,10 +74,8 @@ Proof.
   forward_call (lockt, sh, cond_var sh cond * lock_inv sh lock (dlock_inv data),
                 tlock_inv sh lockt lock cond data).
   { unfold tlock_inv; lock_props.
-    - apply selflock_precise, precise_sepcon; auto.
-    - rewrite sepcon_comm; apply selflock_rec.
-    - rewrite selflock_eq at 2; cancel.
-      eapply derives_trans; [apply lock_inv_later | cancel]. }
+    { apply selflock_exclusive, exclusive_sepcon2, lock_inv_exclusive. }
+    rewrite selflock_eq at 2; cancel. }
   forward.
 Qed.
 
@@ -98,40 +89,33 @@ Proof.
   (* temporarily broken *)
 Admitted.
 
+Lemma gvar_denote_env_set:
+  forall rho i vi j vj, gvar_denote i vi (env_set rho j vj) = gvar_denote i vi rho.
+Proof.
+intros.
+unfold gvar_denote.
+simpl. auto.
+Qed.
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-  name lock _mutex; name lockt _tlock; name cond _cond; name data _data.
-  start_function.
+(*  name lock _mutex; name lockt _tlock; name cond _cond; name data _data. *)
+  start_function.  
+  simpl readonly2share. (* TODO: delete this line when possible. *)
+  set (lock := gv _mutex). set (lockt := gv _tlock). set (cond := gv _cond). set (data := gv _data).
   forward.
   forward.
   forward.
   forward.
   forward_call (cond, Ews).
   { unfold tcond; entailer!. }
-  rewrite field_at_isptr; Intros.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lock, Ews, dlock_inv data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  get_global_function'' _thread_func.
-  apply extract_exists_pre; intros f_.
-  forward_spawn (val * share * val * val * val)%type (f_, Vint (Int.repr 0),
-    fun x : val * share * val * val * val => let '(data, sh, lock, lockt, cond) := x in
-      [(_data, data); (_mutex, lock); (_tlock, lockt); (_cond, cond)], (data, sh1, lock, lockt, cond),
-    fun (x : (val * share * val * val * val)) (_ : val) => let '(data, sh, lock, lockt, cond) := x in
-         !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
-         lock_inv sh lockt (tlock_inv sh lockt lock cond data)).
-  { simpl spawn_pre; entailer!.
-    { erewrite gvar_eval_var, !(force_val_sem_cast_neutral_gvar' _ f_) by eauto.
-      split; auto; repeat split; apply gvar_denote_global; auto. }
-    Exists _args; entailer!.
-    rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'. f_equal.
-      f_equal; extensionality.
-      destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      extensionality; apply mpred_ext; entailer!. }
-    erewrite <- lock_inv_share_join; try apply Hsh; auto.
+  forward_spawn _thread_func nullval (data, sh1, lock, lockt, cond).
+  { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     erewrite <- cond_var_share_join; try apply Hsh; auto.
     entailer!. }
@@ -151,17 +135,14 @@ Proof.
     unfold dlock_inv; Exists i'; entailer!.
     Exists i'; entailer!.
   - forward_call (lockt, sh2, tlock_inv sh1 lockt lock cond data).
-    forward_call (lockt, Ews, sh1, |>(cond_var sh1 cond * lock_inv sh1 lock (dlock_inv data)),
-                  |>tlock_inv sh1 lockt lock cond data).
+    unfold tlock_inv at 2.
+    rewrite selflock_eq.
+    Intros.
+    forward_call (lockt, Ews, sh1, cond_var sh1 cond * lock_inv sh1 lock (dlock_inv data),
+                  tlock_inv sh1 lockt lock cond data).
     { unfold tlock_inv; lock_props.
-      + apply later_positive; auto.
-      + unfold rec_inv.
-        rewrite selflock_eq at 1.
-        rewrite later_sepcon; f_equal.
-        apply lock_inv_later_eq.
-      + rewrite selflock_eq at 2.
-        erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
-        rewrite !sepcon_assoc; eapply sepcon_derives; [apply lock_inv_later | cancel]. }
+      { apply selflock_exclusive, exclusive_sepcon2, lock_inv_exclusive. }
+      erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
     forward_call (lock, Ews, dlock_inv data).
     { lock_props.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
@@ -175,10 +156,10 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 semax_func_cons_ext.

@@ -1,20 +1,18 @@
 #include <stddef.h>
 
-int sumarray(int a[], int n) {
-  int i,s,x;
+unsigned sumarray(unsigned a[], int n) {
+  int i; unsigned s;
   s=0;
-  for (i=0; i<n; i++) {
-    x = a[i];
-    s += x;
-  }
+  for (i=0; i<n; i++)
+    s += a[i];
   return s;
 }
 
-int four[4] = {1,2,3,4};
+unsigned four[4] = {1,2,3,4};
 
 int main(void) {
-  int s;
+  unsigned s;
   s = sumarray(four+2,2);
-  return s;
+  return (int)s;
 }
 

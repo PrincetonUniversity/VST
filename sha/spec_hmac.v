@@ -7,8 +7,12 @@ Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
+Require Import VST.veric.change_compspecs.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
+  make_cs_preserve spec_sha.CompSpecs CompSpecs.
+Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Record TREP := mkTrep { t: type; v: reptype t}.
@@ -230,18 +234,18 @@ Definition initPostKey k key:mpred :=
 
 Definition HMAC_Init_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, k:val, l:Z, key:list Z, kv:val, h1:hmacabs
+   WITH c : val, k:val, l:Z, key:list Z, h1:hmacabs, gv:globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
          PROP ((*has_lengthK l key*))
          LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
-                gvar sha._K256 kv)
-         SEP (K_vector kv; initPre c k h1 l key)
+                gvars gv)
+         SEP (K_vector gv; initPre c k h1 l key)
   POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv).
+     SEP (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector gv).
 
 (************************ Specification of HMAC_update *******************************************************)
 
@@ -251,18 +255,18 @@ Definition has_lengthD (k l:Z) (data:list Z) :=
 
 Definition HMAC_Update_spec :=
   DECLARE _HMAC_Update
-   WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, kv:val
+   WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _data OF tptr tvoid,
          _len OF tuint]
          PROP (has_lengthD (s256a_len (absCtxt h1)) len data)
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr len));
-                gvar sha._K256 kv)
-         SEP(K_vector kv; hmacstate_ h1 c; data_block Tsh data d)
+                gvars gv)
+         SEP(K_vector gv; hmacstate_ h1 c; data_block Tsh data d)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(K_vector kv; hmacstate_ (hmacUpdate data h1) c; data_block Tsh data d).
+          SEP(K_vector gv; hmacstate_ (hmacUpdate data h1) c; data_block Tsh data d).
 (*
 Lemma hmacUpdate_nil h x: hmac_relate h x -> hmacUpdate [] h h.
 Proof.
@@ -290,17 +294,17 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
 
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
-   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
+   WITH h1: hmacabs, c : val, md:val, shmd: share, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _md OF tptr tuchar ]
        PROP (writable_share shmd)
        LOCAL (temp _md md; temp _ctx c;
-              gvar sha._K256 kv)
-       SEP(hmacstate_ h1 c; K_vector kv; memory_block shmd 32 md)
+              gvars gv)
+       SEP(hmacstate_ h1 c; K_vector gv; memory_block shmd 32 md)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(K_vector kv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
+          SEP(K_vector gv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
               data_block shmd (snd (hmacFinal h1)) md).
 
 Lemma hmacstate_PostFinal_PreInitNull key data dig h2 v:
@@ -354,7 +358,7 @@ Definition HMAC_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        kv:val, shmd: share, md: val
+        shmd: share, md: val, gv: globals
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -367,15 +371,15 @@ Definition HMAC_spec :=
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(data_block Tsh (CONT KEY) keyVal;
              data_block Tsh (CONT MSG) msgVal;
-             K_vector kv;
+             K_vector gv;
              memory_block shmd 32 md)
   POST [ tptr tuchar ] EX digest:_,
           PROP (digest= HMAC256 (CONT MSG) (CONT KEY))
           LOCAL (temp ret_temp md)
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block shmd digest md;
               initPostKey keyVal (CONT KEY);
               data_block Tsh (CONT MSG) msgVal).
@@ -399,7 +403,8 @@ Definition sha256final_spec := (_SHA256_Final, snd SHA256_Final_spec).
 Definition memset_spec := (_memset, snd spec_sha.memset_spec).
 Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec).
 
-Definition HmacVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
+Definition HmacVarSpecs : varspecs := 
+  [(_m, tarray tuchar 32); (_m__1, tarray tuchar 64); (sha._K256, tarray tuint 64)].
 
 Definition HmacFunSpecs : funspecs :=
   memcpy_spec_data_at:: memset_spec::
@@ -409,12 +414,97 @@ Definition HmacFunSpecs : funspecs :=
 
 Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
 
+Lemma change_compspecs_data_block: forall sh v,
+  @data_block spec_sha.CompSpecs sh v =
+  @data_block CompSpecs sh v.
+Proof.
+  intros.
+  unfold data_block.
+  f_equal.
+  apply data_at_change_composite; auto.
+Qed.
+
+Ltac change_compspecs' cs cs' ::=
+  match goal with
+  | |- context [@data_block cs'] => rewrite change_compspecs_data_block
+  | |- context [@data_at cs' ?sh ?t ?v1] => erewrite (@data_at_change_composite cs' cs _ sh t); [| apply JMeq_refl | reflexivity]
+  | |- context [@field_at cs' ?sh ?t ?gfs ?v1] => erewrite (@field_at_change_composite cs' cs _ sh t gfs); [| apply JMeq_refl | reflexivity]
+  | |- context [@data_at_ cs' ?sh ?t] => erewrite (@data_at__change_composite cs' cs _ sh t); [| reflexivity]
+  | |- context [@field_at_ cs' ?sh ?t ?gfs] => erewrite (@field_at__change_composite cs' cs _ sh t gfs); [| reflexivity]
+  | |- context [?A cs'] => change (A cs') with (A cs)
+  | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
+  | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
+  | |- context [?A cs' ?B ?C ?D] => change (A cs' B C D) with (A cs B C D)
+  | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
+  | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
+ end.
+
+(* TODO: maybe this lemma is not needed any more. *)
 Lemma change_compspecs_t_struct_SHA256state_st:
   @data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
   @data_at CompSpecs Tsh t_struct_SHA256state_st.
 Proof.
-extensionality gfs v.
-reflexivity.
+  extensionality gfs v.
+  (* TODO: simplify this proof. *)
+  unfold data_at, field_at.
+  f_equal.
+  unfold field_compatible.
+  apply ND_prop_ext.
+  assert (@align_compatible spec_sha.CompSpecs t_struct_SHA256state_st v <-> @align_compatible CompSpecs t_struct_SHA256state_st v); [| tauto].
+  destruct v; unfold align_compatible; try tauto.
+  split; intros.
+  + eapply align_compatible_rec_Tstruct; [reflexivity | simpl co_members].
+    intros.
+    eapply align_compatible_rec_Tstruct_inv in H; [| reflexivity | eassumption | eassumption].
+    simpl in H0.
+    if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | inv H0]]]]].
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+  + eapply align_compatible_rec_Tstruct; [reflexivity | simpl co_members].
+    intros.
+    eapply align_compatible_rec_Tstruct_inv in H; [| reflexivity | eassumption | eassumption].
+    simpl in H0.
+    if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | if_tac in H0; [inv H0 | inv H0]]]]].
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - clear - H.
+      apply align_compatible_rec_Tarray; intros.
+      eapply align_compatible_rec_Tarray_inv in H; [| eassumption].
+      eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
+    - eapply align_compatible_rec_by_value; [reflexivity |].
+      eapply align_compatible_rec_by_value_inv in H; [| reflexivity].
+      auto.
 Qed.
 
 Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.

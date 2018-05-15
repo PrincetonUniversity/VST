@@ -19,14 +19,13 @@ Lemma mapsto_tc_val:
   mapsto sh t p v = !! tc_val t v && mapsto sh t p v .
 Proof.
 intros.
-apply pred_ext.
+apply pred_ext; [ | normalize].
 apply andp_right; auto.
 unfold mapsto; simpl.
 destruct (access_mode t); try apply FF_left.
-destruct (type_is_volatile t); try apply FF_left.
+destruct (attr_volatile (attr_of_type t)); try apply FF_left.
 destruct p; try apply FF_left.
 if_tac; try contradiction. apply orp_left.
-normalize.
 normalize.
 normalize.
 Qed.
@@ -80,7 +79,7 @@ Qed.
 Lemma Znth_big_endian_integer:
   forall i bl,
    0 <= i < Zlength bl ->
-   Znth i bl Int.zero =
+   Znth i bl =
      big_endian_integer
                    (sublist (i * WORD) (Z.succ i * WORD)
                    (map Int.repr (intlist_to_Zlist bl))).
@@ -188,7 +187,12 @@ Lemma CBLOCKz_eq : CBLOCKz = 64%Z.
 Proof. reflexivity. Qed.
 Lemma LBLOCKz_eq : LBLOCKz = 16%Z.
 Proof. reflexivity. Qed.
+Lemma WORD_eq: WORD = 4%Z.
+Proof. reflexivity. Qed.
 
+Hint Rewrite CBLOCKz_eq LBLOCKz_eq WORD_eq : rep_omega.
+
+(*
 Ltac helper2 :=
  match goal with
    | |- context [CBLOCK] => add_nonredundant (CBLOCK_eq)
@@ -202,14 +206,16 @@ Ltac helper2 :=
   end.
 
 Ltac Omega1 := Omega (helper1 || helper2).
+*)
+Ltac Omega1 := rep_omega.
 
 Ltac MyOmega :=
   rewrite ?length_list_repeat, ?skipn_length, ?map_length,
    ?Zlength_map, ?Zlength_nil;
   pose proof CBLOCK_eq;
-  pose proof CBLOCKz_eq;
+(*  pose proof CBLOCKz_eq;*)
   pose proof LBLOCK_eq;
-  pose proof LBLOCKz_eq;
+(*  pose proof LBLOCKz_eq; *)
   Omega1.
 (*** End Omega stuff ***)
 
@@ -217,14 +223,14 @@ Local Open Scope Z.
 
 Local Open Scope logic.
 
-Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
+Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
       data_block sh l p |-- valid_pointer p.
 Proof. unfold data_block. simpl; intros.
   apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
   rewrite Z.max_r, Z.mul_1_l; omega.
 Qed.
 
-Lemma data_block_isbyteZ:
+Lemma data_block_isbyteZ {cs: compspecs}:
  forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
 Proof.
 unfold data_block; intros.
@@ -246,7 +252,7 @@ Lemma isbyte_value_fits_tuchar:
   forall x, isbyteZ x -> value_fits tuchar (Vint (Int.repr x)).
 Proof.
 intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by repable_signed.
+simpl. rewrite Int.unsigned_repr by rep_omega.
   change Byte.max_unsigned with 255%Z. omega.
 Qed.
 
@@ -256,12 +262,7 @@ Lemma Zlength_Zlist_to_intlist:
 Proof.
 intros.
 rewrite Zlength_correct in *.
-assert (0 <= n)%Z by ( change WORD with 4%Z in H; omega).
-rewrite (length_Zlist_to_intlist (Z.to_nat n)).
-apply Z2Nat.id; auto.
-apply Nat2Z.inj. rewrite H.
-rewrite Nat2Z.inj_mul.
-f_equal. rewrite Z2Nat.id; omega.
+rewrite (length_Zlist_to_intlist (Z.to_nat n)); rep_omega.
 Qed.
 
 Lemma nth_intlist_to_Zlist_eq:
@@ -273,9 +274,7 @@ Proof.
  apply IHn; omega.
 Qed.
 
-
 Hint Resolve isbyteZ_sublist.
-
 
 Lemma split2_data_block:
   forall  {cs: compspecs}  n sh data d,
@@ -341,29 +340,27 @@ rewrite Zlength_app.
 rewrite Zlength_intlist_to_Zlist.
 destruct H as [n ?].
 rewrite H.
-assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
+assert (CBLOCKz > 0) by rep_omega. 
 pose proof (Zmod_eq (n * CBLOCKz + Zlength data) CBLOCKz H1).
 pose proof (Zmod_eq (Zlength data) CBLOCKz H1).
-pose proof (Zlength_nonneg data).
 rewrite sublist_app2; rewrite Zlength_intlist_to_Zlist; rewrite H;
  rewrite <- Z.mul_assoc; change (LBLOCKz * 4)%Z with CBLOCKz.
 apply sublist_same.
 rewrite Z.div_add_l by omega.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by omega. omega.
+rewrite Z.div_small by rep_omega. omega.
 omega.
 rewrite Z.div_add_l by  omega.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by omega.
+rewrite Z.div_small by rep_omega.
 split; [ | omega].
 apply Z.mul_nonneg_nonneg.
 clear - H.
 assert (n < 0 \/ 0 <= n) by omega.
 destruct H0; auto.
-pose proof (Zlength_nonneg hashed).
 assert (n * LBLOCKz < 0).
 apply Z.mul_neg_pos; auto.
-omega.
+rep_omega.
 omega.
 Qed.
 

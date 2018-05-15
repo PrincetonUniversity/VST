@@ -17,7 +17,7 @@ Lemma da_emp_isptrornull sh t v p :
    da_emp sh t v p = (!!is_pointer_or_null p) &&  da_emp sh t v p.
  Proof. unfold da_emp; apply pred_ext.
   + apply orp_left.
-    - apply derives_extract_prop; intros; subst; simpl. entailer. apply orp_right1. trivial.
+    - apply derives_extract_prop; intros; subst; simpl. entailer. apply orp_right1. auto.
     - rewrite data_at_isptr with (p0:=p) at 1. normalize.
       destruct p; simpl in *; try contradiction. entailer. apply orp_right2. entailer.
   + entailer.
@@ -26,14 +26,14 @@ Qed.
 Lemma da_emp_null sh t v p: p=nullval -> da_emp sh t v p = emp.
 Proof. intros; subst. unfold da_emp. rewrite data_at_isptr. unfold isptr. simpl.
   apply pred_ext.
-  + normalize. apply orp_left. trivial. normalize.
+  + normalize. apply orp_left. auto. normalize.
   + simpl. apply orp_right1. entailer.
 Qed.
 Lemma da_emp_ptr sh t v b i: da_emp sh t v (Vptr b i) = !! (sizeof t > 0) && data_at sh t v (Vptr b i).
 Proof. intros; unfold da_emp, nullval; simpl.
   apply pred_ext.
   + apply orp_left; normalize. inv H.
-  + apply orp_right2. trivial.
+  + apply orp_right2. auto.
 Qed.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
@@ -143,10 +143,10 @@ Proof.
   rewrite split2_data_at_Tarray_tuchar with (n1:=Zlength A); [|split; omega|rewrite Zlength_app; reflexivity].
   rewrite sublist_app_exact1, sublist_app_exact2.
   replace (Zlength A + Zlength B - Zlength A) with (Zlength B) by omega.
-  replace (field_address0 (Tarray tuchar (Zlength A + Zlength B) noattr) [ArraySubsc (Zlength A)] (Vptr b i)) with (Vptr b (Int.add i (Int.repr (Zlength A)))).
+  replace (field_address0 (Tarray tuchar (Zlength A + Zlength B) noattr) [ArraySubsc (Zlength A)] (Vptr b i)) with (Vptr b (Ptrofs.add i (Ptrofs.repr (Zlength A)))).
   reflexivity.
   rewrite field_address0_offset.
   simpl. replace (0 + 1 * Zlength A) with (Zlength A) by omega. reflexivity.
-  destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 [Hfield5 [Hfield6 [Hfield7 Hfield8]]]]]]].
+  destruct Hfield as [Hfield1 [Hfield2 [Hfield3 [Hfield4 Hfield5]]]].
   unfold field_compatible0; repeat split; try assumption; auto; omega.
 Qed.

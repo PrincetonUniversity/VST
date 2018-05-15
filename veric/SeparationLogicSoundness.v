@@ -41,10 +41,29 @@ Axiom semax_prog_rule :
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (semantics.initial_core (juicy_core_sem cl_core_sem) h
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
+                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
+       no_locks (m_phi jm) /\
+       matchfunspecs (globalenv prog) G (m_phi jm) /\
+       app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
+     } } }%type.
+
+(* This version lets the user choose the external state instead of quantifying over it. *)
+Axiom semax_prog_rule' :
+  forall {Espec: OracleKind}{CS: compspecs},
+  forall V G prog m h,
+     @semax_prog Espec CS prog V G ->
+     Genv.init_mem prog = Some m ->
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (semantics.initial_core (juicy_core_sem cl_core_sem) h
+                    (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
+       forall n z, { jm |
+       m_dry jm = m /\ level jm = n /\
+       nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
        no_locks (m_phi jm) /\
        matchfunspecs (globalenv prog) G (m_phi jm) /\
        app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
@@ -57,7 +76,7 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  exp (fun b: block => andp (prop (v = Vptr b Int.zero)) (func_at f (b, 0))).
+  exp (fun b: block => andp (prop (v = Vptr b Ptrofs.zero)) (func_at f (b, 0))).
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
@@ -94,7 +113,11 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
+Definition semax_loop_nocontinue := @semax_loop_nocontinue.
+Definition semax_if_seq := @semax_if_seq.
 Definition semax_switch := @semax_switch.
+Definition semax_Slabel := @semax_Slabel.
+Definition semax_seq_Slabel := @semax_seq_Slabel.
 Definition seq_assoc := @seq_assoc.
 Definition semax_seq_skip := @semax_seq_skip.
 Definition semax_skip_seq := @semax_skip_seq.
@@ -112,7 +135,7 @@ Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
-Definition semax_pre_post := @semax_pre_post.
+Definition semax_pre_post_bupd := @semax_pre_post_bupd.
 Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_extract_later_prop := @semax_extract_later_prop.
@@ -130,5 +153,6 @@ Definition semax_ext_void := @semax_ext_void.
 End CSL.
 
 Definition semax_prog_rule := @semax_prog_rule.
+Definition semax_prog_rule' := @semax_prog_rule'.
 
 End SoundSeparationLogic.

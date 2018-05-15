@@ -77,7 +77,7 @@ Section HORec.
    specialize (Hcont O).
    spec Hcont. repeat (hnf; intros). simpl in *.
    rewrite laterR_nat in H; elimtype False; omega.
-   spec Hcont x.
+   specialize ( Hcont x).
     simpl in *. auto.
    intro x.
    apply (Hcont (HORec' i) (HORec' (S i))).
@@ -152,8 +152,8 @@ Proof.
     specialize (Hcont 0).
     spec Hcont.
     simpl. intros. apply laterR_level in H2. simpl in H2. unfold natLevel in H2. elimtype False; omega.
-    spec Hcont x.
-    hnf in Hcont. spec Hcont x'. spec Hcont. omega.
+    specialize ( Hcont x).
+    hnf in Hcont. specialize ( Hcont x'). spec Hcont. omega.
     apply Hcont; auto.
 Qed.
 
@@ -167,7 +167,7 @@ Section recursive.
   Lemma cont_HOcont : @HOcontractive A ag unit (fun x _ => f (x tt)).
   Proof.
     repeat intro.
-    spec H tt.
+    specialize ( H tt).
     eapply Hc; eauto.
   Qed.
 End recursive.

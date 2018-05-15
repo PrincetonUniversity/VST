@@ -273,7 +273,7 @@ Lemma semax_cast_load_nth_ram_field_at :
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       local (`(eq (field_address t_root gfs p)) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
-    classify_cast (nested_field_type t_root gfs) t_to <> cast_case_p2bool ->
+     cast_pointer_to_bool (nested_field_type t_root gfs) t_to = false ->
     readable_share sh ->
     Pre |-- field_at sh t_root gfs v_reptype p * TT ->
     JMeq v_reptype v_val ->
@@ -309,7 +309,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       (p v: val) (v' : reptype (nested_field_type t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
-      classify_cast (typeof (nested_efield e1 efs tts)) t <> cast_case_p2bool ->
+     cast_pointer_to_bool (typeof (nested_efield e1 efs tts)) t = false ->
       readable_share sh ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->

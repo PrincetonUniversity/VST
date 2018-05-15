@@ -377,23 +377,23 @@ Proof.
   destruct Ha.
   exists x.
   intros.
-  spec H1 a0.
+  specialize ( H1 a0).
   rewrite e in H1; auto. inv H1; auto.
   assert (Hq : finMap q).
   destruct Hb.
   exists x.
   intros.
-  spec H3 a0. inv H3; auto. rewrite H9; rewrite e; auto.
+  specialize ( H3 a0). inv H3; auto. rewrite H9; rewrite e; auto.
   rewrite e in H8; auto. inv H8.
   assert (Hr : finMap r).
   destruct Hb.
   exists x.
   intros.
-  spec H3 a0.
+  specialize ( H3 a0).
   rewrite e in H3; auto. inv H3; auto.
   assert (Hp : finMap p).
   destruct Hd.
-  exists x. intros. spec H5 a0. rewrite e in H5; auto. inv H5; auto.
+  exists x. intros. specialize ( H5 a0). rewrite e in H5; auto. inv H5; auto.
   exists (exist _ s Hs, exist _ p Hp, exist _ q Hq, exist _ r Hr).
   simpl; intuition.
 Qed.
@@ -466,23 +466,23 @@ Proof.
   destruct Ha.
   exists x.
   intros.
-  spec H1 a0.
+  specialize ( H1 a0).
   rewrite e in H1; auto. inv H1; auto.
   assert (Hq : finMap q).
   destruct Hb.
   exists x.
   intros.
-  spec H3 a0. inv H3; auto. rewrite H9; rewrite e; auto.
+  specialize ( H3 a0). inv H3; auto. rewrite H9; rewrite e; auto.
   rewrite e in H8; auto. inv H8.
   assert (Hr : finMap r).
   destruct Hb.
   exists x.
   intros.
-  spec H3 a0.
+  specialize ( H3 a0).
   rewrite e in H3; auto. inv H3; auto.
   assert (Hp : finMap p).
   destruct Hd.
-  exists x. intros. spec H5 a0. rewrite e in H5; auto. inv H5; auto.
+  exists x. intros. specialize ( H5 a0). rewrite e in H5; auto. inv H5; auto.
   exists (exist _ s Hs, exist _ p Hp, exist _ q Hq, exist _ r Hr).
   simpl; intuition.
 Qed.

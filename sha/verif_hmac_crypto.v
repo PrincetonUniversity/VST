@@ -58,7 +58,7 @@ Definition HMAC_crypto :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        kv:val, shmd: share, md: val
+        shmd: share, md: val, gv: globals
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -70,10 +70,10 @@ Definition HMAC_crypto :=
          LOCAL (temp _md md; temp _key keyVal;
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msgVal; temp _n (Vint (Int.repr (LEN MSG)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(data_block Tsh (CONT KEY) keyVal;
              data_block Tsh (CONT MSG) msgVal;
-             K_vector kv;
+             K_vector gv;
              memory_block shmd 32 md)
   POST [ tptr tuchar ] 
          EX digest:_,
@@ -81,22 +81,22 @@ Definition HMAC_crypto :=
                 bytesToBits digest = bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
           LOCAL (temp ret_temp md)
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block shmd digest md;
               initPostKey keyVal (CONT KEY);
               data_block Tsh (CONT MSG) msgVal).
 
-Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
+Lemma hmacbodycryptoproof Espec k KEY msg MSG gv shmd md buf
       (SH : writable_share shmd) (KL: has_lengthK (LEN KEY) (CONT KEY))
       (DL: has_lengthD 512 (LEN MSG) (CONT MSG)):
-@semax CompSpecs Espec (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
-   LOCAL  (lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
+   LOCAL  (gvar _m (gv _m); lvar _c (Tstruct _hmac_ctx_st noattr) buf; temp _md md;
      temp _key k; temp _key_len (Vint (Int.repr (LEN KEY)));
-     temp _d msg; temp _n (Vint (Int.repr (LEN MSG))); gvar sha._K256 kv)
+     temp _d msg; temp _n (Vint (Int.repr (LEN MSG))); gvars gv)
    SEP  (data_at_ Tsh (Tstruct _hmac_ctx_st noattr) buf;
      data_block Tsh (CONT KEY) k; data_block Tsh (CONT MSG) msg;
-     K_vector kv; memory_block shmd 32 md))
+     K_vector gv; memory_block shmd 32 md))
   (*(Ssequence (fn_body f_HMAC) (Sreturn (@Some expr (Etempvar _md (tptr tuchar)))))*)
   (fn_body f_HMAC)
   (frame_ret_assert
@@ -112,25 +112,18 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
                       (HMAC_spec_abstract.HMAC_Abstract.Message PARS256.P)
                       (Bvector c) bool A), CRYPTO A Awf))
          LOCAL (temp ret_temp md)
-         SEP  (K_vector kv; @data_block CompSpecs shmd digest md;
+         SEP  (K_vector gv; @data_block CompSpecs shmd digest md;
          initPostKey k (CONT KEY);
          @data_block CompSpecs Tsh (CONT MSG) msg))%assert)
      (stackframe_of f_HMAC)%assert).
 Proof. intros. abbreviate_semax.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl LEN in *; simpl CONT in *.
-rewrite memory_block_isptr. normalize.
+rewrite memory_block_isptr. Intros.
 (*NEW: crypto proof requires that we first extract isbyteZ key*)
 assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
 simpl fn_body.
-forward_if  (
-  PROP  (isptr buf)
-   LOCAL  (lvar _c t_struct_hmac_ctx_st buf; temp _md md; temp _key k;
-      temp _key_len (Vint (Int.repr kl)); temp _d msg;
-       temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP  (data_at_ Tsh t_struct_hmac_ctx_st buf; data_block Tsh key k;
-         data_block Tsh data msg; K_vector kv;
-         memory_block shmd 32 md)).
+forward_if (isptr buf).
   { apply denote_tc_test_eq_split.
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }
@@ -138,7 +131,8 @@ forward_if  (
   { (* Branch2 *) forward. entailer. }
 Intros.
 assert_PROP (isptr k) as isPtrK by entailer!.
-forward_call (buf, k, kl, key, kv, HMACabs nil nil nil).
+change (Tstruct _hmac_ctx_st noattr) with (t_struct_hmac_ctx_st).  
+forward_call (buf, k, kl, key, HMACabs nil nil nil, gv).
   { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
     unfold initPre. entailer!.
   }
@@ -146,7 +140,7 @@ assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 rename H into absH_len512.
 
-forward_call (hmacInit key, buf, msg, dl, data, kv).
+forward_call (hmacInit key, buf, msg, dl, data, gv).
   { rewrite absH_len512. assumption. }
 
 (* Call to HMAC_Final*)
@@ -154,7 +148,7 @@ assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil buf).
 { unfold hmacstate_.  Intros r; entailer!. }
 rename H into FC_buf.
 
-forward_call (hmacUpdate data (hmacInit key), buf, md, shmd, kv).
+forward_call (hmacUpdate data (hmacInit key), buf, md, shmd, gv).
 remember (hmacFinal (hmacUpdate data (hmacInit key))) as RES.
 destruct RES as [h2 dig].
 simpl.

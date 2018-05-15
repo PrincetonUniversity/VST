@@ -213,9 +213,9 @@ Lemma semax_call_id0_alt:
        (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
        (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
    tfun = type_of_params argsig ->
-  @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
+  @semax cs Espec Delta (|> (tc_exprlist Delta (argtypes argsig) bl
                   && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
-                         * PROPx P (LOCALx Q (SEPx R))))
+                         * PROPx P (LOCALx Q (SEPx R)))))
     (Scall None (Evar id (Tfunction tfun retty cc)) bl)
     (normal_ret_assert
        ((ifvoid retty (`(Post x) (make_args nil nil))
@@ -370,14 +370,15 @@ pose (Frame :=
              :: array_at shq tq pathq 0 loq (sublist 0 loq vqx) q *
                 array_at shq tq pathq (loq + len) nq
                     (sublist (loq+len) (Zlength vqx) vqx) q :: R').
-eapply semax_pre_post;
+eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
+ eapply derives_trans, now_later.
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
- apply andp_derives; auto.
+ apply andp_derives; auto.  apply derives_refl.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
@@ -406,7 +407,7 @@ eapply semax_pre_post;
  rewrite LENvqx, LENvpx; cancel.
  rewrite sepcon_comm.
  apply sepcon_derives.
- rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
+ rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
  apply derives_refl'.
  apply equal_f. apply data_at_type_changable.
  unfold nested_field_array_type.
@@ -415,7 +416,7 @@ eapply semax_pre_post;
  eapply JMeq_trans; [apply fold_reptype_JMeq |].
    rewrite <- sublist_map.
    apply JMeq_sublist; auto.
- rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
+ rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
  replace (memory_block shp len) with
     (memory_block shp (sizeof (nested_field_array_type tp pathp lop (lop + len)))).
  eapply derives_trans; [ | apply data_at__memory_block_cancel]; cancel.
@@ -423,7 +424,7 @@ eapply semax_pre_post;
  rewrite nested_field_type_ind. rewrite H0. simpl.
  rewrite Z.max_r by omega. rewrite Z.mul_1_l. clear; omega.
 *
- intros. apply andp_left2. apply normal_ret_assert_derives'.
+ intros. apply andp_left2.
  go_lowerx. unfold_lift.
  simpl.
  Intros x. rewrite prop_true_andp by auto.
@@ -472,7 +473,7 @@ repeat apply sepcon_derives.
  rewrite Z.sub_0_r.
  admit.  (* tedious *)
 +
- rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
+ rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
@@ -493,7 +494,7 @@ repeat apply sepcon_derives.
  rewrite LENvpx.
  admit.  (* tedious *)
 +
- rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
+ rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
@@ -603,14 +604,15 @@ pose (Frame :=
               (sublist (lop+len) np vpx) p
           :: array_at shp tp pathp 0 lop (sublist 0 lop vpx) p
               :: R').
-eapply semax_pre_post;
+eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
+ eapply derives_trans, now_later.
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
- apply andp_derives; auto.
+ apply andp_derives; auto.  apply derives_refl.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
@@ -632,7 +634,7 @@ eapply semax_pre_post;
  rewrite <- H6; reflexivity.
  subst Frame.
  cancel.
- rewrite array_at_data_at_rec by  (try solve [clear - FC; intuition]; omega).
+ rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; omega).
  eapply derives_trans; [apply data_at_data_at_ | ].
  eapply derives_trans; [apply data_at__memory_block_cancel | ].
  apply derives_refl'; f_equal.
@@ -640,7 +642,7 @@ eapply semax_pre_post;
    rewrite nested_field_type_ind, H0. simpl.
   rewrite Z.max_r by omega. omega.
 *
- intros. apply andp_left2. apply normal_ret_assert_derives'.
+ intros. apply andp_left2.
  unfold ifvoid. unfold tptr at 1.
  Intros v. subst witness. cbv beta zeta iota.
  clear Hpre.
@@ -695,14 +697,15 @@ apply part3_splice_into_list; try omega.
 rewrite Zlength_list_repeat. rewrite Z.max_r by omega. omega.
 } Unfocus.
 cancel.
- rewrite array_at_data_at_rec by  (try solve [clear - FC; intuition]; omega).
+ rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; omega.
    eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
-   eapply JMeq_trans; [ | apply JMeq_sublist; [ | apply H8]; now auto].
+   apply (JMeq_sublist _ _ lop (lop + len) _ _ (eq_sym H99)) in H8.
+   eapply JMeq_trans, H8.
    apply eq_JMeq.
    unfold splice_into_list.
    autorewrite with sublist. auto.

@@ -186,7 +186,7 @@ intros.
 destruct H3.
 rewrite H3 in H2.
 specialize (H2 _ H4).
-spec H0 (b,ofs+i).
+specialize ( H0 (b,ofs+i)).
 destruct H0.
 congruence.
 rewrite H2 in H0.
@@ -304,7 +304,7 @@ Lemma fixup_splitting_valid : forall (a: address->Share.t) (z:address -> option 
 Proof.
   unfold AV.valid, res_option, compose; intros.
   unfold fixup_splitting.
-  spec H0 b ofs.
+  specialize ( H0 b ofs).
   case_eq (z (b,ofs)); intros;
     rewrite H1 in H0; auto. destruct p.
   destruct k.
@@ -731,6 +731,7 @@ do 3 red in H|-*. contradict H.
 rewrite glb_twice in H. auto.
 Qed.
 
+(* Do we need this?
 Instance Trip_rmap : Trip_alg rmap.
 Proof.
 intro; intros.
@@ -873,7 +874,7 @@ apply join_glb_Rsh in RJ0.
 rewrite H9 in *; rewrite H7 in *.
 eapply join_eq; eauto.
 *
-destruct (make_rmap _ H2 (level a)) as [abc [? ?]].
+destruct (make_rmap _ _ H2 (level a)) as [abc [? ?]].
 extensionality loc. unfold compose; simpl.
 destruct (f loc); simpl.
 destruct x; simpl; auto.
@@ -913,7 +914,7 @@ rewrite H4.
 destruct (f loc).
 simpl.
 auto.
-Qed.
+Qed.*)
 
 Obligation Tactic := Tactics.program_simpl.
 
@@ -1105,7 +1106,7 @@ apply b0.
 omega.
 right.
 contradict n0.
-spec n0 0.
+specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
@@ -1150,7 +1151,7 @@ apply b0.
 omega.
 right.
 contradict n0.
-spec n0 0.
+specialize ( n0 0).
 unfold adr_add in n0; simpl in n0.
 replace (z+0) with z in n0.
 apply n0.
@@ -1178,6 +1179,7 @@ Lemma rmap_age_i:
  forall w w' : rmap,
     level w = S (level w') ->
    (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) ->
+    ghost_fmap (approx (level w')) (approx (level w')) (ghost_of w) = ghost_of w' ->
     age w w'.
 Proof.
 intros.
@@ -1185,12 +1187,14 @@ hnf.
 destruct (levelS_age1 _ _ H).
 assert (x=w'); [ | subst; auto].
 assert (level x = level w')
-  by (apply age_level in H1; omega).
+  by (apply age_level in H2; omega).
 apply rmap_ext; auto.
 intros.
 specialize (H0 l).
-rewrite (age1_resource_at w x H1 l (w@l)).
-rewrite H2.
+rewrite (age1_resource_at w x H2 l (w@l)).
+rewrite H3.
 apply H0.
 symmetry; apply resource_at_approx.
+erewrite age1_ghost_of; eauto.
+rewrite H3; apply H1.
 Qed.

@@ -40,32 +40,23 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
 
   Intros v. rename H into Hv.
   freeze [0] FR1.
   forward. thaw FR1.
-  forward_if (
-     PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
-   temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
-   temp _custom data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p &&
-          memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-         FRZL FR0)).
+  forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
-  { subst v. clear Hv. simpl. forward. entailer!. }
-  Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
+    unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
+  subst v. clear Hv. simpl. forward.
+  Intros. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
@@ -83,9 +74,9 @@ Proof.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    rewrite data_at__memory_block. simpl. entailer!. 
+    fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), gv).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -96,7 +87,7 @@ Proof.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
-  forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
+  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
@@ -107,26 +98,21 @@ Proof.
   replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
     entailer!. rewrite field_at_data_at.
     simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
-    rewrite int_add_repr_0_r.
+    rewrite ptrofs_add_repr_0_r.
     cancel.
   }
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
-  forward_if
-  (PROP ( )
-   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
-   temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
+  forward_if (temp _t'4 (Vint (Int.repr 32))).
   { elim H; trivial. }
   { clear H.
     forward_if.
     + elim H; trivial. 
     + clear H. forward. forward. entailer!.  }
-  forward. 
-  deadvars!. (*drop_LOCAL 7%nat.  _t'4 *)
+  forward.
+  deadvars!.
 
   (*NEXT INSTRUCTION:  ctx->entropy_len = entropy_len * 3 / 2*)
   thaw ALLSEP. thaw FIELDS2. forward.
@@ -161,18 +147,18 @@ Proof.
 
   clear INI.
   thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
-  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, kv, Info, s).
+  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }
-  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite int_max_unsigned_eq.
+  { subst myABS; simpl. rewrite <- initialize.max_unsigned_modulus in *; rewrite hmac_pure_lemmas.ptrofs_max_unsigned_eq.
     split. omega. (* rewrite int_max_unsigned_eq; omega.*)
     split. reflexivity.
     split. reflexivity.
     split. omega.
     split. (*change Int.modulus with 4294967296.*) omega.
     split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. if_tac. omega. rewrite Zlength_nil; omega.
+       unfold contents_with_add. simple_if_tac. omega. rewrite Zlength_nil; omega.
     split. apply IB1. split; omega.
     assumption.
   }
@@ -180,16 +166,16 @@ Proof.
   Intros v.
   assert (ZLc': Zlength (contents_with_add data (Zlength Data) Data) = 0 \/
                  Zlength (contents_with_add data (Zlength Data) Data) = Zlength Data).
-         { unfold contents_with_add. if_tac. right; trivial. left; trivial. }
+         { unfold contents_with_add. simple_if_tac. right; trivial. left; trivial. }
   forward.
   deadvars!. 
   forward_if (
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
    temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   gvar sha._K256 kv)
+   gvars gv)
    SEP (reseedPOST v Data data (Zlength Data) s
-          myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
+          myABS (Vptr b i) Info gv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.

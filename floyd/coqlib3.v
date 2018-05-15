@@ -6,6 +6,7 @@ Require Import Coq.Strings.Ascii.
 Require Import Coq.Lists.List.
 Require Import Coq.Sorting.Permutation.
 Require Import VST.msl.Coqlib2.
+Require Import VST.veric.coqlib4.
 
 Lemma power_nat_one_divede_other: forall n m : nat,
   (two_power_nat n | two_power_nat m) \/ (two_power_nat m | two_power_nat n).
@@ -41,7 +42,7 @@ Proof.
     apply Z.divide_0_r.
 Qed.
 
-Lemma divide_align: forall x y: Z, x > 0 -> Zdivide x y -> align y x = y.
+Lemma divide_align: forall x y: Z, x > 0 -> Z.divide x y -> align y x = y.
 Proof.
   intros.
   unfold align.
@@ -52,22 +53,6 @@ Proof.
   assert (0 <= x - 1 < x) by omega.
   rewrite (H1 H2 H3).
   reflexivity.
-Qed.
-
-Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
-Proof.
-  intros.
-  destruct i; try reflexivity.
-  pose proof Zgt_pos_0 p; omega.
-Qed.
-
-Lemma Int_unsigned_repr_le: forall a, 0 <= a -> Int.unsigned (Int.repr a) <= a.
-Proof.
-  intros.
-  rewrite Int.unsigned_repr_eq.
-  apply Z.mod_le; auto.
-  cbv.
-  auto.
 Qed.
 
 Lemma arith_aux00: forall a b, b <= a -> 0%nat = nat_of_Z (a - b) -> a - b = 0.
@@ -160,11 +145,20 @@ Ltac inv_int i :=
   let H := fresh "H" in
   let H0 := fresh "H" in
   let H1 := fresh "H" in
+ match type of i with
+ | int => 
   pose proof Int.repr_unsigned i as H;
   pose proof Int.unsigned_range i as H0;
   remember (Int.unsigned i) as ofs eqn:H1;
   rewrite <- H in *;
-  clear H H1; try clear i.
+  clear H H1; try clear i
+ | ptrofs => 
+  pose proof Ptrofs.repr_unsigned i as H;
+  pose proof Ptrofs.unsigned_range i as H0;
+  remember (Ptrofs.unsigned i) as ofs eqn:H1;
+  rewrite <- H in *;
+  clear H H1; try clear i
+end.
 
 (**************************************************
 
@@ -172,16 +166,16 @@ Solve_mod_modulus
 
 **************************************************)
 
-Definition modm x := x mod Int.modulus.
+Definition int_modm x := x mod Int.modulus.
 
-Lemma modm_mod_eq: forall x y, Int.eqmod Int.modulus x y -> x mod Int.modulus = modm y.
+Lemma int_modm_mod_eq: forall x y, Int.eqmod Int.modulus x y -> x mod Int.modulus = int_modm y.
 Proof.
   intros.
   apply Int.eqmod_mod_eq; auto.
   apply Int.modulus_pos.
 Qed.
 
-Lemma modm_mod_elim: forall x y, Int.eqmod Int.modulus x y -> Int.eqmod Int.modulus (x mod Int.modulus) y.
+Lemma int_modm_mod_elim: forall x y, Int.eqmod Int.modulus x y -> Int.eqmod Int.modulus (x mod Int.modulus) y.
 Proof.
   intros.
   eapply Int.eqmod_trans; eauto.
@@ -189,61 +183,143 @@ Proof.
   apply Int.modulus_pos.
 Qed.
 
-Definition reprm := Int.repr.
+Definition int_reprm := Int.repr.
 
-Lemma modm_repr_eq: forall x y, Int.eqmod Int.modulus x y -> Int.repr x = reprm y.
+Lemma int_modm_repr_eq: forall x y, Int.eqmod Int.modulus x y -> Int.repr x = int_reprm y.
 Proof.
   intros.
   apply Int.eqm_samerepr; auto.
 Qed.
 
-Ltac simpl_mod A H :=
+Ltac int_simpl_mod A H :=
   let H0 := fresh "H" in
   let H1 := fresh "H" in
   match A with
   | (?B + ?C)%Z =>
-    simpl_mod B H0; simpl_mod C H1;
+    int_simpl_mod B H0; int_simpl_mod C H1;
     pose proof Int.eqmod_add Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B - ?C)%Z =>
-    simpl_mod B H0; simpl_mod C H1;
+    int_simpl_mod B H0; int_simpl_mod C H1;
     pose proof Int.eqmod_sub Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B * ?C)%Z =>
-    simpl_mod B H0; simpl_mod C H1;
+    int_simpl_mod B H0; int_simpl_mod C H1;
     pose proof Int.eqmod_mult Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (- ?B)%Z =>
-    simpl_mod B H0;
+    int_simpl_mod B H0;
     pose proof Int.eqmod_neg Int.modulus _ _ H0 as H;
     clear H0
   | ?B mod Int.modulus =>
-    simpl_mod B H0;
-    pose proof modm_mod_elim B _ H0 as H;
+    int_simpl_mod B H0;
+    pose proof int_modm_mod_elim B _ H0 as H;
     clear H0
-  | modm ?B =>
-    simpl_mod B H0;
-    pose proof modm_mod_elim B _ H0 as H;
+  | int_modm ?B =>
+    int_simpl_mod B H0;
+    pose proof int_modm_mod_elim B _ H0 as H;
     clear H0
   | _ =>
     pose proof Int.eqmod_refl Int.modulus A as H
   end.
 
+
+Definition ptrofs_modm x := x mod Ptrofs.modulus.
+
+Lemma ptrofs_modm_mod_eq: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> x mod Ptrofs.modulus = ptrofs_modm y.
+Proof.
+  intros.
+  apply Ptrofs.eqmod_mod_eq; auto.
+  apply Ptrofs.modulus_pos.
+Qed.
+
+Lemma ptrofs_modm_mod_elim: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> Ptrofs.eqmod Ptrofs.modulus (x mod Ptrofs.modulus) y.
+Proof.
+  intros.
+  eapply Ptrofs.eqmod_trans; eauto.
+  apply Ptrofs.eqmod_sym, Ptrofs.eqmod_mod.
+  apply Ptrofs.modulus_pos.
+Qed.
+
+Definition ptrofs_reprm := Ptrofs.repr.
+
+Lemma ptrofs_modm_repr_eq: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> Ptrofs.repr x = ptrofs_reprm y.
+Proof.
+  intros.
+  apply Ptrofs.eqm_samerepr; auto.
+Qed.
+
+Ltac ptrofs_simpl_mod A H :=
+  let H0 := fresh "H" in
+  let H1 := fresh "H" in
+  match A with
+  | (?B + ?C)%Z =>
+    ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
+    pose proof Ptrofs.eqmod_add Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    clear H1 H0
+  | (?B - ?C)%Z =>
+    ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
+    pose proof Ptrofs.eqmod_sub Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    clear H1 H0
+  | (?B * ?C)%Z =>
+    ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
+    pose proof Ptrofs.eqmod_mult Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    clear H1 H0
+  | (- ?B)%Z =>
+    ptrofs_simpl_mod B H0;
+    pose proof Ptrofs.eqmod_neg Ptrofs.modulus _ _ H0 as H;
+    clear H0
+  | ?B mod Ptrofs.modulus =>
+    ptrofs_simpl_mod B H0;
+    pose proof ptrofs_modm_mod_elim B _ H0 as H;
+    clear H0
+  | ptrofs_modm ?B =>
+    ptrofs_simpl_mod B H0;
+    pose proof ptrofs_modm_mod_elim B _ H0 as H;
+    clear H0
+  | _ =>
+    pose proof Ptrofs.eqmod_refl Ptrofs.modulus A as H
+  end.
+
 Ltac solve_mod_modulus :=
-  try unfold Int.add; try rewrite !Int.unsigned_repr_eq;
+  unfold Int.add; rewrite ?Int.unsigned_repr_eq;
+  unfold Ptrofs.add; rewrite ?Ptrofs.unsigned_repr_eq;
   repeat
   match goal with
   | |- context [?A mod Int.modulus] =>
-         let H := fresh "H" in simpl_mod A H;
-         rewrite (modm_mod_eq A _ H);
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_mod_eq A _ H);
          clear H
   | |- context [Int.repr ?A] =>
-         let H := fresh "H" in simpl_mod A H;
-         rewrite (modm_repr_eq A _ H);
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_repr_eq A _ H);
+         clear H
+  | |- context [?A mod Ptrofs.modulus] =>
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_mod_eq A _ H);
+         clear H
+  | |- context [Int.repr ?A] =>
+         let H := fresh "H" in int_simpl_mod A H;
+         rewrite (int_modm_repr_eq A _ H);
+         clear H
+  | |- context [?A mod Ptrofs.modulus] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_mod_eq A _ H);
+         clear H
+  | |- context [Ptrofs.repr ?A] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_repr_eq A _ H);
+         clear H
+  | |- context [?A mod Ptrofs.modulus] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_mod_eq A _ H);
+         clear H
+  | |- context [Ptrofs.repr ?A] =>
+         let H := fresh "H" in ptrofs_simpl_mod A H;
+         rewrite (ptrofs_modm_repr_eq A _ H);
          clear H
   end;
-  try unfold modm in *;
-  try unfold reprm in *.
+  unfold int_modm, int_reprm, ptrofs_modm, ptrofs_reprm in *.  
 
 (**************************************************
 
@@ -277,6 +353,34 @@ Proof.
  apply Int.eqm_samerepr.
  unfold Int.eqm.
  apply Int.eqm_sub; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
+Qed.
+
+Lemma ptrofs_add_repr: forall i j, Ptrofs.add (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i+j).
+Proof. intros.
+  rewrite Ptrofs.add_unsigned.
+ apply Ptrofs.eqm_samerepr.
+ unfold Ptrofs.eqm.
+ apply Ptrofs.eqm_add; apply Ptrofs.eqm_sym; apply Ptrofs.eqm_unsigned_repr.
+Qed.
+
+Lemma ptrofs_mul_repr:
+ forall x y, Ptrofs.mul (Ptrofs.repr x) (Ptrofs.repr y) = Ptrofs.repr (x * y).
+Proof.
+intros. unfold Ptrofs.mul.
+apply Ptrofs.eqm_samerepr.
+repeat rewrite Ptrofs.unsigned_repr_eq.
+apply Ptrofs.eqm_mult; unfold Ptrofs.eqm; apply Ptrofs.eqmod_sym;
+apply Ptrofs.eqmod_mod; compute; congruence.
+Qed.
+
+Lemma ptrofs_sub_repr: forall i j,
+  Ptrofs.sub (Ptrofs.repr i) (Ptrofs.repr j) = Ptrofs.repr (i-j).
+Proof.
+  intros.
+ unfold Ptrofs.sub.
+ apply Ptrofs.eqm_samerepr.
+ unfold Ptrofs.eqm.
+ apply Ptrofs.eqm_sub; apply Ptrofs.eqm_sym; apply Ptrofs.eqm_unsigned_repr.
 Qed.
 
 Lemma Zland_two_p:
@@ -318,7 +422,84 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma add64_repr: forall i j, Int64.add (Int64.repr i) (Int64.repr j) = Int64.repr (i+j).
+Proof. intros.
+  rewrite Int64.add_unsigned.
+ apply Int64.eqm_samerepr.
+ unfold Int64.eqm.
+ apply Int64.eqm_add; apply Int64.eqm_sym; apply Int64.eqm_unsigned_repr.
+Qed.
+
+Lemma mul64_repr:
+ forall x y, Int64.mul (Int64.repr x) (Int64.repr y) = Int64.repr (x * y).
+Proof.
+intros. unfold Int64.mul.
+apply Int64.eqm_samerepr.
+repeat rewrite Int64.unsigned_repr_eq.
+apply Int64.eqm_mult; unfold Int64.eqm; apply Int64.eqmod_sym;
+apply Int64.eqmod_mod; compute; congruence.
+Qed.
+
+Lemma sub64_repr: forall i j,
+  Int64.sub (Int64.repr i) (Int64.repr j) = Int64.repr (i-j).
+Proof.
+ intros. unfold Int64.sub.
+ apply Int64.eqm_samerepr.
+ unfold Int64.eqm.
+ apply Int64.eqm_sub; apply Int64.eqm_sym; apply Int64.eqm_unsigned_repr.
+Qed.
+
+Lemma and64_repr
+     : forall i j : Z, Int64.and (Int64.repr i) (Int64.repr j) = Int64.repr (Z.land i j).
+Proof.
+  intros.
+  unfold Int64.and.
+  rewrite <- (Int64.repr_unsigned (Int64.repr (Z.land i j))).
+  rewrite !Int64.unsigned_repr_eq.
+  change Int64.modulus with (2 ^ 64).
+  rewrite <- !Zland_two_p by omega.
+  f_equal.
+  rewrite <- !Z.land_assoc.
+  f_equal.
+  rewrite (Z.land_comm (Z.ones 64)).
+  rewrite <- !Z.land_assoc.
+  f_equal.
+Qed.
+
+Lemma or64_repr
+     : forall i j : Z, Int64.or (Int64.repr i) (Int64.repr j) = Int64.repr (Z.lor i j).
+Proof.
+  intros.
+  unfold Int64.or.
+  rewrite <- (Int64.repr_unsigned (Int64.repr (Z.lor i j))).
+  rewrite !Int64.unsigned_repr_eq.
+  change Int64.modulus with (2 ^ 64).
+  rewrite <- !Zland_two_p by omega.
+  f_equal.
+  rewrite <- Z.land_lor_distr_l.
+  reflexivity.
+Qed.
+
+Lemma neg_repr: forall i, Int.neg (Int.repr i) = Int.repr (-i).
+Proof.
+intros. unfold Int.neg.
+apply Int.eqm_samerepr.
+apply Int.eqm_neg.
+apply Int.eqm_unsigned_repr_l.
+apply Int.eqm_refl.
+Qed.
+
+Lemma neg64_repr: forall i, Int64.neg (Int64.repr i) = Int64.repr (-i).
+Proof.
+intros. unfold Int64.neg.
+apply Int64.eqm_samerepr.
+apply Int64.eqm_neg.
+apply Int64.eqm_unsigned_repr_l.
+apply Int64.eqm_refl.
+Qed.
+
 Arguments Int.unsigned n : simpl never.
+Arguments Ptrofs.unsigned n : simpl never.
 Arguments Pos.to_nat !x / .
 
 Lemma align_0: forall z,
@@ -385,7 +566,7 @@ Proof.
     apply Permutation_app_tail.
     apply Permutation_app_comm.
   + eapply Permutation_trans; eauto.
-Qed.    
+Qed.
 
 Lemma proj_sumbool_is_false:
   forall (P: Prop) (a: {P}+{~P}), ~P -> proj_sumbool a = false.
@@ -395,50 +576,35 @@ Qed.
 Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
 Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
-Lemma perm_search:
-  forall {A} (a b: A) r s t,
-     Permutation (a::t) s ->
-     Permutation (b::t) r ->
-     Permutation (a::r) (b::s).
+Lemma ptrofs_to_int_repr: 
+ forall x, (Ptrofs.to_int (Ptrofs.repr x)) = Int.repr x.
 Proof.
 intros.
-eapply perm_trans.
-apply perm_skip.
-apply Permutation_sym.
-apply H0.
-eapply perm_trans.
-apply perm_swap.
-apply perm_skip.
-apply H.
-Qed.
-
-
-Lemma Permutation_app_comm_trans:
- forall (A: Type) (a b c : list A),
-   Permutation (b++a) c ->
-   Permutation (a++b) c.
-Proof.
-intros.
-eapply Permutation_trans.
-apply Permutation_app_comm.
+destruct Archi.ptr64 eqn:Hp.
+*
+unfold Ptrofs.to_int. 
+apply Int.eqm_samerepr.
+unfold Int.eqm.
+rewrite Ptrofs.unsigned_repr_eq.
+unfold Ptrofs.modulus.
+unfold Ptrofs.wordsize.
+unfold Wordsize_Ptrofs.wordsize.
+rewrite Hp.
+unfold Int.modulus.
+unfold Int.wordsize.
+unfold Wordsize_32.wordsize.
+apply Int.eqmod_divides with (two_power_nat 64).
+apply Int.eqmod_sym.
+apply Int.eqmod_mod.
+compute. auto.
+exists (two_power_nat 32).
+reflexivity.
+*
+erewrite Ptrofs.agree32_to_int_eq. reflexivity.
+apply Ptrofs.agree32_repr.
 auto.
 Qed.
 
-Ltac solve_perm :=
-    (* solves goals of the form (R ++ ?i = S)
-          where R and S are lists, and ?i is a unification variable *)
-  try match goal with
-       | |-  Permutation (?A ++ ?B) _ =>
-            is_evar A; first [is_evar B; fail 1| idtac];
-            apply Permutation_app_comm_trans
-       end;
-  repeat first [ apply Permutation_refl
-       | apply perm_skip
-       | eapply perm_search
-       ].
 
-Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
-eexists.
-solve_perm.
-Qed.
+
 

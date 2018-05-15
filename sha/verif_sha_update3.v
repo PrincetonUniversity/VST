@@ -67,7 +67,7 @@ Definition update_inner_if :=
          update_inner_if_then
          update_inner_if_else.
 
-Definition inv_at_inner_if sh hashed len c d dd data kv :=
+Definition inv_at_inner_if sh hashed len c d dd data gv :=
  (PROP ()
    (LOCAL
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
@@ -75,7 +75,7 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
        temp _n (Vint (Int.repr (Zlength dd)));
        temp _data d; temp _c c;
        temp _len (Vint (Int.repr len));
-       gvar  _K256 kv)
+       gvars gv)
    SEP  (data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
@@ -83,10 +83,10 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
                     (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
                c;
-     K_vector kv;
+     K_vector gv;
      data_block sh data d))).
 
-Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done: bool)
+Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) gv (done: bool)
     : environ -> mpred :=
    (*EX blocks:list int,*)  (* this line doesn't work; bug in Coq 8.4pl3 thru 8.4pl6?  *)
    @exp (environ->mpred) _ _  (fun blocks:list int =>
@@ -100,8 +100,8 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
                           [ArraySubsc (Zlength blocks * 4 - Zlength dd)] d);
                 temp _c c;
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
-                gvar  _K256 kv)
-   SEP  (K_vector kv;
+                gvars gv)
+   SEP  (K_vector gv;
            @data_at CompSpecs Tsh t_struct_SHA256state_st
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
@@ -114,7 +114,7 @@ Definition Delta_update_inner_if : tycontext :=
   (initialized _fragment
      (initialized _p
         (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))).
+           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot nil))))).
 
 Lemma data_block_data_field:
  forall sh dd dd' c,
@@ -234,7 +234,7 @@ Qed.
 
 Lemma update_inner_if_proof:
  forall (Espec: OracleKind) (hashed: list int) (dd data: list Z)
-            (c d: val) (sh: share) (len: Z) kv
+            (c d: val) (sh: share) (len: Z) gv
  (H: (0 <= len <= Zlength data)%Z)
  (Hsh: readable_share sh)
  (LEN64: (bitlength hashed dd  + len * 8 < two_p 64)%Z)
@@ -243,30 +243,23 @@ Lemma update_inner_if_proof:
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (len <= Int.max_unsigned)%Z),
 semax Delta_update_inner_if
-  (inv_at_inner_if sh hashed len c d dd data kv)
+  (inv_at_inner_if sh hashed len c d dd data gv)
   update_inner_if
-  (overridePost (sha_update_inv sh hashed len c d dd data kv false)
+  (overridePost (sha_update_inv sh hashed len c d dd data gv false)
     (frame_ret_assert
       (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (K_vector kv;
+         SEP  (K_vector gv;
                  sha256state_ a' c; data_block sh data d)))
       emp)).
 Proof.
-intros.
-name c' _c.
-name data_ _data_.
-name len' _len.
-name data' _data.
-name p _p.
-name n _n.
-name fragment_ _fragment.
+intros. 
 unfold sha_update_inv, inv_at_inner_if, update_inner_if.
 abbreviate_semax.
  set (k := 64-Zlength dd).
-assert (0 < k <= 64) by Omega1.
+assert (0 < k <= 64) by rep_omega.
 pose proof I.
 unfold data_block; simpl. normalize.
 rename H2 into DBYTES.
@@ -295,8 +288,10 @@ forward_if.
    (*len*) k
         Frame);
   try reflexivity; auto; try omega.
-  apply Zlength_nonneg.
-  subst k; omega.
+  try (* this line needed for Coq 8.7 compatibility *)
+      apply Zlength_nonneg.
+  try (* this line needed for Coq 8.7 compatibility *)
+       (subst k; omega).
   unfold_data_at 1%nat.
   entailer!.
   rewrite field_address_offset by auto.
@@ -323,7 +318,7 @@ forward_if.
  forward_call (* sha256_block_data_order (c,p); *)
    (hashed, Zlist_to_intlist (dd++(sublist 0 k data)), c,
      (field_address t_struct_SHA256state_st [StructField _data] c),
-      Tsh, kv).
+      Tsh, gv).
  rewrite Zlist_to_intlist_to_Zlist;
    [ | rewrite H5; exists LBLOCKz; reflexivity
      | rewrite Forall_app; split; auto; apply Forall_firstn; auto
@@ -397,8 +392,10 @@ forward_if.
    (*len*) (len)
         Frame);
     try reflexivity; auto; try omega.
-  apply Zlength_nonneg.
-  repeat rewrite Zlength_map; unfold k in *; omega.
+  try (* this line needed for Coq 8.7 compatibility *)
+      apply Zlength_nonneg.
+  try (* this line needed for Coq 8.7 compatibility *)
+    (repeat rewrite Zlength_map; unfold k in *; omega).
   entailer!.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by
@@ -429,7 +426,7 @@ forward_if.
   subst k.
   rewrite (prop_true_andp (_ /\ _));
      [ | split; [apply update_inner_if_update_abs; auto | auto ]].
- rewrite (sepcon_comm (K_vector kv)).
+ rewrite (sepcon_comm (K_vector gv)).
  apply sepcon_derives; [ | auto].
  apply update_inner_if_sha256_state_; auto.
 Qed.

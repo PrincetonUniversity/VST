@@ -82,23 +82,19 @@ Proof.
     clear - H0.
     revert V0 V1 H0 V.
     destruct (nested_field_type t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
-    - admit.
-    - admit.
-    - admit.
-Admitted.
-
+Abort.
 End SINGLE_HOLE.
 
 Module zlist_hint_db.
 
-Lemma Znth_sub_0_r: forall A i l (d: A), Znth (i - 0) l d = Znth i l d.
+Lemma Znth_sub_0_r: forall A {d: Inhabitant A} i l, Znth (i - 0) l = Znth i l.
   intros.
   rewrite Z.sub_0_r by omega.
   auto.
 Qed.
 
 Lemma Znth_map_Vint: forall (i : Z) (l : list int),
-  0 <= i < Zlength l -> Znth i (map Vint l) Vundef = Vint (Znth i l Int.zero).
+  0 <= i < Zlength l -> Znth i (map Vint l) = Vint (Znth i l).
 Proof.
   intros i l.
   apply Znth_map.
@@ -262,7 +258,7 @@ Ltac pose_upd_reptype_1 CS t gf v v0 H :=
     rewrite H0 in H;
     clear H0
   end.
-
+(*
 Ltac pose_upd_reptype CS t gfs v v0 H :=
   match gfs with
   | nil =>
@@ -292,9 +288,11 @@ Ltac pose_upd_reptype CS t gfs v v0 H :=
           end
       end
   end.
-
+*)
 Module Type TestType.
 End TestType.
+
+(*
 Module Test : TestType.
 
 Definition _f1 := 1%positive.
@@ -379,3 +377,4 @@ Qed.
 
 End Test.
 
+*)

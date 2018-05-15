@@ -22,7 +22,7 @@ Definition val_valid (v:val) (m:mem):Prop :=
 
 (*In fact val_valid is a slight relaxtion of valid_pointer*)
 Lemma valid_ptr_val_valid: forall b ofs m,
-    Mem.valid_pointer m b ofs = true -> val_valid (Vptr b (Int.repr ofs)) m.
+    Mem.valid_pointer m b ofs = true -> val_valid (Vptr b (Ptrofs.repr ofs)) m.
 Proof. intros.
   apply Mem.valid_pointer_nonempty_perm in H. eapply Mem.perm_valid_block. apply H.
 Qed.
@@ -190,7 +190,7 @@ Proof. intros. unfold mem_wd in *.
       rewrite (Mem.nextblock_store _ _ _ _ _ _ ST).
           destruct v; try solve [constructor].
             econstructor. eapply flatinj_I. apply V.
-                          rewrite Int.add_zero. trivial.
+                          rewrite Ptrofs.add_zero. trivial.
 Qed.
 
 Lemma extends_memwd:
@@ -215,19 +215,19 @@ Proof.
   destruct v; try constructor.
   econstructor.
     eapply flatinj_I. inv mi_memval.
-    inv H3. inv H5. rewrite Int.add_zero in H6.
+    inv H3. inv H5. rewrite Ptrofs.add_zero in H6.
       rewrite <- H6 in mi_memval0. simpl in mi_memval0.
      inv mi_memval0. inversion H3.
       apply flatinj_E in H7. apply H7.
-   rewrite Int.add_zero. reflexivity.
+   rewrite Ptrofs.add_zero. reflexivity.
 Qed.
 
 Require Import VST.sepcomp.reach.
 
 Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type :=
   mk_valid_genv :
-    (forall b, isGlobalBlock ge b=true -> val_valid (Vptr b Int.zero) m) ->
-    (forall b f, Genv.find_funct_ptr ge b = Some f -> val_valid (Vptr b Int.zero) m) ->
+    (forall b, isGlobalBlock ge b=true -> val_valid (Vptr b Ptrofs.zero) m) ->
+    (forall b f, Genv.find_funct_ptr ge b = Some f -> val_valid (Vptr b Ptrofs.zero) m) ->
     valid_genv ge m.
 
 Lemma valid_genv_alloc: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) lo hi b
@@ -262,6 +262,8 @@ Proof. intros. case G; intros. constructor; intros.
   unfold Mem.valid_block in *.
   rewrite STORE_ZERO. auto.
 Qed.
+
+Require Import FunInd.
 
 Lemma mem_wd_store_zeros: forall m b p n m1
     (STORE_ZERO: store_zeros m b p n = Some m1) (WD: mem_wd m), mem_wd m1.

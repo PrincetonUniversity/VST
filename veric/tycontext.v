@@ -3,6 +3,8 @@ Require Import VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.composite_compute.
+Require Import VST.veric.align_mem.
 Require Export VST.veric.lift.
 
 Definition type_is_by_value t : bool :=
@@ -292,52 +294,6 @@ Proof.
   destruct_in_members i m; [left | right]; auto.
 Qed.
 
-Definition plain_alignof env t: Z :=
-  match t with
-  | Tvoid
-  | Tfunction _ _ _ => 1
-  | Tint I8 _ _ => 1
-  | Tint I16 _ _ => 2
-  | Tint I32 _ _ => 4
-  | Tint IBool _ _ => 1
-  | Tlong _ _ => 4
-  | Tfloat F32 _ => 4
-  | Tfloat F64 _ => 4
-  | Tpointer _ _ => 4
-  | Tarray t' _ _ => alignof env t'
-  | Tstruct id _ =>
-      match env ! id with
-      | Some co => co_alignof co
-      | None => 1
-      end
-  | Tunion id _ =>
-      match env ! id with
-      | Some co => co_alignof co
-      | None => 1
-      end
-  end.
-
-Lemma plain_alignof_spec: forall env t,
-  alignof env t = align_attr (attr_of_type t) (plain_alignof env t).
-Proof.
-  intros.
-  destruct t; auto.
-Qed.
-
-Lemma plain_alignof_two_p: forall env t, exists n,
-  plain_alignof env t = two_power_nat n.
-Proof.
-  intros.
-  destruct t as [| []  ? ? | | [] ? | | | | |];
-  try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity].
-  + simpl.
-    apply alignof_two_p.
-  + simpl.
-    destruct (env ! i); [apply co_alignof_two_p | exists 0%nat; auto].
-  + simpl.
-    destruct (env ! i); [apply co_alignof_two_p | exists 0%nat; auto].
-Qed.
-
 Lemma size_chunk_sizeof: forall env t ch, access_mode t = By_value ch -> sizeof env t = Memdata.size_chunk ch.
 Proof.
   intros.
@@ -347,54 +303,6 @@ Proof.
   - destruct f; inversion H1; reflexivity.
   - inversion H1; reflexivity.
 Qed.
-
-Definition local_legal_alignas_type env (t: type): bool :=
-  Z.leb (plain_alignof env t) (alignof env t) &&
-  match t with
-  | Tarray t' n a => Z.eqb ((sizeof env t') mod (alignof env t')) 0 && Z.leb 0 n
-  | Tlong _ _ => Z.leb 8 (alignof env t)
-  | _ => true
-  end.
-
-Lemma local_legal_alignas_type_spec: forall env t,
-  local_legal_alignas_type env t = true ->
-  (plain_alignof env t | alignof env t).
-Proof.
-  intros.
-  apply andb_true_iff in H.
-  destruct H as [? _].
-  apply Zle_is_le_bool in H.
-  apply power_nat_divide'; [apply alignof_two_p | apply plain_alignof_two_p | omega].
-Qed.
-
-Lemma align_chunk_alignof: forall env t ch, local_legal_alignas_type env t = true -> access_mode t = By_value ch -> (Memdata.align_chunk ch | alignof env t).
-Proof.
-  intros.
-  destruct t; inversion H0.
-  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
-    destruct i, s; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); reflexivity.
-  - unfold local_legal_alignas_type in H.
-    rewrite andb_true_iff in H; destruct H as [_ ?].
-    apply Zge_is_le_bool in H.
-    apply power_nat_divide' in H.
-    * auto.
-    * apply alignof_two_p.
-    * exists 3%nat; auto.
-  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
-    destruct f; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); reflexivity.
-  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
-    inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); reflexivity.
-Qed.
-
-Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
-  (co_alignof co >= alignof_composite env (co_members co)).
-
-Definition composite_env_legal_alignas env :=
-  forall (id : positive) (co : composite),
-    env ! id = Some co -> composite_legal_alignas env co.
 
 Definition composite_legal_fieldlist (co: composite): Prop :=
   members_no_replicate (co_members co) = true.
@@ -406,8 +314,15 @@ Definition composite_env_legal_fieldlist env :=
 Class compspecs := mkcompspecs {
   cenv_cs : composite_env;
   cenv_consistent: composite_env_consistent cenv_cs;
-  cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
-  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
+  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs;
+  cenv_legal_su: composite_env_complete_legal_cosu_type cenv_cs;
+  ha_env_cs: PTree.t Z;
+  ha_env_cs_consistent: hardware_alignof_env_consistent cenv_cs ha_env_cs;
+  ha_env_cs_complete: hardware_alignof_env_complete cenv_cs ha_env_cs;
+  la_env_cs: PTree.t legal_alignas_obs;
+  la_env_cs_consistent: legal_alignas_env_consistent cenv_cs ha_env_cs la_env_cs;
+  la_env_cs_complete: legal_alignas_env_complete cenv_cs la_env_cs;
+  la_env_cs_sound: legal_alignas_env_sound cenv_cs ha_env_cs la_env_cs
 }.
 
 Existing Class composite_env.
@@ -419,6 +334,9 @@ Arguments alignof {env} !t / .
 Arguments sizeof_pos {env} t _.
 Arguments alignof_pos {env} t.
 
+Arguments complete_legal_cosu_type {cenv} !t / .
+
+(* TODO: handle other part of compspecs like this. *)
 Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.
 Abort.
@@ -434,37 +352,44 @@ Defined.
 Definition type_of_funspec (fs: funspec) : type :=
   match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
 
+Inductive Annotation :=
+  WeakAnnotation : (environ -> mpred) -> Annotation
+| StrongAnnotation : (environ -> mpred) -> Annotation.
+
 (** Declaration of type context for typechecking **)
 Inductive tycontext : Type :=
   mk_tycontext : forall (tyc_temps: PTree.t type)
                         (tyc_vars: PTree.t type)
                         (tyc_ret: type)
                         (tyc_globty: PTree.t type)
-                        (tyc_globsp: PTree.t funspec),
+                        (tyc_globsp: PTree.t funspec)
+                        (tyc_annot: PTree.t Annotation),
                              tycontext.
 
 
 Definition empty_tycontext : tycontext :=
   mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid
-         (PTree.empty _)  (PTree.empty _).
+         (PTree.empty _)  (PTree.empty _) (PTree.empty _).
 
-Definition temp_types (Delta: tycontext): PTree.t (type) :=
-  match Delta with mk_tycontext a _ _ _ _ => a end.
+Definition temp_types (Delta: tycontext): PTree.t type :=
+  match Delta with mk_tycontext a _ _ _ _ _ => a end.
 Definition var_types (Delta: tycontext) : PTree.t type :=
-  match Delta with mk_tycontext _ a _ _ _ => a end.
+  match Delta with mk_tycontext _ a _ _ _ _ => a end.
 Definition ret_type (Delta: tycontext) : type :=
-  match Delta with mk_tycontext _ _ a _ _ => a end.
+  match Delta with mk_tycontext _ _ a _ _ _ => a end.
 Definition glob_types (Delta: tycontext) : PTree.t type :=
-  match Delta with mk_tycontext _ _ _ a _ => a end.
+  match Delta with mk_tycontext _ _ _ a _ _ => a end.
 Definition glob_specs (Delta: tycontext) : PTree.t funspec :=
-  match Delta with mk_tycontext _ _ _ _ a => a end.
+  match Delta with mk_tycontext _ _ _ _ a _ => a end.
+Definition annotations (Delta: tycontext) : PTree.t Annotation :=
+  match Delta with mk_tycontext _ _ _ _ _ a => a end.
 
 (*
 (** Functions that modify type environments **)
 Definition initialized id (Delta: tycontext) : tycontext :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => mk_tycontext (PTree.set id (ty,true) (temp_types Delta))
-                       (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta)
+                       (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta)
 | None => Delta (*Shouldn't happen *)
 end.
 
@@ -479,11 +404,11 @@ Definition join_te te1 te2 : PTree.t (type * bool):=
 PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
 
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
-match tycon1 with  mk_tycontext te1 ve1 r vl1 g1  =>
-match tycon2 with  mk_tycontext te2 _ _ _ _ =>
-  mk_tycontext (join_te te1 te2) ve1 r vl1 g1
+match tycon1 with  mk_tycontext te1 ve1 r vl1 g1 ann1 =>
+match tycon2 with  mk_tycontext te2 _ _ _ _ _ =>
+  mk_tycontext (join_te te1 te2) ve1 r vl1 g1 ann1
 end end.
-
+(*Print Clight.statement.*)
 (** Strictly for updating the type context... no typechecking here **)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
  match c with
@@ -496,6 +421,7 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  | Sloop _ _ => Delta
  | Sswitch e ls => join_tycon_labeled ls Delta
  | Scall (Some id) _ _ => (initialized id Delta)
+ | Slabel _ s => update_tycon Delta s
  | _ => Delta  (* et cetera *)
 end
 
@@ -556,15 +482,20 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  | b::r => let (id,f) := b in ptree_set id f (make_tycontext_s r)
  end.
 
+Definition make_tycontext_a (anns : list (ident * Annotation)) :=
+ fold_right (fun (ia : ident * Annotation) aenv => let (id, a) := ia in PTree.set id a aenv)
+   (PTree.empty Annotation) anns.
+
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
-                       (V: varspecs) (G: funspecs) :  tycontext :=
+                       (V: varspecs) (G: funspecs) (A: list (ident*Annotation)):  tycontext :=
  mk_tycontext
    (make_tycontext_t params temps)
    (make_tycontext_v vars)
    return_ty
    (make_tycontext_g V G)
-   (make_tycontext_s G).
+   (make_tycontext_s G)
+   (make_tycontext_a A).
 
 Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
  mk_tycontext
@@ -572,13 +503,14 @@ Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
    (make_tycontext_v (fn_vars func))
    (fn_return func)
    (glob_types Delta)
-   (glob_specs Delta).
+   (glob_specs Delta)
+   (annotations Delta).
 
-Definition func_tycontext (func: function) (V: varspecs) (G: funspecs): tycontext :=
-  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G.
+Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) (A:list (ident * Annotation)): tycontext :=
+  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G A.
 
 Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
-   make_tycontext nil nil nil Tvoid V G.
+   make_tycontext nil nil nil Tvoid V G nil.
 (*
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
   match ek with
@@ -698,10 +630,12 @@ rewrite var_types_update_tycon. apply var_types_update_tycon.
 rewrite var_types_update_dist. apply var_types_update_tycon.
 apply var_types_join_labeled.
 
+apply var_types_update_tycon.
+
 intros. destruct l. simpl. auto.
+
 simpl. rewrite var_types_update_dist.
 rewrite var_types_update_tycon. reflexivity.
-
 Qed.
 
 Lemma glob_types_update_tycon:
@@ -723,6 +657,8 @@ auto.
 simpl.  rewrite glob_types_update_dist. auto.
 
 auto.
+
+simpl; auto.
 
 clear glob_types_join_labeled.
 intros. simpl.
@@ -750,6 +686,8 @@ auto.
 simpl.  rewrite glob_specs_update_dist. auto.
 
 auto.
+
+simpl; auto.
 
 clear glob_specs_join_labeled.
 intros. simpl.
@@ -793,6 +731,7 @@ Proof.
   auto.
   simpl.  rewrite func_tycontext'_update_dist. auto.
   apply func_tycontext'_join_labeled.
+  simpl; auto.
 + clear func_tycontext'_join_labeled.
   intros. simpl.
   destruct l. simpl. auto.
@@ -843,6 +782,8 @@ erewrite join_te_eqv;
 eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
 
 apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*)
+
+simpl; auto.
 
 intros. destruct ls. simpl. exists false.
 rewrite H. f_equal. f_equal. destruct b; reflexivity.
@@ -901,6 +842,8 @@ rewrite update_tycon_eqv_ve. auto.
 
 erewrite update_le_eqv_ve. auto.
 
+auto.
+ 
 intros.
  destruct l. simpl in *. auto.
  simpl in *. rewrite var_types_update_dist.
@@ -925,6 +868,8 @@ rewrite ret_type_update_dist.
 rewrite update_tycon_eqv_ret. auto.
 
 rewrite update_le_eqv_ret. auto.
+
+auto.
 
 intros.
  destruct l. simpl in *.
@@ -968,6 +913,8 @@ rewrite glob_types_update_dist.
 rewrite update_tycon_eqv_ge. auto.
 erewrite update_le_eqv_ge. auto.
 
+auto. 
+
 intros.
  destruct l. simpl in *.
 auto.
@@ -993,6 +940,8 @@ rewrite update_tycon_eqv_gs. apply update_tycon_eqv_gs.
 rewrite glob_specs_update_dist.
 rewrite update_tycon_eqv_gs. auto.
 erewrite update_le_eqv_gs. auto.
+
+auto.
 
 intros.
  destruct l. simpl in *.
@@ -1113,6 +1062,37 @@ Proof.
   reflexivity.
 Qed.
 
+Definition Annotation_sub (A1 A2: option Annotation):Prop := 
+  match A1, A2 with
+    _, None => True
+  | Some (StrongAnnotation _), Some (WeakAnnotation _) => True
+  | Some (StrongAnnotation X), Some (StrongAnnotation Y) => X=Y (*maybe have entailment here?*)
+  | X, Y => X=Y 
+  end.
+
+Lemma Annotation_sub_trans a1 a2 a3: Annotation_sub a1 a2 -> 
+      Annotation_sub a2 a3 -> Annotation_sub a1 a3.
+Proof. unfold Annotation_sub.
+  destruct a1; destruct a2.
++ destruct a; destruct a0; simpl; intros.
+  - inv H; trivial.
+  - inv H. 
+  - destruct a3; trivial. inv H0; trivial.
+  - subst. trivial.
++ destruct a; trivial; intros; destruct a3; trivial; discriminate.
++ discriminate.
++ trivial.
+Qed.
+
+Lemma Annotation_sub_refl a: Annotation_sub a a. 
+Proof. unfold Annotation_sub. destruct a; trivial. destruct a; trivial. Qed.
+
+Lemma Annotation_sub_antisymm a b: Annotation_sub a b -> Annotation_sub b a -> a=b.
+Proof. intros.
+destruct a; destruct b; simpl in *; trivial; try discriminate.
+destruct a; destruct a0; subst; trivial. inv H0; trivial. 
+Qed.
+
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
                  | None, _ => True
@@ -1122,14 +1102,16 @@ Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
- /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id)).
+ /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
+ /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).
 
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
- /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
+ /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id)
+ /\ (forall id, (annotations Delta) ! id = (annotations Delta') ! id).
 (*
 Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
 Proof.
@@ -1173,13 +1155,14 @@ Proof.
  intro; subst p; congruence.
  apply IHl. contradict H0;simpl; auto.
 Qed.
-*)
+ *)
+
 Lemma tycontext_eqv_spec: forall Delta Delta',
   tycontext_eqv Delta Delta' <-> tycontext_sub Delta Delta' /\ tycontext_sub Delta' Delta.
 Proof.
   intros.
   unfold tycontext_sub, tycontext_eqv.
-  split; [intros [? [? [? [? ?]]]] | intros [[? [? [? [? ?]]]] [? [? [? [? ?]]]]]];
+  split; [intros [? [? [? [? [? ?]]]]] | intros [[? [? [? [? [? ?]]]]] [? [? [? [? [? ?]]]]]]];
   repeat split; intros;
   try assumption;
   try (symmetry; assumption);
@@ -1195,15 +1178,18 @@ Proof.
     specialize (H id).
     destruct ((temp_types Delta) ! id) as [? |], ((temp_types Delta') ! id) as [? |];
     inversion H; auto.
+  + rewrite H4. apply Annotation_sub_refl.
   + clear - H.
     specialize (H id).
     destruct ((temp_types Delta) ! id) as [? |], ((temp_types Delta') ! id) as [? |];
     inversion H; auto.
-  + clear - H H4.
+  + rewrite H4. apply Annotation_sub_refl.
+  + clear - H H5.
     specialize (H id).
-    specialize (H4 id).
+    specialize (H5 id).
     destruct ((temp_types Delta) ! id) as [? |], ((temp_types Delta') ! id) as [? |];
-    inversion H; inversion H4; auto.
+    inversion H; inversion H5; auto.
+  + clear - H4 H10. apply Annotation_sub_antisymm; auto.
 Qed.
 
 Lemma tycontext_sub_refl:
@@ -1216,6 +1202,7 @@ Proof.
     destruct (T ! id) as [? |]; split; auto; destruct b; auto.
   + apply sub_option_refl.
   + apply sub_option_refl.
+  + apply Annotation_sub_refl.
 Qed.
 
 Lemma tycontext_sub_trans:
@@ -1223,7 +1210,7 @@ Lemma tycontext_sub_trans:
   tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
   tycontext_sub Delta1 Delta3.
 Proof.
-  intros ? ? ? [G1 [G2 [G3 [G4 G5]]]] [H1 [H2 [H3 [H4 H5]]]].
+  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
   repeat split.
   * intros. specialize (G1 id); specialize (H1 id).
     destruct ((temp_types Delta1) ! id); auto.
@@ -1235,6 +1222,7 @@ Proof.
   * congruence.
   * intros. eapply sub_option_trans; eauto.
   * intros. eapply sub_option_trans; eauto.
+  * intros. eapply Annotation_sub_trans; eauto.
 Qed.
 (*
 Lemma initialized_ne : forall Delta id1 id2,
@@ -1329,14 +1317,14 @@ Qed.
 Definition binop_stable cenv op a1 a2 : bool :=
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with
-                    | Cop.add_case_pi t => complete_type cenv t
-                    | Cop.add_case_ip t => complete_type cenv t
+                    | Cop.add_case_pi t _ => complete_type cenv t
+                    | Cop.add_case_ip _ t => complete_type cenv t
                     | Cop.add_case_pl t => complete_type cenv t
                     | Cop.add_case_lp t => complete_type cenv t
                     | Cop.add_default => true
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with
-                    | Cop.sub_case_pi t => complete_type cenv t
+                    | Cop.sub_case_pi t _ => complete_type cenv t
                     | Cop.sub_case_pl t => complete_type cenv t
                     | Cop.sub_case_pp t => complete_type cenv t
                     | Cop.sub_default => true
@@ -1363,6 +1351,20 @@ Proof.
      auto.
 Qed.
 
+Lemma Cop_Sem_add_ptr_int_stable ty si u v (H:complete_type env ty = true):
+  Cop.sem_add_ptr_int env ty si u v =
+  Cop.sem_add_ptr_int env' ty si u v.
+Proof. unfold Cop.sem_add_ptr_int.
+  destruct u; destruct v; trivial; erewrite <- sizeof_stable; eauto.
+Qed.
+
+Lemma Cop_Sem_add_ptr_long_stable ty u v (H:complete_type env ty = true):
+  Cop.sem_add_ptr_long env ty u v =
+  Cop.sem_add_ptr_long env' ty u v.
+Proof. unfold Cop.sem_add_ptr_long.
+  destruct u; destruct v; trivial; erewrite <- sizeof_stable; eauto.
+Qed.
+
 Lemma Cop_sem_binary_operation_stable:
   forall b v1 e1 v2 e2 m,
   binop_stable env b e1 e2 = true ->
@@ -1375,6 +1377,9 @@ Proof.
   + simpl.
     unfold Cop.sem_add.
     destruct (Cop.classify_add (typeof e1) (typeof e2)), v1, v2;
+    try (erewrite <- Cop_Sem_add_ptr_int_stable; eauto);
+    try (erewrite <- Cop_Sem_add_ptr_long_stable; eauto);
+(*    try (eapply (complete_type_stable env env'); eauto);*)
     try erewrite <- sizeof_stable; eauto.
   + simpl.
     unfold Cop.sem_sub.
@@ -1409,8 +1414,13 @@ Proof.
 Qed.
 
 End STABILITY.
-
-
+(*
+Lemma annotations_initialized i Delta:
+   annotations (initialized i Delta) = annotations Delta.
+Proof. destruct Delta. simpl. unfold initialized. simpl.
+  destruct (tyc_temps ! i); trivial. destruct p; trivial.
+Qed.
+*)
 Section TYCON_SUB.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
@@ -1420,7 +1430,7 @@ Lemma initialized_sub: forall i,
 Proof.
 intros.
 unfold tycontext_sub in *.
-destruct extends as [? [? [? [? ?]]]].
+destruct extends as [? [? [? [? [? ?]]]]].
 repeat split; intros.
  + specialize (H id); clear - H.
         destruct (eq_dec  i id).
@@ -1439,6 +1449,7 @@ repeat split; intros.
  + repeat rewrite set_temp_ret; auto.
  + repeat rewrite set_temp_ge; auto.
  + repeat rewrite set_temp_gs; auto.
+ + rewrite 2 annotations_initialized; trivial.
 Qed.
 *)
 Lemma func_tycontext'_sub: forall f,
@@ -1447,12 +1458,13 @@ Proof.
   intros.
   unfold func_tycontext'.
   unfold tycontext_sub in *.
-  destruct extends as [? [? [? [? ?]]]].
+  destruct extends as [? [? [? [? [? ?]]]]].
   repeat split; simpl.
   + intros.
     destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id) as [? |].
     - auto.
     - exact I.
+  + auto.
   + auto.
   + auto.
 Qed.
@@ -1582,7 +1594,7 @@ Lemma tycontext_eqv_symm:
   forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
 Proof.
 intros.
-destruct H as [? [? [? [? ?]]]]; repeat split; auto.
+destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
 Lemma tycontext_eqv_sub:
@@ -1590,11 +1602,84 @@ Lemma tycontext_eqv_sub:
          tycontext_sub Delta Delta'.
 Proof.
 intros.
-destruct H as [? [? [? [? ?]]]].
+destruct H as [? [? [? [? [? ?]]]]].
 repeat split; intros; auto.
 rewrite H; auto.
 destruct ((temp_types Delta') ! id); auto.
 rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
 rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
+rewrite H4. apply Annotation_sub_refl.
 Qed.
 
+Record ret_assert : Type := {
+ RA_normal: environ->mpred;
+ RA_break: environ->mpred;
+ RA_continue: environ->mpred;
+ RA_return: option val -> environ->mpred
+}.
+(*
+Lemma update_tycon_Slabel Delta l c: update_tycon Delta (Slabel l c) = update_tycon Delta c.
+Proof. reflexivity. Qed. 
+*)
+Lemma modifiedvars_Slabel l c: modifiedvars (Slabel l c) = modifiedvars c.
+Proof. reflexivity. Qed.
+(*
+Lemma exit_tycon_Slabel l c Delta b: 
+   exit_tycon (Slabel l c) Delta b = exit_tycon c Delta b.
+Proof. unfold exit_tycon. destruct b; trivial. Qed.
+
+Lemma exit_typcon_Slabel' l c Delta: 
+   exit_tycon (Slabel l c) Delta = exit_tycon c Delta.
+Proof. extensionality b. rewrite exit_tycon_Slabel. trivial. Qed.
+
+
+Lemma annotations_update_dist:
+  forall d1 d2 : tycontext, annotations (join_tycon d1 d2) = annotations d1.
+Proof.
+intros.
+unfold annotations.
+unfold join_tycon.
+destruct d1; auto. destruct d2; auto.
+Qed.
+
+
+Lemma annotations_update_tycon: forall c Delta, 
+   (annotations Delta) = (annotations (update_tycon Delta c))
+ with annotations_update_tycon_le: forall cl Delta,
+   (annotations Delta) = (annotations (join_tycon_labeled cl Delta)).
+Proof.
+* clear annotations_update_tycon.
+induction c; intros; simpl; unfold initialized; simpl; auto.
+destruct ((temp_types Delta) ! i) as [[? ?] |]; auto.
+destruct o; auto.
+destruct ((temp_types Delta) ! i) as [[? ?] |]; auto.
+rewrite IHc2.
+rewrite <- !IHc2. auto.
+rewrite annotations_update_dist.
+auto.
+*
+clear annotations_update_tycon_le.
+induction cl; intros; simpl; auto.
+rewrite annotations_update_dist.
+auto.
+Qed.
+
+Lemma tycontext_sub_update: 
+forall Delta c, tycontext_sub Delta (update_tycon Delta c).
+Proof.
+intros.
+hnf.
+repeat split; intros; simpl.
+destruct ((temp_types Delta) ! id) eqn:?; auto. destruct p.
+apply update_tycon_te_same with (c:=c) in Heqo.
+destruct Heqo. rewrite H. split; auto. destruct b; reflexivity.
+rewrite var_types_update_tycon; auto.
+rewrite ret_type_update_tycon; auto.
+rewrite glob_types_update_tycon; auto.
+apply sub_option_refl.
+rewrite glob_specs_update_tycon; auto.
+apply sub_option_refl.
+rewrite <- annotations_update_tycon.
+apply Annotation_sub_refl.
+Qed.
+*)

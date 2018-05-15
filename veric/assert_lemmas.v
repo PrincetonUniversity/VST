@@ -1,6 +1,5 @@
 Require Export VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -17,11 +16,11 @@ Lemma mapsto_core_load: forall ch v sh loc m,
 Proof.
 unfold address_mapsto, core_load.
 intros until m; intros H.
-destruct H as [phi0 [phi1 [Hjoin [[bl [[Hlen [Hdec Halign]] H]] ?]]]].
+destruct H as [phi0 [phi1 [Hjoin [[bl [[[Hlen [Hdec Halign]] H] _]] ?]]]].
 unfold allp, jam in *.
 exists bl.
 repeat split; auto.
-hnf. intro b; spec H b.
+hnf. intro b; specialize (H b).
 hnf in H|-*.
 if_tac.
 hnf in H|-*.
@@ -73,17 +72,17 @@ rewrite H4 in H2.
 auto.
 clear - H5.
 revert bl' H5.
-induction bl; destruct bl'; intros; try solve [spec H5 O; inv H5|auto].
+induction bl; destruct bl'; intros; try solve [specialize (H5 O); inv H5|auto].
 f_equal.
-spec H5 O; inv H5; auto.
+specialize (H5 O); inv H5; auto.
 apply IHbl.
 intro i.
-spec H5 (S i).
+specialize (H5 (S i)).
 auto.
 intro i.
 destruct loc as (b, ofs).
-spec H (b, ofs + Z_of_nat i).
-spec H0 (b, ofs + Z_of_nat i).
+specialize (H (b, ofs + Z_of_nat i)).
+specialize (H0 (b, ofs + Z_of_nat i)).
 hnf in H, H0. if_tac in H.
 * (* adr_range *)
 destruct H as [sh [rsh H]].
@@ -134,7 +133,7 @@ destruct H as [wx ?].
 repeat split; auto.
 unfold allp, jam in *.
 intro loc'.
-spec H2 loc'.
+specialize (H2 loc').
 apply resource_at_join with (loc := loc') in H.
 hnf in H2|-*.
 if_tac; auto.
@@ -377,7 +376,7 @@ Proof.
 * destruct (access_mode t) eqn:?; auto.
   destruct (get_var_type Delta i) eqn:?; [ | contradiction].
   destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; if_tac; auto].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; simple_if_tac; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
@@ -385,7 +384,7 @@ Proof.
   auto.
 * destruct (get_var_type Delta i) eqn:?; [ | contradiction].
   destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; if_tac; auto].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; simple_if_tac; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
@@ -404,7 +403,7 @@ Proof.
     apply (H4 w).
     simpl.
     tauto.
-  + unfold tc_bool in H2 |- *; if_tac; tauto.
+  + unfold tc_bool in H2 |- *; simple_if_tac; tauto.
   + pose proof (H4 w H1).
     simpl in H3 |- *.
     unfold_lift in H3; unfold_lift.
@@ -415,14 +414,14 @@ Proof.
   repeat split.
   + unfold tc_expr in H0.
     apply (H0 w); unfold prop; auto.
-  + unfold tc_bool in *; if_tac; tauto.
+  + unfold tc_bool in *; simple_if_tac; tauto.
   + pose proof (H0 w H2).
     simpl in H4 |- *.
     unfold_lift in H4; unfold_lift.
     exact H4.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
   + destruct IHe. apply (H3 w); auto.
-  + unfold tc_bool in *; if_tac; tauto.
+  + unfold tc_bool in *; simple_if_tac; tauto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   destruct IHe. apply (H2 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.

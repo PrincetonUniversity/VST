@@ -487,7 +487,7 @@ intros.
 intros w ?.
 destruct H0 as [x ?].
 intros ?w ?w ? ?.
-spec H0 w0 w1 H1 H2.
+specialize ( H0 w0 w1 H1 H2).
 exists x; auto.
 Qed.
 

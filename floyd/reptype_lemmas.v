@@ -136,11 +136,9 @@ Proof.
   reflexivity.
 Qed.
 
-Section CENV.
 
-Context {cs: compspecs}.
 
-Definition reptype_gen: type -> (sigT (fun x => x)) :=
+Definition reptype_gen {cs: compspecs} : type -> (sigT (fun x => x)) :=
   type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      if (type_is_by_value t)
@@ -152,12 +150,17 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
-Definition reptype t: Type := match reptype_gen t with existT t _ => t end.
+Definition reptype {cs: compspecs} t: Type := match reptype_gen t with existT t _ => t end.
 
-Definition default_val t: reptype t :=
+Definition default_val {cs: compspecs} t: reptype t :=
   match reptype_gen t as tv
     return match tv with existT t _ => t end
   with existT t v => v end.
+
+Instance Inhabitant_reptype {cs: compspecs} (t: type) : Inhabitant (reptype t) := default_val t.
+
+Section CENV.
+Context {cs: compspecs}.
 
 Lemma reptype_gen_eq: forall t,
   reptype_gen t =
@@ -366,7 +369,7 @@ Proof.
   + change (compact_sum_sigT_value
         (map (fun b1 : B => existT P (genT b1) (genV b1)) (b :: b0 :: l))) with
   (@inl (P (genT b)) (compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l)))) (genV b)).
-    change (compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b :: b0 :: l)))) with
+    change (compact_sum (map (fun tv => match _ with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b :: b0 :: l)))) with
       (P (genT b) + compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l))))%type.
     replace (compact_sum_gen filter genV (b :: b0 :: l)) with
       (@inl (P (genT b)) (compact_sum (map (fun b1 : B => P (genT b1)) (b0 :: l))) (genV b)).
@@ -433,13 +436,13 @@ Proof.
 Qed.
 
 Inductive pointer_val : Type :=
-  | ValidPointer: block -> int -> pointer_val
+  | ValidPointer: block -> Ptrofs.int -> pointer_val
   | NullPointer.
 
 Lemma PV_eq_dec: forall x y: pointer_val, {x = y} + {x <> y}.
 Proof.
   intros; destruct x, y; [| right | right | left]; try congruence.
-  destruct (block_eq_dec b b0), (Int.eq_dec i i0); [left | right | right | right]; congruence.
+  destruct (block_eq_dec b b0), (Ptrofs.eq_dec i i0); [left | right | right | right]; congruence.
 Qed.
 
 Lemma zero_in_range : (-1 < 0 < Int.modulus)%Z.
@@ -592,6 +595,12 @@ Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
 Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
+Lemma ptrofs_add_repr_0_l: forall i, Ptrofs.add (Ptrofs.repr 0) i = i.
+Proof. intros. apply Ptrofs.add_zero_l. Qed.
+Lemma ptrofs_add_repr_0_r: forall i, Ptrofs.add i (Ptrofs.repr 0) = i.
+Proof. intros. apply Ptrofs.add_zero. Qed.
+Hint Rewrite ptrofs_add_repr_0_l ptrofs_add_repr_0_r : norm.
+
 Definition repinject (t: type) : reptype t -> val :=
   match t as t0 return reptype t0 -> val with
   | Tint _ _ _ => fun v => v
@@ -695,6 +704,114 @@ Tactic Notation "unfold_repinj" constr(T) constr(V) :=
   unfold_repinj' T.
 *)
 
+Lemma reptype_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  @reptype cs_from t = @reptype cs_to t.
+Proof.
+  intros t.
+  type_induction t; intros.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    rewrite IH; auto.
+  + rewrite !reptype_eq.
+    reflexivity.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    revert H IH.
+    unfold reptype_structlist.
+    generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
+    f_equal.
+    induction IH as [| [i t] ?].
+    - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
+  + rewrite (@reptype_eq cs_from), (@reptype_eq cs_to).
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    revert H IH.
+    unfold reptype_unionlist.
+    generalize (co_members (get_co id)) at 1 3 4 5 7 9; intros.
+    f_equal.
+    induction IH as [| [i t] ?].
+    - reflexivity.
+    - Opaque field_type. simpl. Transparent field_type.
+      inv H.
+      f_equal; auto.
+Qed.
+
+Lemma default_val_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall (t: type),
+  cs_preserve_type cs_from cs_to (coeq _ _) t = true ->
+  JMeq (@default_val cs_from t) (@default_val cs_to t).
+Proof.
+  intros t.
+  type_induction t; intros.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    specialize (IH H).
+    revert IH; generalize (@default_val cs_from t), (@default_val cs_to t).
+    rewrite reptype_change_composite by auto.
+    intros.
+    apply JMeq_eq in IH; subst.
+    apply JMeq_refl.
+  + rewrite !default_val_eq.
+    apply JMeq_refl.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    unfold struct_default_val.
+    apply compact_prod_gen_JMeq.
+    rewrite <- Forall_forall.
+    revert H IH.
+    generalize (co_members (get_co id)) at 1 3 4 5 6 7 9 10 11 12; intros.
+    induction H as [| [i t] ?].
+    - constructor.
+    - inv IH.
+      constructor; auto.
+  + rewrite (@default_val_eq cs_from), (@default_val_eq cs_to).
+    eapply JMeq_trans; [| eapply JMeq_trans]; [apply fold_reptype_JMeq | | apply JMeq_sym, fold_reptype_JMeq].
+    simpl in H.
+    rewrite co_members_get_co_change_composite by auto.
+    apply members_spec_change_composite in H.
+    cbv zeta in IH.
+    unfold union_default_val.
+    apply compact_sum_gen_JMeq.
+    rewrite <- Forall_forall.
+    revert H IH.
+    generalize (co_members (get_co id)) at 1 3 4 5 6 7 9 10 11 12; intros.
+    induction H as [| [i t] ?].
+    - constructor.
+    - inv IH.
+      constructor; auto.
+Qed.
+
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with
   | O, _ => nil
@@ -757,14 +874,14 @@ Qed.
 
 Open Scope Z.
 
-Fixpoint replist' {A: Type} (d: A) (lo: Z) (n: nat) (al: list A) :=
+Fixpoint replist' {A: Type} {d: Inhabitant A} (lo: Z) (n: nat) (al: list A) :=
  match n with
  | O => nil
- | S n' =>  Znth lo al d :: replist' d (Z.succ lo) n' al
+ | S n' =>  Znth lo al :: replist' (Z.succ lo) n' al
  end.
 
 Definition replist {cs: compspecs} (t: type)  (lo hi: Z) (al: list (reptype t)) :=
-  replist' (default_val t) lo (Z.to_nat (hi-lo)) al.
+  replist'  lo (Z.to_nat (hi-lo)) al.
 
 (* replist t lo hi al *)
 
@@ -831,8 +948,8 @@ Focus 2.
 Qed.
 
 Lemma replist'_succ:
- forall A (d:A) lo n r al,
-   (lo>=0) -> replist' d (Z.succ lo) n (r::al) = replist' d lo n al.
+ forall {A} {d:Inhabitant A} lo n r al,
+   (lo>=0) -> replist' (Z.succ lo) n (r::al) = replist' lo n al.
 Proof.
 intros.
 revert lo al H; induction n; simpl; intros.
@@ -865,7 +982,7 @@ intros.
  destruct al; simpl in H. omega.
  f_equal.
  rewrite <- (IHn al) by omega. clear IHn.
- rewrite <- (replist'_succ _ (default_val t) 0 n r al) by omega.
+ rewrite <- (replist'_succ 0 n r al) by omega.
  reflexivity.
  rewrite inj_S.
   destruct al. simpl length in H0. assert (n=0)%nat by omega.

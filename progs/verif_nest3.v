@@ -83,12 +83,10 @@ Qed. (* 77 sec *)
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
-Time start_function. (* 0.22 sec *)
-(* Time unfold_repinj. (* 0.25 sec *)*)
-
-Time forward.  (* 137 sec -> 15.8 sec *)
-Time match goal with |- context [field_at _ _ _ ?X _] =>
+Time start_function.
+Time forward.
+Time match goal with |- context [data_at _ _ ?X _] =>
   set (v1 := X) (* do this so the forward doesn't blow up *)
-end. (* 8.3 sec *)
+end.
 Time forward. (* 125 sec -> 33 sec *)
 Time Qed. (* 2.74 sec *)

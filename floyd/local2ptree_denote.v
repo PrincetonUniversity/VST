@@ -57,10 +57,11 @@ match Q with
       end
 (*| tc_env D => f T1 T2 P' (tc_env D :: Q') *)
 | localprop P => f T1 T2 (P :: P') Q'
+| gvars gv => f T1 T2 P' (gvars gv :: Q')
 end.
 
 Fixpoint local2ptree_aux (Q: list localdef)
-   (T1: PTree.t val) (T2: PTree.t vardesc) (P': list Prop) (Q': list localdef) :
+   (T1: PTree.t val) (T2: PTree.t vardesc) (P': list Prop) (Q': list localdef):
    local_trees :=
 match Q with
 | Q1 :: Qr => local2ptree1 Q1 T1 T2 P' Q' (local2ptree_aux Qr)
@@ -68,7 +69,7 @@ match Q with
 end.
 
 Definition local2ptree (Q: list localdef)
-     : (PTree.t val * PTree.t vardesc * list Prop * list localdef) :=
+     : (PTree.t val * PTree.t vardesc * list Prop * list localdef ) :=
 local2ptree_aux Q PTree.Leaf PTree.Leaf nil nil.
 
 Definition CLEAR_ME {T} (x:T) := x.
@@ -82,6 +83,7 @@ Ltac hnf_localdef_list A :=
  | gvar _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
  | sgvar _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
  | localprop ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
+ | gvars ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
 (* | tc_env ?v :: ?Q' => hide_it v;  hnf_localdef_list Q'      *)
   | ?B :: ?C => let x := eval hnf in B in change B with x; hnf_localdef_list (x::C)
   | nil => idtac
@@ -89,12 +91,23 @@ Ltac hnf_localdef_list A :=
             let x := eval hnf in A in (change A with x); hnf_localdef_list x
   end.
 
+Ltac grab_gvars L := 
+ match L with gvars ?A :: ?B => let x := grab_gvars B in let z := constr:(A::x) in z
+                | nil => let x := constr:(@nil globals) in x
+  end.
+
 Ltac prove_local2ptree :=
  clear;
  match goal with |- local2ptree ?A = _ => hnf_localdef_list A end;
- unfold local2ptree, local2ptree_aux; simpl;
- repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
- reflexivity.
+ etransitivity;
+ [unfold local2ptree, local2ptree_aux; simpl;
+  repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
+  reflexivity |
+  repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
+  apply f_equal;
+  try reflexivity;
+  match goal with |- ?L = _ => let x := grab_gvars L in instantiate(1:=x); reflexivity end
+ ].
 
 Goal exists x,  local2ptree (
       temp 1%positive Vundef
@@ -848,7 +861,7 @@ Qed.
 
 Lemma insert_locals:
   forall P A B C,
-  local (fold_right `and `True (map locald_denote A)) && PROPx P (LOCALx B C) =
+  local (fold_right `(and) `(True) (map locald_denote A)) && PROPx P (LOCALx B C) =
   PROPx P (LOCALx (A++B) C).
 Proof.
 intros.
@@ -913,7 +926,7 @@ Proof.
     simpl app;
      rewrite  <- ?insert_prop, <- ?insert_local', <- ?andp_assoc;
     rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
+    forget (local (fold_right `(and) `(True) (map locald_denote Q))) as QQ;
     destruct (T2a ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q');
     inv H8.
@@ -965,7 +978,7 @@ Proof.
     simpl app;
      rewrite  <- ?insert_prop, <- ?insert_local', <- ?andp_assoc;
     rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
+    forget (local (fold_right `(and) `(True) (map locald_denote Q))) as QQ;
      rewrite !(andp_comm QQ); rewrite <- !andp_assoc; f_equal; clear QQ;
     destruct (T2a ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q');
@@ -1030,7 +1043,7 @@ Proof.
         simpl app;
         rewrite  <- ?insert_prop, <- ?insert_local', <- ?andp_assoc;
     rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
+    forget (local (fold_right `(and) `(True) (map locald_denote Q))) as QQ;
      rewrite !(andp_comm QQ); rewrite <- !andp_assoc; f_equal; clear QQ).
     -
      rewrite <- (PTree.gsident _ _ H8) by auto.
@@ -1087,6 +1100,12 @@ Proof.
  +
     rewrite <- (IHQ _ _ _ _ _ _ _ _ H); clear IHQ H.
     simpl app. rewrite <- insert_prop. rewrite <- insert_local'. reflexivity.
+ +
+    rewrite <- (IHQ _ _ _ _ _ _ _ _ H); clear IHQ H.
+     apply LOCALx_shuffle'.
+     intros.
+     rewrite !in_app. rewrite LOCALx_expand_res.
+     rewrite !in_cns. clear; intuition.
 Qed.
 
 Lemma local2ptree_soundness  : forall P Q R T1 T2 P' Q',
@@ -1115,7 +1134,7 @@ Proof.
   extensionality rho; unfold SEPx; simpl. rewrite sepcon_emp. reflexivity.
 Qed.
 
-Lemma local_ext: forall Q0 Q rho, In Q0 Q -> fold_right `and `True Q rho -> Q0 rho.
+Lemma local_ext: forall Q0 Q rho, In Q0 Q -> fold_right `(and) `(True) Q rho -> Q0 rho.
 Proof.
   intros.
   induction Q.
@@ -1130,7 +1149,7 @@ Proof.
       tauto.
 Qed.
 
-Lemma local_ext_rev: forall (Q: list (environ -> Prop)) rho, (forall Q0, In Q0 Q -> Q0 rho) -> fold_right `and `True Q rho.
+Lemma local_ext_rev: forall (Q: list (environ -> Prop)) rho, (forall Q0, In Q0 Q -> Q0 rho) -> fold_right `(and) `(True) Q rho.
 Proof.
   intros.
   induction Q.
@@ -1204,6 +1223,3 @@ destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
 destruct (ge_of rho id); try contradiction.
 subst; auto.
 Qed.
-
-Ltac make_func_ptr id :=
- eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].

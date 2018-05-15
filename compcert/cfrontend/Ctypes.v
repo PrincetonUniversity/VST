@@ -78,15 +78,19 @@ with typelist : Type :=
   | Tnil: typelist
   | Tcons: type -> typelist -> typelist.
 
+Lemma intsize_eq: forall (s1 s2: intsize), {s1=s2} + {s1<>s2}.
+Proof.
+  decide equality.
+Defined.
+
 Lemma type_eq: forall (ty1 ty2: type), {ty1=ty2} + {ty1<>ty2}
 with typelist_eq: forall (tyl1 tyl2: typelist), {tyl1=tyl2} + {tyl1<>tyl2}.
 Proof.
-  assert (forall (x y: intsize), {x=y} + {x<>y}) by decide equality.
   assert (forall (x y: signedness), {x=y} + {x<>y}) by decide equality.
   assert (forall (x y: floatsize), {x=y} + {x<>y}) by decide equality.
   assert (forall (x y: attr), {x=y} + {x<>y}).
   { decide equality. decide equality. apply N.eq_dec. apply bool_dec. }
-  generalize ident_eq zeq bool_dec ident_eq; intros.
+  generalize ident_eq zeq bool_dec ident_eq intsize_eq; intros.
   decide equality.
   decide equality.
   decide equality.
@@ -272,7 +276,7 @@ Fixpoint alignof (env: composite_env) (t: type) : Z :=
       | Tlong _ _ => Archi.align_int64
       | Tfloat F32 _ => 4
       | Tfloat F64 _ => Archi.align_float64
-      | Tpointer _ _ => 4
+      | Tpointer _ _ => if Archi.ptr64 then 8 else 4
       | Tarray t' _ _ => alignof env t'
       | Tfunction _ _ _ => 1
       | Tstruct id _ | Tunion id _ =>
@@ -299,11 +303,11 @@ Proof.
     exists 1%nat; auto.
     exists 2%nat; auto.
     exists 0%nat; auto.
-    (exists 2%nat; reflexivity) || (exists 3%nat; reflexivity).
+    unfold Archi.align_int64. destruct Archi.ptr64; ((exists 2%nat; reflexivity) || (exists 3%nat; reflexivity)).
   destruct f.
     exists 2%nat; auto.
-    (exists 2%nat; reflexivity) || (exists 3%nat; reflexivity).
-  exists 2%nat; auto.
+    unfold Archi.align_float64. destruct Archi.ptr64; ((exists 2%nat; reflexivity) || (exists 3%nat; reflexivity)).
+  exists (if Archi.ptr64 then 3%nat else 2%nat); destruct Archi.ptr64; auto.
   apply IHt.
   exists 0%nat; auto.
   destruct (env!i). apply co_alignof_two_p. exists 0%nat; auto.
@@ -335,7 +339,7 @@ Fixpoint sizeof (env: composite_env) (t: type) : Z :=
   | Tlong _ _ => 8
   | Tfloat F32 _ => 4
   | Tfloat F64 _ => 8
-  | Tpointer _ _ => 4
+  | Tpointer _ _ => if Archi.ptr64 then 8 else 4
   | Tarray t' n _ => sizeof env t' * Z.max 0 n
   | Tfunction _ _ _ => 1
   | Tstruct id _ | Tunion id _ =>
@@ -348,6 +352,7 @@ Proof.
   induction t; simpl; try omega.
   destruct i; omega.
   destruct f; omega.
+  destruct Archi.ptr64; omega.
   change 0 with (0 * Z.max 0 z) at 2. apply Zmult_ge_compat_r. auto. xomega.
   destruct (env!i). apply co_sizeof_pos. omega.
   destruct (env!i). apply co_sizeof_pos. omega.
@@ -368,15 +373,15 @@ Lemma sizeof_alignof_compat:
   forall env t, naturally_aligned t -> (alignof env t | sizeof env t).
 Proof.
   induction t; intros [A B]; unfold alignof, align_attr; rewrite A; simpl.
-- apply Zdivide_refl.
-- destruct i; apply Zdivide_refl.
-- exists (8 / Archi.align_int64); reflexivity.
-- destruct f. apply Zdivide_refl. exists (8 / Archi.align_float64); reflexivity.
-- apply Zdivide_refl.
+- apply Z.divide_refl.
+- destruct i; apply Z.divide_refl.
+- exists (8 / Archi.align_int64). unfold Archi.align_int64; destruct Archi.ptr64; reflexivity.
+- destruct f. apply Z.divide_refl. exists (8 / Archi.align_float64). unfold Archi.align_float64; destruct Archi.ptr64; reflexivity.
+- apply Z.divide_refl.
 - apply Z.divide_mul_l; auto.
-- apply Zdivide_refl.
-- destruct (env!i). apply co_sizeof_alignof. apply Zdivide_0.
-- destruct (env!i). apply co_sizeof_alignof. apply Zdivide_0.
+- apply Z.divide_refl.
+- destruct (env!i). apply co_sizeof_alignof. apply Z.divide_0_r.
+- destruct (env!i). apply co_sizeof_alignof. apply Z.divide_0_r.
 Qed.
 
 (** ** Size and alignment for composite definitions *)
@@ -430,9 +435,9 @@ Lemma sizeof_struct_incr:
 Proof.
   induction m as [|[id t]]; simpl; intros.
 - omega.
-- apply Zle_trans with (align cur (alignof env t)).
+- apply Z.le_trans with (align cur (alignof env t)).
   apply align_le. apply alignof_pos.
-  apply Zle_trans with (align cur (alignof env t) + sizeof env t).
+  apply Z.le_trans with (align cur (alignof env t) + sizeof env t).
   generalize (sizeof_pos env t); omega.
   apply IHm.
 Qed.
@@ -483,7 +488,7 @@ Proof.
   inv H. inv H0. split.
   apply align_le. apply alignof_pos. apply sizeof_struct_incr.
   exploit IHfld; eauto. intros [A B]. split; auto.
-  eapply Zle_trans; eauto. apply Zle_trans with (align pos (alignof env t)).
+  eapply Z.le_trans; eauto. apply Z.le_trans with (align pos (alignof env t)).
   apply align_le. apply alignof_pos. generalize (sizeof_pos env t). omega.
 Qed.
 
@@ -576,7 +581,7 @@ Definition access_mode (ty: type) : mode :=
   | Tfloat F32 _ => By_value Mfloat32
   | Tfloat F64 _ => By_value Mfloat64
   | Tvoid => By_nothing
-  | Tpointer _ _ => By_value Mint32
+  | Tpointer _ _ => By_value Mptr
   | Tarray _ _ _ => By_reference
   | Tfunction _ _ _ => By_reference
   | Tstruct _ _ => By_copy
@@ -609,7 +614,7 @@ Fixpoint alignof_blockcopy (env: composite_env) (t: type) : Z :=
   | Tlong _ _ => 8
   | Tfloat F32 _ => 4
   | Tfloat F64 _ => 8
-  | Tpointer _ _ => 4
+  | Tpointer _ _ => if Archi.ptr64 then 8 else 4
   | Tarray t' _ _ => alignof_blockcopy env t'
   | Tfunction _ _ _ => 1
   | Tstruct id _ | Tunion id _ =>
@@ -622,7 +627,7 @@ Fixpoint alignof_blockcopy (env: composite_env) (t: type) : Z :=
 Lemma alignof_blockcopy_1248:
   forall env ty, let a := alignof_blockcopy env ty in a = 1 \/ a = 2 \/ a = 4 \/ a = 8.
 Proof.
-  assert (X: forall co, let a := Zmin 8 (co_alignof co) in
+  assert (X: forall co, let a := Z.min 8 (co_alignof co) in
              a = 1 \/ a = 2 \/ a = 4 \/ a = 8).
   {
     intros. destruct (co_alignof_two_p co) as [n EQ]. unfold a; rewrite EQ.
@@ -630,12 +635,17 @@ Proof.
     destruct n; auto.
     destruct n; auto.
     right; right; right. apply Z.min_l.
-    rewrite two_power_nat_two_p. rewrite ! inj_S.
+    rewrite two_power_nat_two_p. rewrite ! Nat2Z.inj_succ.
     change 8 with (two_p 3). apply two_p_monotone. omega.
   }
-  induction ty; simpl; auto.
+  induction ty; simpl.
+  auto.
   destruct i; auto.
+  auto.
   destruct f; auto.
+  destruct Archi.ptr64; auto.
+  apply IHty.
+  auto.
   destruct (env!i); auto.
   destruct (env!i); auto.
 Qed.
@@ -651,28 +661,28 @@ Lemma sizeof_alignof_blockcopy_compat:
 Proof.
   assert (X: forall co, (Z.min 8 (co_alignof co) | co_sizeof co)).
   {
-    intros. apply Zdivide_trans with (co_alignof co). 2: apply co_sizeof_alignof.
+    intros. apply Z.divide_trans with (co_alignof co). 2: apply co_sizeof_alignof.
     destruct (co_alignof_two_p co) as [n EQ]. rewrite EQ.
-    destruct n. apply Zdivide_refl.
-    destruct n. apply Zdivide_refl.
-    destruct n. apply Zdivide_refl.
+    destruct n. apply Z.divide_refl.
+    destruct n. apply Z.divide_refl.
+    destruct n. apply Z.divide_refl.
     apply Z.min_case.
     exists (two_p (Z.of_nat n)).
     change 8 with (two_p 3).
     rewrite <- two_p_is_exp by omega.
-    rewrite two_power_nat_two_p. rewrite !inj_S. f_equal. omega.
-    apply Zdivide_refl.
+    rewrite two_power_nat_two_p. rewrite !Nat2Z.inj_succ. f_equal. omega.
+    apply Z.divide_refl.
   }
   induction ty; simpl.
-  apply Zdivide_refl.
-  apply Zdivide_refl.
-  apply Zdivide_refl.
-  apply Zdivide_refl.
-  apply Zdivide_refl.
+  apply Z.divide_refl.
+  apply Z.divide_refl.
+  apply Z.divide_refl.
+  apply Z.divide_refl.
+  apply Z.divide_refl.
   apply Z.divide_mul_l. auto.
-  apply Zdivide_refl.
-  destruct (env!i). apply X. apply Zdivide_0.
-  destruct (env!i). apply X. apply Zdivide_0.
+  apply Z.divide_refl.
+  destruct (env!i). apply X. apply Z.divide_0_r.
+  destruct (env!i). apply X. apply Z.divide_0_r.
 Qed.
 
 (** Type ranks *)
@@ -697,7 +707,7 @@ Fixpoint rank_type (ce: composite_env) (t: type) : nat :=
 Fixpoint rank_members (ce: composite_env) (m: members) : nat :=
   match m with
   | nil => 0%nat
-  | (id, t) :: m => Peano.max (rank_type ce t) (rank_members ce m)
+  | (id, t) :: m => Init.Nat.max (rank_type ce t) (rank_members ce m)
   end.
 
 (** ** C types and back-end types *)
@@ -714,20 +724,16 @@ Fixpoint type_of_params (params: list (ident * type)) : typelist :=
 
 Definition typ_of_type (t: type) : AST.typ :=
   match t with
-  | Tfloat F32 _ => AST.Tsingle
-  | Tfloat _ _ => AST.Tfloat
+  | Tvoid => AST.Tint
+  | Tint _ _ _ => AST.Tint
   | Tlong _ _ => AST.Tlong
-  | _ => AST.Tint
+  | Tfloat F32 _ => AST.Tsingle
+  | Tfloat F64 _ => AST.Tfloat
+  | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _ => AST.Tptr
   end.
 
 Definition opttyp_of_type (t: type) : option AST.typ :=
-  match t with
-  | Tvoid => None
-  | Tfloat F32 _ => Some AST.Tsingle
-  | Tfloat _ _ => Some AST.Tfloat
-  | Tlong _ _ => Some AST.Tlong
-  | _ => Some AST.Tint
-  end.
+  if type_eq t Tvoid then None else Some (typ_of_type t).
 
 Fixpoint typlist_of_typelist (tl: typelist) : list AST.typ :=
   match tl with
@@ -812,7 +818,7 @@ Program Definition composite_of_def
             co_sizeof_alignof := _ |}
   end.
 Next Obligation.
-  apply Zle_ge. eapply Zle_trans. eapply sizeof_composite_pos.
+  apply Z.le_ge. eapply Z.le_trans. eapply sizeof_composite_pos.
   apply align_le; apply alignof_composite_pos.
 Defined.
 Next Obligation.
@@ -1058,7 +1064,7 @@ Proof.
     destruct (complete_members env m) eqn:C; simplify_eq EQ. clear EQ; intros EQ.
     rewrite PTree.gsspec. intros [A|A]; auto.
     destruct (peq id id0); auto.
-    inv A. (*rewrite <- H1;*) auto.
+    inv A. rewrite <- H0; auto.
   }
   intros. exploit REC; eauto. rewrite PTree.gempty. intuition congruence.
 Qed.
@@ -1513,7 +1519,7 @@ Local Transparent Linker_program.
   - intros. exploit link_match_fundef; eauto. intros (tf & A & B). exists tf; auto.
   - intros.
     Local Transparent Linker_types.
-    simpl in *. destruct (type_eq v1 v2); inv H4. (*subst v tv2.*) exists v(*tv1*); rewrite dec_eq_true; auto.
+    simpl in *. destruct (type_eq v1 v2); inv H4. exists v; rewrite dec_eq_true; auto.
   - eauto.
   - eauto.
   - eauto.

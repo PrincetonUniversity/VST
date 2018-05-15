@@ -34,6 +34,7 @@ Fixpoint msubst_denote_tc_assert {cs: compspecs} (T1: PTree.t val) (T2: PTree.t 
   | tc_nodivover' v1 v2 => denote_tc_nodivover (force_val (msubst_eval_expr T1 T2 v1)) (force_val (msubst_eval_expr T1 T2 v2))
   | tc_initialized id ty => FF
   | tc_iszero' e => denote_tc_iszero (force_val (msubst_eval_expr T1 T2 e))
+  | tc_nosignedover op e1 e2 => denote_tc_nosignedover op (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
   end.
 
 Definition msubst_tc_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) :=
@@ -66,8 +67,8 @@ Lemma msubst_denote_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc
 Proof.
   intros.
   induction tc.
-  + apply andp_left2; auto.
-  + apply andp_left2; auto.
+  + apply andp_left2; apply derives_refl.
+  + apply andp_left2; apply derives_refl.
   + change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
     change (`(msubst_denote_tc_assert T1 T2 (tc_andp' tc1 tc2)))
       with (`(msubst_denote_tc_assert T1 T2 tc1) && `(msubst_denote_tc_assert T1 T2 tc2)).
@@ -289,6 +290,30 @@ Proof.
     unfold local, lift1; unfold_lift.
     intros rho.
     simpl; normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+      rewrite <- imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_samebase.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_samebase.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_samebase.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl; normalize.
 Qed.
 
 Definition legal_tc_init (Delta: tycontext): tc_assert -> Prop :=
@@ -307,7 +332,7 @@ Lemma msubst_simpl_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
   denote_tc_assert tc.
 Proof.
   intros.
-  induction tc; try solve [apply andp_left2; auto].
+  induction tc; try solve [apply andp_left2, derives_refl].
   + inversion H.
     simpl msubst_simpl_tc_assert.
     rewrite denote_tc_assert_andp.
@@ -369,7 +394,7 @@ Proof.
   intros.
   unfold tc_nonzero.
   destruct (eval_expr e any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_tc_iszero: forall {cs: compspecs} Delta e,
@@ -378,7 +403,7 @@ Proof.
   intros.
   unfold tc_iszero.
   destruct (eval_expr e any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_tc_test_eq: forall {cs: compspecs} Delta e1 e2,
@@ -387,7 +412,7 @@ Proof.
   intros.
   unfold tc_test_eq.
   destruct (eval_expr e1 any_environ), (eval_expr e2 any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_tc_test_order: forall {cs: compspecs} Delta e1 e2,
@@ -396,7 +421,7 @@ Proof.
   intros.
   unfold tc_test_order.
   destruct (eval_expr e1 any_environ), (eval_expr e2 any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_tc_nodivover: forall {cs: compspecs} Delta e1 e2,
@@ -405,7 +430,7 @@ Proof.
   intros.
   unfold tc_nodivover.
   destruct (eval_expr e1 any_environ), (eval_expr e2 any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_tc_ilt: forall {cs: compspecs} Delta e i,
@@ -414,7 +439,7 @@ Proof.
   intros.
   unfold tc_ilt.
   destruct (eval_expr e any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_tc_llt: forall {cs: compspecs} Delta e i,
@@ -423,7 +448,7 @@ Proof.
   intros.
   unfold tc_llt.
   destruct (eval_expr e any_environ); simpl; auto;
-  if_tac; simpl; auto.
+  simple_if_tac; simpl; auto.
 Qed.
 
 Lemma legal_tc_init_binarithType: forall Delta t1 t2 t err err',
@@ -431,8 +456,19 @@ Lemma legal_tc_init_binarithType: forall Delta t1 t2 t err err',
 Proof.
   intros.
   unfold binarithType.
-  destruct (classify_binarith t1 t2);
+  destruct (Cop.classify_binarith t1 t2);
   first [apply legal_tc_init_tc_bool | simpl; auto].
+Qed.
+
+Lemma legal_tc_init_tc_nobinover: forall {cs: compspecs} Delta op e1 e2,
+  legal_tc_init Delta (tc_nobinover op e1 e2).
+Proof.
+  intros.
+  unfold tc_nobinover, if_expr_signed.
+  destruct (typeof e1) as [| ? [|] ? | [|] ? | | | | | |]; try solve [simpl; auto];
+  destruct (eval_expr e1 any_environ); try solve [simpl; auto];
+  destruct (typeof e2) as [| ? [|] ? | [|] ? | | | | | |]; try solve [simpl; auto];
+  destruct (eval_expr e2 any_environ); try solve [simpl; auto | simple_if_tac; simpl; auto].
 Qed.
 
 Ltac solve_legal_tc_init :=
@@ -450,6 +486,7 @@ Ltac solve_legal_tc_init :=
       | |- legal_tc_init _ (tc_ilt _ _) => apply legal_tc_init_tc_ilt
       | |- legal_tc_init _ (tc_llt _ _) => apply legal_tc_init_tc_llt
       | |- legal_tc_init _ (binarithType _ _ _ _ _) => apply legal_tc_init_binarithType
+      | |- legal_tc_init _ (tc_nobinover _ _ _) => apply legal_tc_init_tc_nobinover
       | |- _ => idtac
       end).
 
@@ -464,14 +501,14 @@ Proof.
   + clear typecheck_expr_legal_tc_init.
     intros.
     induction e; simpl; solve_legal_tc_init.
-    - unfold isUnOpResultType; solve_legal_tc_init.
-    - unfold isBinOpResultType.
+    - unfold isUnOpResultType, tc_int_or_ptr_type; solve_legal_tc_init.
+    - unfold isBinOpResultType, tc_int_or_ptr_type.
       Opaque tc_andp tc_orp.
       solve_legal_tc_init.
       Transparent tc_andp tc_orp.
     - unfold isCastResultType.
       solve_legal_tc_init.
-Qed.  
+Qed.
 
 Lemma typecheck_LR_strong_legal_tc_init: forall {cs: compspecs} Delta e lr,
   legal_tc_init Delta (typecheck_LR_strong Delta e lr).

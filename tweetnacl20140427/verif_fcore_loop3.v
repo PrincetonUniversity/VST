@@ -19,10 +19,10 @@ Fixpoint WcontI (xs: list int) (j:nat) (l:list val):Prop :=
    match j with O => Zlength l = 16
    | (S n) => Zlength l = 16 /\
               exists t0 t1 t2 t3,
-              Znth ((5 * (Z.of_nat n) + 4 * 0) mod 16) (map Vint xs) Vundef = Vint t0 /\
-              Znth ((5 * (Z.of_nat n) + 4 * 1) mod 16) (map Vint xs) Vundef = Vint t1 /\
-              Znth ((5 * (Z.of_nat n) + 4 * 2) mod 16) (map Vint xs) Vundef = Vint t2 /\
-              Znth ((5 * (Z.of_nat n) + 4 * 3) mod 16) (map Vint xs) Vundef = Vint t3 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 0) mod 16) (map Vint xs) = Vint t0 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 1) mod 16) (map Vint xs) = Vint t1 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 2) mod 16) (map Vint xs) = Vint t2 /\
+              Znth ((5 * (Z.of_nat n) + 4 * 3) mod 16) (map Vint xs) = Vint t3 /\
               exists wl, WcontI xs n wl /\
                 match Wcopyspec t0 t1 t2 t3 with
                  (s0,s1,s2,s3) => wlistJ' wl (Z.of_nat n) s0 s1 s2 s3 l
@@ -124,10 +124,10 @@ Sfor (Sset _m (Econst_int (Int.repr 0) tint))
 Lemma array_copy3 Espec:
 forall FR c k h nonce out
        i w x y t (xlist wlist:list val)
-       (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist Vundef =Vint mval),
+       (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist =Vint mval),
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -154,14 +154,14 @@ Time forward_for_simple_bound 16 (EX m:Z,
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
-         EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist Vundef = Znth mm wlist Vundef)
+         EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist = Znth mm wlist)
                 && data_at Tsh (tarray tuint 16) mlist x))).
   (*1.2 versus 2.7*)
 { Exists xlist. Time entailer!. (*2.6 versus 6.7*) intros; omega. }
 { Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
   destruct (WZ _ M) as [mval MVAL].
   freeze [0;2] FR1.
-  Time forward; rewrite MVAL. (*3.5 versus 8.7*)
+  Time forward; change (@Znth val Vundef) with (@Znth val _); rewrite MVAL. (*3.5 versus 8.7*)
   Time solve[entailer!]. (*0.9 versus 3.3*)
   thaw FR1.
   Time assert_PROP (Zlength mlist = 16) as ML by entailer!. (*1.2 versus 3.5*)
@@ -178,8 +178,8 @@ Time forward_for_simple_bound 16 (EX m:Z,
   Intros mlist.
   assert_PROP (Zlength mlist = 16) as ML by entailer.
   apply derives_refl'. f_equal.
-  eapply Znth_extensional with (d:=Vundef). omega.
-  intros kk K. apply H1. omega. }
+  eapply Znth_extensional. omega.
+  intros kk K. apply H2. omega. }
 Time Qed. (*June 4th, 2017 (laptop): 1s*)
 
 Definition f_core_loop3_statement :=
@@ -405,7 +405,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 Lemma f_core_loop3: forall (Espec : OracleKind) FR
 c k h nonce out w x y t (xI:list int),
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -457,20 +457,18 @@ Time forward_for_simple_bound 20 (EX i:Z,
   { Time entailer!. (*2.5*) Exists (list_repeat 16 Vundef). Time entailer!. (*0.1*) }
   { rename H into J. rename i0 into j.
     Intros wlist. rename H into WCONT.
-    destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16) Vundef) as [t0 T0].
+    destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16)) as [t0 T0].
       rewrite RZL; apply Z_mod_lt; omega.
-    destruct (Znth_mapVint r ((5 * j + 4 * 1) mod 16) Vundef) as [t1 T1].
+    destruct (Znth_mapVint r ((5 * j + 4 * 1) mod 16)) as [t1 T1].
       rewrite RZL; apply Z_mod_lt; omega.
-    destruct (Znth_mapVint r ((5 * j + 4 * 2) mod 16) Vundef) as [t2 T2].
+    destruct (Znth_mapVint r ((5 * j + 4 * 2) mod 16)) as [t2 T2].
       rewrite RZL; apply Z_mod_lt; omega.
-    destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16) Vundef) as [t3 T3].
+    destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16)) as [t3 T3].
       rewrite RZL; apply Z_mod_lt; omega. 
-    eapply semax_post.
-    2: apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).
-    intros; apply andp_left2.
-    unfold POSTCONDITION, abbreviate.
-    apply assert_lemmas.normal_ret_assert_derives'.
-    Intros W. Exists W. old_go_lower. Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
+    eapply semax_post_flipped'.
+    apply (Jbody _ FR c k h nonce out w x y t i j r I J wlist _ _ _ _ T0 T1 T2 T3).
+    Intros W. Exists W.
+    Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
     rewrite Z.add_comm, Z2Nat.inj_add; try omega.
     assert (X: (Z.to_nat 1 + Z.to_nat j = S (Z.to_nat j))%nat) by reflexivity.
     rewrite X. simpl. split. assumption.
@@ -481,18 +479,15 @@ Time forward_for_simple_bound 20 (EX i:Z,
   Intros wlist. rename H into HW.
   destruct (WWI _ _ HW RZL) as [wints [WI SNUFF]]. subst wlist.
   freeze [0;1] FR2.
-  eapply semax_post.
-  Focus 2. apply (array_copy3 _ (FRZL FR2) c k h nonce out
+  eapply semax_post_flipped'.
+  apply (array_copy3 _ (FRZL FR2) c k h nonce out
                   i w x y t (map Vint r) (map Vint wints)); trivial.
            intros. apply Znth_mapVint.
               destruct (snuffleRound_length _ _ SNUFF) as [WL _].
               rewrite Zlength_correct, WL; simpl; omega.
-  intros ? ?. apply andp_left2.
-    unfold POSTCONDITION, abbreviate.
-    apply assert_lemmas.normal_ret_assert_derives'.
   Exists wints. rewrite Z.add_comm, Z2Nat.inj_add; try omega.
-  old_go_lower. Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
+  Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
-apply andp_left2; apply derives_refl. 
+ apply ENTAIL_refl.
 Time Qed. (*June4th, 2017 (laptop): Finished transaction in 1.781 secs (1.072u,0.028s) (successful)*)

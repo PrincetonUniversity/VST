@@ -211,6 +211,9 @@ Proof.
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
  simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
+ pose proof (Int.eq_spec i j).
+ revert H H0; case_eq (Int.eq i j); intros; auto.
+ simpl in H0; unfold Vfalse in H0. inv H0.
 Qed.
 
 Lemma bool_val_notbool_ptr:
@@ -222,10 +225,16 @@ Proof.
  destruct t; try contradiction. clear H.
  apply prop_ext; split; intros.
  destruct v; simpl in H; try discriminate.
- apply bool_val_int_eq_e in H. subst; auto.
- unfold Cop.sem_notbool, Cop.bool_val in H; simpl in H.
- destruct (Memory.Mem.weak_valid_pointer m b (Int.unsigned i)) eqn:?;
+ unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
+ destruct Archi.ptr64 eqn:Hp; simpl in H. inv H.
+ destruct (Int.eq i Int.zero) eqn:?; inv H.
+  apply int_eq_e in Heqb. subst; reflexivity.
+ unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
+ destruct Archi.ptr64 eqn:Hp; simpl in H. 
+ destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
   simpl in H; inv H.
+ destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
+  simpl in H; inv H. 
  subst. simpl. unfold Cop.bool_val; simpl. reflexivity.
 Qed.
 
@@ -279,8 +288,8 @@ Hint Rewrite andp_makeargs: norm2.
 
 Lemma local_makeargs:
    forall (f: val -> Prop) v,
-   `(local (`f retval)) (make_args (cons ret_temp nil) (cons v nil))
-    = (local (`f `v)).
+   `(local (`(f) retval)) (make_args (cons ret_temp nil) (cons v nil))
+    = (local (`(f) `(v))).
 Proof. intros. reflexivity. Qed.
 Hint Rewrite local_makeargs: norm2.
 
@@ -304,10 +313,9 @@ Proof. intros; apply prop_ext; split; intro; congruence. Qed.
 Lemma overridePost_normal_right:
   forall P Q R,
    P |-- Q ->
-   P |-- overridePost Q R EK_normal None.
-Proof. intros.
-  intro rho; unfold overridePost; simpl.
-  normalize.
+   P |-- RA_normal (overridePost Q R).
+Proof. intros. 
+  destruct R; simpl; auto.
 Qed.
 
 Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
@@ -322,8 +330,10 @@ Lemma typed_true_isptr:
 Proof.
 intros. extensionality x; apply prop_ext.
 destruct t; try contradiction; unfold typed_true, strict_bool_val;
-destruct x; intuition; try congruence;
-destruct (Int.eq i Int.zero); inv H0.
+destruct x; intuition; try congruence.
+all: try match type of H0 with context [Archi.ptr64] => destruct Archi.ptr64 eqn:?; inv H0 end.
+all: try solve [destruct (Int.eq i Int.zero); inv H0].
+all: try solve [destruct (Int64.eq i Int64.zero); inv H2].
 Qed.
 
 Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
@@ -452,39 +462,30 @@ Ltac findvars :=
     clear H
  end.
 
-Lemma sem_cast_id:
-  forall Delta rho,
-      tc_environ Delta rho ->
-  forall t1 t3 id,
-  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
-  match (temp_types Delta)!id with Some (Tpointer _ _) => true | _ => false end = true ->
-  force_val (sem_cast t1 t3 (eval_id id rho)) = eval_id id rho.
+Lemma is_true_negb:
+ forall a, is_true (negb a) -> a=false.
 Proof.
-intros.
- revert H1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
- destruct t; inv H2.
- pose proof (tc_eval'_id_i _ _ _ _ H H1).
- destruct (eval_id id rho); try (specialize (H2 ltac:(congruence)); inv H2).
- destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ];
- destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
- destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ];
- destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
- destruct t1 as [ | | | [ | ] |  | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | ]; inv H0;
-  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
+destruct a; auto; try contradiction.
 Qed.
 
 Lemma sem_cast_pointer2':
   forall (v : val) (t1 t2: type),
-  match t1 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
-  match t2 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
+  match t1 with
+  | Tpointer _ _ => is_true (negb (eqb_type t1 int_or_ptr_type))
+  | Tint I32 _ _ => True 
+  | _ => False end ->
+  match t2 with
+  | Tpointer _ _ => is_true (negb (eqb_type t2 int_or_ptr_type))
+  | Tint I32 _ _ => True 
+  | _ => False end ->
   is_pointer_or_null v -> force_val (sem_cast t1 t2 v) = v.
 Proof.
 intros.
 unfold sem_cast, classify_cast.
-subst.
-destruct t1; try contradiction; try destruct i; try contradiction; simpl; auto;
-destruct t2; try contradiction; try destruct i; try contradiction; simpl; auto;
-destruct v; inv H1; simpl; auto.
+destruct t1; try contradiction; try destruct i; try contradiction; auto;
+destruct t2; try contradiction; try destruct i; try contradiction; auto;
+try rewrite (is_true_negb _ H); try rewrite (is_true_negb _ H0);
+destruct v; inv H1; auto.
 Qed.
 
 Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
@@ -498,7 +499,10 @@ Lemma sem_cast_pointer2:
 Proof.
 intros.
 subst.
-hnf in H1. destruct v; inv H1; reflexivity.
+hnf in H1.
+simpl in H1. rewrite andb_false_r in H1.
+unfold sem_cast, classify_cast; simpl; rewrite !andb_false_r.
+destruct v; inv H1; reflexivity.
 Qed.
 
 Lemma force_eval_var_int_ptr :
@@ -608,41 +612,37 @@ Hint Rewrite isptr_match : norm1.
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) ->
-       sem_cast_neutral v = Some v.
+       sem_cast_pointer v = Some v.
 Proof.
-intros. destruct H as [t [? ?]]; destruct t,v; inv H0; inv H; reflexivity.
+intros.
+destruct H as [t [? ?]].
+hnf in H.
+unfold is_pointer_type in H0.
+unfold sem_cast_pointer.
+destruct (eqb_type t int_or_ptr_type);
+destruct t,v; inv H0; inv H; reflexivity.
 Qed.
 
 Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
 
 Lemma eval_cast_neutral_is_pointer_or_null:
-   forall v, is_pointer_or_null v -> sem_cast_neutral v = Some v.
+   forall v, is_pointer_or_null v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
 
 Lemma is_pointer_or_null_eval_cast_neutral:
-  forall v, is_pointer_or_null (force_val (sem_cast_neutral v)) = is_pointer_or_null v.
+  forall v, is_pointer_or_null (force_val (sem_cast_pointer v)) = is_pointer_or_null v.
 Proof. destruct v; reflexivity. Qed.
 Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
 
 Lemma eval_cast_neutral_isptr:
-   forall v, isptr v -> sem_cast_neutral v = Some v.
+   forall v, isptr v -> sem_cast_pointer v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
-
-Ltac eval_cast_simpl :=
-    try (try unfold eval_cast; simpl Cop.classify_cast; cbv iota);
-     try match goal with H: tc_environ ?Delta ?rho |- _ =>
-       repeat first [
-   rewrite eval_cast_neutral_isptr by auto
-               | rewrite (sem_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-               | erewrite sem_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
-               ]
-     end.
 
 Arguments ret_type !Delta /.
 
@@ -779,6 +779,7 @@ eapply derives_trans; [ | apply H; auto].
 normalize.
 Qed.
 
+(*
 Lemma ENTAIL_normal_ret_assert:
   forall Delta P Q ek vl,
  (ek = EK_normal -> vl = None -> ENTAIL Delta, P |-- Q) ->
@@ -787,6 +788,7 @@ Proof.
 intros.
 unfold normal_ret_assert. normalize.
 Qed.
+*)
 
 Lemma local_andp_prop:  forall P Q, local P && prop Q = prop Q && local P.
 Proof. intros. apply andp_comm. Qed.
@@ -842,7 +844,7 @@ Hint Resolve @andp_later_derives @sepcon_later_derives @sepcon_derives
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Notation " a 'OF' ta " := (a%type,ta%type) (at level 100, only parsing): formals.
+Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
 Delimit Scope formals with formals.
 
 Definition NDsemax_external {Hspec: OracleKind} (ids: list ident) (ef: external_function)
@@ -1054,6 +1056,181 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
              P at level 100, Q at level 100).
 
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0, x17 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0, x17 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+              x20 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+             x20 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+              x20 at level 0, x21 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+             x20 at level 0, x21 at level 0,
+             P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 , x22 : t22 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21*t22)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+              x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+              x20 at level 0, x21 at level 0, x22 at level 0,
+             P at level 100, Q at level 100).
+
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 , x22 : t22 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21*t22)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,
+             x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+             x20 at level 0, x21 at level 0, x22 at level 0,
+             P at level 100, Q at level 100).
+
+
 Lemma exp_derives {A}{NA: NatDed A}{B}:
    forall F G: B -> A, (forall x, F x |-- G x) -> exp F |-- exp G.
 Proof.
@@ -1076,14 +1253,41 @@ Proof.
 intros. apply prop_ext; apply and_assoc.
 Qed.
 
+Ltac splittablex_tac A :=
+ match A with
+ | _ <= _ < _ => fail 1
+ | _ < _ <= _ => fail 1
+ | _ <= _ <= _ => fail 1
+ | _ < _ < _ => fail 1
+ | _ <-> _ => fail 1
+ | _ /\ _ => apply Logic.I
+ end.
+
+Definition splittablex (A: Prop) := True.
+
+Lemma and_assoc_splittablex {T}{NT: NatDed T}: forall A B C: Prop,
+    splittablex (A /\ B) ->
+  !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
+Proof.
+intros. rewrite and_assoc'; auto.
+Qed.
+
 Lemma and_assoc'' {T}{NT: NatDed T}: forall A B C: Prop,
   !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
 Proof.
 intros. rewrite and_assoc'; auto.
 Qed.
 
+
+Hint Rewrite and_assoc_splittablex using 
+    match goal with |- splittablex ?A => splittablex_tac A end : normalize.
+Hint Rewrite and_assoc_splittablex using 
+    match goal with |- splittablex ?A => splittablex_tac A end : gather_prop.
+
+(*
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm1.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
+*)
 
 Ltac hoist_later_left :=
    match goal with
@@ -1211,7 +1415,7 @@ Qed.
 Hint Rewrite @subst_stackframe_of : subst.
 
 Lemma remove_localdef_temp_PROP: forall (i: ident) P Q R,
-  EX old: val, subst i `old (PROPx P (LOCALx Q (SEPx R))) |--
+  EX old: val, subst i `(old) (PROPx P (LOCALx Q (SEPx R))) |--
   PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)).
 Proof.
   intros.
@@ -1221,14 +1425,14 @@ Proof.
   apply andp_derives; auto.
   unfold LOCALx.
   autorewrite with subst norm.
-  apply andp_derives; auto.
+  apply andp_derives; auto; try apply derives_refl.
   induction Q; simpl fold_right.
   + autorewrite with subst norm; auto.
   + destruct a; [if_tac | ..];
     autorewrite with subst norm.
     - eapply derives_trans; [| exact IHQ].
       rewrite local_lift2_and.
-      apply andp_left2; auto.
+      apply andp_left2; apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold locald_denote.
@@ -1241,22 +1445,27 @@ Proof.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
     - rewrite !local_lift2_and.
       apply andp_derives; [| exact IHQ].
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
-      auto.
+      apply derives_refl.
+    - rewrite !local_lift2_and.
+      apply andp_derives; [| exact IHQ].
+      unfold local, lift1; unfold_lift; intros rho.
+      unfold subst; simpl.
+      apply derives_refl.
 Qed.
 
 Lemma eval_id_denote_tc_initialized: forall Delta i t v,
@@ -1538,7 +1747,7 @@ Proof.
  autorewrite with subst. f_equal; auto.
 Qed.
 
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `v e) = subst i `v e.
+Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `(v) e) = subst i `(v) e.
 Proof.
  intros. extensionality rho. unfold subst.
  f_equal.

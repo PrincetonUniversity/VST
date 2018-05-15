@@ -4,7 +4,7 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
-Require Import tweetnacl20140427.split_array_lemmas.
+(*Require Import tweetnacl20140427.split_array_lemmas.*)
 Require Import ZArith.
 
 Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
@@ -83,8 +83,8 @@ Proof. intros A.
   rewrite IHn. trivial. omega. omega.
 Qed.
 
-Lemma app_Znth1: forall (A : Type) (l l' : list A) (d : A) (n :Z),
-           (n < Zlength l) -> Znth n (l ++ l') d = Znth n l d.
+Lemma app_Znth1: forall (A : Type){d: Inhabitant A} (l l' : list A) (n :Z),
+           (n < Zlength l) -> Znth n (l ++ l') = Znth n l.
 Proof. intros. unfold Znth. destruct (zlt n 0). trivial.
        apply app_nth1. apply Z2Nat.inj_lt in H.
          rewrite ZtoNat_Zlength in H. trivial.
@@ -92,8 +92,8 @@ Proof. intros. unfold Znth. destruct (zlt n 0). trivial.
          apply Zlength_nonneg.
 Qed.
 
-Lemma app_Znth2: forall (A : Type) (l l' : list A) (d : A) (n : Z),
-               (Zlength l <= n) -> Znth n (l ++ l') d = Znth (n - Zlength l) l' d.
+Lemma app_Znth2: forall (A : Type) {d: Inhabitant A}(l l' : list A) (n : Z),
+               (Zlength l <= n) -> Znth n (l ++ l') = Znth (n - Zlength l) l'.
 Proof. intros. specialize (Zlength_nonneg l); intros. unfold Znth.
        destruct (zlt n 0). omega.
        destruct (zlt (n - Zlength l) 0).
@@ -115,10 +115,10 @@ induction l1; intros.
     intros. apply (N (S i)). simpl; omega.
 Qed.
 
-Lemma Znth_extensional {A} (l1 l2 : list A):
-       Zlength l1 = Zlength l2 -> forall d,
+Lemma Znth_extensional {A} {d: Inhabitant A}(l1 l2 : list A):
+       Zlength l1 = Zlength l2 -> 
        (forall i,
-        (0 <= i < Zlength l1) -> Znth i l1 d = Znth i l2 d) -> l1 = l2.
+        (0 <= i < Zlength l1) -> Znth i l1 = Znth i l2) -> l1 = l2.
 Proof. intros.
   assert (HH: Z.to_nat (Zlength l1) = Z.to_nat (Zlength l2)).
     rewrite H; trivial.
@@ -132,13 +132,14 @@ Proof. intros.
   rewrite Nat2Z.id in H0. trivial.
 Qed.
 
-Lemma force_lengthn_app1 {A}: forall n l1 l2 (d:A), length l1 =n -> force_lengthn n (l1 ++ l2) d = l1.
+Lemma force_lengthn_app1 {A}{d: Inhabitant A}: forall n l1 l2, length l1 =n -> force_lengthn n (l1 ++ l2) d = l1.
 Proof.
   induction n; simpl; intros. destruct l1; simpl in *; trivial. omega.
   destruct l1; simpl in *. omega. rewrite IHn; trivial. omega.
 Qed.
-Lemma map_Znth {A B : Type} (f : A -> B) l d n:
-      Znth n (map f l) (f d) = f (Znth n l d).
+
+(*Lemma map_Znth {A B : Type}{d: Inhabitant A} (f : A -> B) l n:
+      Znth n (map f l) = f (Znth n l).
 Proof. unfold Znth. destruct (zlt n 0); simpl. trivial. apply map_nth. Qed.
 
 Lemma Znth_map' {A B : Type} (f : A -> B) d d' i al:
@@ -147,6 +148,7 @@ Proof. unfold Znth; intros. destruct (zlt i 0); simpl. omega. apply nth_map'.
   destruct H. rewrite Zlength_correct in H0. apply Z2Nat.inj_lt in H0.
    rewrite Nat2Z.id in H0. assumption. assumption. omega.
 Qed.
+*)
 
 Lemma listD16 {A} (l:list A): Zlength l = 16 ->
   exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15,
@@ -258,8 +260,8 @@ Proof.
   apply IHxs. omega.
 Qed.
 
-Lemma combinelist_char_Znth xs ys l (C: combinelist xs ys = Some l)
-      i d (L:0 <= i < Zlength l): Znth i l d = f (Znth i xs d) (Znth i ys d).
+Lemma combinelist_char_Znth {d: Inhabitant A} xs ys l (C: combinelist xs ys = Some l)
+      i (L:0 <= i < Zlength l): Znth i l = f (Znth i xs) (Znth i ys).
 Proof.
   unfold Znth.
   destruct (zlt i 0). omega.
@@ -305,7 +307,7 @@ Fixpoint iterShr8 u n :=
    | S n' => Int.shru (iterShr8 u n') (Int.repr 8)
   end.
 
-Lemma Znth_mapVint: forall l i v, 0<=i< Zlength l -> exists x, Znth i (map Vint l) v = Vint x.
+Lemma Znth_mapVint: forall {d: Inhabitant _} l i, 0<=i< Zlength l -> exists x, Znth i (map Vint l) = Vint x.
 Proof. unfold Znth.
   induction l; simpl; intros.
   rewrite Zlength_correct in H; simpl in *. omega.
@@ -313,7 +315,7 @@ Proof. unfold Znth.
   remember (Z.to_nat i). destruct n. exists a; trivial.
   rewrite Zlength_cons in H.
   destruct (zeq i 0); subst.  simpl in Heqn. omega.
-  destruct (IHl (i-1) v). omega.
+  destruct (IHl (i-1)). omega.
   destruct (zlt (i - 1) 0). subst;  omega.
   rewrite Z2Nat.inj_sub in H0. rewrite <- Heqn in H0. simpl in H0. rewrite <- minus_n_O in H0.
      rewrite H0. exists x; trivial. omega.

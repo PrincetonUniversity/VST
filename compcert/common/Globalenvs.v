@@ -33,7 +33,7 @@
   place during program linking and program loading in a real operating
   system. *)
 
-Require Recdef.
+Require Import Recdef.
 Require Import Zwf.
 Require Import Axioms Coqlib Errors Maps AST Linking.
 Require Import Integers Floats Values Memory.
@@ -93,17 +93,37 @@ Record t: Type := mksenv {
     forall b, block_is_volatile b = true -> Plt b nextblock
 }.
 
-Definition symbol_address (ge: t) (id: ident) (ofs: int) : val :=
+Definition symbol_address (ge: t) (id: ident) (ofs: ptrofs) : val :=
   match find_symbol ge id with
   | Some b => Vptr b ofs
   | None => Vundef
   end.
 
 Theorem shift_symbol_address:
-  forall ge id ofs n,
-  symbol_address ge id (Int.add ofs n) = Val.add (symbol_address ge id ofs) (Vint n).
+  forall ge id ofs delta,
+  symbol_address ge id (Ptrofs.add ofs delta) = Val.offset_ptr (symbol_address ge id ofs) delta.
 Proof.
-  intros. unfold symbol_address. destruct (find_symbol ge id); auto.
+  intros. unfold symbol_address, Val.offset_ptr. destruct (find_symbol ge id); auto.
+Qed.
+
+Theorem shift_symbol_address_32:
+  forall ge id ofs n,
+  Archi.ptr64 = false ->
+  symbol_address ge id (Ptrofs.add ofs (Ptrofs.of_int n)) = Val.add (symbol_address ge id ofs) (Vint n).
+Proof.
+  intros. unfold symbol_address. destruct (find_symbol ge id).
+- unfold Val.add. rewrite H. auto.
+- auto.
+Qed.
+
+Theorem shift_symbol_address_64:
+  forall ge id ofs n,
+  Archi.ptr64 = true ->
+  symbol_address ge id (Ptrofs.add ofs (Ptrofs.of_int64 n)) = Val.addl (symbol_address ge id ofs) (Vlong n).
+Proof.
+  intros. unfold symbol_address. destruct (find_symbol ge id).
+- unfold Val.addl. rewrite H. auto.
+- auto.
 Qed.
 
 Definition equiv (se1 se2: t) : Prop :=
@@ -146,7 +166,7 @@ Definition find_symbol (ge: t) (id: ident) : option block :=
   with [id], at byte offset [ofs].  [Vundef] is returned if no block is associated
   to [id]. *)
 
-Definition symbol_address (ge: t) (id: ident) (ofs: int) : val :=
+Definition symbol_address (ge: t) (id: ident) (ofs: ptrofs) : val :=
   match find_symbol ge id with
   | Some b => Vptr b ofs
   | None => Vundef
@@ -176,7 +196,7 @@ Definition find_funct_ptr (ge: t) (b: block) : option F :=
 
 Definition find_funct (ge: t) (v: val) : option F :=
   match v with
-  | Vptr b ofs => if Int.eq_dec ofs Int.zero then find_funct_ptr ge b else None
+  | Vptr b ofs => if Ptrofs.eq_dec ofs Ptrofs.zero then find_funct_ptr ge b else None
   | _ => None
   end.
 
@@ -209,7 +229,7 @@ Program Definition add_global (ge: t) (idg: ident * globdef F V) : t :=
     ge.(genv_public)
     (PTree.set idg#1 ge.(genv_next) ge.(genv_symb))
     (PTree.set ge.(genv_next) idg#2 ge.(genv_defs))
-    (Psucc ge.(genv_next))
+    (Pos.succ ge.(genv_next))
     _ _ _.
 Next Obligation.
   destruct ge; simpl in *.
@@ -341,25 +361,45 @@ Proof.
 Qed.
 
 Theorem shift_symbol_address:
-  forall ge id ofs n,
-  symbol_address ge id (Int.add ofs n) = Val.add (symbol_address ge id ofs) (Vint n).
+  forall ge id ofs delta,
+  symbol_address ge id (Ptrofs.add ofs delta) = Val.offset_ptr (symbol_address ge id ofs) delta.
 Proof.
-  intros. unfold symbol_address. destruct (find_symbol ge id); auto.
+  intros. unfold symbol_address, Val.offset_ptr. destruct (find_symbol ge id); auto.
+Qed.
+
+Theorem shift_symbol_address_32:
+  forall ge id ofs n,
+  Archi.ptr64 = false ->
+  symbol_address ge id (Ptrofs.add ofs (Ptrofs.of_int n)) = Val.add (symbol_address ge id ofs) (Vint n).
+Proof.
+  intros. unfold symbol_address. destruct (find_symbol ge id).
+- unfold Val.add. rewrite H. auto.
+- auto.
+Qed.
+
+Theorem shift_symbol_address_64:
+  forall ge id ofs n,
+  Archi.ptr64 = true ->
+  symbol_address ge id (Ptrofs.add ofs (Ptrofs.of_int64 n)) = Val.addl (symbol_address ge id ofs) (Vlong n).
+Proof.
+  intros. unfold symbol_address. destruct (find_symbol ge id).
+- unfold Val.addl. rewrite H. auto.
+- auto.
 Qed.
 
 Theorem find_funct_inv:
   forall ge v f,
-  find_funct ge v = Some f -> exists b, v = Vptr b Int.zero.
+  find_funct ge v = Some f -> exists b, v = Vptr b Ptrofs.zero.
 Proof.
   intros until f; unfold find_funct.
   destruct v; try congruence.
-  destruct (Int.eq_dec i Int.zero); try congruence.
+  destruct (Ptrofs.eq_dec i Ptrofs.zero); try congruence.
   intros. exists b; congruence.
 Qed.
 
 Theorem find_funct_find_funct_ptr:
   forall ge b,
-  find_funct ge (Vptr b Int.zero) = find_funct_ptr ge b.
+  find_funct ge (Vptr b Ptrofs.zero) = find_funct_ptr ge b.
 Proof.
   intros; simpl. apply dec_eq_true.
 Qed.
@@ -527,7 +567,7 @@ Proof.
 Qed.
 
 Definition advance_next (gl: list (ident * globdef F V)) (x: positive) :=
-  List.fold_left (fun n g => Psucc n) gl x.
+  List.fold_left (fun n g => Pos.succ n) gl x.
 
 Remark genv_next_add_globals:
   forall gl ge,
@@ -594,7 +634,7 @@ Definition store_init_data (m: mem) (b: block) (p: Z) (id: init_data) : option m
   | Init_addrof symb ofs =>
       match find_symbol ge symb with
       | None => None
-      | Some b' => Mem.store Mint32 m b p (Vptr b' ofs)
+      | Some b' => Mem.store Mptr m b p (Vptr b' ofs)
       end
   | Init_space n => Some m
   end.
@@ -682,7 +722,7 @@ Qed.
 Remark alloc_global_nextblock:
   forall g m m',
   alloc_global m g = Some m' ->
-  Mem.nextblock m' = Psucc(Mem.nextblock m).
+  Mem.nextblock m' = Pos.succ(Mem.nextblock m).
 Proof.
   unfold alloc_global. intros.
   destruct g as [id [f|v]].
@@ -824,7 +864,8 @@ Proof.
   try (eapply Mem.store_unchanged_on; eauto; fail).
   inv H; apply Mem.unchanged_on_refl.
   destruct (find_symbol ge i); try congruence.
-  eapply Mem.store_unchanged_on; eauto.
+  eapply Mem.store_unchanged_on; eauto;
+  unfold Mptr; destruct Archi.ptr64; eauto.
 Qed.
 
 Remark store_init_data_list_unchanged:
@@ -855,10 +896,10 @@ Lemma store_zeros_loadbytes:
 Proof.
   intros until n; functional induction (store_zeros m b p n); red; intros.
 - destruct n0. simpl. apply Mem.loadbytes_empty. omega.
-  rewrite inj_S in H1. omegaContradiction.
+  rewrite Nat2Z.inj_succ in H1. omegaContradiction.
 - destruct (zeq p0 p).
   + subst p0. destruct n0. simpl. apply Mem.loadbytes_empty. omega.
-    rewrite inj_S in H1. rewrite inj_S.
+    rewrite Nat2Z.inj_succ in H1. rewrite Nat2Z.inj_succ.
     replace (Z.succ (Z.of_nat n0)) with (1 + Z.of_nat n0) by omega.
     change (list_repeat (S n0) (Byte Byte.zero))
       with ((Byte Byte.zero :: nil) ++ list_repeat n0 (Byte Byte.zero)).
@@ -866,9 +907,10 @@ Proof.
     eapply Mem.loadbytes_unchanged_on with (P := fun b1 ofs1 => ofs1 = p).
     eapply store_zeros_unchanged; eauto. intros; omega.
     intros; omega.
-    change (Byte Byte.zero :: nil) with (encode_val Mint8unsigned Vzero).
+    replace (Byte Byte.zero :: nil) with (encode_val Mint8unsigned Vzero).
     change 1 with (size_chunk Mint8unsigned).
     eapply Mem.loadbytes_store_same; eauto.
+    unfold encode_val; unfold encode_int; unfold rev_if_be; destruct Archi.big_endian; reflexivity.
     eapply IHo; eauto. omega. omega. omega. omega.
   + eapply IHo; eauto. omega. omega.
 - discriminate.
@@ -885,10 +927,16 @@ Definition bytes_of_init_data (i: init_data): list memval :=
   | Init_space n => list_repeat (Z.to_nat n) (Byte Byte.zero)
   | Init_addrof id ofs =>
       match find_symbol ge id with
-      | Some b => inj_value Q32 (Vptr b ofs)
-      | None   => list_repeat 4%nat Undef
+      | Some b => inj_value (if Archi.ptr64 then Q64 else Q32) (Vptr b ofs)
+      | None   => list_repeat (if Archi.ptr64 then 8%nat else 4%nat) Undef
       end
   end.
+
+Remark init_data_size_addrof:
+  forall id ofs, init_data_size (Init_addrof id ofs) = size_chunk Mptr.
+Proof.
+  intros. unfold Mptr. simpl. destruct Archi.ptr64; auto.
+Qed.
 
 Lemma store_init_data_loadbytes:
   forall m b p i m',
@@ -901,8 +949,10 @@ Proof.
   assert (EQ: Z.of_nat (Z.to_nat z) = Z.max z 0).
   { destruct (zle 0 z). rewrite Z2Nat.id; xomega. destruct z; try discriminate. simpl. xomega. }
   rewrite <- EQ. apply H0. omega. simpl. omega.
-- simpl; destruct (find_symbol ge i) as [b'|]; try discriminate.
-  apply (Mem.loadbytes_store_same _ _ _ _ _ _ H).
+- rewrite init_data_size_addrof. simpl.
+  destruct (find_symbol ge i) as [b'|]; try discriminate.
+  rewrite (Mem.loadbytes_store_same _ _ _ _ _ _ H).
+  unfold encode_val, Mptr; destruct Archi.ptr64; reflexivity.
 Qed.
 
 Fixpoint bytes_of_init_data_list (il: list init_data): list memval :=
@@ -973,7 +1023,7 @@ Proof.
   transitivity (Some(decode_val chunk (list_repeat (size_chunk_nat chunk) (Byte Byte.zero)))).
   apply Mem.loadbytes_load; auto. rewrite size_chunk_conv.
   eapply store_zeros_loadbytes; eauto. rewrite <- size_chunk_conv; auto.
-  f_equal. destruct chunk; reflexivity.
+  f_equal. destruct chunk; unfold decode_val; unfold decode_int; unfold rev_if_be; destruct Archi.big_endian; reflexivity.
 Qed.
 
 Fixpoint load_store_init_data (m: mem) (b: block) (p: Z) (il: list init_data) {struct il} : Prop :=
@@ -998,11 +1048,11 @@ Fixpoint load_store_init_data (m: mem) (b: block) (p: Z) (il: list init_data) {s
       Mem.load Mfloat64 m b p = Some(Vfloat n)
       /\ load_store_init_data m b (p + 8) il'
   | Init_addrof symb ofs :: il' =>
-      (exists b', find_symbol ge symb = Some b' /\ Mem.load Mint32 m b p = Some(Vptr b' ofs))
-      /\ load_store_init_data m b (p + 4) il'
+      (exists b', find_symbol ge symb = Some b' /\ Mem.load Mptr m b p = Some(Vptr b' ofs))
+      /\ load_store_init_data m b (p + size_chunk Mptr) il'
   | Init_space n :: il' =>
       read_as_zero m b p n
-      /\ load_store_init_data m b (p + Zmax n 0) il'
+      /\ load_store_init_data m b (p + Z.max n 0) il'
   end.
 
 Lemma store_init_data_list_charact:
@@ -1023,8 +1073,8 @@ Proof.
     eapply Mem.load_store_same; eauto.
   }
   induction il; simpl.
-  auto.
-  intros. destruct (store_init_data m b p a) as [m1|] eqn:?; try congruence.
+- auto.
+- intros. destruct (store_init_data m b p a) as [m1|] eqn:?; try congruence.
   exploit IHil; eauto.
   set (P := fun (b': block) ofs' => p + init_data_size a <= ofs').
   apply read_as_zero_unchanged with (m := m) (P := P).
@@ -1033,21 +1083,27 @@ Proof.
   intros; unfold P. omega.
   intros; unfold P. omega.
   intro D.
-  destruct a; simpl in Heqo; intuition.
-  eapply (A Mint8unsigned (Vint i)); eauto.
-  eapply (A Mint16unsigned (Vint i)); eauto.
-  eapply (A Mint32 (Vint i)); eauto.
-  eapply (A Mint64 (Vlong i)); eauto.
-  eapply (A Mfloat32 (Vsingle f)); eauto.
-  eapply (A Mfloat64 (Vfloat f)); eauto.
+  destruct a; simpl in Heqo.
++ split; auto. eapply (A Mint8unsigned (Vint i)); eauto.
++ split; auto. eapply (A Mint16unsigned (Vint i)); eauto.
++ split; auto. eapply (A Mint32 (Vint i)); eauto.
++ split; auto. eapply (A Mint64 (Vlong i)); eauto.
++ split; auto. eapply (A Mfloat32 (Vsingle f)); eauto.
++ split; auto. eapply (A Mfloat64 (Vfloat f)); eauto.
++ split; auto.
   set (P := fun (b': block) ofs' => ofs' < p + init_data_size (Init_space z)).
   inv Heqo. apply read_as_zero_unchanged with (m := m1) (P := P).
   red; intros. apply H0; auto. simpl. generalize (init_data_list_size_pos il); xomega.
   eapply store_init_data_list_unchanged; eauto.
   intros; unfold P. omega.
   intros; unfold P. simpl; xomega.
-  destruct (find_symbol ge i); try congruence. exists b0; split; auto.
-  eapply (A Mint32 (Vptr b0 i0)); eauto.
++ rewrite init_data_size_addrof in *.
+  split; auto.
+  destruct (find_symbol ge i); try congruence.
+  exists b0; split; auto.
+  transitivity (Some (Val.load_result Mptr (Vptr b0 i0))).
+  eapply (A Mptr (Vptr b0 i0)); eauto.
+  unfold Val.load_result, Mptr; destruct Archi.ptr64; auto.
 Qed.
 
 Remark alloc_global_unchanged:
@@ -1323,7 +1379,7 @@ Proof.
   destruct (find_symbol ge i) as [b'|] eqn:E; try discriminate.
   eapply Mem.store_inject_neutral; eauto.
   econstructor. unfold Mem.flat_inj. apply pred_dec_true; auto. eauto.
-  rewrite Int.add_zero. auto.
+  rewrite Ptrofs.add_zero. auto.
 Qed.
 
 Lemma store_init_data_list_neutral:
@@ -1369,7 +1425,7 @@ Remark advance_next_le: forall gl x, Ple x (advance_next gl x).
 Proof.
   induction gl; simpl; intros.
   apply Ple_refl.
-  apply Ple_trans with (Psucc x). apply Ple_succ. eauto.
+  apply Ple_trans with (Pos.succ x). apply Ple_succ. eauto.
 Qed.
 
 Lemma alloc_globals_neutral:
@@ -1384,7 +1440,7 @@ Proof.
   exploit alloc_globals_nextblock; eauto. intros EQ.
   simpl in *. destruct (alloc_global ge m a) as [m1|] eqn:E; try discriminate.
   exploit alloc_global_neutral; eauto.
-  assert (Ple (Psucc (Mem.nextblock m)) (Mem.nextblock m')).
+  assert (Ple (Pos.succ (Mem.nextblock m)) (Mem.nextblock m')).
   { rewrite EQ. apply advance_next_le. }
   unfold Plt, Ple in *; zify; omega.
 Qed.
@@ -1416,7 +1472,7 @@ Definition init_data_alignment (i: init_data) : Z :=
   | Init_int64 n => 8
   | Init_float32 n => 4
   | Init_float64 n => 4
-  | Init_addrof symb ofs => 4
+  | Init_addrof symb ofs => if Archi.ptr64 then 8 else 4
   | Init_space n => 1
   end.
 
@@ -1443,7 +1499,8 @@ Proof.
   { intros. apply Mem.store_valid_access_3 in H0. destruct H0. congruence. }
   destruct i; simpl in H; eauto.
   simpl. apply Z.divide_1_l.
-  destruct (find_symbol ge i); try discriminate. eauto.
+  destruct (find_symbol ge i); try discriminate. eapply DFL. eassumption.
+  unfold Mptr, init_data_alignment; destruct Archi.ptr64; auto.
 Qed.
 
 Lemma store_init_data_list_aligned:
@@ -1530,7 +1587,9 @@ Proof.
     exists m'; auto. }
   destruct i; eauto.
   simpl. exists m; auto.
-  simpl. exploit H1; eauto. intros (b1 & FS). rewrite FS. eauto.
+  simpl. exploit H1; eauto. intros (b1 & FS). rewrite FS. eapply DFL.
+  unfold init_data_size, Mptr. destruct Archi.ptr64; auto.
+  unfold init_data_alignment, Mptr. destruct Archi.ptr64; auto.
 Qed.
 
 Lemma store_init_data_list_exists:

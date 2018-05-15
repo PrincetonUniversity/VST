@@ -24,14 +24,7 @@ Proof.
   pose proof (H p).
   pose proof (H Vundef).
   destruct p; simpl in *; apply pred_ext; normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
-  + eapply derives_trans. exact H0. normalize.
-  + eapply derives_trans. exact H1. normalize.
+all: try solve [eapply derives_trans; [eassumption | normalize]].
 Qed.
 
 (******************************************
@@ -115,7 +108,7 @@ match p with
 | Vlong _ => True
 | Vfloat _ => True
 | Vsingle _ => True
-| Vptr _ i_ofs => Int.unsigned i_ofs + n <= Int.modulus
+| Vptr _ i_ofs => Ptrofs.unsigned i_ofs + n < Int.modulus
 end.
 
 Lemma memory_block_local_facts: forall sh n p, 
@@ -123,7 +116,7 @@ Lemma memory_block_local_facts: forall sh n p,
 Proof.
   intros.
    unfold memory_block.
-  destruct p; simpl; normalize. apply prop_right; auto.
+  destruct p; simpl; normalize. apply prop_right;split; auto.
 Qed.
 
 Hint Resolve memory_block_local_facts : saturate_local.
@@ -192,21 +185,19 @@ Lemma memory_block_mapsto_:
   forall sh t p,
    type_is_by_value t = true ->
    type_is_volatile t = false ->
-   legal_alignas_type t = true ->
    size_compatible t p ->
    align_compatible t p ->
    memory_block sh (sizeof t) p = mapsto_ sh t p.
 Proof.
   intros.
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
-  destruct H4. destruct p; try contradiction.
-  + simpl in H2, H3.
+  destruct H3. destruct p; try contradiction.
+  + simpl in H1, H2.
     destruct (access_mode_by_value _ H) as [ch ?].
-    unfold sizeof in *; erewrite size_chunk_sizeof in H2 |- * by eauto.
+    unfold sizeof in *; erewrite size_chunk_sizeof in H1 |- * by eauto.
     rewrite mapsto_memory_block.mapsto__memory_block with (ch := ch); auto.
-    eapply Z.divide_trans; [| apply H3].
-    apply align_chunk_alignof; auto.
-    apply nested_pred_atom_pred; auto.
+    eapply align_compatible_rec_by_value_inv in H2; [| eassumption].
+    auto.
   + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
@@ -214,7 +205,6 @@ Lemma nonreadable_memory_block_mapsto: forall sh p t v,
   ~ readable_share sh ->
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  legal_alignas_type t = true ->
   size_compatible t p ->
   align_compatible t p ->
   tc_val' t v ->
@@ -223,19 +213,17 @@ Proof.
   intros.
   apply access_mode_by_value in H0; destruct H0 as [ch ?].
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
-  destruct H6. destruct p; try contradiction.
-  + simpl in H3, H4.
-    erewrite size_chunk_sizeof in H3 |- * by eauto.
+  destruct H5. destruct p; try contradiction.
+  + simpl in H2, H3.
+    erewrite size_chunk_sizeof in H2 |- * by eauto.
     apply mapsto_memory_block.nonreadable_memory_block_mapsto; auto.
-    eapply Z.divide_trans; [| apply H4].
-    apply align_chunk_alignof; auto.
-    apply nested_pred_atom_pred; auto.
+    eapply align_compatible_rec_by_value_inv in H3; [| eassumption].
+    auto.
   + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
-(*  sizeof t < Int.modulus ->*)
   memory_block sh (sizeof t) p = 
   !! (size_compatible t p) && memory_block sh (sizeof t) p.
 Proof.
@@ -283,237 +271,6 @@ Qed.
 
 Hint Rewrite mapsto_force_ptr: norm.
 
-(***************************************
-
-Auxilliary Lemmas
-
-***************************************)
-
-Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
-Proof.
-  intros.
-  go_lowerx.
-  normalize.
-Qed.
-
-Lemma remove_PROP_LOCAL_left':
-     forall P Q R S, `R |-- S ->
-     PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
-Proof.
-  intros.
-  go_lowerx.
-  normalize. apply H.
-Qed.
-
-Lemma SEP_nth_isolate:
-  forall n R Rn, nth_error R n = Some Rn ->
-      SEPx R = SEPx (Rn :: replace_nth n R emp).
-Proof.
- unfold SEPx.
- intros. extensionality rho.
- revert R H;
- induction n; destruct R; intros; inv H.
- simpl; rewrite emp_sepcon; auto.
- unfold replace_nth; fold @replace_nth.
- transitivity (m * fold_right_sepcon R).
- reflexivity.
- rewrite (IHn R H1).
- simpl.
- rewrite <- sepcon_assoc.
- rewrite (sepcon_comm Rn).
- simpl.
- repeat rewrite sepcon_assoc.
- f_equal. rewrite sepcon_comm; reflexivity.
-Qed.
-
-Lemma nth_error_SEP_sepcon_TT: forall P Q R n Rn S,
-  PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
-  nth_error R n = Some Rn ->
-  PROPx P (LOCALx Q (SEPx R)) |-- S * TT.
-Proof.
-  intros.
-  erewrite SEP_nth_isolate by eauto.
-  unfold PROPx, LOCALx, SEPx in *.
-  unfold local, lift1 in H |- *.
-  unfold_lift in H.
-  unfold_lift.
-  simpl in H |- *.
-  intros rho.
-  specialize (H rho).
-  rewrite <- !andp_assoc in H |- *.
-  rewrite <- !prop_and in H |- *.
-  rewrite sepcon_emp in H.
-  rewrite <- sepcon_andp_prop'.
-  apply sepcon_derives.
-  exact H.
-  apply prop_right.
-  auto.
-Qed.
-
-Lemma SEP_replace_nth_isolate:
-  forall n R Rn Rn',
-       nth_error R n = Some Rn ->
-      SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
-Proof.
- unfold SEPx.
- intros.
- extensionality rho.
- revert R H.
- induction n; destruct R; intros; inv H; intros.
- simpl; rewrite emp_sepcon; auto.
- unfold replace_nth; fold @replace_nth.
- transitivity (m * fold_right_sepcon (replace_nth n R Rn')).
- reflexivity.
- rewrite (IHn R H1). clear IHn.
- simpl.
- repeat rewrite <- sepcon_assoc.
- rewrite (sepcon_comm Rn').
- rewrite sepcon_assoc.
- reflexivity.
-Qed.
-
-Lemma local_andp_lemma:
-  forall P Q, P |-- local Q -> P = local Q && P.
-Proof.
-intros.
-apply pred_ext.
-apply andp_right; auto.
-apply andp_left2; auto.
-Qed.
-
-Lemma SEP_TT_right:
-  forall R, R |-- SEPx(TT::nil).
-Proof. intros. go_lowerx. rewrite sepcon_emp. apply TT_right.
-Qed.
-
-Lemma replace_nth_SEP: forall P Q R n Rn Rn', Rn |-- Rn' -> PROPx P (LOCALx Q (SEPx (replace_nth n R Rn))) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
-Proof.
-  simpl.
-  intros.
-  normalize.
-      autorewrite with subst norm1 norm2; normalize.
-  revert R.
-  induction n.
-  + destruct R.
-    - simpl. cancel.
-    - simpl. cancel.
-  + destruct R.
-    - simpl. cancel.
-    - intros. simpl in *. cancel.
-Qed.
-
-Lemma replace_nth_SEP':
-  forall A P Q R n Rn Rn', local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn' ->
-  (local A && PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
-Proof.
-  simpl. unfold local, lift1.
-  intros.
-  specialize (H x).
-  normalize. rewrite prop_true_andp in H by auto. clear H0.
-      autorewrite with subst norm1 norm2; normalize.
-    autorewrite with subst norm1 norm2 in H; normalize in H.
-  revert R.
-  induction n.
-  + destruct R.
-    - simpl. cancel.
-    - simpl. cancel.
-  + destruct R.
-    - simpl. cancel.
-    - intros. simpl in *. cancel.
-Qed.
-
-Lemma replace_nth_SEP_andp_local:
-   forall P Q R n (Rn Rn': mpred) (Rn'': Prop) x,
-  nth_error R n = Some Rn ->
-  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((prop Rn'') && Rn'))))) x
-  = (PROPx P (LOCALx (localprop Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
-Proof.
-  intros.
-  normalize.
-  f_equal.
-  extensionality rho.
-  unfold LOCALx, SEPx, local, lift1; simpl.
-  unfold_lift. simpl.
-  fold locald_denote.
-  forget (fold_right
-     (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)
-     (fun _ : environ => True) (map locald_denote Q) rho) as Q'.
- rewrite <- gather_prop_right.
- rewrite andp_comm. f_equal.
-  revert R H. clear.
-  induction n; intros.
-  + destruct R; inversion H.
-    subst m.
-    simpl. normalize.
-  + destruct R; inversion H.
-    pose proof IHn R H1.
-    unfold replace_nth in *.
-    fold (@replace_nth mpred) in *.
-    simpl fold_right_sepcon in *.
-    rewrite H0.
-    normalize.
-Qed.
-
-Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
-  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) =
-  (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).
-Proof.
-  intros.
-  extensionality.
-  apply pred_ext; normalize;
-      autorewrite with subst norm1 norm2; normalize.
-Qed.
-
-(*
-Lemma eq_sym_LOCAL: forall P Q R id v,
-  PROPx P (LOCALx (`eq v (eval_id id) :: Q) (SEPx R)) =
-  PROPx P (LOCALx (`eq (eval_id id) v:: Q) (SEPx R)).
-Proof.
-  intros.
-  extensionality; apply pred_ext; normalize;
-      autorewrite with subst norm1 norm2;
-      normalize;
-      autorewrite with subst norm1 norm2;
-      normalize.
-Qed.
-
-Lemma eq_sym_LOCAL': forall P Q R id v,
-  PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)) =
-  PROPx P (LOCALx (`eq (eval_id id) `v:: Q) (SEPx R)).
-Proof.
-  intros.
-  normalize.
-Qed.
-*)
-
-(* This lemma is for load_37 *)
-(*
-Lemma eq_sym_post_LOCAL: forall P Q R id v,
-  (EX  old : val, PROPx P
-  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx R))) =
-  (EX  old : val, PROPx P
-  (LOCALx (`eq (eval_id id) (subst id `old v)::map (subst id `old) Q) (SEPx R))).
-Proof.
-  intros.
-  apply pred_ext; normalize; apply (exp_right old);
-  rewrite eq_sym_LOCAL; apply derives_refl.
-Qed.
-*)
-
-(* This lemma is for load_37' *)
-(*
-Lemma eq_sym_post_LOCAL': forall P Q R id v,
-  (EX  old : val, PROPx P
-  (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx R))) =
-  (EX  old : val, PROPx P
-  (LOCALx (`eq (eval_id id) `v ::  map (subst id `old) Q) (SEPx R))).
-Proof.
-  intros.
-  apply pred_ext; normalize; apply (exp_right old);
-  rewrite eq_sym_LOCAL'; apply derives_refl.
-Qed.
-*)
-
 (******************************************
 
 Definition of at_offset.
@@ -550,12 +307,12 @@ Proof.
   rewrite at_offset_eq.
   unfold offset_val.
   destruct p; auto.
-  rewrite int_add_assoc1.
+  rewrite ptrofs_add_assoc1.
   reflexivity.
 Qed.
 
 Lemma at_offset_eq3: forall P z b ofs,
-  at_offset P z (Vptr b (Int.repr ofs)) = P (Vptr b (Int.repr (ofs + z))).
+  at_offset P z (Vptr b (Ptrofs.repr ofs)) = P (Vptr b (Ptrofs.repr (ofs + z))).
 Proof.
   intros.
   rewrite at_offset_eq.
@@ -641,7 +398,7 @@ Proof.
           (offset_val be (offset_val pos p)).
   reflexivity.
   destruct p; simpl; try reflexivity.
-  rewrite int_add_assoc1.
+  rewrite ptrofs_add_assoc1.
   reflexivity.
 Qed.
 
@@ -687,15 +444,15 @@ Qed.
 Lemma spacer_sepcon_memory_block: forall sh ofs lo hi b i,
   0 <= lo ->
   0 <= ofs ->
-  lo <= hi < Int.modulus ->
-  Int.unsigned i + ofs + hi <= Int.modulus ->
+  lo <= hi < Ptrofs.modulus ->
+  Ptrofs.unsigned i + ofs + hi < Ptrofs.modulus ->
   spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val ofs (Vptr b i)) = memory_block sh hi (offset_val ofs (Vptr b i)).
 Proof.
   intros.
   rewrite spacer_memory_block by (simpl; auto).
   simpl offset_val.
   inv_int i.
-  rewrite !add_repr.
+  rewrite !ptrofs_add_repr.
   rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by omega.
   f_equal.
   omega.

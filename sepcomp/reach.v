@@ -1852,7 +1852,7 @@ Proof.
   rewrite Genv.find_funct_find_funct_ptr in H.
   destruct (H0 _ _ H).
   rewrite H1 in H4; inv H4.
-  rewrite Int.add_zero. trivial.
+  rewrite Ptrofs.add_zero. trivial.
 Qed.
 
 End globalfunction_ptr_inject.

@@ -1,7 +1,6 @@
 Require Import Reals.
 Require Export VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 
 (* This file contains lemmas regarding "superprecise",
@@ -455,7 +454,7 @@ pose proof (join_eq H1 H3); subst w4.
 auto.
 Qed.
 
-Lemma superprecise_address_mapsto:
+(*Lemma superprecise_address_mapsto:
   wishes_eq_horses -> 
   forall ch v sh loc, 
    v<>Vundef -> superprecise (address_mapsto ch v sh loc).
@@ -528,4 +527,4 @@ eapply WH'; eauto.
 Qed.
 *)
 Abort.
-
+*)

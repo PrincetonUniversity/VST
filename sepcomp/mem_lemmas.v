@@ -163,7 +163,7 @@ Qed.
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v.
 Proof.
   destruct v. constructor. constructor. econstructor.
-  destruct v; try econstructor. reflexivity. rewrite Int.add_zero. trivial.
+  destruct v; try econstructor. reflexivity. rewrite Ptrofs.add_zero. trivial.
 Qed.
 
 Lemma extends_refl: forall m, Mem.extends m m.
@@ -487,11 +487,10 @@ Proof. intros.
      apply compose_meminjD_Some in H. rename b2 into b3.
        destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst.
        eexists. split. econstructor. apply J12. reflexivity.
-          econstructor. apply J23. rewrite Int.add_assoc.
-          assert (H: Int.repr (ofs2 + ofs3) = Int.add (Int.repr ofs2) (Int.repr ofs3)).
-            clear - ofs2 ofs3. rewrite Int.add_unsigned.
-            apply Int.eqm_samerepr. apply Int.eqm_add; apply Int.eqm_unsigned_repr.
-          rewrite H. trivial.
+          econstructor. apply J23. rewrite Ptrofs.add_assoc.
+          f_equal. rewrite Ptrofs.add_unsigned.
+            apply Ptrofs.eqm_samerepr. 
+            apply Ptrofs.eqm_add; apply Ptrofs.eqm_unsigned_repr.
      exists Vundef. split; constructor.
 Qed.
 
@@ -581,8 +580,8 @@ Proof. intros.
             destruct (plt b1 (Mem.nextblock m1)).
                trivial.
             assert (j b1 = None).
-              apply mi_freeblocks. assumption. rewrite H in H0. inv H0.
-            rewrite Int.add_zero. trivial.
+              apply mi_freeblocks.  assumption. rewrite H in H0. inv H0.
+            rewrite Ptrofs.add_zero. trivial.
 Qed.
 
 Lemma forall_val_inject_flat: forall m1 m2 j (Inj: Mem.inject j m1 m2) vals1 vals2

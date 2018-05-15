@@ -1,5 +1,6 @@
 Require Import Coq.Arith.EqNat.
 Require Import Coq.Relations.Relations.
+Require Import Coq.Sorting.Permutation.
 
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
@@ -7,11 +8,35 @@ Require Import compcert.lib.Integers.
 Require Import VST.msl.Coqlib2.
 Require Export VST.msl.eq_dec.
 
+Lemma max_two_power_nat: forall n1 n2, Z.max (two_power_nat n1) (two_power_nat n2) = two_power_nat (Nat.max n1 n2).
+Proof.
+  intros.
+  rewrite !two_power_nat_two_p.
+  pose proof Zle_0_nat n1; pose proof Zle_0_nat n2.
+  rewrite Nat2Z.inj_max.
+  forget (Z.of_nat n1) as m1; forget (Z.of_nat n2) as m2.
+  destruct (Z_le_dec m1 m2).
+  + rewrite (Z.max_r m1 m2) by omega.
+    apply Z.max_r.
+    apply two_p_monotone; omega.
+  + rewrite (Z.max_l m1 m2) by omega.
+    apply Z.max_l.
+    apply two_p_monotone; omega.
+Qed.
+
+Lemma Z_max_two_p: forall m1 m2, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> (exists n, Z.max m1 m2 = two_power_nat n).
+Proof.
+  intros ? ? [? ?] [? ?].
+  subst.
+  rewrite max_two_power_nat.
+  eexists; reflexivity.
+Qed.
+
 Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
 Proof.
   intros.
   repeat rewrite two_power_nat_two_p in *.
-  unfold Zdivide.
+  unfold Z.divide.
   exists (two_p (Z.of_nat m - Z.of_nat n)).
   assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by omega.
   rewrite H0 at 1.
@@ -26,18 +51,89 @@ Proof.
   apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
 Qed.
 
-Lemma power_nat_divide': forall n m: Z,
+Lemma power_nat_divide_ge: forall n m: Z,
   (exists N, n = two_power_nat N) ->
   (exists M, m = two_power_nat M) ->
-  n >= m ->
-  (m | n).
+  (n >= m <-> (m | n)).
 Proof.
   intros.
   destruct H, H0.
-  subst.
-  apply power_nat_divide.
+  split; intros.
+  + subst.
+    apply power_nat_divide.
+    omega.
+  + destruct H1 as [k ?].
+    rewrite H1.
+    pose proof two_power_nat_pos x0.
+    pose proof two_power_nat_pos x.
+    assert (k > 0).
+    Focus 1. {
+      eapply Zmult_gt_0_reg_l.
+      + exact H2.
+      + rewrite <- H0, Z.mul_comm; omega.
+    } Unfocus.
+    rewrite <- (Z.mul_1_l m) at 2.
+    apply Zmult_ge_compat_r; omega.
+Qed.
+
+Lemma power_nat_divide_le: forall n m: Z,
+  (exists N, n = two_power_nat N) ->
+  (exists M, m = two_power_nat M) ->
+  (m <= n <-> (m | n)).
+Proof.
+  intros.
+  rewrite <- power_nat_divide_ge; auto.
   omega.
 Qed.
+
+Lemma two_p_max_divide: forall m1 m2 m, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> ((Z.max m1 m2 | m) <-> (m1 | m) /\ (m2 | m)).
+Proof.
+  intros.
+  destruct (Z_le_dec m1 m2).
+  + rewrite Z.max_r by omega.
+    rewrite power_nat_divide_le in l by auto.
+    pose proof Zdivides_trans m1 m2 m.
+    tauto.
+  + rewrite Z.max_l by omega.
+    assert (m2 <= m1) by omega.
+    rewrite power_nat_divide_le in H1 by auto.
+    pose proof Zdivides_trans m2 m1 m.
+    tauto.
+Qed.
+
+Lemma two_p_max_1: forall m1 m2, (exists n, m1 = two_power_nat n) -> (exists n, m2 = two_power_nat n) -> (Z.max m1 m2 = 1 <-> m1 = 1 /\ m2 = 1).
+Proof.
+  assert (forall x, (exists n : nat, x = two_power_nat n) -> (x = 1 <-> (x | 1))).
+  + intros.
+    split; intros.
+    - subst.
+      exists 1; auto.
+    - rewrite <- power_nat_divide_le in H0 by (auto; exists 0%nat; auto).
+      destruct H as [n ?]; subst x.
+      pose proof two_power_nat_pos n.
+      omega.
+  + intros m1 m2 Hm1 Hm2.
+    pose proof Z_max_two_p _ _ Hm1 Hm2 as Hmax.
+    rewrite (H _ Hm1), (H _ Hm2), (H _ Hmax).
+    apply two_p_max_divide; auto.
+Qed.
+
+Lemma two_power_nat_0: forall x, (exists n, x = two_power_nat n) -> x <> 0.
+Proof.
+  intros.
+  destruct H.
+  pose proof two_power_nat_pos x0.
+  omega.
+Qed.
+
+Hint Rewrite andb_true_iff: align.
+Hint Rewrite <- Zle_is_le_bool: align.
+Hint Rewrite Z.eqb_eq: align.
+Hint Rewrite power_nat_divide_le using (auto with align): align.
+Hint Rewrite Z.mod_divide using (apply two_power_nat_0; auto with align): align.
+Hint Rewrite two_p_max_divide using (auto with align): align.
+Hint Rewrite two_p_max_1 using (auto with align): align.
+Hint Resolve Z_max_two_p: align.
 
 Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
 Proof. intros.
@@ -226,3 +322,157 @@ Tactic Notation "rewr" constr(e) "in" hyp(H) :=
     E : e = _ |- _ => rewrite E in H
   | E : _ = e |- _ => rewrite <-E in H
   end.
+
+Lemma perm_search:
+  forall {A} (a b: A) r s t,
+     Permutation (a::t) s ->
+     Permutation (b::t) r ->
+     Permutation (a::r) (b::s).
+Proof.
+intros.
+eapply perm_trans.
+apply perm_skip.
+apply Permutation_sym.
+apply H0.
+eapply perm_trans.
+apply perm_swap.
+apply perm_skip.
+apply H.
+Qed.
+
+Lemma Permutation_concat: forall {A} (P Q: list (list A)),
+  Permutation P Q ->
+  Permutation (concat P) (concat Q).
+Proof.
+  intros.
+  induction H.
+  + apply Permutation_refl.
+  + simpl.
+    apply Permutation_app_head; auto.
+  + simpl.
+    rewrite !app_assoc.
+    apply Permutation_app_tail.
+    apply Permutation_app_comm.
+  + eapply Permutation_trans; eauto.
+Qed.    
+
+Lemma Permutation_app_comm_trans:
+ forall (A: Type) (a b c : list A),
+   Permutation (b++a) c ->
+   Permutation (a++b) c.
+Proof.
+intros.
+eapply Permutation_trans.
+apply Permutation_app_comm.
+auto.
+Qed.
+
+Ltac solve_perm :=
+    (* solves goals of the form (R ++ ?i = S)
+          where R and S are lists, and ?i is a unification variable *)
+  try match goal with
+       | |-  Permutation (?A ++ ?B) _ =>
+            is_evar A; first [is_evar B; fail 1| idtac];
+            apply Permutation_app_comm_trans
+       end;
+  repeat first [ apply Permutation_refl
+       | apply perm_skip
+       | eapply perm_search
+       ].
+
+Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
+eexists.
+solve_perm.
+Qed.
+
+Lemma range_pred_dec: forall (P: nat -> Prop),
+  (forall n, {P n} + {~ P n}) ->
+  forall m,
+    {forall n, (n < m)%nat -> P n} + {~ forall n, (n < m)%nat -> P n}.
+Proof.
+  intros.
+  induction m.
+  + left.
+    intros; omega.
+  + destruct (H m); [destruct IHm |].
+    - left.
+      intros.
+      destruct (eq_dec n m).
+      * subst; auto.
+      * apply p0; omega.
+    - right.
+      intro.
+      apply n; clear n.
+      intros; apply H0; omega.
+    - right.
+      intro.
+      apply n; clear n.
+      apply H0.
+      omega.
+Qed.
+
+Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
+Proof.
+  intros.
+  destruct i; try reflexivity.
+  pose proof Zgt_pos_0 p; omega.
+Qed.
+
+Lemma Zrange_pred_dec: forall (P: Z -> Prop),
+  (forall z, {P z} + {~ P z}) ->
+  forall l r,  
+    {forall z, l <= z < r -> P z} + {~ forall z, l <= z < r -> P z}.
+Proof.
+  intros.
+  assert ((forall n: nat, (n < Z.to_nat (r - l))%nat -> P (l + Z.of_nat n)) <-> (forall z : Z, l <= z < r -> P z)).
+  Focus 1. {
+    split; intros.
+    + specialize (H0 (Z.to_nat (z - l))).
+      rewrite <- Z2Nat.inj_lt in H0 by omega.
+      spec H0; [omega |].
+      rewrite Z2Nat.id in H0 by omega.
+      replace (l + (z - l)) with z in H0 by omega.
+      auto.
+    + apply H0.
+      rewrite Nat2Z.inj_lt in H1.
+      destruct (zlt (r - l) 0).
+      - rewrite Z2Nat_neg in H1 by omega.
+        simpl in H1.
+        omega.
+      - rewrite Z2Nat.id in H1 by omega.
+        omega.
+  } Unfocus.
+  eapply sumbool_dec_iff; [clear H0 | eassumption].
+  apply range_pred_dec.
+  intros.
+  apply H.
+Qed.
+
+Definition eqb_list {A: Type} (eqb_A: A -> A -> bool): list A -> list A -> bool :=
+  fix eqb_list (l1 l2: list A): bool :=
+    match l1, l2 with
+    | nil, nil => true
+    | a1 :: l1, a2 :: l2 => eqb_A a1 a2 && eqb_list l1 l2
+    | _, _ => false
+    end.
+
+Lemma eqb_list_spec: forall {A: Type} (eqb_A: A -> A -> bool),
+  (forall a1 a2, eqb_A a1 a2 = true <-> a1 = a2) ->
+  (forall l1 l2, eqb_list eqb_A l1 l2 = true <-> l1 = l2).
+Proof.
+  intros.
+  revert l2; induction l1 as [| a1 l1]; intros; destruct l2 as [| a2 l2].
+  + simpl.
+    tauto.
+  + simpl.
+    split; intros; congruence.
+  + simpl.
+    split; intros; congruence.
+  + simpl.
+    rewrite andb_true_iff.
+    rewrite  H.
+    rewrite IHl1.
+    split; intros.
+    - destruct H0; subst; auto.
+    - inv H0; auto.
+Qed.

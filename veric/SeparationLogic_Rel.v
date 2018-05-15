@@ -148,4 +148,4 @@ Qed.
 
 *)
 
-Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.

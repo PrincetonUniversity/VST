@@ -1,3 +1,8 @@
+# IF YOU MODIFY THIS FILE to add or remove "make" targets,
+# please also modify the travis: target in the Makefile.
+# They're not automatically coordinated, the reason being that
+# we want to split the Travis build into multiple jobs.
+
 dist: trusty
 sudo: required
 language: ocaml
@@ -10,6 +15,11 @@ cache:
   - build/msl
   - build/veric
   - build/floyd
+  - build_beta/compcert
+  - build_beta/sepcomp
+  - build_beta/msl
+  - build_beta/veric
+  - build_beta/floyd
 addons:
   apt:
     sources:
@@ -19,52 +29,88 @@ addons:
     - aspcud
 env:
   global:
-  - NJOBS=4
+  - NJOBS=2
   # system is == 4.02.3
+#  - COMPILER="4.02.3+32bit"
   - COMPILER="system"
+  - COQ_VERSION="8.7.2"
+  - NEXT_VERSION="8.8.0"
 branches:
   only:
   - master
-  - canon-semax-return
 notifications:
   email:
     recipients:
-    - wmansky@cs.princeton.edu
+    - vst-push@lists.cs.princeton.edu
 git:
   depth: 3
 
 install:
-- "[ -e .opam ] || opam init -j ${NJOBS} --compiler=${COMPILER} -n -y"
+- opam --version
+- "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
+- opam switch ${COMPILER}
 - eval $(opam config env)
+- opam config list
 - opam config var root
-- opam install -j ${NJOBS} -y coq=8.6.1 ${EXTRA_OPAM}
+- opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
+- opam update
+- opam show coq
+- opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam list
+- file `which coqc`
+
+stages:
+  - setup
+  - test
 
 jobs:
   include:
   - stage: setup
     script:
     - echo 'Building VST...' && echo -en 'travis_fold:start:VST.build\\r'
+    - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true floyd calibrate
     - echo -en 'travis_fold:end:VST.build\\r'
   - stage: test
     script:
     - echo 'Building progs...' && echo -en 'travis_fold:start:progs.build\\r'
+    - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true progs
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true progs
     - echo -en 'travis_fold:end:progs.build\\r'
   - script:
-    - echo 'Building hmacdrbg...' && echo -en 'travis_fold:start:hmacdrbg.build\\r'
+    - echo 'Building hmac...' && echo -en 'travis_fold:start:hmac.build\\r'
+    - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} IGNORECOQVERSION=true hmacdrbg
-    - echo -en 'travis_fold:end:hmacdrbg.build\\r'
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true sha hmac
+    - echo -en 'travis_fold:end:hmac.build\\r'
   - script:
     - echo 'Building mailbox...' && echo -en 'travis_fold:start:mailbox.build\\r'
+    - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; travis_wait make -j ${NJOBS} IGNORECOQVERSION=true mailbox
+    - cd build; travis_wait 30 make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true mailbox
     - echo -en 'travis_fold:end:mailbox.build\\r'
+#  - script:
+#    - echo 'Building atomics...' && echo -en 'travis_fold:start:atomics.build\\r'
+#    - git show --format='COMMIT %H %ci' -s; coqc -v
+#    - mkdir -p build
+#    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+#    - cd build; travis_wait 50 make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true atomics
+#    - echo -en 'travis_fold:end:atomics.build\\r'
+  - script:
+    - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
+    - opam switch coq_beta --alias-of ${COMPILER}
+    - eval $(opam config env)
+    - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
+    - opam update
+    - opam install -j ${NJOBS} -y coq=${NEXT_VERSION} ${EXTRA_OPAM}
+    - git show --format='COMMIT %H %ci' -s; coqc -v
+    - mkdir -p build_beta
+    - for i in `ls -a | grep -Ev '^(build_beta|\.\.?)$'`; do rsync -rc $i build_beta; done
+    - cd build_beta; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true floyd calibrate
+    - echo -en 'travis_fold:end:VST.build_beta\\r'

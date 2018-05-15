@@ -6,32 +6,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope logic.
 
-Lemma Znth_map: forall {A B} n xs d (f: A -> B),
-  Znth n (map f xs) (f d) = f (Znth n xs d).
-Proof.
-  intros.
-  unfold Znth.
-  if_tac.
-  + reflexivity.
-  + apply map_nth.
-Qed.
-
-Lemma legal_Znth_map: forall {A B} n xs dA dB (f: A -> B),
-  0 <= n < Zlength xs ->
-  Znth n (map f xs) dB = f (Znth n xs dA).
-Proof.
-  intros.
-  unfold Znth.
-  if_tac.
-  + omega.
-  + apply nth_map'.
-    rewrite Zlength_correct in H.
-    destruct H.
-    apply Z2Nat.inj_lt in H1; [ | omega | omega].
-    rewrite Nat2Z.id in H1.
-    exact H1.
-Qed.
-
 Definition t_struct_b := Tstruct _b noattr.
 
 Definition sub_spec (sub_id: ident) :=
@@ -83,6 +57,7 @@ Proof.
   forward.
   forward.
   forward.
+  forward.
 Qed.
 
 Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
@@ -93,5 +68,5 @@ Proof.
   forward.
   forward.
   forward.
+  forward.
 Qed.
-

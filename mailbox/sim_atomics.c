@@ -59,6 +59,16 @@ int CAS_SC(atomic_loc *tgt, int c, int v){
   return x;
 }
 
+int atomic_exchange_SC(int *tgt, int v){
+  int x;
+  lock_t *l = tgt->lock;
+  acquire(l);
+  x = tgt->val;
+  tgt->val = v;
+  release(l);
+  return x;
+}
+
 int load_relaxed(atomic_loc *tgt){
   int x;
   lock_t *l = tgt->lock;

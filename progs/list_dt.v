@@ -20,6 +20,12 @@ Require Import VST.floyd.nested_loadstore.
 Require Import VST.floyd.entailer.
 (*  End TEMPORARILY *)
 
+Lemma int64_eq_e: forall i j, Int64.eq i j = true -> i=j.
+Proof. intros. pose proof (Int64.eq_spec i j); rewrite H in H0; auto. Qed.
+
+Lemma ptrofs_eq_e: forall i j, Ptrofs.eq i j = true -> i=j.
+Proof. intros. pose proof (Ptrofs.eq_spec i j); rewrite H in H0; auto. Qed.
+
 Lemma allp_andp1  {A}{ND: NatDed A}:  forall B (any: B) (p: B -> A) q, andp (allp p) q = (allp (fun x => andp (p x) q)).
 Proof.
  intros. apply pred_ext.
@@ -48,7 +54,7 @@ Class listspec {cs: compspecs} (list_structid: ident) (list_link: ident) (token:
    list_fields: members;
    list_struct := Tstruct list_structid noattr;
    list_members_eq: list_fields = co_members (get_co list_structid);
-   list_struct_alignas_legal: legal_alignas_type list_struct = true;
+   list_struct_complete_legal_cosu: complete_legal_cosu_type list_struct = true; (* TODO: maybe this line not useful? *)
    list_link_type: nested_field_type list_struct (StructField list_link :: nil) = Tpointer list_struct noattr;
    list_token := token
 }.
@@ -66,11 +72,13 @@ Fixpoint all_but_link (f: members) : members :=
  end.
 
 Lemma list_link_size_in_range (ls: listspec list_structid list_link list_token):
-  0 < sizeof (nested_field_type list_struct (StructField list_link :: nil)) < Int.modulus.
+  0 < sizeof (nested_field_type list_struct (StructField list_link :: nil)) < Ptrofs.modulus.
 Proof.
   rewrite list_link_type.
-  cbv.
-  split; reflexivity.
+  unfold sizeof.
+  destruct Archi.ptr64 eqn:Hp.
+  rewrite Ptrofs.modulus_eq64 by auto; computable.
+  rewrite Ptrofs.modulus_eq32 by auto; computable.
 Qed.
 
 Definition elemtype (ls: listspec list_structid list_link list_token) :=
@@ -713,13 +721,16 @@ destruct l.
 f_equal. f_equal.
 apply prop_ext; split; intro; auto.
 unfold ptr_eq.
-destruct v; inv H; unfold Int.cmpu; rewrite Int.eq_true; auto.
+unfold is_pointer_or_null in H.
+destruct Archi.ptr64 eqn:Hp;
+destruct v; inv H; auto;
+unfold Ptrofs.cmpu; rewrite Ptrofs.eq_true; auto.
 destruct p.
 apply pred_ext;
 apply derives_extract_prop; intro.
 destruct H0.
 contradiction H1.
-destruct v; inv H; try split; auto; apply Int.eq_true.
+destruct v; inv H; try split; auto; apply Ptrofs.eq_true.
 inv H0.
 Qed.
 
@@ -827,9 +838,10 @@ intros. unfold nullval.
 apply lseg_neq.
 destruct v; inv H; intuition; try congruence.
 intro. apply ptr_eq_e in H.
-inv H.
+destruct Archi.ptr64 eqn:Hp; inv H.
 inv H1.
-intro. simpl in H. congruence.
+intro. simpl in H.
+destruct Archi.ptr64; congruence.
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
@@ -901,8 +913,9 @@ eapply derives_trans.
 apply H. normalize.
 unfold local. super_unfold_lift.
 unfold nullval.
-normalize. destruct e; try contradiction.
-intro. apply ptr_eq_e in H1. congruence.
+intro.
+apply ptr_eq_e in H1. subst.
+normalize.
 Qed.
 
 Lemma semax_lseg_neq (ls: listspec list_structid list_link list_token):
@@ -1030,8 +1043,8 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token): for
    |--   lseg ls dsh psh (l++(y,h)::nil) x z * field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) w) z.
 Proof.
 intros. rename H into SH.
-assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link)))
-  by (rewrite list_link_type; simpl; computable).
+assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link))).
+  rewrite list_link_type; simpl; destruct Archi.ptr64; computable.
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -1077,7 +1090,8 @@ apply ptr_eq_e in H. subst y.
 entailer!.
 destruct H. contradiction H.
 rewrite prop_true_andp by reflexivity.
-rewrite prop_true_andp by (split; reflexivity).
+rewrite prop_true_andp
+  by (unfold nullval; destruct Archi.ptr64 eqn:Hp; simpl; auto).
 normalize.
 *
 destruct a as [v el].
@@ -1112,7 +1126,6 @@ intros.
 destruct l'.
 rewrite lseg_nil_eq.
 normalize.
-rewrite prop_true_andp by (split; reflexivity).
 apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
 Intros u. Exists u. subst z.
@@ -1131,6 +1144,7 @@ Lemma lseg_unroll_right (ls: listspec list_structid list_link list_token): foral
     lseg ls sh sh' l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh sh' l x z.
 Abort.  (* not likely true *)
 
+
 Lemma lseg_local_facts:
   forall ls dsh psh contents p q,
      lseg ls dsh psh contents p q |--
@@ -1144,14 +1158,22 @@ unfold ptr_eq in H.
 apply prop_right.
 destruct p; try contradiction; simpl; auto.
 destruct q; try contradiction; auto.
-destruct H.
+unfold Int.cmpu in H.
+destruct H as [? [? ?]].
 apply int_eq_e in H0.
-apply int_eq_e in H. subst. subst.
+apply int_eq_e in H1. subst. rewrite H.
 split; auto; split; auto.
 destruct q; try contradiction; auto.
-destruct H.
-apply int_eq_e in H0. subst.
-split; auto; split; auto.
+unfold Int64.cmpu in H.
+destruct H as [? [? ?]].
+apply int64_eq_e in H0.
+apply int64_eq_e in H1. subst. rewrite H.
+split3; auto.
+destruct q; try contradiction.
+destruct H; subst.
+unfold Ptrofs.cmpu in H0.
+apply ptrofs_eq_e in H0.
+subst. intuition.
 destruct p0.
 normalize.
 rewrite field_at_isptr.
@@ -1405,10 +1427,11 @@ Proof.
 intros. unfold nullval.
 apply lseg_neq.
 destruct v; inv H; intuition; try congruence.
-intro. apply ptr_eq_e in H.
+intro.
+destruct (Int.eq i Int.zero); inv H1.
+intro.
+apply ptr_eq_e in H.
 inv H.
-inv H1.
-intro. simpl in H. congruence.
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
@@ -1479,7 +1502,8 @@ apply H. normalize.
 unfold local. super_unfold_lift.
 unfold nullval.
 destruct e; inv H0; try congruence; auto.
-intro. apply ptr_eq_e in H0. congruence.
+intro. apply ptr_eq_e in H0.
+destruct Archi.ptr64; inv H0.
 Qed.
 
 Lemma semax_lseg_neq (ls: listspec list_structid list_link list_token):
@@ -1638,7 +1662,6 @@ intros.
 destruct l'.
 rewrite lseg_nil_eq.
 normalize.
-rewrite prop_true_andp by (split; reflexivity).
 apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
 Intros u.
@@ -1946,13 +1969,13 @@ rewrite (lseg_unfold ls dsh psh l v v).
 destruct l.
 f_equal. f_equal.
 apply prop_ext; split; intro; auto.
-unfold ptr_eq.
-destruct v; inv H; unfold Int.cmpu; rewrite Int.eq_true; auto.
+normalize.
 apply pred_ext;
 apply derives_extract_prop; intro.
 destruct H0.
 contradiction H1.
-destruct v; inv H; try split; auto; apply Int.eq_true.
+destruct v; inv H; try split; auto.
+unfold Ptrofs.cmpu. apply Ptrofs.eq_true.
 inv H0.
 Qed.
 
@@ -2065,7 +2088,7 @@ apply lseg_neq; auto.
 destruct v; inv H0; intuition; try congruence.
 intro. apply ptr_eq_e in H0.
 inv H0.
-inv H2.
+destruct (Int.eq i Int.zero); inv H2.
 intro. simpl in H0. auto.
 Qed.
 
@@ -2140,7 +2163,8 @@ eapply derives_trans.
 apply H0. normalize.
 unfold local. super_unfold_lift.
 unfold nullval. destruct e; inv H1; try congruence; auto.
-intro. apply ptr_eq_e in H1. congruence.
+intro. apply ptr_eq_e in H1.
+destruct Archi.ptr64; inv H1.
 Qed.
 
 Lemma semax_lseg_neq (ls: listspec list_structid list_link list_token):
@@ -2269,7 +2293,7 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token):
 Proof.
 intros. rename H into SH. rename H0 into NR.
 assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link)))
-  by (rewrite list_link_type; simpl; computable).
+  by (rewrite list_link_type; simpl; destruct Archi.ptr64; computable).
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -2320,7 +2344,7 @@ apply ptr_eq_e in H. subst y.
 entailer!.
 destruct H. contradiction H.
 rewrite prop_true_andp by reflexivity.
-rewrite prop_true_andp by (split; reflexivity).
+rewrite prop_true_andp by normalize.
 normalize.
 apply derives_refl'; f_equal. f_equal.
 apply nonreadable_list_cell_eq; auto.
@@ -2356,7 +2380,6 @@ intros.
 destruct l'.
 rewrite lseg_nil_eq.
 normalize.
-rewrite prop_true_andp by (split; reflexivity).
 apply lseg_cons_right_null; auto.
 rewrite lseg_cons_eq; auto.
 Intros u. Exists u. subst.
@@ -2387,14 +2410,22 @@ unfold ptr_eq in H.
 apply prop_right.
 destruct p; try contradiction; simpl; auto.
 destruct q; try contradiction; auto.
-destruct H.
+destruct H as [? [? ?]]. rewrite H.
+unfold Int.cmpu in *.
 apply int_eq_e in H0.
-apply int_eq_e in H. subst. subst.
+apply int_eq_e in H1. subst.
 split; auto; split; auto.
 destruct q; try contradiction; auto.
-destruct H.
-apply int_eq_e in H0. subst.
+destruct H as [? [? ?]]. rewrite H.
+unfold Int64.cmpu in *.
+apply int64_eq_e in H0.
+apply int64_eq_e in H1. subst.
 split; auto; split; auto.
+destruct q; try contradiction; auto.
+destruct H; subst.
+unfold Ptrofs.cmpu in *.
+apply ptrofs_eq_e in H0. subst.
+intuition.
 normalize.
 rewrite field_at_isptr.
 normalize.
@@ -2594,4 +2625,6 @@ Hint Extern 10 (_ |-- valid_pointer _) =>
    resolve_list_cell_valid_pointer : valid_pointer.
 
 End Links.
+
+Arguments elemtype {cs} {list_structid} {list_link} {list_token} ls / .
 

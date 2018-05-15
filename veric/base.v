@@ -14,6 +14,7 @@ Require Export compcert.common.Memtype.
 Require Export compcert.common.Memory.
 Require Export compcert.common.Globalenvs.
 Require Export compcert.cfrontend.Ctypes.
+Require Export compcert.cfrontend.Cop. (*new*)
 Require Export compcert.cfrontend.Clight.
 
 Require Export EqNat.  (* do we need this? *)

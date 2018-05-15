@@ -136,7 +136,7 @@ Definition slots_of_instr (i: instruction) : list (slot * Z * typ) :=
   end.
 
 Definition max_over_list {A: Type} (valu: A -> Z) (l: list A) : Z :=
-  List.fold_left (fun m l => Zmax m (valu l)) l 0.
+  List.fold_left (fun m l => Z.max m (valu l)) l 0.
 
 Definition max_over_instrs (valu: instruction -> Z) : Z :=
   max_over_list valu f.(fn_code).
@@ -161,10 +161,10 @@ Lemma max_over_list_pos:
   max_over_list valu l >= 0.
 Proof.
   intros until valu. unfold max_over_list.
-  assert (forall l z, fold_left (fun x y => Zmax x (valu y)) l z >= z).
+  assert (forall l z, fold_left (fun x y => Z.max x (valu y)) l z >= z).
   induction l; simpl; intros.
-  omega. apply Zge_trans with (Zmax z (valu a)).
-  auto. apply Zle_ge. apply Zmax1. auto.
+  omega. apply Zge_trans with (Z.max z (valu a)).
+  auto. apply Zle_ge. apply Z.max1. auto.
 Qed.
 
 Lemma max_over_slots_of_funct_pos:
@@ -225,8 +225,8 @@ Qed.
 Program Definition function_bounds := {|
   used_callee_save := RegSet.elements record_regs_of_function;
   bound_local := max_over_slots_of_funct local_slot;
-  bound_outgoing := Zmax (max_over_instrs outgoing_space) (max_over_slots_of_funct outgoing_slot);
-  bound_stack_data := Zmax f.(fn_stacksize) 0
+  bound_outgoing := Z.max (max_over_instrs outgoing_space) (max_over_slots_of_funct outgoing_slot);
+  bound_stack_data := Z.max f.(fn_stacksize) 0
 |}.
 Next Obligation.
   apply max_over_slots_of_funct_pos.
@@ -304,14 +304,14 @@ Lemma max_over_list_bound:
 Proof.
   intros until x. unfold max_over_list.
   assert (forall c z,
-            let f := fold_left (fun x y => Zmax x (valu y)) c z in
+            let f := fold_left (fun x y => Z.max x (valu y)) c z in
             z <= f /\ (In x c -> valu x <= f)).
     induction c; simpl; intros.
     split. omega. tauto.
-    elim (IHc (Zmax z (valu a))); intros.
-    split. apply Zle_trans with (Zmax z (valu a)). apply Zmax1. auto.
+    elim (IHc (Z.max z (valu a))); intros.
+    split. apply Zle_trans with (Z.max z (valu a)). apply Zmax1. auto.
     intro H1; elim H1; intro.
-    subst a. apply Zle_trans with (Zmax z (valu x)).
+    subst a. apply Zle_trans with (Z.max z (valu x)).
     apply Zmax2. auto. auto.
   intro. elim (H l 0); intros. auto.
 Qed.

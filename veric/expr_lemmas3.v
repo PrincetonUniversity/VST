@@ -43,35 +43,48 @@ Transparent Float32.to_intu.
 Lemma isCastR: forall {CS: compspecs} tfrom tto a,
   denote_tc_assert (isCastResultType tfrom tto a) =
  denote_tc_assert
-match Cop.classify_cast tfrom tto with
+match classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
 | Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else
-                            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
-                                else tc_iszero' a)
-| Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_i2l _ =>
+           tc_andp (tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto))
+             (if is_pointer_type tto then tc_iszero a else tc_TT)
+| Cop.cast_case_l2i _ _ => 
+           tc_andp (tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto))
+             (if is_pointer_type tto then tc_iszero a else tc_TT)
+| Cop.cast_case_pointer  => 
+           if eqb_type tfrom tto then tc_TT else
+           (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
+                       (if Archi.ptr64
+                        then (andb (is_long_type tto) (is_long_type tfrom)) 
+                        else (andb (is_int_type tto) (is_int_type tfrom)))
+              then tc_TT
+              else tc_iszero a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool =>tc_andp (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
-                                                (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
-| Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_l2bool => 
+      if is_pointer_type tfrom
+      then tc_test_eq a (Econst_long Int64.zero (Tlong Unsigned noattr))
+      else tc_TT
+| Cop.cast_case_i2bool =>
+      if is_pointer_type tfrom
+      then tc_test_eq a (Econst_int Int.zero (Tint I32 Unsigned noattr))
+      else tc_TT
 | Cop.cast_case_void => tc_noproof
 | _ => match tto with
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
-      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
-      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F64 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F32 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
 Proof. intros; extensionality rho.
  unfold isCastResultType.
  destruct (classify_cast tfrom tto) eqn:?; auto.
- destruct (eqb_type tfrom tto); auto.
- if_tac; auto. apply denote_tc_assert_iszero.
 Qed.
 
 Lemma Z2R_pow_0_lt:
@@ -408,23 +421,37 @@ intros.
  pose proof (Int.zero_ext_range n x H); omega.
 Qed.
 
+Lemma int64_eq_e: forall i, Int64.eq i Int64.zero = true -> i=Int64.zero.
+Proof.
+intros.
+pose proof (Int64.eq_spec i Int64.zero). rewrite H in H0; auto.
+Qed.
+
+Lemma long_int_zero_lem:
+  forall i, Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero = true ->
+    Int.repr (Int64.unsigned i) = Int.zero.
+Proof.
+ intros.
+ apply int64_eq_e in H.
+unfold Int.zero.
+rewrite Int64.repr_unsigned in H.
+subst.
+reflexivity.
+Qed.
+
 Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
-(denote_tc_assert (typecheck_expr Delta e) rho m ->
- tc_val (typeof e) (eval_expr e rho)) /\
-(forall pt : type,
- denote_tc_assert (typecheck_lvalue Delta e) rho m ->
- is_pointer_type pt = true -> tc_val pt (eval_lvalue e rho)) ->
+ (denote_tc_assert (typecheck_expr Delta e) rho m ->
+   tc_val (typeof e) (eval_expr e rho))  ->
 denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
 tc_val (typeof (Ecast e t)) (eval_expr (Ecast e t) rho).
 Proof.
-intros until t; intros H IHe H0.
+intros until t; intros H H1 H0.
 simpl in *. unfold_lift.
-destruct IHe as [? _].
 rewrite denote_tc_assert_andp in H0.
 destruct H0.
-specialize (H1 H0).
+specialize (H1 H0); clear H0.
 unfold  sem_cast, force_val1.
 rewrite isCastR in H2.
 destruct (classify_cast (typeof e) t)
@@ -432,65 +459,78 @@ destruct (classify_cast (typeof e) t)
    eqn:H3;
    try contradiction;
  destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-    simpl in H3; try discriminate H3; try contradiction;
+    try discriminate H3; try contradiction;
  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-    simpl in H3; try discriminate H3; try contradiction;
-  simpl in H2; unfold_lift in H2; simpl in H2;
-  try (rewrite denote_tc_assert_andp in H2;
-        destruct H2 as [H2a H2b];
-       unfold denote_tc_assert in H2a,H2b;
-      unfold_lift in H2a; unfold_lift in H2b;
-       simpl in H2a,H2b
-    );
-  destruct (eval_expr e rho); simpl in H1; try discriminate H1;
-  try contradiction H2;
-  try reflexivity; try assumption;
-  try (apply (is_true_e _ H2));
-  try (injection H3; clear H3; intros; subst);
-  simpl;
-  try solve [destruct (Int.eq i Int.zero); reflexivity];
-  try (rewrite andb_true_iff in H1; destruct H1 as [H1 H1']);
-  try rewrite Z.leb_le in H1;
-  try rewrite Z.leb_le in H1';
-  try (
-   simpl in H2a,H2b;
-    match type of H2a with app_pred match ?A with Some _ => _ | None => _ end _ =>
-       destruct A eqn:H7; [ | contradiction];
-      do 3 red in H2a,H2b;
-       apply is_true_e in H2a; apply is_true_e in H2b;
-       rewrite Z.leb_le in H2a; rewrite Z.geb_le in H2b
-    end);
-    try apply andb_zleb; try rewrite Z.leb_le;
-   try match goal with
-     | |- context[Int.sign_ext ?n ?x] =>
+    try discriminate H3; try contradiction;
+  unfold classify_cast in H3;
+  try replace (if Archi.ptr64 then false else false) with false in H2 by (destruct Archi.ptr64; auto);
+  repeat (progress unfold_lift in H2; simpl in H2);  (* needed ? *)
+  unfold tc_val, is_pointer_type in *;
+  repeat match goal with |- context [eqb_type ?A ?B] =>
+              let J := fresh "J" in 
+              destruct (eqb_type A B) eqn:J;
+             [apply eqb_type_true in J | apply eqb_type_false in J]
+    end;
+  repeat match goal with H: context [eqb_type ?A ?B] |- _ =>
+              let J := fresh "J" in 
+              destruct (eqb_type A B) eqn:J;
+             [apply eqb_type_true in J | apply eqb_type_false in J]
+    end;
+   try discriminate;
+   rewrite ?if_true in H3 by auto; rewrite ?if_false in H3 by (clear; congruence);
+   try (destruct Archi.ptr64 eqn:?Hp; try discriminate; [idtac]);
+  repeat match goal with
+       | H: app_pred (denote_tc_assert (tc_andp _ _) _) _ |- _ => 
+          rewrite denote_tc_assert_andp in H; destruct H
+       | H: app_pred (denote_tc_assert (if ?A then _ else _) _) _ |- _ =>
+           first [change A with false in H | change A with true in H]; cbv iota in H
+       | H: app_pred (denote_tc_assert (tc_iszero _) _) _ |- _ =>
+                   rewrite denote_tc_assert_iszero in H
+       | H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ => apply tc_bool_e in H
+       | H: app_pred (denote_tc_assert _ _) _ |- _ =>
+             unfold denote_tc_assert, denote_tc_Zle, denote_tc_Zge in H;
+             unfold_lift in H
+       end;
+   destruct (eval_expr e rho); try solve [contradiction H1];
+   try apply I;
+   try solve [contradiction];
+   unfold sem_cast_pointer, sem_cast_i2i, sem_cast_f2f, sem_cast_s2s,
+   sem_cast_f2i, sem_cast_s2i, cast_float_int, is_pointer_or_null, force_val in *;
+   repeat rewrite Hp in *;
+   repeat match goal with
+        | H: app_pred (prop _) _ |- _ => apply is_true_e in H; 
+                                      try (apply int_eq_e in H; subst)
+       end;
+    auto;
+    inv H3;
+   try (simpl in H1|-*;
+      match goal with
+      | |- context[Int.sign_ext ?n ?x] =>
       apply (sign_ext_range' n x); compute; split; congruence
-     | |- context[Int.zero_ext ?n ?x] =>
+      | |- context[Int.zero_ext ?n ?x] =>
       apply (zero_ext_range' n x); compute; try split; congruence
-   end;
-  try (first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
-          | erewrite single_to_int_ok | erewrite single_to_intu_ok];
-          [ | eassumption | split; assumption]);
- try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
-      destruct A; try reflexivity
-  end;
-  try (
-    simpl;
-    try reflexivity;
-    try apply andb_zleb; try rewrite Z.leb_le;
-    match goal with
-     | |- context[Int.sign_ext ?n ?x] =>
-      apply (sign_ext_range' n x); compute; split; congruence
-     | |- context[Int.zero_ext ?n ?x] =>
-      apply (zero_ext_range' n x); compute; try split; congruence
-   end);
- try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
-      destruct A; try reflexivity
-     end;
-  try solve [apply int_eq_true; symmetry; auto;
-       simpl denote_tc_iszero in *;
-       destruct (Int.eq i Int.zero); auto];
- try match goal with |- (if ?A then _ else _) = _ \/ (if ?A then _ else _) = _ =>
+     end);
+   simpl; 
+    try match goal with |- (if ?A then _ else _) = _ \/ (if ?A then _ else _) = _ =>
       destruct A; solve [auto]
      end;
-  auto.
+  repeat  match goal with
+    | H: app_pred match ?A with Some _ => _ | None => _ end _ |- _ =>
+         destruct A eqn:?; [  | contradiction H]
+    | H: app_pred (prop _) _ |- _ => apply is_true_e in H;
+           rewrite ?Z.leb_le, ?Z.geb_le in H
+   end.
+all: try (simpl in H0,H2;
+          first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
+          | erewrite single_to_int_ok | erewrite single_to_intu_ok];
+          [ | eassumption | split; omega]).
+all:   try match goal with
+     | |- context[Int.sign_ext ?n ?x] =>
+      apply (sign_ext_range' n x); compute; split; congruence
+     | |- context[Int.zero_ext ?n ?x] =>
+      apply (zero_ext_range' n x); compute; try split; congruence
+   end.
+all: try apply I.
+all: rewrite ?Hp; hnf; auto.
+all: apply long_int_zero_lem; auto.
 Qed.

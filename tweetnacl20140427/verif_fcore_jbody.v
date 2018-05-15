@@ -4,9 +4,6 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
-(* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result ::= idtac.
-
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
 Require Import tweetnacl20140427.tweetNaclBase.
@@ -15,6 +12,9 @@ Require Import tweetnacl20140427.verif_salsa_base.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
 Require Import VST.floyd.library.
+
+(*TODO: eliminate*)
+Ltac canon_load_result ::= idtac.
 
 Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data.
@@ -34,7 +34,7 @@ Fixpoint WLIST' (wlist : list val) (tlist: list int) (j:Z) m l :=
   | S m' => exists l' tm,
             Zlength l = Zlength wlist /\
             WLIST' wlist tlist j m' l' /\
-            Znth (Z.of_nat m') (map Vint tlist) Vundef = Vint tm /\
+            Znth (Z.of_nat m') (map Vint tlist) = Vint tm /\
             l = upd_Znth (4*j+ ((j+Z.of_nat m') mod 4)) l' (Vint tm)
   end.
 
@@ -80,7 +80,7 @@ Definition Wcopyspec (t0 t1 t2 t3: int):=
           (Int.repr 13))).
 
 Lemma SixteenWR_Znth_int' s i:
-  0 <= i < 16 -> exists ii : int, Znth i (SixteenWordRep s) Vundef = Vint ii.
+  0 <= i < 16 -> exists ii : int, Znth i (SixteenWordRep s) = Vint ii.
 Proof. apply SixteenWR_Znth_int. Qed.
 
 Definition array_copy1_statement :=
@@ -106,7 +106,7 @@ Definition array_copy1_statement :=
 Lemma array_copy1: forall (Espec: OracleKind) j t x (xs:list int)
   (J:0<=j<4),
  semax (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j));
    lvar _t (tarray tuint 4) t;
@@ -123,8 +123,8 @@ Lemma array_copy1: forall (Espec: OracleKind) j t x (xs:list int)
      EX  l : list val,
      !!(forall mm : Z,
          0 <= mm < 4 ->
-         Znth mm l Vundef =
-         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
+         Znth mm l =
+         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs))
         && data_at Tsh (tarray tuint 4) l t))).
 Proof. intros. unfold array_copy1_statement. abbreviate_semax.
   assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*1*)
@@ -133,8 +133,8 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
    lvar _x (tarray tuint 16) x)
-   SEP  (EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef =
-                  Znth ((5*j+4*mm) mod 16) (map Vint xs) Vundef)
+   SEP  (EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l =
+                  Znth ((5*j+4*mm) mod 16) (map Vint xs))
             && data_at Tsh (tarray tuint 4) l t;
        data_at Tsh (tarray tuint 16) (map Vint xs) x))).
   (*1.3*)
@@ -143,7 +143,7 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
     rename H into HT.
     (*Time*) assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)
     destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
-    destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
+    destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16)) as [v NV].
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
     forward.
     { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
@@ -158,20 +158,21 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr, NV. 2: rewrite int_max_unsigned_eq; omega. 
-      entailer!. 
-      rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
+      entailer!.
+   }
+    entailer!. destruct H5. inv H6.
     unfold Int.mods. 
     rewrite ! Int.signed_repr.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
     2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
     rewrite Z.rem_mod_nonneg; try omega.
     forward.
-    { entailer!. rewrite NV. simpl. Exists (upd_Znth m T (Vint v)). entailer!.
+    { entailer!. simpl. Exists (upd_Znth m T (Vint v)). entailer!.
       intros mm ?.
       destruct (zeq mm m); subst.
-      + rewrite upd_Znth_same; try omega. rewrite NV; trivial.
-      + rewrite upd_Znth_diff; try omega. apply HT; omega. }
+      + rewrite upd_Znth_same; try omega. autorewrite with sublist. trivial.
+      + rewrite upd_Znth_diff; try omega. apply HT; omega.
+    }
   }
   entailer!.
 Qed. 
@@ -358,13 +359,13 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (J : 0 <= j < 4)
   wlist
   t0 t1 t2 t3
-  (T0: Znth ((5*j+4*0) mod 16) (map Vint xs) Vundef = Vint t0)
-  (T1: Znth ((5*j+4*1) mod 16) (map Vint  xs) Vundef = Vint t1)
-  (T2: Znth ((5*j+4*2) mod 16) (map Vint xs) Vundef = Vint t2)
-  (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3):
+  (T0: Znth ((5*j+4*0) mod 16) (map Vint xs) = Vint t0)
+  (T1: Znth ((5*j+4*1) mod 16) (map Vint  xs) = Vint t1)
+  (T2: Znth ((5*j+4*2) mod 16) (map Vint xs) = Vint t2)
+  (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) = Vint t3):
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -415,7 +416,7 @@ Proof. intros. abbreviate_semax.
 
 Ltac compute_Znth :=
  let xx := fresh in
-   set (xx := (Znth _ (map Vint (_::_)) _));
+   set (xx := (Znth _ (map Vint (_::_))));
    compute in xx;
    subst xx.
 
@@ -495,19 +496,24 @@ deadvars!.
 { Exists wlist. (*Time*) entailer!. (*2.4 versus 6.3*) }
 { rename H into M; rename i0 into m.
   rename x0 into wlist1. Intros. rename H into WLIST1.
-  assert (TM: exists tm, Znth m [Vint tt3; Vint tt0; Vint tt1; Vint tt2] Vundef = Vint tm).
+  assert (TM: exists tm, Znth m [Vint tt3; Vint tt0; Vint tt1; Vint tt2] = Vint tm).
     destruct (zeq m 0); subst; simpl. eexists; reflexivity.
     destruct (zeq m 1); subst; simpl. eexists; reflexivity.
     destruct (zeq m 2); subst; simpl. eexists; reflexivity.
     destruct (zeq m 3); subst; simpl. eexists; reflexivity. omega.
   destruct TM as [tm TM].
-  forward.
-  { entailer!. rewrite TM; simpl; trivial. }
+  forward; change (@Znth val Vundef) with (@Znth val _).
+  { entailer!. rewrite TM. simpl; trivial. }
   assert (JM: 0 <= Z.rem (j + m) 4 < 4) by (apply Zquot.Zrem_lt_pos_pos; omega).
   assert (JM2: 0<= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
-  deadvars!.
   forward.
-  { entailer!. rewrite andb_false_r; simpl; trivial. }
+  { entailer!. (* rewrite andb_false_r; simpl; trivial. *)
+   clear H1. clear WLIST1. clear TM. clear H.
+   (*rewrite and_True. *)
+   unfold Int.mods. rewrite (Int.signed_repr (j+m)) by rep_omega.
+   change (Int.signed (Int.repr 4)) with 4. 
+   rewrite Int.signed_repr by rep_omega.
+   split. rep_omega. intros [? H9]; inv H9.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).
@@ -550,5 +556,5 @@ simpl in *.
 subst.
 rewrite <- Z0, <- Z1, <- Z2, <- Z3.
 reflexivity.
-Time Qed. (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
+Time Qed. (*VST 2.0: 4.9s*) (*June 4th,2017 (laptop):Finished transaction in 9.528 secs (8.024u,0.02s) (successful)*)
 

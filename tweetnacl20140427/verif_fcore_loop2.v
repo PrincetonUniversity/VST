@@ -17,7 +17,7 @@ Definition Y_content (y: list val)
 
 Lemma f_core_loop2: forall (Espec : OracleKind) FR c k h nonce out w x y t
   (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-  (Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (xInit : list val)
   (XInit : xInit = upd_upto data 4 (list_repeat 16 Vundef)),
 @semax CompSpecs Espec
@@ -69,7 +69,7 @@ Proof. intros. abbreviate_semax.
     exists nil,  (list_repeat 16 Vundef).
       exists xInit, nil; simpl. repeat split; auto. }
   { rename H into I. Intros Y. rename H into YCONT.
-    destruct (upd_upto_Vint data i I Vundef) as [vi Vi].
+    destruct (upd_upto_Vint data i I) as [vi Vi].
       destruct YCONT as [l1 [l2 [yy [xx [APP1 [APP2 [APP3 [L1 L2]]]]]]]].
       assert (V: exists v yT, yy = (Vint v)::yT).
         destruct yy. rewrite app_nil_r in APP2. subst l1 xInit.
@@ -80,8 +80,8 @@ Proof. intros. abbreviate_semax.
       destruct V as [v [yT ?]]. subst yy; simpl.
     freeze [0;2] FR1. rewrite <- XInit in Vi.
       Time forward. (*3.4*)
-      { Time entailer!. (*1*) rewrite Vi; simpl; trivial. }
-      rewrite Vi.
+      { Time entailer!. (*1*) clear - Vi. change Inhabitant_val with Vundef in Vi; rewrite Vi; simpl; trivial. }
+      change Inhabitant_val with Vundef in Vi; rewrite Vi.
       rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi.
       inversion Vi; clear Vi; subst vi. 2: omega.
     thaw FR1. freeze [0;2] FR2.
@@ -106,4 +106,4 @@ Proof. intros. abbreviate_semax.
         + (*rewrite <- APP1.*) thaw FR2. Time cancel. (*0.1*)  }
   }
   apply andp_left2; apply derives_refl.
-Time Qed. (*13*)
+Time Qed. (*VST 2.0: 0.6s *) (*13s*)

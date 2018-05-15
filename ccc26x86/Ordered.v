@@ -58,7 +58,7 @@ Module OrderedZ <: OrderedType.
 
 Definition t := Z.
 Definition eq (x y: t) := x = y.
-Definition lt := Zlt.
+Definition lt := Z.lt.
 
 Lemma eq_refl : forall x : t, eq x x.
 Proof (@refl_equal t).

@@ -905,6 +905,7 @@ Proof.
             exploit (Znth_In (i1 mod size) T (0, 0)); [omega|].
             rewrite HHi; auto.
           * admit. }
+      unfold POSTCONDITION, abbreviate; simpl map.
       Intros v' H'; forward.
       Exists v' H'; entailer!.
     + forward.
@@ -912,6 +913,7 @@ Proof.
     + Intros; match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
         forward_if (PROP (k1 <> 0) (LOCALx Q (SEPx R))) end.
       * subst; rewrite eq_dec_refl.
+        unfold POSTCONDITION, abbreviate; simpl map.
         Intro H'; forward.
         Exists 0 H'; entailer!.
       * if_tac; [contradiction|].
@@ -1320,6 +1322,7 @@ Proof.
             match goal with H : forall k v, _ <-> _ |- _ => rewrite H end.
             split; auto; rewrite <- HHi; apply Znth_In; omega.
             { admit. (* drop snaps *) } }
+      unfold POSTCONDITION, abbreviate; simpl map.
       Intros v' H'; forward.
       Exists (if eq_dec v' 0 then true else false) H'; entailer!.
       if_tac; auto.
@@ -1447,8 +1450,6 @@ Proof.
   assert (force_val (sem_cast_neutral tid) = tid) as Htid.
   { destruct tid; try contradiction; auto. }
   focus_SEP 3.
-  replace_SEP 0 (data_at Tsh tint (vint t) (force_val (sem_cast_neutral tid))).
-  { rewrite Htid; entailer!. }
   forward.
   rewrite <- lock_struct_array.
   forward.
@@ -1460,7 +1461,7 @@ Proof.
   rewrite !upd_Znth_same by auto.
   forward.
   forward_call (tid, sizeof tint).
-  { rewrite Htid, !sepcon_assoc; apply sepcon_derives; [apply data_at_memory_block | cancel_frame]. }
+  { rewrite !sepcon_assoc; apply sepcon_derives; [apply data_at_memory_block | cancel_frame]. }
   forward_for_simple_bound 3 (EX i : Z, EX ls : list bool,
     PROP (Zlength ls = i)
     LOCAL (temp _total (vint (Zlength (filter id ls))); temp _res res; temp _l lockt; temp _t (vint t);
@@ -1802,17 +1803,8 @@ Proof.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   gather_SEP 4 1; apply make_inv with (Q := hashtable_inv gh g lg entries).
   { unfold hashtable_inv; Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!. }
-  { unfold hashtable_inv.
-    apply exp_objective; intro.
-    apply sepcon_objective.
-    - unfold hashtable.
-      apply exp_objective; intro T.
-      apply sepcon_objective; [auto with objective | apply sepcon_list_objective].
-      rewrite Forall_forall; unfold hashtable_entry; intro.
-      rewrite in_map_iff; intros (i & ? & ?); subst.
-      destruct (Znth i entries (Vundef, Vundef)), (Znth i T (0, 0)).
-      unfold ghost_master; auto with objective.
-    - unfold ghost_ref; auto with objective. }
+  { unfold hashtable_inv, hashtable, hashtable_entry; prove_objective.
+    destruct (Znth _ entries (Vundef, Vundef)), (Znth _ _ (0, 0)); prove_objective. }
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
   destruct (split_readable_share Tsh) as (sh1 & sh2 & ? & ? & ?); auto.
@@ -2039,8 +2031,8 @@ Proof.
       rewrite data_at__memory_block; Intros; auto. }
     unfold f_lock_inv at 1; Intros b1 b2 b3 hi.
     assert (0 <= i < Zlength shs) by omega.
+    assert (readable_share (Znth i shs Ews)) by (apply Forall_Znth; auto).
     forward.
-    { apply Forall_Znth; auto. }
     { assert (0 <= i < 3) as Hi by auto; clear - Hi; entailer!.
       rewrite upd_Znth_same; auto. }
     rewrite upd_Znth_same by auto.
@@ -2101,7 +2093,9 @@ Proof.
   Intros.
   match goal with H : exists l HT, _ |- _ => destruct H as (? & ? & ? & ?) end.
   erewrite add_three; eauto.
+  unfold size, hf1; simpl.
+  rewrite (proj2_sig has_size).
   forward.
-  replace 16384 with size by (setoid_rewrite (proj2_sig has_size); auto).
-  Exists values keys; entailer!.
+  rewrite <- (proj2_sig has_size).
+  entailer!.
 Qed.

@@ -2,7 +2,7 @@ Require Import List. Import ListNotations.
 Require Import ZArith.
 Local Open Scope Z_scope.
 Require Import Integers.
-Require Import VST.floyd.sublist.
+Require Import VST.floyd.proofauto.
 Require Import aes.sbox.
 Require Import aes.GF_ops_LL.
 Require Import aes.list_utils.
@@ -18,10 +18,10 @@ Definition RSb := map Int.repr inv_sbox.
 
 Definition calc_FT0(i: Z): int :=
   (Int.xor (Int.xor (Int.xor 
-     (times2 (Znth i FSb Int.zero)) 
-     (Int.shl (Znth i FSb Int.zero) (Int.repr 8)))
-     (Int.shl (Znth i FSb Int.zero) (Int.repr 16)))
-     (Int.shl (Int.and (Int.xor (times2 (Znth i FSb Int.zero)) (Znth i FSb Int.zero))
+     (times2 (Znth i FSb)) 
+     (Int.shl (Znth i FSb) (Int.repr 8)))
+     (Int.shl (Znth i FSb) (Int.repr 16)))
+     (Int.shl (Int.and (Int.xor (times2 (Znth i FSb)) (Znth i FSb))
                        (Int.repr 255))
               (Int.repr 24))).
 Definition calc_FT1(i: Z): int := rot8 (calc_FT0 i).
@@ -29,10 +29,10 @@ Definition calc_FT2(i: Z): int := rot8 (calc_FT1 i).
 Definition calc_FT3(i: Z): int := rot8 (calc_FT2 i).
 Definition calc_RT0(i: Z): int :=
   Int.xor (Int.xor (Int.xor
-           (mul (Int.repr 14) (Int.repr (Int.unsigned (Znth i RSb Int.zero))))
-  (Int.shl (mul (Int.repr  9) (Int.repr (Int.unsigned (Znth i RSb Int.zero)))) (Int.repr  8)))
-  (Int.shl (mul (Int.repr 13) (Int.repr (Int.unsigned (Znth i RSb Int.zero)))) (Int.repr 16)))
-  (Int.shl (mul (Int.repr 11) (Int.repr (Int.unsigned (Znth i RSb Int.zero)))) (Int.repr 24)).
+           (mul (Int.repr 14) (Int.repr (Int.unsigned (Znth i RSb))))
+  (Int.shl (mul (Int.repr  9) (Int.repr (Int.unsigned (Znth i RSb)))) (Int.repr  8)))
+  (Int.shl (mul (Int.repr 13) (Int.repr (Int.unsigned (Znth i RSb)))) (Int.repr 16)))
+  (Int.shl (mul (Int.repr 11) (Int.repr (Int.unsigned (Znth i RSb)))) (Int.repr 24)).
 Definition calc_RT1(i: Z): int := rot8 (calc_RT0 i).
 Definition calc_RT2(i: Z): int := rot8 (calc_RT1 i).
 Definition calc_RT3(i: Z): int := rot8 (calc_RT2 i).
@@ -68,7 +68,7 @@ Definition calc_FSb_nonzero(i: Z): int :=
 (* the "repeat" and the "Qed." both take ~30s *)
 Lemma FSb_equiv: forall i,
   1 <= i < 256 ->
-  calc_FSb_nonzero i = Znth i FSb Int.zero.
+  calc_FSb_nonzero i = Znth i FSb.
 Proof.
   intros.
   repeat match goal with

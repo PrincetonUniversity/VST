@@ -4,17 +4,17 @@ Local Open Scope Z.
 
 Definition mbed_tls_fround_col (col0 col1 col2 col3 : int) (rk : Z) : int :=
   (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
-    (Znth (byte0 col0) FT0 Int.zero))
-    (Znth (byte1 col1) FT1 Int.zero))
-    (Znth (byte2 col2) FT2 Int.zero))
-    (Znth (byte3 col3) FT3 Int.zero)).
+    (Znth (byte0 col0) FT0))
+    (Znth (byte1 col1) FT1))
+    (Znth (byte2 col2) FT2))
+    (Znth (byte3 col3) FT3)).
 
 Definition mbed_tls_final_fround_col (col0 col1 col2 col3 : int) (rk : Z) : int :=
   (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
-             (Znth (byte0 col0) FSb Int.zero)              )
-    (Int.shl (Znth (byte1 col1) FSb Int.zero) (Int.repr 8)))
-    (Int.shl (Znth (byte2 col2) FSb Int.zero) (Int.repr 16)))
-    (Int.shl (Znth (byte3 col3) FSb Int.zero) (Int.repr 24))).
+             (Znth (byte0 col0) FSb)              )
+    (Int.shl (Znth (byte1 col1) FSb) (Int.repr 8)))
+    (Int.shl (Znth (byte2 col2) FSb) (Int.repr 16)))
+    (Int.shl (Znth (byte3 col3) FSb) (Int.repr 24))).
 
 Definition four_ints := (int * (int * (int * int)))%type.
 
@@ -39,22 +39,22 @@ Proof.
 Qed.
 
 Definition mbed_tls_initial_add_round_key_col (col_id : Z) (plaintext : list Z) (rks : list Z) :=
-  Int.xor (get_uint32_le plaintext (col_id * 4)) (Int.repr (Znth col_id rks 0)).
+  Int.xor (get_uint32_le plaintext (col_id * 4)) (Int.repr (Znth col_id rks)).
 
 Definition mbed_tls_fround (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
 match cols with (col0, (col1, (col2, col3))) =>
-  ((mbed_tls_fround_col col0 col1 col2 col3 (Znth  i    rks 0)),
-  ((mbed_tls_fround_col col1 col2 col3 col0 (Znth (i+1) rks 0)),
-  ((mbed_tls_fround_col col2 col3 col0 col1 (Znth (i+2) rks 0)),
-   (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks 0)))))
+  ((mbed_tls_fround_col col0 col1 col2 col3 (Znth  i    rks)),
+  ((mbed_tls_fround_col col1 col2 col3 col0 (Znth (i+1) rks)),
+  ((mbed_tls_fround_col col2 col3 col0 col1 (Znth (i+2) rks)),
+   (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks)))))
 end.
 
 Definition mbed_tls_final_fround (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
 match cols with (col0, (col1, (col2, col3))) =>
-  ((mbed_tls_final_fround_col col0 col1 col2 col3 (Znth  i    rks 0)),
-  ((mbed_tls_final_fround_col col1 col2 col3 col0 (Znth (i+1) rks 0)),
-  ((mbed_tls_final_fround_col col2 col3 col0 col1 (Znth (i+2) rks 0)),
-   (mbed_tls_final_fround_col col3 col0 col1 col2 (Znth (i+3) rks 0)))))
+  ((mbed_tls_final_fround_col col0 col1 col2 col3 (Znth  i    rks)),
+  ((mbed_tls_final_fround_col col1 col2 col3 col0 (Znth (i+1) rks)),
+  ((mbed_tls_final_fround_col col2 col3 col0 col1 (Znth (i+2) rks)),
+   (mbed_tls_final_fround_col col3 col0 col1 col2 (Znth (i+3) rks)))))
 end.
 
 Fixpoint mbed_tls_enc_rounds (n : nat) (state : four_ints) (rks : list Z) (i : Z) : four_ints :=

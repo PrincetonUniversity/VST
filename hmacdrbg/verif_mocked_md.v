@@ -15,10 +15,13 @@ Proof.
   rewrite EMPTY_isptr. Intros. 
   forward. 
 freeze [0;1;2] FR1.
- forward_call (r3, 324).
-{ rewrite sepcon_comm. apply sepcon_derives. 
-  eapply derives_trans. apply UNDER_SPEC.EmptyDissolve. rewrite data_at__memory_block. entailer!.
-  cancel. }
+ forward_call (Tstruct _hmac_ctx_st noattr, r3).
+{ rewrite sepcon_comm. apply sepcon_derives.
+  eapply derives_trans. apply UNDER_SPEC.EmptyDissolve.
+  fix_hmacdrbg_compspecs.
+  apply derives_refl.
+  cancel.
+}
 forward. thaw FR1. 
   unfold_data_at 1%nat. cancel.
 Qed.
@@ -39,7 +42,7 @@ Proof.
   rewrite EMPTY_isptr; Intros.
   unfold_data_at 1%nat.
   forward.
-  forward_call (@inr (val * Z * list Z * val) _ (r3, l, key, kv, b, i)).
+  forward_call (@inr (val * Z * list Z * globals) _ (r3, l, key, b, i, gv)).
   { unfold spec_sha.data_block. normalize. cancel. }
   forward.
   cancel. unfold md_relate; simpl. cancel.
@@ -64,9 +67,11 @@ Proof.
   rewrite data_at_isptr with (p:=d); Intros.
   destruct d; try contradiction.
 
-  forward_call (key, internal_r, Vptr b i, data, data1, kv).
+  forward_call (key, internal_r, Vptr b i, data, data1, gv).
   {
     unfold spec_sha.data_block.
+    entailer!. 
+    change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
     entailer!.
   }
 
@@ -76,6 +81,7 @@ Proof.
   (* prove the post condition *)
   unfold spec_sha.data_block.
   unfold md_relate (*; unfold convert_abs*).
+  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   entailer!.
 Qed.
 
@@ -93,11 +99,12 @@ Proof.
   forward.
 
   (* HMAC_Final(hmac_ctx, output); *)
-  forward_call (data, key, internal_r, md, shmd, kv).
+  forward_call (data, key, internal_r, md, shmd, gv).
 
   (* return 0 *)
   unfold spec_sha.data_block.
   forward.
+  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   cancel.
 Qed.
 
@@ -112,7 +119,7 @@ Proof.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
-  forward_call (@inl _ (val * Z * list Z * val * block * Int.int) (internal_r, 32, key, kv)). 
+  forward_call (@inl _ (val * Z * list Z * block * Ptrofs.int * globals) (internal_r, 32, key, gv)). 
   forward.
 
   unfold md_relate; simpl. cancel.
@@ -124,32 +131,27 @@ Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSp
 Proof.
   start_function.
 
-  forward_call (sizeof (Tstruct _hmac_ctx_st noattr)).
+  forward_call (Tstruct _hmac_ctx_st noattr).
   Intros vret.
 
-  forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info;
-   temp _ctx c; temp _hmac h)
-      SEP (!!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
-           memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
-           malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret *
-           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
+  forward_if.
   { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + normalize. eapply derives_trans; try apply valid_pointer_weak.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer2.
-      apply memory_block_valid_ptr. apply top_share_nonidentity. omega.
+      apply data_at_valid_ptr. apply top_share_nonidentity. compute. auto.
       entailer!.
   }
   { (*null*)
     subst vret. simpl. forward.
-    Exists (-20864). entailer!.
+    Exists (-20864).
+    rewrite if_false by omega.
+    entailer!.
   }
-  { destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
-    forward. entailer!.
-  }
-  rewrite memory_block_isptr. Intros.
+  destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
+  Intros.
   unfold_data_at 1%nat.
-  forward. forward. forward. Exists 0. simpl. entailer!.
+  forward. forward. forward. forward. Exists 0. simpl. entailer!.
   Exists vret. unfold_data_at 1%nat. entailer!.
 Qed.

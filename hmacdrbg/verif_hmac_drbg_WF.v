@@ -11,7 +11,7 @@ Require Import hmacdrbg.spec_hmac_drbg.
 
 Lemma HMAC256_DRBG_reseed_algorithmWFaux d l y A B zz 
       (H: (A, B, zz) = HMAC256_DRBG_functional_prog.HMAC256_DRBG_reseed_algorithm d l y):
-      0 <= zz <= Int.max_signed /\ Zlength A = 32 /\ Forall isbyteZ A.
+      0 <= zz < Int.max_signed /\ Zlength A = 32 /\ Forall isbyteZ A.
 Proof.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_reseed_algorithm, HMAC_DRBG_algorithms.HMAC_DRBG_reseed_algorithm in H.
   destruct d as [[? ?] ?]. 
@@ -23,7 +23,7 @@ Qed.
 Lemma HMAC256_DRBG_reseed_functionWFaux a b c s t x y A B zz C D ss 
       (H: ENTROPY.success (A, B, zz, C, D) ss =
         HMAC256_DRBG_functional_prog.HMAC256_DRBG_reseed_function a b c s t x y):
-      0 <= zz <= Int.max_signed /\ Zlength A = 32 /\ Forall isbyteZ A.
+      0 <= zz < Int.max_signed /\ Zlength A = 32 /\ Forall isbyteZ A.
 Proof. unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_reseed_function, DRBG_functions.DRBG_reseed_function in H.
   destruct t. destruct p.
   remember ((x && negb b0)%bool) as bb; destruct bb; try discriminate.
@@ -35,7 +35,7 @@ Qed.
 Lemma mbedtls_HMAC256_DRBG_reseed_functionWFaux a s data ss A B zz C D
       (H: mbedtls_HMAC256_DRBG_reseed_function s a data =
           ENTROPY.success (A, B, zz, C, D)  ss):
-      0 <= zz <= Int.max_signed /\ Zlength A = 32 /\ Forall isbyteZ A.
+      0 <= zz < Int.max_signed /\ Zlength A = 32 /\ Forall isbyteZ A.
 Proof. unfold mbedtls_HMAC256_DRBG_reseed_function in H.
   destruct a; symmetry in H. eapply HMAC256_DRBG_reseed_functionWFaux; eauto. Qed.
 
@@ -59,10 +59,10 @@ Proof. unfold Z.gtb.
 Qed. 
 
 Lemma HMAC256_DRBG_generate_algorithmWF a v k rc n l bytes V K RC (N:n >=0)
-      (A: 0<= a < Int.max_signed) (Rc: 0<=rc) 
+      (A: 0<= a +1< Int.max_signed) (Rc: 0<=rc) 
       (H: DRBG_functions.generate_algorithm_success bytes (V, K, RC) =
           HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm a (v,k,rc) n l):
-      Zlength V = 32 /\ 0 <= RC <= Int.max_signed /\ Forall isbyteZ V.
+      Zlength V = 32 /\ 0 <= RC < Int.max_signed /\ Forall isbyteZ V.
 Proof.
   unfold  HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm in H.
   unfold HMAC_DRBG_algorithms.HMAC_DRBG_generate_algorithm in H.
@@ -105,11 +105,11 @@ Proof.
 Qed.
 
 Lemma HMAC256_DRBG_generate_functionWF f a b c s v k rc d pr n e l V K RC z PR ss bytes
-      (A: 0<= a < Int.max_signed) (N: n>=0) (Rc: 0<=rc)
+      (A: 0<= a+1 < Int.max_signed) (N: n>=0) (Rc: 0<=rc)
       (F: forall s d z b x y zz A B C D ss, ENTROPY.success (A, B, zz, C, D) ss = f s (d, z, b) x y -> 0<=zz)
       (H : ENTROPY.success (bytes, (V, K, RC, z, PR)) ss =
           HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_function f a b c s (v, k, rc, d, pr) n e pr l):
-Zlength V = 32 /\ 0 <= RC <= Int.max_signed /\ Forall isbyteZ V.
+Zlength V = 32 /\ 0 <= RC < Int.max_signed /\ Forall isbyteZ V.
 Proof.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_function in H.
   unfold DRBG_functions.DRBG_generate_function in H.
@@ -156,10 +156,10 @@ Qed.
 
 
 Lemma mbedtls_HMAC256_DRBG_generate_functionWF_success s k v rc el pr rsi n l bytes V K RC z PR ss
-      (N: n>=0) (Rc: 0<=rc) (HRSI: 0 <= rsi < Int.max_signed)
+      (N: n>=0) (Rc: 0<=rc) (HRSI: 0 <= rsi+1 < Int.max_signed)
       (H: ENTROPY.success (bytes, (V, K, RC, z, PR)) ss =
         mbedtls_HMAC256_DRBG_generate_function s (HMAC256DRBGabs k v rc el pr rsi) n l):
-Zlength V = 32 /\ 0 <= RC <= Int.max_signed /\ Forall isbyteZ V.
+Zlength V = 32 /\ 0 <= RC < Int.max_signed /\ Forall isbyteZ V.
 Proof. unfold  mbedtls_HMAC256_DRBG_generate_function, hmac256drbgabs_generate in H.
   apply HMAC256_DRBG_generate_functionWF in H; trivial.
   intros. eapply HMAC256_DRBG_reseed_functionWFaux; eassumption.
@@ -167,10 +167,10 @@ Qed.
 
 Lemma hmac256drbgabs_generateWF I s n l K V RC el PR rsi (N:n>=0)
       (HI: Zlength (hmac256drbgabs_value I) = 32 /\ 
-           0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed /\
-           Forall isbyteZ  (hmac256drbgabs_value I)) (HRSI: 0 <= rsi < Int.max_signed)
+           0 <= hmac256drbgabs_reseed_counter I < Int.max_signed /\
+           Forall isbyteZ  (hmac256drbgabs_value I)) (HRSI: 0 <= rsi +1< Int.max_signed)
       (G: hmac256drbgabs_generate I s n l = HMAC256DRBGabs K V RC el PR rsi):
-      Zlength V = 32 /\ 0 <= RC <= Int.max_signed /\ Forall isbyteZ V.
+      Zlength V = 32 /\ 0 <= RC < Int.max_signed /\ Forall isbyteZ V.
 Proof. unfold hmac256drbgabs_generate in G. destruct I; simpl in HI.
   remember ( mbedtls_HMAC256_DRBG_generate_function s
         (HMAC256DRBGabs key V0 reseed_counter entropy_len

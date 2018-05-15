@@ -4,14 +4,14 @@ Require Import List. Import ListNotations.
 Require Import ZArith.
 
 (*generalizes Lemma data_at_lemmas.memory_block_data_at__aux1*)
-Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
+Lemma unsigned_add: forall i pos, 0 <= pos -> Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr pos)) = (Ptrofs.unsigned i + pos) mod Ptrofs.modulus.
 Proof.
   intros.
-  unfold Int.add.
-  pose proof Int.modulus_pos.
-  pose proof Int.unsigned_range i.
-  pose proof Int.unsigned_range (Int.repr pos).
-  rewrite !Int.unsigned_repr_eq in *.
+  unfold Ptrofs.add.
+  pose proof Ptrofs.modulus_pos.
+  pose proof Ptrofs.unsigned_range i.
+  pose proof Ptrofs.unsigned_range (Ptrofs.repr pos).
+  rewrite !Ptrofs.unsigned_repr_eq in *.
   rewrite Z.add_mod by omega.
   rewrite Z.mod_mod by omega.
   rewrite <- Z.add_mod by omega.
@@ -19,22 +19,22 @@ Proof.
 Qed.
 
 Lemma Arith_aux1: forall i pos z,
-  0 <= pos /\ pos + z <= Int.modulus - Int.unsigned i ->
-  Int.unsigned (Int.add i (Int.repr pos)) + z <= Int.modulus.
+  0 <= pos /\ pos + z <= Ptrofs.modulus - Ptrofs.unsigned i ->
+  Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr pos)) + z <= Ptrofs.modulus.
 Proof.
   intros.
   destruct H.
   rewrite (unsigned_add i pos H).
-  cut ((Int.unsigned i + pos) mod Int.modulus <= Int.unsigned i + pos).
+  cut ((Ptrofs.unsigned i + pos) mod Ptrofs.modulus <= Ptrofs.unsigned i + pos).
     { intros. omega. }
-  pose proof Int.modulus_pos.
-  pose proof Int.unsigned_range i.
+  pose proof Ptrofs.modulus_pos.
+  pose proof Ptrofs.unsigned_range i.
   apply Z.mod_le; omega.
 Qed.
 
 Lemma offset_in_range_0 v: offset_in_range 0 v.
   destruct v; simpl; trivial. rewrite Z.add_0_r.
-  specialize (Int.unsigned_range i); intros. omega.
+  specialize (Ptrofs.unsigned_range i); intros. omega.
 Qed.
 Lemma offset_in_range_le n m d:
       offset_in_range n d -> 0<=m<=n ->
@@ -42,7 +42,7 @@ Lemma offset_in_range_le n m d:
 unfold offset_in_range; intros.
 destruct d; simpl in *; trivial.
 split; try omega.
-apply Z.add_nonneg_nonneg. apply (Int.unsigned_range i). omega.
+apply Z.add_nonneg_nonneg. apply (Ptrofs.unsigned_range i). omega.
 Qed.
 (*
 Lemma offset_in_range_offset_val' n off v:
@@ -53,41 +53,41 @@ Lemma offset_in_range_offset_val' n off v:
 intros.
   destruct v; trivial. unfold offset_in_range, offset_val in *.
   rewrite  (Z.add_comm n), Z.add_assoc in *.
-  destruct (Int.unsigned_range i).
-  rewrite Int.add_unsigned.
-  rewrite (Int.unsigned_repr off).
+  destruct (Ptrofs.unsigned_range i).
+  rewrite Ptrofs.add_unsigned.
+  rewrite (Ptrofs.unsigned_repr off).
   rewrite <- initialize.max_unsigned_modulus in H0.
-  rewrite Int.unsigned_repr; trivial. omega.
+  rewrite Ptrofs.unsigned_repr; trivial. omega.
   split; try omega.
-  2: destruct (Int.unsigned_range i); try omega.
-  rewrite Int.unsigned_repr; trivial.
+  2: destruct (Ptrofs.unsigned_range i); try omega.
+  rewrite Ptrofs.unsigned_repr; trivial.
   rewrite <- initialize.max_unsigned_modulus in H0. omega.
-  rewrite (Int.unsigned_repr off); trivial.
-  2: destruct (Int.unsigned_range i); try omega.
-  rewrite Int.unsigned_repr; trivial.
+  rewrite (Ptrofs.unsigned_repr off); trivial.
+  2: destruct (Ptrofs.unsigned_range i); try omega.
+  rewrite Ptrofs.unsigned_repr; trivial.
   rewrite <- initialize.max_unsigned_modulus in H0. omega.
 Qed.
 
 Lemma offset_in_range_offset_val' n off v:
-      offset_in_range (Int.unsigned off) v ->
-      offset_in_range ((Int.unsigned off)+1) v ->
+      offset_in_range (Ptrofs.unsigned off) v ->
+      offset_in_range ((Ptrofs.unsigned off)+1) v ->
       offset_in_range n (offset_val off v) =
-      offset_in_range (n+Int.unsigned off) v.
+      offset_in_range (n+Ptrofs.unsigned off) v.
 intros.
   destruct v; trivial. unfold offset_in_range, offset_val in *.
   rewrite  (Z.add_comm n), Z.add_assoc in *.
-  rewrite Int.add_unsigned.
-  rewrite Int.unsigned_repr; trivial.
+  rewrite Ptrofs.add_unsigned.
+  rewrite Ptrofs.unsigned_repr; trivial.
   rewrite <- initialize.max_unsigned_modulus in H0. omega.
 Qed.
 *)(*
 Lemma offset_in_range_offset_val z1 z2 v
         (Z1: 0 <= z1) (Z2: 0 <= z2)
         (Off : offset_in_range (z1 + z2) v):
-     offset_in_range z2 (offset_val (Int.repr z1) v).
+     offset_in_range z2 (offset_val (Ptrofs.repr z1) v).
 Proof.
   unfold offset_val, offset_in_range in *. destruct v; trivial.
-  split. apply Z.add_nonneg_nonneg; trivial. apply Int.unsigned_range.
+  split. apply Z.add_nonneg_nonneg; trivial. apply Ptrofs.unsigned_range.
   apply Arith_aux1. omega.
 Qed.
 *)
@@ -97,7 +97,7 @@ Lemma offset_in_range_offset_val z1 z2 v
      offset_in_range z2 (offset_val z1 v).
 Proof.
   unfold offset_val, offset_in_range in *. destruct v; trivial.
-  split. apply Z.add_nonneg_nonneg; trivial. apply Int.unsigned_range.
+  split. apply Z.add_nonneg_nonneg; trivial. apply Ptrofs.unsigned_range.
   apply Arith_aux1. omega.
 Qed.
 
@@ -591,7 +591,7 @@ Proof.
   rewrite field_address0_offset. simpl.
   rewrite field_address0_offset. simpl.
   rewrite (sepcon_comm (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
-  (Vptr b (Int.add i (Int.repr (Zlength data1)))))).
+  (Vptr b (Ptrofs.add i (Ptrofs.repr (Zlength data1)))))).
   repeat rewrite sepcon_assoc.
   f_equal. repeat rewrite Z.mul_1_l. rewrite sepcon_comm. f_equal.
   repeat rewrite Zlength_app in *.

@@ -53,7 +53,7 @@ Definition update_outer_if :=
 
 Lemma update_outer_if_proof:
  forall  (Espec : OracleKind) (hashed : list int)
-           (dd data : list Z) (c d : val) (sh : share) (len : Z) kv
+           (dd data : list Z) (c d : val) (sh : share) (len : Z) gv
    (H : 0 <= len <= Zlength data)
    (Hsh: readable_share sh)
    (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
@@ -63,14 +63,14 @@ Lemma update_outer_if_proof:
    (Hlen : len <= Int.max_unsigned),
 semax
   (initialized_list [_data; _p; _n]
-     (func_tycontext f_SHA256_Update Vprog Gtot))
+     (func_tycontext f_SHA256_Update Vprog Gtot nil))
   (PROP  ()
    LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _data d; temp _c c;temp _data_ d;
     temp _len (Vint (Int.repr len));
-    gvar _K256 kv)
+    gvars gv)
    SEP  (data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
@@ -78,40 +78,40 @@ semax
                     (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
                c;
-     K_vector kv;
+     K_vector gv;
      data_block sh data d))
   update_outer_if
-  (overridePost (sha_update_inv sh hashed len c d dd data kv false)
+  (overridePost (sha_update_inv sh hashed len c d dd data gv false)
     (frame_ret_assert
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (K_vector kv;
+         SEP  (K_vector gv;
                  sha256state_ a' c; data_block sh data d)))
     emp)).
 Proof.
 intros.
 unfold update_outer_if.
-forward_if (sha_update_inv sh hashed len c d dd data kv false).
+forward_if (sha_update_inv sh hashed len c d dd data gv false).
 * (* then clause *)
 
 Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
 drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
-fold (inv_at_inner_if sh hashed len c d dd data kv).
-apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
+fold (inv_at_inner_if sh hashed len c d dd data gv).
+apply semax_seq with (sha_update_inv sh hashed len c d dd data gv false).
 change Delta with Delta_update_inner_if.
 weak_normalize_postcondition.
 normalize. change (16*4)%Z with 64.
-simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
+simple apply (update_inner_if_proof Espec hashed dd data c d sh len gv);
   try assumption.
 forward.
 apply andp_left2; auto.
 * (* else clause *)
 forward.  (* skip; *)
 Exists (@nil int). rewrite <- app_nil_end.
-apply repr_inj_unsigned in H0; try Omega1. rename H0 into H1.
+rename H0 into H1.
 rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
@@ -134,7 +134,7 @@ simpl. normalize.
 Time Qed. (*5.4*)
 
 Lemma update_while_proof:
- forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) kv
+ forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) gv
     (c d : val) (sh : share) (len : Z)
   (H : 0 <= len <= Zlength data)
    (Hsh: readable_share sh)
@@ -145,13 +145,13 @@ Lemma update_while_proof:
   (Hlen : len <= Int.max_unsigned),
  semax
      (initialized_list [_p; _n; _data]
-       (func_tycontext f_SHA256_Update Vprog Gtot))
-  (sha_update_inv sh hashed len c d dd data kv false)
+       (func_tycontext f_SHA256_Update Vprog Gtot nil))
+  (sha_update_inv sh hashed len c d dd data gv false)
   (Swhile
      (Ebinop Oge (Etempvar _len tuint)
         (Ebinop Omul (Econst_int (Int.repr 16) tint)
            (Econst_int (Int.repr 4) tint) tint) tint) sha_update_loop_body)
-  (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv true)).
+  (normal_ret_assert (sha_update_inv sh hashed len c d dd data gv true)).
 Proof.
 intros.
 abbreviate_semax.
@@ -159,7 +159,7 @@ unfold sha_update_inv.
 Intros blocks.
 rewrite semax_seq_skip. (* should be part of forward_while *)
 forward_while
-    (sha_update_inv sh hashed len c d dd data kv false);
+    (sha_update_inv sh hashed len c d dd data gv false);
   try rename blocks0 into blocks'.
 *
  Exists blocks. entailer!.
@@ -199,9 +199,15 @@ assert (Zlength bl = LBLOCKz). {
   unfold sha_update_loop_body.
   assert (Hblocks' := Hblocks_lem Hblocks).
   Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
-  assert (DM: Zlength data < Int.modulus).
-  { clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
-    specialize (Zlength_nonneg data); intros; omega. }
+  assert (DM: Zlength data < Ptrofs.modulus).
+  { (* TODO: simplify this proof. *)
+    clear - FC. red in FC. simpl in FC. destruct d; try tauto.
+    simpl in FC.
+    rewrite Z.max_r in FC by (specialize (Zlength_nonneg data); intros; omega).
+    inv_int i.
+    rewrite Z.mul_1_l in FC.
+    omega.
+  }
   set (lo := Zlength blocks * 4 - Zlength frag) in *.
   replace_SEP 2
     (data_block sh (sublist 0 lo data) d *
@@ -217,7 +223,7 @@ assert (Zlength bl = LBLOCKz). {
  Time forward_call (* sha256_block_data_order (c,data); *)
    (hashed++ blocks,  bl, c,
     field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
-    sh, kv). (*3.8*)
+    sh, gv). (*3.8*)
   { Time unfold_data_at 1%nat. (*0.8*)
     Time cancel. (*2.5*)
   }
@@ -262,4 +268,4 @@ assert (Zlength bl = LBLOCKz). {
  forward.
  Exists blocks'.
  Time entailer!. (*2.9*)
-Time Qed. (*31.3 *)
+Time Qed. (*VST2.0: 1.7s *)

@@ -295,8 +295,8 @@ Qed.
 
 Hint Resolve tree_rep_nullval: saturate_local.
 
-Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+Lemma is_pointer_or_null_force_val_sem_cast_pointer: forall p,
+  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
 Proof.
   intros.
   destruct p; try contradiction; reflexivity.
@@ -405,8 +405,8 @@ Proof.
     forward_if.
     + (* then clause *)
       subst p1.
-      forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+      Time forward_call (sizeof t_struct_tree).
+        1: simpl; rep_omega.
       Intros p'.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -417,7 +417,7 @@ Proof.
       assert_PROP (t1= (@E _)).
         1: entailer!.
       subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+      rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
       forward. (* *t = p; *)
       forward. (* return; *)
       apply modus_ponens_wand'.
@@ -457,7 +457,7 @@ Proof.
         apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
-        subst x. clear H H1 H4.
+        subst x.  clear H H1 H3.
         forward. (* p->value=value *)
         forward. (* return *)
         (* TODO: SIMPLY THIS LINE *)
@@ -519,7 +519,7 @@ Proof.
         apply -> wand_sepcon_adjoint.
         Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
-      assert (x=k) by omega. subst x. clear H H4 H5.
+      assert (x=k) by omega. subst x. clear H H3 H4.
       forward. (* v=p->value *)
       forward. (* return v; *)
       unfold treebox_rep. unfold normal_ret_assert.
@@ -543,13 +543,13 @@ Proof.
   forward. (* mid=r->left *)
   forward. (* l->right=mid *)
   assert_PROP (is_pointer_or_null pb) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
   forward. (* r->left=l *)
   assert_PROP (is_pointer_or_null l) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
   forward. (* _l = r *)
   assert_PROP (is_pointer_or_null r) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  rewrite is_pointer_or_null_force_val_sem_cast_pointer by auto.
   Opaque tree_rep. forward. Transparent tree_rep. (* return *)
   (* TODO: simplify the following proof *)
   Exists pc.
@@ -600,7 +600,7 @@ Proof.
       subst.
       forward. (* q=p->left *)
       forward. (* *t=q *)
-      forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
+      Time forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
       Focus 1. {
         entailer!.
         rewrite memory_block_data_at_ by auto.
@@ -612,7 +612,7 @@ Proof.
       cancel.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. normalize. }
-      forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
+      Time forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
       Intros pc.
       forward. (* t = &q->left; *)
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
@@ -622,9 +622,7 @@ Proof.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-    apply andp_left2.
-    unfold loop2_ret_assert. rewrite prop_true_andp by auto.
-    auto.
+    apply andp_left2; auto.
 Qed.
 
 Definition delete_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
@@ -713,21 +711,20 @@ Proof.
           rewrite field_at_data_at.
           entailer!.
         } Unfocus.
-        forward_call (t1_1, k, v, t1_2, b1, p1).
+        Time forward_call (t1_1, k, v, t1_2, b1, p1).
         forward. (* return *)
         simpl_compb.
         simpl_compb.
         apply modus_ponens_wand'.
         auto.
   * (* After the loop *)
-    forward.
-    unfold loop2_ret_assert. apply andp_left2. normalize. 
+    forward. apply andp_left2; auto. 
 Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
-  forward_call (sizeof (tptr t_struct_tree)).
+  Time forward_call (sizeof (tptr t_struct_tree)).
   simpl sizeof; computable.
   Intros p.
   rewrite memory_block_data_at_ by auto.
@@ -745,14 +742,14 @@ Proof.
     Intros pa pb.
     forward.
     forward.
-    forward_call (p, sizeof t_struct_tree).
+    Time forward_call (p, sizeof t_struct_tree).
     Focus 1. {
       entailer!.
       rewrite memory_block_data_at_ by auto.
       cancel.
     } Unfocus.
-    forward_call (t1,pa).
-    forward_call (t2,pb).
+    Time forward_call (t1,pa).
+    Time forward_call (t2,pb).
     entailer!.
   + forward.
     subst.
@@ -767,8 +764,8 @@ Proof.
   unfold treebox_rep.
   Intros p.
   forward.
-  forward_call (t,p).
-  forward_call (b, sizeof (tptr t_struct_tree)).
+  Time forward_call (t,p).
+  Time forward_call (b, sizeof (tptr t_struct_tree)).
   entailer!.
   rewrite memory_block_data_at_ by auto.
   cancel.

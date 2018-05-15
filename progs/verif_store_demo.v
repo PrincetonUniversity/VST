@@ -50,22 +50,25 @@ assert (N0: 0 <= n). {
 }
 assert_PROP (isptr p) as P by entailer!.
 (* forward fails, but tells us to prove this: *)
-assert_PROP (force_val (sem_add_pi tuint p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tarray tuint (1+n)) [ArraySubsc 0] (offset_val (-sizeof tuint) p)). {
   entailer!.
   destruct p; inversion P. simpl.
   rewrite field_compatible_field_address by auto with field_compatible.
   simpl.
-  rewrite int_add_repr_0_r. reflexivity.
+  rewrite ptrofs_add_repr_0_r. reflexivity.
 }
 
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
+(*
 { entailer!.
-  rewrite H.
+  change (eval_unop Oneg tint (Vint (Int.repr 1))) with (Vint (Int.neg (Int.repr 1))) in H.
+  rewrite H0.
   apply isptr_field_address_lemma.
   auto with field_compatible.
 }
+*)
 forward.
 rewrite upd_Znth0. rewrite sublist_1_cons. rewrite Zlength_cons.
 rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by omega.
@@ -82,9 +85,11 @@ forward.
 forward.
 simpl (temp _p _).
 (* Assert_PROP what forward asks us for (only for the root expression "p"):  *)
-assert_PROP (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))
+assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
-  entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
+  entailer!. rewrite field_compatible_field_address by auto with field_compatible.
+  simpl.
+  normalize.
 }
 (* p->snd = v; *)
 forward.
@@ -103,11 +108,11 @@ simpl (temp _p _).
 (* Assert_PROP what forward asks us for (for the full expression "p->snd"): *)
 assert_PROP (
   offset_val 4 (offset_val 8 (force_val
-    (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i)))))
+    (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i)))))
   = (field_address (tarray pair_pair_t array_size)
                    [StructField _snd; StructField _right; ArraySubsc i] pps)). {
   entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. f_equal. omega.
+  simpl. normalize.  f_equal. omega.
 }
 (* int res = p->snd; *)
 forward.
@@ -125,9 +130,10 @@ forward.
 simpl (temp _p _).
 
 (* Alternative: Make p nice enough so that no hint is required: *)
-assert_PROP (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))
+assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
   = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
-  entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
+  entailer!. rewrite field_compatible_field_address by auto with field_compatible.
+  normalize.
 }
 rewrite E. clear E.
 (* int res = p->snd; *)

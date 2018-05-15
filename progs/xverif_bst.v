@@ -369,7 +369,7 @@ Proof.
     + (* then clause *)
       subst q.
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros q.
       rewrite memory_block_data_at_ by auto.
       forward. (* q->key=x; *)

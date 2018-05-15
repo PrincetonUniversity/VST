@@ -18,9 +18,9 @@ Definition reverse_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [reverse_spec; main_spec]).
 
@@ -113,12 +113,12 @@ auto.
 Qed.
 
 Lemma flip_fact_2:
-  forall {A} (al: list A) size j d,
+  forall {A}{d: Inhabitant A} (al: list A) size j,
  Zlength al = size ->
   j < size - j - 1 ->
    0 <= j ->
-  Znth (size - j - 1) al d =
-  Znth (size - j - 1) (flip_ends j (size - j) al) d.
+  Znth (size - j - 1) al =
+  Znth (size - j - 1) (flip_ends j (size - j) al).
 Proof.
 intros.
 unfold flip_ends.
@@ -148,18 +148,16 @@ forward. (* t = a[lo]; *)
   clear - H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map with (d':=Int.zero)
-   by (autorewrite with sublist; omega).
+  rewrite Znth_map by list_solve.
   apply I.
 }
 forward.  (* s = a[hi-1]; *)
 {
   entailer!.
-  clear - H0 HRE.
+  clear - H H0 HRE.
   autorewrite with sublist in *|-*.
   rewrite flip_ends_map.
-  rewrite Znth_map with (d':=Int.zero)
-   by (autorewrite with sublist; omega).
+  rewrite Znth_map by list_solve.
   apply I.
 }
 rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
@@ -167,15 +165,17 @@ forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
 forward. (* lo++; *)
 forward. (* hi--; *)
-
 (* Prove postcondition of loop body implies loop invariant *)
- Exists (Zsucc j).
+ Exists (Z.succ j).
  entailer!.
  f_equal; f_equal; omega.
  apply derives_refl'.
  unfold data_at.    f_equal.
  clear - H0 HRE H1.
- forget (map Vint contents) as al.
+ unfold Z.succ.
+ rewrite <- flip_fact_3 by auto.
+ rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; list_solve).
+ forget (map Vint contents) as al. clear contents.
  remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
  unfold upd_Znth.
@@ -185,8 +185,7 @@ forward. (* hi--; *)
  rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; omega).
  unfold Z.succ. rewrite <- Heqsize. autorewrite with sublist.
  replace (size - j - 1 + (1 + j)) with size by (clear; omega).
- apply flip_fact_3; auto.
-
+ reflexivity.
 * (* after the loop *)
 forward. (* return; *)
 rewrite map_rev. rewrite flip_fact_1 by omega.
@@ -201,10 +200,10 @@ name four _four.
 start_function.
 
 forward_call  (*  revarray(four,4); *)
-  (four, Ews, four_contents, 4).
+  (gv _four, Ews, four_contents, 4).
    split; [computable | auto].
 forward_call  (*  revarray(four,4); *)
-    (four,Ews, rev four_contents,4).
+    (gv _four,Ews, rev four_contents,4).
    split; [computable | auto].
 rewrite rev_involutive.
 forward. (* return s; *)
@@ -212,11 +211,10 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+prove_semax_prog.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
-

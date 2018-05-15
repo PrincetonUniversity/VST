@@ -31,12 +31,12 @@ forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
  entailer!; auto.
-apply Forall_list_repeat; hnf; clear; omega.
+ apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
 (*Here's the proof for the alternative specification:*)
 Lemma cleanupbodyproof1 Espec c h :
-@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c)
    SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))

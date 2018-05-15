@@ -148,6 +148,11 @@ Ltac detach H :=
     cut Y; [ clear H; intro H | apply H; clear H ]
   end.
 
+Ltac spec H :=
+  match type of H with ?a -> _ =>
+    let H1 := fresh in (assert (H1: a); [|generalize (H H1); clear H H1; intro H]) end.
+
+(* THIS IS OBSOLETE because of Coq's "specialize" tactic 
 (** Specialize a hypothesis with respect to specific terms or proofs. *)
 Tactic Notation "spec" hyp(H) :=
   match type of H with ?a -> _ =>
@@ -202,6 +207,7 @@ Tactic Notation "spec" hyp(H) constr(a) constr(b) constr(c) constr(d) constr(e) 
 
 Tactic Notation "spec" hyp(H) constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) constr(k) constr(l) constr(m) constr(n) constr(o) constr(p) :=
   (generalize (H a b c d e f g h i j); clear H; intro H).
+*)
 
 Tactic Notation "disc" := (try discriminate).
 

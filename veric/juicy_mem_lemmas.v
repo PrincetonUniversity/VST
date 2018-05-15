@@ -5,13 +5,14 @@ Require Import VST.veric.shares.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
-Lemma inflate_initial_mem_empty:
+(*Lemma inflate_initial_mem_empty:
   forall lev, emp (inflate_initial_mem Mem.empty lev).
 intro lev.
 unfold inflate_initial_mem.
-destruct (make_rmap (inflate_initial_mem' Mem.empty lev)
+destruct (make_rmap (inflate_initial_mem' Mem.empty lev) (core (ghost_of lev))
         (inflate_initial_mem'_valid Mem.empty lev) (level lev)
         (inflate_initial_mem'_fmap Mem.empty lev)); simpl.
+{ rewrite core_ghost_of, <- level_core; apply ghost_of_approx. }
 destruct a.
 apply resource_at_empty2.
 intro l; rewrite H0.
@@ -22,7 +23,7 @@ simpl.
 rewrite PMap.gi.
 destruct (max_access_at empty (b,z)); try destruct p; try apply NO_identity.
 Qed.
-Local Hint Resolve inflate_initial_mem_empty.
+Local Hint Resolve inflate_initial_mem_empty.*)
 
 (* fancy initial mem *)
 
@@ -185,7 +186,7 @@ intros until jm; intros H.
 assert (Hacc := juicy_mem_access jm).
 unfold access_cohere in Hacc.
 unfold Mem.perm, Mem.perm_order'.
-spec Hacc (b, i).
+specialize ( Hacc (b, i)).
 simpl in H.
 destruct (m_phi jm @ (b, i)).
 contradiction.
@@ -211,7 +212,7 @@ intros.
 destruct H as [H ?].
 destruct H0 as [H3 H4].
 subst.
-spec H ofs' H4.
+specialize( H ofs' H4).
 rewrite H1 in H.
 auto.
 Qed.
@@ -235,7 +236,7 @@ induction bl; intros; simpl; auto.
 rewrite IHbl with (ofs := ofs + 1) (z := z - 1); auto.
 rewrite Mem.getN_length.
 f_equal; auto.
-spec H (b, ofs).
+specialize ( H (b, ofs)).
 cut (adr_range (b, ofs) z (b, ofs)); [intro H6|].
 destruct (adr_range_dec (b, ofs) z (b, ofs)).
   2: elimtype False; auto.
@@ -276,7 +277,7 @@ assert (HS_nat_Z: forall n z, S n = nat_of_Z z -> Z_of_nat n + 1 = z).
   auto.
 symmetry; apply HS_nat_Z; auto.
 intros loc'.
-spec H loc'.
+specialize (H loc').
 cut ( adr_range (b, ofs + 1) (z - 1) loc' -> adr_range (b, ofs) z loc').
 intro H1.
 destruct (adr_range_dec (b, ofs + 1) (z - 1) loc').
@@ -341,7 +342,7 @@ assert (nat_of_Z (snd loc' - (ofs + 1)) = n).
   replace (Z_of_nat (S n)) with (Zpos (P_of_succ_nat n)) by auto.
   replace (Z_of_nat (S (S n))) with (Zpos (P_of_succ_nat (S n))) by auto.
   do 2 rewrite Zpos_P_of_succ_nat.
-  replace (Zsucc (Z_of_nat (S n)) - 1) with (Z_of_nat (S n)) by omega.
+  replace (Z.succ (Z_of_nat (S n)) - 1) with (Z_of_nat (S n)) by omega.
   simpl.
   rewrite Zpos_P_of_succ_nat.
   auto.
@@ -369,7 +370,7 @@ rewrite Coqlib.nat_of_Z_eq; try solve [omega].
 rewrite Coqlib.nat_of_Z_eq in H5; try solve [omega].
 rewrite <- H5.
 rewrite inj_S.
-assert (forall z, Zsucc z - 1 = z) by (intros; omega).
+assert (forall z, Z.succ z - 1 = z) by (intros; omega).
 rewrite H6.
 rewrite nat_of_Z_eq.
 auto.
@@ -386,7 +387,7 @@ destruct H as [bl [[H1 [H2 Halign]] H]].
 hnf in H.
 split.
 intros ofs' H4.
-spec H (b, ofs').
+specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
@@ -394,7 +395,7 @@ destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
 destruct H as [sh [rsh H]].
 simpl in H.
 unfold access_cohere in H0.
-spec H0 (b, ofs').
+specialize (H0 (b, ofs')).
 unfold Mem.perm, Mem.perm_order'.
 rewrite H in H0.
 unfold access_at in H0.  simpl in H0.
@@ -569,7 +570,7 @@ destruct H as [_ ?].
 specialize (PERM ofs' H).
 (*
 unfold access_cohere in H3.
-spec H3 (b, ofs').
+specialize (H3 (b, ofs').
 *)
 unfold perm_of_res in *.
 destruct H0 as [H0 _].
@@ -601,7 +602,7 @@ split; [apply core_load_load'| ].
 intros; apply load_core_load; auto.
 Qed.
 
-Lemma address_mapsto_exists':
+(*Lemma address_mapsto_exists':
   forall ch v sh (rsh: readable_share sh) loc m lev,
       (align_chunk ch | snd loc)
       -> Mem.load ch m (fst loc) (snd loc) = Some v 
@@ -639,7 +640,7 @@ if_tac.
 exists rsh.
 f_equal. 
 apply NO_identity.
-Qed.
+Qed.*)
     
 Lemma mapsto_valid_access: forall ch v sh b ofs jm,
   (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
@@ -650,10 +651,10 @@ unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
 split.
 destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[H2 [H3 H3']] H]] ?].
+destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
 hnf in H.
 intros ofs' H4.
-spec H (b, ofs').
+specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
@@ -691,10 +692,10 @@ unfold address_mapsto in H.
 unfold Mem.valid_access, Mem.range_perm.
 split.
 destruct H as [x [y [Hjoin ?]]].
-destruct H as [[bl [[H2 [H3 H3']] H]] ?].
+destruct H as [[bl [[[H2 [H3 H3']] H] Hg]] ?].
 hnf in H.
 intros ofs' H4.
-spec H (b, ofs').
+specialize (H (b, ofs')).
 hnf in H.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
@@ -830,7 +831,7 @@ Lemma juicy_free_aux_lemma:
 Proof.
 intros.
 destruct H as [phi1 [phi2 [? [? ?]]]].
-specialize (H1 (b,ofs)).
+destruct H1 as [H1 _]; specialize (H1 (b,ofs)).
 apply (resource_at_join _ _ _ (b,ofs)) in H.
 hnf in H1. rewrite if_true in H1 by (split; auto; omega).
 destruct H1 as [? [? ?]].
@@ -859,13 +860,13 @@ pose (H0 :=True).
 intros R H VR H1 H2 Hyes.
 assert (forall l, ~adr_range (b,lo) (hi-lo) l -> identity (m1 @ l)).
   unfold VALspec_range, allp, jam in H1.
-  intros l. spec H1 l. intros H3.
+  intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H3.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 assert (forall l, adr_range (b,lo) (hi-lo) l 
   -> exists mv, yesat NoneP (VAL mv) Share.top  l m1).
   unfold VALspec_range, allp, jam in H1.
-  intros l. spec H1 l. intros H4.
+  intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H4.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
 remember (free_juicy_mem _ _ _ _ _ H _) as j'.
@@ -881,7 +882,7 @@ unfold inflate_free; rewrite resource_at_make_rmap.
 destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs0)).
 * (* adr_range *)
 clear H3.
-spec H4 (b0,ofs0) a.
+specialize (H4 (b0,ofs0) a).
 destruct H4 as [mv H4].
 unfold yesat, yesat_raw in H4. destruct H4 as [pp H4].
 simpl in H4.
@@ -896,7 +897,7 @@ assert (H0 : access_at m' (b0, ofs0) Cur = None).
   assert (b = b0) by (destruct a; auto). subst.
   unfold access_at; simpl. rewrite PMap.gss.
   rewrite adr_range_zle_zlt with (b:=b0); auto.
-spec Ha (b0,ofs0). rewrite <- H5 in Ha.
+specialize (Ha (b0,ofs0)). rewrite <- H5 in Ha.
 rewrite H0 in Ha.
 assert (H3 : m_phi j @ (b0, ofs0) = YES Share.top readable_share_top (VAL mv) NoneP). {
   clear - H H4 a Hyes.
@@ -941,6 +942,12 @@ destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
   do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
   rewrite Hm1 in H. rewrite H6 in H.
   rewrite core_PURE in H. rewrite core_NO in H; inv H.
+* destruct H1 as [_ Hg].
+  rewrite (identity_core Hg), core_ghost_of, H2.
+  subst j'; simpl.
+  unfold inflate_free.
+  rewrite ghost_of_make_rmap.
+  rewrite <- core_ghost_of; apply core_unit.
 Qed.
 
 Section free.
@@ -958,15 +965,19 @@ Proof.
   apply rmap_ext; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
   - apply join_level in Hjoin; destruct Hjoin; auto.
   - intro.
-    specialize (Hphi1 l); simpl in Hphi1.
+    destruct Hphi1 as [Hphi1' _]. specialize (Hphi1' l); simpl in Hphi1'.
     apply (resource_at_join _ _ _ l) in Hjoin.
     if_tac.
-    + destruct Hphi1 as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
+    + destruct Hphi1' as (? & ? & H1); rewrite H1 in Hjoin; inv Hjoin.
       * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
         subst; apply f_equal, proof_irr.
       * pose proof (join_top _ _ RJ); subst; apply sepalg.join_comm, unit_identity, identity_share_bot in RJ.
         subst; contradiction bot_unreadable.
-    + apply Hphi1 in Hjoin; auto.
+    + apply Hphi1' in Hjoin; auto.
+  - rewrite ghost_of_make_rmap.
+    destruct Hphi1 as [_ Hg].
+    apply ghost_of_join in Hjoin.
+    symmetry; apply Hg; auto.
 Qed.
 
 End free.
@@ -1008,6 +1019,8 @@ destruct (access_at m loc); try destruct p; try rewrite core_NO; try rewrite cor
 destruct (access_at m loc); try destruct p0; try rewrite core_NO;  repeat rewrite core_YES; auto.
 destruct H1.
 destruct H2. rewrite H2. auto.
+unfold inflate_initial_mem.
+rewrite <- core_ghost_of, ghost_of_make_rmap, core_ghost_of; auto.
 Qed.
 
 Lemma writable_writable_after_alloc' : forall m1 m2 lo hi b lev loc IOK1 IOK2,

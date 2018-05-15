@@ -81,7 +81,7 @@ Tactic Notation "pcofix" ident(CIH) := pcofix CIH with r.
 Ltac pclearbot :=
   let X := fresh "_X" in
   repeat match goal with
-  | [H: appcontext[pacoid] |- _] => red in H; destruct H as [H|X]; [|contradiction X]
+  | [H: context[pacoid] |- _] => red in H; destruct H as [H|X]; [|contradiction X]
   end.
 
 (** ** [pdestruct H] and [pinversion H]

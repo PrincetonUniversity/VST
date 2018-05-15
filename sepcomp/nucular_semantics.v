@@ -178,10 +178,10 @@ Lemma valid_genv_fwd F V (ge : Genv.t F V) m m' :
   valid_genv ge m'.
 Proof.
 intros H fwd. inv H; constructor; intros.
-{ cut (val_valid (Vptr b Int.zero) m).
+{ cut (val_valid (Vptr b Ptrofs.zero) m).
 + intros H2; apply (val_valid_fwd H2 fwd).
 + eauto. }
-{ cut (val_valid (Vptr b Int.zero) m).
+{ cut (val_valid (Vptr b Ptrofs.zero) m).
 + intros H2; apply (val_valid_fwd H2 fwd).
 + eauto. }
 Qed.

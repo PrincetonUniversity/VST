@@ -4,6 +4,7 @@ Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.jmeq_lemmas.
+Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
 Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
@@ -109,6 +110,47 @@ Proof.
 Qed.
 
 End GET_CO.
+
+Lemma co_members_get_co_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  co_members (@get_co cs_from id) = co_members (@get_co cs_to id).
+Proof.
+  intros.
+  destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+  + pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+    rewrite H1 in H.
+    apply (coeq_consistent _ _ id _ _ H0) in H1.
+    unfold test_aux in H.
+    destruct b; [| inv H].
+    rewrite !H0 in H.
+    destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+    simpl in H.
+    rewrite !andb_true_iff in H.
+    destruct H as [[? _] _].
+    apply eqb_list_spec in H; [| apply eqb_member_spec].
+    unfold get_co; rewrite H0, H2.
+    auto.
+  + destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+    - pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+      congruence.
+    - inv H.
+Qed.
+
+Lemma co_sizeof_get_co_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  co_sizeof (@get_co cs_from id) = co_sizeof (@get_co cs_to id).
+Proof.
+  intros.
+  rewrite <- !sizeof_Tstruct with (a := noattr).
+  apply sizeof_change_composite.
+  auto.
+Qed.
 
 Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1}.
   intros.

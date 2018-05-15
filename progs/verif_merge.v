@@ -63,7 +63,7 @@ Lemma last_snoc h t : last (h ++ [t]) = t.
 Proof.
   induction h; simpl; auto.
   rewrite IHh.
-  remember (h ++ [t]) as l; if_tac; auto.
+  remember (h ++ [t]) as l; destruct l; auto.
   destruct h; inversion Heql.
 Qed.
 
@@ -71,7 +71,7 @@ Lemma butlast_snoc h t : butlast (h ++ [t]) = h.
 Proof.
   induction h; simpl; auto.
   rewrite IHh.
-  remember (h ++ [t]) as l; if_tac; auto.
+  remember (h ++ [t]) as l; destruct l; auto.
   destruct h; inversion Heql.
 Qed.
 
@@ -86,7 +86,7 @@ Proof.
   f_equal; apply IHl.
 Qed.
 
-Definition merge_invariant _cond sh init_a init_b ret_ :=
+Definition merge_invariant _cond sh init_a init_b v_ret :=
  (EX cond: int, EX a: list int, EX b: list int, EX merged: list int,
   EX a_: val, EX b_: val, EX c_: val, EX begin: val,
   PROP (merge init_a init_b = merged ++ merge a b;
@@ -94,13 +94,13 @@ Definition merge_invariant _cond sh init_a init_b ret_ :=
        )
   LOCAL (temp _a a_;
          temp _b b_;
-         temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
-         lvar _ret tlist ret_;
+         temp _x (if merged then v_ret else field_address (Tstruct _list noattr) [StructField _tail] c_);
+         lvar _ret tlist v_ret;
          temp _cond (Vint cond)
         )
   SEP (lseg LS sh (map Vint a) a_ nullval;
          lseg LS sh (map Vint b) b_ nullval;
-         data_at Tsh tlist (if merged then Vundef else begin) ret_;
+         data_at Tsh tlist (if merged then Vundef else begin) v_ret;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
    ))%assert.
@@ -155,7 +155,6 @@ Qed.
 
 Lemma body_merge: semax_body Vprog Gprog f_merge merge_spec.
 Proof.
-name ret_ _ret.
 start_function.
 forward.
 
@@ -172,12 +171,12 @@ forward.
    It is converted into an if, so we need to establish the
    postcondition ourselves *)
 match goal with [|-context[Sset ?tempvar _] ] =>
-   forward_if (merge_invariant tempvar sh a b ret_)
+   forward_if (merge_invariant tempvar sh a b v_ret)
 end.
 * (* First branch of the if: [a_ <> nullval] *)
 forward.
 Exists (if Val.eq b_ nullval then Int.zero else Int.one)
- a b (@nil int) a_ b_ ret_ ret_.
+ a b (@nil int) a_ b_ v_ret v_ret.
  simpl map. rewrite @lseg_nil_eq.
 Time entailer!.  (* 1.65 sec *)
  destruct b_; inv PNb_; simpl.
@@ -185,7 +184,7 @@ Time entailer!.  (* 1.65 sec *)
   rewrite if_false by (intro Hx; inv Hx); intuition discriminate.
 * (* a_ = null *)
 forward.
-Exists Int.zero a b (@nil int) a_ b_ ret_ ret_.
+Exists Int.zero a b (@nil int) a_ b_ v_ret v_ret.
  simpl map. rewrite @lseg_nil_eq.
 entailer!. intuition.
 * (* finally the [condition] is given the value of the temporary variable 67. *)
@@ -199,7 +198,7 @@ Intros cond a b merged a_ b_ c_ begin.
  forward.
 
 (* The loop *)
-forward_while (merge_invariant _cond sh init_a init_b ret_).
+forward_while (merge_invariant _cond sh init_a init_b v_ret).
 
 (*  [[[[[[[cond0 a0] b0] merged0] a_0] b_0] c_0] begin0]. *)
 + (* Loop: precondition => invariant *)
@@ -246,12 +245,12 @@ forward_if (
   PROP (merge init_a init_b = merged ++ merge a b)
   LOCAL (temp _a a_;
          temp _b b_;
-         temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
-         lvar _ret tlist ret_
+         temp _x (if merged then v_ret else field_address (Tstruct _list noattr) [StructField _tail] c_);
+         lvar _ret tlist v_ret
         )
   SEP (lseg LS sh (map Vint a) a_ nullval;
          lseg LS sh (map Vint b) b_ nullval;
-         data_at Tsh tlist (if merged then Vundef else begin) ret_;
+         data_at Tsh tlist (if merged then Vundef else begin) v_ret;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
    ))%assert.
@@ -263,7 +262,6 @@ forward. (* COMMAND : [*x = a] *)
 forward. (* COMMAND : [x = &(a->tail)] *)
 forward. (* COMMAND : [a = a -> tail] *)
 Exists a' (vb::b') [va] a_' b_ a_ a_.
-name ret__ _ret.
 {
 
 rewrite !@lseg_nil_eq.
@@ -271,7 +269,7 @@ rewrite (lseg_unfold LS _ _ b_).
 Time entailer!. (* 24.7 sec -> 10.16 sec*)
 Exists b_'.
 rewrite list_cell_field_at.
-unfold_data_at 2%nat.
+unfold_data_at 3%nat.
 Time entailer!.  (* 12.6 -> 3.2 sec *)
 }
 
@@ -295,7 +293,7 @@ rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
 unfold_data_at 1%nat.
-unfold_field_at 5%nat.
+unfold_data_at 1%nat.
 match goal with |- ?B * ?C * ?D * ?E * ?F * ?G * (?H * ?A) |-- _ =>
  apply derives_trans with ((H * A * G * C) * (B * D * E * F));
   [cancel | ]
@@ -310,13 +308,12 @@ entailer!.
 
 (* other branch of the if: contradiction *)
 rewrite H2 in HeqB; inversion HeqB.
-
 (* After the if, putting boolean value into "cond" *)
 clear -SH.
 (* TODO-LTAC I had no idea why this command failed -- we should tell "remove existential first", maybe *)
 Intros a b merged a_ b_ c_ begin.
 match goal with [|-context[Sset ?tempvar _] ] =>
-forward_if (merge_invariant tempvar sh init_a init_b ret_)
+forward_if (merge_invariant tempvar sh init_a init_b v_ret)
 end.
 forward.
 
@@ -360,12 +357,11 @@ forward.
 forward. (* COMMAND : [x = &(b->tail)] *)
 forward. (* COMMAND : [b = b -> tail] *)
 Exists (va::a') b' [vb] a_ b_' b_ b_.
-name ret__ _ret.
 simpl map. rewrite @lseg_cons_eq.
 Exists a_'.
 rewrite list_cell_field_at.
 entailer!.
-unfold_data_at 2%nat.
+unfold_data_at 3%nat.
 entailer!.
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
@@ -395,7 +391,7 @@ rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_).
 simpl in LCR. rewrite emp_sepcon, list_cell_field_at in LCR.
 unfold_data_at 1%nat.
-unfold_field_at 4%nat.
+unfold_data_at 1%nat.
 match goal with |- ?B * ?C * ?D * ?E * (?F * ?A) |-- _ =>
  apply derives_trans with ((F * A * E * D) * (B * C)); [cancel | ]
 end.
@@ -408,7 +404,7 @@ cancel.
 clear -SH.
 Intros a b merged a_ b_ c_ begin.
 match goal with [|-context[Sset ?tempvar _] ] =>
-forward_if (merge_invariant tempvar sh init_a init_b ret_)
+forward_if (merge_invariant tempvar sh init_a init_b v_ret)
 end.
 forward.
 
@@ -451,121 +447,113 @@ forward_if (
   PROP (merge init_a init_b = merged ++ merge a b)
   LOCAL (temp _a a_;
          temp _b b_;
-         temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
-         lvar _ret tlist ret_
+         temp _x (if merged then v_ret else field_address (Tstruct _list noattr) [StructField _tail] c_);
+         lvar _ret tlist v_ret
         )
   SEP (lseg LS sh (map Vint (merge a b)) ab_ nullval;
-         data_at Tsh tlist (if merged then ab_ else begin) ret_;
+         data_at Tsh tlist (if merged then ab_ else begin) v_ret;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), ab_) c_
    ))%assert.
-
-(* when a <> [] *)
-assert_PROP (b_ = nullval /\ b = []).
-  entailer!; intuition. destruct b; inv H;  auto.
-revert POSTCONDITION; destruct H2; subst b_ b; intro.
-
-destruct merged as [|hmerge tmerge].
-
-(* when a <> [] and merged = [] *)
-forward.
-Exists a (@nil int) (@nil int) a_ c_ begin.
-rewrite merge_nil_r in *.
-unfold data_at.
-now entailer!.
-
-(* when a <> [] and merged <> [] *)
+ - (* when a <> [] *)
+   assert_PROP (b_ = nullval /\ b = []).
+    entailer!; intuition. destruct b; inv H;  auto.
+    revert POSTCONDITION; destruct H2; subst b_ b; intro.
+    destruct merged as [|hmerge tmerge].
+     (* when a <> [] and merged = [] *)
+    forward.
+   Exists a (@nil int) (@nil int) a_ c_ begin.
+   rewrite merge_nil_r in *.
+    unfold data_at.
+    entailer!. apply derives_refl. 
+   (* when a <> [] and merged <> [] *)
 remember (hmerge :: tmerge) as merged.
-assert (Hm: merged <> []) by congruence.
-clear hmerge tmerge Heqmerged.
-forward.
-Exists a (@nil int) merged a_ c_ begin.
-if_tac; [congruence|].
-match goal with
-[ H: ?x :: merged <> [] |- _ ] => remember (x :: merged) as merged'
-end.
-clear Heqmerged' merged.
-rewrite merge_nil_r in *.
-entailer!.
-apply derives_refl. (* TODO entailer: Why is this not done automatically? *)
+   assert (Hm: merged <> []) by congruence.
+   clear hmerge tmerge Heqmerged.
+   forward.
+   Exists a (@nil int) merged a_ c_ begin.
+   destruct merged; [congruence|].
+   match goal with [ H: ?x :: merged <> [] |- _ ] => remember (x :: merged) as merged'
+   end.
+   clear Heqmerged' merged.
+   rewrite merge_nil_r in *.
+   entailer!.
+   apply derives_refl.
+ -  (* when a = [] *)
+  assert_PROP (a = []). {
+    destruct a; [ apply prop_right; reflexivity | ].
+    simpl map; rewrite lseg_unfold.
+    subst a_; entailer!.
+    elim H6; clear; intuition.
+  }
+ subst a.
 
-(* when a = [] *)
-assert_PROP (a = []). {
-  destruct a; [ apply prop_right; reflexivity | ].
-  simpl map; rewrite lseg_unfold.
-  subst a_; entailer!.
-  elim H6; clear; intuition.
-}
-subst a.
+ destruct merged as [|hmerge tmerge].
 
-destruct merged as [|hmerge tmerge].
+  (* when a = [] and merged = [] *)
+  forward.
+  Exists (@nil int) b (@nil int) b_ c_ begin.
+  entailer!. apply derives_refl.
 
-(* when a = [] and merged = [] *)
-forward.
-Exists (@nil int) b (@nil int) b_ c_ begin.
-now entailer!.
-
-(* when a = [] and merged <> [] *)
+  (* when a = [] and merged <> [] *)
 remember (hmerge :: tmerge) as merged.
-assert (Hm: merged <> []) by congruence.
-clear hmerge tmerge Heqmerged.
-forward.
-Exists (@nil int) b merged b_ c_ begin.
-if_tac; [congruence|].
-match goal with
-[ H: ?x :: merged <> [] |- _ ] => remember (x :: merged) as merged'
-end.
-clear Heqmerged' merged.
-entailer!.
-apply derives_refl.
+  assert (Hm: merged <> []) by congruence.
+  clear hmerge tmerge Heqmerged.
+  forward.
+  Exists (@nil int) b merged b_ c_ begin.
+  destruct merged; [congruence|].
+  match goal with [ H: ?x :: merged <> [] |- _ ] => remember (x :: merged) as merged'
+  end.
+  clear Heqmerged' merged.
+  entailer!.
+  apply derives_refl.
+ - (* temp = ret *)
+ clear -SH.
+ Intros a b merged ab_ c_ begin.
+ forward.
+ now destruct merged; entailer!.
 
-(* temp = ret *)
-clear -SH.
-Intros a b merged ab_ c_ begin.
-forward.
-now destruct merged; entailer!.
+ (* return statement *)
+ forward.
+ destruct merged as [|hmerge tmerge].
+ (* when merged = [] *)
+ assert (begin = c_) by intuition. subst c_.
+ Exists ab_; entailer!.
+ rewrite H; auto. apply derives_refl.
 
-(* return statement *)
-name a__ _a; name b__ _b; name va__ _va; name vb__ _vb; name x__ _x; name ret__ _ret; name cond__ _cond; name temp_ _temp.
-forward.
-destruct merged as [|hmerge tmerge].
-(* when merged = [] *)
-assert (begin = c_) by intuition. subst c_.
-Exists ab_; entailer!.
-rewrite H; auto.
+ (* when merged <> [] *)
+ remember (hmerge :: tmerge) as merged.
+ assert (Hm: merged <> []) by congruence.
+ clear hmerge tmerge Heqmerged.
+ Exists begin; entailer.
 
-(* when merged <> [] *)
-remember (hmerge :: tmerge) as merged.
-assert (Hm: merged <> []) by congruence.
-clear hmerge tmerge Heqmerged.
-Exists begin; entailer.
+ (* to match the specification from the invariant, we split it into three parts: *)
 
-(* to match the specification from the invariant, we split it into three parts: *)
+  assert (AP : forall M1 R1 M2 M3 M13 M R, R1 |-- R -> M1 * M3 |-- M13
+            -> M2 * M13 |-- M -> M1 * R1 * M2 * M3 |-- M * R). {
+   clear; intros.
+   apply derives_trans with (M * R1); cancel; auto.
+   now apply derives_trans with (M2 * M13); cancel; auto.
+  }
+ apply AP with (lseg LS sh (Vint (last merged) :: map Vint (merge a b)) c_ nullval); clear AP.
+ cancel.
 
-assert (AP : forall M1 R1 M2 M3 M13 M R, R1 |-- R -> M1 * M3 |-- M13
--> M2 * M13 |-- M -> M1 * R1 * M2 * M3 |-- M * R).
-  clear; intros.
-  apply derives_trans with (M * R1); cancel; auto.
-  now apply derives_trans with (M2 * M13); cancel; auto.
-apply AP with (lseg LS sh (Vint (last merged) :: map Vint (merge a b)) c_ nullval); clear AP.
-cancel.
+ (* part 2 : we join the middle element and the right part of the list *)
+ idtac.
+ rewrite (lseg_unfold LS _ _ c_).
+ Exists ab_; entailer!.
+ rewrite list_cell_field_at.
+ unfold_data_at 1%nat.
+ simpl. cancel.
 
-(* part 2 : we join the middle element and the right part of the list *)
-idtac.
-rewrite (lseg_unfold LS _ _ c_).
-Exists ab_; entailer!.
-rewrite list_cell_field_at.
-unfold_data_at 1%nat.
-simpl. cancel.
-
-(* part 3 : left part of the list *)
-rewrite H.
-replace (merged ++ merge a b)
-with (butlast merged ++ (last merged :: merge a b)).
-rewrite map_app.
-apply list_append_null.
-clear -Hm.
-change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
-rewrite <-app_ass.
-now rewrite <-snoc; auto.
+ (* part 3 : left part of the list *)
+ rewrite H.
+ replace (merged ++ merge a b)
+ with (butlast merged ++ (last merged :: merge a b)).
+ rewrite map_app.
+ apply list_append_null.
+ clear -Hm.
+ change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
+ rewrite <-app_ass.
+ now rewrite <-snoc; auto.
 Time Qed. (* 199 sec -> 331 sec *)

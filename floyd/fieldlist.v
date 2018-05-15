@@ -83,7 +83,7 @@ Proof.
   + simpl.
     destruct (ident_eq i i0).
     - left; subst; auto.
-    - if_tac.
+    - destruct (Ctypes.field_type i m).
       * right; auto.
       * intro HH; destruct HH; [congruence | tauto].
 Qed.
@@ -101,18 +101,78 @@ Ltac solve_field_offset_type i m :=
   destruct (Ctypes.field_offset cenv_cs i m) as [ofs|?] eqn:Hofs, (Ctypes.field_type i m) as [t|?] eqn:Hty;
     [clear H | inversion H | inversion H | clear H].
 
-Lemma complete_type_field_type: forall id i,
+Lemma complete_legal_cosu_member: forall (cenv : composite_env) (id : ident) (t : type) (m : list (ident * type)),
+  In (id, t) m -> @composite_complete_legal_cosu_type cenv m = true -> @complete_legal_cosu_type cenv t = true.
+Proof.
+  intros.
+  induction m as [| [i0 t0] ?].
+  + inv H.
+  + destruct H.
+    - inv H.
+      simpl in H0.
+      rewrite andb_true_iff in H0; tauto.
+    - apply IHm; auto.
+      simpl in H0.
+      rewrite andb_true_iff in H0; tauto.
+Qed.         
+
+Lemma complete_legal_cosu_type_field_type: forall id i,
   in_members i (co_members (get_co id)) ->
-  complete_type cenv_cs (field_type i (co_members (get_co id))) = true.
+  complete_legal_cosu_type (field_type i (co_members (get_co id))) = true.
 Proof.
   unfold get_co.
   intros.
   destruct (cenv_cs ! id) as [co |] eqn:CO.
   + apply in_members_field_type in H.
-    eapply complete_member; eauto.
-    apply co_consistent_complete.
-    exact (cenv_consistent id co CO).
+    pose proof cenv_legal_su _ _ CO.
+    eapply complete_legal_cosu_member; eauto.
   + inversion H.
+Qed.
+
+Lemma align_compatible_rec_Tstruct_inv': forall id a ofs,
+  align_compatible_rec cenv_cs (Tstruct id a) ofs ->
+  forall i,
+  in_members i (co_members (get_co id)) ->
+  align_compatible_rec cenv_cs (field_type i (co_members (get_co id)))
+    (ofs + field_offset cenv_cs i (co_members (get_co id))).
+Proof.
+  unfold get_co.
+  intros.
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + eapply align_compatible_rec_Tstruct_inv with (i0 := i); try eassumption.
+    - unfold field_type.
+      induction (co_members co) as [| [i0 t0] ?].
+      * inv H0.
+      * simpl; if_tac; auto.
+        apply IHm.
+        destruct H0; [simpl in H0; congruence | auto].
+    - unfold field_offset, Ctypes.field_offset.
+      generalize 0 at 1 2.
+      induction (co_members co) as [| [i0 t0] ?]; intros.
+      * inv H0.
+      * simpl; if_tac; auto.
+        apply IHm.
+        destruct H0; [simpl in H0; congruence | auto].
+  + inv H0.
+Qed.
+
+Lemma align_compatible_rec_Tunion_inv': forall id a ofs,
+  align_compatible_rec cenv_cs (Tunion id a) ofs ->
+  forall i,
+  in_members i (co_members (get_co id)) ->
+  align_compatible_rec cenv_cs (field_type i (co_members (get_co id))) ofs.
+Proof.
+  unfold get_co.
+  intros.
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + eapply align_compatible_rec_Tunion_inv with (i0 := i); try eassumption.
+    unfold field_type.
+    induction (co_members co) as [| [i0 t0] ?].
+    - inv H0.
+    - simpl; if_tac; auto.
+      apply IHm.
+      destruct H0; [simpl in H0; congruence | auto].
+  + inv H0.
 Qed.
 
 Lemma field_offset_aligned: forall i m,
@@ -159,7 +219,7 @@ Proof.
     simpl Ctypes.field_type.
     if_tac.
     - apply alignof_composite_hd_divide.
-    - eapply Zdivide_trans.
+    - eapply Z.divide_trans.
       * apply IHm.
         destruct H; [congruence | auto].
       * apply alignof_composite_tl_divide.
@@ -497,6 +557,132 @@ Proof.
 Defined.
 
 End COMPOSITE_ENV.
+
+Lemma members_spec_change_composite' {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  Forall (fun it => cs_preserve_type cs_from cs_to (coeq _ _) (snd it) = true) (co_members (get_co id)).
+Proof.
+  intros.
+  destruct ((@cenv_cs cs_to) ! id) eqn:?H.
+  + pose proof proj1 (coeq_complete _ _ id) (ex_intro _ c H0) as [b ?].
+    rewrite H1 in H.
+    apply (coeq_consistent _ _ id _ _ H0) in H1.
+    unfold test_aux in H.
+    destruct b; [| inv H].
+    rewrite !H0 in H.
+    destruct ((@cenv_cs cs_from) ! id) eqn:?H; [| inv H].
+    simpl in H.
+    rewrite !andb_true_iff in H.
+    unfold get_co.
+    rewrite H0.
+    clear - H1.
+    symmetry in H1.
+    induction (co_members c) as [| [i t] ?].
+    - constructor.
+    - simpl in H1; rewrite andb_true_iff in H1; destruct H1.
+      constructor; auto.
+  + destruct ((coeq cs_from cs_to) ! id) eqn:?H.
+    - pose proof proj2 (coeq_complete _ _ id) (ex_intro _ b H1) as [co ?].
+      congruence.
+    - inv H.
+Qed.
+
+Lemma members_spec_change_composite'' {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  forall i, cs_preserve_type cs_from cs_to (coeq _ _) (field_type i (co_members (get_co id))) = true.
+Proof.
+  intros.
+  unfold field_type.
+  apply members_spec_change_composite' in H.
+  induction H as [| [i0 t0] ?]; auto.
+  simpl.
+  if_tac; auto.
+Qed.
+
+Lemma members_spec_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  Forall (fun it => cs_preserve_type cs_from cs_to (coeq _ _) (field_type (fst it) (co_members (get_co id))) = true) (co_members (get_co id)).
+Proof.
+  intros.
+  apply members_spec_change_composite' in H.
+  assert (Forall (fun it: ident * type => field_type (fst it) (co_members (get_co id)) = snd it) (co_members (get_co id))).
+  Focus 1. {
+    rewrite Forall_forall.
+    intros it ?.
+    apply In_field_type; auto.
+    apply get_co_members_no_replicate.
+  } Unfocus.
+  revert H0; generalize (co_members (get_co id)) at 1 3.
+  induction H as [| [i t] ?]; constructor.
+  + inv H1.
+    simpl in *.
+    rewrite H4; auto.
+  + inv H1.
+    auto.
+Qed.
+
+(* TODO: we have already proved a related field_offset lemma in veric/change_compspecs.v. But it seems not clear how to use that in an elegant way. *)
+Lemma field_offset_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id i,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  field_offset (@cenv_cs cs_from) i (co_members (@get_co cs_to id)) =
+  field_offset (@cenv_cs cs_to) i (co_members (@get_co cs_to id)).
+Proof.
+  intros.
+  apply members_spec_change_composite' in H.
+  unfold field_offset, Ctypes.field_offset.
+  generalize 0 at 1 3.
+  induction (co_members (get_co id)) as [| [i0 t0] ?]; intros.
+  + auto.
+  + simpl.
+    inv H.
+    if_tac.
+    - f_equal.
+      apply alignof_change_composite; auto.
+    - specialize (IHm H3).
+      rewrite alignof_change_composite, sizeof_change_composite by auto.
+      apply IHm.
+Qed.
+
+Lemma field_offset_next_change_composite {cs_from cs_to} {CCE: change_composite_env cs_from cs_to}: forall id i,
+  match (coeq cs_from cs_to) ! id with
+  | Some b => test_aux cs_from cs_to b id
+  | None => false
+  end = true ->
+  field_offset_next (@cenv_cs cs_from) i (co_members (get_co id)) (co_sizeof (@get_co cs_from id)) =
+field_offset_next (@cenv_cs cs_to) i (co_members (get_co id)) (co_sizeof (@get_co cs_to id)).
+Proof.
+  intros.
+  rewrite co_sizeof_get_co_change_composite by auto.
+  apply members_spec_change_composite' in H.
+  unfold field_offset_next.
+  generalize 0.
+  destruct H as [| [i0 t0] ? ]; intros; auto.
+  simpl in H, H0.
+  revert i0 t0 H z.
+  induction H0 as [| [i1 t1] ? ]; intros.
+  + reflexivity.
+  + simpl.
+    if_tac; auto.
+    - f_equal; [f_equal |].
+      * apply sizeof_change_composite; auto.
+      * apply alignof_change_composite; auto.
+    - specialize (IHForall i1 t1 H (align (z + sizeof t0) (alignof t1))); simpl in IHForall.
+      rewrite (sizeof_change_composite t0) by auto.
+      rewrite (alignof_change_composite t1) by auto.
+      apply IHForall.
+Qed.
 
 Arguments field_type i m / .
 Arguments field_offset env i m / .

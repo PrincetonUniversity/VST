@@ -91,8 +91,8 @@ Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: ex
  | Evar id ty => eval_var id ty
  | Ederef a ty => subst_eval_expr j v a
  | Efield a i ty => `(eval_field (typeof a) i) (subst_eval_lvalue j v a)
- | Esizeof t ty => `(Vint (Int.repr (sizeof t)))
- | Ealignof t ty => `(Vint (Int.repr (alignof t)))
+ | Esizeof t ty => `(Vptrofs (Ptrofs.repr (sizeof t)))
+ | Ealignof t ty => `(Vptrofs (Ptrofs.repr (alignof t)))
  end
 
  with subst_eval_lvalue {cs: compspecs} (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
@@ -522,6 +522,22 @@ hnf; intros; simpl. auto.
 Qed.
 Hint Resolve closed_wrt_gvar : closed.
 
+Lemma closed_wrt_gvars:
+  forall S gv, closed_wrt_vars S (locald_denote (gvars gv)).
+Proof.
+intros.
+hnf; intros; simpl. reflexivity.
+Qed.
+Hint Resolve closed_wrt_gvars : closed.
+
+Lemma closed_wrtl_gvars:
+  forall S gv, closed_wrt_lvars S (locald_denote (gvars gv)).
+Proof.
+intros.
+hnf; intros; simpl. reflexivity.
+Qed.
+Hint Resolve closed_wrtl_gvars : closed.
+
 Lemma closed_wrt_sgvar:
   forall S id v, closed_wrt_vars S (locald_denote (sgvar id v)).
 Proof.
@@ -562,12 +578,12 @@ Qed.
 Hint Resolve closed_wrtl_sgvar : closed.
 
 Definition expr_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
-  forall {cs: compspecs} rho ve',
+  forall (cs: compspecs) rho ve',
      (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
      eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) ve' (te_of rho)).
 
 Definition lvalue_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop :=
-  forall {cs: compspecs} rho ve',
+  forall (cs: compspecs) rho ve',
      (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) ve'  (te_of rho)).
 
@@ -764,39 +780,35 @@ Qed.
 Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
 
 Lemma closed_wrt_globvars:
-  forall S v, closed_wrt_vars S (globvars2pred v).
+  forall S gv v, closed_wrt_vars S (globvars2pred gv v).
 Proof.
 intros.
 unfold globvars2pred.
+hnf; intros. unfold lift2. f_equal.
 induction v; simpl map; auto with closed.
-apply closed_wrt_sepcon.
-clear; hnf; intros.
+simpl.
+f_equal; auto.
 unfold globvar2pred; destruct a; simpl.
-destruct (ge_of rho i) eqn:?; auto.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-forget (Int.zero) as j.
-clear - Heqb0.
+forget (gv i) as j.
 revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
-apply IHv.
 Qed.
 
 Lemma closed_wrtl_globvars:
-  forall S v, closed_wrt_lvars S (globvars2pred v).
+  forall S gv v, closed_wrt_lvars S (globvars2pred gv v).
 Proof.
 intros.
 unfold globvars2pred.
+hnf; intros. unfold lift2. f_equal.
 induction v; simpl map; auto with closed.
-apply closed_wrtl_sepcon.
-clear; hnf; intros.
+simpl.
+f_equal; auto.
 unfold globvar2pred; destruct a; simpl.
-destruct (ge_of rho i) eqn:?; auto.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-forget (Int.zero) as j.
-clear - Heqb0.
-revert j; induction (gvar_init g); intro; simpl; f_equal; auto.
-apply IHv.
+forget (gv i) as j.
+revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
 Qed.
 Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 
@@ -853,7 +865,16 @@ Proof.
  destruct b; simpl; auto.
 Qed.
 
-Hint Resolve closed_wrt_tc_andp closed_wrt_tc_orp closed_wrt_tc_bool : closed.
+Lemma closed_wrt_tc_int_or_ptr_type:
+  forall {cs: compspecs} S t, 
+  closed_wrt_vars S (denote_tc_assert (tc_int_or_ptr_type t)).
+Proof.
+ intros.
+ apply closed_wrt_tc_bool.
+Qed.
+
+Hint Resolve closed_wrt_tc_andp closed_wrt_tc_orp closed_wrt_tc_bool
+              closed_wrt_tc_int_or_ptr_type : closed.
 
 Lemma closed_wrtl_tc_andp:
   forall {cs: compspecs} S a b,
@@ -958,15 +979,28 @@ Qed.
 Hint Resolve expr_closed_const_int expr_closedl_const_int : closed.
 
 
-Lemma closed_wrtl_tc_iszero':
-  forall {cs: compspecs}  S e, expr_closed_wrt_lvars S e ->
-    closed_wrt_lvars S (expr2.denote_tc_assert (tc_iszero' e)).
+Lemma closed_wrt_tc_iszero:
+  forall {cs: compspecs}  S e, expr_closed_wrt_vars S e ->
+    closed_wrt_vars S (expr2.denote_tc_assert (tc_iszero e)).
 Proof.
 intros.
+rewrite binop_lemmas2.denote_tc_assert_iszero'.
+simpl.
+hnf; intros. hnf in H. specialize (H _ _ H0).
+unfold_lift. rewrite <- H. auto.
+Qed.
+Hint Resolve closed_wrt_tc_iszero : closed.
+
+Lemma closed_wrtl_tc_iszero:
+  forall {cs: compspecs}  S e, expr_closed_wrt_lvars S e ->
+    closed_wrt_lvars S (expr2.denote_tc_assert (tc_iszero e)).
+Proof.
+intros.
+rewrite binop_lemmas2.denote_tc_assert_iszero'.
 hnf; intros. specialize (H _ _ _ H0).
 simpl. unfold_lift; simpl. rewrite <- H; auto.
 Qed.
-Hint Resolve closed_wrtl_tc_iszero' : closed.
+Hint Resolve closed_wrtl_tc_iszero : closed.
 
 Lemma closed_wrt_isCastResultType:
   forall {cs: compspecs} S e t t0,
@@ -978,15 +1012,12 @@ Proof.
 rewrite expr_lemmas3.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?;
   simpl; auto with closed;
- try solve [destruct t0 as [ | | | [ | ] |  | | | | ]; simpl;
-                auto with closed; try reflexivity].
-* (* cast_case_neutral *)
- if_tac; simpl; auto with closed.
- if_tac; simpl; auto with closed.
-* (* cast_case f2i *)
- destruct si2; simpl; auto with closed.
-* (* cast_case s2i *)
- destruct si2; simpl; auto with closed.
+ try solve [destruct t0 as [ | [ | | | ] [|] | [|] | [ | ] |  | | | | ]; simpl;
+                auto with closed; try reflexivity];
+  auto with closed;
+ repeat simple_if_tac; try destruct si2; simpl; auto with closed.
+ apply closed_wrt_tc_test_eq; auto with closed.
+ hnf; intros. reflexivity.
 Qed.
 
 Lemma closed_wrtl_tc_Zge:
@@ -1019,15 +1050,12 @@ rewrite expr_lemmas3.isCastR.
 change expr2.denote_tc_assert with denote_tc_assert.
 destruct (classify_cast (implicit_deref t) t0) eqn:?;
   auto with closed;
- try solve [destruct t0 as [ | | | [ | ] |  | | | | ]; simpl;
-                auto with closed; try reflexivity].
-* (* cast_case_neutral *)
- if_tac; auto with closed.
- if_tac; auto with closed.
-* (* cast_case f2i *)
- destruct si2; auto with closed.
-* (* cast_case s2i *)
- destruct si2; auto with closed.
+ try solve [destruct t0 as [ | [ | | | ] [|] | [|] | [ | ] |  | | | | ]; simpl;
+                auto with closed; try reflexivity];
+ repeat simple_if_tac;  auto with closed;
+ try destruct si2; auto with closed.
+ apply closed_wrtl_tc_test_eq; auto with closed.
+ hnf; intros. reflexivity.
 Qed.
 
 Hint Resolve closed_wrt_isCastResultType closed_wrtl_isCastResultType : closed.
@@ -1395,19 +1423,6 @@ Proof.
 Qed.
 Hint Resolve closed_wrt_tc_isptr : closed.
 
-Lemma closed_wrt_tc_iszero:
- forall {cs: compspecs} S e,
-     closed_wrt_vars S (eval_expr e) ->
-     closed_wrt_vars S (denote_tc_assert (tc_iszero e)).
-Proof.
- intros.
- hnf; intros.
- specialize (H _ _ H0).
- repeat rewrite binop_lemmas2.denote_tc_assert_iszero.
- rewrite <- H; auto.
-Qed.
-Hint Resolve closed_wrt_tc_iszero : closed.
-
 Lemma closed_wrt_tc_nonzero:
  forall {cs: compspecs} S e,
      closed_wrt_vars S (eval_expr e) ->
@@ -1427,7 +1442,7 @@ Lemma closed_wrt_binarithType:
 Proof.
  intros.
  unfold binarithType.
- destruct (classify_binarith t1 t2); simpl; auto with closed.
+ destruct (Cop.classify_binarith t1 t2); simpl; auto with closed.
 Qed.
 Hint Resolve closed_wrt_binarithType : closed.
 
@@ -1506,6 +1521,40 @@ Proof.
 Qed.
 Hint Resolve closed_wrt_tc_nodivover : closed.
 
+Lemma closed_wrt_tc_nosignedover:
+  forall op {CS: compspecs} S e1 e2,
+  closed_wrt_vars S (eval_expr e1) ->
+  closed_wrt_vars S (eval_expr e2) ->
+  closed_wrt_vars S (denote_tc_assert (tc_nosignedover op e1 e2)).
+Proof.
+intros; hnf; intros.
+simpl. unfold_lift.
+rewrite <- H; auto.
+rewrite <- H0; auto.
+Qed.
+Hint Resolve closed_wrt_tc_nosignedover : closed.
+
+Lemma closed_wrt_tc_nobinover:
+  forall op {CS: compspecs} S e1 e2,
+  closed_wrt_vars S (eval_expr e1) ->
+  closed_wrt_vars S (eval_expr e2) ->
+  closed_wrt_vars S (denote_tc_assert (tc_nobinover op e1 e2)).
+Proof.
+intros.
+unfold tc_nobinover.
+unfold if_expr_signed.
+destruct (typeof e1); auto with closed.
+destruct s; auto with closed.
+destruct (eval_expr e1 any_environ); auto with closed;
+destruct (eval_expr e2 any_environ); auto with closed.
+all: repeat simple_if_tac; auto with closed.
+destruct (eval_expr e1 any_environ); auto with closed;
+destruct (eval_expr e2 any_environ); auto with closed.
+all: try destruct s; repeat simple_if_tac; auto with closed.
+Qed.
+
+Hint Resolve closed_wrt_tc_nobinover : closed.
+
 Lemma closed_wrt_tc_expr:
   forall {cs: compspecs} Delta j e, closed_eval_expr j e = true ->
              closed_wrt_vars (eq j) (tc_expr Delta e)
@@ -1559,25 +1608,25 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  repeat apply closed_wrt_tc_andp; auto with closed.
  unfold isBinOpResultType.
  destruct b; auto 50 with closed;
- try solve [destruct (classify_binarith (typeof e1) (typeof e2));
+ try solve [destruct (Cop.classify_binarith (typeof e1) (typeof e2));
                 try destruct s;  auto with closed];
- try solve [destruct (classify_cmp (typeof e1) (typeof e2));
+ try solve [destruct (Cop.classify_cmp (typeof e1) (typeof e2));
                  simpl; auto 50 with closed].
- destruct (classify_add (typeof e1) (typeof e2)); auto 50 with closed.
- destruct (classify_sub (typeof e1) (typeof e2)); auto 50 with closed.
- destruct (classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
- destruct (classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
+ destruct (Cop.classify_add (typeof e1) (typeof e2)); auto 50 with closed.
+ destruct (Cop.classify_sub (typeof e1) (typeof e2)); auto 50 with closed.
+ destruct (Cop.classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
+ destruct (Cop.classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
+
 +
  apply closed_wrt_tc_andp; auto with closed.
  specialize (IHe H).
  apply closed_eval_expr_e in H.
  unfold isCastResultType.
  destruct (classify_cast (typeof e) t); auto with closed;
-   try solve [ destruct t as [ | | | [ | ] | | | | | ]; auto with closed].
- if_tac; auto with closed.
- if_tac; auto with closed.
- destruct si2; auto with closed.
- destruct si2; auto with closed.
+   try solve [ destruct t as [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ]; auto with closed].
+all: repeat simple_if_tac; try destruct si2; auto with closed.
+ apply closed_wrt_tc_test_eq; auto with closed.
+ hnf; intros; reflexivity.
  hnf; intros; reflexivity.
 +
  clear IHe.

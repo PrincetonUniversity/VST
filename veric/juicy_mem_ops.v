@@ -356,7 +356,7 @@ destruct H1 as [? [? ?]]; subst.
 rewrite H in H2; inv H2; auto.
 (* alloc *)
 generalize JuicyMemOps.juicy_mem_alloc_succeeds; intros.
-spec H j j' (snd (JuicyMemOps.juicy_mem_alloc j lo hi)) lo hi.
+specialize (H j j' (snd (JuicyMemOps.juicy_mem_alloc j lo hi)) lo hi).
 case_eq (JuicyMemOps.juicy_mem_alloc j lo hi); intros.
 rewrite H0 in *. spec H; auto. simpl in *.
 destruct (alloc (m_dry j) lo hi); simpl in *. inv H; auto.
@@ -378,7 +378,7 @@ destruct H1 as [? [? ?]]; subst.
 eexists; eauto.
 (* alloc *)
 generalize JuicyMemOps.juicy_mem_alloc_succeeds; intros.
-spec H j j' (snd (JuicyMemOps.juicy_mem_alloc j lo hi)) lo hi.
+specialize (H j j' (snd (JuicyMemOps.juicy_mem_alloc j lo hi)) lo hi).
 case_eq (JuicyMemOps.juicy_mem_alloc j lo hi); intros.
 rewrite H0 in *. spec H; auto. simpl in *.
 destruct (alloc (m_dry j) lo hi); simpl in *. inv H; auto.
@@ -457,6 +457,7 @@ Proof.
  simpl. destruct H.
  revert H; case_eq (alloc (m_dry jm) lo hi); intros.
  simpl in *. subst b0. apply alloc_result in H. subst b; xomega.
+ rewrite <- (core_ghost_of (proj1_sig _)), ghost_of_make_rmap, core_ghost_of; auto.
 Qed.
 
 Lemma alloc_juicy_variables_e:

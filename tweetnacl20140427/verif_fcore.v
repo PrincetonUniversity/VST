@@ -90,14 +90,14 @@ Qed.
 
 Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 32 ->
   hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT =
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums Int.zero)  (littleendian C1))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums Int.zero)  (littleendian C2))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 intsums Int.zero) (littleendian C3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 intsums Int.zero) (littleendian C4))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums Int.zero)  (littleendian N1))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums Int.zero)  (littleendian N2))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums Int.zero)  (littleendian N3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))).
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums)  (littleendian C1))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums)  (littleendian C2))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 intsums) (littleendian C3))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 intsums) (littleendian C4))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums)  (littleendian N1))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums)  (littleendian N2))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums)  (littleendian N3))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums)  (littleendian N4))).
 Proof. intros.
 rewrite Zlength_length in H, H0. simpl in H, H0.
 destruct intsums; simpl in H. omega. rename i into v0.
@@ -157,9 +157,9 @@ Definition HTrue_inv intsums xs ys:Prop:=
 Zlength intsums = 16 /\
         (forall j, 0 <= j < 16 ->
            exists xj, exists yj,
-           Znth j (map Vint xs) Vundef = Vint xj /\
-           Znth j (map Vint ys) Vundef = Vint yj /\
-           Znth j (map Vint intsums) Vundef = Vint (Int.add yj xj)).
+           Znth j (map Vint xs) = Vint xj /\
+           Znth j (map Vint ys) = Vint yj /\
+           Znth j (map Vint intsums) = Vint (Int.add yj xj)).
 
 Lemma HTrue_inv_char l xs ys: Zlength xs = 16 -> Zlength ys=16 ->
       HTrue_inv l xs ys -> Some l = sumlist xs ys.
@@ -245,8 +245,9 @@ destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
 Time normalize. (*1.4*)
-Exists intsums. old_go_lower. (*TODO: eliminate old_go_lower*)
- Time entailer!; split; auto. (*6.8*)
+ Exists intsums.
+ go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
+ Time entailer!; auto. (*6.8*)
 Qed.
 
 Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT:
@@ -262,8 +263,9 @@ unfold HFalsePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
-old_go_lower. Time entailer!. (*3.4*) (*TODO: eliminate old_go_lower*)
-Intros intsums. Time Exists intsums; entailer!. (*0.8*)
+go_lowerx. (* must do this explicitly because it's not an ENTAIL *)
+Time entailer!. (*3.4*)
+Intros intsums. Exists intsums; entailer!. apply H2.
 Qed.
 
 Opaque HTruePostCond. Opaque HFalsePostCond.
@@ -272,14 +274,14 @@ Lemma core_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_core core_spec.
 Proof. unfold core_spec, f_core_POST.
 start_function. abbreviate_semax.
-rename lvar3 into t.
-rename lvar2 into y.
-rename lvar1 into x.
-rename lvar0 into w.
+rename v_t into t.
+rename v_y into y.
+rename v_x into x.
+rename v_w into w.
 freeze [0;1;2;3;4] FR1.
 Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
 rewrite Z.max_r in ZL_OUT.
-Focus 2. unfold OutLen. if_tac; omega.
+Focus 2. unfold OutLen. simple_if_tac; omega.
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
   + thaw FR1. freeze [0;1;3;5] FR2.
     forward_seq.
@@ -313,8 +315,8 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [2;3;5] FR4.
     remember [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4] as xInit.
     forward_seq.
-    eapply semax_post.
-    2: apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
+    eapply semax_post_flipped'.
+    apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
     intros. apply andp_left2. apply derives_refl.
     Intros snuffleRes. rename H into RES.
 
@@ -324,14 +326,12 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     - (*apply typed_true_tint_Vint in H.*)
       assert (HOUTLEN: OutLen h = 32). unfold OutLen. rewrite Int.eq_false; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [3;4] FR6.
-      eapply semax_post.
-      2: eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h
+      force_sequential.
+      eapply semax_post_flipped'.
+      eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h
                      OUT snuffleRes (map littleendian xInit)
                      (((N1, N2, N3, N4), (C1, C2, C3, C4)), (K1, K2, K3, K4, (L1, L2, L3, L4)))).
-      intros ? ?. apply andp_left2.
-        unfold POSTCONDITION, abbreviate.
-        rewrite overridePost_overridePost, normal_ret_assert_eq.
-        Intros. subst ek vl. rewrite overridePost_normal'.
+        apply andp_left2.
         apply HTruePOST; trivial. rewrite Int.eq_false; trivial.
         subst xInit; reflexivity.
         thaw FR6. cancel.
@@ -339,18 +339,12 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
       assert (HOUTLEN: OutLen h = 64). unfold OutLen; rewrite H; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [1;3;4] FR6.
       drop_LOCAL 0%nat.
-      eapply semax_post.
-      2: apply (verif_fcore_epilogue_hfalse Espec (FRZL FR6)
+      eapply semax_post_flipped'.
+      apply (verif_fcore_epilogue_hfalse Espec (FRZL FR6)
             t y x w nonce out c k h OUT).
-      intros ? ?. apply andp_left2.
-        unfold POSTCONDITION, abbreviate.
-        rewrite overridePost_overridePost, normal_ret_assert_eq.
-        Intros. subst ek vl. rewrite overridePost_normal'.
+      apply andp_left2.
         apply HFalsePOST; trivial. rewrite H. trivial. subst; trivial.
         thaw FR6. cancel.
-    - intros ? ?. apply andp_left2.
-      unfold POSTCONDITION, abbreviate.
-      rewrite overridePost_overridePost. apply derives_refl.
   + unfold fcore_EpiloguePOST.
     destruct data as [[Nonce C] [Key1 Key2]].
     abbreviate_semax.

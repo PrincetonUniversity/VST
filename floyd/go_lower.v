@@ -4,6 +4,8 @@ Require Import VST.floyd.efield_lemmas.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.local2ptree_typecheck.
+Require Import VST.floyd.semax_tactics.
+
 Local Open Scope logic.
 
 Ltac unfold_for_go_lower :=
@@ -164,6 +166,23 @@ hnf in H1.
 apply H; auto.
 Qed.
 
+Lemma lower_one_gvars:
+ forall  rho Delta P gv Q R S,
+  (gvars_denote gv rho ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (gvars gv :: Q) (SEPx R))) rho |-- S.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *.
+normalize.
+rewrite prop_true_andp in H by auto.
+hnf in H1.
+apply H; auto.
+Qed.
+
 Lemma finish_lower:
   forall rho D R S,
   fold_right_sepcon R |-- S ->
@@ -294,6 +313,8 @@ Proof.
     hnf; eauto.
   + simpl.
     auto.
+  + simpl.
+    auto.
 Qed.
 
 Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post,
@@ -372,6 +393,8 @@ Definition msubst_extract_local (T1: PTree.t val) (T2: PTree.t vardesc) (x: loca
     | Some (vardesc_shadowed_global v) => v = u
     | _ => False
     end
+  | gvars gx =>
+    
   | localprop P => P
   end.
 

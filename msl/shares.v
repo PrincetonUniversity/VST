@@ -343,7 +343,7 @@ Proof.
   intros.
   generalize (Share.top_correct);intros.
   destruct H as [sigma'' ?].
-  spec H0 sigma''.
+  specialize (H0 sigma'').
   rewrite leq_join_sub in H0.
   destruct H0.
   destruct (join_assoc H H0) as [s [H1 H2]].
@@ -357,7 +357,7 @@ Proof.
   intros.
   generalize fullshare_full; intro.
   apply full_maximal in H0.
-  spec H0 sh H.
+  specialize ( H0 sh H).
   auto.
 Qed.
 
@@ -371,8 +371,8 @@ Proof with auto.
   generalize (Share.top_correct sh);intro.
   apply leq_join_sub in H0.
   destruct H0.
-  spec H x. spec H. exists top...
-  spec H sh top (join_comm H0)...
+  specialize ( H x). spec H. exists top...
+  specialize ( H sh top (join_comm H0))...
 Qed.
 
 Lemma rel_congruence : forall a x1 x2,
@@ -476,7 +476,7 @@ Proof.
   intro sh.
   generalize (bot_joins sh); generalize bot_identity; intros.
   destruct H0.
-  spec H sh x H0. subst.
+  specialize ( H sh x H0). subst.
   trivial.
 Qed.
 
@@ -568,11 +568,11 @@ Qed.
        join (map_val a m1) (map_val a m2) (map_val a m3)).
   Proof with auto.
     split; intros.
-    hnf in H. spec H a.
+    hnf in H. specialize ( H a).
     unfold map_val, map_share, lookup_fpm.
-    destruct (proj1_sig m1 a) as [[sh1 a1] ?| ];
-    destruct (proj1_sig m2 a) as [[sh2 a2] ?| ];
-    destruct (proj1_sig m3 a) as [[sh3 a3] ?| ]; inv H; try solve [inv H0]; simpl; auto.
+    destruct (proj1_sig m1 a) as [[sh1 a1] | ];
+    destruct (proj1_sig m2 a) as [[sh2 a2] | ];
+    destruct (proj1_sig m3 a) as [[sh3 a3] | ]; inv H; try solve [inv H0]; simpl; auto.
     destruct H3; simpl in *; auto.
     split. apply join_lifted; auto. constructor; auto.
     split; apply join_unit2; auto.
@@ -580,11 +580,11 @@ Qed.
     split; apply join_unit1; auto.
     split; apply join_unit1; auto.
 
-    intro a. spec H a. destruct H.
+    intro a. specialize ( H a). destruct H.
         unfold map_val, map_share, lookup_fpm in *.
-    destruct (proj1_sig m1 a) as [[sh1 a1] ?| ];
-    destruct (proj1_sig m2 a) as [[sh2 a2] ?| ];
-    destruct (proj1_sig m3 a) as [[sh3 a3] ?| ]; inv H0; try solve [inv H1]; auto.
+    destruct (proj1_sig m1 a) as [[sh1 a1] | ];
+    destruct (proj1_sig m2 a) as [[sh2 a2] | ];
+    destruct (proj1_sig m3 a) as [[sh3 a3] | ]; inv H0; try solve [inv H1]; auto.
     constructor. split; auto.
     apply join_unit2_e in H; auto. apply join_unit2; auto.
     repeat f_equal. destruct sh1; destruct sh3; simpl in *; subst.
@@ -611,7 +611,7 @@ Qed.
     apply proof_irr; auto.
     rewrite identity_unit_equiv in H, H0.
     extensionality a.
-    spec H a; spec H0 a.
+    specialize ( H a); specialize ( H0 a).
     apply lower_inv in H.
     apply lower_inv in H0.
     destruct H; destruct H0; simpl in *.

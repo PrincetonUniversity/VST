@@ -70,14 +70,14 @@ Definition fcore_result h data l :=
              else match data with ((Nonce, C), K) =>
                     match Nonce with (N1, N2, N3, N4) =>
                     match C with (C1, C2, C3, C4) =>
-                    l = QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 x Int.zero)  (littleendian C1))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 x Int.zero)  (littleendian C2))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 x Int.zero) (littleendian C3))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 x Int.zero) (littleendian C4))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 x Int.zero)  (littleendian N1))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 x Int.zero)  (littleendian N2))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 x Int.zero)  (littleendian N3))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 x Int.zero)  (littleendian N4)))
+                    l = QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 x)  (littleendian C1))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 x)  (littleendian C2))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 x) (littleendian C3))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 x) (littleendian C4))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 x)  (littleendian N1))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 x)  (littleendian N2))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 x)  (littleendian N3))) ++
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 x)  (littleendian N4)))
                     end end end
   end.
 
@@ -138,7 +138,7 @@ Definition L32_spec :=
   DECLARE _L32
    WITH x : int, c: int
    PRE [ _x OF tuint, _c OF tint ]
-      PROP (0 < Int.unsigned c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
+      PROP (0 < Int.signed c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
       LOCAL (temp _x (Vint x); temp _c (Vint c))
       SEP ()
   POST [ tuint ]
@@ -365,14 +365,14 @@ Definition crypto_core_salsa20_spec :=
             data_at Tsh (tarray tuchar 64) (QuadChunks2ValList (map littleendian_invert res)) out).
 
 Definition hSalsaOut x :=
-           QuadByte2ValList (littleendian_invert (Znth 0  x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 5  x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 10 x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 15 x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 6  x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 7  x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 8  x Int.zero)) ++
-           QuadByte2ValList (littleendian_invert (Znth 9  x Int.zero)).
+           QuadByte2ValList (littleendian_invert (Znth 0  x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 5  x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 10 x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 15 x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 6  x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 7  x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 8  x)) ++
+           QuadByte2ValList (littleendian_invert (Znth 9  x)).
 
 Definition crypto_core_hsalsa20_spec :=
   DECLARE _crypto_core_hsalsa20_tweet
@@ -389,7 +389,7 @@ Definition crypto_core_hsalsa20_spec :=
       SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar 32) OUT out)
   POST [ tint ]
-       EX res:_,
+       EX res:list int,
        PROP (Snuffle 20 (prepare_data data) = Some res)
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 32) (hSalsaOut res) out).
@@ -402,7 +402,7 @@ Fixpoint ZZ (zbytes: list byte) (n: nat): int * list byte :=
   match n with
    O => (Int.one, zbytes)
   | S k => match ZZ zbytes k with (u,zb) =>
-             let v := (Int.unsigned u + (Byte.unsigned (Znth (Z.of_nat k+8) zb Byte.zero)))
+             let v := (Int.unsigned u + (Byte.unsigned (Znth (Z.of_nat k+8) zb)))
              in (Int.shru (Int.repr v) (Int.repr 8),
                  upd_Znth (Z.of_nat k+8) zb (Byte.repr (Z.modulo v 256))) end
 

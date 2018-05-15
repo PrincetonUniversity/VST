@@ -110,36 +110,37 @@ Lemma align_compatible_tarray_tuchar:
 Proof.
 intros.
 destruct v; simpl; auto.
-exists (Int.unsigned i).
-symmetry. apply Z.mul_1_r.
+constructor; intros.
+eapply align_compatible_rec_by_value; [reflexivity |].
+apply Z.divide_1_l.
 Qed.
 
 Lemma sha_final_part3:
 forall (Espec : OracleKind) (md c : val) (shmd : share)
-  (hashed lastblock: list int) msg kv
+  (hashed lastblock: list int) msg gv
  (Hshmd: writable_share shmd),
  (LBLOCKz | Zlength hashed) ->
  Zlength lastblock = LBLOCKz ->
  generate_and_pad msg = hashed++lastblock ->
 semax
   (initialized _cNl (initialized _cNh (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)))))
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)))))
   (PROP  (Forall isbyteZ (intlist_to_Zlist lastblock))
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
-           gvar _K256 kv)
+           gvars gv)
    SEP
    (data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
         (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c;
-    K_vector kv;
+    K_vector gv;
     memory_block shmd 32 md))
   sha_final_epilog
   (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector kv;
+      SEP  (K_vector gv;
         data_at_ Tsh t_struct_SHA256state_st c;
         data_block shmd (SHA_256 msg) md))) emp).
 Proof.
@@ -150,7 +151,7 @@ Proof.
   Time forward_call (* sha256_block_data_order (c,p); *)
     (hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
-       Tsh, kv).
+       Tsh, gv).
   {
     unfold data_block. simpl.
     Time entailer!. autorewrite with sublist.
@@ -167,10 +168,10 @@ Proof.
   {
     replace (Zlength (intlist_to_Zlist lastblock)) with 64
         by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
-    Time saturate_local.
     change (memory_block Tsh 64) with (memory_block Tsh (sizeof (tarray tuchar 64))).
+    entailer!.
     rewrite memory_block_data_at_ by auto.
-    Time cancel.
+    cancel.
   }
  gather_SEP 0 1 3 4 5.
  replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
@@ -203,7 +204,7 @@ forward_for_simple_bound 8
    (data_at Tsh t_struct_SHA256state_st
        (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat (Z.to_nat 64) (Vint Int.zero), Vint Int.zero))))
       c;
-    K_vector kv;
+    K_vector gv;
     data_at shmd (tarray tuchar 32)
          (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))
            ++ list_repeat (Z.to_nat (32 - WORD*i)) Vundef) md)
@@ -221,7 +222,7 @@ forward_for_simple_bound 8
  apply align_compatible_tarray_tuchar.
 *
   forward. (* ll=(c)->h[xn]; *)
-  pose (w := Znth i hashedmsg Int.zero).
+  pose (w := Znth i hashedmsg).
   pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
   assert (BYTES: bytes =
      sublist (i * 4) (i * 4 + 4)
@@ -236,7 +237,7 @@ forward_for_simple_bound 8
   replace (fun x : Z => force_int (Vint (Int.repr x))) with Int.repr
    by (extensionality zz; reflexivity).
   f_equal.
-  rewrite sublist_singleton with (d:=Int.zero) by omega.
+  rewrite sublist_len_1 by omega.
   reflexivity.
  }
  unfold data_at.
@@ -290,17 +291,19 @@ Focus 1. {
 } Unfocus.
 clear - COMPAT FCmd H1.
 hnf in COMPAT |- *.
+(* TODO: simplify this proof. *)
 intuition.
 - hnf in H6|-*. unfold offset_val. destruct md; auto.
-  rewrite <- (Int.repr_unsigned i0).
-  rewrite add_repr.
+  rewrite <- (Ptrofs.repr_unsigned i0).
+  rewrite ptrofs_add_repr.
   simpl in H6|-*.
-  rewrite Int.unsigned_repr; try omega.
+  simpl in H2; inv_int i0.
+  rewrite Ptrofs.unsigned_repr; try omega.
   rewrite Z.mul_1_l.
-  change (Int.max_unsigned) with (Int.modulus-1).
-  pose proof (Int.unsigned_range i0); omega.
+  change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1).
+  omega.
 - apply align_compatible_tarray_tuchar.
-- destruct H9; auto.
+- destruct H6; auto.
 +
      split; auto.
       rewrite Zlength_correct; subst bytes.
@@ -336,7 +339,7 @@ intuition.
   fold vbytes.
   change (32 - i*4 - 4) with (N32 - i*4 - WORD).
   cancel.
-rewrite !array_at_data_at_rec by (auto with field_compatible; omega).
+rewrite !array_at_data_at' by (auto with field_compatible; omega).
 simpl.
 autorewrite with sublist.
 apply derives_refl'.
@@ -355,7 +358,7 @@ Time  forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
 Time Qed. (* 64 sec *)
 
 Lemma final_part2:
-forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share) kv,
+forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share) gv,
 writable_share shmd ->
 forall bitlen (dd : list Z),
 (LBLOCKz | Zlength hashed) ->
@@ -372,13 +375,13 @@ intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
 semax
   (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)))
+     (func_tycontext f_SHA256_Final Vprog Gtot nil)))
   (PROP  ()
       LOCAL
       (temp _p
          (field_address t_struct_SHA256state_st [ArraySubsc (CBLOCKz - 8); StructField _data] c);
       temp _n (Vint (Int.repr (Zlength dd')));
-      temp _md md; temp _c c; gvar _K256 kv)
+      temp _md md; temp _c c; gvars gv)
       SEP
       (field_at Tsh t_struct_SHA256state_st [StructField _data]
            (map Vint (map Int.repr dd') ++
@@ -389,14 +392,14 @@ semax
       field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
       field_at Tsh t_struct_SHA256state_st [StructField _h]
           (map Vint (hash_blocks init_registers hashed')) c;
-      K_vector kv;
+      K_vector gv;
       memory_block shmd 32 md))
   sha_final_part2
   (frame_ret_assert
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector kv;
+      SEP  (K_vector gv;
         data_at_ Tsh t_struct_SHA256state_st c;
         data_block shmd
           (intlist_to_Zlist
@@ -426,8 +429,7 @@ Proof.
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite <- list_repeat_app.
-   rewrite (split3seg_array_at _ _ _ 0 56 60)
-     by (autorewrite with sublist; Omega1).
+   rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_omega).
    assert (CBZ := CBLOCKz_eq).
    Time autorewrite with sublist. (*11.5*)
    clear CBZ; subst GOAL. cbv beta.
@@ -456,14 +458,14 @@ Proof.
 
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
-  make_Vptr c. simpl. normalize.
+  make_Vptr c. simpl. unfold Ptrofs.of_ints. normalize.
   split; auto.  clear; compute; congruence.
 
   match goal with |- context [SEPx (?A :: _)] =>
    replace A with (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c)
   by (clear - FC;
-        rewrite array_at_data_at_rec by auto with field_compatible;
+        rewrite array_at_data_at' by auto with field_compatible;
         reflexivity)
  end.
   gather_SEP 0 1 2.
@@ -487,7 +489,7 @@ Proof.
    pose proof (Zlength_nonneg dd').
    Time autorewrite with sublist. (*7*)
    cancel.
-   rewrite array_at_data_at_rec; auto.
+   rewrite array_at_data_at'; auto.  apply derives_refl.
  }
   Time forward. (* p += 4; *) (*5.1*) {
    go_lower. apply prop_right.
@@ -509,8 +511,8 @@ Proof.
      replace X with  (field_address t_struct_SHA256state_st [StructField _data] c)
       by (pose proof CBLOCKz_eq;
             rewrite !field_address_offset by auto with field_compatible;
-           make_Vptr c;  simpl;  rewrite Int.sub_add_opp;
-           rewrite !Int.add_assoc; normalize)
+           make_Vptr c;  simpl;  rewrite Ptrofs.sub_add_opp;
+           rewrite !Ptrofs.add_assoc; normalize)
    end.
   change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).
   change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen]))).
@@ -554,5 +556,5 @@ Proof.
   * apply Zlength_Zlist_to_intlist.
      rewrite Zlength_map; assumption.
   * eapply generate_and_pad_lemma1; eassumption.
-Time Qed. (*58.4 *)
+Time Qed. (*VST2.0: 3.1s *)
 

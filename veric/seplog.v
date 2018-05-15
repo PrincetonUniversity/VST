@@ -3,7 +3,6 @@ Require Import VST.msl.alg_seplog.
 Require Export VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.slice.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -25,7 +24,7 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   end.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Int.zero) && func_at f (b, 0).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && func_at f (b, 0).
 
 Definition NDmk_funspec (f: base.funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
@@ -83,7 +82,7 @@ Definition fun_assert:
 *)
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
-| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Ptrofs.zero else Vundef
 | None => Vundef
 end.
 
@@ -218,28 +217,56 @@ Definition funassert (Delta: tycontext): assert :=
   that core_load could imply partial ownership of the four bytes of the word
   using different shares that don't have a common core, whereas address_mapsto
   requires the same share on all four bytes. *)
+(*
+Record ret_assert : Type := {
+ RA_normal: assert;
+ RA_break: assert;
+ RA_continue: assert;
+ RA_return: option val -> assert
+}.
+*)
+Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
+ match ek with
+ | EK_normal => fun rho => !! (vl = None) && RA_normal Q rho
+ | EK_break => fun rho => !! (vl = None) && RA_break Q rho
+ | EK_continue => fun rho => !! (vl = None) && RA_continue Q rho
+ | EK_return => RA_return Q vl
+ end.
 
-Definition ret_assert := exitkind -> option val -> assert.
+(* Definition ret_assert := exitkind -> option val -> assert. *)
 
 Definition overridePost  (Q: assert)  (R: ret_assert) :=
-     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=None) && Q rho) else R ek vl.
+ match R with 
+  {| RA_normal := _; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Q; RA_break := b; RA_continue := c; RA_return := r |}
+ end.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
-  fun ek vl rho => EX x:A, R x ek vl rho.
+  {| RA_normal := fun rho => EX x:A, (R x).(RA_normal) rho;
+     RA_break := fun rho => EX x:A, (R x).(RA_break) rho;
+     RA_continue := fun rho => EX x:A, (R x).(RA_continue) rho;
+     RA_return := fun vl rho => EX x:A, (R x).(RA_return) vl rho
+   |}.
 
 Definition normal_ret_assert (Q: assert) : ret_assert :=
-   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = None) && Q rho).
+  {| RA_normal := Q; RA_break := seplog.FF; RA_continue := seplog.FF; RA_return := fun _ => seplog.FF |}.
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
-      fun ek vl rho => R ek vl rho * F rho.
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := fun rho => n rho * F rho; 
+     RA_break := fun rho => b rho * F rho; 
+     RA_continue := fun rho => c rho * F rho;
+     RA_return := fun vl rho => r vl rho * F rho |}
+ end.
 
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => seplog.FF
- | EK_break => R EK_normal None
- | EK_continue => R EK_continue None
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := seplog.FF; 
+     RA_break := n; 
+     RA_continue := c;
+     RA_return := r |}
  end.
 
 Require Import VST.msl.normalize.
@@ -247,17 +274,19 @@ Require Import VST.msl.normalize.
 Lemma normal_ret_assert_derives:
  forall P Q rho,
   P rho |-- Q rho ->
-  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
+  forall ek vl, proj_ret_assert (normal_ret_assert P) ek vl rho 
+            |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.
  intros.
- unfold normal_ret_assert; intros; normalize.
+ destruct ek; normalize. destruct vl; simpl; normalize.
 Qed.
 Hint Resolve normal_ret_assert_derives.
 
 Lemma normal_ret_assert_FF:
-  forall ek vl rho, normal_ret_assert (fun rho => FF) ek vl rho = FF.
+  forall ek vl rho, proj_ret_assert (normal_ret_assert (fun rho => FF)) ek vl rho = FF.
 Proof.
-unfold normal_ret_assert. intros. normalize.
+intros.
+destruct ek; simpl; normalize.
 Qed.
 
 Lemma frame_normal:
@@ -265,27 +294,27 @@ Lemma frame_normal:
    frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (fun rho => P rho * F rho).
 Proof.
 intros.
-extensionality ek vl rho.
-unfold frame_ret_assert, normal_ret_assert.
-normalize.
+unfold normal_ret_assert; simpl.
+f_equal; simpl; try solve [extensionality rho; normalize].
+extensionality vl rho; normalize.
 Qed.
 
 Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => fun rho => !! (vl = None) && Inv rho
- | EK_break => R EK_normal None
- | EK_continue => fun rho => !! (vl = None) && Inv rho
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := Inv;
+     RA_return := r |}
  end.
 
 Definition loop2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => fun rho => !! (vl = None) && Inv rho
- | EK_break => fun _ => FF
- | EK_continue => fun _ => FF
- | EK_return => R EK_return vl
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := seplog.FF; 
+     RA_continue := seplog.FF;
+     RA_return := r |}
  end.
 
 Lemma frame_for1:
@@ -294,9 +323,7 @@ Lemma frame_for1:
    loop1_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
 Proof.
 intros.
-extensionality ek vl rho.
-unfold frame_ret_assert, loop1_ret_assert.
-destruct ek; normalize.
+destruct R; simpl; auto.
 Qed.
 
 Lemma frame_loop1:
@@ -305,32 +332,25 @@ Lemma frame_loop1:
    loop2_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
 Proof.
 intros.
-extensionality ek vl rho.
-unfold frame_ret_assert, loop2_ret_assert.
-destruct ek; normalize.
+destruct R; simpl; auto.
+f_equal; extensionality; normalize.
 Qed.
 
 Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
 Proof.
 intros; unfold overridePost, normal_ret_assert.
-extensionality ek vl rho.
-if_tac; normalize.
-subst ek.
-apply pred_ext; normalize.
-apply pred_ext; normalize.
+f_equal.
 Qed.
 
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
-   fun (ek : exitkind) (vl : option val) =>
-     match ek with
-     | EK_return => bind_ret vl ret Q
-     | _ => fun rho => FF
-     end.
-
+ {| RA_normal := seplog.FF;
+    RA_break := seplog.FF; 
+    RA_continue := seplog.FF;
+    RA_return := fun vl => bind_ret vl ret Q |}.
 
 Lemma same_glob_funassert:
   forall Delta1 Delta2,

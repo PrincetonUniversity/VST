@@ -26,7 +26,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
-         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
+         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `(v2) * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id e1)
        (normal_ret_assert
@@ -36,7 +36,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
 Proof.
   intros.
   rename H1 into H_READABLE; rename H2 into H1.
-  eapply semax_pre_post; [ | | apply semax_load with sh t2; auto].
+  eapply semax_pre_post'; [ | | apply semax_load with sh t2; auto].
   + instantiate (1:= PROPx (tc_val (typeof e1) v2 :: P) (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
@@ -52,7 +52,7 @@ Proof.
     apply andp_right.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
-  + intros. apply andp_left2. apply normal_ret_assert_derives'.
+  + intros. apply andp_left2.
     eapply derives_trans.
     - apply andp_right.
       * apply exp_left; intros.
@@ -88,12 +88,12 @@ Lemma semax_cast_load_37' :
   forall {Espec: OracleKind}{cs: compspecs} ,
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
-    classify_cast (typeof e1) t1 <> cast_case_p2bool ->
+     cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
           (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
-         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
+         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `(v2) * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ecast e1 t1))
        (normal_ret_assert
@@ -102,7 +102,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
-  eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
+  eapply semax_pre_post'; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
   + instantiate (1:= PROPx (tc_val t1 (force_val (sem_cast (typeof e1) t1 v2)) :: P) (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
@@ -117,7 +117,7 @@ Proof.
     apply andp_right.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
-  + intros. apply andp_left2. apply normal_ret_assert_derives'.
+  + intros. apply andp_left2.
     eapply derives_trans.
     - apply andp_right.
       * apply exp_left; intros.
@@ -186,7 +186,7 @@ Proof.
   rewrite <- local_sepcon_assoc1.
   eapply derives_trans.
   + apply sepcon_derives; [| apply derives_refl].
-    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
+    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `(v) * `TT).
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
   + rewrite sepcon_assoc.
@@ -200,7 +200,7 @@ Lemma semax_cast_load_nth_ram :
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       local (`(eq p) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
-    classify_cast t1 t2 <> cast_case_p2bool ->
+    cast_pointer_to_bool t1 t2 = false ->
     readable_share sh ->
     Pre |-- mapsto sh t1 p v * TT ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -222,7 +222,7 @@ Proof.
   rewrite <- local_sepcon_assoc1.
   eapply derives_trans.
   + apply sepcon_derives; [| apply derives_refl].
-    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `v * `TT).
+    instantiate (1 := `(mapsto sh (typeof e1)) (eval_lvalue e1) `(v) * `TT).
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
   + rewrite sepcon_assoc.

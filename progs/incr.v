@@ -1,93 +1,95 @@
-
-Require Import Clightdefs.
+From Coq Require Import String List ZArith.
+From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
-Definition ___builtin_annot : ident := 5%positive.
-Definition ___builtin_annot_intval : ident := 6%positive.
-Definition ___builtin_bswap : ident := 29%positive.
-Definition ___builtin_bswap16 : ident := 31%positive.
-Definition ___builtin_bswap32 : ident := 30%positive.
-Definition ___builtin_clz : ident := 32%positive.
-Definition ___builtin_clzl : ident := 33%positive.
-Definition ___builtin_clzll : ident := 34%positive.
-Definition ___builtin_ctz : ident := 35%positive.
-Definition ___builtin_ctzl : ident := 36%positive.
-Definition ___builtin_ctzll : ident := 37%positive.
-Definition ___builtin_debug : ident := 50%positive.
-Definition ___builtin_fabs : ident := 3%positive.
-Definition ___builtin_fmadd : ident := 41%positive.
-Definition ___builtin_fmax : ident := 39%positive.
-Definition ___builtin_fmin : ident := 40%positive.
-Definition ___builtin_fmsub : ident := 42%positive.
-Definition ___builtin_fnmadd : ident := 43%positive.
-Definition ___builtin_fnmsub : ident := 44%positive.
-Definition ___builtin_fsqrt : ident := 38%positive.
-Definition ___builtin_membar : ident := 7%positive.
-Definition ___builtin_memcpy_aligned : ident := 4%positive.
-Definition ___builtin_nop : ident := 49%positive.
-Definition ___builtin_read16_reversed : ident := 45%positive.
-Definition ___builtin_read32_reversed : ident := 46%positive.
-Definition ___builtin_va_arg : ident := 9%positive.
-Definition ___builtin_va_copy : ident := 10%positive.
-Definition ___builtin_va_end : ident := 11%positive.
-Definition ___builtin_va_start : ident := 8%positive.
-Definition ___builtin_write16_reversed : ident := 47%positive.
-Definition ___builtin_write32_reversed : ident := 48%positive.
-Definition ___compcert_va_composite : ident := 15%positive.
-Definition ___compcert_va_float64 : ident := 14%positive.
-Definition ___compcert_va_int32 : ident := 12%positive.
-Definition ___compcert_va_int64 : ident := 13%positive.
-Definition ___i64_dtos : ident := 16%positive.
-Definition ___i64_dtou : ident := 17%positive.
-Definition ___i64_sar : ident := 28%positive.
-Definition ___i64_sdiv : ident := 22%positive.
-Definition ___i64_shl : ident := 26%positive.
-Definition ___i64_shr : ident := 27%positive.
-Definition ___i64_smod : ident := 24%positive.
-Definition ___i64_stod : ident := 18%positive.
-Definition ___i64_stof : ident := 20%positive.
-Definition ___i64_udiv : ident := 23%positive.
-Definition ___i64_umod : ident := 25%positive.
-Definition ___i64_utod : ident := 19%positive.
-Definition ___i64_utof : ident := 21%positive.
-Definition _a : ident := 1%positive.
-Definition _acquire : ident := 53%positive.
-Definition _args : ident := 65%positive.
-Definition _ctr : ident := 60%positive.
-Definition _ctr_lock : ident := 58%positive.
-Definition _freelock : ident := 52%positive.
-Definition _freelock2 : ident := 55%positive.
-Definition _incr : ident := 63%positive.
-Definition _l : ident := 61%positive.
-Definition _lock_t : ident := 2%positive.
-Definition _lockc : ident := 67%positive.
-Definition _lockt : ident := 68%positive.
-Definition _main : ident := 69%positive.
-Definition _makelock : ident := 51%positive.
-Definition _read : ident := 64%positive.
-Definition _release : ident := 54%positive.
-Definition _release2 : ident := 56%positive.
-Definition _spawn : ident := 57%positive.
-Definition _t : ident := 62%positive.
-Definition _thread_func : ident := 66%positive.
-Definition _thread_lock : ident := 59%positive.
-Definition _t'1 : ident := 70%positive.
+
+Definition ___builtin_annot : ident := 7%positive.
+Definition ___builtin_annot_intval : ident := 8%positive.
+Definition ___builtin_bswap : ident := 1%positive.
+Definition ___builtin_bswap16 : ident := 3%positive.
+Definition ___builtin_bswap32 : ident := 2%positive.
+Definition ___builtin_bswap64 : ident := 33%positive.
+Definition ___builtin_clz : ident := 34%positive.
+Definition ___builtin_clzl : ident := 35%positive.
+Definition ___builtin_clzll : ident := 36%positive.
+Definition ___builtin_ctz : ident := 37%positive.
+Definition ___builtin_ctzl : ident := 38%positive.
+Definition ___builtin_ctzll : ident := 39%positive.
+Definition ___builtin_debug : ident := 51%positive.
+Definition ___builtin_fabs : ident := 4%positive.
+Definition ___builtin_fmadd : ident := 42%positive.
+Definition ___builtin_fmax : ident := 40%positive.
+Definition ___builtin_fmin : ident := 41%positive.
+Definition ___builtin_fmsub : ident := 43%positive.
+Definition ___builtin_fnmadd : ident := 44%positive.
+Definition ___builtin_fnmsub : ident := 45%positive.
+Definition ___builtin_fsqrt : ident := 5%positive.
+Definition ___builtin_membar : ident := 9%positive.
+Definition ___builtin_memcpy_aligned : ident := 6%positive.
+Definition ___builtin_nop : ident := 50%positive.
+Definition ___builtin_read16_reversed : ident := 46%positive.
+Definition ___builtin_read32_reversed : ident := 47%positive.
+Definition ___builtin_va_arg : ident := 11%positive.
+Definition ___builtin_va_copy : ident := 12%positive.
+Definition ___builtin_va_end : ident := 13%positive.
+Definition ___builtin_va_start : ident := 10%positive.
+Definition ___builtin_write16_reversed : ident := 48%positive.
+Definition ___builtin_write32_reversed : ident := 49%positive.
+Definition ___compcert_i64_dtos : ident := 18%positive.
+Definition ___compcert_i64_dtou : ident := 19%positive.
+Definition ___compcert_i64_sar : ident := 30%positive.
+Definition ___compcert_i64_sdiv : ident := 24%positive.
+Definition ___compcert_i64_shl : ident := 28%positive.
+Definition ___compcert_i64_shr : ident := 29%positive.
+Definition ___compcert_i64_smod : ident := 26%positive.
+Definition ___compcert_i64_smulh : ident := 31%positive.
+Definition ___compcert_i64_stod : ident := 20%positive.
+Definition ___compcert_i64_stof : ident := 22%positive.
+Definition ___compcert_i64_udiv : ident := 25%positive.
+Definition ___compcert_i64_umod : ident := 27%positive.
+Definition ___compcert_i64_umulh : ident := 32%positive.
+Definition ___compcert_i64_utod : ident := 21%positive.
+Definition ___compcert_i64_utof : ident := 23%positive.
+Definition ___compcert_va_composite : ident := 17%positive.
+Definition ___compcert_va_float64 : ident := 16%positive.
+Definition ___compcert_va_int32 : ident := 14%positive.
+Definition ___compcert_va_int64 : ident := 15%positive.
+Definition _acquire : ident := 54%positive.
+Definition _args : ident := 66%positive.
+Definition _ctr : ident := 61%positive.
+Definition _ctr_lock : ident := 59%positive.
+Definition _freelock : ident := 53%positive.
+Definition _freelock2 : ident := 56%positive.
+Definition _incr : ident := 64%positive.
+Definition _l : ident := 62%positive.
+Definition _lockc : ident := 68%positive.
+Definition _lockt : ident := 69%positive.
+Definition _main : ident := 70%positive.
+Definition _makelock : ident := 52%positive.
+Definition _read : ident := 65%positive.
+Definition _release : ident := 55%positive.
+Definition _release2 : ident := 57%positive.
+Definition _spawn : ident := 58%positive.
+Definition _t : ident := 63%positive.
+Definition _thread_func : ident := 67%positive.
+Definition _thread_lock : ident := 60%positive.
+Definition _t'1 : ident := 71%positive.
 
 Definition v_ctr_lock := {|
-  gvar_info := (Tstruct _lock_t noattr);
-  gvar_init := (Init_space 16 :: nil);
+  gvar_info := (tarray (tptr tvoid) 2);
+  gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
 
 Definition v_thread_lock := {|
-  gvar_info := (Tstruct _lock_t noattr);
-  gvar_init := (Init_space 16 :: nil);
+  gvar_info := (tarray (tptr tvoid) 2);
+  gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
 
 Definition v_ctr := {|
-  gvar_info := tint;
+  gvar_info := tuint;
   gvar_init := (Init_space 4 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
@@ -98,52 +100,52 @@ Definition f_incr := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) :: (_t, tint) :: nil);
+  fn_temps := ((_l, (tptr (tarray (tptr tvoid) 2))) :: (_t, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
-    (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
-      (tptr (Tstruct _lock_t noattr))))
+    (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+      (tptr (tarray (tptr tvoid) 2))))
   (Ssequence
     (Scall None
       (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
-      ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
+      ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
        nil))
     (Ssequence
-      (Sset _t (Evar _ctr tint))
+      (Sset _t (Evar _ctr tuint))
       (Ssequence
-        (Sassign (Evar _ctr tint)
-          (Ebinop Oadd (Etempvar _t tint) (Econst_int (Int.repr 1) tint)
-            tint))
+        (Sassign (Evar _ctr tuint)
+          (Ebinop Oadd (Etempvar _t tuint) (Econst_int (Int.repr 1) tint)
+            tuint))
         (Scall None
           (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                            cc_default))
-          ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
+          ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
            nil))))))
 |}.
 
 Definition f_read := {|
-  fn_return := tint;
+  fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_t, tint) :: nil);
+  fn_temps := ((_t, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
     (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
     ((Ecast
-       (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
-         (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
+       (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+         (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) :: nil))
   (Ssequence
-    (Sset _t (Evar _ctr tint))
+    (Sset _t (Evar _ctr tuint))
     (Ssequence
       (Scall None
         (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
         ((Ecast
-           (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
-             (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
-      (Sreturn (Some (Etempvar _t tint))))))
+           (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+             (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) :: nil))
+      (Sreturn (Some (Etempvar _t tuint))))))
 |}.
 
 Definition f_thread_func := {|
@@ -151,19 +153,19 @@ Definition f_thread_func := {|
   fn_callconv := cc_default;
   fn_params := ((_args, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) :: nil);
+  fn_temps := ((_l, (tptr (tarray (tptr tvoid) 2))) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
-    (Eaddrof (Evar _thread_lock (Tstruct _lock_t noattr))
-      (tptr (Tstruct _lock_t noattr))))
+    (Eaddrof (Evar _thread_lock (tarray (tptr tvoid) 2))
+      (tptr (tarray (tptr tvoid) 2))))
   (Ssequence
     (Scall None (Evar _incr (Tfunction Tnil tvoid cc_default)) nil)
     (Ssequence
       (Scall None
         (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                           cc_default))
-        ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
+        ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
          nil))
       (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))))
 |}.
@@ -173,38 +175,38 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_lockc, (tptr (Tstruct _lock_t noattr))) ::
-               (_lockt, (tptr (Tstruct _lock_t noattr))) :: (_t, tint) ::
-               (_t'1, tint) :: nil);
+  fn_temps := ((_lockc, (tptr (tarray (tptr tvoid) 2))) ::
+               (_lockt, (tptr (tarray (tptr tvoid) 2))) :: (_t, tuint) ::
+               (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Sassign (Evar _ctr tint) (Econst_int (Int.repr 0) tint))
+    (Sassign (Evar _ctr tuint) (Econst_int (Int.repr 0) tint))
     (Ssequence
       (Sset _lockc
-        (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
-          (tptr (Tstruct _lock_t noattr))))
+        (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+          (tptr (tarray (tptr tvoid) 2))))
       (Ssequence
         (Sset _lockt
-          (Eaddrof (Evar _thread_lock (Tstruct _lock_t noattr))
-            (tptr (Tstruct _lock_t noattr))))
+          (Eaddrof (Evar _thread_lock (tarray (tptr tvoid) 2))
+            (tptr (tarray (tptr tvoid) 2))))
         (Ssequence
           (Scall None
             (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                               cc_default))
-            ((Ecast (Etempvar _lockc (tptr (Tstruct _lock_t noattr)))
+            ((Ecast (Etempvar _lockc (tptr (tarray (tptr tvoid) 2)))
                (tptr tvoid)) :: nil))
           (Ssequence
             (Scall None
               (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                                cc_default))
-              ((Ecast (Etempvar _lockc (tptr (Tstruct _lock_t noattr)))
+              ((Ecast (Etempvar _lockc (tptr (tarray (tptr tvoid) 2)))
                  (tptr tvoid)) :: nil))
             (Ssequence
               (Scall None
                 (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                                   cc_default))
-                ((Ecast (Etempvar _lockt (tptr (Tstruct _lock_t noattr)))
+                ((Ecast (Etempvar _lockt (tptr (tarray (tptr tvoid) 2)))
                    (tptr tvoid)) :: nil))
               (Ssequence
                 (Scall None
@@ -231,19 +233,19 @@ Definition f_main := {|
                       (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
                                        tvoid cc_default))
                       ((Ecast
-                         (Etempvar _lockt (tptr (Tstruct _lock_t noattr)))
+                         (Etempvar _lockt (tptr (tarray (tptr tvoid) 2)))
                          (tptr tvoid)) :: nil))
                     (Ssequence
                       (Ssequence
                         (Scall (Some _t'1)
-                          (Evar _read (Tfunction Tnil tint cc_default)) nil)
-                        (Sset _t (Etempvar _t'1 tint)))
+                          (Evar _read (Tfunction Tnil tuint cc_default)) nil)
+                        (Sset _t (Etempvar _t'1 tuint)))
                       (Ssequence
                         (Scall None
                           (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
                                            tvoid cc_default))
                           ((Ecast
-                             (Etempvar _lockc (tptr (Tstruct _lock_t noattr)))
+                             (Etempvar _lockc (tptr (tarray (tptr tvoid) 2)))
                              (tptr tvoid)) :: nil))
                         (Ssequence
                           (Scall None
@@ -251,7 +253,7 @@ Definition f_main := {|
                                                (Tcons (tptr tvoid) Tnil)
                                                tvoid cc_default))
                             ((Ecast
-                               (Etempvar _lockt (tptr (Tstruct _lock_t noattr)))
+                               (Etempvar _lockt (tptr (tarray (tptr tvoid) 2)))
                                (tptr tvoid)) :: nil))
                           (Ssequence
                             (Scall None
@@ -259,20 +261,34 @@ Definition f_main := {|
                                                 (Tcons (tptr tvoid) Tnil)
                                                 tvoid cc_default))
                               ((Ecast
-                                 (Etempvar _lockc (tptr (Tstruct _lock_t noattr)))
+                                 (Etempvar _lockc (tptr (tarray (tptr tvoid) 2)))
                                  (tptr tvoid)) :: nil))
-                            (Sreturn (Some (Etempvar _t tint))))))))))))))))
+                            (Sreturn (Some (Etempvar _t tuint))))))))))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
- nil).
+nil.
 
-Definition prog : Clight.program := {|
-prog_defs :=
-((___builtin_fabs,
+Definition global_definitions : list (ident * globdef fundef type) :=
+((___builtin_bswap,
+   Gfun(External (EF_builtin "__builtin_bswap"
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_bswap32,
+   Gfun(External (EF_builtin "__builtin_bswap32"
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_bswap16,
+   Gfun(External (EF_builtin "__builtin_bswap16"
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_fabs,
    Gfun(External (EF_builtin "__builtin_fabs"
+                   (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
+                     cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
+ (___builtin_fsqrt,
+   Gfun(External (EF_builtin "__builtin_fsqrt"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
@@ -334,77 +350,79 @@ prog_defs :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      (tptr tvoid) cc_default)) ::
- (___i64_dtos,
-   Gfun(External (EF_runtime "__i64_dtos"
+ (___compcert_i64_dtos,
+   Gfun(External (EF_runtime "__compcert_i64_dtos"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
                      cc_default)) (Tcons tdouble Tnil) tlong cc_default)) ::
- (___i64_dtou,
-   Gfun(External (EF_runtime "__i64_dtou"
+ (___compcert_i64_dtou,
+   Gfun(External (EF_runtime "__compcert_i64_dtou"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
                      cc_default)) (Tcons tdouble Tnil) tulong cc_default)) ::
- (___i64_stod,
-   Gfun(External (EF_runtime "__i64_stod"
+ (___compcert_i64_stod,
+   Gfun(External (EF_runtime "__compcert_i64_stod"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tlong Tnil) tdouble cc_default)) ::
- (___i64_utod,
-   Gfun(External (EF_runtime "__i64_utod"
+ (___compcert_i64_utod,
+   Gfun(External (EF_runtime "__compcert_i64_utod"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tulong Tnil) tdouble cc_default)) ::
- (___i64_stof,
-   Gfun(External (EF_runtime "__i64_stof"
+ (___compcert_i64_stof,
+   Gfun(External (EF_runtime "__compcert_i64_stof"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tsingle)
                      cc_default)) (Tcons tlong Tnil) tfloat cc_default)) ::
- (___i64_utof,
-   Gfun(External (EF_runtime "__i64_utof"
+ (___compcert_i64_utof,
+   Gfun(External (EF_runtime "__compcert_i64_utof"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tsingle)
                      cc_default)) (Tcons tulong Tnil) tfloat cc_default)) ::
- (___i64_sdiv,
-   Gfun(External (EF_runtime "__i64_sdiv"
+ (___compcert_i64_sdiv,
+   Gfun(External (EF_runtime "__compcert_i64_sdiv"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
- (___i64_udiv,
-   Gfun(External (EF_runtime "__i64_udiv"
+ (___compcert_i64_udiv,
+   Gfun(External (EF_runtime "__compcert_i64_udiv"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
- (___i64_smod,
-   Gfun(External (EF_runtime "__i64_smod"
+ (___compcert_i64_smod,
+   Gfun(External (EF_runtime "__compcert_i64_smod"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
- (___i64_umod,
-   Gfun(External (EF_runtime "__i64_umod"
+ (___compcert_i64_umod,
+   Gfun(External (EF_runtime "__compcert_i64_umod"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
- (___i64_shl,
-   Gfun(External (EF_runtime "__i64_shl"
+ (___compcert_i64_shl,
+   Gfun(External (EF_runtime "__compcert_i64_shl"
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
- (___i64_shr,
-   Gfun(External (EF_runtime "__i64_shr"
+ (___compcert_i64_shr,
+   Gfun(External (EF_runtime "__compcert_i64_shr"
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tulong (Tcons tint Tnil)) tulong cc_default)) ::
- (___i64_sar,
-   Gfun(External (EF_runtime "__i64_sar"
+ (___compcert_i64_sar,
+   Gfun(External (EF_runtime "__compcert_i64_sar"
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
- (___builtin_bswap,
-   Gfun(External (EF_builtin "__builtin_bswap"
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
- (___builtin_bswap32,
-   Gfun(External (EF_builtin "__builtin_bswap32"
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
- (___builtin_bswap16,
-   Gfun(External (EF_builtin "__builtin_bswap16"
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons tushort Tnil) tushort cc_default)) ::
+ (___compcert_i64_smulh,
+   Gfun(External (EF_runtime "__compcert_i64_smulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
+ (___compcert_i64_umulh,
+   Gfun(External (EF_runtime "__compcert_i64_umulh"
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
+ (___builtin_bswap64,
+   Gfun(External (EF_builtin "__builtin_bswap64"
+                   (mksignature (AST.Tlong :: nil) (Some AST.Tlong)
+                     cc_default)) (Tcons tulong Tnil) tulong cc_default)) ::
  (___builtin_clz,
    Gfun(External (EF_builtin "__builtin_clz"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -429,10 +447,6 @@ prog_defs :=
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tint)
                      cc_default)) (Tcons tulong Tnil) tint cc_default)) ::
- (___builtin_fsqrt,
-   Gfun(External (EF_builtin "__builtin_fsqrt"
-                   (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
-                     cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Tfloat :: AST.Tfloat :: nil)
@@ -533,8 +547,9 @@ prog_defs :=
  (_ctr, Gvar v_ctr) :: (_incr, Gfun(Internal f_incr)) ::
  (_read, Gfun(Internal f_read)) ::
  (_thread_func, Gfun(Internal f_thread_func)) ::
- (_main, Gfun(Internal f_main)) :: nil);
-prog_public :=
+ (_main, Gfun(Internal f_main)) :: nil).
+
+Definition public_idents : list ident :=
 (_main :: _thread_func :: _read :: _incr :: _ctr :: _thread_lock ::
  _ctr_lock :: _spawn :: _release2 :: _freelock2 :: _release :: _acquire ::
  _freelock :: _makelock :: ___builtin_debug :: ___builtin_nop ::
@@ -542,19 +557,21 @@ prog_public :=
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
  ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_fsqrt :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
- ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
- ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
-prog_main := _main;
-prog_types := composites;
-prog_comp_env := make_composite_env composites;
-prog_comp_env_eq := refl_equal _
-|}.
+ ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
+ ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap64 ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_memcpy_aligned :: ___builtin_fsqrt :: ___builtin_fabs ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap :: nil).
+
+Definition prog : Clight.program := 
+  mkprogram composites global_definitions public_idents _main Logic.I.
+
 

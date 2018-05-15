@@ -90,7 +90,7 @@ Definition params_of_fundef (f: fundef) : list type :=
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
   match v with
     Vptr b i =>
-    if Int.eq_dec i Int.zero then
+    if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
         Some (CC_core_State empty_function 
@@ -107,9 +107,12 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
   | _ => None
   end.
 
+Definition stuck_signature : signature := mksignature nil None cc_default.
+
 Definition cl_at_external (c: CC_core) : option (external_function * list val) :=
   match c with
   | CC_core_Callstate (External ef _ _ _) args _ => Some (ef, args)
+  | CC_core_State _ (Sbuiltin _ ef _ args) _ _ _ => Some (EF_external "stuck" stuck_signature, nil)
   | _ => None
 end.
 
@@ -171,6 +174,15 @@ Proof. intros.
     eapply mem_step_alloc; eassumption. eassumption.
 Qed.
 
+Lemma CC_core_to_State_mem:
+    forall f STEP k e le m c m',
+    State f STEP k e le m = CC_core_to_CC_state c m' ->
+    m = m'.
+  Proof.
+    intros;
+      destruct c; inversion H; auto.
+  Qed.
+
 Lemma bind_parameters_mem_step: forall cenv e m pars vargs m'
       (M: bind_parameters cenv e m pars vargs m'), mem_step m m'.
 Proof. intros.
@@ -182,21 +194,40 @@ Proof. intros.
 + eapply mem_step_trans; try eassumption.
   eapply mem_step_storebytes; eassumption.
 Qed.
+
 Program Definition CLNC_memsem :
   @MemSem genv (*(Genv.t fundef type)*) CC_core.
 apply Build_MemSem with (csem := cl_core_sem).
   intros.
   induction CS. simpl in H0.
-  Lemma CC_core_to_State_mem:
-    forall f STEP k e le m c m',
-    State f STEP k e le m = CC_core_to_CC_state c m' ->
-    m = m'.
-  Proof.
-    intros;
-      destruct c; inversion H; auto.
-  Qed.
   inversion H0;
-    try do 2 match goal with
+  try solve [do 2 match goal with
     | [ H: State _ _ _ _ _ ?m = CC_core_to_CC_state _ _ |- _ ] => apply CC_core_to_State_mem in H
-             end; subst; try apply mem_step_refl; trivial.
-Admitted.
+             end; subst; try apply mem_step_refl; trivial];
+  destruct c; inv H1; destruct c'; inv H2;
+  try apply mem_step_refl;
+  try ( eapply mem_step_freelist; eassumption).
+*
+ inv H6.
+ unfold Mem.storev in H2. apply Mem.store_storebytes in H2.
+ eapply mem_step_storebytes; eauto.
+ eapply mem_step_storebytes; eauto. 
+*
+  inv H.
+*
+ inv H3.
+ clear - H5.
+ induction H5.
+ apply mem_step_refl.
+ eapply mem_step_trans. eapply mem_step_alloc; eassumption. auto.
+*
+ inv H.
+*
+ simpl in H4. inv H4.
+ apply mem_step_refl.
+*
+ inv H4.
+*
+ inv H4.
+Qed.
+

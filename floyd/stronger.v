@@ -126,41 +126,109 @@ Qed.
 
 Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
  Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
-  (forall i, 0 <= i < n -> Znth i (unfold_reptype v0) (default_val _) >>> Znth i (unfold_reptype v1) (default_val _)) ->
+  (forall i, 0 <= i < n -> Znth i (unfold_reptype v0)  >>> Znth i (unfold_reptype v1)) ->
   v0 >>> v1.
 Proof.
+  intros; intros sh p.
+  unfold data_at.
+  destruct (zle n 0).
+*
+  unfold field_at.
+  entailer.
+  apply derives_refl'.
+  f_equal.
+  unfold nested_field_type; simpl.
+  rewrite !data_at_rec_eq.
+  rewrite Z.max_l by omega.
+  unfold aggregate_pred.aggregate_pred.array_pred.
+  unfold aggregate_pred.array_pred.
+  simpl.
+  extensionality Vundef.
+  f_equal. f_equal.
+  rewrite H. auto.
+*
+  assert_PROP (Zlength (unfold_reptype v0) = n). {
+     entailer!. destruct H2 as [? _]. rewrite Z.max_r in H2 by omega. auto.
+  }
+  rewrite H1 in H. symmetry in H.
+  unfold field_at.
+  normalize.
+  unfold at_offset.
+  unfold nested_field_offset, nested_field_type;   simpl.
+  rewrite !data_at_rec_eq.
+  unfold aggregate_pred.aggregate_pred.array_pred.
+  unfold aggregate_pred.array_pred.
+  rewrite Z.max_r by omega. rewrite Z.sub_0_r.
+  normalize.
+  apply aggregate_pred.rangespec_ext_derives.
   intros.
-  intros sh p.
-Admitted.
-(*
-  destruct (zlt n 0).
-  {
-    rewrite !data_at_data_at_rec. (* do not use it. *)
-    apply andp_derives. apply prop_derives; intros [? ?].
-    split; auto.
-    admit.
-    rewrite !data_at_lemmas.data_at_rec_ind.
-    rewrite !aggregate_pred.aggregate_pred.array_pred_len_0 by omega.
+  unfold at_offset.
+  rewrite Z.sub_0_r.
+  rewrite Z2Nat.id in H3 by omega. rewrite Z.add_0_l in H3.
+  specialize (H0 _ H3 sh).
+  unfold data_at, field_at in H0.
+  simpl in H0.
+  specialize (H0 (offset_val (sizeof t0 * i) p)).
+  assert (field_compatible t0 nil (offset_val (sizeof t0 * i) p)). {
+   destruct (zle (sizeof t0) 0).
+  - assert (sizeof t0 = 0) by (pose proof (sizeof_pos t0); omega).
+     rewrite H4. rewrite Z.mul_0_l.
+     clear - H2 H4 H3.
+    destruct H2 as [? [? [? [? ?]]]].
+    destruct p; try contradiction.
+    split3; [ | | split3]; auto.
+    red. simpl. rewrite H4. rewrite Z.add_0_r.
+    red in H1. simpl in H1. rewrite H4 in H1. rewrite Z.mul_0_l in H1.
+    rewrite Ptrofs.add_zero. omega.
+   red in H2|-*. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
+   rewrite H4 in H2. rewrite Z.mul_0_l, Z.add_0_r in H2. simpl.
+    rewrite Ptrofs.add_zero. auto.
+   -
+    clear - H2 H3 g0.
+    destruct H2 as [? [? [? [? ?]]]].
+    assert (H5: 0 <= sizeof t0 * i < sizeof t0 * n). {
+      replace 0 with (sizeof t0 * 0)%Z by (rewrite Z.mul_0_r; auto).
+      pose proof (sizeof_pos t0).
+      split.
+      apply Zmult_le_compat_l; omega.
+      apply Zmult_lt_compat_l; omega.
+    }
+    hnf in H1. destruct p; try contradiction.
+    simpl in H1. rewrite Z.max_r in H1 by omega.
+    split3; [ | | split3]; auto.
+   +
+    red. simpl.
+    rewrite Ptrofs.add_unsigned.
+    pose proof (Ptrofs.unsigned_range i0).
+    rewrite (Ptrofs.unsigned_repr (_*_))
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+    rewrite (Ptrofs.unsigned_repr)
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+    assert (sizeof t0 * i + sizeof t0 <= sizeof t0 * n). {
+       rewrite <- (Z.mul_1_r (sizeof t0)) at 2.
+       rewrite <- Z.mul_add_distr_l.
+      apply Zmult_le_compat_l; omega.
+    }
+    omega.
+    +
+     red in H2. apply align_compatible_rec_Tarray_inv with (i:=i) in H2; auto.
+     unfold offset_val. 
+     red.
+     rewrite Ptrofs.add_unsigned.
+    pose proof (Ptrofs.unsigned_range i0).
+    rewrite (Ptrofs.unsigned_repr (_*_))
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
+    rewrite (Ptrofs.unsigned_repr)
+      by (change (Ptrofs.max_unsigned) with (Ptrofs.modulus - 1); omega).
     auto.
   }
-  unfold data_at.
-  erewrite field_at_Tarray; [| simpl; auto  | reflexivity | omega | ].
-  Focus 2. {
-    instantiate (1 := unfold_reptype v0).
-    symmetry. apply (unfold_reptype_JMeq (Tarray t0 n a)).
-  } Unfocus.
-  erewrite field_at_Tarray; [| simpl; auto  | reflexivity | omega | ].
-  Focus 2. {
-    instantiate (1 := unfold_reptype v1).
-    symmetry. apply (unfold_reptype_JMeq (Tarray t0 n a)).
-  } Unfocus.
-  apply array_at_ext_derives; auto.
-  intros.
-  specialize (H0 i H1).
-  apply field_at_stronger.
-  rewrite H2, H3. rewrite Z.sub_0_r; auto.
+  rewrite !prop_true_andp in H0 by auto.
+  unfold at_offset in H0.
+  unfold nested_field_offset, nested_field_type in H0;   simpl in H0.
+  rewrite !offset_offset_val in H0.
+  rewrite Z.add_0_r in H0. apply H0.
 Qed.
-*)
+
 Lemma stronger_default_val: forall t v, v >>> default_val t.
 Proof.
   intros.
@@ -174,7 +242,21 @@ Lemma stronger_proj_reptype: forall t v1 v2,
   (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type t gfs) = true ->
    proj_reptype t gfs v1 >>> proj_reptype t gfs v2).
 Proof.
-Admitted.
+intros.
+split; intros.
+hnf; intros.
+specialize (H sh).
+unfold data_at in *.
+intro p.
+unfold field_at in *.
+normalize.
+unfold at_offset.
+unfold nested_field_type at 1 4. simpl.
+unfold nested_field_offset; simpl.
+unfold nested_field_offset in H; simpl in H.
+unfold at_offset in H.
+unfold nested_field_type in H; simpl in H.
+Abort.  (* probably true, but not needed *)
 
 Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
 Proof.
@@ -247,7 +329,7 @@ Defined.
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
  Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
   (forall i, 0 <= i < n ->
-     Znth i (unfold_reptype v0) (default_val _) === Znth i (unfold_reptype v1) (default_val _)) ->
+     Znth i (unfold_reptype v0) === Znth i (unfold_reptype v1)) ->
   v0 === v1.
 Proof.
   intros.
@@ -255,14 +337,14 @@ Proof.
   + intros.
     specialize (H0 i H1).
     destruct (data_equal_stronger
-                      (Znth i (unfold_reptype v0) (default_val _))
-                      (Znth i (unfold_reptype v1) (default_val _))) as [? _].
+                      (Znth i (unfold_reptype v0))
+                      (Znth i (unfold_reptype v1))) as [? _].
     tauto.
   + intros.
     specialize (H0 i H1).
     destruct (data_equal_stronger
-                      (Znth i (unfold_reptype v0) (default_val _))
-                      (Znth i (unfold_reptype v1) (default_val _))) as [? _].
+                      (Znth i (unfold_reptype v0))
+                      (Znth i (unfold_reptype v1))) as [? _].
     tauto.
 Qed.
 
@@ -329,10 +411,11 @@ Proof.
       tauto.
     + rewrite data_equal_stronger; split; apply H; auto.
   } Unfocus.
-  pose proof stronger_proj_reptype t v1 v2.
+(*  pose proof stronger_proj_reptype t v1 v2.
   pose proof stronger_proj_reptype t v2 v1.
   tauto.
-Qed.
+*)
+Abort.  (* not needed *)
 
 End STRONGER.
 

@@ -1,15 +1,15 @@
 #include <stddef.h>
 
-struct list {int head; struct list *tail;};
+struct list {unsigned head; struct list *tail;};
 
 struct list three[] = {
     {1, three+1}, {2, three+2}, {3, NULL}
 };
 
-int sumlist (struct list *p) {
-  int s = 0;
+unsigned sumlist (struct list *p) {
+  unsigned s = 0;
   struct list *t = p;
-  int h;
+  unsigned h;
   while (t) {
      h = t->head;
      t = t->tail;
@@ -32,9 +32,9 @@ struct list *reverse (struct list *p) {
 }
 
 int main (void) {
-  struct list *r; int s;
+  struct list *r; unsigned s;
   r = reverse(three);
   s = sumlist(r);
-  return s;
+  return (int)s;
 }
 

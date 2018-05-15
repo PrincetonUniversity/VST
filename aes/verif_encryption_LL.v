@@ -29,15 +29,15 @@ Proof.
     subst. rewrite Zlength_app. rewrite H0. reflexivity.
   }
 
-  assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_pi tuint
+  assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_ptr_int tuint Signed
        (field_address t_struct_aesctx [ArraySubsc  i   ; StructField _buf] ctx) (Vint (Int.repr 1)))
      = (field_address t_struct_aesctx [ArraySubsc (i+1); StructField _buf] ctx)) as Eq. {
     entailer!. intros.
     do 2 rewrite field_compatible_field_address by auto with field_compatible.
     simpl. destruct ctx; inversion PNctx; try reflexivity.
-    simpl. f_equal. rewrite Int.add_assoc.
-    change (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4).
-    rewrite add_repr. f_equal. f_equal.  clear; omega.
+    simpl. f_equal. rewrite Ptrofs.add_assoc.
+    change (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))) with (Ptrofs.repr 4).
+    rewrite ptrofs_add_repr. f_equal. f_equal.  clear; omega.
   }
 
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
@@ -86,7 +86,7 @@ Proof.
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   ))
-  (* PreInc invariant *)
+  continue: (* PreInc invariant *)
    (fun i: Z => PROP ( 
      0 < i <= 6
   ) LOCAL (
@@ -104,8 +104,8 @@ Proof.
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   ))
-  (* Loop postcondition *)
-  (PROP() LOCAL (
+  break: (* Loop postcondition *)
+   (PROP() LOCAL (
      temp _RK (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf] ctx);
      temp _X3 (Vint (col 3 S12));
      temp _X2 (Vint (col 2 S12));
@@ -131,11 +131,11 @@ Proof.
   subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
   change Delta with (encryption_loop_body_Delta Delta_specs).
   fold encryption_loop_body.
-  eapply semax_post_flipped.
+  (*eapply semax_post_flipped.*)
   simple eapply encryption_loop_body_proof; eauto.
   (* the next few lines should not be necessary if the statement
-    of encryption_loop_body_proof is adjusted. *)
-  clear.
+    of encryption_loop_body_proof is adjusted. 
+  clear. 
   intros. match goal with |- 
      context [loop1_ret_assert ?PP (normal_ret_assert ?QQ)] =>
      set (P:=PP); set (Q := QQ)
@@ -143,13 +143,16 @@ Proof.
   apply andp_left2.
   unfold loop1_ret_assert, normal_ret_assert, overridePost; destruct ek; auto.
   rewrite if_true by auto. rewrite !prop_true_andp by auto.
-  subst Q.  solve [auto].
-  apply derives_extract_prop; intro Hx; inv Hx.
+  subst Q. solve [auto].
+  apply derives_extract_prop; intro Hx; inv Hx.*)
 * (* loop decr *)
   rename a into i. forward. Exists (i-1). entailer!.
 * (* after the loop, entailment *)
  assert (a=0) by omega. clear H1 H2; subst a.
- entailer!.
+ change (12 - 2 * Z.to_nat 0)%nat with 12%nat. 
+ rewrite <- HeqS12.
+ change (52 - 0 * 8) with 52. 
+ clear. entailer!.
 * (** AFTER THE LOOP **)
 subst vv.
 abbreviate_semax.

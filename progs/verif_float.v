@@ -8,9 +8,9 @@ Local Open Scope logic.
 
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog nil u
-  POST [ tint ] main_post prog nil u.
+  WITH gv: globals
+  PRE  [] main_pre prog nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition t_struct_foo := Tstruct _foo noattr.
 
@@ -25,17 +25,17 @@ name y1 _y1.
 name y2 _y2.
 name s _s.
 start_function.
-pose (f :=  PROP () LOCAL (gvar _s s)
+pose (f :=  PROP () LOCAL (gvar _s (gv _s))
   SEP (data_at Ews t_struct_foo (Vint (Int.repr 5),
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),
-           Vfloat (Float.of_bits (Int64.repr 0)))) s)).
+           Vfloat (Float.of_bits (Int64.repr 0)))) (gv _s))).
 apply semax_pre with f; subst f. (* factored out "f" to work around a bug
    in Coq 8.4pl6 (and earlier versions back at least to 8.4pl3).
   To exhibit the bug, put the r.h.s. of the "pose" as in place of f
   in the "apply...with".  *)
  {
 unfold data_at.
- unfold_field_at 1%nat.
+ unfold_field_at 2%nat.
 entailer!.
 simpl.
 unfold field_at, data_at_rec, at_offset. simpl.
@@ -46,6 +46,8 @@ repeat match goal with |- context [field_offset ?A ?B ?C] =>
 end.
 normalize. cancel.
 }
+forward.
+forward.
 forward.
 forward.
 forward.

@@ -1,36 +1,36 @@
-This directory contains the bulk of the Coq source files assoiated for
-our formal verification of the HMAC-DRBG cryptographic primitive:
+This directory contains the bulk of the Coq source files associated with
+our formal verification of the HMAC-DRBG cryptographic primitive.
 
-The FCF development described in Section 3 and 4 is contained in
+The FCF development described in Sections 3 and 4 is contained in
   file ../fcf/HMAC_DRBG_nonadaptive.v, with constructions (functions,
   games, and lemmas/theorems) named in accordance with the paper.
   In particular, the games G_real and G_ideal are in lines 308-311 and
-  450-452, respectively, and their closeness is in lines 4563-4571.
+  450-452, respectively, and the proof of their closeness is in lines 4563-4571.
  
-hmac_drbg.c : the C source file, based on mbedtls' implementation
-   https://github.com/ARMmbed/mbedtls/blob/development/library/hmac_drbg.c
+hmac_drbg.c is the C source file, based on mbedtls' implementation
+   https://github.com/ARMmbed/mbedtls/blob/development/library/hmac_drbg.c.
    We started from mbedtls version 2.1.1., and added additional functions
    that connect the implementation of DRBG to ../sha/hmac.c, verified
    previously.
 
-hmac_drbg.v is the Clight AST produced from hmac_drbg.c be CompCert's
-   frontend tool, clightgen
+hmac_drbg.v is the Clight AST produced from hmac_drbg.c by CompCert's
+   frontend tool, clightgen.
 
 HMAC256_DRBG_functional_prog.v contains the functional programs,
    by instantiating formalizations of more primitive functions from 
-   DRBG_functions, HMAC_DRBG_algorithms according to the structure of 
-   NIST 800-90A
+   DRBG_functions, HMAC_DRBG_algorithms, according to the structure of 
+   NIST 800-90A.
 
 drbg_protocol_specs.v contains API specifications using the abstract
-representation predicte AREP (in particular, the spec for
+representation predicate AREP. In particular, the spec for
 mbedtls_hmac_drbg_random given in Figure 1 is in lines 247-263. The
 proofs of the function bodies are in the remainder of this file, and
 in verif_hmac_drbg_generate_abs.v (for random_with_add) and
-verif_hmac_drbg_other (for free, set parameters etc). The file imports
+verif_hmac_drbg_other (for free, set parameters, etc). The file imports
 auxiliary constructions from spec_hmac_drbg.v which also contains more
-general function specifications that don't make use iof AREP and also
+general function specifications that don't make use of AREP and also
 cover error situations.
 
-The file linking the two specifications, ie relating mbedtlas_generate
-to the core of the generate function used in the FCF proofs is
-HMAC256_DRBG_bridge_to_FCF.v
+The file linking the two specifications, i.e. relating mbedtls_generate
+to the core of the generate function used in the FCF proofs, is
+HMAC256_DRBG_bridge_to_FCF.v.

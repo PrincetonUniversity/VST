@@ -18,7 +18,7 @@ Definition load8 id ofs :=
 Lemma Znth_is_int:
  forall i r,
   0 <=  i < Zlength r ->
-  is_int I32 Unsigned (Znth i (map Vint r) Vundef).
+  is_int I32 Unsigned (Znth i (map Vint r)).
 Proof.
 intros.
 unfold Znth.
@@ -32,14 +32,14 @@ Qed.
 
 Lemma sha256_block_load8:
   forall (Espec : OracleKind)
-     (data: val) (r_h: list int) (ctx: val) kv
+     (data: val) (r_h: list int) (ctx: val) gv
    (H5 : length r_h = 8%nat),
      semax
       (initialized _data
-         (func_tycontext f_sha256_block_data_order Vprog Gtot))
+         (func_tycontext f_sha256_block_data_order Vprog Gtot nil))
   (PROP  ()
-   LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
-                gvar  _K256 kv)
+   LOCAL  (temp _data data; gvar _K256 (gv _K256); temp _ctx ctx; temp _in data;
+                gvars gv)
    SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
@@ -61,7 +61,7 @@ Lemma sha256_block_load8:
                 temp _g (Vint (nthi r_h 6));
                 temp _h (Vint (nthi r_h 7));
                 temp _data data; temp _ctx ctx; temp _in data;
-                gvar  _K256 kv)
+                gvar _K256 (gv _K256); gvars gv)
    SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))).
 Proof.
 intros.
@@ -168,7 +168,7 @@ clear IHi.
 simpl add_upto.
 rewrite (sublist_split 0 1 (Z.of_nat (S i))); try omega.
 change (@sublist int 0 1) with (@sublist int 0 (0+1)).
-rewrite sublist_singleton with (d:=Int.zero); try omega.
+rewrite sublist_len_1; try omega.
 rewrite inj_S.
 simpl.
 autorewrite with sublist.
@@ -204,11 +204,11 @@ omega.
 Qed.
 
 Lemma upd_reptype_array_gso: (* perhaps move to floyd? *)
- forall t a v i j,
+ forall t (a: list (reptype t)) v i j,
     0 <= j <= Zlength a ->
     0 <= i < Zlength a ->
     i<>j ->
-    Znth i (upd_Znth j a v) (default_val t) = Znth i a (default_val t).
+    Znth i (upd_Znth j a v) = Znth i a.
 Proof.
 intros.
 unfold upd_Znth.
@@ -228,7 +228,7 @@ Lemma int_add_upto:
    forall (j:nat)  (i:Z),
      j = Z.to_nat i ->
      0 <= i < 8 ->
-     is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh)) Vundef).
+     is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh))).
 Proof.
 intros until 2.
   assert (ZR: Zlength regs = 8) by ( rewrite Zlength_correct, H; reflexivity).
@@ -243,6 +243,7 @@ intros until 2.
   rewrite Z2Nat.id by omega. apply H2.
 Qed.
 
+
 Lemma add_s:
   forall (regs atoh: list int),
    Datatypes.length regs = 8%nat ->
@@ -250,34 +251,27 @@ Lemma add_s:
  forall i i',
     (i < 8)%nat ->
     i' = Z.of_nat i ->
-   upd_Znth i' (map Vint (add_upto i regs atoh))
-       (force_val
-              (sem_cast_neutral
-                 (force_val
-                    (sem_add_default tuint tuint
-                       (Znth i' (map Vint (add_upto i regs atoh)) Vundef)
-                       (Vint (nthi atoh i')))))) =
+    upd_Znth i' (map Vint (add_upto i regs atoh))
+             (Vint
+                (Int.add
+                   (Znth i' (add_upto i regs atoh))
+                   (nthi atoh i'))) =
      map Vint (add_upto (S i) regs atoh).
 Proof.
 intros.
-assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)) Vundef)).
+assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)))).
  apply  Znth_is_int.   rewrite Zlength_correct, length_add_upto, H.
  change (Z.of_nat 8) with 8; omega. rewrite H,H0;  auto.
 subst i'.
 rewrite add_upto_S; try omega.
 f_equal.
-destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef) eqn:?;
+destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)));
    try contradiction H3.
 simpl.
 f_equal. f_equal.
-unfold Znth in Heqv.
-rewrite if_false in Heqv.
+unfold Znth. rewrite if_false by omega.
 unfold nthi.
-rewrite Nat2Z.id in Heqv|-*.
-rewrite nth_map' with (d':=Int.zero) in Heqv.
-inv Heqv. auto.
-rewrite length_add_upto; try congruence.
-clear; omega.
+rewrite Nat2Z.id. auto.
 Qed.
 
 Lemma add_upto_8:
@@ -294,7 +288,7 @@ Qed.
 
 Lemma add_them_back_proof:
   forall (Espec : OracleKind)
-     (regs regs': list int) (ctx: val) kv,
+     (regs regs': list int) (ctx: val) gv,
      length regs = 8%nat ->
      length regs' = 8%nat ->
      semax  (initialized _i Delta_loop1)
@@ -308,12 +302,12 @@ Lemma add_them_back_proof:
                 temp _f  (Vint (nthi regs' 5));
                 temp _g  (Vint (nthi regs' 6));
                 temp _h  (Vint (nthi regs' 7));
-                gvar  _K256 kv)
+                gvar _K256 (gv _K256); gvars gv)
    SEP
    (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint regs) ctx))
    (sequence add_them_back Sskip)
   (normal_ret_assert
-   (PROP() LOCAL(temp _ctx ctx; gvar _K256 kv)
+   (PROP() LOCAL(temp _ctx ctx; gvar _K256 (gv _K256); gvars gv)
     SEP (field_at Tsh t_struct_SHA256state_st  [StructField _h]
                 (map Vint (map2 Int.add regs regs')) ctx))).
 Proof.
@@ -328,27 +322,36 @@ assert (INT_ADD_UPTO := int_add_upto _ _ H H0).
 assert (ADD_S := add_s _ _ H H0).
 
 Opaque add_upto.
-
-(* TODO remove this line and update proof (should become simpler) *)
-Ltac canon_load_result ::= idtac.
-
+assert (forall i i', i'=Z.of_nat i -> 0<= i' <8 -> 0 <= i' < Zlength (add_upto i regs atoh)). {
+ intros;
+ rewrite Zlength_correct; rewrite length_add_upto by omega;
+ rewrite H; simpl; omega.
+}
+assert (0<=0) by computable.
 forward.
-entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
+autorewrite with sublist.
+rewrite ADD_S by (try reflexivity; clear; omega).
+forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
-forward; forward.
+autorewrite with sublist.
 simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 rewrite (add_upto_8 _ _ H H0).
 entailer!.

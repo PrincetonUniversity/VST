@@ -8,8 +8,12 @@ void store_SC(int *tgt, int v){
   atomic_store(tgt, v);
 }
 
-int CAS_SC (int *tgt, int c, int v){
+int CAS_SC(int *tgt, int c, int v){
   return atomic_compare_exchange_strong(tgt, c, v);
+}
+
+int atomic_exchange_SC(int *tgt, int v){
+  return atomic_exchange(tgt, v);
 }
 
 int load_acq(int *tgt){

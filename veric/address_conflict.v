@@ -66,8 +66,8 @@ Proof.
   destruct (Clight_lemmas.block_eq_dec b b0).
   + subst b0.
     unfold val2adr.
-    forget (Int.unsigned i) as i1;
-    forget (Int.unsigned i0) as i2;
+    forget (Ptrofs.unsigned i) as i1;
+    forget (Ptrofs.unsigned i0) as i2;
     clear i i0.
     destruct (range_dec i1 i2 (i1 + n1)); [| destruct (range_dec i2 i1 (i2 + n2))].
     - left.
@@ -101,7 +101,7 @@ Lemma pointer_range_overlap_refl: forall p n1 n2,
 Proof.
   intros.
   destruct p; try inversion H.
-  exists (b, Int.unsigned i), (b, Int.unsigned i).
+  exists (b, Ptrofs.unsigned i), (b, Ptrofs.unsigned i).
   repeat split; auto.
   apply range_overlap_spec; auto.
   left.

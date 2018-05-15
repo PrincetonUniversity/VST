@@ -21,8 +21,109 @@ Definition encryption_loop_body_Delta DS :=
      [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
      _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
      _b3__3; _t'4; _t'3; _t'2; _t'1]
-     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog))).
+     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil))).
 
+Definition encryption_loop_body_proof_statement :=
+ forall
+  (Espec : OracleKind)
+  (DS: PTree.t funspec)
+  (ctx input output : val)
+  (ctx_sh in_sh out_sh : share)
+  (plaintext exp_key : list Z)
+  (tables : val)
+  (H : Zlength plaintext = 16)
+  (H0 : Zlength exp_key = 60)
+  (SH : readable_share ctx_sh)
+  (SH0 : readable_share in_sh)
+  (SH1 : writable_share out_sh)
+  (buf : list Z)
+  (Heqbuf : buf = exp_key ++ list_repeat 8 0)
+  (Fctx : field_compatible t_struct_aesctx [StructField _buf] ctx)
+  (LenBuf : Zlength buf = 68)
+  (Eq : forall i : Z,
+     0 <= i < 60 ->
+     force_val
+       (sem_add_ptr_int tuint Signed
+          (field_address t_struct_aesctx [ArraySubsc i; StructField _buf] ctx)
+          (Vint (Int.repr 1))) =
+     field_address t_struct_aesctx [ArraySubsc (i + 1); StructField _buf] ctx)
+  (S12 S0 : four_ints)
+  (HeqS0 : S0 = mbed_tls_initial_add_round_key plaintext buf)
+  (HeqS12 : S12 = mbed_tls_enc_rounds 12 S0 buf 4)
+  (i : Z)
+  (H1 : 0 < i <= 6),
+semax (encryption_loop_body_Delta DS)
+  (PROP ( )
+   LOCAL (temp _i (Vint (Int.repr i));
+   temp _RK
+     (field_address t_struct_aesctx
+        [ArraySubsc (52 - i * 8); StructField _buf] ctx);
+   temp _X3
+     (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _X2
+     (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _X1
+     (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _X0
+     (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _output output;
+   gvar _tables tables)
+   SEP (data_at_ out_sh (tarray tuchar 16) output;
+   data_at Ews t_struct_tables
+     (map Vint FSb,
+     (map Vint FT0,
+     (map Vint FT1,
+     (map Vint FT2,
+     (map Vint FT3,
+     (map Vint RSb,
+     (map Vint RT0,
+     (map Vint RT1, (map Vint RT2, (map Vint RT3, map Vint RCON))))))))))
+     tables;
+   data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+   data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
+     map Vint (map Int.repr buf))) ctx))
+  encryption_loop_body
+  (normal_ret_assert
+     (EX a : Z,
+      PROP (0 < a <= 6)
+      LOCAL (temp _i (Vint (Int.repr a));
+      temp _RK
+        (field_address t_struct_aesctx
+           [ArraySubsc (52 - (a - 1) * 8); StructField _buf] ctx);
+      temp _X3
+        (Vint
+           (col 3 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (a - 1)) S0 buf 4)));
+      temp _X2
+        (Vint
+           (col 2 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (a - 1)) S0 buf 4)));
+      temp _X1
+        (Vint
+           (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (a - 1)) S0 buf 4)));
+      temp _X0
+        (Vint
+           (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (a - 1)) S0 buf 4)));
+      temp _output output; gvar _tables tables)
+      SEP (data_at_ out_sh (tarray tuchar 16) output;
+      data_at Ews t_struct_tables
+        (map Vint FSb,
+        (map Vint FT0,
+        (map Vint FT1,
+        (map Vint FT2,
+        (map Vint FT3,
+        (map Vint RSb,
+        (map Vint RT0,
+        (map Vint RT1, (map Vint RT2, (map Vint RT3, map Vint RCON))))))))))
+        tables;
+      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
+        input;
+      data_at ctx_sh t_struct_aesctx
+        (Vint (Int.repr Nr),
+        (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
+        map Vint (map Int.repr buf))) ctx))%assert).
+
+(* previous version used loop1_ret_assert, for the same proof
 Definition encryption_loop_body_proof_statement :=
  forall
   (Espec : OracleKind)
@@ -130,8 +231,7 @@ semax (encryption_loop_body_Delta DS)
          data_at ctx_sh t_struct_aesctx
            (Vint (Int.repr Nr),
            (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
-              ctx, map Vint (map Int.repr buf))) ctx)))).
-
+              ctx, map Vint (map Int.repr buf))) ctx)))).*)
 Hint Resolve 0%Z : inhabited.
 
 Lemma encryption_loop_body_proof: encryption_loop_body_proof_statement.
@@ -254,4 +354,3 @@ Time Qed.
   With deadvar-elim:  37.6 seconds, 0.934GB
   Without deadvar-elim: 47.8 seconds, 1.073 GB
   (This computer seems to be same speed as Sam's Ubuntu laptop *)
-

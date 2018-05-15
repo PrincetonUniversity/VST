@@ -13,8 +13,8 @@ Opaque Snuffle.Snuffle. Opaque prepare_data.
 Definition HFalse_inv l i xs ys :=
         Zlength l = 64 /\
                 forall ii, 0<=ii<i ->
-                  exists x_i, Znth ii (map Vint xs) Vundef = Vint x_i /\
-                  exists y_i, Znth ii (map Vint ys) Vundef = Vint y_i /\
+                  exists x_i, Znth ii (map Vint xs) = Vint x_i /\
+                  exists y_i, Znth ii (map Vint ys) = Vint y_i /\
                   sublist (4*ii) (4*ii+4) l =
                   QuadByte2ValList (littleendian_invert (Int.add x_i y_i)).
 
@@ -55,7 +55,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 
 Lemma verif_fcore_epilogue_hfalse Espec FR t y x w nonce out c k h OUT xs ys:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -84,12 +84,12 @@ eapply semax_post_flipped'.
     freeze [0;2;3] FR1.
     Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*1*)
     rewrite Zlength_map in XL.
-    destruct (Znth_mapVint (xs:list int) i Vundef) as [xi Xi]; try omega.
+    destruct (Znth_mapVint (xs:list int) i) as [xi Xi]; try omega.
     Time forward. 
     thaw FR1. freeze [0;2;3] FR2. 
     Time assert_PROP (Zlength (map Vint ys) = 16) as YL by entailer!. (*1*)
     rewrite Zlength_map in YL.
-    destruct (Znth_mapVint ys i Vundef) as [yi Yi]; try omega.
+    destruct (Znth_mapVint ys i) as [yi Yi]; try omega.
     Time forward.
     thaw FR2. freeze [0;2;3] FR3.
     Time assert_PROP (isptr out) as Pout by entailer!. (*1.9*)
@@ -103,14 +103,14 @@ eapply semax_post_flipped'.
     repeat flatten_sepcon_in_SEP.
 
     freeze [0;1;3] FR4.
-    rewrite Znth_map with (d':= Int.zero) in Xi, Yi; try omega. 
+    rewrite Znth_map in Xi, Yi; try omega. 
     inv Xi; inv Yi.
-    Time forward_call (Vptr b (Int.add z (Int.repr (1 * (4 * i)))), Int.add (Znth i xs Int.zero) (Znth i ys Int.zero)). (*3.6*)
+    Time forward_call (Vptr b (Ptrofs.add z (Ptrofs.repr (1 * (4 * i)))), Int.add (Znth i xs) (Znth i ys)). (*3.6*)
     { replace (4 + 4 * i - 4 * i) with 4 by omega. cancel. }
     entailer.
 
     Exists ((sublist 0 (4 * i) l) ++ 
-                      (QuadByte2ValList (littleendian_invert (Int.add (Znth i xs Int.zero) (Znth i ys Int.zero)))) ++
+                      (QuadByte2ValList (littleendian_invert (Int.add (Znth i xs) (Znth i ys)))) ++
                       (sublist (4 + 4 * i) 64 l)).
     autorewrite with sublist; try omega.
     Time entailer!.
@@ -143,9 +143,9 @@ eapply semax_post_flipped'.
        rewrite field_address0_offset by auto with field_compatible.
           repeat rewrite Z.mul_1_l. cancel.
           replace (offset_val (nested_field_offset (Tarray tuchar 64 noattr) [ArraySubsc (4 * i)]) (Vptr b z))
-          with (Vptr b (Int.add z (Int.repr (4 * i)))). 2: simpl; do 3 f_equal; omega.
+          with (Vptr b (Ptrofs.add z (Ptrofs.repr (4 * i)))). 2: simpl; do 3 f_equal; omega.
           replace (offset_val (nested_field_offset (Tarray tuchar 64 noattr) [ArraySubsc (4 + 4 * i)]) (Vptr b z))
-          with (Vptr b (Int.add z (Int.repr (4 + 4 * i)))). 2: simpl; do 3 f_equal; omega.
+          with (Vptr b (Ptrofs.add z (Ptrofs.repr (4 + 4 * i)))). 2: simpl; do 3 f_equal; omega.
           apply sepcon_derives; apply data_at_ext.
           + rewrite sublist_app1. rewrite sublist_same; trivial. omega. rewrite <- QuadByteValList_ZLength; omega.
           + rewrite 2 sublist_app2; try rewrite <- QuadByteValList_ZLength; rewrite ! Zlength_sublist; try omega. 

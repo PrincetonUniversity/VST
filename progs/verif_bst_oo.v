@@ -389,7 +389,7 @@ Proof.
     + forward. (* p = *t; *)
       forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).
-        1: simpl; repable_signed.
+        1: simpl; rep_omega.
       Intros p1.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
@@ -412,7 +412,7 @@ Proof.
         by (unfold field_address; simpl;
             rewrite if_true by auto with field_compatible; auto).
       simpl_compb. simpl_compb.
-      unfold_field_at 1%nat.
+      unfold_data_at 1%nat.
       rewrite (field_at_data_at _ t_struct_tree [StructField _value]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
@@ -475,7 +475,9 @@ Proof.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x. clear H1 H2.
+
         forward. (* return (&p->value) *)
+
         Exists v (offset_val 4 v).
         entailer!.
         rewrite (sepcon_comm (_ * _ * _ * _)); apply wand_sepcon_adjoint.
