@@ -480,10 +480,9 @@ Lemma semax_switch_PQR:
      is_int_type (typeof a) = true ->
      ENTAIL Delta, Pre |-- tc_expr Delta a ->
      ENTAIL Delta, Pre |-- local (`(eq (Vint (Int.repr n))) (eval_expr a)) ->
-     0 <= n <= Int.max_unsigned ->
      @semax CS Espec Delta 
                Pre
-               (seq_of_labeled_statement (select_switch n sl))
+               (seq_of_labeled_statement (select_switch (Int.unsigned (Int.repr n)) sl))
                (switch_ret_assert Post) ->
      @semax CS Espec Delta Pre (Sswitch a sl) Post.
 Proof.
@@ -492,7 +491,7 @@ eapply semax_pre.
 apply derives_refl.
 apply (semax_switch); auto.
 intro n'.
-assert_PROP (n = Int.unsigned n').
+assert_PROP (n' = Int.repr n). {
 apply derives_trans with (local (`( eq (Vint (Int.repr n))) (eval_expr a)) && local (` eq (eval_expr a) `(Vint n'))).
 apply andp_right.
 eapply derives_trans; [ | eassumption].
@@ -505,17 +504,74 @@ normalize.
 intro rho.
 unfold local, lift1, liftx, lift; simpl.
 normalize.
-rewrite <- H4 in H5.
-apply Vint_inj in H5.
+rewrite <- H3 in H4.
+apply Vint_inj in H4.
+auto.
+}
 subst n'.
-rewrite Int.unsigned_repr by auto. auto.
-subst.
 eapply semax_pre; [ | eassumption].
 apply andp_left2.
 apply andp_left2.
 apply andp_left2.
 auto.
 Qed.
+
+Lemma modulo_samerepr:
+ forall x y, 
+  Z.modulo x Int.modulus = Z.modulo y Int.modulus -> 
+  Int.repr x = Int.repr y.
+Proof.
+intros.
+apply Int.eqm_samerepr.
+apply Zmod_divide_minus in H; [ | reflexivity].
+unfold Int.eqm.
+unfold Int.eqmod.
+set (m := Int.modulus) in *.
+destruct H as [z ?].
+assert (x = y mod m + z * m) by omega.
+clear H. subst x.
+pose proof (Z.div_mod y m).
+spec H. intro Hx; inv Hx.
+evar (k: Z).
+exists k.
+rewrite H at 2; clear H.
+rewrite (Z.mul_comm m).
+assert (z * m = k*m + (y/m*m))%Z; [ | omega].
+rewrite <- Z.mul_add_distr_r.
+f_equal.
+assert (k = z - y/m); [ | omega].
+subst k.
+reflexivity.
+Qed.
+
+Lemma select_switch_case_signed:
+ forall y n x c sl,
+ Z.modulo x Int.modulus = Z.modulo y Int.modulus ->
+ 0 <= x < Int.modulus ->
+ select_switch_case n (LScons (Some x) c sl) = 
+ if zeq (Int.unsigned (Int.repr y)) n then Some (LScons (Some x) c sl)
+ else select_switch_case n sl.
+Proof.
+intros.
+simpl.
+apply modulo_samerepr in H.
+rewrite <- H.
+rewrite Int.unsigned_repr by rep_omega.
+auto.
+Qed.
+
+Definition signof (e: expr) := 
+  match typeof e with
+  | Tint _ s _ => s
+  | Tlong s _ => s 
+  | _ =>  Unsigned
+  end.
+
+Definition adjust_for_sign (s: signedness) (x: Z) :=
+ match s with
+ | Unsigned => x 
+ | Signed => if (zlt x Int.half_modulus) then x else x - Int.modulus 
+ end.
 
 (*
 Lemma normal_ret_assert_derives':

@@ -2051,27 +2051,33 @@ forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index value
 forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
-Ltac process_cases := 
+Ltac process_cases sign := 
 match goal with
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
-      change (select_switch_case N (LScons (Some X) C SL))
-       with (if zeq X N then Some (LScons (Some X) C SL)
-                 else select_switch_case N SL);
+       let y := constr:(adjust_for_sign sign X) in let y := eval compute in y in 
+      rewrite (select_switch_case_signed y); 
+           [ | reflexivity | clear; compute; split; congruence];
      let E := fresh "E" in let NE := fresh "NE" in 
-     destruct (zeq N X) as [E|NE];
+     destruct (zeq N (Int.unsigned (Int.repr y))) as [E|NE];
       [ rewrite if_true; [ unfold seq_of_labeled_statement at 1 | symmetry; apply E];
-        try subst N; repeat apply -> semax_skip_seq
-     | rewrite if_false; [ | contradict NE; symmetry; apply NE];
-       process_cases
+        apply unsigned_eq_eq in E;
+        match sign with
+        | Signed => apply repr_inj_signed in E; [ | rep_omega | rep_omega]
+        | Unsigned => apply repr_inj_unsigned in E; [ | rep_omega | rep_omega]
+        end;
+        try match type of E with ?a = _ => is_var a; subst a end;
+        repeat apply -> semax_skip_seq
+     | rewrite if_false by (contradict NE; symmetry; apply NE);
+        process_cases sign
     ]
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons None ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
       change (select_switch_case N (LScons None C SL))
        with (select_switch_case N SL);
-     process_cases
+      process_cases sign
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N LSnil
       with Some _ => _ | None => _ end) _ =>
@@ -2082,9 +2088,11 @@ match goal with
       repeat apply -> semax_skip_seq
 end.
 
+
 Ltac forward_switch' := 
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ =>
+   let sign := constr:(signof e) in let sign := eval hnf in sign in
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
     do_compute_expr Delta P Q R e v HRE;
@@ -2102,12 +2110,12 @@ match goal with
          rewrite (Int.repr_unsigned (Int.repr _)) in HRE;
          eapply semax_switch_PQR; 
            [reflexivity | check_typecheck | exact HRE 
-           | clear HRE; try omega
            | clear HRE; unfold select_switch at 1; unfold select_switch_default at 1;
              try match goal with H := @abbreviate statement _ |- _ => clear H end;
-             process_cases]
+             process_cases sign ]
 ]
 end.
+
 
 Definition nofallthrough ek :=
  match ek with
