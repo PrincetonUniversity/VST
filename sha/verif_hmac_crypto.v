@@ -124,9 +124,6 @@ rewrite memory_block_isptr. Intros.
 assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
 simpl fn_body.
 forward_if (isptr buf).
-  { apply denote_tc_test_eq_split.
-    apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
-    apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. }
 Intros.

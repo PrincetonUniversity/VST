@@ -474,6 +474,22 @@ Ltac Zground X :=
   | xI ?y => Zground y
  end.
 
+Ltac natground X :=
+  match X with O => idtac | S ?Y => natground Y end.
+
+Ltac compute_Z_of_nat :=
+ repeat
+  match goal with
+  | H: context [Z.of_nat ?n] |- _ => 
+          natground n; 
+          let z := constr:(Z.of_nat n) in let y := eval hnf in z 
+           in change z with y in *
+  | |- context [Z.of_nat ?n] => 
+          natground n; 
+          let z := constr:(Z.of_nat n) in let y := eval hnf in z 
+           in change z with y in *
+   end.
+
 (*
 Ltac pose_const_equation X :=
  match goal with
@@ -539,6 +555,7 @@ Ltac rep_omega_setup :=
             end;
   try autorewrite with rep_omega in *;
   unfold repable_signed in *;
+  compute_Z_of_nat;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
   pose_lemmas Byte.signed Byte.signed_range;

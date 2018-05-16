@@ -582,7 +582,15 @@ Ltac check_function_name :=
 Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 
 Ltac check_cast_params :=
-   first [reflexivity | elimtype Actual_parameters_cannot_be_coerced_to_formal_parameter_types].
+reflexivity + 
+(simpl explicit_cast_exprlist;
+match goal with |- force_list (map ?F ?A) = _ =>
+  let el := constr:(A) in 
+  let bl := constr:(map F A) in
+  let cl := eval simpl in bl in 
+  fail 100 "Some of the argument expressions in your function call do not evaluate (sometimes this is caused by missing LOCALs in your precondition).  Your argument expressions are:"
+         el "They evaluate (or fail) as follows:" cl
+end).
 
 Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
     Type -> Type -> Prop := .
@@ -605,6 +613,7 @@ Ltac lookup_spec id :=
  tryif apply f_equal_Some
  then
    match goal with
+   | |- vacuous_funspec _ = _ => fail 100 "Your Gprog contains no funspec with the name" id
    | |- ?fs = _ => check_canonical_funspec (id,fs);
       first [reflexivity |
       match goal with
@@ -2053,7 +2062,7 @@ match goal with
      let E := fresh "E" in let NE := fresh "NE" in 
      destruct (zeq N X) as [E|NE];
       [ rewrite if_true; [ unfold seq_of_labeled_statement at 1 | symmetry; apply E];
-        try subst N
+        try subst N; repeat apply -> semax_skip_seq
      | rewrite if_false; [ | contradict NE; symmetry; apply NE];
        process_cases
     ]
@@ -2069,7 +2078,8 @@ match goal with
       change (select_switch_case N LSnil)
            with (@None labeled_statements);
       cbv iota;
-      unfold seq_of_labeled_statement at 1
+      unfold seq_of_labeled_statement at 1;
+      repeat apply -> semax_skip_seq
 end.
 
 Ltac forward_switch' := 

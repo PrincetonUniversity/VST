@@ -1577,3 +1577,14 @@ Qed.
 
 (****** End contractiveness *****)
 
+Require Import VST.msl.ghost_seplog.
+
+Lemma bupd_andp2_corable: forall {A N D: Type} {ND : NatDed A} {SL : SepLog A} {CSL: ClassicalSep A} {BS : BupdSepLog A N D} {CoSL: CorableSepLog A},
+  forall P Q, corable Q -> (|==> P) && Q |-- |==> (P && Q).
+Proof.
+  intros.
+  rewrite (andp_comm P Q), (andp_left_corable Q), sepcon_comm by auto.
+  eapply derives_trans; [| apply bupd_frame_r].
+  rewrite (andp_comm _ Q), (andp_left_corable Q), sepcon_comm by auto.
+  auto.
+Qed.
