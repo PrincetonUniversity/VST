@@ -1,5 +1,5 @@
 Require Import VST.veric.juicy_base.
-Require Import VST.concurrency.core_semantics.
+Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
@@ -23,50 +23,36 @@ Class OracleKind := {
   OK_spec: juicy_ext_spec OK_ty
 }.
 
-Definition j_initial_core {C} (csem: @CoreSemantics C mem)
-     (n: nat) (m: juicy_mem) (q: C) (v: val) (args: list val) 
-     : Prop :=
-  core_semantics.initial_core csem n (m_dry m) q v args.
-
-Definition j_at_external {C} (csem: @CoreSemantics C mem)
-   (q: C) (jm: juicy_mem) : option (external_function * list val) :=
- core_semantics.at_external csem q (m_dry jm).
-
-Definition j_after_external {C} (csem: @CoreSemantics C mem)
-    (ret: option val) (q: C) (jm: juicy_mem) :=
-  core_semantics.after_external csem ret q (m_dry jm).
-
-Definition jstep {C} (csem: @CoreSemantics C mem)
- (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
- corestep csem q (m_dry jm) q' (m_dry jm') /\
- resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+Definition jstep {G C} (csem: @CoreSemantics G C mem)
+  (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
+ corestep csem ge q (m_dry jm) q' (m_dry jm') /\ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm') /\
  ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)).
 
-Definition j_halted {C} (csem: @CoreSemantics C mem)
-       (c: C) (i: int): Prop :=
-     halted csem c i.
+Definition j_halted {G C} (csem: @CoreSemantics G C mem)
+       (c: C) : option val :=
+     halted csem c.
 
-Lemma jstep_not_at_external {C} (csem: @CoreSemantics C mem):
-  forall m q m' q', jstep csem q m q' m' -> at_external csem q (m_dry m) = None.
+Lemma jstep_not_at_external {G C} (csem: @CoreSemantics G C mem):
+  forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
 Proof.
   intros.
   destruct H as (? & ? & ? & ?). eapply corestep_not_at_external; eauto.
 Qed.
 
-Lemma jstep_not_halted  {C} (csem: @CoreSemantics C mem):
-  forall m q m' q' i, jstep csem q m q' m' -> ~j_halted csem q i.
+Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
+  forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
 Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
 Qed.
 
-(*Lemma j_at_external_halted_excl {C} (csem: @CoreSemantics C mem):
-  forall ge (q : C) m,
-  j_at_external csem q m = None \/ j_halted csem q = None.
+Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
+  forall (q : C),
+  at_external csem q = None \/ j_halted csem q = None.
 Proof.
- intros. unfold j_at_external, j_halted.
- destruct (at_external_halted_excl csem q (m_dry m)); [left | right]; auto.
-Qed.*)
+ intros.
+ destruct (at_external_halted_excl csem q); [left | right]; auto.
+Qed.
 
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
@@ -83,17 +69,17 @@ Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem
-  {C} (csem: @CoreSemantics C mem) :
-   @CoreSemantics C juicy_mem :=
-  @Build_CoreSemantics _ juicy_mem
-    (j_initial_core csem)
-    (j_at_external csem)
-    (j_after_external csem)
-    (j_halted csem)
+  {G C} (csem: @CoreSemantics G C mem) :
+   @CoreSemantics G C juicy_mem :=
+  @Build_CoreSemantics _ _ _
+    (semantics.initial_core csem)
+    (at_external csem)
+    (after_external csem)
+        (j_halted csem)
     (jstep csem)
-    (jstep_not_halted csem)
     (jstep_not_at_external csem)
-(*  (j_at_external_halted_excl csem)*).
+    (jstep_not_halted csem)
+    (j_at_external_halted_excl csem).
 
 Section upd_exit.
   Context {Z : Type}.
@@ -267,177 +253,10 @@ Proof.
   eexists; split; eauto; repeat split; auto.
 Qed.
 
-Lemma juicy_core_sem_preserves_corestep_fun
-  {C} (csem: @CoreSemantics C mem) :
-  corestep_fun csem ->
-  corestep_fun (juicy_core_sem csem).
-Proof.
-  intros determinism jm q jm1 q1 jm2 q2 step1 step2.
-  destruct step1 as [step1 [[ll1 rd1] [l1 g1]]].
-  destruct step2 as [step2 [[ll2 rd2] [l2 g2]]].
-  pose proof determinism _ _ _ _ _ _ step1 step2 as E.
-  injection E as <- E; f_equal.
-  apply juicy_mem_ext; auto.
-  assert (El: level jm1 = level jm2) by (clear -l1 l2; omega).
-  apply rmap_ext. now do 2 rewrite <-level_juice_level_phi; auto.
-  intros l.
-  specialize (rd1 l); specialize (rd2 l).
-  rewrite level_juice_level_phi in *.
-  destruct jm  as [m  phi  jmc  jmacc  jmma  jmall ].
-  destruct jm1 as [m1 phi1 jmc1 jmacc1 jmma1 jmall1].
-  destruct jm2 as [m2 phi2 jmc2 jmacc2 jmma2 jmall2].
-  simpl in *.
-  subst m2; rename m1 into m'.
-  destruct rd1 as [jmno [E1 | [[sh1 [rsh1 [v1 [v1' [E1 E1']]]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
-  destruct rd2 as [_    [E2 | [[sh2 [rsh2 [v2 [v2' [E2 E2']]]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
-  try pose proof jmno pos1 as phino; try pose proof (jmno pos2) as phino; clear jmno;
-    remember (phi  @ l) as x ;
-    remember (phi1 @ l) as x1;
-    remember (phi2 @ l) as x2;
-    subst.
-
-  - (* phi1: same   | phi2: same   *)
-    congruence.
-
-  - (* phi1: same   | phi2: update *)
-    rewrite <- E1, El.
-    rewrite El in E1.
-    rewrite E1 in E2.
-    destruct (jmc1 _ _ _ _ _ E2).
-    destruct (jmc2 _ _ _ _ _ E2').
-    congruence.
-
-  - (* phi1: same   | phi2: alloc  *)
-    exfalso.
-    rewrite phino in E1. simpl in E1.
-    specialize (jmacc1 l).
-    rewrite <- E1 in jmacc1.
-    simpl in jmacc1.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    specialize (jmacc2 l).
-    rewrite E2 in jmacc2.
-    simpl in jmacc2.
-    rewrite jmacc1 in jmacc2.
-    clear -jmacc2. exfalso.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
-  - (* phi1: same   | phi2: free   *)
-    exfalso.
-    rewrite E2 in E1.
-    simpl in E1.
-    specialize (jmacc1 l).
-    rewrite <- E1 in jmacc1.
-    simpl in jmacc1.
-    specialize (jmacc2 l).
-    rewrite E2' in jmacc2.
-    simpl in jmacc2.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc1 in jmacc2.
-    clear -jmacc2. exfalso.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
-  - (* phi1: update | phi2: same   *)
-    rewrite <- E2, <-El.
-    rewrite <-El in E2.
-    rewrite E2 in E1.
-    destruct (jmc1 _ _ _ _ _ E1').
-    destruct (jmc2 _ _ _ _ _ E1).
-    congruence.
-
-  - (* phi1: update | phi2: update *)
-    destruct (jmc1 _ _ _ _ _ E1').
-    destruct (jmc2 _ _ _ _ _ E2').
-    rewrite E1', E2'.
-    destruct (phi@l); inv E1; inv E2.
-    f_equal. apply proof_irr.
-  - (* phi1: update | phi2: alloc  *)
-    rewrite phino in E1.
-    simpl in E1.
-    inversion E1.
-
-  - (* phi1: update | phi2: free   *)
-    exfalso.
-    rewrite E2 in E1.
-    simpl in E1.
-    specialize (jmacc1 l).
-    rewrite E1' in jmacc1.
-    simpl in jmacc1.
-    specialize (jmacc2 l).
-    rewrite E2' in jmacc2.
-    simpl in jmacc2.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc1 in jmacc2.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; try congruence.  
-  - (* phi1: alloc  | phi2: same   *)
-    exfalso.
-    rewrite phino in E2. simpl in E2.
-    specialize (jmacc2 l).
-    rewrite <- E2 in jmacc2.
-    simpl in jmacc2.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    specialize (jmacc1 l).
-    rewrite E1 in jmacc1.
-    simpl in jmacc1.
-    rewrite jmacc2 in jmacc1.
-    clear -jmacc1.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial. 
-  - (* phi1: alloc  | phi2: update *)
-    rewrite phino in E2.
-    simpl in E2.
-    inversion E2.
-
-  - (* phi1: alloc  | phi2: alloc  *)
-    destruct (jmc1 _ _ _ _ _ E1).
-    destruct (jmc2 _ _ _ _ _ E2).
-    congruence.
-
-  - (* phi1: alloc  | phi2: free   *)
-    congruence.
-
-  - (* phi2: free   | phi2: same   *)
-    exfalso.
-    rewrite E1 in E2.
-    simpl in E2.
-    specialize (jmacc2 l).
-    rewrite <- E2 in jmacc2.
-    simpl in jmacc2.
-    specialize (jmacc1 l).
-    rewrite E1' in jmacc1.
-    simpl in jmacc1.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc2 in jmacc1.
-    clear -jmacc1. exfalso.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial.  
-  - (* phi2: free   | phi2: update *)
-    exfalso.
-    rewrite E1 in E2.
-    simpl in E2.
-    specialize (jmacc2 l).
-    rewrite E2' in jmacc2.
-    simpl in jmacc2.
-    specialize (jmacc1 l).
-    rewrite E1' in jmacc1.
-    simpl in jmacc1.
-    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
-    rewrite jmacc2 in jmacc1.
-    clear -jmacc1 rsh2.
-    unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; try congruence.
-  - (* phi2: free   | phi2: alloc  *)
-    congruence.
-
-  - (* phi2: free   | phi2: free   *)
-    congruence.
-  - congruence.
-Qed.
-
 Section juicy_safety.
   Context {G C Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
-  Context (Hcore:@CoreSemantics C mem).
+  Context (Hcore:@CoreSemantics G C mem).
   Variable (Hspec : juicy_ext_spec Z).
   Variable ge : G.
 
@@ -451,12 +270,12 @@ Section juicy_safety.
   | jsafeN_0: forall z c m, jsafeN_ O z c m
   | jsafeN_step:
       forall n z c m c' m',
-      jstep Hcore c m c' m' ->
+      jstep Hcore ge c m c' m' ->
       jm_bupd z (jsafeN_ n z c') m' ->
       jsafeN_ (S n) z c m
   | jsafeN_external:
       forall n z c m e args x,
-      j_at_external Hcore c m = Some (e,args) ->
+      semantics.at_external Hcore c = Some (e,args) ->
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
@@ -465,13 +284,13 @@ Section juicy_safety.
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
-           core_semantics.after_external Hcore ret c (m_dry m') = Some c' /\
+           semantics.after_external Hcore ret c = Some c' /\
            jm_bupd z' (jsafeN_ n' z' c') m') ->
       jsafeN_ (S n) z c m
   | jsafeN_halted:
       forall n z c m i,
-      core_semantics.halted Hcore c i ->
-      ext_spec_exit Hspec (Some (Vint i)) z m ->
+      semantics.halted Hcore c = Some i ->
+      ext_spec_exit Hspec (Some i) z m ->
       jsafeN_ n z c m.
 
 (*  Lemma jsafe_corestep_forward:
@@ -489,7 +308,7 @@ Section juicy_safety.
 
   Lemma jsafe_corestep_backward:
     forall c m c' m' n z,
-    jstep Hcore c m c' m' ->
+    jstep Hcore ge c m c' m' ->
     jsafeN_ n z c' m' -> jsafeN_ (S n) z c m.
   Proof.
     intros; eapply jsafeN_step; eauto.
@@ -544,7 +363,7 @@ Section juicy_safety.
   Lemma jsafe_step'_back2 :
     forall
       {ora st m st' m' n},
-      jstep Hcore st m st' m' ->
+      jstep Hcore ge st m st' m' ->
       jsafeN_ (n-1) ora st' m' ->
       jsafeN_ n ora st m.
   Proof.
@@ -556,7 +375,7 @@ Section juicy_safety.
     omega.
   Qed.
 
-  Lemma jsafe_corestepN_backward:
+(*  Lemma jsafe_corestepN_backward:
     forall z c m c' m' n n0,
       semantics_lemmas.corestepN (juicy_core_sem Hcore) n0 c m c' m' ->
       jsafeN_ (n - n0) z c' m' ->
@@ -572,16 +391,16 @@ Section juicy_safety.
     eapply jsafe_downward in H0; eauto. omega.
     specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply jsafe_step'_back2; eauto].
-  Qed.
+  Qed.*)
 
   Lemma convergent_controls_jsafe :
     forall m q1 q2,
-      (j_at_external Hcore q1 m = j_at_external Hcore q2 m) ->
-      (forall ret m q', core_semantics.after_external Hcore ret q1 m = Some q' ->
-                      core_semantics.after_external Hcore ret q2 m = Some q') ->
-      (core_semantics.halted Hcore q1 = core_semantics.halted Hcore q2) ->
-      (forall q' m', jstep Hcore q1 m q' m' ->
-                     jstep Hcore q2 m q' m') ->
+      (semantics.at_external Hcore q1 = semantics.at_external Hcore q2) ->
+      (forall ret q', semantics.after_external Hcore ret q1 = Some q' ->
+                      semantics.after_external Hcore ret q2 = Some q') ->
+      (semantics.halted Hcore q1 = semantics.halted Hcore q2) ->
+      (forall q' m', jstep Hcore ge q1 m q' m' ->
+                     jstep Hcore ge q2 m q' m') ->
       (forall n z, jsafeN_ n z q1 m -> jsafeN_ n z q2 m).
   Proof.
     intros. destruct n; simpl in *; try constructor.
@@ -741,3 +560,170 @@ Proof.
 Qed.
 
 End juicy_safety.
+
+Lemma juicy_core_sem_preserves_corestep_fun
+  {G C} (csem: @CoreSemantics G C mem) :
+  corestep_fun csem ->
+  corestep_fun (juicy_core_sem csem).
+Proof.
+  intros determinism ge jm q jm1 q1 jm2 q2 step1 step2.
+  destruct step1 as [step1 [[ll1 rd1] [l1 g1]]].
+  destruct step2 as [step2 [[ll2 rd2] [l2 g2]]].
+  pose proof determinism _ _ _ _ _ _ _ step1 step2 as E.
+  injection E as <- E; f_equal.
+  apply juicy_mem_ext; auto.
+  assert (El: level jm1 = level jm2) by (clear -l1 l2; omega).
+  apply rmap_ext. now do 2 rewrite <-level_juice_level_phi; auto.
+  intros l.
+  specialize (rd1 l); specialize (rd2 l).
+  rewrite level_juice_level_phi in *.
+  destruct jm  as [m  phi  jmc  jmacc  jmma  jmall ].
+  destruct jm1 as [m1 phi1 jmc1 jmacc1 jmma1 jmall1].
+  destruct jm2 as [m2 phi2 jmc2 jmacc2 jmma2 jmall2].
+  simpl in *.
+  subst m2; rename m1 into m'.
+  destruct rd1 as [jmno [E1 | [[sh1 [rsh1 [v1 [v1' [E1 E1']]]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
+  destruct rd2 as [_    [E2 | [[sh2 [rsh2 [v2 [v2' [E2 E2']]]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
+  try pose proof jmno pos1 as phino; try pose proof (jmno pos2) as phino; clear jmno;
+    remember (phi  @ l) as x ;
+    remember (phi1 @ l) as x1;
+    remember (phi2 @ l) as x2;
+    subst.
+
+  - (* phi1: same   | phi2: same   *)
+    congruence.
+
+  - (* phi1: same   | phi2: update *)
+    rewrite <- E1, El.
+    rewrite El in E1.
+    rewrite E1 in E2.
+    destruct (jmc1 _ _ _ _ _ E2).
+    destruct (jmc2 _ _ _ _ _ E2').
+    congruence.
+
+  - (* phi1: same   | phi2: alloc  *)
+    exfalso.
+    rewrite phino in E1. simpl in E1.
+    specialize (jmacc1 l).
+    rewrite <- E1 in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    specialize (jmacc2 l).
+    rewrite E2 in jmacc2.
+    simpl in jmacc2.
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
+  - (* phi1: same   | phi2: free   *)
+    exfalso.
+    rewrite E2 in E1.
+    simpl in E1.
+    specialize (jmacc1 l).
+    rewrite <- E1 in jmacc1.
+    simpl in jmacc1.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
+  - (* phi1: update | phi2: same   *)
+    rewrite <- E2, <-El.
+    rewrite <-El in E2.
+    rewrite E2 in E1.
+    destruct (jmc1 _ _ _ _ _ E1').
+    destruct (jmc2 _ _ _ _ _ E1).
+    congruence.
+
+  - (* phi1: update | phi2: update *)
+    destruct (jmc1 _ _ _ _ _ E1').
+    destruct (jmc2 _ _ _ _ _ E2').
+    rewrite E1', E2'.
+    destruct (phi@l); inv E1; inv E2.
+    f_equal. apply proof_irr.
+  - (* phi1: update | phi2: alloc  *)
+    rewrite phino in E1.
+    simpl in E1.
+    inversion E1.
+
+  - (* phi1: update | phi2: free   *)
+    exfalso.
+    rewrite E2 in E1.
+    simpl in E1.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc1 in jmacc2.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; try congruence.  
+  - (* phi1: alloc  | phi2: same   *)
+    exfalso.
+    rewrite phino in E2. simpl in E2.
+    specialize (jmacc2 l).
+    rewrite <- E2 in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    specialize (jmacc1 l).
+    rewrite E1 in jmacc1.
+    simpl in jmacc1.
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial. 
+  - (* phi1: alloc  | phi2: update *)
+    rewrite phino in E2.
+    simpl in E2.
+    inversion E2.
+
+  - (* phi1: alloc  | phi2: alloc  *)
+    destruct (jmc1 _ _ _ _ _ E1).
+    destruct (jmc2 _ _ _ _ _ E2).
+    congruence.
+
+  - (* phi1: alloc  | phi2: free   *)
+    congruence.
+
+  - (* phi2: free   | phi2: same   *)
+    exfalso.
+    rewrite E1 in E2.
+    simpl in E2.
+    specialize (jmacc2 l).
+    rewrite <- E2 in jmacc2.
+    simpl in jmacc2.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial.  
+  - (* phi2: free   | phi2: update *)
+    exfalso.
+    rewrite E1 in E2.
+    simpl in E2.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1 rsh2.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; try congruence.
+  - (* phi2: free   | phi2: alloc  *)
+    congruence.
+
+  - (* phi2: free   | phi2: free   *)
+    congruence.
+  - congruence.
+Qed.

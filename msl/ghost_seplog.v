@@ -8,10 +8,16 @@ Local Open Scope logic.
 Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
   bupd: A -> A;
   own: forall {RA: Ghost}, N -> G -> D -> A;
+  physical: A -> Prop;
   bupd_intro: forall P, P |-- bupd P;
   bupd_mono: forall P Q, P |-- Q -> bupd P |-- bupd Q;
   bupd_trans: forall P, bupd (bupd P) |-- bupd P;
   bupd_frame_r: forall P Q, bupd P * Q |-- bupd (P * Q);
+  bupd_physical: forall P, physical P -> bupd P |-- P;
+  bupd_frame_r_phys: forall P Q, physical Q -> bupd P && Q |-- bupd (P && Q);
+  prop_physical: forall P, physical (!! P);
+  andp_physical: forall P Q, physical P -> physical Q -> physical (P && Q);
+  sepcon_physical: forall P Q, physical P -> physical Q -> physical (P * Q);
   own_alloc: forall {RA: Ghost} a pp, valid a ->
     emp |-- bupd (EX g: N, own g a pp);
   own_op: forall {RA: Ghost} g (a1 a2 a3: G) pp, join a1 a2 a3 ->
@@ -37,6 +43,20 @@ Proof.
   eapply derives_trans, bupd_trans.
   eapply derives_trans; [apply bupd_frame_l|].
   apply bupd_mono, bupd_frame_r.
+Qed.
+
+Lemma bupd_physical_eq : forall `{BupdSepLog} P, physical P -> bupd P = P.
+Proof.
+  intros; apply pred_ext; [apply bupd_physical; auto | apply bupd_intro].
+Qed.
+
+Lemma bupd_frame_l_phys : forall `{BupdSepLog} (P Q: A), physical P ->
+  (P && |==> Q) |-- |==> P && Q.
+Proof.
+  intros; eapply derives_trans.
+  { apply andp_right; [apply andp_left2 | apply andp_left1]; apply derives_refl. }
+  eapply derives_trans; [apply bupd_frame_r_phys; auto|].
+  apply bupd_mono, andp_right; [apply andp_left2 | apply andp_left1]; apply derives_refl.
 Qed.
 
 Inductive Singleton {A} (x : A) : A -> Prop :=
@@ -78,12 +98,17 @@ Qed.
 
 Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
   BupdSepLog (A -> B) N D.
- apply (mkBSL _ _ _ _ _ (fun P rho => |==> P rho) (fun RA g a pp rho => own g a pp));
-   repeat intro; simpl.
+ apply (mkBSL _ _ _ _ _ (fun P rho => |==> P rho) (fun RA g a pp rho => own g a pp)
+   (fun P => forall rho, physical (P rho))); repeat intro; simpl.
  apply bupd_intro.
  apply bupd_mono; auto.
  apply bupd_trans.
  apply bupd_frame_r.
+ apply bupd_physical; auto.
+ apply bupd_frame_r_phys; auto.
+ apply prop_physical.
+ apply andp_physical; auto.
+ apply sepcon_physical; auto.
  apply own_alloc; auto.
  extensionality rho; apply own_op; auto.
  apply own_valid_2.
