@@ -517,8 +517,6 @@ Proof.
    destruct Hupd1 as (? & ? & ?).
    eapply IHN; eauto; omega.
   + eapply jsafeN_external; [eauto | eapply JE_pre_hered; eauto |].
-    { unfold j_at_external in *.
-      rewrite <- (age_jm_dry H2); eauto. }
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
     - assert (level (m_phi jm) < level (m_phi jm0)).
