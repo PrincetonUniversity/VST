@@ -12,6 +12,27 @@ Require Import VST.veric.NullExtension.
 
 Local Open Scope logic.
 
+(* Aux *)
+
+Lemma local_andp_bupd: forall P Q,
+  (local P && |==> Q) |-- |==> (local P && Q).
+Proof.
+  intros.
+  rewrite !(andp_comm (local P)).
+  apply bupd_andp2_corable.
+  intro; apply corable_prop.
+Qed.
+
+Lemma bupd_andp_local: forall P Q,
+  (|==> P) && local Q |-- |==> (P && local Q).
+Proof.
+  intros.
+  apply bupd_andp2_corable.
+  intro; apply corable_prop.
+Qed.
+
+(* Aux ends *)
+
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -144,6 +165,87 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
+(* Copied from canon.v *)
+
+Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
+ forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+    (local (tc_environ Delta) && P |-- P') ->
+    local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+   @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
+Proof.
+  intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
+Qed.
+
+Lemma semax_pre_bupd:
+ forall P' Espec {cs: compspecs} Delta P c R,
+     local (tc_environ Delta) && P |-- |==> P' ->
+     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_bupd; eauto;
+intros; apply andp_left2, bupd_intro; auto.
+Qed.
+
+Lemma semax_pre: forall {Espec: OracleKind}{cs: compspecs},
+ forall P' Delta P c R,
+     local (tc_environ Delta) && P |-- P' ->
+     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_bupd; eauto.
+eapply derives_trans, bupd_intro; auto.
+Qed.
+
+Lemma semax_post_bupd:
+ forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
+   local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
+   local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
+   local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
+   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
+   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_bupd; try eassumption.
+apply andp_left2, bupd_intro; auto.
+Qed.
+
+Lemma semax_post:
+ forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
+   local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
+   local (tc_environ Delta) && RA_break R' |-- RA_break R ->
+   local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
+   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
+   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post; try eassumption.
+apply andp_left2; auto.
+Qed.
+
+(* Copied from canon.v end. *)
+
+Lemma semax_skip_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R,
+    @semax CS Espec Delta P Sskip R ->
+    local (tc_environ Delta) && P |-- |==> RA_normal R.
+Proof.
+  intros.
+  remember Sskip as c eqn:?H.
+  induction H; try solve [inv H0].
+  + apply andp_left2, bupd_intro.
+  + specialize (IHsemax H0).
+    rewrite (add_andp _ _ H).
+    rewrite (andp_comm _ P), andp_assoc; apply andp_left2.
+    eapply derives_trans; [apply local_andp_bupd |].
+    rewrite (add_andp _ _ IHsemax).
+    rewrite (andp_comm _ P'), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
+    eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
+    eapply derives_trans; [apply bupd_trans|].
+    rewrite (add_andp _ _ H1).
+    rewrite (andp_comm _ (RA_normal R')), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
+    eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
+    eapply derives_trans; [apply bupd_trans|].
+    apply bupd_mono; solve_andp.
+Qed.
+
 Lemma semax_seq_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
     @semax CS Espec Delta P (Ssequence h t) R ->
     exists Q, @semax CS Espec Delta P h (overridePost Q R) /\
@@ -166,9 +268,56 @@ Proof.
       * destruct R, R'; auto.
       * destruct R, R'; auto.
       * destruct R, R'; auto.
-    - apply (semax_pre_post_bupd _ Q R'); auto.
-      * apply andp_left2, bupd_intro.
+    - apply (semax_post_bupd R'); auto.
 Qed.
+
+Lemma semax_if_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
+  @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
+  @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
+  @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) c2 R /\
+  local (tc_environ Delta) && P |-- tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)).
+Proof.
+  intros.
+  remember (Sifthenelse b c1 c2) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0; clear IHsemax1 IHsemax2.
+    split; [| split].
+    - eapply semax_pre; [.. | exact H1].
+      rewrite !andp_assoc. solve_andp.
+    - eapply semax_pre; [.. | exact H2].
+      rewrite !andp_assoc. solve_andp.
+    - solve_andp.
+  + specialize (IHsemax H0).
+    destruct IHsemax as [? [? ?]]; split; [| split].
+    - eapply semax_pre_post_bupd; [.. | exact H6]; auto.
+      eapply derives_trans; [| apply bupd_andp_local].
+      rewrite <- andp_assoc; apply andp_derives; auto.
+    - eapply semax_pre_post_bupd; [.. | exact H7]; auto.
+      eapply derives_trans; [| apply bupd_andp_local].
+      rewrite <- andp_assoc; apply andp_derives; auto.
+    -
+Abort.
+
+Lemma extract_exists_pre:
+  forall  {Espec: OracleKind}{CS: compspecs} ,
+  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (P x) c R) ->
+   @semax CS Espec Delta (EX x:A, P x) c R.
+Proof.
+  intros.
+  induction c.
+  + eapply semax_post_bupd; [.. | apply semax_skip].
+    - change (RA_normal (normal_ret_assert (EX x : A, P x))) with (EX x : A, P x).
+      rewrite exp_andp2; apply exp_left.
+      intro x.
+      specialize (H x).
+      apply semax_skip_inv in H.
+      auto.
+    - apply andp_left2, FF_left.
+    - apply andp_left2, FF_left.
+    - intro; apply andp_left2, FF_left.
+  +
+Abort.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
