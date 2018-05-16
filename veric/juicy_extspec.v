@@ -239,12 +239,12 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
-Definition has_ext {Z} (ora : Z) : pred rmap := @own (ext_PCM _) 0 ora NoneP.
+Definition has_ext {Z} (ora : Z) : pred rmap := @own (ext_PCM _) 0 (Some (Tsh, Some ora), None) NoneP.
 
 (* use the external state to restrict the ghost moves *)
 Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
-  joins (ghost_of (m_phi m)) ((ghost_approx m) (Some (ext_ghost ora, NoneP) :: C)) ->
-  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) (Some (ext_ghost ora, NoneP) :: C)) /\
+  joins (ghost_of (m_phi m)) ((ghost_approx m) (Some (ext_ref ora, NoneP) :: C)) ->
+  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) (Some (ext_ref ora, NoneP) :: C)) /\
     jm_update m m' /\ P m'.
 
 Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
@@ -371,8 +371,8 @@ Section juicy_safety.
   Qed.
 
 Lemma make_join_ext : forall {Z} (ora : Z) a c m,
-  joins (ghost_approx m a) (ghost_approx m (Some (ext_ghost ora, NoneP) :: c)) ->
-  make_join a (Some (ext_ghost ora, NoneP) :: c) = Some (ext_ghost ora, NoneP) :: make_join (tl a) c.
+  joins (ghost_approx m a) (ghost_approx m (Some (ext_ref ora, NoneP) :: c)) ->
+  make_join a (Some (ext_ref ora, NoneP) :: c) = Some (ext_ref ora, NoneP) :: make_join (tl a) c.
 Proof.
   intros.
   destruct a; auto; simpl.
