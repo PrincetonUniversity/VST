@@ -5,68 +5,67 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition strchr_spec :=
  DECLARE _strchr
-  WITH str : val, s : list byte, c : byte
+  WITH sh: share, str : val, s : list byte, c : byte
   PRE  [ _str OF tptr tschar, _c OF tint ]
-    PROP (c <> Byte.zero)
+    PROP (readable_share sh; c <> Byte.zero)
     LOCAL (temp _str str; temp _c (Vbyte c))
-    SEP (cstring s str)
+    SEP (cstring sh s str)
   POST [ tptr tschar ]
    EX r : val,
-    PROP (
-          (exists i, Znth i s = c /\ Forall (fun d => d<>c) (sublist 0 i s)
+    PROP ((exists i, Znth i s = c /\ Forall (fun d => d<>c) (sublist 0 i s)
                      /\ r = offset_val i str)
        \/ (Forall (fun d => d<>c) s /\ r = nullval))
     LOCAL (temp ret_temp r)
-    SEP (cstring s str).
+    SEP (cstring sh s str).
 
 Definition strcat_spec :=
  DECLARE _strcat
-  WITH dest : val, sd : list byte, n : Z, src : val, ss : list byte
+  WITH sh: share, sh': share, dest : val, sd : list byte, n : Z, src : val, ss : list byte
   PRE  [ _dest OF tptr tschar, _src OF tptr tschar ]
-    PROP (Zlength sd + Zlength ss < n)
+    PROP (writable_share sh; readable_share sh'; Zlength sd + Zlength ss < n)
     LOCAL (temp _dest dest; temp _src src)
-    SEP (cstringn sd n dest; cstring ss src)
+    SEP (cstringn sh sd n dest; cstring sh' ss src)
   POST [ tptr tschar ]
     PROP ()
     LOCAL (temp ret_temp dest)
-    SEP (cstringn (sd ++ ss) n dest; cstring ss src).
+    SEP (cstringn sh (sd ++ ss) n dest; cstring sh' ss src).
 
 Definition strcmp_spec :=
  DECLARE _strcmp
-  WITH str1 : val, s1 : list byte, str2 : val, s2 : list byte
+  WITH sh1: share, sh2: share, str1 : val, s1 : list byte, str2 : val, s2 : list byte
   PRE [ _str1 OF tptr tschar, _str2 OF tptr tschar ]
-    PROP ()
+    PROP (readable_share sh1; readable_share sh2)
     LOCAL (temp _str1 str1; temp _str2 str2)
-    SEP (cstring s1 str1; cstring s2 str2)
+    SEP (cstring sh1 s1 str1; cstring sh2 s2 str2)
   POST [ tint ]
    EX i : int,
     PROP (if Int.eq_dec i Int.zero then s1 = s2 else s1 <> s2)
     LOCAL (temp ret_temp (Vint i))
-    SEP (cstring s1 str1; cstring s2 str2).
+    SEP (cstring sh1 s1 str1; cstring sh2 s2 str2).
 
 Definition strcpy_spec :=
  DECLARE _strcpy
-  WITH dest : val, n : Z, src : val, s : list byte
+  WITH sh: share, sh': share, dest : val, n : Z, src : val, s : list byte
   PRE [ _dest OF tptr tschar, _src OF tptr tschar ]
-    PROP (Zlength s < n)
+    PROP (writable_share sh; readable_share sh'; Zlength s < n)
     LOCAL (temp _dest dest; temp _src src)
-    SEP (data_at_ Tsh (tarray tschar n) dest; cstring s src)
+    SEP (data_at_ sh (tarray tschar n) dest; cstring sh' s src)
   POST [ tptr tschar ]
     PROP ()
     LOCAL (temp ret_temp dest)
-    SEP (cstringn s n dest; cstring s src).
+    SEP (cstringn sh s n dest; cstring sh' s src).
 
 Definition strlen_spec :=
  DECLARE _strlen
-  WITH s : list byte, str: val
+  WITH sh: share, s : list byte, str: val
   PRE [ _str OF tptr tschar ]
-    PROP ( )
+    PROP (readable_share sh)
     LOCAL (temp _str str)
-    SEP (cstring s str)
+    SEP (cstring sh s str)
   POST [ tptr tschar ]
     PROP ()
     LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr (Zlength s))))
-    SEP (cstring s str).
+    SEP (cstring sh s str).
 
 Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
@@ -83,12 +82,12 @@ forward.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr i)))
-  SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str))
  continue: (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr (i-1))))
-  SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 *
 Exists 0. entailer!.
@@ -119,12 +118,12 @@ Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
-  SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str))
  continue: (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr (i-1))))
-  SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
   Exists 0; rewrite sublist_nil; entailer!.
 - Intros i. 
@@ -211,26 +210,26 @@ forward.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
     LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
-    SEP (data_at Tsh (tarray tschar n)
+    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
-   data_at Tsh (tarray tschar (Zlength ls + 1))
+   data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src))
  continue: (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
     LOCAL (temp _i (Vint (Int.repr (i-1))); temp _dest dest; temp _src src)
-    SEP (data_at Tsh (tarray tschar n)
+    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
-   data_at Tsh (tarray tschar (Zlength ls + 1))
+   data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src))
   break: (PROP ( )
    LOCAL (temp _i (Vint (Int.repr (Zlength ld))); temp _dest dest; 
    temp _src src)
-   SEP (data_at Tsh (tarray tschar n)
+   SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
-   data_at Tsh (tarray tschar (Zlength ls + 1))
+   data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src)).
 -
   Exists 0; entailer!.
@@ -257,19 +256,19 @@ forward_loop (EX i : Z,
     PROP (0 <= j < Zlength ls + 1)
     LOCAL (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr (Zlength ld)));
            temp _dest dest; temp _src src)
-    SEP (data_at Tsh (tarray tschar n)
+    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ sublist 0 j ls) ++
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
-         data_at Tsh (tarray tschar (Zlength ls + 1))
+         data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src))
    continue: (EX j : Z,
     PROP (0 <= j < Zlength ls + 1)
     LOCAL (temp _j (Vint (Int.repr (j-1))); temp _i (Vint (Int.repr (Zlength ld)));
            temp _dest dest; temp _src src)
-    SEP (data_at Tsh (tarray tschar n)
+    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ sublist 0 j ls) ++
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
-         data_at Tsh (tarray tschar (Zlength ls + 1))
+         data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
   { Exists 0; entailer!.  autorewrite with sublist.
     rewrite !map_app. rewrite <- app_assoc.
@@ -339,17 +338,17 @@ forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
   LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
-  SEP (data_at Tsh (tarray tschar (Zlength ls1 + 1))
+  SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
-       data_at Tsh (tarray tschar (Zlength ls2 + 1))
+       data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2))
   continue: (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
   LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr (i-1))))
-  SEP (data_at Tsh (tarray tschar (Zlength ls1 + 1))
+  SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
-       data_at Tsh (tarray tschar (Zlength ls2 + 1))
+       data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - Exists 0; entailer!.
 - Intros i.
@@ -471,15 +470,15 @@ Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
-  SEP (data_at Tsh (tarray tschar n)
+  SEP (data_at sh (tarray tschar n)
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
-       data_at Tsh (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src))
+       data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src))
  continue: (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr (i-1))); temp _dest dest; temp _src src)
-  SEP (data_at Tsh (tarray tschar n)
+  SEP (data_at sh (tarray tschar n)
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
-       data_at Tsh (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
+       data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 *
  Exists 0. rewrite Z.sub_0_r; entailer!.
 *
@@ -546,7 +545,7 @@ forward.
 forward_loop  (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr i)))
-  SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 *
 Exists 0. entailer!.
@@ -574,7 +573,7 @@ Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
-  SEP (data_at Tsh (tarray tschar (Zlength ls + 1))
+  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
   Exists 0; rewrite sublist_nil; entailer!.
 - Intros i. 
@@ -617,18 +616,18 @@ forward.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
     LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
-    SEP (data_at Tsh (tarray tschar n)
+    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
-   data_at Tsh (tarray tschar (Zlength ls + 1))
+   data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src))
   break: (PROP ( )
    LOCAL (temp _i (Vint (Int.repr (Zlength ld))); temp _dest dest; 
    temp _src src)
-   SEP (data_at Tsh (tarray tschar n)
+   SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
-   data_at Tsh (tarray tschar (Zlength ls + 1))
+   data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src)).
 -
   Exists 0; entailer!.
@@ -654,10 +653,10 @@ forward_loop (EX i : Z,
     PROP (0 <= j < Zlength ls + 1)
     LOCAL (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr (Zlength ld)));
            temp _dest dest; temp _src src)
-    SEP (data_at Tsh (tarray tschar n)
+    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ sublist 0 j ls) ++
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
-         data_at Tsh (tarray tschar (Zlength ls + 1))
+         data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
   { Exists 0; entailer!.  autorewrite with sublist.
     rewrite !map_app. rewrite <- app_assoc.
@@ -699,7 +698,6 @@ forward_loop (EX i : Z,
   Exists (j+1).
   destruct (zlt j (Zlength ls)); [ | cstring].
   entailer!.
-  change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
   rewrite (sublist_split 0 j (j+1)) by rep_omega.
   rewrite (app_assoc ld). rewrite !map_app.
   rewrite <- (app_assoc (_ ++ _)).
@@ -727,9 +725,9 @@ forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
   LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
-  SEP (data_at Tsh (tarray tschar (Zlength ls1 + 1))
+  SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
-       data_at Tsh (tarray tschar (Zlength ls2 + 1))
+       data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
 - Exists 0; entailer!.
 - Intros i.
@@ -840,9 +838,9 @@ Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
-  SEP (data_at Tsh (tarray tschar n)
+  SEP (data_at sh (tarray tschar n)
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
-       data_at Tsh (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
+       data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 *
  Exists 0. rewrite Z.sub_0_r; entailer!.
 *
@@ -855,7 +853,6 @@ forward_loop (EX i : Z,
 + forward.
    entailer!.
   assert (i = Zlength ls) by cstring. subst i.
-  change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
   autorewrite with sublist.
   rewrite !map_app.
   rewrite <- app_assoc.
@@ -877,7 +874,6 @@ forward_loop (EX i : Z,
   rewrite (sublist_split 0 i (i+1)) by list_solve.
   rewrite !map_app. rewrite <- app_assoc.
   autorewrite with sublist.
-  change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
   rewrite !(split_data_at_app_tschar _ n) by list_solve.
   autorewrite with sublist.
    replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
