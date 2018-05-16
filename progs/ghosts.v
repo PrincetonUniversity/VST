@@ -429,6 +429,9 @@ Qed.
 
 End Snapshot.
 
+Definition pos_PCM := initial_world.pos_PCM.
+Definition ref_PCM := initial_world.ref_PCM.
+
 Lemma ref_sub : forall {P : Ghost} (sh : share) g (a b : @G P) pp,
   @own _ _ _ _ _ _ (ref_PCM P) g (Some (sh, a), None) pp * @own _ _ _ _ _ _ (ref_PCM P) g (None, Some b) pp |--
     !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
