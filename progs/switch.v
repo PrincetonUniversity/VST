@@ -96,8 +96,12 @@ Definition f_f := {|
   (LScons (Some 1)
     (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
     (LScons (Some 2)
-      (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
-      (LScons None (Sreturn (Some (Econst_int (Int.repr 1) tint))) LSnil))))
+      Sskip
+      (LScons (Some 3)
+        Sskip
+        (LScons (Some 4)
+          (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
+          (LScons None (Sreturn (Some (Econst_int (Int.repr 1) tint))) LSnil))))))
 |}.
 
 Definition composites : list composite_definition :=

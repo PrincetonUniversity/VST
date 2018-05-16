@@ -72,9 +72,6 @@ rewrite memory_block_isptr. normalize.
 rename H into KL. rename H0 into DL.
 
 forward_if (isptr c).
-  { apply denote_tc_test_eq_split.
-       apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
-       apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. }
 Intros.

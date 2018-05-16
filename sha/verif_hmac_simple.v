@@ -40,9 +40,6 @@ Time forward_if  (
    data_block Tsh data d; K_vector gv;
    memory_block shmd 32 md)).
   (*3.3*)
-  { clear H. apply denote_tc_test_eq_split.
-    apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
-    apply valid_pointer_zero. }
   { (*Branch1*) exfalso. subst md. contradiction.  }
   { (* Branch2 *) Time forward. (*0.3*) fold t_struct_hmac_ctx_st. Time entailer!. (*1.9*)}
 Time normalize. (*0.8*)
