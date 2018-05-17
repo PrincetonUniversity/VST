@@ -278,6 +278,29 @@ Proof.
     - apply (semax_post_bupd R'); auto.
 Qed.
 
+Lemma semax_store_inv: forall {Espec: OracleKind}{CS: compspecs} Delta e1 e2 P Q,
+  @semax CS Espec Delta P (Sassign e1 e2) Q ->
+  exists sh P',
+    writable_share sh /\
+    local (tc_environ Delta) && P |-- |==> ((|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  && (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P')))) /\
+    local (tc_environ Delta) && (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P') |-- |==> RA_normal Q.
+Proof.
+  intros.
+  remember (Sassign e1 e2) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0.
+    exists sh, P.
+    split; [| split]; auto.
+    - apply andp_left2, bupd_intro.
+    - apply andp_left2, bupd_intro.
+  + subst c.
+    destruct (IHsemax eq_refl) as [sh [P'' [? [? ?]]]]; clear IHsemax.
+    exists sh, P''.
+    split; [| split]; auto.
+    - eapply derives_bupd_trans; eauto.
+    - eapply derives_bupd_trans; eauto.
+Qed.
+
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   exists P',
@@ -323,7 +346,12 @@ Proof.
     - apply andp_left2, FF_left.
     - apply andp_left2, FF_left.
     - intro; apply andp_left2, FF_left.
-  +
+  + eapply semax_pre_post_bupd; [.. |]. Check  semax_store.
+    - rewrite exp_andp2; apply exp_left.
+      intro; specialize (H x).
+      apply semax_store_inv in H.
+      destruct H as [sh [P' [? [? ?]]]].
+      exact H0.
 Abort.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
