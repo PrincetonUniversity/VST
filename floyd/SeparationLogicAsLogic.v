@@ -554,7 +554,11 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
 | extract_exists_pre:
   forall (A : Type)  (P : A -> environ->mpred) c (R: ret_assert),
   (forall x, @semax CS Espec Delta (P x) c R) ->
-   @semax CS Espec Delta (EX x:A, P x) c R.
+   @semax CS Espec Delta (EX x:A, P x) c R
+| extract_prop_pre:
+  forall (P0: Prop)  (P : environ->mpred) c (R: ret_assert),
+  (P0 -> @semax CS Espec Delta P c R) ->
+   @semax CS Espec Delta (!! P0 && P) c R.
 
 (* Copied from canon.v *)
 
@@ -629,6 +633,7 @@ Proof.
   + rewrite exp_andp2; apply exp_left.
     intro x; specialize (H1 x H0).
     auto.
+  + normalize.
 Qed.
 
 Lemma semax_seq_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
@@ -675,7 +680,34 @@ Proof.
       intro x.
       apply extract_exists_pre.
       intro Q.
-Abort.
+      apply extract_prop_pre.
+      intro; tauto.
+  + exists (!! P0 && EX Q: environ -> mpred, !! (semax Delta P h (overridePost Q R) /\ semax Delta Q t R) && Q).
+    split.
+    - apply extract_prop_pre.
+      intros.
+      specialize (H H2).
+      specialize (H1 H2 H0).
+      clear H0.
+      destruct H1 as [Q [? ?]].
+      eapply semax_post; [.. | exact H0].
+      * destruct R; unfold overridePost.
+        unfold tycontext.RA_normal.
+        apply andp_right; [apply prop_right |]; auto.
+        apply (exp_right Q).
+        apply andp_right; [apply prop_right |]; auto.
+        solve_andp.
+      * destruct R; apply andp_left2, derives_refl.
+      * destruct R; apply andp_left2, derives_refl.
+      * intro; destruct R; apply andp_left2, derives_refl.
+    - apply extract_prop_pre.
+      intros.
+      apply extract_exists_pre.
+      intro Q.
+      apply extract_prop_pre.
+      intro; tauto.
+Qed.
+
 (*
 Lemma semax_store_inv: forall {Espec: OracleKind}{CS: compspecs} Delta e1 e2 P Q,
   @semax CS Espec Delta P (Sassign e1 e2) Q ->
