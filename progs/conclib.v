@@ -2277,11 +2277,7 @@ Proof.
 Qed.
 Hint Resolve unreadable_bot.
 
-Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
-Proof.
-  intros ?? (? & ?).
-  apply lub_bot_e; auto.
-Qed.
+Definition join_Bot := initial_world.join_Bot.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
 Proof.

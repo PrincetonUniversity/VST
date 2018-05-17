@@ -438,7 +438,7 @@ eapply guard_safe_adj; try apply H; try reflexivity. clear H.
 intros.
 destruct n; simpl in *. constructor.
 inv_safe H.
-destruct (corestep_preservation_lemma Espec psi
+  destruct (corestep_preservation_lemma Espec psi
           (Kseq Sskip :: k) k ora ve te m n (Kseq s) nil c' m')
   as [c2 [m2 [? ?]]]; simpl; auto.
 { intros. apply control_suffix_safe; simpl; auto.
@@ -1210,7 +1210,7 @@ reflexivity.
   rewrite <- H11.
   eapply step_ifthenelse. eassumption. eassumption.
   simpl.
-  intros ? J; destruct (H1 _ J) as (m'' & ? & ? & Hsafe).
+  intros ? HC J; destruct (H1 _ HC J) as (m'' & ? & ? & Hsafe).
   exists m''; split; auto; split; auto.
   clear - Hsafe.
   inv Hsafe.
@@ -1226,7 +1226,7 @@ reflexivity.
   rewrite <- H11.
   eapply step_ifthenelse. eassumption. eassumption.
   simpl.
-  intros ? J; destruct (H1 _ J) as (m'' & ? & ? & Hsafe).
+  intros ? HC J; destruct (H1 _ HC J) as (m'' & ? & ? & Hsafe).
   exists m''; split; auto; split; auto.
   clear - Hsafe.
   inv Hsafe.
