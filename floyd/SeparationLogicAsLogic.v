@@ -31,6 +31,22 @@ Proof.
   intro; apply corable_prop.
 Qed.
 
+Lemma derives_bupd_trans: forall TC P Q R,
+  local TC && P |-- |==> Q ->
+  local TC && Q |-- |==> R ->
+  local TC && P |-- |==> R.
+Proof.
+  intros.
+  rewrite (add_andp _ _ H).
+  rewrite (andp_comm _ P), andp_assoc; apply andp_left2.
+  eapply derives_trans; [apply local_andp_bupd |].
+  rewrite (add_andp _ _ H0).
+  rewrite (andp_comm _ Q), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
+  eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
+  eapply derives_trans; [apply bupd_trans|].
+  apply bupd_mono; solve_andp.
+Qed.
+
 (* Aux ends *)
 
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
@@ -232,18 +248,9 @@ Proof.
   induction H; try solve [inv H0].
   + apply andp_left2, bupd_intro.
   + specialize (IHsemax H0).
-    rewrite (add_andp _ _ H).
-    rewrite (andp_comm _ P), andp_assoc; apply andp_left2.
-    eapply derives_trans; [apply local_andp_bupd |].
-    rewrite (add_andp _ _ IHsemax).
-    rewrite (andp_comm _ P'), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
-    eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
-    eapply derives_trans; [apply bupd_trans|].
-    rewrite (add_andp _ _ H1).
-    rewrite (andp_comm _ (RA_normal R')), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
-    eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
-    eapply derives_trans; [apply bupd_trans|].
-    apply bupd_mono; solve_andp.
+    eapply derives_bupd_trans; [exact H |].
+    eapply derives_bupd_trans; [exact IHsemax |].
+    auto.
 Qed.
 
 Lemma semax_seq_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
@@ -271,32 +278,32 @@ Proof.
     - apply (semax_post_bupd R'); auto.
 Qed.
 
-Lemma semax_if_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
+Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
-  @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
-  @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) c2 R /\
-  local (tc_environ Delta) && P |-- tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)).
+  exists P',
+  bool_type (typeof b) = true /\
+  @semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
+  @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R /\
+  local (tc_environ Delta) && P |-- |==> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P').
 Proof.
   intros.
   remember (Sifthenelse b c1 c2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0; clear IHsemax1 IHsemax2.
-    split; [| split].
-    - eapply semax_pre; [.. | exact H1].
-      rewrite !andp_assoc. solve_andp.
-    - eapply semax_pre; [.. | exact H2].
-      rewrite !andp_assoc. solve_andp.
-    - solve_andp.
+    exists P.
+    split; [| split; [| split]]; auto.
+    eapply derives_trans; [| apply bupd_intro].
+    solve_andp.
   + specialize (IHsemax H0).
-    destruct IHsemax as [? [? ?]]; split; [| split].
-    - eapply semax_pre_post_bupd; [.. | exact H6]; auto.
-      eapply derives_trans; [| apply bupd_andp_local].
-      rewrite <- andp_assoc; apply andp_derives; auto.
-    - eapply semax_pre_post_bupd; [.. | exact H7]; auto.
-      eapply derives_trans; [| apply bupd_andp_local].
-      rewrite <- andp_assoc; apply andp_derives; auto.
-    -
-Abort.
+    destruct IHsemax as [P'' [? [? [? ?]]]].
+    exists P''.
+    split; [| split; [| split]].
+    - auto.
+    - eapply semax_post_bupd; [.. | exact H7]; auto.
+    - eapply semax_post_bupd; [.. | exact H8]; auto.
+    - eapply derives_bupd_trans; [exact H |].
+      auto.
+Qed.
 
 Lemma extract_exists_pre:
   forall  {Espec: OracleKind}{CS: compspecs} ,
@@ -367,5 +374,24 @@ Lemma semax_if_seq:
  semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
 Proof.
   intros.
+  apply semax_ifthenelse_inv in H.
+  destruct H as [P' [? [? [? ?]]]].
+  apply semax_seq_inv in H0.
+  apply semax_seq_inv in H1.
+  destruct H0 as [Q1 [? ?]], H1 as [Q2 [? ?]].
+  apply semax_pre_bupd with (tc_expr Delta (Eunop Cop.Onotbool e (Tint I32 Signed noattr)) && P'); auto.
+  apply semax_seq with (orp Q1 Q2); [apply semax_ifthenelse |].
+  + auto.
+  + eapply semax_post; [| | | | exact H0].
+    - destruct Q; apply andp_left2, orp_right1, derives_refl.
+    - destruct Q; apply andp_left2, derives_refl.
+    - destruct Q; apply andp_left2, derives_refl.
+    - intro; destruct Q; apply andp_left2, derives_refl.
+  + eapply semax_post; [| | | | exact H1].
+    - destruct Q; apply andp_left2, orp_right2, derives_refl.
+    - destruct Q; apply andp_left2, derives_refl.
+    - destruct Q; apply andp_left2, derives_refl.
+    - intro; destruct Q; apply andp_left2, derives_refl.
+  + 
 Abort.
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
