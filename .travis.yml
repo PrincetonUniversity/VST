@@ -71,7 +71,7 @@ jobs:
     - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true floyd calibrate
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true veric floyd calibrate
     - echo -en 'travis_fold:end:VST.build\\r'
   - stage: test
     script:
