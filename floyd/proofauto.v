@@ -39,6 +39,10 @@ Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
+Require VST.msl.iter_sepcon.
+Require VST.msl.wand_frame.
+Require VST.msl.wandQ_frame.
+
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
 Export Cop2.
