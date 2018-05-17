@@ -5,137 +5,137 @@ Require Import VST.floyd.local2ptree_denote.
 
 Local Open Scope logic.
 
-Definition eval_vardesc (ty: type) (vd: option vardesc) : option val :=
-                    match  vd with
-                    | Some (vardesc_local_global ty' v _) =>
+Definition eval_vardesc (id: ident) (ty: type) (Delta: tycontext) (T2: PTree.t (type * val)) (GV: option globals) : option val :=
+  match (var_types Delta) ! id with
+  | Some _ => match T2 ! id with
+              | Some (ty', v) =>
                       if eqb_type ty ty'
                       then Some v
                       else None
-                    | Some (vardesc_local ty' v) =>
-                      if eqb_type ty ty'
-                      then Some v
-                      else None
-                    | Some (vardesc_visible_global v) =>
-                          Some v
-                    | Some (vardesc_shadowed_global _) =>
-                          None
-                    | None => None
-                    end.
+              | None => None
+              end
+  | None => match GV with
+            | Some gv => Some (gv id)
+            | None => None
+            end
+  end.
 
-Definition eval_lvardesc (ty: type) (vd: option vardesc) : option val :=
-                    match  vd with
-                    | Some (vardesc_local_global ty' v _)
-                    | Some (vardesc_local ty' v) =>
+Definition eval_lvardesc (id: ident) (ty: type) (Delta: tycontext) (T2: PTree.t (type * val)) : option val :=
+  match (var_types Delta) ! id with
+  | Some _ => match T2 ! id with
+              | Some (ty', v) =>
                       if eqb_type ty ty'
                       then Some v
                       else None
-                    | _ => None
-                    end.
+              | None => None
+              end
+  | None => None
+  end.
 
-Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
+Fixpoint msubst_eval_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (e: Clight.expr) : option val :=
   match e with
   | Econst_int i ty => Some (Vint i)
   | Econst_long i ty => Some (Vlong i)
   | Econst_float f ty => Some (Vfloat f)
   | Econst_single f ty => Some (Vsingle f)
   | Etempvar id ty => PTree.get id T1
-  | Eaddrof a ty => msubst_eval_lvalue T1 T2 a
+  | Eaddrof a ty => msubst_eval_lvalue Delta T1 T2 GV a
   | Eunop op a ty => option_map (eval_unop op (typeof a))
-                                        (msubst_eval_expr T1 T2 a)
+                                        (msubst_eval_expr Delta T1 T2 GV a)
   | Ebinop op a1 a2 ty =>
-      match (msubst_eval_expr T1 T2 a1), (msubst_eval_expr T1 T2 a2) with
+      match (msubst_eval_expr Delta T1 T2 GV a1), (msubst_eval_expr Delta T1 T2 GV a2) with
       | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2)
       | _, _ => None
       end
-  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
-  | Evar id ty => eval_vardesc ty (PTree.get id T2)
+  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr Delta T1 T2 GV a)
+  | Evar id ty => eval_vardesc id ty Delta T2 GV
 
-  | Ederef a ty => msubst_eval_expr T1 T2 a
-  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
+  | Ederef a ty => msubst_eval_expr Delta T1 T2 GV a
+  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue Delta T1 T2 GV a)
   | Esizeof t _ => Some (Vptrofs (Ptrofs.repr (sizeof t)))
   | Ealignof t _ => Some (Vptrofs (Ptrofs.repr (alignof t)))
   end
-  with msubst_eval_lvalue {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
+  with msubst_eval_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (e: Clight.expr) : option val :=
   match e with
-  | Evar id ty => eval_vardesc ty (PTree.get id T2)
-  | Ederef a ty => msubst_eval_expr T1 T2 a
+  | Evar id ty => eval_vardesc id ty Delta T2 GV
+  | Ederef a ty => msubst_eval_expr Delta T1 T2 GV a
   | Efield a i ty => option_map (eval_field (typeof a) i)
-                              (msubst_eval_lvalue T1 T2 a)
+                              (msubst_eval_lvalue Delta T1 T2 GV a)
   | _  => Some Vundef
   end.
 
-Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
+Definition msubst_eval_LR {cs: compspecs} Delta T1 T2 GV e (lr: LLRR) :=
   match lr with
-  | LLLL => msubst_eval_lvalue T1 T2 e
-  | RRRR => msubst_eval_expr T1 T2 e
+  | LLLL => msubst_eval_lvalue Delta T1 T2 GV e
+  | RRRR => msubst_eval_expr Delta T1 T2 GV e
   end.
 
-Definition msubst_eval_lvar {cs: compspecs} T2 i t :=
-  eval_lvardesc t (PTree.get i T2).
+Definition msubst_eval_lvar {cs: compspecs} Delta T2 i t :=
+  eval_lvardesc i t Delta T2.
 
 Lemma msubst_eval_expr_eq_aux:
-  forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
-     eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
-    msubst_eval_expr T1 T2 e = Some v ->
+     eval_vardesc i t Delta T2 GV  = Some v -> eval_var i t rho = v) ->
+    msubst_eval_expr Delta T1 T2 GV e = Some v ->
     eval_expr e rho = v
 with msubst_eval_lvalue_eq_aux:
-  forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
-     eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
-    msubst_eval_lvalue T1 T2 e = Some v ->
+     eval_vardesc i t Delta T2 GV = Some v -> eval_var i t rho = v) ->
+    msubst_eval_lvalue Delta T1 T2 GV e = Some v ->
     eval_lvalue e rho = v.
 Proof.
   + clear msubst_eval_expr_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
     - erewrite msubst_eval_lvalue_eq_aux; eauto.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e1) eqn:?; [| inversion H1].
-      destruct (msubst_eval_expr T1 T2 e2) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 GV e1) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 GV e2) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe1 with (v := v0) by auto.
       rewrite IHe2 with (v := v1) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_lvalue Delta T1 T2 GV e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_lvalue_eq_aux by eauto.
       reflexivity.
   + clear msubst_eval_lvalue_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_expr_eq_aux by eauto;
       auto.
     - unfold_lift; simpl.
-      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_lvalue Delta T1 T2 GV e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
 Qed.
 
-Lemma msubst_eval_eq_aux {cs: compspecs}: forall T1 T2 Q rho,
-  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
+Lemma msubst_eval_eq_aux {cs: compspecs}: forall Delta T1 T2 GV rho,
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 GV)) rho ->
   (forall i v, T1 ! i = Some v -> eval_id i rho = v) /\
-  (forall i t v, eval_vardesc t (T2 ! i) = Some v ->
+  (forall i t v, eval_vardesc i t Delta T2 GV = Some v ->
       eval_var i t rho = v).
 Proof.
   intros; split; intros.
   + intros.
-    assert (In (locald_denote (temp i v)) (map locald_denote (LocalD T1 T2 Q))).
+    assert (In (locald_denote (temp i v)) (map locald_denote (LocalD T1 T2 GV))).
       apply  in_map.
       apply LocalD_sound.
       left.
@@ -204,7 +204,7 @@ Proof.
 Qed.
 
 Lemma msubst_eval_expr_eq: forall {cs: compspecs} P T1 T2 Q R e v,
-  msubst_eval_expr T1 T2 e = Some v ->
+  msubst_eval_expr Delta T1 T2 GV e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     local (`(eq v) (eval_expr e)).
 Proof.
@@ -220,7 +220,7 @@ Proof.
 Qed.
 
 Lemma msubst_eval_lvalue_eq: forall P {cs: compspecs} T1 T2 Q R e v,
-  msubst_eval_lvalue T1 T2 e = Some v ->
+  msubst_eval_lvalue Delta T1 T2 GV e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     local (`(eq v) (eval_lvalue e)).
 Proof.

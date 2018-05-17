@@ -759,13 +759,12 @@ Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
  | _ => None
  end.
 
-
-Lemma make_func_ptr: 
- forall id (Espec: OracleKind) (CS: compspecs) Delta P Q R fs p c Post,
+Lemma make_func_ptr:
+ forall id (Espec: OracleKind) (CS: compspecs) Delta P Q R fs gv p c Post,
    (var_types Delta) ! id = None ->
    (glob_specs Delta) ! id = Some fs ->
    (glob_types Delta) ! id = Some (type_of_funspec fs) ->
-    PTree.get id snd (local2ptree Q))))) = Some (vardesc_visible_global p) ->
+   snd (local2ptree Q) = Some gv /\ gv id = p ->
   semax Delta (PROPx P (LOCALx Q (SEPx (func_ptr' fs p :: R)))) c Post ->
   semax Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
@@ -774,10 +773,25 @@ apply (semax_fun_id id fs Delta); auto.
 eapply semax_pre; try apply H3. clear H3.
 destruct (local2ptree Q) as [[[? ?] ?] ?] eqn:?.
 simpl in H2.
-pose proof (local2ptree_soundness P Q R t t0 l l0 Heqp0).
-apply (LocalD_sound_visible_global id p t t0 l0) in H2.
-forget (LocalD t t0 l0) as Q'.
-clear - H2 H3.
+destruct H2 as [H3 H2']; subst o.
+pose proof (local2ptree_soundness P Q R t t0 l _ Heqp0) as H3.
+pose proof LocalD_sound_gvars gv t t0 _ eq_refl as H2.
+forget (LocalD t t0 (Some gv)) as Q'.
+assert (local (tc_environ Delta) |-- fun rho => !! (Map.get (ve_of rho) id = None)) as TC.
+{
+  intro rho.
+  unfold local, lift1.
+  normalize.
+  destruct H4 as [_ [? _]].
+  specialize (H4 id).
+  rewrite H in H4.
+  destruct (Map.get (ve_of rho) id) as [[? ?] |]; auto.
+  specialize (H4 t1).
+  destruct H4 as [_ ?].
+  specialize (H4 (ex_intro _ b eq_refl)).
+  inv H4.
+}
+clear - H2 H2' H3 TC.
 rewrite <- insert_SEP.
 unfold func_ptr'.
 normalize.
@@ -785,20 +799,19 @@ rewrite corable_andp_sepcon1
   by (unfold_lift; simpl; intros; apply corable_func_ptr).
 apply andp_right; [ | apply andp_left2; apply andp_left1; normalize].
 rewrite H3.
-clear H3.
 rewrite <- andp_assoc.
-eapply derives_trans.
-apply andp_right.
-apply andp_left1.
-eapply in_local; eassumption.
-apply andp_left2. apply derives_refl.
+rewrite (add_andp _ _ (in_local _ Delta (l ++ P) _ (SEPx R) H2)).
+rewrite (add_andp _ _ TC).
+apply derives_trans with ((fun rho : environ => !! (Map.get (ve_of rho) id = None)) &&
+local (locald_denote (gvars gv)) && (` (func_ptr fs)) (eval_var id (type_of_funspec fs))); [solve_andp |].
+subst p.
 clear.
 intro rho.
 unfold_lift. unfold local, lift1; simpl.
 normalize.
 unfold eval_var.
-hnf in H.
-destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
-destruct (ge_of rho id); try contradiction.
-subst; auto.
+hnf in H0.
+subst gv.
+rewrite H.
+auto.
 Qed.
