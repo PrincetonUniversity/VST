@@ -469,10 +469,9 @@ Qed.
 Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ -> mpred) -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
    forall P (b: expr) c d R,
-      bool_type (typeof b) = true ->
      @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R ->
      @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R ->
-     @semax CS Espec Delta (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R
+     @semax CS Espec Delta (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R
 | semax_seq:
   forall R P Q h t,
     @semax CS Espec Delta P h (overridePost Q R) ->
@@ -782,59 +781,83 @@ Proof.
   + normalize.
 Qed.
 
-(*
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   exists P',
-  bool_type (typeof b) = true /\
   @semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
   @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R /\
-  local (tc_environ Delta) && P |-- |==> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P').
+  local (tc_environ Delta) && P |-- |==> !! (bool_type (typeof b) = true ) && (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P').
 Proof.
   intros.
   remember (Sifthenelse b c1 c2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0; clear IHsemax1 IHsemax2.
     exists P.
-    split; [| split; [| split]]; auto.
+    split; [| split]; auto.
     eapply derives_trans; [| apply bupd_intro].
     solve_andp.
   + specialize (IHsemax H0).
-    destruct IHsemax as [P'' [? [? [? ?]]]].
+    destruct IHsemax as [P'' [? [? ?]]].
     exists P''.
-    split; [| split; [| split]].
-    - auto.
+    split; [| split].
+    - eapply semax_post_bupd; [.. | exact H6]; auto.
     - eapply semax_post_bupd; [.. | exact H7]; auto.
-    - eapply semax_post_bupd; [.. | exact H8]; auto.
     - eapply derives_bupd_trans; [exact H |].
       auto.
-Qed.
-
-Lemma extract_exists_pre:
-  forall  {Espec: OracleKind}{CS: compspecs} ,
-  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
-  (forall x, @semax CS Espec Delta (P x) c R) ->
-   @semax CS Espec Delta (EX x:A, P x) c R.
-Proof.
-  intros.
-  induction c.
-  + eapply semax_post_bupd; [.. | apply semax_skip].
-    - change (RA_normal (normal_ret_assert (EX x : A, P x))) with (EX x : A, P x).
-      rewrite exp_andp2; apply exp_left.
-      intro x.
-      specialize (H x).
-      apply semax_skip_inv in H.
+  + exists (EX x: A, EX P': environ -> mpred,
+     !! (semax Delta (P' && local ((` (typed_true (typeof b))) (eval_expr b))) c1 R /\
+         semax Delta (P' && local ((` (typed_false (typeof b))) (eval_expr b))) c2 R /\
+         local (tc_environ Delta) && P x
+               |-- |==> !! (bool_type (typeof b) = true ) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P') && P').
+    split; [| split].
+    - rewrite exp_andp1; apply extract_exists_pre; intro x.
+      rewrite exp_andp1; apply extract_exists_pre; intro P'.
+      rewrite !andp_assoc; apply extract_prop_pre.
+      tauto.
+    - rewrite exp_andp1; apply extract_exists_pre; intro x.
+      rewrite exp_andp1; apply extract_exists_pre; intro P'.
+      rewrite !andp_assoc; apply extract_prop_pre.
+      tauto.
+    - rewrite exp_andp2; apply exp_left; intro x.
+      specialize (H1 x H0).
+      destruct H1 as [P' [? [? ?]]].
+      eapply derives_trans; [exact H3 |].
+      apply bupd_mono.
+      apply andp_derives; auto.
+      apply andp_derives; auto.
+      apply (exp_right x), (exp_right P').
+      apply andp_right; [apply prop_right |]; auto.
+      split; [| split]; auto.
+      rewrite andp_assoc.
       auto.
-    - apply andp_left2, FF_left.
-    - apply andp_left2, FF_left.
-    - intro; apply andp_left2, FF_left.
-  + eapply semax_pre_post_bupd; [.. |]. Check  semax_store.
-    - rewrite exp_andp2; apply exp_left.
-      intro; specialize (H x).
-      apply semax_store_inv in H.
-      destruct H as [sh [P' [? [? ?]]]].
-      Fail exact H0.
-Abort.
+  + exists (!! P0 && EX P': environ -> mpred,
+     !! (semax Delta (P' && local ((` (typed_true (typeof b))) (eval_expr b))) c1 R /\
+         semax Delta (P' && local ((` (typed_false (typeof b))) (eval_expr b))) c2 R /\
+         local (tc_environ Delta) && P
+               |-- |==> !! (bool_type (typeof b) = true ) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P') && P').
+    split; [| split].
+    - rewrite !andp_assoc; apply extract_prop_pre; intros.
+      rewrite exp_andp1; apply extract_exists_pre; intro P'.
+      rewrite !andp_assoc; apply extract_prop_pre.
+      tauto.
+    - rewrite !andp_assoc; apply extract_prop_pre; intros.
+      rewrite exp_andp1; apply extract_exists_pre; intro P'.
+      rewrite !andp_assoc; apply extract_prop_pre.
+      tauto.
+    - normalize.
+      specialize (H1 H2 H0).
+      destruct H1 as [P' [? [? ?]]].
+      eapply derives_trans; [exact H4 |].
+      apply bupd_mono.
+      apply (exp_right P').
+      apply andp_derives; auto.
+      apply andp_derives; auto.
+      normalize.
+      apply andp_right; [apply prop_right |]; auto.
+      split; [| split]; auto.
+      rewrite andp_assoc.
+      auto.
+Qed.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
@@ -885,28 +908,29 @@ Lemma semax_if_seq:
 Proof.
   intros.
   apply semax_ifthenelse_inv in H.
-  destruct H as [P' [? [? [? ?]]]].
+  destruct H as [P' [? [? ?]]].
+  apply semax_seq_inv in H.
   apply semax_seq_inv in H0.
-  apply semax_seq_inv in H1.
-  destruct H0 as [Q1 [? ?]], H1 as [Q2 [? ?]].
-  apply semax_pre_bupd with (tc_expr Delta (Eunop Cop.Onotbool e (Tint I32 Signed noattr)) && P'); auto.
+  destruct H as [Q1 [? ?]], H0 as [Q2 [? ?]].
+  apply semax_pre_bupd with (!! (bool_type (typeof e) = true) && (tc_expr Delta (Eunop Cop.Onotbool e (Tint I32 Signed noattr)) && P')); auto.
+  rewrite <- andp_assoc.
   apply semax_seq with (orp Q1 Q2); [apply semax_ifthenelse |].
-  + auto.
-  + eapply semax_post; [| | | | exact H0].
+  + eapply semax_post; [| | | | exact H].
     - destruct Q; apply andp_left2, orp_right1, derives_refl.
     - destruct Q; apply andp_left2, derives_refl.
     - destruct Q; apply andp_left2, derives_refl.
     - intro; destruct Q; apply andp_left2, derives_refl.
-  + eapply semax_post; [| | | | exact H1].
+  + eapply semax_post; [| | | | exact H0].
     - destruct Q; apply andp_left2, orp_right2, derives_refl.
     - destruct Q; apply andp_left2, derives_refl.
     - destruct Q; apply andp_left2, derives_refl.
     - intro; destruct Q; apply andp_left2, derives_refl.
-  + 
-Abort.
-*)
-End WITH_EXISTS_PRE.
-  
+  + rewrite orp_is_exp.
+    apply extract_exists_pre.
+    intro.
+    destruct x; auto.
+Qed.
 
+End WITH_EXISTS_PRE.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
