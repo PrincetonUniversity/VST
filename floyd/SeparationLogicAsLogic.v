@@ -708,7 +708,6 @@ Proof.
       intro; tauto.
 Qed.
 
-(*
 Lemma semax_store_inv: forall {Espec: OracleKind}{CS: compspecs} Delta e1 e2 P Q,
   @semax CS Espec Delta P (Sassign e1 e2) Q ->
   exists sh P',
@@ -730,8 +729,9 @@ Proof.
     split; [| split]; auto.
     - eapply derives_bupd_trans; eauto.
     - eapply derives_bupd_trans; eauto.
-Qed.
-
+  + 
+Abort.
+(*
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   exists P',
