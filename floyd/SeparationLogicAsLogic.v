@@ -429,6 +429,43 @@ End NO_EXISTS_PRE.
 
 Module WITH_EXISTS_PRE.
 
+Lemma semax_store_derives_wand: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+Proof.
+  intros.
+  eapply semax_pre_post_bupd; [.. | eapply (extract_exists _ _ _ _ (fun _ => normal_ret_assert P))].
+  + apply andp_left2, bupd_intro.
+  + apply andp_left2.
+    change (RA_normal (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, P).
+    apply exp_left; intros.
+    apply bupd_intro.
+  + apply andp_left2.
+    change (RA_break (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, FF: environ -> mpred).
+    apply exp_left; intros.
+    apply FF_left.
+  + apply andp_left2.
+    change (RA_continue (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, FF: environ -> mpred).
+    apply exp_left; intros.
+    apply FF_left.
+  + intro.
+    apply andp_left2.
+    change (RA_return (existential_ret_assert (fun _ : share => normal_ret_assert P)) vl) with (EX _: share, FF: environ -> mpred).
+    apply exp_left; intros.
+    apply FF_left.
+  + intros sh.
+    apply semax_extract_prop; intro SH.
+    eapply semax_pre_post_bupd; [apply andp_left2, bupd_intro | .. | eapply semax_store; auto].
+    - apply andp_left2.
+      apply modus_ponens_wand.
+    - apply andp_left2, FF_left.
+    - apply andp_left2, FF_left.
+    - intros; apply andp_left2, FF_left.
+Qed.
+
 Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ -> mpred) -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
    forall P (b: expr) c d R,
@@ -535,14 +572,12 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
        (Sset id (Ecast e1 t1))
        (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1) v2))) &&
                                           (subst id (`old) P)))
-| semax_store: forall e1 e2 sh P,
-   writable_share sh ->
-   @semax CS Espec Delta
-          (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
-             (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
+| semax_store: forall e1 e2 P,
+    @semax CS Espec Delta
+   (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
           (Sassign e1 e2)
-          (normal_ret_assert
-             (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P))
+          (normal_ret_assert P)
 | semax_skip: forall P, @semax CS Espec Delta P Sskip (normal_ret_assert P)
 | semax_pre_post_bupd: forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> P') ->
@@ -710,27 +745,43 @@ Qed.
 
 Lemma semax_store_inv: forall {Espec: OracleKind}{CS: compspecs} Delta e1 e2 P Q,
   @semax CS Espec Delta P (Sassign e1 e2) Q ->
-  exists sh P',
-    writable_share sh /\
-    local (tc_environ Delta) && P |-- |==> ((|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  && (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P')))) /\
-    local (tc_environ Delta) && (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P') |-- |==> RA_normal Q.
+  local (tc_environ Delta) && P |-- |==>
+    (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> RA_normal Q)))).
 Proof.
   intros.
   remember (Sassign e1 e2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0.
-    exists sh, P.
-    split; [| split]; auto.
-    - apply andp_left2, bupd_intro.
-    - apply andp_left2, bupd_intro.
+    apply andp_left2, bupd_intro.
   + subst c.
-    destruct (IHsemax eq_refl) as [sh [P'' [? [? ?]]]]; clear IHsemax.
-    exists sh, P''.
-    split; [| split]; auto.
-    - eapply derives_bupd_trans; eauto.
-    - eapply derives_bupd_trans; eauto.
-  + 
-Abort.
+    specialize (IHsemax eq_refl).
+    eapply derives_bupd_trans; eauto.
+    eapply derives_bupd_trans; eauto.
+    eapply derives_trans; [| apply bupd_intro].
+    rewrite exp_andp2; apply exp_left; intro sh; apply (exp_right sh).
+    rewrite (andp_comm (local (tc_environ Delta))), !andp_assoc.
+    apply andp_derives; [auto |].
+    rewrite <- !andp_assoc; rewrite <- (andp_comm (local (tc_environ Delta))).
+    apply later_left2.
+    rewrite (andp_comm (local (tc_environ Delta))), !andp_assoc.
+    apply andp_derives; [auto |].
+    apply andp_derives; [auto |].
+    rewrite <- (andp_comm (local (tc_environ Delta))).
+    rewrite <- corable_sepcon_andp2 by (intro; apply corable_prop).
+    apply sepcon_derives; [auto |].
+    apply wand_sepcon_adjoint.
+    rewrite sepcon_comm, corable_sepcon_andp2 by (intro; apply corable_prop).
+    eapply derives_trans; [apply andp_derives; [apply derives_refl | apply modus_ponens_wand] |].
+    eapply derives_trans; [apply local_andp_bupd |].
+    eapply derives_trans; [apply bupd_mono, H1 |].
+    apply bupd_trans.
+  + rewrite exp_andp2; apply exp_left.
+    intro x.
+    apply (H1 x H0).
+  + normalize.
+Qed.
+
 (*
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
