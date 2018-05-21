@@ -348,7 +348,10 @@ end.
 Ltac computable := match goal with |- ?x =>
  no_evars x;
  putable x;
- compute; clear; repeat split; auto; congruence
+ compute; clear; repeat split; auto; congruence;
+  (match goal with |- context [Archi.ptr64] => idtac end;
+    first [change Archi.ptr64 with false | change Archi.ptr64 with true];
+    compute; repeat split; auto; congruence)
 end.
 
 Lemma sign_ext_range2:
