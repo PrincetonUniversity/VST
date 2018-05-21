@@ -429,7 +429,7 @@ End NO_EXISTS_PRE.
 
 Module WITH_EXISTS_PRE.
 
-Lemma semax_store_derives_wand: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+Lemma veric_semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
@@ -571,7 +571,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
        (Sset id (Ecast e1 t1))
        (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1) v2))) &&
                                           (subst id (`old) P)))
-| semax_store: forall e1 e2 P,
+| semax_store_backward: forall e1 e2 P,
     @semax CS Espec Delta
    (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
@@ -930,6 +930,57 @@ Proof.
     intro.
     destruct x; auto.
 Qed.
+
+Lemma semax_store:
+  forall {Espec: OracleKind}{CS: compspecs},
+ forall Delta e1 e2 sh P,
+   writable_share sh ->
+   @semax CS Espec Delta
+          (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
+          (Sassign e1 e2)
+          (normal_ret_assert
+               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_store_backward].
+  apply (exp_right sh).
+  apply andp_right; [apply prop_right; auto |].
+  apply andp_left2, later_derives.
+  apply andp_derives; auto.
+  apply sepcon_derives; auto.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite sepcon_comm; apply bupd_intro.
+Qed.
+
+Lemma semax_frame:
+  forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P s R F,
+   closed_wrt_modvars s F ->
+  @semax CS Espec Delta P s R ->
+    @semax CS Espec Delta (P * F) s (frame_ret_assert R F).
+Proof.
+  intros.
+  induction H0.
+  + apply semax_pre with (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && (P * F)).
+    - normalize.
+      apply andp_left2, andp_right.
+      * eapply derives_trans; [apply sepcon_derives; [apply andp_left1 |]; apply derives_refl |].
+        intro rho.
+        apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho)).
+      * eapply derives_trans; [apply sepcon_derives; [apply andp_left2 |]; apply derives_refl |].
+        auto.
+    - apply semax_ifthenelse.
+      * eapply semax_pre; [| apply IHsemax1].
+       ++ apply andp_left2.
+          unfold_lift.
+          intro rho; unfold local, lift1; simpl.
+          normalize.
+       ++ unfold closed_wrt_modvars in H |- *.
+          simpl in H.
+          unfold modifiedvars in H |- *.
+          unfold closed_wrt_vars.
+Abort.
 
 End WITH_EXISTS_PRE.
 
