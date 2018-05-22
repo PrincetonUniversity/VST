@@ -3336,7 +3336,7 @@ Ltac assert_gvars :=
    else idtac
  end.
 
-Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ".
+Ltac start_function_hint := idtac. (* "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ". *)
 
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
