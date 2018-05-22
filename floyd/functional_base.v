@@ -505,7 +505,13 @@ Ltac pose_const_equation X :=
  match goal with
  | H: X = ?Y |- _ => Zground Y
  | _ => let z := eval compute in X in 
-                  change X with z in *
+            match z with context C [Archi.ptr64] =>
+                       first [
+                           unify Archi.ptr64 false; let u := context C [false] in let u := eval compute in u in change X with u in *
+                          |unify Archi.ptr64 true; let u := context C [true] in let u := eval compute in u in change X with u in *
+                      ]
+              | _ => change X with z in *
+            end
  end.
 
 Ltac perhaps_post_const_equation X :=
