@@ -1654,6 +1654,14 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma modifiedvars_Ssequence c1 c2 id: modifiedvars (Ssequence c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  rewrite modifiedvars'_union.
+  reflexivity.
+Qed.
+
 (*
 Lemma exit_tycon_Slabel l c Delta b: 
    exit_tycon (Slabel l c) Delta b = exit_tycon c Delta b.
