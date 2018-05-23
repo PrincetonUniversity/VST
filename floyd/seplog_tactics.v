@@ -975,6 +975,7 @@ Ltac apply_find_core X :=
  match X with
  | ?U -> ?V => match type of U with Prop => apply_find_core V end
  | @derives mpred _ _ _ => constr:(X)
+ | @eq mpred ?A ?B => constr:(@derives mpred A B)
  end.
 
 Lemma adjust_sep_apply:  forall (Q: mpred) (P: Prop),
@@ -984,19 +985,27 @@ Proof. intros. apply andp_right; auto. Qed.
 
 Ltac adjust_sep_apply H :=
  match type of H with 
- | _ |-- !! _ => apply (adjust_sep_apply _ _ H)
- | _ => apply H
+ | _ |-- !! _ => constr:(adjust_sep_apply _ _ H)
+ | _ => H
+ end.
+
+Ltac adjust2_sep_apply H :=
+ let x := adjust_sep_apply H in
+ match type of x with
+ | @eq mpred _ _ => constr:(derives_refl' _ _ x)
+ | _ => x
  end.
 
 Ltac sep_apply_in_entailment H :=
     match goal with |- ?A |-- ?B =>
-     match type of H with ?TH =>
+     let H' := adjust2_sep_apply H in
+     match type of H' with ?TH =>
      match apply_find_core TH with  ?C |-- ?D =>
       let frame := fresh "frame" in evar (frame: list mpred);
        apply derives_trans with (C * fold_right_sepcon frame);
              [solve [cancel] 
              | eapply derives_trans; 
-                [apply sepcon_derives; [clear frame; adjust_sep_apply H | apply derives_refl] 
+                [apply sepcon_derives; [clear frame; apply H' | apply derives_refl] 
                 | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
                 ]
              ]

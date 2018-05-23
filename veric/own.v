@@ -420,12 +420,21 @@ Proof.
 Qed.
 
 Lemma singleton_join_inv_gen: forall k a (b c: ghost),
-  join (singleton k a) b c -> join (Some a) (nth k b None) (nth k c None).
+  join (singleton k a) b c ->
+  join (Some a) (nth k b None) (nth k c None) /\
+    exists c', nth k c None = Some c' /\ c = list_set b k c'.
 Proof.
-  unfold singleton; induction k; inversion 1; subst; auto; try constructor.
+  unfold singleton; induction k; inversion 1; subst; auto.
+  - split; simpl; eauto; constructor.
+  - split; auto.
+    unfold list_set; simpl.
+    rewrite <- (ghost_core m2) in H5.
+    apply (core_identity m2) in H5; subst.
+    inv H2; eauto.
   - rewrite app_nth2; rewrite repeat_length; auto.
-    rewrite minus_diag; constructor.
-  - apply IHk; auto.
+    rewrite minus_diag; split; [constructor | simpl; eauto].
+  - assert (a2 = a3) by (inv H2; auto).
+    destruct (IHk _ _ _ H5) as (? & ? & ? & ?); subst; eauto.
 Qed.
 
 Lemma ghost_update_ND: forall {RA: Ghost} g (a: G) B pp,
@@ -438,7 +447,7 @@ Proof.
       (B := fun b => exists b' Hvb, B b' /\ b = singleton g (existT _ RA (exist _ b' Hvb), pp)).
     intros ?? [? J].
     rewrite ghost_fmap_singleton in J.
-    pose proof (singleton_join_inv_gen _ _ _ _ J) as Jg.
+    destruct (singleton_join_inv_gen _ _ _ _ J) as [Jg _].
     inv Jg.
     + destruct (H (core a)) as (b & ? & Hv).
       { eexists; split; [apply join_comm, core_unit | auto]. }
