@@ -1986,6 +1986,50 @@ Proof.
       destruct H4; [auto | right; congruence].
 Qed.
 
+Lemma closed_Ssequence c1 c2 F: closed_wrt_modvars (Ssequence c1 c2) F <-> closed_wrt_modvars c1 F /\ closed_wrt_modvars c2 F.
+Proof.
+  unfold closed_wrt_modvars.
+  pose proof modifiedvars_Ssequence c1 c2.
+  pose proof modifiedvars_computable c1 as TC.
+  forget (modifiedvars (Ssequence c1 c2)) as S.
+  forget (modifiedvars c1) as S1.
+  forget (modifiedvars c2) as S2.
+  clear c1 c2.
+  unfold closed_wrt_vars.
+  split; [intros; split; intros | intros [? ?]; intros].
+  + apply H0.
+    intros.
+    specialize (H1 i).
+    specialize (H i).
+    clear - H H1.
+    tauto.
+  + apply H0.
+    intros.
+    specialize (H1 i).
+    specialize (H i).
+    clear - H H1.
+    tauto.
+  + specialize (TC (te_of rho) te').
+    destruct TC as [te'' [? ?]].
+    transitivity (F (mkEnviron (ge_of rho) (ve_of rho) te'')).
+    - apply H1.
+      clear H0 H1.
+      intros.
+      specialize (H3 i).
+      specialize (H i).
+      specialize (H2 i).
+      specialize (H4 i).
+      destruct H2; [| rewrite <- H0 in *]; tauto.
+    - change (mkEnviron (ge_of rho) (ve_of rho) te') with (mkEnviron (ge_of (mkEnviron (ge_of rho) (ve_of rho) te'')) (ve_of (mkEnviron (ge_of rho) (ve_of rho) te'')) te').
+      change te'' with (te_of (mkEnviron (ge_of rho) (ve_of rho) te'')) in H3, H4, H2.
+      forget (mkEnviron (ge_of rho) (ve_of rho) te'') as rho'.
+      apply H0.
+      clear H0 H1 H2 H3 H te''.
+      intros.
+      specialize (H4 i).
+      destruct H4; [auto | right; congruence].
+Qed.
+
 (*Moved here from semax_switch*)
 Lemma semax_eq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P c R,
