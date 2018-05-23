@@ -348,7 +348,10 @@ end.
 Ltac computable := match goal with |- ?x =>
  no_evars x;
  putable x;
- compute; clear; repeat split; auto; congruence
+ compute; clear; repeat split; auto; congruence;
+  (match goal with |- context [Archi.ptr64] => idtac end;
+    first [change Archi.ptr64 with false | change Archi.ptr64 with true];
+    compute; repeat split; auto; congruence)
 end.
 
 Lemma sign_ext_range2:
@@ -502,7 +505,13 @@ Ltac pose_const_equation X :=
  match goal with
  | H: X = ?Y |- _ => Zground Y
  | _ => let z := eval compute in X in 
-                  change X with z in *
+            match z with context C [Archi.ptr64] =>
+                       first [
+                           unify Archi.ptr64 false; let u := context C [false] in let u := eval compute in u in change X with u in *
+                          |unify Archi.ptr64 true; let u := context C [true] in let u := eval compute in u in change X with u in *
+                      ]
+              | _ => change X with z in *
+            end
  end.
 
 Ltac perhaps_post_const_equation X :=
