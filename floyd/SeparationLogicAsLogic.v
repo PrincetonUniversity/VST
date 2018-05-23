@@ -970,18 +970,23 @@ Proof.
         apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho)).
       * eapply derives_trans; [apply sepcon_derives; [apply andp_left2 |]; apply derives_refl |].
         auto.
-    - apply semax_ifthenelse.
-      * eapply semax_pre; [| apply IHsemax1].
-       ++ apply andp_left2.
-          unfold_lift.
-          intro rho; unfold local, lift1; simpl.
-          normalize.
-       ++ unfold closed_wrt_modvars in H |- *.
-          simpl in H.
-          unfold modifiedvars in H |- *.
-          unfold closed_wrt_vars.
+    - rewrite semax_lemmas.closed_Sifthenelse in H; destruct H.
+      apply semax_ifthenelse.
+      * eapply semax_pre; [| apply IHsemax1; auto].
+        apply andp_left2.
+        unfold_lift.
+        intro rho; unfold local, lift1; simpl.
+        normalize.
+      * eapply semax_pre; [| apply IHsemax2; auto].
+        apply andp_left2.
+        unfold_lift.
+        intro rho; unfold local, lift1; simpl.
+        normalize.
+  + apply semax_seq with (Q * F).
+    - destruct R; apply IHsemax1; auto.
 Abort.
 
 End WITH_EXISTS_PRE.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
+
