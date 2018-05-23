@@ -1905,28 +1905,6 @@ Instance EqDec_external_function: EqDec external_function := eq_dec_external_fun
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.
 
-Lemma modifiedvars_computable: forall c (te1 te2: Map.t val), exists te,
-  (forall i, modifiedvars c i -> Map.get te1 i = Map.get te i) /\
-  (forall i, modifiedvars c i \/ Map.get te2 i = Map.get te i).
-Proof.
-  intros.
-  unfold modifiedvars.
-  exists (fun i => match (modifiedvars' c idset0) ! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
-  split; intros.
-  + unfold Map.get.
-    destruct ((modifiedvars' c idset0) ! i); simpl; [auto | inv H].
-  + unfold Map.get.
-    destruct ((modifiedvars' c idset0) ! i); simpl; [left; apply I | auto].
-Qed.
-
-Lemma modifiedvars_Sifthenelse b c1 c2 id: modifiedvars (Sifthenelse b c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
-Proof.
-  unfold modifiedvars.
-  simpl.
-  rewrite modifiedvars'_union.
-  reflexivity.
-Qed.
-
 Lemma closed_Sifthenelse b c1 c2 F: closed_wrt_modvars (Sifthenelse b c1 c2) F <-> closed_wrt_modvars c1 F /\ closed_wrt_modvars c2 F.
 Proof.
   unfold closed_wrt_modvars.
@@ -1969,14 +1947,6 @@ Proof.
       intros.
       specialize (H4 i).
       destruct H4; [auto | right; congruence].
-Qed.
-
-Lemma modifiedvars_Sloop c1 c2 id: modifiedvars (Sloop c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
-Proof.
-  unfold modifiedvars.
-  simpl.
-  rewrite modifiedvars'_union.
-  reflexivity.
 Qed.
 
 Lemma closed_Sloop c1 c2 F: closed_wrt_modvars (Sloop c1 c2) F <-> closed_wrt_modvars c1 F /\ closed_wrt_modvars c2 F.
