@@ -3641,3 +3641,27 @@ Ltac prove_semax_prog :=
         fail "Funspec of _main is not in the proper form"
     end
  ].
+
+Ltac reassociate_to c1 c2  n :=
+ match n with 
+ | O => constr:(Ssequence c1 c2)
+ | S ?j => match c2 with Ssequence ?c3 ?c4 => reassociate_to (Ssequence c1 c3) c4 j end
+ end.
+
+Tactic Notation "assert_after" constr(n) constr(PQR) :=
+ let n := match type of n with
+              | Z => let j := constr:(Z.to_nat n) in let j := eval compute in j in j
+              | _ => n
+             end in
+ match goal with
+ | |- semax _ _ (Ssequence (Ssequence ?c1 ?c2) ?c3) _ =>
+ let c := reassociate_to c1 c2 n
+  in match c with (Ssequence ?d ?e) =>
+           let f := constr:(Ssequence d (Ssequence e c3))
+            in apply (semax_unfold_Ssequence _ f); [reflexivity | ]
+      end
+ | |- semax _ _ (Ssequence ?c1 ?c2) _ =>
+ let c := reassociate_to c1 c2 n
+  in  apply (semax_unfold_Ssequence _ c); [reflexivity | ]
+ end;
+ apply semax_seq' with PQR; abbreviate_semax.
