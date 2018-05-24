@@ -3640,7 +3640,8 @@ Ltac prove_semax_prog :=
       (eexists; reflexivity) || 
         fail "Funspec of _main is not in the proper form"
     end
- ].
+ ];
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 
 Ltac reassociate_to c1 c2  n :=
  match n with 
