@@ -1827,6 +1827,9 @@ eapply derives_trans; [apply field_at_local_facts |];
   apply derives_refl
 end.
 
+Ltac data_at_valid_aux :=
+ simpl sizeof; rewrite ?Z.max_r by rep_omega; rep_omega.
+
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
     (simple apply data_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
 
