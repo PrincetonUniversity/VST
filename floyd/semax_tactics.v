@@ -252,6 +252,9 @@ match goal with
          apply sequential; simpl_ret_assert)
 | P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P;
       force_sequential
+| P := _ : ret_assert |- semax _ _ _ ?P' => 
+      constr_eq P P'; unfold abbreviate in P; subst P;
+      force_sequential
 | |- semax _ _ _ (normal_ret_assert ?P) => 
        abbreviate (normal_ret_assert P) : ret_assert as POSTCONDITION
 | |- semax _ _ ?c ?P =>

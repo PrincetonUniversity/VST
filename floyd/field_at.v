@@ -1828,10 +1828,17 @@ eapply derives_trans; [apply field_at_local_facts |];
 end.
 
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
-    (simple apply data_at_valid_ptr; [now auto | reflexivity]) : valid_pointer.
+    (simple apply data_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
 
 Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
-    (simple apply field_at_valid_ptr; [now auto | reflexivity]) : valid_pointer.
+    (simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+
+Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+    (unfold data_at_, field_at_; 
+     simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+
+Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
 
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 

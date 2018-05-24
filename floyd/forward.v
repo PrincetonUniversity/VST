@@ -2906,7 +2906,7 @@ end].
 
 Ltac advise_prepare_postcondition := 
  match goal with
- | Post' := @abbreviate ret_assert ?R |- semax _ _ _ ?Post =>
+ | Post' := _ : ret_assert |- semax _ _ _ ?Post =>
      tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
  end;
  lazymatch goal with
