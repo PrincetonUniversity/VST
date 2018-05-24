@@ -982,8 +982,22 @@ Proof.
         unfold_lift.
         intro rho; unfold local, lift1; simpl.
         normalize.
-  + apply semax_seq with (Q * F).
+  + rewrite semax_lemmas.closed_Ssequence in H; destruct H.
+    apply semax_seq with (Q * F).
     - destruct R; apply IHsemax1; auto.
+    - destruct R; apply IHsemax2; auto.
+  + replace (RA_break Q * F) with (RA_break (frame_ret_assert Q F)) by (destruct Q; auto).
+    apply semax_break.
+  + replace (RA_continue Q * F) with (RA_continue (frame_ret_assert Q F)) by (destruct Q; auto).
+    apply semax_continue.
+  + rewrite semax_lemmas.closed_Sloop in H; destruct H.
+    eapply semax_loop with (Q' * F).
+    - destruct R; apply IHsemax1; auto.
+    - replace (loop2_ret_assert (Q * F) (frame_ret_assert R F))
+        with (frame_ret_assert (loop2_ret_assert Q R) F)
+        by (destruct R; simpl; f_equal; extensionality rho; apply pred_ext; normalize).
+      apply IHsemax2; auto.
+  + 
 Abort.
 
 End WITH_EXISTS_PRE.
