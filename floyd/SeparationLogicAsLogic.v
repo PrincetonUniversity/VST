@@ -280,6 +280,40 @@ Proof.
     - apply (semax_post_bupd R'); auto.
 Qed.
 
+Lemma semax_seq_inv': forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
+    @semax CS Espec Delta P (Ssequence h t) R ->
+    @semax CS Espec Delta P h (overridePost (EX Q: environ -> mpred, !! (@semax CS Espec Delta Q t R) && Q) R).
+Proof.
+  intros.
+  remember (Ssequence h t) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0.
+    clear IHsemax1 IHsemax2.
+    eapply semax_post; [.. | exact H].
+    - apply andp_left2; destruct R; unfold overridePost, tycontext.RA_normal.
+      apply (exp_right Q).
+      apply andp_right; [apply prop_right |]; auto.
+    - destruct R; apply andp_left2, derives_refl.
+    - destruct R; apply andp_left2, derives_refl.
+    - intro; destruct R; apply andp_left2, derives_refl.
+  + subst c.
+    pose proof IHsemax eq_refl. clear IHsemax.
+    eapply semax_pre_post_bupd; [.. | exact H0]; auto.
+    - unfold overridePost, tycontext.RA_normal.
+      destruct R' as [R'0 R'1 R'2 R'3] at 1; clear R'0 R'1 R'2 R'3.
+      destruct R as [R0 R1 R2 R3] at 1; clear R0 R1 R2 R3.
+      rewrite exp_andp2.
+      apply exp_left; intro Q.
+      normalize.
+      eapply derives_trans; [| apply bupd_intro].
+      apply (exp_right Q).
+      apply andp_right; [apply prop_right | apply andp_left2; auto].
+      eapply semax_post_bupd; [.. | apply H6]; auto.
+    - destruct R, R'; auto.
+    - destruct R, R'; auto.
+    - destruct R, R'; auto.
+Qed.
+
 Lemma semax_store_inv: forall {Espec: OracleKind}{CS: compspecs} Delta e1 e2 P Q,
   @semax CS Espec Delta P (Sassign e1 e2) Q ->
   exists sh P',
@@ -337,7 +371,7 @@ Lemma extract_exists_pre:
    @semax CS Espec Delta (EX x:A, P x) c R.
 Proof.
   intros.
-  induction c.
+  revert A P R H; induction c; intros.
   + eapply semax_post_bupd; [.. | apply semax_skip].
     - change (RA_normal (normal_ret_assert (EX x : A, P x))) with (EX x : A, P x).
       rewrite exp_andp2; apply exp_left.
@@ -354,7 +388,30 @@ Proof.
       apply semax_store_inv in H.
       destruct H as [sh [P' [? [? ?]]]].
       Fail exact H0.
-Abort.
+      admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+  + admit.
+  + admit.
+  + admit.
+  + apply semax_seq with (EX Q: environ -> mpred, !! (semax Delta Q c2 R) && Q).
+    - apply IHc1.
+      intro x.
+      apply semax_seq_inv'; auto.
+    - apply IHc2.
+      intros Q.
+      apply semax_pre with (EX H0: semax Delta Q c2 R, Q).
+      * apply andp_left2.
+        normalize.
+        apply (exp_right H0).
+        auto.
+      * apply IHc2.
+        intro H0.
+        auto.
+Admitted.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
@@ -422,8 +479,11 @@ Proof.
     - destruct Q; apply andp_left2, derives_refl.
     - destruct Q; apply andp_left2, derives_refl.
     - intro; destruct Q; apply andp_left2, derives_refl.
-  + 
-Abort.
+  + rewrite orp_is_exp.
+    apply extract_exists_pre.
+    intro.
+    destruct x; auto.
+Qed.
 
 End NO_EXISTS_PRE.
 
