@@ -1693,6 +1693,11 @@ Ltac forward_for_simple_bound n Pre :=
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
  end;
+ match goal with |-
+      semax _ _ (Ssequence (Ssequence (Sfor _ _ _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ | _ => idtac
+ end;
  first [
     match type of n with
       ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
