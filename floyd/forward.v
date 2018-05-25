@@ -1696,6 +1696,7 @@ Ltac forward_for_simple_bound n Pre :=
  match goal with |-
       semax _ _ (Ssequence (Ssequence (Sfor _ _ _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
+ | _ => idtac
  end;
  first [
     match type of n with
