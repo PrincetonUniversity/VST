@@ -915,6 +915,92 @@ typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta) /\
 same_env rho Delta.
 
+Lemma typecheck_var_environ_None: forall ve vt,
+  typecheck_var_environ ve vt ->
+  forall i,
+  vt ! i = None <-> Map.get ve i = None.
+Proof.
+  intros.
+  destruct (vt ! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
+  + apply H in H0.
+    destruct H0; congruence.
+  + destruct p.
+    assert (vt ! i = Some t) by (apply H; eauto).
+    congruence.
+Qed.
+
+(* This naming is for the purpose when VST's developers do "Search typecheck_var_environ." *)
+Lemma WARNING___________you_should_use_tactic___destruct_var_types___instead:
+  forall (ve : venviron) (vt : PTree.t type), typecheck_var_environ ve vt -> forall i : positive,
+     match vt ! i with
+     | Some t => exists b, Map.get ve i = Some (b, t)
+     | None => Map.get ve i = None
+     end.
+Proof.
+  intros.
+  pose proof (H i).
+  destruct (vt ! i) eqn:?H.
+  + specialize (H0 t).
+    destruct H0 as [? _].
+    specialize (H0 eq_refl).
+    auto.
+  + eapply typecheck_var_environ_None; eauto.
+Qed.
+
+Ltac _destruct_var_types i Heq_vt Heq_ve t b :=
+  let HH := fresh "H" in
+  match goal with
+  | H: typecheck_var_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ H i as HH
+  | H: typecheck_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ (proj1 (proj2 H)) i as HH
+  end;
+  match type of HH with
+  | match ?o with _ => _ end =>
+      match goal with
+      | H: o = Some _ |- _ =>
+          rewrite H in HH
+      | H: Some _ = o |- _ =>
+          rewrite <- H in HH
+      | H: o = None |- _ =>
+          rewrite H in HH
+      | H: None = o |- _ =>
+          rewrite <- H in HH
+      | _ =>
+          let HH' := fresh "H" in
+          pose proof eq_refl o as HH';
+          destruct o as [t |] in HH, HH' at 2;
+          pose proof HH' as Heq_vt; clear HH'
+      end
+  end;
+  match type of HH with
+  | ex _ =>
+      pose proof HH as [b Heq_ve]
+  | _ =>
+      pose proof HH as Heq_ve
+  end;
+  clear HH.
+
+Tactic Notation "destruct_var_types" constr(i) :=
+  let Heq_vt := fresh "Heqo" in
+  let Heq_ve := fresh "Heqo" in
+  let t := fresh "t" in
+  let b := fresh "b" in
+  _destruct_var_types i Heq_vt Heq_ve t b.
+
+Tactic Notation "destruct_var_types" constr(i) "as" "[" ident(t) ident(b) "]" :=
+  let Heq_vt := fresh "Heqo" in
+  let Heq_ve := fresh "Heqo" in
+  _destruct_var_types i Heq_vt Heq_ve t b.
+
+Tactic Notation "destruct_var_types" constr(i) "eqn" ":" simple_intropattern(Heq_vt) "&" simple_intropattern(Heq_ve) :=
+  let t := fresh "t" in
+  let b := fresh "b" in
+  _destruct_var_types i Heq_vt Heq_ve t b.
+
+Tactic Notation "destruct_var_types" constr(i) "as" "[" ident(t) ident(b) "]" "eqn" ":" simple_intropattern(Heq_vt) "&" simple_intropattern(Heq_ve) :=
+  _destruct_var_types i Heq_vt Heq_ve t b.
+
 (** Type-checking of function parameters **)
 
 Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=

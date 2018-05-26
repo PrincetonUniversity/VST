@@ -3,6 +3,7 @@ Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.
+Require Import VST.veric.expr.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 
@@ -11,20 +12,6 @@ Import Cop2.
 
 Opaque tc_andp. (* This is needed otherwise certain Qeds take
     forever in Coq 8.3.  *)
-
-Lemma typecheck_var_environ_None: forall ve vt,
-  typecheck_var_environ ve vt ->
-  forall i,
-  vt ! i = None <-> Map.get ve i = None.
-Proof.
-  intros.
-  destruct (vt ! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
-  + apply H in H0.
-    destruct H0; congruence.
-  + destruct p.
-    assert (vt ! i = Some t) by (apply H; eauto).
-    congruence.
-Qed.
 
 Lemma eval_lvalue_ptr : forall {CS: compspecs} rho m e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho ->
@@ -41,18 +28,16 @@ simpl. unfold eval_var.
 simpl in H2.
 unfold get_var_type in H2.
 subst rho; simpl ve_of; simpl ge_of.
-destruct ((var_types Delta) ! i) eqn:?H;
- [| destruct ((glob_types Delta) ! i) eqn:?H].
+destruct_var_types i eqn:H4&?H;
+ [| destruct ((glob_types Delta) ! i) eqn:?H];
+   rewrite H4 in H2.
 + apply tc_bool_e in H2.
-  apply H0 in H.
-  destruct H as [b ?].
   exists b, Ptrofs.zero.
-  rewrite H, H2.
+  rewrite H3, H2.
   auto.
 + apply tc_bool_e in H2.
-  apply (typecheck_var_environ_None _ _ H0) in H.
-  apply H1 in H3.
-  destruct H3 as [b ?].
+  apply H1 in H.
+  destruct H as [b ?].
   exists b, Ptrofs.zero.
   rewrite H, H3.
   auto.
@@ -95,7 +80,7 @@ unfold denote_tc_nodivover in *;
 unfold denote_tc_initialized in *.
 
 
-Lemma typecheck_lvalue_Evar:
+Lemma typecheck_lvalue_Evar':
   forall {CS: compspecs} i t pt Delta rho m, typecheck_environ Delta rho ->
            denote_tc_assert (typecheck_lvalue Delta (Evar i t)) rho m ->
            is_pointer_type pt = true ->
@@ -136,6 +121,47 @@ unfold same_env in *.
 symmetry in Heqo0.  specialize (H5 _ _ Heqo0).
 destruct H5. simpl in *. unfold Map.get. rewrite H4.
 unfold typecheck_glob_environ in *. destruct (H3 i _ Heqo0).
+rewrite H5.
+unfold tc_val; unfold is_pointer_type in H1;
+ destruct pt; try solve [inv H1; reflexivity].
+ simple_if_tac; apply I.
+destruct H4; congruence. inv H0.
+inv H0.
+}
+Qed.
+
+Lemma typecheck_lvalue_Evar:
+  forall {CS: compspecs} i t pt Delta rho m, typecheck_environ Delta rho ->
+           denote_tc_assert (typecheck_lvalue Delta (Evar i t)) rho m ->
+           is_pointer_type pt = true ->
+           tc_val pt (eval_lvalue (Evar i t) rho).
+Proof.
+intros.
+simpl in *. unfold eval_var.
+
+unfold typecheck_environ in H.
+intuition.
+destruct rho.
+unfold get_var_type in *.
+
+destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *; try rewrite eqb_type_eq in *; simpl in *; intuition.
+remember (type_eq t t0). destruct s; intuition.
+{
+simpl in *.
+ unfold is_pointer_type in H1.
+ destruct pt; try solve [inv H1; auto].
+ unfold tc_val.
+ simple_if_tac; apply I.
+}
+{remember ((glob_types Delta) ! i). destruct o; try congruence.
+simpl in *. super_unfold_lift.
+remember (eqb_type t t0).
+symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
+subst.
+unfold same_env in *.
+symmetry in Heqo1.  specialize (H5 _ _ Heqo1).
+destruct H5. simpl in *. unfold Map.get.
+unfold typecheck_glob_environ in *. destruct (H3 i _ Heqo1).
 rewrite H5.
 unfold tc_val; unfold is_pointer_type in H1;
  destruct pt; try solve [inv H1; reflexivity].
@@ -231,20 +257,17 @@ simpl. super_unfold_lift. unfold deref_noload.
 unfold typecheck_environ in H. intuition.
 rename H4 into SM.
 destruct rho.
-unfold typecheck_var_environ, same_env in *.
+unfold same_env in *.
 simpl in H0. rewrite MODE in H0.
 unfold get_var_type in *.
 
-remember ((var_types Delta) ! i).
-destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition.
+destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *;
+try rewrite eqb_type_eq in *; simpl in *; intuition.
 - remember (type_eq t t0). destruct s; intuition.
- subst. simpl in H0.
-clear H0.
-symmetry in Heqo.
-specialize (H i t0).
-destruct H as [H _]; specialize (H Heqo).
-destruct H. unfold eval_var. simpl.
-rewrite H in *. rewrite eqb_type_refl in *.
+ subst.
+unfold eval_var. simpl.
+rewrite Heqo0.
+rewrite eqb_type_refl in *.
 simpl. destruct t0; try destruct i0; try destruct s; try destruct f; inv MODE; simpl; auto.
 - remember ((glob_types Delta) ! i). destruct o; [| inv H0].
 simpl in *.
@@ -253,12 +276,10 @@ super_unfold_lift. remember (eqb_type t t0).
 symmetry in Heqb. destruct b; simpl in *; [| inv H0].
 apply eqb_type_true in Heqb.
 subst.
-symmetry in Heqo0.  specialize (SM _ _ Heqo0).
-destruct SM as [| [? ?]]; [| congruence].
-unfold Map.get. rewrite H3.
+rewrite Heqo0.
 unfold typecheck_glob_environ in *.
-destruct (H2 _ _ Heqo0).
-rewrite H4. destruct t0 as [| [| | |] [|] | | [|] | | | | |]; inv MODE; simpl; auto.
+destruct (H2 _ _ (eq_sym Heqo1)).
+rewrite H3. destruct t0 as [| [| | |] [|] | | [|] | | | | |]; inv MODE; simpl; auto.
 Qed.
 
 Definition unOp_result_type op t :=
