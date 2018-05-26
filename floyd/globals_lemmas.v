@@ -229,17 +229,13 @@ assert (H6:=I).
     pose proof (Z.le_max_l z 0).
     rewrite H8.
     apply mapsto_zeros_memory_block; auto.
-*  destruct ((var_types Delta) ! i) eqn:Hv;
-   destruct ((glob_types Delta) ! i) eqn:Hg;
-    try destruct g; try solve [simpl; apply TT_right].
- +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
-     simpl.
-     rewrite H8. cancel.
- +
-   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' H15]; rewrite H15.
-   replace (offset_val (Ptrofs.unsigned i0) (globals_of_env rho i)) with (Vptr b' i0).
-   replace (mapsto sh (Tpointer Tvoid noattr) (offset_val ofs v) (Vptr b' i0))
-   with (mapsto sh (Tpointer t noattr) (offset_val ofs v) (Vptr b' i0)).
+* destruct_var_types i eqn:Hv&Hv'; rewrite ?Hv, ?Hv';
+  destruct_glob_types i eqn:Hg&Hg'; rewrite ?Hg, ?Hg';
+try solve [simpl; apply TT_right].
+ + rewrite H8. cancel.
+ + replace (offset_val (Ptrofs.unsigned i0) (globals_of_env rho i)) with (Vptr b0 i0).
+   replace (mapsto sh (Tpointer Tvoid noattr) (offset_val ofs v) (Vptr b0 i0))
+   with (mapsto sh (Tpointer t noattr) (offset_val ofs v) (Vptr b0 i0)).
    destruct t; auto.
    unfold mapsto; simpl.
    destruct (offset_val ofs v); auto. rewrite !if_true by auto. rewrite andb_false_r.
@@ -247,7 +243,7 @@ assert (H6:=I).
    unfold mapsto; simpl.
    destruct (offset_val ofs v); auto. rewrite !if_true by auto. rewrite andb_false_r.
    reflexivity.
-   unfold globals_of_env. rewrite H15. simpl. rewrite Ptrofs.add_zero_l.
+   unfold globals_of_env. rewrite Hg'. simpl. rewrite Ptrofs.add_zero_l.
    f_equal. rewrite Ptrofs.repr_unsigned; auto.
 Qed.
 
