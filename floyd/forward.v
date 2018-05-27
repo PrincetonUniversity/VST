@@ -361,7 +361,7 @@ Lemma gvar_isptr:
 Proof.
 intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -369,7 +369,7 @@ Lemma sgvar_isptr:
   forall i v rho, locald_denote (sgvar i v) rho -> isptr v.
 Proof.
 intros. hnf in H.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -3159,19 +3159,15 @@ normalize.
 apply prop_right.
 pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
 apply H5 in H4.
++
 simpl in H4.
 hnf.
-destruct H2 as [? [? [? ?]]].
-apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
-destruct H6 as [H6 _].
-specialize (H6 H).
-rewrite H6.
-destruct ((glob_types Delta) ! i) eqn:?.
-hnf in H7.
-specialize (H7 _ _ Heqo). destruct H7.
-rewrite H4.
-rewrite H7. auto.
-clear - H0; congruence.
+destruct_var_types i eqn:?H&?H.
+rewrite H7.
+destruct_glob_types i eqn:?H&?H; [| congruence].
+rewrite H4, H8.
+auto.
++
 apply in_map.
 auto.
 Qed.

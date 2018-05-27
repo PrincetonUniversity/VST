@@ -56,7 +56,7 @@ intros.
 hnf in H,H0.
 subst.
 destruct (Map.get (ve_of rho) i) as [ [? ?] |] ; try contradiction.
-destruct (ge_of rho i); try contradiction; auto.
+destruct (Map.get (ge_of rho) i); try contradiction; auto.
 Qed.
 
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
