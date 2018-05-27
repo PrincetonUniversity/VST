@@ -2277,11 +2277,7 @@ Proof.
 Qed.
 Hint Resolve unreadable_bot.
 
-Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
-Proof.
-  intros ?? (? & ?).
-  apply lub_bot_e; auto.
-Qed.
+Definition join_Bot := initial_world.join_Bot.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
 Proof.
@@ -2932,7 +2928,7 @@ Lemma gvar_eval_var: forall i t v rho,
 Proof.
   unfold eval_var, gvar_denote; intros.
   destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction|].
-  destruct (ge_of rho i); auto; contradiction.
+  destruct (Map.get (ge_of rho) i); auto; contradiction.
 Qed.
 
 Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
@@ -2997,10 +2993,10 @@ entailer.
 apply andp_right.
 - (* about gvar *)
   apply prop_right.
-  unfold gvar_denote, eval_var, Map.get.
-  destruct H as (_ & _ & DG & DS).
-  destruct (DS id _ GS) as [-> | (t & E)]; [ | congruence].
-  destruct (DG id _ GS) as [? ?]; rewrite H; auto.
+  unfold gvar_denote, eval_var.
+  destruct_var_types id.
+  destruct_glob_types id.
+  rewrite Heqo0, Heqo1; auto.
 - (* about func_ptr/func_ptr' *)
   unfold func_ptr'.
   rewrite <- andp_left_corable, andp_comm; auto.

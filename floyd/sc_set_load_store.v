@@ -488,9 +488,9 @@ Ltac SEP_type_contradict LOCAL2PTREE e R :=
   end;
   fail 0.
 
-Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
+Lemma hint_msg_lemma: forall {cs: compspecs} e goal Q T1 T2 G e_root efs lr p_full_from_e p_root_from_e gfs_from_e t_root_from_e p_root_from_hint gfs_from_hint t_root_from_hint
   t gfs p,
-  local2ptree Q = (T1, T2, nil, nil) ->
+  local2ptree Q = (T1, T2, nil, G) ->
   compute_nested_efield e = (e_root, efs, lr) ->
   msubst_eval_lvalue T1 T2 e = Some p_full_from_e ->
   msubst_eval_LR T1 T2 e_root lr = Some p_root_from_e ->
@@ -1222,7 +1222,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_lvalue
+  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "The hint does not type match")
@@ -1245,8 +1245,8 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
+  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1284,7 +1284,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_lvalue
+  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
@@ -1308,8 +1308,8 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
+  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1351,8 +1351,8 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   [ exact LOCAL2PTREE
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_expr
-  | solve_msubst_eval_lvalue
+  | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "The hint does not type match")
@@ -1375,9 +1375,9 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_expr
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
+  | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1395,9 +1395,19 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
                                                          "unexpected failure in solve_legal_nested_field_in_entailment"]
   ].
 
+Ltac check_expression_by_value e :=
+  let t := constr:(access_mode (typeof e)) in let t := eval hnf in t
+   in match t with
+       | By_value _ => idtac
+       | By_reference => fail 100 "Assignment to a variable whose type is By_reference"
+       | By_copy => fail 100 "At present, Verifiable C does not support assignment to variables of struct or union type.  Rewrite your program to copy field-by-field"
+       | By_nothing => fail 100 "Assignment to variable of void type"
+      end.
+
 Ltac store_tac :=
   match goal with
   | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e1 ?e2) _ =>
+    check_expression_by_value e1;
     let T1 := fresh "T1" in evar (T1: PTree.t val);
     let T2 := fresh "T2" in evar (T2: PTree.t vardesc);
     let G := fresh "G" in evar (G: list localdef);

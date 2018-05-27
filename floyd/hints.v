@@ -241,7 +241,7 @@ match goal with
 end.
 
 Ltac hint_progress any n :=
- lazymatch n with 7%nat => constr_eq any true
+ lazymatch n with 8%nat => constr_eq any true
  | _ =>
  tryif lazymatch n with
  | 0%nat => print_sumbool_hint_hyp
@@ -253,7 +253,11 @@ Ltac hint_progress any n :=
      else  idtac "Hint:  try 'autorewrite with norm'"
  | 4%nat => match goal with H: ?p = nullval |- _ => idtac "Hint: try 'subst " p "'" end
  | 5%nat => match goal with |- ?A = ?B => hint_field_address_offset' (A=B) end
- | 6%nat => lazymatch goal with
+ | 6%nat => match goal with D := @abbreviate _ _ |- _ =>
+                      tryif (try (clear D; fail 1)) then fail
+                      else  idtac "Hint:  clear" D
+                    end
+ | 7%nat => lazymatch goal with
    | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
      else idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"

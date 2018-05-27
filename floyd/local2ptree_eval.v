@@ -152,29 +152,23 @@ Proof.
   + intros.
     unfold eval_vardesc in H1.
     unfold eval_var.
-    destruct_tc_vartype i.
-    Locate typecheck_var_environ.
-    specialize (H i).
-    destruct ((var_types Delta) ! i); [pose proof  (proj1 (H _) eq_refl) as HH; destruct HH as [b HH]; rewrite HH; clear H |].
+    destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *.
     - destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].
       destruct (eqb_type t t1) eqn:?; inv H1.
       apply eqb_type_true in Heqb0. subst t1.
       assert (In (locald_denote (lvar i t v))  (map locald_denote (LocalD T1 T2 GV)))
         by (apply  in_map; apply LocalD_sound; eauto 50).
-      assert (H3 := local_ext _ _ _ H H0). clear - H3 HH.
+      assert (H3 := local_ext _ _ _ H1 H0). clear - H3 Heqo Heqo0.
       hnf in H3.
-      destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-      inv HH.
+      rewrite Heqo0 in H3.
       destruct H3; subst. rewrite eqb_type_refl. auto.
-    - inv H0.
-      assert (In (locald_denote (gvar i v)) (map locald_denote (LocalD T1 T2 Q)))
+    - destruct GV as [?gv |]; inv H1.
+      assert (In (locald_denote (gvars gv)) (map locald_denote (LocalD T1 T2 (Some gv))))
         by (apply  in_map; apply LocalD_sound; eauto 50).
-      assert (H3 := local_ext _ _ _ H0 H). clear - H3.
+      assert (H3 := local_ext _ _ _ H1 H0). clear - H3.
       unfold eval_var in *. hnf in H3.
-      destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-      destruct (ge_of rho i); try contradiction. auto.
-     - inv H0.
-     - inv H0.
+      subst.
+      auto.
 Qed.
 
 Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall T1 T2 Q rho,

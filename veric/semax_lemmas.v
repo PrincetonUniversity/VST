@@ -139,8 +139,8 @@ Lemma typecheck_environ_sub:
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
 Proof.
-intros ? ? [? [? [? [? Hs]]]] ?  [? [? [? ?]]].
-split; [ | split; [ | split]].
+intros ? ? [? [? [? [? Hs]]]] ?  [? [? ?]].
+split; [ | split].
 * clear - H H3.
  hnf; intros.
  specialize (H id); rewrite H0 in H.
@@ -158,13 +158,6 @@ split; [ | split; [ | split]].
 * clear - H2 H5.
  hnf; intros. eapply H5.
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
-* clear - H6 H1 H2 H0.
- hnf; intros. specialize (H6 id t).
- specialize (H2 id); hnf in H2. rewrite H in H2.
- specialize (H6 H2).
- destruct H6; auto; right.
- destruct H3 as [t' ?]. exists t'.
- rewrite (H0 id); auto.
 Qed.
 
 Lemma funassert_resource: forall Delta rho a a' (Hl: level a = level a')
@@ -1116,7 +1109,7 @@ Proof.
   apply age_level in H; omega.
   clear HeqN m H. rename m' into m.
   intros; eexists; repeat split; eauto.
-  clear H; revert m H0; induction N; intros; simpl; [constructor|].
+  clear H H1; revert m H0; induction N; intros; simpl; [constructor|].
   case_eq (age1 m); [intros m' ? |  intro; apply age1_level0 in H; omegaContradiction].
   apply jsafeN_step
     with (c' := State ve te (Kseq Sskip :: Kseq Scontinue :: Kloop1 Sskip Sskip :: k))
@@ -1159,7 +1152,7 @@ Qed.
 Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
-   j_halted cl_core_sem st  = None ->
+   j_halted cl_core_sem st = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
    jstep cl_core_sem psi st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
@@ -1378,8 +1371,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   (* call_external *)
 { do 2 eexists; split; [split3; [ | eassumption | auto ] | ].
   rewrite <- Heqdm';  eapply step_call_external; eauto.
-  intros ? J; specialize (H5 _ J).
-  destruct H5 as (m'' & J' & Hupd & H5).
+  intros ? HC J; specialize (H5 _ HC J) as (m'' & J' & Hupd & H5).
   exists m''; split; auto; split; auto.
   destruct n; [constructor|].
   inv H5.
@@ -1414,14 +1406,14 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
    simpl.
      destruct H2 as [H2 [H2b H2c]].
     split3; auto.
-    rewrite <- strip_step. simpl. rewrite strip_step; auto.
+    simpl; rewrite <- strip_step. simpl. rewrite strip_step; auto.
     destruct (IHcl_step c l _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _))
       as [c2 [m2 [? ?]]]; clear IHcl_step.
     exists c2; exists m2; split; auto.
     destruct H2 as [H2 [H2b H2c]].
    simpl.
    split3; auto.
-   rewrite <- strip_step.
+   simpl; rewrite <- strip_step.
    change (strip_skip (Kseq Sskip :: c :: l ++ ctl2)) with (strip_skip (c::l++ctl2)).
    rewrite strip_step; auto. }
   (* continue *)
@@ -1906,6 +1898,124 @@ Instance EqDec_external_function: EqDec external_function := eq_dec_external_fun
 Lemma closed_Slabel l c F: closed_wrt_modvars (Slabel l c) F = closed_wrt_modvars c F.
 Proof. unfold closed_wrt_modvars. rewrite modifiedvars_Slabel. trivial. Qed.
 
+Lemma modifiedvars_computable: forall c (te1 te2: Map.t val), exists te,
+  (forall i, modifiedvars c i -> Map.get te1 i = Map.get te i) /\
+  (forall i, modifiedvars c i \/ Map.get te2 i = Map.get te i).
+Proof.
+  intros.
+  unfold modifiedvars.
+  exists (fun i => match (modifiedvars' c idset0) ! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
+  split; intros.
+  + unfold Map.get.
+    destruct ((modifiedvars' c idset0) ! i); simpl; [auto | inv H].
+  + unfold Map.get.
+    destruct ((modifiedvars' c idset0) ! i); simpl; [left; apply I | auto].
+Qed.
+
+Lemma modifiedvars_Sifthenelse b c1 c2 id: modifiedvars (Sifthenelse b c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  rewrite modifiedvars'_union.
+  reflexivity.
+Qed.
+
+Lemma closed_Sifthenelse b c1 c2 F: closed_wrt_modvars (Sifthenelse b c1 c2) F <-> closed_wrt_modvars c1 F /\ closed_wrt_modvars c2 F.
+Proof.
+  unfold closed_wrt_modvars.
+  pose proof modifiedvars_Sifthenelse b c1 c2.
+  pose proof modifiedvars_computable c1 as TC.
+  forget (modifiedvars (Sifthenelse b c1 c2)) as S.
+  forget (modifiedvars c1) as S1.
+  forget (modifiedvars c2) as S2.
+  clear b c1 c2.
+  unfold closed_wrt_vars.
+  split; [intros; split; intros | intros [? ?]; intros].
+  + apply H0.
+    intros.
+    specialize (H1 i).
+    specialize (H i).
+    clear - H H1.
+    tauto.
+  + apply H0.
+    intros.
+    specialize (H1 i).
+    specialize (H i).
+    clear - H H1.
+    tauto.
+  + specialize (TC (te_of rho) te').
+    destruct TC as [te'' [? ?]].
+    transitivity (F (mkEnviron (ge_of rho) (ve_of rho) te'')).
+    - apply H1.
+      clear H0 H1.
+      intros.
+      specialize (H3 i).
+      specialize (H i).
+      specialize (H2 i).
+      specialize (H4 i).
+      destruct H2; [| rewrite <- H0 in *]; tauto.
+    - change (mkEnviron (ge_of rho) (ve_of rho) te') with (mkEnviron (ge_of (mkEnviron (ge_of rho) (ve_of rho) te'')) (ve_of (mkEnviron (ge_of rho) (ve_of rho) te'')) te').
+      change te'' with (te_of (mkEnviron (ge_of rho) (ve_of rho) te'')) in H3, H4, H2.
+      forget (mkEnviron (ge_of rho) (ve_of rho) te'') as rho'.
+      apply H0.
+      clear H0 H1 H2 H3 H te''.
+      intros.
+      specialize (H4 i).
+      destruct H4; [auto | right; congruence].
+Qed.
+
+Lemma modifiedvars_Sloop c1 c2 id: modifiedvars (Sloop c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  rewrite modifiedvars'_union.
+  reflexivity.
+Qed.
+
+Lemma closed_Sloop c1 c2 F: closed_wrt_modvars (Sloop c1 c2) F <-> closed_wrt_modvars c1 F /\ closed_wrt_modvars c2 F.
+Proof.
+  unfold closed_wrt_modvars.
+  pose proof modifiedvars_Sloop c1 c2.
+  pose proof modifiedvars_computable c1 as TC.
+  forget (modifiedvars (Sloop c1 c2)) as S.
+  forget (modifiedvars c1) as S1.
+  forget (modifiedvars c2) as S2.
+  clear c1 c2.
+  unfold closed_wrt_vars.
+  split; [intros; split; intros | intros [? ?]; intros].
+  + apply H0.
+    intros.
+    specialize (H1 i).
+    specialize (H i).
+    clear - H H1.
+    tauto.
+  + apply H0.
+    intros.
+    specialize (H1 i).
+    specialize (H i).
+    clear - H H1.
+    tauto.
+  + specialize (TC (te_of rho) te').
+    destruct TC as [te'' [? ?]].
+    transitivity (F (mkEnviron (ge_of rho) (ve_of rho) te'')).
+    - apply H1.
+      clear H0 H1.
+      intros.
+      specialize (H3 i).
+      specialize (H i).
+      specialize (H2 i).
+      specialize (H4 i).
+      destruct H2; [| rewrite <- H0 in *]; tauto.
+    - change (mkEnviron (ge_of rho) (ve_of rho) te') with (mkEnviron (ge_of (mkEnviron (ge_of rho) (ve_of rho) te'')) (ve_of (mkEnviron (ge_of rho) (ve_of rho) te'')) te').
+      change te'' with (te_of (mkEnviron (ge_of rho) (ve_of rho) te'')) in H3, H4, H2.
+      forget (mkEnviron (ge_of rho) (ve_of rho) te'') as rho'.
+      apply H0.
+      clear H0 H1 H2 H3 H te''.
+      intros.
+      specialize (H4 i).
+      destruct H4; [auto | right; congruence].
+Qed.
+
 (*Moved here from semax_switch*)
 Lemma semax_eq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P c R,
@@ -2079,7 +2189,7 @@ Lemma assert_safe_jsafe: forall Espec ge ve te ctl ora jm,
   jm_bupd ora (jsafeN OK_spec ge (level jm) ora (State ve te ctl)) jm.
 Proof.
   repeat intro.
-  destruct (H _ H0) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
+  destruct (H _ H1) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
   rewrite level_juice_level_phi, <- Hl; auto.

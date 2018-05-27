@@ -52,39 +52,28 @@ Proof.
  unfold semax.jsafeN in H6.
  subst m.
  assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
-   (Some (initial_world.ext_ghost tt, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+   (Some (initial_world.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
  { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
-   constructor; auto. }
+   instantiate (1 := (Some _, _)); constructor; simpl; eauto; constructor. }
  clear - H4 J H6.
  revert jm q H4 J H6; induction n; simpl; intros. constructor.
  inv H6.
  - destruct H0 as (?&?&?&Hg).
    econstructor.
    + red. red. fold (globalenv prog). eassumption.
-   + destruct (H1 (core (tl (compcert_rmaps.RML.R.ghost_of (m_phi m'))))) as (m'' & J'' & (? & ? & ?) & ?).
+   + destruct (H1 (Some (initial_world.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
+     { eexists; apply join_comm, core_unit. }
      { rewrite Hg.
-       destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); [eexists; constructor|].
-       destruct J as [? J]; inv J.
-       eexists; simpl; constructor.
-       * inv H9; simpl; [constructor|].
-         destruct a1, a0; inv H6; simpl in *.
-         constructor; constructor; simpl; auto.
-         inv H5; constructor; auto.
-       * rewrite compcert_rmaps.RML.R.ghost_core; simpl.
-         erewrite <- compcert_rmaps.RML.R.ghost_core.
-         apply join_comm, core_unit. }
+       destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
      replace (m_dry m') with (m_dry m'') by auto.
      apply IHn; auto.
-     * change (level (m_phi jm)) with (level jm) in H4.
-       rewrite H4 in H2; inv H2; auto.
-     * destruct (compcert_rmaps.RML.R.ghost_of (m_phi m'')); [eexists; constructor|].
-       destruct J'' as [? J'']; inv J''.
-       eexists; constructor; eauto; constructor.
+     change (level (m_phi jm)) with (level jm) in H4.
+     rewrite H4 in H2; inv H2; auto.
  - exfalso; auto.
  - eapply safeN_halted; eauto.
- Unshelve. apply I.
+ Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
 Qed.
 
 Require Import VST.veric.juicy_safety.

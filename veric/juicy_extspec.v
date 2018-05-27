@@ -25,8 +25,7 @@ Class OracleKind := {
 
 Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
- corestep csem ge q (m_dry jm) q' (m_dry jm') /\
- resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+ corestep csem ge q (m_dry jm) q' (m_dry jm') /\ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm') /\
  ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)).
 
@@ -76,7 +75,7 @@ Definition juicy_core_sem
     (semantics.initial_core csem)
     (at_external csem)
     (after_external csem)
-    (j_halted csem)
+        (j_halted csem)
     (jstep csem)
     (jstep_not_at_external csem)
     (jstep_not_halted csem)
@@ -239,12 +238,13 @@ Proof.
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 
-Definition has_ext {Z} (ora : Z) : pred rmap := @own (ext_PCM _) 0 ora NoneP.
+Definition has_ext {Z} (ora : Z) : pred rmap := @own (ext_PCM _) 0 (Some (Tsh, Some ora), None) NoneP.
 
-(* use the external state to restrict the ghost moves *)
 Definition jm_bupd {Z} (ora : Z) P m := forall C : ghost,
-  joins (ghost_of (m_phi m)) ((ghost_approx m) (Some (ext_ghost ora, NoneP) :: C)) ->
-  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) (Some (ext_ghost ora, NoneP) :: C)) /\
+  (* use the external state to restrict the ghost moves *)
+  join_sub (Some (ext_ref ora, NoneP) :: nil) C ->
+  joins (ghost_of (m_phi m)) (ghost_approx m C) ->
+  exists m' : juicy_mem, joins (ghost_of (m_phi m')) ((ghost_approx m) C) /\
     jm_update m m' /\ P m'.
 
 Lemma jm_bupd_intro: forall {Z} (ora : Z) (P : juicy_mem -> Prop) m, P m -> jm_bupd ora P m.
@@ -293,6 +293,19 @@ Section juicy_safety.
       ext_spec_exit Hspec (Some i) z m ->
       jsafeN_ n z c m.
 
+(*  Lemma jsafe_corestep_forward:
+     corestep_fun Hcore ->
+    forall c m c' m' n z,
+    jstep Hcore ge c m c' m' -> jsafeN_ (S n) z c m -> jm_bupd (jsafeN_ n z c') m'.
+  Proof.
+    intros H%juicy_core_sem_preserves_corestep_fun.
+    simpl; intros; inv H1.
+    assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).
+    inv H1; auto.
+    setoid_rewrite (corestep_not_at_external (juicy_core_sem _)) in H3; eauto; congruence.
+    setoid_rewrite (corestep_not_halted (juicy_core_sem _)) in H2; eauto; congruence.
+  Qed.*)
+
   Lemma jsafe_corestep_backward:
     forall c m c' m' n z,
     jstep Hcore ge c m c' m' ->
@@ -309,7 +322,7 @@ Section juicy_safety.
     induction n. econstructor; eauto.
     intros c m z H. inv H.
     + econstructor; eauto.
-      intros ? J; destruct (H2 _ J) as (? & ? & ? & ?); eauto.
+      intros ? HC J; destruct (H2 _ HC J) as (? & ? & ? & ?); eauto.
     + eapply jsafeN_external; eauto.
     + eapply jsafeN_halted; eauto.
   Qed.
@@ -322,6 +335,30 @@ Section juicy_safety.
     do 6 intro. revert c m z. induction H; auto.
     intros. apply IHle. apply jsafe_downward1. auto.
   Qed.
+
+(*  Lemma jsafe_corestepN_forward:
+    corestep_fun Hcore ->
+    forall z c m c' m' n n0,
+      semantics_lemmas.corestepN (juicy_core_sem Hcore) ge n0 c m c' m' ->
+      jsafeN_ (n + S n0) z c m ->
+      jm_bupd (jsafeN_ n z c') m'.
+  Proof.
+    intros.
+    revert c m c' m' n H0 H1.
+    induction n0; intros; auto.
+    simpl in H0; inv H0.
+    apply jm_bupd_intro.
+    eapply jsafe_downward in H1; eauto. omega.
+    simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
+    assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
+    rewrite Heq in H1.
+    eapply jsafe_corestep_forward in H1; eauto.
+    specialize (H1 nil); spec H1.
+    { eexists; simpl; erewrite <- ghost_core.
+      apply join_comm, core_unit. }
+    destruct H1 as (? & ? & ? & ?).
+    eapply (IHn0 _ _ _ _ n).
+  Qed.*)
 
   Lemma jsafe_step'_back2 :
     forall
@@ -338,6 +375,24 @@ Section juicy_safety.
     omega.
   Qed.
 
+(*  Lemma jsafe_corestepN_backward:
+    forall z c m c' m' n n0,
+      semantics_lemmas.corestepN (juicy_core_sem Hcore) n0 c m c' m' ->
+      jsafeN_ (n - n0) z c' m' ->
+      jsafeN_ n z c m.
+  Proof.
+    simpl; intros.
+    revert c m c' m' n H H0.
+    induction n0; intros; auto.
+    simpl in H; inv H.
+    solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
+    simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
+    assert (H: jsafeN_ (n - 1 - n0) z c' m').
+    eapply jsafe_downward in H0; eauto. omega.
+    specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
+    solve[eapply jsafe_step'_back2; eauto].
+  Qed.*)
+
   Lemma convergent_controls_jsafe :
     forall m q1 q2,
       (semantics.at_external Hcore q1 = semantics.at_external Hcore q2) ->
@@ -352,7 +407,7 @@ Section juicy_safety.
     inv H3.
     + econstructor; eauto.
     + eapply jsafeN_external; eauto.
-      rewrite <-H; auto.
+      rewrite <-H; eauto.
       intros ???? Hargsty Hretty ? H8 H9.
       specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).
       destruct H7 as [c' [? ?]].
@@ -370,19 +425,45 @@ Section juicy_safety.
     apply H. omega.
   Qed.
 
-Lemma make_join_ext : forall {Z} (ora : Z) a c m,
-  joins (ghost_approx m a) (ghost_approx m (Some (ext_ghost ora, NoneP) :: c)) ->
-  make_join a (Some (ext_ghost ora, NoneP) :: c) = Some (ext_ghost ora, NoneP) :: make_join (tl a) c.
+Lemma make_join_ext : forall (ora : Z) a c n,
+  join_sub (Some (ext_ref ora, NoneP) :: nil) c ->
+  joins (ghost_fmap (approx n) (approx n) a) (ghost_fmap (approx n) (approx n) c) ->
+  join_sub (Some (ext_ref ora, NoneP) :: nil) (make_join a c).
 Proof.
-  intros.
   destruct a; auto; simpl.
-  destruct o as [[]|]; auto.
-  destruct H as [? J]; inv J.
-  inv H4.
-  inv H1; simpl in *.
+  intros ?? [? HC] [? J].
+  inv J.
+  { destruct c; inv H1; inv HC. }
+  destruct c; inv H1.
+  inv H2.
+  { destruct o; inv H0; inv HC.
+    * eexists; constructor; constructor.
+    * eexists; constructor; eauto; constructor. }
+  { destruct o0; inv H1; inv HC.
+    inv H3. }
+  destruct o as [[]|], o0 as [[]|]; inv H; inv H0.
+  destruct a0; inv H1; simpl in *.
   inv H0.
-  destruct p; inv H1; inj_pair_tac.
-  unfold NoneP; repeat f_equal; auto.
+  assert (@ghost.valid (ext_PCM Z) (None, None)) as Hv.
+  { simpl; auto. }
+  inv HC.
+  - eexists; constructor; constructor.
+    destruct p; inv H1; inj_pair_tac.
+    instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
+    rewrite <- H0; auto.
+  - inv H6.
+    + destruct p; inv H1; inj_pair_tac.
+      eexists; constructor; constructor.
+      instantiate (1 := (existT _ (ext_PCM Z) (exist _ _ Hv), _)); repeat constructor; simpl.
+      rewrite <- H0; auto.
+    + destruct a0; inv H5; simpl in *.
+      inv H2.
+      destruct p; inv H1; inj_pair_tac.
+      eexists; constructor; constructor.
+      instantiate (1 := (_, _)); constructor; eauto; simpl.
+      constructor; eauto.
+      unfold NoneP; f_equal.
+      rewrite <- H1; auto.
 Qed.
 
 Lemma age_safe:
@@ -420,13 +501,13 @@ Proof.
    rewrite (age1_ghost_of _ _ (age_jm_phi H6)), (age1_ghost_of _ _ (age_jm_phi H2)), Hg.
    rewrite H in H4; inv H4.
    rewrite !level_juice_level_phi; congruence.
-   intros ? J.
+   intros ? HC J.
    rewrite (age1_ghost_of _ _ (age_jm_phi H6)) in J.
    destruct (ghost_joins_approx _ _ _ J) as (J1 & HC1).
    rewrite <- (age_level _ _ (age_jm_phi H6)) in *.
-   rewrite (make_join_ext _ _ _ _ J) in *.
    rewrite ghost_of_approx in J1.
-   destruct (H3 _ J1) as (m'' & ? & Hupd & ?).
+   destruct (H3 (make_join (compcert_rmaps.R.ghost_of (m_phi m')) C0)) as (m'' & ? & Hupd & ?); auto.
+   { eapply make_join_ext; eauto. }
    destruct (jm_update_age _ _ _ Hupd H6) as (jm1'' & Hupd1 & Hage1).
    exists jm1''; split.
    { rewrite (age1_ghost_of _ _ (age_jm_phi Hage1)).

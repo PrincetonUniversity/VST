@@ -1662,6 +1662,9 @@ Qed.
 
 End CENV.
 
+Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
+  (apply memory_block_valid_ptr; [auto with valid_pointer | rep_omega]) : valid_pointer.
+
 Ltac field_at_conflict z fld :=
 eapply derives_trans with FF; [ | apply FF_left];
  rewrite <- ?sepcon_assoc;
@@ -1824,11 +1827,21 @@ eapply derives_trans; [apply field_at_local_facts |];
   apply derives_refl
 end.
 
+Ltac data_at_valid_aux :=
+ simpl sizeof; rewrite ?Z.max_r by rep_omega; rep_omega.
+
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
-    (simple apply data_at_valid_ptr; [now auto | reflexivity]) : valid_pointer.
+    (simple apply data_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
 
 Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
-    (simple apply field_at_valid_ptr; [now auto | reflexivity]) : valid_pointer.
+    (simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+
+Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+    (unfold data_at_, field_at_; 
+     simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+
+Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
 
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
@@ -2677,3 +2690,68 @@ Hint Extern 1 (_ = _) =>
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
 
 (* END new experiments *)
+
+
+Lemma data_at__Tarray:
+  forall {CS: compspecs} sh t n a,
+  data_at_ sh (Tarray t n a) = 
+  data_at sh (Tarray t n a) (@fold_reptype _ (Tarray t n a) (list_repeat (Z.to_nat n) (default_val t))).
+Proof.
+intros.
+unfold data_at_, field_at_, data_at.
+extensionality p.
+simpl.
+f_equal.
+apply (default_val_eq (Tarray t n a)).
+Qed.
+
+Lemma data_at__tarray:
+  forall {CS: compspecs} sh t n,
+  data_at_ sh (tarray t n) = 
+  data_at sh (tarray t n) (@fold_reptype _ (tarray t n) (list_repeat (Z.to_nat n) (default_val t))).
+Proof. intros; apply data_at__Tarray; auto. Qed.
+
+Lemma data_at__Tarray':
+  forall {CS: compspecs} sh t n a v, 
+  JMeq v (list_repeat (Z.to_nat n) (default_val t)) ->
+  data_at_ sh (Tarray t n a) = data_at sh (Tarray t n a) v.
+Proof.
+intros.
+unfold data_at_, field_at_, data_at.
+extensionality p.
+simpl.
+f_equal.
+symmetry.
+apply JMeq_eq.
+eapply JMeq_trans; [eassumption | ].
+rewrite (default_val_eq (Tarray t n a)).
+simpl.
+apply JMeq_sym.
+apply (fold_reptype_JMeq (Tarray t n a)).
+Qed.
+
+Lemma data_at__tarray':
+  forall {CS: compspecs} sh t n v, 
+  JMeq v (list_repeat (Z.to_nat n) (default_val t)) ->
+  data_at_ sh (tarray t n) = data_at sh (tarray t n) v.
+Proof. intros; apply data_at__Tarray'; auto. Qed.
+
+Ltac unfold_data_at_ p :=
+ match goal with |- context [data_at_ ?sh ?t p] =>
+  let d := fresh "d" in set (d := data_at_ sh t p);
+  pattern d;
+  let g := fresh "goal" in
+   match goal with |- ?G d => set (g:=G) end;
+  revert d;
+  match t with
+   | Tarray ?t1 ?n _ => 
+          erewrite data_at__Tarray' by apply JMeq_refl;
+          try change (default_val t1) with Vundef
+   | tarray ?t1 ?n => 
+          erewrite data_at__tarray' by apply JMeq_refl;
+          try change (default_val t1) with Vundef
+   | _ => change (data_at_ sh t p) with (data_at sh t (default_val t) p);
+              try change (default_val t) with Vundef
+  end;
+  subst g; intro d; subst d; cbv beta
+ end.

@@ -1,6 +1,6 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
-\newcommand\vstversion{2.1}
+\newcommand\vstversion{2.2}
 \newcommand\coqversion{8.8}
 \newcommand\compcertversion{3.2}
 
@@ -1974,6 +1974,29 @@ in which case the field path may also contain array subscripts
 at the appropriate places, using the notation \lstinline{SUB $i$}
 along with \lstinline{DOT $\mathit{field}$}.
 
+\chapter{\upshape\textsf{data\_at\_, field\_at\_}}
+
+An uninitialized data structure of type $t$,
+or a data structure with don't-care values,
+is said to contain the default value for $t$, \lstinline{default_val($t$)}.
+
+\begin{lstlisting}
+  data_at sh $t$ (default_val $t$) $p$
+\end{lstlisting}
+We abbreviate this with the definition \lstinline{data_at_}:
+\begin{lstlisting}
+data_at_ sh $t$ $p$ = data_at sh $t$ (default_val $t$) $p$
+\end{lstlisting}
+
+Similarly, \lstinline{field_at_ $$ sh $t$ $\mathit{gfs}$ $p$ = field_at sh $t$ $\mathit{gfs}$ (default_val $t$) $p$}.
+
+\newthought{The tactic} ~~\lstinline{unfold_data_at_ $~p$}~~ does more
+than simply unfolding \lstinline{data_at_}:
+it changes \lstinline{data_at_ sh $t$ $p$} into
+\lstinline{data_at sh $t$ $v$ $p$}, where the value $v$
+is the unfolded-and-cleaned-up description of the default value.
+
+
 \chapter{\upshape\textsf{reptype', repinj}}
 {\small \textbf{This chapter is advanced material, describing a feature
   that is sometimes convenient but never necessary.
@@ -2659,6 +2682,45 @@ assert_PROP (Zlength contents = size). {
 \end{lstlisting}
 
 
+\chapter{sep\_apply}
+\label{refcard:sep-apply}
+
+The \lstinline{sep_apply} tactic is used to replace conjuncts in the
+precondition of an entailment.
+Suppose you have this situation:
+
+\begin{lstlisting}
+$\mbox{\underline{\textsf{H :} C*A |-- J~~~~~~~~~~~~~~~~~~~~~~~~}}$
+A*B*C*D |-- E
+\end{lstlisting}
+
+You can do \lstinline{sep_apply H} to obtain,
+
+\begin{lstlisting}
+$\mbox{\underline{\textsf{H :} C*A |-- J~~~~~~~~~~~~~~~~~~~~~~~~}}$
+J*B*D |-- E
+\end{lstlisting}
+
+Or suppose you have,\quad  
+\lstinline{Lemma L: forall x y, F(x)*G(y)=H(x,y)} \newline
+and your proof goal is, \quad   \lstinline{A*G(1)*C*F(2) |-- E} \newline
+then you can do ~\lstinline{sep_apply (L 2 1)}~ to obtain,
+\quad \lstinline{H(2,1)*A*C |-- E.} \newline
+As illustrated here, you must fully instantiate the arguments of the
+lemma, that is, write \lstinline{(L 2 1)} and not just \lstinline{L}.
+
+\lstinline{sep_apply} also works on the precondition of \lstinline{semax} or on the \lstinline{SEP} part of an \lstinline{ENTAIL} goal.
+
+\textbf{Pure propositions:} If your hypothesis or lemma has the form,
+\lstinline{P*Q |-- !!S} then
+\lstinline{sep_apply} behaves as if it were written
+\lstinline{P*Q |-- !!S && (P*Q)}.
+That is, if the right-hand side is a pure proposition,
+then the left-hand-side is not deleted.
+
+\textbf{Rewriting:} If your hypothesis or lemma has the form,
+\lstinline{P*Q = R} then \lstinline{sep_apply} will apply
+\lstinline{P*Q |-- R}.
 
 
 \ychapter{Welltypedness of variables}{}

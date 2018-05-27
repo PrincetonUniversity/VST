@@ -72,32 +72,40 @@ Definition f_twice := {|
       (Sreturn (Some (Econst_int (Int.repr 0) tint)))
       (LScons (Some 1)
         (Ssequence (Sset _n (Econst_int (Int.repr 2) tint)) Sbreak)
-        (LScons (Some 3)
-          (Sset _n
-            (Ebinop Oadd (Etempvar _n tint) (Econst_int (Int.repr 0) tint)
-              tint))
-          (LScons None
-            (Ssequence
-              (Sset _n
-                (Ebinop Oadd (Etempvar _n tint) (Etempvar _n tint) tint))
-              Sbreak)
-            LSnil)))))
+        (LScons (Some 4294967295)
+          (Ssequence
+            (Sset _n (Eunop Oneg (Econst_int (Int.repr 2) tint) tint))
+            Sbreak)
+          (LScons (Some 3)
+            (Sset _n
+              (Ebinop Oadd (Etempvar _n tint) (Econst_int (Int.repr 0) tint)
+                tint))
+            (LScons None
+              (Ssequence
+                (Sset _n
+                  (Ebinop Oadd (Etempvar _n tint) (Etempvar _n tint) tint))
+                Sbreak)
+              LSnil))))))
   (Sreturn (Some (Etempvar _n tint))))
 |}.
 
 Definition f_f := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_x, tint) :: nil);
+  fn_params := ((_x, tuint) :: nil);
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
-(Sswitch (Etempvar _x tint)
+(Sswitch (Etempvar _x tuint)
   (LScons (Some 1)
     (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
     (LScons (Some 2)
-      (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
-      (LScons None (Sreturn (Some (Econst_int (Int.repr 1) tint))) LSnil))))
+      Sskip
+      (LScons (Some 3)
+        Sskip
+        (LScons (Some 4294967295)
+          (Ssequence (Sreturn (Some (Econst_int (Int.repr 1) tint))) Sbreak)
+          (LScons None (Sreturn (Some (Econst_int (Int.repr 1) tint))) LSnil))))))
 |}.
 
 Definition composites : list composite_definition :=

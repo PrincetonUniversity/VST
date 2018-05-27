@@ -139,17 +139,10 @@ Lemma tc_eval_gvar_zero:
             exists b, eval_var i t rho = Vptr b Ptrofs.zero.
 Proof.
  intros. unfold eval_var; simpl.
- hnf in H. unfold typecheck_environ in H.
-  destruct H as [_ [? [? ?]]].
-  unfold typecheck_var_environ in  *.
-  unfold typecheck_glob_environ in *.
-  unfold same_env in *.
-  destruct (H3 _ _ H1).
-  unfold Map.get; rewrite H4.
-  destruct (H2 _ _ H1) as [b ?].
-   rewrite H5. simpl.
-  eauto.
-  destruct H4; congruence.
+ destruct_var_types i.
+ destruct_glob_types i.
+ rewrite Heqo0, Heqo1.
+ eauto.
 Qed.
 
 Lemma tc_eval_gvar_i:
@@ -396,11 +389,10 @@ intros.
 destruct H as [H [H8 H0]].
 unfold eval_var, globals_only.
 simpl.
-destruct H as [_ [? [? ?]]].
-destruct (H2 i g H0).
-unfold Map.get; rewrite H3; auto.
-destruct H3.
-congruence.
+destruct_var_types i.
+destruct_glob_types i.
+rewrite Heqo0, Heqo1.
+auto.
 Qed.
 Hint Rewrite elim_globals_only using (split3; [eassumption | reflexivity.. ]) : norm.
 
@@ -416,19 +408,14 @@ Lemma globvar_eval_var:
      (var_types Delta) ! id = None ->
      (glob_types Delta) ! id = Some  t ->
      exists b,  eval_var id t rho = Vptr b Ptrofs.zero
-            /\ ge_of rho id = Some b.
+            /\ Map.get (ge_of rho) id = Some b.
 Proof.
 intros.
-unfold tc_environ, typecheck_environ in H.
-destruct H as [Ha [Hb [Hc Hd]]].
-hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b Hc].
-exists b.
 unfold eval_var; simpl.
-apply Hd in H1.
-destruct H1 as [? | [? ?]]; [ | congruence].
-unfold Map.get; rewrite H. rewrite Hc.
-auto.
+destruct_var_types id.
+destruct_glob_types id.
+rewrite Heqo0, Heqo1.
+eauto.
 Qed.
 
 Lemma globvars2pred_unfold: forall gv vl rho,
@@ -452,22 +439,15 @@ Lemma eval_var_isptr:
             isptr (eval_var i t rho).
 Proof.
  intros.
-  unfold isptr, eval_var; simpl.
- hnf in H. unfold typecheck_environ in H.
- repeat rewrite andb_true_iff in H.
-  destruct H as [_ [? [? ?]]].
-  hnf in H,H1.
-  destruct H0.
-  specialize (H i t). destruct H as [H _]. specialize (H H0).
-  destruct H; rewrite H.
-  rewrite eqb_type_refl.
-  simpl. auto.
-  destruct H0.
-  destruct (H1 _ _ H3) as [b ?].
-  rewrite H4. simpl.
- destruct (H2 _ _ H3).
- unfold Map.get; rewrite H5.
- auto.
- destruct H5. congruence.
+ unfold isptr, eval_var; simpl.
+ destruct H0 as [? | [? ?]].
+ + destruct_var_types i.
+   rewrite Heqo0.
+   rewrite eqb_type_refl.
+   auto.
+ + destruct_var_types i.
+   destruct_glob_types i.
+   rewrite Heqo0, Heqo1.
+   auto.
 Qed.
 

@@ -531,7 +531,7 @@ Proof.
 Qed.
 
 Lemma ge_of_make_args: forall i fl vl rho,
-    ge_of (make_args fl vl rho) i = ge_of rho i.
+    Map.get (ge_of (make_args fl vl rho)) i = Map.get (ge_of rho) i.
 Proof.
  induction fl; destruct vl; simpl; auto.
 Qed.
@@ -1198,56 +1198,51 @@ Lemma semax_call_id1_x_wow:
       (Sset ret (Ecast (Etempvar ret' retty') retty)))
     (normal_ret_assert Post2).
 Proof.
-intros.
-eapply semax_seq'.
-eapply semax_call_id1_wow; try eassumption; auto.
+  intros.
+  eapply semax_seq'.
+  eapply semax_call_id1_wow; try eassumption; auto.
   unfold typeof_temp; rewrite RETinit; reflexivity.
- simpl update_tycon.
- apply extract_exists_pre; intro vret.
-*
- eapply semax_pre_post';
- [ | | apply semax_set_forward].
- +
- eapply derives_trans; [ | apply now_later ].
- instantiate (1:= (PROPx (P ++ Ppost vret)
-  (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
- apply andp_right.
- apply andp_right.
- unfold tc_expr.
- unfold typecheck_expr; simpl.
- simpl denote_tc_assert.
- rewrite tycontext.temp_types_same_type'. rewrite RETinit.
- simpl @fst.
- replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
-   with true
-  by (clear- OKretty'; 
-     destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
-     unfold is_neutral_cast; rewrite ?eqb_type_refl;
-    reflexivity).
- simpl @snd. cbv iota.
- go_lowerx. simpl.
- apply neutral_isCastResultType; auto.
- unfold tc_temp_id, typecheck_temp_id.
- rewrite <- tycontext.initialized_ne by auto.
- unfold typeof_temp in TYret.
- destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
- go_lowerx.
- repeat rewrite denote_tc_assert_andp; simpl.
- rewrite denote_tc_assert_bool.
- assert (is_neutral_cast (implicit_deref retty) retty = true). {
-  destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
-  destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; 
-  try solve [inv NEUTRAL].
-  unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
-  }
- simpl; apply andp_right. apply prop_right; auto.
- apply neutral_isCastResultType; auto.
- go_lowerx. normalize. apply andp_right; auto. apply prop_right.
- subst Qnew; clear - H3. rename H3 into H.
- induction Q; simpl in *; auto.
- destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
- hnf in H.
- if_tac; simpl; auto.
+  simpl update_tycon.
+  apply extract_exists_pre; intro vret.
+  eapply semax_pre_post';
+    [ | | apply semax_set_forward].
+  + eapply derives_trans; [ | apply now_later ].
+    instantiate (1:= (PROPx (P ++ Ppost vret)
+      (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
+    apply andp_right; [apply andp_right |].
+    - unfold tc_expr.
+      unfold typecheck_expr; simpl.
+      simpl denote_tc_assert.
+      rewrite tycontext.temp_types_same_type'. rewrite RETinit.
+      simpl @fst.
+      replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
+        with true
+        by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; unfold is_neutral_cast; rewrite ?eqb_type_refl; reflexivity).
+      simpl @snd. cbv iota.
+      go_lowerx. simpl.
+      apply neutral_isCastResultType; auto.
+    - unfold tc_temp_id, typecheck_temp_id.
+      rewrite <- tycontext.initialized_ne by auto.
+      unfold typeof_temp in TYret.
+      destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
+      go_lowerx.
+      repeat rewrite denote_tc_assert_andp; simpl.
+      rewrite denote_tc_assert_bool.
+      assert (is_neutral_cast (implicit_deref retty) retty = true).
+      {
+        destruct retty as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; try reflexivity;
+        destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; 
+        try solve [inv NEUTRAL].
+        unfold implicit_deref, is_neutral_cast. rewrite eqb_type_refl; reflexivity.
+      }
+      simpl; apply andp_right. apply prop_right; auto.
+      apply neutral_isCastResultType; auto.
+    - go_lowerx. normalize. apply andp_right; auto. apply prop_right.
+      subst Qnew; clear - H3. rename H3 into H.
+      induction Q; simpl in *; auto.
+      destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+      hnf in H.
+      if_tac; simpl; auto.
 +
  intros. subst Post2.
  normalize. simpl exit_tycon.
@@ -1321,53 +1316,48 @@ Lemma semax_call_id1_y_wow:
       (Sset ret (Etempvar ret' retty')))
     (normal_ret_assert Post2).
 Proof.
-intros.
-eapply semax_seq'.
-eapply semax_call_id1_wow; try eassumption; auto;
-  unfold typeof_temp; rewrite RETinit; reflexivity.
- simpl update_tycon.
- apply extract_exists_pre; intro vret.
-*
- eapply semax_pre_post';
- [ | | apply semax_set_forward].
- +
- eapply derives_trans; [ | apply now_later ].
- instantiate (1:= (PROPx (P ++ Ppost vret)
-  (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
- apply andp_right.
- apply andp_right.
- unfold tc_expr.
-match goal with |- _ |-- ?A =>
-  set (aa:=A); unfold denote_tc_assert in aa; simpl in aa; subst aa
-end.
- rewrite tycontext.temp_types_same_type'. rewrite RETinit.
- simpl @fst.
- replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
-   with true
-  by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction;
-         unfold is_neutral_cast; rewrite ?eqb_type_refl;
-    reflexivity).
- simpl @snd. cbv iota.
- apply @TT_right.
- unfold tc_temp_id, typecheck_temp_id.
- rewrite <- tycontext.initialized_ne by auto.
- unfold typeof_temp in TYret.
- destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
- go_lowerx.
- repeat rewrite denote_tc_assert_andp; simpl.
- rewrite denote_tc_assert_bool.
- assert (is_neutral_cast (implicit_deref retty') retty = true).
- replace (implicit_deref retty') with retty'
- by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
- auto.
- simpl; apply andp_right. apply prop_right; auto.
- apply neutral_isCastResultType; auto.
- go_lowerx. normalize. apply andp_right; auto. apply prop_right.
- subst Qnew; clear - H3. rename H3 into H.
- induction Q; simpl in *; auto.
- destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
- hnf in H.
- if_tac; simpl; auto.
+  intros.
+  eapply semax_seq'.
+  eapply semax_call_id1_wow; try eassumption; auto;
+    unfold typeof_temp; rewrite RETinit; reflexivity.
+  simpl update_tycon.
+  apply extract_exists_pre; intro vret.
+  eapply semax_pre_post';
+    [ | | apply semax_set_forward].
+  + eapply derives_trans; [ | apply now_later ].
+    instantiate (1:= (PROPx (P ++ Ppost vret)
+      (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
+    apply andp_right; [apply andp_right |].
+    - unfold tc_expr.
+      match goal with |- _ |-- ?A =>
+        set (aa:=A); unfold denote_tc_assert in aa; simpl in aa; subst aa
+      end.
+      rewrite tycontext.temp_types_same_type'. rewrite RETinit.
+      simpl @fst.
+      replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
+        with true
+        by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; unfold is_neutral_cast; rewrite ?eqb_type_refl; reflexivity).
+      simpl @snd. cbv iota.
+      apply @TT_right.
+    - unfold tc_temp_id, typecheck_temp_id.
+      rewrite <- tycontext.initialized_ne by auto.
+      unfold typeof_temp in TYret.
+      destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
+      go_lowerx.
+      repeat rewrite denote_tc_assert_andp; simpl.
+      rewrite denote_tc_assert_bool.
+      assert (is_neutral_cast (implicit_deref retty') retty = true).
+      * replace (implicit_deref retty') with retty'
+          by (destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; reflexivity).
+        auto.
+      * simpl; apply andp_right. apply prop_right; auto.
+        apply neutral_isCastResultType; auto.
+    - go_lowerx. normalize. apply andp_right; auto. apply prop_right.
+      subst Qnew; clear - H3. rename H3 into H.
+      induction Q; simpl in *; auto.
+      destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+      hnf in H.
+      if_tac; simpl; auto.
 +
  intros. subst Post2.
  normalize. simpl exit_tycon.

@@ -361,7 +361,7 @@ Lemma gvar_isptr:
 Proof.
 intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -369,7 +369,7 @@ Lemma sgvar_isptr:
   forall i v rho, locald_denote (sgvar i v) rho -> isptr v.
 Proof.
 intros. hnf in H.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -582,7 +582,15 @@ Ltac check_function_name :=
 Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 
 Ltac check_cast_params :=
-   first [reflexivity | elimtype Actual_parameters_cannot_be_coerced_to_formal_parameter_types].
+reflexivity + 
+(simpl explicit_cast_exprlist;
+match goal with |- force_list (map ?F ?A) = _ =>
+  let el := constr:(A) in 
+  let bl := constr:(map F A) in
+  let cl := eval simpl in bl in 
+  fail 100 "Some of the argument expressions in your function call do not evaluate (sometimes this is caused by missing LOCALs in your precondition).  Your argument expressions are:"
+         el "They evaluate (or fail) as follows:" cl
+end).
 
 Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
     Type -> Type -> Prop := .
@@ -605,6 +613,7 @@ Ltac lookup_spec id :=
  tryif apply f_equal_Some
  then
    match goal with
+   | |- vacuous_funspec _ = _ => fail 100 "Your Gprog contains no funspec with the name" id
    | |- ?fs = _ => check_canonical_funspec (id,fs);
       first [reflexivity |
       match goal with
@@ -1684,6 +1693,11 @@ Ltac forward_for_simple_bound n Pre :=
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
  end;
+ match goal with |-
+      semax _ _ (Ssequence (Ssequence (Sfor _ _ _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ | _ => idtac
+ end;
  first [
     match type of n with
       ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
@@ -2042,39 +2056,48 @@ forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index value
 forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
-Ltac process_cases := 
+Ltac process_cases sign := 
 match goal with
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
-      change (select_switch_case N (LScons (Some X) C SL))
-       with (if zeq X N then Some (LScons (Some X) C SL)
-                 else select_switch_case N SL);
+       let y := constr:(adjust_for_sign sign X) in let y := eval compute in y in 
+      rewrite (select_switch_case_signed y); 
+           [ | reflexivity | clear; compute; split; congruence];
      let E := fresh "E" in let NE := fresh "NE" in 
-     destruct (zeq N X) as [E|NE];
+     destruct (zeq N (Int.unsigned (Int.repr y))) as [E|NE];
       [ rewrite if_true; [ unfold seq_of_labeled_statement at 1 | symmetry; apply E];
-        try subst N
-     | rewrite if_false; [ | contradict NE; symmetry; apply NE];
-       process_cases
+        apply unsigned_eq_eq in E;
+        match sign with
+        | Signed => apply repr_inj_signed in E; [ | rep_omega | rep_omega]
+        | Unsigned => apply repr_inj_unsigned in E; [ | rep_omega | rep_omega]
+        end;
+        try match type of E with ?a = _ => is_var a; subst a end;
+        repeat apply -> semax_skip_seq
+     | rewrite if_false by (contradict NE; symmetry; apply NE);
+        process_cases sign
     ]
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N (LScons None ?C ?SL)
       with Some _ => _ | None => _ end) _ =>
       change (select_switch_case N (LScons None C SL))
        with (select_switch_case N SL);
-     process_cases
+      process_cases sign
 | |- semax _ _ (seq_of_labeled_statement 
      match select_switch_case ?N LSnil
       with Some _ => _ | None => _ end) _ =>
       change (select_switch_case N LSnil)
            with (@None labeled_statements);
       cbv iota;
-      unfold seq_of_labeled_statement at 1
+      unfold seq_of_labeled_statement at 1;
+      repeat apply -> semax_skip_seq
 end.
+
 
 Ltac forward_switch' := 
 match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ =>
+   let sign := constr:(signof e) in let sign := eval hnf in sign in
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
     do_compute_expr Delta P Q R e v HRE;
@@ -2092,12 +2115,12 @@ match goal with
          rewrite (Int.repr_unsigned (Int.repr _)) in HRE;
          eapply semax_switch_PQR; 
            [reflexivity | check_typecheck | exact HRE 
-           | clear HRE; try omega
            | clear HRE; unfold select_switch at 1; unfold select_switch_default at 1;
              try match goal with H := @abbreviate statement _ |- _ => clear H end;
-             process_cases]
+             process_cases sign ]
 ]
 end.
+
 
 Definition nofallthrough ek :=
  match ek with
@@ -2887,7 +2910,7 @@ end].
 
 Ltac advise_prepare_postcondition := 
  match goal with
- | Post' := @abbreviate ret_assert ?R |- semax _ _ _ ?Post =>
+ | Post' := _ : ret_assert |- semax _ _ _ ?Post =>
      tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
  end;
  lazymatch goal with
@@ -3135,19 +3158,15 @@ normalize.
 apply prop_right.
 pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
 apply H5 in H4.
++
 simpl in H4.
 hnf.
-destruct H2 as [? [? [? ?]]].
-apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
-destruct H6 as [H6 _].
-specialize (H6 H).
-rewrite H6.
-destruct ((glob_types Delta) ! i) eqn:?.
-hnf in H7.
-specialize (H7 _ _ Heqo). destruct H7.
-rewrite H4.
-rewrite H7. auto.
-clear - H0; congruence.
+destruct_var_types i eqn:?H&?H.
+rewrite H7.
+destruct_glob_types i eqn:?H&?H; [| congruence].
+rewrite H4, H8.
+auto.
++
 apply in_map.
 auto.
 Qed.
@@ -3317,7 +3336,7 @@ Ltac assert_gvars :=
    else idtac
  end.
 
-Ltac start_function_hint := idtac "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ".
+Ltac start_function_hint := idtac. (* "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ". *)
 
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
@@ -3621,4 +3640,29 @@ Ltac prove_semax_prog :=
       (eexists; reflexivity) || 
         fail "Funspec of _main is not in the proper form"
     end
- ].
+ ];
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+
+Ltac reassociate_to c1 c2  n :=
+ match n with 
+ | O => constr:(Ssequence c1 c2)
+ | S ?j => match c2 with Ssequence ?c3 ?c4 => reassociate_to (Ssequence c1 c3) c4 j end
+ end.
+
+Tactic Notation "assert_after" constr(n) constr(PQR) :=
+ let n := match type of n with
+              | Z => let j := constr:(Z.to_nat n) in let j := eval compute in j in j
+              | _ => n
+             end in
+ match goal with
+ | |- semax _ _ (Ssequence (Ssequence ?c1 ?c2) ?c3) _ =>
+ let c := reassociate_to c1 c2 n
+  in match c with (Ssequence ?d ?e) =>
+           let f := constr:(Ssequence d (Ssequence e c3))
+            in apply (semax_unfold_Ssequence _ f); [reflexivity | ]
+      end
+ | |- semax _ _ (Ssequence ?c1 ?c2) _ =>
+ let c := reassociate_to c1 c2 n
+  in  apply (semax_unfold_Ssequence _ c); [reflexivity | ]
+ end;
+ apply semax_seq' with PQR; abbreviate_semax.

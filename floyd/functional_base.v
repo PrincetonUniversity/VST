@@ -348,7 +348,10 @@ end.
 Ltac computable := match goal with |- ?x =>
  no_evars x;
  putable x;
- compute; clear; repeat split; auto; congruence
+ compute; clear; repeat split; auto; congruence;
+  (match goal with |- context [Archi.ptr64] => idtac end;
+    first [change Archi.ptr64 with false | change Archi.ptr64 with true];
+    compute; repeat split; auto; congruence)
 end.
 
 Lemma sign_ext_range2:
@@ -474,6 +477,22 @@ Ltac Zground X :=
   | xI ?y => Zground y
  end.
 
+Ltac natground X :=
+  match X with O => idtac | S ?Y => natground Y end.
+
+Ltac compute_Z_of_nat :=
+ repeat
+  match goal with
+  | H: context [Z.of_nat ?n] |- _ => 
+          natground n; 
+          let z := constr:(Z.of_nat n) in let y := eval hnf in z 
+           in change z with y in *
+  | |- context [Z.of_nat ?n] => 
+          natground n; 
+          let z := constr:(Z.of_nat n) in let y := eval hnf in z 
+           in change z with y in *
+   end.
+
 (*
 Ltac pose_const_equation X :=
  match goal with
@@ -486,7 +505,13 @@ Ltac pose_const_equation X :=
  match goal with
  | H: X = ?Y |- _ => Zground Y
  | _ => let z := eval compute in X in 
-                  change X with z in *
+            match z with context C [Archi.ptr64] =>
+                       first [
+                           unify Archi.ptr64 false; let u := context C [false] in let u := eval compute in u in change X with u in *
+                          |unify Archi.ptr64 true; let u := context C [true] in let u := eval compute in u in change X with u in *
+                      ]
+              | _ => change X with z in *
+            end
  end.
 
 Ltac perhaps_post_const_equation X :=
@@ -539,6 +564,7 @@ Ltac rep_omega_setup :=
             end;
   try autorewrite with rep_omega in *;
   unfold repable_signed in *;
+  compute_Z_of_nat;
   pose_Zlength_nonneg;
   pose_lemmas Byte.unsigned Byte.unsigned_range;
   pose_lemmas Byte.signed Byte.signed_range;
