@@ -361,7 +361,7 @@ Lemma gvar_isptr:
 Proof.
 intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -369,7 +369,7 @@ Lemma sgvar_isptr:
   forall i v rho, locald_denote (sgvar i v) rho -> isptr v.
 Proof.
 intros. hnf in H.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 

@@ -23,20 +23,20 @@ Definition gvar_denote (i: ident) (v: val) rho :=
          match Map.get (ve_of rho) i with
          | Some (b, ty') => False
          | None =>
-             match ge_of rho i with
+             match Map.get (ge_of rho) i with
              | Some b => v = Vptr b Ptrofs.zero
              | None => False
              end
          end.
 
 Definition sgvar_denote (i: ident) (v: val) rho :=
-         match ge_of rho i with
+         match Map.get (ge_of rho) i with
              | Some b => v = Vptr b Ptrofs.zero
              | None => False
          end.
 
 Definition gvars_denote (gv: globals) rho :=
-   gv = (fun i => match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
+   gv = (fun i => match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
 
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with

@@ -59,19 +59,14 @@ Lemma tc_globalvar_sound:
    tc_environ Delta rho ->
    globvar2pred (globals_of_env rho) (i, gz) rho |-- init_data_list2pred idata (readonly2share (gvar_readonly gz)) (eval_var i t rho) rho.
 Proof.
-pose (H2:=True).
-pose (H4:=True).
-pose (H5:=True); intros.
+intros.
 unfold globvar2pred.
 simpl.
-destruct H6 as [? [? [? ?]]].
-destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (H8 _ _ H0) as [b ?].
-unfold globals_of_env. 
-rewrite H11. rewrite H1.
-rewrite H3; simpl.
+destruct_var_types i.
+destruct_glob_types i.
+unfold globals_of_env.
 unfold eval_var.
-unfold Map.get. rewrite H10. rewrite H11.
+rewrite Heqo0, Heqo1, H1, H2.
 auto.
 Qed.
 
@@ -85,17 +80,13 @@ Lemma tc_globalvar_sound':
    globvar2pred (globals_of_env rho)  (i, gv) rho |--
    init_data_list2pred idata (readonly2share (gvar_readonly gv)) (globals_of_env rho i) rho.
 Proof.
-pose (H2:=True).
-pose (H4:=True).
-pose (H5:=True); intros.
+intros.
 unfold globvar2pred.
 simpl.
-destruct H6 as [? [? [? ?]]].
-destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (H8 _ _ H0) as [b ?].
-unfold globals_of_env. 
-rewrite H11. rewrite H1.
-rewrite H3; simpl. auto.
+destruct_glob_types i.
+unfold globals_of_env.
+rewrite Heqo0, H1, H2.
+auto.
 Qed.
 
 Definition zero_of_type (t: type) : val :=
@@ -121,17 +112,17 @@ intros.
 extensionality rho.
 unfold_lift. unfold local, lift1.
 unfold eval_sgvar.
-unfold Map.get. simpl.
+simpl.
 apply pred_ext.
 unfold sgvar_denote.
-destruct (ge_of rho id).
+destruct (Map.get (ge_of rho) id).
 apply exp_right with (Vptr b Ptrofs.zero).
 normalize.
 eapply derives_trans; [ apply H | ].
 apply FF_left.
 unfold sgvar_denote.
 apply exp_left; intro; normalize.
-destruct (ge_of rho id).
+destruct (Map.get (ge_of rho) id).
 subst. auto.
 contradiction.
 Qed.
@@ -590,7 +581,7 @@ Lemma gvar_isptr:
 Proof.
 intros.
 hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -599,7 +590,7 @@ Lemma offset_zero_globals_of_env: forall rho i,
 Proof.
 intros.
 unfold globals_of_env.
-destruct (ge_of rho i); simpl; auto.
+destruct (Map.get (ge_of rho) i); simpl; auto.
 Qed.
 
 Lemma unpack_globvar_array  {cs: compspecs}:
@@ -680,7 +671,7 @@ Proof.
     unfold Ptrofs.max_unsigned in H6.
     pose proof init_data_list_size_pos (gvar_init gv).
     simpl in H8.
-    unfold globals_of_env in H9. destruct (ge_of rho i) eqn:?H; inv H9.
+    unfold globals_of_env in H9. destruct (Map.get (ge_of rho) i) eqn:?H; inv H9.
     rewrite Ptrofs.unsigned_zero.
     split; try omega. 
     rewrite Z.add_0_l.
@@ -952,7 +943,7 @@ eapply derives_trans; [ apply H7  | ].
 unfold_lift.
 assert_PROP (isptr (globals_of_env rho i)) by (saturate_local; apply prop_right; auto).
 assert (headptr (globals_of_env rho i)).
-hnf. unfold globals_of_env in H9|-*. destruct (ge_of rho i); try contradiction. eauto.
+hnf. unfold globals_of_env in H9|-*. destruct (Map.get (ge_of rho) i); try contradiction. eauto.
 rewrite memory_block_data_at_; auto.
 subst t.
 rewrite andb_true_iff in H1; destruct H1.
@@ -1056,7 +1047,7 @@ destruct H1.
 clear - H2 H.
 hnf in H,H2.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]. contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst. auto.
 destruct H1.
 auto.

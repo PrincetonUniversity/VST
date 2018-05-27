@@ -217,12 +217,9 @@ Proof.
     apply nec_nat; auto.
   } Unfocus.
   hnf in H0. destruct H0.
-  destruct H0 as [_ [_ [H0 SAME]]].
+  destruct_var_types id eqn:?H&?H.
+  destruct_glob_types id eqn:?H&?H.
   rename GLBL into GL1.
-  specialize (H0 _ _ H).
-  specialize (SAME _ _ H).
-  destruct SAME as [SAME | [t SAME]]; [ | congruence].
-  destruct H0 as [b ?].
   specialize (H7 (Vptr b Ptrofs.zero) fsig0 cc A P' Q' _ (necR_refl _)).
   spec H7.
   Focus 1. {
@@ -233,13 +230,13 @@ Proof.
   exists b.
   split.
   + unfold eval_lvalue, eval_var.
-    unfold Map.get. rewrite SAME.
-    rewrite H0. reflexivity.
+    rewrite H10, H11.
+    reflexivity.
   + hnf.
     destruct H5 as [H5 _].
     specialize (H5 _ _ _ (necR_refl _) H').
     destruct H5 as [b' [? ?]].
-    do 3 red in H5. inversion2 H0 H5.
+    do 3 red in H5. inversion2 H11 H5.
     apply H9.
 Qed.
 

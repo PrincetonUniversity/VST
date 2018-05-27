@@ -1010,7 +1010,7 @@ Proof.
      normalize.
      f_equal; apply prop_ext; split; intros [? ?].
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
-     destruct (ge_of rho i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
      subst; auto.
   -
@@ -1023,7 +1023,7 @@ Proof.
      normalize.
      f_equal; apply prop_ext; split; intros [? ?].
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
-     destruct (ge_of rho i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
      subst; auto.
   -
@@ -1052,9 +1052,9 @@ Proof.
      normalize.
      f_equal; apply prop_ext; split; intros [? [? ?]].
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
-     destruct (ge_of rho i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
      subst.
-     destruct (ge_of rho i); intuition.
+     destruct (Map.get (ge_of rho) i); intuition.
    -
      rewrite <- (PTree.gsident _ _ H8) at 1 by auto.
      rewrite !LOCALx_expand_vardesc'.
@@ -1072,9 +1072,9 @@ Proof.
      normalize.
      f_equal; apply prop_ext; split; intros [? ?].
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
-     destruct (ge_of rho i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
-     destruct (ge_of rho i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
   -
      rewrite <- (PTree.gsident _ _ H8) by auto.
      rewrite !LOCALx_expand_vardesc'.
@@ -1084,8 +1084,8 @@ Proof.
      extensionality rho; unfold local, lift1; simpl;
      normalize.
      f_equal; apply prop_ext; split; intros [? ?].
-     destruct (ge_of rho i); intuition. subst; auto.
-     destruct (ge_of rho i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
+     destruct (Map.get (ge_of rho) i); intuition. subst; auto.
   -
      rewrite !LOCALx_expand_vardesc'.
      unfold denote_vardesc. simpl app.
@@ -1217,6 +1217,6 @@ normalize.
 unfold eval_var.
 hnf in H.
 destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
-destruct (ge_of rho id); try contradiction.
+destruct (Map.get (ge_of rho) id); try contradiction.
 subst; auto.
 Qed.

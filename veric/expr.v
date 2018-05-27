@@ -98,7 +98,7 @@ Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
                                                     then Vptr b Ptrofs.zero
                                                     else Vundef
                          | None =>
-                            match (ge_of rho) id with
+                            match Map.get (ge_of rho) id with
                             | Some b => Vptr b Ptrofs.zero
                             | None => Vundef
                             end
@@ -879,11 +879,11 @@ forall id ty, tc ! id = Some (ty) <-> exists v, Map.get ve id = Some(v,ty).
 Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
 forall id  t,  tc ! id = Some t ->
-(exists b, ge id = Some b).
+(exists b, Map.get ge id = Some b).
 
 Definition same_env (rho:environ) (Delta:tycontext)  :=
 forall id t, (glob_types Delta) ! id = Some t ->
-  (ve_of rho) id = None
+  Map.get (ve_of rho) id = None
   \/ exists t,  (var_types Delta) ! id = Some t.
 
 (*
@@ -951,7 +951,7 @@ Qed.
 Lemma WARNING___________you_should_use_tactic___destruct_glob_types___instead:
   forall (ge : genviron) (gt : PTree.t type), typecheck_glob_environ ge gt -> forall i : positive,
      match gt ! i with
-     | Some t => exists b, ge i = Some b
+     | Some t => exists b, Map.get ge i = Some b
      | None => True
      end.
 Proof.

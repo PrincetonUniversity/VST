@@ -118,7 +118,7 @@ normalize.
 rewrite prop_true_andp in H0 by auto.
 apply H0; auto.
 hnf in H2; destruct (Map.get (ve_of rho) i) as [[? ?] |  ]; try contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst.
 hnf; eauto.
 Qed.
@@ -139,7 +139,7 @@ normalize.
 rewrite prop_true_andp in H0 by auto.
 apply H0; auto.
 hnf in H2.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst.
 hnf; eauto.
 Qed.
@@ -417,13 +417,13 @@ Proof.
     assert (headptr v); [| split; [| split]; auto; apply headptr_isptr; auto].
     unfold gvar_denote in H0.
     destruct (Map.get (ve_of rho) i) as [[? ?] |]; [inversion H0 |].
-    destruct (ge_of rho i); [| inversion H0].
+    destruct (Map.get (ge_of rho) i); [| inversion H0].
     subst.
     hnf; eauto.
   + simpl.
     assert (headptr v); [| split; [| split]; auto; apply headptr_isptr; auto].
     unfold sgvar_denote in H0.
-    destruct (ge_of rho i); [| inversion H0].
+    destruct (Map.get (ge_of rho) i); [| inversion H0].
     subst.
     hnf; eauto.
   + simpl.

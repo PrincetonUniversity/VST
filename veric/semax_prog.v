@@ -558,7 +558,7 @@ Proof.
  intros id fs.
  apply prop_imp_i; intros.
  simpl ge_of; simpl fst; simpl snd.
- unfold filter_genv.
+ unfold filter_genv, Map.get.
  assert (exists f, In (id, f) (prog_funct prog)). {
  simpl in H1.
  forget (prog_funct prog) as g.
@@ -641,7 +641,7 @@ revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
 apply Genv.invert_find_symbol in H3.
 exists i.
-simpl ge_of. unfold filter_genv.
+simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
  rewrite H3.
  split; auto.
@@ -710,7 +710,7 @@ Proof.
  intros id fs.
  apply prop_imp_i; intros.
  simpl ge_of; simpl fst; simpl snd.
- unfold filter_genv.
+ unfold filter_genv, Map.get.
  assert (exists f, In (id, f) (prog_funct prog)). {
  simpl in H1.
  forget (prog_funct prog) as g.
@@ -793,7 +793,7 @@ revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
 apply Genv.invert_find_symbol in H3.
 exists i.
-simpl ge_of. unfold filter_genv.
+simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
  rewrite H3.
  split; auto.
