@@ -881,11 +881,6 @@ Definition typecheck_glob_environ
 forall id  t,  tc ! id = Some t ->
 (exists b, Map.get ge id = Some b).
 
-Definition same_env (rho:environ) (Delta:tycontext)  :=
-forall id t, (glob_types Delta) ! id = Some t ->
-  Map.get (ve_of rho) id = None
-  \/ exists t,  (var_types Delta) ! id = Some t.
-
 (*
 Definition specs_types (Delta: tycontext) :=
   forall id s, (glob_specs Delta) ! id = Some s ->
@@ -912,8 +907,7 @@ Definition all_var_ids (Delta : tycontext) : list positive :=
 Definition typecheck_environ (Delta: tycontext)  (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
-typecheck_glob_environ (ge_of rho) (glob_types Delta) /\
-same_env rho Delta.
+typecheck_glob_environ (ge_of rho) (glob_types Delta).
 
 Lemma typecheck_var_environ_None: forall ve vt,
   typecheck_var_environ ve vt ->
@@ -1024,7 +1018,7 @@ Ltac _destruct_glob_types i Heq_gt Heq_ge t b :=
   | H: typecheck_glob_environ _ _ |- _ =>
       pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ H i as HH
   | H: typecheck_environ _ _ |- _ =>
-      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj1 (proj2 (proj2 H))) i as HH
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
   end;
   match type of HH with
   | match ?o with _ => _ end =>

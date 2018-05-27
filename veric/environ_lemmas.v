@@ -65,9 +65,9 @@ Lemma typecheck_environ_join1:
         typecheck_environ (join_tycon Delta1 Delta2) rho.
 Proof. intros.
  unfold typecheck_environ in *.
-destruct H1 as [? [? [? ? ]]]. split; [ | split3].
+destruct H1 as [? [? ?]]. split3.
 *
-clear H2 H3 H4.
+clear H2 H3.
 destruct rho. simpl in *.
 unfold typecheck_temp_environ in *. intros. unfold temp_types in *.
 destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
@@ -86,12 +86,6 @@ unfold join_tycon.
 destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
 destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
 unfold glob_types in *; simpl in *; subst; auto.
-*
-unfold join_tycon.
-destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
-destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
-subst. unfold same_env in *.
-simpl in *. intros. specialize (H4 id _ H). auto.
 Qed.
 
 Definition tycontext_evolve (Delta Delta' : tycontext) :=
@@ -155,8 +149,8 @@ Lemma typecheck_environ_join2:
 Proof.
 intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
   [S1 [S2 [S3 [S4 S5]]]]  [T1 [T2 [T3 [T4 T5]]]]
-  [U1 [U2 [U3 U4]]];
- split; [| split; [|split]];
+  [U1 [U2 U3]];
+ split; [|split];
  unfold temp_types,var_types, ret_type in *; simpl in *;
  subst C1 C2.
 * clear - S1 T1 U1; unfold typecheck_temp_environ in *.
@@ -177,12 +171,6 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
   rewrite <- S2. rewrite T2. rewrite U2. clear; intuition.
 * unfold typecheck_glob_environ in *; intros.
   rewrite <- S4 in H. rewrite T4 in H. apply U3 in H. auto.
-* unfold same_env in *; intros.
- unfold glob_types in *. simpl in *.
- rewrite <- S4 in H. rewrite T4 in H. apply U4 in H.
- destruct H; auto; right.
- destruct H as [t1 ?]. exists t1.
- unfold var_types in *; simpl in *; auto. congruence.
 Qed.
 
 Lemma tc_val_ptr_lemma {CS: compspecs} :
@@ -210,16 +198,15 @@ typecheck_environ  Delta (mkEnviron ge ve te) ->
 typecheck_environ  Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
 intros. unfold typecheck_environ in *. simpl in *.
-intuition. clear H H2 H4.
+intuition. clear H H3.
 destruct Delta. unfold temp_types in *; simpl in *.
 unfold typecheck_temp_environ.
-intros. edestruct H1; eauto. destruct H2. rewrite Map.gsspec.
+intros.  edestruct H1; eauto. destruct H2. rewrite Map.gsspec.
 if_tac. subst. exists v; intuition. specialize (H0 (ty,b)).
 simpl in *. right.
 apply H0. auto.
 simpl in *. exists x. intuition.
 Qed.
-
 
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
 typecheck_environ  Delta (mkEnviron ge ve te) ->
@@ -235,7 +222,7 @@ unfold typecheck_environ in *. simpl in *.
 intuition.
 
 destruct Delta. unfold initialized. unfold temp_types in *.
-clear H1 H3 H4 H5 H8 H7. simpl in *.
+clear H1 H3 H5 H6. simpl in *.
 unfold typecheck_temp_environ in *.
 intros. remember (tyc_temps ! id).
 destruct o; try congruence; auto. destruct p. simpl in *.
@@ -254,12 +241,6 @@ destruct p. simpl. unfold var_types. auto. auto.
 
 destruct Delta. simpl in *. unfold initialized.
 simpl. destruct (tyc_temps ! id); try destruct p; simpl in *; auto.
-
-unfold same_env in *.
-intros. simpl in *. unfold initialized in *.
-destruct Delta. simpl in *.
-unfold var_types, temp_types in *. simpl in *.
-destruct (tyc_temps ! id); try destruct p; eauto.
 Qed.
 
 Lemma tycontext_evolve_refl : forall Delta, tycontext_evolve Delta Delta.

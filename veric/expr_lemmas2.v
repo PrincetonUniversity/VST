@@ -131,7 +131,7 @@ destruct IHe.
 destruct rho.
 rewrite denote_tc_assert_andp in H0. destruct H0.
 unfold typecheck_environ in H.
-destruct H as [_ [Hve [Hge _]]].
+destruct H as [_ [Hve Hge]].
 assert (PTR := eval_lvalue_ptr _ _ e Delta te ve ge (eq_refl _) Hve Hge H0).
 specialize (H2 t H0).
 spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto.
@@ -167,7 +167,7 @@ super_unfold_lift.
 specialize  (H4 pt).
 destruct rho.
 unfold typecheck_environ in *. intuition.
-assert (PTR := eval_lvalue_ptr _ m e _ te _ _ (eq_refl _) H H6 H0).
+assert (PTR := eval_lvalue_ptr _ m e _ te _ _ (eq_refl _) H H7 H0).
 simpl in *.
 remember (eval_lvalue e (mkEnviron ge ve te)). unfold isptr in *.
 subst v.
@@ -175,11 +175,11 @@ destruct PTR as [b [ofs ?]].
 destruct (typeof e); try now inv H2.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
   destruct (field_offset cenv_cs i (co_members co)); try now inv H2.
-  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
+  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H6.
   destruct pt; inv H1; auto.
   red; simple_if_tac; apply I.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H2.
-  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
+  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H6.
 Qed.
 
 Lemma typecheck_expr_sound_Evar:
@@ -194,9 +194,7 @@ assert (MODE: access_mode t = By_reference)
 simpl. super_unfold_lift. unfold deref_noload.
 
 unfold typecheck_environ in H. intuition.
-rename H4 into SM.
 destruct rho.
-unfold same_env in *.
 simpl in H0. rewrite MODE in H0.
 unfold get_var_type in *.
 

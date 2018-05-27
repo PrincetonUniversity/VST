@@ -210,9 +210,9 @@ Ltac _destruct_glob_types i Heq_gt Heq_ge t b ::=
   | H: typecheck_glob_environ _ _ |- _ =>
       pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ H i as HH
   | H: typecheck_environ _ _ |- _ =>
-      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj1 (proj2 (proj2 H))) i as HH
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
   | H: tc_environ _ _ |- _ =>
-      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj1 (proj2 (proj2 H))) i as HH
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
   end;
   match type of HH with
   | match ?o with _ => _ end =>

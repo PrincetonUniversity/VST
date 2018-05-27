@@ -1179,9 +1179,9 @@ Proof.
 unfold Delta1; intros.
 unfold construct_rho.
 unfold make_tycontext.
-unfold  typecheck_environ.
+unfold typecheck_environ.
 unfold ve_of, ge_of, te_of.
-split; [ | split3].
+split3.
 *
 unfold temp_types. unfold fst.
 unfold make_tycontext_t.
@@ -1204,10 +1204,6 @@ intuition. inv H2. destruct H2; inv H2.
 *
 unfold glob_types. unfold make_tycontext_t, snd.
 eapply tc_ge_denote_initial; eauto.
-*
-hnf; intros.
-simpl.
-left. unfold make_venv. unfold empty_env. apply PTree.gempty.
 Qed.
 
 Lemma in_map_sig {A B} (E:forall b b' : B, {b=b'}+{b<>b'}) y (f : A -> B) l : In y (map f l) -> {x : A | f x = y /\ In x l }.
@@ -1742,8 +1738,6 @@ Proof.
     rewrite PTree.gempty.
     intros [? ?]; discriminate.
   - eapply tc_ge_denote_initial; eauto.
-  - left.
-    apply PTree.gempty.
 Qed.
 
 Lemma find_id_maketycontext_s G id : (make_tycontext_s G) ! id = find_id id G.

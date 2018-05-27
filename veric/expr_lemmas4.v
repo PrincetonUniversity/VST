@@ -671,7 +671,7 @@ subst rho.
 simpl in Heqo. symmetry in Heqo; apply Heqo.
 subst rho.
 unfold typecheck_environ in *.
-destruct H0 as [? [Hve [Hge _]]].
+destruct H0 as [? [Hve Hge]].
 hnf in Hve,Hge.
 revert H1; case_eq ((var_types Delta) ! i); intros; try contradiction.
 specialize (Hve i t0). destruct Hve as [Hve _].
@@ -758,8 +758,8 @@ specialize (H2 H3).
 apply tc_bool_e in H4.
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
 destruct rho. unfold typecheck_environ in *. intuition.
-destruct H2 as [b [? ?]]. destruct H10 as [base [ofs ?]].  simpl in *.
-intuition. rewrite H11 in *. constructor. inv H8. auto.
+destruct H2 as [b [? ?]]. destruct H9 as [base [ofs ?]].  simpl in *.
+intuition. rewrite H10 in *. constructor. inv H7. auto.
 
 * (*unop*)
  eapply eval_unop_relate; eauto.
