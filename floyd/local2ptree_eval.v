@@ -171,71 +171,62 @@ Proof.
       auto.
 Qed.
 
-Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall T1 T2 Q rho,
-  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
-  (forall i t v, eval_lvardesc t (T2 ! i) = Some v ->
+Lemma msubst_eval_lvar_eq_aux {cs: compspecs}: forall Delta T1 T2 GV rho,
+  tc_environ Delta rho ->
+  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 GV)) rho ->
+  (forall i t v, eval_lvardesc i t Delta T2 = Some v ->
       eval_lvar i t rho = v).
 Proof.
   intros.
   unfold eval_lvar.
-  unfold eval_lvardesc in H0.
-  destruct (T2 ! i) as [ [?|?|?|?] | ] eqn:?H; simpl in *.
-  + destruct (eqb_type t t0) eqn:?H; inv H0.
-    apply eqb_type_true in H2; subst t0.
-    assert (In (locald_denote (lvar i t v))  (map locald_denote (LocalD T1 T2 Q)))
-      by ( apply  in_map; apply LocalD_sound; eauto 50).
-    assert (H3 := local_ext _ _ _ H0 H). clear - H3.
-    hnf in H3.
-    destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-    destruct H3; subst. rewrite eqb_type_refl. auto.
-  + destruct (eqb_type t t0) eqn:?H; inv H0.
-    apply eqb_type_true in H2; subst t0.
-    assert (In (locald_denote (lvar i t v))  (map locald_denote (LocalD T1 T2 Q)))
-      by ( apply  in_map; apply LocalD_sound; eauto 50).
-    assert (H3 := local_ext _ _ _ H0 H). clear - H3.
-    hnf in H3.
-    destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-    destruct H3; subst. rewrite eqb_type_refl. auto.
-  + inv H0.
-  + inv H0.
-  + inv H0.
+  unfold eval_lvardesc in H1.
+  destruct_var_types i; rewrite ?Heqo, ?Heqo0 in *; [| inv H1].
+  destruct (T2 ! i) as [[? ?]|] eqn:?; [| inv H1].
+  destruct (eqb_type t t1) eqn:?; inv H1.
+  apply eqb_type_true in Heqb0; subst t1.
+  assert (In (locald_denote (lvar i t v))  (map locald_denote (LocalD T1 T2 GV)))
+    by ( apply  in_map; apply LocalD_sound; eauto 50).
+  assert (H3 := local_ext _ _ _ H1 H0). clear - H3 Heqo Heqo0.
+  hnf in H3.
+  rewrite Heqo0 in H3.
+  destruct H3; subst. rewrite eqb_type_refl. auto.
 Qed.
 
-Lemma msubst_eval_expr_eq: forall {cs: compspecs} P T1 T2 Q R e v,
+Lemma msubst_eval_expr_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v,
   msubst_eval_expr Delta T1 T2 GV e = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |--
     local (`(eq v) (eval_expr e)).
 Proof.
   intros.
-  apply andp_left2.
-  apply andp_left1.
+  unfold PROPx, LOCALx.
+  apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].
+  unfold local, lift, lift1.
   simpl; intro rho.
-  simpl in H.
   normalize; intros.
       autorewrite with subst norm1 norm2; normalize.
-  destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  apply eq_sym, (msubst_eval_expr_eq_aux T1 T2); auto.
+  destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H1).
+  apply eq_sym, (msubst_eval_expr_eq_aux Delta T1 T2 GV); auto.
 Qed.
 
-Lemma msubst_eval_lvalue_eq: forall P {cs: compspecs} T1 T2 Q R e v,
+Lemma msubst_eval_lvalue_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v,
   msubst_eval_lvalue Delta T1 T2 GV e = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |--
     local (`(eq v) (eval_lvalue e)).
 Proof.
   intros.
-  apply andp_left2.
-  apply andp_left1.
+  unfold PROPx, LOCALx.
+  apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].
+  unfold local, lift, lift1.
   simpl; intro rho.
-  simpl in H.
   normalize; intros.
       autorewrite with subst norm1 norm2; normalize.
-  destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  apply eq_sym, (msubst_eval_lvalue_eq_aux T1 T2); auto.
+  destruct (msubst_eval_eq_aux _ _ _ _ _ H0 H1).
+  apply eq_sym, (msubst_eval_lvalue_eq_aux Delta T1 T2 GV); auto.
 Qed.
 
-Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
-  msubst_eval_LR T1 T2 e lr = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+Lemma msubst_eval_LR_eq: forall {cs: compspecs} Delta P T1 T2 GV R e v lr,
+  msubst_eval_LR Delta T1 T2 GV e lr = Some v ->
+  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |--
     local (`(eq v) (eval_LR e lr)).
 Proof.
   intros.
@@ -245,11 +236,11 @@ Proof.
 Qed.
 
 Lemma msubst_eval_exprlist_eq:
-  forall P {cs: compspecs} T1 T2 Q R tys el vl,
+  forall {cs: compspecs} Delta P T1 T2 GV R tys el vl,
   force_list
-           (map (msubst_eval_expr T1 T2)
+           (map (msubst_eval_expr Delta T1 T2 GV)
               (explicit_cast_exprlist tys el)) = Some vl ->
- PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+ ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |--
    local (`(eq vl) (eval_exprlist tys el)).
 Proof.
 intros.
@@ -258,20 +249,20 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   try solve [go_lowerx;  apply prop_right; reflexivity].
  simpl map in H.
  unfold force_list in H; fold (@force_list val) in H.
- destruct (msubst_eval_expr T1 T2 a) eqn:?.
+ destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?.
  simpl in H.
  destruct (force_list
-        (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))); inv H.
+        (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el))); inv H.
  simpl in H. inv H.
  simpl in H.
  destruct (option_map (force_val1 (sem_cast (typeof a) t))
-        (msubst_eval_expr T1 T2 a)) eqn:?; inv H.
+        (msubst_eval_expr Delta T1 T2 GV a)) eqn:?; inv H.
   destruct ( force_list
-         (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
+         (map (msubst_eval_expr Delta T1 T2 GV) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
   specialize (IHel _ _ Heqo0).
   simpl eval_exprlist.
-  destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
-  apply msubst_eval_expr_eq with (P0:=P)(Q0:=Q)(R0:=R) in Heqo1.
+  destruct (msubst_eval_expr Delta T1 T2 GV a) eqn:?; inv Heqo.
+  apply msubst_eval_expr_eq with (P0:=P)(GV0:=GV)(R0:=R) in Heqo1.
   apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
   apply andp_right; auto.
   go_lowerx. unfold_lift. intros. apply prop_right.
@@ -279,23 +270,23 @@ revert tys vl H; induction el; destruct tys, vl; intros;
  auto.
 Qed.
 
-Lemma msubst_eval_lvar_eq: forall {cs: compspecs} P T1 T2 Q R i t v,
-  msubst_eval_lvar T2 i t = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+Lemma msubst_eval_lvar_eq: forall {cs: compspecs} Delta P T1 T2 GV R i t v,
+  msubst_eval_lvar Delta T2 i t = Some v ->
+  ENTAIL Delta, PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) |--
     local (`(eq v) (eval_lvar i t)).
 Proof.
   intros.
-  apply andp_left2.
-  apply andp_left1.
+  unfold PROPx, LOCALx.
+  apply derives_trans with (local (tc_environ Delta) && local (fold_right (` and) (` True) (map locald_denote (LocalD T1 T2 GV)))); [solve_andp |].
+  unfold local, lift, lift1.
   simpl; intro rho.
-  simpl in H.
   normalize; intros.
       autorewrite with subst norm1 norm2; normalize.
-  pose proof (msubst_eval_lvar_eq_aux _ _ _ _ H0).
+  pose proof (msubst_eval_lvar_eq_aux _ _ _ _ _ H0 H1).
   apply eq_sym.
-  apply H1; auto.
+  apply H2; auto.
 Qed.
-  
+
 Ltac solve_msubst_eval_lvalue :=
   simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
