@@ -50,13 +50,13 @@ Definition set_spec :=
 Definition Gprog : funspecs :=   ltac:(with_library prog [get_spec; set_spec]).
 
 Lemma gvars_denote1_i:
-  forall gv i v rho, gvar_denote i v rho -> gvars_denote gv rho -> gv i = v.
+  forall gv i v rho, gvar_denote i v rho -> gvars_denote gv rho -> Map.get gv i = v.
 Proof.
 intros.
 hnf in H,H0.
 subst.
 destruct (Map.get (ve_of rho) i) as [ [? ?] |] ; try contradiction.
-destruct (ge_of rho i); try contradiction; auto.
+destruct (Map.get (ge_of rho) i); try contradiction; auto.
 Qed.
 
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
