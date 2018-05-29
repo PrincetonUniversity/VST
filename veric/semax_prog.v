@@ -558,7 +558,7 @@ Proof.
  intros id fs.
  apply prop_imp_i; intros.
  simpl ge_of; simpl fst; simpl snd.
- unfold filter_genv.
+ unfold filter_genv, Map.get.
  assert (exists f, In (id, f) (prog_funct prog)). {
  simpl in H1.
  forget (prog_funct prog) as g.
@@ -641,7 +641,7 @@ revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
 apply Genv.invert_find_symbol in H3.
 exists i.
-simpl ge_of. unfold filter_genv.
+simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
  rewrite H3.
  split; auto.
@@ -710,7 +710,7 @@ Proof.
  intros id fs.
  apply prop_imp_i; intros.
  simpl ge_of; simpl fst; simpl snd.
- unfold filter_genv.
+ unfold filter_genv, Map.get.
  assert (exists f, In (id, f) (prog_funct prog)). {
  simpl in H1.
  forget (prog_funct prog) as g.
@@ -793,7 +793,7 @@ revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
 apply Genv.invert_find_symbol in H3.
 exists i.
-simpl ge_of. unfold filter_genv.
+simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
  rewrite H3.
  split; auto.
@@ -1179,9 +1179,9 @@ Proof.
 unfold Delta1; intros.
 unfold construct_rho.
 unfold make_tycontext.
-unfold  typecheck_environ.
+unfold typecheck_environ.
 unfold ve_of, ge_of, te_of.
-split; [ | split3].
+split3.
 *
 unfold temp_types. unfold fst.
 unfold make_tycontext_t.
@@ -1204,10 +1204,6 @@ intuition. inv H2. destruct H2; inv H2.
 *
 unfold glob_types. unfold make_tycontext_t, snd.
 eapply tc_ge_denote_initial; eauto.
-*
-hnf; intros.
-simpl.
-left. unfold make_venv. unfold empty_env. apply PTree.gempty.
 Qed.
 
 Lemma in_map_sig {A B} (E:forall b b' : B, {b=b'}+{b<>b'}) y (f : A -> B) l : In y (map f l) -> {x : A | f x = y /\ In x l }.
@@ -1746,8 +1742,6 @@ Proof.
     rewrite PTree.gempty.
     intros [? ?]; discriminate.
   - eapply tc_ge_denote_initial; eauto.
-  - left.
-    apply PTree.gempty.
 Qed.
 
 Lemma find_id_maketycontext_s G id : (make_tycontext_s G) ! id = find_id id G.

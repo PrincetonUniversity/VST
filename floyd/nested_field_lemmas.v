@@ -1730,7 +1730,7 @@ Lemma gvar_field_compatible:
 Proof.
   intros.
   hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
-  destruct (ge_of rho i); try contradiction.
+  destruct (Map.get (ge_of rho) i); try contradiction.
   subst s.
   repeat split; auto.
   hnf.

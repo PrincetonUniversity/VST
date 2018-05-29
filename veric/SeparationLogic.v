@@ -365,7 +365,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
-       match ge_of rho symb with
+       match Map.get (ge_of rho) symb with
        | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
        | _ => mapsto_ sh (Tpointer Tvoid noattr) a
        end
@@ -412,7 +412,7 @@ Definition globvar2pred (gv: globals) (idv: ident * globvar type) : environ->mpr
                                    (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
-  match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
+  match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
 Definition globvars2pred  (gv: globals)  (vl: list (ident * globvar type)) : environ->mpred :=
   (lift2 andp) (fun rho => prop (gv = globals_of_env rho))

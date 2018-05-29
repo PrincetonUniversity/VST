@@ -671,7 +671,7 @@ subst rho.
 simpl in Heqo. symmetry in Heqo; apply Heqo.
 subst rho.
 unfold typecheck_environ in *.
-destruct H0 as [? [Hve [Hge _]]].
+destruct H0 as [? [Hve Hge]].
 hnf in Hve,Hge.
 revert H1; case_eq ((var_types Delta) ! i); intros; try contradiction.
 specialize (Hve i t0). destruct Hve as [Hve _].
@@ -689,35 +689,21 @@ apply Clight.eval_Evar_global; auto.
 
 * (* eval_lvalue Evar *)
  simpl in H1.
- destruct (get_var_type Delta i) eqn:?; [ | contradiction].
- destruct (eqb_type t t0) eqn:?; inversion H1; clear H1.
- apply eqb_type_true in Heqb; subst t0.
- destruct H0 as [_ [? [? ?]]].
+ unfold get_var_type in H1.
  subst rho; simpl in *.
- hnf in H0,H1.
- unfold get_var_type in Heqo.
- destruct ((var_types Delta)!i) eqn:?; inv Heqo.
+ unfold eval_var.
+ destruct_var_types i eqn:HH1&HH2; rewrite ?HH1, ?HH2 in *;
+  [| destruct_glob_types i eqn:HH3&HH4; rewrite ?HH3, ?HH4 in *; [| inv H1]].
  +
- apply H0 in Heqo0. destruct Heqo0 as [b ?];
+ destruct (eqb_type t t0) eqn:?; [| inv H1].
+ apply eqb_type_true in Heqb0; subst t0.
  exists b; exists Ptrofs.zero; split; auto.
  constructor; auto.
- unfold eval_var; simpl. rewrite H.
- rewrite eqb_type_refl. reflexivity.
  +
- destruct ((glob_types Delta)!i) eqn:?; inv H3.
- destruct (H1 _ _ Heqo) as [b ?];
+ destruct (eqb_type t t0) eqn:?; [| inv H1].
+ apply eqb_type_true in Heqb0; subst t0.
  exists b; exists Ptrofs.zero; split; auto.
- specialize (H2 _ _ Heqo).
- simpl in H2.
- destruct H2.
  constructor 2; auto.
- unfold filter_genv in H. destruct (Genv.find_symbol ge i); inv H.
- destruct H2 as [t' ?]. congruence.
- unfold eval_var. simpl.
- specialize (H2 _ _ Heqo).
- destruct H2. simpl in H2. unfold Map.get; rewrite H2.
- rewrite H. auto.
- destruct H2; congruence.
 
 * (*temp*)
 assert (TC:= typecheck_expr_sound).
@@ -772,8 +758,8 @@ specialize (H2 H3).
 apply tc_bool_e in H4.
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
 destruct rho. unfold typecheck_environ in *. intuition.
-destruct H2 as [b [? ?]]. destruct H10 as [base [ofs ?]].  simpl in *.
-intuition. rewrite H11 in *. constructor. inv H8. auto.
+destruct H2 as [b [? ?]]. destruct H9 as [base [ofs ?]].  simpl in *.
+intuition. rewrite H10 in *. constructor. inv H7. auto.
 
 * (*unop*)
  eapply eval_unop_relate; eauto.
