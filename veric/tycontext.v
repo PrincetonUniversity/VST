@@ -1669,6 +1669,40 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma modifiedvars_ls_eq: forall sl, modifiedvars_ls sl = modifiedvars' (seq_of_labeled_statement sl).
+Proof.
+  intros.
+  induction sl; auto.
+  destruct o; simpl;
+  rewrite IHsl; auto.
+Qed.  
+
+Lemma modifiedvars_Sswitch e sl n id: modifiedvars (seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) id -> modifiedvars (Sswitch e sl) id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  unfold select_switch.
+  destruct (select_switch_case (Int.unsigned n) sl) eqn:?H.
+  + revert l H; induction sl; simpl; intros.
+    - inv H.
+    - rewrite modifiedvars'_union.
+      destruct o; [| right; eapply IHsl; eauto].
+      if_tac in H; [| right; eapply IHsl; eauto].
+      inv H.
+      simpl in H0.
+      rewrite modifiedvars'_union in H0; auto.
+      rewrite modifiedvars_ls_eq; auto.
+  + revert H; induction sl; simpl; intros.
+    - auto.
+    - rewrite modifiedvars'_union.
+      destruct o; [if_tac in H |].
+      * inv H.
+      * right; apply IHsl; auto.
+      * simpl in H0.
+        rewrite modifiedvars'_union in H0; auto.
+        rewrite modifiedvars_ls_eq; auto.
+Qed.
+
 Lemma exit_tycon_Slabel l c Delta b: 
    exit_tycon (Slabel l c) Delta b = exit_tycon c Delta b.
 Proof. unfold exit_tycon. destruct b; trivial. Qed.

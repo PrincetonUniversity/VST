@@ -2030,6 +2030,20 @@ Proof.
       destruct H4; [auto | right; congruence].
 Qed.
 
+Lemma closed_Sswitch e sl F:
+  closed_wrt_modvars (Sswitch e sl) F ->
+  (forall n, closed_wrt_modvars (seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) F).
+Proof.
+  intros.
+  unfold closed_wrt_modvars, closed_wrt_vars in *.
+  intros.
+  apply H.
+  intros.
+  specialize (H0 i); destruct H0; auto.
+  left.
+  eapply modifiedvars_Sswitch; eauto.
+Qed.
+
 (*Moved here from semax_switch*)
 Lemma semax_eq:
  forall {Espec: OracleKind} {CS: compspecs} Delta P c R,
