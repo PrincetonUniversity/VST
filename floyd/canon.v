@@ -23,20 +23,20 @@ Definition gvar_denote (i: ident) (v: val) rho :=
          match Map.get (ve_of rho) i with
          | Some (b, ty') => False
          | None =>
-             match ge_of rho i with
+             match Map.get (ge_of rho) i with
              | Some b => v = Vptr b Ptrofs.zero
              | None => False
              end
          end.
 
 Definition sgvar_denote (i: ident) (v: val) rho :=
-         match ge_of rho i with
+         match Map.get (ge_of rho) i with
              | Some b => v = Vptr b Ptrofs.zero
              | None => False
          end.
 
 Definition gvars_denote (gv: globals) rho :=
-   gv = (fun i => match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
+   gv = (fun i => match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end).
 
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with
@@ -1999,21 +1999,16 @@ Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
   simpl in H.
   rewrite prop_true_andp in H. auto.
   clear H.
-  destruct H0 as [? [? [? ?]]]; split; [ | split3]; auto.
+  destruct H0 as [? [? ?]]; split3; auto.
   + unfold te_of, env_set.
     unfold temp_types, ret_tycon.
     hnf; intros.
     destruct (is_void_type (ret_type Delta)).
-    * rewrite PTree.gempty in H4; inv H4.
+    * rewrite PTree.gempty in H3; inv H3.
     * destruct (ident_eq id ret_temp).
-      2: rewrite PTree.gso in H4 by auto; rewrite PTree.gempty in H4; inv H4.
-      subst id. rewrite PTree.gss in H4. inv H4.
+      2: rewrite PTree.gso in H3 by auto; rewrite PTree.gempty in H3; inv H3.
+      subst id. rewrite PTree.gss in H3. inv H3.
       rewrite Map.gss. exists v. split; auto.
-  + intros id t. specialize (H3 id t).
-    intro.
-    spec H3. rewrite <- H4.
-    unfold ret_tycon. destruct (is_void_type (ret_type Delta)); reflexivity.
-    unfold env_set. unfold ve_of at 1. left; simpl. reflexivity.
 -
   destruct (ret_type Delta) eqn:?; auto.
   unfold_lift. simpl.
@@ -2021,11 +2016,9 @@ Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
   simpl in H. rewrite prop_true_andp in H; auto.
   clear H.
   unfold ret_tycon. rewrite Heqt. simpl is_void_type. cbv beta iota.
-  destruct H0 as [? [? [? ?]]]; split; [ | split3]; auto.
+  destruct H0 as [? [? ?]]; split3; auto.
   unfold globals_only; simpl.
-  hnf; intros. rewrite PTree.gempty in H3; inv H3.
-  intros id t. specialize (H2 id t).
-  simpl. intros. left. reflexivity.
+  hnf; intros. rewrite PTree.gempty in H2; inv H2.
 Qed.
 
 Definition ret0_tycon (Delta: tycontext): tycontext :=
@@ -2040,19 +2033,15 @@ Lemma make_args0_tc_environ: forall rho Delta,
   tc_environ (ret0_tycon Delta) (make_args nil nil rho).
 Proof.
   intros.
-  destruct H as [? [? [? ?]]].
-  split; [| split; [| split]]; simpl.
+  destruct H as [? [? ?]].
+  split; [| split]; simpl.
   + hnf; intros.
-    rewrite PTree.gempty in H3; inversion H3.
+    rewrite PTree.gempty in H2; inversion H2.
   + hnf; split; intros.
-    - rewrite PTree.gempty in H3; inversion H3.
-    - destruct H3 as [v ?].
-      inversion H3.
+    - rewrite PTree.gempty in H2; inversion H2.
+    - destruct H2 as [v ?].
+      inversion H2.
   + auto.
-  + hnf; intros.
-    left.
-    simpl.
-    reflexivity.
 Qed.
 
 Lemma make_args1_tc_environ: forall rho Delta v,
@@ -2062,27 +2051,23 @@ Lemma make_args1_tc_environ: forall rho Delta v,
 Proof.
   intros.
   rename H0 into HH.
-  destruct H as [? [? [? ?]]].
+  destruct H as [? [? ?]].
   simpl.
-  split; [| split; [| split]].
+  split; [| split].
   + hnf; intros.
-    unfold ret1_tycon, temp_types in H3.
-    rewrite PTree.gsspec in H3.
+    unfold ret1_tycon, temp_types in H2.
+    rewrite PTree.gsspec in H2.
     destruct (peq id ret_temp).
     - subst.
-      inversion H3; subst.
+      inversion H2; subst.
       exists v; simpl.
       split; auto.
-    - rewrite PTree.gempty in H3; inversion H3.
+    - rewrite PTree.gempty in H2; inversion H2.
   + hnf; split; intros.
-    - rewrite PTree.gempty in H3; inversion H3.
-    - destruct H3 as [v' ?].
-      inversion H3.
+    - rewrite PTree.gempty in H2; inversion H2.
+    - destruct H2 as [v' ?].
+      inversion H2.
   + auto.
-  + hnf; intros.
-    left.
-    simpl.
-    reflexivity.
 Qed.
 
 Lemma semax_post_ret1: forall P' R' Espec {cs: compspecs} Delta P v R Pre c,
@@ -2510,7 +2495,7 @@ Proof.
     rewrite (add_andp _ _ H2).
     normalize.
 Qed.
-    
+
 Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
   (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) =
   (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).

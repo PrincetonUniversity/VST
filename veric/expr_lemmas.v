@@ -123,13 +123,6 @@ clear -H. eapply typecheck_environ_update_ve; eauto.
 
 eapply typecheck_environ_update_ge.
 eauto.
-
-clear - H3.
-unfold same_env in *. intros.
-specialize (H3 id t).
-repeat rewrite update_tycon_same_ge in *. specialize (H3 H).
-destruct H3; auto. destruct H0.
-rewrite update_tycon_same_ve in *. eauto.
 Qed.
 
 Lemma tc_bool_val:

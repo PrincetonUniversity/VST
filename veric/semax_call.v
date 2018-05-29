@@ -217,12 +217,9 @@ Proof.
     apply nec_nat; auto.
   } Unfocus.
   hnf in H0. destruct H0.
-  destruct H0 as [_ [_ [H0 SAME]]].
+  destruct_var_types id eqn:?H&?H.
+  destruct_glob_types id eqn:?H&?H.
   rename GLBL into GL1.
-  specialize (H0 _ _ H).
-  specialize (SAME _ _ H).
-  destruct SAME as [SAME | [t SAME]]; [ | congruence].
-  destruct H0 as [b ?].
   specialize (H7 (Vptr b Ptrofs.zero) fsig0 cc A P' Q' _ (necR_refl _)).
   spec H7.
   Focus 1. {
@@ -233,13 +230,13 @@ Proof.
   exists b.
   split.
   + unfold eval_lvalue, eval_var.
-    unfold Map.get. rewrite SAME.
-    rewrite H0. reflexivity.
+    rewrite H10, H11.
+    reflexivity.
   + hnf.
     destruct H5 as [H5 _].
     specialize (H5 _ _ _ (necR_refl _) H').
     destruct H5 as [b' [? ?]].
-    do 3 red in H5. inversion2 H0 H5.
+    do 3 red in H5. inversion2 H11 H5.
     apply H9.
 Qed.
 
@@ -604,7 +601,7 @@ Proof.
  pose (rho3 := mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 
 unfold typecheck_environ. repeat rewrite andb_true_iff.
-split; [ | split3].
+split3.
 *
 clear H H1 H15.
 unfold typecheck_temp_environ in *. intros. simpl.
@@ -731,25 +728,6 @@ intuition. inv H5. inv H0. intuition.
 apply H4 in H0. apply H1; auto.
 *
 unfold ge_of in *. simpl in *. auto.
-*
-simpl in *.
-unfold typecheck_environ in *.
-destruct TE as [_ [_ [_ TE]]].
-unfold same_env in *. intros. simpl in *.
-
-specialize (TE id t H0).
-unfold make_venv.
-unfold func_tycontext'. unfold var_types. simpl in *.
-assert (empty_env ! id = None). rewrite PTree.gempty. auto.
-generalize dependent empty_env.  generalize dependent (m_dry jm).
-induction (fn_vars f); intros. inversion H15.  subst. left.
-auto.
-simpl in *. destruct a. inv H15.
-rewrite PTree.gsspec. if_tac. eauto.
-
-apply IHl1 in H11. destruct H11. auto. right.
-congruence.
-inv H17'. auto. rewrite PTree.gso; auto.
 Qed.
 
 Lemma free_juicy_mem_level:
@@ -912,7 +890,7 @@ Proof.
  unfold stackframe_of.
  unfold func_tycontext' in H1.
  unfold typecheck_environ in H1.
- destruct H1 as [_ [?  [_ _]]].
+ destruct H1 as [_ [?  _]].
  rewrite H0 in H1.
  unfold make_venv in H1.
  unfold var_types in H1.
@@ -2598,7 +2576,7 @@ destruct rho. inv H0. simpl in *.
 remember (split (fn_params f)). destruct p.
 assert (TE := TC3).
  destruct TC3 as [TC3 TC3'].
-destruct TC3 as [TC3 [TC4 [TC5 TC6]]].
+destruct TC3 as [TC3 [TC4 TC5]].
 simpl in *. if_tac in H16; try congruence. clear H0.
 eapply semax_call_typecheck_environ with (jm0 := jmx); try eassumption.
 erewrite <- age_jm_dry by eauto; auto.

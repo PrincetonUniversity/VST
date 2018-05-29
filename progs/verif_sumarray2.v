@@ -143,7 +143,7 @@ forward_call (*  s = sumarray(four+2,2); *)
 +
  clear - GV. unfold gvar_denote, eval_var in *.
   destruct (Map.get (ve_of rho) _four) as [[? ?]|]; try contradiction.
-  destruct (ge_of rho _four); try contradiction. apply I.
+  destruct (Map.get (ge_of rho) _four); try contradiction. apply I.
 +
  entailer!.
  rewrite field_address0_offset. reflexivity.

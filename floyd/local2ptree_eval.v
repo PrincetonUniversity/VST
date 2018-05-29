@@ -168,7 +168,7 @@ Proof.
       assert (H3 := local_ext _ _ _ H0 H). clear - H3.
       unfold eval_var in *. hnf in H3.
       destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-      destruct (ge_of rho i); try contradiction. auto.
+      destruct (Map.get (ge_of rho) i); try contradiction. auto.
      - inv H0.
      - inv H0.
 Qed.

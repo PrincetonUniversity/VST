@@ -361,7 +361,7 @@ Lemma gvar_isptr:
 Proof.
 intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -369,7 +369,7 @@ Lemma sgvar_isptr:
   forall i v rho, locald_denote (sgvar i v) rho -> isptr v.
 Proof.
 intros. hnf in H.
-destruct (ge_of rho i); try contradiction.
+destruct (Map.get (ge_of rho) i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -1693,6 +1693,11 @@ Ltac forward_for_simple_bound n Pre :=
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
  end;
+ match goal with |-
+      semax _ _ (Ssequence (Ssequence (Sfor _ _ _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ | _ => idtac
+ end;
  first [
     match type of n with
       ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
@@ -2906,7 +2911,7 @@ end].
 
 Ltac advise_prepare_postcondition := 
  match goal with
- | Post' := @abbreviate ret_assert ?R |- semax _ _ _ ?Post =>
+ | Post' := _ : ret_assert |- semax _ _ _ ?Post =>
      tryif (constr_eq Post' Post) then (unfold abbreviate in Post'; subst Post') else idtac
  end;
  lazymatch goal with
@@ -3154,19 +3159,15 @@ normalize.
 apply prop_right.
 pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
 apply H5 in H4.
++
 simpl in H4.
 hnf.
-destruct H2 as [? [? [? ?]]].
-apply expr_lemmas2.typecheck_var_environ_None with (i:=i) in H6.
-destruct H6 as [H6 _].
-specialize (H6 H).
-rewrite H6.
-destruct ((glob_types Delta) ! i) eqn:?.
-hnf in H7.
-specialize (H7 _ _ Heqo). destruct H7.
-rewrite H4.
-rewrite H7. auto.
-clear - H0; congruence.
+destruct_var_types i eqn:?H&?H.
+rewrite H7.
+destruct_glob_types i eqn:?H&?H; [| congruence].
+rewrite H4, H8.
+auto.
++
 apply in_map.
 auto.
 Qed.
@@ -3640,4 +3641,29 @@ Ltac prove_semax_prog :=
       (eexists; reflexivity) || 
         fail "Funspec of _main is not in the proper form"
     end
- ].
+ ];
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+
+Ltac reassociate_to c1 c2  n :=
+ match n with 
+ | O => constr:(Ssequence c1 c2)
+ | S ?j => match c2 with Ssequence ?c3 ?c4 => reassociate_to (Ssequence c1 c3) c4 j end
+ end.
+
+Tactic Notation "assert_after" constr(n) constr(PQR) :=
+ let n := match type of n with
+              | Z => let j := constr:(Z.to_nat n) in let j := eval compute in j in j
+              | _ => n
+             end in
+ match goal with
+ | |- semax _ _ (Ssequence (Ssequence ?c1 ?c2) ?c3) _ =>
+ let c := reassociate_to c1 c2 n
+  in match c with (Ssequence ?d ?e) =>
+           let f := constr:(Ssequence d (Ssequence e c3))
+            in apply (semax_unfold_Ssequence _ f); [reflexivity | ]
+      end
+ | |- semax _ _ (Ssequence ?c1 ?c2) _ =>
+ let c := reassociate_to c1 c2 n
+  in  apply (semax_unfold_Ssequence _ c); [reflexivity | ]
+ end;
+ apply semax_seq' with PQR; abbreviate_semax.
