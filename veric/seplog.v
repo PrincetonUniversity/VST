@@ -206,10 +206,10 @@ Definition funassert (Delta: tycontext): assert :=
  fun rho =>
    (ALL  id: ident, ALL fs:funspec,  !! ((glob_specs Delta)!id = Some fs) -->
               EX b:block,
-                   !! (ge_of rho id = Some b) && func_at fs (b,0))
+                   !! (Map.get (ge_of rho) id = Some b) && func_at fs (b,0))
    &&
    (ALL  b: block, ALL fs:funspec, func_at' fs (b,0) -->
-             EX id:ident, !! (ge_of rho id = Some b)
+             EX id:ident, !! (Map.get (ge_of rho) id = Some b)
                && !! exists fs, (glob_specs Delta)!id = Some fs).
 
 (* Unfortunately, we need core_load in the interface as well as address_mapsto,

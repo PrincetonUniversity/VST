@@ -200,7 +200,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
-       match ge_of rho symb with
+       match Map.get (ge_of rho) symb with
        | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
        | _ => mapsto_ sh (Tpointer Tvoid noattr) a
        end
@@ -219,7 +219,7 @@ Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Ers else Ews.
 
 Definition globals_of_env (rho: environ) (i: ident) : val := 
-  match ge_of rho i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
+  match Map.get (ge_of rho) i with Some b => Vptr b Ptrofs.zero | None => Vundef end.
 
 Definition globvar2pred (gv: ident->val) (idv: ident * globvar type) : assert :=
    if (gvar_volatile (snd idv))
@@ -983,9 +983,9 @@ if_tac; auto.
 
 * (* symbol case *)
  rewrite RHO.
-  case_eq (filter_genv ge i); try destruct p0; auto; intros.
+  case_eq (Map.get (filter_genv ge) i); try destruct p0; auto; intros.
 +
-  unfold filter_genv in H4.
+  unfold filter_genv, Map.get in H4.
   revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
   inv H5.
   left. split; [apply I | ].
@@ -1830,7 +1830,7 @@ Proof.
           | destruct (H4 loc) as [HH _]; intuition].
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
 
- destruct (ge_of rho i); try destruct p; auto.
+ destruct (Map.get (ge_of rho) i); try destruct p; auto.
  destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto.
  destruct H1 as [bl [[? H8] Hg1]].
  exists bl; split; [|simpl; rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc).
@@ -2302,7 +2302,7 @@ rewrite Pos_to_nat_eq_S.
   do 2 econstructor; split3; [ eassumption | |].
   unfold globvar2pred.
   unfold globals_of_env.
-  rewrite RHO. unfold filter_genv. simpl @fst; simpl @snd.
+  rewrite RHO. unfold filter_genv, Map.get. simpl @fst; simpl @snd.
   assert (JJ:= alloc_global_inflate_same n i v _ _ (G0++G) _ H3).
  spec JJ.
  intro. unfold initial_core. rewrite resource_at_make_rmap. unfold initial_core'.

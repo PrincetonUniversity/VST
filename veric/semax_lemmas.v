@@ -136,8 +136,8 @@ Lemma typecheck_environ_sub:
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
 Proof.
-intros ? ? [? [? [? [? Hs]]]] ?  [? [? [? ?]]].
-split; [ | split; [ | split]].
+intros ? ? [? [? [? [? Hs]]]] ?  [? [? ?]].
+split; [ | split].
 * clear - H H3.
  hnf; intros.
  specialize (H id); rewrite H0 in H.
@@ -153,13 +153,6 @@ split; [ | split; [ | split]].
 * clear - H2 H5.
  hnf; intros. eapply H5.
  specialize (H2 id). hnf in H2. rewrite H in H2. eauto.
-* clear - H6 H1 H2 H0.
- hnf; intros. specialize (H6 id t).
- specialize (H2 id); hnf in H2. rewrite H in H2.
- specialize (H6 H2).
- destruct H6; auto; right.
- destruct H3 as [t' ?]. exists t'.
- rewrite (H0 id); auto.
 Qed.
 
 Lemma funassert_resource: forall Delta rho a a' (Hl: level a = level a')
@@ -2028,6 +2021,20 @@ Proof.
       intros.
       specialize (H4 i).
       destruct H4; [auto | right; congruence].
+Qed.
+
+Lemma closed_Sswitch e sl F:
+  closed_wrt_modvars (Sswitch e sl) F ->
+  (forall n, closed_wrt_modvars (seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) F).
+Proof.
+  intros.
+  unfold closed_wrt_modvars, closed_wrt_vars in *.
+  intros.
+  apply H.
+  intros.
+  specialize (H0 i); destruct H0; auto.
+  left.
+  eapply modifiedvars_Sswitch; eauto.
 Qed.
 
 (*Moved here from semax_switch*)

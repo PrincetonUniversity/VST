@@ -1222,7 +1222,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_lvalue
+  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "The hint does not type match")
@@ -1245,8 +1245,8 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
+  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1284,7 +1284,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_lvalue
+  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "The hint does not type match")
@@ -1308,8 +1308,8 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
+  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1351,8 +1351,8 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   [ exact LOCAL2PTREE
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_expr
-  | solve_msubst_eval_lvalue
+  | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "The hint does not type match")
@@ -1375,9 +1375,9 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | solve_msubst_eval_expr
-  | solve_msubst_eval_LR
-  | solve_msubst_efield_denote
+  | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)

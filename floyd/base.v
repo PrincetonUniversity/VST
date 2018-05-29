@@ -168,3 +168,74 @@ Inductive LLRR : Type :=
   | LLLL : LLRR
   | RRRR : LLRR.
 
+Ltac _destruct_var_types i Heq_vt Heq_ve t b ::=
+  let HH := fresh "H" in
+  match goal with
+  | H: typecheck_var_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ H i as HH
+  | H: typecheck_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ (proj1 (proj2 H)) i as HH
+  | H: tc_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ (proj1 (proj2 H)) i as HH
+  end;
+  match type of HH with
+  | match ?o with _ => _ end =>
+      match goal with
+      | H: o = Some _ |- _ =>
+          rewrite H in HH
+      | H: Some _ = o |- _ =>
+          rewrite <- H in HH
+      | H: o = None |- _ =>
+          rewrite H in HH
+      | H: None = o |- _ =>
+          rewrite <- H in HH
+      | _ =>
+          let HH' := fresh "H" in
+          pose proof eq_refl o as HH';
+          destruct o as [t |] in HH, HH' at 2;
+          pose proof HH' as Heq_vt; clear HH'
+      end
+  end;
+  match type of HH with
+  | ex _ =>
+      pose proof HH as [b Heq_ve]
+  | _ =>
+      pose proof HH as Heq_ve
+  end;
+  clear HH.
+
+Ltac _destruct_glob_types i Heq_gt Heq_ge t b ::=
+  let HH := fresh "H" in
+  match goal with
+  | H: typecheck_glob_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ H i as HH
+  | H: typecheck_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
+  | H: tc_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
+  end;
+  match type of HH with
+  | match ?o with _ => _ end =>
+      match goal with
+      | H: o = Some _ |- _ =>
+          rewrite H in HH
+      | H: Some _ = o |- _ =>
+          rewrite <- H in HH
+      | H: o = None |- _ =>
+          rewrite H in HH
+      | H: None = o |- _ =>
+          rewrite <- H in HH
+      | _ =>
+          let HH' := fresh "H" in
+          pose proof eq_refl o as HH';
+          destruct o as [t |] in HH, HH' at 2;
+          pose proof HH' as Heq_gt; clear HH'
+      end
+  end;
+  match type of HH with
+  | ex _ =>
+      pose proof HH as [b Heq_ge]
+  | _ =>
+      idtac
+  end;
+  clear HH.
