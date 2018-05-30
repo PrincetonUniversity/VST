@@ -382,103 +382,6 @@ Proof.
  normalize.
 Qed.
 
-Lemma fold_right_and_LocalD_i:
-  forall T1 T2 Q rho,
-  (forall i v, T1 ! i = Some v -> locald_denote (temp i v) rho) ->
-  (forall i vd, T2 ! i = Some vd -> fold_right `(and) `(True) (map locald_denote (denote_vardesc nil i vd)) rho) ->
-  (fold_right `(and) `(True) (map locald_denote Q) rho) ->
-  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho.
-Proof.
- intros.
- unfold LocalD.
- repeat rewrite PTree.fold_spec.
- repeat rewrite <- fold_left_rev_right.
- remember (rev (PTree.elements T2)) as L2.
- remember (rev (PTree.elements T1)) as L1.
- change L2 with (nil ++ L2) in HeqL2.
- change L1 with (nil ++ L1) in HeqL1.
- remember (@nil (positive * vardesc)) as E2.
- remember (@nil (positive * val)) as E1.
- clear HeqE1 HeqE2.
- revert E1 T1 HeqL1 H; induction L1; simpl; intros.
-*
- revert E2 T2 HeqL2 H0; induction L2; simpl; intros.
- auto.
- destruct a as [i vd].
- assert (H8: T2 ! i = Some vd).
-    apply PTree.elements_complete.
-    rewrite in_rev. rewrite <- HeqL2.
-   rewrite in_app. right; left; auto.
- specialize (IHL2 (E2++((i,vd)::nil)) T2).
- rewrite app_ass in IHL2; specialize (IHL2 HeqL2).
- destruct vd.
- split3; auto. apply (H0 _ _ H8). apply (H0 _ _ H8).
- split; auto.  apply (H0 _ _ H8).
- split; auto.  apply (H0 _ _ H8).
- split; auto.  apply (H0 _ _ H8).
-*
- destruct a as [i v]; simpl in *; unfold_lift; split.
- apply H.
- apply PTree.elements_complete.
- rewrite in_rev. rewrite <- HeqL1.
- rewrite in_app. right; left; auto.
- apply (IHL1 (E1++((i,v)::nil)) T1).
- rewrite app_ass. auto.
- auto.
-Qed.
-
-Lemma fold_right_and_LocalD_e:
-  forall T1 T2 Q rho,
-  fold_right `(and) `(True) (map locald_denote (LocalD T1 T2 Q)) rho ->
-  (forall i v, T1 ! i = Some v -> locald_denote (temp i v) rho) /\
-  (forall i vd, T2 ! i = Some vd -> fold_right `(and) `(True) (map locald_denote (denote_vardesc nil i vd)) rho) /\
-  (fold_right `(and) `(True) (map locald_denote Q) rho).
-Proof.
-unfold LocalD; intros.
- repeat rewrite PTree.fold_spec in H.
- repeat rewrite <- fold_left_rev_right in H.
- split3; intros.
-*
- forget (fold_right
-            (fun (y : positive * vardesc) (x : list localdef) =>
-             denote_vardesc x (fst y) (snd y)) Q (rev (PTree.elements T2)))
-   as Q'.
- apply PTree.elements_correct in H0.
- rewrite in_rev in H0.
- forget (rev (PTree.elements T1)) as L1.
- clear - H H0.
- revert H H0; induction L1; intros. inv H0.
- destruct a as [i' v']; destruct H0. inv H0.
- destruct H. apply H.
- destruct H.
- apply IHL1. apply H1. auto.
-*
- induction  (rev (PTree.elements T1)).
- simpl in H.
- apply PTree.elements_correct in H0.
- rewrite in_rev in H0.
- forget (rev (PTree.elements T2)) as L2.
- clear - H H0.
- revert H H0; induction L2; intros. inv H0.
- destruct H0. subst a.
- destruct vd; simpl in H.
- destruct H as [? [? ?]]. split3; auto. apply Coq.Init.Logic.I.
- destruct H; split; auto; apply Coq.Init.Logic.I.
- destruct H; split; auto; apply Coq.Init.Logic.I.
- destruct H; split; auto; apply Coq.Init.Logic.I.
- apply IHL2; auto.
- clear - H.
- destruct a as [i vd]; destruct vd; destruct H; auto. destruct H0; auto.
- destruct H. auto.
-*
- induction (rev (PTree.elements T1)).
- induction (rev (PTree.elements T2)).
- apply H.
- apply IHl.
- destruct a as [i [?|?|?|?]]; destruct H; try destruct H0; auto.
- destruct H. auto.
-Qed.
-
 Lemma Forall_ptree_elements_e:
   forall A (F: ident * A -> Prop) m i v,
    Forall F (PTree.elements m) ->
@@ -540,67 +443,83 @@ Lemma check_specs_lemma:
   forall Qtemp Qpre_temp Qvar G Qpre_var rho fl vl
     (LEN: length fl = length vl),
     Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) ->
-   Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
-          (PTree.elements Qpre_temp) ->
-   fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
-  fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
-  fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
+    Forall (check_one_temp_spec (pTree_from_elements (combine fl vl)))
+           (PTree.elements Qpre_temp) ->
+    fold_right `(and) `(True) (map locald_denote (LocalD Qtemp Qvar (map gvars G))) rho ->
+    fold_right `(and) `(True) (map locald_denote (map gvars G)) rho ->
+    fold_right `(and) `(True) (map locald_denote (LocalD Qpre_temp Qpre_var (map gvars G))) (make_args fl vl rho).
 Proof.
- intros. rename H2 into H8.
- apply fold_right_and_LocalD_e in H1.
- destruct H1 as [? [? ?]].
- apply fold_right_and_LocalD_i; [ | | auto]; clear H3; intros.
-*
- hnf.
- clear - H0 H3.
- pose proof (Forall_ptree_elements_e _ _ _ _ _ H0 H3).
- hnf in H. simpl in H.
- clear - H.
- eapply pTree_from_elements_e1; eauto.
-*
- clear - LEN H H2 H3.
- pose proof (Forall_ptree_elements_e _ _ _ _ _ H H3).
- clear H H3.
- destruct vd; simpl in *; unfold_lift; repeat split; auto;
-   hnf in H0; simpl in H0; destruct (Qvar ! i) as [[?|?|?|?]|] eqn:?; try contradiction;
-    subst.
- +
-  apply H2 in Heqo; simpl in Heqo; unfold_lift in Heqo.
-  destruct Heqo as [? [? _]].
-  hnf in H,H0|-*.
-  rewrite (ve_of_make_args _ _ _ _ LEN).
-  rewrite ge_of_make_args. auto.
- +
-  apply H2 in Heqo; simpl in Heqo; unfold_lift in Heqo.
-  destruct Heqo.
-  hnf in H|-*.
-  rewrite (ve_of_make_args _ _ _ _ LEN).
-  destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-  rewrite ge_of_make_args. auto.
- +
-  apply H2 in Heqo; simpl in Heqo; unfold_lift in Heqo.
-  destruct Heqo.
-  hnf in H|-*.
-  rewrite (ve_of_make_args _ _ _ _ LEN).
-  rewrite ge_of_make_args. auto.
- +
-  apply H2 in Heqo; simpl in Heqo; unfold_lift in Heqo.
-  destruct Heqo.
-  hnf in H|-*.
-  destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-  rewrite ge_of_make_args. auto.
- +
-  apply H2 in Heqo; simpl in Heqo; unfold_lift in Heqo.
-  destruct Heqo.
-  hnf in H|-*.
-  rewrite ge_of_make_args. auto.
-*
-  clear - H8.
-  induction G; simpl in *; auto.
-  destruct H8.
-  split; auto.
-  hnf in H|-*. subst.
-  extensionality i. rewrite ge_of_make_args. auto.
+  intros.
+  apply local_ext_rev.
+  specialize (fun (Q0: environ -> Prop) H => local_ext Q0 _ _ H H1).
+  clear H1; intros.
+  specialize (fun (Q0: localdef) H => H1 (locald_denote Q0) (in_map _ _ _ H)).
+  specialize (fun (Q0: localdef) H => H1 Q0 (LocalD_sound _ _ _ _ H)).
+  assert (ASSU1: forall i v, Qtemp ! i = Some v -> locald_denote (temp i v) rho) by (intros; apply H1; firstorder).
+  assert (ASSU2: forall i t v v', Qvar ! i = Some (vardesc_local_global t v v') -> locald_denote (lvar i t v) rho) by (intros; apply H1; eauto 50).
+  assert (ASSU3: forall i t v v', Qvar ! i = Some (vardesc_local_global t v v') -> locald_denote (sgvar i v') rho) by (intros; apply H1; eauto 50).
+  assert (ASSU4: forall i t v, Qvar ! i = Some (vardesc_local t v) -> locald_denote (lvar i t v) rho) by (intros; apply H1; eauto 50).
+  assert (ASSU5: forall i v, Qvar ! i = Some (vardesc_visible_global v) -> locald_denote (gvar i v) rho) by (intros; apply H1; eauto 50).
+  assert (ASSU6: forall i v, Qvar ! i = Some (vardesc_shadowed_global v) -> locald_denote (sgvar i v) rho) by (intros; apply H1; eauto 50).
+  assert (ASSU7: forall Q0, In Q0 (map gvars G) -> locald_denote Q0 rho) by (intros; apply H1; eauto 50).
+  clear H1.
+  apply list_in_map_inv in H3.
+  destruct H3 as [Q0' [? ?]]; subst; rename Q0' into Q0.
+  apply LocalD_complete in H3.
+  destruct H3 as [ [i [v [?H ?H]]]
+                 |[ [i [t [v [v' [?H ?H]]]]]
+                 |[ [i [t [v [v' [?H ?H]]]]]
+                 |[ [i [t [v [?H ?H]]]]
+                 |[ [i [v [?H ?H]]]
+                 |[ [i [v [?H ?H]]]
+                 | ?H ]]]]]];
+    [subst; unfold locald_denote; unfold_lift .. |].
+  + clear - H0 H1.
+    pose proof (Forall_ptree_elements_e _ _ _ _ _ H0 H1).
+    hnf in H. simpl in H.
+    clear - H.
+    eapply pTree_from_elements_e1; eauto.
+  + pose proof (Forall_ptree_elements_e _ _ _ _ _ H H1).
+    hnf in H3; simpl in H3.
+    destruct (Qvar ! i) as [[?|?|?|?]|]; inv H3.
+  + pose proof (Forall_ptree_elements_e _ _ _ _ _ H H1).
+    hnf in H3; simpl in H3.
+    destruct (Qvar ! i) as [[?|?|?|?]|]; inv H3.
+  + pose proof (Forall_ptree_elements_e _ _ _ _ _ H H1).
+    hnf in H3; simpl in H3.
+    destruct (Qvar ! i) as [[?|?|?|?]|]; inv H3.
+  + pose proof (Forall_ptree_elements_e _ _ _ _ _ H H1).
+    hnf in H3; simpl in H3.
+    destruct (Qvar ! i) as [[?|?|?|?]|] eqn:?H; inv H3.
+    - specialize (ASSU2 i t _ _ H4).
+      specialize (ASSU3 i t _ _ H4).
+      hnf in ASSU2, ASSU3 |- *.
+      rewrite (ve_of_make_args _ _ _ _ LEN).
+      rewrite ge_of_make_args. auto.
+    - specialize (ASSU5 i _ H4).
+      hnf in ASSU5 |- *.
+      rewrite (ve_of_make_args _ _ _ _ LEN).
+      destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
+      rewrite ge_of_make_args. auto.
+    - specialize (ASSU6 i _ H4).
+      hnf in ASSU6 |- *.
+      rewrite (ve_of_make_args _ _ _ _ LEN).
+      rewrite ge_of_make_args. auto.
+  + pose proof (Forall_ptree_elements_e _ _ _ _ _ H H1).
+    hnf in H3; simpl in H3.
+    destruct (Qvar ! i) as [[?|?|?|?]|] eqn:?H; inv H3.
+    - specialize (ASSU5 i _ H4).
+      hnf in ASSU5 |- *.
+      destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
+      rewrite ge_of_make_args. auto.
+    - specialize (ASSU6 i _ H4).
+      hnf in ASSU6 |- *.
+      rewrite ge_of_make_args. auto.
+  + specialize (ASSU7 _ H1).
+    apply list_in_map_inv in H1.
+    destruct H1 as [gv [? ?]]; subst.
+    hnf in ASSU7 |- *. subst.
+    extensionality i. rewrite ge_of_make_args. auto.
 Qed.
 
 Lemma PROP_combine:
@@ -986,17 +905,39 @@ apply andp_left2. apply andp_left1.
  forget (eval_exprlist tys bl rho) as vl.
  eapply check_specs_lemma; try eassumption.
  instantiate (1:=Qtemp).
- clear - CHECKG H.
- apply fold_right_and_LocalD_e in H.
- destruct H as [? [? ?]].
- apply fold_right_and_LocalD_i; auto.
- clear - CHECKG H1.
- eapply in_gvars_sub; eauto.
- clear - CHECKG H.
- apply fold_right_and_LocalD_e in H.
-  destruct H as [? [? ?]].
-  clear - H1 CHECKG.
- eapply in_gvars_sub; eauto.
+ -
+  clear - CHECKG H.
+  apply local_ext_rev.
+  specialize (fun (Q0: environ -> Prop) HH => local_ext Q0 _ _ HH H).
+  clear H; intros.
+  apply (H Q0); clear H.
+  apply list_in_map_inv in H0.
+  destruct H0 as [? [? ?]]; subst.
+  apply in_map.
+  apply LocalD_sound; apply LocalD_complete in H0.
+  rewrite Forall_forall in CHECKG.
+  destruct H0 as [| [| [| [| [| [|]]]]]]; auto 50.
+  repeat right.
+  apply list_in_map_inv in H.
+  destruct H as [? [? ?]]; subst.
+  apply in_map.
+  apply CHECKG; auto.
+ -
+  clear - CHECKG H.
+  apply local_ext_rev.
+  specialize (fun (Q0: environ -> Prop) HH => local_ext Q0 _ _ HH H).
+  clear H; intros.
+  apply (H Q0); clear H.
+  apply list_in_map_inv in H0.
+  destruct H0 as [? [? ?]]; subst.
+  apply in_map.
+  apply LocalD_sound.
+  rewrite Forall_forall in CHECKG.
+  repeat right.
+  apply list_in_map_inv in H0.
+  destruct H0 as [? [? ?]]; subst.
+  apply in_map.
+  apply CHECKG; auto.
 Qed.
 
 Lemma tc_exprlist_len : forall {cs : compspecs} Delta argsig bl,
