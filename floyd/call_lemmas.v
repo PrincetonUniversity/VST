@@ -344,6 +344,9 @@ Definition check_one_temp_spec (Q: PTree.t val) (idv: ident * val) : Prop :=
 Definition check_gvars_spec (GV: option globals) (GV': option globals) : Prop :=
   match GV' with Some _ => GV = GV' | _ => True end.
 
+Definition strong_cast (t1 t2: type) (v: val) : val :=
+ force_val (sem_cast t1 t2 v).
+
 Lemma extract_trivial_liftx_e:
   forall (R: list (environ->mpred)) (R': list mpred),
      extract_trivial_liftx R R' -> R = map liftx R'.
