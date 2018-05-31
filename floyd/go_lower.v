@@ -316,6 +316,12 @@ repeat match goal with
      rewrite (eq_True (gvar_denote i v' rho) H)
  | H: sgvar_denote ?i ?v rho |- context [sgvar_denote ?i ?v' rho] =>
      rewrite (eq_True (sgvar_denote i v' rho) H)
+end;
+repeat match goal with
+ | H: lvar_denote ?i ?t ?v rho |- context [eval_var ?i ?t rho] =>
+     rewrite (lvar_eval_var i t v rho H)
+ | H: gvar_denote ?i ?v rho |- context [eval_var ?i ?t rho] =>
+     rewrite (gvar_eval_var i t v rho H)
 end
 ];
 clear_Delta;
