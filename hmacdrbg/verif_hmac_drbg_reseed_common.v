@@ -262,12 +262,6 @@ Proof.
     }
     forward_call ((Tsh, Tsh), (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
     {
-      (* type checking *)
-      red in LV.
-      unfold eval_var. destruct (Map.get (ve_of rho) _seed); try contradiction.
-      destruct p; destruct LV  as [LV1 LV2]; inversion LV2. subst b0 i t; simpl; trivial.
-    }
-    {
       (* match up function parameter *)
       rewrite XH1; simpl. normalize.
     }

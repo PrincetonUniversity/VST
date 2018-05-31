@@ -228,10 +228,6 @@ Proof. intros. abbreviate_semax.
      unfold tarray.
      freeze [0;1;2;3] FR8. (*everything except memory_block Tsh 32 (Vptr ckb (Ptrofs.repr (Ptrofs.unsigned ckoff + 32))))*)
      Time forward_call (Tsh, Vptr ckb (Ptrofs.repr (Ptrofs.unsigned ckoff + 32)), 32, Int.zero). (*6.1 versus 6.9*)
-     {
-      (* this proof should be automatic; perhaps eval_var needs
-          to be expanded automatically by go_lower? *)
-       rewrite (lvar_eval_var _ _ _ _ LV). split; hnf; trivial. }
      { subst PostIf_j_Len.
        Time entailer!. (*10.2*)
        unfold data_block. simpl. Time normalize. (*1.4*)
@@ -367,7 +363,6 @@ Proof. intros.
      (*call memset*)
      freeze [0;1;3] FR2.
      Time forward_call (Tsh, Vptr ckb (Ptrofs.add ckoff (Ptrofs.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
-     { rewrite (lvar_eval_var _ _ _ _ LV). split; hnf; trivial. }
      { (*Issue: this side condition is NEW*)
        apply prop_right. unfold Ptrofs.of_ints, Ptrofs.of_int, Ptrofs.to_int. normalize.
        rewrite <- KL1, Heql64. split; trivial. }
