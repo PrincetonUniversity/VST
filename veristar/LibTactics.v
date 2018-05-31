@@ -744,13 +744,13 @@ Tactic Notation "tryfalse" :=
     It is equivalent to [try solve \[ false; tac \]].
     Example: [tryfalse by congruence/] *)
 
-Tactic Notation "tryfalse" "by" tactic(tac) "/" :=
+Tactic Notation "tryfalse" "by" tactic1(tac) "/" :=
   try solve [ false; instantiate; tac ].
 
 (** [false T] tries [false; apply T], or otherwise adds [T] as
     an assumption and calls [false]. *)
 
-Tactic Notation "false" constr(T) "by" tactic(tac) "/" :=
+Tactic Notation "false" constr(T) "by" tactic1(tac) "/" :=
   false_goal; first
     [ first [ apply T | eapply T | rapply T]; instantiate; tac  (* todo: sapply?*)
     | let H := fresh in lets_base H T;

@@ -1166,7 +1166,7 @@ Tactic Notation "replace_SEP" constr(n) constr(R) :=
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
-Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic(t):=
+Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic1(t):=
   first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
@@ -1219,7 +1219,7 @@ Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
-Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic(t):=
+Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
   first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
@@ -1654,13 +1654,13 @@ Qed.
 Tactic Notation "assert_PROP" constr(A) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
 
-Tactic Notation "assert_PROP" constr(A) "by" tactic(t) :=
+Tactic Notation "assert_PROP" constr(A) "by" tactic1(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A) ]; [ now t | intro ].
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro H ].
 
-Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic1(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
 
 Lemma assert_LOCAL:
@@ -1678,7 +1678,7 @@ Qed.
 Tactic Notation "assert_LOCAL" constr(A) :=
   apply (assert_LOCAL A).
 
-Tactic Notation "assert_LOCAL" constr(A) "by" tactic(t) :=
+Tactic Notation "assert_LOCAL" constr(A) "by" tactic1(t) :=
   apply (assert_LOCAL A); [ now t | ].
 
 Lemma drop_LOCAL'':
