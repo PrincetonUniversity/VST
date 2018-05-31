@@ -1631,6 +1631,78 @@ Proof. reflexivity. Qed.
 Lemma modifiedvars_Slabel l c: modifiedvars (Slabel l c) = modifiedvars c.
 Proof. reflexivity. Qed.
 
+Lemma modifiedvars_computable: forall c (te1 te2: Map.t val), exists te,
+  (forall i, modifiedvars c i -> Map.get te1 i = Map.get te i) /\
+  (forall i, modifiedvars c i \/ Map.get te2 i = Map.get te i).
+Proof.
+  intros.
+  unfold modifiedvars.
+  exists (fun i => match (modifiedvars' c idset0) ! i with Some _ => Map.get te1 i | None => Map.get te2 i end).
+  split; intros.
+  + unfold Map.get.
+    destruct ((modifiedvars' c idset0) ! i); simpl; [auto | inv H].
+  + unfold Map.get.
+    destruct ((modifiedvars' c idset0) ! i); simpl; [left; apply I | auto].
+Qed.
+
+Lemma modifiedvars_Sifthenelse b c1 c2 id: modifiedvars (Sifthenelse b c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  rewrite modifiedvars'_union.
+  reflexivity.
+Qed.
+
+Lemma modifiedvars_Sloop c1 c2 id: modifiedvars (Sloop c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  rewrite modifiedvars'_union.
+  reflexivity.
+Qed.
+
+Lemma modifiedvars_Ssequence c1 c2 id: modifiedvars (Ssequence c1 c2) id <-> modifiedvars c1 id \/ modifiedvars c2 id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  rewrite modifiedvars'_union.
+  reflexivity.
+Qed.
+
+Lemma modifiedvars_ls_eq: forall sl, modifiedvars_ls sl = modifiedvars' (seq_of_labeled_statement sl).
+Proof.
+  intros.
+  induction sl; auto.
+  destruct o; simpl;
+  rewrite IHsl; auto.
+Qed.  
+
+Lemma modifiedvars_Sswitch e sl n id: modifiedvars (seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) id -> modifiedvars (Sswitch e sl) id.
+Proof.
+  unfold modifiedvars.
+  simpl.
+  unfold select_switch.
+  destruct (select_switch_case (Int.unsigned n) sl) eqn:?H.
+  + revert l H; induction sl; simpl; intros.
+    - inv H.
+    - rewrite modifiedvars'_union.
+      destruct o; [| right; eapply IHsl; eauto].
+      if_tac in H; [| right; eapply IHsl; eauto].
+      inv H.
+      simpl in H0.
+      rewrite modifiedvars'_union in H0; auto.
+      rewrite modifiedvars_ls_eq; auto.
+  + revert H; induction sl; simpl; intros.
+    - auto.
+    - rewrite modifiedvars'_union.
+      destruct o; [if_tac in H |].
+      * inv H.
+      * right; apply IHsl; auto.
+      * simpl in H0.
+        rewrite modifiedvars'_union in H0; auto.
+        rewrite modifiedvars_ls_eq; auto.
+Qed.
+
 Lemma exit_tycon_Slabel l c Delta b: 
    exit_tycon (Slabel l c) Delta b = exit_tycon c Delta b.
 Proof. unfold exit_tycon. destruct b; trivial. Qed.
