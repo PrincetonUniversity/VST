@@ -1111,7 +1111,7 @@ Tactic Notation "replace_SEP" constr(n) constr(R) :=
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
-Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic(t):=
+Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic1(t):=
   first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
@@ -1164,7 +1164,7 @@ Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
-Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic(t):=
+Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
   first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
@@ -1567,13 +1567,13 @@ Qed.
 Tactic Notation "assert_PROP" constr(A) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
 
-Tactic Notation "assert_PROP" constr(A) "by" tactic(t) :=
+Tactic Notation "assert_PROP" constr(A) "by" tactic1(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A) ]; [ now t | intro ].
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro H ].
 
-Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic1(t) :=
   first [apply (assert_later_PROP A) | apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
 
 Lemma assert_LOCAL:
@@ -1591,7 +1591,7 @@ Qed.
 Tactic Notation "assert_LOCAL" constr(A) :=
   apply (assert_LOCAL A).
 
-Tactic Notation "assert_LOCAL" constr(A) "by" tactic(t) :=
+Tactic Notation "assert_LOCAL" constr(A) "by" tactic1(t) :=
   apply (assert_LOCAL A); [ now t | ].
 
 Lemma drop_LOCAL'':
@@ -2387,3 +2387,58 @@ Proof.
   unfold_lift in H0;
   split; simpl in *; tauto.
 Qed.
+
+Lemma lvar_eval_lvar {cs: compspecs}:
+  forall i t v rho, locald_denote (lvar i t v) rho -> eval_lvar i t rho = v.
+Proof.
+unfold eval_lvar; intros. hnf in H.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct H; subst. rewrite eqb_type_refl; auto.
+Qed.
+
+Lemma lvar_eval_var:
+ forall i t v rho, locald_denote (lvar i t v) rho -> eval_var i t rho = v.
+Proof.
+intros.
+unfold eval_var. hnf in H.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct H; subst. rewrite eqb_type_refl; auto.
+Qed.
+
+Lemma gvars_eval_var:
+ forall Delta gv i rho t, tc_environ Delta rho -> (var_types Delta) ! i = None -> locald_denote (gvars gv) rho -> eval_var i t rho = gv i.
+Proof.
+intros.
+unfold eval_var. hnf in H1. subst.
+destruct_var_types i.
+rewrite Heqo0.
+auto.
+Qed.
+
+Lemma lvar_isptr:
+  forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
+Proof.
+intros. hnf in H.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct H; subst; apply Coq.Init.Logic.I.
+Qed.
+
+Lemma gvars_isptr:
+  forall Delta gv i rho t, tc_environ Delta rho -> (glob_types Delta) ! i = Some t -> locald_denote (gvars gv) rho -> isptr (gv i).
+Proof.
+intros. hnf in H1.
+subst.
+destruct_glob_types i.
+rewrite Heqo0.
+apply Coq.Init.Logic.I.
+Qed.
+
+Lemma lvar_isptr_eval_var :
+ forall i t v rho, locald_denote (lvar i t v) rho -> isptr (eval_var i t rho).
+Proof.
+intros.
+erewrite lvar_eval_var; eauto.
+eapply lvar_isptr; eauto.
+Qed.
+
+Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.

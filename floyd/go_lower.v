@@ -120,13 +120,12 @@ apply H; auto.
 Qed.
 
 Lemma finish_lower:
-  forall rho D R S,
-  fold_right_sepcon R |-- S ->
+  forall rho (D: environ -> Prop) R S,
+  (D rho -> fold_right_sepcon R |-- S) ->
   (local D && PROP() LOCAL() (SEPx R)) rho |-- S.
 Proof.
 intros.
 simpl.
-apply andp_left2.
 unfold_for_go_lower; simpl. normalize.
 Qed.
 
@@ -203,7 +202,6 @@ Ltac go_lower :=
 try match goal with |- ENTAIL (exit_tycon _ _ _), _ |-- _ =>
       simpl exit_tycon; simplify_Delta
   end;
-clear_Delta_specs;
 intros;
 match goal with
 (* | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
@@ -227,7 +225,7 @@ first [simple apply quick_finish_lower
      fold_types1; fancy_intro true; intros ?LV
  | simple eapply lower_one_gvars; intro
  ];
- (simple apply finish_lower ||
+ ((let TC := fresh "TC" in simple apply finish_lower; intros TC) ||
  match goal with
  | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
@@ -247,8 +245,19 @@ end;
 repeat match goal with
  | H: lvar_denote ?i ?t ?v rho |- context [lvar_denote ?i ?t' ?v' rho] =>
      rewrite (eq_True (lvar_denote i t' v' rho) H)
+ | H: gvars_denote ?gv rho |- context [gvars_denote ?gv rho] =>
+     rewrite (eq_True (gvars_denote gv rho) H)
+end;
+repeat match goal with
+ | H: lvar_denote ?i ?t ?v rho |- context [eval_var ?i ?t rho] =>
+     rewrite (lvar_eval_var i t v rho H)
+end;
+repeat match goal with
+ | H: gvars_denote ?gv rho |- context [eval_var ?i ?t rho] =>
+     erewrite (gvars_eval_var _ gv i rho t); [| eassumption | reflexivity | exact H]
 end
 ];
+clear_Delta_specs;
 clear_Delta;
 try clear dependent rho;
 simpl.

@@ -132,14 +132,6 @@ rewrite memory_block_isptr; normalize.
 apply extract_exists_pre.  apply H3.
 Qed.
 
-Lemma lvar_eval_lvar {cs: compspecs}:
-  forall i t v rho, locald_denote (lvar i t v) rho -> eval_lvar i t rho = v.
-Proof.
-unfold eval_lvar; intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst. rewrite eqb_type_refl; auto.
-Qed.
-
 Lemma var_block_lvar0
      : forall {cs: compspecs} (id : positive) (t : type) (Delta : tycontext)  v rho,
        (var_types Delta) ! id = Some t ->
@@ -346,43 +338,6 @@ Lemma local_True_right:
  forall (P: environ -> mpred),
    P |-- local (`True).
 Proof. intros. intro rho; apply TT_right.
-Qed.
-
-Lemma lvar_isptr:
-  forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
-Proof.
-intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst; apply Coq.Init.Logic.I.
-Qed.
-
-Lemma lvar_eval_var:
- forall i t v rho, locald_denote (lvar i t v) rho -> eval_var i t rho = v.
-Proof.
-intros.
-unfold eval_var. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst. rewrite eqb_type_refl; auto.
-Qed.
-
-Lemma lvar_isptr_eval_var :
- forall i t v rho, locald_denote (lvar i t v) rho -> isptr (eval_var i t rho).
-Proof.
-intros.
-erewrite lvar_eval_var; eauto.
-eapply lvar_isptr; eauto.
-Qed.
-
-Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
-
-Lemma gvars_isptr:
-  forall Delta gv i rho t, tc_environ Delta rho -> (glob_types Delta) ! i = Some t -> locald_denote (gvars gv) rho -> isptr (gv i).
-Proof.
-intros. hnf in H1.
-subst.
-destruct_glob_types i.
-rewrite Heqo0.
-apply Coq.Init.Logic.I.
 Qed.
 
 Lemma force_val_sem_cast_neutral_isptr:
@@ -1197,9 +1152,8 @@ try rewrite insert_local.
 
 Ltac do_compute_expr_helper Delta Q v :=
    try assumption;
-   apply andp_left2;
    eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+    [apply andp_derives; [apply derives_refl | apply derives_refl']; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
      construct_local2ptree Q HH;
      exact HH |
