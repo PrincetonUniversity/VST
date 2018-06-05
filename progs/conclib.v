@@ -2931,19 +2931,6 @@ Proof.
   destruct (Map.get (ge_of rho) i); auto; contradiction.
 Qed.
 
-Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
-  force_val (sem_cast_pointer v) = v.
-Proof.
-  intros; apply force_val_sem_cast_neutral_gvar in H; inversion H as [Heq].
-  rewrite !Heq; auto.
-Qed.
-
-Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_pointer v) = v.
-Proof.
-  intros; apply force_val_sem_cast_neutral_isptr in H.
-  inversion H as [Heq]; rewrite !Heq; auto.
-Qed.
-
 Lemma gvar_denote_global : forall i v rho, gvar_denote i v rho -> gvar_denote i v (globals_only rho).
 Proof.
   unfold gvar_denote; intros; simpl.

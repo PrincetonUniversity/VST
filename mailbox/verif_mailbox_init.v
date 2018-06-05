@@ -38,13 +38,12 @@ Proof.
   start_function.
   forward.
   rewrite data_at__isptr; Intros.
-  rewrite sem_cast_neutral_ptr; auto.
   pose proof (sizeof_pos t).
   assert_PROP (sizeof t <= Int.max_unsigned).
   { entailer!.
-    destruct H3 as [? [_ [? _]]].
-    destruct p; inv H3.
-    simpl in H4.
+    destruct H2 as [? [_ [? _]]].
+    destruct p; inv H2.
+    simpl in H3.
     pose proof Ptrofs.unsigned_range i.
     rep_omega.
   }
@@ -73,7 +72,7 @@ Proof.
         constructor; intros.
         econstructor; [reflexivity |].
         inv H0.
-        inv H11.
+        inv H10.
         apply Z.divide_add_r; auto.
         apply Z.divide_mul_l.
         exists 1; auto.
@@ -242,7 +241,6 @@ Proof.
     replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; rep_omega).
     subst; rewrite Zlength_correct, Nat2Z.id.
     rewrite <- lock_struct_array; unfold AE_inv.
-    rewrite !sem_cast_neutral_ptr by intuition.
     erewrite map_ext_in; [unfold comm_loc, AE_loc, AE_inv; cancel|].
     { apply derives_refl. }
     intros; rewrite In_upto, <- Zlength_correct in *.

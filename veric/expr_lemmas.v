@@ -249,7 +249,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
   destruct (eqb_type (Tpointer t0 a) int_or_ptr_type) eqn:?; try contradiction.
   rewrite eqb_type_sym in Heqb. rewrite Heqb in H0.
   simpl. simpl in H0.
- rewrite Hp; auto.
+  reflexivity.
   destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | [ | ] ? | | | | | ]; try contradiction.
   unfold classify_cast in *. unfold int_or_ptr_type at 1 in H0.
   rewrite eqb_type_refl in H0|-*.
@@ -662,6 +662,14 @@ unfold denote_tc_iszero in H6; unfold_lift in H6;
 destruct (eval_expr e2 rho); try contradiction; inv H;
 apply is_true_e in H6; first [apply int_eq_e in H6 | apply int64_eq_e in H6; rewrite Int64.repr_unsigned in H6]; subst;
 hnf; rewrite Hp; solve [auto]).
+
+all:
+try (unfold is_pointer_type in H6; rewrite ?J,?J0 in H6; simpl in H6;
+simpl in H6; rewrite denote_tc_assert_iszero' in H6; simpl in H6; 
+unfold denote_tc_iszero in H6; unfold_lift in H6;
+destruct (eval_expr e2 rho); try contradiction; inv H;
+apply is_true_e in H6; first [apply int_eq_e in H6 | apply int64_eq_e in H6; rewrite Int64.repr_unsigned in H6]; subst;
+simpl in H8; rewrite Hp in H8; inv H8).
 Qed.
 
 
