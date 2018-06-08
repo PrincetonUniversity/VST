@@ -1918,7 +1918,8 @@ Qed.
 Lemma lock_inv_exclusive : forall v sh R, exclusive_mpred (lock_inv sh v R).
 Proof.
   intros; unfold exclusive_mpred, lock_inv.
-  Intros b1 ofs1 b2 ofs2; subst.
+  Transparent mpred. Intros b1 ofs1 b2 ofs2. Opaque mpred.
+  subst.
   inv H0.
   match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
@@ -2931,19 +2932,6 @@ Proof.
   destruct (Map.get (ge_of rho) i); auto; contradiction.
 Qed.
 
-Lemma force_val_sem_cast_neutral_gvar' : forall i v rho, gvar_denote i v rho ->
-  force_val (sem_cast_pointer v) = v.
-Proof.
-  intros; apply force_val_sem_cast_neutral_gvar in H; inversion H as [Heq].
-  rewrite !Heq; auto.
-Qed.
-
-Lemma force_val_sem_cast_neutral_isptr' : forall v, isptr v -> force_val (sem_cast_pointer v) = v.
-Proof.
-  intros; apply force_val_sem_cast_neutral_isptr in H.
-  inversion H as [Heq]; rewrite !Heq; auto.
-Qed.
-
 Lemma gvar_denote_global : forall i v rho, gvar_denote i v rho -> gvar_denote i v (globals_only rho).
 Proof.
   unfold gvar_denote; intros; simpl.
@@ -3412,17 +3400,39 @@ apply andp_left2. apply andp_left1.
  forget (eval_exprlist tys bl rho) as vl.
  eapply check_specs_lemma; try eassumption.
  instantiate (1:=Qtemp).
- clear - CHECKG H.
- apply fold_right_and_LocalD_e in H.
- destruct H as [? [? ?]].
- apply fold_right_and_LocalD_i; auto.
- clear - CHECKG H1.
- eapply in_gvars_sub; eauto.
- clear - CHECKG H.
- apply fold_right_and_LocalD_e in H.
-  destruct H as [? [? ?]].
-  clear - H1 CHECKG.
- eapply in_gvars_sub; eauto.
+ -
+  clear - CHECKG H.
+  apply local_ext_rev.
+  specialize (fun (Q0: environ -> Prop) HH => local_ext Q0 _ _ HH H).
+  clear H; intros.
+  apply (H Q0); clear H.
+  apply list_in_map_inv in H0.
+  destruct H0 as [? [? ?]]; subst.
+  apply in_map.
+  apply LocalD_sound; apply LocalD_complete in H0.
+  rewrite Forall_forall in CHECKG.
+  destruct H0 as [| [| [| [| [| [|]]]]]]; auto 50.
+  repeat right.
+  apply list_in_map_inv in H.
+  destruct H as [? [? ?]]; subst.
+  apply in_map.
+  apply CHECKG; auto.
+ -
+  clear - CHECKG H.
+  apply local_ext_rev.
+  specialize (fun (Q0: environ -> Prop) HH => local_ext Q0 _ _ HH H).
+  clear H; intros.
+  apply (H Q0); clear H.
+  apply list_in_map_inv in H0.
+  destruct H0 as [? [? ?]]; subst.
+  apply in_map.
+  apply LocalD_sound.
+  rewrite Forall_forall in CHECKG.
+  repeat right.
+  apply list_in_map_inv in H0.
+  destruct H0 as [? [? ?]]; subst.
+  apply in_map.
+  apply CHECKG; auto.
 Qed.
 
 Lemma semax_call_id00_wow:

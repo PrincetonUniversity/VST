@@ -143,7 +143,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
 forward_call (* l = __builtin_read32_reversed(_data) *)
       (offset_val (i*4) data, sh,
          sublist (i*4) ((i+1)*4) (map Int.repr (intlist_to_Zlist b))).
- entailer!; make_Vptr data; reflexivity.
+ entailer!.
  rewrite H1; cancel.
  autorewrite with sublist; omega.
 gather_SEP 3 0 4.

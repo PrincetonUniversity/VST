@@ -395,15 +395,10 @@ eapply semax_pre_post';
  unfold_lift; simpl.
  rewrite <- H7, <- H8, <- H9.
  split3; auto.
- unfold field_address0; if_tac; try reflexivity.
- destruct H12; normalize.
- unfold field_address0; if_tac; try reflexivity.
- destruct H12; normalize.
  apply andp_right.
  apply prop_right; split3; auto.
- apply andp_right.
- apply prop_right; auto.
  subst Frame.
+ normalize.
  rewrite LENvqx, LENvpx; cancel.
  rewrite sepcon_comm.
  apply sepcon_derives.
@@ -627,11 +622,7 @@ eapply semax_pre_post';
  autorewrite with gather_prop.
  apply andp_right.
  apply prop_right. split3; auto.
- rewrite <- H1.
- unfold field_address0; if_tac; try reflexivity.
- destruct H1; normalize.
- rewrite <- H2; simpl. split3; auto.
- rewrite <- H6; reflexivity.
+ normalize.
  subst Frame.
  cancel.
  rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; omega).

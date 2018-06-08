@@ -264,7 +264,7 @@ Tactic Notation "assert_specialize" hyp(H) :=
     assert P as Htemp; [ | specialize (H Htemp); try clear Htemp ]
   end.
 
-Tactic Notation "assert_specialize" hyp(H) "by" tactic(tac) :=
+Tactic Notation "assert_specialize" hyp(H) "by" tactic1(tac) :=
   match type of H with
     forall x : ?P, _ =>
     let Htemp := fresh "Htemp" in
@@ -277,7 +277,7 @@ Tactic Notation "assert_specialize" hyp(H) "as" simple_intropattern(Hnew) :=
     assert P as Hnew; [ | specialize (H Hnew) ]
   end.
 
-Tactic Notation "assert_specialize" hyp(H) "as" simple_intropattern(Hnew) "by" tactic(tac) :=
+Tactic Notation "assert_specialize" hyp(H) "as" simple_intropattern(Hnew) "by" tactic1(tac) :=
   match type of H with
     forall x : ?P, _ =>
     assert P as Hnew by tac;

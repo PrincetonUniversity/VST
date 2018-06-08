@@ -237,7 +237,7 @@ Proof.
    entailer!.
    simpl app.
    sep_apply (singleton_lseg sh b t y).
-   sep_apply (lseg_lseg sh s1a [b] x t y) using (simpl app).
+   sep_apply (lseg_lseg sh s1a [b] x t y).
    sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
    auto.
 Qed.
@@ -350,7 +350,8 @@ Proof.
    entailer!.
    simpl app.
    sep_apply (singleton_lseg sh s2 b t y).
-   sep_apply (lseg_lseg sh s1a [b] s2 x t y) using (simpl app).
+   change (b :: s2) with ([b] ++ s2).
+   sep_apply (lseg_lseg sh s1a [b] s2 x t y).
    sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
    auto.
 Qed.
@@ -360,7 +361,7 @@ End ProofByWandFrame2.
 Module ProofByWandQFrame.
 
 Import LsegWandQFrame.
-  
+
 Lemma body_append1: semax_body Vprog Gprog f_append1 append1_spec.
 Proof.
   start_function.
@@ -408,7 +409,7 @@ Proof.
    entailer!.
    simpl app.
    sep_apply (singleton_lseg sh b t y).
-   sep_apply (lseg_lseg sh s1a [b] x t y) using (simpl app).
+   sep_apply (lseg_lseg sh s1a [b] x t y).
    sep_apply (list_lseg sh (s1a ++ [b]) s2 x y).
    auto.
 Qed.
@@ -421,7 +422,7 @@ Module VerifAppend2.
 
 Import ListLib.
 Import LBsegWandQFrame.
-  
+
 Definition append2_spec := append_spec _append2.
 
 Definition Gprog : funspecs :=
@@ -458,8 +459,6 @@ Proof.
     }
   Intros. freeze [1] Fr.
   forward. (* head = x; *)
-  assert_PROP (is_pointer_or_null head) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
   forward. (* curp = & head *)
   forward. (* cur = x *)
   forward. (* retp = & head *)
@@ -488,7 +487,7 @@ Proof.
       symmetry; apply field_address_eq_offset'; auto.
       auto with field_compatible.
     } Unfocus.
-    rewrite H1; clear H1.
+    rewrite H0; clear H0.
     rewrite (listrep_nonnull _ _ cur) by auto.
     Intros b s1c next.
     subst s1b.
@@ -505,8 +504,6 @@ Proof.
     rewrite (listrep_null _ _ cur) by auto.
     Intros.
     forward. (* * curp = y *)
-    assert_PROP (is_pointer_or_null y) by entailer!.
-    rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
     gather_SEP 1 2 3.
     replace_SEP 0 (listboxrep sh s2 curp).
     Focus 1. {
@@ -545,7 +542,7 @@ Module VerifAppend3.
 
 Import ListLib.
 Import LsegWandQFrame.
-  
+
 Definition append3_spec := append_spec _append3.
 
 Definition Gprog : funspecs :=
@@ -565,8 +562,6 @@ Proof.
     forward_call (sh, x', y, s1b, s2). (* t = append3(t, y); *)
     Intros x''.
     forward. (* x -> tail = t; *)
-    assert_PROP (is_pointer_or_null x'') by entailer!.
-    rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
     forward. (* return x *)
     Exists x.
     entailer!.

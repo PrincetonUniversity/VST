@@ -141,10 +141,6 @@ forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
 +
- clear - GV. unfold gvar_denote, eval_var in *.
-  destruct (Map.get (ve_of rho) _four) as [[? ?]|]; try contradiction.
-  destruct (Map.get (ge_of rho) _four); try contradiction. apply I.
-+
  entailer!.
  rewrite field_address0_offset. reflexivity.
  auto with field_compatible.

@@ -1831,17 +1831,17 @@ Ltac data_at_valid_aux :=
  simpl sizeof; rewrite ?Z.max_r by rep_omega; rep_omega.
 
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
-    (simple apply data_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+    (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
-    (simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+    (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (unfold data_at_, field_at_; 
-     simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+     simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
-    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
