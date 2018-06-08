@@ -534,11 +534,8 @@ Proof.
   Intros pb pc.
   forward. (* mid=r->left *)
   forward. (* l->right=mid *)
-  assert_PROP (is_pointer_or_null pb) by entailer!.
   forward. (* r->left=l *)
-  assert_PROP (is_pointer_or_null l) by entailer!.
   forward. (* _l = r *)
-  assert_PROP (is_pointer_or_null r) by entailer!.
   Opaque tree_rep. forward. Transparent tree_rep. (* return *)
   (* TODO: simplify the following proof *)
   Exists pc.
