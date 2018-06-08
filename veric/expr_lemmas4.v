@@ -265,7 +265,6 @@ apply weak_valid_pointer_dry in H0.
 apply H0.
 Qed.
 
-Print denote_tc_test_eq.
 Lemma cop2_sem_cast :
     forall t1 t2 v m,
  (classify_cast t1 t2 = cast_case_i2bool ->
