@@ -170,7 +170,7 @@ Proof.
   { lock_props.
     unfold AE_inv.
     Exists (h' ++ [AE v' v]) v; entailer!.
-    cancel. }
+  }
   forward.
   Exists (length h') (Vint v'). unfold AE_loc; entailer!.
   apply hist_incl_lt; auto.

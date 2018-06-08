@@ -134,7 +134,6 @@ repeat apply andp_right; try apply prop_right; auto.
  destruct Archi.ptr64 eqn:Hp; simpl in H3.
   unfold Int.lt in H3. if_tac in H3; inv H3.
   rewrite Int.signed_repr in H; auto.
-  rewrite Hp in H3. simpl in H3.
   unfold Int.lt in H3. if_tac in H3; inv H3.
   rewrite Int.signed_repr in H; auto.
  -
@@ -156,7 +155,6 @@ destruct (eval_expr hi rho); simpl in H; try solve [inv H].
 destruct Archi.ptr64 eqn:Hp; simpl in H.
   unfold Int.lt in H. if_tac in H; inv H.
   rewrite Int.signed_repr in H8; auto.
-  rewrite Hp in H. simpl in H.
   unfold Int.lt in H. if_tac in H; inv H.
   rewrite Int.signed_repr in H8; auto.
 auto.
@@ -382,7 +380,6 @@ repeat apply andp_right; try apply prop_right; auto.
  destruct Archi.ptr64 eqn:Hp; simpl in H5.
   unfold Int.ltu in H5; if_tac in H5; inv H5;
   rewrite Int.unsigned_repr in H3; auto.
-  rewrite Hp in H5. simpl in H5.
   unfold Int.ltu in H5; if_tac in H5; inv H5;
   rewrite Int.unsigned_repr in H3; auto.
  -
@@ -408,7 +405,6 @@ hnf in H4. red.
  destruct Archi.ptr64 eqn:Hp; simpl in H4.
   unfold Int.ltu in H4; if_tac in H4; inv H4;
   rewrite Int.unsigned_repr in H; auto.
-  rewrite Hp in H4. simpl in H4.
   unfold Int.ltu in H4; if_tac in H4; inv H4;
   rewrite Int.unsigned_repr in H; auto.
 *
@@ -468,7 +464,7 @@ unfold locald_denote; simpl.
  unfold Cop2.sem_cast, Cop2.classify_cast. simpl.
  destruct Archi.ptr64 eqn:Hp; simpl.
  normalize.
- rewrite Hp; simpl; normalize.
+ simpl; normalize.
 normalize;
  autorewrite with norm1 norm2; normalize.
 apply andp_right; auto.

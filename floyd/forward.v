@@ -132,14 +132,6 @@ rewrite memory_block_isptr; normalize.
 apply extract_exists_pre.  apply H3.
 Qed.
 
-Lemma lvar_eval_lvar {cs: compspecs}:
-  forall i t v rho, locald_denote (lvar i t v) rho -> eval_lvar i t rho = v.
-Proof.
-unfold eval_lvar; intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst. rewrite eqb_type_refl; auto.
-Qed.
-
 Lemma var_block_lvar0
      : forall {cs: compspecs} (id : positive) (t : type) (Delta : tycontext)  v rho,
        (var_types Delta) ! id = Some t ->
@@ -348,51 +340,6 @@ Lemma local_True_right:
 Proof. intros. intro rho; apply TT_right.
 Qed.
 
-Lemma lvar_isptr:
-  forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
-Proof.
-intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst; apply Coq.Init.Logic.I.
-Qed.
-
-Lemma gvar_isptr:
-  forall i v rho, locald_denote (gvar i v) rho -> isptr v.
-Proof.
-intros. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (Map.get (ge_of rho) i); try contradiction.
-subst; apply Coq.Init.Logic.I.
-Qed.
-
-Lemma sgvar_isptr:
-  forall i v rho, locald_denote (sgvar i v) rho -> isptr v.
-Proof.
-intros. hnf in H.
-destruct (Map.get (ge_of rho) i); try contradiction.
-subst; apply Coq.Init.Logic.I.
-Qed.
-
-Lemma lvar_eval_var:
- forall i t v rho, locald_denote (lvar i t v) rho -> eval_var i t rho = v.
-Proof.
-intros.
-unfold eval_var. hnf in H.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct H; subst. rewrite eqb_type_refl; auto.
-Qed.
-
-Lemma lvar_isptr_eval_var :
- forall i t v rho, locald_denote (lvar i t v) rho -> isptr (eval_var i t rho).
-Proof.
-intros.
-erewrite lvar_eval_var; eauto.
-eapply lvar_isptr; eauto.
-Qed.
-
-Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
-
-
 Lemma force_val_sem_cast_neutral_isptr:
   forall v,
   isptr v ->
@@ -400,33 +347,6 @@ Lemma force_val_sem_cast_neutral_isptr:
 Proof.
 intros.
  destruct v; try contradiction; reflexivity.
-Qed.
-
-Lemma force_val_sem_cast_neutral_lvar :
-  forall i t v rho,
-  locald_denote (lvar i t v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply lvar_isptr in H; destruct v; try contradiction; reflexivity.
-Qed.
-
-Lemma force_val_sem_cast_neutral_gvar:
-  forall i v rho,
-  locald_denote (gvar i v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply gvar_isptr in H; destruct v; try contradiction; reflexivity.
-Qed.
-
-Lemma force_val_sem_cast_neutral_sgvar:
-  forall i v rho,
-  locald_denote (sgvar i v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply sgvar_isptr in H; destruct v; try contradiction; reflexivity.
 Qed.
 
 Lemma prop_Forall_cons:
@@ -490,12 +410,7 @@ Ltac Forall_pTree_from_elements :=
    [ apply prop_Forall_cons1;
      [unfold check_one_temp_spec, check_one_var_spec;
      simpl; auto;
-     normalize;
-     solve [eapply force_val_sem_cast_neutral_lvar; eassumption
-              | eapply force_val_sem_cast_neutral_gvar; eassumption
-              | eapply force_val_sem_cast_neutral_sgvar; eassumption
-              | apply force_val_sem_cast_neutral_isptr; auto
-              ]
+     solve [normalize]
      | ]
    | apply prop_Forall_cons'
    | apply prop_Forall_cons

@@ -197,7 +197,6 @@ Proof.
   rename p into t.
   Intros p q.
   forward_call t.
-    entailer!.
   assert_PROP (isptr t) by entailer!.
   destruct t; try contradiction. clear H0.
   forward_if.
@@ -211,8 +210,6 @@ Proof.
      entailer!.
      destruct p; try contradiction; apply I.
    forward_call (t1,p).
-     entailer!.
-     destruct p; try contradiction; reflexivity.
    Intros p1.
    deadvars.
    forward.
@@ -220,19 +217,13 @@ Proof.
     entailer!.
      destruct q; try contradiction; apply I.
    forward_call (t2,q).
-     entailer!.
-     destruct q; try contradiction; reflexivity.
    Intros p2.
    forward.
    deadvars.
    forward_call (p1,p2).
-     entailer!.
-  split.
-  destruct p2; try contradiction; reflexivity.
-  destruct p1; try contradiction; reflexivity.
   Intros r.
   assert_PROP (valid_int_or_ptr r). {
-    entailer!. 
+    entailer!.
     apply field_compatible_valid_int_or_ptr; auto.
   }
   forward_call r.

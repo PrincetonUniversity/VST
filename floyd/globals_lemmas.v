@@ -978,7 +978,7 @@ Ltac process_one_globvar :=
   ];
   change (Share.lub extern_retainer _) with Ews;
   change (Share.lub extern_retainer _) with Ers;
-  change (Vint oo _) with (Vint oo id);
+  try change (Vint oo _) with (Vint oo id);
   fold_types;
   rewrite ?Combinators.compose_id_right.
 
