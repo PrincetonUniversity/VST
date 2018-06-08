@@ -1918,7 +1918,8 @@ Qed.
 Lemma lock_inv_exclusive : forall v sh R, exclusive_mpred (lock_inv sh v R).
 Proof.
   intros; unfold exclusive_mpred, lock_inv.
-  Intros b1 ofs1 b2 ofs2; subst.
+  Transparent mpred. Intros b1 ofs1 b2 ofs2. Opaque mpred.
+  subst.
   inv H0.
   match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
   intros ? (? & ? & ? & Hlock1 & Hlock2).
