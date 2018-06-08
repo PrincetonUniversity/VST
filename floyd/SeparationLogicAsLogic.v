@@ -9,7 +9,6 @@ Require Export VST.veric.juicy_extspec.
 Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
-
 Local Open Scope logic.
 
 (* Aux *)
@@ -1057,10 +1056,54 @@ Proof.
         with (frame_ret_assert (loop2_ret_assert Q R) F)
         by (destruct R; simpl; f_equal; extensionality rho; apply pred_ext; normalize).
       apply IHsemax2; auto.
-  + 
+  + eapply semax_switch; auto.
+    - intro.
+      eapply derives_trans; [apply sepcon_derives; [apply H1 | apply derives_refl] |].
+      apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expr Delta a rho)).
+    - intros.
+      rewrite <- corable_andp_sepcon1 by (intro; apply corable_prop).
+      replace (switch_ret_assert (frame_ret_assert R F)) with
+        (frame_ret_assert (switch_ret_assert R) F)
+        by (destruct R; simpl; f_equal; extensionality rho; apply pred_ext; normalize).
+      apply (H3 n).
+      eapply semax_lemmas.closed_Sswitch; eauto.
+  + eapply semax_pre_post; [.. | apply (semax_call Delta A P Q NEP NEQ ts x (F0 * F) ret argsig retsig cc a bl); auto].
+    - apply andp_left2.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply now_later] |].
+      apply andp_right; [| apply andp_right].
+      * apply wand_sepcon_adjoint.
+        apply andp_left1.
+        apply wand_sepcon_adjoint.
+        rewrite <- later_sepcon.
+        apply later_derives.
+        intro rho.
+        simpl.
+        apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta a rho) (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho))).
+      * apply wand_sepcon_adjoint.
+        apply andp_left2, andp_left1.
+        apply wand_sepcon_adjoint.
+        apply derives_left_sepcon_right_corable; auto.
+        intro.
+        apply corable_func_ptr.
+      * apply wand_sepcon_adjoint.
+        apply andp_left2, andp_left2.
+        apply wand_sepcon_adjoint.
+        rewrite <- later_sepcon.
+        apply later_derives.
+        rewrite (sepcon_comm _ F), <- sepcon_assoc, (sepcon_comm F0).
+        auto.
+    - apply andp_left2.
+      unfold RA_normal, normal_ret_assert, frame_ret_assert.
+      apply (exp_left); intros old.
+      rewrite exp_sepcon1.
+      apply (exp_right old).
+      rewrite (sepcon_comm (_ * _) F), <- sepcon_assoc, (sepcon_comm _ F).
+      apply sepcon_derives; auto.
+      unfold substopt.
+      destruct ret; auto.
+      unfold subst.
 Abort.
 
 End WITH_EXISTS_PRE.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
-
