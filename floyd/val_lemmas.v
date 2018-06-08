@@ -200,7 +200,6 @@ rewrite Int.negate_cmp.
 unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
 destruct Archi.ptr64 eqn:Hp; simpl in H.
 destruct (Int.cmp op i j); inv H; auto.
-rewrite Hp in H.
 destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
@@ -215,7 +214,6 @@ unfold Cop.classify_cmp in H. simpl in H.
 unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
 destruct Archi.ptr64 eqn:Hp; simpl in H.
 destruct (Int.cmp op i j); inv H; auto.
-rewrite Hp in H.
 destruct (Int.cmp op i j); inv H; auto.
 Qed.
 

@@ -817,7 +817,7 @@ Proof. intros.
       (* prove the function parameters match up *)
       apply prop_right. 
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
-      rewrite offset_val_force_ptr, isptr_force_ptr, sem_cast_neutral_ptr; trivial. auto.
+      rewrite offset_val_force_ptr, isptr_force_ptr; trivial. auto.
     }
     {
       split.

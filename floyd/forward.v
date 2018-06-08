@@ -349,33 +349,6 @@ intros.
  destruct v; try contradiction; reflexivity.
 Qed.
 
-Lemma force_val_sem_cast_neutral_lvar :
-  forall i t v rho,
-  locald_denote (lvar i t v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply lvar_isptr in H; destruct v; try contradiction; reflexivity.
-Qed.
-
-Lemma force_val_sem_cast_neutral_gvar:
-  forall i v rho,
-  locald_denote (gvar i v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply gvar_isptr in H; destruct v; try contradiction; reflexivity.
-Qed.
-
-Lemma force_val_sem_cast_neutral_sgvar:
-  forall i v rho,
-  locald_denote (sgvar i v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply sgvar_isptr in H; destruct v; try contradiction; reflexivity.
-Qed.
-
 Lemma prop_Forall_cons:
  forall {B}{A} {NB: NatDed B} (P: B) F (a:A) b,
   P |-- !! F a && !! Forall F b ->
@@ -437,12 +410,7 @@ Ltac Forall_pTree_from_elements :=
    [ apply prop_Forall_cons1;
      [unfold check_one_temp_spec, check_one_var_spec;
      simpl; auto;
-     normalize;
-     solve [eapply force_val_sem_cast_neutral_lvar; eassumption
-              | eapply force_val_sem_cast_neutral_gvar; eassumption
-              | eapply force_val_sem_cast_neutral_sgvar; eassumption
-              | apply force_val_sem_cast_neutral_isptr; auto
-              ]
+     solve [normalize]
      | ]
    | apply prop_Forall_cons'
    | apply prop_Forall_cons

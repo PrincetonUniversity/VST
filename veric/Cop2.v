@@ -205,13 +205,7 @@ Qed.
 
 (** ** Casts and truth values *)
 
-Definition sem_cast_pointer (v : val) : option val :=
-      match v with
-      | Vptr _ _ => Some v
-      | Vint _ => if Archi.ptr64 then None else Some v
-      | Vlong _ => if Archi.ptr64 then Some v else None
-      | _ => None
-      end.
+Definition sem_cast_pointer (v : val) : option val := Some v.
 
 Definition sem_cast_i2i sz2 si2 (v : val) : option val :=
 match v with

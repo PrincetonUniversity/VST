@@ -175,7 +175,6 @@ Proof.
       assert_PROP (t = (@E _)).
         1: entailer!.
       subst t. rewrite tree_rep_treebox_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
       entailer!.
@@ -249,7 +248,6 @@ Proof.
       assert_PROP (t = (@E _)).
         1: entailer!.
       subst t. rewrite tree_rep_treebox_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
       entailer!.
@@ -332,7 +330,6 @@ Proof.
       assert_PROP (t = (@E _)).
         1: entailer!.
       subst t. rewrite tree_rep_treebox_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* * p = q; *)
       forward. (* return; *)
       entailer!.

@@ -11,13 +11,6 @@ Proof.
   + rewrite emp_sepcon; auto.
 Qed.
 
-Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
-Proof.
-  intros.
-  destruct p; try contradiction; reflexivity.
-Qed.
-
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
   forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
 Proof.

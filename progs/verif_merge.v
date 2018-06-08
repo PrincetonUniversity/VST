@@ -269,7 +269,7 @@ rewrite (lseg_unfold LS _ _ b_).
 Time entailer!. (* 24.7 sec -> 10.16 sec*)
 Exists b_'.
 rewrite list_cell_field_at.
-unfold_data_at 3%nat.
+unfold_data_at 1%nat.
 Time entailer!.  (* 12.6 -> 3.2 sec *)
 }
 
@@ -361,7 +361,7 @@ simpl map. rewrite @lseg_cons_eq.
 Exists a_'.
 rewrite list_cell_field_at.
 entailer!.
-unfold_data_at 3%nat.
+unfold_data_at 1%nat.
 entailer!.
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
