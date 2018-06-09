@@ -2622,17 +2622,13 @@ Ltac solve_legal_nested_field_in_entailment :=
   ].
 
 Ltac headptr_field_compatible :=
-  match goal with
-  | H: headptr ?P |- field_compatible _ _ ?P =>
+  match goal with H: headptr ?P |- field_compatible _ _ ?P =>
   apply headptr_field_compatible;
-        [ apply H | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity]
-  | H: (forall i, isptr (?gv i) -> headptr (?gv i)) |- field_compatible _ _ (?gv _) =>
-  apply headptr_field_compatible;
-        [ apply H; solve [assumption | auto with field_compatible] | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity]
-  end;
+        [ apply H | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity];
     apply compute_legal_nested_field_spec';
     simpl_compute_legal_nested_field;
-    repeat apply Forall_cons; try apply Forall_nil.
+    repeat apply Forall_cons; try apply Forall_nil
+  end.
 
 Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
 

@@ -66,12 +66,12 @@ match s with
 end.
 
 Lemma semax_shortcut_logical:
-  forall Espec {cs: compspecs} Delta P Q R tid s v Qtemp Qvar el,
+  forall Espec {cs: compspecs} Delta P Q R tid s v Qtemp Qvar GV el,
    quick_shortcut_logical s = Some tid ->
    typeof_temp Delta tid = Some tint ->
-   local2ptree Q = (Qtemp, Qvar, nil, nil) ->
+   local2ptree Q = (Qtemp, Qvar, nil, GV) ->
    Qtemp ! tid = None ->
-   shortcut_logical (msubst_eval_expr Qtemp Qvar) tid s = Some (v, el) ->
+   shortcut_logical (msubst_eval_expr Delta Qtemp Qvar GV) tid s = Some (v, el) ->
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- fold_right (fun e q => tc_expr Delta e && q) TT el ->
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
           s (normal_ret_assert (PROPx P (LOCALx (temp tid (Vint v) :: Q) (SEPx R)))).

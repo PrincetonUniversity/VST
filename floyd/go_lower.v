@@ -202,6 +202,32 @@ intros.
 apply prop_right; auto.
 Qed.
 
+Ltac gvar_headptr_intro_case1 gv H i :=
+         match goal with
+         | _ := gv i |- _ => fail 1
+         | H: isptr (gv i), H': headptr (gv i) |- _ => fail 1
+         | _ => generalize (H i _ ltac:(first[reflexivity | eassumption])); fancy_intro true
+         end.
+
+Ltac gvar_headptr_intro_case2 gv H x i :=
+         match goal with
+         | H: isptr x, H': headptr x |- _ => fail 1
+         | _ => generalize ((H i _ ltac:(first[reflexivity | eassumption])): headptr x); fancy_intro true
+         end.
+
+Ltac gvar_headptr_intro gv H:=
+  repeat
+     match goal with
+     | x:= gv ?i |- _ =>
+         gvar_headptr_intro_case2 gv H x i
+     | |- context [gv ?i] =>
+         gvar_headptr_intro_case1 gv H i
+     | _: context [gv ?i] |- _ =>
+         gvar_headptr_intro_case1 gv H i
+     | x:= context [gv ?i] |- _ =>
+         gvar_headptr_intro_case1 gv H i
+     end.
+
 Ltac go_lower :=
 try match goal with |- ENTAIL (exit_tycon _ _ _), _ |-- _ =>
       simpl exit_tycon; simplify_Delta
@@ -232,14 +258,7 @@ first [simple apply quick_finish_lower
      simple eapply lower_one_gvars;
      let HH := fresh "HHH" in
      intros HH ?GV;
-     repeat
-     match goal with
-     | |- context [gv ?i] =>
-         match goal with
-         | H: isptr (gv i), H': headptr (gv i) |- _ => fail
-         | _ => generalize (HH i _ ltac:(first[reflexivity | eassumption])); fancy_intro true
-         end
-     end;
+     gvar_headptr_intro gv HH;
      clear HH
    end
  ];

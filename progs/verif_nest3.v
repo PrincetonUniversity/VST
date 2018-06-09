@@ -9,28 +9,28 @@ Definition t_struct_c := Tstruct _c noattr.
 
 Definition get_spec0 :=
  DECLARE _get
-  WITH v : reptype' t_struct_c, p: val
+  WITH v : reptype' t_struct_c, gv: globals
   PRE  []
         PROP  ()
-        LOCAL (gvar _p p)
-        SEP   (data_at Ews t_struct_c (repinj _ v) p)
+        LOCAL (gvars gv)
+        SEP   (data_at Ews t_struct_c (repinj _ v) (gv _p))
   POST [ tint ]
         PROP  ()
         LOCAL (temp 1%positive (Vint (snd (snd (snd v)))))
-        SEP   (data_at Ews t_struct_c (repinj _ v) p).
+        SEP   (data_at Ews t_struct_c (repinj _ v) (gv _p)).
 
 Definition get_spec : ident * funspec.
  let t := eval compute in (reptype' t_struct_c) in
  exact (DECLARE _get
-  WITH v : t, p: val
+  WITH v : t, gv: globals
   PRE  []
         PROP  ()
-        LOCAL (gvar _p p)
-        SEP   (data_at Ews t_struct_c (repinj t_struct_c v) p)
+        LOCAL (gvars gv)
+        SEP   (data_at Ews t_struct_c (repinj t_struct_c v) (gv _p))
   POST [ tint ]
         PROP  ()
         LOCAL (temp 1%positive (Vint (snd (snd (snd v)))))
-        SEP   (data_at Ews t_struct_c (repinj t_struct_c v) p)).
+        SEP   (data_at Ews t_struct_c (repinj t_struct_c v) (gv _p))).
 Defined.
 
 Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
@@ -38,14 +38,14 @@ Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
 
 Definition set_spec :=
  DECLARE _set
-  WITH i : int, v : reptype' t_struct_c, p : val
+  WITH i : int, v : reptype' t_struct_c, gv : globals
   PRE  [ _i OF tint ]
         PROP ()
-        LOCAL(temp _i (Vint i); gvar _p p)
-        SEP(data_at Ews t_struct_c (repinj _ v) p)
+        LOCAL(temp _i (Vint i); gvars gv)
+        SEP(data_at Ews t_struct_c (repinj _ v) (gv _p))
   POST [ tvoid ]
         PROP() LOCAL()
-        SEP(data_at Ews t_struct_c (repinj _ (update222 i v)) p).
+        SEP(data_at Ews t_struct_c (repinj _ (update222 i v)) (gv _p)).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [get_spec; set_spec]).
 
@@ -64,22 +64,12 @@ Proof.
  simpl in v.
  unfold data_at.
  unfold_field_at 1%nat.
- normalize. (* this line shouldn't be necessary, should be taken care of by unfold_field_at *)
-Time forward. (* 18.88 sec -> 14.36 sec -> 0.9 sec *)
-(*
+ Time forward. (* 18.88 sec -> 14.36 sec -> 0.9 sec *)
 Time forward. (* 13 sec -> 98 sec *)
 unfold data_at.
- BUG! the next line takes forever
 Time unfold_field_at 3%nat. (* 0.86 sec *)
-rewrite prop_true_andp.
 Time cancel. (* 1.875 sec *)
-simplify_value_fits H3.
-simplify_value_fits H5.
-rewrite proj_sumbool_is_true by auto.
-rewrite value_fits_eq; split; unfold list_rect;
- erewrite unfold_reptype_elim by reflexivity; assumption.
 Qed. (* 77 sec *)
-*)Admitted.
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.

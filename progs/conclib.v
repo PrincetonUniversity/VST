@@ -2924,20 +2924,6 @@ Proof.
 Qed.
 *)
 
-Lemma gvar_eval_var: forall i t v rho,
-  gvar_denote i v rho -> eval_var i t rho = v.
-Proof.
-  unfold eval_var, gvar_denote; intros.
-  destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction|].
-  destruct (Map.get (ge_of rho) i); auto; contradiction.
-Qed.
-
-Lemma gvar_denote_global : forall i v rho, gvar_denote i v rho -> gvar_denote i v (globals_only rho).
-Proof.
-  unfold gvar_denote; intros; simpl.
-  destruct (Map.get (ve_of rho) i) as [[]|]; [contradiction | auto].
-Qed.
-
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
    try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto |
@@ -2960,7 +2946,7 @@ Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
   Intros n; rewrite malloc_compat by (auto; reflexivity); Intros;
   rewrite memory_block_data_at_ by auto].
 *)
-
+Check semax_fun_id.
 Lemma semax_fun_id'' id f Espec {cs} Delta P Q R Post c :
   (var_types Delta) ! id = None ->
   (glob_specs Delta) ! id = Some f ->
