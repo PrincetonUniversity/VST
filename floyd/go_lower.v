@@ -104,19 +104,23 @@ Proof. congruence. Qed.
 
 Lemma lower_one_gvars:
  forall  rho Delta P gv Q R S,
-  (gvars_denote gv rho ->
+  ((forall i t, (glob_types Delta) ! i = Some t -> headptr (gv i)) -> gvars_denote gv rho ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (gvars gv :: Q) (SEPx R))) rho |-- S.
 Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *.
-normalize.
-rewrite prop_true_andp in H by auto.
-hnf in H1.
-apply H; auto.
+  intros.
+  rewrite <- insert_local.
+  forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+  unfold local,lift1 in *.
+  simpl in *.
+  normalize.
+  rewrite prop_true_andp in H by auto.
+  hnf in H1.
+  apply H; auto.
+  subst; intros.
+  destruct_glob_types i.
+  rewrite Heqo0.
+  hnf; eauto.
 Qed.
 
 Lemma finish_lower:
@@ -223,7 +227,21 @@ first [simple apply quick_finish_lower
      [try reflexivity; solve [eauto] | fancy_intro true; intros ?EVAL]
  | simple apply lower_one_lvar;
      fold_types1; fancy_intro true; intros ?LV
- | simple eapply lower_one_gvars; intro
+ | match goal with
+   | |- (_ && PROPx _ (LOCALx (gvars ?gv :: _) (SEPx _))) _ |-- _ =>
+     simple eapply lower_one_gvars;
+     let HH := fresh "HHH" in
+     intros HH ?GV;
+     repeat
+     match goal with
+     | |- context [gv ?i] =>
+         match goal with
+         | H: isptr (gv i), H': headptr (gv i) |- _ => fail
+         | _ => generalize (HH i _ ltac:(first[reflexivity | eassumption])); fancy_intro true
+         end
+     end;
+     clear HH
+   end
  ];
  ((let TC := fresh "TC" in simple apply finish_lower; intros TC) ||
  match goal with

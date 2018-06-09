@@ -64,7 +64,7 @@ Parameter body_exit:
     (EF_external "exit"
        {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
    exit_spec'.
-Print malloc_compatible.
+
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.

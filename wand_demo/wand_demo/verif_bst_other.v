@@ -89,14 +89,8 @@ Proof.
   Intros pb pc.
   forward. (* mid=r->left *)
   forward. (* l->right=mid *)
-  assert_PROP (is_pointer_or_null pb) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
   forward. (* r->left=l *)
-  assert_PROP (is_pointer_or_null l) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
   forward. (* _l = r *)
-  assert_PROP (is_pointer_or_null r) by entailer!.
-  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
   forward. (* return *)
   (* TODO: simplify the following proof *)
   Exists pc.

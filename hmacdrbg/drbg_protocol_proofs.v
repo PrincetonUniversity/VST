@@ -685,7 +685,7 @@ Proof.
   unfold return_value_relate_result, da_emp; simpl. 
   symmetry in Heqq.
   apply AUX in Heqq. rewrite Heqq.
-  Intros. inversion H0; clear H0; subst v.
+  Intros. inversion H; clear H; subst v.
   assert_PROP (n=Zlength(map Vint (map Int.repr bytes))) as HN by entailer!.
   entailer!. 
   Exists Info
@@ -726,7 +726,7 @@ Proof.
   unfold return_value_relate_result, da_emp; simpl. 
   Exists (hmac256drbgabs_generate I s n []).
   apply AUX in M. rewrite <- M.
-  Intros. inversion H0; clear H0; subst v.
+  Intros. inversion H; clear H; subst v.
   assert_PROP (n=Zlength(map Vint (map Int.repr bytes))) as HN by entailer!.
   entailer!.
   Exists Info
@@ -1059,7 +1059,7 @@ Proof. start_function.
       (* prove the function parameters match up *)
       apply prop_right. 
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
-      rewrite offset_val_force_ptr, isptr_force_ptr, sem_cast_neutral_ptr; trivial. auto.
+      rewrite offset_val_force_ptr, isptr_force_ptr; trivial. auto.
     }
     {
       split.

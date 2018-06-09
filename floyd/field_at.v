@@ -1831,17 +1831,17 @@ Ltac data_at_valid_aux :=
  simpl sizeof; rewrite ?Z.max_r by rep_omega; rep_omega.
 
 Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
-    (simple apply data_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+    (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
-    (simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+    (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
     (unfold data_at_, field_at_; 
-     simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+     simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
-    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | simpl sizeof; rep_omega]) : valid_pointer.
+    (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
@@ -2622,13 +2622,17 @@ Ltac solve_legal_nested_field_in_entailment :=
   ].
 
 Ltac headptr_field_compatible :=
-  match goal with H: headptr ?P |- field_compatible _ _ ?P =>
+  match goal with
+  | H: headptr ?P |- field_compatible _ _ ?P =>
   apply headptr_field_compatible;
-        [ apply H | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity];
+        [ apply H | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity]
+  | H: (forall i, isptr (?gv i) -> headptr (?gv i)) |- field_compatible _ _ (?gv _) =>
+  apply headptr_field_compatible;
+        [ apply H; solve [assumption | auto with field_compatible] | reflexivity | | simpl; computable | apply la_env_cs_sound; reflexivity]
+  end;
     apply compute_legal_nested_field_spec';
     simpl_compute_legal_nested_field;
-    repeat apply Forall_cons; try apply Forall_nil
-  end.
+    repeat apply Forall_cons; try apply Forall_nil.
 
 Hint Extern 2 (field_compatible _ _ _) => headptr_field_compatible : field_compatible.
 

@@ -349,26 +349,6 @@ intros.
  destruct v; try contradiction; reflexivity.
 Qed.
 
-Lemma force_val_sem_cast_neutral_lvar :
-  forall i t v rho,
-  locald_denote (lvar i t v) rho ->
-  Some (force_val (sem_cast_pointer v)) = Some v.
-Proof.
-intros.
- apply lvar_isptr in H; destruct v; try contradiction; reflexivity.
-Qed.
-
-Lemma force_val_sem_cast_neutral_gvars:
-  forall Delta gv i t rho,
-  tc_environ Delta rho -> (glob_types Delta) ! i = Some t -> 
-  locald_denote (gvars gv) rho ->
-  Some (force_val (sem_cast_pointer (gv i))) = Some (gv i).
-Proof.
-  intros.
-  eapply gvars_isptr in H; eauto.
-  destruct (gv i); try contradiction; reflexivity.
-Qed.
-
 Lemma prop_Forall_cons:
  forall {B}{A} {NB: NatDed B} (P: B) F (a:A) b,
   P |-- !! F a && !! Forall F b ->
@@ -430,11 +410,7 @@ Ltac Forall_pTree_from_elements :=
    [ apply prop_Forall_cons1;
      [unfold check_one_temp_spec, check_gvars_spec;
      simpl; auto;
-     normalize;
-     solve [eapply force_val_sem_cast_neutral_lvar; eassumption
-              | eapply force_val_sem_cast_neutral_gvars; eassumption (* TODO: this line maybe problematic. -- by Qinxiang *)
-              | apply force_val_sem_cast_neutral_isptr; auto
-              ]
+     solve [normalize]
      | ]
    | apply prop_Forall_cons'
    | apply prop_Forall_cons
@@ -946,7 +922,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow

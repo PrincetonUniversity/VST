@@ -200,7 +200,6 @@ rewrite Int.negate_cmp.
 unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
 destruct Archi.ptr64 eqn:Hp; simpl in H.
 destruct (Int.cmp op i j); inv H; auto.
-rewrite Hp in H.
 destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
@@ -215,7 +214,6 @@ unfold Cop.classify_cmp in H. simpl in H.
 unfold both_int, force_val, typed_false, strict_bool_val, sem_cast, classify_cast, tint in H.
 destruct Archi.ptr64 eqn:Hp; simpl in H.
 destruct (Int.cmp op i j); inv H; auto.
-rewrite Hp in H.
 destruct (Int.cmp op i j); inv H; auto.
 Qed.
 
@@ -437,6 +435,10 @@ Ltac fancy_intro aggressive :=
                              | is_var x; rewrite H
                              | is_var y; rewrite <- H
                              | idtac]
+ | headptr (_ ?x) => let Hx1 := fresh "HP" x in
+                     let Hx2 := fresh "P" x in
+                       rename H into Hx1;
+                       pose proof headptr_isptr _ Hx1 as Hx2
  | headptr ?x => let Hx1 := fresh "HP" x in
                  let Hx2 := fresh "P" x in
                    rename H into Hx1;
