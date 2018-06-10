@@ -28,12 +28,12 @@ Tactic Notation "replace_temp" constr(name) constr(new_value) :=
 Tactic Notation "replace_temp" constr(name) constr(new_value) "by" tactic(t) :=
   replace_temp name new_value; [ t | ].
 
-Definition first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish i :=
+Definition first_loop_inv00 ctx key init_done key_chars ctx_sh key_sh ish i gv :=
     PROP ( )
     LOCAL (
       temp _RK  (field_address t_struct_aesctx [StructField _buf] ctx);
       temp _key key; temp _keybits (Vint (Int.repr 256));
-      gvar _aes_init_done aes_init_done; gvar _tables tables)
+      gvars gv)
     SEP (
       field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
       field_at ctx_sh t_struct_aesctx [StructField _rk] 
@@ -41,17 +41,17 @@ Definition first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx
       field_at ctx_sh t_struct_aesctx [StructField _buf]
         (partially_filled i 68 (fun i => get_uint32_le key_chars (i*4))) ctx;
       data_at key_sh (tarray tuchar (4 * 8)) (map Vint (map Int.repr key_chars)) key;
-      data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-      tables_initialized tables).
+      data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+      tables_initialized (gv _tables)).
 
-Definition first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish :=
-  EX i: Z, first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish i.
+Definition first_loop_inv0 ctx key init_done key_chars ctx_sh key_sh ish gv :=
+  EX i: Z, first_loop_inv00 ctx key init_done key_chars ctx_sh key_sh ish i gv.
 
-Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done i :=
+Definition main_loop_invariant0 ctx key ctx_sh key_sh ish key_chars init_done i gv :=
   PROP ( )
   LOCAL (
     temp _RK (offset_val (i*32) (field_address t_struct_aesctx [StructField _buf] ctx));
-    gvar _tables tables
+    gvars gv
   ) SEP (
     field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
     field_at ctx_sh t_struct_aesctx [StructField _rk]
@@ -60,12 +60,12 @@ Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_i
       (map Vint (pow_fun GrowKeyByOne (Z.to_nat (i*8)) (key_bytes_to_key_words key_chars))
       ++ repeat_op_table (60-i*8) Vundef id) ctx;
     data_at key_sh (tarray tuchar (4 * 8)) (map Vint (map Int.repr key_chars)) key;
-    data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-    tables_initialized tables
+    data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+    tables_initialized (gv _tables)
   ).
 
-Definition main_loop_invariant ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done :=
-  EX i: Z, main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done i.
+Definition main_loop_invariant ctx key ctx_sh key_sh ish key_chars init_done gv :=
+  EX i: Z, main_loop_invariant0 ctx key ctx_sh key_sh ish key_chars init_done i gv.
 
 
 Lemma Znth_partially_expanded_key: forall key i,
@@ -485,7 +485,7 @@ Definition setkey_enc_loop_body :=
 Lemma setkey_enc_loop_body_lemma:
 forall 
  (Espec : OracleKind) (ctx key : val) (ctx_sh key_sh : share) 
- (key_chars : list Z) (tables aes_init_done : val) (init_done : Z) (ish : share)
+ (key_chars : list Z) (init_done : Z) (ish : share) (gv: globals)
  (SH : writable_share ctx_sh) (SH0 : readable_share key_sh) (SH1 : readable_share ish)
  (H : Zlength key_chars = 32) (H0 : init_done = 1) (i : Z)
  (H1 : 0 <= i < 7),
@@ -499,7 +499,7 @@ semax
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK
      (offset_val (i * 32) (field_address t_struct_aesctx [StructField _buf] ctx));
-   gvar _tables tables)
+   gvars gv)
    SEP (field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
    field_at ctx_sh t_struct_aesctx [StructField _rk]
      (field_address t_struct_aesctx [StructField _buf] ctx) ctx;
@@ -508,8 +508,8 @@ semax
         (pow_fun GrowKeyByOne (Z.to_nat (i * 8)) (key_bytes_to_key_words key_chars)) ++
       repeat_op_table (60 - i * 8) Vundef id) ctx;
    data_at key_sh (tarray tuchar (4 * 8)) (map Vint (map Int.repr key_chars)) key;
-   data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-   tables_initialized tables))
+   data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+   tables_initialized (gv _tables)))
   setkey_enc_loop_body
   (normal_ret_assert
      (PROP (0 <= i + 1 <= 7)
@@ -517,7 +517,7 @@ semax
       temp _RK
         (offset_val ((i + 1) * 32)
            (field_address t_struct_aesctx [StructField _buf] ctx));
-      gvar _tables tables)
+      gvars gv)
       SEP (field_at ctx_sh t_struct_aesctx [StructField _nr] 
              (Vint (Int.repr 14)) ctx;
       field_at ctx_sh t_struct_aesctx [StructField _rk]
@@ -528,8 +528,8 @@ semax
               (key_bytes_to_key_words key_chars)) ++
          repeat_op_table (60 - (i + 1) * 8) Vundef id) ctx;
       data_at key_sh (tarray tuchar (4 * 8)) (map Vint (map Int.repr key_chars))
-        key; data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-      tables_initialized tables))).
+        key; data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+      tables_initialized (gv _tables)))).
 Proof.
 intros.
 unfold setkey_enc_loop_body.
@@ -626,7 +626,7 @@ clearbody Delta_specs.
     forward.
     forward. forward.
     forward. forward.
-    fold (tables_initialized tables).
+    fold (tables_initialized (gv _tables)).
     simpl.
     RK_store.
     RK_load.
@@ -644,7 +644,7 @@ clearbody Delta_specs.
     unfold tables_initialized.
     forward. forward.
     forward. forward.
-    fold (tables_initialized tables).
+    fold (tables_initialized (gv _tables)).
     simpl.
     RK_store.
     RK_load.
@@ -665,7 +665,7 @@ clearbody Delta_specs.
     - clear.
       subst PFUN ROT KE2.
       repeat match goal with A := _ |- _ => fold A end.
-      apply derives_refl'.       
+      apply derives_refl'.
       f_equal.
       match goal with |- _ = ?b => set (B:=b) end.
       rewrite ?update_partially_expanded_key by omega.

@@ -800,15 +800,7 @@ Proof. start_function.
       subst i; simpl. entailer!. (* simpl. *)
       thaw FR2. thaw FR1. thaw FR0. normalize.
       rewrite da_emp_ptr. normalize.
-      eapply denote_tc_test_eq_split. 
       auto 50 with valid_pointer. (* TODO regression, this should have solved it *)
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer2. 
-      apply sepcon_valid_pointer2.
-      apply sepcon_valid_pointer2. 
-      apply sepcon_valid_pointer2. 
-      apply data_at_valid_ptr; auto. auto 50 with valid_pointer.
     }
 
     { entailer!.

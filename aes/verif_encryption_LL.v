@@ -79,10 +79,10 @@ Proof.
      temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _output output;
-     gvar _tables tables
+     gvars gv
   ) SEP (
      data_at_ out_sh (tarray tuchar 16) output;
-     tables_initialized tables;
+     tables_initialized (gv _tables);
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   ))
@@ -97,10 +97,10 @@ Proof.
      temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
      temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
      temp _output output;
-     gvar _tables tables
+     gvars gv
   ) SEP (
      data_at_ out_sh (tarray tuchar 16) output;
-     tables_initialized tables;
+     tables_initialized (gv _tables);
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   ))
@@ -112,10 +112,10 @@ Proof.
      temp _X1 (Vint (col 1 S12));
      temp _X0 (Vint (col 0 S12));
      temp _output output;
-     gvar _tables tables
+     gvars gv
   ) SEP (
      data_at_ out_sh (tarray tuchar 16) output;
-     tables_initialized tables;
+     tables_initialized (gv _tables);
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx 
   )).
