@@ -56,19 +56,21 @@ Definition ___compcert_va_int64 : ident := 18%positive.
 Definition _h : ident := 59%positive.
 Definition _head : ident := 1%positive.
 Definition _list : ident := 2%positive.
-Definition _main : ident := 65%positive.
+Definition _main : ident := 67%positive.
 Definition _p : ident := 56%positive.
-Definition _r : ident := 64%positive.
+Definition _r : ident := 66%positive.
+Definition _res : ident := 64%positive.
 Definition _reverse : ident := 63%positive.
 Definition _s : ident := 57%positive.
 Definition _sumlist : ident := 60%positive.
 Definition _t : ident := 58%positive.
 Definition _tail : ident := 3%positive.
+Definition _tail_foo : ident := 65%positive.
 Definition _three : ident := 55%positive.
 Definition _v : ident := 62%positive.
 Definition _w : ident := 61%positive.
-Definition _t'1 : ident := 66%positive.
-Definition _t'2 : ident := 67%positive.
+Definition _t'1 : ident := 68%positive.
+Definition _t'2 : ident := 69%positive.
 
 Definition v_three := {|
   gvar_info := (tarray (Tstruct _list noattr) 3);
@@ -122,7 +124,7 @@ Definition f_reverse := {|
                (_v, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+  (Sset _w (Econst_int (Int.repr 0) tint))
   (Ssequence
     (Sset _v (Etempvar _p (tptr (Tstruct _list noattr))))
     (Ssequence
@@ -144,6 +146,37 @@ Definition f_reverse := {|
               (Sset _w (Etempvar _v (tptr (Tstruct _list noattr))))
               (Sset _v (Etempvar _t (tptr (Tstruct _list noattr))))))))
       (Sreturn (Some (Etempvar _w (tptr (Tstruct _list noattr))))))))
+|}.
+
+Definition f_tail_foo := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_p, (tptr (Tstruct _list noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_res, tint) :: (_t'2, (tptr (Tstruct _list noattr))) ::
+               (_t'1, (tptr (Tstruct _list noattr))) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Scall (Some _t'1)
+      (Evar _reverse (Tfunction (Tcons (tptr (Tstruct _list noattr)) Tnil)
+                       (tptr (Tstruct _list noattr)) cc_default))
+      ((Etempvar _p (tptr (Tstruct _list noattr))) :: nil))
+    (Sset _p (Etempvar _t'1 (tptr (Tstruct _list noattr)))))
+  (Ssequence
+    (Sset _res
+      (Efield
+        (Ederef (Etempvar _p (tptr (Tstruct _list noattr)))
+          (Tstruct _list noattr)) _head tuint))
+    (Ssequence
+      (Ssequence
+        (Scall (Some _t'2)
+          (Evar _reverse (Tfunction
+                           (Tcons (tptr (Tstruct _list noattr)) Tnil)
+                           (tptr (Tstruct _list noattr)) cc_default))
+          ((Etempvar _p (tptr (Tstruct _list noattr))) :: nil))
+        (Sset _p (Etempvar _t'2 (tptr (Tstruct _list noattr)))))
+      (Sreturn (Some (Etempvar _res tint))))))
 |}.
 
 Definition f_main := {|
@@ -422,11 +455,12 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (_three, Gvar v_three) :: (_sumlist, Gfun(Internal f_sumlist)) ::
- (_reverse, Gfun(Internal f_reverse)) :: (_main, Gfun(Internal f_main)) ::
+ (_reverse, Gfun(Internal f_reverse)) ::
+ (_tail_foo, Gfun(Internal f_tail_foo)) :: (_main, Gfun(Internal f_main)) ::
  nil).
 
 Definition public_idents : list ident :=
-(_main :: _reverse :: _sumlist :: _three :: ___builtin_debug ::
+(_main :: _tail_foo :: _reverse :: _sumlist :: _three :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

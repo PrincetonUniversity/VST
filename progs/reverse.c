@@ -31,6 +31,14 @@ struct list *reverse (struct list *p) {
   return w;
 }
 
+int tail_foo(struct list * p) {
+  int res;
+  p = reverse (p);
+  res = p -> head;
+  p = reverse (p);
+  return res;
+}
+
 int main (void) {
   struct list *r; unsigned s;
   r = reverse(three);
