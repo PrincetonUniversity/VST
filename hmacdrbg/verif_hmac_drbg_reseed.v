@@ -79,7 +79,6 @@ Proof.
     normalize. apply andp_right. apply prop_right; repeat split; trivial.
     thaw FR2. thaw FR1. cancel.
   }
-  forward.
   Intros. rewrite H in *; clear H add_len_too_high.
   symmetry in Heqadd_len_too_high; apply orb_false_iff in Heqadd_len_too_high; destruct Heqadd_len_too_high.
 

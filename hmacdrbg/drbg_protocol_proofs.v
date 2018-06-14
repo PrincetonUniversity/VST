@@ -66,7 +66,7 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto.  }
-  subst v. clear Hv. simpl. forward.
+  subst v. clear Hv. simpl.
   Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
@@ -290,7 +290,6 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   subst v; clear Hv. rewrite if_true; trivial.
-  forward.
   Intros p. rename H into MCp.
 
   forward_call tt.
@@ -455,7 +454,6 @@ Proof.
     simpl; cancel. entailer!.
     thaw FR1. cancel.
   }
-  forward.
   Intros. unfold POSTCONDITION, abbreviate; clear POSTCONDITION. rewrite H in *; clear H add_len_too_high.
   abbreviate_semax.
   symmetry in Heqadd_len_too_high; apply orb_false_iff in Heqadd_len_too_high; destruct Heqadd_len_too_high.
@@ -800,15 +798,7 @@ Proof. start_function.
       subst i; simpl. entailer!. (* simpl. *)
       thaw FR2. thaw FR1. thaw FR0. normalize.
       rewrite da_emp_ptr. normalize.
-      eapply denote_tc_test_eq_split. 
       auto 50 with valid_pointer. (* TODO regression, this should have solved it *)
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer2. 
-      apply sepcon_valid_pointer2.
-      apply sepcon_valid_pointer2. 
-      apply sepcon_valid_pointer2. 
-      apply data_at_valid_ptr; auto. auto 50 with valid_pointer.
     }
 
     { entailer!.

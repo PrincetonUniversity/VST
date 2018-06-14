@@ -152,6 +152,6 @@ Proof.
   destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
   Intros.
   unfold_data_at 1%nat.
-  forward. forward. forward. forward. Exists 0. simpl. entailer!.
+  forward. forward. forward. Exists 0. simpl. entailer!.
   Exists vret. unfold_data_at 1%nat. entailer!.
 Qed.

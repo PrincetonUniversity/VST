@@ -55,7 +55,7 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
-  subst v. clear Hv. simpl. forward.
+  subst v. clear Hv. simpl.
   Intros. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
