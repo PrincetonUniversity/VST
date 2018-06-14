@@ -32,7 +32,7 @@ Proof.
     { entailer!. (*unfold_data_at 1%nat. simpl. entailer.*) }
     forward_if.
     + elim H; trivial.
-    + clear H. Intros. forward.
+    + clear H. Intros.
       destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
       unfold_data_at 1%nat.
