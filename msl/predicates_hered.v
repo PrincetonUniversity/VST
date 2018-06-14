@@ -23,7 +23,7 @@ Definition pred (A:Type) {AG:ageable A} :=
 Bind Scope pred with pred.
 
 (* Here is some junk that makes the definition of "pred" opaque
-   to most tactics but sill allows the "Program" extension to
+   to most tactics but still allows the "Program" extension to
    see it is a subset type.  The coercion is sugar that allows us to use
    predicates easily.
  *)
