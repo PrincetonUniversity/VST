@@ -135,8 +135,7 @@ forward_loop (EX i : Z,
     Exists (offset_val i str).
     entailer!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
-  { forward.
-    forward_if.
+  { forward_if.
     { forward.
       Exists nullval; rewrite !map_app; entailer!.
       right. split; auto.
@@ -558,7 +557,6 @@ forward_if.
 forward.
 entailer!. f_equal. f_equal. cstring.
 forward. (* entailer!.  *)
-forward.
 Exists (i+1).
 entailer!. cstring.
 Qed.
@@ -597,7 +595,6 @@ forward_loop (EX i : Z,
     subst i.
     autorewrite with sublist in H2; auto. }
   forward. (* entailer!. *)
-  forward.
   Exists (i+1); entailer!.
   assert (i <> Zlength ls) by cstring.
   split. omega.
@@ -644,7 +641,7 @@ forward_loop (EX i : Z,
   +
     forward. entailer!. f_equal. f_equal. cstring. 
   +
-    forward. forward.
+    forward.
     Exists (i+1); entailer!. cstring.
 -
   abbreviate_semax.
@@ -694,7 +691,6 @@ forward_loop (EX i : Z,
     reflexivity.
  +
   forward. (* entailer!. *)
-  forward.
   Exists (j+1).
   destruct (zlt j (Zlength ls)); [ | cstring].
   entailer!.
@@ -793,7 +789,6 @@ forward_loop (EX i : Z,
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
    normalize in H17. clear H7 H8.
    forward.
-   forward.
    Exists (i+1).
    entailer!.
    clear - H17 H6 Hs1 Hs2 H3 H1 H2 H H0.
@@ -866,7 +861,6 @@ forward_loop (EX i : Z,
   cancel.
 +
    assert (i < Zlength ls) by cstring.
-  forward.
   forward.
   Exists (i+1). entailer!.
   rewrite upd_Znth_app2 by list_solve.
