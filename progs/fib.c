@@ -34,7 +34,7 @@ int fib_rec(int n) {
     return 0;
   if (n == 1)
     return 1;
-  return fib_rec(n - 1) + fib_rec(n - 2);
+  return fib_rec(n - 2) + fib_rec(n - 1);
 }
 
 int main () {

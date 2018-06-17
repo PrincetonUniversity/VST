@@ -185,11 +185,11 @@ Definition f_fib_rec := {|
       (Ssequence
         (Scall (Some _t'1)
           (Evar _fib_rec (Tfunction (Tcons tint Tnil) tint cc_default))
-          ((Ebinop Osub (Etempvar _n tint) (Econst_int (Int.repr 1) tint)
+          ((Ebinop Osub (Etempvar _n tint) (Econst_int (Int.repr 2) tint)
              tint) :: nil))
         (Scall (Some _t'2)
           (Evar _fib_rec (Tfunction (Tcons tint Tnil) tint cc_default))
-          ((Ebinop Osub (Etempvar _n tint) (Econst_int (Int.repr 2) tint)
+          ((Ebinop Osub (Etempvar _n tint) (Econst_int (Int.repr 1) tint)
              tint) :: nil)))
       (Sreturn (Some (Ebinop Oadd (Etempvar _t'1 tint) (Etempvar _t'2 tint)
                        tint))))))

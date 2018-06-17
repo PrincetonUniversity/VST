@@ -31,11 +31,10 @@ struct list *reverse (struct list *p) {
   return w;
 }
 
-int tail_foo(struct list * p) {
-  int res;
+unsigned int last_foo(struct list * p) {
+  unsigned int res;
   p = reverse (p);
   res = p -> head;
-  p = reverse (p);
   return res;
 }
 

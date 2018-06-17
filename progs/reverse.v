@@ -65,7 +65,7 @@ Definition _s : ident := 57%positive.
 Definition _sumlist : ident := 60%positive.
 Definition _t : ident := 58%positive.
 Definition _tail : ident := 3%positive.
-Definition _tail_foo : ident := 65%positive.
+Definition _last_foo : ident := 65%positive.
 Definition _three : ident := 55%positive.
 Definition _v : ident := 62%positive.
 Definition _w : ident := 61%positive.
@@ -148,13 +148,12 @@ Definition f_reverse := {|
       (Sreturn (Some (Etempvar _w (tptr (Tstruct _list noattr))))))))
 |}.
 
-Definition f_tail_foo := {|
-  fn_return := tint;
+Definition f_last_foo := {|
+  fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _list noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_res, tint) :: (_t'2, (tptr (Tstruct _list noattr))) ::
-               (_t'1, (tptr (Tstruct _list noattr))) :: nil);
+  fn_temps := ((_res, tuint) :: (_t'1, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -168,15 +167,7 @@ Definition f_tail_foo := {|
       (Efield
         (Ederef (Etempvar _p (tptr (Tstruct _list noattr)))
           (Tstruct _list noattr)) _head tuint))
-    (Ssequence
-      (Ssequence
-        (Scall (Some _t'2)
-          (Evar _reverse (Tfunction
-                           (Tcons (tptr (Tstruct _list noattr)) Tnil)
-                           (tptr (Tstruct _list noattr)) cc_default))
-          ((Etempvar _p (tptr (Tstruct _list noattr))) :: nil))
-        (Sset _p (Etempvar _t'2 (tptr (Tstruct _list noattr)))))
-      (Sreturn (Some (Etempvar _res tint))))))
+    (Sreturn (Some (Etempvar _res tuint)))))
 |}.
 
 Definition f_main := {|
@@ -456,11 +447,11 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (_three, Gvar v_three) :: (_sumlist, Gfun(Internal f_sumlist)) ::
  (_reverse, Gfun(Internal f_reverse)) ::
- (_tail_foo, Gfun(Internal f_tail_foo)) :: (_main, Gfun(Internal f_main)) ::
+ (_last_foo, Gfun(Internal f_last_foo)) :: (_main, Gfun(Internal f_main)) ::
  nil).
 
 Definition public_idents : list ident :=
-(_main :: _tail_foo :: _reverse :: _sumlist :: _three :: ___builtin_debug ::
+(_main :: _last_foo :: _reverse :: _sumlist :: _three :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
