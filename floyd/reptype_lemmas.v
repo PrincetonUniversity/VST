@@ -144,9 +144,7 @@ Definition reptype_gen {cs: compspecs} : type -> (sigT (fun x => x)) :=
      if (type_is_by_value t)
      then existT (fun x => x) val Vundef
      else existT (fun x => x) unit tt)
-  (fun t n a TV => match TV with existT T V =>
-                     existT (fun x => x) (list T) (list_repeat (Z.to_nat n) V)
-                   end)
+  (fun t n a TV => existT (fun x => x) (list (projT1 TV)) (list_repeat (Z.to_nat n) (projT2 TV)))
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
@@ -165,8 +163,7 @@ Context {cs: compspecs}.
 Lemma reptype_gen_eq: forall t,
   reptype_gen t =
   match t with
-  | Tarray t0 n _ => match reptype_gen t0
-                                 with existT T V => existT (fun x => x) (list T) (list_repeat (Z.to_nat n) V) end
+  | Tarray t0 n _ => existT (fun x => x) (list (projT1 (reptype_gen t0))) (list_repeat (Z.to_nat n) (projT2 (reptype_gen t0)))
   | Tstruct id _ => existT (fun x => x)
                      (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
@@ -213,9 +210,6 @@ Proof.
   unfold reptype.
   rewrite reptype_gen_eq.
   destruct t as [| | | | | | | id ? | id ?]; auto.
-  + unfold reptype, default_val.
-    destruct (reptype_gen t).
-    reflexivity.
   + unfold compact_prod_sigT_type.
     pose proof get_co_members_no_replicate id.
     forget (co_members (get_co id)) as m.
@@ -412,9 +406,6 @@ Proof.
   unfold reptype at 1.
   rewrite reptype_gen_eq.
   destruct t; auto.
-  + unfold reptype, default_val.
-    destruct (reptype_gen t).
-    apply JMeq_refl.
   + unfold struct_default_val.
     rewrite map_map.
     apply (compact_prod_sigT_compact_prod_gen
