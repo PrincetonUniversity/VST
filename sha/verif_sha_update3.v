@@ -315,14 +315,17 @@ forward_if.
    by (rewrite Zlength_app, Zlength_sublist; MyOmega).
  assert (Zlength (Zlist_to_intlist (dd ++ sublist 0 k data)) = LBLOCKz)
     by (apply Zlength_Zlist_to_intlist; assumption).
+ assert (Zlength (hash_blocks init_registers hashed) = 8)
+  by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
  forward_call (* sha256_block_data_order (c,p); *)
-   (hashed, Zlist_to_intlist (dd++(sublist 0 k data)), c,
+   (hash_blocks init_registers hashed, Zlist_to_intlist (dd++(sublist 0 k data)), c,
      (field_address t_struct_SHA256state_st [StructField _data] c),
       Tsh, gv).
  rewrite Zlist_to_intlist_to_Zlist;
    [ | rewrite H5; exists LBLOCKz; reflexivity
      | rewrite Forall_app; split; auto; apply Forall_firstn; auto
    ];   entailer!.
+ rewrite hash_blocks_last by auto.
  forward. (* data  += fragment; *)
  forward. (* len -= fragment; *)
  normalize_postcondition.
