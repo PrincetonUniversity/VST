@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.progs.reverse.
+Require Import VST.progs.reverse_client.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
@@ -83,16 +83,3 @@ Proof.
   forward. (* res = p -> head; *)
   forward. (* return res; *)
 Qed.
-
-
-(*
-  gather_SEP 0 1.
-  replace_SEP 0 (listrep (x :: rev sigma') p').
-  {
-    entailer!.
-    unfold listrep; fold listrep.
-    Exists q.
-    auto.
-  }
-
-*)

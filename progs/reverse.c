@@ -31,17 +31,9 @@ struct list *reverse (struct list *p) {
   return w;
 }
 
-unsigned int last_foo(struct list * p) {
-  unsigned int res;
-  p = reverse (p);
-  res = p -> head;
-  return res;
-}
-
 int main (void) {
   struct list *r; unsigned s;
   r = reverse(three);
   s = sumlist(r);
   return (int)s;
 }
-

@@ -242,8 +242,8 @@ CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghosts.v
 
 PROGS_FILES= \
   $(CONCPROGS) \
-  bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_queue.v verif_queue2.v verif_sumarray.v \
-  insertionsort.v reverse.v queue.v sumarray.v message.v string.v object.v \
+  bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_reverse_client.v verif_queue.v verif_queue2.v verif_sumarray.v \
+  insertionsort.v reverse.v reverse_client.v queue.v sumarray.v message.v string.v object.v \
   revarray.v verif_revarray.v insertionsort.v append.v min.v int_or_ptr.v \
   dotprod.v strlib.v fib.v \
   verif_min.v verif_float.v verif_global.v verif_ptr_compare.v \
@@ -361,7 +361,7 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c
+SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c
 
 LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
