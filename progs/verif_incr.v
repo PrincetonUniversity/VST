@@ -18,27 +18,27 @@ Definition cptr_lock_inv g1 g2 ctr := EX z : Z, data_at Ews tuint (Vint (Int.rep
 
 Definition incr_spec :=
  DECLARE _incr
-  WITH ctr : val, sh : share, lock : val, g1 : gname, g2 : gname, left : bool, n : Z
+  WITH sh : share, g1 : gname, g2 : gname, left : bool, n : Z, gv: globals
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 n (if left then g1 else g2))
+         LOCAL (gvars gv)
+         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n (if left then g1 else g2))
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 (n+1) (if left then g1 else g2)).
+         SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 (n+1) (if left then g1 else g2)).
 
 Definition read_spec :=
  DECLARE _read
-  WITH ctr : val, sh : share, lock : val, g1 : gname, g2 : gname, n1 : Z, n2 : Z
+  WITH sh : share, g1 : gname, g2 : gname, n1 : Z, n2 : Z, gv: globals
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
+         LOCAL (gvars gv)
+         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2)
   POST [ tuint ]
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr (n1 + n2))))
-         SEP (lock_inv sh lock (cptr_lock_inv g1 g2 ctr); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2).
+         SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr)); ghost_var gsh2 n1 g1; ghost_var gsh2 n2 g2).
 
 Definition thread_lock_R sh g1 g2 ctr lockc :=
   lock_inv sh lockc (cptr_lock_inv g1 g2 ctr) * ghost_var gsh2 1 g1.
@@ -48,14 +48,14 @@ Definition thread_lock_inv sh g1 g2 ctr lockc lockt :=
 
 Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH y : val, x : val * share * val * val * gname * gname
+  WITH y : val, x : share * gname * gname * globals
   PRE [ _args OF (tptr tvoid) ]
-         let '(ctr, sh, lock, lockt, g1, g2) := x in
+         let '(sh, g1, g2, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock; gvar _thread_lock lockt)
-         SEP   (lock_inv sh lock (cptr_lock_inv g1 g2 ctr);
+         LOCAL (temp _args y; gvars gv)
+         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g1 g2 (gv _ctr));
                 ghost_var gsh2 0 g1;
-                lock_inv sh lockt (thread_lock_inv sh g1 g2 ctr lock lockt))
+                lock_inv sh (gv _thread_lock) (thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
   POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
@@ -94,7 +94,7 @@ Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
   forward.
-  forward_call (lock, sh, cptr_lock_inv g1 g2 ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   unfold cptr_lock_inv at 2; simpl.
   Intros z x y.
   forward.
@@ -111,7 +111,7 @@ Proof.
     - erewrite ghost_var_share_join' by eauto.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update. }
-  Intros; forward_call (lock, sh, cptr_lock_inv g1 g2 ctr).
+  Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
     erewrite <- ghost_var_share_join by eauto.
@@ -125,7 +125,7 @@ Qed.
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_function.
-  forward_call (lock, sh, cptr_lock_inv g1 g2 ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   unfold cptr_lock_inv at 2; simpl.
   Intros z x y.
   forward.
@@ -136,7 +136,7 @@ Proof.
     rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
     rewrite <- sepcon_assoc, (sepcon_comm (ghost_var gsh1 y g2)), sepcon_assoc; apply derives_refl.
     all: auto. }
-  forward_call (lock, sh, cptr_lock_inv g1 g2 ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists z x y; entailer!. }
   destruct Heq; forward.
@@ -147,14 +147,26 @@ Proof.
   start_function.
   Intros.
   forward.
-  forward_call (ctr, sh, lock, g1, g2, true, 0).
+  forward_call (sh, g1, g2, true, 0, gv).
   simpl.
-  forward_call (lockt, sh, thread_lock_R sh g1 g2 ctr lock, thread_lock_inv sh g1 g2 ctr lock lockt).
+  forward_call ((gv _thread_lock), sh, thread_lock_R sh g1 g2 (gv _ctr) (gv _ctr_lock), thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
     rewrite selflock_eq at 2; cancel. }
   forward.
 Qed.
+
+Ltac cancel_for_forward_call ::=
+  match goal with
+  | gv: globals |- _ =>
+    repeat
+    match goal with
+    | x := gv ?i |- context [gv ?i] =>
+        change (gv i) with x
+    end
+  | _ => idtac
+  end;
+  cancel_for_evar_frame.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -177,17 +189,17 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
-  forward_spawn _thread_func nullval (ctr, sh1, lock, lockt, g1, g2).
+  forward_spawn _thread_func nullval (sh1, g1, g2, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
-  forward_call (ctr, sh2, lock, g1, g2, false, 0).
+  forward_call (sh2, g1, g2, false, 0, gv).
   simpl.
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   unfold thread_lock_inv at 2; unfold thread_lock_R.
   rewrite selflock_eq.
   Intros.
-  forward_call (ctr, sh2, lock, g1, g2, 1, 1).
+  forward_call (sh2, g1, g2, 1, 1, gv).
   (* We've proved that t is 2! *)
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).

@@ -9,42 +9,13 @@ Set Bullet Behavior "Strict Subproofs".
 
 Opaque upto.
 
-Lemma gvar_denote_env_set:
-  forall rho i vi j vj, gvar_denote i vi (env_set rho j vj) = gvar_denote i vi rho.
-Proof.
-intros.
-unfold gvar_denote.
-simpl. auto.
-Qed.
-
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   simpl readonly2share.  (* TODO: delete this line when possible *)
-  assert_gvar _bufs. assert_gvar _lock. assert_gvar _comm. assert_gvar _reading.
-  assert_gvar _last_read. assert_gvar _last_taken. assert_gvar _writing.
-  assert_gvar _last_given.
-  forget (gv _bufs) as buf.
-  forget (gv _lock) as lock.
-  forget (gv _comm) as comm.
-  forget (gv _reading) as reading.
-  forget (gv _last_read) as last_read.
-  forget (gv _last_taken) as last_taken.
-  forget (gv _writing) as writing.
-  forget (gv _last_given) as last_given.
-(*
-  set (buf := gv _bufs).
-  set (lock := gv _lock).
-  set (comm := gv _comm).
-  set (reading := gv _reading).
-  set (last_read := gv _last_read).
-  set (last_taken := gv _last_taken).
-  set (writing := gv _writing).
-  set (last_given := gv _last_given).
-*)  
   exploit (split_shares (Z.to_nat N) Tsh); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
-  forward_call (comm, lock, buf, reading, last_read, sh0, shs).
+  forward_call (sh0, shs, gv).
   { fast_cancel. }
   Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
   assert_PROP (Zlength comms = N).
@@ -55,13 +26,12 @@ Proof.
   simpl fst in *. simpl snd in *.
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh1 & shs1 & ? & ? & ? & ?).
   assert_PROP (Zlength bufs = B).
-  { go_lowerx; rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ buf)), !sepcon_assoc.
+  { go_lowerx; rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (gv _bufs))), !sepcon_assoc.
     apply sepcon_derives_prop.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold B, N; omega|].
     unfold unfold_reptype; simpl.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
-  forward_spawn _writer (vint 0) (writing, last_given, last_taken, lock, comm, buf, locks, comms,
-                                  bufs, sh1, gsh1, sh0, shs, g, g0, g1, g2).
+  forward_spawn _writer (vint 0) (locks, comms, bufs, sh1, gsh1, sh0, shs, g, g0, g1, g2, gv).
   { rewrite !sepcon_andp_prop'.
     apply andp_right; [apply prop_right; repeat (split; auto)|].
     unfold comm_loc; erewrite map_ext;
@@ -104,14 +74,12 @@ Proof.
   assert_PROP (Zlength reads = N) by entailer!.
   assert_PROP (Zlength lasts = N) by entailer!.
   forward_for_simple_bound N (EX i : Z, PROP ( )
-   LOCAL (gvar _last_given last_given; gvar _writing writing; gvar _last_taken last_taken;
-          gvar _last_read last_read; gvar _reading reading; gvar _comm comm; gvar _lock lock;
-          gvar _bufs buf; gvar _reader (gv _reader))
+   LOCAL (gvars gv)
    SEP (EX sh' : share, !!(sepalg_list.list_join sh1 (sublist i N shs1) sh') &&
-          data_at sh' (tarray (tptr tint) N) lasts last_read * data_at sh' (tarray (tptr tint) N) reads reading;
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms comm) (sublist i N shs1));
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tlock) N) locks lock) (sublist i N shs1));
-        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs buf) (sublist i N shs1));
+          data_at sh' (tarray (tptr tint) N) lasts (gv _last_read) * data_at sh' (tarray (tptr tint) N) reads (gv _reading);
+        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms (gv _comm)) (sublist i N shs1));
+        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tlock) N) locks (gv _lock)) (sublist i N shs1));
+        fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs (gv _bufs)) (sublist i N shs1));
         fold_right sepcon emp (map (fun x => comm_loc gsh2 (Znth x locks) (Znth x comms)
           (Znth x g) (Znth x g0) (Znth x g1) (Znth x g2) bufs (Znth x shs) gsh2
           empty_map) (sublist i N (upto (Z.to_nat N))));
@@ -134,8 +102,8 @@ Proof.
       match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end] end.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     assert_PROP (isptr d) by entailer!.
-    forward_spawn _reader d (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms,
-      bufs, Znth i shs1, gsh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2).
+    forward_spawn _reader d (i, reads, lasts, locks, comms,
+      bufs, Znth i shs1, gsh2, Znth i shs, Znth i g, Znth i g0, Znth i g1, Znth i g2, gv).
     - rewrite !sepcon_andp_prop'.
       apply andp_right; [apply prop_right; repeat (split; auto)|].
       { apply Forall_Znth; auto; match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; auto end. }

@@ -37,4 +37,3 @@ int main (void) {
   s = sumlist(r);
   return (int)s;
 }
-

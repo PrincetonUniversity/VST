@@ -219,48 +219,48 @@ Qed.
  **)
 
 Lemma setup_globals:
- forall Delta x,
+ forall Delta gv,
   PTree.get _three (glob_types Delta) = Some (tarray t_struct_list 3) ->
   ENTAIL Delta, PROP  ()
-   LOCAL  (gvar _three x)
+   LOCAL  (gvars gv)
    SEP
-   (data_at Ews tuint (Vint (Int.repr 1)) x;
-    mapsto Ews (tptr t_struct_list) (offset_val 4 x)
-        (offset_val 8 x);
-   mapsto Ews tuint (offset_val 8 x) (Vint (Int.repr 2));
-   mapsto Ews (tptr t_struct_list) (offset_val 12 x)
-       (offset_val 16 x);
-   mapsto Ews tuint (offset_val 16 x) (Vint (Int.repr 3));
-   mapsto Ews tuint (offset_val 20 x) (Vint (Int.repr 0)))
-  |-- PROP() LOCAL(gvar _three x)
+   (data_at Ews tuint (Vint (Int.repr 1)) (gv _three);
+    mapsto Ews (tptr t_struct_list) (offset_val 4 (gv _three))
+        (offset_val 8 (gv _three));
+   mapsto Ews tuint (offset_val 8 (gv _three)) (Vint (Int.repr 2));
+   mapsto Ews (tptr t_struct_list) (offset_val 12 (gv _three))
+       (offset_val 16 (gv _three));
+   mapsto Ews tuint (offset_val 16 (gv _three)) (Vint (Int.repr 3));
+   mapsto Ews tuint (offset_val 20 (gv _three)) (Vint (Int.repr 0)))
+  |-- PROP() LOCAL(gvars gv)
         SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
-                  x nullval).
+                  (gv _three) nullval).
 Proof.
  intros.
   go_lower.
   rewrite !prop_true_andp by auto.
-  assert_PROP (size_compatible tuint x /\ align_compatible tuint x)
+  assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three))
    by (entailer!; clear - H0; hnf in H0; intuition).
   rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)) by intuition. 
   clear H0.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
-  assert (FC: field_compatible (tarray t_struct_list 3) [] x)
+  assert (FC: field_compatible (tarray t_struct_list 3) [] (gv _three))
     by auto with field_compatible.
   match goal with |- ?A |-- _ => set (a:=A) end.
-  replace x with (offset_val 0 x) by normalize.
+  replace (gv _three) with (offset_val 0 (gv _three)) by normalize.
   subst a.
   repeat
     match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
-    assert (FC': field_compatible t_struct_list [] (offset_val n x));
+    assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
       [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
-         [ArraySubsc (n/8)] x);
+         [ArraySubsc (n/8)] (gv _three));
        simpl;
        unfold field_compatible in FC |- *; simpl in FC |- *;
        assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; omega);
        tauto
       |];
     apply @lseg_unroll_nonempty1 with q;
-      [destruct x; try contradiction; intro Hx; inv Hx | normalize; reflexivity | ];
+      [destruct (gv _three); try contradiction; intro Hx; inv Hx | normalize; reflexivity | ];
     rewrite list_cell_eq by auto;
     do 2 (apply sepcon_derives;
       [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
@@ -279,7 +279,7 @@ start_function.
 change (Tstruct _ _) with t_struct_list.
 fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
-  eapply ENTAIL_trans; [ | apply (setup_globals Delta (gv _three)); auto ] | ].
+  eapply ENTAIL_trans; [ | apply (setup_globals Delta gv); auto ] | ].
  entailer!.
 *
 forward_call (*  r = reverse(three); *)

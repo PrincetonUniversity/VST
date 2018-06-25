@@ -41,7 +41,6 @@ start_function. fold cc_default noattr tint.
 make_func_ptr _myfunc.
 (* TODO: if the C program doesn't have an ampersand in this line, it fails, but probably should work. *)
 forward.
-drop_LOCALs [_myfunc].
 
 forward_call 3.
   computable.

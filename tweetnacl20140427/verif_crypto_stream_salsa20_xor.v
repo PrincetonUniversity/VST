@@ -514,13 +514,13 @@ Proof. induction n; simpl; intros.
 Qed.
 
 
-Definition i_8_16_inv F x z c b m nonce k SV zbytes: environ -> mpred := 
+Definition i_8_16_inv F x z c b m nonce k zbytes gv: environ -> mpred := 
 EX i:_,
   (PROP  ()
    LOCAL  (temp _u (Vint (fst (ZZ zbytes (Z.to_nat (i-8)))));
      lvar _x (Tarray tuchar 64 noattr) x;
      lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-     temp _b b; temp _n nonce; temp _k k; gvar _sigma SV)
+     temp _b b; temp _n nonce; temp _k k; gvars gv)
    SEP  (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes (Z.to_nat (i-8))))) z)).
 
 Definition for_loop_statement:=
@@ -547,7 +547,7 @@ Sfor (Sset _i (Econst_int (Int.repr 8) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma For_i_8_16_loop Espec F x z c m b nonce k SV zbytes:
+Lemma For_i_8_16_loop Espec F x z c m b nonce k zbytes gv:
 @semax CompSpecs Espec 
   (initialized_list [_u; _i]
      (func_tycontext f_crypto_stream_salsa20_tweet_xor SalsaVarSpecs SalsaFunSpecs nil))
@@ -555,19 +555,19 @@ Lemma For_i_8_16_loop Espec F x z c m b nonce k SV zbytes:
    LOCAL  (temp _u (Vint (Int.repr 1)); lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
    temp _b b; temp _n nonce;
-   temp _k k; gvar _sigma SV)
+   temp _k k; gvars gv)
    SEP  (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytes) z))
  for_loop_statement
  (normal_ret_assert 
   ( PROP ()
     LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
            lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-           temp _b b; temp _n nonce; temp _k k; gvar _sigma SV)
+           temp _b b; temp _n nonce; temp _k k; gvars gv)
     SEP (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes 8))) z))).
 Proof.
-forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k SV zbytes).
+forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
 { entailer!. }
-{ rename H into I. 
+{ rename H into I.
   remember (ZZ zbytes (Z.to_nat (i - 8))) as X. destruct X as [ui Zi]. 
   assert_PROP (Zlength (Bl2VL Zi) = 16) as L by entailer!.
   unfold Bl2VL in L; rewrite Zlength_map in L.
@@ -687,7 +687,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen 
+Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes gv cLen 
       q (M: null_or_offset mInit q m)
       (Q: 0 <= q <= (Zlength mbytes) - 64) (CL: 64 <= cLen):
 @semax CompSpecs Espec 
@@ -697,7 +697,7 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
    temp _b b; temp _n nonce;
-   temp _k k; gvar _sigma SV)
+   temp _k k; gvars gv)
    SEP  (F;
    data_at Tsh (tarray tuchar 64)
      (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -708,7 +708,7 @@ loop1_statement
   ( PROP  ()
     LOCAL  (temp _i (Vint (Int.repr 64)); lvar _x (Tarray tuchar 64 noattr) x;
        lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m; temp _b b;
-       temp _n nonce; temp _k k; gvar _sigma SV)
+       temp _n nonce; temp _k k; gvars gv)
     SEP  (F;
           data_at Tsh (tarray tuchar 64)
              (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -724,7 +724,7 @@ forward_for_simple_bound 64 (EX i:Z,
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
    temp _b b; temp _n nonce;
-   temp _k k; gvar _sigma SV)
+   temp _k k; gvars gv)
    SEP (F;
      data_at Tsh (tarray tuchar 64)
        (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -751,7 +751,7 @@ rename H into I.
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
       lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-      temp _b b; temp _n nonce; temp _k k; gvar _sigma SV;
+      temp _b b; temp _n nonce; temp _k k; gvars gv;
       temp _t'1 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
   { apply denote_tc_test_eq_split.
@@ -834,13 +834,13 @@ rename H into I.
 apply andp_left2. apply derives_refl.
 Qed.
 
-Definition loop2Inv F x z c mInit m b nonce k SV q xbytes mbytes cLen: environ -> mpred:=
+Definition loop2Inv F x z c mInit m b nonce k gv q xbytes mbytes cLen: environ -> mpred:=
 EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
    temp _b b; temp _n nonce;
-   temp _k k; gvar _sigma SV)
+   temp _k k; gvars gv)
    SEP (F;
      data_at Tsh (tarray tuchar 64)
        (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -876,7 +876,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)).
 
-Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
+Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes gv
       q (M: null_or_offset mInit q m) (Q: 0 <= q) (QB: q+Int64.unsigned b = Zlength mbytes) (*(CL: 64 > cLen) *) (*should be b <= cLen or so?*)
       (B: Int64.unsigned b < 64):
 @semax CompSpecs Espec
@@ -888,7 +888,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
    temp _b (Vlong b); temp _n nonce;
-   temp _k k; gvar _sigma SV)
+   temp _k k; gvars gv)
    SEP  (F; data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
          data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
@@ -900,7 +900,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
   ( PROP  ()
     LOCAL  ((*temp _i (Vlong b); *) lvar _x (Tarray tuchar 64 noattr) x;
        lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m; temp _b (Vlong b);
-       temp _n nonce; temp _k k; gvar _sigma SV)
+       temp _n nonce; temp _k k; gvars gv)
     SEP  (F;
           data_at Tsh (tarray tuchar 64)
              (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
@@ -913,7 +913,7 @@ destruct (Int64.unsigned_range_2 b) as [bLo bHi].
 eapply semax_post'.
 Focus 2.
 { eapply (semax_for_simple_bound_tulongHi_tuintLoop (Int64.unsigned b) 
-    (loop2Inv F x z c mInit m (Vlong b) nonce k SV q xbytes mbytes (Int64.unsigned b))).
+    (loop2Inv F x z c mInit m (Vlong b) nonce k gv q xbytes mbytes (Int64.unsigned b))).
   + reflexivity.
   + rewrite int_max_unsigned_eq; omega. 
   + reflexivity.
@@ -943,7 +943,7 @@ Focus 2.
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
       lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-      temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV;
+      temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv;
       temp _t'2 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
   { apply denote_tc_test_eq_split.
@@ -1035,7 +1035,7 @@ rewrite Zminus_diag, list_repeat_0, app_nil_r.
 entailer!.
 Qed.
 
-Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
+Definition Inv cInit mInit bInit k nonce x z Nonce K mcont zcont gv:=
 (EX rounds:nat, EX m:_, EX zbytesR:list byte, EX srbytes:list byte,
  let r64 := (Z.of_nat rounds * 64)%Z in
  let c := offset_val r64 cInit in
@@ -1044,24 +1044,24 @@ Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
           /\ CONTENT SIGMA K mInit mcont zcont rounds zbytesR srbytes)
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
            lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-           temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
+           temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
    SEP (data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytesR) z;
-     data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
+     data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector (gv _sigma);
      data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
      ThirtyTwoByte K k; 
      data_at Tsh (Tarray tuchar  (Z.of_nat rounds * 64) noattr) (Bl2VL srbytes) cInit;
      data_at_ Tsh (Tarray tuchar (Int64.unsigned bInit - Z.of_nat rounds * 64) noattr) c;
      message_at mcont mInit))).
 
-Definition IfPost z x b Nonce K mCont cLen nonce c k m SV zbytes :=
+Definition IfPost z x b Nonce K mCont cLen nonce c k m zbytes gv :=
   PROP ()
   LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
    lvar _z (Tarray tuchar 16 noattr) z;
 (*   temp _c c; temp _m m;*)
    (*temp _b (Vlong (Int64.sub bInit (Int64.repr r64)));*) temp _n nonce;
-   temp _k k; gvar _sigma SV)
+   temp _k k; gvars gv)
   SEP (data_at_ Tsh (Tarray tuchar 16 noattr) z;
-      data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
+      data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector (gv _sigma);
       SByte Nonce nonce; ThirtyTwoByte K k; message_at mCont m;
       (if Int64.eq b Int64.zero 
        then data_at_ Tsh (Tarray tuchar cLen noattr) c
@@ -1080,11 +1080,11 @@ assert_PROP (isptr v_z) by entailer!. rename H into isptrZ.
 forward_if
   (PROP  (b <> Int64.zero)
    LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;
-   temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
+   temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
    SEP  (data_at_ Tsh (tarray tuchar 16) v_z;
    data_at_ Tsh (tarray tuchar 64) v_x; SByte Nonce nonce;
    data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c; ThirtyTwoByte K k;
-   Sigma_vector SV; message_at mCont m
+   Sigma_vector (gv _sigma); message_at mCont m
    (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))).
 { unfold typed_true, strict_bool_val in H. simpl in H. 
   unfold eval_unop in H. simpl in H.
@@ -1106,7 +1106,7 @@ freeze [1;2;3;4;5;6] FR1.
 forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _x (tarray tuchar 64) v_x; lvar _z (tarray tuchar 16) v_z;
-   temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
+   temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
    SEP  (FRZL FR1; EX l:_, !!(Zlength l + i = 16) && data_at Tsh (tarray tuchar 16) 
           ((list_repeat (Z.to_nat i) (Vint Int.zero)) ++ l) v_z))).
 { Exists (list_repeat 16 Vundef). entailer!. }
@@ -1130,7 +1130,7 @@ forward_for_simple_bound 8 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) v_x;
    lvar _z (Tarray tuchar 16 noattr) v_z; temp _c c; temp _m m;
-   temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
+   temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
    SEP 
    (FRZL FR2; data_at Tsh (Tarray tuchar 16 noattr)
         (sublist 0 i (SixteenByte2ValList Nonce) ++
@@ -1193,7 +1193,7 @@ rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
   assert (Int64.max_unsigned = 18446744073709551615) by reflexivity. rename H into I64MAX.
   destruct (SixteenByte2ValList_bytes (N0, N1, ZeroQuadByte, ZeroQuadByte)) as [zbytes [Lzbytes ZBytes]].
   rewrite ZBytes.
-forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K SV mCont zbytes).
+forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K mCont zbytes gv).
 { (*precondition*)
   Exists O mInit. Exists zbytes (@nil byte).
   destruct (Int64.unsigned_range bInit). 
@@ -1220,7 +1220,7 @@ forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K SV mCont z
   { apply CONTCONT in CONT. rewrite <- CONT.
     eapply Zlength_ZCont. rewrite Zlength_correct, Lzbytes. reflexivity. }
 
-  forward_call (SV, k, v_z, v_x, (d, SIGMA, K)). 
+  forward_call (gv _sigma, k, v_z, v_x, (d, SIGMA, K)). 
   { unfold CoreInSEP, SByte, Sigma_vector, tarray. cancel.
     rewrite D; unfold Bl2VL. cancel. }
 Intros snuff. rename H into Snuff.
@@ -1263,7 +1263,7 @@ freeze [1;2;3;4;5;6;7;8] FR4.
 unfold SByte. 
 forward_seq. rewrite D.
   apply (For_i_8_16_loop Espec (FRZL FR4) v_x v_z c m 
-           (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k SV zbytesR).
+           (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k zbytesR gv).
 freeze [0;1] FR5.
 forward.
 forward.
@@ -1280,7 +1280,7 @@ forward_if (EX m:_,
         (Int64.sub (Int64.sub bInit (Int64.repr r64))
            (Int64.repr (Int.signed (Int.repr 64)))));
    lvar _x (Tarray tuchar 64 noattr) v_x; lvar _z (Tarray tuchar 16 noattr) v_z;
-   temp _m m; temp _n nonce; temp _k k; gvar _sigma SV)  SEP  (FRZL FR5))).
+   temp _m m; temp _n nonce; temp _k k; gvars gv)  SEP  (FRZL FR5))).
 {  clear H v. apply denote_tc_test_eq_split.
    destruct mInit; simpl in M; try contradiction.
    destruct M as [II M]; rewrite M in *.
@@ -1376,12 +1376,12 @@ remember (Z.of_nat rounds * 64)%Z as r64.
   { destruct (Int64.unsigned_range_2 bInit).
     unfold Int64.sub.
     repeat rewrite Int64.unsigned_repr; try omega. }
-forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) nonce cInit k mInit SV zbytes).
+forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) nonce cInit k mInit zbytes gv).
 { rename H into BR.
   destruct (SixteenByte2ValList_exists zbytesR) as [d D].
   { apply CONTCONT in CONT. rewrite <- CONT.
     eapply Zlength_ZCont. rewrite Zlength_correct, Lzbytes. reflexivity. }
-  forward_call (SV, k, v_z, v_x, (d, SIGMA, K)). 
+  forward_call (gv _sigma, k, v_z, v_x, (d, SIGMA, K)). 
   { unfold CoreInSEP, SByte, Sigma_vector, tarray.
     unfold Bl2VL; rewrite D. cancel. }
   Intros snuff. rename H into Snuff.

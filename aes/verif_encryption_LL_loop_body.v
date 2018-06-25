@@ -30,7 +30,7 @@ Definition encryption_loop_body_proof_statement :=
   (ctx input output : val)
   (ctx_sh in_sh out_sh : share)
   (plaintext exp_key : list Z)
-  (tables : val)
+  (gv : globals)
   (H : Zlength plaintext = 16)
   (H0 : Zlength exp_key = 60)
   (SH : readable_share ctx_sh)
@@ -67,7 +67,7 @@ semax (encryption_loop_body_Delta DS)
    temp _X0
      (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
    temp _output output;
-   gvar _tables tables)
+   gvars gv)
    SEP (data_at_ out_sh (tarray tuchar 16) output;
    data_at Ews t_struct_tables
      (map Vint FSb,
@@ -78,7 +78,7 @@ semax (encryption_loop_body_Delta DS)
      (map Vint RSb,
      (map Vint RT0,
      (map Vint RT1, (map Vint RT2, (map Vint RT3, map Vint RCON))))))))))
-     tables;
+     (gv _tables);
    data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
    data_at ctx_sh t_struct_aesctx
      (Vint (Int.repr Nr),
@@ -104,7 +104,7 @@ semax (encryption_loop_body_Delta DS)
       temp _X0
         (Vint
            (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (a - 1)) S0 buf 4)));
-      temp _output output; gvar _tables tables)
+      temp _output output; gvars gv)
       SEP (data_at_ out_sh (tarray tuchar 16) output;
       data_at Ews t_struct_tables
         (map Vint FSb,
@@ -115,7 +115,7 @@ semax (encryption_loop_body_Delta DS)
         (map Vint RSb,
         (map Vint RT0,
         (map Vint RT1, (map Vint RT2, (map Vint RT3, map Vint RCON))))))))))
-        tables;
+        (gv _tables);
       data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
         input;
       data_at ctx_sh t_struct_aesctx

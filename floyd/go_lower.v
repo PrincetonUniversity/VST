@@ -102,90 +102,34 @@ Qed.
 Lemma finish_compute_le:  Lt = Gt -> False.
 Proof. congruence. Qed.
 
-Lemma lower_one_gvar:
- forall t rho Delta P i v Q R S,
-  (glob_types Delta) ! i = Some t ->
-  (headptr v -> gvar_denote i v rho ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (gvar i v :: Q) (SEPx R))) rho |-- S.
-Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *. unfold_lift.
-normalize.
-rewrite prop_true_andp in H0 by auto.
-apply H0; auto.
-hnf in H2; destruct (Map.get (ve_of rho) i) as [[? ?] |  ]; try contradiction.
-destruct (Map.get (ge_of rho) i); try contradiction.
-subst.
-hnf; eauto.
-Qed.
-
-Lemma lower_one_sgvar:
- forall t rho Delta P i v Q R S,
-  (glob_types Delta) ! i = Some t ->
-  (headptr v -> sgvar_denote i v rho ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (sgvar i v :: Q) (SEPx R))) rho |-- S.
-Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *. unfold_lift.
-normalize.
-rewrite prop_true_andp in H0 by auto.
-apply H0; auto.
-hnf in H2.
-destruct (Map.get (ge_of rho) i); try contradiction.
-subst.
-hnf; eauto.
-Qed.
-
-Lemma lower_one_prop:
- forall  rho Delta P (P1: Prop) Q R S,
-  (P1 ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (localprop P1 :: Q) (SEPx R))) rho |-- S.
-Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *.
-normalize.
-rewrite prop_true_andp in H by auto.
-hnf in H1.
-apply H; auto.
-Qed.
-
 Lemma lower_one_gvars:
  forall  rho Delta P gv Q R S,
-  (gvars_denote gv rho ->
+  ((forall i t, (glob_types Delta) ! i = Some t -> headptr (gv i)) -> gvars_denote gv rho ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (gvars gv :: Q) (SEPx R))) rho |-- S.
 Proof.
-intros.
-rewrite <- insert_local.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-unfold local,lift1 in *.
-simpl in *.
-normalize.
-rewrite prop_true_andp in H by auto.
-hnf in H1.
-apply H; auto.
+  intros.
+  rewrite <- insert_local.
+  forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+  unfold local,lift1 in *.
+  simpl in *.
+  normalize.
+  rewrite prop_true_andp in H by auto.
+  hnf in H1.
+  apply H; auto.
+  subst; intros.
+  destruct_glob_types i.
+  rewrite Heqo0.
+  hnf; eauto.
 Qed.
 
 Lemma finish_lower:
-  forall rho D R S,
-  fold_right_sepcon R |-- S ->
+  forall rho (D: environ -> Prop) R S,
+  (D rho -> fold_right_sepcon R |-- S) ->
   (local D && PROP() LOCAL() (SEPx R)) rho |-- S.
 Proof.
 intros.
 simpl.
-apply andp_left2.
 unfold_for_go_lower; simpl. normalize.
 Qed.
 
@@ -258,11 +202,36 @@ intros.
 apply prop_right; auto.
 Qed.
 
+Ltac gvar_headptr_intro_case1 gv H i :=
+         match goal with
+         | _ := gv i |- _ => fail 1
+         | H: isptr (gv i), H': headptr (gv i) |- _ => fail 1
+         | _ => generalize (H i _ ltac:(first[reflexivity | eassumption])); fancy_intro true
+         end.
+
+Ltac gvar_headptr_intro_case2 gv H x i :=
+         match goal with
+         | H: isptr x, H': headptr x |- _ => fail 1
+         | _ => generalize ((H i _ ltac:(first[reflexivity | eassumption])): headptr x); fancy_intro true
+         end.
+
+Ltac gvar_headptr_intro gv H:=
+  repeat
+     match goal with
+     | x:= gv ?i |- _ =>
+         gvar_headptr_intro_case2 gv H x i
+     | |- context [gv ?i] =>
+         gvar_headptr_intro_case1 gv H i
+     | _: context [gv ?i] |- _ =>
+         gvar_headptr_intro_case1 gv H i
+     | x:= context [gv ?i] |- _ =>
+         gvar_headptr_intro_case1 gv H i
+     end.
+
 Ltac go_lower :=
 try match goal with |- ENTAIL (exit_tycon _ _ _), _ |-- _ =>
       simpl exit_tycon; simplify_Delta
   end;
-clear_Delta_specs;
 intros;
 match goal with
 (* | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
@@ -284,15 +253,16 @@ first [simple apply quick_finish_lower
      [try reflexivity; solve [eauto] | fancy_intro true; intros ?EVAL]
  | simple apply lower_one_lvar;
      fold_types1; fancy_intro true; intros ?LV
- | simple eapply lower_one_gvar;
-     [try reflexivity; solve [eauto]
-     | fold_types1; fancy_intro true; intros ?GV]
- | simple eapply lower_one_sgvar;
-     [try reflexivity; solve [eauto]
-     | fold_types1; fancy_intro true; intros ?SGV]
- | simple eapply lower_one_gvars; intro
+ | match goal with
+   | |- (_ && PROPx _ (LOCALx (gvars ?gv :: _) (SEPx _))) _ |-- _ =>
+     simple eapply lower_one_gvars;
+     let HH := fresh "HHH" in
+     intros HH ?GV;
+     gvar_headptr_intro gv HH;
+     clear HH
+   end
  ];
- (simple apply finish_lower ||
+ ((let TC := fresh "TC" in simple apply finish_lower; intros TC) ||
  match goal with
  | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
@@ -312,18 +282,19 @@ end;
 repeat match goal with
  | H: lvar_denote ?i ?t ?v rho |- context [lvar_denote ?i ?t' ?v' rho] =>
      rewrite (eq_True (lvar_denote i t' v' rho) H)
- | H: gvar_denote ?i ?v rho |- context [gvar_denote ?i ?v' rho] =>
-     rewrite (eq_True (gvar_denote i v' rho) H)
- | H: sgvar_denote ?i ?v rho |- context [sgvar_denote ?i ?v' rho] =>
-     rewrite (eq_True (sgvar_denote i v' rho) H)
+ | H: gvars_denote ?gv rho |- context [gvars_denote ?gv rho] =>
+     rewrite (eq_True (gvars_denote gv rho) H)
 end;
 repeat match goal with
  | H: lvar_denote ?i ?t ?v rho |- context [eval_var ?i ?t rho] =>
      rewrite (lvar_eval_var i t v rho H)
- | H: gvar_denote ?i ?v rho |- context [eval_var ?i ?t rho] =>
-     rewrite (gvar_eval_var i t v rho H)
+end;
+repeat match goal with
+ | H: gvars_denote ?gv rho |- context [eval_var ?i ?t rho] =>
+     erewrite (gvars_eval_var _ gv i rho t); [| eassumption | reflexivity | exact H]
 end
 ];
+clear_Delta_specs;
 clear_Delta;
 try clear dependent rho;
 simpl.
@@ -338,14 +309,6 @@ Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
        then remove_localdef x l0
        else y :: remove_localdef x l0
      | lvar i ti u, lvar j tj v =>
-       if Pos.eqb i j
-       then remove_localdef x l0
-       else y :: remove_localdef x l0
-     | gvar i u, gvar j v =>
-       if Pos.eqb i j
-       then remove_localdef x l0
-       else y :: remove_localdef x l0
-     | sgvar i u, sgvar j v =>
        if Pos.eqb i j
        then remove_localdef x l0
        else y :: remove_localdef x l0
@@ -366,14 +329,6 @@ Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
        if Pos.eqb i j
        then (ti = tj) :: (u = v) :: extractp_localdef x l0
        else extractp_localdef x l0
-     | gvar i u, gvar j v =>
-       if Pos.eqb i j
-       then (u= v) :: extractp_localdef x l0
-       else extractp_localdef x l0
-     | sgvar i u, sgvar j v =>
-       if Pos.eqb i j
-       then (u = v) :: extractp_localdef x l0
-       else extractp_localdef x l0
      | _, _ => extractp_localdef x l0
      end
   end.
@@ -386,9 +341,6 @@ Definition localdef_tc (Delta: tycontext) (x: localdef): list Prop :=
       | _ => nil
       end
   | lvar _ _ v =>
-      isptr v :: headptr v :: nil
-  | gvar i v
-  | sgvar i v =>
       isptr v :: headptr v :: nil
   | _ => nil
   end.
@@ -419,21 +371,6 @@ Proof.
     destruct (Map.get (ve_of rho) i); [| inversion H0].
     destruct p, H0; subst.
     hnf; eauto.
-  + simpl.
-    assert (headptr v); [| split; [| split]; auto; apply headptr_isptr; auto].
-    unfold gvar_denote in H0.
-    destruct (Map.get (ve_of rho) i) as [[? ?] |]; [inversion H0 |].
-    destruct (Map.get (ge_of rho) i); [| inversion H0].
-    subst.
-    hnf; eauto.
-  + simpl.
-    assert (headptr v); [| split; [| split]; auto; apply headptr_isptr; auto].
-    unfold sgvar_denote in H0.
-    destruct (Map.get (ge_of rho) i); [| inversion H0].
-    subst.
-    hnf; eauto.
-  + simpl.
-    auto.
   + simpl.
     auto.
 Qed.
@@ -608,8 +545,6 @@ Ltac unfold_localdef_name QQ Q :=
     match Qh with
     | temp ?n _ => unfold n in QQ
     | lvar ?n _ _ => unfold n in QQ
-    | gvar ?n _ => unfold n in QQ
-    | sgvar ?n _ => unfold n in QQ
     end;
     unfold_localdef_name QQ Qt
   end.

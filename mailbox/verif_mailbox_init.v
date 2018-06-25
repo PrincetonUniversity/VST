@@ -102,11 +102,11 @@ Proof.
   start_function.
   rewrite <- seq_assoc.
   forward_for_simple_bound B (EX i : Z, PROP ()
-    LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
-    SEP (data_at_ Ews (tarray (tptr tint) N) comm; data_at_ Ews (tarray (tptr tlock) N) lock;
-         data_at_ Ews (tarray (tptr tint) N) reading; data_at_ Ews (tarray (tptr tint) N) last_read;
+    LOCAL (gvars gv)
+    SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm); data_at_ Ews (tarray (tptr tlock) N) (gv _lock);
+         data_at_ Ews (tarray (tptr tint) N) (gv _reading); data_at_ Ews (tarray (tptr tint) N) (gv _last_read);
          EX bufs : list val, !!(Zlength bufs = i /\ Forall isptr bufs) &&
-           data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) buf *
+           data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) (gv _bufs) *
            fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) bufs) *
            fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
   { unfold B, N; computable. }
@@ -149,12 +149,12 @@ Proof.
       apply derives_refl. }
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
-    LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
+    LOCAL (gvars gv)
     SEP (EX locks : list val, EX comms : list val, EX g : list gname, EX g0 : list gname, EX g1 : list gname,
          EX g2 : list gname, !!(Zlength locks = i /\ Zlength comms = i /\ Forall isptr comms /\ Zlength g = i /\
            Zlength g0 = i /\ Zlength g1 = i /\ Zlength g2 = i) &&
-          (data_at Ews (tarray (tptr tlock) N) (locks ++ repeat Vundef (Z.to_nat (N - i))) lock *
-           data_at Ews (tarray (tptr tint) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) comm *
+          (data_at Ews (tarray (tptr tlock) N) (locks ++ repeat Vundef (Z.to_nat (N - i))) (gv _lock) *
+           data_at Ews (tarray (tptr tint) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) (gv _comm) *
            fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks) (Znth r comms)
              (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
              (Znth r shs) gsh2 empty_map) (upto (Z.to_nat i))) *
@@ -164,14 +164,14 @@ Proof.
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2) *
            fold_right sepcon emp (map (malloc_token Tsh tint) comms);
          EX reads : list val, !!(Zlength reads = i) &&
-           data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) reading *
+           data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) (gv _reading) *
            fold_right sepcon emp (map (data_at_ Tsh tint) reads) *
            fold_right sepcon emp (map (malloc_token Tsh tint) reads);
          EX lasts : list val, !!(Zlength lasts = i) &&
-           data_at Ews (tarray (tptr tint) N) (lasts ++ repeat Vundef (Z.to_nat (N - i))) last_read *
+           data_at Ews (tarray (tptr tint) N) (lasts ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_read) *
            fold_right sepcon emp (map (data_at_ Tsh tint) lasts) *
            fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
-         @data_at CompSpecs Ews (tarray (tptr tbuffer) B) bufs buf;
+         @data_at CompSpecs Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
          EX sh : share, !!(sepalg_list.list_join sh1 (sublist i N shs) sh) &&
            @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs);
          fold_right sepcon emp (map (@data_at CompSpecs Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));

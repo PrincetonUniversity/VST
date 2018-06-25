@@ -408,7 +408,7 @@ Ltac Forall_pTree_from_elements :=
    try autorewrite with entailer_rewrite in *;
    repeat first
    [ apply prop_Forall_cons1;
-     [unfold check_one_temp_spec, check_one_var_spec;
+     [unfold check_one_temp_spec, check_gvars_spec;
      simpl; auto;
      solve [normalize]
      | ]
@@ -417,8 +417,7 @@ Ltac Forall_pTree_from_elements :=
    | apply prop_Forall_nil'
    | apply prop_Forall_nil
    ];
- unfold check_one_temp_spec;
- simpl PTree.get.
+ unfold check_one_temp_spec; simpl PTree.get.
 
 Lemma exp_uncurry2:
   forall {T} {ND: NatDed T} A B C F,
@@ -632,7 +631,7 @@ cbv beta iota zeta; unfold_post; extensionality rho;
 *)
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H; 
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -645,7 +644,7 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_x_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -658,10 +657,9 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
-
 Ltac forward_call_id1_y_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -676,7 +674,7 @@ eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -687,7 +685,7 @@ eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -766,9 +764,6 @@ Ltac factor_out_v L :=
  match L with
  | temp _ ?v :: ?L' => factor_out_v' v L'
  | lvar _ _ ?v :: ?L' => factor_out_v' v L'
- | gvar _ ?v :: ?L' => factor_out_v' v L'
- | sgvar _ ?v :: ?L' => factor_out_v' v L'
- | localprop ?v ?L' => factor_out_v' v L'
  | _ => constr:(@nil val)
  end
  with factor_out_v' v L' := let x := fresh "v" in set (x:=v); 
@@ -911,8 +906,7 @@ Ltac prove_call_setup witness :=
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | try apply trivial_Forall_inclusion; try apply trivial_Forall_inclusion0
+ | unfold check_gvars_spec; solve [exact I | reflexivity]
  | try change_compspecs CS; cancel_for_forward_call
  |
  ]
@@ -928,7 +922,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -986,7 +980,7 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
     local (`(eq v) (eval_lvalue e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_lvalue_eq];
-    [apply andp_left2; apply derives_refl'; apply local2ptree_soundness; try assumption;
+    [apply andp_derives; [apply derives_refl |]; apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
      construct_local2ptree Q HH;
      exact HH |
@@ -1003,7 +997,7 @@ Ltac do_compute_expr Delta P Q R e v H :=
     local (`(eq v) (eval_expr e))) as H by
   (assumption || (
     eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply andp_left2; apply derives_refl'; apply local2ptree_soundness; try assumption;
+    [apply andp_derives; [apply derives_refl |]; apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
      construct_local2ptree Q HH;
      exact HH |
@@ -1134,9 +1128,8 @@ try rewrite insert_local.
 
 Ltac do_compute_expr_helper Delta Q v :=
    try assumption;
-   apply andp_left2;
    eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+    [apply andp_derives; [apply derives_refl | apply derives_refl']; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
      construct_local2ptree Q HH;
      exact HH |
@@ -2224,7 +2217,6 @@ Ltac normalize :=
   repeat
   (first [ simpl_tc_expr
          | simple apply semax_extract_PROP; fancy_intros true
-         | extract_prop_from_LOCAL
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
   | |- _  =>
@@ -2670,15 +2662,15 @@ Ltac solve_return_inner_gen :=
     end
  end.
 
-Inductive fn_data_at {cs: compspecs} (T2: PTree.t vardesc): ident * type -> mpred -> Prop :=
+Inductive fn_data_at {cs: compspecs} (Delta: tycontext) (T2: PTree.t (type * val)): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
     (complete_legal_cosu_type t && (sizeof t <? Int.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
-    msubst_eval_lvar T2 i t = Some p ->
-    fn_data_at T2 (i, t) (data_at_ Tsh t p).
+    msubst_eval_lvar Delta T2 i t = Some p ->
+    fn_data_at Delta T2 (i, t) (data_at_ Tsh t p).
 
-Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 G fn,
-  local2ptree Q = (T1, T2, nil, G) ->
-  Forall2 (fn_data_at T2) fn R ->
+Lemma canonicalize_stackframe: forall {cs: compspecs} Delta P Q R T1 T2 GV fn,
+  local2ptree Q = (T1, T2, nil, GV) ->
+  Forall2 (fn_data_at Delta T2) fn R ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- fold_right sepcon emp (map (var_block Tsh) fn).
 Proof.
   intros.
@@ -2689,7 +2681,7 @@ Proof.
     apply (local2ptree_soundness P Q (y :: l')) in H; simpl app in H.
     inv H0.
     rewrite !andb_true_iff in H2; destruct H2 as [[? ?] ?].
-    apply (msubst_eval_lvar_eq P T1 T2 G (data_at_ Tsh t p :: l')) in H3.
+    apply (msubst_eval_lvar_eq Delta P T1 T2 GV (data_at_ Tsh t p :: l')) in H3.
     rewrite <- H in H3; clear H.
     rewrite (add_andp _ _ H3); clear H3.
     go_lowerx.
@@ -2704,7 +2696,7 @@ Proof.
   intros.
   go_lowerx.
 Qed.
-  
+
 Ltac solve_Forall2_fn_data_at :=
   solve
     [ apply Forall2_nil
@@ -3061,55 +3053,17 @@ subst; clear.
 simpl; f_equal. extensionality rho; normalize.
 Qed.
 
-Lemma intro_LOCAL_gvar:
-  forall Delta gv i P Q R,
-  (var_types Delta) ! i = None ->
-  (glob_types Delta) ! i <> None ->
-  In (gvars gv) Q ->
-  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (locald_denote (gvar i (gv i))).
-Proof.
-intros.
-Transparent andp.
-go_lowerx.
-Opaque andp.
-normalize.
-apply prop_right.
-pose proof (local_ext (locald_denote (gvars gv)) (map locald_denote Q) rho).
-apply H5 in H4.
-+
-simpl in H4.
-hnf.
-destruct_var_types i eqn:?H&?H.
-rewrite H7.
-destruct_glob_types i eqn:?H&?H; [| congruence].
-rewrite H4, H8.
-auto.
-+
-apply in_map.
-auto.
-Qed.
-
-Ltac assert_gvar i :=
- match goal with gv: globals |- context [gvars ?gv'] => constr_eq gv gv';
-   assert_LOCAL (gvar i (gv i)); 
-  [apply intro_LOCAL_gvar; 
-    [ reflexivity + fail 99  "Local variable " i " is shadowing the global variable" i
-    | (let H := fresh in intro H; discriminate H) + fail 99 "No global variable " i " in Delta, i.e., in your extern declarations"
-    | solve [repeat ((left; reflexivity) + right) ]] + fail 99 "No LOCAL assertion (gvars " gv ")"
-  | ]
- end.
-
 Ltac make_func_ptr id :=
- match goal with |- semax _ (PROPx _ (LOCALx ?Q _)) _ _ =>
-   lazymatch Q with context [gvar id _] => idtac | _ => assert_gvar id end
- end;
- eapply (make_func_ptr id); [reflexivity | reflexivity | reflexivity | reflexivity | ].
+  eapply (make_func_ptr id);
+  [ (reflexivity || fail 99  "Local variable " id " is shadowing the global variable" id)
+  | (reflexivity || fail 99 "No specification of function " id " in Delta")
+  | (reflexivity || fail 99 "No global variable " id " in Delta, i.e., in your extern declarations")
+  | split; reflexivity | ].
 
 Ltac change_mapsto_gvar_to_data_at :=
 match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   match S with
   | context [mapsto ?sh ?t (offset_val 0 (gv ?i)) ?v] =>
-      lazymatch L with context [gvar _ (gv i)] => idtac |  _ => assert_gvar i end;
       assert_PROP (headptr (offset_val 0 (gv i)));
           [entailer!;  apply <- headptr_offset_zero; auto |];
       erewrite (mapsto_data_at'' _ _ _ _ (offset_val _ (gv i)));
@@ -3117,7 +3071,6 @@ match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
       match goal with H: _ |- _ => clear H end;
           rewrite <- ? data_at_offset_zero
   | context [mapsto ?sh ?t (gv ?i) ?v] =>
-      lazymatch L with context [gvar i (gv i)] => idtac |  _ => assert_gvar i end;
       assert_PROP (headptr (gv i));
           [entailer! |];
       erewrite (mapsto_data_at'' _ _ _ _ (gv i));
@@ -3222,7 +3175,6 @@ Fixpoint find_vars {A: Type} (f: ident -> A -> A) (e: expr) (x: A) : A :=
 Fixpoint find_lvars (locals: list localdef)  (m: PTree.t unit) : PTree.t unit :=
  match locals with
  | lvar i _ _ :: locals'=> find_lvars locals' (PTree.set i tt m)
- | gvar i _ :: locals'=> find_lvars locals' (PTree.set i tt m)
  | _ :: locals' => find_lvars locals' m
  | nil => m
  end.
@@ -3233,26 +3185,6 @@ Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t un
   match PTree.get i t with Some _ => ml | None =>  (PTree.set i tt t, i :: il) end
  end.
 Arguments another_gvar i !ml .
-
-Definition find_gvars (locals: list localdef) (c: statement) : list ident :=
- snd (find_expressions (find_vars another_gvar) c 
-                (find_lvars locals (PTree.empty _), nil)).
-
-Ltac assert_gvars' x := 
- match x with
- | ?i :: ?x' => assert_gvar i; assert_gvars' x'
- | nil => idtac
- end.
-
-Ltac assert_gvars := 
- match goal with |- semax _ (PROPx _ (LOCALx ?l _)) ?c _ =>
-   tryif match l with context [gvars _] => idtac end
-    then let x := constr:(find_gvars l c) in
-            let x := eval unfold find_gvars, find_lvars in x in
-            let x := eval simpl in x in 
-            assert_gvars' x
-   else idtac
- end.
 
 Ltac start_function_hint := idtac. (* "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ". *)
 
@@ -3331,7 +3263,6 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
- assert_gvars;
  clear_Delta_specs_if_leaf_function;
  start_function_hint.
 
