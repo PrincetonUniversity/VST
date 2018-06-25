@@ -122,7 +122,7 @@ Definition f_reverse := {|
                (_v, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _w (Econst_int (Int.repr 0) tint))
+  (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
   (Ssequence
     (Sset _v (Etempvar _p (tptr (Tstruct _list noattr))))
     (Ssequence
