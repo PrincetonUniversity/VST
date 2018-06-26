@@ -83,9 +83,7 @@ Proof.
   rewrite iter_sepcon_app_comm. rewrite <- app_comm_cons. simpl.
   apply sepcon_derives; auto. apply TT_right.
 Qed.
-Print incl.
-Locate incl.
-SearchAbout incl.
+
 Lemma iter_sepcon_incl_true: forall (p : B -> A) (l s: list B),
     NoDup s -> incl s l -> iter_sepcon l p |-- iter_sepcon s p * TT.
 Proof.
