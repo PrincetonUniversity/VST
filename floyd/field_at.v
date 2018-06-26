@@ -798,8 +798,7 @@ Lemma array_at_data_at: forall sh t gfs lo hi v p,
   array_at sh t gfs lo hi v p =
   (!! field_compatible0 t (ArraySubsc lo :: gfs) p) &&
   (!! field_compatible0 t (ArraySubsc hi :: gfs) p) &&
-  at_offset (data_at sh (nested_field_array_type t gfs lo hi)
-                (@fold_reptype _ (nested_field_array_type t gfs lo hi) v))
+  at_offset (data_at sh (nested_field_array_type t gfs lo hi) v)
                (nested_field_offset t (ArraySubsc lo :: gfs)) p.
 Proof.
   intros.
@@ -819,7 +818,6 @@ Proof.
   + intros [? ?].
     rewrite at_offset_eq, <- at_offset_eq2.
     rewrite at_offset_array_pred.
-    rewrite unfold_fold_reptype.
     rewrite Z.max_r by omega.
     eapply array_pred_shift; [reflexivity | omega |].
     intros.
@@ -847,8 +845,7 @@ forall sh t gfs lo hi v p,
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
   array_at sh t gfs lo hi v p =
-  data_at sh (nested_field_array_type t gfs lo hi)
-                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v)
+  data_at sh (nested_field_array_type t gfs lo hi) v
                (field_address0 t (ArraySubsc lo::gfs) p).
 Proof.
   intros.
@@ -865,8 +862,7 @@ forall sh t gfs lo hi v p,
   lo <= hi ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
   array_at sh t gfs lo hi v p =
-  data_at sh (nested_field_array_type t gfs lo hi)
-                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v)
+  data_at sh (nested_field_array_type t gfs lo hi) v
                (field_address0 t (ArraySubsc lo::gfs) p).
 Proof.
   intros.
@@ -890,7 +886,7 @@ Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
   array_at sh t gfs lo hi v p =
     array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p*
     data_at sh (nested_field_array_type t gfs ml mr)
-       (@fold_reptype _ (nested_field_array_type t gfs ml mr)  (sublist (ml-lo) (mr-lo) v))
+        (sublist (ml-lo) (mr-lo) v)
                (field_address0 t (ArraySubsc ml::gfs) p) *
     array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
 Proof.
@@ -1776,8 +1772,8 @@ Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
   data_at sh (Tarray t' n a) v p |--
   !! (field_compatible (Tarray t' n a) nil p
-     /\ Zlength (unfold_reptype v) = Z.max 0 n
-     /\ Forall (value_fits t') (unfold_reptype v)).
+     /\ Zlength v = Z.max 0 n
+     /\ Forall (value_fits t') v).
 Proof.
 intros.
 eapply derives_trans; [apply data_at_local_facts |].
@@ -1790,8 +1786,8 @@ Lemma data_array_at_local_facts' {cs: compspecs}:
   n >= 0 ->
   data_at sh (Tarray t' n a) v p |--
   !! (field_compatible (Tarray t' n a) nil p
-     /\ Zlength (unfold_reptype v) = n
-     /\ Forall (value_fits t') (unfold_reptype v)).
+     /\ Zlength v = n
+     /\ Forall (value_fits t') v).
 Proof.
 intros.
 eapply derives_trans; [apply data_array_at_local_facts |].
@@ -2577,8 +2573,7 @@ Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
    field_compatible0 t (gfs SUB lo) p ->
    field_compatible0 t (gfs SUB hi) p ->
   @array_at cs sh t gfs lo hi v p =
-  at_offset (@data_at cs sh (nested_field_array_type t gfs lo hi)
-                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v))
+  at_offset (@data_at cs sh (nested_field_array_type t gfs lo hi) v)
                (nested_field_offset t (ArraySubsc lo :: gfs)) p.
 Proof.
   intros. rewrite array_at_data_at by auto. unfold at_offset. apply pred_ext; normalize.
@@ -2695,25 +2690,24 @@ Hint Extern 1 (_ = _) =>
 Lemma data_at__Tarray:
   forall {CS: compspecs} sh t n a,
   data_at_ sh (Tarray t n a) = 
-  data_at sh (Tarray t n a) (@fold_reptype _ (Tarray t n a) (list_repeat (Z.to_nat n) (default_val t))).
+  data_at sh (Tarray t n a) (list_repeat (Z.to_nat n) (default_val t)).
 Proof.
 intros.
 unfold data_at_, field_at_, data_at.
 extensionality p.
 simpl.
 f_equal.
-apply (default_val_eq (Tarray t n a)).
 Qed.
 
 Lemma data_at__tarray:
   forall {CS: compspecs} sh t n,
   data_at_ sh (tarray t n) = 
-  data_at sh (tarray t n) (@fold_reptype _ (tarray t n) (list_repeat (Z.to_nat n) (default_val t))).
+  data_at sh (tarray t n) (list_repeat (Z.to_nat n) (default_val t)).
 Proof. intros; apply data_at__Tarray; auto. Qed.
 
 Lemma data_at__Tarray':
   forall {CS: compspecs} sh t n a v, 
-  JMeq v (list_repeat (Z.to_nat n) (default_val t)) ->
+  v = list_repeat (Z.to_nat n) (default_val t) ->
   data_at_ sh (Tarray t n a) = data_at sh (Tarray t n a) v.
 Proof.
 intros.
@@ -2721,18 +2715,13 @@ unfold data_at_, field_at_, data_at.
 extensionality p.
 simpl.
 f_equal.
-symmetry.
-apply JMeq_eq.
-eapply JMeq_trans; [eassumption | ].
-rewrite (default_val_eq (Tarray t n a)).
-simpl.
-apply JMeq_sym.
-apply (fold_reptype_JMeq (Tarray t n a)).
+subst.
+reflexivity.
 Qed.
 
 Lemma data_at__tarray':
   forall {CS: compspecs} sh t n v, 
-  JMeq v (list_repeat (Z.to_nat n) (default_val t)) ->
+  v = list_repeat (Z.to_nat n) (default_val t) ->
   data_at_ sh (tarray t n) = data_at sh (tarray t n) v.
 Proof. intros; apply data_at__Tarray'; auto. Qed.
 
@@ -2745,10 +2734,10 @@ Ltac unfold_data_at_ p :=
   revert d;
   match t with
    | Tarray ?t1 ?n _ => 
-          erewrite data_at__Tarray' by apply JMeq_refl;
+          erewrite data_at__Tarray' by apply eq_refl;
           try change (default_val t1) with Vundef
    | tarray ?t1 ?n => 
-          erewrite data_at__tarray' by apply JMeq_refl;
+          erewrite data_at__tarray' by apply eq_refl;
           try change (default_val t1) with Vundef
    | _ => change (data_at_ sh t p) with (data_at sh t (default_val t) p);
               try change (default_val t) with Vundef

@@ -301,12 +301,12 @@ Proof.
             (nested_field_array_type (Tarray t n noattr) nil 0 n1)
             (Tarray t n1 noattr) _ v1).
   2: unfold nested_field_array_type; simpl; rewrite Zminus_0_r; trivial.
-  2: rewrite H1, H0; apply @fold_reptype_JMeq.
+  2: rewrite H1, H0; auto.
   erewrite (data_at_type_changable sh
             (nested_field_array_type (Tarray t n noattr) nil n1 n)
             (Tarray t (n - n1) noattr) _  v2).
   2: unfold nested_field_array_type; simpl; trivial.
-  2: rewrite H2, <- H3, H0; apply @fold_reptype_JMeq.
+  2: rewrite H2, <- H3, H0; auto.
   rewrite !nested_field_offset_ind by (repeat split; auto; omega).
   rewrite !nested_field_type_ind.
   unfold gfield_offset.
@@ -471,16 +471,16 @@ Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)
 Proof. intros until 1. rename H into NA; intros.
   destruct (field_compatible0_dec (tarray t n) (ArraySubsc n2::nil) p).
   erewrite (split2_data_at_Tarray sh t n n1); try eassumption; try omega.
-  instantiate (1:= @fold_reptype cs (Tarray t (n - n1) noattr) (sublist n1 n v')).
+  instantiate (1:= sublist n1 n v').
   2: reflexivity.
   erewrite (split2_data_at_Tarray sh t (n-n1) (n2-n1)); try eassumption; try omega.
   2: instantiate (1:= sublist n1 n v'); autorewrite with sublist; omega.
   2: autorewrite with sublist; auto.
   2: autorewrite with sublist;
-     instantiate (1:= @fold_reptype cs (Tarray t (n2-n1) noattr) (sublist n1 n2 v'));
+     instantiate (1:= sublist n1 n2 v');
      auto.
   2: autorewrite with sublist;
-     instantiate (1:= @fold_reptype cs (Tarray t (n-n1-(n2-n1)) noattr) (sublist n2 n v'));
+     instantiate (1:= sublist n2 n v');
      auto.
   rewrite sepcon_assoc.
   f_equal. f_equal. f_equal. auto.
@@ -488,9 +488,8 @@ Proof. intros until 1. rename H into NA; intros.
      (field_address0 (Tarray t n noattr) (SUB n1) p))
    with (field_address0 (Tarray t n noattr) (SUB n2) p).
   apply equal_f.
-  apply data_at_type_changable.
-  f_equal. omega.
-  rewrite H4; eapply JMeq_trans; [apply @fold_reptype_JMeq |]; apply JMeq_sym; auto.
+  replace (n - n1 - (n2 - n1)) with (n - n2) by omega.
+  subst v3; reflexivity.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite (field_address0_offset (Tarray t n noattr) ) by auto with field_compatible.
   rewrite field_address0_offset.
