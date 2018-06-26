@@ -456,7 +456,7 @@ Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
     (eapply field_compatible0_Tarray_offset; [eassumption | omega | omega]) : field_compatible.
 *)
 
-Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)) v1 v2 v3 p:
+Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v' v1 v2 v3: list (reptype t)) p:
    naturally_aligned t ->
    0 <= n1 <= n2 ->
    n2 <= n <= Zlength v' ->
@@ -514,7 +514,7 @@ Proof. intros until 1. rename H into NA; intros.
   normalize. destruct H6 as [H6 _]; contradiction H6.
 Qed.
 
-Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 v p:
+Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
    Zlength v = n ->
    data_at sh (Tarray tuchar n noattr) v p =
@@ -527,7 +527,7 @@ Proof. intros.
  rewrite sublist_same; try omega; auto.
 Qed.
 
-Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 v p:
+Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
    0 <= n1 <= n2 ->
    n2 <= n ->
    Zlength v = n ->
@@ -654,7 +654,7 @@ Qed.
 
 Opaque sizeof.
  
-Lemma data_at_singleton_array_eq {cs} sh t v vl p:
+Lemma data_at_singleton_array_eq {cs} sh t v (vl: list (reptype t)) p:
   vl = [v] ->
   @data_at cs sh (tarray t 1) vl p = @data_at cs sh t v p.  
 Proof. 
@@ -668,11 +668,11 @@ Lemma data_at_tuchar_singleton_array {cs} sh v p:
   @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
 Proof. apply data_at_singleton_array. reflexivity. Qed.
 
-Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
+Lemma data_at_tuchar_singleton_array_inv {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
 Proof. apply data_at_singleton_array_inv. reflexivity. Qed.
 
-Lemma data_at_tuchar_singleton_array_eq {cs} sh v p:
+Lemma data_at_tuchar_singleton_array_eq {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
 Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
 
@@ -766,3 +766,25 @@ unfold default_val. simpl. autorewrite with sublist. reflexivity.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
 unfold default_val. simpl. autorewrite with sublist. reflexivity.
 Qed. 
+
+Lemma split2_data_at_Tarray_app:
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type)
+                           (v1 v2: list (reptype t)) p,
+    Zlength v1 = mid ->
+    Zlength v2 = n-mid ->
+    data_at sh (tarray t n) (v1 ++ v2) p =
+    data_at sh (tarray t mid) v1  p *
+    data_at sh (tarray t (n-mid)) v2
+            (field_address0 (tarray t n) [ArraySubsc mid] p).
+Proof.
+intros.
+pose proof (Zlength_nonneg v1).
+pose proof (Zlength_nonneg v2).
+apply split2_data_at_Tarray with (v1++v2); auto.
+omega.
+list_solve.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+Qed.
+

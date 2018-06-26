@@ -408,7 +408,6 @@ eapply semax_pre_post';
  unfold nested_field_array_type.
  rewrite nested_field_type_ind. rewrite H1. simpl.
  unfold tarray; f_equal; clear; omega.
- eapply JMeq_trans; [apply fold_reptype_JMeq |].
    rewrite <- sublist_map.
    apply JMeq_sublist; auto.
  rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
@@ -474,7 +473,6 @@ repeat apply sepcon_derives.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; omega.
-   eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
   admit. (* tedious *)
 +
  apply array_at_ext_derives.
@@ -495,7 +493,6 @@ repeat apply sepcon_derives.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H1.
    unfold tarray; f_equal. clear; omega.
-   eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
    apply JMeq_sublist.
    rewrite nested_field_type_ind, H1. reflexivity.
    apply @JMeq_sym; auto.
@@ -694,7 +691,6 @@ cancel.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; omega.
-   eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
    apply (JMeq_sublist _ _ lop (lop + len) _ _ (eq_sym H99)) in H8.
    eapply JMeq_trans, H8.
    apply eq_JMeq.
