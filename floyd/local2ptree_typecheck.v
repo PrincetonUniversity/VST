@@ -16,44 +16,48 @@ Definition msubst_simpl_tc_assert (T1: PTree.t val): tc_assert -> tc_assert :=
   | _ => tc
   end.
 
-Fixpoint msubst_denote_tc_assert {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (tc: tc_assert): mpred :=
+Section MSUBST_DENOTE_TC_ASSERT.
+
+Context {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals).
+
+Fixpoint msubst_denote_tc_assert (tc: tc_assert): mpred :=
   match tc with
   | tc_FF msg => !! (typecheck_error msg)
   | tc_TT => TT
-  | tc_andp' b c => (msubst_denote_tc_assert T1 T2 b) && (msubst_denote_tc_assert T1 T2 c)
-  | tc_orp' b c => (msubst_denote_tc_assert T1 T2 b) || (msubst_denote_tc_assert T1 T2 c)
-  | tc_nonzero' e => denote_tc_nonzero (force_val (msubst_eval_expr T1 T2 e))
-  | tc_isptr e => denote_tc_isptr (force_val (msubst_eval_expr T1 T2 e))
-  | tc_test_eq' e1 e2 => denote_tc_test_eq (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
-  | tc_test_order' e1 e2 => denote_tc_test_order (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
-  | tc_ilt' e i => denote_tc_igt i (force_val (msubst_eval_expr T1 T2 e))
-  | tc_llt' e i => denote_tc_lgt i (force_val (msubst_eval_expr T1 T2 e))
-  | tc_Zle e z => denote_tc_Zge z (force_val (msubst_eval_expr T1 T2 e))
-  | tc_Zge e z => denote_tc_Zle z (force_val (msubst_eval_expr T1 T2 e))
-  | tc_samebase e1 e2 => denote_tc_samebase (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
-  | tc_nodivover' v1 v2 => denote_tc_nodivover (force_val (msubst_eval_expr T1 T2 v1)) (force_val (msubst_eval_expr T1 T2 v2))
+  | tc_andp' b c => (msubst_denote_tc_assert b) && (msubst_denote_tc_assert c)
+  | tc_orp' b c => (msubst_denote_tc_assert b) || (msubst_denote_tc_assert c)
+  | tc_nonzero' e => denote_tc_nonzero (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_isptr e => denote_tc_isptr (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_test_eq' e1 e2 => denote_tc_test_eq (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+  | tc_test_order' e1 e2 => denote_tc_test_order (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+  | tc_ilt' e i => denote_tc_igt i (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_llt' e i => denote_tc_lgt i (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_Zle e z => denote_tc_Zge z (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_Zge e z => denote_tc_Zle z (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_samebase e1 e2 => denote_tc_samebase (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
+  | tc_nodivover' v1 v2 => denote_tc_nodivover (force_val (msubst_eval_expr Delta T1 T2 GV v1)) (force_val (msubst_eval_expr Delta T1 T2 GV v2))
   | tc_initialized id ty => FF
-  | tc_iszero' e => denote_tc_iszero (force_val (msubst_eval_expr T1 T2 e))
-  | tc_nosignedover op e1 e2 => denote_tc_nosignedover op (force_val (msubst_eval_expr T1 T2 e1)) (force_val (msubst_eval_expr T1 T2 e2))
+  | tc_iszero' e => denote_tc_iszero (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_nosignedover op e1 e2 => denote_tc_nosignedover op (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
   end.
 
-Definition msubst_tc_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) :=
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_lvalue Delta e)).
+Definition msubst_tc_lvalue (e: expr) :=
+  msubst_denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_lvalue Delta e)).
 
-Definition msubst_tc_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) :=
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)).
+Definition msubst_tc_expr (e: expr) :=
+  msubst_denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)).
 
-Definition msubst_tc_LR {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) (lr: LLRR) :=
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_LR Delta e lr)).
+Definition msubst_tc_LR (e: expr) (lr: LLRR) :=
+  msubst_denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_LR Delta e lr)).
 
-Definition msubst_tc_efield {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (efs: list efield) := 
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_efield Delta efs)).
+Definition msubst_tc_efield (efs: list efield) := 
+  msubst_denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_efield Delta efs)).
 
-Definition msubst_tc_exprlist {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (ts: list type) (es: list expr) :=
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_exprlist Delta ts es)).
+Definition msubst_tc_exprlist (ts: list type) (es: list expr) :=
+  msubst_denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_exprlist Delta ts es)).
 
-Definition msubst_tc_expropt {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: option expr) (t: type) :=
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1
+Definition msubst_tc_expropt (e: option expr) (t: type) :=
+  msubst_denote_tc_assert (msubst_simpl_tc_assert T1
     (match e with
      | None => tc_bool (eqb_type t Tvoid) wrong_signature
      | Some e' => typecheck_expr Delta (Ecast e' t)
@@ -61,8 +65,8 @@ Definition msubst_tc_expropt {cs: compspecs} (Delta: tycontext) (T1: PTree.t val
 
 (* Soundness proof *)
 
-Lemma msubst_denote_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && `(msubst_denote_tc_assert T1 T2 tc) |--
+Lemma msubst_denote_tc_assert_sound: forall P R tc,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && `(msubst_denote_tc_assert tc) |--
     denote_tc_assert tc.
 Proof.
   intros.
@@ -70,16 +74,16 @@ Proof.
   + apply andp_left2; apply derives_refl.
   + apply andp_left2; apply derives_refl.
   + change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
-    change (`(msubst_denote_tc_assert T1 T2 (tc_andp' tc1 tc2)))
-      with (`(msubst_denote_tc_assert T1 T2 tc1) && `(msubst_denote_tc_assert T1 T2 tc2)).
+    change (`(msubst_denote_tc_assert (tc_andp' tc1 tc2)))
+      with (`(msubst_denote_tc_assert tc1) && `(msubst_denote_tc_assert tc2)).
     apply andp_right.
     - eapply derives_trans; [| apply IHtc1].
       solve_andp.
     - eapply derives_trans; [| apply IHtc2].
       solve_andp.
   + change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
-    change (`(msubst_denote_tc_assert T1 T2 (tc_orp' tc1 tc2)))
-      with (`(msubst_denote_tc_assert T1 T2 tc1) || `(msubst_denote_tc_assert T1 T2 tc2)).
+    change (`(msubst_denote_tc_assert (tc_orp' tc1 tc2)))
+      with (`(msubst_denote_tc_assert tc1) || `(msubst_denote_tc_assert tc2)).
     rewrite (andp_comm (_ && _)).
     apply imp_andp_adjoint.
     apply orp_left; apply imp_andp_adjoint; rewrite <- (andp_comm (_ && _)).
@@ -87,8 +91,8 @@ Proof.
     - eapply derives_trans; [exact IHtc2 | apply orp_right2; auto].
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -102,8 +106,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -117,8 +121,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -132,8 +136,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H, (msubst_eval_expr Delta T1 T2 GV e0) eqn:?H.
+    - eapply derives_trans; [apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
       rewrite <- imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -156,8 +160,8 @@ Proof.
       simpl; normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H, (msubst_eval_expr Delta T1 T2 GV e0) eqn:?H.
+    - eapply derives_trans; [apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
       rewrite <- imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -180,8 +184,8 @@ Proof.
       simpl; normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -195,8 +199,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -210,8 +214,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -225,8 +229,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -240,8 +244,8 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H, (msubst_eval_expr Delta T1 T2 GV e0) eqn:?H.
+    - eapply derives_trans; [apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
       rewrite <- imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -264,8 +268,8 @@ Proof.
       simpl; normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H, (msubst_eval_expr Delta T1 T2 GV e0) eqn:?H.
+    - eapply derives_trans; [apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
       rewrite <- imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -292,8 +296,8 @@ Proof.
     simpl; normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
-    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
-    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H, (msubst_eval_expr Delta T1 T2 GV e0) eqn:?H.
+    - eapply derives_trans; [apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
       rewrite <- imp_andp_adjoint.
       unfold local, lift1; unfold_lift.
       intros rho.
@@ -315,6 +319,8 @@ Proof.
       intros rho.
       simpl; normalize.
 Qed.
+
+End MSUBST_DENOTE_TC_ASSERT.
 
 Definition legal_tc_init (Delta: tycontext): tc_assert -> Prop :=
   fix legal_tc_init (tc: tc_assert): Prop :=
@@ -551,8 +557,8 @@ Proof.
     solve_legal_tc_init.
 Qed.
 
-Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_lvalue Delta T1 T2 e) |--
+Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 GV R e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && ` (msubst_tc_lvalue Delta T1 T2 GV e) |--
     tc_lvalue Delta e.
 Proof.
   intros.
@@ -561,8 +567,8 @@ Proof.
   apply msubst_denote_tc_assert_sound.
 Qed.
 
-Lemma msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_expr Delta T1 T2 e) |--
+Lemma msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 GV R e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && ` (msubst_tc_expr Delta T1 T2 GV e) |--
     tc_expr Delta e.
 Proof.
   intros.
@@ -571,8 +577,8 @@ Proof.
   apply msubst_denote_tc_assert_sound.
 Qed.
 
-Lemma msubst_tc_LR_sound: forall {cs: compspecs} Delta P T1 T2 Q R e lr,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_LR Delta T1 T2 e lr) |--
+Lemma msubst_tc_LR_sound: forall {cs: compspecs} Delta P T1 T2 GV R e lr,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && ` (msubst_tc_LR Delta T1 T2 GV e lr) |--
     tc_LR Delta e lr.
 Proof.
   intros.
@@ -581,8 +587,8 @@ Proof.
   apply msubst_denote_tc_assert_sound.
 Qed.
 
-Lemma msubst_tc_efield_sound: forall {cs: compspecs} Delta P T1 T2 Q R efs,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_efield Delta T1 T2 efs) |--
+Lemma msubst_tc_efield_sound: forall {cs: compspecs} Delta P T1 T2 GV R efs,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && ` (msubst_tc_efield Delta T1 T2 GV efs) |--
     tc_efield Delta efs.
 Proof.
   intros.
@@ -591,8 +597,8 @@ Proof.
   apply msubst_denote_tc_assert_sound.
 Qed.
 
-Lemma msubst_tc_exprlist_sound: forall {cs: compspecs} Delta P T1 T2 Q R ts es,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_exprlist Delta T1 T2 ts es) |--
+Lemma msubst_tc_exprlist_sound: forall {cs: compspecs} Delta P T1 T2 GV R ts es,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && ` (msubst_tc_exprlist Delta T1 T2 GV ts es) |--
     tc_exprlist Delta ts es.
 Proof.
   intros.
@@ -601,8 +607,8 @@ Proof.
   apply msubst_denote_tc_assert_sound.
 Qed.
 
-Lemma msubst_tc_expropt_sound: forall {cs: compspecs} Delta P T1 T2 Q R t e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) && ` (msubst_tc_expropt Delta T1 T2 e t) |--
+Lemma msubst_tc_expropt_sound: forall {cs: compspecs} Delta P T1 T2 GV R t e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 GV) (SEPx R)) && ` (msubst_tc_expropt Delta T1 T2 GV e t) |--
     tc_expropt Delta e t.
 Proof.
   intros.
