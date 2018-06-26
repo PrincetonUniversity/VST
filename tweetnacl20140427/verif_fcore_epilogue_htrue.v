@@ -481,7 +481,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)).
 
-Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h OUT xs (*ys Nonce C K*):
+Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs (*ys Nonce C K*):
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()
@@ -747,7 +747,7 @@ Definition epilogue_htrue_statement:=
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                  tint)))).
 
-Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs ys data:
+Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs ys data:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
   (PROP  ()

@@ -145,6 +145,8 @@ Proof.
   simpl.
   extensionality Vundef.
   f_equal. f_equal.
+  change (unfold_reptype v0) with v0.
+  change (unfold_reptype v1) with v1.
   rewrite H. auto.
 *
   assert_PROP (Zlength (unfold_reptype v0) = n). {
