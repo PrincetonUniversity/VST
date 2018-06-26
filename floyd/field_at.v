@@ -1769,7 +1769,7 @@ Hint Extern 2 (field_compatible _ nil _) =>
   [assumption | reflexivity | reflexivity]).
 
 Lemma data_array_at_local_facts {cs: compspecs}:
- forall t' n a sh v p,
+ forall t' n a sh (v: list (reptype t')) p,
   data_at sh (Tarray t' n a) v p |--
   !! (field_compatible (Tarray t' n a) nil p
      /\ Zlength v = Z.max 0 n
@@ -1782,7 +1782,7 @@ intros [? ?]; split; auto.
 Qed.
 
 Lemma data_array_at_local_facts' {cs: compspecs}:
- forall t' n a sh v p,
+ forall t' n a sh (v: list (reptype t')) p,
   n >= 0 ->
   data_at sh (Tarray t' n a) v p |--
   !! (field_compatible (Tarray t' n a) nil p

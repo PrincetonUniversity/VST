@@ -264,7 +264,7 @@ Hint Extern 2 (field_compatible0 _ _ (offset_val _ _)) =>
   (apply field_compatible0_nested_field_array; auto with field_compatible).
 
 Lemma split2_data_at_Tarray_unfold {cs: compspecs}
-     sh t n n1 v (v': list (reptype t)) v1 v2 p:
+     sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
   v = v' ->
   v1 = (sublist 0 n1 v') ->
@@ -315,7 +315,7 @@ Proof.
   normalize.
 Qed.
 
-Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
+Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
    n <= Zlength v' ->
    v = (sublist 0 n v') ->
@@ -374,7 +374,7 @@ Proof.
   rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; omega.
 Qed.
 
-Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
+Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
    n <= Zlength v' ->
    v = (sublist 0 n v') ->
@@ -664,7 +664,7 @@ Proof.
   apply data_at_singleton_array; auto.
 Qed.
 
-Lemma data_at_tuchar_singleton_array {cs} sh v p:
+Lemma data_at_tuchar_singleton_array {cs} sh (v: val) p:
   @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
 Proof. apply data_at_singleton_array. reflexivity. Qed.
 
@@ -676,7 +676,7 @@ Lemma data_at_tuchar_singleton_array_eq {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
 Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
 
-Lemma data_at_zero_array {cs} sh t v p:
+Lemma data_at_zero_array {cs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   isptr p ->
   v = (@nil (reptype t)) ->
@@ -693,7 +693,7 @@ Proof. intros.
   split; auto. omega.
 Qed.
 
-Lemma data_at_zero_array_inv {cs} sh t v p:
+Lemma data_at_zero_array_inv {cs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   v = (@nil (reptype t)) ->
   @data_at cs sh (tarray t 0) v p |-- emp.  
@@ -704,7 +704,7 @@ Proof. intros.
   rewrite array_at_len_0. normalize. 
 Qed.
 
-Lemma data_at_zero_array_eq {cs} sh t v p:
+Lemma data_at_zero_array_eq {cs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   isptr p ->
   v = (@nil (reptype t)) ->
