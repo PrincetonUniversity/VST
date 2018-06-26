@@ -18,10 +18,9 @@ Local Open Scope logic.
 
 Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
 !! field_compatible (tarray t n) nil p &&
-(ALL cl:reptype (tarray t (hi-lo)), EX cl':list (reptype t), EX dl:reptype (tarray t n), 
-!! (JMeq cl cl' /\ JMeq dl (sublist 0 lo al' ++ cl' ++ sublist hi n al'))
-&& (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
--* data_at sh (tarray t n) dl p)).
+(ALL cl:reptype (tarray t (hi-lo)),
+(data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
+-* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p)).
 
 Lemma array_with_hole_local_facts {cs: compspecs}: forall sh t lo hi n al' p,
 array_with_hole sh t lo hi n al' p |-- 
@@ -33,19 +32,16 @@ Qed.
 Hint Resolve array_with_hole_local_facts : saturate_local.
 
 Lemma wand_slice_array:
-forall {cs: compspecs} lo hi n sh t (al: reptype (tarray t n)) (bl: reptype (tarray t (hi-lo)))
-(al' : list (reptype t)) p,
+forall {cs: compspecs} lo hi n sh t (al bl: list (reptype t)) p,
 0 <= lo <= hi ->
 hi <= n ->
-JMeq al al' ->
-JMeq bl (sublist lo hi al') ->
-Zlength al' = n ->
+Zlength al = n ->
 data_at sh (tarray t n) al p =
-data_at sh (tarray t (hi-lo)) bl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
-array_with_hole sh t lo hi n al' p.
+data_at sh (tarray t (hi-lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
+array_with_hole sh t lo hi n al p.
 Proof.
   intros until p.
-  intros H H0 H2 H3 H1.
+  intros H H0 H1.
   unfold data_at, array_with_hole.
   assert (forall n, reptype (tarray t n) = list (reptype t)).
   {
@@ -56,49 +52,43 @@ Proof.
   apply pred_ext.
   + rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
     normalize.
-    rename H5 into H7, H6 into H8.
+    rename H3 into H7, H4 into H8.
     erewrite field_at_Tarray.
       2: constructor.
       2: reflexivity.
       2: omega.
-      2: eassumption.
+      2: apply JMeq_refl.
     erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
-      2:change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+      2:etransitivity; [exact H1 | omega].
     unfold data_at.
     rewrite (sepcon_comm (array_at _ _ _ _ _ _ _)), sepcon_assoc.
     apply sepcon_derives.
     - apply derives_refl'.
       f_equal.
       rewrite !Z.sub_0_r.
-      pose proof fold_reptype_JMeq (tarray t (hi - lo)) (sublist lo hi al').
-      pose proof JMeq_trans H3 (JMeq_sym H5).
-      apply JMeq_eq in H6; auto.
-    - apply allp_right; intros.
-      apply (exp_right (unfold_reptype v)).
-      apply (exp_right (eq_rect _ (fun x => x) (sublist 0 lo al' ++
-             (unfold_reptype v) ++
-             sublist hi n al') _ (eq_sym (H4 _)))).
-      apply andp_right; [apply prop_right; split |].
-      * clear.
-        apply JMeq_sym.
-        apply (unfold_reptype_JMeq (tarray t (hi - lo)) v).
-      * clear.
-        apply (eq_rect_JMeq _ _ _ (fun x => x) _ _).
+      auto.
+    - apply allp_right; intros v. change (list (reptype t)) in v.
       * apply -> wand_sepcon_adjoint.
         rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)).
         normalize.
-        rewrite value_fits_eq in H6; simpl in H6.
-        destruct H6.
-        rewrite Z.max_r in H6 by omega.
+        rewrite value_fits_eq in H4; simpl in H4.
+        destruct H4.
+        rewrite Z.max_r in H4 by omega.
+        change (@Zlength (reptype t) v = hi - lo) in H4.
         erewrite (field_at_Tarray _ (tarray t n)).
           2: constructor.
           2: reflexivity.
           2: omega.
-          2: apply (eq_rect_JMeq _ _ _ (fun x => x) _ _).
+          2: apply JMeq_refl.
         erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
-          2: autorewrite with sublist; unfold tarray; rewrite H6; omega.
+        Focus 2. {
+          autorewrite with sublist.
+          replace n with (lo + (@Zlength (reptype t) v + (n - hi))) at 2 by omega.
+          reflexivity.
+        } Unfocus.
+        change (@reptype cs (@nested_field_type cs (tarray t n) (SUB 0))) with (reptype t).
         unfold tarray; autorewrite with sublist.
-        rewrite H6.
+        rewrite H4.
         replace (hi - lo - (hi - lo) + hi) with hi by omega.
         replace (n - lo - (hi - lo) + hi) with n by omega.
         rewrite !sepcon_assoc.
@@ -109,7 +99,6 @@ Proof.
         apply derives_refl'.
         f_equal.
         autorewrite with sublist.
-        rewrite fold_unfold_reptype.
         auto.
   + normalize.
     clear H5.
