@@ -54,10 +54,10 @@ Section IterSepCon.
   Context {ClS: ClassicalSep A}.
   Context {CoSL: CorableSepLog A}.
 
-Fixpoint iter_sepcon (l : list B) (p : B -> A) : A :=
+Fixpoint iter_sepcon (l : list B) : (B -> A) -> A :=
   match l with
-    | nil => emp
-    | x :: xl => p x * iter_sepcon xl p
+    | nil => fun _ => emp
+    | x :: xl => fun p => p x * iter_sepcon xl p
   end.
 
 Lemma iter_sepcon_app:
@@ -179,6 +179,150 @@ Lemma iter_sepcon_map: forall {A B C: Type} {ND : NatDed A} {SL : SepLog A} (l :
 Proof. intros. induction l; simpl; [|f_equal]; auto. Qed.
 
 Global Existing Instance iter_sepcon_permutation_proper.
+
+Section IterSepCon'.
+
+  Context {A : Type}.
+  Context {B : Type}.
+  Context {ND : NatDed A}.
+  Context {SL : SepLog A}.
+  Context {ClS: ClassicalSep A}.
+  Context {CoSL: CorableSepLog A}.
+  Context (p : B -> A).
+
+Fixpoint iter_sepcon' (l : list B) : A :=
+  match l with
+    | nil => emp
+    | x :: xl => p x * iter_sepcon' xl
+  end.
+
+Lemma iter_sepcon'_spec: forall l,
+  iter_sepcon' l = iter_sepcon l p.
+Proof.
+  induction l; auto.
+  simpl.
+  rewrite IHl; auto.
+Qed.
+
+End IterSepCon'.
+
+Section IterSepCon2.
+
+  Context {A : Type}.
+  Context {B1 B2 : Type}.
+  Context {ND : NatDed A}.
+  Context {SL : SepLog A}.
+  Context {ClS: ClassicalSep A}.
+  Context {CoSL: CorableSepLog A}.
+
+Fixpoint iter_sepcon2 (l1 : list B1) : list B2 -> (B1 -> B2 -> A) -> A :=
+  match l1 with
+  | nil => fun l2 _ =>
+    match l2 with
+    | nil => emp
+    | _ => FF
+    end
+  | x :: xl => fun l2 p =>
+    match l2 with
+    | nil => FF
+    | y :: yl => p x y * iter_sepcon2 xl yl p
+    end
+  end.
+
+Definition uncurry {A B C} (f: A -> B -> C) (xy: A*B) : C :=
+  f (fst xy) (snd xy).
+
+Lemma iter_sepcon2_spec: forall l1 l2 p,
+  iter_sepcon2 l1 l2 p = EX l: list (B1 * B2), !! (l1 = map fst l /\ l2 = map snd l) && iter_sepcon l (uncurry p).
+Proof.
+  intros.
+  apply pred_ext.
+  + revert l2; induction l1; intros; destruct l2.
+    - apply (exp_right nil); simpl.
+      apply andp_right; auto.
+      apply prop_right; auto.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      specialize (IHl1 l2).
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl1] | clear IHl1].
+      normalize.
+      destruct H.
+      apply (exp_right ((a, b) :: l)).
+      simpl.
+      apply andp_right; [apply prop_right; subst; auto |].
+      apply derives_refl.
+  + apply exp_left; intros l.
+    normalize.
+    destruct H; subst.
+    induction l.
+    - simpl. auto.
+    - simpl.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl] | clear IHl].
+      apply derives_refl.
+Qed.
+
+End IterSepCon2.
+
+Section IterSepCon2'.
+
+  Context {A : Type}.
+  Context {B1 B2 : Type}.
+  Context {ND : NatDed A}.
+  Context {SL : SepLog A}.
+  Context {ClS: ClassicalSep A}.
+  Context {CoSL: CorableSepLog A}.
+  Context (p : B1 -> B2 -> A).
+
+Fixpoint iter_sepcon2' (l : list B1) : list B2 -> A :=
+    match l with
+    | nil => fun l2 =>
+       match l2 with
+       | nil => emp
+       | _ => FF
+       end
+    | x :: xl => fun l' =>
+       match l' with
+       | nil => FF
+       | y :: yl => p x y * iter_sepcon2' xl yl
+       end
+  end.
+
+Lemma iter_sepcon2'_spec: forall l1 l2,
+  iter_sepcon2' l1 l2 = EX l: list (B1 * B2), !! (l1 = map fst l /\ l2 = map snd l) && iter_sepcon l (uncurry p).
+Proof.
+  intros.
+  apply pred_ext.
+  + revert l2; induction l1; intros; destruct l2.
+    - apply (exp_right nil); simpl.
+      apply andp_right; auto.
+      apply prop_right; auto.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      specialize (IHl1 l2).
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl1] | clear IHl1].
+      normalize.
+      destruct H.
+      apply (exp_right ((a, b) :: l)).
+      simpl.
+      apply andp_right; [apply prop_right; subst; auto |].
+      apply derives_refl.
+  + apply exp_left; intros l.
+    normalize.
+    destruct H; subst.
+    induction l.
+    - simpl. auto.
+    - simpl.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl] | clear IHl].
+      apply derives_refl.
+Qed.
+
+End IterSepCon2'.
 
 Section IterPredSepCon.
 
