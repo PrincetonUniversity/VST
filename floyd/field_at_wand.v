@@ -32,11 +32,12 @@ Qed.
 Hint Resolve array_with_hole_local_facts : saturate_local.
 
 Lemma wand_slice_array:
-forall {cs: compspecs} lo hi n sh t (al bl: list (reptype t)) p,
+forall {cs: compspecs} lo hi n sh t (al: list (reptype t)) p,
 0 <= lo <= hi ->
 hi <= n ->
 Zlength al = n ->
 data_at sh (tarray t n) al p =
+!! (field_compatible (tarray t n) nil p) &&
 data_at sh (tarray t (hi-lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
 array_with_hole sh t lo hi n al p.
 Proof.
@@ -82,11 +83,20 @@ Proof.
           2: apply JMeq_refl.
         erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
         Focus 2. {
+          change (Zlength (sublist 0 lo al ++ v ++ sublist hi n al) = n - 0).
           autorewrite with sublist.
-          replace n with (lo + (@Zlength (reptype t) v + (n - hi))) at 2 by omega.
-          reflexivity.
+          omega.
         } Unfocus.
-        change (@reptype cs (@nested_field_type cs (tarray t n) (SUB 0))) with (reptype t).
+        change (array_at sh (tarray t n) nil 0 lo (sublist 0 (lo - 0) al) p *
+                array_at sh (tarray t n) nil hi n (sublist (hi - 0) (n - 0) al) p *
+                field_at sh (tarray t (hi - lo)) nil v (field_address0 (tarray t n) (SUB lo) p)
+                |-- array_at sh (tarray t n) nil 0 lo
+                      (sublist 0 (lo - 0) (sublist 0 lo al ++ v ++ sublist hi n al)) p *
+                    data_at sh (nested_field_array_type (tarray t n) nil lo hi)
+                      (sublist (lo - 0) (hi - 0) (sublist 0 lo al ++ v ++ sublist hi n al))
+                      (field_address0 (tarray t n) (SUB lo) p) *
+                    array_at sh (tarray t n) nil hi n
+                      (sublist (hi - 0) (n - 0) (sublist 0 lo al ++ v ++ sublist hi n al)) p).
         unfold tarray; autorewrite with sublist.
         rewrite H4.
         replace (hi - lo - (hi - lo) + hi) with hi by omega.
@@ -95,84 +105,17 @@ Proof.
         apply sepcon_derives; [apply derives_refl |].
         rewrite sepcon_comm.
         apply sepcon_derives; [| apply derives_refl].
-        unfold data_at.
-        apply derives_refl'.
-        f_equal.
         autorewrite with sublist.
-        auto.
+        apply derives_refl.
   + normalize.
-    clear H5.
+    clear H2.
     rewrite sepcon_comm.
     apply wand_sepcon_adjoint.
-    apply (allp_left _ bl); intros.
-    apply exp_left; intros.
-    apply exp_left; intros.
-    normalize.
+    apply (allp_left _ (sublist lo hi al)); intros.
     apply wand_derives; [apply derives_refl |].
-    apply derives_refl'.
     unfold data_at.
+    apply derives_refl'.
     f_equal.
-    apply JMeq_eq.
-    eapply JMeq_trans; [eassumption |].
-    eapply JMeq_trans; [| apply JMeq_sym; eassumption].
-    pose proof JMeq_trans (JMeq_sym H5) H3.
-    apply JMeq_eq in H7; subst.
-    rewrite <- sublist_split by omega.
-    rewrite <- sublist_split by omega.
     autorewrite with sublist.
-    apply JMeq_refl.
+    auto.
 Qed.
-
-Ltac wand_slice_array_spec t :=
-let spec := constr:(forall lo hi n sh 
-(al' : list (reptype t)) p,
-0 <= lo <= hi ->
-hi <= n ->
-Zlength al' = n ->
-data_at sh (tarray t n) al' p =
-data_at sh (tarray t (hi-lo)) (sublist lo hi al') (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
-(!! (field_compatible (tarray t n) nil p) &&
-(ALL cl: list (reptype t),
-(data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) )
--* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p))) in
-exact spec.
-
-Lemma elim_double_exp: forall (T: Type) (x: T) (y: T -> T) (P: T -> T -> mpred),
-  EX x0: T, (EX y0: T,
-    (!! (JMeq x x0 /\ JMeq y0 (y x0)) && (P x0 y0))) =
-  P x (y x).
-Proof.
-  intros.
-  apply pred_ext.
-  + apply exp_left; intros.
-    apply exp_left; intros.
-    entailer!.
-    apply JMeq_eq in H.
-    apply JMeq_eq in H0.
-    entailer!.
-  + apply (exp_right x).
-    apply (exp_right (y x)).
-    entailer!.
-Qed.
-
-Ltac prove_wand_slice_array :=
-  let al := fresh "al" in 
-  intros ? ? ? ? al ? ? ? ?;
-   erewrite wand_slice_array by eauto;
-   f_equal; unfold array_with_hole;
-   f_equal; f_equal; extensionality cl;
-  match type of al with ?t =>
-   refine (elim_double_exp t _ _ _)
-  end.
-
-(* Try the following lines with a concrete compspecs. *)
-(*
-Lemma wand_slice_array_tint: ltac:(wand_slice_array_spec tint).
-Proof. prove_wand_slice_array. Qed.
-
-Lemma wand_slice_array_tptint: ltac:(wand_slice_array_spec (tptr tint)).
-Proof. prove_wand_slice_array. Qed.
-
-Lemma wand_slice_array_tatint: ltac:(wand_slice_array_spec (tarray tint 10)).
-Proof. prove_wand_slice_array. Qed.
-*)
