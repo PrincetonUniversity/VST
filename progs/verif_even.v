@@ -14,7 +14,6 @@ forward_if.
 *
  forward.
 *
-  forward.
   forward_call (z-1, tt).
   (* Prove that PROP precondition is OK *)
   rep_omega.

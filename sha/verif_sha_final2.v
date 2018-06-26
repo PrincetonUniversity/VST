@@ -276,8 +276,10 @@ clearbody ddzw.
 forward.  (* n=0; *)
 erewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
 rewrite semax_seq_skip.
+assert (Zlength (hash_blocks init_registers hashed) = 8)
+ by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
 forward_call (* sha256_block_data_order (c,p); *)
-  (hashed, ddzw, c,
+  (hash_blocks init_registers hashed, ddzw, c,
     field_address t_struct_SHA256state_st [StructField _data] c,
     Tsh, gv).
 {
@@ -293,6 +295,7 @@ forward_call (* sha256_block_data_order (c,p); *)
   rewrite map_id.
   apply derives_refl.
 }
+ rewrite hash_blocks_last by auto.
  set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
  Exists (hashed ++ ddzw) (@nil Z) pad.
  entailer!.

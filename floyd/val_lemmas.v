@@ -435,6 +435,10 @@ Ltac fancy_intro aggressive :=
                              | is_var x; rewrite H
                              | is_var y; rewrite <- H
                              | idtac]
+ | headptr (_ ?x) => let Hx1 := fresh "HP" x in
+                     let Hx2 := fresh "P" x in
+                       rename H into Hx1;
+                       pose proof headptr_isptr _ Hx1 as Hx2
  | headptr ?x => let Hx1 := fresh "HP" x in
                  let Hx2 := fresh "P" x in
                    rename H into Hx1;

@@ -547,14 +547,7 @@ Proof. intros.
       subst i; simpl. entailer!. (* simpl. *)
       thaw FR2. thaw FR1. thaw FR0. normalize.
       rewrite da_emp_ptr. normalize.
-      eapply denote_tc_test_eq_split. 
       auto 50 with valid_pointer. (* TODO regression, this should have solved it *)
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer2. 
-      apply sepcon_valid_pointer2.
-      apply sepcon_valid_pointer1. 
-      apply data_at_valid_ptr; auto. auto 50 with valid_pointer.
     }
 
     { entailer!.
@@ -904,6 +897,6 @@ Time Qed. (*Coq8.6: 31secs*)
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
 Proof. start_function. apply BDY_update; trivial. Qed.
-  
+
 Require Import VST.floyd.ASTsize.
 Eval compute in (ASTsize (fn_body f_mbedtls_hmac_drbg_update)).

@@ -71,19 +71,19 @@ Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
 
-Definition rcon_loop_inv00(i: Z)(v_pow v_log tables: val)(frozen: list mpred) : environ -> mpred :=
+Definition rcon_loop_inv00(i: Z)(v_pow v_log: val)(gv: globals)(frozen: list mpred) : environ -> mpred :=
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
             lvar _log (tarray tint 256) v_log;
             lvar _pow (tarray tint 256) v_pow;
-            gvar _tables tables)
+            gvars gv)
      SEP (FRZL frozen;
           field_at Ews t_struct_tables [StructField _RCON]
                    ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
-                   tables).
+                   (gv _tables)).
 
-Definition rcon_loop_inv0(v_pow v_log tables: val)(frozen: list mpred) :=  EX i: Z,
-  rcon_loop_inv00 i v_pow v_log tables frozen.
+Definition rcon_loop_inv0(v_pow v_log: val)(gv: globals)(frozen: list mpred) :=  EX i: Z,
+  rcon_loop_inv00 i v_pow v_log gv frozen.
 
 (* TODO floyd if I inline inv00 into inv0, why doesn't this typecheck?
 Definition rcon_loop_inv(v_pow v_log tables: val) :=
@@ -98,26 +98,26 @@ Definition rcon_loop_inv(v_pow v_log tables: val) :=
                    tables).
 *)
 
-Definition gen_sbox_inv00 i v_pow v_log tables log pow frozen :=
+Definition gen_sbox_inv00 i v_pow v_log log pow gv frozen :=
     PROP ( )
     LOCAL (lvar _log (tarray tint 256) v_log;
            lvar _pow (tarray tint 256) v_pow;
-           gvar _tables tables)
+           gvars gv)
     SEP (FRZL frozen; data_at Tsh (tarray tint 256) log v_log; data_at Tsh (tarray tint 256) pow v_pow;
          EX fsb : list val,
            !!(Zlength fsb = 256) &&
            !!(forall j, 0 <= j < i -> Znth j fsb = Vint (Znth j FSb)) &&
            !!(Znth 0 fsb = Vint (Int.repr 99))
-           && field_at Ews t_struct_tables [StructField _FSb] fsb tables;
+           && field_at Ews t_struct_tables [StructField _FSb] fsb (gv _tables);
          EX rsb : list val,
            !!(Zlength rsb = 256) &&
            !!(forall j, 1 <= j < i ->
                 (Znth (Int.unsigned (Znth j FSb)) rsb) = Vint (Int.repr j)) &&
            !!(Znth 99 rsb = Vint Int.zero)
-           && field_at Ews t_struct_tables [StructField _RSb] rsb tables).
+           && field_at Ews t_struct_tables [StructField _RSb] rsb (gv _tables)).
 
-Definition gen_sbox_inv0 v_pow v_log tables log pow frozen :=
-  EX i: Z, gen_sbox_inv00 i v_pow v_log tables log pow frozen.
+Definition gen_sbox_inv0 v_pow v_log log pow gv frozen :=
+  EX i: Z, gen_sbox_inv00 i v_pow v_log log pow gv frozen.
 
 (* TODO floyd put in sublist? *)
 Lemma list_equiv: forall {T: Type}{d: Inhabitant T} (l1 l2: list T) (n: Z),
@@ -141,27 +141,27 @@ Proof.
         assumption.
 Qed.
 
-Definition gen_ftrt_inv00 i v_pow v_log tables log pow :=
+Definition gen_ftrt_inv00 i v_pow v_log log pow gv :=
     PROP ( )
     LOCAL (lvar _log (tarray tint 256) v_log;
            lvar _pow (tarray tint 256) v_pow;
-           gvar _tables tables)
+           gvars gv)
     SEP (data_at Tsh (tarray tint 256) pow v_pow;
          data_at Tsh (tarray tint 256) log v_log;
-         field_at Ews t_struct_tables [StructField _FSb] (map Vint FSb) tables;
-         field_at Ews t_struct_tables [StructField _FT0] (partially_filled i 256 calc_FT0) tables;
-         field_at Ews t_struct_tables [StructField _FT1] (partially_filled i 256 calc_FT1) tables;
-         field_at Ews t_struct_tables [StructField _FT2] (partially_filled i 256 calc_FT2) tables;
-         field_at Ews t_struct_tables [StructField _FT3] (partially_filled i 256 calc_FT3) tables;
-         field_at Ews t_struct_tables [StructField _RSb] (map Vint RSb) tables;
-         field_at Ews t_struct_tables [StructField _RT0] (partially_filled i 256 calc_RT0) tables;
-         field_at Ews t_struct_tables [StructField _RT1] (partially_filled i 256 calc_RT1) tables;
-         field_at Ews t_struct_tables [StructField _RT2] (partially_filled i 256 calc_RT2) tables;
-         field_at Ews t_struct_tables [StructField _RT3] (partially_filled i 256 calc_RT3) tables;
-         field_at Ews t_struct_tables [StructField _RCON] (map Vint RCON) tables).
+         field_at Ews t_struct_tables [StructField _FSb] (map Vint FSb) (gv _tables);
+         field_at Ews t_struct_tables [StructField _FT0] (partially_filled i 256 calc_FT0) (gv _tables);
+         field_at Ews t_struct_tables [StructField _FT1] (partially_filled i 256 calc_FT1) (gv _tables);
+         field_at Ews t_struct_tables [StructField _FT2] (partially_filled i 256 calc_FT2) (gv _tables);
+         field_at Ews t_struct_tables [StructField _FT3] (partially_filled i 256 calc_FT3) (gv _tables);
+         field_at Ews t_struct_tables [StructField _RSb] (map Vint RSb) (gv _tables);
+         field_at Ews t_struct_tables [StructField _RT0] (partially_filled i 256 calc_RT0) (gv _tables);
+         field_at Ews t_struct_tables [StructField _RT1] (partially_filled i 256 calc_RT1) (gv _tables);
+         field_at Ews t_struct_tables [StructField _RT2] (partially_filled i 256 calc_RT2) (gv _tables);
+         field_at Ews t_struct_tables [StructField _RT3] (partially_filled i 256 calc_RT3) (gv _tables);
+         field_at Ews t_struct_tables [StructField _RCON] (map Vint RCON) (gv _tables)).
 
-Definition gen_ftrt_inv0 v_pow v_log tables log pow :=
-  EX i: Z, gen_ftrt_inv00 i v_pow v_log tables log pow.
+Definition gen_ftrt_inv0 v_pow v_log log pow gv :=
+  EX i: Z, gen_ftrt_inv00 i v_pow v_log log pow gv.
 
 Lemma add_no_overflow: forall n i log
   (Hn: 1 <= n < 256)
@@ -208,7 +208,7 @@ Proof.
         (* temp _i (Vint (Int.repr i)); *)
            lvar _log (tarray tint 256) v_log;
            lvar _pow (tarray tint 256) v_pow;
-           gvar _tables tables)
+           gvars gv)
     SEP (EX log : list val,
            !!(Zlength log = 256) &&
            (* Note: log[1] is set to 0 in the first iteration, and overwritten with 255 in the last 
@@ -223,7 +223,7 @@ Proof.
            !!(Zlength pow = 256) &&
            !!(forall j, 0 <= j < i -> Znth j pow = Vint (pow3 j))
            && data_at Tsh (tarray tint 256) pow v_pow;
-         tables_uninitialized tables)).
+         tables_uninitialized (gv _tables))).
   { (* init *)
     forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256).
     entailer!; try apply derives_refl.
@@ -289,7 +289,7 @@ Proof.
   unfold_data_at 3%nat.
   freeze [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11] Fr.
 
-  forward_for_simple_bound 10 (rcon_loop_inv0 v_pow v_log tables Fr).
+  forward_for_simple_bound 10 (rcon_loop_inv0 v_pow v_log gv Fr).
   { (* init *)
     forward. forward. Exists 0. entailer!.
   }
@@ -385,7 +385,7 @@ Proof.
   freeze [3; 4; 5; 6; 8; 9; 10; 11; 12] Fr.
   forward.
   forward.
-  forward_for_simple_bound 256 (gen_sbox_inv0 v_pow v_log tables (map Z_to_val log) (map Vint pow) Fr).
+  forward_for_simple_bound 256 (gen_sbox_inv0 v_pow v_log (map Z_to_val log) (map Vint pow) gv Fr).
   { (* loop invariant holds initially: *)
     entailer!.
     Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
@@ -514,7 +514,7 @@ Proof.
   clear H H0 H1 H2 H3 H4 H5.
 
   (* generate the forward and reverse tables *)
-  forward_for_simple_bound 256 (gen_ftrt_inv0 v_pow v_log tables (map Z_to_val log) (map Vint pow)).
+  forward_for_simple_bound 256 (gen_ftrt_inv0 v_pow v_log (map Z_to_val log) (map Vint pow) gv).
   { (* loop invariant holds initially: *)
     entailer!.
   }

@@ -5,13 +5,6 @@ Require Import WandDemo.wandQ_frame.
 Require Import WandDemo.list.
 Require Import WandDemo.list_lemmas.
 
-Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
-  is_pointer_or_null p -> force_val (sem_cast_pointer p) = p.
-Proof.
-  intros.
-  destruct p; try contradiction; reflexivity.
-Qed.
-
 Lemma Tsh_split: forall sh, exists sh', sepalg.join sh sh' Tsh.
 Proof.
   intros.

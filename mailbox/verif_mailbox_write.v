@@ -16,9 +16,9 @@ Proof.
   forward.
   forward.
   forward_for_simple_bound N (EX i : Z, PROP ( )
-   LOCAL (gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
-   SEP (field_at Ews tint [] (eval_unop Oneg tint (vint 1)) writing; field_at Ews tint [] (vint 0) last_given;
-        data_at Ews (tarray tint N) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (N - i))) last_taken)).
+   LOCAL (gvars gv)
+   SEP (field_at Ews tint [] (eval_unop Oneg tint (vint 1)) (gv _writing); field_at Ews tint [] (vint 0) (gv _last_given);
+        data_at Ews (tarray tint N) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_taken))).
   { unfold N; computable. }
   { unfold N; computable. }
   { entailer!. }
@@ -33,11 +33,10 @@ Proof.
   start_function.
   rewrite <- seq_assoc.
   forward_for_simple_bound B (EX i : Z, PROP ( )
-   LOCAL (lvar _available (tarray tint B) v_available; gvar _writing writing; gvar _last_given last_given;
-   gvar _last_taken last_taken)
+   LOCAL (lvar _available (tarray tint B) v_available; gvars gv)
    SEP (data_at Tsh (tarray tint B) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (B - i))) v_available;
-        data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
-        data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
+        data_at_ Ews tint (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
+        data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
   { unfold B, N; computable. }
   { entailer!. }
   { forward.
@@ -55,12 +54,11 @@ Proof.
     unfold unfold_reptype in *; simpl in *.
     rewrite Zlength_map in *; apply prop_right; auto. }
   forward_for_simple_bound N (EX i : Z, PROP ( )
-   LOCAL (temp _i (vint B); lvar _available (tarray tint B) v_available;
-   gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
+   LOCAL (temp _i (vint B); lvar _available (tarray tint B) v_available; gvars gv)
    SEP (data_at Tsh (tarray tint B) (map (fun x => vint (if eq_dec x b0 then 0
      else if in_dec eq_dec x (sublist 0 i lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
-   data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
-   data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
+   data_at_ Ews tint (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
+   data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
   { unfold N; computable. }
   { entailer!.
     rewrite upd_Znth_eq; simpl; [|rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; omega].
@@ -77,12 +75,11 @@ Proof.
   { assert (0 <= i < Zlength lasts) by omega.
     forward.
     forward_if (PROP ( )
-      LOCAL (temp _last (vint (Znth i lasts)); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) v_available; 
-             gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
+      LOCAL (temp _last (vint (Znth i lasts)); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) v_available; gvars gv)
       SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
              else if in_dec eq_dec x (sublist 0 (i + 1) lasts) then 0 else 1)) (upto (Z.to_nat B))) v_available;
-           data_at_ Ews tint writing; data_at Ews tint (vint b0) last_given;
-           data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
+           data_at_ Ews tint (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
+           data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
     - assert (0 <= Znth i lasts < B) by (apply Forall_Znth; auto).
       forward.
       entailer!.
@@ -121,10 +118,9 @@ Proof.
   forward.
   eapply semax_seq, semax_ff.
   eapply semax_pre with (P' := EX i : Z, PROP (0 <= i <= B; forall j, 0 <= j < i -> Znth j available = vint 0)
-    LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvar _writing writing;
-           gvar _last_given last_given; gvar _last_taken last_taken)
-    SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint writing;
-         data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x => vint x) lasts) last_taken)).
+    LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvars gv)
+    SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint (gv _writing);
+         data_at Ews tint (vint b0) (gv _last_given); data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken))).
   { Exists 0; entailer!.
     intros. omega. }
   eapply semax_loop.
@@ -132,11 +128,10 @@ Proof.
     assert (repable_signed i).
     { split; [transitivity 0 | transitivity B]; unfold B, N in *; try computable; try omega. }
     forward_if (PROP (i < B)
-      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvar _writing writing;
-             gvar _last_given last_given; gvar _last_taken last_taken)
-      SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint writing;
-           data_at Ews tint (vint b0) last_given;
-           data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
+      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint 5) v_available; gvars gv)
+      SEP (field_at Tsh (tarray tint 5) [] available v_available; data_at_ Ews tint (gv _writing);
+           data_at Ews tint (vint b0) (gv _last_given);
+           data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
     { forward.
       entailer!. }
     { forward.
@@ -157,10 +152,9 @@ Proof.
       rewrite Forall_forall; intros ? Hin.
       rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
     forward_if (PROP (Znth i available = vint 0)
-      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvar _writing writing;
-             gvar _last_given last_given; gvar _last_taken last_taken)
-      SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint writing;
-           data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
+      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvars gv)
+      SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint (gv _writing);
+           data_at Ews tint (vint b0) (gv _last_given); data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
     { forward.
       forward.
       Exists i; entailer!.
@@ -179,10 +173,9 @@ Proof.
       destruct (in_dec _ _ _); auto; discriminate. }
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available = vint 0;
       forall j : Z, 0 <= j < i -> Znth j available = vint 0)
-      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvar _writing writing;
-             gvar _last_given last_given; gvar _last_taken last_taken)
-      SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint writing;
-           data_at Ews tint (vint b0) last_given; data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) last_taken)).
+      LOCAL (temp _i__1 (vint i); lvar _available (tarray tint B) v_available; gvars gv)
+      SEP (field_at Tsh (tarray tint B) [] available v_available; data_at_ Ews tint (gv _writing);
+           data_at Ews tint (vint b0) (gv _last_given); data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
     Intros. Exists i; entailer!.
     Intros i'. Exists i'. entailer!.
   + Intros i.
@@ -716,10 +709,9 @@ Proof.
   rewrite Zlength_map in *.
   rewrite <- seq_assoc.
   forward_for_simple_bound N (EX i : Z, PROP ( )
-   LOCAL (temp _w (vint b); temp _last (vint b0); gvar _writing writing; gvar _last_given last_given;
-          gvar _last_taken last_taken; gvar _comm comm; gvar _lock lock)
-   SEP (data_at Ews tint (vint b) writing; data_at Ews tint (vint b0) last_given;
-        data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
+   LOCAL (temp _w (vint b); temp _last (vint b0); gvars gv)
+   SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
+        data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
         EX t' : list nat, EX h' : list val, !!(Zlength t' = i /\ Zlength h' = i /\ Forall2 newer (sublist 0 i h) t') &&
           fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks) (Znth r comms)
             (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs (Znth r shs)
@@ -727,7 +719,7 @@ Proof.
             (upto (Z.to_nat N))) *
           let lasts' := map (fun i => if eq_dec (Znth i h') Empty then b0 else Znth i lasts)
                             (upto (Z.to_nat N)) in
-            data_at Ews (tarray tint N) (map (fun i => vint i) lasts') last_taken *
+            data_at Ews (tarray tint N) (map (fun i => vint i) lasts') (gv _last_taken) *
             fold_right sepcon emp (map (fun r =>
               ghost_var gsh1 (vint (if zlt r i then b else b0)) (Znth r g1)) (upto (Z.to_nat N))) *
             fold_right sepcon emp (map (fun r =>
@@ -959,9 +951,9 @@ Proof.
         rewrite Zlength_app, Zlength_cons, Zlength_nil; omega. }
     assert (repable_signed b') by (apply repable_buf; auto); subst v.
     focus_SEP 9.
-    match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx (data_at _ _ ?l last_taken :: ?R)))) _ _ =>
+    match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx (data_at _ _ ?l (gv _last_taken) :: ?R)))) _ _ =>
       forward_if (PROP () (LOCALx Q (SEPx (data_at Ews (tarray tint N)
-        (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts))) last_taken :: R)))) end.
+        (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts))) (gv _last_taken) :: R)))) end.
     + forward.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
         auto. apply ENTAIL_refl.

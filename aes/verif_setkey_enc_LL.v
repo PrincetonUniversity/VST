@@ -29,12 +29,12 @@ Tactic Notation "replace_temp" constr(name) constr(new_value) :=
 Tactic Notation "replace_temp" constr(name) constr(new_value) "by" tactic(t) :=
   replace_temp name new_value; [ t | ].
 
-Definition first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish i :=
+Definition first_loop_inv00 ctx key init_done key_chars ctx_sh key_sh ish i gv :=
     PROP ( )
     LOCAL (
       temp _RK  (field_address t_struct_aesctx [StructField _buf] ctx);
       temp _key key; temp _keybits (Vint (Int.repr 256));
-      gvar _aes_init_done aes_init_done; gvar _tables tables)
+      gvars gv)
     SEP (
       field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
       field_at ctx_sh t_struct_aesctx [StructField _rk] 
@@ -42,17 +42,17 @@ Definition first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx
       field_at ctx_sh t_struct_aesctx [StructField _buf]
         (partially_filled i 68 (fun i => get_uint32_le key_chars (i*4))) ctx;
       data_at key_sh (tarray tuchar (4 * 8)) (map Vint (map Int.repr key_chars)) key;
-      data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-      tables_initialized tables).
+      data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+      tables_initialized (gv _tables)).
 
-Definition first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish :=
-  EX i: Z, first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish i.
+Definition first_loop_inv0 ctx key init_done key_chars ctx_sh key_sh ish gv :=
+  EX i: Z, first_loop_inv00 ctx key init_done key_chars ctx_sh key_sh ish i gv.
 
-Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done i :=
+Definition main_loop_invariant0 ctx key ctx_sh key_sh ish key_chars init_done i gv :=
   PROP ( )
   LOCAL (
     temp _RK (offset_val (i*32) (field_address t_struct_aesctx [StructField _buf] ctx));
-    gvar _tables tables
+    gvars gv
   ) SEP (
     field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
     field_at ctx_sh t_struct_aesctx [StructField _rk]
@@ -61,12 +61,12 @@ Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_i
       (map Vint (pow_fun GrowKeyByOne (Z.to_nat (i*8)) (key_bytes_to_key_words key_chars))
       ++ repeat_op_table (60-i*8) Vundef id) ctx;
     data_at key_sh (tarray tuchar (4 * 8)) (map Vint (map Int.repr key_chars)) key;
-    data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-    tables_initialized tables
+    data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+    tables_initialized (gv _tables)
   ).
 
-Definition main_loop_invariant ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done :=
-  EX i: Z, main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done i.
+Definition main_loop_invariant ctx key ctx_sh key_sh ish key_chars init_done gv :=
+  EX i: Z, main_loop_invariant0 ctx key ctx_sh key_sh ish key_chars init_done i gv.
 
 
 (* TODO this does not hold, we have to replace Vundef by (Vint Int.zero) in the whole proof *)
@@ -102,7 +102,7 @@ Proof.
   forward.  deadvars!.
   (* first loop: *)
   forward_for_simple_bound 8 
-    (first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish).
+    (first_loop_inv0 ctx key init_done key_chars ctx_sh key_sh ish gv).
   { (* precondition implies loop invariant: *)
     entailer!.
     unfold_data_at 1%nat. cancel. }
@@ -143,7 +143,7 @@ Proof.
   (* TODO floyd: we can only use forward_for_simple_bound because we moved the "RK += 8" from the 
      increment to the end of the loop body *)
   forward_for_simple_bound 7
-    (main_loop_invariant ctx key tables ctx_sh key_sh ish key_chars aes_init_done init_done).
+    (main_loop_invariant ctx key ctx_sh key_sh ish key_chars init_done gv).
   { (* precondition implies loop invariant: *)
     (* TODO floyd: this should be automatic, and entailer should not clear the P I'm asserting here *)
     assert_PROP (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) as P by entailer!.

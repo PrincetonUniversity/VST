@@ -220,14 +220,18 @@ assert (Zlength bl = LBLOCKz). {
      subst lo; Omega1.
   }
  rewrite H6.
+ assert (LBLOCKz | Zlength (hashed ++ blocks))
+  by (apply divide_length_app; auto).
+ assert (Zlength (hash_blocks init_registers (hashed ++ blocks)) = 8)
+  by (rewrite Zlength_length; [apply length_hash_blocks|]; auto).
  Time forward_call (* sha256_block_data_order (c,data); *)
-   (hashed++ blocks,  bl, c,
+   (hash_blocks init_registers (hashed++blocks),  bl, c,
     field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
     sh, gv). (*3.8*)
   { Time unfold_data_at 1%nat. (*0.8*)
     Time cancel. (*2.5*)
   }
- split3; auto. apply divide_length_app; auto.
+ rewrite hash_blocks_last by auto.
  Time forward. (* data += SHA_CBLOCK; *) (*5*)
  simpl (temp _data _).
  Time forward. (* len  -= SHA_CBLOCK; *) (*6*)

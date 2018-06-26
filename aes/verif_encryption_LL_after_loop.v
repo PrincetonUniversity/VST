@@ -39,7 +39,7 @@ end.
 
 Lemma encryption_after_loop_proof:
 forall (Espec : OracleKind) (ctx input output : val)
-  (ctx_sh in_sh out_sh : share) (plaintext (*exp_key*) : list Z) (tables : val)
+  (ctx_sh in_sh out_sh : share) (plaintext (*exp_key*) : list Z) (gv: globals)
   (Delta_specs : PTree.t funspec)
  (H: Zlength plaintext = 16)
  (SH: readable_share ctx_sh)
@@ -65,8 +65,8 @@ semax (encryption_loop_body_Delta' Delta_specs)
                ctx); temp _X3 (Vint (col 3 S12));
    temp _X2 (Vint (col 2 S12)); temp _X1 (Vint (col 1 S12));
    temp _X0 (Vint (col 0 S12));
-   temp _output output; gvar _tables tables)
-   SEP (data_at_ out_sh (tarray tuchar 16) output; tables_initialized tables;
+   temp _output output; gvars gv)
+   SEP (data_at_ out_sh (tarray tuchar 16) output; tables_initialized (gv _tables);
    data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
    data_at ctx_sh t_struct_aesctx 
         (Vint (Int.repr Nr),
@@ -86,7 +86,7 @@ semax (encryption_loop_body_Delta' Delta_specs)
            input;
          data_at out_sh (tarray tuchar 16)
            (map Vint (mbed_tls_aes_enc plaintext buf)) output;
-         tables_initialized tables))) emp).
+         tables_initialized (gv _tables)))) emp).
 Proof.
 intros.
   unfold encryption_after_loop, encryption_loop_body_Delta'.

@@ -23,15 +23,14 @@ Definition tlock_inv sh lockt lock cond data :=
 
 Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH y : val, x : val * share * val * val * val
+  WITH y : val, x : share * globals
   PRE [ _args OF (tptr tvoid) ]
-         let '(data, sh, lock, lockt, cond) := x in
+         let '(sh, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvar _data data; gvar _mutex lock; gvar _tlock lockt;
-                gvar _cond cond)
-         SEP   (cond_var sh cond;
-                lock_inv sh lock (dlock_inv data);
-                lock_inv sh lockt (tlock_inv sh lockt lock cond data))
+         LOCAL (temp _args y; gvars gv)
+         SEP   (cond_var sh (gv _cond);
+                lock_inv sh (gv _mutex) (dlock_inv (gv _data));
+                lock_inv sh (gv _tlock) (tlock_inv sh (gv _tlock) (gv _mutex) (gv _cond) (gv _data)))
   POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
@@ -62,17 +61,17 @@ Proof.
   forward.
   forward.
   forward.
-  forward_call (lock, sh, dlock_inv data).
+  forward_call (gv _mutex, sh, dlock_inv (gv _data)).
   unfold dlock_inv; simpl.
   Intro i.
   forward.
-  forward_call (cond, sh).
-  forward_call (lock, sh, dlock_inv data).
+  forward_call (gv _cond, sh).
+  forward_call (gv _mutex, sh, dlock_inv (gv _data)).
   { lock_props.
     unfold dlock_inv; Exists 1; cancel. }
   rewrite cond_var_isptr; Intros.
-  forward_call (lockt, sh, cond_var sh cond * lock_inv sh lock (dlock_inv data),
-                tlock_inv sh lockt lock cond data).
+  forward_call (gv _tlock, sh, cond_var sh (gv _cond) * lock_inv sh (gv _mutex) (dlock_inv (gv _data)),
+                tlock_inv sh (gv _tlock) (gv _mutex) (gv _cond) (gv _data)).
   { unfold tlock_inv; lock_props.
     { apply selflock_exclusive, exclusive_sepcon2, lock_inv_exclusive. }
     rewrite selflock_eq at 2; cancel. }
@@ -89,13 +88,17 @@ Proof.
   (* temporarily broken *)
 Admitted.
 
-Lemma gvar_denote_env_set:
-  forall rho i vi j vj, gvar_denote i vi (env_set rho j vj) = gvar_denote i vi rho.
-Proof.
-intros.
-unfold gvar_denote.
-simpl. auto.
-Qed.
+Ltac cancel_for_forward_call ::=
+  match goal with
+  | gv: globals |- _ =>
+    repeat
+    match goal with
+    | x := gv ?i |- context [gv ?i] =>
+        change (gv i) with x
+    end
+  | _ => idtac
+  end;
+  cancel_for_evar_frame.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -114,15 +117,14 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
   { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
-  forward_spawn _thread_func nullval (data, sh1, lock, lockt, cond).
+  forward_spawn _thread_func nullval (sh1, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     erewrite <- cond_var_share_join; try apply Hsh; auto.
     entailer!. }
   forward.
   forward_while (EX i : Z, PROP ( )
-   LOCAL (temp _v (Vint (Int.repr i)); temp _c cond; temp _t lockt; temp _l lock; gvar _data data;
-     gvar _cond cond; gvar _tlock lockt; gvar _mutex lock)
+   LOCAL (temp _v (Vint (Int.repr i)); temp _c cond; temp _t lockt; temp _l lock; gvars gv)
    SEP (lock_inv sh2 lockt (tlock_inv sh1 lockt lock cond data);
         lock_inv sh2 lock (dlock_inv data); cond_var sh2 cond; dlock_inv data)).
   { Exists 0; entailer!.

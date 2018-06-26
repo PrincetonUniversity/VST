@@ -1494,21 +1494,6 @@ Proof.
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
       apply derives_refl.
-    - rewrite !local_lift2_and.
-      apply andp_derives; [| exact IHQ].
-      unfold local, lift1; unfold_lift; intros rho.
-      unfold subst; simpl.
-      apply derives_refl.
-    - rewrite !local_lift2_and.
-      apply andp_derives; [| exact IHQ].
-      unfold local, lift1; unfold_lift; intros rho.
-      unfold subst; simpl.
-      apply derives_refl.
-    - rewrite !local_lift2_and.
-      apply andp_derives; [| exact IHQ].
-      unfold local, lift1; unfold_lift; intros rho.
-      unfold subst; simpl.
-      apply derives_refl.
 Qed.
 
 Lemma eval_id_denote_tc_initialized: forall Delta i t v,
