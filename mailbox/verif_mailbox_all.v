@@ -44,9 +44,6 @@ eapply semax_func_cons; [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; simpl; auto; computable
            | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | precondition_closed
            | apply body_start_write |].
-{ apply closed_wrtl_PROPx, closed_wrtl_LOCALx, closed_wrtl_SEPx.
-  repeat constructor; apply closed_wrtl_gvar; unfold is_a_local; simpl; intros [? | ?];
-    try contradiction; discriminate. }
 semax_func_cons body_finish_write.
 semax_func_cons body_reader.
 semax_func_cons body_writer.

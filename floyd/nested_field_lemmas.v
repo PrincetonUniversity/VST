@@ -1720,23 +1720,6 @@ Proof.
   apply la_env_cs_sound; auto.
 Qed.
 
-Lemma gvar_field_compatible:
-  forall {cs: compspecs} i s rho t,
-    locald_denote (gvar i s) rho ->
-    complete_legal_cosu_type t = true ->
-    is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
-    sizeof t < Int.modulus ->
-    field_compatible t nil s.
-Proof.
-  intros.
-  hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
-  destruct (Map.get (ge_of rho) i); try contradiction.
-  subst s.
-  repeat split; auto.
-  hnf.
-  apply la_env_cs_sound; auto.
-Qed.
-
 Lemma compute_in_members_e:
  forall i al, compute_in_members i al = true -> in_members i al.
 Proof.

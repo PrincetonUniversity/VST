@@ -779,30 +779,28 @@ using the oracle, as [acquire] is.  The postcondition would be [match
 PrePost with existT ty (w, pre, post) => thread th (post w b)
 end] *)
 
-Definition gvars := map (fun x => gvar (fst x) (snd x)).
-
 Local Open Scope logic.
 
 (* @Qinxiang: it would be great to complete the annotation *)
 
 Definition spawn_arg_type := rmaps.ProdType (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val))
-  (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ConstType (list (ident * val))))) (rmaps.DependentType 0))
+  (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ConstType globals))) (rmaps.DependentType 0))
   (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)).
 
 Definition spawn_pre :=
-  (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> list (ident * val)) * nth 0 ts unit *
+  (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> globals) * nth 0 ts unit *
                            (nth 0 ts unit -> val -> mpred)) =>
    match x with
-   | (f, b, globals, w, pre) =>
+   | (f, b, gv, w, pre) =>
      PROP (expr.tc_val (tptr Tvoid) b)
-     (LOCALx (temp _f f :: temp _args b :: gvars (globals w))
+     (LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)
      (SEP (
        EX _y : ident,
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
              PRE [ _y OF tptr tvoid ]
                PROP ()
-               (LOCALx (temp _y y :: gvars (globals x))
+               (LOCALx (temp _y y :: gvars (gv x) :: nil)
                (SEP   (pre x y)))
              POST [tptr tvoid]
                PROP  ()
@@ -813,7 +811,7 @@ Definition spawn_pre :=
    end).
 
 Definition spawn_post :=
-  (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> list (ident * val)) * nth 0 ts unit *
+  (fun (ts: list Type) (x: val * val * (nth 0 ts unit -> globals) * nth 0 ts unit *
                            (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, w, pre) =>

@@ -109,15 +109,15 @@ Proof.
     destruct (eq_dec b (-1)); [|omega].
     entailer!. }
   forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads);
-      temp _r (vint r); gvar _reading reading; gvar _last_read last_read; gvar _lock lock; gvar _comm comm)
+      temp _r (vint r); gvars gv)
     SEP (comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 (map_upd h t (AE (vint b) Empty));
          EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs);
          ghost_var gsh1 (vint b') g0;
-         data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
+         data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
          data_at_ Tsh tint (Znth r reads);
          data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
-         data_at sh1 (tarray (tptr tint) N) comms comm;
-         data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks lock)).
+         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
+         data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks (gv _lock))).
   - forward.
     simpl eq_dec; destruct (eq_dec b (-1)); [match goal with H : _ <> _ |- _ => contradiction H; auto end|].
     entailer!. apply derives_refl.

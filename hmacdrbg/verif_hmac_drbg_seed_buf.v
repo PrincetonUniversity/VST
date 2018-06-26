@@ -47,7 +47,6 @@ Proof.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto.  }
   subst v; clear Hv. rewrite if_true; trivial.
   Intros. Intros p. rename H into MCp.
-  forward.
   forward_call tt.
 
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.

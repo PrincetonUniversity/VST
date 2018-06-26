@@ -28,15 +28,15 @@ Definition tables_uninitialized tables := data_at Ews t_struct_tables (Vundef256
 
 Definition gen_tables_spec :=
   DECLARE _aes_gen_tables
-    WITH tables : val
+    WITH gv: globals
     PRE [  ]
       PROP ()
-      LOCAL (gvar _tables tables)
-      SEP (tables_uninitialized tables)
+      LOCAL (gvars gv)
+      SEP (tables_uninitialized (gv _tables))
     POST [ tvoid ]
       PROP ()
       LOCAL ()
-      SEP (tables_initialized tables)
+      SEP (tables_initialized (gv _tables))
 .
 
 
@@ -115,22 +115,21 @@ Definition key_bytes_to_key_words(key_bytes: list Z): list int :=
 Definition key_expansion_spec :=
   DECLARE _mbedtls_aes_setkey_enc
     WITH ctx : val, key : val, ctx_sh : share, key_sh : share, key_chars : list Z,
-         tables : val, aes_init_done: val, init_done : Z, ish: share
+         init_done : Z, ish: share, gv: globals
     PRE [ _ctx OF (tptr t_struct_aesctx), _key OF (tptr tuchar), _keybits OF tuint  ]
       PROP (writable_share ctx_sh; readable_share key_sh; readable_share ish;
             Zlength key_chars = 32;
             init_done = 1 (*TODO also prove case where init_done=0*))
       LOCAL (temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256)); 
-             gvar _aes_init_done aes_init_done;
-             gvar _tables tables)
+             gvars gv)
       SEP (data_at ctx_sh t_struct_aesctx 
                    (Vint Int.zero,
                    (nullval, 
                    (map Vint (repeat_op_table 68 Int.zero id)))) ctx;
            data_at key_sh (tarray tuchar (4*8)) (map Vint (map Int.repr key_chars)) key;
            (*if init_done ?= 1 then tables_initialized tables else tables_uninitialized tables*)
-           data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-           tables_initialized tables)
+           data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+           tables_initialized (gv _tables))
     POST [  tint ]
       PROP () 
       LOCAL (temp ret_temp (Vint Int.zero))
@@ -140,8 +139,8 @@ Definition key_expansion_spec :=
                    ((field_address t_struct_aesctx [StructField _buf] ctx), 
                    (map Vint (KeyExpansion2 (key_bytes_to_key_words key_chars))
                     ++ (repeat_op_table 4 (Vint Int.zero) id)))) ctx;
-           data_at ish tint (Vint (Int.repr init_done)) aes_init_done;
-           tables_initialized tables).
+           data_at ish tint (Vint (Int.repr init_done)) (gv _aes_init_done);
+           tables_initialized (gv _tables)).
 
 
 Definition encryption_spec_ll :=
@@ -150,11 +149,11 @@ Definition encryption_spec_ll :=
        ctx_sh : share, in_sh : share, out_sh : share, (* shares *)
        plaintext : list Z, (* 16 chars *)
        exp_key : list Z, (* expanded key, 4*(Nr+1)=60 32-bit integers *)
-       tables : val (* global var *)
+       gv: globals (* global var *)
   PRE [ _ctx OF (tptr t_struct_aesctx), _input OF (tptr tuchar), _output OF (tptr tuchar) ]
     PROP (Zlength plaintext = 16; Zlength exp_key = 60;
           readable_share ctx_sh; readable_share in_sh; writable_share out_sh)
-    LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvar _tables tables)
+    LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvars gv)
     SEP (data_at ctx_sh (t_struct_aesctx) (
           (Vint (Int.repr Nr)),
           ((field_address t_struct_aesctx [StructField _buf] ctx),
@@ -165,7 +164,7 @@ Definition encryption_spec_ll :=
          ) ctx;
          data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
          data_at_ out_sh (tarray tuchar 16) output;
-         tables_initialized tables)
+         tables_initialized (gv _tables))
   POST [ tvoid ]
     PROP() LOCAL()
     SEP (data_at ctx_sh (t_struct_aesctx) (
@@ -177,7 +176,7 @@ Definition encryption_spec_ll :=
                  (map Vint (map Int.repr plaintext)) input;
          data_at out_sh (tarray tuchar 16)
                  (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
-         tables_initialized tables).
+         tables_initialized (gv _tables)).
 
 Definition Gprog : funspecs := ltac:(with_library prog [
   gen_tables_spec; key_expansion_spec; encryption_spec_ll

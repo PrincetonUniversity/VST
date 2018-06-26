@@ -550,44 +550,44 @@ Definition crypto_stream_salsa20_xor_spec :=
   DECLARE _crypto_stream_salsa20_tweet_xor
    WITH c : val, k:val, m:val, nonce:val, b:int64,
         Nonce : SixteenByte, K: SixteenByte * SixteenByte,
-        mCont: list byte, SV:val
+        mCont: list byte, gv: globals
    PRE [ _c OF tptr tuchar, _m OF tptr tuchar, _b OF tulong,
          _n OF tptr tuchar, _k OF tptr tuchar]
       PROP (Zlength mCont = Int64.unsigned b)
       LOCAL (temp _c c; temp _m m; temp _b (Vlong b);
-             temp _n nonce; temp _k k; gvar _sigma SV)
+             temp _n nonce; temp _k k; gvars gv)
       SEP ( SByte Nonce nonce;
             data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
             ThirtyTwoByte K k;
-            Sigma_vector SV;
+            Sigma_vector (gv _sigma);
             message_at mCont m
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
   POST [ tint ]
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; ThirtyTwoByte K k;
+       SEP (Sigma_vector (gv _sigma); ThirtyTwoByte K k;
             crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m).
 
 Definition f_crypto_stream_xsalsa20_tweet_xor_spec := 
   DECLARE _crypto_stream_salsa20_tweet_xor
    WITH c : val, k:val, nonce:val, m:val, d:int64, mCont: list byte,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
-        SV:val
+        gv: globals
    PRE [ _c OF tptr tuchar, _m OF tptr tuchar,  _d OF tulong,
          _n OF tptr tuchar, _k OF tptr tuchar]
       PROP (Zlength mCont = Int64.unsigned d)
       LOCAL (temp _c c; temp _m m; temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvar _sigma SV)
+             temp _n nonce; temp _k k; gvars gv)
       SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
             message_at mCont m;
-            Sigma_vector SV
+            Sigma_vector (gv _sigma)
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
   POST [ tint ]
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV;
+       SEP (Sigma_vector (gv _sigma);
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
               mCont (Int64.unsigned d)
               (offset_val 16 nonce) c m;
@@ -598,21 +598,21 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
   DECLARE _crypto_stream_xsalsa20_tweet
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
-        SV:val
+        gv: globals
    PRE [ _c OF tptr tuchar,  _d OF tulong,
          _n OF tptr tuchar, _k OF tptr tuchar]
       PROP ()
       LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvar _sigma SV)
+             temp _n nonce; temp _k k; gvars gv)
       SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
-            Sigma_vector SV
+            Sigma_vector (gv _sigma)
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
   POST [ tint ]
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV;
+       SEP (Sigma_vector (gv _sigma);
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
               (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d)
               (offset_val 16 nonce) c nullval;
@@ -627,21 +627,21 @@ Definition f_crypto_stream_salsa20_tweet_spec :=
   DECLARE _crypto_stream_salsa20_tweet
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, K: SixteenByte * SixteenByte,
-        (*mCont: list byte, *) SV:val
+        (*mCont: list byte, *) gv: globals
    PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
          _n OF tptr tuchar, _k OF tptr tuchar]
       PROP ((*Zlength mCont = Int64.unsigned b*))
       LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvar _sigma SV)
+             temp _n nonce; temp _k k; gvars gv)
       SEP ( SByte Nonce nonce;
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
-            Sigma_vector SV
+            Sigma_vector (gv _sigma)
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
   POST [ tint ] 
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; 
+       SEP (Sigma_vector (gv _sigma);
             ThirtyTwoByte K k;
             crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
 

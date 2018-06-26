@@ -16,16 +16,15 @@ Ltac entailer_for_store_tac ::= unfold tc_efield; go_lower; entailer'.
 Lemma body_writer : semax_body Vprog Gprog f_writer writer_spec.
 Proof.
   start_function.
-  forward_call (writing, last_given, last_taken).
+  forward_call gv.
   forward.
   forward_loop (EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; ~In b0 lasts)
-   LOCAL (temp _v (vint v); temp _arg arg; gvar _writing writing; gvar _last_given last_given;
-   gvar _last_taken last_taken; gvar _lock lock; gvar _comm comm; gvar _bufs buf)
-   SEP (data_at Ews tint Empty writing; data_at Ews tint (vint b0) last_given;
-   data_at Ews (tarray tint N) (map (fun x => vint x) lasts) last_taken;
-   data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
-   data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
+   LOCAL (temp _v (vint v); temp _arg arg; gvars gv)
+   SEP (data_at Ews tint Empty (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
+   data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
+   data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
+   data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
    fold_right sepcon emp (map (fun r0 => comm_loc lsh (Znth r0 locks) (Znth r0 comms)
      (Znth r0 g) (Znth r0 g0) (Znth r0 g1) (Znth r0 g2) bufs
      (Znth r0 shs) gsh2 (Znth r0 h)) (upto (Z.to_nat N)));
@@ -63,7 +62,7 @@ Proof.
       eapply list_join_eq; eauto. }
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
-  forward_call (writing, last_given, last_taken, b0, lasts).
+  forward_call (b0, lasts, gv).
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
   erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try omega.
@@ -92,8 +91,8 @@ Proof.
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
     Exists Tsh v; entailer!. }
-  forward_call (writing, last_given, last_taken, comm, lock, comms, locks, bufs, b, b0, lasts,
-    sh1, lsh, shs, g, g0, g1, g2, h, sh0).
+  forward_call (comms, locks, bufs, b, b0, lasts,
+    sh1, lsh, shs, g, g0, g1, g2, h, sh0, gv).
   { repeat (split; auto). }
   Intros x; destruct x as (lasts', h').
   rewrite sepcon_map; Intros.

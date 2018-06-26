@@ -146,7 +146,7 @@ forward_call (Tstruct _foo_object noattr).
 Intros p.
 forward_if
   (PROP ( )
-   LOCAL (temp _p p; gvar _foo_methods (gv _foo_methods))
+   LOCAL (temp _p p; gvars gv)
    SEP (malloc_token Tsh (Tstruct _foo_object noattr) p;
           data_at_ Tsh (Tstruct _foo_object noattr) p;
           object_methods foo_invariant (gv _foo_methods))).
@@ -180,10 +180,10 @@ simpl.
 apply derives_refl'.
 f_equal.
 rewrite !field_compatible_field_address; auto with field_compatible.
-clear - H0.
+clear - H.
 (* TODO: simplify the following proof. *)
 destruct p; try contradiction.
-destruct H0 as [AL SZ].
+destruct H as [AL SZ].
 repeat split; auto.
 simpl in *; omega.
 eapply align_compatible_rec_Tstruct; [reflexivity |].
@@ -233,7 +233,6 @@ replace_SEP 0 (object_methods foo_invariant mtable).
   rewrite sepcon_comm.
   apply derives_refl.
 }
-drop_LOCALs [_foo_twiddle; _foo_reset].
 clear reset twiddle.
 (* Finished proving that [mtable] is a proper [object_methods] for foo *)
 
@@ -244,7 +243,6 @@ subst mtable. cancel.
 Intros p.
 
 (* 3. We can do these next 3 lines because we won't create any more foo objects *)
-drop_LOCALs [_foo_methods].
 forget (object_methods foo_invariant mtable) as MT. 
 clear mtable.
 

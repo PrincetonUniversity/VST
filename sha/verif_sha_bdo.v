@@ -13,11 +13,8 @@ Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_or
 Proof.
 start_function.
 rename v_X into Xv.
-remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat)
-  by (subst regs; apply length_hash_blocks; auto).
-assert (Zregs: Zlength regs = 8%Z)
- by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
+ by (change 8%nat with (Z.to_nat 8); rewrite <- Zlength_length; auto).
 forward. (* data = in; *)
  match goal with |- semax _ _ ?c _ =>
   eapply seq_assocN with (cs := sequenceN 8 c)
@@ -65,8 +62,7 @@ eapply seq_assocN with (cs := add_them_back). {
 }
 simpl; abbreviate_semax.
 forward. (* return; *)
-fold (hash_block  (hash_blocks init_registers hashed) b).
-rewrite hash_blocks_last by auto.
+fold (hash_block regs b).
 entailer!.
 apply derives_refl.
 Qed.

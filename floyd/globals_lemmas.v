@@ -101,7 +101,7 @@ Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
 | Some b => Vptr b Ptrofs.zero
 | None => Vundef
 end.
-
+(*
 Lemma eval_sgvar_lemma1:
   forall (F: val -> mpred) ofs id t,
     F Vundef |-- FF ->
@@ -126,7 +126,7 @@ destruct (Map.get (ge_of rho) id).
 subst. auto.
 contradiction.
 Qed.
-
+*)
 Definition init_data2pred' {cs: compspecs}
      (Delta: tycontext) (gv: globals) (d: init_data)  (sh: share) (v: val) : mpred :=
  match d with
@@ -576,15 +576,6 @@ Lemma id2pred_star_ZnthV_tint  {cs: compspecs}:
 Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply Coq.Init.Logic.I.
 Qed.
 
-Lemma gvar_isptr:
-  forall i s rho, locald_denote (gvar i s) rho -> isptr s.
-Proof.
-intros.
-hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (Map.get (ge_of rho) i); try contradiction.
-subst; apply Coq.Init.Logic.I.
-Qed.
-
 Lemma offset_zero_globals_of_env: forall rho i,
    offset_val 0 (globals_of_env rho i) = globals_of_env rho i.
 Proof.
@@ -1020,7 +1011,7 @@ rewrite <- !sepcon_assoc.
 pull_left (`(g (h x))).
 apply derives_refl.
 Qed.
-
+(*
 Lemma move_globfield_into_SEP'':
  forall {cs: compspecs}{Espec: OracleKind} Delta P Q R
    (i: ident) (v: val)
@@ -1052,7 +1043,7 @@ subst. auto.
 destruct H1.
 auto.
 Qed.
-
+*)
 Lemma move_globfield_into_SEP0:
  forall {cs: compspecs}{Espec: OracleKind} Delta
    (S0 S3 S4: environ -> mpred) c Post,
@@ -1086,13 +1077,13 @@ Ltac process_idstar :=
          subst p;
        repeat first
         [simple apply move_globfield_into_SEP
-        | simple eapply move_globfield_into_SEP''; [ now repeat econstructor | ]
-        | simple apply move_globfield_into_SEP'; intros ?gvar0;
+(*        | simple eapply move_globfield_into_SEP''; [ now repeat econstructor | ] *)
+        | simple apply move_globfield_into_SEP'; intros ?gvar0 (*;
           lazymatch goal with
           | |- semax _ ((PROPx _ (LOCALx (gvar ?A ?B :: _) _)) * _ * _ * _)  _ _ =>
                  let n := fresh "v" A in rename B into n
           | |- _ => idtac
-          end
+          end*)
         ];
       simple apply move_globfield_into_SEP0
     | |- semax _ (_ * _ * _) _ _ => idtac

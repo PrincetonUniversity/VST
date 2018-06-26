@@ -108,16 +108,16 @@ Definition K_vector (gv: globals) : mpred :=
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
-    WITH hashed: list int, b: list int, ctx : val, data: val, sh: share, gv: globals
+    WITH regs: list int, b: list int, ctx : val, data: val, sh: share, gv: globals
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
-         PROP(Zlength b = LBLOCKz; (LBLOCKz | Zlength hashed); readable_share sh)
+         PROP(Zlength regs = 8; Zlength b = LBLOCKz; readable_share sh)
          LOCAL (temp _ctx ctx; temp _in data; gvars gv)
-         SEP (field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (hash_blocks init_registers hashed)) ctx;
+         SEP (field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
                 data_block sh (intlist_to_Zlist b) data;
                 K_vector gv)
    POST [ tvoid ]
        PROP() LOCAL()
-       SEP(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_blocks init_registers (hashed++b))) ctx;
+       SEP(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_block regs b)) ctx;
              data_block sh (intlist_to_Zlist b) data;
              K_vector gv).
 
