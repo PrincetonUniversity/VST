@@ -119,3 +119,88 @@ Proof.
     autorewrite with sublist.
     auto.
 Qed.
+
+Module SingletonHole.
+
+Definition array_with_hole {cs: compspecs} sh (t: type) i n (al': list (reptype t)) p :=
+ALL v:reptype t,
+ (data_at sh t v (field_address (tarray t n) (ArraySubsc i :: nil) p) -* data_at sh (tarray t n) (upd_Znth i al' v) p).
+
+Lemma array_with_hole_intro {cs: compspecs} sh: forall t i n (al: list (reptype t)) p,
+  0 <= i < n ->
+  data_at sh (tarray t n) al p |--
+    data_at sh t (Znth i al) (field_address (tarray t n) (ArraySubsc i :: nil) p) *
+      array_with_hole sh t i n al p.
+Proof.
+  intros.
+  unfold data_at, array_with_hole.
+  assert (forall n, reptype (tarray t n) = list (reptype t)).
+  {
+    intros.
+    rewrite reptype_eq.
+    auto.
+  }
+  saturate_local.
+  assert (Zlength al = n).
+  {
+    destruct H2 as [? _].
+    rewrite Z.max_r in H2 by omega.
+    rewrite <- H2.
+    reflexivity.
+  }
+  clear H2.
+  erewrite field_at_Tarray.
+      2: constructor.
+      2: reflexivity.
+      2: omega.
+      2: apply JMeq_refl.
+  erewrite (split3seg_array_at _ _ _ 0 i (i+1) n); try omega.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  autorewrite with sublist.
+  rewrite sublist_len_1.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  erewrite array_at_len_1.
+      2: apply JMeq_refl.
+  rewrite field_at_data_at.
+  change ((nested_field_type (tarray t n) (ArraySubsc i :: nil))) with t.
+  cancel.
+  apply allp_right; intros v.
+  apply -> wand_sepcon_adjoint.
+  
+  unfold data_at at 2.
+  erewrite field_at_Tarray.
+      2: constructor.
+      2: reflexivity.
+      2: omega.
+      2: apply JMeq_refl.
+  erewrite (split3seg_array_at _ _ _ 0 i (i+1) n); try omega.
+      2: autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  autorewrite with sublist.
+  rewrite sublist_len_1.
+      2: autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  erewrite array_at_len_1.
+      2: apply JMeq_refl.
+  rewrite field_at_data_at.
+  change ((nested_field_type (tarray t n) (ArraySubsc i :: nil))) with t.
+  rewrite upd_Znth_same.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  rewrite sublist_upd_Znth_l; try omega.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  rewrite sublist_upd_Znth_r; try omega.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  cancel.
+Qed.
+
+Lemma array_with_hole_elim {cs: compspecs} sh: forall t i n (a: reptype t) (al: list (reptype t)) p,
+  data_at sh t a (field_address (tarray t n) (ArraySubsc i :: nil) p) *
+    array_with_hole sh t i n al p |--
+      data_at sh (tarray t n) (upd_Znth i al a) p.
+Proof.
+  intros.
+  rewrite sepcon_comm.
+  apply wand_sepcon_adjoint.
+  apply (allp_left _ a).
+  auto.
+Qed.
+
+End SingletonHole.
