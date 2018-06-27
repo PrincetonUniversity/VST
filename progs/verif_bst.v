@@ -757,4 +757,3 @@ Proof.
   cancel.
   forward.
 Qed.
-
