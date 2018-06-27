@@ -65,6 +65,63 @@ Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
     tree_rep a pa * tree_rep b pb
  end.
 
+Parameter list_rep: forall (l: list val) (p: val), mpred.
+Require Import VST.msl.iter_sepcon.
+Section IterTreeSepCon2.
+
+  Context {A : Type}.
+  Context {B1 B2 : Type}.
+  Context {ND : NatDed A}.
+  Context {SL : SepLog A}.
+  Context {ClS: ClassicalSep A}.
+  Context {CoSL: CorableSepLog A}.
+  Context (p : B1 -> B2 -> A).
+
+Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
+    match t1 with
+    | E => fun t2 =>
+       match t2 with
+       | E => emp
+       | _ => FF
+       end
+    | T xa _ x xb => fun t2 =>
+       match t2 with
+       | E => FF
+       | T ya _ y yb => p x y * iter_tree_sepcon2 xa ya * iter_tree_sepcon2 xb yb
+       end
+  end.
+
+End IterTreeSepCon2.
+
+Inductive stree (V: Type) : Type :=
+| Leaf: V -> stree V
+| Internal: list (tree (stree V * bool) * V) -> stree V.
+
+Fixpoint stree_rep (st: stree val) (p: val): mpred :=
+  match st with
+  | Leaf v =>
+      data_at Tsh (tptr tvoid) v p
+  | Internal ls =>
+      EX ps: list val,
+      list_rep ps p *
+      iter_sepcon2'
+        (fun tvp p =>
+           EX pt: tree val,
+           tree_rep pt p *
+           iter_tree_sepcon2 (fun sb p => stree_rep (fst sb) p) (fst tvp) pt *       
+           data_at Tsh (tptr tvoid) (snd tvp) p) ls ps
+  end.
+
+
+
+
+
+
+
+
+
+
+
 Definition treebox_rep (t: tree val) (b: val) :=
  EX p: val, data_at Tsh (tptr t_struct_tree) p b * tree_rep t p.
 
