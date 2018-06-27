@@ -18,11 +18,11 @@ Local Open Scope logic.
 
 Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
 !! field_compatible (tarray t n) nil p &&
-(ALL cl:reptype (tarray t (hi-lo)),
+(ALL cl: list (reptype t),
 (data_at sh (tarray t (hi-lo)) cl (field_address0 (tarray t n) (ArraySubsc lo :: nil) p)
 -* data_at sh (tarray t n) (sublist 0 lo al' ++ cl ++ sublist hi n al') p)).
 
-Lemma array_with_hole_local_facts {cs: compspecs}: forall sh t lo hi n al' p,
+Lemma array_with_hole_local_facts {cs: compspecs}: forall sh t lo hi n (al': list (reptype t)) p,
 array_with_hole sh t lo hi n al' p |-- 
 !! (field_compatible (tarray t n) nil p).
 Proof.
