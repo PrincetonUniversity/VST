@@ -81,7 +81,7 @@ Definition f_Xnode_add := {|
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _Xnode noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_q, (tptr (Tstruct _XList noattr))) :: (_t'2, tint) ::
+  fn_temps := ((_q, (tptr (Tstruct _XList noattr))) :: (_t'2, tuint) ::
                (_t'1, (tptr (Tstruct _Xnode noattr))) :: nil);
   fn_body :=
 (Ssequence
@@ -94,13 +94,13 @@ Definition f_Xnode_add := {|
       (Sset _t'2
         (Efield
           (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-            (Tstruct _Xnode noattr)) _v tint))
+            (Tstruct _Xnode noattr)) _v tuint))
       (Sassign
         (Efield
           (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-            (Tstruct _Xnode noattr)) _v tint)
-        (Ebinop Oadd (Etempvar _t'2 tint) (Econst_int (Int.repr 1) tint)
-          tint)))
+            (Tstruct _Xnode noattr)) _v tuint)
+        (Ebinop Oadd (Etempvar _t'2 tuint) (Econst_int (Int.repr 1) tint)
+          tuint)))
     (Ssequence
       (Sset _q
         (Efield
@@ -136,7 +136,8 @@ Definition f_Ynode_add := {|
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _Ynode noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t'2, tint) :: (_t'1, (tptr (Tstruct _YList noattr))) :: nil);
+  fn_temps := ((_t'2, tuint) :: (_t'1, (tptr (Tstruct _YList noattr))) ::
+               nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _Ynode noattr)))
@@ -148,13 +149,13 @@ Definition f_Ynode_add := {|
       (Sset _t'2
         (Efield
           (Ederef (Etempvar _p (tptr (Tstruct _Ynode noattr)))
-            (Tstruct _Ynode noattr)) _v tint))
+            (Tstruct _Ynode noattr)) _v tuint))
       (Sassign
         (Efield
           (Ederef (Etempvar _p (tptr (Tstruct _Ynode noattr)))
-            (Tstruct _Ynode noattr)) _v tint)
-        (Ebinop Oadd (Etempvar _t'2 tint) (Econst_int (Int.repr 1) tint)
-          tint)))
+            (Tstruct _Ynode noattr)) _v tuint)
+        (Ebinop Oadd (Etempvar _t'2 tuint) (Econst_int (Int.repr 1) tint)
+          tuint)))
     (Ssequence
       (Sset _t'1
         (Efield
@@ -267,14 +268,14 @@ Definition f_main := {|
 
 Definition composites : list composite_definition :=
 (Composite _Xnode Struct
-   ((_list, (tptr (Tstruct _XList noattr))) :: (_v, tint) :: nil)
+   ((_list, (tptr (Tstruct _XList noattr))) :: (_v, tuint) :: nil)
    noattr ::
  Composite _XList Struct
    ((_node, (tptr (Tstruct _Xnode noattr))) ::
     (_next, (tptr (Tstruct _XList noattr))) :: nil)
    noattr ::
  Composite _Ynode Struct
-   ((_list, (tptr (Tstruct _YList noattr))) :: (_v, tint) :: nil)
+   ((_list, (tptr (Tstruct _YList noattr))) :: (_v, tuint) :: nil)
    noattr ::
  Composite _YList Struct
    ((_tree, (tptr (Tstruct _BinaryTree noattr))) ::
