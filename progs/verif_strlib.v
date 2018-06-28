@@ -157,36 +157,6 @@ forward_loop (EX i : Z,
  entailer!.
 Qed.
 
-Lemma split_data_at_app:
- forall sh t n (al bl: list (reptype t)) abl'
-         (al': reptype (tarray t (Zlength al)))
-         (bl': reptype (tarray t (n - Zlength al)))
-          p ,
-   n = Zlength (al++bl) ->
-   JMeq abl' (al++bl) ->
-   JMeq al' al ->
-   JMeq bl' bl ->
-   data_at sh (tarray t n) abl' p = 
-         data_at sh (tarray t (Zlength al)) al' p
-        * data_at sh (tarray t (n - Zlength al)) bl'
-                 (field_address0 (tarray t n) [ArraySubsc (Zlength al)] p).
-Proof.
-intros.
-unfold tarray.
-erewrite split2_data_at_Tarray.
-4: rewrite sublist_same; [eassumption | auto | auto ].
-4: rewrite sublist_app1.
-4: rewrite sublist_same; [eassumption | auto | auto ].
-2: rewrite Zlength_app in H by list_solve; list_solve.
-2: rewrite Zlength_app in H by list_solve; list_solve.
-2: list_solve.
-2: omega.
-2: rewrite sublist_app2.
-2: rewrite sublist_same; [eassumption | auto | auto ].
-auto.
-all: rewrite Zlength_app in H; rep_omega.
-Qed.
-
 Lemma split_data_at_app_tschar:
  forall sh n (al bl: list val) p ,
    n = Zlength (al++bl) ->
@@ -196,7 +166,9 @@ Lemma split_data_at_app_tschar:
                  (field_address0 (tarray tschar n) [ArraySubsc (Zlength al)] p).
 Proof.
 intros.
-apply (split_data_at_app sh tschar n al bl (al++bl)); auto.
+apply (split2_data_at_Tarray_app _ n  sh tschar al bl ); auto.
+rewrite Zlength_app in H.
+change ( Zlength bl = n - Zlength al); omega.
 Qed.
 
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.

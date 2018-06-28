@@ -464,8 +464,8 @@ simpl map.
 unfold id2pred_star; fold @id2pred_star.
 erewrite (split2_data_at_Tarray sh t (Z.succ (Zlength data)) 1).
 4: rewrite sublist_same.
-4: apply JMeq_refl.
-2: list_solve. 2: list_solve. 2: auto. 2: list_solve. 2: apply JMeq_refl. 2: apply JMeq_refl.
+4: apply eq_refl.
+2: list_solve. 2: list_solve. 2: auto. 2: list_solve. 2: apply eq_refl. 2: apply eq_refl.
 rewrite (sublist_one) by list_solve.
 autorewrite with sublist.
 rewrite sublist_1_cons.
@@ -474,7 +474,7 @@ rewrite sublist_same by list_solve.
 apply sepcon_derives.
 +
 clear IHdata.
-fold (tarray t 1). erewrite data_at_singleton_array_eq by apply JMeq_refl.
+fold (tarray t 1). erewrite data_at_singleton_array_eq by apply eq_refl.
 rewrite <- (mapsto_data_at sh t (Vint (Cop.cast_int_int sz sign a)) (Vint (Cop.cast_int_int sz sign a)) v); try reflexivity; auto.
 2: subst t; destruct sz, sign; reflexivity.
 Focus 2. {

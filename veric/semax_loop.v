@@ -554,7 +554,7 @@ Proof.
 (*  change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.*)
   specialize (H' psi Delta' (level a2) (tycontext_sub_refl _) HGG Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
   spec H'.
-  { 
+  {
   intros ek vl.
   destruct ek.
   + simpl exit_cont.
@@ -575,8 +575,18 @@ Proof.
           destruct POST; simpl.
           unfold frame_ret_assert. normalize.
           rewrite sepcon_comm. auto.
-      + rewrite proj_frame_ret_assert. simpl seplog.sepcon.
-        destruct POST; simpl tycontext.RA_break. cbv zeta. normalize.
+      + unfold exit_cont.
+        apply (assert_safe_adj' Espec) with (k:= k); auto.
+        - repeat intro. eapply convergent_controls_jsafe; try apply H11; simpl; auto.
+        - eapply pred_nec_hereditary in H3; [| exact NEC2].
+          eapply subp_trans'; [ |  eapply (H3 EK_normal vl2 tx2 vx2)].
+          apply derives_subp.
+          apply andp_derives; auto.
+          apply andp_derives; auto.
+          simpl exit_cont.
+          rewrite proj_frame_ret_assert. simpl proj_ret_assert. simpl seplog.sepcon.
+          normalize.
+          destruct POST; simpl; auto.
       + rewrite proj_frame_ret_assert. simpl seplog.sepcon.
         destruct POST; simpl tycontext.RA_continue. cbv zeta. normalize.
       + rewrite proj_frame_ret_assert.
@@ -623,6 +633,7 @@ Proof.
     clear tx2 vx2.
     intros ek2 vl2 tx2 vx2.
     destruct ek2.
+    {
     unfold exit_cont.
     apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
     - intros ? ? ? ? ? ? ?.
@@ -639,10 +650,17 @@ Proof.
         simpl seplog.sepcon in H3',vx4. cbv zeta in H3', vx4.
         normalize in vx4.        
         rewrite sepcon_comm; auto.
-    - intros tx4 vx4. simpl frame_ret_assert in *. simpl proj_ret_assert in *.
-      normalize. 
-      unfold loop2_ret_assert. normalize.
-      repeat intro; normalize.
+    }
+    {
+    unfold exit_cont.
+    apply (assert_safe_adj' Espec) with (k := k); auto.
+    - intros ? ? ? ? ? ? ?.
+      eapply convergent_controls_jsafe; simpl; eauto.
+    - eapply pred_nec_hereditary in H3; [| exact NEC2].
+      eapply subp_trans'; [ |  eapply (H3 EK_normal vl2 tx2 vx2)].
+      apply derives_subp.
+      auto.
+    }
     - simpl proj_ret_assert in H3'|-*. cbv zeta. normalize.
     - simpl proj_ret_assert in H3'|-*. cbv zeta. 
       specialize (H3' EK_return vl2).
