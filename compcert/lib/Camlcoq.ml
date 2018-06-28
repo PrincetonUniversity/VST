@@ -170,6 +170,8 @@ module Z = struct
   let add = Z.add
   let sub = Z.sub
   let mul = Z.mul
+  let div = Z.div
+  let modulo = Z.modulo
   let eq x y = (Z.compare x y = Eq)
   let lt x y = (Z.compare x y = Lt)
   let gt x y = (Z.compare x y = Gt)
@@ -247,9 +249,13 @@ module Z = struct
 
   let to_string = dec
 
+  let is_power2 x =
+    gt x zero && eq (Z.coq_land x (pred x)) zero
+
   let (+) = add
   let (-) = sub
   let ( * ) = mul
+  let ( / ) = div
   let (=) = eq
   let (<) = lt
   let (<=) = le
@@ -266,6 +272,8 @@ let coqint_of_camlint : int32 -> Integers.Int.int = Z.of_uint32
 let camlint64_of_coqint : Integers.Int64.int -> int64 = Z.to_int64
 let coqint_of_camlint64 : int64 -> Integers.Int64.int = Z.of_uint64
    (* interpret the int64 as unsigned so that result Z is in range for int *)
+let camlint64_of_ptrofs : Integers.Ptrofs.int -> int64 =
+  fun x -> Z.to_int64 (Integers.Ptrofs.signed x)
 
 (* Atoms (positive integers representing strings) *)
 

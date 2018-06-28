@@ -31,6 +31,7 @@ type section_name =
   | Section_debug_line of string option
   | Section_debug_ranges
   | Section_debug_str
+  | Section_ais_annotation
 
 type access_mode =
   | Access_default
@@ -189,8 +190,7 @@ let for_variable env id ty init =
 
 (* Determine sections for a function definition *)
 
-let for_function env id ty_res =
-  let attr = Cutil.attributes_of_type env ty_res in
+let for_function env id attr =
   let si_code =
     try
       (* 1- Section explicitly associated with #use_section *)
