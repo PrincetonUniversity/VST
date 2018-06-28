@@ -234,7 +234,8 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v field_at_wand.v stronger.v \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v
+   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
+   SeparationLogicAsLogic.v SeparationLogicFacts.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
