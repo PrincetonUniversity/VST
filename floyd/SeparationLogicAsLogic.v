@@ -11,43 +11,6 @@ Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
 Local Open Scope logic.
 
-(* Aux *)
-
-Lemma local_andp_bupd: forall P Q,
-  (local P && |==> Q) |-- |==> (local P && Q).
-Proof.
-  intros.
-  rewrite !(andp_comm (local P)).
-  apply bupd_andp2_corable.
-  intro; apply corable_prop.
-Qed.
-
-Lemma bupd_andp_local: forall P Q,
-  (|==> P) && local Q |-- |==> (P && local Q).
-Proof.
-  intros.
-  apply bupd_andp2_corable.
-  intro; apply corable_prop.
-Qed.
-
-Lemma derives_bupd_trans: forall TC P Q R,
-  local TC && P |-- |==> Q ->
-  local TC && Q |-- |==> R ->
-  local TC && P |-- |==> R.
-Proof.
-  intros.
-  rewrite (add_andp _ _ H).
-  rewrite (andp_comm _ P), andp_assoc; apply andp_left2.
-  eapply derives_trans; [apply local_andp_bupd |].
-  rewrite (add_andp _ _ H0).
-  rewrite (andp_comm _ Q), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
-  eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
-  eapply derives_trans; [apply bupd_trans|].
-  apply bupd_mono; solve_andp.
-Qed.
-
-(* Aux ends *)
-
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -381,12 +344,12 @@ Proof.
     - apply andp_left2, FF_left.
     - apply andp_left2, FF_left.
     - intro; apply andp_left2, FF_left.
-  + eapply semax_pre_post_bupd; [.. |]. Check  semax_store.
+  + eapply semax_pre_post_bupd; [.. |].
     - rewrite exp_andp2; apply exp_left.
       intro; specialize (H x).
       apply semax_store_inv in H.
       destruct H as [sh [P' [? [? ?]]]].
-      Fail exact H0.
+      exact H0.
       admit.
     - admit.
     - admit.
@@ -485,7 +448,7 @@ Proof.
 Qed.
 
 End NO_EXISTS_PRE.
-
+(*
 Module WITH_EXISTS_PRE.
 
 Lemma veric_semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
@@ -652,64 +615,6 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
   forall (P0: Prop)  (P : environ->mpred) c (R: ret_assert),
   (P0 -> @semax CS Espec Delta P c R) ->
    @semax CS Espec Delta (!! P0 && P) c R.
-
-(* Copied from canon.v *)
-
-Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
- forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
-   @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
-Proof.
-  intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
-Qed.
-
-Lemma semax_pre_bupd:
- forall P' Espec {cs: compspecs} Delta P c R,
-     local (tc_environ Delta) && P |-- |==> P' ->
-     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_post_bupd; eauto;
-intros; apply andp_left2, bupd_intro; auto.
-Qed.
-
-Lemma semax_pre: forall {Espec: OracleKind}{cs: compspecs},
- forall P' Delta P c R,
-     local (tc_environ Delta) && P |-- P' ->
-     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_bupd; eauto.
-eapply derives_trans, bupd_intro; auto.
-Qed.
-
-Lemma semax_post_bupd:
- forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
-   local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
-   local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
-   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_post_bupd; try eassumption.
-apply andp_left2, bupd_intro; auto.
-Qed.
-
-Lemma semax_post:
- forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
-   local (tc_environ Delta) && RA_break R' |-- RA_break R ->
-   local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
-   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
-   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_post; try eassumption.
-apply andp_left2; auto.
-Qed.
-
-(* Copied from canon.v end. *)
 
 Lemma semax_skip_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R,
     @semax CS Espec Delta P Sskip R ->
@@ -1105,5 +1010,5 @@ Proof.
 Abort.
 
 End WITH_EXISTS_PRE.
-
+*)
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
