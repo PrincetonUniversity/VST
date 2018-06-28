@@ -1195,7 +1195,7 @@ Fixpoint prebreak_cont (k: cont) : cont :=
   match k with
   | Kloop1 s e3 :: k' => k
   | Kseq s :: k' => prebreak_cont k'
-  | Kloop2 s e3 :: _ => nil  (* stuck *)
+  | Kloop2 s e3 :: k' => k
   | Kswitch :: k' => k
   | _ =>  nil (* stuck *)
   end.
@@ -1203,6 +1203,7 @@ Fixpoint prebreak_cont (k: cont) : cont :=
 Lemma prebreak_cont_is: forall k,
   match (prebreak_cont k) with
   | Kloop1 _ _ :: _ => True
+  | Kloop2 _ _ :: _ => True
   | Kswitch :: _ => True
   | nil => True
   | _ => False
@@ -1451,6 +1452,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   (* break *)
 Focus 1.
   case_eq (prebreak_cont l); intros.
+  {
   assert (break_cont (l++ctl1) = break_cont (l++ctl2)).
   clear - H0 H2.
   revert H2; induction l; simpl; intros; try destruct a; try congruence.
@@ -1466,8 +1468,11 @@ Focus 1.
   exists st', m'0; split; auto.
   split3; auto.
   constructor. auto.
+  }
+  {
   assert (PB:= prebreak_cont_is l); rewrite H2 in PB.
   destruct c; try contradiction.
+  {
   assert (forall k, break_cont (l++k) = l0++k).
   clear - H2.
   revert H2; induction l; intros; try destruct a; simpl in *; auto; congruence.
@@ -1486,6 +1491,8 @@ Focus 1.
   rewrite H3; auto.
   exists c2,m2; split; auto.
   destruct H5; split; auto. constructor; auto. rewrite H3; auto.
+  }
+  {
   assert (forall k, break_cont (l++k) = l0++k).
   clear - H2.
   revert H2; induction l; intros; try destruct a; simpl in *; auto; congruence.
@@ -1504,6 +1511,28 @@ Focus 1.
   rewrite H3; auto.
   exists c2,m2; split; auto.
   destruct H5; split; auto. constructor; auto. rewrite H3; auto.
+  }
+  {
+  assert (forall k, break_cont (l++k) = l0++k).
+  clear - H2.
+  revert H2; induction l; intros; try destruct a; simpl in *; auto; congruence.
+  rewrite H3 in H.
+  destruct l0; simpl in *.
+  hnf in CS0.
+  specialize (CS0 ora ve te m0 (S n)).
+  assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  split3; auto.
+  pose proof (jsafeN_step cl_core_sem OK_spec ge _ _ _ _ _ _ H5 H1).
+  apply CS0 in H6; auto.
+  destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
+  exists c2; exists m2; split; auto.
+  destruct H7;  constructor; auto. constructor; auto. rewrite H3. auto.
+  destruct (IHcl_step c l0 m0 (eq_refl _) m'0 (eq_refl _)) as [c2 [m2 [? ?]]]; auto.
+  rewrite H3; auto.
+  exists c2,m2; split; auto.
+  destruct H5; split; auto. constructor; auto. rewrite H3; auto.
+  }
+  } Unfocus.
   (* ifthenelse *)
   exists (State ve te (Kseq (if b then s1 else s2) :: l ++ ctl2)), m'.
   split. split3; auto. rewrite <- Heqdm'. econstructor; eauto.

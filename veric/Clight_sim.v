@@ -743,6 +743,9 @@ clear.
             simpl  in *. exists k'; split. econstructor.
                split;[reflexivity|].  eapply CC.step_break_loop1. constructor 1. auto.
 
+            simpl  in *. exists k'; split. econstructor.
+               split;[reflexivity|].  eapply CC.step_break_loop2. constructor 1. auto.
+
             simpl in *. exists k'; split.
                   econstructor. split;[reflexivity|]. eapply CC.step_skip_break_switch. auto.
                   constructor 1; auto.
