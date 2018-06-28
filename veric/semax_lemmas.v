@@ -1152,16 +1152,15 @@ Qed.
 Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
-   j_halted cl_core_sem st = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
    jstep cl_core_sem psi st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
 Proof.
  intros.
- inv H1.
+ inv H0.
  eexists; eexists; split; eauto.
- simpl in H3; rewrite H3 in H; congruence.
- simpl in H2; unfold cl_halted in H2. congruence.
+ simpl in H2; rewrite H2 in H; congruence.
+ simpl in H1; unfold cl_halted in H1. congruence.
 Qed.
 
 Lemma safeN_strip:
