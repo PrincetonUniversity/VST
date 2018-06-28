@@ -264,11 +264,11 @@ Hint Extern 2 (field_compatible0 _ _ (offset_val _ _)) =>
   (apply field_compatible0_nested_field_array; auto with field_compatible).
 
 Lemma split2_data_at_Tarray_unfold {cs: compspecs}
-     sh t n n1 v (v': list (reptype t)) v1 v2 p:
+     sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
-  JMeq v v' ->
-  JMeq v1 (sublist 0 n1 v') ->
-  JMeq v2 (sublist n1 n v') ->
+  v = v' ->
+  v1 = (sublist 0 n1 v') ->
+  v2 = (sublist n1 n v') ->
   data_at sh (Tarray t n noattr) v p |--
   data_at sh (Tarray t n1 noattr) v1 p *
   data_at sh (Tarray t (n - n1) noattr) v2
@@ -278,8 +278,7 @@ Proof.
   assert_PROP (Zlength v' = n). {
     eapply derives_trans; [apply data_at_local_facts | apply prop_derives].
     intros [? ?]. destruct H4 as [? _]. rewrite Z.max_r in H4 by omega.
-    rewrite <- H4. f_equal. apply JMeq_eq. eapply JMeq_trans; [apply @JMeq_sym; exact H0 |].
-    apply @JMeq_sym. apply (unfold_reptype_JMeq _ v).
+    rewrite <- H0. exact H4.
   }
   assert_PROP (field_compatible0 (Tarray t n noattr) (ArraySubsc n1::nil) p). {
      eapply derives_trans; [apply data_at_local_facts | apply prop_derives].
@@ -292,9 +291,9 @@ Proof.
   rewrite data_at_isptr at 1.
   unfold data_at at 1. intros; simpl; normalize.
   erewrite (field_at_Tarray sh  (Tarray t n noattr) _ t); try reflexivity; trivial.
-  2: omega. 2: eauto.
+  2: omega.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1).
-  2: auto. 2: rewrite Z.sub_0_r; auto.
+  2: auto. 2: rewrite Z.sub_0_r, H0; auto.
   do 2 rewrite array_at_data_at by tauto.
   rewrite Zminus_0_r.
   unfold at_offset.
@@ -302,12 +301,12 @@ Proof.
             (nested_field_array_type (Tarray t n noattr) nil 0 n1)
             (Tarray t n1 noattr) _ v1).
   2: unfold nested_field_array_type; simpl; rewrite Zminus_0_r; trivial.
-  2: eapply JMeq_trans; [| apply @JMeq_sym, H1]; apply @fold_reptype_JMeq.
+  2: rewrite H1, H0; auto.
   erewrite (data_at_type_changable sh
             (nested_field_array_type (Tarray t n noattr) nil n1 n)
             (Tarray t (n - n1) noattr) _  v2).
   2: unfold nested_field_array_type; simpl; trivial.
-  2: eapply JMeq_trans; [| apply @JMeq_sym, H2]; subst n; apply @fold_reptype_JMeq.
+  2: rewrite H2, <- H3, H0; auto.
   rewrite !nested_field_offset_ind by (repeat split; auto; omega).
   rewrite !nested_field_type_ind.
   unfold gfield_offset.
@@ -316,12 +315,12 @@ Proof.
   normalize.
 Qed.
 
-Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
+Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
    n <= Zlength v' ->
-   JMeq v (sublist 0 n v') ->
-   JMeq v1 (sublist 0 n1 v') ->
-   JMeq v2 (sublist n1 n v') ->
+   v = (sublist 0 n v') ->
+   v1 = (sublist 0 n1 v') ->
+   v2 = (sublist n1 n v') ->
    data_at sh (Tarray t n1 noattr) v1 p *
    data_at sh (Tarray t (n - n1) noattr) v2
         (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p)
@@ -344,20 +343,21 @@ Proof.
   } clear H3; rename H4 into H3.
   rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
   unfold data_at at 3.  erewrite field_at_Tarray; try reflexivity; eauto; try omega.
+  rewrite H0.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1); trivial.
   2: autorewrite with sublist; auto.
-  change (@reptype cs
-            (@nested_field_type cs (Tarray t n noattr) (ArraySubsc 0 ::nil)))
-   with (@reptype cs t).
   autorewrite with sublist.
   unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   unfold data_at at 1; erewrite field_at_Tarray; try reflexivity; eauto; try omega.
   apply sepcon_derives.
   unfold array_at.
-  simpl. apply andp_derives; auto; try apply derives_refl. 
+  rewrite H1.
+  simpl. apply andp_derives; auto.
+  2: apply derives_refl. 
   apply prop_derives. intuition.
   assert (sublist n1 (Z.min n (Zlength v')) v' = sublist n1 n v').
   f_equal. autorewrite with sublist. auto.
+  rewrite H2.
   clear - H H3.
   rewrite array_at_data_at by omega. normalize.
   rewrite array_at_data_at by omega.
@@ -369,21 +369,17 @@ Proof.
   rewrite !nested_field_type_ind. unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r, Z.add_0_r.
   apply equal_f.
-  apply data_at_type_changable.
+  apply data_at_type_changable; auto.
   unfold nested_field_array_type.
   rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; omega.
-  unfold nested_field_array_type. simpl.
-  eapply JMeq_trans; [apply fold_reptype_JMeq |].
-  eapply JMeq_trans; [| eapply @JMeq_sym; apply fold_reptype_JMeq].
-  apply JMeq_refl.
 Qed.
 
-Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
+Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 (v v' v1 v2: list (reptype t)) p:
    0 <= n1 <= n ->
    n <= Zlength v' ->
-   JMeq v (sublist 0 n v') ->
-   JMeq v1 (sublist 0 n1 v') ->
-   JMeq v2 (sublist n1 n v') ->
+   v = (sublist 0 n v') ->
+   v1 = (sublist 0 n1 v') ->
+   v2 = (sublist n1 n v') ->
    data_at sh (Tarray t n noattr) v p =
     data_at sh (Tarray t n1 noattr) v1 p *
     data_at sh (Tarray t (n - n1) noattr) v2 (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p).
@@ -460,14 +456,14 @@ Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
     (eapply field_compatible0_Tarray_offset; [eassumption | omega | omega]) : field_compatible.
 *)
 
-Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)) v1 v2 v3 p:
+Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v' v1 v2 v3: list (reptype t)) p:
    naturally_aligned t ->
    0 <= n1 <= n2 ->
    n2 <= n <= Zlength v' ->
-   JMeq v (sublist 0 n v') ->
-   JMeq v1 (sublist 0 n1 v') ->
-   JMeq v2 (sublist n1 n2 v') ->
-   JMeq v3 (sublist n2 n v') ->
+   v = (sublist 0 n v') ->
+   v1 = (sublist 0 n1 v') ->
+   v2 = (sublist n1 n2 v') ->
+   v3 = (sublist n2 n v') ->
    data_at sh (Tarray t n noattr) v p =
     data_at sh (Tarray t n1 noattr) v1 p *
     data_at sh (Tarray t (n2 - n1) noattr) v2 (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p) *
@@ -475,28 +471,25 @@ Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)
 Proof. intros until 1. rename H into NA; intros.
   destruct (field_compatible0_dec (tarray t n) (ArraySubsc n2::nil) p).
   erewrite (split2_data_at_Tarray sh t n n1); try eassumption; try omega.
-  instantiate (1:= @fold_reptype cs (Tarray t (n - n1) noattr) (sublist n1 n v')).
-  2: apply @fold_reptype_JMeq.
+  instantiate (1:= sublist n1 n v').
+  2: reflexivity.
   erewrite (split2_data_at_Tarray sh t (n-n1) (n2-n1)); try eassumption; try omega.
   2: instantiate (1:= sublist n1 n v'); autorewrite with sublist; omega.
+  2: autorewrite with sublist; auto.
   2: autorewrite with sublist;
-     apply @fold_reptype_JMeq.
+     instantiate (1:= sublist n1 n2 v');
+     auto.
   2: autorewrite with sublist;
-     instantiate (1:= @fold_reptype cs (Tarray t (n2-n1) noattr) (sublist n1 n2 v'));
-     apply @fold_reptype_JMeq.
-  2: autorewrite with sublist;
-     instantiate (1:= @fold_reptype cs (Tarray t (n-n1-(n2-n1)) noattr) (sublist n2 n v'));
-     apply @fold_reptype_JMeq.
+     instantiate (1:= sublist n2 n v');
+     auto.
   rewrite sepcon_assoc.
-  f_equal. f_equal. f_equal. apply JMeq_eq.
-  eapply JMeq_trans; [apply fold_reptype_JMeq | apply @JMeq_sym, H3].
+  f_equal. f_equal. f_equal. auto.
   replace  (field_address0 (Tarray t (n - n1) noattr) (SUB (n2 - n1))
      (field_address0 (Tarray t n noattr) (SUB n1) p))
    with (field_address0 (Tarray t n noattr) (SUB n2) p).
   apply equal_f.
-  apply data_at_type_changable.
-  f_equal. omega.
-  eapply JMeq_trans; [apply @fold_reptype_JMeq |]; apply JMeq_sym; auto.
+  replace (n - n1 - (n2 - n1)) with (n - n2) by omega.
+  subst v3; reflexivity.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite (field_address0_offset (Tarray t n noattr) ) by auto with field_compatible.
   rewrite field_address0_offset.
@@ -509,7 +502,7 @@ Proof. intros until 1. rename H into NA; intros.
   rewrite !nested_field_type_ind;   unfold gfield_offset.
   rewrite Z.add_0_l.
   eapply field_compatible0_Tarray_offset; try eassumption; try omega.
-  f_equal. f_equal. f_equal. omega.
+  f_equal. f_equal. omega.
   apply pred_ext.
   eapply derives_trans. apply data_at_local_facts. normalize.
   contradiction n0. auto with field_compatible.
@@ -521,7 +514,7 @@ Proof. intros until 1. rename H into NA; intros.
   normalize. destruct H6 as [H6 _]; contradiction H6.
 Qed.
 
-Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 v p:
+Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 (v: list val) p:
    0 <= n1 <= n ->
    Zlength v = n ->
    data_at sh (Tarray tuchar n noattr) v p =
@@ -534,7 +527,7 @@ Proof. intros.
  rewrite sublist_same; try omega; auto.
 Qed.
 
-Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 v p:
+Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
    0 <= n1 <= n2 ->
    n2 <= n ->
    Zlength v = n ->
@@ -612,7 +605,7 @@ Qed.
 Transparent sizeof.
 
 Lemma data_at_singleton_array {cs} sh t vl v p:
-  JMeq vl [v] ->
+  vl = [v] ->
   @data_at cs sh t v p |-- @data_at cs sh (tarray t 1) vl p.  
 Proof.
   intros. rename H into Heq.
@@ -630,7 +623,8 @@ Proof.
   }
   unfold data_at at 2.
   erewrite field_at_Tarray.
-  2: simpl; trivial. 2: reflexivity. 2: omega. 2: apply Heq.
+  2: simpl; trivial. 2: reflexivity. 2: omega. 2:apply JMeq_refl.
+  rewrite Heq.
   erewrite array_at_len_1 by apply JMeq_refl.
   rewrite field_at_data_at; simpl.
   rewrite field_address_offset; trivial.
@@ -639,16 +633,16 @@ Proof.
   eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
 Qed.
 
-Lemma data_at_singleton_array_inv {cs} sh t vl v p:
-  JMeq vl [v] ->
+Lemma data_at_singleton_array_inv {cs} sh t (vl : list (reptype t)) v p:
+  vl = [v] ->
   @data_at cs sh (tarray t 1) vl p |-- @data_at cs sh t v p.  
-Proof. 
+Proof.
   rewrite data_at_isptr. normalize.
   assert_PROP (field_compatible (tarray t 1) [] p).
   { eapply derives_trans. eapply data_at_local_facts. normalize. }
   unfold data_at at 1.
   erewrite field_at_Tarray.
-  2: simpl; trivial. 2: reflexivity. 2: omega. 2: apply H.
+  2: simpl; trivial. 2: reflexivity. 2: omega. 2: apply JMeq_refl.
   erewrite array_at_len_1. 2: apply JMeq_refl.
   rewrite field_at_data_at; simpl. 
   rewrite field_address_offset; trivial.
@@ -660,36 +654,37 @@ Qed.
 
 Opaque sizeof.
  
-Lemma data_at_singleton_array_eq {cs} sh t v vl p:
-  JMeq vl [v] ->
+Lemma data_at_singleton_array_eq {cs} sh t v (vl: list (reptype t)) p:
+  vl = [v] ->
   @data_at cs sh (tarray t 1) vl p = @data_at cs sh t v p.  
 Proof. 
   intros.
    apply pred_ext.
-  apply data_at_singleton_array_inv; auto.
+  apply data_at_singleton_array_inv; rewrite H; auto.
   apply data_at_singleton_array; auto.
 Qed.
 
-Lemma data_at_tuchar_singleton_array {cs} sh v p:
+Lemma data_at_tuchar_singleton_array {cs} sh (v: val) p:
   @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
-Proof. apply data_at_singleton_array. apply JMeq_refl. Qed.
+Proof. apply data_at_singleton_array. reflexivity. Qed.
 
-Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
+Lemma data_at_tuchar_singleton_array_inv {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
-Proof.   apply data_at_singleton_array_inv. apply JMeq_refl. Qed.
+Proof. apply data_at_singleton_array_inv. reflexivity. Qed.
 
-Lemma data_at_tuchar_singleton_array_eq {cs} sh v p:
+Lemma data_at_tuchar_singleton_array_eq {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
-Proof. apply data_at_singleton_array_eq. apply JMeq_refl. Qed.
+Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
 
-Lemma data_at_zero_array {cs} sh t v p:
+Lemma data_at_zero_array {cs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   isptr p ->
-  JMeq v (@nil (reptype t)) ->
+  v = (@nil (reptype t)) ->
   emp |-- @data_at cs sh (tarray t 0) v p.  
 Proof. intros.
   unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: eassumption. 2: simpl; trivial. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial.
+  rewrite H1.
   rewrite array_at_len_0. apply andp_right; try apply derives_refl.
   apply prop_right.
   apply field_compatible0_ArraySubsc0.
@@ -698,20 +693,21 @@ Proof. intros.
   split; auto. omega.
 Qed.
 
-Lemma data_at_zero_array_inv {cs} sh t v p:
+Lemma data_at_zero_array_inv {cs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
-  JMeq v (@nil (reptype t)) ->
+  v = (@nil (reptype t)) ->
   @data_at cs sh (tarray t 0) v p |-- emp.  
 Proof. intros.
   unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply H0. 2: simpl; trivial. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: rewrite H0; apply JMeq_refl. 2: simpl; trivial.
+  rewrite H0.
   rewrite array_at_len_0. normalize. 
 Qed.
 
-Lemma data_at_zero_array_eq {cs} sh t v p:
+Lemma data_at_zero_array_eq {cs} sh t (v: list (reptype t)) p:
   complete_legal_cosu_type t = true ->
   isptr p ->
-  JMeq v (@nil (reptype t)) ->
+  v = (@nil (reptype t)) ->
   @data_at cs sh (tarray t 0) v p = emp.
 Proof. intros. 
   apply pred_ext.
@@ -766,7 +762,29 @@ trivial.
 simpl.
 instantiate (1:=list_repeat (Z.to_nat n) Vundef).
 list_solve.
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl.
+unfold default_val. simpl. autorewrite with sublist. reflexivity.
+unfold default_val. simpl. autorewrite with sublist. reflexivity.
+unfold default_val. simpl. autorewrite with sublist. reflexivity.
 Qed. 
+
+Lemma split2_data_at_Tarray_app:
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type)
+                           (v1 v2: list (reptype t)) p,
+    Zlength v1 = mid ->
+    Zlength v2 = n-mid ->
+    data_at sh (tarray t n) (v1 ++ v2) p =
+    data_at sh (tarray t mid) v1  p *
+    data_at sh (tarray t (n-mid)) v2
+            (field_address0 (tarray t n) [ArraySubsc mid] p).
+Proof.
+intros.
+pose proof (Zlength_nonneg v1).
+pose proof (Zlength_nonneg v2).
+apply split2_data_at_Tarray with (v1++v2); auto.
+omega.
+list_solve.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+Qed.
+

@@ -98,31 +98,6 @@ apply H; auto.
 apply sublist_In in H0. auto.
 Qed.
 
-
-Lemma split_array:
- forall {cs: compspecs} mid n (sh: Share.t) (t: type)
-                            v (v1' v2': list (reptype t)) v1 v2 p,
-    Zlength v1' = mid ->
-    Zlength v2' = n-mid ->
-    JMeq v (v1'++v2') ->
-    JMeq v1 v1' ->
-    JMeq v2 v2' ->
-    data_at sh (tarray t n) v p =
-    data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2
-            (field_address0 (tarray t n) [ArraySubsc mid] p).
-Proof.
-intros.
-pose proof (Zlength_nonneg v1').
-pose proof (Zlength_nonneg v2').
-apply split2_data_at_Tarray with (v1'++v2'); auto.
-omega.
-list_solve.
-autorewrite with sublist; auto.
-autorewrite with sublist; auto.
-autorewrite with sublist; auto.
-Qed.
-
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
@@ -135,7 +110,7 @@ assert (Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) four_content
   by (repeat constructor; computable).
  rewrite <- (sublist_same 0 4 contents), (sublist_split 0 2 4)
     by now autorewrite with sublist.
-erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+erewrite (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
 Intros.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tuint 4) [ArraySubsc 2] four, Ews,
@@ -147,7 +122,7 @@ forward_call (*  s = sumarray(four+2,2); *)
 + split. auto. computable.
 +
   gather_SEP 1 2.
-  erewrite <- (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+  erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
   rewrite <- !sublist_map. fold contents. autorewrite with sublist.
   rewrite (sublist_same 0 4) by auto.
   forward. (* return *)

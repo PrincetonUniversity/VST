@@ -64,7 +64,7 @@ Fixpoint break_cont (k: cont) : cont :=
   match k with
   | Kseq s :: k' => break_cont k'
   | Kloop1 _ _ :: k' => k'
-  | Kloop2 _ _ :: _ => nil  (* stuck *)
+  | Kloop2 _ _ :: k' => k'
   | Kswitch :: k' => k'
   | _ =>  nil (* stuck *)
   end.

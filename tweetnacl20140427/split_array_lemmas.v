@@ -563,7 +563,7 @@ Proof.
 Qed.
 *)
 
-Definition Select_at {cs} sh n data2 d :=
+Definition Select_at {cs} sh n (data2: list val) d :=
    @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2
              (offset_val n d).
 
@@ -572,7 +572,7 @@ Definition Unselect_at {cs} sh (data1 data2 data3: list val) d :=
    @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
              (offset_val (Zlength data2 + Zlength data1) d)).
 
-Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
+Lemma Select_Unselect_Tarray_at {cs} l d sh (data1 data2 data3 data: list val)
   (DATA: (data1 ++ data2 ++ data3) = data)
   (L: l = Zlength data)
   (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
@@ -585,6 +585,7 @@ Proof.
   specialize (Zlength_nonneg data2). intros.
   specialize (Zlength_nonneg data3). intros.
   rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try omega.
+Locate split3_data_at_Tarray_tuchar.
   autorewrite with sublist.
   unfold Select_at, Unselect_at. simpl.
   unfold offset_val. red in F. destruct d; intuition.

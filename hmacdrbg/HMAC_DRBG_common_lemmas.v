@@ -123,7 +123,7 @@ Proof.
 Qed.
 
 Lemma data_at_complete_split:
-  forall A B lengthA lengthB AB length p offset sh,
+  forall (A B: list val) lengthA lengthB AB length p offset sh,
     field_compatible (tarray tuchar (Zlength A + Zlength B)) [] p ->
     lengthA = Zlength A ->
     lengthB = Zlength B ->

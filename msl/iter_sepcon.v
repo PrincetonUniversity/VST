@@ -54,22 +54,26 @@ Section IterSepCon.
   Context {ClS: ClassicalSep A}.
   Context {CoSL: CorableSepLog A}.
 
-Fixpoint iter_sepcon (l : list B) (p : B -> A) : A :=
+Section SingleSepPred.
+
+  Context (p : B -> A).
+
+Fixpoint iter_sepcon (l : list B) : A :=
   match l with
     | nil => emp
-    | x :: xl => p x * iter_sepcon xl p
+    | x :: xl => p x * iter_sepcon xl
   end.
 
 Lemma iter_sepcon_app:
-  forall (l1 l2 : list B) (p : B -> A), iter_sepcon (l1 ++ l2) p = iter_sepcon l1 p * iter_sepcon l2 p.
+  forall (l1 l2 : list B), iter_sepcon (l1 ++ l2) = iter_sepcon l1 * iter_sepcon l2.
 Proof.
   induction l1; intros; simpl. rewrite emp_sepcon; auto. rewrite IHl1. rewrite sepcon_assoc. auto.
 Qed.
 
-Lemma iter_sepcon_app_comm: forall (l1 l2 : list B) (p : B -> A), iter_sepcon (l1 ++ l2) p = iter_sepcon (l2 ++ l1) p.
+Lemma iter_sepcon_app_comm: forall (l1 l2 : list B), iter_sepcon (l1 ++ l2) = iter_sepcon (l2 ++ l1).
 Proof. intros. do 2 rewrite iter_sepcon_app. rewrite sepcon_comm. auto. Qed.
 
-Lemma iter_sepcon_permutation: forall  (l1 l2 : list B) (p : B -> A), Permutation l1 l2 -> iter_sepcon l1 p = iter_sepcon l2 p.
+Lemma iter_sepcon_permutation: forall  (l1 l2 : list B), Permutation l1 l2 -> iter_sepcon l1 = iter_sepcon l2.
 Proof.
   intros. induction H; simpl; auto.
   + rewrite IHPermutation. auto.
@@ -77,31 +81,29 @@ Proof.
   + rewrite IHPermutation1. auto.
 Qed.
 
-Lemma iter_sepcon_in_true: forall (p : B -> A) (l : list B) x, In x l -> iter_sepcon l p |-- p x * TT.
+Lemma iter_sepcon_in_true: forall (l : list B) x, In x l -> iter_sepcon l |-- p x * TT.
 Proof.
   intros. apply in_split in H. destruct H as [l1 [l2 ?]]. subst.
   rewrite iter_sepcon_app_comm. rewrite <- app_comm_cons. simpl.
   apply sepcon_derives; auto. apply TT_right.
 Qed.
-Print incl.
-Locate incl.
-SearchAbout incl.
-Lemma iter_sepcon_incl_true: forall (p : B -> A) (l s: list B),
-    NoDup s -> incl s l -> iter_sepcon l p |-- iter_sepcon s p * TT.
+
+Lemma iter_sepcon_incl_true: forall (l s: list B),
+    NoDup s -> incl s l -> iter_sepcon l |-- iter_sepcon s * TT.
 Proof.
   intros. destruct (incl_Permutation l s H H0) as [l' ?].
-  apply (iter_sepcon_permutation p) in H1. rewrite H1, iter_sepcon_app.
+  apply iter_sepcon_permutation in H1. rewrite H1, iter_sepcon_app.
   apply sepcon_derives; auto. apply TT_right.
 Qed.
 
-Lemma iter_sepcon_unique_nodup: forall (p : B -> A) (l : list B), sepcon_unique1 p -> iter_sepcon l p |-- !!(NoDup l).
+Lemma iter_sepcon_unique_nodup: forall (l : list B), sepcon_unique1 p -> iter_sepcon l |-- !!(NoDup l).
 Proof.
   intros. induction l.
   + apply prop_right. constructor.
   + simpl.
-    assert (p a * iter_sepcon l p |-- !!(~ In a l)). {
+    assert (p a * iter_sepcon l |-- !!(~ In a l)). {
       apply not_prop_right.
-      intros. apply (iter_sepcon_in_true p) in H0.
+      intros. apply iter_sepcon_in_true in H0.
       apply derives_trans with (p a * p a * TT).
       + rewrite sepcon_assoc. apply sepcon_derives. apply derives_refl. auto.
       + specialize (H a). apply derives_trans with (FF * TT).
@@ -112,31 +114,7 @@ Proof.
   - normalize. constructor; auto.
 Qed.
 
-Lemma iter_sepcon_func: forall l P Q, (forall x, P x = Q x) -> iter_sepcon l P = iter_sepcon l Q.
-Proof. intros. induction l; simpl; [|f_equal]; auto. Qed.
-
-Lemma iter_sepcon_func_strong: forall l P Q, (forall x, In x l -> P x = Q x) -> iter_sepcon l P = iter_sepcon l Q.
-Proof.
-  intros. induction l.
-  + reflexivity.
-  + simpl.
-    f_equal.
-    - apply H.
-      simpl; auto.
-    - apply IHl.
-      intros; apply H.
-      simpl; auto.
-Qed. 
-
-Instance iter_sepcon_permutation_proper : Proper ((@Permutation B) ==> (pointwise_relation B eq) ==> eq) iter_sepcon.
-Proof.
-  repeat intro. transitivity (iter_sepcon x y0).
-  + apply iter_sepcon_func.
-    exact H0.
-  + apply iter_sepcon_permutation. auto.
-Qed.
-
-Lemma iter_sepcon_emp: forall (p : B -> A) (l l' : list B), (forall x, p x |-- emp) -> NoDup l' -> incl l' l -> iter_sepcon l p |-- iter_sepcon l' p.
+Lemma iter_sepcon_emp: forall (l l' : list B), (forall x, p x |-- emp) -> NoDup l' -> incl l' l -> iter_sepcon l |-- iter_sepcon l'.
 Proof.
   intros.
   revert l H1; induction l'; intros.
@@ -169,16 +147,103 @@ Proof.
     apply sepcon_derives; auto.
 Qed.
 
-Lemma iter_sepcon_nil: forall (p : B -> A), iter_sepcon nil p = emp.
+Lemma iter_sepcon_nil: iter_sepcon nil = emp.
 Proof. intros; reflexivity. Qed.
+
+End SingleSepPred.
+
+Lemma iter_sepcon_func: forall l P Q, (forall x, P x = Q x) -> iter_sepcon P l = iter_sepcon Q l.
+Proof. intros. induction l; simpl; [|f_equal]; auto. Qed.
+
+Lemma iter_sepcon_func_strong: forall l P Q, (forall x, In x l -> P x = Q x) -> iter_sepcon P l = iter_sepcon Q l.
+Proof.
+  intros. induction l.
+  + reflexivity.
+  + simpl.
+    f_equal.
+    - apply H.
+      simpl; auto.
+    - apply IHl.
+      intros; apply H.
+      simpl; auto.
+Qed. 
+
+Instance iter_sepcon_permutation_proper : Proper ((pointwise_relation B eq) ==> (@Permutation B) ==> eq) iter_sepcon.
+Proof.
+  repeat intro. transitivity (iter_sepcon x y0).
+  + apply iter_sepcon_permutation. auto.
+  + apply iter_sepcon_func.
+    exact H.
+Qed.
 
 End IterSepCon.
 
 Lemma iter_sepcon_map: forall {A B C: Type} {ND : NatDed A} {SL : SepLog A} (l : list C) (f : B -> A) (g: C -> B),
-                         iter_sepcon l (fun x : C => f (g x)) = iter_sepcon (map g l) f.
+                         iter_sepcon (fun x : C => f (g x)) l = iter_sepcon f (map g l).
 Proof. intros. induction l; simpl; [|f_equal]; auto. Qed.
 
 Global Existing Instance iter_sepcon_permutation_proper.
+
+Definition uncurry {A B C} (f: A -> B -> C) (xy: A*B) : C :=
+  f (fst xy) (snd xy).
+
+Section IterSepCon2.
+
+  Context {A : Type}.
+  Context {B1 B2 : Type}.
+  Context {ND : NatDed A}.
+  Context {SL : SepLog A}.
+  Context {ClS: ClassicalSep A}.
+  Context {CoSL: CorableSepLog A}.
+  Context (p : B1 -> B2 -> A).
+
+Fixpoint iter_sepcon2 (l : list B1) : list B2 -> A :=
+    match l with
+    | nil => fun l2 =>
+       match l2 with
+       | nil => emp
+       | _ => FF
+       end
+    | x :: xl => fun l' =>
+       match l' with
+       | nil => FF
+       | y :: yl => p x y * iter_sepcon2 xl yl
+       end
+  end.
+
+Lemma iter_sepcon2_spec: forall l1 l2,
+  iter_sepcon2 l1 l2 = EX l: list (B1 * B2), !! (l1 = map fst l /\ l2 = map snd l) && iter_sepcon (uncurry p) l.
+Proof.
+  intros.
+  apply pred_ext.
+  + revert l2; induction l1; intros; destruct l2.
+    - apply (exp_right nil); simpl.
+      apply andp_right; auto.
+      apply prop_right; auto.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      specialize (IHl1 l2).
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl1] | clear IHl1].
+      normalize.
+      destruct H.
+      apply (exp_right ((a, b) :: l)).
+      simpl.
+      apply andp_right; [apply prop_right; subst; auto |].
+      apply derives_refl.
+  + apply exp_left; intros l.
+    normalize.
+    destruct H; subst.
+    induction l.
+    - simpl. auto.
+    - simpl.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHl] | clear IHl].
+      apply derives_refl.
+Qed.
+
+End IterSepCon2.
 
 Section IterPredSepCon.
 
@@ -188,12 +253,12 @@ Section IterPredSepCon.
   Context {SL : SepLog A}.
   Context {ClS: ClassicalSep A}.
 
-Definition pred_sepcon (P: B -> Prop) (p: B -> A): A :=
-  EX l: list B, !! (forall x, In x l <-> P x) && !! NoDup l && iter_sepcon l p.
+Definition pred_sepcon (p: B -> A) (P: B -> Prop): A :=
+  EX l: list B, !! (forall x, In x l <-> P x) && !! NoDup l && iter_sepcon p l.
 
 Lemma pred_sepcon_eq: forall (P: B -> Prop) (p: B -> A),
-    pred_sepcon P p = 
-    (EX l: list B, !! ((forall x, In x l <-> P x) /\ NoDup l) && iter_sepcon l p).
+    pred_sepcon p P = 
+    (EX l: list B, !! ((forall x, In x l <-> P x) /\ NoDup l) && iter_sepcon p l).
 Proof.
   intros. unfold pred_sepcon. f_equal. extensionality l. rewrite prop_and. auto.
 Qed.
@@ -201,12 +266,12 @@ Qed.
 Lemma pred_sepcon_strong_proper: forall P1 P2 p1 p2,
   (forall x, P1 x <-> P2 x) ->
   (forall x, P1 x -> P2 x -> p1 x = p2 x) ->
-  pred_sepcon P1 p1 = pred_sepcon P2 p2.
+  pred_sepcon p1 P1 = pred_sepcon p2 P2.
 Proof.
   assert (forall P1 P2 p1 p2,
     (forall x, P1 x <-> P2 x) ->
     (forall x, P1 x -> P2 x -> p1 x = p2 x) ->
-    pred_sepcon P1 p1 |-- pred_sepcon P2 p2).
+    pred_sepcon p1 P1 |-- pred_sepcon p2 P2).
   2: intros; apply pred_ext; apply H; [auto | auto | symmetry; auto | symmetry; auto].
   intros.
   unfold pred_sepcon.
@@ -220,7 +285,7 @@ Proof.
   apply H0; tauto.
 Qed.
 
-Instance pred_sepcon_proper: Proper (pointwise_relation B iff ==> pointwise_relation B eq ==> eq) pred_sepcon.
+Instance pred_sepcon_proper: Proper (pointwise_relation B eq ==> pointwise_relation B iff ==> eq) pred_sepcon.
 Proof.
   intros.
   do 2 (hnf; intros).
@@ -230,7 +295,7 @@ Defined.
 Global Existing Instance pred_sepcon_proper.
 
 Lemma pred_sepcon1: forall p x0,
-  pred_sepcon (fun x => x = x0) p = p x0.
+  pred_sepcon p (fun x => x = x0) = p x0.
 Proof.
   intros.
   unfold pred_sepcon.
@@ -317,7 +382,7 @@ Qed.
 
 Lemma pred_sepcon_unique_sepcon1: forall (P: B -> Prop) p x0,
   sepcon_unique1 p ->
-  pred_sepcon P p * p x0 |-- !! (~ P x0).
+  pred_sepcon p P * p x0 |-- !! (~ P x0).
 Proof.
   intros.
   apply not_prop_right; intro.
@@ -352,7 +417,7 @@ Qed.
 
 Lemma pred_sepcon_prop_true: forall (P: B -> Prop) p x,
   P x ->
-  pred_sepcon P p |-- p x * TT.
+  pred_sepcon p P |-- p x * TT.
 Proof.
   intros.
   unfold pred_sepcon; normalize.
@@ -383,7 +448,7 @@ Proof.
 Qed.
 *)
 Lemma pred_sepcon_False: forall p,
-  pred_sepcon (fun _ => False) p = emp.
+  pred_sepcon p (fun _ => False) = emp.
 Proof.
   intros.
   unfold pred_sepcon.
