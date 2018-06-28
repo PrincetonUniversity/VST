@@ -2,7 +2,7 @@
 
 struct Xnode {
   struct XList * list;
-  int v;
+  unsigned int v;
 };
 
 struct XList {
@@ -12,7 +12,7 @@ struct XList {
 
 struct Ynode {
   struct YList * list;
-  int v;
+  unsigned int v;
 };
 
 struct YList {
