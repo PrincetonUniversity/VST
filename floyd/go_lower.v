@@ -582,24 +582,24 @@ Proof.
   apply msubst_eval_expr_eq, H0.
 Qed.
 
-Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc): (environ -> mpred) -> mpred -> Prop :=
-| clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 (local `P) (!! P)
-| clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 (!! P) (!! P)
-| clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 (tc_lvalue Delta e) (msubst_tc_lvalue Delta T1 T2 e)
-| clean_LOCAL_right_tc_expr: forall e, clean_LOCAL_right Delta T1 T2 (tc_expr Delta e) (msubst_tc_expr Delta T1 T2 e)
-| clean_LOCAL_right_tc_LR: forall e lr, clean_LOCAL_right Delta T1 T2 (tc_LR Delta e lr) (msubst_tc_LR Delta T1 T2 e lr)
-| clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 (tc_efield Delta efs) (msubst_tc_efield Delta T1 T2 efs)
-| clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 (tc_exprlist Delta ts es) (msubst_tc_exprlist Delta T1 T2 ts es)
-| clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 e t)
-| clean_LOCAL_right_canon: forall P Q R, clean_LOCAL_right Delta T1 T2 (PROPx P (LOCALx Q (SEPx R))) (!! (fold_right and True (P ++ msubst_extract_locals T1 T2 Q)) && fold_right_sepcon R)
-| clean_LOCAL_right_eval_lvalue: forall e u v, msubst_eval_lvalue T1 T2 e = Some u -> clean_LOCAL_right Delta T1 T2 (local (`(eq v) (eval_lvalue e))) (!! (u = v))
-| clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr T1 T2 e = Some u -> clean_LOCAL_right Delta T1 T2 (local (`(eq v) (eval_expr e))) (!! (u = v))
-| clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 P1 Q1 -> clean_LOCAL_right Delta T1 T2 P2 Q2 -> clean_LOCAL_right Delta T1 T2 (P1 && P2) (Q1 && Q2)
-| clean_LOCAL_right_EX': forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 (exp P) (exp Q).
+Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): (environ -> mpred) -> mpred -> Prop :=
+| clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (local (`P)) (!! P)
+| clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 GV (!! P) (!! P)
+| clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 GV (tc_lvalue Delta e) (msubst_tc_lvalue Delta T1 T2 GV e)
+| clean_LOCAL_right_tc_expr: forall e, clean_LOCAL_right Delta T1 T2 GV (tc_expr Delta e) (msubst_tc_expr Delta T1 T2 GV e)
+| clean_LOCAL_right_tc_LR: forall e lr, clean_LOCAL_right Delta T1 T2 GV (tc_LR Delta e lr) (msubst_tc_LR Delta T1 T2 GV e lr)
+| clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 GV (tc_efield Delta efs) (msubst_tc_efield Delta T1 T2 GV efs)
+| clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 GV (tc_exprlist Delta ts es) (msubst_tc_exprlist Delta T1 T2 GV ts es)
+| clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 GV (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 GV e t)
+| clean_LOCAL_right_canon: forall P Q R, clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) (!! (fold_right and True (P ++ msubst_extract_locals Delta T1 T2 GV Q)) && fold_right_sepcon R)
+| clean_LOCAL_right_eval_lvalue: forall e u v, msubst_eval_lvalue Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_lvalue e))) (!! (u = v))
+| clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_expr e))) (!! (u = v))
+| clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV P1 Q1 -> clean_LOCAL_right Delta T1 T2 GV P2 Q2 -> clean_LOCAL_right Delta T1 T2 GV (P1 && P2) (Q1 && Q2)
+| clean_LOCAL_right_EX': forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 GV (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 GV (exp P) (exp Q).
 
-Lemma clean_LOCAL_right_EX: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) A (P: A -> environ -> mpred) (Q: A -> mpred),
-  (forall a, exists Q', clean_LOCAL_right Delta T1 T2 (P a) Q' /\ Q' = Q a) ->
-  clean_LOCAL_right Delta T1 T2 (exp P) (exp Q).
+Lemma clean_LOCAL_right_EX: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) A (P: A -> environ -> mpred) (Q: A -> mpred),
+  (forall a, exists Q', clean_LOCAL_right Delta T1 T2 GV (P a) Q' /\ Q' = Q a) ->
+  clean_LOCAL_right Delta T1 T2 GV (exp P) (exp Q).
 Proof.
   intros.
   apply clean_LOCAL_right_EX'.
@@ -608,9 +608,9 @@ Proof.
   subst; auto.
 Qed.
 
-Lemma clean_LOCAL_right_spec: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R S S',
-  local2ptree Q = (T1, T2, nil, nil) ->
-  clean_LOCAL_right Delta T1 T2 S S' ->
+Lemma clean_LOCAL_right_spec: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S',
+  local2ptree Q = (T1, T2, nil, GV) ->
+  clean_LOCAL_right Delta T1 T2 GV S S' ->
   local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta Q) (LOCALx nil (SEPx R)) |-- ` S' ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
 Proof.
@@ -619,8 +619,8 @@ Proof.
     by (apply go_lower_localdef_canon_left; auto).
   rewrite (add_andp _ _ H2); clear H1 H2.
   induction H0.
-  + apply andp_left2; auto.
-  + apply andp_left2; auto.
+  + apply andp_left2. apply derives_refl.
+  + apply andp_left2. apply derives_refl.
   + eapply go_lower_localdef_canon_tc_lvalue; eauto.
   + eapply go_lower_localdef_canon_tc_expr; eauto.
   + eapply go_lower_localdef_canon_tc_LR; eauto.
