@@ -19,10 +19,9 @@ Module AuxDefs.
 Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ -> mpred) -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
    forall P (b: expr) c d R,
-      bool_type (typeof b) = true ->
      @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R ->
      @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R ->
-     @semax CS Espec Delta (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R
+     @semax CS Espec Delta (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R
 | semax_seq:
   forall R P Q h t,
     @semax CS Espec Delta P h (overridePost Q R) ->
@@ -263,29 +262,36 @@ Qed.
 
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
-  exists P',
-  bool_type (typeof b) = true /\
-  @semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
-  @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R /\
-  local (tc_environ Delta) && P |-- |==> (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P').
+  local (tc_environ Delta) && P |--
+  |==> (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
+  EX P': environ -> mpred,
+  !! (@semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
+      @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R) &&
+  P').
 Proof.
   intros.
   remember (Sifthenelse b c1 c2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0; clear IHsemax1 IHsemax2.
-    exists P.
-    split; [| split; [| split]]; auto.
     eapply derives_trans; [| apply bupd_intro].
+    apply andp_right; [solve_andp |].
+    apply (exp_right P).
+    apply andp_right; [apply prop_right; auto |].
     solve_andp.
   + specialize (IHsemax H0).
-    destruct IHsemax as [P'' [? [? [? ?]]]].
-    exists P''.
-    split; [| split; [| split]].
-    - auto.
-    - eapply semax_post_bupd; [.. | exact H7]; auto.
-    - eapply semax_post_bupd; [.. | exact H8]; auto.
-    - eapply derives_bupd_trans; [exact H |].
-      auto.
+    eapply derives_bupd_trans; [exact H |].
+    eapply derives_bupd_trans; [exact IHsemax | clear IHsemax].
+    eapply derives_trans; [| apply bupd_intro].
+    apply andp_right; [solve_andp |].
+    rewrite (andp_comm (local _)); rewrite imp_andp_adjoint; apply andp_left2.
+    apply exp_left; intro P''.
+    rewrite <- imp_andp_adjoint; rewrite <- (andp_comm (local _)).
+    apply (exp_right P'').
+    normalize.
+    destruct H6.
+    apply andp_right; [apply prop_right; split | solve_andp].
+    - eapply semax_post_bupd; eauto.
+    - eapply semax_post_bupd; eauto.
 Qed.
 
 Lemma extract_exists_pre:
@@ -310,7 +316,7 @@ Proof.
     clear H.
     apply exp_left in H0.
     rewrite <- (exp_andp2 A) in H0.
-    eapply semax_pre_bupd; [exact H0 |].
+    eapply semax_pre_bupd; [exact H0 | clear H0].
     eapply semax_post_bupd; [.. | apply AuxDefs.semax_store_backward].
     - apply andp_left2, bupd_intro.
     - apply andp_left2, FF_left.
@@ -330,6 +336,35 @@ Proof.
         normalize.
         apply (exp_right H0).
         auto.
+      * apply IHc2.
+        intro H0.
+        auto.
+  + eapply semax_pre_bupd; [| apply (AuxDefs.semax_ifthenelse _ (EX P': environ -> mpred, !! (semax Delta (P' && local (`(typed_true (typeof e)) (eval_expr e))) c1 R /\ semax Delta (P' && local (`(typed_false (typeof e)) (eval_expr e))) c2 R) && P'))].
+    - pose proof (fun x => semax_ifthenelse_inv _ _ _ _ _ _ (H x)).
+      clear H.
+      apply exp_left in H0.
+      rewrite <- (exp_andp2 A) in H0.
+      eapply derives_bupd_trans; [exact H0 | clear H0].
+      apply andp_left2, bupd_intro.
+    - rewrite exp_andp1.
+      apply IHc1.
+      intro P'.
+      apply semax_pre with (EX H0: semax Delta (P' && local ((` (typed_true (typeof e))) (eval_expr e))) c1 R, P' && local ((` (typed_true (typeof e))) (eval_expr e))).
+      * apply andp_left2.
+        normalize.
+        apply (exp_right (proj1 H0)).
+        solve_andp.
+      * apply IHc1.
+        intro H0.
+        auto.
+    - rewrite exp_andp1.
+      apply IHc2.
+      intro P'.
+      apply semax_pre with (EX H0: semax Delta (P' && local ((` (typed_false (typeof e))) (eval_expr e))) c2 R, P' && local ((` (typed_false (typeof e))) (eval_expr e))).
+      * apply andp_left2.
+        normalize.
+        apply (exp_right (proj2 H0)).
+        solve_andp.
       * apply IHc2.
         intro H0.
         auto.
