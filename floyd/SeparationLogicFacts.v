@@ -62,8 +62,8 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 Import CSHL_Def.
 
 Axiom semax_pre_post_bupd:
-  forall {Espec: OracleKind}{CS: compspecs},
- forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+ forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> P') ->
     local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
     local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
@@ -73,12 +73,15 @@ Axiom semax_pre_post_bupd:
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE.
 
-Module CSHL_ConseqFact
+Module CSHL_ConseqFacts
        (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def).
 
-(* Copied from canon.v *)
+Import CSHL_Def.
+Import CSHL_Conseq.
 
+(* Copied from canon.v *)
+  
 Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
@@ -135,8 +138,53 @@ Qed.
 
 (* Copied from canon.v end. *)
 
-End CSHL_ConseqFact.
+End CSHL_ConseqFacts.
 
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom extract_exists:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: A -> ret_assert),
+  (forall x, @semax CS Espec Delta (P x) c (R x)) ->
+   @semax CS Espec Delta (EX x:A, P x) c (existential_ret_assert R).
+
+Axiom semax_extract_later_prop:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta (PP: Prop) P c Q,
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta ((|> !!PP) && P) c Q.
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
+
+Module CSHL_ExtrFacts
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def).
+
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_Extr.
+
+Lemma semax_extract_prop:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta (PP: Prop) P c Q,
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta (!!PP && P) c Q.
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_extract_later_prop, H].
+  apply andp_left2.
+  apply andp_derives; auto.
+  apply now_later.
+Qed.
+
+End CSHL_ExtrFacts.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD.
 
@@ -144,17 +192,126 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_store:
-  forall {Espec: OracleKind}{CS: compspecs},
- forall Delta e1 e2 sh P,
+Axiom semax_store_forward:
+  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+ forall e1 e2 sh P,
    writable_share sh ->
    @semax CS Espec Delta
           (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
              (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
           (Sassign e1 e2)
           (normal_ret_assert
-               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
+             (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD.
 
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
 
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
+
+Module CSHL_StoreF2B
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
+       (CSHL_StoreF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_Extr.
+Import CSHL_ExtrFacts.
+Import CSHL_StoreF.
+  
+Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
+   @semax CS Espec Delta
+          (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
+          (Sassign e1 e2)
+          (normal_ret_assert P).
+Proof.
+  intros.
+  eapply semax_pre_post_bupd; [.. | eapply (extract_exists _ _ _ _ (fun _ => normal_ret_assert P))].
+  + apply andp_left2, bupd_intro.
+  + apply andp_left2.
+    change (RA_normal (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, P).
+    apply exp_left; intros.
+    apply bupd_intro.
+  + apply andp_left2.
+    change (RA_break (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, FF: environ -> mpred).
+    apply exp_left; intros.
+    apply FF_left.
+  + apply andp_left2.
+    change (RA_continue (existential_ret_assert (fun _ : share => normal_ret_assert P))) with (EX _: share, FF: environ -> mpred).
+    apply exp_left; intros.
+    apply FF_left.
+  + intro.
+    apply andp_left2.
+    change (RA_return (existential_ret_assert (fun _ : share => normal_ret_assert P)) vl) with (EX _: share, FF: environ -> mpred).
+    apply exp_left; intros.
+    apply FF_left.
+  + intros sh.
+    apply semax_extract_prop; intro SH.
+    eapply semax_pre_post_bupd; [apply andp_left2, bupd_intro | .. | eapply semax_store_forward; auto].
+    - apply andp_left2.
+      apply modus_ponens_wand.
+    - apply andp_left2, FF_left.
+    - apply andp_left2, FF_left.
+    - intros; apply andp_left2, FF_left.
+Qed.
+
+End CSHL_StoreF2B.
+
+Module CSHL_StoreB2F
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_StoreB.
+
+Theorem semax_store_forward:
+  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+ forall e1 e2 sh P,
+   writable_share sh ->
+   @semax CS Espec Delta
+          (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+             (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
+          (Sassign e1 e2)
+          (normal_ret_assert
+             (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_store_backward].
+  apply (exp_right sh).
+  normalize.
+  apply andp_left2.
+  apply later_derives.
+  apply andp_derives; auto.
+  apply sepcon_derives; auto.
+  apply wand_sepcon_adjoint.
+  unfold normal_ret_assert, RA_normal.
+  rewrite sepcon_comm.
+  apply bupd_intro.
+Qed.
+
+End CSHL_StoreB2F.
