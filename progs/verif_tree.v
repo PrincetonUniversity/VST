@@ -48,6 +48,7 @@ Qed.
 End LISTS.
 Arguments list_rep {V} _ _ _.
 Arguments list_rep_valid_pointer {V} _ _ _ _ _ _.
+Arguments list_rep_local_facts {V} _ _ _ _ _ _.
 
 Section TREES.
 Variable V : Type.
@@ -67,10 +68,31 @@ Fixpoint tree_rep (t: tree) (p: val) : mpred :=
     tree_rep a pa * tree_rep b pb
  end.
 
+Lemma tree_rep_valid_pointer:
+  (forall v L R p, tree_cell v L R p |-- valid_pointer p) ->
+  forall t p, tree_rep t p |-- valid_pointer p.
+Proof.
+  intros.
+  destruct t; simpl; normalize; auto with valid_pointer.
+Qed.
+
+Lemma tree_rep_local_facts:
+  (forall v L R p, tree_cell v L R p |-- !! (isptr p)) ->
+  forall t p, tree_rep t p |-- !! (is_pointer_or_null p  /\ (p=nullval <-> t=E)).
+Proof.
+  intros.
+  destruct t; simpl; normalize; entailer!.
+  + split; auto.
+  + split; intros; try congruence.
+    subst; inv Pp.
+Qed.
+
 End TREES.
 Arguments E {V}.
 Arguments T {V} _ _ _.
 Arguments tree_rep {V} _ _ _.
+Arguments tree_rep_valid_pointer {V} _ _ _ _ _ _.
+Arguments tree_rep_local_facts {V} _ _ _ _ _ _.
 
 Definition map_tree {V1 V2: Type} (f: V1 -> V2): tree V1 -> tree V2 :=
   fix map_tree (t: tree V1) :=
@@ -78,6 +100,24 @@ Definition map_tree {V1 V2: Type} (f: V1 -> V2): tree V1 -> tree V2 :=
     | E => E
     | T t1 x t2 => T (map_tree t1) (f x) (map_tree t2)
     end.
+
+Section IterTreeSepCon.
+
+  Context {A : Type}.
+  Context {B : Type}.
+  Context {ND : NatDed A}.
+  Context {SL : SepLog A}.
+  Context {ClS: ClassicalSep A}.
+  Context {CoSL: CorableSepLog A}.
+  Context (p : B -> A).
+
+Fixpoint iter_tree_sepcon (t1 : tree B) : A :=
+    match t1 with
+    | E => emp
+    | T a x b => p x * iter_tree_sepcon a * iter_tree_sepcon b
+    end.
+
+End IterTreeSepCon.
 
 Section IterTreeSepCon2.
 
@@ -103,7 +143,43 @@ Fixpoint iter_tree_sepcon2 (t1 : tree B1) : tree B2 -> A :=
        end
   end.
 
+Lemma iter_tree_sepcon2_spec: forall tl1 tl2,
+  iter_tree_sepcon2 tl1 tl2 =
+  EX tl: tree (B1 * B2),
+  !! (tl1 = map_tree fst tl /\ tl2 = map_tree snd tl) &&
+  iter_tree_sepcon (uncurry p) tl.
+Proof.
+  intros.
+  apply pred_ext.
+  + revert tl2; induction tl1; intros; destruct tl2.
+    - apply (exp_right E); simpl.
+      apply andp_right; auto.
+      apply prop_right; auto.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      apply FF_left.
+    - simpl.
+      specialize (IHtl1_1 tl2_1).
+      specialize (IHtl1_2 tl2_2).
+      eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1_1 | apply IHtl1_2] | clear IHtl1_1 IHtl1_2].
+      Intros tl_2 tl_1; subst.
+      Exists (T tl_1 (v, b) tl_2).
+      simpl.
+      apply andp_right; [apply prop_right; subst; auto |].
+      apply derives_refl.
+  + apply exp_left; intros tl.
+    normalize.
+    induction tl.
+    - simpl. auto.
+    - simpl.
+      eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives |]; [apply derives_refl | apply IHtl1 | apply IHtl2] | clear IHtl1 IHtl2].
+      apply derives_refl.
+Qed.
+
 End IterTreeSepCon2.
+
+(* X_DEFS *)
 
 Inductive XTree: Type :=
 | XLeaf: XTree
@@ -120,25 +196,7 @@ Fixpoint xtree_rep (t: XTree) (p: val): mpred :=
           list_rep (fun (p: val) (n: val) (q: val) => data_at Tsh t_struct_Xlist (p, n) q) r q *
           iter_sepcon2 xtree_rep tl r
   end.
-(*
-Definition l_xtree_rep (t: list XTree) (p: val) :=
-  EX r: list val,
-  list_rep (fun (p: val) (n: val) (q: val) => data_at Tsh t_struct_Xlist (p, n) q) r p *
-  iter_sepcon2 xtree_rep t r.
 
-Theorem xtree_rep_spec: forall t p,
-  xtree_rep t p =
-  match t with
-  | XLeaf =>
-      !!(p = nullval) && emp
-  | XNode tl v =>
-      EX q: val, data_at Tsh t_struct_Xnode (q, Vint (Int.repr v)) p * l_xtree_rep tl q
-  end.
-Proof.
-  intros.
-  induction t; auto.
-Qed.
-*)
 Lemma xtree_rep_valid_pointer:
   forall t p, xtree_rep t p |-- valid_pointer p.
 Proof.
@@ -190,9 +248,19 @@ Proof.
 Qed.
 Hint Resolve xtree_rep_nullval: saturate_local.
 
+(* X_DEFS ends. *)
+
+(* Y_DEFS *)
+
 Inductive YTree: Type :=
 | YLeaf: YTree
 | YNode: list (tree (unit * YTree) * unit) -> Z -> YTree.
+
+Definition y_tree_rep (t: tree val) (p: val): mpred :=
+  tree_rep (fun q L R p: val => data_at Tsh t_struct_Ytree (q, (L, R)) p) t p.
+
+Definition y_list_rep (l: list val) (p: val): mpred :=
+  list_rep (fun q n p: val => data_at Tsh t_struct_Ylist (q, n) p) l p.
 
 Fixpoint ytree_rep (t: YTree) (p: val): mpred :=
   match t with
@@ -201,26 +269,18 @@ Fixpoint ytree_rep (t: YTree) (p: val): mpred :=
   | YNode ttl v =>
       let rep1 (t: unit * YTree) p := ytree_rep (snd t) p in
       let rep2 (t: tree (unit * YTree) * unit) p :=
-            EX s: tree val,
-              tree_rep (fun q L R p => data_at Tsh t_struct_Ytree (q, (L, R)) p) s p *
-              iter_tree_sepcon2 rep1 (fst t) s in
+            EX s: tree val, y_tree_rep s p * iter_tree_sepcon2 rep1 (fst t) s in
       let rep3 (t: list (tree (unit * YTree) * unit)) p :=
-            EX r: list val,
-              list_rep (fun q n p => data_at Tsh t_struct_Ylist (q, n) p) r p *
-              iter_sepcon2 rep2 t r in
+            EX r: list val, y_list_rep r p * iter_sepcon2 rep2 t r in
       EX q: val, 
         data_at Tsh t_struct_Ynode (q, Vint (Int.repr v)) p * rep3 ttl q
   end.
 
 Definition t_ytree_rep (t: tree (unit * YTree)) (p: val): mpred :=
-  EX s: tree val,
-    tree_rep (fun q L R p => data_at Tsh t_struct_Ytree (q, (L, R)) p) s p *
-    iter_tree_sepcon2 (fun t p => ytree_rep (snd t) p) t s.
+  EX s: tree val, y_tree_rep s p * iter_tree_sepcon2 (fun t p => ytree_rep (snd t) p) t s.
 
 Definition lt_ytree_rep (t: list (tree (unit * YTree) * unit)) (p: val): mpred :=
-  EX r: list val,
-    list_rep (fun q n p => data_at Tsh t_struct_Ylist (q, n) p) r p *
-    iter_sepcon2 (fun t p => t_ytree_rep (fst t) p) t r.
+  EX r: list val, y_list_rep r p * iter_sepcon2 (fun t p => t_ytree_rep (fst t) p) t r.
 
 Theorem ytree_rep_spec: forall t p,
   ytree_rep t p =
@@ -236,6 +296,36 @@ Proof.
   induction t; auto.
 Qed.
 
+Lemma y_list_rep_valid_pointer: forall t p, y_list_rep t p |-- valid_pointer p.
+Proof.
+  intros.
+  apply list_rep_valid_pointer.
+  intros; auto with valid_pointer.
+Qed.
+Hint Resolve y_list_rep_valid_pointer: valid_pointer.
+
+Lemma y_list_rep_local_facts: forall t p, y_list_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = nil)).
+Proof.
+  apply list_rep_local_facts.
+  intros; entailer!.
+Qed.
+Hint Resolve y_list_rep_local_facts: saturate_local.
+
+Lemma y_tree_rep_valid_pointer: forall t p, y_tree_rep t p |-- valid_pointer p.
+Proof.
+  intros.
+  apply tree_rep_valid_pointer.
+  intros; auto with valid_pointer.
+Qed.
+Hint Resolve y_tree_rep_valid_pointer: valid_pointer.
+
+Lemma y_tree_rep_local_facts: forall t p, y_tree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = E)).
+Proof.
+  apply tree_rep_local_facts.
+  intros; entailer!.
+Qed.
+Hint Resolve y_tree_rep_local_facts: saturate_local.
+
 Lemma ytree_rep_valid_pointer:
   forall t p, ytree_rep t p |-- valid_pointer p.
 Proof.
@@ -243,6 +333,65 @@ intros.
 destruct t; simpl; normalize; auto with valid_pointer.
 Qed.
 Hint Resolve ytree_rep_valid_pointer: valid_pointer.
+
+Lemma ytree_rep_local_facts:
+  forall t p, ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = YLeaf)).
+Proof.
+intros.
+destruct t; simpl; normalize; entailer!.
++ split; auto.
++ split; intros; try congruence.
+  subst; destruct H as [? _]; inv H.
+Qed.
+Hint Resolve ytree_rep_local_facts: saturate_local.
+
+Lemma lt_ytree_rep_valid_pointer: forall t p, lt_ytree_rep t p |-- valid_pointer p.
+Proof.
+  intros.
+  unfold lt_ytree_rep.
+  Intros r.
+  auto with valid_pointer.
+Qed.
+Hint Resolve lt_ytree_rep_valid_pointer: valid_pointer.
+
+Lemma lt_ytree_rep_local_facts: forall t p, lt_ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = nil)).
+Proof.
+  intros.
+  unfold lt_ytree_rep.
+  Intros r.
+  rewrite iter_sepcon2_spec.
+  Intros l.
+  subst.
+  entailer!.
+  rewrite H.
+  destruct l; simpl; split; intros; congruence.
+Qed.
+Hint Resolve lt_ytree_rep_local_facts: saturate_local.
+
+Lemma t_ytree_rep_valid_pointer: forall t p, t_ytree_rep t p |-- valid_pointer p.
+Proof.
+  intros.
+  unfold t_ytree_rep.
+  Intros s.
+  auto with valid_pointer.
+Qed.
+Hint Resolve t_ytree_rep_valid_pointer: valid_pointer.
+
+Lemma t_ytree_rep_local_facts: forall t p, t_ytree_rep t p |-- !! (is_pointer_or_null p /\ (p = nullval <-> t = E)).
+Proof.
+  intros.
+  unfold t_ytree_rep.
+  Intros s.
+  rewrite iter_tree_sepcon2_spec.
+  Intros tl.
+  subst.
+  entailer!.
+  rewrite H.
+  destruct tl; simpl; split; intros; congruence.
+Qed.
+Hint Resolve t_ytree_rep_local_facts: saturate_local.
+
+(* Y_DEFS ends. *)
 
 Module Alternative.
 
@@ -410,12 +559,9 @@ Qed.
 End GeneralLseg.
 End GeneralLseg.
 
-
-
 Lemma body_Xnode_add: semax_body Vprog Gprog f_Xnode_add Xnode_add_spec.
 Proof.
   start_function.
-  unfold MORE_COMMANDS, abbreviate.
   forward_if.
   {
     forward.
@@ -515,3 +661,145 @@ Proof.
   rewrite !map_map.
   split; f_equal.
 Qed.
+
+Lemma body_Ynode_add: semax_body Vprog Gprog f_Ynode_add Ynode_add_spec.
+Proof.
+  start_function.
+  forward_if.
+  {
+    forward.
+    destruct H0 as [? _]; specialize (H eq_refl).
+    subst; simpl; auto.
+  }
+  destruct t as [| tl v].
+  {
+    simpl.
+    Intros.
+    contradiction.
+  }
+  rewrite ytree_rep_spec.
+  Intros q.
+  forward.
+  forward.
+  rewrite add_repr.
+  forward.
+  forward_call (q, tl).
+  forward.
+  Exists q.
+  cancel.
+  apply derives_refl.
+Qed.
+
+Lemma body_YList_add: semax_body Vprog Gprog f_YList_add YList_add_spec.
+Proof.
+  start_function.
+  forward_if.
+  {
+    forward.
+    destruct H0 as [? _]; specialize (H eq_refl).
+    subst; simpl; auto.
+  }
+  assert_PROP (t <> nil).
+  {
+    entailer!.
+    destruct H0 as [_ ?]; specialize (H0 eq_refl).
+    congruence.
+  }
+  destruct t as [| [? ?] t']; [congruence | clear H0].
+  unfold lt_ytree_rep.
+  Intros r.
+  destruct r; [simpl; normalize |].
+  simpl.
+  Intros y.
+  forward.
+  forward_call (v, t).
+  forward.
+  gather_SEP 2 3.
+  replace_SEP 0 (lt_ytree_rep t' y).
+  {
+    unfold lt_ytree_rep.
+    entailer!.
+    Exists r; cancel.
+  }
+  forward_call (y, t').
+  forward.
+  clear.
+  unfold lt_ytree_rep.
+  Intros r.
+  Exists (v :: r).
+  unfold y_list_rep; simpl.
+  Exists y.
+  cancel.
+Qed.
+
+Lemma body_YTree_add: semax_body Vprog Gprog f_YTree_add YTree_add_spec.
+Proof.
+  start_function.
+  forward_if.
+  {
+    forward.
+    destruct H0 as [? _]; specialize (H eq_refl).
+    subst; simpl; auto.
+  }
+  assert_PROP (t <> E).
+  {
+    entailer!.
+    destruct H0 as [_ ?]; specialize (H0 eq_refl).
+    congruence.
+  }
+  destruct t as [| a [? ?] b]; [congruence |].
+  unfold t_ytree_rep.
+  Intros s.
+  destruct s; [simpl; normalize |].
+  simpl.
+  Intros pa pb.
+  forward.
+  forward_call (v, y).
+  forward.
+  gather_SEP 2 4.
+  replace_SEP 0 (t_ytree_rep a pa).
+  {
+    unfold t_ytree_rep.
+    entailer!.
+    Exists s1; cancel.
+  }
+  forward_call (pa, a).
+  forward.
+  gather_SEP 3 4.
+  replace_SEP 0 (t_ytree_rep b pb).
+  {
+    unfold t_ytree_rep.
+    entailer!.
+    Exists s2; cancel.
+  }
+  forward_call (pb, b).
+  forward.
+  clear.
+  unfold t_ytree_rep.
+  Intros s2 s1.
+  Exists (T s1 v s2).
+  unfold y_tree_rep; simpl.
+  Exists pa pb.
+  cancel.
+Qed.
+
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Proof.
+  start_function.
+  forward.
+Qed.
+
+Existing Instance NullExtension.Espec.
+
+Lemma prog_correct:
+  semax_prog prog Vprog Gprog.
+Proof.
+prove_semax_prog.
+semax_func_cons body_Xnode_add.
+semax_func_cons body_Ynode_add.
+semax_func_cons body_YList_add.
+semax_func_cons body_YTree_add.
+semax_func_cons body_main.
+Qed.
+
+
