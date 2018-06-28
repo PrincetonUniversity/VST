@@ -584,4 +584,3 @@ Definition public_idents : list ident :=
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.
 
-
