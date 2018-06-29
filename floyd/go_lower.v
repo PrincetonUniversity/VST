@@ -701,12 +701,13 @@ Ltac clean_LOCAL_canon_mix :=
                 subst tl
          end).
 
-Ltac go_lower :=
+Ltac go_lower ::=
 clear_Delta_specs;
 intros;
 match goal with
- | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
+(* | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
        apply ENTAIL_normal_ret_assert; fancy_intros true
+*)
  | |- local _ && _ |-- _ => idtac
  | |- ENTAIL _, _ |-- _ => idtac
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"

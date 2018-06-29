@@ -1,5 +1,4 @@
 Require Import VST.floyd.base2.
-Require Import VST.floyd.expr_lemmas.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.closed_lemmas.
@@ -22,23 +21,23 @@ Lemma semax_for_simple :
            (A: Type) (P:  Z -> A -> list Prop) (Q1: environ->Prop) (Q: Z -> A -> list localdef) (R: Z -> A -> list mpred)
            _i (init: statement) (hi: expr) (body: statement) (Post: ret_assert)
      (INV: Inv = EX i:Z, EX x:A, local Q1 && PROPx (P i x)  (LOCALx (Q i x) (SEPx (R i x))))
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
+     (TI: (temp_types Delta) ! _i = Some tint)
      (Thi: typeof hi = tint)
      (CLOQ: forall i x, Forall (closed_wrt_vars (eq _i)) (Q1 :: map locald_denote (Q i x))),
      @semax cs Espec Delta Pre init
       (normal_ret_assert
         (EX i:Z, EX x:A, local Q1 && PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
               (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x) (SEPx (R i x))))) ->
-     (forall i (x:A), ENTAIL (update_tycon Delta init), PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
+     (forall i (x:A), ENTAIL Delta, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
        (LOCALx (temp _i (Vint (Int.repr i))  :: Q i x)
        (SEPx (R i x))) |--
-            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
-     (EX i:Z, local (`(op_Z_int Z.ge i) (eval_expr hi)) && local Q1 && local (tc_environ (update_tycon Delta init)) &&
+            (tc_expr Delta (Ebinop Olt (Etempvar _i tint) hi tint))) ->
+     (EX i:Z, local (`(op_Z_int Z.ge i) (eval_expr hi)) && local Q1 && local (tc_environ Delta) &&
                  (EX x:A, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x) (LOCALx (temp _i (Vint (Int.repr i))
                                   :: (Q i x)) (SEPx (R i x))))
             |-- RA_normal Post)    ->
      (forall i (x:A),
-     @semax cs Espec (update_tycon Delta init)
+     @semax cs Espec Delta
         (local (`(op_Z_int Z.lt i) (eval_expr hi)) && local Q1 &&
          PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
          (LOCALx (temp _i (Vint (Int.repr i))  :: (Q i x))
@@ -59,10 +58,10 @@ eapply semax_seq'; [ eassumption | ].
 simpl.
 clear Pre H.
 assert (H0': forall (i : Z) (x:A),
-     ENTAIL (update_tycon Delta init),
+     ENTAIL Delta,
        PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
        (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x) (SEPx (R i x)))
-     |-- tc_expr (update_tycon Delta init)
+     |-- tc_expr Delta
            ((Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tint) hi tint) tint))). {
  intros; eapply derives_trans; [apply H0 | ].
  clear.
@@ -75,7 +74,7 @@ apply (@semax_loop Espec cs _ _
             (EX i:Z, EX x:A, local Q1 && PROPx ((Int.min_signed <(*=*) i+1 <= Int.max_signed) :: P (i+1) x)
                 (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1) x)
                 (SEPx (R (i+1) x)))));
- [apply semax_pre_simple with ( (tc_expr (update_tycon Delta init) (Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tint) hi tint) tint))
+ [apply semax_pre_simple with ( (tc_expr Delta (Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tint) hi tint) tint))
                                       &&
                           (EX i:Z, EX x:A, local Q1 && PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
                                                        (LOCALx (temp _i (Vint (Int.repr i))  :: Q i x) (SEPx (R i x)))))
@@ -126,6 +125,8 @@ go_lowerx.
 repeat apply andp_right; try apply prop_right; auto.
  -
   unfold_lift in H3.
+  destruct H7 as [H7 H7'].
+  unfold_lift in H7.
   rewrite <- H7 in H3. rewrite Thi in H3.
   clear - H3 H5. red. hnf in H3.
  simpl in H3. 
@@ -140,16 +141,16 @@ repeat apply andp_right; try apply prop_right; auto.
     apply exp_right with x; auto.
     repeat apply andp_right; try apply prop_right; auto.
 +
-simpl update_tycon.
-apply semax_extensionality_Delta with (update_tycon Delta init).
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm.
-apply join_tycon_same.
+apply semax_extensionality_Delta with Delta.
+apply tycontext_sub_refl.
 simpl typeof.
 eapply semax_post_flipped.
 eapply semax_pre0; [ | apply (H2 i)].
 go_lowerx. repeat apply andp_right; try apply prop_right; auto; try apply derives_refl.
-rewrite Thi in H. unfold_lift in H. rewrite <- H6 in H.
+rewrite Thi in H. unfold_lift in H.
+destruct H6 as [H6 H6'].
+  unfold_lift in H6.
+   rewrite <- H6 in H.
 destruct (eval_expr hi rho); simpl in H; try solve [inv H].
  unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H.
 destruct Archi.ptr64 eqn:Hp; simpl in H.
@@ -186,7 +187,7 @@ rewrite exp_andp2. apply exp_left; intro x.
 
 apply derives_trans with
   (prop (Int.min_signed < i+1 <= Int.max_signed) &&
-   (local (tc_environ (update_tycon Delta init)) &&
+   (local (tc_environ Delta) &&
     local (locald_denote (temp _i (Vint (Int.repr i)))))). {
  clear; apply andp_right.
  apply andp_left2; apply andp_left2.
@@ -205,6 +206,7 @@ unfold local, lift1.
 simpl.
 normalize. hnf in H3.
 apply andp_right.
+{
 unfold tc_expr;
 unfold typecheck_expr; fold typecheck_expr.
 repeat rewrite denote_tc_assert_andp.
@@ -212,16 +214,30 @@ repeat apply andp_right; try apply @TT_right.
 unfold isBinOpResultType. simpl classify_add; cbv iota.
 repeat rewrite denote_tc_assert_andp; simpl.
 repeat apply andp_right; try apply @TT_right.
-simpl. unfold_lift. rewrite <- H3.
+{
+simpl. unfold_lift.
+destruct H3 as [H3 H3'].
+  unfold_lift in H3.
+   rewrite <- H3.
 clear - RANGE; unfold denote_tc_nosignedover.
 apply prop_right.
 rewrite !Int.signed_repr by rep_omega.
 omega.
-rewrite TI. apply @TT_right.
+}
+{
+rewrite TI. simpl.
+unfold_lift in H3; destruct H3.
+unfold eval_id in H3.
+destruct (Map.get (te_of rho) _i); inv H3.
+apply prop_right; eauto.
+}
+}
+{
 unfold tc_temp_id, typecheck_temp_id.
 rewrite TI.
 rewrite denote_tc_assert_andp; simpl;
 repeat apply andp_right; apply @TT_right.
+}
 +
 destruct Post; simpl_ret_assert.
 intro rho.
@@ -249,7 +265,10 @@ unfold locald_denote; simpl.
  autorewrite with norm1 norm2; normalize.
 rewrite <- H. simpl. 
 unfold force_val, both_int, Cop2.sem_cast; simpl.
- destruct Archi.ptr64 eqn:Hp; simpl; normalize; rewrite Hp;
+ destruct Archi.ptr64 eqn:Hp; simpl; normalize.
+ - split; auto. clear. congruence.
+ - split; auto. clear. congruence.
+ - 
  autorewrite with norm1 norm2; normalize.
 
 normalize;
@@ -257,7 +276,7 @@ normalize;
  apply andp_right; auto.
 apply prop_right.
 split; auto.
-clear - H3 H4; omega.
+clear - H4 H5; omega.
 Qed.
 
 Lemma semax_for_simple_u :
@@ -267,24 +286,24 @@ Lemma semax_for_simple_u :
            _i (init: statement) (hi: expr) (body: statement) (Post: ret_assert)
             s1 s2 s3
      (INV: Inv = EX i:Z, EX x:A, local Q1 && PROPx (P i x)  (LOCALx (Q i x) (SEPx (R i x))))
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tuint, true))
+     (TI: (temp_types Delta) ! _i = Some tuint)
      (Thi: typeof hi = Tint I32 s1 noattr)
      (CLOQ: forall i x, Forall (closed_wrt_vars (eq _i)) (Q1 :: map locald_denote (Q i x))),
      @semax cs Espec Delta Pre init
       (normal_ret_assert
         (EX i:Z, EX x:A, local Q1 && PROPx ((0 <=i <= Int.max_unsigned) :: P i x)
               (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x) (SEPx (R i x))))) ->
-     (forall i x, ENTAIL (update_tycon Delta init),
+     (forall i x, ENTAIL Delta,
        PROPx ((0 <= i <= Int.max_unsigned) :: P i x)
        (LOCALx (temp _i (Vint (Int.repr i))  :: Q i x)
        (SEPx (R i x))) |--
-           (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))) ->
-     (EX i:Z, local (`(op_Z_uint Z.ge i) (eval_expr hi)) && local Q1 && local (tc_environ (update_tycon Delta init)) &&
+           (tc_expr Delta (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))) ->
+     (EX i:Z, local (`(op_Z_uint Z.ge i) (eval_expr hi)) && local Q1 && local (tc_environ Delta) &&
                 (EX x:A, PROPx ((0 <= i <= Int.max_unsigned) :: P i x) (LOCALx (temp _i (Vint (Int.repr i))
                                   :: (Q i x)) (SEPx (R i x))))
             |-- RA_normal Post)    ->
      (forall i x,
-     @semax cs Espec (update_tycon Delta init)
+     @semax cs Espec Delta
         (local (`(op_Z_uint Z.lt i) (eval_expr hi)) && local Q1 &&
          PROPx ((0 <= i <= Int.max_unsigned) :: P i x)
          (LOCALx (temp _i (Vint (Int.repr i))  :: (Q i x))
@@ -304,11 +323,11 @@ eapply semax_seq'; [ eassumption | ].
 simpl.
 clear Pre H.
 assert (H0': forall (i : Z) (x:A),
-     ENTAIL (update_tycon Delta init),
+     ENTAIL Delta,
      PROPx ((0 <= i <= Int.max_unsigned) :: P i x)
        (LOCALx
           (temp _i (Vint (Int.repr i)) :: Q i x) (SEPx (R i x)))
-     |-- tc_expr (update_tycon Delta init)
+     |-- tc_expr Delta
            ((Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)) tint))). {
  intros; eapply derives_trans; [apply H0 | ].
  clear.
@@ -321,7 +340,7 @@ apply (@semax_loop Espec cs _ _
             (EX i:Z, EX x:A, local Q1 && PROPx ((0 <= i+1 <= Int.max_unsigned) :: P (i+1) x)
                 (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1) x)
                 (SEPx (R (i+1) x)))));
- [apply semax_pre_simple with ( (tc_expr (update_tycon Delta init) (Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)) tint))
+ [apply semax_pre_simple with ( (tc_expr Delta (Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)) tint))
                                       &&
                           (EX i:Z, EX x:A,  local Q1 && PROPx ((0 <= i <= Int.max_unsigned) :: P i x)
                              (LOCALx (temp _i (Vint (Int.repr i))  :: Q i x) (SEPx (R i x)))))
@@ -373,6 +392,7 @@ repeat apply andp_right; try apply prop_right; auto.
  -
  rename H5 into H5'; rename H3 into H5.
  unfold_lift in H5.
+ unfold_lift in H7; destruct H7 as [H7 H7'].
  rewrite <- H7 in H5. rewrite Thi in H5. simpl in H5.
  destruct (eval_expr hi rho); simpl in H5; try solve [inv H5].
  hnf in H5. red.
@@ -386,11 +406,8 @@ repeat apply andp_right; try apply prop_right; auto.
   apply exp_right with x; auto.
   repeat apply andp_right; try apply prop_right; auto.
 +
-simpl update_tycon.
-apply semax_extensionality_Delta with (update_tycon Delta init).
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm.
-apply join_tycon_same.
+apply semax_extensionality_Delta with Delta.
+apply tycontext_sub_refl.
 simpl typeof.
 apply sequential.
 autorewrite with ret_assert.
@@ -398,7 +415,9 @@ eapply semax_post'; try (eapply semax_pre0; [ | apply (H2 i x)]).
 Intros x0. Exists i x0. apply andp_left2; auto.
 go_lowerx. repeat apply andp_right; try apply prop_right; auto.
 rename H4 into H4'; rename H into H4.
-rewrite Thi in H4. unfold_lift in H4. rewrite <- H6 in H4.
+rewrite Thi in H4. unfold_lift in H4.
+ unfold_lift in H6; destruct H6 as [H6 H6'].
+  rewrite <- H6 in H4.
 destruct (eval_expr hi rho); simpl in H4; try solve [inv H4].
 hnf in H4. red.
  unfold strict_bool_val, both_int, Cop2.sem_cast, Cop2.classify_cast in H4.
@@ -500,7 +519,7 @@ Lemma semax_for_simple_bound_ex :
            _i init hi body Post
      (INV: Inv = EX i:Z, EX x:A, PROPx (P i x)  (LOCALx (Q i x) (SEPx (R i x))))
      (RANGE: Int.min_signed <= n <= Int.max_signed)
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
+     (TI: (temp_types Delta) ! _i = Some (tint, true))
      (Thi: typeof hi = tint)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
      (CLOQ: forall i x, Forall (closed_wrt_vars (eq _i)) (map locald_denote (Q i x))),
@@ -510,17 +529,17 @@ Lemma semax_for_simple_bound_ex :
          PROPx ((Int.min_signed <= i <= n) :: P i x)
          (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x)
          (SEPx (R i x))))) ->
-     (forall i x, ENTAIL (update_tycon Delta init),
+     (forall i x, ENTAIL Delta,
        PROPx ((Int.min_signed <= i <= n) :: P i x)
        (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x)
        (SEPx (R i x))) |--
-            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
-       (ENTAIL (update_tycon Delta init), EX x:A, PROPx (P n x)
+            (tc_expr Delta (Ebinop Olt (Etempvar _i tint) hi tint))) ->
+       (ENTAIL Delta, EX x:A, PROPx (P n x)
                   (LOCALx (temp _i (Vint (Int.repr n))
                                   :: (Q n x)) (SEPx (R n x)))
             |-- RA_normal Post)    ->
      (forall i x,
-     @semax cs Espec (update_tycon Delta init)
+     @semax cs Espec Delta
         (PROPx ((Int.min_signed <= i < n) :: P i x)
          (LOCALx (temp _i (Vint (Int.repr i)) :: (Q i x))
          (SEPx (R i x))))
@@ -600,7 +619,7 @@ Lemma semax_for_simple_bound :
            _i init hi body Post
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGE: Int.min_signed <= n <= Int.max_signed)
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
+     (TI: (temp_types Delta) ! _i = Some (tint, true))
      (Thi: typeof hi = tint)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
      (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (map locald_denote (Q i))),
@@ -610,17 +629,17 @@ Lemma semax_for_simple_bound :
          PROPx ((Int.min_signed <= i <= n) :: P i)
          (LOCALx (temp _i (Vint (Int.repr i)) :: Q i)
          (SEPx (R i))))) ->
-     (forall i, ENTAIL (update_tycon Delta init),
+     (forall i, ENTAIL Delta,
        PROPx ((Int.min_signed <= i <= n) :: P i)
        (LOCALx (temp _i (Vint (Int.repr i)) :: Q i)
        (SEPx (R i))) |--
-            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
-       ENTAIL (update_tycon Delta init), PROPx (P n)
+            (tc_expr Delta (Ebinop Olt (Etempvar _i tint) hi tint))) ->
+       ENTAIL Delta, PROPx (P n)
                   (LOCALx (temp _i (Vint (Int.repr n))
                                   :: (Q n)) (SEPx (R n)))
             |-- RA_normal Post  ->
      (forall i,
-     @semax cs Espec (update_tycon Delta init)
+     @semax cs Espec Delta
         (PROPx ((Int.min_signed <= i < n) :: P i)
          (LOCALx (temp _i (Vint (Int.repr i)) :: (Q i))
          (SEPx (R i))))
@@ -658,7 +677,7 @@ Lemma semax_for_simple_bound_ex_u :
            _i init hi body Post s1 s2 s3
      (INV: Inv = EX i:Z, EX x:A, PROPx (P i x)  (LOCALx (Q i x) (SEPx (R i x))))
      (RANGE: 0 <= n <= Int.max_unsigned)
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tuint, true))
+     (TI: (temp_types Delta) ! _i = Some (tuint, true))
      (Thi: typeof hi = Tint I32 s1 noattr)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
      (CLOQ: forall i x, Forall (closed_wrt_vars (eq _i)) (map locald_denote (Q i x))),
@@ -669,18 +688,18 @@ Lemma semax_for_simple_bound_ex_u :
           (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x)
            (SEPx (R i x))))) ->
      (forall i x,
-       ENTAIL (update_tycon Delta init),
+       ENTAIL Delta,
        PROPx ((0 <= i <= n) :: P i x)
        (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x)
        (SEPx (R i x))) |--
-            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))) ->
-     (ENTAIL (update_tycon Delta init),
+            (tc_expr Delta (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))) ->
+     (ENTAIL Delta,
             EX x:A, PROPx (P n x)
                   (LOCALx (temp _i (Vint (Int.repr n))
                                   :: (Q n x)) (SEPx (R n x)))
             |-- RA_normal Post)    ->
      (forall i x,
-     @semax cs Espec (update_tycon Delta init)
+     @semax cs Espec Delta
         (PROPx ((0 <= i < n) :: P i x)
          (LOCALx (temp _i (Vint (Int.repr i)) :: (Q i x))
          (SEPx (R i x))))
@@ -755,7 +774,7 @@ Lemma semax_for_simple_bound_u :
            _i init hi body Post s1 s2 s3
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGE: 0 <= n <= Int.max_unsigned)
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tuint, true))
+     (TI: (temp_types Delta) ! _i = Some (tuint, true))
      (Thi: typeof hi = Tint I32 s1 noattr)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
      (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (map locald_denote (Q i))),
@@ -766,18 +785,18 @@ Lemma semax_for_simple_bound_u :
           (LOCALx (temp _i (Vint (Int.repr i)) :: Q i)
            (SEPx (R i))))) ->
      (forall i,
-       ENTAIL (update_tycon Delta init),
+       ENTAIL Delta,
        PROPx ((0 <= i <= n) :: P i)
        (LOCALx (temp _i (Vint (Int.repr i)) :: Q i)
        (SEPx (R i))) |--
-            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))) ->
-     (ENTAIL (update_tycon Delta init),
+            (tc_expr Delta (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))) ->
+     (ENTAIL Delta,
             PROPx (P n)
                   (LOCALx (temp _i (Vint (Int.repr n))
                                   :: (Q n)) (SEPx (R n)))
             |-- RA_normal Post)    ->
      (forall i,
-     @semax cs Espec (update_tycon Delta init)
+     @semax cs Espec Delta
         (PROPx ((0 <= i < n) :: P i)
          (LOCALx (temp _i (Vint (Int.repr i)) :: (Q i))
          (SEPx (R i))))
