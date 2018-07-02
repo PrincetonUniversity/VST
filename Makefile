@@ -56,13 +56,18 @@ ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+#COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+COQFLAGS= -Q . VST $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 # Warning setting  -w -deprecated-focus  is needed until we no longer
 # list version 8.7._ in the COQVERSION list.
-COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus
+#
+# The warning setting -overriding-logical-loadpath is needed until
+#  CompCert issue 199 is resolve satisfactorily: 
+#  https://github.com/AbsInt/CompCert/issues/199
+COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus,-overriding-logical-loadpath
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
