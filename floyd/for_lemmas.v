@@ -16,6 +16,90 @@ Definition op_Z_int (op: Z->Z->Prop) (x: Z) (y: val) :=
 Definition op_Z_uint (op: Z->Z->Prop) (x: Z) (y: val) :=
  match y with Vint y' => op x (Int.unsigned y') | _ => False end.
 
+
+(*
+
+The invariant from tactic caller.
+
+The invariant after init step.
+
+The invariant before/after loop body.
+
+The postcondition of loop
+
+*)
+
+Inductive int_type_min_max: type -> Z -> Z -> Prop :=
+| tint_min_max: int_type_min_max tint Int.min_signed Int.max_signed
+| tuint_min_max: int_type_min_max tuint 0 Int.max_unsigned.
+
+Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> expr -> Z -> (environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| Sfor_inv_rec_step: forall A _i i int_min hi n assert_callee inv0 inv1 inv2,
+    (forall x: A, exists inv0' inv1' inv2',
+       Sfor_inv_rec Delta _i i int_min hi n (assert_callee x) inv0' inv1' inv2' /\
+       inv0 x = inv0' /\ inv1 x = inv1' /\ inv2 x = inv2') ->
+    Sfor_inv_rec Delta _i i int_min hi n (exp assert_callee) (exp inv0) (exp inv1) (exp inv2)
+| Sfor_inv_rec_end: forall _i i int_min hi n P Q R (*tactic callee*),
+    Forall (closed_wrt_vars (eq _i)) (map locald_denote Q) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) ->
+    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta hi ->
+    Sfor_inv_rec Delta _i i int_min hi n
+      (PROPx P (LOCALx Q (SEPx R)))
+      (PROPx ((int_min <= i <= n) :: P) (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R)))
+      (PROPx ((int_min <= i < n) :: P) (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R)))
+      (PROPx P (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R)))
+      .
+
+Inductive Sfor_inv {cs: compspecs} (Delta: tycontext): ident -> Z -> expr -> Z -> (Z -> environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> (Z -> environ -> mpred) -> Prop :=
+| construct_Sfor_inv: forall _i int_min hi n assert_callee inv0 inv1 inv2,
+    (forall i, exists inv0' inv1' inv2', Sfor_inv_rec Delta _i i int_min hi n (assert_callee i) inv0' inv1' inv2' /\ inv0 i = inv0' /\ inv1 i = inv1' /\ inv2 i = inv2') ->
+    Sfor_inv Delta _i int_min hi n assert_callee (exp inv0) (exp inv1) inv2.
+
+Inductive Sfor_init_triple {cs: compspecs} {Espec: OracleKind} (Delta: tycontext): ident -> type -> Z -> (environ -> mpred) -> statement -> (Z -> environ -> mpred) -> Prop :=
+| Sfor_init_triple_const_init: forall lo _i Pre inv_call inv0,
+    ENTAIL Delta, Pre |-- inv_call lo ->
+    Sfor_init_triple Delta _i Pre (Sset _i (Econst_int (Int.repr lo) tint)) inv
+| Sfor_init_triple_other: forall _i Pre init inv,
+    @semax cs Espec Delta Pre init (normal_ret_assert (exp inv)) ->
+    Sfor_init_triple Delta _i Pre init inv.
+
+Lemma semax_for :
+ forall (Inv: environ->mpred) (n: Z) Espec {cs: compspecs} Delta
+           (Pre: environ->mpred)
+           (A: Type) (_i: ident) (init: statement) (hi: expr) (body: statement) (Post: ret_assert)
+           (inv: Z -> environ -> mpred)
+     (INV: Sfor_inv Delta _i hi n Inv inv)
+     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
+     (Thi: typeof hi = tint)
+     @semax cs Espec Delta Pre init
+      (normal_ret_assert
+        (EX i:Z, EX x:A, local Q1 && PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
+              (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x) (SEPx (R i x))))) ->
+     (forall i (x:A), ENTAIL (update_tycon Delta init), PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
+       (LOCALx (temp _i (Vint (Int.repr i))  :: Q i x)
+       (SEPx (R i x))) |--
+            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
+     (EX i:Z, local (`(op_Z_int Z.ge i) (eval_expr hi)) && local Q1 && local (tc_environ (update_tycon Delta init)) &&
+                 (EX x:A, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x) (LOCALx (temp _i (Vint (Int.repr i))
+                                  :: (Q i x)) (SEPx (R i x))))
+            |-- RA_normal Post)    ->
+     (forall i (x:A),
+     @semax cs Espec (update_tycon Delta init)
+        (local (`(op_Z_int Z.lt i) (eval_expr hi)) && local Q1 &&
+         PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
+         (LOCALx (temp _i (Vint (Int.repr i))  :: (Q i x))
+         (SEPx (R i x))))
+        body
+        (normal_ret_assert (EX x:A, local Q1 && PROPx ((Int.min_signed < i+1 <= Int.max_signed) :: P (i+1) x)
+                                                                  (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1) x)
+                                                                  (SEPx (R (i+1) x)))))) ->
+     @semax cs Espec Delta Pre
+       (Sfor init
+                (Ebinop Olt (Etempvar _i tint) hi tint)
+                body
+                (Sset _i (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))) Post.
+Proof.
+
 Lemma semax_for_simple :
  forall (Inv: environ->mpred) Espec {cs: compspecs} Delta
            (Pre: environ->mpred)
