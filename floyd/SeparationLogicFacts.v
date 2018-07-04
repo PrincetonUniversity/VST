@@ -30,97 +30,150 @@ Qed.
 (* End of copied from closed_lemmas.v. *)
 
 Definition obox (i: ident) (P: environ -> mpred): environ -> mpred :=
-  (fun rho => P (mkEnviron (ge_of rho) (ve_of rho) (Map.remove i (te_of rho)))) &&  ALL v: _, subst i (`v) P.
+  ALL v: _, subst i (`v) P.
 
 Definition odia (i: ident) (P: environ -> mpred): environ -> mpred :=
-  (fun rho => P (mkEnviron (ge_of rho) (ve_of rho) (Map.remove i (te_of rho)))) || EX v: _, subst i (`v) P.
+  EX v: _, subst i (`v) P.
+
+Lemma obox_closed_wrt: forall id P, closed_wrt_vars (eq id) (obox id P).
+Proof.
+  intros.
+  hnf; intros.
+  unfold obox; simpl.
+  apply allp_congr; intros.
+  unfold subst.
+  simpl.
+  f_equal.
+  unfold_lift.
+  unfold env_set.
+  f_equal.
+  simpl.
+  apply Map.ext; intros j.
+  destruct (ident_eq id j).
+  + subst.
+    rewrite !Map.gss; auto.
+  + rewrite !Map.gso by congruence.
+    destruct (H j); [congruence |].
+    auto.
+Qed.
+
+Lemma odia_closed_wrt: forall id P, closed_wrt_vars (eq id) (odia id P).
+Proof.
+  intros.
+  hnf; intros.
+  unfold odia; simpl.
+  apply exp_congr; intros.
+  unfold subst.
+  simpl.
+  f_equal.
+  unfold_lift.
+  unfold env_set.
+  f_equal.
+  simpl.
+  apply Map.ext; intros j.
+  destruct (ident_eq id j).
+  + subst.
+    rewrite !Map.gss; auto.
+  + rewrite !Map.gso by congruence.
+    destruct (H j); [congruence |].
+    auto.
+Qed.
 
 Lemma subst_obox: forall id v (P: environ -> mpred), subst id (`v) (obox id P) = obox id P.
 Proof.
   intros.
   apply closed_wrt_subst.
-  hnf; intros.
-  unfold obox; simpl.
-  f_equal.
-  + f_equal.
-    f_equal.
-    apply Map.ext; intros j.
-    destruct (ident_eq id j).
-    - subst.
-      rewrite !Map.grs; auto.
-    - rewrite !Map.gro by congruence.
-      destruct (H j); [congruence |].
-      auto.
-  + apply allp_congr; intros.
-    unfold subst.
-    simpl.
-    f_equal.
-    unfold_lift.
-    unfold env_set.
-    f_equal.
-    simpl.
-    apply Map.ext; intros j.
-    destruct (ident_eq id j).
-    - subst.
-      rewrite !Map.gss; auto.
-    - rewrite !Map.gso by congruence.
-      destruct (H j); [congruence |].
-      auto.
+  apply obox_closed_wrt.
 Qed.
 
-Lemma obox_T: forall i (P: environ -> mpred),
-  obox i P |-- P.
+Lemma subst_odia: forall id v (P: environ -> mpred), subst id (`v) (odia id P) = odia id P.
+Proof.
+  intros.
+  apply closed_wrt_subst.
+  apply odia_closed_wrt.
+Qed.
+
+Definition temp_guard (Delta : tycontext) (i: ident): Prop :=
+  (temp_types Delta) ! i <> None.
+
+Lemma obox_T: forall Delta i (P: environ -> mpred),
+  temp_guard Delta i ->
+  local (tc_environ Delta) && obox i P |-- P.
 Proof.
   intros.
   intro rho; simpl.
-  destruct (Map.get (te_of rho) i) eqn:?H.
-  + unfold obox; simpl.
-    apply andp_left2.
-    apply (allp_left _ v).
-    unfold subst.
-    apply derives_refl'.
-    f_equal.
-    unfold_lift.
-    destruct rho.
-    unfold env_set; simpl in *.
-    f_equal.
-    apply Map.ext; intro j.
-    destruct (ident_eq i j).
-    - subst.
-      rewrite Map.gss; auto.
-    - rewrite Map.gso by auto.
-      auto.
-  + unfold obox; simpl.
-    apply andp_left1.
-    apply derives_refl'.
-    f_equal.
-    unfold_lift.
-    destruct rho.
-    f_equal.
-    apply Map.ext; intro j.
-    destruct (ident_eq i j).
-    - subst.
-      rewrite Map.grs; auto.
-    - rewrite Map.gro by auto.
-      auto.
+  unfold local, lift1.
+  normalize.
+  destruct H0 as [? _].
+  hnf in H, H0.
+  specialize (H0 i).
+  destruct ((temp_types Delta) ! i); [| tauto].
+  specialize (H0 t eq_refl).
+  destruct H0 as [v [? ?]].
+  unfold obox; simpl.
+  apply (allp_left _ v).
+  unfold subst.
+  apply derives_refl'.
+  f_equal.
+  unfold_lift.
+  destruct rho.
+  unfold env_set; simpl in *.
+  f_equal.
+  apply Map.ext; intro j.
+  destruct (ident_eq i j).
+  + subst.
+    rewrite Map.gss; auto.
+  + rewrite Map.gso by auto.
+    auto.
 Qed.
 
-Lemma subst_odia: forall i P,
-  EX v: val, subst i (`v) P = odia i P && (fun rho => !! (Map.get (te_of rho) i <> None)).
+Lemma odia_D: forall Delta i (P: environ -> mpred),
+  temp_guard Delta i ->
+  local (tc_environ Delta) && P |-- odia i P.
 Proof.
   intros.
-  unfold odia.
-  apply pred_ext.
-  + apply andp_right.
-    - apply orp_right2, derives_refl.
-    - apply exp_left; intros v rho.
-      unfold_lift; unfold subst.
-      unfold env_set.
-      Abort.
+  intro rho; simpl.
+  unfold local, lift1.
+  normalize.
+  destruct H0 as [? _].
+  hnf in H, H0.
+  specialize (H0 i).
+  destruct ((temp_types Delta) ! i); [| tauto].
+  specialize (H0 t eq_refl).
+  destruct H0 as [v [? ?]].
+  unfold odia; simpl.
+  apply (exp_right v).
+  unfold subst.
+  apply derives_refl'.
+  f_equal.
+  unfold_lift.
+  destruct rho.
+  unfold env_set; simpl in *.
+  f_equal.
+  apply Map.ext; intro j.
+  destruct (ident_eq i j).
+  + subst.
+    rewrite Map.gss; auto.
+  + rewrite Map.gso by auto.
+    auto.
+Qed.
+
 Definition oboxopt ret P :=
   match ret with
   | Some id => obox id P
   | _ => P
+  end.
+
+Definition odiaopt ret P :=
+  match ret with
+  | Some id => odia id P
+  | _ => P
+  end.
+
+Definition temp_guard_opt (Delta : tycontext) (i: option ident): Prop :=
+  match i with
+  | Some i => temp_guard Delta i
+  | None => True
   end.
 
 Lemma substopt_oboxopt: forall id v (P: environ -> mpred), substopt id (`v) (oboxopt id P) = oboxopt id P.
@@ -130,12 +183,22 @@ Proof.
   apply subst_obox.
 Qed.
 
-Lemma oboxopt_T: forall i (P: environ -> mpred),
-  oboxopt i P |-- P.
+Lemma oboxopt_T: forall Delta i (P: environ -> mpred),
+  temp_guard_opt Delta i ->
+  local (tc_environ Delta) && oboxopt i P |-- P.
 Proof.
   intros.
-  destruct i; [| apply derives_refl].
-  apply obox_T.
+  destruct i; [| apply andp_left2, derives_refl].
+  apply obox_T; auto.
+Qed.
+
+Lemma odiaopt_D: forall Delta i (P: environ -> mpred),
+  temp_guard_opt Delta i ->
+  local (tc_environ Delta) && P |-- odiaopt i P.
+Proof.
+  intros.
+  destruct i; [| apply andp_left2, derives_refl].
+  apply odia_D; auto.
 Qed.
 
 (* Aux *)
@@ -547,11 +610,13 @@ Proof.
     rewrite sepcon_comm.
     apply derives_refl.
   + unfold RA_normal, normal_ret_assert.
-    apply andp_left2.
-    apply exp_left; intro old.
+    rewrite <- exp_sepcon1.
+    rewrite <- corable_andp_sepcon1 by (intro; apply corable_prop).
     rewrite wand_sepcon_adjoint.
+    rewrite exp_andp2; apply exp_left; intros old.
     rewrite substopt_oboxopt.
     apply oboxopt_T.
+    destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
   + auto.
   + auto.
   + auto.
@@ -589,13 +654,22 @@ Proof.
   intros.
   eapply semax_pre; [| apply semax_call_backward].
   apply (exp_right argsig), (exp_right retsig), (exp_right cc), (exp_right A), (exp_right P), (exp_right Q), (exp_right NEP), (exp_right NEQ), (exp_right ts), (exp_right x).
-  apply andp_left2.
   rewrite !andp_assoc.
   apply andp_right; [apply prop_right; auto |].
-  apply andp_derives; auto.
-  apply andp_derives; auto.
-  apply later_derives.
+  apply andp_right; [solve_andp |].
+  apply andp_right; [solve_andp |].
+  rewrite andp_comm, imp_andp_adjoint.
+  apply andp_left2.
+  apply andp_left2.
+  rewrite <- imp_andp_adjoint, andp_comm.
+  apply later_left2.
+  rewrite <- corable_andp_sepcon1 by (intro; apply corable_prop).
   rewrite sepcon_comm.
   apply sepcon_derives; auto.
+  eapply derives_trans; [apply (odiaopt_D _ ret) |].
+    1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+  
   Print tc_environ.
   Print typecheck_environ.
+  Print typecheck_temp_environ.
+  Print tc_fn_return.
