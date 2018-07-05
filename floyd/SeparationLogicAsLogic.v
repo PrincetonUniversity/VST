@@ -125,7 +125,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
 | semax_store_backward: forall e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
-             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
           (Sassign e1 e2)
           (normal_ret_assert P)
 | semax_skip: forall P, @semax CS Espec Delta P Sskip (normal_ret_assert P)
@@ -240,7 +240,15 @@ Proof.
   remember (Sassign e1 e2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0.
-    apply andp_left2, bupd_intro.
+    apply andp_left2.
+    eapply derives_trans; [| apply bupd_intro].
+    apply exp_derives; intro sh.
+    apply andp_derives; auto.
+    apply later_derives; auto.
+    apply andp_derives; auto.
+    apply sepcon_derives; auto.
+    apply wand_derives; auto.
+    apply bupd_intro.
   + subst c.
     specialize (IHsemax eq_refl).
     eapply derives_bupd_trans; [exact H | clear H].
@@ -389,23 +397,16 @@ Proof.
     apply exp_left in H0.
     rewrite <- (exp_andp2 A) in H0.
     eapply semax_pre_bupd; [exact H0 | clear H0].
-    eapply semax_post_bupd; [.. | apply AuxDefs.semax_store_backward].
-    - apply andp_left2, bupd_intro.
-    - apply andp_left2, FF_left.
-    - apply andp_left2, FF_left.
-    - intro; apply andp_left2, FF_left.
+    eapply semax_post''_bupd; [.. | apply AuxDefs.semax_store_backward].
+    apply andp_left2, derives_refl.
   + admit.
   + pose proof (fun x => semax_call_inv _ _ _ _ _ _ (H x)).
     clear H.
     apply exp_left in H0.
     rewrite <- (exp_andp2 A) in H0.
     eapply semax_pre_bupd; [exact H0 | clear H0].
-    eapply semax_post_bupd; [.. | apply AuxDefs.semax_call_backward].
-    - apply andp_left2; auto.
-      unfold normal_ret_assert, RA_normal; auto.
-    - apply andp_left2, FF_left.
-    - apply andp_left2, FF_left.
-    - intro; apply andp_left2, FF_left.
+    eapply semax_post''_bupd; [.. | apply AuxDefs.semax_call_backward].
+    apply andp_left2, derives_refl.
   + admit.
   + apply AuxDefs.semax_seq with (EX Q: environ -> mpred, !! (semax Delta Q c2 R) && Q).
     - apply IHc1.
@@ -473,22 +474,20 @@ Proof.
   eapply (AuxDefs.semax_loop _ P Q).
   + clear - H.
     unfold overridePost, loop_nocontinue_ret_assert, loop1_ret_assert in *.
-    eapply semax_pre_post_bupd; [| | | | | exact H].
-    - apply andp_left2.
-      apply bupd_intro.
+    eapply semax_post; [| | | | exact H].
     - apply andp_left2.
       destruct R.
-      apply bupd_intro.
+      apply derives_refl.
     - apply andp_left2.
       destruct R.
-      apply bupd_intro.
+      apply derives_refl.
     - apply andp_left2.
       destruct R.
       apply FF_left.
     - intro.
       apply andp_left2.
       destruct R.
-      apply bupd_intro.
+      apply derives_refl.
   + clear - H0.
     unfold overridePost, loop_nocontinue_ret_assert, loop2_ret_assert in *.
     auto.

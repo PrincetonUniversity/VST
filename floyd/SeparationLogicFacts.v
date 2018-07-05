@@ -487,10 +487,42 @@ Qed.
 
 (* Copied from canon.v end. *)
 
+Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c,
+           local (tc_environ Delta) && R' |-- RA_normal R ->
+      @semax cs Espec Delta P c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c R.
+Proof. intros. eapply semax_post; eauto.
+ simpl RA_normal; auto.
+ simpl RA_break; normalize.
+ simpl RA_continue; normalize.
+ intro vl; simpl RA_return; normalize.
+Qed.
+
+Lemma semax_pre_post'': forall P' R' Espec {cs: compspecs} Delta R P c,
+      local (tc_environ Delta) && P |-- P' ->
+      local (tc_environ Delta) && R' |-- RA_normal R ->
+      @semax cs Espec Delta P' c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c R.
+Proof. intros.
+ eapply semax_pre; eauto.
+ eapply semax_post''; eauto.
+Qed.
+
 Lemma semax_post'_bupd: forall R' Espec {cs: compspecs} Delta R P c,
            local (tc_environ Delta) && R' |-- |==> R ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
+Proof. intros. eapply semax_post_bupd; eauto.
+ simpl RA_normal; auto.
+ simpl RA_break; normalize.
+ simpl RA_continue; normalize.
+ intro vl; simpl RA_return; normalize.
+Qed.
+
+Lemma semax_post''_bupd: forall R' Espec {cs: compspecs} Delta R P c,
+           local (tc_environ Delta) && R' |-- |==> RA_normal R ->
+      @semax cs Espec Delta P c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post_bupd; eauto.
  simpl RA_normal; auto.
  simpl RA_break; normalize.
@@ -506,6 +538,16 @@ Lemma semax_pre_post'_bupd: forall P' R' Espec {cs: compspecs} Delta R P c,
 Proof. intros.
  eapply semax_pre_bupd; eauto.
  eapply semax_post'_bupd; eauto.
+Qed.
+
+Lemma semax_pre_post''_bupd: forall P' R' Espec {cs: compspecs} Delta R P c,
+      local (tc_environ Delta) && P |-- |==> P' ->
+      local (tc_environ Delta) && R' |-- |==> RA_normal R ->
+      @semax cs Espec Delta P' c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c R.
+Proof. intros.
+ eapply semax_pre_bupd; eauto.
+ eapply semax_post''_bupd; eauto.
 Qed.
 
 End CSHL_ConseqFacts.
@@ -584,7 +626,7 @@ Import CSHL_Def.
 Axiom semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
-             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
 
@@ -610,7 +652,7 @@ Import CSHL_StoreF.
 Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
-             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> P))))
+             ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* P))))
           (Sassign e1 e2)
           (normal_ret_assert P).
 Proof.
@@ -623,7 +665,7 @@ Proof.
     apply semax_extract_prop; intro SH.
     eapply semax_post'_bupd; [.. | eapply semax_store_forward; auto].
     apply andp_left2.
-    apply modus_ponens_wand.
+    eapply derives_trans; [apply modus_ponens_wand | apply bupd_intro].
 Qed.
 
 End CSHL_StoreF2B.
@@ -661,9 +703,8 @@ Proof.
   apply andp_derives; auto.
   apply sepcon_derives; auto.
   apply wand_sepcon_adjoint.
-  unfold normal_ret_assert, RA_normal.
   rewrite sepcon_comm.
-  apply bupd_intro.
+  apply derives_refl.
 Qed.
 
 End CSHL_StoreB2F.
