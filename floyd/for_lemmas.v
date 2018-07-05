@@ -33,73 +33,136 @@ Inductive int_type_min_max: type -> Z -> Z -> Prop :=
 | tint_min_max: int_type_min_max tint Int.min_signed Int.max_signed
 | tuint_min_max: int_type_min_max tuint 0 Int.max_unsigned.
 
-Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> expr -> Z -> (environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
-| Sfor_inv_rec_step: forall A _i i int_min hi n assert_callee inv0 inv1 inv2,
-    (forall x: A, exists inv0' inv1' inv2',
-       Sfor_inv_rec Delta _i i int_min hi n (assert_callee x) inv0' inv1' inv2' /\
-       inv0 x = inv0' /\ inv1 x = inv1' /\ inv2 x = inv2') ->
-    Sfor_inv_rec Delta _i i int_min hi n (exp assert_callee) (exp inv0) (exp inv1) (exp inv2)
+Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> expr -> Z -> (environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
+| Sfor_inv_rec_step': forall A _i i int_min hi n assert_callee inv0 inv1,
+    (forall x: A,
+       Sfor_inv_rec Delta _i i int_min hi n (assert_callee x) (inv0 x) (inv1 x)) ->
+    Sfor_inv_rec Delta _i i int_min hi n (exp assert_callee) (exp inv0) (exp inv1)
 | Sfor_inv_rec_end: forall _i i int_min hi n P Q R (*tactic callee*),
-    Forall (closed_wrt_vars (eq _i)) (map locald_denote Q) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta hi ->
     Sfor_inv_rec Delta _i i int_min hi n
       (PROPx P (LOCALx Q (SEPx R)))
       (PROPx ((int_min <= i <= n) :: P) (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R)))
-      (PROPx ((int_min <= i < n) :: P) (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R)))
-      (PROPx P (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R)))
-      .
+      (PROPx P (LOCALx (temp _i (Vint (Int.repr i)) :: Q) (SEPx R))).
 
-Inductive Sfor_inv {cs: compspecs} (Delta: tycontext): ident -> Z -> expr -> Z -> (Z -> environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> (Z -> environ -> mpred) -> Prop :=
-| construct_Sfor_inv: forall _i int_min hi n assert_callee inv0 inv1 inv2,
-    (forall i, exists inv0' inv1' inv2', Sfor_inv_rec Delta _i i int_min hi n (assert_callee i) inv0' inv1' inv2' /\ inv0 i = inv0' /\ inv1 i = inv1' /\ inv2 i = inv2') ->
-    Sfor_inv Delta _i int_min hi n assert_callee (exp inv0) (exp inv1) inv2.
+Lemma Sfor_inv_rec_step {cs: compspecs} (Delta: tycontext): forall A _i i int_min hi n assert_callee inv0 inv1,
+    (forall x: A, exists inv0' inv1',
+       Sfor_inv_rec Delta _i i int_min hi n (assert_callee x) inv0' inv1' /\
+       inv0 x = inv0' /\ inv1 x = inv1') ->
+    Sfor_inv_rec Delta _i i int_min hi n (exp assert_callee) (exp inv0) (exp inv1).
+Proof.
+  intros.
+  apply Sfor_inv_rec_step'.
+  intros.
+  specialize (H x).
+  destruct H as [? [? [? [? ?]]]].
+  subst; auto.
+Qed.
 
-Inductive Sfor_init_triple {cs: compspecs} {Espec: OracleKind} (Delta: tycontext): ident -> type -> Z -> (environ -> mpred) -> statement -> (Z -> environ -> mpred) -> Prop :=
-| Sfor_init_triple_const_init: forall lo _i Pre inv_call inv0,
-    ENTAIL Delta, Pre |-- inv_call lo ->
-    Sfor_init_triple Delta _i Pre (Sset _i (Econst_int (Int.repr lo) tint)) inv
-| Sfor_init_triple_other: forall _i Pre init inv,
-    @semax cs Espec Delta Pre init (normal_ret_assert (exp inv)) ->
-    Sfor_init_triple Delta _i Pre init inv.
+Inductive Sfor_inv {cs: compspecs} (Delta: tycontext):
+  forall (_i: ident) (int_min: Z) (hi: expr) (n: Z)
+         (assert_callee: Z -> environ -> mpred)
+         (inv0: environ -> mpred)
+         (inv1 inv2: Z -> environ -> mpred), Prop :=
+| construct_Sfor_inv: forall _i int_min hi n assert_callee inv0 inv1,
+    (forall i i', exists inv0' inv0'' inv1' inv1'', Sfor_inv_rec Delta _i i' int_min hi n (assert_callee i) inv0'' inv1'' /\ inv0' i' = inv0'' /\ inv0 i = inv0' /\ inv1' i' = inv1'' /\ inv1 i = inv1') ->
+    Sfor_inv Delta _i int_min hi n assert_callee (EX i: Z, inv0 i i) (fun i => inv1 i i) (fun i => inv1 (i+1) i).
+
+Inductive Sfor_init_triple {cs: compspecs} {Espec: OracleKind} (Delta: tycontext):
+  forall (_i: ident) (Pre: environ -> mpred) (init: statement)
+         (int_min n: Z) (assert_callee: Z -> environ -> mpred)
+         (inv0: environ -> mpred), Prop :=
+| Sfor_init_triple_const_init: forall lo _i type_i int_min n Pre assert_callee inv0,
+    int_min <= lo <= n ->
+    ENTAIL Delta, Pre |-- assert_callee lo ->
+    Sfor_init_triple Delta _i Pre (Sset _i (Econst_int (Int.repr lo) type_i)) int_min n assert_callee inv0
+| Sfor_init_triple_other: forall _i Pre init int_min n assert_callee inv0,
+    @semax cs Espec Delta Pre init (normal_ret_assert inv0) ->
+    Sfor_init_triple Delta _i Pre init int_min n assert_callee inv0.
+
+Lemma Sfor_inv_rec_spec: forall {cs: compspecs} (Delta: tycontext),
+  forall _i i int_min hi n assert_callee inv0 inv1,
+    Sfor_inv_rec Delta _i i int_min hi n assert_callee inv0 inv1 ->
+    ENTAIL Delta, inv0 |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) /\
+    ENTAIL Delta, inv0 |-- tc_expr Delta hi /\
+    !! (int_min <= i <= n) && local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee = inv0 /\
+    !! (int_min <= i <= n) && inv1 = inv0.
+Proof.
+  intros.
+  induction H.
+  + split; [| split; [| split]].
+    - specialize (fun x => proj1 (H0 x)); clear H H0; intros.
+      rewrite exp_andp2.
+      apply exp_left; auto.
+    - specialize (fun x => proj1 (proj2 (H0 x))); clear H H0; intros.
+      rewrite exp_andp2.
+      apply exp_left; auto.
+    - specialize (fun x => proj1 (proj2 (proj2 (H0 x)))); clear H H0; intros.
+      rewrite exp_andp2.
+      apply exp_congr; auto.
+    - specialize (fun x => proj2 (proj2 (proj2 (H0 x)))); clear H H0; intros.
+      rewrite exp_andp2.
+      apply exp_congr; auto.
+  + split; [| split; [| split]].
+    - rewrite <- insert_local, <- insert_prop.
+      eapply derives_trans; [| exact H].
+      solve_andp.
+    - rewrite <- insert_local, <- insert_prop.
+      eapply derives_trans; [| exact H0].
+      solve_andp.
+    - rewrite <- insert_prop, <- insert_local, andp_assoc.
+      reflexivity.
+    - rewrite <- insert_prop.
+      reflexivity.
+Qed.
+
+Definition for_ret_assert (I: environ->mpred) (Post: ret_assert) :=
+ match Post with 
+  {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := r |} =>
+  {| RA_normal := I; RA_break := FF; RA_continue := I; RA_return := r |}
+ end.
 
 Lemma semax_for :
  forall (Inv: environ->mpred) (n: Z) Espec {cs: compspecs} Delta
            (Pre: environ->mpred)
-           (A: Type) (_i: ident) (init: statement) (hi: expr) (body: statement) (Post: ret_assert)
-           (inv: Z -> environ -> mpred)
-     (INV: Sfor_inv Delta _i hi n Inv inv)
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
+           (_i: ident) (init: statement) (hi: expr) (body: statement) (Post: ret_assert)
+           (type_i: type) (int_min int_max: Z)
+           (assert_callee: Z -> environ -> mpred)
+           (inv0: environ -> mpred)
+           (inv1 inv2: Z -> environ -> mpred)
+     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (type_i, true))
+     (IMM: int_type_min_max type_i int_min int_max)
      (Thi: typeof hi = tint)
-     @semax cs Espec Delta Pre init
-      (normal_ret_assert
-        (EX i:Z, EX x:A, local Q1 && PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
-              (LOCALx (temp _i (Vint (Int.repr i)) :: Q i x) (SEPx (R i x))))) ->
-     (forall i (x:A), ENTAIL (update_tycon Delta init), PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
-       (LOCALx (temp _i (Vint (Int.repr i))  :: Q i x)
-       (SEPx (R i x))) |--
-            (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
-     (EX i:Z, local (`(op_Z_int Z.ge i) (eval_expr hi)) && local Q1 && local (tc_environ (update_tycon Delta init)) &&
-                 (EX x:A, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x) (LOCALx (temp _i (Vint (Int.repr i))
-                                  :: (Q i x)) (SEPx (R i x))))
-            |-- RA_normal Post)    ->
-     (forall i (x:A),
-     @semax cs Espec (update_tycon Delta init)
-        (local (`(op_Z_int Z.lt i) (eval_expr hi)) && local Q1 &&
-         PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i x)
-         (LOCALx (temp _i (Vint (Int.repr i))  :: (Q i x))
-         (SEPx (R i x))))
+     (N_MAX: n < int_max)
+     (CALLEE: Inv = exp assert_callee)
+     (INV: Sfor_inv Delta _i int_min hi n assert_callee inv0 inv1 inv2)
+     (INIT: Sfor_init_triple Delta _i Pre init int_min n assert_callee inv0),
+     (forall i, int_min <= i < n ->
+     @semax cs Espec (update_tycon Delta init) (inv1 i)
         body
-        (normal_ret_assert (EX x:A, local Q1 && PROPx ((Int.min_signed < i+1 <= Int.max_signed) :: P (i+1) x)
-                                                                  (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1) x)
-                                                                  (SEPx (R (i+1) x)))))) ->
+        (for_ret_assert (inv2 i) Post)) ->
+     ENTAIL update_tycon Delta (Sfor init
+                (Ebinop Olt (Etempvar _i tint) hi tint)
+                body
+                (Sset _i (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))),
+        (inv1 n) |-- RA_normal Post ->
      @semax cs Espec Delta Pre
        (Sfor init
                 (Ebinop Olt (Etempvar _i tint) hi tint)
                 body
                 (Sset _i (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))) Post.
 Proof.
-
+  intros.
+  destruct Post as [nPost bPost cPost rPost].
+  apply semax_post with {| RA_normal := inv1 n; RA_break := FF; RA_continue := FF; RA_return := rPost |};
+    [now auto | apply andp_left2, FF_left | apply andp_left2, FF_left | intros; simpl RA_return; solve_andp |].
+  simpl for_ret_assert in H.
+  clear bPost cPost H0.
+  unfold Sfor.
+  apply semax_seq' with inv0.
+  
+  Check semax_post.
 Lemma semax_for_simple :
  forall (Inv: environ->mpred) Espec {cs: compspecs} Delta
            (Pre: environ->mpred)
