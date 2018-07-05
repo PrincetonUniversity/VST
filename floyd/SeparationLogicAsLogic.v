@@ -12,6 +12,15 @@ Require Import VST.veric.NullExtension.
 Require Import VST.floyd.SeparationLogicFacts.
 Local Open Scope logic.
 
+(* TODO: move it *)
+Lemma exp_derives:
+       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A),
+               (forall x:B, P x |-- Q x) -> (exp P |-- exp Q).
+Proof.
+intros.
+apply exp_left; intro x; apply exp_right with x; auto.
+Qed.
+
 Module ClightSeparationHoareLogic.
 
 Module AuxDefs.
@@ -44,18 +53,19 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (switch_ret_assert R)) ->
      @semax CS Espec Delta Q (Sswitch a sl) R
-| semax_call: forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
-           Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
-           (retsig = Tvoid -> ret = None) ->
-          tc_fn_return Delta ret retsig ->
-  @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+| semax_call_backward: forall ret a bl R,
+     @semax CS Espec Delta
+         (EX argsig: _, EX retsig: _, EX cc: _,
+          EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
+         !! (Cop.classify_fun (typeof a) =
+             Cop.fun_case_f (type_of_params argsig) retsig cc /\
+             (retsig = Tvoid -> ret = None) /\
+             tc_fn_return Delta ret retsig) &&
+          (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
-         (normal_ret_assert
-          (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret))
+         (normal_ret_assert R)
 | semax_return: forall (R: ret_assert) ret ,
       @semax CS Espec Delta
                 ( (tc_expropt Delta ret (ret_type Delta)) &&
@@ -248,6 +258,81 @@ Proof.
     unfold local, lift1.
     normalize.
     eapply derives_trans; [| apply bupd_intro].
+    apply (exp_right x).
+    normalize.
+    apply later_derives.
+    apply andp_derives; auto.
+    apply sepcon_derives; auto.
+    apply wand_derives; auto.
+    specialize (H1 rho).
+    unfold local, lift1 in H1; simpl in H1.
+    normalize in H1.
+    eapply derives_trans; [apply bupd_mono, H1 | apply bupd_trans].
+Qed.
+
+Lemma semax_call_inv: forall {Espec: OracleKind}{CS: compspecs} Delta ret a bl Pre Post,
+  @semax CS Espec Delta Pre (Scall ret a bl) Post ->
+  local (tc_environ Delta) && Pre |-- |==>
+         (EX argsig: _, EX retsig: _, EX cc: _,
+          EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
+         !! (Cop.classify_fun (typeof a) =
+             Cop.fun_case_f (type_of_params argsig) retsig cc /\
+             (retsig = Tvoid -> ret = None) /\
+             tc_fn_return Delta ret retsig) &&
+          (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt ret (maybe_retval (Q ts x) retsig ret -* |==> RA_normal Post))).
+Proof.
+  intros.
+  remember (Scall ret a bl) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0.
+    apply andp_left2.
+    eapply derives_trans; [| apply bupd_intro].
+    apply exp_derives; intro argsig.
+    apply exp_derives; intro retsig.
+    apply exp_derives; intro cc.
+    apply exp_derives; intro A.
+    apply exp_derives; intro P.
+    apply exp_derives; intro Q.
+    apply exp_derives; intro NEP.
+    apply exp_derives; intro NEQ.
+    apply exp_derives; intro ts.
+    apply exp_derives; intro x.
+    apply andp_derives; auto.
+    apply later_derives; auto.
+    apply sepcon_derives; auto.
+    apply oboxopt_K; auto.
+    apply wand_derives; auto.
+    apply bupd_intro.
+  + subst c.
+    rename P into Pre, R into Post.
+    specialize (IHsemax eq_refl).
+    eapply derives_bupd_trans; [exact H | clear H].
+    eapply derives_bupd_trans; [exact IHsemax | clear IHsemax].
+    eapply derives_trans; [| apply bupd_intro].
+    rewrite exp_andp2; apply exp_derives; intro argsig.
+    rewrite exp_andp2; apply exp_derives; intro retsig.
+    rewrite exp_andp2; apply exp_derives; intro cc.
+    rewrite exp_andp2; apply exp_derives; intro A.
+    rewrite exp_andp2; apply exp_derives; intro P.
+    rewrite exp_andp2; apply exp_derives; intro Q.
+    rewrite exp_andp2; apply exp_derives; intro NEP.
+    rewrite exp_andp2; apply exp_derives; intro NEQ.
+    rewrite exp_andp2; apply exp_derives; intro ts.
+    rewrite exp_andp2; apply exp_derives; intro x.
+    apply andp_right; [solve_andp |].
+    rewrite andp_comm, imp_andp_adjoint.
+    apply andp_left2.
+    rewrite <- imp_andp_adjoint, andp_comm.
+    apply later_left2.
+    rewrite <- corable_sepcon_andp1 by (intro; apply corable_prop).
+    apply sepcon_derives; auto.
+
+        
+    intro rho; simpl.
+    unfold local, lift1.
+    normalize.
     apply (exp_right x).
     normalize.
     apply later_derives.
