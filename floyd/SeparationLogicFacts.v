@@ -487,6 +487,27 @@ Qed.
 
 (* Copied from canon.v end. *)
 
+Lemma semax_post'_bupd: forall R' Espec {cs: compspecs} Delta R P c,
+           local (tc_environ Delta) && R' |-- |==> R ->
+      @semax cs Espec Delta P c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c (normal_ret_assert R).
+Proof. intros. eapply semax_post_bupd; eauto.
+ simpl RA_normal; auto.
+ simpl RA_break; normalize.
+ simpl RA_continue; normalize.
+ intro vl; simpl RA_return; normalize.
+Qed.
+
+Lemma semax_pre_post'_bupd: forall P' R' Espec {cs: compspecs} Delta R P c,
+      local (tc_environ Delta) && P |-- |==> P' ->
+      local (tc_environ Delta) && R' |-- |==> R ->
+      @semax cs Espec Delta P' c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c (normal_ret_assert R).
+Proof. intros.
+ eapply semax_pre_bupd; eauto.
+ eapply semax_post'_bupd; eauto.
+Qed.
+
 End CSHL_ConseqFacts.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
@@ -600,12 +621,9 @@ Proof.
     apply derives_refl.
   + intros sh.
     apply semax_extract_prop; intro SH.
-    eapply semax_post_bupd; [.. | eapply semax_store_forward; auto].
-    - apply andp_left2.
-      apply modus_ponens_wand.
-    - apply andp_left2, FF_left.
-    - apply andp_left2, FF_left.
-    - intros; apply andp_left2, FF_left.
+    eapply semax_post'_bupd; [.. | eapply semax_store_forward; auto].
+    apply andp_left2.
+    apply modus_ponens_wand.
 Qed.
 
 End CSHL_StoreF2B.
