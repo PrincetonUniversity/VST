@@ -12,15 +12,6 @@ Require Import VST.veric.NullExtension.
 Require Import VST.floyd.SeparationLogicFacts.
 Local Open Scope logic.
 
-(* TODO: move it *)
-Lemma exp_derives:
-       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A),
-               (forall x:B, P x |-- Q x) -> (exp P |-- exp Q).
-Proof.
-intros.
-apply exp_left; intro x; apply exp_right with x; auto.
-Qed.
-
 Module ClightSeparationHoareLogic.
 
 Module AuxDefs.
@@ -63,7 +54,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
              tc_fn_return Delta ret retsig) &&
           (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt ret (maybe_retval (Q ts x) retsig ret -* R)))
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R)
 | semax_return: forall (R: ret_assert) ret ,
@@ -281,7 +272,7 @@ Lemma semax_call_inv: forall {Espec: OracleKind}{CS: compspecs} Delta ret a bl P
              tc_fn_return Delta ret retsig) &&
           (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt ret (maybe_retval (Q ts x) retsig ret -* |==> RA_normal Post))).
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* |==> RA_normal Post))).
 Proof.
   intros.
   remember (Scall ret a bl) as c eqn:?H.
@@ -323,26 +314,22 @@ Proof.
     rewrite exp_andp2; apply exp_derives; intro x.
     apply andp_right; [solve_andp |].
     rewrite andp_comm, imp_andp_adjoint.
+    normalize.
+    destruct H as [? [? ?]].
     apply andp_left2.
     rewrite <- imp_andp_adjoint, andp_comm.
     apply later_left2.
     rewrite <- corable_sepcon_andp1 by (intro; apply corable_prop).
     apply sepcon_derives; auto.
-
-        
-    intro rho; simpl.
-    unfold local, lift1.
-    normalize.
-    apply (exp_right x).
-    normalize.
-    apply later_derives.
-    apply andp_derives; auto.
-    apply sepcon_derives; auto.
-    apply wand_derives; auto.
-    specialize (H1 rho).
-    unfold local, lift1 in H1; simpl in H1.
-    normalize in H1.
-    eapply derives_trans; [apply bupd_mono, H1 | apply bupd_trans].
+    apply oboxopt_left2.
+      1: destruct ret; hnf in H6 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+    rewrite <- wand_sepcon_adjoint.
+    rewrite corable_andp_sepcon1 by (intro; apply corable_prop).
+    rewrite andp_comm, imp_andp_adjoint.
+    eapply derives_trans; [rewrite sepcon_comm; apply modus_ponens_wand |].
+    rewrite <- imp_andp_adjoint, andp_comm.
+    eapply derives_bupd_trans; [| exact H1].
+    apply andp_left2; auto.
 Qed.
 
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
@@ -408,7 +395,17 @@ Proof.
     - apply andp_left2, FF_left.
     - intro; apply andp_left2, FF_left.
   + admit.
-  + admit.
+  + pose proof (fun x => semax_call_inv _ _ _ _ _ _ (H x)).
+    clear H.
+    apply exp_left in H0.
+    rewrite <- (exp_andp2 A) in H0.
+    eapply semax_pre_bupd; [exact H0 | clear H0].
+    eapply semax_post_bupd; [.. | apply AuxDefs.semax_call_backward].
+    - apply andp_left2; auto.
+      unfold normal_ret_assert, RA_normal; auto.
+    - apply andp_left2, FF_left.
+    - apply andp_left2, FF_left.
+    - intro; apply andp_left2, FF_left.
   + admit.
   + apply AuxDefs.semax_seq with (EX Q: environ -> mpred, !! (semax Delta Q c2 R) && Q).
     - apply IHc1.

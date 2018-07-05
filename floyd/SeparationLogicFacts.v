@@ -11,6 +11,15 @@ Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
 Local Open Scope logic.
 
+(* TODO: move it *)
+Lemma exp_derives:
+       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A),
+               (forall x:B, P x |-- Q x) -> (exp P |-- exp Q).
+Proof.
+intros.
+apply exp_left; intro x; apply exp_right with x; auto.
+Qed.
+
 (* Closed and subst. copied from closed_lemmas.v. *)
 
 Lemma closed_wrt_subst:
@@ -28,21 +37,29 @@ rewrite Map.gso; auto.
 Qed.
 
 (* End of copied from closed_lemmas.v. *)
+Definition obox (Delta: tycontext) (i: ident) (P: environ -> mpred): environ -> mpred :=
+  ALL v: _,
+    match ((temp_types Delta) ! i) with
+    | Some t => !! (tc_val' t v) --> subst i (`v) P
+    | _ => TT
+    end.
 
-Definition obox (i: ident) (P: environ -> mpred): environ -> mpred :=
-  ALL v: _, subst i (`v) P.
+Definition odia (Delta: tycontext) (i: ident) (P: environ -> mpred): environ -> mpred :=
+  EX v: _,
+    match ((temp_types Delta) ! i) with
+    | Some t => !! (tc_val' t v) && subst i (`v) P
+    | _ => FF
+    end.
 
-Definition odia (i: ident) (P: environ -> mpred): environ -> mpred :=
-  EX v: _, subst i (`v) P.
-
-Lemma obox_closed_wrt: forall id P, closed_wrt_vars (eq id) (obox id P).
+Lemma obox_closed_wrt: forall Delta id P, closed_wrt_vars (eq id) (obox Delta id P).
 Proof.
   intros.
   hnf; intros.
   unfold obox; simpl.
   apply allp_congr; intros.
   unfold subst.
-  simpl.
+  destruct ((temp_types Delta) ! id); auto.
+  f_equal.
   f_equal.
   unfold_lift.
   unfold env_set.
@@ -57,12 +74,14 @@ Proof.
     auto.
 Qed.
 
-Lemma odia_closed_wrt: forall id P, closed_wrt_vars (eq id) (odia id P).
+Lemma odia_closed_wrt: forall Delta id P, closed_wrt_vars (eq id) (odia Delta id P).
 Proof.
   intros.
   hnf; intros.
   unfold odia; simpl.
   apply exp_congr; intros.
+  destruct ((temp_types Delta) ! id); auto.
+  f_equal.
   unfold subst.
   simpl.
   f_equal.
@@ -79,55 +98,59 @@ Proof.
     auto.
 Qed.
 
-Lemma subst_obox: forall id v (P: environ -> mpred), subst id (`v) (obox id P) = obox id P.
+Lemma subst_obox: forall Delta id v (P: environ -> mpred), subst id (`v) (obox Delta id P) = obox Delta id P.
 Proof.
   intros.
   apply closed_wrt_subst.
   apply obox_closed_wrt.
 Qed.
 
-Lemma subst_odia: forall id v (P: environ -> mpred), subst id (`v) (odia id P) = odia id P.
+Lemma subst_odia: forall Delta id v (P: environ -> mpred), subst id (`v) (odia Delta id P) = odia Delta id P.
 Proof.
   intros.
   apply closed_wrt_subst.
   apply odia_closed_wrt.
 Qed.
 
-Lemma obox_closed: forall i P, closed_wrt_vars (eq i) P -> obox i P = P.
+Definition temp_guard (Delta : tycontext) (i: ident): Prop :=
+  (temp_types Delta) ! i <> None.
+
+Lemma obox_closed: forall Delta i P, temp_guard Delta i -> closed_wrt_vars (eq i) P -> obox Delta i P = P.
 Proof.
   intros.
   unfold obox.
+  hnf in H.
+  destruct ((temp_types Delta) ! i); [| tauto].
   apply pred_ext.
   + apply (allp_left _ Vundef).
     rewrite closed_wrt_subst by auto.
-    apply derives_refl.
+    apply derives_refl'.
+    apply prop_imp, tc_val'_Vundef.
   + apply allp_right; intros.
     rewrite closed_wrt_subst by auto.
-    apply derives_refl.
+    apply imp_right2.
 Qed.
 
-Lemma obox_odia: forall i P, obox i (odia i P) = odia i P.
+Lemma obox_odia: forall Delta i P, temp_guard Delta i -> obox Delta i (odia Delta i P) = odia Delta i P.
 Proof.
   intros.
-  apply obox_closed.
+  apply obox_closed; auto.
   apply odia_closed_wrt.
 Qed.
 
-Lemma obox_K: forall i P Q, P |-- Q -> obox i P |-- obox i Q.
+Lemma obox_K: forall Delta i P Q, P |-- Q -> obox Delta i P |-- obox Delta i Q.
 Proof.
   intros.
   intro rho.
   unfold obox, subst.
   simpl; apply allp_derives; intros.
-  apply H.
+  destruct ((temp_types Delta) ! i); auto.
+  apply imp_derives; auto.
 Qed.
-
-Definition temp_guard (Delta : tycontext) (i: ident): Prop :=
-  (temp_types Delta) ! i <> None.
 
 Lemma obox_T: forall Delta i (P: environ -> mpred),
   temp_guard Delta i ->
-  local (tc_environ Delta) && obox i P |-- P.
+  local (tc_environ Delta) && obox Delta i P |-- P.
 Proof.
   intros.
   intro rho; simpl.
@@ -136,11 +159,12 @@ Proof.
   destruct H0 as [? _].
   hnf in H, H0.
   specialize (H0 i).
+  unfold obox; simpl.
   destruct ((temp_types Delta) ! i); [| tauto].
   specialize (H0 t eq_refl).
   destruct H0 as [v [? ?]].
-  unfold obox; simpl.
   apply (allp_left _ v).
+  rewrite prop_imp by auto.
   unfold subst.
   apply derives_refl'.
   f_equal.
@@ -158,7 +182,7 @@ Qed.
 
 Lemma odia_D: forall Delta i (P: environ -> mpred),
   temp_guard Delta i ->
-  local (tc_environ Delta) && P |-- odia i P.
+  local (tc_environ Delta) && P |-- odia Delta i P.
 Proof.
   intros.
   intro rho; simpl.
@@ -167,11 +191,12 @@ Proof.
   destruct H0 as [? _].
   hnf in H, H0.
   specialize (H0 i).
+  unfold odia; simpl.
   destruct ((temp_types Delta) ! i); [| tauto].
   specialize (H0 t eq_refl).
   destruct H0 as [v [? ?]].
-  unfold odia; simpl.
   apply (exp_right v).
+  rewrite prop_true_andp by auto.
   unfold subst.
   apply derives_refl'.
   f_equal.
@@ -187,14 +212,21 @@ Proof.
     auto.
 Qed.
 
-Lemma odia_derives_EX_subst: forall i P,
-  odia i P |-- EX v : val, subst i (` v) P.
+Lemma odia_derives_EX_subst: forall Delta i P,
+  odia Delta i P |-- EX v : val, subst i (` v) P.
+Proof.
+  intros.
+  unfold odia.
+  apply exp_derives.
+  intros v.
+  destruct ((temp_types Delta) ! i); [| apply FF_left].
+  apply andp_left2; auto.
+Qed.
 
-(*
 Lemma obox_left2: forall Delta i P Q,
   temp_guard Delta i ->
   local (tc_environ Delta) && P |-- Q ->  
-  local (tc_environ Delta) && obox i P |-- obox i Q.
+  local (tc_environ Delta) && obox Delta i P |-- obox Delta i Q.
 Proof.
   intros.
   unfold local, lift1 in *.
@@ -202,6 +234,10 @@ Proof.
   normalize.
   unfold obox; simpl.
   apply allp_derives; intros x.
+  destruct ((temp_types Delta) ! i) eqn:?H; auto.
+  rewrite <- imp_andp_adjoint.
+  normalize.
+  unfold TT; rewrite prop_imp by auto.
   unfold subst; unfold_lift.
   specialize (H0 (env_set rho i x)).
   simpl in H0.
@@ -209,26 +245,32 @@ Proof.
   {
     clear H0.
     destruct rho, H1 as [? [? ?]]; split; [| split]; simpl in *; auto.
-    clear H1 H2.
+    clear H1 H4.
     hnf in H0 |- *.
-    intros j t H1; specialize (H0 j t H1).
+    intros j tj H1; specialize (H0 j tj H1).
     destruct H0 as [v [? ?]].
     destruct (ident_eq i j).
-    + subst.
+    + exists x.
+      subst.
+      rewrite H2 in H1; inv H1.
       rewrite Map.gss.
-      exists x.
       split; auto.
+    + exists v.
+      rewrite Map.gso by auto.
+      split; auto.
+  }
   normalize in H0.
-*)
-Definition oboxopt ret P :=
+Qed.
+
+Definition oboxopt Delta ret P :=
   match ret with
-  | Some id => obox id P
+  | Some id => obox Delta id P
   | _ => P
   end.
 
-Definition odiaopt ret P :=
+Definition odiaopt Delta ret P :=
   match ret with
-  | Some id => odia id P
+  | Some id => odia Delta id P
   | _ => P
   end.
 
@@ -238,7 +280,7 @@ Definition temp_guard_opt (Delta : tycontext) (i: option ident): Prop :=
   | None => True
   end.
 
-Lemma substopt_oboxopt: forall id v (P: environ -> mpred), substopt id (`v) (oboxopt id P) = oboxopt id P.
+Lemma substopt_oboxopt: forall Delta id v (P: environ -> mpred), substopt id (`v) (oboxopt Delta id P) = oboxopt Delta id P.
 Proof.
   intros.
   destruct id; [| auto].
@@ -247,7 +289,7 @@ Qed.
 
 Lemma oboxopt_T: forall Delta i (P: environ -> mpred),
   temp_guard_opt Delta i ->
-  local (tc_environ Delta) && oboxopt i P |-- P.
+  local (tc_environ Delta) && oboxopt Delta i P |-- P.
 Proof.
   intros.
   destruct i; [| apply andp_left2, derives_refl].
@@ -256,21 +298,21 @@ Qed.
 
 Lemma odiaopt_D: forall Delta i (P: environ -> mpred),
   temp_guard_opt Delta i ->
-  local (tc_environ Delta) && P |-- odiaopt i P.
+  local (tc_environ Delta) && P |-- odiaopt Delta i P.
 Proof.
   intros.
   destruct i; [| apply andp_left2, derives_refl].
   apply odia_D; auto.
 Qed.
 
-Lemma oboxopt_odiaopt: forall i P, oboxopt i (odiaopt i P) = odiaopt i P.
+Lemma oboxopt_odiaopt: forall Delta i P, temp_guard_opt Delta i -> oboxopt Delta i (odiaopt Delta i P) = odiaopt Delta i P.
 Proof.
   intros.
   destruct i; auto.
-  apply obox_odia.
+  apply obox_odia; auto.
 Qed.
 
-Lemma oboxopt_K: forall i P Q, P |-- Q -> oboxopt i P |-- oboxopt i Q.
+Lemma oboxopt_K: forall Delta i P Q, P |-- Q -> oboxopt Delta i P |-- oboxopt Delta i Q.
 Proof.
   intros.
   intro rho.
@@ -278,16 +320,25 @@ Proof.
   apply obox_K; auto.
 Qed.
 
-Lemma odiaopt_derives_EX_substopt: forall i P,
-  odiaopt i P |-- EX v : val, substopt i (` v) P.
+Lemma odiaopt_derives_EX_substopt: forall Delta i P,
+  odiaopt Delta i P |-- EX v : val, substopt i (` v) P.
 Proof.
+  intros.
+  destruct i; [apply odia_derives_EX_subst |].
+  simpl.
+  intros; apply (exp_right Vundef); auto.
 Qed.
-(*
+
 Lemma oboxopt_left2: forall Delta i P Q,
   temp_guard_opt Delta i ->
   local (tc_environ Delta) && P |-- Q ->  
-  local (tc_environ Delta) && oboxopt i P |-- oboxopt i Q.
-*)
+  local (tc_environ Delta) && oboxopt Delta i P |-- oboxopt Delta i Q.
+Proof.
+  intros.
+  destruct i; [apply obox_left2; auto |].
+  auto.
+Qed.
+
 (* Aux *)
 
 Lemma local_andp_bupd: forall P Q,
@@ -638,7 +689,7 @@ Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
              tc_fn_return Delta ret retsig) &&
           (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt ret (maybe_retval (Q ts x) retsig ret -* R)))
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 
@@ -672,7 +723,7 @@ Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
              tc_fn_return Delta ret retsig) &&
           (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt ret (maybe_retval (Q ts x) retsig ret -* R)))
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 Proof.
@@ -756,13 +807,12 @@ Proof.
   eapply derives_trans; [apply (odiaopt_D _ ret) |].
     1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
   rewrite <- oboxopt_odiaopt.
+    2: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
   apply oboxopt_K.
   rewrite <- wand_sepcon_adjoint.
   rewrite <- exp_sepcon1.
   apply sepcon_derives; auto.
-  unfold odiaopt, odia, substopt.
-  destruct ret; [apply derives_refl |].
-  apply (exp_right Vundef); auto.
+  apply odiaopt_derives_EX_substopt.
 Qed.
 
 End CSHL_CallB2F.
