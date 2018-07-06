@@ -1806,12 +1806,18 @@ Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  | Sifthenelse e c1 c2 =>
      andb (quickflow c1 ok) (quickflow c2 ok)
  | Sloop body incr =>
-     quickflow body (fun ek => match ek with
+     andb (quickflow body (fun ek => match ek with
                               | EK_normal => true
                               | EK_break => ok EK_normal
                               | EK_continue => true
                               | EK_return => ok EK_return
-                              end)
+                              end))
+          (quickflow incr (fun ek => match ek with
+                              | EK_normal => true
+                              | EK_break => ok EK_normal
+                              | EK_continue => false
+                              | EK_return => ok EK_return
+                              end))
  | Sbreak => ok EK_break
  | Scontinue => ok EK_continue
  | Sswitch _ _ => false   (* this could be made more generous *)

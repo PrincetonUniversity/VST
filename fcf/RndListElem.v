@@ -36,21 +36,6 @@ End RndListElem.
 
 Local Open Scope list_scope.
 
-Lemma rndListElem_support: 
-      forall (A : Set)(eqd : EqDec A)(ls : list A) a,
-        In a ls <-> 
-        In (Some a) (getSupport (rndListElem eqd ls)).
-
-      intuition.
-      unfold rndListElem.
-      case_eq (length ls); intuition.
-      exfalso.
-      destruct ls; simpl in *; intuition.
-      
-      eapply getSupport_In_Seq.
-
-      eapply in_getSupport_RndNat.
-
       Fixpoint firstIndexOf(A : Set)(eqd : eq_dec A)(ls : list A)(a : A)(def : nat) :=
         match ls with
             | nil => def
@@ -95,17 +80,6 @@ Lemma rndListElem_support:
 
       Qed.
 
-      rewrite <- H0.
-      eapply firstIndexOf_in_lt; eauto.
-      simpl.
-      left.
-
-      eapply nth_firstIndexOf; trivial.
-      
-      unfold rndListElem in *.
-      repeat simp_in_support.
-      discriminate.
-      
       Theorem nth_option_In : 
         forall (A : Set)(ls : list A)(a : A) i,
           nth_option ls i = Some a ->
@@ -123,6 +97,32 @@ Lemma rndListElem_support:
 
       Qed.
 
+Lemma rndListElem_support: 
+      forall (A : Set)(eqd : EqDec A)(ls : list A) a,
+        In a ls <-> 
+        In (Some a) (getSupport (rndListElem eqd ls)).
+
+      intuition.
+      unfold rndListElem.
+      case_eq (length ls); intuition.
+      exfalso.
+      destruct ls; simpl in *; intuition.
+      
+      eapply getSupport_In_Seq.
+
+      eapply in_getSupport_RndNat.
+
+      rewrite <- H0.
+      eapply firstIndexOf_in_lt; eauto.
+      simpl.
+      left.
+
+      eapply nth_firstIndexOf; trivial.
+      
+      unfold rndListElem in *.
+      repeat simp_in_support.
+      discriminate.
+      
       eapply nth_option_In; eauto.
 
       Grab Existential Variables.
@@ -130,6 +130,71 @@ Lemma rndListElem_support:
       unfold eq_dec.
       eapply (EqDec_dec eqd).
     Qed.
+
+   Theorem nth_firstIndexOf_if : 
+     forall (A : Set)(eqd : eq_dec A)(ls : list A) n a,
+       nth_option ls n = Some a ->
+       NoDup ls ->
+       firstIndexOf eqd ls a 0 = n.
+
+     induction ls; intuition; simpl in *.
+     discriminate.
+     inversion H0; clear H0; subst.
+     destruct n.
+     inversion H; clear H; subst.
+     destruct (eqd a0 a0); subst; intuition.
+
+     destruct (eqd a0 a); subst; intuition.
+     exfalso.
+     eapply H3.
+     
+     eapply nth_option_In.
+     eauto.
+
+   Qed.
+
+   Theorem nth_option_some : 
+     forall (A : Set)(ls : list A) n,
+       n < length ls ->
+       exists a, nth_option ls n = Some a.
+     
+     induction ls; intuition; simpl in *.
+     omega.
+     
+     destruct n.
+     econstructor; eauto.
+     
+     destruct (IHls n).
+     omega.
+     
+     econstructor; eauto.
+     
+   Qed.
+   
+   Theorem rndListElem_support_None : 
+     forall (A : Set) eqd (ls : list A),
+       In None (getSupport (rndListElem eqd ls)) <->
+       ls = nil.
+
+     intuition.
+     unfold rndListElem in *.
+     case_eq (length ls); intuition.
+     destruct ls; simpl in *; trivial; discriminate.
+
+     rewrite H0 in H.
+     repeat simp_in_support.
+     apply RndNat_support_lt in H1.
+     
+     edestruct (nth_option_some ls); eauto.
+     rewrite H0.
+     eauto.
+     congruence.
+
+     subst.
+     simpl.
+     intuition.
+
+   Qed.
 
  Theorem rndListElem_uniform : 
    forall (A : Set)(eqd : EqDec A)(ls : list A)(a1 a2 : option A),
@@ -175,28 +240,6 @@ Lemma rndListElem_support:
    rewrite H5.
    eapply nth_firstIndexOf; trivial.
 
-   Theorem nth_firstIndexOf_if : 
-     forall (A : Set)(eqd : eq_dec A)(ls : list A) n a,
-       nth_option ls n = Some a ->
-       NoDup ls ->
-       firstIndexOf eqd ls a 0 = n.
-
-     induction ls; intuition; simpl in *.
-     discriminate.
-     inversion H0; clear H0; subst.
-     destruct n.
-     inversion H; clear H; subst.
-     destruct (eqd a0 a0); subst; intuition.
-
-     destruct (eqd a0 a); subst; intuition.
-     exfalso.
-     eapply H3.
-     
-     eapply nth_option_In.
-     eauto.
-
-   Qed.
-
    symmetry.
    eapply nth_firstIndexOf_if; intuition.
 
@@ -213,51 +256,6 @@ Lemma rndListElem_support:
 
    apply rndListElem_support in H0.
 
-   Theorem nth_option_some : 
-     forall (A : Set)(ls : list A) n,
-       n < length ls ->
-       exists a, nth_option ls n = Some a.
-     
-     induction ls; intuition; simpl in *.
-     omega.
-     
-     destruct n.
-     econstructor; eauto.
-     
-     destruct (IHls n).
-     omega.
-     
-     econstructor; eauto.
-     
-   Qed.
-   
-   Theorem rndListElem_support_None : 
-     forall (A : Set) eqd (ls : list A),
-       In None (getSupport (rndListElem eqd ls)) <->
-       ls = nil.
-
-     intuition.
-     unfold rndListElem in *.
-     case_eq (length ls); intuition.
-     destruct ls; simpl in *; trivial; discriminate.
-
-     rewrite H0 in H.
-     repeat simp_in_support.
-     apply RndNat_support_lt in H1.
-     
-     edestruct (nth_option_some ls); eauto.
-     rewrite H0.
-     eauto.
-     congruence.
-
-     subst.
-     simpl.
-     intuition.
-
-   Qed.
-
-   Show.
-   
    apply rndListElem_support_None in H1.
    subst.
    simpl in *.
@@ -275,21 +273,6 @@ Lemma rndListElem_support:
 
 Qed.
 
-      Theorem nth_firstIndexOf_None : 
-        forall (A : Set)(eqd : eq_dec A)(ls : list A),
-          NoDup ls ->
-          forall (a a' : A) i,
-          In a ls ->
-          i <> firstIndexOf eqd ls a O ->
-          nth_option ls i = Some a' ->
-          a <> a'.
-
-        induction 1; intuition; simpl in *.
-        intuition; subst.
-        destruct (eqd a' a'); subst; intuition.
-       
-        destruct i; intuition.
-
         Lemma not_in_nth_option : 
           forall (A : Set)(ls : list A)(a : A)(i : nat),
             (~In a ls) ->
@@ -306,6 +289,21 @@ Qed.
           eapply IHls; eauto.
 
         Qed.
+
+      Theorem nth_firstIndexOf_None : 
+        forall (A : Set)(eqd : eq_dec A)(ls : list A),
+          NoDup ls ->
+          forall (a a' : A) i,
+          In a ls ->
+          i <> firstIndexOf eqd ls a O ->
+          nth_option ls i = Some a' ->
+          a <> a'.
+
+        induction 1; intuition; simpl in *.
+        intuition; subst.
+        destruct (eqd a' a'); subst; intuition.
+       
+        destruct i; intuition.
 
         eapply not_in_nth_option; eauto.
 

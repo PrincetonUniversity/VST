@@ -1329,6 +1329,25 @@ Proof.
   - split; intros ??%necR_level Hshift ? []; apply Hshift; split; auto; apply (H a0); auto; omega.
 Qed.
 
+Lemma view_shift_nonexpansive_l: forall P Q n,
+  approx n (weak_view_shift P Q) = approx n (weak_view_shift (approx n P) Q).
+Proof.
+  repeat intro.
+  apply (nonexpansive_super_non_expansive (fun P => weak_view_shift P Q)); repeat intro.
+  split; intros ??%necR_level Hshift ? []; apply Hshift; split; auto; apply (H a0); auto; omega.
+Qed.
+
+Lemma view_shift_nonexpansive_R: forall P Q n,
+  approx n (weak_view_shift P Q) = approx n (weak_view_shift P (approx n Q)).
+Proof.
+  repeat intro.
+  apply (nonexpansive_super_non_expansive (fun Q => weak_view_shift P Q)); repeat intro.
+  split; intros ??%necR_level Hshift ? HP ? J;
+      destruct (Hshift _ HP _ J) as (? & ? & m' & ? & ? & ? & []); destruct HP;
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto;
+      apply (H m'); auto; omega.
+Qed.
+
 Lemma view_shift_weak: forall P Q, P |-- |==> Q -> TT |-- weak_view_shift P Q.
 Proof.
   intros.
@@ -1348,3 +1367,4 @@ Proof.
   lapply (Hshift a); [|split; auto; omega].
   intro X; destruct (X _ J) as (? & ? & ? & ? & ? & ? & []); eauto 7.
 Qed.
+
