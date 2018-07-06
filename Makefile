@@ -1,7 +1,7 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: _CoqProject version.vo msl veric floyd progs
+default_target: _CoqProject msl veric floyd progs
 
 COMPCERT ?= compcert
 -include CONFIGURE
@@ -57,12 +57,17 @@ ifdef MATHCOMP
 endif
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+#COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 # Warning setting  -w -deprecated-focus  is needed until we no longer
 # list version 8.7._ in the COQVERSION list.
-COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus
+#
+# The warning setting -overriding-logical-loadpath is needed until
+#  CompCert issue 199 is resolve satisfactorily: 
+#  https://github.com/AbsInt/CompCert/issues/199
+COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus,-overriding-logical-loadpath
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
@@ -368,6 +373,7 @@ LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
 
 FILES = \
+ veric/version.v \
  $(MSL_FILES:%=msl/%) \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
@@ -442,7 +448,7 @@ endif
 
 travis: default_target progs sha hmac mailbox
 
-files: _CoqProject version.vo $(FILES:.v=.vo)
+files: _CoqProject $(FILES:.v=.vo)
 
 all: default_target files travis hmacdrbg tweetnacl aes
 
@@ -457,13 +463,13 @@ all: default_target files travis hmacdrbg tweetnacl aes
 # msl/Coqlib2.vo: compcert
 # endif
  
-msl:     _CoqProject version.vo $(MSL_FILES:%.v=msl/%.vo)
+msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 paco: _CoqProject $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
-veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo)
+veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
@@ -514,7 +520,7 @@ $(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
-version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 _CoqProject _CoqProject-export: Makefile util/coqflags 
@@ -534,7 +540,7 @@ depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f version.vo .version.vo.aux version.glob .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
+	rm -f veric/version.{v,vo,glob} .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
 	rm -fr doc/html
 
 clean-concur:

@@ -1,5 +1,0 @@
-With the expection of load_frame.v, I64Helpers.v, BuiltinEffect.v,
-Asm_coop.v and Asm_eff.v the files in this directory are derivative
-work of corresponding files in CompCert2.6 (modification of Import
-statements to enable integration into VST) and hence underly the
-corresponding licensing/copyright restrictions.
