@@ -1613,14 +1613,14 @@ Ltac forward_for_simple_bound n Pre :=
     match type of Pre with
       ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
     end
-  | simple eapply semax_seq';
-    [check_type_forward_for_simple_bound;
-     forward_for_simple_bound' n Pre
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped';
-     [check_type_forward_for_simple_bound;
-      forward_for_simple_bound' n Pre
-     | ]
+  | match goal with
+    | |- semax _ _ (Sfor _ _ _ _) _ =>
+           rewrite semax_seq_skip
+    | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+           rewrite semax_seq_skip
+    | _ => idtac
+    end;
+    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; try fwd_skip]
   ].
 
 Ltac forward_for3 Inv PreInc Postcond :=
