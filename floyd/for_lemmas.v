@@ -43,6 +43,7 @@ Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> ex
     Sfor_inv_rec Delta _i i int_min hi n (exp assert_callee) (exp inv0) (exp inv1)
 | Sfor_inv_rec_end: forall _i i int_min hi n P Q R T1 T2 GV (*tactic callee*),
     local2ptree Q = (T1, T2, nil, GV) ->
+    T1 ! _i = None ->
     msubst_eval_expr Delta T1 T2 GV hi = Some (Vint (Int.repr n)) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta hi ->
     Sfor_inv_rec Delta _i i int_min hi n
@@ -91,7 +92,7 @@ Lemma Sfor_inv_rec_spec: forall {cs: compspecs} (Delta: tycontext),
     ENTAIL Delta, inv0 |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) /\
     ENTAIL Delta, inv0 |-- tc_expr Delta hi /\
     (closed_wrt_vars (eq _i) assert_callee) /\
-    !! (int_min <= i <= n) && local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee = inv0 /\
+    local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee = inv1 /\
     !! (int_min <= i <= n) && inv1 = inv0.
 Proof.
   intros.
@@ -103,22 +104,37 @@ Proof.
     - specialize (fun x => proj1 (proj2 (H0 x))); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_left; auto.
-    - SearchAbout closed_wrt_vars andp.
-      Locate closed_wrt_andp.
     - specialize (fun x => proj1 (proj2 (proj2 (H0 x)))); clear H H0; intros.
+      apply closed_wrt_exp; auto.
+    - specialize (fun x => proj1 (proj2 (proj2 (proj2 (H0 x))))); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_congr; auto.
-    - specialize (fun x => proj2 (proj2 (proj2 (H0 x)))); clear H H0; intros.
+    - specialize (fun x => proj2 (proj2 (proj2 (proj2 (H0 x))))); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_congr; auto.
-  + split; [| split; [| split]].
-    - rewrite <- insert_local, <- insert_prop.
-      eapply derives_trans; [| exact H].
+  + split; [| split; [| split; [| split]]].
+    - eapply (msubst_eval_expr_eq _ P _ _ _ R) in H1.
+      erewrite <- (app_nil_l P), <- local2ptree_soundness in H1 by eauto.
+      rewrite <- insert_local, <- insert_prop.
+      eapply derives_trans; [| exact H1].
       solve_andp.
     - rewrite <- insert_local, <- insert_prop.
-      eapply derives_trans; [| exact H0].
+      eapply derives_trans; [| exact H2].
       solve_andp.
-    - rewrite <- insert_prop, <- insert_local, andp_assoc.
+    - erewrite local2ptree_soundness, app_nil_l by eauto.
+      apply closed_wrt_PROPx.
+      apply closed_wrt_LOCALx; [| apply closed_wrt_SEPx].
+      rewrite Forall_forall.
+      intros.
+      rewrite in_map_iff in H3.
+      destruct H3 as [? [? ?]]; subst.
+      apply LocalD_complete in H4.
+      destruct H4 as [[? [? [? ?]]] | [[? [? [? [? ?]]]] | [? [? ?]]]]; subst.
+      * apply closed_wrt_temp.
+        intros; subst; congruence.
+      * apply closed_wrt_lvar.
+      * apply closed_wrt_gvars.
+    - rewrite <- insert_local.
       reflexivity.
     - rewrite <- insert_prop.
       reflexivity.
@@ -156,18 +172,23 @@ Proof.
     destruct H as [_ [? _]].
     auto.
   + intros.
-    Intros i.
+    apply closed_wrt_subst.
     specialize (H i i).
-    destruct H as [_ [? _]].
+    destruct H as [_ [_ [? _]]].
     auto.
-(*
-    !! (int_min <= i <= n) && inv1 = inv0.
-                  (forall lo, int_min <= lo <= n -> local (locald_denote (temp _i (Vint (Int.repr lo)))) && exp assert_callee |-- inv0) /\
-    (inv0 |-- EX i: Z, !! (int_min <= i <= n) && inv1 i) /\
-    (forall i, inv1 i |-- local (locald_denote (temp _i (Vint (Int.repr i))))) /\
-    (forall i, inv2 i |-- local (locald_denote (temp _i (Vint (Int.repr i))))) /\
-    (forall i, (local ((` eq) (eval_id _i) (` (Vint (Int.repr (i+1))))) && EX old: val, subst _i (`old) (inv2 i)) |-- inv0). *)
-Admitted.
+  + intros.
+    specialize (H i i).
+    destruct H as [_ [_ [_ [? _]]]].
+    auto.
+  + intros.
+    specialize (H (i + 1) i).
+    destruct H as [_ [_ [_ [? _]]]].
+    auto.
+  + apply exp_congr; intros i.
+    specialize (H i i).
+    destruct H as [_ [_ [_ [_ ?]]]].
+    auto.
+Qed.
 
 Lemma Sfor_init_triple_spec: forall {cs: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall _i Pre init type_i int_min int_max n assert_callee inv0 inv1,
