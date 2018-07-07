@@ -4,6 +4,7 @@ Local Open Scope Z_scope.
 
 Definition _BinaryTree : ident := 9%positive.
 Definition _XList : ident := 1%positive.
+Definition _Xfoo : ident := 70%positive.
 Definition _Xnode : ident := 4%positive.
 Definition _Xnode_add : ident := 66%positive.
 Definition _YList : ident := 7%positive.
@@ -64,7 +65,7 @@ Definition ___compcert_va_int32 : ident := 26%positive.
 Definition ___compcert_va_int64 : ident := 27%positive.
 Definition _left : ident := 11%positive.
 Definition _list : ident := 2%positive.
-Definition _main : ident := 70%positive.
+Definition _main : ident := 71%positive.
 Definition _next : ident := 6%positive.
 Definition _node : ident := 5%positive.
 Definition _p : ident := 64%positive.
@@ -72,9 +73,10 @@ Definition _q : ident := 65%positive.
 Definition _right : ident := 12%positive.
 Definition _tree : ident := 10%positive.
 Definition _v : ident := 3%positive.
-Definition _t'1 : ident := 71%positive.
-Definition _t'2 : ident := 72%positive.
-Definition _t'3 : ident := 73%positive.
+Definition _t'1 : ident := 72%positive.
+Definition _t'2 : ident := 73%positive.
+Definition _t'3 : ident := 74%positive.
+Definition _t'4 : ident := 75%positive.
 
 Definition f_Xnode_add := {|
   fn_return := tvoid;
@@ -254,6 +256,64 @@ Definition f_YTree_add := {|
                              (Tcons (tptr (Tstruct _BinaryTree noattr)) Tnil)
                              tvoid cc_default))
           ((Etempvar _t'1 (tptr (Tstruct _BinaryTree noattr))) :: nil))))))
+|}.
+
+Definition f_Xfoo := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_p, (tptr (Tstruct _Xnode noattr))) :: nil);
+  fn_vars := ((_q, (Tstruct _Xnode noattr)) :: nil);
+  fn_temps := ((_t'4, (tptr (Tstruct _XList noattr))) :: (_t'3, tuint) ::
+               (_t'2, (tptr (Tstruct _XList noattr))) :: (_t'1, tuint) ::
+               nil);
+  fn_body :=
+(Ssequence
+  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _Xnode noattr)))
+                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+    (Sreturn None)
+    Sskip)
+  (Ssequence
+    (Ssequence
+      (Sset _t'4
+        (Efield
+          (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
+            (Tstruct _Xnode noattr)) _list (tptr (Tstruct _XList noattr))))
+      (Sassign
+        (Efield (Evar _q (Tstruct _Xnode noattr)) _list
+          (tptr (Tstruct _XList noattr)))
+        (Etempvar _t'4 (tptr (Tstruct _XList noattr)))))
+    (Ssequence
+      (Ssequence
+        (Sset _t'3
+          (Efield
+            (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
+              (Tstruct _Xnode noattr)) _v tuint))
+        (Sassign (Efield (Evar _q (Tstruct _Xnode noattr)) _v tuint)
+          (Etempvar _t'3 tuint)))
+      (Ssequence
+        (Scall None
+          (Evar _Xnode_add (Tfunction
+                             (Tcons (tptr (Tstruct _Xnode noattr)) Tnil)
+                             tvoid cc_default))
+          ((Eaddrof (Evar _q (Tstruct _Xnode noattr))
+             (tptr (Tstruct _Xnode noattr))) :: nil))
+        (Ssequence
+          (Ssequence
+            (Sset _t'2
+              (Efield (Evar _q (Tstruct _Xnode noattr)) _list
+                (tptr (Tstruct _XList noattr))))
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
+                  (Tstruct _Xnode noattr)) _list
+                (tptr (Tstruct _XList noattr)))
+              (Etempvar _t'2 (tptr (Tstruct _XList noattr)))))
+          (Ssequence
+            (Sset _t'1 (Efield (Evar _q (Tstruct _Xnode noattr)) _v tuint))
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
+                  (Tstruct _Xnode noattr)) _v tuint) (Etempvar _t'1 tuint))))))))
 |}.
 
 Definition f_main := {|
@@ -533,10 +593,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_Ynode_add, Gfun(Internal f_Ynode_add)) ::
  (_YList_add, Gfun(Internal f_YList_add)) ::
  (_YTree_add, Gfun(Internal f_YTree_add)) ::
- (_main, Gfun(Internal f_main)) :: nil).
+ (_Xfoo, Gfun(Internal f_Xfoo)) :: (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _YTree_add :: _YList_add :: _Ynode_add :: _Xnode_add ::
+(_main :: _Xfoo :: _YTree_add :: _YList_add :: _Ynode_add :: _Xnode_add ::
  ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

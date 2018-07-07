@@ -419,6 +419,38 @@ Fixpoint x_add1 (t: XTree): XTree :=
       XNode (map x_add1 tl) (v + 1)
   end.
 
+Section Forall_XTree.
+
+Variable (P: Z -> Prop).
+
+Fixpoint Forall_XTree (t: XTree): Prop :=
+  match t with
+  | XLeaf =>
+      True
+  | XNode tl v =>
+      fold_right and (P v) (map Forall_XTree tl)
+  end.
+
+End Forall_XTree.
+
+Lemma add1_pos: forall t, Forall_XTree (fun x => x >= 0) t -> Forall_XTree (fun x => x > 0) (x_add1 t).
+Proof.
+  refine (fix H t :=
+            match t as t_pat
+              return Forall_XTree (fun x : Z => x >= 0) t_pat ->
+                     Forall_XTree (fun x : Z => x > 0) (x_add1 t_pat)
+            with
+            | XLeaf => fun _ => I
+            | XNode tl v => _
+            end).
+  simpl.
+  induction tl.
+  + simpl.
+    intros; clear H; omega.
+  + simpl.
+    exact (fun HH => conj (H _ (proj1 HH)) (IHtl (proj2 HH))).
+Qed.
+
 Definition Xnode_add_spec :=
  DECLARE _Xnode_add
   WITH p: val, t: XTree
@@ -430,6 +462,19 @@ Definition Xnode_add_spec :=
     PROP()
     LOCAL()
     SEP (xtree_rep (x_add1 t) p).
+
+Definition Xfoo_spec :=
+ DECLARE _Xfoo
+  WITH p: val, t: XTree
+  PRE  [ _p OF (tptr t_struct_Xnode) ]
+    PROP  (Forall_XTree (fun x => x >= 0) t)
+    LOCAL (temp _p p)
+    SEP (xtree_rep t p)
+  POST [ Tvoid ]
+    EX t': XTree,
+      PROP(Forall_XTree (fun x => x > 0) t')
+      LOCAL()
+      SEP (xtree_rep t' p).
 
 Fixpoint y_add1 (t: YTree): YTree :=
   match t with
@@ -506,7 +551,7 @@ Definition main_spec :=
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog
-    [Xnode_add_spec; Ynode_add_spec; YList_add_spec; YTree_add_spec; main_spec]).
+    [Xnode_add_spec; Xfoo_spec; Ynode_add_spec; YList_add_spec; YTree_add_spec; main_spec]).
 
 Module GeneralLseg.
 
@@ -662,6 +707,59 @@ Proof.
   split; f_equal.
 Qed.
 
+Lemma body_Xfoo: semax_body Vprog Gprog f_Xfoo Xfoo_spec.
+Proof.
+  start_function.
+  forward_if.
+  {
+    forward.
+    Exists XLeaf.
+    entailer!.
+  }
+  destruct t as [| tl v].
+  {
+    simpl.
+    Intros.
+    contradiction.
+  }
+  simpl xtree_rep.
+  Intros q r.
+  forward.
+  forward.
+  forward.
+  forward.
+  gather_SEP 0 2 3.
+  replace_SEP 0 (xtree_rep (XNode tl v) v_q).
+  {
+    simpl xtree_rep.
+    entailer!.
+    Exists q r.
+    entailer!.
+  }
+  deadvars!.
+  forward_call (v_q, XNode tl v).
+  simpl xtree_rep.
+  Intros q' r'.
+  forward.
+  forward.
+  forward.
+  forward.
+  gather_SEP 1 2 3.
+  replace_SEP 0 (xtree_rep (XNode (map x_add1 tl) (v + 1)) p).
+  {
+    simpl xtree_rep.
+    entailer!.
+    Exists q' r'.
+    entailer!.
+  }
+  change ((XNode (map x_add1 tl) (v + 1))) with (x_add1 (XNode tl v)).
+  forget (XNode tl v) as t.
+  forward.
+  Exists (x_add1 t).
+  entailer!.
+  apply add1_pos; auto.
+Qed.
+
 Lemma body_Ynode_add: semax_body Vprog Gprog f_Ynode_add Ynode_add_spec.
 Proof.
   start_function.
@@ -799,6 +897,16 @@ semax_func_cons body_Xnode_add.
 semax_func_cons body_Ynode_add.
 semax_func_cons body_YList_add.
 semax_func_cons body_YTree_add.
+(* TODO: the following lines should be replaced by "semax_func_cons body_Xfoo" *)
+repeat (apply semax_func_cons_ext_vacuous; [ reflexivity | reflexivity |  ]).
+apply semax_func_cons;
+      [ reflexivity
+      | repeat apply Forall_cons; try apply Forall_nil; first [computable | reflexivity]      | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+      | reflexivity
+      | precondition_closed
+      | apply body_Xfoo
+      |  ].
+(* TODO end *)
 semax_func_cons body_main.
 Qed.
 
