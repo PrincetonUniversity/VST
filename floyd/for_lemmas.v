@@ -139,7 +139,7 @@ Lemma Sfor_init_triple_spec: forall {cs: compspecs} {Espec: OracleKind} (Delta: 
     Sfor_init_triple Delta _i Pre init type_i int_min n assert_callee inv0 ->
     forall
       (IMM: int_type_min_max type_i int_min int_max)
-      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (type_i, true)),
+      (TI: (temp_types Delta) ! _i = Some type_i),
     (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i) ->
     (EX i: Z, !! (int_min <= i <= n) && inv1 i = inv0) ->
     (forall v i, subst _i (`v) (assert_callee i) = assert_callee i) ->
@@ -154,20 +154,11 @@ Proof.
     apply andp_right; [apply prop_right; auto |].
     apply derives_refl', H0.
   }
-  assert (exists b, (temp_types Delta) ! _i = Some (type_i, b)) as [? TI'].
-  {
-    simpl in TI.
-    rewrite temp_types_same_type' in TI.
-    destruct ((temp_types Delta) ! _i) as [[? ?] |].
-    + inv TI.
-      eauto.
-    + inv TI.
-  }
   eapply semax_pre_post'; [| | apply semax_set_forward].
   + eapply derives_trans; [| apply now_later].
     apply andp_right; [| apply andp_left2, derives_refl].
     unfold tc_expr, tc_temp_id.
-    inv IMM; simpl typecheck_expr; unfold typecheck_temp_id; rewrite TI'.
+    inv IMM; simpl typecheck_expr; unfold typecheck_temp_id; rewrite TI.
     - simpl; intros.
       normalize.
     - simpl; intros.
@@ -178,6 +169,7 @@ Proof.
     simpl; intro rho.
     unfold subst, local, lift1; unfold_lift; simpl.
     normalize.
+    split; [auto | congruence].
 Qed.
 
 Definition for_ret_assert (I: environ->mpred) (Post: ret_assert) :=
@@ -185,11 +177,11 @@ Definition for_ret_assert (I: environ->mpred) (Post: ret_assert) :=
   {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := r |} =>
   {| RA_normal := I; RA_break := FF; RA_continue := I; RA_return := r |}
  end.
-
+(*
 Lemma Sfor_loop_cond_tc: forall {cs : compspecs} Delta _i type_i hi int_min int_max,
   typeof hi = type_i ->
   int_type_min_max type_i int_min int_max ->
-  (temp_types Delta) ! _i = Some (type_i, true) ->
+  (temp_types Delta) ! _i = Some type_i ->
   tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) =
   tc_expr Delta hi.
 Proof.
@@ -205,6 +197,8 @@ Proof.
     simpl tc_bool.
     cbv beta iota.
     rewrite !tc_andp_TT1.
+    rewrite denote_tc_assert_andp.
+    simpl.
     auto.
   + rewrite <- H2 in *; clear type_i H2. subst.
     simpl typeconv. cbv beta iota.
@@ -370,7 +364,7 @@ Proof.
     rewrite add_repr.
     auto.
 Qed.
-
+*)
 Lemma semax_for :
  forall (Inv: environ->mpred) (n: Z) Espec {cs: compspecs} Delta
            (Pre: environ->mpred)
@@ -379,21 +373,18 @@ Lemma semax_for :
            (assert_callee: Z -> environ -> mpred)
            (inv0: environ -> mpred)
            (inv1 inv2: Z -> environ -> mpred)
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (type_i, true))
+     (TI: (temp_types Delta) ! _i = Some type_i)
      (IMM: int_type_min_max type_i int_min int_max)
      (Thi: typeof hi = type_i)
      (N_MAX: n <= int_max)
      (CALLEE: Inv = exp assert_callee)
-     (INV: Sfor_inv (update_tycon Delta init) _i int_min hi n assert_callee inv0 inv1 inv2)
+     (INV: Sfor_inv Delta _i int_min hi n assert_callee inv0 inv1 inv2)
      (INIT: Sfor_init_triple Delta _i Pre init type_i int_min n assert_callee inv0),
      (forall i, int_min <= i < n ->
-     @semax cs Espec (update_tycon Delta init) (inv1 i)
+     @semax cs Espec Delta (inv1 i)
         body
         (for_ret_assert (inv2 i) Post)) ->
-     ENTAIL update_tycon Delta (Sfor init
-                (Ebinop Olt (Etempvar _i type_i) hi tint)
-                body
-                (Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) type_i) type_i))),
+     ENTAIL Delta,
         (inv1 n) |-- RA_normal Post ->
      @semax cs Espec Delta Pre
        (Sfor init
@@ -414,10 +405,9 @@ Proof.
   eapply Sfor_init_triple_spec in INIT; [| eauto ..].
 
   apply semax_seq' with inv0; [exact INIT | clear INIT].
-  forget (update_tycon Delta init) as Delta'; clear Delta.
   apply (semax_loop _ inv0 (EX i: Z, !! (int_min <= i < n) && inv2 i));
     [apply semax_seq with (EX i : Z, !! (int_min <= i < n) && inv1 i) |].
-  + apply semax_pre with (tc_expr Delta' (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0).
+  + apply semax_pre with (tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0).
     {
       erewrite Sfor_loop_cond_tc by eauto.
       apply andp_right; auto.
