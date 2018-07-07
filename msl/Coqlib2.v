@@ -274,3 +274,13 @@ Ltac super_pattern_in_func t x :=
     subst t0
   ].
 
+(* proof goal: ?func arg = expr *)
+Ltac build_func_abs_right :=
+  match goal with
+  | |- _ ?arg = ?expr => super_pattern expr arg
+  end;
+  match goal with
+  | |- _ = ?R => exact (@eq_refl _ R)
+  end.
+
+

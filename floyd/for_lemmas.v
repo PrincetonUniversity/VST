@@ -7,30 +7,10 @@ Require Import VST.floyd.compare_lemmas.
 Require Import VST.floyd.semax_tactics.
 Require Import VST.floyd.forward_lemmas.
 Require Import VST.floyd.entailer.
-Import Cop.
-Local Open Scope logic.
-
-Definition op_Z_int (op: Z->Z->Prop) (x: Z) (y: val) :=
- match y with Vint y' => op x (Int.signed y') | _ => False end.
-
-Definition op_Z_uint (op: Z->Z->Prop) (x: Z) (y: val) :=
- match y with Vint y' => op x (Int.unsigned y') | _ => False end.
-
-
-(*
-
-The invariant from tactic caller.
-
-The invariant after init step.
-
-The invariant before/after loop body.
-
-The postcondition of loop
-
-*)
-
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
+Import Cop.
+Local Open Scope logic.
 
 Inductive int_type_min_max: type -> Z -> Z -> Prop :=
 | tint_min_max: int_type_min_max tint Int.min_signed Int.max_signed
@@ -432,7 +412,7 @@ Qed.
 Lemma semax_for :
  forall (Inv: environ->mpred) (n: Z) Espec {cs: compspecs} Delta
            (Pre: environ->mpred)
-           (_i: ident) (init: statement) (hi: expr) (body: statement) (Post: ret_assert)
+           (_i: ident) (init: statement) (hi: expr) (body MORE_COMMAND: statement) (Post: ret_assert)
            (type_i: type) (int_min int_max: Z)
            (assert_callee: Z -> environ -> mpred)
            (inv0: environ -> mpred)
@@ -448,23 +428,26 @@ Lemma semax_for :
      @semax cs Espec (update_tycon Delta init) (inv1 i)
         body
         (for_ret_assert (inv2 i) Post)) ->
-     ENTAIL update_tycon Delta (Sfor init
+     @semax cs Espec (update_tycon Delta (Sfor init
                 (Ebinop Olt (Etempvar _i type_i) hi tint)
                 body
-                (Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) type_i) type_i))),
-        (inv1 n) |-- RA_normal Post ->
+                (Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) type_i) type_i))))
+        (inv1 n) MORE_COMMAND Post ->
      @semax cs Espec Delta Pre
-       (Sfor init
+       (Ssequence
+         (Sfor init
                 (Ebinop Olt (Etempvar _i type_i) hi tint)
                 body
-                (Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) type_i) type_i))) Post.
+                (Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) type_i) type_i)))
+         MORE_COMMAND) Post.
 Proof.
   intros.
   destruct Post as [nPost bPost cPost rPost].
+  apply semax_seq with (inv1 n); [clear H0 | exact H0].
   apply semax_post with {| RA_normal := inv1 n; RA_break := FF; RA_continue := FF; RA_return := rPost |};
-    [now auto | apply andp_left2, FF_left | apply andp_left2, FF_left | intros; simpl RA_return; solve_andp |].
+    [apply andp_left2, derives_refl | apply andp_left2, FF_left | apply andp_left2, FF_left | intros; simpl RA_return; solve_andp |].
   simpl for_ret_assert in H.
-  clear bPost cPost H0.
+  clear bPost cPost.
   unfold Sfor.
 
   apply Sfor_inv_spec in INV.
@@ -522,10 +505,71 @@ Proof.
     - intros; apply andp_left2, FF_left.
 Qed.
 
+Ltac prove_Sfor_inv_rec :=
+  match goal with
+  | |- Sfor_inv_rec _ _ _ _ _ _ ?assert_callee _ _ =>
+    match assert_callee with
+    | exp _ => 
+        eapply Sfor_inv_rec_step;
+        intros ?;
+        do 2 eexists;
+        split; [prove_Sfor_inv_rec | split; build_func_abs_right]
+    | _ =>
+        eapply Sfor_inv_rec_end;
+        [ prove_local2ptree
+        | reflexivity
+        | solve_msubst_eval_expr
+        | default_entailer_for_load_store]
+    end
+  end.
+
+Ltac prove_Sfor_inv :=
+  apply construct_Sfor_inv;
+  intros ? ?;
+  do 4 eexists;
+  split; [prove_Sfor_inv_rec | split; [| split; [| split]]; build_func_abs_right].
+
+Ltac simplify_Sfor_init_triple :=
+first
+[ simple eapply Sfor_init_triple_const_init; [try rep_omega | ]
+| simple eapply Sfor_init_triple_other
+].
+
+Ltac forward_for_simple_bound'' n Inv :=
+  eapply (semax_for Inv n);
+  [ reflexivity
+  | solve [apply tint_min_max | apply tuint_min_max]
+  | reflexivity
+  | try rep_omega
+  | (reflexivity || fail 1000 "The loop invariant for forward_for_simple_bound should have form (EX i: Z, _).")
+  | prove_Sfor_inv
+  | simplify_Sfor_init_triple
+  | intros
+  | ..].
+
+(*
+Ltac construct_Sfor_inv :=
+  eapply Sfor_inv
+
+Ltac forward_for_simple_bound' n Inv :=
+  eapply semax_for;
+  [ reflexivity
+  | solve [apply tint_min_max | apply tuint_min_max]
+  | reflexivity
+  | try rep_omega
+  | (reflexivity || fail 1000 "The loop invariant for forward_for_simple_bound should have form (EX i: Z, _).")
+  | construct_Sfor_inv
+  | ..]
+*)
+     
 
 
 
+Definition op_Z_int (op: Z->Z->Prop) (x: Z) (y: val) :=
+ match y with Vint y' => op x (Int.signed y') | _ => False end.
 
+Definition op_Z_uint (op: Z->Z->Prop) (x: Z) (y: val) :=
+ match y with Vint y' => op x (Int.unsigned y') | _ => False end.
 
 
 
