@@ -1288,13 +1288,6 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
              P at level 100, Q at level 100).
 
 
-Lemma exp_derives {A}{NA: NatDed A}{B}:
-   forall F G: B -> A, (forall x, F x |-- G x) -> exp F |-- exp G.
-Proof.
-intros.
-apply exp_left; intro x. apply exp_right with x; auto.
-Qed.
-
 Lemma prop_true_andp1 {A}{NA: NatDed A} :
   forall (P1 P2: Prop) Q ,
     P1 -> (!! (P1 /\ P2) && Q = !!P2 && Q).
