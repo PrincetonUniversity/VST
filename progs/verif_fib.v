@@ -91,7 +91,7 @@ Proof.
   start_function.
   forward.  (* a0 = 0; *)
   forward.  (* a1 = 1; *)
-  forward_for_simple_bound n
+  forward_for_simple_bound'' n
     (EX i: Z,
     (PROP ()
      LOCAL (temp _a1 (Vint (Int.repr (fib_of_Z (i + 1)))); temp _a0 (Vint (Int.repr (fib_of_Z i))); temp _n (Vint (Int.repr n)))
