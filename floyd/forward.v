@@ -2650,9 +2650,7 @@ Ltac solve_return_inner_gen :=
       eexists;
       split;
       [ solve_return_inner_gen
-      | match goal with
-        | |- ?t = _ => super_pattern t a; reflexivity
-        end
+      | build_func_abs_right
       ]
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with
