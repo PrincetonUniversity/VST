@@ -28,6 +28,10 @@ The postcondition of loop
 
 *)
 
+Require Import VST.floyd.local2ptree_denote.
+Require Import VST.floyd.local2ptree_eval.
+Require Import VST.floyd.local2ptree_typecheck.
+  
 Inductive int_type_min_max: type -> Z -> Z -> Prop :=
 | tint_min_max: int_type_min_max tint Int.min_signed Int.max_signed
 | tuint_min_max: int_type_min_max tuint 0 Int.max_unsigned.
@@ -37,8 +41,10 @@ Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> ex
     (forall x: A,
        Sfor_inv_rec Delta _i i int_min hi n (assert_callee x) (inv0 x) (inv1 x)) ->
     Sfor_inv_rec Delta _i i int_min hi n (exp assert_callee) (exp inv0) (exp inv1)
-| Sfor_inv_rec_end: forall _i i int_min hi n P Q R (*tactic callee*),
-    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) ->
+| Sfor_inv_rec_end: forall _i i int_min hi n P Q R T1 T2 GV (*tactic callee*),
+    local2ptree Q = (T1, T2, nil, GV) ->
+    T1 ! _i = None ->
+    msubst_eval_expr Delta T1 T2 GV hi = Some (Vint (Int.repr n)) ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta hi ->
     Sfor_inv_rec Delta _i i int_min hi n
       (PROPx P (LOCALx Q (SEPx R)))
@@ -85,12 +91,13 @@ Lemma Sfor_inv_rec_spec: forall {cs: compspecs} (Delta: tycontext),
     Sfor_inv_rec Delta _i i int_min hi n assert_callee inv0 inv1 ->
     ENTAIL Delta, inv0 |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) /\
     ENTAIL Delta, inv0 |-- tc_expr Delta hi /\
-    !! (int_min <= i <= n) && local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee = inv0 /\
+    (closed_wrt_vars (eq _i) assert_callee) /\
+    local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee = inv1 /\
     !! (int_min <= i <= n) && inv1 = inv0.
 Proof.
   intros.
   induction H.
-  + split; [| split; [| split]].
+  + split; [| split; [| split; [| split]]].
     - specialize (fun x => proj1 (H0 x)); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_left; auto.
@@ -98,19 +105,36 @@ Proof.
       rewrite exp_andp2.
       apply exp_left; auto.
     - specialize (fun x => proj1 (proj2 (proj2 (H0 x)))); clear H H0; intros.
+      apply closed_wrt_exp; auto.
+    - specialize (fun x => proj1 (proj2 (proj2 (proj2 (H0 x))))); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_congr; auto.
-    - specialize (fun x => proj2 (proj2 (proj2 (H0 x)))); clear H H0; intros.
+    - specialize (fun x => proj2 (proj2 (proj2 (proj2 (H0 x))))); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_congr; auto.
-  + split; [| split; [| split]].
-    - rewrite <- insert_local, <- insert_prop.
-      eapply derives_trans; [| exact H].
+  + split; [| split; [| split; [| split]]].
+    - eapply (msubst_eval_expr_eq _ P _ _ _ R) in H1.
+      erewrite <- (app_nil_l P), <- local2ptree_soundness in H1 by eauto.
+      rewrite <- insert_local, <- insert_prop.
+      eapply derives_trans; [| exact H1].
       solve_andp.
     - rewrite <- insert_local, <- insert_prop.
-      eapply derives_trans; [| exact H0].
+      eapply derives_trans; [| exact H2].
       solve_andp.
-    - rewrite <- insert_prop, <- insert_local, andp_assoc.
+    - erewrite local2ptree_soundness, app_nil_l by eauto.
+      apply closed_wrt_PROPx.
+      apply closed_wrt_LOCALx; [| apply closed_wrt_SEPx].
+      rewrite Forall_forall.
+      intros.
+      rewrite in_map_iff in H3.
+      destruct H3 as [? [? ?]]; subst.
+      apply LocalD_complete in H4.
+      destruct H4 as [[? [? [? ?]]] | [[? [? [? [? ?]]]] | [? [? ?]]]]; subst.
+      * apply closed_wrt_temp.
+        intros; subst; congruence.
+      * apply closed_wrt_lvar.
+      * apply closed_wrt_gvars.
+    - rewrite <- insert_local.
       reflexivity.
     - rewrite <- insert_prop.
       reflexivity.
@@ -125,14 +149,46 @@ Lemma Sfor_inv_spec: forall {cs: compspecs} (Delta: tycontext),
     (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i) /\
     (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee (i+1) = inv2 i) /\
     (EX i: Z, !! (int_min <= i <= n) && inv1 i = inv0).
-(*
-    !! (int_min <= i <= n) && inv1 = inv0.
-                  (forall lo, int_min <= lo <= n -> local (locald_denote (temp _i (Vint (Int.repr lo)))) && exp assert_callee |-- inv0) /\
-    (inv0 |-- EX i: Z, !! (int_min <= i <= n) && inv1 i) /\
-    (forall i, inv1 i |-- local (locald_denote (temp _i (Vint (Int.repr i))))) /\
-    (forall i, inv2 i |-- local (locald_denote (temp _i (Vint (Int.repr i))))) /\
-    (forall i, (local ((` eq) (eval_id _i) (` (Vint (Int.repr (i+1))))) && EX old: val, subst _i (`old) (inv2 i)) |-- inv0). *)
-Admitted.
+Proof.
+  intros.
+  inv H.
+  rename inv3 into inv0, inv4 into inv1.
+  assert (forall i i' : Z,
+             Sfor_inv_rec Delta _i i' int_min hi n (assert_callee i) (inv0 i i') (inv1 i i')); [| clear H0].
+  {
+    intros i i'; specialize (H0 i i').
+    destruct H0 as [? [? [? [? [? [? [? [? ?]]]]]]]].
+    subst; auto.
+  }
+  specialize (fun i i' => Sfor_inv_rec_spec _ _ _ _ _ _ _ _ _ (H i i')).
+  clear H; intros.
+  split; [| split; [| split; [| split; [| split]]]].
+  + Intros i.
+    specialize (H i i).
+    destruct H as [? _].
+    auto.
+  + Intros i.
+    specialize (H i i).
+    destruct H as [_ [? _]].
+    auto.
+  + intros.
+    apply closed_wrt_subst.
+    specialize (H i i).
+    destruct H as [_ [_ [? _]]].
+    auto.
+  + intros.
+    specialize (H i i).
+    destruct H as [_ [_ [_ [? _]]]].
+    auto.
+  + intros.
+    specialize (H (i + 1) i).
+    destruct H as [_ [_ [_ [? _]]]].
+    auto.
+  + apply exp_congr; intros i.
+    specialize (H i i).
+    destruct H as [_ [_ [_ [_ ?]]]].
+    auto.
+Qed.
 
 Lemma Sfor_init_triple_spec: forall {cs: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall _i Pre init type_i int_min int_max n assert_callee inv0 inv1,
@@ -177,19 +233,35 @@ Definition for_ret_assert (I: environ->mpred) (Post: ret_assert) :=
   {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := r |} =>
   {| RA_normal := I; RA_break := FF; RA_continue := I; RA_return := r |}
  end.
-(*
-Lemma Sfor_loop_cond_tc: forall {cs : compspecs} Delta _i type_i hi int_min int_max,
+
+Lemma Sfor_loop_cond_tc: forall {cs : compspecs} Delta _i hi n type_i int_min int_max assert_callee inv0 inv1,
   typeof hi = type_i ->
   int_type_min_max type_i int_min int_max ->
   (temp_types Delta) ! _i = Some type_i ->
-  tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) =
-  tc_expr Delta hi.
+  ENTAIL Delta, inv0 |-- tc_expr Delta hi ->
+  (forall i : Z, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i) ->
+  (EX i : Z, !! (int_min <= i <= n) && inv1 i)%assert = inv0 ->
+  ENTAIL Delta, inv0 |-- tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)).
 Proof.
   intros.
   unfold tc_expr at 1; simpl typecheck_expr.
   rewrite H.
   inversion H0.
-  + rewrite <- H2 in *; clear type_i H2. subst.
+  + rewrite <- H5 in *; clear type_i H5. subst.
+    simpl typeconv. cbv beta iota.
+    rewrite H1.
+    simpl orb.
+    simpl tc_bool.
+    cbv beta iota.
+    rewrite !tc_andp_TT1.
+    rewrite denote_tc_assert_andp.
+    apply andp_right; auto.
+    Intros i.
+    eapply derives_trans; [| eapply temp_tc_initialized, H1].
+    rewrite <- H3.
+    rewrite <- andp_assoc.
+    apply andp_left1, derives_refl.
+  + rewrite <- H5 in *; clear type_i H5. subst.
     simpl typeconv. cbv beta iota.
     rewrite H1.
     simpl orb.
@@ -198,21 +270,16 @@ Proof.
     cbv beta iota.
     rewrite !tc_andp_TT1.
     rewrite denote_tc_assert_andp.
-    simpl.
-    auto.
-  + rewrite <- H2 in *; clear type_i H2. subst.
-    simpl typeconv. cbv beta iota.
-    rewrite H1.
-    simpl orb.
-    simpl snd.
-    simpl tc_bool.
-    cbv beta iota.
-    rewrite !tc_andp_TT1.
-    auto.
+    apply andp_right; auto.
+    Intros i.
+    eapply derives_trans; [| eapply temp_tc_initialized, H1].
+    rewrite <- H3.
+    rewrite <- andp_assoc.
+    apply andp_left1, derives_refl.
 Qed.
 
 Lemma Sfor_loop_cond_true: forall {cs : compspecs} Delta assert_callee inv0 inv1 _i type_i hi n int_min int_max
-     (TI: (temp_types Delta) ! _i = Some (type_i, true))
+     (TI: (temp_types Delta) ! _i = Some type_i)
      (IMM: int_type_min_max type_i int_min int_max)
      (Thi: typeof hi = type_i)
      (N_MAX: n <= int_max),
@@ -251,7 +318,7 @@ Proof.
 Qed.
 
 Lemma Sfor_loop_cond_false: forall {cs : compspecs} Delta assert_callee inv0 inv1 _i type_i hi n int_min int_max
-     (TI: (temp_types Delta) ! _i = Some (type_i, true))
+     (TI: (temp_types Delta) ! _i = Some type_i)
      (IMM: int_type_min_max type_i int_min int_max)
      (Thi: typeof hi = type_i)
      (N_MAX: n <= int_max),
@@ -292,7 +359,7 @@ Qed.
 
 Lemma Sfor_inc_tc: forall {cs: compspecs} Delta assert_callee inv2 i _i type_i int_min int_max n,
   int_type_min_max type_i int_min int_max ->
-  (temp_types Delta) ! _i = Some (type_i, true) ->
+  (temp_types Delta) ! _i = Some type_i ->
   int_min <= i < n ->
   n <= int_max ->
   (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee (i+1) = inv2 i) ->
@@ -303,26 +370,58 @@ Lemma Sfor_inc_tc: forall {cs: compspecs} Delta assert_callee inv2 i _i type_i i
 Proof.
   intros.
   unfold tc_expr, tc_temp_id.
+  rewrite <- denote_tc_assert_andp.
+  Opaque tc_andp.
   inv H; simpl typecheck_expr; unfold typecheck_temp_id.
-  + rewrite H0. simpl tc_andp.
-    simpl isCastResultType.
-    change ((isCastResultType tint tint (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))) with tc_TT.
-    rewrite <- H3.
-    intro rho.
-    simpl.
-    unfold_lift; unfold local, lift1.
-    normalize.
-    rewrite <- H4.
-    simpl.
-    apply prop_right.
-    rewrite !Int.signed_repr by rep_omega.
-    omega.
-  + rewrite H0. simpl tc_andp.
-    simpl isCastResultType.
-    intro rho.
-    simpl.
-    unfold_lift; unfold local, lift1.
-    normalize.
+  Transparent tc_andp.
+  + rewrite H0.
+    change (binarithType tint tint tint
+                    (arg_type (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))
+                    (op_result_type (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))) with tc_TT.
+    simpl orb.
+    cbv iota beta.
+    change ((tc_andp
+           (tc_bool
+              (is_neutral_cast
+                 (implicit_deref
+                    (typeof (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))) tint)
+              (invalid_cast (typeof (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))
+                 tint))
+           (isCastResultType
+              (implicit_deref (typeof (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)))
+              tint (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)))) with tc_TT.
+    rewrite !tc_andp_TT2, !tc_andp_TT1.
+    rewrite denote_tc_assert_andp.
+    apply andp_right.
+    - rewrite <- H3.
+      intro rho.
+      simpl.
+      unfold_lift; unfold local, lift1.
+      normalize.
+      rewrite <- H4.
+      simpl.
+      apply prop_right.
+      rewrite !Int.signed_repr by rep_omega.
+      omega.
+    - rewrite <- H3, <- andp_assoc.
+      eapply derives_trans; [| apply temp_tc_initialized, H0].
+      apply andp_left1, derives_refl.
+  + rewrite H0.
+    change ((binarithType tuint tuint tuint
+                       (arg_type (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tuint) tuint))
+                       (op_result_type
+                          (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tuint) tuint)))) with tc_TT.
+    simpl orb.
+    cbv iota beta.
+    change ((isCastResultType
+                 (implicit_deref
+                    (typeof (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tuint) tuint))) tuint
+                 (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tuint) tuint))) with tc_TT.
+    simpl tc_bool.
+    rewrite !tc_andp_TT2, !tc_andp_TT1.
+    rewrite <- H3, <- andp_assoc.
+    eapply derives_trans; [| apply temp_tc_initialized, H0].
+    apply andp_left1, derives_refl.
 Qed.
 
 Lemma Sfor_inc_entail: forall {cs: compspecs} _i (i: Z) n type_i int_min int_max assert_callee inv0 inv1 inv2,
@@ -359,12 +458,12 @@ Proof.
   inv H.
   + change (force_val2 (Cop2.sem_add tint tint) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
     rewrite add_repr.
-    auto.
+    split; [auto | congruence].
   + change (force_val2 (Cop2.sem_add tuint tuint) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
     rewrite add_repr.
-    auto.
+    split; [auto | congruence].
 Qed.
-*)
+
 Lemma semax_for :
  forall (Inv: environ->mpred) (n: Z) Espec {cs: compspecs} Delta
            (Pre: environ->mpred)
@@ -409,14 +508,12 @@ Proof.
     [apply semax_seq with (EX i : Z, !! (int_min <= i < n) && inv1 i) |].
   + apply semax_pre with (tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0).
     {
-      erewrite Sfor_loop_cond_tc by eauto.
-      apply andp_right; auto.
-      apply andp_left2; auto.
+      apply andp_right; [| solve_andp].
+      eapply Sfor_loop_cond_tc; eauto.
     }
     apply semax_ifthenelse; auto.
     - eapply semax_post; [.. | apply semax_skip].
       * unfold RA_normal, normal_ret_assert, overridePost, loop1_ret_assert.
-        simpl update_tycon.
         eapply Sfor_loop_cond_true; eauto.
       * apply andp_left2, FF_left.
       * apply andp_left2, FF_left.
@@ -424,10 +521,7 @@ Proof.
     - eapply semax_pre; [| apply semax_break].
       unfold RA_break, overridePost, loop1_ret_assert.
       eapply Sfor_loop_cond_false; eauto.
-  + simpl update_tycon.
-    eapply semax_extensionality_Delta with Delta';
-      [apply tycontext_eqv_sub, tycontext_eqv_symm, join_tycon_same |].
-    Intros i.
+  + Intros i.
     apply semax_extract_prop; intros.
     unfold loop1_ret_assert.
     eapply semax_post; [.. | apply H; auto].
