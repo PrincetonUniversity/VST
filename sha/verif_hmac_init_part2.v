@@ -321,9 +321,7 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): for
       data_at Tsh (tarray tuchar 64)
           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)))).
 Proof. intros. abbreviate_semax.
-eapply semax_post_flipped'.
-*
-      Time forward_for_simple_bound' 64 (EX i:Z,
+       forward_for_simple_bound 64 (EX i:Z,
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
            lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -379,9 +377,7 @@ eapply semax_post_flipped'.
         Time entailer!. (*5.7 versus 9.6*)
         Time (thaw FR2; simpl; rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
-*
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
-unfold POSTCONDITION, abbreviate.
 intros; apply andp_left2.
 drop_LOCAL 0%nat. apply derives_refl.
 subst IPADcont; do 2 rewrite Zlength_map.
@@ -454,9 +450,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): fora
             FR))).
 Proof. intros. abbreviate_semax.
 freeze [0;2] FR1.
-eapply semax_post_flipped'.
-*
-      Time forward_for_simple_bound' 64 (EX i:Z,
+      forward_for_simple_bound 64 (EX i:Z,
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
             lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -506,7 +500,6 @@ eapply semax_post_flipped'.
         apply UPD_OPAD; try eassumption.
         rewrite <- X. autorewrite with sublist. auto.
       }
-*
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
 thaw' FR1.
 Time entailer!. (*3.4 versus 2.6*)

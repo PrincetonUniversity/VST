@@ -1616,8 +1616,15 @@ Ltac forward_for_simple_bound n Pre :=
   | match goal with
     | |- semax _ _ (Sfor _ _ _ _) _ =>
            rewrite semax_seq_skip
-    | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
+    | |- semax _ _ (Ssequence _ (Sloop _ _)) _ =>
            rewrite semax_seq_skip
+    | |- semax _ _ (Ssequence _ ?MORE_COMMANDS) _ =>
+        revert MORE_COMMANDS;
+        match goal with
+        | |- let MORE_COMMANDS := @abbreviate _ (Sloop _ _) in _ =>
+            intros MORE_COMMANDS;
+            rewrite semax_seq_skip
+        end
     | _ => idtac
     end;
     forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; try fwd_skip]

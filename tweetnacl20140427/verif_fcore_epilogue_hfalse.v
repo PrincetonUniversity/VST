@@ -66,7 +66,7 @@ Lemma verif_fcore_epilogue_hfalse Espec FR t y x w nonce out c k h OUT xs ys:
   epilogue_hfalse_statement
   (normal_ret_assert (HFalsePostCond FR t y x w nonce out c k h xs ys (*data*))).
 Proof. intros. abbreviate_semax.
-eapply semax_post_flipped'.
+  unfold epilogue_hfalse_statement.
   Time forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
@@ -150,7 +150,6 @@ eapply semax_post_flipped'.
           + rewrite sublist_app1. rewrite sublist_same; trivial. omega. rewrite <- QuadByteValList_ZLength; omega.
           + rewrite 2 sublist_app2; try rewrite <- QuadByteValList_ZLength; rewrite ! Zlength_sublist; try omega. 
             rewrite sublist_sublist; try omega. f_equal; omega. }
-  * apply andp_left2; apply derives_refl.
   * unfold HFalsePostCond.
     Time entailer!. (*2.6*)
 (*With temp _i (Vint (Int.repr 16) in LOCAL of HfalsePostCond: apply derives_refl. *)
