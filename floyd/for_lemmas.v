@@ -624,9 +624,10 @@ Ltac prove_Sfor_inv_rec :=
   match goal with
   | |- Sfor_inv_rec _ _ _ _ _ _ ?assert_callee _ _ =>
     match assert_callee with
-    | exp _ => 
+    | exp (fun x => _) =>
+        let x' := fresh x in
         eapply Sfor_inv_rec_step;
-        intros ?;
+        intros x';
         do 2 eexists;
         split; [prove_Sfor_inv_rec | split; build_func_abs_right]
     | _ =>
@@ -663,7 +664,9 @@ Ltac forward_for_simple_bound'' n Inv :=
   | intros; abbreviate_semax;
     repeat
       match goal with
-      | |- semax _ (exp (fun x => _)) _ _ => apply extract_exists_pre; intro x; cbv beta
+      | |- semax _ (exp (fun x => _)) _ _ =>
+          let x' := fresh x in
+          apply extract_exists_pre; intro x'; cbv beta
       end
   | ..].
 
