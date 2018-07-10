@@ -415,7 +415,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.7.0 or-else 8.7.1 or-else 8.7.2 or-else 8.8+beta1 or-else 8.8.0
+COQVERSION= 8.7.0 or-else 8.7.1 or-else 8.7.2 or-else 8.8+beta1 or-else 8.8.0 or-else 8.8.1 or-else 8.9+alpha
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
