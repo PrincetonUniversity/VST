@@ -512,7 +512,7 @@ semax
    tables_initialized (gv _tables)))
   setkey_enc_loop_body
   (normal_ret_assert
-     (PROP (0 <= i + 1 <= 7)
+     (PROP ()
       LOCAL (temp _i (Vint (Int.repr i));
       temp _RK
         (offset_val ((i + 1) * 32)

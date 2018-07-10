@@ -28,7 +28,7 @@ forward_for_simple_bound n
    SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
    data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y))).
 { Exists Byte.zero. entailer!.  }
-{ Intros. rename H0 into I. rename H1 into B. rename x0 into b.
+{ Intros. rename H0 into I. rename H1 into B. rename d into b.
   rewrite 3 Zlength_map in LenX, LenY. 
   forward.
   { entailer!. rep_omega. }

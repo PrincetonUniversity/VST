@@ -565,6 +565,7 @@ Lemma For_i_8_16_loop Espec F x z c m b nonce k zbytes gv:
            temp _b b; temp _n nonce; temp _k k; gvars gv)
     SEP (F; data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL (snd (ZZ zbytes 8))) z))).
 Proof.
+unfold for_loop_statement.
 forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
 { entailer!. }
 { rename H into I.
@@ -718,7 +719,8 @@ loop1_statement
           data_at Tsh (Tarray tuchar cLen noattr)
             (Bl2VL l ++ list_repeat (Z.to_nat (cLen - 64)) Vundef) c))).
 Proof. intros.
-Intros. 
+Intros.
+unfold loop1_statement.       
 forward_for_simple_bound 64 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
@@ -929,7 +931,9 @@ Focus 2.
     destruct M; subst. simpl. trivial.
     simpl. autorewrite with sublist. reflexivity.
   + intro; entailer!. 
-  + apply semax_for_resolve_postcondition.
+  + cbv beta.
+    unfold RA_normal, normal_ret_assert.
+    apply andp_left2, derives_refl.
   + intro; cbv beta; simpl update_tycon; abbreviate_semax;
      try (apply semax_extract_PROP; intro).
     rename H into I.

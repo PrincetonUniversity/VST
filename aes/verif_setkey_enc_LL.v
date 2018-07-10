@@ -104,6 +104,7 @@ Proof.
   forward_for_simple_bound 8 
     (first_loop_inv0 ctx key init_done key_chars ctx_sh key_sh ish gv).
   { (* precondition implies loop invariant: *)
+    unfold first_loop_inv00.
     entailer!.
     unfold_data_at 1%nat. cancel. }
   { (* loop body preserves invariant: *)
@@ -146,6 +147,7 @@ Proof.
     (main_loop_invariant ctx key ctx_sh key_sh ish key_chars init_done gv).
   { (* precondition implies loop invariant: *)
     (* TODO floyd: this should be automatic, and entailer should not clear the P I'm asserting here *)
+    unfold main_loop_invariant0.
     assert_PROP (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) as P by entailer!.
     change (0 * 32)%Z with 0.
     rewrite isptr_offset_val_zero by assumption.

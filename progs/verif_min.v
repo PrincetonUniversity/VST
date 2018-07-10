@@ -260,7 +260,7 @@ Intros.
 forward. (* j = a[i]; *)
 assert (repable_signed (Znth i al))
    by (apply Forall_Znth; auto; omega).
-assert (repable_signed z)
+assert (repable_signed j)
    by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
 autorewrite with sublist.
 forward_if.
@@ -279,7 +279,7 @@ forward_if.
  constructor; auto. omega.
  + (* Else clause *)
  forward. (* skip; *)
- Exists z.
+ Exists j.
  entailer!.
  rewrite Z.max_r by omega.
  split.
