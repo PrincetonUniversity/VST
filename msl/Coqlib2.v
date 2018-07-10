@@ -276,11 +276,21 @@ Ltac super_pattern_in_func t x :=
 
 (* proof goal: ?func arg = expr *)
 Ltac build_func_abs_right :=
-  match goal with
-  | |- _ ?arg = ?expr => super_pattern expr arg
-  end;
-  match goal with
-  | |- _ = ?R => exact (@eq_refl _ R)
-  end.
-
+match goal with
+| |- @eq ?typ_expr (_ ?arg) ?expr =>
+     match type of arg with
+     | ?typ_arg =>
+       super_pattern expr arg;
+       match goal with
+       | |- @eq typ_expr _ (?func arg) =>
+            exact (@eq_refl typ_expr
+                    ((ltac:(clear arg; intros arg;
+                            let res := eval cbv beta in (func arg) in
+                            exact res): (typ_arg -> typ_expr))
+                     arg)
+                  )
+(* This complicated line is designed for proper naming for binding variables. *)
+       end
+     end
+end.
 
