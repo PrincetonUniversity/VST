@@ -26,12 +26,47 @@ Definition int_type_compat (type_i t: type): bool :=
 Inductive Int_eqm_unsigned: int -> Z -> Prop :=
 | Int_eqm_unsigned_repr: forall z, Int_eqm_unsigned (Int.repr z) z.
 
+Inductive Int64_eqm_unsigned: int64 -> Z -> Prop :=
+| Int64_eqm_unsigned_repr: forall z, Int64_eqm_unsigned (Int64.repr z) z.
+
+Inductive Int6432_val: type -> val -> Z -> Prop :=
+| Int_64_eqm_unsigned_repr: forall s i64 z,
+    Int64_eqm_unsigned i64 z ->
+    Int6432_val (Tlong s noattr) (Vlong i64) z
+| Int_32_eqm_unsigned_repr: forall s i i32 z,
+    Int_eqm_unsigned i32 z ->
+    Int6432_val (Tint s i noattr) (Vint i32) z.
+
+Lemma Int_eqm_unsigned_repr': forall i z,
+  i = Int.repr z ->
+  Int_eqm_unsigned i z.
+Proof.
+  intros.
+  subst; constructor.
+Qed.
+
+Lemma Int64_eqm_unsigned_repr': forall i z,
+  i = Int64.repr z ->
+  Int64_eqm_unsigned i z.
+Proof.
+  intros.
+  subst; constructor.
+Qed.
+
 Lemma Int_eqm_unsigned_spec: forall i z,
   Int_eqm_unsigned i z -> Int.eqm (Int.unsigned i) z.
 Proof.
   intros.
   inv H.
   apply Int.eqm_sym, Int.eqm_unsigned_repr.
+Qed.
+
+Lemma Int64_eqm_unsigned_spec: forall i z,
+  Int64_eqm_unsigned i z -> Int64.eqm (Int64.unsigned i) z.
+Proof.
+  intros.
+  inv H.
+  apply Int64.eqm_sym, Int64.eqm_unsigned_repr.
 Qed.
 
 Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> expr -> Z -> (environ -> mpred) -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
@@ -42,8 +77,8 @@ Inductive Sfor_inv_rec {cs: compspecs} (Delta: tycontext): ident -> Z -> Z -> ex
 | Sfor_inv_rec_end: forall _i i m hi n' n P Q R T1 T2 GV (*tactic callee*),
     local2ptree Q = (T1, T2, nil, GV) ->
     T1 ! _i = None ->
-    msubst_eval_expr Delta T1 T2 GV hi = Some (Vint n') ->
-    Int_eqm_unsigned n' n ->
+    msubst_eval_expr Delta T1 T2 GV hi = Some n' ->
+    Int6432_val (typeof hi) n' n ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta hi ->
     Sfor_inv_rec Delta _i i m hi n
       (PROPx P (LOCALx Q (SEPx R)))
@@ -89,7 +124,7 @@ Inductive Sfor_init_triple {cs: compspecs} {Espec: OracleKind} (Delta: tycontext
 Lemma Sfor_inv_rec_spec: forall {cs: compspecs} (Delta: tycontext),
   forall _i i m hi n assert_callee inv0 inv1,
     Sfor_inv_rec Delta _i i m hi n assert_callee inv0 inv1 ->
-    ENTAIL Delta, inv0 |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) /\
+    ENTAIL Delta, inv0 |-- EX n': val, !! (Int6432_val (typeof hi) n' n) && local (` (eq n') (eval_expr hi)) /\
     ENTAIL Delta, inv0 |-- tc_expr Delta hi /\
     (closed_wrt_vars (eq _i) assert_callee) /\
     local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee = inv1 /\
@@ -112,27 +147,26 @@ Proof.
     - specialize (fun x => proj2 (proj2 (proj2 (proj2 (H0 x))))); clear H H0; intros.
       rewrite exp_andp2.
       apply exp_congr; auto.
-  + apply Int_eqm_unsigned_spec in H2.
-    apply Int.eqm_sym, Int.eqm_repr_eq in H2; subst n'.
-    rename H3 into H2.
-    split; [| split; [| split; [| split]]].
+  + split; [| split; [| split; [| split]]].
     - eapply (msubst_eval_expr_eq _ P _ _ _ R) in H1.
       erewrite <- (app_nil_l P), <- local2ptree_soundness in H1 by eauto.
       rewrite <- insert_local, <- insert_prop.
+      Exists n'.
+      normalize.
       eapply derives_trans; [| exact H1].
       solve_andp.
     - rewrite <- insert_local, <- insert_prop.
-      eapply derives_trans; [| exact H2].
+      eapply derives_trans; [| exact H3].
       solve_andp.
     - erewrite local2ptree_soundness, app_nil_l by eauto.
       apply closed_wrt_PROPx.
       apply closed_wrt_LOCALx; [| apply closed_wrt_SEPx].
       rewrite Forall_forall.
       intros.
-      rewrite in_map_iff in H3.
-      destruct H3 as [? [? ?]]; subst.
-      apply LocalD_complete in H4.
-      destruct H4 as [[? [? [? ?]]] | [[? [? [? [? ?]]]] | [? [? ?]]]]; subst.
+      rewrite in_map_iff in H4.
+      destruct H4 as [? [? ?]]; subst.
+      apply LocalD_complete in H5.
+      destruct H5 as [[? [? [? ?]]] | [[? [? [? [? ?]]]] | [? [? ?]]]]; subst.
       * apply closed_wrt_temp.
         intros; subst; congruence.
       * apply closed_wrt_lvar.
@@ -146,7 +180,7 @@ Qed.
 Lemma Sfor_inv_spec: forall {cs: compspecs} (Delta: tycontext),
   forall _i m hi n assert_callee inv0 inv1 inv2,
     Sfor_inv Delta _i m hi n assert_callee inv0 inv1 inv2 ->
-    ENTAIL Delta, inv0 |-- local (` (eq (Vint (Int.repr n))) (eval_expr hi)) /\
+    ENTAIL Delta, inv0 |-- EX n': val, !! (Int6432_val (typeof hi) n' n) && local (` (eq n') (eval_expr hi)) /\
     ENTAIL Delta, inv0 |-- tc_expr Delta hi /\
     (forall v i, subst _i (`v) (assert_callee i) = assert_callee i) /\
     (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i) /\
@@ -253,7 +287,7 @@ Proof.
 Qed.
 
 Lemma Sfor_loop_cond_tc: forall {cs : compspecs} Delta _i m hi n type_i int_min int_max assert_callee inv0 inv1 s,
-  int_type_compat type_i (typeof hi) = true ->
+  ENTAIL Delta, inv0 |-- EX n': val, !! (Int6432_val (typeof hi) n' n) && local (` (eq n') (eval_expr hi)) ->
   int_type_min_max type_i int_min int_max ->
   (temp_types Delta) ! _i = Some (type_i, true) ->
   ENTAIL Delta, inv0 |-- tc_expr Delta hi ->
@@ -280,20 +314,25 @@ Proof.
   rewrite tc_andp_TT2.
   
   rewrite denote_tc_assert_andp; apply andp_right; auto.
+  rewrite (add_andp _ _ H).
+  Intros n'.
+  apply andp_left1.
 
   unfold isBinOpResultType; simpl typeof.
   replace (classify_cmp type_i (typeof hi)) with cmp_default.
   2: {
+    forget (typeof hi) as th.
     inv H0;
-    destruct (typeof hi); inv H;
-    simpl; destruct i; auto.
+    inversion H5 as [[ | ] | [| | |] [ | ]]; subst;
+    simpl; auto.
   }
   replace (is_numeric_type type_i) with true by (inv H0; auto).
   replace (is_numeric_type (typeof hi)) with true.
   2: {
+    forget (typeof hi) as th.
     inv H0;
-    destruct (typeof hi); inv H;
-    simpl; destruct i; auto.
+    inversion H5 as [[ | ] | [| | |] [ | ]]; subst;
+    simpl; auto.
   }
   simpl tc_bool.
   apply TT_right.
@@ -302,9 +341,8 @@ Qed.
 Lemma Sfor_loop_cond_true: forall {cs : compspecs} Delta assert_callee inv0 inv1 _i type_i m hi n int_min int_max s
      (TI: (temp_types Delta) ! _i = Some (type_i, true))
      (IMM: int_type_min_max type_i int_min int_max)
-     (Thi: int_type_compat type_i (typeof hi) = true)
      (N_MAX: n <= int_max),
-  ENTAIL Delta, inv0 |-- local ((` (eq (Vint (Int.repr n)))) (eval_expr hi)) ->
+  ENTAIL Delta, inv0 |-- EX n': val, !! (Int6432_val (typeof hi) n' n) && local (` (eq n') (eval_expr hi)) ->
   (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i) ->
   (EX i: Z, !! (m <= i <= n) && inv1 i = inv0) ->
   int_min <= m ->
@@ -315,18 +353,51 @@ Lemma Sfor_loop_cond_true: forall {cs : compspecs} Delta assert_callee inv0 inv1
 Proof.
   intros.
   rewrite <- andp_assoc, (add_andp _ _ H), <- H1.
-  Intros i; Exists i.
+  Intros n' i; Exists i.
   rewrite <- H0.
   clear inv0 inv1 H H0 H1.
   apply andp_right; [| solve_andp].
   simpl eval_expr.
   unfold local, lift1; intro rho; simpl; unfold_lift.
   normalize.
+  rename H3 into Thi.
   apply prop_right; auto.
-  rewrite <- H0, <- H4 in H.
-  clear H0 H4.
-  inv IMM; destruct (typeof hi) as [| [| | |] [|] | | | | | | | ]; inv Thi; auto.
-  + change (Val.of_bool (Int.lt (Int.repr i) (Int.repr n)) <> nullval) in H.
+  rewrite <- H1 in H.
+  forget (eval_expr hi rho) as n'.
+  clear H1.
+  unfold force_val2, Cop2.sem_cmp in H.
+  replace (classify_cmp type_i (typeof hi)) with cmp_default in H
+    by (inv IMM; inversion Thi as [[ | ] | [| | |] [ | ]]; subst; auto).
+  inv Thi.
+  + unfold sem_cmp_default, Cop2.sem_binarith, binarith_type in H.
+    replace (classify_binarith type_i (typeof hi)) with (bin_case_l s0) in H
+      by (inv IMM; rewrite <- H1; destruct s0; auto).
+    replace (Cop2.sem_cast (typeof hi) (Tlong s0 noattr)) with sem_cast_l2l in H
+      by (rewrite <- H1; destruct s0; auto).
+    inv IMM.
+    - replace (Cop2.sem_cast tint (Tlong s0 noattr)) with (sem_cast_i2l Signed) in H
+        by (destruct s0; auto).
+      simpl in H.
+      rewrite Int.signed_repr in H by rep_omega.
+      inv H3.
+      unfold Int64.lt, Int64.ltu in H.
+      rewrite !Int64.signed_repr in H by rep_omega.
+      rewrite Int64.unsigned_repr in H by rep_omega.
+    destruct (classify_binarith type_i (typeof hi)) as [[|] | | | |] eqn:HBT;
+      try solve [exfalso; inv IMM; destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | | ]; inv Thi; inv HBT].
+    - unfold sem_cmp_default, Cop2.sem_binarith, binarith_type in H.
+      rewrite HBT in H.
+      replace (Cop2.sem_cast type_i (Tint I32 Signed noattr)) with sem_cast_pointer in H
+        by (inv IMM; destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | | ]; inv Thi; inv HBT; auto).
+      replace (Cop2.sem_cast (typeof hi) (Tint I32 Signed noattr)) with sem_cast_pointer in H
+        by (inv IMM; destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | | ]; inv Thi; inv HBT; auto).
+    Print binarith_type.
+    Focus 14.
+    unfold tint, Cop2.sem_cast in H; simpl in H.
+    change Archi.ptr64 with false in H; simpl in H.
+    Print Cop2.sem_cast.
+    Print Cop2.classify_cast.
+    change (Val.of_bool (Int.lt (Int.repr i) (Int.repr n)) <> nullval) in H.
     unfold Int.lt in H.
     rewrite !Int.signed_repr in H by omega.
     if_tac in H.
@@ -601,8 +672,7 @@ Ltac default_entailer_for_load_store :=
   try solve [entailer!].
 
 Ltac solve_Int_eqm_unsigned :=
-  solve
-  [ autorewrite with norm;
+    autorewrite with norm;
     match goal with
     | |- Int_eqm_unsigned ?V _ =>
       match V with
@@ -617,8 +687,7 @@ Ltac solve_Int_eqm_unsigned :=
       | _ => rewrite <- (Int.repr_unsigned V) at 1
       end
     end;
-    apply Int_eqm_unsigned_repr
-  ].
+    first [apply Int_eqm_unsigned_repr | apply Int_eqm_unsigned_repr'].
 
 Ltac prove_Sfor_inv_rec :=
   match goal with
