@@ -53,13 +53,12 @@ Definition ___compcert_va_composite : ident := 17%positive.
 Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
-Definition _a : ident := 54%positive.
-Definition _f : ident := 55%positive.
+Definition _f : ident := 54%positive.
 Definition _i : ident := 52%positive.
-Definition _j : ident := 56%positive.
-Definition _main : ident := 57%positive.
+Definition _j : ident := 55%positive.
+Definition _main : ident := 56%positive.
 Definition _myfunc : ident := 53%positive.
-Definition _t'1 : ident := 58%positive.
+Definition _t'1 : ident := 57%positive.
 
 Definition f_myfunc := {|
   fn_return := tint;
@@ -70,13 +69,6 @@ Definition f_myfunc := {|
   fn_body :=
 (Sreturn (Some (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                  tint)))
-|}.
-
-Definition v_a := {|
-  gvar_info := (tarray (tptr tvoid) 1);
-  gvar_init := (Init_addrof _myfunc (Ptrofs.repr 0) :: nil);
-  gvar_readonly := false;
-  gvar_volatile := false
 |}.
 
 Definition f_main := {|
@@ -347,11 +339,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_myfunc, Gfun(Internal f_myfunc)) :: (_a, Gvar v_a) ::
- (_main, Gfun(Internal f_main)) :: nil).
+ (_myfunc, Gfun(Internal f_myfunc)) :: (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _a :: _myfunc :: ___builtin_debug :: ___builtin_nop ::
+(_main :: _myfunc :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
