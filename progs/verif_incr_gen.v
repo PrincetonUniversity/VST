@@ -389,12 +389,12 @@ Proof.
     apply list_join_eq with (c := snd x) in Jg; auto; subst.
     rewrite <- sepalg_list.list_join_1 in J1, Jg1.
     gather_SEP 3 1; erewrite lock_inv_share_join; eauto.
-    gather_SEP 3 2; erewrite lock_inv_share_join; eauto.
+    gather_SEP 3 2; erewrite ghost_part_share_join; eauto.
     rewrite !(sublist_split 0 i (i + 1)), !sublist_len_1 by omega.
     Exists (sh', gsh'); entailer!.
-    { eapply sepalg_list.list_join_app; eauto.
-      econstructor; eauto; constructor. }
-    rewrite (sepcon_comm _ (ghost_var _ _ _)), !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+    { split; eapply sepalg_list.list_join_app; eauto; econstructor; eauto; constructor. }
+    rewrite Z2Nat.inj_add by omega.
+    rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
     rewrite sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
     rewrite !data_at__tarray.
     rewrite Z2Nat.inj_add, <- list_repeat_app by omega.
@@ -405,20 +405,19 @@ Proof.
     cancel.
     { rewrite field_compatible0_cons; split; auto; try omega.
       apply field_compatible_array_smaller0 with (n' := N); auto; omega. }
+    { intro X; contradiction unreadable_bot.
+      rewrite <- X; eapply readable_share_list_join; eauto. }
+    { intro X; contradiction unreadable_bot.
+      rewrite <- X; apply Forall_Znth; auto; omega. }
     { eapply readable_share_list_join; eauto. }
     { apply Forall_Znth; auto; omega. } }
   Intros sh'.
-  eapply list_join_eq in Hshs; [|erewrite <- (sublist_same 0 N shs) by auto; eauto]; subst.
-  rewrite sublist_nil, sublist_same by auto.
-  forward_call (lg, repeat 1 (length lg), gv).
-  { rewrite iter_sepcon2_spec.
-    Exists (map (fun g => (g, 1)) lg); entailer!.
-    { rewrite !map_map; simpl.
-      rewrite map_id, map_const; auto. }
-    apply sepcon_derives; [|cancel].
-    clear; unfold uncurry; induction lg; simpl; entailer!. }
+  eapply list_join_eq in Hshs; [|erewrite <- (sublist_same 0 N shs) by auto; eauto].
+  eapply list_join_eq in Hgshs; [|erewrite <- (sublist_same 0 N gshs) by auto; eauto].
+  destruct sh'; simpl fst in *; simpl snd in *; subst.
+  forward_call (g, Z.to_nat N, gv).
   forward.
-  rewrite sum_1, <- Zlength_correct, H.
+  rewrite Z2Nat.id; [|unfold N; computable].
   (* We've proved that t is N! *)
   forward.
 Qed.
