@@ -95,27 +95,16 @@ MSL_FILES = \
 
 SEPCOMP_FILES = \
   Address.v \
-  step_lemmas.v \
-  extspec.v \
-  rg_lemmas.v \
-  FiniteMaps.v \
-  mem_lemmas.v mem_wd.v \
-  nucular_semantics.v \
-  semantics.v semantics_lemmas.v \
-  globalSep.v simulations.v \
-  simulations_lemmas.v \
-  structured_injections.v \
-  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
-  effect_properties.v \
+  effect_semantics.v \
   event_semantics.v \
-  full_composition.v \
-  closed_safety.v compcert.v \
-  val_casted.v \
+  extspec.v \
+  globalSep.v \
+  mem_lemmas.v \
   reach.v \
-  arguments.v \
-  internal_diagram_trans.v \
-  wholeprog_simulations.v \
-  wholeprog_lemmas.v
+  semantics.v semantics_lemmas.v \
+  simulations.v \
+  step_lemmas.v \
+  structured_injections.v
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
