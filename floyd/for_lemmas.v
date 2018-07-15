@@ -43,7 +43,7 @@ end.
 Inductive range_init_hl (type_lo type_i type_hi: type): (Z -> Z -> Prop) -> Prop :=
 | construct_range_init_hl:
   forall int_min_lo int_max_lo int_min_i int_max_i int_min_hi int_max_hi
-    int_min int_max,
+    int_min int_max range,
     is_int32_type type_lo = true ->
     is_int32_type type_i = true ->
     int_type_min_max type_lo = Some (int_min_lo, int_max_lo) ->
@@ -51,13 +51,14 @@ Inductive range_init_hl (type_lo type_i type_hi: type): (Z -> Z -> Prop) -> Prop
     int_type_min_max type_hi = Some (int_min_hi, int_max_hi) ->
     int_min = Z.max (Z.max int_min_lo int_min_i) int_min_hi ->
     int_max = Z.min int_max_i int_max_hi ->
-    range_init_hl type_lo type_i type_hi (fun m n =>
+    range = (fun m n =>
       (if Z.ltb int_max_lo int_max
        then m <= int_max_lo /\ int_min <= m <= n
        else int_min <= m <= n) /\
       (if Z.gtb int_min_hi int_min
        then int_min_hi <= n <= int_max
-       else n <= int_max)).
+       else n <= int_max)) ->
+    range_init_hl type_lo type_i type_hi range.
 
 Lemma range_init_hl_spec: forall (type_lo type_i type_hi: type) range,
   range_init_hl type_lo type_i type_hi range ->
@@ -899,6 +900,26 @@ Ltac solve_Int_eqm_unsigned :=
     end;
     first [apply Int_eqm_unsigned_repr | apply Int_eqm_unsigned_repr'].
 
+Ltac solve_Int64_eqm_unsigned :=
+    autorewrite with norm;
+    match goal with
+    | |- Int64_eqm_unsigned ?V _ =>
+      match V with
+      | Int64.repr _ => idtac
+      | Int64.sub _ _ => unfold Int64.sub at 1
+      | Int64.add _ _ => unfold Int64.add at 1
+      | Int64.mul _ _ => unfold Int64.mul at 1
+      | Int64.and _ _ => unfold Int64.and at 1
+      | Int64.or _ _ => unfold Int64.or at 1
+      | _ => rewrite <- (Int64.repr_unsigned V) at 1
+      end
+    end;
+    first [apply Int64_eqm_unsigned_repr | apply Int64_eqm_unsigned_repr'].
+
+Ltac prove_Int6432_val :=
+  first [ apply Int_64_eqm_unsigned_repr; solve_Int64_eqm_unsigned
+        | apply Int_32_eqm_unsigned_repr; solve_Int_eqm_unsigned].
+
 Ltac prove_Sfor_inv_rec :=
   match goal with
   | |- Sfor_inv_rec _ _ _ _ _ _ ?assert_callee _ _ =>
@@ -914,7 +935,7 @@ Ltac prove_Sfor_inv_rec :=
         [ prove_local2ptree
         | reflexivity
         | solve_msubst_eval_expr
-        | solve_Int_eqm_unsigned
+        | prove_Int6432_val
         | default_entailer_for_load_store]
     end
   end.
@@ -925,18 +946,78 @@ Ltac prove_Sfor_inv :=
   do 4 eexists;
   split; [prove_Sfor_inv_rec | split; [| split; [| split]]; build_func_abs_right].
 
+Ltac simplify_Zmax a b :=
+  let c := eval hnf in (Z.compare a b) in
+  change (Z.max a b) with (match c with | Lt => b | _ => a end); cbv beta iota.
+
+Ltac simplify_Zmin a b :=
+  let c := eval hnf in (Z.compare a b) in
+  change (Z.min a b) with (match c with | Gt => b | _ => a end); cbv beta iota.
+
+Ltac prove_range_init_hl :=
+  eapply construct_range_init_hl;
+  [ reflexivity
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | reflexivity
+  | match goal with
+    | |- _ = Z.max (Z.max ?a ?b) _ => simplify_Zmax a b
+    end;
+    match goal with
+    | |- _ = Z.max ?a ?b => simplify_Zmax a b
+    end;
+    reflexivity
+  | match goal with
+    | |- _ = Z.min ?a ?b => simplify_Zmin a b
+    end;
+    reflexivity
+  | match goal with
+    | |- context [Z.ltb ?a ?b] =>
+      let c := eval hnf in (Z.ltb a b) in change (Z.ltb a b) with c
+    end;
+    match goal with
+    | |- context [Z.gtb ?a ?b] =>
+      let c := eval hnf in (Z.gtb a b) in change (Z.gtb a b) with c
+    end;
+    cbv beta iota; reflexivity
+  ].
+
+Ltac prove_range_init_h :=
+  eapply construct_range_init_h;
+  [ reflexivity
+  | reflexivity
+  | reflexivity
+  | match goal with
+    | |- _ = Z.max ?a ?b => simplify_Zmax a b
+    end;
+    reflexivity
+  | match goal with
+    | |- _ = Z.min ?a ?b => simplify_Zmin a b
+    end;
+    reflexivity
+  ].
+
 Ltac simplify_Sfor_init_triple :=
-first
-[ simple eapply Sfor_init_triple_const_init; [try rep_omega | reflexivity |]
-| simple eapply Sfor_init_triple_other
+  first
+  [ simple eapply Sfor_setup_const_init;
+    [ prove_range_init_hl
+    | cbv beta;
+      repeat match goal with
+             | |- _ <= _ <= _ => fail
+             | |- _ /\ _ => split
+             end;
+      try rep_omega
+    | ]
+  | simple eapply Sfor_setup_other;
+    [ prove_range_init_h
+    | cbv beta; try rep_omega
+    | ]
 ].
 
 Ltac forward_for_simple_bound'' n Inv :=
   eapply (semax_for Inv n);
   [ reflexivity
-  | solve [apply tint_min_max | apply tuint_min_max]
-  | reflexivity
-  | try rep_omega
   | (reflexivity || fail 1000 "The loop invariant for forward_for_simple_bound should have form (EX i: Z, _).")
   | prove_Sfor_inv
   | simplify_Sfor_init_triple
