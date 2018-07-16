@@ -185,7 +185,6 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-apply expr_lemmas.typecheck_environ_update in H3; auto.
 *
 apply sepcon_derives; auto.
 rewrite <- !sepcon_assoc.
@@ -307,7 +306,9 @@ intros.
  rewrite <- insert_local.
  rewrite lower_andp.
  apply derives_extract_prop; intro.
- hnf in H0. rewrite retval_ext_rval in H0. rewrite <- H0.
+ hnf in H0. unfold_lift in H0.
+ destruct H0.
+ rewrite retval_ext_rval in H0. rewrite <- H0.
  apply prop_right; auto.
 Qed.
 
@@ -1570,8 +1571,7 @@ Loop test expression:" e
          normalize in HRE
         ]
        end
-       | simpl update_tycon;
-         apply extract_exists_pre; special_intros_EX;
+       | apply extract_exists_pre; special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          do_repr_inj HRE;
          repeat (apply semax_extract_PROP; intro);
@@ -1613,14 +1613,21 @@ Ltac forward_for_simple_bound n Pre :=
     match type of Pre with
       ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
     end
-  | simple eapply semax_seq';
-    [check_type_forward_for_simple_bound;
-     forward_for_simple_bound' n Pre
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped';
-     [check_type_forward_for_simple_bound;
-      forward_for_simple_bound' n Pre
-     | ]
+  | match goal with
+    | |- semax _ _ (Sfor _ _ _ _) _ =>
+           rewrite semax_seq_skip
+    | |- semax _ _ (Ssequence _ (Sloop _ _)) _ =>
+           rewrite semax_seq_skip
+    | |- semax _ _ (Ssequence _ ?MORE_COMMANDS) _ =>
+        revert MORE_COMMANDS;
+        match goal with
+        | |- let MORE_COMMANDS := @abbreviate _ (Sloop _ _) in _ =>
+            intros MORE_COMMANDS;
+            rewrite semax_seq_skip
+        end
+    | _ => idtac
+    end;
+    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; cbv beta; try fwd_skip]
   ].
 
 Ltac forward_for3 Inv PreInc Postcond :=
@@ -1707,7 +1714,7 @@ all: try (simpl; intros; apply andp_left2; destruct R; try apply derives_refl; a
 Qed.
 
 Lemma semax_post1: forall R' Espec {cs: compspecs} Delta R P c,
-           ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+           ENTAIL Delta, R' |-- RA_normal R ->
       @semax cs Espec Delta P c (overridePost R' R) ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post; try apply H0.
@@ -1717,7 +1724,7 @@ Qed.
 
 Lemma semax_post1_flipped: forall R' Espec {cs: compspecs} Delta R P c,
       @semax cs Espec Delta P c (overridePost R' R) ->
-         ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+         ENTAIL Delta, R' |-- RA_normal R ->
       @semax cs Espec Delta P c R.
 Proof. intros. apply semax_post1 with R'; auto. Qed.
 
@@ -1806,12 +1813,18 @@ Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  | Sifthenelse e c1 c2 =>
      andb (quickflow c1 ok) (quickflow c2 ok)
  | Sloop body incr =>
-     quickflow body (fun ek => match ek with
+     andb (quickflow body (fun ek => match ek with
                               | EK_normal => true
                               | EK_break => ok EK_normal
                               | EK_continue => true
                               | EK_return => ok EK_return
-                              end)
+                              end))
+          (quickflow incr (fun ek => match ek with
+                              | EK_normal => true
+                              | EK_break => ok EK_normal
+                              | EK_continue => false
+                              | EK_return => ok EK_return
+                              end))
  | Sbreak => ok EK_break
  | Scontinue => ok EK_continue
  | Sswitch _ _ => false   (* this could be made more generous *)
@@ -2101,20 +2114,6 @@ Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
 Hint Extern 0 (ENTAIL _, _ |-- _) =>
  match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end.
 
-Ltac abbreviate_update_tycon :=
- match goal with
- | D0 := @abbreviate _ _ |- ENTAIL update_tycon ?D1 _, _ |-- _ =>
-   constr_eq D0 D1;
-   subst D0; unfold abbreviate; simpl update_tycon;
-   match goal with |- ENTAIL ?D, _ |-- _ =>
-    let Delta := fresh "Delta" in 
-     let Delta1 := fresh "Delta1" in 
-     set (Delta1 := D);
-     pose (Delta := @abbreviate tycontext Delta1);
-      change Delta1 with Delta; subst Delta1
-  end
-end.
-
 Ltac forward_if_tac post :=
   check_Delta; check_POSTCONDITION;
   repeat (apply -> seq_assoc; abbreviate_semax);
@@ -2129,8 +2128,7 @@ match goal with
  | |- semax _ _ (Sifthenelse _ _ _) ?P =>
       apply (semax_post_flipped (overridePost post P));
       [ forward_if'_new
-      | abbreviate_update_tycon; 
-        try subst P; unfold abbreviate;
+      | try subst P; unfold abbreviate;
         simpl_ret_assert;
         try (match goal with |- ?A => no_evars A end;
              try apply ENTAIL_refl;
@@ -2280,7 +2278,7 @@ Ltac warn s :=
 
 Lemma semax_post3:
   forall R' Espec {cs: compspecs} Delta P c R,
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    local (tc_environ Delta) && R' |-- R ->
     @semax cs Espec Delta P c (normal_ret_assert R') ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
@@ -2290,7 +2288,7 @@ Qed.
 Lemma semax_post_flipped3:
   forall R' Espec {cs: compspecs} Delta P c R,
     @semax cs Espec Delta P c (normal_ret_assert R') ->
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    local (tc_environ Delta) && R' |-- R ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
 intros; eapply semax_post3; eauto.
@@ -2591,7 +2589,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [
-               | unfold exit_tycon, update_tycon, Post; clear Post ]
+               | unfold Post; clear Post ]
   end.
 
 (*
@@ -2644,9 +2642,7 @@ Ltac solve_return_inner_gen :=
       eexists;
       split;
       [ solve_return_inner_gen
-      | match goal with
-        | |- ?t = _ => super_pattern t a; reflexivity
-        end
+      | build_func_abs_right
       ]
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with

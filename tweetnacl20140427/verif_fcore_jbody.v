@@ -495,7 +495,7 @@ deadvars!.
    (*1.2 versus 6.3*)
 { Exists wlist. (*Time*) entailer!. (*2.4 versus 6.3*) }
 { rename H into M; rename i0 into m.
-  rename x0 into wlist1. Intros. rename H into WLIST1.
+  rename l into wlist1. Intros. rename H into WLIST1.
   assert (TM: exists tm, Znth m [Vint tt3; Vint tt0; Vint tt1; Vint tt2] = Vint tm).
     destruct (zeq m 0); subst; simpl. eexists; reflexivity.
     destruct (zeq m 1); subst; simpl. eexists; reflexivity.
@@ -525,7 +525,7 @@ deadvars!.
   { Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
     go_lower. rewrite TM. simpl. 
     apply andp_right.  
-    + apply prop_right. split. omega. split; trivial.
+    + apply prop_right. split; trivial.
       assert (AP: 0 <= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
       rewrite Z.add_comm. rewrite Z2Nat.inj_add; try omega.
       assert (SS: (Z.to_nat 1 + Z.to_nat m)%nat = S (Z.to_nat m)) by reflexivity.

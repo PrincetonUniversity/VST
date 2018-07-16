@@ -133,7 +133,6 @@ forward.
 (* size = tagword >> 10; *)
 forward.
 (* rewrite !Znth_0_cons. *)
-
 forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) (EX i: Z,
   PROP ( )
   LOCAL (
@@ -146,7 +145,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   SEP (data_at Ews (tarray tuint (1 + n)) (map Vint (map Int.repr (tag :: contents)))
           (offset_val (- sizeof tuint) p))).
 - (* precondition implies invariant: *)
-  entailer!. f_equal. apply Int.repr_unsigned.
+  entailer!.
 - (* body preserves invariant: *)
   (* forward fails, but tells us to prove this: *)
   assert_PROP (force_val (sem_add_ptr_int tuint Unsigned p (Vint (Int.repr i)))
@@ -163,13 +162,11 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
   entailer!.
   rewrite Znth_pos_cons by omega.
   autorewrite with sublist. simpl.  
-  split.
-  + f_equal. apply Int.repr_unsigned.
-  + f_equal. rewrite Int.add_assoc. f_equal.
-    rewrite (sublist_split 0 i (i+1)) by omega.
-    rewrite sublist_len_1 by omega.
-    replace (1 + i - 1) with i by omega.
-    rewrite uint_sum_app. f_equal. simpl. apply Int.add_zero_l.
+  f_equal. rewrite Int.add_assoc. f_equal.
+  rewrite (sublist_split 0 i (i+1)) by omega.
+  rewrite sublist_len_1 by omega.
+  replace (1 + i - 1) with i by omega.
+  rewrite uint_sum_app. f_equal. simpl. apply Int.add_zero_l.
 - (* return sum; *)
   forward. rewrite sublist_same by auto. entailer!.
 Qed.

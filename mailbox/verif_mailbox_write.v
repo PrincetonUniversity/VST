@@ -24,7 +24,6 @@ Proof.
   { entailer!. }
   - forward.
     rewrite upd_init_const; auto.
-    entailer!.
   - forward.
 Qed.
 

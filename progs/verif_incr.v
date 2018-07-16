@@ -130,12 +130,11 @@ Proof.
   Intros z x y.
   forward.
   assert_PROP (x = n1 /\ y = n2) as Heq.
-  { go_lower.
-    rewrite <- sepcon_assoc, sepcon_comm; apply sepcon_derives_prop.
-    rewrite <- sepcon_prop_prop; eapply derives_trans; [|apply sepcon_derives; apply ghost_var_inj].
-    rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
-    rewrite <- sepcon_assoc, (sepcon_comm (ghost_var gsh1 y g2)), sepcon_assoc; apply derives_refl.
-    all: auto. }
+  { gather_SEP 2 4.
+    erewrite ghost_var_share_join' by eauto.
+    gather_SEP 3 4.
+    erewrite ghost_var_share_join' by eauto.
+    entailer!. }
   forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists z x y; entailer!. }

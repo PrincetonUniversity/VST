@@ -147,6 +147,7 @@ forall FR c k h nonce out
 Proof. intros. abbreviate_semax.
 Time assert_PROP (Zlength wlist = 16 /\ Zlength xlist = 16) as WXL by entailer!. (*1.4 versus 5.4*)
 destruct WXL as [WL XL].
+unfold array_copy3_statement.
 Time forward_for_simple_bound 16 (EX m:Z,
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
@@ -424,6 +425,7 @@ c k h nonce out w x y t (xI:list int),
         EX r:_, !!(Snuffle 20 xI = Some r) &&
            data_at Tsh (tarray tuint 16) (map Vint r) x))).
 Proof. intros. abbreviate_semax.
+unfold f_core_loop3_statement.
 freeze [0;1;2] FR1.
 Time assert_PROP (Zlength (map Vint xI) = 16) as XIZ by entailer!. (*0.9*)
 thaw FR1.

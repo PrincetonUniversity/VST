@@ -61,6 +61,17 @@ void YTree_add(struct BinaryTree * p) {
   YTree_add(p -> right);
 }
 
+void Xfoo(struct Xnode * p) {
+  struct Xnode q;
+  if (p == NULL)
+    return;
+  q.list = p -> list;
+  q.v = p -> v;
+  Xnode_add (&q);
+  p -> list = q.list;
+  p -> v = q.v;
+}
+
 int main () {
 }
 

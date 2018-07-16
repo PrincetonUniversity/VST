@@ -331,6 +331,26 @@ Definition legal_tc_init (Delta: tycontext): tc_assert -> Prop :=
   | _ => True
   end.
 
+Lemma temp_tc_initialized: forall Delta i t v,
+  (temp_types Delta) ! i = Some t ->
+  local (tc_environ Delta) && local (locald_denote (temp i v))
+    |-- denote_tc_initialized i t.
+Proof.
+  intros.
+  intros rho.
+  unfold local, lift1; simpl; unfold_lift; simpl.
+  normalize.
+  unfold denote_tc_initialized.
+  apply prop_right.
+  destruct H0 as [? _].
+  specialize (H0 _ _ H).
+  destruct H0 as [v [? ?]].
+  unfold eval_id, force_val in H1.
+  rewrite H0 in *.
+  specialize (H2 H1).
+  eauto.
+Qed.
+
 Lemma msubst_simpl_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
   legal_tc_init Delta tc ->
   local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) &&
@@ -364,18 +384,8 @@ Proof.
     destruct (T1 ! e) eqn:?H; [apply andp_left1 | simpl; intros; apply andp_left2, FF_left].
     apply (LocalD_sound_temp _ _ _ T2 Q) in H.
     rewrite (add_andp _ _ (in_local _ _ _ _ _ H)).
-    intros rho.
-    unfold local, lift1; simpl; unfold_lift; simpl.
-    normalize.
-    destruct H2 as [? _].
-    specialize (H2 _ _ H1).
-    destruct H2 as [v [? ?]].
-    unfold denote_tc_initialized.
-    apply prop_right.
-    exists v; split; auto.
-    unfold eval_id in H0.
-    rewrite H2 in H0.
-    revert H0; auto.
+    eapply derives_trans; [| apply (temp_tc_initialized Delta _ _ v); eauto].
+    solve_andp.
 Qed.
 
 Lemma legal_tc_init_tc_bool: forall Delta b err,
