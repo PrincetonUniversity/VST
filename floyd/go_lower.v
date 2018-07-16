@@ -660,6 +660,7 @@ Ltac unfold_localdef_name QQ Q :=
     match Qh with
     | temp ?n _ => unfold n in QQ
     | lvar ?n _ _ => unfold n in QQ
+    | _ => idtac
     end;
     unfold_localdef_name QQ Qt
   end.
