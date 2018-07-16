@@ -47,9 +47,9 @@ Definition cptr_lock_inv g ctr :=
 
 Definition init_ctr_spec :=
  DECLARE _init_ctr
-  WITH N : Z, gv: globals
+  WITH gv: globals
   PRE [ ]
-         PROP  (0 <= N)
+         PROP  ()
          LOCAL (gvars gv)
          SEP   (data_at_ Ews tuint (gv _ctr); data_at_ Ews tlock (gv _ctr_lock))
   POST [ tvoid ]
@@ -259,9 +259,8 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   fold N.
-  forward_call (N, gv).
+  forward_call gv.
   { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
-  { unfold N; omega. }
   Intros g.
   (* need to split off shares for the locks and ghost here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
