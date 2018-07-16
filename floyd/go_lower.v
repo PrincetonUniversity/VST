@@ -585,17 +585,24 @@ Qed.
 Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): (environ -> mpred) -> mpred -> Prop :=
 | clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (local (`P)) (!! P)
 | clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 GV (!! P) (!! P)
-| clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 GV (tc_lvalue Delta e) (msubst_tc_lvalue Delta T1 T2 GV e)
-| clean_LOCAL_right_tc_expr: forall e, clean_LOCAL_right Delta T1 T2 GV (tc_expr Delta e) (msubst_tc_expr Delta T1 T2 GV e)
-| clean_LOCAL_right_tc_LR: forall e lr, clean_LOCAL_right Delta T1 T2 GV (tc_LR Delta e lr) (msubst_tc_LR Delta T1 T2 GV e lr)
-| clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 GV (tc_efield Delta efs) (msubst_tc_efield Delta T1 T2 GV efs)
-| clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 GV (tc_exprlist Delta ts es) (msubst_tc_exprlist Delta T1 T2 GV ts es)
+| clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_lvalue Delta e)) (msubst_tc_lvalue Delta T1 T2 GV e)
+| clean_LOCAL_right_tc_expr: forall e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_expr Delta e)) (msubst_tc_expr Delta T1 T2 GV e)
+| clean_LOCAL_right_tc_LR: forall e lr, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_LR Delta e lr)) (msubst_tc_LR Delta T1 T2 GV e lr)
+| clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_efield Delta efs)) (msubst_tc_efield Delta T1 T2 GV efs)
+| clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_exprlist Delta ts es)) (msubst_tc_exprlist Delta T1 T2 GV ts es)
 | clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 GV (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 GV e t)
 | clean_LOCAL_right_canon: forall P Q R, clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) (!! (fold_right and True (P ++ msubst_extract_locals Delta T1 T2 GV Q)) && fold_right_sepcon R)
 | clean_LOCAL_right_eval_lvalue: forall e u v, msubst_eval_lvalue Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_lvalue e))) (!! (u = v))
 | clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_expr e))) (!! (u = v))
 | clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV P1 Q1 -> clean_LOCAL_right Delta T1 T2 GV P2 Q2 -> clean_LOCAL_right Delta T1 T2 GV (P1 && P2) (Q1 && Q2)
 | clean_LOCAL_right_EX': forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 GV (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 GV (exp P) (exp Q).
+
+Lemma clean_LOCAL_right_tc_andp {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert P1) Q1 -> clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert P2) Q2 -> clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (tc_andp P1 P2)) (Q1 && Q2).
+Proof.
+  intros.
+  rewrite denote_tc_assert_andp.
+  apply clean_LOCAL_right_andp; auto.
+Qed.
 
 Lemma clean_LOCAL_right_EX: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) A (P: A -> environ -> mpred) (Q: A -> mpred),
   (forall a, exists Q', clean_LOCAL_right Delta T1 T2 GV (P a) Q' /\ Q' = Q a) ->
@@ -661,16 +668,17 @@ Ltac solve_clean_LOCAL_right :=
   solve
     [ simple apply clean_LOCAL_right_local_lift
     | simple apply clean_LOCAL_right_prop
-    | simple apply clean_LOCAL_right_tc_lvalue
-    | simple apply clean_LOCAL_right_tc_expr
-    | simple apply clean_LOCAL_right_tc_LR
-    | simple apply clean_LOCAL_right_tc_efield
-    | simple apply clean_LOCAL_right_tc_exprlist
+    | try unfold tc_lvalue; simple apply clean_LOCAL_right_tc_lvalue
+    | try unfold tc_expr; simple apply clean_LOCAL_right_tc_expr
+    | try unfold tc_LR; simple apply clean_LOCAL_right_tc_LR
+    | try unfold tc_efield; simple apply clean_LOCAL_right_tc_efield
+    | try unfold tc_exprlist; simple apply clean_LOCAL_right_tc_exprlist
     | simple apply clean_LOCAL_right_tc_expropt
     | simple apply clean_LOCAL_right_canon
     | simple apply clean_LOCAL_right_eval_lvalue; solve_msubst_eval_lvalue
     | simple apply clean_LOCAL_right_eval_expr; solve_msubst_eval_expr
     | simple apply clean_LOCAL_right_andp; solve_clean_LOCAL_right
+    | simple apply clean_LOCAL_right_tc_andp; solve_clean_LOCAL_right
     | simple apply clean_LOCAL_right_EX;
       let a := fresh "a" in
       intro a;
@@ -699,6 +707,12 @@ Ltac clean_LOCAL_canon_mix :=
                 subst PPr QQ;
                 cbv beta iota zeta in tl;
                 subst tl
+         end;
+         repeat
+         match goal with
+         | |- context [eqb_type ?a ?b] =>
+                  let c := eval hnf in (eqb_type a b) in
+                      change (eqb_type a b) with c; cbv beta iota zeta
          end).
 
 Ltac go_lower ::=
@@ -719,7 +733,7 @@ intro rho;
 first
 [ simple apply quick_finish_lower
 |          
- (simple apply finish_lower ||
+ (let TC := fresh "TC" in simple apply finish_lower; intros TC ||
  match goal with
  | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
