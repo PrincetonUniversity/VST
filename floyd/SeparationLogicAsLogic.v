@@ -173,6 +173,34 @@ Proof.
     auto.
 Qed.
 
+Lemma semax_break_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R,
+    @semax CS Espec Delta P Sbreak R ->
+    local (tc_environ Delta) && P |-- |==> RA_break R.
+Proof.
+  intros.
+  remember Sbreak as c eqn:?H.
+  induction H; try solve [inv H0].
+  + apply andp_left2, bupd_intro.
+  + specialize (IHsemax H0).
+    eapply derives_bupd_trans; [exact H |].
+    eapply derives_bupd_trans; [exact IHsemax |].
+    auto.
+Qed.
+
+Lemma semax_continue_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R,
+    @semax CS Espec Delta P Scontinue R ->
+    local (tc_environ Delta) && P |-- |==> RA_continue R.
+Proof.
+  intros.
+  remember Scontinue as c eqn:?H.
+  induction H; try solve [inv H0].
+  + apply andp_left2, bupd_intro.
+  + specialize (IHsemax H0).
+    eapply derives_bupd_trans; [exact H |].
+    eapply derives_bupd_trans; [exact IHsemax |].
+    auto.
+Qed.
+
 Lemma semax_seq_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
     @semax CS Espec Delta P (Ssequence h t) R ->
     exists Q, @semax CS Espec Delta P h (overridePost Q R) /\
@@ -519,6 +547,87 @@ Proof.
         intro H0.
         auto.
   + pose proof (fun x => semax_loop_inv _ _ _ _ _ (H x)).
+    eapply semax_pre_bupd with
+      (EX Q : environ -> mpred, EX Q' : environ -> mpred,
+         EX H: semax Delta Q c1 (loop1_ret_assert Q' R),
+           EX H0: semax Delta Q' c2 (loop2_ret_assert Q R), Q).
+    {
+      rewrite exp_andp2.
+      apply exp_left.
+      intros x.
+      eapply derives_trans; [apply H0 |].
+      apply bupd_mono.
+      apply exp_derives; intros Q.
+      apply exp_derives; intros Q'.
+      normalize.
+      destruct H1.
+      apply (exp_right H1).
+      apply (exp_right H2).
+      auto.
+    }
+    apply (AuxDefs.semax_loop _ _
+      (EX Q : environ -> mpred, EX Q' : environ -> mpred,
+         EX H: semax Delta Q c1 (loop1_ret_assert Q' R),
+           EX H0: semax Delta Q' c2 (loop2_ret_assert Q R), Q')).
+    - apply IHc1.
+      intros Q.
+      apply IHc1.
+      intros Q'.
+      apply IHc1.
+      intros ?H.
+      apply IHc1.
+      intros ?H.
+      eapply semax_post; [.. | exact H1].
+      * destruct R as [nR bR cR rR].
+        unfold loop1_ret_assert.
+        apply (exp_right Q), (exp_right Q'), (exp_right H1), (exp_right H2).
+        apply andp_left2, derives_refl.
+      * destruct R as [nR bR cR rR].
+        apply andp_left2, derives_refl.
+      * destruct R as [nR bR cR rR].
+        unfold loop1_ret_assert.
+        apply (exp_right Q), (exp_right Q'), (exp_right H1), (exp_right H2).
+        apply andp_left2, derives_refl.
+      * intros.
+        destruct R as [nR bR cR rR].
+        apply andp_left2, derives_refl.
+    - apply IHc2.
+      intros Q.
+      apply IHc2.
+      intros Q'.
+      apply IHc2.
+      intros ?H.
+      apply IHc2.
+      intros ?H.
+      eapply semax_post; [.. | exact H2].
+      * destruct R as [nR bR cR rR].
+        unfold loop1_ret_assert.
+        apply (exp_right Q), (exp_right Q'), (exp_right H1), (exp_right H2).
+        apply andp_left2, derives_refl.
+      * destruct R as [nR bR cR rR].
+        apply andp_left2, derives_refl.
+      * destruct R as [nR bR cR rR].
+        apply andp_left2, derives_refl.
+      * intros.
+        destruct R as [nR bR cR rR].
+        apply andp_left2, derives_refl.
+  + pose proof (fun x => semax_break_inv _ _ _ (H x)).
+    eapply semax_pre_bupd.
+    - rewrite exp_andp2; apply exp_left.
+      intro x; apply H0.
+    - apply AuxDefs.semax_break.
+  + pose proof (fun x => semax_continue_inv _ _ _ (H x)).
+    eapply semax_pre_bupd.
+    - rewrite exp_andp2; apply exp_left.
+      intro x; apply H0.
+    - apply AuxDefs.semax_continue.
+Admitted.
+
+Lemma semax_extract_prop:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta (PP: Prop) P c Q,
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta (!!PP && P) c Q.
 Admitted.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
@@ -568,13 +677,17 @@ Lemma semax_if_seq:
 Proof.
   intros.
   apply semax_ifthenelse_inv in H.
-  destruct H as [P' [? [? [? ?]]]].
+  eapply semax_pre_bupd; [exact H |].
+  rewrite exp_andp2.
+  apply extract_exists_pre.
+  intros P'.
+  rewrite andp_comm, andp_assoc.
+  apply semax_extract_prop; intros [? ?].
+  rewrite andp_comm.
   apply semax_seq_inv in H0.
   apply semax_seq_inv in H1.
   destruct H0 as [Q1 [? ?]], H1 as [Q2 [? ?]].
-  apply semax_pre_bupd with (tc_expr Delta (Eunop Cop.Onotbool e (Tint I32 Signed noattr)) && P'); auto.
   apply AuxDefs.semax_seq with (orp Q1 Q2); [apply AuxDefs.semax_ifthenelse |].
-  + auto.
   + eapply semax_post; [| | | | exact H0].
     - destruct Q; apply andp_left2, orp_right1, derives_refl.
     - destruct Q; apply andp_left2, derives_refl.
