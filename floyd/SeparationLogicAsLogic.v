@@ -129,6 +129,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
           (Sassign e1 e2)
           (normal_ret_assert P)
 | semax_skip: forall P, @semax CS Espec Delta P Sskip (normal_ret_assert P)
+| semax_builtin: forall P opt ext tl el, @semax CS Espec Delta FF (Sbuiltin opt ext tl el) P
 | semax_pre_post_bupd: forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> P') ->
     local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
@@ -340,6 +341,17 @@ Proof.
     apply andp_left2; auto.
 Qed.
 
+Lemma semax_Sbuiltin_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R opt ext tl el,
+  @semax CS Espec Delta P (Sbuiltin opt ext tl el) R -> local (tc_environ Delta) && P |-- |==> FF.
+Proof.
+  intros.
+  remember (Sbuiltin opt ext tl el) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + apply andp_left2, FF_left.
+  + eapply derives_bupd_trans; [exact H | clear H].
+    apply IHsemax in H0; auto.
+Qed.
+
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   local (tc_environ Delta) && P |--
@@ -374,6 +386,57 @@ Proof.
     - eapply semax_post_bupd; eauto.
 Qed.
 
+Lemma semax_loop_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R body incr,
+  @semax CS Espec Delta P (Sloop body incr) R ->
+  local (tc_environ Delta) && P |--
+  |==> EX Q: environ -> mpred, EX Q': environ -> mpred,
+  !! (@semax CS Espec Delta Q body (loop1_ret_assert Q' R) /\
+      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R)) &&
+  Q.
+Proof.
+  intros.
+  remember (Sloop body incr) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0; clear IHsemax1 IHsemax2.
+    eapply derives_trans; [| apply bupd_intro].
+    apply (exp_right Q).
+    apply (exp_right Q').
+    apply andp_right; [apply prop_right; auto |].
+    solve_andp.
+  + specialize (IHsemax H0).
+    eapply derives_bupd_trans; [exact H |].
+    eapply derives_bupd_trans; [exact IHsemax | clear IHsemax].
+    eapply derives_trans; [| apply bupd_intro].
+    rewrite exp_andp2; apply exp_left; intros Q.
+    rewrite exp_andp2; apply exp_left; intros Q'.
+    normalize.
+    destruct H6.
+    apply (exp_right Q), (exp_right Q').
+    apply andp_right; [apply prop_right; split | solve_andp].
+    - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR']; simpl in H6, H7 |- *.
+      simpl RA_normal in H1; simpl RA_break in H2; simpl RA_continue in H3; simpl RA_return in H4.
+      eapply semax_post_bupd; [.. | eassumption]; unfold loop1_ret_assert.
+      * simpl RA_normal.
+        apply andp_left2, bupd_intro.
+      * simpl RA_break.
+        auto.
+      * simpl RA_continue.
+        apply andp_left2, bupd_intro.
+      * simpl RA_return.
+        auto.
+    - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR']; simpl in H6, H7 |- *.
+      simpl RA_normal in H1; simpl RA_break in H2; simpl RA_continue in H3; simpl RA_return in H4.
+      eapply semax_post_bupd; [.. | eassumption]; unfold loop1_ret_assert.
+      * simpl RA_normal.
+        apply andp_left2, bupd_intro.
+      * simpl RA_break.
+        auto.
+      * simpl RA_continue.
+        apply andp_left2, bupd_intro.
+      * simpl RA_return.
+        auto.
+Qed.    
+
 Lemma extract_exists_pre:
   forall  {Espec: OracleKind}{CS: compspecs} ,
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
@@ -407,7 +470,11 @@ Proof.
     eapply semax_pre_bupd; [exact H0 | clear H0].
     eapply semax_post''_bupd; [.. | apply AuxDefs.semax_call_backward].
     apply andp_left2, derives_refl.
-  + admit.
+  + pose proof (fun x => semax_Sbuiltin_inv _ _ _ _ _ _ _ (H x)).
+    apply semax_pre_bupd with FF; [| apply AuxDefs.semax_builtin].
+    rewrite exp_andp2.
+    apply exp_left; intros x; specialize (H0 x).
+    auto.
   + apply AuxDefs.semax_seq with (EX Q: environ -> mpred, !! (semax Delta Q c2 R) && Q).
     - apply IHc1.
       intro x.
@@ -451,6 +518,7 @@ Proof.
       * apply IHc2.
         intro H0.
         auto.
+  + pose proof (fun x => semax_loop_inv _ _ _ _ _ (H x)).
 Admitted.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
