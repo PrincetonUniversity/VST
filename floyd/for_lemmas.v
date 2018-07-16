@@ -12,54 +12,34 @@ Require Import VST.floyd.local2ptree_eval.
 Import Cop.
 Local Open Scope logic.
 
-Definition int_type_min_max (t: type): option (Z * Z) :=
-match t with
-| Tint i s _ =>
-    Some
-    match s with
-    | Unsigned => (0, match i with
-                      | IBool => 1
-                      | I8 => Byte.max_unsigned
-                      | I16 => two_p 16 -1
-                      | I32 => Int.max_unsigned
-                      end)
-    | Signed =>
-      match i with
-      | IBool => (0, 1)
-      | I8 => (Byte.min_signed, Byte.max_signed)
-      | I16 => (- two_p (16-1), two_p (16-1) -1)
-      | I32 => (Int.min_signed, Int.max_signed)
-      end
-    end
-| Tlong s _ =>
-    Some
-      match s with
-      | Unsigned => (0, Int64.max_unsigned)
-      | Signed => (Int64.min_signed, Int64.max_signed)
-      end
-| _ => None
-end.
+Definition int_type_min_max (type_i type_hi: type): option (Z * Z) :=
+  match type_i, type_hi with
+  | Tint I32 s_i _, Tint i_hi s_hi _ =>
+    Some match s_i with
+         | Signed => (match i_hi, s_hi with
+                      | I32, Unsigned => 0
+                      | _, _ => Int.min_signed
+                      end, Int.max_signed)
+         | Unsigned => (0, Int.max_unsigned)
+         end
+  | Tint I32 s_i _, Tlong s_hi _ =>
+    Some match s_i with
+         | Signed => match s_hi with
+                     | Unsigned => (0, Int.max_signed)
+                     | _ => (Int.min_signed, Int.max_signed)
+                     end
+         | Unsigned => (0, Int.max_unsigned)
+         end
+  | _, _ => None
+  end.
 
 Inductive range_init_hl (type_lo type_i type_hi: type): (Z -> Z -> Prop) -> Prop :=
 | construct_range_init_hl:
-  forall int_min_lo int_max_lo int_min_i int_max_i int_min_hi int_max_hi
-    int_min int_max range,
+  forall int_min int_max,
     is_int32_type type_lo = true ->
-    is_int32_type type_i = true ->
-    int_type_min_max type_lo = Some (int_min_lo, int_max_lo) ->
-    int_type_min_max type_i = Some (int_min_i, int_max_i) ->
-    int_type_min_max type_hi = Some (int_min_hi, int_max_hi) ->
-    int_min = Z.max (Z.max int_min_lo int_min_i) int_min_hi ->
-    int_max = Z.min int_max_i int_max_hi ->
-    range = (fun m n =>
-      (if Z.ltb int_max_lo int_max
-       then m <= int_max_lo /\ int_min <= m <= n
-       else int_min <= m <= n) /\
-      (if Z.gtb int_min_hi int_min
-       then int_min_hi <= n <= int_max
-       else n <= int_max)) ->
-    range_init_hl type_lo type_i type_hi range.
-
+    int_type_min_max type_i type_hi = Some (int_min, int_max) ->
+    range_init_hl type_lo type_i type_hi (fun m n => int_min <= m <= n /\ n <= int_max).
+(*
 Lemma range_init_hl_spec: forall (type_lo type_i type_hi: type) range,
   range_init_hl type_lo type_i type_hi range ->
   exists int_min_lo int_max_lo int_min_i int_max_i int_min_hi int_max_hi
@@ -95,16 +75,11 @@ Proof.
     rewrite <- not_true_iff_false, Z.gtb_lt in H6.
     omega.
 Qed.
-
+*)
 Inductive range_init_h (type_i type_hi: type): Z -> (Z -> Prop) -> Prop :=
 | construct_range_init_h:
-  forall int_min_i int_max_i int_min_hi int_max_hi
-    int_min int_max,
-    is_int32_type type_i = true ->
-    int_type_min_max type_i = Some (int_min_i, int_max_i) ->
-    int_type_min_max type_hi = Some (int_min_hi, int_max_hi) ->
-    int_min = Z.max int_min_i int_min_hi ->
-    int_max = Z.min int_max_i int_max_hi ->
+  forall int_min int_max,
+    int_type_min_max type_i type_hi = Some (int_min, int_max) ->
     range_init_h type_i type_hi int_min (fun n =>
       int_min <= n <= int_max).
 
@@ -325,26 +300,16 @@ Lemma Sfor_setup_spec: forall {cs: compspecs} {Espec: OracleKind} (Delta: tycont
     (EX i: Z, !! (m <= i <= n) && inv1 i = inv0) ->
     (forall v i, subst _i (`v) (assert_callee i) = assert_callee i) ->
     @semax cs Espec Delta Pre init (normal_ret_assert inv0) /\
-    exists int_min_i int_max_i int_min_hi int_max_hi,
-    is_int32_type type_i = true /\
-    int_type_min_max type_i = Some (int_min_i, int_max_i) /\
-    int_type_min_max (typeof hi) = Some (int_min_hi, int_max_hi) /\
-    int_min_hi <= m /\
-    int_min_i <= m <= int_max_i /\
-    int_min_i <= n <= int_max_i /\
-    int_min_hi <= n <= int_max_hi.
+    exists int_min int_max,
+    int_type_min_max type_i (typeof hi) = Some (int_min, int_max) /\
+    is_int32_type type_i = true /\  
+    int_min <= m <= int_max /\
+    int_min <= n <= int_max.
 Proof.
   intros.
   inv H.
   + remember (typeof hi) as type_hi eqn:?H.
-    apply range_init_hl_spec in H3.
-    destruct H3 as [int_min_lo [int_max_lo
-                   [int_min_i  [int_max_i
-                   [int_min_hi [int_max_hi
-                   [int_min    [int_max
-                                  [? [? [? [? [? [? [? ?]]]]]]]]]]]]]]].
-    apply H11 in H4; clear H11.
-    destruct H4 as [? [? ?]].
+    inv H3.
     split.
     - eapply semax_pre; [apply H5 | clear H5].
       eapply semax_post'; [| clear H0].
@@ -372,18 +337,19 @@ Proof.
         rewrite TI'.
         simpl typeof.
         replace (is_neutral_cast (implicit_deref type_lo) type_i) with true
-          by (destruct type_lo as [| [| | |] | | | | | | | ]; inv H1; auto).
+          by (destruct type_lo as [| [| | |] | | | | | | | ]; inv H1; auto;
+              destruct type_i as [| [| | |] | | | | | | | ]; inv H6; auto).
         simpl tc_bool.
         rewrite <- denote_tc_assert_andp, !tc_andp_TT1.
         unfold isCastResultType.
         replace (Cop2.classify_cast (implicit_deref type_lo) type_i) with cast_case_pointer
           by (destruct type_lo as [| [| | |] | | | | | | | ]; inv H1; auto;
-              destruct type_i as [| [| | |] | | | | | | | ]; inv H3; auto).
+              destruct type_i as [| [| | |] | | | | | | | ]; inv H6; auto).
         change Archi.ptr64 with false; cbv beta iota; simpl orb.
         replace (is_pointer_type type_i && is_pointer_type (implicit_deref type_lo)
             || is_int_type type_i && is_int_type (implicit_deref type_lo))%bool with true
           by (destruct type_lo as [| [| | |] | | | | | | | ]; inv H1; auto;
-              destruct type_i as [| [| | |] | | | | | | | ]; inv H3; auto).
+              destruct type_i as [| [| | |] | | | | | | | ]; inv H6; auto).
         simple_if_tac; intro; simpl; apply TT_right.
       * apply andp_left2.
         Intros old.
@@ -391,24 +357,16 @@ Proof.
         simpl; intro rho.
         unfold subst, local, lift1; unfold_lift; simpl.
         normalize.
-    - exists int_min_i, int_max_i, int_min_hi, int_max_hi.
-      do 3 (split; auto).
-      pose proof Z.le_min_l int_max_i int_max_hi.
-      pose proof Z.le_min_r int_max_i int_max_hi.
-      pose proof Z.le_max_l int_min_lo int_min_i.
-      pose proof Z.le_max_r int_min_lo int_min_i.
-      pose proof Z.le_max_l (Z.max int_min_lo int_min_i) int_min_hi.
-      pose proof Z.le_max_r (Z.max int_min_lo int_min_i) int_min_hi.
-      omega.
+    - exists int_min, int_max.
+      split; auto.
+      split; [destruct type_i as [| [| | |] | | | | | | | ]; inv H6; auto |].
+      split; omega.
   + inv H3.
     split.
     - auto.
-    - exists int_min_i, int_max_i, int_min_hi, int_max_hi.
-      do 3 (split; auto).
-      pose proof Z.le_min_l int_max_i int_max_hi.
-      pose proof Z.le_min_r int_max_i int_max_hi.
-      pose proof Z.le_max_l int_min_i int_min_hi.
-      pose proof Z.le_max_r int_min_i int_min_hi.
+    - exists m, int_max.
+      split; auto.
+      split; [destruct type_i as [| [| | |] | | | | | | | ]; inv H; auto |].
       omega.
 Qed.
 
@@ -423,17 +381,14 @@ Context {cs : compspecs}
         (inv0: environ -> mpred)
         (assert_callee inv1 inv2: Z -> environ -> mpred)
         (type_i: type)
-        (int_min_i int_max_i int_min_hi int_max_hi: Z).
+        (int_min int_max: Z).
 
 Hypothesis EVAL_hi: ENTAIL Delta, inv0 |-- EX n': val, !! (Int6432_val (typeof hi) n' n) && local (` (eq n') (eval_expr hi)).
 Hypothesis TC_hi: ENTAIL Delta, inv0 |-- tc_expr Delta hi.
 Hypothesis I32_i: is_int32_type type_i = true.
-Hypothesis IMM_i: int_type_min_max type_i = Some (int_min_i, int_max_i).
-Hypothesis IMM_hi: int_type_min_max (typeof hi) = Some (int_min_hi, int_max_hi).
-Hypothesis Range1_m: int_min_hi <= m.
-Hypothesis Range2_m: int_min_i <= m <= int_max_i.
-Hypothesis Range1_n: int_min_i <= n <= int_max_i.
-Hypothesis Range2_n: int_min_hi <= n <= int_max_hi.
+Hypothesis IMM: int_type_min_max type_i (typeof hi) = Some (int_min, int_max).
+Hypothesis Range_m: int_min <= m <= int_max.
+Hypothesis Range_n: int_min <= n <= int_max.
 Hypothesis TI: (temp_types Delta) ! _i = Some (type_i, true).
 Hypothesis EQ_inv1: forall i : Z, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i.
 Hypothesis EQ_inv0: (EX i : Z, !! (m <= i <= n) && inv1 i)%assert = inv0.
@@ -442,8 +397,8 @@ Hypothesis SUBST_callee: forall v i, subst _i (`v) (assert_callee i) = assert_ca
 
 Lemma CLASSIFY_CMP: classify_cmp type_i (typeof hi) = cmp_default.
 Proof.
-  destruct type_i as [| [| | |] [|] | | | | | | | ]; inv IMM_i; auto;
-  destruct (typeof hi) as [| [| | |] [|] | | | | | | | ]; inv IMM_hi; auto.
+  destruct type_i as [| [| | |] [|] | | | | | | | ];
+  destruct (typeof hi) as [| [| | |] [|] | | | | | | | ]; inv IMM; auto.
 Qed.
 
 Lemma Sfor_loop_cond_tc:
@@ -464,7 +419,7 @@ Proof.
   simpl orb.
   simpl snd.
   replace (is_neutral_cast type_i type_i || same_base_type type_i type_i)%bool with true
-    by (destruct type_i as [| [| | |] [|] | | | | | | | ]; inv IMM_i; auto).
+    by (destruct type_i as [| [| | |] [|] | | | | | | | ]; inv IMM; auto).
   rewrite tc_andp_TT2.
   
   rewrite denote_tc_assert_andp; apply andp_right; auto.
@@ -475,9 +430,9 @@ Proof.
   unfold isBinOpResultType; simpl typeof.
   rewrite CLASSIFY_CMP.
   replace (is_numeric_type type_i) with true
-    by (destruct type_i as [| [| | |] [|] | | | | | | | ]; inv IMM_i; auto).
+    by (destruct type_i as [| [| | |] [|] | | | | | | | ]; inv IMM; auto).
   replace (is_numeric_type (typeof hi)) with true
-    by (destruct (typeof hi) as [| [| | |] [|] | | | | | | | ]; inv IMM_hi; auto).
+    by (destruct type_i as [| [| | |] | | | | | | | ]; destruct (typeof hi) as [| [| | |] [|] | | | | | | | ]; inv IMM; auto).
   simpl tc_bool.
   apply TT_right.
 Qed.
@@ -494,15 +449,15 @@ Proof.
   rewrite H0.
   destruct type_i as [| [| | |] [|] a_i | [|] | | | | | |]; inv I32_i;
     try solve [destruct (typeof hi) as [| | | [|] | | | | |]; inv H0].
-  inv IMM_i.
   destruct (typeof hi) as [| i_hi s_hi a_hi | | [|] | | | | |]; try solve [inv H0].
+  inv IMM.
   change (Cop2.sem_cast (Tint I32 Signed a_i) (Tint I32 Signed noattr)) with sem_cast_pointer.
   change (Cop2.sem_cast (Tint i_hi s_hi a_hi) (Tint I32 Signed noattr)) with sem_cast_pointer.
   inv H.
   inv H7.
   simpl.
   unfold Int.lt.
-  rewrite !Int.signed_repr by rep_omega.
+  rewrite !Int.signed_repr by (destruct i_hi, s_hi; rep_omega).
   if_tac.
   - split; [intro HH; inv HH | intros; omega].
   - split; auto.
@@ -530,7 +485,7 @@ Proof.
   assert (s_i = Unsigned \/ s_i = Signed /\ s_hi = Unsigned /\ i_hi = I32)
     by (destruct s_i, s_hi, i_hi; auto; inv H0).
   rewrite !Int.unsigned_repr
-    by (destruct H as [? | [? [? ?]]]; subst; inv IMM_i; [| inv IMM_hi]; rep_omega).
+    by (destruct H as [? | [? [? ?]]]; subst; inv IMM; rep_omega).
   if_tac.
   - split; [intro HH; inv HH | intros; omega].
   - split; auto.
@@ -558,12 +513,11 @@ Proof.
   replace (cast_int_long s_i (Int.repr i)) with (Int64.repr i).
   2: {
     unfold cast_int_long.
-    destruct s_i; inv IMM_i.
+    destruct s_i; inv IMM.
     + rewrite Int.signed_repr by omega; auto.
     + rewrite Int.unsigned_repr by omega; auto.
   }
-  inv IMM_hi.
-  rewrite !Int64.signed_repr by (destruct s_i; inv IMM_i; rep_omega).
+  rewrite !Int64.signed_repr by (destruct s_i; inv IMM; rep_omega).
   if_tac.
   - split; [intro HH; inv HH | intros; omega].
   - split; auto.
@@ -591,12 +545,11 @@ Proof.
   replace (cast_int_long s_i (Int.repr i)) with (Int64.repr i).
   2: {
     unfold cast_int_long.
-    destruct s_i; inv IMM_i.
-    + rewrite Int.signed_repr by omega; auto.
+    destruct s_i; inv IMM.
+    + rewrite Int.signed_repr by rep_omega; auto.
     + rewrite Int.unsigned_repr by omega; auto.
   }
-  inv IMM_hi.
-  rewrite !Int64.unsigned_repr by (destruct s_i; inv IMM_i; rep_omega).
+  rewrite !Int64.unsigned_repr by (destruct s_i; inv IMM; rep_omega).
   if_tac.
   - split; [intro HH; inv HH | intros; omega].
   - split; auto.
@@ -624,8 +577,8 @@ Proof.
   rewrite CLASSIFY_CMP in H1.
   destruct (classify_binarith type_i (typeof hi)) as [ [|] | [|] | | |] eqn:H3;
     [| | | | 
-     destruct type_i as [| [| | |] [|] | [|] | | | | | |]; inv IMM_i;
-     destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM_hi; inv H3 ..].
+     destruct type_i as [| [| | |] [|] | [|] | | | | | |]; try solve [inv IMM];
+     destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..].
   + rewrite Sfor_comparison_Signed_I32 in H1 by auto.
     omega.
   + rewrite Sfor_comparison_Unsigned_I32 in H1 by auto.
@@ -657,8 +610,8 @@ Proof.
   rewrite CLASSIFY_CMP in H1.
   destruct (classify_binarith type_i (typeof hi)) as [ [|] | [|] | | |] eqn:H3;
     [| | | | 
-     destruct type_i as [| [| | |] [|] | [|] | | | | | |]; inv IMM_i;
-     destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM_hi; inv H3 ..].
+     destruct type_i as [| [| | |] [|] | [|] | | | | | |]; try solve [inv IMM];
+     destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..].
   + rewrite Sfor_comparison_Signed_I32 in H1 by auto.
     omega.
   + rewrite Sfor_comparison_Unsigned_I32 in H1 by auto.
@@ -701,9 +654,9 @@ Proof.
     rewrite <- H1.
     simpl.
     apply prop_right.
-    inv IMM_i.
-    rewrite !Int.signed_repr by rep_omega.
-    omega.
+    inv IMM.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H3; rep_omega).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H3; rep_omega.
   + rewrite TI. simpl tc_andp.
     replace (isCastResultType (Tint I32 Unsigned a) (Tint I32 Unsigned a)
            (Ebinop Oadd (Etempvar _i (Tint I32 Unsigned a)) (Econst_int (Int.repr 1) (Tint I32 s noattr))
@@ -807,7 +760,7 @@ Proof.
   apply Sfor_inv_spec in INV.
   destruct INV as [? [? [? [? [? ?]]]]].
   eapply Sfor_setup_spec in SETUP; [| eauto ..].
-  destruct SETUP as [INIT [init_min_i [init_max_i [init_min_hi [init_max_hi [? [? [? [? [? [?]]]]]]]]]]].
+  destruct SETUP as [INIT [init_min_i [init_max_i [init_min_hi [init_max_hi [? [? ?]]]]]]].
 
   apply semax_seq' with inv0; [exact INIT | clear INIT].
   forget (update_tycon Delta init) as Delta'; clear Delta.
@@ -955,48 +908,10 @@ Ltac simplify_Zmin a b :=
   change (Z.min a b) with (match c with | Gt => b | _ => a end); cbv beta iota.
 
 Ltac prove_range_init_hl :=
-  eapply construct_range_init_hl;
-  [ reflexivity
-  | reflexivity
-  | reflexivity
-  | reflexivity
-  | reflexivity
-  | match goal with
-    | |- _ = Z.max (Z.max ?a ?b) _ => simplify_Zmax a b
-    end;
-    match goal with
-    | |- _ = Z.max ?a ?b => simplify_Zmax a b
-    end;
-    reflexivity
-  | match goal with
-    | |- _ = Z.min ?a ?b => simplify_Zmin a b
-    end;
-    reflexivity
-  | match goal with
-    | |- context [Z.ltb ?a ?b] =>
-      let c := eval hnf in (Z.ltb a b) in change (Z.ltb a b) with c
-    end;
-    match goal with
-    | |- context [Z.gtb ?a ?b] =>
-      let c := eval hnf in (Z.gtb a b) in change (Z.gtb a b) with c
-    end;
-    cbv beta iota; reflexivity
-  ].
+  eapply construct_range_init_hl; reflexivity.
 
 Ltac prove_range_init_h :=
-  eapply construct_range_init_h;
-  [ reflexivity
-  | reflexivity
-  | reflexivity
-  | match goal with
-    | |- _ = Z.max ?a ?b => simplify_Zmax a b
-    end;
-    reflexivity
-  | match goal with
-    | |- _ = Z.min ?a ?b => simplify_Zmin a b
-    end;
-    reflexivity
-  ].
+  eapply construct_range_init_h; reflexivity.
 
 Ltac simplify_Sfor_init_triple :=
   first
