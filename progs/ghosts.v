@@ -42,10 +42,9 @@ Qed.
 
 (* own isn't precise unless the ghost is a Disj_alg. Is this a problem? *)
 
-Lemma own_list_alloc : forall a0 la lp, Forall valid la -> length lp = length la ->
-  emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) && fold_right sepcon emp
-    (map (fun i => own (Znth i lg) (@Znth _ a0 i la) (Znth i lp))
-    (upto (Z.to_nat (Zlength la))))).
+Lemma own_list_alloc : forall la lp, Forall valid la -> length lp = length la ->
+  emp |-- |==> (EX lg : _, !!(Zlength lg = Zlength la) &&
+    iter_sepcon (fun '(g, a, p) => own g a p) (combine (combine lg la) lp)).
 Proof.
   intros until 1; revert lp; induction H; intros.
   - eapply derives_trans, bupd_intro.
@@ -56,39 +55,43 @@ Proof.
     eapply derives_trans; [apply bupd_sepcon|].
     apply bupd_mono.
     Intros lg g.
-    Exists (g :: lg); rewrite !Zlength_cons, Z2Nat.inj_succ by apply Zlength_nonneg.
-    rewrite (upto_app 1), map_app, sepcon_app; simpl.
-    rewrite !Znth_0_cons; entailer!.
-    rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl|].
-    erewrite map_map, map_ext_in; eauto; intros; simpl.  apply derives_refl.
-    rewrite In_upto in *; rewrite !Znth_pos_cons by omega.
-    rewrite Z.add_comm, Z.add_simpl_r; auto.
+    Exists (g :: lg); rewrite !Zlength_cons; simpl.
+    rewrite sepcon_comm; entailer!.
+    apply derives_refl.
 Qed.
 
 Corollary own_list_alloc' : forall a pp i, 0 <= i -> valid a ->
-  emp |-- |==> (EX lg : _, !!(Zlength lg = i) &&
-    fold_right sepcon emp (map (fun i => own (Znth i lg) a pp) (upto (Z.to_nat i)))).
+  emp |-- |==> (EX lg : _, !!(Zlength lg = i) && iter_sepcon (fun g => own g a pp) lg).
 Proof.
   intros.
   eapply derives_trans;
-    [apply own_list_alloc with (a0 := a)(la := repeat a (Z.to_nat i))(lp := repeat pp (Z.to_nat i))|].
+    [apply own_list_alloc with (la := repeat a (Z.to_nat i))(lp := repeat pp (Z.to_nat i))|].
   { apply Forall_repeat; auto. }
   { rewrite !repeat_length; auto. }
   apply bupd_mono; Intros lg; Exists lg.
-  rewrite Zlength_repeat, Z2Nat.id in H1 |- * by auto.
-  apply andp_right; [entailer!|].
-  erewrite map_ext_in; eauto; intros; simpl.  apply derives_refl.
-  apply In_upto in H2.
-  rewrite !Znth_repeat'; auto.
+  rewrite Zlength_repeat, Z2Nat.id in H1 by omega.
+  rewrite !combine_const1 by (rewrite ?Zlength_combine, ?Zlength_repeat, ?Z2Nat.id, ?Z.min_r; omega).
+  entailer!.
+  clear H; induction lg; simpl; entailer!.
 Qed.
 
-Lemma own_list_dealloc : forall {A} (l : list A) g a p,
-  fold_right sepcon emp (map (fun i => own (g i) (a i) (p i)) l) |-- |==> emp.
+Lemma own_list_dealloc : forall {A} f (l : list A),
+  (forall b, exists g a pp, f b |-- own g a pp) ->
+  iter_sepcon f l |-- |==> emp.
 Proof.
-  induction l; simpl; intros.
+  intros; induction l; simpl.
   - apply bupd_intro.
-  - eapply derives_trans; [apply sepcon_derives, IHl; apply own_dealloc|].
-    eapply derives_trans, bupd_mono; [apply bupd_sepcon | cancel].
+  - eapply derives_trans; [apply sepcon_derives, IHl|].
+    + destruct (H a) as (? & ? & ? & Hf).
+      eapply derives_trans; [apply Hf | apply own_dealloc].
+    + eapply derives_trans, bupd_mono; [apply bupd_sepcon | cancel].
+Qed.
+
+Lemma own_list_dealloc' : forall {A} g a p (l : list A),
+  iter_sepcon (fun x => own (g x) (a x) (p x)) l |-- |==> emp.
+Proof.
+  intros; apply own_list_dealloc.
+  repeat eexists; apply derives_refl.
 Qed.
 
 End ghost.
@@ -99,7 +102,7 @@ Proof.
   auto.
 Defined.
 
-Definition excl {A} g a := @own _ _ _ _ _ _ (exclusive_PCM A) g (Some a) NoneP.
+Definition excl {A} g a := own(RA := exclusive_PCM A) g (Some a) NoneP.
 
 Lemma exclusive_update : forall {A} (v v' : A) p, excl p v |-- |==> excl p v'.
 Proof.
@@ -433,8 +436,26 @@ Definition pos_PCM := initial_world.pos_PCM.
 Definition ref_PCM := initial_world.ref_PCM.
 Notation completable := initial_world.completable.
 
-Lemma ref_sub : forall {P : Ghost} (sh : share) g (a b : @G P) pp,
-  @own _ _ _ _ _ _ (ref_PCM P) g (Some (sh, a), None) pp * @own _ _ _ _ _ _ (ref_PCM P) g (None, Some b) pp |--
+Section Reference.
+
+Context {P : Ghost}.
+
+Definition ghost_reference g a := own(RA := ref_PCM P) g (None, Some a) NoneP.
+Definition ghost_part g sh a := own(RA := ref_PCM P) g (Some (sh, a), None) NoneP.
+Definition ghost_part_ref g sh a r :=
+  own(RA := ref_PCM P) g (Some (sh, a), Some r) NoneP.
+
+Lemma ghost_part_ref_join : forall g (sh : share) a b,
+  ghost_part g sh a * ghost_reference g b = ghost_part_ref g sh a b.
+Proof.
+  intros.
+  symmetry; apply own_op.
+  hnf; simpl.
+  split; auto; constructor.
+Qed.
+
+Lemma ref_sub : forall g sh a b pp,
+  own(RA := ref_PCM P) g (Some (sh, a), None) pp * own(RA := ref_PCM P) g (None, Some b) pp |--
     !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
 Proof.
   intros.
@@ -453,6 +474,16 @@ Proof.
     rewrite eq_dec_refl; auto.
 Qed.
 
+Lemma self_completable : forall a, completable (Some (Tsh, a)) a.
+Proof.
+  intros; unfold completable.
+  exists None; constructor.
+Qed.
+
+End Reference.
+
+Hint Resolve self_completable : init.
+
 Section Discrete.
 
 Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
@@ -468,7 +499,7 @@ Section GVar.
 Context {A : Type}.
 
 Definition ghost_var (sh : share) (v : A) g :=
-  @own _ _ _ _ _ _ (@pos_PCM (discrete_PCM A)) g (Some (sh, v)) NoneP.
+  own(RA := @pos_PCM (discrete_PCM A)) g (Some (sh, v)) NoneP.
 
 Lemma ghost_var_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
   sh1 <> Share.bot -> sh2 <> Share.bot ->
@@ -907,7 +938,7 @@ Proof.
 Qed.
 
 Definition ghost_hist (sh : share) (h : hist_part) g :=
-  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (Some (sh, h), None) NoneP.
+  own(RA := ref_PCM map_PCM) g (Some (sh, h), None) NoneP.
 
 Lemma ghost_hist_join : forall sh1 sh2 sh h1 h2 p (Hsh : sepalg.join sh1 sh2 sh)
   (Hsh1 : sh1 <> Share.bot) (Hsh2 : sh2 <> Share.bot),
@@ -962,7 +993,7 @@ Proof.
 Qed.
 
 Definition ghost_ref l g := EX hr : hist_part, !!(hist_list hr l) &&
-  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (None, Some hr) NoneP.
+  own(RA := ref_PCM map_PCM) g (None, Some hr) NoneP.
 
 Lemma hist_next : forall h l (Hlist : hist_list h l), h (length l) = None.
 Proof.
@@ -976,7 +1007,7 @@ Proof.
 Qed.
 
 Definition ghost_hist_ref sh (h r : hist_part) g :=
-  @own _ _ _ _ _ _ (@ref_PCM map_PCM) g (Some (sh, h), Some r) NoneP.
+  own(RA := ref_PCM map_PCM) g (Some (sh, h), Some r) NoneP.
 
 Lemma hist_add : forall (sh : share) (h h' : hist_part) e p t' (Hfresh : h' t' = None),
   ghost_hist_ref sh h h' p |-- |==> ghost_hist_ref sh (map_upd h t' e) (map_upd h' t' e) p.
@@ -1205,7 +1236,7 @@ Proof.
       extensionality k'; if_tac; subst; auto.
 Qed.
 
-Lemma ghost_hist_init : @valid (@ref_PCM (@map_PCM nat hist_el)) (Some (Tsh, empty_map), Some empty_map).
+Lemma ghost_hist_init : @valid (ref_PCM (@map_PCM nat hist_el)) (Some (Tsh, empty_map), Some empty_map).
 Proof.
   split; simpl; auto.
   rewrite completable_alt; split; auto.
@@ -1304,7 +1335,14 @@ Ltac ghost_alloc G :=
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
   [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto|] end.
+   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init|] end.
+
+Ltac ghosts_alloc G n :=
+  match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
+    apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
+  [go_lower; rewrite !prop_true_andp by (repeat (split; auto));
+   rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
+   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init|] end.
 
 (* weak view shift for use in funspecs *)
 Program Definition weak_view_shift (P Q: mpred): mpred :=

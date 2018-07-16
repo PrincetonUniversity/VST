@@ -1,3 +1,4 @@
+Require Export VST.msl.iter_sepcon.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
@@ -246,6 +247,13 @@ Proof.
   induction l; auto; simpl.
   destruct (l ++ [x]) eqn: Heq; auto.
   contradiction (app_cons_not_nil l [] x); auto.
+Qed.
+
+Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
+  iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
+Proof.
+  intros; induction l; simpl; normalize.
+  rewrite H, IHl; apply pred_ext; cancel.
 Qed.
 
 Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
@@ -904,6 +912,12 @@ Proof.
   induction n; destruct l2; auto; intros; rewrite ?Nat2Z.inj_succ, ?Zlength_nil, ?Zlength_cons in *;
     simpl in *; try (rewrite Zlength_correct in *; omega).
   rewrite IHn; auto; omega.
+Qed.
+
+Lemma map_const: forall {A B} (c : A) (l : list B), map (fun _ => c) l = repeat c (length l).
+Proof.
+  induction l; auto; simpl.
+  rewrite IHl; auto.
 Qed.
 
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
@@ -2381,6 +2395,61 @@ Lemma Zlength_remove_Znth : forall {A} i (l : list A), 0 <= i < Zlength l ->
 Proof.
   intros; unfold remove_Znth.
   rewrite Zlength_app, !Zlength_sublist; omega.
+Qed.
+
+Lemma remove_upd_Znth: forall {A} i l (a : A), 0 <= i < Zlength l ->
+  remove_Znth i (upd_Znth i l a) = remove_Znth i l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite upd_Znth_Zlength, sublist_upd_Znth_l, sublist_upd_Znth_r; auto; omega.
+Qed.
+
+Lemma remove_Znth_map: forall {A B} (f : A -> B) i l,
+  remove_Znth i (map f l) = map f (remove_Znth i l).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite map_app, Zlength_map, !sublist_map; auto.
+Qed.
+
+Lemma remove_Znth_combine: forall {A B} i (l1 : list A) (l2 : list B),
+  0 <= i < Zlength l1 -> Zlength l1 = Zlength l2 ->
+  remove_Znth i (combine l1 l2) = combine (remove_Znth i l1) (remove_Znth i l2).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite !sublist_combine, combine_app' by (rewrite !Zlength_sublist; omega).
+  rewrite Zlength_combine, Z.min_l by omega.
+  congruence.
+Qed.
+
+Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
+  iter_sepcon f l = f (Znth i l) * iter_sepcon f (remove_Znth i l).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite <- sublist_same at 1 by auto.
+  rewrite sublist_split with (mid := i) by omega.
+  rewrite sublist_next with (i0 := i) by omega.
+  rewrite !iter_sepcon_app; simpl; apply pred_ext; cancel.
+Qed.
+
+Lemma iter_sepcon2_Znth: forall {A B} {d1 : Inhabitant A} {d2 : Inhabitant B}
+  f (l1 : list A) (l2 : list B) i, 0 <= i < Zlength l1 -> Zlength l1 = Zlength l2 ->
+  iter_sepcon2 f l1 l2 =
+  f (Znth i l1) (Znth i l2) * iter_sepcon2 f (remove_Znth i l1) (remove_Znth i l2).
+Proof.
+  intros; rewrite !iter_sepcon2_spec.
+  apply pred_ext; Intros l; subst.
+  - rewrite Zlength_map in *.
+    rewrite !remove_Znth_map, !Znth_map, iter_sepcon_Znth with (i0 := i) by auto.
+    unfold uncurry at 1.
+    Exists (remove_Znth i l); entailer!.
+  - Exists (combine l1 l2).
+    rewrite combine_fst, combine_snd
+      by (rewrite <- !ZtoNat_Zlength; apply Nat2Z.inj; rewrite !Z2Nat.id; omega).
+    rewrite iter_sepcon_Znth with (i0 := i)(l0 := combine _ _)
+      by (rewrite Zlength_combine, Z.min_l; omega).
+    rewrite Znth_combine, remove_Znth_combine by auto.
+    rewrite H1, H2, combine_eq; unfold uncurry; entailer!.
+    apply derives_refl.
 Qed.
 
 Instance Inhabitant_share : Inhabitant share := Share.bot. (* TODO: remove this, it's already in sublist.v *) 
