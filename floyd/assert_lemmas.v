@@ -18,11 +18,17 @@ Hint Rewrite loop1x_ret_assert_EK_normal: ret_assert.
 Definition loop1y_ret_assert (Inv : environ -> mpred) :=
   {| RA_normal := Inv; RA_break := FF; RA_continue := Inv; RA_return := FF |}.
 
+Definition for_ret_assert (I: environ->mpred) (Post: ret_assert) :=
+ match Post with 
+  {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := r |} =>
+  {| RA_normal := I; RA_break := FF; RA_continue := I; RA_return := r |}
+ end.
+
 Ltac simpl_ret_assert := 
  cbn [RA_normal RA_break RA_continue RA_return 
       normal_ret_assert overridePost loop1_ret_assert
       loop2_ret_assert function_body_ret_assert frame_ret_assert
-      switch_ret_assert loop1x_ret_assert loop1y_ret_assert].
+      switch_ret_assert loop1x_ret_assert loop1y_ret_assert for_ret_assert].
 
 Lemma RA_normal_loop2_ret_assert: (* MOVE TO assert_lemmas *)
   forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.

@@ -19,7 +19,7 @@ assert_PROP (n = Zlength (map Vint (map Int.repr (map Byte.unsigned xcont))) /\
              n = Zlength (map Vint (map Int.repr (map Byte.unsigned ycont)))) as LEN by entailer!.
 destruct LEN as [LenX LenY].
 assert (ZWS: Int.zwordsize = 32) by reflexivity. 
-assert (BWS: Byte.zwordsize = 8) by reflexivity. 
+assert (BWS: Byte.zwordsize = 8) by reflexivity.
 forward_for_simple_bound n
 (EX i:Z, EX d:_,
   (PROP  (Byte.eq d Byte.zero = if list_eq_dec Byte.eq_dec (sublist 0 i xcont) (sublist 0 i ycont) then true else false)
@@ -28,7 +28,7 @@ forward_for_simple_bound n
    SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
    data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y))).
 { Exists Byte.zero. entailer!.  }
-{ Intros. rename H0 into I. rename H1 into B. rename x0 into b.
+{ Intros. rename H0 into I. rename H1 into B. rename d into b.
   rewrite 3 Zlength_map in LenX, LenY. 
   forward.
   { entailer!. rep_omega. }

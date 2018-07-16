@@ -2,318 +2,113 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
-Definition _BinaryTree : ident := 9%positive.
-Definition _XList : ident := 1%positive.
-Definition _Xfoo : ident := 70%positive.
-Definition _Xnode : ident := 4%positive.
-Definition _Xnode_add : ident := 66%positive.
-Definition _YList : ident := 7%positive.
-Definition _YList_add : ident := 67%positive.
-Definition _YTree_add : ident := 69%positive.
-Definition _Ynode : ident := 8%positive.
-Definition _Ynode_add : ident := 68%positive.
-Definition ___builtin_annot : ident := 19%positive.
-Definition ___builtin_annot_intval : ident := 20%positive.
-Definition ___builtin_bswap : ident := 13%positive.
-Definition ___builtin_bswap16 : ident := 15%positive.
-Definition ___builtin_bswap32 : ident := 14%positive.
-Definition ___builtin_bswap64 : ident := 45%positive.
-Definition ___builtin_clz : ident := 46%positive.
-Definition ___builtin_clzl : ident := 47%positive.
-Definition ___builtin_clzll : ident := 48%positive.
-Definition ___builtin_ctz : ident := 49%positive.
-Definition ___builtin_ctzl : ident := 50%positive.
-Definition ___builtin_ctzll : ident := 51%positive.
-Definition ___builtin_debug : ident := 63%positive.
-Definition ___builtin_fabs : ident := 16%positive.
-Definition ___builtin_fmadd : ident := 54%positive.
-Definition ___builtin_fmax : ident := 52%positive.
-Definition ___builtin_fmin : ident := 53%positive.
-Definition ___builtin_fmsub : ident := 55%positive.
-Definition ___builtin_fnmadd : ident := 56%positive.
-Definition ___builtin_fnmsub : ident := 57%positive.
-Definition ___builtin_fsqrt : ident := 17%positive.
-Definition ___builtin_membar : ident := 21%positive.
-Definition ___builtin_memcpy_aligned : ident := 18%positive.
-Definition ___builtin_nop : ident := 62%positive.
-Definition ___builtin_read16_reversed : ident := 58%positive.
-Definition ___builtin_read32_reversed : ident := 59%positive.
-Definition ___builtin_va_arg : ident := 23%positive.
-Definition ___builtin_va_copy : ident := 24%positive.
-Definition ___builtin_va_end : ident := 25%positive.
-Definition ___builtin_va_start : ident := 22%positive.
-Definition ___builtin_write16_reversed : ident := 60%positive.
-Definition ___builtin_write32_reversed : ident := 61%positive.
-Definition ___compcert_i64_dtos : ident := 30%positive.
-Definition ___compcert_i64_dtou : ident := 31%positive.
-Definition ___compcert_i64_sar : ident := 42%positive.
-Definition ___compcert_i64_sdiv : ident := 36%positive.
-Definition ___compcert_i64_shl : ident := 40%positive.
-Definition ___compcert_i64_shr : ident := 41%positive.
-Definition ___compcert_i64_smod : ident := 38%positive.
-Definition ___compcert_i64_smulh : ident := 43%positive.
-Definition ___compcert_i64_stod : ident := 32%positive.
-Definition ___compcert_i64_stof : ident := 34%positive.
-Definition ___compcert_i64_udiv : ident := 37%positive.
-Definition ___compcert_i64_umod : ident := 39%positive.
-Definition ___compcert_i64_umulh : ident := 44%positive.
-Definition ___compcert_i64_utod : ident := 33%positive.
-Definition ___compcert_i64_utof : ident := 35%positive.
-Definition ___compcert_va_composite : ident := 29%positive.
-Definition ___compcert_va_float64 : ident := 28%positive.
-Definition ___compcert_va_int32 : ident := 26%positive.
-Definition ___compcert_va_int64 : ident := 27%positive.
-Definition _left : ident := 11%positive.
-Definition _list : ident := 2%positive.
-Definition _main : ident := 71%positive.
-Definition _next : ident := 6%positive.
-Definition _node : ident := 5%positive.
-Definition _p : ident := 64%positive.
-Definition _q : ident := 65%positive.
-Definition _right : ident := 12%positive.
-Definition _tree : ident := 10%positive.
-Definition _v : ident := 3%positive.
-Definition _t'1 : ident := 72%positive.
-Definition _t'2 : ident := 73%positive.
-Definition _t'3 : ident := 74%positive.
-Definition _t'4 : ident := 75%positive.
+Definition ___builtin_annot : ident := 7%positive.
+Definition ___builtin_annot_intval : ident := 8%positive.
+Definition ___builtin_bswap : ident := 1%positive.
+Definition ___builtin_bswap16 : ident := 3%positive.
+Definition ___builtin_bswap32 : ident := 2%positive.
+Definition ___builtin_bswap64 : ident := 33%positive.
+Definition ___builtin_clz : ident := 34%positive.
+Definition ___builtin_clzl : ident := 35%positive.
+Definition ___builtin_clzll : ident := 36%positive.
+Definition ___builtin_ctz : ident := 37%positive.
+Definition ___builtin_ctzl : ident := 38%positive.
+Definition ___builtin_ctzll : ident := 39%positive.
+Definition ___builtin_debug : ident := 51%positive.
+Definition ___builtin_fabs : ident := 4%positive.
+Definition ___builtin_fmadd : ident := 42%positive.
+Definition ___builtin_fmax : ident := 40%positive.
+Definition ___builtin_fmin : ident := 41%positive.
+Definition ___builtin_fmsub : ident := 43%positive.
+Definition ___builtin_fnmadd : ident := 44%positive.
+Definition ___builtin_fnmsub : ident := 45%positive.
+Definition ___builtin_fsqrt : ident := 5%positive.
+Definition ___builtin_membar : ident := 9%positive.
+Definition ___builtin_memcpy_aligned : ident := 6%positive.
+Definition ___builtin_nop : ident := 50%positive.
+Definition ___builtin_read16_reversed : ident := 46%positive.
+Definition ___builtin_read32_reversed : ident := 47%positive.
+Definition ___builtin_va_arg : ident := 11%positive.
+Definition ___builtin_va_copy : ident := 12%positive.
+Definition ___builtin_va_end : ident := 13%positive.
+Definition ___builtin_va_start : ident := 10%positive.
+Definition ___builtin_write16_reversed : ident := 48%positive.
+Definition ___builtin_write32_reversed : ident := 49%positive.
+Definition ___compcert_i64_dtos : ident := 18%positive.
+Definition ___compcert_i64_dtou : ident := 19%positive.
+Definition ___compcert_i64_sar : ident := 30%positive.
+Definition ___compcert_i64_sdiv : ident := 24%positive.
+Definition ___compcert_i64_shl : ident := 28%positive.
+Definition ___compcert_i64_shr : ident := 29%positive.
+Definition ___compcert_i64_smod : ident := 26%positive.
+Definition ___compcert_i64_smulh : ident := 31%positive.
+Definition ___compcert_i64_stod : ident := 20%positive.
+Definition ___compcert_i64_stof : ident := 22%positive.
+Definition ___compcert_i64_udiv : ident := 25%positive.
+Definition ___compcert_i64_umod : ident := 27%positive.
+Definition ___compcert_i64_umulh : ident := 32%positive.
+Definition ___compcert_i64_utod : ident := 21%positive.
+Definition ___compcert_i64_utof : ident := 23%positive.
+Definition ___compcert_va_composite : ident := 17%positive.
+Definition ___compcert_va_float64 : ident := 16%positive.
+Definition ___compcert_va_int32 : ident := 14%positive.
+Definition ___compcert_va_int64 : ident := 15%positive.
+Definition _c : ident := 61%positive.
+Definition _d : ident := 60%positive.
+Definition _getchar : ident := 52%positive.
+Definition _i : ident := 54%positive.
+Definition _main : ident := 62%positive.
+Definition _n : ident := 59%positive.
+Definition _print_int : ident := 58%positive.
+Definition _print_intr : ident := 57%positive.
+Definition _putchar : ident := 53%positive.
+Definition _q : ident := 55%positive.
+Definition _r : ident := 56%positive.
+Definition _t'1 : ident := 63%positive.
+Definition _t'2 : ident := 64%positive.
 
-Definition f_Xnode_add := {|
+Definition f_print_intr := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _Xnode noattr))) :: nil);
+  fn_params := ((_i, tuint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_q, (tptr (Tstruct _XList noattr))) :: (_t'2, tuint) ::
-               (_t'1, (tptr (Tstruct _Xnode noattr))) :: nil);
+  fn_temps := ((_q, tuint) :: (_r, tuint) :: nil);
   fn_body :=
-(Ssequence
-  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-    (Sreturn None)
-    Sskip)
+(Sifthenelse (Ebinop One (Etempvar _i tuint) (Econst_int (Int.repr 0) tint)
+               tint)
   (Ssequence
+    (Sset _q
+      (Ebinop Odiv (Etempvar _i tuint) (Econst_int (Int.repr 10) tuint)
+        tuint))
     (Ssequence
-      (Sset _t'2
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-            (Tstruct _Xnode noattr)) _v tuint))
-      (Sassign
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-            (Tstruct _Xnode noattr)) _v tuint)
-        (Ebinop Oadd (Etempvar _t'2 tuint) (Econst_int (Int.repr 1) tint)
-          tuint)))
-    (Ssequence
-      (Sset _q
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-            (Tstruct _Xnode noattr)) _list (tptr (Tstruct _XList noattr))))
-      (Sloop
-        (Ssequence
-          (Sifthenelse (Ebinop One
-                         (Etempvar _q (tptr (Tstruct _XList noattr)))
-                         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
-                         tint)
-            Sskip
-            Sbreak)
-          (Ssequence
-            (Sset _t'1
-              (Efield
-                (Ederef (Etempvar _q (tptr (Tstruct _XList noattr)))
-                  (Tstruct _XList noattr)) _node
-                (tptr (Tstruct _Xnode noattr))))
-            (Scall None
-              (Evar _Xnode_add (Tfunction
-                                 (Tcons (tptr (Tstruct _Xnode noattr)) Tnil)
-                                 tvoid cc_default))
-              ((Etempvar _t'1 (tptr (Tstruct _Xnode noattr))) :: nil))))
-        (Sset _q
-          (Efield
-            (Ederef (Etempvar _q (tptr (Tstruct _XList noattr)))
-              (Tstruct _XList noattr)) _next (tptr (Tstruct _XList noattr))))))))
-|}.
-
-Definition f_Ynode_add := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _Ynode noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_t'2, tuint) :: (_t'1, (tptr (Tstruct _YList noattr))) ::
-               nil);
-  fn_body :=
-(Ssequence
-  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _Ynode noattr)))
-                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-    (Sreturn None)
-    Sskip)
-  (Ssequence
-    (Ssequence
-      (Sset _t'2
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Ynode noattr)))
-            (Tstruct _Ynode noattr)) _v tuint))
-      (Sassign
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Ynode noattr)))
-            (Tstruct _Ynode noattr)) _v tuint)
-        (Ebinop Oadd (Etempvar _t'2 tuint) (Econst_int (Int.repr 1) tint)
-          tuint)))
-    (Ssequence
-      (Sset _t'1
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Ynode noattr)))
-            (Tstruct _Ynode noattr)) _list (tptr (Tstruct _YList noattr))))
-      (Scall None
-        (Evar _YList_add (Tfunction
-                           (Tcons (tptr (Tstruct _YList noattr)) Tnil) tvoid
-                           cc_default))
-        ((Etempvar _t'1 (tptr (Tstruct _YList noattr))) :: nil)))))
-|}.
-
-Definition f_YList_add := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _YList noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_t'2, (tptr (Tstruct _BinaryTree noattr))) ::
-               (_t'1, (tptr (Tstruct _YList noattr))) :: nil);
-  fn_body :=
-(Ssequence
-  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _YList noattr)))
-                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-    (Sreturn None)
-    Sskip)
-  (Ssequence
-    (Ssequence
-      (Sset _t'2
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _YList noattr)))
-            (Tstruct _YList noattr)) _tree
-          (tptr (Tstruct _BinaryTree noattr))))
-      (Scall None
-        (Evar _YTree_add (Tfunction
-                           (Tcons (tptr (Tstruct _BinaryTree noattr)) Tnil)
-                           tvoid cc_default))
-        ((Etempvar _t'2 (tptr (Tstruct _BinaryTree noattr))) :: nil)))
-    (Ssequence
-      (Sset _t'1
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _YList noattr)))
-            (Tstruct _YList noattr)) _next (tptr (Tstruct _YList noattr))))
-      (Scall None
-        (Evar _YList_add (Tfunction
-                           (Tcons (tptr (Tstruct _YList noattr)) Tnil) tvoid
-                           cc_default))
-        ((Etempvar _t'1 (tptr (Tstruct _YList noattr))) :: nil)))))
-|}.
-
-Definition f_YTree_add := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _BinaryTree noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_t'3, (tptr (Tstruct _Ynode noattr))) ::
-               (_t'2, (tptr (Tstruct _BinaryTree noattr))) ::
-               (_t'1, (tptr (Tstruct _BinaryTree noattr))) :: nil);
-  fn_body :=
-(Ssequence
-  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _BinaryTree noattr)))
-                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-    (Sreturn None)
-    Sskip)
-  (Ssequence
-    (Ssequence
-      (Sset _t'3
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _BinaryTree noattr)))
-            (Tstruct _BinaryTree noattr)) _node
-          (tptr (Tstruct _Ynode noattr))))
-      (Scall None
-        (Evar _Ynode_add (Tfunction
-                           (Tcons (tptr (Tstruct _Ynode noattr)) Tnil) tvoid
-                           cc_default))
-        ((Etempvar _t'3 (tptr (Tstruct _Ynode noattr))) :: nil)))
-    (Ssequence
-      (Ssequence
-        (Sset _t'2
-          (Efield
-            (Ederef (Etempvar _p (tptr (Tstruct _BinaryTree noattr)))
-              (Tstruct _BinaryTree noattr)) _left
-            (tptr (Tstruct _BinaryTree noattr))))
-        (Scall None
-          (Evar _YTree_add (Tfunction
-                             (Tcons (tptr (Tstruct _BinaryTree noattr)) Tnil)
-                             tvoid cc_default))
-          ((Etempvar _t'2 (tptr (Tstruct _BinaryTree noattr))) :: nil)))
-      (Ssequence
-        (Sset _t'1
-          (Efield
-            (Ederef (Etempvar _p (tptr (Tstruct _BinaryTree noattr)))
-              (Tstruct _BinaryTree noattr)) _right
-            (tptr (Tstruct _BinaryTree noattr))))
-        (Scall None
-          (Evar _YTree_add (Tfunction
-                             (Tcons (tptr (Tstruct _BinaryTree noattr)) Tnil)
-                             tvoid cc_default))
-          ((Etempvar _t'1 (tptr (Tstruct _BinaryTree noattr))) :: nil))))))
-|}.
-
-Definition f_Xfoo := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _Xnode noattr))) :: nil);
-  fn_vars := ((_q, (Tstruct _Xnode noattr)) :: nil);
-  fn_temps := ((_t'4, (tptr (Tstruct _XList noattr))) :: (_t'3, tuint) ::
-               (_t'2, (tptr (Tstruct _XList noattr))) :: (_t'1, tuint) ::
-               nil);
-  fn_body :=
-(Ssequence
-  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-    (Sreturn None)
-    Sskip)
-  (Ssequence
-    (Ssequence
-      (Sset _t'4
-        (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-            (Tstruct _Xnode noattr)) _list (tptr (Tstruct _XList noattr))))
-      (Sassign
-        (Efield (Evar _q (Tstruct _Xnode noattr)) _list
-          (tptr (Tstruct _XList noattr)))
-        (Etempvar _t'4 (tptr (Tstruct _XList noattr)))))
-    (Ssequence
-      (Ssequence
-        (Sset _t'3
-          (Efield
-            (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-              (Tstruct _Xnode noattr)) _v tuint))
-        (Sassign (Efield (Evar _q (Tstruct _Xnode noattr)) _v tuint)
-          (Etempvar _t'3 tuint)))
+      (Sset _r
+        (Ebinop Omod (Etempvar _i tuint) (Econst_int (Int.repr 10) tuint)
+          tuint))
       (Ssequence
         (Scall None
-          (Evar _Xnode_add (Tfunction
-                             (Tcons (tptr (Tstruct _Xnode noattr)) Tnil)
-                             tvoid cc_default))
-          ((Eaddrof (Evar _q (Tstruct _Xnode noattr))
-             (tptr (Tstruct _Xnode noattr))) :: nil))
-        (Ssequence
-          (Ssequence
-            (Sset _t'2
-              (Efield (Evar _q (Tstruct _Xnode noattr)) _list
-                (tptr (Tstruct _XList noattr))))
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-                  (Tstruct _Xnode noattr)) _list
-                (tptr (Tstruct _XList noattr)))
-              (Etempvar _t'2 (tptr (Tstruct _XList noattr)))))
-          (Ssequence
-            (Sset _t'1 (Efield (Evar _q (Tstruct _Xnode noattr)) _v tuint))
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _p (tptr (Tstruct _Xnode noattr)))
-                  (Tstruct _Xnode noattr)) _v tuint) (Etempvar _t'1 tuint))))))))
+          (Evar _print_intr (Tfunction (Tcons tuint Tnil) tvoid cc_default))
+          ((Etempvar _q tuint) :: nil))
+        (Scall None
+          (Evar _putchar (Tfunction (Tcons tint Tnil) tint cc_default))
+          ((Ebinop Oadd (Etempvar _r tuint) (Econst_int (Int.repr 48) tint)
+             tuint) :: nil)))))
+  Sskip)
+|}.
+
+Definition f_print_int := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_i, tuint) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Sifthenelse (Ebinop Oeq (Etempvar _i tuint) (Econst_int (Int.repr 0) tint)
+               tint)
+  (Scall None (Evar _putchar (Tfunction (Tcons tint Tnil) tint cc_default))
+    ((Econst_int (Int.repr 48) tint) :: nil))
+  (Scall None
+    (Evar _print_intr (Tfunction (Tcons tuint Tnil) tvoid cc_default))
+    ((Etempvar _i tuint) :: nil)))
 |}.
 
 Definition f_main := {|
@@ -321,31 +116,53 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tschar) :: (_t'2, tint) ::
+               (_t'1, tint) :: nil);
   fn_body :=
-(Sreturn (Some (Econst_int (Int.repr 0) tint)))
+(Ssequence
+  (Ssequence
+    (Sset _n (Econst_int (Int.repr 0) tint))
+    (Ssequence
+      (Ssequence
+        (Scall (Some _t'1) (Evar _getchar (Tfunction Tnil tint cc_default))
+          nil)
+        (Sset _c (Ecast (Etempvar _t'1 tint) tschar)))
+      (Ssequence
+        (Swhile
+          (Ebinop Olt (Etempvar _n tuint) (Econst_int (Int.repr 1000) tint)
+            tint)
+          (Ssequence
+            (Sset _d
+              (Ebinop Osub (Ecast (Etempvar _c tschar) tuint)
+                (Ecast (Econst_int (Int.repr 48) tint) tuint) tuint))
+            (Ssequence
+              (Sifthenelse (Ebinop Oge (Etempvar _d tuint)
+                             (Econst_int (Int.repr 10) tint) tint)
+                Sbreak
+                Sskip)
+              (Ssequence
+                (Sset _n
+                  (Ebinop Oadd (Etempvar _n tuint) (Etempvar _d tuint) tuint))
+                (Ssequence
+                  (Scall None
+                    (Evar _print_int (Tfunction (Tcons tuint Tnil) tvoid
+                                       cc_default))
+                    ((Etempvar _n tuint) :: nil))
+                  (Ssequence
+                    (Scall None
+                      (Evar _putchar (Tfunction (Tcons tint Tnil) tint
+                                       cc_default))
+                      ((Econst_int (Int.repr 10) tint) :: nil))
+                    (Ssequence
+                      (Scall (Some _t'2)
+                        (Evar _getchar (Tfunction Tnil tint cc_default)) nil)
+                      (Sset _c (Ecast (Etempvar _t'2 tint) tschar)))))))))
+        (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
+  (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _Xnode Struct
-   ((_list, (tptr (Tstruct _XList noattr))) :: (_v, tuint) :: nil)
-   noattr ::
- Composite _XList Struct
-   ((_node, (tptr (Tstruct _Xnode noattr))) ::
-    (_next, (tptr (Tstruct _XList noattr))) :: nil)
-   noattr ::
- Composite _Ynode Struct
-   ((_list, (tptr (Tstruct _YList noattr))) :: (_v, tuint) :: nil)
-   noattr ::
- Composite _YList Struct
-   ((_tree, (tptr (Tstruct _BinaryTree noattr))) ::
-    (_next, (tptr (Tstruct _YList noattr))) :: nil)
-   noattr ::
- Composite _BinaryTree Struct
-   ((_node, (tptr (Tstruct _Ynode noattr))) ::
-    (_left, (tptr (Tstruct _BinaryTree noattr))) ::
-    (_right, (tptr (Tstruct _BinaryTree noattr))) :: nil)
-   noattr :: nil).
+nil.
 
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___builtin_bswap,
@@ -589,14 +406,20 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_Xnode_add, Gfun(Internal f_Xnode_add)) ::
- (_Ynode_add, Gfun(Internal f_Ynode_add)) ::
- (_YList_add, Gfun(Internal f_YList_add)) ::
- (_YTree_add, Gfun(Internal f_YTree_add)) ::
- (_Xfoo, Gfun(Internal f_Xfoo)) :: (_main, Gfun(Internal f_main)) :: nil).
+ (_getchar,
+   Gfun(External (EF_external "getchar"
+                   (mksignature nil (Some AST.Tint) cc_default)) Tnil tint
+     cc_default)) ::
+ (_putchar,
+   Gfun(External (EF_external "putchar"
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tint Tnil) tint cc_default)) ::
+ (_print_intr, Gfun(Internal f_print_intr)) ::
+ (_print_int, Gfun(Internal f_print_int)) ::
+ (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _Xfoo :: _YTree_add :: _YList_add :: _Ynode_add :: _Xnode_add ::
+(_main :: _print_int :: _print_intr :: _putchar :: _getchar ::
  ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

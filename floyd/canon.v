@@ -2078,7 +2078,7 @@ Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> 
       return_inner_gen S ov_gen (exp post1) (exp post2).
 
 Lemma return_inner_gen_EX: forall S ov_gen A post1 post2,
-  (forall a: A, exists P, return_inner_gen S ov_gen (post1 a) P /\ P = post2 a) ->
+  (forall a: A, exists P, return_inner_gen S ov_gen (post1 a) P /\ post2 a = P) ->
   return_inner_gen S ov_gen (exp post1) (exp post2).
 Proof.
   intros.

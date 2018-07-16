@@ -1090,7 +1090,6 @@ Proof. start_function.
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
     idtac "previous timing was for go_lower (goal: 12secs)".
     apply andp_right; [ apply prop_right; trivial | ].
-    apply andp_right; [ apply prop_right; split; [ omega | trivial] |].
     apply andp_right; [ apply prop_right; repeat split; trivial |].
     Exists (HMAC256 (V ++ [i] ++ (if na then contents else [])) key).
 

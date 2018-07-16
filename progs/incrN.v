@@ -53,22 +53,143 @@ Definition ___compcert_va_composite : ident := 17%positive.
 Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
-Definition _f : ident := 54%positive.
-Definition _i : ident := 52%positive.
-Definition _j : ident := 55%positive.
-Definition _main : ident := 56%positive.
-Definition _myfunc : ident := 53%positive.
-Definition _t'1 : ident := 57%positive.
+Definition _acquire : ident := 54%positive.
+Definition _args : ident := 68%positive.
+Definition _ctr : ident := 60%positive.
+Definition _ctr_lock : ident := 59%positive.
+Definition _dest_ctr : ident := 64%positive.
+Definition _freelock : ident := 53%positive.
+Definition _freelock2 : ident := 56%positive.
+Definition _i : ident := 70%positive.
+Definition _i__1 : ident := 71%positive.
+Definition _incr : ident := 67%positive.
+Definition _init_ctr : ident := 63%positive.
+Definition _l : ident := 65%positive.
+Definition _l__1 : ident := 72%positive.
+Definition _lockc : ident := 62%positive.
+Definition _main : ident := 73%positive.
+Definition _makelock : ident := 52%positive.
+Definition _release : ident := 55%positive.
+Definition _release2 : ident := 57%positive.
+Definition _spawn : ident := 58%positive.
+Definition _t : ident := 66%positive.
+Definition _thread_func : ident := 69%positive.
+Definition _thread_lock : ident := 61%positive.
 
-Definition f_myfunc := {|
-  fn_return := tint;
+Definition v_ctr_lock := {|
+  gvar_info := (tarray (tptr tvoid) 2);
+  gvar_init := (Init_space 8 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_ctr := {|
+  gvar_info := tuint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_thread_lock := {|
+  gvar_info := (tarray (tarray (tptr tvoid) 2) 5);
+  gvar_init := (Init_space 40 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition f_init_ctr := {|
+  fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_i, tint) :: nil);
+  fn_params := nil;
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_lockc, (tptr (tarray (tptr tvoid) 2))) :: nil);
   fn_body :=
-(Sreturn (Some (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
-                 tint)))
+(Ssequence
+  (Sassign (Evar _ctr tuint) (Econst_int (Int.repr 0) tint))
+  (Ssequence
+    (Sset _lockc
+      (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+        (tptr (tarray (tptr tvoid) 2))))
+    (Ssequence
+      (Scall None
+        (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                          cc_default))
+        ((Ecast (Etempvar _lockc (tptr (tarray (tptr tvoid) 2)))
+           (tptr tvoid)) :: nil))
+      (Scall None
+        (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+        ((Ecast (Etempvar _lockc (tptr (tarray (tptr tvoid) 2)))
+           (tptr tvoid)) :: nil)))))
+|}.
+
+Definition f_dest_ctr := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := ((_lockc, (tptr (tarray (tptr tvoid) 2))) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _lockc
+    (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+      (tptr (tarray (tptr tvoid) 2))))
+  (Ssequence
+    (Scall None
+      (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+      ((Ecast (Evar _ctr_lock (tarray (tptr tvoid) 2)) (tptr tvoid)) :: nil))
+    (Scall None
+      (Evar _freelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+      ((Ecast (Evar _ctr_lock (tarray (tptr tvoid) 2)) (tptr tvoid)) :: nil))))
+|}.
+
+Definition f_incr := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := ((_l, (tptr (tarray (tptr tvoid) 2))) :: (_t, tuint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _l
+    (Eaddrof (Evar _ctr_lock (tarray (tptr tvoid) 2))
+      (tptr (tarray (tptr tvoid) 2))))
+  (Ssequence
+    (Scall None
+      (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+      ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
+       nil))
+    (Ssequence
+      (Sset _t (Evar _ctr tuint))
+      (Ssequence
+        (Sassign (Evar _ctr tuint)
+          (Ebinop Oadd (Etempvar _t tuint) (Econst_int (Int.repr 1) tint)
+            tuint))
+        (Scall None
+          (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                           cc_default))
+          ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
+           nil))))))
+|}.
+
+Definition f_thread_func := {|
+  fn_return := (tptr tvoid);
+  fn_callconv := cc_default;
+  fn_params := ((_args, (tptr tvoid)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_l, (tptr (tarray (tptr tvoid) 2))) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _l
+    (Ecast (Etempvar _args (tptr tvoid)) (tptr (tarray (tptr tvoid) 2))))
+  (Ssequence
+    (Scall None (Evar _incr (Tfunction Tnil tvoid cc_default)) nil)
+    (Ssequence
+      (Scall None
+        (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                          cc_default))
+        ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
+         nil))
+      (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))))
 |}.
 
 Definition f_main := {|
@@ -76,21 +197,85 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_f, (tptr (Tfunction (Tcons tint Tnil) tint cc_default))) ::
-               (_j, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_l, (tptr (tarray (tptr tvoid) 2))) ::
+               (_i__1, tint) :: (_l__1, (tptr (tarray (tptr tvoid) 2))) ::
+               (_t, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Sset _f
-      (Eaddrof (Evar _myfunc (Tfunction (Tcons tint Tnil) tint cc_default))
-        (tptr (Tfunction (Tcons tint Tnil) tint cc_default))))
+    (Scall None (Evar _init_ctr (Tfunction Tnil tvoid cc_default)) nil)
     (Ssequence
       (Ssequence
-        (Scall (Some _t'1)
-          (Etempvar _f (tptr (Tfunction (Tcons tint Tnil) tint cc_default)))
-          ((Econst_int (Int.repr 3) tint) :: nil))
-        (Sset _j (Etempvar _t'1 tint)))
-      (Sreturn (Some (Etempvar _j tint)))))
+        (Sset _i (Econst_int (Int.repr 0) tint))
+        (Sloop
+          (Ssequence
+            (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                           (Econst_int (Int.repr 5) tint) tint)
+              Sskip
+              Sbreak)
+            (Ssequence
+              (Sset _l
+                (Ebinop Oadd
+                  (Evar _thread_lock (tarray (tarray (tptr tvoid) 2) 5))
+                  (Etempvar _i tint) (tptr (tarray (tptr tvoid) 2))))
+              (Ssequence
+                (Scall None
+                  (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                    cc_default))
+                  ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2)))
+                     (tptr tvoid)) :: nil))
+                (Scall None
+                  (Evar _spawn (Tfunction
+                                 (Tcons
+                                   (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
+                                           (tptr tvoid) cc_default))
+                                   (Tcons (tptr tvoid) Tnil)) tvoid
+                                 cc_default))
+                  ((Ecast
+                     (Eaddrof
+                       (Evar _thread_func (Tfunction
+                                            (Tcons (tptr tvoid) Tnil)
+                                            (tptr tvoid) cc_default))
+                       (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
+                               (tptr tvoid) cc_default))) (tptr tvoid)) ::
+                   (Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2)))
+                     (tptr tvoid)) :: nil)))))
+          (Sset _i
+            (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+              tint))))
+      (Ssequence
+        (Ssequence
+          (Sset _i__1 (Econst_int (Int.repr 0) tint))
+          (Sloop
+            (Ssequence
+              (Sifthenelse (Ebinop Olt (Etempvar _i__1 tint)
+                             (Econst_int (Int.repr 5) tint) tint)
+                Sskip
+                Sbreak)
+              (Ssequence
+                (Sset _l__1
+                  (Ebinop Oadd
+                    (Evar _thread_lock (tarray (tarray (tptr tvoid) 2) 5))
+                    (Etempvar _i__1 tint) (tptr (tarray (tptr tvoid) 2))))
+                (Ssequence
+                  (Scall None
+                    (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                     cc_default))
+                    ((Ecast (Etempvar _l__1 (tptr (tarray (tptr tvoid) 2)))
+                       (tptr tvoid)) :: nil))
+                  (Scall None
+                    (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil)
+                                       tvoid cc_default))
+                    ((Ecast (Etempvar _l__1 (tptr (tarray (tptr tvoid) 2)))
+                       (tptr tvoid)) :: nil)))))
+            (Sset _i__1
+              (Ebinop Oadd (Etempvar _i__1 tint)
+                (Econst_int (Int.repr 1) tint) tint))))
+        (Ssequence
+          (Scall None (Evar _dest_ctr (Tfunction Tnil tvoid cc_default)) nil)
+          (Ssequence
+            (Sset _t (Evar _ctr tuint))
+            (Sreturn (Some (Etempvar _t tuint))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
@@ -339,10 +524,48 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_myfunc, Gfun(Internal f_myfunc)) :: (_main, Gfun(Internal f_main)) :: nil).
+ (_makelock,
+   Gfun(External (EF_external "makelock"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_freelock,
+   Gfun(External (EF_external "freelock"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_acquire,
+   Gfun(External (EF_external "acquire"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_release,
+   Gfun(External (EF_external "release"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_freelock2,
+   Gfun(External (EF_external "freelock2"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_release2,
+   Gfun(External (EF_external "release2"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_spawn,
+   Gfun(External (EF_external "spawn"
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
+                     cc_default))
+     (Tcons
+       (tptr (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default))
+       (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
+ (_ctr_lock, Gvar v_ctr_lock) :: (_ctr, Gvar v_ctr) ::
+ (_thread_lock, Gvar v_thread_lock) ::
+ (_init_ctr, Gfun(Internal f_init_ctr)) ::
+ (_dest_ctr, Gfun(Internal f_dest_ctr)) :: (_incr, Gfun(Internal f_incr)) ::
+ (_thread_func, Gfun(Internal f_thread_func)) ::
+ (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _myfunc :: ___builtin_debug :: ___builtin_nop ::
+(_main :: _thread_func :: _incr :: _dest_ctr :: _init_ctr :: _thread_lock ::
+ _ctr :: _ctr_lock :: _spawn :: _release2 :: _freelock2 :: _release ::
+ _acquire :: _freelock :: _makelock :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

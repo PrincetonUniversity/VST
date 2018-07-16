@@ -71,6 +71,7 @@ Proof.
   Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength (map Vint ys) = 16)
      as XLYL by entailer!. (*2 versus 2.6*)
   destruct XLYL as [XL YL].
+  unfold htrue_loop1_statement.
   Time forward_for_simple_bound 16 (EX i:Z,
    (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
@@ -212,6 +213,7 @@ Proof. intros. abbreviate_semax.
   Time assert_PROP (Zlength (map Vint intsums) = 16) as SL by entailer!. (*0.9 versus 2.7*)
   rewrite Zlength_map in SL.
   thaw FR1.
+  unfold HTrue_loop2_statement.
   Time forward_for_simple_bound 4 (EX i:Z,
   (PROP  ()
    LOCAL  ((*NOTE: we have to remove the old i here to get things to work: temp _i (Vint (Int.repr 16)); *)
@@ -503,6 +505,7 @@ HTrue_loop3_statement
 Proof. intros. abbreviate_semax.
  Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength OUT = 32) as XX by entailer!. (*1.6 versus 3.5*)
  rewrite Zlength_map in XX. destruct XX as [ZL_X OL].
+ unfold HTrue_loop3_statement.
  Time forward_for_simple_bound 4 (EX i:Z,
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;

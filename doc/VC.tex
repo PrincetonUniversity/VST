@@ -968,10 +968,9 @@ semicolon to indicate separating conjunction.
 The \LOCAL{} part of an assertion is a
 \emph{local} predicate, that is, a predicate about the values
 of local variables.  It's an \emph{ordinary conjunction}
-(not separating) of its individual \lstinline{temp}
-and \lstinline{lvar} clauses.
+(not separating) of its individual \lstinline{temp}, \lstinline{lvar} and \lstinline{gvars} clauses.
 You can think of a local predicate as Coq type
-\lstinline{environ->Prop}, where \lstinline{environ} is
+\lstinline{environ->Prop} (but actually it is not, see \autopageref{refcard:localdefs}), where \lstinline{environ} is
 the type of run-time local-variable frames.
 
 A program assertion (precondition, postcondition, loop invariant, etc.)
@@ -1317,7 +1316,7 @@ the \lstinline{start_function} tactic ``unpacks''
 gv: globals
 ______________________________________(1/1)
 semax Delta
- (PROP  ()  LOCAL  (gvar _four (gv _four); gvars gv)
+ (PROP  ()  LOCAL  (gvars gv)
   SEP (data_at Ews (tarray tuint 4)
      (map Vint [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4]) (gv _four)))
  $\mbox{\emph{(\ldots{}function body\ldots)}}$
@@ -1892,15 +1891,15 @@ Definition t_arr := Tarray t_list 5 noattr.
 Somewhere inside \lstinline{f}, we might have the
 assertion,
 \begin{lstlisting}
-PROP() LOCAL(temp _a $a$, temp _p $p$, gvar _L $L$)
-SEP(data_at Ews t_list (Vint (Int.repr 0), nullval) $L$;
+PROP() LOCAL(temp _a $a$, temp _p $p$, gvars gv)
+SEP(data_at Ews t_list (Vint (Int.repr 0), nullval) (gv _L);
      data_at $\pi$ t_arr (list_repeat (Z.to_nat 5) (Vint (Int.repr 1), $p$)) $a$;
      data_at $\pi$ t_list (default_val t_list) $p$)
 \end{lstlisting}
 This assertion says, ``Local variable \lstinline{_a} contains
 address $a$, \lstinline{_p} contains address $p$, global variable
-\lstinline{_L} is at address $L$.
-There is a \lstinline{struct list} at $L$
+\lstinline{_L} is at address (\lstinline{gv _L}).
+There is a \lstinline{struct list} at (\lstinline{gv _L})
 with permission-share \lstinline{Ews} (``extern writable share''),
 whose \lstinline{hd} field contains 0 and whose
 \lstinline{tl} contains a null pointer.
@@ -1915,8 +1914,8 @@ with permission $\pi$.''
 In pencil-and-paper separation logic, we write
 $q \mapsto i$ to mean\newline
 \lstinline{data_at Tsh tint (Vint (Int.repr $i$)) $q$}.
-We write $L \mapsto (0,\mbox{\textsc{null}})$ to mean
-\lstinline{data_at Tsh t_list (Vint (Int.repr $0$), nullval) $L$}.
+We write $(\mathsf{gv \ \_L}) \mapsto (0,\mbox{\textsc{null}})$ to mean
+\lstinline{data_at Tsh t_list (Vint (Int.repr $0$), nullval) (gv _L)}.
 We write $p \mapsto (\_,\_)$ to mean
 \lstinline{data_at $\pi$ t_list (default_val t_list) $p$}.
 
@@ -1942,7 +1941,7 @@ The command  \lstinline{i = p.y2.x2;} does a nested field load.
 We call \lstinline{y2.x2} the \emph{field path}.
 The precondition for this command might include the assertion,
 \begin{lstlisting}
-LOCAL(gvar _pb pb) $~$ SEP(data_at $\mathit{sh}$ t_struct_b ($u$,($v$,$w$)) pb)
+LOCAL(gvars gv) $~$ SEP(data_at $\mathit{sh}$ t_struct_b ($u$,($v$,$w$)) (gv _pb))
 \end{lstlisting}
 The postcondition (after the load) would include the new \LOCAL{} fact,
 \lstinline{temp _i $w$}.
@@ -1951,15 +1950,15 @@ The tactic \lstinline{(unfold_data_at 1%nat)}
 \label{refcard:unfold-data-at}
 changes the SEP part of the assertion as follows:
 \begin{lstlisting}
-SEP(field_at Ews t_struct_b (DOT _y1) (Vint $u$) pb;
-    field_at Ews t_struct_b (DOT _y2) (Vfloat $v$, Vint $w$) pb)
+SEP(field_at Ews t_struct_b (DOT _y1) (Vint $u$) (gv _pb);
+    field_at Ews t_struct_b (DOT _y2) (Vfloat $v$, Vint $w$) (gv _pb))
 \end{lstlisting}
 and then doing \lstinline{(unfold_field_at 2%nat)}
 unfolds the second \lstinline{field_at},
 \begin{lstlisting}
-SEP(field_at Ews t_struct_b (DOT _y1) (Vint $u$) pb;
-    field_at Ews t_struct_b (DOT _y2 DOT _x1) (Vfloat $v$) pb;
-    field_at Ews t_struct_b (DOT _y2 DOT _x2) (Vint $w$) pb)
+SEP(field_at Ews t_struct_b (DOT _y1) (Vint $u$) (gv _pb);
+    field_at Ews t_struct_b (DOT _y2 DOT _x1) (Vfloat $v$) (gv _pb);
+    field_at Ews t_struct_b (DOT _y2 DOT _x2) (Vint $w$) (gv _pb))
 \end{lstlisting}
 The third argument of \lstinline{field_at} represents
 the \emph{path} of structure-fields that leads to a given
@@ -2060,13 +2059,13 @@ Our API spec for \lstinline{get} reads as,
 \begin{lstlisting}
 Definition get_spec :=
  DECLARE _get
-  WITH v : reptype' t_struct_b, p : val
+  WITH v : reptype' t_struct_b, gv : globals
   PRE  []
-    PROP () LOCAL(gvar _p p)
-    SEP(data_at Ews t_struct_b (repinj _ $$ v) p)
+    PROP () LOCAL(gvars gv)
+    SEP(data_at Ews t_struct_b (repinj _ $$ v) (gv _p))
   POST [ tint ]
     PROP() LOCAL (temp ret_temp (Vint (snd (snd v))))
-    SEP (data_at Ews t_struct_b (repinj _ $$ v) p).
+    SEP (data_at Ews t_struct_b (repinj _ $$ v) (gv _p)).
 \end{lstlisting}
 In this program, \lstinline{reptype' t_struct_b = (int*(float*int))},
 and \newline
@@ -2076,16 +2075,16 @@ One could also have specified \lstinline{get} without \lstinline{reptype'} at al
 \begin{lstlisting}
 Definition get_spec :=
  DECLARE _get
-  WITH i: Z, x: float, j: int, p : val
+  WITH i: Z, x: float, j: int, gv : globals
   PRE  []
-    PROP () LOCAL(gvar _p p)
-    SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) p)
+    PROP () LOCAL(gvars gv)
+    SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) (gv _p))
   POST [ tint ]
     PROP() LOCAL (temp ret_temp (Vint j))
-    SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) p).
+    SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) (gv _p)).
 \end{lstlisting}
 
-\chapter{{\upshape LOCAL} defs: \upshape \sffamily temp, lvar, gvar}
+\chapter{{\upshape LOCAL} defs: \upshape \sffamily temp, lvar, gvars}
 \label{refcard:localdefs}
 \label{refcard:gvar}
 
@@ -2097,18 +2096,14 @@ bind variables to their values or addresses.
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
  | lvar: ident -> type -> val -> localdef
- | gvar: ident -> val -> localdef
- | sgvar: ident -> val -> localdef
- | localprop: Prop -> localdef.
+ | gvars: globals -> localdef.
 \end{lstlisting}
 \lstinline{temp $i$ $v$} binds a nonaddressable local
 variable $i$ to its value $v$.\newline
 \lstinline{lvar $i$ $t$ $v$} binds an \emph{addressable} local
 variable $i$ (of type $t$) to its \emph{address} $v$.\newline
-\lstinline{gvar $i$ $v$} binds a \emph{visible global}
-variable $i$ to its \emph{address} $v$.\newline
-\lstinline{sgvar $i$ $v$} binds a \emph{possibly shadowed global}
-variable $i$ to its \emph{address} $v$.
+\lstinline{gvars $G$} describes the \emph{addresses} of all global variables.
+Here, $G$ maps global variable identifiers to their addresses (\lstinline{globals} is just \lstinline{(ident -> val)}).
 
 The \emph{contents} of an addressable (local or global) variable
 is on the heap, and can be described in the \lstinline{SEP} clause.
@@ -2120,16 +2115,15 @@ int f(void) { int g; int *p = &g;  g=6; return g; }
 In this program, the global variable \lstinline{g}
 is shadowed by the local variable \lstinline{g}.
 In an assertion inside the
-function body, one could write
+function body, one could still write
 \begin{lstlisting}
-PROP() LOCAL(temp _p $q$; lvar _g tint $q$; sgvar _g $p$}
-SEP(data_at Ews tint (Vint (Int.repr 2)) $p$;
+PROP() LOCAL(temp _p $q$; lvar _g tint $q$; gvars $G$}
+SEP(data_at Ews tint (Vint (Int.repr 2)) ($G$ _g);
      data_at Tsh tint (Vint (Int.repr 6)) $q$)
 \end{lstlisting}
 to describe a shadowed global variable \lstinline{_g} that
 is still there in memory but (temporarily) cannot be referred
 to by its name in the C program.
-
 
 \ychapter{\upshape\textsf{go\_lower}}{(See PLCC \autoref{ch:clight-auto})}
 \label{refcard:go-lower}
@@ -4116,21 +4110,9 @@ POST [ $\ldots$ ]
 \end{lstlisting}
 
 The client of \lstinline{myfunction} sees that
-there is a private conjunct \lstinline{MyModuleGlobs gv}
+there is a private conjunct \linebreak \lstinline{MyModuleGlobs gv}
 that (presumably) uses some global variables of MyModule,
 but it does not see their names.
-
-When you do a \lstinline{semax_body} proof of a function
-that \emph{directly} accesses a global variable such as \lstinline{_MyVar},
-and you have \lstinline{gvars gv} in your \lstinline{LOCAL} precondition,
-then \lstinline{start_function} will add
-\lstinline{gvar _MyVar (gv _Myvar)} to the LOCALs clause,
-so that your variable-accesses will work.
-
-By convention, you should put \lstinline{gv:globals} as the last
-component of your WITH clause.
-
-Sometimes you may want a LOCAL assertion \lstinline{(gvar _v (gv _v))} even for a variable \lstinline{_v} that you don't use directly in this function; you can use the tactic \lstinline{assert_gvar _v} to add it (calculated from \lstinline{Delta} and \lstinline{(gvars gv)}).
 
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}
@@ -4267,10 +4249,10 @@ a Definition for a \lstinline{WITH...PRE...POST} specification.
 
 Near the beginning of \lstinline{Lemma body_main},
 notice that we have \linebreak
-\lstinline{LOCAL (gvar _myfunc p)} in the precondition.
-That \lstinline{gvar} is needed by
+\lstinline{LOCAL (gvars gv)} in the precondition.
+That \lstinline{gvars} is needed by
 the tactic \lstinline{make_func_ptr _myfunc},
-which adds \lstinline{func_ptr' myspec p} to the SEP clause.
+which adds \lstinline{func_ptr' myspec (gv _myfunc)} to the SEP clause.
 It ``knows'' to use \lstinline{myspec} because it looks
 up \lstinline{_myfunc} in
 \lstinline{Delta} (which, in turn, is derived from \lstinline{Gprog}).
@@ -4284,18 +4266,6 @@ just use \lstinline{forward_call} as usual.  However, in such a case,
 \lstinline{forward_call} will find its funspec in a
 \lstinline{func_ptr'} SEP-clause, rather than as a global entry
 in \lstinline{Delta} as for ordinary function calls.
-
-Note:  Unfortunately, in order to get the \lstinline{gvar _myfunc} into the
-precondition of \lstinline{main},
-there must be some initialized global variable that refers to
-\lstinline{myfunc}.  That's the purpose of the (otherwise useless)
-array \lstinline{a} in this program.
-And suppose you wanted to do \lstinline{make_func_ptr} in
-some function \emph{other} than \lstinline{main}.  Then you'd
-need to add this \lstinline{gvar} to the LOCAL clause of that
-function's precondition, and pass it down from main.
-Both of these infelicities ought to be remedied in a future release.
-
 
 \ychapter{Axioms of separation logic}{(see PLCC \autoref{ch:logic})}
 These axioms of separation logic are often useful,

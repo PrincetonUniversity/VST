@@ -387,6 +387,7 @@ Proof.
   forward.
   forward_for_simple_bound 256 (gen_sbox_inv0 v_pow v_log (map Z_to_val log) (map Vint pow) gv Fr).
   { (* loop invariant holds initially: *)
+    unfold gen_sbox_inv00.
     entailer!.
     Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
     Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
@@ -516,6 +517,7 @@ Proof.
   (* generate the forward and reverse tables *)
   forward_for_simple_bound 256 (gen_ftrt_inv0 v_pow v_log (map Z_to_val log) (map Vint pow) gv).
   { (* loop invariant holds initially: *)
+    unfold gen_ftrt_inv00.
     entailer!.
   }
   { (* loop body preserves invariant: *)
