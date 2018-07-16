@@ -1627,7 +1627,7 @@ Ltac forward_for_simple_bound n Pre :=
         end
     | _ => idtac
     end;
-    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; try fwd_skip]
+    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; cbv beta; try fwd_skip]
   ].
 
 Ltac forward_for3 Inv PreInc Postcond :=
