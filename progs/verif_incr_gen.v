@@ -192,34 +192,8 @@ Proof.
   { go_lower.
     rewrite sepcon_comm.
     unfold ghost_part, ghost_ref; rewrite !ghost_part_ref_join.
-    apply own_update.
-    intros (a1, r1) ((a2, r2) & [J1 J2] & [? Hvalid]); simpl in *.
-    destruct r1; inv J2; try contradiction.
-    destruct Hvalid as (x & Hvalid).
-    hnf in Hvalid.
-    destruct a1 as [(?, ?)|], a2 as [(sh2, ?)|]; try contradiction.
-    - destruct J1 as (? & ? & ? & J1); hnf in J1; subst.
-      exists (Some (sh2, (S n + n0)%nat), Some (S z)); split; simpl.
-      + hnf; simpl.
-        repeat (split; auto).
-        constructor.
-      + split; auto.
-        exists x; hnf.
-        destruct x as [(sh', n')|].
-        * destruct Hvalid as (? & ? & ? & Hvalid); hnf in Hvalid; subst.
-          repeat (split; auto).
-        * inv Hvalid; auto.
-    - exists (Some (gsh, S n), Some (S z)); split.
-      + hnf; simpl.
-        split; auto; constructor.
-      + inv J1.
-        hnf; simpl.
-        split; auto.
-        exists x; hnf.
-        destruct x as [(sh', n')|].
-        * destruct Hvalid as (? & ? & ? & Hvalid); hnf in Hvalid; subst.
-          repeat (split; auto).
-        * inv Hvalid; auto. }
+    apply ref_add with (b := 1%nat); try (hnf; omega).
+    intros; exists (c + 1)%nat; hnf; auto. }
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (S z).

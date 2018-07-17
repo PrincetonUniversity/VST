@@ -474,6 +474,42 @@ Proof.
     rewrite eq_dec_refl; auto.
 Qed.
 
+Lemma ref_add : forall g sh a r b a' r' pp
+  (Ha : join a b a') (Hr : join r b r') (Hb : forall c, join_sub a c -> join_sub c r -> joins c b),
+  own(RA := ref_PCM P) g (Some (sh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (sh, a'), Some r') pp.
+Proof.
+  intros; apply own_update.
+  intros (c, ?) ((x, ?) & [J1 J2] & [? Hvalid]); simpl in *.
+  inv J2; [|contradiction].
+  destruct c as [(?, c)|], x as [(shx, x)|]; try contradiction.
+  - destruct J1 as (? & ? & ? & Hx).
+    destruct (Hb x) as [x' Hx'].
+    { eexists; eauto. }
+    { destruct Hvalid as [[(?, ?)|] Hvalid]; hnf in Hvalid.
+      + destruct Hvalid as (? & ? & ? & ?); eexists; eauto.
+      + inv Hvalid; apply join_sub_refl. }
+    exists (Some (shx, x'), Some r'); repeat (split; auto); try constructor; simpl.
+    + destruct (join_assoc (join_comm Hx) Hx') as (? & ? & ?).
+      eapply join_eq in Ha; eauto; subst; auto.
+    + destruct Hvalid as (d & Hvalid); hnf in Hvalid.
+      exists d; destruct d as [(shd, d)|]; hnf.
+      * destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
+        destruct (join_assoc (join_comm Hd) Hr) as (? & ? & ?).
+        eapply join_eq in Hx'; eauto; subst; auto.
+      * inv Hvalid; f_equal.
+        eapply join_eq; eauto.
+  - inv J1.
+    exists (Some (sh, a'), Some r'); repeat split; simpl; auto; try constructor.
+    destruct Hvalid as (d & Hvalid); hnf in Hvalid.
+    exists d; destruct d as [(shd, d)|]; hnf.
+    + destruct Hvalid as (? & ? & ? & Hd); repeat (split; auto).
+      destruct (join_assoc (join_comm Hd) Hr) as (? & ? & ?).
+      eapply join_eq in Ha; eauto; subst; auto.
+    + inv Hvalid; f_equal.
+      eapply join_eq; eauto.
+Qed.
+
 Lemma self_completable : forall a, completable (Some (Tsh, a)) a.
 Proof.
   intros; unfold completable.
@@ -1012,40 +1048,27 @@ Definition ghost_hist_ref sh (h r : hist_part) g :=
 Lemma hist_add : forall (sh : share) (h h' : hist_part) e p t' (Hfresh : h' t' = None),
   ghost_hist_ref sh h h' p |-- |==> ghost_hist_ref sh (map_upd h t' e) (map_upd h' t' e) p.
 Proof.
-  intros; apply own_update.
-  intros (c1, c2) ((d1, d2) & [Hjoin1 Hjoin2] & [? Hcompat]); simpl in *.
-  destruct d2 as [d2|]; [|inv Hjoin2].
-    assert (d2 = h'); subst.
-    { inv Hjoin2; auto.
-      inv H3; auto. }
-  destruct d1 as [(?, ?)|]; [|destruct c1 as [[]|]; contradiction].
-  rewrite completable_alt in Hcompat.
-  pose proof (hist_sub_upd _ _ _ t' e Hcompat).
-  assert (psepalg.Join_lower (psepalg.Join_discrete hist_part) (Some (map_upd h' t' e)) c2
-    (Some (map_upd h' t' e))).
-  { inv Hjoin2; constructor.
-    inv H4; auto. }
-  destruct c1 as [(shc, hc)|].
-  - destruct Hjoin1 as (? & ? & ? & Hj).
-    rewrite map_join_spec in Hj.
-    exists (Some (s, map_upd (map_add h hc) t' e), Some (map_upd h' t' e)).
-    destruct Hj; subst.
-    split; split; auto; simpl; rewrite ?completable_alt; auto.
-    split; auto; split; auto; split; auto.
-    rewrite map_join_spec.
-    split; [apply compatible_upd | apply map_add_upd]; auto.
-    destruct Hcompat.
-    assert (map_incl hc h') as Hincl.
-    { pose proof (map_incl_add hc h) as Hincl.
-      rewrite map_add_comm in Hincl by (symmetry; auto).
-      fold share in *; destruct (eq_dec s Tsh); subst; auto.
-      etransitivity; eauto. }
-    specialize (Hincl t').
-    destruct (hc t'); auto.
-    erewrite Hincl in Hfresh by eauto; discriminate.
-  - inv Hjoin1.
-    exists (Some (sh, map_upd h t' e), Some (map_upd h' t' e)); split; split; simpl; auto.
-    rewrite completable_alt; auto.
+  intros.
+  erewrite (add_andp (ghost_hist_ref _ _ _ _)) by apply own_valid.
+  Intros.
+  destruct H as [? Hcomp]; simpl in *.
+  rewrite completable_alt in Hcomp; destruct Hcomp as [_ Hcomp].
+  apply (ref_add(P := map_PCM)) with (b := fun k => if eq_dec k t' then Some e else None).
+  - repeat intro.
+    unfold map_upd.
+    if_tac; subst; split; auto; intros [Hh|]; auto; try discriminate.
+    if_tac in Hcomp; [congruence|].
+    apply Hcomp in Hh; congruence.
+  - repeat intro.
+    unfold map_upd.
+    if_tac; subst; split; auto; intros [|]; auto; congruence.
+  - intros ?? Hsub.
+    exists (map_upd c t' e); repeat intro.
+    unfold map_upd.
+    if_tac; subst; split; auto; intros [Hc|]; auto; try discriminate.
+    destruct Hsub as [? Hsub]; hnf in Hsub.
+    specialize (Hsub t' v) as [_ Hsub].
+    spec Hsub; auto; congruence.
 Qed.
 
 Lemma hist_incl_nil : forall h, hist_incl empty_map h.
