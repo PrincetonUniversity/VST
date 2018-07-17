@@ -21,7 +21,8 @@ Definition write (c : int) : M IO_event unit := embed (EWrite c).
 Definition IO_itree := M IO_event unit.
 
 (* We need a layer of equivalence to allow us to use the monad laws. *)
-Definition ITREE (tr : IO_itree) := EX tr' : _, !!(EquivUpToTau tr tr') && has_ext tr'.
+Definition ITREE (tr : IO_itree) := EX tr' : _, !!(EquivUpToTau tr tr') &&
+  has_ext tr'.
 
 Definition putchar_spec :=
  DECLARE _putchar
@@ -32,10 +33,9 @@ Definition putchar_spec :=
     SEP (ITREE (write c ;; k))
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint Int.zero))
+    LOCAL (temp ret_temp (Vint c))
     SEP (ITREE k).
 
-(* Is it okay to assume that the char is in range? *)
 Definition getchar_spec :=
  DECLARE _getchar
   WITH k : int -> IO_itree
@@ -107,13 +107,14 @@ Definition print_int_spec :=
 
 Definition newline := 10.
 
-CoFixpoint read_sum n : IO_itree := write_list (chars_of_Z n);; write (Int.repr newline);;
+CoFixpoint read_sum n : IO_itree :=
+  write_list (chars_of_Z n);; write (Int.repr newline);;
   c <- read;; read_sum (n + (Int.unsigned c - char0)).
 
 Definition main_itree := c <- read;; read_sum (Int.unsigned c - char0).
 
 (* Note nonstandard main_spec; in general, we probably want floyd to support
-   a version of main_spec with a starting has_ext assertion. *)
+   a version of main_pre with a starting has_ext assertion. *)
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
@@ -123,7 +124,8 @@ Definition main_spec :=
 Definition Gprog : funspecs := ltac:(with_library prog [putchar_spec; getchar_spec;
   print_intr_spec; print_int_spec; main_spec]).
 
-Lemma ITREE_impl : forall tr tr', EquivUpToTau tr tr' -> ITREE tr |-- ITREE tr'.
+Lemma ITREE_impl : forall tr tr', EquivUpToTau tr tr' ->
+  ITREE tr |-- ITREE tr'.
 Proof.
   intros.
   unfold ITREE.
@@ -132,7 +134,8 @@ Proof.
   symmetry; auto.
 Qed.
 
-Lemma ITREE_ext : forall tr tr', EquivUpToTau tr tr' -> ITREE tr = ITREE tr'.
+Lemma ITREE_ext : forall tr tr', EquivUpToTau tr tr' ->
+  ITREE tr = ITREE tr'.
 Proof.
   intros; apply pred_ext; apply ITREE_impl; auto.
   symmetry; auto.
@@ -195,7 +198,7 @@ Proof.
       rewrite <- (div_Zdiv _ 10) by omega.
       rewrite Nat2Z.id; auto. }
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
-    forward_call (Int.repr (i mod 10 + 48), tr).
+    forward_call (Int.repr (i mod 10 + char0), tr).
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
       unfold write_list.
