@@ -843,6 +843,9 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 Definition main_pre (prog: program) : list Type -> globals -> environ -> mpred :=
 (fun nil gv => globvars2pred gv (prog_vars prog)).
 
+Definition main_pre_ext {Espec: OracleKind} (prog: program) (ora: OK_ty) : list Type -> globals -> environ -> mpred :=
+(fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+
 Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=
   (fun nil _ _ => TT).
 
@@ -856,6 +859,17 @@ Definition main_spec' (prog: program)
 Definition main_spec (prog: program): funspec :=
   mk_funspec (nil, tint) cc_default
      (rmaps.ConstType globals) (main_pre prog) (main_post prog)
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition main_spec_ext' {Espec: OracleKind} (prog: program) (ora: OK_ty)
+    (post: list Type -> globals -> environ -> mpred): funspec :=
+  mk_funspec (nil, tint) cc_default
+     (rmaps.ConstType globals) (main_pre_ext prog ora) post
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition main_spec_ext {Espec: OracleKind} (prog: program) (ora: OK_ty) : funspec :=
+  mk_funspec (nil, tint) cc_default
+     (rmaps.ConstType globals) (main_pre_ext prog ora) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
@@ -1121,6 +1135,19 @@ Definition semax_prog
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec' prog post
+  | None => False
+  end.
+
+Definition semax_prog_ext
+    {Espec: OracleKind} {C: compspecs}
+     (prog: program) (z : OK_ty) (V: varspecs) (G: funspecs) : Prop :=
+  compute_list_norepet (prog_defs_names prog) = true  /\
+  all_initializers_aligned prog /\
+  cenv_cs = prog_comp_env prog /\
+  @semax_func Espec V G C (prog_funct prog) G /\
+  match_globvars (prog_vars prog) V = true /\
+  match initial_world.find_id prog.(prog_main) G with
+  | Some s => exists post, s = main_spec_ext' prog z post
   | None => False
   end.
 

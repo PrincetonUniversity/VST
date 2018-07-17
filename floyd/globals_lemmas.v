@@ -889,6 +889,25 @@ rewrite prop_true_andp by auto.
 auto.
 Qed.
 
+Lemma main_pre_ext_start:
+ forall {Espec : OracleKind} prog u gv ora,
+   main_pre_ext prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
+Proof.
+intros.
+unfold main_pre_ext.
+unfold globvars2pred,  PROPx, LOCALx, SEPx.
+unfold lift2.
+extensionality rho.
+simpl.
+normalize.
+unfold gvars_denote. unfold_lift. unfold local, lift1.
+fold (globals_of_env rho).
+rewrite sepcon_comm.
+apply pred_ext; intros; normalize.
+rewrite prop_true_andp by auto.
+auto.
+Qed.
+
 Lemma process_globvar_space:
   forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
           gz gv gvs SF c Post t,
@@ -1100,7 +1119,7 @@ go_lowerx; normalize.
 Qed.
 
 Ltac expand_main_pre :=
- rewrite main_pre_start;
+ (rewrite main_pre_start || rewrite main_pre_ext_start);
  unfold prog_vars, prog_vars'; simpl globvars2pred;
  repeat  process_idstar;
  apply eliminate_globvars2pred_nil;

@@ -1,6 +1,5 @@
-Require Import VST.veric.juicy_extspec. (* We should probably move has_ext into Separation Logic.v *)
-Require Import VST.progs.ghosts.
 Require Import VST.progs.io.
+Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
 Require Import DeepWeb.Free.Monad.Free.
 Import MonadNotations.
@@ -10,52 +9,8 @@ Require Import DeepWeb.Free.Monad.Verif.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Inductive IO_event : Type -> Type :=
-| ERead : IO_event int
-| EWrite (c : int) : IO_event unit.
-
-Definition read : M IO_event int := embed ERead.
-
-Definition write (c : int) : M IO_event unit := embed (EWrite c).
-
-Definition IO_itree := M IO_event unit.
-
-(* We need a layer of equivalence to allow us to use the monad laws. *)
-Definition ITREE (tr : IO_itree) := EX tr' : _, !!(EquivUpToTau tr tr') &&
-  has_ext tr'.
-
-Definition putchar_spec :=
- DECLARE _putchar
-  WITH c : int, k : IO_itree
-  PRE [ _c OF tint ]
-    PROP ()
-    LOCAL (temp _c (Vint c))
-    SEP (ITREE (write c ;; k))
-  POST [ tint ]
-    PROP ()
-    LOCAL (temp ret_temp (Vint c))
-    SEP (ITREE k).
-
-Definition getchar_spec :=
- DECLARE _getchar
-  WITH k : int -> IO_itree
-  PRE [ ]
-    PROP ()
-    LOCAL ()
-    SEP (ITREE (r <- read ;; k r))
-  POST [ tint ]
-   EX i : int,
-    PROP (- two_p 7 <= Int.signed i <= two_p 7 - 1)
-    LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (k i)).
-
-Fixpoint write_list l : IO_itree :=
-  match l with
-  | nil => Ret tt
-  | c :: rest => write c ;; write_list rest
-  end.
-
-Definition char0 : Z := 48.
+Definition putchar_spec := DECLARE _putchar putchar_spec.
+Definition getchar_spec := DECLARE _getchar getchar_spec.
 
 Program Fixpoint chars_of_nat n { measure n } : list int :=
   match (n / 10)%nat with
@@ -105,41 +60,24 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (ITREE tr).
 
-Definition newline := 10.
-
 CoFixpoint read_sum n : IO_itree :=
   write_list (chars_of_Z n);; write (Int.repr newline);;
   c <- read;; read_sum (n + (Int.unsigned c - char0)).
 
 Definition main_itree := c <- read;; read_sum (Int.unsigned c - char0).
 
-(* Note nonstandard main_spec; in general, we probably want floyd to support
-   a version of main_pre with a starting has_ext assertion. *)
+Definition ext_link := ext_link_prog prog.
+
+Instance IO_Espec : OracleKind := Build_OracleKind _ (IO_ext_spec ext_link).
+
 Definition main_spec :=
  DECLARE _main
-  WITH u : unit
-  PRE  [] PROP () LOCAL () SEP (ITREE main_itree)
-  POST [ tint ] PROP () LOCAL () SEP (TT).
+  WITH gv : globals
+  PRE  [] main_pre_ext prog main_itree nil gv
+  POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchar_spec; getchar_spec;
   print_intr_spec; print_int_spec; main_spec]).
-
-Lemma ITREE_impl : forall tr tr', EquivUpToTau tr tr' ->
-  ITREE tr |-- ITREE tr'.
-Proof.
-  intros.
-  unfold ITREE.
-  Intros tr1; Exists tr1; entailer!.
-  etransitivity; eauto.
-  symmetry; auto.
-Qed.
-
-Lemma ITREE_ext : forall tr tr', EquivUpToTau tr tr' ->
-  ITREE tr = ITREE tr'.
-Proof.
-  intros; apply pred_ext; apply ITREE_impl; auto.
-  symmetry; auto.
-Qed.
 
 Lemma divu_repr : forall x y,
   0 <= x <= Int.max_unsigned -> 0 <= y <= Int.max_unsigned ->
@@ -150,18 +88,6 @@ Proof.
 Qed.
 
 Opaque bind.
-
-Lemma write_list_app : forall l1 l2,
-  EquivUpToTau (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
-Proof.
-  induction l1; simpl; intros.
-  - symmetry; apply leftId.
-  - rewrite <- bindAssoc.
-    Transparent bind.
-    simpl.
-    apply cong_bind; [reflexivity|].
-    intro; apply IHl1.
-Qed.
 
 Opaque Nat.div Nat.modulo.
 
@@ -176,6 +102,8 @@ Proof.
   rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold intr.
   destruct n; reflexivity.
 Qed.
+
+Transparent bind.
 
 Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
 Proof.
@@ -284,6 +212,9 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
+  replace_SEP 0 (ITREE main_itree).
+  { go_lower.
+    apply has_ext_ITREE. }
   forward.
   unfold main_itree.
   rewrite <- !seq_assoc. (* Without this, forward_call gives a type error! *)
