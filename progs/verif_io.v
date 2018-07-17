@@ -1,4 +1,3 @@
-Require Import VST.progs.ghosts.
 Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
@@ -213,6 +212,9 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
+  replace_SEP 0 (ITREE main_itree).
+  { go_lower.
+    apply has_ext_ITREE. }
   forward.
   unfold main_itree.
   rewrite <- !seq_assoc. (* Without this, forward_call gives a type error! *)

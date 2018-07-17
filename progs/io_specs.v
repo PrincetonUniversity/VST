@@ -22,6 +22,12 @@ Definition IO_itree := M IO_event unit.
 Definition ITREE (tr : IO_itree) := EX tr' : _, !!(EquivUpToTau tr tr') &&
   has_ext tr'.
 
+Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
+Proof.
+  intro; unfold ITREE.
+  Exists tr; entailer!.
+Qed.
+
 Definition putchar_spec :=
   WITH c : int, k : IO_itree
   PRE [ 1%positive OF tint ]
