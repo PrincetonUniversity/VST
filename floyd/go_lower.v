@@ -334,7 +334,7 @@ Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
      end
   end.
 
-Definition localdef_tc (Delta: tycontext) (x: localdef): list Prop :=
+Definition localdef_tc (Delta: tycontext) (gvar_idents: list ident) (x: localdef): list Prop :=
   match x with
   | temp i v =>
       match (temp_types Delta) ! i with
@@ -343,7 +343,8 @@ Definition localdef_tc (Delta: tycontext) (x: localdef): list Prop :=
       end
   | lvar _ _ v =>
       isptr v :: headptr v :: nil
-  | _ => nil
+  | gvars gv =>
+      map (fun id => headptr (gv id)) gvar_idents
   end.
 
 Ltac pos_eqb_tac :=
@@ -352,10 +353,18 @@ Ltac pos_eqb_tac :=
   | |- context [Pos.eqb ?i ?j] => destruct (Pos.eqb i j) eqn:H; [apply Pos.eqb_eq in H | apply Pos.eqb_neq in H]
   end.
 
-Lemma localdef_local_facts: forall Delta x,
-  local (tc_environ Delta) && local (locald_denote x) |-- !! fold_right and True (localdef_tc Delta x).
+Definition legal_glob_ident (Delta: tycontext) (i: ident): bool :=
+  match (glob_types Delta) ! i with
+  | Some _ => true
+  | _ => false
+  end.
+
+Lemma localdef_local_facts: forall Delta gvar_ident x,
+  fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true ->
+  local (tc_environ Delta) && local (locald_denote x) |-- !! fold_right and True (localdef_tc Delta gvar_ident x).
 Proof.
   intros.
+  rename H into LEGAL.
   unfold local, lift1; unfold_lift.
   intros rho; simpl.
   rewrite <- prop_and.
@@ -374,17 +383,29 @@ Proof.
     destruct (Map.get (ve_of rho) i); [| inversion H0].
     destruct p, H0; subst.
     hnf; eauto.
-  + simpl.
-    auto.
+  + unfold localdef_tc.
+    induction gvar_ident; [exact I |].
+    simpl in LEGAL.
+    rewrite andb_true_iff in LEGAL.
+    destruct LEGAL as [LEGAL0 LEGAL].
+    split; [clear IHgvar_ident | apply IHgvar_ident; auto].
+    unfold gvars_denote in H0.
+    subst g.
+    unfold legal_glob_ident in LEGAL0.
+    destruct_glob_types a.
+      2: rewrite Heqo in LEGAL0; inv LEGAL0.
+    rewrite Heqo0.
+    hnf; eauto.  
 Qed.
 
-Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post,
-  local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta l) (LOCALx (l :: Qpre) (SEPx Rpre)) |-- post ->
+Lemma go_lower_localdef_one_step_canon_left: forall Delta Ppre l Qpre Rpre post gvar_ident
+  (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
+  local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre)) |-- post ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx (l :: Qpre) (SEPx Rpre)) |-- post.
 Proof.
   intros.
-  apply derives_trans with (local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta l) (LOCALx (l :: Qpre) (SEPx Rpre))); auto.
-  replace (PROPx (Ppre ++ localdef_tc Delta l)) with (PROPx (localdef_tc Delta l ++ Ppre)).
+  apply derives_trans with (local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre))); auto.
+  replace (PROPx (Ppre ++ localdef_tc Delta gvar_ident l)) with (PROPx (localdef_tc Delta gvar_ident l ++ Ppre)).
   Focus 2. {
     apply PROPx_Permutation.
     apply Permutation_app_comm.
@@ -394,10 +415,10 @@ Proof.
   apply andp_right; [solve_andp |].
   unfold PROPx. apply andp_right; [| solve_andp].
   rewrite <- andp_assoc.
-  eapply derives_trans; [apply andp_derives; [apply localdef_local_facts | apply derives_refl] |].
+  eapply derives_trans; [apply andp_derives; [apply localdef_local_facts; eauto | apply derives_refl] |].
   rewrite <- andp_assoc.
   apply andp_left1.
-  remember (localdef_tc Delta l); clear.
+  remember (localdef_tc Delta gvar_ident l); clear.
   induction l0.
   + simpl fold_right.
     apply andp_left2; auto.
@@ -406,18 +427,19 @@ Proof.
     apply andp_derives; auto.
 Qed.
 
-Definition localdefs_tc (Delta: tycontext) (Pre: list localdef): list Prop :=
-  concat (map (localdef_tc Delta) Pre).
+Definition localdefs_tc (Delta: tycontext) gvar_ident (Pre: list localdef): list Prop :=
+  concat (map (localdef_tc Delta gvar_ident) Pre).
 
-Lemma go_lower_localdef_canon_left: forall Delta Ppre Qpre Rpre post,
-  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta Qpre) (LOCALx nil (SEPx Rpre)) |-- post ->
+Lemma go_lower_localdef_canon_left: forall Delta Ppre Qpre Rpre post gvar_ident
+  (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
+  local (tc_environ Delta) && PROPx (Ppre ++ localdefs_tc Delta gvar_ident Qpre) (LOCALx nil (SEPx Rpre)) |-- post ->
   local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |-- post.
 Proof.
   intros.
   revert Ppre post H; induction Qpre; intros.
   + cbv [localdefs_tc concat rev map] in H.
     rewrite !app_nil_r in H; auto.
-  + apply go_lower_localdef_one_step_canon_left.
+  + eapply go_lower_localdef_one_step_canon_left; eauto.
     rewrite <- insert_local, (andp_comm _ (PROPx _ _)), <- andp_assoc, -> imp_andp_adjoint.
     apply IHQpre.
     rewrite <- imp_andp_adjoint.
@@ -615,15 +637,16 @@ Proof.
   subst; auto.
 Qed.
 
-Lemma clean_LOCAL_right_spec: forall {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S',
+Lemma clean_LOCAL_right_spec: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+  (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
-  local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta Q) (LOCALx nil (SEPx R)) |-- ` S' ->
+  local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta gvar_ident Q) (LOCALx nil (SEPx R)) |-- ` S' ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
 Proof.
   intros.
   assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- `S')
-    by (apply go_lower_localdef_canon_left; auto).
+    by (eapply go_lower_localdef_canon_left; eauto).
   rewrite (add_andp _ _ H2); clear H1 H2.
   induction H0.
   + apply andp_left2. apply derives_refl.
@@ -692,14 +715,36 @@ Ltac solve_clean_LOCAL_right :=
       ]
     ].
 
+Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
+  match goal with
+  | |- context [gv ?i] =>
+      match L with
+      | context [i] => fail 1
+      | _ => eapply_clean_LOCAL_right_spec_rec gv (@cons ident i L)
+      end
+  | _ := gv ?i |- _ =>
+      match L with
+      | context [i] => fail 1
+      | _ => eapply_clean_LOCAL_right_spec_rec gv (@cons ident i L)
+      end
+  | _ => eapply (clean_LOCAL_right_spec L)
+  end.
+
+Ltac eapply_clean_LOCAL_right_spec :=
+  match goal with
+  | |- context [gvars ?gv] => eapply_clean_LOCAL_right_spec_rec gv (@nil ident)
+  | _ => eapply (clean_LOCAL_right_spec nil)
+  end.
+
 Ltac clean_LOCAL_canon_mix :=
-  eapply clean_LOCAL_right_spec; [prove_local2ptree | solve_clean_LOCAL_right |];
+  eapply_clean_LOCAL_right_spec;
+    [reflexivity | prove_local2ptree | solve_clean_LOCAL_right |];
          (let tl := fresh "tl" in
          let QQ := fresh "Q" in
          let PPr := fresh "Pr" in
          match goal with
-         | |- context [?Pr ++ localdefs_tc ?Delta ?Q] =>
-                set (tl := Pr ++ localdefs_tc Delta Q);
+         | |- context [?Pr ++ localdefs_tc ?Delta ?gvar_ident ?Q] =>
+                set (tl := Pr ++ localdefs_tc Delta gvar_ident Q);
                 set (PPr := Pr) in tl;
                 set (QQ := Q) in tl;
                 unfold Delta, abbreviate in tl;
