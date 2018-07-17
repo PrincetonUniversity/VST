@@ -73,6 +73,9 @@ Definition semax_func
 Definition main_pre (prog: program) : list Type -> (ident->val) -> assert :=
 (fun nil gv => globvars2pred gv (prog_vars prog)).
 
+Definition main_pre_ext (prog: program) (ora: OK_ty) : list Type -> (ident->val) -> assert :=
+(fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+
 Definition Tint32s := Tint I32 Signed noattr.
 
 Definition main_post (prog: program) : list Type -> (ident->val) -> assert :=
@@ -87,6 +90,17 @@ Definition main_spec' (prog: program)
 Definition main_spec (prog: program): funspec :=
   mk_funspec (nil, tint) cc_default
      (ConstType (ident->val)) (main_pre prog) (main_post prog)
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition main_spec_ext' (prog: program) (ora: OK_ty)
+    (post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
+  mk_funspec (nil, tint) cc_default
+     (ConstType (ident->val)) (main_pre_ext prog ora) post
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
+  mk_funspec (nil, tint) cc_default
+     (ConstType (ident->val)) (main_pre_ext prog ora) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition is_Internal (prog : program) (f : ident) :=
@@ -112,6 +126,18 @@ Definition semax_prog {C: compspecs}
   match_globvars (prog_vars prog) V = true /\
   match find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec' prog post
+  | None => False
+  end.
+
+Definition semax_prog_ext {C: compspecs}
+           (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
+  compute_list_norepet (prog_defs_names prog) = true  /\
+  all_initializers_aligned prog /\
+  cenv_cs = prog_comp_env prog /\
+  @semax_func V G C (prog_funct prog) G /\
+  match_globvars (prog_vars prog) V = true /\
+  match find_id prog.(prog_main) G with
+  | Some s => exists post, s = main_spec_ext' prog ora post
   | None => False
   end.
 
@@ -699,7 +725,7 @@ Proof.
 Qed.
 
 Lemma funassert_initial_core_ext:
-  forall {Z} (ora : Z) (prog: program) ve te V G n,
+  forall (ora : OK_ty) (prog: program) ve te V G n,
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te))
@@ -898,7 +924,7 @@ if_tac.
 Qed.
 
 Lemma core_inflate_initial_mem':
-  forall {Z} (ora : Z) (m: mem) (prog: program) (G: funspecs) (n: nat)
+  forall (ora : OK_ty) (m: mem) (prog: program) (G: funspecs) (n: nat)
      (INIT: Genv.init_mem prog = Some m),
     match_fdecs (prog_funct prog) G ->
       list_norepet (prog_defs_names prog) ->
@@ -1255,7 +1281,7 @@ Proof.
   unfold juicy_mem_core in *. erewrite E; try reflexivity.
 Qed.
 
-Lemma initial_jm_ext_funassert {Z} (ora : Z) V (prog : Clight.program) m G n H H1 H2 :
+Lemma initial_jm_ext_funassert (ora : OK_ty) V (prog : Clight.program) m G n H H1 H2 :
   (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
     (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
@@ -1272,14 +1298,14 @@ Proof.
 Qed.
 
 Lemma semax_prog_rule' {CS: compspecs} :
-  forall V G prog m h,
-     @semax_prog CS prog V G ->
+  forall V G prog z m h,
+     @semax_prog_ext CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (semantics.initial_core (juicy_core_sem cl_core_sem) h
                     (globalenv prog) (Vptr b Ptrofs.zero) nil = Some q) *
-       forall n z,
+       forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
            nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
@@ -1292,7 +1318,7 @@ Proof.
   intros until m.
   pose proof I; intros.
   destruct H0 as [? [AL [HGG [[? ?] [GV ?]]]]].
-  assert (H4': exists post, In (prog_main prog, main_spec' prog post) G). {
+  assert (H4': exists post, In (prog_main prog, main_spec_ext' prog z post) G). {
     destruct (find_id (prog_main prog) G) eqn:?.
     apply find_id_e in Heqo. destruct H4 as [post ?]. exists post.
     subst. auto. contradiction.
@@ -1329,7 +1355,7 @@ Proof.
   (* set (func' := func) at 1; destruct func' eqn:Ef. *)
   econstructor.
   repeat split; auto.
-  intros n z.
+  intros n.
   exists (initial_jm_ext z _ _ _ n H1 H0 H2).
   repeat split.
   - simpl.
@@ -1346,7 +1372,7 @@ Proof.
     assert (E: type_of_fundef f = Tfunction Tnil tint cc_default). {
       destruct (match_fdecs_exists_Gfun
                   prog G (prog_main prog)
-                  (main_spec' prog post))
+                  (main_spec_ext' prog z post))
         as (fd, (Ifd, sametypes)); auto.
       {
         apply find_id_i; auto.
@@ -1426,7 +1452,7 @@ Proof.
     + unfold glob_types, Delta1. simpl @snd.
       forget (prog_main prog) as main.
       instantiate (1:= post).
-      instantiate (1:= main_pre prog).
+      instantiate (1:= main_pre_ext prog z).
       assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))). {
       clear - H0.
       unfold prog_defs_names in H0. unfold prog_funct.
@@ -1457,16 +1483,24 @@ Proof.
     + intros.
       intros ? ?.
       split; apply derives_imp; auto.
-    + unfold main_pre.
+    + unfold main_pre_ext.
       apply now_later.
       rewrite TT_sepcon_TT.
-      rewrite sepcon_comm.
+      eexists (core _), _; split; [apply core_unit | split; auto].
       eexists; eexists; split; [apply initial_jm_ext_eq|].
-      split; auto.
-     match goal with |- app_pred (globvars2pred (globals_of_env ?A) _ ?B) _ => 
-       change (globals_of_env A) with (globals_of_env B)
-      end.
-      apply global_initializers; auto.
+      split.
+      * match goal with |- app_pred (globvars2pred (globals_of_env ?A) _ ?B) _ => 
+          change (globals_of_env A) with (globals_of_env B)
+        end.
+        apply global_initializers; auto.
+      * simpl.
+        assert (Tsh <> Share.bot /\ True) as Hvalid by (split; auto; apply Share.nontrivial).
+        exists Hvalid; split; unfold set_ghost.
+        -- intro; rewrite resource_at_make_rmap.
+           apply resource_at_core_identity.
+        -- rewrite ghost_of_make_rmap.
+           unfold ext_ghost; repeat f_equal.
+           apply proof_irr.
     + simpl.
       rewrite inflate_initial_mem_level.
       unfold initial_core.
