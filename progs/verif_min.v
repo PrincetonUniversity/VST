@@ -109,7 +109,7 @@ forward_for_simple_bound n
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Prove that the precondition implies the loop invariant *)
- entailer!.
+  entailer!.
 * (* Prove that the loop body preserves the loop invariant *)
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al))
@@ -260,7 +260,7 @@ Intros.
 forward. (* j = a[i]; *)
 assert (repable_signed (Znth i al))
    by (apply Forall_Znth; auto; omega).
-assert (repable_signed x)
+assert (repable_signed j)
    by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
 autorewrite with sublist.
 forward_if.
@@ -279,7 +279,7 @@ forward_if.
  constructor; auto. omega.
  + (* Else clause *)
  forward. (* skip; *)
- Exists x.
+ Exists j.
  entailer!.
  rewrite Z.max_r by omega.
  split.

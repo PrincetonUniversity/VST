@@ -47,17 +47,19 @@ Proof.
     pose proof Ptrofs.unsigned_range i.
     rep_omega.
   }
-  assert_PROP (vint n = force_val (sem_div tuint tint (vint (4 * n)) (vint 4))) as H4.
-  { entailer!.
-    unfold sem_div; simpl.
+  assert_PROP (Int.repr (Int.unsigned (Int.divu (Int.repr (4 * n)) (Int.repr 4))) = Int.repr n) as H4.
+  { entailer!. 
+    rewrite Int.repr_unsigned.
     unfold Int.divu.
-    rewrite !Int.unsigned_repr; auto; try (split; auto; try computable; omega).
-    rewrite Z.mul_comm, Z_div_mult; auto; computable. }
+    rewrite (Int.unsigned_repr 4) by rep_omega.
+    rewrite (Int.unsigned_repr (4 * n)) by rep_omega.
+    rewrite Z.mul_comm, Z_div_mult by omega.
+    auto. }
   forward_for_simple_bound n (EX i : Z, PROP ()
     LOCAL (temp _p p; temp _s p; temp _c (vint c); temp _n (vint (4 * n)))
     SEP (data_at sh (tarray tint n) (repeat (vint c) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (n - i))) p)).
+  { rewrite H4; auto. }
   { entailer!.
-    { rewrite H4; auto. }
     apply derives_trans with (Q := data_at_ sh (tarray tint n) p).
     - rewrite !data_at__memory_block; simpl.
       assert ((4 * Z.max 0 n)%Z = sizeof t) as Hsize.
@@ -82,7 +84,6 @@ Proof.
   - forward.
     rewrite upd_init_const; [|omega].
     entailer!.
-    rewrite H4; auto.
   - forward.
     rewrite Zminus_diag, app_nil_r; apply derives_refl.
 Qed.

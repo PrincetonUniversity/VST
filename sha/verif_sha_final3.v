@@ -198,7 +198,8 @@ Proof.
  forget (hash_blocks init_registers (generate_and_pad msg)) as hashedmsg.
  clear - Hshmd H'; rename H' into H. rename Hshmd into H0.
  unfold final_loop.
-forward_for_simple_bound 8
+
+ forward_for_simple_bound 8
    (@exp (environ -> mpred) _ _ (fun i: Z =>
    PROP  ()
    LOCAL  (temp _md (offset_val (i * 4) md);
