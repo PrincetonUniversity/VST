@@ -20,7 +20,7 @@ Definition write (c : int) : M IO_event unit := embed (EWrite c).
 
 Definition IO_itree := M IO_event unit.
 
-(* We need a layer of EqM to allow us to use the monad laws. *)
+(* We need a layer of equivalence to allow us to use the monad laws. *)
 Definition ITREE (tr : IO_itree) := EX tr' : _, !!(EquivUpToTau tr tr') && has_ext tr'.
 
 Definition putchar_spec :=
