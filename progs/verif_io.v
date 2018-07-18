@@ -265,3 +265,19 @@ Proof.
   Intros n c'.
   forward.
 Qed.
+
+Instance Espec : OracleKind := add_funspecs IO_Espec (ext_link_prog prog) Gprog.
+
+Lemma prog_correct:
+  semax_prog_ext prog main_itree Vprog Gprog.
+Proof.
+prove_semax_prog.
+repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+semax_func_cons_ext.
+{ simpl; Intro i.
+  apply typecheck_return_value; auto. }
+semax_func_cons_ext.
+semax_func_cons body_print_intr.
+semax_func_cons body_print_int.
+semax_func_cons body_main.
+Qed.

@@ -297,11 +297,11 @@ Proof.
 Qed.
 
 Lemma typecheck_return_value:
-  forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val),
+  forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
- (PROP ( )
-  LOCAL (temp ret_temp v)
-  SEP ()) (make_ext_rval gx ret) |-- !! f (force_val ret).
+ (PROPx P
+ (LOCAL (temp ret_temp v)
+ (SEPx R))) (make_ext_rval gx ret) |-- !! f (force_val ret).
 Proof.
 intros.
  rewrite <- insert_local.
