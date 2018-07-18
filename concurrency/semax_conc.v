@@ -860,23 +860,6 @@ Definition spawn_spec := mk_funspec
 
 (*+ Adding the specifications to a void ext_spec *)
 
-(*! The void ext_spec *)
-Definition void_spec T : external_specification juicy_mem external_function T :=
-    Build_external_specification
-      juicy_mem external_function T
-      (fun ef => False)
-      (fun ef Hef ge tys vl m z => False)
-      (fun ef Hef ge ty vl m z => False)
-      (fun rv m z => False).
-
-Definition ok_void_spec (T : Type) : OracleKind.
- refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
-Proof.
-  simpl; intros; contradiction.
-  simpl; intros; contradiction.
-  simpl; intros; intros ? ? ? ?; contradiction.
-Defined.
-
 Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::

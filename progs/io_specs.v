@@ -1,7 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.veric.semax_ext.
-Require Import VST.sepcomp.extspec.
-Require Import VST.veric.juicy_mem.
+Require Import VST.veric.juicy_extspec.
 Require Import DeepWeb.Free.Monad.Free.
 Import MonadNotations.
 Require Import DeepWeb.Free.Monad.Common.
@@ -92,22 +90,6 @@ Definition char0 : Z := 48.
 Definition newline := 10.
 
 (* Build the external specification. *)
-Definition void_spec T :=
-    Build_external_specification
-      juicy_mem external_function T
-      (fun ef => False)
-      (fun ef Hef ge tys vl m z => False)
-      (fun ef Hef ge ty vl m z => False)
-      (fun rv m z => False).
-
-Definition ok_void_spec (T : Type) : OracleKind.
- refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
-Proof.
-  simpl; intros; contradiction.
-  simpl; intros; contradiction.
-  simpl; intros; intros ? ? ? ?; contradiction.
-Defined.
-
 Definition IO_specs (ext_link : string -> ident) :=
   [(ext_link "putchar"%string, putchar_spec); (ext_link "getchar"%string, getchar_spec)].
 

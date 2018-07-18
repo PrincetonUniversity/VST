@@ -297,11 +297,11 @@ Proof.
 Qed.
 
 Lemma typecheck_return_value:
-  forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val),
+  forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
- (PROP ( )
-  LOCAL (temp ret_temp v)
-  SEP ()) (make_ext_rval gx ret) |-- !! f (force_val ret).
+ (PROPx P
+ (LOCAL (temp ret_temp v)
+ (SEPx R))) (make_ext_rval gx ret) |-- !! f (force_val ret).
 Proof.
 intros.
  rewrite <- insert_local.
@@ -315,7 +315,7 @@ Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc;
-      try (apply typecheck_return_value; auto)
+      try solve [apply typecheck_return_value; auto]
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
