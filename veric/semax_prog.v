@@ -1398,7 +1398,7 @@ Proof.
                            (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
     eapply (semax_call_aux Espec (Delta1 V G) (ConstType (ident->val))
-              _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
+              (main_pre_ext prog z) post post (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
               None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
               (construct_rho (filter_genv (globalenv prog)) empty_env
@@ -1451,8 +1451,6 @@ Proof.
       apply safe_loop_skip.
     + unfold glob_types, Delta1. simpl @snd.
       forget (prog_main prog) as main.
-      instantiate (1:= post).
-      instantiate (1:= main_pre_ext prog z).
       assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))). {
       clear - H0.
       unfold prog_defs_names in H0. unfold prog_funct.
@@ -1499,8 +1497,7 @@ Proof.
         -- intro; rewrite resource_at_make_rmap.
            apply resource_at_core_identity.
         -- rewrite ghost_of_make_rmap.
-           unfold ext_ghost; repeat f_equal.
-           apply proof_irr.
+           replace Hvalid with (valid_ext z) by apply proof_irr; reflexivity.
     + simpl.
       rewrite inflate_initial_mem_level.
       unfold initial_core.
