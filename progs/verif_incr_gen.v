@@ -243,17 +243,17 @@ Proof.
   rewrite Z2Nat.id in * by (unfold N; computable).
   assert_PROP (field_compatible (tarray tlock N) [] (gv _thread_lock)) by entailer!.
   set (thread_lock i := offset_val (sizeof tlock * i) (gv _thread_lock)).
-  forward_for_simple_bound N (EX i : Z, EX sh : share * share,
-    PROP (sepalg_list.list_join sh0 (sublist i N shs) (fst sh);
-          sepalg_list.list_join gsh0 (sublist i N gshs) (snd sh)) LOCAL (gvars gv)
-    SEP (lock_inv (fst sh) (gv _ctr_lock) (cptr_lock_inv g (gv _ctr));
-         ghost_part g (snd sh) O;
+  forward_for_simple_bound N (EX i : Z, EX sh : share, EX gsh : share,
+    PROP (sepalg_list.list_join sh0 (sublist i N shs) sh;
+          sepalg_list.list_join gsh0 (sublist i N gshs) gsh) LOCAL (gvars gv)
+    SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g (gv _ctr));
+         ghost_part g gsh O;
          iter_sepcon (fun j => lock_inv sh2 (thread_lock j)
            (thread_lock_inv sh1 (Znth j shs) (Znth j gshs) g (gv _ctr) (gv _ctr_lock) (thread_lock j)))
            (upto (Z.to_nat i));
          data_at_ Ews (tarray tlock (N - i)) (thread_lock i))).
   { unfold N; computable. }
-  { Exists (Ews, Tsh).
+  { Exists Ews Tsh.
     subst thread_lock.
     rewrite !sublist_same by auto; entailer!.
     apply derives_refl. }
@@ -290,7 +290,7 @@ Proof.
       entailer!. }
     { subst thread_lock; simpl.
       apply isptr_is_pointer_or_null; rewrite isptr_offset_val; auto. }
-    Exists (sh', gsh'); entailer!.
+    Exists sh' gsh'; entailer!.
     apply sepcon_derives.
     - rewrite Z2Nat.inj_add, upto_app by omega.
       rewrite iter_sepcon_app; simpl.
@@ -317,19 +317,19 @@ Proof.
           apply H29; omega. }
     - apply Z2Nat.inj; try omega.
       rewrite Nat2Z.id, Z2Nat.inj_sub by omega; simpl; omega. }
-  rewrite !sublist_nil, Zminus_diag; Intros shx.
-  destruct shx as (shx, gshx); inv H8; inv H9.
-  forward_for_simple_bound N (EX i : Z, EX sh : share * share,
-    PROP (sepalg_list.list_join shx (sublist 0 i shs) (fst sh);
-          sepalg_list.list_join gshx (sublist 0 i gshs) (snd sh)) LOCAL (gvars gv)
-    SEP (lock_inv (fst sh) (gv _ctr_lock) (cptr_lock_inv g (gv _ctr));
-         ghost_part g (snd sh) (Z.to_nat i);
+  rewrite !sublist_nil, Zminus_diag; Intros shx gshx.
+  inv H8; inv H9.
+  forward_for_simple_bound N (EX i : Z, EX sh : share, EX gsh : share,
+    PROP (sepalg_list.list_join shx (sublist 0 i shs) sh;
+          sepalg_list.list_join gshx (sublist 0 i gshs) gsh) LOCAL (gvars gv)
+    SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv g (gv _ctr));
+         ghost_part g gsh (Z.to_nat i);
          iter_sepcon (fun j => lock_inv sh2 (thread_lock j)
            (thread_lock_inv sh1 (Znth j shs) (Znth j gshs) g (gv _ctr) (gv _ctr_lock) (thread_lock j)))
            (sublist i N (upto (Z.to_nat N)));
          data_at_ Ews (tarray tlock i) (gv _thread_lock))).
   { unfold N; computable. }
-  { rewrite !sublist_nil; Exists (shx, gshx); entailer!.
+  { rewrite !sublist_nil; Exists shx gshx; entailer!.
     { split; constructor. }
     rewrite !data_at__eq, !data_at_zero_array_eq; auto. }
   { (* second loop *)
@@ -358,13 +358,13 @@ Proof.
     apply sepalg_list.list_join_unapp in Hgshs as (gsh' & Hgshs1 & ?).
     apply sepalg_list.list_join_unapp in Hshs1 as (? & J & J1).
     apply sepalg_list.list_join_unapp in Hgshs1 as (? & Jg & Jg1).
-    apply list_join_eq with (c := fst x) in J; auto; subst.
-    apply list_join_eq with (c := snd x) in Jg; auto; subst.
+    apply list_join_eq with (c := sh) in J; auto; subst.
+    apply list_join_eq with (c := gsh) in Jg; auto; subst.
     rewrite <- sepalg_list.list_join_1 in J1, Jg1.
     gather_SEP 3 1; erewrite lock_inv_share_join; eauto.
     gather_SEP 3 2; erewrite ghost_part_share_join; eauto.
     rewrite !(sublist_split 0 i (i + 1)), !sublist_len_1 by omega.
-    Exists (sh', gsh'); entailer!.
+    Exists sh' gsh'; entailer!.
     { split; eapply sepalg_list.list_join_app; eauto; econstructor; eauto; constructor. }
     rewrite Z2Nat.inj_add by omega.
     rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
@@ -384,10 +384,10 @@ Proof.
       rewrite <- X; apply Forall_Znth; auto; omega. }
     { eapply readable_share_list_join; eauto. }
     { apply Forall_Znth; auto; omega. } }
-  Intros sh'.
+  Intros sh' gsh'.
   eapply list_join_eq in Hshs; [|erewrite <- (sublist_same 0 N shs) by auto; eauto].
   eapply list_join_eq in Hgshs; [|erewrite <- (sublist_same 0 N gshs) by auto; eauto].
-  destruct sh'; simpl fst in *; simpl snd in *; subst.
+  subst.
   forward_call (g, Z.to_nat N, gv).
   forward.
   rewrite Z2Nat.id; [|unfold N; computable].

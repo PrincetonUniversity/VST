@@ -60,11 +60,13 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (ITREE tr).
 
-CoFixpoint read_sum n : IO_itree :=
-  write_list (chars_of_Z n);; write (Int.repr newline);;
-  c <- read;; read_sum (n + (Int.unsigned c - char0)).
+CoFixpoint read_sum n d : IO_itree :=
+  if zlt n 1000 then if zlt d 10 then
+    write_list (chars_of_Z (n + d));; write (Int.repr newline);;
+    c <- read;; read_sum (n + d) (Int.unsigned c - char0)
+  else ret tt else ret tt.
 
-Definition main_itree := c <- read;; read_sum (Int.unsigned c - char0).
+Definition main_itree := c <- read;; read_sum 0 (Int.unsigned c - char0).
 
 Definition ext_link := ext_link_prog prog.
 
@@ -200,11 +202,13 @@ Qed.
 
 Opaque bind.
 
-Lemma read_sum_eq : forall n, read_sum n =
-  (write_list (chars_of_Z n);; write (Int.repr newline);;
-   c <- read;; read_sum (n + (Int.unsigned c - char0))).
+Lemma read_sum_eq : forall n d, read_sum n d =
+  (if zlt n 1000 then if zlt d 10 then
+     write_list (chars_of_Z (n + d));; write (Int.repr newline);;
+     c <- read;; read_sum (n + d) (Int.unsigned c - char0)
+   else ret tt else ret tt).
 Proof.
-  intro.
+  intros.
   rewrite matchM; simpl.
   rewrite <- matchM; auto.
 Qed.
@@ -218,17 +222,16 @@ Proof.
   forward.
   unfold main_itree.
   rewrite <- !seq_assoc. (* Without this, forward_call gives a type error! *)
-  forward_call (fun c => read_sum (Int.unsigned c - char0)).
+  forward_call (fun c => read_sum 0 (Int.unsigned c - char0)).
   Intros c.
   forward.
   rewrite sign_ext_inrange by auto.
   set (Inv := EX n : Z, EX c : int,
     PROP (0 <= n < 1009)
     LOCAL (temp _c (Vint c); temp _n (Vint (Int.repr n)))
-    SEP (ITREE (read_sum (n + (Int.unsigned c - char0))))).
+    SEP (ITREE (read_sum n (Int.unsigned c - char0)))).
   unfold Swhile; forward_loop Inv break: Inv.
-  { Exists 0 c; entailer!.
-    apply derives_refl. }
+  { Exists 0 c; entailer!. }
   subst Inv.
   clear dependent c; Intros n c.
   forward_if.
@@ -237,7 +240,6 @@ Proof.
   { forward.
     Exists n c; entailer!. }
   forward.
-  rewrite read_sum_eq.
   rewrite <- (Int.repr_unsigned c) in H1.
   rewrite sub_repr in H1.
   pose proof (Int.unsigned_range c).
@@ -245,19 +247,21 @@ Proof.
   { rewrite Int.unsigned_repr_eq in H1.
     rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in H1; unfold char0 in *; rep_omega. }
   rewrite Int.unsigned_repr in H1 by (unfold char0 in *; rep_omega).
+  rewrite read_sum_eq.
+  rewrite if_true by auto.
+  destruct (zlt _ _); [|unfold char0 in *; omega].
   forward_call (n + (Int.unsigned c - char0),
-    write (Int.repr newline);; c' <- read;; read_sum (n + (Int.unsigned c - char0) + (Int.unsigned c' - char0))).
+    write (Int.repr newline);; c' <- read;; read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
   { entailer!.
     rewrite <- (Int.repr_unsigned c) at 1.
     rewrite sub_repr, add_repr; auto. }
   { unfold char0 in *; rep_omega. }
-  forward_call (Int.repr newline, c' <- read;; read_sum (n + (Int.unsigned c - char0) + (Int.unsigned c' - char0))).
-  forward_call (fun c' => read_sum (n + (Int.unsigned c - char0) + (Int.unsigned c' - char0))).
+  forward_call (Int.repr newline, c' <- read;; read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
+  forward_call (fun c' => read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
   Intros c'.
   forward.
   rewrite sign_ext_inrange by auto.
   Exists (n + (Int.unsigned c - char0)) c'; entailer!.
-  split; [unfold char0 in *; omega|].
   rewrite <- (Int.repr_unsigned c) at 2; rewrite sub_repr, add_repr; auto.
   { forward.
     Exists n c; entailer!. }
