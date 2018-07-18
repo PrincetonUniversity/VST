@@ -315,7 +315,7 @@ Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc;
-      try (apply typecheck_return_value; auto)
+      try solve [apply typecheck_return_value; auto]
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
