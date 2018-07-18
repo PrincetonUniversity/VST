@@ -23,6 +23,23 @@ Class OracleKind := {
   OK_spec: juicy_ext_spec OK_ty
 }.
 
+(*! The void ext_spec *)
+Definition void_spec T : external_specification juicy_mem external_function T :=
+    Build_external_specification
+      juicy_mem external_function T
+      (fun ef => False)
+      (fun ef Hef ge tys vl m z => False)
+      (fun ef Hef ge ty vl m z => False)
+      (fun rv m z => False).
+
+Definition ok_void_spec (T : Type) : OracleKind.
+ refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
+Proof.
+  simpl; intros; contradiction.
+  simpl; intros; contradiction.
+  simpl; intros; intros ? ? ? ?; contradiction.
+Defined.
+
 Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
