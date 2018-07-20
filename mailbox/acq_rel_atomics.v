@@ -8,6 +8,51 @@ Require Import mailbox.general_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
+Parameter objective : mpred -> Prop.
+Axiom emp_objective : objective emp.
+Axiom data_at_objective : forall {cs : compspecs} sh t v p, objective (data_at sh t v p).
+Axiom own_objective : forall {RA : Ghost} g (a : G) pp, objective (own g a pp).
+Axiom prop_objective : forall P, objective (!!P).
+Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
+Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
+Axiom sepcon_objective : forall P Q, objective P -> objective Q -> objective (P * Q).
+Lemma sepcon_list_objective : forall P, Forall objective P -> objective (fold_right sepcon emp P).
+Proof.
+  induction P; simpl; intros.
+  - apply emp_objective.
+  - inv H; apply sepcon_objective; auto.
+Qed.
+
+(* unsound without objective, until we redefine protocols to use thread-local info *)
+Axiom inv_alloc : forall N E P, objective P -> |> P |-- |={E}=> invariant N P.
+
+Corollary make_inv : forall N E P Q, P |-- Q -> objective Q -> P |-- |={E}=> invariant N Q.
+Proof.
+  intros.
+  eapply derives_trans, inv_alloc; auto.
+  eapply derives_trans, now_later; auto.
+Qed.
+
+Ltac prove_objective := repeat
+  match goal with
+  | |-objective(if _ then _ else _) => if_tac
+  | |-objective(exp _) => apply exp_objective; intro
+  | |-objective(ghost_ref _ _) => apply exp_objective; intro
+  | |-objective(_ * _) => apply sepcon_objective
+  | |-objective(_ && _) => apply andp_objective
+  | |-objective(!!_) => apply prop_objective
+  | |-objective(own _ _ _) => apply own_objective
+  | |-objective(data_at _ _ _ _) => apply data_at_objective
+  | |-objective(data_at_ _ _ _) => rewrite data_at__eq; apply data_at_objective
+  | |-objective(fold_right sepcon emp _) => apply sepcon_list_objective;
+        rewrite ?Forall_map, Forall_forall; intros; simpl
+  | _ => try apply own_objective
+  end.
+
+Hint Resolve emp_objective data_at_objective own_objective prop_objective andp_objective exp_objective
+  sepcon_objective sepcon_list_objective : objective.
+
 Section atomics.
 
 Context {CS : compspecs}.

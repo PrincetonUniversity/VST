@@ -286,6 +286,13 @@ Qed.
     exists z; exists z; intuition.
   Qed.
 
+Lemma nec_identity {A} `{asaA: Age_alg A}: forall phi phi', necR phi phi'->
+    identity phi -> identity phi'.
+Proof.
+  induction 1; auto.
+  apply age_identity; auto.
+Qed.
+
 Lemma nec_join2 {A} `{asaA : Age_alg A}: forall {x y z z' : A},
        join x y z ->
        necR z z' ->

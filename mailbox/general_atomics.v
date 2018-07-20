@@ -2,6 +2,7 @@ Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
+Require Import VST.progs.invariants.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Export Ensembles.
@@ -18,9 +19,22 @@ Arguments Setminus {_} _ _.
 Arguments Subtract {_} _ _.
 Arguments Included {_} _ _.
 
-(* fancy updates and invariants *)
+(* invariants and fancy updates *)
 
-Parameter namespace : Type.
+(* Thoughts on invariants and the two-level structure:
+   I expect that our version of the operational semantics will keep nonatomic locations as is,
+   so that the points-to assertions won't need view parameters (and in fact will be objective?).
+   The question then is: do we need the two-level structure in which iGPS-style assertions are
+   functions from view to mpred, or can even protocol assertions simply be mpreds? We might be able
+   to use something like the external state construction to use ghost state to remember per-thread
+   timestamps, so that we don't need to include timestamps in the rmap (or as an extra argument
+   to assertions). In this model, there would be no objectivity requirement at all: instead,
+   protocol assertions from other threads would be incompatible with the current thread because
+   they refer to a different location for their timestamp ghost state.
+   On the other hand, if we do need the two-level structure, we should still define invariants
+   without objectivity here (as Iris-level invariants), and define iGPS-level invariants elsewhere. *)
+(* We will still, of course, have to choose between SC and RA atomics in any given proof/program,
+   since there's no soundness proof (or operational model) for a language with both. *)
 
 Parameter fupd : Ensemble namespace -> Ensemble namespace -> mpred -> mpred.
 
@@ -41,6 +55,24 @@ Qed.
 Lemma fupd_bupd : forall E1 E2 P Q, P |-- |==> (|={E1,E2}=> Q) -> P |-- |={E1,E2}=> Q.
 Proof.
   intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
+Qed.
+
+(* This is a generally useful pattern. *)
+Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
+  app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
+Proof.
+  intros.
+  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
+  { apply (fupd_frame_r _ _ _ _ a).
+    do 3 eexists; [apply join_comm, core_unit | split; auto].
+    split; [|apply core_identity].
+    rewrite level_core; auto. }
+  eapply fupd_mono in HP'; eauto.
+  change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
+  intros a0 (? & ? & J & HP & [? Hemp]).
+  destruct (join_level _ _ _ J).
+  apply join_comm, Hemp in J; subst.
+  eapply Himp in HP; try apply necR_refl; auto; omega.
 Qed.
 
 Definition timeless P := |>P |-- P || |>FF.
@@ -80,27 +112,9 @@ Qed.
 
 Axiom fupd_timeless : forall E P, timeless P -> |> P |-- |={E}=> P.
 
-Parameter invariant : namespace -> mpred -> mpred.
+Axiom inv_alloc : forall N E P, |> P |-- |={E}=> invariant N P.
 
-(* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
-Parameter objective : mpred -> Prop.
-Axiom emp_objective : objective emp.
-Axiom data_at_objective : forall {cs : compspecs} sh t v p, objective (data_at sh t v p).
-Axiom own_objective : forall {RA : Ghost} g (a : G) pp, objective (own g a pp).
-Axiom prop_objective : forall P, objective (!!P).
-Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
-Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
-Axiom sepcon_objective : forall P Q, objective P -> objective Q -> objective (P * Q).
-Lemma sepcon_list_objective : forall P, Forall objective P -> objective (fold_right sepcon emp P).
-Proof.
-  induction P; simpl; intros.
-  - apply emp_objective.
-  - inv H; apply sepcon_objective; auto.
-Qed.
-
-Axiom inv_alloc : forall N E P, objective P -> |> P |-- |={E}=> invariant N P.
-
-Corollary make_inv : forall N E P Q, P |-- Q -> objective Q -> P |-- |={E}=> invariant N Q.
+Corollary make_inv : forall N E P Q, P |-- Q -> P |-- |={E}=> invariant N Q.
 Proof.
   intros.
   eapply derives_trans, inv_alloc; auto.
@@ -156,7 +170,7 @@ Proof.
   eapply derives_trans, bupd_trans.
   apply bupd_mono; cancel.
   eapply derives_trans; [apply bupd_frame_l|].
-  rewrite <- sepcon_assoc; auto.
+  apply bupd_mono; cancel.
 Qed.
 
 (* Should all duplicables be of this form? *)
@@ -450,41 +464,62 @@ Next Obligation.
   destruct H1.
   apply age_level in H.
   lapply (H0 a0); [|split; auto; omega].
-(*  intro HQ; destruct (HQ _ H2) as (? & ? & ? & ? & ? & ? & []).
-  eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.*)
-Admitted.
+  apply fupd_mono'.
+  change ((approx (S (level a)) Q >=> approx (S (level a')) Q)%pred (level a0)).
+  intros ????%necR_level [].
+  repeat split; auto; omega.
+Qed.
+
+(* up *)
+Lemma approx_mono: forall n P Q, (P >=> Q) (Nat.pred n) -> approx n P |-- approx n Q.
+Proof.
+  intros.
+  change (predicates_hered.derives (approx n P) (approx n Q)).
+  intros ? [? HP]; split; auto.
+  eapply H in HP; eauto; omega.
+Qed.
 
 Lemma fview_shift_nonexpansive: forall E1 E2 P Q n,
   approx n (weak_fview_shift E1 E2 P Q) = approx n (weak_fview_shift E1 E2 (approx n P) (approx n Q)).
 Proof.
-(*  apply nonexpansive4_super_non_expansive; repeat intro.
-  - split; intros ??%necR_level Hshift ? HP ? J;
-      destruct (Hshift _ HP _ J) as (? & ? & m' & ? & ? & ? & []); destruct HP;
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto;
-      apply (H m'); auto; omega.
-  - split; intros ??%necR_level Hshift ? []; apply Hshift; split; auto; apply (H a0); auto; omega.*)
-Admitted.
+  intros ??; apply nonexpansive2_super_non_expansive; repeat intro.
+  - split; intros ??%necR_level Hshift; simpl in *; eapply predicates_hered.derives_trans; eauto;
+      apply fupd_mono, approx_mono; simpl.
+    + change ((P0 >=> Q)%pred (level a')).
+      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
+    + change ((Q >=> P0)%pred (level a')).
+      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
+  - split; intros ??%necR_level Hshift; simpl in *; eapply predicates_hered.derives_trans, Hshift;
+      apply approx_mono; simpl.
+    + change ((Q0 >=> P)%pred (level a')).
+      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
+    + change ((P >=> Q0)%pred (level a')).
+      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
+Qed.
 
 Lemma fview_shift_weak: forall E1 E2 P Q, (P |-- |={E1, E2}=> Q) -> TT |-- weak_fview_shift E1 E2 P Q.
 Proof.
   intros.
   change (predicates_hered.derives TT (weak_fview_shift E1 E2 P Q)).
-(*  intros w _ ? [? HP] ? J.
+  intros a _ a0 [? HP].
   apply H in HP.
-  destruct (H _ HP _ J) as (? & ? & ? & ? & ? & ? & ?).
-  eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.*)
-Admitted.
+  eapply fupd_mono'; eauto.
+  change ((Q >=> approx (S (level a)) Q)%pred (level a0)).
+  intros ????%necR_level ?; split; auto; omega.
+Qed.
 
 Lemma apply_fview_shift: forall E1 E2 P Q, (weak_fview_shift E1 E2 P Q && emp) * P |-- |={E1, E2}=> Q.
 Proof.
   intros.
   change (predicates_hered.derives ((weak_fview_shift E1 E2 P Q && emp) * P) (fupd E1 E2 Q)).
-(*  intros ? (? & ? & ? & [Hshift Hemp] & HP) ? J.
+  intros ? (? & ? & ? & [Hshift Hemp] & HP).
   destruct (join_level _ _ _ H).
   apply Hemp in H; subst.
   lapply (Hshift a); [|split; auto; omega].
-  intro X; destruct (X _ J) as (? & ? & ? & ? & ? & ? & []); eauto 7.*)
-Admitted.
+  apply fupd_mono'.
+  change (((approx (S (level x)) Q) >=> Q)%pred (level a)).
+  intros ???? []; auto.
+Qed.
 
 (* The logical atomicity of Iris. *)
 Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
@@ -586,22 +621,6 @@ End atomicity.
 
 End atomics.
 
-Ltac prove_objective := repeat
-  match goal with
-  | |-objective(if _ then _ else _) => if_tac
-  | |-objective(exp _) => apply exp_objective; intro
-  | |-objective(ghost_ref _ _) => apply exp_objective; intro
-  | |-objective(_ * _) => apply sepcon_objective
-  | |-objective(_ && _) => apply andp_objective
-  | |-objective(!!_) => apply prop_objective
-  | |-objective(own _ _ _) => apply own_objective
-  | |-objective(data_at _ _ _ _) => apply data_at_objective
-  | |-objective(data_at_ _ _ _) => rewrite data_at__eq; apply data_at_objective
-  | |-objective(fold_right sepcon emp _) => apply sepcon_list_objective;
-        rewrite ?Forall_map, Forall_forall; intros; simpl
-  | _ => try apply own_objective
-  end.
-
 Ltac start_atomic_function :=
   match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
@@ -659,9 +678,6 @@ Ltac start_atomic_function :=
  abbreviate_semax; simpl.
 
 Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_duplicable prop_duplicable : dup.
-
-Hint Resolve emp_objective data_at_objective own_objective prop_objective andp_objective exp_objective
-  sepcon_objective sepcon_list_objective : objective.
 
 (*Notation store_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
   fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -*
