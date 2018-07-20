@@ -317,23 +317,6 @@ Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
      end
   end.
 
-Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
-  match l with
-  | nil => nil
-  | y :: l0 =>
-     match x, y with
-     | temp i u, temp j v =>
-       if Pos.eqb i j
-       then (u = v) :: extractp_localdef x l0
-       else extractp_localdef x l0
-     | lvar i ti u, lvar j tj v =>
-       if Pos.eqb i j
-       then (ti = tj) :: (u = v) :: extractp_localdef x l0
-       else extractp_localdef x l0
-     | _, _ => extractp_localdef x l0
-     end
-  end.
-
 Definition localdef_tc (Delta: tycontext) (gvar_idents: list ident) (x: localdef): list Prop :=
   match x with
   | temp i v =>
@@ -452,14 +435,14 @@ Definition msubst_extract_local (Delta: tycontext) (T1: PTree.t val) (T2: PTree.
   match x with
   | temp i u =>
     match T1 ! i with
-    | Some v => v = u
+    | Some v => u = v
     | None => False
     end
   | lvar i ti u =>
     match T2 ! i with
     | Some (tj, v) =>
       if eqb_type ti tj
-      then v = u
+      then u = v
       else False
     | _ => False
     end
@@ -785,6 +768,7 @@ first
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
  end);
 unfold_for_go_lower;
-simpl; rewrite ?sepcon_emp;
+simpl;
+try (progress unfold_for_go_lower; simpl); rewrite ?sepcon_emp;
 clear_Delta;
 try clear dependent rho].
