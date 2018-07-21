@@ -808,7 +808,17 @@ Lemma closed_wrtl_main_pre:
   forall prog u v S, closed_wrt_lvars S (main_pre prog u v).
 Proof.
 intros. apply closed_wrtl_globvars. Qed.
-Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre : closed.
+Lemma closed_wrt_main_pre_ext:
+  forall {Espec : OracleKind} prog z u v S, closed_wrt_vars S (main_pre_ext prog z u v).
+Proof.
+intros. unfold main_pre_ext. apply closed_wrt_sepcon; [apply closed_wrt_globvars | apply closed_wrt_const].
+Qed.
+Lemma closed_wrtl_main_pre_ext:
+  forall {Espec : OracleKind} prog z u v S, closed_wrt_lvars S (main_pre_ext prog z u v).
+Proof.
+intros. unfold main_pre_ext. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
+Qed.
+Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre closed_wrt_main_pre_ext closed_wrtl_main_pre_ext : closed.
 
 Lemma closed_wrt_not1:
   forall (i j: ident),

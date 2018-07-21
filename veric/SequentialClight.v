@@ -28,8 +28,8 @@ Definition dryspec : ext_spec unit :=
      (fun rv m z => False).
 
  Lemma whole_program_sequential_safety:
-   forall {CS: compspecs} prog V G m,
-     @semax_prog NullExtension.Espec CS prog V G ->
+   forall {CS: compspecs} prog V G z m,
+     @semax_prog_ext NullExtension.Espec CS prog z V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -41,13 +41,14 @@ Definition dryspec : ext_spec unit :=
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
- destruct (@semax_prog_rule' NullExtension.Espec CS _ _ _ _ 
+ destruct z.
+ destruct (@semax_prog_rule' NullExtension.Espec CS _ _ _ tt _ 
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
      H H0) as [b [q [[H1 H2] H3]]].
  exists b, q.
  split3; auto.
  intro n.
- specialize (H3 n tt).
+ specialize (H3 n).
  destruct H3 as [jm [? [? [? [? _]]]]].
  unfold semax.jsafeN in H6.
  subst m.

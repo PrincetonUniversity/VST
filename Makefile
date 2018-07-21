@@ -49,7 +49,7 @@ else
 endif
 endif
 
-EXTFLAGS= -R $(COMPCERT) compcert
+EXTFLAGS= -R $(COMPCERT) compcert #-R Free DeepWeb.Free -R Custom Custom
 
 # for SSReflect
 ifdef MATHCOMP
