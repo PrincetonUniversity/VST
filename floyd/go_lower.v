@@ -588,6 +588,7 @@ Proof.
 Qed.
 
 Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): (environ -> mpred) -> mpred -> Prop :=
+| clean_LOCAL_right_sep_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (`P) (P)
 | clean_LOCAL_right_local_lift: forall P, clean_LOCAL_right Delta T1 T2 GV (local (`P)) (!! P)
 | clean_LOCAL_right_prop: forall P, clean_LOCAL_right Delta T1 T2 GV (!! P) (!! P)
 | clean_LOCAL_right_tc_lvalue: forall e, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_lvalue Delta e)) (msubst_tc_lvalue Delta T1 T2 GV e)
@@ -601,6 +602,12 @@ Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val)
 | clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_expr e))) (!! (u = v))
 | clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV P1 Q1 -> clean_LOCAL_right Delta T1 T2 GV P2 Q2 -> clean_LOCAL_right Delta T1 T2 GV (P1 && P2) (Q1 && Q2)
 | clean_LOCAL_right_EX': forall A (P: A -> environ -> mpred) (Q: A -> mpred), (forall a, clean_LOCAL_right Delta T1 T2 GV (P a) (Q a)) -> clean_LOCAL_right Delta T1 T2 GV (exp P) (exp Q).
+
+Lemma clean_LOCAL_right_TT {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): clean_LOCAL_right Delta T1 T2 GV TT TT.
+Proof.
+  intros.
+  exact (clean_LOCAL_right_sep_lift _ _ _ _ TT).
+Qed.
 
 Lemma clean_LOCAL_right_tc_andp {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert P1) Q1 -> clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert P2) Q2 -> clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (tc_andp P1 P2)) (Q1 && Q2).
 Proof.
@@ -632,6 +639,7 @@ Proof.
     by (eapply go_lower_localdef_canon_left; eauto).
   rewrite (add_andp _ _ H2); clear H1 H2.
   induction H0.
+  + apply andp_left2. apply derives_refl.
   + apply andp_left2. apply derives_refl.
   + apply andp_left2. apply derives_refl.
   + eapply go_lower_localdef_canon_tc_lvalue; eauto.
@@ -673,8 +681,10 @@ Ltac unfold_localdef_name QQ Q :=
 
 Ltac solve_clean_LOCAL_right :=
   solve
-    [ simple apply clean_LOCAL_right_local_lift
+    [ simple apply clean_LOCAL_right_sep_lift
+    | simple apply clean_LOCAL_right_local_lift
     | simple apply clean_LOCAL_right_prop
+    | simple apply clean_LOCAL_right_TT
     | try unfold tc_lvalue; simple apply clean_LOCAL_right_tc_lvalue
     | try unfold tc_expr; simple apply clean_LOCAL_right_tc_expr
     | try unfold tc_LR; simple apply clean_LOCAL_right_tc_LR
@@ -730,7 +740,9 @@ Ltac clean_LOCAL_canon_mix :=
                 set (tl := Pr ++ localdefs_tc Delta gvar_ident Q);
                 set (PPr := Pr) in tl;
                 set (QQ := Q) in tl;
-                unfold Delta, abbreviate in tl;
+                match goal with
+                | Delta' := @abbreviate tycontext _ |- _ => unfold Delta', abbreviate in tl
+                end; (* TODO: this still does not solve the proble. *)
                 cbv [localdefs_tc localdef_tc temp_types tc_val concat map app Pos.eqb PTree.get] in tl;
                 unfold_localdef_name QQ Q;
                 subst PPr QQ;

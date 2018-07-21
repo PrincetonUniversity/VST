@@ -4,7 +4,7 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 Definition Gprog: funspecs := nil.
 Definition Delta1 : tycontext :=
-  ltac:(let x := constr:(initialized _i (func_tycontext f_sumarray Vprog Gprog nil))
+  ltac:(let x := constr:(func_tycontext f_sumarray Vprog Gprog nil)
          in let y := eval hnf in x
          in exact y).
 
@@ -23,6 +23,16 @@ Proof.
 intros.
 Intros a b.
 Exists b.
+unfold Delta1 in Delta.
+
+clean_LOCAL_canon_mix.
+cbv beta zeta iota.
+Print Ltac
+      go_lower.
+repeat (simple apply derives_extract_PROP; fancy_intro true).
+intro rho.
+ simple apply finish_lower;
+         intros TC.
 entailer!.
 Qed.
 

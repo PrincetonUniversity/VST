@@ -237,11 +237,11 @@ Lemma setup_globals:
                   (gv _three) nullval).
 Proof.
  intros.
-  go_lower.
+ go_lowerx.
+ SearchAbout gvars_denote.
   rewrite !prop_true_andp by auto.
-  assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three))
-   by (entailer!; clear - H0; hnf in H0; intuition).
-  rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)) by intuition. 
+  assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three)) by (entailer!; clear - H4; hnf in H4; intuition).
+  rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)); try intuition. 
   clear H0.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] (gv _three))
