@@ -174,11 +174,11 @@ Inductive Sfor_setup {cs: compspecs} {Espec: OracleKind} (Delta: tycontext):
   forall (_i: ident) (Pre: environ -> mpred) (init: statement) (hi: expr) (type_i: type)
          (m n: Z) (assert_callee: Z -> environ -> mpred)
          (inv0: environ -> mpred), Prop :=
-| Sfor_setup_const_init: forall m type_lo _i type_i hi n Pre assert_callee inv0 range,
-    range_init_hl type_lo type_i (typeof hi) range ->
+| Sfor_setup_const_init: forall m lo _i type_i hi n Pre assert_callee inv0 range,
+    range_init_hl (typeof lo) type_i (typeof hi) range ->
     range m n ->
     ENTAIL Delta, Pre |-- assert_callee m ->
-    Sfor_setup Delta _i Pre (Sset _i (Econst_int (Int.repr m) type_lo)) hi type_i m n assert_callee inv0
+    Sfor_setup Delta _i Pre (Sset _i lo) hi type_i m n assert_callee inv0
 | Sfor_setup_other: forall _i Pre init hi type_i m n assert_callee inv0 range,
     range_init_h type_i (typeof hi) m range ->
     range n ->
@@ -331,7 +331,7 @@ Proof.
       * eapply derives_trans; [| apply now_later].
         apply andp_right; [| apply andp_left2, derives_refl].
         unfold tc_expr, tc_temp_id.
-        replace (typecheck_expr Delta (Econst_int (Int.repr m) type_lo)) with tc_TT
+        replace (typecheck_expr Delta lo) with tc_TT
           by (destruct type_lo as [| [| | |] | | | | | | | ]; inv H1; auto).
         unfold typecheck_temp_id.
         rewrite TI'.
