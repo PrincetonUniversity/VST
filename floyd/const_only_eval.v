@@ -58,6 +58,33 @@ match op with
                     end
 end.
 
+(* TODO: binarithType would better be bool type *)
+Definition const_only_isBinOpResultType {CS: compspecs} op typeof_a1 valueof_a1 typeof_a2 valueof_a2 ty : bool :=
+  match op with
+  | Cop.Oadd =>
+      match Cop.classify_add (typeof_a1) (typeof_a2) with
+      | Cop.add_case_pi t _ | Cop.add_case_pl t =>
+        andb
+          (andb
+             (andb (match valueof_a1 with Vptr _ _ => true | _ => false end) (complete_type cenv_cs t))
+             (negb (eqb_type (typeof_a1) int_or_ptr_type)))
+          (is_pointer_type ty)
+    | Cop.add_case_ip _ t | Cop.add_case_lp t =>
+        andb
+          (andb
+             (andb (match valueof_a2 with Vptr _ _ => true | _ => false end) (complete_type cenv_cs t))
+             (negb (eqb_type (typeof_a2) int_or_ptr_type)))
+          (is_pointer_type ty)
+    | Cop.add_default => false
+                           (*
+        andb (binarithType (typeof a1) (typeof a2) ty deferr reterr)
+          (tc_nobinover Z.add a1 a2) *)
+      end
+  | _ => false (* TODO *)
+  end.
+
+Definition const_only_isCastResultType {CS: compspecs} (t1 t2: type) (valueof_a: val)  : bool := false. (* TODO *)
+
 Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
   match e with
   | Econst_int i (Tint I32 _ _) => Some (Vint i)
@@ -79,10 +106,19 @@ Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
       end
   | Ebinop op a1 a2 ty =>
       match (const_only_eval_expr a1), (const_only_eval_expr a2) with
-      | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2)
+      | Some v1, Some v2 =>
+          if const_only_isBinOpResultType op (typeof a1) v1 (typeof a2) v2 ty
+          then Some (eval_binop op (typeof a1) (typeof a2) v1 v2)
+          else None
       | _, _ => None
       end
-  | Ecast a ty => option_map (eval_cast (typeof a) ty) (const_only_eval_expr a)
+  | Ecast a ty =>
+      match const_only_eval_expr a with
+      | Some v => if const_only_isCastResultType (typeof a) ty v
+                  then Some (eval_cast (typeof a) ty v)
+                  else None
+      | None => None
+      end
   | Ederef a ty => None
   | Efield a i ty => None
   | Esizeof t t0 =>
@@ -171,6 +207,77 @@ Proof.
   + destruct (Cop.classify_neg (typeof e)); try solve [inv H | rewrite H; exact (@prop_right mpred _ True _ I)].
 Qed.
 
+Lemma const_only_isBinOpResultType_spec: forall {cs: compspecs} rho b e1 e2 t P,
+  const_only_isBinOpResultType b (typeof e1) (eval_expr e1 rho) (typeof e2) (eval_expr e2 rho) t = true ->
+  P |-- denote_tc_assert (isBinOpResultType b e1 e2 t) rho.
+Proof.
+  intros.
+  unfold isBinOpResultType.
+  unfold const_only_isBinOpResultType in H.
+  destruct b.
+  + destruct (Cop.classify_add (typeof e1) (typeof e2)).
+    - rewrite !denote_tc_assert_andp; simpl.
+      unfold_lift.
+      unfold tc_int_or_ptr_type, denote_tc_isptr.
+      destruct (eval_expr e1 rho); inv H.
+      rewrite !andb_true_iff in H1.
+      destruct H1 as [[? ?] ?].
+      rewrite H, H0, H1.
+      simpl.
+      repeat apply andp_right; apply prop_right; auto.
+    - rewrite !denote_tc_assert_andp; simpl.
+      unfold_lift.
+      unfold tc_int_or_ptr_type, denote_tc_isptr.
+      destruct (eval_expr e1 rho); inv H.
+      rewrite !andb_true_iff in H1.
+      destruct H1 as [[? ?] ?].
+      rewrite H, H0, H1.
+      simpl.
+      repeat apply andp_right; apply prop_right; auto.
+    - rewrite !denote_tc_assert_andp; simpl.
+      unfold_lift.
+      unfold tc_int_or_ptr_type, denote_tc_isptr.
+      destruct (eval_expr e2 rho); inv H.
+      rewrite !andb_true_iff in H1.
+      destruct H1 as [[? ?] ?].
+      rewrite H, H0, H1.
+      simpl.
+      repeat apply andp_right; apply prop_right; auto.
+    - rewrite !denote_tc_assert_andp; simpl.
+      unfold_lift.
+      unfold tc_int_or_ptr_type, denote_tc_isptr.
+      destruct (eval_expr e2 rho); inv H.
+      rewrite !andb_true_iff in H1.
+      destruct H1 as [[? ?] ?].
+      rewrite H, H0, H1.
+      simpl.
+      repeat apply andp_right; apply prop_right; auto.
+    - inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+  + inv H.
+Qed.
+
+Lemma const_only_isCastResultType_spec: forall {cs: compspecs} rho e t P,
+  const_only_isCastResultType (typeof e) t (eval_expr e rho) = true ->
+  P |-- denote_tc_assert (isCastResultType (typeof e) t e) rho.
+Proof.
+  intros.
+  inv H.
+Qed.
+
 Lemma const_only_eval_expr_eq: forall {cs: compspecs} rho e v,
   const_only_eval_expr e = Some v ->
   eval_expr e rho = v.  
@@ -202,6 +309,7 @@ Proof.
     unfold option_map in H.
     destruct (const_only_eval_expr e1); inv H.
     destruct (const_only_eval_expr e2); inv H1.
+    destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0.
     specialize (IHe1 _ eq_refl).
     specialize (IHe2 _ eq_refl).
     unfold_lift.
@@ -209,10 +317,10 @@ Proof.
   + intros.
     simpl in *.
     unfold option_map in H.
-    destruct (const_only_eval_expr e); inv H.
+    destruct (const_only_eval_expr e); inv H. (*
     specialize (IHe _ eq_refl).
     unfold_lift.
-    rewrite IHe; auto.
+    rewrite IHe; auto.*)
   + intros.
     simpl in *.
     destruct (complete_type cenv_cs t && eqb_type t0 tuint); inv H.
@@ -254,8 +362,31 @@ Proof.
     apply (const_only_eval_expr_eq rho) in HH.
     rewrite HH.
     destruct (const_only_isUnOpResultType u (typeof e) v0 t); inv H1; auto.
-  + admit.
-  + admit.
+  + intros.
+    unfold tc_expr in *.
+    simpl in *.
+    unfold option_map in H.
+    destruct (const_only_eval_expr e1) eqn:HH1; inv H.
+    destruct (const_only_eval_expr e2) eqn:HH2; inv H1.
+    specialize (IHe1 _ eq_refl).
+    specialize (IHe2 _ eq_refl).
+    unfold_lift.
+    rewrite !denote_tc_assert_andp; simpl; repeat apply andp_right; auto.
+    apply const_only_isBinOpResultType_spec.
+    apply (const_only_eval_expr_eq rho) in HH1.
+    apply (const_only_eval_expr_eq rho) in HH2.
+    rewrite HH1, HH2.
+    destruct (const_only_isBinOpResultType b (typeof e1) v0 (typeof e2) v1 t); inv H0; auto.
+  + intros.
+    unfold tc_expr in *.
+    simpl in *.
+    unfold option_map in H.
+    destruct (const_only_eval_expr e) eqn:HH; inv H. (*
+    specialize (IHe _ eq_refl).
+    unfold_lift.
+    rewrite denote_tc_assert_andp; simpl; apply andp_right; auto.
+    apply const_only_isUnOpResultType_spec.
+    apply (const_only_eval_expr_eq rho) in HH. *)
   + intros.
     inv H.
     unfold tc_expr.
@@ -276,4 +407,4 @@ Proof.
     unfold tuint in HH; destruct HH.
     rewrite H, H0.
     exact (@prop_right mpred _ True _ I).
-Abort.
+Qed.
