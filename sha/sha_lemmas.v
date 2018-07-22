@@ -130,7 +130,7 @@ Lemma seq_assocN:
    forall Q Delta P cs s R,
         @semax CS Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
          @semax CS Espec
-       (update_tycon Delta (sequence cs Sskip)) Q s R ->
+       Delta  Q s R ->
         @semax CS Espec Delta P (sequence cs s) R.
 Proof.
 intros.
@@ -142,14 +142,7 @@ rewrite <- semax_seq_skip in H.
 eapply semax_seq'; [apply H | ].
 eapply semax_extensionality_Delta; try apply H0.
 clear.
-revert Delta; induction cs; simpl; intros.
 apply tycontext_sub_refl.
-eapply tycontext_sub_trans; [apply IHcs | ].
-clear.
-revert Delta; induction (rev cs); simpl; intros.
-apply tycontext_sub_refl.
-apply update_tycon_sub.
-apply IHl.
 Qed.
 
 Fixpoint sequenceN (n: nat) (s: statement) : list statement :=

@@ -23,16 +23,6 @@ Proof.
 intros.
 Intros a b.
 Exists b.
-unfold Delta1 in Delta.
-
-clean_LOCAL_canon_mix.
-cbv beta zeta iota.
-Print Ltac
-      go_lower.
-repeat (simple apply derives_extract_PROP; fancy_intro true).
-intro rho.
- simple apply finish_lower;
-         intros TC.
 entailer!.
 Qed.
 

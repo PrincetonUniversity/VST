@@ -638,17 +638,13 @@ Proof.
   subst; auto.
 Qed.
 
-Lemma clean_LOCAL_right_spec: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+Lemma clean_LOCAL_right_aux: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
-  local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta gvar_ident Q) (LOCALx nil (SEPx R)) |-- ` S' ->
-  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) && ` S' |-- S.
 Proof.
   intros.
-  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- `S')
-    by (eapply go_lower_localdef_canon_left; eauto).
-  rewrite (add_andp _ _ H2); clear H1 H2.
   induction H0.
   + apply andp_left2. apply derives_refl.
   + apply andp_left2. apply derives_refl.
@@ -676,6 +672,53 @@ Proof.
   + normalize.
     apply (exp_right x).
     apply H1.
+Qed.
+
+Lemma clean_LOCAL_right_spec: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+  (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
+  local2ptree Q = (T1, T2, nil, GV) ->
+  clean_LOCAL_right Delta T1 T2 GV S S' ->
+  local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta gvar_ident Q) (LOCALx nil (SEPx R)) |-- ` S' ->
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+  intros.
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- `S')
+    by (eapply go_lower_localdef_canon_left; eauto).
+  rewrite (add_andp _ _ H2); clear H1 H2.
+  eapply clean_LOCAL_right_aux; eauto.
+Qed.
+
+Lemma clean_LOCAL_right_bupd_spec: forall {cs: compspecs} gvar_ident (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) P Q R S S'
+  (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
+  local2ptree Q = (T1, T2, nil, GV) ->
+  clean_LOCAL_right Delta T1 T2 GV S S' ->
+  local (tc_environ Delta) && PROPx (P ++ localdefs_tc Delta gvar_ident Q) (LOCALx nil (SEPx R)) |-- |==> ` S' ->
+  local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- |==> S.
+Proof.
+  intros.
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- |==> `S')
+    by (eapply go_lower_localdef_canon_left; eauto).
+  pose proof clean_LOCAL_right_aux _ _ _ _ _ P _ (TT :: nil) _ _ LEGAL H H0.
+  rewrite (add_andp _ _ H2); clear H1 H2.
+  eapply derives_trans.
+  + apply andp_derives; [| apply derives_refl].
+    apply andp_derives; [apply derives_refl |].
+    instantiate (1 := PROPx P (LOCALx Q SEP (TT))).
+    apply andp_derives; auto.
+    apply andp_derives; auto.
+    unfold SEPx; simpl.
+    rewrite sepcon_emp; auto.
+  + rewrite andp_comm.
+    eapply derives_trans; [apply bupd_andp2_corable |].
+    - apply corable_andp; [intro; apply corable_prop |].
+      apply corable_andp; [intro; simpl; apply corable_prop |].
+      apply corable_andp; [intro; simpl; apply corable_prop |].
+      unfold SEPx; simpl.
+      rewrite sepcon_emp.
+      intro; simpl. apply corable_prop.
+    - apply bupd_mono.
+      rewrite andp_comm.
+      auto.
 Qed.
 
 Ltac unfold_localdef_name QQ Q :=
@@ -731,13 +774,19 @@ Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
       | context [i] => fail 1
       | _ => eapply_clean_LOCAL_right_spec_rec gv (@cons ident i L)
       end
-  | _ => eapply (clean_LOCAL_right_spec L)
+  | _ => match goal with
+         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec L)
+         | _ => eapply (clean_LOCAL_right_spec L)
+         end
   end.
 
 Ltac eapply_clean_LOCAL_right_spec :=
   match goal with
   | |- context [gvars ?gv] => eapply_clean_LOCAL_right_spec_rec gv (@nil ident)
-  | _ => eapply (clean_LOCAL_right_spec nil)
+  | _ => match goal with
+         | |- _ |-- |==> _ => eapply (clean_LOCAL_right_bupd_spec nil)
+         | _ => eapply (clean_LOCAL_right_spec nil)
+         end
   end.
 
 Ltac elim_temp_types_get v :=
