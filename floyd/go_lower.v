@@ -107,6 +107,20 @@ Qed.
 Lemma finish_compute_le:  Lt = Gt -> False.
 Proof. congruence. Qed.
 
+Lemma gvars_denote_HP: forall rho Delta gv i t,
+  gvars_denote gv rho ->
+  tc_environ Delta rho ->
+  (glob_types Delta) ! i = Some t ->
+  headptr (gv i).
+Proof.
+  intros.
+  hnf in H.
+  subst.
+  destruct_glob_types i.
+  rewrite Heqo0.
+  hnf; eauto.
+Qed.
+
 Lemma lower_one_gvars:
  forall  rho Delta P gv Q R S,
   ((forall i t, (glob_types Delta) ! i = Some t -> headptr (gv i)) -> gvars_denote gv rho ->
@@ -120,12 +134,9 @@ Proof.
   simpl in *.
   normalize.
   rewrite prop_true_andp in H by auto.
-  hnf in H1.
   apply H; auto.
-  subst; intros.
-  destruct_glob_types i.
-  rewrite Heqo0.
-  hnf; eauto.
+  intros.
+  eapply gvars_denote_HP; eauto.
 Qed.
 
 Lemma finish_lower:
