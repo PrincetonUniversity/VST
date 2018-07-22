@@ -740,6 +740,18 @@ Ltac eapply_clean_LOCAL_right_spec :=
   | _ => eapply (clean_LOCAL_right_spec nil)
   end.
 
+Ltac elim_temp_types_get v :=
+  revert v;
+  match goal with
+  | |- let _ := ?e in _ =>
+      match e with
+      | context [(temp_types ?Delta) ! ?i] =>
+          let ret := eval hnf in ((temp_types Delta) ! i) in
+          intro v;  
+          change ((temp_types Delta) ! i) with ret in (value of v)
+      end
+  end.
+
 Ltac clean_LOCAL_canon_mix :=
   eapply_clean_LOCAL_right_spec;
     [reflexivity | prove_local2ptree | solve_clean_LOCAL_right |];
@@ -751,13 +763,11 @@ Ltac clean_LOCAL_canon_mix :=
                 set (tl := Pr ++ localdefs_tc Delta gvar_ident Q);
                 set (PPr := Pr) in tl;
                 set (QQ := Q) in tl;
-                match goal with
-                | Delta' := @abbreviate tycontext _ |- _ => unfold Delta', abbreviate in tl
-                end; (* TODO: this still does not solve the proble. *)
-                cbv [localdefs_tc localdef_tc temp_types tc_val concat map app Pos.eqb PTree.get] in tl;
-                unfold_localdef_name QQ Q;
+                cbv [localdefs_tc localdef_tc concat map app] in tl;
                 subst PPr QQ;
                 cbv beta iota zeta in tl;
+                repeat elim_temp_types_get tl;
+                cbv beta iota zeta delta [tc_val] in tl;
                 subst tl
          end;
          repeat
