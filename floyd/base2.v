@@ -4,6 +4,7 @@ Require Export VST.floyd.functional_base.
 Require Export VST.floyd.val_lemmas.
 Require Export VST.floyd.seplog_tactics.
 Require Export VST.floyd.assert_lemmas.
+Require Export VST.floyd.const_only_eval.
 
 Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)) :=
  match al with
