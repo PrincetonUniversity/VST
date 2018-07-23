@@ -21,6 +21,7 @@ Require Export VST.floyd.reptype_lemmas.
 Require Export VST.floyd.simpl_reptype.
 Require Export VST.floyd.data_at_rec_lemmas.
 Require Export VST.floyd.field_at.
+Require Export VST.floyd.field_at_wand.
 Require Export VST.floyd.field_compat.
 Require Export VST.floyd.stronger.
 Require Export VST.floyd.loadstore_mapsto.
