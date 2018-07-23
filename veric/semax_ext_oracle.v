@@ -249,9 +249,9 @@ Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Ty
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Espec.(@OK_ty),
    juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
-    ext_spec_pre' Espec ef x' (Genv.genv_symb gx) ts args z &&
+    ext_spec_pre' Espec ef x' (genv_symb_injective gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
-      ext_spec_post' Espec ef x' (Genv.genv_symb gx) tret ret z' >=>
+      ext_spec_post' Espec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
 
 Section semax_ext_oracle.
@@ -275,16 +275,16 @@ unfold semax_external.
 intros n ge x n0 Hlater F ts args z jm H jm' H2 H3.
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 
-assert (Hp'': P x z (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge)))
+assert (Hp'': P x z (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge)))
                                  (fst (split (fst sig))) args) s).
 { generalize (all_funspecsOracle_wf ty f) as Hwf2; intro.
   unfold wf_funspecOracle in Hwf2.
-  specialize (Hwf2 x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args z).
+  specialize (Hwf2 x ge (symb2genv (genv_symb_injective ge)) (fst (split (fst sig))) args z).
   spec Hwf2.
   rewrite symb2genv_ax; auto.
   apply Hwf2; auto. }
 destruct (@add_funspecs_pre
-            ext_link ty _ _ _ cc _ _ _ _ _ _ OK_spec ts (Genv.genv_symb ge) s t z Hnorepeat Hin Hjoin Hp'')
+            ext_link ty _ _ _ cc _ _ _ _ _ _ OK_spec ts (genv_symb_injective ge) s t z Hnorepeat Hin Hjoin Hp'')
   as [x' [Heq Hpre]].
 simpl.
 exists x'.

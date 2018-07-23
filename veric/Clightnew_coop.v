@@ -24,9 +24,9 @@ Proof. intros.
 + eapply mem_step_trans; try eassumption.
   eapply mem_step_storebytes; eassumption.
 Qed.
-Program Definition CLN_memsem :
-  @MemSem Clight.genv (*(Genv.t fundef type)*) corestate.
-apply Build_MemSem with (csem := cl_core_sem).
+Program Definition CLN_memsem (ge: genv):
+  @MemSem (*(Genv.t fundef type)*) corestate.
+apply Build_MemSem with (csem := cl_core_sem ge).
   intros.
   induction CS; try apply mem_step_refl; trivial.
   + destruct H3.

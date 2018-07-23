@@ -18,6 +18,7 @@ Require Import VST.sepcomp.reach.
 Require Export VST.sepcomp.globalSep.
 Require Import VST.sepcomp.semantics_lemmas.
 
+(*
 (** * Structured Simulations *)
 
 Module SM_simulation. Section SharedMemory_simulation_inject.
@@ -392,4 +393,4 @@ Qed.
 End SharedMemory_simulation_inject.
 
 End SM_simulation.
-
+*)

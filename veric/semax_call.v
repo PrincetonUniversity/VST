@@ -1357,7 +1357,7 @@ forall (Delta : tycontext) (A : TypeTree)
  (H15 : (believe_external Espec psi (Vptr b Ptrofs.zero) (params, retty) cc A P Q')
         (level (m_phi jm))),
  exists (c' : corestate) (m' : juicy_mem),
-  jstep cl_core_sem psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
+  jstep (cl_core_sem psi) (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
   jm_bupd ora (jsafeN OK_spec psi n ora c') m'.
 Proof.
 intros.
@@ -1490,7 +1490,7 @@ reflexivity.
 rewrite Eef. subst tys. assumption.
 intros.
 specialize (H15 ret0 z').
-change ((ext_spec_post' Espec e x' (Genv.genv_symb psi) (opttyp_of_type retty) ret0 z' >=>
+change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (opttyp_of_type retty) ret0 z' >=>
         juicy_mem_op
           (Q' ts x (make_ext_rval  (filter_genv psi) ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *
@@ -2673,7 +2673,7 @@ clear - Hsafe.
 destruct (level (m_phi jm0)); simpl in *. constructor.
 inv Hsafe. econstructor; eauto. inv H0. inv H. split; auto.
 simpl in *. congruence.
-simpl in *. unfold cl_halted in H. congruence.
+simpl in *. unfold cl_halted in H. contradiction.
 apply age_level in H20x.
 rewrite <- level_juice_level_phi in *; congruence.
 Qed.

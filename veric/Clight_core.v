@@ -151,18 +151,17 @@ unfold cl_after_external in H.
 destruct q; inv H. destruct f; inv H1. reflexivity.
 Qed.
 
-Program Definition cl_core_sem :
-  @CoreSemantics genv CC_core mem :=
-  @Build_CoreSemantics _ _ _
+Program Definition cl_core_sem (ge: genv) :
+  @CoreSemantics CC_core mem :=
+  @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ => cl_initial_core)
-    cl_at_external
-    cl_after_external
-    cl_halted
-    cl_step
-    cl_corestep_not_at_external
-    cl_corestep_not_halted _.
-
+    (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m /\ m' = m *))
+    (fun c _ => cl_at_external c)
+    (fun ret c _ => cl_after_external ret c)
+    (fun c _ =>  False (*cl_halted c <> None*))
+    (cl_step ge)
+    _
+    (cl_corestep_not_at_external ge).
 
 (*Clight_core is also a memsem!*)
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
@@ -195,9 +194,9 @@ Proof. intros.
   eapply mem_step_storebytes; eassumption.
 Qed.
 
-Program Definition CLNC_memsem :
-  @MemSem genv (*(Genv.t fundef type)*) CC_core.
-apply Build_MemSem with (csem := cl_core_sem).
+Program Definition CLNC_memsem (ge: genv):
+  @MemSem (*(Genv.t fundef type)*) CC_core.
+apply Build_MemSem with (csem := cl_core_sem ge).
   intros.
   induction CS. simpl in H0.
   inversion H0;

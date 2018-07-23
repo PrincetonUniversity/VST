@@ -42,20 +42,16 @@ Require Import VST.sepcomp.mem_lemmas.
 (** -1 a state cannot be both blocked on an extension call and also step, *)
 (** -2 a state cannot both step and be halted, and *)
 (** -3 a state cannot both be halted and blocked on an external call. *)
-
-Record CoreSemantics {G C M : Type} : Type :=
-  { initial_core : nat -> G -> val -> list val -> option C
-  ; at_external : C -> option (external_function * list val)
-  ; after_external : option val -> C -> option C
-  ; halted : C -> option val
-  ; corestep : G -> C -> M -> C -> M -> Prop
-
-  ; corestep_not_at_external:
-      forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
+Record CoreSemantics {C M : Type} : Type :=
+  { initial_core : nat -> M -> C -> M -> val -> list val -> Prop
+  ; at_external : C -> M -> option (external_function * list val)
+  ; after_external : option val -> C -> M -> option C
+  ; halted : C -> int -> Prop
+  ; corestep : C -> M -> C -> M -> Prop
   ; corestep_not_halted:
-      forall ge m q m' q', corestep ge q m q' m' -> halted q = None
-  ; at_external_halted_excl:
-      forall q, at_external q = None \/ halted q = None }.
+      forall m q m' q' i, corestep q m q' m' -> ~ halted q i
+  ; corestep_not_at_external:
+      forall m q m' q', corestep q m q' m' -> at_external q m = None }.
 
 Arguments CoreSemantics : clear implicits.
 
@@ -86,10 +82,10 @@ Record perm_lesseq (m m': mem):= {
 (* Memory semantics are CoreSemantics that are specialized to CompCert memories
    and evolve memory according to mem_step. Previous notion CoopCoreSem is deprecated,
    but for now retained in file CoopCoreSem.v *)
-Record MemSem {G C} :=
-  { csem :> @CoreSemantics G C mem
+Record MemSem {C} :=
+  { csem :> @CoreSemantics C mem
 
-  ; corestep_mem : forall g c m c' m' (CS: corestep csem g c m c' m'), mem_step m m'
+  ; corestep_mem : forall c m c' m' (CS: corestep csem c m c' m'), mem_step m m'
   (*later, we'll want to add the following constraint
   ; corestep_incr_perm: forall g c m c' m' (CS: corestep csem g c m c' m')  m1 (PLE: perm_lesseq m m1),
          exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'*)
