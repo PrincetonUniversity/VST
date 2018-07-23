@@ -34,7 +34,10 @@ Arguments Included {_} _ _.
    On the other hand, if we do need the two-level structure, we should still define invariants
    without objectivity here (as Iris-level invariants), and define iGPS-level invariants elsewhere. *)
 (* We will still, of course, have to choose between SC and RA atomics in any given proof/program,
-   since there's no soundness proof (or operational model) for a language with both. *)
+   since there's no soundness proof (or operational model) for a language with both. And invariants
+   must still be accessible only via atomics. Does this make the fancy-update style useless,
+   since we can't insert it into the definition of semax? Well, iGPS still uses it in the RA atomic
+   rules, so maybe it's still useful. *)
 
 Parameter fupd : Ensemble namespace -> Ensemble namespace -> mpred -> mpred.
 

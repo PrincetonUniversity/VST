@@ -1,5 +1,5 @@
 Require Import VST.veric.rmaps.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import mailbox.general_atomics.
 Require Import VST.progs.conclib.
 Require Import mailbox.maps.
