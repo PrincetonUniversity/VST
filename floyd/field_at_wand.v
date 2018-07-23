@@ -204,3 +204,94 @@ Proof.
 Qed.
 
 End SingletonHole.
+
+Module SegmentHole.
+
+Definition splice_into_list {A} (lo hi: Z) (source target : list A) : list A :=
+   sublist 0 lo target
+   ++ source 
+   ++ sublist hi (Zlength target) target.
+
+Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
+ALL v: list (reptype t),
+ (data_at sh (tarray t (hi - lo)) v (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) -* data_at sh (tarray t n) (splice_into_list lo hi v al') p).
+
+Lemma array_with_hole_intro {cs: compspecs} sh: forall t lo hi n (al: list (reptype t)) p,
+  0 <= lo <= hi ->
+  hi <= n ->
+  data_at sh (tarray t n) al p |--
+    data_at sh (tarray t (hi - lo)) (sublist lo hi al) (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
+      array_with_hole sh t lo hi n al p.
+Proof.
+  intros.
+  unfold data_at at 1, array_with_hole.
+  assert (forall n, reptype (tarray t n) = list (reptype t)).
+  {
+    intros.
+    rewrite reptype_eq.
+    auto.
+  }
+  saturate_local.
+  assert (Zlength al = n).
+  {
+    destruct H3 as [? _].
+    rewrite Z.max_r in H3 by omega.
+    rewrite <- H3.
+    reflexivity.
+  }
+  clear H3.
+  erewrite field_at_Tarray.
+      2: constructor.
+      2: reflexivity.
+      2: omega.
+      2: apply JMeq_refl.
+  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try omega.
+      2: change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  autorewrite with sublist.
+  change (tarray t (hi - lo)) with (nested_field_array_type (tarray t n) nil lo hi).
+  erewrite <- array_at_data_at''' by first [reflexivity | omega].
+  cancel.
+  apply allp_right; intros v.
+  apply -> wand_sepcon_adjoint.
+  
+  unfold data_at at 2.
+  assert_PROP (Zlength v = hi - lo).
+  {
+    saturate_local.
+    destruct H13.
+    clear - H H13.
+    apply prop_right.
+    rewrite Z.max_r in H13 by omega.
+    exact H13.
+  }
+  erewrite field_at_Tarray.
+      2: constructor.
+      2: reflexivity.
+      2: omega.
+      2: apply JMeq_refl.
+  erewrite (split3seg_array_at _ _ _ 0 lo hi n); try omega.
+      2: unfold splice_into_list; autorewrite with sublist; change (nested_field_type (tarray t n) (ArraySubsc 0 :: nil)) with t; omega.
+  erewrite <- array_at_data_at''' by first [reflexivity | omega].
+  cancel.
+  unfold splice_into_list.
+  autorewrite with sublist.
+  replace (hi - lo - Zlength v + hi) with hi by omega.
+  replace (n - lo - Zlength v + hi) with n by omega.
+  cancel.
+  autorewrite with sublist.
+  cancel.
+Qed.
+
+Lemma array_with_hole_elim {cs: compspecs} sh: forall t lo hi n (a: list (reptype t)) (al: list (reptype t)) p,
+  data_at sh (tarray t (hi - lo)) a (field_address0 (tarray t n) (ArraySubsc lo :: nil) p) *
+    array_with_hole sh t lo hi n al p |--
+      data_at sh (tarray t n) (splice_into_list lo hi a al) p.
+Proof.
+  intros.
+  rewrite sepcon_comm.
+  apply wand_sepcon_adjoint.
+  apply (allp_left _ a).
+  auto.
+Qed.
+
+End SegmentHole.
