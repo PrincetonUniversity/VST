@@ -239,7 +239,7 @@ replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; omega).
 change 64 with CBLOCKz.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 
-replace (splice_into_list (ddlen + 1) CBLOCKz CBLOCKz
+replace (splice_into_list (ddlen + 1) CBLOCKz
            (list_repeat (Z.to_nat (CBLOCKz - (ddlen + 1))) (Vint Int.zero))
            (map Vint (map Int.repr dd) ++
             Vint (Int.repr 128) :: list_repeat (Z.to_nat fill_len) Vundef))

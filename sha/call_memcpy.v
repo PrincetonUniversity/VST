@@ -19,34 +19,33 @@ rewrite Z.max_r by omega.
 auto.
 Qed.
 
-Definition splice_into_list (lo hi n : Z) (source target : list val) : list val :=
-   sublist 0 lo (target ++ list_repeat (Z.to_nat (lo - Zlength target)) Vundef)
-   ++ sublist 0 (hi-lo) (source ++ list_repeat (Z.to_nat (hi-lo)) Vundef)
-   ++ sublist hi n (target ++ list_repeat (Z.to_nat (n- Zlength target)) Vundef).
+Definition splice_into_list (lo hi : Z) (source target : list val) : list val :=
+   sublist 0 lo target
+   ++ sublist 0 (hi-lo) source
+   ++ sublist hi (Zlength target) target.
 
 Lemma splice_into_list_simplify0:
   forall n src dst,
     Zlength src = n ->
     Zlength dst = n ->
-    splice_into_list 0 n n src dst = src.
+    splice_into_list 0 n src dst = src.
 Proof.
  intros.
  unfold splice_into_list.
 rewrite !sublist_nil.
-rewrite <- app_nil_end, app_nil_l.
+rewrite app_nil_l.
 pose proof (Zlength_nonneg src).
-rewrite sublist_app by (rewrite ?Zlength_list_repeat, ?Z.max_r; omega).
-rewrite ?Z.min_l by omega.
-rewrite ?Z.max_r by omega.
-rewrite sublist_nil, <- app_nil_end by omega.
-apply sublist_same; omega.
+rewrite sublist_same by omega.
+rewrite sublist_nil' by omega.
+rewrite app_nil_r.
+auto.
 Qed.
-
+(*
 Lemma splice_into_list_simplify1:
   forall lo hi src tgt,
     lo = Zlength tgt ->
     (hi-lo = Zlength src)%Z ->
-    splice_into_list lo hi hi src tgt = tgt++src.
+    splice_into_list lo hi src tgt = tgt++src.
 Proof.
 intros; subst; unfold splice_into_list.
 pose proof (Zlength_nonneg tgt).
@@ -88,7 +87,7 @@ rewrite ?Z.max_r by omega.
 rewrite sublist_nil, <- app_nil_end by omega.
 auto.
 Qed.
-
+*)
 Lemma JMeq_skipn:
   forall ta tb n (la: list ta) (lb: list tb),
      ta=tb ->
@@ -123,16 +122,12 @@ Qed.
   match fs with mk_funspec fsig _ _ _ _ _ _=> fsig end.
 
 Lemma part1_splice_into_list:
-  forall lo hi n al bl,
+  forall lo hi al bl,
     (0 <= lo <= Zlength bl)%Z ->
-    sublist 0 lo (splice_into_list lo hi n al bl) = sublist 0 lo bl.
+    sublist 0 lo (splice_into_list lo hi al bl) = sublist 0 lo bl.
 Proof.
  intros.
  unfold splice_into_list.
- rewrite (sublist_app 0 lo bl) by (rewrite ?Zlength_list_repeat, ?Z.max_l; omega).
-rewrite ?Z.min_l by omega.
-rewrite ?Z.max_r by omega.
-rewrite sublist_nil, <- app_nil_end by omega.
  rewrite (sublist_app); rewrite ?Zlength_list_repeat, ?Z.max_l by omega; try omega;
  rewrite ?Zlength_sublist by omega;
  try (rewrite ?Zlength_correct; omega).
@@ -148,22 +143,10 @@ Lemma part3_splice_into_list:
     (0 <= lo <= hi)%Z -> (hi <= n)%Z ->
    (Zlength bl = n)%Z ->
    (Zlength al = hi-lo)%Z ->
-    sublist hi n (splice_into_list lo hi n al bl) = sublist hi n bl.
+    sublist hi n (splice_into_list lo hi al bl) = sublist hi n bl.
 Proof.
  intros.
  unfold splice_into_list.
- rewrite (sublist_app 0 lo bl) by (rewrite ?Zlength_list_repeat, ?Z.max_l; omega).
-rewrite ?Z.min_l by omega.
-rewrite ?Z.max_r by omega.
-rewrite sublist_nil, <- app_nil_end by omega.
- rewrite (sublist_app 0 (hi-lo) al) by (rewrite ?Zlength_list_repeat, ?Z.max_r; omega).
-rewrite ?Z.min_l by omega.
-rewrite ?Z.max_r by omega.
-rewrite sublist_nil, <- app_nil_end by omega.
-rewrite (sublist_app hi n bl); try (rewrite ?Zlength_list_repeat, ?Z.max_r,  ?Z.max_l; omega).
-rewrite ?Z.min_l by omega.
-rewrite ?Z.max_r by omega.
-rewrite sublist_nil, <- app_nil_end by omega.
 rewrite <- app_ass.
  rewrite (sublist_app); rewrite ?Zlength_list_repeat, ?Z.max_r, ?Z.max_l by omega; try omega;
  rewrite ?Zlength_sublist by omega;
@@ -183,22 +166,15 @@ rewrite !Zlength_sublist; omega.
 Qed.
 
 Lemma Zlength_splice_into_list:
-  forall lo hi n al bl,
-    (0 <= lo <= hi)%Z -> (hi <= n)%Z ->
-    Zlength (splice_into_list lo hi n al bl) = n.
+  forall lo hi al bl,
+    (0 <= lo <= hi)%Z -> (hi <= Zlength bl)%Z ->
+    (hi - lo = Zlength al)%Z ->
+    Zlength (splice_into_list lo hi al bl) = Zlength bl.
 Proof.
 intros.
 unfold splice_into_list.
 rewrite !Zlength_app.
 rewrite !Zlength_sublist; rewrite ?Zlength_app; rewrite ?Zlength_list_repeat; try omega.
-destruct (zlt n (Zlength bl)).
-rewrite Zmax_l by omega; omega.
-rewrite Z.max_r; omega.
-rewrite Z.max_r by omega.
-rewrite Zlength_correct; omega.
-destruct (zlt lo (Zlength bl)).
-rewrite Zmax_l by omega; omega.
-rewrite Z.max_r; omega.
 Qed.
 
 Local Arguments nested_field_type cs t gfs : simpl never.
@@ -255,7 +231,7 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
      (0 <= loq)%Z ->  (loq + len <=  (*Zlength contents <=*) nq)%Z ->
      JMeq vq (map Vint contents) ->
      JMeq vp vp' ->
-     JMeq vp'' (splice_into_list lop (lop+len) np (sublist loq (Zlength contents) (map Vint contents)) vp') ->
+     JMeq vp'' (splice_into_list lop (lop+len) (sublist loq (loq + len) (map Vint contents)) vp') ->
      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          tc_exprlist Delta [tptr tvoid; tptr tvoid; tuint] [e_p; e_q; e_n]  &&
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
@@ -434,15 +410,16 @@ assert (exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp
   by (rewrite H99; eauto).
 destruct H7 as [vpy H8].
 assert (Zlength vpy = np). {
- assert (JMeq vpy  (splice_into_list lop (lop + len) np
-          (sublist loq (Zlength contents) (map Vint contents)) vp')) by (eapply JMeq_trans; [apply @JMeq_sym |]; eassumption).
- transitivity (Zlength  (splice_into_list lop (lop + len) np
-          (sublist loq (Zlength contents) (map Vint contents)) vp')).
+ assert (JMeq vpy  (splice_into_list lop (lop + len)
+          (sublist loq (loq + len) (map Vint contents)) vp')) by (eapply JMeq_trans; [apply @JMeq_sym |]; eassumption).
+ transitivity (Zlength  (splice_into_list lop (lop + len)
+          (sublist loq (loq + len) (map Vint contents)) vp')).
  clear - H7 H99 H5.
- forget (splice_into_list lop (lop + len) np
-          (sublist loq (Zlength contents) (map Vint contents)) vp') as vv.
+ forget (splice_into_list lop (lop + len)
+          (sublist loq (loq + len) (map Vint contents)) vp') as vv.
  forget val as t. subst t. apply JMeq_eq in H7. subst; auto.
  rewrite Zlength_splice_into_list; try omega.
+ autorewrite with sublist; auto.
 }
  erewrite field_at_Tarray; try eassumption; try omega.
  rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len) np) by omega.
@@ -519,7 +496,7 @@ Lemma call_memset_tuchar:
    (H0:  nested_field_type tp pathp = tarray tuchar np)
    (Hnp : (lop + len <= np)%Z)
    (H3:  JMeq vp vp')
-   (H4:  JMeq vp'' (splice_into_list lop (lop+len) np (list_repeat (Z.to_nat len) (Vint c)) vp'))
+   (H4:  JMeq vp'' (splice_into_list lop (lop+len) (list_repeat (Z.to_nat len) (Vint c)) vp'))
    (H5: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
@@ -658,7 +635,8 @@ intros.
 apply JMeq_eq in H8.
 subst.
 clear H0.
-rewrite Zlength_splice_into_list by omega.
+rewrite Zlength_splice_into_list; try omega.
+autorewrite with sublist.
 auto.
 }
 rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len) np) by omega.

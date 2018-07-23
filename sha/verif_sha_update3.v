@@ -415,7 +415,6 @@ forward_if.
   replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
     with 0%Z by (clear; omega).
   change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
-  rewrite <- app_nil_end.
   autorewrite with sublist.
   rewrite sublist_list_repeat by Omega1.
   clear H5 H6.
