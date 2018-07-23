@@ -493,3 +493,34 @@ Proof.
   intros; unfold own.
   apply exp_left; intro; apply Own_dealloc.
 Qed.
+
+Require Import VST.veric.tycontext.
+Require Import VST.veric.seplog.
+
+Lemma own_super_non_expansive : forall {RA : Ghost} n g a pp,
+  approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).
+Proof.
+  intros; unfold own.
+  rewrite !approx_exp; f_equal; extensionality v.
+  unfold Own.
+  rewrite !approx_andp; f_equal.
+  apply pred_ext; intros ? [? Hg]; split; auto; simpl in *.
+  - rewrite <- ghost_of_approx, Hg.
+    rewrite !ghost_fmap_singleton, !preds_fmap_fmap.
+    rewrite approx_oo_approx, approx_oo_approx', approx'_oo_approx by omega; auto.
+  - rewrite ghost_fmap_singleton in *.
+    rewrite preds_fmap_fmap in Hg.
+    rewrite approx_oo_approx', approx'_oo_approx in Hg by omega; auto.
+Qed.
+
+Lemma bupd_prop : forall P, bupd (!! P) = !! P.
+Proof.
+  intros ?; apply pred_ext.
+  - intros ??; simpl in *.
+    destruct (H (core (ghost_of a))) as (? & ? & ? & ? & ? & ? & ?); auto.
+    eexists.
+    rewrite ghost_core; simpl; erewrite <- ghost_core.
+    apply join_comm, core_unit.
+  - intros ??.
+    do 2 eexists; eauto.
+Qed.

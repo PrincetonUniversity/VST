@@ -8,6 +8,18 @@ Import Ensembles.
 
 (* Where should this sit? *)
 
+Arguments In {_} _ _.
+Arguments Included {_} _ _.
+Arguments Singleton {_} _.
+Arguments Union {_} _ _.
+Arguments Add {_} _ _.
+Arguments Intersection {_} _ _.
+Arguments Complement {_} _.
+Arguments Setminus {_} _ _.
+Arguments Subtract {_} _ _.
+Arguments Disjoint {_} _ _.
+Arguments Same_set {_} _ _.
+
 Section Invariants.
 
 Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
@@ -508,7 +520,8 @@ Proof.
         apply (Hnth (S n)); auto.
 Qed.
 
-Instance set_PCM A : Ghost := { valid a := True; Join_G a b c := Disjoint A a b /\ c = Union A a b }.
+Instance set_PCM A : Ghost := { valid := fun _ : Ensemble A => True;
+   Join_G a b c := Disjoint a b /\ c = Union a b }.
 Proof.
   - exists (fun _ => Empty_set _); auto.
     intro; split.
@@ -568,11 +581,11 @@ Defined.
 Definition ghost_set {A} g s := own(RA := set_PCM A) g s NoneP.
 
 Lemma ghost_set_join : forall {A} g (s1 s2 : Ensemble A),
-  ghost_set g s1 * ghost_set g s2 = !!(Disjoint _ s1 s2) && ghost_set g (Union _ s1 s2).
+  ghost_set g s1 * ghost_set g s2 = !!(Disjoint s1 s2) && ghost_set g (Union s1 s2).
 Proof.
   intros.
   setoid_rewrite own_op_gen.
-  - instantiate (1 := Union _ s1 s2).
+  - instantiate (1 := Union s1 s2).
     unfold ghost_set; apply pred_ext.
     + Intros; entailer!.
       destruct H as (? & H & ?); inv H; auto.
@@ -581,27 +594,36 @@ Proof.
   - intros (? & H & ?); inv H; split; auto.
 Qed.
 
-Lemma ghost_set_remove : forall {A} g a (s : Ensemble A) (Hdec : forall b, b = a \/ b <> a),
-  In _ s a -> ghost_set g s = ghost_set g (Singleton _ a) * ghost_set g (Subtract _ s a).
+Lemma ghost_set_subset : forall {A} g (s s' : Ensemble A)
+  (Hdec : forall a, In s' a \/ ~In s' a),
+  Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus s s').
 Proof.
   intros.
   apply own_op.
   split.
   - constructor; intros ? Hin.
     inv Hin.
-    inv H0; inv H1.
-    contradiction H2; constructor.
+    inv H1; contradiction.
   - apply Extensionality_Ensembles; split; intros ? Hin.
     + destruct (Hdec x).
-      * subst; constructor 1; constructor.
+      * constructor 1; auto.
       * constructor 2; constructor; auto.
-        intro Ha; inv Ha; contradiction.
-    + inv Hin.
-      * inv H0; auto.
-      * inv H0; auto.
+    + inv Hin; auto.
+      inv H0; auto.
 Qed.
 
-Definition namespace := nat.
+Corollary ghost_set_remove : forall {A} g a (s : Ensemble A) (Hdec : forall b, b = a \/ b <> a),
+  In s a -> ghost_set g s = ghost_set g (Singleton a) * ghost_set g (Subtract s a).
+Proof.
+  intros; apply ghost_set_subset.
+  - intro x; destruct (Hdec x).
+    + subst; left; constructor.
+    + right; intro Hin; inv Hin; contradiction.
+  - intros ? Hin.
+    inv Hin; auto.
+Qed.
+
+Definition iname := nat.
 
 Class invG := { g_inv : gname; g_en : gname; g_dis : gname }.
 
@@ -629,7 +651,8 @@ Definition wsat : mpred := EX I : list mpred, EX lg : list gname, EX lb : list (
                         | Some false => agree (Znth i lg) (Znth i I)
                         | _ => emp end) (upto (length I)).
 
-Definition invariant (i : namespace) P : mpred := EX g : gname,
+(* This is what's called ownI in Iris; we could build another layer with namespaces. *)
+Definition invariant (i : iname) P : mpred := EX g : gname,
   ghost_snap(ORD := list_order _) (list_singleton i g) g_inv * agree g P.
 
 Lemma nth_singleton : forall {A} n (a : A) d, nth n (list_singleton n a) d = Some a.
@@ -837,7 +860,7 @@ Proof.
 Qed.
 
 Lemma wsat_open : forall i P,
-  wsat * invariant i P * ghost_set g_en (Singleton _ i) |--
+  wsat * invariant i P * ghost_set g_en (Singleton i) |--
   |==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt)).
 Proof.
   intros; unfold wsat, invariant.
@@ -918,7 +941,7 @@ Qed.
 
 Lemma wsat_close : forall i P,
   wsat * invariant i P * |> P * ghost_list g_dis (list_singleton i (Some tt)) |--
-  |==> wsat * ghost_set g_en (Singleton _ i).
+  |==> wsat * ghost_set g_en (Singleton i).
 Proof.
   intros; unfold wsat, invariant.
   Intros I lg lb g.
@@ -995,9 +1018,16 @@ Proof.
     rewrite Hi'; constructor.
 Qed.
 
-(* define fancy update, prove invariant rules *)
+Lemma invariant_super_non_expansive : forall n N P,
+  approx n (invariant N P) = approx n (invariant N (approx n P)).
+Proof.
+  intros; unfold invariant.
+  rewrite !approx_exp; f_equal; extensionality g.
+  rewrite !approx_sepcon; f_equal.
+  apply own.own_super_non_expansive.
+Qed.
 
-(* Consider putting invariants and fancy updates in msl (a la ghost_seplog), and these proofs in
-   veric (a la own). *)
+(* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
+   in veric (a la own). *)
 
 End Invariants.
