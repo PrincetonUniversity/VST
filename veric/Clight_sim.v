@@ -1,8 +1,5 @@
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.semantics_lemmas.
-(*Require Import VST.sepcomp.compiler_correctness.*)
-
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.Clight_new.
@@ -12,7 +9,6 @@ Require VST.veric.Clight_core.
 Module CC' := Clight_core.
 Section GE.
 Variable ge : genv.
-
 Definition CCstep s1 s2 := 
   Clight_core.cl_at_external (fst (CC'.CC_state_to_CC_core s1)) = None /\
   Clight.step ge (Clight.function_entry2 ge) s1 Events.E0 s2.
@@ -948,8 +944,8 @@ Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics core M)
             @CoreSemantics core M :=
   Build_CoreSemantics _ _
              (CS.(initial_core))
-             (CS.(at_external))
-             (CS.(after_external))
+             (CS.(semantics.at_external))
+             (CS.(semantics.after_external))
              CS.(halted)
             (CS.(corestep) )
             (CS.(corestep_not_halted) )
@@ -963,24 +959,3 @@ exists (Genv.genv_symb ge).
 hnf; intros.
 eapply Genv.genv_vars_inj; eauto.
 Defined.
-
- Lemma sim_dry_safeN:
-  forall dryspec (prog: Clight.program) b q m m' h,
-  initial_core (Clight_new.cl_core_sem (globalenv prog)) h m q m'
-          (Vptr b Ptrofs.zero) nil ->
-  (forall n, 
-    @dry_safeN _ _ _ _ (@genv_symb_injective _ _)
-   (coresem_extract_cenv (Clight_new.cl_core_sem (globalenv prog))
-   (prog_comp_env prog)) dryspec 
-   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m) ->
-  exists q', 
-  initial_core (Clight_core.cl_core_sem (Build_genv (Genv.globalenv prog) (prog_comp_env prog)))
-          h m q' m' (Vptr b Ptrofs.zero) nil /\
-  (forall n, 
-    @dry_safeN _ _ _ _ (@genv_symb_injective _ _)
-   (coresem_extract_cenv  (Clight_core.cl_core_sem (Build_genv (Genv.globalenv prog) (prog_comp_env prog)))
-   (prog_comp_env prog)) dryspec 
-   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q' m).
-Abort.  (* We don't need this lemma *)
-
-
