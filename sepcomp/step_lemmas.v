@@ -42,7 +42,7 @@ Section safety.
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
-           after_external Hcore ret c m = Some c' /\
+           after_external Hcore ret c m' = Some c' /\
            safeN_ n' z' c' m') ->
       safeN_ (S n) z c m
   | safeN_halted:
@@ -115,8 +115,9 @@ Qed.
     apply (IHn0 _ _ _ _ n STEPN).
     assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
     rewrite Heq in H1.
-    eapply safe_corestep_forward in H1; eauto.
-  Qed.
+    eapply safe_corestep_forward in H1; auto.
+   2: eauto. eauto.
+ Qed.
 
   Lemma safe_step'_back2 :
     forall
@@ -153,8 +154,8 @@ Qed.
 
   Lemma convergent_controls_safe :
     forall m q1 q2,
-      (at_external Hcore q1 = at_external Hcore q2) ->
-      (forall ret q', after_external Hcore ret q1 m = Some q' ->
+      (at_external Hcore q1 m = at_external Hcore q2 m) ->
+      (forall ret m q', after_external Hcore ret q1 m = Some q' ->
                       after_external Hcore ret q2 m = Some q') ->
       (halted Hcore q1 = halted Hcore q2) ->
       (forall q' m', corestep Hcore q1 m q' m' ->
@@ -165,7 +166,7 @@ Qed.
     inv H3.
     + econstructor; eauto.
     + eapply safeN_external; eauto.
-      rewrite <-H; auto.
+      rewrite <-H; eauto.
       intros ???? Hargsty Hretty ? H8 H9.
       specialize (H7 _ _ _ _ Hargsty Hretty H3 H8 H9).
       destruct H7 as [c' [? ?]].
