@@ -108,7 +108,7 @@ SEPCOMP_FILES = \
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
-CONCUR_FILES= 
+CONCUR_FILES= lksize.v semax_conc.v semax_conc_pred.v
 
 PACO_FILES= \
   hpattern.v\
