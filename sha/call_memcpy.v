@@ -19,13 +19,10 @@ rewrite Z.max_r by omega.
 auto.
 Qed.
 
-Definition splice_into_list (lo hi : Z) (source target : list val) : list val :=
-   sublist 0 lo target
-   ++ sublist 0 (hi-lo) source
-   ++ sublist hi (Zlength target) target.
+Import field_at_wand.SegmentHole.
 
 Lemma splice_into_list_simplify0:
-  forall n src dst,
+  forall {A} n (src dst: list A),
     Zlength src = n ->
     Zlength dst = n ->
     splice_into_list 0 n src dst = src.
@@ -35,10 +32,21 @@ Proof.
 rewrite !sublist_nil.
 rewrite app_nil_l.
 pose proof (Zlength_nonneg src).
-rewrite sublist_same by omega.
 rewrite sublist_nil' by omega.
 rewrite app_nil_r.
 auto.
+Qed.
+
+Lemma splice_into_list_self:
+  forall {A} lo hi (l: list A),
+    (0 <= lo <= hi)%Z ->
+    (hi <= Zlength l)%Z ->
+    splice_into_list lo hi (sublist lo hi l) l = l.
+Proof.
+ intros.
+ unfold splice_into_list.
+ autorewrite with sublist.
+ auto.
 Qed.
 (*
 Lemma splice_into_list_simplify1:
@@ -122,7 +130,7 @@ Qed.
   match fs with mk_funspec fsig _ _ _ _ _ _=> fsig end.
 
 Lemma part1_splice_into_list:
-  forall lo hi al bl,
+  forall {A} lo hi (al bl: list A),
     (0 <= lo <= Zlength bl)%Z ->
     sublist 0 lo (splice_into_list lo hi al bl) = sublist 0 lo bl.
 Proof.
@@ -139,7 +147,7 @@ rewrite Zlength_sublist; omega.
 Qed.
 
 Lemma part3_splice_into_list:
-  forall lo hi n al bl,
+  forall {A} lo hi n (al bl: list A),
     (0 <= lo <= hi)%Z -> (hi <= n)%Z ->
    (Zlength bl = n)%Z ->
    (Zlength al = hi-lo)%Z ->
@@ -153,7 +161,6 @@ rewrite <- app_ass.
  try (rewrite ?Zlength_correct; omega).
 rewrite !Zlength_app.
 rewrite Zlength_sublist; try omega.
-rewrite Zlength_sublist; try omega.
 rewrite ?Z.min_r by omega.
 rewrite ?Z.max_r by omega.
 rewrite sublist_nil by omega.
@@ -166,7 +173,7 @@ rewrite !Zlength_sublist; omega.
 Qed.
 
 Lemma Zlength_splice_into_list:
-  forall lo hi al bl,
+  forall {A} lo hi (al bl: list A),
     (0 <= lo <= hi)%Z -> (hi <= Zlength bl)%Z ->
     (hi - lo = Zlength al)%Z ->
     Zlength (splice_into_list lo hi al bl) = Zlength bl.
@@ -178,10 +185,6 @@ rewrite !Zlength_sublist; rewrite ?Zlength_app; rewrite ?Zlength_list_repeat; tr
 Qed.
 
 Local Arguments nested_field_type cs t gfs : simpl never.
-
-(* Qinxiang:  look at the admits in this file.
- They are all about rerooting data_at and arrays.
-*)
 
 Lemma semax_call_id0_alt:
  forall Espec {cs: compspecs} Delta P Q R id bl argsig tfun retty cc A x Pre Post
@@ -289,67 +292,21 @@ assert_PROP (legal_nested_field tp pathp /\ legal_nested_field tq pathq). {
   eapply derives_trans; [apply Hpre | apply andp_left2].
 old_go_lower; entailer!.
 } destruct H6 as [LNFp LNFq].
-erewrite field_at_Tarray in Hpre; try apply JMeq_refl; try eassumption; auto; try omega.
 
-assert (H98: reptype (nested_field_type tq (ArraySubsc 0 :: pathq)) = val).
- clear - H1. unfold nested_field_type in *; simpl in *.
-  destruct (nested_field_rec tq pathq); inv H1. destruct p. subst.
- reflexivity.
-assert (exists vqx : list (reptype (nested_field_type tq (ArraySubsc 0 :: pathq))),
-                    JMeq vq vqx).
- rewrite H98. exists (map Vint contents); auto.
-destruct H6 as [vqx Hvqx].
-assert (JMeq vqx (map Vint contents)) by (eapply JMeq_trans; try eassumption; auto).
-assert (LENvqx: Zlength vqx = nq). {
-clear - H98 H6 Hvq'.
-transitivity (Zlength (map Vint contents)).
-forget (map Vint contents) as l.
-forget val as t. subst t.
-apply JMeq_eq in H6. subst; auto.
-rewrite Zlength_map; auto.
-}
-assert (LENvpx: Zlength vpx = np). {
-clear - H99 H5 H3 Hvp' Hvpx.
-assert (JMeq vp' vpx) by (eapply JMeq_trans; [apply @JMeq_sym |]; eassumption).
-clear Hvpx vp H3.
-forget val as t. subst t.
-apply JMeq_eq in H. subst; auto.
-}
-erewrite (field_at_Tarray shq) in Hpre|-*; try apply JMeq_refl; try eassumption; auto; try omega.
-rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len)) in Hpre by omega.
-rewrite (split3seg_array_at shq tq pathq 0 loq (loq+len)) in Hpre|-* by omega.
 
-rewrite !Z.sub_0_r in *.
-
-normalize in Hpre. normalize.
-assert_PROP (field_compatible0 tp (pathp SUB lop) p /\
-            field_compatible0 tp (pathp SUB (lop + len)) p /\
-            field_compatible0 tq (pathq SUB loq) q /\
-            field_compatible0 tq (pathq SUB (loq + len)) q)
-  as FC. {
- eapply derives_trans; [apply Hpre | clear Hpre].
- go_lowerx. apply andp_left2. normalize.
- saturate_local.
- apply prop_right.
- split3; auto.
-}
 
 pose (witness := ((shq,shp),
                               field_address0 tp (ArraySubsc lop :: pathp) p,
                               field_address0 tq (ArraySubsc loq :: pathq) q,
                               len,  sublist loq (loq+len) contents)).
 pose (Frame :=
-         array_at shp tp pathp 0 lop
-              (sublist 0 lop vpx) p
-          :: array_at shp tp pathp (lop+len) np
-                 (sublist (lop + len) (Zlength vpx) vpx) p
-             :: array_at shq tq pathq 0 loq (sublist 0 loq vqx) q *
-                array_at shq tq pathq (loq + len) nq
-                    (sublist (loq+len) (Zlength vqx) vqx) q :: R').
+        array_with_hole shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)
+          :: array_with_hole shp tuchar lop (lop + len) np vp' (field_address tp pathp p) :: R').
 eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
+
 *
  eapply derives_trans, now_later.
  eapply derives_trans; [ apply Hpre | ].
@@ -369,112 +326,97 @@ eapply semax_pre_post';
  unfold eval_id, env_set.
  rewrite TCp, TCq, TCn.  simpl.
  unfold_lift; simpl.
- rewrite <- H7, <- H8, <- H9.
+ rewrite <- H6, <- H7, <- H8.
  split3; auto.
  apply andp_right.
  apply prop_right; split3; auto.
  subst Frame.
  normalize.
- rewrite LENvqx, LENvpx; cancel.
- rewrite sepcon_comm.
+ cancel.
+ rewrite !field_at_data_at.
+ rewrite (data_at_type_changable _ _ _ _ _ H0 H3).
+ rewrite (data_at_type_changable _ _ _ _ _ H1 H2).
+ sep_apply (array_with_hole_intro shp tuchar lop (lop + len) np vp' (field_address tp pathp p)); [omega | omega |].
+ sep_apply (array_with_hole_intro shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)); [omega | omega |].
+ cancel.
  apply sepcon_derives.
- rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
- apply derives_refl'.
- apply equal_f. apply data_at_type_changable.
- unfold nested_field_array_type.
- rewrite nested_field_type_ind. rewrite H1. simpl.
- unfold tarray; f_equal; clear; omega.
-   rewrite <- sublist_map.
-   apply JMeq_sublist; auto.
- rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
- replace (memory_block shp len) with
-    (memory_block shp (sizeof (nested_field_array_type tp pathp lop (lop + len)))).
- eapply derives_trans; [ | apply data_at__memory_block_cancel]; cancel.
- f_equal. unfold nested_field_array_type.
- rewrite nested_field_type_ind. rewrite H0. simpl.
- rewrite Z.max_r by omega. rewrite Z.mul_1_l. clear; omega.
-*
+ - apply derives_refl'.
+   rewrite <- H1.
+   rewrite <- field_address0_app by congruence.
+   simpl app.
+   apply equal_f.
+   apply data_at_type_changable.
+   + f_equal; clear; omega.
+   + rewrite <- sublist_map.
+     apply JMeq_sublist; auto.
+ - replace (memory_block shp len) with
+     (memory_block shp (sizeof (nested_field_array_type tp pathp lop (lop + len)))).
+   2: {
+     f_equal. unfold nested_field_array_type.
+     rewrite nested_field_type_ind. rewrite H0. simpl.
+     rewrite Z.max_r by omega. rewrite Z.mul_1_l. clear; omega.
+   }
+   eapply derives_trans; [ | apply data_at__memory_block_cancel]; cancel.
+   rewrite <- H0.
+   rewrite <- field_address0_app by congruence.
+   simpl app.
+   unfold nested_field_array_type, tarray.
+   rewrite nested_field_type_ind, H0.
+   apply data_at_data_at_.
+ *
  intros. apply andp_left2.
  go_lowerx. unfold_lift.
  simpl.
  Intros x. rewrite prop_true_andp by auto.
  rewrite map_sublist.
- rewrite LENvqx; cancel.
  clear witness Frame.
- normalize in H8.
+ normalize in H7.
  subst x.
  simpl.
- clear Hpre H7 P Q rho .
+ clear Hpre H6 P Q rho .
 assert (exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy)
   by (rewrite H99; eauto).
-destruct H7 as [vpy H8].
+destruct H6 as [vpy H7].
 assert (Zlength vpy = np). {
  assert (JMeq vpy  (splice_into_list lop (lop + len)
           (sublist loq (loq + len) (map Vint contents)) vp')) by (eapply JMeq_trans; [apply @JMeq_sym |]; eassumption).
  transitivity (Zlength  (splice_into_list lop (lop + len)
           (sublist loq (loq + len) (map Vint contents)) vp')).
- clear - H7 H99 H5.
+ clear - H6 H99 H5.
  forget (splice_into_list lop (lop + len)
           (sublist loq (loq + len) (map Vint contents)) vp') as vv.
- forget val as t. subst t. apply JMeq_eq in H7. subst; auto.
+ forget val as t. subst t. apply JMeq_eq in H6. subst; auto.
  rewrite Zlength_splice_into_list; try omega.
  autorewrite with sublist; auto.
 }
- erewrite field_at_Tarray; try eassumption; try omega.
- rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len) np) by omega.
- rewrite Z.sub_0_r.
- replace (lop+len-lop)%Z with len by omega.
- autorewrite with sublist.
-
-match goal with |- ?A * ?B * ?C * ?D |-- _ =>
- apply derives_trans with (C * B * D * A); [solve [cancel] | ]
-end.
-repeat apply sepcon_derives.
-+
- apply array_at_ext_derives.
- rewrite !Zlength_sublist; omega.
- intros.
- replace u0 with u1; auto.
- forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
- apply JMeq_eq.
- eapply JMeq_trans; [exact H11 |].
- eapply JMeq_trans; [| apply @JMeq_sym; exact H10].
-
- rewrite Z.sub_0_r.
- admit.  (* tedious *)
-+
- rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
-   apply derives_refl'.
-   apply equal_f. apply data_at_type_changable.
-   unfold nested_field_array_type.
-   rewrite nested_field_type_ind, H0.
-   unfold tarray; f_equal. clear; omega.
-  admit. (* tedious *)
-+
- apply array_at_ext_derives.
- rewrite !Zlength_sublist; omega.
- intros.
- replace u0 with u1; auto.
- forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
- apply JMeq_eq.
- eapply JMeq_trans; [exact H11 |].
- eapply JMeq_trans; [| apply @JMeq_sym; exact H10].
- clear u0 u1 H10 H11.
- rewrite LENvpx.
- admit.  (* tedious *)
-+
- rewrite array_at_data_at' by (try solve [clear - FC; intuition]; omega).
-   apply derives_refl'.
-   apply equal_f. apply data_at_type_changable.
-   unfold nested_field_array_type.
-   rewrite nested_field_type_ind, H1.
-   unfold tarray; f_equal. clear; omega.
-   apply JMeq_sublist.
-   rewrite nested_field_type_ind, H1. reflexivity.
-   apply @JMeq_sym; auto.
-Admitted.
-
+cancel.
+change (ArraySubsc loq :: pathq) with ([ArraySubsc loq] ++ pathq).
+change (ArraySubsc lop :: pathp) with ([ArraySubsc lop] ++ pathp).
+rewrite !field_address0_app by congruence.
+rewrite H0, H1.
+erewrite (data_at_type_changable shq _ (tarray tuchar (loq + len - loq)));
+[| f_equal; omega | apply JMeq_refl].
+erewrite (data_at_type_changable shp _ (tarray tuchar (lop + len - lop)));
+[| f_equal; omega | apply JMeq_refl].
+sep_apply (array_with_hole_elim shp tuchar lop (lop + len) np (sublist loq (loq + len) (map Vint contents)) vp' (field_address tp pathp p)).
+sep_apply (array_with_hole_elim shq tuchar loq (loq + len) nq (sublist loq (loq + len) (map Vint contents)) (map Vint contents) (field_address tq pathq q)).
+rewrite !field_at_data_at.
+rewrite sepcon_comm.
+apply sepcon_derives.
+- apply derives_refl'.
+  apply equal_f.
+  apply data_at_type_changable; auto.
+- apply derives_refl'.
+  apply equal_f.
+  apply data_at_type_changable; auto.
+  eapply JMeq_trans; [| apply JMeq_sym, H2].
+  apply eq_JMeq.
+  apply splice_into_list_self.
+  { omega. }
+  { autorewrite with sublist. omega. }
+Qed.
+     
 Lemma call_memset_tuchar:
   forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
            (c: int) (len : Z)

@@ -205,12 +205,12 @@ Qed.
 
 End SingletonHole.
 
-Module SegmentHole.
-
 Definition splice_into_list {A} (lo hi: Z) (source target : list A) : list A :=
    sublist 0 lo target
    ++ source 
    ++ sublist hi (Zlength target) target.
+
+Module SegmentHole.
 
 Definition array_with_hole {cs: compspecs} sh (t: type) lo hi n (al': list (reptype t)) p :=
 ALL v: list (reptype t),
