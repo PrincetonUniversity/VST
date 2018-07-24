@@ -56,7 +56,8 @@ Definition j_after_external {C} (csem: @CoreSemantics C mem)
 
 Definition jstep {C} (csem: @CoreSemantics C mem)
   (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
- corestep csem q (m_dry jm) q' (m_dry jm') /\ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+ corestep csem q (m_dry jm) q' (m_dry jm') /\ 
+ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm') /\
  ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)).
 
@@ -76,16 +77,6 @@ Lemma jstep_not_halted  {C} (csem: @CoreSemantics C mem):
 Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
 Qed.
-
-(*
-Lemma j_at_external_halted_excl {C} (csem: @CoreSemantics C mem):
-  forall (q : C) m i,
-  at_external csem q m = None \/ ~ j_halted csem q i.
-Proof.
- intros.
- unfold j_halted. Search at_external halted.
-Qed.
-*)
 
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
@@ -326,19 +317,6 @@ Section juicy_safety.
       ext_spec_exit Hspec (Some (Vint i)) z m ->
       jsafeN_ n z c m.
 
-(*  Lemma jsafe_corestep_forward:
-     corestep_fun Hcore ->
-    forall c m c' m' n z,
-    jstep Hcore ge c m c' m' -> jsafeN_ (S n) z c m -> jm_bupd (jsafeN_ n z c') m'.
-  Proof.
-    intros H%juicy_core_sem_preserves_corestep_fun.
-    simpl; intros; inv H1.
-    assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).
-    inv H1; auto.
-    setoid_rewrite (corestep_not_at_external (juicy_core_sem _)) in H3; eauto; congruence.
-    setoid_rewrite (corestep_not_halted (juicy_core_sem _)) in H2; eauto; congruence.
-  Qed.*)
-
   Lemma jsafe_corestep_backward:
     forall c m c' m' n z,
     jstep Hcore c m c' m' ->
@@ -408,7 +386,7 @@ Section juicy_safety.
     omega.
   Qed.
 
-(*  Lemma jsafe_corestepN_backward:
+  Lemma jsafe_corestepN_backward:
     forall z c m c' m' n n0,
       semantics_lemmas.corestepN (juicy_core_sem Hcore) n0 c m c' m' ->
       jsafeN_ (n - n0) z c' m' ->
@@ -424,7 +402,7 @@ Section juicy_safety.
     eapply jsafe_downward in H0; eauto. omega.
     specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply jsafe_step'_back2; eauto].
-  Qed.*)
+  Qed.
 
   Lemma convergent_controls_jsafe :
     forall m q1 q2,
