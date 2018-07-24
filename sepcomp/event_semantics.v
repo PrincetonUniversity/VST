@@ -184,11 +184,11 @@ Record EvSem {C} :=
        exists T, ev_step c m T c' m'
   ; ev_step_fun: forall c m T' c' m' T'' c'' m'',
        ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T''
-(*  ; ev_step_elim: forall c m T c' m',
-       ev_step c m T c' m' -> ev_elim m T m'*)
+(*  ; ev_step_elim: forall g c m T c' m',
+       ev_step g c m T c' m' -> ev_elim m T m'*)
   ; ev_step_elim: forall c m T c' m' (STEP: ev_step c m T c' m'),
-       ev_elim m T m' /\
-       (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step c mm T cc' mm')
+       ev_elim m T m' (*/\
+       (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step c mm T cc' mm')*)
   }.
 
 Lemma Ev_sem_cur_perm {C} (R: @EvSem C) c m T c' m' b ofs (D: ev_step R c m T c' m'):

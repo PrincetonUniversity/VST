@@ -101,56 +101,14 @@ SEPCOMP_FILES = \
   globalSep.v \
   mem_lemmas.v \
   reach.v \
+  mem_wd.v \
   semantics.v semantics_lemmas.v \
-  simulations.v \
   step_lemmas.v \
   structured_injections.v
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
-CONCUR_FILES= \
-  addressFiniteMap.v cast.v compcert_imports.v \
-  compcert_threads_lemmas.v threadPool.v  \
-  semantics.v \
-  concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
-  dry_machine_lemmas.v dry_machine_step_lemmas.v \
-  Clight_bounds.v enums_equality.v\
-  ClightSemantincsForMachines.v Clight_coreSemantincsForMachines.v \
-  JuicyMachineModule.v DryMachineSource.v \
-  erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
-  fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
-  lksize.v \
-  main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
-  bounded_maps.v \
-  rc_semantics.v rc_semantics_lemmas.v \
-  scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
-  threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \
-  sync_preds_defs.v sync_preds.v oracular_refinement.v \
-  semax_conc_pred.v semax_conc.v semax_to_juicy_machine.v \
-  semax_invariant.v semax_initial.v \
-  semax_simlemmas.v cl_step_lemmas.v \
-  semax_progress.v semax_preservation.v \
-  semax_preservation_jspec.v \
-  semax_preservation_local.v \
-  semax_preservation_acquire.v \
-  semax_safety_release.v \
-  semax_safety_makelock.v \
-  semax_safety_freelock.v \
-  semax_safety_spawn.v \
-  resource_decay_lemmas.v \
-  rmap_locking.v \
-  permjoin.v \
-  resource_decay_join.v join_lemmas.v coqlib5.v \
-  konig.v safety.v \
-	reestablish.v \
-	lifting.v lifting_safety.v \
-linking_spec.v	\
-  machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
-  coinductive_safety.v CoreSemantics_sum.v \
-  concurrent_machine_rec.v HybridMachine.v
-
-#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
+CONCUR_FILES= 
 
 PACO_FILES= \
   hpattern.v\

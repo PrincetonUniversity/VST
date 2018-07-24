@@ -1,8 +1,6 @@
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
-Require Import VST.sepcomp.simulations.
-Require Import VST.sepcomp.simulations_lemmas.
 (*Require Import VST.sepcomp.compiler_correctness.*)
 
 Require Import VST.veric.base.
