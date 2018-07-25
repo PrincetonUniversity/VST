@@ -1708,7 +1708,7 @@ Proof.
       unfold Tptr. destruct Archi.ptr64; try contradiction; auto.
       unfold Tptr. destruct Archi.ptr64; auto.
   }
-(*  { unfold arg_well_formed. constructor; auto. } *)
+  { unfold arg_well_formed. constructor; auto. } 
 
   intros jm ts a m_sat_Pa m_funassert.
 
