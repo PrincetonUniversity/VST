@@ -9,6 +9,8 @@ Import Ensembles.
 
 (* Where should this sit? *)
 
+Section Timeless.
+
 Definition except0 P := P || |>FF.
 
 Definition timeless P := |>P |-- except0 P.
@@ -91,6 +93,70 @@ Proof.
   apply orp_right2; auto.
 Qed.
 
+Lemma except0_sepcon : forall P Q, except0 (P * Q) = except0 P * except0 Q.
+Proof.
+  intros; unfold except0.
+  rewrite distrib_orp_sepcon, !distrib_orp_sepcon2.
+  apply pred_ext.
+  - apply orp_left.
+    + apply orp_right1, orp_right1; auto.
+    + apply orp_right2, orp_right2.
+      rewrite <- later_sepcon, FF_sepcon; auto.
+  - apply orp_left; apply orp_left.
+    + apply orp_right1; auto.
+    + apply orp_right2.
+      eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
+      rewrite <- later_sepcon; apply later_derives; rewrite sepcon_FF; auto.
+    + apply orp_right2.
+      eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
+      rewrite <- later_sepcon; apply later_derives; rewrite FF_sepcon; auto.
+    + apply orp_right2.
+      rewrite <- later_sepcon, FF_sepcon; auto.
+Qed.
+
+Lemma timeless_sepcon : forall P Q, timeless P -> timeless Q -> timeless (P * Q).
+Proof.
+  unfold timeless; intros.
+  rewrite later_sepcon, except0_sepcon.
+  apply sepcon_derives; auto.
+Qed.
+
+Lemma own_timeless : forall {P : Ghost} g (a : G), timeless (own g a NoneP).
+Proof.
+  intros; unfold timeless, except0.
+  change (predicates_hered.derives (|> own.own g a NoneP) (own.own g a NoneP || |> FF)).
+  intros a' H.
+  destruct (level a') eqn: Hl.
+  - right; intros ??%laterR_level; omega.
+  - left.
+    destruct (levelS_age a' n) as (a'' & ? & ?); auto; subst.
+    destruct (H a'') as (v & Hno & Hg).
+    { constructor; auto. }
+    exists v; simpl in *.
+    split.
+    + intros; eapply age1_resource_at_identity; eauto.
+    + erewrite age1_ghost_of in Hg by eauto.
+      rewrite own.ghost_fmap_singleton in *.
+      apply own.ghost_fmap_singleton_inv in Hg as ([] & -> & Heq).
+      inv Heq.
+      destruct p; inv H3.
+      simpl; repeat f_equal.
+      extensionality l.
+      destruct (_f l); auto.
+Qed.
+
+Lemma timeless_exp : forall {A} (x : A) P, (forall x, timeless (P x)) -> timeless (EX x : A, P x).
+Proof.
+  unfold timeless; intros.
+  rewrite later_exp' by auto.
+  Intro y.
+  eapply derives_trans; eauto.
+  apply except0_mono.
+  Exists y; auto.
+Qed.
+
+End Timeless.
+
 Section FancyUpdates.
 
 Context {inv_names : invG}.
@@ -169,14 +235,46 @@ Proof.
   intros; rewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
 Qed.
 
+(* This is a generally useful pattern. *)
+Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
+  app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
+Proof.
+  intros.
+  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
+  { apply (fupd_frame_r _ _ _ _ a).
+    do 3 eexists; [apply join_comm, core_unit | split; auto].
+    split; [|apply core_identity].
+    rewrite level_core; auto. }
+  eapply fupd_mono in HP'; eauto.
+  change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
+  intros a0 (? & ? & J & HP & [? Hemp]).
+  destruct (join_level _ _ _ J).
+  apply join_comm, Hemp in J; subst.
+  eapply Himp in HP; try apply necR_refl; auto; omega.
+Qed.
+
 Lemma fupd_bupd : forall E1 E2 P Q, P |-- |==> (|={E1,E2}=> Q) -> P |-- |={E1,E2}=> Q.
 Proof.
   intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
 Qed.
 
+Lemma fupd_bupd_elim : forall E1 E2 P Q, P |-- |={E1,E2}=> Q -> |==> P |-- |={E1,E2}=> Q.
+Proof.
+  intros; apply fupd_bupd, bupd_mono; auto.
+Qed.
+
 Lemma fupd_intro : forall E P, P |-- |={E}=> P.
 Proof.
   intros; eapply derives_trans, bupd_fupd; apply bupd_intro.
+Qed.
+
+Lemma fupd_timeless' : forall E1 E2 P Q, timeless P -> P |-- |={E1,E2}=> Q ->
+  |> P |-- |={E1,E2}=> Q.
+Proof.
+  intros.
+  eapply derives_trans; [apply fupd_timeless; auto|].
+  eapply derives_trans, fupd_trans.
+  apply fupd_mono; eauto.
 Qed.
 
 Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
@@ -253,3 +351,6 @@ Qed.
    in veric (a la own). *)
 
 End FancyUpdates.
+
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 62): logic.
+Notation "|={ E }=> P" := (fupd E E P) (at level 62): logic.

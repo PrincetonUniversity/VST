@@ -3,23 +3,12 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
 Require Import VST.progs.invariants.
+Require Import VST.progs.fupd.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Export Ensembles.
 
 Set Bullet Behavior "Strict Subproofs".
-
-Arguments Empty_set {_}.
-Arguments Full_set {_}.
-Arguments Singleton {_} _.
-Arguments Union {_} _ _.
-Arguments Add {_} _ _.
-Arguments Intersection {_} _ _.
-Arguments Setminus {_} _ _.
-Arguments Subtract {_} _ _.
-Arguments Included {_} _ _.
-
-(* invariants and fancy updates *)
 
 (* Thoughts on invariants and the two-level structure:
    I expect that our version of the operational semantics will keep nonatomic locations as is,
@@ -39,104 +28,9 @@ Arguments Included {_} _ _.
    since we can't insert it into the definition of semax? Well, iGPS still uses it in the RA atomic
    rules, so maybe it's still useful. *)
 
-Parameter fupd : Ensemble namespace -> Ensemble namespace -> mpred -> mpred.
-
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 62): logic.
-Notation "|={ E }=> P" := (fupd E E P) (at level 62): logic.
-
-Axiom fupd_mono : forall E1 E2 P Q, P |-- Q -> |={E1, E2}=> P |-- |={E1, E2}=> Q.
-Axiom bupd_fupd : forall E P, |==> P |-- |={E}=> P.
-Axiom fupd_frame_r : forall E1 E2 P Q, fupd E1 E2 P * Q |-- fupd E1 E2 (P * Q).
-Axiom fupd_intro_mask : forall E1 E2 P, Included E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
-Axiom fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
-
-Lemma fupd_frame_l : forall E1 E2 P Q, P * fupd E1 E2 Q |-- fupd E1 E2 (P * Q).
-Proof.
-  intros; rewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
-Qed.
-
-Lemma fupd_bupd : forall E1 E2 P Q, P |-- |==> (|={E1,E2}=> Q) -> P |-- |={E1,E2}=> Q.
-Proof.
-  intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
-Qed.
-
-(* This is a generally useful pattern. *)
-Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
-  app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
-Proof.
-  intros.
-  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
-  { apply (fupd_frame_r _ _ _ _ a).
-    do 3 eexists; [apply join_comm, core_unit | split; auto].
-    split; [|apply core_identity].
-    rewrite level_core; auto. }
-  eapply fupd_mono in HP'; eauto.
-  change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
-  intros a0 (? & ? & J & HP & [? Hemp]).
-  destruct (join_level _ _ _ J).
-  apply join_comm, Hemp in J; subst.
-  eapply Himp in HP; try apply necR_refl; auto; omega.
-Qed.
-
-Definition timeless P := |>P |-- P || |>FF.
-
-Definition timeless' (P : mpred) := forall (a a' : rmap), predicates_hered.app_pred P a' -> age a a' ->
-  predicates_hered.app_pred P a.
-
-Lemma timeless'_timeless : forall P, timeless' P -> timeless P.
-Proof.
-  unfold timeless; intros.
-  change (_ |-- _) with (predicates_hered.derives (|>P) (P || |>FF)); intros ? HP.
-  destruct (level a) eqn: Ha.
-  - right; intros ? ?%laterR_level; omega.
-  - left.
-    destruct (levelS_age a n) as [b [Hb]]; auto.
-    specialize (HP _ (semax_lemmas.age_laterR Hb)).
-    eapply H; eauto.
-Qed.
-
-Lemma address_mapsto_timeless : forall m v sh p, timeless (res_predicates.address_mapsto m v sh p).
-Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  destruct H as (b & [? HYES] & ?); exists b; split; [split|]; auto.
-  intro b'; specialize (HYES b').
-  if_tac.
-  - destruct HYES as (rsh & Ha'); exists rsh.
-    erewrite age_to_resource_at.age_resource_at in Ha' by eauto.
-    destruct (a @ b'); try discriminate; inv Ha'.
-    destruct p0; inv H6; simpl.
-    f_equal.
-    apply proof_irr.
-  - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
-Qed.
-
-Axiom fupd_timeless : forall E P, timeless P -> |> P |-- |={E}=> P.
-
-Axiom inv_alloc : forall N E P, |> P |-- |={E}=> invariant N P.
-
-Corollary make_inv : forall N E P Q, P |-- Q -> P |-- |={E}=> invariant N Q.
-Proof.
-  intros.
-  eapply derives_trans, inv_alloc; auto.
-  eapply derives_trans, now_later; auto.
-Qed.
-
-Axiom inv_open : forall (E : Ensemble namespace) N P, E N ->
-  invariant N P |-- |={E, Subtract E N}=> (|> P) * (|>P -* |={Subtract E N, E}=> emp).
-
-Axiom invariant_precise : forall N P, precise (invariant N P).
-
-Axiom invariant_super_non_expansive : forall n N P, approx n (invariant N P) =
-approx n (invariant N (approx n P)).
-
-Axiom invariant_duplicable : forall N P, invariant N P = invariant N P * invariant N P.
-
 Section atomics.
 
-Context {CS : compspecs}.
+Context {CS : compspecs} {inv_names : invG}.
 
 Section dup.
 
@@ -180,7 +74,7 @@ Qed.
 Lemma invariant_duplicable' : forall N P, duplicable (invariant N P).
 Proof.
   unfold duplicable; intros.
-  rewrite <- invariant_duplicable in *; apply bupd_intro.
+  rewrite <- invariant_dup in *; apply bupd_intro.
 Qed.
 Hint Resolve invariant_duplicable' : dup.
 
@@ -224,254 +118,17 @@ Qed.
 
 End dup.
 
-Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
-  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
-  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
-
-(*Program Definition load_SC_spec := TYPE AL_type
-  WITH p : val, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred, Q : Z -> mpred
-  PRE [ 1%positive OF tptr tint ]
-   PROP (view_shift (fold_right sepcon emp (map II lI) * P)
-           (EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
-              data_at sh tint (vint v) p * P' sh v);
-         forall sh v, view_shift (!!(readable_share sh /\ repable_signed v) &&
-           data_at sh tint (vint v) p * P' sh v) (fold_right sepcon emp (map II lI) * Q v))
-   LOCAL (temp 1%positive p)
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
-  POST [ tint ]
-   EX v : Z,
-   PROP (repable_signed v)
-   LOCAL (temp ret_temp (vint v))
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q v).
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
-  - f_equal; [|f_equal].
-    + rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-      * rewrite !approx_exp; apply f_equal; extensionality sh.
-        rewrite !approx_exp; apply f_equal; extensionality v.
-        rewrite !approx_sepcon, approx_idem; auto.
-    + rewrite !prop_forall, !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-      rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality v.
-      rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-  - rewrite !approx_sepcon_list'.
-    erewrite !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
-  rewrite !approx_exp; apply f_equal; extensionality v.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  rewrite !approx_sepcon_list'.
-  erewrite !map_map, map_ext; eauto.
-  intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-
-Definition AS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
-  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z))) (ArrowType (ConstType share) Mpred)) Mpred.
-
-Program Definition store_SC_spec := TYPE AS_type
-  WITH p : val, v : Z, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> mpred, Q : mpred
-  PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
-   PROP (repable_signed v;
-         view_shift (fold_right sepcon emp (map II lI) * P)
-           (EX sh : share, !!(writable_share sh) && data_at_ sh tint p * P' sh);
-         forall sh, view_shift (!!(writable_share sh) && data_at sh tint (vint v) p * P' sh)
-           (fold_right sepcon emp (map II lI) * Q))
-   LOCAL (temp 1%positive p; temp 2%positive (vint v))
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
-  POST [ tvoid ]
-   PROP ()
-   LOCAL ()
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q).
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
-  - apply f_equal; f_equal; [|f_equal].
-    + rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-      * rewrite !approx_exp; apply f_equal; extensionality sh.
-        rewrite !approx_sepcon, approx_idem; auto.
-    + rewrite !prop_forall, !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-      rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-  - rewrite !approx_sepcon_list'.
-    erewrite !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  rewrite !approx_sepcon_list'.
-  erewrite !map_map, map_ext; eauto.
-  intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-
-Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z)) Mpred)
-  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
-  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
-
-Program Definition CAS_SC_spec := TYPE ACAS_type
-  WITH p : val, c : Z, v : Z, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred,
-       Q : Z -> mpred
-  PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
-   PROP (repable_signed c; repable_signed v;
-         view_shift (fold_right sepcon emp (map II lI) * P)
-           (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p * P' sh v0);
-         forall sh v0, view_shift (!!(writable_share sh /\ repable_signed v0) &&
-           data_at sh tint (vint (if eq_dec v0 c then v else v0)) p * P' sh v0)
-           (fold_right sepcon emp (map II lI) * Q v0))
-   LOCAL (temp 1%positive p; temp 2%positive (vint c); temp 3%positive (vint v))
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
-  POST [ tint ]
-   EX v' : Z,
-   PROP (repable_signed v')
-   LOCAL (temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q v').
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
-  - do 2 apply f_equal; f_equal; [|f_equal].
-    + rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-      * rewrite !approx_exp; apply f_equal; extensionality sh.
-        rewrite !approx_exp; apply f_equal; extensionality v0.
-        rewrite !approx_sepcon, approx_idem; auto.
-    + rewrite !prop_forall, !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-      rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
-      rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-  - rewrite !approx_sepcon_list'.
-    erewrite !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  rewrite !approx_sepcon_list'.
-  erewrite !map_map, map_ext; eauto.
-  intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-
-Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
-  (ArrowType (ConstType Z) Mpred)) (ConstType (list Z)))
-  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
-
-Program Definition AEX_SC_spec := TYPE AEX_type
-  WITH p : val, v : Z, P : mpred, II : Z -> mpred, lI : list Z, P' : share -> Z -> mpred,
-       Q : Z -> mpred
-  PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
-   PROP (repable_signed v;
-         view_shift (fold_right sepcon emp (map II lI) * P)
-           (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p * P' sh v0);
-         forall sh v0, view_shift (!!(writable_share sh /\ repable_signed v0) &&
-           data_at sh tint (vint v) p * P' sh v0)
-           (fold_right sepcon emp (map II lI) * Q v0))
-   LOCAL (temp 1%positive p; temp 2%positive (vint v))
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); P)
-  POST [ tint ]
-   EX v' : Z,
-   PROP (repable_signed v')
-   LOCAL (temp ret_temp (vint v'))
-   SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q v').
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
-  - apply f_equal; f_equal; [|f_equal].
-    + rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-      * rewrite !approx_exp; apply f_equal; extensionality sh.
-        rewrite !approx_exp; apply f_equal; extensionality v0.
-        rewrite !approx_sepcon, approx_idem; auto.
-    + rewrite !prop_forall, !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-      rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
-      rewrite view_shift_super_non_expansive.
-      setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
-        erewrite !map_map, map_ext; eauto.
-        intro; simpl; rewrite approx_idem; auto.
-  - rewrite !approx_sepcon_list'.
-    erewrite !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
-  rewrite !approx_exp; apply f_equal; extensionality vr.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  rewrite !approx_sepcon_list'.
-  erewrite !map_map, map_ext; eauto.
-  intros; simpl; rewrite invariant_super_non_expansive; auto.
-Qed.*)
-
 Section atomicity.
 
-(* weak view shift for use in funspecs *)
-Program Definition weak_fview_shift E1 E2 (P Q: mpred): mpred :=
-  fun w => predicates_hered.derives (approx (S (level w)) P) (fupd E1 E2 (approx (S (level w)) Q)).
-Next Obligation.
-  repeat intro.
-  destruct H1.
-  apply age_level in H.
-  lapply (H0 a0); [|split; auto; omega].
-  apply fupd_mono'.
-  change ((approx (S (level a)) Q >=> approx (S (level a')) Q)%pred (level a0)).
-  intros ????%necR_level [].
-  repeat split; auto; omega.
-Qed.
+Definition is_core : mpred := ALL P : mpred, P --> P * P.
+
+(* What should we need to prove in order to use an atomic shift?
+   The Iris definition is EX P, |> P * [] <a collection of view shifts>.
+   We can't just discard the box entirely, because then the view shifts aren't duplicable
+   (they might use up nonduplicable resources). We can't add && emp instead, because we should be
+   able to use nontrivial resources to prove the view shift (e.g., duplicable ghost state). What
+   we want is not that the rmap itself is a core for rmaps, but rather that it has a core at each
+   real and ghost location. *)
 
 (* up *)
 Lemma approx_mono: forall n P Q, (P >=> Q) (Nat.pred n) -> approx n P |-- approx n Q.
@@ -482,46 +139,101 @@ Proof.
   eapply H in HP; eauto; omega.
 Qed.
 
-Lemma fview_shift_nonexpansive: forall E1 E2 P Q n,
-  approx n (weak_fview_shift E1 E2 P Q) = approx n (weak_fview_shift E1 E2 (approx n P) (approx n Q)).
+(* up *)
+Lemma subp_wand: forall (G : Triv) (P P' Q Q' : mpred), G |-- P' >=> P -> G |-- Q >=> Q' ->
+    G |-- ((P -* Q) >=> (P' -* Q'))%pred.
 Proof.
-  intros ??; apply nonexpansive2_super_non_expansive; repeat intro.
-  - split; intros ??%necR_level Hshift; simpl in *; eapply predicates_hered.derives_trans; eauto;
-      apply fupd_mono, approx_mono; simpl.
-    + change ((P0 >=> Q)%pred (level a')).
-      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
-    + change ((Q >=> P0)%pred (level a')).
-      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
-  - split; intros ??%necR_level Hshift; simpl in *; eapply predicates_hered.derives_trans, Hshift;
-      apply approx_mono; simpl.
-    + change ((Q0 >=> P)%pred (level a')).
-      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
-    + change ((P >=> Q0)%pred (level a')).
-      intros ????%necR_level ?; eapply H; try apply necR_refl; auto; omega.
+  repeat intro.
+  exploit join_level; eauto; intros [].
+  pose proof (necR_level _ _ H3); pose proof (necR_level _ _ H5).
+  eapply (H0 _ H1 z ltac:(omega) _ (necR_refl _)), H4; eauto.
+  eapply (H _ H1 y0 ltac:(omega) _ (necR_refl _)); auto.
 Qed.
 
-Lemma fview_shift_weak: forall E1 E2 P Q, (P |-- |={E1, E2}=> Q) -> TT |-- weak_fview_shift E1 E2 P Q.
+Lemma eqp_wand: forall (G : Triv) (P P' Q Q' : mpred), G |-- P <=> P' -> G |-- Q <=> Q' ->
+    G |-- ((P -* Q) <=> (P' -* Q')).
 Proof.
   intros.
-  change (predicates_hered.derives TT (weak_fview_shift E1 E2 P Q)).
-  intros a _ a0 [? HP].
-  apply H in HP.
-  eapply fupd_mono'; eauto.
-  change ((Q >=> approx (S (level a)) Q)%pred (level a0)).
-  intros ????%necR_level ?; split; auto; omega.
+  rewrite fash_andp in *.
+  apply andp_right; apply subp_wand.
+  - eapply derives_trans; [apply H | apply andp_left2, derives_refl].
+  - eapply derives_trans; [apply H0 | apply andp_left1, derives_refl].
+  - eapply derives_trans; [apply H | apply andp_left1, derives_refl].
+  - eapply derives_trans; [apply H0 | apply andp_left2, derives_refl].
+Qed.
+
+Lemma subp_fupd: forall (G : Triv) E1 E2 (P P' : mpred), G |-- P >=> P' ->
+    G |-- ((|={E1,E2}=> P) >=> |={E1,E2}=> P').
+Proof.
+  intros; unfold fupd.
+  apply subp_wand; [apply subp_refl|].
+  apply own.subp_bupd.
+  apply subp_orp, subp_refl.
+  apply subp_sepcon; auto; apply subp_refl.
+Qed.
+
+Lemma eqp_fupd: forall (G : Triv) E1 E2 (P P' : mpred), G |-- P <=> P' ->
+    G |-- ((|={E1,E2}=> P) <=> |={E1,E2}=> P').
+Proof.
+  intros.
+  rewrite fash_andp in *.
+  apply andp_right; apply subp_fupd; eapply derives_trans; try apply H;
+    [apply andp_left1 | apply andp_left2]; apply derives_refl.
+Qed.
+
+Lemma eqp_imp: forall (G : Triv) (P P' Q Q' : mpred),
+       G |-- P <=> P' -> G |-- Q <=> Q' -> G |-- (P --> Q) <=> P' --> Q'.
+Proof.
+  intros.
+  rewrite fash_andp in *.
+  apply andp_right; apply subp_imp.
+  - eapply derives_trans; [apply H | apply andp_left2, derives_refl].
+  - eapply derives_trans; [apply H0 | apply andp_left1, derives_refl].
+  - eapply derives_trans; [apply H | apply andp_left1, derives_refl].
+  - eapply derives_trans; [apply H0 | apply andp_left2, derives_refl].
+Qed.
+
+Lemma fview_shift_nonexpansive: forall E1 E2 P Q n,
+  approx n (P -* |={E1,E2}=> Q) = approx n (approx n P -* |={E1,E2}=> (approx n Q)).
+Proof.
+  intros ??; apply nonexpansive2_super_non_expansive; intros ???.
+  - apply eqp_wand, eqp_fupd.
+    + apply eqp_refl.
+    + apply derives_refl.
+  - apply eqp_wand, eqp_fupd.
+    + apply derives_refl.
+    + apply eqp_refl.
 Qed.
 
 Lemma apply_fview_shift: forall E1 E2 P Q, (weak_fview_shift E1 E2 P Q && emp) * P |-- |={E1, E2}=> Q.
 Proof.
+  intros; unfold weak_fview_shift.
+  eapply derives_trans, modus_ponens_wand.
+  rewrite sepcon_comm; apply sepcon_derives, andp_left1; apply derives_refl.
+Qed.
+
+Lemma apply_fview_shift' : forall E1 E2 P Q P', P' |-- |==> P ->
+  weak_fview_shift E1 E2 P Q && emp * P' |-- |={E1,E2}=> Q.
+Proof.
   intros.
-  change (predicates_hered.derives ((weak_fview_shift E1 E2 P Q && emp) * P) (fupd E1 E2 Q)).
-  intros ? (? & ? & ? & [Hshift Hemp] & HP).
-  destruct (join_level _ _ _ H).
-  apply Hemp in H; subst.
-  lapply (Hshift a); [|split; auto; omega].
-  apply fupd_mono'.
-  change (((approx (S (level x)) Q) >=> Q)%pred (level a)).
-  intros ???? []; auto.
+  apply fupd_bupd.
+  eapply derives_trans, bupd_mono, apply_fview_shift.
+  eapply derives_trans; [apply sepcon_derives, H; apply derives_refl|].
+  apply bupd_frame_l.
+Qed.
+
+(* up *)
+Lemma emp_dup: forall P, P && emp = (P && emp) * (P && emp).
+Proof.
+  intros.
+  apply (predicates_hered.pred_ext _ (P && emp)).
+  - intros a [H Hemp].
+    exists a, a; split.
+    { apply identity_unit'; auto. }
+    split; split; auto.
+  - intros ? (? & ? & J & [? Hemp1] & [? Hemp2]).
+    pose proof (Hemp1 _ _ J); specialize (Hemp2 _ _ (join_comm J)); subst.
+    split; auto.
 Qed.
 
 (* The logical atomicity of Iris. *)
@@ -680,21 +392,4 @@ Ltac start_atomic_function :=
         | idtac];
  abbreviate_semax; simpl.
 
-Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable ghost_snap_duplicable prop_duplicable : dup.
-
-(*Notation store_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
-  fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -*
-  fold_right sepcon emp (map II lI) * Q, Q).
-
-Notation AEX_SC_witness p v P II lI Q := (p, v%Z, P, II%function, lI%gfield,
-  fun sh v0 => !!(writable_share sh /\ repable_signed v0) && data_at sh tint (vint v) p -*
-  fold_right sepcon emp (map II lI) * Q v0, Q).
-
-Notation load_SC_witness p P II lI Q := (p, P, II%function, lI%gfield,
-  fun sh v => !!(readable_share sh /\ repable_signed v) && data_at sh tint (vint v) p -*
-  fold_right sepcon emp (map II lI) * Q v, Q).
-
-Notation CAS_SC_witness p c v P II lI Q := (p, c, v%Z, P, II%function, lI%gfield,
-  fun sh v0 => !!(writable_share sh /\ repable_signed v0) &&
-    data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -*
-  fold_right sepcon emp (map II lI) * Q v0, Q).*)
+Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable' ghost_snap_duplicable prop_duplicable : dup.

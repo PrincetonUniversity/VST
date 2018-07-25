@@ -20,6 +20,12 @@ Arguments Subtract {_} _ _.
 Arguments Disjoint {_} _ _.
 Arguments Same_set {_} _ _.
 
+Lemma Included_Full : forall {A} E, Included E (Full_set A).
+Proof.
+  repeat intro; constructor.
+Qed.
+Hint Resolve Included_Full.
+
 Section Invariants.
 
 Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
@@ -181,24 +187,6 @@ Proof.
   intros.
   if_tac; [rewrite app_nth1 | rewrite app_nth2]; auto; omega.
 Qed.
-
-(*Lemma list_incl_singleton : forall {A} (a : A) n l,
-  list_incl (list_singleton n a) l <-> nth n l None = Some a.
-Proof.
-  unfold list_incl, list_singleton; split; intros.
-  - apply H.
-    rewrite app_nth2; rewrite repeat_length; auto.
-    rewrite minus_diag; auto.
-  - rewrite app_nth in H0.
-    if_tac in H0.
-    + pose proof (nth_In _ None H1) as Hin%repeat_spec; congruence.
-    + rewrite repeat_length in *.
-      destruct (eq_dec n0 n).
-      * subst.
-        rewrite minus_diag in H0; inv H0; auto.
-      * destruct (n0 - n)%nat eqn: Hminus; try omega; simpl in *.
-        destruct n2; discriminate.
-Qed.*)
 
 (* up *)
 Lemma replace_nth_length : forall {A} n l (a : A),
