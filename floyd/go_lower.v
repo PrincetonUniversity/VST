@@ -761,7 +761,7 @@ Ltac solve_clean_LOCAL_right :=
         | |- ?t = _ => super_pattern t a; reflexivity
         end
       ]
-    | fail 1000 "Unexpected error. Tactic go_lower cannot recognize the RHS. Please contact VST develope team."
+    | fail 1000 "The right hand side is messed up; perhaps you inadvertently did something like 'simpl in *' that changes POSTCONDITION into a form that Floyd cannot recognize.  You may do 'unfold abbreviate in POSTCONDITION' in your previous proof steps to inspect it"
     ].
 
 Ltac eapply_clean_LOCAL_right_spec_rec gv L :=
