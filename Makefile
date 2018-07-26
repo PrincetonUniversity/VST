@@ -28,7 +28,7 @@ COMPCERT ?= compcert
 ANNOTATE=silent   # suppress chatty output from coqc
 # ANNOTATE=false  # leave chatty output of coqc unchanged
 
-CC_TARGET=compcert/cfrontend/Clight.vo
+CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
 OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox
@@ -38,6 +38,7 @@ CONCUR = concurrency
 CV1=$(shell cat compcert/VERSION)
 CV2=$(shell cat $(COMPCERT)/VERSION)
 
+ifneq ($(COMPCERT), compcert_new)
 ifneq ($(CV1), $(CV2))
  $(error COMPCERT_VERSION=$(CV1) but $(COMPCERT)/VERSION=$(CV2))
 endif
@@ -48,15 +49,20 @@ else
  $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT); make clightgen)
 endif
 endif
+endif
 
-EXTFLAGS= -R $(COMPCERT) compcert #-R Free DeepWeb.Free -R Custom Custom
+EXTFLAGS= -R $(COMPCERT) compcert
 
 # for SSReflect
 ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+ifeq ($(COMPCERT), compcert_new)
+SHIM= -Q concurrency/shim VST.veric
+endif
+
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 #COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
@@ -108,7 +114,54 @@ SEPCOMP_FILES = \
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
-CONCUR_FILES= lksize.v semax_conc.v semax_conc_pred.v
+CONCUR_JUICY_FILES= \
+  cl_step_lemmas.v erasure_proof.v erasure_safety.v erasure_signature.v \
+  join_lemmas.v juicy_machine.v JuicyMachineModule.v \
+  resource_decay_lemmas.v resource_decay_join.v \
+  rmap_locking.v \
+  semax_conc_pred.v semax_conc.v semax_to_juicy_machine.v \
+  semax_invariant.v semax_initial.v \
+  semax_simlemmas.v \
+  semax_progress.v semax_preservation.v \
+  semax_preservation_jspec.v \
+  semax_preservation_local.v \
+  semax_preservation_acquire.v \
+  semax_safety_release.v \
+  semax_safety_makelock.v \
+  semax_safety_freelock.v \
+  semax_safety_spawn.v \
+  sync_preds_defs.v sync_preds.v
+
+CONCUR_COMMON_FILES= \
+  addressFiniteMap.v \
+  bounded_maps.v \
+  Clight_bounds.v ClightSemantincsForMachines.v  \
+  core_semantics.v \
+  dry_context.v \
+  dry_machine_lemmas.v dry_machine_step_lemmas.v \
+  enums_equality.v \
+  erased_machine.v \
+  HybridMachine.v \
+  konig.v \
+  lksize.v \
+  machine_semantics.v machine_semantics_lemmas.v \
+  permissions.v permjoin_def.v pos.v permjoin.v \
+  scheduler.v \
+  semantics.v \
+  sepcomp.v \
+  ssromega.v \
+  tactics.v \
+  threadPool.v \
+  threads_lemmas.v \
+
+CONCUR_COMPILER_FILES= \
+  safety.v CoreSemantics_sum.v concurrent_compiler_safety_proof.v \
+#  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v \
+#  lifting.v lifting_safety.v \
+#  compiler_correct.v
+
+CONCUR_FILES= lksize.v semax_conc.v semax_conc_pred.v \
+        memsem_lemmas.v main.v memory_lemmas.v  \
 
 PACO_FILES= \
   hpattern.v\
@@ -481,7 +534,13 @@ floyd/floyd.coq: floyd/proofauto.vo
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
 #	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
-	@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+ifeq ($(COMPCERT), compcert_new)
+	$(COQDEP) 2>&1 >.depend `find $(COMPCERT) $(filter $(wildcard *), $(DIRS)) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
+	echo "" >>.depend
+	$(COQDEP) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
+else
+	$(COQDEP) 2>&1 >.depend `find $(COMPCERT) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+endif
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
