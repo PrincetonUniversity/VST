@@ -7,6 +7,7 @@ Require Import compcert.common.Values.
 Require Import compcert.lib.Coqlib.
 
 
+Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.semantics.
 Require Import Smallstep.
@@ -184,6 +185,15 @@ Section SelfSimulation.
           inject_incr f f' /\
           is_ext f (Mem.nextblock m1) f' (Mem.nextblock m2) /\
           Events.inject_trace f' t t'
+      ; ssim_external: forall c1 c2 m1 m2 j b1 ofs func_name, 
+        code_inject j c1 c2 ->
+        Mem.inject j m1 m2 ->
+        semantics.at_external Sem c1 m1  =  
+        Some (func_name, Vptr b1 (Integers.Ptrofs.repr ofs) :: nil) ->
+        exists b2 delt,
+        j b1 = Some (b2, delt) /\
+        semantics.at_external Sem c2 m1 =  
+        Some (func_name, Vptr b2 (Integers.Ptrofs.repr (ofs + delt)) :: nil)
     }. 
 
 End SelfSimulation.

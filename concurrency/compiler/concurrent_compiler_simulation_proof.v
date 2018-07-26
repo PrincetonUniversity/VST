@@ -5,7 +5,7 @@ Require Import compcert.common.ExposedSimulations.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 
-Require Import VST.concurrency.common.permissions.
+Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation.
 Require Import VST.concurrency.compiler.sequential_compiler_correct.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
@@ -184,6 +184,16 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     ; memcompat1: mem_compatible cstate1 m1
     ; memcompat2: mem_compatible cstate2 m2
     ; INJ: Mem.inject j m1 m2
+    ; INJ_threads:
+        forall i (cnti1: containsThread cstate1 i) (cnti2: containsThread cstate2 i),
+          Mem.inject j
+                     (restrPermMap (proj1 (memcompat1 i cnti1)))
+                     (restrPermMap (proj1 (memcompat2 i cnti2)))
+    ; INJ_locks:
+        forall i (cnti1: containsThread cstate1 i) (cnti2: containsThread cstate2 i),
+          Mem.inject j
+                     (restrPermMap (proj2 (memcompat1 i cnti1)))
+                     (restrPermMap (proj2 (memcompat2 i cnti2)))
     ; taret_invariant: invariant cstate2
     ; mtch_source:
         forall (i:nat),
@@ -192,9 +202,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             (cnti2: containsThread cstate2 i),
           match_thread_source j
                               (getThreadC cnti1)
-                              (permissions.restrPermMap (proj1 (memcompat1 i cnti1)))
+                              (restrPermMap (proj1 (memcompat1 i cnti1)))
                               (getThreadC cnti2)
-                              (permissions.restrPermMap (proj1 (memcompat2 i cnti2)))
+                              (restrPermMap (proj1 (memcompat2 i cnti2)))
     ; mtch_target:
         forall (i:nat),
           (i < hb)%nat ->
@@ -204,7 +214,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                               (getThreadC cnti1)
                               (restrPermMap (proj1(memcompat1 i cnti1)))
                               (getThreadC cnti2)
-                              (permissions.restrPermMap (proj1(memcompat2 i cnti2)))
+                              (restrPermMap (proj1(memcompat2 i cnti2)))
     ; mtch_compiled:
         forall (i:nat),
           (i = hb)%nat ->
@@ -1411,24 +1421,49 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   This should follow from the concur_match
                   where the address is the image of [Vptr b ofs] under mu.
                  *)
+                pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
+                
+                (*
+                  Requires something like:
+                  Asm_code_inject mu code1 code2 ->
+                  Mem.inject mu (restrPermMap m1 tid H1) (restrPermMap m2 tid H2) ->
+                  Asm.at_external the_ge 
+                  (Asm.set_mem code1 (restrPermMap m1 tid H1)) =  
+                  Some (UNLOCK, Vptr b1 ofs :: nil) ->
+                  exists b2, delt,
+                  mu b1 = Some (b2, delt) /\
+                  Asm.at_external the_ge 
+                  (Asm.set_mem code2 (restrPermMap m2 tid H2)) =  
+                  Some (UNLOCK, Vptr b2 (ofs + delt) :: nil)
+                 *)
                 admit. 
 
               * move H8 at bottom.
+                (* missing from concur relation: 
+                   matching of thread permissions.   *)
+                replace Hcmpt with (memcompat1 cd mu st1 m1 st2 m2 H0) in H8
+                  by apply Axioms.proof_irr.
                 
-                (* Sketch:
-                   Again, this should follow from the injection preserving permissions.
-                 *)
+                pose proof (contains12 H0 Htid) as Htid2.
+                pose proof (INJ_locks _ _ _ _ _ _ H0 _ Htid Htid2) as inj_lock.
+                eapply Mem.range_perm_inject in inj_lock; eauto.
+                rename b into BBB.
+                
+                admit.
                 admit.
 
               * move H7 at bottom.
-
+                
                (* Sketch:
-                   Again, this should follow from the injection preserving permissions AND
+                   Again, this should follow from the injection 
+                   preserving permissions AND
                    the contents of the location of the lock. H7
                  *)
                 admit.
 
               * move H9 at bottom.
+                (* missing from concur relation: 
+                   matching of thread permissions.   *)
 
                (* Sketch:
                    Again, this should follow from the injection preserving permissions and H9
