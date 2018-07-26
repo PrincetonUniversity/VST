@@ -66,9 +66,8 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
   (s0 : ENTROPY.stream)
   (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s),
 @semax hmac_drbg_compspecs.CompSpecs Espec
-  (initialized_list [_entropy_len; _t'2; _t'1]
-     (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
-        HmacDrbgFunSpecs nil))
+  (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
+        HmacDrbgFunSpecs nil)
   (PROP ( )
    LOCAL (temp _t'2 Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
    lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;

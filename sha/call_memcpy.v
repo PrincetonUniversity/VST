@@ -309,9 +309,39 @@ eapply semax_pre_post';
 
 *
  eapply derives_trans, now_later.
- eapply derives_trans; [ apply Hpre | ].
+ rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
+ eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
  rewrite !andp_assoc.
- apply andp_derives; auto.  apply derives_refl.
+ apply andp_right; [apply andp_left2, andp_left1, derives_refl |].
+ assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
+ {
+   unfold tc_exprlist.
+   simpl typecheck_exprlist.
+   rewrite !denote_tc_assert_andp.
+   apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_p) && local ((` (eq (field_address0 tp (pathp SUB lop) p))) (eval_expr e_p))); [solve_andp |].
+   go_lowerx.
+   eapply derives_trans; [apply typecheck_expr_sound; auto |].
+   apply prop_derives; intros.
+   rewrite <- H7 in H8.
+   intro.
+   rewrite H9 in H8.
+   revert H8; apply tc_val_Vundef.
+ }
+ assert_PROP (field_address0 tq (pathq SUB loq) q <> Vundef) as DEFq.
+ {
+   unfold tc_exprlist.
+   simpl typecheck_exprlist.
+   rewrite !denote_tc_assert_andp.
+   apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_q) && local ((` (eq (field_address0 tq (pathq SUB loq) q))) (eval_expr e_q))); [solve_andp |].
+   go_lowerx.
+   eapply derives_trans; [apply typecheck_expr_sound; auto |].
+   apply prop_derives; intros.
+   rewrite <- H7 in H8.
+   intro.
+   rewrite H9 in H8.
+   revert H8; apply tc_val_Vundef.
+ }
+ apply andp_left2, andp_left2.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
@@ -327,7 +357,7 @@ eapply semax_pre_post';
  rewrite TCp, TCq, TCn.  simpl.
  unfold_lift; simpl.
  rewrite <- H6, <- H7, <- H8.
- split3; auto.
+ split3; try (repeat split; auto; congruence).
  apply andp_right.
  apply prop_right; split3; auto.
  subst Frame.
@@ -521,9 +551,25 @@ eapply semax_pre_post';
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
  eapply derives_trans, now_later.
- eapply derives_trans; [ apply Hpre | ].
+ rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
+ eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
  rewrite !andp_assoc.
- apply andp_derives; auto.  apply derives_refl.
+ apply andp_right; [apply andp_left2, andp_left1, derives_refl |].
+ assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
+ {
+   unfold tc_exprlist.
+   simpl typecheck_exprlist.
+   rewrite !denote_tc_assert_andp.
+   apply derives_trans with (local (tc_environ Delta) && denote_tc_assert (typecheck_expr Delta e_p) && local ((` (eq (field_address0 tp (pathp SUB lop) p))) (eval_expr e_p))); [solve_andp |].
+   go_lowerx.
+   eapply derives_trans; [apply typecheck_expr_sound; auto |].
+   apply prop_derives; intros.
+   rewrite <- H2 in H6.
+   intro.
+   rewrite H7 in H6.
+   revert H6; apply tc_val_Vundef.
+ }
+ apply andp_left2, andp_left2.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
  autorewrite with norm1 norm2.
@@ -537,7 +583,7 @@ eapply semax_pre_post';
  go_lowerx. unfold env_set, eval_id. unfold_lift. simpl.
  autorewrite with gather_prop.
  apply andp_right.
- apply prop_right. split3; auto.
+ apply prop_right. split3; try (repeat split; auto; congruence).
  normalize.
  subst Frame.
  cancel.
@@ -560,7 +606,7 @@ eapply semax_pre_post';
  simpl map.
  old_go_lower. normalize.
  cancel.
- clear H1.
+ clear H1 H2.
  assert (H2: exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy).
  rewrite H99. eauto.

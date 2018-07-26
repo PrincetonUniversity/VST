@@ -614,6 +614,12 @@ Proof.
   exact (clean_LOCAL_right_sep_lift _ _ _ _ TT).
 Qed.
 
+Lemma clean_LOCAL_right_FF {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): clean_LOCAL_right Delta T1 T2 GV FF FF.
+Proof.
+  intros.
+  exact (clean_LOCAL_right_sep_lift _ _ _ _ FF).
+Qed.
+
 Lemma clean_LOCAL_right_tc_andp {cs: compspecs} (Delta : tycontext) (T1 : PTree.t val) (T2 : PTree.t (type * val)) (GV : option globals): forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert P1) Q1 -> clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert P2) Q2 -> clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (tc_andp P1 P2)) (Q1 && Q2).
 Proof.
   intros.
@@ -733,6 +739,7 @@ Ltac solve_clean_LOCAL_right :=
     | simple apply clean_LOCAL_right_local_lift
     | simple apply clean_LOCAL_right_prop
     | simple apply clean_LOCAL_right_TT
+    | simple apply clean_LOCAL_right_FF
     | try unfold tc_lvalue; simple apply clean_LOCAL_right_tc_lvalue
     | try unfold tc_expr; simple apply clean_LOCAL_right_tc_expr
     | try unfold tc_LR; simple apply clean_LOCAL_right_tc_LR
@@ -754,6 +761,7 @@ Ltac solve_clean_LOCAL_right :=
         | |- ?t = _ => super_pattern t a; reflexivity
         end
       ]
+    | fail 1000 "Unexpected error. Tactic go_lower cannot recognize the RHS. Please contact VST develope team."
     ].
 
 Ltac eapply_clean_LOCAL_right_spec_rec gv L :=

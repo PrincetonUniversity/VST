@@ -1152,11 +1152,8 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
         (HMAC256DRBGabs key V reseed_counter entropy_len
            prediction_resistance reseed_interval)),
 @semax hmac_drbg_compspecs.CompSpecs Espec
-  (initialized_list
-     [_ctx; _md_len; _left; _out; _info; _prediction_resistance;
-     _reseed_counter; _reseed_interval; _t'5; _t'4; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_random_with_add HmacDrbgVarSpecs
-        HmacDrbgFunSpecs nil))
+        HmacDrbgFunSpecs nil)
   (PROP ( )
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
@@ -1690,7 +1687,7 @@ Proof. intros.
 
     (* left -= use_len; *)
     forward.
-    { 
+    {
       old_go_lower. 
       Exists (done + use_len).
       unfold hmac256drbgabs_common_mpreds; normalize.
