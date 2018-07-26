@@ -5,7 +5,6 @@ Require Import compcert.common.Globalenvs.
 
 Require Import VST.msl.ageable.
 
-Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 

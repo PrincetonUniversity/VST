@@ -288,10 +288,6 @@ forward_if.
    (*len*) k
         Frame);
   try reflexivity; auto; try omega.
-  try (* this line needed for Coq 8.7 compatibility *)
-      apply Zlength_nonneg.
-  try (* this line needed for Coq 8.7 compatibility *)
-       (subst k; omega).
   unfold_data_at 1%nat.
   entailer!.
   rewrite field_address_offset by auto.
@@ -395,10 +391,6 @@ forward_if.
    (*len*) (len)
         Frame);
     try reflexivity; auto; try omega.
-  try (* this line needed for Coq 8.7 compatibility *)
-      apply Zlength_nonneg.
-  try (* this line needed for Coq 8.7 compatibility *)
-    (repeat rewrite Zlength_map; unfold k in *; omega).
   entailer!.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by
@@ -415,7 +407,6 @@ forward_if.
   replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
     with 0%Z by (clear; omega).
   change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
-  rewrite <- app_nil_end.
   autorewrite with sublist.
   rewrite sublist_list_repeat by Omega1.
   clear H5 H6.

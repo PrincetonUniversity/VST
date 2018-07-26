@@ -7,12 +7,17 @@ Require Import compcert.lib.Maps.
 
 (** External function specifications and linking *)
 
+Definition PTree_injective {A} (t: PTree.t A) : Prop :=
+  forall id1 id2 b, t ! id1 = Some b -> t ! id2 = Some b -> id1 = id2.
+
+Definition injective_PTree A := sig (@PTree_injective A).
+
 Structure external_specification (M E Z : Type) :=
   { ext_spec_type : E -> Type
   ; ext_spec_pre: forall e: E,
-    ext_spec_type e -> PTree.t block -> list typ -> list val -> Z -> M -> Prop
+    ext_spec_type e -> injective_PTree block -> list typ -> list val -> Z -> M -> Prop
   ; ext_spec_post: forall e: E,
-    ext_spec_type e -> PTree.t block -> option typ -> option val -> Z -> M ->  Prop
+    ext_spec_type e -> injective_PTree block -> option typ -> option val -> Z -> M ->  Prop
   ; ext_spec_exit: option val -> Z -> M ->  Prop }.
 
 Arguments ext_spec_type {M E Z} _ _.

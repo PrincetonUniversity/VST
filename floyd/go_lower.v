@@ -174,12 +174,6 @@ Ltac safe_subst_any := subst_any.
 
 Ltac lower_one_temp_Vint' :=
  match goal with
- | a : name ?i |- (local _ && PROPx _ (LOCALx (temp ?i ?v :: _) _)) _ |-- _ =>
-     simple eapply lower_one_temp_Vint';
-     [ reflexivity | ];
-     let tc := fresh "TC" in
-     clear a; intros [a [? [tc ?EVAL]]]; unfold tc_val in tc; try safe_subst v;
-     revert tc; fancy_intro true
  | |- (local _ && PROPx _ (LOCALx (temp _ ?v :: _) _)) _ |-- _ =>
     is_var v;
      simple eapply lower_one_temp_Vint';

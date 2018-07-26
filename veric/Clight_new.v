@@ -1,5 +1,4 @@
 Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.simulations.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
@@ -269,23 +268,35 @@ Definition params_of_fundef (f: fundef) : list type :=
   | External _ t _ _ => typelist2list t
   end.
 
-Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate :=
+Inductive val_casted_list: list val -> typelist -> Prop :=
+  | vcl_nil:
+      val_casted_list nil Tnil
+  | vcl_cons: forall v1 vl ty1 tyl,
+      val_casted v1 ty1 -> val_casted_list vl tyl ->
+      val_casted_list (v1 :: vl) (Tcons  ty1 tyl).
+
+Definition cl_initial_core (ge: genv) (v: val) (args: list val) (q: corestate) : Prop :=
   match v with
     Vptr b i =>
     if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
-        Some (State empty_env (temp_bindings 1%positive (v::args))
+        match type_of_fundef f with Tfunction targs _ c =>
+        c = cc_default /\
+        val_casted_list args targs /\
+        Val.has_type_list args (Ctypes.typlist_of_typelist targs) /\
+        q = State empty_env (temp_bindings 1%positive (v::args))
                     (Kseq (Scall None
                                  (Etempvar 1%positive (type_of_fundef f))
                                  (map (fun x => Etempvar (fst x) (snd x))
                                       (params_of_types 2%positive
                                                        (params_of_fundef f)))) ::
-                          Kseq (Sloop Sskip Sskip) :: nil))
-      | _ => None end
-    else None
-  | _ => None
-  end.
+                          Kseq (Sloop Sskip Sskip) :: nil)
+        | _ => False end
+      | _ => False end
+    else False
+  | _ => False
+end.
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external q = None.
@@ -311,17 +322,20 @@ destruct lid; try congruence; inv H; auto.
 destruct lid; try congruence; inv H; auto.
 Qed.
 
-Program Definition cl_core_sem :
-  @CoreSemantics genv corestate mem :=
-  @Build_CoreSemantics _ _ _
+Definition arg_well_formed args m0:=
+  Val.inject_list (Mem.flat_inj (Mem.nextblock m0)) args args.
+
+Program Definition cl_core_sem  (ge: genv):
+  @CoreSemantics corestate mem :=
+  @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ => cl_initial_core)
-    cl_at_external
-    cl_after_external
-    cl_halted
-    cl_step
-    cl_corestep_not_at_external
-    cl_corestep_not_halted _.
+    (fun _ m c m' v args => cl_initial_core ge v args c /\ arg_well_formed args m /\ m' = m)
+    (fun c _ => cl_at_external c)
+    (fun ret c _ => cl_after_external ret c)
+    (fun c _ =>  False (*cl_halted c <> None*))
+    (cl_step ge)
+    _
+    (cl_corestep_not_at_external ge).
 
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
     cl_step ge q m q1 m1 ->
