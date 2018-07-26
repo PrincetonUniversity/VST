@@ -804,7 +804,7 @@ Ltac elim_temp_types_get v :=
 Ltac clean_LOCAL_canon_mix :=
   eapply_clean_LOCAL_right_spec;
     [reflexivity | prove_local2ptree | solve_clean_LOCAL_right |];
-         (let tl := fresh "tl" in
+         let tl := fresh "tl" in
          let QQ := fresh "Q" in
          let PPr := fresh "Pr" in
          match goal with
@@ -816,15 +816,55 @@ Ltac clean_LOCAL_canon_mix :=
                 subst PPr QQ;
                 cbv beta iota zeta in tl;
                 repeat elim_temp_types_get tl;
-                cbv beta iota zeta delta [tc_val] in tl;
+                cbv beta iota zeta in tl;
                 subst tl
-         end;
-         repeat
-         match goal with
-         | |- context [eqb_type ?a ?b] =>
-                  let c := eval hnf in (eqb_type a b) in
-                      change (eqb_type a b) with c; cbv beta iota zeta
-         end).
+         end.
+
+Lemma is_int_Vint_intro: forall sz sg v (P: Prop),
+  ((exists i, v = Vint i /\ is_int sz sg (Vint i)) -> P) ->
+  (is_int sz sg v -> P).
+Proof.
+  intros.
+  apply H.
+  destruct v; simpl in H0; try inv H0.
+  eexists; eauto.
+Qed.
+
+Ltac intro_PROP :=
+  match goal with
+  | |- (tc_val ?t (Vint ?i)) -> ?P =>
+          let Q := eval cbv beta iota zeta delta [tc_val] in (tc_val t (Vint i)) in
+          change (Q -> P);
+          fancy_intro true
+  | |- (tc_val ?t ?v) -> ?P =>
+          let t' := eval hnf in t in
+          match t with
+          | Tint ?sz ?sg _ =>
+              is_var v;
+              change (is_int sz sg v -> P);
+              simple apply is_int_Vint_intro;
+              let v' := fresh "v" in
+              let tc := fresh "TC" in
+              rename v into v';
+              intros [v [? tc]];
+              safe_subst v';
+              revert tc; fancy_intro true
+          | Tpointer ?t0 _ =>
+              let b := eval hnf in (eqb_type t0 int_or_ptr_type) in
+              match b with
+              | true => change (is_pointer_or_integer v -> P); fancy_intro true
+              | false => change (is_pointer_or_null v -> P); fancy_intro true
+              end
+          | _ => let Q := eval cbv beta iota zeta delta [tc_val] in (tc_val t v) in
+                 change (Q -> P);
+                 fancy_intro true
+          end
+  | |- (tc_val ?t ?v) -> ?P =>
+         let Q := eval cbv beta iota zeta delta [tc_val] in (tc_val t v) in
+         change (Q -> P);
+         fancy_intro true
+  | |- _ => fancy_intro true
+  end.
 
 Ltac go_lower ::=
 clear_Delta_specs;
@@ -838,7 +878,7 @@ match goal with
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
 end;
 clean_LOCAL_canon_mix;
-repeat (simple apply derives_extract_PROP; fancy_intro true);
+repeat (simple apply derives_extract_PROP; intro_PROP);
 let rho := fresh "rho" in
 intro rho;
 first
