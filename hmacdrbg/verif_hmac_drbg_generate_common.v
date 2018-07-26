@@ -1346,7 +1346,7 @@ Proof. intros.
     freeze [0;3;5] FR1.
 
     rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-    rewrite (field_at_data_at _ _ [StructField _V]). 
+    rewrite (field_at_data_at _ _ [StructField _V]).
 
     unfold hmac256drbg_relate. subst I.
 
@@ -1687,8 +1687,8 @@ Proof. intros.
 
     (* left -= use_len; *)
     forward.
-    {
-      go_lower. 
+    { 
+      go_lower.
       Exists (done + use_len).
       unfold hmac256drbgabs_common_mpreds; normalize.
 
