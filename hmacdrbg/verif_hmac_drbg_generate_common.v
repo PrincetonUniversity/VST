@@ -1348,19 +1348,19 @@ Proof. intros.
     freeze [2;3;4;5] FR_unused_struct_fields.
     freeze [0;3;5] FR1.
 
-    rewrite (field_at_data_at _ _ [StructField _md_ctx]). simpl.
-    rewrite (field_at_data_at _ _ [StructField _V]). 
-    simpl.
+    rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+    rewrite (field_at_data_at _ _ [StructField _V]).
 
-    unfold hmac256drbg_relate. subst I; simpl in *.
+    unfold hmac256drbg_relate. subst I.
 
-    destruct after_update_state_abs. simpl in *.
+    destruct after_update_state_abs.
     unfold hmac256drbgabs_update_value.
 (*    rewrite Heqinitial_state.*)
     unfold hmac256drbgabs_to_state.
 (*    rewrite Heqafter_update_key.*)
     simpl in AUV, AUK. subst AUV AUK.
-    unfold md_full. subst initial_state; simpl.
+    unfold md_full. subst initial_state.
+    cbv beta iota zeta.
     normalize. 
 
     (* size_t use_len = left > md_len ? md_len : left; *)
@@ -1691,7 +1691,7 @@ Proof. intros.
     (* left -= use_len; *)
     forward.
     { 
-      old_go_lower. 
+      go_lower.
       Exists (done + use_len).
       unfold hmac256drbgabs_common_mpreds; normalize.
 
