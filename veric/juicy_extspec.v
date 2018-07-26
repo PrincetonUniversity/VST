@@ -23,35 +23,59 @@ Class OracleKind := {
   OK_spec: juicy_ext_spec OK_ty
 }.
 
-Definition jstep {G C} (csem: @CoreSemantics G C mem)
-  (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
- corestep csem ge q (m_dry jm) q' (m_dry jm') /\ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+(*! The void ext_spec *)
+Definition void_spec T : external_specification juicy_mem external_function T :=
+    Build_external_specification
+      juicy_mem external_function T
+      (fun ef => False)
+      (fun ef Hef ge tys vl m z => False)
+      (fun ef Hef ge ty vl m z => False)
+      (fun rv m z => False).
+
+Definition ok_void_spec (T : Type) : OracleKind.
+ refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
+Proof.
+  simpl; intros; contradiction.
+  simpl; intros; contradiction.
+  simpl; intros; intros ? ? ? ?; contradiction.
+Defined.
+
+Definition j_initial_core {C} (csem: @CoreSemantics C mem)
+     (n: nat) (m: juicy_mem) (q: C) (m': juicy_mem) (v: val) (args: list val) 
+     : Prop :=
+  m' = m /\
+  semantics.initial_core csem n (m_dry m) q (m_dry m') v args.
+
+Definition j_at_external {C} (csem: @CoreSemantics C mem)
+   (q: C) (jm: juicy_mem) : option (external_function * list val) :=
+   semantics.at_external csem q (m_dry jm).
+
+Definition j_after_external {C} (csem: @CoreSemantics C mem)
+    (ret: option val) (q: C) (jm: juicy_mem) :=
+   semantics.after_external csem ret q (m_dry jm).
+
+Definition jstep {C} (csem: @CoreSemantics C mem)
+  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
+ corestep csem q (m_dry jm) q' (m_dry jm') /\ 
+ resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm') /\
  ghost_of (m_phi jm') = ghost_approx jm' (ghost_of (m_phi jm)).
 
-Definition j_halted {G C} (csem: @CoreSemantics G C mem)
-       (c: C) : option val :=
-     halted csem c.
+Definition j_halted {C} (csem: @CoreSemantics C mem)
+       (c: C) (i: int): Prop :=
+     halted csem c i.
 
-Lemma jstep_not_at_external {G C} (csem: @CoreSemantics G C mem):
-  forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
+Lemma jstep_not_at_external {C} (csem: @CoreSemantics C mem):
+  forall m q m' q', jstep csem q m q' m' -> at_external csem q (m_dry m) = None.
 Proof.
   intros.
   destruct H as (? & ? & ? & ?). eapply corestep_not_at_external; eauto.
 Qed.
 
-Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
-  forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
+Lemma jstep_not_halted  {C} (csem: @CoreSemantics C mem):
+  forall m q m' q' i, jstep csem q m q' m' -> ~j_halted csem q i.
 Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
-Qed.
-
-Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
-  forall (q : C),
-  at_external csem q = None \/ j_halted csem q = None.
-Proof.
- intros.
- destruct (at_external_halted_excl csem q); [left | right]; auto.
 Qed.
 
 Record jm_init_package: Type := {
@@ -69,17 +93,17 @@ Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem
-  {G C} (csem: @CoreSemantics G C mem) :
-   @CoreSemantics G C juicy_mem :=
-  @Build_CoreSemantics _ _ _
-    (semantics.initial_core csem)
-    (at_external csem)
-    (after_external csem)
-        (j_halted csem)
+  {C} (csem: @CoreSemantics C mem) :
+   @CoreSemantics C juicy_mem :=
+  @Build_CoreSemantics _ juicy_mem
+    (j_initial_core csem)
+    (j_at_external csem)
+    (j_after_external csem)
+    (j_halted csem)
     (jstep csem)
-    (jstep_not_at_external csem)
     (jstep_not_halted csem)
-    (j_at_external_halted_excl csem).
+    (jstep_not_at_external csem)
+(*  (j_at_external_halted_excl csem)*).
 
 Section upd_exit.
   Context {Z : Type}.
@@ -255,8 +279,8 @@ Qed.
 
 Section juicy_safety.
   Context {G C Z:Type}.
-  Context {genv_symb: G -> PTree.t block}.
-  Context (Hcore:@CoreSemantics G C mem).
+  Context {genv_symb: G -> injective_PTree block}.
+  Context (Hcore:@CoreSemantics C mem).
   Variable (Hspec : juicy_ext_spec Z).
   Variable ge : G.
 
@@ -270,12 +294,12 @@ Section juicy_safety.
   | jsafeN_0: forall z c m, jsafeN_ O z c m
   | jsafeN_step:
       forall n z c m c' m',
-      jstep Hcore ge c m c' m' ->
+      jstep Hcore c m c' m' ->
       jm_bupd z (jsafeN_ n z c') m' ->
       jsafeN_ (S n) z c m
   | jsafeN_external:
       forall n z c m e args x,
-      semantics.at_external Hcore c = Some (e,args) ->
+      j_at_external Hcore c m = Some (e,args) ->
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
@@ -284,31 +308,18 @@ Section juicy_safety.
          Hrel n' m m' ->
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
-           semantics.after_external Hcore ret c = Some c' /\
+           semantics.after_external Hcore ret c (m_dry m') = Some c' /\
            jm_bupd z' (jsafeN_ n' z' c') m') ->
       jsafeN_ (S n) z c m
   | jsafeN_halted:
       forall n z c m i,
-      semantics.halted Hcore c = Some i ->
-      ext_spec_exit Hspec (Some i) z m ->
+      semantics.halted Hcore c i ->
+      ext_spec_exit Hspec (Some (Vint i)) z m ->
       jsafeN_ n z c m.
-
-(*  Lemma jsafe_corestep_forward:
-     corestep_fun Hcore ->
-    forall c m c' m' n z,
-    jstep Hcore ge c m c' m' -> jsafeN_ (S n) z c m -> jm_bupd (jsafeN_ n z c') m'.
-  Proof.
-    intros H%juicy_core_sem_preserves_corestep_fun.
-    simpl; intros; inv H1.
-    assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).
-    inv H1; auto.
-    setoid_rewrite (corestep_not_at_external (juicy_core_sem _)) in H3; eauto; congruence.
-    setoid_rewrite (corestep_not_halted (juicy_core_sem _)) in H2; eauto; congruence.
-  Qed.*)
 
   Lemma jsafe_corestep_backward:
     forall c m c' m' n z,
-    jstep Hcore ge c m c' m' ->
+    jstep Hcore c m c' m' ->
     jsafeN_ n z c' m' -> jsafeN_ (S n) z c m.
   Proof.
     intros; eapply jsafeN_step; eauto.
@@ -363,7 +374,7 @@ Section juicy_safety.
   Lemma jsafe_step'_back2 :
     forall
       {ora st m st' m' n},
-      jstep Hcore ge st m st' m' ->
+      jstep Hcore st m st' m' ->
       jsafeN_ (n-1) ora st' m' ->
       jsafeN_ n ora st m.
   Proof.
@@ -375,7 +386,7 @@ Section juicy_safety.
     omega.
   Qed.
 
-(*  Lemma jsafe_corestepN_backward:
+  Lemma jsafe_corestepN_backward:
     forall z c m c' m' n n0,
       semantics_lemmas.corestepN (juicy_core_sem Hcore) n0 c m c' m' ->
       jsafeN_ (n - n0) z c' m' ->
@@ -391,16 +402,16 @@ Section juicy_safety.
     eapply jsafe_downward in H0; eauto. omega.
     specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
     solve[eapply jsafe_step'_back2; eauto].
-  Qed.*)
+  Qed.
 
   Lemma convergent_controls_jsafe :
     forall m q1 q2,
-      (semantics.at_external Hcore q1 = semantics.at_external Hcore q2) ->
-      (forall ret q', semantics.after_external Hcore ret q1 = Some q' ->
-                      semantics.after_external Hcore ret q2 = Some q') ->
+      (j_at_external Hcore q1 m = j_at_external Hcore q2 m) ->
+      (forall ret m q', semantics.after_external Hcore ret q1 m = Some q' ->
+                      semantics.after_external Hcore ret q2 m = Some q') ->
       (semantics.halted Hcore q1 = semantics.halted Hcore q2) ->
-      (forall q' m', jstep Hcore ge q1 m q' m' ->
-                     jstep Hcore ge q2 m q' m') ->
+      (forall q' m', jstep Hcore q1 m q' m' ->
+                     jstep Hcore q2 m q' m') ->
       (forall n z, jsafeN_ n z q1 m -> jsafeN_ n z q2 m).
   Proof.
     intros. destruct n; simpl in *; try constructor.
@@ -517,6 +528,8 @@ Proof.
    destruct Hupd1 as (? & ? & ?).
    eapply IHN; eauto; omega.
   + eapply jsafeN_external; [eauto | eapply JE_pre_hered; eauto |].
+    { unfold j_at_external in *.
+      rewrite <- (age_jm_dry H2); eauto. }
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
     - assert (level (m_phi jm) < level (m_phi jm0)).
@@ -560,14 +573,14 @@ Qed.
 End juicy_safety.
 
 Lemma juicy_core_sem_preserves_corestep_fun
-  {G C} (csem: @CoreSemantics G C mem) :
+  {C} (csem: @CoreSemantics C mem) :
   corestep_fun csem ->
   corestep_fun (juicy_core_sem csem).
 Proof.
-  intros determinism ge jm q jm1 q1 jm2 q2 step1 step2.
+  intros determinism jm q jm1 q1 jm2 q2 step1 step2.
   destruct step1 as [step1 [[ll1 rd1] [l1 g1]]].
   destruct step2 as [step2 [[ll2 rd2] [l2 g2]]].
-  pose proof determinism _ _ _ _ _ _ _ step1 step2 as E.
+  pose proof determinism _ _ _ _ _ _ step1 step2 as E.
   injection E as <- E; f_equal.
   apply juicy_mem_ext; auto.
   assert (El: level jm1 = level jm2) by (clear -l1 l2; omega).

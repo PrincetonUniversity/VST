@@ -73,9 +73,7 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
                     initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff);
                     K_vector gv)))) as PostKeyNull. *)
 forward_seq. instantiate (1:= PostKeyNull c k pad gv h1 l key ckb ckoff).
-{  assert (DD: Delta= initialized _reset Delta) by reflexivity.
-   rewrite DD.
-   eapply semax_pre_simple.
+{  eapply semax_pre_simple.
    2: eapply hmac_init_part1; eassumption.
    thaw' FR1. Time entailer!. (*2.2 versus 2.3*) }
 (*subst PostKeyNull.*)
@@ -126,9 +124,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.
-  simpl update_tycon.
-  apply semax_extensionality_Delta with (Delta).
-  apply tycontext_sub_refl.
   apply extract_exists_pre; intros [iSA [iS [oSA oS]]]. simpl.
   assert_PROP (is_pointer_or_null k) as Ptr_null_k by entailer!.
   destruct k; simpl in Ptr_null_k; try contradiction.

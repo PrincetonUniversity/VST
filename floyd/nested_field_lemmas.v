@@ -1161,6 +1161,29 @@ Proof.
     tauto.
 Qed.
 
+Lemma legal_nested_field0_shrink: forall t gfs0 gfs1,
+  legal_nested_field0 t (gfs1 ++ gfs0) -> legal_nested_field0 t gfs0.
+Proof.
+  intros.
+  destruct gfs1.
+  + simpl in *; auto.
+  + simpl app in H.
+    destruct H.
+    apply legal_nested_field_shrink in H; auto.
+Qed.
+
+Lemma legal_nested_field0_shrink1: forall t gfs0 gfs1,
+  gfs1 <> nil ->
+  legal_nested_field0 t (gfs1 ++ gfs0) -> legal_nested_field t gfs0.
+Proof.
+  intros.
+  destruct gfs1.
+  + congruence.
+  + simpl app in H0.
+    destruct H0.
+    apply legal_nested_field_shrink in H0; auto.
+Qed.
+
 Lemma legal_nested_field_app: forall t gfs0 gfs1,
   legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field (nested_field_type t gfs0) gfs1.
 Proof.
@@ -1169,6 +1192,19 @@ Proof.
   + exact I.
   + simpl in H.
     specialize (IHgfs1 (proj1 H)).
+    simpl.
+    rewrite nested_field_type_nested_field_type.
+    tauto.
+Qed.
+
+Lemma legal_nested_field0_app: forall t gfs0 gfs1,
+  legal_nested_field0 t (gfs1 ++ gfs0) -> legal_nested_field0 (nested_field_type t gfs0) gfs1.
+Proof.
+  intros.
+  destruct gfs1.
+  + exact I.
+  + simpl in H.
+    pose proof legal_nested_field_app t gfs0 gfs1.
     simpl.
     rewrite nested_field_type_nested_field_type.
     tauto.
@@ -1187,6 +1223,22 @@ Proof.
     tauto.
 Qed.
 
+Lemma legal_nested_field0_app_inv: forall t gfs0 gfs1,
+  legal_nested_field t gfs0 ->
+  legal_nested_field0 (nested_field_type t gfs0) gfs1 ->
+  legal_nested_field0 t (gfs1 ++ gfs0).
+Proof.
+  intros.
+  destruct gfs1.
+  + apply legal_nested_field0_field.
+    exact H.
+  + simpl in *.
+    rewrite <- nested_field_type_nested_field_type.
+    destruct H0.
+    split; auto.
+    apply legal_nested_field_app_inv; auto.
+Qed.
+
 Lemma nested_field_offset_app: forall t gfs0 gfs1,
   legal_nested_field t (gfs1 ++ gfs0) ->
   nested_field_offset t (gfs1 ++ gfs0) = nested_field_offset t gfs0 +
@@ -1201,6 +1253,25 @@ Proof.
     specialize (IHgfs1 (proj1 H)).
     rewrite nested_field_offset_ind with (gfs := a :: gfs1 ++ gfs0) by auto.
     rewrite nested_field_offset_ind with (gfs := a :: gfs1) by (apply legal_nested_field0_field; apply legal_nested_field_app; auto).
+    rewrite nested_field_type_nested_field_type.
+    omega.
+Qed.
+
+Lemma nested_field_offset0_app: forall t gfs0 gfs1,
+  legal_nested_field0 t (gfs1 ++ gfs0) ->
+  nested_field_offset t (gfs1 ++ gfs0) = nested_field_offset t gfs0 +
+    nested_field_offset (nested_field_type t gfs0) gfs1.
+Proof.
+  intros.
+  destruct gfs1.
+  + simpl app.
+    rewrite nested_field_offset_ind with (gfs := nil) by exact I.
+    omega.
+  + simpl app in *.
+    rewrite nested_field_offset_ind with (gfs := g :: gfs1 ++ gfs0) by auto.
+    rewrite nested_field_offset_ind with (gfs := g :: gfs1) by (apply legal_nested_field0_app; auto).
+    destruct H.
+    pose proof (nested_field_offset_app t gfs0 gfs1 H).
     rewrite nested_field_type_nested_field_type.
     omega.
 Qed.
@@ -1478,12 +1549,37 @@ Proof.
   auto.
 Qed.
 
+Lemma field_compatible0_field_address0: forall t gfs p, field_compatible0 t gfs p -> field_address0 t gfs p = offset_val (nested_field_offset t gfs) p.
+Proof.
+  intros.
+  unfold field_address0.
+  rewrite if_true by auto.
+  auto.
+Qed.
+
 Lemma field_compatible_shrink: forall t_root gfsB gfsA a,
   field_compatible t_root (gfsB ++ gfsA) a ->
   field_compatible t_root gfsA a.
 Proof.
   intros. unfold field_compatible in *. rename H into A. repeat destruct A as [? A].
   repeat split; try assumption. eapply legal_nested_field_shrink. eassumption.
+Qed.
+
+Lemma field_compatible0_shrink: forall t_root gfsB gfsA a,
+  field_compatible0 t_root (gfsB ++ gfsA) a ->
+  field_compatible0 t_root gfsA a.
+Proof.
+  intros. unfold field_compatible0 in *. rename H into A. repeat destruct A as [? A].
+  repeat split; try assumption. eapply legal_nested_field0_shrink. eassumption.
+Qed.
+
+Lemma field_compatible0_shrink1: forall t_root gfsB gfsA a,
+  gfsB <> nil ->
+  field_compatible0 t_root (gfsB ++ gfsA) a ->
+  field_compatible t_root gfsA a.
+Proof.
+  intros. unfold field_compatible0, field_compatible in *. rename H0 into A. repeat destruct A as [? A].
+  repeat split; try assumption. eapply legal_nested_field0_shrink1. eassumption. eassumption.
 Qed.
 
 Lemma field_compatible_app: forall gfsB t_root gfsA a,
@@ -1503,6 +1599,24 @@ Proof.
     rewrite E; destruct H; auto.
 Qed.
 
+Lemma field_compatible0_app1: forall gfsB t_root gfsA a
+  (NEQ: gfsB <> nil),
+  field_compatible0 t_root (gfsB ++ gfsA) a ->
+  field_compatible0 (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
+Proof.
+  intros.
+  destruct gfsB; [congruence | clear NEQ].
+  pose proof field_compatible_app gfsB t_root gfsA a.
+  rewrite <- app_comm_cons in H.
+  apply field_compatible0_cons in H.
+  destruct (nested_field_type t_root (gfsB ++ gfsA)) eqn: E;
+  try solve [exfalso; assumption];
+  destruct g; try solve [exfalso; assumption];
+  rewrite <- nested_field_type_nested_field_type in E;
+  apply field_compatible0_cons;
+  rewrite E; destruct H; auto.
+Qed.
+
 Lemma field_compatible_app_inv': forall gfsB t_root gfsA a,
   field_compatible t_root gfsA a ->
   legal_nested_field (nested_field_type t_root gfsA) gfsB ->
@@ -1511,6 +1625,17 @@ Proof.
   unfold field_compatible.
   intros.
   pose proof legal_nested_field_app_inv t_root gfsA gfsB.
+  tauto.
+Qed.
+
+Lemma field_compatible0_app_inv': forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  legal_nested_field0 (nested_field_type t_root gfsA) gfsB ->
+  field_compatible0 t_root (gfsB ++ gfsA) a.
+Proof.
+  unfold field_compatible0, field_compatible.
+  intros.
+  pose proof legal_nested_field0_app_inv t_root gfsA gfsB.
   tauto.
 Qed.
 
@@ -1524,6 +1649,16 @@ Proof.
   destruct H0; tauto.
 Qed.
 
+Lemma field_compatible0_app_inv: forall gfsB t_root gfsA a,
+  field_compatible t_root gfsA a ->
+  field_compatible0 (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) ->
+  field_compatible0 t_root (gfsB ++ gfsA) a.
+Proof.
+  intros.
+  apply field_compatible0_app_inv'; auto.
+  destruct H0; tauto.
+Qed.
+
 Lemma field_address_app: forall t_root gfsA gfsB a,
   field_address t_root (gfsB ++ gfsA) a =
   field_address (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
@@ -1533,10 +1668,10 @@ Proof.
     ~ field_compatible t_root gfsA a /\ ~ field_compatible t_root (gfsB ++ gfsA) a \/
     ~ field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) /\ ~ field_compatible t_root (gfsB ++ gfsA) a \/
     field_compatible t_root (gfsB ++ gfsA) a).
-  Focus 1. {
+  {
     pose proof field_compatible_app_inv gfsB t_root gfsA a.
     tauto.
-  } Unfocus.
+  }
   destruct H as [[? ?] | [[? ?] | ?]].
   + unfold field_address.
     rewrite if_false by auto.
@@ -1555,6 +1690,41 @@ Proof.
     { eapply field_compatible_shrink. eassumption. }
     { eapply field_compatible_legal_nested_field. eassumption. }
     { eapply field_compatible_app. assumption. }
+    { assumption. }
+Qed.
+
+Lemma field_address0_app: forall t_root gfsA gfsB a
+  (NEQ: gfsB <> nil),
+  field_address0 t_root (gfsB ++ gfsA) a =
+  field_address0 (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
+Proof.
+  intros.
+  assert (
+    ~ field_compatible t_root gfsA a /\ ~ field_compatible0 t_root (gfsB ++ gfsA) a \/
+    ~ field_compatible0 (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a) /\ ~ field_compatible0 t_root (gfsB ++ gfsA) a \/
+    field_compatible0 t_root (gfsB ++ gfsA) a).
+  {
+    pose proof field_compatible0_app_inv gfsB t_root gfsA a.
+    tauto.
+  }
+  destruct H as [[? ?] | [[? ?] | ?]].
+  + unfold field_address0, field_address.
+    rewrite if_false by auto.
+    destruct (field_compatible_dec t_root gfsA a); [tauto |].
+    if_tac; reflexivity.
+  + unfold field_address0, field_address.
+    rewrite if_false by auto.
+    rewrite if_false by auto.
+    reflexivity.
+  + rewrite field_compatible0_field_address0.
+    rewrite field_compatible0_field_address0.
+    rewrite nested_field_offset0_app.
+    rewrite field_compatible_field_address.
+    rewrite offset_offset_val.
+    reflexivity.
+    { eapply field_compatible0_shrink1; eassumption. }
+    { eapply field_compatible0_legal_nested_field0. eassumption. }
+    { eapply field_compatible0_app1; assumption. }
     { assumption. }
 Qed.
 

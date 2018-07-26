@@ -1,10 +1,5 @@
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.semantics_lemmas.
-Require Import VST.sepcomp.simulations.
-Require Import VST.sepcomp.simulations_lemmas.
-(*Require Import VST.sepcomp.compiler_correctness.*)
-
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.Clight_new.
@@ -14,9 +9,8 @@ Require VST.veric.Clight_core.
 Module CC' := Clight_core.
 Section GE.
 Variable ge : genv.
-
 Definition CCstep s1 s2 := 
-  Clight_core.cl_at_external (fst (CC'.CC_state_to_CC_core s1)) = None /\
+  Clight_core.at_external s1 = None /\
   Clight.step ge (Clight.function_entry2 ge) s1 Events.E0 s2.
 
 Fixpoint strip_skip' (k: CC.cont) : CC.cont :=
@@ -468,7 +462,7 @@ Inductive match_states: forall (qm: corestate) (st: CC'.CC_core), Prop :=
 
 Lemma Clightnew_Clight_sim_eq_noOrder_SSplusConclusion:
 forall (c1 : corestate) (m : mem) (c1' : corestate) (m' : mem),
-corestep cl_core_sem ge c1 m c1' m' ->
+corestep (cl_core_sem ge) c1 m c1' m' ->
 forall (c2 : CC'.CC_core),
  match_states c1 c2 ->
 exists c2' : CC'.CC_core,
@@ -945,139 +939,23 @@ Qed.
 
 End GE.
 
-Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
+Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics core M)
                          (cenv: composite_env) :
-            @CoreSemantics (Genv.t fundef type) core M :=
-  Build_CoreSemantics _ _ _
-             (fun n ge => CS.(initial_core) n (Build_genv ge cenv))
-             CS.(at_external)
-             CS.(after_external)
+            @CoreSemantics core M :=
+  Build_CoreSemantics _ _
+             (CS.(initial_core))
+             (CS.(semantics.at_external))
+             (CS.(semantics.after_external))
              CS.(halted)
-            (fun ge => CS.(corestep) (Build_genv ge cenv))
-            (fun ge => CS.(corestep_not_at_external) (Build_genv ge cenv))
-            (fun ge => CS.(corestep_not_halted) (Build_genv ge cenv))
-            CS.(at_external_halted_excl).
+            (CS.(corestep) )
+            (CS.(corestep_not_halted) )
+            CS.(corestep_not_at_external).
 
 Require Import VST.sepcomp.step_lemmas.
 
- Lemma sim_dry_safeN:
-  forall dryspec (prog: Clight.program) b q m h,
-  initial_core Clight_new.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          (Vptr b Ptrofs.zero) nil = Some q ->
-  (forall n, 
-    @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
-   (coresem_extract_cenv Clight_new.cl_core_sem 
-   (prog_comp_env prog)) dryspec 
-   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m) ->
-  exists q', 
-  initial_core Clight_core.cl_core_sem h
-           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
-          (Vptr b Ptrofs.zero) nil = Some q' /\
-  (forall n, 
-    @dry_safeN _ _ _ _ (@Genv.genv_symb _ _)
-   (coresem_extract_cenv Clight_core.cl_core_sem 
-   (prog_comp_env prog)) dryspec 
-   (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q' m).
+Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree block.
 Proof.
-intros.
-simpl in H.
-rewrite if_true in H by auto.
-destruct (@Genv.find_funct_ptr fundef type (@Genv.globalenv (Ctypes.fundef function) type prog) b) eqn:?; inv H.
-unfold initial_core; simpl.
-rewrite if_true by auto.
-rewrite Heqo.
-eexists; split; [reflexivity|].
-intro.
-remember (State empty_env
-          (PTree.Node PTree.Leaf (Some (Vptr b Ptrofs.zero)) PTree.Leaf)
-          (Kseq
-             (Scall None (Etempvar 1%positive (type_of_fundef f))
-                (map (fun x : ident * type => Etempvar (fst x) (snd x))
-                   (params_of_types 2 (params_of_fundef f))))
-           :: Kseq (Sloop Sskip Sskip) :: nil)) as q.
-remember (Clight_core.CC_core_State Clight_core.empty_function
-     (Scall None (Etempvar 1%positive (type_of_fundef f))
-        (map (fun x : ident * type => Etempvar (fst x) (snd x))
-           (Clight_core.params_of_types 2 (Clight_core.params_of_fundef f))))
-     (Clight.Kseq (Sloop Sskip Sskip) Kstop) empty_env
-     (PTree.Node PTree.Leaf (Some (Vptr b Ptrofs.zero)) PTree.Leaf)) as q'.
-assert (match_states q q'). {
- subst q q'. constructor. simpl. auto. simpl.
-  constructor. simpl. constructor. simpl. constructor.
-}
-clear Heqq Heqq' f Heqo.
-simpl in H0.
- unfold dry_safeN in *.
-forget (Genv.globalenv prog) as ge.
-clear - H0 H.
-
-specialize (H0 n).
-revert q q' H m H0; 
-induction (lt_wf n) as [n _ IH].
-intros.
-destruct n; [ constructor |].
-inv H0.
-*
- specialize (IH n). spec IH; [omega|].
- destruct (Clightnew_Clight_sim_eq_noOrder_SSplusConclusion 
-                _ _ _ _ _ H2 _ H)
- as [qq [? ?]].
- inv H0.
- destruct H4.
- destruct (CC'.CC_state_to_CC_core s2) as [c2 m2] eqn:?.
- constructor 2 with (c':=c2) (m':=m2).
- split. destruct q'; inv H0; auto.
- rewrite <- (CC'.CC_core_CC_state_2 _ _ _ Heqp). assumption.
- specialize (IH _ _ H1).
- clear - IH H5 H3 Heqp.
- remember (CC'.CC_core_to_CC_state qq m') as s3.
- revert c2 m2 Heqp qq m' Heqs3 IH H3.
- induction H5; intros.
- + subst. rewrite CC'.CC_core_CC_state_1 in Heqp. inv Heqp.
-   apply IH; auto.
- + destruct n; [constructor |].
- destruct (CC'.CC_state_to_CC_core s2) as [c2' m2'] eqn:?.
- constructor 2 with (c':=c2')(m':=m2').
- destruct H. rewrite Heqp in *. simpl in H.
- split. auto.
- rewrite <- (CC'.CC_core_CC_state_2 _ _ _ Heqp).
- rewrite <- (CC'.CC_core_CC_state_2 _ _ _ Heqp0).
- assumption.
- clear dependent s1.
- apply safe_downward1.
- eapply IHstar; eauto.
-*
- constructor 3 with (e:=e) (args:=args)(x:=x).
- clear - H H2.
- revert H2; induction H; intros. inv H2.
- inv H2. simpl. auto.
- auto.
- intros.
- specialize (H4 ret m' z' n' Hargsty Hretty H0 H1 H5). clear H1.
- destruct H4 as [c' [? ?]].
- simpl in *.
- destruct c'; inv H2; inv H; try discriminate.
- 2: apply cl_after_at_external_excl in H1; inv H1.
- eexists; split; [reflexivity|].
- destruct n'; [constructor|].
- constructor 2 with (c':=(CC'.CC_core_State f Sskip k' ve (CC.set_opttemp lid (Val.maketotal ret) te0)))(m':=m').
- +
- split. reflexivity.
- simpl.
- destruct ret; inv H1;
- destruct lid; inv H6; constructor.
- +
- assert (match_states (State ve (CC.set_opttemp lid (Val.maketotal ret) te0) k0) 
-             (CC'.CC_core_State f Sskip k' ve (CC.set_opttemp lid (Val.maketotal ret) te0))).
- constructor; auto.
- specialize (IH (S n')). spec IH; [omega|].
- specialize (IH _ _ H m'); clear H.
- destruct z'.
- inv H7. inv H1.
- eapply safe_downward; [ | eapply IH; eauto]. omega.
-destruct ret, lid; inv H6; apply H4.
-*
- inv H1.
-Qed.
-
+exists (Genv.genv_symb ge).
+hnf; intros.
+eapply Genv.genv_vars_inj; eauto.
+Defined.

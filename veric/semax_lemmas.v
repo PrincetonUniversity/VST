@@ -335,8 +335,8 @@ apply semax'_pre; eauto.
 apply semax'_post; auto.
 Qed.
 
-Lemma cl_corestep_fun': corestep_fun cl_core_sem.
-Proof.  intro; intros. eapply cl_corestep_fun; eauto. Qed.
+Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
+Proof.  repeat intro. eapply cl_corestep_fun; simpl in *; eauto. Qed.
 Hint Resolve cl_corestep_fun'.
 
 Lemma derives_skip:
@@ -385,6 +385,20 @@ destruct H8 as [? [? ?]].
 split3; auto.
 
 econstructor; eauto.
+Qed.
+
+Lemma jsafe_corestep_forward:
+  forall ge c m c' m' n z,
+    jstep (cl_core_sem ge) c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
+    jm_bupd z (jsafeN (@OK_spec Espec) ge n z c') m'.
+Proof.
+  intros.
+  inv H0.
+  assert ((c',m') = (c'0,m'0)).
+  { eapply juicy_core_sem_preserves_corestep_fun with (csem := cl_core_sem ge); eauto. }
+  inv H0; auto.
+  setoid_rewrite (semantics.corestep_not_at_external (juicy_core_sem _)) in H2; eauto; congruence.
+  contradiction.
 Qed.
 
 Lemma semax_extract_prop:
@@ -1128,7 +1142,7 @@ inversion 1; subst. constructor.
 econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto.
 eapply step_skip; eauto.
 simpl in *; congruence.
-simpl in *. unfold cl_halted in H0. congruence.
+contradiction.
 Qed.
 
 Lemma safe_seq_skip' ge n ora ve te k m :
@@ -1139,7 +1153,7 @@ inversion 1; subst. constructor.
 econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto.
 inv H0; auto.
 simpl in *; congruence.
-simpl in *. unfold cl_halted in H0. congruence.
+contradiction.
 Qed.
 
 Lemma safe_step_forward:
@@ -1147,13 +1161,13 @@ Lemma safe_step_forward:
    cl_at_external st = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
-   jstep cl_core_sem psi st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
+   jstep (cl_core_sem psi) st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
 Proof.
  intros.
  inv H0.
  eexists; eexists; split; eauto.
  simpl in H2; rewrite H2 in H; congruence.
- simpl in H1; unfold cl_halted in H1. congruence.
+ contradiction.
 Qed.
 
 Lemma safeN_strip:
@@ -1341,11 +1355,11 @@ Lemma corestep_preservation_lemma:
        filter_seq ctl1 = filter_seq ctl2 ->
       (forall k : list cont', control_as_safe ge n (k ++ ctl1) (k ++ ctl2)) ->
       control_as_safe ge (S n) ctl1 ctl2 ->
-      jstep cl_core_sem ge (State ve te (c :: l ++ ctl1)) m c' m' ->
+      jstep (cl_core_sem ge) (State ve te (c :: l ++ ctl1)) m c' m' ->
       jm_bupd ora (jsafeN (@OK_spec Espec) ge n ora c') m' ->
    exists c2 : corestate,
      exists m2 : juicy_mem,
-       jstep cl_core_sem ge (State ve te (c :: l ++ ctl2)) m c2 m2 /\
+       jstep (cl_core_sem ge) (State ve te (c :: l ++ ctl2)) m c2 m2 /\
        jm_bupd ora (jsafeN (@OK_spec Espec) ge n ora c2) m2.
 Proof. intros until m'. intros H0 H4 CS0 H H1.
   remember (State ve te (c :: l ++ ctl1)) as q. rename c' into q'.
@@ -1381,7 +1395,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
     exists (State ve (PTree.set i Vundef te) (l ++ ctl2)); split; auto.  inv H5. eapply control_as_safe_bupd; auto.
     exists (State ve te (l ++ ctl2)); split; auto. eapply control_as_safe_bupd; auto.
     inv H5. auto. }
-  { simpl in H6. unfold cl_halted in H6. congruence. } }
+   contradiction. }
   (* sequence  *)
   { destruct (IHcl_step (Kseq s1) (Kseq s2 :: l)
             _ (eq_refl _) _ (eq_refl _) Hb Hc Hg H1 (eq_refl _))
@@ -1472,9 +1486,9 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (semantics.corestep (juicy_core_sem (cl_core_sem ge)) (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (jsafeN_step cl_core_sem OK_spec ge _ _ _ _ _ _ H5 H1).
+  pose proof (@jsafeN_step genv _ _ genv_symb_injective (cl_core_sem ge) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1492,9 +1506,9 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (semantics.corestep (juicy_core_sem (cl_core_sem ge)) (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (jsafeN_step cl_core_sem OK_spec ge _ _ _ _ _ _ H5 H1).
+  pose proof (@jsafeN_step genv _ _ genv_symb_injective  (cl_core_sem ge) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1512,9 +1526,9 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (semantics.corestep (juicy_core_sem (cl_core_sem ge)) (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (jsafeN_step cl_core_sem OK_spec ge _ _ _ _ _ _ H5 H1).
+  pose proof (@jsafeN_step genv _ _ genv_symb_injective  (cl_core_sem ge) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1642,7 +1656,7 @@ Lemma control_suffix_safe :
    econstructor; eauto.
    eapply control_as_safe_le; eauto.
   simpl in H7. congruence.
-  simpl in H6. unfold cl_halted in H6. congruence.
+  simpl in H6. unfold cl_halted in H6. contradiction.
 Qed.
 
 Lemma guard_safe_adj:
@@ -2096,7 +2110,7 @@ inversion 1; subst.
 + econstructor; eauto. simpl. destruct H0 as (?&?&?). split3; eauto. 
   simpl in H0. simpl. eapply step_label; trivial.
 + simpl in *; congruence.
-+ simpl in *. unfold cl_halted in H0. congruence.
++ simpl in *. unfold cl_halted in H0. contradiction.
 Qed.
 
 Lemma semax_Slabel {Espec: OracleKind} {cs:compspecs}
@@ -2130,7 +2144,7 @@ split; intros.
     inversion H11; clear H11; subst. 
     econstructor. econstructor. trivial.
   + simpl in *; congruence.
-  + simpl in *. unfold cl_halted in H0. congruence. }
+  + simpl in *. unfold cl_halted in H0. contradiction. }
 { inversion H; clear H; subst; simpl in *.
   + constructor.
   + destruct H0 as (?&?&?); simpl in *. inversion H; clear H; subst; simpl in *.
@@ -2139,7 +2153,7 @@ split; intros.
     econstructor; eauto; simpl.
     econstructor; eauto.
   + simpl in *; congruence.
-  + simpl in *. unfold cl_halted in H0. congruence. }
+  + simpl in *. unfold cl_halted in H0. contradiction. }
 Qed.
 
 Lemma semax_seq_Slabel:

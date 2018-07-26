@@ -878,6 +878,34 @@ Proof.
       normalize.
 Qed.
 
+Lemma array_at_data_at''':
+  forall sh t gfs lo hi v p t0 n a,
+  nested_field_type t gfs = Tarray t0 n a ->
+  lo <= hi <= n ->
+  array_at sh t gfs lo hi v p =
+  data_at sh (nested_field_array_type t gfs lo hi) v
+               (field_address0 t (ArraySubsc lo::gfs) p).
+Proof.
+  intros.
+  destruct H0.
+  rewrite array_at_data_at by auto.
+  unfold at_offset.
+  unfold field_address0.
+  if_tac.
+  + assert (field_compatible0 t (gfs SUB hi) p).
+    - rewrite field_compatible0_cons in *.
+      rewrite H in *.
+      destruct H2 as [[? ?] ?].
+      split; [split |]; auto.
+      omega.
+    - rewrite !prop_true_andp by auto.
+      auto.
+  + apply pred_ext.
+    - normalize.
+    - rewrite data_at_isptr.
+      normalize.
+Qed.
+  
 Lemma split3seg_array_at': forall sh t gfs lo ml mr hi v p,
   lo <= ml ->
   ml <= mr ->

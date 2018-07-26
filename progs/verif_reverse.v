@@ -236,12 +236,12 @@ Lemma setup_globals:
         SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
                   (gv _three) nullval).
 Proof.
- intros.
-  go_lower.
+  intros.
+  go_lowerx.
+  pose proof (gvars_denote_HP _ _ _ _ _ H2 H0 H).
   rewrite !prop_true_andp by auto.
-  assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three))
-   by (entailer!; clear - H0; hnf in H0; intuition).
-  rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)) by intuition. 
+  assert_PROP (size_compatible tuint (gv _three) /\ align_compatible tuint (gv _three)) by (entailer!; clear - H5; hnf in H5; intuition).
+  rewrite <- mapsto_data_at with (v := Vint(Int.repr 1)); try intuition. 
   clear H0.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] (gv _three))
@@ -249,8 +249,10 @@ Proof.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace (gv _three) with (offset_val 0 (gv _three)) by normalize.
   subst a.
+  rewrite (sepcon_emp (lseg _ _ _ _ _)).
+  rewrite sepcon_emp.
   repeat
-    match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
+  match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
     assert (FC': field_compatible t_struct_list [] (offset_val n (gv _three)));
       [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
          [ArraySubsc (n/8)] (gv _three));
@@ -267,7 +269,6 @@ Proof.
         unfold data_at_rec, at_offset; simpl; normalize; try apply derives_refl | ]);
     clear FC'
     end.
-
   rewrite mapsto_tuint_tptr_nullval; auto. apply derives_refl.
   rewrite @lseg_nil_eq.
   entailer!.

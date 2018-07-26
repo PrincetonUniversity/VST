@@ -955,7 +955,7 @@ Proof.
   thaw XX. thaw OLD_MD. cancel. simpl in *. rewrite Heqd2, <- HeqMRS.
   Exists p. normalize. 
   apply andp_right. apply prop_right; repeat split; trivial.
-  unfold_data_at 3%nat. cancel.
+  unfold_data_at 1%nat. cancel.
 Time Qed. (*Coq8.6: 40secs*)
           (*Jan 22nd 2017: 267.171 secs (182.812u,0.015s) (successful)*)
           (*earlier: Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)

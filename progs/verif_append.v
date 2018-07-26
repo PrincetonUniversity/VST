@@ -36,7 +36,7 @@ Proof. intros; apply andp_left2; auto. Qed.
 Lemma body_append: semax_body Vprog Gprog f_append append_spec.
 Proof.
 start_function.
-forward_if (PROP (False) LOCAL () SEP ()).
+forward_if.
 *
  forward.
  Exists y.
@@ -86,6 +86,4 @@ forward_if (PROP (False) LOCAL () SEP ()).
     simpl valinject.
     cancel.
    apply (list_append_null LS).
-*
-  entailer!.
 Qed.

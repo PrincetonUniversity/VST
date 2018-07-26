@@ -1,3 +1,4 @@
+Require Export VST.msl.iter_sepcon.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
 Require Export VST.floyd.proofauto.
@@ -246,6 +247,13 @@ Proof.
   induction l; auto; simpl.
   destruct (l ++ [x]) eqn: Heq; auto.
   contradiction (app_cons_not_nil l [] x); auto.
+Qed.
+
+Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
+  iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
+Proof.
+  intros; induction l; simpl; normalize.
+  rewrite H, IHl; apply pred_ext; cancel.
 Qed.
 
 Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
@@ -904,6 +912,12 @@ Proof.
   induction n; destruct l2; auto; intros; rewrite ?Nat2Z.inj_succ, ?Zlength_nil, ?Zlength_cons in *;
     simpl in *; try (rewrite Zlength_correct in *; omega).
   rewrite IHn; auto; omega.
+Qed.
+
+Lemma map_const: forall {A B} (c : A) (l : list B), map (fun _ => c) l = repeat c (length l).
+Proof.
+  induction l; auto; simpl.
+  rewrite IHl; auto.
 Qed.
 
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
@@ -1833,7 +1847,6 @@ Proof.
   apply NoDup_app in Hdistinct; destruct Hdistinct as (? & ? & Hdistinct); auto.
   repeat split; auto; intro.
   - destruct (PTree.get _ _); auto.
-    destruct p; rewrite orb_comm, orb_negb_r; auto.
   - unfold make_tycontext_g.
     revert dependent G2; revert dependent V2; revert V; induction G; simpl.
     + induction V; simpl; intros.
@@ -2381,6 +2394,61 @@ Lemma Zlength_remove_Znth : forall {A} i (l : list A), 0 <= i < Zlength l ->
 Proof.
   intros; unfold remove_Znth.
   rewrite Zlength_app, !Zlength_sublist; omega.
+Qed.
+
+Lemma remove_upd_Znth: forall {A} i l (a : A), 0 <= i < Zlength l ->
+  remove_Znth i (upd_Znth i l a) = remove_Znth i l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite upd_Znth_Zlength, sublist_upd_Znth_l, sublist_upd_Znth_r; auto; omega.
+Qed.
+
+Lemma remove_Znth_map: forall {A B} (f : A -> B) i l,
+  remove_Znth i (map f l) = map f (remove_Znth i l).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite map_app, Zlength_map, !sublist_map; auto.
+Qed.
+
+Lemma remove_Znth_combine: forall {A B} i (l1 : list A) (l2 : list B),
+  0 <= i < Zlength l1 -> Zlength l1 = Zlength l2 ->
+  remove_Znth i (combine l1 l2) = combine (remove_Znth i l1) (remove_Znth i l2).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite !sublist_combine, combine_app' by (rewrite !Zlength_sublist; omega).
+  rewrite Zlength_combine, Z.min_l by omega.
+  congruence.
+Qed.
+
+Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
+  iter_sepcon f l = f (Znth i l) * iter_sepcon f (remove_Znth i l).
+Proof.
+  intros; unfold remove_Znth.
+  rewrite <- sublist_same at 1 by auto.
+  rewrite sublist_split with (mid := i) by omega.
+  rewrite sublist_next with (i0 := i) by omega.
+  rewrite !iter_sepcon_app; simpl; apply pred_ext; cancel.
+Qed.
+
+Lemma iter_sepcon2_Znth: forall {A B} {d1 : Inhabitant A} {d2 : Inhabitant B}
+  f (l1 : list A) (l2 : list B) i, 0 <= i < Zlength l1 -> Zlength l1 = Zlength l2 ->
+  iter_sepcon2 f l1 l2 =
+  f (Znth i l1) (Znth i l2) * iter_sepcon2 f (remove_Znth i l1) (remove_Znth i l2).
+Proof.
+  intros; rewrite !iter_sepcon2_spec.
+  apply pred_ext; Intros l; subst.
+  - rewrite Zlength_map in *.
+    rewrite !remove_Znth_map, !Znth_map, iter_sepcon_Znth with (i0 := i) by auto.
+    unfold uncurry at 1.
+    Exists (remove_Znth i l); entailer!.
+  - Exists (combine l1 l2).
+    rewrite combine_fst, combine_snd
+      by (rewrite <- !ZtoNat_Zlength; apply Nat2Z.inj; rewrite !Z2Nat.id; omega).
+    rewrite iter_sepcon_Znth with (i0 := i)(l0 := combine _ _)
+      by (rewrite Zlength_combine, Z.min_l; omega).
+    rewrite Znth_combine, remove_Znth_combine by auto.
+    rewrite H1, H2, combine_eq; unfold uncurry; entailer!.
+    apply derives_refl.
 Qed.
 
 Instance Inhabitant_share : Inhabitant share := Share.bot. (* TODO: remove this, it's already in sublist.v *) 
@@ -3305,6 +3373,7 @@ ENTAIL Delta,
        (eval_expr a) * |>PROPx P (LOCALx Q (SEPx Frame))).
 Proof.
 intros.
+pose proof actual_value_not_Vundef _ _ _ _ _ _ _ _ _ _ _ PTREE TC1 MSUBST as VUNDEF.
 rewrite !exp_andp1. Intros v.
 rewrite later_andp; repeat apply andp_right; auto.
 { eapply derives_trans, later_derives, TC0.
@@ -3328,7 +3397,7 @@ apply andp_right.
 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans;[ apply andp_derives; [apply derives_refl | apply andp_left2; apply derives_refl] |].
 subst Qactuals.
-clear - PTREE LEN PTREE' MSUBST FRAME PPRE CHECKTEMP CHECKG.
+clear - PTREE LEN PTREE' MSUBST FRAME PPRE CHECKTEMP CHECKG VUNDEF.
 rewrite <- later_sepcon.
  progress (autorewrite with norm1 norm2).
 rewrite PROP_combine.
@@ -3350,12 +3419,14 @@ intro rho; unfold SEPx.
  rewrite fold_right_sepcon_app.
  assumption.
 +
+ rewrite VUNDEF.
  apply (local2ptree_soundness P _ R) in PTREE.
  simpl app in PTREE.
  apply msubst_eval_exprlist_eq with (P0:=P)(R0:=R)(GV0:=GV) in MSUBST.
  rewrite PTREE.
  apply later_left2.
- eapply derives_trans with (local ((` (eq vl)) (eval_exprlist (argtypes argsig) bl)) && PROPx P (LOCALx (LocalD Qtemp Qvar GV) (SEPx R))); [rewrite (add_andp _ _ MSUBST); solve_andp |].
+ normalize. clear VUNDEF; rename H into VUNDEF.
+ apply derives_trans with (local ((` (eq vl)) (eval_exprlist (argtypes argsig) bl)) && PROPx P (LOCALx (LocalD Qtemp Qvar GV) (SEPx R))); [rewrite (add_andp _ _ MSUBST); solve_andp |].
  clear MSUBST.
  intro rho.
  apply (local2ptree_soundness nil _ (TT::nil)) in PTREE'.
@@ -3436,17 +3507,17 @@ eapply semax_call_aux55; eauto.
 *
  subst.
  clear CHECKTEMP TC1 PRE1 PPRE.
- intros.
- simpl exit_tycon. rewrite POST1; clear POST1.
+ intros. normalize.
+ rewrite POST1; clear POST1.
  unfold ifvoid.
  go_lowerx. normalize.
  apply exp_right with x.
+ rewrite fold_right_and_app_low.
+ rewrite fold_right_sepcon_app.
  apply andp_right.
  apply prop_right.
- rewrite fold_right_and_app_low.
  split; auto.
  normalize.
- rewrite fold_right_sepcon_app. auto.
 *
 assumption.
 Qed.
@@ -3502,7 +3573,7 @@ eapply semax_pre_post'; [ | |
  | assumption
  | clear - OKretty; destruct retty; inv OKretty; apply I
  | hnf; clear - TYret; unfold typeof_temp in TYret;
-      destruct ((temp_types Delta) ! ret) as [[? ?] | ]; inv TYret; auto
+      destruct ((temp_types Delta) ! ret); inv TYret; auto
  ].
 *
 eapply semax_call_aux55; eauto.
@@ -3510,13 +3581,14 @@ eapply semax_call_aux55; eauto.
  subst.
  clear CHECKTEMP TC1 PRE1 PPRE.
  intros.
- simpl exit_tycon. rewrite POST1; clear POST1.
+ normalize.
+ rewrite POST1; clear POST1.
  apply derives_trans with
    (EX  vret : B,
     `(PROPx (Ppost vret)
      (LOCAL  (temp ret_temp (F vret))
       (SEPx (Rpost vret))))%assert (get_result1 ret)
-     * (local (tc_environ (initialized ret Delta)) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
+     * (local (tc_environ Delta) && PROPx P (LOCALx (remove_localdef_temp ret Q) (SEPx Frame)))).
  clear.
  go_lowerx. normalize. apply exp_right with x; normalize.
  apply exp_left; intro vret. apply exp_right with vret.
@@ -3549,7 +3621,7 @@ Lemma semax_call_id1_x_wow:
              (F: B -> val)
              (Rpost: B -> list mpred)
    (TYret: typeof_temp Delta ret = Some retty)
-   (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
+   (RETinit: (temp_types Delta) ! ret' = Some retty')
    (OKretty: check_retty retty)
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
@@ -3572,7 +3644,6 @@ Proof.
   eapply semax_seq'.
   eapply semax_call_id1_wow; try eassumption; auto.
   unfold typeof_temp; rewrite RETinit; reflexivity.
-  simpl update_tycon.
   apply extract_exists_pre; intro vret.
   eapply semax_pre_post';
     [ | | apply semax_set_forward].
@@ -3581,20 +3652,18 @@ Proof.
       (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (Rpost vret ++ Frame))))).
     apply andp_right; [apply andp_right |].
     - unfold tc_expr.
-      unfold typecheck_expr; simpl.
-      simpl denote_tc_assert.
-      rewrite tycontext.temp_types_same_type'. rewrite RETinit.
+      simpl typecheck_expr.
+      rewrite RETinit.
       simpl @fst.
       replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
         with true
         by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; unfold is_neutral_cast; rewrite ?eqb_type_refl; reflexivity).
-      simpl @snd. cbv iota.
-      go_lowerx. simpl.
-      apply neutral_isCastResultType; auto.
+      rewrite denote_tc_assert_andp.
+      apply andp_right; [| intros rho; apply neutral_isCastResultType; auto].
+      apply PQR_denote_tc_initialized; auto.
     - unfold tc_temp_id, typecheck_temp_id.
-      rewrite <- tycontext.initialized_ne by auto.
       unfold typeof_temp in TYret.
-      destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
+      destruct ((temp_types Delta) ! ret); inversion TYret; clear TYret; try subst t.
       go_lowerx.
       repeat rewrite denote_tc_assert_andp; simpl.
       rewrite denote_tc_assert_bool.
@@ -3607,45 +3676,30 @@ Proof.
       }
       simpl; apply andp_right. apply prop_right; auto.
       apply neutral_isCastResultType; auto.
-    - go_lowerx. normalize. apply andp_right; auto. apply prop_right.
-      subst Qnew; clear - H3. rename H3 into H.
-      induction Q; simpl in *; auto.
-      destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
-      hnf in H.
-      if_tac; simpl; auto.
-+
- intros. subst Post2.
- normalize. simpl exit_tycon.
- apply exp_right with vret; normalize.
- autorewrite with subst.
- go_lowerx.
- normalize. apply andp_right; auto.
- apply prop_right; split; auto.
- hnf. rewrite H0; unfold_lift.
- assert (eqb_ident ret ret' = false)
- by (clear - NEret; pose proof (eqb_ident_spec ret ret');
-       destruct (eqb_ident ret ret'); auto;
-      contradiction NEret; intuition).
- rewrite H4 in *. apply Pos.eqb_neq in H4.
-  unfold_lift in H2.
-  rewrite eval_id_other in H2 by auto.
- hnf in H2. rewrite H2.
- assert (tc_val retty' (eval_id ret' rho)).
- eapply tc_eval_id_i; try eassumption.
- rewrite <- initialized_ne by auto.
-  rewrite temp_types_same_type'.
- rewrite RETinit. auto.
- assert (H7 := expr2.neutral_cast_lemma);
-   unfold eval_cast in H7. rewrite H7 by auto.
- unfold eval_id, env_set, Map.get. auto.
- subst Qnew; clear - H3. rename H3 into H.
- induction Q; simpl in *; auto.
- destruct a; try now (destruct H; simpl in *; split; auto).
- if_tac; simpl in *; auto.
- destruct H; split; auto.
- hnf in H|-*; subst.
- rewrite eval_id_other by auto.
- auto.
+    - rewrite <- !insert_local. apply andp_left2.
+      apply andp_derives; auto.
+      subst Qnew; apply derives_remove_localdef_PQR.
+  + intros. subst Post2.
+    normalize.
+    apply exp_right with vret; normalize.
+    rewrite <- !insert_local.
+    autorewrite with subst.
+    rewrite <- !andp_assoc.
+    apply andp_derives; [| subst Qnew; apply subst_remove_localdef_PQR].
+    go_lowerx.
+    unfold_lift.
+    normalize.
+    assert (eqb_ident ret ret' = false)
+    by (clear - NEret; pose proof (eqb_ident_spec ret ret');
+        destruct (eqb_ident ret ret'); auto;
+        contradiction NEret; intuition).
+    rewrite H3 in *. apply Pos.eqb_neq in H3.
+    unfold_lift in H0.
+    assert (tc_val retty' (eval_id ret' rho))
+      by (eapply tc_eval'_id_i; try eassumption; congruence).
+    assert (H7 := expr2.neutral_cast_lemma); unfold eval_cast in H7.
+    rewrite H7 in H0 by auto; clear H7.
+    split; congruence.
 Qed.
 
 Lemma semax_call_id1_y_wow:
@@ -3667,7 +3721,7 @@ Lemma semax_call_id1_y_wow:
              (F: B -> val)
              (Rpost: B -> list mpred)
    (TYret: typeof_temp Delta ret = Some retty)
-   (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
+   (RETinit: (temp_types Delta) ! ret' = Some retty')
    (OKretty: check_retty retty)
    (OKretty': check_retty retty')
    (NEUTRAL: is_neutral_cast retty' retty = true)
@@ -3690,7 +3744,6 @@ Proof.
   eapply semax_seq'.
   eapply semax_call_id1_wow; try eassumption; auto;
     unfold typeof_temp; rewrite RETinit; reflexivity.
-  simpl update_tycon.
   apply extract_exists_pre; intro vret.
   eapply semax_pre_post';
     [ | | apply semax_set_forward].
@@ -3702,17 +3755,16 @@ Proof.
       match goal with |- _ |-- ?A =>
         set (aa:=A); unfold denote_tc_assert in aa; simpl in aa; subst aa
       end.
-      rewrite tycontext.temp_types_same_type'. rewrite RETinit.
+      rewrite RETinit.
       simpl @fst.
       replace ((is_neutral_cast retty' retty' || same_base_type retty' retty')%bool)
         with true
         by (clear- OKretty'; destruct retty' as [ | [ | | |] [| ]| [|] | [ | ] |  | | | | ]; try contradiction; unfold is_neutral_cast; rewrite ?eqb_type_refl; reflexivity).
       simpl @snd. cbv iota.
-      apply @TT_right.
+      apply PQR_denote_tc_initialized; auto.
     - unfold tc_temp_id, typecheck_temp_id.
-      rewrite <- tycontext.initialized_ne by auto.
       unfold typeof_temp in TYret.
-      destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
+      destruct ((temp_types Delta) ! ret); inversion TYret; clear TYret; try subst t.
       go_lowerx.
       repeat rewrite denote_tc_assert_andp; simpl.
       rewrite denote_tc_assert_bool.
@@ -3722,37 +3774,26 @@ Proof.
         auto.
       * simpl; apply andp_right. apply prop_right; auto.
         apply neutral_isCastResultType; auto.
-    - go_lowerx. normalize. apply andp_right; auto. apply prop_right.
-      subst Qnew; clear - H3. rename H3 into H.
-      induction Q; simpl in *; auto.
-      destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
-      hnf in H.
-      if_tac; simpl; auto.
-+
- intros. subst Post2.
- normalize. simpl exit_tycon.
- apply exp_right with vret; normalize.
- autorewrite with subst.
- go_lowerx.
- normalize. apply andp_right; auto.
- apply prop_right; split; auto.
- hnf. rewrite H0; unfold_lift.
- assert (eqb_ident ret ret' = false)
- by (clear - NEret; pose proof (eqb_ident_spec ret ret');
-       destruct (eqb_ident ret ret'); auto;
-      contradiction NEret; intuition).
- rewrite H4 in *.  apply Pos.eqb_neq in H4.
- unfold_lift in H2.
- rewrite eval_id_other in H2 by auto.
- hnf in H2. rewrite H2. auto.
- subst Qnew; clear - H3. rename H3 into H.
- induction Q; simpl in *; auto.
- destruct a; try now (destruct H; simpl in *; split; auto).
- if_tac; simpl in *; auto.
- destruct H; split; auto.
- hnf in H|-*; subst.
- rewrite eval_id_other by auto.
- auto.
+    - rewrite <- !insert_local. apply andp_left2.
+      apply andp_derives; auto.
+      subst Qnew; apply derives_remove_localdef_PQR.
+  + intros. subst Post2.
+    unfold normal_ret_assert.
+    normalize.
+    apply exp_right with vret; normalize.
+    rewrite <- !insert_local.
+    autorewrite with subst.
+    rewrite <- !andp_assoc.
+    apply andp_derives; [| subst Qnew; apply subst_remove_localdef_PQR].
+    go_lowerx.
+    unfold_lift.
+    normalize.
+    assert (eqb_ident ret ret' = false)
+    by (clear - NEret; pose proof (eqb_ident_spec ret ret');
+        destruct (eqb_ident ret ret'); auto;
+        contradiction NEret; intuition).
+    rewrite H3 in *. apply Pos.eqb_neq in H3.
+    split; congruence.
 Qed.
 
 Lemma semax_call_id01_wow:
@@ -3807,14 +3848,13 @@ eapply semax_pre_post';
    | apply semax_call0 with (A:= A) (ts := ts)(x:=witness) (P:=P)(Q:=Q)(NEPre :=NEPre) (NEPost := NEPost)(R := Frame)
    ];
    try eassumption.
-*
-eapply semax_call_aux55; eauto.
+* eapply semax_call_aux55; eauto.
 *
  subst.
  clear CHECKTEMP TC1 PRE1 PPRE.
  intros.
  normalize.
- simpl exit_tycon. rewrite POST1; clear POST1.
+ rewrite POST1; clear POST1.
  match goal with |- context [ifvoid retty ?A ?B] =>
    replace (ifvoid retty A B) with B
    by (destruct retty; try contradiction; auto)
