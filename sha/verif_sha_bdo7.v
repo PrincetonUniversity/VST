@@ -177,7 +177,7 @@ Lemma sha256_block_data_order_loop2_proof:
      (b: list int) ctx (regs: list int) gv Xv
      (Hregs: length regs = 8%nat),
      Zlength b = LBLOCKz ->
-     semax (initialized _i Delta_loop1)
+     semax (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
  (PROP ()
    LOCAL (temp _ctx ctx; temp _i (Vint (Int.repr 16));
                temp _a (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0));
@@ -208,7 +208,6 @@ Lemma sha256_block_data_order_loop2_proof:
             data_at_ Tsh (tarray tuint LBLOCKz) Xv))).
 Proof.
 intros.
-unfold Delta_loop1.
 unfold block_data_order_loop2; simpl nth.
 rewrite semax_skip_seq.
 match goal with
