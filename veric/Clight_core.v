@@ -229,3 +229,5 @@ apply Build_MemSem with (csem := cl_core_sem ge).
  inv H4.
 Qed.
 
+Definition at_external c := cl_at_external (fst (CC_state_to_CC_core c)). (* Temporary definition for compatibility between CompCert 3.3 and new-compcert *)
+

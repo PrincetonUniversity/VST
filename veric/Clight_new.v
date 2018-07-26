@@ -322,11 +322,14 @@ destruct lid; try congruence; inv H; auto.
 destruct lid; try congruence; inv H; auto.
 Qed.
 
+Definition arg_well_formed args m0:=
+  Val.inject_list (Mem.flat_inj (Mem.nextblock m0)) args args.
+
 Program Definition cl_core_sem  (ge: genv):
   @CoreSemantics corestate mem :=
   @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ m c m' v args => cl_initial_core ge v args c (* /\ Mem.arg_well_formed args m /\ m' = m *))
+    (fun _ m c m' v args => cl_initial_core ge v args c /\ arg_well_formed args m /\ m' = m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun c _ =>  False (*cl_halted c <> None*))

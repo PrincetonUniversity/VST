@@ -10,7 +10,7 @@ Module CC' := Clight_core.
 Section GE.
 Variable ge : genv.
 Definition CCstep s1 s2 := 
-  Clight_core.cl_at_external (fst (CC'.CC_state_to_CC_core s1)) = None /\
+  Clight_core.at_external s1 = None /\
   Clight.step ge (Clight.function_entry2 ge) s1 Events.E0 s2.
 
 Fixpoint strip_skip' (k: CC.cont) : CC.cont :=
