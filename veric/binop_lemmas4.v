@@ -137,10 +137,6 @@ destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
 rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
 destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
-+
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
-rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
-destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 Qed.
 
 

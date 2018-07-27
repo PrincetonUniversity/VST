@@ -1499,7 +1499,6 @@ Proof.
       unfold initial_core.
       apply level_make_rmap.
   - apply initial_jm_ext_without_locks.
-  - apply initial_jm_ext_without_locks.
   - apply initial_jm_ext_matchfunspecs.
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.

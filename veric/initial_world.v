@@ -439,14 +439,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
 Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
   proj1_sig (make_rmap (initial_core' ge G n) nil _ n _ eq_refl).
 Next Obligation.
-intros.
-intros ? ?.
-unfold compose.
-unfold initial_core'.
-if_tac; simpl; auto.
-destruct (Genv.invert_symbol ge b); simpl; auto.
-destruct (find_id i G); simpl; auto.
-destruct f; simpl; auto.
+intros; hnf; auto.
 Qed.
 Next Obligation.
 intros.
@@ -568,14 +561,7 @@ Definition ext_ref {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid
 Program Definition initial_core_ext {Z} (ora : Z) (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
   proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) _ n _ eq_refl).
 Next Obligation.
-intros.
-intros ? ?.
-unfold compose.
-unfold initial_core'.
-if_tac; simpl; auto.
-destruct (Genv.invert_symbol ge b); simpl; auto.
-destruct (find_id i G); simpl; auto.
-destruct f; simpl; auto.
+intros; hnf; auto.
 Qed.
 Next Obligation.
 intros.
@@ -1692,9 +1678,8 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition no_locks phi :=
-  forall addr sh sh' z P,
-    phi @ addr <> YES sh sh' (LK z) P /\
-    phi @ addr <> YES sh sh' (CT z) P.
+  forall addr sh sh' z z' P,
+    phi @ addr <> YES sh sh' (LK z z') P.
 
 Lemma initial_jm_without_locks prog m G n H H1 H2:
   no_locks (m_phi (initial_jm prog m G n H H1 H2)).
@@ -1706,10 +1691,10 @@ Proof.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try (split; congruence).
-  destruct p; try (split; congruence).
+  destruct (access_at m addr); [ |congruence].
+  destruct p; try congruence.
   destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
-    split; try congruence.
+  congruence.
 Qed.
 
 Lemma initial_jm_ext_without_locks {Z} (ora : Z) prog m G n H H1 H2:
@@ -1722,10 +1707,10 @@ Proof.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try (split; congruence).
-  destruct p; try (split; congruence).
+  destruct (access_at m addr); try congruence.
+  destruct p; try congruence.
   destruct (fst (proj1_sig (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) addr);
-    split; try congruence.
+   congruence.
 Qed.
 
 Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) ! i = find_id i G.

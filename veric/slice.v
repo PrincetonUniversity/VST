@@ -245,40 +245,13 @@ Qed.
 Lemma split_rmap_valid1:
   forall m, CompCert_AV.valid (res_option oo (fun l => fst (split_resource (m@l)))).
 Proof.
-intros.
-unfold compose; intros b ofs.
-generalize (rmap_valid m b ofs); unfold compose; intro.
-destruct (m @ (b,ofs)); simpl in *; auto; destruct k; auto.
-*
-intros. specialize ( H i H0). destruct (m @(b,ofs+i)); inv H; auto.
-simpl. f_equal. f_equal. apply exist_ext.
-fold (cleave sh0).
-apply glb_cleave_lemma1; auto.
-*
-destruct H as [n [? ?]].
-exists n; split; auto.
-destruct (m @ (b,ofs-z)); inv H0; auto.
-simpl. f_equal. f_equal. apply exist_ext.
-apply glb_cleave_lemma1; auto.
+intros; hnf; auto.
 Qed.
 
 Lemma split_rmap_valid2:
   forall m, CompCert_AV.valid (res_option oo (fun l => snd (split_resource (m@l)))).
 Proof.
-intros.
-unfold compose; intros b ofs.
-generalize (rmap_valid m b ofs); unfold compose; intro.
-destruct (m @ (b,ofs)); simpl in *; auto; destruct k; auto.
-*
-intros. specialize ( H i H0). destruct (m @(b,ofs+i)); inv H; auto.
-simpl. f_equal. f_equal. apply exist_ext.
-apply glb_cleave_lemma2; auto.
-*
-destruct H as [n [? ?]].
-exists n; split; auto.
-destruct (m @ (b,ofs-z)); inv H0; auto.
-simpl. f_equal. f_equal. apply exist_ext.
-apply glb_cleave_lemma2; auto.
+intros; hnf; auto.
 Qed.
 
 Lemma split_rmap_ok1: forall m,
@@ -396,37 +369,7 @@ Lemma slice_resource_valid:
   (forall l, ~ P l -> identity (phi @ l)) ->
   AV.valid (fun l => res_option (if P_DEC l then slice_resource sh (phi @ l) else phi @ l)).
 Proof.
-intros ? ? ? ? H_id.
-unfold slice_resource.
-pose proof rmap_valid phi as H_valid.
-unfold compose in H_valid.
-intro; intros.
-destruct (P_DEC (b, ofs)).
-+ specialize (H_valid b ofs); cbv beta in H_valid.
-  destruct (phi @ (b, ofs)) eqn:?H; intros; simpl in H_valid |- *; auto.
-  destruct (readable_share_dec sh) as [HH | HH];
-    try solve [simpl; auto].
-  simpl.
-  destruct k; simpl; auto.
-  - intros. specialize (H_valid _ H0).
-    destruct (P_DEC (b, ofs + i)) as [HHp | HHp].
-    * destruct (phi @ (b, ofs + i)); inv H_valid; auto.
-    * specialize (H_id _ HHp).
-      destruct (phi @ (b, ofs + i)); inv H_valid.
-      apply YES_not_identity in H_id; tauto.
-  - destruct H_valid as [n [? ?]].
-    exists n; split; auto.
-    destruct (P_DEC (b, ofs - z)) as [HHm | HHm].
-    * destruct (phi @ (b, ofs - z)); inv H1; auto.
-    * specialize (H_id _ HHm).
-      destruct (phi @ (b, ofs - z)); inv H1.
-      apply YES_not_identity in H_id; tauto.
-+ specialize (H_valid b ofs); cbv beta in H_valid.
-  destruct (phi @ (b, ofs)) eqn:?H; intros; simpl in H_valid |- *; auto.
-  simpl.
-  specialize (H_id _ n).
-  rewrite H in H_id.
-  apply YES_not_identity in H_id; tauto.
+intros; hnf; auto.
 Qed.
 
 Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}) sh,
@@ -1316,12 +1259,11 @@ Proof.
     - inv H1.
 Qed.
 
-Lemma is_resource_pred_YES_LK lock_size l (R: pred rmap) sh:
+Lemma is_resource_pred_YES_LK lock_size (l: address) (R: pred rmap) sh:
   is_resource_pred
-    (fun l' => jam (eq_dec l) (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lock_size) sh) (CTat l sh) l')
-    (fun r l0 n => (if eq_dec l l0 then exists p, r = YES sh p (LK lock_size)
-        (SomeP rmaps.Mpred (fun _ => approx n R))
-       else exists p, r = YES sh p (CT (snd l0 - snd l)) NoneP)).
+    (fun l' => yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lock_size (snd l' - snd l)) sh l')
+    (fun r (l': address) n => exists p, r = YES sh p (LK lock_size (snd l' - snd l))
+        (SomeP rmaps.Mpred (fun _ => approx n R))).
 Proof. hnf; intros. reflexivity. Qed.
 
 Lemma LKspec_share_join lock_size:
