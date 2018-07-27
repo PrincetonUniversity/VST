@@ -169,6 +169,9 @@ Section SelfSimulation.
   Notation get_core s:= (fst (state_to_memcore s)). 
   Notation get_mem s:= (snd (state_to_memcore s)). 
 
+
+  Import Integers.
+  Import Ptrofs.
  Record self_simulation: Type :=
     { code_inject: meminj -> state -> state -> Prop;
       code_inj_incr: forall c1 mu c2 mu',
@@ -189,11 +192,11 @@ Section SelfSimulation.
         code_inject j c1 c2 ->
         Mem.inject j m1 m2 ->
         semantics.at_external Sem c1 m1  =  
-        Some (func_name, Vptr b1 (Integers.Ptrofs.repr ofs) :: nil) ->
+        Some (func_name, Vptr b1 ofs :: nil) ->
         exists b2 delt,
         j b1 = Some (b2, delt) /\
-        semantics.at_external Sem c2 m1 =  
-        Some (func_name, Vptr b2 (Integers.Ptrofs.repr (ofs + delt)) :: nil)
+        semantics.at_external Sem c2 m2 =  
+        Some (func_name, Vptr b2 (add ofs (repr delt)) :: nil)
     }. 
 
 End SelfSimulation.
