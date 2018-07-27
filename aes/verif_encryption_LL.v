@@ -9,6 +9,14 @@ Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_
 Proof.
   idtac "Starting body_aes_encrypt".
   start_function.
+  replace Delta with (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog []).
+  Focus 2.
+  unfold func_tycontext; simpl.
+  unfold make_tycontext, make_tycontext_t.
+  unfold Delta, abbreviate.
+  f_equal.
+  Locate Ltac start_function.
+  simpl.
   reassoc_seq.
 
   (* RK = ctx->rk; *)
@@ -129,9 +137,9 @@ Proof.
   unfold tables_initialized. subst vv.
   reassoc_seq.
   subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
-  change Delta with (encryption_loop_body_Delta Delta_specs).
   fold encryption_loop_body.
   (*eapply semax_post_flipped.*)
+  Print encryption_loop_body_proof_statement.
   simple eapply encryption_loop_body_proof; eauto.
   (* the next few lines should not be necessary if the statement
     of encryption_loop_body_proof is adjusted. 
@@ -158,8 +166,6 @@ subst vv.
 abbreviate_semax.
 subst MORE_COMMANDS POSTCONDITION; unfold abbreviate.
 match goal with |- semax _ _ ?S _ => change S with encryption_after_loop end.
-change Delta with (encryption_loop_body_Delta' Delta_specs).
-clear Delta.
 simple eapply encryption_after_loop_proof; eassumption.
 Time Qed. (* 9.2 secs on Andrew's machine *)
 
