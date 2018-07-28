@@ -1640,7 +1640,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
             do_compute_expr1 Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
-        | intro; let HRE := fresh in 
+        | intro; let HRE := fresh in
             apply semax_extract_PROP; intro HRE; 
             repeat (apply semax_extract_PROP; fancy_intro true);
             do_repr_inj HRE
@@ -1652,7 +1652,9 @@ Ltac forward_for3 Inv PreInc Postcond :=
             apply derives_extract_PROP; intro HRE; 
             repeat (apply derives_extract_PROP; fancy_intro true);
             do_repr_inj HRE;
-         simpl_ret_assert (*autorewrite with ret_assert*) ]        
+            match goal with
+            | |- context [RA_normal (overridePost ?P ?Post)] => change (RA_normal (overridePost ?P ?Post)) with P
+            end ]
        | abbreviate_semax;
          repeat (apply semax_extract_PROP; fancy_intro true)
       ].
@@ -3075,15 +3077,6 @@ match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
    end
 end.
 
-Ltac clear_Delta_specs_if_leaf_function :=
- match goal with DS := @abbreviate (PTree.t funspec) _  |- semax _ _ ?S _ =>
-   let S' := eval compute in S in
-    match S' with 
-    | context [Scall] => idtac
-    | _ => clearbody DS
-    end
- end.
-
 Ltac type_lists_compatible al bl :=
  match al with
  | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
@@ -3258,7 +3251,6 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
- clear_Delta_specs_if_leaf_function;
  start_function_hint.
 
 Opaque sepcon.

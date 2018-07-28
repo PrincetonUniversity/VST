@@ -9,6 +9,9 @@ Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_
 Proof.
   idtac "Starting body_aes_encrypt".
   start_function.
+  Opaque list_repeat.
+  simpl.
+  Transparent list_repeat.
   reassoc_seq.
 
   (* RK = ctx->rk; *)
@@ -128,11 +131,7 @@ Proof.
   assert (0 < i <= 6) by (clear - H1 H2; omega).
   unfold tables_initialized. subst vv.
   reassoc_seq.
-  subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
-  change Delta with (encryption_loop_body_Delta Delta_specs).
-  fold encryption_loop_body.
-  (*eapply semax_post_flipped.*)
-  simple eapply encryption_loop_body_proof; eauto.
+  eapply encryption_loop_body_proof; eauto.
   (* the next few lines should not be necessary if the statement
     of encryption_loop_body_proof is adjusted. 
   clear. 
@@ -155,12 +154,7 @@ Proof.
  clear. entailer!.
 * (** AFTER THE LOOP **)
 subst vv.
-abbreviate_semax.
-subst MORE_COMMANDS POSTCONDITION; unfold abbreviate.
-match goal with |- semax _ _ ?S _ => change S with encryption_after_loop end.
-change Delta with (encryption_loop_body_Delta' Delta_specs).
-clear Delta.
-simple eapply encryption_after_loop_proof; eassumption.
+eapply encryption_after_loop_proof; eassumption.
 Time Qed. (* 9.2 secs on Andrew's machine *)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th

@@ -1,0 +1,17 @@
+READ ME before you read the README:
+Explanation regarding the VST/compcert directory of
+the Verified Software Toolchain project.
+
+This VST/compcert directory tree is a subset of the CompCert source tree.
+Basically, it is just enough to build Clight.vo and its dependencies.
+
+Every file in this directory tree is verbatim from CompCert EXCEPT
+  the file you are reading, FIRST_README
+
+To create (or to update when there's a new version of compcert),
+  ../util/GRAB ~/compcert
+  (see the Usage instructions at the beginning of the GRAB file)
+
+To build (this step is now done automatically in VST's main makefile):
+   make exportclight/Clightdefs.vo
+

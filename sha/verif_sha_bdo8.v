@@ -35,8 +35,7 @@ Lemma sha256_block_load8:
      (data: val) (r_h: list int) (ctx: val) gv
    (H5 : length r_h = 8%nat),
      semax
-      (initialized _data
-         (func_tycontext f_sha256_block_data_order Vprog Gtot nil))
+         (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
                 gvars gv)
@@ -291,7 +290,7 @@ Lemma add_them_back_proof:
      (regs regs': list int) (ctx: val) gv,
      length regs = 8%nat ->
      length regs' = 8%nat ->
-     semax  (initialized _i Delta_loop1)
+     semax  (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
    (PROP  ()
    LOCAL  (temp _ctx ctx;
                 temp _a  (Vint (nthi regs' 0));

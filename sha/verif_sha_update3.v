@@ -110,12 +110,6 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) gv (done
                c;
             data_block sh data d)).
 
-Definition Delta_update_inner_if : tycontext :=
-  (initialized _fragment
-     (initialized _p
-        (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot nil))))).
-
 Lemma data_block_data_field:
  forall sh dd dd' c,
   Forall isbyteZ dd ->
@@ -242,7 +236,7 @@ Lemma update_inner_if_proof:
  (H3' : Forall isbyteZ dd)
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (len <= Int.max_unsigned)%Z),
-semax Delta_update_inner_if
+semax (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (inv_at_inner_if sh hashed len c d dd data gv)
   update_inner_if
   (overridePost (sha_update_inv sh hashed len c d dd data gv false)
@@ -347,7 +341,6 @@ forward_if.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
-  simpl update_tycon.
   Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
   erewrite Zlength_Zlist_to_intlist
      by (instantiate (1:=LBLOCKz); assumption).
