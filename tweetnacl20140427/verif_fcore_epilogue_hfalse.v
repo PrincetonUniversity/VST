@@ -55,7 +55,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 
 Lemma verif_fcore_epilogue_hfalse Espec FR t y x w nonce out c k h OUT xs ys:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;

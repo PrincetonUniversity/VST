@@ -29,10 +29,7 @@ eapply semax_seq'. {
   semax_frame
       [  ]
       [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx].
-  simpl sequence; unfold update_tycon.
-  match goal with |- semax ?D _ _ _ => 
-     replace D with Delta_loop1 by  (unfold Delta_loop1; repeat f_equal)
-  end.
+  simpl sequence.
   simple apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs gv Xv); auto.
 }
 eapply semax_seq'. {
@@ -40,11 +37,6 @@ eapply semax_seq'. {
         [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
          data_block sh (intlist_to_Zlist b) data].
   match goal with |- semax _ _ ?c _ => change c with block_data_order_loop2 end.
-  simpl update_tycon.
-  match goal with |- semax ?D _ _ _ => 
-     replace D with (initialized _i Delta_loop1)
-     by  (unfold Delta_loop1; repeat f_equal)
-  end.
   simple eapply sha256_block_data_order_loop2_proof; eassumption.
 }
 eapply seq_assocN with (cs := add_them_back). {
@@ -52,11 +44,6 @@ eapply seq_assocN with (cs := add_them_back). {
              [K_vector gv;
              data_at_ Tsh (tarray tuint LBLOCKz) Xv;
              data_block sh (intlist_to_Zlist b) data].
-  simpl update_tycon.
-  match goal with |- semax ?D _ _ _ => 
-     replace D with (initialized _i Delta_loop1)
-     by  (unfold Delta_loop1; repeat f_equal)
-  end.
   simple apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
   apply length_Round; auto.
 }

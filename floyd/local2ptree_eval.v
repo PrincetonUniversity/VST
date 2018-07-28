@@ -147,8 +147,7 @@ Proof.
       eauto.
     }
     pose proof local_ext _ _ _ H2 H0.
-    hnf in H3.
-    auto.
+    destruct H3; auto.
   + intros.
     unfold eval_vardesc in H1.
     unfold eval_var.

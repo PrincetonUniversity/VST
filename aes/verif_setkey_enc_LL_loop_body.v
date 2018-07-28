@@ -489,12 +489,7 @@ forall
  (SH : writable_share ctx_sh) (SH0 : readable_share key_sh) (SH1 : readable_share ish)
  (H : Zlength key_chars = 32) (H0 : init_done = 1) (i : Z)
  (H1 : 0 <= i < 7),
-semax
-  (initialized _t'1
-     (initialized _tmp
-        (initialized _i
-           (initialized _RK
-              (func_tycontext f_mbedtls_aes_setkey_enc Vprog Gprog [])))))
+semax (func_tycontext f_mbedtls_aes_setkey_enc Vprog Gprog [])
   (PROP ( )
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK

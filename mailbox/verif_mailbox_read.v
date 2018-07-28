@@ -135,7 +135,6 @@ Proof.
         subst; rewrite eq_dec_refl; auto.
       + destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
         split; auto; split; auto; apply latest_read_new; auto. }
-    apply andp_right; [apply prop_right; auto|].
     rewrite lock_struct_array; subst c l; cancel.
     destruct (eq_dec b (-1)); subst; auto.
 Qed.

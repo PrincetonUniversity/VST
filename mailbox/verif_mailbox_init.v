@@ -228,7 +228,6 @@ Proof.
       (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init; try omega.
     rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite <- !app_assoc.
     go_lower.
-    apply andp_right; [apply prop_right; split; auto; omega|].
     apply andp_right; [apply prop_right; repeat split; auto|].
     assert_PROP (isptr ll /\ isptr rr /\ isptr c /\ isptr l) by (entailer!; eauto).
     rewrite prop_true_andp
@@ -254,5 +253,5 @@ Proof.
   Exists comms locks bufs reads lasts g g0 g1 g2.
   (* entailer! is slow *)
   apply andp_right; [apply prop_right; repeat (split; auto)|].
-  apply andp_right; auto; cancel.
+  cancel.
 Qed.

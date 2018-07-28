@@ -15,18 +15,9 @@ Definition encryption_loop_body : statement :=
                        ?S) _ ] => S
       end)).
 
-Definition encryption_loop_body_Delta DS :=
- (with_Delta_specs DS
-   (initialized_list
-     [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
-     _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
-     _b3__3; _t'4; _t'3; _t'2; _t'1]
-     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil))).
-
 Definition encryption_loop_body_proof_statement :=
  forall
   (Espec : OracleKind)
-  (DS: PTree.t funspec)
   (ctx input output : val)
   (ctx_sh in_sh out_sh : share)
   (plaintext exp_key : list Z)
@@ -52,7 +43,7 @@ Definition encryption_loop_body_proof_statement :=
   (HeqS12 : S12 = mbed_tls_enc_rounds 12 S0 buf 4)
   (i : Z)
   (H1 : 0 < i <= 6),
-semax (encryption_loop_body_Delta DS)
+semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
   (PROP ( )
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK
@@ -237,7 +228,7 @@ Hint Resolve 0%Z : inhabited.
 Lemma encryption_loop_body_proof: encryption_loop_body_proof_statement.
 Proof.
   unfold encryption_loop_body_proof_statement. intros.
-  unfold encryption_loop_body, encryption_loop_body_Delta.
+  unfold encryption_loop_body.
   abbreviate_semax.
   pose proof masked_byte_range.
 

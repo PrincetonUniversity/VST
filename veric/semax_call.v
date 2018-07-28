@@ -610,7 +610,6 @@ apply func_tycontext_t_sound in H; auto.
  clear - H21 H TC2 TC3 Heqp H17 TE.
 
 destruct H. (*in params*)
-destruct H. subst.
 forget (create_undef_temps (fn_temps f)) as temps.
 generalize dependent temps.
 generalize dependent l. generalize dependent l0.
@@ -627,7 +626,7 @@ generalize dependent bl. generalize dependent te'.
         destruct TC2 as [[? ?] ?].
         rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
         rewrite PTree.gss.
-        eexists.  split. reflexivity. right.
+        eexists.  split. reflexivity. apply tc_val_tc_val'.
         eapply tc_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
@@ -641,7 +640,6 @@ generalize dependent bl. generalize dependent te'.
 }
 
 (*In temps*)
-destruct H. subst.
 apply list_norepet_app in H17. destruct H17 as [? [? ?]].
 generalize dependent (fn_params f). generalize dependent bl.
 generalize dependent l0. generalize dependent l. generalize dependent te'.
@@ -650,7 +648,7 @@ induction (fn_temps f); intros.
 inv H.
 
 simpl in *. destruct H. destruct a. inv H. simpl in *.
-clear IHl. exists Vundef. simpl in *. split; auto. inv H1.
+clear IHl. exists Vundef. simpl in *. split; [| hnf; congruence]. inv H1.
 assert (In id (map fst (l2)) -> False).
 intros.
 unfold list_disjoint in *. eapply H2. eauto. left. auto. auto.
@@ -660,7 +658,7 @@ eapply pass_params_ni with (id := id) in H21; auto.  rewrite PTree.gss in *. aut
 destruct a.
 destruct (peq id i). subst.
 apply pass_params_ni with (id := i) in H21.
-rewrite PTree.gss in *. exists  Vundef. auto.
+rewrite PTree.gss in *. exists Vundef. split; [auto | hnf; congruence].
 intros. unfold list_disjoint in *. intuition.
 eapply H2. eauto. left. auto. auto.
 
@@ -1273,7 +1271,7 @@ Qed.
 Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  match ret with
  | None => True
- | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
+ | Some i => match (temp_types Delta) ! i with Some t' => t=t' | _ => False end
  end.
 
 Lemma derives_refl' {A: Type}  `{ageable A}:
@@ -1345,7 +1343,7 @@ forall (Delta : tycontext) (A : TypeTree)
  (H0 : rho = construct_rho (filter_genv psi) vx tx)
  (H3 : eval_expr a rho = Vptr b Ptrofs.zero)
  (H4 : (funassert Delta rho) (m_phi jm))
- (H1 : (rguard Espec psi (exit_tycon (Scall ret a bl) Delta)
+ (H1 : (rguard Espec psi (fun _ => Delta)
         (frame_ret_assert R F0) k) (level (m_phi jm)))
  (H11 : forall vl : environ, (!|>(Q' ts x vl <=> Q ts x vl)) (m_phi jm))
  (H14 : (|>(F0 rho * F rho *
@@ -1546,16 +1544,13 @@ split; [split; [split |] |].
  clear - TC3.
  destruct TC3; simpl in *.
  destruct ret; try apply H0.
- unfold initialized.
- destruct ((temp_types Delta)!i); simpl; auto.
- destruct p; auto.
  } Unfocus.
  simpl.
  destruct TC3 as [TC3 _].
  destruct ret; try apply TC3. {
  clear - TCret TC3 H0 TC5 H15 Hretty Hretty0 H6 H8 Hage.
  simpl in TCret.
- destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
+ destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
  subst retty.
  unfold tx' in *; clear tx'. simpl in TC3.
  assert (Hu: exists u, opttyp_of_type t = Some u).
@@ -1574,32 +1569,26 @@ split; [split; [split |] |].
  }
  specialize (Hretty phi1).
  spec Hretty. apply rt_refl. spec Hretty. split. apply Hb. apply Hretty0. simpl in Hretty.
- unfold typecheck_temp_environ. intros id b0 ty Hty.
+ unfold typecheck_temp_environ. intros id ty Hty.
  destruct (ident_eq i id).
  + subst i.
- rewrite temp_types_same_type' in Hty.
  rewrite Heqo in Hty.
  destruct ret0; auto.
  inversion Hty. subst t. simpl.
  exists v. split. rewrite <-map_ptree_rel, Map.gss; auto.
- right.
  assert (ty <> Tvoid). { destruct ty; try inv Hu; intros C; congruence. }
  assert (tc_val ty v). { destruct ty; auto. }
- auto.
- inversion Hty. subst t b0. simpl.
+ apply tc_val_tc_val'; auto.
+ inversion Hty. subst t. simpl.
  assert (ty = Tvoid). { destruct ty; auto; inv Hretty. } subst ty.
  simpl in Hu. inv Hu.
- + rewrite <-initialized_ne with (id2 := i) in Hty; auto. destruct ret0.
+ + destruct ret0.
  rewrite <-map_ptree_rel, Map.gso; auto.
  assert (t = Tvoid). { destruct t; auto; inv Hretty. } subst t.
  simpl in Hu. inv Hu.
 }
 *
  destruct (current_function k); auto.
- destruct TC3'; split; auto.
- simpl. destruct ret; auto.
- unfold initialized.
- destruct ((temp_types Delta)!i); try destruct p; auto.
 *
 do 3 red in H15.
 rewrite (sepcon_comm (F0 _)) in H15.
@@ -1658,8 +1647,8 @@ apply exp_right with
 unfold substopt.
 unfold tx' in *; clear tx'.
 destruct ret; auto.
-destruct ((temp_types Delta) ! i) as [[ti init]|] eqn:H29; try contradiction.
-specialize (TC3 _ _ _ H29).
+destruct ((temp_types Delta) ! i) as [ti|] eqn:H29; try contradiction.
+specialize (TC3 _ _ H29).
 destruct TC3 as [v [? ?]].
 unfold subst.
 apply derives_refl'.
@@ -1774,10 +1763,6 @@ rewrite H6 in H; simpl in H.
 injection H; intro. symmetry in H7. apply H7.
 }
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
-f_equal.
-apply same_glob_funassert'; auto.
-intros. simpl. destruct ret; auto. unfold initialized.
-destruct ((temp_types Delta)!i); try destruct p; auto.
 }
 exists
 match ret0 with
@@ -2176,7 +2161,7 @@ Lemma semax_call_aux:
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Ptrofs.zero ->
     (funassert Delta rho) (m_phi jm) ->
-    (rguard Espec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
+    (rguard Espec psi (fun _ => Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Espec Delta psi Delta) (level (m_phi jm)) ->
     (glob_specs Delta)!id = Some (mk_funspec fsig0 cc A P Q' NEP NEQ') ->
     Genv.find_symbol psi id = Some b ->
@@ -2322,13 +2307,14 @@ split; [split(*; [split |]*) |].
 destruct H22 as [H22 _].
 simpl. unfold te2. destruct ret; unfold rval.
 destruct vl.
-assert (tc_val (fn_return f) v).
+assert (tc_val' (fn_return f) v).
+ apply tc_val_tc_val'.
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
 unfold construct_rho. rewrite <- map_ptree_rel.
 apply guard_environ_put_te'. subst rho; auto.
 intros.
- cut (fst t = fn_return f). intros. rewrite H24; auto.
-hnf in TCret; rewrite H21 in TCret. destruct t; subst; auto.
+ cut (t = fn_return f). intros. rewrite H24; auto.
+hnf in TCret; rewrite H21 in TCret. subst; auto.
 assert (f.(fn_return)=Tvoid).
 clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto.
 unfold fn_funsig in H18. rewrite H1 in H18. rewrite H18 in TC5. simpl in TC5.
@@ -2387,10 +2373,10 @@ apply sepcon_derives.
 +
   simpl in TCret.
   destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
-  destruct p as [t' init]; subst t'.
+  subst t.
   destruct TC3 as [[TC3 _] _].
   hnf in TC3; simpl in TC3.
-  specialize (TC3 _ _ _ Heqo).
+  specialize (TC3 _ _ Heqo).
   destruct TC3 as [old [? _]].
   apply exp_right with old. unfold substopt, subst.
   apply derives_refl'. f_equal.
@@ -2411,7 +2397,6 @@ apply sepcon_derives.
  unfold te2; clear te2.
  rewrite corable_funassert in H22b.
  rewrite corable_funassert.
- rewrite <- (same_glob_funassert Delta).
  replace (core (m_phi jm2)) with (core (m_phi jm')).
  apply H22b.
  clear - FL.
@@ -2419,17 +2404,8 @@ apply sepcon_derives.
  rewrite <-IHFL.
  rewrite <- H1.
  rewrite free_juicy_mem_core; auto.
- intros. unfold exit_tycon; simpl.
- destruct ret; simpl; auto.
- rewrite set_temp_gs; auto.
 }
 }
-(*
-{
-  simpl.
-  destruct ret; auto.
-}
-*)
 case_eq (@level rmap ag_rmap (m_phi jm')); intros; [solve [constructor] |].
 rewrite <- level_juice_level_phi in H21.
 destruct (levelS_age1 jm' _ H21) as [jm'' ?].
@@ -2785,8 +2761,8 @@ Focus 1. {
   hnf in TC7|-*. destruct ret; auto.
   destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
   destruct TS.
-  specialize (H i); rewrite Heqo in H. destruct p. subst t.
-  destruct ((temp_types Delta') ! i ). destruct p.
+  specialize (H i); rewrite Heqo in H. subst t.
+  destruct ((temp_types Delta') ! i ).
   destruct H; auto.
   auto.
 } Unfocus.

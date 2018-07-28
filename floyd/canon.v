@@ -21,7 +21,7 @@ Definition gvars_denote (gv: globals) rho :=
 
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with
- | temp i v => `(eq v) (eval_id i)
+ | temp i v => `and (`(eq v) (eval_id i)) `(v <> Vundef)
  | lvar i t v => lvar_denote i t v
  | gvars gv => gvars_denote gv
  end.
@@ -687,7 +687,7 @@ Qed.
 Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-    local (tc_environ (update_tycon Delta c)) && RA_normal R' |-- RA_normal R ->
+    local (tc_environ Delta) && RA_normal R' |-- RA_normal R ->
     local (tc_environ Delta) && RA_break R' |-- RA_break R ->
     local (tc_environ Delta) && RA_continue R' |-- RA_continue R ->
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- RA_return R vl) ->
@@ -750,7 +750,7 @@ Qed.
 
 Lemma semax_post_bupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   ENTAIL (update_tycon Delta c), RA_normal R' |-- |==> RA_normal R ->
+   ENTAIL Delta, RA_normal R' |-- |==> RA_normal R ->
    ENTAIL Delta, RA_break R' |-- |==> RA_break R ->
    ENTAIL Delta, RA_continue R' |-- |==> RA_continue R ->
    (forall vl, ENTAIL Delta, RA_return R' vl |-- |==> RA_return R vl) ->
@@ -762,7 +762,7 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   ENTAIL (update_tycon Delta c), RA_normal R' |-- RA_normal R ->
+   ENTAIL Delta, RA_normal R' |-- RA_normal R ->
    ENTAIL Delta, RA_break R' |-- RA_break R ->
    ENTAIL Delta, RA_continue R' |-- RA_continue R ->
    (forall vl, ENTAIL Delta, RA_return R' vl |-- RA_return R vl) ->
@@ -772,12 +772,11 @@ intros; eapply semax_pre_post; try eassumption.
 apply andp_left2; auto.
 Qed.
 
-
 Lemma semax_post_flipped:
   forall (R' : ret_assert) Espec {cs: compspecs} (Delta : tycontext) (R : ret_assert)
          (P : environ->mpred) (c : statement),
    @semax cs Espec Delta P c R' ->
-   ENTAIL (update_tycon Delta c), RA_normal R' |-- RA_normal R ->
+   ENTAIL Delta, RA_normal R' |-- RA_normal R ->
    ENTAIL Delta, RA_break R' |-- RA_break R ->
    ENTAIL Delta, RA_continue R' |-- RA_continue R ->
    (forall vl, ENTAIL Delta, RA_return R' vl |-- RA_return R vl) ->
@@ -786,7 +785,7 @@ Proof. intros; eapply semax_post; eassumption. Qed.
 
 
 Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
-           ENTAIL (update_tycon Delta c), R' |-- R ->
+           ENTAIL Delta, R' |-- R ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto.
@@ -798,7 +797,7 @@ Qed.
 
 Lemma semax_pre_post': forall P' R' Espec {cs: compspecs} Delta R P c,
       ENTAIL Delta, P |-- P' ->
-      ENTAIL (update_tycon Delta c), R' |-- R ->
+      ENTAIL Delta, R' |-- R ->
       @semax cs Espec Delta P' c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros.
@@ -840,7 +839,7 @@ Qed.
 Lemma semax_seq':
  forall Espec {cs: compspecs} Delta P c1 P' c2 Q,
          @semax cs Espec Delta P c1 (normal_ret_assert P') ->
-         @semax cs Espec(update_tycon Delta c1) P' c2 Q ->
+         @semax cs Espec Delta P' c2 Q ->
          @semax cs Espec Delta P (Ssequence c1 c2) Q.
 Proof.
  intros. apply semax_seq with P'; auto.
@@ -855,7 +854,7 @@ Lemma semax_frame_seq:
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
     PROPx P1 (LOCALx (Q1++QFrame) (SEPx (R1 ++ Frame))) ->
     closed_wrt_modvars c1 (LOCALx QFrame (SEPx Frame)) ->
-    semax (update_tycon Delta c1)
+    semax Delta
          (PROPx P2 (LOCALx (Q2++QFrame) (SEPx (R2 ++ Frame)))) c2 R3 ->
     semax Delta (PROPx P (LOCALx Q (SEPx R))) (Ssequence c1 c2) R3.
 Proof.
@@ -1759,7 +1758,7 @@ Qed.
 Lemma semax_post_flipped' :
    forall (R': environ->mpred) Espec {cs: compspecs} (Delta: tycontext) (R P: environ->mpred) c,
        @semax cs Espec Delta P c (normal_ret_assert R') ->
-       ENTAIL (exit_tycon c Delta EK_normal), R' |-- R ->
+       ENTAIL Delta, R' |-- R ->
        @semax cs Espec Delta P c (normal_ret_assert R).
  Proof. intros; eapply semax_post_flipped; [ eassumption | .. ];
  auto;
@@ -1873,7 +1872,7 @@ Definition ret_tycon (Delta: tycontext): tycontext :=
   mk_tycontext 
     (if is_void_type (ret_type Delta) 
       then (PTree.empty _)
-      else (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _)))
+      else (PTree.set ret_temp (ret_type Delta) (PTree.empty _)))
      (PTree.empty _)
      (ret_type Delta)
      (glob_types Delta)
@@ -1919,6 +1918,7 @@ Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
       2: rewrite PTree.gso in H3 by auto; rewrite PTree.gempty in H3; inv H3.
       subst id. rewrite PTree.gss in H3. inv H3.
       rewrite Map.gss. exists v. split; auto.
+      apply tc_val_tc_val'; auto.
 -
   destruct (ret_type Delta) eqn:?; auto.
   unfold_lift. simpl.
@@ -1935,7 +1935,7 @@ Definition ret0_tycon (Delta: tycontext): tycontext :=
   mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Definition ret1_tycon (Delta: tycontext): tycontext :=
-  mk_tycontext (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _))
+  mk_tycontext (PTree.set ret_temp (ret_type Delta) (PTree.empty _))
     (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (annotations Delta).
 
 Lemma make_args0_tc_environ: forall rho Delta,
@@ -1972,6 +1972,7 @@ Proof.
       inversion H2; subst.
       exists v; simpl.
       split; auto.
+      apply tc_val_tc_val'; auto.
     - rewrite PTree.gempty in H2; inversion H2.
   + hnf; split; intros.
     - rewrite PTree.gempty in H2; inversion H2.
@@ -2108,12 +2109,13 @@ Proof.
 Qed.
 
 Lemma return_inner_gen_Some_spec: forall S v_gen post1 post2,
+  v_gen <> Vundef ->
   return_inner_gen S (Some v_gen) post1 post2 ->
   post2 |-- (fun rho => post1 (make_args (ret_temp :: nil) (v_gen :: nil) rho)) * SEPx S.
 Proof.
   intros.
   remember (Some v_gen) eqn:?H.
-  revert v_gen H0; induction H; intros; subst.
+  revert v_gen H H1; induction H0; intros; subst.
   + unfold main_post.
     go_lowerx.
   + rewrite gather_SEP.
@@ -2126,12 +2128,12 @@ Proof.
     apply andp_right; auto.
     apply prop_right; split; auto.
     subst.
-    inversion H0.
+    inversion H1.
     unfold globals_only, eval_id, env_set, te_of.
     rewrite Map.gss; auto.
     apply derives_refl.
   + apply exp_left; intro a.
-    apply (derives_trans _ _ _ (H0 a _ eq_refl)).
+    apply (derives_trans _ _ _ (H0 a _ H1 eq_refl)).
     intro rho.
     simpl.
     apply sepcon_derives; auto.
@@ -2184,7 +2186,21 @@ Proof.
   apply return_outer_gen_spec in H1.
   rewrite H1; clear Post1 H1.
   apply andp_right; [exact H0 |].
-  apply return_inner_gen_Some_spec in H3.
+  destruct (Val.eq v_gen Vundef).
+  Focus 1. {
+    subst.
+    rewrite (add_andp _ _ H), (add_andp _ _ H0).
+    rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
+    apply andp_left2.
+    go_lowerx.
+    eapply derives_trans; [apply typecheck_expr_sound; auto |].
+    simpl.
+    rewrite <- H5.
+    apply (derives_trans _ FF); [| normalize].
+    apply prop_derives.
+    apply tc_val_Vundef.
+  } Unfocus.
+  apply return_inner_gen_Some_spec in H3; [| auto].
   assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
             |-- ` (RA_return (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) (Some v_gen)) id).
   + unfold frame_ret_assert, function_body_ret_assert, bind_ret, cast_expropt.

@@ -42,6 +42,7 @@ local2ptree_aux Q PTree.Leaf PTree.Leaf nil None.
 
 Definition CLEAR_ME {T} (x:T) := x.
 Ltac hide_it z := let x := fresh "x" in set (x:=z); change z with (CLEAR_ME z) in x.
+(* TODO: compare this with unfold_name method in symbolic_go_lower. *)
 
 Ltac hnf_localdef_list A :=
   match A with
@@ -636,7 +637,9 @@ Proof.
     apply local2ptree_sound_aux with (Q0 := temp i v0).
     extensionality rho. unfold locald_denote; simpl.
     unfold local, lift1; unfold_lift; simpl. normalize.
-    f_equal. apply prop_ext; split; intros [? ?]; subst; split; auto.
+    f_equal. apply prop_ext; split.
+    intros [? [? [? ?]]]; subst; split; auto.
+    intros [? [? ?]]; subst; split; auto.
     rewrite in_app; right. apply LocalD_sound_temp. auto.
     apply LOCALx_shuffle'; intros.
     simpl In. rewrite !in_app. simpl In. intuition.

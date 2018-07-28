@@ -1217,7 +1217,7 @@ unfold make_tenv.
 unfold Map.get.
 intros.
 rewrite PTree.gsspec in *. if_tac. inv H2.
-+ exists (Vptr b Ptrofs.zero); split; auto. right; simpl; auto.
++ exists (Vptr b Ptrofs.zero); split; auto. apply tc_val_tc_val'. simpl; auto.
 + rewrite PTree.gempty in H2. congruence.
 *
 unfold var_types.
@@ -1408,7 +1408,9 @@ Proof.
                  (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
-    + simpl; auto.
+    + simpl.
+      exists (Vptr b Ptrofs.zero).
+      split; auto.
     + simpl snd.
       replace (params_of_fundef f) with (@nil type). simpl; auto. clear -E.
       destruct f as [[? ? [ | [] ]] | e [|] ? c] ; compute in *; congruence.
@@ -1559,20 +1561,20 @@ Proof.
   intros vs G C prog b typed_args NR MG MF TYP.
   repeat split.
   - unfold te_of, construct_rho.
-    intros i b' ty.
+    intros i ty.
     unfold make_tycontext, temp_types.
     intros Found.
     assert (make_tycontext_t_cons1 : forall i i' t l1 l2, (make_tycontext_t ((i, t) :: l1) l2) ! i' =
-      if peq i' i then Some (t, true) else (make_tycontext_t l1 l2) ! i')
+      if peq i' i then Some t else (make_tycontext_t l1 l2) ! i')
     by (clear; intros i i' t l1 l2; simpl; rewrite PTree.gsspec; reflexivity).
     unfold Delta_types, make_tycontext in Found.
     simpl params_of_types in Found.
     rewrite make_tycontext_t_cons1 in Found.
     rewrite <-map_ptree_rel, Map.gsspec.
     if_tac; if_tac in Found; subst; try tauto.
-    + injection Found as <- <- .
+    + injection Found as <-.
       exists (Vptr b Ptrofs.zero); split; auto.
-      right; simpl; auto.
+      apply tc_val_tc_val'; simpl; auto.
     + revert Found; generalize (2%positive).
       induction typed_args; intros p Found.
       * rewrite PTree.gempty in Found.
@@ -1581,11 +1583,11 @@ Proof.
         rewrite make_tycontext_t_cons1 in Found.
         simpl (map _ _).
         change (exists v : val, Map.get (make_tenv (PTree.set p (fst a) (temp_bindings (p+1)
-          (map fst typed_args)))) i = Some v /\ (is_true (negb b') \/ tc_val ty v)).
+          (map fst typed_args)))) i = Some v /\ tc_val' ty v).
         rewrite <-map_ptree_rel, Map.gsspec.
         inversion TYP.
         { if_tac; if_tac in Found; subst; try tauto.
-          - injection Found as <- <- ; eauto.
+          - injection Found as <-. apply tc_val_tc_val' in H3; eauto.
           - apply IHtyped_args; auto. }
   - simpl.
     rewrite PTree.gempty.
@@ -1739,11 +1741,11 @@ Proof.
     try apply H3; try eassumption; auto.
 
   (* tc_expr *)
-  simpl.
-  reflexivity.
+
+  simpl. exists (Vptr b Ptrofs.zero); auto.
 
   (* tc_exprlist *)
-  rewrite Pf. now constructor.
+  rewrite Pf. simpl. exists arg; simpl; auto.
 
   (* guard_environ *)
   split; try apply I.

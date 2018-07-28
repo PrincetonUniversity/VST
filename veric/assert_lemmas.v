@@ -390,13 +390,10 @@ Proof.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
-* destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
+* destruct ((temp_types Delta)!i) as [? |] eqn:H1; [ | contradiction].
   destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
-  destruct ((temp_types Delta')!i) as [[? ?]|] eqn:H2; [ | contradiction].
-  simpl @fst; simpl @snd. destruct H; subst t1; auto.
-  destruct b; simpl in H0; subst; try solve [simple_if_tac; auto].
-  simple_if_tac; intros; try contradiction.
-  destruct b0; auto. exact I.
+  destruct ((temp_types Delta')!i) as [? |] eqn:H2; [ | contradiction].
+  simpl @fst; simpl @snd. subst t1; auto.
 * destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
   rewrite !denote_tc_assert_andp in HH |- *.
   destruct HH as [[? ?] ?].
@@ -456,8 +453,8 @@ unfold tc_temp_id; intros.
 unfold typecheck_temp_id.
 intros w ?.  hnf in H0|-*.
 destruct H as [? _]. specialize (H id).
-destruct ((temp_types Delta)! id) as [[? ?]|]; try contradiction.
-destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
+destruct ((temp_types Delta)! id); try contradiction.
+destruct ((temp_types Delta')! id); try contradiction.
 destruct H; subst.
 rewrite !denote_tc_assert_andp in H0 |- *.
 split.
@@ -475,13 +472,12 @@ Lemma tc_temp_id_load_sub:
 Proof.
 rename extends into H.
 unfold tc_temp_id_load; simpl; intros.
-intros w [tto [x [? ?]]]; exists tto.
+intros w [tto [? ?]]; exists tto.
 destruct H as [H _].
 specialize (H id); hnf in H.
-rewrite H0 in H; auto.
-destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
-destruct H; subst.
-exists b; auto.
+rewrite H0 in H.
+destruct ((temp_types Delta')! id); try contradiction.
+destruct H; subst; auto.
 Qed.
 
 Lemma tc_exprlist_sub:

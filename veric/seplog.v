@@ -370,7 +370,7 @@ intros.
 extensionality rho.
 apply pred_ext; apply H; intros; auto.
 Qed.
-
+(*
 Lemma funassert_exit_tycon: forall c Delta ek,
      funassert (exit_tycon c Delta ek) = funassert Delta.
 Proof.
@@ -380,7 +380,7 @@ intro.
 unfold exit_tycon; simpl. destruct ek; auto.
 rewrite glob_specs_update_tycon. auto.
 Qed.
-
+*)
 (*
 Lemma strict_bool_val_sub : forall v t b,
  strict_bool_val v t = Some b ->

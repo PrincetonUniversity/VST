@@ -158,18 +158,6 @@ rewrite Int.signed_repr; auto.
 rep_omega.
 Qed.
 
-Definition Delta_loop1 : tycontext :=
-          (initialized _h
-           (initialized _g
-              (initialized _f
-                 (initialized _e
-                    (initialized _d
-                       (initialized _c
-                          (initialized _b
-                             (initialized _a
-                                (initialized _data
-     (func_tycontext f_sha256_block_data_order Vprog Gtot nil)))))))))).
-
 Definition c64 := 64%nat.  Global Opaque c64.
 Definition c48 := 48%nat.  Global Opaque c48.
 
