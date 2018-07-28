@@ -31,24 +31,6 @@ Proof.
     eapply H; eauto.
 Qed.
 
-Lemma address_mapsto_timeless : forall m v sh p, timeless (res_predicates.address_mapsto m v sh p).
-Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  destruct H as (b & [? HYES] & ?); exists b; split; [split|]; auto.
-  intro b'; specialize (HYES b').
-  if_tac.
-  - destruct HYES as (rsh & Ha'); exists rsh.
-    erewrite age_to_resource_at.age_resource_at in Ha' by eauto.
-    destruct (a @ b'); try discriminate; inv Ha'.
-    destruct p0; inv H6; simpl.
-    f_equal.
-    apply proof_irr.
-  - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
-Qed.
-
 Lemma except0_mono : forall P Q, P |-- Q -> except0 P |-- except0 Q.
 Proof.
   intros; unfold except0.
@@ -85,6 +67,11 @@ Proof.
   rewrite FF_sepcon; auto.
 Qed.
 
+Lemma except0_frame_l : forall P Q, P * except0 Q |-- except0 (P * Q).
+Proof.
+  intros; rewrite sepcon_comm, (sepcon_comm _ Q); apply except0_frame_r.
+Qed.
+
 Lemma except0_bupd_elim : forall P, except0 (|==> except0 P) |-- |==> except0 P.
 Proof.
   intros; unfold except0.
@@ -114,6 +101,32 @@ Proof.
       rewrite <- later_sepcon, FF_sepcon; auto.
 Qed.
 
+Lemma except0_andp : forall P Q, except0 (P && Q) = except0 P && except0 Q.
+Proof.
+  intros; unfold except0.
+  rewrite distrib_orp_andp.
+  rewrite 2(andp_comm _ (_ || _)), !distrib_orp_andp.
+  apply pred_ext.
+  - apply orp_left.
+    + apply orp_right1, orp_right1.
+      rewrite andp_comm; auto.
+    + apply orp_right2, orp_right2.
+      rewrite <- later_andp, FF_andp; auto.
+  - apply orp_left; apply orp_left.
+    + apply orp_right1.
+      rewrite andp_comm; auto.
+    + apply orp_right2.
+      rewrite andp_comm.
+      eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
+      rewrite <- later_andp; apply later_derives; rewrite andp_FF; auto.
+    + apply orp_right2.
+      rewrite andp_comm.
+      eapply derives_trans; [apply andp_derives, now_later; apply derives_refl|].
+      rewrite <- later_andp; apply later_derives; rewrite FF_andp; auto.
+    + apply orp_right2.
+      rewrite <- later_andp, FF_andp; auto.
+Qed.
+
 Lemma timeless_sepcon : forall P Q, timeless P -> timeless Q -> timeless (P * Q).
 Proof.
   unfold timeless; intros.
@@ -121,28 +134,28 @@ Proof.
   apply sepcon_derives; auto.
 Qed.
 
+Lemma timeless_andp : forall P Q, timeless P -> timeless Q -> timeless (P && Q).
+Proof.
+  unfold timeless; intros.
+  rewrite later_andp, except0_andp.
+  apply andp_derives; auto.
+Qed.
+
 Lemma own_timeless : forall {P : Ghost} g (a : G), timeless (own g a NoneP).
 Proof.
-  intros; unfold timeless, except0.
-  change (predicates_hered.derives (|> own.own g a NoneP) (own.own g a NoneP || |> FF)).
-  intros a' H.
-  destruct (level a') eqn: Hl.
-  - right; intros ??%laterR_level; omega.
-  - left.
-    destruct (levelS_age a' n) as (a'' & ? & ?); auto; subst.
-    destruct (H a'') as (v & Hno & Hg).
-    { constructor; auto. }
-    exists v; simpl in *.
-    split.
-    + intros; eapply age1_resource_at_identity; eauto.
-    + erewrite age1_ghost_of in Hg by eauto.
-      rewrite own.ghost_fmap_singleton in *.
-      apply own.ghost_fmap_singleton_inv in Hg as ([] & -> & Heq).
-      inv Heq.
-      destruct p; inv H3.
-      simpl; repeat f_equal.
-      extensionality l.
-      destruct (_f l); auto.
+  intros; apply timeless'_timeless.
+  intros ?? (v & ? & Hg) ?.
+  exists v; simpl in *.
+  split.
+  + intros; eapply age1_resource_at_identity; eauto.
+  + erewrite age1_ghost_of in Hg by eauto.
+    rewrite own.ghost_fmap_singleton in *.
+    apply own.ghost_fmap_singleton_inv in Hg as ([] & -> & Heq).
+    inv Heq.
+    destruct p; inv H3.
+    simpl; repeat f_equal.
+    extensionality l.
+    destruct (_f l); auto.
 Qed.
 
 Lemma timeless_exp : forall {A} (x : A) P, (forall x, timeless (P x)) -> timeless (EX x : A, P x).
@@ -153,6 +166,191 @@ Proof.
   eapply derives_trans; eauto.
   apply except0_mono.
   Exists y; auto.
+Qed.
+
+Lemma timeless_prop : forall P, timeless (!! P).
+Proof.
+  intro; apply timeless'_timeless.
+  intro; auto.
+Qed.
+
+Lemma address_mapsto_timeless : forall m v sh p, timeless (res_predicates.address_mapsto m v sh p).
+Proof.
+  intros; apply timeless'_timeless.
+  repeat intro.
+  simpl in *.
+  destruct H as (b & [? HYES] & ?); exists b; split; [split|]; auto.
+  intro b'; specialize (HYES b').
+  if_tac.
+  - destruct HYES as (rsh & Ha'); exists rsh.
+    erewrite age_to_resource_at.age_resource_at in Ha' by eauto.
+    destruct (a @ b'); try discriminate; inv Ha'.
+    destruct p0; inv H6; simpl.
+    f_equal.
+    apply proof_irr.
+  - rewrite age1_resource_at_identity; eauto.
+  - rewrite age1_ghost_of_identity; eauto.
+Qed.
+
+Lemma timeless_FF : timeless FF.
+Proof.
+  unfold timeless, except0.
+  apply orp_right2; auto.
+Qed.
+
+Lemma timeless_emp : timeless emp.
+Proof.
+  apply timeless'_timeless; intros ????.
+  apply all_resource_at_identity.
+  - intro.
+    eapply age1_resource_at_identity; eauto.
+    eapply resource_at_identity; eauto.
+  - eapply age1_ghost_of_identity; eauto.
+    eapply ghost_of_identity; eauto.
+Qed.
+
+Lemma nonlock_permission_bytes_timeless : forall sh l z,
+  timeless (res_predicates.nonlock_permission_bytes sh l z).
+Proof.
+  intros; apply timeless'_timeless.
+  repeat intro.
+  simpl in *.
+  destruct H; split.
+  intro b'; specialize (H b').
+  if_tac.
+  - erewrite age1_resource_at in H by (rewrite ?resource_at_approx; eauto).
+    destruct (a @ b'); auto.
+  - rewrite age1_resource_at_identity; eauto.
+  - rewrite age1_ghost_of_identity; eauto.
+Qed.
+
+Lemma timeless_orp : forall P Q, timeless P -> timeless Q -> timeless (P || Q).
+Proof.
+  unfold timeless, except0; intros.
+  rewrite later_orp.
+  apply orp_left; eapply derives_trans; try eassumption; apply orp_left.
+  - apply orp_right1, orp_right1; auto.
+  - apply orp_right2; auto.
+  - apply orp_right1, orp_right2; auto.
+  - apply orp_right2; auto.
+Qed.
+
+Lemma mapsto_timeless : forall sh t v p, timeless (mapsto sh t p v).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try apply timeless_FF.
+  destruct (type_is_volatile); try apply timeless_FF.
+  destruct p; try apply timeless_FF.
+  if_tac.
+  - apply timeless_orp.
+    + apply timeless_andp; [apply timeless_prop | apply address_mapsto_timeless].
+    + apply timeless_andp; [apply timeless_prop|].
+      apply (timeless_exp Vundef); intro; apply address_mapsto_timeless.
+  - apply timeless_andp; [apply timeless_prop | apply nonlock_permission_bytes_timeless].
+Qed.
+
+Lemma memory_block'_timeless : forall sh n b z,
+  timeless (mapsto_memory_block.memory_block' sh n b z).
+Proof.
+  induction n; simpl; intros.
+  - apply timeless_emp.
+  - apply timeless_sepcon, IHn.
+    apply mapsto_timeless.
+Qed.
+
+Lemma memory_block_timeless : forall sh n p,
+  timeless (memory_block sh n p).
+Proof.
+  intros.
+  destruct p; try apply timeless_FF.
+  apply timeless_andp; [apply timeless_prop | apply memory_block'_timeless].
+Qed.
+
+Lemma struct_pred_timeless : forall {CS : compspecs} sh m f t off
+  (IH : Forall (fun it : ident * type =>
+        forall (v : reptype (t it)) (p : val),
+        timeless (data_at_rec sh (t it) v p)) m) v p,
+  timeless (struct_pred m (fun (it : ident * type) v =>
+      withspacer sh (f it + sizeof (t it)) (off it)
+        (at_offset (data_at_rec sh (t it) v) (f it))) v p).
+Proof.
+  induction m; intros.
+  - apply timeless_emp.
+  - destruct a; inv IH.
+    destruct m.
+    + unfold withspacer, at_offset; simpl.
+      if_tac; auto.
+      apply timeless_sepcon; auto.
+      unfold spacer.
+      if_tac.
+      * apply timeless_emp.
+      * unfold at_offset; apply memory_block_timeless.
+    + rewrite struct_pred_cons2.
+      apply timeless_sepcon; auto.
+      unfold withspacer, at_offset; simpl.
+      if_tac; auto.
+      apply timeless_sepcon; auto.
+      unfold spacer.
+      if_tac.
+      * apply timeless_emp.
+      * unfold at_offset; apply memory_block_timeless.
+Qed.
+
+Lemma union_pred_timeless : forall {CS : compspecs} sh m f t off
+  (IH : Forall (fun it : ident * type =>
+        forall (v : reptype (t it)) (p : val),
+        timeless (data_at_rec sh (t it) v p)) m) v p,
+  timeless (union_pred m (fun (it : ident * type) v =>
+      withspacer sh (f it + sizeof (t it)) (off it)
+        (at_offset (data_at_rec sh (t it) v) (f it))) v p).
+Proof.
+  induction m; intros.
+  - apply timeless_emp.
+  - destruct a; inv IH.
+    destruct m.
+    + unfold withspacer, at_offset; simpl.
+      if_tac; auto.
+      apply timeless_sepcon; auto.
+      unfold spacer.
+      if_tac.
+      * apply timeless_emp.
+      * unfold at_offset; apply memory_block_timeless.
+    + rewrite union_pred_cons2.
+      destruct v; auto.
+      unfold withspacer, at_offset; simpl.
+      if_tac; auto.
+      apply timeless_sepcon; auto.
+      unfold spacer.
+      if_tac.
+      * apply timeless_emp.
+      * unfold at_offset; apply memory_block_timeless.
+Qed.
+
+Lemma data_at_rec_timeless : forall {CS : compspecs} sh t v p,
+  timeless (data_at_rec sh t v p).
+Proof.
+  intros ???.
+  type_induction.type_induction t; intros; rewrite data_at_rec_eq; try apply timeless_FF.
+  - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
+  - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
+  - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
+  - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
+  - apply timeless_andp; [apply timeless_prop|].
+    rewrite Z.sub_0_r.
+    forget (Z.to_nat (Z.max 0 z)) as n.
+    set (lo := 0) at 1.
+    clearbody lo.
+    revert lo; induction n; simpl; intros.
+    + apply timeless_emp.
+    + apply timeless_sepcon, IHn.
+      unfold at_offset; apply IH.
+  - apply struct_pred_timeless; auto.
+(*  - apply union_pred_timeless; auto.
+Qed.*) Admitted.
+
+Lemma data_at_timeless : forall {CS : compspecs} sh t v p, timeless (data_at sh t v p).
+Proof.
+  intros; apply timeless_andp; [apply timeless_prop | apply data_at_rec_timeless].
 Qed.
 
 End Timeless.
@@ -183,7 +381,7 @@ Proof.
   rewrite sepcon_comm; apply bupd_mono, except0_intro.
 Qed.
 
-Lemma fupd_frame_r : forall E1 E2 P Q, fupd E1 E2 P * Q |-- fupd E1 E2 (P * Q).
+Lemma fupd_frame_r : forall E1 E2 P Q, (|={E1,E2}=> P) * Q |-- |={E1,E2}=> (P * Q).
 Proof.
   intros; unfold fupd.
   rewrite <- wand_sepcon_adjoint.
@@ -230,7 +428,7 @@ Proof.
   apply bupd_intro.
 Qed.
 
-Lemma fupd_frame_l : forall E1 E2 P Q, P * fupd E1 E2 Q |-- fupd E1 E2 (P * Q).
+Lemma fupd_frame_l : forall E1 E2 P Q, P * (|={E1,E2}=> Q) |-- |={E1,E2}=> (P * Q).
 Proof.
   intros; rewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
 Qed.
@@ -277,6 +475,21 @@ Proof.
   apply fupd_mono; eauto.
 Qed.
 
+Lemma fupd_except0_elim : forall E1 E2 P Q, P |-- |={E1,E2}=> Q -> except0 P |-- |={E1,E2}=> Q.
+Proof.
+  intros.
+  unfold except0.
+  apply orp_left; auto.
+  unfold fupd.
+  rewrite <- wand_sepcon_adjoint.
+  eapply derives_trans, bupd_intro.
+  unfold except0.
+  apply orp_right2.
+  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
+  rewrite <- later_sepcon; apply later_derives.
+  rewrite FF_sepcon; auto.
+Qed.
+
 Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
 Proof.
   intros; unfold fupd.
@@ -287,6 +500,12 @@ Proof.
   apply bupd_mono.
   rewrite sepcon_assoc, (sepcon_comm _ (ghost_set _ _)), <- sepcon_assoc.
   apply except0_intro.
+Qed.
+
+Lemma wsat_fupd_elim : forall P, wsat * (|={Empty_set _,Empty_set _}=> P) |-- |==> except0 (wsat * P).
+Proof.
+  intros; unfold fupd.
+  rewrite <- wsat_empty_eq; apply modus_ponens_wand.
 Qed.
 
 Corollary make_inv : forall E P Q, P |-- Q -> P |-- |={E}=> EX i : _, invariant i Q.

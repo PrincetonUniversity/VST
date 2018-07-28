@@ -26,6 +26,28 @@ Proof.
 Qed.
 Hint Resolve Included_Full.
 
+Notation cored := own.cored.
+
+Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
+Proof.
+  apply own.cored_dup.
+Qed.
+
+Lemma cored_duplicable : cored = cored * cored.
+Proof.
+  apply own.cored_duplicable.
+Qed.
+
+Lemma own_cored: forall {RA: Ghost} g a pp, join a a a -> own g a pp |-- cored.
+Proof.
+  intros; apply own.own_cored; auto.
+Qed.
+
+Lemma cored_emp: cored |-- |==> emp.
+Proof.
+  apply own.cored_emp.
+Qed.
+
 Section Invariants.
 
 Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
@@ -633,7 +655,7 @@ Definition wsat : mpred := EX I : list mpred, EX lg : list gname, EX lb : list (
   master_list g_inv (map (fun i => match Znth i lb with Some _ => Some (Znth i lg)
                                    | None => None end) (upto (length I))) *
   ghost_list g_dis (map (fun o => match o with Some true => Some (Some tt) | _ => None end) lb) *
-  ghost_set g_en (fun i => nth i lb None = Some false) *
+  ghost_set g_en (fun i : iname => nth i lb None = Some false) *
   iter_sepcon (fun i => match Znth i lb with
                         | Some true => agree (Znth i lg) (Znth i I) * |> Znth i I
                         | Some false => agree (Znth i lg) (Znth i I)
@@ -661,6 +683,17 @@ Proof.
     inv H5; eauto.
 Qed.
 
+Lemma singleton_join_self : forall {P: Ghost} k (a : G), join a a a ->
+  join (list_singleton k a) (list_singleton k a) (list_singleton k a).
+Proof.
+  intros.
+  rewrite <- (replace_nth_same k (list_singleton k a) None) at 3.
+  rewrite nth_singleton.
+  apply list_join_singleton.
+  + rewrite singleton_length; auto.
+  + rewrite nth_singleton; repeat constructor; auto.
+Qed.
+
 Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
 Proof.
   intros; unfold invariant; apply pred_ext.
@@ -668,11 +701,8 @@ Proof.
     rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- sepcon_assoc.
     erewrite ghost_snap_join.
     rewrite sepcon_assoc, <- agree_dup; apply derives_refl.
-    { rewrite <- (replace_nth_same i (list_singleton i g) None) at 3.
-      rewrite nth_singleton.
-      apply (list_join_singleton(P := discrete_PCM _)).
-      + rewrite singleton_length; auto.
-      + rewrite nth_singleton; repeat constructor. }
+    { apply (singleton_join_self(P := discrete_PCM _)).
+      constructor; auto. }
   - Intros g1 g2.
     rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- sepcon_assoc.
     rewrite ghost_snap_join'; Intros l.
@@ -1015,7 +1045,78 @@ Proof.
   apply own.own_super_non_expansive.
 Qed.
 
+Lemma invariant_cored : forall i P, invariant i P |-- cored.
+Proof.
+  intros; unfold invariant.
+  Intro g; rewrite cored_duplicable.
+  apply sepcon_derives; apply own_cored; hnf; auto; simpl.
+  split; auto.
+  rewrite !eq_dec_refl.
+  apply (singleton_join_self(P := discrete_PCM _)).
+  constructor; auto.
+Qed.
+
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
 
+Lemma Setminus_self : forall {A} s, Setminus s s = Empty_set A.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? X; inv X; contradiction.
+Qed.
+
+Lemma Included_self : forall {A} s, @Included A s s.
+Proof.
+  repeat intro; auto.
+Qed.
+
+Lemma ghost_set_empty : forall {A} g (s : Ensemble A),
+  ghost_set g s = ghost_set g s * ghost_set g (Empty_set A).
+Proof.
+  intros.
+  apply own_op.
+  split.
+  - constructor; intros ? X; inv X.
+    inv H0.
+  - apply Extensionality_Ensembles; split; intros ? X.
+    + constructor 1; auto.
+    + inv X; auto.
+      inv H.
+Qed.
+
+Lemma wsat_empty_eq : wsat = wsat * ghost_set g_en (Empty_set iname).
+Proof.
+  unfold wsat.
+  repeat (rewrite exp_sepcon1; f_equal; extensionality).
+  rewrite ghost_set_empty at 1.
+  apply pred_ext; entailer!.
+Qed.
+
 End Invariants.
+
+Lemma make_wsat : emp |-- |==> EX inv_names : invG, wsat.
+Proof.
+  unfold wsat.
+  rewrite <- 2emp_sepcon at 1.
+  eapply derives_trans; [apply sepcon_derives, sepcon_derives|].
+  - apply (own_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil)), I.
+  - apply (own_alloc(RA := list_PCM (exclusive_PCM unit)) nil), I.
+  - apply (own_alloc(RA := set_PCM iname) (Empty_set _)), I.
+  - eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply bupd_sepcon]|].
+    eapply derives_trans; [apply bupd_sepcon|].
+    apply bupd_mono.
+    Intros g_inv g_dis g_en.
+    Exists {| g_inv := g_inv; g_dis := g_dis; g_en := g_en |}.
+    Exists (@nil mpred) (@nil gname) (@nil (option bool)); simpl; entailer!.
+    apply sepcon_derives; [apply sepcon_derives|].
+    + apply derives_refl.
+    + apply derives_refl.
+    + apply derives_refl'; unfold ghost_set; f_equal.
+      apply Extensionality_Ensembles; split.
+      * intros ? X; inv X.
+      * intros ? X.
+        destruct x; inv X.
+Qed.
+
+(* We could get rid of invG and make the names explicit arguments to invariant...
+   but we'd have to make them arguments to fupd as well, which is annoying.
+   But we need some way of eliminating fupds without including them in semax. *)

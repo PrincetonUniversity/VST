@@ -15,23 +15,23 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section SC_atomics.
 
-Context {CS : compspecs} {inv_names : invG}.
+Context {CS : compspecs} (*{inv_names : invG}*).
 
-Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
+Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
+  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred))
+  (ConstType invG).
 
 Program Definition load_SC_spec := TYPE AL_type
   WITH p : val, P : mpred, Eo : Ensemble iname, Ei : Ensemble iname,
-       P' : share -> Z -> mpred, Q : Z -> mpred
+       P' : share -> Z -> mpred, Q : Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint ]
    PROP (Included Ei Eo)
    LOCAL (temp 1%positive p)
-   SEP (weak_fview_shift Eo Ei P
-           (EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
-              data_at sh tint (vint v) p * P' sh v);
-         ALL sh : _, ALL v : _, weak_fview_shift Ei Eo (!!(readable_share sh /\ repable_signed v) &&
-           data_at sh tint (vint v) p * P' sh v) (Q v);
+   SEP (P -* |={Eo,Ei}=> EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
+              data_at sh tint (vint v) p * P' sh v;
+         ALL sh : _, ALL v : _, (!!(readable_share sh /\ repable_signed v) &&
+           data_at sh tint (vint v) p * P' sh v) -* |={Ei,Eo}=> Q v;
          P)
   POST [ tint ]
    EX v : Z,
@@ -45,16 +45,14 @@ Proof.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
-  - rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; do 2 apply f_equal.
+  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
     rewrite !approx_exp; apply f_equal; extensionality sh.
     rewrite !approx_exp; apply f_equal; extensionality v.
     rewrite !approx_sepcon, approx_idem; auto.
   - f_equal.
     rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
     rewrite !(approx_allp _ _ _ 0); apply f_equal; extensionality v.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; apply f_equal; f_equal.
+    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
     rewrite !approx_sepcon, approx_idem; auto.
 Qed.
 Next Obligation.
@@ -76,10 +74,8 @@ Program Definition store_SC_spec := TYPE AS_type
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v)
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
-   SEP (weak_fview_shift Eo Ei P
-           (EX sh : share, !!(writable_share sh) && data_at_ sh tint p * P' sh);
-        ALL sh : _, weak_fview_shift Ei Eo
-          (!!(writable_share sh) && data_at sh tint (vint v) p * P' sh) Q; P)
+   SEP (P -* |={Eo,Ei}=> EX sh : share, !!(writable_share sh) && data_at_ sh tint p * P' sh;
+        ALL sh : _, (!!(writable_share sh) && data_at sh tint (vint v) p * P' sh) -* |={Ei,Eo}=> Q; P)
   POST [ tvoid ]
    PROP ()
    LOCAL ()
@@ -91,14 +87,12 @@ Proof.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
-  - rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; do 2 apply f_equal.
+  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
     rewrite !approx_exp; apply f_equal; extensionality sh.
     rewrite !approx_sepcon, approx_idem; auto.
   - f_equal.
     rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; apply f_equal; f_equal.
+    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
     rewrite !approx_sepcon, approx_idem; auto.
 Qed.
 Next Obligation.
@@ -119,11 +113,10 @@ Program Definition CAS_SC_spec := TYPE ACAS_type
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive p; temp 2%positive (vint c); temp 3%positive (vint v))
-   SEP (weak_fview_shift Eo Ei P
-           (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p * P' sh v0);
-         ALL sh : _, ALL v0 : _, weak_fview_shift Ei Eo (!!(writable_share sh /\ repable_signed v0) &&
-           data_at sh tint (vint (if eq_dec v0 c then v else v0)) p * P' sh v0) (Q v0); P)
+   SEP (P -* |={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
+              data_at sh tint (vint v0) p * P' sh v0;
+         ALL sh : _, ALL v0 : _, (!!(writable_share sh /\ repable_signed v0) &&
+           data_at sh tint (vint (if eq_dec v0 c then v else v0)) p * P' sh v0) -* |={Ei,Eo}=> Q v0; P)
   POST [ tint ]
    EX v' : Z,
    PROP (repable_signed v')
@@ -136,16 +129,14 @@ Proof.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
-  - rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; do 2 apply f_equal.
+  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
     rewrite !approx_exp; apply f_equal; extensionality sh.
     rewrite !approx_exp; apply f_equal; extensionality v0.
     rewrite !approx_sepcon, approx_idem; auto.
   - f_equal.
     rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
     rewrite !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; apply f_equal; f_equal.
+    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
     rewrite !approx_sepcon, approx_idem; auto.
 Qed.
 Next Obligation.
@@ -167,11 +158,10 @@ Program Definition AEX_SC_spec := TYPE AEX_type
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v)
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
-   SEP (weak_fview_shift Eo Ei P
-           (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p * P' sh v0);
-        ALL sh : _, ALL v0 : _, weak_fview_shift Ei Eo (!!(writable_share sh /\ repable_signed v0) &&
-           data_at sh tint (vint v) p * P' sh v0) (Q v0); P)
+   SEP (P -* |={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
+              data_at sh tint (vint v0) p * P' sh v0;
+        ALL sh : _, ALL v0 : _, (!!(writable_share sh /\ repable_signed v0) &&
+           data_at sh tint (vint v) p * P' sh v0) -* |={Ei,Eo}=> Q v0; P)
   POST [ tint ]
    EX v' : Z,
    PROP (repable_signed v')
@@ -184,16 +174,14 @@ Proof.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
-  - rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; do 2 apply f_equal.
+  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
     rewrite !approx_exp; apply f_equal; extensionality sh.
     rewrite !approx_exp; apply f_equal; extensionality v0.
     rewrite !approx_sepcon, approx_idem; auto.
   - f_equal.
     rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
     rewrite !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; rewrite approx_idem; apply f_equal; f_equal.
+    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
     rewrite !approx_sepcon, approx_idem; auto.
 Qed.
 Next Obligation.

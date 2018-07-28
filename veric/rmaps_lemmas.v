@@ -1021,6 +1021,19 @@ Proof.
   constructor 1; auto.
 Qed.
 
+Lemma necR_ghost_of:
+  forall phi phi',
+        necR phi phi' ->
+         ghost_of phi' = ghost_fmap (approx (level phi')) (approx (level phi')) (ghost_of phi).
+Proof.
+  induction 1.
+  - apply age1_ghost_of; auto.
+  - symmetry; apply ghost_of_approx.
+  - rewrite IHclos_refl_trans2, IHclos_refl_trans1, ghost_fmap_fmap.
+    apply necR_level in H0.
+    rewrite approx_oo_approx', approx'_oo_approx; auto.
+Qed.
+
 Lemma empty_NO: forall r, identity r -> r = NO Share.bot bot_unreadable \/ exists k, exists pds, r = PURE k pds.
 Proof.
 intros.

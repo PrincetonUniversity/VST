@@ -547,37 +547,129 @@ Proof.
   f_equal; eauto.
 Qed.
 
-(* The addition of ghost state leads to an interesting class of rmaps: ones that aren't cores,
-   but have only core elements (particularly ghost state). *)
+(* The addition of ghost state means that there are rmaps that have only
+   cores for ghost state, but are not cores themselves (since they have ghost
+   state at all). An rmap of this sort is not emp, but is its own unit. *)
 
-Definition cored : pred rmap := ALL P : pred rmap, P <--> P * P.
+Definition cored: pred rmap := ALL P : pred rmap, ALL Q : pred rmap,
+  P && Q --> P * Q.
 
-Lemma cored_dup: forall P, P && cored |-- (P * P) && cored.
+Program Definition is_w w: pred rmap := fun w' => necR w w'.
+Next Obligation.
 Proof.
-  intros; unfold cored.
-  apply andp_right; [|apply andp_left2; auto].
-  eapply modus_ponens.
-  - apply andp_left1, derives_refl.
-  - eapply andp_left2, allp_left, andp_left1, derives_refl.
+  repeat intro.
+  eapply necR_trans; eauto.
+  constructor; auto.
 Qed.
 
-Lemma own_cored: forall {RA: Ghost} g a pp, own g (core a) pp |-- cored.
+Lemma cored_unit: forall w, cored w = join w w w.
 Proof.
-  unfold own, cored.
-  intros ????? (? & ? & Hg); simpl in *; split; repeat intro.
-  - exists a', a'; repeat split; auto.
-    apply resource_at_join2; auto.
-    + intro; apply identity_unit'.
-      eapply necR_resource_at_identity; eauto.
-    + SearchAbout necR ghost_of.
-    SearchAbout resource_at ghost_of join.
-  
+  intro; apply prop_ext; split; unfold cored; intro.
+  - edestruct (H (is_w w) (is_w w)) as (? & ? & J & Hw1 & Hw2).
+    { apply necR_refl. }
+    { split; apply necR_refl. }
+    simpl in *.
+    destruct (join_level _ _ _ J).
+    eapply necR_linear' in Hw1; try apply necR_refl; auto.
+    eapply necR_linear' in Hw2; try apply necR_refl; auto.
+    subst; auto.
+  - intros P Q ?? [HP HQ].
+    exists a', a'; repeat split; auto.
+    eapply nec_join in H as (? & ? & ? & Hw1 & Hw2); eauto.
+    destruct (join_level _ _ _ H).
+    eapply necR_linear' in Hw1; try apply H0; [|omega].
+    eapply necR_linear' in Hw2; try apply H0; [|omega].
+    subst; auto.
+Qed.
 
+Lemma cored_dup: forall P, P && cored |-- (P && cored) * (P && cored).
+Proof.
+  intros.
+  rewrite <- (andp_dup cored) at 1.
+  rewrite <- andp_assoc.
+  intros; unfold cored at 2.
+  eapply modus_ponens.
+  + apply andp_left1, derives_refl.
+  + eapply andp_left2, allp_left, allp_left.
+    rewrite andp_dup; apply derives_refl.
+Qed.
+
+Lemma cored_core: forall w, cored (core w).
+Proof.
+  intro; rewrite cored_unit.
+  apply identity_unit', core_identity.
+Qed.
+
+Lemma cored_duplicable: cored = cored * cored.
+Proof.
+  apply pred_ext.
+  - rewrite <- andp_dup at 1.
+    eapply derives_trans; [apply cored_dup|].
+    apply sepcon_derives; apply andp_left1; auto.
+  - intros ? (? & ? & J & J1 & J2).
+    rewrite cored_unit in *.
+    destruct (join_assoc J1 J) as (? & J' & J1').
+    eapply join_eq in J'; [|apply J]; subst.
+    destruct (join_assoc J2 (join_comm J)) as (? & J' & J2').
+    eapply join_eq in J'; [|apply join_comm, J]; subst.
+    destruct (join_assoc (join_comm J1') (join_comm J2')) as (? & J' & ?).
+    eapply join_eq in J'; [|apply J]; subst; auto.
+Qed.
+
+Lemma cored_emp: cored |-- bupd emp.
+Proof.
+  intro; rewrite cored_unit; intros J ??.
+  exists nil; split; [eexists; constructor|].
+  destruct (make_rmap _ nil (rmap_valid a) (level a)) as (m' & ? & Hr & Hg); auto.
+  { intros; extensionality; apply resource_at_approx. }
+  exists m'; repeat split; auto.
+  apply all_resource_at_identity.
+  - intro; rewrite Hr.
+    apply (resource_at_join _ _ _ l) in J.
+    inv J.
+    + apply join_self, identity_share_bot in RJ; subst.
+      apply NO_identity.
+    + apply join_self, identity_share_bot in RJ; subst.
+      contradiction shares.bot_unreadable.
+    + apply PURE_identity.
+  - rewrite Hg, <- (ghost_core nil); apply core_identity.
+Qed.
+
+Lemma join_singleton_inv: forall k a b RA c v pp,
+  join a b (singleton k (existT _ RA (exist _ (core c) v), pp)) ->
+  a = singleton k (existT _ RA (exist _ (core c) v), pp) \/ b = singleton k (existT _ RA (exist _ (core c) v), pp).
+Proof.
+  induction k; unfold singleton; intros; simpl in *.
+  - inv H; auto.
+    assert (m1 = nil /\ m2 = nil) as [] by (inv H5; auto); subst.
+    inv H4; auto.
+    destruct a0, a3; inv H2; simpl in *.
+    inv H0; inv H.
+    inj_pair_tac.
+    pose proof (core_unit a0) as J.
+    erewrite join_core, core_idem in J by eauto.
+    unfold unit_for in J.
+    eapply join_positivity in J; eauto; subst.
+    left; repeat f_equal; apply proof_irr.
+  - inv H; auto.
+    edestruct IHk as [|]; eauto; [left | right]; f_equal; auto; inv H4; auto.
+Qed.
+
+Lemma own_cored: forall {RA: Ghost} g a pp, join a a a -> own g a pp |-- cored.
+Proof.
+  intros; intros ? (? & ? & Hg).
+  rewrite cored_unit; simpl in *.
+  apply resource_at_join2; auto.
+  - intro; apply identity_unit'.
+    eapply necR_resource_at_identity; eauto.
+  - rewrite Hg, ghost_fmap_singleton.
+    apply singleton_join; repeat constructor; auto.
+Qed.
 
 Require Import VST.veric.tycontext.
 Require Import VST.veric.seplog.
  
-Lemma own_super_non_expansive : forall {RA: Ghost} n g a pp,
+Lemma own_super_non_expansive: forall {RA: Ghost} n g a pp,
   approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).
 Proof.
   intros; unfold own.

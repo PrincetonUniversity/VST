@@ -120,16 +120,6 @@ End dup.
 
 Section atomicity.
 
-Definition is_core : mpred := ALL P : mpred, P --> P * P.
-
-(* What should we need to prove in order to use an atomic shift?
-   The Iris definition is EX P, |> P * [] <a collection of view shifts>.
-   We can't just discard the box entirely, because then the view shifts aren't duplicable
-   (they might use up nonduplicable resources). We can't add && emp instead, because we should be
-   able to use nontrivial resources to prove the view shift (e.g., duplicable ghost state). What
-   we want is not that the rmap itself is a core for rmaps, but rather that it has a core at each
-   real and ghost location. *)
-
 (* up *)
 Lemma approx_mono: forall n P Q, (P >=> Q) (Nat.pred n) -> approx n P |-- approx n Q.
 Proof.
@@ -168,8 +158,8 @@ Proof.
   intros; unfold fupd.
   apply subp_wand; [apply subp_refl|].
   apply own.subp_bupd.
-  apply subp_orp, subp_refl.
-  apply subp_sepcon; auto; apply subp_refl.
+  apply subtypes.subp_orp, subtypes.subp_refl.
+  apply subtypes_sl.subp_sepcon; auto; apply subtypes.subp_refl.
 Qed.
 
 Lemma eqp_fupd: forall (G : Triv) E1 E2 (P P' : mpred), G |-- P <=> P' ->
@@ -205,7 +195,7 @@ Proof.
     + apply eqp_refl.
 Qed.
 
-Lemma apply_fview_shift: forall E1 E2 P Q, (weak_fview_shift E1 E2 P Q && emp) * P |-- |={E1, E2}=> Q.
+(*Lemma apply_fview_shift: forall E1 E2 P Q, (weak_fview_shift E1 E2 P Q && emp) * P |-- |={E1, E2}=> Q.
 Proof.
   intros; unfold weak_fview_shift.
   eapply derives_trans, modus_ponens_wand.
@@ -220,7 +210,7 @@ Proof.
   eapply derives_trans, bupd_mono, apply_fview_shift.
   eapply derives_trans; [apply sepcon_derives, H; apply derives_refl|].
   apply bupd_frame_l.
-Qed.
+Qed.*)
 
 (* up *)
 Lemma emp_dup: forall P, P && emp = (P && emp) * (P && emp).
@@ -237,10 +227,11 @@ Proof.
 Qed.
 
 (* The logical atomicity of Iris. *)
+(* We use the cored predicate to mimic Iris's persistent modality. *)
 Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
-  EX P : mpred, |> P * (weak_fview_shift Eo Ei (|> P) (EX x : A, a x *
-    ((weak_fview_shift Ei Eo (a x) (|> P) && emp) &&
-    ALL y : B, weak_fview_shift Ei Eo (b x y) (Q y) && emp)) && emp).
+  EX P : mpred, |> P * ((|> P -* |={Eo,Ei}=> (EX x : A, a x *
+    ((a x -* |={Ei,Eo}=> |> P) &&
+     ALL y : B, b x y -* |={Ei,Eo}=> Q y))) && cored).
 
 Definition atomic_spec_type W T := ProdType W (ArrowType (ConstType T) Mpred).
 
@@ -293,17 +284,13 @@ Proof.
     rewrite !approx_sepcon; f_equal; auto.
     rewrite !approx_exp; f_equal; extensionality.
     rewrite !approx_sepcon, !approx_andp; f_equal; f_equal.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2; f_equal; f_equal.
+    setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; f_equal.
     rewrite !approx_exp; f_equal; extensionality.
     rewrite !approx_sepcon, !approx_andp; f_equal; auto.
     f_equal.
-    + rewrite fview_shift_nonexpansive.
-      setoid_rewrite fview_shift_nonexpansive at 2; f_equal; f_equal; f_equal; auto.
+    + setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
     + rewrite !approx_allp by auto; f_equal; extensionality.
-      rewrite !approx_andp; f_equal.
-      rewrite fview_shift_nonexpansive.
-      setoid_rewrite fview_shift_nonexpansive at 2; f_equal; f_equal; auto.
+      setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
       rewrite approx_idem; auto.
   - extensionality ts x rho.
     destruct x.
