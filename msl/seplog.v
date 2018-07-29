@@ -207,3 +207,12 @@ Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL
   unfold CorableIndir; simpl; intros.
   apply corable_later; auto.
 Defined.
+
+Lemma orp_comm: forall {A: Type} `{NatDed A} (P Q: A), P || Q = Q || P.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left; [apply orp_right2 | apply orp_right1]; apply derives_refl.
+  + apply orp_left; [apply orp_right2 | apply orp_right1]; apply derives_refl.
+Qed.
+
