@@ -284,14 +284,6 @@ Proof.
 Qed.
 Hint Rewrite @FF_andp @andp_FF : norm.
 
-Lemma orp_comm: forall {A: Type} `{NatDed A} (P Q: A), P || Q = Q || P.
-Proof.
-  intros.
-  apply pred_ext.
-  + apply orp_left; [apply orp_right2 | apply orp_right1]; auto.
-  + apply orp_left; [apply orp_right2 | apply orp_right1]; auto.
-Qed.
-
 Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
 Proof.
   intros.
