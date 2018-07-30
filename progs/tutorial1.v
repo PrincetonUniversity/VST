@@ -4,7 +4,7 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 Definition Gprog: funspecs := nil.
 Definition Delta1 : tycontext :=
-  ltac:(let x := constr:(initialized _i (func_tycontext f_sumarray Vprog Gprog nil))
+  ltac:(let x := constr:(func_tycontext f_sumarray Vprog Gprog nil)
          in let y := eval hnf in x
          in exact y).
 

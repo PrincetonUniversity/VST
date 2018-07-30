@@ -1,797 +1,277 @@
-(** * Putting Everything Together*)
+(* Main File putting all together. *)
 
-(** **Semax Imports*)
-From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrnat.
-Require Import Coq.Strings.String.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Set Implicit Arguments.
 
-Require Import compcert.lib.Integers.
-Require Import compcert.common.AST.
-Require Import compcert.cfrontend.Clight.
 Require Import compcert.common.Globalenvs.
-Require Import compcert.common.Memory.
-Require Import compcert.common.Memdata.
-Require Import compcert.common.Values.
 
-Require Import VST.msl.Coqlib2.
-Require Import VST.msl.eq_dec.
-Require Import VST.veric.initial_world.
-Require Import VST.veric.juicy_mem.
-Require Import VST.veric.juicy_mem_lemmas.
-Require Import VST.veric.semax_prog.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
-Require Import VST.veric.semax.
-Require Import VST.veric.semax_ext.
-Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.initial_world.
-Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.semax_ext.
-Require Import VST.veric.coqlib4.
-Require Import VST.sepcomp.semantics.
-Require Import VST.sepcomp.step_lemmas.
-Require Import VST.sepcomp.event_semantics.
-Require Import VST.concurrency.semax_conc_pred.
-Require Import VST.concurrency.semax_conc.
-Require Import VST.concurrency.juicy_machine.
-Require Import VST.concurrency.concurrent_machine.
-Require Import VST.concurrency.scheduler.
-Require Import VST.concurrency.addressFiniteMap.
-Require Import VST.concurrency.permissions.
-Require Import VST.concurrency.dry_machine_lemmas.
+Require Import compcert.cfrontend.Clight.
+Require Import VST.concurrency.juicy.erasure_safety.
 
-Require Import VST.concurrency.semax_invariant.
-Require Import VST.concurrency.semax_initial.
-(* Require Import VST.concurrency.semax_to_juicy_machine. *)
+Require Import VST.concurrency.compiler.concurrent_compiler_safety_axiom.
+Require Import VST.concurrency.compiler.sequential_compiler_correct.
 
-(** ** Erasure Imports*)
-Require Import VST.concurrency.erasure_signature.
-Require Import VST.concurrency.erasure_proof.
-Require Import VST.concurrency.erasure_safety.
+Require Import VST.concurrency.sc_drf.mem_obs_eq.
+Require Import VST.concurrency.sc_drf.x86_inj.
+Require Import VST.concurrency.sc_drf.x86_safe.
+Require Import VST.concurrency.sc_drf.executions.
+Require Import VST.concurrency.sc_drf.spinlocks.
 
-(* Require Import VST.concurrency.fineConc_safe. *)
-
-(** ** Compiler simulation*)
-Require Import VST.concurrency.lifting.
-Require Import VST.concurrency.lifting_safety.
-
-(** ** Target machine*)
-Require Import VST.concurrency.x86_context.
-
-Require Import VST.concurrency.executions.
-Require Import VST.concurrency.spinlocks.
-Require Import VST.concurrency.fineConc_x86.
-Require Import VST.concurrency.x86_safe.
-Require Import VST.concurrency.SC_erasure.
-
-Module MainSafety .
-
-  Module ErasureProof := erasure_proof.Parching.
-  Module Erasure := ErasureFnctr ErasureProof.
-  Import ErasureProof.
-  Import Erasure.
+Require Import VST.concurrency.common.threadPool.
+Require Import VST.concurrency.common.erased_machine.
+Require Import VST.concurrency.common.HybridMachineSig.
 
 
-    (*To use the result we must go back to the normal safety (from safety of bounded states)*)
+Set Bullet Behavior "Strict Subproofs".
 
+Module Main (CC_correct: CompCert_correctness).
+  (*Import the *)
+  (*Import the safety of the compiler for concurrent programs*)
+  Module ConcurCC_safe:= (SafetyStatement CC_correct).
+  Import ConcurCC_safe.
 
-  (*Module lifting_this := lifting ErasureProof.SEM.*)
-  Module lifting_safety_this:= lifting_safety X86SEM X86Machines.
-  Import lifting_safety_this.
-  (*Module lifting_this:= lifting X86SEM X86Machines. *)
-  (*Lifting_this is imported as lftng. *)
+  (*Importing the definition for ASM semantics and machines*)
+  Import dry_context.AsmContext.
 
+  (*Use a section to contain the parameters.*)
+  Section MainTheorem.
+  (*Assumptions *)
+  Context (CPROOF : semax_to_juicy_machine.CSL_proof).
+  Definition Clight_prog:= semax_to_juicy_machine.CSL_prog CPROOF.
+  Definition Main_ptr:=Values.Vptr (Ctypes.prog_main Clight_prog) Integers.Ptrofs.zero.
+  Context (Asm_prog: Asm.program).
+  Context (compilation : CC_correct.CompCert_compiler Clight_prog = Some Asm_prog).
+  Context (asm_genv_safe: Asm_core.safe_genv (@x86_context.X86Context.the_ge Asm_prog)).
+  Instance SemTarget : Semantics:= @x86_context.X86Context.X86Sem Asm_prog asm_genv_safe.
+  Existing Instance X86Inj.X86Inj.
 
-  Module ThreadPoolX86 := ThreadPoolWF X86SEM X86Machines.
+  Variable init_mem_wd:
+    forall m,
+      Genv.init_mem Asm_prog = Some m ->
+      mem_obs_eq.MemoryWD.valid_mem m /\
+      mem_obs_eq.CoreInjections.ge_wd (Renamings.id_ren m) the_ge.
+        
+  (* This should be instantiated:
+     it says initial_Clight_state taken from CPROOF, is an initial state of CompCert.
+   *)
+  Context (CPROOF_initial:
+             Clight.start_stack (Clight.globalenv Clight_prog)
+                                (init_mem CPROOF)
+                                (Clight_safety.initial_Clight_state CPROOF)
+                                Main_ptr nil).
 
-  (** Safety of FineConc for X86*)
-  Import fineConc_x86.FineConcX86Safe.
+ (* MOVE THIS TO ANOTHER FILE *)
+  Lemma CPROOF_initial_mem:  Genv.init_mem (Ctypes.program_of_program Clight_prog) = Some (init_mem CPROOF).
+  Proof.
+  unfold Clight_prog, init_mem, semax_to_juicy_machine.init_mem, 
+    semax_initial.init_m, semax_to_juicy_machine.prog, Ctypes.program_of_program.
+  clear.
+  set (H := (semax_to_juicy_machine.init_mem_not_none CPROOF)).
+  clearbody H.
+  set (p := semax_to_juicy_machine.CSL_prog CPROOF) in *.
+  unfold Ctypes.program_of_program in H.
+  clearbody p.
+  set (m := Genv.init_mem
+          {|
+          AST.prog_defs := Ctypes.prog_defs p;
+          AST.prog_public := Ctypes.prog_public p;
+          AST.prog_main := Ctypes.prog_main p |}) in *.
+ clearbody m.
+ destruct m. reflexivity. contradiction H; auto.
+Qed. 
 
-  (** Safety of SC machine*)
-  Module X86SC := SCErasure X86SEM X86SEMAxioms X86Machines X86Context X86CoreErasure.
+  (*Safety from CSL to Coarse Asm*)
+  Definition SemSource p:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)).
+  Definition THM m:=
+    (HybridMachineSig.HybridMachineSig.ConcurMachineSemantics
+       (Sem:=SemTarget)
+       (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
+       (HybridMachine:=concurrent_compiler_safety.TargetHybridMachine)
+       (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig) m).
 
-  Module ErasureSafety := ErasureSafety.
-  Import ErasureSafety.
+  Definition EHM m:=
+    (HybridMachineSig.HybridMachineSig.ConcurMachineSemantics
+       (Sem:=SemTarget)
+       (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
+       (HybridMachine:=@bareMach SemTarget)
+       (machineSig:= BareMachine.BareMachineSig) m).
 
-  Definition step_diagram:= ErasureProof.core_diagram.
+  Context {SW : Clight_safety.spawn_wrapper CPROOF}.
 
+  Variable ConcurrentCompilerSafety:
+    ConcurrentCompilerSafety_statement.
+  Lemma CSL2CoarseAsm_safety:
+    forall U,
+    exists init_mem_target init_mem_target' init_thread_target,
+      let res_target := permissions.getCurPerm init_mem_target' in
+      let res:=(res_target, permissions.empty_map) in
+  let init_tp_target :=
+      threadPool.ThreadPool.mkPool
+        (Sem:=SemTarget)
+        (resources:=erasure_proof.Parching.DR)
+        (Krun init_thread_target)
+      res in
+  let init_MachState_target := (U, nil, init_tp_target) in  
+      machine_semantics.initial_machine (THM (Genv.init_mem Asm_prog)) (Some res) init_mem_target init_tp_target init_mem_target' Main_ptr nil /\
+  forall n,
+    HybridMachineSig.HybridMachineSig.HybridCoarseMachine.csafe
+      (ThreadPool:=threadPool.OrdinalPool.OrdinalThreadPool
+                     (Sem:=SemTarget))
+      (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
+      init_MachState_target init_mem_target' n.
+  Proof.
+    intros.
+    pose proof (@ConcurrentCompilerSafety _ _ compilation asm_genv_safe) as H.
+    unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
+    specialize (H U (init_mem CPROOF) (init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
+    match type of H with
+      | ?A -> _ => cut A
+    end.
+    intros HH; specialize (H HH);
+    match type of H with
+      | ?A -> _ => cut A
+    end.
+    intros HH'; specialize (H HH');
+      match type of H with
+      | ?A -> _ => cut A; try (intros; eapply Clight_initial_safe; auto)  (*That didn't work?*)
+      end.
+    intros HH''; specialize (H HH'').
 
-  Section Initil.
-   (*The following variables represent a program satisfying some CSL*)
-    Variables
-      (CS : compspecs)
-      (V : varspecs)
-      (G : funspecs)
-      (ext_link : string -> ident)
-      (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
-      (prog : Ctypes.program _)
-      (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
-      (init_mem_not_none : Genv.init_mem (Ctypes.program_of_program prog) <> None)
-      (x: block)
-      (block: (Genv.find_symbol (globalenv prog) (prog_main (Ctypes.program_of_program prog)) = Some x)).
+    - destruct H as (mem_t& mem_t' & thread_target & INIT_mem & INIT & SAFE).
+      exists mem_t, mem_t', thread_target; split (*;[|split] *).
+      + eauto. (*Initial memory*)
+        (*
+      + (**) 
+        clear - INIT.
+        simpl in INIT.
+        destruct INIT as (INIT_mem' & c & (INIT&mem_eq) & EQ); simpl in *.
+        cut (c = thread_target).
+        * intros ?; subst c; eauto.
+        * clear - EQ.
+          cut (Krun c = Krun thread_target).
+          { intros HH; inversion HH; eauto. }
+          match type of EQ with
+          | ?A = ?B =>
+            remember A as C1; remember B as C2
+          end.
+          assert (cnt1: OrdinalPool.containsThread C1 0).
+          { clear - HeqC1. unfold OrdinalPool.containsThread.
+            subst C1; auto. }
+          assert (cnt2: OrdinalPool.containsThread C2 0).
+          { clear - HeqC2. unfold OrdinalPool.containsThread.
+            subst C2; auto. }
+          replace (Krun c) with (OrdinalPool.getThreadC cnt2) by (subst C2; simpl; auto).
+          replace (Krun thread_target) with (OrdinalPool.getThreadC cnt1) by (subst C1; simpl; auto).
+          clear - EQ.
+          subst C1; auto.
+          f_equal. eapply Axioms.proof_irr. *)
+      + eapply SAFE.
 
+    - clear H. split; eauto; econstructor; repeat split; try reflexivity; eauto.
+    - apply CPROOF_initial_mem.
+  Qed.
 
-    Definition js_initial n := initial_machine_state CS V G ext_link prog all_safe
-                                                     init_mem_not_none n.
-    Definition dry_initial_perm :=
-      getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
+  Notation sc_execution := (@Executions.fine_execution _ BareDilMem BareMachine.resources
+                                            BareMachine.BareMachineSig).
+  Theorem CSL2FineBareAsm_safety:
+    forall U,
+    exists init_mem_target init_mem_target' init_thread_target,
+      let init_tp_target :=
+          threadPool.ThreadPool.mkPool
+            (Sem:=SemTarget)
+            (resources:=BareMachine.resources)
+            (Krun init_thread_target) tt in  
+      machine_semantics.initial_machine (EHM (Genv.init_mem Asm_prog)) (Some tt) init_mem_target
+                                        init_tp_target init_mem_target' Main_ptr nil /\
 
-    Definition dry_initial_core:=
-      initial_core (juicy_core_sem cl_core_sem)
-                   (globalenv prog) (Vptr x Int.zero) nil.
-
-    Definition initial_cstate :=
-      initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
-
-    Definition ds_initial := DMS.initial_machine
-                               dry_initial_perm initial_cstate.
-
-
-    Lemma erasure_match: forall n,
-        ErasureProof.match_st (js_initial n) ds_initial.
-    Proof. intros.
-           constructor.
-           - intro i.
-             unfold js_initial, initial_machine_state, ErasureProof.JTP.containsThread; simpl;
-             unfold ds_initial ,DMS.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
-           - intro i.
-             unfold js_initial, initial_machine_state, ErasureProof.JTP.containsThread; simpl;
-             unfold ds_initial ,DMS.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
-           - unfold ErasureProof.JTP.getThreadC, ErasureProof.DTP.getThreadC; simpl.
-             intros.
-             transitivity (Krun initial_cstate).
-             + reflexivity.
-             + reflexivity.
-           - intros.
-             unfold ErasureProof.JTP.getThreadR;
-               unfold ErasureProof.DTP.getThreadR; simpl.
-             pose proof initial_invariant as INV.
-             do 7 autospec INV.
-             specialize (INV n nil).
-             remember (initial_state CS V G ext_link prog all_safe init_mem_not_none tid nil) as cm.
-             destruct cm as ((m, ge), (sch, tp)).
-             unfold initial_jm in *.
-             unfold initial_state in *.
-             unfold spr in *.
-             remember
-              (semax_prog_rule (Concurrent_Espec unit CS ext_link) V G
-                       prog (proj1_sig (init_mem prog init_mem_not_none)) all_safe
-                       (proj2_sig (init_mem prog init_mem_not_none))) as spr.
-             unfold init_mem in *.
-             rewrite <- Heqspr in Heqcm.
-             unfold dry_initial_perm in *.
-             rewrite <- Heqspr in *.
-             destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
-             clear Heqspr.
-             simpl projT1 in *; simpl projT2 in *.
-             injection Heqcm as -> -> -> -> .
-             simpl in *.
-             destruct (JS n) as [[m phi CON ACC MAX All] [E HYPS]]; simpl.
-             simpl in E. rewrite <-E.
-             rewrite <-ACC.
-             unfold Memory.access_at in *.
-             rewrite getCurPerm_correct.
-             simpl.
-             unfold permission_at in *.
-             reflexivity.
-           - intros.
-             simpl. rewrite empty_map_spec.
-             unfold initial_jm; simpl.
-             destruct spr as (b' & q & [e INIT'] & f); simpl.
-             destruct f;
-               simpl proj1_sig in *; simpl proj2_sig in *.
-             destruct a as (_ & _ & _ & nLOCKS & _).
-             Lemma no_locks_perm_locks: forall rm l,
-                 no_locks rm -> perm_of_res_lock (rm @ l) = None.
-             Proof.
-               move=> rm l /( _ l).
-               destruct (rm @ l); eauto.
-               destruct k; eauto;
-               move=> /(_ t0 p z p0) [] A B; exfalso.
-               - apply A; auto.
-               - apply B; auto.
-             Qed.
-             apply no_locks_perm_locks; assumption.
-           - intros.
-             unfold ErasureProof.DMS.ThreadPool.lockRes;
-               unfold ErasureProof.DMS.ThreadPool.lockRes.
-             auto.
-           - unfold ErasureProof.DMS.ThreadPool.lockRes.
-             simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
-           - unfold ErasureProof.DMS.ThreadPool.lockRes.
-             simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
-           - unfold ErasureProof.DMS.ThreadPool.lockRes.
-             simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
-    Qed.
-
-    Definition initial_memory:= (proj1_sig (init_mem prog init_mem_not_none)).
-
-    (** * Safety of the dry Clight concurrent semantics*)
-    Theorem dry_clight_safety: forall n sch,
-        DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n.
-    Proof.
+      (forall n,
+        HybridMachineSig.HybridMachineSig.HybridFineMachine.fsafe
+          (dilMem:= BareDilMem)
+          (ThreadPool:=threadPool.OrdinalPool.OrdinalThreadPool
+                         (resources:=BareMachine.resources)
+                         (Sem:=SemTarget))
+          (machineSig:= BareMachine.BareMachineSig)
+          init_tp_target (@HybridMachineSig.diluteMem BareDilMem init_mem_target') U n) /\
+      (forall final_state final_mem tr,
+          sc_execution (U, [::], init_tp_target)
+                       (@HybridMachineSig.diluteMem BareDilMem init_mem_target')
+                       ([::], tr, final_state) final_mem ->
+          SpinLocks.spinlock_synchronized tr).
+  Proof.
+    intros U.
+    destruct (CSL2CoarseAsm_safety U) as
+        (init_mem_target & init_mem_target' & init_thread_target & INIT & Hsafe).
+    simpl in INIT.
+    unfold HybridMachineSig.init_machine'' in INIT.
+    destruct INIT as [Hinit_mem Hinit].
+    simpl in Hinit.
+    unfold HybridMachine.DryHybridMachine.init_mach in Hinit.
+    destruct Hinit as [c [Hinit Heq]].
+    exists init_mem_target, init_mem_target',
+    init_thread_target.
+    assert (init_thread_target = c).
+    { inversion Heq.
+      assert (0 < 1)%nat by auto.
+      eapply Extensionality.EqdepTh.inj_pair2 in H0.
+      apply equal_f in H0.
+      inversion H0; subst.
+      reflexivity.
+      simpl.
+      econstructor;
+        now eauto.
+    }
+    subst.
+    split.
+    - simpl.
+      unfold HybridMachineSig.init_machine''.
+      split; auto.
+      simpl.
+      unfold BareMachine.init_mach.
+      exists c.
+      split; auto.
+    - intros.
+      destruct (init_mem_wd  Hinit_mem ) as [Hvalid_mem Hvalid_ge].
+      pose (fineConc_safe.FineConcInitial.Build_FineInit Hvalid_mem Hvalid_ge).
+      eapply @X86Safe.x86SC_safe with (Main_ptr := Main_ptr) (FI := f); eauto.
+      intro; apply Classical_Prop.classic.
+      (* proof of safety for new schedule *)
       intros.
-      assert (AA:=safety_initial_state CS V G ext_link ext_link_inj prog all_safe init_mem_not_none sch n).
-      assert (BB:= erasure_match).
-      assert (CC:= erasure_safety' n).
-      eapply CC in BB.
-      - eapply BB.
-      - unfold ds_initial.
-        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
-      - eapply AA.
-    Qed.
-
-    (** * New Safety of the dry Clight concurrent semantics*)
-
-    (*This is the result I need from the juicy semantics*)
-    Axiom juicy_initial_safety: forall (CS : compspecs) (V : varspecs) (G : funspecs)
-         (ext_link : string -> ident),
-       (forall s1 s2 : string, ext_link s1 = ext_link s2 -> s1 = s2) ->
-       forall (prog : program)
-         (all_safe : semax_prog (Concurrent_Espec unit CS ext_link)
-                       prog V G)
-         (init_mem_not_none : Genv.init_mem
-                                (Ctypes.program_of_program prog) <> None)
-         (sch : schedule) (n : nat),
-          JuicyMachine.ksafe_new_step
-         (globalenv prog)
-         (sch, nil,
-         initial_machine_state CS V G ext_link prog all_safe
-           init_mem_not_none n)
-         (proj1_sig (init_mem prog init_mem_not_none)) n.
-
-   Axiom juicy_initial_all_valid: forall n sch,
-        (ErasureProof.JuicyMachine.valid
-          (sch, nil,
-         initial_machine_state CS V G ext_link prog all_safe
-           init_mem_not_none n)).
-
-    Theorem new_dry_clight_safety: forall n sch,
-        DryMachine.ksafe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory n.
-    Proof.
-      intros.
-      eapply new_erasure_safety'; eauto.
-      - eapply juicy_initial_all_valid.
-      - eapply erasure_match.
-      - eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
-      - intros sch0. eapply juicy_initial_safety; auto.
-    Qed.
-
-    (*Before going from ksafe to safe, we neet to show, that our execution is mem_bounded*)
-    Lemma ksafe_new_step_ksafe_new_step_bounded: forall ge ds m,
-        (forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
-            DryMachine.new_valid  (DryMachine.mk_nstate (sch, nil, ds) m) sch ->
-          DryMachine.ksafe_new_step ge
-                                    (sch, [::], ds) m n) ->
-      forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
-        DryMachine.new_valid_bound (DryMachine.mk_nstate (sch, nil, ds) m) sch ->
-        safety.ksafe DryMachine.new_state ErasureProof.DryMachine.Sch
-                     (DryMachine.new_step ge) DryMachine.new_valid_bound (*Notice the stronger validity*)
-                     (DryMachine.mk_nstate (sch, nil, ds) m) sch n.
-    Proof.
-      move => ge ds m KSAFE n.
-      specialize (KSAFE n).
-      move : ds m KSAFE.
-      induction n.
-      - move => ds m KSAFE sch.
-        specialize (KSAFE sch).
-        constructor 1.
-
-      - move => ds m KSAFE sch [] VAL BOUND.
-        specialize (KSAFE sch VAL).
-        inversion KSAFE.
-        econstructor ; eauto.
-        move => U'' [] VAL'' BOUND''.
-        unfold DryMachine.mk_nstate in IHn; simpl in IHn.
-        destruct st' as [[tr' ds'] m'].
-        cut (tr' = (@nil DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.Events.machine_event)).
-        + intros HH; subst tr'.
-          eapply IHn; eauto.
-          split; eauto.
-        + inversion H0.
-          * auto.
-          * simpl in *; subst.
-            inversion H2; simpl in *; auto.
-    Qed.
-
-    Theorem new_dry_clight_infinite_safety': forall sch,
-        DryMachine.new_valid_bound (nil, ds_initial, initial_memory) sch  ->
-        DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds_initial) initial_memory.
-    Proof.
-      move => sch VAL.
-      apply: safety.ksafe_safe' => //.
-      - exact Classical_Prop.classic.
-      - move => ds.
-        simpl.
-        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.FiniteBranching.finite_branching.
-      - move => n U.
-        rewrite /DryMachine.mk_nstate /=.
-        simpl; eapply ksafe_new_step_ksafe_new_step_bounded.
-        + intros.
-          simpl; apply: new_dry_clight_safety.
-    Qed.
-
-    (*To use the result we must go back to the normal safety (from safety of bounded states)*)
+      pose proof (CSL2CoarseAsm_safety sched) as
+          (init_mem_target2 & init_mem_target2' & init_thread_target2 & INIT2 & Hsafe2).
+      simpl in INIT2.
+      unfold HybridMachineSig.init_machine'' in INIT2.
+      destruct INIT2 as [Hinit_mem2 Hinit2].
+      rewrite Hinit_mem2 in Hinit_mem.
+      inversion Hinit_mem; subst.
+      simpl in Hinit2.
+      unfold HybridMachine.DryHybridMachine.init_mach in Hinit2.
+      destruct Hinit2 as [c2 [Hinit2 Heq2]].
+      destruct (Asm.semantics_determinate Asm_prog).
+      simpl in sd_initial_determ.
+      simpl in Hinit, Hinit2.
+      destruct Hinit as [Hinit ?], Hinit2 as [Hinit2 ?]; subst.
+      specialize (sd_initial_determ _ _ _ _ _ Hinit Hinit2); subst.
+      now eauto.
+  Qed.
+    
+  End MainTheorem.
+  
+End Main.
 
 
-    Lemma bounded_mem_step:
-            forall ge sm m sm' m',
-          DryMachine.MachStep ge sm m sm' m' ->
-          DryMachine.bounded_mem m ->
-          DryMachine.bounded_mem m'.
-    Proof.
-      intros.
-      inversion H; eauto; simpl in *; subst; eauto.
-      - (*thread step *)
-        clear - H0 Htstep .
-        inversion Htstep; subst.
-        move : Hcorestep=> /=.
-        simpl.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.SEM.Sem
-              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
-              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.CLN_evsem.
+(* Test an instantiation of Main theorem. *)
+Module CC_correct: CompCert_correctness.
+  Axiom CompCert_compiler : Clight.program -> option Asm.program.
+  Axiom simpl_clight_semantic_preservation :
+    forall (p : Clight.program) (tp : Asm.program),
+      CompCert_compiler p = Some tp ->
+      ExposedSimulations.fsim_properties_inj (Clight.semantics2 p) (Asm.semantics tp)
+                                             Clight.get_mem Asm.get_mem.
 
-        move=> HH.
-        eapply ev_step_ax1 in HH.
-        simpl in HH.
-        unfold corestep in HH.
-        rewrite SEM.CLN_msem in HH.
-        simpl in HH.
-        eapply Clight_bounds.CLight_step_mem_bound in HH; eauto.
-        eapply Clight_bounds.bounded_getMaxPerm in H0; eauto.
+End CC_correct.
 
-      - inversion Htstep; eauto; simpl in *; subst; auto;
-        eapply Clight_bounds.store_bounded; try eapply Hstore;
-        eapply Clight_bounds.bounded_getMaxPerm; eauto.
-    Qed.
+Module Test_Main:= (Main CC_correct).
+Import Test_Main.
 
-    Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
-        DryMachine.new_valid_bound (nil, ds, m) sch ->
-        DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds) m ->
-            DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds) m.
-    Proof.
-      rewrite /DryMachine.safe_new_step
-              /DryMachine.safe_new_step_bound
-              /DryMachine.mk_nstate /=.
-      cofix.
-      move=> sch ds m [] VAL BOUND SAFE.
-      inversion SAFE.
-      econstructor; eauto.
-      intros.
-      assert (DryMachine.new_valid_bound st' U'').
-      { split; eauto.
-        destruct st' as [[? ?] m']; simpl in *.
-        inversion H.
-        - simpl in *; subst; auto.
-        - simpl in *; subst.
-          unfold DryMachine.mk_ostate in H2; simpl in *.
-          eapply bounded_mem_step; eauto. }
-
-      destruct st' as [[tr' ds'] m']; simpl in *.
-
-      assert (tr' = nil).
-      { inversion H; auto.
-        simpl in *; subst.
-        inversion H3; simpl in *; subst; auto.
-      }
-
-      subst tr'.
-      eapply safe_new_step_bound_safe_new_step; eauto.
-      Guarded.
-    Qed.
-
-    Lemma bounded_empty_mem:
-           DryMachine.bounded_mem Mem.empty.
-        Proof. intros b0 f.
-               intros HH.
-               exists 0%Z. exists 0%Z.
-               split.
-               - intros.
-                 unfold getMaxPerm, PMap.map in HH.
-                 simpl in HH.
-                 rewrite PTree.gleaf in HH; inversion HH.
-               - intros.
-                 unfold getMaxPerm, PMap.map in HH.
-                 simpl in HH.
-                 rewrite PTree.gleaf in HH; inversion HH.
-        Qed.
-    Lemma bounded_initial_mem:
-      DryMachine.bounded_mem initial_memory.
-        rewrite /initial_memory /init_mem /init_m.
-
-        destruct (Genv.init_mem (Ctypes.program_of_program prog)) eqn:HH;
-          [ |exfalso; apply init_mem_not_none; auto].
-        move: HH => /=.
-        rewrite /Genv.init_mem.
-        pose (K:= (prog_defs (Ctypes.program_of_program prog))).
-        pose (m':= Mem.empty).
-        assert ( DryMachine.bounded_mem m').
-        { subst; apply bounded_empty_mem. }
-
-
-        move : (H).
-        fold K m'.
-        move: (m').
-        induction K.
-        - intros ? ? HH; inversion HH. subst; eauto.
-
-        - move=> M BM.
-          simpl.
-
-
-
-          destruct (Genv.alloc_global (Genv.globalenv (Ctypes.program_of_program prog))
-                                      M a) eqn: AA;
-            try solve[intros HH; inversion HH].
-          intros HH.
-          pose (@Clight_bounds.alloc_global_bounded
-                  _ _
-                  (Genv.globalenv (Ctypes.program_of_program prog))
-               M m0 a).
-          eapply b in BM; eauto.
-    Qed.
-
-    Theorem new_dry_clight_infinite_safety_valid': forall sch,
-        DryMachine.new_valid (nil, ds_initial, initial_memory) sch  ->
-        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
-    Proof.
-      intros.
-      eapply safe_new_step_bound_safe_new_step.
-      - split; eauto.
-        simpl.
-        apply bounded_initial_mem.
-      - eapply new_dry_clight_infinite_safety'.
-        split; eauto.
-        apply bounded_initial_mem.
-    Qed.
-
-    Theorem new_dry_clight_infinite_safety: forall sch,
-        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
-    Proof.
-      cofix.
-      move=> U.
-      destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek U) eqn:Us.
-      destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.TID.eq_tid_dec 0 t0) eqn:AA.
-      - eapply new_dry_clight_infinite_safety_valid'.
-        rewrite /DryMachine.new_valid /DryMachine.correct_schedule /=.
-        subst. rewrite Us.
-        rewrite /ds_initial /dry_initial_perm /initial_cstate /DMS.initial_machine /=.
-        rewrite /DryMachine.unique_Krun /=.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.containsThread /= => j cntj.
-        intros.
-        move: (cntj) => /ltP /NPeano.Nat.lt_1_r -> .
-        destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.TID.eq_tid_dec 0 0); auto.
-
-      - econstructor.
-        eapply DryMachine.step_with_halt.
-        rewrite /DryMachine.mk_ostate /DryMachine.mk_nstate /DryMachine.MachStep /=.
-        instantiate (2:= (nil, ds_initial, initial_memory) ).
-        eapply DryMachine.schedfail => //.
-        eassumption.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.containsThread.
-        simpl. clear - n.
-        move => /ltP HH . apply n.
-        destruct (NPeano.Nat.lt_1_r t0) as [H H0].
-        symmetry; apply: H HH.
-
-        simpl.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.invariant /ds_initial.
-
-        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
-
-        (* This comees from using the old initial_invariant lemma:
-        with (the_ge:=(globalenv prog) ) (pmap:=Some (dry_initial_perm, empty_map)).
-
-
-
-        intros.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.init_mach /=.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.SEM.Sem /=.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
-                ClightSemantincsForMachines.ClightSEM.CLN_msem /=.
-        (*Something about initial core!*)
-
-        rewrite /dry_initial_perm.
-
-
-        /init_m /=.
-        destruct (Genv.init_mem (Ctypes.program_of_program prog)) eqn:HH.
-        instantiate (1:=(Ctypes.program_of_program prog)).
-        a dmit. *)
-
-        intros.
-        eapply new_dry_clight_infinite_safety.
-
-      - eapply new_dry_clight_infinite_safety_valid'.
-        rewrite /DryMachine.new_valid /DryMachine.correct_schedule /=.
-        subst. rewrite Us.
-        auto.
-    Qed.
-
-    Require Import VST.concurrency.dry_context.
-    (*Definition dry_initial_core_2:=
-      initial_core (coarse_semantics)
-                   (the_ge) (Vptr x Int.zero) nil.
-    Definition initial_cstate_2 :=
-      initial_core coarse_semantics the_ge (Vptr x Int.zero) nil. *)
-    (* Definition ds_initial_2 := DryMachine.SIG.init_mach
-                                 init_perm ge
-                                 (Vptr x Int.zero) nil. *)
-
-    Definition compiled_machine_simulation:= lftng.concur_sim.
-
-    Definition gTx86 := X86Context.the_ge.
-    Parameter b: Values.block.
-    Definition main: val:= (Vptr x Int.zero).
-    Definition p: option dry_machine.LocksAndResources.res:=
-      Some (dry_initial_perm, empty_map).
-    Parameter sch : X86Machines.SC.Sch.
-
-    Definition this_simulation:=
-      compiled_machine_simulation gTx86 (globalenv prog) main p X86Context.init_perm sch.
-
-      (*destruct this_simulation.*)
-      (*assert (HH:= wholeprog_simulations.Wholeprog_sim.match_state
-                     _ _ _ _ _ _ _ _
-                     this_simulation). *)
-      Definition compiler_match:=
-        machine_simulation.Machine_sim.match_state
-          _ _ _ _ _ _ _ _
-          this_simulation.
-
-      Definition initial_target_state :=
-        initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
-
-
-
-
-      (*Definition ds_initial := X86Machines.DryMachine.initial_machine
-                                 dry_initial_perm initial_corestate.*)
-
-        (** *The comiler preserves safety*)
-      Definition core_init:=
-        machine_simulation.Machine_sim.core_initial
-          _ _ _ _ _ _ _ _
-          this_simulation.
-
-      Lemma compilation_safety_step:
-        forall p U Sg Tg Sds Sm Tds Tm cd j,
-          (match_st Tg Sg main p X86Context.init_perm U cd j Sds Sm Tds Tm) ->
-       (forall sch : ErasureProof.DryMachine.Sch,
-        DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.valid
-          (sch, [::], Sds) ->
-        DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.safe_new_step
-          Sg (sch, [::], Sds) Sm) ->
-       forall sch : foo.SC.Sch,
-       X86Machines.DryConc.valid (sch, [::], Tds) ->
-       X86Machines.DryConc.safe_new_step Tg (sch, [::], Tds) Tm.
-      Proof. intros. eapply safety_preservation; eauto. Qed.
-
-      Lemma compilation_safety_preservation_aux:
-        forall j (c1 : ErasureProof.dstate)
-          (vals2 : seq.seq val)
-         (m2 : mem),
-       machine_semantics.initial_machine
-         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.new_MachineSemantics
-            sch p) (globalenv prog) main nil =
-       Some c1 ->
-       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
-       exists
-       (c2 : foo.FineConc.machine_state),
-         machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
-           vals2 = Some c2 /\
-         forall sch : foo.SC.Sch,
-           X86Machines.DryConc.valid (sch, nil, c2) ->
-           X86Machines.DryConc.safe_new_step gTx86 (sch, nil, c2) m2.
-      Proof.
-        move=> ? c1 vals2 ? /= INIT.
-        move: (INIT)=> /core_init HH /HH [] cd [] c2 [] AA MATCH.
-        move: (MATCH)=> /compilation_safety_step BB.
-        exists c2; split; [assumption|].
-        intros sch; eapply compilation_safety_step; eauto.
-        + move => sch' VAL.
-
-          assert (source_safety:=new_dry_clight_infinite_safety).
-
-          assert (c1 = ds_initial).
-          { move: INIT.
-            rewrite /ds_initial /initial_cstate /initial_corestate.
-            destruct spr as (b & q & [e INIT'] & f); simpl.
-            replace (initial_core (juicy_core_sem cl_core_sem)) with cl_initial_core in INIT' by reflexivity.
-            rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.init_machine'
-                    /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.init_mach
-                    /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
-                    /DryMachineSource.THE_DRY_MACHINE_SOURCE.SEM.Sem.
-            rewrite DryMachineSource.THE_DRY_MACHINE_SOURCE.SEM.CLN_msem.
-            assert (HH':initial_core CLN_memsem = cl_initial_core) by
-                reflexivity.
-            rewrite HH' /main.
-            rewrite block in e; inversion e; subst.
-            move INIT' at bottom.
-
-            rewrite INIT' => EQ; inversion EQ.
-            reflexivity. }
-          subst c1; apply source_safety.
-      Qed.
-
-
-      Lemma compilation_ksafety_preservation_aux:
-        forall j (c1 : ErasureProof.dstate)
-          (vals2 : seq.seq val)
-         (m2 : mem),
-       machine_semantics.initial_machine
-         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.new_MachineSemantics
-            sch p) (globalenv prog) main nil =
-       Some c1 ->
-       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
-       exists
-       (c2 : foo.FineConc.machine_state),
-         machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
-           vals2 = Some c2 /\
-         forall sch : foo.SC.Sch,
-           X86Machines.DryConc.valid (sch, nil, c2) ->
-           forall k, X86Machines.DryConc.ksafe_new_step gTx86 (sch, nil, c2) m2 k.
-      Proof.
-        move => j c vals m /compilation_safety_preservation_aux
-                 HH /HH [] cd [] AA BB.
-        exists cd. split; [exact AA|].
-          by move=> sch VAL; apply: safety.safe_ksafe'.
-      Qed.
-
-      Lemma compilation_csafety_preservation_aux:
-        forall j (c1 : ErasureProof.dstate)
-          (vals2 : seq.seq val)
-         (m2 : mem),
-       machine_semantics.initial_machine
-         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.new_MachineSemantics
-            sch p) (globalenv prog) main nil =
-       Some c1 ->
-       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
-       exists
-       (c2 : foo.FineConc.machine_state),
-         machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
-           vals2 = Some c2 /\
-         forall sch : foo.SC.Sch,
-           X86Machines.DryConc.valid (sch, nil, c2) ->
-           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c2) m2 k.
-      Proof.
-        move => j c vals m /compilation_ksafety_preservation_aux
-                 HH /HH [] cd [] AA BB.
-        exists cd. split; [exact AA|].
-        by move=> sch VAL k; eapply X86Machines.DryConc.safety_equivalence'; auto.
-      Qed.
-
-
-      Lemma initial_safety_reduction:
-        forall sch m c vals,
-        machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
-           vals = Some c ->
-        (forall sch : foo.SC.Sch,
-           X86Machines.DryConc.valid (sch, nil, c) ->
-           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c) m k) ->
-        forall sch : foo.SC.Sch,
-           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c) m k.
-      Proof.
-        rewrite /= => _.
-        rewrite /X86Machines.DryConc.init_machine'
-                /X86Machines.DryMachine.init_mach
-                /p
-                /X86Machines.DryMachine.initial_machine.
-        replace (initial_core X86Machines.DryMachine.ThreadPool.SEM.Sem)
-        with Asm_coop.Asm_initial_core by reflexivity.
-        move => m c vals;
-          destruct (Asm_coop.Asm_initial_core gTx86 main vals);
-          move=> HH IF_VAL sch k ; try solve[inversion HH].
-        move : c m HH  IF_VAL sch .
-        induction k.
-        - by constructor.
-        - move=> c m HH  IF_VAL sch.
-          pose (valid_dec:= X86Machines.DryConc.valid (sch, [::], c)).
-          destruct (Classical_Prop.classic valid_dec) as [VAL|NVAL].
-          + by apply: IF_VAL.
-          + destruct (dry_machine.Concur.mySchedule.schedPeek sch) eqn:SCH.
-            - eapply X86Machines.DryConc.AngelSafe.
-              eapply X86Machines.DryConc.schedfail.
-              + exact SCH.
-              + simpl.
-                move=> HHH.
-                apply NVAL.
-                rewrite /valid_dec
-                        / X86Machines.DryConc.valid
-                        /X86Machines.DryConc.correct_schedule.
-                simpl.
-                rewrite SCH.
-                intros j cntj q _ _.
-                clear - HH cntj HHH.
-                move : cntj HHH.
-                rewrite /X86Machines.DryMachine.ThreadPool.containsThread.
-                destruct (X86Context.init_perm); try discriminate.
-                inversion HH; subst; simpl.
-                clear.
-                move => /ltP AA /ltP BB .
-                assert (j =0). destruct j; auto; omega.
-                assert (t0 =0). destruct t0; auto; omega.
-                subst; auto.
-                destruct (dry_machine.Concur.mySchedule.TID.eq_tid_dec 0 0).
-                auto.
-                exfalso; apply n; auto.
-              + simpl.
-                (*apply initial inveraint of X86*)
-                destruct (X86Context.init_perm); try discriminate.
-                inv HH.
-                now eapply ThreadPoolX86.initial_invariant0.
-              + reflexivity.
-              + intros. apply IHk; eauto.
-            - eapply X86Machines.DryConc.HaltedSafe.
-                by rewrite /X86Machines.DryConc.halted SCH.
-      Qed.
-
-      (** *Safety of the dry x86 concurrent semantics,*)
-    (** *whit a cooperative schedule*)
-      Lemma dry_x86_coarse_safety:
-        forall j (c1 : ErasureProof.dstate)
-          (vals2 : seq.seq val) m2,
-          X86Context.init_mem = Some m2 ->
-       machine_semantics.initial_machine
-         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryConc.new_MachineSemantics
-            sch p) (globalenv prog) main nil =
-       Some c1 ->
-       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
-       exists
-       (c2 : foo.FineConc.machine_state),
-         machine_semantics.initial_machine
-           (X86Machines.DryConc.new_MachineSemantics X86Context.initU X86Context.init_perm) gTx86 main
-           vals2 = Some c2 /\
-         forall sch : foo.SC.Sch,
-           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c2) m2 k.
-      Proof.
-        move => j c vals m ? /compilation_csafety_preservation_aux
-                 HH /HH [] cd [] AA BB.
-        exists cd. split; [exact AA|].
-        move=> sch k.
-        apply: initial_safety_reduction; eauto.
-      Qed.
-
-    (** *Safety of the x86 FineConc Machine*)
-
-    Theorem x86_fine_safe:
-      forall tpc tpf vals m,
-        machine_semantics.initial_machine
-        (X86Machines.DryConc.new_MachineSemantics sch X86Context.init_perm) gTx86 main
-        vals = Some tpc ->
-        (forall sch : foo.SC.Sch,
-            forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, tpc) m k) ->
-        (X86Context.init_mem = Some m) ->
-        (mem_obs_eq.ValueWD.valid_val_list (mem_obs_eq.Renamings.id_ren m) vals) ->
-        X86Machines.FineConc.init_machine X86Context.initU X86Context.init_perm
-                                          gTx86 main vals = Some (sch, [::], tpf) ->
-    forall sch,
-      X86Machines.FineConc.fsafe gTx86 tpf (X86Machines.DryMachine.diluteMem m)
-                                 sch ((seq.size sch).+1).
-    Proof.
-      intros.
-      unfold gTx86.
-      eapply init_fine_safe with (U := sch) (f := main); eauto.
-      intros.
-      assert (tpc0 = tpc).
-      { clear - H5 H.
-        unfold X86Context.tpc_init, machine_semantics.initial_machine in *.
-        simpl in *.
-        unfold X86Machines.DryConc.init_machine, X86Machines.DryConc.init_machine' in *.
-        unfold gTx86 in *.
-        destruct (X86Machines.DryMachine.init_mach X86Context.init_perm X86Context.the_ge main vals);
-          inv H5; inv H; auto.
-      }
-      subst.
-      assert (m = mem)
-        by (rewrite H4 in H1; inv H1; auto); subst.
-      auto.
-    Qed.
-
-End Initil.
-End MainSafety.
+Check CSL2FineBareAsm_safety.
+Print Assumptions CSL2FineBareAsm_safety.

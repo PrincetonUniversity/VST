@@ -1,7 +1,7 @@
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.
 Require Import compcert.common.Values. (*for val*)
-Require Import VST.concurrency.permissions.
+Require Import VST.concurrency.common.permissions.
 Require Import Coq.ZArith.ZArith.
 Require Import compcert.lib.Coqlib.
 
@@ -47,8 +47,8 @@ Module MemoryLemmas.
   Transparent Mem.alloc.
 
   Lemma val_at_alloc_1:
-    forall m m' sz nb b ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
+    forall m m' lo hi nb b ofs
+      (Halloc: Mem.alloc m lo hi  = (m', nb))
       (Hvalid: Mem.valid_block m b),
       Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
       Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
@@ -63,8 +63,8 @@ Module MemoryLemmas.
   Qed.
 
   Lemma val_at_alloc_2:
-    forall m m' sz nb ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb)),
+    forall m m' lo hi nb ofs
+      (Halloc: Mem.alloc m lo hi = (m', nb)),
       Maps.ZMap.get ofs (Maps.PMap.get nb (Mem.mem_contents m')) = Undef.
   Proof.
     intros.
@@ -77,8 +77,8 @@ Module MemoryLemmas.
 
   (*stronger version of val_at_alloc_1*)
   Lemma val_at_alloc_3:
-    forall m m' sz nb b ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
+    forall m m' lo hi  nb b ofs
+      (Halloc: Mem.alloc m lo hi = (m', nb))
       (Hvalid: b <> nb),
       Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
       Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
@@ -214,8 +214,8 @@ Module MemoryLemmas.
   Qed.
 
   Lemma mem_free_contents:
-    forall m m2 sz b
-      (Hfree: Mem.free m b 0 sz = Some m2),
+    forall m m2 lo hi b
+      (Hfree: Mem.free m b lo hi = Some m2),
     forall b' ofs,
       Maps.ZMap.get ofs (Maps.PMap.get b' (Mem.mem_contents m)) =
       Maps.ZMap.get ofs (Maps.PMap.get b' (Mem.mem_contents m2)).
@@ -271,7 +271,7 @@ Module MemoryLemmas.
     forall chunk ptr v m m',
       Mem.storev chunk m ptr v = Some m' ->
       exists b ofs, ptr = Vptr b ofs /\
-               Mem.store chunk m b (Integers.Int.intval ofs) v = Some m'.
+               Mem.store chunk m b (Integers.Ptrofs.intval ofs) v = Some m'.
   Proof.
     intros.
     destruct ptr; try discriminate.

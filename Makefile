@@ -28,7 +28,7 @@ COMPCERT ?= compcert
 ANNOTATE=silent   # suppress chatty output from coqc
 # ANNOTATE=false  # leave chatty output of coqc unchanged
 
-CC_TARGET=compcert/cfrontend/Clight.vo
+CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
 OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox
@@ -38,6 +38,7 @@ CONCUR = concurrency
 CV1=$(shell cat compcert/VERSION)
 CV2=$(shell cat $(COMPCERT)/VERSION)
 
+ifneq ($(COMPCERT), compcert_new)
 ifneq ($(CV1), $(CV2))
  $(error COMPCERT_VERSION=$(CV1) but $(COMPCERT)/VERSION=$(CV2))
 endif
@@ -48,15 +49,20 @@ else
  $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT); make clightgen)
 endif
 endif
+endif
 
-EXTFLAGS= -R $(COMPCERT) compcert #-R Free DeepWeb.Free -R Custom Custom
+EXTFLAGS= -R $(COMPCERT) compcert
 
 # for SSReflect
 ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
+ifeq ($(COMPCERT), compcert_new)
+SHIM= -Q concurrency/shim VST.veric
+endif
+
+COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 #COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
@@ -101,35 +107,21 @@ SEPCOMP_FILES = \
   globalSep.v \
   mem_lemmas.v \
   reach.v \
+  mem_wd.v \
   semantics.v semantics_lemmas.v \
-  simulations.v \
   step_lemmas.v \
   structured_injections.v
 
 # what is:  erasure.v context.v context_equiv.v jstep.v
 
-CONCUR_FILES= \
-  addressFiniteMap.v cast.v compcert_imports.v \
-  compcert_threads_lemmas.v threadPool.v  \
-  semantics.v \
-  concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
-  dry_machine_lemmas.v dry_machine_step_lemmas.v \
-  Clight_bounds.v enums_equality.v\
-  ClightSemantincsForMachines.v Clight_coreSemantincsForMachines.v \
-  JuicyMachineModule.v DryMachineSource.v \
-  erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
-  fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
-  lksize.v \
-  main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
-  bounded_maps.v \
-  rc_semantics.v rc_semantics_lemmas.v \
-  scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
-  threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \
-  sync_preds_defs.v sync_preds.v oracular_refinement.v \
+CONCUR_JUICY_FILES= \
+  cl_step_lemmas.v erasure_proof.v erasure_safety.v erasure_signature.v \
+  join_lemmas.v juicy_machine.v JuicyMachineModule.v \
+  resource_decay_lemmas.v resource_decay_join.v \
+  rmap_locking.v \
   semax_conc_pred.v semax_conc.v semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
-  semax_simlemmas.v cl_step_lemmas.v \
+  semax_simlemmas.v \
   semax_progress.v semax_preservation.v \
   semax_preservation_jspec.v \
   semax_preservation_local.v \
@@ -138,19 +130,38 @@ CONCUR_FILES= \
   semax_safety_makelock.v \
   semax_safety_freelock.v \
   semax_safety_spawn.v \
-  resource_decay_lemmas.v \
-  rmap_locking.v \
-  permjoin.v \
-  resource_decay_join.v join_lemmas.v coqlib5.v \
-  konig.v safety.v \
-	reestablish.v \
-	lifting.v lifting_safety.v \
-linking_spec.v	\
-  machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
-  coinductive_safety.v CoreSemantics_sum.v \
-  concurrent_machine_rec.v HybridMachine.v
+  sync_preds_defs.v sync_preds.v
 
-#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
+CONCUR_COMMON_FILES= \
+  addressFiniteMap.v \
+  bounded_maps.v \
+  Clight_bounds.v ClightSemantincsForMachines.v  \
+  core_semantics.v \
+  dry_context.v \
+  dry_machine_lemmas.v dry_machine_step_lemmas.v \
+  enums_equality.v \
+  erased_machine.v \
+  HybridMachine.v \
+  konig.v \
+  lksize.v \
+  machine_semantics.v machine_semantics_lemmas.v \
+  permissions.v permjoin_def.v pos.v permjoin.v \
+  scheduler.v \
+  semantics.v \
+  sepcomp.v \
+  ssromega.v \
+  tactics.v \
+  threadPool.v \
+  threads_lemmas.v \
+
+CONCUR_COMPILER_FILES= \
+  safety.v CoreSemantics_sum.v concurrent_compiler_safety_proof.v \
+#  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v \
+#  lifting.v lifting_safety.v \
+#  compiler_correct.v
+
+CONCUR_FILES= lksize.v semax_conc.v semax_conc_pred.v \
+        memsem_lemmas.v main.v memory_lemmas.v  \
 
 PACO_FILES= \
   hpattern.v\
@@ -212,7 +223,7 @@ VERIC_FILES= \
   semax_ext_oracle.v mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v \
+   coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
    library.v proofauto.v computable_theorems.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
@@ -223,10 +234,11 @@ FLOYD_FILES= \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v \
-   local2ptree_denote.v local2ptree_eval.v fieldlist.v mapsto_memory_block.v\
+   local2ptree_denote.v local2ptree_eval.v local2ptree_typecheck.v \
+   fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v field_at_wand.v stronger.v \
-   for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
+   for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v
 #real_forward.v
 
@@ -250,7 +262,7 @@ PROGS_FILES= \
   funcptr.v verif_funcptr.v tutorial1.v  \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
   verif_strlib.v verif_fib.v bug83.v \
-  tree.v verif_tree.v
+  tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
@@ -356,7 +368,7 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c
+SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c
 
 LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
@@ -523,7 +535,13 @@ floyd/floyd.coq: floyd/proofauto.vo
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
 #	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
-	@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+ifeq ($(COMPCERT), compcert_new)
+	$(COQDEP) 2>&1 >.depend `find $(COMPCERT) $(filter $(wildcard *), $(DIRS)) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
+	echo "" >>.depend
+	$(COQDEP) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
+else
+	$(COQDEP) 2>&1 >.depend `find $(COMPCERT) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+endif
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)

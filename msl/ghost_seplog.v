@@ -26,6 +26,29 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
 
 Notation "|==> P" := (bupd P) (at level 62): logic.
 
+Lemma bupd_orp_r: forall `{BupdSepLog} (P Q: A), ((|==> P) || Q) |-- |==> P || Q.
+Proof.
+  intros.
+  apply orp_left.
+  + apply bupd_mono.
+    apply orp_right1, derives_refl.
+  + eapply derives_trans; [| apply bupd_intro].
+    apply orp_right2, derives_refl.
+Qed.
+
+Lemma bupd_orp_l: forall `{BupdSepLog} (P Q: A), (P || |==> Q) |-- |==> P || Q.
+Proof.
+  intros; rewrite orp_comm, (orp_comm P Q); apply bupd_orp_r.
+Qed.
+
+Lemma bupd_orp: forall `{BupdSepLog} (P Q: A), ((|==> P) || |==> Q) |-- |==> P || Q.
+Proof.
+  intros.
+  eapply derives_trans, bupd_trans.
+  eapply derives_trans; [apply bupd_orp_l|].
+  apply bupd_mono, bupd_orp_r.
+Qed.
+
 Lemma bupd_frame_l: forall `{BupdSepLog} (P Q: A), (P * |==> Q) |-- |==> P * Q.
 Proof.
   intros; rewrite sepcon_comm, (sepcon_comm P Q); apply bupd_frame_r.

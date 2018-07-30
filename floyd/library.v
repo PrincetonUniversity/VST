@@ -154,7 +154,8 @@ Proof.
  rewrite exp_unfold. Intros p.
  rewrite <- insert_local.
  rewrite lower_andp.
- apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
+ apply derives_extract_prop; intro.
+ destruct H; unfold_lift in H. rewrite retval_ext_rval in H.
  subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.

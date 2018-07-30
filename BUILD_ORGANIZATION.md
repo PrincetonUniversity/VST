@@ -129,3 +129,12 @@ To do this, create a file `CONFIGURE` containing a definition such as,
   `COMPCERT=../CompCert`  
 Make sure that you have the right version of CompCert!  Check
 the file `VST/compcert/VERSION` to be sure.
+
+## COMPCERT_NEW:
+Starting in July 2018, for a limited period of (we hope) only a few months,
+there is an experimental alternate CompCert basis in compcert_new.
+To use this, define a CONFIGURE file containing  COMPCERT=compcert_new,
+and make sure to do a "make depend" and "make clean" before (re)building.
+WARNING:  When using compcert_new, the file veric/Clight_core.v
+is not active; instead concurrency/shim/Clight_core.v is bound to the
+module path VST.veric.Clight_core.

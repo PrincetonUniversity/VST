@@ -26,7 +26,6 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
-Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.sepcomp.structured_injections.
@@ -73,7 +72,7 @@ Proof.
     destruct (S' o1) as [A _]. spec A. apply perm_order_pp_refl.
     destruct (S' o2) as [_ B]. spec B. apply perm_order_pp_refl.
     destruct o1 as [[]|], o2 as [[]|]; auto; simpl in *.
-    all: inv A; inv B; auto.
+    all: try solve [inv A; inv B; auto].
   - extensionality b ofs k. specialize (E k (b, ofs)).
     unfold access_at in *.
     simpl in E.

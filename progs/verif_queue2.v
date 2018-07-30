@@ -346,16 +346,6 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma ret_temp_make_ext_rval:
-  forall gx ret p,
-   locald_denote (temp ret_temp p) (make_ext_rval gx ret) ->
-    p = force_val ret.
-Proof.
-  intros.
-  hnf in H.
-  rewrite retval_ext_rval in H. auto.
-Qed.
-
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.

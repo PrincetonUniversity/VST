@@ -110,12 +110,6 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) gv (done
                c;
             data_block sh data d)).
 
-Definition Delta_update_inner_if : tycontext :=
-  (initialized _fragment
-     (initialized _p
-        (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot nil))))).
-
 Lemma data_block_data_field:
  forall sh dd dd' c,
   Forall isbyteZ dd ->
@@ -242,7 +236,7 @@ Lemma update_inner_if_proof:
  (H3' : Forall isbyteZ dd)
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (len <= Int.max_unsigned)%Z),
-semax Delta_update_inner_if
+semax (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (inv_at_inner_if sh hashed len c d dd data gv)
   update_inner_if
   (overridePost (sha_update_inv sh hashed len c d dd data gv false)
@@ -288,10 +282,6 @@ forward_if.
    (*len*) k
         Frame);
   try reflexivity; auto; try omega.
-  try (* this line needed for Coq 8.7 compatibility *)
-      apply Zlength_nonneg.
-  try (* this line needed for Coq 8.7 compatibility *)
-       (subst k; omega).
   unfold_data_at 1%nat.
   entailer!.
   rewrite field_address_offset by auto.
@@ -351,7 +341,6 @@ forward_if.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
-  simpl update_tycon.
   Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
   erewrite Zlength_Zlist_to_intlist
      by (instantiate (1:=LBLOCKz); assumption).
@@ -395,10 +384,6 @@ forward_if.
    (*len*) (len)
         Frame);
     try reflexivity; auto; try omega.
-  try (* this line needed for Coq 8.7 compatibility *)
-      apply Zlength_nonneg.
-  try (* this line needed for Coq 8.7 compatibility *)
-    (repeat rewrite Zlength_map; unfold k in *; omega).
   entailer!.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by
@@ -415,7 +400,6 @@ forward_if.
   replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
     with 0%Z by (clear; omega).
   change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
-  rewrite <- app_nil_end.
   autorewrite with sublist.
   rewrite sublist_list_repeat by Omega1.
   clear H5 H6.

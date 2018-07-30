@@ -415,7 +415,7 @@ Qed.
 
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
-(*  start_atomic_function.
+  start_atomic_function.
   destruct x as ((((((k, v), gv), sh), entries), g), lg); Intros.
   forward_call k.
   pose proof size_pos.
@@ -826,12 +826,12 @@ Proof.
     { rewrite <- Zplus_mod_idemp_l.
       replace (i1 mod _) with ((i + hash k) mod size); simpl.
       rewrite Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
-    admit. (* list is long enough *)*)
+    admit. (* list is long enough *)
 Admitted.
 
 Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
-(*  start_atomic_function.
+  start_atomic_function.
   destruct x as (((((k, gv), sh), entries), g), lg); Intros.
   forward_call k.
   pose proof size_pos.
@@ -1103,12 +1103,12 @@ Proof.
     { rewrite <- Zplus_mod_idemp_l.
       replace (i1 mod _) with ((i + hash k) mod size); simpl.
       rewrite Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
-    admit. (* list is long enough *)*)
+    admit. (* list is long enough *)
 Admitted.
 
 Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
-(*  start_atomic_function.
+  start_atomic_function.
   destruct x as ((((((k, v), gv), sh), entries), g), lg); Intros.
   unfold atomic_shift; Intros P.
   set (AS := _ -* _).
@@ -1538,7 +1538,7 @@ Proof.
     { rewrite <- Zplus_mod_idemp_l.
       replace (i1 mod _) with ((i + hash k) mod size); simpl.
       rewrite Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
-    admit. (* list is long enough *)*)
+    admit. (* list is long enough *)
 Admitted.
 
 Opaque Znth.

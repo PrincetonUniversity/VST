@@ -589,7 +589,7 @@ Proof.
     SEP (data_at sh (tptr tnode) head hp; known_nodes gsh1 gsh2 nodes0)).
   { Exists nodes; entailer!.
     apply incl_refl. }
-  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
+  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply ENTAIL_refl].
   Intros nodes0.
   forward.
   assert (In (head, reph) nodes0) as Hin by auto.
@@ -744,7 +744,7 @@ Proof.
       rewrite known_node, Heq, known_node.
       unfold node', node_data; Exists shp' shc'; entailer!. }
     intros; unfold overridePost.
-    destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+    destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
     unfold POSTCONDITION, abbreviate, loop1_ret_assert; Intros.
     Exists nodes''; entailer!.
     eapply incl_tran, incl_tran, incl_cons_inv; eauto.

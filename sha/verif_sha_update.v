@@ -260,6 +260,10 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  apply isbyte_intlist_to_Zlist.
  unfold_data_at 1%nat.
  rewrite H2. rewrite !sublist_map. cancel.
+ subst dd'.
+ autorewrite with sublist.
+ replace (b4d + (len - b4d)) with len by omega.
+ cancel.
 + (* else-clause *)
  forward. (* skip; *)
  unfold sha256state_.

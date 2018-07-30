@@ -21,8 +21,16 @@ Local Open Scope pred.
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
-Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) :=
-  jsafeN_(genv_symb := fun ge: genv => Genv.genv_symb ge) cl_core_sem Hspec.
+Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree block.
+Proof.
+exists (Genv.genv_symb ge).
+hnf; intros.
+eapply Genv.genv_vars_inj; eauto.
+Defined.
+
+Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
+  @jsafeN_ genv _ _ genv_symb_injective (*(genv_symb := fun ge: genv => Genv.genv_symb ge)*)
+               (cl_core_sem ge) Hspec ge.
 
 Program Definition assert_safe
      (Espec : OracleKind)
@@ -108,14 +116,14 @@ Record semaxArg :Type := SemaxArg {
 }.
 
 Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
-   (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block)
+   (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
    (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age)
      (ext_spec_pre OK_spec ef x' ge_s ts args z)
      (JE_pre_hered _ _ _ _ _ _ _ _).
 
 Program Definition ext_spec_post' (Espec: OracleKind)
-   (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block)
+   (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: injective_PTree block)
    (tret: option typ) (ret: option val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age)
    (ext_spec_post OK_spec ef x' ge_s tret ret z)
@@ -150,9 +158,9 @@ Definition semax_external
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
    juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
-    ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
+    ALL z:_, ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
-      ext_spec_post' Hspec ef x' (Genv.genv_symb gx) tret ret z' >=>
+      ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
 
 Definition tc_option_val (sig: type) (ret: option val) :=
@@ -247,7 +255,7 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
       (believepred Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
-              rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+              rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -287,7 +295,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+        (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
@@ -322,7 +330,7 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        unfash (believe Espec Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert Q F) k) -->
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert Q F) k) -->
         (* guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k) *)
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
@@ -726,4 +734,3 @@ Proof.
     apply imp_andp_adjoint.
     apply unfash_fash.
 Qed.
-    

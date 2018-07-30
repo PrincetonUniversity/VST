@@ -105,8 +105,7 @@ Definition array_copy1_statement :=
         (Ebinop Oadd (Etempvar _m tint) (Econst_int (Int.repr 1) tint) tint))).
 Lemma array_copy1: forall (Espec: OracleKind) j t x (xs:list int)
   (J:0<=j<4),
- semax (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+ semax (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j));
    lvar _t (tarray tuint 4) t;
@@ -364,8 +363,7 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (T2: Znth ((5*j+4*2) mod 16) (map Vint xs) = Vint t2)
   (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) = Vint t3):
 @semax CompSpecs Espec
-  (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -525,7 +523,7 @@ deadvars!.
   { Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
     go_lower. rewrite TM. simpl. 
     apply andp_right.  
-    + apply prop_right. split; trivial.
+    + apply prop_right. split; [| repeat split; auto].
       assert (AP: 0 <= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
       rewrite Z.add_comm. rewrite Z2Nat.inj_add; try omega.
       assert (SS: (Z.to_nat 1 + Z.to_nat m)%nat = S (Z.to_nat m)) by reflexivity.

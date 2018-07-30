@@ -77,7 +77,6 @@ forward. (* n++; *)
 eapply semax_seq'.
 *
 eapply semax_post_flipped'.
-change Delta with Delta_final_if1.
 match goal with |- context [Sifthenelse _ ?c _] => change c with Body_final_if1 end.
 rewrite add_repr.
 simple apply final_if1; auto.
@@ -135,7 +134,6 @@ assert_PROP (force_val
  simpl (temp _p _).
  rewrite H2. clear H2.
  eapply semax_pre_post; [ | | | | |
-  change Delta with Delta_final_if1;
   apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(gv:=gv)(md:=md);
   try eassumption; try Omega1; try apply s256a_hashed_divides].
 +
