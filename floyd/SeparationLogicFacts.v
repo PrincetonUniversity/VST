@@ -630,7 +630,7 @@ Proof.
     rewrite orp_comm, distrib_andp_orp.
     apply andp_right.
     - apply andp_left1.
-      admit.
+      apply later_prop.
     - apply orp_right1.
       solve_andp.
   + apply derives_bupd_refl.
@@ -639,7 +639,7 @@ Proof.
   + intros; apply derives_bupd_refl.
 Qed.
 
-End CSHL_ExtrFacts.
+End CSHL_IExtrFacts.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD.
 

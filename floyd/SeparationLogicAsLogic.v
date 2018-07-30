@@ -9,6 +9,7 @@ Require Export VST.veric.juicy_extspec.
 Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
+Require Import VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
 Local Open Scope logic.
 
@@ -168,64 +169,46 @@ Proof.
   intros.
   remember Sskip as c eqn:?H.
   induction H; try solve [inv H0].
-  + eapply derives_trans; [| apply bupd_intro].
-    apply orp_right2, andp_left2, derives_refl.
+  + apply derives_bupd0_refl.
   + specialize (IHsemax H0).
-    eapply derives_bupd_trans; [exact H |].
-    rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (local _)).
-    apply orp_left.
-    {
-      eapply derives_trans; [| apply bupd_intro].
-      apply orp_right1, andp_left2, derives_refl.
-    }
-    eapply derives_bupd_trans; [exact IHsemax |].
-    rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (local _)).
-    apply orp_left.
-    - eapply derives_trans; [| apply bupd_intro].
-      apply orp_right1, andp_left2, derives_refl.
-    - apply (derives_trans _ _ _ H1).
-      apply bupd_mono.
-      apply orp_right2, derives_refl.
+    solve_derives_trans.
 Qed.
 
 Lemma semax_break_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R,
     @semax CS Espec Delta P Sbreak R ->
-    local (tc_environ Delta) && P |-- |==> RA_break R.
+    local (tc_environ Delta) && P |-- |==> |> FF || RA_break R.
 Proof.
   intros.
   remember Sbreak as c eqn:?H.
   induction H; try solve [inv H0].
-  + apply andp_left2, bupd_intro.
+  + apply derives_bupd0_refl.
   + specialize (IHsemax H0).
-    eapply derives_bupd_trans; [exact H |].
-    eapply derives_bupd_trans; [exact IHsemax |].
-    auto.
+    solve_derives_trans.
 Qed.
 
 Lemma semax_continue_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R,
     @semax CS Espec Delta P Scontinue R ->
-    local (tc_environ Delta) && P |-- |==> RA_continue R.
+    local (tc_environ Delta) && P |-- |==> |> FF || RA_continue R.
 Proof.
   intros.
   remember Scontinue as c eqn:?H.
   induction H; try solve [inv H0].
-  + apply andp_left2, bupd_intro.
+  + apply derives_bupd0_refl.
   + specialize (IHsemax H0).
-    eapply derives_bupd_trans; [exact H |].
-    eapply derives_bupd_trans; [exact IHsemax |].
-    auto.
+    solve_derives_trans.
 Qed.
 
 Lemma semax_return_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P ret R,
   @semax CS Espec Delta P (Sreturn ret) R ->
-  local (tc_environ Delta) && P |-- |==> ((tc_expropt Delta ret (ret_type Delta)) && `(|==> RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)).
+  local (tc_environ Delta) && P |-- |==> |> FF || ((tc_expropt Delta ret (ret_type Delta)) && `(|==> RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)).
 Proof.
   intros.
   remember (Sreturn ret) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0.
-    apply andp_left2.
-    eapply derives_trans ; [| apply bupd_intro].
+    apply derives_bupd_derives_bupd0.
+    apply ENTAIL_derives_bupd.
+    apply derives_ENTAIL.
     apply andp_derives; auto.
     unfold_lift.
     intro rho.
