@@ -53,7 +53,93 @@ Ltac prove_objective := repeat
 Hint Resolve emp_objective data_at_objective own_objective prop_objective andp_objective exp_objective
   sepcon_objective sepcon_list_objective : objective.
 
-Section atomics.
+Section dup.
+
+Definition duplicable P := P |-- |==> P * P.
+
+Lemma emp_duplicable : duplicable emp.
+Proof.
+  unfold duplicable.
+  rewrite sepcon_emp; apply bupd_intro.
+Qed.
+Hint Resolve emp_duplicable : dup.
+
+Lemma sepcon_duplicable : forall P Q, duplicable P -> duplicable Q -> duplicable (P * Q).
+Proof.
+  intros; unfold duplicable.
+  rewrite <- sepcon_assoc, (sepcon_comm (_ * Q)), <- sepcon_assoc, sepcon_assoc.
+  eapply derives_trans, bupd_sepcon.
+  apply sepcon_derives; auto.
+Qed.
+Hint Resolve sepcon_duplicable : dup.
+
+Lemma sepcon_list_duplicable : forall lP, Forall duplicable lP -> duplicable (fold_right sepcon emp lP).
+Proof.
+  induction 1; simpl; auto with dup.
+Qed.
+
+Lemma list_duplicate : forall Q lP, duplicable Q ->
+  fold_right sepcon emp lP * Q |-- |==> fold_right sepcon emp (map (sepcon Q) lP) * Q.
+Proof.
+  induction lP; simpl; intros; [apply bupd_intro|].
+  rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHlP]; auto|].
+  eapply derives_trans; [apply sepcon_derives, bupd_mono, sepcon_derives, H; apply derives_refl|].
+  eapply derives_trans; [apply bupd_frame_l|].
+  eapply derives_trans, bupd_trans.
+  apply bupd_mono; cancel.
+  eapply derives_trans; [apply bupd_frame_l|].
+  apply bupd_mono; cancel.
+Qed.
+
+(* Should all duplicables be of this form? *)
+Lemma invariant_duplicable' : forall N P, duplicable (invariant N P).
+Proof.
+  unfold duplicable; intros.
+  rewrite <- invariant_dup in *; apply bupd_intro.
+Qed.
+Hint Resolve invariant_duplicable' : dup.
+
+Lemma ghost_snap_duplicable : forall `{_ : PCM_order} (s : G) p, duplicable (ghost_snap s p).
+Proof.
+  intros; unfold duplicable.
+  erewrite ghost_snap_join; [apply bupd_intro|].
+  apply join_refl.
+Qed.
+Hint Resolve ghost_snap_duplicable : dup.
+
+Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable (!!P && Q).
+Proof.
+  intros; unfold duplicable.
+  Intros.
+  rewrite prop_true_andp; auto.
+Qed.
+Hint Resolve prop_duplicable : dup.
+
+Lemma exp_duplicable : forall {A} (P : A -> mpred), (forall x, duplicable (P x)) -> duplicable (exp P).
+Proof.
+  unfold duplicable; intros.
+  Intro x.
+  eapply derives_trans; eauto.
+  apply bupd_mono; Exists x x; auto.
+Qed.
+
+Definition weak_dup P := weak_view_shift P (P * P).
+
+Lemma duplicable_super_non_expansive : forall n P,
+  approx n (weak_dup P) = approx n (weak_dup (approx n P)).
+Proof.
+  intros; unfold weak_dup.
+  rewrite view_shift_nonexpansive, approx_sepcon; auto.
+Qed.
+
+Lemma dup_weak_dup : forall P, duplicable P -> TT |-- weak_dup P.
+Proof.
+  intros; apply view_shift_weak; auto.
+Qed.
+
+End dup.
+
+Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable' ghost_snap_duplicable prop_duplicable : dup.Section atomics.
 
 Context {CS : compspecs}.
 

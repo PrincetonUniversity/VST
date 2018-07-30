@@ -41,7 +41,7 @@ Program Definition load_SC_spec := TYPE AL_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
@@ -58,19 +58,20 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality v.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
+Definition AS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType share) Mpred)) Mpred.
+  (ArrowType (ConstType share) Mpred)) Mpred)
+  (ConstType invG).
 
 Program Definition store_SC_spec := TYPE AS_type
   WITH p : val, v : Z, P : mpred, Eo : Ensemble iname, Ei : Ensemble iname,
-       P' : share -> mpred, Q : mpred
+       P' : share -> mpred, Q : mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v)
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
@@ -83,7 +84,7 @@ Program Definition store_SC_spec := TYPE AS_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
@@ -98,18 +99,19 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z)) Mpred)
+Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z)) Mpred)
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
+  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred))
+  (ConstType invG).
 
 Program Definition CAS_SC_spec := TYPE ACAS_type
   WITH p : val, c : Z, v : Z, P : mpred, Eo : Ensemble iname, Ei : Ensemble iname,
-       P' : share -> Z -> mpred, Q : Z -> mpred
+       P' : share -> Z -> mpred, Q : Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive p; temp 2%positive (vint c); temp 3%positive (vint v))
@@ -125,7 +127,7 @@ Program Definition CAS_SC_spec := TYPE ACAS_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((((?, ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
@@ -142,19 +144,20 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((((?, ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality vr.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
+Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred).
+  (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred))
+  (ConstType invG).
 
 Program Definition AEX_SC_spec := TYPE AEX_type
   WITH p : val, v : Z, P : mpred, Eo : Ensemble iname, Ei : Ensemble iname,
-       P' : share -> Z -> mpred, Q : Z -> mpred
+       P' : share -> Z -> mpred, Q : Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
    PROP (repable_signed v)
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
@@ -170,7 +173,7 @@ Program Definition AEX_SC_spec := TYPE AEX_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal.
@@ -187,7 +190,7 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality vr.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
@@ -195,15 +198,15 @@ Qed.
 
 End SC_atomics.
 
-Notation store_SC_witness p v P Eo Ei Q := (p, v%Z, P, Eo, Ei,
-  fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -* Q, Q).
+Notation store_SC_witness p v P Eo Ei Q invG := (p, v%Z, P, Eo, Ei,
+  fun sh => !!(writable_share sh) && data_at sh tint (vint v) p -* Q, Q, invG).
 
-Notation AEX_SC_witness p v P Eo Ei Q := (p, v%Z, P, Eo, Ei,
-  fun sh v0 => !!(writable_share sh /\ repable_signed v0) && data_at sh tint (vint v) p -* Q v0, Q).
+Notation AEX_SC_witness p v P Eo Ei Q invG := (p, v%Z, P, Eo, Ei,
+  fun sh v0 => !!(writable_share sh /\ repable_signed v0) && data_at sh tint (vint v) p -* Q v0, Q, invG).
 
-Notation load_SC_witness p P Eo Ei Q := (p, P, Eo, Ei,
-  fun sh v => !!(readable_share sh /\ repable_signed v) && data_at sh tint (vint v) p -* Q v, Q).
+Notation load_SC_witness p P Eo Ei Q invG := (p, P, Eo, Ei,
+  fun sh v => !!(readable_share sh /\ repable_signed v) && data_at sh tint (vint v) p -* Q v, Q, invG).
 
-Notation CAS_SC_witness p c v P Eo Ei Q := (p, c, v%Z, P, Eo, Ei,
+Notation CAS_SC_witness p c v P Eo Ei Q invG := (p, c, v%Z, P, Eo, Ei,
   fun sh v0 => !!(writable_share sh /\ repable_signed v0) &&
-    data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -* Q v0, Q).
+    data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -* Q v0, Q, invG).

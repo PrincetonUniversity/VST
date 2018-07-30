@@ -32,92 +32,6 @@ Section atomics.
 
 Context {CS : compspecs} {inv_names : invG}.
 
-Section dup.
-
-Definition duplicable P := P |-- |==> P * P.
-
-Lemma emp_duplicable : duplicable emp.
-Proof.
-  unfold duplicable.
-  rewrite sepcon_emp; apply bupd_intro.
-Qed.
-Hint Resolve emp_duplicable : dup.
-
-Lemma sepcon_duplicable : forall P Q, duplicable P -> duplicable Q -> duplicable (P * Q).
-Proof.
-  intros; unfold duplicable.
-  rewrite <- sepcon_assoc, (sepcon_comm (_ * Q)), <- sepcon_assoc, sepcon_assoc.
-  eapply derives_trans, bupd_sepcon.
-  apply sepcon_derives; auto.
-Qed.
-Hint Resolve sepcon_duplicable : dup.
-
-Lemma sepcon_list_duplicable : forall lP, Forall duplicable lP -> duplicable (fold_right sepcon emp lP).
-Proof.
-  induction 1; simpl; auto with dup.
-Qed.
-
-Lemma list_duplicate : forall Q lP, duplicable Q ->
-  fold_right sepcon emp lP * Q |-- |==> fold_right sepcon emp (map (sepcon Q) lP) * Q.
-Proof.
-  induction lP; simpl; intros; [apply bupd_intro|].
-  rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHlP]; auto|].
-  eapply derives_trans; [apply sepcon_derives, bupd_mono, sepcon_derives, H; apply derives_refl|].
-  eapply derives_trans; [apply bupd_frame_l|].
-  eapply derives_trans, bupd_trans.
-  apply bupd_mono; cancel.
-  eapply derives_trans; [apply bupd_frame_l|].
-  apply bupd_mono; cancel.
-Qed.
-
-(* Should all duplicables be of this form? *)
-Lemma invariant_duplicable' : forall N P, duplicable (invariant N P).
-Proof.
-  unfold duplicable; intros.
-  rewrite <- invariant_dup in *; apply bupd_intro.
-Qed.
-Hint Resolve invariant_duplicable' : dup.
-
-Lemma ghost_snap_duplicable : forall `{_ : PCM_order} (s : G) p, duplicable (ghost_snap s p).
-Proof.
-  intros; unfold duplicable.
-  erewrite ghost_snap_join; [apply bupd_intro|].
-  apply join_refl.
-Qed.
-Hint Resolve ghost_snap_duplicable : dup.
-
-Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable (!!P && Q).
-Proof.
-  intros; unfold duplicable.
-  Intros.
-  rewrite prop_true_andp; auto.
-Qed.
-Hint Resolve prop_duplicable : dup.
-
-Lemma exp_duplicable : forall {A} (P : A -> mpred), (forall x, duplicable (P x)) -> duplicable (exp P).
-Proof.
-  unfold duplicable; intros.
-  Intro x.
-  eapply derives_trans; eauto.
-  apply bupd_mono; Exists x x; auto.
-Qed.
-
-Definition weak_dup P := weak_view_shift P (P * P).
-
-Lemma duplicable_super_non_expansive : forall n P,
-  approx n (weak_dup P) = approx n (weak_dup (approx n P)).
-Proof.
-  intros; unfold weak_dup.
-  rewrite view_shift_nonexpansive, approx_sepcon; auto.
-Qed.
-
-Lemma dup_weak_dup : forall P, duplicable P -> TT |-- weak_dup P.
-Proof.
-  intros; apply view_shift_weak; auto.
-Qed.
-
-End dup.
-
 Section atomicity.
 
 (* up *)
@@ -233,7 +147,11 @@ Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : 
     ((a x -* |={Ei,Eo}=> |> P) &&
      ALL y : B, b x y -* |={Ei,Eo}=> Q y))) && cored).
 
-Definition atomic_spec_type W T := ProdType W (ArrowType (ConstType T) Mpred).
+End atomicity.
+
+End atomics.
+
+Definition atomic_spec_type W T := ProdType (ProdType W (ArrowType (ConstType T) Mpred)) (ConstType invG).
 
 Definition super_non_expansive_a {A W} (a : forall ts : list Type, functors.MixVariantFunctor._functor
   (dependent_type_functor_rec ts W) (predicates_hered.pred rmap) -> A -> predicates_hered.pred rmap) :=
@@ -259,26 +177,26 @@ Program Definition atomic_spec {A T} W args tz la P a (t : T) lb b Ei Eo
   (Hla : super_non_expansive_la la) (HP : super_non_expansive' P) (Ha : super_non_expansive_a(A := A) a)
   (Hlb : super_non_expansive_lb lb) (Hb : super_non_expansive_b b) :=
   mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
-  (fun (ts: list Type) '(w, Q) =>
+  (fun (ts: list Type) '(w, Q, inv_names) =>
     PROP ()
     (LOCALx (map (fun l => l ts w) la)
-    (SEP (atomic_shift (a ts w) Ei Eo (b ts w) Q; P ts w))))
-  (fun (ts: list Type) '(w, Q) => EX v : T,
+    (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
+  (fun (ts: list Type) '(w, Q, inv_names) => EX v : T,
     PROP () (LOCALx (map (fun l => l ts w v) lb)
     (SEP (Q v)))) _ _.
 Next Obligation.
 Proof.
-  replace _ with (fun (ts : list Type) (x : _ * (T -> mpred)) rho =>
+  replace _ with (fun (ts : list Type) (x : _ * (T -> mpred) * _) rho =>
     PROP ()
-    (LOCALx (map (fun Q0 => Q0 ts x) (map (fun l ts x => let '(x, Q) := x in l ts x) la))
-     SEP (let '(x, Q) := x in
-          atomic_shift (a ts x) Ei Eo (b ts x) Q * P ts x)) rho).
+    (LOCALx (map (fun Q0 => Q0 ts x) (map (fun l ts x => let '(x, Q, _) := x in l ts x) la))
+     SEP (let '(x, Q, inv_names) := x in
+          atomic_shift(inv_names := inv_names) (a ts x) Ei Eo (b ts x) Q * P ts x)) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive (atomic_spec_type W T) []
-    (map (fun l ts x => let '(x, Q) := x in l ts x) la) [fun _ => _]);
-    repeat constructor; hnf; intros; try destruct x as (x, Q); auto; simpl.
+    (map (fun l ts x => let '(x, Q, _) := x in l ts x) la) [fun _ => _]);
+    repeat constructor; hnf; intros; try destruct x as ((x, Q), ?); auto; simpl.
   - rewrite Forall_forall; intros ? Hin.
     rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
-    intros ?? (x, Q) ?.
+    intros ?? ((x, Q), ?) ?.
     specialize (Hla n ts x rho); rewrite Forall_forall in Hla; apply (Hla _ Hin).
   - unfold atomic_shift.
     rewrite !approx_sepcon; f_equal; auto.
@@ -293,35 +211,31 @@ Proof.
       setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
       rewrite approx_idem; auto.
   - extensionality ts x rho.
-    destruct x.
+    destruct x as ((?, ?), ?).
     unfold SEPx; simpl; rewrite map_map, !sepcon_assoc; auto.
 Qed.
 Next Obligation.
 Proof.
-  replace _ with (fun (ts : list Type) (w : _ * (T -> mpred)) rho =>
+  replace _ with (fun (ts : list Type) (w : _ * (T -> mpred) * invG) rho =>
     EX v : T, PROP ()
-    (LOCALx (map (fun Q0 => Q0 ts w) (map (fun l ts w => let '(w, Q) := w in l ts w v) lb))
-     SEP (let '(w, Q) := w in Q v)) rho).
+    (LOCALx (map (fun Q0 => Q0 ts w) (map (fun l ts w => let '(w, Q, _) := w in l ts w v) lb))
+     SEP (let '(w, Q, _) := w in Q v)) rho).
   repeat intro.
   rewrite !approx_exp; apply f_equal; extensionality v.
   apply (PROP_LOCAL_SEP_super_non_expansive (atomic_spec_type W T) []
-    (map (fun l ts w => let '(w, Q) := w in l ts w v) lb)
-    [fun ts w => let '(w, Q) := w in Q v]);
-    repeat constructor; hnf; intros; try destruct x0 as (x0, Q); auto; simpl.
+    (map (fun l ts w => let '(w, Q, _) := w in l ts w v) lb)
+    [fun ts w => let '(w, Q, _) := w in Q v]);
+    repeat constructor; hnf; intros; try destruct x0 as ((x0, Q), ?); auto; simpl.
   - rewrite Forall_forall; intros ? Hin.
     rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
-    intros ?? (x', Q) ?.
+    intros ?? ((x', Q), ?) ?.
     specialize (Hlb n0 ts0 x' v rho0); rewrite Forall_forall in Hlb; apply (Hlb _ Hin).
   - rewrite approx_idem; auto.
   - extensionality ts x rho.
-    destruct x.
+    destruct x as ((?, ?), ?).
     apply f_equal; extensionality.
     unfold SEPx; simpl; rewrite map_map; auto.
 Qed.
-
-End atomicity.
-
-End atomics.
 
 Ltac start_atomic_function :=
   match goal with |- semax_body ?V ?G ?F ?spec =>
@@ -378,5 +292,3 @@ Ltac start_atomic_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax; simpl.
-
-Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable' ghost_snap_duplicable prop_duplicable : dup.

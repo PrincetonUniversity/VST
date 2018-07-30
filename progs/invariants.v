@@ -1036,6 +1036,15 @@ Proof.
     rewrite Hi'; constructor.
 Qed.
 
+Lemma invariant_dealloc : forall i P, invariant i P |-- |==> emp.
+Proof.
+  intros; unfold invariant.
+  Intro g.
+  rewrite <- (emp_sepcon emp).
+  eapply derives_trans, bupd_sepcon.
+  apply sepcon_derives; apply own_dealloc.
+Qed.
+
 Lemma invariant_super_non_expansive : forall n N P,
   approx n (invariant N P) = approx n (invariant N (approx n P)).
 Proof.
@@ -1116,7 +1125,3 @@ Proof.
       * intros ? X.
         destruct x; inv X.
 Qed.
-
-(* We could get rid of invG and make the names explicit arguments to invariant...
-   but we'd have to make them arguments to fupd as well, which is annoying.
-   But we need some way of eliminating fupds without including them in semax. *)

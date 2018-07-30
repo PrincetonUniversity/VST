@@ -80,6 +80,27 @@ Proof.
   apply orp_right2; auto.
 Qed.
 
+Lemma except0_bupd : forall P, except0 (|==> P) = |==> (except0 P).
+Proof.
+  intro; apply pred_ext.
+  - eapply derives_trans, except0_bupd_elim.
+    apply except0_mono, bupd_mono, except0_intro.
+  - change (predicates_hered.derives (own.bupd (except0 P)) (except0 (own.bupd P))).
+    intros ??; simpl in H.
+    destruct (level a) eqn: Hl.
+    + right.
+      change ((|> FF)%pred a).
+      intros ??%laterR_level; omega.
+    + left.
+      rewrite <- Hl in *.
+      intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
+      do 2 eexists; eauto; do 2 eexists; eauto; repeat split; auto.
+      destruct HP as [|Hfalse]; auto.
+      destruct (levelS_age a' n) as (a'' & Hage & ?); [omega|].
+      exfalso; apply (Hfalse a'').
+      constructor; auto.
+Qed.
+
 Lemma except0_sepcon : forall P Q, except0 (P * Q) = except0 P * except0 Q.
 Proof.
   intros; unfold except0.
@@ -125,6 +146,15 @@ Proof.
       rewrite <- later_andp; apply later_derives; rewrite FF_andp; auto.
     + apply orp_right2.
       rewrite <- later_andp, FF_andp; auto.
+Qed.
+
+Lemma except0_exp : forall {A} (x : A) P, except0 (EX x : A, P x) = EX x : A, except0 (P x).
+Proof.
+  intros; unfold except0; apply pred_ext.
+  - apply orp_left.
+    + Intro y; Exists y; apply orp_right1; auto.
+    + Exists x; apply orp_right2; auto.
+  - Intro y; apply orp_left; [apply orp_right1; Exists y | apply orp_right2]; auto.
 Qed.
 
 Lemma timeless_sepcon : forall P Q, timeless P -> timeless Q -> timeless (P * Q).
@@ -296,13 +326,13 @@ Proof.
       * unfold at_offset; apply memory_block_timeless.
 Qed.
 
-Lemma union_pred_timeless : forall {CS : compspecs} sh m f t off
+Lemma union_pred_timeless : forall {CS : compspecs} sh m t off
   (IH : Forall (fun it : ident * type =>
         forall (v : reptype (t it)) (p : val),
         timeless (data_at_rec sh (t it) v p)) m) v p,
   timeless (union_pred m (fun (it : ident * type) v =>
-      withspacer sh (f it + sizeof (t it)) (off it)
-        (at_offset (data_at_rec sh (t it) v) (f it))) v p).
+      withspacer sh (sizeof (t it)) (off it)
+        (data_at_rec sh (t it) v)) v p).
 Proof.
   induction m; intros.
   - apply timeless_emp.
@@ -345,8 +375,8 @@ Proof.
     + apply timeless_sepcon, IHn.
       unfold at_offset; apply IH.
   - apply struct_pred_timeless; auto.
-(*  - apply union_pred_timeless; auto.
-Qed.*) Admitted.
+  - apply union_pred_timeless; auto.
+Qed.
 
 Lemma data_at_timeless : forall {CS : compspecs} sh t v p, timeless (data_at sh t v p).
 Proof.
@@ -490,6 +520,49 @@ Proof.
   rewrite FF_sepcon; auto.
 Qed.
 
+Lemma wsat_fupd_elim : forall P, wsat * (|={Empty_set _,Empty_set _}=> P) |-- |==> except0 (wsat * P).
+Proof.
+  intros; unfold fupd.
+  rewrite <- wsat_empty_eq; apply modus_ponens_wand.
+Qed.
+
+Lemma fupd_prop' : forall E1 E2 E2' P Q, Included E1 E2 -> (forall a, In E1 a \/ ~ In E1 a) ->
+  Q |-- |={E1,E2'}=> !!P ->
+  |={E1, E2}=> Q |-- |={E1}=> !!P && (|={E1, E2}=> Q).
+Proof.
+  unfold fupd; intros ??????? HQ.
+  rewrite <- wand_sepcon_adjoint in *.
+  rewrite sepcon_comm; eapply derives_trans; [apply modus_ponens_wand|].
+  apply bupd_mono.
+  eapply derives_trans, except0_trans; apply except0_mono.
+  rewrite ghost_set_subset with (s' := E1) by auto.
+  rewrite (add_andp (_ * _ * Q) (except0 (!! P))) at 1.
+- eapply derives_trans; [apply andp_derives, derives_refl; apply except0_intro|].
+  rewrite <- except0_andp; apply except0_mono.
+  Intros.
+  apply andp_right; [apply prop_right; auto | cancel].
+  rewrite <- wand_sepcon_adjoint.
+  eapply derives_trans, bupd_intro; eapply derives_trans, except0_intro; cancel.
+- rewrite sepcon_comm, <- !sepcon_assoc.
+  eapply derives_trans; [apply sepcon_derives, derives_refl; rewrite sepcon_assoc; apply HQ|].
+  setoid_rewrite <- (own.bupd_prop P) at 2.
+  rewrite except0_bupd.
+  eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
+  eapply derives_trans; [apply except0_frame_r | apply except0_mono].
+  rewrite (sepcon_comm _ (!!P)), !sepcon_assoc.
+  apply derives_left_sepcon_right_corable, derives_refl.
+  change (!!P)%pred with (!!P); apply corable_prop.
+Qed.
+
+Lemma fupd_prop : forall E1 E2 P Q, Included E1 E2 -> (forall a, In E1 a \/ ~ In E1 a) ->
+  Q |-- !!P ->
+  |={E1, E2}=> Q |-- |={E1}=> !!P && (|={E1, E2}=> Q).
+Proof.
+  intros; eapply fupd_prop'; auto.
+  eapply derives_trans; eauto.
+  apply fupd_intro.
+Qed.
+
 Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
 Proof.
   intros; unfold fupd.
@@ -502,13 +575,7 @@ Proof.
   apply except0_intro.
 Qed.
 
-Lemma wsat_fupd_elim : forall P, wsat * (|={Empty_set _,Empty_set _}=> P) |-- |==> except0 (wsat * P).
-Proof.
-  intros; unfold fupd.
-  rewrite <- wsat_empty_eq; apply modus_ponens_wand.
-Qed.
-
-Corollary make_inv : forall E P Q, P |-- Q -> P |-- |={E}=> EX i : _, invariant i Q.
+Lemma make_inv : forall E P Q, P |-- Q -> P |-- |={E}=> EX i : _, invariant i Q.
 Proof.
   intros.
   eapply derives_trans, inv_alloc; auto.
