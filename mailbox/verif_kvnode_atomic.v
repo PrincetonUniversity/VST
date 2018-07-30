@@ -137,7 +137,7 @@ Proof.
   start_atomic_function.
   destruct x as ((((((((n, out), sh), version), locs), g), lg), v0), vs0); Intros.
   destruct H as (HP & HQ).
-  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
+  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply ENTAIL_refl].
   repeat forward.
   forward_call (version, P, II, lI,
     fun sh v' => !!(sh = gsh2) && EX v : Z, EX vs : _, !!(Z.even v = true /\ Forall repable_signed vs /\
@@ -332,7 +332,7 @@ Proof.
     + forward.
       entailer!.
     + intros; unfold overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       unfold POSTCONDITION, abbreviate, loop1_ret_assert.
       Intros; if_tac; [contradiction | entailer!].
       admit. (* drop snaps *)

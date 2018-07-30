@@ -305,19 +305,6 @@ Notation "'EX'  x ':' T ',' P " := (@exp (environ->mpred) _ T (fun x:T => P%asse
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
   (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 80, P at level 79, Q at level 79).
 
-Lemma ENTAIL_trans:
-  forall Delta P Q R,
-  ENTAIL Delta, P |-- Q ->
-  ENTAIL Delta, Q |-- R ->
-  ENTAIL Delta, P |-- R.
-Proof.
-intros.
-eapply derives_trans.
-apply andp_right; [ | apply H].
-apply andp_left1; apply derives_refl.
-auto.
-Qed.
-
 Arguments semax {CS} {Espec} Delta Pre%assert cmd Post%assert.
 
 Lemma insert_prop : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.

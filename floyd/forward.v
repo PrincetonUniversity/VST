@@ -2090,9 +2090,6 @@ match goal with
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
-Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
-Proof. intros; apply andp_left2; auto. Qed.
-
 Lemma ENTAIL_break_normal:
  forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) |-- S.
 Proof.
@@ -2603,12 +2600,6 @@ Proof.
 Qed.
 *)
 
-Lemma drop_tc_environ:
- forall Delta R, local (tc_environ Delta) && R |-- R.
-Proof.
-intros. apply andp_left2; auto.
-Qed.
-
 (*
 Lemma frame_ret_assert_derives P Q: P |-- Q -> frame_ret_assert P |-- frame_ret_assert Q.
 Proof. intros.
@@ -2924,7 +2915,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
 
 Ltac derives_after_forward :=
              first [ simple apply derives_refl
-                     | simple apply drop_tc_environ
+                     | simple apply ENTAIL_refl
 (*                     | simple apply normal_ret_assert_derives'' 
                      | simple apply normal_ret_assert_derives' *)
                      | idtac].

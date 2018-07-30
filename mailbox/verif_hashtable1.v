@@ -488,7 +488,7 @@ Proof.
           entailer!. }
         intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl.
         go_lower.
@@ -508,7 +508,7 @@ Proof.
         apply ordered_last_value; auto.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl.
         Intros hki'.
@@ -726,7 +726,7 @@ Proof.
         entailer!.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert.
         instantiate (1 := EX i : Z, EX i1 : Z, EX h' : list (hist * hist),
           PROP (Zlength h' = Zlength h; i1 mod size = (i + hash key) mod size; 0 <= i < size;
@@ -990,7 +990,7 @@ Proof.
         rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
       - intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; go_lowerx; contradiction. }
     { forward.
       destruct (eq_dec 0 v); [|discriminate].
@@ -1346,7 +1346,7 @@ Proof.
       subst; rewrite filter_app, Zlength_app; entailer!.
     + intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
       repeat (apply andp_right; [apply prop_right; auto|]).
       Exists (x ++ [s]) h' (li ++ [j]); entailer!.

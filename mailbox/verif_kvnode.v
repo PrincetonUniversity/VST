@@ -210,7 +210,7 @@ Proof.
     apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
     erewrite !Znth_map, !Znth_upto by (auto; rewrite Zlength_upto in *; omega).
     Exists (@nil Z); entailer!. }
-  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
+  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply ENTAIL_refl].
   - Intros failvs loops hv' hists' v1 lv.
     forward.
     unfold atomic_loc_hist at 1; rewrite atomic_loc_isptr; Intros.
@@ -382,7 +382,7 @@ Proof.
       * forward.
         entailer!.
       * intros; unfold overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         unfold POSTCONDITION, abbreviate, loop1_ret_assert.
         Intros; Exists (failvs ++ [v; v2]) (loops + 1) hv2 hists'' v2; unfold atomic_loc_hist at 2; entailer!.
         { rewrite Forall_app, Zlength_app, !Zlength_cons, Zlength_nil; repeat (constructor; auto); [|omega].
