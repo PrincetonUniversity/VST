@@ -2141,6 +2141,18 @@ intros.
 destruct v. destruct it, it'. reflexivity.
 Qed.
 
+Lemma union_pred_cons2:
+  forall it it' m (A: ident*type -> Type)
+   (P: forall it, A it -> val -> mpred)
+   (v: compact_sum (map A (it::it'::m)))
+   (p: val),
+ union_pred (it :: it' :: m) P v p =
+   match v with inl v => P _ v p | inr v => union_pred (it'::m) P v p end.
+Proof.
+intros.
+destruct v, it, it'; reflexivity.
+Qed.
+
 Lemma data_at_rec_void:
   forall {cs: compspecs}
       sh t v q, t = Tvoid -> data_at_rec sh t v q = FF.

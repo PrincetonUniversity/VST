@@ -31,7 +31,7 @@ ANNOTATE=silent   # suppress chatty output from coqc
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
-OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox
+OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
