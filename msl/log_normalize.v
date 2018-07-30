@@ -455,6 +455,29 @@ Proof.
     apply (allp_left _ v); apply derives_refl.
 Qed.
 
+Lemma distrib_andp_orp: forall {A : Type} {ND : NatDed A} (P Q R : A),
+  (P && Q) || R = (P || R) && (Q || R).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left.
+    - apply andp_right; apply orp_right1; solve_andp.
+    - apply andp_right; apply orp_right2, derives_refl.
+  + rewrite imp_andp_adjoint.
+    apply orp_left.
+    - rewrite <- imp_andp_adjoint.
+      rewrite andp_comm.
+      rewrite imp_andp_adjoint.
+      apply orp_left.
+      * rewrite <- imp_andp_adjoint.
+        rewrite andp_comm.
+        apply orp_right1, derives_refl.
+      * rewrite <- imp_andp_adjoint.
+        apply orp_right2; solve_andp.
+    - rewrite <- imp_andp_adjoint.
+      apply orp_right2; solve_andp.
+Qed.
+    
 Lemma prop_derives {A}{ND: NatDed A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
