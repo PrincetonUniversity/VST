@@ -206,27 +206,35 @@ Proof.
   remember (Sreturn ret) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0.
-    apply derives_bupd_derives_bupd0.
-    apply ENTAIL_derives_bupd.
-    apply derives_ENTAIL.
-    apply andp_derives; auto.
-    unfold_lift.
-    intro rho.
-    simpl.
-    apply bupd_intro.
+    assert (tc_expropt Delta ret (ret_type Delta) &&
+              (` (RA_return R)) (cast_expropt ret (ret_type Delta)) (@id environ)
+            |-- tc_expropt Delta ret (ret_type Delta) &&
+              (` (|==> RA_return R)) (cast_expropt ret (ret_type Delta)) (@id environ)).
+    {
+      apply andp_derives; [apply derives_refl |].
+      unfold_lift.
+      intro rho.
+      simpl.
+      apply bupd_intro.
+    }
+    solve_derives_trans.
   + specialize (IHsemax H0).
-    eapply derives_bupd_trans; [exact H |].
-    eapply derives_bupd_trans; [exact IHsemax |].
-    eapply derives_trans ; [| apply bupd_intro].
-    apply andp_right; [solve_andp |].
-    rewrite andp_comm, andp_assoc; apply andp_left2; rewrite andp_comm.
-    unfold_lift; intro rho; unfold id; simpl.
-    forget (cast_expropt ret (ret_type Delta) rho) as vl.
-    revert rho.
-    change (local (tc_environ Delta) && (|==> RA_return R' vl) |-- |==> RA_return R vl).
-    eapply derives_trans; [apply local_andp_bupd |].
-    eapply derives_trans; [apply bupd_mono, H4 |].
-    apply bupd_trans.
+    assert (local (tc_environ Delta) && (tc_expropt Delta ret (ret_type Delta) &&
+              (` (|==> RA_return R')) (cast_expropt ret (ret_type Delta)) (@id environ))
+            |-- tc_expropt Delta ret (ret_type Delta) &&
+              (` (|==> RA_return R)) (cast_expropt ret (ret_type Delta)) (@id environ)).
+    {
+      apply andp_right; [solve_andp |].
+      eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_left2, derives_refl] |].
+      unfold_lift; intro rho; unfold id; simpl.
+      forget (cast_expropt ret (ret_type Delta) rho) as vl.
+      revert rho.
+      change (local (tc_environ Delta) && (|==> RA_return R' vl) |-- |==> RA_return R vl).
+      eapply derives_trans; [apply local_andp_bupd |].
+      eapply derives_trans; [apply bupd_mono, H4 |].
+      apply bupd_trans.
+    }
+    solve_derives_trans.
 Qed.
 
 Lemma semax_seq_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R h t,
@@ -244,10 +252,10 @@ Proof.
     destruct H0 as [Q [? ?]].
     exists Q.
     split.
-    - apply (semax_pre_post_bupd _ P' (overridePost Q R')); auto.
+    - apply (AuxDefs.semax_pre_post_indexed_bupd _ P' (overridePost Q R')); auto.
       * clear.
         destruct R, R'.
-        apply andp_left2, bupd_intro.
+        apply derives_bupd_refl.
       * destruct R, R'; auto.
       * destruct R, R'; auto.
       * destruct R, R'; auto.
@@ -272,7 +280,7 @@ Proof.
     - intro; destruct R; apply andp_left2, derives_refl.
   + subst c.
     pose proof IHsemax eq_refl. clear IHsemax.
-    eapply semax_pre_post_bupd; [.. | exact H0]; auto.
+    eapply AuxDefs.semax_pre_post_indexed_bupd; [.. | exact H0]; auto.
     - unfold overridePost, tycontext.RA_normal.
       destruct R' as [R'0 R'1 R'2 R'3] at 1; clear R'0 R'1 R'2 R'3.
       destruct R as [R0 R1 R2 R3] at 1; clear R0 R1 R2 R3.
@@ -290,15 +298,14 @@ Qed.
 
 Lemma semax_store_inv: forall {Espec: OracleKind}{CS: compspecs} Delta e1 e2 P Q,
   @semax CS Espec Delta P (Sassign e1 e2) Q ->
-  local (tc_environ Delta) && P |-- |==> (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
+  local (tc_environ Delta) && P |-- |==> |> FF || (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
              ((`(mapsto_ sh (typeof e1)) (eval_lvalue e1)) * (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) -* |==> RA_normal Q)))).
 Proof.
   intros.
   remember (Sassign e1 e2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0.
-    apply andp_left2.
-    eapply derives_trans; [| apply bupd_intro].
+    refine (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ _))).
     apply exp_derives; intro sh.
     apply andp_derives; auto.
     apply later_derives; auto.
@@ -308,8 +315,9 @@ Proof.
     apply bupd_intro.
   + subst c.
     specialize (IHsemax eq_refl).
-    eapply derives_bupd_trans; [exact H | clear H].
-    eapply derives_bupd_trans; [exact IHsemax | clear IHsemax].
+    eapply derives_bupd0_trans; [exact H | clear H].
+    eapply derives_bupd0_trans; [exact IHsemax | clear IHsemax].
+    (* we need andp_derives, exp_derives etc. for ENTAIL, bupd etc. *)
     intro rho; simpl.
     unfold local, lift1.
     normalize.
