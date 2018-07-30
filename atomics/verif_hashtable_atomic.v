@@ -1,12 +1,12 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.ghosts.
-Require Import mailbox.general_atomics.
-Require Import mailbox.SC_atomics.
+Require Import atomics.general_atomics.
+Require Import atomics.SC_atomics.
 Require Import VST.progs.conclib.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import mailbox.hashtable_atomic.
-Require Import mailbox.hashtable.
+Require Import atomics.hashtable_atomic.
+Require Import atomics.hashtable.
 
 Set Bullet Behavior "Strict Subproofs".
 
