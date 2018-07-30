@@ -55,7 +55,7 @@ Proof.
      (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2)).
   {
     apply andp_right.
-    + eapply derives_trans; [exact H2 | apply derives_refl].
+    + solve_derives_trans.
     + unfold tc_temp_id.
       unfold typecheck_temp_id.
       unfold typeof_temp in H.

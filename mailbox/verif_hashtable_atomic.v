@@ -639,7 +639,7 @@ Proof.
           entailer!. }
         intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
       * forward.
@@ -647,7 +647,7 @@ Proof.
         subst; entailer!.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
     + forward.
@@ -921,7 +921,7 @@ Proof.
         entailer!.
       * intros.
         unfold POSTCONDITION, abbreviate, overridePost.
-        if_tac; [subst | apply drop_tc_environ].
+        if_tac; [subst | apply ENTAIL_refl].
         unfold loop1_ret_assert.
         instantiate (1 := EX i : Z, EX i1 : Z, EX keys : list Z,
           PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
@@ -1216,7 +1216,7 @@ Proof.
           entailer!. }
         intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
       * forward.
@@ -1224,7 +1224,7 @@ Proof.
         subst; entailer!.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
     + forward.
@@ -1515,7 +1515,7 @@ Proof.
       subst; rewrite filter_app, Zlength_app; entailer!.
     + intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
       Exists (x ++ [s]); rewrite ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
       Exists h'; entailer!.

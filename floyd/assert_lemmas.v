@@ -457,3 +457,174 @@ Proof.
    auto.
 Qed.
 
+Lemma ENTAIL_trans:
+  forall Delta P Q R,
+  local (tc_environ Delta) && P |-- Q ->
+  local (tc_environ Delta) && Q |-- R ->
+  local (tc_environ Delta) && P |-- R.
+Proof.
+intros.
+eapply derives_trans.
+apply andp_right; [ | apply H].
+apply andp_left1; apply derives_refl.
+auto.
+Qed.
+
+Lemma ENTAIL_refl:
+  forall Delta P,
+  local (tc_environ Delta) && P |-- P.
+Proof. intros. apply andp_left2, derives_refl. Qed.
+
+Lemma local_andp_bupd: forall P Q,
+  (local P && |==> Q) |-- |==> (local P && Q).
+Proof.
+  intros.
+  rewrite !(andp_comm (local P)).
+  apply bupd_andp2_corable.
+  intro; apply corable_prop.
+Qed.
+
+Lemma bupd_andp_local: forall P Q,
+  (|==> P) && local Q |-- |==> (P && local Q).
+Proof.
+  intros.
+  apply bupd_andp2_corable.
+  intro; apply corable_prop.
+Qed.
+
+Lemma derives_bupd_trans: forall TC P Q R,
+  local TC && P |-- |==> Q ->
+  local TC && Q |-- |==> R ->
+  local TC && P |-- |==> R.
+Proof.
+  intros.
+  rewrite (add_andp _ _ H).
+  rewrite (andp_comm _ P), andp_assoc; apply andp_left2.
+  eapply derives_trans; [apply local_andp_bupd |].
+  rewrite (add_andp _ _ H0).
+  rewrite (andp_comm _ Q), andp_assoc; eapply derives_trans; [apply bupd_mono, andp_left2, derives_refl |].
+  eapply derives_trans; [apply bupd_mono,local_andp_bupd |].
+  eapply derives_trans; [apply bupd_trans|].
+  apply bupd_mono; solve_andp.
+Qed.
+
+Lemma derives_bupd_refl: forall TC P,
+  local TC && P |-- |==> P.
+Proof. intros. apply andp_left2, bupd_intro. Qed.
+
+Lemma derives_bupd0_refl: forall TC P,
+  local TC && P |-- |==> ((|> FF) || P).
+Proof. intros. apply (derives_trans _ _ _ (derives_bupd_refl TC P)), bupd_mono, orp_right2, derives_refl. Qed.
+
+Lemma derives_bupd0_trans: forall TC P Q R,
+  local TC && P |-- |==> ((|> FF) || Q) ->
+  local TC && Q |-- |==> ((|> FF) || R) ->
+  local TC && P |-- |==> ((|> FF) || R).
+Proof.
+  intros.
+  eapply derives_bupd_trans; [exact H |].
+  rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (local _)).
+  apply orp_left.
+  + eapply derives_trans; [| apply bupd_intro].
+    apply orp_right1, andp_left2, derives_refl.
+  + eapply derives_bupd_trans; [exact H0 |].
+    rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (local _)).
+    apply orp_left.
+    - eapply derives_trans; [| apply bupd_intro].
+      apply orp_right1, andp_left2, derives_refl.
+    - apply derives_bupd0_refl.
+Qed.
+
+Lemma derives_ENTAIL: forall TC P Q,
+  P |-- Q ->
+  local TC && P |-- Q.
+Proof. intros. apply andp_left2, H. Qed.
+
+Lemma ENTAIL_derives_bupd: forall TC P Q,
+  local TC && P |-- Q ->
+  local TC && P |-- |==> Q.
+Proof. intros. apply (derives_trans _ _ _ H), bupd_intro. Qed.
+
+Lemma derives_bupd_derives_bupd0: forall TC P Q,
+  local TC && P |-- |==> Q ->
+  local TC && P |-- |==> ((|> FF) || Q).
+Proof. intros. apply (derives_trans _ _ _ H), bupd_mono, orp_right2, derives_refl. Qed.
+
+Ltac solve_lifted_derives_trans P R :=
+  match goal with
+  | H: @derives (environ -> mpred) _ P R |- _ =>
+         exact H
+  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
+         apply (derives_trans P Q R H); solve_lifted_derives_trans Q R
+  end.
+
+Ltac solve_ENTAIL_trans Delta P R :=
+  match goal with
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
+         exact H
+  | H: @derives (environ -> mpred) _ P R |- _ =>
+         simple apply derives_ENTAIL, H
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
+         apply (ENTAIL_trans Delta P Q R H); solve_ENTAIL_trans Delta Q R
+  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
+         apply (ENTAIL_trans Delta P Q R (derives_ENTAIL _ _ _ H)); solve_ENTAIL_trans Delta Q R
+  end.
+
+Ltac solve_derives_bupd_trans Delta P R :=
+  match goal with
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> R) |- _ =>
+         exact H
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
+         exact (ENTAIL_derives_bupd _ _ _ H)
+  | H: @derives (environ -> mpred) _ P R |- _ =>
+         exact (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H))
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ?Q) |- _ =>
+         apply (derives_bupd_trans _ P Q R H); solve_derives_bupd_trans Delta Q R
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
+         apply (derives_bupd_trans _ P Q R (ENTAIL_derives_bupd _ _ _ H)); solve_derives_bupd_trans Delta Q R
+  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
+         apply (derives_bupd_trans _ P Q R (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H))); solve_derives_bupd_trans Delta Q R
+  end.
+
+Ltac solve_derives_bupd0_trans Delta P R :=
+  match goal with
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ((|> FF) || R)) |- _ =>
+         exact H
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> R) |- _ =>
+         exact (derives_bupd_derives_bupd0 _ _ _ H)
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
+         exact (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ H))
+  | H: @derives (environ -> mpred) _ P R |- _ =>
+         exact (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H)))
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ((|> FF) || ?Q)) |- _ =>
+         apply (derives_bupd0_trans _ P Q R H); solve_derives_bupd0_trans Delta Q R
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ?Q) |- _ =>
+         apply (derives_bupd0_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ H)); solve_derives_bupd0_trans Delta Q R
+  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
+         apply (derives_bupd0_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ H))); solve_derives_bupd0_trans Delta Q R
+  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
+         apply (derives_bupd0_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H)))); solve_derives_bupd0_trans Delta Q R
+  end.
+
+Ltac solve_derives_trans :=
+  match goal with
+  | |- local (tc_environ ?Delta) && ?P |-- |==> ((|> FF) || ?Q) =>
+         solve_derives_bupd0_trans Delta P Q
+  | |- local (tc_environ ?Delta) && ?P |-- |==> ?Q =>
+         solve_derives_bupd_trans Delta P Q
+  | |- local (tc_environ ?Delta) && ?P |-- ?Q =>
+         solve_ENTAIL_trans Delta P Q
+  | |- ?P |-- ?Q =>
+         solve_lifted_derives_trans P Q
+  end.
+
+Goal forall Delta (P Q R S T: environ -> mpred),
+  P |-- Q ->
+  local (tc_environ Delta) && Q |-- |==> R ->
+  R |-- S ->
+  local (tc_environ Delta) && S |-- T ->
+  local (tc_environ Delta) && P |-- |==> ((|> FF) || T).
+Proof.
+  intros.
+  solve_derives_trans.
+Qed.

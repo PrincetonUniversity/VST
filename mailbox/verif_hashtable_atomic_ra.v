@@ -1108,7 +1108,7 @@ Proof.
           entailer!. }
         intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
       * forward.
@@ -1116,7 +1116,7 @@ Proof.
         entailer!.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
     + forward.
@@ -1532,7 +1532,7 @@ Proof.
       subst; rewrite filter_app, Zlength_app; entailer!.
     + intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
       Exists (x ++ [s]); rewrite ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
       Exists h'; entailer!.

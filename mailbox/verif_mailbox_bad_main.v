@@ -262,7 +262,7 @@ Proof.
          ghost_var gsh1 (vint b0) g0)).
   { Exists 1 ([] : hist); entailer!.
     unfold latest_read; auto. }
-  eapply semax_loop; [|forward; apply drop_tc_environ].
+  eapply semax_loop; [|forward; apply ENTAIL_refl].
   Intros b0 h.
   forward.
   subst c; subst; forward_call (r, reading, last_read, comm, reads, lasts, good, comms, bufs,
@@ -404,7 +404,7 @@ Proof.
           rewrite orb_true_r, combine_nil; auto.
         * symmetry; apply make_shares_out; auto; [|unfold share in *; omega].
           intros [|[|[|]]]; auto. }
-  eapply semax_loop; [|forward; apply drop_tc_environ].
+  eapply semax_loop; [|forward; apply ENTAIL_refl].
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
   forward.
@@ -739,7 +739,7 @@ Proof.
       + subst Frame; simpl; cancel.
     - Exists sh1'; entailer!. }
   eapply semax_seq'; [|apply semax_ff].
-  eapply semax_loop; [|forward; apply drop_tc_environ].
+  eapply semax_loop; [|forward; apply ENTAIL_refl].
   forward.
   entailer!.
 Qed.
