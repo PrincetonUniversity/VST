@@ -550,6 +550,151 @@ Lemma derives_bupd_derives_bupd0: forall TC P Q,
   local TC && P |-- |==> ((|> FF) || Q).
 Proof. intros. apply (derives_trans _ _ _ H), bupd_mono, orp_right2, derives_refl. Qed.
 
+Lemma andp_ENTAIL: forall TC P P' Q Q',
+  local TC && P |-- P' ->
+  local TC && Q |-- Q' ->
+  local TC && (P && Q) |-- P' && Q'.
+Proof.
+  intros.
+  eapply derives_trans; [| apply andp_derives; [exact H | exact H0]].
+  solve_andp.
+Qed.
+
+Lemma sepcon_ENTAIL: forall TC P P' Q Q',
+  local TC && P |-- P' ->
+  local TC && Q |-- Q' ->
+  local TC && (P * Q) |-- P' * Q'.
+Proof.
+  intros.
+  eapply derives_trans; [| apply sepcon_derives; [exact H | exact H0]].
+  rewrite corable_andp_sepcon1, corable_sepcon_andp1 by (intro; apply corable_prop).
+  solve_andp.
+Qed.
+
+Lemma wand_ENTAIL: forall TC P P' Q Q',
+  local TC && P' |-- P ->
+  local TC && Q |-- Q' ->
+  local TC && (P -* Q) |-- P' -* Q'.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint.
+  eapply derives_trans; [| apply H0].
+  rewrite corable_andp_sepcon1 by (intro; apply corable_prop).
+  apply andp_right; [apply andp_left1, derives_refl |].
+  rewrite <- corable_sepcon_andp1 by (intro; apply corable_prop).
+  rewrite sepcon_comm, wand_sepcon_adjoint.
+  eapply derives_trans; [apply H |].
+  rewrite <- wand_sepcon_adjoint.
+  apply modus_ponens_wand.
+Qed.
+
+Lemma exp_ENTAIL: forall Delta B (P Q: B -> environ -> mpred),
+  (forall x: B, local (tc_environ Delta) && P x |-- Q x) ->
+  local (tc_environ Delta) && exp P |-- exp Q.
+Proof.
+  intros.
+  rewrite exp_andp2.
+  apply exp_derives; auto.
+Qed.
+
+Lemma later_ENTAIL: forall Delta P Q,
+  local (tc_environ Delta) && P |-- Q ->
+  local (tc_environ Delta) && |> P |-- |> Q.
+Proof.
+  intros.
+  apply later_left2, H.
+Qed.
+
+Ltac lifted_derives_L2R H :=
+  eapply ENTAIL_trans; [apply H |].
+
+Ltac ENTAIL_L2R H :=
+  match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+      eapply ENTAIL_trans; [apply H |]
+  | _ =>
+      eapply ENTAIL_trans; [apply derives_ENTAIL, H |]
+  end.
+
+Ltac derives_bupd_L2R H :=
+  match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> _) =>
+      eapply derives_bupd_trans; [apply H |]
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+      eapply derives_bupd_trans; [apply ENTAIL_derives_bupd, H |]
+  | _ =>
+      eapply derives_bupd_trans; [apply ENTAIL_derives_bupd, derives_ENTAIL, H |]
+  end.
+
+Ltac derives_bupd0_L2R H :=
+  match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> |> FF || _) =>
+      eapply derives_bupd0_trans; [apply H |]
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> _) =>
+      eapply derives_bupd0_trans; [apply derives_bupd_derives_bupd0, H |]
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+      eapply derives_bupd0_trans; [apply derives_bupd_derives_bupd0, ENTAIL_derives_bupd, H |]
+  | _ =>
+      eapply derives_bupd0_trans; [apply derives_bupd_derives_bupd0, ENTAIL_derives_bupd, derives_ENTAIL, H |]
+  end.
+
+Tactic Notation "derives_rewrite" "->" constr(H) :=
+  match goal with
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> |> FF || _) =>
+         derives_bupd0_L2R H
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> _) =>
+         derives_bupd_L2R H
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+         ENTAIL_L2R H
+  | |- _ =>
+         lifted_derives_L2R H
+  end.
+
+Ltac lifted_derives_R2L H :=
+  eapply derives_trans; [| apply H].
+
+Ltac ENTAIL_R2L H :=
+  match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+      eapply ENTAIL_trans; [| apply H]
+  | _ =>
+      eapply ENTAIL_trans; [| apply derives_ENTAIL, H]
+  end.
+
+Ltac derives_bupd_R2L H :=
+  match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> _) =>
+      eapply derives_bupd_trans; [| apply H]
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+      eapply derives_bupd_trans; [| apply ENTAIL_derives_bupd, H]
+  | _ =>
+      eapply derives_bupd_trans; [| apply ENTAIL_derives_bupd, derives_ENTAIL, H]
+  end.
+
+Ltac derives_bupd0_R2L H :=
+  match type of H with
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> |> FF || _) =>
+      eapply derives_bupd0_trans; [| apply H]
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> _) =>
+      eapply derives_bupd0_trans; [| apply derives_bupd_derives_bupd0, H]
+  | @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+      eapply derives_bupd0_trans; [| apply derives_bupd_derives_bupd0, ENTAIL_derives_bupd, H]
+  | _ =>
+      eapply derives_bupd0_trans; [| apply derives_bupd_derives_bupd0, ENTAIL_derives_bupd, derives_ENTAIL, H]
+  end.
+
+Tactic Notation "derives_rewrite" "<-" constr(H) :=
+  match goal with
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> |> FF || _) =>
+         derives_bupd0_R2L H
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) (|==> _) =>
+         derives_bupd_R2L H
+  | |- @derives (environ -> mpred) _ (local (tc_environ _) && _) _ =>
+         ENTAIL_R2L H
+  | |- _ =>
+         lifted_derives_R2L H
+  end.
+
 Ltac solve_lifted_derives_trans P R :=
   match goal with
   | H: @derives (environ -> mpred) _ P R |- _ =>
@@ -619,6 +764,21 @@ Ltac solve_derives_trans :=
   end.
 
 Goal forall Delta (P Q R S T: environ -> mpred),
+  local (tc_environ Delta) && P |-- |==> |> FF || Q ->
+  local (tc_environ Delta) && Q |-- R ->
+  R |-- S ->
+  local (tc_environ Delta) && S |-- |==> T ->
+  local (tc_environ Delta) && P |-- |==> |> FF || T.
+Proof.
+  intros.
+  derives_rewrite -> H.
+  derives_rewrite <- H2.
+  
+  derives_rewrite -> H0.
+  derives_rewrite <- H1.
+Abort.
+
+Goal forall Delta (P Q R S T: environ -> mpred),
   P |-- Q ->
   local (tc_environ Delta) && Q |-- |==> R ->
   R |-- S ->
@@ -627,4 +787,4 @@ Goal forall Delta (P Q R S T: environ -> mpred),
 Proof.
   intros.
   solve_derives_trans.
-Qed.
+Abort.
