@@ -434,7 +434,7 @@ Qed.
 Lemma semax_ifthenelse_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R b c1 c2,
   @semax CS Espec Delta P (Sifthenelse b c1 c2) R ->
   local (tc_environ Delta) && P |--
-  |==> (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
+  |==> |> FF || (!! (bool_type (typeof b) = true) && tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) &&
   EX P': environ -> mpred,
   !! (@semax CS Espec Delta (P' && local (`(typed_true (typeof b)) (eval_expr b))) c1 R /\
       @semax CS Espec Delta (P' && local (`(typed_false (typeof b)) (eval_expr b))) c2 R) &&
@@ -444,23 +444,20 @@ Proof.
   remember (Sifthenelse b c1 c2) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0; clear IHsemax1 IHsemax2.
-    eapply derives_trans; [| apply bupd_intro].
-    apply andp_right; [solve_andp |].
+    reduce2derives.
+    apply andp_derives; auto.
     apply (exp_right P).
     apply andp_right; [apply prop_right; auto |].
-    solve_andp.
-  + specialize (IHsemax H0).
-    eapply derives_bupd_trans; [exact H |].
-    eapply derives_bupd_trans; [exact IHsemax | clear IHsemax].
-    eapply derives_trans; [| apply bupd_intro].
-    apply andp_right; [solve_andp |].
-    rewrite (andp_comm (local _)); rewrite imp_andp_adjoint; apply andp_left2.
-    apply exp_left; intro P''.
-    rewrite <- imp_andp_adjoint; rewrite <- (andp_comm (local _)).
-    apply (exp_right P'').
+    auto.
+  + derives_rewrite -> H.
+    derives_rewrite -> (IHsemax H0); clear IHsemax.
+    reduce2derives.
+    apply andp_derives; auto.
+    apply exp_derives; intros P''.
     normalize.
-    destruct H6.
-    apply andp_right; [apply prop_right; split | solve_andp].
+    apply andp_right; auto.
+    apply prop_right.
+    destruct H6; split.
     - eapply semax_post_bupd; eauto.
     - eapply semax_post_bupd; eauto.
 Qed.
@@ -468,7 +465,7 @@ Qed.
 Lemma semax_loop_inv: forall {Espec: OracleKind}{CS: compspecs} Delta P R body incr,
   @semax CS Espec Delta P (Sloop body incr) R ->
   local (tc_environ Delta) && P |--
-  |==> EX Q: environ -> mpred, EX Q': environ -> mpred,
+  |==> |> FF || EX Q: environ -> mpred, EX Q': environ -> mpred,
   !! (@semax CS Espec Delta Q body (loop1_ret_assert Q' R) /\
       @semax CS Espec Delta Q' incr (loop2_ret_assert Q R)) &&
   Q.
@@ -477,21 +474,20 @@ Proof.
   remember (Sloop body incr) as c eqn:?H.
   induction H; try solve [inv H0].
   + inv H0; clear IHsemax1 IHsemax2.
-    eapply derives_trans; [| apply bupd_intro].
+    reduce2derives.
     apply (exp_right Q).
     apply (exp_right Q').
     apply andp_right; [apply prop_right; auto |].
-    solve_andp.
-  + specialize (IHsemax H0).
-    eapply derives_bupd_trans; [exact H |].
-    eapply derives_bupd_trans; [exact IHsemax | clear IHsemax].
-    eapply derives_trans; [| apply bupd_intro].
-    rewrite exp_andp2; apply exp_left; intros Q.
-    rewrite exp_andp2; apply exp_left; intros Q'.
+    auto.
+  + derives_rewrite -> H.
+    derives_rewrite -> (IHsemax H0); clear IHsemax.
+    reduce2derives.
+    apply exp_derives; intros Q.
+    apply exp_derives; intros Q'.
     normalize.
+    apply andp_right; [apply prop_right |]; auto.
     destruct H6.
-    apply (exp_right Q), (exp_right Q').
-    apply andp_right; [apply prop_right; split | solve_andp].
+    split.
     - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR']; simpl in H6, H7 |- *.
       simpl RA_normal in H1; simpl RA_break in H2; simpl RA_continue in H3; simpl RA_return in H4.
       eapply semax_post_bupd; [.. | eassumption]; unfold loop1_ret_assert.
@@ -514,7 +510,7 @@ Proof.
         apply andp_left2, bupd_intro.
       * simpl RA_return.
         auto.
-Qed.    
+Qed.
 
 Lemma extract_exists_pre:
   forall  {Espec: OracleKind}{CS: compspecs} ,
