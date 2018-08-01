@@ -22,7 +22,7 @@ Require Import VST.veric.Clight_lemmas.
 
 Local Open Scope pred.
 Section extensions.
-Context (Espec: OracleKind).
+Context {CS: compspecs} {Espec: OracleKind}.
 
 (* Scall *)
 
@@ -172,7 +172,7 @@ Proof.
      apply approx_lt; auto.
 Qed.
 
-Lemma semax_fun_id_alt {CS: compspecs}:
+Lemma semax_fun_id_alt:
       forall id f    Delta (P: assert) Q c
       (GLBL: (var_types Delta) ! id = None),
     (glob_specs Delta) ! id = Some f ->
@@ -378,7 +378,7 @@ Proof. induction vl; try destruct a; simpl; auto.
  destruct (split vl); simpl in *; auto.
 Qed.
 
-Lemma eval_exprlist_relate {CS: compspecs}:
+Lemma eval_exprlist_relate:
   forall (Delta : tycontext) (fsig0 : funsig)
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
      (rho : environ) m,
@@ -557,7 +557,7 @@ auto.
 Qed.
 
 Lemma semax_call_typecheck_environ:
-  forall  {CS: compspecs} (Delta : tycontext) (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
+  forall (Delta : tycontext) (bl : list expr) (psi : genv) (vx : env) (tx : temp_env)
            (jm : juicy_mem) (b : block) (f : function)
      (H17 : list_norepet (map fst (fn_params f) ++ map fst (fn_temps f)))
      (H17' : list_norepet (map fst (fn_vars f)))
@@ -873,7 +873,7 @@ Proof.
 Qed.
 
 Lemma stackframe_of_freeable_blocks:
-  forall {CS: compspecs} Delta f rho ge ve,
+  forall Delta f rho ge ve,
       genv_cenv ge = cenv_cs ->
       Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f) ->
       list_norepet (map fst (fn_vars f)) ->
@@ -1039,7 +1039,7 @@ Proof.
 Qed.
 
 Lemma can_free_list:
-  forall {CS: compspecs} Delta F f jm ge ve te
+  forall Delta F f jm ge ve te
   (NOREP: list_norepet (map (@fst _ _) (fn_vars f)))
   (COMPLETE: Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
   (HGG:  genv_cenv ge = cenv_cs),
@@ -1318,7 +1318,7 @@ intros.
 apply pred_ext; apply H; intros; auto.
 Qed.
 
-Lemma semax_call_external {CS: compspecs}:
+Lemma semax_call_external:
 forall (Delta : tycontext) (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
@@ -2058,7 +2058,7 @@ simpl; rewrite Hg'; apply core_identity.
 Qed.
 
 Lemma alloc_juicy_variables_lem2:
-  forall {CS: compspecs} jm f (ge: genv) ve te jm' (F: pred rmap)
+  forall jm f (ge: genv) ve te jm' (F: pred rmap)
       (HGG:  genv_cenv ge = cenv_cs)
       (COMPLETE: Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
       (Hsize: Forall (fun var => @sizeof ge (snd var) <= Ptrofs.max_unsigned) (fn_vars f)),
@@ -2136,7 +2136,7 @@ Proof.
 Qed.
 
 Lemma semax_call_aux:
- forall {CS: compspecs} (Delta : tycontext)
+ forall (Delta : tycontext)
   (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (NEP: super_non_expansive P) (NEQ': super_non_expansive Q')
@@ -2173,7 +2173,7 @@ Lemma semax_call_aux:
    jsafeN (@OK_spec Espec) psi (level (m_phi jm)) ora
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
-intros CS Delta A P Q Q' NEP NEQ' ts x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id.
+intros Delta A P Q Q' NEP NEQ' ts x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id.
 intros TC0 TCret TC1 TC2 TC3 TC5 H HR HGG H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
@@ -2554,7 +2554,7 @@ assert (TE := TC3).
  destruct TC3 as [TC3 TC3'].
 destruct TC3 as [TC3 [TC4 TC5]].
 simpl in *. if_tac in H16; try congruence. clear H0.
-eapply semax_call_typecheck_environ with (jm0 := jmx); try eassumption.
+eapply semax_call_typecheck_environ with (jm := jmx); try eassumption.
 erewrite <- age_jm_dry by eauto; auto.
 destruct TE; intros; auto.
 }
@@ -2661,7 +2661,7 @@ unfold func_at, func_at'; destruct fs; intros. hnf; intros.
 eexists; eauto.
 Qed.
 
-Lemma semax_call {CS: compspecs}:
+Lemma semax_call:
   forall Delta (A: TypeTree)
   (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
@@ -2774,7 +2774,7 @@ simpl RA_normal.
 auto.
 Qed.
 
-Lemma semax_call_alt {CS: compspecs}:
+Lemma semax_call_alt:
  forall Delta (A: TypeTree)
    (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
    (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
@@ -2793,7 +2793,7 @@ Lemma semax_call_alt {CS: compspecs}:
           (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof. exact semax_call. Qed.
 
-Lemma semax_call_ext {CS: compspecs}:
+Lemma semax_call_ext:
    forall (IF_ONLY: False),
      forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
@@ -2891,7 +2891,7 @@ reflexivity.
 destruct a; simpl; auto.
 Qed.
 
-Definition cast_expropt {CS: compspecs} (e: option expr) t : environ -> option val :=
+Definition cast_expropt (e: option expr) t : environ -> option val :=
  match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
 
 Lemma call_cont_current_function:
@@ -2899,12 +2899,12 @@ Lemma call_cont_current_function:
 Proof. intros. induction k; try destruct a; simpl in *; inv H; auto.
 Qed.
 
-Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
+Definition tc_expropt Delta (e: option expr) (t: type) : environ -> mpred :=
    match e with None => `!!(t=Tvoid)
                      | Some e' => denote_tc_assert (typecheck_expr Delta (Ecast e' t))
    end.
 
-Lemma  semax_return  {CS: compspecs}:
+Lemma  semax_return:
    forall Delta R ret,
       semax Espec Delta
                 (fun rho => tc_expropt Delta ret (ret_type Delta) rho &&

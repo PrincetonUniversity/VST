@@ -154,7 +154,7 @@ Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
-
+Locate semax_switch.
 End CSL.
 
 Definition semax_prog_rule := @semax_prog_rule.

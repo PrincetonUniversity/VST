@@ -31,7 +31,7 @@ Proof.
 Qed.
 
 Section extensions.
-Context (Espec : OracleKind).
+Context {CS: compspecs} {Espec : OracleKind}.
 
 Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
   @jsafeN_ _ _ _ (fun x => genv_symb_injective (genv_genv x)) (cl_core_sem gx) OK_spec
@@ -89,7 +89,7 @@ Proof.
   tauto.
 Qed.
 
-Lemma semax_equiv_spec{CS: compspecs}: forall c1 c2,
+Lemma semax_equiv_spec: forall c1 c2,
   semax_equiv c1 c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.
@@ -183,14 +183,14 @@ Proof.
   split; intros.
   + rewrite !jsafeN_step_jsem_seq in H1.
     rewrite !jsafeN_step_jsem_seq.
-    apply (control_suffix_safe Espec gx n
+    apply (control_suffix_safe gx n
             (Kseq (Ssequence c2 c3) :: k1) (Kseq c2 :: Kseq c3 :: k2) (Kseq c1 :: nil));
     [simpl; auto | | auto | simpl; exact H1].
     clear ora vx tx jm H1.
     unfold control_as_safe.
     intros ora vx tx jm n' ? ?.
     rewrite !jsafeN_step_jsem_seq in H2.
-    apply (control_suffix_safe Espec gx n' k1 k2 (Kseq c2 :: Kseq c3 :: nil));
+    apply (control_suffix_safe gx n' k1 k2 (Kseq c2 :: Kseq c3 :: nil));
     [auto | | auto | simpl; exact H2].
     clear ora vx tx jm n H1 H2.
     unfold control_as_safe.
@@ -198,14 +198,14 @@ Proof.
     apply H0; auto.
   + rewrite !jsafeN_step_jsem_seq in H1.
     rewrite !jsafeN_step_jsem_seq.
-    apply (control_suffix_safe Espec gx n
+    apply (control_suffix_safe gx n
             (Kseq c2 :: Kseq c3 :: k2) (Kseq (Ssequence c2 c3) :: k1) (Kseq c1 :: nil));
     [simpl; auto | | auto | simpl; exact H1].
     clear ora vx tx jm H1.
     unfold control_as_safe.
     intros ora vx tx jm n' ? ?.
     rewrite !jsafeN_step_jsem_seq.
-    apply (control_suffix_safe Espec gx n' k2 k1 (Kseq c2 :: Kseq c3 :: nil));
+    apply (control_suffix_safe gx n' k2 k1 (Kseq c2 :: Kseq c3 :: nil));
     [auto | | auto | simpl; exact H2].
     clear ora vx tx jm n H1 H2.
     unfold control_as_safe.
@@ -236,10 +236,10 @@ Proof.
   split.
   + intro; intros.
     split.
-    - apply (control_suffix_safe Espec gx n k1 k2 (Kseq c :: nil)); auto.
+    - apply (control_suffix_safe gx n k1 k2 (Kseq c :: nil)); auto.
       intro; intros.
       apply H0; auto.
-    - apply (control_suffix_safe Espec gx n k2 k1 (Kseq c :: nil)); auto.
+    - apply (control_suffix_safe gx n k2 k1 (Kseq c :: nil)); auto.
       intro; intros.
       apply H0; auto.
   + intro; intros.
@@ -355,7 +355,7 @@ Proof.
   apply unfold_Ssequence_unfold_Sseq_rel.
 Qed.
 
-Lemma semax_unfold_Ssequence {CS: compspecs}: forall c1 c2,
+Lemma semax_unfold_Ssequence: forall c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.
