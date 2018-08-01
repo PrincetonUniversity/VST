@@ -1410,6 +1410,38 @@ Proof.
   destruct (f a); simpl; omega.
 Qed.
 
+Lemma Zlength_filter : forall {A} f (l : list A), Zlength (filter f l) <= Zlength l.
+Proof.
+  intros.
+  setoid_rewrite Zlength_correct at 2.
+  rewrite filter_length with (f0 := f).
+  rewrite Nat2Z.inj_add.
+  rewrite <- Zlength_correct; omega.
+Qed.
+
+Lemma Zlength_concat : forall {A} (l : list (list A)),
+  Zlength (concat l) = fold_right Z.add 0 (map (@Zlength A) l).
+Proof.
+  intros.
+  rewrite Zlength_correct, length_concat.
+  change 0 with (Z.of_nat O).
+  forget O as n.
+  revert n; induction l; auto; simpl; intros.
+  rewrite Nat2Z.inj_add, IHl, Zlength_correct; auto.
+Qed.
+
+Lemma Zlength_concat_le : forall {A} (l : list (list A)) n,
+  Forall (fun l => Zlength l <= n) l -> Zlength (concat l) <= n * Zlength l.
+Proof.
+  intros; rewrite Zlength_concat.
+  rewrite <- (Z.add_0_l (n * Zlength l)).
+  forget 0 as m; revert m.
+  induction H; simpl; intro.
+  - rewrite Zlength_nil; omega.
+  - rewrite Zlength_cons, Z.mul_succ_r.
+    specialize (IHForall m); omega.
+Qed.
+
 Lemma filter_app : forall {A} (f : A -> bool) l1 l2, filter f (l1 ++ l2) = filter f l1 ++ filter f l2.
 Proof.
   induction l1; auto; intros; simpl.

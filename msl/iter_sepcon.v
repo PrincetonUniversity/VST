@@ -114,6 +114,13 @@ Proof.
   - normalize. constructor; auto.
 Qed.
 
+Lemma iter_sepcon_emp': forall (l : list B), (forall x, In x l -> p x = emp) -> iter_sepcon l = emp.
+Proof.
+  induction l; intros; simpl; auto.
+  rewrite H, IHl, sepcon_emp; simpl; auto.
+  intros; apply H; simpl; auto.
+Qed.
+
 Lemma iter_sepcon_emp: forall (l l' : list B), (forall x, p x |-- emp) -> NoDup l' -> incl l' l -> iter_sepcon l |-- iter_sepcon l'.
 Proof.
   intros.
