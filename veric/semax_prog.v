@@ -1400,7 +1400,7 @@ Proof.
     pose (rho1 := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
                            (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
-    eapply (semax_call_aux Espec (Delta1 V G) (ConstType (ident->val))
+    eapply (semax_call_aux (Delta1 V G) (ConstType (ident->val))
               _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
               None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
@@ -1731,7 +1731,7 @@ Proof.
   evar (R : environ -> mpred).
   eapply
     (semax_call_aux
-       Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
+       (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
        (fun _ _ => Q ts a) Q NEP NEQ
        ts a (fun _ => emp) (fun _ => emp)
        None ((id_arg, Tpointer Tvoid noattr)::nil, tptr Tvoid) cc_default _ _

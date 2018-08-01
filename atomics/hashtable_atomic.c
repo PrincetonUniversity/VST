@@ -145,7 +145,5 @@ int main(void){
     total += i;
   }
 
-  int keys[ARRAY_SIZE], values[ARRAY_SIZE];
-  //  freeze_table(keys, values);
   //total should be equal to 3
 }

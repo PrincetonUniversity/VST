@@ -185,7 +185,7 @@ Lemma semax_while :
 Proof.
 intros ? ? ? ? ? ? ? BT TC Post H.
 unfold Swhile.
-apply (@semax_loop Espec cs Delta Q Q).
+apply (@semax_loop cs Espec Delta Q Q).
 Focus 2. {
  clear. eapply semax_post_flipped. apply semax_skip.
  all: try (intros; apply andp_left2; destruct R; apply derives_refl).

@@ -22,10 +22,10 @@ Require Import VST.veric.binop_lemmas4.
 Local Open Scope pred.
 
 Section extensions.
-Context (Espec: OracleKind).
+Context {CS: compspecs} {Espec: OracleKind}.
 
 Lemma semax_straight_simple:
- forall  {CS: compspecs} Delta (B: assert) P c Q,
+ forall Delta (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
   (forall jm jm1 Delta' ge ve te rho k F,
               tycontext_sub Delta Delta' ->
@@ -203,7 +203,7 @@ destruct v; try contradiction.
 eauto.
 Qed.
 
-Lemma pointer_cmp_eval {CS: compspecs}:
+Lemma pointer_cmp_eval:
    forall (Delta : tycontext) (cmp : Cop.binary_operation) (e1 e2 : expr) sh1 sh2,
    is_comparison cmp = true ->
    forall (jm : juicy_mem) (rho : environ),
@@ -281,7 +281,7 @@ compute; try split; congruence.
 Opaque Int.repr.
 Qed.
 
-Lemma pointer_cmp_no_mem_bool_type {CS: compspecs}:
+Lemma pointer_cmp_no_mem_bool_type:
    forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i3 s3,
    is_comparison cmp = true->
    eqb_type (typeof e1) int_or_ptr_type = false ->
@@ -333,7 +333,7 @@ all: destruct i3,s3; simpl; auto; compute; try split; congruence.
 Opaque Int.repr.
 Qed.
 
-Definition weak_mapsto_  {CS: compspecs} sh e rho :=
+Definition weak_mapsto_ sh e rho :=
 match (eval_expr e rho) with
 | Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) ||
               (mapsto_ sh (typeof e) (Vptr b o))
@@ -351,7 +351,7 @@ Proof. intros. hnf.
  exists x; exists c; split; auto.
 Qed.
 
-Lemma semax_ptr_compare {CS: compspecs} :
+Lemma semax_ptr_compare:
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     nonidentity sh1 -> nonidentity sh2 ->
     is_comparison cmp = true  ->
@@ -531,7 +531,7 @@ Proof.
         }
 Qed.
 
-Lemma semax_set_forward {CS: compspecs}:
+Lemma semax_set_forward:
 forall (Delta: tycontext) (P: assert) id e,
     semax Espec Delta
         (fun rho =>
@@ -664,7 +664,7 @@ Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
  | None => None
  end.
 
-Lemma semax_set_forward' {CS: compspecs} :
+Lemma semax_set_forward':
 forall (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
     is_neutral_cast (typeof e) t = true ->
@@ -789,7 +789,7 @@ unfold subst; rewrite H4.
 auto.
 Qed.
 
-Lemma semax_cast_set {CS: compspecs}:
+Lemma semax_cast_set:
 forall (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
     semax Espec Delta
@@ -915,7 +915,7 @@ unfold subst; rewrite H4.
 auto.
 Qed.
 
-Lemma semax_set {CS: compspecs}:
+Lemma semax_set:
 forall (Delta: tycontext) (P: assert) id e,
     semax Espec Delta
         (fun rho =>
@@ -1079,7 +1079,7 @@ Qed.
 
 Opaque Int.repr.
 
-Lemma semax_load {CS: compspecs}:
+Lemma semax_load:
 forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
@@ -1223,7 +1223,7 @@ split; [split3 | ].
 Qed.
 
 
-Lemma semax_cast_load {CS: compspecs}:
+Lemma semax_cast_load:
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
@@ -1531,7 +1531,7 @@ match goal with
 end.
 
 
-Lemma load_cast {CS: compspecs}:
+Lemma load_cast:
  forall (t: type) (e2 : expr) (ch : memory_chunk) rho phi m,
    tc_val (typeof e2) (eval_expr e2 rho) ->
    denote_tc_assert (isCastResultType (typeof e2) t e2)
@@ -1569,7 +1569,7 @@ try solve [simple_if_tac; auto].
 Qed.
 
 
-Lemma semax_store {CS: compspecs}:
+Lemma semax_store:
  forall Delta e1 e2 sh P,
    writable_share sh ->
    semax Espec Delta
@@ -1748,7 +1748,7 @@ Qed.
 
 Require Import VST.veric.expr_rel.
 
-Lemma semax_set_forward_nl {CS: compspecs}:
+Lemma semax_set_forward_nl:
 forall (Delta: tycontext) (P: assert) id e v t,
     typeof_temp Delta id = Some t ->
     (forall rho, P rho |-- rel_expr e v rho) ->
@@ -1847,7 +1847,7 @@ split3; [apply age_level; auto | |]. *)
         auto.
 Qed.
 
-Lemma semax_loadstore {CS: compspecs}:
+Lemma semax_loadstore:
  forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P',
    writable_share sh ->
    (forall rho, P rho |-- !! (tc_val (typeof e1) v2)

@@ -392,7 +392,7 @@ apply assert_safe_jsafe; auto.
 Qed.
 
 Lemma semax_switch: 
-  forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
+  forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
@@ -511,7 +511,7 @@ reflexivity.
 Qed.
 
 Lemma semax_switch_orig: 
-  forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
+  forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
