@@ -153,14 +153,13 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body incr) R
 | semax_switch: forall (Q: environ->mpred) a sl R,
-     is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
      @semax CS Espec Delta 
                (local (`eq (eval_expr a) `(Vint n)) &&  Q)
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (switch_ret_assert R)) ->
-     @semax CS Espec Delta Q (Sswitch a sl) R
+     @semax CS Espec Delta (!! (is_int_type (typeof a) = true) && Q) (Sswitch a sl) R
 | semax_call_backward: forall ret a bl R,
      @semax CS Espec Delta
          (EX argsig: _, EX retsig: _, EX cc: _,
@@ -628,17 +627,48 @@ Proof.
       * simpl RA_return.
         auto.
 Qed.
-(*
+
 Lemma semax_switch_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R a sl,
-  @semax CS Espec Delta Q (Sswitch a sl) R ->
+  @semax CS Espec Delta P (Sswitch a sl) R ->
   local (tc_environ Delta) && P |--
-    |==> |> FF || !! (is_int_type (typeof a) = true) &&
-     (tc_expr Delta a rho) && EX n: 
-     (forall n,
+        |==> |> FF || !! (is_int_type (typeof a) = true) && (tc_expr Delta a) &&
+        EX P': environ -> mpred,
+  !! (forall n,
      @semax CS Espec Delta 
-               (local (`eq (eval_expr a) `(Vint n)) &&  Q)
+               (local (`eq (eval_expr a) `(Vint n)) && P')
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
-               (switch_ret_assert R)) ->*)
+               (switch_ret_assert R)) && P'.
+Proof.
+  intros.
+  remember (Sswitch a sl) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0.
+    reduce2derives.
+    rewrite andp_assoc.
+    apply andp_derives; auto.
+    apply andp_right; auto.
+    apply (exp_right Q).
+    apply andp_right; [apply prop_right; auto |].
+    auto.
+  + derives_rewrite -> H.
+    derives_rewrite -> (IHsemax H0); clear IHsemax.
+    reduce2derives.
+    apply andp_derives; auto.
+    apply exp_derives; intros P''.
+    apply andp_derives; auto.
+    apply prop_derives; intro.
+    intro n; specialize (H6 n).
+    eapply semax_post_bupd; [.. | exact H6].
+    - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR'].
+      apply andp_left2, FF_left.
+    - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR'].
+      exact H1.
+    - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR'].
+      exact H3.
+    - destruct R as [nR bR cR rR], R' as [nR' bR' cR' rR'].
+      exact H4.
+Qed.
+  
 Lemma extract_exists_pre:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
@@ -805,7 +835,28 @@ Proof.
     - apply derives_bupd_refl.
     - apply derives_bupd_refl.
     - intros; apply derives_bupd_bupd_left, derives_bupd_refl.
-  + 
+  + pose proof (fun x => semax_switch_inv _ _ _ _ _ (H x)).
+    eapply semax_pre_indexed_bupd.
+    - rewrite exp_andp2; apply exp_left.
+      intro x; apply H0.
+    - rewrite andp_assoc.
+      apply AuxDefs.semax_switch; [intros; simpl; solve_andp |].
+      intros.
+      specialize (IH (Int.unsigned n)).
+      rewrite !exp_andp2.
+      apply IH.
+      intros P'.
+      apply semax_pre with (EX H: forall n0 : int,
+           semax Delta (local ((` eq) (eval_expr e) (` (Vint n0))) && P')
+             (seq_of_labeled_statement (select_switch (Int.unsigned n0) l))
+             (switch_ret_assert R), local ((` eq) (eval_expr e) (` (Vint n))) && P').
+      * rewrite (andp_comm (prop _)), <- !andp_assoc, <- (andp_comm (prop _)).
+        apply derives_extract_prop; intros.
+        apply (exp_right H1).
+        solve_andp.
+      * apply IH.
+        intros ?H.
+        auto.
 Admitted.
 
 Module Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Defs.
