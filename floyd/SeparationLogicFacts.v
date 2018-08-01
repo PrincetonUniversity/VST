@@ -412,6 +412,24 @@ Qed.
   
 End CSHL_GenConseq.
 
+Module CSHL_IConseqFacts
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_IConseq: CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE with Module CSHL_Def := CSHL_Def).
+
+Import CSHL_Def.
+Import CSHL_IConseq.
+
+Lemma semax_pre_indexed_bupd:
+ forall P' Espec {cs: compspecs} Delta P c R,
+     local (tc_environ Delta) && P |-- |==> |> FF || P' ->
+     @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post_indexed_bupd; eauto;
+intros; apply andp_left2, bupd_intro; auto.
+Qed.
+
+End CSHL_IConseqFacts.
+
 Module CSHL_ConseqFacts
        (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def).
