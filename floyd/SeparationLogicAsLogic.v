@@ -13,6 +13,122 @@ Require Import VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
 Local Open Scope logic.
 
+Fixpoint all_suf_of_labeled_statements (P: labeled_statements -> Prop) (L: labeled_statements): Prop :=
+  match L with
+  | LSnil => P L
+  | LScons _ s L' => P L /\ all_suf_of_labeled_statements P L'
+  end.
+
+Lemma all_suf_self: forall P L,
+  all_suf_of_labeled_statements P L -> P L.
+Proof.
+  intros.
+  destruct L; simpl in *; tauto.
+Qed.
+
+Lemma all_suf_LSnil: forall P L,
+  all_suf_of_labeled_statements P L -> P LSnil.
+Proof.
+  intros.
+  induction L; simpl in *; tauto.
+Qed.
+
+Lemma all_suf_select_switch: forall P L,
+  all_suf_of_labeled_statements P L ->
+  forall n, P (select_switch n L).
+Proof.
+  intros.
+  unfold select_switch.
+  destruct (select_switch_case) eqn:?H.
+  + revert l H0; induction L; intros.
+    - inv H0.
+    - simpl in H0.
+      destruct o; [if_tac in H0 |].
+      * subst z; inv H0.
+        destruct H as [? _]; auto.
+      * apply IHL; auto.
+        destruct H as [_ ?]; auto.
+      * apply IHL; auto.
+        destruct H as [_ ?]; auto.
+  + clear H0.
+    induction L.
+    - apply all_suf_LSnil in H.
+      auto.
+    - simpl.
+      destruct o.
+      * destruct H as [_ ?].
+        apply IHL; auto.
+      * destruct H as [? _].
+        auto.
+Qed.
+
+Section statement_ind.
+
+Variables
+  (P: statement -> Prop)
+  (Hskip: P Sskip)
+  (Hassign: forall e e0, P (Sassign e e0))
+  (Hset : forall (i : ident) (e : expr), P (Sset i e))
+  (Hcall : forall (o : option ident) (e : expr) (l : list expr), P (Scall o e l))
+  (Hbuiltin : forall o e t l, P (Sbuiltin o e t l))
+  (Hsequence : forall s : statement, P s -> forall s0 : statement, P s0 -> P (Ssequence s s0))
+  (Hifthenelse : forall e s, P s -> forall s0, P s0 -> P (Sifthenelse e s s0))
+  (Hloop : forall s : statement, P s -> forall s0 : statement, P s0 -> P (Sloop s s0))
+  (Hbreak : P Sbreak)
+  (Hcontinue : P Scontinue)
+  (Hreturn : forall o : option expr, P (Sreturn o))
+  (Hswitch : forall e L, all_suf_of_labeled_statements (fun L => P (seq_of_labeled_statement L)) L -> P (Sswitch e L))
+  (Hlabel : forall (l : label) (s : statement), P s -> P (Slabel l s))
+  (Hgoto : forall l : label, P (Sgoto l)).
+
+Fixpoint statement_ind (s: statement): P s :=
+  match s as s0 return (P s0) with
+  | Sskip => Hskip
+  | Sassign e e0 => Hassign e e0
+  | Sset i e => Hset i e
+  | Scall o e l => Hcall o e l
+  | Sbuiltin o e t l => Hbuiltin o e t l
+  | Ssequence s0 s1 => Hsequence s0 (statement_ind s0) s1 (statement_ind s1)
+  | Sifthenelse e s0 s1 => Hifthenelse e s0 (statement_ind s0) s1 (statement_ind s1)
+  | Sloop s0 s1 => Hloop s0 (statement_ind s0) s1 (statement_ind s1)
+  | Sbreak => Hbreak
+  | Scontinue => Hcontinue
+  | Sreturn o => Hreturn o
+  | Sswitch e l => Hswitch e l (labeled_statements_ind l)
+  | Slabel l s0 => Hlabel l s0 (statement_ind s0)
+  | Sgoto l => Hgoto l
+  end
+with labeled_statements_ind (L: labeled_statements): all_suf_of_labeled_statements (fun L => P (seq_of_labeled_statement L)) L :=
+  match L with
+  | LSnil => Hskip
+  | LScons _ s L' => conj (Hsequence _ (statement_ind s) _ (all_suf_self _ _ (labeled_statements_ind L'))) (labeled_statements_ind L')
+  end.
+
+End statement_ind.
+
+Ltac induction_stmt s :=
+  revert dependent s;
+  let s1 := fresh s "1" in
+  let s2 := fresh s "2" in
+  let IHs := fresh "IH" s in
+  let IHs1 := fresh "IH" s1 in
+  let IHs2 := fresh "IH" s2 in
+  refine (statement_ind _ _ _ _ _ _ _ _ _ _ _ _ _ _ _);
+  [
+  | intros ?e ?e
+  | intros ?i ?e
+  | intros ?o ?e ?l
+  | intros ?o ?e ?t ?l
+  | intros s1 IHs1 s2 IHs2
+  | intros ?e s1 IHs1 s2 IHs2
+  | intros s1 IHs1 s2 IHs2
+  |
+  |
+  | intros ?o
+  | intros ?e ?l ?IH; specialize (all_suf_select_switch _ _ IH); clear IH; intro IH; cbv beta in IH
+  | intros ?l s IHs
+  | intros ?l ].
+
 Module ClightSeparationHoareLogic.
 
 Module AuxDefs.
@@ -512,7 +628,17 @@ Proof.
       * simpl RA_return.
         auto.
 Qed.
-
+(*
+Lemma semax_switch_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R a sl,
+  @semax CS Espec Delta Q (Sswitch a sl) R ->
+  local (tc_environ Delta) && P |--
+    |==> |> FF || !! (is_int_type (typeof a) = true) &&
+     (tc_expr Delta a rho) && EX n: 
+     (forall n,
+     @semax CS Espec Delta 
+               (local (`eq (eval_expr a) `(Vint n)) &&  Q)
+               (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
+               (switch_ret_assert R)) ->*)
 Lemma extract_exists_pre:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
@@ -520,7 +646,7 @@ Lemma extract_exists_pre:
    @semax CS Espec Delta (EX x:A, P x) c R.
 Proof.
   intros.
-  revert A P R H; induction c; intros.
+  revert A P R H; induction_stmt c; intros.
   + pose proof (fun x => semax_skip_inv _ _ _ (H x)).
     eapply semax_pre_indexed_bupd.
     - rewrite exp_andp2; apply exp_left.
@@ -679,6 +805,7 @@ Proof.
     - apply derives_bupd_refl.
     - apply derives_bupd_refl.
     - intros; apply derives_bupd_bupd_left, derives_bupd_refl.
+  + 
 Admitted.
 
 Module Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Defs.
