@@ -19,7 +19,8 @@ Require Import VST.concurrency.memsem_lemmas.
 Import BinNums.
 Import BinInt.
 Import List.
-            
+Import Integers.
+Import Ptrofs.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -1211,9 +1212,20 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               access_map * access_map:=
               (access_map_inject m mu (fst virtue), access_map_inject m mu (snd virtue)).
             remember (virtueLP_inject m2 mu virtueLP) as virtueLP2.
-              
-            do 5 econstructor.
-            split; [|split].
+
+            (*Destruct the values of the self simulation *)
+              pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
+              pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
+              eapply sim_atx in Hinj; eauto.
+              2: { move H6 at bottom. simpl.
+                   replace (memcompat1 cd mu st1 m1 st2 m2 H0) with Hcmpt
+                     by apply Axioms.proof_irr.
+                   eauto.
+              }
+              clear sim_atx.
+              destruct Hinj as (b' & delt & Hinj & Hatx); eauto.
+              do 5 econstructor.
+              split; [|split].
 
             + (* reestablish the Concur_match*)
               admit.
@@ -1241,9 +1253,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 constructor.
                 
             + econstructor; eauto.
-              
-              
               eapply step_release with
+                  (b0:= b')
                   (virtueThread0:=virtueThread2)
                   (virtueLP0:=virtueLP2); eauto.
               
@@ -1392,7 +1403,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
                 destruct H3 as (?&?&?).
                 
-                eapply (proj1 (and_assoc _ _ _)).
+                eapply (proj1 (Logic.and_assoc _ _ _)).
                 split.
 
                 (*Easy ones: the default is trivial:
@@ -1415,29 +1426,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 
               * eapply H0.
 
-              * simpl.
-                (*
-                  Sketch
-                  This should follow from the concur_match
-                  where the address is the image of [Vptr b ofs] under mu.
-                 *)
-                pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
+              * eapply Hatx.
                 
-                (*
-                  Requires something like:
-                  Asm_code_inject mu code1 code2 ->
-                  Mem.inject mu (restrPermMap m1 tid H1) (restrPermMap m2 tid H2) ->
-                  Asm.at_external the_ge 
-                  (Asm.set_mem code1 (restrPermMap m1 tid H1)) =  
-                  Some (UNLOCK, Vptr b1 ofs :: nil) ->
-                  exists b2, delt,
-                  mu b1 = Some (b2, delt) /\
-                  Asm.at_external the_ge 
-                  (Asm.set_mem code2 (restrPermMap m2 tid H2)) =  
-                  Some (UNLOCK, Vptr b2 (ofs + delt) :: nil)
-                 *)
-                admit. 
-
               * move H8 at bottom.
                 (* missing from concur relation: 
                    matching of thread permissions.   *)
@@ -1448,11 +1438,43 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 pose proof (INJ_locks _ _ _ _ _ _ H0 _ Htid Htid2) as inj_lock.
                 eapply Mem.range_perm_inject in inj_lock; eauto.
                 rename b into BBB.
-                
-                admit.
-                admit.
+                simpl.
+                replace (contains12 H0 Htid) with Htid2
+                  by apply Axioms.proof_irr.
+                pose proof (INJ_locks _ _ _ _ _ _ H0 _ Htid Htid2) as Hinject.
+                erewrite Mem.address_inject; eauto.
+                2: {
+                  specialize(H8 (unsigned ofs)).
+                  eapply H8.
+                  unfold unsigned; split; try omega.
+                  eapply Z.lt_add_pos_r.
+                  unfold LKSIZE.
+                  rewrite size_chunk_Mptr.
+                  destruct Archi.ptr64; omega.
+                }
+                unfold unsigned; eauto.
+                replace (intval ofs + delt + LKSIZE)%Z with (intval ofs + LKSIZE + delt)%Z
+                  by omega.
+                eapply inj_lock.
 
               * move H7 at bottom.
+                pose proof (contains12 H0 Htid) as Htid2.
+                pose proof (INJ_locks _ _ _ _ _ _ H0 _ Htid Htid2) as inj_lock.
+                eapply Mem.load_inject in H7; eauto.
+                2: { replace Hcmpt with (memcompat1 cd mu st1 m1 st2 m2 H0)
+                    by apply Axioms.proof_irr; eauto. }
+                destruct H7 as (v2& Hload & Hval_inj).
+                simpl.
+                replace (contains12 H0 Htid) with Htid2
+                  by apply Axioms.proof_irr.
+                inversion Hval_inj; subst.
+                eauto.
+                erewrite Mem.address_inject; eauto.
+                replace (intval (add ofs (repr delt))) with (intval ofs + delt)%Z.
+                
+                2: { unfold add.
+                     
+                     
                 
                (* Sketch:
                    Again, this should follow from the injection 
