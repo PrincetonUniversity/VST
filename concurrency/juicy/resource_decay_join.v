@@ -191,22 +191,22 @@ Qed.
 Lemma res_option_age_to n phi loc : res_option ((age_to n phi) @ loc) = res_option (phi @ loc).
 Proof.
   rewrite age_to_resource_at.
-  destruct (phi @ loc) as [t0 | t0 p [m | z | z | f c] p0 | k p]; simpl; auto.
+  destruct (phi @ loc) as [t0 | t0 p [m | z  | f c] p0 | k p]; simpl; auto.
 Qed.
 
-Lemma resource_decay_at_LK {nextb n r1 r2 b sh i} :
+Lemma resource_decay_at_LK {nextb n r1 r2 b sh n' i} :
   resource_decay_at nextb n r1 r2 b ->
-  res_option r1 = Some (sh, LK i) <->
-  res_option r2 = Some (sh, LK i).
+  res_option r1 = Some (sh, LK n' i) <->
+  res_option r2 = Some (sh, LK n' i).
 Proof.
-  destruct r1 as [t1 p1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
-    destruct r2 as [t2 p2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
+  destruct r1 as [t1 p1 | t1 p1 [m1 | z1 | f1 c1] pp1 | k1 p1];
+    destruct r2 as [t2 p2 | t2 p2 [m2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
       unfold resource_decay_at; intros rd; split; intros E;
   try congruence; breakhyps.
   autospec H; congruence.
   simpl in H0.
   rewrite <- E.
-  assert (z1=z2) by congruence. subst. f_equal. f_equal.
+  assert (z1=z2) by congruence. assert (i1=i0) by congruence. subst. f_equal. f_equal.
   unfold readable_part. apply exist_ext.
   inv H0; auto.
   simpl in H0.
@@ -214,29 +214,7 @@ Proof.
   assert (z1=z2) by congruence. subst. f_equal. f_equal.
   unfold readable_part. apply exist_ext.
   inv H0; auto.
-Qed.
-
-Lemma resource_decay_at_CT {nextb n r1 r2 b sh i} :
-  resource_decay_at nextb n r1 r2 b ->
-  res_option r1 = Some (sh, CT i) <->
-  res_option r2 = Some (sh, CT i).
-Proof.
-  destruct r1 as [t1 p1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
-    destruct r2 as [t2 p2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
-      unfold resource_decay_at; intros rd; split; intros E.
-  all: try congruence.
-  all: breakhyps.
-  autospec H; congruence.
-  simpl in H0.
-  rewrite <- E.
-  assert (z1=z2) by congruence. subst. f_equal. f_equal.
-  unfold readable_part. apply exist_ext.
-  inv H0; auto.
-  simpl in H0.
-  rewrite <- E.
-  assert (z1=z2) by congruence. subst. f_equal. f_equal.
-  unfold readable_part. apply exist_ext.
-  inv H0; auto.
+  inv E.  inv H0. auto.
 Qed.
 
 Lemma resource_decay_join b phi1 phi1' phi2 phi3 :
@@ -335,28 +313,7 @@ Proof.
 
   destruct (make_rmap (fun loc => proj1_sig (DESCR loc)) (own.ghost_approx phi1' (ghost_of phi3)))
     with (n := level phi1') as (phi3' & lev3 & at3 & Hg3).
-  {
-    (* validity *)
-    intros b' ofs.
-    pose proof phi_valid phi3 b' ofs as V3.
-    change compcert_rmaps.R.res_option with res_option.
-    unfold "oo" in *; simpl in *.
-    destruct (DESCR (b', ofs)) as (r & j & rd' & Er); simpl; auto; clear Er.
-    destruct (res_option r) as [[sh [m | z | z | f c]] | ] eqn:Err; auto.
-    - apply (resource_decay_at_LK rd') in Err.
-      rewrite Err in V3.
-      intros i Hi; specialize (V3 i Hi).
-      destruct (DESCR (b', Z.add ofs i)) as (r' & j' & rd'' & Er); simpl; auto; clear Er.
-      apply (resource_decay_at_CT rd'').
-      auto.
-    - apply (resource_decay_at_CT rd') in Err.
-      rewrite Err in V3.
-      destruct V3 as (n & lz & E).
-      exists n; split; auto.
-      destruct (DESCR (b', Z.sub ofs z)) as (r' & j' & rd'' & Er); simpl; auto; clear Er.
-      apply (resource_decay_at_LK rd'').
-      auto.
-  }
+  { hnf; auto. }
   {
     (* the right level of approximation *)
     unfold "oo".

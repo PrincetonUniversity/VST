@@ -247,7 +247,6 @@ Proof.
       change Ptrofs.intval with Ptrofs.unsigned in *.
       injection E_ as <- <- .
       if_tac [r|nr] in HH. 2:range_tac.
-      if_tac [e|ne] in HH. 2:tauto.
       destruct HH as (p & HH).
       assert (j : join_sub phi0lockinv Phi). {
         apply join_sub_trans with phi0. eexists; eauto.
@@ -257,7 +256,7 @@ Proof.
       destruct j as (psi & j).
       apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
       rewrite HH in j.
-      apply lock_coh.
+      apply lock_coh. rewrite Z.sub_diag in j.
       inv j; hnf; eauto.
   }
 
@@ -383,7 +382,7 @@ Proof.
         -- autospec Changed.
            destruct Changed as (sh'' & rsh'' & ? & ? & ?).
            rewrite H,H1.
-           if_tac; reflexivity.
+           reflexivity.
         -- autospec Same. rewrite <-Same.
            reflexivity.
 
@@ -400,7 +399,6 @@ Proof.
           specialize (inside (b, Ptrofs.unsigned ofs)).
           spec inside. split; auto. lkomega.
           unfold Ptrofs.unsigned in *.
-          if_tac in inside;
           breakhyps. }
         specialize (A loc out).
         rewrite age_to_resource_at, <-outside, A.
@@ -418,7 +416,7 @@ Proof.
       eapply loc_writable; eauto.
 
     + (* juicyLocks_in_lockSet *)
-      intros loc sh psh P z E''.
+      intros loc (*sh psh P z*)  E''.
       simpl.
       rewrite isSome_find_map.
       simpl.
@@ -426,22 +424,29 @@ Proof.
       * exfalso.
         destruct Hrmap' as (_ & outside & inside & _).
         specialize (inside (b, Ptrofs.intval ofs)). spec inside. now split; auto; unfold Ptrofs.unsigned; omega.
-        if_tac in inside; breakhyps.
-        rewrite age_to_resource_at in E''.
-        rewr (Phi' @ (b, Ptrofs.intval ofs)) in E''.
+        breakhyps.
+        simpl in H7. unfold Ptrofs.unsigned in *. rewrite Z.sub_diag in H7.
+        destruct (E'' 0) as [? [? [? E3]]]. pose proof LKSIZE_pos; omega.
+        rewrite age_to_resource_at in E3. simpl in E3. rewrite Z.add_0_r in E3.
+        rewrite H5 in E3.
         discriminate.
-      * destruct (rmap_unage_YES _ _ _ _ _ _ _ APhi' E'') as (pp, E').
-        cut (Phi @ loc = YES sh psh (LK z) pp).
-        { intros; eapply (jloc_in_set compat); eauto. }
-        rewrite <-E'.
+      *
+       apply (jloc_in_set compat loc).
+       intros.  
         destruct Hrmap' as (_ & outside & inside & _).
-        apply outside.
+        rewrite outside.
+        destruct (E'' _ H) as [? [? [? E3]]].
+       destruct (rmap_unage_YES _ _ _ _ _ _ _ APhi' E3) as (pp, E'). eauto.
         intros r.
-        specialize (inside loc r).
+        specialize (inside _ r).
         destruct inside as (sh' & rsh' & E1' & wsh' & E1).
-        rewrite E1' in E'.
+        destruct r as [? r]; subst. 
+        clear - APhi' E1' r E'' H.
+        specialize (E'' i0 H).
+        destruct E'' as [? [? [? ?]]].
+       destruct (rmap_unage_YES _ _ _ _ _ _ _ APhi' H0) as (pp, E'). 
         congruence.
-
+ 
     + (* lockSet_in_juicyLocks *)
       cleanup.
       pose proof lset_in_juice compat as J.
@@ -453,13 +458,19 @@ Proof.
       if_tac.
       * discriminate.
       * intro IS; specialize (J IS).
-        destruct Hrmap' as (_ & outside & inside & _). specialize (inside loc). specialize (outside loc).
-        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE loc).
-        -- autospec inside. exfalso.
-           if_tac in inside; breakhyps.
-        -- autospec outside. rewrite outside in J.
-           rewrite age_to_resource_at. breakhyps.
-           rewr (Phi' @ loc). simpl; eauto.
+        destruct Hrmap' as (_ & outside & inside & _).
+        destruct J as [sh' J]. exists sh'.
+        intros.
+        destruct (adr_range_dec (b, Ptrofs.unsigned ofs) LKSIZE (fst loc, snd loc + i0)).
+        -- specialize (inside _ a).
+             exfalso. destruct inside as [sh [psh [? [? inside]]]].
+             specialize (J _ H0). destruct J as [? [? [? [? J]]]]. rewrite inside in J. inv J.
+             destruct loc,a; subst. simpl in H5,H6.
+             apply H; simpl; f_equal. unfold Ptrofs.unsigned in *; omega.
+        -- intros. specialize (J _ H0). destruct J as [sh2 [psh2 [P2 [? J]]]].
+             exists sh2, psh2. eexists; split; auto. 
+             rewrite outside in J.
+             rewrite age_to_resource_at. rewrite J. reflexivity. auto.
   }
 
   left.
@@ -582,7 +593,7 @@ Proof.
               rewrite <-outside. clear outside.
               unfold sync_preds_defs.pack_res_inv in *.
               rewrite level_age_to.
-              ** if_tac; breakhyps.
+              ** breakhyps.
                  all: rewr (Phi @ x); simpl; eauto.
                  all: rewrite approx_approx'; eauto; omega.
               ** omega.
@@ -672,7 +683,7 @@ Proof.
            rewrite <-outside. clear outside.
            unfold sync_preds_defs.pack_res_inv in *.
            rewrite level_age_to.
-           ++ if_tac; breakhyps.
+           ++ breakhyps.
               all: rewr (Phi @ x); simpl; eauto.
               all: rewrite approx_approx'; eauto; omega.
            ++ omega.
@@ -685,7 +696,7 @@ Proof.
           breakhyps. rewr (Phi' @ loc) in E. breakhyps. }
         apply lock_coh_. rewrite inside. destruct LK as (sh & sh' & z & pp & E).
         destruct (Phi' @ loc) as [t0 | t0 p [] p0 | k p]; breakhyps.
-        hnf. eauto.
+        hnf. inv E; eauto.
 
   - (* safety *)
     {

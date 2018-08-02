@@ -155,7 +155,8 @@ Lemma preservation_acquire
   (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
   (* (Hstore : Mem.store Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) *)
   (*                     b (Ptrofs.intval ofs) (Vint Int.zero) = Some m') *)
-  (HJcanwrite : getThreadR i tp cnti @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+(*  (HJcanwrite : lock_at_least sh R (getThreadR i tp cnti) b (Ptrofs.intval ofs)) *)
+(* forall j, 0 <= j < LKSIZE -> getThreadR i tp cnti @ (b, Ptrofs.intval ofs+j) = YES sh psh (LK LKSIZE j) (pack_res_inv R)) *)
   (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
   (jmstep : @JuicyMachine.machine_step _ (ClightSemanticsForMachines.Clight_newSem ge) _ HybridCoarseMachine.DilMem JuicyMachineShell HybridMachineSig.HybridCoarseMachine.scheduler (i :: sch) tr tp m sch (seq.cat tr (external i (acquire (b, Ptrofs.intval ofs) None) :: nil))
              (age_tp_to n
@@ -270,9 +271,8 @@ Proof.
 
     - (* juicyLocks_in_lockSet *)
       pose proof jloc_in_set compat as jl.
-      intros loc sh1 sh1' pp z E.
-      cleanup.
-      specialize (jl loc sh1 sh1' pp z E).
+      hnf. intros loc ?. 
+      specialize (jl loc H). clear H.
       simpl.
       rewrite AMap_find_add.
       if_tac. reflexivity.
@@ -286,16 +286,14 @@ Proof.
       if_tac; swap 1 2.
       + cleanup.
         intros is; specialize (lj is).
-        destruct lj as (sh' & psh' & P & E).
-        rewrite E. simpl. eauto.
+        destruct lj as (sh' & E). exists sh'. auto.
       + intros _. subst loc.
         assert_specialize lj. {
           cleanup.
           rewrite His_unlocked.
           reflexivity.
         }
-        destruct lj as (sh' & psh' & P & E).
-        rewrite E. simpl. eauto.
+        destruct lj as (sh' & E). exists sh'; auto.
   }
 
   pose proof mem_compatible_with_age _ compat'' (n := n) as compat'.

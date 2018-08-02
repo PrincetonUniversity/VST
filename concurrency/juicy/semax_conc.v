@@ -84,7 +84,6 @@ Proof.
   destruct H3 as (b & ofs & ? & Hl & ?); exists b, ofs; split; auto; split; auto.
   intro l; specialize (Hl l); simpl in *.
   if_tac; auto.
-  if_tac; auto.
   destruct Hl as [rsh Hl]; exists rsh; rewrite Hl; repeat f_equal.
   extensionality.
   specialize (H tt); rewrite <- eqp_later in H.

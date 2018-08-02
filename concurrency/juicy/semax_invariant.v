@@ -95,7 +95,7 @@ Inductive state_step : cm_state -> cm_state -> Prop :=
 
 Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resource) (dryv : memval), Prop :=
 | cohere_notlock wetv dryv:
-    (forall sh sh' z P, wetv <> YES sh sh' (LK z) P) ->
+    (forall sh sh' z P, wetv <> YES sh sh' (LK z 0) P) ->
     cohere_res_lock None wetv dryv
 | cohere_locked R wetv :
     islock_pred R wetv ->

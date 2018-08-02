@@ -173,15 +173,12 @@ Lemma resource_decay_lockSet_in_juicyLocks b phi phi' lset :
   lockSet_in_juicyLocks lset phi'.
 Proof.
   intros RD LB IN loc IT.
-  destruct (IN _ IT) as (rsh & sh & pp & E).
-  (* assert (SL : same_locks phi phi') by (eapply resource_decay_same_locks; eauto). *)
-  assert (SL : same_locks_sized phi phi') by (eapply resource_decay_same_locks_sized; eauto).
-  destruct (SL loc LKSIZE) as [(rsh' & sh' & pp' &  E') _].
-  { rewrite E. exists rsh, sh, pp. reflexivity. }
+  destruct (IN _ IT) as (sh & E). exists sh. intros ? H8. specialize (E _ H8).
+  destruct E as [sh' [rsh' [pp [Ex E]]]]; exists sh', rsh', (preds_fmap (approx (level phi')) (approx (level phi')) pp).
+  split; auto.
   destruct RD as [L RD].
-  destruct (RD loc) as [NN [R|[R|[[P [v R]]|R]]]].
-  + rewrite E in R. simpl in R; rewrite <- R.
-    eauto.
+  destruct (RD (fst loc, snd loc + i)) as [NN [R|[R|[[P [v R]]|R]]]].
+  +rewrite <- R. rewrite E. simpl. auto.
   + rewrite E in R. destruct R as (sh'' & wsh'' & v & v' & R & H). discriminate.
   + specialize (LB loc).
     cut (fst loc < b)%positive. now intro; exfalso; eauto.
@@ -189,11 +186,10 @@ Proof.
     * apply I.
     * inversion IT.
   + destruct R as (v & v' & R & N').
-    rewrite E'.
-    exists rsh', sh', pp'.
-    eauto.
+      congruence.
 Qed.
 
+(*
 Lemma isLK_rewrite r :
   (forall (sh : Share.t) (rsh : shares.readable_share sh) (z : Z) (P : preds), r <> YES sh rsh (LK z) P)
   <->
@@ -204,6 +200,7 @@ Proof.
   intros E; injection E; intros; subst.
   apply H; eauto.
 Qed.
+*)
 
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
@@ -221,14 +218,10 @@ Proof.
     simpl option_map; cbv iota beta; swap 1 3.
   - (* rewrite <-isLKCT_rewrite. *)
     (* rewrite <-isLKCT_rewrite in LC. *)
-    rewrite <-isLK_rewrite.
-    rewrite <-isLK_rewrite in LC.
-    intros sh sh' z pp.
+    contradict LC.
+    destruct LC as [sh [rsh [z [pp ?]]]]. rewrite H in *.
     destruct RD as [NN [R|[R|[[P [v R]]|R]]]].
-    + (* split; *) intros E; rewrite E in *;
-        destruct (phi @ loc); try destruct k; simpl in R; try discriminate;
-          [ refine ((* proj1 *) (LC _ _ _ _) _); eauto
-          (* | refine (proj2 (LC _ _ _ _) _); eauto *) ].
+    + destruct (phi @ loc); inv R; hnf; eauto.
     + destruct R as (sh'' & wsh & v & v' & E & E'). (* split; *) congruence.
     + (* split; *) congruence.
     + destruct R as (v & PP  & ? & ?). (* split; *) congruence.
@@ -476,15 +469,7 @@ Proof.
           specialize (lk (b, ofs0)). simpl in lk.
           assert (adr_range (b, ofs) LKSIZE (b, ofs0))
             by apply interval_adr_range, interval.
-          spec lk. now split; auto; lkomega.
-          if_tac in lk.
-          + injection H0 as <-.
-            destruct lk as (? & ? & ->).
-            simpl.
-            constructor.
-          + destruct lk as (? & ? & ->).
-            simpl.
-            constructor.
+          spec lk. now split; auto; lkomega. destruct lk as [sh [rsh lk]]; rewrite lk; constructor.
         - cut (join_sub (getThreadR _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
           + apply po_join_sub.
           + apply resource_at_join_sub.
@@ -576,8 +561,8 @@ Proof.
       + eapply resource_decay_same_locks.
         apply RD.
       + simpl.
-        clear -LJ.
-        intros loc sh psh P z H.
+        clear -LJ. hnf.
+        intros loc H.
         unfold tp'.
         rewrite lset_age_tp_to.
         rewrite isSome_find_map.
@@ -755,9 +740,7 @@ Proof.
           assert (adr_range (b, ofs) 4%Z (b, ofs0))
             by apply interval_adr_range, interval.
           spec lk. split; auto. clear - H; unfold LKSIZE; destruct H; rewrite size_chunk_Mptr; simple_if_tac; omega.
-          if_tac in lk.
-          * destruct lk as (? & ? & ->). simpl. constructor.
-          * destruct lk as (? & ? & ->). simpl. constructor.
+          destruct lk as (? & ? & ->). simpl. constructor.
     }
     (* end of proof of: lock values couldn't change during a corestep *)
 
