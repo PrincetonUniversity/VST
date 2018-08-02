@@ -3,15 +3,6 @@ Require Import aes.bitfiddling.
 Require Import aes.encryption_LL_round_step_eqs.
 Open Scope Z.
 
-(* duplicated from verif_encryption_LL_loop_body to allow make -j *)
-Definition encryption_loop_body_Delta' DS :=
- (with_Delta_specs DS
-   (initialized_list
-     [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
-     _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
-     _b3__3; _t'4; _t'3; _t'2; _t'1]
-     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil))).
-
 Definition encryption_after_loop : statement :=
    ltac:(find_statement_in_body
        f_mbedtls_aes_encrypt
@@ -40,7 +31,6 @@ end.
 Lemma encryption_after_loop_proof:
 forall (Espec : OracleKind) (ctx input output : val)
   (ctx_sh in_sh out_sh : share) (plaintext (*exp_key*) : list Z) (gv: globals)
-  (Delta_specs : PTree.t funspec)
  (H: Zlength plaintext = 16)
  (SH: readable_share ctx_sh)
  (SH0: readable_share in_sh)
@@ -58,7 +48,7 @@ forall (Espec : OracleKind) (ctx input output : val)
   let S0 := mbed_tls_initial_add_round_key plaintext buf in
    forall (S12 : four_ints)
    (HeqS12: S12 = mbed_tls_enc_rounds 12 S0 buf 4),
-semax (encryption_loop_body_Delta' Delta_specs)
+semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
   (PROP ( )
    LOCAL (temp _RK
             (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf]
@@ -89,7 +79,7 @@ semax (encryption_loop_body_Delta' Delta_specs)
          tables_initialized (gv _tables)))) emp).
 Proof.
 intros.
-  unfold encryption_after_loop, encryption_loop_body_Delta'.
+  unfold encryption_after_loop.
   abbreviate_semax.
   unfold tables_initialized.
   pose proof masked_byte_range.

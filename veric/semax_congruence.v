@@ -31,7 +31,7 @@ Proof.
 Qed.
 
 Section extensions.
-Context (Espec : OracleKind).
+Context {CS: compspecs} {Espec : OracleKind}.
 
 Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
   @jsafeN_ _ _ _ (fun x => genv_symb_injective (genv_genv x)) (cl_core_sem gx) OK_spec
@@ -72,19 +72,12 @@ Definition jsafeN_equiv c1 c2 :=
 Definition closed_wrt_modvars_equiv c1 c2 :=
   forall F, closed_wrt_modvars c1 F <-> closed_wrt_modvars c2 F.
 
-Definition exit_tycon_equiv c1 c2 :=
-  forall Delta, exit_tycon c1 Delta = exit_tycon c2 Delta.
-
 Definition modifiedvars_equiv c1 c2 :=
   forall S, modifiedvars' c1 S = modifiedvars' c2 S.
 
-Definition update_tycon_equiv c1 c2 :=
-  forall Delta, update_tycon Delta c1 = update_tycon Delta c2.
-
 Definition semax_equiv c1 c2 :=
   jsafeN_equiv c1 c2 /\
-  modifiedvars_equiv c1 c2 /\
-  update_tycon_equiv c1 c2.
+  modifiedvars_equiv c1 c2.
 
 Lemma modifiedvars_closed_wrt_modvars_equiv: forall c1 c2,
   modifiedvars_equiv c1 c2 -> closed_wrt_modvars_equiv c1 c2.
@@ -96,33 +89,20 @@ Proof.
   tauto.
 Qed.
 
-Lemma update_tycon_exit_tycon_equiv: forall c1 c2,
-  update_tycon_equiv c1 c2 -> exit_tycon_equiv c1 c2.
-Proof.
-  unfold update_tycon_equiv, exit_tycon_equiv.
-  intros.
-  extensionality ek.
-  destruct ek; auto.
-  simpl.
-  rewrite H; reflexivity.
-Qed.
-
-Lemma semax_equiv_spec{CS: compspecs}: forall c1 c2,
+Lemma semax_equiv_spec: forall c1 c2,
   semax_equiv c1 c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.
   rewrite semax_unfold.
   unfold semax_equiv.
-  intros ? ? [JS_EQUIV [M_EQUIV U_EQUIV]] P Q Delta Hc1; intros.
+  intros ? ? [JS_EQUIV M_EQUIV] P Q Delta Hc1; intros.
   specialize (Hc1 psi Delta' w TS HGG Prog_OK k F).
 
   apply modifiedvars_closed_wrt_modvars_equiv in M_EQUIV.
   specialize (M_EQUIV F).
   spec Hc1; [clear - M_EQUIV H; tauto |].
 
-  apply update_tycon_exit_tycon_equiv in U_EQUIV.
-  specialize (U_EQUIV Delta').
-  spec Hc1; [rewrite <- U_EQUIV in H0; auto |].
+  spec Hc1; auto.
 
   clear - JS_EQUIV Hc1.
   unfold guard in Hc1 |- *.
@@ -183,18 +163,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma update_tycon_equiv_seq: forall c1 c2 c3 c4,
-  update_tycon_equiv c1 c2 ->
-  update_tycon_equiv c3 c4 ->
-  update_tycon_equiv (Ssequence c1 c3) (Ssequence c2 c4).
-Proof.
-  unfold update_tycon_equiv.
-  intros.
-  simpl.
-  rewrite H0, H.
-  reflexivity.
-Qed.
-
 Lemma semax_equiv_seq: forall c1 c2 c3 c4,
   semax_equiv c1 c2 ->
   semax_equiv c3 c4 ->
@@ -202,10 +170,9 @@ Lemma semax_equiv_seq: forall c1 c2 c3 c4,
 Proof.
   unfold semax_equiv.
   intros.
-  split; [| split].
+  split.
   + apply jsafeN_equiv_seq; tauto.
   + apply modifiedvars_equiv_seq; tauto.
-  + apply update_tycon_equiv_seq; tauto.
 Qed.
 
 Lemma Ssequence_assoc_jsafeN_equiv: forall c1 c2 c3,
@@ -216,14 +183,14 @@ Proof.
   split; intros.
   + rewrite !jsafeN_step_jsem_seq in H1.
     rewrite !jsafeN_step_jsem_seq.
-    apply (control_suffix_safe Espec gx n
+    apply (control_suffix_safe gx n
             (Kseq (Ssequence c2 c3) :: k1) (Kseq c2 :: Kseq c3 :: k2) (Kseq c1 :: nil));
     [simpl; auto | | auto | simpl; exact H1].
     clear ora vx tx jm H1.
     unfold control_as_safe.
     intros ora vx tx jm n' ? ?.
     rewrite !jsafeN_step_jsem_seq in H2.
-    apply (control_suffix_safe Espec gx n' k1 k2 (Kseq c2 :: Kseq c3 :: nil));
+    apply (control_suffix_safe gx n' k1 k2 (Kseq c2 :: Kseq c3 :: nil));
     [auto | | auto | simpl; exact H2].
     clear ora vx tx jm n H1 H2.
     unfold control_as_safe.
@@ -231,14 +198,14 @@ Proof.
     apply H0; auto.
   + rewrite !jsafeN_step_jsem_seq in H1.
     rewrite !jsafeN_step_jsem_seq.
-    apply (control_suffix_safe Espec gx n
+    apply (control_suffix_safe gx n
             (Kseq c2 :: Kseq c3 :: k2) (Kseq (Ssequence c2 c3) :: k1) (Kseq c1 :: nil));
     [simpl; auto | | auto | simpl; exact H1].
     clear ora vx tx jm H1.
     unfold control_as_safe.
     intros ora vx tx jm n' ? ?.
     rewrite !jsafeN_step_jsem_seq.
-    apply (control_suffix_safe Espec gx n' k2 k1 (Kseq c2 :: Kseq c3 :: nil));
+    apply (control_suffix_safe gx n' k2 k1 (Kseq c2 :: Kseq c3 :: nil));
     [auto | | auto | simpl; exact H2].
     clear ora vx tx jm n H1 H2.
     unfold control_as_safe.
@@ -254,38 +221,27 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Ssequence_assoc_update_tycon_equiv: forall c1 c2 c3,
-  update_tycon_equiv (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3).
-Proof.
-  unfold update_tycon_equiv.
-  intros.
-  reflexivity.
-Qed.
-
 Lemma Ssequence_assoc_semax_equiv: forall c1 c2 c3,
   semax_equiv (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3).
 Proof.
   intros.
-  split; [| split].
+  split.
   + apply Ssequence_assoc_jsafeN_equiv.
   + apply Ssequence_assoc_modifiedvars_equiv.
-  + apply Ssequence_assoc_update_tycon_equiv.
 Qed.
 
 Lemma semax_equiv_refl: forall c, semax_equiv c c.
 Proof.
   intros.
-  split; [| split].
+  split.
   + intro; intros.
     split.
-    - apply (control_suffix_safe Espec gx n k1 k2 (Kseq c :: nil)); auto.
+    - apply (control_suffix_safe gx n k1 k2 (Kseq c :: nil)); auto.
       intro; intros.
       apply H0; auto.
-    - apply (control_suffix_safe Espec gx n k2 k1 (Kseq c :: nil)); auto.
+    - apply (control_suffix_safe gx n k2 k1 (Kseq c :: nil)); auto.
       intro; intros.
       apply H0; auto.
-  + intro; intros.
-    reflexivity.
   + intro; intros.
     reflexivity.
 Qed.
@@ -293,37 +249,31 @@ Qed.
 Lemma semax_equiv_sym: forall c1 c2, semax_equiv c1 c2 -> semax_equiv c2 c1.
 Proof.
   intros.
-  destruct H as [? [? ?]].
-  split; [| split].
+  destruct H as [? ?].
+  split.
   + intro; intros.
     symmetry.
     apply H; auto.
     intros.
     symmetry.
-    apply H3.
+    apply H2.
   + intro; intros.
     symmetry.
     apply H0.
-  + intro; intros.
-    symmetry.
-    apply H1.
 Qed.
 
 Lemma semax_equiv_trans: forall c1 c2 c3, semax_equiv c1 c2 -> semax_equiv c2 c3 -> semax_equiv c1 c3.
 Proof.
   intros.
-  destruct H as [? [? ?]].
-  destruct H0 as [? [? ?]].
-  split; [| split].
+  destruct H as [? ?].
+  destruct H0 as [? ?].
+  split.
   + intro; intros.
     rewrite (H k1 k1), (H0 k1 k2); auto.
     - reflexivity.
     - intros; reflexivity.
   + intro; intros.
-    rewrite H1, H3.
-    reflexivity.
-  + intro; intros.
-    rewrite H2, H4.
+    rewrite H1, H2.
     reflexivity.
 Qed.
 
@@ -405,7 +355,7 @@ Proof.
   apply unfold_Ssequence_unfold_Sseq_rel.
 Qed.
 
-Lemma semax_unfold_Ssequence {CS: compspecs}: forall c1 c2,
+Lemma semax_unfold_Ssequence: forall c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.

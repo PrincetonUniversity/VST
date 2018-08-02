@@ -88,10 +88,6 @@ autorewrite with sublist.
 auto.
 Qed.
 
-Definition Delta_final_if1 :=
- (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot nil))).
-
 Definition Body_final_if1 :=
   (Ssequence
               (Scall None
@@ -121,7 +117,7 @@ forall (Espec : OracleKind)  (a : s256abs) (md c : val) (shmd : share) (gv : glo
 sublist 0 (Zlength (s256a_data a)) r_data = map Vint (map Int.repr (s256a_data a)) ->
 Forall isbyteZ a ->
 Zlength r_data = CBLOCKz ->
-semax Delta_final_if1
+semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -214,7 +210,7 @@ clear - H4 H3 H1 DDbytes.
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
 set (fill_len := (64 - (ddlen + 1))).
- unfold Delta_final_if1, Body_final_if1; abbreviate_semax.
+ unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
 unfold_data_at 1%nat.
 eapply semax_seq'.
@@ -339,8 +335,8 @@ split3.
 rewrite Forall_app; split; auto.
 apply Forall_sublist; auto.
 repeat constructor; omega.
-split.
 autorewrite with sublist. omega.
+split.
 apply s256a_hashed_divides.
 autorewrite with sublist; auto.
 rewrite !(field_at_data_at _ _ [_]).

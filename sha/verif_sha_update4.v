@@ -62,8 +62,7 @@ Lemma update_outer_if_proof:
    (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : len <= Int.max_unsigned),
 semax
-  (initialized_list [_data; _p; _n]
-     (func_tycontext f_SHA256_Update Vprog Gtot nil))
+     (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (PROP  ()
    LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
@@ -101,7 +100,6 @@ drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
 fold (inv_at_inner_if sh hashed len c d dd data gv).
 apply semax_seq with (sha_update_inv sh hashed len c d dd data gv false).
-change Delta with Delta_update_inner_if.
 weak_normalize_postcondition.
 normalize. change (16*4)%Z with 64.
 simple apply (update_inner_if_proof Espec hashed dd data c d sh len gv);
@@ -144,8 +142,7 @@ Lemma update_while_proof:
   (H4 : (LBLOCKz | Zlength hashed))
   (Hlen : len <= Int.max_unsigned),
  semax
-     (initialized_list [_p; _n; _data]
-       (func_tycontext f_SHA256_Update Vprog Gtot nil))
+       (func_tycontext f_SHA256_Update Vprog Gtot nil)
   (sha_update_inv sh hashed len c d dd data gv false)
   (Swhile
      (Ebinop Oge (Etempvar _len tuint)

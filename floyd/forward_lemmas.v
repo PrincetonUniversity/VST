@@ -1,5 +1,4 @@
 Require Import VST.floyd.base2.
-Require Import VST.floyd.expr_lemmas.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Import Cop.
@@ -186,7 +185,7 @@ Lemma semax_while :
 Proof.
 intros ? ? ? ? ? ? ? BT TC Post H.
 unfold Swhile.
-apply (@semax_loop Espec cs Delta Q Q).
+apply (@semax_loop cs Espec Delta Q Q).
 Focus 2. {
  clear. eapply semax_post_flipped. apply semax_skip.
  all: try (intros; apply andp_left2; destruct R; apply derives_refl).
@@ -211,10 +210,8 @@ rewrite (andp_comm Q).
 rewrite <- andp_assoc.
 eapply derives_trans; try apply Post.
 destruct R; simpl; auto.
-simpl update_tycon.
 apply semax_extensionality_Delta with Delta; auto.
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm; apply join_tycon_same.
+apply tycontext_sub_refl.
 Qed.
 
 Lemma semax_while_3g1 :
@@ -309,11 +306,8 @@ simpl.
 rewrite andp_assoc.
 auto.
 *
-simpl update_tycon.
 apply semax_extensionality_Delta with Delta.
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm.
-apply join_tycon_same.
+apply tycontext_sub_refl.
 eapply semax_pre_simple; [ | apply H2].
 apply andp_left2.
 apply andp_left2.
@@ -663,9 +657,8 @@ apply semax_loop with (Q':= (EX a:A, PQR a)).
  intro rho.  simpl. unfold_lift.  unfold local, lift1. normalize.
  rewrite H0. normalize.
 +
- unfold update_tycon.
  apply semax_extensionality_Delta with Delta.
- apply tycontext_eqv_sub. apply tycontext_eqv_symm. apply join_tycon_same.
+ apply tycontext_sub_refl.
  eapply semax_post_flipped.
  apply H2.
  all: intros; apply andp_left2; auto.

@@ -185,7 +185,6 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-apply expr_lemmas.typecheck_environ_update in H3; auto.
 *
 apply sepcon_derives; auto.
 rewrite <- !sepcon_assoc.
@@ -307,7 +306,9 @@ intros.
  rewrite <- insert_local.
  rewrite lower_andp.
  apply derives_extract_prop; intro.
- hnf in H0. rewrite retval_ext_rval in H0. rewrite <- H0.
+ hnf in H0. unfold_lift in H0.
+ destruct H0.
+ rewrite retval_ext_rval in H0. rewrite <- H0.
  apply prop_right; auto.
 Qed.
 
@@ -1570,8 +1571,7 @@ Loop test expression:" e
          normalize in HRE
         ]
        end
-       | simpl update_tycon;
-         apply extract_exists_pre; special_intros_EX;
+       | apply extract_exists_pre; special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          do_repr_inj HRE;
          repeat (apply semax_extract_PROP; intro);
@@ -1627,7 +1627,7 @@ Ltac forward_for_simple_bound n Pre :=
         end
     | _ => idtac
     end;
-    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; try fwd_skip]
+    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; cbv beta; try fwd_skip]
   ].
 
 Ltac forward_for3 Inv PreInc Postcond :=
@@ -1640,7 +1640,7 @@ Ltac forward_for3 Inv PreInc Postcond :=
             do_compute_expr1 Delta Pre e;
             match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
           end
-        | intro; let HRE := fresh in 
+        | intro; let HRE := fresh in
             apply semax_extract_PROP; intro HRE; 
             repeat (apply semax_extract_PROP; fancy_intro true);
             do_repr_inj HRE
@@ -1652,7 +1652,9 @@ Ltac forward_for3 Inv PreInc Postcond :=
             apply derives_extract_PROP; intro HRE; 
             repeat (apply derives_extract_PROP; fancy_intro true);
             do_repr_inj HRE;
-         simpl_ret_assert (*autorewrite with ret_assert*) ]        
+            match goal with
+            | |- context [RA_normal (overridePost ?P ?Post)] => change (RA_normal (overridePost ?P ?Post)) with P
+            end ]
        | abbreviate_semax;
          repeat (apply semax_extract_PROP; fancy_intro true)
       ].
@@ -1714,7 +1716,7 @@ all: try (simpl; intros; apply andp_left2; destruct R; try apply derives_refl; a
 Qed.
 
 Lemma semax_post1: forall R' Espec {cs: compspecs} Delta R P c,
-           ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+           ENTAIL Delta, R' |-- RA_normal R ->
       @semax cs Espec Delta P c (overridePost R' R) ->
       @semax cs Espec Delta P c R.
 Proof. intros. eapply semax_post; try apply H0.
@@ -1724,7 +1726,7 @@ Qed.
 
 Lemma semax_post1_flipped: forall R' Espec {cs: compspecs} Delta R P c,
       @semax cs Espec Delta P c (overridePost R' R) ->
-         ENTAIL (update_tycon Delta c), R' |-- RA_normal R ->
+         ENTAIL Delta, R' |-- RA_normal R ->
       @semax cs Espec Delta P c R.
 Proof. intros. apply semax_post1 with R'; auto. Qed.
 
@@ -2088,9 +2090,6 @@ match goal with
      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
-Lemma ENTAIL_refl: forall Delta P, ENTAIL Delta, P |-- P.
-Proof. intros; apply andp_left2; auto. Qed.
-
 Lemma ENTAIL_break_normal:
  forall Delta R S, ENTAIL Delta, RA_break (normal_ret_assert R) |-- S.
 Proof.
@@ -2114,20 +2113,6 @@ Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
 Hint Extern 0 (ENTAIL _, _ |-- _) =>
  match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end.
 
-Ltac abbreviate_update_tycon :=
- match goal with
- | D0 := @abbreviate _ _ |- ENTAIL update_tycon ?D1 _, _ |-- _ =>
-   constr_eq D0 D1;
-   subst D0; unfold abbreviate; simpl update_tycon;
-   match goal with |- ENTAIL ?D, _ |-- _ =>
-    let Delta := fresh "Delta" in 
-     let Delta1 := fresh "Delta1" in 
-     set (Delta1 := D);
-     pose (Delta := @abbreviate tycontext Delta1);
-      change Delta1 with Delta; subst Delta1
-  end
-end.
-
 Ltac forward_if_tac post :=
   check_Delta; check_POSTCONDITION;
   repeat (apply -> seq_assoc; abbreviate_semax);
@@ -2142,8 +2127,7 @@ match goal with
  | |- semax _ _ (Sifthenelse _ _ _) ?P =>
       apply (semax_post_flipped (overridePost post P));
       [ forward_if'_new
-      | abbreviate_update_tycon; 
-        try subst P; unfold abbreviate;
+      | try subst P; unfold abbreviate;
         simpl_ret_assert;
         try (match goal with |- ?A => no_evars A end;
              try apply ENTAIL_refl;
@@ -2293,7 +2277,7 @@ Ltac warn s :=
 
 Lemma semax_post3:
   forall R' Espec {cs: compspecs} Delta P c R,
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    local (tc_environ Delta) && R' |-- R ->
     @semax cs Espec Delta P c (normal_ret_assert R') ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
@@ -2303,7 +2287,7 @@ Qed.
 Lemma semax_post_flipped3:
   forall R' Espec {cs: compspecs} Delta P c R,
     @semax cs Espec Delta P c (normal_ret_assert R') ->
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    local (tc_environ Delta) && R' |-- R ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
 intros; eapply semax_post3; eauto.
@@ -2604,7 +2588,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [
-               | unfold exit_tycon, update_tycon, Post; clear Post ]
+               | unfold Post; clear Post ]
   end.
 
 (*
@@ -2615,12 +2599,6 @@ Proof.
  simpl. apply andp_left2. apply H.
 Qed.
 *)
-
-Lemma drop_tc_environ:
- forall Delta R, local (tc_environ Delta) && R |-- R.
-Proof.
-intros. apply andp_left2; auto.
-Qed.
 
 (*
 Lemma frame_ret_assert_derives P Q: P |-- Q -> frame_ret_assert P |-- frame_ret_assert Q.
@@ -2937,7 +2915,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
 
 Ltac derives_after_forward :=
              first [ simple apply derives_refl
-                     | simple apply drop_tc_environ
+                     | simple apply ENTAIL_refl
 (*                     | simple apply normal_ret_assert_derives'' 
                      | simple apply normal_ret_assert_derives' *)
                      | idtac].
@@ -3090,15 +3068,6 @@ match goal with gv: globals |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
    end
 end.
 
-Ltac clear_Delta_specs_if_leaf_function :=
- match goal with DS := @abbreviate (PTree.t funspec) _  |- semax _ _ ?S _ =>
-   let S' := eval compute in S in
-    match S' with 
-    | context [Scall] => idtac
-    | _ => clearbody DS
-    end
- end.
-
 Ltac type_lists_compatible al bl :=
  match al with
  | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
@@ -3124,7 +3093,7 @@ Ltac check_parameter_vals Delta al :=
     let ti := constr:((temp_types Delta) ! i) in
     let ti := eval compute in ti in 
     match ti with
-    | Some (?t,true) =>
+    | Some ?t =>
         let w := constr:(tc_val_dec t v) in
         let y := eval cbv beta iota delta [is_int_dec is_long_dec 
                          is_float_dec is_single_dec is_pointer_or_integer_dec
@@ -3138,7 +3107,6 @@ Ltac check_parameter_vals Delta al :=
 *)
           | _ => idtac (* no optional warning *)
         end
-    | Some (_,false) => fail 3 "Local variable" i "is not initialized, only function-parameters should appear here"
     | None => fail 3 "Identifer" i "is not a local variable of this function"
     end;
     check_parameter_vals Delta al'
@@ -3274,7 +3242,6 @@ Function spec: " S)
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
  end;
- clear_Delta_specs_if_leaf_function;
  start_function_hint.
 
 Opaque sepcon.

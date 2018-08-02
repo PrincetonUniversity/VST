@@ -277,7 +277,7 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): for
       64)
 (isbyte_key : Forall isbyteZ key),
 @semax CompSpecs Espec
-  (initialized _reset (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
+  (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 1));
    lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -407,7 +407,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): fora
 (*Delta := abbreviate : tycontext*)
 (ipadSHAabs : s256abs),
 @semax CompSpecs Espec
-  (initialized_list [_reset; _i] (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
+  (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 1));
    lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -515,8 +515,6 @@ Lemma init_part2: forall
 (key : list Z)
 (gv : globals)
 (h1 : hmacabs)
-(*(Delta := initialized _reset
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))*)
 (cb : block)
 (cofs : ptrofs)
 (pad : val)
@@ -541,8 +539,8 @@ Lemma init_part2: forall
                 data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
                 initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
                 K_vector gv)),
-@semax CompSpecs Espec (*Delta*) (initialized _reset
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil))
+@semax CompSpecs Espec
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr r));
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); lvar _pad (tarray tuchar 64) pad;

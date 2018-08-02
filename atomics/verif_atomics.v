@@ -3,7 +3,7 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.ghost.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import mailbox.sim_atomics.
+Require Import atomics.sim_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 

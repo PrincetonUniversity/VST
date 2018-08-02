@@ -48,7 +48,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 
 Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h (xs ys: list int):
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -192,7 +192,7 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
 
 Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
      lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -485,7 +485,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 
 Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs (*ys Nonce C K*):
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -752,7 +752,7 @@ Definition epilogue_htrue_statement:=
 
 Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs ys data:
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 20)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;

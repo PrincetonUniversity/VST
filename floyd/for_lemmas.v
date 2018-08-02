@@ -1,5 +1,4 @@
 Require Import VST.floyd.base2.
-Require Import VST.floyd.expr_lemmas.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.closed_lemmas.
@@ -105,6 +104,10 @@ Proof.
   subst; constructor.
 Qed.
 
+Require Import VST.floyd.local2ptree_denote.
+Require Import VST.floyd.local2ptree_eval.
+Require Import VST.floyd.local2ptree_typecheck.
+  
 Lemma Int64_eqm_unsigned_repr': forall i z,
   i = Int64.repr z ->
   Int64_eqm_unsigned i z.
@@ -297,7 +300,7 @@ Lemma Sfor_setup_spec: forall {cs: compspecs} {Espec: OracleKind} (Delta: tycont
   forall _i Pre init type_i hi m n assert_callee inv0 inv1,
     Sfor_setup Delta _i Pre init hi type_i m n assert_callee inv0 ->
     forall
-      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (type_i, true)),
+      (TI: (temp_types Delta) ! _i = Some type_i),
     (forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i) ->
     (EX i: Z, !! (m <= i <= n) && inv1 i = inv0) ->
     (forall v i, subst _i (`v) (assert_callee i) = assert_callee i) ->
@@ -320,22 +323,13 @@ Proof.
         apply andp_right; [apply prop_right; omega |].
         apply derives_refl', H0.
       }
-      assert (exists b, (temp_types Delta) ! _i = Some (type_i, b)) as [? TI'].
-      {
-        simpl in TI.
-        rewrite temp_types_same_type' in TI.
-        destruct ((temp_types Delta) ! _i) as [[? ?] |].
-        + inv TI.
-          eauto.
-        + inv TI.
-      }
       eapply semax_pre_post'; [| | apply semax_set_forward].
       * eapply derives_trans; [| apply now_later].
         apply andp_right; [| apply andp_left2, derives_refl].
         unfold tc_expr, tc_temp_id.
         apply andp_right; [eapply const_only_eval_expr_tc; eauto |].
         unfold typecheck_temp_id.
-        rewrite TI'.
+        rewrite TI.
         simpl typeof.
         replace (is_neutral_cast (implicit_deref (typeof lo)) type_i) with true
           by (destruct (typeof lo) as [| [| | |] [|] | | | | | | | ]; inv H1; auto;
@@ -360,6 +354,7 @@ Proof.
         inv H5.
         rewrite H4.
         normalize.
+        split; [auto | congruence].
     - exists int_min, int_max.
       split; auto.
       split; [destruct type_i as [| [| | |] | | | | | | | ]; inv H8; auto |].
@@ -392,7 +387,7 @@ Hypothesis I32_i: is_int32_type type_i = true.
 Hypothesis IMM: int_type_min_max type_i (typeof hi) = Some (int_min, int_max).
 Hypothesis Range_m: int_min <= m <= int_max.
 Hypothesis Range_n: int_min <= n <= int_max.
-Hypothesis TI: (temp_types Delta) ! _i = Some (type_i, true).
+Hypothesis TI: (temp_types Delta) ! _i = Some type_i.
 Hypothesis EQ_inv1: forall i : Z, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee i = inv1 i.
 Hypothesis EQ_inv0: (EX i : Z, !! (m <= i <= n) && inv1 i)%assert = inv0.
 Hypothesis EQ_inv2: forall i, local (locald_denote (temp _i (Vint (Int.repr i)))) && assert_callee (i+1) = inv2 i.
@@ -423,13 +418,17 @@ Proof.
   simpl snd.
   replace (is_neutral_cast type_i type_i || same_base_type type_i type_i)%bool with true
     by (destruct type_i as [| [| | |] [|] | | | | | | | ]; inv IMM; auto).
-  rewrite tc_andp_TT2.
   
   rewrite denote_tc_assert_andp; apply andp_right; auto.
   rewrite (add_andp _ _ EVAL_hi).
   Intros n'.
   apply andp_left1.
-
+  rewrite <- EQ_inv0.
+  Intros i.
+  rewrite <- EQ_inv1.
+  rewrite denote_tc_assert_andp; apply andp_right;
+    [| rewrite <- andp_assoc; apply andp_left1, temp_tc_initialized; auto].
+  
   unfold isBinOpResultType; simpl typeof.
   rewrite CLASSIFY_CMP.
   replace (is_numeric_type type_i) with true
@@ -645,7 +644,7 @@ Proof.
       simpl.
       rewrite (proj2 (eqb_attr_spec _ _)) by auto.
       auto.
-    }
+      }
     match goal with
     | |- context [ binarithType ?A ?B ?C ?D ?E ] =>
            replace (binarithType A B C D E) with tc_TT by (destruct s; auto)
@@ -656,10 +655,15 @@ Proof.
     normalize.
     rewrite <- H1.
     simpl.
-    apply prop_right.
+    apply andp_right; apply prop_right.
+    {
+      exists (Vint (Int.repr i)); split; auto.
+      unfold eval_id in H1.
+      destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
+    }
     inv IMM.
-    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H3; rep_omega).
-    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H3; rep_omega.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H4; rep_omega).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H4; rep_omega.
   + rewrite TI. simpl tc_andp.
     replace (isCastResultType (Tint I32 Unsigned a) (Tint I32 Unsigned a)
            (Ebinop Oadd (Etempvar _i (Tint I32 Unsigned a)) (Econst_int (Int.repr 1) (Tint I32 s noattr))
@@ -673,8 +677,13 @@ Proof.
     }
     intro rho.
     simpl.
-    unfold_lift; unfold local, lift1.
+    rewrite <- EQ_inv2.
+    simpl; unfold_lift; unfold local, lift1.
     normalize.
+    apply prop_right.
+    exists (Vint (Int.repr i)); split; auto.
+    unfold eval_id in H1.
+    destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
 Qed.
 
 Lemma Sfor_inc_entail: forall i s,
@@ -707,17 +716,17 @@ Proof.
   + destruct s.
     - change (force_val2 (Cop2.sem_add (Tint I32 Signed a) (Tint I32 Signed noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
-      auto.
+      split; [auto | congruence].
     - change (force_val2 (Cop2.sem_add (Tint I32 Signed a) (Tint I32 Unsigned noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
-      auto.
+      split; [auto | congruence].
   + destruct s.
     - change (force_val2 (Cop2.sem_add (Tint I32 Unsigned a) (Tint I32 Signed noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
-      auto.
+      split; [auto | congruence].
     - change (force_val2 (Cop2.sem_add (Tint I32 Unsigned a) (Tint I32 Unsigned noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
-      auto.
+      split; [auto | congruence].
 Qed.
 
 End Sfor.
@@ -730,18 +739,15 @@ Lemma semax_for :
            (assert_callee: Z -> environ -> mpred)
            (inv0: environ -> mpred)
            (inv1 inv2: Z -> environ -> mpred) s
-     (TI: (temp_types (update_tycon Delta init)) ! _i = Some (type_i, true))
+     (TI: (temp_types Delta) ! _i = Some type_i)
      (CALLEE: Inv = exp assert_callee)
-     (INV: Sfor_inv (update_tycon Delta init) _i m hi n assert_callee inv0 inv1 inv2)
+     (INV: Sfor_inv Delta _i m hi n assert_callee inv0 inv1 inv2)
      (SETUP: Sfor_setup Delta _i Pre init hi type_i m n assert_callee inv0),
      (forall i, m <= i < n ->
-     @semax cs Espec (update_tycon Delta init) (inv1 i)
+     @semax cs Espec Delta (inv1 i)
         body
         (for_ret_assert (inv2 i) Post)) ->
-     @semax cs Espec (update_tycon Delta (Sfor init
-                (Ebinop Olt (Etempvar _i type_i) hi (Tint I32 Signed noattr))
-                body
-                (Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) (Tint I32 s noattr)) type_i))))
+     @semax cs Espec Delta
         (inv1 n) MORE_COMMAND Post ->
      @semax cs Espec Delta Pre
        (Ssequence
@@ -766,10 +772,9 @@ Proof.
   destruct SETUP as [INIT [init_min_i [init_max_i [init_min_hi [init_max_hi [? [? ?]]]]]]].
 
   apply semax_seq' with inv0; [exact INIT | clear INIT].
-  forget (update_tycon Delta init) as Delta'; clear Delta.
   apply (semax_loop _ inv0 (EX i: Z, !! (m <= i < n) && inv2 i));
     [apply semax_seq with (EX i : Z, !! (m <= i < n) && inv1 i) |].
-  + apply semax_pre with (tc_expr Delta' (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0).
+  + apply semax_pre with (tc_expr Delta (Eunop Onotbool (Ebinop Olt (Etempvar _i type_i) hi tint) (Tint I32 Signed noattr)) && inv0).
     {
       apply andp_right; [| solve_andp].
       eapply Sfor_loop_cond_tc; eauto.
@@ -777,7 +782,6 @@ Proof.
     apply semax_ifthenelse; auto.
     - eapply semax_post; [.. | apply semax_skip].
       * unfold RA_normal, normal_ret_assert, overridePost, loop1_ret_assert.
-        simpl update_tycon.
         eapply Sfor_loop_cond_true; eauto.
       * apply andp_left2, FF_left.
       * apply andp_left2, FF_left.
@@ -785,10 +789,7 @@ Proof.
     - eapply semax_pre; [| apply semax_break].
       unfold RA_break, overridePost, loop1_ret_assert.
       eapply Sfor_loop_cond_false; eauto.
-  + simpl update_tycon.
-    eapply semax_extensionality_Delta with Delta';
-      [apply tycontext_eqv_sub, tycontext_eqv_symm, join_tycon_same |].
-    Intros i.
+  + Intros i.
     apply semax_extract_prop; intros.
     unfold loop1_ret_assert.
     eapply semax_post; [.. | apply H; auto].

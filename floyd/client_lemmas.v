@@ -348,16 +348,6 @@ Lemma liftx_local_retval:
 Proof. intros. reflexivity. Qed.
 Hint Rewrite liftx_local_retval : norm2.
 
-Lemma ret_type_initialized:
-  forall i Delta, ret_type (initialized i Delta) = ret_type Delta.
-Proof.
-intros.
-unfold ret_type; simpl.
-unfold initialized; simpl.
-destruct ((temp_types Delta) ! i); try destruct p; reflexivity.
-Qed.
-Hint Rewrite ret_type_initialized : norm.
-
 Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
@@ -401,19 +391,18 @@ Ltac super_unfold_lift' :=
     lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
     lift1 lift2 lift3] beta iota.
 
-Lemma tc_eval_id_i:
+Lemma tc_eval'_id_i:
   forall Delta t i rho,
                tc_environ Delta rho ->
-              (temp_types Delta)!i = Some (t,true) ->
-              tc_val t (eval_id i rho).
+              (temp_types Delta)!i = Some t ->
+              tc_val' t (eval_id i rho).
 Proof.
 intros.
 unfold tc_environ in H.
 destruct rho.
 destruct H as [? _].
-destruct (H i true t H0) as [v [? ?]].
+destruct (H i t H0) as [v [? ?]].
 unfold eval_id. simpl in *. rewrite H1. simpl; auto.
-destruct H2. inv H2. auto.
 Qed.
 
 Lemma is_int_e:
@@ -428,11 +417,8 @@ Definition name (id: ident) := True.
 Tactic Notation "name" ident(s) constr(id) :=
     assert (s: name id) by apply Coq.Init.Logic.I.
 
-Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type*bool) : Prop :=
-    match t with
-    | (t',true) => tc_val t' (eval_id i rho) /\ b
-    |  _  => b
-   end.
+Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type) : Prop :=
+  tc_val' t (eval_id i rho) /\ b.
 
 Definition reflect_temps (Delta: tycontext) (rho: environ) : Prop :=
     PTree.fold (reflect_temps_f rho) (temp_types Delta) True.
@@ -449,15 +435,15 @@ assert (forall i v, In (i,v) el -> (temp_types Delta) ! i = Some v).
  intros. subst el. apply PTree.elements_complete; auto.
 clear Heqel.
 assert (forall b: Prop, b -> fold_left
-  (fun (a : Prop) (p : positive * (type * bool)) =>
+  (fun (a : Prop) (p : positive * type) =>
    reflect_temps_f rho a (fst p) (snd p)) el b);
   [ | auto].
 revert H0; induction el; simpl; intros; auto.
 unfold reflect_temps_f at 2.
-destruct a as [i [t [|]]]; simpl; auto.
+destruct a as [i t]; simpl; auto.
 apply IHel; auto.
 split; auto.
-eapply tc_eval_id_i.
+eapply tc_eval'_id_i.
 eassumption.
 apply H0; auto.
 Qed.
@@ -1400,21 +1386,6 @@ unfold_lift; rewrite IHl. auto.
 Qed.
 Hint Rewrite @subst_make_args' using (solve[reflexivity]) : subst.
 
-Lemma subst_andp {A}{NA: NatDed A}:
-  forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
-Proof.
-intros.
-extensionality rho; unfold subst; simpl.
-auto.
-Qed.
-
-Lemma subst_prop {A}{NA: NatDed A}: forall i v P,
-    subst i v (prop P) = prop P.
-Proof.
-intros; reflexivity.
-Qed.
-Hint Rewrite @subst_andp subst_prop : subst.
-
 Lemma map_cons: forall {A B} (f: A -> B) x y,
    map f (x::y) = f x :: map f y.
 Proof. reflexivity. Qed.
@@ -1427,11 +1398,6 @@ Proof. reflexivity. Qed.
 
 Hint Rewrite @map_nil : norm.
 Hint Rewrite @map_nil : subst.
-
-Lemma subst_sepcon: forall i v (P Q: environ->mpred),
-  subst i v (P * Q) = (subst i v P * subst i v Q).
-Proof. reflexivity. Qed.
-Hint Rewrite subst_sepcon : subst.
 
 Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   match l with
@@ -1496,6 +1462,69 @@ Proof.
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
       apply derives_refl.
+Qed.
+
+Lemma eval_id_denote_tc_initialized: forall Delta i t v,
+  (temp_types Delta) ! i = Some t ->
+  local (tc_environ Delta) && local (`and (`(eq v) (eval_id i)) `(v <> Vundef)) |-- denote_tc_initialized i t.
+Proof.
+  intros.
+  intros rho.
+  unfold local, lift1; unfold_lift; simpl.
+  rewrite <- prop_and; apply prop_derives.
+  intros [? [? ?]].
+  destruct H0 as [? _].
+  specialize (H0 _ _ H).
+  destruct H0 as [v0 [? ?]].
+  unfold eval_id in H1.
+  rewrite H0 in *; clear H0; subst v; rename v0 into v.
+  simpl in H2.
+  specialize (H3 H2).
+  eauto.
+Qed.
+
+Lemma PQR_denote_tc_initialized: forall Delta i t v P Q R,
+  (temp_types Delta) ! i = Some t ->
+  local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) R) |-- denote_tc_initialized i t.
+Proof.
+  intros.
+  eapply derives_trans; [| apply eval_id_denote_tc_initialized; eauto].
+  apply andp_derives; [apply derives_refl |].
+  rewrite <- insert_local'.
+  apply andp_left1.
+  apply derives_refl.
+Qed.
+
+Lemma derives_remove_localdef_PQR: forall P Q R i,
+  PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)).
+Proof.
+  intros.
+  go_lowerx.
+  apply andp_right; auto.
+  apply prop_right.
+  clear H; rename H0 into H.
+  induction Q; simpl in *; auto.
+  destruct a; try now (destruct H; simpl in *; split; auto).
+  destruct H.
+  if_tac; simpl in *; auto.
+Qed.
+
+Lemma subst_remove_localdef_PQR: forall P Q R i v,
+  subst i v (PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R))) |-- PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)).
+Proof.
+  intros.
+  go_lowerx.
+  apply andp_right; auto.
+  apply prop_right.
+  clear H; rename H0 into H.
+  induction Q; simpl in *; auto.
+  destruct a; try now (destruct H; simpl in *; split; auto).
+  if_tac; simpl in *; auto.
+  destruct H; split; auto.
+  unfold_lift in H.
+  destruct H; subst.
+  unfold_lift. rewrite eval_id_other in * by auto.
+  auto.
 Qed.
 
 Fixpoint iota_formals (i: ident) (tl: typelist) :=
@@ -1702,31 +1731,12 @@ Proof. intros. apply derives_trans with (!!Y); auto.
 apply prop_derives; auto.
 Qed.
 
-Lemma subst_ewand: forall i v (P Q: environ->mpred),
-  subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
-Proof. reflexivity. Qed.
-Hint Rewrite subst_ewand : subst.
-
 Lemma fold_right_sepcon_subst:
  forall i e R, fold_right sepcon emp (map (subst i e) R) = subst i e (fold_right sepcon emp R).
 Proof.
  intros. induction R; auto.
  autorewrite with subst. f_equal; auto.
 Qed.
-
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `(v) e) = subst i `(v) e.
-Proof.
- intros. extensionality rho. unfold subst.
- f_equal.
- unfold env_set.
- f_equal.
- apply Map.ext. intro j.
- destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
- simpl.
- repeat rewrite Map.gso by auto. auto.
-Qed.
-
-Hint Rewrite @resubst : subst.
 
 Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
 Proof.

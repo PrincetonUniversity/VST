@@ -40,15 +40,26 @@ Lemma semax_SC_set:
                 (SEPx R)))).
 Proof.
   intros.
+  assert_PROP (tc_val (typeof e2) v).
+  {
+    rewrite (add_andp _ _ H1), (add_andp _ _ H2).
+    unfold_lift.
+    intro rho; unfold local, lift1; simpl.
+    normalize.
+    apply andp_left2.
+    apply typecheck_expr_sound; auto.
+  }
+  assert (v <> Vundef) as UNDEF by (intro; subst; apply tc_val_Vundef in H3; auto).
+  clear H3.
   assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
      (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2)).
   {
     apply andp_right.
-    + eapply derives_trans; [exact H2 | apply derives_refl].
+    + solve_derives_trans.
     + unfold tc_temp_id.
       unfold typecheck_temp_id.
       unfold typeof_temp in H.
-      destruct ((temp_types Delta) ! id) as [[? ?]|]; [| inversion H].
+      destruct ((temp_types Delta) ! id) as [?|]; [| inversion H].
       inversion H; clear H; subst.
       rewrite H0.
       simpl denote_tc_assert; simpl; intros.

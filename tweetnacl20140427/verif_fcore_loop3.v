@@ -126,8 +126,7 @@ forall FR c k h nonce out
        i w x y t (xlist wlist:list val)
        (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist =Vint mval),
 @semax CompSpecs Espec
-  (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -406,7 +405,7 @@ Sfor (Sset _i (Econst_int (Int.repr 0) tint))
 Lemma f_core_loop3: forall (Espec : OracleKind) FR
 c k h nonce out w x y t (xI:list int),
 @semax CompSpecs Espec
-  (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;

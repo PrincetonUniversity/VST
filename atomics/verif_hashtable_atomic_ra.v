@@ -1,13 +1,13 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.ghosts.
-Require Import mailbox.general_atomics.
-Require Import mailbox.acq_rel_atomics.
+Require Import atomics.general_atomics.
+Require Import atomics.acq_rel_atomics.
 Require Import VST.progs.conclib.
-Require Import mailbox.maps.
+Require Import atomics.maps.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import mailbox.hashtable_atomic_ra.
-Require Import mailbox.hashtable.
+Require Import atomics.hashtable_atomic_ra.
+Require Import atomics.hashtable.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -1108,7 +1108,7 @@ Proof.
           entailer!. }
         intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
       * forward.
@@ -1116,7 +1116,7 @@ Proof.
         entailer!.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
         rewrite eq_dec_refl; entailer!.
     + forward.
@@ -1532,7 +1532,7 @@ Proof.
       subst; rewrite filter_app, Zlength_app; entailer!.
     + intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert, overridePost.
       Exists (x ++ [s]); rewrite ?Zlength_app, ?Zlength_cons, ?Zlength_nil; entailer!.
       Exists h'; entailer!.

@@ -350,7 +350,6 @@ Proof.
 (*      clear - Hadd_lenb Hadd_len Hrv H3 Hout_lenb ZLa F H4 Hshould_reseed.*)
       Exists (Vint return_value).
       apply andp_right. apply prop_right; auto.
-      apply andp_right. auto.
       normalize.
       apply entailment1; trivial. }
 
@@ -462,8 +461,8 @@ Proof.
    da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
     data_at Tsh t_struct_hmac256drbg_context_st ctx2 (Vptr b i) *
     md_full key2 (mc1, (mc2, mc3))))).
-   { rewrite H in *. subst na.
-     destruct should_reseed; simpl in *. rewrite andb_false_r in H; discriminate.
+  { rewrite H in *. subst na.
+     destruct should_reseed; simpl in PRS, H. rewrite andb_false_r in H; discriminate.
      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in H.
      { rewrite andb_false_r in H; discriminate. }
      rewrite andb_true_r in H.

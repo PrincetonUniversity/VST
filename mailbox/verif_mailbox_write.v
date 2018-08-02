@@ -959,7 +959,7 @@ Proof.
     + forward.
       destruct (eq_dec b' (-1)); [subst; absurd (Int.repr (-1) = Int.neg (Int.repr 1)); auto|].
       erewrite upd_Znth_triv with (i0 := i).
-      apply drop_tc_environ.
+      apply ENTAIL_refl.
       * rewrite !Zlength_map, Zlength_upto; auto.
       * rewrite !Znth_map, Znth_upto; try (simpl; unfold N in *; omega).
         rewrite Znth_overflow by omega.

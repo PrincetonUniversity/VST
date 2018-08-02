@@ -177,7 +177,7 @@ Proof.
 Qed.
 
 Lemma AE_loc_join : forall sh1 sh2 sh l p g i R h1 h2 (Hjoin : sepalg.join sh1 sh2 sh)
-  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hcompat : compatible h1 h2),
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hcompat : disjoint h1 h2),
   AE_loc sh1 l p g i R h1 * AE_loc sh2 l p g i R h2 = AE_loc sh l p g i R (map_add h1 h2).
 Proof.
   intros; unfold AE_loc.
