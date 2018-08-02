@@ -1386,21 +1386,6 @@ unfold_lift; rewrite IHl. auto.
 Qed.
 Hint Rewrite @subst_make_args' using (solve[reflexivity]) : subst.
 
-Lemma subst_andp {A}{NA: NatDed A}:
-  forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
-Proof.
-intros.
-extensionality rho; unfold subst; simpl.
-auto.
-Qed.
-
-Lemma subst_prop {A}{NA: NatDed A}: forall i v P,
-    subst i v (prop P) = prop P.
-Proof.
-intros; reflexivity.
-Qed.
-Hint Rewrite @subst_andp subst_prop : subst.
-
 Lemma map_cons: forall {A B} (f: A -> B) x y,
    map f (x::y) = f x :: map f y.
 Proof. reflexivity. Qed.
@@ -1413,16 +1398,6 @@ Proof. reflexivity. Qed.
 
 Hint Rewrite @map_nil : norm.
 Hint Rewrite @map_nil : subst.
-
-Lemma subst_sepcon: forall i v (P Q: environ->mpred),
-  subst i v (P * Q) = (subst i v P * subst i v Q).
-Proof. reflexivity. Qed.
-Hint Rewrite subst_sepcon : subst.
-
-Lemma subst_ext:
-  forall (A B: Type) (NA : NatDed A) (a : ident) (v : environ -> val) (P: B -> environ -> A),
-    subst a v (EX b: B, P b) = EX b: B, subst a v (P b).
-Proof. intros; reflexivity. Qed.
 
 Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   match l with
@@ -1756,31 +1731,12 @@ Proof. intros. apply derives_trans with (!!Y); auto.
 apply prop_derives; auto.
 Qed.
 
-Lemma subst_ewand: forall i v (P Q: environ->mpred),
-  subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
-Proof. reflexivity. Qed.
-Hint Rewrite subst_ewand : subst.
-
 Lemma fold_right_sepcon_subst:
  forall i e R, fold_right sepcon emp (map (subst i e) R) = subst i e (fold_right sepcon emp R).
 Proof.
  intros. induction R; auto.
  autorewrite with subst. f_equal; auto.
 Qed.
-
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `(v) e) = subst i `(v) e.
-Proof.
- intros. extensionality rho. unfold subst.
- f_equal.
- unfold env_set.
- f_equal.
- apply Map.ext. intro j.
- destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
- simpl.
- repeat rewrite Map.gso by auto. auto.
-Qed.
-
-Hint Rewrite @resubst : subst.
 
 Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
 Proof.
