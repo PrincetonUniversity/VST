@@ -620,7 +620,7 @@ Lemma cored_emp: cored |-- bupd emp.
 Proof.
   intro; rewrite cored_unit; intros J ??.
   exists nil; split; [eexists; constructor|].
-  destruct (make_rmap _ nil (rmap_valid a) (level a)) as (m' & ? & Hr & Hg); auto.
+  destruct (make_rmap (resource_at a) nil (level a)) as (m' & ? & Hr & Hg); auto.
   { intros; extensionality; apply resource_at_approx. }
   exists m'; repeat split; auto.
   apply all_resource_at_identity.
