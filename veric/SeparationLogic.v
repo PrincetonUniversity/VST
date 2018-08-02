@@ -1377,32 +1377,32 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
 
 Axiom semax_load :
   forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) sh id P e1 t2 (v2: environ -> val),
+forall (Delta: tycontext) sh id P e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val (typeof e1)) v2) &&
+       local (`(tc_val (typeof e1) v2)) &&
           P))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (`v2)) &&
                                           (subst id (`old) P))).
 
 Axiom semax_cast_load :
   forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
+forall (Delta: tycontext) sh id P e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
    cast_pointer_to_bool (typeof e1) t1 = false ->
     readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
     @semax CS Espec Delta
        (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
+       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
           P))
        (Sset id (Ecast e1 t1))
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1) v2))) &&
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (`(eval_cast (typeof e1) t1 v2))) &&
                                           (subst id (`old) P))).
 
 Axiom semax_store:

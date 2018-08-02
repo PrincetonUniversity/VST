@@ -48,7 +48,6 @@ Proof.
     apply derives_extract_prop; intro.
     apply andp_right.
     apply prop_right; repeat split; try eassumption.
-    instantiate (1:= `v2). assumption.
     apply andp_right.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
@@ -102,7 +101,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
-  eapply semax_pre_post'; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
+  eapply semax_pre_post'; [ | | apply semax_cast_load with (sh0:=sh)(v3:= v2); auto].
   + instantiate (1:= PROPx (tc_val t1 (force_val (sem_cast (typeof e1) t1 v2)) :: P) (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.

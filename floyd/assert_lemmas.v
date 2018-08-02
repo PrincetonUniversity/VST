@@ -183,6 +183,55 @@ Qed.
 Hint Rewrite @subst_TT @subst_FF: subst.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
+Lemma subst_sepcon: forall i v (P Q: environ->mpred),
+  subst i v (P * Q) = (subst i v P * subst i v Q).
+Proof. reflexivity. Qed.
+Hint Rewrite subst_sepcon : subst.
+
+Lemma subst_wand: forall i v (P Q: environ->mpred),
+  subst i v (P -* Q) = (subst i v P -* subst i v Q).
+Proof. reflexivity. Qed.
+Hint Rewrite subst_wand : subst.
+
+Lemma subst_exp:
+  forall (A B: Type) (NA : NatDed A) (a : ident) (v : environ -> val) (P: B -> environ -> A),
+    subst a v (EX b: B, P b) = EX b: B, subst a v (P b).
+Proof. intros; reflexivity. Qed.
+
+Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `(v) e) = subst i `(v) e.
+Proof.
+ intros. extensionality rho. unfold subst.
+ f_equal.
+ unfold env_set.
+ f_equal.
+ apply Map.ext. intro j.
+ destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
+ simpl.
+ repeat rewrite Map.gso by auto. auto.
+Qed.
+
+Hint Rewrite @resubst : subst.
+
+Lemma subst_ewand: forall i v (P Q: environ->mpred),
+  subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
+Proof. reflexivity. Qed.
+Hint Rewrite subst_ewand : subst.
+
+Lemma subst_andp {A}{NA: NatDed A}:
+  forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
+Proof.
+intros.
+extensionality rho; unfold subst; simpl.
+auto.
+Qed.
+
+Lemma subst_prop {A}{NA: NatDed A}: forall i v P,
+    subst i v (prop P) = prop P.
+Proof.
+intros; reflexivity.
+Qed.
+Hint Rewrite @subst_andp subst_prop : subst.
+
 Lemma eval_expr_Econst_int: forall {cs: compspecs}  i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expr_Econst_int : eval.
