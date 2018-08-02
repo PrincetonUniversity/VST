@@ -198,7 +198,7 @@ Lemma subst_exp:
     subst a v (EX b: B, P b) = EX b: B, subst a v (P b).
 Proof. intros; reflexivity. Qed.
 
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `(v) e) = subst i `(v) e.
+Lemma resubst: forall {A} i (v v1: val) (e: environ -> A), subst i (`v1) (subst i `(v) e) = subst i `(v) e.
 Proof.
  intros. extensionality rho. unfold subst.
  f_equal.

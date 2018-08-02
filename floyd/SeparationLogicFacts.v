@@ -13,7 +13,6 @@ Require Import VST.veric.NullExtension.
 
 Require Import VST.floyd.assert_lemmas.
 
-
 Local Open Scope logic.
 
 (* TODO: move it *)
@@ -42,6 +41,30 @@ rewrite Map.gso; auto.
 Qed.
 
 (* End of copied from closed_lemmas.v. *)
+
+Lemma subst_self: forall {A: Type} (P: environ -> A) t id Delta rho,
+  (temp_types Delta) ! id = Some t ->
+  tc_environ Delta rho ->
+  subst id (fun _ : environ => eval_id id rho) P rho = P rho.
+Proof.
+  intros.
+  destruct H0 as [? _].
+  specialize (H0 _ _ H).
+  destruct H0 as [v [? ?]].
+  unfold subst.
+  f_equal.
+  unfold env_set, eval_id; destruct rho; simpl in *.
+  f_equal.
+  rewrite H0.
+  simpl.
+  apply Map.ext; intros i.
+  destruct (Pos.eq_dec id i).
+  + subst.
+    rewrite Map.gss; symmetry; auto.
+  + rewrite Map.gso by auto.
+    auto.
+Qed.
+
 Definition obox (Delta: tycontext) (i: ident) (P: environ -> mpred): environ -> mpred :=
   ALL v: _,
     match ((temp_types Delta) ! i) with
@@ -936,3 +959,187 @@ Proof.
 Qed.
 
 End CSHL_CallB2F.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_set_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+          P))
+          (Sset id e)
+        (normal_ret_assert
+          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+                            subst id (`old) P)).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+             subst id (eval_expr e) P))
+          (Sset id e) (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall  sh id P e1 t2 (v2: val),
+    typeof_temp Delta id = Some t2 ->
+    is_neutral_cast (typeof e1) t2 = true ->
+    readable_share sh ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT ->
+    @semax CS Espec Delta
+       (|> ( (tc_lvalue Delta e1) &&
+       local (`(tc_val (typeof e1) v2)) &&
+          P))
+       (Sset id e1)
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (` v2)) &&
+                                          (subst id (`old) P))).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e1,
+    @semax CS Espec Delta
+        (EX sh: share, EX t2: type, EX v2: val,
+              !! (typeof_temp Delta id = Some t2 /\
+                  is_neutral_cast (typeof e1) t2 = true /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val (typeof e1) v2)) &&
+              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`v2) P)))
+        (Sset id e1) (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
+
+Module CSHL_LoadF2B
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
+       (CSHL_LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_Extr.
+Import CSHL_ExtrFacts.
+Import CSHL_LoadF.
+
+Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e1,
+    @semax CS Espec Delta
+        (EX sh: share, EX t2: type, EX v2: val,
+              !! (typeof_temp Delta id = Some t2 /\
+                  is_neutral_cast (typeof e1) t2 = true /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val (typeof e1) v2)) &&
+              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`v2) P)))
+        (Sset id e1) (normal_ret_assert P).
+Proof.
+  intros.
+  apply semax_extract_exists; intro sh.
+  apply semax_extract_exists; intro t2.
+  apply semax_extract_exists; intro v2.
+  apply semax_extract_prop; intros [? [? ?]].
+  eapply semax_post'; [.. | eapply semax_load_forward; eauto].
+  + rewrite exp_andp2.
+    apply exp_left; intros old.
+    autorewrite with subst.
+    apply derives_trans with (local (tc_environ Delta) && (local ((` eq) (eval_id id) (` v2))) && subst id (` v2) P); [solve_andp |].
+    intro rho; unfold local, lift1; unfold_lift; simpl.
+    unfold typeof_temp in H.
+    destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+    normalize.
+    erewrite subst_self by eauto; auto.
+  + solve_andp.
+Qed.
+
+End CSHL_LoadF2B.
+
+
+Module CSHL_LoadB2F
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_LoadB.
+
+Theorem semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall  sh id P e1 t2 (v2: val),
+    typeof_temp Delta id = Some t2 ->
+    is_neutral_cast (typeof e1) t2 = true ->
+    readable_share sh ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (` v2) * TT ->
+    @semax CS Espec Delta
+       (|> ( (tc_lvalue Delta e1) &&
+       local (`(tc_val (typeof e1) v2)) &&
+          P))
+       (Sset id e1)
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (` v2)) &&
+                                          (subst id (`old) P))).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_load_backward].
+  apply (exp_right sh).
+  apply (exp_right t2).
+  apply (exp_right v2).
+  apply andp_right; [apply prop_right; auto |].
+  apply later_ENTAIL.
+  apply andp_ENTAIL; [apply ENTAIL_refl |].
+  apply andp_right; auto.
+  rewrite subst_exp.
+  intros rho.
+  change (local (tc_environ Delta) rho && P rho
+  |-- EX b : val,
+       subst id (` v2) (local ((` eq) (eval_id id) (` v2)) && subst id (` b) P) rho).
+  apply (exp_right (eval_id id rho)).
+  autorewrite with subst.
+  unfold local, lift1; unfold_lift; simpl.
+  unfold typeof_temp in H.
+  destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+  normalize.
+  apply andp_right; [| erewrite subst_self by eauto; auto].
+  apply prop_right.
+  unfold subst.
+  apply eval_id_same.
+Qed.
+
+End CSHL_LoadB2F.

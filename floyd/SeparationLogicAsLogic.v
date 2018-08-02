@@ -185,15 +185,6 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
              (tc_temp_id id (typeof e) Delta e) &&
              subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P)
-| semax_set_forward: forall (P: environ->mpred) id e,
-    @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
-          P))
-          (Sset id e)
-        (normal_ret_assert
-          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
-                            subst id (`old) P))
 | semax_ptr_compare: forall P id cmp e1 e2 ty sh1 sh2,
     sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
    is_comparison cmp = true  ->
