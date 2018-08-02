@@ -1084,23 +1084,23 @@ forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
+   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT) ->
     semax Espec Delta
        (fun rho => |>
         (tc_lvalue Delta e1 rho
-        && (!! tc_val (typeof e1) (v2 rho)) && P rho))
+        && (!! tc_val (typeof e1) v2) && P rho))
        (Sset id e1)
        (normal_ret_assert (fun rho =>
-        EX old:val, (!!(eval_id id rho = subst id old v2 rho) &&
+        EX old:val, (!!(eval_id id rho = v2) &&
                          (subst id old P rho)))).
 Proof.
 intros until v2.
 intros Hid TC1 H_READABLE H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
-  !! tc_val (typeof e1) (v2 rho) && P rho)))
+  !! tc_val (typeof e1) v2 && P rho)))
  with (fun rho : environ =>
    ( |> tc_lvalue Delta e1 rho &&
-     |> !! (tc_val (typeof e1) (v2 rho)) &&
+     |> !! (tc_val (typeof e1) v2) &&
      |> P rho)).
 Focus 2.
 extensionality rho.
@@ -1124,7 +1124,7 @@ hnf in TC3.
 apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
       !!typecheck_environ Delta' rho && P rho
-      |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT).
+      |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT).
 intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
@@ -1132,7 +1132,7 @@ clear H99.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 rewrite <- (age_jm_dry H) in H1.
 exists jm1.
-exists (PTree.set id (v2 rho) te).
+exists (PTree.set id v2 te).
 econstructor; split; [reflexivity | ].
 split3.
 apply age_level; auto. simpl.
@@ -1158,7 +1158,7 @@ split; [split3 | ].
    eapply sepcon_derives; try apply H0; auto.
    specialize (H3 _ (age_laterR (age_jm_phi H))).
    rewrite sepcon_comm in H3.
-   assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT)%pred (m_phi jm1)).
+   assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)%pred (m_phi jm1)).
    rewrite <- TT_sepcon_TT. rewrite <- sepcon_assoc.
    eapply sepcon_derives; try apply H3; auto.
    eapply derives_trans; [ | apply H99'].
@@ -1172,7 +1172,7 @@ split; [split3 | ].
    destruct (type_is_volatile (typeof e1)); try contradiction.
    rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; exfalso; revert TC3; apply tc_val_Vundef].
-   assert (core_load ch  (b, Ptrofs.unsigned ofs) (v2 rho) (m_phi jm1)).
+   assert (core_load ch  (b, Ptrofs.unsigned ofs) v2 (m_phi jm1)).
    apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
@@ -1190,7 +1190,7 @@ split; [split3 | ].
 * split; [apply age_level; auto|].
   apply age1_ghost_of, age_jm_phi; auto.
 * rewrite <- map_ptree_rel.
-  rewrite <- (Hcl rho (Map.set id (v2 rho) (make_tenv te))).
+  rewrite <- (Hcl rho (Map.set id v2 (make_tenv te))).
  +normalize.
    exists (eval_id id rho).
    destruct H0.
@@ -1199,7 +1199,7 @@ split; [split3 | ].
    split; [ |  apply pred_hereditary with (m_phi jm); auto; apply age_jm_phi; eauto].
    eapply sepcon_derives; try apply H0; auto.
    assert (env_set
-         (mkEnviron (ge_of rho) (ve_of rho) (Map.set id (v2 rho) (make_tenv te))) id
+         (mkEnviron (ge_of rho) (ve_of rho) (Map.set id v2 (make_tenv te))) id
          (eval_id id rho) = rho).
   unfold env_set. simpl.
   rewrite Map.override. unfold eval_id.
@@ -1229,25 +1229,25 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
    cast_pointer_to_bool (typeof e1) t1 = false ->
 (*   classify_cast (typeof e1) t1 <> cast_case_p2bool -> *)
     readable_share sh ->
-   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
+   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT) ->
     semax Espec Delta
        (fun rho => |>
         (tc_lvalue Delta e1 rho
-        && (!! tc_val t1 (`(eval_cast (typeof e1) t1) v2 rho))
+        && (!! tc_val t1 (`(eval_cast (typeof e1) t1 v2) rho))
         &&  P rho))
        (Sset id (Ecast e1 t1))
        (normal_ret_assert (fun rho =>
-        EX old:val, (!!(eval_id id rho = subst id old (`(eval_cast (typeof e1) t1) v2) rho) &&
+        EX old:val, (!!(eval_id id rho = (`(eval_cast (typeof e1) t1 v2)) rho) &&
                          (subst id old P rho)))).
 Proof.
 intros until v2.
 intros Hid HCAST H_READABLE H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
-       (!! tc_val t1  (`(eval_cast (typeof e1) t1) v2 rho)) &&
+       (!! tc_val t1  (`(eval_cast (typeof e1) t1 v2) rho)) &&
        P rho)))
  with (fun rho : environ =>
    ( |> tc_lvalue Delta e1 rho &&
-     |> !! (tc_val t1 (eval_cast (typeof e1) t1 (v2 rho))) &&
+     |> !! (tc_val t1 (eval_cast (typeof e1) t1 v2)) &&
      |> P rho)).
 Focus 2.
 extensionality rho.
@@ -1271,7 +1271,7 @@ hnf in TC3.
 apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
       !!typecheck_environ Delta' rho && P rho
-      |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT).
+      |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT).
 intros.
 intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
@@ -1280,7 +1280,7 @@ clear H99.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 rewrite <- (age_jm_dry H) in H1.
 exists jm1.
-exists (PTree.set id (eval_cast (typeof e1) t1 (v2 rho)) (te)).
+exists (PTree.set id (eval_cast (typeof e1) t1 v2) (te)).
 econstructor.
 split.
 reflexivity.
@@ -1303,7 +1303,7 @@ assert (Tv2: tc_val (typeof e1) (v2 rho)). {
  *)
 split; [split3 | ].
 *   rewrite <- (age_jm_dry H); constructor; auto.
-  destruct (sem_cast (typeof e1) t1 (v2 rho)) eqn:EC.
+  destruct (sem_cast (typeof e1) t1 v2) eqn:EC.
   2: elimtype False; clear - EC TC3;
     unfold eval_cast, force_val1 in TC3; rewrite EC in TC3;
     destruct t1; try destruct f;
@@ -1315,7 +1315,7 @@ split; [split3 | ].
   }
   specialize (H3 _ (age_laterR (age_jm_phi H))).
   rewrite sepcon_comm in H3.
-  assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT)%pred (m_phi jm1)). {
+  assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) v2 * TT)%pred (m_phi jm1)). {
     rewrite <- TT_sepcon_TT. rewrite <- sepcon_assoc.
     eapply sepcon_derives; try apply H3; auto.
     eapply derives_trans; [ | apply H99'].
@@ -1331,11 +1331,11 @@ split; [split3 | ].
    rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; exfalso; revert TC3; apply tc_val_Vundef].
-   apply Clight.eval_Ecast with (v2 rho).
+   apply Clight.eval_Ecast with v2.
   2: apply sem_cast_e1; auto;
       unfold eval_cast, force_val1; rewrite !EC; reflexivity.
    eapply Clight.eval_Elvalue; eauto.
-   assert (core_load ch  (b, Ptrofs.unsigned ofs) (v2 rho) (m_phi jm1)).
+   assert (core_load ch  (b, Ptrofs.unsigned ofs) v2 (m_phi jm1)).
    apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
@@ -1353,7 +1353,7 @@ split; [split3 | ].
 * split; [apply age_level; auto|].
   apply age1_ghost_of, age_jm_phi; auto.
 * rewrite <- map_ptree_rel.
-  rewrite <- (Hcl rho (Map.set id (eval_cast (typeof e1) t1 (v2 rho)) (make_tenv te))).
+  rewrite <- (Hcl rho (Map.set id (eval_cast (typeof e1) t1 v2) (make_tenv te))).
  +normalize.
    exists (eval_id id rho).
    destruct H0.
@@ -1362,7 +1362,7 @@ split; [split3 | ].
    split; [ |  apply pred_hereditary with (m_phi jm); auto; apply age_jm_phi; eauto].
    eapply sepcon_derives; try apply H0; auto.
    assert (env_set
-         (mkEnviron (ge_of rho) (ve_of rho) (Map.set id (eval_cast (typeof e1) t1 (v2 rho)) (make_tenv te))) id
+         (mkEnviron (ge_of rho) (ve_of rho) (Map.set id (eval_cast (typeof e1) t1 v2) (make_tenv te))) id
          (eval_id id rho) = rho).
   unfold env_set. simpl.
   rewrite Map.override. unfold eval_id.
