@@ -303,21 +303,18 @@ Proof.
       rewrite if_true in H0
         by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
       destruct H0 as [H0 H1].
-      assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
+      pose proof I.
+      destruct (make_rmap  (fun loc => if eq_dec loc (b,i) then 
        YES sh H0 (VAL (Byte Byte.zero)) NoneP 
-          else core (w @ loc)))).
-      hnf; auto.
-      destruct (make_rmap _ (ghost_of w) H2 (level w)) as [w1 [? ?]].
+          else core (w @ loc)) (ghost_of w) (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
       { apply ghost_of_approx. }
-      assert (AV.valid (res_option oo
-        fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
+      pose proof I.
+      destruct (make_rmap (fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
-          else core (w @ loc))).
-      hnf; auto.
-      destruct (make_rmap _ (ghost_of w) H5 (level w)) as [w2 [? ?]].
+          else core (w @ loc)) (ghost_of w) (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].

@@ -12,20 +12,6 @@ Require Import VST.veric.address_conflict.
 Import RML. Import R.
 Local Open Scope pred.
 
-Lemma empty_rmap_valid:
-  forall ephi,
-   identity ephi ->
-    R.valid (resource_at ephi, ghost_of ephi).
-Proof.
-intros.
-unfold R.valid; simpl.
-replace (res_option oo resource_at ephi) with 
-            (fun l : address => @None (rshare * kind)).
-apply CompCert_AV.valid_empty.
-extensionality l.
-unfold compose; simpl.
-destruct (resource_at_empty H l) as [?|[? [? ?]]]; rewrite H0; simpl; auto.
-Qed.
 
 Program Definition kind_at (k: kind) (l: address) : pred rmap :=
    fun m => exists rsh, exists sh, exists pp, m @ l = YES rsh sh k pp.
@@ -114,13 +100,10 @@ clear - H.
 repeat f_equal.
 revert H; unfold resource_at.  rewrite rmap_level_eq.
 case_eq (unsquash phi); simpl; intros.
-destruct r0 as [f v]; simpl in *.
-assert (R.valid (fun l' => if eq_dec l' l 
-       then YES rsh r k (SomeP A0 (fun i => fmap _ (approx n) (approx n) (p i))) else fst f l', snd f)). {
- clear - v H0.
-hnf; auto.
-}
-set (phi' := ((exist _ _ H1): rmap')).
+rename r0 into f.
+pose proof I.
+set (phi' := ((fun l' => if eq_dec l' l 
+       then YES rsh r k (SomeP A0 (fun i => fmap _ (approx n) (approx n) (p i))) else fst f l', snd f)): rmap').
 assert (phi = squash (n,phi')).
 apply unsquash_inj.
 replace (unsquash phi) with (unsquash (squash (unsquash phi))).
@@ -131,10 +114,11 @@ f_equal.
 unfold phi'.
 clear - H0.
 simpl.
-apply exist_ext.
+unfold rmap_fmap.
 unfold compose.
 f_equal.
 extensionality x.
+simpl.
 if_tac; auto.
 subst.
 rewrite H0.
@@ -451,19 +435,12 @@ Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ 
 Proof.
   intros.
   apply remake_rmap.
-  + apply VAL_or_FUN_valid.
-    intros.
-    unfold compose in H0.
-    specialize (H l sh k).
-    if_tac in H0.
-    - auto.
-    - destruct (w @ l); rewrite ?core_NO, ?core_YES, ?core_PURE in H0; inv H0.
-  + intros.
+  intros.
     if_tac; [left; eauto |].
     destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
     left.
     exists w; split; auto.
-  + apply ghost_of_approx.
+    apply ghost_of_approx.
 Qed.
 
 Definition is_resource_pred (p: address -> pred rmap) (q: resource -> address -> nat -> Prop) :=
@@ -947,10 +924,6 @@ pose (f l' := if eq_dec (adr_add l i) l' then w @ l'
 pose (g l' := if eq_dec (adr_add l i) l' then NO Share.bot bot_unreadable else w @ l').
 exploit (deallocate (w) f g); intros.
 *
-hnf; auto.
-*
-hnf; auto.
-*
 unfold f,g; clear f g.
 destruct H0 as [b [[? ?] Hg]]. specialize (H1 l0).  hnf in H1.
 if_tac in H1. destruct H1.  hnf in H1. if_tac; rewrite H1; constructor.
@@ -1015,18 +988,8 @@ unfold address_mapsto.
 pose (f l' := if adr_range_dec loc (size_chunk ch) l'
                      then YES sh rsh (VAL (nthbyte (snd l' - snd loc) (encode_val ch v))) NoneP
                      else core w0 @ l').
-assert (CompCert_AV.valid (res_option oo f)).
-apply VAL_valid.
-unfold compose, f; intros.
-if_tac in H.
-simpl in H.
-injection H;intros; subst k; auto.
-rewrite <- core_resource_at in H.
-generalize (core_identity (w0 @ l)); intro.
-rewrite core_resource_at in *.
-apply identity_resource in H1.
-revert H H1; destruct (core w0 @ l); intros; try contradiction; inv H.
-destruct (make_rmap f (ghost_of w0) H (level w0)) as [phi [? ?]].
+pose proof I.
+destruct (make_rmap f (ghost_of w0) (level w0)) as [phi [? ?]].
 extensionality l; unfold f, compose; simpl.
 if_tac; simpl; auto.
 rewrite <- level_core.

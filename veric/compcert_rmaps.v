@@ -27,22 +27,6 @@ Definition address := address.
 Definition some_address : address := (xH,0).
 Definition kind := kind.
 
-Definition valid (f: address -> option (rshare*kind)) := True.
-
-Lemma valid_empty: valid (fun _ => None).
-Proof.
-hnf; auto.
-Qed.
-
-Lemma valid_join: forall f g h : address -> option (rshare * kind),
-   @join _ (Join_fun address (option (rshare * kind))
-                   (Join_lower (Join_prod rshare Join_rshare kind (Join_equiv kind))))
-      f g h  ->
- valid f -> valid g -> valid h.
-Proof.
-intros; hnf; auto.
-Qed.
-
 End CompCert_AV.
 
 Lemma getVAL: forall k, {v : memval & k = VAL v}  + {~isVAL k}.
@@ -58,45 +42,6 @@ Lemma VAL_inj: forall v v', VAL v = VAL v' -> v = v'.
 Proof.
 intros.
 inv H; auto.
-Qed.
-
-Lemma VAL_valid:
- forall (f: address -> option (rshare*kind)),
-   (forall l sh k, f l = Some (sh,k) -> isVAL k) ->
-   CompCert_AV.valid f.
-Proof.
-intros. hnf; auto.
-Qed.
-
-Lemma VAL_or_FUN_valid:
- forall (f: address -> option (rshare*kind)),
-   (forall l sh k, f l = Some (sh,k) -> isVAL k \/ isFUN k) ->
-   CompCert_AV.valid f.
-Proof.
-intros; hnf; auto.
-Qed.
-
-Lemma blockwise_valid:
-  forall f,
-    (forall b, exists g, CompCert_AV.valid g /\ forall ofs, f (b,ofs) = g (b,ofs)) ->
-     CompCert_AV.valid f.
-Proof.
-intros; hnf; auto.
-Qed.
-
-Lemma store_valid:
-  forall (f f' :  address -> option (rshare*kind)),
-   CompCert_AV.valid f ->
-     (forall l, f l = f' l \/
-                  match f l, f' l with
-                  | Some (_, k) , Some (_, k') =>    isVAL k /\ isVAL k'
-                  | Some(_, k), None => isVAL k
-                  | None, Some(_, k') => isVAL k'
-                  | None, None => True
-                  end) ->
-   CompCert_AV.valid f'.
-Proof.
-intros; hnf; auto.
 Qed.
 
 Instance EqDec_calling_convention: EqDec calling_convention.
@@ -150,14 +95,6 @@ Definition share_of (x: option (rshare * kind)) : Share.t :=
 
 Definition Join_pk := (Join_lower (Join_prod rshare _ kind (Join_equiv _))).
 
-Lemma fixup_splitting_valid : forall (a: address->Share.t) (z:address -> option (rshare * kind)),
-    (forall x, join_sub (a x) (share_of (z x))) ->
-    AV.valid z ->
-    AV.valid (fixup_splitting a z).
-Proof.
-  intros; hnf; auto.
-Qed.
-
 Lemma share_of_Some: forall p: rshare * AV.kind, readable_share (share_of (Some p)).
 Proof.
  intros. destruct p as [[? ?] ?]; simpl.
@@ -206,8 +143,6 @@ Proof.
 Qed.
 
 Lemma fixup_join : forall a (ac ad: address -> Share.t)  z,
-  AV.valid a ->
-  AV.valid z ->
   (forall x, @join_sub _ Join_pk (a x) (z x)) ->
   (forall x, join (ac x) (ad x) (share_of (a x))) ->
   (forall x,
@@ -216,6 +151,7 @@ Lemma fixup_join : forall a (ac ad: address -> Share.t)  z,
     (fixup_splitting ad z x)
     (a x)).
 Proof.
+ do 2  pose proof I.
   intros.
   unfold fixup_splitting.
 
@@ -314,10 +250,10 @@ Proof.
   destruct H0. simpl in *. do 3 red in H. simpl in H. auto.
 Qed.
 
-Instance Cross_rmap_aux: Cross_alg (sig AV.valid).
+Instance Cross_rmap_aux: Cross_alg (AV.address -> option (rshare * AV.kind)).
 Proof.
- hnf. intros [a Ha] [b Hb] [c Hc] [d Hd] [z Hz] ? ?.
- hnf in H,H0. simpl in H,H0.
+ hnf. intros a b c d z ? ?.
+(* hnf in H,H0. simpl in H,H0. *)
  destruct (cross_split_fun Share.t _ address share_cross_split
                    (share_of oo a) (share_of oo b) (share_of oo c) (share_of oo d) (share_of oo z))
   as [[[[ac ad] bc] bd] [? [? [? ?]]]].
@@ -327,22 +263,10 @@ Proof.
  intro x. specialize (H0 x). unfold compose.
  clear - H0. inv H0; simpl in *. apply join_unit1; auto. apply join_unit2; auto.
  destruct a1; destruct a2; destruct a3; apply H3.
- assert (Sac: forall x : address, join_sub (ac x) (share_of (z x))).
-   intro x.  apply join_sub_trans with (share_of (a x)). eexists; apply (H1 x).
-   exists (share_of (b x)).  apply join_share_of; auto.
- assert (Sad: forall x : address, join_sub (ad x) (share_of (z x))).
-   intro x.  apply join_sub_trans with (share_of (a x)). eexists; eapply join_comm; apply (H1 x).
-   exists (share_of (b x)).  apply join_share_of; auto.
- assert (Sbc: forall x : address, join_sub (bc x) (share_of (z x))).
-   intro x.  apply join_sub_trans with (share_of (b x)). eexists; apply (H2 x).
-   exists (share_of (a x)).  eapply join_comm; apply join_share_of; auto.
- assert (Sbd: forall x : address, join_sub (bd x) (share_of (z x))).
-   intro x.  apply join_sub_trans with (share_of (b x)). eexists; eapply join_comm; apply (H2 x).
-   exists (share_of (a x)).  eapply join_comm; apply join_share_of; auto.
- exists (exist AV.valid _ (fixup_splitting_valid ac z Sac Hz),
-            exist AV.valid _ (fixup_splitting_valid ad z Sad Hz),
-            exist AV.valid _ (fixup_splitting_valid bc z Sbc Hz),
-            exist AV.valid _ (fixup_splitting_valid bd z Sbd Hz)).
+ exists (fixup_splitting ac z, 
+            fixup_splitting ad z, 
+            fixup_splitting bc z, 
+            fixup_splitting bd z).
  split3; [ | | split];  do 2 red; simpl; intro;
  apply fixup_join; auto; intros.
  exists (b x0); apply H.

@@ -313,7 +313,6 @@ Proof.
 
   destruct (make_rmap (fun loc => proj1_sig (DESCR loc)) (own.ghost_approx phi1' (ghost_of phi3)))
     with (n := level phi1') as (phi3' & lev3 & at3 & Hg3).
-  { hnf; auto. }
   {
     (* the right level of approximation *)
     unfold "oo".

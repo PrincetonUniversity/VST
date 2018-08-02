@@ -2004,8 +2004,6 @@ destruct (allocate (m_phi jm)
       then YES Share.top readable_share_top (VAL Undef) NoneP
       else core (m_phi jm @ loc)) (core (ghost_of phi2)))
   as [phi3 [phi4  [? [? Hg']]]].
-*
- hnf; auto. 
 * extensionality loc; unfold compose.
   if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
   repeat rewrite core_resource_at.

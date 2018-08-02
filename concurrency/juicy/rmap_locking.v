@@ -530,13 +530,6 @@ Proof.
 
   pose proof make_rmap (makelock_f phi loc R length) (ghost_of phi) as Hphi'.
 
-  (* the makelock_f function is valid *)
-  assert_specialize Hphi'. {
-    clear Hphi'.
-    pose proof rmap_valid phi as V.
-    unfold "oo", makelock_f in *. hnf; auto.
-  }
-
   specialize (Hphi' (level phi1)).
 
   (* the makelock_f function is stable under approximation at level phi1 *)
@@ -619,14 +612,6 @@ Proof.
   assert (L1 : level phi1 = level phi) by (eapply join_level; eauto).
 
   pose proof make_rmap (freelock_f phi m loc length) (ghost_of phi) as Hphi'.
-
-  (* the freelock_f function is valid *)
-  assert_specialize Hphi'. {
-    clear Hphi'.
-    pose proof rmap_valid phi as V.
-    pose proof rmap_valid phi as V'.
-    unfold "oo", freelock_f in *. hnf; auto.
-  }
 
   specialize (Hphi' (level phi1)).
 
@@ -720,8 +705,6 @@ Proof.
 
   pose proof make_rmap (makelock_f phi (b, Ptrofs.unsigned ofs) R (size_chunk Mptr * length))  (ghost_of phi) as Hphi'.
 
-  assert_specialize Hphi'. { hnf; auto. }
-
   specialize (Hphi' (level phi)).
 
   assert_specialize Hphi'. {
@@ -794,7 +777,6 @@ Proof.
 
   pose proof make_rmap (freelock_f phi m (b, Ptrofs.unsigned ofs) LKSIZE) (ghost_of phi) as Hphi'.
   unfold LKSIZE in *.
-  assert_specialize Hphi'. { hnf; auto. }
 
   specialize (Hphi' (level phi)).
 
@@ -950,10 +932,7 @@ apply exist_ext.
 rewrite H. auto.
 Qed.
 
-Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) (ghost_of phi) _ (level phi) _ _).
-Next Obligation.
-   hnf; auto.
-Qed.
+Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) (ghost_of phi) (level phi) _ _).
 Next Obligation.
   pose proof resource_at_approx phi as V.
   extensionality l. specialize (V l).
@@ -965,10 +944,7 @@ Next Obligation.
   apply ghost_of_approx.
 Qed.
 
-Program Definition getNO (phi : rmap) := proj1_sig (make_rmap (getNO_aux phi) (core (ghost_of phi)) _ (level phi) _ _).
-Next Obligation.
-  hnf; auto.
-Qed.
+Program Definition getNO (phi : rmap) := proj1_sig (make_rmap (getNO_aux phi) (core (ghost_of phi)) (level phi) _ _).
 Next Obligation.
   pose proof resource_at_approx phi as V.
   extensionality l. specialize (V l).

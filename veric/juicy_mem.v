@@ -306,14 +306,6 @@ simpl in H.
 destruct (phi@loc); eauto 50.
 Qed.
 
-Lemma VAL_valid:
- forall (f: address -> option (rshare*kind)),
-   (forall l sh k, f l = Some (sh,k) -> isVAL k) ->
-   AV.valid f.
-Proof.
-intros; hnf; auto.
-Qed.
-
 Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
              age phi1 phi1' -> age phi2 phi2' -> age phi3 phi3' ->
              join phi1 phi2 phi3 -> join phi1' phi2' phi3'.
@@ -615,38 +607,38 @@ Definition fmap_option {A B} (v: option A) (m: B) (f: A -> B): B :=
     | Some v' => f v'
   end.
 
-Lemma resource_at_make_rmap: forall f g V lev H Hg, resource_at (proj1_sig (make_rmap f g V lev H Hg)) = f.
-refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+Lemma resource_at_make_rmap: forall f g lev H Hg, resource_at (proj1_sig (make_rmap f g lev H Hg)) = f.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj _ (conj RESOURCE_AT _) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma resource_at_remake_rmap: forall f g V lev H Hg, resource_at (proj1_sig (remake_rmap f g V lev H Hg)) = f.
-refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+Lemma resource_at_remake_rmap: forall f g lev H Hg, resource_at (proj1_sig (remake_rmap f g lev H Hg)) = f.
+refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                            | conj _ (conj RESOURCE_AT _) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma ghost_of_make_rmap: forall f g V lev H Hg, ghost_of (proj1_sig (make_rmap f g V lev H Hg)) = g.
-refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+Lemma ghost_of_make_rmap: forall f g lev H Hg, ghost_of (proj1_sig (make_rmap f g lev H Hg)) = g.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma ghost_of_remake_rmap: forall f g V lev H Hg, ghost_of (proj1_sig (remake_rmap f g V lev H Hg)) = g.
-refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+Lemma ghost_of_remake_rmap: forall f g lev H Hg, ghost_of (proj1_sig (remake_rmap f g lev H Hg)) = g.
+refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                            | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma level_make_rmap: forall f g V lev H Hg, @level rmap _ (proj1_sig (make_rmap f g V lev H Hg)) = lev.
-refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+Lemma level_make_rmap: forall f g lev H Hg, @level rmap _ (proj1_sig (make_rmap f g lev H Hg)) = lev.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj LEVEL _ => LEVEL
                          end).
 Qed.
 
-Lemma level_remake_rmap: forall f g V lev H Hg, @level rmap _ (proj1_sig (remake_rmap f g V lev H Hg)) = lev.
-refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+Lemma level_remake_rmap: forall f g lev H Hg, @level rmap _ (proj1_sig (remake_rmap f g lev H Hg)) = lev.
+refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                            | conj LEVEL _ => LEVEL
                          end).
 Qed.
@@ -654,9 +646,6 @@ Qed.
 (* Here we build the [rmap]s that correspond to [store]s, [alloc]s and [free]s on the dry memory. *)
 Section inflate.
 Variables (m: mem) (phi: rmap).
-
-Lemma phi_valid: compcert_rmaps.R.AV.valid (res_option oo resource_at phi).
-Proof. unfold valid; apply rmap_valid. Qed.
 
 Definition inflate_initial_mem' (w: rmap) (loc: address) :=
    match access_at m loc Cur with
@@ -672,7 +661,7 @@ Lemma inflate_initial_mem'_fmap:
  forall w, resource_fmap (approx (level w)) (approx (level w)) oo inflate_initial_mem' w =
                 inflate_initial_mem' w.
 Proof.
-unfold valid, CompCert_AV.valid, compose.
+unfold compose.
 intros.
 unfold inflate_initial_mem'.
 extensionality loc.
@@ -683,14 +672,8 @@ rewrite <- level_core.
   rewrite <- H. rewrite level_core. apply resource_at_approx.
 Qed.
 
-Lemma inflate_initial_mem'_valid:
-  forall lev, CompCert_AV.valid (res_option oo inflate_initial_mem' lev).
-Proof.
-intros; hnf; auto.
-Qed.
-
 Definition inflate_initial_mem (w: rmap): rmap :=
-    proj1_sig (make_rmap (inflate_initial_mem' w) (ghost_of w) (inflate_initial_mem'_valid w) _
+    proj1_sig (make_rmap (inflate_initial_mem' w) (ghost_of w) _
             (inflate_initial_mem'_fmap w) (ghost_of_approx w)).
 
 Lemma inflate_initial_mem_level: forall w, level (inflate_initial_mem w) = level w.
@@ -729,9 +712,8 @@ Definition inflate_alloc: rmap.
       end))
 
   (* phi = YES *)
-  (fun _ => phi @ loc)) (ghost_of phi) _ (level phi) _ (ghost_of_approx phi))).
+  (fun _ => phi @ loc)) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
 Proof.
-pose proof phi_valid as VALID.
 hnf; auto.
 intro.
 case_eq (phi @ l); simpl; intros; auto.
@@ -761,7 +743,7 @@ proj1_sig (make_rmap (fun loc =>
     | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m loc)) NoneP
     | YES _ _ _ _ => resource_fmap (approx (level phi)) (approx (level phi)) (phi @ loc)
     | _ => phi @ loc
-  end) (ghost_of phi) _ (level phi) _ (ghost_of_approx phi))).
+  end) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
 Proof.
 hnf; auto.
 
@@ -1281,11 +1263,8 @@ Definition inflate_free: rmap. refine (
 proj1_sig (make_rmap (fun loc =>
   if adr_range_dec (b,lo) (hi-lo) loc then NO Share.bot bot_unreadable else m_phi jm @ loc)
     (ghost_of (m_phi jm))
-     _ (level (m_phi jm)) _ (ghost_of_approx (m_phi jm)))).
+     (level (m_phi jm)) _ (ghost_of_approx (m_phi jm)))).
 Proof.
-* (* AV.valid *)
-hnf; auto.
-*
 unfold compose.
 extensionality l.
 destruct l as (b', ofs').
@@ -1388,12 +1367,6 @@ unfold adr_range; intros.
 destruct H; auto.
 Qed.
 
-Lemma after_alloc'_valid : forall lo hi b phi H,
-  AV.valid (res_option oo after_alloc' lo hi b phi H).
-Proof.
-intros; hnf; auto.
-Qed.
-
 Lemma after_alloc'_ok : forall lo hi b phi H,
   resource_fmap (approx (level phi)) (approx (level phi)) oo (after_alloc' lo hi b phi H)
   = after_alloc' lo hi b phi H.
@@ -1414,7 +1387,6 @@ Qed.
 Definition after_alloc
   (lo hi: Z) (b: block) (phi: rmap)(H: forall ofs, phi @ (b,ofs) = NO Share.bot bot_unreadable) : rmap :=
   proj1_sig (make_rmap (after_alloc' lo hi b phi H) (ghost_of phi)
-    (after_alloc'_valid lo hi b phi H)
     (level phi)
     (after_alloc'_ok lo hi b phi H) (ghost_of_approx phi)).
 
@@ -1423,12 +1395,6 @@ Definition mod_after_alloc' (phi: rmap) (lo hi: Z) (b: block)
     if adr_range_dec (b,lo) (hi-lo) loc 
       then YES Share.top readable_share_top (VAL Undef) NoneP
       else core phi @ loc.
-
-Lemma mod_after_alloc'_valid : forall phi lo hi b,
-  AV.valid (res_option oo mod_after_alloc' phi lo hi b).
-Proof.
-intros; hnf; auto.
-Qed.
 
 Lemma mod_after_alloc'_ok : forall phi lo hi b,
   resource_fmap (approx (level phi)) (approx (level phi)) oo (mod_after_alloc'  phi lo hi b)
@@ -1445,7 +1411,6 @@ Qed.
 
 Definition mod_after_alloc (phi: rmap) (lo hi: Z) (b: block) :=
   proj1_sig (make_rmap (mod_after_alloc' phi lo hi b) (ghost_of phi)
-    (mod_after_alloc'_valid phi lo hi b)
     _
     (mod_after_alloc'_ok phi lo hi b) (ghost_of_approx phi)).
 

@@ -27,11 +27,11 @@ Lemma Own_op: forall a b c, join a b c -> Own c = Own a * Own b.
 Proof.
   intros; apply pred_ext.
   - intros w (Hno & Hg).
-    destruct (make_rmap (resource_at w) (ghost_approx w a) (rmap_valid w) (level w))
+    destruct (make_rmap (resource_at w) (ghost_approx w a) (level w))
       as (wa & Hla & Hra & Hga).
     { extensionality; apply resource_at_approx. }
     { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
-    destruct (make_rmap (resource_at w) (ghost_approx w b) (rmap_valid w) (level w))
+    destruct (make_rmap (resource_at w) (ghost_approx w b) (level w))
       as (wb & Hlb & Hrb & Hgb).
     { extensionality; apply resource_at_approx. }
     { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
@@ -192,7 +192,7 @@ Proof.
   { rewrite Hl1; eauto. }
   rewrite Hl1 in J1'; destruct (join_assoc (join_comm J1) (join_comm J1')) as (w' & ? & ?).
   exists w'; split; [eexists; apply join_comm; eauto|].
-  destruct (make_rmap _ w' (rmap_valid a) (level a)) as (m' & ? & Hr'' & ?); subst.
+  destruct (make_rmap (resource_at a) w' (level a)) as (m' & ? & Hr'' & ?); subst.
   { extensionality l; apply resource_at_approx. }
   { eapply ghost_same_level_gen.
     rewrite <- (ghost_of_approx w2), <- (ghost_of_approx w1'), H, Hl1, Hl2 in H0.
@@ -232,7 +232,7 @@ Proof.
   { eexists; eauto. }
   exists (ghost_fmap (approx (level a0)) (approx (level a0)) g'); split; auto.
   destruct (make_rmap (resource_at a0)
-    (ghost_fmap (approx (level a0)) (approx (level a0)) g') (rmap_valid a0) (level a0))
+    (ghost_fmap (approx (level a0)) (approx (level a0)) g') (level a0))
     as (m' & Hl & Hr & Hg').
   { extensionality; apply resource_at_approx. }
   { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
@@ -291,7 +291,7 @@ Lemma Own_dealloc: forall a, Own a |-- bupd emp.
 Proof.
   intros ? w [] ??.
   exists (core ((ghost_approx w) c)); split; [eexists; apply core_unit|].
-  destruct (make_rmap _ (core (ghost_approx w c)) (rmap_valid w) (level w)) as (w' & ? & Hr & Hg).
+  destruct (make_rmap (resource_at w) (core (ghost_approx w c)) (level w)) as (w' & ? & Hr & Hg).
   { extensionality; apply resource_at_approx. }
   { rewrite ghost_core; auto. }
   exists w'; repeat split; auto.

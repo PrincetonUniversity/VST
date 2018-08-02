@@ -242,18 +242,6 @@ destruct H0 as [_ ?]. rewrite H0.
 auto.
 Qed.
 
-Lemma split_rmap_valid1:
-  forall m, CompCert_AV.valid (res_option oo (fun l => fst (split_resource (m@l)))).
-Proof.
-intros; hnf; auto.
-Qed.
-
-Lemma split_rmap_valid2:
-  forall m, CompCert_AV.valid (res_option oo (fun l => snd (split_resource (m@l)))).
-Proof.
-intros; hnf; auto.
-Qed.
-
 Lemma split_rmap_ok1: forall m,
   resource_fmap (approx (level m)) (approx (level m)) oo (fun l => fst (split_resource (m @ l))) =
        (fun l => fst (split_resource (m @ l))).
@@ -364,13 +352,6 @@ Definition slice_resource (sh: share) (r: resource) : resource :=
    | PURE k pp => PURE k pp
   end.
 
-Lemma slice_resource_valid:
-  forall sh phi P (P_DEC: forall l, {P l} + {~ P l}),
-  (forall l, ~ P l -> identity (phi @ l)) ->
-  AV.valid (fun l => res_option (if P_DEC l then slice_resource sh (phi @ l) else phi @ l)).
-Proof.
-intros; hnf; auto.
-Qed.
 
 Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}) sh,
   (forall l : AV.address, ~ P l -> identity (w @ l)) ->
@@ -380,8 +361,7 @@ Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {
 Proof.
   intros.
   pose (f l := if P_DEC l then slice_resource sh (w @ l) else w @ l).
-  assert (Vf: AV.valid (res_option oo f)) by (apply slice_resource_valid; auto).
-  apply (make_rmap _ (ghost_of w) Vf (level w)).
+  apply (make_rmap _ (ghost_of w) (level w)).
   extensionality loc; unfold compose, f.
   destruct (P_DEC loc).
   + pose proof resource_at_approx w loc.

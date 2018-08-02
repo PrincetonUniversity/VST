@@ -14,7 +14,7 @@ Require Import VST.veric.initial_world.
 
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
-                              _ _ (level w) _ (ghost_of_approx w))).
+                              _ (level w) _ (ghost_of_approx w))).
 Proof.
   hnf; auto.
  extensionality loc;  unfold compose.
@@ -86,17 +86,15 @@ Lemma split_range:
                                                       else identity (phi1 @ loc).
 Proof.
   intros ???? Hg.
-  assert (AV.valid (res_option oo (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)))).
-   hnf; auto.
-  destruct (make_rmap _ (ghost_of phi) H0 (level phi)) as [phi1 [J1 J2]].
+  pose proof I.
+  destruct (make_rmap (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)) (ghost_of phi) (level phi)) as [phi1 [J1 J2]].
   extensionality loc;   unfold compose.
   if_tac.  apply resource_at_approx.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
   { apply ghost_of_approx. }
   clear H0.
-  assert (AV.valid (res_option oo (fun loc => if adr_range_dec base n loc then core (phi @ loc) else phi @ loc))).
-   hnf; auto.
- destruct (make_rmap _ (ghost_of phi) H0 (level phi)) as [phi2 [J3 J4]].
+  pose proof I.
+ destruct (make_rmap (fun loc => if adr_range_dec base n loc then core (phi @ loc) else phi @ loc) (ghost_of phi) (level phi)) as [phi2 [J3 J4]].
   extensionality loc;   unfold compose.
   if_tac.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
@@ -1666,9 +1664,8 @@ Lemma hackfun_sep:
    exists w1', exists w2', join w1' w2' w' /\ hackfun w1 w1' /\ hackfun w2 w2'.
 Proof.
 intros.
-assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w1 @ loc) then core (w' @ loc) else w1 @ loc))).
-   hnf; auto.
- destruct (make_rmap _ (ghost_of w1) H1 (level w))  as [w1' [? ?]]; clear H1.
+ pose proof I.
+ destruct (make_rmap (fun loc => if resource_identity_dec (w1 @ loc) then core (w' @ loc) else w1 @ loc) (ghost_of w1) (level w))  as [w1' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).
@@ -1677,10 +1674,8 @@ assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w1 @ loc) 
  apply resource_at_approx.
  destruct (join_level _ _ _ H0) as [<- _].
  apply ghost_of_approx.
-
-assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w2 @ loc) then core (w' @ loc) else w2 @ loc))).
-     hnf; auto.
-destruct (make_rmap _ (ghost_of w2) H1 (level w))  as [w2' [? ?]]; clear H1.
+ pose proof I.
+ destruct (make_rmap (fun loc => if resource_identity_dec (w2 @ loc) then core (w' @ loc) else w2 @ loc) (ghost_of w2) (level w))  as [w2' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).
