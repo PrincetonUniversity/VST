@@ -124,7 +124,7 @@ Lemma storebytes_unch_loc_unwritable b ofs: forall l m m' (L: Mem.storebytes m b
 Proof.
 intros.
 split; intros.
-+ rewrite (Mem.nextblock_storebytes _ _ _ _ _ L); apply Ple_refl.
++ rewrite (Mem.nextblock_storebytes _ _ _ _ _ L); apply Pos.le_refl.
 + split; intros.
   eapply Mem.perm_storebytes_1; eassumption.
   eapply Mem.perm_storebytes_2; eassumption.
@@ -511,7 +511,7 @@ Opaque Mem.storebytes.
  assert (Mem.valid_block m'' b). {
    apply mem_step_nextblock in H1_.
    unfold Mem.valid_block in *.
-   eapply Plt_le_trans; eauto.
+   eapply Pos.lt_le_trans; eauto.
  }
  erewrite IHmem_step1 by auto. apply IHmem_step2; auto.
  contradict H0.
@@ -527,7 +527,7 @@ Opaque Mem.storebytes.
  - eapply IHH1_1; auto. eapply IHH1_2; eauto.
    apply mem_step_nextblock in H1_1.
    unfold Mem.valid_block in *.
-   eapply Plt_le_trans; eauto.
+   eapply Pos.lt_le_trans; eauto.
 Qed.
 
 Lemma ple_load m ch a v

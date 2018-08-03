@@ -54,11 +54,11 @@ Proof.
   rewrite argtypes_eq.
   eapply semax_pre_post'; [ | |
     apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
-  Focus 3. {
+  3:{
     clear - H0.
     destruct retsig; destruct ret; simpl in *; try contradiction;
     intros; congruence.
-  } Unfocus.
+  }
   + clear Hret.
     unfold_lift; unfold local, lift1. unfold func_ptr'. intro rho; simpl.
     normalize;
@@ -131,10 +131,11 @@ intros.
 rewrite argtypes_eq.
 eapply semax_pre_post'; [ | |
    apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) None argsig retty cc a bl H)].
- Focus 3.
+3:{
  split; intros; congruence.
- intro rho; normalize.
- autorewrite with norm1 norm2; normalize.
+}
+intro rho; normalize.
+autorewrite with norm1 norm2; normalize.
 unfold func_ptr'.
 rewrite !sepcon_assoc.
 apply andp_derives; auto.

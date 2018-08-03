@@ -477,7 +477,7 @@ clear IHdata.
 fold (tarray t 1). erewrite data_at_singleton_array_eq by apply eq_refl.
 rewrite <- (mapsto_data_at sh t (Vint (Cop.cast_int_int sz sign a)) (Vint (Cop.cast_int_int sz sign a)) v); try reflexivity; auto.
 2: subst t; destruct sz, sign; reflexivity.
-Focus 2. {
+2:{
 destruct v; auto. red.
 assert (sizeof t > 0).
 subst t; simpl. destruct sz; computable.
@@ -490,7 +490,7 @@ rewrite Z.mul_1_r in H1.
 assert (0 <= sizeof t * Zlength data)
   by (apply Z.mul_nonneg_nonneg; omega).
  omega.
-} Unfocus.
+}
 subst t.
 normalize.
 unfold init_data2pred', inttype2init_data.
@@ -610,10 +610,10 @@ Proof.
   match goal with |- ?A |-- _ =>
     erewrite (add_andp A (local (`isptr (eval_var i (tarray (Tint sz sign noattr) n)))))
   end.
-  Focus 2. {
+  2:{
     go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
     right; split; auto. rewrite <- H1; auto.
-   } Unfocus.
+   }
   eapply derives_trans.
   apply andp_right.
   apply andp_left1. apply andp_left1. apply andp_left1. apply derives_refl.

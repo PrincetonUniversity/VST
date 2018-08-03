@@ -774,10 +774,11 @@ unfold wk_split; intros.
 destruct (CrA _ _ _ _ _ H H0) as [[[[ad ae] bd] be] [myH1 [myH2 [myH3 myH4]]]].
 destruct H1 as [x H_x].
 assert (exists X, join ad X be) as [X HX].
-Focus 2. exists X.
+2:{   exists X.
                destruct (join_assoc (join_comm HX) (join_comm myH2)) as [y [myH5 myH6]].
                assert (y=d) by apply (join_eq myH5 myH3).  subst y.
                apply (join_comm myH6).
+}
 destruct (join_assoc (join_comm myH1) H_x) as [y [myH5 myH6]].
 destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [? [Had ?]].
 apply join_self in Had.
@@ -912,7 +913,7 @@ generalize (H _ _ _ (join_comm H6) H2); intro.
 assert (emp a0).
 apply H0.
 split.
-Focus 2. do 2 econstructor; (split; [|split]). 3: eauto. eauto. auto.
+2:{ do 2 econstructor; (split; [|split]). 3: eauto. eauto. auto. }
 exists a; exists w1; split; [|split]; eauto.
 apply join_unit2_e in H6; auto.
 subst a.

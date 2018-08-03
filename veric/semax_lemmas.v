@@ -447,7 +447,7 @@ replace ((F (construct_rho (filter_genv gx) ve te) *
         (|>(!!PP (construct_rho (filter_genv gx) ve te)) && (P (construct_rho (filter_genv gx) ve te))))%pred) with
         (|>!!(PP (construct_rho (filter_genv gx) ve te)) && (F (construct_rho (filter_genv gx) ve te) *
          (P (construct_rho (filter_genv gx) ve te)))%pred) in H7.
-Focus 2. {
+2:{
   rewrite (sepcon_comm (F (construct_rho (filter_genv gx) ve te))
     (|>!!(PP (construct_rho (filter_genv gx) ve te)) && P (construct_rho (filter_genv gx) ve te))).
 
@@ -455,7 +455,7 @@ Focus 2. {
 
  rewrite sepcon_comm.
  reflexivity.
-} Unfocus.
+}
 destruct H7.
 simpl in H7.
 destruct (age1 w4) eqn:?H.
@@ -738,7 +738,8 @@ inv H1.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall {Espec: OracleKind} psi tx vx (Q: assert), exists k,  assert_safe Espec psi tx vx k = Q.
+  forall (Espec: OracleKind) psi tx vx (Q: assert), 
+     exists k,  assert_safe Espec psi tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator
   to the programming language
 *)
@@ -1453,7 +1454,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
  split3; auto.
  constructor. rewrite H3; auto.
   (* break *)
-Focus 1.
+{
   case_eq (prebreak_cont l); intros.
   {
   assert (break_cont (l++ctl1) = break_cont (l++ctl2)).
@@ -1535,7 +1536,8 @@ Focus 1.
   exists c2,m2; split; auto.
   destruct H5; split; auto. constructor; auto. rewrite H3; auto.
   }
-  } Unfocus.
+  }
+}
   (* ifthenelse *)
   exists (State ve te (Kseq (if b then s1 else s2) :: l ++ ctl2)), m'.
   split. split3; auto. rewrite <- Heqdm'. econstructor; eauto.

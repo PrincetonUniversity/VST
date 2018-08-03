@@ -136,7 +136,7 @@ Proof.
     destruct H2 as [l1 [l2 ?]].
     specialize (IHl' (l1 ++ l2)).
     spec IHl'.
-    Focus 1. {
+    {
       clear - H2 H1 H4.
       intros x ?H.
       specialize (H1 x).
@@ -146,7 +146,7 @@ Proof.
       rewrite in_app_iff.
       assert (a = x -> False) by (intros; subst; tauto).
       tauto.
-    } Unfocus.
+    }
     subst.
     rewrite iter_sepcon_app in *.
     simpl.

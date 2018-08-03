@@ -1458,7 +1458,7 @@ rewrite <- (alloc_access_other _ _ _ _ _ H b ofs Cur) by (right; omega).
 apply alloc_result in H.
 subst.
 apply nextblock_access_empty.
-apply Pos.le_ge, Ple_refl.
+apply Pos.le_ge, Pos.le_refl.
 Qed.
 
 Lemma alloc_dry_unchanged_on : forall m1 m2 loc lo hi b0,
@@ -1483,7 +1483,7 @@ destruct (eq_dec b (nextblock m1)).
 subst.
 rewrite invalid_noaccess in H1; [ congruence |].
 contradict H0.
-red in H0. apply Plt_irrefl in H0. contradiction.
+red in H0. apply Pos.lt_irrefl in H0. contradiction.
 rewrite PMap.gso by auto.
 auto.
 Qed.

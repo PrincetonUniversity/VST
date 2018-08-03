@@ -458,7 +458,7 @@ Proof.
      (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t));
      auto.
     rewrite memory_block_array_pred; auto.
-    - apply Zle_max_l.
+    - apply Z.le_max_l.
     - f_equal.
       f_equal.
       rewrite Z2Nat_max0; auto.
@@ -618,14 +618,14 @@ Proof.
   try solve [rewrite default_val_eq, unfold_fold_reptype; apply mapsto_mapsto_]].
   + rewrite !data_at_rec_eq.
     apply array_pred_ext_derives.
-    Focus 1. {
+    {
       intros; rewrite default_val_eq.
       rewrite unfold_fold_reptype.
       rewrite Zlength_correct in H1.
       rewrite <- Z2Nat_max0.
       rewrite Zlength_list_repeat by omega.
       omega.
-    } Unfocus.
+    }
     rewrite default_val_eq. simpl.
     intros.
     rewrite !at_offset_eq3.
@@ -919,17 +919,17 @@ Proof.
                           (offset_val (sizeof t * i) p))
      (v1 := list_repeat (Z.to_nat (Z.max 0 z)) (default_val t)); auto.
     rewrite memory_block_array_pred; auto.
-    - apply Zle_max_l.
+    - apply Z.le_max_l.
     - rewrite (proj1 H2).
       symmetry; apply Zlength_list_repeat; auto.
-      apply Zle_max_l.
+      apply Z.le_max_l.
     - intros.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
       unfold Znth. rewrite if_false by omega.
       rewrite Z.sub_0_r.
       assert (value_fits t (nth (Z.to_nat i) (unfold_reptype v) (default_val t))).
-      Focus 1. {
+      {
         destruct H2.
         rewrite Forall_forall in H5.
         apply H5.
@@ -937,7 +937,7 @@ Proof.
         apply Nat2Z.inj_lt.
         rewrite <- Zlength_correct, H2, Z2Nat.id by omega.
         omega.
-      } Unfocus.
+      }
       apply IH; auto.
       * pose_size_mult cenv_cs t (0 :: i :: i + 1 :: Z.max 0 z :: nil); omega.
       * eapply align_compatible_rec_Tarray_inv; eauto.
@@ -1051,17 +1051,17 @@ Proof.
   rewrite !Z.add_0_l.
   rewrite !Z.sub_0_r.
   assert (legal_alignas_type t = true).
-  Focus 1. {
+  {
     unfold legal_alignas_type in H2.
     simpl in H2.
     rewrite andb_true_iff in H2.
     tauto.
-  } Unfocus.
+  }
   assert (alignof t | sizeof t * i).
-  Focus 1. {
+  {
     apply Z.divide_mul_l.
     apply legal_alignas_sizeof_alignof_compat, H5.
-  } Unfocus.
+  }
   rewrite !data_at_rec_at_offset with (pos := (sizeof t * i)%Z) by auto.
   rewrite !at_offset_eq by (rewrite <- data_at_rec_offset_zero; reflexivity).
   assert (legal_nested_field (Tarray t n a) (ArraySubsc i :: nil)) by solve_legal_nested_field.
@@ -1119,11 +1119,11 @@ Proof.
     rewrite !data_at_rec_eq.
     extensionality p.
     assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
-    Focus 1. {
+    {
       eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
       + apply (unfold_reptype_JMeq (Tarray t z a) v1).
       + apply JMeq_sym, (unfold_reptype_JMeq (Tarray t z a) v2).
-    } Unfocus.
+    }
     apply array_pred_ext.
     - apply list_func_JMeq; [apply reptype_change_composite; auto | auto].
     - intros.
@@ -1151,11 +1151,11 @@ Proof.
     rewrite !data_at_rec_eq.
     extensionality p.
     assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
-    Focus 1. {
+    {
       eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
       + apply (unfold_reptype_JMeq (Tstruct _ _) v1).
       + apply JMeq_sym, (unfold_reptype_JMeq (Tstruct _ _) v2).
-    } Unfocus.
+    }
     revert H1; clear H.
     forget (unfold_reptype v1) as v1'.
     forget (unfold_reptype v2) as v2'.
@@ -1195,11 +1195,11 @@ Proof.
     rewrite !data_at_rec_eq.
     extensionality p.
     assert (JMeq (unfold_reptype v1) (unfold_reptype v2)).
-    Focus 1. {
+    {
       eapply JMeq_trans; [| eapply JMeq_trans; [exact H |]].
       + apply (unfold_reptype_JMeq (Tunion _ _) v1).
       + apply JMeq_sym, (unfold_reptype_JMeq (Tunion _ _) v2).
-    } Unfocus.
+    }
     revert H1; clear H.
     forget (unfold_reptype v1) as v1'.
     forget (unfold_reptype v2) as v2'.

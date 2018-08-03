@@ -291,8 +291,8 @@ Proof.
   + simpl.
     pose proof HA_ENV_CONS id; pose proof HA_ENV_COMPL id.
     destruct (cenv ! id) as [co |] eqn:?H, (ha_env ! id) eqn:?H.
-    Focus 2. { pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
-    Focus 2. { pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
+    2:{ pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
+    2:{ pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
     - specialize (H _ _ eq_refl eq_refl).
       subst z.
       clear - IH.
@@ -307,8 +307,8 @@ Proof.
   + simpl.
     pose proof HA_ENV_CONS id; pose proof HA_ENV_COMPL id.
     destruct (cenv ! id) as [co |] eqn:?H, (ha_env ! id) eqn:?H.
-    Focus 2. { pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
-    Focus 2. { pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. } Unfocus.
+    2:{ pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
+    2:{ pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
     - specialize (H _ _ eq_refl eq_refl).
       subst z.
       clear - IH.
@@ -378,7 +378,7 @@ Proof.
   intros ? ? ? ? ? CENV_CONS CENV_COSU HA_ENV_CONS HA_ENV_COMPL.
   revert t z1 z2.
   assert (BY_VALUE: forall t z1 z2, (exists ch, access_mode t = By_value ch) -> (hardware_alignof ha_env t | z1 - z2) -> align_compatible_rec cenv t z1 <-> align_compatible_rec cenv t z2).
-  Focus 1. {
+  {
     intros ? ? ? [? ?] ?.
     split; intros.
     + eapply align_compatible_rec_by_value_inv in H1; eauto.
@@ -391,7 +391,7 @@ Proof.
       replace z1 with (z2 + (z1 - z2)) by omega.
       erewrite hardware_alignof_by_value in H0 by eauto.
       apply Z.divide_add_r; auto.
-  } Unfocus.
+  }
   intro t; type_induction t cenv CENV_CONS; intros.
   + split; intros; inv H1; inv H2.
   + eapply BY_VALUE; auto.
@@ -798,10 +798,10 @@ Lemma legal_alignas_type_divide: forall t,
 Proof.
   intros.
   assert (hardware_alignof ha_env t <=? alignof cenv t = true).
-  Focus 1. {
+  {
     destruct t; simpl in H |- *;
     solve [inv H | rewrite andb_true_iff in H; tauto].
-  } Unfocus.
+  }
   autorewrite with align in H0.
   auto.
 Qed.
@@ -855,10 +855,10 @@ Proof.
   + unfold is_aligned, is_aligned_aux in H, IH.
     Opaque alignof. simpl in H, IH. Transparent alignof.
     destruct (la_env ! id) as [la |] eqn:?H.
-    Focus 2. {
+    2:{
       rewrite (andb_comm _ false) in H.
       inv H.
-    } Unfocus.
+    }
     pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H0) as [co ?].
     pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H1) as [ha ?].
     rewrite H1 in IH; rewrite H2 in H.
@@ -887,10 +887,10 @@ Proof.
   + unfold is_aligned, is_aligned_aux in H, IH.
     Opaque alignof. simpl in H, IH. Transparent alignof.
     destruct (la_env ! id) as [la |] eqn:?H.
-    Focus 2. {
+    2:{
       rewrite (andb_comm _ false) in H.
       inv H.
-    } Unfocus.
+    }
     pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H0) as [co ?].
     pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H1) as [ha ?].
     rewrite H1 in IH; rewrite H2 in H.

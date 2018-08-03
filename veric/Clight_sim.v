@@ -898,8 +898,9 @@ clear.
  inv H6.
  evar (c2': CC'.CC_core).
  exists c2'; split.
-     Focus 2. constructor; eauto. apply match_cont_strip. simpl.
+ 2:{ constructor; eauto. apply match_cont_strip. simpl.
                     instantiate (1:= CC.Kswitch k'0). constructor. auto.
+   }
      generalize (exec_skips' f _ _ _ _ ve te m (@eq_sym _ _ _ H4)); intro H99.
         eapply star_plus_trans; try apply H99.
         unfold c2'. apply plus_one. split;[reflexivity|]. simpl. econstructor; eauto.

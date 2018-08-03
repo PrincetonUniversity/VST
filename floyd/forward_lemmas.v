@@ -186,13 +186,12 @@ Proof.
 intros ? ? ? ? ? ? ? BT TC Post H.
 unfold Swhile.
 apply (@semax_loop cs Espec Delta Q Q).
-Focus 2. {
+2:{
  clear. eapply semax_post_flipped. apply semax_skip.
  all: try (intros; apply andp_left2; destruct R; apply derives_refl).
  intros. apply andp_left2. destruct R; simpl. normalize.
  intros. apply andp_left2. destruct R; simpl. normalize.
-} Unfocus.
-(* End Focus 2. *)
+}
 apply semax_seq with
  (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
 apply semax_pre_simple with ( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q).

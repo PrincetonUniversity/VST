@@ -478,7 +478,7 @@ apply pred_ext; intro w; simpl.
      intros. specialize (H0 l0). rewrite if_false in H0; auto.
   }
   destruct (make_rmap _ Vf (level w)) as [phi [Gf Hf]].
-  Focus 1. {
+  {
     extensionality loc; unfold compose, f.
     specialize (PARAMETRIC l loc).
     destruct PARAMETRIC as [pp [ok Jf]].
@@ -494,14 +494,14 @@ apply pred_ext; intro w; simpl.
     destruct (readable_share_dec sh1); auto.
     revert H0; case_eq (w @ loc); intros; try contradiction; simpl; f_equal; auto.
     apply resource_at_approx.
-  } Unfocus.
+  }
   pose (g loc := if S l loc then slice_resource sh2 (w @ loc) else w@loc).
   assert (Vg: CompCert_AV.valid (res_option oo g)). {
      apply slice_resource_valid.
      intros. specialize (H0 l0). rewrite if_false in H0; auto.
   }
   destruct (make_rmap _ Vg (level w)) as [phi' [Gg Hg]].
-  Focus 1. {
+  {
     extensionality loc; unfold compose, g.
     specialize (PARAMETRIC l loc).
     destruct PARAMETRIC as [pp [ok Jg]].
@@ -517,7 +517,7 @@ apply pred_ext; intro w; simpl.
     destruct (readable_share_dec sh2); auto.
     revert H0; case_eq (w @ loc); intros; try contradiction; simpl; f_equal; auto.
     apply resource_at_approx.
-  } Unfocus.
+  }
   unfold f,g in *; clear f g.
   rename phi into f; rename phi' into g.
   assert (join f g w). {
@@ -874,17 +874,17 @@ Proof.
   apply pred_ext; intros w; simpl; intros.
   + destruct H5 as [H5 Hg].
     destruct (make_slice_rmap w P P_DEC q_sh) as [w1 [? ?]].
-    Focus 1. {
+    {
       intros; specialize (H5 l).
       rewrite if_false in H5 by auto.
       auto.
-    } Unfocus.
+    }
     destruct (make_slice_rmap w P P_DEC r_sh) as [w2 [? ?]].
-    Focus 1. {
+    {
       intros; specialize (H5 l).
       rewrite if_false in H5 by auto.
       auto.
-    } Unfocus.
+    }
     exists w1, w2.
     split3.
     - apply resource_at_join2; try congruence.

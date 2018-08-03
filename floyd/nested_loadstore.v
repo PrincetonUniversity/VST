@@ -117,7 +117,7 @@ Proof.
         !!JMeq v0' v0'' -->
         (field_at sh t (gfs SUB i) v0' p -*
          array_at sh t gfs 0 z (upd_Znth (i - 0) v' v0'') p))).
-    Focus 2. {
+    2:{
       rewrite Z.sub_0_r.
       clear v0 H.
       apply pred_ext.
@@ -156,7 +156,7 @@ Proof.
         revert v' v0' H4 H5; rewrite nested_field_type_ind with (gfs0 := cons _ _), H2; simpl; intros.
         apply JMeq_eq in H4; apply JMeq_eq in H5.
         subst; apply JMeq_refl.
-    } Unfocus.
+    }
     apply (array_at_ramif sh t gfs t0 z a 0 z i v' v0 p); auto.
     eapply JMeq_trans; [apply @JMeq_sym, H |]; clear v0 H.
     revert v v' H4.

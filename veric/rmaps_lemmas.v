@@ -5,8 +5,8 @@ Require Import VST.msl.sepalg_list.
 Require Import VST.veric.shares.
 Require Import VST.veric.rmaps.
 
-Module Rmaps_Lemmas (R: RMAPS).
-Module R := R.
+Module Rmaps_Lemmas (R0: RMAPS).
+Module R := R0.
 Import R.
 
 Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.

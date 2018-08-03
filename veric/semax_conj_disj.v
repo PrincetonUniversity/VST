@@ -163,7 +163,7 @@ Proof.
   set (rho := construct_rho (filter_genv psi) vx tx).
   pose proof exact_assert_spec1 (modifiedvars c) (rho, w1) as SPEC1.
   assert ((rguard Espec psi (exit_tycon c Delta') (frame_ret_assert R (exact_assert (modifiedvars c) (rho, w1))) k) n) as SPEC2.
-  Focus 1. {
+  1:{
     clear - H0 H1 H6.
     unfold rguard in *.
     intros ek vl tx' vx'.
@@ -194,7 +194,7 @@ Proof.
     + unfold exact_assert in H3.
       destruct H3.
       auto.
-  } Unfocus.
+  }
   specialize (H _ SPEC1 SPEC2); clear SPEC1 SPEC2.
 
   unfold guard in H.
@@ -226,7 +226,7 @@ Proof.
   (* Fail. This subgoal is not provable. *)
 Abort.
 (*
-  Focus 1. {
+  1:{
     clear - H2.
     unfold rguard in *.
     intros ek vl tx vx.
@@ -240,7 +240,7 @@ Abort.
     clear - H0.
   replace (frame_ret_assert (fun kd v rho => Q1 kd v rho && Q2 kd v rho) F)
     with (fun kd v rho => (frame_ret_assert Q1 F) kd v rho && (frame_ret_assert Q2 F) kd v rho).
-  Focus 2. {
+  2:{
     extensionality kd v rho.
     unfold frame_ret_assert.
     rewrite <- !(sepcon_comm (F rho)).

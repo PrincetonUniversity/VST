@@ -265,10 +265,9 @@ Section SepAlgSubset_Functor.
       destruct H as [x [y0 [?[??]]]].
       subst x'.
       exists (exist (fun x => @P A x) x (HPfmap2 _ _ _ Hx')).
-      assert (P y0).
-      Focus 1. {
+      assert (P y0). {
         apply (HPfmap2 f g). rewrite H1. apply HPfmap1. auto.
-      } Unfocus.
+      }
       exists (exist (fun x => @P A x) y0 H0).
       intuition.
       - simpl.
@@ -285,10 +284,9 @@ Section SepAlgSubset_Functor.
       apply (paf_preserves_unmap_right fSA) in H.
       destruct H as [y0 [z [?[??]]]].
       subst z'.
-      assert (P y0).
-      Focus 1. {
+      assert (P y0). {
         apply (HPfmap2 f g). rewrite H0. apply HPfmap1. auto.
-      } Unfocus.
+      }
       exists (exist (fun x => @P A x) y0 H1).
       exists (exist (fun x => @P A x) z (HPfmap2 _ _ _ Hz')).
       intuition.

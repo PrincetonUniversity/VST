@@ -367,11 +367,11 @@ Proof.
       (P (genT b) + compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l))))%type.
     replace (compact_sum_gen filter genV (b :: b0 :: l)) with
       (@inl (P (genT b)) (compact_sum (map (fun b1 : B => P (genT b1)) (b0 :: l))) (genV b)).
-    Focus 2. {
+    2:{
       simpl in H0 |- *.
       rewrite H0.
       auto.
-    } Unfocus.
+    }
     match goal with
     | |- @JMeq _ (@inl _ ?A _) _ (@inl _ ?B _) =>
          replace A with B; [auto |]
@@ -919,17 +919,19 @@ intros.
   simpl nth.
   specialize (IHk (Z.of_nat n0) (Z.succ lo')).
   replace (lo+lo') with (Z.of_nat n0 + Z.succ lo').
-Focus 2.
+2:{
   unfold Z.succ.
   transitivity (Z.of_nat n0 + 1 + lo'); [ omega |].
   f_equal. apply Z2Nat.inj; try omega.
   rewrite Z2Nat.inj_add; try omega. rewrite Nat2Z.id.
  rewrite Heqn0. change (Z.to_nat 1) with 1%nat.  omega.
+}
   etransitivity; [ | apply IHk]; try omega.
-Focus 2.
+2:{
   assert (lo = Z.of_nat (S n0)).  apply Z2Nat.inj; try omega.
   rewrite Nat2Z.id. auto.
    subst lo. clear - H2. rewrite inj_S in H2. omega.
+}
   unfold Znth. rewrite if_false by omega. rewrite Nat2Z.id. auto.
 +
   specialize (IHn (Z.succ lo) lo'). rewrite IHn; try omega.

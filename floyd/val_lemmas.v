@@ -221,10 +221,10 @@ Definition Zcmp (op: comparison) : Z -> Z -> Prop :=
  match op with
  | Ceq => eq
  | Cne => (fun i j => i<>j)
- | Clt => Zlt
- | Cle => Zle
- | Cgt => Zgt
- | Cge => Zge
+ | Clt => Z.lt
+ | Cle => Z.le
+ | Cgt => Z.gt
+ | Cge => Z.ge
  end.
 
 Lemma int_cmp_repr:
@@ -237,7 +237,7 @@ unfold Int.cmp, Int.eq, Int.lt in H1.
 replace (if zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j))
              then true else false)
  with (if zeq i j then true else false) in H1.
-Focus 2.
+2:{
 destruct (zeq i j); destruct (zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j)));
  auto.
 subst. contradiction n; auto.
@@ -252,6 +252,7 @@ repeat rewrite Int.unsigned_repr_eq in e.
  match type of H0 with
            | context [if ?a then _ else _] => destruct a
            end; omega.
+}
 unfold Zcmp.
 rewrite (Int.signed_repr _ H) in H1; rewrite (Int.signed_repr _ H0) in H1.
 repeat match type of H1 with
