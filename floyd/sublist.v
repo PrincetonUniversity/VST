@@ -1001,7 +1001,7 @@ Proof.
   intros; unfold sublist.
   replace (Z.to_nat (j - i)) with O; auto.
   apply Nat2Z.inj; simpl.
-  destruct (Z_eq_dec (j - i) 0); [rewrite e; auto|].
+  destruct (Z.eq_dec (j - i) 0); [rewrite e; auto|].
   rewrite Z2Nat_neg; auto; omega.
 Qed.
 
