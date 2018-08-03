@@ -15,6 +15,8 @@ Require Import VST.msl.eq_dec.
 
 Require Import VST.concurrency.common.konig.
 
+Require Import VST.msl.Axioms.
+
 Section cardinality.
 (*Here goes cardinality stuff*)
 End cardinality.
@@ -42,13 +44,13 @@ Section filtered_konig.
       konig.safe _ RR P ->
       konig.safe X R (thing P).
   Proof.
-    cofix.
+    cofix COFIX.
     move => P sf.
     inversion sf; subst x.
     inversion H; subst P0.
     apply: (safe_cons _ _ (thing P) x'0 stp).
     replace x'0 with (thing x').
-    by apply: filtered_to_unfiltered_safe.
+    by apply: COFIX.
     by rewrite -H2.
   Qed.
   Lemma unfiltered_to_filtered_safeN:
@@ -358,11 +360,11 @@ Section Safety.
   Lemma Ssafe_safe': forall P,
       Ssafe P -> forall st U, st \In P -> valid st U -> safe st U.
   Proof.
-    cofix=> P SF st U.
+    cofix COFIX=> P SF st U.
     inversion SF; subst x; rename x' into P'.
     inversion H => /H1 H1' /H1' [] st' [] [] U' STP inP'.
     apply: (csft_step _ _ st' U')=>// U'' VAL'.
-    apply: (Ssafe_safe' P')=> //.
+    apply: (COFIX P')=> //.
   Qed.
 
   Lemma Ssafe_safe: forall st_init,
@@ -404,7 +406,6 @@ Section Safety.
   Definition finite_on_x {X Y} (A:X->Y->Prop):=
     exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
   (** This lemma is actually easy. It's unique, under prop_ext. **)
-  Require Import VST.msl.Axioms.
   Lemma finite_rel_generalize' {X Y} (V: X -> Y -> Prop) (R: X -> X -> Y -> Prop):
     (forall x, finite_on_x (possible_image (fun x x' y => R x y x') V x)) ->
     forall (P:X -> Prop), finite P ->

@@ -1725,8 +1725,8 @@ Proof. intros.
                       destruct qq; inv H.
                       destruct (local_DomRng _ WD _ _ _ H1). rewrite H; trivial.
                   unfold vis; intros. apply orb_true_iff in H.
-                  destruct H. Focus 2. unfold join. destruct (frgnSrc _ WD _ H) as [? [? [? ?]]].
-                       eapply mappedI_true. rewrite H0. reflexivity.
+                  destruct H. 2:{ unfold join. destruct (frgnSrc _ WD _ H) as [? [? [? ?]]].
+                       eapply mappedI_true. rewrite H0. reflexivity. }
                   specialize (locBlocksSrc_externNone _ WD _ H). intros EXT.
                   destruct (joinD_Some _ _ _ _ _ AIb); clear AIb.
                     rewrite H0 in EXT; discriminate.
