@@ -212,6 +212,19 @@ Qed.
 
 Hint Rewrite @resubst : subst.
 
+Lemma resubst_full: forall {A} i (v: environ -> val) (v1: val) (e: environ -> A), subst i (`v1) (subst i v e) = subst i (subst i (`v1) v) e.
+Proof.
+  intros.
+  extensionality rho. unfold subst.
+ f_equal.
+ unfold env_set.
+ f_equal.
+ apply Map.ext. intro j.
+ destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
+ simpl.
+ repeat rewrite Map.gso by auto. auto.
+Qed.
+
 Lemma subst_ewand: forall i v (P Q: environ->mpred),
   subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
 Proof. reflexivity. Qed.

@@ -42,20 +42,21 @@ Qed.
 
 (* End of copied from closed_lemmas.v. *)
 
-Lemma subst_self: forall {A: Type} (P: environ -> A) t id Delta rho,
+Lemma subst_self: forall {A: Type} (P: environ -> A) t id v Delta rho,
   (temp_types Delta) ! id = Some t ->
   tc_environ Delta rho ->
-  subst id (fun _ : environ => eval_id id rho) P rho = P rho.
+  v rho = eval_id id rho ->
+  subst id v P rho = P rho.
 Proof.
   intros.
   destruct H0 as [? _].
   specialize (H0 _ _ H).
-  destruct H0 as [v [? ?]].
+  destruct H0 as [v' [? ?]].
   unfold subst.
   f_equal.
-  unfold env_set, eval_id; destruct rho; simpl in *.
+  unfold env_set, eval_id in *; destruct rho; simpl in *.
   f_equal.
-  rewrite H0.
+  rewrite H1, H0.
   simpl.
   apply Map.ext; intros i.
   destruct (Pos.eq_dec id i).
@@ -643,6 +644,24 @@ Proof.
   + apply semax_extract_exists, H.
 Qed.
 
+Lemma semax_orp:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P1 P2 c Q,
+           @semax CS Espec Delta P1 c Q ->
+           @semax CS Espec Delta P2 c Q ->
+           @semax CS Espec Delta (P1 || P2) c Q.
+Proof.
+  intros.
+  eapply semax_pre with (EX b: bool, if b then P1 else P2).
+  + apply andp_left2.
+    apply orp_left.
+    - apply (exp_right true), derives_refl.
+    - apply (exp_right false), derives_refl.
+  + apply semax_extract_exists.
+    intros.
+    destruct x; auto.
+Qed.
+
 End CSHL_ExtrFacts.
 
 Module CSHL_IExtrFacts
@@ -1088,7 +1107,6 @@ Qed.
 
 End CSHL_LoadF2B.
 
-
 Module CSHL_LoadB2F
        (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
@@ -1143,3 +1161,92 @@ Proof.
 Qed.
 
 End CSHL_LoadB2F.
+
+Module CSHL_SetF2B
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_IConseq: CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
+       (CSHL_SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_IConseqFacts := CSHL_IConseqFacts (CSHL_Def) (CSHL_IConseq).
+Module CSHL_Conseq := CSHL_GenConseq (CSHL_Def) (CSHL_IConseq).
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_IExtrFacts := CSHL_IExtrFacts (CSHL_Def) (CSHL_IConseq) (CSHL_Extr).
+Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_Extr.
+Import CSHL_IExtrFacts.
+Import CSHL_ExtrFacts.
+Import CSHL_SetF.
+
+Theorem semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+             subst id (eval_expr e) P))
+          (Sset id e) (normal_ret_assert P).
+Proof.
+  intros.
+  apply semax_pre with (|> (!! (exists t, ((temp_types Delta) ! id = Some t)) && (tc_expr Delta e && tc_temp_id id (typeof e) Delta e && subst id (eval_expr e) P))).
+  {
+    apply later_ENTAIL.
+    apply andp_right; [| solve_andp].
+    unfold tc_temp_id, typecheck_temp_id.
+    destruct ((temp_types Delta) ! id).
+    + apply prop_right; eauto.
+    + simpl denote_tc_assert.
+      normalize.
+  }
+  rewrite later_andp.
+  apply semax_extract_later_prop.
+  intros [t ?].
+  eapply semax_post'; [.. | eapply semax_set_forward; eauto].
+  + rewrite exp_andp2.
+    apply exp_left; intros old.
+    apply derives_trans with (local (tc_environ Delta) && (local ((` eq) (eval_id id) (subst id (` old) (eval_expr e)))) && subst id (` old) (subst id (eval_expr e) P)); [solve_andp |].
+    set (v := `old).
+    intro rho; unfold local, lift1; unfold_lift; simpl; subst v.
+    normalize.
+    rewrite resubst_full.
+    erewrite subst_self; eauto.
+Qed.
+
+End CSHL_SetF2B.
+
+Module CSHL_SetB2F
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_SetB.
+
+Theorem semax_set_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+          P))
+          (Sset id e)
+        (normal_ret_assert
+          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+                            subst id (`old) P)).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_set_backward].
+  apply later_ENTAIL.
+  apply andp_right; [solve_andp |].
+  rewrite subst_exp.
+Admitted.
+
+End CSHL_SetB2F.

@@ -938,6 +938,95 @@ Proof.
     destruct x; auto.
 Qed.
 
+Lemma semax_loop_unroll1:
+  forall {CS: compspecs} {Espec: OracleKind} Delta P P' Q body incr R,
+  @semax CS Espec Delta P body (loop1_ret_assert P' R) ->
+  @semax CS Espec Delta P' incr (loop2_ret_assert Q R) ->
+  @semax CS Espec Delta Q (Sloop body incr) R ->
+  @semax CS Espec Delta P (Sloop body incr) R.
+Proof.
+  intros.
+  apply semax_loop_inv in H1.
+  apply semax_pre with (P || Q ||
+                  (EX Q : environ -> mpred,
+                    (EX Q' : environ -> mpred,
+                     !! (semax Delta Q body (loop1_ret_assert Q' R) /\
+                         semax Delta Q' incr (loop2_ret_assert Q R)) && Q))).
+  { apply andp_left2, orp_right1, orp_right1, derives_refl. }
+  apply AuxDefs.semax_loop with (P' ||
+                  (EX Q : environ -> mpred,
+                    (EX Q' : environ -> mpred,
+                     !! (semax Delta Q body (loop1_ret_assert Q' R) /\
+                         semax Delta Q' incr (loop2_ret_assert Q R)) && Q'))).
+  + apply semax_orp; [apply semax_orp |].
+    - eapply semax_post; [.. | exact H].
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right1, derives_refl.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right1, derives_refl.
+      * intros.
+        unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+    - eapply semax_pre_indexed_bupd; [exact H1 |].
+      apply extract_exists_pre; intros Q'.
+      apply extract_exists_pre; intros Q''.
+      apply semax_extract_prop; intros [?H ?H].
+      apply semax_post with (loop1_ret_assert Q'' R); auto.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right2, (exp_right Q'), (exp_right Q'').
+        apply andp_right; [apply prop_right; auto | apply derives_refl].
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right2, (exp_right Q'), (exp_right Q'').
+        apply andp_right; [apply prop_right; auto | apply derives_refl].
+      * intros.
+        unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+    - apply extract_exists_pre; intros Q'.
+      apply extract_exists_pre; intros Q''.
+      apply semax_extract_prop; intros [?H ?H].
+      apply semax_post with (loop1_ret_assert Q'' R); auto.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right2, (exp_right Q'), (exp_right Q'').
+        apply andp_right; [apply prop_right; auto | apply derives_refl].
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right2, (exp_right Q'), (exp_right Q'').
+        apply andp_right; [apply prop_right; auto | apply derives_refl].
+      * intros.
+        unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+  + apply semax_orp.
+    - apply semax_post with (loop2_ret_assert Q R); auto.
+      * unfold loop2_ret_assert; destruct R.
+        apply andp_left2, orp_right1, orp_right2, derives_refl.
+      * unfold loop2_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * unfold loop2_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * intros.
+        unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+    - apply extract_exists_pre; intros Q'.
+      apply extract_exists_pre; intros Q''.
+      apply semax_extract_prop; intros [?H ?H].
+      apply semax_post with (loop2_ret_assert Q' R); auto.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, orp_right2, (exp_right Q'), (exp_right Q'').
+        apply andp_right; [apply prop_right; auto | apply derives_refl].
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+      * intros.
+        unfold loop1_ret_assert; destruct R.
+        apply andp_left2, derives_refl.
+Qed.
+
 End ClightSeparationHoareLogic.
 (*
 Module WITH_EXISTS_PRE.
