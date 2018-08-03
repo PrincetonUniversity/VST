@@ -378,26 +378,24 @@ Proof.
   } Unfocus.
   simpl; split; intros.
   + if_tac; auto.
-    if_tac; auto.
     destruct H3 as [p0 ?].
     exists p0.
     rewrite H3; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 H5 p0.
+    clear H3 H4 p0.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite <- H0 by omega; auto.
     - apply necR_level in H2.
       rewrite H0 by omega; auto.
   + if_tac; auto.
-    if_tac; auto.
     destruct H3 as [p0 ?].
     exists p0.
     rewrite H3; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 H5 p0.
+    clear H3 H4 p0.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite H0 by omega; auto.

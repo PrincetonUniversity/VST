@@ -1973,7 +1973,6 @@ Proof.
   destruct Hlock1 as [Hlock1 _]; simpl in Hlock1.
   specialize (Hlock1 (b2, Ptrofs.unsigned ofs2)).
   rewrite if_true in Hlock1 by (split; auto; pose proof lksize.LKSIZE_pos; omega).
-  rewrite if_true in Hlock1 by auto.
   destruct Hlock1 as [? Hl1].
   apply compcert_rmaps.RML.resource_at_join with (loc := (b2, Ptrofs.unsigned ofs2)) in H.
   rewrite Hl1 in H; inv H.

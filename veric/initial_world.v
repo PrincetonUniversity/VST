@@ -153,15 +153,7 @@ pose (f loc :=
    then YES sh (writable_readable_share wsh) (VAL (contents_at m' loc)) NoneP
    else core (w @ loc)).
 pose (H0 := True).
-assert (Hv: CompCert_AV.valid (res_option oo f)).
-  apply VAL_valid; unfold compose,f; simpl.
-  intros ? ? ? Hx; repeat if_tac in Hx; inv Hx; auto.
-  elimtype False; clear - H5.
-  destruct (w @ l).
-  rewrite core_NO in H5; inv H5.
-  rewrite core_YES in H5; inv H5.
-  rewrite core_PURE in H5; inv H5.
-destruct (remake_rmap f (core (ghost_of w)) Hv (level w)) as [m2 [? ?]]; clear Hv.
+destruct (remake_rmap f (core (ghost_of w)) (level w)) as [m2 [? ?]].
 intros; unfold f, no_preds; simpl; intros; repeat if_tac; auto.
 left. exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
 { rewrite <- ghost_of_core, <- level_core; apply ghost_of_approx. }
@@ -437,17 +429,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
 
 (* This version starts with an empty ghost. *)
 Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) nil _ n _ eq_refl).
-Next Obligation.
-intros.
-intros ? ?.
-unfold compose.
-unfold initial_core'.
-if_tac; simpl; auto.
-destruct (Genv.invert_symbol ge b); simpl; auto.
-destruct (find_id i G); simpl; auto.
-destruct f; simpl; auto.
-Qed.
+  proj1_sig (make_rmap (initial_core' ge G n) nil n _ eq_refl).
 Next Obligation.
 intros.
 extensionality loc; unfold compose, initial_core'.
@@ -566,17 +548,7 @@ Definition ext_ref {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid
   existT _ (ext_PCM _) (exist _ _ (valid_ext_ref ora)).
 
 Program Definition initial_core_ext {Z} (ora : Z) (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) _ n _ eq_refl).
-Next Obligation.
-intros.
-intros ? ?.
-unfold compose.
-unfold initial_core'.
-if_tac; simpl; auto.
-destruct (Genv.invert_symbol ge b); simpl; auto.
-destruct (find_id i G); simpl; auto.
-destruct f; simpl; auto.
-Qed.
+  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) n _ eq_refl).
 Next Obligation.
 intros.
 extensionality loc; unfold compose, initial_core'.
@@ -1645,7 +1617,7 @@ Definition initial_jm_ext {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
            (initial_core_ext_ok _ _ _ _ m H1 H2 H).
 
 Program Definition set_ghost (m : rmap) (g : ghost) (Hg : _) :=
-  proj1_sig (make_rmap _ g (rmap_valid m) (level m) _ Hg).
+  proj1_sig (make_rmap (resource_at m) g (level m) _ Hg).
 Next Obligation.
 Proof.
   intros.
@@ -1692,9 +1664,8 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition no_locks phi :=
-  forall addr sh sh' z P,
-    phi @ addr <> YES sh sh' (LK z) P /\
-    phi @ addr <> YES sh sh' (CT z) P.
+  forall addr sh sh' z z' P,
+    phi @ addr <> YES sh sh' (LK z z') P.
 
 Lemma initial_jm_without_locks prog m G n H H1 H2:
   no_locks (m_phi (initial_jm prog m G n H H1 H2)).
@@ -1706,10 +1677,10 @@ Proof.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try (split; congruence).
-  destruct p; try (split; congruence).
-  destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
-    split; try congruence.
+  destruct (access_at m addr); [ |congruence].
+  destruct p; try congruence.
+  destruct (fst ((snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
+  congruence.
 Qed.
 
 Lemma initial_jm_ext_without_locks {Z} (ora : Z) prog m G n H H1 H2:
@@ -1722,10 +1693,10 @@ Proof.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try (split; congruence).
-  destruct p; try (split; congruence).
-  destruct (fst (proj1_sig (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) addr);
-    split; try congruence.
+  destruct (access_at m addr); try congruence.
+  destruct p; try congruence.
+  destruct (fst ((snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) addr);
+   congruence.
 Qed.
 
 Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) ! i = find_id i G.
@@ -1819,8 +1790,8 @@ Proof.
     unfold "@" in *.
     rewrite E in FAT.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst (proj1_sig _) _) in FAT at 2.
-    destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
+    set (r := fst ( _) _) in FAT at 2.
+    destruct (fst ( (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
       as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.
@@ -1889,8 +1860,8 @@ Proof.
     unfold "@" in *.
     rewrite E in FAT.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst (proj1_sig _) _) in FAT at 2.
-    destruct (fst (proj1_sig (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) (b, 0))
+    set (r := fst ( _) _) in FAT at 2.
+    destruct (fst ( (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) (b, 0))
       as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.

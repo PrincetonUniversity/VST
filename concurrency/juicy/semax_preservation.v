@@ -571,7 +571,6 @@ Proof.
   destruct loc as (b, ofs).
   simpl in AT.
   spec AT. split; auto. lkomega.
-  if_tac in AT. 2:tauto.
   rewrite all_coh0 in AT.
   breakhyps.
 Qed.
@@ -655,7 +654,7 @@ Proof.
       rewrite E in J'.
       specialize (HLKspec (b', ofs')); simpl in HLKspec.
       rewrite if_true in HLKspec.
-      if_tac in HLKspec; destruct HLKspec as [? HLK]; rewrite HLK in J'; inv J'.
+      destruct HLKspec as [? HLK]; rewrite HLK in J'; inv J'.
       { destruct In; pose proof LKSIZE_int; split; auto; omega. }
 
     + rewrite <-Out.
@@ -1487,7 +1486,8 @@ Qed. (* Lemma preservation_Kinit *)
         left.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         rewrite El in *.
-        eapply state_bupd_intro', preservation_acquire with (Phi := Phi); eauto.
+        apply state_bupd_intro'.
+        eapply preservation_acquire with (Phi := Phi); eauto.
       - (* the case of release *)
         exfalso; apply not_release.
         repeat eexists; eauto.

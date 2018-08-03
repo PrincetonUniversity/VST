@@ -276,9 +276,11 @@ Module Parching <: ErasureSig.
       specialize (lset_in_juice l).
       setoid_rewrite lock_in_l in lset_in_juice. simpl in lset_in_juice.
       assert (HH:true) by auto; apply lset_in_juice in HH.
-      destruct HH as [sh [psh [p HH]]].
+      destruct HH as [sh HH].
       destruct all_cohere.
       specialize (max_coh l).
+      specialize (HH 0). spec HH. pose proof LKSIZE_pos; omega. destruct HH as [sh' [psh' [P [? HH]]]].
+      rewrite fst_snd0 in HH.
       rewrite HH in max_coh.
       simpl in max_coh.
       unfold max_access_at, access_at in max_coh.
@@ -1042,26 +1044,18 @@ Module Parching <: ErasureSig.
 
   Lemma lock_range_perm : forall m js ds (MATCH : match_st js ds) i (Hi : containsThread js i)
     (Hcmpt : mem_compatible js m) b ofs 
-    sh psh R (HJcanwrite : getThreadR Hi @ (b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (Concur.pack_res_inv R)),
+    sh R (HJcanwrite : Concur.lock_at_least sh R (getThreadR Hi) b (Ptrofs.intval ofs)),
     Mem.range_perm (Concur.juicyRestrict_locks (Concur.mem_compat_thread_max_cohere Hcmpt Hi)) b
       (Ptrofs.intval ofs) (Ptrofs.intval ofs + LKSIZE) Cur Readable.
   Proof.
     intros.
-    pose proof (rmap_valid (getThreadR Hi) b (Ptrofs.intval ofs)).
-    unfold compose in H.
-    rewrite HJcanwrite in H; simpl in H.
-    intros ??.
+    intros j ?. specialize (HJcanwrite (j-Ptrofs.intval ofs)). spec HJcanwrite; [omega|].
+    destruct HJcanwrite as [sh' [rsh' [? ?]]].
+    replace (Ptrofs.intval ofs + (j - Ptrofs.intval ofs)) with j in H1 by omega.
     unfold Concur.juicyRestrict_locks, Mem.perm.
     setoid_rewrite restrPermMap_Cur.
     rewrite <- Concur.juic2Perm_locks_correct by (eapply Concur.mem_compat_thread_max_cohere; auto).
-    destruct (eq_dec ofs0 (Ptrofs.intval ofs)).
-    - subst; rewrite HJcanwrite; simpl.
-      apply perm_of_readable'; auto.
-    - specialize (H (ofs0 - Ptrofs.intval ofs)); spec H; [omega|].
-      rewrite Zplus_minus in H.
-      simpl.
-      destruct (OrdinalPool.getThreadR Hi @ (b, ofs0)) eqn: Hofs; inv H.
-      rewrite Hofs; simpl.
+    rewrite H1. 
       apply perm_of_readable'; auto.
   Qed.
   
@@ -1652,13 +1646,20 @@ Module Parching <: ErasureSig.
                   inversion Hcmpt.
                   unfold Concur.juicyLocks_in_lockSet in jloc_in_set.
                   eapply Concur.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
-                  destruct juice_join.
+                  destruct juice_join as [x H0].
+                  assert (H0':= fun loc => resource_at_join _ _ _ loc H0).
                   apply resource_at_join with (loc:=(b, Ptrofs.intval ofs)) in H0.
-                  rewrite HJcanwrite in H0.
-                  inversion H0.
+                  rewrite <- (fst_snd0 (b, Ptrofs.intval ofs)) in H0.
+                  destruct (HJcanwrite 0) as [sh' [rsh' [HJc1 HJc2]]]. pose proof LKSIZE_pos; omega.
+                  rewrite HJc2 in H0.
+                  simpl in H0; inversion H0.
                   - subst.
                     symmetry in H6.
-                    apply jloc_in_set in H6.
+                    assert (H1 := jloc_in_set (b, Ptrofs.intval ofs)).
+                    spec H1. { intros. destruct (HJcanwrite _ H2) as [sh'' [rsh'' [HJc3 HJc4]]].
+                            specialize (H0' (b, Ptrofs.intval ofs + i0)). rewrite HJc4 in H0'.
+                            clear - H0'. inv H0'; eauto.
+                    }
                     assert (VALID:= Concur.compat_lr_valid Hcompatible).
                     specialize (VALID b (Ptrofs.intval ofs)).
                     simpl in *.
@@ -1666,11 +1667,15 @@ Module Parching <: ErasureSig.
                     simpl in *.
                     destruct (AMap.find (elt:=option rmap)
                                         (b, Ptrofs.intval ofs) (OrdinalPool.lockGuts js)) eqn:AA;
-                      rewrite AA in H6, VALID; try solve[inversion H6].
+                      rewrite AA in H1, VALID; try solve[inversion H1].
                     apply VALID. auto.
                   -
                     symmetry in H6.
-                    apply jloc_in_set in H6.
+                    assert (H1 := jloc_in_set (b, Ptrofs.intval ofs)).
+                    spec H1. { intros. destruct (HJcanwrite _ H7) as [sh'' [rsh'' [HJc3 HJc4]]].
+                            specialize (H0' (b, Ptrofs.intval ofs + i0)). rewrite HJc4 in H0'.
+                            clear - H0'. inv H0'; eauto.
+                    }
                     assert (VALID:= Concur.compat_lr_valid Hcompatible).
                     specialize (VALID b (Ptrofs.intval ofs)).
                     simpl in *.
@@ -1678,7 +1683,7 @@ Module Parching <: ErasureSig.
                     simpl in *.
                     destruct (AMap.find (elt:=option rmap)
                                         (b, Ptrofs.intval ofs) (OrdinalPool.lockGuts js)) eqn:AA;
-                      rewrite AA in H6, VALID; try solve[inversion H6].
+                      rewrite AA in H1, VALID; try solve[inversion H1].
                     apply VALID. auto.
                 }
               - simpl. intros ofs0 ineq. move HJcanwrite at bottom.
@@ -1693,31 +1698,41 @@ Module Parching <: ErasureSig.
                   inversion Hcmpt.
                   unfold Concur.juicyLocks_in_lockSet in jloc_in_set.
                   eapply Concur.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
-                  destruct juice_join.
-                  apply resource_at_join with (loc:=(b, Ptrofs.intval ofs)) in H.
-                  rewrite HJcanwrite in H.
-                  inversion H.
+                  destruct juice_join as [x H0].
+                  assert (H0':= fun loc => resource_at_join _ _ _ loc H0).
+                  apply resource_at_join with (loc:=(b, Ptrofs.intval ofs)) in H0.
+                  rewrite <- (fst_snd0 (b, Ptrofs.intval ofs)) in H0.
+                  destruct (HJcanwrite 0) as [sh' [rsh' [HJc1 HJc2]]]. pose proof LKSIZE_pos; omega.
+                  rewrite HJc2 in H0.
+                  simpl in H0; inversion H0.
                   -
                     symmetry in H5.
-                    apply jloc_in_set in H5.
+                    assert (H8 := jloc_in_set (b, Ptrofs.intval ofs)).
+                    spec H8. { intros. destruct (HJcanwrite _ H4) as [sh'' [rsh'' [HJc3 HJc4]]].
+                            specialize (H0' (b, Ptrofs.intval ofs + i0)). rewrite HJc4 in H0'.
+                            clear - H0'. inv H0'; eauto.
+                    } 
                     assert (VALID:= Concur.compat_lr_valid Hcompatible).
                     specialize (VALID b ofs0).
                     rewrite MAP in VALID.
                     apply VALID in ineq.
                     move ineq at bottom.
-                    setoid_rewrite ineq in H5.
-                    inversion H5.
+                    setoid_rewrite ineq in H8.
+                    inversion H8.
                   -
                     symmetry in H5.
-                    apply jloc_in_set in H5.
+                    assert (H8 := jloc_in_set (b, Ptrofs.intval ofs)).
+                    spec H8. { intros. destruct (HJcanwrite _ H4) as [sh'' [rsh'' [HJc3 HJc4]]].
+                            specialize (H0' (b, Ptrofs.intval ofs + i0)). rewrite HJc4 in H0'.
+                            clear - H0'. inv H0'; eauto.
+                   }
                     assert (VALID:= Concur.compat_lr_valid Hcompatible).
                     specialize (VALID b ofs0).
                     rewrite MAP in VALID.
                     apply VALID in ineq.
                     move ineq at bottom.
-                    setoid_rewrite ineq in H5.
-                    inversion H5.
-
+                    setoid_rewrite ineq in H8.
+                    inversion H8.
                 }
             }
       }
@@ -1848,7 +1863,7 @@ Module Parching <: ErasureSig.
         symmetry. apply mtch_perm2.
         apply Concur.mem_compat_thread_max_cohere.
         assumption.
-      + eapply lock_range_perm; eauto.
+      + eapply lock_range_perm;  eauto.
       + reflexivity.
       + instantiate (1:= Hlt'').
         apply restrPermMap_ext.
@@ -2323,27 +2338,9 @@ SearchAbout access_map delta_map.
             inversion Hcompatible.
             assert (VALID:= Concur.compat_lr_valid Hcmpt).
             specialize (VALID b (Ptrofs.intval ofs)).
-            eapply Concur.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
-            eapply resource_at_join_sub with (l:=(b,Ptrofs.intval ofs)) in juice_join.
-            rewrite HJcanwrite in juice_join.
-            destruct juice_join as [x HH].
-            inversion HH.
-
-            - symmetry in H.
-            apply jloc_in_set in H.
-            destruct (lockRes js (b, Ptrofs.intval ofs)) eqn:AA;
-              rewrite AA in H, VALID; try solve [setoid_rewrite AA in H; inversion H].
-            inversion ineq.
-            apply VALID; auto.
-          - unfold lockRes in VALID. move VALID at bottom.
-
-             symmetry in H.
-              apply jloc_in_set in H.
-              destruct (lockRes js (b, Ptrofs.intval ofs)) eqn:BB;
-                try solve [setoid_rewrite BB in H; inversion H].
-              unfold lockRes in BB; rewrite BB in VALID.
-              subst; apply VALID; auto.
-          }
+            eapply Concur.compatible_threadRes_sub with (cnt:= Hi) in juice_join. 
+            rewrite His_locked in VALID. apply VALID; auto.
+           }
         - intros ofs0 ineq.
           rewrite gsoThreadLPool.
           cut (lockRes js (b, ofs0) = None).
@@ -2359,22 +2356,14 @@ SearchAbout access_map delta_map.
             rewrite AA in VALID.
             apply VALID in ineq.
             eapply Concur.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
-            eapply resource_at_join_sub with (l:=(b,Ptrofs.intval ofs)) in juice_join.
-            rewrite HJcanwrite in juice_join.
-            destruct juice_join as [x HH].
-            inversion HH.
-
-            - symmetry in H.
-
-             apply jloc_in_set in H.
-            destruct (lockRes js (b, Ptrofs.intval ofs)) eqn:BB.
-              + rewrite BB in ineq; inversion ineq.
-              + setoid_rewrite BB in H; inversion H.
-            - symmetry in H.
-              apply jloc_in_set in H.
-              destruct (lockRes js (b, Ptrofs.intval ofs)) eqn:BB;
-                try solve [setoid_rewrite BB in H; inversion H].
-              rewrite BB in ineq; inversion ineq.
+            specialize (jloc_in_set (b,Ptrofs.intval ofs)).
+            spec jloc_in_set. { intros. simpl. 
+                  apply resource_at_join_sub with (l:=(b,Ptrofs.intval ofs+i0)) in juice_join.
+                  destruct (HJcanwrite _ H) as [sh' [rsh' [? ?]]]. rewrite H1 in juice_join.
+                 destruct juice_join as [x HH].
+                 inversion HH; eauto.
+            }
+           setoid_rewrite ineq in jloc_in_set. inv jloc_in_set.
           }
 
       }
@@ -3602,7 +3591,7 @@ SearchAbout access_map delta_map.
      rewrite /pmap_tid'.
      destruct (peq b b0);
        [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
-     - rewrite setPermBlock_same.
+     - rewrite setPermBlock_same; auto.
 
        assert (HH':adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
        { split; auto. }
@@ -3611,8 +3600,7 @@ SearchAbout access_map delta_map.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
        intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
        rewrite sh_after.
-       if_tac; reflexivity.
-       auto.
+       reflexivity.
      - rewrite setPermBlock_other_1.
 
        assert (HH': ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b,ofs0)).
@@ -3654,7 +3642,7 @@ SearchAbout access_map delta_map.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
        intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
        rewrite sh_after.
-       if_tac; apply perm_of_writable;
+       apply perm_of_writable;
          try apply shares.writable_share_glb_Rsh; eauto;
            apply shares.glb_Rsh_not_top.
        auto.
@@ -3738,10 +3726,13 @@ SearchAbout access_map delta_map.
           destruct Hcompatible as [allj Hcompatible].
           inversion Hcompatible.
           specialize (lset_in_juice (b, ofs0)). setoid_rewrite BB in lset_in_juice.
-          destruct lset_in_juice as [sh' [psh [P MAP]]]; auto.
+          spec lset_in_juice; auto.
+          destruct lset_in_juice as [sh' MAP]; auto.
           assert (HH:= Concur.compatible_threadRes_sub Hi juice_join).
           apply resource_at_join_sub with (l:= (b,ofs0)) in HH.
-          rewrite MAP in HH.
+          assert (MAP0 := MAP 0). spec MAP0; [pose proof LKSIZE_pos; omega|]. 
+            simpl in MAP0. destruct MAP0 as [shx [pshx [P [MAPx MAP0]]]]. rewrite Z.add_0_r in MAP0.
+          rewrite MAP0 in HH.
 
           assert (ineq': Ptrofs.intval ofs <= ofs0 < Ptrofs.intval ofs + LKSIZE).
           { clear - ineq.
@@ -3753,6 +3744,7 @@ SearchAbout access_map delta_map.
           move: Hrmap => /=.
           rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
           intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
+
           rewrite sh_before in HH.
           destruct HH as [x HH]. inversion HH.
 
@@ -3765,17 +3757,13 @@ SearchAbout access_map delta_map.
           destruct Hcompatible as [allj Hcompatible].
           inversion Hcompatible.
           specialize (lset_in_juice (b, ofs0)). setoid_rewrite BB in lset_in_juice.
-          destruct lset_in_juice as [sh' [psh [P MAP]]]; auto.
-          assert (HH:= Concur.compatible_threadRes_sub Hi juice_join).          assert (VALID:= phi_valid allj).
-          specialize (VALID b ofs0).
-          unfold "oo" in VALID.
-          rewrite MAP in VALID.
-          simpl in VALID.
-          assert (ineq': 0 < Ptrofs.intval ofs - ofs0 < LKSIZE).
+          destruct lset_in_juice as [sh' MAP]; auto.
+          assert (HH:= Concur.compatible_threadRes_sub Hi juice_join).
+          assert (ineq': 0 <= Ptrofs.intval ofs - ofs0 < LKSIZE).
           { clear - ineq. simpl in ineq; destruct ineq. xomega. }
-          apply VALID in ineq'.
-          replace (ofs0 + (Ptrofs.intval ofs - ofs0)) with (Ptrofs.intval ofs) in ineq' by omega.
           apply resource_at_join_sub with (l:= (b,Ptrofs.intval ofs)) in HH.
+          specialize (MAP _ ineq'). destruct MAP as [shx [pshx [P [MAPx MAP]]]]. simpl in MAP.
+          replace (ofs0 + (Ptrofs.intval ofs - ofs0)) with (Ptrofs.intval ofs) in MAP by omega.
           move: Hrmap => /=.
           rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2 H3.
           assert (adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, Ptrofs.unsigned ofs)).
@@ -3784,14 +3772,8 @@ SearchAbout access_map delta_map.
           destruct H3 as [H3 Hg].
           move: (H3 _ H4)=> [] v [] sh [] Rsh [] HH1 [] Wsh HH2.
           rewrite HH1 in HH.
-          destruct HH as [x HH].
-          inversion HH.
-          + move ineq' at bottom.
-            rewrite -H10 in ineq'.
-            inversion ineq'.
-          + move ineq' at bottom.
-            rewrite -H10 in ineq'.
-            inversion ineq'.
+          destruct HH as [x HH]. simpl in HH2. rewrite Z.sub_diag in HH2.
+          clear - MAP HH. rewrite MAP in HH. inv HH.
         }
 
         { (*invariant ds' *)
@@ -4069,8 +4051,12 @@ Here be dragons
           destruct juice_join as [X HH].
           simpl in H4.
           rewrite H4 in HH.
-          move : mtch_locks => /lset_in_juice [] sh' [] psh' [] P H6.
-          rewrite H6 in HH; inversion HH.
+          hnf in lset_in_juice.
+          specialize (lset_in_juice (b, Ptrofs.intval ofs)).
+          spec lset_in_juice; auto. destruct lset_in_juice as [sh' ?].
+          destruct (H6 0). pose proof LKSIZE_pos; omega. simpl in H7.
+          destruct H7 as [psh [P [H7' H7]]].
+          rewrite Z.add_0_r in H7; rewrite H7 in HH; inv HH.
     }
 
         (* step_freelock *)
@@ -4431,13 +4417,7 @@ Here be dragons
               { split; auto. }
               intros [X Hg]; destruct (X _ H3) as (sh & Rsh & _ & Wsh & Heq); clear X.
               rewrite Heq.
-              if_tac.
-              * simpl.
-                rewrite perm_of_writable.
-                (*1*) constructor.
-                (*2*) eapply shares.writable_share_glb_Rsh; eauto.
-                (*3*) apply shares.glb_Rsh_not_top.
-              * simpl.
+              simpl.
                 rewrite perm_of_writable.
                 (*1*) constructor.
                 (*2*) eapply shares.writable_share_glb_Rsh; eauto.

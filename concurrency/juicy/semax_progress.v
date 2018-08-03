@@ -123,20 +123,6 @@ Proof.
     destruct lk as [lk Hg]; specialize (lk (b, ofs')). simpl in lk.
     if_tac [r'|nr] in lk. 2:now destruct nr; split; auto; lkomega.
     apply resource_at_join with (loc := (b, ofs')) in j.
-    if_tac [e|ne] in lk.
-    + destruct lk as (p & E0). rewrite E0 in j. inv j.
-      * unfold block in *.
-        rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
-        simpl.
-        unfold perm_of_sh.
-        pose proof (readable_glb rsh3).
-        repeat if_tac; try constructor; tauto.
-      * unfold block in *.
-        rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
-        simpl.
-        unfold perm_of_sh.
-        pose proof (readable_glb rsh3).
-        repeat if_tac; try constructor; tauto.
     + destruct lk as (p & E0). rewrite E0 in j. inv j.
       * unfold block in *.
         rewr (OrdinalPool.getThreadR cnti @ (b, ofs')).
@@ -208,6 +194,7 @@ Proof.
   eexists; eauto.
 Qed.
 
+(*
 Lemma isLK_rewrite r :
   (forall (sh : Share.t) (rsh: readable_share sh) (z : Z) (P : preds), r <> YES sh rsh (LK z) P)
   <->
@@ -218,6 +205,7 @@ Proof.
   intros E; injection E; intros; subst.
   apply H; eauto.
 Qed.
+*)
 
 Section Progress.
   Variables
@@ -499,9 +487,7 @@ Section Progress.
           exfalso.
           destruct isl as [x [? [? EPhi]]].
           rewrite EPhi in lock_coh'.
-          rewrite <-isLK_rewrite in lock_coh'.
-          eapply ((* proj1 *) (lock_coh' _ _ _ _)).
-          reflexivity.
+          apply lock_coh'. hnf. eauto.
 
         - (* Some None: lock is locked, so [acquire] fails. *)
           destruct lock_coh' as [LOAD ((* sh' & *) align & bound & R' & lk)].
@@ -511,7 +497,6 @@ Section Progress.
           (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Ptrofs.unsigned ofs)).
           spec lk. pose proof LKSIZE_pos; split; auto; omega.
-          if_tac in lk. 2:tauto.
 
           unfold lock_inv in PREC.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC & HG).
@@ -532,7 +517,6 @@ Section Progress.
             { destruct nr.
               simpl.
               split. reflexivity. pose proof LKSIZE_pos; omega. }
-            if_tac in LKSPEC; [ | congruence ].
             destruct LKSPEC as (p & E).
             pose proof (resource_at_join _ _ _ (b, Ptrofs.unsigned ofs) Join) as J.
             rewrite E in J.
@@ -578,17 +562,27 @@ Section Progress.
                 (* [ > idtac ]. *)
               simpl.
               unfold Ptrofs.unsigned in *.
-              rewr (OrdinalPool.getThreadR cnti @ (b, Ptrofs.intval ofs)).
-              reflexivity.
-              
+              intros. instantiate (1:=shx). hnf. intros.
+              apply (resource_at_join _ _ _ (b, Ptrofs.intval ofs+i0)) in Join.
+              specialize (LKSPEC' (b, Ptrofs.intval ofs+i0)).
+              rewrite jam_true in LKSPEC' by (split; auto; omega).
+              destruct LKSPEC' as [rsh8 LKSPEC']. simpl in LKSPEC'. rewrite LKSPEC' in Join.
+              inv Join; replace (Ptrofs.intval ofs + i0 - Ptrofs.intval ofs) with i0 in * by omega.
+              exists sh4, rsh2; split; auto. eexists; eassumption.
+              exists sh4, rsh4; split; auto. eexists; eassumption.              
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R0 := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
               unfold Ptrofs.unsigned in *.
-              rewr (OrdinalPool.getThreadR cnti @ (b, Ptrofs.intval ofs)).
-              reflexivity.
-
+              instantiate (1:=shx). hnf. intros.
+              apply (resource_at_join _ _ _ (b, Ptrofs.intval ofs+i0)) in Join.
+              specialize (LKSPEC' (b, Ptrofs.intval ofs+i0)).
+              rewrite jam_true in LKSPEC' by (split; auto; omega).
+              destruct LKSPEC' as [rsh8 LKSPEC']. simpl in LKSPEC'. rewrite LKSPEC' in Join.
+              inv Join; replace (Ptrofs.intval ofs + i0 - Ptrofs.intval ofs) with i0 in * by omega.
+              exists sh4, rsh4; split; auto. eexists; eassumption.
+              exists sh4, rsh5; split; auto. eexists; eassumption.    
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
           destruct lock_coh' as [LOAD ((* sh' &  *)align & bound & R' & lk & sat)].
@@ -600,7 +594,6 @@ Section Progress.
 
           specialize (lk (b, Ptrofs.unsigned ofs)).
           spec lk. hnf. pose proof LKSIZE_pos; split; auto; omega.
-          if_tac in lk. 2:tauto.
           destruct sat as [sat | sat]; [ | omega ].
 
           assert (Ename : name = "acquire"). {
@@ -660,20 +653,21 @@ Section Progress.
             as (phi', Jphi').
 
           (* necessary to know that we have indeed a lock *)
-          assert (ex: exists sh0 psh0, phi0 @ (b, Ptrofs.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) Rx))). {
-            clear -LKSPEC.
-            destruct LKSPEC as [LKSPEC _]; specialize (LKSPEC (b, Ptrofs.intval ofs)).
-            simpl in LKSPEC.
-            if_tac in LKSPEC. 2:range_tac.
-            if_tac in LKSPEC. 2:tauto.
-            destruct LKSPEC as (p, E).
-            do 2 eexists.
-            apply E.
+          assert (ex: exists sh0 psh0, forall j, 0 <= j < LKSIZE -> phi0 @ (b, Ptrofs.intval ofs+j) = YES sh0 psh0 (LK LKSIZE j) (pack_res_inv (approx (level phi0) Rx))). {
+            clear -LKSPEC. 
+            destruct LKSPEC as [LKSPEC _]. simpl in LKSPEC.
+            assert (rshx: readable_share shx). {
+                 specialize (LKSPEC (b, Ptrofs.unsigned ofs)). rewrite if_true in LKSPEC.
+                  destruct LKSPEC. auto. split; auto. pose proof LKSIZE_pos; omega.
+            }
+           exists shx, rshx. intros.
+            specialize (LKSPEC (b, Ptrofs.intval ofs+j)).
+            simpl in LKSPEC. rewrite if_true in LKSPEC. destruct LKSPEC as [rshx' ?].
+            rewrite H0. f_equal. proof_irr. reflexivity. f_equal. unfold Ptrofs.unsigned. omega.
+            split; auto. unfold Ptrofs.unsigned; omega.
           }
           destruct ex as (sh0 & psh0 & ex).
           pose proof (resource_at_join _ _ _ (b, Ptrofs.intval ofs) Join) as Join'.
-          destruct (join_YES_l Join' ex) as (sh3 & sh3' & E3).
-
           eexists (m', (seq.cat tr _, sch, _)).
           + (* taking the step *)
             apply state_step_c.
@@ -697,9 +691,18 @@ Section Progress.
               inv H_acquire; auto.
             * apply (mem_compatible_forget compat).
             * reflexivity.
-            * unfold fold_right in *.
-              simpl; setoid_rewrite E3.
-              f_equal.
+            * instantiate (1:=shx). hnf; intros.
+              specialize (ex i0 H).
+              assert (Join0 := resource_at_join _ _ _ (b, Ptrofs.intval ofs + i0) Join).
+              destruct (join_YES_l Join0 ex) as (sh3 & sh3' & E3).
+              exists sh3, sh3'. split; auto. subst.
+              clear - Join0 ex E3 LKSPEC H.
+              rewrite ex in Join0. rewrite E3 in Join0.
+              destruct LKSPEC as [LKSPEC _]. specialize (LKSPEC (b, Ptrofs.intval ofs + i0)).
+              rewrite jam_true in LKSPEC.
+              2:{ split; auto. unfold Ptrofs.unsigned; omega. }
+              destruct LKSPEC as [? LKSPEC]. simpl in LKSPEC. rewrite LKSPEC in ex; inv ex.
+              inv Join0; exists sh2; auto.
             * reflexivity.
             * eapply load_at_phi_restrict with (phi0 := phi0) (cnti := cnti) in LOAD.
               all: [ > assumption | exists phi1; eassumption | eassumption | eassumption ].
@@ -770,11 +773,7 @@ Section Progress.
           exfalso.
           destruct isl as [x [? [? EPhi]]].
           rewrite EPhi in lock_coh'.
-          rewrite <-isLK_rewrite in lock_coh'.
-          (* rewrite <-isLKCT_rewrite in lock_coh'. *)
-          eapply ((* proj1 *) (lock_coh' _ _ _ _)).
-          reflexivity.
-
+          apply lock_coh'. do 4 eexists. reflexivity. 
         - (* Some None: lock is locked, so [release] should succeed. *)
           destruct lock_coh' as [LOAD ((* sh' &  *)align & bound & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
@@ -784,7 +783,6 @@ Section Progress.
           specialize (lk (b, Ptrofs.unsigned ofs)).
           spec lk.
           { hnf. split; auto; lkomega. }
-          if_tac in lk. 2:tauto.
           destruct lk as (sh' & rsh & EPhi).
 
           assert (Ename : name = "release"). {
@@ -815,23 +813,26 @@ Section Progress.
             auto.
           }
           subst z.
-
-          assert (E1: exists sh sh', getThreadR cnti @ (b, Ptrofs.intval ofs) = YES sh sh' (LK LKSIZE) (pack_res_inv R)).
-          {
-            revert Join jphi SUB' islock; clear.
-            unfold Ptrofs.unsigned in *.
-            generalize (b, Ptrofs.intval ofs); intros l. clear b ofs.
-            intros A B (r, C).
-            apply resource_at_join with (loc := l) in A.
-            apply resource_at_join with (loc := l) in B.
-            unfold islock_pred in *.
-            intros (sh1 & sh1' & z & E).
-            rewr (phi_lockinv @ l) in C; inv C;
-              rewr (phi_lockinv @ l) in B; inv B;
-                rewr (phi0 @ l) in A; inv A;
-                  eauto.
+          assert (E1: exists sh, lock_at_least sh (approx (level phi_lockinv) Rx) (getThreadR cnti) b (Ptrofs.intval ofs)).
+          { exists shx. hnf; intros. SearchAbout phi_lockinv.
+            clear - Join jphi Hlockinv H.
+            assert (join_sub phi_lockinv  (getThreadR cnti)).
+            eapply join_sub_trans. eexists; apply jphi. eexists; eassumption.
+            apply (resource_at_join_sub _ _ (b, Ptrofs.intval ofs + i0)) in H0.
+            forget (getThreadR cnti @ (b, Ptrofs.intval ofs + i0)) as r.
+            unfold lock_inv in  Hlockinv. destruct Hlockinv as [b' [ofs' [? ?]]].
+            inversion H1; subst b' ofs'. destruct H2. simpl in H2.
+            specialize (H2 (b, Ptrofs.intval ofs + i0)). clear H1.
+            rewrite if_true in H2.
+            2:{ split; auto. unfold Ptrofs.unsigned; omega. }
+            destruct H2 as [rsh H2]. rewrite H2 in H0. destruct H0 as [sh ?].
+            simpl in *.
+            replace (Ptrofs.intval ofs + i0 - Ptrofs.unsigned ofs) with i0 in * by (unfold Ptrofs.unsigned; omega).
+            inv H0.
+            exists sh3, rsh3. split. exists sh2; auto. reflexivity.
+            exists sh3, rsh3. split. exists sh2; auto. reflexivity.
           }
-          destruct E1 as (sh1 & sh1' & E1).
+          destruct E1 as (sh1 & E1).
 
           assert (Hlt': permMapLt
                           (setPermBlock
@@ -905,7 +906,11 @@ Section Progress.
             * apply join_sub_trans with phi0. eexists; eauto.
               eexists. eapply join_comm. eauto.
             * eassumption.
-
+          + clear - jphi SAT SUB En.
+              split; auto. rewrite level_age_by. apply join_level in jphi. destruct jphi. rewrite H0. rewrite H.
+              apply join_sub_level in SUB. rewrite <- SUB in En. rewrite H in En. rewrite En. omega.
+              simpl. unfold age1'. destruct (age1 phi_sat) eqn:?; auto.
+              eapply pred_nec_hereditary; try eassumption. constructor 1. auto.
         - (* Some Some: lock is unlocked, this should be impossible *)
           destruct lock_coh' as [LOAD (align & bound & R' & lk & sat)].
           destruct sat as [sat | ?]; [ | congruence ].
@@ -1137,7 +1142,6 @@ Section Progress.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
-        Set Printing Notations.
 
         assert (Ename : name = "freelock"). {
           simpl in *.
@@ -1200,7 +1204,6 @@ Section Progress.
           change Ptrofs.intval with Ptrofs.unsigned in *.
           injection E_ as <- <- .
           if_tac [r|nr] in HH. 2:range_tac.
-          if_tac [e|ne] in HH. 2:tauto.
           destruct HH as (p & HH).
           assert (j : join_sub phi0lockinv Phi). {
             apply join_sub_trans with phi0. eexists; eauto.
@@ -1210,8 +1213,8 @@ Section Progress.
           destruct j as (psi' & j).
           apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
           rewrite HH in j.
-          destruct lock_coh.
-          inv j; hnf; eauto.
+          destruct lock_coh. clear - j. rewrite Z.sub_diag in j.
+          inv j; hnf; do 4 eexists; eauto.
         }
 
         pose proof Hlockinv as COPY.
@@ -1318,7 +1321,6 @@ Section Progress.
             change Ptrofs.intval with Ptrofs.unsigned in *.
             injection E_ as <- <- .
             if_tac [r|nr] in HH. 2:range_tac.
-            if_tac [e|ne] in HH. 2:tauto.
             destruct HH as (p & HH).
             assert (j : join_sub phi0lockinv Phi). {
               apply join_sub_trans with phi0. eexists; eauto.
@@ -1328,7 +1330,7 @@ Section Progress.
             destruct j as (psi' & j).
             apply resource_at_join with (loc := (b, Ptrofs.unsigned ofs)) in j.
             rewrite HH in j.
-            apply lock_coh.
+            apply lock_coh. rewrite Z.sub_diag in j.
             inv j; hnf; eauto.
         }
 
@@ -1356,7 +1358,6 @@ Section Progress.
         - assumption.
         - assumption.
       }
-
       { (* the case of spawn *)
 
         (* using the safety to prepare the precondition *)
@@ -1456,7 +1457,8 @@ Section Progress.
           * reflexivity.
     }
     (* end of Kinit *)
-    Unshelve. eexists; eauto.
+    Unshelve.
+     eexists; eauto.
 Qed. (* Theorem progress *)
 
 End Progress.

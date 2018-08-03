@@ -14,18 +14,9 @@ Require Import VST.veric.initial_world.
 
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
-                              _ _ (level w) _ (ghost_of_approx w))).
+                              _ (level w) _ (ghost_of_approx w))).
 Proof.
- intros b' z'.
- unfold compose.
- simpl. destruct (S_dec b').
- apply rmap_valid.
- pose proof (rmap_valid w b' z'). unfold compose in H.
- revert H;  case_eq (w @ (b',z')); intros;
-  repeat rewrite core_NO in *;
-  repeat rewrite core_YES in *;
-  repeat rewrite core_PURE in *;
-   simpl; intros; auto.
+  hnf; auto.
  extensionality loc;  unfold compose.
  if_tac; try apply resource_at_approx.
  repeat  rewrite core_resource_at. rewrite <- level_core.
@@ -95,42 +86,15 @@ Lemma split_range:
                                                       else identity (phi1 @ loc).
 Proof.
   intros ???? Hg.
-  assert (AV.valid (res_option oo (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)))).
-  intro; intros. destruct base as [b0 z].
-  pose proof (H (b,ofs)).
-  unfold compose. if_tac; simpl in *. specialize (H0 H1).
-   destruct H1; subst b0.
-  revert H0; case_eq (phi @ (b,ofs)); simpl; intros; auto.
-  destruct k; inversion H1; subst; auto.
-  clear H0.
-  destruct (phi @ (b,ofs)); simpl; auto.
-    rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
-  destruct (make_rmap _ (ghost_of phi) H0 (level phi)) as [phi1 [J1 J2]].
+  pose proof I.
+  destruct (make_rmap (fun loc => if adr_range_dec base n loc then phi @ loc else core (phi @ loc)) (ghost_of phi) (level phi)) as [phi1 [J1 J2]].
   extensionality loc;   unfold compose.
   if_tac.  apply resource_at_approx.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
   { apply ghost_of_approx. }
   clear H0.
-  assert (AV.valid (res_option oo (fun loc => if adr_range_dec base n loc then core (phi @ loc) else phi @ loc))).
-  clear phi1 J1 J2.
-  intro; intros. destruct base as [b0 z].
-  unfold compose. if_tac; simpl in *.
-  revert H0; case_eq (phi @ (b,ofs)); simpl; intros; auto.
-    rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
-  case_eq (phi @ (b,ofs)); simpl; intros; auto. destruct k; auto.
-  intros.
-  pose proof (rmap_valid phi b ofs). unfold compose in H3. rewrite H1 in H3.
-  simpl in H3. specialize (H3 _ H2).
-  if_tac. destruct H4. subst b0. specialize (H (b,ofs+i)).
-  simpl in H. spec H; [auto |].
-  destruct (phi @ (b,ofs+i)); inv H3. destruct H; inv H. apply H3.
-  pose proof (rmap_valid phi b ofs). unfold compose in H2. rewrite H1 in H2.
-  simpl in H2. destruct H2 as [n' [H2 ?]]; exists n'; split; auto.
-  if_tac. specialize (H (b,ofs-z0)). spec H. destruct H4; subst; split; auto; omega.
-  destruct (phi @ (b,ofs-z0)); inv H3. destruct H; inv H.
-  destruct (phi @ (b,ofs-z0)); inv H3.
-  simpl. f_equal. f_equal. apply exist_ext. auto.
-  destruct (make_rmap _ (ghost_of phi) H0 (level phi)) as [phi2 [J3 J4]].
+  pose proof I.
+ destruct (make_rmap (fun loc => if adr_range_dec base n loc then core (phi @ loc) else phi @ loc) (ghost_of phi) (level phi)) as [phi2 [J3 J4]].
   extensionality loc;   unfold compose.
   if_tac.
   repeat rewrite core_resource_at. rewrite <- level_core. apply resource_at_approx.
@@ -1700,26 +1664,8 @@ Lemma hackfun_sep:
    exists w1', exists w2', join w1' w2' w' /\ hackfun w1 w1' /\ hackfun w2 w2'.
 Proof.
 intros.
-assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w1 @ loc) then core (w' @ loc) else w1 @ loc))).
-intros b ofs. unfold compose.
-destruct H as (? & Hg & ?). destruct (H1 (b,ofs)).
- pose proof  (resource_at_join _ _ _ (b,ofs) H0).
-if_tac. apply H5 in H4.
- case_eq (w' @ (b,ofs));  simpl; intros; auto. rewrite core_NO. simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
- assert (~identity (w @ (b,ofs))). contradict H5. apply split_identity in H4; auto.
- specialize (H3 H6). clear H2.
- case_eq (w1 @ (b,ofs)); simpl; intros; auto. clear H5. rewrite H2 in *. clear H6.
- destruct k; auto. intros.
- assert (H9:= rmap_valid w1 b ofs). unfold compose in H9. rewrite H2 in H9. simpl in H9.
- specialize (H9 _ H5).
- destruct (w1 @ (b,ofs+i)); inv H9.
- rewrite if_false by apply YES_not_identity.
- simpl. f_equal. f_equal. apply exist_ext; auto.
- assert (H10:= rmap_valid w1 b ofs). unfold compose in H10. rewrite H2 in H10. simpl in H10.
- destruct H10 as [n [? ?]]; exists n; split; auto.
- destruct (w1 @ (b,ofs-z)); inv H6; rewrite if_false by apply YES_not_identity.
- simpl. f_equal. f_equal. apply exist_ext; auto.
- destruct (make_rmap _ (ghost_of w1) H1 (level w))  as [w1' [? ?]]; clear H1.
+ pose proof I.
+ destruct (make_rmap (fun loc => if resource_identity_dec (w1 @ loc) then core (w' @ loc) else w1 @ loc) (ghost_of w1) (level w))  as [w1' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).
@@ -1728,28 +1674,8 @@ if_tac. apply H5 in H4.
  apply resource_at_approx.
  destruct (join_level _ _ _ H0) as [<- _].
  apply ghost_of_approx.
-
-assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w2 @ loc) then core (w' @ loc) else w2 @ loc))).
- apply join_comm in H0. clear H2 H3.
-intros b ofs. unfold compose.
-destruct H, H1 as [Hg H1]. destruct (H1 (b,ofs)).
- pose proof  (resource_at_join _ _ _ (b,ofs) H0).
-if_tac. apply H5 in H4.
- case_eq (w' @ (b,ofs));  simpl; intros; auto. rewrite core_NO. simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
- assert (~identity (w @ (b,ofs))). contradict H5. apply split_identity in H4; auto.
- specialize (H3 H6). clear H2.
- case_eq (w2 @ (b,ofs)); simpl; intros; auto. clear H5. rewrite H2 in *. clear H6.
- destruct k; auto. intros.
- assert (H9:= rmap_valid w2 b ofs). unfold compose in H9. rewrite H2 in H9. simpl in H9.
- specialize (H9 _ H5). destruct (w2 @ (b,ofs+i)); inv H9. 
- rewrite if_false by apply YES_not_identity.
- simpl. f_equal. f_equal. apply exist_ext; auto.
- assert (H10:= rmap_valid w2 b ofs). unfold compose in H10. rewrite H2 in H10. simpl in H10.
- destruct H10 as [n [? ?]]; exists n; split; auto.
- destruct (w2 @ (b,ofs-z)); inv H6.
- rewrite if_false by apply YES_not_identity.
- simpl. f_equal. f_equal. apply exist_ext; auto.
-destruct (make_rmap _ (ghost_of w2) H1 (level w))  as [w2' [? ?]]; clear H1.
+ pose proof I.
+ destruct (make_rmap (fun loc => if resource_identity_dec (w2 @ loc) then core (w' @ loc) else w2 @ loc) (ghost_of w2) (level w))  as [w2' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).

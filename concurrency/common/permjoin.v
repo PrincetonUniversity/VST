@@ -285,6 +285,4 @@ Proof.
   try contradiction (join_readable_unreadable RJ _x _x2).
   apply join_unit1_e in RJ; auto; subst; contradiction.
   contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
-  apply join_unit1_e in RJ; auto; subst; contradiction.
-  contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
 Qed.

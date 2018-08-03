@@ -1424,13 +1424,7 @@ pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
                                (readable_share_lub (writable_readable_share writable_Rsh))
                                (VAL (contents_at m' loc)) NoneP
                      else core (m_phi jm @ loc)).
-assert (Vf: AV.valid (res_option oo f)).
-apply VAL_valid; intros.
-unfold compose, f in H4; clear f.
-if_tac in H4.
-2: rewrite res_option_core in H4; inv H4.
-simpl in H4. injection H4; intros.  subst k; auto.
-destruct (make_rmap _ (core (ghost_of (m_phi jm))) Vf (level jm)) as [mf [? [? Hg]]]; clear Vf.
+destruct (make_rmap f (core (ghost_of (m_phi jm))) (level jm)) as [mf [? [? Hg]]].
 unfold f, compose; clear f; extensionality loc.
 symmetry. if_tac.
 unfold resource_fmap. rewrite preds_fmap_NoneP.

@@ -729,15 +729,15 @@ unfold ge_of in *. simpl in *. auto.
 Qed.
 
 Lemma free_juicy_mem_level:
-  forall jm m b lo hi H H0, level (free_juicy_mem jm m b lo hi H H0) = level jm.
+  forall jm m b lo hi H, level (free_juicy_mem jm m b lo hi H) = level jm.
 Proof.
  intros;  simpl;  unfold inflate_free; simpl.
  rewrite level_make_rmap. auto.
 Qed.
 
 Lemma free_juicy_mem_ghost:
-  forall jm m b lo hi H H0,
-    ghost_of (m_phi (free_juicy_mem jm m b lo hi H H0)) = ghost_of (m_phi jm).
+  forall jm m b lo hi H,
+    ghost_of (m_phi (free_juicy_mem jm m b lo hi H)) = ghost_of (m_phi jm).
 Proof.
  intros;  simpl;  unfold inflate_free; simpl.
  rewrite ghost_of_make_rmap. auto.
@@ -768,7 +768,7 @@ Inductive free_list_juicy_mem:
                           (H0 : forall ofs : Z,
                         lo <= ofs < hi ->
                         perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
-                          free_juicy_mem jm (m_dry jm2) b lo hi H H0 = jm2 ->
+                          free_juicy_mem jm (m_dry jm2) b lo hi H = jm2 ->
                           free_list_juicy_mem jm2 bl jm' ->
                           free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
 
@@ -814,13 +814,12 @@ intros jm bl; revert jm; induction bl; intros.
  symmetry; apply free_juicy_mem_level.
 Qed.
 
-
 Lemma free_juicy_mem_ext:
-  forall jm1 jm2 b lo hi m1 m2 H1 H2 H3 H4,
+  forall jm1 jm2 b lo hi m1 m2 H1 H2,
       jm1=jm2 -> m1=m2 ->
-     free_juicy_mem jm1 m1 b lo hi H1 H3 = free_juicy_mem jm2 m2 b lo hi H2 H4.
+     free_juicy_mem jm1 m1 b lo hi H1 = free_juicy_mem jm2 m2 b lo hi H2.
 Proof.
-intros. subst. proof_irr. proof_irr. auto.
+intros. subst. proof_irr. auto.
 Qed.
 
 
@@ -1159,7 +1158,7 @@ Proof.
   assert (VR: app_pred (VALspec_range (sizeof t-0) Share.top (b, 0) * TT) (m_phi jm)).
     clear - H3 H7. destruct H7.
   rewrite Z.sub_0_r; exists phi1; exists x; split3; auto.
-  pose (jm3 := free_juicy_mem _ _ _ _ _ H8 (juicy_free_aux_lemma _ _ _ _ _ VR)).
+  pose (jm3 := free_juicy_mem _ _ _ _ _ H8 ).
   destruct H as [phix H].
   destruct (join_assoc H1 H) as [phi3 []].
   assert (phi3 = m_phi jm3).
@@ -1244,13 +1243,14 @@ Qed. (* maybe don't need this? *)
 Lemma free_juicy_mem_resource_decay:
   forall jm b lo hi m' jm'
      (H : free (m_dry jm) b lo hi = Some m')
-    H0,
-    free_juicy_mem jm m' b lo hi H H0 = jm' ->
+     (H0 : forall ofs : Z,  lo <= ofs < hi ->
+             perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
+    free_juicy_mem jm m' b lo hi H = jm' ->
     resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
 Proof.
 intros.
  subst jm'. simpl.
- apply (inflate_free_resource_decay _ _ _ _ _ H).
+ apply (inflate_free_resource_decay _ _ _ _ _ H H0).
 Qed.
 
 Lemma free_list_resource_decay:
@@ -1279,8 +1279,10 @@ Lemma derives_refl' {A: Type}  `{ageable A}:
 Proof.  intros; subst; apply derives_refl. Qed.
 
  Lemma free_juicy_mem_core:
-  forall jm m b lo hi H H0,
-   core (m_phi (free_juicy_mem jm m b lo hi H H0)) = core (m_phi jm).
+  forall jm m b lo hi H
+   (H0 : forall ofs : Z,
+     lo <= ofs < hi -> perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
+   core (m_phi (free_juicy_mem jm m b lo hi H)) = core (m_phi jm).
 Proof.
  intros.
  apply rmap_ext.
@@ -1987,10 +1989,6 @@ destruct (allocate (m_phi jm)
       then YES Share.top readable_share_top (VAL Undef) NoneP
       else core (m_phi jm @ loc)) (core (ghost_of phi2)))
   as [phi3 [phi4  [? [? Hg']]]].
-*
- hnf; intros. unfold compose.
- if_tac. apply I. destruct (m_phi jm @ (b,ofs)); simpl. rewrite core_NO; apply I.
- rewrite core_YES; apply I. rewrite core_PURE; apply I.
 * extensionality loc; unfold compose.
   if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
   repeat rewrite core_resource_at.
