@@ -67,13 +67,10 @@ COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(fo
 DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
-# Warning setting  -w -deprecated-focus  is needed until we no longer
-# list version 8.7._ in the COQVERSION list.
-#
 # The warning setting -overriding-logical-loadpath is needed until
 #  CompCert issue 199 is resolve satisfactorily: 
 #  https://github.com/AbsInt/CompCert/issues/199
-COQC=$(COQBIN)coqc -w -deprecated-focus,-deprecated-unfocus,-overriding-logical-loadpath
+COQC=$(COQBIN)coqc -w -overriding-logical-loadpath
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
@@ -416,7 +413,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.7.0 or-else 8.7.1 or-else 8.7.2 or-else 8.8+beta1 or-else 8.8.0 or-else 8.8.1 or-else 8.9+alpha
+COQVERSION= 8.8.0 or-else 8.8.1 or-else 8.9+alpha
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else

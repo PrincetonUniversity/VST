@@ -749,12 +749,12 @@ Lemma power_age_parallel': forall {A:Type} {agA:ageable A} {JA: Join A} {PA: Per
 Proof.
   intros.
   assert (level x = level y).
-  Focus 1. {
+  1:{
     pose proof level_core y.
     pose proof level_core x.
     rewrite H in H2.
     congruence.
-  } Unfocus.
+  }
   destruct (power_age_parallel x x' y n H1 H0) as [y' ?H].
   exists y'.
   split; [auto |].

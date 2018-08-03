@@ -2397,8 +2397,7 @@ SearchAbout access_map delta_map.
       intros maxcoh.
       apply MTCH_updLockS.
 
-      Focus 2.
-      {
+      2:{
       inversion MATCH; subst.
       intros; apply Concur.juic2Perm_correct.
       inversion Hcompatible; inversion H; inversion all_cohere.
@@ -2412,7 +2411,6 @@ SearchAbout access_map delta_map.
         + eapply Concur.compatible_threadRes_sub.
       assumption. *) }
 
-      Unfocus.
       unfold ds'.
       apply MTCH_update; eauto.
       move=> b0 ofs0.
@@ -4382,12 +4380,11 @@ Here be dragons
             (*First get the lock rmap*)
 
             destruct (lockRes ds (b, Ptrofs.intval ofs)) eqn:is_lock.
-            Focus 2.
-            { inversion MATCH.
+            2:{ inversion MATCH.
               specialize (mtch_locks (b, Ptrofs.intval ofs)).
               rewrite is_lock His_acq in mtch_locks.
               inversion mtch_locks.
-            } Unfocus.
+            }
 
 
             econstructor 5. (*The step *)

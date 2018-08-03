@@ -107,7 +107,7 @@ intros.
 assert (Zlength (rev al) = size) by (rewrite Zlength_rev; omega).
 unfold flip_between.
 rewrite Zfirstn_app1.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite !Zlength_app.
 rewrite Zlength_firstn, Z.max_r by omega.
@@ -121,7 +121,7 @@ rewrite (Z.min_l j) by omega.
 rewrite (Z.min_l (size-j-j)) by omega.
 rewrite Z.min_l by omega.
 omega.
-} Unfocus.
+}
 rewrite Zfirstn_app2
  by (rewrite Zlength_firstn, Z.max_r by omega;
       rewrite Z.min_l by omega; omega).
@@ -130,7 +130,7 @@ rewrite Zfirstn_app1
       rewrite Z.min_l by omega; omega).
 rewrite Zfirstn_firstn by omega.
 rewrite Zskipn_app1.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Zlength_rev.
 rewrite !Zlength_app.
@@ -150,34 +150,34 @@ rewrite (Z.max_r 0 (size-j)) by omega.
 rewrite Z.max_r by omega.
 rewrite Z.min_l by omega.
 omega.
-} Unfocus.
+}
 rewrite Zskipn_app2
  by (rewrite Zlength_firstn, Z.max_r by omega;
        rewrite Z.min_l by omega; omega).
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Z.min_l by omega.
 rewrite Zfirstn_app1.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
 rewrite Z.max_r by omega.
 rewrite Z.min_l by omega. omega.
-} Unfocus.
+}
 rewrite Zfirstn_firstn by omega.
 rewrite Zskipn_app2
  by (rewrite Zlength_firstn, Z.max_r by omega;
        rewrite Z.min_l by omega; omega).
 rewrite Zskipn_app1.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Z.min_l by omega.
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
 rewrite Z.max_r by omega.
 rewrite Z.min_l by omega. omega.
-} Unfocus.
+}
 rewrite Zfirstn_app1.
-Focus 2. {
+2:{
 rewrite !Zlength_skipn, !Zlength_firstn.
 rewrite (Z.max_r 0 j) by omega.
 rewrite (Z.min_l j) by omega.
@@ -189,15 +189,15 @@ rewrite (Z.max_r 0 (size-j-j)) by omega.
 rewrite Z.min_l by omega.
 rewrite Z.max_r by omega.
 omega.
-} Unfocus.
+}
 rewrite Zskipn_app2.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite (Z.min_l j) by omega.
 omega.
-} Unfocus.
+}
 rewrite Zskipn_app2.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite (Z.min_l j) by omega.
 rewrite Zlength_firstn, Z.max_r by omega.
@@ -205,7 +205,7 @@ rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
 rewrite Z.max_r by omega.
 rewrite Z.min_l by omega.
 omega.
-} Unfocus.
+}
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
@@ -272,13 +272,14 @@ rewrite app_Znth2
 rewrite Zlength_firstn, Z.max_r by omega;
 rewrite Zlength_rev, Z.min_l by omega.
 rewrite app_Znth1.
-Focus 2. {
+2:{
 rewrite Zlength_firstn, Z.max_r by omega;
 rewrite Zlength_skipn by omega.
 rewrite (Z.max_r 0 j) by omega.
 rewrite Z.max_r by omega.
 rewrite Z.min_l by omega.
-omega. } Unfocus.
+omega.
+}
 rewrite Znth_firstn by omega.
 rewrite Znth_skipn by omega.
 f_equal; omega.

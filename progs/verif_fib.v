@@ -167,12 +167,11 @@ Proof.
   { (* Prove that loop body preserves invariant *)
     Intros i.
     forward_if.
-    Focus 2.
-    { (* Else branch *)
+    2:{ (* Else branch *)
       forward. (* break; *)
       assert (i = n) by omega.
       entailer!.
-    } Unfocus.
+    }
     (* Then branch and other loop body *)
     assert (0 <= fib_of_Z i < Int.max_signed /\
             0 <= fib_of_Z (i + 1) < Int.max_signed /\

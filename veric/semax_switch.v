@@ -330,9 +330,7 @@ apply allp_right; intro vx'.
  rewrite !andp_assoc.
  simple apply prop_andp_subp'; intro.
  rewrite prop_true_andp.
-Focus 2. {
- destruct H; split; auto.
-  } Unfocus.
+ 2: destruct H; split; auto.
  forget (funassert Delta' rho') as FDR.
  rewrite !proj_frame_ret_assert.
  simpl.

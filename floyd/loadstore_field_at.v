@@ -110,15 +110,15 @@ Proof.
   intros.
   pose proof is_neutral_cast_by_value _ _ H0.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
-  Focus 1. {
+  {
     eapply derives_trans; [exact H9 |].
     intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
     apply prop_right.
     symmetry; eapply typeof_nested_efield; eauto.
-  } Unfocus.
+  }
   rewrite H11 in H10.
   assert_PROP (field_compatible t_root gfs p).
-  Focus 1. {
+  {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
     apply andp_left2;
     apply derives_left_sepcon_right_corable; auto.
@@ -126,7 +126,7 @@ Proof.
     eapply derives_trans; [apply H7 |].
     rewrite field_at_compatible'.
     normalize.
-  } Unfocus.
+  }
   eapply semax_load_nth_ram; try eassumption;
   [ idtac
   | idtac
@@ -333,22 +333,22 @@ Lemma semax_max_path_field_cast_load_nth_ram:
 Proof.
   intros until 2. intro HCAST; intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
-  Focus 1. {
+  {
     eapply derives_trans; [exact H9 |].
     intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
     apply prop_right.
     symmetry; eapply typeof_nested_efield; eauto.
-  } Unfocus.
+  }
   rewrite H10 in H0.
   assert_PROP (field_compatible t_root gfs p).
-  Focus 1. {
+  {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
     apply andp_left2; apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
     eapply derives_trans; [apply H7 |].
     rewrite field_at_compatible'.
     normalize.
-  } Unfocus.
+  }
   rewrite H10.
   eapply semax_cast_load_nth_ram; try eassumption;
   [ idtac |  rewrite <- H10; eassumption | idtac | apply andp_right].
@@ -452,21 +452,21 @@ Lemma semax_max_path_field_store_nth_ram:
 Proof.
   intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
-  Focus 1. {
+  {
     eapply derives_trans; [exact H9 |].
     intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
     apply prop_right.
     symmetry; eapply typeof_nested_efield; eauto.
-  } Unfocus.
+  }
   assert_PROP (field_compatible t_root gfs p).
-  Focus 1. {
+  {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
     apply andp_left2; apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
     eapply derives_trans; [apply H6 |].
     unfold field_at_; rewrite (field_at_compatible' _ _ _ (default_val _)).
     normalize.
-  } Unfocus.
+  }
   rewrite H10 in H.
   eapply semax_store_nth_ram; eauto.
   4: apply andp_right.

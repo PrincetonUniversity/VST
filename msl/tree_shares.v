@@ -2498,7 +2498,9 @@ Proof.
  assert (n1 <= max n1 (tree_heightP s0)).
    apply le_max_l.
  omega.
+Set Warnings "-funind-cannot-build-inversion,-funind-cannot-define-graph".
  Defined.
+Set Warnings "+funind-cannot-build-inversion,+funind-cannot-define-graph".
 
 Lemma canonTree_Leaf : forall b, canonicalTree (Leaf b).
 Proof.
@@ -7713,9 +7715,9 @@ Proof.
  destruct p; destruct p0; destruct p1.
  symmetry in Heqp,Heqp0,Heqp1.
  eapply decompose_lub in Heqb3.
- Focus 2. apply Heqp.
- Focus 2. apply Heqp0.
- Focus 2. apply Heqp1.
+ 2: apply Heqp.
+ 2: apply Heqp0.
+ 2: apply Heqp1.
  destruct Heqb3;subst.
  icase x1. icase b.
  rewrite unrel_right_obmit with (c1:=c)(a1:=t0)(a2:=t1);trivial.
@@ -7747,9 +7749,9 @@ Proof.
  destruct p; destruct p0; destruct p1.
  symmetry in Heqp,Heqp0,Heqp1.
  eapply decompose_glb in Heqb3.
- Focus 2. apply Heqp.
- Focus 2. apply Heqp0.
- Focus 2. apply Heqp1.
+ 2: apply Heqp.
+ 2: apply Heqp0.
+ 2: apply Heqp1.
  destruct Heqb3;subst.
  icase x1. icase b.
  rewrite unrel_right_obmit with (c1:=c)(a1:=t0)(a2:=t1);trivial.

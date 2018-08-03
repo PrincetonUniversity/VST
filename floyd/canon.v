@@ -279,10 +279,10 @@ Proof.
       (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%logic)
     with
       (fun P0 => (prop (a P0) && prop (fold_right and True (map (fun P1 => P1 P0) P)))%logic).
-    Focus 2. {
+    2:{
       extensionality S.
       rewrite prop_and; auto.
-    } Unfocus.
+    }
     apply (conj_nonexpansive (fun S => @prop mpred Nveric (a S)) _).
     - inversion H; auto.
     - apply IHP.
@@ -2174,7 +2174,7 @@ Proof.
   rewrite H1; clear Post1 H1.
   apply andp_right; [exact H0 |].
   destruct (Val.eq v_gen Vundef).
-  Focus 1. {
+  {
     subst.
     rewrite (add_andp _ _ H), (add_andp _ _ H0).
     rewrite (andp_comm _ (PROPx _ _)), !andp_assoc.
@@ -2186,7 +2186,7 @@ Proof.
     apply (derives_trans _ FF); [| normalize].
     apply prop_derives.
     apply tc_val_Vundef.
-  } Unfocus.
+  }
   apply return_inner_gen_Some_spec in H3; [| auto].
   assert (ENTAIL Delta, PROPx Ppre (LOCALx Qpre (SEPx Rpre))
             |-- ` (RA_return (frame_ret_assert (function_body_ret_assert (ret_type Delta) post2) sf) (Some v_gen)) id).

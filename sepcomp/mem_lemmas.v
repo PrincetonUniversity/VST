@@ -911,7 +911,7 @@ Proof. intros.
       eapply Mem.load_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
-        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Pos.le_refl.
         split; intros.
           eapply Mem.perm_storebytes_2; eassumption.
           eapply Mem.perm_storebytes_1; eassumption.
@@ -925,7 +925,7 @@ Proof. intros.
       eapply Mem.load_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
-        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Pos.le_refl.
         split; intros.
           eapply Mem.perm_storebytes_1; eassumption.
           eapply Mem.perm_storebytes_2; eassumption.
@@ -943,7 +943,7 @@ Proof. intros.
       eapply Mem.loadbytes_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
-        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Pos.le_refl.
         split; intros.
           eapply Mem.perm_storebytes_2; eassumption.
           eapply Mem.perm_storebytes_1; eassumption.
@@ -957,7 +957,7 @@ Proof. intros.
       eapply Mem.loadbytes_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
-        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Pos.le_refl.
         split; intros.
           eapply Mem.perm_storebytes_1; eassumption.
           eapply Mem.perm_storebytes_2; eassumption.

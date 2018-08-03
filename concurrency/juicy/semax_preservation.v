@@ -1119,7 +1119,7 @@ Section Preservation.
 *)
             eapply val_inject_incr, Hvalid'.
             hnf in Hperm; subst; simpl.
-            apply flat_inj_incr. apply Ple_refl. }
+            apply flat_inj_incr. apply Pos.le_refl. }
       - intros j cntj.
         destruct (eq_dec i j) as [<-|ne]; REWR.
         specialize (wellformed j cntj). auto.

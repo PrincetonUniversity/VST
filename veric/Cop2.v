@@ -39,7 +39,7 @@ Definition eqb_floatsize (a b: floatsize) : bool :=
  | _, _ => false
  end.
 
-Definition eqb_ident : ident -> ident -> bool := Peqb.
+Definition eqb_ident : ident -> ident -> bool := Pos.eqb.
 
 Definition eqb_intsize (a b: intsize) : bool :=
  match a , b with

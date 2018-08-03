@@ -230,9 +230,9 @@ Proof.
  inv H. clear H3. simpl.
  change positive with block.
  replace (Some (Genv.genv_next ge)) with (Genv.find_symbol (Genv.add_global ge (i,g)) i).
- Focus 2. {
+ 2:{
   unfold Genv.add_global, Genv.find_symbol; simpl. rewrite PTree.gss. f_equal; unfold block; omega.
-  } Unfocus.
+  }
   forget (Genv.add_global ge (i, g)) as ge1.
   revert H2 ge1; induction ul; simpl; intros; auto.
   spec IHul; [intuition |].
@@ -320,8 +320,9 @@ Proof.
   revert z'  m' Heqm1 H0; induction H; intros. omegaContradiction.
   subst _res.
  destruct (Z.eq_dec z' p).
- Focus 2. apply IHR_store_zeros; auto.
+ 2:{ apply IHR_store_zeros; auto.
    clear - H0 n0.  destruct H0. omega.
+  }
   subst z'.
   destruct (load_store_similar _ _ _ _ _ _ e0) with Mint8unsigned; simpl; auto.
   omega.
@@ -1052,7 +1053,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   rewrite (nextblock_drop _ _ _ _ _ _ H2).
   rewrite (Genv.store_init_data_list_nextblock _ _ _ _ _ H1).
   rewrite (Genv.store_zeros_nextblock _ _ _ _ H0).
-  assert (nextblock m1 = Psucc b /\ b = nextblock m0).
+  assert (nextblock m1 = Pos.succ b /\ b = nextblock m0).
    clear - H. Transparent alloc. inv H.  simpl. auto. Opaque alloc.
  destruct H5; unfold block in *; xomega.
  assert (forall loc, if adr_range_dec (b,0)  (init_data_list_size (gvar_init v)) loc
@@ -1343,14 +1344,14 @@ Proof.
  destruct (alloc_global_old _ _ _ _ H _ H1) as [? ?];
  unfold inflate_initial_mem'; rewrite H2; rewrite H3; auto.
  destruct (eq_dec (fst loc) (nextblock m0)).
-Focus 2.
+ 2:{
  assert (access_at m loc Cur = None).
   eapply alloc_global_beyond2; try eassumption. unfold block in *; xomega.
  assert (access_at m0 loc Cur = None).
   unfold access_at. apply nextblock_noaccess. auto.
  unfold inflate_initial_mem'; rewrite H2; rewrite H3; auto.
  rewrite core_NO; auto.
- (* End Focus 2*)
+ }
  clear H1.
  specialize (H0 (snd loc)).
  assert (access_at m0 loc Cur = None).
@@ -2050,10 +2051,10 @@ Proof.
   rewrite forallb_rev in AL.
   rewrite <- (rev_involutive G) in  SAME_IDS.
   rewrite match_fdecs_rev in SAME_IDS.
-  Focus 2. {
+  2:{
     apply list_norepet_prog_funct'.
     rewrite <- list_norepet_rev, <- map_rev; auto.
-  } Unfocus.
+  }
   rewrite initial_core_rev with (vl:=vl) by auto.
   rewrite map_rev in H. rewrite list_norepet_rev in H.
   forget (rev G) as G'; clear G; rename G' into G.
@@ -2101,12 +2102,12 @@ Proof.
 
   assert (H3: forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
            (globvars2pred (globals_of_env rho) (prog_vars' vl) rho) phi).
-  Focus 2. {
+  2:{
     apply H3. clear.
     split. auto.
     split; auto.
     intro loc. intuition.
-  } Unfocus.
+  }
   intros. rename H3 into HACK; revert phi HACK.
                      (* The purpose of going through hackfun is doing this induction. *)
   revert H m G0 G NRG H2 H0 H1 H1'; induction vl; intros.
@@ -2159,13 +2160,14 @@ Proof.
    apply alloc_globals_rev_nextblock in H0. rewrite H0 .
   replace (Pos.to_nat (Z.to_pos (Z.succ (Zlength vl))))
     with (S (length vl)).
-Focus 2.
+2:{
 rewrite Pos_to_nat_eq_S.
  rewrite Zlength_correct.
   rewrite Z2Pos.id by omega.
  unfold nat_of_Z.
  rewrite Z2Nat.inj_succ by omega.
  rewrite Nat2Z.id. omega.
+}
  rewrite Nat.sub_diag. reflexivity.
   auto.
   destruct g.

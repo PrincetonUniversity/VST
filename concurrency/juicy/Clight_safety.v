@@ -520,7 +520,7 @@ Proof.
   - intros.
     inv H.
     inv H0; simpl.
-    apply Ple_refl.
+    apply Pos.le_refl.
 Qed.
 
 Lemma CoreSafe_star: forall n U tr tp m tid (c : @semC (ClightSem ge)) c' tp' m' ev
@@ -860,17 +860,17 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
     destruct Hinitial as (? & ? & ?); subst.
     destruct Hmem as [H1 [H2 H2']]; split; [|split].
     + unfold Smallstep.globals_not_fresh.
-      etransitivity; eauto. simpl. apply Ple_refl. 
+      etransitivity; eauto. simpl. apply Pos.le_refl. 
     + intros.
       hnf; intros.
-       eapply memval_inject_incr, flat_inj_incr, Ple_refl; auto.
+       eapply memval_inject_incr, flat_inj_incr, Pos.le_refl; auto.
     + intros. simpl. simpl in CT.
         clear - Hcode H H2'.
         revert i CT.
         assert (H2x: forall (i : nat) (CT : containsThread ms i),
              ctl_ok (Mem.nextblock m) (getThreadC CT)). {
              intros. eapply alloc_ctl_ok. 2: eapply H2'; eauto.
-             apply Ple_refl.
+             apply Pos.le_refl.
          } clear H2'.
         generalize H2x; apply ctl_ok_updThread.
         specialize (H2x tid ctn). rewrite Hcode in H2x. 
@@ -1471,7 +1471,7 @@ Proof.
      destruct (Genv.init_mem CSL_prog) eqn: Hinit; try contradiction; simpl.
     unfold Smallstep.globals_not_fresh; simpl.
     erewrite Genv.init_mem_genv_next by eauto.
-    apply Ple_refl.
+    apply Pos.le_refl.
   - destruct CPROOF; simpl.
      destruct (Genv.init_mem CSL_prog) eqn: Hinit; try contradiction; simpl.
      unfold Genv.init_mem in Hinit.

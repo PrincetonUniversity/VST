@@ -921,11 +921,12 @@ generalize (H3 _ n); intro H3'.
   apply identity_resource in H3'.
   revert H3'; case_eq (m1 @ (b0,ofs0));intros; try contradiction; try constructor.
   apply identity_share_bot in H3'; subst sh.
-Focus 2.
+2:{
   rewrite H6 in H0. rewrite core_PURE in H0.
   destruct (m_phi j @ (b0,ofs0)).
   rewrite core_NO in H0; inv H0. rewrite core_YES in H0; inv H0.
   rewrite core_PURE in H0. inversion H0. subst k0 p0; constructor.
+}
   rename H6 into Hm1.
  clear H0.
 destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].

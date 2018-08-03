@@ -82,11 +82,11 @@ Proof.
           2: omega.
           2: apply JMeq_refl.
         erewrite (split3seg_array_at' _ _ _ 0 lo hi n); try omega.
-        Focus 2. {
+        2:{
           change (Zlength (sublist 0 lo al ++ v ++ sublist hi n al) = n - 0).
           autorewrite with sublist.
           omega.
-        } Unfocus.
+        }
         change (array_at sh (tarray t n) nil 0 lo (sublist 0 (lo - 0) al) p *
                 array_at sh (tarray t n) nil hi n (sublist (hi - 0) (n - 0) al) p *
                 field_at sh (tarray t (hi - lo)) nil v (field_address0 (tarray t n) (SUB lo) p)

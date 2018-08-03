@@ -57,28 +57,12 @@ intros ek vl tx vx; specialize (H3 ek vl tx vx).
 cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
-(*Focus 2. {
-  unfold exit_tycon; destruct ek; auto; simpl.
-  intro; simpl.
-  rewrite join_tycon_guard_genv.
-  auto.
-} Unfocus.
-*)
 assert (H3else: app_pred
        (rguard Espec psi (fun _ => Delta') (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
-(*
-Focus 2. {
-  unfold exit_tycon; destruct ek; auto; simpl.
-  intro; simpl.
-  rewrite join_tycon_guard_genv.
-  rewrite !update_tycon_guard_genv.
-  auto.
-} Unfocus.
- *)
 specialize (H0 H3then).
 specialize (H1 H3else).
 clear Prog_OK H3 H3then H3else.
@@ -303,13 +287,13 @@ auto.
 }
 assert ((guard Espec psi Delta' (fun rho : environ => F rho * P rho)%pred
 (Kseq h :: Kseq t :: k)) w).
-Focus 2. {
+2:{
 eapply guard_safe_adj; try apply H3; try reflexivity;
 intros until n; apply convergent_controls_jsafe; simpl; auto;
 intros; destruct q'.
 destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
 destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
-} Unfocus.
+}
 eapply H; eauto.
 repeat intro; apply H1.
 clear - H3. intro i; destruct (H3 i); [left | right]; auto.
@@ -475,35 +459,35 @@ Proof.
   intros until 4.
   rename H1 into H2.
   assert (CLO_body: closed_wrt_modvars body F).
-  Focus 1. {
+  {
     clear - H2. intros rho te ?. apply (H2 rho te). simpl.
     intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
     apply modifiedvars'_union; auto.
-  } Unfocus.
+  }
   assert (CLO_incr:  closed_wrt_modvars incr F).
-  Focus 1. {
+  {
     clear - H2. intros rho te ?. apply (H2 rho te). simpl.
     intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
     apply modifiedvars'_union; auto.
-  } Unfocus.
+  }
   revert Prog_OK; induction w using (well_founded_induction lt_wf); intros.
   intros tx vx.
   intros ? ? ? ? [[? ?] ?]. hnf in H6.
   apply assert_safe_last; intros a2 LEVa2.
   assert (NEC2: necR w (level a2)).
-  Focus 1. {
+  {
     apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5.
     change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
     omega.
-  } Unfocus.
+  }
   assert (LT: level a2 < level w).
-  Focus 1. {
+  {
     apply age_level in LEVa2. apply necR_nat in H5.
     clear - H4 H5 LEVa2.
     change w with (level w) in H4.
     change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2.
     apply nec_nat in H5. omega.
-  } Unfocus.
+  }
   assert (Prog_OK2: (believe Espec Delta' psi Delta') (level a2))
     by (apply pred_nec_hereditary with w; auto).
   generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
@@ -523,7 +507,7 @@ Proof.
     rewrite semax_unfold in H0.
     specialize (H0 psi _ (level a2) (tycontext_sub_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
     spec H0.
-    Focus 1. {
+    {
       intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
       destruct ek2.
       + unfold exit_cont.
@@ -559,7 +543,7 @@ Proof.
         clear. simpl current_function. simpl proj_ret_assert.
         destruct POST; simpl tycontext.RA_return.
         apply subp_refl'.
-    } Unfocus.
+    }
     intros tx2 vx2.
     apply (assert_safe_adj') with (k0:= Kseq incr :: Kloop2 body incr :: k); auto.
     intros ? ? ? ? ? ? ?.
@@ -586,12 +570,12 @@ Proof.
     destruct POST; simpl tycontext.RA_continue.
     rewrite semax_unfold in H0.
     eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
-    Focus 1. {
+    {
       apply derives_subp.
       apply andp_derives; auto.
       rewrite sepcon_comm.
       apply andp_derives; auto. normalize; auto.
-    } Unfocus.
+    }
     clear tx2 vx2.
     intros ek2 vl2 tx2 vx2.
     destruct ek2.
@@ -640,23 +624,23 @@ Proof.
   destruct (can_age1_juicy_mem _ _ LEVa2) as [jm2 LEVa2'].
   unfold age in LEVa2.
   assert (a2 = m_phi jm2).
-  Focus 1. {
+  {
     generalize (age_jm_phi LEVa2'); unfold age; change R.rmap with rmap.
     change R.ag_rmap with ag_rmap; rewrite LEVa2.
     intro Hx; inv Hx; auto.
-  } Unfocus.
+  }
   subst a2.
   rewrite (age_level _ _ LEVa2).
   apply jsafeN_step
    with (State vx tx (Kseq body :: Kseq Scontinue :: Kloop1 body incr :: k))
           jm2.
-  Focus 1. {
+  {
     split3.
     + rewrite (age_jm_dry LEVa2'); econstructor.
     + apply age1_resource_decay; auto.
     + split; [apply age_level; auto|].
       apply age1_ghost_of; auto.
-  } Unfocus.
+  }
   apply assert_safe_jsafe; auto.
 Qed.
 

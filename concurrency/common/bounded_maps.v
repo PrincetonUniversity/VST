@@ -406,7 +406,7 @@ Proof.
   exists x, f.
   move=> x0 BND.
   cut (bounded_nat_func_aux x0 hi.+1).
-  Focus 2. { intros b ineq; eapply BND; auto. } Unfocus.
+  2:{ intros b ineq; eapply BND; auto. }
   move=> /HH [] i [] A B.
   exists i; split; eauto.
 Qed.
@@ -422,7 +422,7 @@ Proof.
   exists x, f.
   move=> x0 BND.
   cut (bounded_nat_func_aux x0 hi.+1).
-  Focus 2. { intros b ineq; eapply BND; auto. } Unfocus.
+  2:{ intros b ineq; eapply BND; auto. }
   move=> /HH [] i [] A B.
   exists i; split; eauto.
 Qed.

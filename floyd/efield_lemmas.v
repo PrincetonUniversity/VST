@@ -629,12 +629,12 @@ Proof.
   normalize.
   rename H into EFIELD_DENOTE, H0 into TC_ENVIRON.
   apply derives_trans with (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho).
-  Focus 1. {
+  {
     repeat (apply andp_derives; auto).
     eapply derives_trans; [| apply tc_LR_tc_LR_strong].
     rewrite andp_comm, prop_true_andp by auto.
     auto.
-  } Unfocus.
+  }
   pose proof legal_nested_efield_weaken _ _ _ _ LEGAL_NESTED_EFIELD as [LEGAL_NESTED_EFIELD_REC TYPE_ALMOST_MATCH].
   rewrite field_compatible_field_address by auto.
   clear LEGAL_NESTED_EFIELD.

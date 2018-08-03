@@ -704,11 +704,12 @@ intros.
 
         replace ((n + Z.to_pos (Z.succ (Zlength (p ::dl))))%positive) with
           ((Pos.succ n) + Z.to_pos (Zlength (p ::dl)))%positive.
-          Focus 2. clear - n dl. rewrite Z2Pos.inj_succ.
+          2:{ clear - n dl. rewrite Z2Pos.inj_succ.
                    rewrite Pplus_one_succ_r. rewrite Pplus_one_succ_l.
                      rewrite Pos.add_assoc. trivial.
                    rewrite Zlength_correct. simpl.
                      rewrite Pos.of_nat_succ. apply Pos2Z.is_pos.
+             }
         simpl in H0. inv H0.
         assert (a<>i /\ ~ In i (map fst (p::dl))) by (clear - H; intuition).
         clear H; destruct H0.
@@ -806,7 +807,7 @@ intros.
         rewrite PTree.gso by auto. rewrite H2.  split; intro Hx; inv Hx; congruence.
         simpl; auto.
         rewrite Zlength_cons.
-        replace (n + Z.succ (Zlength dl)) with (Zsucc n + Zlength dl) by omega.
+        replace (n + Z.succ (Zlength dl)) with (Z.succ n + Zlength dl) by omega.
         simpl. simpl in H0. inv H0.
          simpl in H.
          destruct a as [a ag]; simpl in *.
@@ -943,7 +944,7 @@ Lemma add_globals_hack:
                             nth_error (map (@fst _ _) vl) (length vl - Pos.to_nat b)  = Some id)).
 Proof. intros. subst.
      apply iff_trans with (nth_error (map fst (rev vl)) (nat_of_Z (Zpos b - 1)) = Some id).
-Focus 2. {
+2:{
    rewrite map_rev; rewrite nth_error_rev.
              replace (length (map fst vl) - nat_of_Z (Zpos b - 1) - 1)%nat
                         with (length vl - Pos.to_nat b)%nat ; [intuition | ].
@@ -959,7 +960,7 @@ Focus 2. {
   forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
   apply inj_lt_rev. rewrite nat_of_Z_max; auto.
   rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
-} Unfocus.
+}
     rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;
        try rewrite Zlength_nil in *.
@@ -1352,14 +1353,15 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-Focus 2.
+2:{
 rewrite rev_length. clear - RANGE.
 destruct RANGE.
 apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega.
+}
 rename H1 into H5.
 replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
-Focus 2. rewrite rev_length.
+2:{ rewrite rev_length.
 clear - RANGE.
 replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
 assert (nat_of_Z (Z.pos b) <= length dl)%nat.
@@ -1372,6 +1374,7 @@ apply nat_of_Z_lem1.
 assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
 pose proof (Pos2Nat.is_pos b); omega.
 omega.
+}
 assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
 clear - RANGE.
 destruct RANGE; split.
@@ -1535,14 +1538,15 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-Focus 2.
+2:{
 rewrite rev_length. clear - RANGE.
 destruct RANGE.
 apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega.
+}
 rename H1 into H5.
 replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
-Focus 2. rewrite rev_length.
+2:{ rewrite rev_length.
 clear - RANGE.
 replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
 assert (nat_of_Z (Z.pos b) <= length dl)%nat.
@@ -1555,6 +1559,7 @@ apply nat_of_Z_lem1.
 assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
 pose proof (Pos2Nat.is_pos b); omega.
 omega.
+}
 assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
 clear - RANGE.
 destruct RANGE; split.

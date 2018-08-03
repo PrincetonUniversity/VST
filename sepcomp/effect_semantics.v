@@ -519,7 +519,7 @@ Proof. intros.
   destruct tv; inv STORE.
   unfold StoreEffect.
   split; intros.
-      rewrite (Mem.nextblock_store _ _ _ _ _ _ H0); apply Ple_refl.
+      rewrite (Mem.nextblock_store _ _ _ _ _ _ H0); apply Pos.le_refl.
       split; intros. eapply Mem.perm_store_1; eassumption.
       eapply Mem.perm_store_2; eassumption.
   rewrite (Mem.store_mem_contents _ _ _ _ _ _ H0). clear H0.

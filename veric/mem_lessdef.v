@@ -210,7 +210,7 @@ Qed.
 
 Lemma mem_lessalloc_refl m : mem_lessalloc m m.
 Proof.
-  split3; auto. apply Ple_refl.
+  split3; auto. apply Pos.le_refl.
 Qed.
 
 Lemma mem_equiv_refl' m m' : m = m' -> mem_equiv m m'.
@@ -250,7 +250,7 @@ Qed.
 Lemma mem_equiv_lessalloc m1 m2 : mem_equiv m1 m2 -> mem_lessalloc m1 m2.
 Proof.
   intros (L1 & P1 & N1); repeat split; auto.
-  rewrite N1; auto. apply Ple_refl.
+  rewrite N1; auto. apply Pos.le_refl.
 Qed.
 
 Lemma mem_lessalloc_lessdef m1 m2 : mem_lessalloc m1 m2 -> mem_lessdef m1 m2.
@@ -459,8 +459,7 @@ Proof.
 intros.
 unfold decode_val.
 destruct (proj_bytes vl) eqn:?H.
-Focus 2.
-{
+2:{
 unfold proj_value.
 destruct ch; auto.
 +
@@ -530,7 +529,7 @@ constructor; auto.
 constructor; auto.
 apply val_inject_id; apply Val.lessdef_refl.
 apply val_inject_id; apply Val.lessdef_refl.
-} Unfocus.
+}
 rewrite (mem_lessdef_proj_bytes _ _ H _ H0).
 auto.
 Qed.

@@ -148,12 +148,12 @@ Lemma RCT_ordered_and_complete: ordered_and_complete rebuild_composite_elements.
 Proof.
   pose proof RCT_Permutation.
   assert (forall i co, cenv ! i = Some co -> In (i, co) rebuild_composite_elements).
-  Focus 1. {
+  {
     intros.
     eapply Permutation_in.
     + symmetry; apply RCT_Permutation.
     + apply PTree.elements_correct; auto.
-  } Unfocus.
+  }
   clear H.
   pose proof CompositeRankSort.StronglySorted_sort (PTree.elements cenv) CompositeRankOrder.leb_trans.
   pose proof app_nil_l rebuild_composite_elements.
@@ -193,7 +193,7 @@ Theorem RCT_ordered: ordered_composite rebuild_composite_elements.
 Proof.
   pose proof RCT_ordered_and_complete.
   assert (forall i co, In (i, co) rebuild_composite_elements -> complete_members cenv (co_members co) = true /\ co_rank co = rank_members cenv (co_members co)).
-  Focus 1. {
+  {
     intros.
     eapply Permutation_in in H0; [| exact RCT_Permutation].
     apply PTree.elements_complete in H0; auto.
@@ -202,7 +202,7 @@ Proof.
       eapply cenv_consistent; eauto.
     + apply co_consistent_rank.
       eapply cenv_consistent; eauto.
-  } Unfocus.
+  }
   induction H.
   + constructor.
   + specialize (IHordered_and_complete (fun i co HH => H0 i co (or_intror HH))).
@@ -441,17 +441,17 @@ Lemma Consistency: forall cenv l,
 Proof.
   intros.
   assert (forall i co, In (i, co) l -> PTree.get i cenv = Some co).
-  Focus 1. {
+  {
     intros.
     apply PTree.elements_complete.
     eapply Permutation_in; eauto.
-  } Unfocus.
+  }
   assert (NoDup (map fst l)).
-  Focus 1. {
+  {
     eapply Permutation_NoDup; [symmetry; apply Permutation_map; eassumption |].
     rewrite <- list_norepet_NoDup.
     apply PTree.elements_keys_norepet.
-  } Unfocus.
+  }
   clear H.
   assert (
     (forall i, In i (map fst l) <-> In i (map fst (PTree.elements (Env l)))) /\
@@ -470,9 +470,9 @@ Proof.
   + inv H0.
     rename H4 into RDT_list; specialize (IHl H6); clear H6.
     assert (CENV0: PTree.get i0 cenv = Some co0).
-    Focus 1. { apply H1; left; auto. } Unfocus.
+    { apply H1; left; auto. }
     spec IHl; [| clear H1].
-    Focus 1. { intros; apply H1; right; auto. } Unfocus.
+    { intros; apply H1; right; auto. }
     inv H2.
     rename H1 into NOT_IN_LIST; specialize (IHl H3); clear H3.
     destruct IHl as [IH_In_equiv [IH_RDT IH_main]].

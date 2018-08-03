@@ -132,17 +132,19 @@ Proof.
 intros.
 apply decode_int_uniq; [congruence | ].
 rewrite <- (Int.unsigned_repr (decode_int l1)).
-Focus 2.
+2:{
 pose proof (decode_int_range l1 _ (eq_refl _)).
 rewrite H in H2.
 change (two_p (8 * Z.of_nat 4)) with (Int.max_unsigned + 1) in H2.
 omega.
+}
 rewrite <- (Int.unsigned_repr (decode_int l2)).
-Focus 2.
+2:{
 pose proof (decode_int_range l2 _ (eq_refl _)).
 rewrite H0 in H2.
 change (two_p (8 * Z.of_nat 4)) with (Int.max_unsigned + 1) in H2.
 omega.
+}
 congruence.
 Qed.
 
@@ -154,17 +156,19 @@ Proof.
 intros.
 apply decode_int_uniq; [congruence | ].
 rewrite <- (Int64.unsigned_repr (decode_int l1)).
-Focus 2.
+2:{
 pose proof (decode_int_range l1 _ (eq_refl _)).
 rewrite H in H2.
 change (two_p (8 * Z.of_nat 8)) with (Int64.max_unsigned + 1) in H2.
 omega.
+}
 rewrite <- (Int64.unsigned_repr (decode_int l2)).
-Focus 2.
+2:{
 pose proof (decode_int_range l2 _ (eq_refl _)).
 rewrite H0 in H2.
 change (two_p (8 * Z.of_nat 8)) with (Int64.max_unsigned + 1) in H2.
 omega.
+}
 congruence.
 Qed.
 
@@ -219,9 +223,9 @@ destruct h' as [f [H1 [H2 H3]]].
 exists f.
 rewrite <- H1.
 repeat split.
-apply Zlt_trans with (1 := H2).
+apply Z.lt_trans with (1 := H2).
 now apply Zpower_lt.
-now apply Zle_trans with (2 := H3).
+now apply Z.le_trans with (2 := H3).
 easy.
 Qed.
 
@@ -257,9 +261,9 @@ destruct h' as [f [H1 [H2 H3]]].
 exists f.
 rewrite <- H1.
 repeat split.
-apply Zlt_trans with (1 := H2).
+apply Z.lt_trans with (1 := H2).
 now apply Zpower_lt.
-now apply Zle_trans with (2 := H3).
+now apply Z.le_trans with (2 := H3).
 easy.
 Qed.
 
@@ -373,18 +377,18 @@ repeat match goal with
 end.
 } Unfocus.
 destruct (proj_bytes b2) eqn:B2.
-Focus 2. {
+2:{
 destruct ch; try congruence.
 unfold proj_pointer in H3.
 destruct b2; try congruence.
 destruct m; try congruence.
 if_tac in H3; try congruence.
-} Unfocus.
+}
 pose proof (length_proj_bytes _ _ B1).
 pose proof (length_proj_bytes _ _ B2).
 rewrite <- H4 in *; rewrite <- H5 in *.
 assert (l=l0).
-Focus 2. {
+2:{
 clear - H6 B1 B2.
 revert l0 b1 b2 B1 B2 H6; induction l; destruct l0; intros; inv H6.
 destruct b1; inv B1. destruct b2; inv B2; auto.
@@ -400,7 +404,7 @@ destruct m; inv H0.
 destruct (proj_bytes b2) eqn:?; inv H1.
 specialize (IHl _ _ _ Heqo Heqo0).
 f_equal; auto.
-} Unfocus.
+}
 clear b1 b2 H4 H5 B1 B2.
 clear H.
 subst v.

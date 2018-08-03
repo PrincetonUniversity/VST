@@ -411,11 +411,11 @@ Lemma LOCALx_shuffle_derives': forall P Q Q' R,
 Proof.
   intros.
   induction Q'.
-  Focus 1. {
+  {
     unfold PROPx, LOCALx.
     normalize.
     apply andp_left2; auto.
-  } Unfocus.
+  }
   pose proof (H a (or_introl _ eq_refl)).
   rewrite <- insert_local'.
   apply andp_right.

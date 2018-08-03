@@ -138,17 +138,16 @@ Module FiniteBranching.
 
       pose (bounded_mem_dec:= DMS.DryConc.bounded_mem m).
       destruct (Classical_Prop.classic bounded_mem_dec) as [Hbound|NHbound].
-      Focus 2. {
+      2:{
         exists 1%nat, (fun _ => (tr, dm, m)).
         move => x y [] [] val [] sch_ok bounde [] y' stp.
         exfalso; apply NHbound; auto.
-      } Unfocus.
+      }
 
       pose (mem_compat_dec:=
               DMS.DryMachine.mem_compatible dm m).
       destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
-      Focus 2. (*it can't step! *)
-      {
+      2:{ (*it can't step! *)
         exists 1%nat, (fun _ => (tr, dm, m)).
         move => x y [] val [] y' stp.
         inversion stp; subst.
@@ -161,7 +160,7 @@ Module FiniteBranching.
           exists O; split.
           + compute; reflexivity.
           + reflexivity.
-      } Unfocus.
+      }
 
 
       Lemma is_syncStep:
@@ -208,7 +207,7 @@ Module FiniteBranching.
 
       (*It most be at_external *)
       destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem ge c m) eqn:AtExt.
-      Focus 2. {
+      2:{
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
         move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
@@ -218,13 +217,13 @@ Module FiniteBranching.
                  H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
             rewrite H in H'; inversion H'; subst c
           end; congruence.
-       } Unfocus.
+       }
 
       (*the arguments can't be empty*)
       destruct p as [FUN ARGS].
       pose (the_args_dec:= exists b ofs ARGS', ARGS = Vptr b ofs :: ARGS').
       destruct (Classical_Prop.classic the_args_dec) as [Hargs|NHargs].
-      Focus 2. {
+      2:{
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
@@ -252,7 +251,7 @@ Module FiniteBranching.
              end).
         - exfalso; eapply no_thread_halted; eassumption.
         - exfalso; apply Htid; assumption.
-      } Unfocus.
+      }
       move: Hargs => [] b [] ofs [] ARGS' HH.
       subst ARGS. clear the_args_dec.
 
@@ -264,7 +263,7 @@ Module FiniteBranching.
         (*must be able to store*)
         pose (m1:= restrPermMap (DMS.DryMachine.compat_th Hcmpt cnti).1).
         destruct (Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
-        Focus 2. {
+        2:{
         exists 0%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
@@ -305,7 +304,7 @@ Module FiniteBranching.
         replace Htid with cnti in Hstore by apply proof_irrelevance.
         clear - Hstore Hstore'.
         rewrite Hstore' in Hstore; inversion Hstore.
-        } Unfocus.
+        }
 
         pose (pmap_tid'0:= (setPermBlock (Some Nonempty) b
                     (Ptrofs.intval ofs)
@@ -387,7 +386,7 @@ Module FiniteBranching.
         destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
 
         (*ACQFAIL*)
-        Focus 2. {
+        2:{
         exists 1%nat, (fun _ => (tr, dm, m)).
         move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
@@ -421,7 +420,7 @@ Module FiniteBranching.
           auto.
         - exists 0%nat; split; auto.
           destruct x as [[? ?] ?]; simpl in *; subst; auto.
-        } Unfocus.
+        }
 
         pose (pmap_tid'0:=
                 setPermBlock (Some Writable) b
@@ -430,7 +429,7 @@ Module FiniteBranching.
 
         pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
         destruct (Classical_Prop.classic Hlt_dec) as [Hlt| NHlt].
-        Focus 2. {
+        2:{
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
           move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
@@ -448,12 +447,12 @@ Module FiniteBranching.
           - exfalso; apply NHlt; auto.
           - exfalso. subst. clear - AtExt  Hat_external. congruence.
           - rewrite Hone_zero in Hload; inversion Hload.
-        } Unfocus.
+        }
 
         (*must be able to store*)
         pose (m2:= restrPermMap Hlt).
         destruct (Mem.store Mint32 m2 b (Ptrofs.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
-        Focus 2. {
+        2:{
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
           move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
@@ -472,7 +471,7 @@ Module FiniteBranching.
           - clear - Hstore Hstore'.
             replace Hlt' with Hlt in Hstore by apply proof_irrelevance.
             rewrite Hstore' in Hstore; inversion Hstore.
-        } Unfocus.
+        }
 
         destruct virtue_bound as [N [virtue_generator virtue_gen_spec] ].
         pose (newThreadPerm v :=
@@ -542,7 +541,7 @@ Module FiniteBranching.
         pose (load_one_dec:=
                 Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero)).
         destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
-        Focus 2. {
+        2:{
         exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
           move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
@@ -559,7 +558,7 @@ Module FiniteBranching.
                  end; simpl in *; try subst).
         - exfalso; apply Nload.
           apply Hload.
-        } Unfocus.
+        }
 
         pose (pmap_tid'0:=
                 setPermBlock (Some Writable) b
@@ -567,7 +566,7 @@ Module FiniteBranching.
                              (DMS.DryMachine.ThreadPool.getThreadR cnti).2 LKSIZE_nat).
         pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
         destruct (Classical_Prop.classic Hlt_dec) as [Hlt| NHlt].
-        Focus 2. {
+        2:{
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
           move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
@@ -583,12 +582,12 @@ Module FiniteBranching.
                    rewrite H in H'; pose (NN:= H'); inversion H'
                  end; simpl in *; try subst).
           - exfalso; apply NHlt. auto.
-        } Unfocus.
+        }
 
         (*must be able to store*)
         pose (m1:= restrPermMap Hlt).
         destruct (Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.one)) as [m'|] eqn:Hstore'.
-        Focus 2. {
+        2:{
           exists 0%nat, (fun _ => (tr, dm, m)).
           move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
           move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
@@ -606,7 +605,7 @@ Module FiniteBranching.
           - clear - Hstore Hstore'.
             replace Hlt' with Hlt in Hstore by apply proof_irrelevance.
             rewrite Hstore' in Hstore; inversion Hstore.
-        } Unfocus.
+        }
 
         pose (virtueXother_bound:= konig.finite_product virtue_bound otherLP_bound).
 
@@ -915,7 +914,7 @@ Module FiniteBranching.
       pose (mem_compat_dec:=
               DMS.DryMachine.mem_compatible dm m).
       destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
-      Focus 2. (*it can't step! *)
+      2: (*it can't step! *)
       {
         exists 1%nat, (fun _ => (tr, dm, m)).
         move => x y [] val [] y' stp.
@@ -929,11 +928,11 @@ Module FiniteBranching.
           exists O; split.
           + compute; reflexivity.
           + reflexivity.
-      } Unfocus.
+      }
 
       (*Second, check the thread is contained *)
       destruct (i < pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N eqn:cnti'.
-      Focus 2. {
+      2:{
         assert (cnti: (~ i < pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N).
         rewrite cnti'; auto. clear cnti'.
 
@@ -949,7 +948,7 @@ Module FiniteBranching.
           end; try solve [exfalso; apply cnti; auto].
         exists 0%nat; split; auto.
         destruct x as [[? ?] ?]; simpl in *; subst; auto.
-      } Unfocus.
+      }
 
       assert (cnti: (i < pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N).
       rewrite cnti'; auto. clear cnti'.
@@ -1122,7 +1121,7 @@ Module FiniteBranching.
       { (*Kresume*)
         (*then it must be after external*)
         destruct (after_external DMS.DryMachine.ThreadPool.SEM.Sem prog None c) eqn:AftEx.
-        Focus 2. {
+        2:{
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
@@ -1144,7 +1143,7 @@ Module FiniteBranching.
           - subst. rewrite AftEx in Hafter_external; congruence.
           - exfalso; eapply no_thread_halted; eassumption.
           - exfalso; apply Htid; assumption.
-        } Unfocus.
+        }
 
 
         exists 1%nat.
@@ -1181,7 +1180,7 @@ Module FiniteBranching.
 
         (*then it must be ready to start*)
         destruct (initial_core DMS.DryMachine.ThreadPool.SEM.Sem (SCH.TID.tid2nat i) prog m v [:: v0]) as [[? ?]|] eqn:Hinit.
-        Focus 2. {
+        2:{
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
@@ -1203,7 +1202,7 @@ Module FiniteBranching.
           - subst. rewrite Hinit in Hinitial; congruence.
           - exfalso; eapply no_thread_halted; eassumption.
           - exfalso; apply Htid; assumption.
-        } Unfocus.
+        }
 
         exists 1%nat.
         exists (fun _ => (tr,
@@ -1256,7 +1255,7 @@ Module FiniteBranching.
     pose (mem_compat_dec:=
               DMS.DryMachine.mem_compatible dm m).
     destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
-    Focus 2. (*it can't step! *)
+    2: (*it can't step! *)
     {
     exists 1%nat, (fun _ => (tr, dm, m)).
     move => x y [] val [] y' stp.
@@ -1270,7 +1269,7 @@ Module FiniteBranching.
        exists O; split.
       + compute; reflexivity.
       + reflexivity.
-    } Unfocus.
+    }
 
 
       (*Introduce a bound to do induction*)
@@ -1298,7 +1297,7 @@ Module FiniteBranching.
         move=> x y.
         specialize (CUT x y).
         destruct (SCH.schedPeek y ) eqn:PEEK.
-        Focus 2. { (*Machine is halted: end of schedule*)
+        2:{ (*Machine is halted: end of schedule*)
           move => [] _ [] y' steps.
           inversion steps; simpl in*; subst.
           - exists 0%nat; split.
@@ -1310,7 +1309,7 @@ Module FiniteBranching.
                        H': SCH.schedPeek ?Y = None  |- _ ] =>
                   rewrite H in H'; inversion H'
                 end.
-        } Unfocus.
+        }
 
         destruct (t <  pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N eqn: within_bound.
         - move => [] [] A A' B.
@@ -1371,7 +1370,7 @@ Module FiniteBranching.
 
           (*Check schedule*)
            destruct (SCH.schedPeek U ) eqn:PEEK.
-           Focus 2. {
+           2:{
              move=> HH (*[] _ [] y' STEP *).
              move : (other_threads st' U).
              rewrite /safety.possible_image /=.
@@ -1379,7 +1378,7 @@ Module FiniteBranching.
              exists i; split.
              - ssromega.
              - rewrite ineq; simpl; auto.
-           } Unfocus.
+           }
 
            (*Check if t (active thread) is ==M*)
            destruct (NatTID.eq_tid_dec t M).
