@@ -599,7 +599,7 @@ Section Safety_Explicity_Safety.
         Proof.
           unfold safe_kstep; simpl.
           unfold cstate2kstate, kstate2cstate in *; simpl in *.
-          cofix.
+          cofix foo.
           intros. inversion H.
           destruct st' as ((?&?)&?).
           destruct (kstep_trace_irr _ _ _ _ tr' _ _ _ _ H0) as (tr2' &STEP).
@@ -626,7 +626,7 @@ Section Safety_Explicity_Safety.
         Lemma explicit_safety_trace_irr: forall U tr tr' tp m,
            explicit_safety U tr tp m -> explicit_safety U tr' tp m.
         Proof.
-          cofix.
+          cofix COFIX.
           intros. inversion H; simpl in *.
           - econstructor; eauto.
           - econstructor 2; eauto.
@@ -637,7 +637,7 @@ Section Safety_Explicity_Safety.
             + instantiate(1:= (x, y2, y3)).
               eauto.
             + simpl in *.
-              intros. eapply explicit_safety_trace_irr.
+              intros. eapply COFIX.
               eapply H1 in H2.
               eapply H2.
         Qed.        
@@ -649,7 +649,7 @@ Section Safety_Explicity_Safety.
       schedPeek U = schedPeek U' ->
       explicit_safety U tr tp m -> explicit_safety U' tr tp m.
   Proof.
-    cofix.
+    cofix COFIX.
     intros. inversion H0; simpl in *.
     - econstructor.
       simpl in *.
@@ -718,7 +718,7 @@ Section Safety_Explicity_Safety.
       forall U, valid (tr, st, m) U ->
             explicit_safety U tr st m.
   Proof.
-    cofix.
+    cofix COFIX.
     intros st m tr sns_all U sns.
     eapply sns_all in sns.
     inversion sns.
@@ -734,7 +734,7 @@ Section Safety_Explicity_Safety.
         unfold cstate2kstate, kstate2cstate in *; simpl in *; subst.
         
         intros.
-        eapply safety_equivalence21; eauto.
+        eapply COFIX; eauto.
         intros.
 
 
@@ -748,7 +748,7 @@ Section Safety_Explicity_Safety.
         unfold cstate2kstate, kstate2cstate in *; simpl in *; subst.
         
         intros.
-        eapply safety_equivalence21; eauto.
+        eapply COFIX; eauto.
   Qed.
 
   Lemma safety_equivalence22: forall st m tr,
@@ -757,14 +757,14 @@ Section Safety_Explicity_Safety.
            (forall U, valid (tr, st, m) U ->
                  safe_kstep (U, tr, st) m).
   Proof.
-    cofix.
+    cofix COFIX.
     intros st m tr es_all U es.
     eapply es_all in es.
     inversion es.
     - econstructor; eauto.
       + econstructor. simpl; eauto.
       + unfold cstate2kstate; simpl; intros U'' VAL.
-        apply safety_equivalence22; eauto.
+        apply COFIX; eauto.
     - eapply step_equivalence2 in H. destruct H as (?&H); simpl in *.
       econstructor.
       + econstructor 2.
@@ -774,7 +774,7 @@ Section Safety_Explicity_Safety.
         destruct y' as ((?&?)&?).
         eapply H. 
       + intros. destruct y' as ((?&?)&?).
-        simpl in *; apply safety_equivalence22; intros; eauto.
+        simpl in *; apply COFIX; intros; eauto.
         eapply H0 in H2. simpl in *.
         eapply explicit_safety_trace_irr.
         eapply H2.
@@ -786,7 +786,7 @@ Section Safety_Explicity_Safety.
         instantiate(1:=(y1 , y2, y3)); simpl in *.
         instantiate(1:=x').
         eapply STEP.
-      + intros. simpl in *; apply safety_equivalence22; intros; eauto.
+      + intros. simpl in *; apply COFIX; intros; eauto.
         eapply H0 in H2. simpl in *.
         eapply explicit_safety_trace_irr.
         eapply H2.

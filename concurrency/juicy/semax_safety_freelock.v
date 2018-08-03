@@ -139,7 +139,7 @@ Proof.
   simpl (and _).
   intros Post.
 
-  destruct Precond as [[Hwritable _] [[B1 _] AT]].
+  destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
   assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
 
   (* [data_at_] from the precondition *)

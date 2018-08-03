@@ -135,7 +135,7 @@ Proof.
   simpl (and _).
   intros Post.
   unfold release_pre in Pre.
-  destruct Pre as ((Hreadable & PreA2) & (PreB1 & PreB2) & PreC).
+  destruct Pre as ((Hreadable & PreA2) & ([PreB1 _] & PreB2) & PreC).
   change (Logic.True) in PreA2. clear PreA2.
   change (Logic.True) in PreB2. clear PreB2.
   unfold canon.SEPx in PreC.

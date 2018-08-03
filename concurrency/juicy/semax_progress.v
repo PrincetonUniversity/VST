@@ -435,7 +435,7 @@ Section Progress.
         intros Post.
 
         (* relate lset to val *)
-        destruct Precond as [PREA [[PREB _] PREC]].
+        destruct Precond as [PREA [[[PREB _] _] PREC]].
         hnf in PREB.
         unfold canon.SEPx in PREC.
         simpl in PREC.
@@ -739,7 +739,7 @@ Section Progress.
         intros Post.
 
         (* relate lset to val *)
-        destruct Precond as ((Hreadable & PreA2) & (PreB1 & PreB2) & PreC).
+        destruct Precond as ((Hreadable & PreA2) & ([PreB1 _] & PreB2) & PreC).
         change Logic.True in PreA2. clear PreA2.
         change Logic.True in PreB2. clear PreB2.
         unfold canon.SEPx in PreC.
@@ -1018,7 +1018,7 @@ Section Progress.
 
         assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
 
-        destruct Precond as [[Hwritable _] [[B1 _] AT]].
+        destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
         assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
 
         (* [data_at_] from the precondition *)
@@ -1151,7 +1151,7 @@ Section Progress.
 
         assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
 
-        destruct Precond as ((Hwritable & PreA2) & (B1 & PreB2) & PreC).
+        destruct Precond as ((Hwritable & PreA2) & ([B1 _] & PreB2) & PreC).
         change Logic.True in PreA2. clear PreA2.
         change Logic.True in PreB2. clear PreB2.
         unfold canon.SEPx in PreC.

@@ -53,6 +53,7 @@ Require Import VST.concurrency.juicy.semax_safety_spawn.
 Require Import VST.concurrency.juicy.semax_safety_release.
 Require Import VST.concurrency.juicy.semax_safety_freelock.
 Require Import VST.concurrency.juicy.semax_preservation.
+Require Import VST.concurrency.juicy.semax_simlemmas.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -88,8 +89,6 @@ Proof.
 (*  - now eapply JuicyMachine.halted_step; eauto.*)
   - now eapply JuicyMachine.schedfail; eauto.
 Qed.
-
-Require Import VST.concurrency.juicy.semax_simlemmas.
 
 Lemma schstep_norun i sch tr tr' tp m tp' m' :
   JuicyMachine.machine_step(Sem := JSem) (i :: sch) tr tp m sch tr' tp' m' ->

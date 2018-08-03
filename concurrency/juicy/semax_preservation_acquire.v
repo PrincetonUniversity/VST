@@ -233,9 +233,9 @@ Proof.
             unfold funsig2signature in Heq_name; simpl in Heq_name.
             contradiction Heq_name; auto. }
           intros (? & ? & [] & ? & ?) (Hargsty, Pre) Post.
-          destruct Pre as (phi0 & phi1 & j & Pre).
+          destruct Pre as (phi0 & phi1 & j & Pre & H88).
           simpl in Pre.
-          destruct Pre as [(_ & (Hv & _) & Hlk)]; simpl in Hv, Hlk.
+          destruct Pre as [_ [[[Hv _] _] Hlk]]; simpl in Hv, Hlk.
           unfold canon.SEPx in Hlk; simpl in Hlk.
           rewrite seplog.sepcon_emp in Hlk.
           assert (args = Vptr b ofs :: nil). {
@@ -606,7 +606,7 @@ Proof.
               clear ts.
               cbv iota beta in Pre.
               Unset Printing Implicit.
-              destruct Pre as [[[A B] [C D]] E].
+              destruct Pre as [[[A B] [[C _] D]] E].
               simpl in *.
               split. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
               split. now auto.

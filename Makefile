@@ -70,7 +70,7 @@ DEPFLAGS:=$(COQFLAGS)
 # The warning setting -overriding-logical-loadpath is needed until
 #  CompCert issue 199 is resolve satisfactorily: 
 #  https://github.com/AbsInt/CompCert/issues/199
-COQC=$(COQBIN)coqc -w -overriding-logical-loadpath
+COQC=$(COQBIN)coqc -w -overriding-logical-loadpath,-notation-overridden
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
