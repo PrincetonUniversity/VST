@@ -1,8 +1,8 @@
 (* This file is developed by Qinxiang Cao, Aquinas Hobor and Shengyi Wang in 2015. *)
 
-Require Export VST.veric.base.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
+Require Import VST.veric.general_base.
+Require Import VST.veric.val_lemmas.
+Require Import VST.veric.Memory.
 
 Lemma range_overlap_spec: forall l1 n1 l2 n2,
   n1 > 0 ->
@@ -62,8 +62,9 @@ Proof.
     intros [[? ?] [[? ?] [_ [HH _]]]];
     inversion HH].
   destruct (zlt 0 n1); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
-  destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
-  destruct (Clight_lemmas.block_eq_dec b b0).
+  destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega]. Check eq_block.
+  destruct (eq_block b b0).
+  (*destruct (Clight_lemmas.block_eq_dec b b0).*)
   + subst b0.
     unfold val2adr.
     forget (Ptrofs.unsigned i) as i1;
@@ -116,12 +117,12 @@ Proof.
   cut (forall p1 n1 p2 n2,
          pointer_range_overlap p1 n1 p2 n2 ->
          pointer_range_overlap p2 n2 p1 n1).
-  Focus 1. {
+  {
     intros.
     pose proof H p1 n1 p2 n2.
     pose proof H p2 n2 p1 n1.
     tauto.
-  } Unfocus.
+  } 
   unfold pointer_range_overlap.
   intros.
   destruct H as [l [l' [? [? ?]]]].

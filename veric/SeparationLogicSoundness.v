@@ -26,6 +26,8 @@ Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.expr_rel.
 
+Require Import VST.veric.ghost_PCM.
+
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 
 (*Declare Module ExtSpec: EXTERNAL_SPEC. *)
@@ -85,7 +87,7 @@ Definition func_ptr (f: funspec) (v: val): mpred :=
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition corable_func_ptr: forall f v, corable (func_ptr f v) :=
-  assert_lemmas.corable_func_ptr.
+  general_assert_lemmas.corable_func_ptr.
 
 Lemma func_ptr_isptr:
   forall spec f, (func_ptr spec f |-- !! isptr f)%logic.

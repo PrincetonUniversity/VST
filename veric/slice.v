@@ -1,4 +1,4 @@
-Require Import VST.veric.base.
+Require Import VST.veric.general_base.
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.shares.
 Require Import VST.veric.compcert_rmaps.
@@ -951,17 +951,17 @@ Proof.
   apply pred_ext; intros w; simpl; intros.
   + destruct H5 as [H5 Hg].
     destruct (make_slice_rmap w P P_DEC q_sh) as [w1 [? ?]].
-    Focus 1. {
+    {
       intros; specialize (H5 l).
       rewrite if_false in H5 by auto.
       auto.
-    } Unfocus.
+    }
     destruct (make_slice_rmap w P P_DEC r_sh) as [w2 [? ?]].
-    Focus 1. {
+    {
       intros; specialize (H5 l).
       rewrite if_false in H5 by auto.
       auto.
-    } Unfocus.
+    }
     exists w1, w2.
     split3.
     - apply resource_at_join2; try congruence.

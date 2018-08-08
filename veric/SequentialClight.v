@@ -55,7 +55,7 @@ Proof.
  unfold semax.jsafeN in H6.
  subst m.
  assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
-   (Some (initial_world.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+   (Some (ghost_PCM.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
  { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
@@ -66,7 +66,7 @@ Proof.
  - destruct H0 as (?&?&?&Hg).
    econstructor.
    + red. red. fold (globalenv prog). eassumption.
-   + destruct (H1 (Some (initial_world.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
+   + destruct (H1 (Some (ghost_PCM.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
      { eexists; apply join_comm, core_unit. }
      { rewrite Hg.
        destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }

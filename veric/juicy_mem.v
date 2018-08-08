@@ -1,3 +1,5 @@
+Require Import VST.veric.general_base.
+Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Import cjoins.
@@ -16,7 +18,6 @@ Definition perm_of_sh (sh: Share.t): option permission :=
                    then None
               else Some Nonempty.
 Functional Scheme perm_of_sh_ind := Induction for perm_of_sh Sort Prop.
-
 
 Definition contents_at (m: mem) (loc: address) : memval :=
   ZMap.get (snd loc) (PMap.get (fst loc) (mem_contents m)).
@@ -1630,7 +1631,7 @@ destruct (eq_dec b (nextblock m1)).
 subst.
 rewrite invalid_noaccess in H1; [ congruence |].
 contradict H0.
-red in H0. apply Plt_irrefl in H0. contradiction.
+red in H0. xomega. (*apply Plt_irrefl in H0. contradiction.*)
 rewrite PMap.gso by auto.
 auto.
 Qed.

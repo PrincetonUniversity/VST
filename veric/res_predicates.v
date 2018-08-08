@@ -1,13 +1,10 @@
 Require Import VST.msl.log_normalize.
-Require Export VST.veric.base.
+Require Export VST.veric.general_base.
 Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
-Require Import VST.veric.shares.
+Require Import VST.veric.compcert_rmaps.  
+Require Import VST.veric.shares. 
 Require Import VST.veric.address_conflict.
-
+Locate fundef.
 
 Import RML. Import R.
 Local Open Scope pred.
@@ -533,17 +530,17 @@ Proof.
   intros [? ?] ? ? ?.
   apply pred_ext; intros w; simpl; intros.
   + destruct (make_sub_rmap w Q Q_DEC) as [w1 [? ?]].
-    Focus 1. {
+    {
       intros. eapply H3; [| | eauto].
       + firstorder.
       + destruct H4; specialize (H4 l); if_tac in H4; [auto | firstorder].
-    } Unfocus.
+    }
     destruct (make_sub_rmap w R R_DEC) as [w2 [? ?]].
-    Focus 1. {
+    {
       intros. eapply H3; [| | eauto].
       + firstorder.
       + destruct H4; specialize (H4 l); if_tac in H4; [auto | firstorder].
-    } Unfocus.
+    }
     exists w1, w2.
     split3; auto.
     - apply resource_at_join2; try congruence.
@@ -836,11 +833,12 @@ Definition LKspec lock_size (R: pred rmap) : spec :=
                             (CTat l sh))
                     noat) && noghost.
 
+(*Lenb: moved to veric/seplog.v
 Definition packPQ {A: rmaps.TypeTree}
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
   forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
   fun ts a b => if b then P ts a else Q ts a.
-
+*)
 Definition TTat (l: address) : pred rmap := TT.
 
 (*
@@ -858,6 +856,7 @@ Definition fun_assert (fml: funsig) cc (A: TypeTree)
 
 (***********)
 
+(*Lenb: dead?
 Lemma ewand_lem1x:
   forall S P: mpred,
           S |-- P * TT ->
@@ -868,7 +867,7 @@ intros w ?. specialize (H w H0).
 destruct H as [w1 [w2 [? [? _]]]].
 exists w1; exists w2; split3; auto.
 exists w1; exists w; split3; auto.
-Qed.
+Qed.*)
 
 Lemma address_mapsto_old_parametric: forall ch v, 
    spec_parametric (fun l sh l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) sh l').
@@ -1109,35 +1108,34 @@ apply resource_at_approx.
 { apply ghost_of_approx. }
 exists phi.
 split.
-Focus 2.
-apply rmap_ext. do 2 rewrite level_core. auto.
-intro l; specialize (RESERVE l).
-rewrite <- core_resource_at. destruct H1. rewrite H1. unfold f.
-if_tac.
- rewrite core_YES.
- rewrite <- core_resource_at. rewrite RESERVE; auto.
- rewrite core_NO; auto.
- rewrite <- core_resource_at; rewrite core_idem; auto.
-{ rewrite <- core_ghost_of.
-  destruct H1 as [_ ->].
-  rewrite core_ghost_of; auto. } Unfocus.
-exists (encode_val ch v).
-split; [split|].
-split; auto.
-apply encode_val_length.
-intro l'.
-unfold jam.
-hnf.
-unfold yesat, yesat_raw, noat.
-unfold app_pred, proj1_sig. destruct H1; rewrite H1; clear H H1.
-unfold f; clear f.
-if_tac.
-exists rsh.
-f_equal.
-rewrite <- core_resource_at.
-apply core_identity.
-simpl.
-destruct H1 as [_ ->]; auto.
++ exists (encode_val ch v).
+  split; [split|].
+  split; auto.
+  apply encode_val_length.
+  intro l'.
+  unfold jam.
+  hnf.
+  unfold yesat, yesat_raw, noat.
+  unfold app_pred, proj1_sig. destruct H1; rewrite H1; clear H H1.
+  unfold f; clear f.
+  if_tac.
+  exists rsh.
+  f_equal.
+  rewrite <- core_resource_at.
+  apply core_identity.
+  simpl.
+  destruct H1 as [_ ->]; auto.
++ apply rmap_ext. do 2 rewrite level_core. auto.
+  intro l; specialize (RESERVE l).
+  rewrite <- core_resource_at. destruct H1. rewrite H1. unfold f.
+  if_tac.
+  rewrite core_YES.
+  rewrite <- core_resource_at. rewrite RESERVE; auto.
+  rewrite core_NO; auto.
+  rewrite <- core_resource_at; rewrite core_idem; auto.
+  { rewrite <- core_ghost_of.
+    destruct H1 as [_ ->].
+    rewrite core_ghost_of; auto. }
 Qed.
 
 (*  NOT TRUE, because readable doesn't constraint NoneP ...
@@ -1184,12 +1182,12 @@ Proof.
            (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
            (SomeP (ConstType unit) (fun _ => tt))
       else identity (w @ b1))).
-  Focus 1. {
+  {
     intros.
     destruct H1 as [b0 [? ?]].
     exists (decode_val ch b0), b0.
     tauto.
-  } Unfocus.
+  } 
   rewrite !size_chunk_conv in *.
   forget (size_chunk_nat ch) as n; clear - H0.
 
@@ -1202,14 +1200,14 @@ Proof.
          YES sh rsh
            (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
            (SomeP (ConstType unit) (fun _ => tt)))).
-  Focus 1. {
+  {
     intros.
     destruct H as [b0 H].
     exists b0.
     split; [tauto |].
     intros b; specialize (H0 b).
     if_tac; [apply (proj2 H) |]; auto.
-  } Unfocus.
+  } 
 
   assert (forall b : address,
     adr_range l (Z.of_nat n) b ->
@@ -1217,11 +1215,11 @@ Proof.
           w @ b =
           YES sh rsh (VAL b0)
             (SomeP (ConstType unit) (fun _ => tt))).
-  Focus 1. {
+  {
     intros.
     specialize (H0 b).
     if_tac in H0; tauto.
-  } Unfocus.
+  } 
   clear H0.
 
   destruct l as [bl ofs].
@@ -1683,11 +1681,11 @@ Lemma nonlock_permission_bytes_not_nonunit: forall sh p n,
 Proof.
   intros.
   assert (sh = Share.bot).
-  Focus 1. {
+  {
     destruct (dec_share_identity sh).
     + apply identity_share_bot; auto.
     + apply nonidentity_nonunit in n0; tauto.
-  } Unfocus.
+  } 
   subst.
   intros ? ?. simpl in H.
   do 3 red.
@@ -1823,7 +1821,7 @@ Lemma VALspec_range_overlap: forall sh l1 n1 l2 n2,
   range_overlap l1 n1 l2 n2 ->
   VALspec_range n1 sh l1 * VALspec_range n2 sh l2 |-- FF.
 Proof.
-  intros.
+  intros. Locate  range_overlap_non_zero.
   pose proof range_overlap_non_zero _ _ _ _ H.
   apply range_overlap_spec in H; try tauto.
   destruct H.
@@ -1953,3 +1951,9 @@ Qed.
 
 Definition almost_empty rm: Prop:=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
+
+(*Lenb: moved here from veric.initial_world.v*)
+Definition no_locks phi :=
+  forall addr sh sh' z P,
+    phi @ addr <> YES sh sh' (LK z) P /\
+    phi @ addr <> YES sh sh' (CT z) P.

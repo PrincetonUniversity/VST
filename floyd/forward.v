@@ -46,7 +46,7 @@ Qed.
 Hint Resolve isptr_force_sem_add_ptr_int : prove_it_now.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
-Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) :
+Fixpoint mk_varspecs' (dl: list (ident * globdef Clight.fundef type)) (el: list (ident * type)) :
      list (ident * type) :=
  match dl with
  | (i,Gvar v)::dl' => mk_varspecs' dl' ((i, gvar_info v) :: el)
@@ -318,6 +318,23 @@ Ltac semax_func_cons_ext :=
       try solve [apply typecheck_return_value; auto]
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
+          | apply compute_funspecs_norepeat_e; reflexivity
+          | reflexivity
+          | reflexivity ]]]
+      || fail "Try 'eapply semax_func_cons_ext.'"
+              "To solve [semax_external] judgments, do 'eapply semax_ext.'"
+              "Make sure that the Espec declared using 'Existing Instance'
+               is defined as 'add_funspecs NullExtension.Espec Gprog.'"
+    |
+    ].
+
+Ltac my_semax_func_cons_ext PD :=
+  eapply semax_func_cons_ext;
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | semax_func_cons_ext_tc;
+      try solve [apply typecheck_return_value; auto]
+    | solve[ first [eapply semax_ext;
+          [ (*repeat first [reflexivity | left; reflexivity | right]*) unfold ext_link_prog; rewrite PD; apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
           | reflexivity
           | reflexivity ]]]

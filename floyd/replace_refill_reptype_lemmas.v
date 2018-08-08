@@ -8,6 +8,7 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import Coq.Classes.RelationClasses.
 Require Import VST.floyd.sublist.
 
+Require Import VST.floyd.stronger.
 Section SINGLE_HOLE.
 
 Context {cs: compspecs}.
@@ -58,8 +59,6 @@ Lemma upd_Znth_ints i xints v:
 Proof. unfold upd_Znth; intros. rewrite map_app. simpl.
   do 2 rewrite sublist_map; trivial.
 Qed.
-
-Require Import VST.floyd.stronger.
 
 Lemma upd_reptype_data_equal: forall t gfs v v0 v1, data_equal v0 v1 -> data_equal (upd_reptype t gfs v v0) (upd_reptype t gfs v v1).
 Proof.

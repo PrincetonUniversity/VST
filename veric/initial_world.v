@@ -11,7 +11,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.age_to_resource_at.
-
+Locate join_bot.
 Local Open Scope pred.
 
 Obligation Tactic := idtac.
@@ -474,6 +474,10 @@ Qed.
    3. The holding thread must be able to synchronize with the outside world
       to change the value.
    For this purpose, we use the reference PCM. *)
+
+Require Import VST.veric.ghost_PCM.
+
+(*moved to separate file ghost_PCM.v:
 Require Import VST.msl.ghost.
 Section Reference.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
@@ -564,7 +568,8 @@ Qed.
 
 Definition ext_ref {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
   existT _ (ext_PCM _) (exist _ _ (valid_ext_ref ora)).
-
+*)
+         
 Program Definition initial_core_ext {Z} (ora : Z) (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
   proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) _ n _ eq_refl).
 Next Obligation.
@@ -732,11 +737,11 @@ intros.
 
         replace ((n + Z.to_pos (Z.succ (Zlength (p ::dl))))%positive) with
           ((Pos.succ n) + Z.to_pos (Zlength (p ::dl)))%positive.
-          Focus 2. clear - n dl. rewrite Z2Pos.inj_succ.
+        2: { clear - n dl. rewrite Z2Pos.inj_succ.
                    rewrite Pplus_one_succ_r. rewrite Pplus_one_succ_l.
                      rewrite Pos.add_assoc. trivial.
                    rewrite Zlength_correct. simpl.
-                     rewrite Pos.of_nat_succ. apply Pos2Z.is_pos.
+                     rewrite Pos.of_nat_succ. apply Pos2Z.is_pos. }
         simpl in H0. inv H0.
         assert (a<>i /\ ~ In i (map fst (p::dl))) by (clear - H; intuition).
         clear H; destruct H0.
@@ -971,7 +976,7 @@ Lemma add_globals_hack:
                             nth_error (map (@fst _ _) vl) (length vl - Pos.to_nat b)  = Some id)).
 Proof. intros. subst.
      apply iff_trans with (nth_error (map fst (rev vl)) (nat_of_Z (Zpos b - 1)) = Some id).
-Focus 2. {
+   2: {
    rewrite map_rev; rewrite nth_error_rev.
              replace (length (map fst vl) - nat_of_Z (Zpos b - 1) - 1)%nat
                         with (length vl - Pos.to_nat b)%nat ; [intuition | ].
@@ -987,7 +992,7 @@ Focus 2. {
   forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
   apply inj_lt_rev. rewrite nat_of_Z_max; auto.
   rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
-} Unfocus.
+} 
     rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;
        try rewrite Zlength_nil in *.
@@ -1006,7 +1011,7 @@ Focus 2. {
         rewrite nth_error_app.
         apply iff_trans with (i=id); [ | simpl; split; intro; subst; auto; inv H; auto].
         rewrite In_rev in H2. rewrite <- map_rev in H2.
-       rewrite <- Clight_lemmas.list_norepet_rev in H3. rewrite <- map_rev in H3.
+       rewrite <- list_norepet_rev in H3. rewrite <- map_rev in H3.
          forget (rev vl) as dl.
     assert (FSA := find_symbol_add_globals i g  id _ prog_pub H2 H3).
         destruct dl.
@@ -1121,7 +1126,7 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  split.
  rewrite Zlength_correct in RANGE.
  rewrite rev_length in RANGE. omega.
- rewrite <- Clight_lemmas.list_norepet_rev in H.
+ rewrite <- list_norepet_rev in H.
  unfold prog_defs_names in H.
  change (AST.prog_defs prog) with (prog_defs prog) in H.
  rewrite <- map_rev in H.
@@ -1380,31 +1385,31 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-Focus 2.
-rewrite rev_length. clear - RANGE.
-destruct RANGE.
-apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega.
+2 : {
+      rewrite rev_length. clear - RANGE.
+      destruct RANGE.
+      apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega. }
 rename H1 into H5.
 replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
-Focus 2. rewrite rev_length.
-clear - RANGE.
-replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
-assert (nat_of_Z (Z.pos b) <= length dl)%nat.
-destruct RANGE.
-apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq by omega. auto.
-assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff.
-rewrite Coqlib.nat_of_Z_eq by omega.  simpl. omega.
-omega. destruct RANGE as [? _].
-apply nat_of_Z_lem1.
-assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-pose proof (Pos2Nat.is_pos b); omega.
-omega.
+2 : { rewrite rev_length.
+      clear - RANGE.
+      replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
+      assert (nat_of_Z (Z.pos b) <= length dl)%nat.
+      destruct RANGE.
+      apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq by omega. auto.
+      assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff.
+      rewrite Coqlib.nat_of_Z_eq by omega.  simpl. omega.
+      omega. destruct RANGE as [? _].
+      apply nat_of_Z_lem1.
+      assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
+      pose proof (Pos2Nat.is_pos b); omega.
+      omega. }
 assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
-clear - RANGE.
-destruct RANGE; split.
-apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq; try omega. simpl. auto.
-apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq; try omega.
+{ clear - RANGE.
+  destruct RANGE; split.
+  apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq; try omega. simpl. auto.
+  apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq; try omega. }
 clear RANGE; rename H0 into RANGE.
 unfold nat_of_Z in *. rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
@@ -1417,41 +1422,41 @@ simpl in H1,Hm.
 invSome.
 specialize (IHdl _ Hm).
 destruct (eq_dec (Pos.to_nat b) (S (length dl))).
-rewrite e, minus_diag in H5. simpl in H5.
-inversion H5; clear H5; subst a.
-apply alloc_globals_rev_nextblock in Hm.
-rewrite Zlength_correct in Hm.
-rewrite <- inj_S in Hm. rewrite <- e in Hm.
- rewrite positive_nat_Z in Hm.  rewrite Pos2Z.id in Hm.
- subst b.
-clear IHdl H1 H0. clear dl e.
-unfold Genv.alloc_global in H6.
-revert H6; case_eq (alloc m0 0 1); intros.
-unfold drop_perm in H6.
-destruct (range_perm_dec m1 b 0 1 Cur Freeable).
-unfold max_access_at, access_at; inv H6.
-simpl. apply alloc_result in H0. subst b.
-rewrite PMap.gss.
-simpl. auto.
-inv H6.
-destruct IHdl.
-omega.
-replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
-apply H5.
-simpl. destruct (Pos.to_nat b); omega.
-assert (b < nextblock m0)%positive.
-apply alloc_globals_rev_nextblock in Hm.
-rewrite Zlength_correct in Hm. clear - Hm n H1.
-rewrite Hm.
-apply Pos2Nat.inj_lt.
-pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-rewrite Z2Pos.id by omega.
-rewrite Z2Nat.inj_succ by omega.
-rewrite Nat2Z.id. omega.
-destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
-unfold max_access_at.
-rewrite <- H8.
-split; auto.
++ rewrite e, minus_diag in H5. simpl in H5.
+  inversion H5; clear H5; subst a.
+  apply alloc_globals_rev_nextblock in Hm.
+  rewrite Zlength_correct in Hm.
+  rewrite <- inj_S in Hm. rewrite <- e in Hm.
+  rewrite positive_nat_Z in Hm.  rewrite Pos2Z.id in Hm.
+  subst b.
+  clear IHdl H1 H0. clear dl e.
+  unfold Genv.alloc_global in H6.
+  revert H6; case_eq (alloc m0 0 1); intros.
+  unfold drop_perm in H6.
+  destruct (range_perm_dec m1 b 0 1 Cur Freeable).
+  unfold max_access_at, access_at; inv H6.
+  simpl. apply alloc_result in H0. subst b.
+  rewrite PMap.gss.
+  simpl. auto.
+  inv H6.
++ destruct IHdl.
+  omega.
+  replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
+  apply H5.
+  simpl. destruct (Pos.to_nat b); omega.
+  assert (b < nextblock m0)%positive.
+  apply alloc_globals_rev_nextblock in Hm.
+  rewrite Zlength_correct in Hm. clear - Hm n H1.
+  rewrite Hm.
+  apply Pos2Nat.inj_lt.
+  pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
+  rewrite Z2Pos.id by omega.
+  rewrite Z2Nat.inj_succ by omega.
+  rewrite Nat2Z.id. omega.
+  destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
+  unfold max_access_at.
+  rewrite <- H8.
+  split; auto.
 Qed.
 
 Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
@@ -1563,31 +1568,31 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-Focus 2.
-rewrite rev_length. clear - RANGE.
-destruct RANGE.
-apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega.
+2 : {
+  rewrite rev_length. clear - RANGE.
+  destruct RANGE.
+  apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega. }
 rename H1 into H5.
 replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
- with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
-Focus 2. rewrite rev_length.
-clear - RANGE.
-replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
-assert (nat_of_Z (Z.pos b) <= length dl)%nat.
-destruct RANGE.
-apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq by omega. auto.
-assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff.
-rewrite Coqlib.nat_of_Z_eq by omega.  simpl. omega.
-omega. destruct RANGE as [? _].
-apply nat_of_Z_lem1.
-assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
-pose proof (Pos2Nat.is_pos b); omega.
-omega.
+  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
+2 : { rewrite rev_length.
+  clear - RANGE.
+  replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
+  assert (nat_of_Z (Z.pos b) <= length dl)%nat.
+  destruct RANGE.
+  apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq by omega. auto.
+  assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff.
+  rewrite Coqlib.nat_of_Z_eq by omega.  simpl. omega.
+  omega. destruct RANGE as [? _].
+  apply nat_of_Z_lem1.
+  assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
+  pose proof (Pos2Nat.is_pos b); omega.
+  omega. }
 assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
-clear - RANGE.
-destruct RANGE; split.
-apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq; try omega. simpl. auto.
-apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq; try omega.
+{ clear - RANGE.
+  destruct RANGE; split.
+  apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq; try omega. simpl. auto.
+  apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq; try omega. }
 clear RANGE; rename H0 into RANGE.
 unfold nat_of_Z in *. rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
@@ -1600,41 +1605,41 @@ simpl in H1,Hm.
 invSome.
 specialize (IHdl _ Hm).
 destruct (eq_dec (Pos.to_nat b) (S (length dl))).
-rewrite e, minus_diag in H5. simpl in H5.
-inversion H5; clear H5; subst a.
-apply alloc_globals_rev_nextblock in Hm.
-rewrite Zlength_correct in Hm.
-rewrite <- inj_S in Hm. rewrite <- e in Hm.
- rewrite positive_nat_Z in Hm.  rewrite Pos2Z.id in Hm.
- subst b.
-clear IHdl H1 H0. clear dl e.
-unfold Genv.alloc_global in H6.
-revert H6; case_eq (alloc m0 0 1); intros.
-unfold drop_perm in H6.
-destruct (range_perm_dec m1 b 0 1 Cur Freeable).
-unfold max_access_at, access_at; inv H6.
-simpl. apply alloc_result in H0. subst b.
-rewrite PMap.gss.
-simpl. auto.
-inv H6.
-destruct IHdl.
-omega.
-replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
-apply H5.
-simpl. destruct (Pos.to_nat b); omega.
-assert (b < nextblock m0)%positive.
-apply alloc_globals_rev_nextblock in Hm.
-rewrite Zlength_correct in Hm. clear - Hm n H1.
-rewrite Hm.
-apply Pos2Nat.inj_lt.
-pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
-rewrite Z2Pos.id by omega.
-rewrite Z2Nat.inj_succ by omega.
-rewrite Nat2Z.id. omega.
-destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
-unfold max_access_at.
-rewrite <- H8.
-split; auto.
++ rewrite e, minus_diag in H5. simpl in H5.
+  inversion H5; clear H5; subst a.
+  apply alloc_globals_rev_nextblock in Hm.
+  rewrite Zlength_correct in Hm.
+  rewrite <- inj_S in Hm. rewrite <- e in Hm.
+  rewrite positive_nat_Z in Hm.  rewrite Pos2Z.id in Hm.
+  subst b.
+  clear IHdl H1 H0. clear dl e.
+  unfold Genv.alloc_global in H6.
+  revert H6; case_eq (alloc m0 0 1); intros.
+  unfold drop_perm in H6.
+  destruct (range_perm_dec m1 b 0 1 Cur Freeable).
+  unfold max_access_at, access_at; inv H6.
+  simpl. apply alloc_result in H0. subst b.
+  rewrite PMap.gss.
+  simpl. auto.
+  inv H6.
++ destruct IHdl.
+  omega.
+  replace (length (a::dl) - Pos.to_nat b)%nat with (S (length dl - Pos.to_nat b))%nat in H5.
+  apply H5.
+  simpl. destruct (Pos.to_nat b); omega.
+  assert (b < nextblock m0)%positive.
+  { apply alloc_globals_rev_nextblock in Hm.
+    rewrite Zlength_correct in Hm. clear - Hm n H1.
+    rewrite Hm.
+    apply Pos2Nat.inj_lt.
+    pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
+    rewrite Z2Pos.id by omega.
+    rewrite Z2Nat.inj_succ by omega.
+    rewrite Nat2Z.id. omega. }
+  destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
+  unfold max_access_at.
+  rewrite <- H8.
+  split; auto.
 Qed.
 
 Definition initial_jm_ext {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)

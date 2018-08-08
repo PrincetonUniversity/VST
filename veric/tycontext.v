@@ -2,12 +2,18 @@ Require Import VST.msl.msl_standard.
 Require Import VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.composite_compute.
+
+(*Clight-specific Imports*)
+Require Import VST.veric.Clight_lemmas. 
+(*Require Import VST.veric.composite_compute.*)
 Require Import VST.veric.align_mem.
+
 Require Export VST.veric.lift.
 
-Definition type_is_by_value t : bool :=
+Require Export VST.veric.mpred.
+
+(*Moved to mpred.v /
+Definition type_is_by_value (t:type) : bool :=
   match t with
   | Tint _ _ _
   | Tlong _ _
@@ -106,11 +112,15 @@ Definition ve_of (rho: environ) : venviron :=
 
 Definition te_of (rho: environ) : tenviron :=
   match rho with mkEnviron ge ve te => te end.
+ *)
 
+(*moved to coqlib4
 Definition opt2list (A: Type) (x: option A) :=
   match x with Some a => a::nil | None => nil end.
 Arguments opt2list [A] _.
+ *)
 
+(*mopved to mpred.v
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
 
@@ -120,7 +130,7 @@ Definition idset0 : idset := PTree.empty _.
 Definition idset1 (id: ident) : idset := PTree.set id tt idset0.
 Definition insert_idset (id: ident) (S: idset) : idset :=
          PTree.set id tt S.
-
+*)
 Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  match c with
  | Sset id e => insert_idset id S
@@ -140,14 +150,15 @@ Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  | LScons _ c ls => modifiedvars' c (modifiedvars_ls ls S)
  end.
 
+(*moved to coqlib4
 Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
-Definition isOK {A} (P: Errors.res A) := match P with Errors.OK _ => true | _ => false end.
-
 Definition isSome_dec: forall {A} (P: option A), isSome P + ~ isSome P.
 Proof.
   intros.
   destruct P; simpl; auto.
 Defined.
+*)
+Definition isOK {A} (P: Errors.res A) := match P with Errors.OK _ => true | _ => false end.
 
 Lemma modifiedvars'_union:
  forall id c S,
@@ -205,9 +216,12 @@ Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) .
 
 Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
-Definition test := true.
+(*Definition test := true.*)
+
+(*Lenb: Moved to mpred.v
 Definition any_environ : environ :=
   mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
+ *)
 
 (** Definitions related to function specifications and return assertions **)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -218,8 +232,10 @@ hnf. intros.
 decide equality.
 Defined.
 
+(*
+Lenb: moved to veric/mpred.v
 Definition mpred := pred rmap.
-
+Locate environ.
 Definition AssertTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType environ) Mpred).
 
@@ -242,20 +258,23 @@ Inductive funspec :=
    mk_funspec: funsig -> calling_convention -> forall (A: TypeTree)
      (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
      (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q),
-     funspec.
+     funspec.*)
 
 (* Causes a universe inconsistency in seplog.v!
 Definition example_f_spec :=
   (mk_funspec (nil,Tvoid) mpred (fun (x: mpred) rho => emp) (fun x rho => emp)).
 *)
 
+(*Moved to mpred.v
 Definition varspecs : Type := list (ident * type).
 
 Definition funspecs := list (ident * funspec).
 
+
 Definition in_members i (m: members): Prop :=
   In i (map fst m).
 
+Locate compute_list_norepet.
 Definition members_no_replicate (m: members) : bool :=
   compute_list_norepet (map fst m).
 
@@ -351,6 +370,12 @@ Defined.
 
 Definition type_of_funspec (fs: funspec) : type :=
   match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
+Parameter type_of_funspec: forall (fs: funspec), type.
+(*
+Definition type_of_funspec (fs: funspec) : type :=
+  match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
+ *)
+*)
 
 Inductive Annotation :=
   WeakAnnotation : (environ -> mpred) -> Annotation
@@ -450,6 +475,7 @@ Definition make_tycontext_g (V: varspecs) (G: funspecs) :=
          (PTree.empty _) V)
             G).
 
+(*Moved to mpred
 (* Define it this way to have more control over unfolding *)
   Fixpoint ptree_set {A : Type} (i : positive) (v : A) (m : PTree.t A) {struct i} : PTree.t A :=
     match m with
@@ -480,6 +506,7 @@ Fixpoint make_tycontext_s (G: funspecs) :=
  | nil => @PTree.Leaf funspec
  | b::r => let (id,f) := b in ptree_set id f (make_tycontext_s r)
  end.
+*)
 
 Definition make_tycontext_a (anns : list (ident * Annotation)) :=
  fold_right (fun (ia : ident * Annotation) aenv => let (id, a) := ia in PTree.set id a aenv)
@@ -754,7 +781,8 @@ exists b2, (temp_types (update_tycon Delta c)) ! id = Some (t,b || b2)
 with update_labeled_te_same : forall ls Delta id t b,
 (temp_types Delta) ! id = Some (t,b) ->
 exists b2, (temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b || b2) .
-Focus 1.
+
+{
 destruct c; intros; simpl; try_false.
 
 simpl. eapply temp_types_same_type; eauto.
@@ -783,6 +811,7 @@ eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
 apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*)
 
 simpl; auto.
+}
 
 intros. destruct ls. simpl. exists false.
 rewrite H. f_equal. f_equal. destruct b; reflexivity.

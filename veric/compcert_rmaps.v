@@ -1,14 +1,41 @@
 
 Require Export VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.general_base.
+Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.shares.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.rmaps_lemmas.
+Require Export VST.veric.Memory. (*for address, and eq_dec memval*)
 
+Instance EqDec_type: EqDec type := type_eq.
+
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
+(*moved to mpred
+Definition strict_bool_val (v: val) (t: type) : option bool :=
+   match v, t with
+   | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
+   | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
+   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
+             if Int.eq n Int.zero then Some false else None
+   | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
+            if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
+   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
+   | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero))
+   | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
+   | _, _ => None
+   end.
+*)
 Inductive kind : Type := VAL : memval -> kind
                                    | LK : Z -> kind
                                    | CT: Z -> kind
                                    | FUN: funsig -> calling_convention -> kind.
+
+(*Non-Ctypes.v- using variant:
+Inductive kind : Type := VAL : memval -> kind
+                                   | LK : Z -> kind
+                                   | CT: Z -> kind
+                                   | FUN: (*funsig -> calling_convention*)signature -> kind.
+ *)
 
 Definition isVAL (k: kind) := match k with | VAL _ => True | _ => False end.
 Definition isFUN (k: kind) := match k with | FUN _ _ => True | _ => False end.
@@ -228,7 +255,7 @@ Qed.
 
 Instance EqDec_kind: EqDec kind.
 Proof.
-  hnf. decide equality; try apply eq_dec; try apply zeq.
+  hnf. decide equality; try apply eq_dec; try apply zeq; try apply signature_eq.
 Qed.
 
 Module R := Rmaps (CompCert_AV).
@@ -266,7 +293,7 @@ Definition rshare_sh (p: rshare) : Share.t := proj1_sig p.
 Definition mk_pshare : forall p: Share.t, nonunit p -> pshare := exist nonunit.
 *)
 
-Lemma mk_rshare_sh: forall p (H: pure_readable_share (rshare_sh p)),
+Lemma mk_rshare_sh: forall (p:rshare) (H: pure_readable_share (rshare_sh p)),
   mk_rshare (rshare_sh p) H = p.
 Proof.
   intros.

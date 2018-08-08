@@ -9,6 +9,10 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 
+Require Import VST.veric.res_predicates.
+Require Import compcert.cfrontend.Clight.
+Require Import compcert.exportclight.Clightdefs.
+
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 
@@ -118,8 +122,6 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (funspec2post ext_link A Q id sig)
         (fun rv z m => False)
   end.
-
-Require Import VST.veric.res_predicates.
 
 Local Open Scope pred.
 

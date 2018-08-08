@@ -20,6 +20,7 @@ Require Export VST.msl.log_normalize.
 Require Export VST.msl.ramification_lemmas.
 Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
+Require Export VST.veric.mpred.
 Require Export VST.veric.expr.
 Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
@@ -300,10 +301,10 @@ Definition precondition_closed (f: function) {A: rmaps.TypeTree}
   closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\
   closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
 
-Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
+Definition typed_true (t: type) (v: val)  : Prop :=  strict_bool_val v t
 = Some true.
 
-Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
+Definition typed_false (t: type)(v: val) : Prop :=  strict_bool_val v t =
 Some false.
 
 Definition subst {A} (x: ident) (v: environ -> val) (P: environ -> A) : environ -> A :=
@@ -1297,9 +1298,10 @@ Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
 Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 
 Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
-  compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+    compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+
 Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && general_seplog.func_at f (b, 0).
 
 Axiom semax_call :
   forall {Espec: OracleKind}{CS: compspecs},

@@ -21,6 +21,9 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
 
+Require Import Coq.Logic.JMeq.
+Require Import VST.veric.ghost_PCM.
+
 Local Open Scope pred.
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
@@ -204,15 +207,15 @@ simpl in H0.
 unfold compose in *.
 apply clos_trans_t1n in H0.
 revert H; induction H0; intros.
-Focus 2. apply IHclos_trans_1n.
-unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
-clear - H1.
-assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
-intros; rewrite H1; intuition.
-apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
-apply H0; auto. clear - H4.  unfold natLevel in *. omega.
-apply H2; auto. clear - H4.  unfold natLevel in *. omega.
-(* End Focus 2 *)
+2 : { apply IHclos_trans_1n.
+      unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
+      clear - H1.
+      assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
+      { intros; rewrite H1; intuition. }
+      apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
+      apply H0; auto. clear - H4.  unfold natLevel in *. omega.
+      apply H2; auto. clear - H4.  unfold natLevel in *. omega. }
+
 unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
 intros z ?.
 split; intros ? ? ?.
@@ -231,8 +234,6 @@ omega.
 rewrite <- H0 in H3.
 simpl in H3. destruct H3; auto.
 Qed.
-
-Require Import Coq.Logic.JMeq.
 
 Lemma semax_func_cons_aux:
   forall (psi: genv) id fsig1 cc1 A1 P1 Q1 NEP1 NEQ1 fsig2 cc2 A2 P2 Q2 (V: varspecs) (G': funspecs) {C: compspecs} b fs,
@@ -865,10 +866,8 @@ Qed.
 (* there's a place this lemma should be applied, perhaps in proof of semax_call *)
 Lemma funassert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
-Proof.
-unfold funassert; intros.
-rewrite H; auto.
-Qed.
+Proof. intros. apply funspecs_assert_rho; trivial. Qed.
+(*Lenb: maybe move to seplog?*)
 
 Lemma core_inflate_initial_mem:
   forall (m: mem) (prog: program) (G: funspecs) (n: nat)

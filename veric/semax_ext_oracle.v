@@ -7,11 +7,14 @@ Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_mem_ops.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.juicy_extspec.
+Require Import cfrontend.Clight.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
+Require Import VST.veric.res_predicates.
+
 
 (* NOTE.   ext_link: Strings.String.string -> ident
    represents the mapping from the _name_ of an external function
@@ -65,8 +68,6 @@ Definition funspecOracle2extspec (ext_link: Strings.String.string -> ident) (f :
         (funspecOracle2post ext_link A Q id sig)
         (fun rv z m => False)
   end.
-
-Require Import VST.veric.res_predicates.
 
 Local Open Scope pred.
 

@@ -5,6 +5,8 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.expr.
 
+Require Import VST.veric.mpred.
+
 Lemma neutral_cast_lemma: forall t1 t2 v,
   is_neutral_cast t1 t2 = true ->
   tc_val t1 v -> eval_cast t1 t2 v = v.

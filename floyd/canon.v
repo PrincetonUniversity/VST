@@ -115,7 +115,7 @@ Lemma approx_sepcon: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  apply seplog.approx_sepcon.
+  apply general_seplog.approx_sepcon.
 Qed.
 
 Lemma approx_andp: forall (P Q: mpred) n,
@@ -124,7 +124,7 @@ Lemma approx_andp: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  apply seplog.approx_andp.
+  apply general_seplog.approx_andp.
 Qed.
 
 Lemma approx_exp: forall A (P: A -> mpred) n,
@@ -132,7 +132,7 @@ Lemma approx_exp: forall A (P: A -> mpred) n,
   EX a: A, compcert_rmaps.RML.R.approx n (P a).
 Proof.
   intros.
-  apply seplog.approx_exp.
+  apply general_seplog.approx_exp.
 Qed.
 
 Lemma approx_allp: forall A (P: A -> mpred) n,
@@ -141,7 +141,7 @@ Lemma approx_allp: forall A (P: A -> mpred) n,
   ALL a: A, compcert_rmaps.RML.R.approx n (P a).
 Proof.
   intros.
-  eapply seplog.approx_allp; auto.
+  eapply general_seplog.approx_allp; auto.
 Qed.
 
 Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> mpred) n (b : B) :
@@ -151,7 +151,7 @@ Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: 
     (base.compose (compcert_rmaps.RML.R.approx n) Q) b.
 Proof.
   intros.
-  eapply seplog.approx_jam; auto.
+  eapply general_seplog.approx_jam; auto.
 Qed.
 Opaque rmaps.dependent_type_functor_rec.
 (*
@@ -279,10 +279,10 @@ Proof.
       (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%logic)
     with
       (fun P0 => (prop (a P0) && prop (fold_right and True (map (fun P1 => P1 P0) P)))%logic).
-    Focus 2. {
+    2: {
       extensionality S.
       rewrite prop_and; auto.
-    } Unfocus.
+    } 
     apply (conj_nonexpansive (fun S => @prop mpred Nveric (a S)) _).
     - inversion H; auto.
     - apply IHP.

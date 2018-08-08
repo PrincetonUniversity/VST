@@ -41,7 +41,7 @@ Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f
   end.
 
 Definition try_spec  (name: string) (spec: funspec) : 
-   list (ident * globdef fundef type) -> list (ident*funspec) :=
+   list (ident * globdef Clight.fundef type) -> list (ident*funspec) :=
 fun defs => 
  match ext_link_prog' defs name with
  | Some id => [(id,spec)]

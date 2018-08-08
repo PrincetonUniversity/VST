@@ -1,12 +1,14 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.lift.
 Require Export VST.veric.Cop2.
 Require Export VST.veric.val_lemmas.
 
+(*moved to compcert_rmaps
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
 Definition strict_bool_val (v: val) (t: type) : option bool :=
@@ -22,7 +24,9 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
    | _, _ => None
    end.
+*)
 
+(*moved to mpred
 (* TWO ALTERNATE WAYS OF DOING LIFTING *)
 (* LIFTING METHOD ONE: *)
 Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
@@ -43,10 +47,12 @@ Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
 
+Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
+
+ *)
+
 (** Functions for evaluating expressions in environments,
 these return vundef if something goes wrong, meaning they always return some value **)
-
-Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
 Definition eval_unop (op: Cop.unary_operation) (t1 : type) :=
        force_val1 (Cop2.sem_unary_operation op t1).
@@ -1113,6 +1119,7 @@ Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : 
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
+(*moved to mpred
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
 
@@ -1127,7 +1134,8 @@ Proof.
  unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
-
+*)
+                                                                           
 Definition typecheck_store e1 :=
 (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
 (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).

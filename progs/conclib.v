@@ -1,3 +1,4 @@
+Require Import VST.veric.ghost_PCM.
 Require Export VST.msl.iter_sepcon.
 Require Export VST.concurrency.semax_conc_pred.
 Require Export VST.concurrency.semax_conc.
@@ -1078,7 +1079,7 @@ Proof.
   induction 2; auto.
 Qed.
 
-Lemma map_id_eq : forall {A} (l : list A), map id l = l.
+Lemma map_id_eq : forall {A} (l : list A), map (@id A) l = l.
 Proof.
   induction l; auto.
   simpl; apply f_equal; auto.
@@ -1856,7 +1857,7 @@ Proof.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
-        apply lookup_distinct with (f0:=id); auto.
+        apply lookup_distinct with (f0:=@id type); auto.
         { apply Hdistinct.
           rewrite in_map_iff; eexists; split; eauto. }
     + intros.
@@ -2292,7 +2293,7 @@ Proof.
 Qed.
 Hint Resolve unreadable_bot.
 
-Definition join_Bot := initial_world.join_Bot.
+Definition join_Bot := join_Bot.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
 Proof.
