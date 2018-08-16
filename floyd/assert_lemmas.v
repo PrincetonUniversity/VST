@@ -198,6 +198,38 @@ Lemma subst_exp:
     subst a v (EX b: B, P b) = EX b: B, subst a v (P b).
 Proof. intros; reflexivity. Qed.
 
+Lemma env_set_env_set: forall id v1 v2 rho, env_set (env_set rho id v1) id v2 = env_set rho id v2.
+Proof.
+  intros.
+  unfold env_set.
+  f_equal.
+  apply Map.ext. intro j.
+  destruct (eq_dec id j). subst. repeat rewrite Map.gss. f_equal.
+  simpl.
+  repeat rewrite Map.gso by auto. auto.
+Qed.
+
+Lemma env_set_eval_id: forall id rho Delta t,
+  tc_environ Delta rho ->
+  (temp_types Delta) ! id = Some t ->
+  env_set rho id (eval_id id rho) = rho.
+Proof.
+  intros.
+  destruct H as [? _].
+  specialize (H _ _ H0).
+  destruct H as [? [? ?]].
+  unfold eval_id, env_set, force_val.
+  destruct rho; simpl in *.
+  f_equal.
+  rewrite H.
+  apply Map.ext.
+  intros.
+  destruct (Pos.eq_dec id x0).
+  - subst.
+    rewrite Map.gss; auto.
+  - rewrite Map.gso; auto.
+Qed.
+
 Lemma resubst: forall {A} i (v v1: val) (e: environ -> A), subst i (`v1) (subst i `(v) e) = subst i `(v) e.
 Proof.
  intros. extensionality rho. unfold subst.
@@ -212,7 +244,7 @@ Qed.
 
 Hint Rewrite @resubst : subst.
 
-Lemma resubst_full: forall {A} i (v: environ -> val) (v1: val) (e: environ -> A), subst i (`v1) (subst i v e) = subst i (subst i (`v1) v) e.
+Lemma resubst_full: forall {A} i (v: environ -> val) v1 (e: environ -> A), subst i v1 (subst i v e) = subst i (subst i v1 v) e.
 Proof.
   intros.
   extensionality rho. unfold subst.

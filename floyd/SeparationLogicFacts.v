@@ -1057,6 +1057,50 @@ Axiom semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
 
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall sh id P e1 t1 (v2: val),
+    typeof_temp Delta id = Some t1 ->
+   cast_pointer_to_bool (typeof e1) t1 = false ->
+    readable_share sh ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    @semax CS Espec Delta
+       (|> ( (tc_lvalue Delta e1) &&
+       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+          P))
+       (Sset id (Ecast e1 t1))
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1 v2)))) &&
+                                          (subst id (`old) P))).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
+              !! (e = Ecast e1 t1 /\
+                  typeof_temp Delta id = Some t1 /\
+                  cast_pointer_to_bool (typeof e1) t1 = false /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
+        (Sset id e) (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
+
 Module CSHL_LoadF2B
        (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
@@ -1162,6 +1206,115 @@ Qed.
 
 End CSHL_LoadB2F.
 
+Module CSHL_CastLoadF2B
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
+       (CSHL_CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_Extr.
+Import CSHL_ExtrFacts.
+Import CSHL_CastLoadF.
+
+Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
+              !! (e = Ecast e1 t1 /\
+                  typeof_temp Delta id = Some t1 /\
+                  cast_pointer_to_bool (typeof e1) t1 = false /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
+        (Sset id e) (normal_ret_assert P).
+Proof.
+  intros.
+  apply semax_extract_exists; intro sh.
+  apply semax_extract_exists; intro e1.
+  apply semax_extract_exists; intro t2.
+  apply semax_extract_exists; intro v2.
+  apply semax_extract_prop; intros [He [? [? ?]]].
+  subst e.
+  eapply semax_post'; [.. | eapply semax_cast_load_forward; eauto].
+  + rewrite exp_andp2.
+    apply exp_left; intros old.
+    autorewrite with subst.
+    apply derives_trans with (local (tc_environ Delta) && (local ((` eq) (eval_id id) (subst id (` old) ((` (eval_cast (typeof e1) t2)) (` v2))))) && subst id (`(force_val (sem_cast (typeof e1) t2 v2))) P); [solve_andp |].
+    intro rho; unfold local, lift1; unfold_lift; simpl.
+    unfold typeof_temp in H.
+    destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+    normalize.
+    erewrite subst_self by eauto; auto.
+  + solve_andp.
+Qed.
+
+End CSHL_CastLoadF2B.
+
+Module CSHL_CastLoadB2F
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_CastLoadB.
+
+Theorem semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall sh id P e1 t1 (v2: val),
+    typeof_temp Delta id = Some t1 ->
+   cast_pointer_to_bool (typeof e1) t1 = false ->
+    readable_share sh ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT ->
+    @semax CS Espec Delta
+       (|> ( (tc_lvalue Delta e1) &&
+       local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+          P))
+       (Sset id (Ecast e1 t1))
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1 v2)))) &&
+                                          (subst id (`old) P))).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_cast_load_backward].
+  apply (exp_right sh).
+  apply (exp_right e1).
+  apply (exp_right t1).
+  apply (exp_right v2).
+  apply andp_right; [apply prop_right; auto |].
+  apply later_ENTAIL.
+  apply andp_ENTAIL; [apply ENTAIL_refl |].
+  apply andp_right; auto.
+  rewrite subst_exp.
+  intros rho.
+  change (local (tc_environ Delta) rho && P rho
+  |-- EX b : val,
+       subst id (` (force_val (sem_cast (typeof e1) t1 v2))) (local ((` eq) (eval_id id) (subst id (` b) (` (eval_cast (typeof e1) t1 v2)))) && subst id (` b) P) rho).
+  apply (exp_right (eval_id id rho)).
+  autorewrite with subst.
+  unfold local, lift1; unfold_lift; simpl.
+  unfold typeof_temp in H.
+  destruct ((temp_types Delta) ! id) eqn:?H; inv H.
+  normalize.
+  apply andp_right; [| erewrite subst_self by eauto; auto].
+  apply prop_right.
+  unfold subst.
+  apply eval_id_same.
+Qed.
+
+End CSHL_CastLoadB2F.
+
 Module CSHL_SetF2B
        (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CSHL_IConseq: CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
@@ -1247,6 +1400,157 @@ Proof.
   apply later_ENTAIL.
   apply andp_right; [solve_andp |].
   rewrite subst_exp.
-Admitted.
+  intro rho.
+  simpl.
+  apply (exp_right (eval_id id rho)).
+  unfold_lift; unfold local, lift1.
+  simpl.
+  unfold subst.
+  normalize.
+  rewrite !env_set_env_set.
+  assert (tc_temp_id id (typeof e) Delta e rho |-- !! (env_set rho id (eval_id id rho) = rho)).
+  + unfold tc_temp_id, typecheck_temp_id.
+    destruct ((temp_types Delta) ! id) eqn:?H; [| apply FF_left].
+    apply prop_right.
+    eapply env_set_eval_id; eauto.
+  + rewrite (add_andp _ _ H0).
+    rewrite !andp_assoc.
+    apply andp_left2.
+    apply andp_left2.
+    normalize.
+    rewrite H1.
+    normalize.
+Qed.
 
 End CSHL_SetB2F.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall P id cmp e1 e2 ty sh1 sh2,
+    sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
+   is_comparison cmp = true  ->
+   eqb_type (typeof e1) int_or_ptr_type = false ->
+   eqb_type (typeof e2) int_or_ptr_type = false ->
+   typecheck_tid_ptr_compare Delta id = true ->
+   @semax CS Espec Delta
+        ( |> ( (tc_expr Delta e1) &&
+              (tc_expr Delta e2)  &&
+
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          P))
+          (Sset id (Ebinop cmp e1 e2 ty))
+        (normal_ret_assert
+          (EX old:val,
+                 local (`eq (eval_id id)  (subst id `(old)
+                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
+                       subst id `(old) P)).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
+
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Import CSHL_Def.
+
+Axiom semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall P id e,
+   @semax CS Espec Delta
+        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
+         EX ty: type, EX sh1: share, EX sh2: share,
+          !! (e = Ebinop cmp e1 e2 ty /\
+              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              is_comparison cmp = true /\
+              eqb_type (typeof e1) int_or_ptr_type = false /\
+              eqb_type (typeof e2) int_or_ptr_type = false /\
+              typecheck_tid_ptr_compare Delta id = true) &&
+            ( |> ( (tc_expr Delta e1) &&
+              (tc_expr Delta e2)  &&
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
+          (Sset id e)
+        (normal_ret_assert P).
+
+End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
+
+Module CSHL_PtrCompB2F
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_PtrCompB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_PtrCompB.
+
+Theorem semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall P id cmp e1 e2 ty sh1 sh2,
+    sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
+   is_comparison cmp = true  ->
+   eqb_type (typeof e1) int_or_ptr_type = false ->
+   eqb_type (typeof e2) int_or_ptr_type = false ->
+   typecheck_tid_ptr_compare Delta id = true ->
+   @semax CS Espec Delta
+        ( |> ( (tc_expr Delta e1) &&
+              (tc_expr Delta e2)  &&
+
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          P))
+          (Sset id (Ebinop cmp e1 e2 ty))
+        (normal_ret_assert
+          (EX old:val,
+                 local (`eq (eval_id id)  (subst id `(old)
+                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
+                       subst id `(old) P)).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_pointer_comparison_backward].
+  apply (exp_right cmp).
+  apply (exp_right e1).
+  apply (exp_right e2).
+  apply (exp_right ty).
+  apply (exp_right sh1).
+  apply (exp_right sh2).
+  apply andp_right; [apply prop_right; repeat split; auto |].
+  apply later_ENTAIL.
+  apply andp_ENTAIL; [apply ENTAIL_refl |].
+  rewrite subst_exp.
+  intros rho.
+  change (local (tc_environ Delta) rho && P rho
+  |-- EX b : val,
+       subst id (eval_expr (Ebinop cmp e1 e2 ty)) (local ((` eq) (eval_id id) (subst id (` b) (eval_expr (Ebinop cmp e1 e2 ty)))) && subst id (` b) P) rho).
+  apply (exp_right (eval_id id rho)).
+  autorewrite with subst.
+  unfold local, lift1; unfold_lift; simpl.
+  unfold typecheck_tid_ptr_compare in H4.
+  simpl in H4.
+  destruct ((temp_types Delta) ! id) eqn:?H; inv H4.
+  normalize.
+  apply andp_right.
+  + apply prop_right.
+    unfold subst.
+    unfold_lift.
+    rewrite env_set_env_set.
+    rewrite eval_id_same.
+    erewrite env_set_eval_id by eauto.
+    auto.
+  + unfold_lift.
+    rewrite resubst_full.
+    erewrite subst_self; eauto.
+Qed.
+
+End CSHL_PtrCompB2F.
