@@ -10,6 +10,7 @@ Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
 Require Import VST.floyd.assert_lemmas.
+Require Import VST.floyd.typecheck_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
 Local Open Scope logic.
 
@@ -185,50 +186,47 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
              (tc_temp_id id (typeof e) Delta e) &&
              subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P)
-| semax_ptr_compare: forall P id cmp e1 e2 ty sh1 sh2,
-    sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
-   is_comparison cmp = true  ->
-   eqb_type (typeof e1) int_or_ptr_type = false ->
-   eqb_type (typeof e2) int_or_ptr_type = false ->
-   typecheck_tid_ptr_compare Delta id = true ->
+| semax_ptr_compare_backward: forall P id e,
    @semax CS Espec Delta
-        ( |> ( (tc_expr Delta e1) &&
+        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
+         EX ty: type, EX sh1: share, EX sh2: share,
+          !! (e = Ebinop cmp e1 e2 ty /\
+              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              is_comparison cmp = true /\
+              eqb_type (typeof e1) int_or_ptr_type = false /\
+              eqb_type (typeof e2) int_or_ptr_type = false /\
+              typecheck_tid_ptr_compare Delta id = true) &&
+            ( |> ( (tc_expr Delta e1) &&
               (tc_expr Delta e2)  &&
-
           local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
           (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
           (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
-          P))
-          (Sset id (Ebinop cmp e1 e2 ty))
-        (normal_ret_assert
-          (EX old:val,
-                 local (`eq (eval_id id)  (subst id `(old)
-                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
-                            subst id `(old) P))
-| semax_load: forall  sh id P e1 t2 (v2: environ -> val),
-    typeof_temp Delta id = Some t2 ->
-    is_neutral_cast (typeof e1) t2 = true ->
-    readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+          subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
+          (Sset id e)
+        (normal_ret_assert P)
+| semax_load_backward: forall (P: environ->mpred) id e1,
     @semax CS Espec Delta
-       (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val (typeof e1)) v2) &&
-          P))
-       (Sset id e1)
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
-                                          (subst id (`old) P)))
-| semax_cast_load: forall sh id P e1 t1 (v2: environ -> val),
-    typeof_temp Delta id = Some t1 ->
-   cast_pointer_to_bool (typeof e1) t1 = false ->
-    readable_share sh ->
-    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+        (EX sh: share, EX t2: type, EX v2: val,
+              !! (typeof_temp Delta id = Some t2 /\
+                  is_neutral_cast (typeof e1) t2 = true /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val (typeof e1) v2)) &&
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`v2) P))
+        (Sset id e1) (normal_ret_assert P)
+| semax_cast_load_backward: forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-       (|> ( (tc_lvalue Delta e1) &&
-       local (`(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
-          P))
-       (Sset id (Ecast e1 t1))
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1) v2))) &&
-                                          (subst id (`old) P)))
+        (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
+              !! (e = Ecast e1 t1 /\
+                  typeof_temp Delta id = Some t1 /\
+                  cast_pointer_to_bool (typeof e1) t1 = false /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
+        (Sset id e) (normal_ret_assert P)
 | semax_store_backward: forall e1 e2 P,
    @semax CS Espec Delta
           (EX sh: share, !! writable_share sh && |> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  &&
@@ -304,40 +302,6 @@ Proof.
   + apply derives_bupd0_refl.
   + specialize (IHsemax H0).
     solve_derives_trans.
-Qed.
-
-Ltac reduce2ENTAIL :=
-  match goal with
-  | |- _ |-- |==> |> FF || _ => apply derives_bupd_derives_bupd0
-  | _ => idtac
-  end;
-  match goal with
-  | |- _ |-- |==> _ => apply ENTAIL_derives_bupd
-  | _ => idtac
-  end.
-
-Ltac reduce2derives :=
-  match goal with
-  | |- _ |-- |==> |> FF || _ => apply derives_bupd_derives_bupd0
-  | _ => idtac
-  end;
-  match goal with
-  | |- _ |-- |==> _ => apply ENTAIL_derives_bupd
-  | _ => idtac
-  end;
-  match goal with
-  | |- local (tc_environ _) && _ |-- _ => apply derives_ENTAIL
-  | _ => idtac
-  end.
-
-Lemma derives_bupd_bupd_left: forall TC P Q,
-  local TC && P |-- |==> Q ->
-  (local TC && |==> P) |-- |==> Q.
-Proof.
-  intros.
-  eapply derives_trans; [apply local_andp_bupd |].
-  eapply derives_trans; [apply bupd_mono, H |].
-  apply bupd_trans.
 Qed.
 
 Lemma semax_return_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P ret R,
@@ -525,6 +489,213 @@ Proof.
     apply wand_ENTAIL; [apply ENTAIL_refl |].
     apply derives_bupd_bupd_left, H1.
 Qed.
+
+Lemma neutral_cast_subsumption': forall t1 t2 v,
+  is_neutral_cast (implicit_deref t1) t2 = true ->
+  tc_val t1 v -> tc_val t2 v.
+Proof.
+intros.
+assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
+assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
+assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
+assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
+assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
+assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
+destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
+ t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
+ destruct v; try solve [contradiction H0]; try apply I;
+ unfold tc_val, is_int in *;
+  auto;
+ try omega;
+ try
+    match type of H0 with _ \/ _ =>
+       destruct H0; subst i; simpl;
+       try  rewrite Int.signed_zero;
+       try  rewrite Int.unsigned_zero;
+       try change (Int.signed Int.one) with 1;
+       try change (Int.unsigned Int.one) with 1;
+       clear; compute; try split; congruence
+    end;
+ try match type of H0 with context [if ?A then _ else _] => destruct A; contradiction H0 end.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply eqb_type_false in H.
+ destruct (eqb_type (Tpointer t1 a) int_or_ptr_type) eqn:?H; auto.
+ apply eqb_type_true in H7. inv H7. simpl in *.
+ rewrite orb_false_r in H8. 
+ rewrite andb_true_iff in H8. destruct H8.
+ destruct t2; inv H7.
+ destruct a0.
+ destruct attr_volatile; try solve [inv H8].
+ simpl in H8.
+ destruct attr_alignas; try solve [inv H8].
+ destruct n as [ | ]; try solve [inv H8].
+ apply Peqb_true_eq in H8. subst p.
+ contradiction H. reflexivity.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply I.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply eqb_type_false in H.
+ auto.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply I.
+Qed.
+
+Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
+  @semax CS Espec Delta P (Sset id e) R ->
+  local (tc_environ Delta) && P |-- |==> |> FF ||
+    ( (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+             subst id (eval_expr e) (|==> RA_normal R))) ||
+      (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
+         EX ty: type, EX sh1: share, EX sh2: share,
+          !! (e = Ebinop cmp e1 e2 ty /\
+              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              is_comparison cmp = true /\
+              eqb_type (typeof e1) int_or_ptr_type = false /\
+              eqb_type (typeof e2) int_or_ptr_type = false /\
+              typecheck_tid_ptr_compare Delta id = true) &&
+            ( |> ( (tc_expr Delta e1) &&
+              (tc_expr Delta e2)  &&
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          subst id (eval_expr (Ebinop cmp e1 e2 ty)) (|==> RA_normal R)))) ||
+      (EX sh: share, EX t2: type, EX v2: val,
+              !! (typeof_temp Delta id = Some t2 /\
+                  is_neutral_cast (typeof e) t2 = true /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e) &&
+              local (`(tc_val (typeof e) v2)) &&
+              (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * TT) &&
+              subst id (`v2) (|==> RA_normal R))) ||
+      (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
+              !! (e = Ecast e1 t1 /\
+                  typeof_temp Delta id = Some t1 /\
+                  cast_pointer_to_bool (typeof e1) t1 = false /\
+                  readable_share sh) &&
+         |> ( (tc_lvalue Delta e1) &&
+              local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) (|==> RA_normal R)))).
+Proof.
+  intros.
+  remember (Sset id e) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + inv H0.
+    reduce2derives.
+    apply orp_right1.
+    apply orp_right1.
+    apply orp_right1.
+    apply later_derives.
+    apply andp_derives; auto.
+    apply subst_derives.
+    apply bupd_intro.
+  + inv H0.
+    reduce2derives.
+    apply orp_right1.
+    apply orp_right1.
+    apply orp_right2.
+    apply exp_derives; intros cmp.
+    apply exp_derives; intros e1.
+    apply exp_derives; intros e2.
+    apply exp_derives; intros ty.
+    apply exp_derives; intros sh1.
+    apply exp_derives; intros sh2.
+    apply andp_derives; auto.
+    apply later_derives; auto.
+    apply andp_derives; auto.
+    apply subst_derives.
+    apply bupd_intro.
+  + inv H0.
+    reduce2derives.
+    apply orp_right1.
+    apply orp_right2.
+    apply exp_derives; intros sh.
+    apply exp_derives; intros t2.
+    apply exp_derives; intros v2.
+    apply andp_derives; auto.
+    apply later_derives.
+    apply andp_derives; auto.
+    apply subst_derives.
+    apply bupd_intro.
+  + inv H0.
+    reduce2derives.
+    apply orp_right2.
+    apply exp_derives; intros sh.
+    apply exp_derives; intros e1.
+    apply exp_derives; intros t1.
+    apply exp_derives; intros v2.
+    apply andp_derives; auto.
+    apply later_derives.
+    apply andp_derives; auto.
+    apply subst_derives.
+    apply bupd_intro.
+  + subst c.
+    rename P into Pre, R into Post.
+    derives_rewrite -> H.
+    derives_rewrite -> (IHsemax eq_refl); clear IHsemax.
+    reduce2ENTAIL.
+    apply orp_ENTAIL; [apply orp_ENTAIL; [apply orp_ENTAIL |] |].
+    - apply later_ENTAIL.
+      unfold tc_temp_id, typecheck_temp_id.
+      destruct ((temp_types Delta) ! id) eqn:?H; [| normalize].
+      eapply andp_subst_ENTAIL; [eauto | | apply ENTAIL_refl |].
+      * destruct (is_neutral_cast (implicit_deref (typeof e)) t) eqn:?H; [| normalize].
+        intro rho; unfold_lift; unfold local, lift1; simpl.
+        normalize.
+        apply andp_left1.
+        eapply derives_trans; [apply typecheck_expr_sound; auto |].
+        normalize.
+        intros _.
+        eapply neutral_cast_subsumption'; eauto.
+      * apply derives_bupd_bupd_left.
+        auto.
+    - apply exp_ENTAIL; intro cmp.
+      apply exp_ENTAIL; intro e1.
+      apply exp_ENTAIL; intro e2.
+      apply exp_ENTAIL; intro ty.
+      apply exp_ENTAIL; intro sh1.
+      apply exp_ENTAIL; intro sh2.
+      normalize.
+      destruct H0 as [He [? [? [? [? [? ?]]]]]].
+      apply later_ENTAIL.
+      unfold typecheck_tid_ptr_compare in H10.
+      destruct ((temp_types Delta) ! id) eqn:?H; [| inv H10].
+      eapply andp_subst_ENTAIL; [eauto | | apply ENTAIL_refl |].
+      * unfold_lift; unfold local, lift1; intro rho.
+        rewrite <- He; simpl.
+        normalize.
+        apply andp_left1.
+        apply andp_left1.
+        eapply derives_trans; [apply andp_derives; [| apply derives_refl]; apply andp_derives; apply typecheck_expr_sound; auto |].
+        normalize.
+        subst e.
+        simpl.
+        unfold_lift.
+        replace (sem_binary_operation' cmp) with (sem_cmp (expr.op_to_cmp cmp)); [| destruct cmp; inv H7; auto].
+        apply binop_lemmas2.tc_val'_sem_cmp; auto.
+Qed.
+         
+         
+  
+        
+        eapply derives_trans; [| apply prop_derives; exact (fun H H0 => H)].
+        subst e.
+        eapply derives_trans; [| apply (typecheck_expr_sound Delta rho (Ebinop cmp e1 e2 t)); auto].
+        unfold tc_expr; simpl.
+        rewrite !denote_tc_assert_andp.
+        simpl.
+        apply andp_right; [| solve_andp].
+        apply andp_right; [| solve_andp].
+        apply andp_left2.
+        SearchAbout blocks_match.
+        eapply derives_trans; [apply andp_derives; [| apply derives_refl]; apply andp_derives; apply typecheck_expr_sound; auto |].
+        normalize.
+        intros _; subst e.
 
 Lemma semax_Sbuiltin_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R opt ext tl el,
   @semax CS Espec Delta P (Sbuiltin opt ext tl el) R -> local (tc_environ Delta) && P |-- |==> |> FF || FF.

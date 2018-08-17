@@ -113,7 +113,7 @@ Definition stackframe_of (f: Clight.function) : assert :=
   fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
 *)
 
-Lemma  subst_extens:
+Lemma  subst_derives:
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
 Proof.
 unfold subst, derives.

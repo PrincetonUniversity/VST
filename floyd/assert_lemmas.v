@@ -654,6 +654,16 @@ Proof.
   solve_andp.
 Qed.
 
+Lemma orp_ENTAIL: forall TC P P' Q Q',
+  local TC && P |-- P' ->
+  local TC && Q |-- Q' ->
+  local TC && (P || Q) |-- P' || Q'.
+Proof.
+  intros.
+  rewrite andp_comm, distrib_orp_andp.
+  apply orp_derives; rewrite andp_comm; auto.
+Qed.
+
 Lemma sepcon_ENTAIL: forall TC P P' Q Q',
   local TC && P |-- P' ->
   local TC && Q |-- Q' ->
@@ -698,6 +708,76 @@ Proof.
   intros.
   apply later_left2, H.
 Qed.
+
+Lemma andp_subst_ENTAIL: forall Delta P P' Q Q' i v t,
+  (temp_types Delta) ! i = Some t ->
+  local (tc_environ Delta) && P' |-- local (`(tc_val' t) v) ->
+  local (tc_environ Delta) && P' |-- Q' ->
+  local (tc_environ Delta) && P |-- Q ->
+  local (tc_environ Delta) && (P' && subst i v P) |-- Q' && subst i v Q.
+Proof.
+  intros.
+  apply (subst_derives i v) in H2.
+  autorewrite with subst in H2.
+  eapply derives_trans; [| apply andp_derives; eassumption].
+  repeat apply andp_right; try solve_andp.
+  rewrite <- andp_assoc; apply andp_left1.
+  rewrite (add_andp _ _ H0).
+  unfold local, lift1; unfold_lift.
+  intro rho; simpl; normalize; clear H0 H1 H2.
+  apply prop_right.
+  unfold subst, env_set.
+  destruct rho; simpl in *.
+  destruct H3; split; auto.
+  clear H1; simpl in *.
+  hnf; intros.
+  specialize (H0 _ _ H1).
+  destruct H0 as [? [? ?]].
+  destruct (Pos.eq_dec i id).
+  + subst.
+    rewrite Map.gss.
+    exists (v (mkEnviron ge ve te)); split; auto.
+    rewrite H in H1.
+    inv H1.
+    auto.
+  + exists x.
+    rewrite Map.gso by auto.
+    auto.
+Qed.
+
+Lemma derives_bupd_bupd_left: forall TC P Q,
+  local TC && P |-- |==> Q ->
+  (local TC && |==> P) |-- |==> Q.
+Proof.
+  intros.
+  eapply derives_trans; [apply local_andp_bupd |].
+  eapply derives_trans; [apply bupd_mono, H |].
+  apply bupd_trans.
+Qed.
+
+Ltac reduce2ENTAIL :=
+  match goal with
+  | |- _ |-- |==> |> FF || _ => apply derives_bupd_derives_bupd0
+  | _ => idtac
+  end;
+  match goal with
+  | |- _ |-- |==> _ => apply ENTAIL_derives_bupd
+  | _ => idtac
+  end.
+
+Ltac reduce2derives :=
+  match goal with
+  | |- _ |-- |==> |> FF || _ => apply derives_bupd_derives_bupd0
+  | _ => idtac
+  end;
+  match goal with
+  | |- _ |-- |==> _ => apply ENTAIL_derives_bupd
+  | _ => idtac
+  end;
+  match goal with
+  | |- local (tc_environ _) && _ |-- _ => apply derives_ENTAIL
+  | _ => idtac
+  end.
 
 Ltac lifted_derives_L2R H :=
   eapply ENTAIL_trans; [apply H |].

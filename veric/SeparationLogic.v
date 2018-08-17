@@ -592,7 +592,7 @@ Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) : environ
 Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :=
   fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).
 
-Lemma  subst_extens {A}{NA: NatDed A}:
+Lemma  subst_derives {A}{NA: NatDed A}:
  forall a v (P Q: environ -> A), P |-- Q -> subst a v P |-- subst a v Q.
 Proof.
 unfold subst, derives.

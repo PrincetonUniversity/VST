@@ -68,6 +68,15 @@ apply andp_left1; apply H.
 apply andp_left2; apply H0.
 Qed.
 
+Lemma orp_derives {A} {NA: NatDed A}:
+  forall P Q P' Q': A, P |-- P' -> Q |-- Q' -> P || Q |-- P' || Q'.
+Proof.
+intros.
+apply orp_left.
+apply orp_right1; apply H.
+apply orp_right2; apply H0.
+Qed.
+
 Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
   isCCC: CartesianClosedCat.CCC A derives eq prod expo.
 

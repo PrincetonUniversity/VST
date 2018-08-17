@@ -1051,8 +1051,8 @@ Axiom semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
                   readable_share sh) &&
          |> ( (tc_lvalue Delta e1) &&
               local (`(tc_val (typeof e1) v2)) &&
-              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`v2) P)))
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`v2) P))
         (Sset id e1) (normal_ret_assert P).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
@@ -1095,8 +1095,8 @@ Axiom semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delt
                   readable_share sh) &&
          |> ( (tc_lvalue Delta e1) &&
               local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
         (Sset id e) (normal_ret_assert P).
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
@@ -1127,8 +1127,8 @@ Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
                   readable_share sh) &&
          |> ( (tc_lvalue Delta e1) &&
               local (`(tc_val (typeof e1) v2)) &&
-              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`v2) P)))
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`v2) P))
         (Sset id e1) (normal_ret_assert P).
 Proof.
   intros.
@@ -1136,6 +1136,7 @@ Proof.
   apply semax_extract_exists; intro t2.
   apply semax_extract_exists; intro v2.
   apply semax_extract_prop; intros [? [? ?]].
+  rewrite (andp_assoc _ _ (subst _ _ _)).
   eapply semax_post'; [.. | eapply semax_load_forward; eauto].
   + rewrite exp_andp2.
     apply exp_left; intros old.
@@ -1185,6 +1186,7 @@ Proof.
   apply (exp_right v2).
   apply andp_right; [apply prop_right; auto |].
   apply later_ENTAIL.
+  rewrite (andp_assoc _ _ (subst _ _ _)).
   apply andp_ENTAIL; [apply ENTAIL_refl |].
   apply andp_right; auto.
   rewrite subst_exp.
@@ -1233,8 +1235,8 @@ Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (De
                   readable_share sh) &&
          |> ( (tc_lvalue Delta e1) &&
               local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
-              ((`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
+              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
         (Sset id e) (normal_ret_assert P).
 Proof.
   intros.
@@ -1244,6 +1246,7 @@ Proof.
   apply semax_extract_exists; intro v2.
   apply semax_extract_prop; intros [He [? [? ?]]].
   subst e.
+  rewrite (andp_assoc _ _ (subst _ _ _)).
   eapply semax_post'; [.. | eapply semax_cast_load_forward; eauto].
   + rewrite exp_andp2.
     apply exp_left; intros old.
@@ -1294,6 +1297,7 @@ Proof.
   apply (exp_right v2).
   apply andp_right; [apply prop_right; auto |].
   apply later_ENTAIL.
+  rewrite (andp_assoc _ _ (subst _ _ _)).
   apply andp_ENTAIL; [apply ENTAIL_refl |].
   apply andp_right; auto.
   rewrite subst_exp.
@@ -1482,10 +1486,71 @@ Axiom semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKi
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
 
-Module CSHL_PtrCompB2F
+Module CSHL_PtrCmpF2B
        (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_PtrCompB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSHL_Def):
+       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
+       (CSHL_PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := CSHL_Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
+
+Module CSHL_Def := CSHL_Def.
+Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
+Import CSHL_Def.
+Import CSHL_Conseq.
+Import CSHL_ConseqFacts.
+Import CSHL_Extr.
+Import CSHL_ExtrFacts.
+Import CSHL_PtrCmpF.
+
+Theorem semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+  forall P id e,
+   @semax CS Espec Delta
+        (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
+         EX ty: type, EX sh1: share, EX sh2: share,
+          !! (e = Ebinop cmp e1 e2 ty /\
+              sepalg.nonidentity sh1 /\ sepalg.nonidentity sh2 /\
+              is_comparison cmp = true /\
+              eqb_type (typeof e1) int_or_ptr_type = false /\
+              eqb_type (typeof e2) int_or_ptr_type = false /\
+              typecheck_tid_ptr_compare Delta id = true) &&
+            ( |> ( (tc_expr Delta e1) &&
+              (tc_expr Delta e2)  &&
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
+          subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
+          (Sset id e)
+          (normal_ret_assert P).
+Proof.
+  intros.
+  apply semax_extract_exists; intro cmp.
+  apply semax_extract_exists; intro e1.
+  apply semax_extract_exists; intro e2.
+  apply semax_extract_exists; intro ty.
+  apply semax_extract_exists; intro sh1.
+  apply semax_extract_exists; intro sh2.
+  apply semax_extract_prop; intros [He [? [? [? [? [? ?]]]]]].
+  subst e.
+  eapply semax_post'; [.. | eapply semax_pointer_comparison_forward; eauto].
+  rewrite exp_andp2.
+  apply exp_left; intros old.
+  autorewrite with subst.
+  rewrite resubst_full.
+  intro rho; unfold local, lift1; unfold_lift; simpl.
+  unfold typecheck_tid_ptr_compare in H4.
+  destruct ((temp_types Delta) ! id) eqn:?H; inv H4.
+  normalize.
+  erewrite subst_self by eauto.
+  auto.
+Qed.
+
+End CSHL_PtrCmpF2B.
+
+Module CSHL_PtrCmpB2F
+       (CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
+       (CSHL_PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSHL_Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
 
 Module CSHL_Def := CSHL_Def.
@@ -1493,7 +1558,7 @@ Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
 Import CSHL_Def.
 Import CSHL_Conseq.
 Import CSHL_ConseqFacts.
-Import CSHL_PtrCompB.
+Import CSHL_PtrCmpB.
 
 Theorem semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
@@ -1553,4 +1618,4 @@ Proof.
     erewrite subst_self; eauto.
 Qed.
 
-End CSHL_PtrCompB2F.
+End CSHL_PtrCmpB2F.

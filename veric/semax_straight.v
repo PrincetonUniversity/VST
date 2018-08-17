@@ -1045,38 +1045,6 @@ destruct a,a'; inv H0; auto;
 apply Neqb_ok in H1; subst n0; auto.
 Qed.
 
-Lemma neutral_cast_lemma2: forall t1 t2 v,
-  is_neutral_cast t1 t2 = true ->
-  tc_val t1 v -> tc_val t2 v.
-Proof.
-intros.
-unfold is_neutral_cast, tc_val in *.
-destruct (eqb_type t1 int_or_ptr_type) eqn:J,
-         (eqb_type t2 int_or_ptr_type) eqn:J0;
-destruct t1  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
-destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
-try solve [destruct i; discriminate];
- try solve [destruct v; apply H0];
- hnf in H0|-*; destruct v; auto;
-try match goal with
-| H: ?lo <= _ <= ?hi |- ?lo' <= _ <= ?hi' =>
-   assert (lo' <= lo) by (compute; congruence);
-   assert (hi <= hi') by (compute; congruence);
-   try omega
-| H:  _ <= ?hi |-  _ <= ?hi' =>
-   assert (hi <= hi') by (compute; congruence);
-   try omega
-| H: _ \/ _ |- _  => destruct H; subst; try solve [compute; congruence]
-end;
- try solve [compute; try split; congruence].
-rewrite orb_false_r in H2.
-apply andb_true_iff in H2.
-destruct H2.
-apply eqb_type_true in H.
-subst t2.
-apply eqb_attr_true in H1; subst a0. congruence.
-Qed.
-
 Opaque Int.repr.
 
 Lemma semax_load:
@@ -1145,7 +1113,7 @@ intros. simpl in TC1.
 unfold typeof_temp in Hid. rewrite H in Hid.
 inv Hid.
 apply tc_val_tc_val'.
-apply (neutral_cast_lemma2 _ t2 _ TC1 TC3).
+apply (neutral_cast_subsumption _ t2 _ TC1 TC3).
 (* typechecking proof *)
 split; [split3 | ].
 * simpl.
