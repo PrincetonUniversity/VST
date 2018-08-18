@@ -179,14 +179,11 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
                 `(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R
-| semax_set: forall (P: environ->mpred) id e,
+| semax_set_ptr_comparison_load_cast_load_backward: forall (P: environ->mpred) id e,
     @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
+       ((|> ( (tc_expr Delta e) &&
              (tc_temp_id id (typeof e) Delta e) &&
-             subst id (eval_expr e) P))
-          (Sset id e) (normal_ret_assert P)
-| semax_ptr_compare_backward: forall P id e,
-   @semax CS Espec Delta
+             subst id (eval_expr e) P)) ||
         (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
          EX ty: type, EX sh1: share, EX sh2: share,
           !! (e = Ebinop cmp e1 e2 ty /\
@@ -200,22 +197,15 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
           local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
           (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
           (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT) &&
-          subst id (eval_expr (Ebinop cmp e1 e2 ty)) P)))
-          (Sset id e)
-        (normal_ret_assert P)
-| semax_load_backward: forall (P: environ->mpred) id e1,
-    @semax CS Espec Delta
+          subst id (eval_expr (Ebinop cmp e1 e2 ty)) P))) ||
         (EX sh: share, EX t2: type, EX v2: val,
               !! (typeof_temp Delta id = Some t2 /\
-                  is_neutral_cast (typeof e1) t2 = true /\
+                  is_neutral_cast (typeof e) t2 = true /\
                   readable_share sh) &&
-         |> ( (tc_lvalue Delta e1) &&
-              local (`(tc_val (typeof e1) v2)) &&
-              (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`v2) P))
-        (Sset id e1) (normal_ret_assert P)
-| semax_cast_load_backward: forall (P: environ->mpred) id e,
-    @semax CS Espec Delta
+         |> ( (tc_lvalue Delta e) &&
+              local (`(tc_val (typeof e) v2)) &&
+              (`(mapsto sh (typeof e)) (eval_lvalue e) (`v2) * TT) &&
+              subst id (`v2) P)) ||
         (EX sh: share, EX e1: expr, EX t1: type, EX v2: val,
               !! (e = Ecast e1 t1 /\
                   typeof_temp Delta id = Some t1 /\
@@ -224,7 +214,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
          |> ( (tc_lvalue Delta e1) &&
               local (`(tc_val t1) (`(eval_cast (typeof e1) t1 v2))) &&
               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`v2) * TT) &&
-              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P))
+              subst id (`(force_val (sem_cast (typeof e1) t1 v2))) P)))
         (Sset id e) (normal_ret_assert P)
 | semax_store_backward: forall e1 e2 P,
    @semax CS Espec Delta
@@ -234,6 +224,8 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
           (normal_ret_assert P)
 | semax_skip: forall P, @semax CS Espec Delta P Sskip (normal_ret_assert P)
 | semax_builtin: forall P opt ext tl el, @semax CS Espec Delta FF (Sbuiltin opt ext tl el) P
+| semax_label: forall P l c, @semax CS Espec Delta FF (Slabel l c) P
+| semax_goto: forall P l, @semax CS Espec Delta FF (Sgoto l) P
 | semax_pre_post_indexed_bupd: forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> ((|> FF) || P')) ->
     local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
@@ -532,53 +524,39 @@ Proof.
   induction H; try solve [inv H0].
   + inv H0.
     reduce2derives.
-    apply orp_right1.
-    apply orp_right1.
-    apply orp_right1.
-    apply later_derives.
-    apply andp_derives; auto.
-    apply subst_derives.
-    apply bupd_intro.
-  + inv H0.
-    reduce2derives.
-    apply orp_right1.
-    apply orp_right1.
-    apply orp_right2.
-    apply exp_derives; intros cmp.
-    apply exp_derives; intros e1.
-    apply exp_derives; intros e2.
-    apply exp_derives; intros ty.
-    apply exp_derives; intros sh1.
-    apply exp_derives; intros sh2.
-    apply andp_derives; auto.
-    apply later_derives; auto.
-    apply andp_derives; auto.
-    apply subst_derives.
-    apply bupd_intro.
-  + inv H0.
-    reduce2derives.
-    apply orp_right1.
-    apply orp_right2.
-    apply exp_derives; intros sh.
-    apply exp_derives; intros t2.
-    apply exp_derives; intros v2.
-    apply andp_derives; auto.
-    apply later_derives.
-    apply andp_derives; auto.
-    apply subst_derives.
-    apply bupd_intro.
-  + inv H0.
-    reduce2derives.
-    apply orp_right2.
-    apply exp_derives; intros sh.
-    apply exp_derives; intros e1.
-    apply exp_derives; intros t1.
-    apply exp_derives; intros v2.
-    apply andp_derives; auto.
-    apply later_derives.
-    apply andp_derives; auto.
-    apply subst_derives.
-    apply bupd_intro.
+    apply orp_derives; [apply orp_derives; [apply orp_derives |] |].
+    - apply later_derives.
+      apply andp_derives; auto.
+      apply subst_derives.
+      apply bupd_intro.
+    - apply exp_derives; intros cmp.
+      apply exp_derives; intros e1.
+      apply exp_derives; intros e2.
+      apply exp_derives; intros ty.
+      apply exp_derives; intros sh1.
+      apply exp_derives; intros sh2.
+      apply andp_derives; auto.
+      apply later_derives; auto.
+      apply andp_derives; auto.
+      apply subst_derives.
+      apply bupd_intro.
+    - apply exp_derives; intros sh.
+      apply exp_derives; intros t2.
+      apply exp_derives; intros v2.
+      apply andp_derives; auto.
+      apply later_derives.
+      apply andp_derives; auto.
+      apply subst_derives.
+      apply bupd_intro.
+    - apply exp_derives; intros sh.
+      apply exp_derives; intros e1.
+      apply exp_derives; intros t1.
+      apply exp_derives; intros v2.
+      apply andp_derives; auto.
+      apply later_derives.
+      apply andp_derives; auto.
+      apply subst_derives.
+      apply bupd_intro.
   + subst c.
     rename P into Pre, R into Post.
     derives_rewrite -> H.
@@ -665,6 +643,30 @@ Lemma semax_Sbuiltin_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R o
 Proof.
   intros.
   remember (Sbuiltin opt ext tl el) as c eqn:?H.
+  induction H; try solve [inv H0].
+  + apply andp_left2, FF_left.
+  + derives_rewrite -> H.
+    derives_rewrite -> (IHsemax H0).
+    apply andp_left2, FF_left.
+Qed.
+
+Lemma semax_Slabel_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R l c,
+  @semax CS Espec Delta P (Slabel l c) R -> local (tc_environ Delta) && P |-- |==> |> FF || FF.
+Proof.
+  intros.
+  remember (Slabel l c) as c0 eqn:?H.
+  induction H; try solve [inv H0].
+  + apply andp_left2, FF_left.
+  + derives_rewrite -> H.
+    derives_rewrite -> (IHsemax H0).
+    apply andp_left2, FF_left.
+Qed.
+
+Lemma semax_Sgoto_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R l,
+  @semax CS Espec Delta P (Sgoto l) R -> local (tc_environ Delta) && P |-- |==> |> FF || FF.
+Proof.
+  intros.
+  remember (Sgoto l) as c eqn:?H.
   induction H; try solve [inv H0].
   + apply andp_left2, FF_left.
   + derives_rewrite -> H.
@@ -816,7 +818,13 @@ Proof.
     eapply semax_pre_indexed_bupd; [exact H0 | clear H0].
     eapply semax_post''_bupd; [.. | apply AuxDefs.semax_store_backward].
     apply andp_left2, derives_refl.
-  + admit.
+  + pose proof (fun x => semax_Sset_inv _ _ _ _ _ (H x)).
+    clear H.
+    apply exp_left in H0.
+    rewrite <- (exp_andp2 A) in H0.
+    eapply semax_pre_indexed_bupd; [exact H0 | clear H0].
+    eapply semax_post''_bupd; [.. | apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+    apply andp_left2, derives_refl.
   + pose proof (fun x => semax_call_inv _ _ _ _ _ _ (H x)).
     clear H.
     apply exp_left in H0.
@@ -982,7 +990,17 @@ Proof.
       * apply IH.
         intros ?H.
         auto.
-Admitted.
+  + pose proof (fun x => semax_Slabel_inv _ _ _ _ _ (H x)).
+    apply semax_pre_indexed_bupd with FF; [| apply AuxDefs.semax_label].
+    rewrite exp_andp2.
+    apply exp_left; intros x; specialize (H0 x).
+    auto.
+  + pose proof (fun x => semax_Sgoto_inv _ _ _ _ (H x)).
+    apply semax_pre_indexed_bupd with FF; [| apply AuxDefs.semax_goto].
+    rewrite exp_andp2.
+    apply exp_left; intros x; specialize (H0 x).
+    auto.
+Qed.
 
 Module Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Defs.
 
