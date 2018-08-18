@@ -10,7 +10,6 @@ Require VST.veric.SeparationLogicSoundness.
 Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
 Require Import VST.floyd.assert_lemmas.
-Require Import VST.floyd.typecheck_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
 Local Open Scope logic.
 
@@ -490,60 +489,6 @@ Proof.
     apply derives_bupd_bupd_left, H1.
 Qed.
 
-Lemma neutral_cast_subsumption': forall t1 t2 v,
-  is_neutral_cast (implicit_deref t1) t2 = true ->
-  tc_val t1 v -> tc_val t2 v.
-Proof.
-intros.
-assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
-assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
-assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
-assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
-assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
-assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
-destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
- t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
- destruct v; try solve [contradiction H0]; try apply I;
- unfold tc_val, is_int in *;
-  auto;
- try omega;
- try
-    match type of H0 with _ \/ _ =>
-       destruct H0; subst i; simpl;
-       try  rewrite Int.signed_zero;
-       try  rewrite Int.unsigned_zero;
-       try change (Int.signed Int.one) with 1;
-       try change (Int.unsigned Int.one) with 1;
-       clear; compute; try split; congruence
-    end;
- try match type of H0 with context [if ?A then _ else _] => destruct A; contradiction H0 end.
- destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
- apply I.
- apply eqb_type_false in H.
- destruct (eqb_type (Tpointer t1 a) int_or_ptr_type) eqn:?H; auto.
- apply eqb_type_true in H7. inv H7. simpl in *.
- rewrite orb_false_r in H8. 
- rewrite andb_true_iff in H8. destruct H8.
- destruct t2; inv H7.
- destruct a0.
- destruct attr_volatile; try solve [inv H8].
- simpl in H8.
- destruct attr_alignas; try solve [inv H8].
- destruct n as [ | ]; try solve [inv H8].
- apply Peqb_true_eq in H8. subst p.
- contradiction H. reflexivity.
- destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
- apply I.
- apply I.
- destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
- apply I.
- apply eqb_type_false in H.
- auto.
- destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
- apply I.
- apply I.
-Qed.
-
 Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
   @semax CS Espec Delta P (Sset id e) R ->
   local (tc_environ Delta) && P |-- |==> |> FF ||
@@ -651,7 +596,7 @@ Proof.
         eapply derives_trans; [apply typecheck_expr_sound; auto |].
         normalize.
         intros _.
-        eapply neutral_cast_subsumption'; eauto.
+        eapply expr2.neutral_cast_subsumption'; eauto.
       * apply derives_bupd_bupd_left.
         auto.
     - apply exp_ENTAIL; intro cmp.
@@ -678,24 +623,42 @@ Proof.
         unfold_lift.
         replace (sem_binary_operation' cmp) with (sem_cmp (expr.op_to_cmp cmp)); [| destruct cmp; inv H7; auto].
         apply binop_lemmas2.tc_val'_sem_cmp; auto.
-Qed.
-         
-         
-  
-        
-        eapply derives_trans; [| apply prop_derives; exact (fun H H0 => H)].
-        subst e.
-        eapply derives_trans; [| apply (typecheck_expr_sound Delta rho (Ebinop cmp e1 e2 t)); auto].
-        unfold tc_expr; simpl.
-        rewrite !denote_tc_assert_andp.
-        simpl.
-        apply andp_right; [| solve_andp].
-        apply andp_right; [| solve_andp].
+      * apply derives_bupd_bupd_left.
+        auto.
+    - apply exp_ENTAIL; intro sh.
+      apply exp_ENTAIL; intro t2.
+      apply exp_ENTAIL; intro v2.
+      normalize.
+      destruct H0 as [? [? ?]].
+      apply later_ENTAIL.
+      unfold typeof_temp in H0.
+      destruct ((temp_types Delta) ! id) eqn:?H; inv H0.
+      eapply andp_subst_ENTAIL; [eauto | | apply ENTAIL_refl |].
+      * apply andp_left2.
+        apply andp_left1.
         apply andp_left2.
-        SearchAbout blocks_match.
-        eapply derives_trans; [apply andp_derives; [| apply derives_refl]; apply andp_derives; apply typecheck_expr_sound; auto |].
-        normalize.
-        intros _; subst e.
+        unfold_lift; unfold local, lift1; intro rho; simpl; normalize.
+        intros _; eapply expr2.neutral_cast_subsumption; eauto.
+      * apply derives_bupd_bupd_left.
+        auto.
+    - apply exp_ENTAIL; intro sh.
+      apply exp_ENTAIL; intro e1.
+      apply exp_ENTAIL; intro t1.
+      apply exp_ENTAIL; intro t2.
+      normalize.
+      destruct H0 as [He [? [? ?]]].
+      apply later_ENTAIL.
+      unfold typeof_temp in H0.
+      destruct ((temp_types Delta) ! id) eqn:?H; inv H0.
+      eapply andp_subst_ENTAIL; [eauto | | apply ENTAIL_refl |].
+      * apply andp_left2.
+        apply andp_left1.
+        apply andp_left2.
+        unfold_lift; unfold local, lift1; intro rho; simpl; normalize.
+        intros _; auto.
+      * apply derives_bupd_bupd_left.
+        auto.
+Qed.
 
 Lemma semax_Sbuiltin_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R opt ext tl el,
   @semax CS Espec Delta P (Sbuiltin opt ext tl el) R -> local (tc_environ Delta) && P |-- |==> |> FF || FF.

@@ -98,6 +98,60 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
  apply I.
 Qed.
 
+Lemma neutral_cast_subsumption': forall t1 t2 v,
+  is_neutral_cast (implicit_deref t1) t2 = true ->
+  tc_val t1 v -> tc_val t2 v.
+Proof.
+intros.
+assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
+assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
+assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
+assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
+assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
+assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
+destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
+ t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
+ destruct v; try solve [contradiction H0]; try apply I;
+ unfold tc_val, is_int in *;
+  auto;
+ try omega;
+ try
+    match type of H0 with _ \/ _ =>
+       destruct H0; subst i; simpl;
+       try  rewrite Int.signed_zero;
+       try  rewrite Int.unsigned_zero;
+       try change (Int.signed Int.one) with 1;
+       try change (Int.unsigned Int.one) with 1;
+       clear; compute; try split; congruence
+    end;
+ try match type of H0 with context [if ?A then _ else _] => destruct A; contradiction H0 end.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply eqb_type_false in H.
+ destruct (eqb_type (Tpointer t1 a) int_or_ptr_type) eqn:?H; auto.
+ apply eqb_type_true in H7. inv H7. simpl in *.
+ rewrite orb_false_r in H8. 
+ rewrite andb_true_iff in H8. destruct H8.
+ destruct t2; inv H7.
+ destruct a0.
+ destruct attr_volatile; try solve [inv H8].
+ simpl in H8.
+ destruct attr_alignas; try solve [inv H8].
+ destruct n as [ | ]; try solve [inv H8].
+ apply Peqb_true_eq in H8. subst p.
+ contradiction H. reflexivity.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply I.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply eqb_type_false in H.
+ auto.
+ destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type) eqn:?H.
+ apply I.
+ apply I.
+Qed.
+
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
 Definition denote_tc_iszero v : mpred :=
