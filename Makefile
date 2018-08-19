@@ -54,15 +54,21 @@ endif
 ARCH=$(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
 BITSIZE=$(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
 
+ifeq ($(COMPCERT), compcert_new)
+BACKEND=backend
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
 else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
-
-ifeq ($(COMPCERT), compcert_new)
-BACKEND=backend
+else
+ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
+ARCHDIRS=$(ARCH)
+else
+ARCHDIRS=$(ARCH)_$(BITSIZE)
 endif
+endif
+
 
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
