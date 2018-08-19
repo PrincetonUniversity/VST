@@ -51,7 +51,28 @@ endif
 endif
 endif
 
-EXTFLAGS= -R $(COMPCERT) compcert
+ARCH=$(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
+BITSIZE=$(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
+
+ifeq ($(COMPCERT), compcert_new)
+BACKEND=backend
+ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
+ARCHDIRS=$(ARCH)
+else
+ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
+endif
+else
+ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
+ARCHDIRS=$(ARCH)
+else
+ARCHDIRS=$(ARCH)_$(BITSIZE)
+endif
+endif
+
+
+COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
+
+EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 
 # for SSReflect
 ifdef MATHCOMP
@@ -537,7 +558,7 @@ ifeq ($(COMPCERT), compcert_new)
 	echo "" >>.depend
 	$(COQDEP) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
 else
-	$(COQDEP) 2>&1 >.depend `find $(COMPCERT) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) 2>&1 >.depend `find $(COMPCERT)/{cfrontend,common,exportclight,flocq,lib} $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 
 depend-paco:
