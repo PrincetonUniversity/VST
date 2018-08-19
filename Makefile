@@ -57,10 +57,14 @@ BITSIZE=$(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefil
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
 else
-ARCHDIRS=$(ARCH)_$(BITSIZE)
+ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 
-COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight
+ifeq ($(COMPCERT), compcert_new)
+BACKEND=backend
+endif
+
+COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 
