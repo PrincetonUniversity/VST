@@ -183,6 +183,9 @@ match ty with
 | _ => false
 end.
 
+Definition is_ptrofs_type :=
+ if Archi.ptr64 then is_long_type else is_int32_type.
+
 Definition is_float_type ty :=
 match ty with
 | Tfloat F64 _ => true
@@ -255,7 +258,7 @@ Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
 Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
-  | Vlong i => if Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | Vlong i => if Int64.eq i Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
@@ -480,11 +483,11 @@ match op with
                               (tc_isptr a2))
                                (tc_int_or_ptr_type (typeof a1)))
                                (tc_int_or_ptr_type (typeof a2)))
-                               (tc_bool (is_int32_type ty) reterr))
+                               (tc_bool (is_ptrofs_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                   (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                   (tc_bool (Z.leb (sizeof t) Ptrofs.max_signed)
                                           (pp_compare_size_exceed t))
                     | Cop.sub_default => tc_andp 
                                     (binarithType (typeof a1) (typeof a2) ty deferr reterr)
@@ -723,6 +726,8 @@ match t1, t2 with
 | _, _ => false
 end.
 
+Definition tptrofs := if Archi.ptr64 then tulong else tuint.
+
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 
@@ -783,9 +788,9 @@ match e with
                   | _ => tc_FF (deref_byvalue ty)
                   end
  | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
+                     (tc_bool (eqb_type t tptrofs) (invalid_expression e))
  | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
+                     (tc_bool (eqb_type t tptrofs) (invalid_expression e))
  | _ => tc_FF (invalid_expression e)
 end
 

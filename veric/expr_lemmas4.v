@@ -125,6 +125,7 @@ apply tc_bool_e in H0.
 apply tc_bool_e in H1.
 rewrite eqb_type_spec in H1.
 subst.
+simpl.
 reflexivity.
 * (* Ealignof *)
 simpl in H0.
@@ -134,6 +135,7 @@ apply tc_bool_e in H0.
 apply tc_bool_e in H1.
 rewrite eqb_type_spec in H1.
 subst.
+simpl.
 reflexivity.
 Qed.
 
@@ -260,14 +262,14 @@ Lemma tc_test_eq0:
   Mem.weak_valid_pointer (m_dry m) b (Ptrofs.unsigned i) = true.
 Proof.
 intros.
-destruct H.
-apply weak_valid_pointer_dry in H0.
+destruct H;
+apply weak_valid_pointer_dry in H0;
 apply H0.
 Qed.
 
 Lemma cop2_sem_cast :
     forall t1 t2 v m,
- (classify_cast t1 t2 = cast_case_i2bool ->
+ (classify_cast t1 t2 = classify_cast tptrofs tbool ->
    denote_tc_test_eq v (Vint Int.zero) (m_phi m) )->
   t1 <> int_or_ptr_type ->
   t2 <> int_or_ptr_type ->
@@ -300,14 +302,15 @@ destruct v; try reflexivity.
   - revert H2; simple_if_tac; intros H2; inv H2.
   - revert H2; simple_if_tac; intros H2; inv H2.
 + unfold sem_cast_i2bool.
-  destruct Archi.ptr64 eqn:Hp; auto.
+    simpl.
+  destruct Archi.ptr64 eqn:Hp; auto; simpl.
   specialize (H H3).
-  do 3 red in H.
-  rewrite Hp in H.
-  red in H. destruct H as [_ H].
-  apply weak_valid_pointer_dry in H.
-  unfold Mem.weak_valid_pointer.
-  rewrite H. reflexivity.
+  do 3 red in H;
+  rewrite Hp in H; try contradiction;
+  (red in H; destruct H as [_ H];
+  apply weak_valid_pointer_dry in H;
+  unfold Mem.weak_valid_pointer;
+  rewrite H; reflexivity).
 Qed.
 
 Ltac destruct_eqb_type := 
@@ -640,10 +643,11 @@ Lemma Ptrofs_to_int_repr:
   forall i, Ptrofs.to_int (Ptrofs.repr i) = Int.repr i.
 Proof.
 intros.
-unfold Ptrofs.to_int.
-apply Int.eqm_samerepr.
-change Int.eqm with Ptrofs.eqm.
-apply Ptrofs.eqm_sym.
+try solve [inversion H];
+unfold Ptrofs.to_int;
+apply Int.eqm_samerepr;
+change Int.eqm with Ptrofs.eqm;
+apply Ptrofs.eqm_sym;
 apply Ptrofs.eqm_unsigned_repr.
 Qed.
 

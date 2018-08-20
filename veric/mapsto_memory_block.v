@@ -855,7 +855,7 @@ Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
   nonunit sh ->
-  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  0 < n <= Ptrofs.max_unsigned -> 0 < m <= Ptrofs.max_unsigned ->
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
   intros.
@@ -1361,16 +1361,18 @@ Lemma mapsto_null_mapsto_pointer:
              mapsto sh (tptr t) v nullval.
 Proof.
   intros.
-  unfold mapsto.
-  unfold nullval; rewrite H.
-  simpl.
-  destruct v; auto. f_equal; auto.
-  if_tac.
-  + f_equal. f_equal. rewrite andb_false_r.
-   unfold is_pointer_or_null. rewrite H.
-   apply pred_ext; unfold derives; simpl; tauto.
-  + f_equal. f_equal.
-      unfold tc_val'.
-      f_equal. simpl. simple_if_tac; simpl; rewrite H; auto.
-      apply prop_ext; intuition.
+  try solve [inversion H];
+ (
+  unfold mapsto, nullval; rewrite H;
+  simpl;
+  destruct v; auto; f_equal; auto;
+  if_tac;
+   [f_equal; f_equal; rewrite andb_false_r;
+   unfold is_pointer_or_null; rewrite H;
+   apply pred_ext; unfold derives; simpl; tauto
+   | f_equal; f_equal;
+      unfold tc_val';
+      f_equal; simpl; 
+      simple_if_tac; simpl; rewrite H; auto;
+      apply prop_ext; intuition]).
 Qed.
