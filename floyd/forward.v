@@ -39,6 +39,10 @@ Hint Rewrite @sem_add_pi_ptr_special using (solve [auto with norm]) : norm.
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
  isptr p ->
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
  isptr (force_val (sem_add_ptr_int t si p (Vint (Int.repr i)))).
 Proof.
 intros. normalize.

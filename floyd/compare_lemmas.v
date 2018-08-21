@@ -256,7 +256,7 @@ intros.
  destruct Archi.ptr64 eqn:?; auto.
  destruct H0 as [? [? ?]].
  first [ pose proof (Int64.eq_spec Int64.zero i)
-        | pose proof (Int64.eq_spec Int64.zero i)];
+        | pose proof (Int.eq_spec Int.zero i)];
  rewrite H1 in H3; 
  subst; inv H.
 Qed.

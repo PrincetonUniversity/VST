@@ -44,19 +44,15 @@ Lemma neutral_isCastResultType_64:
 Proof.
 intro Hp.
 intros.
-  unfold isCastResultType;
+unfold isCastResultType, classify_cast; rewrite Hp.
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
 try solve [
      inv H; simpl; try apply @TT_right;
            simpl; (destruct (eqb_tac _ _)); apply @TT_right].
 *
-unfold classify_cast.
-rewrite Hp.
 try destruct (eqb_type _ _); apply @TT_right.
 *
-unfold classify_cast.
 unfold is_neutral_cast in H.
-rewrite Hp.
 destruct (eqb_type (Tpointer t a0) int_or_ptr_type) eqn:H0.
 rewrite (eqb_type_true _ _ H0).
 destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
@@ -83,17 +79,17 @@ Lemma neutral_isCastResultType_32:
 Proof.
 intro Hp.
 intros.
+unfold isCastResultType, classify_cast; rewrite Hp.
   unfold isCastResultType;
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
 try solve [
      inv H; simpl; try apply @TT_right;
            simpl; (destruct (eqb_tac _ _)); apply @TT_right].
 *
-unfold classify_cast.
-rewrite Hp. apply @TT_right.
+simpl; simple_if_tac; apply @TT_right.
 *
-unfold classify_cast.
-rewrite Hp.
+simpl; simple_if_tac; apply @TT_right.
+*
 unfold is_neutral_cast in H.
 rewrite orb_true_iff in H.
 destruct H.
@@ -108,6 +104,7 @@ unfold is_pointer_type.
 rewrite H,H0.
 apply @TT_right.
 Qed.
+
 
 Lemma neutral_isCastResultType:
   forall {cs: compspecs}  P t t' v rho,

@@ -396,7 +396,7 @@ Lemma typed_false_tlong:
  Archi.ptr64=true -> 
  forall v, typed_false tlong v -> v=nullval.
 Proof.
-intros.
+intros. unfold nullval. rewrite H.
  hnf in H0. destruct v; inv H0.
 pose proof (Int64.eq_spec i Int64.zero).
  destruct (Int64.eq i Int64.zero); inv H2.
@@ -478,7 +478,7 @@ Ltac fancy_intro aggressive :=
  | typed_true _ _ =>
         first [simple apply typed_true_of_bool in H
                | apply typed_true_tint_Vint in H
-               | apply typed_true_e in H
+               | apply (typed_true_e tint) in H
                | apply typed_true_ptr in H
                | idtac ]
  (* | locald_denote _ _ => hnf in H *)
