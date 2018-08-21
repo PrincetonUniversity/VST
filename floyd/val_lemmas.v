@@ -430,6 +430,15 @@ pose proof (Int.eq_spec v Int.zero).
 destruct (Int.eq v Int.zero); auto. inv H.
 Qed.
 
+Lemma typed_true_tlong_Vlong:
+  forall v, typed_true tlong (Vlong v) -> v <> Int64.zero.
+Proof.
+intros.
+unfold typed_true, strict_bool_val in H. simpl in H.
+pose proof (Int64.eq_spec v Int64.zero).
+destruct (Int64.eq v Int64.zero); auto. inv H.
+Qed.
+
 Ltac intro_redundant_prop :=
   (* do it in this complicated way because the proof will come out smaller *)
 match goal with |- ?P -> _ =>
@@ -478,7 +487,10 @@ Ltac fancy_intro aggressive :=
  | typed_true _ _ =>
         first [simple apply typed_true_of_bool in H
                | apply typed_true_tint_Vint in H
-               | apply (typed_true_e tint) in H
+               | apply typed_true_tlong_Vlong in H
+(*  This one is not portable 32/64 bits 
+                | apply (typed_true_e tint) in H
+*)
                | apply typed_true_ptr in H
                | idtac ]
  (* | locald_denote _ _ => hnf in H *)

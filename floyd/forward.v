@@ -97,7 +97,7 @@ Lemma var_block_lvar2:
  forall {cs: compspecs} {Espec: OracleKind} id t Delta P Q R Vs c Post,
    (var_types Delta) ! id = Some t ->
    complete_legal_cosu_type t = true ->
-   sizeof t < Int.modulus ->
+   sizeof t < Ptrofs.modulus ->
    is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   (forall v,
    semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
@@ -108,7 +108,7 @@ Lemma var_block_lvar2:
                c Post.
 Proof.
 intros.
-assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
+assert (Int.unsigned Int.zero + sizeof t <= Ptrofs.modulus)
  by (rewrite Int.unsigned_zero; omega).
 eapply semax_pre.
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
@@ -1306,15 +1306,21 @@ Lemma typed_true_ptr_e:
  forall t v, typed_true (tptr t) v -> isptr v.
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
- destruct (Int.eq i Int.zero); inv H1.
+destruct Archi.ptr64; try discriminate.
+revert H1; simple_if_tac; intro H1; inv H1.
 Qed.
 
 Lemma typed_false_ptr_e:
  forall t v, typed_false (tptr t) v -> v=nullval.
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
- destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb. subst; reflexivity.
+unfold nullval.
+destruct Archi.ptr64; try discriminate.
+f_equal.
+try (pose proof (Int64.eq_spec i Int64.zero);
+      destruct (Int64.eq i Int64.zero); inv H1; auto);
+try (pose proof (Int.eq_spec i Int.zero);
+      destruct (Int.eq i Int.zero); inv H1; auto).
 Qed.
 
 Lemma repr_neq_e:
@@ -1382,13 +1388,12 @@ Lemma typed_true_negb_bool_val_p:
      p = nullval.
 Proof.
 intros. destruct p; inv H.
-destruct Archi.ptr64 eqn:Hp.
-inv H1.
-simpl in H1.
-rewrite negb_involutive in H1.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb.
-subst; reflexivity.
+destruct Archi.ptr64 eqn:Hp;
+(simpl in H1;
+try (pose proof (Int64.eq_spec i Int64.zero);
+      destruct (Int64.eq i Int64.zero); inv H1; auto);
+try (pose proof (Int.eq_spec i Int.zero);
+      destruct (Int.eq i Int.zero); inv H1; auto)).
 Qed.
 
 Lemma typed_false_negb_bool_val_p:
@@ -1400,14 +1405,15 @@ Lemma typed_false_negb_bool_val_p:
             (bool_val_p p))) ->
      isptr p.
 Proof.
-intros. destruct p; inv H0.
-destruct Archi.ptr64 eqn:Hp.
-inv H2.
-simpl in H2.
-rewrite negb_involutive in H2.
-destruct (Int.eq i Int.zero) eqn:?; inv H2.
-simpl in H. rewrite Hp in H. subst. inv Heqb.
-hnf; auto.
+intros. destruct p; try solve [inv H0]; auto; rename H0 into H1.
+simpl in H.
+simpl.
+destruct Archi.ptr64 eqn:Hp;
+(simpl in H1;
+try (pose proof (Int64.eq_spec i Int64.zero);
+      destruct (Int64.eq i Int64.zero); inv H1; auto);
+try (pose proof (Int.eq_spec i Int.zero);
+      destruct (Int.eq i Int.zero); inv H1; auto)).
 Qed.
 
 Lemma typed_false_negb_bool_val_p':
@@ -2657,7 +2663,7 @@ Ltac solve_return_inner_gen :=
 
 Inductive fn_data_at {cs: compspecs} (Delta: tycontext) (T2: PTree.t (type * val)): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
-    (complete_legal_cosu_type t && (sizeof t <? Int.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
+    (complete_legal_cosu_type t && (sizeof t <? Ptrofs.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
     msubst_eval_lvar Delta T2 i t = Some p ->
     fn_data_at Delta T2 (i, t) (data_at_ Tsh t p).
 
