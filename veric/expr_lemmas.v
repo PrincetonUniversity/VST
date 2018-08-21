@@ -729,8 +729,7 @@ inv H; destruct (eval_expr e2 rho); try contradiction;
 do 3 red in H6;
 apply is_true_e in H6; apply int64_eq_e in H6; subst; hnf; rewrite Hp; auto).
 
-
-all: inv Hp.  (* Archi.ptr64 DEPENDENCY *)
+all: try (inv H1; reflexivity).
 
 Qed.
 

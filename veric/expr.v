@@ -439,7 +439,7 @@ match op with
                     end
 end.
 
-Definition intptr_t := if Archi.ptr64 then Tlong Unsigned noattr else Tint I32 Unsigned noattr.
+Definition intptr_t := if Archi.ptr64 then tulong else tuint.
 
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -726,8 +726,6 @@ match t1, t2 with
 | _, _ => false
 end.
 
-Definition tptrofs := if Archi.ptr64 then tulong else tuint.
-
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 
@@ -788,9 +786,9 @@ match e with
                   | _ => tc_FF (deref_byvalue ty)
                   end
  | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t tptrofs) (invalid_expression e))
+                     (tc_bool (eqb_type t intptr_t) (invalid_expression e))
  | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t tptrofs) (invalid_expression e))
+                     (tc_bool (eqb_type t intptr_t) (invalid_expression e))
  | _ => tc_FF (invalid_expression e)
 end
 

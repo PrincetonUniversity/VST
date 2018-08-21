@@ -341,12 +341,19 @@ intros.
  rewrite H0.
  assert (Int.modulus < Int64.modulus) by (compute; auto).
  omega.
- rewrite if_true by auto. simpl.
- f_equal.
- unfold ptrofs_of_int. destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto.
- unfold Ptrofs.of_ints. unfold Ptrofs.to_int.
- rewrite (Ptrofs.agree32_repr Hp). rewrite Int.repr_unsigned, Int.repr_signed.
- auto.
+ try ((* Archi.ptr64=true *)
+   rewrite if_true by auto; simpl;
+   f_equal;
+   unfold ptrofs_of_int; destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto;
+   unfold Ptrofs.of_ints, Ptrofs.to_int;
+   rewrite (Ptrofs.agree32_repr Hp); rewrite Int.repr_unsigned, Int.repr_signed;
+   auto).
+ try ( (* Archi.ptr64=false *)
+ simpl; f_equal;
+ unfold Ptrofs.to_int, ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int;
+ destruct si;
+ rewrite ?(Ptrofs.agree32_repr Hp),
+   ?Int.repr_unsigned, ?Int.repr_signed; auto).
 Qed.
 
 Lemma test_eq_fiddle_signed_xx:
@@ -385,16 +392,16 @@ try ( (* Archi.ptr64=false case *)
  unfold Ptrofs.to_int;
  rewrite Ptrofs.unsigned_repr; [reflexivity |];
  unfold Ptrofs.max_unsigned; rewrite (Ptrofs.modulus_eq32 Hp);
- compute; split; congruence).
+ compute; split; congruence);
 (* Archi.ptr64=true case *)
-unfold Ptrofs.of_int, Ptrofs.to_int64 in H0;
+try (unfold Ptrofs.of_int, Ptrofs.to_int64 in H0;
 rewrite Ptrofs.unsigned_repr in H0;
  [apply Int64repr_Intunsigned_zero in H0; subst; reflexivity
  | pose proof (Int.unsigned_range i);
    destruct H; split; auto;
    assert (Int.modulus < Ptrofs.max_unsigned)
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
-    omega].
+    omega]).
 -
 destruct H.
 split; auto.
@@ -462,16 +469,16 @@ try ( (* Archi.ptr64=false case *)
  unfold Ptrofs.to_int;
  rewrite Ptrofs.unsigned_repr; [reflexivity |];
  unfold Ptrofs.max_unsigned; rewrite (Ptrofs.modulus_eq32 Hp);
- compute; split; congruence).
+ compute; split; congruence);
 (* Archi.ptr64=true case *)
-unfold Ptrofs.of_int, Ptrofs.to_int64 in H;
+try (unfold Ptrofs.of_int, Ptrofs.to_int64 in H;
 rewrite Ptrofs.unsigned_repr in H;
  [apply Int64repr_Intunsigned_zero in H; subst; reflexivity
  | pose proof (Int.unsigned_range i);
    destruct H; split; auto;
    assert (Int.modulus < Ptrofs.max_unsigned)
      by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
-    omega].
+    omega]).
 -
 destruct H.
 split; auto.
@@ -552,7 +559,7 @@ hnf in H|-*.
 destruct si, si'; auto;
 try ( (* Archi.ptr64 = false *)
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
-rewrite (Ptrofs.agree32_repr Hp) in H0;
+rewrite (Ptrofs.agree32_repr Hp) in H;
 rewrite (Ptrofs.agree32_repr Hp);
 rewrite Int.repr_unsigned in *;
 rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto);

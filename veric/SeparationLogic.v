@@ -548,13 +548,12 @@ Lemma mapsto_tuint_tint:
 Proof. exact mapsto_memory_block.mapsto_tuint_tint. Qed.
 
 Lemma mapsto_tuint_tptr_nullval:
-  forall sh p t, Archi.ptr64=false -> mapsto sh (Tpointer t noattr) p nullval = mapsto sh tuint p nullval.
-Proof.
-  intros. inv H;
- exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
+  forall sh p t, 
+  mapsto sh (Tpointer t noattr) p nullval = mapsto sh intptr_t p nullval.
+Proof.  exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
 
-Lemma mapsto_tptrofs_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh tptrofs p nullval.
+Lemma mapsto_intptr_t_tptr_nullval:
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh intptr_t p nullval.
 Proof. exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
 
 Definition is_int32_noattr_type t :=
