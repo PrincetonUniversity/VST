@@ -328,17 +328,30 @@ intros.
  apply andp_left2; auto.
 Qed.
 
-Lemma valid_pointer_zero:
-  forall P, P |-- valid_pointer (Vint (Int.repr 0)).
+Lemma valid_pointer_zero32:
+  forall P, Archi.ptr64=false -> P |-- valid_pointer (Vint (Int.repr 0)).
 Proof.
  intros.
- apply valid_pointer_null.
+ unfold valid_pointer, valid_pointer'. rewrite H.
+ change predicates_hered.prop with prop; (* delete me *)
+ normalize.
 Qed.
+
+Lemma valid_pointer_zero64:
+  forall P, Archi.ptr64=true -> P |-- valid_pointer (Vlong (Int64.repr 0)).
+Proof.
+ intros.
+ unfold valid_pointer, valid_pointer'. rewrite H.
+ change predicates_hered.prop with prop; (* delete me *)
+ normalize.
+Qed.
+
 
 Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
 Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
 Hint Resolve valid_pointer_null : valid_pointer.
-Hint Resolve valid_pointer_zero : valid_pointer.
+Hint Resolve valid_pointer_zero32 : valid_pointer.
+Hint Resolve valid_pointer_zero64 : valid_pointer.
 
 (* TODO: test_order need to be added *)
 Ltac solve_valid_pointer :=

@@ -366,6 +366,7 @@ apply Int.eqmod_refl.
 hnf. exists (-1). omega.
 Qed. 
 
+(*
 Lemma Ptrofs_repr_Int_unsigned_special:
   Archi.ptr64=false -> forall i, Ptrofs.repr (Int.unsigned (Int.repr i)) = Ptrofs.repr i.
 Proof.
@@ -375,13 +376,20 @@ hnf in H0.
 rewrite <- H0.
 apply Ptrofs.repr_unsigned.
 Qed.
+*)
 
+(*
 Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
 Proof. reflexivity. Qed.
+*)
 
 Lemma sem_add_pi_ptr_special:
    forall t p i si,
     isptr p ->
+   match si with
+   | Signed => Int.min_signed <= i <= Int.max_signed
+   | Unsigned => 0 <= i <= Int.max_unsigned
+   end ->
     sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
   intros.
@@ -391,8 +399,8 @@ Proof.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
   f_equal. f_equal. f_equal.
   destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
-  apply (Ptrofs_repr_Int_signed_special Archi_ptr64_DEPENDENCY).
-  apply (Ptrofs_repr_Int_unsigned_special Archi_ptr64_DEPENDENCY).
+  rewrite Int.signed_repr; auto.
+  rewrite Int.unsigned_repr; auto.
 Qed.
 
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
@@ -433,6 +441,7 @@ Proof.
     rewrite CLASSIFY_ADD.
     rewrite sem_add_pi_ptr_special.
     2: simpl in H2; rewrite <- H2; auto.
+    2: admit.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
   + unfold tc_lvalue.
@@ -450,7 +459,7 @@ Proof.
       simpl; unfold_lift.
       rewrite <- H3.
       normalize.
-Qed.
+Admitted.
 
 Lemma in_members_Ctypes_offset: forall i m e, in_members i m -> Ctypes.field_offset cenv_cs i m = Errors.Error e -> False.
 Proof.

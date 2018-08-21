@@ -251,13 +251,18 @@ Lemma bool_val_int_eq_e:
     i=j.
 Proof.
  intros.
+ unfold Cop.bool_val in H.
+ destruct Archi.ptr64 eqn:Hp;
  revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
++
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
  simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
++
  pose proof (Int.eq_spec i j).
  revert H H0; case_eq (Int.eq i j); intros; auto.
- simpl in H0; unfold Vfalse in H0. inv H0.
+ simpl in H0; unfold Vfalse in H0. inv H0. inv H2.
++ unfold Val.of_bool in H.  destruct (Int.eq i j); inv H.
 Qed.
 
 Lemma bool_val_notbool_ptr:
@@ -268,19 +273,25 @@ Lemma bool_val_notbool_ptr:
 Proof.
  intros.
  destruct t; try contradiction. clear H.
+ unfold Cop.sem_notbool, Cop.bool_val, Val.of_bool, Cop.classify_bool, nullval.
+ destruct Archi.ptr64 eqn:Hp; simpl;
  apply prop_ext; split; intros.
- destruct v; simpl in H; try discriminate.
- unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
- destruct Archi.ptr64 eqn:Hp; simpl in H. inv H.
- destruct (Int.eq i Int.zero) eqn:?; inv H.
-  apply int_eq_e in Heqb. subst; reflexivity.
- unfold Cop.sem_notbool, Cop.bool_val in H. simpl in H.
- destruct Archi.ptr64 eqn:Hp; simpl in H. 
+-
+ destruct v; simpl in H; try solve [inv H].
+ destruct (Int64.eq i Int64.zero) eqn:?; inv H.
+  apply expr_lemmas.int64_eq_e in Heqb. subst; reflexivity.
  destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
   simpl in H; inv H.
+-
+  subst v; simpl. rewrite Int64.eq_true. reflexivity.
+-
+ destruct v; simpl in H; try solve [inv H].
+ destruct (Int.eq i Int.zero) eqn:?; inv H.
+  apply int_eq_e in Heqb. subst; reflexivity.
  destruct (Memory.Mem.weak_valid_pointer m b (Ptrofs.unsigned i)) eqn:?;
-  simpl in H; inv H. 
- subst. simpl. unfold Cop.bool_val; simpl. reflexivity.
+  simpl in H; inv H.
+-
+  subst v; simpl. reflexivity.
 Qed.
 
 Definition retval : environ -> val := eval_id ret_temp.
@@ -374,11 +385,11 @@ Lemma typed_true_isptr:
           typed_true t = isptr.
 Proof.
 intros. extensionality x; apply prop_ext.
-destruct t; try contradiction; unfold typed_true, strict_bool_val;
-destruct x; intuition; try congruence.
-all: try match type of H0 with context [Archi.ptr64] => destruct Archi.ptr64 eqn:?; inv H0 end.
-all: try solve [destruct (Int.eq i Int.zero); inv H0].
-all: try solve [destruct (Int64.eq i Int64.zero); inv H2].
+unfold typed_true, bool_val, strict_bool_val, isptr.
+destruct t; try contradiction;
+destruct Archi.ptr64 eqn:Hp;
+destruct x; intuition; try congruence;
+revert H0; simple_if_tac; intro H0; inv H0.
 Qed.
 
 Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
@@ -517,16 +528,19 @@ Lemma sem_cast_pointer2':
   forall (v : val) (t1 t2: type),
   match t1 with
   | Tpointer _ _ => is_true (negb (eqb_type t1 int_or_ptr_type))
-  | Tint I32 _ _ => True 
+  | Tint I32 _ _ => if Archi.ptr64 then False else True 
+  | Tlong _ _ => if Archi.ptr64 then True else False
   | _ => False end ->
   match t2 with
   | Tpointer _ _ => is_true (negb (eqb_type t2 int_or_ptr_type))
-  | Tint I32 _ _ => True 
+  | Tint I32 _ _ => if Archi.ptr64 then False else True 
+  | Tlong _ _ => if Archi.ptr64 then True else False
   | _ => False end ->
   is_pointer_or_null v -> force_val (sem_cast t1 t2 v) = v.
 Proof.
 intros.
-unfold sem_cast, classify_cast.
+unfold sem_cast, classify_cast, force_val; simpl.
+destruct Archi.ptr64 eqn:Hp;
 destruct t1; try contradiction; try destruct i; try contradiction; auto;
 destruct t2; try contradiction; try destruct i; try contradiction; auto;
 try rewrite (is_true_negb _ H); try rewrite (is_true_negb _ H0);
@@ -556,7 +570,7 @@ tc_environ Delta rho ->
 tc_lvalue Delta (Evar i t) rho |--
         !! (force_val
             match eval_var i t rho with
-            | Vint _ => Some (eval_var i t rho)
+(*            | Vint _ => Some (eval_var i t rho) *)
             | Vptr _ _ => Some (eval_var i t rho)
             | _ => None
             end = eval_var i t rho).
@@ -565,13 +579,19 @@ intros.
 eapply derives_trans.
 apply typecheck_lvalue_sound; auto.
 simpl; normalize.
- destruct (eval_var i t rho); inv H0; simpl; auto.
+unfold eval_var in *.
+destruct (Map.get (ve_of rho) i) as [[? ?] |].
+destruct (eqb_type t t0); try discriminate; reflexivity.
+destruct (Map.get (ge_of rho) i).
+reflexivity.
+inv H0.
 Qed.
 
 Lemma is_pointer_or_null_force_int_ptr:
    forall v, is_pointer_or_null v -> (force_val
         match v with
-        | Vint _ => Some v
+        | Vint _ => if Archi.ptr64 then None else Some v
+        | Vlong _ => if Archi.ptr64 then Some v else None
         | Vptr _ _ => Some v
         | _ => None
         end) = v.
@@ -584,7 +604,8 @@ Hint Rewrite is_pointer_or_null_force_int_ptr using assumption : norm1.
 Lemma is_pointer_force_int_ptr:
    forall v, isptr v -> (force_val
         match v with
-        | Vint _ => Some v
+        | Vint _ => if Archi.ptr64 then None else Some v
+        | Vlong _ => if Archi.ptr64 then Some v else None
         | Vptr _ _ => Some v
         | _ => None
         end) = v.
@@ -597,7 +618,8 @@ Hint Rewrite is_pointer_force_int_ptr using assumption : norm1.
 Lemma is_pointer_or_null_match :
    forall v, is_pointer_or_null v ->
         (match v with
-        | Vint _ => Some v
+        | Vint _ => if Archi.ptr64 then None else Some v
+        | Vlong _ => if Archi.ptr64 then Some v else None
         | Vptr _ _ => Some v
         | _ => None
          end) = Some v.
@@ -609,7 +631,8 @@ Hint Rewrite is_pointer_or_null_match using assumption : norm1.
 Lemma is_pointer_force_int_ptr2:
    forall v, isptr v ->
         match v with
-        | Vint _ => Some v
+        | Vint _ => if Archi.ptr64 then None else Some v
+        | Vlong _ => if Archi.ptr64 then Some v else None
         | Vptr _ _ => Some v
         | _ => None
          end = Some v.
@@ -640,8 +663,9 @@ Lemma isptr_match : forall w0,
 is_pointer_or_null
          match
            match w0 with
-           | Vint _ => Some w0
-           | Vptr _ _ => Some w0
+          | Vint _ => if Archi.ptr64 then None else Some w0
+          | Vlong _ => if Archi.ptr64 then Some w0 else None
+          | Vptr _ _ => Some w0
            | _ => None
            end
          with
@@ -650,6 +674,8 @@ is_pointer_or_null
          end
 = is_pointer_or_null w0.
 intros.
+unfold is_pointer_or_null.
+destruct Archi.ptr64 eqn:Hp;
 destruct w0; auto.
 Qed.
 
