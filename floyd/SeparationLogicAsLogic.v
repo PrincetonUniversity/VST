@@ -1179,6 +1179,52 @@ Proof.
         apply andp_left2, derives_refl.
 Qed.
 
+Theorem seq_assoc:
+  forall {CS: compspecs} {Espec: OracleKind},
+   forall Delta P s1 s2 s3 R,
+        @semax CS Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
+        @semax CS Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
+Proof.
+  intros.
+  split; intros.
+  + apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    apply semax_seq_inv in H0.
+    destruct H0 as [? [? ?]].
+    eapply AuxDefs.semax_seq; eauto.
+    eapply AuxDefs.semax_seq; eauto.
+    destruct R; auto.
+  + apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    eapply AuxDefs.semax_seq with x0; [destruct R; exact H |].
+    eapply AuxDefs.semax_seq; eauto.
+Qed.
+
+Theorem semax_seq_skip:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P s Q,
+    @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence s Sskip) Q.
+Proof.
+  intros.
+  split; intros.
+  + apply AuxDefs.semax_seq with (RA_normal Q).
+    - destruct Q; auto.
+    - eapply semax_post; [.. | apply AuxDefs.semax_skip].
+      * apply ENTAIL_refl.
+      * apply andp_left2, FF_left.
+      * apply andp_left2, FF_left.
+      * intros; apply andp_left2, FF_left.
+  + apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    apply semax_skip_inv in H0.
+    eapply semax_post_indexed_bupd.
+Axiom semax_skip_seq:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P s Q,
+    @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
+
 End ClightSeparationHoareLogic.
 (*
 Module WITH_EXISTS_PRE.
