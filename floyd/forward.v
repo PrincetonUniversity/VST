@@ -47,7 +47,10 @@ Lemma isptr_force_sem_add_ptr_int:
 Proof.
 intros. normalize.
 Qed.
-Hint Resolve isptr_force_sem_add_ptr_int : prove_it_now.
+
+Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
+    apply isptr_force_sem_add_ptr_int;
+    [auto with prove_it_now | rep_omega].
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
 Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) :
@@ -2526,6 +2529,41 @@ Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite @sem_add_ptr_int_lem using assumption : norm1.
+
+Lemma sem_add_pi': forall {CS: compspecs} t0 si v i,
+  isptr v ->
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
+   force_val (sem_add_ptr_int t0 si v (Vint (Int.repr i))) =
+   offset_val (sizeof t0 * i) v.
+Proof.
+  intros.
+  unfold sem_add_ptr_int.
+  rewrite sem_add_pi_ptr; auto.
+Qed.
+Hint Rewrite @sem_add_pi' using (solve [auto with norm ; rep_omega]) : norm.
+
+(*
+Lemma offset_val_sem_add_pi: forall {CS: compspecs} ofs t0 si v i,
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
+   offset_val ofs
+     (force_val (sem_add_ptr_int t0 si v (Vint (Int.repr i)))) =
+   offset_val ofs
+     (offset_val (sizeof t0 * i) v).
+Proof.
+  intros.
+  destruct v; try reflexivity.
+  unfold sem_add_ptr_int.
+  rewrite sem_add_pi_ptr; auto.
+  apply I.
+Qed.
+Hint Rewrite @offset_val_sem_add_pi using (solve [auto with norm ; rep_omega]) : norm.
+*)
 
 Arguments field_type i m / .
 Arguments nested_field_type {cs} t gfs / .

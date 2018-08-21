@@ -117,8 +117,8 @@ forward_call (*  s = sumarray(four+2,2); *)
     sublist 2 4 four_contents,2).
 +
  entailer!.
- rewrite field_address0_offset. reflexivity.
- auto with field_compatible.
+ rewrite field_address0_offset by auto with field_compatible.
+ normalize.
 + split. auto. computable.
 +
   gather_SEP 1 2.

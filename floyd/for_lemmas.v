@@ -634,7 +634,7 @@ Proof.
     [| | | | 
      destruct type_i as [| [| | |] [|] | [|] | | | | | |]; try solve [inv IMM];
      destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..];
-    apply typed_false_tint_e in H1.
+    try apply typed_false_tint_e in H1.
   + rewrite Sfor_comparison_Signed_I32 in H1 by auto.
     omega.
   + rewrite Sfor_comparison_Unsigned_I32 in H1 by auto.
@@ -657,57 +657,57 @@ Proof.
   destruct type_i as [| [| | |] [|] | | | | | | |]; inv I32_i;
   simpl typecheck_expr; unfold typecheck_temp_id.
   + rewrite TI. simpl tc_andp.
-    simpl isCastResultType.
-(*    replace ((isCastResultType (Tint I32 Signed a) (Tint I32 Signed a) (Ebinop Oadd (Etempvar _i (Tint I32 Signed a)) (Econst_int (Int.repr 1) (Tint I32 s noattr)) (Tint I32 Signed a)))) with tc_TT.
-    2: {
-      unfold isCastResultType, Cop2.classify_cast.
-      change Archi.ptr64 with false.
-      simpl.
-      rewrite (proj2 (eqb_attr_spec _ _)) by auto.
-      auto.
-      }
-*)
     match goal with
     | |- context [ binarithType ?A ?B ?C ?D ?E ] =>
            replace (binarithType A B C D E) with tc_TT by (destruct s; auto)
     end.
     rewrite <- EQ_inv2, <- denote_tc_assert_andp, tc_andp_TT1, !tc_andp_TT2.
     simpl; intro rho.
-    unfold_lift; unfold local, lift1.
+    unfold isCastResultType, Cop2.classify_cast.
+    destruct Archi.ptr64 eqn:Hp;
+    simpl denote_tc_assert;
+    try rewrite (proj2 (eqb_attr_spec a a) (eq_refl _));
+    unfold_lift; unfold local, lift1;
     normalize.
-    rewrite <- H1.
-    simpl.
+    *
+    rewrite <- H1;
+    simpl;
     apply andp_right; apply prop_right.
-    {
-      exists (Vint (Int.repr i)); split; auto.
-      unfold eval_id in H1.
+    exists (Vint (Int.repr i)); split; auto;
+      unfold eval_id in H1;
       destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
-    }
-    inv IMM.
-    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H4; rep_omega).
-    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H4; rep_omega.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega.
+   *
+    simpl denote_tc_assert.
+    unfold_lift; unfold local, lift1.
+    rewrite <- H1.
+    rewrite ?(andp_comm (prop _)).
+    simpl;
+    apply andp_right; apply prop_right.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega.
+    exists (Vint (Int.repr i)); split; auto;
+      unfold eval_id in H1;
+      destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
   + rewrite TI. simpl tc_andp.
-(*
-    replace (isCastResultType (Tint I32 Unsigned a) (Tint I32 Unsigned a)
-           (Ebinop Oadd (Etempvar _i (Tint I32 Unsigned a)) (Econst_int (Int.repr 1) (Tint I32 s noattr))
-                   (Tint I32 Unsigned a))) with tc_TT.
-    2: {
-      unfold isCastResultType, Cop2.classify_cast.
-      change Archi.ptr64 with false.
-      simpl.
-      rewrite (proj2 (eqb_attr_spec _ _)) by auto.
-      auto.
-    }
-*)
     intro rho.
     simpl.
     rewrite <- EQ_inv2.
+    unfold isCastResultType;
     simpl; unfold_lift; unfold local, lift1.
+    destruct Archi.ptr64 eqn:Hp;
     normalize.
     apply prop_right.
     exists (Vint (Int.repr i)); split; auto.
     unfold eval_id in H1.
     destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
+    apply andp_right.
+    apply prop_right.
+       exists (Vint (Int.repr i)); split; auto;
+      unfold eval_id in H1;
+      destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
+    simple_if_tac; simpl; apply TT_right. 
 Qed.
 
 Lemma Sfor_inc_entail: forall i s,

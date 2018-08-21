@@ -115,6 +115,14 @@ forward.
 unfold cstring in *.
 rename s into ls.
 Intros.
+assert_PROP (Zlength ls < Ptrofs.max_unsigned) as Hlen. {
+ (* THIS PROOF IS UGLY! *)
+ entailer!.
+ clear - H1. destruct H1 as [? [_ [? _]]].
+ hnf in H0. destruct str; try contradiction. simpl in H0.
+ rewrite Z.max_r in H0 by list_solve.
+ rep_omega.
+}
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
@@ -134,7 +142,8 @@ forward_loop (EX i : Z,
   { forward. 
     Exists (offset_val i str).
     entailer!.
-    left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
+    left. exists i. split3; auto. rewrite app_Znth1; auto. cstring.
+ }
   { forward_if.
     { forward.
       Exists nullval; rewrite !map_app; entailer!.
@@ -540,6 +549,14 @@ forward.
 unfold cstring in *.
 rename s into ls.
 Intros.
+assert_PROP (Zlength ls < Ptrofs.max_unsigned) as Hlen. {
+ (* THIS PROOF IS UGLY! *)
+ entailer!.
+ clear - H1. destruct H1 as [? [_ [? _]]].
+ hnf in H0. destruct str; try contradiction. simpl in H0.
+ rewrite Z.max_r in H0 by list_solve.
+ rep_omega.
+}
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))

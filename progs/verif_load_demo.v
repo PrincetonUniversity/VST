@@ -7,6 +7,11 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 Definition pair_pair_t := (Tstruct _pair_pair noattr).
 
 Definition array_size := 100.
+Opaque array_size.
+Lemma array_size_eq: array_size = 100.
+Proof. reflexivity. Qed. 
+Hint Rewrite array_size_eq : rep_omega.
+
 
 Definition get22_spec :=
  DECLARE _get22
@@ -155,7 +160,7 @@ forward_for_simple_bound (Int.unsigned (Int.shru (Int.repr tag) (Int.repr 10))) 
     rewrite field_compatible_field_address by auto with field_compatible.
     simpl.
     rewrite Ptrofs.add_assoc, ptrofs_add_repr. 
-    f_equal. f_equal. f_equal. omega.
+    f_equal. f_equal. normalize. f_equal. omega.
   }
   forward.
   forward.
@@ -181,7 +186,8 @@ Lemma body_get22_root_expr: semax_body Vprog Gprog f_get22 get22_spec.
  assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr) Signed pps (Vint (Int.repr i))))
    = field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps) as E. {
    entailer!. rewrite field_compatible_field_address by auto with field_compatible.
-  simpl. normalize.
+  simpl.
+ normalize.
  }
  (* int res = p->snd; *)
  forward.
