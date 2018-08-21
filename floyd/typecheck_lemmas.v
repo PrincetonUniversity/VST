@@ -36,11 +36,13 @@ Proof.
   normalize. inv H.
 Qed.
 
-Lemma neutral_isCastResultType:
+Lemma neutral_isCastResultType_64:
+ Archi.ptr64 = true ->
   forall {cs: compspecs}  P t t' v rho,
    is_neutral_cast t' t = true ->
    P |-- denote_tc_assert (isCastResultType t' t v) rho.
 Proof.
+intro Hp.
 intros.
   unfold isCastResultType;
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
@@ -49,18 +51,49 @@ try solve [
            simpl; (destruct (eqb_tac _ _)); apply @TT_right].
 *
 unfold classify_cast.
-destruct Archi.ptr64 eqn:Hp.
-apply @TT_right.
-rewrite if_true by auto.
-destruct (eqb_type _ _); apply @TT_right.
+rewrite Hp.
+try destruct (eqb_type _ _); apply @TT_right.
 *
 unfold classify_cast.
-destruct Archi.ptr64 eqn:Hp.
+unfold is_neutral_cast in H.
+rewrite Hp.
+destruct (eqb_type (Tpointer t a0) int_or_ptr_type) eqn:H0.
+rewrite (eqb_type_true _ _ H0).
+destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
+rewrite (eqb_type_true _ _ H1).
 apply @TT_right.
-rewrite if_true by auto.
-destruct (eqb_type _ _); apply @TT_right.
+rewrite (eqb_type_true _ _ H0) in H.
+rewrite H1 in H. inv H.
+destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
+rewrite (eqb_type_true _ _ H1) in H.
+rewrite expr_lemmas4.eqb_type_sym in H.
+rewrite H0 in H. inv H.
+rewrite orb_true_iff in H.
+unfold is_pointer_type.
+rewrite H0,H1.
+simpl.
+simple_if_tac; apply @TT_right.
+Qed.
+
+Lemma neutral_isCastResultType_32:
+ Archi.ptr64 = false ->
+  forall {cs: compspecs}  P t t' v rho,
+   is_neutral_cast t' t = true ->
+   P |-- denote_tc_assert (isCastResultType t' t v) rho.
+Proof.
+intro Hp.
+intros.
+  unfold isCastResultType;
+  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
+try solve [
+     inv H; simpl; try apply @TT_right;
+           simpl; (destruct (eqb_tac _ _)); apply @TT_right].
 *
 unfold classify_cast.
+rewrite Hp. apply @TT_right.
+*
+unfold classify_cast.
+rewrite Hp.
 unfold is_neutral_cast in H.
 rewrite orb_true_iff in H.
 destruct H.
@@ -74,6 +107,16 @@ destruct (eqb_type (Tpointer t' a) (Tpointer t a0)); try apply @TT_right.
 unfold is_pointer_type.
 rewrite H,H0.
 apply @TT_right.
+Qed.
+
+Lemma neutral_isCastResultType:
+  forall {cs: compspecs}  P t t' v rho,
+   is_neutral_cast t' t = true ->
+   P |-- denote_tc_assert (isCastResultType t' t v) rho.
+Proof.
+destruct Archi.ptr64 eqn:Hp.
+exact (@neutral_isCastResultType_64 Hp).
+exact (@neutral_isCastResultType_32 Hp).
 Qed.
 
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.

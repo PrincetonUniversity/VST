@@ -789,16 +789,16 @@ match op with
                               (check_pp_int' a1 a2 op ty e)
                    | Cop.cmp_case_pi si =>
                           tc_andp' (tc_int_or_ptr_type (typeof a1))
-                            (check_pp_int' a1 (Ecast a2 intptr_t) op ty e)
+                            (check_pp_int' a1 (Ecast a2 size_t) op ty e)
                    | Cop.cmp_case_ip si => 
                           tc_andp' (tc_int_or_ptr_type (typeof a2))
-                           (check_pp_int' (Ecast a1 intptr_t) a2 op ty e)
+                           (check_pp_int' (Ecast a1 size_t) a2 op ty e)
                    | Cop.cmp_case_pl => 
                           tc_andp' (tc_int_or_ptr_type (typeof a1))
-                            (check_pp_int' a1 (Ecast a2 intptr_t) op ty e)
+                            (check_pp_int' a1 (Ecast a2 size_t) op ty e)
                    | Cop.cmp_case_lp => 
                           tc_andp' (tc_int_or_ptr_type (typeof a2))
-                          (check_pp_int' (Ecast a1 intptr_t) a2 op ty e)
+                          (check_pp_int' (Ecast a1 size_t) a2 op ty e)
                    end
   end.
 Proof.

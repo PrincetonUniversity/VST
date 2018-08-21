@@ -1278,10 +1278,10 @@ Hint Resolve tc_val_pointer_nullval'.
 Arguments type_is_volatile ty / .
 
 Lemma mapsto_tuint_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh intptr_t p nullval.
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
 Proof.
 intros.
-unfold mapsto, intptr_t.
+unfold mapsto, size_t.
 destruct p; try reflexivity.
 destruct Archi.ptr64 eqn:Hp.
 *

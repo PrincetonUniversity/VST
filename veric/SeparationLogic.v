@@ -549,11 +549,11 @@ Proof. exact mapsto_memory_block.mapsto_tuint_tint. Qed.
 
 Lemma mapsto_tuint_tptr_nullval:
   forall sh p t, 
-  mapsto sh (Tpointer t noattr) p nullval = mapsto sh intptr_t p nullval.
+  mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
 Proof.  exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
 
-Lemma mapsto_intptr_t_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh intptr_t p nullval.
+Lemma mapsto_size_t_tptr_nullval:
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
 Proof. exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
 
 Definition is_int32_noattr_type t :=

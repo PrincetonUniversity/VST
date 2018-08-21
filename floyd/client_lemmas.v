@@ -247,7 +247,8 @@ Hint Rewrite @subst_lift4 (*@subst_lift4'*) @subst_lift4C : subst.
 
 
 Lemma bool_val_int_eq_e:
-  forall i j m, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool m = Some true -> i=j.
+  forall i j m, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool m = Some true ->
+    i=j.
 Proof.
  intros.
  revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
@@ -262,7 +263,8 @@ Qed.
 Lemma bool_val_notbool_ptr:
     forall v t m,
    match t with Tpointer _ _ => True | _ => False end ->
-   (Cop.bool_val (force_val (Cop.sem_notbool v t m)) type_bool m = Some true) = (v = nullval).
+   (Cop.bool_val (force_val (Cop.sem_notbool v t m)) type_bool m = Some true) 
+        = (v = nullval).
 Proof.
  intros.
  destruct t; try contradiction. clear H.

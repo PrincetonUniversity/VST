@@ -269,7 +269,7 @@ Qed.
 
 Lemma cop2_sem_cast :
     forall t1 t2 v m,
- (classify_cast t1 t2 = classify_cast intptr_t tbool ->
+ (classify_cast t1 t2 = classify_cast size_t tbool ->
    denote_tc_test_eq v (Vint Int.zero) (m_phi m) )->
   t1 <> int_or_ptr_type ->
   t2 <> int_or_ptr_type ->

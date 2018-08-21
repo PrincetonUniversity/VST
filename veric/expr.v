@@ -14,7 +14,7 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
    | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-             if Int.eq n Int.zero then Some false else None
+             if Archi.ptr64 then None else if Int.eq n Int.zero then Some false else None
    | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
             if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
    | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
@@ -439,7 +439,7 @@ match op with
                     end
 end.
 
-Definition intptr_t := if Archi.ptr64 then tulong else tuint.
+Definition size_t := if Archi.ptr64 then tulong else tuint.
 
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -553,16 +553,16 @@ match op with
                        (check_pp_int a1 a2 op ty e)
               | Cop.cmp_case_pi si =>
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+                       (check_pp_int a1 (Ecast a2 size_t) op ty e)
               | Cop.cmp_case_ip si => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
+                    (check_pp_int (Ecast a1 size_t) a2 op ty e)
               | Cop.cmp_case_pl => 
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+                       (check_pp_int a1 (Ecast a2 size_t) op ty e)
               | Cop.cmp_case_lp => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
+                    (check_pp_int (Ecast a1 size_t) a2 op ty e)
               end
   end.
 
@@ -786,9 +786,9 @@ match e with
                   | _ => tc_FF (deref_byvalue ty)
                   end
  | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t intptr_t) (invalid_expression e))
+                     (tc_bool (eqb_type t size_t) (invalid_expression e))
  | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t intptr_t) (invalid_expression e))
+                     (tc_bool (eqb_type t size_t) (invalid_expression e))
  | _ => tc_FF (invalid_expression e)
 end
 

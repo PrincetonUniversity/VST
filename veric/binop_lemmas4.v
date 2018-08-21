@@ -281,11 +281,11 @@ Qed.
 
 Lemma sem_cast_long_intptr_lemma:
  forall si a i,
-  force_val1 (sem_cast (Tlong si a) intptr_t) (Vlong i)
+  force_val1 (sem_cast (Tlong si a) size_t) (Vlong i)
  = Vptrofs (Ptrofs.of_int64 i).
 Proof.
 intros.
- unfold Vptrofs, intptr_t, sem_cast, classify_cast, sem_cast_pointer.
+ unfold Vptrofs, size_t, sem_cast, classify_cast, sem_cast_pointer.
  destruct Archi.ptr64 eqn:Hp.
  simpl. rewrite Ptrofs.to_int64_of_int64; auto.
  simpl.
@@ -319,11 +319,11 @@ Qed.
 
 Lemma sem_cast_int_intptr_lemma:
  forall sz si a i,
-  force_val1 (sem_cast (Tint sz si a) intptr_t) (Vint i)
+  force_val1 (sem_cast (Tint sz si a) size_t) (Vint i)
  = Vptrofs (ptrofs_of_int si i).
 Proof.
 intros.
- unfold Vptrofs, intptr_t, sem_cast, classify_cast, sem_cast_pointer.
+ unfold Vptrofs, size_t, sem_cast, classify_cast, sem_cast_pointer.
  destruct Archi.ptr64 eqn:Hp.
  simpl. unfold cast_int_long, ptrofs_of_int.
  destruct si; auto.
