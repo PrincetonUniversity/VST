@@ -66,12 +66,11 @@ Proof.
     rewrite H1.
     pose proof two_power_nat_pos x0.
     pose proof two_power_nat_pos x.
-    assert (k > 0).
-    Focus 1. {
+    assert (k > 0). {
       eapply Zmult_gt_0_reg_l.
       + exact H2.
       + rewrite <- H0, Z.mul_comm; omega.
-    } Unfocus.
+    }
     rewrite <- (Z.mul_1_l m) at 2.
     apply Zmult_ge_compat_r; omega.
 Qed.
@@ -425,7 +424,7 @@ Lemma Zrange_pred_dec: forall (P: Z -> Prop),
 Proof.
   intros.
   assert ((forall n: nat, (n < Z.to_nat (r - l))%nat -> P (l + Z.of_nat n)) <-> (forall z : Z, l <= z < r -> P z)).
-  Focus 1. {
+  {
     split; intros.
     + specialize (H0 (Z.to_nat (z - l))).
       rewrite <- Z2Nat.inj_lt in H0 by omega.
@@ -441,7 +440,7 @@ Proof.
         omega.
       - rewrite Z2Nat.id in H1 by omega.
         omega.
-  } Unfocus.
+  }
   eapply sumbool_dec_iff; [clear H0 | eassumption].
   apply range_pred_dec.
   intros.

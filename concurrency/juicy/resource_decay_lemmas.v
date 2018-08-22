@@ -20,12 +20,13 @@ Require Import VST.concurrency.juicy.sync_preds_defs.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Lemma resource_decay_LK {b phi phi' loc rsh sh n pp} :
+Lemma resource_decay_LK {b phi phi'} :
   resource_decay b phi phi' ->
-  phi @ loc = YES rsh sh (LK n) pp ->
-  phi' @ loc = YES rsh sh (LK n) (preds_fmap (approx (level phi')) (approx (level phi')) pp).
+  forall  loc rsh sh n i pp,
+  phi @ loc = YES rsh sh (LK n i) pp ->
+  phi' @ loc = YES rsh sh (LK n i) (preds_fmap (approx (level phi')) (approx (level phi')) pp).
 Proof.
-  intros [L R] E.
+  intros [L R]; intros. rename H into E.
   specialize (R loc).
   rewrite E in *.
   destruct R as [N [R|[R|[R|R]]]].
@@ -36,30 +37,15 @@ Proof.
   - destruct R as [v [pp' [R H]]]. congruence.
 Qed.
 
-Lemma resource_decay_CT {b phi phi' loc rsh sh n} :
+Lemma resource_decay_LK_inv {b phi phi'} :
   resource_decay b phi phi' ->
-  phi @ loc = YES rsh sh (CT n) NoneP ->
-  phi' @ loc = YES rsh sh (CT n) NoneP.
-Proof.
-  intros [L R] E.
-  specialize (R loc).
-  rewrite E in *.
-  destruct R as [N [R|[R|[R|R]]]].
-  - rewrite <- R.
-    unfold resource_fmap in *; f_equal.
-  - destruct R as [sh' [Psh [v [v' [R H]]]]]. simpl in R. congruence.
-  - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
-  - destruct R as [v [pp' [R H]]]. congruence.
-Qed.
-
-Lemma resource_decay_LK_inv {b phi phi' loc rsh sh n pp'} :
-  resource_decay b phi phi' ->
-  phi' @ loc = YES rsh sh (LK n) pp' ->
+  forall { loc rsh sh n i pp'}, 
+  phi' @ loc = YES rsh sh (LK n i) pp' ->
   exists pp,
     pp' = preds_fmap (approx (level phi')) (approx (level phi')) pp /\
-    phi @ loc = YES rsh sh (LK n) pp.
+    phi @ loc = YES rsh sh (LK n i) pp.
 Proof.
-  intros [L R] E.
+  intros [L R]; intros; rename H into E.
   specialize (R loc).
   rewrite E in *.
   destruct R as [N [R|[R|[R|R]]]].
@@ -104,18 +90,10 @@ Proof.
   destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
-    destruct (eq_dec loc loc') as [<-|noteq].
-    + rewrite jam_true in *; auto.
       destruct LKAT as [p E]; simpl in E.
       apply (resource_decay_LK RD) in E.
       eexists.
       hnf.
-      rewrite E.
-      reflexivity.
-    + rewrite jam_false in *; auto.
-      destruct LKAT as [p E]; simpl in E.
-      eexists; simpl.
-      apply (resource_decay_CT RD) in E.
       rewrite E.
       reflexivity.
 Qed.
@@ -129,9 +107,7 @@ Proof.
   intros RD LT LKAT loc' r.
   specialize (LKAT loc' r).
   destruct LKAT as (sh & rsh & E); exists sh, rsh.
-  if_tac.
-  - apply (resource_decay_LK RD) in E. rewrite E; reflexivity.
-  - apply (resource_decay_CT RD) in E. rewrite E; reflexivity.
+  apply (resource_decay_LK RD) in E. rewrite E; reflexivity.
 Qed.
 
 Lemma resource_decay_lkat'' {b phi phi' R loc} :
@@ -162,8 +138,7 @@ Proof.
   intros RD LT LKAT loc' r.
   specialize (LKAT loc' r).
   destruct LKAT as (sh & rsh & E); exists sh, rsh.
-  if_tac.
-  - apply (resource_decay_LK RD) in E. rewrite E. f_equal.
+ apply (resource_decay_LK RD) in E. rewrite E. f_equal.
     unfold preds_fmap in *.
     unfold pack_res_inv in *.
     f_equal.
@@ -178,7 +153,6 @@ Proof.
     rewrite (equal_f RR' R).
     rewrite (equal_f RR R).
     reflexivity.
-  - apply (resource_decay_CT RD) in E. rewrite E; reflexivity.
 Qed.
 
 Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
@@ -192,8 +166,6 @@ Proof.
   destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
-    destruct (eq_dec loc loc') as [<-|noteq].
-    + rewrite jam_true in *; auto.
       destruct LKAT as [p E]; simpl in E.
       apply (resource_decay_LK RD) in E.
       eexists.
@@ -210,12 +182,6 @@ Proof.
       change (approx (level phi')   (approx (level phi')  R))
       with  ((approx (level phi') oo approx (level phi')) R).
       rewrite approx_oo_approx.
-      reflexivity.
-    + rewrite jam_false in *; auto.
-      destruct LKAT as [p E]; simpl in E.
-      eexists; simpl.
-      apply (resource_decay_CT RD) in E.
-      rewrite E.
       reflexivity.
 Qed.
 
@@ -279,17 +245,13 @@ Qed.
 Lemma resource_decay_same_locks {b phi phi'} :
   resource_decay b phi phi' -> same_locks phi phi'.
 Proof.
-  intros R loc; split; intros (rsh & sh & n & pp & E).
-  - repeat eexists. eapply resource_decay_LK in E; eauto.
-  - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
-    repeat eexists.
-Qed.
-
-Lemma resource_decay_same_locks_sized {b phi phi'} :
-  resource_decay b phi phi' -> same_locks_sized phi phi'.
-Proof.
-  intros R loc n; split; intros (rsh & sh & pp & E).
-  - repeat eexists. eapply resource_decay_LK in E; eauto.
-  - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
-    repeat eexists.
+  intros R loc n i. unfold resource_is_lock. split; intro.
+ -
+  pose proof (resource_decay_LK R loc).
+  destruct (phi @ loc); try contradiction; destruct k; try contradiction; destruct H; subst.
+  rewrite (H0 sh r n0 i0 p (eq_refl _)). auto.
+ -
+  pose proof (@resource_decay_LK_inv _ _ _ R loc).
+  destruct (phi' @ loc); try contradiction; destruct k; try contradiction; destruct H; subst.
+  destruct (H0 sh r n0 i0 p (eq_refl _)) as [pp' [? ?]]. rewrite H1. auto.
 Qed.

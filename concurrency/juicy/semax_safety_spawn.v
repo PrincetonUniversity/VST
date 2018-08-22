@@ -227,7 +227,7 @@ Proof.
 (*  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre). *)
   simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A). simpl in A.
-  destruct A as (((PreA & PreA') & ((PreB1 & PreB2 & PreB3) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
+  destruct A as (((PreA & PreA') & (([PreB1 _] & [PreB2 _] & PreB3) & [phi00 [phi01 [jphi0 [[_y [Func Hphi00]] fPRE]]]])) & necr).
   change Logic.True in PreA'. clear PreA'.
 (*destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).*)
   simpl in fPRE.
@@ -481,7 +481,8 @@ clear - Initcore.
 
         split.
 
-        (* LOCAL 1 : value of xarg *)
+        -- (* LOCAL 1 : value of xarg *)
+        split.
         simpl.
         unfold liftx, lift. simpl.
         unfold expr.eval_id in *.
@@ -492,9 +493,10 @@ clear - Initcore.
         unfold Map.get in *.
         rewrite PTree.gss.
         reflexivity.
+       do 8 red. intro Hx; subst; contradiction PreA.
+      
 
-        (* LOCAL 2 : locald_denote of global variables *)
-       {
+       --  (* LOCAL 2 : locald_denote of global variables *)
         split3. hnf.
         clear - PreB3. destruct PreB3 as [PreB3 _].
         hnf in PreB3. rewrite PreB3; clear PreB3.
@@ -502,9 +504,9 @@ clear - Initcore.
         unfold ge_of.
         unfold filter_genv.
         extensionality i. unfold Genv.find_symbol. simpl. auto.
-       }
+       
 
-        (* SEP: only precondition of spawned condition *)
+        -- (* SEP: only precondition of spawned condition *)
         unfold canon.SEPx in *.
         simpl.
         rewrite seplog.sepcon_emp.

@@ -13,7 +13,8 @@ Set Bullet Behavior "Strict Subproofs".
 Notation join := sepalg.join.
 Notation join_assoc := sepalg.join_assoc.
 
-Definition islock_pred (R: pred rmap) r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)).
+Definition islock_pred (R: pred rmap) r := 
+ exists sh sh' z, r = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).
 
 Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
 Proof.
@@ -26,9 +27,7 @@ Definition LKspec_ext (R: pred rmap) : spec :=
      allp
        (jam
           (adr_range_dec l LKSIZE)
-          (jam (eq_dec l)
-               (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE) sh)
-               (CTat l sh))
+          (fun l' => yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE (snd l' - snd l)) sh l)
           (fun _ => TT)).
 
 Definition LK_at R sh :=
@@ -46,30 +45,22 @@ Definition lkat (R : mpred) loc phi :=
       adr_range loc LKSIZE x ->
       exists sh rsh,
         phi @ x =
-        if eq_dec x loc then
-          YES sh rsh (LK LKSIZE) (pack_res_inv (approx (level phi) R))
-        else
-          YES sh rsh (CT (snd x - snd loc)) NoneP).
+          YES sh rsh (LK LKSIZE (snd x - snd loc)) (pack_res_inv (approx (level phi) R))).
 
-Definition isLK (r : resource) := exists sh sh' z P, r = YES sh sh' (LK z) P.
+Definition isLK (r : resource) := exists sh sh' z P, r = YES sh sh' (LK z 0) P.
 
-Definition isCT (r : resource) := exists sh sh' z P, r = YES sh sh' (CT z) P.
+Definition isCT (r : resource) := exists sh sh' z z' P, z'>0 /\ r = YES sh sh' (LK z z') P.
 
-Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
+Definition resource_is_lock (r: resource) n i := match r with YES _ _ (LK n' i') _ => n=n'/\i=i' | _ => False end.
 
 Definition same_locks phi1 phi2 :=
-  forall loc, resource_is_lock (phi1 @ loc) <-> resource_is_lock (phi2 @ loc).
-
-Definition resource_is_lock_sized n r := exists rsh sh pp, r = YES rsh sh (LK n) pp.
-
-Definition same_locks_sized phi1 phi2 :=
-  forall loc n, resource_is_lock_sized n (phi1 @ loc) <-> resource_is_lock_sized n (phi2 @ loc).
+  forall loc n i,  resource_is_lock (phi1 @ loc) n i <-> resource_is_lock (phi2 @ loc) n i.
 
 Definition lockSet_block_bound lset b :=
   forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
 
 Definition predat phi loc (R: pred rmap) :=
-  exists sh sh' z, phi @ loc = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)).
+  exists sh sh' z, phi @ loc = YES sh sh' (LK z 0) (SomeP rmaps.Mpred (fun _ => R)).
 
 Definition rmap_bound b phi :=
   (forall loc, (fst loc >= b)%positive -> phi @ loc = NO Share.bot shares.bot_unreadable).

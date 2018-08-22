@@ -338,11 +338,11 @@ Proof.
   apply hd_step.
   replace (unfold_Ssequence (Ssequence (Ssequence c1_1 c1_2) c2)) with
     (unfold_Ssequence (Ssequence c1_1 (Ssequence c1_2 c2))).
-  Focus 2. {
+  2:{
     simpl.
     rewrite <- app_assoc.
     reflexivity.
-  } Unfocus.
+  }
   apply IHc1_1.
   apply IHc1_2.
   apply IHc2.

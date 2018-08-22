@@ -4,6 +4,7 @@
  *)
 
 Require Import VST.msl.base.
+  Require Coq.funind.Recdef.
 
 Local Open Scope nat_scope.
 
@@ -83,7 +84,6 @@ Section level'.
   Variable A:Type.
   Variable ag:ageable A.
 
-  Require Coq.funind.Recdef.
   Function level' (x:A) { wf (fun x y => @age A ag y x)  x } : nat :=
 (*  Function level' (x:A) { wf (transp _ (@age A ag)) x } : nat := *)
     match age1 x with

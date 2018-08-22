@@ -18,6 +18,7 @@ Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
+Require Import VST.veric.expr_rel.
 
 Local Open Scope pred.
 
@@ -436,13 +437,11 @@ Proof.
     split; auto.
     - simpl.
       split3; auto.
-      Focus 2. {
-        apply age1_resource_decay; auto.
-      } Unfocus.
-      Focus 2. {
+      2: apply age1_resource_decay; auto.
+      2:{
         split; [apply age_level; auto|].
         apply age1_ghost_of, age_jm_phi; auto.
-      } Unfocus.
+      }
       destruct (age1_juicy_mem_unpack _ _ H).
       rewrite <- H3.
       econstructor; eauto.
@@ -468,14 +467,14 @@ Proof.
     - split.
       2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
       assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
-      Focus 1. {
+      {
         rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
-      } Unfocus.
+      }
       assert (laterR (m_phi jm) (m_phi jm')).
-      Focus 1. {
+      {
         constructor 1.
         destruct (age1_juicy_mem_unpack _ _ H); auto.
-      } Unfocus.
+      }
       specialize (H2 _ H3).
       eapply sepcon_derives; try  apply H2; auto.
       * clear - Hcl Hge.
@@ -498,7 +497,7 @@ Proof.
         assert (env_set
                  (mkEnviron (ge_of rho) (ve_of rho)
                     (Map.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))) id (eval_id id rho) = rho).
-        Focus 1. {
+        {
           unfold env_set;
           f_equal.
           unfold eval_id; simpl.
@@ -513,7 +512,7 @@ Proof.
           simpl in H4.
           rewrite H4. simpl.
           f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
-        } Unfocus.
+        }
         apply andp_right.
         {
           intros ? _. simpl.
@@ -556,10 +555,10 @@ Proof.
   specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
   specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
   assert (typecheck_environ Delta rho) as TC.
-  Focus 1. {
+  {
     destruct TC' as [? _].
     eapply typecheck_environ_sub; eauto.
-  } Unfocus.
+  }
   pose proof TC3 as TC3'.
   pose proof TC2 as TC2'.
   apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
@@ -573,10 +572,10 @@ Proof.
     clear - TS TC TC' TC2 TC2' TC3 TC3' Hge.
     simpl in *. simpl. rewrite <- map_ptree_rel.
     apply guard_environ_put_te'; auto.
-    Focus 1. {
+    {
       subst; simpl in *.
       unfold construct_rho in *; auto.
-    } Unfocus.
+    }
     intros. simpl in *. unfold typecheck_temp_id in *.
     unfold tc_temp_id in TC2'. simpl in TC2'. unfold typecheck_temp_id in TC2'.
     rewrite H in TC2'.
@@ -590,7 +589,7 @@ Proof.
     unfold guard_environ in *. destruct TC'; auto.
   + destruct H0.
     split; auto.
-    Focus 1. {
+    {
       simpl.
       split3; auto.
       + destruct (age1_juicy_mem_unpack _ _ H).
@@ -600,18 +599,18 @@ Proof.
       + apply age1_resource_decay; auto.
       + split; [apply age_level; auto|].
         apply age1_ghost_of, age_jm_phi; auto.
-    } Unfocus.
+    }
     split.
     2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
     assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
-    Focus 1. {
+    {
       rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
-    } Unfocus.
+    }
     assert (laterR (m_phi jm) (m_phi jm')).
-    Focus 1. {
+    {
       constructor 1.
       destruct (age1_juicy_mem_unpack _ _ H); auto.
-    } Unfocus.
+    }
     specialize (H2 _ H3).
     eapply sepcon_derives; try  apply H2; auto.
     - clear - Hcl Hge.
@@ -630,7 +629,7 @@ Proof.
       assert (env_set
                (mkEnviron (ge_of rho) (ve_of rho)
                   (Map.set id (eval_expr e rho) (make_tenv tx))) id (eval_id id rho) = rho).
-      Focus 1. {
+      {
         unfold env_set;
         f_equal.
         unfold eval_id; simpl.
@@ -647,7 +646,7 @@ Proof.
         simpl in H4.
         rewrite H4.
         f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
-      } Unfocus.
+      }
       apply andp_right.
       * intros ? _. simpl.
         unfold subst.
@@ -688,10 +687,10 @@ apply semax_straight_simple; auto.
 intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
-Focus 1. {
+{
   destruct TC'.
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 pose proof TC3 as TC3'.
 apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
 assert (typeof_temp Delta' id = Some t) as H97.
@@ -812,10 +811,10 @@ apply semax_straight_simple; auto.
 intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
-Focus 1. {
+{
   destruct TC'.
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 pose proof TC3 as TC3'.
 apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
 assert (typeof_temp Delta' id = Some t) as H97.
@@ -937,10 +936,10 @@ intros jm jm' Delta' ge ve te rho k F TS [TC3 TC2] TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
-Focus 1. {
+{
   destruct TC'.
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 pose proof TC3 as TC3'.
 apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
 apply (tc_temp_id_sub _ _ _ TS) in TC2.
@@ -1070,10 +1069,11 @@ replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
    ( |> tc_lvalue Delta e1 rho &&
      |> !! (tc_val (typeof e1) v2) &&
      |> P rho)).
-Focus 2.
+2:{
 extensionality rho.
 repeat rewrite <- later_andp.
 f_equal.
+}
 repeat rewrite andp_assoc.
 unfold mapsto.
 apply semax_straight_simple.
@@ -1081,11 +1081,10 @@ intro. apply boxy_andp; auto.
 intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
-assert (typecheck_environ Delta rho) as TC.
-Focus 1. {
+assert (typecheck_environ Delta rho) as TC. {
   destruct TC'.
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 pose proof TC2 as TC2'.
 apply (tc_lvalue_sub _ _ _ TS) in TC2'; [| auto].
 hnf in TC3.
@@ -1217,10 +1216,11 @@ replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
    ( |> tc_lvalue Delta e1 rho &&
      |> !! (tc_val t1 (eval_cast (typeof e1) t1 v2)) &&
      |> P rho)).
-Focus 2.
+2:{
 extensionality rho.
 repeat rewrite <- later_andp.
 f_equal.
+}
 repeat rewrite andp_assoc.
 unfold mapsto.
 apply semax_straight_simple.
@@ -1229,10 +1229,10 @@ intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
-Focus 1. {
+{
   destruct TC'.
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 pose proof TC2 as TC2'.
 apply (tc_lvalue_sub _ _ _ TS) in TC2'; [| auto].
 hnf in TC3.
@@ -1392,13 +1392,7 @@ pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
                                (readable_share_lub (writable_readable_share writable_Rsh))
                                (VAL (contents_at m' loc)) NoneP
                      else core (m_phi jm @ loc)).
-assert (Vf: AV.valid (res_option oo f)).
-apply VAL_valid; intros.
-unfold compose, f in H4; clear f.
-if_tac in H4.
-2: rewrite res_option_core in H4; inv H4.
-simpl in H4. injection H4; intros.  subst k; auto.
-destruct (make_rmap _ (core (ghost_of (m_phi jm))) Vf (level jm)) as [mf [? [? Hg]]]; clear Vf.
+destruct (make_rmap f (core (ghost_of (m_phi jm))) (level jm)) as [mf [? [? Hg]]].
 unfold f, compose; clear f; extensionality loc.
 symmetry. if_tac.
 unfold resource_fmap. rewrite preds_fmap_NoneP.
@@ -1564,10 +1558,10 @@ intros jm jm1 Delta' ge ve te rho k F TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] HGG
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 assert (typecheck_environ Delta rho) as TC.
-Focus 1. {
+{
   destruct TC4.
   eapply typecheck_environ_sub; eauto.
-} Unfocus.
+}
 pose proof TC1 as TC1'.
 pose proof TC2 as TC2'.
 apply (tc_lvalue_sub _ _ _ TS) in TC1'; [| auto].
@@ -1612,7 +1606,7 @@ exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store 
    with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
   auto.
-Focus 2. {
+2:{
 (*  clear - TS TC HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode. *)
   unfold typecheck_store in *.
   destruct TC4 as [TC4 _].
@@ -1620,7 +1614,7 @@ Focus 2. {
   remember (eval_expr e2 rho).
   dec_enc. rewrite DE. clear DE. subst. 
   eapply load_cast; eauto.
-} Unfocus.
+}
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
 exists (te);  exists rho; split3; auto.
@@ -1668,7 +1662,7 @@ rewrite level_store_juicy_mem. split; [apply age_level; auto|].
 simpl. unfold inflate_store; rewrite ghost_of_make_rmap.
 apply age1_ghost_of, age_jm_phi; auto.
 split.
-Focus 2.
+2:{
 rewrite corable_funassert.
 replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
 rewrite <- corable_funassert.
@@ -1688,7 +1682,7 @@ rewrite resource_at_make_rmap. rewrite <- core_resource_at.
  simpl.
  rewrite !ghost_of_core.
  unfold inflate_store; rewrite ghost_of_make_rmap; auto.
- 
+}
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
@@ -1713,8 +1707,6 @@ do 3 red in H2.
 destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
-
-Require Import VST.veric.expr_rel.
 
 Lemma semax_set_forward_nl:
 forall (Delta: tycontext) (P: assert) id e v t,
@@ -1791,7 +1783,7 @@ split3; [apply age_level; auto | |]. *)
       assert (env_set
                (mkEnviron (ge_of rho) (ve_of rho)
                   (Map.set id v (make_tenv tx))) id (eval_id id rho) = rho).
-      Focus 1. {
+      {
         unfold env_set;
         f_equal.
         unfold eval_id; simpl.
@@ -1805,7 +1797,7 @@ split3; [apply age_level; auto | |]. *)
         destruct ((temp_types Delta') ! id) eqn:?; inv H.
         specialize (TC' _ _ Heqo). destruct TC' as [? [? ?]].
         simpl in H. rewrite H. reflexivity.
-      } Unfocus.    
+      }
       apply andp_right.
      ++ intros ? _. simpl.
         unfold subst.
@@ -1873,14 +1865,14 @@ subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store 
   with (v':=v2) in H11; auto.
-Focus 2.
+2:{
 clear - He2  Hmode.
 dec_enc; rewrite DE; clear DE.
 inv He2.
 eapply sem_cast_load_result; eauto.
 simpl in H0.
 eapply deref_loc_load_result; eauto.
-
+}
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
 exists (te);  exists rho; split3; auto.
@@ -1924,7 +1916,7 @@ simpl.
 unfold inflate_store; rewrite ghost_of_make_rmap.
 apply age1_ghost_of, age_jm_phi; auto.
 split.
-Focus 2. {
+2:{
 rewrite corable_funassert.
 replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
 rewrite <- corable_funassert.
@@ -1942,7 +1934,7 @@ rewrite resource_at_make_rmap.
  destruct k0; simpl; repeat rewrite core_YES; auto.
 rewrite !ghost_of_core; simpl.
 unfold inflate_store; rewrite ghost_of_make_rmap; auto.
-} Unfocus.
+}
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.

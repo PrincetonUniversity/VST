@@ -2197,7 +2197,6 @@ Module StepType.
     eapply start_compatible in Htstep; eauto.
     eapply StepLemmas.mem_compatible_setMaxPerm; eauto.
     destruct (at_external semSem c mrestr) eqn:?; try discriminate.
-    destruct Hinternal as [_ ?]; try discriminate.
     eapply StepLemmas.mem_compatible_setMaxPerm; eauto.
     eapply corestep_compatible;simpl;
       now eauto.

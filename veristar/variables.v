@@ -109,7 +109,7 @@ Ltac id_comp x y H1 H2 H3 :=
 
 Lemma id2pos_inj x y : id2pos x = id2pos y -> x=y.
 introv H; id_comp x y H1 H2 H3; [auto|elimtype False; gen H2|gen H3];
-done (tapp Ilt_morphism; rewrite H; tapp Plt_irrefl).
+done (tapp Ilt_morphism; rewrite H; tapp Pos.lt_irrefl).
 Qed.
 
 Lemma Ilt_irrefl : forall {x}, ~ Ident.lt x x.
@@ -131,9 +131,9 @@ Proof.
 split; [tapp Ilt_morphism|tinv H].
 generalize (Pcompare_spec (id2pos i) (id2pos j)); rewrite H; tinv H1.
 id_comp i j H2 H3 H4; auto; subst.
-contradiction (Plt_irrefl _ H1).
+contradiction (Pos.lt_irrefl _ H1).
 gen H4; tapp Ilt_morphism; introv H4.
-contradiction (Plt_irrefl _ (Plt_trans _ _ _ H1 H4)).
+contradiction (Pos.lt_irrefl _ (Plt_trans _ _ _ H1 H4)).
 Qed.
 
 Lemma nat_of_P_id2pos_le x y :

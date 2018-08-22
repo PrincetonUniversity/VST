@@ -259,11 +259,11 @@ Proof.
               (fun i : Z => P i (Znth (i - lo) v)) p)
       with (rangespec (Z.succ lo) (n + Z.to_nat (hi - mid))
               (fun i : Z => P i (Znth (i - Z.succ lo) (skipn 1 v))) p).
-      Focus 2. {
+      2:{
         apply rangespec_ext; intros.
         f_equal.
         rewrite <- Znth_succ by omega; auto.
-      } Unfocus.
+      }
       rewrite Nat2Z.inj_succ in H0.
       rewrite IHn by omega.
       f_equal.
@@ -718,13 +718,13 @@ Proof.
     simpl.
     exact H1.
   + rewrite compact_sum_inj_eq_spec in H0.
-    Focus 2. {
+    2:{
       clear - H.
       pose proof in_members_tail_no_replicate i0 _ _ _ H.
       intro HH; apply in_map with (f := fst) in HH.
       apply H0 in HH.
       tauto.
-    } Unfocus.
+    }
     destruct v0 as [v0 | v0], v1 as [v1 | v1]; try solve [inversion H0].
     - specialize (H1 i0).
       simpl in H1.
@@ -1110,13 +1110,13 @@ Proof.
   + apply prop_right; constructor.
   + replace (hi - lo) with (Z.succ (hi - Z.succ lo)) in * by omega.
     assert (hi - Z.succ lo >= 0).
-    Focus 1. {
+    {
       destruct (zlt (hi - Z.succ lo) 0); auto.
       assert (Z.succ (hi - Z.succ lo) <= 0) by omega.
       simpl length in H1.
       destruct (zeq (Z.succ (hi - Z.succ lo)) 0);
        [rewrite e in H1 | rewrite Z2Nat_neg in H1 by omega]; inv H1.
-    } Unfocus.
+    }
     rewrite Z2Nat.inj_succ in H1 |- * by omega.
     inv H1.
     simpl rangespec.
@@ -1124,12 +1124,12 @@ Proof.
               (fun i : Z => P i (Znth (i - lo) (a :: v))) p)
     with (rangespec (Z.succ lo) (length v)
             (fun i : Z => P i (Znth (i - Z.succ lo) v)) p).
-    Focus 2. {
+    2:{
       apply rangespec_ext; intros.
       change v with (skipn 1 (a :: v)) at 1.
       rewrite <- Znth_succ by omega.
       auto.
-    } Unfocus.
+    }
     rewrite H3.
     eapply derives_trans; [apply sepcon_derives; [apply H | apply IHv; auto] |].
     - omega.

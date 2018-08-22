@@ -147,21 +147,21 @@ Proof.
   rename H2 into LEV.
   destruct H as [H' H].
   split.
-  Focus 1. {
+  {
     clear H.
     apply age_level in H0; apply age_level in H1.
     rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
     clear. forget (level jm2') as n. omega.
-  } Unfocus.
+  }
   intro l.
   specialize (H l).
   destruct H.
   split.
-  Focus 1. {
+  {
     intro.
     specialize (H H3).
     erewrite <- necR_NO; eauto.  constructor 1; auto.
-  } Unfocus.
+  }
   destruct H2 as [?|[?|[?|?]]].
   + left.
     clear H. unfold age in *.
@@ -533,12 +533,12 @@ Proof.
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
     - assert (level (m_phi jm) < level (m_phi jm0)).
-      Focus 1. {
+      {
         apply age_level in H2.
         do 2 rewrite <-level_juice_level_phi.
         destruct H0.
         rewrite H2; omega.
-      } Unfocus.
+      }
       destruct H0 as (?&?&?).
       split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; omega |].
       split.

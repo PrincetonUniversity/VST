@@ -153,15 +153,7 @@ pose (f loc :=
    then YES sh (writable_readable_share wsh) (VAL (contents_at m' loc)) NoneP
    else core (w @ loc)).
 pose (H0 := True).
-assert (Hv: CompCert_AV.valid (res_option oo f)).
-  apply VAL_valid; unfold compose,f; simpl.
-  intros ? ? ? Hx; repeat if_tac in Hx; inv Hx; auto.
-  elimtype False; clear - H5.
-  destruct (w @ l).
-  rewrite core_NO in H5; inv H5.
-  rewrite core_YES in H5; inv H5.
-  rewrite core_PURE in H5; inv H5.
-destruct (remake_rmap f (core (ghost_of w)) Hv (level w)) as [m2 [? ?]]; clear Hv.
+destruct (remake_rmap f (core (ghost_of w)) (level w)) as [m2 [? ?]].
 intros; unfold f, no_preds; simpl; intros; repeat if_tac; auto.
 left. exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
 { rewrite <- ghost_of_core, <- level_core; apply ghost_of_approx. }
@@ -437,17 +429,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
 
 (* This version starts with an empty ghost. *)
 Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) nil _ n _ eq_refl).
-Next Obligation.
-intros.
-intros ? ?.
-unfold compose.
-unfold initial_core'.
-if_tac; simpl; auto.
-destruct (Genv.invert_symbol ge b); simpl; auto.
-destruct (find_id i G); simpl; auto.
-destruct f; simpl; auto.
-Qed.
+  proj1_sig (make_rmap (initial_core' ge G n) nil n _ eq_refl).
 Next Obligation.
 intros.
 extensionality loc; unfold compose, initial_core'.
@@ -566,17 +548,7 @@ Definition ext_ref {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid
   existT _ (ext_PCM _) (exist _ _ (valid_ext_ref ora)).
 
 Program Definition initial_core_ext {Z} (ora : Z) (ge: Genv.t fundef type) (G: funspecs) (n: nat): rmap :=
-  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) _ n _ eq_refl).
-Next Obligation.
-intros.
-intros ? ?.
-unfold compose.
-unfold initial_core'.
-if_tac; simpl; auto.
-destruct (Genv.invert_symbol ge b); simpl; auto.
-destruct (find_id i G); simpl; auto.
-destruct f; simpl; auto.
-Qed.
+  proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) n _ eq_refl).
 Next Obligation.
 intros.
 extensionality loc; unfold compose, initial_core'.
@@ -732,11 +704,12 @@ intros.
 
         replace ((n + Z.to_pos (Z.succ (Zlength (p ::dl))))%positive) with
           ((Pos.succ n) + Z.to_pos (Zlength (p ::dl)))%positive.
-          Focus 2. clear - n dl. rewrite Z2Pos.inj_succ.
+          2:{ clear - n dl. rewrite Z2Pos.inj_succ.
                    rewrite Pplus_one_succ_r. rewrite Pplus_one_succ_l.
                      rewrite Pos.add_assoc. trivial.
                    rewrite Zlength_correct. simpl.
                      rewrite Pos.of_nat_succ. apply Pos2Z.is_pos.
+             }
         simpl in H0. inv H0.
         assert (a<>i /\ ~ In i (map fst (p::dl))) by (clear - H; intuition).
         clear H; destruct H0.
@@ -834,7 +807,7 @@ intros.
         rewrite PTree.gso by auto. rewrite H2.  split; intro Hx; inv Hx; congruence.
         simpl; auto.
         rewrite Zlength_cons.
-        replace (n + Z.succ (Zlength dl)) with (Zsucc n + Zlength dl) by omega.
+        replace (n + Z.succ (Zlength dl)) with (Z.succ n + Zlength dl) by omega.
         simpl. simpl in H0. inv H0.
          simpl in H.
          destruct a as [a ag]; simpl in *.
@@ -971,7 +944,7 @@ Lemma add_globals_hack:
                             nth_error (map (@fst _ _) vl) (length vl - Pos.to_nat b)  = Some id)).
 Proof. intros. subst.
      apply iff_trans with (nth_error (map fst (rev vl)) (nat_of_Z (Zpos b - 1)) = Some id).
-Focus 2. {
+2:{
    rewrite map_rev; rewrite nth_error_rev.
              replace (length (map fst vl) - nat_of_Z (Zpos b - 1) - 1)%nat
                         with (length vl - Pos.to_nat b)%nat ; [intuition | ].
@@ -987,7 +960,7 @@ Focus 2. {
   forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
   apply inj_lt_rev. rewrite nat_of_Z_max; auto.
   rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
-} Unfocus.
+}
     rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;
        try rewrite Zlength_nil in *.
@@ -1380,14 +1353,15 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-Focus 2.
+2:{
 rewrite rev_length. clear - RANGE.
 destruct RANGE.
 apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega.
+}
 rename H1 into H5.
 replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
-Focus 2. rewrite rev_length.
+2:{ rewrite rev_length.
 clear - RANGE.
 replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
 assert (nat_of_Z (Z.pos b) <= length dl)%nat.
@@ -1400,6 +1374,7 @@ apply nat_of_Z_lem1.
 assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
 pose proof (Pos2Nat.is_pos b); omega.
 omega.
+}
 assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
 clear - RANGE.
 destruct RANGE; split.
@@ -1563,14 +1538,15 @@ change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
-Focus 2.
+2:{
 rewrite rev_length. clear - RANGE.
 destruct RANGE.
 apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega.
+}
 rename H1 into H5.
 replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
-Focus 2. rewrite rev_length.
+2:{ rewrite rev_length.
 clear - RANGE.
 replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
 assert (nat_of_Z (Z.pos b) <= length dl)%nat.
@@ -1583,6 +1559,7 @@ apply nat_of_Z_lem1.
 assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
 pose proof (Pos2Nat.is_pos b); omega.
 omega.
+}
 assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
 clear - RANGE.
 destruct RANGE; split.
@@ -1645,7 +1622,7 @@ Definition initial_jm_ext {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
            (initial_core_ext_ok _ _ _ _ m H1 H2 H).
 
 Program Definition set_ghost (m : rmap) (g : ghost) (Hg : _) :=
-  proj1_sig (make_rmap _ g (rmap_valid m) (level m) _ Hg).
+  proj1_sig (make_rmap (resource_at m) g (level m) _ Hg).
 Next Obligation.
 Proof.
   intros.
@@ -1692,9 +1669,8 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition no_locks phi :=
-  forall addr sh sh' z P,
-    phi @ addr <> YES sh sh' (LK z) P /\
-    phi @ addr <> YES sh sh' (CT z) P.
+  forall addr sh sh' z z' P,
+    phi @ addr <> YES sh sh' (LK z z') P.
 
 Lemma initial_jm_without_locks prog m G n H H1 H2:
   no_locks (m_phi (initial_jm prog m G n H H1 H2)).
@@ -1706,10 +1682,10 @@ Proof.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try (split; congruence).
-  destruct p; try (split; congruence).
-  destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
-    split; try congruence.
+  destruct (access_at m addr); [ |congruence].
+  destruct p; try congruence.
+  destruct (fst ((snd (unsquash (initial_core (Genv.globalenv prog) G n)))) addr);
+  congruence.
 Qed.
 
 Lemma initial_jm_ext_without_locks {Z} (ora : Z) prog m G n H H1 H2:
@@ -1722,10 +1698,10 @@ Proof.
   unfold resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try (split; congruence).
-  destruct p; try (split; congruence).
-  destruct (fst (proj1_sig (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) addr);
-    split; try congruence.
+  destruct (access_at m addr); try congruence.
+  destruct p; try congruence.
+  destruct (fst ((snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) addr);
+   congruence.
 Qed.
 
 Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) ! i = find_id i G.
@@ -1819,8 +1795,8 @@ Proof.
     unfold "@" in *.
     rewrite E in FAT.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst (proj1_sig _) _) in FAT at 2.
-    destruct (fst (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
+    set (r := fst ( _) _) in FAT at 2.
+    destruct (fst ( (snd (unsquash (initial_core (Genv.globalenv prog) G n)))) (b, 0))
       as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.
@@ -1889,8 +1865,8 @@ Proof.
     unfold "@" in *.
     rewrite E in FAT.
     destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
-    set (r := fst (proj1_sig _) _) in FAT at 2.
-    destruct (fst (proj1_sig (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) (b, 0))
+    set (r := fst ( _) _) in FAT at 2.
+    destruct (fst ( (snd (unsquash (initial_core_ext ora (Genv.globalenv prog) G n)))) (b, 0))
       as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
     subst r.
     injection FAT as -> ->; f_equal. subst pp. f_equal.

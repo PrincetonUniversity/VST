@@ -896,14 +896,14 @@ Proof.
         intros.
         assert (proj_except_reptype_structlist f i (snd v) =
           struct_default_val (all_fields_except_one2 f i)).
-        Focus 1. {
+        {
           match goal with
           | |- ?A = ?B => generalize A B; intros
           end.
           clear - H3.
           destruct (all_fields_except_one2 f i); [| inversion H3].
           simpl in *; destruct r, r0; reflexivity.
-        } Unfocus.
+        }
         destruct (H4 (snd v) v0).
         rewrite H5 in H6, H7.
         simpl; rewrite H6, <- H7.
@@ -1052,7 +1052,7 @@ Proof.
               (gupd_reptype _ (gf :: nil) t0 (proj_reptype t gfs' v) v0) =
           G (gupd_reptype t gfs' _ v
               (proj_except_reptype _ gf nil (proj_reptype t gfs' v)), v0)))).
-    Focus 1. {
+    {
       intros ?H.
       destruct H0 as [F0 [G0 ?H]].
       exists (fun v =>
@@ -1076,11 +1076,11 @@ Proof.
             (proj_except_reptype (nested_field_type2 t gfs') gf nil
             (proj_reptype t gfs' v)))
           (eq_sym (nf_sub2_is_nf_sub2_1_nf_replace2 t gf gfs' H))).
-      Focus 2. {
+      2:{
         apply JMeq_eq.
         eapply JMeq_trans; [apply eq_rect_r_JMeq |].
         apply JMeq_sym, proj_except_reptype_is_proj_except_reptye1_gupd_reptype; auto.
-      } Unfocus.
+      }
       replace (gupd_reptype t (gf :: gfs') t0 v v0) with
         (eq_rect_r reptype
           (gupd_reptype t gfs'
@@ -1088,11 +1088,11 @@ Proof.
             (gupd_reptype (nested_field_type2 t gfs')
                (gf :: nil) t0 (proj_reptype t gfs' v) v0))
           (eq_sym (nf_replace2_is_nf_replace2_1_nf_replace2 t gf gfs' t0 H))).
-      Focus 2. {
+      2:{
         apply JMeq_eq.
         eapply JMeq_trans; [apply eq_rect_r_JMeq |].
         apply JMeq_sym, gupd_reptype_is_gupd_reptye1_gupd_reptype; auto.
-      } Unfocus.
+      }
       unfold fst at 2.
       unfold snd at 2.
       rewrite !eq_rect_r_eq_rect_r_eq_sym'.
@@ -1103,7 +1103,7 @@ Proof.
         reflexivity.
       + rewrite H1.
         reflexivity.
-    } Unfocus.
+    }
     pose proof (IHgfs a (nf_replace2 (nested_field_type2 t gfs') (gf :: nil) t0)) as HH0.
     spec HH0; [subst gfs'; solve_legal_nested_field_cons H; auto|].
     pose proof (IHgfs a (nf_sub2 (nested_field_type2 t gfs') gf nil)) as HH1.
@@ -1111,9 +1111,9 @@ Proof.
     destruct HH0 as [F0 [G0 ?H]].
     destruct HH1 as [F1 [G1 ?H]].
     destruct (gupd_reptype1_is_pair (nested_field_type2 t gfs') gf t0) as [F2 [G2 ?H]].
-    Focus 1. {
+    {
       apply legal_nested_field_app'. auto.
-    } Unfocus.
+    }
     subst gfs'.
     exists (fun v =>
               let r1 := F0 v in
@@ -1160,7 +1160,7 @@ Proof.
              (proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v)) =
            G (proj_except_reptype t gf0 gfs v,
              proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v))))).
-  Focus 1. {
+  {
     intros ?H.
     destruct H0 as [F0 [G0 ?H]].
     exists (fun v => F0 (eq_rect_r reptype v
@@ -1180,7 +1180,7 @@ Proof.
       eapply JMeq_trans; [apply eq_rect_r_JMeq |].
       apply JMeq_sym, proj_except_reptype_is_proj_except_reptye1_gupd_reptype.
       auto.
-  } Unfocus.
+  }
   destruct (gupd_reptype_cons_is_pair t gf0 gfs
              (nf_sub2 (nested_field_type2 t (gf0 :: gfs)) gf nil)) as [F0 [G0 ?H]];
     [solve_legal_nested_field_cons H; auto |].

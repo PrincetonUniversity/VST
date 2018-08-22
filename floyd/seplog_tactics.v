@@ -746,11 +746,11 @@ Proof.
   destruct H.
   rename R into R'.
   transitivity (fold_right_sepcon nil * P).
-  Focus 2. {
+  2:{
     simpl.
     rewrite !emp_sepcon.
     auto.
-  } Unfocus.
+  }
   forget (@nil mpred) as R.
   induction H.
   + etransitivity; [eassumption |].

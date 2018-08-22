@@ -137,11 +137,7 @@ Section permMapDefs.
         destruct res; simpl; auto.
         - apply perm_coh_empty_1.
         - destruct k; try apply perm_coh_empty_1; simpl.
-          + destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
-            destruct p0; auto.
-            
-            eapply perm_of_glb_not_Freeable; eauto.
-          + destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
+            destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
             destruct p0; auto.
             eapply perm_of_glb_not_Freeable; eauto.
   Qed.
@@ -165,23 +161,7 @@ Section permMapDefs.
           exfalso; eapply glb_Rsh_not_top; eauto.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
           exfalso; eapply glb_Rsh_not_top; eauto.
-      + destruct (perm_of_sh  (Share.glb Share.Rsh sh2)) eqn:AA;
-        destruct (eq_dec sh1 Share.bot) eqn:BB;
-        try destruct p0;
-        try constructor.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
     - destruct k; try apply perm_coh_empty_1.
-      + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
-        destruct (eq_dec sh1 Share.bot) eqn:BB;
-        try destruct p0;
-        try constructor.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
       + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
         destruct (eq_dec sh1 Share.bot) eqn:BB;
         try destruct p0;
@@ -243,10 +223,6 @@ Qed.
       destruct p0; try constructor.
       apply perm_of_sh_Freeable_top in HH; inversion HH.
           exfalso; eapply glb_Rsh_not_top; eauto.
-    - destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn:HH; auto.
-      destruct p0; try constructor.
-      apply perm_of_sh_Freeable_top in HH; inversion HH.
-      exfalso; eapply glb_Rsh_not_top; eauto.
   Qed.
 
   (* Some None represents the empty permission. None is used for

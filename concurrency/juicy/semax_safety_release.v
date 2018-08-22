@@ -135,7 +135,7 @@ Proof.
   simpl (and _).
   intros Post.
   unfold release_pre in Pre.
-  destruct Pre as ((Hreadable & PreA2) & (PreB1 & PreB2) & PreC).
+  destruct Pre as ((Hreadable & PreA2) & ([PreB1 _] & PreB2) & PreC).
   change (Logic.True) in PreA2. clear PreA2.
   change (Logic.True) in PreB2. clear PreB2.
   unfold canon.SEPx in PreC.
@@ -162,15 +162,28 @@ Proof.
 
   inv PreB1.
   assert (Htid = cnti) by apply proof_irr; subst.
+
   assert (pack_res_inv R = pack_res_inv (approx (level phi0') Rx)) as HR.
   { destruct Hlockinv as (bl & ofsl & Heq & Hlockinv & _); inv Heq.
     specialize (Hlockinv (bl, Ptrofs.unsigned ofsl)); simpl in Hlockinv.
-    destruct (adr_range_dec _ _); [|contradiction n0; unfold adr_range; split; auto; lkomega].
-    destruct (eq_dec _ _); [|contradiction n0; auto].
-    destruct (join_assoc jphi0 j) as [? [_ j'']].
-    apply resource_at_join with (loc := (bl, Ptrofs.unsigned ofsl)) in j''.
-    destruct Hlockinv as [? Hlock]; rewrite Hlock in j''.
-    inv j''; unfold JSem, Ptrofs.unsigned in *; unfold pack_res_inv in *; simpl in *; congruence. }
+    rewrite if_true in Hlockinv by (split; auto; lkomega).
+    destruct Hlockinv as [? Hlock].
+    destruct (HJcanwrite 0) as [?sh [?rsh [? ?]]]; [lkomega|].
+    rewrite Z.add_0_r in H0. unfold Ptrofs.unsigned in *.
+    assert (join_sub phi0' (getThreadR i tp cnti)).
+    apply join_sub_trans with phi0; eexists; eauto.
+    apply (resource_at_join_sub _ _ (bl, Ptrofs.intval ofsl)) in H1. 
+    change (ClightSemanticsForMachines.Clight_newSem ge) with (@JSem ge) in *.
+    rewrite H0,Hlock in H1.
+    clear - H1; destruct H1 as [? H1].
+    change  (SomeP rmaps.Mpred
+             (fun _ : list Type => approx (@level rmap ag_rmap phi0') Rx))
+         with (pack_res_inv (approx (@level rmap ag_rmap phi0') Rx))
+     in H1. 
+     forget (pack_res_inv (approx (@level rmap ag_rmap phi0') Rx)) as Rz.
+    inv H1; auto.
+  }
+  unfold lock_at_least in HJcanwrite.
   rewrite HR in HJcanwrite.
   destruct (join_assoc (join_comm jphi0) j) as [phi' [? Hrem_lock_res]].
   assert (level (getThreadR i tp cnti) = S n) as Hn.
@@ -183,9 +196,9 @@ Proof.
     constructor.
 
     eapply JuicyMachine.sync_step with (Htid := cnti); auto.
-
     eapply step_release with (d_phi := phi0d); eauto.
-    - hnf. rewrite level_age_by.
+    -
+      hnf. rewrite level_age_by.
       destruct (join_level _ _ _ jphi0) as [-> <-].
       assert (0 < level phi0d)%nat.
       { destruct (join_level _ _ _ Hrem_lock_res) as [->].
@@ -251,10 +264,10 @@ Proof.
 
     - (* juicyLocks_in_lockSet *)
       pose proof jloc_in_set compat as jl.
-      intros loc sh1 sh1' pp z E.
+      intros loc (*sh1 sh1' pp z*) E.
       cleanup.
       (* apply juicyLocks_in_lockSet_age with (n := n) in jl. *)
-      specialize (jl loc sh1 sh1' pp z E).
+      specialize (jl loc E).
       simpl.
       rewrite AMap_find_add.
       if_tac. reflexivity.
@@ -267,17 +280,14 @@ Proof.
       rewrite AMap_find_add.
       if_tac; swap 1 2.
       + cleanup.
-        intros is; specialize (lj is).
-        destruct lj as (sh' & psh' & P & E).
-        rewrite E. simpl. eauto.
+        intros is; specialize (lj is). auto.
       + intros _. subst loc.
         assert_specialize lj. {
           cleanup.
           setoid_rewrite His_locked.
           reflexivity.
         }
-        destruct lj as (sh' & psh' & P & E).
-        rewrite E. simpl. eauto.
+        auto.
   }
 
   pose proof mem_compatible_with_age _ compat'' (n := n) as compat'.
@@ -340,8 +350,11 @@ Proof.
           + left.
             rewrite El.
             apply predat6 in lk.
+            specialize (HJcanwrite 0). spec HJcanwrite; [lkomega|].
+            destruct HJcanwrite as [?[?[? HJcanwrite]]].
             apply predat1 in HJcanwrite.
             apply @predat_join_sub with (phi2 := Phi) in HJcanwrite.
+            rewrite Z.add_0_r in HJcanwrite.
             2:apply compatible_threadRes_sub, compat.
             pose proof predat_inj HJcanwrite lk as ER.
             replace (level (getThreadR i tp cnti)) with (level Phi) in ER.

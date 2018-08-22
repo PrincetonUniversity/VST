@@ -140,13 +140,13 @@ Section Initial_State.
         { unfold is_true. simpl. congruence. } intros _.
         unfold tp in Ephi; simpl in Ephi.
         discriminate.
-      + intros loc sh psh P z L.
+      + intros loc L. (* sh psh P z *)
         destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & A & NL & MFS).
         unfold jm in *; clear jm; simpl in L |- *.
         pose proof (NL loc) as NL'.
-        rewrite L in NL'.
-        edestruct NL as [lk ct].
-        destruct lk; eauto.
+        specialize (L 0). spec L. pose proof lksize.LKSIZE_pos; omega. destruct L as [sh [psh [P L]]].
+        specialize (NL' sh psh lksize.LKSIZE 0 P). rewrite fst_snd0 in L.
+        rewrite L in NL'. contradiction NL'; auto.
       + hnf.
         simpl.
         intros ? F.

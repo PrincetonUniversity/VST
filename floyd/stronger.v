@@ -403,7 +403,7 @@ Proof.
     legal_nested_field t gfs ->
     type_is_by_value (nested_field_type t gfs) = true ->
     proj_reptype t gfs v2 >>> proj_reptype t gfs v1)).
-  Focus 1. {
+  {
     split; intros; [split; intros |].
     + specialize (H gfs H0 H1).
       rewrite data_equal_stronger in H.
@@ -412,7 +412,7 @@ Proof.
       rewrite data_equal_stronger in H.
       tauto.
     + rewrite data_equal_stronger; split; apply H; auto.
-  } Unfocus.
+  }
 (*  pose proof stronger_proj_reptype t v1 v2.
   pose proof stronger_proj_reptype t v2 v1.
   tauto.

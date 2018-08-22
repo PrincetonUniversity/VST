@@ -40,14 +40,14 @@ Proof.
   apply HR.
 Qed.
 
-Lemma age_yes_sat {Phi Phi' phi phi' l z sh sh'} (R : pred rmap) :
+Lemma age_yes_sat {Phi Phi' phi phi' l z z' sh sh'} (R : pred rmap) :
   level Phi = level phi ->
   age Phi Phi' ->
   age phi phi' ->
   app_pred R phi ->
-  Phi  @ l = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
+  Phi  @ l = YES sh sh' (LK z z') (SomeP rmaps.Mpred (fun _ => R)) ->
   app_pred (approx (S (level phi')) R) phi' /\
-  Phi' @ l = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => approx (level Phi') R)).
+  Phi' @ l = YES sh sh' (LK z z') (SomeP rmaps.Mpred (fun _ => approx (level Phi') R)).
 Proof.
   intros L A Au SAT AT.
   pose proof (app_pred_age Au SAT) as SAT'.

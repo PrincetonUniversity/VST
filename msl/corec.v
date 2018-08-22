@@ -15,22 +15,20 @@ forall {F: (B -> pred A) -> (B -> pred A)},
 Proof.
 intros.
 assert (forall x, F (corec F) x |-- corec F x).
-Focus 2.
+2:{
 extensionality x.
 apply pred_ext; intros w ?.
 apply H1. intros x' ? ?.
 eapply H.  eapply H0.
-replace (F (corec F)) with (fun (x : B) (w : A) => F (corec F) x w); auto;
-  (extensionality z z'; auto).  (* this line for compatibility with Coq 8.3 *)
+replace (F (corec F)) with (fun (x : B) (w : A) => F (corec F) x w); auto.
 apply H0; auto.
+}
 intros x ? ?.
 intros ? ?.
 specialize (H (corec F) P).
 apply H1. apply H; auto.
 intros x' ? ?.
-apply H2; auto;
-  (replace (fun (x'0 : B) (a1 : A) => P x'0 a1) with P; auto; (* compability with Coq 8.3 *)
-   extensionality z z'; auto).  (* compability with Coq 8.3 *)
+apply H2; auto.
 Qed.
 
 Lemma corec_least_fixpoint {B A}:

@@ -217,17 +217,18 @@ Module Concur.
         join (Some r0) r1 (Some r) ->
         join_all tp r.
 
-
     Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
-      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset.
+      forall loc, 
+       (forall i, 0 <= i < LKSIZE -> exists sh psh P, juice @ (fst loc, snd loc + i) = YES sh psh (LK LKSIZE i) P)  ->  
+          AMap.find loc lset.
 
     (* I removed the NO case for two reasons:
      * - To ensure that lset is "valid" (lr_valid), it needs inherit it from the rmap
      * - there was no real reason to have a NO other than speculation of the future. *)
     Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset ->
-	     (exists sh psh P, juice @ loc = YES sh psh (LK LKSIZE) P).
-
+	     (exists sh, 
+           forall i, 0 <= i < LKSIZE -> exists sh' psh' P, join_sub sh sh' /\ juice @ (fst loc, snd loc + i) = YES sh' psh' (LK LKSIZE i) P).
 
 
     Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
@@ -238,9 +239,12 @@ Module Concur.
     Proof.
       intros lset juice HH loc FIND.
       apply HH in FIND.
-      (*destruct FIND as [[sh [psh [P [z FIND]]]] | [sh0 FIND]]; rewrite FIND; simpl.*)
-      destruct FIND as [sh [psh [P FIND]]]; rewrite FIND; simpl.
-      - constructor.
+      destruct FIND as [sh FIND].
+       specialize (FIND 0). spec FIND. pose proof LKSIZE_pos. omega.
+         replace (loc.1, loc.2+0) with loc in FIND.
+       destruct FIND as [sh' [psh' [P [? FIND]]]];   rewrite FIND; simpl.
+       constructor.
+      destruct loc; simpl; f_equal; auto; omega.
       (*- destruct (eq_dec sh0 Share.bot); constructor.*)
     Qed.
 
@@ -253,7 +257,7 @@ Module Concur.
     (*This definition makes no sense. In fact if there is at least one lock in rmap,
      *then the locks_writable is false (because perm_of_res(LK) = Some Nonempty). *)
     Definition locks_writable (juice: rmap):=
-      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->
+      forall loc sh psh P z i, juice @ loc = YES sh psh (LK z i) P  ->
                     Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).
 
     Record mem_compatible_with' (tp : thread_pool) m all_juice : Prop :=
@@ -273,24 +277,20 @@ Module Concur.
         lr_valid (AMap.find (elt:=lock_info)^~ (ls)).
     Proof.
       simpl; repeat intro.
-      destruct (AMap.find (elt:=option rmap) (b, ofs) ls) eqn:MAP.
-      - intros ofs0 ineq.
-        destruct (AMap.find (elt:=option rmap) (b, ofs0) ls) eqn:MAP'; try reflexivity.
+      destruct (AMap.find (elt:=option rmap) (b, ofs) ls) eqn:MAP; auto.
+      intros ofs0 ineq.
+      destruct (AMap.find (elt:=option rmap) (b, ofs0) ls) eqn:MAP'; try reflexivity.
         assert (H':=H).
         specialize (H (b,ofs) ltac:(rewrite MAP; auto)).
-        destruct H as [sh [psh [P H]]].
+        destruct H as [sh H].
         specialize (H' (b,ofs0) ltac:(rewrite MAP'; auto)).
-        destruct H' as [sh' [psh' [P' H']]].
-        assert (VALID:=phi_valid juice).
-        specialize (VALID b ofs). unfold "oo" in VALID.
-        rewrite H in VALID; simpl in VALID.
-        assert (ineq': (0< ofs0 - ofs < LKSIZE)%Z).
-        { clear - ineq.
-          lkomega. }
-        apply VALID in ineq'.
-        replace (ofs + (ofs0 - ofs))%Z with ofs0 in ineq' by omega.
-        rewrite H' in ineq'. inversion ineq'.
-        - auto.
+        destruct H' as [sh' H'].
+        elimtype False.
+        clear - H ineq H'. simpl in *.
+        specialize (H (ofs0-ofs)). spec H. omega.
+        specialize (H' 0). spec H'. omega. replace (ofs0+0) with (ofs+(ofs0-ofs)) in H' by omega.
+         destruct H as [sh0 [psh [P [J H]]]]; destruct H' as [sh0' [psh' [P' [J' H']]]].
+        rewrite H' in H. inv H. omega.
     Qed.
 
     Lemma compat_lr_valid: forall js m,
@@ -554,8 +554,6 @@ Qed.
           destruct k; auto. simpl.
           destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: HH; auto.
           intros; exfalso; assumption.
-          destruct (perm_of_sh (Share.glb Share.Rsh sh)); auto; intro HH.
-          inversion HH.
     Qed.
 
     Lemma juic2Perm_correct:
@@ -709,8 +707,6 @@ Qed.
              * eexists; eauto.
            + apply po_join_sub_sh.
              * eexists; eauto.
-           + apply po_join_sub_sh.
-             * eexists; eauto.
          - destruct k.
            + if_tac.
              * hnf. destruct (perm_of_sh _); apply I.
@@ -737,16 +733,7 @@ Qed.
                -- destruct  (perm_of_sh sh1) eqn:E.
                   ++ constructor.
                   ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
-           + if_tac.
-             * hnf. destruct (perm_of_sh _); apply I.
-             * apply perm_order''_trans with (perm_of_sh sh1).
-               -- apply po_join_sub_sh.
-                  ++ eexists; eauto.
-               -- destruct  (perm_of_sh sh1) eqn:E.
-                  ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
          - destruct k; try constructor.
-           + apply po_join_sub_sh; eexists; eauto.
            + apply po_join_sub_sh; eexists; eauto.
            + apply po_join_sub_sh; eexists; eauto.
            + apply po_join_sub_sh; eexists; eauto.
@@ -1142,6 +1129,10 @@ Qed.
             juicy_step  cnt Hcompatible tp' m' [::].
 
     Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R) .
+  
+    Definition lock_at_least sh R phi b ofs :=
+          forall i, 0 <= i < LKSIZE -> exists sh' rsh', join_sub sh sh' /\ phi@(b,ofs+i) = YES sh' rsh' (LK LKSIZE i) (pack_res_inv R).
+
 
     Notation Kblocked := (threadPool.Kblocked).
     Open Scope Z_scope.
@@ -1159,8 +1150,8 @@ Qed.
             (*Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (sh:Share.t)psh(R:pred rmap)
-            (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (sh:Share.t)(R:pred rmap)
+            (HJcanwrite: lock_at_least sh R phi b (Ptrofs.intval ofs))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
             (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.one))
@@ -1192,8 +1183,8 @@ Qed.
             (* Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (sh:Share.t) psh
-            (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (sh:Share.t) 
+            (HJcanwrite: lock_at_least sh R phi b (Ptrofs.intval ofs))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
             (Hload: Mem.load Mint32 m0 b (Ptrofs.intval ofs) = Some (Vint Int.zero))
@@ -1290,8 +1281,8 @@ Qed.
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hrestrict_map: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (sh:Share.t) psh(R:pred rmap)
-            (HJcanwrite: phi@(b, Ptrofs.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (sh:Share.t) (R:pred rmap)
+            (HJcanwrite: lock_at_least sh R phi b (Ptrofs.intval ofs))
             (Hload: Mem.load Mint32 m1 b (Ptrofs.intval ofs) = Some (Vint Int.zero)),
             syncStep' cnt0 Hcompat tp m (failacq (b,Ptrofs.intval ofs)).
 

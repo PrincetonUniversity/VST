@@ -394,10 +394,10 @@ Proof.
   intros.
   apply derives_trans with (local (tc_environ Delta) && PROPx (Ppre ++ localdef_tc Delta gvar_ident l) (LOCALx (l :: Qpre) (SEPx Rpre))); auto.
   replace (PROPx (Ppre ++ localdef_tc Delta gvar_ident l)) with (PROPx (localdef_tc Delta gvar_ident l ++ Ppre)).
-  Focus 2. {
+  2:{
     apply PROPx_Permutation.
     apply Permutation_app_comm.
-  } Unfocus.
+  }
   rewrite <- !insert_local'.
   apply andp_right; [solve_andp |].
   apply andp_right; [solve_andp |].
@@ -487,11 +487,11 @@ Lemma go_lower_localdef_one_step_canon_canon {cs: compspecs} : forall Delta Ppre
 Proof.
   intros.
   replace (PROPx (Ppost ++ msubst_extract_local Delta T1 T2 GV l :: nil)) with (PROPx (msubst_extract_local Delta T1 T2 GV l :: Ppost)).
-  Focus 2. {
+  2:{
     apply PROPx_Permutation.
     eapply Permutation_trans; [| apply Permutation_app_comm].
     apply Permutation_refl.
-  } Unfocus.
+  }
   rewrite <- !insert_local', <- !insert_prop.
   apply andp_right; [| solve_andp].
   normalize.

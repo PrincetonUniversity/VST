@@ -587,11 +587,11 @@ Proof.
       forward. (* q=p->left *)
       forward. (* *t=q *)
       Time forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
-      Focus 1. {
+      {
         entailer!.
         rewrite memory_block_data_at_ by auto.
         cancel.
-      } Unfocus.
+      }
       forward. (* return *)
       apply modus_ponens_wand'.
       Exists pa.
@@ -683,20 +683,20 @@ Proof.
         unfold_data_at 2%nat.
         gather_SEP 3 5.
         replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
-        Focus 1. {
+        {
           unfold treebox_rep; entailer!.
           Exists pa.
           rewrite field_at_data_at.
           entailer!.
-        } Unfocus.
+        }
         gather_SEP 4 5.
         replace_SEP 0 (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1)).
-        Focus 1. {
+        {
           unfold treebox_rep; entailer!.
           Exists pb.
           rewrite field_at_data_at.
           entailer!.
-        } Unfocus.
+        }
         Time forward_call (t1_1, k, v, t1_2, b1, p1).
         forward. (* return *)
         simpl_compb.
@@ -729,11 +729,11 @@ Proof.
     forward.
     forward.
     Time forward_call (p, sizeof t_struct_tree).
-    Focus 1. {
+    {
       entailer!.
       rewrite memory_block_data_at_ by auto.
       cancel.
-    } Unfocus.
+    }
     Time forward_call (t1,pa).
     Time forward_call (t2,pb).
     entailer!.

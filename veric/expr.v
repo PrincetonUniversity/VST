@@ -37,7 +37,9 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
      fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
 
 (* LIFTING METHOD TWO: *)
+Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
 Canonical Structure LiftEnviron := Tend environ.
+Set Warnings "+projection-no-head-constant,+redundant-canonical-projection".
 
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod

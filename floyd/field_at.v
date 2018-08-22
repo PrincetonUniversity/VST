@@ -512,7 +512,7 @@ Proof.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
-  Focus 2. {
+  2:{
     replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
@@ -521,7 +521,7 @@ Proof.
     replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
-  } Unfocus.
+  }
   rewrite nested_field_offset_ind with (gfs0 := StructField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
@@ -568,36 +568,36 @@ Proof.
    reptype
      (nested_field_type t
         (UnionField (fst (i, field_type i (co_members (get_co id)))) :: gfs))).
-  Focus 1. {
+  {
     clear - H.
     intros.
     unfold fst, snd.
     rewrite nested_field_type_ind, H.
     reflexivity.
-  } Unfocus.
+  }
   apply union_pred_ext; [apply get_co_members_no_replicate | |].
-  Focus 1. {
+  {
     apply compact_sum_inj_JMeq; auto.
     + intros.
       rewrite nested_field_type_ind, H.
       reflexivity.
     + eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
-  } Unfocus.
+  }
   intros.
   destruct_ptr p.
   assert (in_members i (co_members (get_co id))).
-  Focus 1. {
+  {
     change i with (fst (i, field_type i (co_members (get_co id)))).
     apply in_map with (f := fst).
     eapply compact_sum_inj_in; eauto.
-  } Unfocus.
+  }
   unfold field_at, fst, snd.
   autorewrite with at_offset_db.
   unfold offset_val.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
-  Focus 2. {
+  2:{
     replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
@@ -606,7 +606,7 @@ Proof.
     replace (!!field_compatible t gfs (Vptr b (Ptrofs.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
-  } Unfocus.
+  }
   rewrite nested_field_offset_ind with (gfs0 := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
@@ -689,10 +689,10 @@ Proof.
   rewrite split2_array_at with (lo := lo) (mid := ml) (hi := hi) by omega.
   rewrite sepcon_assoc; f_equal.
   assert (Zlength (sublist (ml - lo) (hi - lo) v) = hi - ml).
-  Focus 1. {
+  {
     replace (hi - ml) with (hi - lo - (ml - lo)) by omega.
     apply Zlength_sublist; omega.
-  } Unfocus.
+  }
   rewrite H2.
   rewrite split2_array_at with (lo := ml) (mid := mr) (hi := hi) by omega.
   f_equal.
@@ -1117,7 +1117,7 @@ Proof.
   intros.
   rewrite withspacer_spacer.
   destruct (field_compatible_dec t gfs p).
-  Focus 2. {
+  2:{
     unfold field_at_.
     assert (~ field_compatible t (gfs UDOT i) p) by (rewrite field_compatible_cons, H; tauto).
     rewrite field_at_compatible'.
@@ -1126,7 +1126,7 @@ Proof.
     rewrite if_false by auto.
     rewrite H.
     apply pred_ext; normalize.
-  } Unfocus.
+  }
   rewrite field_at__memory_block.
   assert (field_compatible t (gfs UDOT i) p) by (rewrite field_compatible_cons, H; split; auto).
   rewrite !field_compatible_field_address by auto.
@@ -1198,15 +1198,15 @@ Proof.
     intros [v0 v0'].
     normalize.
     erewrite (split3_array_at sh t gfs lo i hi).
-    Focus 2. { auto. } Unfocus.
-    Focus 2. {
+    2: auto.
+    2:{
       rewrite upd_Znth_Zlength by omega.
       auto.
-    } Unfocus.
-    Focus 2. {
+    }
+    2:{
       rewrite upd_Znth_same by omega.
       exact H1.
-    } Unfocus.
+    }
     rewrite sublist_upd_Znth_l with (lo0 := 0) by omega.
     rewrite sublist_upd_Znth_r with (lo0 := (i + 1 - lo)) by omega.
     unfold fst; cancel.
@@ -1238,7 +1238,7 @@ Proof.
   end.
 
   Opaque struct_pred. eapply @RAMIF_Q.trans. Transparent struct_pred.
-  Focus 2. {
+  2:{
     apply (struct_pred_ramif (co_members (get_co id))
             (fun it v p =>
               withspacer sh
@@ -1250,10 +1250,10 @@ Proof.
                    (sizeof (nested_field_type t gfs)))
                 (field_at sh t (gfs DOT fst it) v) p)); auto.
     apply get_co_members_no_replicate.
-  } Unfocus.
-  Focus 2. {
+  }
+  2:{
     apply withspacer_ramif_Q.
-  } Unfocus.
+  }
   intros.
   apply derives_refl.
 Qed.
@@ -1284,7 +1284,7 @@ Proof.
   end.
 
   Opaque union_pred. eapply @RAMIF_Q.trans. Transparent union_pred.
-  Focus 2. {
+  2:{
     apply (union_pred_ramif (co_members (get_co id))
             (fun it v p =>
               withspacer sh
@@ -1304,11 +1304,11 @@ Proof.
     rewrite <- !withspacer_spacer.
     erewrite !withspacer_field_at__Tunion by eauto.
     apply derives_refl.
-  } Unfocus.
-  Focus 2. {
+  }
+  2:{
     unfold fst.
     apply withspacer_ramif_Q.
-  } Unfocus.
+  }
   intros.
   apply derives_refl.
 Qed.
@@ -1559,12 +1559,12 @@ Proof.
   destruct H1 as [? [? [? [? ?]]]].
   destruct (nested_field_offset_in_range t fld H5 H2).
   assert (0 < sizeof (nested_field_type t fld) < Ptrofs.modulus).
-  Focus 1. {
+  {
     destruct p; inv H1.
     simpl in H3.
     inv_int i.
     omega.
-  } Unfocus.
+  }
   clear - H H1 H8.  
   eapply derives_trans.
   + apply sepcon_derives.

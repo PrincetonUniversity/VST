@@ -115,14 +115,14 @@ Lemma semax_SC_field_load:
 Proof.
   intros.
   assert_PROP (field_compatible t_root gfs p).
-  Focus 1. {
+  {
     rewrite (add_andp _ _ H8), (add_andp _ _ H3).
     apply derives_trans with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) && (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; intros rho; simpl; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
     rewrite <- H10; normalize.
-  } Unfocus.
+  }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H9 H7 as [v_reptype' [? ?]].
   eapply semax_load_nth_ram_field_at.
@@ -187,14 +187,14 @@ Lemma semax_SC_field_cast_load:
 Proof.
   intros.
   assert_PROP (field_compatible t_root gfs p).
-  Focus 1. {
+  {
     rewrite (add_andp _ _ H9), (add_andp _ _ H4).
     apply derives_trans with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) && (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; intros rho; simpl; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
     rewrite <- H11; normalize.
-  } Unfocus.
+  }
   subst gfs.
   pose proof nested_field_ramif_load sh _ _ _ _ _ _ H10 H8 as [v_reptype' [? ?]].
   eapply semax_cast_load_nth_ram_field_at.
@@ -245,14 +245,14 @@ Proof.
   erewrite field_at_data_equal by (symmetry; apply H8).
   clear H8 v_new.
   assert_PROP (field_compatible t_root gfs p).
-  Focus 1. {
+  {
     rewrite (add_andp _ _ H9), (add_andp _ _ H4).
     apply derives_trans with (local (tc_environ Delta) && local (` (eq (field_address t_root gfs p)) (eval_lvalue e1)) && (tc_lvalue Delta e1)); [solve_andp |].
     unfold local, lift1; intros rho; simpl; unfold_lift.
     normalize.
     eapply derives_trans; [apply typecheck_lvalue_sound; auto |].
     rewrite <- H10; normalize.
-  } Unfocus.
+  }
   subst gfs.
   pose proof nested_field_ramif_store sh _ _ _ v _ _ _ H8 H7 as [v_reptype' [? ?]].
   eapply semax_store_nth_ram_field_at.
@@ -620,7 +620,7 @@ Proof.
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
                nested_field_type t_root_from_e gfs_from_e = typeof e).
-  Focus 1. {
+  {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
     apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
@@ -632,13 +632,13 @@ Proof.
     destruct (H3 t_root_from_e gfs_from_e) as [tts ?].
     exists tts.
     apply H4; auto.
-  } Unfocus.
+  }
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   destruct H2 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
-  Focus 1. {
+  {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
     apply andp_left2.
@@ -647,7 +647,7 @@ Proof.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
-  } Unfocus.
+  }
   rename H2 into FIELD_COMPATIBLE.
   assert_PROP (legal_nested_field (nested_field_type t_root gfs0) gfs1); auto.
   clear LEGAL_NESTED_FIELD; rename H2 into LEGAL_NESTED_FIELD.
@@ -660,7 +660,7 @@ Proof.
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
   rewrite denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
-  Focus 2. {
+  2:{
     rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
     rewrite (add_andp _ _ TC).
     rewrite (add_andp _ _ TC_VAL).
@@ -675,7 +675,7 @@ Proof.
     apply andp_right.
     + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
-  } Unfocus.
+  }
   eapply semax_SC_field_load.
   1: rewrite NESTED_EFIELD, <- TYPEOF, TYPE_EQ; reflexivity.
   1: eassumption.
@@ -790,7 +790,7 @@ Proof.
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
                nested_field_type t_root_from_e gfs_from_e = typeof e).
-  Focus 1. {
+  {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
     apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
@@ -802,13 +802,13 @@ Proof.
     destruct (H3 t_root_from_e gfs_from_e) as [tts ?].
     exists tts.
     apply H4; auto.
-  } Unfocus.
+  }
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [? GFS]]; subst Rn.
   destruct H2 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
-  Focus 1. {
+  {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
     apply andp_left2.
@@ -817,7 +817,7 @@ Proof.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
-  } Unfocus.
+  }
   rename H2 into FIELD_COMPATIBLE.
   assert_PROP (legal_nested_field (nested_field_type t_root gfs0) gfs1); auto.
   clear LEGAL_NESTED_FIELD; rename H2 into LEGAL_NESTED_FIELD.
@@ -830,7 +830,7 @@ Proof.
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
   rewrite denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
-  Focus 2. {
+  2:{
     rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
@@ -843,7 +843,7 @@ Proof.
     apply andp_right.
     + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
-  } Unfocus.
+  }
   rewrite NESTED_EFIELD. rewrite <- TYPEOF, TYPE_EQ.
   eapply semax_SC_field_cast_load.
   1: rewrite <- TYPEOF, TYPE_EQ; reflexivity.
@@ -965,7 +965,7 @@ Proof.
                LR_of_type t_root_from_e = lr /\
                legal_nested_efield t_root_from_e e_root gfs_from_e tts lr = true /\
                nested_field_type t_root_from_e gfs_from_e = typeof e1).
-  Focus 1. {
+  {
     erewrite (local2ptree_soundness P Q R) by eauto.
     simpl app.
     apply (msubst_efield_denote_eq _ P _ _ GV R)  in EVAL_EFIELD.
@@ -977,13 +977,13 @@ Proof.
     destruct (H1 t_root_from_e gfs_from_e) as [tts ?].
     exists tts.
     apply H2; auto.
-  } Unfocus.
+  }
   apply find_nth_preds_Some in NTH.
   destruct NTH as [NTH [[? ?] GFS]]; subst Rn Rv.
   destruct H0 as [tts [NESTED_EFIELD [LR [LEGAL_NESTED_EFIELD TYPEOF]]]].
   rewrite <- TYPEOF in BY_VALUE.
   assert_PROP (field_compatible t_root gfs0 p).
-  Focus 1. {
+  {
     rewrite <- (corable_sepcon_TT (prop _)) by auto.
     eapply nth_error_SEP_sepcon_TT'; [| eassumption].
     apply andp_left2.
@@ -992,7 +992,7 @@ Proof.
     rewrite field_at_compatible'.
     go_lowerx.
     normalize.
-  } Unfocus.
+  }
   rename H0 into FIELD_COMPATIBLE.
   assert_PROP (legal_nested_field (nested_field_type t_root gfs0) gfs1); auto.
   clear LEGAL_NESTED_FIELD; rename H0 into LEGAL_NESTED_FIELD.
@@ -1005,7 +1005,7 @@ Proof.
   pose proof nested_efield_facts Delta _ _ efs _ _ _ _ FIELD_COMPATIBLE_E LR LEGAL_NESTED_EFIELD BY_VALUE as DERIVES.
   rewrite !denote_tc_assert_andp in TC.
   apply (derives_trans (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)))) in DERIVES.
-  Focus 2. {
+  2:{
     rewrite (andp_comm _ (local (efield_denote _ _))), <- !andp_assoc.
     rewrite (add_andp _ _ TC).
     rewrite LR.
@@ -1018,7 +1018,7 @@ Proof.
     apply andp_right.
     + apply (msubst_efield_denote_eq _ P _ _ GV R) in EVAL_EFIELD; auto.
     + apply (msubst_eval_LR_eq _ P _ _ GV R) in EVAL_ROOT; auto.
-  } Unfocus.
+  }
   rewrite NESTED_EFIELD.
   eapply semax_SC_field_store.
   1: rewrite <- TYPEOF, TYPE_EQ; reflexivity.

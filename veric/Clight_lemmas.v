@@ -269,7 +269,7 @@ Ltac fun_tac :=
 (* Lemmas about ident lists *)
 
 Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
- match ids with i::ids' => orb (Peqb id i) (id_in_list id ids') | _ => false end.
+ match ids with i::ids' => orb (Pos.eqb id i) (id_in_list id ids') | _ => false end.
 
 Fixpoint compute_list_norepet (ids: list ident) : bool :=
  match ids with
@@ -288,7 +288,7 @@ Proof.
  induction ids; simpl; intros; auto.
  apply orb_false_iff in H. destruct H.
  intros [?|?]. subst.
- rewrite Peqb_refl in H; inv H.
+ rewrite Pos.eqb_refl in H; inv H.
  apply IHids; auto.
 Qed.
 

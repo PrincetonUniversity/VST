@@ -203,7 +203,7 @@ Proof.
           hnf in H5.
           specialize (H1 (b',i')). hnf in H1. rewrite if_false in H1.
           assert (LEV := join_level _ _ _ H).
-          Focus 1. {
+          {
             apply (resource_at_join _ _ _ (b',i')) in H.
             apply join_comm in H; apply H1 in H.
             rewrite H in H5.
@@ -241,7 +241,7 @@ Proof.
             omega.
             clear.
             compute; congruence.
-          } Unfocus.
+          }
           destruct H2.
           intros [? ?].
           destruct H6.
@@ -262,10 +262,10 @@ Proof.
             simpl.
             subst b'.
             clear - H7 H8.
-            assert (~ (Z.succ i <= i' < (Zsucc i + Z.max (Z_of_nat n) 0))).
+            assert (~ (Z.succ i <= i' < (Z.succ i + Z.max (Z_of_nat n) 0))).
             contradict H7; split; auto.
             clear H7.
-            replace (Z.max (Z.succ (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
+            replace (Z.max (Z.succ (Z_of_nat n)) 0) with (Z.succ (Z_of_nat n)) in H8.
             replace (Z.max (Z_of_nat n) 0) with (Z_of_nat n) in H.
             omega.
             symmetry; apply Zmax_left.
@@ -303,28 +303,18 @@ Proof.
       rewrite if_true in H0
         by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
       destruct H0 as [H0 H1].
-      assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
+      pose proof I.
+      destruct (make_rmap  (fun loc => if eq_dec loc (b,i) then 
        YES sh H0 (VAL (Byte Byte.zero)) NoneP 
-          else core (w @ loc)))).
-      Focus 1. {
-        intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
-      } Unfocus.
-      destruct (make_rmap _ (ghost_of w) H2 (level w)) as [w1 [? ?]].
+          else core (w @ loc)) (ghost_of w) (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
       { apply ghost_of_approx. }
-      assert (AV.valid (res_option oo
-        fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
+      pose proof I.
+      destruct (make_rmap (fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
-          else core (w @ loc))).
-      Focus 1. {
-        intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        case_eq (w @ (b',z')); intros;
-         [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
-      } Unfocus.
-      destruct (make_rmap _ (ghost_of w) H5 (level w)) as [w2 [? ?]].
+          else core (w @ loc)) (ghost_of w) (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
@@ -454,7 +444,7 @@ Proof.
          unfold l; simpl nth; auto.
       * apply orp_left.
         apply andp_left2.
-        Focus 1. {
+        {
           intros w [l [[[? [? ?]] ?] Hg]].
            split; auto.
            intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
@@ -462,8 +452,8 @@ Proof.
            destruct l; inv H. exists m.
            destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
            f_equal. f_equal. rewrite Zminus_diag. reflexivity.
-        } Unfocus.
-        Focus 1. {
+        }
+        {
           rewrite prop_true_andp by auto.
           intros w [v2' [l [[[? [? ?]] ?] Hg]]].
            split; auto.
@@ -472,7 +462,7 @@ Proof.
            destruct l; inv H. exists m.
            destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
            f_equal. f_equal. rewrite Zminus_diag. reflexivity.
-        } Unfocus.
+        }
     - rewrite Ptrofs.unsigned_repr by (rewrite Nat2Z.inj_succ in H0; unfold Ptrofs.max_unsigned; omega).
       change (size_chunk Mint8unsigned) with 1.
       rewrite prop_true_andp by (split; [apply tc_val'_Vundef | apply Z.divide_1_l]).
@@ -936,10 +926,10 @@ Proof.
     assert (Ptrofs.unsigned (Ptrofs.repr ofs') = ofs')
       by (subst; rewrite Ptrofs.repr_unsigned; reflexivity).
     assert (0 <= ofs' /\ ofs' + Z.of_nat n' <= Ptrofs.modulus).
-    Focus 1. {
+    {
       pose proof Ptrofs.unsigned_range ofs.
       omega.
-    } Unfocus.
+    }
     clear Heqofs' H'.
     assert (Ptrofs.unsigned (Ptrofs.repr ofs') = ofs' \/ n' = 0%nat) by tauto.
     clear H0; rename H2 into H0.
@@ -998,22 +988,22 @@ Proof.
   intros.
   unfold memory_block.
   rewrite memory_block'_split with (i := n); [| omega |].
-  Focus 2. {
+  2:{
     pose proof Ptrofs.unsigned_range (Ptrofs.repr ofs).
     pose proof Ptrofs.unsigned_repr_eq ofs.
     assert (ofs mod Ptrofs.modulus <= ofs) by (apply Z.mod_le; omega).
     omega.
-  } Unfocus.
+  }
   replace (n + m - n) with m by omega.
   replace (memory_block' sh (nat_of_Z m) b (Ptrofs.unsigned (Ptrofs.repr ofs) + n)) with
     (memory_block' sh (nat_of_Z m) b (Ptrofs.unsigned (Ptrofs.repr (ofs + n)))).
-  Focus 2. {
+  2:{
     destruct (zeq m 0).
     + subst. reflexivity.
     + assert (ofs + n < Ptrofs.modulus) by omega.
       rewrite !Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
       reflexivity.
-  } Unfocus.
+  }
   apply pred_ext.
   + apply prop_andp_left; intros.
     apply sepcon_derives; (apply andp_right; [intros ? _; simpl | apply derives_refl]).
@@ -1036,10 +1026,10 @@ Proof.
   intros.
   destruct p; try solve [unfold memory_block; rewrite FF_sepcon; auto].
   destruct (zle 0 n).
-  Focus 2. {
+  2:{
     rewrite !memory_block_non_pos_Vptr by omega.
     rewrite emp_sepcon; auto.
-  } Unfocus.
+  }
   unfold memory_block.
   destruct (zlt (Ptrofs.unsigned i + n) Ptrofs.modulus).
   + rewrite !prop_true_andp by auto.
@@ -1102,7 +1092,7 @@ Proof.
  repeat first [rewrite @FF_orp | rewrite @orp_FF].
 *
  f_equal. if_tac; clear H.
- Focus 2. {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1114,7 +1104,7 @@ Proof.
      simpl.
      destruct (sign_ext_range' 8 i); [split; cbv; intros; congruence |].
      exact (conj H0 H1).
- } Unfocus.
+ }
  f_equal. f_equal; extensionality bl.
  f_equal. f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
@@ -1140,7 +1130,7 @@ Proof.
 *
  f_equal.
  if_tac; clear H.
- Focus 2. {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1152,7 +1142,7 @@ Proof.
      simpl.
      destruct (zero_ext_range' 8 i); [split; cbv; intros; congruence |].
      exact H1.
- } Unfocus.
+ }
  f_equal; f_equal; extensionality bl.
  f_equal. f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
@@ -1177,7 +1167,7 @@ Proof.
 *
  f_equal.
   if_tac; [| auto]; clear H.
- Focus 2. {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1189,7 +1179,7 @@ Proof.
      simpl.
      destruct (sign_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact (conj H0 H1).
- } Unfocus.
+ }
  apply equal_f. apply f_equal. apply f_equal. extensionality bl.
  apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
@@ -1214,7 +1204,7 @@ Proof.
 *
  f_equal.
   if_tac; [| auto]; clear H.
- Focus 2. {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1226,7 +1216,7 @@ Proof.
      simpl.
      destruct (zero_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact H1.
- } Unfocus.
+ }
  apply equal_f. apply f_equal. apply f_equal. extensionality bl.
  apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
