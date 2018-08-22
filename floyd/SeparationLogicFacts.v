@@ -433,7 +433,7 @@ Proof.
   eapply semax_pre_post_indexed_bupd; [| eauto ..].
   solve_derives_trans.
 Qed.
-  
+
 End CSHL_GenConseq.
 
 Module CSHL_IConseqFacts
