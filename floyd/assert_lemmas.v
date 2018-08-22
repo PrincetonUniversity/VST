@@ -755,6 +755,20 @@ Proof.
   apply bupd_trans.
 Qed.
 
+Lemma derives_bupd0_bupd0_left: forall TC P Q,
+  local TC && P |-- |==> |> FF || Q ->
+  (local TC && |==> |> FF || P) |-- |==> |> FF || Q.
+Proof.
+  intros.
+  apply derives_bupd_bupd_left.
+  rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (local _)).
+  apply orp_left.
+  + apply andp_left2.
+    eapply derives_trans; [| apply bupd_intro].
+    apply orp_right1; auto.
+  + auto.
+Qed.
+
 Ltac reduce2ENTAIL :=
   match goal with
   | |- _ |-- |==> |> FF || _ => apply derives_bupd_derives_bupd0

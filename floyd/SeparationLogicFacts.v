@@ -385,10 +385,10 @@ Axiom semax_pre_post_indexed_bupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> ((|> FF) || P')) ->
-    local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
+    local (tc_environ Delta) && RA_normal R' |-- |==> ((|> FF) || RA_normal R) ->
+    local (tc_environ Delta) && RA_break R' |-- |==> ((|> FF) || RA_break R) ->
+    local (tc_environ Delta) && RA_continue R' |-- |==> ((|> FF) || RA_continue R) ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> ((|> FF) || RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE.
@@ -430,8 +430,8 @@ Lemma semax_pre_post_bupd:
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof.
   intros.
-  eapply semax_pre_post_indexed_bupd; [| eauto ..].
-  solve_derives_trans.
+  eapply semax_pre_post_indexed_bupd; [.. | exact H4]; try intros;
+  try apply derives_bupd_derives_bupd0; auto.
 Qed.
 
 End CSHL_GenConseq.
@@ -448,8 +448,20 @@ Lemma semax_pre_indexed_bupd:
      local (tc_environ Delta) && P |-- |==> |> FF || P' ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof.
-intros; eapply semax_pre_post_indexed_bupd; eauto;
-intros; apply andp_left2, bupd_intro; auto.
+  intros; eapply semax_pre_post_indexed_bupd; eauto;
+  intros; reduce2derives; apply derives_refl.
+Qed.
+
+Lemma semax_post_indexed_bupd:
+ forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
+   local (tc_environ Delta) && RA_normal R' |-- |==> |> FF || RA_normal R ->
+   local (tc_environ Delta) && RA_break R' |-- |==> |> FF || RA_break R ->
+   local (tc_environ Delta) && RA_continue R' |-- |==> |> FF || RA_continue R ->
+   (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> |> FF || RA_return R vl) ->
+   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
+Proof.
+  intros; eapply semax_pre_post_indexed_bupd; try eassumption.
+  apply derives_bupd0_refl.
 Qed.
 
 End CSHL_IConseqFacts.
@@ -693,10 +705,10 @@ Proof.
       apply later_prop.
     - apply orp_right1.
       solve_andp.
-  + apply derives_bupd_refl.
-  + apply derives_bupd_refl.
-  + apply derives_bupd_refl.
-  + intros; apply derives_bupd_refl.
+  + apply derives_bupd0_refl.
+  + apply derives_bupd0_refl.
+  + apply derives_bupd0_refl.
+  + intros; apply derives_bupd0_refl.
 Qed.
 
 End CSHL_IExtrFacts.
