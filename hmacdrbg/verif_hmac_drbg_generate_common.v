@@ -1714,7 +1714,15 @@ Proof. intros.
       { apply prop_right. repeat split; trivial.
         + subst. rewrite Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; omega.
-        + subst done_output. rewrite offset_offset_val; trivial.
+        + subst done_output.
+            assert (0 <= use_len <= Int.max_unsigned). {
+              clear - Hdone Hequse_len.
+              pose proof (Z.min_spec 32 (out_len-done)).
+              destruct H as [[? ?] | [? ?]]. rewrite Z.min_l in Hequse_len by omega.
+              rep_omega. rewrite Z.min_r in Hequse_len by omega.
+              rep_omega.
+            }
+            normalize.
         + f_equal; f_equal. omega.
         + subst HLP. apply HMAC_DRBG_generate_helper_Z_Zlength_fst; trivial. apply hmac_common_lemmas.HMAC_Zlength. 
         + subst HLP. apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial. apply isbyteZ_HMAC256. }
