@@ -464,6 +464,17 @@ Proof.
   apply derives_bupd0_refl.
 Qed.
 
+Lemma semax_post''_indexed_bupd: forall R' Espec {cs: compspecs} Delta R P c,
+           local (tc_environ Delta) && R' |-- |==> |> FF || RA_normal R ->
+      @semax cs Espec Delta P c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c R.
+Proof. intros. eapply semax_post_indexed_bupd; eauto.
+ simpl RA_normal; auto.
+ simpl RA_break; normalize.
+ simpl RA_continue; normalize.
+ intro vl; simpl RA_return; normalize.
+Qed.
+
 End CSHL_IConseqFacts.
 
 Module CSHL_ConseqFacts

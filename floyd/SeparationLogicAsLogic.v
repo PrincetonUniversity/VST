@@ -831,21 +831,21 @@ Proof.
     apply exp_left in H0.
     rewrite <- (exp_andp2 A) in H0.
     eapply semax_pre_indexed_bupd; [exact H0 | clear H0].
-    eapply semax_post''_bupd; [.. | apply AuxDefs.semax_store_backward].
+    eapply semax_post''_indexed_bupd; [.. | apply AuxDefs.semax_store_backward].
     apply andp_left2, derives_refl.
   + pose proof (fun x => semax_Sset_inv _ _ _ _ _ (H x)).
     clear H.
     apply exp_left in H0.
     rewrite <- (exp_andp2 A) in H0.
     eapply semax_pre_indexed_bupd; [exact H0 | clear H0].
-    eapply semax_post''_bupd; [.. | apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+    eapply semax_post''_indexed_bupd; [.. | apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
     apply andp_left2, derives_refl.
   + pose proof (fun x => semax_call_inv _ _ _ _ _ _ (H x)).
     clear H.
     apply exp_left in H0.
     rewrite <- (exp_andp2 A) in H0.
     eapply semax_pre_indexed_bupd; [exact H0 | clear H0].
-    eapply semax_post''_bupd; [.. | apply AuxDefs.semax_call_backward].
+    eapply semax_post''_indexed_bupd; [.. | apply AuxDefs.semax_call_backward].
     apply andp_left2, derives_refl.
   + pose proof (fun x => semax_Sbuiltin_inv _ _ _ _ _ _ _ (H x)).
     apply semax_pre_indexed_bupd with FF; [| apply AuxDefs.semax_builtin].
@@ -972,11 +972,11 @@ Proof.
       intro x; apply H0.
     - apply AuxDefs.semax_continue.
   + pose proof (fun x => semax_return_inv _ _ _ _ (H x)).
-    eapply (semax_pre_post_indexed_bupd _ _ {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := |==> RA_return R |}); [.. | apply AuxDefs.semax_return].
+    eapply (semax_pre_post_indexed_bupd _ _ {| RA_normal := _; RA_break := _; RA_continue := _; RA_return := |==> |> FF || RA_return R |}); [.. | apply AuxDefs.semax_return].
     - rewrite exp_andp2.
       apply exp_left; intros x.
       derives_rewrite -> (H0 x).
-      reduce2ENTAIL.
+      reduce2ENTAIL.      
       apply andp_ENTAIL; [apply ENTAIL_refl |].
       apply ENTAIL_refl.
     - apply derives_bupd_refl.
@@ -1234,12 +1234,111 @@ Proof.
   + apply semax_seq_inv in H.
     destruct H as [? [? ?]].
     apply semax_skip_inv in H0.
-    eapply semax_post_indexed_bupd.
-Axiom semax_skip_seq:
+    eapply semax_post_indexed_bupd; [.. | exact H].
+    - destruct Q; auto.
+    - destruct Q; apply derives_bupd0_refl.
+    - destruct Q; apply derives_bupd0_refl.
+    - intros; destruct Q; apply derives_bupd0_refl.
+Qed.
+
+Theorem semax_skip_seq:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta P s Q,
     @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
+Proof.
+  intros.
+  split; intros.
+  + apply AuxDefs.semax_seq with P; auto.
+    eapply semax_post; [.. | apply AuxDefs.semax_skip].
+    - destruct Q; apply ENTAIL_refl.
+    - apply andp_left2, FF_left.
+    - apply andp_left2, FF_left.
+    - intros; apply andp_left2, FF_left.
+  + apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    apply semax_skip_inv in H.
+    eapply semax_pre_indexed_bupd; [.. | exact H0].
+    destruct Q; auto.
+Qed.
+(*
+Axiom semax_extensionality_Delta:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta Delta' P c R,
+       tycontext_sub Delta Delta' ->
+     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
 
+Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
+  unfold_Ssequence c1 = unfold_Ssequence c2 ->
+  (forall P Q Delta, @semax CS Espec Delta P c1 Q -> @semax CS Espec Delta P c2 Q).
+
+Axiom semax_set_forward_nl:
+  forall {CS: compspecs} {Espec: OracleKind},
+forall (Delta: tycontext) P id e v t,
+    typeof_temp Delta id = Some t ->
+    P |-- rel_expr e v ->
+    tc_val t v ->
+    @semax CS Espec Delta
+        ( |> P ) (Sset id e)
+        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `(old) P)).
+
+Axiom semax_loadstore:
+  forall {CS: compspecs} {Espec: OracleKind},
+ forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P',
+   writable_share sh ->
+   P |-- !! (tc_val (typeof e1) v2)
+           && rel_lvalue e1 v1
+           && rel_expr (Ecast e2 (typeof e1)) v2
+           && (`(mapsto sh (typeof e1) v1 v0) * P') ->
+   @semax CS Espec Delta (|> P) (Sassign e1 e2)
+          (normal_ret_assert (`(mapsto sh (typeof e1) v1 v2) * P')).
+
+Axiom semax_Slabel:
+   forall {cs:compspecs} {Espec: OracleKind},
+     forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
+
+Axiom semax_seq_Slabel:
+   forall {cs:compspecs} {Espec: OracleKind},
+     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
+   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
+
+Axiom semax_frame:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P s R F,
+   closed_wrt_modvars s F ->
+  @semax CS Espec Delta P s R ->
+    @semax CS Espec Delta (P * F) s (frame_ret_assert R F).
+
+Axiom semax_ext:
+  forall  (Espec : OracleKind)
+         (ext_link: Strings.String.string -> ident)
+         (id : Strings.String.string) (ids : list ident) (sig : funsig) (sig' : signature)
+         cc A P Q NEP NEQ (fs : funspecs),
+  let f := mk_funspec sig cc A P Q NEP NEQ in
+  In (ext_link id,f) fs ->
+  funspecs_norepeat fs ->
+  ids = fst (split (fst sig)) ->
+  sig' = funsig2signature sig cc ->
+  @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
+
+Axiom semax_ext_void:
+  forall  (Espec : OracleKind)
+         (ext_link: Strings.String.string -> ident)
+         (id : Strings.String.string) (ids : list ident) sig (sig' : signature)
+         cc A P Q NEP NEQ (fs : funspecs),
+  let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
+  In (ext_link id,f) fs ->
+  funspecs_norepeat fs ->
+  ids = fst (split sig) ->
+  sig' = mksignature (map typ_of_type (map snd sig)) None cc ->
+  @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
+
+Axiom semax_external_FF:
+ forall Espec ids ef A,
+  @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
+
+*)
 End ClightSeparationHoareLogic.
 (*
 Module WITH_EXISTS_PRE.
