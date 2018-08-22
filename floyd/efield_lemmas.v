@@ -33,7 +33,11 @@ Inductive array_subsc_denote {cs: compspecs}: expr -> Z -> environ -> Prop :=
 Inductive efield_denote {cs: compspecs}: list efield -> list gfield -> environ -> Prop :=
   | efield_denote_nil: forall rho, efield_denote nil nil rho
   | efield_denote_ArraySubsc: forall ei efs i gfs rho,
-      is_int_type (typeof ei) = true ->
+       match typeconv (typeof ei) with
+       | Tint _ Signed _ => Int.min_signed <= i <= Int.max_signed
+       | Tint _ Unsigned _ => 0 <= i <= Int.max_unsigned
+       | _ => False
+       end ->
       array_subsc_denote ei i rho ->
       efield_denote efs gfs rho ->
       efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs) rho
@@ -406,7 +410,12 @@ Qed.
 Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
-  is_int_type (typeof ei) = true ->
+(*  is_int_type (typeof ei) = true -> *)
+   match typeconv (typeof ei) with
+   | Tint _ Signed _ => Int.min_signed <= i <= Int.max_signed
+   | Tint _ Unsigned _ => 0 <= i <= Int.max_unsigned
+   | _ => False
+   end ->
   array_subsc_denote ei i rho ->
   nested_field_type t_root gfs = Tarray t0 n a ->
   tc_environ Delta rho ->
@@ -423,7 +432,10 @@ Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
           tc_lvalue Delta (nested_efield e (eArraySubsc ei :: efs) (t :: tts)) rho.
 Proof.
   intros ? ? ? ? ? ? ? ? ? ? ? ? ? ?
-         LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+         LEGAL_NESTED_EFIELD_REC TYPE_MATCH H ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+  rename H into H'.
+  assert (H: is_int_type (typeof ei) = true) 
+     by (clear - H'; destruct (typeof ei) as [| | | [|] | | | | |]; try contradiction; auto).
   destruct (array_op_facts _ _ _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE) as [CLASSIFY_ADD ISBINOP].
   pose proof field_address_isptr _ _ _ FIELD_COMPATIBLE as ISPTR.
   rewrite tc_efield_ind; simpl.
@@ -441,9 +453,11 @@ Proof.
     rewrite CLASSIFY_ADD.
     rewrite sem_add_pi_ptr_special.
     2: simpl in H2; rewrite <- H2; auto.
-    2: admit.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
+    clear - H' CLASSIFY_ADD.
+    destruct  (typeof (nested_efield e efs tts)) as  [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ], 
+                 (typeof ei) as  [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ]; inv CLASSIFY_ADD; try contradiction; auto.
   + unfold tc_lvalue.
     Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
     rewrite ISBINOP.
@@ -459,7 +473,7 @@ Proof.
       simpl; unfold_lift.
       rewrite <- H3.
       normalize.
-Admitted.
+Qed.
 
 Lemma in_members_Ctypes_offset: forall i m e, in_members i m -> Ctypes.field_offset cenv_cs i m = Errors.Error e -> False.
 Proof.

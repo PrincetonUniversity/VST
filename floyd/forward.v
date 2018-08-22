@@ -2401,16 +2401,23 @@ Ltac construct_nested_efield e e1 efs tts lr :=
 
 Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
   P |-- local (efield_denote efs gfs) ->
-  P |-- local (`(eq (Vint (Int.repr i))) (eval_expr ei)) ->
+  P |-- local (`(eq (Vint i)) (eval_expr ei)) ->
   is_int_type (typeof ei) = true ->
-  P |-- local (efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs)).
+  P |-- local (efield_denote (eArraySubsc ei :: efs) 
+          (ArraySubsc (int_signed_or_unsigned (typeof ei) i) :: gfs)).
 Proof.
   intros.
   rewrite (add_andp _ _ H), (add_andp _ _ H0), andp_assoc.
   apply andp_left2.
   intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
   constructor; auto.
-  constructor; auto.
+  2:   constructor; auto.
+  clear - H1. destruct (typeof ei); inv H1.
+  unfold int_signed_or_unsigned. destruct i0,s; simpl; rep_omega. 
+  rewrite <- H2.
+  destruct (typeof ei); inv H1.
+  unfold int_signed_or_unsigned. destruct i0,s; simpl;
+  rewrite ?Int.repr_signed, ?Int.repr_unsigned; auto. 
 Qed.
 
 Lemma efield_denote_cons_struct: forall {cs: compspecs} P efs gfs i,

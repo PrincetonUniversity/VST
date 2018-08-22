@@ -248,17 +248,26 @@ assert (LBE := LBLOCK_zeq).
 change LBLOCKz with 16%Z in H0.
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
+assert (RANGE: forall i, 0 <= Z.land i 15 < 16). {
+  intros. rewrite Zland_15. apply Z_mod_lt.  computable.
+} 
+assert (RANGE': forall i, Int.min_signed <= Z.land i 15 <= Int.max_signed). {
+  intros. specialize (RANGE i0). rep_omega.
+}
+(* assert (RANGE1 := RANGE' (i+1)). *)
 forward.	(*s0 = X[(i+1)&0x0f]; *)
 autorewrite with sublist. rewrite Zland_15.
 forward. (* s0 = sigma0(s0); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_0_eq.
 
+(* assert (RANGE2 := RANGE' (i+14)). *)
 forward. (* s1 = X[(i+14)&0x0f]; *)
 autorewrite with sublist. rewrite Zland_15.
 
 forward. (* s1 = sigma1(s1); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_1_eq.
 
+(* assert (RANGE3 := RANGE' (i)). *)
 forward. (* T1 = X[i&0xf]; *)
 autorewrite with sublist. rewrite Zland_15.
 replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
@@ -267,6 +276,7 @@ replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
         by (rewrite Z.add_0_r; auto);
       rewrite extract_from_b; try omega; auto).
 
+(* assert (RANGE4 := RANGE' (i+9)). *)
 forward. (* t = X[(i+9)&0xf]; *)
 autorewrite with sublist. rewrite Zland_15.
 rewrite extract_from_b by (try assumption; try omega).

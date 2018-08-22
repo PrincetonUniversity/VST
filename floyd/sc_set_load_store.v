@@ -312,7 +312,7 @@ Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t v
 | msubst_efield_denote_cons_array: forall ei i i' efs gfs,
     is_int_type (typeof ei) = true ->
     msubst_eval_expr Delta T1 T2 GV  ei = Some (Vint i) ->
-    Int_eqm_unsigned i i' ->
+    int_signed_or_unsigned (typeof ei) i = i' ->
     msubst_efield_denote Delta T1 T2 GV efs gfs ->
     msubst_efield_denote Delta T1 T2 GV (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
 | msubst_efield_denote_cons_struct: forall i efs gfs,
@@ -329,19 +329,21 @@ Proof.
   intros ? ? ? ? ? ? ? ? ? MSUBST_EFIELD_DENOTE.
   induction MSUBST_EFIELD_DENOTE.
   + intro rho; apply prop_right; constructor.
-  + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
+  + subst i'.
+    eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
     rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
     clear H0 IHMSUBST_EFIELD_DENOTE.
     rewrite !andp_assoc; apply andp_left2, andp_left2.
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
     constructor; auto.
-    constructor.
-    apply Int_eqm_unsigned_spec in H1.
-    rewrite <- H2; symmetry.
-    f_equal.
-    rewrite <- (Int.repr_unsigned i).
-    apply Int.eqm_samerepr; auto.
+    clear - H; destruct (typeof ei); inv H; destruct i0,s; simpl;
+    unfold int_signed_or_unsigned; simpl;
+    try apply Int.signed_range; rep_omega.
+    constructor. rewrite <- H1. f_equal.
+    unfold int_signed_or_unsigned.
+    destruct (typeof ei); inv H. destruct i0, s; simpl;
+    try apply Int.repr_signed; apply Int.repr_unsigned.
   + eapply derives_trans; [eassumption |].
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
@@ -352,13 +354,37 @@ Proof.
     constructor; auto.
 Qed.
 
+Ltac insist_rep_omega :=
+ (auto; rep_omega) ||
+ match goal with |- ?A =>
+  fail 1000 "load or store subscript failure: rep_omega cannot prove "A
+ end.
+
 Ltac solve_msubst_efield_denote :=
   solve 
   [ repeat first
     [ eapply msubst_efield_denote_cons_array;
       [ reflexivity
       | solve_msubst_eval_expr
-      | solve_Int_eqm_unsigned
+      | rewrite ?ptrofs_to_int_repr; autorewrite with norm;
+(* Maybe this lazymatch...end is not needed because the
+   autorewrite with norm takes care of it? *)
+        lazymatch goal with
+        | |- int_signed_or_unsigned _ (Int.repr ?i) = ?j =>
+            let x := fresh "x" in set (x:=i); 
+            let y := fresh "y" in set (y:=j);
+            unfold int_signed_or_unsigned; simpl;
+            subst x;
+            rewrite ?(Int.signed_repr i) by insist_rep_omega;
+            rewrite ?(Int.unsigned_repr i) by insist_rep_omega;
+            subst y
+        | |- int_signed_or_unsigned ?t _ = _ =>
+              try change (int_signed_or_unsigned t) with Int.signed;
+              try change (int_signed_or_unsigned t) with Int.unsigned
+        | |- _ => idtac
+         end;
+         reflexivity
+(*      | solve_Int_eqm_unsigned *)
       | ]
     | apply msubst_efield_denote_cons_struct
     | apply msubst_efield_denote_cons_union
@@ -420,7 +446,17 @@ match goal with
  |  H: ?a = field_address _ _ _ |- ?b = _ => constr_eq a b; simple eapply H
 end.
 
+(*
+Ltac cleanup_int_signed_or_unsigned :=
+ match goal with |- context [int_signed_or_unsigned ?t (Int.repr ?i)] =>
+  (change (int_signed_or_unsigned t) with Int.signed;
+   rewrite ?(Int.signed_repr i) by insist_rep_omega)
+ ||   (change (int_signed_or_unsigned t) with Int.unsigned;
+   rewrite ?(Int.unsigned_repr i) by insist_rep_omega)
+end.
+*)
 Ltac solve_field_address_gen :=
+(* repeat cleanup_int_signed_or_unsigned; *)
   solve [
     repeat
       first

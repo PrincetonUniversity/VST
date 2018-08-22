@@ -6,6 +6,13 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.simple_reify.
 
+Definition int_signed_or_unsigned (t: type) : int -> Z :=
+  match typeconv t with
+  | Tint _ Signed _ => Int.signed
+  | Tint _ Unsigned _ => Int.unsigned
+  | _ => fun _ => 0 (* bogus *)
+  end.
+
 Section SIMPL_REPTYPE.
 
 Context {cs: compspecs}.

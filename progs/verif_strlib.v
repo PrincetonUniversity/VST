@@ -72,12 +72,75 @@ Definition Gprog : funspecs :=
 
 Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
 
+Lemma field_compatible_tarray_max:
+  forall {CS: compspecs} t n a gfs p,
+  field_compatible (Tarray t n a) gfs p ->
+  sizeof t * n <= Ptrofs.max_unsigned.
+Proof.
+intros.
+destruct H as [? [_ [? _]]].
+destruct p; try contradiction.
+simpl in H0.
+pose proof (sizeof_pos t).
+destruct (zlt n 0).
+apply Z.le_trans with 0.
+apply Z.mul_nonneg_nonpos; omega.
+computable.
+rewrite Z.max_r in H0 by omega.
+rep_omega.
+Qed.
+
+Ltac process_field_compatible X :=
+ lazymatch goal with
+ | H: field_compatible _ _ _ |- _ =>
+   apply field_compatible_tarray_max in H;
+   simpl sizeof in H;
+   match type of H with ?S =>
+       let  S1 := process_field_compatible X in
+       let S2 := constr:(S /\ S1) in S2
+    end
+ | |- _ => True
+ end.
+
+Ltac array_length_maxes :=
+ (* In the precondition of the current Hoare triple, find all the
+     field_at and data_at of "array" type, and extract from them
+     the proposition that the array length is bounded 
+     by Ptrofs.max_unsigned. *)
+let P := fresh "P" in evar (P: Prop);
+assert_PROP P;
+[ go_lower;
+  saturate_local;
+  repeat
+   match goal with
+   | P := ?P' : Prop, H: field_compatible _ _ _ |- _ =>
+     apply field_compatible_tarray_max in H;
+     simpl sizeof in H;
+     rewrite ?Z.mul_1_l in H;
+     match type of H with ?S =>
+        let Q := fresh "P" in evar (Q: Prop);
+        unify P' (S /\ Q); subst P
+      end
+    end;
+   match goal with P := ?P' : Prop |- _ => unify P' True end;
+   apply prop_right; repeat split; auto
+  | subst P;
+    match goal with H: _ |- _ => revert H end;
+    repeat lazymatch goal with
+    | |- True -> _ => intros _
+    | |- _ /\ _ -> _ => 
+         let H1 := fresh "ARRAYmax" in let H2 := fresh "J" in 
+         intros [H1 H2]; revert H2
+    end
+].
+
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.
 start_function.
 unfold cstring in *.
 rename s into ls.
 Intros.
+array_length_maxes.
 forward.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
@@ -115,14 +178,7 @@ forward.
 unfold cstring in *.
 rename s into ls.
 Intros.
-assert_PROP (Zlength ls < Ptrofs.max_unsigned) as Hlen. {
- (* THIS PROOF IS UGLY! *)
- entailer!.
- clear - H1. destruct H1 as [? [_ [? _]]].
- hnf in H0. destruct str; try contradiction. simpl in H0.
- rewrite Z.max_r in H0 by list_solve.
- rep_omega.
-}
+array_length_maxes.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
@@ -186,6 +242,7 @@ start_function.
 unfold cstringn, cstring in *.
 rename sd into ld. rename ss into ls.
 Intros.
+array_length_maxes. clear ARRAYmax. 
 forward.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
@@ -264,8 +321,6 @@ forward_loop (EX i : Z,
   forward.
   entailer!.
   clear H3.
-  rewrite upd_Znth_app2 by list_solve.
-  autorewrite with sublist.
   forward_if.
   + forward.
       autorewrite with sublist.
@@ -292,6 +347,7 @@ forward_loop (EX i : Z,
   change (field_at Tsh (tarray tschar n) []) with (data_at Tsh (tarray tschar n)).
   rewrite (sublist_split 0 j (j+1)) by rep_omega.
   rewrite (app_assoc ld). rewrite !map_app.
+  autorewrite with sublist.
   rewrite <- (app_assoc (_ ++ _)).
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   rewrite (split_data_at_app_tschar _ n) by list_solve.
@@ -300,8 +356,8 @@ forward_loop (EX i : Z,
   rewrite <- list_repeat_app' by rep_omega.
   cancel.
   rewrite upd_Znth_app1 by (autorewrite with sublist; rep_omega).
-  rewrite app_Znth1 by list_solve.
   rewrite sublist_len_1 by rep_omega.
+  autorewrite with sublist.
   cancel.
   }
  + Intros j. forward. Exists j. entailer!.
@@ -314,6 +370,7 @@ unfold cstring in *.
 rename s1 into ls1. rename s2 into ls2.
 forward.
 Intros.
+array_length_maxes.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
@@ -447,6 +504,7 @@ unfold cstring,cstringn in *.
 rename s into ls.
 forward.
 Intros.
+array_length_maxes.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
@@ -521,6 +579,7 @@ start_function.
 unfold cstring in *.
 rename s into ls.
 Intros.
+array_length_maxes.
 forward.
 forward_loop  (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
@@ -549,14 +608,7 @@ forward.
 unfold cstring in *.
 rename s into ls.
 Intros.
-assert_PROP (Zlength ls < Ptrofs.max_unsigned) as Hlen. {
- (* THIS PROOF IS UGLY! *)
- entailer!.
- clear - H1. destruct H1 as [? [_ [? _]]].
- hnf in H0. destruct str; try contradiction. simpl in H0.
- rewrite Z.max_r in H0 by list_solve.
- rep_omega.
-}
+array_length_maxes.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
@@ -598,6 +650,7 @@ start_function.
 unfold cstringn, cstring in *.
 rename sd into ld. rename ss into ls.
 Intros.
+array_length_maxes.
 forward.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
@@ -658,8 +711,6 @@ forward_loop (EX i : Z,
   forward.
   entailer!.
   clear H3.
-  rewrite upd_Znth_app2 by list_solve.
-  autorewrite with sublist.
   forward_if.
   + forward.
       autorewrite with sublist.
@@ -686,6 +737,7 @@ forward_loop (EX i : Z,
   rewrite (sublist_split 0 j (j+1)) by rep_omega.
   rewrite (app_assoc ld). rewrite !map_app.
   rewrite <- (app_assoc (_ ++ _)).
+  autorewrite with sublist.
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   rewrite (split_data_at_app_tschar _ n) by list_solve.
   replace (n - (Zlength ld + j))
@@ -693,7 +745,6 @@ forward_loop (EX i : Z,
   rewrite <- list_repeat_app' by rep_omega.
   cancel.
   rewrite upd_Znth_app1 by (autorewrite with sublist; rep_omega).
-  rewrite app_Znth1 by list_solve.
   rewrite sublist_len_1 by rep_omega.
   cancel.
  }
@@ -706,6 +757,7 @@ unfold cstring in *.
 rename s1 into ls1. rename s2 into ls2.
 forward.
 Intros.
+array_length_maxes.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
@@ -819,6 +871,7 @@ unfold cstring,cstringn in *.
 rename s into ls.
 forward.
 Intros.
+array_length_maxes.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
