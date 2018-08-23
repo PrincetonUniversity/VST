@@ -517,10 +517,11 @@ Proof.
 intros.
 destruct H as [na H].
 rewrite <- (Z2Nat.id na) in H.
-Focus 2.
+2:{
 destruct (zlt na 0); try omega.
 assert (na * WORD < 0); [apply Z.mul_neg_pos; auto | ].
 pose proof (Zlength_nonneg a); omega.
+}
 revert a H; induction (Z.to_nat na); intros.
 simpl in H. destruct a. simpl. auto. rewrite Zlength_cons in H.
 pose proof (Zlength_nonneg a); omega.
@@ -620,7 +621,7 @@ split.
  rewrite Zlength_app; Omega1.
  +
  rewrite Zlist_to_intlist_to_Zlist.
- Focus 2. rewrite Zlength_sublist. rewrite <- Z.mul_sub_distr_r.
+ 2:{ rewrite Zlength_sublist. rewrite <- Z.mul_sub_distr_r.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
  split; [Omega1 | ].
@@ -628,6 +629,7 @@ split.
  apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
  rewrite Zlength_app; Omega1.
  apply round_range. apply CBLOCKz_gt.
+ }
  2: apply Forall_sublist; auto.
  unfold s256a_data.
  destruct (zlt   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) (Zlength a) ).

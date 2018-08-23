@@ -288,10 +288,10 @@ unfold at_offset.
 autorewrite with sublist.
 eapply derives_trans; [apply data_at_data_at_ | ].
 rewrite <- memory_block_data_at_.
-Focus 1. {
+1:{
   rewrite field_address0_offset by auto with field_compatible.
   apply derives_refl.
-} Unfocus.
+} 
 clear - COMPAT FCmd H1.
 hnf in COMPAT |- *.
 (* TODO: simplify this proof. *)

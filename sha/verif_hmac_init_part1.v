@@ -215,8 +215,8 @@ Proof. intros. abbreviate_semax.
      rewrite Ptrofs.repr_unsigned.
      change (32+32) with 64.
      intros MBS; rewrite MBS; clear MBS; trivial.
-     Focus 2. destruct (Ptrofs.unsigned_range ckoff). split; try omega.
-              red in FC_ctxkey. simpl in FC_ctxkey. omega. 
+     2:{ destruct (Ptrofs.unsigned_range ckoff). split; try omega.
+              red in FC_ctxkey. simpl in FC_ctxkey. omega. } 
      flatten_sepcon_in_SEP.
 
      thaw FR6.
@@ -246,8 +246,9 @@ Proof. intros. abbreviate_semax.
        unfold HMAC_SHA256.mkKey.
        remember (Zlength key >? Z.of_nat SHA256.BlockSize).
        destruct b.
-       Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
+       2:{ specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
                 rewrite <- Heqb. intro Hx; simpl in Hx; omega.
+       }
        clear Heqb.
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
        assert (LHash: Zlength (SHA256.Hash key) = 32).

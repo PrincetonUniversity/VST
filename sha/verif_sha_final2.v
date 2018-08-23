@@ -50,12 +50,12 @@ rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl)))
   by (try omega; rewrite Zlength_app; omega).
 rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl))).
 2: rewrite Zlength_app; omega.
-Focus 2. {
+2:{
   apply (JMeq_trans (JMeq_sym H4)) in H2.
   erewrite <- list_func_JMeq with (f := Zlength); [| | exact H2].
   2: rewrite nested_field_type_ind; rewrite H; auto.
   autorewrite with sublist. auto.
-} Unfocus.
+} 
 apply (JMeq_trans (JMeq_sym H3)) in H1.
 apply (JMeq_trans (JMeq_sym H4)) in H2.
 apply sepcon_derives.
@@ -240,7 +240,7 @@ replace (splice_into_list (ddlen + 1) CBLOCKz
            (map Vint (map Int.repr dd) ++
             Vint (Int.repr 128) :: list_repeat (Z.to_nat fill_len) Vundef))
   with  (map Vint ddz).
-Focus 2. {
+2:{
  clear - Hddlen. subst ddz fill_len ddlen. rewrite !map_app.
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite map_list_repeat.
@@ -248,7 +248,7 @@ Focus 2. {
  unfold splice_into_list.
  change CBLOCKz with 64 in *.
  autorewrite with sublist. reflexivity.
-} Unfocus.
+} 
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': Zlength ddz = CBLOCKz). {
   clear - Hddlen H3. subst ddz ddlen.
