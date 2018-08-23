@@ -276,35 +276,35 @@ The set, load, cast-load and store rules will be used in the future.
 
 ************************************************)
 
-Inductive Int_eqm_unsigned: int -> Z -> Prop :=
-| Int_eqm_unsigned_repr: forall z, Int_eqm_unsigned (Int.repr z) z.
+Inductive Ptrofs_eqm_unsigned: ptrofs -> Z -> Prop :=
+| Ptrofs_eqm_unsigned_repr: forall z, Ptrofs_eqm_unsigned (Ptrofs.repr z) z.
 
-Lemma Int_eqm_unsigned_spec: forall i z,
-  Int_eqm_unsigned i z -> Int.eqm (Int.unsigned i) z.
+Lemma Ptrofs_eqm_unsigned_spec: forall i z,
+  Ptrofs_eqm_unsigned i z -> Ptrofs.eqm (Ptrofs.unsigned i) z.
 Proof.
   intros.
   inv H.
-  apply Int.eqm_sym, Int.eqm_unsigned_repr.
+  apply Ptrofs.eqm_sym, Ptrofs.eqm_unsigned_repr.
 Qed.
 
-Ltac solve_Int_eqm_unsigned :=
+Ltac solve_Ptrofs_eqm_unsigned :=
   solve
-  [ autorewrite with norm;
+   [ autorewrite with norm;
     match goal with
-    | |- Int_eqm_unsigned ?V _ =>
+    | |- Ptrofs_eqm_unsigned ?V _ =>
       match V with
-      | Int.repr _ => idtac
-      | Int.sub _ _ => unfold Int.sub at 1
-      | Int.add _ _ => unfold Int.add at 1
-      | Int.mul _ _ => unfold Int.mul at 1
-      | Int.and _ _ => unfold Int.and at 1
-      | Int.or _ _ => unfold Int.or at 1
+      | Ptrofs.repr _ => idtac
+      | Ptrofs.sub _ _ => unfold Ptrofs.sub at 1
+      | Ptrofs.add _ _ => unfold Ptrofs.add at 1
+      | Ptrofs.mul _ _ => unfold Ptrofs.mul at 1
+      | Ptrofs.and _ _ => unfold Ptrofs.and at 1
+      | Ptrofs.or _ _ => unfold Ptrofs.or at 1
 (*      | Int.shl _ _ => unfold Int.shl at 1
       | Int.shr _ _ => unfold Int.shr at 1*)
-      | _ => rewrite <- (Int.repr_unsigned V) at 1
+      | _ => rewrite <- (Ptrofs.repr_unsigned V) at 1
       end
     end;
-    apply Int_eqm_unsigned_repr
+    apply Ptrofs_eqm_unsigned_repr
   ].
 
 Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals): list efield -> list gfield -> Prop :=
@@ -313,6 +313,12 @@ Inductive msubst_efield_denote {cs: compspecs} (Delta: tycontext) (T1: PTree.t v
     is_int_type (typeof ei) = true ->
     msubst_eval_expr Delta T1 T2 GV  ei = Some (Vint i) ->
     int_signed_or_unsigned (typeof ei) i = i' ->
+    msubst_efield_denote Delta T1 T2 GV efs gfs ->
+    msubst_efield_denote Delta T1 T2 GV (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
+| msubst_efield_denote_cons_array_ptrofs: forall ei i i' efs gfs,
+    is_ptrofs_type (typeof ei) = true ->
+    msubst_eval_expr Delta T1 T2 GV  ei = Some (Vptrofs i) ->
+    Ptrofs_eqm_unsigned i i' ->
     msubst_efield_denote Delta T1 T2 GV efs gfs ->
     msubst_efield_denote Delta T1 T2 GV (eArraySubsc ei :: efs) (ArraySubsc i' :: gfs)
 | msubst_efield_denote_cons_struct: forall i efs gfs,
@@ -344,6 +350,32 @@ Proof.
     unfold int_signed_or_unsigned.
     destruct (typeof ei); inv H. destruct i0, s; simpl;
     try apply Int.repr_signed; apply Int.repr_unsigned.
+  + eapply (msubst_eval_expr_eq _ P _ _ GV R) in H0.
+    rewrite (add_andp _ _ H0), (add_andp _ _ IHMSUBST_EFIELD_DENOTE).
+    clear H0 IHMSUBST_EFIELD_DENOTE.
+    rewrite !andp_assoc; apply andp_left2, andp_left2.
+    unfold local, lift1; unfold_lift; intro rho; simpl.
+    normalize.
+    apply efield_denote_ArraySubsc; auto.
+    unfold Vptrofs in H2.
+    destruct Archi.ptr64 eqn:Hp.
+    *
+    apply array_subsc_denote_intro_long.
+    apply Ptrofs_eqm_unsigned_spec in H1.
+    rewrite <- H2; symmetry.
+    f_equal.
+    clear - H1 Hp.
+     rewrite <- Ptrofs.eqm64 in H1 by auto.
+    apply Int64.eqm_samerepr; auto.
+   *
+     apply array_subsc_denote_intro_int.
+    apply Ptrofs_eqm_unsigned_spec in H1.
+    rewrite <- H2; symmetry.
+    f_equal.
+    clear - H1 Hp.
+     rewrite <- Ptrofs.eqm32 in H1 by auto.
+    unfold Ptrofs.to_int.
+    apply Int.eqm_samerepr; auto.
   + eapply derives_trans; [eassumption |].
     unfold local, lift1; unfold_lift; intro rho; simpl.
     normalize.
@@ -363,7 +395,29 @@ Ltac insist_rep_omega :=
 Ltac solve_msubst_efield_denote :=
   solve 
   [ repeat first
-    [ eapply msubst_efield_denote_cons_array;
+   [ eapply msubst_efield_denote_cons_array_ptrofs;
+     [ reflexivity
+     | etransitivity; 
+       [solve_msubst_eval_expr 
+       | apply f_equal_Some;
+          match goal with
+          | |- Vint ?a = Vptrofs ?b =>
+             is_evar b;
+             unify b (Ptrofs.of_int a);
+             unfold Vptrofs; change Archi.ptr64 with false; cbv iota;
+             rewrite (Ptrofs.to_int_of_int (eq_refl _));
+             reflexivity
+           | |- Vlong ?a = Vptrofs ?b =>
+             is_evar b;
+             unify b (Ptrofs.of_int64 a);
+             unfold Vptrofs; change Archi.ptr64 with true; cbv iota;
+             rewrite (Ptrofs.to_int64_of_int64 (eq_refl _));
+             reflexivity
+           end
+        ]
+      | solve_Ptrofs_eqm_unsigned
+      | ]
+    | eapply msubst_efield_denote_cons_array;
       [ reflexivity
       | solve_msubst_eval_expr
       | rewrite ?ptrofs_to_int_repr; autorewrite with norm;
@@ -384,7 +438,7 @@ Ltac solve_msubst_efield_denote :=
         | |- _ => idtac
          end;
          reflexivity
-(*      | solve_Int_eqm_unsigned *)
+(*      | solve_Ptrofs_eqm_unsigned *)
       | ]
     | apply msubst_efield_denote_cons_struct
     | apply msubst_efield_denote_cons_union
