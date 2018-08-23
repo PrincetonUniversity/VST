@@ -8,7 +8,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.cfrontend.Clight.
 Require Import VST.concurrency.juicy.erasure_safety.
 
-Require Import VST.concurrency.compiler.concurrent_compiler_safety_axiom.
+Require Import VST.concurrency.compiler.concurrent_compiler_safety_proof.
 Require Import VST.concurrency.compiler.sequential_compiler_correct.
 
 Require Import VST.concurrency.sc_drf.mem_obs_eq.
