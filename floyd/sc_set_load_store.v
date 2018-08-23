@@ -290,6 +290,8 @@ Qed.
 Ltac solve_Ptrofs_eqm_unsigned :=
   solve
    [ autorewrite with norm;
+    rewrite ?Ptrofs_repr_Int_unsigned_special by reflexivity;
+    rewrite ?Ptrofs_repr_Int64_unsigned_special by reflexivity;
     match goal with
     | |- Ptrofs_eqm_unsigned ?V _ =>
       match V with
@@ -413,6 +415,7 @@ Ltac solve_msubst_efield_denote :=
              unfold Vptrofs; change Archi.ptr64 with true; cbv iota;
              rewrite (Ptrofs.to_int64_of_int64 (eq_refl _));
              reflexivity
+            | |- Vptrofs _ = Vptrofs _ => reflexivity
            end
         ]
       | solve_Ptrofs_eqm_unsigned

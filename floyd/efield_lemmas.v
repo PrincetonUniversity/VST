@@ -445,6 +445,15 @@ rewrite <- H0.
 apply Ptrofs.repr_unsigned.
 Qed.
 
+Lemma Ptrofs_repr_Int64_unsigned_special:
+  Archi.ptr64=true -> forall i, Ptrofs.repr (Int64.unsigned (Int64.repr i)) = Ptrofs.repr i.
+Proof.
+intros.
+pose proof (Ptrofs.agree64_repr H i).
+hnf in H0.
+rewrite <- H0.
+apply Ptrofs.repr_unsigned.
+Qed.
 (*
 Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
 Proof. reflexivity. Qed.
@@ -494,6 +503,41 @@ Proof.
   destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
   rewrite Int.signed_repr; auto.
   rewrite Int.unsigned_repr; auto.
+Qed.
+
+Lemma sem_add_pi_ptr_special':
+   Archi.ptr64 = false ->
+   forall t p i si,
+    isptr p ->
+    sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros Hp.
+  intros.
+ unfold sem_add_ptr_int.
+  destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_int.
+  unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  f_equal. f_equal. f_equal.
+  destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
+  apply (Ptrofs_repr_Int_signed_special Hp).
+  apply (Ptrofs_repr_Int_unsigned_special Hp).
+Qed.
+
+Lemma sem_add_pl_ptr_special':
+   Archi.ptr64 = true ->
+   forall t p i,
+    isptr p ->
+    sem_add_ptr_long t p (Vlong (Int64.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros Hp.
+  intros.
+ unfold sem_add_ptr_long.
+  destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_long.
+  f_equal. f_equal. f_equal.
+  rewrite (Ptrofs.agree64_of_int_eq (Ptrofs.repr i))
+    by (apply Ptrofs.agree64_repr; auto).
+  rewrite ptrofs_mul_repr. auto.
 Qed.
 
 Lemma array_ind_step_ptrofs: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,

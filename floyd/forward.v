@@ -34,7 +34,8 @@ Import Cop2.
 
 Global Opaque denote_tc_test_eq.
 
-Hint Rewrite @sem_add_pi_ptr_special using (solve [auto with norm]) : norm.
+Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
+Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
