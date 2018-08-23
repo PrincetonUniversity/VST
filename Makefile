@@ -14,6 +14,10 @@ COMPCERT ?= compcert
 #   COQBIN=/path/to/bin/
 # to a directory containing the coqc/coqdep/... you wish to use, if it
 # is not your path.
+#
+# You can override ARCH and BITSIZE in the configure file, too;
+# otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
+
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -51,8 +55,8 @@ endif
 endif
 endif
 
-ARCH=$(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
-BITSIZE=$(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
+ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
+BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
 
 ifeq ($(COMPCERT), compcert_new)
 BACKEND=backend

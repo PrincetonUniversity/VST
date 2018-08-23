@@ -499,7 +499,8 @@ destruct (classify_cast (typeof e) t)
    repeat rewrite Hp in *;
    repeat match goal with
         | H: app_pred (prop _) _ |- _ => apply is_true_e in H; 
-                                      try (apply int_eq_e in H; subst)
+                                      try (apply int_eq_e in H; subst);
+                                      try (apply int64_eq_e in H; subst)
        end;
     auto;
     inv H3;

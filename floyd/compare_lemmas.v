@@ -4,39 +4,42 @@ Require Import VST.floyd.client_lemmas.
 Local Open Scope logic.
 
 Lemma typed_true_nullptr:
- forall v t t',
-   typed_true tint (force_val (sem_cmp Ceq (tptr t) (tptr t') v (Vint Int.zero))) ->
+ forall v t0 t t',
+   typed_true t0 (force_val (sem_cmp Ceq (tptr t) (tptr t') v (Vint Int.zero))) ->
    v=nullval.
 Proof.
  intros.
  simpl in H. rewrite !andb_false_r in H. simpl in H.
- destruct v; inv H;
- unfold sem_cmp_pp, strict_bool_val in H1.
- destruct Archi.ptr64  eqn:Hp.
+ unfold typed_true, force_val, sem_cmp_pp, strict_bool_val, nullval in *.
+ destruct Archi.ptr64  eqn:Hp;
+ destruct t0, v; inv H;
+ unfold sem_cmp_pp, strict_bool_val in H1;
+ try (clear i; rename i0 into i);
  pose proof (Int.eq_spec i Int.zero);
- destruct (Int.eq i Int.zero); inv H1.
- simpl in H1.
- pose proof (Int.eq_spec i Int.zero);
- destruct (Int.eq i Int.zero); inv H1. reflexivity. 
+ destruct (Int.eq i Int.zero); inv H1; auto.
 Qed.
 
+
 Lemma typed_true_nullptr':
-  forall  {cs: compspecs}  t t' v,
-    typed_true tint (eval_binop Cop.Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
+  forall  {cs: compspecs} t0  t t' v,
+    typed_true t0 (eval_binop Cop.Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
 Proof.
  intros.
  simpl in H. unfold sem_binary_operation' in H.
- simpl in H. rewrite !andb_false_r in H.
- destruct v; inv H; auto.
- unfold sem_cmp_pp, strict_bool_val in H1.
- destruct Archi.ptr64  eqn:Hp; simpl in H1.
- inv H1.
- unfold nullval in H1. rewrite Hp in H1.
- simpl in H1.
- pose proof (Int.eq_spec i Int.zero);
- destruct (Int.eq i Int.zero); inv H1.
- unfold nullval. rewrite Hp.
- reflexivity.
+ unfold tptr, typed_true, force_val, sem_cmp, Cop.classify_cmp, sem_cmp_pp, 
+   typeconv, remove_attributes, change_attributes, strict_bool_val, nullval, Val.of_bool in *.
+   rewrite (proj2 (eqb_type_false (Tpointer t noattr) int_or_ptr_type)) in H
+     by (intro Hx; inv Hx).
+   rewrite (proj2 (eqb_type_false (Tpointer t' noattr) int_or_ptr_type)) in H
+     by (intro Hx; inv Hx).
+   simpl in H.
+ destruct Archi.ptr64  eqn:Hp;
+ destruct t0, v; inv H;
+ try solve [revert H1; simple_if_tac; intro H1; inv H1].
+ pose proof (Int64.eq_spec i0 Int64.zero);
+ destruct (Int64.eq i0 Int64.zero); inv H1; auto.
+ pose proof (Int.eq_spec i0 Int.zero);
+ destruct (Int.eq i0 Int.zero); inv H1; auto.
 Qed.
 
 Lemma typed_true_Oeq_nullval:
@@ -50,13 +53,13 @@ intros.
  unfold tptr in H; simpl in H. unfold sem_binary_operation' in H.
  simpl in H. rewrite !andb_false_r in H.
  destruct (v rho); inv H.
- unfold sem_cmp_pp, strict_bool_val in H1.
- destruct Archi.ptr64  eqn:Hp; simpl in H1.
- inv H1.
- pose proof (Int.eq_spec i Int.zero).
- unfold nullval in *; rewrite Hp in *.
- destruct (Int.eq i Int.zero); inv H1.
- reflexivity.
+ unfold sem_cmp_pp, strict_bool_val, nullval in *.
+ destruct Archi.ptr64  eqn:Hp; simpl in H1;
+ try solve [inv H1];
+ try solve [pose proof (Int64.eq_spec i Int64.zero);
+                destruct (Int64.eq i Int64.zero); inv H1; auto];
+ try solve [pose proof (Int.eq_spec i Int.zero);
+                destruct (Int.eq i Int.zero); inv H1; auto].
 Qed.
 
 Definition  binary_operation_to_comparison (op: Cop.binary_operation) :=
@@ -249,11 +252,13 @@ intros.
  unfold sem_cmp_pp, ptr_neq, ptr_eq, nullval in *; simpl; intro.
  destruct (v rho); try contradiction.
  simpl in *.
+ unfold typed_true, force_val, strict_bool_val in *.
  destruct Archi.ptr64 eqn:?; auto.
  destruct H0 as [? [? ?]].
- pose proof (Int.eq_spec Int.zero i). destruct H0. 
- rewrite H1 in H3. 
- subst. inv H.
+ first [ pose proof (Int64.eq_spec Int64.zero i)
+        | pose proof (Int.eq_spec Int.zero i)];
+ rewrite H1 in H3; 
+ subst; inv H.
 Qed.
 
 

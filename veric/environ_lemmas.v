@@ -185,7 +185,8 @@ Lemma tc_val_ptr_lemma {CS: compspecs} :
 Proof.
 intros. unfold strict_bool_val in *. unfold tc_val.
 destruct (eval_id id rho); try congruence.
-+ destruct (Int.eq i Int.zero); try congruence.
++ destruct Archi.ptr64; try discriminate;
+    destruct (Int.eq i Int.zero); try congruence.
 + unfold is_pointer_or_integer, is_pointer_or_null.
   destruct Archi.ptr64; inv H1;   simple_if_tac; simpl; auto.
   destruct (Int64.eq i Int64.zero); try congruence.

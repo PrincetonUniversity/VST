@@ -23,6 +23,26 @@ Local Open Scope nat_scope.
 Section extensions.
 Context {CS: compspecs} {Espec : OracleKind}.
 
+Lemma tc_test_eq1:
+  forall b i v m,
+  (denote_tc_test_eq (Vptr b i) v) (m_phi m) ->
+  Mem.weak_valid_pointer (m_dry m) b (Ptrofs.unsigned i) = true.
+Proof.
+intros.
+destruct v; try destruct H.
+apply binop_lemmas4.weak_valid_pointer_dry in H0;
+apply H0.
+simpl in H.
+unfold test_eq_ptrs in H.
+destruct (sameblock (Vptr b i) (Vptr b0 i0)).
+destruct H;
+apply binop_lemmas4.weak_valid_pointer_dry in H; auto.
+destruct H.
+apply valid_pointer_implies.
+apply binop_lemmas4.valid_pointer_dry in H.
+rewrite Z.add_0_r in H. auto.
+Qed.
+
 Lemma semax_ifthenelse:
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
@@ -121,18 +141,20 @@ rewrite <- (age_jm_dry H9); econstructor; eauto.
     simpl in TCS. unfold_lift in TCS.
  unfold Cop.bool_val;
  destruct (eval_expr b rho) eqn:H15;
- simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
+ simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ] eqn:?;
     intuition; simpl in *; try rewrite TCS; eauto.
+all: try (
+unfold tc_expr in TC2; simpl typecheck_expr in TC2; rewrite Heqt in TC2;
+rewrite denote_tc_assert_andp in TC2; destruct TC2 as [_ TC2];
+destruct TC as [TC _];
+assert (H2 := typecheck_expr_sound _ _ _ _  (typecheck_environ_sub _ _ TS _ TC) TC2);
+rewrite Heqt, H15 in H2; contradiction H2).
 all: 
 rewrite denote_tc_assert_andp in TC2'; destruct TC2' as [TC2'' TC2'];
  rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2';
  simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2'.
-all: destruct Archi.ptr64 eqn:Hp; try contradiction;
-simpl in TC2'; destruct TC2'; subst; eauto;
- rewrite tc_test_eq0; eauto;
- try (eexists; reflexivity).
- simpl; rewrite Hp.
-split; auto.
+all: destruct Archi.ptr64 eqn:Hp; try contradiction; eauto.
+all: apply tc_test_eq1 in TC2'; simpl; rewrite TC2'; eauto.
 }
   rewrite H10; symmetry; eapply f_equal, bool_val_Cop; eauto. }
 apply age1_resource_decay; auto.

@@ -103,7 +103,7 @@ Qed.
 Definition denote_tc_iszero v : mpred :=
          match v with
          | Vint i => prop (is_true (Int.eq i Int.zero))
-         | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
+         | Vlong i => prop (is_true (Int64.eq i Int64.zero))
          | _ => FF
          end.
 

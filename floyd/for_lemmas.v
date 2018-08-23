@@ -336,15 +336,16 @@ Proof.
               destruct type_i as [| [| | |] | | | | | | | ]; inv H8; auto).
         simpl tc_bool.
         unfold isCastResultType.
-        replace (Cop2.classify_cast (implicit_deref (typeof lo)) type_i) with cast_case_pointer
-          by (destruct (typeof lo) as [| [| | |] | | | | | | | ]; inv H1; auto;
-              destruct type_i as [| [| | |] | | | | | | | ]; inv H8; auto).
-        change Archi.ptr64 with false; cbv beta iota; simpl orb.
         replace (is_pointer_type type_i && is_pointer_type (implicit_deref (typeof lo))
             || is_int_type type_i && is_int_type (implicit_deref (typeof lo)))%bool with true
           by (destruct (typeof lo) as [| [| | |] | | | | | | | ]; inv H1; auto;
               destruct type_i as [| [| | |] | | | | | | | ]; inv H8; auto).
-        simple_if_tac; intro; simpl; apply TT_right.
+        rewrite tc_andp_TT1.
+        destruct (typeof lo) as [| [| | |] | | | | | | | ]; inv H1; auto;
+              destruct type_i as [| [| | |] | | | | | | | ]; inv H8; auto;
+        simpl denote_tc_assert;
+        destruct Archi.ptr64 eqn:Hp; try apply TT_right.
+        simple_if_tac; apply TT_right.
       * apply andp_left2.
         Intros old.
         apply andp_derives; [| rewrite H2; auto].
@@ -366,6 +367,15 @@ Proof.
       split; auto.
       split; [destruct type_i as [| [| | |] | | | | | | | ]; inv H; auto |].
       omega.
+Qed.
+
+Lemma typed_false_tint_e:
+  forall v, typed_false tint v -> v = Vint Int.zero.
+Proof.
+clear; intros.
+destruct v; inv H.
+pose proof (Int.eq_spec i Int.zero).
+destruct (Int.eq i Int.zero); inv H1; auto.
 Qed.
 
 Section Sfor.
@@ -443,7 +453,7 @@ Lemma Sfor_comparison_Signed_I32: forall i n',
   Int6432_val (typeof hi) n' n ->
   classify_binarith type_i (typeof hi) = bin_case_i Signed ->
   m <= i <= n ->
-  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = nullval <->
+  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = Vint Int.zero <->
   i >= n.
 Proof.
   intros.
@@ -453,23 +463,24 @@ Proof.
     try solve [destruct (typeof hi) as [| | | [|] | | | | |]; inv H0].
   destruct (typeof hi) as [| i_hi s_hi a_hi | | [|] | | | | |]; try solve [inv H0].
   inv IMM.
-  change (Cop2.sem_cast (Tint I32 Signed a_i) (Tint I32 Signed noattr)) with sem_cast_pointer.
+(*  change (Cop2.sem_cast (Tint I32 Signed a_i) (Tint I32 Signed noattr)) with sem_cast_pointer.
   change (Cop2.sem_cast (Tint i_hi s_hi a_hi) (Tint I32 Signed noattr)) with sem_cast_pointer.
+*)
   inv H.
   inv H7.
   simpl.
   unfold Int.lt.
-  rewrite !Int.signed_repr by (destruct i_hi, s_hi; rep_omega).
-  if_tac.
-  - split; [intro HH; inv HH | intros; omega].
-  - split; auto.
+  unfold both_int. simpl. unfold Cop2.sem_cast, Cop2.classify_cast.
+  destruct Archi.ptr64 eqn:Hp; simpl;
+  rewrite !Int.signed_repr by (destruct i_hi, s_hi; rep_omega);
+  (if_tac; [split; [intro HH; inv HH | intros; omega] |  split; auto]).
 Qed.
 
 Lemma Sfor_comparison_Unsigned_I32: forall i n',
   Int6432_val (typeof hi) n' n ->
   classify_binarith type_i (typeof hi) = bin_case_i Unsigned ->
   m <= i <= n ->
-  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = nullval <->
+  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = Vint Int.zero <->
   i >= n.
 Proof.
   intros.
@@ -478,26 +489,24 @@ Proof.
   destruct type_i as [| [| | |] s_i a_i | [|] | | | | | |]; inv I32_i;
     try solve [destruct (typeof hi) as [| | | [|] | | | | |]; inv H0].
   destruct (typeof hi) as [| i_hi s_hi a_hi | | [|] | | | | |]; try solve [destruct s_i; inv H0].
-  change (Cop2.sem_cast (Tint I32 s_i a_i) (Tint I32 Unsigned noattr)) with sem_cast_pointer.
-  change (Cop2.sem_cast (Tint i_hi s_hi a_hi) (Tint I32 Unsigned noattr)) with sem_cast_pointer.
   inv H.
   inv H7.
   simpl.
   unfold Int.ltu.
   assert (s_i = Unsigned \/ s_i = Signed /\ s_hi = Unsigned /\ i_hi = I32)
     by (destruct s_i, s_hi, i_hi; auto; inv H0).
+  unfold both_int. simpl. unfold Cop2.sem_cast, Cop2.classify_cast.
+  destruct Archi.ptr64 eqn:Hp; simpl;
   rewrite !Int.unsigned_repr
-    by (destruct H as [? | [? [? ?]]]; subst; inv IMM; rep_omega).
-  if_tac.
-  - split; [intro HH; inv HH | intros; omega].
-  - split; auto.
+    by (destruct H as [? | [? [? ?]]]; subst; inv IMM; rep_omega);
+  (if_tac; [split; [intro HH; inv HH | intros; omega] |  split; auto]).
 Qed.
 
 Lemma Sfor_comparison_Signed_I64: forall i n',
   Int6432_val (typeof hi) n' n ->
   classify_binarith type_i (typeof hi) = bin_case_l Signed ->
   m <= i <= n ->
-  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = nullval <->
+  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = Vint Int.zero <->
   i >= n.
 Proof.
   intros.
@@ -506,12 +515,14 @@ Proof.
   destruct type_i as [| [| | |] s_i a_i | [|] | | | | | |]; inv I32_i.
   destruct (typeof hi) as [| [| | |] [|] | [|] | [|] | | | | |];
     try solve [destruct s_i; inv H0].
-  change (Cop2.sem_cast (Tint I32 s_i a_i) (Tlong Signed noattr)) with (sem_cast_i2l s_i).
+(*  change (Cop2.sem_cast (Tint I32 s_i a_i) (Tlong Signed noattr)) with (sem_cast_i2l s_i).
   change (Cop2.sem_cast (Tlong Signed a) (Tlong Signed noattr)) with sem_cast_l2l.
+*)
   inv H.
   inv H6.
   simpl.
   unfold Int64.lt.
+  unfold both_long, Cop2.sem_cast; simpl.
   replace (cast_int_long s_i (Int.repr i)) with (Int64.repr i).
   2: {
     unfold cast_int_long.
@@ -519,17 +530,16 @@ Proof.
     + rewrite Int.signed_repr by omega; auto.
     + rewrite Int.unsigned_repr by omega; auto.
   }
-  rewrite !Int64.signed_repr by (destruct s_i; inv IMM; rep_omega).
-  if_tac.
-  - split; [intro HH; inv HH | intros; omega].
-  - split; auto.
+  destruct Archi.ptr64 eqn:Hp; simpl;
+  rewrite !Int64.signed_repr by (destruct s_i; inv IMM; rep_omega);
+  (if_tac; [split; [intro HH; inv HH | intros; omega] | split; auto]).
 Qed.
 
 Lemma Sfor_comparison_Unsigned_I64: forall i n',
   Int6432_val (typeof hi) n' n ->
   classify_binarith type_i (typeof hi) = bin_case_l Unsigned ->
   m <= i <= n ->
-  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = nullval <->
+  force_val (sem_cmp_default Clt type_i (typeof hi) (Vint (Int.repr i)) n') = Vint Int.zero <->
   i >= n.
 Proof.
   intros.
@@ -538,12 +548,11 @@ Proof.
   destruct type_i as [| [| | |] s_i a_i | [|] | | | | | |]; inv I32_i.
   destruct (typeof hi) as [| [| | |] [|] | [|] | [|] | | | | |];
     try solve [destruct s_i; inv H0].
-  change (Cop2.sem_cast (Tint I32 s_i a_i) (Tlong Unsigned noattr)) with (sem_cast_i2l s_i).
-  change (Cop2.sem_cast (Tlong Unsigned a) (Tlong Unsigned noattr)) with sem_cast_l2l.
   inv H.
   inv H6.
   simpl.
   unfold Int64.ltu.
+  unfold both_long, Cop2.sem_cast; simpl.
   replace (cast_int_long s_i (Int.repr i)) with (Int64.repr i).
   2: {
     unfold cast_int_long.
@@ -551,10 +560,9 @@ Proof.
     + rewrite Int.signed_repr by rep_omega; auto.
     + rewrite Int.unsigned_repr by omega; auto.
   }
-  rewrite !Int64.unsigned_repr by (destruct s_i; inv IMM; rep_omega).
-  if_tac.
-  - split; [intro HH; inv HH | intros; omega].
-  - split; auto.
+  destruct Archi.ptr64 eqn:Hp; simpl;
+  rewrite !Int64.unsigned_repr by (destruct s_i; inv IMM; rep_omega);
+  (if_tac; [split; [intro HH; inv HH | intros; omega] | split; auto]).
 Qed.
 
 Lemma Sfor_loop_cond_true:
@@ -581,13 +589,25 @@ Proof.
     [| | | | 
      destruct type_i as [| [| | |] [|] | [|] | | | | | |]; try solve [inv IMM];
      destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..].
-  + rewrite Sfor_comparison_Signed_I32 in H1 by auto.
-    omega.
-  + rewrite Sfor_comparison_Unsigned_I32 in H1 by auto.
-    omega.
-  + rewrite Sfor_comparison_Signed_I64 in H1 by auto.
-    omega.
-  + rewrite Sfor_comparison_Unsigned_I64 in H1 by auto.
+  + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
+                           (Vint (Int.repr i)) n') <> Vint Int.zero) 
+        by (intro Hx; rewrite Hx in H1; inv H1).
+      rewrite Sfor_comparison_Signed_I32 in H6 by auto.
+      omega.
+  + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
+                           (Vint (Int.repr i)) n') <> Vint Int.zero) 
+        by (intro Hx; rewrite Hx in H1; inv H1).
+      rewrite Sfor_comparison_Unsigned_I32 in H6 by auto.
+      omega.
+  + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
+                           (Vint (Int.repr i)) n') <> Vint Int.zero) 
+        by (intro Hx; rewrite Hx in H1; inv H1).
+      rewrite Sfor_comparison_Signed_I64 in H6 by auto.
+      omega.
+  + assert (H6: force_val (sem_cmp_default Clt type_i (typeof hi)
+                           (Vint (Int.repr i)) n') <> Vint Int.zero) 
+        by (intro Hx; rewrite Hx in H1; inv H1).
+      rewrite Sfor_comparison_Unsigned_I64 in H6 by auto.
     omega.
 Qed.
 
@@ -613,7 +633,8 @@ Proof.
   destruct (classify_binarith type_i (typeof hi)) as [ [|] | [|] | | |] eqn:H3;
     [| | | | 
      destruct type_i as [| [| | |] [|] | [|] | | | | | |]; try solve [inv IMM];
-     destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..].
+     destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; inv H3 ..];
+    try apply typed_false_tint_e in H1.
   + rewrite Sfor_comparison_Signed_I32 in H1 by auto.
     omega.
   + rewrite Sfor_comparison_Unsigned_I32 in H1 by auto.
@@ -636,54 +657,57 @@ Proof.
   destruct type_i as [| [| | |] [|] | | | | | | |]; inv I32_i;
   simpl typecheck_expr; unfold typecheck_temp_id.
   + rewrite TI. simpl tc_andp.
-    simpl isCastResultType.
-    replace ((isCastResultType (Tint I32 Signed a) (Tint I32 Signed a) (Ebinop Oadd (Etempvar _i (Tint I32 Signed a)) (Econst_int (Int.repr 1) (Tint I32 s noattr)) (Tint I32 Signed a)))) with tc_TT.
-    2: {
-      unfold isCastResultType, Cop2.classify_cast.
-      change Archi.ptr64 with false.
-      simpl.
-      rewrite (proj2 (eqb_attr_spec _ _)) by auto.
-      auto.
-      }
     match goal with
     | |- context [ binarithType ?A ?B ?C ?D ?E ] =>
            replace (binarithType A B C D E) with tc_TT by (destruct s; auto)
     end.
     rewrite <- EQ_inv2, <- denote_tc_assert_andp, tc_andp_TT1, !tc_andp_TT2.
     simpl; intro rho.
-    unfold_lift; unfold local, lift1.
+    unfold isCastResultType, Cop2.classify_cast.
+    destruct Archi.ptr64 eqn:Hp;
+    simpl denote_tc_assert;
+    try rewrite (proj2 (eqb_attr_spec a a) (eq_refl _));
+    unfold_lift; unfold local, lift1;
     normalize.
-    rewrite <- H1.
-    simpl.
+    *
+    rewrite <- H1;
+    simpl;
     apply andp_right; apply prop_right.
-    {
-      exists (Vint (Int.repr i)); split; auto.
-      unfold eval_id in H1.
+    exists (Vint (Int.repr i)); split; auto;
+      unfold eval_id in H1;
       destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
-    }
-    inv IMM.
-    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H4; rep_omega).
-    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv H4; rep_omega.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega.
+   *
+    simpl denote_tc_assert.
+    unfold_lift; unfold local, lift1.
+    rewrite <- H1.
+    rewrite ?(andp_comm (prop _)).
+    simpl;
+    apply andp_right; apply prop_right.
+    rewrite !Int.signed_repr by (destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega).
+    destruct (typeof hi) as [| [| | |] [|] | [|] | | | | | |]; inv IMM; rep_omega.
+    exists (Vint (Int.repr i)); split; auto;
+      unfold eval_id in H1;
+      destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
   + rewrite TI. simpl tc_andp.
-    replace (isCastResultType (Tint I32 Unsigned a) (Tint I32 Unsigned a)
-           (Ebinop Oadd (Etempvar _i (Tint I32 Unsigned a)) (Econst_int (Int.repr 1) (Tint I32 s noattr))
-                   (Tint I32 Unsigned a))) with tc_TT.
-    2: {
-      unfold isCastResultType, Cop2.classify_cast.
-      change Archi.ptr64 with false.
-      simpl.
-      rewrite (proj2 (eqb_attr_spec _ _)) by auto.
-      auto.
-    }
     intro rho.
     simpl.
     rewrite <- EQ_inv2.
+    unfold isCastResultType;
     simpl; unfold_lift; unfold local, lift1.
+    destruct Archi.ptr64 eqn:Hp;
     normalize.
     apply prop_right.
     exists (Vint (Int.repr i)); split; auto.
     unfold eval_id in H1.
     destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
+    apply andp_right.
+    apply prop_right.
+       exists (Vint (Int.repr i)); split; auto;
+      unfold eval_id in H1;
+      destruct (Map.get (te_of rho) _i); simpl in H1; inv H1; auto.
+    simple_if_tac; simpl; apply TT_right. 
 Qed.
 
 Lemma Sfor_inc_entail: forall i s,

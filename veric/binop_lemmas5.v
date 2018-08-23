@@ -35,16 +35,16 @@ Proof.
                        (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_pi si =>
                      tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 intptr_t) op t (Ebinop op e1 e2 t))
+                       (check_pp_int' e1 (Ecast e2 size_t) op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_ip si => 
                      tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 intptr_t) e2 op t (Ebinop op e1 e2 t))
+                    (check_pp_int' (Ecast e1 size_t) e2 op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_pl => 
                      tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 intptr_t) op t (Ebinop op e1 e2 t))
+                       (check_pp_int' e1 (Ecast e2 size_t) op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_lp => 
                      tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 intptr_t) e2 op t (Ebinop op e1 e2 t))
+                    (check_pp_int' (Ecast e1 size_t) e2 op t (Ebinop op e1 e2 t))
            end rho) m)
   in IBR
   by (rewrite den_isBinOpR; destruct OP as [|]; subst; auto).
@@ -108,7 +108,7 @@ try abstract (
               destruct (eqb_type A B) eqn:J; [inv H | clear H]
     | H: app_pred (denote_tc_assert (tc_test_eq' _ _) _) _ |- _ =>
            simpl in H; super_unfold_lift; simpl in H;
-            unfold Cop2.sem_cast, Cop2.classify_cast, intptr_t, sem_cast_pointer in H;
+            unfold Cop2.sem_cast, Cop2.classify_cast, size_t, sem_cast_pointer in H;
             simpl in H; rewrite ?Hp in H; simpl in H
    end;
   unfold denote_tc_test_eq, sem_cast_i2l, sem_cast_l2l, cast_int_long, force_val in H1;
@@ -181,7 +181,7 @@ unfold denote_tc_test_eq in H0;
 unfold Vptrofs; rewrite Hp;
 destruct (eval_expr e1 rho); try contradiction;
 destruct (eval_expr e2 rho); try contradiction;
-unfold intptr_t in H0; rewrite ?Hp,?He1,?He2 in H0; simpl in H0; destruct H0; subst; simpl;
+unfold size_t in H0; rewrite ?Hp,?He1,?He2 in H0; simpl in H0; destruct H0; subst; simpl;
 try solve [apply int_type_tc_val_of_bool; auto].
 all:
 try solve [

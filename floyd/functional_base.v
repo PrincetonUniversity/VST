@@ -576,6 +576,8 @@ Ltac rep_omega_setup :=
   pose_lemmas Ptrofs.unsigned Ptrofs.unsigned_range;
   pose_standard_const_equations.
 
+Ltac rep_omega_setup2 := idtac.
+
 Ltac rep_omega2 := 
  repeat  match goal with
   | |- _ /\ _ => match goal with
@@ -599,6 +601,7 @@ Ltac rep_omega2 :=
 
 Ltac rep_omega :=
    rep_omega_setup;
+   rep_omega_setup2;
    rep_omega2.
 
 Ltac repable_signed := 

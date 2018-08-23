@@ -1862,7 +1862,7 @@ Qed.
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
   locald_denote (lvar id t v) rho ->
-  sizeof t < Int.modulus ->
+  sizeof t < Ptrofs.modulus ->
   size_compatible t v.
 Proof.
 intros. hnf in H.
@@ -1877,7 +1877,7 @@ Lemma lvar_field_compatible:
     locald_denote (lvar id t v) rho ->
     complete_legal_cosu_type t = true ->
     is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
-    sizeof t < Int.modulus ->
+    sizeof t < Ptrofs.modulus ->
     field_compatible t nil v.
 Proof.
   intros.
