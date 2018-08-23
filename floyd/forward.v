@@ -40,18 +40,13 @@ Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with n
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
  isptr p ->
-  match si with
-  | Signed => Int.min_signed <= i <= Int.max_signed
-  | Unsigned => 0 <= i <= Int.max_unsigned
-  end ->
  isptr (force_val (sem_add_ptr_int t si p (Vint (Int.repr i)))).
 Proof.
-intros. normalize.
+intros. destruct p; inv H; hnf; auto.
 Qed.
 
 Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
-    apply isptr_force_sem_add_ptr_int;
-    [auto with prove_it_now | rep_omega].
+    apply isptr_force_sem_add_ptr_int; auto with prove_it_now.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
 Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) :

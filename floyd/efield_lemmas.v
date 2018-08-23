@@ -318,7 +318,7 @@ Proof.
 (*  erewrite classify_add_add_case_pi by eauto. *)
   apply complete_legal_cosu_type_complete_type in H1.
   simpl.
-  destruct i; rewrite H1; simpl tc_bool; cbv iota;
+  try destruct i; rewrite H1; simpl tc_bool; cbv iota;
   rewrite andb_false_r; simpl; rewrite tc_andp_TT2;
   unfold tc_int_or_ptr_type; rewrite H2; simpl; auto.
 Qed.
@@ -363,7 +363,8 @@ Proof.
     erewrite classify_add_typeconv
          by (apply typeconv_typeconv'_eq; eassumption).
    destruct (typeof ei); inv H1.
-   destruct i; simpl; eexists; reflexivity.
+   try (exists Unsigned; reflexivity);  (* Archi.ptr64 = true *)
+   destruct i; simpl; eexists; reflexivity. (* Archi.ptr64 = false *)
   + eapply isBinOpResultType_add_ptr_ptrofs; [auto | apply typeconv_typeconv'_eq; eassumption | |].
     - destruct H3 as [_ [? [_ [_ ?]]]].
       eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
