@@ -1,3 +1,4 @@
+Require Import Coq.Strings.String.
 Require Import VST.sepcomp.semantics.
 Require Import VST.veric.base.
 Require Import VST.veric.Clight_lemmas.
