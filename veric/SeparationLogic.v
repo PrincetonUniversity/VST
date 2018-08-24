@@ -1,3 +1,4 @@
+Require Import Coq.Strings.String.
 Require Import VST.veric.base.
 Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
