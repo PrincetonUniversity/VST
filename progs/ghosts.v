@@ -4,6 +4,7 @@ Require Import VST.msl.sepalg.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.progs.conclib.
+Import List.
 
 (* Lemmas about ghost state and common instances *)
 (* Where should this sit? *)

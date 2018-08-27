@@ -8,6 +8,7 @@ Require Import sha.general_lemmas.
 Require Import sha.hmac_pure_lemmas.
 Require Import sha.XorCorrespondence.
 Require Import sha.ByteBitRelations.
+Import List.
 
 Definition concat {A : Type} (l : list (list A)) : list A :=
   flat_map id l.
@@ -144,5 +145,3 @@ Proof.
     rewrite H3, firstn_exact; trivial.
     rewrite H3, skipn_exact; trivial.
 Qed.
-
-

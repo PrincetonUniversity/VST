@@ -719,9 +719,9 @@ end.
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
 | (Tarray _ _ _ | Tfunction _ _ _),
-   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-     eqb (eqb_type t1 int_or_ptr_type)
-         (eqb_type t2 int_or_ptr_type)
+   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) =>
+     Bool.eqb (eqb_type t1 int_or_ptr_type)
+              (eqb_type t2 int_or_ptr_type)
 | (Tstruct _ _ | Tunion _ _), (Tstruct _ _ | Tunion _ _ ) => true
 | _, _ => false
 end.
