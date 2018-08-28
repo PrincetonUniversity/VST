@@ -3122,7 +3122,7 @@ end.
 Ltac type_lists_compatible al bl :=
  match al with
  | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
-                 unify (classify_cast a b) cast_case_pointer;
+                 first [unify a b | unify (classify_cast a b) cast_case_pointer];
                  type_lists_compatible al' bl'
                 end
  | Ctypes.Tnil => match bl with Ctypes.Tnil => idtac end
