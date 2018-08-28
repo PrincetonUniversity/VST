@@ -425,7 +425,7 @@ FILES = \
 	grep -v '^.[*][*][ )]' $*.v >$@
 
 
-%.vo: COQF=$(if $(findstring compcert/, $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+%.vo: COQF=$(if $(findstring compcert, $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
 
 %.vo: %.v
 	@echo COQC $*.v
@@ -565,7 +565,7 @@ floyd/floyd.coq: floyd/proofauto.vo
 	@echo 'coqdep ... >.depend'
 	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 ifeq ($(COMPCERT), compcert_new)
-	$(COQDEP) $(COQFLAGS) 2>&1 >.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS)) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
 	echo "" >>.depend
 	$(COQDEP) $(COQFLAGS) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
 else
