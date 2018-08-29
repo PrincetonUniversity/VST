@@ -212,6 +212,17 @@ Section NoDup_gen_map.
 End NoDup_gen_map.
 
 Require Import fcf.RepeatCore.
+ 
+Theorem In_gen_weaken : 
+  forall (A : Type)(e1 e2 : A -> A -> Prop) ls a,
+    In_gen e1 a ls ->
+    (forall a', e1 a a' -> e2 a a') ->
+    In_gen e2 a ls.
+  
+  induction ls; intuition; simpl in *.
+  intuition.
+  
+Qed.
 
 Lemma flatten_NoDup_gen : 
   forall (A : Set)(ls : list (list A)),
@@ -238,21 +249,9 @@ Lemma flatten_NoDup_gen :
   intuition.
   subst.
   
-  Theorem In_gen_weaken : 
-    forall (A : Type)(e1 e2 : A -> A -> Prop) ls a,
-      In_gen e1 a ls ->
-      (forall a', e1 a a' -> e2 a a') ->
-      In_gen e2 a ls.
-    
-    induction ls; intuition; simpl in *.
-    intuition.
-    
-  Qed.
-  
   eapply H4.
   eapply In_gen_weaken.
-  eapply In_gen_eq.
-  trivial.
+  exact H6.
   intuition.
   subst.
   subst.
@@ -274,8 +273,7 @@ Lemma flatten_NoDup_gen :
   subst.
   eapply H4.
   eapply In_gen_weaken.
-  eapply In_gen_eq.
-  trivial.
+  exact H6.
   intuition.
   subst.
   subst.

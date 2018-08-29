@@ -33,14 +33,14 @@ Qed.
 
 
 Lemma log2_monotonic_b : forall(a : positive),
-  (log2 a) <= (log2 (Psucc a)).
+  (log2 a) <= (log2 (Pos.succ a)).
 
   induction a; 
   simpl in *; try apply le_s; auto.
 Qed.
 
 Lemma log2_ge_monotonic : forall(a : positive),
-  (log2 (Psucc a)) >= (log2 a).
+  (log2 (Pos.succ a)) >= (log2 a).
 
   induction a; 
   simpl in *; try apply le_s; auto.
@@ -60,7 +60,7 @@ Lemma s_nat_nz : forall(a : nat)(pf : a <> 0),
 Qed.
 
 Lemma factor_s_conv : forall(a : nat)(pf1 : (a <> 0))(pf2 : (S a) <> 0),
-  (nat_to_pos (pf2)) = (Psucc (nat_to_pos pf1)).
+  (nat_to_pos (pf2)) = (Pos.succ (nat_to_pos pf1)).
   
   intros. 
   destruct a.
@@ -460,8 +460,9 @@ Lemma lognat_prod_sum_gen_h : forall (a' a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0
   rewrite H4.
   intros. 
   eapply le_trans.
-  Focus 2.
-  eapply (lognat_monotonic H3). intuition.
+  2:{
+    eapply (lognat_monotonic H3). intuition.
+  }
   generalize H3.
   rewrite mult_assoc_reverse.
   intros. 

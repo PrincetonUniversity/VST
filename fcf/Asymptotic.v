@@ -363,8 +363,9 @@ Theorem double_log_plus_3_le_h :
   omega.
   
   eapply le_trans.
-  Focus 2.
-  eapply H2.
+  2:{
+    eapply H2.
+  }
   simpl.
   omega.
   
@@ -382,12 +383,13 @@ Theorem double_log_plus_3_le_h :
   rewrite H3.
   eapply div2_le_mono.
   eapply le_trans.
-  Focus 2.
-  eapply Nat.log2_le_lin.
-  destruct (eq_nat_dec 0 x); subst.
-  rewrite log2_0 in H.
-  omega.
-  omega.
+  2:{
+    eapply Nat.log2_le_lin.
+    destruct (eq_nat_dec 0 x); subst.
+    rewrite log2_0 in H.
+    omega.
+    omega.
+  }
   omega.
   
   eapply le_trans.
@@ -444,8 +446,9 @@ Theorem S_log_square_lt_h :
   omega.
   
   eapply le_trans.
-  Focus 2.
-  eapply H3.
+  2:{
+    eapply H3.
+  }
   simpl.
   omega.
   
@@ -474,9 +477,10 @@ Theorem S_log_square_lt :
   intuition.
   eapply S_log_square_lt_h; trivial.
   eapply le_trans.
-  Focus 2.
-  eapply Nat.log2_le_mono.
-  eapply H.
+  2:{
+    eapply Nat.log2_le_mono.
+    eapply H.
+  }
   rewrite Nat.log2_pow2; omega.
 Qed.
 
@@ -509,8 +513,9 @@ Theorem poly_lt_exp_ge_6 :
   specialize (Nat.log2_spec_alt); intuition.
   destruct (H1 x).
   eapply lt_le_trans.
-  Focus 2.
-  eapply H.
+  2:{
+    eapply H.
+  }
   eapply (expnat_2_ge_1 c).
   
   intuition.
@@ -537,8 +542,9 @@ Theorem poly_lt_exp_ge_6 :
   
   eapply log_square_lt.
   eapply le_trans.
-  Focus 2.
-  eapply H0.
+  2:{
+    eapply H0.
+  }
   eapply Nat.pow_le_mono_r.
   omega.
   omega.
@@ -582,8 +588,9 @@ Theorem poly_lt_exp_ge_6 :
   
   eapply S_log_square_lt.
   eapply le_trans.
-  Focus 2.
-  eapply H0.
+  2:{
+    eapply H0.
+  }
   eapply Nat.pow_le_mono_r.
   omega.
   omega.
@@ -600,15 +607,17 @@ Theorem poly_lt_exp :
   intuition.
   eapply poly_lt_exp_ge_6.
   eapply le_trans.
-  Focus 2.
-  eapply H.
+  2:{
+    eapply H.
+  }
   eapply Nat.pow_le_mono_r.
   omega.
   eapply Max.le_max_l.
   
   eapply le_trans.
-  Focus 2.
-  eapply H.
+  2:{
+    eapply H.
+  }
   eapply Nat.pow_le_mono_r.
   omega.
   eapply Max.le_max_r.
@@ -678,10 +687,11 @@ Theorem negligible_const_mult :
   rewrite <- ratMult_assoc.
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  rewrite <- ratMult_1_l.
-  eapply eqRat_refl.
+  2:{
+    eapply eqRat_impl_leRat.
+    rewrite <- ratMult_1_l.
+    eapply eqRat_refl.
+  }
   eapply ratMult_leRat_compat; intuition.
   
   eapply rat_le_1.

@@ -135,7 +135,6 @@ Ltac fcf_transitivity_r := prog_transitivity_r.
 Ltac fcf_reflexivity := reflexivity || apply comp_spec_eq_refl.
 (** Supporting theory: eqRat_refl and leRat_refl (probability), comp_spec_eq_refl (program logic) *)
 
-Check comp_spec_symm.
 
 (** ** fcf_symmetry *)
 (** The fcf_symmetry tactic replaces a proof obligation with two games with the equivalent obligation in which the order of the two games have been reversed.  This tactic applies to symmetric relations, and some non-symmetric relations for which the tactic is able to determine the correct relation to use for the new goal. *)

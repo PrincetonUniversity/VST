@@ -15,7 +15,7 @@ Lemma mult_same_r : forall n1 n2 n3,
   n3 > 0 ->
   n1 * n3 = n2 * n3 ->
   n1 = n2.
-  
+
   induction n1; destruct n2; intuition; simpl in *.
   remember (n2 * n3) as x.
   omega.
@@ -203,6 +203,15 @@ Local Open Scope N_scope.
 Definition modNat (n : nat)(p : posnat) : nat :=
   N.to_nat ((N.of_nat n) mod (N.of_nat p)).
 
+Lemma Npos_nz : forall p, 
+  Npos p <> N0.
+
+  destruct p; intuition; simpl in *.
+  inversion H.
+  inversion H.
+  inversion H.
+Qed.
+
 Lemma modNat_plus : forall n1 n2 p,
     (modNat (n1 + n2) p = modNat ((modNat n1 p) + n2) p)%nat.
   
@@ -225,14 +234,6 @@ Lemma modNat_plus : forall n1 n2 p,
   simpl.
   omega.
   
-  Lemma Npos_nz : forall p, 
-    Npos p <> N0.
-
-    destruct p; intuition; simpl in *.
-    inversion H.
-    inversion H.
-    inversion H.
-  Qed.
 
   apply Npos_nz.
 
@@ -545,12 +546,14 @@ Lemma expnat_base_S : forall n k,
   induction n; intuition.
   simpl in *.
   eapply le_trans.
-  Focus 2.
-  eapply plus_le_compat.
-  eapply IHn.
-  eapply mult_le_compat.
-  eapply le_refl.
-  eapply IHn.
+  
+  2:{
+    eapply plus_le_compat.
+    eapply IHn.
+    eapply mult_le_compat.
+    eapply le_refl.
+    eapply IHn.
+  }
 
   rewrite mult_plus_distr_l.
   repeat rewrite mult_assoc.
@@ -577,8 +580,9 @@ Lemma expnat_base_S_same : forall n,
   simpl in *.
   rewrite plus_0_r.
   eapply le_trans.
-  Focus 2.
-  eapply expnat_base_S.
+  2:{
+    eapply expnat_base_S.
+  }
   destruct n; simpl.
   omega.
   intuition.

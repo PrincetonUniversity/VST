@@ -4,10 +4,10 @@
 
 Set Implicit Arguments.
 
-Require Import Arith.
 Require Import Omega.
 Require Import List.
 Require Import fcf.StdNat.
+Require Import Arith.
 Require Import Lia.
 
 Inductive Rat :=
@@ -870,11 +870,12 @@ Lemma ratAdd_any_leRat_r : forall r1 r2 r3,
   r1 <= r2 ->
   r1 <= r3 + r2.
   
-  intuition.
+  intros.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  apply ratAdd_comm.
+  2:{
+    eapply eqRat_impl_leRat.
+    apply ratAdd_comm.
+  }
   apply ratAdd_any_leRat_l; eauto.
 Qed.
 
@@ -884,10 +885,11 @@ Lemma ratAdd_eq_impl_leRat_l : forall r1 r2 r3,
   
   intuition.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply eqRat_symm.
-  eapply H.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply eqRat_symm.
+    eapply H.
+  }
   apply ratAdd_any_leRat_l.
   apply leRat_refl.
 Qed.
@@ -898,10 +900,11 @@ Lemma ratAdd_eq_impl_leRat_r : forall r1 r2 r3,
   
   intuition.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply eqRat_symm.
-  eapply H.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply eqRat_symm.
+    eapply H.
+  }
   apply ratAdd_any_leRat_r.
   apply leRat_refl.
 Qed.
@@ -1034,17 +1037,19 @@ Theorem ratTriangleInequality : forall r1 r2 r3,
   rewrite H1.
 
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply ratAdd_comm.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply ratAdd_comm.
+  }
   eapply ratSubtract_partition_leRat; eapply leRat_refl.
 
   case_eq (bleRat r1 r2); intuition.  
   apply bleRat_total in H0.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply ratAdd_comm.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply ratAdd_comm.
+  }
   eapply ratSubtract_partition_leRat.
   eapply ratSubtract_leRat; eauto.
   intuition.
@@ -1582,9 +1587,10 @@ Lemma ratSubtract_ratAdd_inverse_2 : forall r1 r2,
   intuition.
   apply eqRat_symm.
   eapply eqRat_trans.
-  Focus 2.
-  apply ratSubtract_ratAdd_assoc.
-  trivial.
+  2:{
+    apply ratSubtract_ratAdd_assoc.
+    trivial.
+  }
   apply eqRat_symm.
   apply ratSubtract_ratAdd_inverse.
 Qed.
@@ -1762,12 +1768,10 @@ Lemma maxRat_leRat_same : forall r1 r2 r3,
   r2 <= r3 ->
   maxRat r1 r2 <= r3.
   
-  rattac.
+  intuition.
   unfold maxRat in *.
-  match goal with
-    [H:(if ?C then _ else _) = _ |- _ ] =>
-    destruct C eqn:?; inversion H; subst; nia
-  end.
+  case_eq (bleRat r1 r2); intuition.
+
 Qed.
 
 Lemma ratMult_3_ratAdd : forall r,
@@ -1837,14 +1841,16 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   case_eq (bleRat (r1 * r2) (r3 * r4)); intuition.
   
   rewrite ratSubtract_leRat.
-  Focus 2.
-  eapply ratMult_leRat_compat.
-  eapply leRat_refl.
-  eapply H6.
-  Focus 2.
-  eapply ratMult_leRat_compat.
-  eapply leRat_refl.
-  eapply H6.
+  2:{
+    eapply ratMult_leRat_compat.
+    eapply leRat_refl.
+    eapply H6.
+  }
+  2:{
+    eapply ratMult_leRat_compat.
+    eapply leRat_refl.
+    eapply H6.
+  }
   
   rewrite ratSubtract_ratMult_le; eauto.
   repeat rewrite ratMult_small_le.
@@ -2050,8 +2056,9 @@ Lemma ratMult_same_r_inv : forall r1 r2 r3,
   rewrite (mult_assoc n1) in e.
   rewrite <- (mult_assoc (n1 * x1)) in e.
   eapply mult_same_r.
-  Focus 2.
-  eapply e.
+  2:{
+    eapply e.
+  }
   rewrite mult_0_r in H0.
   rewrite plus_0_l in H0.
   destruct (eq_nat_dec n0 0); intuition.
@@ -2289,9 +2296,10 @@ Lemma ratInverse_eqRat_compat : forall r1 r2,
   exfalso.
   
   eapply rat_num_nz.
-  Focus 2.
-  rewrite rat_num_0 in H0.
-  eauto.
+  2:{
+    rewrite rat_num_0 in H0.
+    eauto.
+  }
   omega.
 
   eapply eqRat_flip.
@@ -2533,9 +2541,10 @@ Lemma half_distance_1_le : forall r,
   eapply (leRat_ratAdd_same_r 1).
   rewrite <- (@ratSubtract_sum_1 1 r) at 3; trivial.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply ratAdd_assoc.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply ratAdd_assoc.
+  }
   
   repeat rewrite ratMult_2.
   rewrite ratMult_comm.
@@ -2546,10 +2555,11 @@ Lemma half_distance_1_le : forall r,
   rewrite ratMult_eq_rat1.
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply ratMult_distrib_r.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply ratMult_distrib_r.
+  }
   
   rewrite ratMult_assoc.
   rewrite ratMult_eq_rat1.
@@ -2693,10 +2703,11 @@ Lemma expRat_le_half_exists : forall r,
   eapply H4.
   eapply ratMult_num_den.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  rewrite <- (ratMult_1_r (1/2)).
-  eapply eqRat_refl.
+  2:{
+    eapply eqRat_impl_leRat.
+    rewrite <- (ratMult_1_r (1/2)).
+    eapply eqRat_refl.
+  }
   eapply ratMult_leRat_compat.
   intuition.
   eapply eqRat_impl_leRat.
@@ -2735,10 +2746,11 @@ Lemma expRat_half_le_exp_exists : forall d,
   exists p.
   rewrite expRat_terms.
   eapply leRat_trans.
-  Focus 2.
-  eapply leRat_terms.
-  eapply H0.
-  eapply le_refl.
+  2:{
+    eapply leRat_terms.
+    eapply H0.
+    eapply le_refl.
+  }
   erewrite expnat_1.
   eapply leRat_terms.
   intuition.

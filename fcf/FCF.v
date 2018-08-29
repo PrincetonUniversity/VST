@@ -7,6 +7,6 @@ Require Export fcf.ProgTacs.
 Require Export fcf.RndNat.
 Require Export fcf.GenTacs.
 Require Export fcf.NotationV1.
-Require Export Tactics.
+Require Export fcf.Tactics.
 
 Open Scope eq_scope.
