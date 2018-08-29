@@ -335,7 +335,7 @@ intros.
       destruct Archi.ptr64; simpl; try simple_if_tac; try apply I].
   apply orb_true_iff in H.
   unfold classify_cast.
-  destruct (eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
+  destruct (Bool.eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
          (eqb_type (Tpointer t' a) int_or_ptr_type)) eqn:J.
   destruct (eqb_type (Tpointer t' a) (Tpointer t a0)) eqn:?H.
   apply I.
