@@ -44,6 +44,26 @@ Section HMAC_PRF.
       [x, _] <--$2 OC_Run _ _ _ Z (fun _ d => r <--$ OC_Query _ d; $ ret ((app_fpad fpad r), tt)) tt;
       $ ret x.
 
+      Theorem Vector_append_inj_first :
+        forall (A : Set)(a : nat)(a1 a2 : Vector.t A a)(b : nat)(b1 b2 : Vector.t A b),
+          Vector.append a1 b1 = Vector.append a2 b2 ->
+          a1 = a2.
+
+        induction a1; intuition.
+        rewrite vector_0 in *.
+        trivial.
+        destruct (vector_S a2).
+        destruct H2.
+        subst.
+        repeat rewrite <- splitVector.Vector_cons_app_assoc in H.
+
+        inversion H.
+        apply vector_cons_eq in H.
+        f_equal.
+        eapply IHa1.
+        eauto.
+      Qed.
+
     Theorem WCR_h_star_pad_impl_h_star :
         cAU.Adv_WCR _ _ h_star_pad
                     ({ 0 , 1 }^c) Z <=
@@ -88,26 +108,6 @@ Section HMAC_PRF.
       discriminate.
       apply eqbBvector_sound in H2.
       unfold HMAC_spec.h_star_pad, HMAC_spec.app_fpad in *.
-
-      Theorem Vector_append_inj_first :
-        forall (A : Set)(a : nat)(a1 a2 : Vector.t A a)(b : nat)(b1 b2 : Vector.t A b),
-          Vector.append a1 b1 = Vector.append a2 b2 ->
-          a1 = a2.
-
-        induction a1; intuition.
-        rewrite vector_0 in *.
-        trivial.
-        destruct (vector_S a2).
-        destruct H2.
-        subst.
-        repeat rewrite <- splitVector.Vector_cons_app_assoc in H.
-
-        inversion H.
-        apply vector_cons_eq in H.
-        f_equal.
-        eapply IHa1.
-        eauto.
-      Qed.
 
       eapply Vector_append_inj_first in H2.
       unfold h_star, NMAC_to_HMAC.h_star.

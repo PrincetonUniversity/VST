@@ -1,6 +1,6 @@
 Require Export VST.floyd.sublist.
-Require Export Integers.
-Require Export Coqlib.
+Require Export compcert.lib.Integers.
+Require Export compcert.lib.Coqlib.
 Require Export List. Import ListNotations.
 Require Export aes.sbox.
 

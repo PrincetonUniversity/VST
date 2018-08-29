@@ -307,11 +307,11 @@ Proof.
     3: solve [reflexivity].
     3: solve [rewrite Zlength_app, Zlength_list_repeat; repeat rewrite Zlength_map; try omega].
 
-    Focus 2. rewrite Zlength_app, (* <- H17, *) Zlength_list_repeat; try omega.
+    2:{ rewrite Zlength_app, (* <- H17, *) Zlength_list_repeat; try omega.
              repeat rewrite Zlength_map. rewrite ZLbytes(*, H2*).
              assert (X: entropy_len + (Zlength contents + (384 - entropy_len - Zlength contents)) = 384) by omega.
              rewrite X; assumption.
-
+    }
     rewrite Zlength_app; repeat rewrite Zlength_map; rewrite Zlength_list_repeat.
     assert (X: Zlength contents + (384 - entropy_len - Zlength contents) = 384 - entropy_len) by omega.
     rewrite X.

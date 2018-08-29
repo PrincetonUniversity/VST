@@ -281,7 +281,7 @@ rename v_w into w.
 freeze [0;1;2;3;4] FR1.
 Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
 rewrite Z.max_r in ZL_OUT.
-Focus 2. unfold OutLen. simple_if_tac; omega.
+2:{ unfold OutLen. simple_if_tac; omega. }
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
   + thaw FR1. freeze [0;1;3;5] FR2.
     forward_seq.
@@ -297,11 +297,11 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     Intros YS.
     destruct H as [? [? [? [? [? [? [? [? ?]]]]]]]].
     assert (L31: Zlength (x3 ++ x1) = 16) by (rewrite H1; reflexivity).
-    rewrite Zlength_app, H3 in L31. destruct x1. Focus 2. rewrite Zlength_cons', Z.add_assoc in L31. specialize (Zlength_nonneg x1); intros; omega.
+    rewrite Zlength_app, H3 in L31. destruct x1. 2:{ rewrite Zlength_cons', Z.add_assoc in L31. specialize (Zlength_nonneg x1); intros; omega. }
     rewrite app_nil_r in *. clear L31; subst x0. clear H3 H1 x3.
     assert (LX: Zlength xInit = 16).
       rewrite XInit. rewrite upd_upto_Zlength; trivial. simpl; omega.
-    rewrite <- H0, Zlength_app, H2 in LX. destruct x2. Focus 2. rewrite Zlength_cons', Z.add_assoc in LX. specialize (Zlength_nonneg x2); intros; omega.
+    rewrite <- H0, Zlength_app, H2 in LX. destruct x2. 2:{ rewrite Zlength_cons', Z.add_assoc in LX. specialize (Zlength_nonneg x2); intros; omega. }
     rewrite app_nil_r in *. clear LX; subst YS. rename H2 into xInit_Zlength.
 
     rewrite upd_upto_char in XInit. 2: reflexivity.
