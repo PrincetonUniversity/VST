@@ -133,7 +133,8 @@ Fixpoint deadvars_stmt (vl: list ident) (live dead: list ident) (c: statement)
             let live'' := deadvars_union live1 live2 in
             let dead'' := deadvars_intersection dead1 dead2 in
             let (vl'',live3) := deadvars_delete live'' vl' live' in
-            cont vl'' live3 dead''
+            let (vl3, _) := deadvars_delete dead'' vl'' nil in
+            cont vl3 live3 dead''
      else
            let (vl', live')  := deadvars_removel [e] vl live in
             let (live1,dead1) := deadvars_stmt vl' live' dead c1 cont bcont in
