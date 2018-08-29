@@ -6,7 +6,7 @@ Require Import VST.sepcomp.semantics_lemmas.
 
 Require Import VST.concurrency.common.pos.
 
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.

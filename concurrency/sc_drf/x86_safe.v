@@ -41,7 +41,7 @@ Require Import VST.concurrency.sc_drf.SC_erasure.
 Require Import VST.concurrency.sc_drf.SC_spinlock_safe.
 Require Import VST.concurrency.sc_drf.spinlocks.
 
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Module InitialMemWD.

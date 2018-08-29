@@ -1,6 +1,6 @@
 (** * Spinlock well synchronized and spinlock clean*)
 Require Import compcert.lib.Axioms.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 
 Require Import VST.concurrency.common.sepcomp. Import SepComp.
 Require Import VST.sepcomp.semantics_lemmas.
