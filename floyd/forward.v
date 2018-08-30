@@ -2976,6 +2976,11 @@ eapply semax_pre; [ | apply semax_break ];
   unfold_abbrev_ret;
   simpl_ret_assert (*autorewrite with ret_assert*).
 
+Ltac forward_continue :=
+eapply semax_pre; [ | apply semax_continue ];
+  unfold_abbrev_ret;
+  simpl_ret_assert (*autorewrite with ret_assert*).
+
 Ltac simpl_first_temp :=
 try match goal with
 | |- semax _ (PROPx _ (LOCALx (temp _ ?v :: _) _)) _ _ =>
@@ -3022,9 +3027,11 @@ Ltac forward :=
     clear_Delta_specs; forward_return
   | |- semax _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
   | |- semax _ _ (Ssequence Sbreak _) _ =>
-    apply semax_seq with FF; [ | apply semax_ff];
-    forward_break
+    apply semax_seq with FF; [ | apply semax_ff];  forward_break
+  | |- semax _ _ (Ssequence Scontinue _) _ =>
+    apply semax_seq with FF; [ | apply semax_ff];  forward_continue
   | |- semax _ _ Sbreak _ => forward_break
+  | |- semax _ _ Scontinue _ => forward_continue
   | |- semax _ _ Sskip _ => fwd_skip
   | |- semax _ _ ?c0 _ =>
     match c0 with
