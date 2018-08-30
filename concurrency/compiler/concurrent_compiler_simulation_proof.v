@@ -182,164 +182,158 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
 
     
-            Definition merge_func {A} (f1 f2:Z -> option A):
-              (BinNums.Z -> option A):=
-              fun ofs =>
-                match f1 ofs with
-                  None => f2 ofs
-                | _ => f1 ofs
-                end.
-            (* PTree.map: forall A B : Type, (positive -> A -> B) -> PTree.t A -> PTree.t B *)
+    Definition merge_func {A} (f1 f2:Z -> option A):
+      (BinNums.Z -> option A):=
+      fun ofs =>
+        match f1 ofs with
+          None => f2 ofs
+        | _ => f1 ofs
+        end.
+    (* PTree.map: forall A B : Type, (positive -> A -> B) -> PTree.t A -> PTree.t B *)
 
-            Fixpoint build_function_for_a_block
-                     (mu:meminj) {A} (b: positive) (ls: list (positive * (Z -> option A))):
-              Z -> option A:=
-              match ls with
-              | nil => (fun _ => None)
-              | (b0, fb)::ls' =>
-                match mu b0 with
-                  | Some (b1, delt) =>
-                    if PMap.elt_eq b b1 then
-                      merge_func (fun p => (fb (p - delt)%Z)) (build_function_for_a_block mu b ls')
-                    else  (build_function_for_a_block mu b ls')
-                  | None => (build_function_for_a_block mu b ls') 
-                end
-              end.
-            
-            Definition tree_map_inject_over_tree {A B} (t:PTree.t (Z -> option B))(mu:meminj) (map:PTree.t (Z -> option A)):
-              PTree.t (Z -> option A):=
-              PTree.map (fun b _ => build_function_for_a_block mu b (PTree.elements map)) t.
+    Fixpoint build_function_for_a_block
+             (mu:meminj) {A} (b: positive) (ls: list (positive * (Z -> option A))):
+      Z -> option A:=
+      match ls with
+      | nil => (fun _ => None)
+      | (b0, fb)::ls' =>
+        match mu b0 with
+        | Some (b1, delt) =>
+          if PMap.elt_eq b b1 then
+            merge_func (fun p => (fb (p - delt)%Z)) (build_function_for_a_block mu b ls')
+          else  (build_function_for_a_block mu b ls')
+        | None => (build_function_for_a_block mu b ls') 
+        end
+      end.
+    
+    Definition tree_map_inject_over_tree {A B} (t:PTree.t (Z -> option B))(mu:meminj) (map:PTree.t (Z -> option A)):
+      PTree.t (Z -> option A):=
+      PTree.map (fun b _ => build_function_for_a_block mu b (PTree.elements map)) t.
 
-            Definition tree_map_inject_over_mem {A} m mu map:
-              PTree.t (Z -> option A) :=
-              tree_map_inject_over_tree (snd (getMaxPerm m)) mu map.
-            
-            (* apply an injections to the elements of a tree. *)
-            Fixpoint apply_injection_elements
-                     {A}
-                     (mu:meminj) (ls: list (positive * (Z -> option A)))
-              : list (positive * (Z -> option A)) :=
-              match ls with
-                nil => nil
-              | cons (b, ofs_f) ls' =>
-                match (mu b) with
-                | None => apply_injection_elements mu ls'
-                | Some (b',d) =>
-                  cons
-                    (b', fun ofs => ofs_f (ofs-d)%Z)
-                    (apply_injection_elements mu ls')
-                end
-              end.
-            Fixpoint extract_function_for_block
-                     {A} (b: positive) (ls: list (positive * (Z -> option A)))
-              : Z -> option A :=
-              match ls with
-                nil => fun _ => None
-              | cons (b', ofs_f') ls' =>
-                if (Pos.eq_dec b b') then
-                  merge_func ofs_f' (extract_function_for_block b ls')
-                else (extract_function_for_block b ls')
-                end.
+    Definition tree_map_inject_over_mem {A} m mu map:
+      PTree.t (Z -> option A) :=
+      tree_map_inject_over_tree (snd (getMaxPerm m)) mu map.
+    
+    (* apply an injections to the elements of a tree. *)
+    Fixpoint apply_injection_elements
+             {A}
+             (mu:meminj) (ls: list (positive * (Z -> option A)))
+      : list (positive * (Z -> option A)) :=
+      match ls with
+        nil => nil
+      | cons (b, ofs_f) ls' =>
+        match (mu b) with
+        | None => apply_injection_elements mu ls'
+        | Some (b',d) =>
+          cons
+            (b', fun ofs => ofs_f (ofs-d)%Z)
+            (apply_injection_elements mu ls')
+        end
+      end.
+    Fixpoint extract_function_for_block
+             {A} (b: positive) (ls: list (positive * (Z -> option A)))
+      : Z -> option A :=
+      match ls with
+        nil => fun _ => None
+      | cons (b', ofs_f') ls' =>
+        if (Pos.eq_dec b b') then
+          merge_func ofs_f' (extract_function_for_block b ls')
+        else (extract_function_for_block b ls')
+      end.
 
-            (* Definition inject_map_using_mem 
-                       (mu:meminj) (ls:  (positive * (Z -> option A))):=
-
-             *)
-              
-            
-            Fixpoint map_from_list
-                     {A:Type}
-                     (mu:meminj) (ls: list (positive * (Z -> option A))):
-              PTree.t (Z -> option A) :=
-              match ls with
-                nil => @PTree.empty (BinNums.Z -> option A)
-              | cons (b, ofs_f) ls =>
-                let t:= map_from_list mu ls in
-                match mu b with
-                  None => t
-                | Some (b',d) =>
-                  match PTree.get b' t with
-                    None => PTree.set b' (fun ofs => ofs_f (ofs-d)%Z) t
-                  | Some f_old =>
-                    PTree.set b' (merge_func (fun ofs => ofs_f (ofs-d)%Z) f_old) t
-                  end
-                end
-              end.
+    Fixpoint map_from_list
+             {A:Type}
+             (mu:meminj) (ls: list (positive * (Z -> option A))):
+      PTree.t (Z -> option A) :=
+      match ls with
+        nil => @PTree.empty (BinNums.Z -> option A)
+      | cons (b, ofs_f) ls =>
+        let t:= map_from_list mu ls in
+        match mu b with
+          None => t
+        | Some (b',d) =>
+          match PTree.get b' t with
+            None => PTree.set b' (fun ofs => ofs_f (ofs-d)%Z) t
+          | Some f_old =>
+            PTree.set b' (merge_func (fun ofs => ofs_f (ofs-d)%Z) f_old) t
+          end
+        end
+      end.
 
     
-            Definition tree_map_inject {A}(mu:meminj) (map:PTree.t (Z -> option A)):
-              PTree.t (Z -> option A):=
-              map_from_list mu (PTree.elements map).
-            Definition virtueThread_inject m (mu:meminj) (virtue:delta_map * delta_map):
-              delta_map * delta_map:=
-              let (m1,m2):= virtue in
-              (tree_map_inject_over_mem m mu m1, tree_map_inject_over_mem m mu m2).
-            
-            
-            (* Second construct the virtueLP:
+    Definition tree_map_inject {A}(mu:meminj) (map:PTree.t (Z -> option A)):
+      PTree.t (Z -> option A):=
+      map_from_list mu (PTree.elements map).
+    Definition virtueThread_inject m (mu:meminj) (virtue:delta_map * delta_map):
+      delta_map * delta_map:=
+      let (m1,m2):= virtue in
+      (tree_map_inject_over_mem m mu m1, tree_map_inject_over_mem m mu m2).
+    
+    
+    (* Second construct the virtueLP:
                the permissions transfered to the Lock pool
-             *)
-            Definition access_map_inject m (mu:meminj) (map:access_map):
-              access_map:=
-              (fst map, tree_map_inject_over_mem m mu (snd map)).
-            Definition virtueLP_inject m (mu:meminj) (virtue:access_map * access_map):
-              access_map * access_map:=
-              (access_map_inject m mu (fst virtue), access_map_inject m mu (snd virtue)).
+     *)
+    Definition access_map_inject m (mu:meminj) (map:access_map):
+      access_map:=
+      (fst map, tree_map_inject_over_mem m mu (snd map)).
+    Definition virtueLP_inject m (mu:meminj) (virtue:access_map * access_map):
+      access_map * access_map:=
+      (access_map_inject m mu (fst virtue), access_map_inject m mu (snd virtue)).
     
     Record concur_match (ocd: option compiler_index)
-       (j:meminj) (cstate1: ThreadPool (Some hb)) (m1: Mem.mem) (cstate2: ThreadPool(Some (S hb))) (m2: mem):=
-  { same_length: num_threads cstate1 = num_threads cstate2
-    ; memcompat1: mem_compatible cstate1 m1
-    ; memcompat2: mem_compatible cstate2 m2
-    ; INJ: Mem.inject j m1 m2
-    ; INJ_threads:
-        forall i (cnti1: containsThread cstate1 i) (cnti2: containsThread cstate2 i),
-          Mem.inject j
-                     (restrPermMap (proj1 (memcompat1 i cnti1)))
-                     (restrPermMap (proj1 (memcompat2 i cnti2)))
-    ; INJ_locks:
-        forall i (cnti1: containsThread cstate1 i) (cnti2: containsThread cstate2 i),
-          Mem.inject j
-                     (restrPermMap (proj2 (memcompat1 i cnti1)))
-                     (restrPermMap (proj2 (memcompat2 i cnti2)))
-    ; INJ_lock_content:
-        forall b b' delt rmap,
-                  j b = Some (b', delt) ->
-                  forall ofs, lockRes cstate1 (b, intval ofs) = Some rmap ->
-                  lockRes cstate2 (b', intval (add ofs (repr delt))) =
-                         Some (virtueLP_inject m2 j rmap)
-    ; taret_invariant: invariant cstate2
-    ; mtch_source:
-        forall (i:nat),
-          (i > hb)%nat ->
-          forall (cnti1: containsThread cstate1 i)
-            (cnti2: containsThread cstate2 i),
-          match_thread_source j
-                              (getThreadC cnti1)
-                              (restrPermMap (proj1 (memcompat1 i cnti1)))
-                              (getThreadC cnti2)
-                              (restrPermMap (proj1 (memcompat2 i cnti2)))
-    ; mtch_target:
-        forall (i:nat),
-          (i < hb)%nat ->
-          forall (cnti1: containsThread cstate1 i)
-            (cnti2: containsThread cstate2 i),
-          match_thread_target  j
-                              (getThreadC cnti1)
-                              (restrPermMap (proj1(memcompat1 i cnti1)))
-                              (getThreadC cnti2)
-                              (restrPermMap (proj1(memcompat2 i cnti2)))
-    ; mtch_compiled:
-        forall (i:nat),
-          (i = hb)%nat ->
-          forall (cnti1: containsThread cstate1 i)
-            (cnti2: containsThread cstate2 i),
-            exists cd, ocd = Some cd /\
-                  match_thread_compiled cd j
-                                        (getThreadC cnti1)
-                                        (restrPermMap (proj1 (memcompat1 i cnti1)))
-                                        (getThreadC cnti2)
-                                        (restrPermMap (proj1 (memcompat2 i cnti2))) }.
+           (j:meminj) (cstate1: ThreadPool (Some hb)) (m1: Mem.mem) (cstate2: ThreadPool(Some (S hb))) (m2: mem):=
+      { same_length: num_threads cstate1 = num_threads cstate2
+        ; memcompat1: mem_compatible cstate1 m1
+        ; memcompat2: mem_compatible cstate2 m2
+        ; INJ: Mem.inject j m1 m2
+        ; INJ_threads:
+            forall i (cnti1: containsThread cstate1 i) (cnti2: containsThread cstate2 i),
+              Mem.inject j
+                         (restrPermMap (proj1 (memcompat1 i cnti1)))
+                         (restrPermMap (proj1 (memcompat2 i cnti2)))
+        ; INJ_locks:
+            forall i (cnti1: containsThread cstate1 i) (cnti2: containsThread cstate2 i),
+              Mem.inject j
+                         (restrPermMap (proj2 (memcompat1 i cnti1)))
+                         (restrPermMap (proj2 (memcompat2 i cnti2)))
+        ; INJ_lock_content:
+            forall b b' delt rmap,
+              j b = Some (b', delt) ->
+              forall ofs, lockRes cstate1 (b, intval ofs) = Some rmap ->
+                     lockRes cstate2 (b', intval (add ofs (repr delt))) =
+                     Some (virtueLP_inject m2 j rmap)
+        ; taret_invariant: invariant cstate2
+        ; mtch_source:
+            forall (i:nat),
+              (i > hb)%nat ->
+              forall (cnti1: containsThread cstate1 i)
+                (cnti2: containsThread cstate2 i),
+                match_thread_source j
+                                    (getThreadC cnti1)
+                                    (restrPermMap (proj1 (memcompat1 i cnti1)))
+                                    (getThreadC cnti2)
+                                    (restrPermMap (proj1 (memcompat2 i cnti2)))
+        ; mtch_target:
+            forall (i:nat),
+              (i < hb)%nat ->
+              forall (cnti1: containsThread cstate1 i)
+                (cnti2: containsThread cstate2 i),
+                match_thread_target  j
+                                     (getThreadC cnti1)
+                                     (restrPermMap (proj1(memcompat1 i cnti1)))
+                                     (getThreadC cnti2)
+                                     (restrPermMap (proj1(memcompat2 i cnti2)))
+        ; mtch_compiled:
+            forall (i:nat),
+              (i = hb)%nat ->
+              forall (cnti1: containsThread cstate1 i)
+                (cnti2: containsThread cstate2 i),
+              exists cd, ocd = Some cd /\
+                    match_thread_compiled cd j
+                                          (getThreadC cnti1)
+                                          (restrPermMap (proj1 (memcompat1 i cnti1)))
+                                          (getThreadC cnti2)
+                                          (restrPermMap (proj1 (memcompat2 i cnti2))) }.
     Arguments memcompat1 {ocd j cstate1 m1 cstate2 m2}. 
     Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
 
@@ -397,23 +391,23 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
       end.
 
     Lemma mem_compat_restrPermMap:
-        forall sem tpool m perms st (permMapLt: permMapLt perms (getMaxPerm m)),
-          (mem_compatible(Sem:=sem)(tpool:=tpool) st m) ->
-          (mem_compatible st (restrPermMap permMapLt)).
-      Proof.
-        intros.
-        inversion H.
-        econstructor.
-        - intros; unfold permissions.permMapLt.
-          split; intros;
-            erewrite getMax_restr; 
-            eapply compat_th0.
-        - intros; unfold permissions.permMapLt.
-          split; intros;
-            erewrite getMax_restr; 
-            eapply compat_lp0; eauto.
-        - intros. eapply restrPermMap_valid; eauto.
-      Qed.
+      forall sem tpool m perms st (permMapLt: permMapLt perms (getMaxPerm m)),
+        (mem_compatible(Sem:=sem)(tpool:=tpool) st m) ->
+        (mem_compatible st (restrPermMap permMapLt)).
+    Proof.
+      intros.
+      inversion H.
+      econstructor.
+      - intros; unfold permissions.permMapLt.
+        split; intros;
+          erewrite getMax_restr; 
+          eapply compat_th0.
+      - intros; unfold permissions.permMapLt.
+        split; intros;
+          erewrite getMax_restr; 
+          eapply compat_lp0; eauto.
+      - intros. eapply restrPermMap_valid; eauto.
+    Qed.
       
     Lemma concur_match_perm_restrict:
       forall cd j st1 m1 st2 m2,
@@ -427,9 +421,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
       (* Move this lemma to where mem_compatible is defined. *)
       
-
-      
-        
       assert (memcompat3': mem_compatible st1 (restrPermMap permMapLt1)) by
       (eapply mem_compat_restrPermMap; eauto).
       assert (memcompat4': mem_compatible st2 (restrPermMap permMapLt2)) by
@@ -1689,13 +1680,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                         (Htid1 : ThreadPool.containsThread st1 tid) (Htid2 : ThreadPool.containsThread st2 tid)
                         {A} (virtue1 : PTree.t (Z -> option A))
                         (* H0 : concur_match cd mu st1 m1 st2 m2 *)
-                        (*Hcmpt1: mem_compatible st1 m1*)(Hcmpt2: mem_compatible st2 m2),
-                        Mem.inject mu m1 (*restrPermMap (proj1 (Hcmpt1 tid Htid1))*)
+                        (Hcmpt1: mem_compatible st1 m1)(Hcmpt2: mem_compatible st2 m2),
+                        Mem.inject mu (restrPermMap (proj1 (Hcmpt1 tid Htid1)))
                                    (restrPermMap (proj1 (Hcmpt2 tid Htid2))) ->
                         bounded_maps.sub_map virtue1 (snd (getMaxPerm m1)) ->
                         bounded_maps.sub_map (tree_map_inject_over_mem m2 mu virtue1) (snd (getMaxPerm m2)).
                     Proof.
-                      intros ?? st1 m1 tid st2 mu m2 Htid1 Htid2 AT virtue1 (*Hcmpt1*) Hcmpt2 injmem A.
+(*                      intros ?? st1 m1 tid st2 mu m2 Htid1 Htid2 AT virtue1 Hcmpt1 Hcmpt2 injmem A.
 
                       replace  (snd (getMaxPerm m2)) with
                           (PTree.map (fun _ a => a)  (snd (getMaxPerm m2))) by eapply trivial_map.
@@ -1786,10 +1777,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                         eapply IHVelmts in HH; auto.
                         intros; eapply H0.
                         right; auto.
-                    Qed.
-
-                    (*                      
-                      intros ?? st1 m1 tid st2 mu m2 Htid1 Htid2 AT virtue1 (*Hcmpt1*) Hcmpt2 injmem A.
+                    Qed. *)
+                  
+                      intros ?? st1 m1 tid st2 mu m2 Htid1 Htid2 AT virtue1 Hcmpt1 Hcmpt2 injmem A.
 
                       replace  (snd (getMaxPerm m2)) with
                           (PTree.map (fun _ a => a)  (snd (getMaxPerm m2))) by eapply trivial_map.
@@ -1877,11 +1867,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                         eapply IHVelmts in HH; auto.
                         intros; eapply H0.
                         right; auto.
-                    Qed. *)
+                    Qed.
 
                     eapply inject_virtue_sub_map;
                       try eapply matchmem; eauto.
-                    
                     
                   - eapply inject_virtue_sub_map; eauto.
                     
@@ -2140,7 +2129,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
             (** *Diagram No. 2*)
 
-            (* The diagram looks like an execution of external step. *)
+            
+            (* The diagram looks like an execution of external step, 
+               where the memory changes but the state only becomes Kresume  *)
             
 
             (** *Diagram No. 3*)
@@ -2180,9 +2171,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   destruct virtueThread3 as (virtue1, virtue2).
                   cbv iota beta delta[fst] in *.
                   split.
-                -- eapply inject_virtue_sub_map.
-                   inversion H1.
-                admit.
+                -- (* eapply inject_virtue_sub_map.
+                   inversion H1. *)
+                   admit.
+                -- admit.
                 
               * (* bounded_maps.sub_map *)
                 admit.
