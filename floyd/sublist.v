@@ -410,25 +410,26 @@ Proof.
 intros. rewrite Zlength_correct. omega.
 Qed.
 
-(** START of tactics copied from val_lemmas.v *)
 Definition Zlength' := @Zlength.
 
-Ltac pose_Zlength_nonneg1 A :=
+Ltac pose_Zlength_nonneg1 T A :=
      lazymatch goal with
-      | H:  0 <= Zlength A |- _ => idtac
-      | H:  0 <= Zlength A /\ _ |- _ => idtac
-      | |- _ => pose proof (Zlength_nonneg A)
-     end;  change (Zlength A) with (Zlength' _ A) in *.
+      | H:  0 <= @Zlength T A |- _ => idtac
+      | H:  0 <= @Zlength T A /\ _ |- _ => idtac
+      | |- _ => pose proof (@Zlength_nonneg T A)
+     end;
+     (* the next three lines are to avoid blowups in the change command *)
+     let x := fresh "x" in set (x:= @Zlength T A) in *;
+     let y := fresh "y" in set (y := @Zlength) in x;
+     fold @Zlength' in y; subst y; subst x.
 
 Ltac pose_Zlength_nonneg :=
  repeat
   match goal with
-  | |- context [Zlength ?A] => pose_Zlength_nonneg1 A
-  | H: context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A
-(*   | H:= context [Zlength ?A] |- _ => pose_Zlength_nonneg1 A *)
+  | |- context [@Zlength ?T ?A] => pose_Zlength_nonneg1 T A
+  | H: context [@Zlength ?T ?A] |- _ => pose_Zlength_nonneg1 T A
  end;
   unfold Zlength' in *.
-(** END of tactics copied from val_lemmas.v *)
 
 Ltac list_solve := autorewrite with sublist; pose_Zlength_nonneg; omega.
 
