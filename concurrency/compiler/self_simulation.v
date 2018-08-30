@@ -5,12 +5,12 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Smallstep.
 
 
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.semantics.
-Require Import Smallstep.
 
 Set Bullet Behavior "Strict Subproofs".
 

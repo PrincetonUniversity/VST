@@ -84,9 +84,9 @@ ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-#ifeq ($(COMPCERT), compcert_new)
-#SHIM= -Q concurrency/shim VST.veric
-#endif
+ifeq ($(COMPCERT), compcert_new)
+SHIM= -Q concurrency/shim VST.veric
+endif
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 
