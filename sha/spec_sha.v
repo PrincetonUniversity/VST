@@ -200,7 +200,7 @@ Definition Gprog : funspecs :=
   SHA256_Update_spec:: SHA256_Final_spec::
   SHA256_spec:: nil.
 
-Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funspecs :=
+Fixpoint do_builtins (n: nat) (defs : list (ident * globdef Clight.fundef type)) : funspecs :=
  match n, defs with
   | S n', (id, Gfun (External (EF_builtin _ sig) argtys resty cc_default))::defs' =>
      (id, NDmk_funspec (iota_formals 1%positive argtys, resty) cc_default unit FF FF)

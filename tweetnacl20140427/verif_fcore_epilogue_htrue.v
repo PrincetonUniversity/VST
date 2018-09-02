@@ -750,6 +750,8 @@ Definition epilogue_htrue_statement:=
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                  tint)))).
 
+Opaque hPosLoop2. Opaque hPosLoop3.
+
 Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h (OUT: list val) xs ys data:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
@@ -775,7 +777,7 @@ forward_seq. apply HTrue_loop2.
 drop_LOCAL 0%nat. (*VST: deadvars fails*)
 thaw FR2. freeze [0;2;3] FR3.
 eapply semax_post_flipped'.  apply HTrue_loop3.
-Exists intsums. entailer!.
+Exists intsums. Time entailer!.
   intros j J.
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
   destruct X as [yj [Yi Sj]]. apply J.
