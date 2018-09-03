@@ -2434,6 +2434,7 @@ SearchAbout access_map delta_map.
         rewrite His_locked in mtch_locks.
         destruct (lockRes ds (b, Ptrofs.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
            destruct H as [l dlockRes].
+      simpl.
       econstructor 2.
       17: reflexivity.
       16: instantiate (2:= (virtue1, virtue2));

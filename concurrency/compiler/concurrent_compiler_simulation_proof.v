@@ -108,30 +108,31 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     Context (hb: nat).
     Definition SemTop: Semantics:= (HybridSem (Some hb)).
     Definition SemBot: Semantics:= (HybridSem (Some (S hb))).
-    
+
+    (* Call this match_thread *) 
     Inductive match_state2match_thread
               {sem1 sem2: Semantics}
-              (SState: @semC sem1 -> state_sum (@semC CSem) (@semC AsmSem))
-              (TState: @semC sem2 -> state_sum (@semC CSem) (@semC AsmSem))
+              (state_type1: @semC sem1 -> state_sum (@semC CSem) (@semC AsmSem))
+              (state_type2: @semC sem2 -> state_sum (@semC CSem) (@semC AsmSem))
               (match_state : meminj -> @semC sem1 -> mem -> @semC sem2 -> mem -> Prop) :
     meminj ->
     @ctl (@semC SemTop) -> mem ->
     @ctl (@semC SemBot) -> mem -> Prop  :=
   | CThread_Running: forall j code1 m1 code2 m2,
       match_state j code1 m1 code2 m2 ->
-      match_state2match_thread SState TState match_state j (Krun (SState code1)) m1
-                            (Krun (TState code2)) m2
+      match_state2match_thread state_type1 state_type2 match_state j (Krun (state_type1 code1)) m1
+                            (Krun (state_type2 code2)) m2
   | CThread_Blocked: forall j code1 m1 code2 m2,
       match_state j code1 m1 code2 m2 ->
-      match_state2match_thread SState TState match_state j (Kblocked (SState code1)) m1
-                            (Kblocked (TState code2)) m2
+      match_state2match_thread state_type1 state_type2 match_state j (Kblocked (state_type1 code1)) m1
+                            (Kblocked (state_type2 code2)) m2
   | CThread_Resume: forall j code1 m1 code2 m2 v v',
-      match_state2match_thread SState TState match_state j (Kresume (SState code1) v) m1
-                            (Kresume (TState code2) v') m2
+      match_state2match_thread state_type1 state_type2 match_state j (Kresume (state_type1 code1) v) m1
+                            (Kresume (state_type2 code2) v') m2
   | CThread_Init: forall j m1 m2 v1 v1' v2 v2',
       Val.inject j v1 v2 ->
       Val.inject j v1' v2' ->
-      match_state2match_thread SState TState match_state j (Kinit v1 v1') m1
+      match_state2match_thread state_type1 state_type2 match_state j (Kinit v1 v1') m1
                                (Kinit v1 v1') m2.
     
     Definition SST := SState (@semC CSem) (@semC AsmSem).
@@ -149,35 +150,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
       meminj -> @ctl (@semC SemTop) -> mem -> @ctl (@semC SemBot) -> mem -> Prop:=
       match_state2match_thread SST TST
                                (compiler_match_padded cd).
-
-    (* NOTE: Old version*)
-  (* Inductive match_thread_compiled:
-    compiler_index -> meminj ->
-    @ctl (@semC SemTop) -> mem ->
-    @ctl (@semC SemBot) -> mem -> Prop  :=
-  | CThread_Running': forall cd j code1 m1 code2 m2,
-      compiler_match cd j (Smallstep.set_mem code1 m1) (Smallstep.set_mem code2 m2) ->
-      match_thread_compiled cd j (Krun (SState _ _ code1)) m1
-                            (Krun (TState _ _ code2)) m2
-  | CThread_Blocked': forall cd j code1 m1 code2 m2,
-      compiler_match cd j (Smallstep.set_mem code1 m1) (Smallstep.set_mem code2 m2) ->
-      match_thread_compiled  cd j (Kblocked (SState _ _ code1)) m1
-                            (Kblocked (TState _ _ code2)) m2
-  | CThread_Resume': forall cd j code1 m1 code2 m2 v v',
-      (*Do I need to keep this two? Probanly not*)
-      (*semantics.at_external (CoreSem Sems) genvS code1 m1 = Some (f,ls1) ->
-      semantics.at_external (CoreSem Semt) genvT code2 m2 = Some (f',ls2) ->
-      Val.inject_list j ls1 ls2 ->
-      semantics.after_external (CoreSem Sems) genvS None code1 = Some code1' ->
-      semantics.after_external (CoreSem Semt) genvT None code2 = Some code2' -> *)
-      compiler_match cd j (Smallstep.set_mem code1 m1) (Smallstep.set_mem code2 m2) ->
-      match_thread_compiled cd j (Kresume (SState _ _ code1) v) m1
-                            (Kresume (TState _ _ code2) v') m2
-  | CThread_Init': forall cd j m1 m2 v1 v1' v2 v2',
-      Val.inject j v1 v2 ->
-      Val.inject j v1' v2' ->
-      match_thread_compiled cd j (Kinit v1 v1') m1
-                            (Kinit v2 v2') m2. *)
 
 
 
@@ -302,7 +274,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               forall ofs, lockRes cstate1 (b, intval ofs) = Some rmap ->
                      lockRes cstate2 (b', intval (add ofs (repr delt))) =
                      Some (virtueLP_inject m2 j rmap)
-        ; taret_invariant: invariant cstate2
+        ; target_invariant: invariant cstate2
         ; mtch_source:
             forall (i:nat),
               (i > hb)%nat ->
@@ -2061,26 +2033,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             rename H1 into Hcode'.
             
            
-            assert (FirstTheSourceExecution:= True).
             move H3 at bottom; move Hcode' at bottom.
             
             inversion H3. subst cd j s1 m0 s4 m5.
             clear H3.
-
-            (* Invert Clight_match *)
-            assert (HH:=H).
-            inversion H as (Clight_cinject & Clight_matchmem); clear H.
-
-            (*Destruct the values of the self simulation *)
-            pose proof (self_simulation.minject _ _ _ Clight_matchmem) as Hinj.
-            assert (Hinj':=Hinj).
-            pose proof (self_simulation.ssim_external _ _ Cself_simulation) as sim_atx.
-            eapply sim_atx in Hinj'; eauto.
-            2: { clean_cmpt.
-                 eauto.
-            }
-            clear sim_atx.
-            destruct Hinj' as (b1' & delt1 & Hinj_b1 & Hat_external1'); eauto.
 
 
             (* Rename things according to the diagram 
@@ -2125,13 +2081,49 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
             (** *Diagram No. 1*)
 
-            (*Fill in*)
+            
+            (* Invert Clight_match *)
+            assert (HH:=H).
+            inversion H as (Clight_cinject & Clight_matchmem); clear H.
+            
+            (*Destruct the values of the self simulation *)
+            pose proof (self_simulation.minject _ _ _ Clight_matchmem) as Hinj.
+            assert (Hinj':=Hinj).
+            pose proof (self_simulation.ssim_external _ _ Cself_simulation) as sim_atx.
+            eapply sim_atx in Hinj'; eauto.
+            clear sim_atx.
+            destruct Hinj' as (b1' & delt1 & Hinj_b1 & Hat_external1'); eauto.
 
+            
+            (* build virtueThread2 & virtueLP2 *)
+            remember (virtueThread_inject m2 mu virtueThread)  as virtueThread2.
+            remember (virtueLP_inject m2 mu virtueLP) as virtueLP2.
+
+            (* build m2' *)
+            eapply Mem.store_mapped_inject in Hstore; eauto.
+            2: {
+              (* This goal requires that the injection holds 
+                 even after the lock's Cur permission is set 
+                 to Writable (in both memories). 
+                 This is probably a simple general lemma, about
+                 changing Cur memories in two injected memories.
+               *)
+              admit.
+            }
+
+            destruct Hstore as (m2' & Hstore2 & Hinj2).
+
+            (* build st2' *)
+            (* TODO *)
+            evar (code2' : Smallstep.state (Clight.part_semantics2 Clight_g) ).
+            
             (** *Diagram No. 2*)
-
+            
             
             (* The diagram looks like an execution of external step, 
                where the memory changes but the state only becomes Kresume  *)
+            
+            
             
 
             (** *Diagram No. 3*)
