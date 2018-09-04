@@ -101,6 +101,44 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         compose_meminj (compose_meminj j1 j2) j3 = j ->
         compiler_match_padded cd j s1 m1 s4 m4.
 
+  (* When the compiling thread is at Kresume the match is different:
+     The memories have change according to the synchronization operation
+     but the thread state has not resumed (taken the external step, according
+     to the CompCert semantics). So, when the state is at Kresume the match
+     states that there will be a match, when the states change:
+     "When the source thread steps, the target thread will be able to step 
+     and reestablish the match"
+     This is also padded above and bellow as in compiler_match_padded.
+   *)
+  
+  Inductive compiler_match_resume:
+    compiler_index -> meminj ->
+    Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)) ->
+    mem -> Smallstep.state (Asm.part_semantics Asm_g) -> mem -> Prop
+    :=
+    | BuildCompilerResumeMatch: forall cd j s2 m2 s3 m3,
+        (forall s2', Smallstep.after_external
+           (Smallstep.part_sem (Clight.semantics2 C_program))
+           None s2 m2 = Some s2' ->
+         exists s3',
+           (Smallstep.after_external
+              (Asm.part_semantics Asm_g)
+              None s3 m3 = Some s3') /\
+           compiler_match cd j s2' (Smallstep.get_mem s2') s3' (Smallstep.get_mem s3')) ->
+        compiler_match_resume  cd j s2 m2 s3 m3.
+    
+  Inductive compiler_match_resume_padded:
+    compiler_index -> meminj -> Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)) ->
+    mem -> Smallstep.state (Asm.part_semantics Asm_g) -> mem -> Prop
+    :=
+    | BuildCompilerResumeMatchPadded:
+        forall cd j1 j2 j3 j s1 m1 s2 m2 s3 m3 s4 m4,
+        Clight_match j1 s1 m1 s2 m2 ->
+        compiler_match_resume cd j2 s2 m2 s3 m3 ->
+        Asm_match j3 s3 m3 s4 m4 ->
+        compose_meminj (compose_meminj j1 j2) j3 = j ->
+        compiler_match_resume_padded cd j s1 m1 s4 m4.
+
   
   Section CompileOneThread.
     Import OrdinalPool.
@@ -110,7 +148,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     Definition SemBot: Semantics:= (HybridSem (Some (S hb))).
 
     (* Call this match_thread *) 
-    Inductive match_state2match_thread
+    Inductive match_thread
               {sem1 sem2: Semantics}
               (state_type1: @semC sem1 -> state_sum (@semC CSem) (@semC AsmSem))
               (state_type2: @semC sem2 -> state_sum (@semC CSem) (@semC AsmSem))
@@ -120,19 +158,47 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     @ctl (@semC SemBot) -> mem -> Prop  :=
   | CThread_Running: forall j code1 m1 code2 m2,
       match_state j code1 m1 code2 m2 ->
-      match_state2match_thread state_type1 state_type2 match_state j (Krun (state_type1 code1)) m1
+      match_thread state_type1 state_type2 match_state j (Krun (state_type1 code1)) m1
                             (Krun (state_type2 code2)) m2
   | CThread_Blocked: forall j code1 m1 code2 m2,
       match_state j code1 m1 code2 m2 ->
-      match_state2match_thread state_type1 state_type2 match_state j (Kblocked (state_type1 code1)) m1
+      match_thread state_type1 state_type2 match_state j (Kblocked (state_type1 code1)) m1
                             (Kblocked (state_type2 code2)) m2
   | CThread_Resume: forall j code1 m1 code2 m2 v v',
-      match_state2match_thread state_type1 state_type2 match_state j (Kresume (state_type1 code1) v) m1
+      match_thread state_type1 state_type2 match_state j (Kresume (state_type1 code1) v) m1
                             (Kresume (state_type2 code2) v') m2
   | CThread_Init: forall j m1 m2 v1 v1' v2 v2',
       Val.inject j v1 v2 ->
       Val.inject j v1' v2' ->
-      match_state2match_thread state_type1 state_type2 match_state j (Kinit v1 v1') m1
+      match_thread state_type1 state_type2 match_state j (Kinit v1 v1') m1
+                               (Kinit v1 v1') m2.
+
+        (* Call this match_thread *) 
+    Inductive match_thread_compiled'
+              {sem1 sem2: Semantics}
+              (state_type1: @semC sem1 -> state_sum (@semC CSem) (@semC AsmSem))
+              (state_type2: @semC sem2 -> state_sum (@semC CSem) (@semC AsmSem))
+              (match_state : meminj -> @semC sem1 -> mem -> @semC sem2 -> mem -> Prop)
+              (match_state_resume : meminj -> @semC sem1 -> mem -> @semC sem2 -> mem -> Prop) :
+    meminj ->
+    @ctl (@semC SemTop) -> mem ->
+    @ctl (@semC SemBot) -> mem -> Prop  :=
+  | CThread_Compiled_Running: forall j code1 m1 code2 m2,
+      match_state j code1 m1 code2 m2 ->
+      match_thread_compiled' state_type1 state_type2 match_state match_state_resume  j (Krun (state_type1 code1)) m1
+                            (Krun (state_type2 code2)) m2
+  | CThread_Compiled_Blocked: forall j code1 m1 code2 m2,
+      match_state j code1 m1 code2 m2 ->
+      match_thread_compiled' state_type1 state_type2 match_state  match_state_resume j (Kblocked (state_type1 code1)) m1
+                            (Kblocked (state_type2 code2)) m2
+  | CThread_Compiled_Resume: forall j code1 m1 code2 m2 v v',
+      match_state_resume j code1 m1 code2 m2 ->
+      match_thread_compiled' state_type1 state_type2 match_state  match_state_resume j (Kresume (state_type1 code1) v) m1
+                            (Kresume (state_type2 code2) v') m2
+  | CThread_Compiled_Init: forall j m1 m2 v1 v1' v2 v2',
+      Val.inject j v1 v2 ->
+      Val.inject j v1' v2' ->
+      match_thread_compiled' state_type1 state_type2 match_state  match_state_resume j (Kinit v1 v1') m1
                                (Kinit v1 v1') m2.
     
     Definition SST := SState (@semC CSem) (@semC AsmSem).
@@ -140,18 +206,16 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     
     Definition match_thread_source:
       meminj -> @ctl (@semC SemTop) -> mem -> @ctl (@semC SemBot) -> mem -> Prop:=
-      match_state2match_thread SST SST
+      match_thread SST SST
                                Clight_match.
     Definition match_thread_target:
       meminj -> @ctl (@semC SemTop) -> mem -> @ctl (@semC SemBot) -> mem -> Prop:=
-      match_state2match_thread TST TST
+      match_thread TST TST
                                Asm_match.
     Definition match_thread_compiled cd:
       meminj -> @ctl (@semC SemTop) -> mem -> @ctl (@semC SemBot) -> mem -> Prop:=
-      match_state2match_thread SST TST
-                               (compiler_match_padded cd).
-
-
+      match_thread_compiled' SST TST
+                               (compiler_match_padded cd) (compiler_match_resume_padded cd).
 
     
     Definition merge_func {A} (f1 f2:Z -> option A):
@@ -665,9 +729,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     
     Ltac exploit_match:=
       unfold match_thread_target,match_thread_source,match_thread_compiled in *;
+      try match goal with
+          | [ H: ThreadPool.getThreadC ?i = _ ?c |- _] => simpl in H
+          end;
       match goal with
       | [ H: getThreadC ?i = _ ?c,
-             H0: context[match_state2match_thread] |- _ ] =>
+             H0: context[match_thread] |- _ ] =>
+        rewrite H in H0; inversion H0; subst; simpl in *; clear H0
+      | [ H: getThreadC ?i = _ ?c,
+             H0: context[match_thread_compiled'] |- _ ] =>
         rewrite H in H0; inversion H0; subst; simpl in *; clear H0
       end;
       fold match_thread_target in *;
@@ -845,7 +915,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         pose proof (mtch_compiled _ _ _ _ _ _ H0 _ e Htid (contains12 H0 Htid)) as HH.
         destruct HH as (cd0 & H1 & ?).
         subst.
-        simpl in *; exploit_match. 
+        simpl in *; exploit_match.
+
         
         (* This takes three steps:
            - Simulation of the Clight semantics  
@@ -2112,7 +2183,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             }
 
             destruct Hstore as (m2' & Hstore2 & Hinj2).
-
             (* build st2' *)
             (* TODO *)
             evar (code2' : Smallstep.state (Clight.part_semantics2 Clight_g) ).
@@ -2512,7 +2582,86 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                                          (HybridMachineSig.yield(Scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
                                                                 U) tr2 st2' m2'.
     Proof.
-      admit.  (* Easy since there is no changes to memory. *)
+      intros.
+
+      assert (Hcnt2: containsThread st2 tid).
+      { eapply contains12; eauto. }
+      
+      (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
+      destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[?|?]|?].
+      - (* tid < hb *)
+        admit.
+        
+      - (* tid = hb *)
+        subst. inversion H2; subst.
+        inversion H. simpl in *.
+        clean_cnt.
+        destruct (mtch_compiled0 hb ltac:(reflexivity) Htid Hcnt2) as
+            (cd0 & Hcd0 & MTCH_thread_compiled).
+        rewrite Hcode in MTCH_thread_compiled.
+        inversion MTCH_thread_compiled; subst.
+        inversion H9. subst cd0 j s1 s4.
+
+        rename code2 into code4.
+        rename s2 into code2.
+        rename s3 into code3.
+        
+        inversion H4. subst cd0 j s2 m5 s3 m6.
+        move Hafter_external at bottom. simpl in *.
+        unfold state_sum_options in Hafter_external.
+        destruct (Clight.after_external None code1 m') eqn:Hafter_external1;
+          inversion Hafter_external; subst.
+
+        (* Prove of the Diagram No.1 *)
+        assert (Hafter_external2: exists j1' code2',
+                   Clight.after_external None code2 m0 = Some code2' /\
+                   Clight_match j1' code1 m' code2
+                                (@Smallstep.get_mem (Smallstep.part_sem (Clight.semantics2 C_program)) code2') ).
+        {
+          clear - Hafter_external1 H3.
+          (* This should be proven about Clight OR in self_simulation
+             just like ssim_external *)
+         
+          admit.
+        }
+
+        destruct Hafter_external2 as (j1' & code2' & Hafter_external2 & Cmatch').
+        eapply H7 in Hafter_external2. clear H7.
+        destruct Hafter_external2 as (code3' & Hafter_external3 & compiler_match).
+
+        (* Prove of the Diagram No.3 *)
+        assert (Hafter_external4: exists j3' (code4': Smallstep.state (Asm.part_semantics Asm_g)),
+                   Asm.after_external Asm_g  None code4 m0 = Some code4' /\
+                   Asm_match j3' code3 m' code3
+                                (@Smallstep.get_mem (Asm.part_semantics Asm_g) code4') ).
+        {
+          clear - Hafter_external1 H3.
+          (* This should be proven about Clight OR in self_simulation
+             just like ssim_external *)
+         
+          admit.
+        }
+
+        destruct Hafter_external4 as (j3' & code4' & Hafter_external4 & Amatch').
+        
+        remember 
+        (updThread Hcnt2 (Krun (TState Clight.state Asm.state code4'))
+                   (getCurPerm (Smallstep.get_mem code4'), snd (getThreadR Htid))) as st2'.
+
+        exists st2', m2, (Some cd), (compose_meminj (compose_meminj j1' j2) j3'). 
+        split; [|split].
+        + admit. (* Reestablish the concur_match *)
+        + admit. (* Inject of traces *)
+        + (* Step *)
+          assert (HH: U = (HybridMachineSig.yield(Scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler) U))
+           by reflexivity.
+          rewrite HH at 2.
+          eapply HybridMachineSig.resume_step'; eauto.
+          admit.
+          (* econstructor; eauto. *)
+
+      - (* hb < tid *)
+        admit.
     Admitted.
 
     
