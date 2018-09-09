@@ -291,6 +291,30 @@ Proof.
   normalize in H0.
 Qed.
 
+Lemma obox_sepcon: forall Delta i P Q,
+  obox Delta i P * obox Delta i Q |-- obox Delta i (P * Q).
+Proof.
+  intros.
+  unfold obox.
+  apply allp_right.
+  intros v.
+  apply wand_sepcon_adjoint.
+  apply (allp_left _ v).
+  apply wand_sepcon_adjoint.
+  rewrite sepcon_comm.
+  apply wand_sepcon_adjoint.
+  apply (allp_left _ v).
+  apply wand_sepcon_adjoint.
+  rewrite sepcon_comm.
+  destruct ((temp_types Delta) ! i); [| apply TT_right].
+  apply imp_andp_adjoint.
+  normalize.
+  unfold TT.
+  rewrite !prop_imp by auto.
+  rewrite subst_sepcon.
+  auto.
+Qed.
+  
 Definition oboxopt Delta ret P :=
   match ret with
   | Some id => obox Delta id P
@@ -314,6 +338,34 @@ Proof.
   intros.
   destruct id; [| auto].
   apply subst_obox.
+Qed.
+
+Lemma oboxopt_closed: forall Delta i P,
+  temp_guard_opt Delta i ->
+  closed_wrt_vars (fun id => isSome (match i with Some i' => insert_idset i' idset0 | None => idset0 end) ! id) P ->
+  oboxopt Delta i P = P.
+Proof.
+  intros.
+  destruct i.
+  + simpl in H0 |- *.
+    apply obox_closed; auto.
+    replace (eq i) with ((fun id : ident => isSome (insert_idset i idset0) ! id)); auto.
+    extensionality id.
+    unfold insert_idset.
+    destruct (ident_eq id i).
+    - subst.
+      rewrite PTree.gss.
+      simpl.
+      apply prop_ext.
+      tauto.
+    - rewrite PTree.gso by auto.
+      unfold idset0.
+      rewrite PTree.gempty.
+      simpl.
+      assert (i <> id) by congruence.
+      apply prop_ext.
+      tauto.
+  + auto.
 Qed.
 
 Lemma oboxopt_T: forall Delta i (P: environ -> mpred),
@@ -366,6 +418,15 @@ Proof.
   intros.
   destruct i; [apply obox_left2; auto |].
   auto.
+Qed.
+
+Lemma oboxopt_sepcon: forall Delta i P Q,
+  oboxopt Delta i P * oboxopt Delta i Q |-- oboxopt Delta i (P * Q).
+Proof.
+  intros.
+  destruct i.
+  + apply obox_sepcon.
+  + apply derives_refl.
 Qed.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.

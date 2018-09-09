@@ -414,6 +414,14 @@ Proof.
     apply derives_bupd0_bupd0_left, H1.
 Qed.
 
+Lemma tc_fn_return_temp_guard_opt: forall ret retsig Delta,
+  tc_fn_return Delta ret retsig ->
+  temp_guard_opt Delta ret.
+Proof.
+  intros.
+  destruct ret; hnf in H |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+Qed.
+
 Lemma oboxopt_ENTAIL: forall Delta ret retsig P Q,
   tc_fn_return Delta ret retsig ->
   local (tc_environ Delta) && P |-- Q ->
@@ -421,7 +429,7 @@ Lemma oboxopt_ENTAIL: forall Delta ret retsig P Q,
 Proof.
   intros.
   apply oboxopt_left2; auto.
-  destruct ret; hnf in H |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+  eapply tc_fn_return_temp_guard_opt; eauto.
 Qed.
 
 Lemma semax_call_inv: forall {CS: compspecs} {Espec: OracleKind} Delta ret a bl Pre Post,
@@ -1128,6 +1136,23 @@ Proof.
         rewrite <- later_sepcon.
         apply later_derives.
         rewrite sepcon_assoc; apply sepcon_derives; auto.
+
+        destruct H0 as [? [? ?]].
+        rewrite <- (oboxopt_closed Delta ret F) at 1 by (try eapply tc_fn_return_temp_guard_opt; eauto).
+        ; auto.
+        SearchAbout tc_fn_return.
+Locate         obox_closed.        unfold closed_wrt_modvars, modifiedvars in H.
+        simpl in H.
+        SearchAbout oboxopt.
+        SearchAbout obox.
+
+
+        obox_closed:
+  forall (Delta : tycontext) (i : ident) (P : environ -> mpred),
+  temp_guard Delta i -> closed_wrt_vars (eq i) P -> obox Delta i P = P
+        Print obox.
+        unfold oboxopt.
+  + 
 Abort.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
