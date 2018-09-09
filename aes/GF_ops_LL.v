@@ -1,6 +1,6 @@
 Require Import ZArith.
 Local Open Scope Z_scope.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 
 Fixpoint repeat_op_nat{T: Type}(n: nat)(start: T)(op: T -> T): T := match n with
 | O => start

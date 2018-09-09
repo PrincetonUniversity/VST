@@ -14,7 +14,7 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
    | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-             if Int.eq n Int.zero then Some false else None
+             if Archi.ptr64 then None else if Int.eq n Int.zero then Some false else None
    | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
             if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
    | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
@@ -183,6 +183,9 @@ match ty with
 | _ => false
 end.
 
+Definition is_ptrofs_type :=
+ if Archi.ptr64 then is_long_type else is_int32_type.
+
 Definition is_float_type ty :=
 match ty with
 | Tfloat F64 _ => true
@@ -255,7 +258,7 @@ Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
 Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
-  | Vlong i => if Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | Vlong i => if Int64.eq i Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
@@ -436,7 +439,7 @@ match op with
                     end
 end.
 
-Definition intptr_t := if Archi.ptr64 then Tlong Unsigned noattr else Tint I32 Unsigned noattr.
+Definition size_t := if Archi.ptr64 then tulong else tuint.
 
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -480,11 +483,11 @@ match op with
                               (tc_isptr a2))
                                (tc_int_or_ptr_type (typeof a1)))
                                (tc_int_or_ptr_type (typeof a2)))
-                               (tc_bool (is_int32_type ty) reterr))
+                               (tc_bool (is_ptrofs_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                   (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                   (tc_bool (Z.leb (sizeof t) Ptrofs.max_signed)
                                           (pp_compare_size_exceed t))
                     | Cop.sub_default => tc_andp 
                                     (binarithType (typeof a1) (typeof a2) ty deferr reterr)
@@ -550,16 +553,16 @@ match op with
                        (check_pp_int a1 a2 op ty e)
               | Cop.cmp_case_pi si =>
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+                       (check_pp_int a1 (Ecast a2 size_t) op ty e)
               | Cop.cmp_case_ip si => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
+                    (check_pp_int (Ecast a1 size_t) a2 op ty e)
               | Cop.cmp_case_pl => 
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+                       (check_pp_int a1 (Ecast a2 size_t) op ty e)
               | Cop.cmp_case_lp => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
+                    (check_pp_int (Ecast a1 size_t) a2 op ty e)
               end
   end.
 
@@ -716,9 +719,9 @@ end.
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
 | (Tarray _ _ _ | Tfunction _ _ _),
-   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-     eqb (eqb_type t1 int_or_ptr_type)
-         (eqb_type t2 int_or_ptr_type)
+   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) =>
+     Bool.eqb (eqb_type t1 int_or_ptr_type)
+              (eqb_type t2 int_or_ptr_type)
 | (Tstruct _ _ | Tunion _ _), (Tstruct _ _ | Tunion _ _ ) => true
 | _, _ => false
 end.
@@ -783,9 +786,9 @@ match e with
                   | _ => tc_FF (deref_byvalue ty)
                   end
  | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
+                     (tc_bool (eqb_type t size_t) (invalid_expression e))
  | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
+                     (tc_bool (eqb_type t size_t) (invalid_expression e))
  | _ => tc_FF (invalid_expression e)
 end
 

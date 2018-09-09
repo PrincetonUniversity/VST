@@ -9,6 +9,7 @@ Require Import fcf.PRF.
 Require Import hmacfcf.splitVector.
 Require Import hmacfcf.cAU.
 Require Import fcf.CompFold.
+Require Import fcf.DetSem fcf.SemEquiv.
 
 Local Open Scope list_scope.
 
@@ -67,9 +68,6 @@ Section hF.
     comp_simp.
     reflexivity.
   Qed.
-
-  Require Import fcf.DetSem fcf.SemEquiv.
-
 
   Theorem G0_1_G0_equiv :
     Pr[G0_1] == Pr[G0].
@@ -179,8 +177,7 @@ Section hF.
     inline_first.
     simpl.
     eapply comp_spec_eq_trans_r.
-    Focus 2.
-    eapply comp_spec_right_ident.
+    2: eapply comp_spec_right_ident.
     comp_skip.
     apply (oneVector c).
     apply (oneVector c).
@@ -295,18 +292,6 @@ Section hF.
     [b, _] <-$2 A _ _ (F_randomFunc k_in) nil;
     ret b.
 
-  Theorem G2_1_2_equiv :
-    Pr[G2_1] == Pr[G2_2].
-
-    unfold G2_1, G2_2.
-    comp_skip.
-    eapply comp_spec_eq_impl_eq.
-    comp_skip.
-    eapply (@oc_comp_spec_eq _ _ _ _ _ _ _ _ _ _ _ _ _ _ (fun a b => list_pred (fun c d =>  fst c = (snd (fst d)) /\ snd c = snd d) a b)).
-    econstructor.
-    intuition.
-    unfold randomFunc_mem, F_randomFunc.
-
     Theorem arrayLookup_f_equiv :
       forall (A B C : Set) (eqdb : EqDec B) (x1 : list (B * C)) (x2 : list (A * B * C)) (a : B),
       list_pred
@@ -325,6 +310,18 @@ Section hF.
       destruct (eqb a0 b0 ); intuition.
 
     Qed.
+
+  Theorem G2_1_2_equiv :
+    Pr[G2_1] == Pr[G2_2].
+
+    unfold G2_1, G2_2.
+    comp_skip.
+    eapply comp_spec_eq_impl_eq.
+    comp_skip.
+    eapply (@oc_comp_spec_eq _ _ _ _ _ _ _ _ _ _ _ _ _ _ (fun a b => list_pred (fun c d =>  fst c = (snd (fst d)) /\ snd c = snd d) a b)).
+    econstructor.
+    intuition.
+    unfold randomFunc_mem, F_randomFunc.
 
     erewrite arrayLookup_f_equiv ; eauto.
     destruct (arrayLookup_f (Bvector_EqDec b) x2 (F x a) ); intuition.
@@ -1018,62 +1015,6 @@ Section hF.
 
   Qed.
 
-  Theorem G2_3_bad_equiv :
-    Pr[x <-$ G2_3; ret (snd x)] == Pr[G2_3_bad].
-
-    unfold G2_3, G2_3_bad.
-    inline_first.
-    comp_skip.
-    unfold au_F_A.
-    simpl.
-    inline_first.
-    eapply comp_spec_eq_impl_eq.
-    comp_skip.
-
-    eapply (@oc_comp_spec_eq _ _ _ _ _ _ _ _ _ _ _ _ _ _ (fun a b => a = fst b)).
-    trivial.
-    intuition.
-    subst.
-    unfold F_randomFunc, WCR_Oracle.
-    inline_first.
-    comp_simp.
-    case_eq (arrayLookup_f (Bvector_EqDec b) (fst x2) (F x a)); intuition.
-    simpl.
-    inline_first.
-    comp_simp.
-    simpl.
-    eapply comp_spec_ret; intuition.
-
-    simpl.
-    inline_first.
-    comp_skip.
-    apply (oneVector c).
-    apply (oneVector c).
-    comp_simp.
-    inline_first.
-    comp_simp.
-    simpl.
-    eapply comp_spec_ret; intuition.
-
-    simpl in *.
-    intuition; subst.
-    comp_simp.
-    simpl.
-    inline_first.
-    unfold funcCollision.
-    case_eq (findCollision (list_EqDec (Bvector_EqDec b))
-                (Bvector_EqDec b) (fst (split (fst (snd b1))))); intuition.
-    destruct p.
-    destruct p.
-    simpl.
-    comp_simp.
-    eapply comp_spec_ret; intuition.
-
-    destruct b1.
-    simpl in *.
-    destruct p.
-    simpl in *.
-
     Theorem findCollision_1_correct :
       forall (A B : Set) eqd1 eqd2 (ls : list (A * B)) (x1 x2 : A) y,
       findCollision_1 eqd1 eqd2 ls x1 y =
@@ -1139,6 +1080,62 @@ Section hF.
       eapply IHls in H.
       intuition.
     Qed.
+
+  Theorem G2_3_bad_equiv :
+    Pr[x <-$ G2_3; ret (snd x)] == Pr[G2_3_bad].
+
+    unfold G2_3, G2_3_bad.
+    inline_first.
+    comp_skip.
+    unfold au_F_A.
+    simpl.
+    inline_first.
+    eapply comp_spec_eq_impl_eq.
+    comp_skip.
+
+    eapply (@oc_comp_spec_eq _ _ _ _ _ _ _ _ _ _ _ _ _ _ (fun a b => a = fst b)).
+    trivial.
+    intuition.
+    subst.
+    unfold F_randomFunc, WCR_Oracle.
+    inline_first.
+    comp_simp.
+    case_eq (arrayLookup_f (Bvector_EqDec b) (fst x2) (F x a)); intuition.
+    simpl.
+    inline_first.
+    comp_simp.
+    simpl.
+    eapply comp_spec_ret; intuition.
+
+    simpl.
+    inline_first.
+    comp_skip.
+    apply (oneVector c).
+    apply (oneVector c).
+    comp_simp.
+    inline_first.
+    comp_simp.
+    simpl.
+    eapply comp_spec_ret; intuition.
+
+    simpl in *.
+    intuition; subst.
+    comp_simp.
+    simpl.
+    inline_first.
+    unfold funcCollision.
+    case_eq (findCollision (list_EqDec (Bvector_EqDec b))
+                (Bvector_EqDec b) (fst (split (fst (snd b1))))); intuition.
+    destruct p.
+    destruct p.
+    simpl.
+    comp_simp.
+    eapply comp_spec_ret; intuition.
+
+    destruct b1.
+    simpl in *.
+    destruct p.
+    simpl in *.
 
     apply findCollision_correct in H2.
     intuition.

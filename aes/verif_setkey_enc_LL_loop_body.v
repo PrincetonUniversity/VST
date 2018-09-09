@@ -613,6 +613,13 @@ clearbody Delta_specs.
     assert (Zlength RCON = 10) by reflexivity.
     pose proof masked_byte_range.
 
+  assert (H2': forall i, 0 <= Int.unsigned (Int.and i (Int.repr 255)) < 256). {
+    clear.  intros. rewrite Int.and_commut.
+    pose proof (Int.and_le (Int.repr 255) i).
+    rewrite Int.unsigned_repr in H by computable. 
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+  }
+
     Arguments Z.land _ _ : simpl never.
     set (ROT := repeat_op_table (60 - i * 8) Vundef id) in *.
     RK_load.

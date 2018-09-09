@@ -57,8 +57,9 @@ Definition object_mpred (history: list Z) (self: val) : mpred :=
      instance history self).
 
 Definition foo_invariant : object_invariant :=
-  (fun (history: list Z) p => field_at Tsh (Tstruct _foo_object noattr) 
-            [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history))) p
+  (fun (history: list Z) p =>
+    withspacer Tsh (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Tsh (Tstruct _foo_object noattr) 
+            [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history)))) p
       *  malloc_token Tsh (Tstruct _foo_object noattr) p).
 
 Definition foo_reset_spec :=
@@ -91,16 +92,17 @@ Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
 unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
-simpl.
-Intros.
+unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
 forward.  (* return; *)
+all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.
 
 Lemma body_foo_twiddle: semax_body Vprog Gprog f_foo_twiddle foo_twiddle_spec.
 Proof.
 unfold foo_twiddle_spec, foo_invariant, twiddle_spec.
 start_function.
+unfold withspacer; simpl.
 Intros.
 forward.  (* d = self->data; *)
 forward.  (* self -> data = d+2*i; *) 
@@ -113,6 +115,7 @@ forward.  (* return d+i; *)
  entailer!.
 Exists (2 * fold_right Z.add 0 history + i).
 rewrite Z.mul_add_distr_l, Z.add_comm.
+unfold withspacer; simpl.
 entailer!.
 Qed.
 
@@ -175,10 +178,11 @@ entailer!.
 simpl.
 unfold_field_at 1%nat.
 cancel.
+unfold withspacer; simpl.
 rewrite !field_at_data_at.
 simpl.
 apply derives_refl'.
-f_equal.
+rewrite <- ?sepcon_assoc. (* needed if Archi.ptr64=true *)
 rewrite !field_compatible_field_address; auto with field_compatible.
 clear - H.
 (* TODO: simplify the following proof. *)
@@ -194,11 +198,11 @@ inv H. inv H0.
 eapply align_compatible_rec_by_value.
 reflexivity.
 rewrite Z.add_0_r.
-unfold natural_alignment in AL.
-destruct AL as [x ?]. exists (2*x)%Z.
-rewrite H.
 simpl.
-omega.
+unfold natural_alignment in AL.
+eapply Z.divide_trans; [ | apply AL].
+apply prove_Zdivide.
+reflexivity.
 left; auto.
 Qed.
 

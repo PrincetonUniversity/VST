@@ -1,5 +1,4 @@
 Require Import VST.floyd.proofauto.
-Require Import Coqlib.
 Require Import Recdef.
 Existing Instance NullExtension.Espec.
 Require Import VST.progs.switch.

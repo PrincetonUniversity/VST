@@ -602,7 +602,7 @@ Proof.
 (*  eapply REST with (s0:=s0)(contents':=contents'); trivial.*)
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
   eapply semax_pre_post.
-  Focus 6. 
+  6:{ 
     eapply (@reseed_REST Espec contents additional add_len ctx md_ctx'
               V' reseed_counter' entropy_len' prediction_resistance' reseed_interval' key V
               reseed_counter entropy_len prediction_resistance reseed_interval gv Info s seed
@@ -610,7 +610,7 @@ Proof.
     subst contents'; try omega.
     subst contents'; trivial.
     solve [eassumption].
-
+  }
   solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ].
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.

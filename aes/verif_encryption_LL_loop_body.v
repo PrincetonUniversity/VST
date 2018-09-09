@@ -231,6 +231,12 @@ Proof.
   unfold encryption_loop_body.
   abbreviate_semax.
   pose proof masked_byte_range.
+  assert (H2': forall i, 0 <= Int.unsigned (Int.and i (Int.repr 255)) < 256). {
+    clear.  intros. rewrite Int.and_commut.
+    pose proof (Int.and_le (Int.repr 255) i).
+    rewrite Int.unsigned_repr in H by computable. 
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+  }
 
   do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
   do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
@@ -255,6 +261,10 @@ Proof.
   {
     subst S'.
     rewrite (split_four_ints (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)).
+    simpl. unfold mbed_tls_fround_col, byte0, byte1, byte2, byte3, Int.and. simpl.
+    rewrite !Int.unsigned_repr by computable.
+    rewrite !Int.unsigned_repr by
+     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_omega end.
     reflexivity.
   }
   apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
@@ -284,6 +294,10 @@ Proof.
   {
     subst S''.
     rewrite (split_four_ints S').
+    simpl. unfold mbed_tls_fround_col, byte0, byte1, byte2, byte3, Int.and. simpl.
+    rewrite !Int.unsigned_repr by computable.
+    rewrite !Int.unsigned_repr by
+     match goal with |- context [Z.land ?A] => clear - H2; specialize (H2 A); rep_omega end.
     reflexivity.
   }
   apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].

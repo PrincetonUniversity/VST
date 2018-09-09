@@ -87,7 +87,7 @@ Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
 end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
-  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  !! (sizeof (snd idt) <= Ptrofs.max_unsigned) &&
   (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}

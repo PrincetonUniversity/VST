@@ -777,129 +777,57 @@ Proof.
       destruct w; try discriminate. clear Heqv.
       destruct (Val.eq v v); try discriminate.
       destruct q; try discriminate. simpl in *.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e e0 e2.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate. simpl in LD.
-      destruct v; try discriminate. inv LD. eexists; eexists; reflexivity.
+      destruct Archi.ptr64 eqn:Hp; try discriminate LD.
+      repeat (
+        rewrite proj_sumbool_is_true in LD by auto;
+        simpl in LD;
+        repeat (destruct n; simpl in LD; try discriminate; [idtac]);
+        match type of LD with context [ZMap.get ?X _ !! _] =>
+          destruct (ZMap.get X (Mem.mem_contents m) !! b); try discriminate LD; [idtac]
+        end;
+        destruct (Val.eq v v0); try discriminate LD; subst v0;
+        destruct q; simpl in LD; try discriminate; [idtac]).
+        rewrite proj_sumbool_is_true in LD by auto.
+       simpl in LD.
+       destruct n; simpl in LD; try discriminate; [idtac].
+       destruct v; inv LD. eauto.
     - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
       remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w.
       destruct w; try discriminate. clear Heqv.
       destruct (Val.eq v v); try discriminate.
       destruct q; try discriminate. simpl in *.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e e0 e2.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate. simpl in LD.
-      destruct v; try discriminate. inv LD. eexists; eexists; reflexivity.
+      repeat (
+        rewrite proj_sumbool_is_true in LD by auto;
+        simpl in LD;
+        repeat (destruct n; simpl in LD; try discriminate; [idtac]);
+        match type of LD with context [ZMap.get ?X _ !! _] =>
+          destruct (ZMap.get X (Mem.mem_contents m) !! b); try discriminate LD; [idtac]
+        end;
+        destruct (Val.eq v v0); try discriminate LD; subst v0;
+        destruct q; simpl in LD; try discriminate; [idtac]).
+        rewrite proj_sumbool_is_true in LD by auto.
+       simpl in LD.
+       destruct n; simpl in LD; try discriminate; [idtac].
+       destruct v; inv LD;
+      destruct Archi.ptr64 eqn:Hp; try discriminate LD; eauto.
     - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
       remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w.
       destruct w; try discriminate. clear Heqv.
-      destruct (Val.eq v v); try discriminate.
-      destruct q; try discriminate. simpl in *.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e e0 e2.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.  simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.  simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.  simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 + 1+1+1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate.
-      destruct n; try discriminate. simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 +1 +1 +1 + 1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate.
-      destruct n; try discriminate.  simpl in LD.
-      destruct (ZMap.get (ofs + 1 + 1 +1 +1 +1 + 1+1) (Mem.mem_contents m) !! b); try discriminate.
-      destruct (Val.eq v v0); try discriminate.
-      destruct q; try discriminate.
-      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
-      destruct n; try discriminate. simpl in LD. subst v. eexists; eexists; reflexivity.
+        rewrite ?proj_sumbool_is_true in LD by auto.
+        destruct q; simpl in LD; try discriminate; [idtac].
+        simpl in LD.
+      repeat (
+        rewrite ?proj_sumbool_is_true in LD by auto;
+        simpl in LD;
+        repeat (destruct n; simpl in LD; try discriminate; [idtac]);
+        match type of LD with context [ZMap.get ?X _ !! _] =>
+          destruct (ZMap.get X (Mem.mem_contents m) !! b); try discriminate LD; [idtac]
+        end;
+        destruct (Val.eq v v0); try discriminate LD; subst v0;
+        destruct q; simpl in LD; try discriminate; [idtac]).
+        rewrite proj_sumbool_is_true in LD by auto.
+       destruct n; simpl in LD; try discriminate; [idtac].
+       destruct v; inv LD. eauto.
 Qed.
 
 (******** Compatibility of memory operation with [mem_forward] ********)

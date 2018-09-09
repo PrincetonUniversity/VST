@@ -1702,7 +1702,8 @@ Proof.
   intros. eexists; repeat split; eauto.
   repeat constructor.
   {clear - arg_p.
-   destruct arg; try contradiction. apply val_casted_int_ptr; reflexivity.
+   destruct arg; try contradiction.
+   first [apply val_casted_long_ptr |  apply val_casted_int_ptr]; reflexivity.
    apply val_casted_ptr_ptr. }
   { clear - arg_p. destruct arg; try contradiction; simpl in *.
       unfold Tptr. destruct Archi.ptr64; try contradiction; auto.

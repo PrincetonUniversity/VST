@@ -626,8 +626,9 @@ Proof.
          (contents_with_add data (Zlength Data) Data)) as MRS.
   unfold hmac256drbgabs_reseed. rewrite <- HeqMRS. subst myABS; simpl.
   unfold return_value_relate_result in H.
-  destruct MRS. Focus 2. exfalso. destruct e. inv H.
+  destruct MRS. 2:{ exfalso. destruct e. inv H.
                      destruct ENT_GenErrAx as [EL1 _]. rewrite <- H in EL1. elim EL1; trivial.
+  }
   clear H.
   destruct d as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros.
@@ -942,8 +943,9 @@ Proof.
   remember (mbedtls_HMAC256_DRBG_reseed_function s myABS
          (contents_with_add data (Zlength Data) Data)) as MRS.
   unfold return_value_relate_result in H.
-  destruct MRS. Focus 2. exfalso. destruct e. inv H.
+  destruct MRS. 2:{ exfalso. destruct e. inv H.
                      destruct ENT_GenErrAx as [EL1 _]. rewrite <- H in EL1. elim EL1; trivial.
+  }
   clear H. unfold hmac256drbgabs_reseed. rewrite <- HeqMRS. subst myABS; simpl.
   destruct d as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros.

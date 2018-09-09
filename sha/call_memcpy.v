@@ -630,7 +630,7 @@ auto.
 rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len) np) by omega.
 rewrite !Z.sub_0_r.
 replace (sublist 0 lop vpx) with (sublist 0 lop vpy).
-Focus 2. {
+2:{
 generalize dependent vpy.
 generalize dependent vpx.
 rewrite H99.
@@ -638,9 +638,9 @@ intros.
 apply JMeq_eq in H8. apply JMeq_eq in Hvpx.
 subst.
 apply part1_splice_into_list; omega.
-} Unfocus.
+} 
 replace (sublist (lop+len) np vpx) with (sublist (lop+len) np vpy).
-Focus 2. {
+2:{
 generalize dependent vpy.
 generalize dependent vpx.
 rewrite H99.
@@ -649,7 +649,7 @@ apply JMeq_eq in H8. apply JMeq_eq in Hvpx.
 subst.
 apply part3_splice_into_list; try omega.
 rewrite Zlength_list_repeat. rewrite Z.max_r by omega. omega.
-} Unfocus.
+} 
 cancel.
  rewrite array_at_data_at' by  (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.

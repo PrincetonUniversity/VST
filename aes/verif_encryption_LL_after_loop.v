@@ -83,19 +83,32 @@ intros.
   abbreviate_semax.
   unfold tables_initialized.
   pose proof masked_byte_range.
+  assert (H2': forall i, 0 <= Int.unsigned (Int.and i (Int.repr 255)) < 256). {
+    clear.  intros. rewrite Int.and_commut.
+    pose proof (Int.and_le (Int.repr 255) i).
+    rewrite Int.unsigned_repr in H by computable. 
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+  }
+  unfold Int.and.
 
   remember (mbed_tls_fround S12 buf 52) as S13.
-  destruct (round13eq _ _ _ HeqS13) as [EqY0 [EqY1 [EqY2 EqY3]]].
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqY0; clear EqY0. 
+  deadvars!. (* rewrite EqY0; clear EqY0.  *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqY1; clear EqY1.
+  deadvars!. (* rewrite EqY1; clear EqY1. *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqY2; clear EqY2.
+  deadvars!. (* rewrite EqY2; clear EqY2. *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqY3; clear EqY3.
+  deadvars!. (* rewrite EqY3; clear EqY3. *)
+
+  destruct (round13eq _ _ _ HeqS13) as [EqY0 [EqY1 [EqY2 EqY3]]].
+  unfold Int.and.
+   rewrite !(Int.unsigned_repr 255) in *|-* by computable .
+    rewrite !Int.unsigned_repr by
+     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_omega end.
+  rewrite EqY0, EqY1, EqY2, EqY3; clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
   assert (forall i, Int.unsigned (Znth i FSb) <= Byte.max_unsigned). {
@@ -109,17 +122,23 @@ intros.
      TODO floyd or documentation: What should users do if "forward" takes forever? *)
 
   remember (mbed_tls_final_fround S13 buf 56) as S14.
-  destruct (round14eq _ _ _ HeqS14) as [EqX0 [EqX1 [EqX2 EqX3]]]. clear HeqS14.
 
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqX0; clear EqX0.
+  deadvars!. (*rewrite EqX0; clear EqX0. *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqX1; clear EqX1.
+  deadvars!. (*rewrite EqX1; clear EqX1. *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqX2; clear EqX2.
+  deadvars!. (*rewrite EqX2; clear EqX2. *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars!. rewrite EqX3; clear EqX3.
+  deadvars!. (*rewrite EqX3; clear EqX3. *)
  clear Eq.
+  destruct (round14eq _ _ _ HeqS14) as [EqX0 [EqX1 [EqX2 EqX3]]]. clear HeqS14.
+ unfold Int.and.
+   rewrite !(Int.unsigned_repr 255) in *|-* by computable .
+    rewrite !Int.unsigned_repr by
+     match goal with |- context [Z.land ?A] => clear - H0; specialize (H0 A); rep_omega end.
+  rewrite EqX0, EqX1, EqX2, EqX3; clear EqX0 EqX1 EqX2 EqX3.
+
  remember_temp_Vints (@nil localdef).
 
   do 16 (forward;

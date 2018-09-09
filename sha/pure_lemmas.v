@@ -326,7 +326,7 @@ rewrite Zopp_mult_distr_l.
 apply Z_mod_plus.
 easy.
 apply Zmult_gt_0_compat.
-now apply Zlt_gt.
+now apply Z.lt_gt.
 easy.
 now elim Hb.
 Qed.
@@ -382,7 +382,7 @@ assert (Zlength dd' <= 56) by (change CBLOCKz with 64 in H0; omega).
 clear H0.
 replace (Zlength (intlist_to_Zlist hashed ++ dd))
   with (4*Zlength hashed' + Zlength dd' - (1+pad)).
-Focus 2. {
+2:{
 rewrite Z.mul_comm.
 rewrite <-  Zlength_intlist_to_Zlist.
 rewrite <- Zlength_app.
@@ -393,7 +393,7 @@ forget (Zlength (intlist_to_Zlist hashed ++ dd)) as B.
 rewrite Zlength_app.
 rewrite Zlength_cons, Zlength_nil, Zlength_correct.
 rewrite length_list_repeat. rewrite Z2Nat.id by omega. omega.
-} Unfocus.
+} 
 change (Z.of_nat CBLOCK - 8) with 56.
 clear H5.
 rewrite <- Z2Nat.inj_add by (change CBLOCKz with 64; omega).

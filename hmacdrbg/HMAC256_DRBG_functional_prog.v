@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import sha.HMAC256_functional_prog.
 Require Import hmacdrbg.DRBG_functions.

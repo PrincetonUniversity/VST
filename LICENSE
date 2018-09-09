@@ -14,7 +14,8 @@ therefore you should not use compcert_new unless you satisfy
 the terms of the CompCert license.
 
 3. The "fcf" and "hmacfcf" subdirectories are Copyright (c) 2012-2015
-by Adam Petcher, and open-source licensed as detialed following item 4 below.
+by Adam Petcher and other contributors, and open-source licensed as 
+per the fcf/LICENSE file.
 
 4.  All other subdirectories are Copyright (c) 2007-2018 by Andrew W. Appel,
 Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor,

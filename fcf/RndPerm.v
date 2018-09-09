@@ -86,8 +86,9 @@ Theorem addInAllLocations_perm :
   destruct H0.
   intuition; subst.
   eapply perm_trans.
-  Focus 2.
-  eapply perm_swap.
+  2:{
+    eapply perm_swap.
+  }
   eapply perm_skip.
   eapply IHx0.
   trivial.
@@ -113,9 +114,10 @@ Theorem getAllPermutations_perms :
   subst.
   eapply addInAllLocations_perm in H1.
   eapply perm_trans.
-  Focus 2.
-  eapply Permutation_sym.
-  eauto.
+  2:{
+    eapply Permutation_sym.
+    eauto.
+  }
   eapply perm_skip.
   eapply IHls1.
   trivial.
@@ -166,6 +168,20 @@ Section ShuffleList.
         end
   end.
 
+   Theorem nth_error_not_None : 
+     forall (ls : list A)(n : nat),
+       n < length ls ->
+       nth_error ls n = None -> 
+       False.
+
+     induction ls; destruct n; intuition; simpl in *.
+     omega.
+     omega.
+     inversion H0.
+     eapply IHls; eauto.
+     omega.
+   Qed.
+
    Theorem permute_length_eq : 
      forall (sigma : list nat)(ls : list A),
        (forall n, In n sigma -> n < length ls) ->
@@ -177,19 +193,6 @@ Section ShuffleList.
      f_equal.
      eapply IHsigma; intuition.
      
-     Theorem nth_error_not_None : 
-       forall (ls : list A)(n : nat),
-         n < length ls ->
-         nth_error ls n = None -> 
-         False.
-
-       induction ls; destruct n; intuition; simpl in *.
-       omega.
-       omega.
-       inversion H0.
-       eapply IHls; eauto.
-       omega.
-     Qed.
 
      exfalso.
      eapply nth_error_not_None.
@@ -299,6 +302,28 @@ Theorem getAllPermutations_pred :
   eapply addInAllLocations_pred; intuition.
 Qed.
 
+Theorem nth_error_app_Some : 
+  forall (A : Set)(ls : list A) n (a a' : A),
+    nth_error ls n = Some a ->
+    nth_error (ls ++ (a' :: nil)) n = Some a.
+
+  induction ls; destruct n; intuition; simpl in *.
+  inversion H.
+  inversion H.
+
+  eapply IHls.
+  trivial.
+
+Qed.
+
+Theorem nth_error_app_length : 
+  forall (A : Set)(ls : list A) (a : A),
+    nth_error (ls ++ (a :: nil)) (length ls) = Some a.
+
+  induction ls; intuition; simpl in *.
+  
+Qed.
+
 Theorem allNats_nth_pred : 
   forall (A : Set)(ls : list A),
    list_pred (fun (a : A) (b : nat) => nth_error ls b = Some a) ls
@@ -317,31 +342,11 @@ Theorem allNats_nth_pred :
   eapply IHls.
   intuition.
 
-  Theorem nth_error_app_Some : 
-    forall (A : Set)(ls : list A) n (a a' : A),
-      nth_error ls n = Some a ->
-      nth_error (ls ++ (a' :: nil)) n = Some a.
-
-    induction ls; destruct n; intuition; simpl in *.
-    inversion H.
-    inversion H.
-
-    eapply IHls.
-    trivial.
-
-  Qed.
 
   eapply nth_error_app_Some; intuition.
 
   econstructor.
 
-  Theorem nth_error_app_length : 
-    forall (A : Set)(ls : list A) (a : A),
-      nth_error (ls ++ (a :: nil)) (length ls) = Some a.
-
-    induction ls; intuition; simpl in *.
-    
-  Qed.
 
   eapply  nth_error_app_length .
 
@@ -383,6 +388,23 @@ Theorem getAllPerms_permute_eq :
   
 Qed.
 
+Theorem list_pred_nth_exists : 
+  forall (A B : Set)(P : A -> B -> Prop) lsa lsb,
+    list_pred P lsa lsb ->
+    forall n a, 
+      nth_option lsa n = Some a -> exists b, nth_option lsb n = Some b /\ P a b.
+
+  induction 1; intuition; simpl in *.
+  discriminate.
+
+  destruct n.
+  inversion H1; clear H1; subst.
+  econstructor; intuition.
+
+  edestruct IHlist_pred; eauto.
+
+Qed.
+
 Theorem rndListElem_pred : 
   forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(P : A -> B -> Prop)(lsa : list A)(lsb : list B),
     list_pred P lsa lsb ->
@@ -408,23 +430,6 @@ Theorem rndListElem_pred :
   eapply comp_spec_ret; intuition.
 
   case_eq (nth_option lsa b); intuition.
-
-  Theorem list_pred_nth_exists : 
-    forall (A B : Set)(P : A -> B -> Prop) lsa lsb,
-      list_pred P lsa lsb ->
-      forall n a, 
-        nth_option lsa n = Some a -> exists b, nth_option lsb n = Some b /\ P a b.
-
-    induction 1; intuition; simpl in *.
-    discriminate.
-
-    destruct n.
-    inversion H1; clear H1; subst.
-    econstructor; intuition.
-
-    edestruct IHlist_pred; eauto.
-
-  Qed.
 
   edestruct list_pred_nth_exists; eauto.
 
@@ -494,10 +499,11 @@ Theorem RndPerm_In_support_length :
 
   intuition.
   erewrite Permutation_length.
-  Focus 2.
-  eapply Permutation_sym.
-  eapply RndPerm_In_support.
-  eauto.
+  2:{
+    eapply Permutation_sym.
+    eapply RndPerm_In_support.
+    eauto.
+  }
   eapply allNatsLt_length.
 Qed.
 

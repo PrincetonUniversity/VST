@@ -69,7 +69,7 @@ forward_if (PROP ( )
     apply sepcon_valid_pointer2. apply data_at_valid_ptr.
     apply readable_nonidentity. apply writable_readable; trivial.
     rewrite HMAC_Zlength; simpl; omega.
-  + apply valid_pointer_zero. }
+  + auto with valid_pointer }
 { subst out; contradiction. }
 { clear H; forward. entailer!. }
 

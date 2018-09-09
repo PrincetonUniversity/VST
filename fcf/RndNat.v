@@ -41,13 +41,14 @@ Lemma well_formed_RndNat : forall n,
   eapply well_formed_Ret.
   eapply filter_In.
   intuition.
-  Focus 2.
-  unfold ltNatBool.
-  assert ((if (lt_dec O n) then true else false) = true).
-  destruct (lt_dec O n).
-  trivial.
-  omega.
-  eapply H0.
+  2:{
+    unfold ltNatBool.
+    assert ((if (lt_dec O n) then true else false) = true).
+    destruct (lt_dec O n).
+    trivial.
+    omega.
+    eapply H0.
+  }
   simpl.
   eapply Fold.in_getUnique.
   eapply Fold.in_flatten.
@@ -220,7 +221,25 @@ Lemma in_getSupport_RndNat : forall x k,
   destruct (lt_dec x k); intuition.
 Qed.
 
-
+Lemma RndNat_support_length : 
+  forall n, 
+    length (getSupport (RndNat n)) = n.
+  
+  intuition.
+  rewrite (@Permutation_length _ _ (forNats n)).
+  eapply forNats_length.
+  eapply NoDup_Permutation.
+  eapply getSupport_NoDup.
+  eapply forNats_NoDup.
+  intuition.
+  
+  eapply forNats_In.
+  eapply RndNat_support_lt; intuition.
+  
+  eapply in_getSupport_RndNat.
+  eapply forNats_In; intuition.
+  
+Qed.
 
 Theorem RndNat_prob : 
   forall n i (nzn : nz n),
@@ -232,11 +251,12 @@ Theorem RndNat_prob :
   eapply (@ratMult_same_r_inv _ (n / 1)).
   rewrite ratMult_eq_rat1.
   eapply eqRat_trans.
-  Focus 2.
-  eapply evalDist_lossless.
-  eapply well_formed_RndNat.
-  destruct nzn.
-  apply agz.
+  2:{
+    eapply evalDist_lossless.
+    eapply well_formed_RndNat.
+    destruct nzn.
+    apply agz.
+  }
   
   symmetry.
   eapply eqRat_trans.
@@ -244,27 +264,7 @@ Theorem RndNat_prob :
   eapply (@RndNat_uniform _ i).
   eapply RndNat_support_lt; intuition.
   trivial.
-  rewrite sumList_body_const.
-  
-  Lemma RndNat_support_length : 
-    forall n, 
-      length (getSupport (RndNat n)) = n.
-    
-    intuition.
-    rewrite (@Permutation_length _ _ (forNats n)).
-    eapply forNats_length.
-    eapply NoDup_Permutation.
-    eapply getSupport_NoDup.
-    eapply forNats_NoDup.
-    intuition.
-    
-    eapply forNats_In.
-    eapply RndNat_support_lt; intuition.
-    
-    eapply in_getSupport_RndNat.
-    eapply forNats_In; intuition.
-    
-  Qed.
+  rewrite sumList_body_const.  
   
   rewrite RndNat_support_length.
   intuition.
@@ -316,25 +316,24 @@ Lemma rndNat_sumList :
   unfold evalDist.
   fold evalDist.
   rewrite sumList_permutation.
-  Focus 2.
-  eapply (@NoDup_Permutation _ _ (forNats n)).
-  eapply getSupport_NoDup.
-  eapply forNats_NoDup.
-  intuition.
+  2:{
+    eapply (@NoDup_Permutation _ _ (forNats n)).
+    eapply getSupport_NoDup.
+    eapply forNats_NoDup.
+    intuition.
 
-  eapply forNats_In.
-  eapply RndNat_support_lt.
-  trivial.
-  eapply in_getSupport_RndNat.
-  eapply forNats_In.
-  trivial.
+    eapply forNats_In.
+    eapply RndNat_support_lt.
+    trivial.
+    eapply in_getSupport_RndNat.
+    eapply forNats_In.
+    trivial.
+  }
 
   eapply sumList_body_eq.
   intuition.
   eapply ratMult_eqRat_compat; intuition.
   
-
-
   eapply RndNat_prob.
   eapply forNats_In.
   trivial.

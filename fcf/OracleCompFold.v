@@ -112,7 +112,6 @@ Theorem oc_compMap_wf :
   
 Qed.
 
-Require Import fcf.Tactics.
 
 Theorem compFold_oc_equiv_h : 
   forall (A B S : Set)(eqdb : EqDec B)(eqds : EqDec S)(O : S -> A -> Comp (B * S))(lsa : list A)(initS : S)(lsb : list B),

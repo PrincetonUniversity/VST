@@ -196,9 +196,10 @@ Section SumList.
     eapply eqRat_trans.
     eapply ratAdd_assoc.
     eapply eqRat_trans.
-    Focus 2.
-    eapply eqRat_symm.
-    eapply ratAdd_assoc.
+    2:{
+      eapply eqRat_symm.
+      eapply ratAdd_assoc.
+    }
     eapply ratAdd_eqRat_compat; eauto.
     eapply eqRat_trans.
     eapply ratAdd_comm.
@@ -1970,10 +1971,11 @@ Lemma sumList_rel_distance : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> P
   
   rewrite ratS_num.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply eqRat_symm.
-  eapply ratMult_distrib.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply eqRat_symm.
+    eapply ratMult_distrib.
+  }
   rewrite H7.
   rewrite H9.
   rewrite rat_distance_of_sum.
@@ -2282,15 +2284,18 @@ Lemma sumList_rel_ls_intersect: forall (A : Set)(rel : A -> Rat -> Prop)(ls1 : l
   trivial.
 
   eapply sumList_rel_body_eq.
-  Focus 3.
-  rewrite H2.
-  rewrite <- ratAdd_0_l.
-  eapply eqRat_refl.
-  Focus 2. 
-  intuition.
-  eauto.
-  Focus 2.
-  eauto.
+  3:{
+    rewrite H2.
+    rewrite <- ratAdd_0_l.
+    eapply eqRat_refl.
+  }
+  2:{
+    intuition.
+    eauto.
+  }
+  2:{
+    eauto.
+  }
   eapply IHsumList_rel; intuition.
   eapply H5.
   right.
@@ -2323,8 +2328,9 @@ Lemma sumList_rel_sumList : forall (A : Set)(ls : list A)(f : A -> Rat),
   eapply IHls.
   eauto.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   eapply eqRat_refl.
   intuition.
@@ -2337,8 +2343,9 @@ Lemma sumList_cons : forall (A : Set)(ls : list A) a f,
   intuition.
   unfold sumList. simpl.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   eapply eqRat_refl.
   intuition.
@@ -2352,26 +2359,30 @@ Lemma sumList_sum : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat),
   rewrite <- ratAdd_0_l.
   intuition.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   rewrite (IHls f1 f2).
   eapply eqRat_trans.
-  Focus 2.
-  symmetry.
-  eapply ratAdd_eqRat_compat.
-  rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
-  eapply fold_add_init.
-  intuition.
-  eapply eqRat_refl.
-  rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
-  eapply fold_add_init.
-  intuition.
-  eapply eqRat_refl.
+  2:{
+    symmetry.
+    eapply ratAdd_eqRat_compat.
+    rewrite fold_add_body_eq.
+    2:{
+      eapply ratAdd_comm.
+    }
+    eapply fold_add_init.
+    intuition.
+    eapply eqRat_refl.
+    rewrite fold_add_body_eq.
+    2:{
+      eapply ratAdd_comm.
+    }
+    eapply fold_add_init.
+    intuition.
+    eapply eqRat_refl.
+  }
   repeat rewrite <- ratAdd_assoc.
   eapply ratAdd_eqRat_compat.
   repeat rewrite ratAdd_assoc.
@@ -2403,18 +2414,19 @@ Lemma sumList_summation : forall (A B : Set) f (lsa : list A)(lsb : list B),
   unfold sumList in *; simpl in *; intuition.
   
   rewrite sumList_body_eq.
-  Focus 2.
-  intuition.
-  
-  eapply sumList_cons. 
+  2:{
+    intuition.
+    eapply sumList_cons. 
+  }
   rewrite sumList_sum.
   rewrite (sumList_cons lsa a (fun a0 : A => sumList lsb (f a0))).
   rewrite IHlsa.
   symmetry.
   rewrite sumList_body_eq.
-  Focus 2.
-  intuition.
-  eapply sumList_cons.
+  2:{
+    intuition.
+    eapply sumList_cons.
+  }
   rewrite sumList_sum.
   repeat rewrite sumList_cons.
   repeat rewrite <- ratAdd_assoc.
@@ -2505,8 +2517,9 @@ Lemma sumList_exactly_one : forall (A : Set) a (ls : list A) f,
   intuition; subst; intuition.
   unfold sumList in *; simpl.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   rewrite H.
   rewrite <- ratAdd_0_r.
@@ -2518,8 +2531,9 @@ Lemma sumList_exactly_one : forall (A : Set) a (ls : list A) f,
   unfold sumList in *.
   simpl.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   rewrite H0.
   rewrite H1.
@@ -2669,10 +2683,11 @@ Lemma series_le : forall n (f1 f2 : nat -> Rat -> Prop) r1 r2,
   inversion H1; clear H1; subst.
   rewrite H9.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply H7.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply H7.
+  }
   eapply ratAdd_leRat_compat.
   eauto.
   eauto.
@@ -2744,10 +2759,11 @@ Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
   assert (r0 <= r1).
   rewrite H19.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply H21.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply H21.
+  }
   eapply ratAdd_leRat_compat.
   eauto.
 
@@ -2777,10 +2793,12 @@ Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
   eapply H18.
   trivial.
   eapply H6.
-  Focus 2.
-  eauto.
-  Focus 2.
-  eauto.
+  2:{
+    eauto.
+  }
+  2:{
+    eauto.
+  }
   omega.
 
   symmetry.
@@ -2858,8 +2876,12 @@ Lemma sum_power_series : forall n (f : Rat -> Prop) a a',
   intuition.
   unfold expRat_rel, ratMult_rel in *.
   rewrite H7.
-  Focus 2. eauto.
-  Focus 2. intuition.
+  2:{
+    eauto.
+  }
+  2:{
+    intuition.
+  }
   rewrite ratMult_comm.
   eapply ratMult_small_le.
   case_eq (bleRat x 1); intuition.
@@ -2876,11 +2898,12 @@ Lemma sum_power_series : forall n (f : Rat -> Prop) a a',
   eapply H8.
   eauto.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply H7.
-  eauto.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply H7.
+    eauto.
+  }
   eapply expRat_le.
   case_eq (bleRat x 1); intuition.
   exfalso.
@@ -2899,14 +2922,15 @@ Lemma sum_power_series : forall n (f : Rat -> Prop) a a',
   eapply expRat_eqRat_compat.
   eauto.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply H7.
-  eauto.
-  intuition.
-  eapply expRat_eqRat_compat.
-  eauto.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply H7.
+    eauto.
+    intuition.
+    eapply expRat_eqRat_compat.
+    eauto.
+  }
   eapply ratMult_leRat_compat.
   intuition.
   eapply expRat_le.
@@ -2931,25 +2955,28 @@ Lemma sum_power_series : forall n (f : Rat -> Prop) a a',
 
   unfold ratMult_rel, ratSubtract_rel, expRat_rel, ratInverse_rel in H4.
   rewrite H4.
-  Focus 2.
-  intuition.
-  rewrite H8.
-  rewrite <- H7.
-  eapply eqRat_refl.
-  eauto.
-  Focus 2.
-  intuition.
-  eapply ratInverse_eqRat_compat.
-  Focus 2.
-  rewrite H7.
-  eapply eqRat_refl.
-  eapply eqRat_refl.
-  eauto.
-  intuition.
-  eapply H2.
-  eauto.
-  apply ratSubtract_0_inv.
-  trivial.
+  2:{
+    intuition.
+    rewrite H8.
+    rewrite <- H7.
+    eapply eqRat_refl.
+    eauto.
+  }
+  2:{
+    intuition.
+    eapply ratInverse_eqRat_compat.
+    2:{
+      rewrite H7.
+      eapply eqRat_refl.
+      eapply eqRat_refl.
+      eauto.
+    }
+    intuition.
+    eapply H2.
+    eauto.
+    apply ratSubtract_0_inv.
+    trivial.
+  }
 
   rewrite <- (ratMult_1_l a) in H6 at 1.
 
@@ -2988,10 +3015,11 @@ Lemma sumList_rel_le : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> Prop) r
   inversion H0; clear H0; subst.
   rewrite H7.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply H9.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply H9.
+  }
   eapply ratAdd_leRat_compat.
   eapply H1.
   simpl.
@@ -3021,23 +3049,27 @@ Lemma sumList_filter_le : forall (A : Set)(ls : list A)(f : A -> Rat)(P : A -> b
   intuition.
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
-  eapply fold_add_init.
-  intuition.
-  eapply eqRat_refl.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    rewrite fold_add_body_eq.
+    2:{
+      eapply ratAdd_comm.
+    }
+    eapply fold_add_init.
+    intuition.
+    eapply eqRat_refl.
+  }
   
   destruct (P a); simpl.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
-  Focus 2.
-  intuition.
-  eapply eqRat_refl.
+  2:{
+    eapply ratAdd_comm.
+  }
+  2:{
+    intuition.
+    eapply eqRat_refl.
+  }
   rewrite fold_add_init.
   eapply ratAdd_leRat_compat; intuition.
   
@@ -3059,33 +3091,39 @@ Lemma sumList_filter_partition : forall (A : Set)(P : A -> bool)(ls : list A)(f 
   simpl in *.
   
   erewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
-  Focus 2.
-  intuition.
-  eapply eqRat_refl.
+  2:{
+    eapply ratAdd_comm.
+  }
+  2:{
+    intuition.
+    eapply eqRat_refl.
+  }
   rewrite fold_add_init.
   
   destruct (P a);
     simpl.
   
   erewrite (fold_add_body_eq (filter P ls)).
-  Focus 2.
-  eapply ratAdd_comm.
-  Focus 2.
-  intuition.
-  eapply eqRat_refl.
+  2:{
+    eapply ratAdd_comm.
+  }
+  2:{
+    intuition.
+    eapply eqRat_refl.
+  }
   rewrite fold_add_init.
   rewrite ratAdd_assoc.
   eapply ratAdd_eqRat_compat;
     intuition.
   
   erewrite (fold_add_body_eq (filter (fun a => negb (P a)) ls)).
-  Focus 2.
-  eapply ratAdd_comm.
-  Focus 2.
-  intuition.
-  eapply eqRat_refl.
+  2:{
+    eapply ratAdd_comm.
+  }
+  2:{
+    intuition.
+    eapply eqRat_refl.
+  }
   rewrite fold_add_init.
   rewrite <- ratAdd_assoc.
   rewrite (ratAdd_comm (fold_left (fun (a0 : Rat) (b : A) => a0 + f b) (filter P ls) 0 )).
@@ -3112,8 +3150,9 @@ Lemma sumList_rel_sumList_eqRat : forall (A : Set)(ls : list A)(f : A -> Rat),
   eapply IHls.
   eapply eqRat_refl.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   eapply eqRat_refl.
   intuition.
@@ -3126,20 +3165,22 @@ Lemma sumList_series_incr : forall n2 n1 (f f' : nat -> Rat),
   induction n2; intuition; unfold sumList; simpl in *.
   intuition.
   rewrite fold_add_body_eq.
-  Focus 2.
-  eapply ratAdd_comm.
+  2:{
+    eapply ratAdd_comm.
+  }
   rewrite fold_add_init.
   unfold sumList in *.
   rewrite IHn2; eauto.
   eapply eqRat_trans.
-  Focus 2.
-  symmetry.
-  eapply eqRat_trans.
-  eapply fold_add_body_eq.
-  eapply ratAdd_comm.
-  intuition.
-  eapply eqRat_refl.
-  eapply fold_add_init.
+  2:{
+    symmetry.
+    eapply eqRat_trans.
+    eapply fold_add_body_eq.
+    eapply ratAdd_comm.
+    intuition.
+    eapply eqRat_refl.
+    eapply fold_add_init.
+  }
   eapply ratAdd_eqRat_compat.
   eauto.
   intuition.
@@ -3152,26 +3193,28 @@ Lemma sumList_series_split_first : forall n f,
   induction n; intuition; unfold sumList in *; simpl in *.
   eapply ratAdd_comm.
   rewrite fold_add_body_eq.
-  Focus 2.
-  rewrite ratAdd_assoc.
-  rewrite ratAdd_comm.
-  rewrite ratAdd_assoc.
-  rewrite (ratAdd_comm (f n ) 0).
-  eapply eqRat_refl.
+  2:{
+    rewrite ratAdd_assoc.
+    rewrite ratAdd_comm.
+    rewrite ratAdd_assoc.
+    rewrite (ratAdd_comm (f n ) 0).
+    eapply eqRat_refl.
+  }
   rewrite fold_add_init.
   rewrite IHn.
   rewrite ratAdd_comm.
   eapply eqRat_trans.
-  Focus 2.
-  symmetry.
-  eapply ratAdd_eqRat_compat.
-  eapply eqRat_refl.
-  eapply eqRat_trans.
-  eapply fold_add_body_eq.
-  eapply ratAdd_comm.
-  intuition.
-  eapply eqRat_refl.
-  eapply fold_add_init.
+  2:{
+    symmetry.
+    eapply ratAdd_eqRat_compat.
+    eapply eqRat_refl.
+    eapply eqRat_trans.
+    eapply fold_add_body_eq.
+    eapply ratAdd_comm.
+    intuition.
+    eapply eqRat_refl.
+    eapply fold_add_init.
+  }
   rewrite (ratAdd_comm (f (S n))).
   rewrite <- ratAdd_assoc.
   intuition.
@@ -3270,10 +3313,11 @@ Lemma sumList_le : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat),
   
   rewrite sumList_cons.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  rewrite sumList_cons.
-  eapply eqRat_refl.
+  2:{
+    eapply eqRat_impl_leRat.
+    rewrite sumList_cons.
+    eapply eqRat_refl.
+  }
 
   simpl in *.
   eapply ratAdd_leRat_compat.
@@ -3363,19 +3407,21 @@ Theorem sumList_subset_le :
   inversion H; clear H; subst.
   rewrite sumList_cons.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply (@sumList_permutation _ _ _ (a :: removeFirst (EqDec_dec _) ls2 a)%list).
-  eapply removeFirst_permutation.
-  eapply H1.
-  intuition.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply (@sumList_permutation _ _ _ (a :: removeFirst (EqDec_dec _) ls2 a)%list).
+    eapply removeFirst_permutation.
+    eapply H1.
+    intuition.
+  }
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply sumList_cons.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply sumList_cons.
+  }
   eapply ratAdd_leRat_compat; intuition.
   eapply IHls1; intuition.
   eapply removeFirst_NoDup.
@@ -3637,6 +3683,34 @@ Lemma nth_nil:
   
 Qed.
 
+Theorem listReplace_None_Permutation : 
+  forall (A : Set) n ls (y : A),
+    nth n ls None = None ->
+    Permutation (getSomes (listReplace ls n (Some y) None)) (y :: (getSomes ls)).
+  
+  induction n; intuition; simpl in *.
+  destruct ls; simpl in *.
+  eapply Permutation_refl.
+  subst.
+  eapply Permutation_refl.
+  
+  destruct ls; simpl in *.
+  eapply (IHn nil).
+  eapply nth_nil.
+  
+  destruct o.
+  eapply Permutation_sym.
+  eapply perm_trans.
+  eapply perm_swap.
+  eapply perm_skip.
+  eapply Permutation_sym.
+  eapply IHn.
+  trivial.
+  eapply IHn.
+  trivial.
+
+Qed.
+
 Theorem listReplace_getSomes_Permutation_h : 
   forall (A : Set) l1' l2,
     Permutation l1' l2 ->
@@ -3651,33 +3725,6 @@ Theorem listReplace_getSomes_Permutation_h :
   
   induction 1; intuition.
   
-  Theorem listReplace_None_Permutation : 
-    forall (A : Set) n ls (y : A),
-      nth n ls None = None ->
-      Permutation (getSomes (listReplace ls n (Some y) None)) (y :: (getSomes ls)).
-    
-    induction n; intuition; simpl in *.
-    destruct ls; simpl in *.
-    eapply Permutation_refl.
-    subst.
-    eapply Permutation_refl.
-    
-    destruct ls; simpl in *.
-    eapply (IHn nil).
-    eapply nth_nil.
-    
-    destruct o.
-    eapply Permutation_sym.
-    eapply perm_trans.
-    eapply perm_swap.
-    eapply perm_skip.
-    eapply Permutation_sym.
-    eapply IHn.
-    trivial.
-    eapply IHn.
-    trivial.
-
-  Qed.
   
   eapply perm_trans.
   eapply listReplace_None_Permutation.
@@ -4040,6 +4087,53 @@ Theorem NoDup_app :
   
 Qed.
 
+Theorem firstn_In : 
+  forall (A : Type) n (ls : list A)(a : A),
+             In a (firstn n ls) ->
+             In a ls.
+  
+  induction n; destruct ls; intuition; simpl in *;
+  intuition.
+Qed.
+
+Theorem pred_firstn_In :
+  forall (A : Set) ls1 ls2,
+    list_pred (fun x0 y : list A => exists n : nat, y = firstn n x0) ls1 ls2 ->
+    forall a,
+      In a (flatten ls2) -> In a (flatten ls1).
+  
+  induction 1; intuition; simpl in *.
+  destruct H.
+  subst.
+  eapply in_app_or in H1.
+  intuition.
+  eapply in_or_app.
+  left.
+  eapply firstn_In.
+  eauto.
+Qed.    
+
+
+Theorem firstn_NoDup : 
+  forall (A : Type) n (ls : list A),
+    NoDup ls ->
+    NoDup (firstn n ls).
+  
+  induction n; destruct ls; intuition; simpl in *.
+  econstructor.
+  
+  inversion H; clear H; subst.
+  econstructor.
+  
+  intuition.
+  eapply H2.
+  eapply firstn_In.
+  eauto.
+  
+  eapply IHn; intuition.
+  
+Qed.
+ 
 Theorem NoDup_flatten_subset : 
   forall (A : Set)(ls1 ls2 : list (list A)),
     list_pred (fun x y => exists n, y = firstn n x) ls1 ls2 ->
@@ -4052,61 +4146,14 @@ Theorem NoDup_flatten_subset :
   eapply NoDup_app in H1.
   intuition.
   eapply app_NoDup; intuition.
-  
-  Theorem firstn_In : 
-    forall (A : Type) n (ls : list A)(a : A),
-               In a (firstn n ls) ->
-               In a ls.
-    
-    induction n; destruct ls; intuition; simpl in *;
-    intuition.
-  Qed.
-
-  Theorem firstn_NoDup : 
-    forall (A : Type) n (ls : list A),
-      NoDup ls ->
-      NoDup (firstn n ls).
-    
-    induction n; destruct ls; intuition; simpl in *.
-    econstructor.
-    
-    inversion H; clear H; subst.
-    econstructor.
-    
-    intuition.
-    eapply H2.
-    eapply firstn_In.
-    eauto.
-    
-    eapply IHn; intuition.
-    
-  Qed.
-  
+   
   eapply firstn_NoDup.
   trivial.
   
   eapply H3.
   eapply firstn_In.
   eauto.
-  
-  Theorem pred_firstn_In :
-    forall (A : Set) ls1 ls2,
-      list_pred (fun x0 y : list A => exists n : nat, y = firstn n x0) ls1 ls2 ->
-      forall a,
-        In a (flatten ls2) -> In a (flatten ls1).
     
-    induction 1; intuition; simpl in *.
-    destruct H.
-    subst.
-    eapply in_app_or in H1.
-    intuition.
-    eapply in_or_app.
-    left.
-    eapply firstn_In.
-    eauto.
-    
-  Qed.
-  
   eapply pred_firstn_In.
   eauto.
   eauto.
@@ -4121,6 +4168,18 @@ Theorem NoDup_flatten_subset :
   intuition.
 Qed.
 
+Theorem allNatsLt_nil_inv :
+  forall n,
+    allNatsLt n = nil ->
+    n = O.
+  
+  destruct n; intuition; simpl in *.
+  eapply app_eq_nil in H.
+  intuition.
+  discriminate.
+  
+Qed.
+  
 Theorem firstn_allNatsLt_h : 
   forall ls n1 n2,
     n2 >= n1 ->
@@ -4128,18 +4187,6 @@ Theorem firstn_allNatsLt_h :
     firstn n1 ls = allNatsLt n1.
   
   induction ls using rev_ind; intuition; simpl in *.
-  
-  Theorem allNatsLt_nil_inv :
-    forall n,
-      allNatsLt n = nil ->
-      n = O.
-    
-    destruct n; intuition; simpl in *.
-    eapply app_eq_nil in H.
-    intuition.
-    discriminate.
-    
-  Qed.
   
   symmetry in H0.
   eapply allNatsLt_nil_inv in H0.
@@ -4156,8 +4203,7 @@ Theorem firstn_allNatsLt_h :
   discriminate.
   eapply app_inj_tail in H0.
   intuition.
-  subst.
-  
+  subst.  
   
   destruct (le_gt_dec n1 (length (allNatsLt n2))).
   rewrite firstn_app.
@@ -4888,10 +4934,11 @@ Lemma sumList_forNats_first_ls :
   
   induction n; intuition; simpl in *.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  rewrite sumList_cons.
-  eapply eqRat_refl.
+  2:{
+    eapply eqRat_impl_leRat.
+    rewrite sumList_cons.
+    eapply eqRat_refl.
+  }
   destruct n.
   eapply leRat_trans.
   rewrite ratAdd_0_r.

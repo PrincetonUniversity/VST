@@ -122,11 +122,11 @@ Fixpoint const_only_eval_expr {cs: compspecs} (e: Clight.expr): option val :=
   | Ederef a ty => None
   | Efield a i ty => None
   | Esizeof t t0 =>
-    if andb (complete_type cenv_cs t) (eqb_type t0 tuint)
+    if andb (complete_type cenv_cs t) (eqb_type t0 size_t)
     then Some (Vptrofs (Ptrofs.repr (sizeof t)))
     else None
   | Ealignof t t0 =>
-    if andb (complete_type cenv_cs t) (eqb_type t0 tuint)
+    if andb (complete_type cenv_cs t) (eqb_type t0 size_t)
     then Some (Vptrofs (Ptrofs.repr (alignof t)))
     else None
   end.
@@ -323,11 +323,11 @@ Proof.
     rewrite IHe; auto.*)
   + intros.
     simpl in *.
-    destruct (complete_type cenv_cs t && eqb_type t0 tuint); inv H.
+    destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.
     auto.
   + intros.
     simpl in *.
-    destruct (complete_type cenv_cs t && eqb_type t0 tuint); inv H.
+    destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.
     auto.
 Qed.
 
@@ -392,7 +392,7 @@ Proof.
     unfold tc_expr.
     simpl typecheck_expr.
     simpl.
-    destruct (complete_type cenv_cs t && eqb_type t0 tuint) eqn:HH; inv H1.
+    destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.
     rewrite andb_true_iff in HH.
     unfold tuint in HH; destruct HH.
     rewrite H, H0.
@@ -402,7 +402,7 @@ Proof.
     unfold tc_expr.
     simpl typecheck_expr.
     simpl.
-    destruct (complete_type cenv_cs t && eqb_type t0 tuint) eqn:HH; inv H1.
+    destruct (complete_type cenv_cs t && eqb_type t0 size_t) eqn:HH; inv H1.
     rewrite andb_true_iff in HH.
     unfold tuint in HH; destruct HH.
     rewrite H, H0.

@@ -22,7 +22,7 @@ Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.sc_drf.SC_erasure.
 Require Import VST.concurrency.sc_drf.spinlocks.
 Require Import VST.concurrency.sc_drf.executions.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".

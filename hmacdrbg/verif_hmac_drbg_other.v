@@ -63,8 +63,8 @@ Proof.
               simpl. specialize (memory_block_split Tsh b (Ptrofs.unsigned i) 12 48); simpl.
               rewrite Ptrofs.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
               cancel.
-              Focus 2. unfold field_compatible in *. simpl in *.
-                destruct (Ptrofs.unsigned_range i). omega.
+              2:{ unfold field_compatible in *. simpl in *.
+                  destruct (Ptrofs.unsigned_range i). omega. }
               thaw FR. destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
@@ -401,8 +401,9 @@ Proof.
    SEP (data_at Tsh (tarray tuchar n)
           (list_repeat (Z.to_nat k) (Vint Int.zero) ++ list_repeat (Z.to_nat (n-k)) Vundef)
           (Vptr b i)))).
-  Focus 2. apply extract_exists_pre. intros k. Intros. forward. entailer.
+  2:{ apply extract_exists_pre. intros k. Intros. forward. entailer.
            Exists k. entailer!.
+  }
   apply extract_exists_pre. intros k. Intros. rename H into K.
   forward. forward. 
     forward_if (n-k<>0).
