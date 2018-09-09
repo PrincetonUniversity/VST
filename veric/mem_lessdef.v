@@ -406,18 +406,22 @@ eapply mem_lessdef_cmp_ptr; eassumption.
 *
 destruct v2; try discriminate; inv H1.
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
-destruct Archi.ptr64; auto.
+all: destruct Archi.ptr64; auto;
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 destruct v1; try discriminate; inv H0.
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
-destruct Archi.ptr64; auto.
+all: destruct Archi.ptr64; auto;
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 destruct v2; try discriminate; inv H1.
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
+all: destruct Archi.ptr64; auto;
+eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 destruct v1; try discriminate; inv H0.
+eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
+all: destruct Archi.ptr64; auto;
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 eapply mem_lessdef_sem_binarith; eauto.
@@ -466,14 +470,15 @@ destruct ch; auto.
 destruct Archi.ptr64; auto.
 destruct vl; auto.
 destruct m; auto.
-destruct (check_value (size_quantity_nat Q32) v Q32 (Fragment v q n :: vl)) eqn:?; auto.
+match goal with |- context [size_quantity_nat ?QQ] => set (Q:=QQ) end.
+destruct (check_value (size_quantity_nat Q) v Q (Fragment v q n :: vl)) eqn:?; auto.
 destruct vl'; inv H.
 inv H4.
 unfold proj_bytes.
 destruct (Val.eq v Vundef).
 subst.
 simpl. auto.
-assert (H9: check_value (size_quantity_nat Q32) v2 Q32 (Fragment v2 q n :: vl') = true).
+assert (H9: check_value (size_quantity_nat Q) v2 Q (Fragment v2 q n :: vl') = true).
  2: rewrite H9; apply Val.load_result_lessdef; apply val_inject_id; auto.
 assert (v2=v).
 apply val_inject_id in H5.
@@ -488,14 +493,15 @@ apply val_inject_id; apply Val.lessdef_refl.
 +
 destruct vl; auto.
 destruct m; auto.
-destruct (check_value (size_quantity_nat Q32) v Q32 (Fragment v q n :: vl)) eqn:?; auto.
+match goal with |- context [size_quantity_nat ?QQ] => set (Q:=QQ) end.
+destruct (check_value (size_quantity_nat Q) v Q (Fragment v q n :: vl)) eqn:?; auto.
 destruct vl'; inv H.
 unfold proj_bytes.
 inv H4.
 destruct (Val.eq v Vundef).
 subst.
 simpl. auto.
-assert (H9: check_value (size_quantity_nat Q32) v2 Q32 (Fragment v2 q n :: vl') = true).
+assert (H9: check_value (size_quantity_nat Q) v2 Q (Fragment v2 q n :: vl') = true).
  2: rewrite H9; apply Val.load_result_lessdef; apply val_inject_id; auto.
 assert (v2=v).
 apply val_inject_id in H5.

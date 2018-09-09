@@ -54,6 +54,24 @@ menhir parser generator: http://gallium.inria.fr/~fpottier/menhir/
 To work around a cygwin incompatibility in the menhir build,
 `touch src/.versioncheck` before doing `make`.
 
+### METHOD A64, METHOD B64:   Sixty-four-bit (64 bit) build:
+CompCert works with 64-bit architectures as well as 32-bit,
+and VST now works with 64-bit or 32-bit CompCert.
+
+Using method A, put  BITSIZE=64   (and nothing else)
+in your CONFIGURE file, (do a fresh "make depend"),
+and you'll get a 64-bit (x86_64) Verifiable C.
+
+Using method B, put COMPCERT=your-compcert-directory  in your CONFIGURE file,
+and in your-compcert-directory build with "./configure" specifying
+a 64-bit architecture; and you'll get the corresponding 64-bit Verifiable C.
+No need to specify BITSIZE in your CONFIGURE file.
+
+Warning:  In the standard VST distribution, in the progs/ and sha/ directories
+there are .v files built by clightgen from .c files.  These are built
+with a 32-bit clightgen, and will not be portable to 64-bit mode;
+they'll need to be rebuilt.
+
 --------------------------------------------------------------------------------
 
 # ORGANIZATION:

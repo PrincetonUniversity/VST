@@ -12,7 +12,7 @@ Require Import VST.concurrency.common.Asm_event.
 Require Import VST.concurrency.common.dry_context.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".

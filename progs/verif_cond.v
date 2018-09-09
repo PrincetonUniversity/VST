@@ -78,16 +78,6 @@ Proof.
   forward.
 Qed.
 
-Lemma lock_struct : forall p, data_at_ Ews (Tstruct _lock_t noattr) p |-- data_at_ Ews tlock p.
-Proof.
-  intros.
-  unfold data_at_, field_at_, field_at; simpl; entailer.
-  unfold default_val; simpl.
-  rewrite data_at_rec_eq; simpl.
-  unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
-  (* temporarily broken *)
-Admitted.
-
 Ltac cancel_for_forward_call ::=
   match goal with
   | gv: globals |- _ =>
@@ -114,9 +104,9 @@ Proof.
   { unfold tcond; entailer!. }
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lock, Ews, dlock_inv data).
-  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+   change tlock with (tarray (tptr tvoid) 2). cancel.
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
-  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+   change tlock with (tarray (tptr tvoid) 2). cancel.
   forward_spawn _thread_func nullval (sh1, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.

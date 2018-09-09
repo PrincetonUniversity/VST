@@ -107,6 +107,8 @@ Theorem Permutation_hasDups :
      
 Qed.
 
+Require Import fcf.RndInList.
+
 Section DupProb.
 
   Variable A B : Set.
@@ -166,16 +168,18 @@ Section DupProb.
               ).
     
     eapply leRat_trans.
-    Focus 2.
-    eapply leRat_terms.
-    eapply le_n_Sn.
-    reflexivity.
+    2:{
+      eapply leRat_terms.
+      eapply le_n_Sn.
+      reflexivity.
+    }
 
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    symmetry.
-    eapply ratAdd_num.
+    2:{
+      eapply eqRat_impl_leRat.
+      symmetry.
+      eapply ratAdd_num.
+    }
 
     eapply ratAdd_leRat_compat.
     eapply leRat_terms; omega.
@@ -184,12 +188,11 @@ Section DupProb.
     eapply mult_le_compat; intuition.
 
     eapply leRat_trans.
-    Focus 2.
-    eapply H.
+    2:{
+      eapply H.
+    }
     rewrite ratAdd_comm.
     eapply ratAdd_leRat_compat.
-
-    Require Import fcf.RndInList.
 
     assert (
         Pr 
@@ -227,8 +230,9 @@ Section DupProb.
     erewrite compMap_length; eauto.
 
     eapply leRat_trans.
-    Focus 2.
-    eapply IHls.
+    2:{
+      eapply IHls.
+    }
     inline_first.
     comp_irr_l.
     wftac.

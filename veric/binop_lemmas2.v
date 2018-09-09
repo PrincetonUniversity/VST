@@ -272,7 +272,7 @@ Lemma denote_tc_assert_iszero: forall {CS: compspecs} e rho,
   denote_tc_assert (tc_iszero e) rho =
   match (eval_expr e rho) with
   | Vint i => prop (is_true (Int.eq i Int.zero))
-  | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
+  | Vlong i => prop (is_true (Int64.eq i Int64.zero))
    | _ => FF end.
 Proof.
  intros.
@@ -280,7 +280,7 @@ Proof.
  destruct (eval_expr e any_environ) eqn:?; simpl; auto;
  rewrite (eval_expr_any rho e _ Heqv) by congruence.
  destruct (Int.eq i Int.zero); reflexivity.
- destruct (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero); reflexivity.
+ destruct (Int64.eq i Int64.zero); reflexivity.
 Qed.
 
 Lemma denote_tc_assert_iszero': forall {CS: compspecs} e,
@@ -476,11 +476,12 @@ Proof.
       simpl; unfold_lift;  unfold denote_tc_test_eq.
       rewrite (eval_expr_any rho a _ Ha')  by congruence.
       rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-      auto.
+      simpl. rewrite Hp. auto.
   + rewrite Int.eq_false by auto. simpl.
     simpl; unfold_lift;  unfold denote_tc_test_eq.
     rewrite (eval_expr_any rho a _ Ha')  by congruence.
     rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+    simpl. rewrite Hp.
     auto.
   }
 *
@@ -719,11 +720,11 @@ match op with
                               (tc_isptr a2))
                                (tc_int_or_ptr_type (typeof a1)))
                                (tc_int_or_ptr_type (typeof a2)))
-                               (tc_bool (is_int32_type ty) reterr))
+                               (tc_bool (is_ptrofs_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                  (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                  (tc_bool (Z.leb (sizeof t) Ptrofs.max_signed)
                                          (pp_compare_size_exceed t))
                     | Cop.sub_default => tc_andp 
                                         (binarithType' (typeof a1) (typeof a2) ty deferr reterr)
@@ -788,16 +789,16 @@ match op with
                               (check_pp_int' a1 a2 op ty e)
                    | Cop.cmp_case_pi si =>
                           tc_andp' (tc_int_or_ptr_type (typeof a1))
-                            (check_pp_int' a1 (Ecast a2 intptr_t) op ty e)
+                            (check_pp_int' a1 (Ecast a2 size_t) op ty e)
                    | Cop.cmp_case_ip si => 
                           tc_andp' (tc_int_or_ptr_type (typeof a2))
-                           (check_pp_int' (Ecast a1 intptr_t) a2 op ty e)
+                           (check_pp_int' (Ecast a1 size_t) a2 op ty e)
                    | Cop.cmp_case_pl => 
                           tc_andp' (tc_int_or_ptr_type (typeof a1))
-                            (check_pp_int' a1 (Ecast a2 intptr_t) op ty e)
+                            (check_pp_int' a1 (Ecast a2 size_t) op ty e)
                    | Cop.cmp_case_lp => 
                           tc_andp' (tc_int_or_ptr_type (typeof a2))
-                          (check_pp_int' (Ecast a1 intptr_t) a2 op ty e)
+                          (check_pp_int' (Ecast a1 size_t) a2 op ty e)
                    end
   end.
 Proof.

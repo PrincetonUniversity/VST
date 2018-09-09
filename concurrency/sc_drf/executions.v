@@ -32,7 +32,7 @@ Require Import VST.concurrency.common.dry_machine_lemmas.
 Require Import VST.concurrency.common.dry_machine_step_lemmas.
 Require Import VST.concurrency.common.erased_machine.
 Require Import VST.concurrency.common.tactics.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 Import Tactics.
 

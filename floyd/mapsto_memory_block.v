@@ -108,7 +108,7 @@ match p with
 | Vlong _ => True
 | Vfloat _ => True
 | Vsingle _ => True
-| Vptr _ i_ofs => Ptrofs.unsigned i_ofs + n < Int.modulus
+| Vptr _ i_ofs => Ptrofs.unsigned i_ofs + n < Ptrofs.modulus
 end.
 
 Lemma memory_block_local_facts: forall sh n p, 

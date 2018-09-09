@@ -212,6 +212,23 @@ Section NMAC_to_HMAC.
 
   Qed.
 
+    Theorem xor_1_1 :
+      forall (n : nat)(x y z : Bvector n),
+        BVxor _ y x = BVxor _ z x ->
+        y = z.
+
+      intuition.
+      rewrite <- BVxor_id_r at 1.
+      rewrite <- (BVxor_same_id x).
+      rewrite <- BVxor_assoc.
+      rewrite H.
+      rewrite  BVxor_assoc.
+      rewrite (BVxor_same_id x).
+      rewrite BVxor_id_r.
+      trivial.
+
+    Qed.
+
   Theorem A_NMAC_RKA_equiv :
     Pr[A_NMAC] == Pr[RKA_G1 _ _ _ (Rnd b) (Rnd c) (BVxor b) HMAC_RKA_A].
 
@@ -241,23 +258,6 @@ Section NMAC_to_HMAC.
     intuition.
 
     apply eqbBvector_sound in H2.
-
-    Theorem xor_1_1 :
-      forall (n : nat)(x y z : Bvector n),
-        BVxor _ y x = BVxor _ z x ->
-        y = z.
-
-      intuition.
-      rewrite <- BVxor_id_r at 1.
-      rewrite <- (BVxor_same_id x).
-      rewrite <- BVxor_assoc.
-      rewrite H.
-      rewrite  BVxor_assoc.
-      rewrite (BVxor_same_id x).
-      rewrite BVxor_id_r.
-      trivial.
-
-    Qed.
 
     exfalso.
     eapply opad_ne_ipad.

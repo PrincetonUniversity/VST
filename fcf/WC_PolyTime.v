@@ -219,8 +219,9 @@ Section CostTheory.
     intuition.
     eapply cost_uncurry_1.
     eapply cost_ext.
-    Focus 2.
-    eapply cost_ident.
+    2:{
+      eapply cost_ident.
+    }
     intuition.
   Qed.
   
@@ -231,8 +232,9 @@ Section CostTheory.
     intuition.
     eapply cost_uncurry_2.
     eapply cost_ext.
-    Focus 2.
-    eapply cost_ident.
+    2:{
+      eapply cost_ident.
+    }
     intuition.
   Qed.
 

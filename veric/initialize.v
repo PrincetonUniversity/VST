@@ -278,7 +278,7 @@ Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   | Init_int64 n => Zeq_bool (z mod 8) 0
   | Init_float32 n =>  Zeq_bool (z mod 4) 0
   | Init_float64 n =>  Zeq_bool (z mod 8) 0
-  | Init_addrof symb ofs =>  Zeq_bool (z mod 4) 0
+  | Init_addrof symb ofs =>  Zeq_bool (z mod (size_chunk Mptr)) 0
   | _ => true
   end.
 
@@ -629,28 +629,7 @@ Proof.
  unfold Val.load_result in H1.
  clear PB.
  destruct (ZMap.get i b); inv H1.
- rewrite proj_sumbool_is_true in H2 by auto.
- destruct (quantity_eq Q32 q); simpl in H2; [ | inv H2].
- subst q.
- destruct n; inv H2. destruct n; inv H1.
- destruct n; inv H2. destruct n; inv H1.
- destruct (ZMap.get (i+1) b); inv H2.
- destruct (Val.eq v v0); inv H1.
- destruct (quantity_eq Q32 q); simpl in H2; [ | inv H2].
- destruct n; inv H2. destruct n; inv H1.
- destruct n; inv H2.
- destruct (ZMap.get (i+1+1) b); inv H1.
- destruct (Val.eq v0 v); inv H2.
- destruct (quantity_eq Q32 q); simpl in H1; [ | inv H1].
- destruct n; inv H1. destruct n; inv H2.
- destruct (ZMap.get (i+1+1+1) b); inv H1.
- destruct (Val.eq v v0); inv H2.
- destruct (quantity_eq Q32 q); simpl in H1; [ | inv H1].
- destruct n; inv H1.
- destruct v0; inv H2.
- assert (j-i=0 \/ j-i=1 \/ j-i=2 \/ j-i=3) by omega.
- destruct H as [? | [?|[?|?]]]; rewrite H; simpl; auto.
-(* Not true *)
+(* Not true if Archi.ptr64=false *)
 Abort.
 
 Lemma Zmax_Z_of_nat:

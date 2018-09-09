@@ -139,9 +139,10 @@ Section DistSingle_impl_Mult.
     rewrite H1.
     clear H1.
     eapply eqRat_trans.
-    Focus 2.
-    comp_skip.
-    eapply eqRat_refl.
+    2:{
+      comp_skip.
+      eapply eqRat_refl.
+    }
     unfold computeHybrid.
     inline_first.
     comp_skip.
@@ -219,12 +220,13 @@ Section DistSingle_impl_Mult.
     rewrite H1.
     clear H1.
     eapply eqRat_trans.
-    Focus 2.
-    comp_skip.
-    eapply IHn0.
-    omega.
-    omega.
-    eapply eqRat_refl.
+    2:{
+      comp_skip.
+      eapply IHn0.
+      omega.
+      omega.
+      eapply eqRat_refl.
+    }
     unfold computeHybrid.
     inline_first.
     comp_skip.
@@ -353,39 +355,61 @@ Section DistSingle_impl_Mult.
     intuition.
   Qed.
   
+  Theorem compMap_computeHybrid_n_equiv : 
+    forall s_A a,
+    Pr  [b <-$ compMap B_EqDec (fun _ : nat => (c1 a)) (forNats n); A2 s_A b ] ==
+    Pr  [x <-$ computeHybrid n n a; A2 s_A x ].
+
+    intuition.
+    unfold computeHybrid.
+    inline_first.
+    comp_skip.
+    
+    inline_first.
+    rewrite minus_diag.
+    unfold forNats.
+    unfold compMap.
+    comp_simp.
+    rewrite app_nil_r.
+    intuition.
+  Qed.
+
   Theorem DistSingle_impl_Mult : 
     DistMult_Adv _ c1 c2 A1 A2 n <= (n / 1) * (DistSingle_Adv c1 c2 B1 B2).
 
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    rewrite DistSingle_G1_equiv.
-    rewrite DistSingle_G2_equiv.
-    rewrite DistSingle_G2_equiv.
-    rewrite DistSingle_G3_c1_equiv.
-    rewrite DistSingle_G3_c2_equiv.
-    eapply eqRat_refl.
+    2:{
+      eapply eqRat_impl_leRat.
+      rewrite DistSingle_G1_equiv.
+      rewrite DistSingle_G2_equiv.
+      rewrite DistSingle_G2_equiv.
+      rewrite DistSingle_G3_c1_equiv.
+      rewrite DistSingle_G3_c2_equiv.
+      eapply eqRat_refl.
+    }
     
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    unfold DistSingle_G3_c1, DistSingle_G3_c2.
-    rewrite rndNat_sumList.
-    rewrite rndNat_sumList.
-    rewrite sumList_factor_constant_l.
-    rewrite sumList_factor_constant_l.
-    rewrite ratMult_ratDistance_factor_l.
-    eapply eqRat_refl.
+    2:{
+      eapply eqRat_impl_leRat.
+      unfold DistSingle_G3_c1, DistSingle_G3_c2.
+      rewrite rndNat_sumList.
+      rewrite rndNat_sumList.
+      rewrite sumList_factor_constant_l.
+      rewrite sumList_factor_constant_l.
+      rewrite ratMult_ratDistance_factor_l.
+      eapply eqRat_refl.
+    }
 
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    rewrite <-ratMult_assoc.
-    rewrite ratMult_eq_rat1.
-    rewrite ratMult_1_l.
-    rewrite ratDistance_comm.
-    rewrite sumList_forNats_distance.
-    eapply eqRat_refl.
+    2:{
+      eapply eqRat_impl_leRat.
+      rewrite <-ratMult_assoc.
+      rewrite ratMult_eq_rat1.
+      rewrite ratMult_1_l.
+      rewrite ratDistance_comm.
+      rewrite sumList_forNats_distance.
+      eapply eqRat_refl.
+    }
 
     unfold DistMult_Adv.
     unfold DistMult_G.
@@ -397,25 +421,6 @@ Section DistSingle_impl_Mult.
     comp_simp.
 
     eapply compMap_computeHybrid_0_equiv.
-
-    Theorem compMap_computeHybrid_n_equiv : 
-      forall s_A a,
-      Pr  [b <-$ compMap B_EqDec (fun _ : nat => (c1 a)) (forNats n); A2 s_A b ] ==
-      Pr  [x <-$ computeHybrid n n a; A2 s_A x ].
-
-      intuition.
-      unfold computeHybrid.
-      inline_first.
-      comp_skip.
-      
-      inline_first.
-      rewrite minus_diag.
-      unfold forNats.
-      unfold compMap.
-      comp_simp.
-      rewrite app_nil_r.
-      intuition.
-    Qed.
 
     eapply evalDist_seq; intuition.
     comp_simp.
@@ -569,9 +574,10 @@ Section DistMult_impl_RepeatCore.
 
      eapply expRat_leRat_compat.
      eapply leRat_trans.
-     Focus 2.
-     eapply H1.
-     eauto.
+     2:{
+      eapply H1.
+      eauto.
+     }
      comp_inline_l.
      comp_skip.
      inline_first.
@@ -774,18 +780,20 @@ Section TrueSingle_impl_Mult.
     simpl in *.
     
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    eapply sumList_factor_constant_l.
+    2:{
+      eapply eqRat_impl_leRat.
+      eapply sumList_factor_constant_l.
+    }
     eapply sumList_le.
     intuition.
 
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    symmetry.
-    rewrite ratMult_comm.
-    eapply ratMult_assoc.
+    2:{
+      eapply eqRat_impl_leRat.
+      symmetry.
+      rewrite ratMult_comm.
+      eapply ratMult_assoc.
+    }
     eapply ratMult_leRat_compat.
     intuition.
 

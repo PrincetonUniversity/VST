@@ -529,7 +529,7 @@ Proof. destruct b as [[[b0 b1] b2] b3].
   assert (0 <= 2 ^ 16 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial.
   assert (0 <= 2 ^ 24 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial.
   rewrite Int.unsigned_repr.
-  Focus 2. split. clear H0 H2 H4 H6.
+  2:{ split. clear H0 H2 H4 H6.
              apply OMEGA2; trivial.
              apply OMEGA2; trivial.
              apply OMEGA2; trivial.
@@ -537,22 +537,23 @@ Proof. destruct b as [[[b0 b1] b2] b3].
               apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; eassumption.
             rewrite int_max_unsigned_eq. simpl. omega.
+  }
   assert (0 <= Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 + 2 ^ 16 * Byte.unsigned b2 < 2 ^ 24).
               split. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 + 2 ^ 16 * Byte.unsigned b2 <= 2 ^ 24 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; try eassumption. simpl. omega.
   erewrite (Zmod_unique _ (2^24) (Byte.unsigned b3)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity.
+  2:{ rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity. }
   assert (0 <= Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 < 2 ^ 16).
              split. apply OMEGA2; trivial.
               assert (Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 <= 2 ^ 16 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption.
               simpl. omega.
   erewrite (Zmod_unique _ (2^16) (Byte.unsigned b2)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity.
+  2:{ rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity. }
   erewrite (Zmod_unique _ (2^8) (Byte.unsigned b1)).
-     Focus 2. rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity.
+  2:{ rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity. }
      2: apply Byte.unsigned_range.
   rewrite Byte.repr_unsigned.
     erewrite (Zdiv_unique _ _ (Byte.unsigned b1)).
@@ -574,8 +575,8 @@ Lemma inv_littleendian b:
 Proof.
   unfold littleendian_invert, littleendian.
   rewrite Byte.unsigned_repr.
-  Focus 2. assert (0 <= ((Int.unsigned b mod 2 ^ 24) mod 2 ^ 16) mod 2 ^ 8 < Byte.max_unsigned +1). 2:omega.
-           apply Z_mod_lt. simpl; omega.
+  2:{ assert (0 <= ((Int.unsigned b mod 2 ^ 24) mod 2 ^ 16) mod 2 ^ 8 < Byte.max_unsigned +1). 2:omega.
+           apply Z_mod_lt. simpl; omega. }
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^16); trivial.
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
@@ -611,17 +612,17 @@ Proof.
   assert (z mod 2 ^ 8 + 2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) +
          2 ^ 16 * (z mod 2 ^ 24 / 2 ^ 16) + 2 ^ 24 * (z / 2 ^ 24) =
       2 ^ 24 * (z / 2 ^ 24) + z mod 2 ^ 24).
-  Focus 2. rewrite <- (Z.div_mod z (2^24)) in H. assumption. cbv; omega.
+  2:{ rewrite <- (Z.div_mod z (2^24)) in H. assumption. cbv; omega. }
   rewrite Z.add_comm. f_equal.
   assert (z mod 2 ^ 8 + 2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) +
             2 ^ 16 * (z mod 2 ^ 24 / 2 ^ 16) =
      2 ^ 16 * (z mod 2 ^ 24 / 2 ^ 16) + (z mod 2 ^ 24) mod 2 ^ 16).
-  Focus 2. rewrite <- (Z.div_mod (z mod 2 ^ 24) (2^16)) in H. assumption. cbv; omega.
+  2:{ rewrite <- (Z.div_mod (z mod 2 ^ 24) (2^16)) in H. assumption. cbv; omega. }
   rewrite Z.add_comm. f_equal.
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
   assert (z mod 2 ^ 8 + 2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) =
           2 ^ 8 * (z mod 2 ^ 16 / 2 ^ 8) + (z mod 2 ^ 16) mod 2 ^ 8).
-  Focus 2. rewrite <- (Z.div_mod (z mod 2 ^ 16) (2^8)) in H. assumption. cbv; omega.
+  2:{ rewrite <- (Z.div_mod (z mod 2 ^ 16) (2^8)) in H. assumption. cbv; omega. }
   rewrite <- Zmod_div_mod; trivial. 2: exists (2^8); trivial.
   apply Z.add_comm.
 Qed.

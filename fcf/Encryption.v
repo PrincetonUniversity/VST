@@ -8,6 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Require Import fcf.FCF.
 Require Import fcf.CompFold.
+Require Export fcf.Hybrid.
 
 Local Open Scope type_scope.
 Local Open Scope comp_scope.
@@ -214,8 +215,6 @@ Section Encryption_SecretKey_concrete.
     Definition IND_CPA_SecretKey_OI_Advantage := 
     | Pr[IND_CPA_SecretKey_OI_G0] - Pr[IND_CPA_SecretKey_OI_G1]  |.    
 
-  Require Export fcf.Hybrid.
-
   Section IND_CPA_SecretKey_OI_impl_O.
 
     Hypothesis KeyGen_wf : 
@@ -303,8 +302,9 @@ Section Encryption_SecretKey_concrete.
       simpl.
       trivial.
       
-      Focus 4.
-      reflexivity.
+      4:{
+        reflexivity.
+      }
 
       intuition.
       wftac.
@@ -323,13 +323,15 @@ Section Encryption_SecretKey_concrete.
   
       intuition.
       eapply leRat_trans.
-      Focus 2.
-      eapply IND_CPA_Adv_correct.
+      2:{
+        eapply IND_CPA_Adv_correct.
+      }
       unfold DistSingle_Adv.
       eapply leRat_trans.
-      Focus 2.
-      eapply eqRat_impl_leRat.
-      apply IND_CPA_SecretKey_2Proc_impl_O.
+      2:{
+        eapply eqRat_impl_leRat.
+        apply IND_CPA_SecretKey_2Proc_impl_O.
+      }
       unfold IND_CPA_SecretKey_O_3Proc_Advantage.
       eapply eqRat_impl_leRat.
 

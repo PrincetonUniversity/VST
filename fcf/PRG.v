@@ -138,6 +138,8 @@ Section PseudorandomGenerator.
   Definition PRG_Advantage := | (Pr[PRG_G1]) - (Pr[PRG_G2]) |.
 End PseudorandomGenerator.
 
+Require Import fcf.DetSem.
+
 Section OWP_HCP_Impl_PRG.
 
   Variable n : nat.
@@ -163,8 +165,6 @@ Section OWP_HCP_Impl_PRG.
   Definition B (v : Bvector n)(b : bool) : Comp bool :=
     (A (b :: v)).
 
-
-  Require Import fcf.DetSem.
 
   (* Something equivalent to the following is in the library already, right? *)
   Lemma rnd_concat_eq : forall (v : Bvector (S n)),
@@ -364,6 +364,10 @@ Section OWP_HCP_Impl_PRG.
    
   Qed.
     
-  (* Print Assumptions OWP_HCP_PRG. *)
+
 
 End OWP_HCP_Impl_PRG.
+
+
+Print Assumptions OWP_HCP_PRG. 
+   

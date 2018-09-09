@@ -32,7 +32,7 @@ Require Import VST.concurrency.sc_drf.mem_obs_eq.
 Require Import VST.concurrency.sc_drf.compcert_threads_lemmas.
 Require Import VST.concurrency.common.dry_context.
 Require Import VST.concurrency.common.tactics.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".

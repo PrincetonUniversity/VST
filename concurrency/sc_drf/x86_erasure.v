@@ -27,7 +27,7 @@ Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.common.HybridMachineSig.
 Require Import VST.concurrency.common.x86_context.
 Require Import VST.concurrency.sc_drf.SC_erasure.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".

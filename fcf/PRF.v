@@ -8,6 +8,7 @@ Set Implicit Arguments.
 Require Import fcf.FCF.
 Require Import fcf.CompFold. 
 Require Export fcf.Array.
+Require Export fcf.Hybrid.
 
 Local Open Scope list_scope.
 Local Open Scope array_scope.
@@ -126,8 +127,6 @@ Section PRF_concrete.
                          
   Section PRF_NA_impl_NAI.
 
-    Require Export fcf.Hybrid.
-
     Variable maxLists : nat.
     Hypothesis maxLists_correct : 
       forall ls s_A, 
@@ -145,18 +144,20 @@ Section PRF_concrete.
               (fun lsD => [lsR, _] <-$2 oracleMap _ _ RndR_func nil lsD; ret lsR)
               _ A2) <= maxDistance.
 
+    Theorem PRF_NAI_Advantage_eq_Hybrid:
+      PRF_NAI_Advantage == ListHybrid_Advantage 
+                             (fun lsD => k <-$ RndKey; ret (map (f k) lsD))
+                             (fun lsD => [lsR, _] <-$2 oracleMap _ _ RndR_func nil lsD; ret lsR)
+                             _ A1 A2.
+
+      reflexivity.
+
+    Qed.
+
+     
     Theorem PRF_NA_impl_NAI : 
       PRF_NAI_Advantage <= (maxLists / 1 * maxDistance)%rat.
 
-      Theorem PRF_NAI_Advantage_eq_Hybrid:
-        PRF_NAI_Advantage == ListHybrid_Advantage 
-                               (fun lsD => k <-$ RndKey; ret (map (f k) lsD))
-                               (fun lsD => [lsR, _] <-$2 oracleMap _ _ RndR_func nil lsD; ret lsR)
-                               _ A1 A2.
-
-        reflexivity.
-
-      Qed.
 
       rewrite PRF_NAI_Advantage_eq_Hybrid.
       rewrite Single_impl_ListHybrid.

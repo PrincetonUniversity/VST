@@ -215,8 +215,8 @@ Proof. intros. abbreviate_semax.
      rewrite Ptrofs.repr_unsigned.
      change (32+32) with 64.
      intros MBS; rewrite MBS; clear MBS; trivial.
-     Focus 2. destruct (Ptrofs.unsigned_range ckoff). split; try omega.
-              red in FC_ctxkey. simpl in FC_ctxkey. omega. 
+     2:{ destruct (Ptrofs.unsigned_range ckoff). split; try omega.
+              red in FC_ctxkey. simpl in FC_ctxkey. omega. } 
      flatten_sepcon_in_SEP.
 
      thaw FR6.
@@ -246,8 +246,9 @@ Proof. intros. abbreviate_semax.
        unfold HMAC_SHA256.mkKey.
        remember (Zlength key >? Z.of_nat SHA256.BlockSize).
        destruct b.
-       Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
+       2:{ specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
                 rewrite <- Heqb. intro Hx; simpl in Hx; omega.
+       }
        clear Heqb.
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
        assert (LHash: Zlength (SHA256.Hash key) = 32).
@@ -510,7 +511,7 @@ forward_if  (PostKeyNull c k pad gv h1 l key ckb ckoff).
   { apply denote_tc_test_eq_split. unfold initPre; normalize. destruct k; try contradiction.
     clear H.
     remember (Int.eq i Int.zero). destruct b.
-     apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer!.
+     apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; auto with valid_pointer. entailer!.
      entailer!. apply sepcon_valid_pointer2. apply @data_block_valid_pointer. auto.
      red in H2. omega.
      apply valid_pointer_null. }

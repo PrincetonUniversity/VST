@@ -77,7 +77,7 @@ Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIv
 Definition denote_tc_iszero v : mpred :=
          match v with
          | Vint i => prop (is_true (Int.eq i Int.zero))
-         | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
+         | Vlong i => prop (is_true (Int64.eq i Int64.zero))
          | _ => FF
          end.
 
@@ -427,7 +427,7 @@ Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   | Init_int64 n => Zeq_bool (z mod 8) 0
   | Init_float32 n =>  Zeq_bool (z mod 4) 0
   | Init_float64 n =>  Zeq_bool (z mod 8) 0
-  | Init_addrof symb ofs =>  Zeq_bool (z mod 4) 0
+  | Init_addrof symb ofs =>  Zeq_bool (z mod (size_chunk Mptr)) 0
   | _ => true
   end.
 
@@ -550,7 +550,12 @@ Lemma mapsto_tuint_tint:
 Proof. exact mapsto_memory_block.mapsto_tuint_tint. Qed.
 
 Lemma mapsto_tuint_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh tuint p nullval.
+  forall sh p t, 
+  mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
+Proof.  exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
+
+Lemma mapsto_size_t_tptr_nullval:
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
 Proof. exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
 
 Definition is_int32_noattr_type t :=
@@ -903,7 +908,7 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
 Definition var_sizes_ok {cs: compspecs} (vars: list (ident*type)) :=
-   Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
+   Forall (fun var : ident * type => sizeof (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
 Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with

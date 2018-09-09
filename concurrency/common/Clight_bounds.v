@@ -14,7 +14,7 @@ Require Import VST.concurrency.common.bounded_maps.
 Require Import VST.concurrency.common.permissions.
 
 Require Import VST.sepcomp.semantics_lemmas.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.veric.Clight_new.
 Require Import VST.veric.Clightnew_coop.
 

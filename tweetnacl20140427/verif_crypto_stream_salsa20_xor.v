@@ -111,8 +111,8 @@ Lemma Znth_sublist':
 Proof. intros. unfold Znth. destruct (zlt i 0). omega.
 destruct (zlt (i + lo) 0). omega. unfold sublist.
 destruct (zeq i (hi-lo)).
-Focus 2. rewrite nth_firstn. 2: apply Z2Nat.inj_lt; try omega. rewrite nth_skipn, Z2Nat.inj_add; trivial. omega.
-rewrite <- e. rewrite nth_overflow. Focus 2. rewrite firstn_length, skipn_length. apply Min.le_min_l.
+2:{ rewrite nth_firstn. 2: apply Z2Nat.inj_lt; try omega. rewrite nth_skipn, Z2Nat.inj_add; trivial. omega. }
+rewrite <- e. rewrite nth_overflow. 2:{ rewrite firstn_length, skipn_length. apply Min.le_min_l. }
 rewrite nth_overflow; trivial. subst i.
 assert(hi - lo + lo= hi). omega. rewrite H2.
 apply Z2Nat.inj_le in H0; try omega. rewrite ZtoNat_Zlength in H0. apply H0.
@@ -482,7 +482,7 @@ rename H into I.
     normalize. unfold field_address0. simpl.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
-    Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
+    2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega. }
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
     forward; unfold Bl2VL; autorewrite with sublist. 
     + entailer!. 
@@ -515,7 +515,7 @@ rename H into I.
     specialize (Zlength_combinelist _ _ _ _ XOR); intros LL.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
-    Focus 2. rewrite Zlength_Bl2VL. autorewrite with sublist. omega.
+    2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
     rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3.
@@ -659,7 +659,7 @@ forward_for_simple_bound (Int64.unsigned b)
     normalize. unfold field_address0. simpl.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
-    Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
+    2:{ elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega. }
     assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
     forward; unfold Bl2VL; autorewrite with sublist.
     { entailer!.
@@ -696,7 +696,7 @@ forward_for_simple_bound (Int64.unsigned b)
   specialize (Zlength_combinelist _ _ _ _ XOR); intros LL.
     autorewrite with sublist in LL.
     rewrite upd_Znth_app2.  
-    Focus 2. rewrite Zlength_Bl2VL. autorewrite with sublist. omega.
+    2:{ rewrite Zlength_Bl2VL. autorewrite with sublist. omega. }
     rewrite Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
     2: autorewrite with sublist; omega.
     simpl. thaw FR3. 
@@ -898,10 +898,11 @@ forward_while (Inv cInit mInit bInit k nonce v_x v_z (N0, N1,N2,N3) K mCont zbyt
 { remember (Z.of_nat rounds * 64)%Z as r64.
   apply Int64_ltu_false in HRE; rewrite Int64.unsigned_repr in HRE. 2: omega.
   destruct (zle (r64 + 64) (Int64.unsigned bInit)).
-  Focus 2. exfalso. assert (X: 64 > Int64.unsigned bInit - r64) by omega. clear g.
+  2:{ exfalso. assert (X: 64 > Int64.unsigned bInit - r64) by omega. clear g.
            destruct (Int64.unsigned_range_2 bInit) as [X1 X2].
            unfold Int64.sub in HRE. rewrite (Int64.unsigned_repr r64) in HRE. 2: omega.
            rewrite Int64.unsigned_repr in HRE; omega.
+  }
   destruct H as [R64old [M CONT]]. rename l into R64next.
    
   destruct (SixteenByte2ValList_exists zbytesR) as [d D].
@@ -1024,8 +1025,8 @@ apply (CONT_succ SIGMA K mInit mCont zbytes rounds _ _ CONT _ D
   2: omega. 2: rewrite Zlength_app; autorewrite with sublist; omega.
   autorewrite with sublist. rewrite H16.
   rewrite field_address0_clarify; simpl.
-  Focus 2. unfold field_address0; simpl. rewrite if_true; trivial.
-           auto with field_compatible.
+  2:{ unfold field_address0; simpl. rewrite if_true; trivial.
+           auto with field_compatible. }
   assert (II:Int64.unsigned bInit - (Z.of_nat rounds * 64 + 64) = Int64.unsigned bInit - (Z.of_nat rounds * 64) - 64). omega.
   rewrite Heqr64.
   rewrite II, Ptrofs.add_assoc, ptrofs_add_repr. entailer!.

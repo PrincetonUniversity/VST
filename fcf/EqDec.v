@@ -274,6 +274,33 @@ apply andb_true_iff; intuition;
 eapply eqb_leibniz; trivial.
 Defined.
 
+Definition eqbSum(A B : Set)(dA : EqDec A)(dB : EqDec B)(s1 s2 : (A + B)) :=
+  match s1 with
+    | inl a1 =>
+    match s2 with
+      | inl a2 => eqb a1 a2
+      | inr b2 => false
+    end
+    | inr b1 =>
+    match s2 with
+      | inl a2 => false
+      | inr b2 => eqb b1 b2
+    end
+  end.
+
+Instance sum_EqDec : forall (A B : Set)(dA : EqDec A)(dB : EqDec B), 
+    EqDec (sum A B) := {eqb := (@eqbSum A B dA dB)}.
+
+intuition; unfold eqbSum in *; try
+match goal with
+  | [H : eqb _ _ = true |-_] => rewrite eqb_leibniz in H
+  | [H : inl _ = inl _ |-_] => inversion H
+  | [H : inr _ = inr _ |-_] => inversion H
+end; subst; try rewrite eqb_refl; trivial; try discriminate.
+
+Defined.
+
+
 Definition eqbOption (A : Set)(dA : EqDec A)(o1 o2 : option A) :=
   match o1 with
     | None => 

@@ -6,7 +6,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Events.
 Require Import compcert.x86.Asm.
-Require Import Values.
+Require Import compcert.common.Values.
 Import AST.
 
 (*To prove memsem*)

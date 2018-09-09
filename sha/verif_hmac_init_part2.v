@@ -122,7 +122,7 @@ Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
            change Inhabitant_byte with Byte.zero.
            rewrite MN; clear MN.
                    rewrite combine_nth.
-                   Focus 2. rewrite map_length, length_SF, mkKey_length. reflexivity.
+                   2:{ rewrite map_length, length_SF, mkKey_length. reflexivity. }
                    assert (BMU: Byte.max_unsigned = 255). reflexivity.
                    assert (isByte54: 0 <= 54 <= Byte.max_unsigned).
                       rewrite BMU; omega.
@@ -135,7 +135,7 @@ Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
                      subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. omega. omega.
                    rewrite NTH, (Byte.unsigned_repr 54); trivial.
                    rewrite (Byte.unsigned_repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0)).
-                     Focus 2. destruct isbyteZQb. omega.
+                   2:{ destruct isbyteZQb. omega. }
                    rewrite Byte.unsigned_repr.
                    apply zero_ext_inrange.
                    rewrite Int.unsigned_repr.
@@ -208,7 +208,7 @@ Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
            change Inhabitant_byte with Byte.zero.
            rewrite MN; clear MN.
                    rewrite combine_nth.
-                   Focus 2. rewrite map_length, length_SF, mkKey_length. reflexivity.
+                   2:{ rewrite map_length, length_SF, mkKey_length. reflexivity. }
                    assert (BMU: Byte.max_unsigned = 255). reflexivity.
                    rewrite Int.xor_commut.
                    assert (isByte92: 0 <= 92 <= Byte.max_unsigned).
@@ -222,7 +222,7 @@ Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
                      subst l. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. omega. omega.
                    rewrite NTH, (Byte.unsigned_repr 92); trivial.
                    rewrite (Byte.unsigned_repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0)).
-                     Focus 2. destruct isbyteZQb. omega.
+                   2:{ destruct isbyteZQb. omega. }
                    rewrite Byte.unsigned_repr. unfold Int.xor.
                    rewrite Int.unsigned_repr.
                    rewrite <- isbyte_zeroExt8; trivial.
@@ -350,7 +350,7 @@ Proof. intros. abbreviate_semax.
                    = Vint (Int.repr qb)). (* (Int.zero_ext 8 q)).*)
           { unfold Znth. destruct (zlt i 0). omega.
             rewrite nth_indep with (d':=Vint (Int.repr 0)).
-              Focus 2. repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega.
+            2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
@@ -481,7 +481,7 @@ freeze [0;2] FR1.
                    = Vint (Int.repr qb)). (* (Int.zero_ext 8 q)).*)
           { unfold Znth. destruct (zlt i 0). omega.
             rewrite nth_indep with (d':=Vint (Int.repr 0)).
-              Focus 2. repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega.
+              2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
         freeze [0;2] FR2.
@@ -744,7 +744,7 @@ Qed.*)
     { (*ipad loop*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
        eapply semax_pre.
-       Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv myPred); try eassumption.
+       2:{ eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv myPred); try eassumption. }
        subst HMS'. clear - HeqmyPred. Time entailer!; cancel; apply derives_refl. 
     }
     subst myPred HMS'.

@@ -157,7 +157,7 @@ Qed.
 Definition denote_tc_iszero v : mpred :=
          match v with
          | Vint i => prop (is_true (Int.eq i Int.zero))
-         | Vlong i => prop (is_true (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero))
+         | Vlong i => prop (is_true (Int64.eq i Int64.zero))
          | _ => FF
          end.
 
@@ -389,7 +389,7 @@ intros.
       destruct Archi.ptr64; simpl; try simple_if_tac; try apply I].
   apply orb_true_iff in H.
   unfold classify_cast.
-  destruct (eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
+  destruct (Bool.eqb (eqb_type (Tpointer t a0) int_or_ptr_type)
          (eqb_type (Tpointer t' a) int_or_ptr_type)) eqn:J.
   destruct (eqb_type (Tpointer t' a) (Tpointer t a0)) eqn:?H.
   apply I.

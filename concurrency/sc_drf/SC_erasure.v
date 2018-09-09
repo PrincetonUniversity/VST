@@ -31,7 +31,7 @@ Require Import VST.concurrency.common.erased_machine.
 Require Import VST.concurrency.common.threadPool.
 Require Import VST.concurrency.sc_drf.fineConc_safe.
 Require Import VST.concurrency.sc_drf.executions.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".

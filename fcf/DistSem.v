@@ -177,59 +177,57 @@ Theorem getSupport_In_evalDist : forall (A : Set)(c : Comp A)(a : A),
 
 Qed.
 
+Theorem getSupport_not_In_evalDist_h : forall (A : Set)(c : Comp A)(a : A),
+~In a (getSupport c) -> (evalDist c a == 0).
+
+  induction c; intuition; simpl in *.
+  intuition.
+  destruct (e a a0); subst;
+  intuition.
+
+  eapply sumList_0.
+  intuition.
+  eapply ratMult_0.
+  right.
+  eapply H.
+  intuition.
+  eapply H0.
+  eapply (in_getUnique (flatten (map (fun b : B => getSupport (c0 b)) (getSupport c)))).
+  eapply in_flatten.
+  exists (getSupport (c0 a0)).
+  intuition.
+  eapply in_map_iff.
+  exists a0.
+  intuition.
+
+  exfalso.
+  eapply H.
+  eapply in_getAllBvectors.
+
+  apply filter_not_In in H.
+  intuition.
+  
+  eapply ratMult_0.
+  right.
+  eauto.
+  
+  eapply ratMult_0.
+  left.
+  unfold indicator.
+  rewrite H0.
+  rewrite ratMult_0_l.
+  intuition.  
+Qed.
+
 Theorem getSupport_not_In_evalDist : forall (A : Set)(c : Comp A)(a : A),
   ~In a (getSupport c) <-> (evalDist c a == 0).
 
   intuition.
 
-  Theorem getSupport_not_In_evalDist_h : forall (A : Set)(c : Comp A)(a : A),
-  ~In a (getSupport c) -> (evalDist c a == 0).
-
-    induction c; intuition; simpl in *.
-    intuition.
-    destruct (e a a0); subst;
-    intuition.
-
-    eapply sumList_0.
-    intuition.
-    eapply ratMult_0.
-    right.
-    eapply H.
-    intuition.
-    eapply H0.
-    eapply (in_getUnique (flatten (map (fun b : B => getSupport (c0 b)) (getSupport c)))).
-    eapply in_flatten.
-    exists (getSupport (c0 a0)).
-    intuition.
-    eapply in_map_iff.
-    exists a0.
-    intuition.
-
-    exfalso.
-    eapply H.
-    eapply in_getAllBvectors.
-
-    apply filter_not_In in H.
-    intuition.
-    
-    eapply ratMult_0.
-    right.
-    eauto.
-    
-    eapply ratMult_0.
-    left.
-    unfold indicator.
-    rewrite H0.
-    rewrite ratMult_0_l.
-    intuition.
-    
-  Qed.
-
   eapply getSupport_not_In_evalDist_h.
   intuition.
 
   eapply getSupport_In_evalDist; eauto.
-
 Qed.
 
 Theorem getSupport_correct : forall (A : Set)(c : Comp A),
@@ -563,27 +561,29 @@ Lemma evalDist_le_1 : forall (A : Set)(c : Comp A) a,
 
   intuition.
   eapply leRat_trans.
-  Focus 2.
-  eapply (@evalDist_sum_le_1 _ c).
+  2:{
+    eapply (@evalDist_sum_le_1 _ c).
+  }
   pose proof (comp_EqDec c).
   destruct (in_dec (EqDec_dec _) a (getSupport c)).
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  rewrite (sumList_partition (eqb a)).
-  eapply ratAdd_eqRat_compat.
-  eapply sumList_exactly_one.
-  eapply getSupport_NoDup.
-  eauto.
-  intuition.
-  case_eq (eqb a b); intuition.
-  exfalso.
-  eapply H1.
-  eapply eqb_leibniz.
-  trivial.
-  eapply ratMult_0_r.
-  eapply eqRat_refl.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    rewrite (sumList_partition (eqb a)).
+    eapply ratAdd_eqRat_compat.
+    eapply sumList_exactly_one.
+    eapply getSupport_NoDup.
+    eauto.
+    intuition.
+    case_eq (eqb a b); intuition.
+    exfalso.
+    eapply H1.
+    eapply eqb_leibniz.
+    trivial.
+    eapply ratMult_0_r.
+    eapply eqRat_refl.
+  }
   
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
@@ -592,10 +592,11 @@ Lemma evalDist_le_1 : forall (A : Set)(c : Comp A) a,
   rewrite eqb_refl.
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply ratMult_1_r.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply ratMult_1_r.
+  }
   intuition.
   
   eapply rat0_le_all.
@@ -632,10 +633,11 @@ Theorem evalDist_le_1_gen :
   eapply (sumList_filter_partition (fun a => if (in_dec (EqDec_dec _) a (getSupport c)) then true else false)).
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eapply ratAdd_0_r.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eapply ratAdd_0_r.
+  }
   eapply ratAdd_leRat_compat.
   
   eapply leRat_trans.
@@ -675,10 +677,11 @@ Theorem evalDist_1_0 :
   
   eapply (leRat_ratAdd_same_r (evalDist c a)).
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  rewrite H0.
-  eapply ratAdd_0_l.
+  2:{
+    eapply eqRat_impl_leRat.
+    rewrite H0.
+    eapply ratAdd_0_l.
+  }
   
   assert ( evalDist c b + evalDist c a ==
     sumList (a :: b :: nil)%list (evalDist c)).

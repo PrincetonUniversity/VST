@@ -14,6 +14,10 @@ COMPCERT ?= compcert
 #   COQBIN=/path/to/bin/
 # to a directory containing the coqc/coqdep/... you wish to use, if it
 # is not your path.
+#
+# You can override ARCH and BITSIZE in the configure file, too;
+# otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
+
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -51,8 +55,8 @@ endif
 endif
 endif
 
-ARCH=$(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
-BITSIZE=$(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
+ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.config)
+BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
 
 ifeq ($(COMPCERT), compcert_new)
 BACKEND=backend
@@ -72,7 +76,8 @@ endif
 
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
-EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
+COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
+EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
 
 # for SSReflect
 ifdef MATHCOMP
@@ -84,6 +89,10 @@ SHIM= -Q concurrency/shim VST.veric
 endif
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
+
+
+
+
 #COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
@@ -93,7 +102,7 @@ DEPFLAGS:=$(COQFLAGS)
 #  https://github.com/AbsInt/CompCert/issues/199
 COQC=$(COQBIN)coqc -w -overriding-logical-loadpath,-notation-overridden
 COQTOP=$(COQBIN)coqtop
-COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
+COQDEP=$(COQBIN)coqdep
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
 
 MSL_FILES = \
@@ -416,22 +425,25 @@ FILES = \
 # from progs/verif_reverse.v
 	grep -v '^.[*][*][ )]' $*.v >$@
 
+
+%.vo: COQF=$(if $(findstring compcert, $(dir $<)), $(COMPCERT_R_FLAGS), $(COQFLAGS))
+
 %.vo: %.v
 	@echo COQC $*.v
 ifeq ($(TIMINGS), true)
-#	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
+#	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQF) $*.v; date +'%s.%N after' >>timings" 2>>timings
 	echo true timings
-	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
-#	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
+	@bash -c "/usr/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQF) $*.v"
+#	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQF) $*.v"
 else ifeq ($(TIMINGS), simple)
-	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
+	@/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQF) $*.v
 else ifeq ($(strip $(ANNOTATE)), true)
-	@$(COQC) $(COQFLAGS) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
+	@$(COQC) $(COQF) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
 else ifeq ($(strip $(ANNOTATE)), silent)
-	@$(COQC) $(COQFLAGS) $*.v >/dev/null
+	@$(COQC) $(COQF) $*.v >/dev/null
 else 
-	@$(COQC) $(COQFLAGS) $*.v
-#	@util/annotate $(COQC) $(COQFLAGS) $*.v 
+	@$(COQC) $(COQF) $*.v
+#	@util/annotate $(COQC) $(COQF) $*.v 
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
@@ -551,22 +563,21 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend depend:
-#	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	@echo 'coqdep ... >.depend'
-#	$(COQDEP) >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"`
+	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 ifeq ($(COMPCERT), compcert_new)
-	$(COQDEP) 2>&1 >.depend `find $(COMPCERT) $(filter $(wildcard *), $(DIRS)) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/paco concurrency/sc_drf) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
 	echo "" >>.depend
-	$(COQDEP) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
+	$(COQDEP) $(COQFLAGS) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
 else
-	$(COQDEP) 2>&1 >.depend `find $(COMPCERT)/{cfrontend,common,exportclight,flocq,lib} $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
-	rm -f veric/version.{v,vo,glob} .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
+	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
 	rm -fr doc/html
 
 clean-concur:

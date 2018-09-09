@@ -220,7 +220,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
   assert (0 <= 2 ^ 48 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial. 
   assert (0 <= 2 ^ 56 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial. 
   rewrite Int64.unsigned_repr.
-  Focus 2. split. clear H0 H2 H4 H6 H8 H10 H12 H14.
+  2:{ split. clear H0 H2 H4 H6 H8 H10 H12 H14.
              apply OMEGA2; trivial.
              apply OMEGA2; trivial.
              apply OMEGA2; trivial.
@@ -236,6 +236,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption.  
               apply Z.add_le_mono; eassumption.
             unfold Int64.max_unsigned; simpl. omega.
+  }
   assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 +
           2 ^ 48 * Byte.unsigned b2 < 2 ^ 56). 
@@ -248,7 +249,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. simpl. omega.
   erewrite (Zmod_unique _ (2^56) (Byte.unsigned b3)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^56)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^56)). rewrite Z.add_comm. reflexivity. }
   assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 < 2 ^ 48). 
               split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
@@ -259,7 +260,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. 
   erewrite (Zmod_unique _ (2^48) (Byte.unsigned b2)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^48)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^48)). rewrite Z.add_comm. reflexivity. }
   assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 < 2 ^ 40). 
               split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
@@ -269,7 +270,7 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. simpl. omega.
   erewrite (Zmod_unique _ (2^40) (Byte.unsigned b1)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^40)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^40)). rewrite Z.add_comm. reflexivity. }
   assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
           2 ^ 24 * Byte.unsigned c3 < 2 ^ 32). 
               split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
@@ -278,23 +279,23 @@ Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega.
   erewrite (Zmod_unique _ (2^32) (Byte.unsigned b0)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^32)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^32)). rewrite Z.add_comm. reflexivity. }
   assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
               split. apply OMEGA2; trivial. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               apply Z.add_le_mono; try eassumption. simpl. omega.
   erewrite (Zmod_unique _ (2^24) (Byte.unsigned c3)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity. }
   assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
              split. apply OMEGA2; trivial.
               assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: omega.
               eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
               simpl. omega.
   erewrite (Zmod_unique _ (2^16) (Byte.unsigned c2)); try eassumption.
-     Focus 2. rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity. }
   erewrite (Zmod_unique _ (2^8) (Byte.unsigned c1)).
-     Focus 2. rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity.
+     2:{ rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity. }
      2: apply Byte.unsigned_range. 
   erewrite (Zdiv_unique _ _ (Byte.unsigned b3));
        [  | rewrite (Z.mul_comm (2^56)), Z.add_comm; reflexivity

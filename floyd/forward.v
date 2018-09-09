@@ -34,16 +34,19 @@ Import Cop2.
 
 Global Opaque denote_tc_test_eq.
 
-Hint Rewrite @sem_add_pi_ptr_special using (solve [auto with norm]) : norm.
+Hint Rewrite @sem_add_pi_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
+Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with norm]) : norm.
 
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
  isptr p ->
  isptr (force_val (sem_add_ptr_int t si p (Vint (Int.repr i)))).
 Proof.
-intros. normalize.
+intros. destruct p; inv H; hnf; auto.
 Qed.
-Hint Resolve isptr_force_sem_add_ptr_int : prove_it_now.
+
+Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
+    apply isptr_force_sem_add_ptr_int; auto with prove_it_now.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
 Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) :
@@ -93,7 +96,7 @@ Lemma var_block_lvar2:
  forall {cs: compspecs} {Espec: OracleKind} id t Delta P Q R Vs c Post,
    (var_types Delta) ! id = Some t ->
    complete_legal_cosu_type t = true ->
-   sizeof t < Int.modulus ->
+   sizeof t < Ptrofs.modulus ->
    is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
   (forall v,
    semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
@@ -104,7 +107,7 @@ Lemma var_block_lvar2:
                c Post.
 Proof.
 intros.
-assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
+assert (Int.unsigned Int.zero + sizeof t <= Ptrofs.modulus)
  by (rewrite Int.unsigned_zero; omega).
 eapply semax_pre.
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R))))
@@ -1302,15 +1305,21 @@ Lemma typed_true_ptr_e:
  forall t v, typed_true (tptr t) v -> isptr v.
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
- destruct (Int.eq i Int.zero); inv H1.
+destruct Archi.ptr64; try discriminate.
+revert H1; simple_if_tac; intro H1; inv H1.
 Qed.
 
 Lemma typed_false_ptr_e:
  forall t v, typed_false (tptr t) v -> v=nullval.
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
- destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb. subst; reflexivity.
+unfold nullval.
+destruct Archi.ptr64; try discriminate.
+f_equal.
+try (pose proof (Int64.eq_spec i Int64.zero);
+      destruct (Int64.eq i Int64.zero); inv H1; auto);
+try (pose proof (Int.eq_spec i Int.zero);
+      destruct (Int.eq i Int.zero); inv H1; auto).
 Qed.
 
 Lemma repr_neq_e:
@@ -1378,13 +1387,12 @@ Lemma typed_true_negb_bool_val_p:
      p = nullval.
 Proof.
 intros. destruct p; inv H.
-destruct Archi.ptr64 eqn:Hp.
-inv H1.
-simpl in H1.
-rewrite negb_involutive in H1.
-destruct (Int.eq i Int.zero) eqn:?; inv H1.
-apply int_eq_e in Heqb.
-subst; reflexivity.
+destruct Archi.ptr64 eqn:Hp;
+(simpl in H1;
+try (pose proof (Int64.eq_spec i Int64.zero);
+      destruct (Int64.eq i Int64.zero); inv H1; auto);
+try (pose proof (Int.eq_spec i Int.zero);
+      destruct (Int.eq i Int.zero); inv H1; auto)).
 Qed.
 
 Lemma typed_false_negb_bool_val_p:
@@ -1396,14 +1404,15 @@ Lemma typed_false_negb_bool_val_p:
             (bool_val_p p))) ->
      isptr p.
 Proof.
-intros. destruct p; inv H0.
-destruct Archi.ptr64 eqn:Hp.
-inv H2.
-simpl in H2.
-rewrite negb_involutive in H2.
-destruct (Int.eq i Int.zero) eqn:?; inv H2.
-simpl in H. rewrite Hp in H. subst. inv Heqb.
-hnf; auto.
+intros. destruct p; try solve [inv H0]; auto; rename H0 into H1.
+simpl in H.
+simpl.
+destruct Archi.ptr64 eqn:Hp;
+(simpl in H1;
+try (pose proof (Int64.eq_spec i Int64.zero);
+      destruct (Int64.eq i Int64.zero); inv H1; auto);
+try (pose proof (Int.eq_spec i Int.zero);
+      destruct (Int.eq i Int.zero); inv H1; auto)).
 Qed.
 
 Lemma typed_false_negb_bool_val_p':
@@ -2388,16 +2397,23 @@ Ltac construct_nested_efield e e1 efs tts lr :=
 
 Lemma efield_denote_cons_array: forall {cs: compspecs} P efs gfs ei i,
   P |-- local (efield_denote efs gfs) ->
-  P |-- local (`(eq (Vint (Int.repr i))) (eval_expr ei)) ->
+  P |-- local (`(eq (Vint i)) (eval_expr ei)) ->
   is_int_type (typeof ei) = true ->
-  P |-- local (efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs)).
+  P |-- local (efield_denote (eArraySubsc ei :: efs) 
+          (ArraySubsc (int_signed_or_unsigned (typeof ei) i) :: gfs)).
 Proof.
   intros.
   rewrite (add_andp _ _ H), (add_andp _ _ H0), andp_assoc.
   apply andp_left2.
   intros rho; simpl; unfold local, lift1; unfold_lift; normalize.
   constructor; auto.
-  constructor; auto.
+  2:   constructor; auto.
+  clear - H1. destruct (typeof ei); inv H1.
+  unfold int_signed_or_unsigned. destruct i0,s; simpl; rep_omega. 
+  rewrite <- H2.
+  destruct (typeof ei); inv H1.
+  unfold int_signed_or_unsigned. destruct i0,s; simpl;
+  rewrite ?Int.repr_signed, ?Int.repr_unsigned; auto. 
 Qed.
 
 Lemma efield_denote_cons_struct: forall {cs: compspecs} P efs gfs i,
@@ -2516,6 +2532,41 @@ Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite @sem_add_ptr_int_lem using assumption : norm1.
+
+Lemma sem_add_pi': forall {CS: compspecs} t0 si v i,
+  isptr v ->
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
+   force_val (sem_add_ptr_int t0 si v (Vint (Int.repr i))) =
+   offset_val (sizeof t0 * i) v.
+Proof.
+  intros.
+  unfold sem_add_ptr_int.
+  rewrite sem_add_pi_ptr; auto.
+Qed.
+Hint Rewrite @sem_add_pi' using (solve [auto with norm ; rep_omega]) : norm.
+
+(*
+Lemma offset_val_sem_add_pi: forall {CS: compspecs} ofs t0 si v i,
+  match si with
+  | Signed => Int.min_signed <= i <= Int.max_signed
+  | Unsigned => 0 <= i <= Int.max_unsigned
+  end ->
+   offset_val ofs
+     (force_val (sem_add_ptr_int t0 si v (Vint (Int.repr i)))) =
+   offset_val ofs
+     (offset_val (sizeof t0 * i) v).
+Proof.
+  intros.
+  destruct v; try reflexivity.
+  unfold sem_add_ptr_int.
+  rewrite sem_add_pi_ptr; auto.
+  apply I.
+Qed.
+Hint Rewrite @offset_val_sem_add_pi using (solve [auto with norm ; rep_omega]) : norm.
+*)
 
 Arguments field_type i m / .
 Arguments nested_field_type {cs} t gfs / .
@@ -2653,7 +2704,7 @@ Ltac solve_return_inner_gen :=
 
 Inductive fn_data_at {cs: compspecs} (Delta: tycontext) (T2: PTree.t (type * val)): ident * type -> mpred -> Prop :=
 | fn_data_at_intro: forall i t p,
-    (complete_legal_cosu_type t && (sizeof t <? Int.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
+    (complete_legal_cosu_type t && (sizeof t <? Ptrofs.modulus) && is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true)%bool ->
     msubst_eval_lvar Delta T2 i t = Some p ->
     fn_data_at Delta T2 (i, t) (data_at_ Tsh t p).
 
@@ -2925,6 +2976,11 @@ eapply semax_pre; [ | apply semax_break ];
   unfold_abbrev_ret;
   simpl_ret_assert (*autorewrite with ret_assert*).
 
+Ltac forward_continue :=
+eapply semax_pre; [ | apply semax_continue ];
+  unfold_abbrev_ret;
+  simpl_ret_assert (*autorewrite with ret_assert*).
+
 Ltac simpl_first_temp :=
 try match goal with
 | |- semax _ (PROPx _ (LOCALx (temp _ ?v :: _) _)) _ _ =>
@@ -2971,9 +3027,11 @@ Ltac forward :=
     clear_Delta_specs; forward_return
   | |- semax _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
   | |- semax _ _ (Ssequence Sbreak _) _ =>
-    apply semax_seq with FF; [ | apply semax_ff];
-    forward_break
+    apply semax_seq with FF; [ | apply semax_ff];  forward_break
+  | |- semax _ _ (Ssequence Scontinue _) _ =>
+    apply semax_seq with FF; [ | apply semax_ff];  forward_continue
   | |- semax _ _ Sbreak _ => forward_break
+  | |- semax _ _ Scontinue _ => forward_continue
   | |- semax _ _ Sskip _ => fwd_skip
   | |- semax _ _ ?c0 _ =>
     match c0 with
@@ -3071,7 +3129,7 @@ end.
 Ltac type_lists_compatible al bl :=
  match al with
  | Ctypes.Tcons ?a ?al' => match bl with Ctypes.Tcons ?b ?bl' => 
-                 unify (classify_cast a b) cast_case_pointer;
+                 first [unify a b | unify (classify_cast a b) cast_case_pointer];
                  type_lists_compatible al' bl'
                 end
  | Ctypes.Tnil => match bl with Ctypes.Tnil => idtac end

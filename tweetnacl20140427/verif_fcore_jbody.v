@@ -517,8 +517,8 @@ deadvars!.
     rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-    rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
-    rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
+    rewrite add_repr.
+    rewrite Int.unsigned_repr by (rewrite int_max_unsigned_eq; omega).
     omega. }
   { Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
     go_lower. rewrite TM. simpl. 
@@ -538,8 +538,7 @@ deadvars!.
       rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).
         2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
         2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
-      rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega. 
+      rewrite add_repr.
       rewrite Z.rem_mod_nonneg; try omega. entailer!. }
   } 
 

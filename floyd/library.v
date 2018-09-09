@@ -94,11 +94,11 @@ Parameter malloc_token_precise:
 
 Definition malloc_spec'  {cs: compspecs} :=
    WITH t:type
-   PRE [ 1%positive OF tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned;
+   PRE [ 1%positive OF size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vint (Int.repr (sizeof t))))
+       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))))
        SEP ()
     POST [ tptr tvoid ] EX p:_,
        PROP ()

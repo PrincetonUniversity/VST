@@ -386,13 +386,14 @@ Lemma rat_inf_limit_difference : forall (f1 f2 : nat -> Rat -> Prop) c1 c2,
   eapply ratSubtract_partition_leRat.
   
   eapply ratSubtract_ratDistance_le.
-  Focus 2.
-  rewrite H4.
-  rewrite ratHalf_add.
-  intuition.
-  eapply Max.max_lub_l.
-  eauto.
-  trivial.
+  2:{
+    rewrite H4.
+    rewrite ratHalf_add.
+    intuition.
+    eapply Max.max_lub_l.
+    eauto.
+    trivial.
+  }
   eapply leRat_trans.
   eapply ratSubtract_partition_leRat.
   rewrite ratSubtract_0.
@@ -1064,9 +1065,10 @@ Lemma rat_inf_limit_mono  : forall (f : nat -> Rat -> Prop) (g : nat -> nat)(v :
   intuition.
   eapply (H3 (g n')).
   eapply le_trans.
-  Focus 2.
-  eapply H0.
-  eapply H5.
+  2:{
+    eapply H0.
+    eapply H5.
+  }
   rewrite <- H4.
   eapply le_refl.
   trivial.

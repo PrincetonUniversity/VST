@@ -92,10 +92,10 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
   rewrite (split2_array_at _ _ _ 0 (Zlength (s256a_data a)) 64) by (auto; Omega1).
   rewrite (split2_array_at _ _ _ 0 (Zlength (s256a_data a)) 64).
   2: Omega1.
-  Focus 2. {
+  2:{
     autorewrite with sublist.
     rewrite Zlength_sublist by Omega1. Omega1.
-  } Unfocus.
+  } 
   pose proof CBLOCKz_eq.
   pose proof (Zlength_nonneg (s256a_data a)).
   autorewrite with sublist.

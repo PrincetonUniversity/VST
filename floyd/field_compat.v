@@ -521,7 +521,8 @@ Lemma split2_data_at_Tarray_tuchar {cs: compspecs} sh n n1 (v: list val) p:
     data_at sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
     data_at sh (Tarray tuchar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n1::nil) p).
 Proof. intros.
- eapply split2_data_at_Tarray; auto.
+ eapply split2_data_at_Tarray; auto;
+ change (@reptype cs tuchar) with val.
  symmetry in H0.
  list_solve.
  rewrite sublist_same; try omega; auto.
@@ -536,7 +537,8 @@ Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
     data_at sh (Tarray tuchar (n2 - n1) noattr) (sublist n1 n2 v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n1::nil) p) *
     data_at sh (Tarray tuchar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tuchar n noattr) (ArraySubsc n2::nil) p).
 Proof. intros.
- eapply split3_data_at_Tarray; auto.
+ eapply split3_data_at_Tarray; auto;
+ change (@reptype cs tuchar) with val.
   split; simpl; auto. list_solve.
  rewrite sublist_same; try omega; auto.
 Qed.

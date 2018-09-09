@@ -150,9 +150,10 @@ Theorem evalDist_bind_event_le :
   rewrite sumList_factor_constant_l.
 
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply ratMult_1_r.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply ratMult_1_r.
+  }
   eapply ratMult_leRat_compat; intuition.
   
   
@@ -164,9 +165,10 @@ Theorem evalDist_bind_event_le :
   eapply sumList_le.
   intuition.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  eapply ratMult_1_r.
+  2:{
+    eapply eqRat_impl_leRat.
+    eapply ratMult_1_r.
+  }
   eapply ratMult_leRat_compat; intuition.
   destruct (evta a); intuition.
   eapply rat0_le_all.
@@ -227,11 +229,12 @@ Theorem oc_eventProb :
   clear H6.
   
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  rewrite ratAdd_num.
-  eapply ratMult_distrib_r.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    rewrite ratAdd_num.
+    eapply ratMult_distrib_r.
+  }
   eapply ratAdd_leRat_compat;
   eapply ratMult_leRat_compat; intuition.
   eapply H2.
@@ -492,11 +495,12 @@ Section RndInList.
     eapply leRat_refl.
 
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
+    2:{
+      eapply eqRat_impl_leRat.
 
-    symmetry.
-    eapply rat_num_S.
+      symmetry.
+      eapply rat_num_S.
+    }
     eapply ratAdd_leRat_compat.
     rewrite (@sumList_exactly_one _ a).
     eapply leRat_refl.
@@ -514,14 +518,16 @@ Section RndInList.
     intuition.
     
     eapply leRat_trans.
-    Focus 2.
-    eapply IHls.
+    2:{
+      eapply IHls.
+    }
 
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    symmetry.
-    eapply (sumList_filter_partition (fun b => negb (eqb a b))).
+    2:{
+      eapply eqRat_impl_leRat.
+      symmetry.
+      eapply (sumList_filter_partition (fun b => negb (eqb a b))).
+    }
 
     rewrite ratAdd_0_r.
     eapply ratAdd_leRat_compat.
@@ -637,12 +643,13 @@ Section FixedInRndList.
     reflexivity.
     
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    symmetry.
-    cutrewrite (S (length ls) = 1 + (length ls))%nat.
-    apply ratAdd_num.
-    trivial.
+    2:{
+      eapply eqRat_impl_leRat.
+      symmetry.
+      cutrewrite (S (length ls) = 1 + (length ls))%nat.
+      apply ratAdd_num.
+      trivial.
+    }
     reflexivity.
   Qed.
   
@@ -654,6 +661,86 @@ Section RndInAdaptive.
   Variable A B C : Set.
   
   Local Open Scope rat_scope.
+
+  Theorem orb_prob : 
+    forall (A B : Set)(c : Comp A)(f : A -> Comp B) evt1 evt2 k1 k2,
+      Pr[x <-$ c; ret (evt1 x)] <= k1 ->
+      (forall a, In a (getSupport c) -> evt1 a = false -> Pr[y <-$ f a; ret (evt2 y)] <= k2) ->
+      Pr[x <-$ c; y <-$ f x; ret (evt1 x || evt2 y)] <= k1 + k2.
+
+    intuition.
+    rewrite evalDist_seq_step.
+    rewrite (sumList_partition evt1).
+    eapply ratAdd_leRat_compat.
+
+    Transparent evalDist.
+    simpl in H.
+    eapply leRat_trans.
+    2:{
+      eapply H.
+    }
+    eapply sumList_le.
+    intuition.
+    rewrite ratMult_assoc.
+    eapply ratMult_leRat_compat.
+    intuition.
+
+    case_eq (evt1 a); intuition.
+    rewrite ratMult_1_r.
+    eapply leRat_trans.
+    eapply distro_irr_le.
+    intros.
+    rewrite orb_true_l.
+    simpl.
+    destruct (EqDec_dec bool_EqDec true true ).
+    eapply leRat_refl.
+    intuition.
+    destruct (EqDec_dec bool_EqDec true true); intuition.
+    
+    destruct (EqDec_dec bool_EqDec false true); intuition.
+    discriminate.
+    rewrite ratMult_0_r; intuition.
+
+    assert ( sumList (getSupport c)
+   (fun a : A0 =>
+    evalDist c a * Pr  [y <-$ f a; ret evt1 a || evt2 y ] *
+    (if evt1 a then 0 else 1)) <=
+     sumList (getSupport c)
+   (fun a : A0 =>
+    evalDist c a *
+    (if evt1 a then 0 else 1) * k2)).
+    eapply sumList_le; intuition.
+    case_eq (evt1 a); intuition.
+    repeat rewrite ratMult_0_r.
+    eapply eqRat_impl_leRat.
+    symmetry.
+    apply ratMult_0_l.
+    repeat rewrite ratMult_1_r.
+    eapply ratMult_leRat_compat; intuition.
+
+    rewrite H1.
+    clear H1.
+    rewrite sumList_factor_constant_r.
+    eapply leRat_trans.
+    2:{
+      eapply eqRat_impl_leRat.
+      eapply ratMult_1_l.
+    }
+    eapply ratMult_leRat_compat; intuition.
+    assert ( sumList (getSupport c)
+   (fun a : A0 => evalDist c a * (if evt1 a then 0 else 1)) <=
+    sumList (getSupport c)
+   (fun a : A0 => evalDist c a)).
+    eapply sumList_le.
+    intuition.
+    destruct (evt1 a); intuition.
+    rewrite ratMult_0_r.
+    eapply rat0_le_all.
+    rewrite ratMult_1_r.
+    intuition.
+    rewrite H1. clear H1.
+    eapply evalDist_sum_le_1.
+  Qed.    
 
   Theorem RndInAdaptive_prob : 
     forall (c : OracleComp A B C)(q : nat),
@@ -701,83 +788,6 @@ Section RndInAdaptive.
     rewrite H5.
     clear H5.
     
-    Theorem orb_prob : 
-      forall (A B : Set)(c : Comp A)(f : A -> Comp B) evt1 evt2 k1 k2,
-        Pr[x <-$ c; ret (evt1 x)] <= k1 ->
-        (forall a, In a (getSupport c) -> evt1 a = false -> Pr[y <-$ f a; ret (evt2 y)] <= k2) ->
-        Pr[x <-$ c; y <-$ f x; ret (evt1 x || evt2 y)] <= k1 + k2.
-
-      intuition.
-      rewrite evalDist_seq_step.
-      rewrite (sumList_partition evt1).
-      eapply ratAdd_leRat_compat.
-
-      Transparent evalDist.
-      simpl in H.
-      eapply leRat_trans.
-      Focus 2.
-      eapply H.
-      eapply sumList_le.
-      intuition.
-      rewrite ratMult_assoc.
-      eapply ratMult_leRat_compat.
-      intuition.
-
-      case_eq (evt1 a); intuition.
-      rewrite ratMult_1_r.
-      eapply leRat_trans.
-      eapply distro_irr_le.
-      intros.
-      rewrite orb_true_l.
-      simpl.
-      destruct (EqDec_dec bool_EqDec true true ).
-      eapply leRat_refl.
-      intuition.
-      destruct (EqDec_dec bool_EqDec true true); intuition.
-      
-      destruct (EqDec_dec bool_EqDec false true); intuition.
-      discriminate.
-      rewrite ratMult_0_r; intuition.
-
-      assert ( sumList (getSupport c)
-     (fun a : A0 =>
-      evalDist c a * Pr  [y <-$ f a; ret evt1 a || evt2 y ] *
-      (if evt1 a then 0 else 1)) <=
-       sumList (getSupport c)
-     (fun a : A0 =>
-      evalDist c a *
-      (if evt1 a then 0 else 1) * k2)).
-      eapply sumList_le; intuition.
-      case_eq (evt1 a); intuition.
-      repeat rewrite ratMult_0_r.
-      eapply eqRat_impl_leRat.
-      symmetry.
-      apply ratMult_0_l.
-      repeat rewrite ratMult_1_r.
-      eapply ratMult_leRat_compat; intuition.
-
-      rewrite H1.
-      clear H1.
-      rewrite sumList_factor_constant_r.
-      eapply leRat_trans.
-      Focus 2.
-      eapply eqRat_impl_leRat.
-      eapply ratMult_1_l.
-      eapply ratMult_leRat_compat; intuition.
-      assert ( sumList (getSupport c)
-     (fun a : A0 => evalDist c a * (if evt1 a then 0 else 1)) <=
-      sumList (getSupport c)
-     (fun a : A0 => evalDist c a)).
-      eapply sumList_le.
-      intuition.
-      destruct (evt1 a); intuition.
-      rewrite ratMult_0_r.
-      eapply rat0_le_all.
-      rewrite ratMult_1_r.
-      intuition.
-      rewrite H1. clear H1.
-      eapply evalDist_sum_le_1.
-    Qed.    
 
     assert (Pr 
    [a <-$ c S eqd o s;
