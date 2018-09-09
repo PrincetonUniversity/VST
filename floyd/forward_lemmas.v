@@ -209,8 +209,7 @@ rewrite (andp_comm Q).
 rewrite <- andp_assoc.
 eapply derives_trans; try apply Post.
 destruct R; simpl; auto.
-apply semax_extensionality_Delta with Delta; auto.
-apply tycontext_sub_refl.
+auto.
 Qed.
 
 Lemma semax_while_3g1 :
@@ -305,8 +304,6 @@ simpl.
 rewrite andp_assoc.
 auto.
 *
-apply semax_extensionality_Delta with Delta.
-apply tycontext_sub_refl.
 eapply semax_pre_simple; [ | apply H2].
 apply andp_left2.
 apply andp_left2.
@@ -656,8 +653,6 @@ apply semax_loop with (Q':= (EX a:A, PQR a)).
  intro rho.  simpl. unfold_lift.  unfold local, lift1. normalize.
  rewrite H0. normalize.
 +
- apply semax_extensionality_Delta with Delta.
- apply tycontext_sub_refl.
  eapply semax_post_flipped.
  apply H2.
  all: intros; apply andp_left2; auto.
