@@ -1139,20 +1139,22 @@ Proof.
 
         destruct H0 as [? [? ?]].
         rewrite <- (oboxopt_closed Delta ret F) at 1 by (try eapply tc_fn_return_temp_guard_opt; eauto).
-        ; auto.
-        SearchAbout tc_fn_return.
-Locate         obox_closed.        unfold closed_wrt_modvars, modifiedvars in H.
-        simpl in H.
-        SearchAbout oboxopt.
-        SearchAbout obox.
-
-
-        obox_closed:
-  forall (Delta : tycontext) (i : ident) (P : environ -> mpred),
-  temp_guard Delta i -> closed_wrt_vars (eq i) P -> obox Delta i P = P
-        Print obox.
-        unfold oboxopt.
-  + 
+        eapply derives_trans; [apply oboxopt_sepcon |].
+        apply oboxopt_K.
+        rewrite <- (sepcon_emp (maybe_retval _ _ _)) at 2.
+        eapply derives_trans; [| apply wand_frame_hor].
+        apply sepcon_derives; auto.
+        apply wand_sepcon_adjoint.
+        rewrite sepcon_emp; auto.
+  + eapply semax_pre; [| apply AuxDefs.semax_return].
+    apply andp_right.
+    - apply andp_left2.
+      intro rho; simpl.
+      Check extend_tc.extend_tc_expr.
+      SearchAbout  predicates_hered.boxy predicates_sl.extendM.
+      apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho)).
+      SearchAbout 
+    solve_andp. [solve_andp |].
 Abort.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=

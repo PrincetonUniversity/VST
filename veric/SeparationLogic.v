@@ -17,6 +17,8 @@ Require Export VST.msl.seplog.
 Require Export VST.msl.ghost_seplog.
 Require Export VST.msl.alg_seplog.
 Require Export VST.msl.log_normalize.
+Require Export VST.msl.wand_frame.
+Require Export VST.msl.wandQ_frame.
 Require Export VST.msl.ramification_lemmas.
 Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
