@@ -21,6 +21,11 @@ Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
   (Delta : tycontext) (e : expr) : environ -> mpred  :=
      fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
 
+Definition tc_expropt {CS: compspecs} Delta (e: option expr) (t: type) : environ -> mpred :=
+   match e with None => `!!(t=Tvoid)
+                     | Some e' => tc_expr Delta (Ecast e' t)
+   end.
+
 Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
 fun rho => !! (exists tto, (temp_types Delta) ! id = Some tto
                       /\ tc_val tto (eval_cast tfrom tto (v rho))).
@@ -444,5 +449,13 @@ Proof.
  try simple apply extend_isCastResultType.
 Qed.
 
-Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue.
+Lemma extend_tc_expropt: forall {CS: compspecs} Delta e t rho, boxy extendM (tc_expropt Delta e t rho).
+Proof.
+  intros. unfold tc_expropt.
+  destruct e.
+  + apply extend_tc_expr.
+  + apply extend_prop.
+Qed.
+
+Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_expropt extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
