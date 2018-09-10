@@ -13,7 +13,7 @@ Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   simpl readonly2share.  (* TODO: delete this line when possible *)
-  exploit (split_shares (Z.to_nat N) Tsh); auto; intros (sh0 & shs & ? & ? & ? & ?).
+  exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
   forward_call (sh0, shs, gv).
   { fast_cancel. }
@@ -41,7 +41,7 @@ Proof.
     do 3 (erewrite <- (data_at_shares_join Ews); eauto).
     rewrite (extract_nth_sepcon (map (data_at _ _ _) (sublist 1 _ bufs)) 0), Znth_map;
       rewrite ?Zlength_map, ?Zlength_sublist; try (unfold B, N in *; omega).
-    erewrite <- (data_at_shares_join Tsh) by eauto.
+    erewrite <- (data_at_shares_join Ews) by eauto.
     rewrite (sepcon_comm (data_at sh0 _ _ (Znth 0  (sublist _ _ bufs)))),
       (sepcon_assoc _ (data_at sh0 _ _ (Znth 0  (sublist _ _ bufs)))).
     rewrite replace_nth_sepcon.
@@ -50,7 +50,7 @@ Proof.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (fold_right sepcon emp (upd_Znth 0 _ _))), !sepcon_assoc.
     rewrite <- sepcon_assoc; apply sepcon_derives; [|cancel_frame].
     assert (Zlength (data_at sh0 tbuffer (vint 0) (Znth 0 bufs)
-         :: upd_Znth 0 (map (data_at Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs))
+         :: upd_Znth 0 (map (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs))
               (data_at sh0 tbuffer (vint 0) (Znth 0 (sublist 1 (Zlength bufs) bufs)))) = B) as Hlen.
     { rewrite Zlength_cons, upd_Znth_Zlength; rewrite Zlength_map, Zlength_sublist, ?Zlength_upto;
         simpl; unfold B, N in *; omega. }
@@ -68,7 +68,7 @@ Proof.
       erewrite Znth_map; [|rewrite Zlength_sublist; omega].
       rewrite Znth_sublist; try omega.
       rewrite Z.sub_simpl_r.
-      Exists Tsh 0; entailer'. }
+      Exists Ews 0; entailer'. }
   rewrite Znth_sublist; try (unfold B, N in *; omega).
   rewrite <- seq_assoc.
   assert_PROP (Zlength reads = N) by entailer!.
@@ -84,8 +84,8 @@ Proof.
           (Znth x g) (Znth x g0) (Znth x g1) (Znth x g2) bufs (Znth x shs) gsh2
           empty_map) (sublist i N (upto (Z.to_nat N))));
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
-        fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N reads));
-        fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N lasts));
+        fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N reads));
+        fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N lasts));
         fold_right sepcon emp (map (malloc_token Tsh tint) comms);
         fold_right sepcon emp (map (malloc_token Tsh tlock) locks);
         fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs);

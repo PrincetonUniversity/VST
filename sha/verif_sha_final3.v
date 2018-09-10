@@ -116,8 +116,9 @@ apply Z.divide_1_l.
 Qed.
 
 Lemma sha_final_part3:
-forall (Espec : OracleKind) (md c : val) (shmd : share)
+forall (Espec : OracleKind) (md c : val) (wsh shmd : share)
   (hashed lastblock: list int) msg gv
+ (Hwsh: writable_share wsh)
  (Hshmd: writable_share shmd),
  (LBLOCKz | Zlength hashed) ->
  Zlength lastblock = LBLOCKz ->
@@ -129,7 +130,7 @@ semax
            temp _md md; temp _c c;
            gvars gv)
    SEP
-   (data_at Tsh t_struct_SHA256state_st
+   (data_at wsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
         (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c;
     K_vector gv;
@@ -140,7 +141,7 @@ semax
      (PROP  ()
       LOCAL ()
       SEP  (K_vector gv;
-        data_at_ Tsh t_struct_SHA256state_st c;
+        data_at_ wsh t_struct_SHA256state_st c;
         data_block shmd (SHA_256 msg) md))) emp).
 Proof.
   intros. Intros.
@@ -150,9 +151,9 @@ Proof.
   assert (Zlength (hash_blocks init_registers hashed) = 8)
    by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
   Time forward_call (* sha256_block_data_order (c,p); *)
-    (hash_blocks init_registers hashed, lastblock, c,
+    (wsh, hash_blocks init_registers hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
-       Tsh, gv).
+       wsh, gv).
   {
     unfold data_block. simpl.
     Time entailer!. autorewrite with sublist.
@@ -166,17 +167,17 @@ Proof.
   rewrite <- H1.
   Time forward. (* c->num=0; *)
   Time forward_call (* memset (p,0,SHA_CBLOCK); *)
-    (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
+    (wsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
   {
     replace (Zlength (intlist_to_Zlist lastblock)) with 64
         by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
-    change (memory_block Tsh 64) with (memory_block Tsh (sizeof (tarray tuchar 64))).
+    change (memory_block wsh 64) with (memory_block wsh (sizeof (tarray tuchar 64))).
     entailer!.
     rewrite memory_block_data_at_ by auto.
     cancel.
   }
  gather_SEP 0 1 3 4 5.
- replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
+ replace_SEP 0 (data_at wsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers (generate_and_pad msg)),
         (Vundef,
          (Vundef,
@@ -195,7 +196,7 @@ Proof.
  subst POSTCONDITION; unfold abbreviate.
  unfold SHA_256.
  forget (hash_blocks init_registers (generate_and_pad msg)) as hashedmsg.
- clear - Hshmd H'; rename H' into H. rename Hshmd into H0.
+ clear - Hwsh Hshmd H'; rename H' into H. rename Hshmd into H0.
  unfold final_loop.
 
  forward_for_simple_bound 8
@@ -204,7 +205,7 @@ Proof.
    LOCAL  (temp _md (offset_val (i * 4) md);
                 temp _c c)
    SEP
-   (data_at Tsh t_struct_SHA256state_st
+   (data_at wsh t_struct_SHA256state_st
        (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat (Z.to_nat 64) (Vint Int.zero), Vint Int.zero))))
       c;
     K_vector gv;
@@ -361,7 +362,8 @@ Time  forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
 Time Qed. (* 64 sec *)
 
 Lemma final_part2:
-forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share) gv,
+forall (Espec : OracleKind) (hashed : list int) (md c : val) (wsh shmd : share) gv
+(Hwsh: writable_share wsh),
 writable_share shmd ->
 forall bitlen (dd : list Z),
 (LBLOCKz | Zlength hashed) ->
@@ -385,14 +387,14 @@ semax
       temp _n (Vint (Int.repr (Zlength dd')));
       temp _md md; temp _c c; gvars gv)
       SEP
-      (field_at Tsh t_struct_SHA256state_st [StructField _data]
+      (field_at wsh t_struct_SHA256state_st [StructField _data]
            (map Vint (map Int.repr dd') ++
             list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
               (Vint Int.zero) ++ list_repeat (Z.to_nat 8) Vundef) c;
-      field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c;
-      field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c;
-      field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
-      field_at Tsh t_struct_SHA256state_st [StructField _h]
+      field_at wsh t_struct_SHA256state_st [StructField _num] Vundef c;
+      field_at wsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c;
+      field_at wsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
+      field_at wsh t_struct_SHA256state_st [StructField _h]
           (map Vint (hash_blocks init_registers hashed')) c;
       K_vector gv;
       memory_block shmd 32 md))
@@ -402,7 +404,7 @@ semax
      (PROP  ()
       LOCAL ()
       SEP  (K_vector gv;
-        data_at_ Tsh t_struct_SHA256state_st c;
+        data_at_ wsh t_struct_SHA256state_st c;
         data_block shmd
           (intlist_to_Zlist
              (hash_blocks init_registers
@@ -410,7 +412,7 @@ semax
                    (intlist_to_Zlist hashed ++ dd))))
           md))) emp).
 Proof.
-  intros Espec hashed md c shmd kv H
+  intros Espec hashed md c wsh shmd kv Hwsh H
   bitlen dd H4 H7 H3 DDbytes hashed' dd' pad
   DDbytes' PAD H0 H1 H2 H5(* Pofs*).
   unfold sha_final_part2, sha_final_epilog; abbreviate_semax.
@@ -439,7 +441,7 @@ Proof.
   Time forward_call (* (void)HOST_l2c(cNh,p); *)
      (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
-      Tsh, hibytes). (*9*)
+      wsh, hibytes). (*9*)
   apply prop_right; repeat constructor; hnf; simpl.
   rewrite (nth_big_endian_integer 0 [hi_part bitlen]) at 1; reflexivity.
 
@@ -454,7 +456,7 @@ Proof.
   Time forward_call (* (void)HOST_l2c(cNl,p); *)
     (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c,
-     Tsh, lobytes). (*8.8*)
+     wsh, lobytes). (*8.8*)
   apply prop_right; repeat constructor; hnf; simpl.
   rewrite (nth_big_endian_integer 0 [lo_part bitlen]) at 1; reflexivity.
 
@@ -464,7 +466,7 @@ Proof.
   split; auto.  clear; compute; congruence.
 
   match goal with |- context [SEPx (?A :: _)] =>
-   replace A with (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
+   replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c)
   by (clear - FC;
         rewrite array_at_data_at' by auto with field_compatible;
@@ -472,7 +474,7 @@ Proof.
  end.
   gather_SEP 0 1 2.
   replace_SEP 0
-    (field_at Tsh t_struct_SHA256state_st [StructField _data]
+    (field_at wsh t_struct_SHA256state_st [StructField _data]
          (map Vint (map Int.repr dd') ++
              list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
                (Vint Int.zero) ++ ((map Vint hibytes) ++ (map Vint lobytes))) c).
@@ -543,7 +545,7 @@ Proof.
   unfold POSTCONDITION, abbreviate.
   fold (SHA_256 (intlist_to_Zlist hashed ++ dd)).
   pose (lastblock' := Zlist_to_intlist (map Int.unsigned lastblock)).
-  eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
+  eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c wsh shmd hashed' lastblock'); auto].
   * Time entailer!.
     + apply isbyte_intlist_to_Zlist.
     + Time unfold_data_at 1%nat. (*0.62*)

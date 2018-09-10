@@ -25,13 +25,13 @@ Definition HMAC_Double_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        shmd: share, md: val, gv: globals
+        sh: share, shmd: share, md: val, gv: globals
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
          _n OF tint,
          _md OF tptr tuchar ]
-         PROP (writable_share shmd;
+         PROP (readable_share sh; writable_share shmd;
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
          LOCAL (temp _md md; temp _key keyVal;
@@ -39,8 +39,8 @@ Definition HMAC_Double_spec :=
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
                 gvars gv)
-         SEP(data_block Tsh (CONT KEY) keyVal;
-             data_block Tsh (CONT MSG) msgVal;
+         SEP(data_block sh (CONT KEY) keyVal;
+             data_block sh (CONT MSG) msgVal;
              K_vector gv;
              memory_block shmd 64 md)
   POST [ tptr tuchar ] 
@@ -49,8 +49,8 @@ Definition HMAC_Double_spec :=
           LOCAL (temp ret_temp md)
           SEP(K_vector gv;
               data_block shmd (digest++digest) md;
-              initPostKey keyVal (CONT KEY);
-              data_block Tsh (CONT MSG) msgVal).
+              initPostKey sh keyVal (CONT KEY);
+              data_block sh (CONT MSG) msgVal).
 
 Definition n324 := 324%Z.
 Opaque n324.
@@ -78,7 +78,7 @@ Intros.
 assert_PROP (isptr k).
 { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer. } (*Issue: used to be solved just by entailer *)
 rename H into Pk.
-forward_call (c, k, kl, key, HMACabs nil nil nil, gv).
+forward_call (Tsh, sh, c, k, kl, key, HMACabs nil nil nil, gv).
   { unfold initPre.
     destruct k; try contradiction.
     unfold t_struct_hmac_ctx_st.
@@ -88,8 +88,8 @@ forward_call (c, k, kl, key, HMACabs nil nil nil, gv).
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512) as H0_len512.
   { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 remember (hmacInit key) as h0.
-forward_call (h0, c, d, dl, data, gv).
-  { rewrite H0_len512. assumption. }
+forward_call (Tsh, sh, h0, c, d, dl, data, gv).
+  { rewrite H0_len512. split3; auto. }
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Ptrofs.modulus).
   rewrite <- initialize.max_unsigned_modulus, ptrofs_max_unsigned_eq. omega.
@@ -104,32 +104,32 @@ specialize (memory_block_split shmd b (Ptrofs.unsigned i) 32 32); intros XX.
 clear GTmod64.
 flatten_sepcon_in_SEP.
 
-forward_call (hmacUpdate data h0, c, Vptr b i, shmd, gv).
+forward_call (Tsh, hmacUpdate data h0, c, Vptr b i, shmd, gv).
 simpl.
 
 (**************Round 2*******************************)
 remember (hmacFinal (hmacUpdate data h0)) as RND1.
 destruct RND1 as [h2 dig].
-replace_SEP 1 (initPre c nullval h2 kl key).
+replace_SEP 1 (initPre Tsh sh c nullval h2 kl key).
   { entailer!. eapply hmacstate_PostFinal_PreInitNull.
     symmetry in HeqRND1. apply HeqRND1. }
-forward_call (c, nullval, kl, key, h2, gv).
+forward_call (Tsh, sh, c, nullval, kl, key, h2, gv).
 simpl; normalize.
 
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. entailer!. }
 rename H into H3_len512.
-forward_call (hmacInit key, c, d, dl, data, gv).
-  { rewrite H3_len512. assumption. }
+forward_call (Tsh, sh, hmacInit key, c, d, dl, data, gv).
+  { rewrite H3_len512. split3; auto. }
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
   as FC_c by (unfold hmacstate_; Intros r;  entailer!).
-forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Ptrofs.repr (Ptrofs.unsigned i + 32)), shmd, gv).
+forward_call (Tsh, hmacUpdate data (hmacInit key), c, Vptr b (Ptrofs.repr (Ptrofs.unsigned i + 32)), shmd, gv).
 remember (hmacFinal (hmacUpdate data (hmacInit key))) as RND2.
 destruct RND2 as [h5 dig2].
 simpl.
 
-forward_call (h5,c).
+forward_call (Tsh, h5,c).
 match goal with |- context [data_block  Tsh ?A c] =>
   change A with (list_repeat (Z.to_nat n324) 0)
 end.

@@ -28,13 +28,13 @@ forward. (* data = in; *)
 eapply semax_seq'. {
   semax_frame
       [  ]
-      [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx].
+      [field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx].
   simpl sequence.
   simple apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs gv Xv); auto.
 }
 eapply semax_seq'. {
   semax_frame  [ ]
-        [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
+        [field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
          data_block sh (intlist_to_Zlist b) data].
   match goal with |- semax _ _ ?c _ => change c with block_data_order_loop2 end.
   simple eapply sha256_block_data_order_loop2_proof; eassumption.

@@ -43,9 +43,9 @@ Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
 Definition t_struct_SHA256state_st := Tstruct _SHA256state_st noattr.
 
-Definition sha256state_ (a: s256abs) (c: val) : mpred :=
+Definition sha256state_ (sh: share) (a: s256abs) (c: val) : mpred :=
    EX r:s256state,
-    !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
+    !!  s256_relate a r  &&  data_at sh t_struct_SHA256state_st r c.
 
 Definition data_block {cs: compspecs} (sh: share) (contents: list Z) :=
   !! Forall isbyteZ contents &&
@@ -104,76 +104,77 @@ Definition memset_spec :=
        SEP(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p).
 
 Definition K_vector (gv: globals) : mpred :=
-  data_at Tsh (tarray tuint (Zlength K256)) (map Vint K256) (gv _K256).
+  data_at Ews (tarray tuint (Zlength K256)) (map Vint K256) (gv _K256).
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
-    WITH regs: list int, b: list int, ctx : val, data: val, sh: share, gv: globals
+    WITH wsh: share, regs: list int, b: list int, ctx : val, data: val, sh: share, gv: globals
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
-         PROP(Zlength regs = 8; Zlength b = LBLOCKz; readable_share sh)
+         PROP(Zlength regs = 8; Zlength b = LBLOCKz; writable_share wsh; readable_share sh)
          LOCAL (temp _ctx ctx; temp _in data; gvars gv)
-         SEP (field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
+         SEP (field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
                 data_block sh (intlist_to_Zlist b) data;
                 K_vector gv)
    POST [ tvoid ]
        PROP() LOCAL()
-       SEP(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_block regs b)) ctx;
+       SEP(field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_block regs b)) ctx;
              data_block sh (intlist_to_Zlist b) data;
              K_vector gv).
 
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
- WITH len : Z, c: val, n: Z
+ WITH sh: share, len : Z, c: val, n: Z
  PRE [ _c OF tptr t_struct_SHA256state_st , _len OF tuint ]
-   PROP ( 0 <= n+len*8 < two_p 64; 0 <= len <= Int.max_unsigned; 0 <= n)
+   PROP (writable_share sh;
+             0 <= n+len*8 < two_p 64; 0 <= len <= Int.max_unsigned; 0 <= n)
    LOCAL (temp _len (Vint (Int.repr len)); temp _c c)
-   SEP (field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part n)) c;
-          field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part n)) c)
+   SEP (field_at sh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part n)) c;
+          field_at sh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part n)) c)
  POST [ tvoid ]
    PROP() LOCAL()
-   SEP (field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (n+len*8))) c;
-          field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (n+len*8))) c).
+   SEP (field_at sh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (n+len*8))) c;
+          field_at sh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (n+len*8))) c).
 
 Definition SHA256_Init_spec :=
   DECLARE _SHA256_Init
-   WITH c : val
+   WITH sh: share, c : val
    PRE [ _c OF tptr t_struct_SHA256state_st ]
-         PROP () LOCAL (temp _c c)
-         SEP(data_at_ Tsh t_struct_SHA256state_st c)
+         PROP (writable_share sh) LOCAL (temp _c c)
+         SEP(data_at_ sh t_struct_SHA256state_st c)
   POST [ tvoid ]
-         PROP() LOCAL() SEP(sha256state_ nil c).
+         PROP() LOCAL() SEP(sha256state_ sh nil c).
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
-   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z, gv: globals
+   WITH wsh: share, a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z, gv: globals
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
-         PROP (readable_share sh; len <= Zlength data; 0 <= len <= Int.max_unsigned;
+         PROP (writable_share wsh; readable_share sh; len <= Zlength data; 0 <= len <= Int.max_unsigned;
                    (s256a_len a + len * 8 < two_p 64)%Z)
          LOCAL (temp _c c; temp _data_ d; temp _len (Vint (Int.repr len));
                      gvars gv)
          SEP(K_vector gv;
-               sha256state_ a c; data_block sh data d)
+               sha256state_ wsh a c; data_block sh data d)
   POST [ tvoid ]
           PROP ()
           LOCAL ()
           SEP(K_vector gv;
-                sha256state_ (a ++ sublist 0 len data) c;
+                sha256state_ wsh (a ++ sublist 0 len data) c;
                 data_block sh data d).
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
-   WITH a: s256abs, md: val, c : val,  shmd: share, gv : globals
+   WITH wsh: share, a: s256abs, md: val, c : val,  shmd: share, gv : globals
    PRE [ _md OF tptr tuchar, _c OF tptr t_struct_SHA256state_st ]
-         PROP (writable_share shmd)
+         PROP (writable_share wsh; writable_share shmd)
          LOCAL (temp _md md; temp _c c;
                       gvars gv)
          SEP(K_vector gv;
-               sha256state_ a c;
+               sha256state_ wsh a c;
                memory_block shmd 32 md)
   POST [ tvoid ]
          PROP () LOCAL ()
          SEP(K_vector gv;
-               data_at_ Tsh t_struct_SHA256state_st c;
+               data_at_ wsh t_struct_SHA256state_st c;
                data_block shmd (SHA_256 a) md).
 
 Definition SHA256_spec :=

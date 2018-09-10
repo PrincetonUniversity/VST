@@ -252,15 +252,15 @@ Qed.
 Definition postResetHMS (iS oS: s256state): hmacstate :=
   (default_val t_struct_SHA256state_st, (iS, oS)).
 
-Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
+Definition initPostResetConditional r (c:val) (k: val) h wsh sh key iS oS: mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
-              then if zeq r Z0 then hmacstate_PreInitNull key h c else FF
+              then if zeq r Z0 then hmacstate_PreInitNull wsh key h c else FF
               else FF
   | Vptr b ofs => if zeq r 0 then FF
                   else !!(Forall isbyteZ key) &&
-                       ((data_at Tsh t_struct_hmac_ctx_st (postResetHMS iS oS) c) *
-                        (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b ofs)))
+                       ((data_at wsh t_struct_hmac_ctx_st (postResetHMS iS oS) c) *
+                        (data_at sh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b ofs)))
   | _ => FF
   end.
 
@@ -384,7 +384,8 @@ subst IPADcont; do 2 rewrite Zlength_map.
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
 Time Qed. (*VST 2.0: 0.4s*) (*11.1 versus 16.8*) (*FIXME NOW 39*)
 
-Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): forall
+Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FR:mpred): forall
+(Hwsh: writable_share wsh)
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
               map Vint
@@ -417,7 +418,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): fora
    SEP  (FR;
           data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff);
-   sha256state_ ipadSHAabs (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)));
+   sha256state_ wsh ipadSHAabs (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)));
    data_block Tsh
        (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)
        (Vptr pb pofs)))
@@ -445,7 +446,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FR:mpred): fora
              temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l)); gvars gv)
       SEP  (data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff);
-            sha256state_ ipadSHAabs (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)));
+            sha256state_ wsh ipadSHAabs (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)));
             data_at Tsh (Tarray tuchar 64 noattr) OPADcont (Vptr pb pofs);
             FR))).
 Proof. intros. abbreviate_semax.
@@ -509,9 +510,10 @@ Time Qed. (*VST 2.0: 0.4s*) (*12.3 versus 18.7*)  (*FIXME NOW 36secs*)
 
 Lemma init_part2: forall 
 (Espec : OracleKind)
-(c : val)
+(* (c : val) *)
 (k : val)
 (l : Z)
+(wsh sh: share)
 (key : list Z)
 (gv : globals)
 (h1 : hmacabs)
@@ -523,6 +525,8 @@ Lemma init_part2: forall
 (ckoff : ptrofs)
 (R : r = 0 \/ r = 1)
 (PostResetBranch : environ -> mpred)
+(Hwsh: writable_share wsh)
+(Hsh: readable_share sh)
 (HeqPostResetBranch : PostResetBranch = EX shaStates:_ ,
           PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
                          =  (fst shaStates) /\
@@ -537,7 +541,7 @@ Lemma init_part2: forall
                   gvars gv)
           SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                 data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
-                initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
+                initPostResetConditional r (Vptr cb cofs) k h1 wsh sh key (fst (snd shaStates)) (snd (snd (snd shaStates)));
                 K_vector gv)),
 @semax CompSpecs Espec
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
@@ -547,7 +551,7 @@ Lemma init_part2: forall
    temp _ctx (Vptr cb cofs); temp _key k; temp _len (Vint (Int.repr l));
    gvars gv)
    SEP  (data_at_ Tsh (tarray tuchar 64) pad;
-         initPostKeyNullConditional r (Vptr cb cofs) k h1 key (Vptr ckb ckoff);
+         initPostKeyNullConditional r (Vptr cb cofs) k h1 wsh sh key (Vptr ckb ckoff);
          K_vector gv))
 
 
@@ -667,7 +671,7 @@ Lemma init_part2: forall
         Sskip)
     (normal_ret_assert PostResetBranch).
 Proof. intros.
-forward_if PostResetBranch.
+forward_if.
   { (* THEN*)
     rename H into r_true.
     destruct R as [R | R]; [subst r; contradiction r_true; reflexivity | ].
@@ -695,11 +699,11 @@ forward_if PostResetBranch.
               lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
               temp _ctx (Vptr cb cofs); temp _key (Vptr b i);
               temp _len (Vint (Int.repr l)); gvars gv)
-       SEP  (@data_at CompSpecs Tsh t_struct_hmac_ctx_st HMS (Vptr cb cofs);
+       SEP  (@data_at CompSpecs wsh t_struct_hmac_ctx_st HMS (Vptr cb cofs);
              @data_at CompSpecs Tsh (tarray tuchar 64)
                   (@map int val Vint (@map Z int Int.repr (HMAC_SHA256.mkKey key)))
                   (Vptr ckb ckoff);
-            @data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))
+            @data_at CompSpecs sh (tarray tuchar (@Zlength Z key))
                   (@map int val Vint (@map Z int Int.repr key)) (Vptr b i);
             @field_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) [] (Vptr pb pofs);
             K_vector gv)).
@@ -737,8 +741,8 @@ Qed.*)
 
        assert (ZZ: exists HMS':reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS. trivial.
        destruct ZZ as [HMS' HH].
-       remember (K_vector gv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
-                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+       remember (K_vector gv * data_at wsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
+                          * data_at sh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
                          (Vptr kb kofs)) as myPred.
     forward_seq.
     { (*ipad loop*)
@@ -756,7 +760,7 @@ Qed.*)
        by entailer!). (*1.9 versus 6.5*)
     Time unfold_data_at 1%nat. (*1*)
     freeze [0;1;4] FR2.
-    rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
+    rewrite (field_at_data_at  wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)) as FC_ICTX.
     { apply prop_right. clear - FC_C. red in FC_C.
       repeat split; try solve [apply FC_C]. right; left; trivial. }
@@ -764,13 +768,13 @@ Qed.*)
     simpl.
 
     (*Call to _SHA256_Init*)
-    Time forward_call (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108))). (*9.5 versus 10.5*)
+    Time forward_call (wsh, Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108))). (*9.5 versus 10.5*)
 
     (*Call to _SHA256_Update*)
     thaw FR2.
     thaw FR1.
     freeze [1;3;5;6] FR3.
-    Time forward_call (@nil Z,
+    Time forward_call (wsh, @nil Z,
                   HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
                   Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)), Vptr pb pofs, Tsh, 64, gv).
         (*4 versus 10.5*)
@@ -794,7 +798,7 @@ Qed.*)
     forward_seq.
     { (*opad loop*)
       eapply semax_pre.
-      2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key gv (FRZL FR4) IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
+      2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FRZL FR4) Hwsh IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
       entailer!.
     }
 
@@ -802,7 +806,7 @@ Qed.*)
     thaw FR4.
     freeze [0;1;4;6] FR5.
     freeze [0;1;2] FR6.
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
+    rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)) as FC_OCTX.
     { apply prop_right. clear - FC_C. red in FC_C. 
       repeat split; try solve [apply FC_C]. right; right; left; trivial. }
@@ -811,11 +815,11 @@ Qed.*)
     (*Call to _SHA256_Init*)
     unfold MORE_COMMANDS, abbreviate.
 
-    Time forward_call (Vptr cb (Ptrofs.add cofs (Ptrofs.repr 216))). (*6.4 versus 10.6*)
+    Time forward_call (wsh, Vptr cb (Ptrofs.add cofs (Ptrofs.repr 216))). (*6.4 versus 10.6*)
 
     (* Call to sha_update*)
     thaw FR6.
-    Time forward_call (@nil Z,
+    Time forward_call (wsh, @nil Z,
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Ptrofs.add cofs (Ptrofs.repr 216)),
             Vptr pb pofs, Tsh, 64, gv). (*4.5*)
@@ -839,8 +843,8 @@ Qed.*)
     simpl. rewrite !prop_true_andp by (auto; intuition).
     Time cancel. (*5 versus 4*)
     unfold_data_at 3%nat.
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
+    rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
+    rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
     Time cancel. (*0.5*)

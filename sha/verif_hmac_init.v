@@ -17,7 +17,9 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.verif_hmac_init_part1.
 Require Import sha.verif_hmac_init_part2.
 
-Lemma initbodyproof Espec c k l key gv h1 pad ctxkey:
+Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
+  (Hwsh: writable_share wsh)
+  (Hsh: readable_share sh):
 @semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
@@ -25,13 +27,14 @@ Lemma initbodyproof Espec c k l key gv h1 pad ctxkey:
            temp _len (Vint (Int.repr l)); gvars gv)
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
          data_at_ Tsh (tarray tuchar 64) pad;
-         K_vector gv; initPre c k h1 l key))
+         K_vector gv; initPre wsh sh c k h1 l key))
   (Ssequence (fn_body f_HMAC_Init) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (PROP  ()
          LOCAL ()
-         SEP  (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector gv)))
+         SEP  (hmacstate_ wsh (hmacInit key) c; 
+                 initPostKey sh k key; K_vector gv)))
      (stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
 freeze [1; 2; 3] FR1. simpl.
@@ -72,9 +75,9 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
                     SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                     initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff);
                     K_vector gv)))) as PostKeyNull. *)
-forward_seq. instantiate (1:= PostKeyNull c k pad gv h1 l key ckb ckoff).
+forward_seq. instantiate (1:= PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
 {  eapply semax_pre_simple.
-   2: eapply hmac_init_part1; eassumption.
+   2: eapply hmac_init_part1; auto.
    thaw' FR1. Time entailer!. (*2.2 versus 2.3*) }
 (*subst PostKeyNull.*)
 unfold PostKeyNull. Intros cb cofs r.
@@ -112,14 +115,14 @@ remember (EX shaStates:_ ,
                   gvars gv)
           SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                 data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
-                initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
+                initPostResetConditional r (Vptr cb cofs) k h1 wsh sh key (fst (snd shaStates)) (snd (snd (snd shaStates)));
                 K_vector gv))
   as PostResetBranch.
 clear FR1.
 eapply semax_seq. instantiate (1:=PostResetBranch).
 { apply sequential'.
   eapply semax_pre_post'.
-  3:{ apply init_part2; try eassumption. }
+  3: apply init_part2; eassumption.
   apply andp_left2. apply derives_refl. apply ENTAIL_refl. }
 
 { (*Continuation after if (reset*)
@@ -163,7 +166,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      rewrite field_address_offset by auto with field_compatible.
 
      freeze [0; 3] FR3.
-     Time forward_call ((Tsh, Tsh),
+     Time forward_call ((wsh, wsh),
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
@@ -214,13 +217,13 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 
     unfold_data_at 1%nat.
     freeze [0; 3] FR7.
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
+    rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _i_ctx]).
+    rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _md_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
     simpl; rewrite Ptrofs.add_zero.
 
-    Time forward_call ((Tsh, Tsh),
+    Time forward_call ((wsh, wsh),
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
              mkTrep t_struct_SHA256state_st iS,
@@ -236,8 +239,8 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     Time entailer!. (* 1.2 versus 9*)
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).
-    change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
-       with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
+    change (@data_at spec_sha.CompSpecs sh (tarray tuchar (@Zlength Z key)))
+       with (@data_at CompSpecs sh (tarray tuchar (@Zlength Z key))).
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64). simpl.
     Time entailer!. (*2.9*)
       unfold s256a_len, innerShaInit, outerShaInit.
@@ -260,5 +263,5 @@ Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init HMAC_Init_spec.
 Proof.
 start_function.
-apply initbodyproof.
+apply initbodyproof; auto.
 Qed.

@@ -36,8 +36,8 @@ Time forward_if  (
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
    temp _key_len (Vint (Int.repr kl)); temp _d d;
    temp _n (Vint (Int.repr dl)); gvars gv)
-   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
-   data_block Tsh data d; K_vector gv;
+   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block sh key k;
+   data_block sh data d; K_vector gv;
    memory_block shmd 32 md)).
   (*3.3*)
   { (*Branch1*) exfalso. subst md. contradiction.  }
@@ -47,7 +47,7 @@ freeze [2;4] FR1.
 assert_PROP (isptr k) as isPtrK.
 { unfold data_block. Time normalize. (*1.6 versus 2.2*) rewrite data_at_isptr with (p:=k). Time entailer!. (*1.6 versus 2.5*) }
 
-Time forward_call (c, k, kl, key, HMACabs nil nil nil, gv). (*3*)
+Time forward_call (Tsh, sh, c, k, kl, key, HMACabs nil nil nil, gv). (*3*)
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
    unfold initPre. Time entailer!. (*0.6 versus 1.1*)
  }
@@ -59,14 +59,14 @@ destruct H as [H0_len512 FC_c].
 thaw FR2.
 thaw FR1.
 freeze [0;3] FR3.
-Time forward_call (hmacInit key, c, d, dl, data, gv). (*2.8*)
-  { rewrite H0_len512; assumption. }
+Time forward_call (Tsh, sh, hmacInit key, c, d, dl, data, gv). (*2.8*)
+  { split3; auto. rewrite H0_len512; assumption. }
 
 thaw FR3.
 freeze [2;3] FR4.
-Time forward_call (hmacUpdate data (hmacInit key), c, md, shmd, gv). (*2.3*)
+Time forward_call (Tsh, hmacUpdate data (hmacInit key), c, md, shmd, gv). (*2.3*)
 freeze [0;2;3] FR5.
-forward_call (fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
+forward_call (Tsh, fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
 freeze [0;1] FR6.
 Time forward. (*4.2*)
 Exists (HMAC256 data key). entailer.
