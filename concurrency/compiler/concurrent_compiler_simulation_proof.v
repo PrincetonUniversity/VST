@@ -110,7 +110,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
      and reestablish the match"
      This is also padded above and bellow as in compiler_match_padded.
    *)
-  
+
+  (* generalize None to option val and inject it. *)
   Inductive compiler_match_resume:
     compiler_index -> meminj ->
     Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)) ->
@@ -146,8 +147,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
     Context (hb: nat).
     Definition SemTop: Semantics:= (HybridSem (Some hb)).
     Definition SemBot: Semantics:= (HybridSem (Some (S hb))).
-
-    (* Call this match_thread *) 
+ 
     Inductive match_thread
               {sem1 sem2: Semantics}
               (state_type1: @semC sem1 -> state_sum (@semC CSem) (@semC AsmSem))
@@ -165,6 +165,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
       match_thread state_type1 state_type2 match_state j (Kblocked (state_type1 code1)) m1
                             (Kblocked (state_type2 code2)) m2
   | CThread_Resume: forall j code1 m1 code2 m2 v v',
+      match_state j code1 m1 code2 m2 ->
       match_thread state_type1 state_type2 match_state j (Kresume (state_type1 code1) v) m1
                             (Kresume (state_type2 code2) v') m2
   | CThread_Init: forall j m1 m2 v1 v1' v2 v2',
@@ -1509,8 +1510,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             
             (* Construct the rmap inside the lock. *)
             assert (HlockRes:= Hinj_b).
-            eapply INJ_lock_content in HlockRes; eauto.
+            eapply INJ_lock_content in HlockRes; eauto. (* NOTE: this is not proving two goals. *) 
             
+              
             
             (*
             (* Assert that lock permissions inject*)
@@ -1591,7 +1593,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             
             (* Construct new memory and new injection *)
             eapply Mem.store_mapped_inject in Hstore; eauto.
-            2: {
+            2: { 
               (* This goal requires that the injection holds 
                  even after the lock's Cur permission is set 
                  to Writable (in both memories). 
@@ -1640,7 +1642,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   simpl.
                   (* injection of the event*)
                   admit. (* Should be obvious by construction *)
-                  
+
               + (* get the memory and injection *)
                 
                 econstructor; eauto.
@@ -1958,7 +1960,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 eapply Hat_external2.
                 
               * (* Prove I can read the lock. *)
-
+                
                 move Haccess at bottom.
                 (* missing from concur relation: 
                    matching of thread permissions.   *)
@@ -2010,6 +2012,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 assert(Heq: intval (add ofs (repr delt)) = (intval ofs + delt)%Z ).
                 {
                   unfold add.
+                  Check unsigned_repr.
+                  (* look for the lemma with unsigned instead of intval. *)
+                  (* write proofs so that you never see intval, instead use unsigned and repr. *)
                   admit. (*using Mem.mi_representable you get delta>= 0 and 
                            (unsigned ofs + delt) < max_unsigned.*)
                 }
@@ -2020,7 +2025,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   replace (restrPermMap X) with (restrPermMap Hlt2')
                 end.
                 -- rewrite Heq; assumption.
-                --  (* Set Printing Implicit. *) 
+                -- (*Set Printing Implicit. *) 
                     
                    admit. (* dependet type mess *)
                 
@@ -2133,7 +2138,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
              *)
 
             clean_cnt.
-            clean_cmpt. 
+            clean_cmpt.
+            rename Hlt' into Hlt1.
             rename m2 into m_temp. 
             rename m3 into m2.
             rename m4 into m3.
@@ -2152,42 +2158,109 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
             (** *Diagram No. 1*)
 
-            
             (* Invert Clight_match *)
             assert (HH:=H).
             inversion H as (Clight_cinject & Clight_matchmem); clear H.
+
+            (* Show that one can install Writable permissions for the lock in m2. *)
+            assert (Hlt2:
+                      permMapLt
+                        (setPermBlock (Some Writable) b (intval ofs) (getCurPerm m2) LKSIZE_nat)
+                        (getMaxPerm m2)).
+            { move Hlt1 at bottom.
+              move Clight_matchmem at bottom.
+              admit. (* HLT2 *)
+            }
             
             (*Destruct the values of the self simulation *)
-            pose proof (self_simulation.minject _ _ _ Clight_matchmem) as Hinj.
-            assert (Hinj':=Hinj).
+            pose proof (self_simulation.minject _ _ _ Clight_matchmem) as Hinj1.
+            assert (Hinj1':=Hinj1).
             pose proof (self_simulation.ssim_external _ _ Cself_simulation) as sim_atx.
-            eapply sim_atx in Hinj'; eauto.
+            eapply sim_atx in Hinj1'; eauto.
             clear sim_atx.
-            destruct Hinj' as (b1' & delt1 & Hinj_b1 & Hat_external1'); eauto.
-
+            destruct Hinj1' as (b2 & delt1 & Hinj_b1 & Hat_external1'); eauto.
+            
             
             (* build virtueThread2 & virtueLP2 *)
-            remember (virtueThread_inject m2 mu virtueThread)  as virtueThread2.
-            remember (virtueLP_inject m2 mu virtueLP) as virtueLP2.
+            remember (virtueThread_inject m2 j1 virtueThread)  as virtueThread2.
+            remember (virtueLP_inject m2 j1 virtueLP) as virtueLP2.
 
             (* build m2' *)
-            eapply Mem.store_mapped_inject in Hstore; eauto.
+            assert (Hstore2:=Hstore).
+            eapply Mem.store_mapped_inject in Hstore2; eauto.
             2: {
+              instantiate (1:= (restrPermMap Hlt2)).
               (* This goal requires that the injection holds 
                  even after the lock's Cur permission is set 
                  to Writable (in both memories). 
                  This is probably a simple general lemma, about
                  changing Cur memories in two injected memories.
                *)
+              admit. (*This and the previous admit (marked with HLT2)
+                       Should both come from the same lemma. *)
+            }
+            destruct Hstore2 as (m2' & Hstore2 & Hinj1').
+            
+            
+            (* The state doesn't change, only the memory. *)
+            assert (code2':=code2).
+             
+            (** *Diagram No. 2*)
+
+            assert (Hinj2:= Injfsim_match_meminj compiler_sim _ _ _ _ H0).
+            simpl in Hinj2.
+            
+            (* Show that one can install Writable permissions for the lock in m3. *)
+            assert (Hlt3:
+                      permMapLt
+                        (setPermBlock (Some Writable) b (intval ofs) (getCurPerm m3) LKSIZE_nat)
+                        (getMaxPerm m3)).
+            { move Hlt2 at bottom.
+              move Hinj2 at bottom.
+              admit. (* HLT3 *)
+            }
+            
+            (* build virtueThread3 & virtueLP3 *)
+            remember (virtueThread_inject m3 j2 virtueThread2)  as virtueThread3.
+            remember (virtueLP_inject m3 j2 virtueLP2) as virtueLP3.
+
+
+            (*Inject b2 *)
+            assert (exists b2' delt2,  j2 b2 = Some (b2', delt2)).
+            { (* should follow from the compiler_simulation 
+                 bacuase we know b2 is an external function. *)
               admit.
             }
-
-            destruct Hstore as (m2' & Hstore2 & Hinj2).
-            (* build st2' *)
-            (* TODO *)
-            evar (code2' : Smallstep.state (Clight.part_semantics2 Clight_g) ).
+            exists (b2 : block) (delt : Z),
+            j b1 = Some (b2, delt) /\
+            semantics.at_external Sem c2 m2 =
+            Some (func_name, Vptr b2 (add ofs (repr delt)) :: nil)
+              
             
-            (** *Diagram No. 2*)
+            (* build m3' *)
+            assert (Hstore3:=Hstore2).
+            eapply Mem.store_mapped_inject in Hstore3; eauto.
+            2: {
+              instantiate (1:= (restrPermMap Hlt2)).
+              (* This goal requires that the injection holds 
+                 even after the lock's Cur permission is set 
+                 to Writable (in both memories). 
+                 This is probably a simple general lemma, about
+                 changing Cur memories in two injected memories.
+               *)
+              admit. (*This and the previous admit (marked with HLT2)
+                       Should both come from the same lemma. *)
+            }
+
+            2: {
+              eauto.
+              
+
+            
+            
+
+            
+            
             
             
             (* The diagram looks like an execution of external step, 
@@ -2205,19 +2278,38 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               remember (virtueThread_inject m4 j3 (virtueThread3))  as virtueThread4.
               evar (virtueLP4 : (access_map * access_map)%type).
               evar (m4' : Mem.mem).
-            
-            do 5 eexists; split; [|split]. 
+
+              eexists.
+              exists st4. (* an updated version of it*)
+              do 2 eexists.
+              exists mu.
+              split; [|split]. 
 
             + (*reestablish the concur match. *)
-              admit.
+              econstructor.
+              * simpl. eapply CMatch.
+              * instantiate(1:=m4').
+                admit. (* This follows from Hinj and the mem.store injection lemma.*)
 
+              * admit. (* Proof that thread Cur injects: 
+                          This should be a separate lemma *)
+              * admit. (*  Proof that thread Locks injects: 
+                          This should be a separate lemma *)
+              * admit. (* Lock resources are injected:
+                          This should be a separate lemma *)
+              * admit. (* Reestablish the invariant. *)
+
+              * admit. (* match_states threads that don't change (i > hb) *)
+              * admit. (* match_states threads that don't change  (i < hb) *)
+              * (*HERE*) admit. (* match_states for the compiled thread (i = hb) *)
+                
+                
             + (* Traces inject. *)
               admit.
 
             + (* step in the compiled thread. *)
-              
-
-              econstructor; eauto.
+            
+            econstructor; eauto.
               eapply step_release with
                     (b0:= b4')
                     (virtueThread0:=virtueThread4)
@@ -2225,7 +2317,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     (m':=m4'); eauto; try reflexivity;
               try unfold HybridMachineSig.isCoarse,
               HybridMachineSig.HybridCoarseMachine.scheduler.
-
               * (* bounded_maps.sub_map *)
 
                 subst virtueThread4.
@@ -2265,7 +2356,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 
               * (* permissions join SND *)
                 admit.
-                
+
+              * admit. (* Wrong machine state *)      
                 
           - admit.
 
