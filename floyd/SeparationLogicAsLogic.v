@@ -224,7 +224,8 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
           (normal_ret_assert P)
 | semax_skip: forall P, @semax CS Espec Delta P Sskip (normal_ret_assert P)
 | semax_builtin: forall P opt ext tl el, @semax CS Espec Delta FF (Sbuiltin opt ext tl el) P
-| semax_label: forall P l c, @semax CS Espec Delta FF (Slabel l c) P
+| semax_label: forall (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
+    @semax CS Espec Delta P c Q -> @semax CS Espec Delta P (Slabel l c) Q
 | semax_goto: forall P l, @semax CS Espec Delta FF (Sgoto l) P
 | semax_pre_post_indexed_bupd: forall P' (R': ret_assert) P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- |==> ((|> FF) || P')) ->
@@ -666,15 +667,15 @@ Proof.
 Qed.
 
 Lemma semax_Slabel_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R l c,
-  @semax CS Espec Delta P (Slabel l c) R -> local (tc_environ Delta) && P |-- |==> |> FF || FF.
+  @semax CS Espec Delta P (Slabel l c) R -> @semax CS Espec Delta P c R.
 Proof.
   intros.
   remember (Slabel l c) as c0 eqn:?H.
   induction H; try solve [inv H0].
-  + apply andp_left2, FF_left.
-  + derives_rewrite -> H.
-    derives_rewrite -> (IHsemax H0).
-    apply andp_left2, FF_left.
+  + inv H0.
+    apply H.
+  + specialize (IHsemax H0).
+    eapply semax_pre_post_indexed_bupd; eauto.
 Qed.
 
 Lemma semax_Sgoto_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R l,
@@ -1014,9 +1015,8 @@ Proof.
         intros ?H.
         auto.
   + pose proof (fun x => semax_Slabel_inv _ _ _ _ _ (H x)).
-    apply semax_pre_indexed_bupd with FF; [| apply AuxDefs.semax_label].
-    rewrite exp_andp2.
-    apply exp_left; intros x; specialize (H0 x).
+    apply AuxDefs.semax_label.
+    apply IHc.
     auto.
   + pose proof (fun x => semax_Sgoto_inv _ _ _ _ (H x)).
     apply semax_pre_indexed_bupd with FF; [| apply AuxDefs.semax_goto].
@@ -1039,6 +1039,24 @@ Module ExtrIFacts := CSHL_IExtrFacts (Defs) (IConseq) (Extr).
 
 Import ExtrFacts ExtrIFacts.
 
+Lemma modifiedvars_aux: forall id, (fun i => isSome (insert_idset id idset0) ! i) = eq id.
+Proof.
+  intros.
+  extensionality i.
+  apply prop_ext.
+  unfold insert_idset.
+  destruct (ident_eq i id).
+  + subst.
+    rewrite PTree.gss.
+    simpl; tauto.
+  + rewrite PTree.gso by auto.
+    unfold idset0.
+    rewrite PTree.gempty.
+    simpl.
+    split; [tauto | intro].
+    congruence.
+Qed.
+    
 Lemma semax_frame:
   forall {Espec: OracleKind}{CS: compspecs},
   forall Delta P s R F,
@@ -1095,23 +1113,22 @@ Proof.
         by (destruct R; simpl; f_equal; extensionality rho; apply pred_ext; normalize).
       apply (H2 n).
       eapply semax_lemmas.closed_Sswitch; eauto.
-  + replace (frame_ret_assert (normal_ret_assert R) F) with (normal_ret_assert (R * F))
-      by (unfold normal_ret_assert, frame_ret_assert; f_equal; [.. | extensionality]; rewrite FF_sepcon; auto).
+  + rewrite frame_normal.
     eapply semax_pre; [.. | apply AuxDefs.semax_call_backward; auto].
-    - rewrite exp_sepcon1. apply exp_ENTAIL; intros argsig.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros retsig.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros cc.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros A.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros P.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros Q.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros NEP.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros NEQ.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros ts.
-      rewrite exp_sepcon1. apply exp_ENTAIL; intros x.
+    - apply andp_left2.
+      rewrite exp_sepcon1. apply exp_derives; intros argsig.
+      rewrite exp_sepcon1. apply exp_derives; intros retsig.
+      rewrite exp_sepcon1. apply exp_derives; intros cc.
+      rewrite exp_sepcon1. apply exp_derives; intros A.
+      rewrite exp_sepcon1. apply exp_derives; intros P.
+      rewrite exp_sepcon1. apply exp_derives; intros Q.
+      rewrite exp_sepcon1. apply exp_derives; intros NEP.
+      rewrite exp_sepcon1. apply exp_derives; intros NEQ.
+      rewrite exp_sepcon1. apply exp_derives; intros ts.
+      rewrite exp_sepcon1. apply exp_derives; intros x.
       normalize.
       apply andp_right; [apply andp_right |].
-      * apply andp_left2.
-        apply wand_sepcon_adjoint.
+      * apply wand_sepcon_adjoint.
         apply andp_left1.
         apply andp_left1.
         apply wand_sepcon_adjoint.
@@ -1121,15 +1138,13 @@ Proof.
         intro rho.
         simpl.
         apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta a rho) (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho))).
-      * apply andp_left2.
-        apply wand_sepcon_adjoint.
+      * apply wand_sepcon_adjoint.
         apply andp_left1, andp_left2.
         apply wand_sepcon_adjoint.
         apply derives_left_sepcon_right_corable; auto.
         intro.
         apply corable_func_ptr.
-      * apply andp_left2.
-        apply wand_sepcon_adjoint.
+      * apply wand_sepcon_adjoint.
         apply andp_left2.
         apply wand_sepcon_adjoint.
         eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply now_later] |].
@@ -1147,15 +1162,161 @@ Proof.
         apply wand_sepcon_adjoint.
         rewrite sepcon_emp; auto.
   + eapply semax_pre; [| apply AuxDefs.semax_return].
+    apply andp_left2.
     apply andp_right.
-    - apply andp_left2.
+    - intro rho; simpl.
+      eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, derives_refl |].
+      apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_expropt Delta ret (ret_type Delta) rho)).
+    - intro rho; simpl.
+      eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
+      destruct R; simpl.
+      apply derives_refl.
+  + rewrite frame_normal.
+    eapply semax_pre; [| apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+    apply andp_left2.
+    rewrite !distrib_orp_sepcon.
+    repeat apply orp_derives.
+    - eapply derives_trans; [apply sepcon_derives; [apply derives_refl |]; apply now_later |].
+      rewrite <- later_sepcon.
+      apply later_derives.
+      apply andp_right.
+      * intro rho; simpl.
+        eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, derives_refl |].
+        apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta e rho) (extend_tc.extend_tc_temp_id id (typeof e) Delta e rho))).
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
+        rewrite subst_sepcon.
+        rewrite (closed_wrt_subst _ _ F); auto.
+        unfold closed_wrt_modvars in H.
+        rewrite <- modifiedvars_aux.
+        auto.
+    - rewrite exp_sepcon1; apply exp_derives; intros cmp.
+      rewrite exp_sepcon1; apply exp_derives; intros e1.
+      rewrite exp_sepcon1; apply exp_derives; intros e2.
+      rewrite exp_sepcon1; apply exp_derives; intros ty.
+      rewrite exp_sepcon1; apply exp_derives; intros sh1.
+      rewrite exp_sepcon1; apply exp_derives; intros sh2.
+      normalize.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl |]; apply now_later |].
+      rewrite <- later_sepcon.
+      apply later_derives.
+      apply andp_right; [apply andp_right; [apply andp_right; [apply andp_right |] |] |].
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, andp_left1, derives_refl |].
+        intro rho; simpl.
+        apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta e1 rho) (extend_tc.extend_tc_expr Delta e2 rho))).
+      * unfold local, lift1; unfold_lift; intro rho; simpl.
+        eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, andp_left2, derives_refl |].
+        rewrite <- (andp_TT (prop _)) at 1.
+        normalize.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left2, derives_refl |].
+        rewrite sepcon_assoc.
+        apply sepcon_derives; auto.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left2, derives_refl |].
+        rewrite sepcon_assoc.
+        apply sepcon_derives; auto.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
+        rewrite subst_sepcon.
+        rewrite (closed_wrt_subst _ _ F); auto.
+        unfold closed_wrt_modvars in H.
+        rewrite <- modifiedvars_aux.
+        auto.
+    - rewrite exp_sepcon1; apply exp_derives; intros sh.
+      rewrite exp_sepcon1; apply exp_derives; intros t2.
+      rewrite exp_sepcon1; apply exp_derives; intros v2.
+      normalize.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl |]; apply now_later |].
+      rewrite <- later_sepcon.
+      apply later_derives.
+      apply andp_right; [apply andp_right; [apply andp_right |] |].
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, derives_refl |].
+        intro rho; simpl.
+        apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_lvalue Delta e rho)).
+      * unfold local, lift1; unfold_lift; intro rho; simpl.
+        eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left2, derives_refl |].
+        rewrite <- (andp_TT (prop _)) at 1.
+        normalize.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left2, derives_refl |].
+        rewrite sepcon_assoc.
+        apply sepcon_derives; auto.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
+        rewrite subst_sepcon.
+        rewrite (closed_wrt_subst _ _ F); auto.
+        unfold closed_wrt_modvars in H.
+        rewrite <- modifiedvars_aux.
+        auto.
+    - rewrite exp_sepcon1; apply exp_derives; intros sh.
+      rewrite exp_sepcon1; apply exp_derives; intros e1.
+      rewrite exp_sepcon1; apply exp_derives; intros t1.
+      rewrite exp_sepcon1; apply exp_derives; intros v2.
+      normalize.
+      eapply derives_trans; [apply sepcon_derives; [apply derives_refl |]; apply now_later |].
+      rewrite <- later_sepcon.
+      apply later_derives.
+      apply andp_right; [apply andp_right; [apply andp_right |] |].
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left1, derives_refl |].
+        intro rho; simpl.
+        apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_lvalue Delta e1 rho)).
+      * unfold local, lift1; unfold_lift; intro rho; simpl.
+        eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left1, andp_left2, derives_refl |].
+        rewrite <- (andp_TT (prop _)) at 1.
+        normalize.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, andp_left2, derives_refl |].
+        rewrite sepcon_assoc.
+        apply sepcon_derives; auto.
+      * eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
+        rewrite subst_sepcon.
+        rewrite (closed_wrt_subst _ _ F); auto.
+        unfold closed_wrt_modvars in H.
+        rewrite <- modifiedvars_aux.
+        auto.
+  + rewrite frame_normal.
+    eapply semax_pre; [| apply AuxDefs.semax_store_backward].
+    apply andp_left2.
+    rewrite exp_sepcon1; apply exp_derives; intros sh.
+    normalize.
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl |]; apply now_later |].
+    rewrite <- later_sepcon.
+    apply later_derives.
+    apply andp_right.
+    - eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left1, derives_refl |].
       intro rho; simpl.
-      Check extend_tc.extend_tc_expr.
-      SearchAbout  predicates_hered.boxy predicates_sl.extendM.
-      apply (predicates_sl.extend_sepcon (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho)).
-      SearchAbout 
-    solve_andp. [solve_andp |].
-Abort.
+      apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_lvalue Delta e1 rho) (extend_tc.extend_tc_expr Delta (Ecast e2 (typeof e1)) rho))).
+    - eapply derives_trans; [apply sepcon_derives; [| apply derives_refl]; apply andp_left2, derives_refl |].
+      rewrite sepcon_assoc; apply sepcon_derives; auto.
+      rewrite <- (sepcon_emp ((` (mapsto sh (typeof e1))) (eval_lvalue e1)
+                   ((` (force_val oo sem_cast (typeof e2) (typeof e1))) (eval_expr e2)))) at 2.
+      eapply derives_trans; [| apply wand_frame_hor].
+      apply sepcon_derives; [apply derives_refl |].
+      rewrite <- wand_sepcon_adjoint.
+      rewrite sepcon_emp; auto.
+  + rewrite frame_normal.
+    apply AuxDefs.semax_skip.
+  + rewrite FF_sepcon.
+    apply AuxDefs.semax_builtin.
+  + apply AuxDefs.semax_label.
+    apply IHsemax; auto.
+  + rewrite FF_sepcon.
+    apply AuxDefs.semax_goto.
+  + eapply semax_pre_post_indexed_bupd; [.. | apply IHsemax; auto].
+    - apply sepcon_derives_bupd0; [exact H0 |].
+      reduce2derives.
+      auto.
+    - destruct R, R'.
+      apply sepcon_derives_bupd0; [exact H1 |].
+      reduce2derives.
+      auto.
+    - destruct R, R'.
+      apply sepcon_derives_bupd0; [exact H2 |].
+      reduce2derives.
+      auto.
+    - destruct R, R'.
+      apply sepcon_derives_bupd0; [exact H3 |].
+      reduce2derives.
+      auto.
+    - intros; destruct R, R'.
+      apply sepcon_derives_bupd0; [apply H4 |].
+      reduce2derives.
+      auto.
+Qed.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
@@ -1386,6 +1547,27 @@ Proof.
     eapply semax_pre_indexed_bupd; [.. | exact H0].
     destruct Q; auto.
 Qed.
+
+Theorem semax_seq_Slabel:
+   forall {CS:compspecs} {Espec: OracleKind},
+     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+   @semax CS Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
+   @semax CS Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
+Proof.
+  intros.
+  split; intros.
+  + apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    apply semax_Slabel_inv in H.
+    apply AuxDefs.semax_label.
+    eapply AuxDefs.semax_seq; eauto.
+  + apply semax_Slabel_inv in H.
+    apply semax_seq_inv in H.
+    destruct H as [? [? ?]].
+    eapply AuxDefs.semax_seq; eauto.
+    apply AuxDefs.semax_label; auto.
+Qed.
+
 (*
 Axiom semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},
@@ -1396,45 +1578,6 @@ Axiom semax_extensionality_Delta:
 Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
   (forall P Q Delta, @semax CS Espec Delta P c1 Q -> @semax CS Espec Delta P c2 Q).
-
-Axiom semax_set_forward_nl:
-  forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) P id e v t,
-    typeof_temp Delta id = Some t ->
-    P |-- rel_expr e v ->
-    tc_val t v ->
-    @semax CS Espec Delta
-        ( |> P ) (Sset id e)
-        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `(old) P)).
-
-Axiom semax_loadstore:
-  forall {CS: compspecs} {Espec: OracleKind},
- forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P',
-   writable_share sh ->
-   P |-- !! (tc_val (typeof e1) v2)
-           && rel_lvalue e1 v1
-           && rel_expr (Ecast e2 (typeof e1)) v2
-           && (`(mapsto sh (typeof e1) v1 v0) * P') ->
-   @semax CS Espec Delta (|> P) (Sassign e1 e2)
-          (normal_ret_assert (`(mapsto sh (typeof e1) v1 v2) * P')).
-
-Axiom semax_Slabel:
-   forall {cs:compspecs} {Espec: OracleKind},
-     forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
-   @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
-
-Axiom semax_seq_Slabel:
-   forall {cs:compspecs} {Espec: OracleKind},
-     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
-   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
-   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
-
-Axiom semax_frame:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta P s R F,
-   closed_wrt_modvars s F ->
-  @semax CS Espec Delta P s R ->
-    @semax CS Espec Delta (P * F) s (frame_ret_assert R F).
 
 Axiom semax_ext:
   forall  (Espec : OracleKind)

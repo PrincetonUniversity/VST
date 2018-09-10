@@ -745,6 +745,40 @@ Proof.
     auto.
 Qed.
 
+Lemma sepcon_derives_bupd0: forall TC P1 P2 Q1 Q2,
+  local TC && P1 |-- |==> |> FF || P2 ->
+  local TC && Q1 |-- |==> |> FF || Q2 ->
+  local TC && (P1 * Q1) |-- |==> |> FF || (P2 * Q2).
+Proof.
+  intros.
+  pose proof sepcon_ENTAIL  _ _ _ _ _ H H0.
+  eapply derives_trans; [exact H1 |].
+  clear.
+  eapply derives_trans; [apply bupd_sepcon |].
+  apply bupd_mono.
+  rewrite distrib_orp_sepcon, !distrib_orp_sepcon2.
+  repeat apply orp_left.
+  + apply orp_right1.
+    rewrite <- later_sepcon.
+    rewrite FF_sepcon; auto.
+  + apply orp_right1.
+    rewrite sepcon_comm.
+    apply wand_sepcon_adjoint.
+    eapply derives_trans; [apply now_later |].
+    apply wand_sepcon_adjoint.
+    rewrite <- later_sepcon.
+    rewrite sepcon_FF.
+    auto.
+  + apply orp_right1.
+    apply wand_sepcon_adjoint.
+    eapply derives_trans; [apply now_later |].
+    apply wand_sepcon_adjoint.
+    rewrite <- later_sepcon.
+    rewrite sepcon_FF.
+    auto.
+  + apply orp_right2; auto.
+Qed.
+
 Lemma derives_bupd_bupd_left: forall TC P Q,
   local TC && P |-- |==> Q ->
   (local TC && |==> P) |-- |==> Q.
