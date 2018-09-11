@@ -1318,6 +1318,133 @@ Proof.
       auto.
 Qed.
 
+Lemma tc_fn_return_sub:
+  forall (CS : compspecs) (Delta Delta' : tycontext),
+  tycontext_sub Delta Delta' ->
+  forall ret retsig,
+  tc_fn_return Delta ret retsig ->
+  tc_fn_return Delta' ret retsig.
+Proof.
+  intros.
+  hnf in H0 |- *.
+  destruct ret; auto.
+  destruct H as [? _].
+  specialize (H i).
+  destruct ((temp_types Delta) ! i), ((temp_types Delta') ! i); auto.
+  + subst; auto.
+  + tauto.
+Qed.
+
+Lemma obox_sub:
+  forall (Delta Delta' : tycontext) id P rho,
+    tycontext_sub Delta Delta' ->
+    temp_guard Delta id ->
+    tc_environ Delta rho ->
+    obox Delta id P rho |-- obox Delta' id P rho.
+Proof.
+  intros.
+  unfold obox.
+  destruct H as [? _].
+  specialize (H id).
+  hnf in H0.
+  destruct ((temp_types Delta) ! id), ((temp_types Delta') ! id); auto.
+  + subst; auto.
+  + tauto.
+  + tauto.
+Qed.
+
+Lemma oboxopt_sub:
+  forall (Delta Delta' : tycontext) id P rho,
+    tycontext_sub Delta Delta' ->
+    temp_guard_opt Delta id ->
+    tc_environ Delta rho ->
+    oboxopt Delta id P rho |-- oboxopt Delta' id P rho.
+Proof.
+  intros.
+  destruct id.
+  + apply obox_sub; auto.
+  + simpl.
+    auto.
+Qed.
+
+Theorem semax_extensionality_Delta:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta Delta' P c R,
+       tycontext_sub Delta Delta' ->
+     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
+Proof.
+  intros.
+  induction H0.
+  + apply semax_pre with (!! (bool_type (typeof b) = true) && tc_expr Delta' (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P); [| apply AuxDefs.semax_ifthenelse; auto].
+    apply andp_ENTAIL; [| apply ENTAIL_refl].
+    apply andp_ENTAIL; [apply ENTAIL_refl |].
+    intro rho; simpl.
+    unfold local, lift1; normalize.
+    apply assert_lemmas.tc_expr_sub; auto.
+    eapply semax_lemmas.typecheck_environ_sub; eauto.
+  + eapply AuxDefs.semax_seq; eauto.
+  + eapply AuxDefs.semax_break; eauto.
+  + eapply AuxDefs.semax_continue; eauto.
+  + eapply AuxDefs.semax_loop; eauto.
+  + eapply semax_pre with (!! (is_int_type (typeof a) = true) && (Q && local (tc_environ Delta'))); [solve_andp |].
+    eapply AuxDefs.semax_switch.
+    - intros; simpl.
+      rewrite (add_andp _ _ (H0 _)).
+      unfold local, lift1; normalize.
+      apply andp_left2.
+      apply assert_lemmas.tc_expr_sub; auto.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - intros.
+      eapply semax_pre; [| apply H2].
+      solve_andp.
+  + eapply semax_pre; [| apply AuxDefs.semax_call_backward].
+    apply exp_ENTAIL; intros argsig.
+    apply exp_ENTAIL; intros retsig.
+    apply exp_ENTAIL; intros cc.
+    apply exp_ENTAIL; intros A.
+    apply exp_ENTAIL; intros P.
+    apply exp_ENTAIL; intros Q.
+    apply exp_ENTAIL; intros NEP.
+    apply exp_ENTAIL; intros NEQ.
+    apply exp_ENTAIL; intros ts.
+    apply exp_ENTAIL; intros x.
+    normalize.
+    apply andp_ENTAIL; [apply andp_ENTAIL; [apply andp_right; [apply andp_left1 |] |] |].
+    - intro rho; unfold local, lift1; normalize.
+      simpl; apply prop_right.
+      destruct H0; split; [auto |].
+      destruct H2; split; [auto |].
+      eapply tc_fn_return_sub; eauto.
+    - apply later_ENTAIL.
+      apply andp_ENTAIL.
+      * intro rho; simpl; unfold local, lift1; normalize.
+        apply assert_lemmas.tc_expr_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * intro rho; simpl; unfold local, lift1; normalize.
+        apply assert_lemmas.tc_exprlist_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - apply ENTAIL_refl.
+    - apply later_ENTAIL.
+      apply sepcon_ENTAIL; [apply ENTAIL_refl |].
+      destruct H0 as [_ [_ ?]].
+      intro rho; simpl.
+      unfold local, lift1; normalize.
+      apply oboxopt_sub; auto.
+      * eapply tc_fn_return_temp_guard_opt; eauto.
+      * eapply semax_lemmas.typecheck_environ_sub; eauto.
+  + eapply semax_pre; [| apply AuxDefs.semax_return].
+    assert (ret_type Delta = ret_type Delta') by (unfold tycontext_sub in *; tauto).
+    rewrite H0.
+    apply andp_ENTAIL; [| apply ENTAIL_refl].
+    intro rho; simpl.
+    unfold local, lift1; normalize.
+    destruct ret.
+    - apply assert_lemmas.tc_expr_sub; auto.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - simpl; auto.
+  + 
+Abort.
+
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -1696,11 +1823,6 @@ Qed.
 
 
 (*
-Axiom semax_extensionality_Delta:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta Delta' P c R,
-       tycontext_sub Delta Delta' ->
-     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
 
 Axiom semax_ext:
   forall  (Espec : OracleKind)
