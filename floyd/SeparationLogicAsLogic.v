@@ -1367,6 +1367,21 @@ Proof.
     auto.
 Qed.
 
+Lemma typecheck_tid_ptr_compare_sub: forall Delta Delta' id,
+  tycontext_sub Delta Delta' ->
+  typecheck_tid_ptr_compare Delta id = true ->
+  typecheck_tid_ptr_compare Delta' id = true.
+Proof.
+  unfold typecheck_tid_ptr_compare.
+  intros.
+  destruct H as [? _].
+  specialize (H id).
+  hnf in H0.
+  destruct ((temp_types Delta) ! id), ((temp_types Delta') ! id); auto.
+  + subst; auto.
+  + inv H0.
+Qed.
+
 Theorem semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
@@ -1442,7 +1457,47 @@ Proof.
     - apply assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - simpl; auto.
-  + 
+  + eapply semax_pre; [| apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+    apply orp_ENTAIL; [apply orp_ENTAIL; [apply orp_ENTAIL |] |].
+    - apply later_ENTAIL.
+      apply andp_ENTAIL; [| apply ENTAIL_refl].
+      apply andp_ENTAIL.
+      * unfold local, lift1; intro rho; simpl; normalize.
+        apply assert_lemmas.tc_expr_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * unfold local, lift1; intro rho; simpl; normalize.
+        apply assert_lemmas.tc_temp_id_sub; auto.
+    - apply exp_ENTAIL; intro cmp.
+      apply exp_ENTAIL; intro e1.
+      apply exp_ENTAIL; intro e2.
+      apply exp_ENTAIL; intro ty.
+      apply exp_ENTAIL; intro sh1.
+      apply exp_ENTAIL; intro sh2.
+      apply andp_ENTAIL; [| apply later_ENTAIL, andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL |] |] |] |]].
+      * unfold local, lift1; intro rho; simpl; normalize.
+        destruct H1; split; auto.
+        destruct H2; split; auto.
+        destruct H3; split; auto.
+        destruct H4; split; auto.
+        destruct H5; split; auto.
+        destruct H6; split; auto.
+        eapply typecheck_tid_ptr_compare_sub; eauto.
+      * unfold local, lift1; intro rho; simpl; normalize.
+        apply assert_lemmas.tc_expr_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * unfold local, lift1; intro rho; simpl; normalize.
+        apply assert_lemmas.tc_expr_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+    - apply exp_ENTAIL; intro sh.
+      apply exp_ENTAIL; intro t2.
+      apply exp_ENTAIL; intro v2.
+      apply andp_ENTAIL.
+
+        
 Abort.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
