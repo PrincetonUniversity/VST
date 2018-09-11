@@ -1495,10 +1495,70 @@ Proof.
     - apply exp_ENTAIL; intro sh.
       apply exp_ENTAIL; intro t2.
       apply exp_ENTAIL; intro v2.
-      apply andp_ENTAIL.
-
-        
-Abort.
+      apply andp_ENTAIL; [| apply later_ENTAIL, andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL |] |] ].
+      * unfold local, lift1; intro rho; simpl; normalize.
+        destruct H1; split; auto.
+        eapply semax_straight.typeof_temp_sub; eauto.
+      * unfold local, lift1; intro rho; simpl; normalize.
+        apply assert_lemmas.tc_lvalue_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+    - apply exp_ENTAIL; intro sh.
+      apply exp_ENTAIL; intro e1.
+      apply exp_ENTAIL; intro t1.
+      apply exp_ENTAIL; intro v2.
+      apply andp_ENTAIL; [| apply later_ENTAIL, andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL |] |] ].
+      * unfold local, lift1; intro rho; simpl; normalize.
+        destruct H1; split; auto.
+        destruct H2; split; auto.
+        eapply semax_straight.typeof_temp_sub; eauto.
+      * unfold local, lift1; intro rho; simpl; normalize.
+        apply assert_lemmas.tc_lvalue_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+      * apply ENTAIL_refl.
+  + eapply semax_pre; [| apply AuxDefs.semax_store_backward].    
+    apply exp_ENTAIL; intro sh.
+    apply andp_ENTAIL; [apply ENTAIL_refl |].
+    apply later_ENTAIL.
+    apply andp_ENTAIL; [| apply ENTAIL_refl].
+    apply andp_ENTAIL.
+    - unfold local, lift1; intro rho; simpl; normalize.
+      apply assert_lemmas.tc_lvalue_sub; auto.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - unfold local, lift1; intro rho; simpl; normalize.
+      apply assert_lemmas.tc_expr_sub; auto.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+  + apply AuxDefs.semax_skip.
+  + apply AuxDefs.semax_builtin.
+  + apply AuxDefs.semax_label; auto.
+  + apply AuxDefs.semax_goto.
+  + eapply semax_pre_post_indexed_bupd; [.. | exact IHsemax].
+    - eapply derives_trans; [| exact H0].
+      apply andp_derives; auto.
+      unfold local, lift1; intro rho; simpl; normalize.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - eapply derives_trans; [| exact H1].
+      apply andp_derives; auto.
+      unfold local, lift1; intro rho; simpl; normalize.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - eapply derives_trans; [| exact H2].
+      apply andp_derives; auto.
+      unfold local, lift1; intro rho; simpl; normalize.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - eapply derives_trans; [| exact H3].
+      apply andp_derives; auto.
+      unfold local, lift1; intro rho; simpl; normalize.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+    - intros.
+      eapply derives_trans; [| apply H4].
+      apply andp_derives; auto.
+      unfold local, lift1; intro rho; simpl; normalize.
+      eapply semax_lemmas.typecheck_environ_sub; eauto.
+Qed.
 
 Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  match R with 
