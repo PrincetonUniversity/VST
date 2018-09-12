@@ -89,6 +89,25 @@ Definition comm_R bufs sh gsh g0 g1 g2 h v := EX b : Z, EX b1 : Z, EX b2 : Z,
 Definition comm_loc lsh lock comm g g0 g1 g2 bufs sh gsh :=
   AE_loc lsh lock comm g (vint 0) (comm_R bufs sh gsh g0 g1 g2).
 
+Definition Ish := Share.comp Ews.
+
+Lemma Ews_Ish_join : sepalg.join Ews Ish Tsh.
+Proof.
+  apply comp_join_top.
+Qed.
+
+Lemma Ish_not_bot : Ish <> Share.bot.
+Proof.
+  intro.
+  generalize Ews_Ish_join; rewrite H.
+  intro X; eapply sepalg.join_eq in X; [|apply join_bot_eq].
+  generalize juicy_mem.perm_of_Ews; rewrite X.
+  unfold juicy_mem.perm_of_sh.
+  rewrite if_true by auto.
+  rewrite if_true by auto; discriminate.
+Qed.
+Hint Resolve Ish_not_bot.
+
 (* messaging system function specs *)
 Definition initialize_channels_spec :=
  DECLARE _initialize_channels
@@ -112,6 +131,7 @@ Definition initialize_channels_spec :=
         fold_right sepcon emp (map (fun r =>
           comm_loc Ews (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
             (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
@@ -224,17 +244,6 @@ Fixpoint make_shares shs (lasts : list Z) i : list share :=
   | b :: rest => if eq_dec b i then make_shares (tl shs) rest i
                  else hd Share.bot shs :: make_shares (tl shs) rest i
   end.
-
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => Q%assert end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
-               x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
-                x20 at level 0,
-             P at level 100, Q at level 100).
 
 Definition finish_write_spec :=
  DECLARE _finish_write

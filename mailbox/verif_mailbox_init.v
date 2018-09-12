@@ -159,6 +159,7 @@ Proof.
            fold_right sepcon emp (map (fun r => comm_loc Ews (Znth r locks) (Znth r comms)
              (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
              (Znth r shs) gsh2 empty_map) (upto (Z.to_nat i))) *
+           fold_right sepcon emp (map (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g) *
            fold_right sepcon emp (map (malloc_token Tsh tlock) locks)) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
@@ -200,8 +201,14 @@ Proof.
     ghost_alloc (ghost_hist_ref(hist_el := AE_hist_el) Tsh empty_map empty_map).
     { apply ghost_hist_init. }
     Intros g' g0' g1' g2'.
-    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
-    rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
+    forward_call (l, Ews, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
+    rewrite <- hist_ref_join_nil by apply Share.nontrivial; Intros.
+    replace_SEP 1 (ghost_hist(hist_el := AE_hist_el) Ews empty_map g' * ghost_hist(hist_el := AE_hist_el) Ish empty_map g').
+    { go_lower.
+      erewrite ghost_hist_join, map_add_empty; try apply Ews_Ish_join; auto.
+      entailer!.
+      { intro X; contradiction unreadable_bot.
+        rewrite <- X; auto. } }
     fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
     erewrite <- !ghost_var_share_join with (sh0 := Tsh) by eauto.
     match goal with H : sepalg_list.list_join sh1 (sublist i N shs) sh |- _ =>
@@ -209,7 +216,7 @@ Proof.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
     destruct Hj2 as (sh' & ? & Hsh').
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
-    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
+    forward_call (l, Ews, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs) gsh2 g0' g1' g2')).
 (*    { entailer!. }
     { entailer!. }
 *)
