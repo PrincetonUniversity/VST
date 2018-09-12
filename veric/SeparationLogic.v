@@ -607,10 +607,36 @@ simpl;
 auto.
 Qed.
 
+Definition func_ptr (f: funspec) (v: val): mpred :=
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && res_predicates.func_at f (b, 0).
+
+Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
+Proof.
+  intros.
+  unfold func_ptr.
+  apply corable_exp; intro.
+  apply corable_andp; auto.
+  apply assert_lemmas.corable_func_at.
+Qed.
+
+Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
+Proof.
+  intros.
+  unfold func_ptr.
+  destruct spec.
+  normalize.
+Qed.
+
 Definition NDmk_funspec (f: funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
   mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
     (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
+  compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+Proof.
+  exact seplog.approx_func_ptr.
+Qed.
 
 Definition type_of_funsig (fsig: funsig) :=
    Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
@@ -1293,14 +1319,6 @@ Axiom semax_switch:
      @semax CS Espec Delta Q (Sswitch a sl) R.
 
 (* THESE RULES FROM semax_call *)
-Parameter func_ptr : funspec -> val ->mpred.
-Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
-Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-
-Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
-  compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
-Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
 
 Axiom semax_call :
   forall {CS: compspecs} {Espec: OracleKind},

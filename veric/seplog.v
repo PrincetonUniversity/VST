@@ -13,16 +13,6 @@ Require Export VST.veric.mapsto_memory_block.
 
 Local Open Scope pred.
 
-Definition func_at (f: funspec): address -> pred rmap :=
-  match f with
-   | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
-  end.
-
-Definition func_at' (f: funspec) (loc: address) : pred rmap :=
-  match f with
-   | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
-  end.
-
 Definition func_ptr (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Ptrofs.zero) && func_at f (b, 0).
 

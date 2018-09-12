@@ -79,28 +79,6 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 
-Definition func_ptr (f: funspec) (v: val): mpred :=
-  exp (fun b: block => andp (prop (v = Vptr b Ptrofs.zero)) (func_at f (b, 0))).
-
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
-
-Definition corable_func_ptr: forall f v, corable (func_ptr f v) :=
-  assert_lemmas.corable_func_ptr.
-
-Lemma func_ptr_isptr:
-  forall spec f, (func_ptr spec f |-- !! isptr f)%logic.
-Proof.
-  intros.
-  unfold func_ptr.
-  destruct spec.
-  normalize.
-Qed.
-
-Definition approx_func_ptr := approx_func_ptr.
-Definition func_ptr_def := eq_refl func_ptr.
-
-Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
-
 Definition semax := @semax.
 Definition unfold_Ssequence := unfold_Ssequence.
 Definition extract_exists := @extract_exists.
