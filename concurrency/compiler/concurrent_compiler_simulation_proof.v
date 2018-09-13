@@ -2178,7 +2178,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             pose proof (self_simulation.ssim_external _ _ Cself_simulation) as sim_atx.
             eapply sim_atx in Hinj1'; eauto.
             clear sim_atx.
-            destruct Hinj1' as (b2 & delt1 & Hinj_b1 & Hat_external1'); eauto.
+            destruct Hinj1' as (b2 & delt1 & Hinj_b1 & Hat_external2); eauto.
             
             
             (* build virtueThread2 & virtueLP2 *)
@@ -2226,16 +2226,20 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
 
             (*Inject b2 *)
-            assert (exists b2' delt2,  j2 b2 = Some (b2', delt2)).
+            simpl in Hat_external.
+            assert (exists b2' delt2,
+                       j2 b2 = Some (b2', delt2) /\
+                       semantics.at_external (semantics.csem (event_semantics.msem (@semSem AsmSem) ))
+                                             (code3) m3 =
+                       Some (UNLOCK, Vptr b2' (add ofs (add (repr delt1) (repr delt2))) :: nil)
+                                                 
+
+                   ).
             { (* should follow from the compiler_simulation 
                  bacuase we know b2 is an external function. *)
               admit.
             }
-            exists (b2 : block) (delt : Z),
-            j b1 = Some (b2, delt) /\
-            semantics.at_external Sem c2 m2 =
-            Some (func_name, Vptr b2 (add ofs (repr delt)) :: nil)
-              
+            destruct H as (b2'&delt2&Hinj_b2&Hat_external3).
             
             (* build m3' *)
             assert (Hstore3:=Hstore2).
@@ -2251,45 +2255,87 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               admit. (*This and the previous admit (marked with HLT2)
                        Should both come from the same lemma. *)
             }
+            destruct Hstore3 as (n2& Hstore3 & Hinj2').
+            (*
+              TODO: 
 
-            2: {
-              eauto.
-              
+              - Add at_external to sim_properties_inj.
+              - Review this case to prove the steps AS COMPCERT SEMANTICS
+             *)
 
-            
-            
-
-            
-            
-            
-            
-            (* The diagram looks like an execution of external step, 
-               where the memory changes but the state only becomes Kresume  *)
-            
             
             
 
             (** *Diagram No. 3*)
 
+
             
-              (* Temporary placeholders. *)
-              evar (b4': positive).
-              evar (virtueThread3 : (delta_map * delta_map)%type).
-              remember (virtueThread_inject m4 j3 (virtueThread3))  as virtueThread4.
-              evar (virtueLP4 : (access_map * access_map)%type).
-              evar (m4' : Mem.mem).
+            (* Invert Asm_match *)
+            assert (Hmatch3:=H1).
+            inversion H1 as (Asm_cinject & Asm_matchmem); clear H1.
 
-              eexists.
-              exists st4. (* an updated version of it*)
-              do 2 eexists.
-              exists mu.
-              split; [|split]. 
+            (* Show that one can install Writable permissions for the lock in m2. *)
+            assert (Hlt4:
+                      permMapLt
+                        (setPermBlock (Some Writable) b (intval ofs) (getCurPerm m4) LKSIZE_nat)
+                        (getMaxPerm m4)).
+            { move Hlt1 at bottom.
+              move Clight_matchmem at bottom.
+              admit. (* HLT4 *)
+            }
+            
+            (*Destruct the values of the self simulation *)
+            pose proof (self_simulation.minject _ _ _ Asm_matchmem) as Hinj3.
+            assert (Hinj3':=Hinj3).
+            pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
+            eapply sim_atx in Hinj3'; eauto.
+            clear sim_atx.
+            destruct Hinj3' as (b4 & delt3 & Hinj_b4 & Hat_external4); eauto.
+            
+            
+            (* build virtueThread4 & virtueLP4 *)
+            remember (virtueThread_inject m4 j3 virtueThread3)  as virtueThread4.
+            remember (virtueLP_inject m4 j3 virtueLP3) as virtueLP4.
 
+            (* build m4' *)
+            assert (Hstore4:=Hstore3).
+            eapply Mem.store_mapped_inject in Hstore4; eauto.
+            2: {
+              instantiate (1:= (restrPermMap Hlt4)).
+              (* This goal requires that the injection holds 
+                 even after the lock's Cur permission is set 
+                 to Writable (in both memories). 
+                 This is probably a simple general lemma, about
+                 changing Cur memories in two injected memories.
+               *)
+              admit. (*This and the previous admit (marked with HLT2)
+                       Should both come from the same lemma. *)
+            }
+            destruct Hstore4 as (m4' & Hstore4 & Hinj4').
+            
+            
+            (* The state doesn't change, only the memory. *)
+            assert (code4':=code4).
+
+            remember (add (add ofs (add (repr delt1) (repr delt2)))
+                         (repr delt3)) as ofs4.
+            remember (updLockSet
+                        (updThread Hcnt4 (Kresume (TST code4) Vundef)
+                                              (computeMap (fst (getThreadR Hcnt4)) (fst virtueThread4),
+                                               computeMap (snd (getThreadR Hcnt4)) (snd virtueThread4)))
+                        (b4, intval ofs4) virtueLP4) as st4'.
+            
+            eexists.
+            exists st4'. 
+            exists m4'.
+            exists (Some ind).
+            exists mu.
+            split; [|split]. 
+            
             + (*reestablish the concur match. *)
-              econstructor.
-              * simpl. eapply CMatch.
-              * instantiate(1:=m4').
-                admit. (* This follows from Hinj and the mem.store injection lemma.*)
+              econstructor. (* should prove memcpmpat of both memories. *)
+              * subst st4'; simpl. eapply CMatch.
+              * admit. (* This follows from Hinj and the mem.store injection lemma.*)
 
               * admit. (* Proof that thread Cur injects: 
                           This should be a separate lemma *)
@@ -2297,11 +2343,55 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                           This should be a separate lemma *)
               * admit. (* Lock resources are injected:
                           This should be a separate lemma *)
-              * admit. (* Reestablish the invariant. *)
+              * assert (invariant st4) by eapply CMatch.
+                admit. (* Reestablish the invariant. 
+                          This is to prove "no races"
+                          - thread permissions are disjoint
+                          - lock permissions are disjoint
+                          - thread and lock  permissions are disjoint
+                          - Thread's lock info is "coherent"
+                          - all locks are lr_valid (Print lr_valid).
+                        *)
 
               * admit. (* match_states threads that don't change (i > hb) *)
               * admit. (* match_states threads that don't change  (i < hb) *)
-              * (*HERE*) admit. (* match_states for the compiled thread (i = hb) *)
+              * intros; subst i.
+                rename cnti2 into Hcnt4'.
+                clean_cnt.
+                exists ind; split; auto.
+
+                
+                replace (getThreadC cnti1) with (Kresume (SST code1) Vundef).
+                2: { destruct st1; simpl.
+                     match goal with
+                     | [  |- context[if ?X then _ else _] ] => assert (if_true: Datatypes.is_true(X))
+                     end.
+                     2 : (rewrite if_true; auto). 
+                     simpl.
+                     clear.
+                     unfold containsThread in *; simpl in *.
+                     replace cnti1 with Htid1 by apply Axioms.proof_irr; auto.
+                }
+
+                replace (getThreadC Hcnt4') with (Kresume (TST code4) Vundef).
+                2: { subst st4'; destruct st4; simpl.
+                     match goal with
+                     | [  |- context[if ?X then _ else _] ] => assert (if_true: Datatypes.is_true(X))
+                     end.
+                     2 : (rewrite if_true; auto). 
+                     simpl.
+                     clear.
+                     unfold containsThread in *; simpl in *.
+                     replace Hcnt4' with Hcnt4 by apply Axioms.proof_irr; auto.
+                }
+                
+                eapply CThread_Compiled_Resume.
+                econstructor.
+                -- econstructor; eauto.
+                   
+                eauto.
+
+                a dmit. (* match_states for the compiled thread (i = hb) *)
                 
                 
             + (* Traces inject. *)
