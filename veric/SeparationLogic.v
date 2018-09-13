@@ -1109,34 +1109,18 @@ Global Opaque rel_lvalue.
    Hint databases if this next line is not added. *)
 Hint Resolve (@subp_sepcon mpred Nveric Iveric Sveric SIveric Rveric SRveric): contractive.
 
-Module Type  CLIGHT_SEPARATION_LOGIC.
-
-Local Open Scope pred.
-
-Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
-    tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
-
 Fixpoint unfold_Ssequence c :=
   match c with
   | Ssequence c1 c2 => unfold_Ssequence c1 ++ unfold_Ssequence c2
   | _ => c :: nil
   end.
 
-(***************** SEMAX_LEMMAS ****************)
+Module Type MINIMUM_CLIGHT_SEPARATION_LOGIC.
 
-Axiom extract_exists:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: A -> ret_assert),
-  (forall x, @semax CS Espec Delta (P x) c (R x)) ->
-   @semax CS Espec Delta (EX x:A, P x) c (existential_ret_assert R).
+Local Open Scope pred.
 
-Axiom semax_extensionality_Delta:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta Delta' P c R,
-       tycontext_sub Delta Delta' ->
-     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
-
-(** THESE RULES FROM semax_prog **)
+Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
+    tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
 
 Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
@@ -1147,6 +1131,14 @@ Definition semax_body
           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
+
+(***************** SEMAX_LEMMAS ****************)
+
+Axiom extract_exists:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: A -> ret_assert),
+  (forall x, @semax CS Espec Delta (P x) c (R x)) ->
+   @semax CS Espec Delta (EX x:A, P x) c (existential_ret_assert R).
 
 Parameter semax_func:
     forall {Espec: OracleKind},
@@ -1237,12 +1229,6 @@ Axiom semax_func_cons_ext:
       semax_func V G ((id, External ef argsig retsig cc)::fs)
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 
-(* THIS RULE FROM semax_congruence *)
-
-Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
-  unfold_Ssequence c1 = unfold_Ssequence c2 ->
-  (forall P Q Delta, @semax CS Espec Delta P c1 Q -> @semax CS Espec Delta P c2 Q).
-
 (* THESE RULES FROM semax_loop *)
 
 Axiom semax_ifthenelse :
@@ -1260,22 +1246,6 @@ forall Delta R P Q h t,
     @semax CS Espec Delta Q t R ->
     @semax CS Espec Delta P (Ssequence h t) R.
 
-Axiom seq_assoc:
-  forall {CS: compspecs} {Espec: OracleKind},
-   forall Delta P s1 s2 s3 R,
-        @semax CS Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
-        @semax CS Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
-
-Axiom semax_seq_skip:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta P s Q,
-    @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence s Sskip) Q.
-
-Axiom semax_skip_seq:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta P s Q,
-    @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
-
 Axiom semax_break:
   forall {CS: compspecs} {Espec: OracleKind},
    forall Delta Q,    @semax CS Espec Delta (RA_break Q) Sbreak Q.
@@ -1290,19 +1260,6 @@ forall Delta Q Q' incr body R,
      @semax CS Espec Delta  Q body (loop1_ret_assert Q' R) ->
      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body incr) R.
-
-Axiom semax_loop_nocontinue:
-  forall{CS: compspecs} {Espec: OracleKind},
- forall Delta P body incr R,
- nocontinue body = true ->
- nojumps incr = true ->
- @semax CS Espec Delta P (Ssequence body incr) (loop1_ret_assert P R) ->
- @semax CS Espec Delta P (Sloop body incr) R.
-
-Axiom semax_if_seq:
- forall {CS: compspecs} {Espec: OracleKind} Delta P e c1 c2 c Q,
- semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
- semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
 
 (* THIS RULE FROM semax_switch *)
 
@@ -1364,18 +1321,6 @@ forall (Delta: tycontext) (P: environ->mpred) id e,
              (tc_temp_id id (typeof e) Delta e) &&
              subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
-
-Axiom semax_set_forward :
-  forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) (P: environ->mpred) id e,
-    @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
-          P))
-          (Sset id e)
-        (normal_ret_assert
-          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
-                            subst id (`old) P)).
 
 Axiom semax_ptr_compare :
 forall{CS: compspecs} {Espec: OracleKind},
@@ -1441,27 +1386,6 @@ Axiom semax_store:
           (normal_ret_assert
                (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
 
-Axiom semax_set_forward_nl:
-  forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) P id e v t,
-    typeof_temp Delta id = Some t ->
-    P |-- rel_expr e v ->
-    tc_val t v ->
-    @semax CS Espec Delta
-        ( |> P ) (Sset id e)
-        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `(old) P)).
-
-Axiom semax_loadstore:
-  forall {CS: compspecs} {Espec: OracleKind},
- forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P',
-   writable_share sh ->
-   P |-- !! (tc_val (typeof e1) v2)
-           && rel_lvalue e1 v1
-           && rel_expr (Ecast e2 (typeof e1)) v2
-           && (`(mapsto sh (typeof e1) v1 v0) * P') ->
-   @semax CS Espec Delta (|> P) (Sassign e1 e2)
-          (normal_ret_assert (`(mapsto sh (typeof e1) v1 v2) * P')).
-
 (* THESE RULES FROM semax_lemmas *)
 
 Axiom semax_skip:
@@ -1482,33 +1406,6 @@ Axiom semax_Slabel:
    forall {cs:compspecs} {Espec: OracleKind},
      forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
    @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
-
-Axiom semax_seq_Slabel:
-   forall {cs:compspecs} {Espec: OracleKind},
-     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
-   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
-   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
-
-(**************** END OF stuff from semax_rules ***********)
-
-Axiom semax_frame:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta P s R F,
-   closed_wrt_modvars s F ->
-  @semax CS Espec Delta P s R ->
-    @semax CS Espec Delta (P * F) s (frame_ret_assert R F).
-
-Axiom semax_extract_prop:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta (PP: Prop) P c Q,
-           (PP -> @semax CS Espec Delta P c Q) ->
-           @semax CS Espec Delta (!!PP && P) c Q.
-
-Axiom semax_extract_later_prop:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall Delta (PP: Prop) P c Q,
-           (PP -> @semax CS Espec Delta P c Q) ->
-           @semax CS Espec Delta ((|> !!PP) && P) c Q.
 
 (* THESE RULES FROM semax_ext *)
 
@@ -1542,7 +1439,93 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
-End CLIGHT_SEPARATION_LOGIC.
+End MINIMUM_CLIGHT_SEPARATION_LOGIC.
+
+Module Type PRACTICAL_CLIGHT_SEPARATION_LOGIC.
+
+Declare Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC.
+
+Import MCSL.
+
+Axiom semax_extensionality_Delta:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta Delta' P c R,
+       tycontext_sub Delta Delta' ->
+     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
+
+Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
+  unfold_Ssequence c1 = unfold_Ssequence c2 ->
+  (forall P Q Delta, @semax CS Espec Delta P c1 Q -> @semax CS Espec Delta P c2 Q).
+
+Axiom seq_assoc:
+  forall {CS: compspecs} {Espec: OracleKind},
+   forall Delta P s1 s2 s3 R,
+        @semax CS Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
+        @semax CS Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
+
+Axiom semax_seq_skip:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P s Q,
+    @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence s Sskip) Q.
+
+Axiom semax_skip_seq:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P s Q,
+    @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
+
+Axiom semax_loop_nocontinue:
+  forall{CS: compspecs} {Espec: OracleKind},
+ forall Delta P body incr R,
+ nocontinue body = true ->
+ nojumps incr = true ->
+ @semax CS Espec Delta P (Ssequence body incr) (loop1_ret_assert P R) ->
+ @semax CS Espec Delta P (Sloop body incr) R.
+
+Axiom semax_if_seq:
+ forall {CS: compspecs} {Espec: OracleKind} Delta P e c1 c2 c Q,
+ semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
+ semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
+
+Axiom semax_set_forward :
+  forall {CS: compspecs} {Espec: OracleKind},
+forall (Delta: tycontext) (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+          P))
+          (Sset id e)
+        (normal_ret_assert
+          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+                            subst id (`old) P)).
+
+Axiom semax_seq_Slabel:
+   forall {cs:compspecs} {Espec: OracleKind},
+     forall Delta (P:environ -> mpred) (c1 c2:statement) (Q:ret_assert) l,
+   @semax cs Espec Delta P (Ssequence (Slabel l c1) c2) Q <-> 
+   @semax cs Espec Delta P (Slabel l (Ssequence c1 c2)) Q.
+
+(**************** END OF stuff from semax_rules ***********)
+
+Axiom semax_frame:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta P s R F,
+   closed_wrt_modvars s F ->
+  @semax CS Espec Delta P s R ->
+    @semax CS Espec Delta (P * F) s (frame_ret_assert R F).
+
+Axiom semax_extract_prop:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta (PP: Prop) P c Q,
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta (!!PP && P) c Q.
+
+Axiom semax_extract_later_prop:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta (PP: Prop) P c Q,
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta ((|> !!PP) && P) c Q.
+
+End PRACTICAL_CLIGHT_SEPARATION_LOGIC.
 
 Require Import Coq.Classes.Morphisms.
 

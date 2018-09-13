@@ -29,9 +29,9 @@ Require Import VST.veric.expr_rel.
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 
 (*Declare Module ExtSpec: EXTERNAL_SPEC. *)
-Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
+Declare Module MCSL: MINIMUM_CLIGHT_SEPARATION_LOGIC.
 
-Import CSL.
+Import MCSL.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -77,7 +77,7 @@ End SEPARATION_LOGIC_SOUNDNESS.
 
 Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 
-Module CSL <: CLIGHT_SEPARATION_LOGIC.
+Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC.
 
 Definition semax := @semax.
 Definition unfold_Ssequence := unfold_Ssequence.
@@ -133,7 +133,7 @@ Definition juicy_ext_spec := juicy_ext_spec.
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
 Locate semax_switch.
-End CSL.
+End MCSL.
 
 Definition semax_prog_rule := @semax_prog_rule.
 Definition semax_prog_rule' := @semax_prog_rule'.

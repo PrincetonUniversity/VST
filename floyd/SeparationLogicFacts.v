@@ -7,7 +7,7 @@ Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
 Require VST.veric.SeparationLogicSoundness.
-Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
+Export SeparationLogicSoundness.SoundSeparationLogic.MCSL.
 Require Import VST.veric.NullExtension.
 
 
@@ -427,6 +427,30 @@ Proof.
   destruct i.
   + apply obox_sepcon.
   + apply derives_refl.
+Qed.
+
+Definition typecheck_glob_spec (Delta: tycontext): environ -> mpred :=
+  ALL id: ident, ALL f: _,
+    !! ((var_types Delta) ! id = None /\
+        (glob_specs Delta) ! id = Some f /\
+        (glob_types Delta) ! id = Some (type_of_funspec f)) -->
+    `(func_ptr f) (eval_var id (type_of_funspec f)).
+
+Definition TCE (Delta: tycontext): environ -> mpred :=
+  local (tc_environ Delta) && typecheck_glob_spec Delta.
+
+Lemma corable_TCE: forall Delta, corable (TCE Delta).
+Proof.
+  intros.
+  apply corable_andp.
+  + intro; apply corable_prop.
+  + apply corable_allp; intros id.
+    apply corable_allp; intros f.
+    apply corable_imp.
+    - apply corable_prop.
+    - intro rho.
+      unfold_lift.
+      apply corable_func_ptr.
 Qed.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.

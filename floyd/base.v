@@ -7,7 +7,7 @@ Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
 Require VST.veric.SeparationLogicSoundness.
-Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
+Export SeparationLogicSoundness.SoundSeparationLogic.MCSL.
 Require Import VST.veric.NullExtension.
 
 Local Open Scope logic.
