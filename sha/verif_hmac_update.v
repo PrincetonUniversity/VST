@@ -50,7 +50,7 @@ rewrite field_address_offset by auto with field_compatible.
 simpl @nested_field_type.
 make_Vptr c.
 simpl. rewrite Ptrofs.add_zero.
-Time forward_call (wsh, ctx, data, Vptr b i, d, sh, len, gv). (*6 versus 21 *)
+Time forward_call (ctx, data, Vptr b i, wsh, d, sh, len, gv). (*6 versus 21 *)
   { unfold sha256state_. Exists (fst ST).
     rewrite prop_true_andp by auto.
     change_compspecs CompSpecs.

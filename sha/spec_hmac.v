@@ -27,19 +27,19 @@ Defined.
 
 Definition memcpy_spec_data_at :=
   DECLARE _memcpy
-   WITH sh : share*share, p: val, q: val, T:TREP, n:Z
+   WITH rsh : share, wsh: share, p: val, q: val, T:TREP, n:Z
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (writable_share (snd sh); n= sizeof (tp_of T);
-             0 <= n <= Int.max_unsigned)
+       PROP (readable_share rsh; writable_share wsh;
+                 n= sizeof (tp_of T); 0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q;
               temp 3%positive (Vint (Int.repr n)))
-       SEP (data_at (fst sh) (tp_of T) (v_of T) q;
-            memory_block (snd sh) n p)
+       SEP (data_at rsh (tp_of T) (v_of T) q;
+            memory_block wsh n p)
     POST [ tptr tvoid ]
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (data_at (snd sh) (tp_of T) (v_of T) p;
-            data_at (fst sh) (tp_of T) (v_of T) q).
+       SEP (data_at wsh (tp_of T) (v_of T) p;
+            data_at rsh (tp_of T) (v_of T) q).
 
 (****** Coq-representation of hmac states, and predicates characterizing the incremental functions.
 
@@ -117,39 +117,6 @@ Proof.
   unfold hmac, hmacFinal, hmacSimple, hmacFinalSimple.
   destruct (hmacUpdate data (hmacInit k)). trivial.
 Qed.
-
-(*Lemma update_abs_nil ctx x: s256_relate ctx x -> update_abs [] ctx ctx.
-Proof.
-  intros.
-  destruct ctx. simpl in H.
-  specialize (Update_abs nil hashed nil data data); simpl.
-  do 2 rewrite app_nil_r. intros U; apply U; trivial; clear U; intuition.
-Qed.
-
-Lemma update_abs_app ctx0 ctx1 ctx2 data data1:
-   update_abs data ctx0 ctx1 ->
-   update_abs data1 ctx1 ctx2 ->
-   update_abs (data ++ data1) ctx0 ctx2.
-Proof. intros.
-  inv H. inv H0.
-  specialize (Update_abs (data ++ data1) hashed (blocks++blocks0) oldfrag newfrag0).
-    rewrite  <- app_assoc. intros ZZ; apply ZZ; clear ZZ; trivial.
-    rewrite Zlength_app. apply Z.divide_add_r; assumption.
-    rewrite app_assoc. rewrite H5; clear H5. rewrite <- app_assoc.
-    rewrite H13; clear H13. rewrite intlist_to_Zlist_app. rewrite app_assoc; trivial.
-Qed.
-
-Lemma hmacUpdate_app h0 h1 h2 data data1:
-      hmacUpdate data h0 h1 ->
-      hmacUpdate data1 h1 h2 ->
-      hmacUpdate (data ++ data1) h0 h2.
-Proof.
-  intros.
-  destruct h0; simpl in *. destruct H as [? [UPD ?]]. subst h1.
-  destruct H0 as [? [? ?]]. subst h2. exists x0; split; trivial.
-  eapply update_abs_app; eassumption.
-Qed.
-*)
 
 Lemma hmacUpdate_nil h: hmacUpdate [] h = h.
 Proof. destruct h. simpl. rewrite app_nil_r. trivial. Qed.
@@ -268,15 +235,7 @@ Definition HMAC_Update_spec :=
           PROP ()
           LOCAL ()
           SEP(K_vector gv; hmacstate_ wsh (hmacUpdate data h1) c; data_block sh data d).
-(*
-Lemma hmacUpdate_nil h x: hmac_relate h x -> hmacUpdate [] h h.
-Proof.
- intros.
- destruct h. simpl. exists ctx; split; trivial.
- simpl in H.
- eapply update_abs_nil. apply H.
-Qed.
-*)
+
 (************************ Specification of HMAC_final *******************************************************)
 
 Definition hmac_relate_PostFinal (h:hmacabs ) (r: hmacstate) : Prop :=
@@ -359,13 +318,13 @@ Definition HMAC_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        sh: share, shmd: share, md: val, gv: globals
+        shk: share, shm: share, shmd: share, md: val, gv: globals
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
          _n OF tint,
          _md OF tptr tuchar ]
-         PROP (readable_share sh; writable_share shmd;
+         PROP (readable_share shk; readable_share shm; writable_share shmd;
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
          LOCAL (temp _md md; temp _key keyVal;
@@ -373,8 +332,8 @@ Definition HMAC_spec :=
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
                 gvars gv)
-         SEP(data_block sh (CONT KEY) keyVal;
-             data_block sh (CONT MSG) msgVal;
+         SEP(data_block shk (CONT KEY) keyVal;
+             data_block shm (CONT MSG) msgVal;
              K_vector gv;
              memory_block shmd 32 md)
   POST [ tptr tuchar ] EX digest:_,
@@ -382,8 +341,8 @@ Definition HMAC_spec :=
           LOCAL (temp ret_temp md)
           SEP(K_vector gv;
               data_block shmd digest md;
-              initPostKey sh keyVal (CONT KEY);
-              data_block sh (CONT MSG) msgVal).
+              initPostKey shk keyVal (CONT KEY);
+              data_block shm (CONT MSG) msgVal).
 
 (*A stronger spec of oneshot hmac that includes the cryptographic assertion in the postcondition
   is given in the verif_hmac_crpyto.v. This avoids having to Import FCF, hmacfc, and the
