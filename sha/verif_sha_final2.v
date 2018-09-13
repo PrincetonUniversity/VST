@@ -276,7 +276,7 @@ rewrite semax_seq_skip.
 assert (Zlength (hash_blocks init_registers hashed) = 8)
  by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
 forward_call (* sha256_block_data_order (c,p); *)
-  (wsh, hash_blocks init_registers hashed, ddzw, c,
+  (hash_blocks init_registers hashed, ddzw, c, wsh,
     field_address t_struct_SHA256state_st [StructField _data] c,
     wsh, gv).
 {

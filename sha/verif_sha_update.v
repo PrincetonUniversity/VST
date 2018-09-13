@@ -69,7 +69,7 @@ subst.
 
 unfold_data_at 1%nat.
 forward_call (* SHA256_addlength(c, len); *)
-  (wsh, len, c, s256a_len a).
+  (len, c, wsh, s256a_len a).
  repeat split; simpl; auto; omega.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
 gather_SEP' [5;0;1;3;4]%Z.

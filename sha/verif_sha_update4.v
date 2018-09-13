@@ -224,7 +224,7 @@ assert (Zlength bl = LBLOCKz). {
  assert (Zlength (hash_blocks init_registers (hashed ++ blocks)) = 8)
   by (rewrite Zlength_length; [apply length_hash_blocks|]; auto).
  Time forward_call (* sha256_block_data_order (c,data); *)
-   (wsh, hash_blocks init_registers (hashed++blocks),  bl, c,
+   (hash_blocks init_registers (hashed++blocks),  bl, c, wsh,
     field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
     sh, gv). (*3.8*)
   { Time unfold_data_at 1%nat. (*0.8*)
