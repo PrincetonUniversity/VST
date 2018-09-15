@@ -336,9 +336,7 @@ apply allp_right; intro vx'.
  simpl.
  apply fash_derives.
  destruct R as [?R ?R ?R ?R]; destruct ek; subst ek' vl'; simpl; auto.
-* apply imp_right. normalize.
-*  normalize; apply imp_derives; auto; rewrite andp_assoc; normalize.
-*  normalize; apply imp_derives; auto; rewrite andp_assoc; normalize.
+ apply imp_right. normalize.
 Qed.
 
 Lemma unfash_fash_imp:

@@ -227,9 +227,9 @@ Record ret_assert : Type := {
 *)
 Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
  match ek with
- | EK_normal => fun rho => !! (vl = None) && RA_normal Q rho
- | EK_break => fun rho => !! (vl = None) && RA_break Q rho
- | EK_continue => fun rho => !! (vl = None) && RA_continue Q rho
+ | EK_normal => RA_normal Q
+ | EK_break => RA_break Q
+ | EK_continue => RA_continue Q
  | EK_return => RA_return Q vl
  end.
 
@@ -278,7 +278,7 @@ Lemma normal_ret_assert_derives:
             |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.
  intros.
- destruct ek; normalize. destruct vl; simpl; normalize.
+ destruct ek; normalize.
 Qed.
 Hint Resolve normal_ret_assert_derives.
 

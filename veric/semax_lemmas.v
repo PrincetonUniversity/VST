@@ -211,26 +211,17 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
 { specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
   rewrite prop_true_andp in H.
   destruct ek; simpl in * |-.
-  * destruct HFP as (? & HFP).
-    rewrite prop_true_andp in H by auto.
-    destruct R'.
+  * destruct R'.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
-    rewrite sepcon_andp_prop1 in HFP.
     destruct R; auto.
-  * destruct HFP as (? & HFP).
-    rewrite prop_true_andp in H by auto.
-    destruct R'.
+  * destruct R'.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
-    rewrite sepcon_andp_prop1 in HFP.
     destruct R; auto.
-  * destruct HFP as (? & HFP).
-    rewrite prop_true_andp in H by auto.
-    destruct R'.
+  * destruct R'.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
-    rewrite sepcon_andp_prop1 in HFP.
     destruct R; auto.
   * destruct R'.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
@@ -366,7 +357,6 @@ repeat intro. (* simpl exit_tycon. *)
 simpl.
 specialize (H rho). destruct R; simpl in H. simpl tycontext.RA_normal.
 rewrite sepcon_comm.
-split; auto. rewrite prop_true_andp in H by auto.
 eapply sepcon_derives; try apply H0; auto.
 
 repeat intro.
@@ -521,17 +511,14 @@ Proof.
   + destruct Q.
     simpl.
     rewrite !(sepcon_comm _ (F _)).
-    rewrite <- !andp_assoc.
     apply assert_safe_except_0.
   + destruct Q.
     simpl.
     rewrite !(sepcon_comm _ (F _)).
-    rewrite <- !andp_assoc.
     apply assert_safe_except_0.
   + destruct Q.
     simpl.
     rewrite !(sepcon_comm _ (F _)).
-    rewrite <- !andp_assoc.
     apply assert_safe_except_0.
   + destruct Q.
     simpl.
@@ -856,7 +843,6 @@ intros.
 apply derives_skip.
 intros.
 simpl.
-rewrite prop_true_andp by auto.
 auto.
 Qed.
 

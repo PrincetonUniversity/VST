@@ -1630,7 +1630,6 @@ do 2 red in H1.
 intros Htc.
 rewrite (sepcon_comm (Q _ _ _)) in H15'.
 unfold seplog.sepcon, seplog.LiftSepLog .
-rewrite prop_true_andp by auto.
 rewrite <- exp_sepcon1.
 eapply sepcon_derives; [apply sepcon_derives | | apply H15']; clear H15'.
 
@@ -2324,7 +2323,7 @@ rewrite <- H0. auto.
  destruct H22 as [H22a H22b].
  rewrite seplog.sepcon_comm.
  rewrite <- exp_sepcon1.
- simpl seplog.sepcon. rewrite prop_true_andp by auto.
+ simpl seplog.sepcon.
   rewrite <- sepcon_assoc.
  rewrite sepcon_comm in H22a|-*.
   rewrite sepcon_assoc in H22a.
