@@ -390,14 +390,32 @@ Proof.
   contradiction.
 Qed.
 
-Lemma guard_except_0': 
-  forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) k,
-    guard Espec ge Delta P k = guard Espec ge Delta (fun rho => |> FF || P rho) k.
+Definition except_0_ret_assert (Q: ret_assert): ret_assert :=
+          {| RA_normal := fun rho => (|> FF || RA_normal Q rho);
+             RA_break := fun rho => (|> FF || RA_break Q rho);
+             RA_continue := fun rho => (|> FF || RA_continue Q rho);
+             RA_return := fun v rho => (|> FF || RA_return Q v rho) |}.
+
+Lemma proj_except_0_ret_assert: forall Q ek vl,
+  proj_ret_assert (except_0_ret_assert Q) ek vl = fun rho => |> FF || proj_ret_assert Q ek vl rho.
 Proof.
   intros.
-  unfold guard.
-  f_equal; extensionality tx.
-  f_equal; extensionality vx.
+  destruct ek;
+  auto.
+Qed.
+
+(* The following two lemmas is not now used. but after deep embedded hoare logic (SL_as_Logic) is
+ported, the frame does not need to be quantified in the semantic definition of semax. Then,
+these two lemmas can replace the other two afterwards. *)
+
+Lemma assert_safe_except_0':
+  forall {Espec: OracleKind} gx vx tx PP1 PP2 rho (P: environ -> pred rmap) k,
+    PP1 && (P rho) && PP2 >=>
+    assert_safe Espec gx vx tx k rho =
+    PP1 && ((|> FF || P rho)) && PP2 >=>
+    assert_safe Espec gx vx tx k rho.
+Proof.
+  intros.
   apply pred_ext.
   + hnf; intros.
     hnf; intros.
@@ -435,6 +453,37 @@ Proof.
     destruct H2 as [[? ?] ?].
     split; [split |]; auto.
     right; auto.
+Qed.
+
+Lemma _guard_except_0':
+  forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) f k,
+    _guard Espec ge Delta P f k = _guard Espec ge Delta (fun rho => |> FF || P rho) f k.
+Proof.
+  intros.
+  unfold _guard.
+  f_equal; extensionality tx.
+  f_equal; extensionality vx.
+  apply assert_safe_except_0'.
+Qed.
+  
+Lemma guard_except_0':
+  forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) k,
+    guard Espec ge Delta P k = guard Espec ge Delta (fun rho => |> FF || P rho) k.
+Proof.
+  intros.
+  apply _guard_except_0'.
+Qed.
+
+Lemma rguard_except_0':
+  forall {Espec: OracleKind} ge Delta (P: ret_assert) k,
+    rguard Espec ge Delta P k = rguard Espec ge Delta (except_0_ret_assert P) k.
+Proof.
+  intros.
+  unfold rguard.
+  f_equal; extensionality ek.
+  f_equal; extensionality vl.
+  rewrite proj_except_0_ret_assert.
+  apply _guard_except_0'.
 Qed.
 
 Lemma assert_safe_except_0:
@@ -490,7 +539,7 @@ Proof.
     hnf; eexists; eexists.
     split; [| split]; [exact H3 | exact H5 |].
     right; auto.
-Qed.  
+Qed.
 
 Lemma rguard_except_0:
   forall {Espec: OracleKind} ge Delta (F: environ -> pred rmap) Q k,
@@ -502,7 +551,7 @@ Lemma rguard_except_0:
              RA_return := fun v rho => (|> FF || RA_return Q v rho) |} F) k.
 Proof.
   intros.
-  unfold rguard.
+  unfold rguard, _guard.
   f_equal; extensionality ek.
   f_equal; extensionality vl.
   f_equal; extensionality tx.
@@ -532,7 +581,7 @@ Lemma guard_except_0:
     guard Espec ge Delta (fun rho => F rho * (|> FF || P rho)) k.
 Proof.
   intros.
-  unfold guard.
+  unfold guard, _guard.
   f_equal; extensionality tx.
   f_equal; extensionality vx.
   apply assert_safe_except_0.

@@ -327,10 +327,6 @@ apply allp_right; intro vx'.
  apply allp_left with vx'.
  simpl current_function.
  set (rho' := construct_rho (filter_genv psi) vx' tx') in *.
- rewrite !andp_assoc.
- simple apply prop_andp_subp'; intro.
- rewrite prop_true_andp.
- 2: destruct H; split; auto.
  forget (funassert Delta' rho') as FDR.
  rewrite !proj_frame_ret_assert.
  simpl.
@@ -411,7 +407,7 @@ rewrite <- andp_assoc;
  rewrite (andp_comm (believe _ _ _ _));
  rewrite andp_assoc;
  apply prop_andp_left; intro.
-unfold guard.
+unfold guard, _guard.
 apply allp_right; intro tx.
 apply allp_right; intro vx.
 rewrite andp_assoc.
@@ -473,7 +469,7 @@ apply andp_derives; [ | apply derives_refl].
 rewrite unfash_imp.
 rewrite andp_comm.
 apply andp_imp_e.
-unfold guard.
+unfold guard, _guard.
 rewrite unfash_allp. rewrite !(allp_andp tx). apply allp_left with tx.
 rewrite unfash_allp. rewrite !(allp_andp vx). apply allp_left with vx.
 fold rho.
