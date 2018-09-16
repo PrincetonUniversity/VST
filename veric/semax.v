@@ -70,13 +70,17 @@ Lemma guard_environ_e1:
      typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
 
-Definition guard  (Espec : OracleKind)
-    (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
+Definition _guard (Espec : OracleKind)
+    (gx: genv) (Delta: tycontext) (P : assert) (f: option function) (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
-          !! guard_environ Delta (current_function ctl) rho
+          !! guard_environ Delta f rho
                   && P rho && funassert Delta rho
              >=> assert_safe Espec gx vx tx ctl rho.
+
+Definition guard (Espec : OracleKind)
+    (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
+  _guard Espec gx Delta P (current_function ctl) ctl.
 
 Definition zap_fn_return (f: function) : function :=
  mkfunction Tvoid f.(fn_callconv) f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
@@ -94,19 +98,10 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
          end
    end.
 
-Definition r_update_tenv (tx:Clight.temp_env) id vl :=
-match vl, id with
-| v::_, Some ret => PTree.set ret v tx
-| _,_ => tx
-end.
-
 Definition rguard (Espec : OracleKind)
-    (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
-     ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
-           let rho := construct_rho (filter_genv gx) vx tx in
-           !! guard_environ (Delta ek) (current_function ctl) rho &&
-         proj_ret_assert R ek vl rho && funassert (Delta ek) rho
-          >=> assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
+    (gx: genv) (Delta: tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
+  ALL ek: exitkind, ALL vl: option val,
+    _guard Espec gx Delta (proj_ret_assert R ek vl) (current_function ctl) (exit_cont ek vl ctl).
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
@@ -255,7 +250,7 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
       (believepred Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
-              rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
+              rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -295,7 +290,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
+        (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
@@ -330,7 +325,7 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        unfash (believe Espec Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert Q F) k) -->
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert Q F) k) -->
         (* guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k) *)
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
@@ -580,7 +575,7 @@ Proof.
   unfold semax; rewrite semax_fold_unfold.
   rewrite any_level_pred_nat.
   apply semax_weakest_pre_aux.
-  unfold weakest_pre, guard.
+  unfold weakest_pre, guard, _guard.
 
   apply pred_ext.
   + rewrite fash_allp.

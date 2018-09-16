@@ -83,7 +83,6 @@ split; auto.
 subst rho'; auto.
 rewrite proj_frame_ret_assert.
 simpl seplog.sepcon.
-rewrite prop_true_andp by auto.
 rewrite sepcon_comm; subst rho'; auto.
 subst rho'.
 replace (level jm1) with (level jm').
