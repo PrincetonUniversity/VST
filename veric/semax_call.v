@@ -1346,7 +1346,7 @@ forall (Delta : tycontext) (A : TypeTree)
  (H0 : rho = construct_rho (filter_genv psi) vx tx)
  (H3 : eval_expr a rho = Vptr b Ptrofs.zero)
  (H4 : (funassert Delta rho) (m_phi jm))
- (H1 : (rguard Espec psi (fun _ => Delta)
+ (H1 : (rguard Espec psi Delta
         (frame_ret_assert R F0) k) (level (m_phi jm)))
  (H11 : forall vl : environ, (!|>(Q' ts x vl <=> Q ts x vl)) (m_phi jm))
  (H14 : (|>(F0 rho * F rho *
@@ -1630,7 +1630,6 @@ do 2 red in H1.
 intros Htc.
 rewrite (sepcon_comm (Q _ _ _)) in H15'.
 unfold seplog.sepcon, seplog.LiftSepLog .
-rewrite prop_true_andp by auto.
 rewrite <- exp_sepcon1.
 eapply sepcon_derives; [apply sepcon_derives | | apply H15']; clear H15'.
 
@@ -2160,7 +2159,7 @@ Lemma semax_call_aux:
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Ptrofs.zero ->
     (funassert Delta rho) (m_phi jm) ->
-    (rguard Espec psi (fun _ => Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
+    (rguard Espec psi Delta (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Espec Delta psi Delta) (level (m_phi jm)) ->
     (glob_specs Delta)!id = Some (mk_funspec fsig0 cc A P Q' NEP NEQ') ->
     Genv.find_symbol psi id = Some b ->
@@ -2324,7 +2323,7 @@ rewrite <- H0. auto.
  destruct H22 as [H22a H22b].
  rewrite seplog.sepcon_comm.
  rewrite <- exp_sepcon1.
- simpl seplog.sepcon. rewrite prop_true_andp by auto.
+ simpl seplog.sepcon.
   rewrite <- sepcon_assoc.
  rewrite sepcon_comm in H22a|-*.
   rewrite sepcon_assoc in H22a.

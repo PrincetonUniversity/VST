@@ -227,9 +227,9 @@ Record ret_assert : Type := {
 *)
 Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
  match ek with
- | EK_normal => fun rho => !! (vl = None) && RA_normal Q rho
- | EK_break => fun rho => !! (vl = None) && RA_break Q rho
- | EK_continue => fun rho => !! (vl = None) && RA_continue Q rho
+ | EK_normal => RA_normal Q
+ | EK_break => RA_break Q
+ | EK_continue => RA_continue Q
  | EK_return => RA_return Q vl
  end.
 
@@ -260,6 +260,15 @@ Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
      RA_return := fun vl rho => r vl rho * F rho |}
  end.
 
+Definition conj_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := fun rho => n rho && F rho; 
+     RA_break := fun rho => b rho && F rho; 
+     RA_continue := fun rho => c rho && F rho;
+     RA_return := fun vl rho => r vl rho && F rho |}
+ end.
+
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -278,7 +287,7 @@ Lemma normal_ret_assert_derives:
             |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.
  intros.
- destruct ek; normalize. destruct vl; simpl; normalize.
+ destruct ek; normalize.
 Qed.
 Hint Resolve normal_ret_assert_derives.
 
@@ -297,6 +306,26 @@ intros.
 unfold normal_ret_assert; simpl.
 f_equal; simpl; try solve [extensionality rho; normalize].
 extensionality vl rho; normalize.
+Qed.
+
+Lemma proj_frame:
+  forall P F ek vl,
+    proj_ret_assert (frame_ret_assert P F) ek vl = fun rho => F rho * proj_ret_assert P ek vl rho.
+Proof.
+  intros.
+  extensionality rho.
+  rewrite sepcon_comm.
+  destruct ek; simpl; destruct P; auto.
+Qed.
+
+Lemma proj_conj:
+  forall P F ek vl,
+    proj_ret_assert (conj_ret_assert P F) ek vl = fun rho => F rho && proj_ret_assert P ek vl rho.
+Proof.
+  intros.
+  extensionality rho.
+  rewrite andp_comm.
+  destruct ek; simpl; destruct P; auto.
 Qed.
 
 Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=

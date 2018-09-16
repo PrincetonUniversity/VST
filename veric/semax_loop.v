@@ -71,14 +71,14 @@ spec H1. {
  apply modifiedvars'_union. right; apply H.
 }
 assert (H3then: app_pred
-       (rguard Espec psi (fun _ => Delta')  (frame_ret_assert R F) k) w).
+       (rguard Espec psi Delta' (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 assert (H3else: app_pred
-       (rguard Espec psi (fun _ => Delta') (frame_ret_assert R F) k) w).
+       (rguard Espec psi Delta' (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
@@ -356,7 +356,6 @@ apply derives_subp. apply andp_derives; auto.
  apply andp_derives; auto.
 rewrite sepcon_comm;
 apply sepcon_derives; auto.
-apply andp_left2; auto.
 destruct R; simpl; auto.
 *
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
@@ -585,7 +584,7 @@ Proof.
     rewrite proj_frame_ret_assert. simpl current_function.
     destruct POST; simpl tycontext.RA_break; simpl proj_ret_assert.
     apply derives_subp. simpl seplog.sepcon.
-    apply andp_derives; auto. apply andp_derives; auto. normalize.
+    apply andp_derives; auto.
   + simpl exit_cont.
     rewrite proj_frame_ret_assert.
     intros tx2 vx2. cbv zeta. simpl seplog.sepcon.
@@ -596,7 +595,7 @@ Proof.
       apply derives_subp.
       apply andp_derives; auto.
       rewrite sepcon_comm.
-      apply andp_derives; auto. normalize; auto.
+      apply andp_derives; auto.
     }
     clear tx2 vx2.
     intros ek2 vl2 tx2 vx2.
@@ -766,7 +765,6 @@ Proof.
   apply andp_derives; auto.
   repeat intro.
   rewrite proj_frame_ret_assert. simpl proj_ret_assert; simpl seplog.sepcon.
-  rewrite (prop_true_andp (None=None)) by auto.
   rewrite sepcon_comm.
   eapply andp_derives; try apply H0; auto.
   apply own.bupd_mono.
@@ -798,7 +796,6 @@ apply imp_derives; auto.
 apply andp_derives; auto.
 repeat intro.
   rewrite proj_frame_ret_assert. simpl proj_ret_assert; simpl seplog.sepcon.
-  rewrite (prop_true_andp (None=None)) by auto.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 apply own.bupd_mono.
