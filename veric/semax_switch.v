@@ -297,9 +297,9 @@ Lemma switch_rguard:
   (F : assert)
   (Delta' : tycontext)
   (k : cont),
- rguard Espec psi (fun _ => Delta')
+ rguard Espec psi Delta'
         (frame_ret_assert R F) k |--
-(rguard Espec psi (fun _ => Delta')
+(rguard Espec psi  Delta'
    (frame_ret_assert (switch_ret_assert R) F) 
    (Kswitch :: k)).
 Proof.

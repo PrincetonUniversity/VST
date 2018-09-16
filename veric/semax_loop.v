@@ -71,14 +71,14 @@ spec H1. {
  apply modifiedvars'_union. right; apply H.
 }
 assert (H3then: app_pred
-       (rguard Espec psi (fun _ => Delta')  (frame_ret_assert R F) k) w).
+       (rguard Espec psi Delta' (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 assert (H3else: app_pred
-       (rguard Espec psi (fun _ => Delta') (frame_ret_assert R F) k) w).
+       (rguard Espec psi Delta' (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].

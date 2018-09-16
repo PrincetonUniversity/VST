@@ -99,9 +99,9 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
    end.
 
 Definition rguard (Espec : OracleKind)
-    (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
   ALL ek: exitkind, ALL vl: option val,
-    _guard Espec gx (Delta ek) (proj_ret_assert R ek vl) (current_function ctl) (exit_cont ek vl ctl).
+    _guard Espec gx Delta (proj_ret_assert R ek vl) (current_function ctl) (exit_cont ek vl ctl).
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
@@ -250,7 +250,7 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
       (believepred Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
-              rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
+              rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -290,7 +290,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert R F) k) -->
+        (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
@@ -325,7 +325,7 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        unfash (believe Espec Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (fun _ => Delta') (frame_ret_assert Q F) k) -->
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert Q F) k) -->
         (* guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k) *)
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
