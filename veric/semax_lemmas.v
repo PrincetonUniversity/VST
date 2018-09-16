@@ -699,10 +699,10 @@ Proof.
   intros.
   apply _guard_allp_fun_id; auto.
 Qed.
-(*
-Lemma rguard_funassert: forall {Espec: OracleKind} ge Delta' Delta (F: environ -> pred rmap) P k,
-  (forall ek, tycontext_sub Delta (Delta' ek)) ->
-  rguard Espec ge Delta' (frame_ret_assert P F) k = rguard Espec ge Delta' (frame_ret_assert (conj_ret_assert P (fun ek => funassert (Delta ek))) F) k.
+
+Lemma rguard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta (F: environ -> pred rmap) P k,
+  tycontext_sub Delta Delta' ->
+  rguard Espec ge Delta' (frame_ret_assert P F) k = rguard Espec ge Delta' (frame_ret_assert (conj_ret_assert P (allp_fun_id Delta)) F) k.
 Proof.
   intros.
   unfold rguard.
@@ -710,9 +710,9 @@ Proof.
   f_equal; extensionality vl.
   rewrite !proj_frame.
   rewrite proj_conj.
-  apply _guard_funassert.
+  apply _guard_allp_fun_id; auto.
 Qed.
-*)
+
 Lemma semax_pre_allp_fun_id:
   forall {CS: compspecs} {Espec: OracleKind} Delta P c Q,
     semax Espec Delta (fun rho => allp_fun_id Delta rho && P rho) c Q <->
@@ -736,11 +736,11 @@ Proof.
   f_equal.
   symmetry; apply guard_allp_fun_id; auto.
 Qed.
-(*
+
 Lemma semax_post_allp_fun_id:
   forall {CS: compspecs} {Espec: OracleKind} Delta P c Q,
     semax Espec Delta P c Q <->
-    semax Espec Delta P c (conj_ret_assert Q (fun _ => allp_fun_id Delta)).
+    semax Espec Delta P c (conj_ret_assert Q (allp_fun_id Delta)).
 Proof.
   intros.
   unfold semax.
@@ -752,15 +752,16 @@ Proof.
   f_equal.
   f_equal. extensionality gx.
   f_equal. extensionality Delta'.
-  f_equal.
+  apply prop_imp.
+  intros [? _].
   f_equal.
   f_equal. extensionality k.
   f_equal. extensionality F.
   f_equal.
   f_equal.
-  apply rguard_except_0.
+  apply rguard_allp_fun_id; auto.
 Qed.
-*)
+
 Lemma semax_extract_prop:
   forall {CS: compspecs} {Espec: OracleKind} Delta (PP: Prop) P c Q,
            (PP -> semax Espec Delta P c Q) ->

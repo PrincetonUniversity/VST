@@ -260,13 +260,13 @@ Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
      RA_return := fun vl rho => r vl rho * F rho |}
  end.
 
-Definition conj_ret_assert (R: ret_assert) (F: exitkind -> assert) : ret_assert :=
+Definition conj_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := fun rho => n rho && F EK_normal rho; 
-     RA_break := fun rho => b rho && F EK_break rho; 
-     RA_continue := fun rho => c rho && F EK_continue rho;
-     RA_return := fun vl rho => r vl rho && F EK_return rho |}
+  {| RA_normal := fun rho => n rho && F rho; 
+     RA_break := fun rho => b rho && F rho; 
+     RA_continue := fun rho => c rho && F rho;
+     RA_return := fun vl rho => r vl rho && F rho |}
  end.
 
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
@@ -320,7 +320,7 @@ Qed.
 
 Lemma proj_conj:
   forall P F ek vl,
-    proj_ret_assert (conj_ret_assert P F) ek vl = fun rho => F ek rho && proj_ret_assert P ek vl rho.
+    proj_ret_assert (conj_ret_assert P F) ek vl = fun rho => F rho && proj_ret_assert P ek vl rho.
 Proof.
   intros.
   extensionality rho.
