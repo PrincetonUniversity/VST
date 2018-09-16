@@ -14,7 +14,7 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
 
 Import SoundSeparationLogic.
-Import CSL.
+Import MCSL.
 
 Definition dryspec : ext_spec unit :=
  Build_external_specification mem external_function unit
