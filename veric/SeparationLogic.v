@@ -638,6 +638,25 @@ Proof.
   exact seplog.approx_func_ptr.
 Qed.
 
+Definition allp_fun_id (Delta : tycontext): environ -> mpred :=
+(ALL id : ident ,
+ (ALL fs : funspec ,
+  !! ((glob_specs Delta) ! id = Some fs) -->
+  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(res_predicates.func_at fs (b, 0))))).
+
+Lemma corable_allp_fun_id: forall Delta rho,
+  corable (allp_fun_id Delta rho).
+Proof.
+  intros.
+  unfold allp_fun_id; simpl.
+  apply corable_allp; intros id.
+  apply corable_allp; intros fs.
+  apply corable_imp; [apply corable_prop |].
+  apply corable_exp; intros b.
+  apply corable_andp; [apply corable_prop |].
+  apply assert_lemmas.corable_func_at.
+Qed.
+
 Definition type_of_funsig (fsig: funsig) :=
    Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
@@ -1115,34 +1134,36 @@ Fixpoint unfold_Ssequence c :=
   | _ => c :: nil
   end.
 
-Module Type MINIMUM_CLIGHT_SEPARATION_LOGIC.
-
-Local Open Scope pred.
+Module Type CLIGHT_SEPARATION_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
+
+Parameter semax_func:
+    forall {Espec: OracleKind},
+    forall (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
+
+Parameter semax_external:
+  forall {Hspec: OracleKind} (ids: list ident) (ef: external_function)
+  (A: rmaps.TypeTree)
+  (P Q: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred),
+     Prop.
+
+End CLIGHT_SEPARATION_LOGIC_DEF.
+
+Module CSL_Defs (CSL_Def: CLIGHT_SEPARATION_LOGIC_DEF).
+
+Local Open Scope pred.
 
 Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
     forall Espec ts x, (*exists Ann,*)
-      @semax C Espec (func_tycontext f V G nil (*Ann*))
+      @CSL_Def.semax C Espec (func_tycontext f V G nil (*Ann*))
           (P ts x *  stackframe_of f)
           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
-
-(***************** SEMAX_LEMMAS ****************)
-
-Axiom extract_exists_pre:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
-  (forall x, @semax CS Espec Delta (P x) c R) ->
-   @semax CS Espec Delta (EX x:A, P x) c R.
-
-Parameter semax_func:
-    forall {Espec: OracleKind},
-    forall (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
 Definition semax_prog
     {Espec: OracleKind} {C: compspecs}
@@ -1150,7 +1171,7 @@ Definition semax_prog
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @semax_func Espec V G C (prog_funct prog) G /\
+  @CSL_Def.semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec' prog post
@@ -1163,12 +1184,31 @@ Definition semax_prog_ext
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @semax_func Espec V G C (prog_funct prog) G /\
+  @CSL_Def.semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec_ext' prog z post
   | None => False
   end.
+
+End CSL_Defs.
+
+Module Type MINIMUM_CLIGHT_SEPARATION_LOGIC.
+
+Declare Module CSL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+
+Module CSL_Defs := CSL_Defs(CSL_Def).
+
+Import CSL_Def.
+Import CSL_Defs.
+
+(***************** SEMAX_LEMMAS ****************)
+
+Axiom extract_exists_pre:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (P x) c R) ->
+   @semax CS Espec Delta (EX x:A, P x) c R.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C, @semax_func Espec V G C nil nil.
@@ -1190,21 +1230,6 @@ Axiom semax_func_cons:
       semax_func V G fs G' ->
       semax_func V G ((id, Internal f)::fs)
            ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
-
-Parameter semax_external:
-  forall {Hspec: OracleKind} (ids: list ident) (ef: external_function)
-  (A: rmaps.TypeTree)
-  (P Q: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred),
-     Prop.
-
-(*
-Axiom semax_func_skip:
-  forall {Espec: OracleKind},
-   forall
-        V (G: funspecs) {C: compspecs} fs idf (G': funspecs),
-      semax_func V G fs G' ->
-      semax_func V G (idf::fs) G'.
-*)
 
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
@@ -1301,16 +1326,6 @@ Axiom  semax_return :
                 (Sreturn ret)
                 R.
 
-Axiom semax_fun_id:
-  forall {CS: compspecs} {Espec: OracleKind},
-      forall id f Delta P Q c,
-    (var_types Delta) ! id = None ->
-    (glob_specs Delta) ! id = Some f ->
-    (glob_types Delta) ! id = Some (type_of_funspec f) ->
-    @semax CS Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
-                  c Q ->
-    @semax CS Espec Delta P c Q.
-
 (* THESE RULES FROM semax_straight *)
 
 Axiom semax_set :
@@ -1392,14 +1407,14 @@ Axiom semax_skip:
   forall {CS: compspecs} {Espec: OracleKind},
    forall Delta P, @semax CS Espec Delta P Sskip (normal_ret_assert P).
 
-Axiom semax_pre_post_bupd:
+Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind},
- forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- |==> P') ->
-    local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
+  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- |==> |> FF || P' ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- |==> |> FF || RA_normal R ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- |==> |> FF || RA_break R ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- |==> |> FF || RA_continue R ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Axiom semax_Slabel:
@@ -1443,9 +1458,25 @@ End MINIMUM_CLIGHT_SEPARATION_LOGIC.
 
 Module Type PRACTICAL_CLIGHT_SEPARATION_LOGIC.
 
-Declare Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC.
+Declare Module CSL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
 
+Module CSL_Defs := CSL_Defs(CSL_Def).
+
+Declare Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
+
+Import CSL_Def.
+Import CSL_Defs.
 Import MCSL.
+
+Axiom semax_fun_id:
+  forall {CS: compspecs} {Espec: OracleKind},
+      forall id f Delta P Q c,
+    (var_types Delta) ! id = None ->
+    (glob_specs Delta) ! id = Some f ->
+    (glob_types Delta) ! id = Some (type_of_funspec f) ->
+    @semax CS Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
+                  c Q ->
+    @semax CS Espec Delta P c Q.
 
 Axiom semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},

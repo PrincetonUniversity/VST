@@ -6,8 +6,6 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.jmeq_lemmas.
 Require Export VST.floyd.find_nth_tactic.
 Require Export VST.veric.juicy_extspec.
-Require VST.veric.SeparationLogicSoundness.
-Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
 Require Import VST.veric.NullExtension.
 Require Import VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
@@ -129,7 +127,10 @@ Ltac induction_stmt s :=
   | intros ?l s IHs
   | intros ?l ].
 
-Module ClightSeparationHoareLogic.
+Module GenMetaRules
+       (CSL_Def0: CLIGHT_SEPARATION_LOGIC_DEF)
+       (CSL_MCSL: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def0):
+       PRACTICAL_CLIGHT_SEPARATION_LOGIC.
 
 Module AuxDefs.
 
@@ -235,17 +236,76 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> ((|> FF) || RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
+Definition semax_body
+       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+  match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
+    forall Espec ts x, (*exists Ann,*)
+      @CSL_Def0.semax C Espec (func_tycontext f V G nil (*Ann*))
+          (P ts x *  stackframe_of f)
+          (Ssequence f.(fn_body) (Sreturn None))
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
+ end.
+
+Definition semax_external := @CSL_Def0.semax_external.
+
+Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop :=
+| semax_func_nil:   forall {Espec: OracleKind},
+    forall V G C, @semax_func Espec V G C nil nil
+| semax_func_cons:
+  forall {Espec: OracleKind},
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
+      andb (id_in_list id (map (@fst _ _) G))
+      (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
+        (semax_body_params_ok f)) = true ->
+      Forall
+         (fun it : ident * type =>
+          complete_type cenv_cs (snd it) =
+          true) (fn_vars f) ->
+       var_sizes_ok (f.(fn_vars)) ->
+       f.(fn_callconv) = cc ->
+       precondition_closed f P ->
+      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
+      semax_func V G fs G' ->
+      semax_func V G ((id, Internal f)::fs)
+                 ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G')
+| semax_func_cons_ext:
+  forall {Espec: OracleKind},
+   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q NEP NEQ
+          argsig'
+          (G': funspecs) cc (ids: list ident),
+      ids = map fst argsig' -> (* redundant but useful for the client,
+               to calculate ids by reflexivity *)
+      argsig' = zip_with_tl ids argsig ->
+      ef_sig ef =
+      mksignature
+        (typlist_of_typelist (type_of_params argsig'))
+        (opttyp_of_type retsig) cc ->
+      id_in_list id (map (@fst _ _) fs) = false ->
+      length ids = length (typelist2list argsig) ->
+      (forall gx ts x (ret : option val),
+         (Q ts x (make_ext_rval gx ret)
+            && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+            |-- !!tc_option_val retsig ret)) ->
+      @semax_external Espec ids ef A P Q ->
+      semax_func V G fs G' ->
+      semax_func V G ((id, External ef argsig retsig cc)::fs)
+           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+
 End AuxDefs.
 
-Module Defs<: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+Module CSL_Def <: CLIGHT_SEPARATION_LOGIC_DEF.
 
-Definition semax: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext), (environ -> mpred) -> statement -> ret_assert -> Prop := @AuxDefs.semax.
+Definition semax := @AuxDefs.semax.
 
-End Defs.
+Definition semax_func := @AuxDefs.semax_func.
 
-Module IConseq: CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE with Module CSHL_Def := Defs.
+Definition semax_external := @CSL_Def0.semax_external.
 
-Module CSHL_Def := Defs.
+End CSL_Def.
+
+Module IConseq: CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE with Module CSHL_Def := CSL_Def.
+
+Module CSHL_Def := CSL_Def.
 Import CSHL_Def.
 
 Definition semax_pre_post_indexed_bupd := @AuxDefs.semax_pre_post_indexed_bupd.
@@ -1968,6 +2028,11 @@ Axiom semax_external_FF:
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
 *)
-End ClightSeparationHoareLogic.
+End GenMetaRules.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
+
+
+
+Require VST.veric.SeparationLogicSoundness.
+Export SeparationLogicSoundness.SoundSeparationLogic.MCSL.

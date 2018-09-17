@@ -76,14 +76,26 @@ Axiom semax_prog_rule' :
 
 End SEPARATION_LOGIC_SOUNDNESS.
 
-Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
-
-Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC.
+Module CSL_Def <: CLIGHT_SEPARATION_LOGIC_DEF.
 
 Definition semax := @semax.
+
+Definition semax_func := @semax_func.
+
+Definition semax_external {Espec: OracleKind} ids ef A P Q :=
+  forall n, semax_external Espec ids ef A P Q n.
+
+End CSL_Def.
+
+Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
+
+Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
+
+Module CSL_Def := CSL_Def.
+Module CSL_Defs := CSL_Defs (CSL_Def).
+  
 Definition extract_exists_pre := @extract_exists_pre.
 Definition semax_body := @semax_body.
-Definition semax_func := @semax_func.
 Definition semax_prog := @semax_prog.
 Definition semax_prog_ext := @semax_prog_ext.
 Definition semax_func_nil := @semax_func_nil.
@@ -118,14 +130,12 @@ Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
-Definition semax_pre_post_bupd := @semax_pre_post_bupd.
+Definition semax_conseq := @semax_conseq.
 Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_extract_later_prop := @semax_extract_later_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
-Definition semax_external {Espec: OracleKind} ids ef A P Q :=
-  forall n, semax_external Espec ids ef A P Q n.
 Definition semax_external_FF := @semax_external_FF.
 
 Definition juicy_ext_spec := juicy_ext_spec.
