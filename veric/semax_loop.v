@@ -14,6 +14,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.semax_conseq.
 Require Import VST.veric.semax_congruence.
 Require Import VST.veric.Clight_lemmas.
 

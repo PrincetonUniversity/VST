@@ -117,28 +117,6 @@ intros. constructor 1; auto.
 Qed.
 Hint Resolve @age_laterR.
 
-(*
-Lemma tycontext_sub_update_c:
- forall c (Delta Delta' : tycontext),
-    tycontext_sub Delta Delta' -> tycontext_sub (update_tycon Delta c) (update_tycon Delta' c)
-with tycontext_sub_update_l:
-  forall l (Delta Delta' : tycontext),
-    tycontext_sub Delta Delta' -> tycontext_sub (join_tycon_labeled l Delta) (join_tycon_labeled l Delta').
-Proof.
-clear tycontext_sub_update_c.
-induction c; intros; simpl; auto.
-apply initialized_sub; auto.
-destruct o; auto.
-apply initialized_sub; auto.
-specialize (IHc1 _ _ H).
-specialize (IHc2 _ _ H).
-apply tycontext_sub_join; auto.
-clear tycontext_sub_update_l.
-induction l; simpl; intros; auto.
-apply tycontext_sub_join; auto.
-Qed.
-*)
-
 Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
    forall rho,
@@ -188,150 +166,6 @@ Proof.
     pose proof (necR_level _ _ H).
     rewrite <- resource_at_approx.
     eapply necR_PURE' in H as [? ->]; simpl; eauto.
-Qed.
-
-Lemma semax'_post_bupd:
- forall {CS: compspecs} {Espec: OracleKind} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ Delta rho ) && 
-                proj_ret_assert R' ek vl rho 
-         |-- bupd (proj_ret_assert R ek vl rho)) ->
-   semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
-Proof.
-intros.
-rewrite semax_fold_unfold.
-apply allp_derives; intro psi.
-apply allp_derives; intro Delta'.
-apply prop_imp_derives; intros [TS HGG].
-apply imp_derives; auto.
-apply allp_derives; intro k.
-apply allp_derives; intro F.
-apply imp_derives; auto.
-unfold rguard, guard.
-apply andp_derives; auto.
-apply allp_derives; intro ek.
-apply allp_derives; intro vl.
-apply allp_derives; intro te.
-apply allp_derives; intro ve.
-intros ? ?.
-intros ? ? ? ? ?.
-destruct H3 as [[? HFP] ?].
-assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
-  (construct_rho (filter_genv psi) ve te)) a') as HFP'.
-{ specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
-  rewrite prop_true_andp in H.
-  destruct ek; simpl in * |-.
-  * destruct R'.
-    eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
-    apply bupd_frame_r in HFP.
-    destruct R; auto.
-  * destruct R'.
-    eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
-    apply bupd_frame_r in HFP.
-    destruct R; auto.
-  * destruct R'.
-    eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
-    apply bupd_frame_r in HFP.
-    destruct R; auto.
-  * destruct R'.
-    eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
-    apply bupd_frame_r in HFP.
-    destruct R; auto.
-  * destruct H3; eapply typecheck_environ_sub; eauto. }
-assert ((bupd (assert_safe Espec psi ve te (exit_cont ek vl k)
-  (construct_rho (filter_genv psi) ve te))) a') as Hsafe.
-{ intros ? J.
-  destruct (HFP' _ J) as (b & ? & m' & ? & ? & ? & ?).
-  exists b; split; auto; exists m'; repeat split; auto.
-  pose proof (necR_level _ _ H2).
-  lapply (H0 m'); [|omega].
-  intro X; apply X; auto.
-  split; [split|]; auto.
-  apply funassert_resource with (a := a'); auto. }
-eapply bupd_trans; eauto.
-Qed.
-
-Lemma semax'_post:
- forall {CS: compspecs} {Espec: OracleKind} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ Delta rho) && 
-                proj_ret_assert R' ek vl rho 
-         |-- proj_ret_assert R ek vl rho) ->
-   semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
-Proof.
-intros.
-apply semax'_post_bupd.
-intros; eapply derives_trans, bupd_intro; auto.
-Qed.
-
-Lemma semax'_pre_bupd:
- forall {CS: compspecs} {Espec: OracleKind} P' Delta R P c,
-  (forall rho, typecheck_environ Delta rho ->   P rho |-- bupd (P' rho))
-   ->   semax' Espec Delta P' c R |-- semax' Espec Delta P c R.
-Proof.
-intros.
-repeat rewrite semax_fold_unfold.
-apply allp_derives; intro psi.
-apply allp_derives; intro Delta'.
-apply prop_imp_derives; intros [TS HGG].
-apply imp_derives; auto.
-apply allp_derives; intro k.
-apply allp_derives; intro F.
-apply imp_derives; auto.
-unfold guard.
-apply allp_derives; intro te.
-apply allp_derives; intro ve.
-intros ? ?.
-intros ? ? ? ? ?.
-destruct H3 as [[? HFP] ?].
-eapply sepcon_derives in HFP; [| apply derives_refl | apply H].
-apply bupd_frame_l in HFP.
-apply bupd_trans; intros ? J.
-destruct (HFP _ J) as (b & ? & m' & ? & ? & ? & HFP').
-exists b; split; auto; exists m'; repeat split; auto.
-pose proof (necR_level _ _ H2).
-lapply (H0 m'); [|omega].
-intro X; apply X; auto.
-split; [split|]; auto.
-apply funassert_resource with (a := a'); auto.
-{ destruct H3; eapply typecheck_environ_sub; eauto. }
-Qed.
-
-Lemma semax'_pre:
- forall {CS: compspecs} {Espec: OracleKind} P' Delta R P c,
-  (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho)
-   ->   semax' Espec Delta P' c R |-- semax' Espec Delta P c R.
-Proof.
-intros; apply semax'_pre_bupd.
-intros; eapply derives_trans, bupd_intro; auto.
-Qed.
-
-Lemma semax'_pre_post_bupd:
- forall
-      {CS: compspecs} {Espec: OracleKind} P' (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho, typecheck_environ Delta rho ->   P rho |-- bupd (P' rho)) ->
-   (forall ek vl rho, !!(typecheck_environ Delta rho) 
-                       &&  proj_ret_assert R ek vl rho 
-                    |-- bupd (proj_ret_assert R' ek vl rho)) ->
-   semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
-Proof.
-intros.
-eapply derives_trans.
-apply semax'_pre_bupd; eauto.
-apply semax'_post_bupd; auto.
-Qed.
-
-Lemma semax'_pre_post:
- forall
-      {CS: compspecs} {Espec: OracleKind} P' (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
-   (forall ek vl rho, !!(typecheck_environ Delta rho) 
-                       &&  proj_ret_assert R ek vl rho 
-                    |-- proj_ret_assert R' ek vl rho) ->
-   semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
-Proof.
-intros.
-eapply derives_trans.
-apply semax'_pre; eauto.
-apply semax'_post; auto.
 Qed.
 
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
@@ -504,158 +338,6 @@ eapply H; eauto.
 eapply pred_nec_hereditary; eauto.
 Qed.
 
-Lemma semax_post'_bupd {CS: compspecs} {Espec: OracleKind}:
- forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ Delta rho) 
-                      &&  proj_ret_assert R' ek vl rho
-                        |-- bupd (proj_ret_assert R ek vl rho)) ->
-   semax Espec Delta P c R' ->  semax Espec Delta P c R.
-Proof.
-unfold semax.
-intros.
-specialize (H0 n). revert n H0.
-apply semax'_post_bupd.
-auto.
-Qed.
-
-Lemma semax_post_bupd {CS: compspecs} {Espec: OracleKind}:
- forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- bupd (RA_normal R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- bupd (RA_break R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- bupd (RA_continue R rho)) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- bupd (RA_return R vl rho)) ->
-   semax Espec Delta P c R' ->  semax Espec Delta P c R.
-Proof.
-unfold semax.
-intros.
-specialize (H3 n). revert n H3.
-apply semax'_post_bupd.
-intros; destruct ek; simpl;
-repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
-specialize (H rho); specialize (H0 rho); specialize (H1 rho); specialize (H2 vl rho);
-rewrite prop_true_andp in * by auto; auto.
-Qed.
-
-Lemma semax_post' {CS: compspecs} {Espec: OracleKind}:
- forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ Delta rho) 
-                      &&  proj_ret_assert R' ek vl rho
-                        |-- proj_ret_assert R ek vl rho) ->
-   semax Espec Delta P c R' ->  semax Espec Delta P c R.
-Proof.
-unfold semax.
-intros.
-specialize (H0 n). revert n H0.
-apply semax'_post.
-auto.
-Qed.
-
-Lemma semax_post {CS: compspecs} {Espec: OracleKind}:
- forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- RA_normal R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- RA_break R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- RA_continue R rho) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- RA_return R vl rho) ->
-   semax Espec Delta P c R' ->  semax Espec Delta P c R.
-Proof.
-unfold semax.
-intros.
-specialize (H3 n). revert n H3.
-apply semax'_post.
-intros; destruct ek; simpl;
-repeat (apply normalize.derives_extract_prop; intro); rewrite ?prop_true_andp by auto;
-specialize (H rho); specialize (H0 rho); specialize (H1 rho); specialize (H2 vl rho);
-rewrite prop_true_andp in * by auto; auto.
-Qed.
-
-Lemma semax_pre_bupd {CS: compspecs} {Espec: OracleKind} :
- forall P' Delta P c R,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- bupd (P' rho) )%pred ->
-     semax Espec Delta P' c R  -> semax Espec Delta P c R.
-Proof.
-unfold semax.
-intros.
-specialize (H0 n).
-revert n H0.
-apply semax'_pre_bupd.
-repeat intro. apply (H rho a); auto. split; auto.
-Qed.
-
-Lemma semax_pre {CS: compspecs} {Espec: OracleKind} :
- forall P' Delta P c R,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-     semax Espec Delta P' c R  -> semax Espec Delta P c R.
-Proof.
-unfold semax.
-intros.
-specialize (H0 n).
-revert n H0.
-apply semax'_pre.
-repeat intro. apply (H rho a). split; auto.
-Qed.
-
-Lemma semax_pre_post_bupd {CS: compspecs} {Espec: OracleKind}:
- forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- bupd (P' rho) )%pred ->
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- bupd (RA_normal R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- bupd (RA_break R rho)) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- bupd (RA_continue R rho)) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- bupd (RA_return R vl rho)) ->
-   semax Espec Delta P' c R' ->  semax Espec Delta P c R.
-Proof.
-intros.
-eapply semax_pre_bupd; eauto.
-eapply semax_post_bupd; eauto.
-Qed.
-
-Lemma semax_pre_post {CS: compspecs} {Espec: OracleKind}:
- forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-   (forall rho,  !!(typecheck_environ Delta rho) 
-                      &&  RA_normal R' rho |-- RA_normal R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_break R' rho |-- RA_break R rho) ->
-   (forall rho, !! (typecheck_environ Delta rho) 
-                      && RA_continue R' rho |-- RA_continue R rho) ->
-   (forall vl rho, !! (typecheck_environ Delta rho) 
-                      && RA_return R' vl rho |-- RA_return R vl rho) ->
-   semax Espec Delta P' c R' ->  semax Espec Delta P c R.
-Proof.
-intros.
-eapply semax_pre; eauto.
-eapply semax_post; eauto.
-Qed.
-
-Lemma semax_bupd_elim {CS: compspecs} {Espec: OracleKind}:
- forall Delta P c R,
-  semax Espec Delta P c R -> semax Espec Delta (fun rho => bupd (P rho)) c R.
-Proof.
-intros ????; apply semax_pre_bupd.
-intro; apply prop_andp_left; auto.
-Qed.
-
-Lemma semax_skip {CS: compspecs} {Espec: OracleKind}:
-   forall Delta P, semax Espec Delta P Sskip (normal_ret_assert P).
-Proof.
-intros.
-apply derives_skip.
-intros.
-simpl.
-auto.
-Qed.
-
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
   match n with O => l | S i => match l with nil => nil | _ :: l' => list_drop A i l' end end.
 Arguments list_drop [A] _ _.
@@ -670,11 +352,10 @@ unfold straightline; intros.
 inv H; auto.
 Qed.
 
-
-Lemma extract_exists {CS: compspecs} {Espec: OracleKind}:
-  forall  (A : Type) (P : A -> assert) c Delta (R: A -> ret_assert),
-  (forall x, semax Espec Delta (P x) c (R x)) ->
-   semax Espec Delta (fun rho => exp (fun x => P x rho)) c (existential_ret_assert R).
+Lemma extract_exists_pre {CS: compspecs} {Espec: OracleKind}:
+  forall  (A : Type) (P : A -> assert) c Delta (R: ret_assert),
+  (forall x, semax Espec Delta (P x) c R) ->
+   semax Espec Delta (fun rho => exp (fun x => P x rho)) c R.
 Proof.
 rewrite semax_unfold in *.
 intros.
@@ -693,28 +374,10 @@ spec H. {
  eapply subp_trans'; [| apply H1 ].
  apply derives_subp.
  apply andp_derives; auto.
- apply andp_derives; auto.
- clear.
- destruct (R x) eqn:?, ek; simpl;
- try (apply andp_derives; [auto | ]);
- (apply sepcon_derives; [ apply exp_right with x; rewrite Heqr; auto| auto]).
 }
 eapply H; eauto.
 split; auto.
 split; auto.
-Qed.
-
-Lemma extract_exists_pre {CS: compspecs} {Espec: OracleKind}:
-      forall
-        (A : Type) (P : A -> assert) (c : Clight.statement)
-         Delta (R : ret_assert),
-       (forall x : A, semax Espec Delta (P x) c R) ->
-       semax Espec Delta (fun rho => exp (fun x => P x rho)) c R.
-Proof.
-intros.
-apply semax_post with (existential_ret_assert (fun _:A => R));
-try (intros; apply normalize.derives_extract_prop; intro; apply exp_left; auto).
-apply extract_exists; auto.
 Qed.
 
 Definition G0: funspecs := nil.

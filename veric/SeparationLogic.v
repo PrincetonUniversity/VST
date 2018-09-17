@@ -1134,11 +1134,11 @@ Definition semax_body
 
 (***************** SEMAX_LEMMAS ****************)
 
-Axiom extract_exists:
+Axiom extract_exists_pre:
   forall {CS: compspecs} {Espec: OracleKind},
-  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: A -> ret_assert),
-  (forall x, @semax CS Espec Delta (P x) c (R x)) ->
-   @semax CS Espec Delta (EX x:A, P x) c (existential_ret_assert R).
+  forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (P x) c R) ->
+   @semax CS Espec Delta (EX x:A, P x) c R.
 
 Parameter semax_func:
     forall {Espec: OracleKind},

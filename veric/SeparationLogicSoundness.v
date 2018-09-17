@@ -14,6 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.semax_conseq.
 Require Import VST.veric.semax_congruence.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
@@ -80,8 +81,7 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC.
 
 Definition semax := @semax.
-Definition unfold_Ssequence := unfold_Ssequence.
-Definition extract_exists := @extract_exists.
+Definition extract_exists_pre := @extract_exists_pre.
 Definition semax_body := @semax_body.
 Definition semax_func := @semax_func.
 Definition semax_prog := @semax_prog.
