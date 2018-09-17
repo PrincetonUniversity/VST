@@ -228,12 +228,12 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
 | semax_label: forall (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
     @semax CS Espec Delta P c Q -> @semax CS Espec Delta P (Slabel l c) Q
 | semax_goto: forall P l, @semax CS Espec Delta FF (Sgoto l) P
-| semax_pre_post_indexed_bupd: forall P' (R': ret_assert) P c (R: ret_assert) ,
-    (local (tc_environ Delta) && P |-- |==> ((|> FF) || P')) ->
-    local (tc_environ Delta) && RA_normal R' |-- |==> ((|> FF) || RA_normal R) ->
-    local (tc_environ Delta) && RA_break R' |-- |==> ((|> FF) || RA_break R) ->
-    local (tc_environ Delta) && RA_continue R' |-- |==> ((|> FF) || RA_continue R) ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> ((|> FF) || RA_return R vl)) ->
+| semax_conseq: forall P' (R': ret_assert) P c (R: ret_assert) ,
+    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- |==> |> FF || P' ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- |==> |> FF || RA_normal R ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- |==> |> FF || RA_break R ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- |==> |> FF || RA_continue R ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Definition semax_body
@@ -303,62 +303,64 @@ Definition semax_external := @CSL_Def0.semax_external.
 
 End CSL_Def.
 
-Module IConseq: CLIGHT_SEPARATION_HOARE_LOGIC_STEP_INDEXED_CONSEQUENCE with Module CSHL_Def := CSL_Def.
+Module CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := CSL_Def.
 
 Module CSHL_Def := CSL_Def.
 Import CSHL_Def.
 
-Definition semax_pre_post_indexed_bupd := @AuxDefs.semax_pre_post_indexed_bupd.
+Definition semax_conseq := @AuxDefs.semax_conseq.
 
-End IConseq.
+End CConseq.
 
-Module IConseqFacts := CSHL_IConseqFacts (Defs) (IConseq).
+Module IConseq := CSHL_GenIConseq (CSL_Def) (CConseq).
 
-Module Conseq := CSHL_GenConseq (Defs) (IConseq).
+Module IConseqFacts := CSHL_IConseqFacts (CSL_Def) (IConseq).
 
-Module ConseqFacts := CSHL_ConseqFacts (Defs) (Conseq).
+Module Conseq := CSHL_GenConseq (CSL_Def) (IConseq).
 
-Export Defs IConseq IConseqFacts Conseq ConseqFacts.
+Module ConseqFacts := CSHL_ConseqFacts (CSL_Def) (Conseq).
+
+Export CSL_Def CConseq IConseq IConseqFacts Conseq ConseqFacts.
 
 Lemma semax_skip_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Sskip R ->
-    local (tc_environ Delta) && P |-- |==> |> FF || RA_normal R.
+    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || RA_normal R.
 Proof.
   intros.
   remember Sskip as c eqn:?H.
   induction H; try solve [inv H0].
-  + apply derives_bupd0_refl.
+  + apply derives_full_refl.
   + specialize (IHsemax H0).
     solve_derives_trans.
 Qed.
 
 Lemma semax_break_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Sbreak R ->
-    local (tc_environ Delta) && P |-- |==> |> FF || RA_break R.
+    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || RA_break R.
 Proof.
   intros.
   remember Sbreak as c eqn:?H.
   induction H; try solve [inv H0].
-  + apply derives_bupd0_refl.
+  + apply derives_full_refl.
   + specialize (IHsemax H0).
     solve_derives_trans.
 Qed.
 
 Lemma semax_continue_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Scontinue R ->
-    local (tc_environ Delta) && P |-- |==> |> FF || RA_continue R.
+    local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || RA_continue R.
 Proof.
   intros.
   remember Scontinue as c eqn:?H.
   induction H; try solve [inv H0].
-  + apply derives_bupd0_refl.
+  + apply derives_full_refl.
   + specialize (IHsemax H0).
     solve_derives_trans.
 Qed.
 
 Lemma semax_return_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P ret R,
   @semax CS Espec Delta P (Sreturn ret) R ->
-  local (tc_environ Delta) && P |-- |==> |> FF || ((tc_expropt Delta ret (ret_type Delta)) && `(|==> |> FF || RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)).
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || ((tc_expropt Delta ret (ret_type Delta)) && `(|==> |> FF || RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ)).
 Proof.
   intros.
   remember (Sreturn ret) as c eqn:?H.
@@ -374,8 +376,10 @@ Proof.
     apply orp_right2; auto.
   + derives_rewrite -> H; clear H.
     derives_rewrite -> (IHsemax H0); clear IHsemax.
+    apply derives_bupd_derives_bupd0.
     reduce2ENTAIL.
-    apply andp_ENTAIL; [apply ENTAIL_refl |].
+    apply andp_
+    apply andp_ENTAIL; [apply andp_left2, andp_left2, derives_refl |].
     unfold_lift.
     intro rho.
     simpl.
