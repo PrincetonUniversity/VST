@@ -51,7 +51,7 @@ Proof.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
-  Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
+  Time forward_call ((M1,(M2,M3)), Vptr b i, sh, Vint (Int.repr 1), info).
 
   Intros v. rename H into Hv. 
   freeze [0] FR1. forward. thaw FR1.
@@ -82,14 +82,14 @@ Proof.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
   freeze [0;2;5;6;8;9] FR2.
-  replace_SEP 1 (UNDER_SPEC.EMPTY p).
+  replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, HMAC_DRBG_algorithms.initial_key, b, Ptrofs.add i (Ptrofs.repr 12), gv).
+  forward_call (Vptr b i, sh, ((info,(M2,p)):mdstate), Ews, 32, HMAC_DRBG_algorithms.initial_key, b, Ptrofs.add i (Ptrofs.repr 12), sh, gv).
   { simpl. cancel. }
-  { split; trivial. red. simpl. rewrite int_max_signed_eq.
+  { split3; auto. split3; auto. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
     change (2^64) with 18446744073709551616. omega.
     apply isbyteZ_initialKey.
@@ -98,7 +98,7 @@ Proof.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
-  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
+  forward_call (sh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
      - cancel. }
@@ -106,7 +106,7 @@ Proof.
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
   thaw FR3. thaw FR2. unfold md_relate. simpl.
-  replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
+  replace_SEP 2 (field_at sh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
     entailer!. rewrite field_at_data_at.
     simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
     rewrite ptrofs_add_repr_0_r.
@@ -144,8 +144,8 @@ Proof.
   freeze [1;2;3] INI.
   specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
-         data_at Tsh t_struct_hmac256drbg_context_st ST (Vptr b i) *
-         hmac256drbg_relate myABS ST).
+         data_at sh t_struct_hmac256drbg_context_st ST (Vptr b i) *
+         hmac256drbg_relate Ews myABS ST).
   { entailer!. thaw INI. clear - FC_V IB1. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     unfold_data_at 2%nat. 
@@ -158,7 +158,7 @@ Proof.
 
   clear INI.
   thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
-  forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, Info, s, gv).
+  forward_call (Data, data, sh, Zlength Data, Vptr b i, sh, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
   }

@@ -80,16 +80,16 @@ Definition __builtin_write32_reversed_spec :=
 
 Definition memcpy_spec :=
   DECLARE _memcpy
-   WITH sh : share*share, p: val, q: val, n: Z, contents: list int
+   WITH qsh : share, psh: share, p: val, q: val, n: Z, contents: list int
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (readable_share (fst sh); writable_share (snd sh); 0 <= n <= Int.max_unsigned)
+       PROP (readable_share qsh; writable_share psh; 0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr n)))
-       SEP (data_at (fst sh) (tarray tuchar n) (map Vint contents) q;
-              memory_block (snd sh) n p)
+       SEP (data_at qsh (tarray tuchar n) (map Vint contents) q;
+              memory_block psh n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at (fst sh) (tarray tuchar n) (map Vint contents) q;
-             data_at (snd sh) (tarray tuchar n) (map Vint contents) p).
+       SEP(data_at qsh (tarray tuchar n) (map Vint contents) q;
+             data_at psh (tarray tuchar n) (map Vint contents) p).
 
 Definition memset_spec :=
   DECLARE _memset
