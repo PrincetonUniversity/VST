@@ -425,13 +425,12 @@ Proof.
   apply corable_func_at.
 Qed.
   
-Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
+Lemma allp_fun_id_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
-  funassert Delta' rho |-- allp_fun_id Delta rho.
+  allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
 Proof.
   intros.
-  unfold funassert, allp_fun_id.
-  apply andp_left1.
+  unfold allp_fun_id.
   apply allp_derives; intros id.
   apply allp_derives; intros fs.
   apply imp_derives; auto.
@@ -442,6 +441,15 @@ Proof.
   rewrite H0 in H.
   destruct ((glob_specs Delta') ! id); [| tauto].
   auto.
+Qed.
+
+Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
+  tycontext_sub Delta Delta' ->
+  funassert Delta' rho |-- allp_fun_id Delta rho.
+Proof.
+  intros.
+  apply andp_left1.
+  apply allp_fun_id_sub; auto.
 Qed.
 
 Lemma _guard_allp_fun_id:
