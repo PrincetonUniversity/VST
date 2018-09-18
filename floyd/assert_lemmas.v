@@ -569,6 +569,15 @@ Lemma ENTAIL_refl:
   local (tc_environ Delta) && P |-- P.
 Proof. intros. apply andp_left2, derives_refl. Qed.
 
+Lemma corable_andp_bupd: forall (P Q: environ -> mpred),
+  corable P ->
+  (P && |==> Q) |-- |==> P && Q.
+Proof.
+  intros.
+  rewrite !(andp_comm P).
+  apply bupd_andp2_corable; auto.
+Qed.
+
 Lemma local_andp_bupd: forall P Q,
   (local P && |==> Q) |-- |==> (local P && Q).
 Proof.
@@ -733,19 +742,88 @@ Proof.
   apply later_left2, H.
 Qed.
 
-Lemma andp_subst_ENTAIL: forall Delta P P' Q Q' i v t,
+Lemma andp_ENTAILL: forall Delta P P' Q Q',
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P && Q)) |-- P' && Q'.
+Proof.
+  intros.
+  eapply derives_trans; [| apply andp_derives; [exact H | exact H0]].
+  solve_andp.
+Qed.
+
+Lemma orp_ENTAILL: forall Delta P P' Q Q',
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P || Q)) |-- P' || Q'.
+Proof.
+  intros.
+  rewrite <- andp_assoc in *.
+  rewrite andp_comm, distrib_orp_andp.
+  apply orp_derives; rewrite andp_comm; auto.
+Qed.
+
+Lemma sepcon_ENTAILL: forall Delta P P' Q Q',
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- P' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P * Q)) |-- P' * Q'.
+Proof.
+  intros.
+  rewrite <- andp_assoc in *.
+  eapply derives_trans; [| apply sepcon_derives; [exact H | exact H0]].
+  rewrite corable_andp_sepcon1, corable_sepcon_andp1 by (intro; simpl; apply corable_andp; [apply corable_prop | apply corable_allp_fun_id]).
+  solve_andp.
+Qed.
+
+Lemma wand_ENTAILL: forall Delta P P' Q Q',
+  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- P ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- Q' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P -* Q)) |-- P' -* Q'.
+Proof.
+  intros.
+  rewrite <- andp_assoc in *.
+  rewrite <- wand_sepcon_adjoint.
+  eapply derives_trans; [| apply H0].
+  rewrite corable_andp_sepcon1 by (intro; simpl; apply corable_andp; [apply corable_prop | apply corable_allp_fun_id]).
+  apply andp_right; [apply andp_left1, derives_refl |].
+  rewrite <- corable_sepcon_andp1 by (intro; simpl; apply corable_andp; [apply corable_prop | apply corable_allp_fun_id]).
+  rewrite sepcon_comm, wand_sepcon_adjoint.
+  eapply derives_trans; [apply H |].
+  rewrite <- wand_sepcon_adjoint.
+  apply modus_ponens_wand.
+Qed.
+
+Lemma exp_ENTAILL: forall Delta B (P Q: B -> environ -> mpred),
+  (forall x: B, local (tc_environ Delta) && (allp_fun_id Delta && P x) |-- Q x) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && exp P) |-- exp Q.
+Proof.
+  intros.
+  rewrite !exp_andp2.
+  apply exp_derives; auto.
+Qed.
+
+Lemma later_ENTAILL: forall Delta P Q,
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->
+  local (tc_environ Delta) && (allp_fun_id Delta && |> P) |-- |> Q.
+Proof.
+  intros.
+  rewrite <- andp_assoc in *.
+  apply later_left2, H.
+Qed.
+
+Lemma andp_subst_ENTAILL: forall Delta P P' Q Q' i v t,
   (temp_types Delta) ! i = Some t ->
-  local (tc_environ Delta) && P' |-- local (`(tc_val' t) v) ->
-  local (tc_environ Delta) && P' |-- Q' ->
-  local (tc_environ Delta) && P |-- Q ->
-  local (tc_environ Delta) && (P' && subst i v P) |-- Q' && subst i v Q.
+  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- local (`(tc_val' t) v) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P') |-- Q' ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P' && subst i v P)) |-- Q' && subst i v Q.
 Proof.
   intros.
   apply (subst_derives i v) in H2.
   autorewrite with subst in H2.
   eapply derives_trans; [| apply andp_derives; eassumption].
   repeat apply andp_right; try solve_andp.
-  rewrite <- andp_assoc; apply andp_left1.
+  rewrite <- !andp_assoc; apply andp_left1; rewrite andp_assoc.
   rewrite (add_andp _ _ H0).
   unfold local, lift1; unfold_lift.
   intro rho; simpl; normalize; clear H0 H1 H2.
@@ -820,6 +898,22 @@ Proof.
   intros.
   apply derives_bupd_bupd_left.
   rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (local _)).
+  apply orp_left.
+  + apply andp_left2.
+    eapply derives_trans; [| apply bupd_intro].
+    apply orp_right1; auto.
+  + auto.
+Qed.
+
+Lemma derives_full_bupd0_left: forall Delta P Q,
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || Q ->
+  local (tc_environ Delta) && (allp_fun_id Delta && |==> |> FF || P) |-- |==> |> FF || Q.
+Proof.
+  intros.
+  rewrite <- andp_assoc in H |- *.
+  eapply derives_trans; [apply corable_andp_bupd; intro; simpl; apply corable_andp; [apply corable_prop | apply corable_allp_fun_id] |].
+  eapply derives_trans; [apply bupd_mono | apply bupd_trans].
+  rewrite andp_comm, distrib_orp_andp, !(andp_comm _ (_ && _)).
   apply orp_left.
   + apply andp_left2.
     eapply derives_trans; [| apply bupd_intro].

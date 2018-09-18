@@ -288,6 +288,48 @@ Proof.
   normalize in H0.
 Qed.
 
+Lemma obox_left2': forall Delta i P Q,
+  temp_guard Delta i ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->  
+  local (tc_environ Delta) && (allp_fun_id Delta && obox Delta i P) |-- obox Delta i Q.
+Proof.
+  intros.
+  unfold local, lift1 in *.
+  intro rho; simpl.
+  normalize.
+  unfold obox; simpl.
+  apply allp_right; intros x.
+  rewrite andp_comm; apply imp_andp_adjoint.
+  apply (allp_left _ x).
+  apply imp_andp_adjoint; rewrite andp_comm.
+  destruct ((temp_types Delta) ! i) eqn:?H; [| apply prop_right; auto].
+  rewrite <- imp_andp_adjoint.
+  normalize.
+  unfold TT; rewrite prop_imp by auto.
+  unfold subst; unfold_lift.
+  specialize (H0 (env_set rho i x)).
+  simpl in H0.
+  assert (tc_environ Delta (env_set rho i x)).
+  {
+    clear H0.
+    destruct rho, H1 as [? [? ?]]; split; [| split]; simpl in *; auto.
+    clear H1 H4.
+    hnf in H0 |- *.
+    intros j tj H1; specialize (H0 j tj H1).
+    destruct H0 as [v [? ?]].
+    destruct (ident_eq i j).
+    + exists x.
+      subst.
+      rewrite H2 in H1; inv H1.
+      rewrite Map.gss.
+      split; auto.
+    + exists v.
+      rewrite Map.gso by auto.
+      split; auto.
+  }
+  normalize in H0.
+Qed.
+
 Lemma obox_sepcon: forall Delta i P Q,
   obox Delta i P * obox Delta i Q |-- obox Delta i (P * Q).
 Proof.
@@ -414,6 +456,16 @@ Lemma oboxopt_left2: forall Delta i P Q,
 Proof.
   intros.
   destruct i; [apply obox_left2; auto |].
+  auto.
+Qed.
+
+Lemma oboxopt_left2': forall Delta i P Q,
+  temp_guard_opt Delta i ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- Q ->  
+  local (tc_environ Delta) && (allp_fun_id Delta && oboxopt Delta i P) |-- oboxopt Delta i Q.
+Proof.
+  intros.
+  destruct i; [apply obox_left2'; auto |].
   auto.
 Qed.
 
@@ -658,6 +710,17 @@ Lemma semax_post:
 Proof.
 intros; eapply semax_pre_post; try eassumption.
 apply ENTAIL_refl.
+Qed.
+
+Lemma semax_post_simple:
+ forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
+   RA_normal R' |-- RA_normal R ->
+   RA_break R' |-- RA_break R ->
+   RA_continue R' |-- RA_continue R ->
+   (forall vl, RA_return R' vl |-- RA_return R vl) ->
+   @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
+Proof.
+  intros; eapply semax_post; [.. | eauto]; intros; reduce2derives; auto.
 Qed.
 
 Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
