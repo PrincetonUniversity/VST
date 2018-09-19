@@ -3,7 +3,7 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 
 Module Info.
-  Definition version := "3.3"%string.
+  Definition version := "3.4"%string.
   Definition build_number := ""%string.
   Definition build_tag := ""%string.
   Definition arch := "x86"%string.
@@ -15,96 +15,95 @@ Module Info.
   Definition normalized := true.
 End Info.
 
-Definition ___builtin_ais_annot : ident := 4%positive.
-Definition ___builtin_annot : ident := 11%positive.
-Definition ___builtin_annot_intval : ident := 12%positive.
-Definition ___builtin_bswap : ident := 5%positive.
-Definition ___builtin_bswap16 : ident := 7%positive.
-Definition ___builtin_bswap32 : ident := 6%positive.
-Definition ___builtin_bswap64 : ident := 37%positive.
-Definition ___builtin_clz : ident := 38%positive.
-Definition ___builtin_clzl : ident := 39%positive.
-Definition ___builtin_clzll : ident := 40%positive.
-Definition ___builtin_ctz : ident := 41%positive.
-Definition ___builtin_ctzl : ident := 42%positive.
-Definition ___builtin_ctzll : ident := 43%positive.
-Definition ___builtin_debug : ident := 55%positive.
-Definition ___builtin_fabs : ident := 8%positive.
-Definition ___builtin_fmadd : ident := 46%positive.
-Definition ___builtin_fmax : ident := 44%positive.
-Definition ___builtin_fmin : ident := 45%positive.
-Definition ___builtin_fmsub : ident := 47%positive.
-Definition ___builtin_fnmadd : ident := 48%positive.
-Definition ___builtin_fnmsub : ident := 49%positive.
-Definition ___builtin_fsqrt : ident := 9%positive.
-Definition ___builtin_membar : ident := 13%positive.
-Definition ___builtin_memcpy_aligned : ident := 10%positive.
-Definition ___builtin_nop : ident := 54%positive.
-Definition ___builtin_read16_reversed : ident := 50%positive.
-Definition ___builtin_read32_reversed : ident := 51%positive.
-Definition ___builtin_va_arg : ident := 15%positive.
-Definition ___builtin_va_copy : ident := 16%positive.
-Definition ___builtin_va_end : ident := 17%positive.
-Definition ___builtin_va_start : ident := 14%positive.
-Definition ___builtin_write16_reversed : ident := 52%positive.
-Definition ___builtin_write32_reversed : ident := 53%positive.
-Definition ___compcert_i64_dtos : ident := 22%positive.
-Definition ___compcert_i64_dtou : ident := 23%positive.
-Definition ___compcert_i64_sar : ident := 34%positive.
-Definition ___compcert_i64_sdiv : ident := 28%positive.
-Definition ___compcert_i64_shl : ident := 32%positive.
-Definition ___compcert_i64_shr : ident := 33%positive.
-Definition ___compcert_i64_smod : ident := 30%positive.
-Definition ___compcert_i64_smulh : ident := 35%positive.
-Definition ___compcert_i64_stod : ident := 24%positive.
-Definition ___compcert_i64_stof : ident := 26%positive.
-Definition ___compcert_i64_udiv : ident := 29%positive.
-Definition ___compcert_i64_umod : ident := 31%positive.
-Definition ___compcert_i64_umulh : ident := 36%positive.
-Definition ___compcert_i64_utod : ident := 25%positive.
-Definition ___compcert_i64_utof : ident := 27%positive.
-Definition ___compcert_va_composite : ident := 21%positive.
-Definition ___compcert_va_float64 : ident := 20%positive.
-Definition ___compcert_va_int32 : ident := 18%positive.
-Definition ___compcert_va_int64 : ident := 19%positive.
-Definition _a : ident := 79%positive.
-Definition _arena : ident := 65%positive.
-Definition _b : ident := 80%positive.
-Definition _copytree : ident := 75%positive.
-Definition _depth : ident := 68%positive.
-Definition _exit : ident := 57%positive.
-Definition _i : ident := 76%positive.
-Definition _int_or_ptr_to_int : ident := 60%positive.
-Definition _int_or_ptr_to_ptr : ident := 61%positive.
-Definition _int_to_int_or_ptr : ident := 62%positive.
-Definition _leaf : ident := 64%positive.
+Definition ___builtin_annot : ident := 10%positive.
+Definition ___builtin_annot_intval : ident := 11%positive.
+Definition ___builtin_bswap : ident := 4%positive.
+Definition ___builtin_bswap16 : ident := 6%positive.
+Definition ___builtin_bswap32 : ident := 5%positive.
+Definition ___builtin_bswap64 : ident := 36%positive.
+Definition ___builtin_clz : ident := 37%positive.
+Definition ___builtin_clzl : ident := 38%positive.
+Definition ___builtin_clzll : ident := 39%positive.
+Definition ___builtin_ctz : ident := 40%positive.
+Definition ___builtin_ctzl : ident := 41%positive.
+Definition ___builtin_ctzll : ident := 42%positive.
+Definition ___builtin_debug : ident := 54%positive.
+Definition ___builtin_fabs : ident := 7%positive.
+Definition ___builtin_fmadd : ident := 45%positive.
+Definition ___builtin_fmax : ident := 43%positive.
+Definition ___builtin_fmin : ident := 44%positive.
+Definition ___builtin_fmsub : ident := 46%positive.
+Definition ___builtin_fnmadd : ident := 47%positive.
+Definition ___builtin_fnmsub : ident := 48%positive.
+Definition ___builtin_fsqrt : ident := 8%positive.
+Definition ___builtin_membar : ident := 12%positive.
+Definition ___builtin_memcpy_aligned : ident := 9%positive.
+Definition ___builtin_nop : ident := 53%positive.
+Definition ___builtin_read16_reversed : ident := 49%positive.
+Definition ___builtin_read32_reversed : ident := 50%positive.
+Definition ___builtin_va_arg : ident := 14%positive.
+Definition ___builtin_va_copy : ident := 15%positive.
+Definition ___builtin_va_end : ident := 16%positive.
+Definition ___builtin_va_start : ident := 13%positive.
+Definition ___builtin_write16_reversed : ident := 51%positive.
+Definition ___builtin_write32_reversed : ident := 52%positive.
+Definition ___compcert_i64_dtos : ident := 21%positive.
+Definition ___compcert_i64_dtou : ident := 22%positive.
+Definition ___compcert_i64_sar : ident := 33%positive.
+Definition ___compcert_i64_sdiv : ident := 27%positive.
+Definition ___compcert_i64_shl : ident := 31%positive.
+Definition ___compcert_i64_shr : ident := 32%positive.
+Definition ___compcert_i64_smod : ident := 29%positive.
+Definition ___compcert_i64_smulh : ident := 34%positive.
+Definition ___compcert_i64_stod : ident := 23%positive.
+Definition ___compcert_i64_stof : ident := 25%positive.
+Definition ___compcert_i64_udiv : ident := 28%positive.
+Definition ___compcert_i64_umod : ident := 30%positive.
+Definition ___compcert_i64_umulh : ident := 35%positive.
+Definition ___compcert_i64_utod : ident := 24%positive.
+Definition ___compcert_i64_utof : ident := 26%positive.
+Definition ___compcert_va_composite : ident := 20%positive.
+Definition ___compcert_va_float64 : ident := 19%positive.
+Definition ___compcert_va_int32 : ident := 17%positive.
+Definition ___compcert_va_int64 : ident := 18%positive.
+Definition _a : ident := 78%positive.
+Definition _arena : ident := 64%positive.
+Definition _b : ident := 79%positive.
+Definition _copytree : ident := 74%positive.
+Definition _depth : ident := 67%positive.
+Definition _exit : ident := 56%positive.
+Definition _i : ident := 75%positive.
+Definition _int_or_ptr_to_int : ident := 59%positive.
+Definition _int_or_ptr_to_ptr : ident := 60%positive.
+Definition _int_to_int_or_ptr : ident := 61%positive.
+Definition _leaf : ident := 63%positive.
 Definition _left : ident := 1%positive.
-Definition _main : ident := 82%positive.
-Definition _makenode : ident := 67%positive.
-Definition _maketree : ident := 72%positive.
-Definition _next : ident := 66%positive.
-Definition _p : ident := 70%positive.
-Definition _print : ident := 81%positive.
-Definition _print_int : ident := 78%positive.
-Definition _print_intx : ident := 77%positive.
-Definition _ptr_to_int_or_ptr : ident := 63%positive.
-Definition _putchar : ident := 56%positive.
-Definition _q : ident := 71%positive.
-Definition _r : ident := 69%positive.
+Definition _main : ident := 81%positive.
+Definition _makenode : ident := 66%positive.
+Definition _maketree : ident := 71%positive.
+Definition _next : ident := 65%positive.
+Definition _p : ident := 69%positive.
+Definition _print : ident := 80%positive.
+Definition _print_int : ident := 77%positive.
+Definition _print_intx : ident := 76%positive.
+Definition _ptr_to_int_or_ptr : ident := 62%positive.
+Definition _putchar : ident := 55%positive.
+Definition _q : ident := 70%positive.
+Definition _r : ident := 68%positive.
 Definition _right : ident := 2%positive.
-Definition _s : ident := 74%positive.
-Definition _t : ident := 73%positive.
-Definition _test_int_or_ptr : ident := 59%positive.
+Definition _s : ident := 73%positive.
+Definition _t : ident := 72%positive.
+Definition _test_int_or_ptr : ident := 58%positive.
 Definition _tree : ident := 3%positive.
-Definition _x : ident := 58%positive.
-Definition _t'1 : ident := 83%positive.
-Definition _t'2 : ident := 84%positive.
-Definition _t'3 : ident := 85%positive.
-Definition _t'4 : ident := 86%positive.
-Definition _t'5 : ident := 87%positive.
-Definition _t'6 : ident := 88%positive.
-Definition _t'7 : ident := 89%positive.
-Definition _t'8 : ident := 90%positive.
+Definition _x : ident := 57%positive.
+Definition _t'1 : ident := 82%positive.
+Definition _t'2 : ident := 83%positive.
+Definition _t'3 : ident := 84%positive.
+Definition _t'4 : ident := 85%positive.
+Definition _t'5 : ident := 86%positive.
+Definition _t'6 : ident := 87%positive.
+Definition _t'7 : ident := 88%positive.
+Definition _t'8 : ident := 89%positive.
 
 Definition f_test_int_or_ptr := {|
   fn_return := tint;
@@ -140,7 +139,9 @@ Definition f_int_or_ptr_to_ptr := {|
 |}.
 
 Definition f_int_to_int_or_ptr := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_x, tuint) :: nil);
   fn_vars := nil;
@@ -150,7 +151,9 @@ Definition f_int_to_int_or_ptr := {|
 |}.
 
 Definition f_ptr_to_int_or_ptr := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tvoid)) :: nil);
   fn_vars := nil;
@@ -229,18 +232,18 @@ Definition f_makenode := {|
 |}.
 
 Definition f_maketree := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_depth, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_r, (talignas 2%N (tptr tvoid))) ::
                (_p, (talignas 2%N (tptr tvoid))) ::
-               (_q, (talignas 2%N (tptr tvoid))) ::
-               (_t'6, (talignas 2%N (tptr tvoid))) ::
+               (_q, (talignas 2%N (tptr tvoid))) :: (_t'6, (tptr tvoid)) ::
                (_t'5, (tptr (Tstruct _tree noattr))) ::
-               (_t'4, (talignas 2%N (tptr tvoid))) ::
-               (_t'3, (talignas 2%N (tptr tvoid))) ::
-               (_t'2, (talignas 2%N (tptr tvoid))) :: (_t'1, tint) :: nil);
+               (_t'4, (tptr tvoid)) :: (_t'3, (tptr tvoid)) ::
+               (_t'2, (tptr tvoid)) :: (_t'1, tint) :: nil);
   fn_body :=
 (Sifthenelse (Ebinop Oeq (Etempvar _depth tint)
                (Econst_int (Int.repr 0) tint) tint)
@@ -253,29 +256,28 @@ Definition f_maketree := {|
             (Ebinop Oadd (Etempvar _t'1 tint) (Econst_int (Int.repr 1) tint)
               tint)))
         (Scall (Some _t'2)
-          (Evar _int_to_int_or_ptr (Tfunction (Tcons tuint Tnil)
-                                     (talignas 2%N (tptr tvoid)) cc_default))
+          (Evar _int_to_int_or_ptr (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                                     cc_default))
           ((Ebinop Oor
              (Ebinop Oshl (Etempvar _t'1 tint) (Econst_int (Int.repr 1) tint)
                tint) (Econst_int (Int.repr 1) tint) tint) :: nil)))
-      (Sset _r (Etempvar _t'2 (talignas 2%N (tptr tvoid)))))
+      (Sset _r (Etempvar _t'2 (tptr tvoid))))
     (Sreturn (Some (Etempvar _r (talignas 2%N (tptr tvoid))))))
   (Ssequence
     (Ssequence
       (Scall (Some _t'3)
-        (Evar _maketree (Tfunction (Tcons tint Tnil)
-                          (talignas 2%N (tptr tvoid)) cc_default))
+        (Evar _maketree (Tfunction (Tcons tint Tnil) (tptr tvoid) cc_default))
         ((Ebinop Osub (Etempvar _depth tint) (Econst_int (Int.repr 1) tint)
            tint) :: nil))
-      (Sset _p (Etempvar _t'3 (talignas 2%N (tptr tvoid)))))
+      (Sset _p (Etempvar _t'3 (tptr tvoid))))
     (Ssequence
       (Ssequence
         (Scall (Some _t'4)
-          (Evar _maketree (Tfunction (Tcons tint Tnil)
-                            (talignas 2%N (tptr tvoid)) cc_default))
+          (Evar _maketree (Tfunction (Tcons tint Tnil) (tptr tvoid)
+                            cc_default))
           ((Ebinop Osub (Etempvar _depth tint) (Econst_int (Int.repr 1) tint)
              tint) :: nil))
-        (Sset _q (Etempvar _t'4 (talignas 2%N (tptr tvoid)))))
+        (Sset _q (Etempvar _t'4 (tptr tvoid))))
       (Ssequence
         (Ssequence
           (Scall (Some _t'5)
@@ -287,14 +289,15 @@ Definition f_maketree := {|
              (Etempvar _q (talignas 2%N (tptr tvoid))) :: nil))
           (Scall (Some _t'6)
             (Evar _ptr_to_int_or_ptr (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       (talignas 2%N (tptr tvoid))
-                                       cc_default))
+                                       (tptr tvoid) cc_default))
             ((Etempvar _t'5 (tptr (Tstruct _tree noattr))) :: nil)))
-        (Sreturn (Some (Etempvar _t'6 (talignas 2%N (tptr tvoid)))))))))
+        (Sreturn (Some (Etempvar _t'6 (tptr tvoid))))))))
 |}.
 
 Definition f_copytree := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_t, (talignas 2%N (tptr tvoid))) :: nil);
   fn_vars := nil;
@@ -303,9 +306,8 @@ Definition f_copytree := {|
                (_s, (tptr (Tstruct _tree noattr))) :: (_t'6, tint) ::
                (_t'5, (talignas 2%N (tptr tvoid))) ::
                (_t'4, (tptr (Tstruct _tree noattr))) ::
-               (_t'3, (talignas 2%N (tptr tvoid))) ::
-               (_t'2, (talignas 2%N (tptr tvoid))) :: (_t'1, (tptr tvoid)) ::
-               (_t'8, (talignas 2%N (tptr tvoid))) ::
+               (_t'3, (talignas 2%N (tptr tvoid))) :: (_t'2, (talignas 2%N (tptr tvoid))) ::
+               (_t'1, (tptr tvoid)) :: (_t'8, (talignas 2%N (tptr tvoid))) ::
                (_t'7, (talignas 2%N (tptr tvoid))) :: nil);
   fn_body :=
 (Ssequence
@@ -335,7 +337,10 @@ Definition f_copytree := {|
             (Scall (Some _t'2)
               (Evar _copytree (Tfunction
                                 (Tcons (talignas 2%N (tptr tvoid)) Tnil)
-                                (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+                                 cc_default))
               ((Etempvar _t'8 (talignas 2%N (tptr tvoid))) :: nil)))
           (Sset _p (Etempvar _t'2 (talignas 2%N (tptr tvoid)))))
         (Ssequence
@@ -349,7 +354,10 @@ Definition f_copytree := {|
               (Scall (Some _t'3)
                 (Evar _copytree (Tfunction
                                   (Tcons (talignas 2%N (tptr tvoid)) Tnil)
-                                  (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+                             cc_default))
                 ((Etempvar _t'7 (talignas 2%N (tptr tvoid))) :: nil)))
             (Sset _q (Etempvar _t'3 (talignas 2%N (tptr tvoid)))))
           (Ssequence
@@ -363,8 +371,7 @@ Definition f_copytree := {|
                  (Etempvar _q (talignas 2%N (tptr tvoid))) :: nil))
               (Scall (Some _t'5)
                 (Evar _ptr_to_int_or_ptr (Tfunction (Tcons (tptr tvoid) Tnil)
-                                           (talignas 2%N (tptr tvoid))
-                                           cc_default))
+                                           (talignas 2%N (tptr tvoid)) cc_default))
                 ((Etempvar _t'4 (tptr (Tstruct _tree noattr))) :: nil)))
             (Sreturn (Some (Etempvar _t'5 (talignas 2%N (tptr tvoid)))))))))))
 |}.
@@ -414,7 +421,7 @@ Definition f_print := {|
   fn_temps := ((_i, tuint) :: (_q, (tptr (Tstruct _tree noattr))) ::
                (_a, (talignas 2%N (tptr tvoid))) ::
                (_b, (talignas 2%N (tptr tvoid))) :: (_t'3, tint) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, tuint) :: nil);
+               (_t'2, (talignas 2%N (tptr tvoid))) :: (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Scall (Some _t'3)
@@ -486,8 +493,7 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_p, (talignas 2%N (tptr tvoid))) ::
-               (_t'2, (talignas 2%N (tptr tvoid))) ::
+  fn_temps := ((_p, (talignas 2%N (tptr tvoid))) :: (_t'2, (talignas 2%N (tptr tvoid))) ::
                (_t'1, (talignas 2%N (tptr tvoid))) :: nil);
   fn_body :=
 (Ssequence
@@ -495,16 +501,22 @@ Definition f_main := {|
     (Ssequence
       (Scall (Some _t'1)
         (Evar _maketree (Tfunction (Tcons tint Tnil)
-                          (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+      cc_default))
         ((Econst_int (Int.repr 3) tint) :: nil))
       (Sset _p (Etempvar _t'1 (talignas 2%N (tptr tvoid)))))
     (Ssequence
       (Ssequence
         (Scall (Some _t'2)
           (Evar _copytree (Tfunction (Tcons (talignas 2%N (tptr tvoid)) Tnil)
-                            (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+                  cc_default))
           ((Etempvar _p (talignas 2%N (tptr tvoid))) :: nil))
-        (Sset _p (Etempvar _t'2 (talignas 2%N (tptr tvoid)))))
+        (Sset _p (Etempvar _t'2 (tptr tvoid))))
       (Ssequence
         (Scall None
           (Evar _print (Tfunction (Tcons (talignas 2%N (tptr tvoid)) Tnil)
@@ -521,13 +533,7 @@ Definition composites : list composite_definition :=
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___builtin_ais_annot,
-   Gfun(External (EF_builtin "__builtin_ais_annot"
-                   (mksignature (AST.Tint :: nil) None
-                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
-     (Tcons (tptr tschar) Tnil) tvoid
-     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (___builtin_bswap,
+((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tuint Tnil) tuint cc_default)) ::
@@ -811,7 +817,7 @@ Definition public_idents : list ident :=
  ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
  ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fsqrt ::
  ___builtin_fabs :: ___builtin_bswap16 :: ___builtin_bswap32 ::
- ___builtin_bswap :: ___builtin_ais_annot :: nil).
+ ___builtin_bswap :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

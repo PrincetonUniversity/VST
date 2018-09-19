@@ -1,9 +1,9 @@
 #include <stddef.h>
 
 typedef void  * int_or_ptr
-#ifdef COMPCERT
-  _Alignas (void *)
-#endif
+ #ifdef COMPCERT
+   __attribute((aligned(_Alignof(void*))))
+ #endif
   ;
 
 extern int putchar(int);
