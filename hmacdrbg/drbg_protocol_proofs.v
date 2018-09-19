@@ -180,13 +180,7 @@ Proof.
          { unfold contents_with_add. simple_if_tac. right; trivial. left; trivial. }
   forward.
   deadvars!. 
-  forward_if (
-   PROP ( v = nullval)
-   LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   gvars gv)
-   SEP (reseedPOST v Data data sh (Zlength Data) s
-          myABS (Vptr b i) sh Info gv ST; FRZL OLD_MD)).
+  forward_if (v = nullval).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
@@ -517,15 +511,7 @@ Proof.
   
   (* if( get_entropy(seed, entropy_len ) != 0 ) *)
   freeze [0;1;2] FR5.
-  forward_if (
-      PROP  (vret=Vzero)
-      LOCAL  (temp _t'2 vret;
-      temp _entropy_len (Vint (Int.repr entropy_len));
-      lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
-      temp _additional additional; temp _len (Vint (Int.repr add_len));
-      gvars gv)
-      SEP (FRZL FR5)
-  ).
+  forward_if (vret=Vzero).
   { (* != 0 case *)
     forward. 
     Exists (Vint (Int.neg (Int.repr (9)))). (*entailer!.
@@ -601,6 +587,7 @@ Proof.
   thaw FR5. thaw FR4. unfold GetEntropy_PostSep. rewrite <- Heqentropy_result.
 (*  eapply REST with (s0:=s0)(contents':=contents'); trivial.*)
   destruct WFI as [WFI1 [WFI2 [WFI3 WFI4]]].
+  deadvars!.
   eapply semax_pre_post.
   6:{ 
     eapply (@reseed_REST Espec contents additional sha add_len ctx md_ctx'
@@ -613,9 +600,7 @@ Proof.
     apply SH0.
   }
   solve [ unfold hmac256drbgstate_md_info_pointer; entailer! ].
-  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
-  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
-  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+  1,2,3: subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
  
   intros.
   unfold POSTCONDITION, abbreviate.  simpl_ret_assert. old_go_lower.
@@ -623,9 +608,6 @@ Proof.
   apply andp_right. apply prop_right;  trivial.
   apply sepcon_derives; [ normalize; simpl; Intros | apply derives_refl].
   Exists v. rewrite <- Heqcontents' in *.  
-(*  Transparent hmac256drbgabs_reseed.
-  unfold hmac256drbgabs_reseed.
-  Opaque hmac256drbgabs_reseed.*)
   unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer; simpl.
   remember (mbedtls_HMAC256_DRBG_reseed_function s
               (HMAC256DRBGabs key V reseed_counter entropy_len

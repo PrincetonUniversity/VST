@@ -120,28 +120,7 @@ Proof.
   forward_call tt.
 
   (* if( out_len > MBEDTLS_HMAC_DRBG_MAX_REQUEST ) *)
-  forward_if (
-      PROP  (out_len <= 1024)
-      LOCAL  (temp _md_len (*md_len*)(Vint (Int.repr 32)); temp _info (*(let (x, _) := md_ctx' in x)*)mc1;
-      temp _reseed_interval (Vint (Int.repr reseed_interval));
-      temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len)); 
-      temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
-      temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-      temp _add_len (Vint (Int.repr add_len)); gvars gv)
-      SEP  (data_at_ sho (tarray tuchar out_len) output;
-      da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-      data_at shc t_struct_hmac256drbg_context_st (*initial_state*)(mc1, (mc2, mc3),
-     (map Vint (map Int.repr V),
-     (Vint (Int.repr reseed_counter),
-     (Vint (Int.repr entropy_len),
-     (Val.of_bool prediction_resistance,
-     Vint (Int.repr reseed_interval))))))  (*ctx*)(Vptr b i);
-      md_full Ews key (*md_ctx'*)(mc1, (mc2, mc3));
-      data_at shc t_struct_mbedtls_md_info Info (*(fst md_ctx')*) mc1;
-      Stream s; K_vector gv)
-    ).
+  forward_if  (out_len <= 1024).
   {
     (* return( MBEDTLS_ERR_HMAC_DRBG_REQUEST_TOO_BIG ); *)
     forward.
@@ -162,10 +141,10 @@ Proof.
   }
   {
     forward.
-    entailer!. thaw FR0. cancel.
+    entailer!. 
   }
 
-  Intros. clear Pctx FR0.
+  Intros.  thaw FR0. clear Pctx.
   assert (Hout_len: 0 <= out_len <= 1024) by omega.
   assert (Hout_lenb: out_len >? 1024 = false).
   {
@@ -178,18 +157,7 @@ Proof.
   freeze [0;1;2;3;4;5;6] FR2.
 
   (* III. if( add_len > MBEDTLS_HMAC_DRBG_MAX_INPUT ) *)
-  forward_if (
-      PROP  (add_len <= 256) (* ADDED *)
-      LOCAL  (temp _md_len (*md_len*)(Vint (Int.repr 32));
-              temp _info mc1 (*(let (x, _) := md_ctx' in x)*);
-      temp _reseed_interval (Vint (Int.repr reseed_interval));
-      temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len)); 
-      temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
-      temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-      temp _add_len (Vint (Int.repr add_len)); gvars gv)
-      SEP  (FRZL FR2)). 
+  forward_if (add_len <= 256).
   {
     (* return( MBEDTLS_ERR_HMAC_DRBG_INPUT_TOO_BIG ); *)
     forward.
@@ -227,19 +195,7 @@ Proof.
 
   (*1. (aka VII and IX) Check reseed counter and PR*)
   set (should_reseed := orb prediction_resistance (reseed_counter >? reseed_interval)) in *.
-  forward_if (
-      PROP  ()
-      LOCAL  (temp _md_len (*md_len*)(Vint (Int.repr 32)); temp _info mc1(*(let (x, _) := md_ctx' in x)*);
-      temp _reseed_interval (Vint (Int.repr reseed_interval));
-      temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len)); 
-      temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
-      temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-      temp _add_len (Vint (Int.repr add_len)); gvars gv;
-      temp _t'4 (Val.of_bool should_reseed) (* ADDED *)
-      )
-      SEP (FRZL FR2)). 
+  forward_if (temp _t'4 (Val.of_bool should_reseed)).
   {
     forward.
     entailer!.
@@ -328,21 +284,7 @@ Proof.
     forward. 
 
     assert (F: 0>? 256 = false) by reflexivity.
-
-    forward_if (PROP  (return_value = Vzero) (* ADDED *)
-      LOCAL  (temp _ret return_value; 
-      temp _md_len (Vint (Int.repr 32)); temp _info (*(let (x, _) := md_ctx' in x)*)mc1;
-      temp _reseed_interval (Vint (Int.repr reseed_interval));
-      temp _reseed_counter (Vint (Int.repr reseed_counter));
-      temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len)); 
-      temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
-      temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-      temp _add_len (Vint (Int.repr add_len)); gvars gv; 
-      temp _t'4 (Val.of_bool true))
-      SEP (reseedPOST return_value contents additional sha add_len s I 
-                (Vptr b i) shc Info gv aaa;
-          data_at_ sho (tarray tuchar out_len) output)).
+    forward_if (return_value = Vzero).
     {
       (* reseed's return_value != 0 *) 
       rename H into Hrv.
@@ -411,20 +353,7 @@ Proof.
 
   set (na:=(negb (eq_dec additional nullval) && negb (eq_dec ((if should_reseed then 0 else Zlength contents)) 0))%bool) in *.
  
-  forward_if
-  (PROP ( )
-   LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
-   temp _reseed_interval (Vint (Int.repr reseed_interval));
-   temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance); 
-   temp _out output; temp _left (Vint (Int.repr out_len)); 
-   temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
-   temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-   temp _add_len (Vint (Int.repr after_reseed_add_len)); gvars gv;
-   temp _t'4 (Val.of_bool should_reseed);
-   temp _t'5 (Val.of_bool na))
-   SEP (FRZL FR4;
-        da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
+  forward_if (temp _t'5 (Val.of_bool na)).
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i0; entailer.
     + rewrite da_emp_ptr. normalize.

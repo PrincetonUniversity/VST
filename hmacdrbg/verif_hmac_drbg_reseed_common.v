@@ -71,7 +71,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional (s
   (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )
-   LOCAL (temp _t'2 Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
+   LOCAL (temp _entropy_len (Vint (Int.repr entropy_len));
    lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;
    temp _len (Vint (Int.repr add_len)); gvars gv)
    SEP (Stream (get_stream_result (get_entropy 0 entropy_len entropy_len false s));

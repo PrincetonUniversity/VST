@@ -303,13 +303,7 @@ Proof.
          { unfold contents_with_add. simple_if_tac. right; trivial. left; trivial. }
   forward.
   deadvars!.
-  forward_if (
-   PROP ( v = nullval)
-   LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32));
-   temp _ctx (Vptr b i); gvars gv)
-   SEP (reseedPOST v Data data Ews (Zlength Data) s
-          myABS (Vptr b i) Ews Info gv ST; FRZL OLD_MD)).
+  forward_if (v = nullval).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
@@ -575,12 +569,7 @@ Proof.
          { unfold contents_with_add. simple_if_tac. right; trivial. left; trivial. }
   forward.
   deadvars!.
-  forward_if (
-   PROP ( v = nullval)
-   LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i); gvars gv)
-   SEP (reseedPOST v Data data Ews (Zlength Data) s
-          myABS (Vptr b i) Ews Info gv ST; FRZL OLD_MD)).
+  forward_if (v = nullval).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.
@@ -894,16 +883,7 @@ Proof.
   Intros v.
 
   forward.
-  forward_if (
-   PROP ( v = nullval)
-   LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32));
-   temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data)));
-   temp _custom data; gvars gv)
-   SEP (reseedPOST v Data data Ews (Zlength Data) s
-          myABS (Vptr b i) Ews Info gv ST; FRZL OLD_MD)).
+  forward_if (v = nullval).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
     unfold reseedPOST.

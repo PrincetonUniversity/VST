@@ -1362,28 +1362,7 @@ Proof. intros.
     normalize. 
 
     (* size_t use_len = left > md_len ? md_len : left; *)
-    forward_if (
-  (PROP ( )
-   LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
-   temp _reseed_interval (Vint (Int.repr reseed_interval));
-   temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
-   temp _out (offset_val done output); temp _left (Vint (Int.repr (out_len - done)));
-   temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
-   temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-   temp _add_len (Vint (Int.repr after_reseed_add_len)); gvars gv;
-      temp _t'6 (Vint (Int.repr (Z.min (Z.of_nat SHA256.DigestLength) (out_len - done)))))
-   SEP (FRZL FR1;
-   data_at shc (Tstruct _mbedtls_md_context_t noattr) (mc1, (mc2, mc3))
-     (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (Vptr b i));
-   data_at shc (tarray tuchar 32)
-     (map Vint (map Int.repr (fst (HLP done))))
-     (field_address t_struct_hmac256drbg_context_st [StructField _V] (Vptr b i));
-   data_at sho (tarray tuchar out_len)
-     (map Vint
-        (map Int.repr (sublist 0 done (snd (HLP done)))) ++
-      list_repeat (Z.to_nat (out_len - done)) Vundef) output;
-   UNDER_SPEC.FULL Ews key0 mc3; K_vector gv))).
+    forward_if (temp _t'6 (Vint (Int.repr (Z.min (Z.of_nat SHA256.DigestLength) (out_len - done))))).
     {
       (* md_len < left *)
       forward.
