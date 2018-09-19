@@ -1328,15 +1328,6 @@ Axiom  semax_return :
 
 (* THESE RULES FROM semax_straight *)
 
-Axiom semax_set :
-  forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) (P: environ->mpred) id e,
-    @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
-             subst id (eval_expr e) P))
-          (Sset id e) (normal_ret_assert P).
-
 Axiom semax_ptr_compare :
 forall{CS: compspecs} {Espec: OracleKind},
 forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
@@ -1409,7 +1400,7 @@ Axiom semax_skip:
 
 Axiom semax_conseq:
   forall {CS: compspecs} {Espec: OracleKind},
-  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+  forall Delta P' (R': ret_assert) P c (R: ret_assert) ,
     local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- |==> |> FF || P' ->
     local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- |==> |> FF || RA_normal R ->
     local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- |==> |> FF || RA_break R ->
@@ -1467,6 +1458,15 @@ Declare Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL
 Import CSL_Def.
 Import CSL_Defs.
 Import MCSL.
+
+Axiom semax_set :
+  forall {CS: compspecs} {Espec: OracleKind},
+forall (Delta: tycontext) (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+             subst id (eval_expr e) P))
+          (Sset id e) (normal_ret_assert P).
 
 Axiom semax_fun_id:
   forall {CS: compspecs} {Espec: OracleKind},

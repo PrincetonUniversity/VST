@@ -536,7 +536,7 @@ Proof.
 Qed.
 
 Lemma semax_conseq {CS: compspecs} {Espec: OracleKind}:
- forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
+ forall Delta P' (R': ret_assert) P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
                    |-- bupd (|> FF || P' rho) )%pred ->
    (forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && RA_normal R' rho)

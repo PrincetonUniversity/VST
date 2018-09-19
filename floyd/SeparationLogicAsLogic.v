@@ -240,7 +240,7 @@ Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
     forall Espec ts x, (*exists Ann,*)
-      @CSL_Def0.semax C Espec (func_tycontext f V G nil (*Ann*))
+      @semax C Espec (func_tycontext f V G nil (*Ann*))
           (P ts x *  stackframe_of f)
           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
@@ -316,7 +316,7 @@ End CConseq.
 
 Module CConseqFacts := CSHL_CConseqFacts (CSL_Def) (CConseq).
 
-Module Conseq := CSHL_GenConseq (CSL_Def) (CConseq).
+Module Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSL_Def := CSHL_GenConseq (CSL_Def) (CConseq).
 
 Module ConseqFacts := CSHL_ConseqFacts (CSL_Def) (Conseq).
 
@@ -883,6 +883,8 @@ Module Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CS
 Module CSHL_Def := CSHL_Def.
 Import CSHL_Def.
 
+Arguments semax {_} {_} _ _ _ _.
+
 Lemma semax_extract_exists:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
@@ -1105,6 +1107,140 @@ Module ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (Conseq) (Extr).
 Module ExtrIFacts := CSHL_IExtrFacts (CSHL_Def) (CConseq) (Extr).
 
 Import Extr ExtrFacts ExtrIFacts.
+
+Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
+
+Module CSL_Def := CSL_Def.
+
+Module CSL_Defs := CSL_Defs.
+
+Definition extract_exists_pre := @semax_extract_exists.
+
+Definition semax_func_nil := @AuxDefs.semax_func_nil.
+
+Definition semax_func_cons := @AuxDefs.semax_func_cons.
+
+Definition semax_func_cons_ext := @AuxDefs.semax_func_cons_ext.
+
+Theorem semax_ifthenelse :
+  forall {CS: compspecs} {Espec: OracleKind},
+   forall Delta P (b: expr) c d R,
+      bool_type (typeof b) = true ->
+     @semax CS Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R ->
+     @semax CS Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R ->
+     @semax CS Espec Delta (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R.
+Proof.
+  intros.
+  pose proof @AuxDefs.semax_ifthenelse _ _ _ _ _ _ _ _ H0 H1.
+  eapply semax_pre_simple; [| exact H2].
+  normalize.
+Qed.
+
+Definition semax_seq := @AuxDefs.semax_seq.
+
+Definition semax_break := @AuxDefs.semax_break.
+
+Definition semax_continue := @AuxDefs.semax_continue.
+
+Definition semax_loop := @AuxDefs.semax_loop.
+
+Theorem semax_switch: 
+  forall {CS: compspecs} Espec Delta (Q: environ -> mpred) a sl R,
+     is_int_type (typeof a) = true ->
+     (forall rho, Q rho |-- tc_expr Delta a rho) ->
+     (forall n,
+     @semax CS Espec Delta (fun rho => andp (prop (eval_expr a rho = Vint n)) (Q rho))
+               (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
+               (switch_ret_assert R)) ->
+     @semax CS Espec Delta Q (Sswitch a sl) R.
+Proof.
+  intros.
+  pose proof AuxDefs.semax_switch _ _ _ _ _ H0 H1.
+  eapply semax_pre_simple; [| exact H2].
+  normalize.
+Qed.
+
+Module CallB: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := CSL_Def.
+
+Module CSHL_Def := CSL_Def.
+
+Definition semax_call_backward := @AuxDefs.semax_call_backward.
+
+End CallB.
+
+Module CallF: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := CSL_Def
+  := CSHL_CallB2F (CSL_Def) (Conseq) (CallB).
+
+Definition semax_call := @CallF.semax_call_forward.
+
+Definition semax_return := @AuxDefs.semax_return.
+
+Module Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSL_Def.
+
+Module CSHL_Def := CSL_Def.
+
+Definition semax_set_ptr_comparison_load_cast_load_backward := @AuxDefs.semax_set_ptr_comparison_load_cast_load_backward.
+
+End Sset.
+
+Module SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := CSL_Def
+  := CSHL_Sset2Set (CSL_Def) (Conseq) (Sset).
+
+Module SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := CSL_Def
+  := CSHL_SetB2F (CSL_Def) (Conseq) (SetB).
+
+Definition semax_set_forward := @SetF.semax_set_forward.
+
+Module PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSL_Def
+  := CSHL_Sset2PtrCmp (CSL_Def) (Conseq) (Sset).
+
+Module PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := CSL_Def
+  := CSHL_PtrCmpB2F (CSL_Def) (Conseq) (PtrCmpB).
+
+Definition semax_ptr_compare := @PtrCmpF.semax_pointer_comparison_forward.
+
+Module LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := CSL_Def
+  := CSHL_Sset2Load (CSL_Def) (Conseq) (Sset).
+
+Module LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := CSL_Def
+  := CSHL_LoadB2F (CSL_Def) (Conseq) (LoadB).
+
+Definition semax_load := @LoadF.semax_load_forward.
+
+Module CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := CSL_Def
+  := CSHL_Sset2CastLoad (CSL_Def) (Conseq) (Sset).
+
+Module CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := CSL_Def
+  := CSHL_CastLoadB2F (CSL_Def) (Conseq) (CastLoadB).
+
+Definition semax_cast_load := @CastLoadF.semax_cast_load_forward.
+
+Module StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := CSL_Def.
+
+Module CSHL_Def := CSL_Def.
+
+Definition semax_store_backward := @AuxDefs.semax_store_backward.
+
+End StoreB.
+
+Module StoreF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := CSL_Def
+  := CSHL_StoreB2F (CSL_Def) (Conseq) (StoreB).
+
+Definition semax_store := @StoreF.semax_store_forward.
+
+Definition semax_skip := @AuxDefs.semax_skip.
+
+Definition semax_conseq := @AuxDefs.semax_conseq.
+
+Definition semax_Slabel := @AuxDefs.semax_label.
+
+Definition semax_ext := @CSL_MCSL.semax_ext.
+
+Definition semax_ext_void := @CSL_MCSL.semax_ext_void.
+
+Definition semax_external_FF := @CSL_MCSL.semax_external_FF.
+
+End MCSL.
 
 Lemma modifiedvars_aux: forall id, (fun i => isSome (insert_idset id idset0) ! i) = eq id.
 Proof.
@@ -2041,39 +2177,6 @@ Proof.
     apply unfold_Ssequence_sound.
 Qed.
 
-
-
-(*
-
-Axiom semax_ext:
-  forall  (Espec : OracleKind)
-         (ext_link: Strings.String.string -> ident)
-         (id : Strings.String.string) (ids : list ident) (sig : funsig) (sig' : signature)
-         cc A P Q NEP NEQ (fs : funspecs),
-  let f := mk_funspec sig cc A P Q NEP NEQ in
-  In (ext_link id,f) fs ->
-  funspecs_norepeat fs ->
-  ids = fst (split (fst sig)) ->
-  sig' = funsig2signature sig cc ->
-  @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
-
-Axiom semax_ext_void:
-  forall  (Espec : OracleKind)
-         (ext_link: Strings.String.string -> ident)
-         (id : Strings.String.string) (ids : list ident) sig (sig' : signature)
-         cc A P Q NEP NEQ (fs : funspecs),
-  let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
-  In (ext_link id,f) fs ->
-  funspecs_norepeat fs ->
-  ids = fst (split sig) ->
-  sig' = mksignature (map typ_of_type (map snd sig)) None cc ->
-  @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
-
-Axiom semax_external_FF:
- forall Espec ids ef A,
-  @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
-
-*)
 End GenMetaRules.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
