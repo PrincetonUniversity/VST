@@ -2222,6 +2222,10 @@ Proof.
   congruence.
 Qed.
 
+Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
+
+Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
+
 End GenMetaRules.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
