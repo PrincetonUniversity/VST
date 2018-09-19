@@ -129,7 +129,7 @@ Ltac induction_stmt s :=
 
 Module GenMetaRules
        (CSL_Def0: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSL_MCSL: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def0):
+       (CSL_MCSL: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def0) <:
        PRACTICAL_CLIGHT_SEPARATION_LOGIC.
 
 Module AuxDefs.
@@ -1739,7 +1739,7 @@ Proof.
       apply andp_ENTAIL; [| apply later_ENTAIL, andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL |] |] ].
       * unfold local, lift1; intro rho; simpl; normalize.
         destruct H1; split; auto.
-        eapply semax_straight.typeof_temp_sub; eauto.
+        eapply assert_lemmas.typeof_temp_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
         apply assert_lemmas.tc_lvalue_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
@@ -1754,7 +1754,7 @@ Proof.
       * unfold local, lift1; intro rho; simpl; normalize.
         destruct H1; split; auto.
         destruct H2; split; auto.
-        eapply semax_straight.typeof_temp_sub; eauto.
+        eapply assert_lemmas.typeof_temp_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
         apply assert_lemmas.tc_lvalue_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
@@ -1782,28 +1782,28 @@ Proof.
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply semax_conseq.allp_fun_id_sub; auto.
+      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H1].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply semax_conseq.allp_fun_id_sub; auto.
+      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H2].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply semax_conseq.allp_fun_id_sub; auto.
+      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H3].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply semax_conseq.allp_fun_id_sub; auto.
+      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
     - intros.
       eapply derives_trans; [| apply H4].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply semax_conseq.allp_fun_id_sub; auto.
+      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
 Lemma semax_loop_nocontinue:
@@ -2229,8 +2229,3 @@ Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
 End GenMetaRules.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)
-
-
-
-Require VST.veric.SeparationLogicSoundness.
-Export SeparationLogicSoundness.SoundSeparationLogic.MCSL.

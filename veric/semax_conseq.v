@@ -407,51 +407,6 @@ Proof.
   apply _guard_except_0.
 Qed.
 
-Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
-(ALL id : ident ,
- (ALL fs : funspec ,
-  !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_at fs (b, 0)))).
-
-Lemma corable_allp_fun_id: forall Delta rho,
-  corable (allp_fun_id Delta rho).
-Proof.
-  intros.
-  apply corable_allp; intros id.
-  apply corable_allp; intros fs.
-  apply corable_imp; [apply corable_prop |].
-  apply corable_exp; intros b.
-  apply corable_andp; [apply corable_prop |].
-  apply corable_func_at.
-Qed.
-  
-Lemma allp_fun_id_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
-  allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
-Proof.
-  intros.
-  unfold allp_fun_id.
-  apply allp_derives; intros id.
-  apply allp_derives; intros fs.
-  apply imp_derives; auto.
-  intros ? ?; simpl in *.
-  destruct H as [_ [_ [_ [_ [? _]]]]].
-  specialize (H id).
-  hnf in H.
-  rewrite H0 in H.
-  destruct ((glob_specs Delta') ! id); [| tauto].
-  auto.
-Qed.
-
-Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
-  funassert Delta' rho |-- allp_fun_id Delta rho.
-Proof.
-  intros.
-  apply andp_left1.
-  apply allp_fun_id_sub; auto.
-Qed.
-
 Lemma _guard_allp_fun_id:
   forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) f k,
     tycontext_sub Delta Delta' ->

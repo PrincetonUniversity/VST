@@ -657,12 +657,6 @@ Proof.
         auto.
 Qed.
 
-Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
- match (temp_types Delta) ! id with
- | Some t => Some t
- | None => None
- end.
-
 Lemma semax_set_forward':
 forall (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
@@ -998,22 +992,6 @@ left. unfold modifiedvars. simpl.
  unfold insert_idset; rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. rewrite Hge. simpl. auto.
-Qed.
-
-Lemma typeof_temp_sub:
- forall (Delta Delta': tycontext),
-    tycontext_sub Delta Delta' ->
-   forall i t,
-    typeof_temp Delta i = Some t ->
-    typeof_temp Delta' i = Some t.
-Proof.
-intros.
-destruct H as [? _].
-specialize (H i).
-unfold typeof_temp in *.
-destruct ((temp_types Delta) ! i); inv H0.
-destruct ((temp_types Delta') ! i); try contradiction.
-destruct H; subst; auto.
 Qed.
 
 Lemma eval_cast_Vundef:
