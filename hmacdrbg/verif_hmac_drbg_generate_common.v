@@ -726,7 +726,7 @@ field_at shc t_struct_hmac256drbg_context_st [StructField _md_ctx]
    (field_at shc t_struct_hmac256drbg_context_st
       [StructField _reseed_interval] (Vint (Int.repr reseed_interval1))
       (Vptr b i) * (data_at shc t_struct_mbedtls_md_info Info mc1 * emp))))) *
-(md_full shc key1 (mc1, (mc2, mc3)) *
+(md_full Ews key1 (mc1, (mc2, mc3)) *
  (da_emp sha (tarray tuchar (Zlength contents))
     (map Vint (map Int.repr contents)) additional *
   (K_vector gv *
@@ -753,7 +753,7 @@ field_at shc t_struct_hmac256drbg_context_st [StructField _reseed_counter]
      ((EX a : hmac256drbgstate,
        !! (WF (hmac256drbgabs_generate I s out_len contents')/\ fst a =(mc1, (mc2, mc3)))&&
        data_at shc t_struct_hmac256drbg_context_st a (Vptr b i) *
-       hmac256drbg_relate shc (hmac256drbgabs_generate I s out_len contents') a *
+       hmac256drbg_relate (hmac256drbgabs_generate I s out_len contents') a *
        data_at shc t_struct_mbedtls_md_info Info
          (hmac256drbgstate_md_info_pointer a) * K_vector gv))). (*
      AREP gv (hmac256drbgabs_generate I s out_len contents') (Vptr b i)) *
@@ -1383,7 +1383,7 @@ Proof. intros.
      (map Vint
         (map Int.repr (sublist 0 done (snd (HLP done)))) ++
       list_repeat (Z.to_nat (out_len - done)) Vundef) output;
-   UNDER_SPEC.FULL shc key0 mc3; K_vector gv))).
+   UNDER_SPEC.FULL Ews key0 mc3; K_vector gv))).
     {
       (* md_len < left *)
       forward.

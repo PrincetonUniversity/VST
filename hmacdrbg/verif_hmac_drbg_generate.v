@@ -763,7 +763,7 @@ Proof.
      (Vint (Int.repr entropy_len),
      (Val.of_bool prediction_resistance,
      Vint (Int.repr reseed_interval))))))  (*ctx*)(Vptr b i);
-      md_full shc key (*md_ctx'*)(mc1, (mc2, mc3));
+      md_full Ews key (*md_ctx'*)(mc1, (mc2, mc3));
       data_at shc t_struct_mbedtls_md_info Info (*(fst md_ctx')*) mc1;
       Stream s; K_vector gv)
     ).
@@ -930,7 +930,7 @@ Proof.
         data_at_ sho (tarray tuchar out_len) output *
         da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
         data_at shc t_struct_mbedtls_md_info Info mc1 * K_vector gv *
-        md_full shc key1 (mc1, (mc2, mc3)) *
+        md_full Ews key1 (mc1, (mc2, mc3)) *
         Stream stream1))).
 
   { (*Case should_reseed = true*)
@@ -1088,7 +1088,7 @@ Proof.
    SEP (FRZL FR3; K_vector gv;
    da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
     data_at shc t_struct_hmac256drbg_context_st ctx2 (Vptr b i) *
-    md_full shc key2 (mc1, (mc2, mc3))))).
+    md_full Ews key2 (mc1, (mc2, mc3))))).
    { rewrite H in *. subst na.
      destruct should_reseed; simpl in PRS, H. rewrite andb_false_r in H; discriminate.
      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in H.

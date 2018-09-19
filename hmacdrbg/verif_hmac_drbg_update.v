@@ -26,7 +26,7 @@ Lemma BDY_update: forall
 (H1 : add_len = Zlength contents \/ add_len = 0)
 (H2 : Forall general_lemmas.isbyteZ (hmac256drbgabs_value initial_state_abs))
 (H3 : Forall general_lemmas.isbyteZ contents)
-(Hsha: writable_share sha)
+(Hsha: readable_share sha)
 (Hshc: writable_share shc),
 @semax hmac_drbg_compspecs.CompSpecs Espec
  (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
@@ -40,7 +40,7 @@ Lemma BDY_update: forall
    da_emp sha (tarray tuchar (Zlength contents))
      (map Vint (map Int.repr contents)) additional;
    data_at shc t_struct_hmac256drbg_context_st initial_state ctx;
-   hmac256drbg_relate shc initial_state_abs initial_state;
+   hmac256drbg_relate initial_state_abs initial_state;
    data_at shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer initial_state); K_vector gv))
   (Ssequence (fn_body f_mbedtls_hmac_drbg_update) (Sreturn None))
@@ -264,7 +264,7 @@ Proof. intros.
       temp _ctx ctx; lvar _K (tarray tuchar (Zlength V)) K;
       lvar _sep (tarray tuchar 1) sep; temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvars gv)
-      SEP  (md_relate shc (UNDER_SPEC.hABS key (V ++ [i] ++ (if na then contents else nil))) (*md_ctx*)(IS1a, (IS1b, IS1c));
+      SEP  (md_relate Ews (UNDER_SPEC.hABS key (V ++ [i] ++ (if na then contents else nil))) (*md_ctx*)(IS1a, (IS1b, IS1c));
       (data_at shc t_struct_md_ctx_st (*md_ctx*)(IS1a, (IS1b, IS1c))
           (field_address t_struct_hmac256drbg_context_st
              [StructField _md_ctx] ctx));
@@ -333,11 +333,11 @@ Proof. intros.
     rewrite data_at_isptr with (p:=K). Intros.
     apply vst_lemmas.isptrD in PK; destruct PK as [sk [ik HK]]; subst K.
     thaw FR9.
-    replace_SEP 1 (UNDER_SPEC.EMPTY shc (snd (snd (*md_ctx*)(IS1a, (IS1b, IS1c))))) by (entailer!; apply UNDER_SPEC.FULL_EMPTY).
+    replace_SEP 1 (UNDER_SPEC.EMPTY Ews (snd (snd (*md_ctx*)(IS1a, (IS1b, IS1c))))) by (entailer!; apply UNDER_SPEC.FULL_EMPTY).
 
     (* mbedtls_md_hmac_starts( &ctx->md_ctx, K, md_len ); *)
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx, shc,
-                       (*md_ctx*)(IS1a, (IS1b, IS1c)), shc,
+                       (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        (Zlength (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)),
                        HMAC256 (V ++ [i] ++ (if na then contents else [])) key, sk, ik, Tsh, gv). 
     {
@@ -348,7 +348,7 @@ Proof. intros.
     }
 (*   rewrite <- (data_at_share_join _ _ _ _ _ _ (join_comp_Tsh Ews)); cancel. *)
     {
-      split3; auto. split; auto. split.
+      split3; auto. split.
       + (* prove that output of HMAC can serve as its key *)
         unfold spec_hmac.has_lengthK; simpl.
         repeat split; try reflexivity; rewrite hmac_common_lemmas.HMAC_Zlength;

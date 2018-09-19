@@ -159,7 +159,7 @@ Definition hmac_drbg_seed_simple_spec :=
                    => let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                       !!(ret_value = Int.zero) 
                       && data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                         hmac256drbg_relate Ews (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
+                         hmac256drbg_relate (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
                          Stream (snd handle_ss) 
                 end).
 
@@ -211,9 +211,9 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), Ews, 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
+  forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { simpl. cancel. }
-  { split3; auto. split3; auto.  red. simpl. rewrite int_max_signed_eq.
+  { split3; auto. split; auto.  red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
     replace (2^64) with 18446744073709551616. omega. reflexivity.
     apply isbyteZ_initialKey.
@@ -268,7 +268,7 @@ Proof.
   specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
-         hmac256drbg_relate Ews myABS ST).
+         hmac256drbg_relate myABS ST).
   { entailer!. thaw INI. clear - FC_V IB1. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     unfold_data_at 2%nat. 
@@ -409,7 +409,7 @@ Definition hmac_drbg_seed_full_spec :=
                                        (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000)))))) in
                        let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                     hmac256drbg_relate Ews CTXFinal CtxFinal))
+                                     hmac256drbg_relate CTXFinal CtxFinal))
 
                    else match mbedtls_HMAC256_DRBG_instantiate_function s entlen pr_flag
                                        (contents_with_add data (Zlength Data) Data)
@@ -423,13 +423,13 @@ Definition hmac_drbg_seed_full_spec :=
                                                 (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000)))))) in
                                        let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                       hmac256drbg_relate Ews CTXFinal CtxFinal))
+                                       hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
                                     match handle with ((((newV, newK), newRC), newEL), newPR) =>
                                       let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                                       let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in
                                     data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                    hmac256drbg_relate Ews CTXFinal CtxFinal *
+                                    hmac256drbg_relate CTXFinal CtxFinal *
                                     Stream ss end
                         end
                 end).
@@ -482,9 +482,9 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), Ews, 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
+  forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { simpl. cancel. }
-  { split3; auto. split3; auto.  red. simpl. rewrite int_max_signed_eq.
+  { split3; auto. split; auto.  red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
     replace (2^64) with 18446744073709551616. omega. reflexivity.
     apply isbyteZ_initialKey.
@@ -540,7 +540,7 @@ Proof.
   specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
-         hmac256drbg_relate Ews myABS ST).
+         hmac256drbg_relate myABS ST).
   { entailer!. thaw INI. clear - FC_V IB1. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     unfold_data_at 2%nat. 
@@ -720,7 +720,7 @@ Definition hmac_drbg_seed_spec :=
                                        (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
                        let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                     hmac256drbg_relate Ews CTXFinal CtxFinal))
+                                     hmac256drbg_relate CTXFinal CtxFinal))
 
                    else let myABS := HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000
                       in match mbedtls_HMAC256_DRBG_reseed_function s myABS
@@ -735,13 +735,13 @@ Definition hmac_drbg_seed_spec :=
                                                 (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
                                        let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                       hmac256drbg_relate Ews CTXFinal CtxFinal))
+                                       hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
                                     match handle with ((((newV, newK), newRC), newEL), newPR) =>
                                       let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                                       let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in
                                     data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                    hmac256drbg_relate Ews CTXFinal CtxFinal *
+                                    hmac256drbg_relate CTXFinal CtxFinal *
                                     Stream ss end
                         end
                 end).
@@ -796,12 +796,12 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
-  forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), Ews, 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
+  forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { rewrite ZL_VV, ptrofs_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
   { simpl. cancel. }
-  { split3; auto. split3; auto. red. simpl. rewrite int_max_signed_eq, ZL_VV.
+  { split3; auto. split; auto. red. simpl. rewrite int_max_signed_eq, ZL_VV.
     split. trivial. split. omega. rewrite two_power_pos_equiv. 
     change (2^64) with 18446744073709551616. omega.
   }
@@ -862,7 +862,7 @@ Proof.
   specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
-         hmac256drbg_relate Ews myABS ST).
+         hmac256drbg_relate myABS ST).
   { go_lower. thaw INI. clear KVStreamInfoDataFreeBlk. thaw FR_CTX.
     unfold_data_at 2%nat.
     subst ST; simpl. cancel. normalize.

@@ -65,7 +65,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional (s
   (entropy_bytes : list Z)
   (s0 : ENTROPY.stream)
   (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s)
-  (Hsha: writable_share sha)
+  (Hsha: readable_share sha)
   (Hshc: writable_share shc),
 @semax hmac_drbg_compspecs.CompSpecs Espec
   (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
@@ -80,7 +80,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional (s
      (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))
      (offset_val entropy_len seed);
    da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-   md_full shc key md_ctx';
+   md_full Ews key md_ctx';
    data_at shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer
         (md_ctx',
@@ -393,7 +393,7 @@ Proof.
   }
   {
     (* prove the PROP clauses *)
-    simpl in *. repeat split; trivial; try omega. (*
+    simpl in *. repeat split; auto; try omega. (*
     rewrite H2 in *;*) rep_omega.
     left; rewrite Zlength_app, ZLbytes; trivial.
     { apply isbyteZ_app; try assumption.

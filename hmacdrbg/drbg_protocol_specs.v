@@ -25,7 +25,7 @@ Definition REP sh gv (Info:md_info_state) (A:hmac256drbgabs) (v: val): mpred :=
   EX a:hmac256drbgstate, 
        (!! WF A) &&
           data_at sh t_struct_hmac256drbg_context_st a v
-          * hmac256drbg_relate sh A a
+          * hmac256drbg_relate A a
           * data_at sh t_struct_mbedtls_md_info Info (hmac256drbgstate_md_info_pointer a)
           * spec_sha.K_vector gv.
 
@@ -45,7 +45,7 @@ Definition seedbufREP sh gv (Info:md_info_state) (info:val) (A:hmac256drbgabs) (
          RI_range (hmac256drbgabs_reseed_interval A) /\
          0 <= hmac256drbgabs_reseed_counter A < Int.max_signed)
      && data_at sh t_struct_hmac256drbg_context_st a v
-          * hmac256drbg_relate sh A a
+          * hmac256drbg_relate A a
           * data_at sh t_struct_mbedtls_md_info Info info
           * spec_sha.K_vector gv.
 
@@ -107,7 +107,7 @@ Definition drbg_seed_buf_abs_spec :=
             else match I with HMAC256DRBGabs key V RC EL PR RI =>
                  EX KEY:list Z, EX VAL:list Z, EX p:val, EX mds:mdstate,
                  !!(hmacdrbg.HMAC256_DRBG_functional_prog.HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                 && md_full sh key mds * malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
+                 && md_full Ews key mds * malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                  REP sh gv Info (HMAC256DRBGabs KEY VAL RC EL PR RI) ctx end).
 
 Definition drbg_setPredictionResistance_spec_abs :=
@@ -152,56 +152,56 @@ Definition drbg_setReseedInterval_spec_abs :=
 
 Definition drbg_update_abs_spec :=
   DECLARE _mbedtls_hmac_drbg_update
-   WITH sh: share, contents: list Z,
-        additional: val, add_len: Z,
-        ctx: val, I: hmac256drbgabs,
+   WITH contents: list Z,
+        additional: val, sha: share, add_len: Z,
+        ctx: val, shc: share, I: hmac256drbgabs,
         gv: globals
      PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st),
            _additional OF (tptr tuchar), _add_len OF tuint ]
-       PROP (writable_share sh; 0 <= add_len <= Int.max_unsigned;
+       PROP (readable_share sha; writable_share shc; 0 <= add_len <= Int.max_unsigned;
              add_len = Zlength contents \/ add_len = 0;
              Forall isbyteZ contents)
        LOCAL (temp _ctx ctx;
               temp _additional additional;
               temp _add_len (Vint (Int.repr add_len));
               gvars gv)
-       SEP (AREP sh gv I ctx;
-            da_emp sh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional)
+       SEP (AREP shc gv I ctx;
+            da_emp sha (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional)
     POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (AREP sh gv (hmac256drbgabs_hmac_drbg_update I (contents_with_add additional add_len contents)) ctx;
-            da_emp sh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional).
+       SEP (AREP shc gv (hmac256drbgabs_hmac_drbg_update I (contents_with_add additional add_len contents)) ctx;
+            da_emp sha (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional).
 
 Definition drbg_reseed_spec_abs :=
   DECLARE _mbedtls_hmac_drbg_reseed
-   WITH sh: share, contents: list Z,
-        additional: val, add_len: Z,
-        ctx: val, I: hmac256drbgabs,
+   WITH contents: list Z,
+        additional: val, sha: share, add_len: Z,
+        ctx: val, shc: share, I: hmac256drbgabs,
         s: ENTROPY.stream, gv: globals
     PRE [ _ctx OF (tptr t_struct_hmac256drbg_context_st), _additional OF (tptr tuchar), _len OF tuint ]
-       PROP (writable_share sh; 0 <= add_len <= Int.max_unsigned;
+       PROP (readable_share sha; writable_share shc; 0 <= add_len <= Int.max_unsigned;
              add_len = Zlength contents;
              0 < hmac256drbgabs_entropy_len I + Zlength (contents_with_add additional add_len contents) < Int.modulus;         
              Forall isbyteZ contents)
        LOCAL (temp _ctx ctx; temp _additional additional; temp _len (Vint (Int.repr add_len)); gvars gv)
-       SEP ( da_emp sh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-              AREP sh gv I ctx; Stream s)
+       SEP ( da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
+              AREP shc gv I ctx; Stream s)
     POST [ tint ]
        EX rv:_,
        PROP ()
        LOCAL (temp ret_temp rv)
        SEP (if ((zlt 256 add_len) || (zlt 384 (hmac256drbgabs_entropy_len I + add_len)))%bool
   then (!!(rv = Vint (Int.neg (Int.repr 5))) &&
-       (da_emp sh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
-         AREP sh gv I ctx * Stream s))
+       (da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
+         AREP shc gv I ctx * Stream s))
   else (let F := mbedtls_HMAC256_DRBG_reseed_function s I (contents_with_add additional add_len contents)
         in !!(return_value_relate_result F rv)
-           && AREP sh gv ((*match F with ENTROPY.error _ _ => I | 
+           && AREP shc gv ((*match F with ENTROPY.error _ _ => I | 
                   ENTROPY.success (V, K, rc, _, pr) _ => HMAC256DRBGabs K V rc (hmac256drbgabs_entropy_len I) pr
                                 (hmac256drbgabs_reseed_interval I) end*)
                      (hmac256drbgabs_reseed I s (contents_with_add additional add_len contents))) ctx *
-              da_emp Ews (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
+              da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
               Stream (get_stream_result F))).
 
 Definition generate_absPOST ret_value contents additional sha add_len output sho out_len ctx shc I gv s :=
@@ -236,7 +236,7 @@ Definition hmac_drbg_generate_abs_spec :=
         s: ENTROPY.stream, gv: globals
     PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, 
           _additional OF (tptr tuchar), _add_len OF tuint ]
-       PROP (writable_share sha; writable_share shc; writable_share sho;
+       PROP (readable_share sha; writable_share shc; writable_share sho;
              0 <= add_len <= Int.max_unsigned;
              0 <= out_len <= Int.max_unsigned;
              add_len = Zlength contents;

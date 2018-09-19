@@ -32,7 +32,7 @@ Proof.
     { entailer!. (*unfold_data_at 1%nat. simpl. entailer.*) }
     forward_if.
     + elim H; trivial.
-    + clear H. Intros. subst shc.
+    + clear H. Intros.
       destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
       unfold_data_at 1%nat.
@@ -43,15 +43,15 @@ Proof.
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H1 as [xx XX]. 
-      forward_call (Vptr b i, (v, (v0, v1)), Ews). {
+      forward_call (Vptr b i, (v, (v0, v1)), shc). {
          change (Tstruct _hmac_ctx_st noattr) with spec_hmac.t_struct_hmac_ctx_st.
          simpl; cancel. } 
-      replace_SEP 0 (memory_block Ews 12 (Vptr b i)).
-            { specialize (data_at_memory_block Ews t_struct_md_ctx_st xx); simpl; intros.
+      replace_SEP 0 (memory_block shc 12 (Vptr b i)).
+            { specialize (data_at_memory_block shc t_struct_md_ctx_st xx); simpl; intros.
               entailer. apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
               apply andp_left2. apply H1. }
       freeze [0;1] FR1.
-      replace_SEP 0 (data_at_ Ews (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
+      replace_SEP 0 (data_at_ shc (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
               entailer. rewrite data_at__memory_block.
               apply andp_right. apply prop_right.
@@ -60,7 +60,7 @@ Proof.
                split3; auto. split3; auto.
               apply align_compatible_rec_Tarray. intros.
               eapply align_compatible_rec_by_value. reflexivity. simpl. apply Z.divide_1_l.
-              simpl. specialize (memory_block_split Ews b (Ptrofs.unsigned i) 12 48); simpl.
+              simpl. specialize (memory_block_split shc b (Ptrofs.unsigned i) 12 48); simpl.
               rewrite Ptrofs.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
               cancel.
               2:{ unfold field_compatible in *. simpl in *.
@@ -73,13 +73,13 @@ Proof.
                eapply sepcon_derives. apply field_at_field_at_. apply derives_refl.
                repeat rewrite field_at__memory_block. simpl.
                unfold field_address. repeat rewrite if_true. simpl. rewrite  <- ptrofs_add_repr.
-               specialize (memory_block_split Ews b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 12). simpl.
-               specialize (memory_block_split Ews b (Ptrofs.unsigned i + 44) 4 12); simpl. rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 44) 4 12); simpl. rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 44). simpl.
-               specialize (memory_block_split Ews b (Ptrofs.unsigned i + 48) 4 8); simpl. rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 48) 4 8); simpl. rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 48). simpl.
-               specialize (memory_block_split Ews b (Ptrofs.unsigned i + 52) 4 4); simpl. rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 52) 4 4); simpl. rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel.
                rewrite <- (Zplus_assoc _ 52). simpl. rewrite <- ptrofs_add_repr. rewrite Ptrofs.repr_unsigned. cancel.
                destruct FC; simpl in *; omega.
@@ -90,7 +90,7 @@ Proof.
                        repeat first [left; solve [trivial] | right].
             }
       clear FR1. clear FR.
-      forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i, Ews).
+      forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i, shc).
       forward. apply tt.
 Qed.
 
@@ -133,7 +133,7 @@ Definition hmac_drbg_random_spec_simple :=
        SEP (
          data_at_ Ews (tarray tuchar n) output;
          data_at Ews t_struct_hmac256drbg_context_st i ctx;
-         hmac256drbg_relate Ews I i;
+         hmac256drbg_relate I i;
          data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
          Stream s;
          K_vector gv)
@@ -145,7 +145,7 @@ Definition hmac_drbg_random_spec_simple :=
        LOCAL (temp ret_temp (Vint Int.zero))
        SEP (data_at Ews (tarray tuchar n) (map Vint (map Int.repr bytes)) output;
             data_at Ews t_struct_hmac256drbg_context_st f ctx;
-         hmac256drbg_relate Ews F f;
+         hmac256drbg_relate F f;
          data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer f);
         Stream ss; K_vector gv).
 

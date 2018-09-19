@@ -62,12 +62,12 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs.  apply derives_refl.
   }
-  forward_call (Vptr b i, shc, (((*M1*)info,(M2,p)):mdstate), Ews, 32, V, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
+  forward_call (Vptr b i, shc, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
   (*{ rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }*)
   { rewrite lenV; simpl. cancel. }
-  { split; auto. split3; auto. split; auto. split3; auto.
+  { split; auto. split; auto. split; auto. split3; auto.
   }
   Intros.
 
@@ -106,7 +106,7 @@ Proof.
   clear INI. thaw OTHER.
   specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   set (ABS:= HMAC256DRBGabs V (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
-  replace_SEP 1 (hmac256drbg_relate Ews (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
+  replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     apply UNDER_SPEC.REP_FULL.
