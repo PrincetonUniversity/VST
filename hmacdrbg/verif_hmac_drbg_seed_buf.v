@@ -34,7 +34,7 @@ Proof.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
-  Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
+  Time forward_call ((M1,(M2,M3)), Vptr b i, shc, Vint (Int.repr 1), info).
 
   Intros v. rename H into Hv. simpl.
   freeze [0] FR1.
@@ -57,26 +57,24 @@ Proof.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
 (*  rewrite <- lenV.*)
   freeze [0;2;5;6;7] FR2.
-  replace_SEP 1 (UNDER_SPEC.EMPTY p).
+  replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs.  apply derives_refl.
   }
-  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), gv).
+  forward_call (Vptr b i, shc, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
   (*{ rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }*)
   { rewrite lenV; simpl. cancel. }
-  { split; trivial. red. simpl. rewrite int_max_signed_eq, lenV.
-    split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616 by reflexivity. omega.
+  { split; auto. split; auto. split; auto. split3; auto.
   }
   Intros.
 
   forward_call tt.
 
   freeze [0;1;3;4] FR3. rewrite lenV.
-  forward_call (Tsh, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
+  forward_call (shc, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel. 
     eapply derives_trans. apply data_at_memory_block. simpl sizeof. cancel.
   }
@@ -95,7 +93,7 @@ Proof.
   destruct H as [xx XX].
 
   replace_SEP 0
-    (data_at Tsh t_struct_hmac256drbg_context_st xx (Vptr b i)).
+    (data_at shc t_struct_hmac256drbg_context_st xx (Vptr b i)).
   { entailer. unfold_data_at 1%nat.
     thaw INI.
     rewrite field_at_data_at. unfold field_address. rewrite if_true. 2: assumption.
@@ -114,7 +112,7 @@ Proof.
     apply UNDER_SPEC.REP_FULL.
   }
 
-  forward_call (Data, data, d_len, Vptr b i, xx, ABS, Info, gv).
+  forward_call (Data, data, shd,  d_len, Vptr b i, shc, xx, ABS, Info, gv).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. (*thanks to "M1==info"*)
   }
   { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.

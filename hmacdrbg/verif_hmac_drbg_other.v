@@ -39,19 +39,19 @@ Proof.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
       destruct C1 as [? [? ?]]. rewrite field_at_data_at. simpl.
       unfold field_address. rewrite if_true. simpl. rewrite Ptrofs.add_zero. 2: trivial.
-      unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY v1).
+      unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY Ews v1).
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H1 as [xx XX]. 
-      forward_call (Vptr b i, (v, (v0, v1))). {
+      forward_call (Vptr b i, (v, (v0, v1)), shc). {
          change (Tstruct _hmac_ctx_st noattr) with spec_hmac.t_struct_hmac_ctx_st.
          simpl; cancel. } 
-      replace_SEP 0 (memory_block Tsh 12 (Vptr b i)).
-            { specialize (data_at_memory_block Tsh t_struct_md_ctx_st xx); simpl; intros.
+      replace_SEP 0 (memory_block shc 12 (Vptr b i)).
+            { specialize (data_at_memory_block shc t_struct_md_ctx_st xx); simpl; intros.
               entailer. apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
               apply andp_left2. apply H1. }
       freeze [0;1] FR1.
-      replace_SEP 0 (data_at_ Tsh (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
+      replace_SEP 0 (data_at_ shc (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
               entailer. rewrite data_at__memory_block.
               apply andp_right. apply prop_right.
@@ -60,7 +60,7 @@ Proof.
                split3; auto. split3; auto.
               apply align_compatible_rec_Tarray. intros.
               eapply align_compatible_rec_by_value. reflexivity. simpl. apply Z.divide_1_l.
-              simpl. specialize (memory_block_split Tsh b (Ptrofs.unsigned i) 12 48); simpl.
+              simpl. specialize (memory_block_split shc b (Ptrofs.unsigned i) 12 48); simpl.
               rewrite Ptrofs.repr_unsigned; intros XX; rewrite XX; clear XX; try omega.
               cancel.
               2:{ unfold field_compatible in *. simpl in *.
@@ -73,13 +73,13 @@ Proof.
                eapply sepcon_derives. apply field_at_field_at_. apply derives_refl.
                repeat rewrite field_at__memory_block. simpl.
                unfold field_address. repeat rewrite if_true. simpl. rewrite  <- ptrofs_add_repr.
-               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 12). simpl.
-               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 44) 4 12); simpl. rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 44) 4 12); simpl. rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 44). simpl.
-               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 48) 4 8); simpl. rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 48) 4 8); simpl. rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel. rewrite <- (Zplus_assoc _ 48). simpl.
-               specialize (memory_block_split Tsh b (Ptrofs.unsigned i + 52) 4 4); simpl. rewrite <- ptrofs_add_repr.
+               specialize (memory_block_split shc b (Ptrofs.unsigned i + 52) 4 4); simpl. rewrite <- ptrofs_add_repr.
                intros XX; rewrite XX; clear XX; try omega. rewrite Ptrofs.repr_unsigned. cancel.
                rewrite <- (Zplus_assoc _ 52). simpl. rewrite <- ptrofs_add_repr. rewrite Ptrofs.repr_unsigned. cancel.
                destruct FC; simpl in *; omega.
@@ -90,7 +90,7 @@ Proof.
                        repeat first [left; solve [trivial] | right].
             }
       clear FR1. clear FR.
-      forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i).
+      forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i, shc).
       forward. apply tt.
 Qed.
 
@@ -102,12 +102,11 @@ Proof.
   rename H into ASS1. rename H0 into ASS2. rename H1 into ASS3.
   rename H2 into ASS4. rename H3 into ASS5. rename H4 into ASS6.
   forward.  
-  forward_call (@nil Z, nullval, Z0, output, out_len, ctx, initial_state,
+  forward_call (@nil Z, nullval, Tsh, Z0, output, sho, out_len, ctx, shc, initial_state,
                I, info_contents, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try omega).
-    constructor. }
+    repeat (split; auto; try omega). }
   Intros v. forward. simpl. Exists (Vint v). entailer!.
 Qed.
 
@@ -132,10 +131,10 @@ Definition hmac_drbg_random_spec_simple :=
        LOCAL (temp _p_rng ctx; temp _output output;
               temp _out_len (Vint (Int.repr n)); gvars gv)
        SEP (
-         data_at_ Tsh (tarray tuchar n) output;
-         data_at Tsh t_struct_hmac256drbg_context_st i ctx;
+         data_at_ Ews (tarray tuchar n) output;
+         data_at Ews t_struct_hmac256drbg_context_st i ctx;
          hmac256drbg_relate I i;
-         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
+         data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
          Stream s;
          K_vector gv)
     POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate, 
@@ -144,10 +143,10 @@ Definition hmac_drbg_random_spec_simple :=
                         (hmac256drbgabs_reseed_interval I)
                       end) 
        LOCAL (temp ret_temp (Vint Int.zero))
-       SEP (data_at Tsh (tarray tuchar n) (map Vint (map Int.repr bytes)) output;
-            data_at Tsh t_struct_hmac256drbg_context_st f ctx;
+       SEP (data_at Ews (tarray tuchar n) (map Vint (map Int.repr bytes)) output;
+            data_at Ews t_struct_hmac256drbg_context_st f ctx;
          hmac256drbg_relate F f;
-         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer f);
+         data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer f);
         Stream ss; K_vector gv).
 
 Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
@@ -170,12 +169,11 @@ Proof.
   destruct H as [ASS1 [ASS2 [ASS3 [ASS4 ASS5]]]].
   destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
   forward.
-  forward_call (@nil Z, nullval, Z0, output, n, ctx, i,
+  forward_call (@nil Z, nullval, Tsh, Z0, output, Ews, n, ctx, Ews, i,
                 I, info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
-    repeat (split; try assumption; try rep_omega).
-    constructor.  }
+    repeat (split; auto; try rep_omega). }
   Intros v. forward. unfold hmac256drbgabs_common_mpreds.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
@@ -212,19 +210,19 @@ Definition hmac_drbg_random_spec_simple :=
        LOCAL (temp _p_rng ctx; temp _output output;
               temp _out_len (Vint (Int.repr out_len)); gvar sha._K256 kv)
        SEP (
-         data_at_ Tsh (tarray tuchar out_len) output;
-         data_at Tsh t_struct_hmac256drbg_context_st i ctx;
+         data_at_ Ews (tarray tuchar out_len) output;
+         data_at Ews t_struct_hmac256drbg_context_st i ctx;
          hmac256drbg_relate I i;
-         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
+         data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
          Stream s;
          K_vector kv)
     POST [ tint ] EX final_state: hmac256drbgstate,
        PROP (final_state = hmac256drbgabs_to_state (hmac256drbgabs_generate I s out_len []) i)
        LOCAL (temp ret_temp (Vint Int.zero))
-       SEP (data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output;
-            data_at Tsh t_struct_hmac256drbg_context_st final_state ctx;
+       SEP (data_at Ews (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output;
+            data_at Ews t_struct_hmac256drbg_context_st final_state ctx;
          hmac256drbg_relate (hmac256drbgabs_generate I s out_len []) final_state;
-         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer final_state);
+         data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer final_state);
         Stream ss; K_vector kv).
 (*
 generatePOST (Vint Int.zero) nil nullval 0 output out_len ctx initial_state I kv info_contents s).
@@ -369,7 +367,7 @@ Lemma body_hmac_drbg_init: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function.
   abbreviate_semax.
-  forward_call (Tsh,c,size_of_HMACDRBGCTX, Int.zero).
+  forward_call (shc,c,size_of_HMACDRBGCTX, Int.zero).
   forward.
 Qed.
 
@@ -385,20 +383,20 @@ Proof.
   (PROP (0<=k<=n )
    LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n-k)));
           temp _v (Vptr b i))
-   SEP (data_at Tsh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
+   SEP (data_at sh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
                                        list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b i)))).
   { Exists 0. rewrite Zminus_0_r. entailer!. }
   eapply semax_seq with (Q:=
          PROP ( )
          LOCAL ()
-         SEP (data_block Tsh (list_repeat (Z.to_nat n) 0) (Vptr b i))).
+         SEP (data_block sh (list_repeat (Z.to_nat n) 0) (Vptr b i))).
   2: solve [unfold MORE_COMMANDS, abbreviate; forward]. 
   apply semax_loop with (
   (EX k : Z,
    PROP (0 <= k <= n)
    LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n - k)));
    temp _v (Vptr b i))
-   SEP (data_at Tsh (tarray tuchar n)
+   SEP (data_at sh (tarray tuchar n)
           (list_repeat (Z.to_nat k) (Vint Int.zero) ++ list_repeat (Z.to_nat (n-k)) Vundef)
           (Vptr b i)))).
   2:{ apply extract_exists_pre. intros k. Intros. forward. entailer.

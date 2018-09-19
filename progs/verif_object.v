@@ -53,12 +53,12 @@ Hint Resolve object_methods_local_facts : saturate_local.
 Definition object_mpred (history: list Z) (self: val) : mpred :=
   EX instance: object_invariant, EX mtable: val, 
        (object_methods instance mtable *
-     field_at Tsh (Tstruct _object noattr) [StructField _mtable] mtable self*
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self*
      instance history self).
 
 Definition foo_invariant : object_invariant :=
   (fun (history: list Z) p =>
-    withspacer Tsh (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Tsh (Tstruct _foo_object noattr) 
+    withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history)))) p
       *  malloc_token Tsh (Tstruct _foo_object noattr) p).
 
@@ -151,7 +151,7 @@ forward_if
   (PROP ( )
    LOCAL (temp _p p; gvars gv)
    SEP (malloc_token Tsh (Tstruct _foo_object noattr) p;
-          data_at_ Tsh (Tstruct _foo_object noattr) p;
+          data_at_ Ews (Tstruct _foo_object noattr) p;
           object_methods foo_invariant (gv _foo_methods))).
 *
 change (Memory.EqDec_val p nullval) with (eq_dec p nullval).

@@ -16,52 +16,104 @@ Proof. eapply mk_listspec; reflexivity. Defined.
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
 Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
-Definition Qsh : share := fst (Share.split Share.Lsh).
-Definition Qsh' := Share.lub (snd (Share.split Share.Lsh)) Share.Rsh.
+Definition Qsh : share := fst (Share.split extern_retainer).
+Definition Qsh' := Share.lub (snd (Share.split extern_retainer)) Share.Rsh.
+
+Lemma writable_share_Qsh': writable_share Qsh'.
+Proof.
+unfold writable_share, Qsh', Ews.
+apply leq_join_sub.
+apply Share.lub_upper2.
+Qed.
 
 Lemma readable_share_Qsh': readable_share Qsh'.
 Proof.
-unfold readable_share, Qsh'.
-rewrite Share.distrib1.
-rewrite Share.glb_idem.
-rewrite Share.lub_commute.
-rewrite Share.lub_absorb.
-apply readable_nonidentity.
-apply writable_readable.
-apply sepalg.join_sub_refl.
-Qed.  (* share hacking *)
+apply writable_readable_share. apply writable_share_Qsh'.
+Qed.
+
+Lemma Qsh_Qsh': sepalg.join Qsh Qsh' Ews.
+Proof.
+unfold Qsh, Qsh', Ews.
+destruct (Share.split extern_retainer) as [a b] eqn:?H.
+simpl.
+pose proof (split_join _ _ _ H).
+destruct H0.
+split.
+rewrite Share.distrib1. rewrite H0.
+rewrite Share.lub_commute, Share.lub_bot.
+rewrite Share.glb_commute.
+apply sub_glb_bot with extern_retainer.
+apply leq_join_sub.
+rewrite <- H1.
+apply Share.lub_upper1.
+unfold extern_retainer.
+apply sub_glb_bot with Share.Lsh.
+exists (snd (Share.split Share.Lsh)).
+destruct (Share.split Share.Lsh) eqn:?H.
+apply split_join; auto.
+apply glb_Rsh_Lsh.
+rewrite <- Share.lub_assoc.
+rewrite H1.
+auto.
+Qed.
 
 Lemma Qsh_not_readable: ~ readable_share Qsh.
 Proof.
-unfold Qsh, readable_share; intro.
-unfold nonempty_share in H.
-apply H; clear H.
-assert (Share.glb Share.Rsh (fst (Share.split Share.Lsh)) = Share.bot).
-apply sub_glb_bot with Share.Lsh.
-exists (snd (Share.split Share.Lsh)).
-apply split_join.
-destruct (Share.split Share.Lsh); reflexivity.
-unfold Share.Rsh, Share.Lsh.
-rewrite Share.glb_commute.
-apply glb_split.
-rewrite H.
-apply bot_identity.
+unfold Qsh.
+apply writable_not_join_readable with Qsh';
+ [ | apply writable_share_Qsh'].
+exists Ews.
+apply sepalg.join_comm.
+apply Qsh_Qsh'.
 Qed.
 
 Hint Resolve Qsh_not_readable.
 
+
 Lemma Qsh_nonempty: Qsh <> Share.bot.
 Proof.
-unfold Qsh; intro.
-destruct (Share.split Share.Lsh) eqn:?H.
-simpl in H.
-apply Share.split_nontrivial in H0; auto.
-unfold Share.Lsh in H0; clear - H0.
-destruct (Share.split Share.top) eqn:?H.
-simpl in H0.
-apply Share.split_nontrivial in H; auto.
-apply Share.nontrivial in H.
-auto.
+pose proof Qsh_Qsh'.
+intro.
+rewrite H0 in H.
+apply sepalg.join_unit1_e in H; [ | apply bot_identity].
+clear H0.
+unfold Qsh', Ews in H.
+apply (f_equal (Share.glb Share.Lsh)) in H.
+rewrite !Share.distrib1 in H.
+rewrite glb_Lsh_Rsh in H.
+rewrite !Share.lub_bot in H.
+destruct (Share.split extern_retainer) as [a b] eqn:?H.
+simpl in *.
+assert (Ha: a <> Share.bot). {
+ intro.
+ pose proof (Share.split_nontrivial _ _ _ H0).
+ spec H2; auto.
+ contradiction juicy_mem.extern_retainer_neq_bot.
+}
+apply split_join in H0.
+destruct H0.
+unfold extern_retainer in *.
+destruct (Share.split Share.Lsh) as [c d] eqn:?H.
+apply split_join in H2.
+destruct H2.
+rewrite <- H3 in *.
+clear H3.
+simpl in *.
+subst c.
+rewrite (Share.glb_commute _ b) in H.
+rewrite Share.distrib1 in H.
+rewrite Share.glb_commute in H2.
+rewrite (Share.lub_commute a b) in H.
+rewrite Share.glb_absorb in H.
+rewrite Share.lub_absorb in H.
+rewrite Share.lub_assoc in H.
+rewrite <- Share.distrib2 in H.
+rewrite Share.glb_commute in H.
+rewrite Share.glb_absorb in H.
+rewrite H in H0.
+rewrite Share.lub_commute in H0.
+rewrite Share.glb_absorb in H0.
+contradiction.
 Qed.
 
 Hint Resolve Qsh_nonempty : valid_pointer.
@@ -76,32 +128,17 @@ Qed.
 
 Hint Resolve Qsh_nonidentity : valid_pointer.
 
-Lemma Qsh_Qsh': sepalg.join Qsh Qsh' Tsh.
+Lemma sub_Qsh_Ews: sepalg.join_sub Qsh Ews.
 Proof.
-unfold Qsh, Qsh', Share.Lsh, Share.Rsh.
-destruct (Share.split Share.top) as [a c] eqn:?H.
-simpl.
-destruct (Share.split a) as [x y] eqn:?H.
-simpl.
-pose proof (Share.split_disjoint x y a H0).
-pose proof (Share.split_disjoint _ _ _ H).
-split.
-rewrite Share.distrib1.
-rewrite H1.
-rewrite Share.lub_commute, Share.lub_bot.
-replace x with (Share.glb x a).
-rewrite Share.glb_assoc. rewrite H2.
-apply Share.glb_bot.
-clear - H0.
-apply split_join in H0. destruct H0.
-subst a.
-apply Share.glb_absorb.
-rewrite <- Share.lub_assoc.
-apply split_join in H0. destruct H0.
-rewrite H3.
-apply split_join in H. destruct H.
-apply H4.
+unfold Qsh, Ews.
+apply sepalg.join_sub_trans with extern_retainer.
+destruct (Share.split extern_retainer) eqn:?H.
+apply split_join in H. exists t0; auto.
+apply leq_join_sub.
+apply Share.lub_upper1.
 Qed.
+
+Hint Resolve sub_Qsh_Ews: valid_pointer.
 
 Lemma field_at_list_cell_weak:
   forall sh i j p,
@@ -128,11 +165,11 @@ Qed.
 
 Lemma make_unmake:
  forall a b p,
- data_at Tsh t_struct_elem (Vint a, (Vint b, Vundef)) p =
+ data_at Ews t_struct_elem (Vint a, (Vint b, Vundef)) p =
  field_at Qsh' t_struct_elem [StructField _a] (Vint a) p *
  field_at Qsh' t_struct_elem [StructField _b] (Vint b) p *
  list_cell QS Qsh (Vundef, Vundef) p *
- field_at_ Tsh t_struct_elem [StructField _next] p.
+ field_at_ Ews t_struct_elem [StructField _next] p.
 Proof.
 intros.
 unfold_data_at 1%nat.
@@ -150,10 +187,10 @@ match goal with |- _ = _ * _ * _ * ?A => change A
   with (field_at_ Qsh t_struct_elem [StructField _next] p)
 end.
 pull_left (list_cell QS Qsh (Vundef, Vundef) p).
-rewrite join_cell_link with (psh:=Tsh) by (auto; try apply Qsh_Qsh'; apply readable_share_Qsh').
+rewrite join_cell_link with (psh:=Ews) by (auto; try apply Qsh_Qsh'; apply readable_share_Qsh').
 subst J.
 match goal with |- _ * _ * ?A = _ => change A
-  with (field_at_ Tsh t_struct_elem [StructField _next] p)
+  with (field_at_ Ews t_struct_elem [StructField _next] p)
 end.
 rewrite field_at_list_cell_weak by auto.
 rewrite sepcon_assoc.
@@ -178,27 +215,26 @@ Definition surely_malloc_spec :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t p * data_at_ Tsh t p).
-
+       SEP (malloc_token Tsh t p * data_at_ Ews t p).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_at Tsh t_struct_elem [StructField _a] (fst rep) p *
-  (field_at Tsh t_struct_elem [StructField _b] (snd rep) p *
-   (field_at_ Tsh t_struct_elem [StructField _next]) p).
+  field_at Ews t_struct_elem [StructField _a] (fst rep) p *
+  (field_at Ews t_struct_elem [StructField _b] (snd rep) p *
+   (field_at_ Ews t_struct_elem [StructField _next]) p).
 
 Definition fifo_body (contents: list val) (hd tl: val) :=
       (if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val,
               !!(contents = prefix++tl::nil)
-            &&  (lseg QS Qsh Tsh prefix hd tl
+            &&  (lseg QS Qsh Ews prefix hd tl
                    * list_cell QS Qsh (Vundef,Vundef) tl
-                   * field_at Tsh t_struct_elem [StructField _next] nullval tl)))%logic.
+                   * field_at Ews t_struct_elem [StructField _next] nullval tl)))%logic.
 
 Definition fifo (contents: list val) (p: val) : mpred :=
   (EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
+      data_at Ews t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
       fifo_body contents hd tl).
 
 Definition fifo_new_spec :=
@@ -216,7 +252,7 @@ Definition fifo_put_spec :=
           PROP () LOCAL (temp _Q q; temp _p p)
           SEP (fifo contents q;
                  list_cell QS Qsh (Vundef, Vundef) p;
-                 field_at_ Tsh t_struct_elem [StructField _next] p)
+                 field_at_ Ews t_struct_elem [StructField _next] p)
   POST [ tvoid ]
           PROP() LOCAL() SEP (fifo (contents++(p :: nil)) q).
 
@@ -240,7 +276,7 @@ Definition fifo_get_spec :=
        LOCAL(temp ret_temp p)
        SEP (fifo contents q;
               list_cell QS Qsh (Vundef, Vundef) p;
-              field_at_ Tsh t_struct_elem [StructField _next] p).
+              field_at_ Ews t_struct_elem [StructField _next] p).
 
 Definition make_elem_spec :=
  DECLARE _make_elem
@@ -254,7 +290,7 @@ Definition make_elem_spec :=
        SEP (field_at Qsh' list_struct [StructField _a] (Vint a) p;
               field_at Qsh' list_struct [StructField _b] (Vint b) p;
               list_cell QS Qsh (Vundef, Vundef) p;
-              field_at_ Tsh t_struct_elem [StructField _next] p;
+              field_at_ Ews t_struct_elem [StructField _next] p;
               malloc_token Tsh t_struct_elem p)).
 
 Definition main_spec :=
@@ -279,7 +315,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh t p * data_at_ Tsh t p)).
+   SEP (malloc_token Tsh t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -493,14 +529,14 @@ forward_call (*  free(p, sizeof( *p)); *)
    (t_struct_elem, p').
 {
  pose (work_around_coq_bug := fifo [p2] q *
-   data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
+   data_at Ews t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2 *
    malloc_token Tsh t_struct_elem p2).
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  rewrite make_unmake; cancel.
  apply derives_trans with
-   (data_at_ Tsh t_struct_elem p' * fold_right_sepcon Frame).
+   (data_at_ Ews t_struct_elem p' * fold_right_sepcon Frame).
  cancel.
  rewrite data_at__memory_block by reflexivity. entailer.
 }

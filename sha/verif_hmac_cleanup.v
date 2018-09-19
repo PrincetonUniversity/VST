@@ -20,7 +20,7 @@ name ctx' _ctx.
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
 Intros hst.
 Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] c) as FCc by entailer!. (*8.7*)
-forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
+forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { eapply derives_trans. apply data_at_data_at_.
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
@@ -35,18 +35,19 @@ rewrite !map_list_repeat.
 Qed.
 
 (*Here's the proof for the alternative specification:*)
-Lemma cleanupbodyproof1 Espec c h :
+Lemma cleanupbodyproof1 Espec wsh c h 
+  (Hwsh: writable_share wsh):
 @semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c)
-   SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))
+   SEP  (EX  key : list Z, hmacstate_PreInitNull wsh key h c))
   (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (PROP  ()
          LOCAL ()
          SEP
-         (data_block Tsh
+         (data_block wsh
             (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) 0)
             c))) emp).
 Proof. abbreviate_semax.
@@ -55,7 +56,7 @@ Intros key.
 unfold hmacstate_PreInitNull, hmac_relate_PreInitNull.
 Intros hst X.
 Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] c) as FCc by entailer!. (*8.9*)
-forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
+forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { eapply derives_trans. apply data_at_data_at_.
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
@@ -73,5 +74,5 @@ Lemma body_hmac_cleanup1: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_cleanup HMAC_Cleanup_spec1.
 Proof.
 start_function.
-apply cleanupbodyproof1.
+apply cleanupbodyproof1; auto.
 Qed.

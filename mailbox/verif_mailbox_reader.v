@@ -15,7 +15,7 @@ Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
   start_function.
   rewrite (data_at_isptr _ tint); Intros.
-  replace_SEP 0 (data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg))).
+  replace_SEP 0 (data_at Ews tint (vint r) (force_val (sem_cast_pointer arg))).
   { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
   forward.
   forward_call (r, reads, lasts, sh1, gv).
@@ -25,8 +25,8 @@ Proof.
   forward_loop (EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; latest_read h (vint b0))
     LOCAL (temp _r (vint r); temp _arg arg; gvars gv)
     SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
-         data_at Tsh tint Empty (Znth r reads); data_at Tsh tint (vint b0) (Znth r lasts);
-         data_at Tsh tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh tint arg;
+         data_at Ews tint Empty (Znth r reads); data_at Ews tint (vint b0) (Znth r lasts);
+         data_at Ews tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh tint arg;
          data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
          data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
          data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);

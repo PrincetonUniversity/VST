@@ -32,14 +32,15 @@ Qed.
 
 Lemma sha256_block_load8:
   forall (Espec : OracleKind)
-     (data: val) (r_h: list int) (ctx: val) gv
+     (data: val) (r_h: list int) (ctx: val) gv (wsh: share)
+   (Hwsh: writable_share wsh)
    (H5 : length r_h = 8%nat),
      semax
          (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _data data; temp _ctx ctx; temp _in data;
                 gvars gv)
-   SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
+   SEP  (field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
      (Ssequence (load8 _c 2)
@@ -61,7 +62,7 @@ Lemma sha256_block_load8:
                 temp _h (Vint (nthi r_h 7));
                 temp _data data; temp _ctx ctx; temp _in data;
                 gvars gv)
-   SEP  (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))).
+   SEP  (field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx))).
 Proof.
 intros.
 unfold load8.
@@ -287,7 +288,7 @@ Qed.
 
 Lemma add_them_back_proof:
   forall (Espec : OracleKind)
-     (regs regs': list int) (ctx: val) gv,
+     (regs regs': list int) (ctx: val) gv (wsh: share) (Hwsh: writable_share wsh),
      length regs = 8%nat ->
      length regs' = 8%nat ->
      semax  (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
@@ -303,11 +304,11 @@ Lemma add_them_back_proof:
                 temp _h  (Vint (nthi regs' 7));
                 gvars gv)
    SEP
-   (field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint regs) ctx))
+   (field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint regs) ctx))
    (sequence add_them_back Sskip)
   (normal_ret_assert
    (PROP() LOCAL(temp _ctx ctx; gvars gv)
-    SEP (field_at Tsh t_struct_SHA256state_st  [StructField _h]
+    SEP (field_at wsh t_struct_SHA256state_st  [StructField _h]
                 (map Vint (map2 Int.add regs regs')) ctx))).
 Proof.
 intros.

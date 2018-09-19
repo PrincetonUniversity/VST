@@ -548,8 +548,8 @@ Definition mkSTREAM1 (should_reseed:bool) s key V reseed_counter entropy_len pre
 *)
 Definition is_multiple (multiple base: Z) : Prop := exists i, multiple = (i * base)%Z.
 
-Lemma entailment1: forall (contents : list Z) (additional output : val)
-  (out_len : Z) (b : block) (i : ptrofs) (mc1 mc2 mc3 : val) (key V : list Z)
+Lemma entailment1: forall (contents : list Z) (additional: val) (sha: share) (output : val) (sho: share)
+  (out_len : Z) (b : block) (i : ptrofs) (shc: share) (mc1 mc2 mc3 : val) (key V : list Z)
   (reseed_counter entropy_len : Z) (prediction_resistance : bool)
   (reseed_interval : Z) (gv : globals) (Info : md_info_state)
   (s : ENTROPY.stream)
@@ -578,9 +578,9 @@ Lemma entailment1: forall (contents : list Z) (additional output : val)
   (EL1: entropy_len + Zlength contents <= 384)
    (*ZLc' : Zlength contents' = 0 \/ Zlength contents' = Zlength contents*)
 (*  (EL: entropy_len = 32)*),
-reseedPOST (Vint return_value) contents additional (Zlength contents) s
-  I (Vptr b i) Info gv a *
-data_at_ Tsh (tarray tuchar out_len) output
+reseedPOST (Vint return_value) contents additional sha (Zlength contents) s
+  I (Vptr b i) shc Info gv a *
+data_at_ sho (tarray tuchar out_len) output
 |-- !! return_value_relate_result
          (mbedtls_HMAC256_DRBG_generate_function s I out_len
             (contents_with_add additional (Zlength contents) contents))
@@ -590,16 +590,16 @@ data_at_ Tsh (tarray tuchar out_len) output
          (contents_with_add additional (Zlength contents) contents)
      with
      | ENTROPY.success (bytes, _) _ =>
-         data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes))
+         data_at sho (tarray tuchar out_len) (map Vint (map Int.repr bytes))
            output
-     | ENTROPY.error _ _ => data_at_ Tsh (tarray tuchar out_len) output
+     | ENTROPY.error _ _ => data_at_ sho (tarray tuchar out_len) output
      end *
-     da_emp Tsh (tarray tuchar (Zlength contents))
+     da_emp sha (tarray tuchar (Zlength contents))
        (map Vint (map Int.repr contents)) additional *
      Stream
        (get_stream_result
           (mbedtls_HMAC256_DRBG_generate_function s I out_len  (contents_with_add additional (Zlength contents) contents))) *
-     AREP gv (hmac256drbgabs_generate I s out_len  (contents_with_add additional (Zlength contents) contents)) (Vptr b i)).
+     AREP shc gv (hmac256drbgabs_generate I s out_len  (contents_with_add additional (Zlength contents) contents)) (Vptr b i)).
 Proof. intros. (* unfold hmac256drbgabs_common_mpreds, hmac256drbg_relate; normalize.*)
  unfold reseedPOST. apply Zgt_is_gt_bool_f in Hadd_lenb.
  remember ((zlt 256 (Zlength contents)
@@ -653,10 +653,10 @@ Opaque mbedtls_HMAC256_DRBG_generate_function.
 Lemma entailment2: forall
 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0
 (contents : list Z)
-(additional output : val)
+(additional : val) (sha: share) 
+(output : val) (sho: share)
 (out_len : Z)
-(b : block)
-(i : ptrofs)
+(b : block) (i : ptrofs) (shc: share)
 (key V : list Z)
 (reseed_counter entropy_len : Z)
 (prediction_resistance : bool)
@@ -714,47 +714,47 @@ key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0
             (HMAC256DRBGabs key0 V0 reseed_counter0 entropy_len0
                prediction_resistance0 reseed_interval0)
             (contents_with_add additional after_reseed_add_len contents)),
-field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx]
+field_at shc t_struct_hmac256drbg_context_st [StructField _md_ctx]
   (mc1, (mc2, mc3)) (Vptr b i) *
-(field_at Tsh t_struct_hmac256drbg_context_st [StructField _V]
+(field_at shc t_struct_hmac256drbg_context_st [StructField _V]
    (map Vint (map Int.repr V1)) (Vptr b i) *
- (field_at Tsh t_struct_hmac256drbg_context_st [StructField _entropy_len]
+ (field_at shc t_struct_hmac256drbg_context_st [StructField _entropy_len]
     (Vint (Int.repr entropy_len1)) (Vptr b i) *
-  (field_at Tsh t_struct_hmac256drbg_context_st
+  (field_at shc t_struct_hmac256drbg_context_st
      [StructField _prediction_resistance]
      (Val.of_bool prediction_resistance1) (Vptr b i) *
-   (field_at Tsh t_struct_hmac256drbg_context_st
+   (field_at shc t_struct_hmac256drbg_context_st
       [StructField _reseed_interval] (Vint (Int.repr reseed_interval1))
-      (Vptr b i) * (data_at Tsh t_struct_mbedtls_md_info Info mc1 * emp))))) *
-(md_full key1 (mc1, (mc2, mc3)) *
- (da_emp Tsh (tarray tuchar (Zlength contents))
+      (Vptr b i) * (data_at shc t_struct_mbedtls_md_info Info mc1 * emp))))) *
+(md_full Ews key1 (mc1, (mc2, mc3)) *
+ (da_emp sha (tarray tuchar (Zlength contents))
     (map Vint (map Int.repr contents)) additional *
   (K_vector gv *
    (Stream stream1 *
-    (data_at Tsh (tarray tuchar out_len)
+    (data_at sho (tarray tuchar out_len)
        (map Vint (map Int.repr (sublist 0 out_len (snd (HLP out_len)))))
        output * emp) * emp)))) *
-field_at Tsh t_struct_hmac256drbg_context_st [StructField _reseed_counter]
+field_at shc t_struct_hmac256drbg_context_st [StructField _reseed_counter]
   (Vint (Int.repr (reseed_counter1 + 1))) (Vptr b i)
 |-- !! return_value_relate_result
          (mbedtls_HMAC256_DRBG_generate_function s I out_len contents')
          (Vint (Int.repr 0)) &&
     (match mbedtls_HMAC256_DRBG_generate_function s I out_len contents' with
      | ENTROPY.success (bytes, _) _ =>
-         data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes))
+         data_at sho (tarray tuchar out_len) (map Vint (map Int.repr bytes))
            output
-     | ENTROPY.error _ _ => data_at_ Tsh (tarray tuchar out_len) output
+     | ENTROPY.error _ _ => data_at_ sho (tarray tuchar out_len) output
      end *
-     da_emp Tsh (tarray tuchar (Zlength contents))
+     da_emp sha (tarray tuchar (Zlength contents))
        (map Vint (map Int.repr contents)) additional *
      Stream
        (get_stream_result
           (mbedtls_HMAC256_DRBG_generate_function s I out_len contents')) *
      ((EX a : hmac256drbgstate,
        !! (WF (hmac256drbgabs_generate I s out_len contents')/\ fst a =(mc1, (mc2, mc3)))&&
-       data_at Tsh t_struct_hmac256drbg_context_st a (Vptr b i) *
+       data_at shc t_struct_hmac256drbg_context_st a (Vptr b i) *
        hmac256drbg_relate (hmac256drbgabs_generate I s out_len contents') a *
-       data_at Tsh t_struct_mbedtls_md_info Info
+       data_at shc t_struct_mbedtls_md_info Info
          (hmac256drbgstate_md_info_pointer a) * K_vector gv))). (*
      AREP gv (hmac256drbgabs_generate I s out_len contents') (Vptr b i)) *
     emp.*)
@@ -1073,10 +1073,9 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
 (contents : list Z)
 (additional : val)
 (add_len : Z)
-(output : val)
+(output : val) (sho: share)
 (out_len : Z)
-(b : block)
-(i : ptrofs)
+(b : block) (i : ptrofs) (shc: share)
 (mc1 mc2 mc3 : val)
 (key V : list Z)
 (reseed_counter entropy_len : Z)
@@ -1148,6 +1147,8 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
 (HRE : Int.repr (out_len - done) <> Int.repr 0)
 (H : 0 <= done <= out_len)
 (H0 : is_multiple done 32 \/ done = out_len)
+(Hsho: writable_share sho)
+(Hshc: writable_share shc)
 (WFI : drbg_protocol_specs.WF
         (HMAC256DRBGabs key V reseed_counter entropy_len
            prediction_resistance reseed_interval)),
@@ -1164,10 +1165,10 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
    temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvars gv)
-   SEP (hmac256drbgabs_common_mpreds
+   SEP (hmac256drbgabs_common_mpreds shc
           (hmac256drbgabs_update_value after_update_state_abs
              (fst (HLP done))) initial_state (Vptr b i) Info; FRZL StreamAdd;
-   data_at Tsh (tarray tuchar out_len)
+   data_at sho (tarray tuchar out_len)
      (map Vint (map Int.repr (sublist 0 done (snd (HLP done)))) ++
       list_repeat (Z.to_nat (out_len - done)) Vundef) output; K_vector gv))
   (Ssequence
@@ -1267,10 +1268,10 @@ Lemma loopbody_explicit (StreamAdd:list mpred) : forall (Espec : OracleKind)
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr after_reseed_add_len));
       gvars gv)
-      SEP (hmac256drbgabs_common_mpreds
+      SEP (hmac256drbgabs_common_mpreds shc
              (hmac256drbgabs_update_value after_update_state_abs
                 (fst (HLP a))) initial_state (Vptr b i) Info; FRZL StreamAdd;
-      data_at Tsh (tarray tuchar out_len)
+      data_at sho (tarray tuchar out_len)
         (map Vint (map Int.repr (sublist 0 a (snd (HLP a)))) ++
          list_repeat (Z.to_nat (out_len - a)) Vundef) output; K_vector gv))%assert
 (*
@@ -1373,16 +1374,16 @@ Proof. intros.
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvars gv;
       temp _t'6 (Vint (Int.repr (Z.min (Z.of_nat SHA256.DigestLength) (out_len - done)))))
    SEP (FRZL FR1;
-   data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (mc1, (mc2, mc3))
+   data_at shc (Tstruct _mbedtls_md_context_t noattr) (mc1, (mc2, mc3))
      (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (Vptr b i));
-   data_at Tsh (tarray tuchar 32)
+   data_at shc (tarray tuchar 32)
      (map Vint (map Int.repr (fst (HLP done))))
      (field_address t_struct_hmac256drbg_context_st [StructField _V] (Vptr b i));
-   data_at Tsh (tarray tuchar out_len)
+   data_at sho (tarray tuchar out_len)
      (map Vint
         (map Int.repr (sublist 0 done (snd (HLP done)))) ++
       list_repeat (Z.to_nat (out_len - done)) Vundef) output;
-   UNDER_SPEC.FULL key0 mc3; K_vector gv))).
+   UNDER_SPEC.FULL Ews key0 mc3; K_vector gv))).
     {
       (* md_len < left *)
       forward.
@@ -1403,16 +1404,16 @@ Proof. intros.
           (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))) as FC_V by entailer!.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
          [StructField _md_ctx] (Vptr b i)) as FC_M by entailer.
-    forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i), (*md_ctx'*)(mc1,(mc2,mc3)), key0, gv).
+    forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),  (*md_ctx'*)(mc1,(mc2,mc3)), shc, key0, gv).
     { simpl. cancel. }
-
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
     rename H into HZlength_V.  
     rename H0 into HisbyteZ_V.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st [StructField _V] (Vptr b i)) as FCV by entailer!.
+
     forward_call (key0, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),
-                  (*md_ctx'*)(mc1,(mc2,mc3)), 
-                  field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), 
+                  (*md_ctx'*)(mc1,(mc2,mc3)), shc, 
+                  field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), shc, 
                   @nil Z, (fst (HLP done)), gv).
 
     { simpl. apply prop_right. rewrite HZlength_V, field_address_offset; trivial.
@@ -1421,7 +1422,7 @@ Proof. intros.
     { simpl; simpl in HZlength_V; rewrite HZlength_V (*, <- Hmultiple*).
       cancel.
     }
-    {
+    { split3; auto.
       simpl; simpl in HZlength_V; rewrite HZlength_V. 
       change Int.max_unsigned with 4294967295.
       change (two_power_pos 61) with 2305843009213693952.
@@ -1433,7 +1434,7 @@ Proof. intros.
     (*Intros vret; subst vret.*)
     rewrite app_nil_l.
 
-    replace_SEP 2 (memory_block Tsh 32 (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))).
+    replace_SEP 2 (memory_block shc 32 (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))).
     { 
       entailer!.
       simpl in HZlength_V.
@@ -1445,8 +1446,8 @@ Proof. intros.
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, ctx->V ); *)
     forward_call ((fst(HLP done)), key0, 
                field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i), 
-               (*md_ctx'*)(mc1, (mc2, mc3)),
-               field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), Tsh, gv).
+               (*md_ctx'*)(mc1, (mc2, mc3)), shc,
+               field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), shc, gv).
     {
       entailer!.
       rewrite field_address_offset; trivial. 
@@ -1455,8 +1456,8 @@ Proof. intros.
     assert_PROP (field_compatible (tarray tuchar out_len) [] output) as
         Hfield_compat_output by entailer!.
     replace_SEP 5 (
-        data_at Tsh (tarray tuchar done) (map Vint (map Int.repr (sublist 0 done (snd (HLP done))))) output *
-        data_at Tsh (tarray tuchar (out_len - done)) (list_repeat (Z.to_nat (out_len - done)) Vundef) (offset_val done output)
+        data_at sho (tarray tuchar done) (map Vint (map Int.repr (sublist 0 done (snd (HLP done))))) output *
+        data_at sho (tarray tuchar (out_len - done)) (list_repeat (Z.to_nat (out_len - done)) Vundef) (offset_val done output)
     ).
     {
       entailer!.
@@ -1485,8 +1486,8 @@ Proof. intros.
       entailer!.
     }
     replace_SEP 1 (
-        data_at Tsh (tarray tuchar use_len) (list_repeat (Z.to_nat use_len) Vundef) done_output *
-        data_at Tsh (tarray tuchar (out_len - done - use_len)) (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef) (offset_val use_len done_output)
+        data_at sho (tarray tuchar use_len) (list_repeat (Z.to_nat use_len) Vundef) done_output *
+        data_at sho (tarray tuchar (out_len - done - use_len)) (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef) (offset_val use_len done_output)
     ).
     {
       clear Hmultiple Heqdone_output.
@@ -1511,7 +1512,7 @@ Proof. intros.
     }
     normalize.
 
-    replace_SEP 0 (memory_block Tsh use_len done_output).
+    replace_SEP 0 (memory_block sho use_len done_output).
     {
       clear Hmultiple.
       entailer!.
@@ -1525,10 +1526,10 @@ Proof. intros.
     set (H256 := HMAC256 (fst (HLP done)) key0) in *.
     assert (ZL_H256: Zlength H256 = 32).
     { subst H256. apply hmac_common_lemmas.HMAC_Zlength. }
-    replace_SEP 6 (data_at Tsh (tarray tuchar use_len)
+    replace_SEP 6 (data_at shc (tarray tuchar use_len)
                       (sublist 0 use_len (map Vint (map Int.repr H256)))
                       (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i)) *
-                   data_at Tsh (tarray tuchar (32 - use_len))
+                   data_at shc (tarray tuchar (32 - use_len))
                       (sublist use_len 32 (map Vint (map Int.repr (H256))))
                       (offset_val use_len (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i)))).
     {
@@ -1556,7 +1557,7 @@ Proof. intros.
       }
     }
     (* memcpy( out, ctx->V, use_len ); *)
-    forward_call ((Tsh, Tsh), done_output, 
+    forward_call ((shc, sho), done_output, 
                   field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), 
                   use_len,
                   sublist 0 use_len (map Int.repr H256)).
@@ -1580,7 +1581,7 @@ Proof. intros.
 
     simpl.
     gather_SEP 0 7.
-    replace_SEP 0 (data_at Tsh (tarray tuchar 32) (map Vint (map Int.repr H256))
+    replace_SEP 0 (data_at shc (tarray tuchar 32) (map Vint (map Int.repr H256))
                                (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))).
     {
       clear Hmultiple.
@@ -1612,7 +1613,7 @@ Proof. intros.
     }
 
     gather_SEP 1 2.
-    replace_SEP 0 (data_at Tsh (tarray tuchar (out_len - done)) 
+    replace_SEP 0 (data_at sho (tarray tuchar (out_len - done)) 
          ( (map Vint (sublist 0 use_len (map Int.repr H256)))
            ++ (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef))
          done_output).
@@ -1651,7 +1652,7 @@ Proof. intros.
 
     gather_SEP 2 0.
     replace_SEP 0 (
-                  data_at Tsh (tarray tuchar out_len) 
+                  data_at sho (tarray tuchar out_len) 
                     ((map Vint (map Int.repr (sublist 0 done (snd (HLP done))))) ++
                      (map Vint (sublist 0 use_len (map Int.repr H256)) ++
                       list_repeat (Z.to_nat (out_len - done - use_len)) Vundef)) output).
@@ -1777,10 +1778,9 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
 (contents : list Z)
 (additional : val)
 (add_len : Z)
-(output : val)
+(output : val) (sho: share)
 (out_len : Z)
-(b : block)
-(i : ptrofs)
+(b : block) (i : ptrofs) (shc: share)
 (key V : list Z)
 (reseed_counter entropy_len : Z)
 (prediction_resistance : bool)
@@ -1849,6 +1849,8 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
 (HLP := HMAC_DRBG_generate_helper_Z HMAC256 AUK AUV : Z -> list Z * list Z)
 (done : Z)
 (HRE : Int.repr (out_len - done) <> Int.repr 0)
+(Hsho: writable_share sho)
+(Hshc: writable_share shc)
 (H : 0 <= done <= out_len)
 (H0 : is_multiple done 32 \/ done = out_len),
 @semax hmac_drbg_compspecs.CompSpecs Espec
@@ -1864,10 +1866,10 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
    temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvars gv)
-   SEP (hmac256drbgabs_common_mpreds
+   SEP (hmac256drbgabs_common_mpreds shc
           (hmac256drbgabs_update_value after_update_state_abs
              (fst (HLP done))) a (Vptr b i) Info; FRZL StreamAdd;
-   data_at Tsh (tarray tuchar out_len)
+   data_at sho (tarray tuchar out_len)
      (map Vint (map Int.repr (sublist 0 done (snd (HLP done)))) ++
       list_repeat (Z.to_nat (out_len - done)) Vundef) output; K_vector gv))
   (Ssequence
@@ -1967,10 +1969,10 @@ Lemma generate_loopbody: forall (StreamAdd: list mpred)
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr after_reseed_add_len));
       gvars gv)
-      SEP (hmac256drbgabs_common_mpreds
+      SEP (hmac256drbgabs_common_mpreds shc
              (hmac256drbgabs_update_value after_update_state_abs
                 (fst (HLP a0))) a (Vptr b i) Info; FRZL StreamAdd;
-      data_at Tsh (tarray tuchar out_len)
+      data_at sho (tarray tuchar out_len)
         (map Vint (map Int.repr (sublist 0 a0 (snd (HLP a0)))) ++
          list_repeat (Z.to_nat (out_len - a0)) Vundef) output; K_vector gv))%assert
 (*

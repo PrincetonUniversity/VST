@@ -26,13 +26,13 @@ Ltac sep_apply_in_lifted_entailment H :=
  unfold fold_right_sepcon at 1;
  match goal with |- ?R |-- ?R2 => 
   let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
-  sep_apply_in_entailment H;
+  sep_apply_in_entailment H; [ .. | 
   match goal with |- ?R' |-- _ =>
    let R'' := refold_right_sepcon R' 
      in replace R' with (fold_right_sepcon R'') 
            by (unfold fold_right_sepcon; rewrite ?sepcon_emp; reflexivity);
         subst r2; apply derives_refl
-   end
+   end]
  end.
 
 Ltac sep_apply_in_semax H :=
