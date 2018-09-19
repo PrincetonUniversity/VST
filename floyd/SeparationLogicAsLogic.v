@@ -1108,7 +1108,7 @@ Module ExtrIFacts := CSHL_IExtrFacts (CSHL_Def) (CConseq) (Extr).
 
 Import Extr ExtrFacts ExtrIFacts.
 
-Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
+Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
 
 Module CSL_Def := CSL_Def.
 
@@ -1242,6 +1242,10 @@ Definition semax_external_FF := @CSL_MCSL.semax_external_FF.
 
 End MCSL.
 
+Definition semax_set := @MCSL.SetB.semax_set_backward.
+
+Arguments semax {_} {_} _ _ _ _.
+
 Lemma modifiedvars_aux: forall id, (fun i => isSome (insert_idset id idset0) ! i) = eq id.
 Proof.
   intros.
@@ -1295,7 +1299,7 @@ Proof.
 Qed.
 
 Lemma semax_frame:
-  forall {Espec: OracleKind}{CS: compspecs},
+  forall {CS: compspecs} {Espec: OracleKind},
   forall Delta P s R F,
    closed_wrt_modvars s F ->
   @semax CS Espec Delta P s R ->
@@ -1802,15 +1806,6 @@ Proof.
       * intro; apply semax_conseq.allp_fun_id_sub; auto.
 Qed.
 
-Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
- match R with 
-  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
-  {| RA_normal := Inv;
-     RA_break := n; 
-     RA_continue := seplog.FF;
-     RA_return := r |}
- end.
-
 Lemma semax_loop_nocontinue:
   forall {CS: compspecs} {Espec: OracleKind},
  forall Delta P body incr R,
@@ -2175,6 +2170,56 @@ Proof.
     apply unfold_Ssequence_sound.
   + rewrite H.
     apply unfold_Ssequence_sound.
+Qed.
+
+Lemma semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
+  unfold_Ssequence c1 = unfold_Ssequence c2 ->
+  (forall P Q Delta, @semax CS Espec Delta P c1 Q -> @semax CS Espec Delta P c2 Q).
+Proof.
+  intros.
+  pose proof semax_unfold_Ssequence' _ _ H.
+  clear - H0 H1.
+  firstorder.
+Qed.
+
+Lemma semax_fun_id:
+  forall {CS: compspecs} {Espec: OracleKind},
+      forall id f Delta P Q c,
+    (var_types Delta) ! id = None ->
+    (glob_specs Delta) ! id = Some f ->
+    (glob_types Delta) ! id = Some (type_of_funspec f) ->
+    @semax CS Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
+                  c Q ->
+    @semax CS Espec Delta P c Q.
+Proof.
+  intros.
+  eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
+  reduceR.
+  apply andp_right; [solve_andp |].
+  rewrite andp_comm.
+  rewrite imp_andp_adjoint.
+  rewrite imp_andp_adjoint.
+  apply (allp_left _ id).
+  apply (allp_left _ f).
+  rewrite prop_imp by auto.
+  apply exp_left; intros b.
+  rewrite <- imp_andp_adjoint.
+  rewrite <- imp_andp_adjoint.
+  unfold local, lift1; unfold_lift; intro rho; simpl.
+  unfold eval_var, func_ptr.
+  apply (exp_right b).
+  normalize.
+  rewrite H3.
+  apply andp_right; [| solve_andp].
+  apply prop_right.
+  destruct H4 as [_ [? _]].
+  specialize (H4 id).
+  rewrite H in H4.
+  destruct (Map.get (ve_of rho) id) as [[? ?] |]; [exfalso | auto].
+  specialize (H4 t).
+  destruct H4 as [_ ?].
+  specialize (H4 ltac:(eexists; eauto)).
+  congruence.
 Qed.
 
 End GenMetaRules.

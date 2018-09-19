@@ -787,27 +787,13 @@ Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.
 
-Fixpoint nojumps s :=
- match s with
- | Ssequence s1 s2 => if nojumps s1 then nojumps s2 else false
- | Sifthenelse _ s1 s2 => if nojumps s1 then nojumps s2 else false
- | Sset _ _ => true
- | Sassign _ _ => true
- | Sskip => true
- | _ => false
-end.
-
-Fixpoint nocontinue s :=
- match s with
- | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
- | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
- | Sswitch _ sl => nocontinue_ls sl
- | Sgoto _ => false
- | Scontinue => false
- | _ => true
-end
-with nocontinue_ls sl :=
- match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+Definition loop_nocontinue_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := Inv;
+     RA_break := n; 
+     RA_continue := seplog.FF;
+     RA_return := r |}
  end.
 
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
@@ -1328,6 +1314,18 @@ Axiom  semax_return :
 
 (* THESE RULES FROM semax_straight *)
 
+Axiom semax_set_forward :
+  forall {CS: compspecs} {Espec: OracleKind},
+forall (Delta: tycontext) (P: environ->mpred) id e,
+    @semax CS Espec Delta
+        (|> ( (tc_expr Delta e) &&
+             (tc_temp_id id (typeof e) Delta e) &&
+          P))
+          (Sset id e)
+        (normal_ret_assert
+          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+                            subst id (`old) P)).
+
 Axiom semax_ptr_compare :
 forall{CS: compspecs} {Espec: OracleKind},
 forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
@@ -1505,29 +1503,15 @@ Axiom semax_skip_seq:
     @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
 
 Axiom semax_loop_nocontinue:
-  forall{CS: compspecs} {Espec: OracleKind},
+  forall {CS: compspecs} {Espec: OracleKind},
  forall Delta P body incr R,
- nocontinue body = true ->
- nojumps incr = true ->
- @semax CS Espec Delta P (Ssequence body incr) (loop1_ret_assert P R) ->
+ @semax CS Espec Delta P (Ssequence body incr) (loop_nocontinue_ret_assert P R) ->
  @semax CS Espec Delta P (Sloop body incr) R.
 
 Axiom semax_if_seq:
  forall {CS: compspecs} {Espec: OracleKind} Delta P e c1 c2 c Q,
  semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
  semax Delta P (Ssequence (Sifthenelse e c1 c2) c) Q.
-
-Axiom semax_set_forward :
-  forall {CS: compspecs} {Espec: OracleKind},
-forall (Delta: tycontext) (P: environ->mpred) id e,
-    @semax CS Espec Delta
-        (|> ( (tc_expr Delta e) &&
-             (tc_temp_id id (typeof e) Delta e) &&
-          P))
-          (Sset id e)
-        (normal_ret_assert
-          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
-                            subst id (`old) P)).
 
 Axiom semax_seq_Slabel:
    forall {cs:compspecs} {Espec: OracleKind},
