@@ -19,41 +19,33 @@ Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in character
 Definition hi_part (z: Z) := Int.repr (z / Int.modulus).
 Definition lo_part (z: Z) := Int.repr z.
 
-Fixpoint little_endian_integer (contents: list int) : int :=
+
+Fixpoint little_endian_integer (contents: list byte) : int :=
  match contents with
  | nil => Int.zero
- | c::cr => Int.or (Int.shl (little_endian_integer cr) (Int.repr 8)) c
+ | c::cr => Int.or (Int.shl (little_endian_integer cr) (Int.repr 8)) (Int.repr (Byte.unsigned c))
  end.
-Definition big_endian_integer (contents: list int) : int :=
+
+Definition big_endian_integer (contents: list byte) : int :=
    little_endian_integer (rev contents).
+
 (* END OF "THIS BLOCK OF STUFF" *)
 
 Import ListNotations.
 
-(*
-Lemma skipn_length:
-  forall {A} n (al: list A),
-    (length al >= n)%nat ->
-    (length (skipn n al) = length al - n)%nat.
-Proof.
- induction n; destruct al; simpl; intros; auto.
- apply IHn. omega.
-Qed.
-*)
-
 (* PREPROCESSING: CONVERTING STRINGS TO PADDED MESSAGE BLOCKS *)
 
 (*converting a string to a list of Z *)
-Fixpoint str_to_Z (str : string) : list Z :=
+Fixpoint str_to_bytes (str : string) : list byte :=
   match str with
     |EmptyString => nil
-    |String c s => Z.of_N (N_of_ascii c) :: str_to_Z s
+    |String c s => Byte.repr (Z.of_N (N_of_ascii c)) :: str_to_bytes s
     end.
 
 Definition generate_and_pad msg :=
   let n := Zlength msg in
-   Zlist_to_intlist (msg ++ [128%Z]
-                ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0)
+   bytelist_to_intlist (msg ++ [Byte.repr 128%Z]
+                ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero)
            ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
 (*ROUND FUNCTION*)
@@ -150,5 +142,5 @@ Proof. intros.
  rewrite skipn_length. simpl; omega.
 Qed.
 
-Definition SHA_256 (str : list Z) : list Z :=
-    intlist_to_Zlist (hash_blocks init_registers (generate_and_pad str)).
+Definition SHA_256 (str : list byte) : list byte :=
+    intlist_to_bytelist (hash_blocks init_registers (generate_and_pad str)).

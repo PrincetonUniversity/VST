@@ -38,42 +38,66 @@ Fixpoint loops (s: statement) : list statement :=
   | _ => nil
   end.
 
+Lemma big_endian_integer_bytelist:
+   forall bl, Zlength bl = 4->
+  bytelist_to_intlist bl = big_endian_integer bl :: nil.
+Proof.
+intros.
+destruct bl as [| a [|b [|c [|d [|]]]]]; inv H.
+2: rewrite ?Zlength_cons in H1; list_solve. 
+unfold big_endian_integer, bytes_to_Int.
+simpl.
+f_equal.
+f_equal.
+rewrite <- ?Int.or_shl.
+f_equal.
+rewrite ?Int.shl_shl by reflexivity.
+autorewrite with norm.
+simpl.
+change (Int.shl (Int.shl Int.zero (Int.repr 8))
+        (Int.repr 24)) with Int.zero.
+rewrite Int.or_zero_l.
+rewrite ?Int.shl_shl by reflexivity.
+reflexivity.
+Qed.
+
 Lemma nth_big_endian_integer:
   forall i bl w,
    nth_error bl i = Some w ->
     w = big_endian_integer
                    (sublist (Z.of_nat i * WORD)
                         (Z.succ (Z.of_nat i) * WORD)
-                   (map Int.repr (intlist_to_Zlist bl))).
+                   (intlist_to_bytelist bl)).
 Proof.
-induction i; destruct bl; intros; inv H.
-*
- unfold sublist; simpl.
- rewrite big_endian_integer4.
- repeat rewrite Int.repr_unsigned.
- assert (Int.zwordsize=32)%Z by reflexivity.
- unfold Z_to_Int, Shr; simpl.
- change 255%Z with (Z.ones 8).
- apply Int.same_bits_eq; intros;
- autorewrite with testbit.
- if_tac; simpl.
- if_tac; simpl.
- if_tac; simpl; autorewrite with testbit. auto. f_equal; omega.
- rewrite if_false by omega. autorewrite with testbit. f_equal; omega.
- rewrite if_false by omega. rewrite if_false by omega.
- autorewrite with testbit. f_equal; omega.
-*
-specialize (IHi _ _ H1); clear H1.
-simpl map.
-rewrite IHi.
+intros.
+change WORD with 4.
+assert (nth_error bl i <> None) by congruence.
+rewrite nth_error_Some in H0.
+match goal with |- ?A = ?B => assert (A::nil = B::nil) end;
+ [ | congruence].
+rewrite <- big_endian_integer_bytelist.
+2:{ 
+rewrite Zlength_sublist; try omega.
+rewrite (Zlength_intlist_to_bytelist bl).
+rewrite Zlength_correct.
+omega.
+}
 unfold sublist.
-replace (Z.to_nat (Z.of_nat (S i) * WORD)) with (4 + Z.to_nat (Z.of_nat i * WORD))%nat
-  by (rewrite plus_comm, inj_S; unfold Z.succ; rewrite Z.mul_add_distr_r;
-        rewrite Z2Nat.inj_add by (change WORD with 4; omega); reflexivity).
-rewrite <- skipn_skipn.
-simpl skipn.
-f_equal. f_equal. f_equal. rewrite inj_S.  unfold Z.succ.
-rewrite !Z.mul_add_distr_r; omega.
+replace (Z.to_nat (Z.of_nat i * 4)) with (4 * i)%nat.
+2:{ rewrite Z2Nat.inj_mul by omega. 
+     rewrite Nat2Z.id. simpl. omega.
+}
+rewrite skipn_intlist_to_bytelist.
+replace (Z.to_nat
+        (Z.succ (Z.of_nat i) * 4 -
+         Z.of_nat i * 4)) with (4*1)%nat.
+2:{ unfold Z.succ. replace ((Z.of_nat i + 1) * 4 - Z.of_nat i * 4) with 4 by omega. reflexivity.
+}
+rewrite firstn_intlist_to_bytelist.
+rewrite intlist_to_bytelist_to_intlist.
+clear H0.
+revert bl H; induction i; destruct bl; simpl; intros; inv H; auto.
+rewrite (IHi _ H1). reflexivity.
 Qed.
 
 Lemma Znth_big_endian_integer:
@@ -82,7 +106,7 @@ Lemma Znth_big_endian_integer:
    Znth i bl =
      big_endian_integer
                    (sublist (i * WORD) (Z.succ i * WORD)
-                   (map Int.repr (intlist_to_Zlist bl))).
+                   (intlist_to_bytelist bl)).
 Proof.
 intros.
 unfold Znth.
@@ -154,12 +178,11 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
 Lemma data_block_local_facts:
  forall {cs: compspecs} sh f data,
   data_block sh f data |--
-   prop (field_compatible (tarray tuchar (Zlength f)) [] data
-           /\ Forall isbyteZ f).
+   prop (field_compatible (tarray tuchar (Zlength f)) [] data).
 Proof.
 intros. unfold data_block, array_at.
 simpl.
-entailer.
+entailer!.
 Qed.
 Hint Resolve @data_block_local_facts : saturate_local.
 
@@ -219,17 +242,8 @@ Local Open Scope logic.
 Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
       data_block sh l p |-- valid_pointer p.
 Proof. unfold data_block. simpl; intros.
-  apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
+  apply data_at_valid_ptr; auto; simpl.
   rewrite Z.max_r, Z.mul_1_l; omega.
-Qed.
-
-Lemma data_block_isbyteZ {cs: compspecs}:
- forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
-Proof.
-unfold data_block; intros.
-simpl.
-normalize.
-f_equal. f_equal. apply prop_ext. intuition.
 Qed.
 
 Lemma sizeof_tarray_tuchar:
@@ -241,33 +255,24 @@ Proof. intros.
   rewrite Z.mul_1_l. auto.
 Qed.
 
-Lemma isbyte_value_fits_tuchar:
-  forall x, isbyteZ x -> value_fits tuchar (Vint (Int.repr x)).
-Proof.
-intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by rep_omega.
-  change Byte.max_unsigned with 255%Z. omega.
-Qed.
 
-Lemma Zlength_Zlist_to_intlist:
-  forall (n:Z) (l: list Z),
-   (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
+Lemma Zlength_bytelist_to_intlist:
+  forall (n:Z) (l: list byte),
+   (Zlength l = WORD*n)%Z -> Zlength (bytelist_to_intlist l) = n.
 Proof.
 intros.
 rewrite Zlength_correct in *.
-rewrite (length_Zlist_to_intlist (Z.to_nat n)); rep_omega.
+rewrite (length_bytelist_to_intlist (Z.to_nat n)); rep_omega.
 Qed.
 
-Lemma nth_intlist_to_Zlist_eq:
+Lemma nth_intlist_to_bytelist_eq:
  forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat ->
-    nth i (intlist_to_Zlist (firstn j al)) d = nth i (intlist_to_Zlist (firstn k al)) d.
+    nth i (intlist_to_bytelist (firstn j al)) d = nth i (intlist_to_bytelist (firstn k al)) d.
 Proof.
  induction n; destruct i,al,j,k; simpl; intros; auto; try omega.
  destruct i; auto. destruct i; auto. destruct i; auto.
  apply IHn; omega.
 Qed.
-
-Hint Resolve isbyteZ_sublist.
 
 Lemma split2_data_block:
   forall  {cs: compspecs}  n sh data d,
@@ -279,12 +284,6 @@ Lemma split2_data_block:
 Proof.
   intros.
   unfold data_block. simpl. normalize.
-  f_equal. f_equal.
-  apply prop_ext.
-  split; intro. split; apply Forall_sublist; auto.
-  erewrite <- (sublist_same 0 (Zlength data)); auto.
-  rewrite (sublist_split 0 n) by omega.
-  apply Forall_app; auto.
   rewrite <- !sublist_map.
   unfold tarray.
   rewrite split2_data_at_Tarray_tuchar with (n1:=n) by (autorewrite with sublist; auto).
@@ -304,15 +303,7 @@ Lemma split3_data_block:
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
 Proof.
   intros.
-  unfold data_block. simpl. normalize.
-  f_equal. f_equal.
-  apply prop_ext.
-  split; intro. split3; apply Forall_sublist; auto.
-  erewrite <- (sublist_same 0 (Zlength data)); auto.
-  rewrite (sublist_split 0 lo (Zlength data)) by omega.
-  rewrite (sublist_split lo hi (Zlength data)) by omega.
-  destruct H1 as [? [? ?]].
-  repeat (apply Forall_app; split);  auto.
+  unfold data_block. 
   rewrite <- !sublist_map.
   unfold tarray.
   rewrite split3_data_at_Tarray_tuchar with (n1:=lo)(n2:=hi) by (autorewrite with sublist; auto).
@@ -330,13 +321,13 @@ Lemma S256abs_data:
 Proof.
 intros. unfold S256abs, s256a_data.
 rewrite Zlength_app.
-rewrite Zlength_intlist_to_Zlist.
+rewrite Zlength_intlist_to_bytelist.
 destruct H as [n ?].
 rewrite H.
 assert (CBLOCKz > 0) by rep_omega. 
 pose proof (Zmod_eq (n * CBLOCKz + Zlength data) CBLOCKz H1).
 pose proof (Zmod_eq (Zlength data) CBLOCKz H1).
-rewrite sublist_app2; rewrite Zlength_intlist_to_Zlist; rewrite H;
+rewrite sublist_app2; rewrite Zlength_intlist_to_bytelist; rewrite H;
  rewrite <- Z.mul_assoc; change (LBLOCKz * 4)%Z with CBLOCKz.
 apply sublist_same.
 rewrite Z.div_add_l by omega.
@@ -365,17 +356,17 @@ Lemma S256abs_hashed:
 Proof.
 intros;  unfold S256abs, s256a_hashed.
 rewrite Zlength_app.
-rewrite Zlength_intlist_to_Zlist.
+rewrite Zlength_intlist_to_bytelist.
 destruct H as [n ?].
 assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
 pose proof (Zmod_eq (n * CBLOCKz + Zlength data) CBLOCKz H1).
 pose proof (Zmod_eq (Zlength data) CBLOCKz H1).
 pose proof (Zlength_nonneg data).
-rewrite sublist_app1; rewrite ?Zlength_intlist_to_Zlist;
+rewrite sublist_app1; rewrite ?Zlength_intlist_to_bytelist;
   rewrite H.
 rewrite sublist_same; try omega.
-apply intlist_to_Zlist_to_intlist.
-rewrite Zlength_intlist_to_Zlist.
+apply intlist_to_bytelist_to_intlist.
+rewrite Zlength_intlist_to_bytelist.
   rewrite H.
 rewrite <- Z.mul_assoc; change (LBLOCKz*4)%Z with CBLOCKz.
 rewrite Z.div_add_l by omega.
@@ -407,7 +398,7 @@ Lemma s256a_hashed_divides:
 Proof.
 intros. unfold s256a_hashed.
 exists (Zlength a / CBLOCKz)%Z.
-erewrite Zlength_Zlist_to_intlist; [reflexivity |].
+erewrite Zlength_bytelist_to_intlist; [reflexivity |].
 rewrite Zlength_sublist.
 rewrite (Z.mul_comm WORD).
 rewrite <- Z.mul_assoc.
@@ -453,13 +444,12 @@ Qed.
 
 Lemma hashed_data_recombine:
   forall a,
-     Forall isbyteZ a ->
-    intlist_to_Zlist (s256a_hashed a) ++ s256a_data a = a.
+    intlist_to_bytelist (s256a_hashed a) ++ s256a_data a = a.
 Proof.
-intros. rename H into BYTES.
+intros.
 unfold s256a_hashed, s256a_data.
 assert (CBLOCKz > 0) by (rewrite CBLOCKz_eq; omega).
-rewrite Zlist_to_intlist_to_Zlist.
+rewrite bytelist_to_intlist_to_bytelist.
 rewrite sublist_rejoin.
 autorewrite with sublist. auto.
 split; [ omega  |] .
@@ -483,11 +473,9 @@ omega.
 pose proof (Zmod_eq (Zlength a) CBLOCKz H).
 pose proof (Z_mod_lt (Zlength a) CBLOCKz H).
 omega.
-apply Forall_sublist.
-auto.
 Qed.
 
-Definition bitlength (hashed: list int) (data: list Z) : Z :=
+Definition bitlength (hashed: list int) (data: list byte) : Z :=
    ((Zlength hashed * WORD + Zlength data) * 8)%Z.
 
 Lemma bitlength_eq:
@@ -497,22 +485,22 @@ Proof.
 intros.
 unfold bitlength, s256a_len, S256abs.
 rewrite Zlength_app.
-rewrite Zlength_intlist_to_Zlist.
+rewrite Zlength_intlist_to_bytelist.
 reflexivity.
 Qed.
 
 Lemma S256abs_recombine:
- forall a, Forall isbyteZ a ->
+ forall a, 
     S256abs (s256a_hashed a) (s256a_data a) = a.
 Proof.
 intros.
 apply hashed_data_recombine; auto.
 Qed.
 
-Lemma Zlist_to_intlist_app:
+Lemma bytelist_to_intlist_app:
   forall a b,
   (WORD | Zlength a) ->
-   Zlist_to_intlist (a++b) = Zlist_to_intlist a ++ Zlist_to_intlist b.
+   bytelist_to_intlist (a++b) = bytelist_to_intlist a ++ bytelist_to_intlist b.
 Proof.
 intros.
 destruct H as [na H].
@@ -557,34 +545,30 @@ Lemma CBLOCKz_gt: CBLOCKz > 0.
 Proof. rewrite CBLOCKz_eq; omega.
 Qed.
 
-Lemma Zlist_to_intlist_inj:
+Lemma bytelist_to_intlist_inj:
   forall a b,
    (WORD | Zlength a) ->
    (WORD | Zlength b) ->
-   Forall isbyteZ a ->
-   Forall isbyteZ b ->
-   Zlist_to_intlist a = Zlist_to_intlist b ->
+   bytelist_to_intlist a = bytelist_to_intlist b ->
    a=b.
 Proof.
 intros.
-rewrite <- (Zlist_to_intlist_to_Zlist a) by auto.
-rewrite H3.
-apply Zlist_to_intlist_to_Zlist; auto.
+rewrite <- (bytelist_to_intlist_to_bytelist a) by auto.
+rewrite H1.
+apply bytelist_to_intlist_to_bytelist; auto.
 Qed.
 
-Definition update_abs (incr: list Z) (a: list Z) (a': list Z) :=
+Definition update_abs (incr: list byte) (a: list byte) (a': list byte) :=
     a' = a ++ incr.
 
 Lemma update_abs_eq:
   forall msg a a',
- Forall isbyteZ (a++msg) ->
- Forall isbyteZ a' ->
  (update_abs msg a a' <->
   exists blocks,
     s256a_hashed a' = s256a_hashed a ++ blocks /\
-    s256a_data a ++ msg = intlist_to_Zlist blocks ++ s256a_data a').
+    s256a_data a ++ msg = intlist_to_bytelist blocks ++ s256a_data a').
 Proof.
-intros. rename H0 into H'.
+intros. pose proof I.
 unfold update_abs.
 assert (0 <= 0 <= Zlength a / CBLOCKz * CBLOCKz). {
  split; [omega | ].
@@ -600,13 +584,13 @@ split; intro.
 *
 subst a'.
 unfold s256a_hashed.
-exists (Zlist_to_intlist
+exists (bytelist_to_intlist
             (sublist (Zlength a / CBLOCKz * CBLOCKz) (Zlength (a++msg) / CBLOCKz * CBLOCKz)
                   (a++msg))).
 split.
  +
  rewrite (sublist_split 0 (Zlength a / CBLOCKz * CBLOCKz)); auto.
- rewrite Zlist_to_intlist_app.
+ rewrite bytelist_to_intlist_app.
  f_equal.
  rewrite sublist_app1; auto. omega.
  rewrite Zlength_sublist; auto.
@@ -620,7 +604,7 @@ split.
  apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
  rewrite Zlength_app; Omega1.
  +
- rewrite Zlist_to_intlist_to_Zlist.
+ rewrite bytelist_to_intlist_to_bytelist.
  2:{ rewrite Zlength_sublist. rewrite <- Z.mul_sub_distr_r.
  apply Z.divide_mul_r.
  exists LBLOCKz; reflexivity.
@@ -630,7 +614,6 @@ split.
  rewrite Zlength_app; Omega1.
  apply round_range. apply CBLOCKz_gt.
  }
- 2: apply Forall_sublist; auto.
  unfold s256a_data.
  destruct (zlt   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) (Zlength a) ).
   -
@@ -686,7 +669,7 @@ rewrite <- (sublist_same 0 (Zlength a') a') at 1; auto.
 rewrite <- app_ass.
 rewrite (sublist_split 0 (Zlength a' / CBLOCKz * CBLOCKz) (Zlength a')); try omega.
 f_equal.
-apply Zlist_to_intlist_inj.
+apply bytelist_to_intlist_inj.
 rewrite Zlength_sublist.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.
@@ -708,15 +691,10 @@ rewrite Zlength_sublist.
  apply Zlength_nonneg.
  apply round_range; apply CBLOCKz_gt.
  exists (Zlength blocks).
- apply Zlength_intlist_to_Zlist.
- apply Forall_sublist; auto.
- apply Forall_app; split.
- apply Forall_app in H; destruct H;
- apply Forall_sublist; auto.
- apply isbyte_intlist_to_Zlist.
+ apply Zlength_intlist_to_bytelist.
  rewrite H3.
- rewrite Zlist_to_intlist_app. f_equal.
- symmetry; apply intlist_to_Zlist_to_intlist.
+ rewrite bytelist_to_intlist_app. f_equal.
+ symmetry; apply intlist_to_bytelist_to_intlist.
 rewrite Zlength_sublist.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.

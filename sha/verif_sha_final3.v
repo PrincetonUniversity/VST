@@ -125,14 +125,14 @@ forall (Espec : OracleKind) (md c : val) (wsh shmd : share)
  generate_and_pad msg = hashed++lastblock ->
 semax
      (func_tycontext f_SHA256_Final Vprog Gtot nil)
-  (PROP  (Forall isbyteZ (intlist_to_Zlist lastblock))
+  (PROP  ()
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
            gvars gv)
    SEP
    (data_at wsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
-        (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c;
+        (Vundef, (Vundef, (map Vubyte (intlist_to_bytelist lastblock), Vundef)))) c;
     K_vector gv;
     memory_block shmd 32 md))
   sha_final_epilog
@@ -163,14 +163,14 @@ Proof.
   }
   rewrite hash_blocks_last by auto.
   unfold data_block.
-  simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
+  simpl.
   rewrite <- H1.
   Time forward. (* c->num=0; *)
   Time forward_call (* memset (p,0,SHA_CBLOCK); *)
     (wsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
   {
-    replace (Zlength (intlist_to_Zlist lastblock)) with 64
-        by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
+    replace (Zlength (intlist_to_bytelist lastblock)) with 64
+        by (rewrite Zlength_intlist_to_bytelist, H0; reflexivity).
     change (memory_block wsh 64) with (memory_block wsh (sizeof (tarray tuchar 64))).
     entailer!.
     rewrite memory_block_data_at_ by auto.
@@ -210,7 +210,7 @@ Proof.
       c;
     K_vector gv;
     data_at shmd (tarray tuchar 32)
-         (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))
+         (map Vubyte (intlist_to_bytelist (sublist 0 i hashedmsg))
            ++ list_repeat (Z.to_nat (32 - WORD*i)) Vundef) md)
      )).
 *
@@ -227,19 +227,15 @@ Proof.
 *
   forward. (* ll=(c)->h[xn]; *)
   pose (w := Znth i hashedmsg).
-  pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
+  pose (bytes := intlist_to_bytelist [w]).
   assert (BYTES: bytes =
      sublist (i * 4) (i * 4 + 4)
-         (map Int.repr (intlist_to_Zlist hashedmsg))). {
+         (intlist_to_bytelist hashedmsg)). {
   subst bytes.
-  rewrite sublist_map.
   replace (i*4+4) with ((i+1)*WORD)%Z
     by (change WORD with 4; rewrite Z.mul_add_distr_r; clear; omega).
   change 4 with WORD.
-  rewrite sublist_intlist_to_Zlist.
-  rewrite !map_map.
-  replace (fun x : Z => force_int (Vint (Int.repr x))) with Int.repr
-   by (extensionality zz; reflexivity).
+  rewrite sublist_intlist_to_bytelist.
   f_equal.
   rewrite sublist_len_1 by omega.
   reflexivity.
@@ -318,7 +314,7 @@ intuition.
   replace (32 - WORD * (i+1)) with (N32 - i*4-WORD)
     by  (subst N32; change WORD with 4; omega).
   change 64 with CBLOCKz.
-  set (vbytes := map Vint bytes).
+  set (vbytes := map Vubyte bytes).
   simpl (temp _md _).
   entailer!.
   f_equal. omega.
@@ -333,11 +329,10 @@ intuition.
         with (32-i*4-4)
   by (clear; rewrite Z.mul_add_distr_r; omega).
   rewrite !sublist_map.
-  rewrite <- (sublist_intlist_to_Zlist 0 (i+1)). change WORD with 4.
+  rewrite <- (sublist_intlist_to_bytelist 0 (i+1)). change WORD with 4.
   autorewrite with sublist.
-  change (@sublist Z 0 (i*4)) with (@sublist Z (0*WORD) (i*WORD)).
-  rewrite sublist_intlist_to_Zlist.
-  rewrite <- !(sublist_map Int.repr).
+  change (@sublist byte 0 (i*4)) with (@sublist byte (0*WORD) (i*WORD)).
+  rewrite sublist_intlist_to_bytelist.
   rewrite (Z.add_comm 4 (i*4)).
   rewrite <- BYTES.
   fold vbytes.
@@ -355,9 +350,7 @@ normalize.
   autorewrite with sublist.
 Time  forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
   unfold data_block.
-  rewrite prop_true_andp
-    by apply isbyte_intlist_to_Zlist.
-   rewrite Zlength_intlist_to_Zlist. rewrite H.
+   rewrite Zlength_intlist_to_bytelist. rewrite H.
   cancel.
 Time Qed. (* 64 sec *)
 
@@ -365,19 +358,17 @@ Lemma final_part2:
 forall (Espec : OracleKind) (hashed : list int) (md c : val) (wsh shmd : share) gv
 (Hwsh: writable_share wsh),
 writable_share shmd ->
-forall bitlen (dd : list Z),
+forall bitlen (dd : list byte),
 (LBLOCKz | Zlength hashed) ->
 ((Zlength hashed * 4 + Zlength dd)*8)%Z = bitlen ->
 (Zlength dd < CBLOCKz) ->
- (Forall isbyteZ dd) ->
-forall (hashed': list int) (dd' : list Z) (pad : Z),
- (Forall isbyteZ dd') ->
+forall (hashed': list int) (dd' : list byte) (pad : Z),
  (pad=0%Z \/ dd'=nil) ->
 (Zlength dd' + 8 <= CBLOCKz)%Z ->
 (0 <= pad < 8)%Z ->
 (LBLOCKz | Zlength hashed') ->
-intlist_to_Zlist hashed' ++ dd' =
-intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
+intlist_to_bytelist hashed' ++ dd' =
+intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128%Z] ++ list_repeat (Z.to_nat pad) Byte.zero ->
 semax
      (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP  ()
@@ -388,9 +379,9 @@ semax
       temp _md md; temp _c c; gvars gv)
       SEP
       (field_at wsh t_struct_SHA256state_st [StructField _data]
-           (map Vint (map Int.repr dd') ++
-            list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
-              (Vint Int.zero) ++ list_repeat (Z.to_nat 8) Vundef) c;
+           (map Vubyte dd' ++
+            list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) (Vubyte Byte.zero)
+              ++ list_repeat (Z.to_nat 8) Vundef) c;
       field_at wsh t_struct_SHA256state_st [StructField _num] Vundef c;
       field_at wsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c;
       field_at wsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
@@ -406,18 +397,18 @@ semax
       SEP  (K_vector gv;
         data_at_ wsh t_struct_SHA256state_st c;
         data_block shmd
-          (intlist_to_Zlist
+          (intlist_to_bytelist
              (hash_blocks init_registers
                 (generate_and_pad
-                   (intlist_to_Zlist hashed ++ dd))))
+                   (intlist_to_bytelist hashed ++ dd))))
           md))) emp).
 Proof.
   intros Espec hashed md c wsh shmd kv Hwsh H
-  bitlen dd H4 H7 H3 DDbytes hashed' dd' pad
-  DDbytes' PAD H0 H1 H2 H5(* Pofs*).
+  bitlen dd H4 H7 H3 hashed' dd' pad
+  PAD H0 H1 H2 H5(* Pofs*).
   unfold sha_final_part2, sha_final_epilog; abbreviate_semax.
-  pose (hibytes := map Int.repr (intlist_to_Zlist [hi_part bitlen])).
-  pose (lobytes := map Int.repr (intlist_to_Zlist [lo_part bitlen])).
+  pose (hibytes := intlist_to_bytelist [hi_part bitlen]).
+  pose (lobytes := intlist_to_bytelist [lo_part bitlen]).
   assert_PROP (field_compatible t_struct_SHA256state_st [StructField _data] c).
     Time entailer!. (*2.3*) rename H6 into FC.
 
@@ -467,7 +458,7 @@ Proof.
 
   match goal with |- context [SEPx (?A :: _)] =>
    replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64
-                           (map Vint lobytes) c)
+                           (map Vubyte lobytes) c)
   by (clear - FC;
         rewrite array_at_data_at' by auto with field_compatible;
         reflexivity)
@@ -475,9 +466,9 @@ Proof.
   gather_SEP 0 1 2.
   replace_SEP 0
     (field_at wsh t_struct_SHA256state_st [StructField _data]
-         (map Vint (map Int.repr dd') ++
+         (map Vubyte dd' ++
              list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
-               (Vint Int.zero) ++ ((map Vint hibytes) ++ (map Vint lobytes))) c).
+               (Vubyte Byte.zero) ++ ((map Vubyte hibytes) ++ (map Vubyte lobytes))) c).
   {
     assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
@@ -518,47 +509,29 @@ Proof.
            make_Vptr c;  simpl;  rewrite Ptrofs.sub_add_opp;
            rewrite !Ptrofs.add_assoc; normalize)
    end.
-  change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).
-  change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen]))).
-  clear lobytes hibytes.
-  change (Vint Int.zero) with (Vint (Int.repr 0)).
+  subst hibytes; subst lobytes.
+(*  change (Vint Int.zero) with (Vint (Int.repr 0)). *)
   rewrite <- !map_list_repeat.
   rewrite <- !map_app.
-  rewrite <- intlist_to_Zlist_app.
+  rewrite <- intlist_to_bytelist_app.
   simpl ([hi_part bitlen] ++ [lo_part bitlen]).
-  set (lastblock := map Int.repr
-          (dd' ++ list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) 0
-              ++ intlist_to_Zlist [hi_part bitlen; lo_part bitlen])).
+  set (lastblock :=
+          dd' ++ list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) Byte.zero
+              ++ intlist_to_bytelist [hi_part bitlen; lo_part bitlen]).
   assert (H99: Zlength lastblock = CBLOCKz)
     by (unfold lastblock; autorewrite with sublist; omega).
-  assert (BYTESlastblock: Forall isbyteZ (map Int.unsigned lastblock)). {
-    unfold lastblock.
-    repeat rewrite map_app.
-    repeat rewrite Forall_app.
-    repeat split; auto.
-    apply Forall_isbyteZ_unsigned_repr; auto.
-    rewrite !map_list_repeat.
-    apply Forall_list_repeat.
-    change (Int.unsigned (Int.repr 0)) with 0; split; omega.
-    apply isbyte_intlist_to_Zlist'.
-  }
   unfold POSTCONDITION, abbreviate.
-  fold (SHA_256 (intlist_to_Zlist hashed ++ dd)).
-  pose (lastblock' := Zlist_to_intlist (map Int.unsigned lastblock)).
+  fold (SHA_256 (intlist_to_bytelist hashed ++ dd)).
+  pose (lastblock' := bytelist_to_intlist lastblock).
   eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c wsh shmd hashed' lastblock'); auto].
   * Time entailer!.
-    + apply isbyte_intlist_to_Zlist.
-    + Time unfold_data_at 1%nat. (*0.62*)
+     Time unfold_data_at 1%nat. (*0.62*)
       unfold lastblock'.
-      rewrite Zlist_to_intlist_to_Zlist; auto.
-      2:    rewrite Zlength_map, H99; exists LBLOCKz; reflexivity.
-      rewrite map_map with (g := Int.repr).
-      replace ((fun x : int => Int.repr (Int.unsigned x))) with (@id int)
-        by (extensionality i; rewrite Int.repr_unsigned; reflexivity).
-      rewrite map_id.
-      Time cancel. (*0.7*)
-  * apply Zlength_Zlist_to_intlist.
-     rewrite Zlength_map; assumption.
+      rewrite bytelist_to_intlist_to_bytelist; auto.
+      2:    rewrite H99; exists LBLOCKz; reflexivity.
+      cancel.
+  * apply Zlength_bytelist_to_intlist.
+     assumption.
   * eapply generate_and_pad_lemma1; eassumption.
 Time Qed. (*VST2.0: 3.1s *)
 

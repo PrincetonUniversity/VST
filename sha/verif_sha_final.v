@@ -42,12 +42,12 @@ unfold sha256state_.
 Intros r. destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
 unfold s256_relate in H.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H.
-destruct H as [H0 [[H1 H6] [H2 [DDbytes H4]]]].
+destruct H as [H0 [[H1 H6] [H2 H4]]].
 assert (H3 := s256a_data_Zlength_less a).
 unfold_data_at 1%nat.
 
 assert_PROP (Zlength r_data = CBLOCKz
-    /\ r_data = map Vint (map Int.repr (s256a_data a)) ++ sublist (Zlength (s256a_data a)) CBLOCKz r_data
+    /\ r_data = map Vubyte (s256a_data a) ++ sublist (Zlength (s256a_data a)) CBLOCKz r_data
     /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
    as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
@@ -166,7 +166,5 @@ symmetry; rewrite <- hashed_data_recombine at 1; auto.
 unfold s256a_len.
 autorewrite with sublist.
 auto.
-+
-apply Forall_sublist; auto.
 Time Qed.  (* 40.5 sec (14.375u) *)
 

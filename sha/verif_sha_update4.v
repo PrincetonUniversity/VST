@@ -8,12 +8,12 @@ Local Open Scope Z.
 Local Open Scope logic.
 
 Lemma Hblocks_lem:
- forall {blocks: list int} {frag: list Z} {data},
- intlist_to_Zlist blocks = frag ++ sublist 0 (Zlength blocks * 4 - Zlength frag) data ->
+ forall {blocks: list int} {frag: list byte} {data},
+ intlist_to_bytelist blocks = frag ++ sublist 0 (Zlength blocks * 4 - Zlength frag) data ->
  Zlength frag <= Zlength blocks * 4.
 Proof.
 intros.
-assert (Zlength (intlist_to_Zlist blocks) =
+assert (Zlength (intlist_to_bytelist blocks) =
                Zlength ( frag ++
      sublist 0 (Zlength blocks * 4 - Zlength frag) data)) by congruence.
  autorewrite with sublist in H0.
@@ -53,13 +53,12 @@ Definition update_outer_if :=
 
 Lemma update_outer_if_proof:
  forall  (Espec : OracleKind) (hashed : list int)
-           (dd data : list Z) (c d : val) (wsh sh : share) (len : Z) gv
+           (dd data : list byte) (c d : val) (wsh sh : share) (len : Z) gv
    (H : 0 <= len <= Zlength data)
    (Hwsh: writable_share wsh)
    (Hsh: readable_share sh)
    (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
    (H3 : Zlength dd < CBLOCKz)
-   (H3' : Forall isbyteZ dd)
    (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : len <= Int.max_unsigned),
 semax
@@ -75,7 +74,7 @@ semax
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
+                    (map Vubyte dd ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
                c;
      K_vector gv;
@@ -114,7 +113,7 @@ rename H0 into H1.
 rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
-simpl intlist_to_Zlist.
+simpl intlist_to_bytelist.
 Time entailer!.  (* 4.6; was: 139 sec -> 3.27 sec *)
 split.
 apply Z.divide_0_r.
@@ -133,14 +132,13 @@ simpl. normalize.
 Time Qed. (*5.4*)
 
 Lemma update_while_proof:
- forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) gv
+ forall (Espec : OracleKind) (hashed : list int) (dd data: list byte) gv
     (c d : val) (wsh sh : share) (len : Z)
   (H : 0 <= len <= Zlength data)
    (Hwsh: writable_share wsh)
    (Hsh: readable_share sh)
   (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
   (H3 : Zlength dd < CBLOCKz)
-  (H3' : Forall isbyteZ dd)
   (H4 : (LBLOCKz | Zlength hashed))
   (Hlen : len <= Int.max_unsigned),
  semax
@@ -173,12 +171,10 @@ forward_while
  assert (H0': (Zlength dd <= Zlength blocks * 4)%Z) by Omega1.
  clear H0; rename H0' into H0.
  rewrite Int.unsigned_repr in HRE by omega.
- assert_PROP (Forall isbyteZ data) as BYTESdata
-  by (rewrite (data_block_isbyteZ sh data d); entailer!).
- pose (bl := Zlist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd)
+ pose (bl := bytelist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd)
                                                    (Zlength blocks * 4 - Zlength dd + CBLOCKz) data)).
 assert (Zlength bl = LBLOCKz). {
- apply Zlength_Zlist_to_intlist.
+ apply Zlength_bytelist_to_intlist.
  pose proof CBLOCKz_eq; pose proof LBLOCKz_eq;
   autorewrite with sublist. reflexivity.
 }
@@ -187,8 +183,8 @@ assert (Zlength bl = LBLOCKz). {
   rename HRE into Hlen_ge.  clear H5.
   assert (H6: sublist (Zlength blocks * 4 - Zlength dd)
                     (Zlength blocks * 4 - Zlength dd + CBLOCKz) data =
-        intlist_to_Zlist bl).
-  unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
+        intlist_to_bytelist bl).
+  unfold bl; rewrite bytelist_to_intlist_to_bytelist; auto.
   pose proof CBLOCKz_eq;  autorewrite with sublist.
   exists LBLOCKz; reflexivity.
   rename dd into frag.
@@ -241,7 +237,7 @@ assert (Zlength bl = LBLOCKz). {
  {repeat split; auto.
   + Omega1.
   + rewrite H7; apply Z.divide_add_r; auto. apply Z.divide_refl.
-  + rewrite intlist_to_Zlist_app.
+  + rewrite intlist_to_bytelist_app.
       rewrite Hblocks; rewrite <- H6.
       rewrite app_ass.
       f_equal.
@@ -263,7 +259,7 @@ assert (Zlength bl = LBLOCKz). {
  }
 *
  assert  (Zlength blocks' * 4 >= Zlength dd).
-   rewrite <- (Zlength_intlist_to_Zlist blocks').
+   rewrite <- (Zlength_intlist_to_bytelist blocks').
    rewrite H7. autorewrite with sublist. Omega1.
  normalize in HRE.
  unfold sha_update_inv.
