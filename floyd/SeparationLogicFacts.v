@@ -1272,7 +1272,7 @@ Module LoadF2B
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
        (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
        (LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
+       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := Def.
 
 Module CSHL_Def := Def.
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
@@ -1379,7 +1379,7 @@ Module CastLoadF2B
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
        (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
        (CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
+       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := Def.
 
 Module CSHL_Def := Def.
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
@@ -1490,7 +1490,7 @@ Module SetF2B
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
        (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
        (SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
+       CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := Def.
 
 Module CSHL_Def := Def.
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
@@ -1601,7 +1601,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Axiom semax_ptr_compare_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
     sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
    is_comparison cmp = true  ->
@@ -1631,7 +1631,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Axiom semax_ptr_compare_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
    @semax CS Espec Delta
         (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
@@ -1658,7 +1658,7 @@ Module PtrCmpF2B
        (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
        (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
        (PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
+       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := Def.
 
 Module CSHL_Def := Def.
 Module ConseqFacts := GenConseqFacts (Def) (Conseq).
@@ -1670,7 +1670,7 @@ Import Extr.
 Import ExtrFacts.
 Import PtrCmpF.
 
-Theorem semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Theorem semax_ptr_compare_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
    @semax CS Espec Delta
         (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
@@ -1699,7 +1699,7 @@ Proof.
   apply semax_extract_exists; intro sh2.
   apply semax_extract_prop; intros [He [? [? [? [? [? ?]]]]]].
   subst e.
-  eapply semax_post'; [.. | eapply semax_pointer_comparison_forward; eauto].
+  eapply semax_post'; [.. | eapply semax_ptr_compare_forward; eauto].
   rewrite exp_andp2.
   apply exp_left; intros old.
   autorewrite with subst.
@@ -1727,7 +1727,7 @@ Import Conseq.
 Import ConseqFacts.
 Import PtrCmpB.
 
-Theorem semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Theorem semax_ptr_compare_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
     sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
    is_comparison cmp = true  ->
@@ -1750,7 +1750,7 @@ Theorem semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleK
                        subst id `(old) P)).
 Proof.
   intros.
-  eapply semax_pre; [| apply semax_pointer_comparison_backward].
+  eapply semax_pre; [| apply semax_ptr_compare_backward].
   apply (exp_right cmp).
   apply (exp_right e1).
   apply (exp_right e2).
@@ -1793,7 +1793,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
-Axiom semax_set_ptr_comparison_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Axiom semax_set_ptr_compare_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
        ((|> ( (tc_expr Delta e) &&
@@ -1857,7 +1857,7 @@ Import LoadB.
 Import CastLoadB.
 Import ExtrFacts.
 
-Theorem semax_set_ptr_comparison_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Theorem semax_set_ptr_compare_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
     @semax CS Espec Delta
        ((|> ( (tc_expr Delta e) &&
@@ -1899,7 +1899,7 @@ Proof.
   intros.
   apply semax_orp; [apply semax_orp; [apply semax_orp |] |].
   + apply semax_set_backward.
-  + apply semax_pointer_comparison_backward.
+  + apply semax_ptr_compare_backward.
   + apply semax_load_backward.
   + apply semax_cast_load_backward.
 Qed.
@@ -1929,7 +1929,7 @@ Theorem semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: t
           (Sset id e) (normal_ret_assert P).
 Proof.
   intros.
-  eapply semax_pre_simple; [| apply semax_set_ptr_comparison_load_cast_load_backward].
+  eapply semax_pre_simple; [| apply semax_set_ptr_compare_load_cast_load_backward].
   apply orp_right1, orp_right1, orp_right1; auto.
 Qed.
 
@@ -1949,7 +1949,7 @@ Import Conseq.
 Import ConseqFacts.
 Import Sset.
 
-Theorem semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+Theorem semax_ptr_compare_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
    @semax CS Espec Delta
         (EX cmp: Cop.binary_operation, EX e1: expr, EX e2: expr,
@@ -1970,7 +1970,7 @@ Theorem semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: Oracle
         (normal_ret_assert P).
 Proof.
   intros.
-  eapply semax_pre_simple; [| apply semax_set_ptr_comparison_load_cast_load_backward].
+  eapply semax_pre_simple; [| apply semax_set_ptr_compare_load_cast_load_backward].
   apply orp_right1, orp_right1, orp_right2; auto.
 Qed.
 
@@ -2004,7 +2004,7 @@ Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
         (Sset id e1) (normal_ret_assert P).
 Proof.
   intros.
-  eapply semax_pre_simple; [| apply semax_set_ptr_comparison_load_cast_load_backward].
+  eapply semax_pre_simple; [| apply semax_set_ptr_compare_load_cast_load_backward].
   apply orp_right1, orp_right2; auto.
 Qed.
 
@@ -2039,7 +2039,7 @@ Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (De
         (Sset id e) (normal_ret_assert P).
 Proof.
   intros.
-  eapply semax_pre_simple; [| apply semax_set_ptr_comparison_load_cast_load_backward].
+  eapply semax_pre_simple; [| apply semax_set_ptr_compare_load_cast_load_backward].
   apply orp_right2; auto.
 Qed.
 

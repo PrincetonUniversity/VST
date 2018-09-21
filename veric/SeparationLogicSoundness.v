@@ -84,7 +84,7 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Declare Module CSHL_MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
 
-Declare Module CSHL_PracticalSupplement: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
+Declare Module CSHL_PracticalLogic: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_MinimumLogic := CSHL_MinimumLogic.
 
 Declare Module CSHL_Sound: SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := CSHL_Def.
 

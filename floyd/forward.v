@@ -1866,8 +1866,7 @@ Ltac check_nocontinue s :=
 end.
 
 Ltac forward_loop_nocontinue2 Inv :=
-  apply semax_loop_nocontinue; 
-   [ reflexivity | reflexivity | delete_skip; abbreviate_semax].
+  apply semax_loop_nocontinue; delete_skip; abbreviate_semax.
 
 Ltac forward_loop_nocontinue1 Inv :=
   lazymatch goal with

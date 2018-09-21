@@ -1,6 +1,82 @@
-Require Import VST.floyd.base.
+From compcert Require Export Clightdefs.
+Require Export VST.veric.SeparationLogic.
+Require Export VST.msl.Extensionality.
+Require Export compcert.lib.Coqlib.
+Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Import VST.floyd.val_lemmas.
 Local Open Scope logic.
+
+Ltac _destruct_var_types i Heq_vt Heq_ve t b ::=
+  let HH := fresh "H" in
+  match goal with
+  | H: typecheck_var_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ H i as HH
+  | H: typecheck_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ (proj1 (proj2 H)) i as HH
+  | H: tc_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_var_types___instead _ _ (proj1 (proj2 H)) i as HH
+  end;
+  match type of HH with
+  | match ?o with _ => _ end =>
+      match goal with
+      | H: o = Some _ |- _ =>
+          rewrite H in HH
+      | H: Some _ = o |- _ =>
+          rewrite <- H in HH
+      | H: o = None |- _ =>
+          rewrite H in HH
+      | H: None = o |- _ =>
+          rewrite <- H in HH
+      | _ =>
+          let HH' := fresh "H" in
+          pose proof eq_refl o as HH';
+          destruct o as [t |] in HH, HH' at 2;
+          pose proof HH' as Heq_vt; clear HH'
+      end
+  end;
+  match type of HH with
+  | ex _ =>
+      pose proof HH as [b Heq_ve]
+  | _ =>
+      pose proof HH as Heq_ve
+  end;
+  clear HH.
+
+Ltac _destruct_glob_types i Heq_gt Heq_ge t b ::=
+  let HH := fresh "H" in
+  match goal with
+  | H: typecheck_glob_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ H i as HH
+  | H: typecheck_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
+  | H: tc_environ _ _ |- _ =>
+      pose proof WARNING___________you_should_use_tactic___destruct_glob_types___instead _ _ (proj2 (proj2 H)) i as HH
+  end;
+  match type of HH with
+  | match ?o with _ => _ end =>
+      match goal with
+      | H: o = Some _ |- _ =>
+          rewrite H in HH
+      | H: Some _ = o |- _ =>
+          rewrite <- H in HH
+      | H: o = None |- _ =>
+          rewrite H in HH
+      | H: None = o |- _ =>
+          rewrite <- H in HH
+      | _ =>
+          let HH' := fresh "H" in
+          pose proof eq_refl o as HH';
+          destruct o as [t |] in HH, HH' at 2;
+          pose proof HH' as Heq_gt; clear HH'
+      end
+  end;
+  match type of HH with
+  | ex _ =>
+      pose proof HH as [b Heq_ge]
+  | _ =>
+      idtac
+  end;
+  clear HH.
 
 (* no "semax" in this file, just assertions. *)
 Global Transparent Int.repr.
@@ -1006,87 +1082,6 @@ Tactic Notation "derives_rewrite" "<-" constr(H) :=
   | |- _ =>
          lifted_derives_R2L H
   end.
-(*
-Ltac solve_lifted_derives_trans P R :=
-  match goal with
-  | H: @derives (environ -> mpred) _ P R |- _ =>
-         exact H
-  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
-         apply (derives_trans P Q R H); solve_lifted_derives_trans Q R
-  end.
-
-Ltac solve_ENTAIL_trans Delta P R :=
-  match goal with
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
-         exact H
-  | H: @derives (environ -> mpred) _ P R |- _ =>
-         simple apply derives_ENTAIL, H
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
-         apply (ENTAIL_trans Delta P Q R H); solve_ENTAIL_trans Delta Q R
-  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
-         apply (ENTAIL_trans Delta P Q R (derives_ENTAIL _ _ _ H)); solve_ENTAIL_trans Delta Q R
-  end.
-
-Ltac solve_derives_bupd_trans Delta P R :=
-  match goal with
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> R) |- _ =>
-         exact H
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
-         exact (ENTAIL_derives_bupd _ _ _ H)
-  | H: @derives (environ -> mpred) _ P R |- _ =>
-         exact (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H))
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ?Q) |- _ =>
-         apply (derives_bupd_trans _ P Q R H); solve_derives_bupd_trans Delta Q R
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
-         apply (derives_bupd_trans _ P Q R (ENTAIL_derives_bupd _ _ _ H)); solve_derives_bupd_trans Delta Q R
-  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
-         apply (derives_bupd_trans _ P Q R (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H))); solve_derives_bupd_trans Delta Q R
-  end.
-
-Ltac solve_derives_bupd0_trans Delta P R :=
-  match goal with
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ((|> FF) || R)) |- _ =>
-         exact H
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> R) |- _ =>
-         exact (derives_bupd_derives_bupd0 _ _ _ H)
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
-         exact (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ H))
-  | H: @derives (environ -> mpred) _ P R |- _ =>
-         exact (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H)))
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ((|> FF) || ?Q)) |- _ =>
-         apply (derives_bupd0_trans _ P Q R H); solve_derives_bupd0_trans Delta Q R
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ?Q) |- _ =>
-         apply (derives_bupd0_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ H)); solve_derives_bupd0_trans Delta Q R
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
-         apply (derives_bupd0_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ H))); solve_derives_bupd0_trans Delta Q R
-  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
-         apply (derives_bupd0_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ H)))); solve_derives_bupd0_trans Delta Q R
-  end.
-
-Ltac solve_derives_full_trans Delta P R :=
-  match goal with
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && (allp_fun_id Delta && P)) (|==> ((|> FF) || R)) |- _ =>
-         exact H
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ((|> FF) || R)) |- _ =>
-         exact (derives_bupd0_derives_full _ _ _ H)
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> R) |- _ =>
-         exact (derives_bupd_derives_bupd0 _ _ _ (derives_bupd0_derives_full _ _ _ H))
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) R |- _ =>
-         exact (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_bupd0_derives_full _ _ _ H)))
-  | H: @derives (environ -> mpred) _ P R |- _ =>
-         exact (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ (derives_bupd0_derives_full _ _ _ H))))
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && (allp_fun_id Delta && P)) (|==> ((|> FF) || ?Q)) |- _ =>
-         apply (derives_full_trans _ P Q R H); solve_derives_full_trans Delta Q R
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ((|> FF) || ?Q)) |- _ =>
-         apply (derives_full_trans _ P Q R (derives_bupd0_derives_full _ _ _ H)); solve_derives_full_trans Delta Q R
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) (|==> ?Q) |- _ =>
-         apply (derives_full_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (derives_bupd0_derives_full _ _ _ H))); solve_derives_full_trans Delta Q R
-  | H: @derives (environ -> mpred) _ (local (tc_environ Delta) && P) ?Q |- _ =>
-         apply (derives_full_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_bupd0_derives_full _ _ _ H)))); solve_derives_full_trans Delta Q R
-  | H: @derives (environ -> mpred) _ P ?Q |- _ =>
-         apply (derives_full_trans _ P Q R (derives_bupd_derives_bupd0 _ _ _ (ENTAIL_derives_bupd _ _ _ (derives_ENTAIL _ _ _ (derives_bupd0_derives_full _ _ _ H))))); solve_derives_full_trans Delta Q R
-  end.
-*)
 
 Ltac solve_derives_trans :=
   first [simple apply derives_full_refl | eapply derives_full_trans; [eassumption | solve_derives_trans]].
@@ -1150,47 +1145,3 @@ Ltac reduce2derives :=
 
 Ltac reduce2ENTAIL :=
   reduceLL; reduceR.
-
-(*
-Ltac reduce2ENTAIL :=
-  match goal with
-  | |- _ |-- |==> |> FF || _ => try apply derives_bupd0_derives_full
-  | _ => idtac
-  end;
-  match goal with
-  | |- _ |-- |==> |> FF || _ => apply derives_bupd_derives_bupd0
-  | _ => idtac
-  end;
-  match goal with
-  | |- _ |-- |==> _ => apply ENTAIL_derives_bupd
-  | _ => idtac
-  end.
-*)
-
-(*
-Goal forall Delta (P Q R S T: environ -> mpred),
-  local (tc_environ Delta) && P |-- |==> |> FF || Q ->
-  local (tc_environ Delta) && Q |-- R ->
-  R |-- S ->
-  local (tc_environ Delta) && S |-- |==> T ->
-  local (tc_environ Delta) && P |-- |==> |> FF || T.
-Proof.
-  intros.
-  derives_rewrite -> H.
-  derives_rewrite <- H2.
-  
-  derives_rewrite -> H0.
-  derives_rewrite <- H1.
-Abort.
-
-Goal forall Delta (P Q R S T: environ -> mpred),
-  P |-- Q ->
-  local (tc_environ Delta) && Q |-- |==> R ->
-  R |-- S ->
-  local (tc_environ Delta) && S |-- T ->
-  local (tc_environ Delta) && P |-- |==> ((|> FF) || T).
-Proof.
-  intros.
-  solve_derives_trans.
-Abort.
-*)

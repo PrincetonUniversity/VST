@@ -636,23 +636,43 @@ intros. reflexivity.
 Qed.
 Hint Rewrite exp_unfold: norm2.
 
+Module CConseqFacts :=
+  SeparationLogicFacts.GenCConseqFacts
+    (SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def)
+    (SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic).
+
+Module Conseq :=
+  SeparationLogicFacts.GenConseq
+    (SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def)
+    (SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic).
+
+Module ConseqFacts :=
+  SeparationLogicFacts.GenConseqFacts
+    (SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def)
+    (Conseq).
+
+Lemma semax_pre_post_bupd:
+  forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+ forall P' (R': ret_assert) P c (R: ret_assert) ,
+    local (tc_environ Delta) && P |-- |==> P' ->
+    local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
+    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
+    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
+   @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
+Proof. exact @CConseqFacts.semax_pre_post_bupd. Qed.
+
 Lemma semax_pre_bupd:
  forall P' Espec {cs: compspecs} Delta P c R,
      ENTAIL Delta , P |-- |==> P' ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_post_bupd; eauto;
-intros; apply andp_left2, bupd_intro; auto.
-Qed.
+Proof. exact @CConseqFacts.semax_pre_bupd. Qed.
 
 Lemma semax_pre:
  forall P' Espec {cs: compspecs} Delta P c R,
      ENTAIL Delta , P |-- P' ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_bupd; eauto.
-eapply derives_trans, bupd_intro; auto.
-Qed.
+Proof. intros ? ? ?; apply ConseqFacts.semax_pre. Qed.
 
 Lemma semax_pre_simple:
  forall P' Espec {cs: compspecs} Delta P c R,
@@ -1231,19 +1251,6 @@ Proof.
 intros. extensionality rho. reflexivity.
 Qed.
 Hint Rewrite @local_lift0: norm2.
-
-Lemma extract_exists_pre:
-      forall
-        (A : Type) (P : A -> environ->mpred) (c : Clight.statement)
-         Espec {cs: compspecs} Delta  (R : ret_assert),
-       (forall x : A, @semax cs Espec Delta (P x) c R) ->
-       @semax cs Espec Delta (exp (fun x => P x)) c R.
-Proof.
-intros.
-apply semax_post with (existential_ret_assert (fun _:A => R));
-intros; try (apply andp_left2; simpl; intro;  apply exp_left; auto).
-apply extract_exists; auto.
-Qed.
 
 Lemma extract_exists_post:
   forall {Espec: OracleKind} {cs: compspecs} {A: Type} (x: A) Delta

@@ -182,7 +182,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
                 `(RA_return R : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R
-| semax_set_ptr_comparison_load_cast_load_backward: forall (P: environ->mpred) id e,
+| semax_set_ptr_compare_load_cast_load_backward: forall (P: environ->mpred) id e,
     @semax CS Espec Delta
        ((|> ( (tc_expr Delta e) &&
              (tc_temp_id id (typeof e) Delta e) &&
@@ -926,7 +926,7 @@ Proof.
     apply exp_left in H0.
     rewrite <- !(exp_andp2 A) in H0.
     eapply semax_conseq; [exact H0 | intros; apply derives_full_refl .. | clear H0 ].
-    eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+    eapply semax_conseq; [apply derives_full_refl | .. | apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
     - reduceL. apply derives_refl.
     - reduceL. apply FF_left.
     - reduceL. apply FF_left.
@@ -1185,7 +1185,7 @@ Module Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def :=
 
 Module CSHL_Def := DeepEmbeddedDef.
 
-Definition semax_set_ptr_comparison_load_cast_load_backward := @AuxDefs.semax_set_ptr_comparison_load_cast_load_backward.
+Definition semax_set_ptr_compare_load_cast_load_backward := @AuxDefs.semax_set_ptr_compare_load_cast_load_backward.
 
 End Sset.
 
@@ -1199,7 +1199,7 @@ Module PtrCmpB := Sset2PtrCmp (DeepEmbeddedDef) (Conseq) (Sset).
 
 Module PtrCmpF := PtrCmpB2F (DeepEmbeddedDef) (Conseq) (PtrCmpB).
 
-Definition semax_ptr_compare := @PtrCmpF.semax_pointer_comparison_forward.
+Definition semax_ptr_compare := @PtrCmpF.semax_ptr_compare_forward.
 
 Module LoadB := Sset2Load (DeepEmbeddedDef) (Conseq) (Sset).
 
@@ -1239,11 +1239,13 @@ Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 
 End DeepEmbeddedMinimumSeparationLogic.
 
-Module DeepEmbeddedPracticalSupplement <: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := DeepEmbeddedDef.
+Module DeepEmbeddedPracticalLogic <: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Module CSHL_Def := DeepEmbeddedDef.
 
 Module CSHL_Defs := DeepEmbeddedDefs.
+
+Module CSHL_MinimumLogic := DeepEmbeddedMinimumSeparationLogic.
 
 Definition semax_set := @DeepEmbeddedMinimumSeparationLogic.SetB.semax_set_backward.
 
@@ -1416,7 +1418,7 @@ Proof.
       destruct R; simpl.
       apply derives_refl.
   + rewrite frame_normal.
-    eapply semax_pre; [| apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+    eapply semax_pre; [| apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
     apply andp_left2.
     rewrite !distrib_orp_sepcon.
     repeat apply orp_derives.
@@ -1701,7 +1703,7 @@ Proof.
     - apply assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - simpl; auto.
-  + eapply semax_pre; [| apply AuxDefs.semax_set_ptr_comparison_load_cast_load_backward].
+  + eapply semax_pre; [| apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
     apply orp_ENTAIL; [apply orp_ENTAIL; [apply orp_ENTAIL |] |].
     - apply later_ENTAIL.
       apply andp_ENTAIL; [| apply ENTAIL_refl].
@@ -2230,7 +2232,7 @@ Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
 
-End DeepEmbeddedPracticalSupplement.
+End DeepEmbeddedPracticalLogic.
 
 End DeepEmbedded.
 

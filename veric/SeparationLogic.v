@@ -1447,12 +1447,10 @@ End MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Module Type PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+Declare Module CSHL_MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC.
 
-Module CSHL_Defs := DerivedDefs(CSHL_Def).
-
-Import CSHL_Def.
-Import CSHL_Defs.
+Import CSHL_MinimumLogic.CSHL_Def.
+Import CSHL_MinimumLogic.CSHL_Defs.
 
 Axiom semax_set :
   forall {CS: compspecs} {Espec: OracleKind},
