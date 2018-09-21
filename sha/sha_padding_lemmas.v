@@ -10,28 +10,28 @@ Require Import sha.functional_prog.
 (* Lemma 1: M = Prefix(Pad(M)) *)
 
 (* TODO: replace InWords with InBlocks 4? *)
-Inductive InWords : list Z -> Prop :=
+Inductive InWords : list byte -> Prop :=
   | words_nil : InWords []
-  | words_word : forall (a b c d : Z) (msg : list Z),
+  | words_word : forall (a b c d : byte) (msg : list byte),
                    InWords msg -> InWords (a :: b :: c :: d :: msg).
 
 (* *** New definition for this lemma. *)
-Definition pad (msg : list Z) : list Z :=
+Definition pad (msg : list byte) : list byte :=
   let n := Zlength msg in
-  msg ++ [128%Z]
-      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0
-      ++ intlist_to_Zlist (([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)])%list).
+  msg ++ [Byte.repr 128%Z]
+      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero
+      ++ intlist_to_bytelist (([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)])%list).
 
-Definition generate_and_pad' (msg : list Z) : list int :=
-  Zlist_to_intlist (pad msg).
+Definition generate_and_pad' (msg : list byte) : list int :=
+  bytelist_to_intlist (pad msg).
 
 
 (* ----------------- ^ Definitions *)
 
 Lemma fstpad_len :
-  forall (msg : list Z),
-    Datatypes.length (msg ++ [128]
-                 ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) 0)
+  forall (msg : list byte),
+    Datatypes.length (msg ++ [Byte.repr 128]
+                 ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero)
 = (Datatypes.length msg + (S (Z.to_nat (- (Zlength msg + 9) mod 64))))%nat.
 Proof.
   intros msg.
@@ -42,7 +42,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma InWords_len4 : forall (l : list Z),
+Lemma InWords_len4 : forall (l : list byte),
                        Nat.divide (Z.to_nat WORD) (length l) -> InWords l.
 Proof.
   intros l [x H].
@@ -66,7 +66,7 @@ Proof.
 Qed.
 
 (* TODO: clear out the SearchAbouts / clean up proof *)
-Lemma pad_len_64_mod : forall (msg : list Z),
+Lemma pad_len_64_mod : forall (msg : list byte),
                            (Zlength (pad msg)) mod 64 = 0.
 Proof.
   intros msg.
@@ -78,9 +78,9 @@ Proof.
     intros. induction n. reflexivity. omega.
   rewrite -> succ.
   assert ((length msg +
-      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) 0%Z) + 8 +
+      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 8 +
        1))%nat = (length msg +
-      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) 0%Z) + 9))%nat) by omega.
+      (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero) + 9))%nat) by omega.
   rewrite -> H. clear H.
 
   rewrite -> Zlength_correct.
@@ -110,7 +110,7 @@ Proof.
 Qed.
 
 (* more usable versions *)
-Lemma pad_len_64 : forall (msg : list Z), exists (n : Z),
+Lemma pad_len_64 : forall (msg : list byte), exists (n : Z),
                            Zlength (pad msg) = 64 * n /\ n >= 0.
 Proof.
   intros msg.
@@ -124,7 +124,7 @@ Proof.
   specialize (Zlength_nonneg (pad msg)); intros. omega.
 Qed.
 
-Lemma pad_len_64_nat : forall (msg : list Z), exists (n : nat),
+Lemma pad_len_64_nat : forall (msg : list byte), exists (n : nat),
                            (length (pad msg))%nat = (64 * n)%nat.
 Proof.
   intros msg.
@@ -152,9 +152,9 @@ Proof.
   * omega.
 Qed.
 
-Lemma total_pad_len_Zlist : forall (msg : list Z), exists (n : nat),
+Lemma total_pad_len_Zlist : forall (msg : list byte), exists (n : nat),
      length
-       (msg ++ [128] ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) 0)
+       (msg ++ [Byte.repr 128] ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero)
      =  (n * Z.to_nat WORD (* 4 *))%nat.
 Proof.
   intros msg.
@@ -184,9 +184,9 @@ Proof.
 Qed.
 
 Lemma pad_inwords :
-  forall (msg : list Z),
-    InWords (msg ++ [128]
-                 ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) 0).
+  forall (msg : list byte),
+    InWords (msg ++ [Byte.repr 128]
+                 ++ list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) Byte.zero).
 Proof.
   intros msg.
   apply InWords_len4.
@@ -199,7 +199,7 @@ Qed.
 Definition fulllen (len : Z) :=
   len + 1%Z + (- (len + 9) mod 64).
 
-Lemma app_left : forall (a b c d : list Z),
+Lemma app_left : forall (a b c d : list byte),
    a ++ b ++ c ++ d = (a ++ b ++ c) ++ d.
 (* a ++ (b ++ (c ++ d)) = (a ++ (b ++ c)) ++ d *)
 Proof.
@@ -212,7 +212,7 @@ Proof.
 Qed.
 
 (* can use extensionality *)
-Theorem pad_compose_equal : forall (msg : list Z),
+Theorem pad_compose_equal : forall (msg : list byte),
                               generate_and_pad' msg = generate_and_pad msg.
 Proof.
   intros msg.
@@ -227,15 +227,15 @@ Proof.
   rewrite -> app_left.
   induction pad_inwords.
   (* case none *)
-    assert (forall l : list Z, [] ++ l = l) as Happend. reflexivity.
-    specialize (Happend (intlist_to_Zlist
+    assert (forall l : list byte, [] ++ l = l) as Happend. reflexivity.
+    specialize (Happend (intlist_to_bytelist
         [Int.repr (Zlength msg * 8 / Int.modulus);
         Int.repr (Zlength msg * 8)])).
     rewrite -> Happend.
-    rewrite -> intlist_to_Zlist_to_intlist.
+    rewrite -> intlist_to_bytelist_to_intlist.
     reflexivity.
   (* case a :: b :: c :: d :: msg0 *)
-    Opaque intlist_to_Zlist.
+    Opaque intlist_to_bytelist.
     simpl.
     apply f_equal.
     apply IHpad_inwords.
@@ -246,7 +246,7 @@ Qed.
 
 (* Lemma 2: |M1| = |M2| -> |Pad(M1)| = |Pad(M2)| *)
 
-Theorem length_equal_pad_length : forall (msg1 : list Z) (msg2 : list Z),
+Theorem length_equal_pad_length : forall (msg1 : list byte) (msg2 : list byte),
      Zlength msg1  = Zlength msg2 ->
      Zlength (generate_and_pad msg1) = Zlength (generate_and_pad msg2).
 Proof.

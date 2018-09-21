@@ -38,14 +38,14 @@ Qed.
 
 (* ----- Inductive *)
 
-Inductive bytes_bits_lists : Blist -> list Z -> Prop :=
+Inductive bytes_bits_lists : Blist -> list byte -> Prop :=
   | eq_empty : bytes_bits_lists nil nil
-  | eq_cons : forall (bits : Blist) (bytes : list Z)
-                     (b0 b1 b2 b3 b4 b5 b6 b7 : bool) (byte : Z),
+  | eq_cons : forall (bits : Blist) (bytes : list byte)
+                     (b0 b1 b2 b3 b4 b5 b6 b7 : bool) (b : byte),
                 bytes_bits_lists bits bytes ->
-                convertByteBits [b0; b1; b2; b3; b4; b5; b6; b7] byte ->
+                convertByteBits [b0; b1; b2; b3; b4; b5; b6; b7] b ->
                 bytes_bits_lists (b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: bits)
-                                 (byte :: bytes).
+                                 (b :: bytes).
 
 (* ----- Computational *)
 
@@ -54,8 +54,8 @@ Inductive bytes_bits_lists : Blist -> list Z -> Prop :=
 Definition div_mod (num : Z) (denom : Z) : bool * Z :=
   (Z.gtb (num / denom) 0, num mod denom).
 
-Definition byteToBits (byte : Z) : Blist :=
-  let (b7, rem7) := div_mod byte 128 in
+Definition byteToBits (byte : byte) : Blist :=
+  let (b7, rem7) := div_mod (Byte.unsigned byte) 128 in
   let (b6, rem6) := div_mod rem7 64 in
   let (b5, rem5) := div_mod rem6 32 in
   let (b4, rem4) := div_mod rem5 16 in
@@ -65,26 +65,30 @@ Definition byteToBits (byte : Z) : Blist :=
   let (b0, rem0) := div_mod rem1 1 in
   [b0; b1; b2; b3; b4; b5; b6; b7].
 
-Fixpoint bytesToBits (bytes : list Z) : Blist :=
+Fixpoint bytesToBits (bytes : list byte) : Blist :=
   match bytes with
     | [] => []
     | byte :: xs => byteToBits byte ++ bytesToBits xs
   end.
 
-Definition bitsToByte (bits : Blist) : Z :=
+Definition bitsToByte (bits : Blist) : byte :=
+  Byte.repr 
   match bits with
     | b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: nil =>
-      1 * (asZ b0) + 2 * (asZ b1) + 4 * (asZ b2) + 8 * (asZ b3)
-      + 16 * (asZ b4) + 32 * (asZ b5) + 64 * (asZ b6) + 128 * (asZ b7)
-    | _ => -1                   (* should not happen *)
+      (1 * (asZ b0) + 2 * (asZ b1) + 4 * (asZ b2) + 8 * (asZ b3)
+      + 16 * (asZ b4) + 32 * (asZ b5) + 64 * (asZ b6) + 128 * (asZ b7))
+    | _ => -1                  (* should not happen *)
   end.
 
-Fixpoint bitsToBytes (bits : Blist) : list Z :=
+Fixpoint bitsToBytes (bits : Blist) : list byte :=
   match bits with
     | b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: xs =>
       bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7] :: bitsToBytes xs
     | _ => []
   end.
+
+(*
+Definition isbyteZ i := (0 <= i < 256)%Z.
 
 Lemma bitsToByte_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7:
       isbyteZ (bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7]).
@@ -92,13 +96,14 @@ Proof. simpl. unfold asZ, isbyteZ.
   destruct b0; destruct b1; destruct b2; destruct b3;
   destruct b4; destruct b5; destruct b6; destruct b7; simpl; omega.
 Qed.
+*)
 
 (* -------------------- Various theorems and lemmas *)
 
 Lemma byteToBits_length bt: length (byteToBits bt) = 8%nat.
 Proof. reflexivity. Qed.
 
-Lemma bytes_bits_length : forall (bits : Blist) (bytes : list Z),
+Lemma bytes_bits_length : forall (bits : Blist) (bytes : list byte),
   bytes_bits_lists bits bytes -> length bits = (length bytes * 8)%nat.
 Proof.
   intros bits bytes corr.
@@ -107,7 +112,7 @@ Proof.
   - simpl. repeat f_equal. apply IHcorr.
 Qed.
 
-Lemma bytesToBits_app : forall (l1 l2 : list Z),
+Lemma bytesToBits_app : forall (l1 l2 : list byte),
                           bytesToBits (l1 ++ l2) = bytesToBits l1 ++ bytesToBits l2.
 Proof.
   induction l1; intros.
@@ -116,7 +121,7 @@ Proof.
     simpl. rewrite -> IHl1. reflexivity.
 Qed.
 
-Lemma bytesToBits_len : forall (l : list Z),
+Lemma bytesToBits_len : forall (l : list byte),
                           length (bytesToBits l) = (length l * 8)%nat.
 Proof.
   induction l; intros; try reflexivity.
@@ -127,12 +132,17 @@ Proof.
 Qed.
 
 (* Prove by brute force (test all Z in range) *)
-Theorem byte_bit_byte_id : forall (byte : Z),
-                             0 <= byte < 256 ->
-                                bitsToByte (byteToBits byte) = byte.
+Theorem byte_bit_byte_id : forall (b : byte),
+                                bitsToByte (byteToBits b) = b.
 Proof.
-  intros byte range.
-  do_range range reflexivity.
+  intros.
+  rewrite <- (Byte.repr_unsigned b) at 2.
+  unfold  byteToBits.
+  pose proof (Byte.unsigned_range b).
+  set (x := Byte.unsigned b)  in *. clearbody x.
+  change Byte.modulus with 256 in H.
+  unfold bitsToByte. f_equal.
+  do_range H reflexivity.
 Qed.
 
 Theorem bits_byte_bits_id : forall (b0 b1 b2 b3 b4 b5 b6 b7 : bool),
@@ -145,11 +155,10 @@ Proof.
   reflexivity.
 Qed.
 
-Theorem bytes_bits_bytes_id : forall (bytes : list Z),
-                                Forall (fun b => 0 <= b < 256) bytes ->
+Theorem bytes_bits_bytes_id : forall (bytes : list byte),
                                 bitsToBytes (bytesToBits bytes) = bytes.
 Proof.
-  intros range bytes.
+  intros bytes.
   induction bytes as [ | byte bytes].
   - reflexivity.
   -
@@ -165,22 +174,20 @@ Proof.
     Transparent bitsToByte.
     unfold bitsToByte. f_equal.
     apply byte_bit_byte_id.
-
-    apply H. Transparent bytesToBits.
 Qed.
 
 
 (* ------------------ Theorems relating inductive and computational definitions *)
 
-Theorem bytes_bits_def_eq : forall (bytes : list Z),
-                              Forall (fun b => 0 <= b < 256) bytes ->
+Theorem bytes_bits_def_eq : forall (bytes : list byte),
                               bytes_bits_lists (bytesToBits bytes) bytes.
 Proof.
-  intros range bytes.
+  intros bytes.
   induction bytes as [ | byte bytes ].
   -
     simpl. apply eq_empty.
   -
+    Transparent bytesToBits.
     apply eq_cons.
 
     *
@@ -192,53 +199,52 @@ Proof.
       +
         reflexivity.
       +
+        pose proof (Byte.unsigned_range byte). change Byte.modulus with 256 in H.
+        set (b := Byte.unsigned byte) in *. clearbody b.
         do_range H reflexivity.
 Qed.
 
-Theorem bytes_bits_comp_ind : forall (bits : Blist) (bytes : list Z),
-                               Forall (fun b => 0 <= b < 256) bytes ->
+Theorem bytes_bits_comp_ind : forall (bits : Blist) (bytes : list byte),
                                bits = bytesToBits bytes ->
                                bytes_bits_lists bits bytes.
 Proof.
-  intros bits bytes range corr.
+  intros bits bytes corr.
   rewrite -> corr.
   apply bytes_bits_def_eq.
-  assumption.
 Qed.
 
-Theorem bytes_bits_ind_comp : forall (bits : Blist) (bytes : list Z),
-                                 Forall (fun b => 0 <= b < 256) bytes ->
+Theorem bytes_bits_ind_comp : forall (bits : Blist) (bytes : list byte),
                                  bytes_bits_lists bits bytes ->
                                  bytes = bitsToBytes bits.
 Proof.
-  intros bits bytes range corr.
+  intros bits bytes corr.
   induction corr.
   - reflexivity.
   - rewrite -> IHcorr; clear IHcorr corr.
-    * unfold bitsToBytes.
+    unfold bitsToBytes.
       fold bitsToBytes.
       f_equal. unfold convertByteBits in H.
         destruct H as [b8 [b9 [b10 [b11 [b12 [b13 [b14 [b15 [B BT]]]]]]]]].
-        inversion B; clear B. subst. reflexivity.
-    * eapply Forall_tl. eassumption.
+        inversion B; clear B. subst.
+        rewrite <- (Byte.repr_unsigned b). rewrite BT.
+        reflexivity.
 Qed.
 
-Theorem bits_bytes_ind_comp : forall (bits : Blist) (bytes : list Z),
-                                 Forall (fun b => 0 <= b < 256) bytes ->
+Theorem bits_bytes_ind_comp : forall (bits : Blist) (bytes : list byte),
                                  bytes_bits_lists bits bytes ->
                                  bits = bytesToBits bytes.
 Proof.
-  intros bits bytes range corr.
+  intros bits bytes corr.
   induction corr.
   - reflexivity.
   -
     unfold convertByteBits in H.
     destruct_exists.
     destruct H7.
+    rewrite <- (Byte.repr_unsigned b). rewrite H8. clear H8.
     inversion H7.
     subst.
     clear H7.
-    rewrite -> IHcorr.
     unfold bytesToBits.
     fold bytesToBits.
     assert (list_8 : forall {A : Type} (e0 e1 e2 e3 e4 e5 e6 e7 : A) (l : list A),
@@ -248,8 +254,6 @@ Proof.
     rewrite -> list_8.
     f_equal.
     apply bits_byte_bits_id.
-
-    eapply Forall_tl. eassumption.
 Qed.
 
 (* ----------------------------- *)
@@ -359,7 +363,7 @@ Proof.
 Qed.
 
 Lemma bytes_bits_lists_append:
-  forall (l1 : Blist) (l2 : list Z) (m1 : Blist) (m2 : list Z),
+  forall (l1 : Blist) (l2 : list byte) (m1 : Blist) (m2 : list byte),
     bytes_bits_lists l1 l2
     -> bytes_bits_lists m1 m2
     -> bytes_bits_lists (l1 ++ m1) (l2 ++ m2).
@@ -387,28 +391,23 @@ Proof. reflexivity. Qed.
 
 Lemma byteToBits_injective: forall a b,
       byteToBits a = byteToBits b ->
-      isbyteZ a -> isbyteZ b -> a = b.
-Proof. intros. unfold isbyteZ in *.
+      a = b.
+Proof. intros.
 assert (bitsToByte (byteToBits a) = bitsToByte (byteToBits b)).
   rewrite H; trivial.
 clear H.
-rewrite byte_bit_byte_id in H2; trivial.
-rewrite byte_bit_byte_id in H2; trivial.
+rewrite ?byte_bit_byte_id in H0. trivial.
 Qed.
 
 Lemma bytesToBits_injective: forall b1 b2, bytesToBits b1 = bytesToBits b2 ->
-      Forall isbyteZ b1 -> Forall isbyteZ b2 -> b1=b2.
+       b1=b2.
 Proof. induction b1.
   intros; destruct b2; trivial. discriminate.
   destruct b2. discriminate.
   do 2 rewrite bytesToBits_cons.
   intros. destruct (app_inj1 _ _ _ _ H). reflexivity.
-  rewrite (IHb1 _ H3).
-  rewrite (byteToBits_injective _ _ H2). trivial.
-    eapply Forall_inv; eassumption.
-    eapply Forall_inv; eassumption.
-    eapply Forall_tl; eassumption.
-    eapply Forall_tl; eassumption.
+  rewrite (IHb1 _ H1).
+  rewrite (byteToBits_injective _ _ H0). trivial.
 Qed.
 
 Lemma bitsToBytes_injective8 b1 b2 (B: bitsToBytes b1 = bitsToBytes b2)
@@ -444,36 +443,7 @@ Proof. intros.
 Qed.
 
 Definition intsToBits (l : list Int.int) : list bool :=
-  bytesToBits (intlist_to_Zlist l).
+  bytesToBits (intlist_to_bytelist l).
 
 Definition bitsToInts (l : Blist) : list Int.int :=
-  Zlist_to_intlist (bitsToBytes l).
-
-Lemma bitsToBytes_isbyteZ: forall bytes bits,
-                             bytes = bitsToBytes bits -> Forall isbyteZ bytes.
-Proof. intros bytes.
-  induction bytes; simpl; intros.
-     constructor.
-  apply bitsToByte_cons in H.
-  destruct H as [b0 [b1 [b2 [b3 [b4 [b5 [b6 [b7 [xs [BITS [A BYTES]]]]]]]]]]].
-  constructor.
-     subst. apply bitsToByte_isbyteZ.
-     eauto.
-Qed.
-
-Lemma convertByteBits_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7 byte:
-      convertByteBits [b0; b1; b2; b3; b4; b5; b6; b7] byte ->
-      isbyteZ byte.
-Proof. intros.
-  destruct H as [b8 [b9 [b10 [b11 [b12 [b13 [b14 [b15 [BITS ZZ]]]]]]]]].
-  inversion BITS. subst. clear BITS.
-  unfold asZ, isbyteZ.
-  destruct b8; destruct b9; destruct b10; destruct b11;
-  destruct b12; destruct b13; destruct b14; destruct b15; simpl; omega.
-Qed.
-
-Lemma bytesBitsLists_isbyteZ bytes bits: bytes_bits_lists bits bytes -> Forall isbyteZ bytes.
-Proof. intros.
-  induction H. constructor.
-  constructor; trivial. eapply convertByteBits_isbyteZ. apply H0.
-Qed.
+  bytelist_to_intlist (bitsToBytes l).

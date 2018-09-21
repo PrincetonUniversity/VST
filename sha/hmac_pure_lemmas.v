@@ -43,56 +43,6 @@ Proof. intros.
   subst y. f_equal. trivial.
 Qed.
 
-Lemma isByte_mono: forall x y, 0<=y<=x -> isbyteZ x -> isbyteZ y.
-Proof. intros. destruct H0. split; omega. Qed.
-
-Lemma unsigned_Brepr_isbyte z: isbyteZ z -> Byte.unsigned (Byte.repr z) = z.
-Proof. intros.
-      unfold isbyteZ in H. apply Byte.unsigned_repr.
-      unfold Byte.max_unsigned, Byte.modulus. simpl. omega.
-Qed.
-
-Lemma isByte_ByteUnsigned b: isbyteZ (Byte.unsigned b).
-Proof.
-  unfold Byte.unsigned, Byte.intval. destruct b.
-  unfold Byte.modulus, Byte.wordsize, Wordsize_8.wordsize in intrange.
-  rewrite two_power_nat_correct in intrange.
-  unfold Zpower_nat in intrange. simpl in intrange. unfold isbyteZ. omega.
-Qed.
-
-Lemma unsigned_repr_isbyte x:
-  isbyteZ x -> Int.unsigned (Int.repr x) = x.
-Proof. intros; apply Int.unsigned_repr.
-  rewrite int_max_unsigned_eq. destruct H; omega.
-Qed.
-
-Lemma map_unsigned_Brepr_isbyte: forall l, List.Forall isbyteZ l ->
-      List.map Byte.unsigned (map Byte.repr l) = l.
-Proof. intros. induction l; simpl in *. trivial.
-   rewrite IHl. rewrite Forall_forall in H.
-   assert (In a (a::l)). left. trivial.
-   specialize (H _ H0); clear H0.
-   rewrite unsigned_Brepr_isbyte; trivial.
-   rewrite Forall_forall in *. intros. apply H. right; trivial.
-Qed.
-
-Lemma isbyte_map_ByteUnsigned l: Forall isbyteZ (map Byte.unsigned l).
-Proof.
-  rewrite Forall_forall. intros.
-  apply list_in_map_inv in H. destruct H as [b [B1 _]]. subst x.
-  apply isByte_ByteUnsigned.
-Qed.
-
-Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned.
-Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega.
-Qed.
-(*
-Lemma NPeano_divide_trans a b c: NPeano.divide a b ->
-      NPeano.divide b c -> NPeano.divide a c.
-Proof. intros. destruct H; destruct H0. subst.
-  exists (x0 * x)%nat. apply mult_assoc.
-Qed.*)
-
 Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
   l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
 Proof.
@@ -152,11 +102,11 @@ Proof. apply Int.Zsize_monotone. Qed.
 Lemma list_nil {A} l (L:@length A l = 0%nat): l = nil.
 Proof. destruct l; simpl in *; eauto. inv L. Qed.
 
-Lemma nth_mapIn: forall i (l:list Z) d (Hi: (0 <= i < length l)%nat),
+Lemma nth_mapIn {A}: forall i (l:list A) d (Hi: (0 <= i < length l)%nat),
   exists n, nth i l d = n /\ In n l.
 Proof. intros i.
   induction i; simpl; intros.
-    destruct l; simpl in *. omega. exists z. split; trivial. left; trivial.
+    destruct l; simpl in *. omega. exists a. split; trivial. left; trivial.
     destruct l; simpl in *. omega.
       destruct (IHi l d) as [? [? ?]]. omega. rewrite H. exists x; split; trivial. right; trivial.
 Qed.
@@ -396,11 +346,4 @@ Proof.
       specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
   rewrite H0 in H; clear H0.
   apply (list_splitLength _ _ _ H).
-Qed.
-
-Lemma isbyteZ_xor a b: isbyteZ a -> isbyteZ b -> isbyteZ (Z.lxor a b).
-Proof. intros. rewrite xor_inrange.
-        apply Z_mod_lt. omega.
-        symmetry; apply Zmod_small. apply H.
-        symmetry; apply Zmod_small. apply H0.
 Qed.
