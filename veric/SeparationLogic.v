@@ -1503,6 +1503,13 @@ Axiom semax_loop_nocontinue:
  @semax CS Espec Delta P (Ssequence body incr) (loop_nocontinue_ret_assert P R) ->
  @semax CS Espec Delta P (Sloop body incr) R.
 
+Axiom semax_loop_unroll1:
+  forall {CS: compspecs} {Espec: OracleKind} Delta P P' Q body incr R,
+  @semax CS Espec Delta P body (loop1_ret_assert P' R) ->
+  @semax CS Espec Delta P' incr (loop2_ret_assert Q R) ->
+  @semax CS Espec Delta Q (Sloop body incr) R ->
+  @semax CS Espec Delta P (Sloop body incr) R.
+
 Axiom semax_if_seq:
  forall {CS: compspecs} {Espec: OracleKind} Delta P e c1 c2 c Q,
  semax Delta P (Sifthenelse e (Ssequence c1 c) (Ssequence c2 c)) Q ->
