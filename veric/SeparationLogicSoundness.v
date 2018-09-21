@@ -15,7 +15,6 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.semax_conseq.
-Require Import VST.veric.semax_congruence.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.semax_call.
@@ -120,34 +119,20 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
-Definition semax_loop_nocontinue := @semax_loop_nocontinue.
-Definition semax_if_seq := @semax_if_seq.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
-Definition semax_seq_Slabel := @semax_seq_Slabel.
-Definition seq_assoc := @seq_assoc.
-Definition semax_seq_skip := @semax_seq_skip.
-Definition semax_skip_seq := @semax_skip_seq.
 Definition semax_call := @semax_call.
-Definition semax_fun_id := @semax_fun_id_alt.
 (* Definition semax_call_ext := @semax_call_ext. *)
-Definition semax_set := @semax_set.
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 Definition semax_store := @semax_store.
 Definition semax_load := @semax_load.
-Definition semax_set_forward_nl := @semax_set_forward_nl.
-Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
 Definition semax_conseq := @semax_conseq.
-Definition semax_extensionality_Delta := @semax_extensionality_Delta.
-Definition semax_extract_prop := @semax_extract_prop.
-Definition semax_extract_later_prop := @semax_extract_later_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
-Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
 Definition semax_external_FF := @semax_external_FF.
 
 Definition juicy_ext_spec := juicy_ext_spec.
