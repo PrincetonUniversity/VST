@@ -1826,3 +1826,14 @@ Qed.
 
 Definition almost_empty rm: Prop:=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
+
+Definition func_at (f: funspec): address -> pred rmap :=
+  match f with
+   | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
+  end.
+
+Definition func_at' (f: funspec) (loc: address) : pred rmap :=
+  match f with
+   | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
+  end.
+

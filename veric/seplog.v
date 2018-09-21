@@ -13,16 +13,6 @@ Require Export VST.veric.mapsto_memory_block.
 
 Local Open Scope pred.
 
-Definition func_at (f: funspec): address -> pred rmap :=
-  match f with
-   | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
-  end.
-
-Definition func_at' (f: funspec) (loc: address) : pred rmap :=
-  match f with
-   | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
-  end.
-
 Definition func_ptr (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Ptrofs.zero) && func_at f (b, 0).
 
@@ -113,7 +103,7 @@ Definition stackframe_of (f: Clight.function) : assert :=
   fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
 *)
 
-Lemma  subst_extens:
+Lemma  subst_derives:
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
 Proof.
 unfold subst, derives.

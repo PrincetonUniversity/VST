@@ -908,6 +908,91 @@ try apply tc_val_of_bool.
 Transparent tc_val.
 Qed.
 
+Lemma tc_val'_sem_cmp_pp: forall cmp v1 v2 v i s a,
+  sem_cmp_pp cmp v1 v2 = Some v ->
+  tc_val' (Tint i s a) v.
+Proof.
+  intros.
+  unfold sem_cmp_pp, option_map in H.
+  forget (if Archi.ptr64 then Val.cmplu_bool true2 cmp v1 v2 else Val.cmpu_bool true2 cmp v1 v2) as v0.
+  destruct v0; inv H.
+  intros _; apply tc_val_of_bool.
+Qed.
+
+Lemma tc_val'_sem_cmp: forall cmp t v1 v2 t1 t2,
+  is_int_type t = true ->
+  tc_val' t (force_val2 (Cop2.sem_cmp cmp t1 t2) v1 v2).
+Proof.
+  intros.
+  destruct t; inv H.
+  unfold force_val2, force_val.
+  destruct (Cop2.sem_cmp cmp t1 t2 v1 v2) eqn:?H; [| intros ?; congruence].
+  unfold Cop2.sem_cmp in H.
+  Opaque tc_val.
+  destruct (Cop.classify_cmp t1 t2).
+  + revert H; simple_if_tac; intros; [congruence |].
+    eapply tc_val'_sem_cmp_pp; eauto.
+  + revert H; simple_if_tac; intros; [congruence |].
+    unfold sem_cmp_pi in H.
+    destruct v2; inv H.
+    - eapply tc_val'_sem_cmp_pp; eauto.
+    - destruct Archi.ptr64; inv H1.
+      eapply tc_val'_sem_cmp_pp; eauto.
+  + revert H; simple_if_tac; intros; [congruence |].
+    unfold sem_cmp_ip in H.
+    destruct v1; inv H.
+    - eapply tc_val'_sem_cmp_pp; eauto.
+    - destruct Archi.ptr64; inv H1.
+      eapply tc_val'_sem_cmp_pp; eauto.
+  + revert H; simple_if_tac; intros; [congruence |].
+    unfold sem_cmp_pl in H.
+    destruct v2; try congruence.
+    - eapply tc_val'_sem_cmp_pp; eauto.
+    - destruct Archi.ptr64; inv H.
+      eapply tc_val'_sem_cmp_pp; eauto.
+  + revert H; simple_if_tac; intros; [congruence |].
+    unfold sem_cmp_lp in H.
+    destruct v1; try congruence.
+    - eapply tc_val'_sem_cmp_pp; eauto.
+    - destruct Archi.ptr64; inv H.
+      eapply tc_val'_sem_cmp_pp; eauto.
+  + unfold sem_cmp_default, Cop2.sem_binarith in H.
+    destruct (Cop.classify_binarith t1 t2).
+    - unfold both_int in H.
+      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_i s0)) v1) as v1'.
+      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_i s0)) v2) as v2'.
+      destruct v1'; [| inv H].
+      destruct v0; inv H.
+      destruct v2'; [| inv H1].
+      destruct v0; inv H1.
+      intros _; apply tc_val_of_bool.
+    - unfold both_long in H.
+      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_l s0)) v1) as v1'.
+      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_l s0)) v2) as v2'.
+      destruct v1'; [| inv H].
+      destruct v0; inv H.
+      destruct v2'; [| inv H1].
+      destruct v0; inv H1.
+      intros _; apply tc_val_of_bool.
+    - unfold both_float in H.
+      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_f)) v1) as v1'.
+      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_f)) v2) as v2'.
+      destruct v1'; [| inv H].
+      destruct v0; inv H.
+      destruct v2'; [| inv H1].
+      destruct v0; inv H1.
+      intros _; apply tc_val_of_bool.
+    - unfold both_single in H.
+      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_s)) v1) as v1'.
+      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_s)) v2) as v2'.
+      destruct v1'; [| inv H].
+      destruct v0; inv H.
+      destruct v2'; [| inv H1].
+      destruct v0; inv H1.
+      intros _; apply tc_val_of_bool.
+    - inv H.
+Qed.
+
 Lemma tc_val_cmp_eqne_ip:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
  match op with Ceq => True | Cne => True | _ => False end ->

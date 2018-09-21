@@ -1,4 +1,8 @@
-Require Import VST.floyd.base.
+From compcert Require Export Clightdefs.
+Require Export VST.veric.SeparationLogic.
+Require Export VST.msl.Extensionality.
+Require Export compcert.lib.Coqlib.
+Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.functional_base.
 
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.

@@ -15,6 +15,7 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
+Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
@@ -656,12 +657,6 @@ Proof.
         auto.
 Qed.
 
-Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
- match (temp_types Delta) ! id with
- | Some t => Some t
- | None => None
- end.
-
 Lemma semax_set_forward':
 forall (Delta: tycontext) (P: assert) id e t,
     typeof_temp Delta id = Some t ->
@@ -913,108 +908,6 @@ unfold subst; rewrite H4.
 auto.
 Qed.
 
-Lemma semax_set:
-forall (Delta: tycontext) (P: assert) id e,
-    semax Espec Delta
-        (fun rho =>
-          |> (tc_expr Delta e rho  && (tc_temp_id id (typeof e) Delta e rho) &&
-              subst id (eval_expr e rho) P rho))
-          (Sset id e) (normal_ret_assert P).
-Proof.
-intros until e.
-replace (fun rho : environ =>
-   |>(tc_expr Delta e rho && (tc_temp_id id (typeof e) Delta e rho) &&
-      subst id (eval_expr e rho) P rho))
- with (fun rho : environ =>
-     (|> tc_expr Delta e rho &&
-      |> (tc_temp_id id (typeof e) Delta e rho) &&
-      |> subst id (eval_expr e rho) P rho))
-  by (extensionality rho;  repeat rewrite later_andp; auto).
-apply semax_straight_simple. auto.
-intros jm jm' Delta' ge ve te rho k F TS [TC3 TC2] TC' Hcl Hge ? ? HGG'.
-specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
-specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
-assert (typecheck_environ Delta rho) as TC.
-{
-  destruct TC'.
-  eapply typecheck_environ_sub; eauto.
-}
-pose proof TC3 as TC3'.
-apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
-apply (tc_temp_id_sub _ _ _ TS) in TC2.
-exists jm', (PTree.set id (eval_expr e rho) te).
-econstructor.
-split.
-reflexivity.
-split3; auto.
-apply age_level; auto.
-normalize in H0.
-clear - TS TC TC' TC2 TC3 TC3' Hge.
-unfold construct_rho in *.
-simpl in *. rewrite Hge. simpl. rewrite <- Hge.
-rewrite <- map_ptree_rel.
-apply guard_environ_put_te'; try rewrite <- Hge; auto.
-intros. simpl in *. unfold tc_temp_id, typecheck_temp_id in *.
-rewrite H in TC2.
-rewrite denote_tc_assert_andp in TC2; simpl in *.
-super_unfold_lift. destruct TC2; simpl in *.
-unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
-destruct b; inv H0.
-destruct TC'.
-apply tc_val_tc_val'.
-apply neutral_cast_tc_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
-destruct H0.
-split; auto.
-simpl.
-split3; auto.
-destruct (age1_juicy_mem_unpack _ _ H).
-rewrite <- H3.
-econstructor; eauto. rewrite Hge in *.
-rewrite H3; eapply eval_expr_relate; auto.
-destruct TC'; eauto. auto.
-apply age1_resource_decay; auto.
-split; [apply age_level; auto|].
-apply age1_ghost_of, age_jm_phi; auto.
-
-split.
-2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
-
-assert (app_pred (|>  (F rho * subst id (eval_expr e rho) P rho)) (m_phi jm)).
-rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
-assert (laterR (m_phi jm) (m_phi jm')).
-constructor 1.
-destruct (age1_juicy_mem_unpack _ _ H); auto.
-specialize (H2 _ H3).
-eapply sepcon_derives; try apply H2; try solve[rewrite <- map_ptree_rel; subst; auto].
-clear - Hcl Hge.
-specialize (Hcl rho  (Map.set id (eval_expr e rho) (make_tenv te))).
-rewrite <- map_ptree_rel.
-rewrite <- Hcl; auto.
-intros.
-destruct (Pos.eq_dec id i).
-subst.
-left. unfold modifiedvars. simpl.
- unfold insert_idset; rewrite PTree.gss; hnf; auto.
-right.
-rewrite Map.gso; auto. rewrite Hge. simpl. auto.
-Qed.
-
-Lemma typeof_temp_sub:
- forall (Delta Delta': tycontext),
-    tycontext_sub Delta Delta' ->
-   forall i t,
-    typeof_temp Delta i = Some t ->
-    typeof_temp Delta' i = Some t.
-Proof.
-intros.
-destruct H as [? _].
-specialize (H i).
-unfold typeof_temp in *.
-destruct ((temp_types Delta) ! i); inv H0.
-destruct ((temp_types Delta') ! i); try contradiction.
-destruct H; subst; auto.
-Qed.
-
 Lemma eval_cast_Vundef:
  forall t1 t2, eval_cast t1 t2 Vundef = Vundef.
 Proof.
@@ -1041,38 +934,6 @@ destruct H.
 destruct v,v'; inv  H;
 destruct a,a'; inv H0; auto;
 apply Neqb_ok in H1; subst n0; auto.
-Qed.
-
-Lemma neutral_cast_lemma2: forall t1 t2 v,
-  is_neutral_cast t1 t2 = true ->
-  tc_val t1 v -> tc_val t2 v.
-Proof.
-intros.
-unfold is_neutral_cast, tc_val in *.
-destruct (eqb_type t1 int_or_ptr_type) eqn:J,
-         (eqb_type t2 int_or_ptr_type) eqn:J0;
-destruct t1  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
-destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
-try solve [destruct i; discriminate];
- try solve [destruct v; apply H0];
- hnf in H0|-*; destruct v; auto;
-try match goal with
-| H: ?lo <= _ <= ?hi |- ?lo' <= _ <= ?hi' =>
-   assert (lo' <= lo) by (compute; congruence);
-   assert (hi <= hi') by (compute; congruence);
-   try omega
-| H:  _ <= ?hi |-  _ <= ?hi' =>
-   assert (hi <= hi') by (compute; congruence);
-   try omega
-| H: _ \/ _ |- _  => destruct H; subst; try solve [compute; congruence]
-end;
- try solve [compute; try split; congruence].
-rewrite orb_false_r in H2.
-apply andb_true_iff in H2.
-destruct H2.
-apply eqb_type_true in H.
-subst t2.
-apply eqb_attr_true in H1; subst a0. congruence.
 Qed.
 
 Opaque Int.repr.
@@ -1143,7 +1004,7 @@ intros. simpl in TC1.
 unfold typeof_temp in Hid. rewrite H in Hid.
 inv Hid.
 apply tc_val_tc_val'.
-apply (neutral_cast_lemma2 _ t2 _ TC1 TC3).
+apply (neutral_cast_subsumption _ t2 _ TC1 TC3).
 (* typechecking proof *)
 split; [split3 | ].
 * simpl.

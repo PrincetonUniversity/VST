@@ -44,13 +44,13 @@ Ltac agehyps :=
 (** * Aging and predicates *)
 
 Lemma hereditary_func_at' loc fs :
-  hereditary age (seplog.func_at' fs loc).
+  hereditary age (res_predicates.func_at' fs loc).
 Proof.
   apply pred_hered.
 Qed.
 
 Lemma anti_hereditary_func_at' loc fs :
-  hereditary (fun x y => age y x) (seplog.func_at' fs loc).
+  hereditary (fun x y => age y x) (res_predicates.func_at' fs loc).
 Proof.
   intros x y a; destruct fs as [f cc A P Q]; simpl.
   intros [pp E].

@@ -13,8 +13,10 @@ Require Import VST.veric.SeparationLogicSoundness.
 Require Import VST.sepcomp.extspec.
 Require Import VST.msl.msl_standard.
 
-Import SoundSeparationLogic.
-Import CSL.
+Import VericSound.
+Import VericMinimumSeparationLogic.
+Import VericMinimumSeparationLogic.CSHL_Def.
+Import VericMinimumSeparationLogic.CSHL_Defs.
 
 Definition dryspec : ext_spec unit :=
  Build_external_specification mem external_function unit

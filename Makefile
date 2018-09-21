@@ -244,7 +244,7 @@ VERIC_FILES= \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v own.v seplog.v mapsto_memory_block.v assert_lemmas.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
-  semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_switch.v semax_congruence.v \
+  semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
   semax_ext_oracle.v mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v
@@ -266,7 +266,8 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v field_at_wand.v stronger.v \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v
+   freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
+   SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
