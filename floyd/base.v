@@ -241,3 +241,11 @@ Ltac _destruct_glob_types i Heq_gt Heq_ge t b ::=
       idtac
   end;
   clear HH.
+
+(*
+Definition extract_exists_pre:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (P x) c R) ->
+   @semax CS Espec Delta (EX x:A, P x) c R
+ := @semax_extract_exists. *)

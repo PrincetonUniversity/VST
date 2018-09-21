@@ -127,12 +127,14 @@ Ltac induction_stmt s :=
   | intros ?l s IHs
   | intros ?l ].
 
-Module GenMetaRules
-       (CSL_Def0: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSL_MCSL: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def0) <:
-       PRACTICAL_CLIGHT_SEPARATION_LOGIC.
-
 Module AuxDefs.
+
+Section AuxDefs.
+
+Variable semax_external: forall {Hspec: OracleKind} (ids: list ident) (ef: external_function)
+  (A: rmaps.TypeTree)
+  (P Q: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred),
+    Prop.
 
 Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ -> mpred) -> statement -> ret_assert -> Prop :=
 | semax_ifthenelse :
@@ -246,8 +248,6 @@ Definition semax_body
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
 
-Definition semax_external := @CSL_Def0.semax_external.
-
 Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
     forall V G C, @semax_func Espec V G C nil nil
@@ -293,34 +293,41 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
 
 End AuxDefs.
 
-Module CSL_Def <: CLIGHT_SEPARATION_LOGIC_DEF.
+End AuxDefs.
+
+Module DeepEmbedded
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := Def).
+
+Module DeepEmbeddedDef <: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Definition semax := @AuxDefs.semax.
 
-Definition semax_func := @AuxDefs.semax_func.
+Definition semax_func := @AuxDefs.semax_func (@Def.semax_external).
 
-Definition semax_external := @CSL_Def0.semax_external.
+Definition semax_external := @Def.semax_external.
 
-End CSL_Def.
+End DeepEmbeddedDef.
 
-Module CSL_Defs := CSL_Defs (CSL_Def).
+Module DeepEmbeddedDefs := DerivedDefs (DeepEmbeddedDef).
 
-Module CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := CSL_Def.
+Import DeepEmbeddedDef DeepEmbeddedDefs.
 
-Module CSHL_Def := CSL_Def.
-Import CSHL_Def.
+Module CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := DeepEmbeddedDef.
+
+Module CSHL_Def := DeepEmbeddedDef.
 
 Definition semax_conseq := @AuxDefs.semax_conseq.
 
 End CConseq.
 
-Module CConseqFacts := CSHL_CConseqFacts (CSL_Def) (CConseq).
+Module CConseqFacts := GenCConseqFacts (DeepEmbeddedDef) (CConseq).
 
-Module Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSL_Def := CSHL_GenConseq (CSL_Def) (CConseq).
+Module Conseq := GenConseq (DeepEmbeddedDef) (CConseq).
 
-Module ConseqFacts := CSHL_ConseqFacts (CSL_Def) (Conseq).
+Module ConseqFacts := GenConseqFacts (DeepEmbeddedDef) (Conseq).
 
-Export CSL_Def CConseq CConseqFacts Conseq ConseqFacts.
+Import CConseq CConseqFacts Conseq ConseqFacts.
 
 Lemma semax_skip_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R,
     @semax CS Espec Delta P Sskip R ->
@@ -1103,24 +1110,24 @@ Qed.
 
 End Extr.
 
-Module ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (Conseq) (Extr).
-Module ExtrIFacts := CSHL_IExtrFacts (CSHL_Def) (CConseq) (Extr).
+Module ExtrFacts := GenExtrFacts (CSHL_Def) (Conseq) (Extr).
+Module ExtrIFacts := GenIExtrFacts (CSHL_Def) (CConseq) (Extr).
 
 Import Extr ExtrFacts ExtrIFacts.
 
-Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
+Module DeepEmbeddedMinimumSeparationLogic <: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := DeepEmbeddedDef.
 
-Module CSL_Def := CSL_Def.
+Module CSHL_Def := DeepEmbeddedDef.
 
-Module CSL_Defs := CSL_Defs.
+Module CSHL_Defs := DeepEmbeddedDefs.
 
-Definition extract_exists_pre := @semax_extract_exists.
+Definition semax_extract_exists := @semax_extract_exists.
 
-Definition semax_func_nil := @AuxDefs.semax_func_nil.
+Definition semax_func_nil := @AuxDefs.semax_func_nil (@Def.semax_external).
 
-Definition semax_func_cons := @AuxDefs.semax_func_cons.
+Definition semax_func_cons := @AuxDefs.semax_func_cons (@Def.semax_external).
 
-Definition semax_func_cons_ext := @AuxDefs.semax_func_cons_ext.
+Definition semax_func_cons_ext := @AuxDefs.semax_func_cons_ext (@Def.semax_external).
 
 Theorem semax_ifthenelse :
   forall {CS: compspecs} {Espec: OracleKind},
@@ -1160,71 +1167,61 @@ Proof.
   normalize.
 Qed.
 
-Module CallB: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := CSL_Def.
+Module CallB: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := DeepEmbeddedDef.
 
-Module CSHL_Def := CSL_Def.
+Module CSHL_Def := DeepEmbeddedDef.
 
 Definition semax_call_backward := @AuxDefs.semax_call_backward.
 
 End CallB.
 
-Module CallF: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := CSL_Def
-  := CSHL_CallB2F (CSL_Def) (Conseq) (CallB).
+Module CallF := CallB2F (DeepEmbeddedDef) (Conseq) (CallB).
 
 Definition semax_call := @CallF.semax_call_forward.
 
 Definition semax_return := @AuxDefs.semax_return.
 
-Module Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSL_Def.
+Module Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := DeepEmbeddedDef.
 
-Module CSHL_Def := CSL_Def.
+Module CSHL_Def := DeepEmbeddedDef.
 
 Definition semax_set_ptr_comparison_load_cast_load_backward := @AuxDefs.semax_set_ptr_comparison_load_cast_load_backward.
 
 End Sset.
 
-Module SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := CSL_Def
-  := CSHL_Sset2Set (CSL_Def) (Conseq) (Sset).
+Module SetB := Sset2Set (DeepEmbeddedDef) (Conseq) (Sset).
 
-Module SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := CSL_Def
-  := CSHL_SetB2F (CSL_Def) (Conseq) (SetB).
+Module SetF := SetB2F (DeepEmbeddedDef) (Conseq) (SetB).
 
 Definition semax_set_forward := @SetF.semax_set_forward.
 
-Module PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSL_Def
-  := CSHL_Sset2PtrCmp (CSL_Def) (Conseq) (Sset).
+Module PtrCmpB := Sset2PtrCmp (DeepEmbeddedDef) (Conseq) (Sset).
 
-Module PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := CSL_Def
-  := CSHL_PtrCmpB2F (CSL_Def) (Conseq) (PtrCmpB).
+Module PtrCmpF := PtrCmpB2F (DeepEmbeddedDef) (Conseq) (PtrCmpB).
 
 Definition semax_ptr_compare := @PtrCmpF.semax_pointer_comparison_forward.
 
-Module LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := CSL_Def
-  := CSHL_Sset2Load (CSL_Def) (Conseq) (Sset).
+Module LoadB := Sset2Load (DeepEmbeddedDef) (Conseq) (Sset).
 
-Module LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := CSL_Def
-  := CSHL_LoadB2F (CSL_Def) (Conseq) (LoadB).
+Module LoadF := LoadB2F (DeepEmbeddedDef) (Conseq) (LoadB).
 
 Definition semax_load := @LoadF.semax_load_forward.
 
-Module CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := CSL_Def
-  := CSHL_Sset2CastLoad (CSL_Def) (Conseq) (Sset).
+Module CastLoadB := Sset2CastLoad (DeepEmbeddedDef) (Conseq) (Sset).
 
-Module CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := CSL_Def
-  := CSHL_CastLoadB2F (CSL_Def) (Conseq) (CastLoadB).
+Module CastLoadF := CastLoadB2F (DeepEmbeddedDef) (Conseq) (CastLoadB).
 
 Definition semax_cast_load := @CastLoadF.semax_cast_load_forward.
 
-Module StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := CSL_Def.
+Module StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := DeepEmbeddedDef.
 
-Module CSHL_Def := CSL_Def.
+Module CSHL_Def := DeepEmbeddedDef.
 
 Definition semax_store_backward := @AuxDefs.semax_store_backward.
 
 End StoreB.
 
-Module StoreF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := CSL_Def
-  := CSHL_StoreB2F (CSL_Def) (Conseq) (StoreB).
+Module StoreF := StoreB2F (DeepEmbeddedDef) (Conseq) (StoreB).
 
 Definition semax_store := @StoreF.semax_store_forward.
 
@@ -1234,15 +1231,21 @@ Definition semax_conseq := @AuxDefs.semax_conseq.
 
 Definition semax_Slabel := @AuxDefs.semax_label.
 
-Definition semax_ext := @CSL_MCSL.semax_ext.
+Definition semax_ext := @MinimumLogic.semax_ext.
 
-Definition semax_ext_void := @CSL_MCSL.semax_ext_void.
+Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
-Definition semax_external_FF := @CSL_MCSL.semax_external_FF.
+Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 
-End MCSL.
+End DeepEmbeddedMinimumSeparationLogic.
 
-Definition semax_set := @MCSL.SetB.semax_set_backward.
+Module DeepEmbeddedPracticalSupplement <: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := DeepEmbeddedDef.
+
+Module CSHL_Def := DeepEmbeddedDef.
+
+Module CSHL_Defs := DeepEmbeddedDefs.
+
+Definition semax_set := @DeepEmbeddedMinimumSeparationLogic.SetB.semax_set_backward.
 
 Arguments semax {_} {_} _ _ _ _.
 
@@ -1715,7 +1718,8 @@ Proof.
       apply exp_ENTAIL; intro sh1.
       apply exp_ENTAIL; intro sh2.
       apply andp_ENTAIL; [| apply later_ENTAIL, andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL |] |] |] |]].
-      * unfold local, lift1; intro rho; simpl; normalize.
+      * 
+unfold local, lift1; intro rho; simpl; normalize.
         destruct H1; split; auto.
         destruct H2; split; auto.
         destruct H3; split; auto.
@@ -2226,6 +2230,8 @@ Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
 
-End GenMetaRules.
+End DeepEmbeddedPracticalSupplement.
+
+End DeepEmbedded.
 
 (* After this succeeds, remove "weakest_pre" in veric/semax.v. *)

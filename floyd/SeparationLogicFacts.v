@@ -480,7 +480,7 @@ Qed.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -496,12 +496,12 @@ Axiom semax_conseq:
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE.
 
-Module CSHL_CConseqFacts
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := CSHL_Def).
+Module GenCConseqFacts
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := Def).
 
-Import CSHL_Def.
-Import CSHL_CConseq.
+Import Def.
+Import CConseq.
 
 Lemma semax_pre_post_indexed_bupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
@@ -630,11 +630,11 @@ Proof. intros.
  eapply semax_post''_bupd; eauto.
 Qed.
 
-End CSHL_CConseqFacts.
+End GenCConseqFacts.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -649,15 +649,15 @@ Axiom semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE.
 
-Module CSHL_GenConseq
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := CSHL_Def): CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def.
+Module GenConseq
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := Def): CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_CConseqFacts := CSHL_CConseqFacts (CSHL_Def) (CSHL_CConseq).
+Module CSHL_Def := Def.
+Module CConseqFacts := GenCConseqFacts (Def) (CConseq).
 Import CSHL_Def.
-Import CSHL_CConseq.
-Import CSHL_CConseqFacts.
+Import CConseq.
+Import CConseqFacts.
 
 Lemma semax_pre_post : forall {Espec: OracleKind}{CS: compspecs},
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
@@ -671,14 +671,14 @@ Proof.
   intros; eapply semax_pre_post_bupd; eauto; intros; eapply derives_trans, bupd_intro; auto.
 Qed.
 
-End CSHL_GenConseq.
+End GenConseq.
 
-Module CSHL_ConseqFacts
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def).
+Module GenConseqFacts
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def).
 
-Import CSHL_Def.
-Import CSHL_Conseq.
+Import Def.
+Import Conseq.
 
 (* Copied from canon.v *)
 
@@ -767,11 +767,11 @@ Proof. intros.
  eapply semax_post''; eauto.
 Qed.
 
-End CSHL_ConseqFacts.
+End GenConseqFacts.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -783,16 +783,16 @@ Axiom semax_extract_exists:
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION.
 
-Module CSHL_ExtrFacts
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def).
+Module GenExtrFacts
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def).
 
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
 
 Lemma semax_extract_prop:
   forall {CS: compspecs} {Espec: OracleKind},
@@ -826,21 +826,21 @@ Proof.
     destruct x; auto.
 Qed.
 
-End CSHL_ExtrFacts.
+End GenExtrFacts.
 
-Module CSHL_IExtrFacts
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def).
+Module GenIExtrFacts
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (CConseq: CLIGHT_SEPARATION_HOARE_LOGIC_COMPLETE_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def).
 
-Module CSHL_Conseq := CSHL_GenConseq (CSHL_Def) (CSHL_CConseq).
-Module CSHL_CConseqFacts := CSHL_CConseqFacts (CSHL_Def) (CSHL_CConseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_CConseq.
-Import CSHL_CConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
+Module Conseq := GenConseq (Def) (CConseq).
+Module CConseqFacts := GenCConseqFacts (Def) (CConseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import CConseq.
+Import CConseqFacts.
+Import Extr.
+Import ExtrFacts.
 
 Lemma semax_extract_later_prop:
   forall {CS: compspecs} {Espec: OracleKind},
@@ -865,11 +865,11 @@ Proof.
   + intros; apply derives_bupd0_refl.
 Qed.
 
-End CSHL_IExtrFacts.
+End GenIExtrFacts.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -888,7 +888,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -901,22 +901,22 @@ Axiom semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: t
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
 
-Module CSHL_StoreF2B
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_StoreF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD.
+Module StoreF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (StoreF: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
-Import CSHL_StoreF.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import StoreF.
   
 Theorem semax_store_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext) e1 e2 P,
    @semax CS Espec Delta
@@ -937,20 +937,20 @@ Proof.
     apply modus_ponens_wand.
 Qed.
 
-End CSHL_StoreF2B.
+End StoreF2B.
 
-Module CSHL_StoreB2F
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := CSHL_Def.
+Module StoreB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (StoreB: CLIGHT_SEPARATION_HOARE_LOGIC_STORE_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_STORE_FORWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_StoreB.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import StoreB.
 
 Theorem semax_store_forward:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
@@ -976,11 +976,11 @@ Proof.
   apply derives_refl.
 Qed.
 
-End CSHL_StoreB2F.
+End StoreB2F.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1002,7 +1002,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1023,22 +1023,22 @@ Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD.
 
-Module CSHL_CallF2B
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_CallF: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD.
+Module CallF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (CallF: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
-Import CSHL_CallF.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import CallF.
   
 Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall ret a bl R,
@@ -1088,20 +1088,20 @@ Proof.
   + auto.
 Qed.
 
-End CSHL_CallF2B.
+End CallF2B.
 
-Module CSHL_CallB2F
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_CallB: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := CSHL_Def.
+Module CallB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (CallB: CLIGHT_SEPARATION_HOARE_LOGIC_CALL_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_CALL_FORWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_CallB.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import CallB.
 
 Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
@@ -1143,11 +1143,11 @@ Proof.
   apply odiaopt_derives_EX_substopt.
 Qed.
 
-End CSHL_CallB2F.
+End CallB2F.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1166,7 +1166,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1182,7 +1182,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1204,7 +1204,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1225,7 +1225,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1247,7 +1247,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1267,22 +1267,22 @@ Axiom semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delt
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
 
-Module CSHL_LoadF2B
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := CSHL_Def):
+Module LoadF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (LoadF: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
-Import CSHL_LoadF.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import LoadF.
 
 Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e1,
@@ -1316,20 +1316,20 @@ Proof.
   + solve_andp.
 Qed.
 
-End CSHL_LoadF2B.
+End LoadF2B.
 
-Module CSHL_LoadB2F
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := CSHL_Def.
+Module LoadB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_FORWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_LoadB.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import LoadB.
 
 Theorem semax_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall  sh id P e1 t2 (v2: val),
@@ -1372,24 +1372,24 @@ Proof.
   apply eval_id_same.
 Qed.
 
-End CSHL_LoadB2F.
+End LoadB2F.
 
-Module CSHL_CastLoadF2B
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := CSHL_Def):
+Module CastLoadF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (CastLoadF: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
-Import CSHL_CastLoadF.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import CastLoadF.
 
 Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
@@ -1426,20 +1426,20 @@ Proof.
   + solve_andp.
 Qed.
 
-End CSHL_CastLoadF2B.
+End CastLoadF2B.
 
-Module CSHL_CastLoadB2F
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := CSHL_Def.
+Module CastLoadB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_FORWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_CastLoadB.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import CastLoadB.
 
 Theorem semax_cast_load_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall sh id P e1 t1 (v2: val),
@@ -1483,24 +1483,24 @@ Proof.
   apply eval_id_same.
 Qed.
 
-End CSHL_CastLoadB2F.
+End CastLoadB2F.
 
-Module CSHL_SetF2B
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := CSHL_Def):
+Module SetF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (SetF: CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
-Import CSHL_SetF.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import SetF.
 
 Theorem semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
@@ -1540,20 +1540,20 @@ Proof.
   erewrite subst_self; eauto.
 Qed.
 
-End CSHL_SetF2B.
+End SetF2B.
 
-Module CSHL_SetB2F
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := CSHL_Def.
+Module SetB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_SET_FORWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_SetB.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import SetB.
 
 Theorem semax_set_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
@@ -1593,11 +1593,11 @@ Proof.
     normalize.
 Qed.
 
-End CSHL_SetB2F.
+End SetB2F.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1627,7 +1627,7 @@ End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1653,22 +1653,22 @@ Axiom semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKi
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
 
-Module CSHL_PtrCmpF2B
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := CSHL_Def):
+Module PtrCmpF2B
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (PtrCmpF: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := Def):
        CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Extr.
-Import CSHL_ExtrFacts.
-Import CSHL_PtrCmpF.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Extr.
+Import ExtrFacts.
+Import PtrCmpF.
 
 Theorem semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
@@ -1712,20 +1712,20 @@ Proof.
   auto.
 Qed.
 
-End CSHL_PtrCmpF2B.
+End PtrCmpF2B.
 
-Module CSHL_PtrCmpB2F
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := CSHL_Def.
+Module PtrCmpB2F
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_FORWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_PtrCmpB.
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import PtrCmpB.
 
 Theorem semax_pointer_comparison_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id cmp e1 e2 ty sh1 sh2,
@@ -1785,11 +1785,11 @@ Proof.
     erewrite subst_self; eauto.
 Qed.
 
-End CSHL_PtrCmpB2F.
+End PtrCmpB2F.
 
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD.
 
-Declare Module CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
@@ -1834,28 +1834,28 @@ Axiom semax_set_ptr_comparison_load_cast_load_backward: forall {CS: compspecs} {
 
 End CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD.
 
-Module CSHL_2Sset
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := CSHL_Def)
-       (CSHL_SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := CSHL_Def)
-       (CSHL_PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSHL_Def)
-       (CSHL_LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def)
-       (CSHL_CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSHL_Def.
+Module ToSset
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Extr: CLIGHT_SEPARATION_HOARE_LOGIC_EXTRACTION with Module CSHL_Def := Def)
+       (SetB: CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := Def)
+       (PtrCmpB: CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := Def)
+       (LoadB: CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := Def)
+       (CastLoadB: CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
-Module CSHL_ExtrFacts := CSHL_ExtrFacts (CSHL_Def) (CSHL_Conseq) (CSHL_Extr).
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
+Module ExtrFacts := GenExtrFacts (Def) (Conseq) (Extr).
 
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_SetB.
-Import CSHL_PtrCmpB.
-Import CSHL_LoadB.
-Import CSHL_CastLoadB.
-Import CSHL_ExtrFacts.
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import SetB.
+Import PtrCmpB.
+Import LoadB.
+Import CastLoadB.
+Import ExtrFacts.
 
 Theorem semax_set_ptr_comparison_load_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
@@ -1904,21 +1904,21 @@ Proof.
   + apply semax_cast_load_backward.
 Qed.
 
-End CSHL_2Sset.
+End ToSset.
 
-Module CSHL_Sset2Set
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := CSHL_Def.
+Module Sset2Set
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_SET_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
 
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Sset.
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Sset.
 
 Theorem semax_set_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
@@ -1933,21 +1933,21 @@ Proof.
   apply orp_right1, orp_right1, orp_right1; auto.
 Qed.
 
-End CSHL_Sset2Set.
+End Sset2Set.
 
-Module CSHL_Sset2PtrCmp
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := CSHL_Def.
+Module Sset2PtrCmp
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_PTR_CMP_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
 
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Sset.
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Sset.
 
 Theorem semax_pointer_comparison_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall P id e,
@@ -1974,21 +1974,21 @@ Proof.
   apply orp_right1, orp_right1, orp_right2; auto.
 Qed.
 
-End CSHL_Sset2PtrCmp.
+End Sset2PtrCmp.
 
-Module CSHL_Sset2Load
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def.
+Module Sset2Load
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_LOAD_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
 
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Sset.
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Sset.
 
 Theorem semax_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e1,
@@ -2008,21 +2008,21 @@ Proof.
   apply orp_right1, orp_right2; auto.
 Qed.
 
-End CSHL_Sset2Load.
+End Sset2Load.
 
-Module CSHL_Sset2CastLoad
-       (CSHL_Def: CLIGHT_SEPARATION_LOGIC_DEF)
-       (CSHL_Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := CSHL_Def)
-       (CSHL_Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := CSHL_Def):
-       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := CSHL_Def.
+Module Sset2CastLoad
+       (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
+       (Conseq: CLIGHT_SEPARATION_HOARE_LOGIC_CONSEQUENCE with Module CSHL_Def := Def)
+       (Sset: CLIGHT_SEPARATION_HOARE_LOGIC_SSET_BACKWARD with Module CSHL_Def := Def):
+       CLIGHT_SEPARATION_HOARE_LOGIC_CAST_LOAD_BACKWARD with Module CSHL_Def := Def.
 
-Module CSHL_Def := CSHL_Def.
-Module CSHL_ConseqFacts := CSHL_ConseqFacts (CSHL_Def) (CSHL_Conseq).
+Module CSHL_Def := Def.
+Module ConseqFacts := GenConseqFacts (Def) (Conseq).
 
-Import CSHL_Def.
-Import CSHL_Conseq.
-Import CSHL_ConseqFacts.
-Import CSHL_Sset.
+Import Def.
+Import Conseq.
+Import ConseqFacts.
+Import Sset.
 
 Theorem semax_cast_load_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
   forall (P: environ->mpred) id e,
@@ -2043,5 +2043,5 @@ Proof.
   apply orp_right2; auto.
 Qed.
 
-End CSHL_Sset2CastLoad.
+End Sset2CastLoad.
 

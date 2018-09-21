@@ -27,14 +27,14 @@ Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.expr_rel.
 
-Module Type MINIMUM_SEPARATION_LOGIC_SOUNDNESS.
+Module Type SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
-(*Declare Module ExtSpec: EXTERNAL_SPEC. *)
-Declare Module MCSL: MINIMUM_CLIGHT_SEPARATION_LOGIC.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Import MCSL.CSL_Def.
-Import MCSL.CSL_Defs.
-Import MCSL.
+Module CSHL_Defs := DerivedDefs(CSHL_Def).
+
+Import CSHL_Def.
+Import CSHL_Defs.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -76,9 +76,21 @@ Axiom semax_prog_rule' :
      } } }%type.
 
 
-End MINIMUM_SEPARATION_LOGIC_SOUNDNESS.
+End SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
-Module CSL_Def <: CLIGHT_SEPARATION_LOGIC_DEF.
+Module Type MAIN_THEOREM_STATEMENT.
+
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
+
+Declare Module CSHL_MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
+
+Declare Module CSHL_PracticalSupplement: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
+
+Declare Module CSHL_Sound: SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := CSHL_Def.
+
+End MAIN_THEOREM_STATEMENT.
+
+Module VericDef <: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Definition semax := @semax.
 
@@ -87,16 +99,14 @@ Definition semax_func := @semax_func.
 Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
 
-End CSL_Def.
+End VericDef.
 
-Module SoundMinimumSeparationLogic : MINIMUM_SEPARATION_LOGIC_SOUNDNESS.
+Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := VericDef.
 
-Module MCSL <: MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
-
-Module CSL_Def := CSL_Def.
-Module CSL_Defs := CSL_Defs (CSL_Def).
+Module CSHL_Def := VericDef.
+Module CSHL_Defs := DerivedDefs (VericDef).
   
-Definition extract_exists_pre := @extract_exists_pre.
+Definition semax_extract_exists := @extract_exists_pre.
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
 Definition semax_prog_ext := @semax_prog_ext.
@@ -144,10 +154,16 @@ Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
-Locate semax_switch.
-End MCSL.
+
+End VericMinimumSeparationLogic.
+
+Module VericSound : SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := VericDef.
+
+Module CSHL_Def := VericDef.
+Module CSHL_Defs := DerivedDefs (VericDef).
 
 Definition semax_prog_rule := @semax_prog_rule.
 Definition semax_prog_rule' := @semax_prog_rule'.
 
-End SoundMinimumSeparationLogic.
+End VericSound.
+

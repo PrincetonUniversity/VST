@@ -1120,7 +1120,7 @@ Fixpoint unfold_Ssequence c :=
   | _ => c :: nil
   end.
 
-Module Type CLIGHT_SEPARATION_LOGIC_DEF.
+Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
@@ -1135,9 +1135,9 @@ Parameter semax_external:
   (P Q: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred),
      Prop.
 
-End CLIGHT_SEPARATION_LOGIC_DEF.
+End CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Module CSL_Defs (CSL_Def: CLIGHT_SEPARATION_LOGIC_DEF).
+Module DerivedDefs (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF).
 
 Local Open Scope pred.
 
@@ -1145,7 +1145,7 @@ Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
     forall Espec ts x, (*exists Ann,*)
-      @CSL_Def.semax C Espec (func_tycontext f V G nil (*Ann*))
+      @Def.semax C Espec (func_tycontext f V G nil (*Ann*))
           (P ts x *  stackframe_of f)
           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
@@ -1157,7 +1157,7 @@ Definition semax_prog
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @CSL_Def.semax_func Espec V G C (prog_funct prog) G /\
+  @Def.semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec' prog post
@@ -1170,27 +1170,27 @@ Definition semax_prog_ext
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @CSL_Def.semax_func Espec V G C (prog_funct prog) G /\
+  @Def.semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec_ext' prog z post
   | None => False
   end.
 
-End CSL_Defs.
+End DerivedDefs.
 
-Module Type MINIMUM_CLIGHT_SEPARATION_LOGIC.
+Module Type MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC.
 
-Declare Module CSL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Module CSL_Defs := CSL_Defs(CSL_Def).
+Module CSHL_Defs := DerivedDefs(CSHL_Def).
 
-Import CSL_Def.
-Import CSL_Defs.
+Import CSHL_Def.
+Import CSHL_Defs.
 
 (***************** SEMAX_LEMMAS ****************)
 
-Axiom extract_exists_pre:
+Axiom semax_extract_exists:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
   (forall x, @semax CS Espec Delta (P x) c R) ->
@@ -1443,19 +1443,16 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
-End MINIMUM_CLIGHT_SEPARATION_LOGIC.
+End MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC.
 
-Module Type PRACTICAL_CLIGHT_SEPARATION_LOGIC.
+Module Type PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
-Declare Module CSL_Def: CLIGHT_SEPARATION_LOGIC_DEF.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Module CSL_Defs := CSL_Defs(CSL_Def).
+Module CSHL_Defs := DerivedDefs(CSHL_Def).
 
-Declare Module MCSL : MINIMUM_CLIGHT_SEPARATION_LOGIC with Module CSL_Def := CSL_Def.
-
-Import CSL_Def.
-Import CSL_Defs.
-Import MCSL.
+Import CSHL_Def.
+Import CSHL_Defs.
 
 Axiom semax_set :
   forall {CS: compspecs} {Espec: OracleKind},
@@ -1540,7 +1537,7 @@ Axiom semax_extract_later_prop:
            (PP -> @semax CS Espec Delta P c Q) ->
            @semax CS Espec Delta ((|> !!PP) && P) c Q.
 
-End PRACTICAL_CLIGHT_SEPARATION_LOGIC.
+End PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Require Import Coq.Classes.Morphisms.
 
