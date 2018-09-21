@@ -81,7 +81,7 @@ Proof.
     unfold unfold_reptype in *; simpl in *.
     rewrite Zlength_map in *; auto. }
   rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
-  assert (sh = Tsh) by (eapply list_join_eq; eauto); subst.
+  assert (sh = Ews) by (eapply list_join_eq; eauto); subst.
   forward.
   gather_SEP 7 8; rewrite <- sepcon_map.
   gather_SEP 8 9; replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
@@ -94,7 +94,7 @@ Proof.
     rewrite Znth_upto by (rewrite ?Z2Nat.id; omega).
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
-    Exists Tsh v; entailer!. }
+    Exists Ews v; entailer!. }
   forward_call (comms, locks, bufs, b, b0, lasts,
     sh1, lsh, shs, g, g0, g1, g2, h, sh0, gv).
   { repeat (split; auto). }

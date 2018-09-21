@@ -2542,7 +2542,7 @@ Proof.
 Qed.
 
 Lemma data_at_shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
-  @data_at cs sh1 t v p * fold_right_sepcon (map (fun sh => data_at sh t v p) shs) =
+  @data_at cs sh1 t v p * fold_right sepcon emp (map (fun sh => data_at sh t v p) shs) =
   data_at sh t v p.
 Proof.
   induction shs; intros; simpl.

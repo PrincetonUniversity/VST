@@ -37,8 +37,8 @@ Ltac my_thaw name :=
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
 Proof. intros. destruct v; try contradiction. eexists; eexists; reflexivity. Qed.
 
-Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional add_len ctx
-  md_ctx' V' reseed_counter' entropy_len' prediction_resistance' reseed_interval'
+Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional (sha: share) add_len ctx
+  (md_ctx': mdstate) (V': list val) reseed_counter' entropy_len' prediction_resistance' reseed_interval'
   key V reseed_counter entropy_len prediction_resistance reseed_interval gv
   info_contents (s : ENTROPY.stream)
   seed
@@ -56,7 +56,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
   (XH8 : Vint (Int.repr reseed_interval) = reseed_interval')
   (XH9 : Val.of_bool prediction_resistance = prediction_resistance')
   (PNadditional : is_pointer_or_null additional)
-  (Pctx : isptr ctx)
+  (Pctx : isptr ctx) (shc: share)
   (ELnonneg : 0 <= entropy_len)
   (ZLc' : Zlength contents' = 0 \/ Zlength contents' = Zlength contents)
   (Hfield : field_compatible (tarray tuchar 384) [] seed)
@@ -64,12 +64,14 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
   (EAL384 : (entropy_len + add_len >? 384) = false)
   (entropy_bytes : list Z)
   (s0 : ENTROPY.stream)
-  (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s),
+  (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s)
+  (Hsha: readable_share sha)
+  (Hshc: writable_share shc),
 @semax hmac_drbg_compspecs.CompSpecs Espec
   (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
         HmacDrbgFunSpecs nil)
   (PROP ( )
-   LOCAL (temp _t'2 Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
+   LOCAL (temp _entropy_len (Vint (Int.repr entropy_len));
    lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;
    temp _len (Vint (Int.repr add_len)); gvars gv)
    SEP (Stream (get_stream_result (get_entropy 0 entropy_len entropy_len false s));
@@ -77,14 +79,14 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
    data_at Tsh (tarray tuchar (384 - entropy_len))
      (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))
      (offset_val entropy_len seed);
-   da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-   md_full key md_ctx';
-   data_at Tsh t_struct_mbedtls_md_info info_contents
+   da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
+   md_full Ews key md_ctx';
+   data_at shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer
         (md_ctx',
         (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))));
    spec_sha.K_vector gv;
-   data_at Tsh t_struct_hmac256drbg_context_st
+   data_at shc t_struct_hmac256drbg_context_st
      (md_ctx',
      (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))
      ctx))
@@ -132,8 +134,8 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list Z) additional ad
        (EX x : val,
          (PROP ( )
           LOCAL (temp ret_temp x)
-          SEP (reseedPOST x contents additional add_len s
-                 (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx
+          SEP (reseedPOST x contents additional sha add_len s
+                 (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx shc
                  info_contents gv
                  (md_ctx',
                  (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))))))
@@ -170,7 +172,7 @@ Proof.
       temp _additional additional; temp _len (Vint (Int.repr add_len));
       temp _t'3 (Val.of_bool non_empty_additional);
       gvars gv)
-      SEP  (FRZL FR7; da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
+      SEP  (FRZL FR7; da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i. rewrite da_emp_null. entailer. reflexivity.
     + rewrite da_emp_ptr. normalize.
@@ -206,7 +208,7 @@ Proof.
             (map Int.repr entropy_bytes) ++ (map Vint (map Int.repr (*contents*)contents')) ++
           list_repeat (Z.to_nat (384 - entropy_len - Zlength (*contents*)contents')) (Vint Int.zero)) seed;
            (*FRZL FR8*)FRZL FR6;
-       da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
+       da_emp sha (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
   + rewrite H in Heqnon_empty_additional. rename H into NEA.
     destruct additional; simpl in PNadditional; try contradiction.
     - subst i; simpl in *; discriminate.
@@ -259,15 +261,13 @@ Proof.
     { entailer!. replace (Zlength contents) with (sizeof (*cenv_cs*) (tarray tuchar (Zlength contents))) at 2.
       apply data_at_memory_block. simpl. rewrite Zmax0r; omega.
     }
-    forward_call ((Tsh, Tsh), (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
+    forward_call ((sha, Tsh), (Vptr b (Ptrofs.add i (Ptrofs.repr entropy_len))), (*additional*)Vptr bb ii, Zlength contents, map Int.repr contents).
     {
       (* match up function parameter *)
       rewrite XH1; simpl. normalize.
     }
     {
       (* match up SEP clauses *)
-      change (fst (Tsh, Tsh)) with Tsh;
-      change (snd (Tsh, Tsh)) with Tsh.
       (*change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z contents))
          (@map int val Vint (@map Z int Int.repr contents)) additional) with (@data_at hmac_drbg_compspecs.CompSpecs Tsh (tarray tuchar (@Zlength Z contents))
          (@map int val Vint (@map Z int Int.repr contents)) additional).*)
@@ -276,15 +276,11 @@ Proof.
     }
     {
       (* prove the PROP clauses *)
-      repeat split; auto; try omega. rep_omega.
+      repeat split; auto; try omega.
     }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
-    change (fst (Tsh, Tsh)) with Tsh;
-    change (snd (Tsh, Tsh)) with Tsh.
     rewrite XH1, SEED.
-
-    (* Time entailer!. (*8.5pl2: 1230secs*) *)
     go_lower. normalize.
     apply andp_right. apply prop_right. repeat split; auto.
 
@@ -292,6 +288,7 @@ Proof.
     thaw FR6. rewrite (*H1,*) da_emp_ptr. normalize.
     apply andp_right. apply prop_right. simpl. (*specialize (Zlength_nonneg contents).*) subst add_len; omega.
     cancel.
+
     erewrite data_at_complete_split with
      (A:=map Vint (map Int.repr entropy_bytes))
      (p:=Vptr b i)(*(offset:=entropy_len)*)
@@ -375,8 +372,8 @@ Proof.
   freeze [1;2;7] FR9.
   remember (entropy_len + Zlength contents') as ll.
   repeat rewrite Zlength_map in Hentropy_bytes_length.
-  forward_call (entropy_bytes ++ contents', seed, ll,
-                ctx,
+  forward_call (entropy_bytes ++ contents', seed, Tsh, ll,
+                ctx, shc,
                 (md_ctx',
                  (map Vint (map Int.repr V),
                  (Vint (Int.repr reseed_counter),
@@ -396,7 +393,7 @@ Proof.
   }
   {
     (* prove the PROP clauses *)
-    simpl in *. repeat split; trivial; try omega. (*
+    simpl in *. repeat split; auto; try omega. (*
     rewrite H2 in *;*) rep_omega.
     left; rewrite Zlength_app, ZLbytes; trivial.
     { apply isbyteZ_app; try assumption.
@@ -435,7 +432,6 @@ Proof.
       (384 - Zlength entropy_bytes - Zlength contents')) with 384 by omega.
      assumption.
   }
-
   (* ctx->reseed_counter = 1; *)
   my_thaw FR11.
   freeze [0;1] FR12. rewrite XH5, XH6, XH7, XH8, XH9.
@@ -444,11 +440,9 @@ Proof.
             (contents_with_add seed ll
                (entropy_bytes ++ contents')) key V).
   destruct p.
-  simpl. normalize. rewrite XH6, XH7, XH8, XH9. drop_LOCAL 0%nat. drop_LOCAL 0%nat.
+  simpl. normalize. rewrite XH6, XH7, XH8, XH9. deadvars!.
   subst contents'.
-  unfold_data_at 1%nat. (*crucial: doing the field assignment without unfolding data_at results in the forward taking 1200secs*)
-(*  freeze [0;1;2;4;5;6] FIELDS. optional wrt performance*)
-  forward.
+  Time forward.
 
   (* return 0 *)
   idtac "Timing a forward (goal: 5secs)". Time forward. (*5 secs*)
@@ -487,7 +481,6 @@ Proof.
     + split. apply hmac_common_lemmas.HMAC_Zlength. apply hmac_common_lemmas.isbyte_hmac.
     + split. apply hmac_common_lemmas.HMAC_Zlength. apply hmac_common_lemmas.isbyte_hmac.
   }
-  unfold_data_at 1%nat. cancel.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
   destruct seed; simpl in Pseed; try contradiction.
   unfold contents_with_add in Heqp at 1. simpl in Heqp.
@@ -495,9 +488,9 @@ Proof.
                  Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp.
   specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
   intros; omega.
-
   rewrite <- Heqp in *. inv Heqq. 
-idtac "Timing the Qed of REST (goal: 25secs)". cancel. 
+idtac "Timing the Qed of REST (goal: 25secs)". 
+  cancel.
 Time Qed. (*Coq8.6 May23rd: 23s
           Feb 23 2017: 216.218 secs (135.625u,0.046s) (successful)*)
          (*was: Coq8.5pl2: 44secs*)

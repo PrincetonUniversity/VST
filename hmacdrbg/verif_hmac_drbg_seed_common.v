@@ -11,7 +11,7 @@ Proof. intros.
   apply Int.eq_false. eapply ENT_GenErrAx.
 Qed.
 
-Lemma hmac_interp_empty d r: hmac_interp d r |-- md_empty r.
+Lemma hmac_interp_empty sh d r: hmac_interp sh d r |-- md_empty sh r.
 destruct d; simpl. auto.
 + destruct h. simpl.
   eapply derives_trans.

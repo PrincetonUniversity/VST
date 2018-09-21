@@ -69,11 +69,11 @@ subst.
 
 unfold_data_at 1%nat.
 forward_call (* SHA256_addlength(c, len); *)
-  (len, c, s256a_len a).
+  (len, c, wsh, s256a_len a).
  repeat split; simpl; auto; omega.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
 gather_SEP' [5;0;1;3;4]%Z.
-replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
+replace_SEP 0 (data_at wsh t_struct_SHA256state_st
     (map Vint (hash_blocks init_registers (s256a_hashed a)),
         (Vint (lo_part (s256a_len a + len * 8)),
         (Vint (hi_part (s256a_len a + len * 8)),
@@ -105,7 +105,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
               [ArraySubsc 0; StructField _data]))) with val.
   rewrite H11.
   cancel.
-  apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength (s256a_data a)) 64 c);
+  apply derives_trans with (array_at_ wsh t_struct_SHA256state_st [StructField _data] (Zlength (s256a_data a)) 64 c);
      [ cancel | apply derives_refl].
 }
 (* end of TODO *)
@@ -120,7 +120,7 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offse
   normalize.
 rewrite <- H0.
 clear H0; pose (H0:=True).
-apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data gv false).
+apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data a) data gv false).
 * semax_subcommand Vprog Gtot f_SHA256_Update (@nil (ident * Annotation)).
  eapply semax_post_flipped.
 +
@@ -144,7 +144,7 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
  rewrite H1. auto.
 * (* after if (n!=0) *)
  eapply semax_seq' with
-     (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data gv true).
+     (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data a) data gv true).
  semax_subcommand Vprog Gtot  f_SHA256_Update (@nil (ident * Annotation)).
 simple apply update_while_proof; try assumption; try omega; auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
@@ -194,7 +194,7 @@ forward_if (   PROP  ()
                     LOCAL (gvars  gv)
                     SEP
                     (K_vector gv;
-                     sha256state_ (S256abs hashed dd ++ sublist 0 len data) c; data_block sh data d)).
+                     sha256state_ wsh (S256abs hashed dd ++ sublist 0 len data) c; data_block sh data d)).
 + (* then-clause *)
     set (dd' := sublist b4d len data).
     rename H2 into Hdiv.
@@ -208,7 +208,7 @@ forward_if (   PROP  ()
  evar (Frame: list mpred).
   unfold_data_at 1%nat.
   eapply(call_memcpy_tuchar
-   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0
+   (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
                    (list_repeat (Z.to_nat CBLOCKz) Vundef) c
    (*src*) sh (tarray tuchar (Zlength data)) [] b4d
                    (map Int.repr data)

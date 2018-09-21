@@ -1764,7 +1764,7 @@ Ltac forward_loop_aux1 Inv PreInc:=
   | |- semax _ _ (Sfor _ _ _ _) _ => apply semax_seq' with Inv; [abbreviate_semax | forward_loop_aux2 Inv PreInc]
   | |- semax _ _ (Sloop _ _) _ => apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
   | |- semax _ _ (Swhile ?E ?B) _ => 
-          let x := fresh "x" in set (x := Swhile E B); unfold Swhile at 1 in x; subst x;
+          let x := fresh "x" in set (x := Swhile E B); hnf in x; subst x;
           apply semax_pre with Inv; [ | forward_loop_aux2 Inv PreInc]
  end.
  
@@ -1775,6 +1775,8 @@ Tactic Notation "forward_loop" constr(Inv) "continue:" constr(PreInc) "break:" c
   | |- semax _ _ (Ssequence (Sloop _ _) _) _ => 
           apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ => 
+          apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
+  | |- semax _ _ (Ssequence (Swhile _ _) _) _ => 
           apply semax_seq with Post; [forward_loop_aux1 Inv PreInc | abbreviate_semax ]
   | |- semax _ _ _ ?Post' => 
             tryif (unify Post Post') then forward_loop_aux1 Inv PreInc 
@@ -1857,6 +1859,15 @@ with nocontinue_ls sl :=
  match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
  end.
 
+Fixpoint nobreaksx (s: statement) : bool :=
+match s with
+| Sbreak => false
+| Scontinue => false
+| Ssequence c1 c2 => nobreaksx c1 && nobreaksx c2
+| Sifthenelse _ c1 c2 => nobreaksx c1 && nobreaksx c2
+| _ => true  (* including Sloop case! *)
+end.
+
 Ltac check_nocontinue s :=
  let s' := eval hnf in s in
   lazymatch s' with 
@@ -1891,6 +1902,9 @@ Ltac forward_loop_nocontinue Inv Post :=
 Ltac forward_loop_nocontinue_nobreak Inv :=
  repeat apply -> semax_seq_skip;
   lazymatch goal with
+  | |- semax _ _ (Ssequence (Swhile _ ?S) _) _ =>
+          tryif (unify (nocontinue S) true; unify (nobreaksx S) true) then forward_while Inv 
+          else fail 100 "Use forward_while, or (unfold Swhile at 1) and then use forward_loop"
   | |- semax _ _ (Ssequence (Sloop _ _) _) _ =>
          fail 100 "Your loop is followed by more statements, so you must use the form of forward_loop with the break: keyword to supply an explicit postcondition for the loop."
   | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
@@ -2877,15 +2891,6 @@ Ltac advise_prepare_postcondition :=
  end;
  try simple eapply semax_seq.
 
-
-Fixpoint nobreaksx (s: statement) : bool :=
-match s with
-| Sbreak => false
-| Scontinue => false
-| Ssequence c1 c2 => nobreaksx c1 && nobreaksx c2
-| Sifthenelse _ c1 c2 => nobreaksx c1 && nobreaksx c2
-| _ => true  (* including Sloop case! *)
-end.
 
 Ltac forward_advise_loop c :=
  try lazymatch c with

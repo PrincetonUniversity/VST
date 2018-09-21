@@ -32,7 +32,7 @@ Definition surely_malloc_spec :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t p * data_at_ Tsh t p).
+       SEP (malloc_token Tsh t p * data_at_ Ews t p).
 
 Definition memset_spec :=
  DECLARE _memset
@@ -89,12 +89,31 @@ Definition comm_R bufs sh gsh g0 g1 g2 h v := EX b : Z, EX b1 : Z, EX b2 : Z,
 Definition comm_loc lsh lock comm g g0 g1 g2 bufs sh gsh :=
   AE_loc lsh lock comm g (vint 0) (comm_R bufs sh gsh g0 g1 g2).
 
+Definition Ish := Share.comp Ews.
+
+Lemma Ews_Ish_join : sepalg.join Ews Ish Tsh.
+Proof.
+  apply comp_join_top.
+Qed.
+
+Lemma Ish_not_bot : Ish <> Share.bot.
+Proof.
+  intro.
+  generalize Ews_Ish_join; rewrite H.
+  intro X; eapply sepalg.join_eq in X; [|apply join_bot_eq].
+  generalize juicy_mem.perm_of_Ews; rewrite X.
+  unfold juicy_mem.perm_of_sh.
+  rewrite if_true by auto.
+  rewrite if_true by auto; discriminate.
+Qed.
+Hint Resolve Ish_not_bot.
+
 (* messaging system function specs *)
 Definition initialize_channels_spec :=
  DECLARE _initialize_channels
   WITH sh1 : share, shs : list share, gv: globals
   PRE [ ]
-   PROP (Zlength shs = N; sepalg_list.list_join sh1 shs Tsh)
+   PROP (Zlength shs = N; sepalg_list.list_join sh1 shs Ews)
    LOCAL (gvars gv)
    SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm); data_at_ Ews (tarray (tptr tlock) N) (gv _lock);
         data_at_ Ews (tarray (tptr tbuffer) B) (gv _bufs);
@@ -110,8 +129,9 @@ Definition initialize_channels_spec :=
         data_at Ews (tarray (tptr tint) N) reads (gv _reading);
         data_at Ews (tarray (tptr tint) N) lasts (gv _last_read);
         fold_right sepcon emp (map (fun r =>
-          comm_loc Tsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
+          comm_loc Ews (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
             (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
@@ -121,9 +141,9 @@ Definition initialize_channels_spec :=
         fold_right sepcon emp (map (malloc_token Tsh tint) reads);
         fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
         data_at sh1 tbuffer (vint 0) (Znth 0 bufs);
-        fold_right sepcon emp (map (data_at Tsh tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
-        fold_right sepcon emp (map (data_at_ Tsh tint) reads);
-        fold_right sepcon emp (map (data_at_ Tsh tint) lasts)).
+        fold_right sepcon emp (map (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
+        fold_right sepcon emp (map (data_at_ Ews tint) reads);
+        fold_right sepcon emp (map (data_at_ Ews tint) lasts)).
 (* All the communication channels are now inside locks. Buffer 0 also starts distributed among the channels. *)
 
 Definition initialize_reader_spec :=
@@ -133,12 +153,12 @@ Definition initialize_reader_spec :=
    PROP (readable_share sh)
    LOCAL (temp _r (vint r); gvars gv)
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at sh (tarray (tptr tint) N) lasts (gv _last_read);
-        data_at_ Tsh tint (Znth r reads); data_at_ Tsh tint (Znth r lasts))
+        data_at_ Ews tint (Znth r reads); data_at_ Ews tint (Znth r lasts))
   POST [ tvoid ]
    PROP ()
    LOCAL ()
    SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at sh (tarray (tptr tint) N) lasts (gv _last_read);
-        data_at Tsh tint Empty (Znth r reads); data_at Tsh tint (vint 1) (Znth r lasts)).
+        data_at Ews tint Empty (Znth r reads); data_at Ews tint (vint 1) (Znth r lasts)).
 
 Definition latest_read (h : hist) v :=
   (* initial condition *)
@@ -157,7 +177,7 @@ Definition start_read_spec :=
    LOCAL (temp _r (vint r); gvars gv)
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
-        data_at_ Tsh tint (Znth r reads); data_at Tsh tint (vint b0) (Znth r lasts);
+        data_at_ Ews tint (Znth r reads); data_at Ews tint (vint b0) (Znth r lasts);
         comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 h;
         EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs);
         ghost_var gsh1 (vint b0) g0)
@@ -168,7 +188,7 @@ Definition start_read_spec :=
    LOCAL (temp ret_temp (vint b))
    SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
-        data_at Tsh tint (vint b) (Znth r reads); data_at Tsh tint (vint b) (Znth r lasts);
+        data_at Ews tint (vint b) (Znth r reads); data_at Ews tint (vint b) (Znth r lasts);
         comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 (map_upd h t (AE v0 Empty));
         data_at sh tbuffer (vint v) (Znth b bufs);
         ghost_var gsh1 (vint b) g0).
@@ -181,11 +201,11 @@ Definition finish_read_spec :=
   PRE [ _r OF tint ]
    PROP (readable_share sh)
    LOCAL (temp _r (vint r); gvars gv)
-   SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at_ Tsh tint (Znth r reads))
+   SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at_ Ews tint (Znth r reads))
   POST [ tvoid ]
    PROP ()
    LOCAL ()
-   SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at Tsh tint Empty (Znth r reads)).
+   SEP (data_at sh (tarray (tptr tint) N) reads (gv _reading); data_at Ews tint Empty (Znth r reads)).
 
 Definition initialize_writer_spec :=
  DECLARE _initialize_writer
@@ -225,17 +245,6 @@ Fixpoint make_shares shs (lasts : list Z) i : list share :=
                  else hd Share.bot shs :: make_shares (tl shs) rest i
   end.
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20) => Q%assert end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
-               x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
-                x20 at level 0,
-             P at level 100, Q at level 100).
-
 Definition finish_write_spec :=
  DECLARE _finish_write
   WITH comms : list val, locks : list val, bufs : list val, b : Z, b0 : Z, lasts : list Z,
@@ -244,7 +253,7 @@ Definition finish_write_spec :=
   PRE [ ]
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
          readable_share sh1; readable_share lsh; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Tsh; Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
+         sepalg_list.list_join sh0 shs Ews; Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
    LOCAL (gvars gv)
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
@@ -286,10 +295,10 @@ Definition reader_spec :=
    let '(r, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2, gv) := x in
    PROP (readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms))
    LOCAL (temp _arg arg; gvars gv)
-   SEP (data_at Tsh tint (vint r) arg; malloc_token Tsh tint arg;
+   SEP (data_at Ews tint (vint r) arg; malloc_token Tsh tint arg;
         data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
-        data_at_ Tsh tint (Znth r reads); data_at_ Tsh tint (Znth r lasts);
+        data_at_ Ews tint (Znth r reads); data_at_ Ews tint (Znth r lasts);
         data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
         comm_loc sh2 (Znth r locks) (Znth r comms) g g0 g1 g2 bufs sh gsh2 empty_map;
         EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs);
@@ -303,7 +312,7 @@ Definition writer_spec :=
   PRE [ _arg OF tptr tvoid ]
    let '(locks, comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2, gv) := x in
    PROP (Zlength shs = N; readable_share sh1; readable_share lsh; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Tsh; Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
+         sepalg_list.list_join sh0 shs Ews; Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
    LOCAL (temp _arg arg; gvars gv)
    SEP (data_at_ Ews tint (gv _writing); data_at_ Ews tint (gv _last_given); data_at_ Ews (tarray tint N) (gv _last_taken);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
@@ -315,7 +324,7 @@ Definition writer_spec :=
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
         fold_right sepcon emp (map (fun i => EX sh : share,
-          !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
+          !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Ews) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B))))
   POST [ tptr tvoid ] PROP () LOCAL () SEP ().
 
