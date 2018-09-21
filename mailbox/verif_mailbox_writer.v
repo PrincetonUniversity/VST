@@ -18,6 +18,8 @@ Proof.
   start_function.
   forward_call gv.
   forward.
+  Check semax_loop_nocontinue.
+  Check semax_loop.
   forward_loop (EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
    PROP (0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; ~In b0 lasts)
    LOCAL (temp _v (vint v); temp _arg arg; gvars gv)
@@ -60,8 +62,10 @@ Proof.
        rewrite Heq; auto; [|omega].
       apply pred_ext; Intros sh; Exists sh; entailer!.
       eapply list_join_eq; eauto. }
+    unfold abbreviate in POSTCONDITION.
   Intros v b0 lasts h.
   rewrite sepcon_map; Intros.
+  Print Ltac check_POSTCONDITION'.
   forward_call (b0, lasts, gv).
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].

@@ -104,7 +104,8 @@ Ltac simpl_ret_assert :=
  cbn [RA_normal RA_break RA_continue RA_return 
       normal_ret_assert overridePost loop1_ret_assert
       loop2_ret_assert function_body_ret_assert frame_ret_assert
-      switch_ret_assert loop1x_ret_assert loop1y_ret_assert for_ret_assert].
+      switch_ret_assert loop1x_ret_assert loop1y_ret_assert
+      for_ret_assert loop_nocontinue_ret_assert].
 
 Lemma RA_normal_loop2_ret_assert: (* MOVE TO assert_lemmas *)
   forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.
