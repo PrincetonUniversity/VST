@@ -156,7 +156,7 @@ Proof.
     apply age_level in H0; apply age_level in H1.
     rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
     clear. forget (level jm2') as n. omega.
-  }  
+  }
   intro l.
   specialize (H l).
   destruct H.
@@ -165,7 +165,7 @@ Proof.
     intro.
     specialize (H H3).
     erewrite <- necR_NO; eauto.  constructor 1; auto.
-  } 
+  }
   destruct H2 as [?|[?|[?|?]]].
   + left.
     clear H. unfold age in *.
@@ -542,7 +542,7 @@ Proof.
         do 2 rewrite <-level_juice_level_phi.
         destruct H0.
         rewrite H2; omega.
-      } 
+      }
       destruct H0 as (?&?&?).
       split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; omega |].
       split.

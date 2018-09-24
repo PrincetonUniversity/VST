@@ -37,7 +37,7 @@ Definition HKDF_expand_spec :=
    WITH out: val, olen:Z,
         prk: val, PRK:spec_hmac.DATA,
         info: val, INFO:spec_hmac.DATA,
-        kv:val, shmd: share
+        gv: globals, shmd: share
    PRE [ _out_key OF tptr tuchar, _out_len OF tuint,
          _prk OF tptr tuchar, _prk_len OF tuint,
          _info OF tptr tuchar, _info_len OF tuint]
@@ -52,16 +52,16 @@ Definition HKDF_expand_spec :=
                 temp _prk_len (Vint (Int.repr (spec_hmac.LEN PRK)));
                 temp _info info;
                 temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO)));
-                gvar sha._K256 kv)
+                gvars gv (*  gvar sha._K256 kv *))
          SEP(data_block Tsh (spec_hmac.CONT INFO) info;
              data_block Tsh (spec_hmac.CONT PRK) prk;
-             K_vector kv;
+             K_vector gv;
              memory_block shmd olen out
              (*data_at_ shmd (tarray tuchar olen) out*))
   POST [ tint ] EX result:_,
           PROP (result = expand_out_post shmd (spec_hmac.CONT PRK) (spec_hmac.CONT INFO) olen out)
           LOCAL (temp ret_temp (Vint (Int.repr (fst result))))
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block Tsh (spec_hmac.CONT INFO) info;
               data_block Tsh (spec_hmac.CONT PRK) prk;
               (snd result)).
@@ -71,7 +71,7 @@ Definition HKDF_extract_spec :=
    WITH out: val, olen:val,
         secret: val, SECRET:spec_hmac.DATA,
         salt: val, SALT:spec_hmac.DATA,
-        kv:val, shmd: share
+        gv: globals, shmd: share
    PRE [_out_key OF tptr tuchar, _out_len OF tptr tuint,
         _secret OF tptr tuchar, _secret_len OF tuint,
         _salt OF tptr tuchar, _salt_len OF tuint ]
@@ -83,15 +83,15 @@ Definition HKDF_extract_spec :=
                 temp _salt_len (Vint (Int.repr (spec_hmac.LEN SALT)));
                 temp _secret secret;
                 temp _secret_len (Vint (Int.repr (spec_hmac.LEN SECRET)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(data_block Tsh (spec_hmac.CONT SECRET) secret;
              data_block Tsh (spec_hmac.CONT SALT) salt;
-             K_vector kv; data_at_ Tsh tuint olen;
+             K_vector gv; data_at_ Tsh tuint olen;
              memory_block shmd 32 out)
   POST [ tint ]  
           PROP ()
           LOCAL (temp ret_temp (Vint (Int.repr 1)))
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block Tsh (spec_hmac.CONT SECRET) secret;
               data_block Tsh (spec_hmac.CONT SALT) salt; data_at Tsh tuint (Vint (Int.repr 32)) olen;
               data_block shmd (HKDF_extract (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET)) out).
@@ -102,7 +102,7 @@ Definition HKDF_spec :=
         secret: val, SECRET:spec_hmac.DATA,
         salt: val, SALT:spec_hmac.DATA,
         info:val, INFO:spec_hmac.DATA,
-        kv:val, shmd: share
+        gv:globals, shmd: share
    PRE [_out_key OF tptr tuchar, _out_len OF tuint,
         _secret OF tptr tuchar, _secret_len OF tuint,
         _salt OF tptr tuchar, _salt_len OF tuint,
@@ -121,16 +121,16 @@ Definition HKDF_spec :=
                 temp _secret_len (Vint (Int.repr (spec_hmac.LEN SECRET)));
                 temp _info info;
                 temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO)));
-                gvar sha._K256 kv)
+                gvars gv)
          SEP(data_block Tsh (spec_hmac.CONT SECRET) secret;
              data_block Tsh (spec_hmac.CONT SALT) salt;
              data_block Tsh (spec_hmac.CONT INFO) info;
-             K_vector kv;
+             K_vector gv;
              memory_block shmd olen out)
   POST [ tint ] EX r:Z,
           PROP ()
           LOCAL (temp ret_temp (Vint (Int.repr r)))
-          SEP(K_vector kv;
+          SEP(K_vector gv;
               data_block Tsh (spec_hmac.CONT SECRET) secret;
               data_block Tsh (spec_hmac.CONT SALT) salt;
               data_block Tsh (spec_hmac.CONT INFO) info;

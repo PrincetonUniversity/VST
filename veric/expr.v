@@ -16,7 +16,7 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
    | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-             if Int.eq n Int.zero then Some false else None
+             if Archi.ptr64 then None else if Int.eq n Int.zero then Some false else None
    | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
             if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
    | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
@@ -41,7 +41,9 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
      fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
 
 (* LIFTING METHOD TWO: *)
+Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
 Canonical Structure LiftEnviron := Tend environ.
+Set Warnings "+projection-no-head-constant,+redundant-canonical-projection".
 
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
@@ -187,6 +189,9 @@ match ty with
 | _ => false
 end.
 
+Definition is_ptrofs_type :=
+ if Archi.ptr64 then is_long_type else is_int32_type.
+
 Definition is_float_type ty :=
 match ty with
 | Tfloat F64 _ => true
@@ -259,7 +264,7 @@ Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
 Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
-  | Vlong i => if Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | Vlong i => if Int64.eq i Int64.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
@@ -440,7 +445,7 @@ match op with
                     end
 end.
 
-Definition intptr_t := if Archi.ptr64 then Tlong Unsigned noattr else Tint I32 Unsigned noattr.
+Definition size_t := if Archi.ptr64 then tulong else tuint.
 
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -484,11 +489,11 @@ match op with
                               (tc_isptr a2))
                                (tc_int_or_ptr_type (typeof a1)))
                                (tc_int_or_ptr_type (typeof a2)))
-                               (tc_bool (is_int32_type ty) reterr))
+                               (tc_bool (is_ptrofs_type ty) reterr))
 			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                   (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                   (tc_bool (Z.leb (sizeof t) Ptrofs.max_signed)
                                           (pp_compare_size_exceed t))
                     | Cop.sub_default => tc_andp 
                                     (binarithType (typeof a1) (typeof a2) ty deferr reterr)
@@ -554,16 +559,16 @@ match op with
                        (check_pp_int a1 a2 op ty e)
               | Cop.cmp_case_pi si =>
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+                       (check_pp_int a1 (Ecast a2 size_t) op ty e)
               | Cop.cmp_case_ip si => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
+                    (check_pp_int (Ecast a1 size_t) a2 op ty e)
               | Cop.cmp_case_pl => 
                      tc_andp (tc_int_or_ptr_type (typeof a1))
-                       (check_pp_int a1 (Ecast a2 intptr_t) op ty e)
+                       (check_pp_int a1 (Ecast a2 size_t) op ty e)
               | Cop.cmp_case_lp => 
                      tc_andp (tc_int_or_ptr_type (typeof a2))
-                    (check_pp_int (Ecast a1 intptr_t) a2 op ty e)
+                    (check_pp_int (Ecast a1 size_t) a2 op ty e)
               end
   end.
 
@@ -720,9 +725,9 @@ end.
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
 | (Tarray _ _ _ | Tfunction _ _ _),
-   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-     eqb (eqb_type t1 int_or_ptr_type)
-         (eqb_type t2 int_or_ptr_type)
+   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) =>
+     Bool.eqb (eqb_type t1 int_or_ptr_type)
+              (eqb_type t2 int_or_ptr_type)
 | (Tstruct _ _ | Tunion _ _), (Tstruct _ _ | Tunion _ _ ) => true
 | _, _ => false
 end.
@@ -730,7 +735,7 @@ end.
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 
-Fixpoint typecheck_expr {CS: compspecs}(Delta : tycontext) (e: expr) : tc_assert :=
+Fixpoint typecheck_expr {CS: compspecs} (Delta : tycontext) (e: expr) : tc_assert :=
 let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT
@@ -738,9 +743,9 @@ match e with
  | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty =>
                        match (temp_types Delta)!id with
-                         | Some ty' => if is_neutral_cast (fst ty') ty || same_base_type (fst ty') ty then
-                                         if (snd ty') then tc_TT else (tc_initialized id ty)
-                                       else tc_FF (mismatch_context_type ty (fst ty'))
+                         | Some ty' => if is_neutral_cast ty' ty || same_base_type ty' ty then
+                                         tc_initialized id ty'
+                                       else tc_FF (mismatch_context_type ty ty')
 		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
@@ -787,9 +792,9 @@ match e with
                   | _ => tc_FF (deref_byvalue ty)
                   end
  | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
+                     (tc_bool (eqb_type t size_t) (invalid_expression e))
  | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
-                     (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
+                     (tc_bool (eqb_type t size_t) (invalid_expression e))
  | _ => tc_FF (invalid_expression e)
 end
 
@@ -835,7 +840,7 @@ Definition implicit_deref (t: type) : type :=
 
 Definition typecheck_temp_id {CS: compspecs}id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
-  | Some (t,_) =>
+  | Some t =>
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t))
                   (isCastResultType (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
@@ -875,12 +880,12 @@ end.
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
-(te: tenviron) (tc: PTree.t (type * bool)) :=
-forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ tc_val ty v)).
+(te: tenviron) (tc: PTree.t type) :=
+forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: PTree.t type) :=
-forall id ty, tc ! id = Some (ty) <-> exists v, Map.get ve id = Some(v,ty).
+forall id ty, tc ! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
@@ -910,7 +915,7 @@ Definition all_var_ids (Delta : tycontext) : list positive :=
 (fst (split (PTree.elements (glob_types Delta)))).
 *)
 
-Definition typecheck_environ (Delta: tycontext)  (rho : environ) :=
+Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta).

@@ -231,7 +231,7 @@ inv H; try reflexivity;
   unfold cast_int_int;
   destruct Archi.ptr64 eqn:Hp;
   try discriminate;
-  simpl;
+  simpl in *;
  try match goal with
   | H: (if Mem.weak_valid_pointer ?M ?B ?X then _ else _) = _ |- _ =>
       destruct (Mem.weak_valid_pointer M B X); inv H

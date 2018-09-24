@@ -20,6 +20,7 @@ Require Import VST.veric.semax_call.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
+Require Import Coq.Logic.JMeq.
 
 Require Import Coq.Logic.JMeq.
 Require Import VST.veric.ghost_PCM.
@@ -215,7 +216,6 @@ revert H; induction H0; intros.
       apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
       apply H0; auto. clear - H4.  unfold natLevel in *. omega.
       apply H2; auto. clear - H4.  unfold natLevel in *. omega. }
-
 unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
 intros z ?.
 split; intros ? ? ?.
@@ -1216,7 +1216,7 @@ unfold make_tenv.
 unfold Map.get.
 intros.
 rewrite PTree.gsspec in *. if_tac. inv H2.
-+ exists (Vptr b Ptrofs.zero); split; auto. right; simpl; auto.
++ exists (Vptr b Ptrofs.zero); split; auto. apply tc_val_tc_val'. simpl; auto.
 + rewrite PTree.gempty in H2. congruence.
 *
 unfold var_types.
@@ -1399,7 +1399,7 @@ Proof.
     pose (rho1 := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
                            (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
-    eapply (semax_call_aux Espec (Delta1 V G) (ConstType (ident->val))
+    eapply (semax_call_aux (Delta1 V G) (ConstType (ident->val))
               _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
               None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
@@ -1407,7 +1407,9 @@ Proof.
                  (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
-    + simpl; auto.
+    + simpl.
+      exists (Vptr b Ptrofs.zero).
+      split; auto.
     + simpl snd.
       replace (params_of_fundef f) with (@nil type). simpl; auto. clear -E.
       destruct f as [[? ? [ | [] ]] | e [|] ? c] ; compute in *; congruence.
@@ -1498,7 +1500,6 @@ Proof.
       unfold initial_core.
       apply level_make_rmap.
   - apply initial_jm_ext_without_locks.
-  - apply initial_jm_ext_without_locks.
   - apply initial_jm_ext_matchfunspecs.
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
@@ -1558,20 +1559,20 @@ Proof.
   intros vs G C prog b typed_args NR MG MF TYP.
   repeat split.
   - unfold te_of, construct_rho.
-    intros i b' ty.
+    intros i ty.
     unfold make_tycontext, temp_types.
     intros Found.
     assert (make_tycontext_t_cons1 : forall i i' t l1 l2, (make_tycontext_t ((i, t) :: l1) l2) ! i' =
-      if peq i' i then Some (t, true) else (make_tycontext_t l1 l2) ! i')
+      if peq i' i then Some t else (make_tycontext_t l1 l2) ! i')
     by (clear; intros i i' t l1 l2; simpl; rewrite PTree.gsspec; reflexivity).
     unfold Delta_types, make_tycontext in Found.
     simpl params_of_types in Found.
     rewrite make_tycontext_t_cons1 in Found.
     rewrite <-map_ptree_rel, Map.gsspec.
     if_tac; if_tac in Found; subst; try tauto.
-    + injection Found as <- <- .
+    + injection Found as <-.
       exists (Vptr b Ptrofs.zero); split; auto.
-      right; simpl; auto.
+      apply tc_val_tc_val'; simpl; auto.
     + revert Found; generalize (2%positive).
       induction typed_args; intros p Found.
       * rewrite PTree.gempty in Found.
@@ -1580,11 +1581,11 @@ Proof.
         rewrite make_tycontext_t_cons1 in Found.
         simpl (map _ _).
         change (exists v : val, Map.get (make_tenv (PTree.set p (fst a) (temp_bindings (p+1)
-          (map fst typed_args)))) i = Some v /\ (is_true (negb b') \/ tc_val ty v)).
+          (map fst typed_args)))) i = Some v /\ tc_val' ty v).
         rewrite <-map_ptree_rel, Map.gsspec.
         inversion TYP.
         { if_tac; if_tac in Found; subst; try tauto.
-          - injection Found as <- <- ; eauto.
+          - injection Found as <-. apply tc_val_tc_val' in H3; eauto.
           - apply IHtyped_args; auto. }
   - simpl.
     rewrite PTree.gempty.
@@ -1701,7 +1702,8 @@ Proof.
   intros. eexists; repeat split; eauto.
   repeat constructor.
   {clear - arg_p.
-   destruct arg; try contradiction. apply val_casted_int_ptr; reflexivity.
+   destruct arg; try contradiction.
+   first [apply val_casted_long_ptr |  apply val_casted_int_ptr]; reflexivity.
    apply val_casted_ptr_ptr. }
   { clear - arg_p. destruct arg; try contradiction; simpl in *.
       unfold Tptr. destruct Archi.ptr64; try contradiction; auto.
@@ -1728,7 +1730,7 @@ Proof.
   evar (R : environ -> mpred).
   eapply
     (semax_call_aux
-       Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
+       (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
        (fun _ _ => Q ts a) Q NEP NEQ
        ts a (fun _ => emp) (fun _ => emp)
        None ((id_arg, Tpointer Tvoid noattr)::nil, tptr Tvoid) cc_default _ _
@@ -1738,11 +1740,11 @@ Proof.
     try apply H3; try eassumption; auto.
 
   (* tc_expr *)
-  simpl.
-  reflexivity.
+
+  simpl. exists (Vptr b Ptrofs.zero); auto.
 
   (* tc_exprlist *)
-  rewrite Pf. now constructor.
+  rewrite Pf. simpl. exists arg; simpl; auto.
 
   (* guard_environ *)
   split; try apply I.

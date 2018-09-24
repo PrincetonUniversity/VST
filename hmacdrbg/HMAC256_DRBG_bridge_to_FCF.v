@@ -10,7 +10,7 @@ Require Import sha.HMAC256_functional_prog.
 Require Import fcf.DetSem.
 Require Import sha.general_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import fcf.Fold.
 Import ListNotations.
 
@@ -32,7 +32,7 @@ Qed.
 
 Lemma bytesToBits_InBlocks l: InBlocks 8 (bytesToBits l).
 Proof.
-  apply InBlocks_len; rewrite bytesToBits_len. exists (length l); omega.
+  apply InBlocks_len; rewrite bytesToBits_len. exists (Datatypes.length l); omega.
 Qed.
 
 Lemma flatten_bytes_bits: forall m (M: Forall (Forall isbyteZ) m), 
@@ -327,18 +327,20 @@ Proof. induction n.
   remember (Gen_loop_Zlist k (HMAC256 v k) N) as p.
   destruct p; symmetry in Heqp. inversion G; clear G. subst blocks l0. 
   rewrite HMAC_DRBG_generate_helper_Z_equation'.
-  Focus 2. rewrite Zmult_minus_distr_l in M.
+  2:{ rewrite Zmult_minus_distr_l in M.
     assert (64 <= 32 * Z.of_nat (S N)).
     { subst. replace 64 with (32*2) by omega. apply Z.mul_le_mono_nonneg_l. omega.
       clear. apply (Nat2Z.inj_le 2). omega. }
     omega.
+  }
   simpl.
   apply Gen_loop_Zlist_nestedV' in Heqp. 
   destruct Heqp as [aa [bb [G [X L]]]]. subst u l.
   rewrite (IHn _ _ _ _ G); clear IHn.
-  Focus 2. clear - M. 
+  2:{  clear - M. 
            rewrite Zmult_minus_distr_l in *. rewrite Nat2Z.inj_succ in M. simpl in *.
            omega.
+  }
   f_equal. rewrite rev_app_distr. 
 
   subst N; simpl in G. remember (Gen_loop_Zlist k (HMAC256 v k) n).
@@ -484,8 +486,8 @@ Proof.
   rewrite Heqg; intros HH; rewrite HH; trivial.
 Qed. 
 
-Lemma Generate_Bvec_ok' RI k v z n (Z: (z<=RI)%Z) l kk vv zz (N:(0<n)%nat)
-    (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
+Lemma Generate_Bvec_ok' RI (k: list Z) v z n (Z: (z<=RI)%Z) l kk vv zz (N:(0<n)%nat)
+    (K: Forall isbyteZ k) (KL: Datatypes.length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:Datatypes.length (bytesToBits v) = 256%nat):
     FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     match GenUpdate_original_Bvec (of_list_length _ KL, of_list_length _ VL) n with (blocks, kv) =>
     zz=z+1 /\ 
@@ -513,8 +515,8 @@ Proof.
   rewrite <- map_rev. f_equal. apply flatten_bytes_bits. apply Forall_rev; trivial.
 Qed.
 Lemma Generate_Bvec_ok RI k v z n (Z: (z<=RI)%Z) (N:(0<n)%nat)
-              (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat)
-              (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
+              (K: Forall isbyteZ k) (KL: Datatypes.length (bytesToBits k) = 256%nat)
+              (V:Forall isbyteZ v) (VL:Datatypes.length (bytesToBits v) = 256%nat):
     match GenUpdate_original_Bvec (of_list_length _ KL, of_list_length _ VL) n with (blocks, (kk,vv)) =>
           FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) 
           = generate_algorithm_success (firstn (32 * n) (bitsToBytes (flatten (rev (map (@Vector.to_list _ 256) blocks)))))
@@ -538,7 +540,7 @@ Proof.
 Qed.
 
 Lemma Generate_ok' RI k v z n (Z: (z<=RI)%Z) l kk vv zz (N:(0<n)%nat)
-    (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
+    (K: Forall isbyteZ k) (KL: Datatypes.length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:Datatypes.length (bytesToBits v) = 256%nat):
     FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     match GenUpdate_original_core (of_list_length _ KL, of_list_length _ VL) n with (blocks, kv) =>
     zz=z+1 /\ 
@@ -557,8 +559,8 @@ Proof. intros.
   rewrite Heqp; clear Heqp; intros Q; rewrite Q, map_rev; apply H.
 Qed.
 Lemma Generate_ok RI k v z n (Z: (z<=RI)%Z) (N:(0<n)%nat)
-              (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat)
-              (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
+              (K: Forall isbyteZ k) (KL: Datatypes.length (bytesToBits k) = 256%nat)
+              (V:Forall isbyteZ v) (VL:Datatypes.length (bytesToBits v) = 256%nat):
     match GenUpdate_original_core (of_list_length _ KL, of_list_length _ VL) n with (blocks, (kk,vv)) =>
           FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) 
           = generate_algorithm_success (firstn (32 * n) (bitsToBytes (flatten (map (@Vector.to_list _ 256) blocks))))
@@ -626,7 +628,7 @@ Qed.
 Lemma Bridge_ok' s I (n:nat) bytes F ss (M: mbedtls_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
   match I with HMAC256DRBGabs k v reseed_counter entropy_len prediction_resistance reseed_interval =>
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
-  forall (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat),
+  forall (K: Forall isbyteZ k) (KL: Datatypes.length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:Datatypes.length (bytesToBits v) = 256%nat),
   match F with HMAC256DRBGabs KK VV rc _ _ _ =>
   s=ss /\ rc=reseed_counter+1 /\
     match GenUpdate_original_core (Blist.of_list_length _ KL, Blist.of_list_length _ VL) n with (blocks, kv) =>
@@ -651,7 +653,7 @@ Qed.
 
 Lemma GenUpdate_original_core_length: forall n state l m
   (G: GenUpdate_original_core state n = (l,m)),
-   length l = n%nat.
+   Datatypes.length l = n%nat.
 Proof. induction n; destruct state; simpl; intros. 
 + inv G. simpl; omega.
 + remember (HMAC_DRBG_nonadaptive.Gen_loop HMAC_Bvec b
@@ -672,7 +674,7 @@ Qed.
 Lemma mbedtls_generate_Bridge s I (n:nat) bytes F ss (M: mbedtls_generate s I (32 * Z.of_nat n) = Some(bytes, ss, F)) (N:(0 < n)%nat):
   match I with HMAC256DRBGabs k v reseed_counter entropy_len prediction_resistance reseed_interval =>
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
-  forall (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat),
+  forall (K: Forall isbyteZ k) (KL: Datatypes.length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:Datatypes.length (bytesToBits v) = 256%nat),
   match F with HMAC256DRBGabs KK VV rc _ _ _ =>
   s=ss /\ rc=reseed_counter+1 /\
     match GenUpdate_original_core (Blist.of_list_length _ KL, Blist.of_list_length _ VL) n with (blocks, kv) =>

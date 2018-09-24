@@ -853,7 +853,7 @@ Lemma juicy_free_lemma:
       -> exists sh', exists (rsh': readable_share sh'), 
             exists pp', join_sub sh sh' 
               /\ m_phi j @ l = YES sh' rsh' k pp') -> 
-    join m1 (m_phi (free_juicy_mem _ _ _ _ _ H (juicy_free_aux_lemma _ _ _ _ _ VR))) (m_phi j).
+    join m1 (m_phi (free_juicy_mem _ _ _ _ _ H)) (m_phi j).
 Proof.
 intros j b lo hi m' m1.
 pose (H0 :=True).
@@ -869,7 +869,7 @@ assert (forall l, adr_range (b,lo) (hi-lo) l
   intros l. destruct H1 as [H1 _]; specialize (H1 l). intros H4.
   hnf in H1; if_tac in H1; try solve [contradiction].
   apply H1.
-remember (free_juicy_mem _ _ _ _ _ H _) as j'.
+remember (free_juicy_mem _ _ _ _ _ H) as j'.
 assert (m' = m_dry j') by (subst; reflexivity).
 assert (Ha := juicy_mem_access j').
 unfold access_cohere in Ha.
@@ -930,7 +930,7 @@ f_equal. apply proof_irr.
       case_eq (m_phi j @ (b0,ofs0)); intros.
     constructor. apply join_unit1; auto.
     constructor. apply join_unit1; auto.
-    
+
     elimtype False.
     clear - H2 Hm1 H0 H6.
     assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
@@ -959,7 +959,7 @@ Variables (jm :juicy_mem) (m': mem)
           (phi1 phi2 : rmap) (Hphi1: VALspec_range (hi-lo) Share.top (b,lo) phi1)
           (Hjoin : join phi1 phi2 (m_phi jm)).
 
-Lemma phi2_eq : m_phi (free_juicy_mem _ _ _ _ _ FREE PERM) = phi2.
+Lemma phi2_eq : m_phi (free_juicy_mem _ _ _ _ _ FREE) = phi2.
 Proof.
   apply rmap_ext; simpl; unfold inflate_free; rewrite ?level_make_rmap, ?resource_at_make_rmap.
   - apply join_level in Hjoin; destruct Hjoin; auto.
@@ -987,7 +987,7 @@ Lemma juicy_free_lemma':
     (VR: app_pred (VALspec_range (hi-lo) Share.top (b,lo) * F) (m_phi j)),
     VALspec_range (hi-lo) Share.top (b,lo) m1 ->
     join m1 m2 (m_phi j) ->
-    m_phi (free_juicy_mem _ _ _ _ _ H (juicy_free_aux_lemma _ _ _ _ _ VR)) = m2.
+    m_phi (free_juicy_mem _ _ _ _ _ H) = m2.
 Proof.
   intros.
   eapply phi2_eq; eauto.
@@ -1194,10 +1194,6 @@ Proof.
   unfold perm_of_res_lock.
   destruct r; try constructor.
   destruct k; try constructor.
-  unfold perm_of_sh.
-  if_tac. rewrite if_false. constructor.
-  apply glb_Rsh_not_top.
-  repeat if_tac; constructor.
   unfold perm_of_sh.
   if_tac. rewrite if_false. constructor.
   apply glb_Rsh_not_top.

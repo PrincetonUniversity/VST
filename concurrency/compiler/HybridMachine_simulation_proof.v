@@ -786,8 +786,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
           (*Use the source self_simulations*)
           inversion Hcorestep; subst.
           eapply (ssim_diagram) in SSIM; eauto; simpl in SSIM.
-          Focus 2.
-          {
+          2:{
             (*SHOW the step*)
             replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
             clear - H4.
@@ -796,7 +795,7 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
             inversion H4;
               try solve[eapply Asm.exec_step_internal; eauto];
               try solve[eapply Asm.exec_step_builtin; eauto].
-          } Unfocus. 
+          }
           
           simpl in SSIM.
           destruct SSIM as [c2' [f' [t' [m2' [STEP [SMATCH [EXT TINJ]]]]]]].
@@ -904,15 +903,14 @@ Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
           (*Use the source self_simulations*)
           inversion Hcorestep; subst.
           eapply (ssim_diagram) in H5; eauto; simpl in H5.
-          Focus 2.
-          {
+          2:{
           replace (memcompat1 H0) with Hcmpt by (apply proof_irr); simpl; eauto.
           clear - H4.
           unfold make_state_Clight.
           unfold ClightCoreSEM.Sem in H4; rewrite ClightCoreSEM.CLC_msem in H4;
             simpl in H4.
           destruct H4; eauto.
-          } Unfocus.
+          }
           
           simpl in H5.
           destruct H5 as [c2' [f' [t' [m2' [STEP [SMATCH [EXT TINJ]]]]]]].

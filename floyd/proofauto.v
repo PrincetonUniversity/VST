@@ -16,7 +16,7 @@ Require Export VST.floyd.nested_field_lemmas.
 Require Export VST.floyd.efield_lemmas.
 Require Export VST.floyd.mapsto_memory_block.
 Require Export VST.floyd.aggregate_type.
-Require VST.floyd.aggregate_pred. Export VST.floyd.aggregate_pred.aggregate_pred.
+Require VST.floyd.aggregate_pred. Export floyd.aggregate_pred.aggregate_pred.
 Require Export VST.floyd.reptype_lemmas.
 Require Export VST.floyd.simpl_reptype.
 Require Export VST.floyd.data_at_rec_lemmas.
@@ -29,6 +29,7 @@ Require Export VST.floyd.loadstore_field_at.
 Require Export VST.floyd.nested_loadstore.
 Require Export VST.floyd.local2ptree_denote.
 Require Export VST.floyd.local2ptree_eval.
+Require Export VST.floyd.local2ptree_typecheck.
 Require Export VST.floyd.proj_reptype_lemmas.
 Require Export VST.floyd.replace_refill_reptype_lemmas.
 Require Export VST.floyd.sc_set_load_store.

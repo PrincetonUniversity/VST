@@ -992,6 +992,24 @@ intros.
 apply pred_ext; unfold derives; simpl; intros; eapply H; eauto.
 Qed.
 
+Lemma later_prop {A} `{agA : ageable A}:
+       forall P: Prop, |> (prop P) |-- prop P || |> FF.
+Proof.
+  intros.
+  unfold derives; intros.
+  simpl in H |- *.
+  destruct (age1 a) eqn:?H; [left | right].
+  + apply (H a0).
+    unfold laterR.
+    constructor.
+    auto.
+  + intros.
+    clear - H0 H1.
+    induction H1.
+    - hnf in H; congruence.
+    - auto.
+Qed.
+
 Lemma box_derives {A} `{ageable A} : forall M (P Q:pred A),
   P |-- Q ->  box M P |-- box M Q.
 Proof. exact box_positive. Qed.

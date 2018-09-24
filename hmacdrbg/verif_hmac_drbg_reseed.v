@@ -143,6 +143,8 @@ Proof.
   
   (* if( get_entropy(seed, entropy_len ) != 0 ) *)
   freeze [0;1;2] FR5.
+  forward_if (vret=Vzero).
+(*
   forward_if (PROP  (vret=Vzero)
       LOCAL  (temp _t'2 vret;
       temp _entropy_len (Vint (Int.repr entropy_len));
@@ -151,6 +153,7 @@ Proof.
       gvars gv)
       SEP (FRZL FR5)
   ).
+*)
   {
     (* != 0 case *)
     forward.
@@ -218,8 +221,11 @@ Proof.
 
   rename l into entropy_bytes.
   thaw FR5. thaw FR4. unfold GetEntropy_PostSep. rewrite <- Heqentropy_result.
-  Locate reseed_REST.
-  eapply reseed_REST with (s0:=s0)(contents':=contents'); trivial.
+  deadvars!.
+  subst MORE_COMMANDS; unfold abbreviate.
+  subst entropy_len'. subst POSTCONDITION; unfold abbreviate.
+  simple eapply reseed_REST  with (s0:=s0)(contents':=contents'); try eassumption;
+    auto.
 idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 
 Time Qed. (*May23th, Coq8.6:12secs
            Feb 23 2017: Finished transaction in 105.344 secs (74.078u,0.015s) (successful)*)

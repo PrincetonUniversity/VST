@@ -15,8 +15,11 @@ Require Import VST.veric.juicy_extspec.
 
 Require Import VST.veric.res_predicates.
 
-Require Import VST.sepcomp.event_semantics.
+(*Lenb: Should Imports from sepcomp really be here?*)
 Require Import VST.sepcomp.extspec.
+
+(*Require Import VST.sepcomp.event_semantics.
+Require Import VST.sepcomp.extspec.*)
 (*Lenb: Should stuff that requires Imports from sepcomp really be here?*)
 
 Notation val_inject := Val.inject. (*as in sepcomp.mem_lemmas*)
@@ -43,6 +46,9 @@ Definition mem_equiv m1 m2 :=
   Mem.loadbytes m1 = Mem.loadbytes m2 /\
   Mem.perm m1 = Mem.perm m2 /\
   Mem.nextblock m1 = Mem.nextblock m2.
+
+Lemma perm_order_pp_refl p: Mem.perm_order'' p p.
+Proof. unfold Mem.perm_order''. destruct p; trivial. apply perm_refl. Qed.
 
 Lemma same_perm_spec m1 m2 :
   Mem.perm m1 = Mem.perm m2 <->

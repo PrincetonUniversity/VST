@@ -62,13 +62,13 @@ Proof.
   intros n ?.
   simpl in H |- *.
   assert (forall y, (n >= level y)%nat -> (P y <-> Q y)).
-  Focus 1. {
+  {
     intros; specialize (H y H0).
     destruct H.
     specialize (H y). spec H; [auto |].
     specialize (H1 y). spec H1; [auto |].
     tauto.
-  } Unfocus.
+  }
   clear H.
   intros; split; intros.
   + unfold exclusive_mpred in *.
@@ -118,13 +118,13 @@ Proof.
   intros.
   hnf; intros.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
-  Focus 1. {
+  {
     intros; specialize (H y H0).
     destruct H.
     specialize (H y). spec H; [auto |].
     specialize (H1 y). spec H1; [auto |].
     tauto.
-  } Unfocus.
+  }
   hnf; intros.
   split; simpl; hnf; intros.
   + apply necR_level in H2.
@@ -142,21 +142,21 @@ Proof.
   hnf; intros.
   destruct H.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P1 y <-> app_pred Q1 y)).
-  Focus 1. {
+  {
     intros; specialize (H y H1).
     destruct H.
     specialize (H y). spec H; [auto |].
     specialize (H2 y). spec H2; [auto |].
     tauto.
-  } Unfocus.
+  }
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P2 y <-> app_pred Q2 y)).
-  Focus 1. {
+  {
     intros; specialize (H0 y H2).
     destruct H0.
     specialize (H0 y). spec H0; [auto |].
     specialize (H3 y). spec H3; [auto |].
     tauto.
-  } Unfocus.
+  }
   split; intros; hnf; intros.
   + split; [destruct H5 as [? _] | destruct H5 as [_ ?]]; intros ? HH; specialize (H5 _ HH).
     - apply necR_level in H4.
@@ -185,21 +185,21 @@ Proof.
   hnf; intros.
   destruct H.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P1 y <-> app_pred Q1 y)).
-  Focus 1. {
+  {
     intros; specialize (H y H1).
     destruct H.
     specialize (H y). spec H; [auto |].
     specialize (H2 y). spec H2; [auto |].
     tauto.
-  } Unfocus.
+  }
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P2 y <-> app_pred Q2 y)).
-  Focus 1. {
+  {
     intros; specialize (H0 y H2).
     destruct H0.
     specialize (H0 y). spec H0; [auto |].
     specialize (H3 y). spec H3; [auto |].
     tauto.
-  } Unfocus.
+  }
   split; intros; hnf; intros.
   + destruct H5 as [w1 [w2 [? [? ?]]]].
     exists w1, w2; split; [| split]; auto.
@@ -225,13 +225,13 @@ Proof.
   intros.
   hnf; intros.
   assert (forall y: rmap, (a >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
-  Focus 1. {
+  {
     intros; specialize (H y H0).
     destruct H.
     specialize (H y). spec H; [auto |].
     specialize (H1 y). spec H1; [auto |].
     tauto.
-  } Unfocus.
+  }
   hnf; intros.
   split; hnf; intros; simpl in *; intros.
   + specialize (H3 _ H4).
@@ -263,36 +263,34 @@ Proof.
   hnf; intros.
   intros n ?.
   assert (forall y: rmap, (n >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
-  Focus 1. {
+  {
     clear - H.
     intros; specialize (H y H0).
     destruct H.
     specialize (H y). spec H; [auto |].
     specialize (H1 y). spec H1; [auto |].
     tauto.
-  } Unfocus.
+  }
   simpl; split; intros.
   + if_tac; auto.
-    if_tac; auto.
     destruct H3 as [p0 ?].
     exists p0.
     rewrite H3; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 H5 p0.
+    clear H3 H4 p0.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite <- H0 by omega; auto.
     - apply necR_level in H2.
       rewrite H0 by omega; auto.
   + if_tac; auto.
-    if_tac; auto.
     destruct H3 as [p0 ?].
     exists p0.
     rewrite H3; f_equal.
     f_equal.
     extensionality ts; clear ts.
-    clear H3 H4 H5 p0.
+    clear H3 H4 p0.
     apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
     - apply necR_level in H2.
       rewrite H0 by omega; auto.
@@ -311,10 +309,10 @@ Proof.
   apply predicates_hered.andp_right; auto.
   eapply predicates_hered.derives_trans; [| apply sepcon_equiv].
   apply predicates_hered.andp_right.
-  Focus 1. {
+  {
     intros n ?.
     split; intros; hnf; intros; auto.
-  } Unfocus.
+  }
   rewrite <- subtypes.eqp_later.
   eapply predicates_hered.derives_trans, predicates_hered.now_later.
   apply nonexpansive_lock_inv.
@@ -329,10 +327,10 @@ Proof.
   eapply predicates_hered.derives_trans; [| apply unfash_fash_equiv].
   eapply predicates_hered.derives_trans; [| apply iffp_equiv].
   apply predicates_hered.andp_right.
-  Focus 1. {
+  {
     intros n ?.
     split; intros; hnf; intros; auto.
-  } Unfocus.
+  }
   eapply predicates_hered.derives_trans; [| apply sepcon_equiv].
   apply predicates_hered.andp_right; auto.
 

@@ -269,7 +269,7 @@ Lemma denote_tc_iszero_long_e:
   app_pred (denote_tc_iszero (Vlong i)) m -> i = Int64.zero.
 Proof.
 intros.
-hnf in H. rewrite Int64.repr_unsigned in H.
+hnf in H.
 pose proof (Int64.eq_spec i Int64.zero).
 destruct (Int64.eq i Int64.zero); try contradiction.
 auto.
@@ -366,10 +366,10 @@ Proof.
   inv H.
 Qed.
 
-Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A),
+Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A) (max: Z),
     negb (Z.eqb (sizeof t) 0) = true ->
-    Z.leb (sizeof t) Int.max_signed = true ->
-    (if zlt 0 (sizeof t) && zle (sizeof t) Int.max_signed then a else b) = a.
+    Z.leb (sizeof t) max = true ->
+    (if zlt 0 (sizeof t) && zle (sizeof t) max then a else b) = a.
 Proof.
   intros.
   rewrite negb_true_iff in H.
@@ -377,7 +377,7 @@ Proof.
   pose proof sizeof_pos t.
   rewrite <- Zle_is_le_bool in H0.
   destruct (zlt 0 (sizeof t)); [| omega].
-  destruct (zle (sizeof t) Int.max_signed); [| omega]. 
+  destruct (zle (sizeof t) max); [| omega]. 
   reflexivity.
 Qed.
 

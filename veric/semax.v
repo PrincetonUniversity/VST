@@ -70,13 +70,17 @@ Lemma guard_environ_e1:
      typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
 
-Definition guard  (Espec : OracleKind)
-    (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
+Definition _guard (Espec : OracleKind)
+    (gx: genv) (Delta: tycontext) (P : assert) (f: option function) (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
-          !! guard_environ Delta (current_function ctl) rho
+          !! guard_environ Delta f rho
                   && P rho && funassert Delta rho
              >=> assert_safe Espec gx vx tx ctl rho.
+
+Definition guard (Espec : OracleKind)
+    (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
+  _guard Espec gx Delta P (current_function ctl) ctl.
 
 Definition zap_fn_return (f: function) : function :=
  mkfunction Tvoid f.(fn_callconv) f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
@@ -94,19 +98,10 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
          end
    end.
 
-Definition r_update_tenv (tx:Clight.temp_env) id vl :=
-match vl, id with
-| v::_, Some ret => PTree.set ret v tx
-| _,_ => tx
-end.
-
 Definition rguard (Espec : OracleKind)
-    (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
-     ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
-           let rho := construct_rho (filter_genv gx) vx tx in
-           !! guard_environ (Delta ek) (current_function ctl) rho &&
-         proj_ret_assert R ek vl rho && funassert (Delta ek) rho
-          >=> assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
+    (gx: genv) (Delta: tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
+  ALL ek: exitkind, ALL vl: option val,
+    _guard Espec gx Delta (proj_ret_assert R ek vl) (current_function ctl) (exit_cont ek vl ctl).
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
@@ -202,10 +197,10 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
-   Forall (fun var : ident * type => @sizeof cenv (snd var) <= Int.max_unsigned)%Z vars.
+   Forall (fun var : ident * type => @sizeof cenv (snd var) <= Ptrofs.max_unsigned)%Z vars.
 
 Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type) (rho: environ): mpred :=
-  !! (sizeof (snd idt) <= Int.max_unsigned)%Z &&
+  !! (sizeof (snd idt) <= Ptrofs.max_unsigned)%Z &&
   (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
@@ -255,7 +250,7 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
       (believepred Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
-              rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+              rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -295,7 +290,7 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+        (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
@@ -330,7 +325,7 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        unfash (believe Espec Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert Q F) k) -->
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert Q F) k) -->
         (* guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k) *)
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
@@ -571,167 +566,3 @@ Proof.
   rewrite level_core.
   auto.
 Qed.
-
-Lemma semax_weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext):
-  forall P c Q,
-    semax Espec Delta P c Q <-> (forall rho, derives (P rho) (weakest_pre Espec Delta c Q rho)).
-Proof.
-  intros.
-  unfold semax; rewrite semax_fold_unfold.
-  rewrite any_level_pred_nat.
-  apply semax_weakest_pre_aux.
-  unfold weakest_pre, guard.
-
-  apply pred_ext.
-  + rewrite fash_allp.
-    apply allp_right; intro rho.
-
-    apply subp_i1.
-    rewrite -> imp_andp_adjoint.
-    
-    rewrite unfash_allp.
-    apply imp_andp_adjoint.
-    apply allp_right; intro gx.
-    apply imp_andp_adjoint.
-    apply (allp_left _ gx).
-    
-    rewrite unfash_allp.
-    apply imp_andp_adjoint.
-    apply allp_right; intro Delta'.
-    apply imp_andp_adjoint.
-    apply (allp_left _ Delta').
-    
-    rewrite unfash_prop_imp, unfash_imp.
-    do 2 rewrite <- imp_andp_adjoint.
-    rewrite andp_comm, <- andp_assoc.
-    rewrite -> imp_andp_adjoint.
-    eapply derives_trans; [apply andp_imp_e' |].
-    apply andp_left2.
-    (* apply prop_andp_left; intros [H_Delta H_cs]. *)
-    
-    do 2 rewrite <- imp_andp_adjoint.
-    rewrite andp_comm, <- andp_assoc.
-    rewrite -> imp_andp_adjoint.
-    eapply derives_trans; [apply andp_imp_e' |].
-    apply andp_left2.
-
-    rewrite unfash_allp.
-    apply imp_andp_adjoint.
-    apply allp_right; intro k.
-    apply imp_andp_adjoint.
-    apply (allp_left _ k).
-    
-    rewrite unfash_allp.
-    apply imp_andp_adjoint.
-    apply allp_right; intro F.
-    apply imp_andp_adjoint.
-    apply (allp_left _ F).
-    
-    rewrite unfash_imp.
-    do 2 rewrite <- imp_andp_adjoint.
-    rewrite andp_comm, <- andp_assoc.
-    rewrite -> imp_andp_adjoint.
-    eapply derives_trans; [apply andp_imp_e' |].
-    apply andp_left2.
-
-    rewrite unfash_allp.
-    apply imp_andp_adjoint.
-    apply allp_right; intro tx.
-    apply imp_andp_adjoint.
-    apply (allp_left _ tx).
-
-    rewrite unfash_allp.
-    apply imp_andp_adjoint.
-    apply allp_right; intro vx.
-    apply imp_andp_adjoint.
-    apply (allp_left _ vx).
-
-    do 2 rewrite <- imp_andp_adjoint.
-    rewrite andp_comm.
-    apply prop_andp_left; intros H_rho.
-    subst rho.
-    rewrite -> imp_andp_adjoint.
-
-    rewrite (andp_comm _ (_ * _)), andp_assoc, (andp_comm (_ * _)).
-    rewrite <- imp_imp.
-    do 2 rewrite <- imp_andp_adjoint.
-    rewrite andp_comm, <- andp_assoc.
-    rewrite <- wand_sepcon_adjoint.
-    rewrite corable_andp_sepcon1.
-    2: apply corable_andp; [apply corable_andp |];
-        [apply corable_prop | apply corable_funassert | apply corable_unfash].
-    rewrite imp_andp_adjoint.
-    rewrite (andp_comm (_ && _)).
-    rewrite imp_andp_adjoint.
-    rewrite sepcon_comm; apply unfash_fash.
-  + apply allp_right; intro gx.
-    apply allp_right; intro Delta'.
-    do 2 rewrite <- imp_andp_adjoint.
-    apply allp_right; intro k.
-    apply allp_right; intro F.
-    rewrite <- imp_andp_adjoint.
-    apply allp_right; intro tx.
-    apply allp_right; intro vx.
-
-    do 3 rewrite imp_andp_adjoint.
-    rewrite fash_allp.
-    apply (allp_left _ (construct_rho (filter_genv gx) vx tx)).
-
-    rewrite imp_allp, fash_allp.
-    apply (allp_left _ gx).
-    
-    rewrite imp_allp, fash_allp.
-    apply (allp_left _ Delta').
-
-    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
-    eapply derives_trans; [apply fash_K |].
-    rewrite fash_prop.
-    apply imp_derives; [auto |].
-
-    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
-    eapply derives_trans; [apply fash_K |].
-    rewrite fash_unfash.
-    apply imp_derives; [auto |].
-
-    rewrite imp_allp, fash_allp.
-    apply (allp_left _ k).
-
-    rewrite imp_allp, fash_allp.
-    apply (allp_left _ F).
-
-    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
-    eapply derives_trans; [apply fash_K |].
-    rewrite fash_unfash.
-    apply imp_derives; [auto |].
-
-    rewrite imp_allp, fash_allp.
-    apply (allp_left _ tx).
-    
-    rewrite imp_allp, fash_allp.
-    apply (allp_left _ vx).
-
-    rewrite imp_imp, (andp_comm (P _)), <- imp_imp.
-    rewrite prop_true_imp by auto.
-
-    rewrite andp_assoc, (andp_comm (_ * _)), <- andp_assoc.
-    rewrite ! imp_imp.
-    rewrite <- corable_sepcon_andp2.
-    2: apply corable_andp;
-        [apply corable_prop | apply corable_funassert].
-
-    forget (P (construct_rho (filter_genv gx) vx tx) &&
-  (!! guard_environ Delta' (current_function (Kseq c :: k)) (construct_rho (filter_genv gx) vx tx) &&
-      funassert Delta' (construct_rho (filter_genv gx) vx tx))) as P'.
-    forget (F (construct_rho (filter_genv gx) vx tx)) as F'.
-    forget (assert_safe Espec gx vx tx (Kseq c :: k) (construct_rho (filter_genv gx) vx tx)) as Q'.
-    clear.
-
-    apply subp_i1.
-    rewrite <- corable_sepcon_andp2 by apply corable_unfash.
-    rewrite sepcon_comm.
-    rewrite wand_sepcon_adjoint.
-    rewrite andp_comm.
-    apply imp_andp_adjoint.
-    apply unfash_fash.
-Qed.
-    

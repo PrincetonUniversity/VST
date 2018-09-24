@@ -492,9 +492,10 @@ Theorem eq_impl_comp_spec :
   intros.
   repeat simp_in_support; simpl in *.
   erewrite (evalDist_1) in H5; intuition.
-  Focus 2.
-  rewrite <- H1.
-  trivial.
+  2:{
+    rewrite <- H1.
+    trivial.
+  }
   simpl in *; intuition.
 
   erewrite (evalDist_1) in H3; eauto.
@@ -1317,10 +1318,11 @@ Theorem comp_spec_impl_le :
   eapply eqRat_impl_leRat.
   eauto.
   eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  symmetry.
-  eauto.
+  2:{
+    eapply eqRat_impl_leRat.
+    symmetry.
+    eauto.
+  }
   unfold marginal_l, marginal_r.
   dist_skip.
   dist_compute.
@@ -1399,6 +1401,8 @@ Theorem comp_spec_rnd :
   eapply uniformity.
 
 Qed.
+
+
 
 
 (* facts about equality specifications *)
@@ -1915,6 +1919,47 @@ Qed.
 
 Opaque evalDist.
 
+Theorem oc_comp_wf_inv
+   : forall (A B C : Set) (c : OracleComp A B C),
+     well_formed_oc c ->
+     forall (S : Set) (P : S -> Prop)(eqds : EqDec S) (o : S -> A -> Comp (B * S)) (s : S),
+     (forall (a : S) (b : A), P a -> well_formed_comp (o a b)) ->
+     (forall a b s s', P s -> In (b, s') (getSupport (o s a)) -> P s') ->
+     P s -> 
+     well_formed_comp (c S eqds o s).
+
+  induction 1; intuition; simpl in *.
+
+  eapply H.
+  trivial.
+
+  wftac.
+  eapply (@IHwell_formed_oc _ (fun x => P (snd x))).
+  intuition.
+  wftac.
+  intuition.
+  repeat simp_in_support.
+  simpl in *.
+  destruct x; simpl in *.
+  eapply oc_comp_invariant.
+  intuition.
+  eapply H3; eauto.
+  eauto.
+  eauto.
+  trivial.
+  
+  wftac.
+  
+  wftac.
+  eapply H1; intuition.
+  eapply H2; eauto.
+  eapply H3; eauto.
+  eapply oc_comp_invariant; intuition.
+  eapply H3; eauto.
+  eauto.
+  eauto.
+
+Qed.
 
 Theorem oc_comp_spec_eq_until_bad : 
   forall (A B C : Set)(c : OracleComp A B C), 
@@ -1972,48 +2017,6 @@ Theorem oc_comp_spec_eq_until_bad :
 
   intuition.
   simpl in *.
-
-  Theorem oc_comp_wf_inv
-     : forall (A B C : Set) (c : OracleComp A B C),
-       well_formed_oc c ->
-       forall (S : Set) (P : S -> Prop)(eqds : EqDec S) (o : S -> A -> Comp (B * S)) (s : S),
-       (forall (a : S) (b : A), P a -> well_formed_comp (o a b)) ->
-       (forall a b s s', P s -> In (b, s') (getSupport (o s a)) -> P s') ->
-       P s -> 
-       well_formed_comp (c S eqds o s).
-
-    induction 1; intuition; simpl in *.
-
-    eapply H.
-    trivial.
-
-    wftac.
-    eapply (@IHwell_formed_oc _ (fun x => P (snd x))).
-    intuition.
-    wftac.
-    intuition.
-    repeat simp_in_support.
-    simpl in *.
-    destruct x; simpl in *.
-    eapply oc_comp_invariant.
-    intuition.
-    eapply H3; eauto.
-    eauto.
-    eauto.
-    trivial.
-    
-    wftac.
-    
-    wftac.
-    eapply H1; intuition.
-    eapply H2; eauto.
-    eapply H3; eauto.
-    eapply oc_comp_invariant; intuition.
-    eapply H3; eauto.
-    eauto.
-    eauto.
-
-  Qed.
 
   wftac.
   eapply oc_comp_wf_inv;
@@ -2221,8 +2224,9 @@ Theorem oc_comp_spec_eq_until_bad :
   eapply comp_spec_eq_symm.
   eapply comp_spec_right_ident.
   eapply comp_spec_eq_trans_r.
-  Focus 2.
-  eapply comp_spec_right_ident.
+  2:{
+    eapply comp_spec_right_ident.
+  }
   eapply comp_spec_irr_l; intuition.
   eapply oc_comp_wf_inv; eauto.
   intuition.
@@ -2299,10 +2303,96 @@ Theorem oc_comp_spec_eq_until_bad :
  
 Qed.
 
+Theorem rnd_swap : forall eta a b,
+  comp_spec (fun x y=> (x = y /\ x <> a /\ x <> b) \/ (a = x /\ b = y) \/ (b = x /\ a = y))
+            ({0,1}^eta) ({0,1}^eta).
+
+  intuition.
+  eapply comp_spec_consequence.
+  eapply (comp_spec_iso 
+            (fun x => if (eqb a x) then b else if (eqb b x) then a else x)
+            (fun x => if (eqb a x) then b else if (eqb b x) then a else x) 
+); intuition.
+  
+  (* forward direction *)
+  -
+  case_eq (eqb a x); intuition.
+  rewrite eqb_leibniz in H0; subst.
+
+  case_eq (eqb x b); intuition.
+  rewrite eqb_leibniz in H0; intuition.
+  rewrite eqb_refl.
+  trivial.
+  case_eq (eqb b x); intuition.
+  rewrite eqb_leibniz in H1.
+  subst.
+  rewrite eqb_refl.
+  trivial.
+ 
+  rewrite H1.
+  rewrite H0.
+  trivial.
+  
+  (* backward direction *)
+  -
+  case_eq (eqb a x); intuition.
+  rewrite eqb_leibniz in H0. subst.
+  case_eq (eqb x b); intuition.
+  rewrite eqb_leibniz in H0.
+  intuition.
+  rewrite eqb_refl.
+  intuition.
+
+  case_eq (eqb b x); intuition.
+  rewrite eqb_leibniz in H1.
+  subst.
+  rewrite eqb_refl.
+  trivial.
+  rewrite H1.
+  rewrite H0.
+  trivial.
+
+  (* range of function is correct *)
+  -
+  simpl.
+  apply in_getAllBvectors.
+
+  (* probability is unchanged---follows form uniformity *)
+  -
+  eapply comp_spec_rnd.
+
+  - (*result is correct after isomorphism *)
+  intuition.
+  case_eq (eqb a a0); intuition;
+  rewrite H0 in H.
+  rewrite eqb_leibniz in H0.
+  intuition.
+
+  case_eq (eqb b a0); intuition;
+  rewrite H1 in H.
+  rewrite eqb_leibniz in H1.
+  intuition. 
+
+  left.
+  intuition; subst.
+  subst.
+  rewrite eqb_refl in H0.
+  discriminate.
+  subst.
+  rewrite eqb_refl in H1.
+  discriminate.
+Qed.
+
 Require Import Setoid.
 
 Add Parametric Relation (A : Set){eqd : EqDec A} : (Comp A) (@comp_spec A A eqd eqd eq)
-  reflexivity proved by (@comp_spec_eq_refl A eqd)
-  symmetry proved by (@comp_spec_eq_symm A eqd)
-  transitivity proved by (@comp_spec_eq_trans A eqd)
   as comp_spec_eq_rel.
+
+Global Instance comp_spec_eq_rel_Reflexive (A : Set) (eqd : EqDec A) : Reflexive (comp_spec eq)
+  | 10 := @comp_spec_eq_refl A eqd.
+Global Instance comp_spec_eq_rel_Symmetric (A : Set) (eqd : EqDec A) : Symmetric (comp_spec eq)
+  | 10 := @comp_spec_eq_symm A eqd.
+Global Instance comp_spec_eq_rel_Transitive (A : Set) (eqd : EqDec A) : Transitive (comp_spec eq)
+  | 10 := @comp_spec_eq_trans A eqd.
+Global Instance comp_spec_eq_rel (A : Set) (eqd : EqDec A) : Equivalence (comp_spec eq)
+  | 10 := {}.

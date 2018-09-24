@@ -295,23 +295,26 @@ Proof.
   intros.
   hnf; intros.
   destruct a as [[a Na] | ].
-Focus 2.
+2:{
   apply join_unit1_e in H; [ | apply None_identity]. subst z.
   exists (None,None,c,d); repeat split; auto; constructor; auto.
+}
   destruct b as [[b Nb] | ].
-Focus 2.
+2:{
   apply join_unit2_e in H; [ | apply None_identity]. subst z.
   exists (c,d,None,None); repeat split; auto; constructor; auto.
+}
   destruct c as [[c Nc] | ].
-Focus 2.
+2:{
   apply join_unit1_e in H0; [ | apply None_identity]. subst z.
   exists (None, Some (exist nonunit _ Na), None, Some (exist nonunit _ Nb));
      repeat split; auto; constructor.
+}
   destruct d as [[d Nd] | ].
-Focus 2.
+2:{
   apply join_unit2_e in H0; [ | apply None_identity]. subst z.
   exists (Some (exist nonunit _ Na), None,Some (exist nonunit _ Nb),None); repeat split; auto; constructor; auto.
-
+}
   destruct z as [[z Nz] | ]; [ | elimtype False; inv H].
   destruct (X0 a b c d z) as [[[[ac ad] bc] bd] [? [? [? ?]]]]; try (inv H; inv H0; auto). clear H H0.
   destruct (X ac) as [Nac | Nac ].

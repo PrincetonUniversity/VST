@@ -1,7 +1,7 @@
 Require Import compcert.cfrontend.Ctypes.
 Require Import compcert.cfrontend.Cop.
 Require Import compcert.cfrontend.Clight.
-
+Require Import VST.veric.general_mem_lessdef. 
 Require Import VST.msl.base.
 Require Import VST.veric.general_base.
 Require Import VST.veric.general_mem_lessdef.
@@ -113,18 +113,22 @@ eapply mem_lessdef_cmp_ptr; eassumption.
 *
 destruct v2; try discriminate; inv H1.
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
-destruct Archi.ptr64; auto.
+all: destruct Archi.ptr64; auto;
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 destruct v1; try discriminate; inv H0.
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
-destruct Archi.ptr64; auto.
+all: destruct Archi.ptr64; auto;
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 destruct v2; try discriminate; inv H1.
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
+all: destruct Archi.ptr64; auto;
+eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 destruct v1; try discriminate; inv H0.
+eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
+all: destruct Archi.ptr64; auto;
 eapply mem_lessdef_cmp_ptr; try eassumption; apply Val.lessdef_refl.
 *
 eapply mem_lessdef_sem_binarith; eauto.

@@ -69,7 +69,7 @@ Proof.
   unfold denote_tc_test_eq in H; simpl in H.
   destruct v; try solve [inv H]; destruct Archi.ptr64; try solve [inv H];
    simpl in H; destruct H; subst;
-   apply Int.eq_true.
+   try apply Int.eq_true; apply Int64.eq_true.
 Qed.
 
 Lemma denote_tc_test_eq_Vlong_r': forall m i v,
@@ -80,9 +80,8 @@ Proof.
   unfold denote_tc_test_eq in H; simpl in H.
   destruct v; try solve [inv H];  destruct Archi.ptr64; try solve [inv H];
   simpl in H; destruct H; subst;
-   apply Int.eq_true.
+   try apply Int.eq_true; apply Int64.eq_true.
 Qed.
-
 
 Lemma denote_tc_test_order_eqblock:
   forall phi b0 i0 b i,
@@ -137,10 +136,6 @@ destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
 rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
 destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
-+
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Ptrofs.unsigned ofs + d) Cur = Some x).
-rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
-destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 Qed.
 
 
@@ -173,14 +168,14 @@ unfold denote_tc_test_eq in H.
 *
  simpl.
  destruct Archi.ptr64; try contradiction.
- destruct H.  hnf in H. subst i; rewrite Int.eq_true. simpl.
+ destruct H.  hnf in H. subst i; rewrite ?Int.eq_true, ?Int64.eq_true. simpl.
  apply weak_valid_pointer_dry in H0.
  rewrite H0.
  destruct OP; subst; simpl; auto.
 *
  simpl.
  destruct Archi.ptr64; try contradiction.
- destruct H.  hnf in H. subst; rewrite Int.eq_true. simpl.
+ destruct H.  hnf in H. subst; rewrite ?Int.eq_true, ?Int64.eq_true. simpl.
  apply weak_valid_pointer_dry in H0.
  rewrite H0.
  destruct OP; subst; simpl; auto.
@@ -286,11 +281,11 @@ Qed.
 
 Lemma sem_cast_long_intptr_lemma:
  forall si a i,
-  force_val1 (sem_cast (Tlong si a) intptr_t) (Vlong i)
+  force_val1 (sem_cast (Tlong si a) size_t) (Vlong i)
  = Vptrofs (Ptrofs.of_int64 i).
 Proof.
 intros.
- unfold Vptrofs, intptr_t, sem_cast, classify_cast, sem_cast_pointer.
+ unfold Vptrofs, size_t, sem_cast, classify_cast, sem_cast_pointer.
  destruct Archi.ptr64 eqn:Hp.
  simpl. rewrite Ptrofs.to_int64_of_int64; auto.
  simpl.
@@ -324,11 +319,11 @@ Qed.
 
 Lemma sem_cast_int_intptr_lemma:
  forall sz si a i,
-  force_val1 (sem_cast (Tint sz si a) intptr_t) (Vint i)
+  force_val1 (sem_cast (Tint sz si a) size_t) (Vint i)
  = Vptrofs (ptrofs_of_int si i).
 Proof.
 intros.
- unfold Vptrofs, intptr_t, sem_cast, classify_cast, sem_cast_pointer.
+ unfold Vptrofs, size_t, sem_cast, classify_cast, sem_cast_pointer.
  destruct Archi.ptr64 eqn:Hp.
  simpl. unfold cast_int_long, ptrofs_of_int.
  destruct si; auto.
@@ -346,12 +341,19 @@ intros.
  rewrite H0.
  assert (Int.modulus < Int64.modulus) by (compute; auto).
  omega.
- rewrite if_true by auto. simpl.
- f_equal.
- unfold ptrofs_of_int. destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto.
- unfold Ptrofs.of_ints. unfold Ptrofs.to_int.
- rewrite (Ptrofs.agree32_repr Hp). rewrite Int.repr_unsigned, Int.repr_signed.
- auto.
+ try ((* Archi.ptr64=true *)
+   rewrite if_true by auto; simpl;
+   f_equal;
+   unfold ptrofs_of_int; destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto;
+   unfold Ptrofs.of_ints, Ptrofs.to_int;
+   rewrite (Ptrofs.agree32_repr Hp); rewrite Int.repr_unsigned, Int.repr_signed;
+   auto).
+ try ( (* Archi.ptr64=false *)
+ simpl; f_equal;
+ unfold Ptrofs.to_int, ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int;
+ destruct si;
+ rewrite ?(Ptrofs.agree32_repr Hp),
+   ?Int.repr_unsigned, ?Int.repr_signed; auto).
 Qed.
 
 Lemma test_eq_fiddle_signed_xx:
@@ -364,27 +366,43 @@ unfold denote_tc_test_eq in *.
 unfold Vptrofs, ptrofs_of_int in *.
 destruct v; try contradiction;
 destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
+-
 destruct H; split; auto.
 clear H.
 hnf in H0|-*.
 destruct si; auto.
+*
 unfold Ptrofs.of_ints in *.
-unfold Ptrofs.to_int in *.
-rewrite (Ptrofs.agree32_repr Hp), Int.repr_unsigned  in H0.
-assert (i = Int.zero) by (rewrite <- (Int.repr_signed i); auto).
+unfold Ptrofs.to_int, Ptrofs.to_int64 in *.
+rewrite ?Ptrofs.agree32_repr, ?Ptrofs.agree64_repr,
+             ?Int.repr_unsigned, ?Int64.repr_unsigned in H0 by auto.
+assert (i=Int.zero)
+  by first [apply Int64repr_Intsigned_zero; solve [auto]
+              | rewrite <- (Int.repr_signed i); auto].
 subst i.
 destruct si'; auto.
+*
 destruct si'; auto.
 unfold Ptrofs.of_intu in H0.
-rewrite Ptrofs.to_int_of_int in H0 by auto.
-subst.
-unfold Ptrofs.of_ints.
-rewrite Int.signed_zero.
-unfold Ptrofs.to_int.
-rewrite Ptrofs.unsigned_repr.
-reflexivity.
-unfold Ptrofs.max_unsigned. rewrite (Ptrofs.modulus_eq32 Hp).
-compute; split; congruence.
+try ( (* Archi.ptr64=false case *)
+ rewrite Ptrofs.to_int_of_int in H0 by auto;
+ subst;
+ unfold Ptrofs.of_ints;
+ rewrite Int.signed_zero;
+ unfold Ptrofs.to_int;
+ rewrite Ptrofs.unsigned_repr; [reflexivity |];
+ unfold Ptrofs.max_unsigned; rewrite (Ptrofs.modulus_eq32 Hp);
+ compute; split; congruence);
+(* Archi.ptr64=true case *)
+try (unfold Ptrofs.of_int, Ptrofs.to_int64 in H0;
+rewrite Ptrofs.unsigned_repr in H0;
+ [apply Int64repr_Intunsigned_zero in H0; subst; reflexivity
+ | pose proof (Int.unsigned_range i);
+   destruct H; split; auto;
+   assert (Int.modulus < Ptrofs.max_unsigned)
+     by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
+    omega]).
+-
 destruct H.
 split; auto.
 hnf in H|-*. clear H0.
@@ -403,7 +421,7 @@ rewrite (Ptrofs.agree64_repr Hp) in H.
 rewrite Int64.repr_unsigned in H.
 apply Int64repr_Intunsigned_zero in H. subst.
 reflexivity.
-*
+-
 destruct H.
 split; auto.
 hnf in H|-*. clear H0.
@@ -425,27 +443,43 @@ unfold denote_tc_test_eq in *.
 unfold Vptrofs, ptrofs_of_int in *.
 destruct v; try contradiction;
 destruct Archi.ptr64 eqn:Hp; try contradiction; subst.
+-
 destruct H; split; auto.
 clear H0.
 hnf in H|-*.
 destruct si; auto.
+*
 unfold Ptrofs.of_ints in *.
-unfold Ptrofs.to_int in *.
-rewrite (Ptrofs.agree32_repr Hp), Int.repr_unsigned  in H.
-assert (i = Int.zero) by (rewrite <- (Int.repr_signed i); auto).
+unfold Ptrofs.to_int, Ptrofs.to_int64 in *.
+rewrite ?Ptrofs.agree32_repr, ?Ptrofs.agree64_repr,
+             ?Int.repr_unsigned, ?Int64.repr_unsigned in H by auto.
+assert (i=Int.zero)
+  by first [apply Int64repr_Intsigned_zero; solve [auto]
+              | rewrite <- (Int.repr_signed i); auto].
 subst i.
 destruct si'; auto.
+*
 destruct si'; auto.
 unfold Ptrofs.of_intu in H.
-rewrite Ptrofs.to_int_of_int in H by auto.
-subst.
-unfold Ptrofs.of_ints.
-rewrite Int.signed_zero.
-unfold Ptrofs.to_int.
-rewrite Ptrofs.unsigned_repr.
-reflexivity.
-unfold Ptrofs.max_unsigned. rewrite (Ptrofs.modulus_eq32 Hp).
-compute; split; congruence.
+try ( (* Archi.ptr64=false case *)
+ rewrite Ptrofs.to_int_of_int in H by auto;
+ subst;
+ unfold Ptrofs.of_ints;
+ rewrite Int.signed_zero;
+ unfold Ptrofs.to_int;
+ rewrite Ptrofs.unsigned_repr; [reflexivity |];
+ unfold Ptrofs.max_unsigned; rewrite (Ptrofs.modulus_eq32 Hp);
+ compute; split; congruence);
+(* Archi.ptr64=true case *)
+try (unfold Ptrofs.of_int, Ptrofs.to_int64 in H;
+rewrite Ptrofs.unsigned_repr in H;
+ [apply Int64repr_Intunsigned_zero in H; subst; reflexivity
+ | pose proof (Int.unsigned_range i);
+   destruct H; split; auto;
+   assert (Int.modulus < Ptrofs.max_unsigned)
+     by (unfold Ptrofs.max_unsigned, Ptrofs.modulus, Ptrofs.wordsize, Wordsize_Ptrofs.wordsize; rewrite Hp; compute; auto);
+    omega]).
+-
 destruct H.
 split; auto.
 hnf in H|-*. clear H0.
@@ -464,7 +498,7 @@ rewrite (Ptrofs.agree64_repr Hp) in H.
 rewrite Int64.repr_unsigned in H.
 apply Int64repr_Intunsigned_zero in H. subst.
 reflexivity.
-*
+-
 destruct H.
 split; auto.
 hnf in H|-*. clear H0.
@@ -475,6 +509,7 @@ rewrite (Ptrofs.agree32_repr Hp);
 rewrite Int.repr_unsigned in *;
 rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
 Qed.
+
 
 Lemma test_order_fiddle_signed_xx:
  forall si si' v i phi, 
@@ -490,11 +525,22 @@ destruct H; split; auto.
 clear H.
 hnf in H0|-*.
 destruct si, si'; auto;
+try ( (* Archi.ptr64 = false *)
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H0;
 rewrite (Ptrofs.agree32_repr Hp);
 rewrite Int.repr_unsigned in *;
-rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto);
+try ((* Archi.ptr64 = true *)
+  unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
+  unfold Ptrofs.to_int64 in *;
+  rewrite Ptrofs.unsigned_repr_eq in *;
+  change Ptrofs.modulus with Int64.modulus in *;
+  rewrite <- Int64.unsigned_repr_eq in *;
+  rewrite Int64.repr_unsigned in *;
+  first [apply Int64repr_Intsigned_zero in H0 
+          |apply Int64repr_Intunsigned_zero in H0];
+  subst i; reflexivity).
 Qed.
 
 Lemma test_order_fiddle_signed_yy:
@@ -511,11 +557,22 @@ destruct H; split; auto.
 clear H0.
 hnf in H|-*.
 destruct si, si'; auto;
+try ( (* Archi.ptr64 = false *)
 unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
 rewrite (Ptrofs.agree32_repr Hp) in H;
 rewrite (Ptrofs.agree32_repr Hp);
 rewrite Int.repr_unsigned in *;
-rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto.
+rewrite Int.repr_signed in *; rewrite Int.repr_unsigned in *; auto);
+try ((* Archi.ptr64 = true *)
+  unfold Ptrofs.to_int, Ptrofs.of_intu, Ptrofs.of_ints, Ptrofs.of_int in *;
+  unfold Ptrofs.to_int64 in *;
+  rewrite Ptrofs.unsigned_repr_eq in *;
+  change Ptrofs.modulus with Int64.modulus in *;
+  rewrite <- Int64.unsigned_repr_eq in *;
+  rewrite Int64.repr_unsigned in *;
+  first [apply Int64repr_Intsigned_zero in H 
+          |apply Int64repr_Intunsigned_zero in H];
+  subst i; reflexivity).
 Qed.
 
 Lemma denote_tc_nonzero_e':
@@ -622,8 +679,10 @@ Lemma denote_tc_iszero_long_e':
 Proof.
 intros.
 hnf in H.
-destruct (Int64.eq (Int64.repr (Int64.unsigned i)) Int64.zero);
-  auto; contradiction.
+pose proof (Int64.eq_spec i Int64.zero).
+destruct (Int64.eq i Int64.zero);
+  try contradiction.
+subst; reflexivity.
 Qed.
 
 Lemma eval_binop_relate':
@@ -672,84 +731,6 @@ clear H1 H2;
 try clear err err0;
 rewrite Hcenv; clear Hcenv.
 
-(*
-(*1,2,3,4,5,6,7,8,9,10*)
-Focus 11.
-{
-
-destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try discriminate C;
-red in TC1; try solve [contradiction TC1];
-destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-red in TC2; try solve [contradiction TC2];
-try inv C;
-repeat match goal with
- | H: context [eqb_type ?A ?B] |- _ =>
-     let J := fresh "J" in destruct (eqb_type A B) eqn:J;
-      [apply eqb_type_true in J | apply eqb_type_false in J]
- | H: context [binarithType'] |- _ =>
-     unfold binarithType' in H; simpl in H
- | H: typecheck_error _ |- _ => contradiction H
- | H: negb true = true |- _ => inv H
- | H: negb false = true |- _ => clear H
- | H: andb _ _ = true |- _ => rewrite andb_true_iff in H; destruct H
- | H: isptr ?A |- _ => destruct A; simpl in H; try contradiction H
- | H: is_int _ _ ?A |- _ => unfold is_int in H; destruct A; try solve [contradiction H]
- | H: is_long ?A |- _ => unfold is_long in H; destruct A; try solve [contradiction H]
- | H: is_single ?A |- _ => unfold is_single in H; destruct A; try contradiction H
- | H: is_float ?A |- _ => unfold is_float in H; destruct A; try contradiction H
- | H: is_true (sameblock _ _) |- _ => apply sameblock_eq_block in H; subst
- end;
- try discriminate;
- rewrite ?sem_cast_long_intptr_lemma in *;
- rewrite ?sem_cast_int_intptr_lemma in *;
-  cbv beta iota zeta delta [
-  sem_binary_operation sem_binary_operation' 
-   Cop.sem_add sem_add Cop.sem_sub sem_sub Cop.sem_div
-   Cop.sem_mod sem_mod Cop.sem_shl Cop.sem_shift 
-   sem_shl sem_shift
-   Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp
-   sem_cmp_pp sem_cmp_pl sem_cmp_lp
-   Cop.sem_binarith classify_cmp classify_add
-   binarith_type classify_binarith
-   classify_shift sem_shift_ii sem_shift_ll sem_shift_il sem_shift_li
-   classify_sub sem_sub_pp
-   force_val2 typeconv remove_attributes change_attributes
-   sem_add_ptr_int force_val both_int both_long force_val2
- ];
- rewrite ?sem_cast_relate, ?sem_cast_relate_long, ?sem_cast_relate_int_long;
- rewrite ?sem_cast_int_lemma, ?sem_cast_long_lemma, ?sem_cast_int_long_lemma;
- rewrite ?if_true by auto;
- rewrite ?sizeof_range_true by auto;
- try erewrite denote_tc_nodivover_e' by eauto;
- try erewrite denote_tc_nonzero_e' by eauto;
- try rewrite cast_int_long_nonzero 
-       by (eapply denote_tc_nonzero_e'; eauto);
- rewrite ?(proj2 (eqb_type_false _ _)) by auto 1;
- try reflexivity;
- try solve [apply test_eq_relate'; auto;
-               try (apply denote_tc_test_eq_xx; assumption);
-               try (apply denote_tc_test_eq_yy; assumption);
-               try (eapply test_eq_fiddle_signed_xx; eassumption);
-               try (eapply test_eq_fiddle_signed_yy; eassumption)];
- try solve [apply test_order_relate'; auto; 
-               try (eapply test_order_fiddle_signed_xx; eassumption);
-               try (eapply test_order_fiddle_signed_yy; eassumption)];
- try erewrite (denote_tc_nodivover_e64_li' Signed) by eauto;
- try erewrite (denote_tc_nodivover_e64_il' Signed) by eauto;
- try erewrite (denote_tc_nodivover_e64_li' Unsigned) by eauto;
- try erewrite (denote_tc_nodivover_e64_il' Unsigned) by eauto;
- try erewrite (denote_tc_nodivover_e64_ll') by eauto;
- try erewrite denote_tc_nonzero_e64' by eauto;
- try erewrite denote_tc_igt_e' by eauto;
- try erewrite denote_tc_lgt_e' by eauto;
- erewrite ?denote_tc_test_eq_Vint_l' by eassumption;
- erewrite ?denote_tc_test_eq_Vint_r' by eassumption;
- erewrite ?denote_tc_test_eq_Vlong_l' by eassumption;
- erewrite ?denote_tc_test_eq_Vlong_r' by eassumption;
- try reflexivity.
-
-*)
 all: try abstract (
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;

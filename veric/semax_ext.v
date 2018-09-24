@@ -8,6 +8,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
+Require Import VST.veric.res_predicates.
 
 Require Import VST.veric.res_predicates.
 Require Import compcert.cfrontend.Clight.

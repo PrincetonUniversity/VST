@@ -1,4 +1,9 @@
-Require Import VST.floyd.base.
+From compcert Require Export Clightdefs.
+Require Export VST.veric.general_base.
+Require Export VST.veric.SeparationLogic.
+Require Export VST.msl.Extensionality.
+Require Export compcert.lib.Coqlib.
+Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.functional_base.
 
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
@@ -221,10 +226,10 @@ Definition Zcmp (op: comparison) : Z -> Z -> Prop :=
  match op with
  | Ceq => eq
  | Cne => (fun i j => i<>j)
- | Clt => Zlt
- | Cle => Zle
- | Cgt => Zgt
- | Cge => Zge
+ | Clt => Z.lt
+ | Cle => Z.le
+ | Cgt => Z.gt
+ | Cge => Z.ge
  end.
 
 Lemma int_cmp_repr:
@@ -237,7 +242,7 @@ unfold Int.cmp, Int.eq, Int.lt in H1.
 replace (if zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j))
              then true else false)
  with (if zeq i j then true else false) in H1.
-Focus 2.
+2:{
 destruct (zeq i j); destruct (zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j)));
  auto.
 subst. contradiction n; auto.
@@ -252,6 +257,7 @@ repeat rewrite Int.unsigned_repr_eq in e.
  match type of H0 with
            | context [if ?a then _ else _] => destruct a
            end; omega.
+}
 unfold Zcmp.
 rewrite (Int.signed_repr _ H) in H1; rewrite (Int.signed_repr _ H0) in H1.
 repeat match type of H1 with
@@ -335,17 +341,22 @@ Lemma typed_false_ptr:
   forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
 Proof.
 unfold typed_false, strict_bool_val, nullval; simpl; intros.
-destruct v; try discriminate.
-pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; auto.
-inv H.
+destruct Archi.ptr64 eqn:Hp;
+destruct v; try discriminate; f_equal.
+first [pose proof (Int64.eq_spec i Int64.zero); 
+          destruct (Int64.eq i Int64.zero)
+       | pose proof (Int.eq_spec i Int.zero); 
+         destruct (Int.eq i Int.zero)]; 
+      subst; auto; discriminate.
 Qed.
 
 Lemma typed_true_ptr:
   forall {t a v},  typed_true (Tpointer t a) v -> isptr v.
 Proof.
 unfold typed_true, strict_bool_val; simpl; intros.
-destruct v; try discriminate.
-destruct (Int.eq i Int.zero); inv H. simpl. auto.
+destruct v; try discriminate; simpl; auto;
+destruct Archi.ptr64; try discriminate;
+ revert H; simple_if_tac; intros; discriminate.
 Qed.
 
 Lemma int_cmp_repr':
@@ -376,35 +387,61 @@ destruct x; simpl; intros; [auto | inversion H].
 Qed.
 
 Lemma typed_false_tint:
+ Archi.ptr64=false -> 
  forall v, typed_false tint v -> v=nullval.
 Proof.
 intros.
- hnf in H. destruct v; inv H.
- destruct (Int.eq i Int.zero) eqn:?; inv H1.
- apply int_eq_e in Heqb. subst; reflexivity.
+ hnf in H0. destruct v; inv H0.
+ destruct (Int.eq i Int.zero) eqn:?; inv H2.
+ apply int_eq_e in Heqb. subst.
+ inv H; reflexivity.
 Qed.
 
-Lemma typed_true_tint:
- forall v, typed_true tint v -> v<>nullval.
+Lemma typed_false_tlong:
+ Archi.ptr64=true -> 
+ forall v, typed_false tlong v -> v=nullval.
+Proof.
+intros. unfold nullval. rewrite H.
+ hnf in H0. destruct v; inv H0.
+pose proof (Int64.eq_spec i Int64.zero).
+ destruct (Int64.eq i Int64.zero); inv H2.
+reflexivity.
+Qed.
+
+Lemma typed_true_e:
+ forall t v, typed_true t v -> v<>nullval.
 Proof.
 intros.
- hnf in H. destruct v; inv H.
- intro. unfold nullval in H.
- destruct Archi.ptr64; inv H.
- rewrite Int.eq_true in H1. inv H1.
+ intro Hx. subst.
+ hnf in H. unfold nullval, strict_bool_val in H.
+ destruct Archi.ptr64, t; discriminate.
 Qed.
 
 Lemma typed_false_tint_Vint:
   forall v, typed_false tint (Vint v) -> v = Int.zero.
 Proof.
-intros. apply typed_false_tint in H. apply Vint_inj in H; auto.
+intros.
+unfold typed_false, strict_bool_val in H. simpl in H.
+pose proof (Int.eq_spec v Int.zero).
+destruct (Int.eq v Int.zero); auto. inv H.
 Qed.
 
 Lemma typed_true_tint_Vint:
   forall v, typed_true tint (Vint v) -> v <> Int.zero.
 Proof.
-intros. apply typed_true_tint in H.
-contradict H. subst; reflexivity.
+intros.
+unfold typed_true, strict_bool_val in H. simpl in H.
+pose proof (Int.eq_spec v Int.zero).
+destruct (Int.eq v Int.zero); auto. inv H.
+Qed.
+
+Lemma typed_true_tlong_Vlong:
+  forall v, typed_true tlong (Vlong v) -> v <> Int64.zero.
+Proof.
+intros.
+unfold typed_true, strict_bool_val in H. simpl in H.
+pose proof (Int64.eq_spec v Int64.zero).
+destruct (Int64.eq v Int64.zero); auto. inv H.
 Qed.
 
 Ltac intro_redundant_prop :=
@@ -448,13 +485,17 @@ Ltac fancy_intro aggressive :=
  | typed_false _ _ =>
         first [simple apply typed_false_of_bool in H
                | apply typed_false_tint_Vint in H
-               | apply typed_false_tint in H
+               | apply (typed_false_tint (eq_refl _)) in H
+               | apply (typed_false_tlong (eq_refl _)) in H
                | apply typed_false_ptr in H
                | idtac ]
  | typed_true _ _ =>
         first [simple apply typed_true_of_bool in H
                | apply typed_true_tint_Vint in H
-               | apply typed_true_tint in H
+               | apply typed_true_tlong_Vlong in H
+(*  This one is not portable 32/64 bits 
+                | apply (typed_true_e tint) in H
+*)
                | apply typed_true_ptr in H
                | idtac ]
  (* | locald_denote _ _ => hnf in H *)

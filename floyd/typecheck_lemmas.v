@@ -5,9 +5,7 @@ Local Open Scope logic.
 
 Lemma denote_tc_assert_andp:
   forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_andp a b) =
-  andp (denote_tc_assert a)
-    (denote_tc_assert b).
+  denote_tc_assert (tc_andp a b) = andp (denote_tc_assert a) (denote_tc_assert b).
 Proof.
   intros.
   extensionality rho.
@@ -17,9 +15,7 @@ Qed.
 
 Lemma denote_tc_assert_orp:
   forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_orp a b) =
-  orp (denote_tc_assert a)
-    (denote_tc_assert b).
+  denote_tc_assert (tc_orp a b) = orp (denote_tc_assert a) (denote_tc_assert b).
 Proof.
   intros.
   extensionality rho.
@@ -40,31 +36,60 @@ Proof.
   normalize. inv H.
 Qed.
 
-Lemma neutral_isCastResultType:
+Lemma neutral_isCastResultType_64:
+ Archi.ptr64 = true ->
   forall {cs: compspecs}  P t t' v rho,
    is_neutral_cast t' t = true ->
    P |-- denote_tc_assert (isCastResultType t' t v) rho.
 Proof.
+intro Hp.
 intros.
+unfold isCastResultType, classify_cast; rewrite Hp.
+  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
+try solve [
+     inv H; simpl; try apply @TT_right;
+           simpl; (destruct (eqb_tac _ _)); apply @TT_right].
+*
+try destruct (eqb_type _ _); apply @TT_right.
+*
+unfold is_neutral_cast in H.
+destruct (eqb_type (Tpointer t a0) int_or_ptr_type) eqn:H0.
+rewrite (eqb_type_true _ _ H0).
+destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
+rewrite (eqb_type_true _ _ H1).
+apply @TT_right.
+rewrite (eqb_type_true _ _ H0) in H.
+rewrite H1 in H. inv H.
+destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
+rewrite (eqb_type_true _ _ H1) in H.
+rewrite expr_lemmas4.eqb_type_sym in H.
+rewrite H0 in H. inv H.
+rewrite orb_true_iff in H.
+unfold is_pointer_type.
+rewrite H0,H1.
+simpl.
+simple_if_tac; apply @TT_right.
+Qed.
+
+Lemma neutral_isCastResultType_32:
+ Archi.ptr64 = false ->
+  forall {cs: compspecs}  P t t' v rho,
+   is_neutral_cast t' t = true ->
+   P |-- denote_tc_assert (isCastResultType t' t v) rho.
+Proof.
+intro Hp.
+intros.
+unfold isCastResultType, classify_cast; rewrite Hp.
   unfold isCastResultType;
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
 try solve [
      inv H; simpl; try apply @TT_right;
            simpl; (destruct (eqb_tac _ _)); apply @TT_right].
 *
-unfold classify_cast.
-destruct Archi.ptr64 eqn:Hp.
-apply @TT_right.
-rewrite if_true by auto.
-destruct (eqb_type _ _); apply @TT_right.
+simpl; simple_if_tac; apply @TT_right.
 *
-unfold classify_cast.
-destruct Archi.ptr64 eqn:Hp.
-apply @TT_right.
-rewrite if_true by auto.
-destruct (eqb_type _ _); apply @TT_right.
+simpl; simple_if_tac; apply @TT_right.
 *
-unfold classify_cast.
 unfold is_neutral_cast in H.
 rewrite orb_true_iff in H.
 destruct H.
@@ -78,6 +103,17 @@ destruct (eqb_type (Tpointer t' a) (Tpointer t a0)); try apply @TT_right.
 unfold is_pointer_type.
 rewrite H,H0.
 apply @TT_right.
+Qed.
+
+
+Lemma neutral_isCastResultType:
+  forall {cs: compspecs}  P t t' v rho,
+   is_neutral_cast t' t = true ->
+   P |-- denote_tc_assert (isCastResultType t' t v) rho.
+Proof.
+destruct Archi.ptr64 eqn:Hp.
+exact (@neutral_isCastResultType_64 Hp).
+exact (@neutral_isCastResultType_32 Hp).
 Qed.
 
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.
@@ -117,28 +153,26 @@ Definition tc_LR {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR De
 (*
 Definition tc_LR_strong {cs: compspecs} Delta e lr :=
   match lr with
-  | LLLL => tc_lvalue Delta e
-  | RRRR => tc_expr Delta e
+  | LLLL => typecheck_lvalue Delta e
+  | RRRR => typecheck_expr Delta e
   end.
-
-Definition tc_LR {cs: compspecs} Delta e lr :=
+  
+Definition typecheck_LR {cs: compspecs} Delta e lr: tc_assert :=
   match e with
   | Ederef e0 t =>
      match lr with
-     | LLLL => denote_tc_assert
-                 (tc_andp
-                   (typecheck_expr Delta e0)
-                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-     | RRRR => denote_tc_assert
-                match access_mode t with
-                | By_reference =>
-                   (tc_andp
-                      (typecheck_expr Delta e0)
-                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-                | _ => tc_FF (deref_byvalue t)
-                end
+     | LLLL => tc_andp
+                 (typecheck_expr Delta e0)
+                 (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+     | RRRR => match access_mode t with
+               | By_reference =>
+                   tc_andp
+                     (typecheck_expr Delta e0)
+                     (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
+               | _ => tc_FF (deref_byvalue t)
+               end
     end
-  | _ => tc_LR_strong Delta e lr
+  | _ => typecheck_LR_strong Delta e lr
   end.
 *)
 Definition eval_LR {cs: compspecs} e lr :=

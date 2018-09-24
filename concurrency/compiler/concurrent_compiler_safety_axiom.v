@@ -2,6 +2,7 @@
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype.
 
 Require Import compcert.common.Globalenvs.
+Require Import compcert.common.Memory.
 Require Import VST.concurrency.paco.src.paco.
 
 Require Import VST.concurrency.common.HybridMachineSig.

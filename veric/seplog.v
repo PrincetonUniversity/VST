@@ -11,6 +11,10 @@ Require Export VST.veric.shares.
 
 Require Export VST.veric.general_seplog.
 
+Require Export VST.veric.mapsto_memory_block.
+
+Local Open Scope pred.
+
 Require Import compcert.cfrontend.Clight. 
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
@@ -40,7 +44,7 @@ Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
 end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
-  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  !! (sizeof (snd idt) <= Ptrofs.max_unsigned) &&
   (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Definition stackframe_of {cs: compspecs} (f: Clight.function) : assert :=
@@ -61,6 +65,14 @@ Qed.
 Definition stackframe_of (f: Clight.function) : assert :=
   fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
 *)
+
+Lemma  subst_derives:
+ forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
+Proof.
+unfold subst, derives.
+simpl;
+auto.
+Qed.
 
 Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
@@ -159,9 +171,9 @@ Record ret_assert : Type := {
 *)
 Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
  match ek with
- | EK_normal => fun rho => !! (vl = None) && RA_normal Q rho
- | EK_break => fun rho => !! (vl = None) && RA_break Q rho
- | EK_continue => fun rho => !! (vl = None) && RA_continue Q rho
+ | EK_normal => RA_normal Q
+ | EK_break => RA_break Q
+ | EK_continue => RA_continue Q
  | EK_return => RA_return Q vl
  end.
 
@@ -192,6 +204,15 @@ Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
      RA_return := fun vl rho => r vl rho * F rho |}
  end.
 
+Definition conj_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
+ match R with 
+  {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
+  {| RA_normal := fun rho => n rho && F rho; 
+     RA_break := fun rho => b rho && F rho; 
+     RA_continue := fun rho => c rho && F rho;
+     RA_return := fun vl rho => r vl rho && F rho |}
+ end.
+
 Definition switch_ret_assert (R: ret_assert) : ret_assert :=
  match R with 
   {| RA_normal := n; RA_break := b; RA_continue := c; RA_return := r |} =>
@@ -210,7 +231,7 @@ Lemma normal_ret_assert_derives:
             |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.
  intros.
- destruct ek; normalize. destruct vl; simpl; normalize.
+ destruct ek; normalize.
 Qed.
 Hint Resolve normal_ret_assert_derives.
 
@@ -229,6 +250,26 @@ intros.
 unfold normal_ret_assert; simpl.
 f_equal; simpl; try solve [extensionality rho; normalize].
 extensionality vl rho; normalize.
+Qed.
+
+Lemma proj_frame:
+  forall P F ek vl,
+    proj_ret_assert (frame_ret_assert P F) ek vl = fun rho => F rho * proj_ret_assert P ek vl rho.
+Proof.
+  intros.
+  extensionality rho.
+  rewrite sepcon_comm.
+  destruct ek; simpl; destruct P; auto.
+Qed.
+
+Lemma proj_conj:
+  forall P F ek vl,
+    proj_ret_assert (conj_ret_assert P F) ek vl = fun rho => F rho && proj_ret_assert P ek vl rho.
+Proof.
+  intros.
+  extensionality rho.
+  rewrite andp_comm.
+  destruct ek; simpl; destruct P; auto.
 Qed.
 
 Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
@@ -289,7 +330,8 @@ Lemma same_glob_funassert:
      (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
               funassert Delta1 = funassert Delta2.
 Proof. intros; eapply same_FS_funspecs_assert; trivial. Qed.
-
+(*
+>>>>>>> origin/master
 Lemma funassert_exit_tycon: forall c Delta ek,
      funassert (exit_tycon c Delta ek) = funassert Delta.
 Proof.
@@ -299,7 +341,7 @@ intro.
 unfold exit_tycon; simpl. destruct ek; auto.
 rewrite glob_specs_update_tycon. auto.
 Qed.
-
+*)
 (*
 Lemma strict_bool_val_sub : forall v t b,
  strict_bool_val v t = Some b ->

@@ -67,7 +67,7 @@ Definition update_inner_if :=
          update_inner_if_then
          update_inner_if_else.
 
-Definition inv_at_inner_if sh hashed len c d dd data gv :=
+Definition inv_at_inner_if wsh sh hashed len c d dd data gv :=
  (PROP ()
    (LOCAL
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
@@ -76,7 +76,7 @@ Definition inv_at_inner_if sh hashed len c d dd data gv :=
        temp _data d; temp _c c;
        temp _len (Vint (Int.repr len));
        gvars gv)
-   SEP  (data_at Tsh t_struct_SHA256state_st
+   SEP  (data_at wsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
@@ -86,7 +86,7 @@ Definition inv_at_inner_if sh hashed len c d dd data gv :=
      K_vector gv;
      data_block sh data d))).
 
-Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) gv (done: bool)
+Definition sha_update_inv wsh sh hashed len c d (dd: list Z) (data: list Z) gv (done: bool)
     : environ -> mpred :=
    (*EX blocks:list int,*)  (* this line doesn't work; bug in Coq 8.4pl3 thru 8.4pl6?  *)
    @exp (environ->mpred) _ _  (fun blocks:list int =>
@@ -102,19 +102,13 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) gv (done
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvars gv)
    SEP  (K_vector gv;
-           @data_at CompSpecs Tsh t_struct_SHA256state_st
+           @data_at CompSpecs wsh t_struct_SHA256state_st
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) : reptype t_struct_SHA256state_st)
                c;
             data_block sh data d)).
-
-Definition Delta_update_inner_if : tycontext :=
-  (initialized _fragment
-     (initialized _p
-        (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot nil))))).
 
 Lemma data_block_data_field:
  forall sh dd dd' c,
@@ -171,28 +165,28 @@ Proof.
 Qed.
 
 Lemma update_inner_if_sha256_state_:
-  forall (hashed : list int) (dd data : list Z) (c d : val) (sh : share) (len : Z)
+  forall (hashed : list int) (dd data : list Z) (c d : val) (wsh sh : share) (len : Z)
   (H : 0 <= len <= Zlength data)
   (H3' : Forall isbyteZ dd)
   (H4 : (LBLOCKz | Zlength hashed))
   (H0 : 0 < 64 - Zlength dd <= 64)
   (DBYTES : Forall isbyteZ data)
   (H2 : len < 64 - Zlength dd),
-field_at Tsh t_struct_SHA256state_st [StructField _data]
+field_at wsh t_struct_SHA256state_st [StructField _data]
   (map Vint (map Int.repr dd) ++
    sublist 0 len (map Vint (map Int.repr data)) ++
    list_repeat (Z.to_nat (CBLOCKz - Zlength dd - len)) Vundef) c *
 field_at sh (tarray tuchar (Zlength data)) []
   (map Vint (map Int.repr data)) d *
-field_at Tsh t_struct_SHA256state_st [StructField _h]
+field_at wsh t_struct_SHA256state_st [StructField _h]
   (map Vint (hash_blocks init_registers hashed)) c *
-field_at Tsh t_struct_SHA256state_st [StructField _Nl]
+field_at wsh t_struct_SHA256state_st [StructField _Nl]
   (Vint (lo_part (bitlength hashed dd + len * 8))) c *
-field_at Tsh t_struct_SHA256state_st [StructField _Nh]
+field_at wsh t_struct_SHA256state_st [StructField _Nh]
   (Vint (hi_part (bitlength hashed dd + len * 8))) c *
-field_at Tsh t_struct_SHA256state_st [StructField _num]
+field_at wsh t_struct_SHA256state_st [StructField _num]
   (Vint (Int.repr (Zlength dd + len))) c
-|-- sha256state_ (S256abs hashed (dd ++ sublist 0 len data)) c *
+|-- sha256state_ wsh (S256abs hashed (dd ++ sublist 0 len data)) c *
     data_at sh (tarray tuchar (Zlength data))
       (map Vint (map Int.repr data)) d.
 Proof.
@@ -234,25 +228,26 @@ Qed.
 
 Lemma update_inner_if_proof:
  forall (Espec: OracleKind) (hashed: list int) (dd data: list Z)
-            (c d: val) (sh: share) (len: Z) gv
+            (c d: val) (wsh sh: share) (len: Z) gv
  (H: (0 <= len <= Zlength data)%Z)
+ (Hwsh: writable_share wsh)
  (Hsh: readable_share sh)
  (LEN64: (bitlength hashed dd  + len * 8 < two_p 64)%Z)
  (H3 : (Zlength dd < CBLOCKz)%Z)
  (H3' : Forall isbyteZ dd)
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (len <= Int.max_unsigned)%Z),
-semax Delta_update_inner_if
-  (inv_at_inner_if sh hashed len c d dd data gv)
+semax (func_tycontext f_SHA256_Update Vprog Gtot nil)
+  (inv_at_inner_if wsh sh hashed len c d dd data gv)
   update_inner_if
-  (overridePost (sha_update_inv sh hashed len c d dd data gv false)
+  (overridePost (sha_update_inv wsh sh hashed len c d dd data gv false)
     (frame_ret_assert
       (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (K_vector gv;
-                 sha256state_ a' c; data_block sh data d)))
+                 sha256state_ wsh a' c; data_block sh data d)))
       emp)).
 Proof.
 intros. 
@@ -268,7 +263,7 @@ forward_if.
  destruct H as [_ H].
  clear H1; assert (H1: 64 < Int.max_unsigned) by Omega1.
  unfold k.
- clear - H H1 H3 H3' H4 Hlen Hsh H0 H2 DBYTES.
+ clear - H H1 H3 H3' H4 Hlen Hwsh Hsh H0 H2 DBYTES.
  unfold update_inner_if_then.
  eapply semax_seq'.
   *
@@ -280,7 +275,7 @@ forward_if.
   rename H5 into Hd.
   evar (Frame: list mpred).
   eapply(call_memcpy_tuchar
-   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
+   (*dst*) wsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
               (map Vint (map Int.repr dd)
                        ++list_repeat (Z.to_nat k) Vundef)
                c
@@ -314,9 +309,9 @@ forward_if.
  assert (Zlength (hash_blocks init_registers hashed) = 8)
   by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
  forward_call (* sha256_block_data_order (c,p); *)
-   (hash_blocks init_registers hashed, Zlist_to_intlist (dd++(sublist 0 k data)), c,
+   (hash_blocks init_registers hashed, Zlist_to_intlist (dd++(sublist 0 k data)), c, wsh, 
      (field_address t_struct_SHA256state_st [StructField _data] c),
-      Tsh, gv).
+      wsh, gv).
  rewrite Zlist_to_intlist_to_Zlist;
    [ | rewrite H5; exists LBLOCKz; reflexivity
      | rewrite Forall_app; split; auto; apply Forall_firstn; auto
@@ -328,7 +323,7 @@ forward_if.
  eapply semax_post_flipped3.
  evar (Frame: list mpred).
  eapply(call_memset_tuchar
-   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0
+   (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
                 (map Vint (map Int.repr (dd ++ sublist 0 k data))) c
    (*src*) Int.zero
    (*len*) 64
@@ -347,7 +342,6 @@ forward_if.
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
-  simpl update_tycon.
   Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
   erewrite Zlength_Zlist_to_intlist
      by (instantiate (1:=LBLOCKz); assumption).
@@ -372,7 +366,7 @@ forward_if.
 + (* else clause: len < fragment *)
   unfold k.
   clear H1; assert (H1: 64 < Int.max_unsigned) by computable.
-  clear - H Hsh LEN64 H3 H3' H4 Hlen H0 H1 H2 DBYTES.
+  clear - H Hwsh Hsh LEN64 H3 H3' H4 Hlen H0 H1 H2 DBYTES.
   unfold update_inner_if_else;
   simplify_Delta; abbreviate_semax.
   assert_PROP (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d)
@@ -384,7 +378,7 @@ forward_if.
   eapply semax_seq'.
   evar (Frame: list mpred).
   eapply(call_memcpy_tuchar
-   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
+   (*dst*) wsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
                      (map Vint (map Int.repr dd) ++
          list_repeat (Z.to_nat (CBLOCKz - Zlength dd)) Vundef) c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr data)  d

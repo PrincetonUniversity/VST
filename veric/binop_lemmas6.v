@@ -36,16 +36,16 @@ Proof.
                        (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_pi si =>
                      tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 intptr_t) op t (Ebinop op e1 e2 t))
+                       (check_pp_int' e1 (Ecast e2 size_t) op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_ip si => 
                      tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 intptr_t) e2 op t (Ebinop op e1 e2 t))
+                    (check_pp_int' (Ecast e1 size_t) e2 op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_pl => 
                      tc_andp' (tc_int_or_ptr_type (typeof e1))
-                       (check_pp_int' e1 (Ecast e2 intptr_t) op t (Ebinop op e1 e2 t))
+                       (check_pp_int' e1 (Ecast e2 size_t) op t (Ebinop op e1 e2 t))
               | Cop.cmp_case_lp => 
                      tc_andp' (tc_int_or_ptr_type (typeof e2))
-                    (check_pp_int' (Ecast e1 intptr_t) e2 op t (Ebinop op e1 e2 t))
+                    (check_pp_int' (Ecast e1 size_t) e2 op t (Ebinop op e1 e2 t))
               end rho) m)
   in IBR
   by (rewrite den_isBinOpR; destruct OP as [| [| [|]]]; subst; auto).
@@ -106,16 +106,16 @@ Proof.
               destruct (eqb_type A B) eqn:J; [inv H | clear H]
     | H: app_pred (denote_tc_assert (tc_test_eq' _ _) _) _ |- _ =>
            simpl in H; super_unfold_lift; simpl in H;
-            unfold Cop2.sem_cast, Cop2.classify_cast, intptr_t, sem_cast_pointer in H;
+            unfold Cop2.sem_cast, Cop2.classify_cast, size_t, sem_cast_pointer in H;
             simpl in H; rewrite ?Hp in H; simpl in H
     | H: app_pred (denote_tc_assert (tc_test_order' _ _) _) _ |- _ =>
             simpl in H; unfold_lift in H; unfold denote_tc_test_order in H; rewrite ?Hp in H
     | H: app_pred (denote_tc_assert match op with _ => _ end _) m |- _ =>
           match type of H with ?A =>
-             first [replace A with (app_pred (denote_tc_assert (tc_andp' (tc_test_order' e1 (Ecast e2 intptr_t))
+             first [replace A with (app_pred (denote_tc_assert (tc_andp' (tc_test_order' e1 (Ecast e2 size_t))
               (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t)))) rho) m) in H
           by (clear - OP H; destruct OP as [| [| [|]]]; subst op; try contradiction; reflexivity)
-         | replace A with (app_pred (denote_tc_assert (tc_andp' (tc_test_order' (Ecast e1 intptr_t) e2)
+         | replace A with (app_pred (denote_tc_assert (tc_andp' (tc_test_order' (Ecast e1 size_t) e2)
               (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t)))) rho) m) in H
           by (clear - OP H; destruct OP as [| [| [|]]]; subst op; try contradiction; reflexivity)]
          end

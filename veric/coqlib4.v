@@ -441,7 +441,7 @@ Proof.
         omega.
       - rewrite Z2Nat.id in H1 by omega.
         omega.
-  } 
+  }
   eapply sumbool_dec_iff; [clear H0 | eassumption].
   apply range_pred_dec.
   intros.

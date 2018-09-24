@@ -392,7 +392,7 @@ forward_loop (EX i : Z,
    clear H13 H14 H12 PNstr1 PNstr2.
    clear H10 H11 H9.
    destruct (zlt i (Zlength ls1)).
-  Focus 2. {
+  2:{
          rewrite app_Znth2 in Hs1 by rep_omega.
          destruct (zeq i (Zlength ls1)); [ | omega].
          subst.
@@ -403,9 +403,9 @@ forward_loop (EX i : Z,
          rewrite Z.sub_diag in H17. contradiction H0.
          change (Znth 0 [Byte.zero]) with Byte.zero in H17. rewrite H17.
          apply Znth_In. omega.
-   } Unfocus.
+   }
   destruct (zlt i (Zlength ls2)).
-  Focus 2. {
+  2:{
          rewrite app_Znth2 in Hs2 by rep_omega.
          destruct (zeq i (Zlength ls2)); [ | omega].
          subst.
@@ -416,7 +416,7 @@ forward_loop (EX i : Z,
          rewrite Z.sub_diag in H17. contradiction H.
          change (Znth 0 [Byte.zero]) with Byte.zero in H17. rewrite <- H17.
          apply Znth_In. omega.
-   } Unfocus.
+   }
   rewrite (sublist_split 0 i (i+1)) by omega.
   rewrite (sublist_split 0 i (i+1)) by omega.
   f_equal; auto.
@@ -765,7 +765,7 @@ forward_loop (EX i : Z,
    entailer!.
    clear - H17 H6 Hs1 Hs2 H3 H1 H2 H H0.
    destruct (zlt i (Zlength ls1)).
-  Focus 2. {
+  2:{
          assert (i = Zlength ls1) by omega. subst.
          destruct H6; [congruence | ].
          assert (Zlength ls1 < Zlength ls2) by omega.
@@ -774,9 +774,9 @@ forward_loop (EX i : Z,
          rewrite Z.sub_diag in H17. contradiction H0.
          change (Znth 0 [Byte.zero]) with Byte.zero in H17.
          rewrite H17. apply Znth_In. omega.
-   } Unfocus.
+   }
   destruct (zlt i (Zlength ls2)).
-  Focus 2. {
+  2:{
          assert (i = Zlength ls2) by omega. subst.
          destruct H6; [ | congruence].
          assert (Zlength ls1 > Zlength ls2) by omega.
@@ -785,7 +785,7 @@ forward_loop (EX i : Z,
          rewrite Z.sub_diag in H17. contradiction H.
          change (Znth 0 [Byte.zero]) with Byte.zero in H17.
          rewrite <- H17.  apply Znth_In. omega.
-   } Unfocus.
+   }
   rewrite (sublist_split 0 i (i+1)) by omega.
   rewrite (sublist_split 0 i (i+1)) by omega.
   f_equal; auto.

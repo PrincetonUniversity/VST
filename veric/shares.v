@@ -1123,3 +1123,11 @@ Lemma readable_glb:
     apply H; auto.
   Qed.
   
+Lemma join_comp_Tsh:
+  forall sh, sepalg.join sh (Share.comp sh) Tsh.
+Proof.
+intros.
+split.
+apply Share.comp2.
+apply Share.comp1.
+Qed.

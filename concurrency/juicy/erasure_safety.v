@@ -160,15 +160,15 @@ Lemma no_locks_no_locks_perm : forall r, Parching.no_locks_perm r <-> initial_wo
 Proof.
   unfold Parching.no_locks_perm, initial_world.no_locks, perm_of_res_lock; split; intros.
   - destruct addr as (b, ofs); specialize (H b ofs).
-    destruct (r @ (b, ofs)); try (split; discriminate).
+    destruct (r @ (b, ofs)); try discriminate.
     destruct (perm_of_sh (Share.glb Share.Rsh sh0)) eqn: Hsh.
-    destruct k; split; discriminate.
+    destruct k; discriminate.
     { contradiction r0.
       apply perm_of_empty_inv in Hsh as ->; auto. }
   - specialize (H (b, ofs)).
     destruct (r @ (b, ofs)); auto.
     specialize (H sh r0).
-    destruct k; auto; specialize (H z p) as []; contradiction.
+    destruct k; auto. specialize (H n i p).  contradiction; auto.
 Qed.
 
 (* unused *)

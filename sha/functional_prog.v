@@ -271,9 +271,10 @@ rewrite H1.
 clear H1.
 pose proof (firstn_length i b).
 rewrite min_l in H1.
-Focus 2.
+2:{
 clear - H0; revert b H0; induction i; destruct b; simpl; intros; inv H0; try omega.
 specialize (IHi _ H1). omega.
+}
 rewrite <- H1 in H.
 clear H0 H1.
 revert K' k H regs; induction (firstn i b); destruct K'; simpl; intros; inv H.
@@ -560,7 +561,7 @@ simpl length.
 symmetry.
 transitivity (Z.to_nat (roundup (Zlength msg + 9) 64 / 4 - 2) * Z.to_nat 4)%nat; [reflexivity |].
 rewrite <- Z2Nat.inj_mul; try omega.
-Focus 2. {
+2:{
 assert (roundup (Zlength msg + 9) 64 / 4 >= (Zlength msg + 9) / 4)
  by (apply Z_div_ge; omega).
 assert ((Zlength msg + 9) / 4 = (Zlength msg + 1)/4 + 2).
@@ -569,17 +570,18 @@ rewrite Z_div_plus_full by omega.
 auto.
 assert (0 <= (Zlength msg + 1)/4).
 apply Z.div_pos;  omega.
-omega. } Unfocus.
+omega. } 
 rewrite Z.mul_sub_distr_r.
 replace (roundup (Zlength msg + 9) 64 / 4 * 4) with
   (roundup (Zlength msg + 9) 64).
-Focus 2.
+2:{
 unfold roundup.
 forget ((Zlength msg + 9 + (64 - 1)) / 64 ) as N.
 change 64 with (16 * 4).
 rewrite Z.mul_assoc.
 rewrite Z_div_mult_full by omega.
 auto.
+}
 rewrite <- roundup_minus by omega.
 change 64 with 64.
 forget (roundup (Zlength msg + 9) 64) as N.
@@ -700,7 +702,7 @@ assert (0 <= Zlength ccc < 4)
 rewrite Z2Nat.inj_add by omega.
 rewrite <- list_repeat_app.
 replace (Zlength msg / 4 * 4) with (Zlength msg - Zlength ccc).
-Focus 2. {
+2:{
 rewrite Heqccc.
 rewrite (Zlength_correct (skipn _ _)).
 rewrite skipn_length by omega.
@@ -709,7 +711,7 @@ rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
 rewrite Z2Nat.id  by omega.
  omega.
-} Unfocus.
+} 
 match goal with |- context [_ ++ list_repeat (Z.to_nat (4 * ?qq)) 0] =>
  assert (Zlist_to_intlist (list_repeat (Z.to_nat (4 * qq)) 0) =
   zeros ((Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4));
@@ -995,28 +997,28 @@ intros.
 assert (forall i, (i <= Z.to_nat 64)%nat ->
               forall n, 0 <= n < Z.of_nat i ->
  nthi (rev (generate_word (rev block) 48)) n = W (nthi block) n).
-Focus 2. {
+2:{
 apply (H0 (S (Z.to_nat n))).
 apply Nat2Z.inj_le. rewrite inj_S.
 repeat rewrite Z2Nat.id by omega. omega.
 rewrite inj_S.
 rewrite Z2Nat.id by omega. omega.
-} Unfocus.
-clear H n.
-induction i; intros.
+} 
+clear H n. induction i; intros.
 change (Z.of_nat 0) with 0 in H0; omega.
 spec IHi; [ omega | ].
 unfold nthi at 1.
 destruct (zlt n 16).
 rewrite generate_word_small; auto.
-Focus 2.
+2:{
 rewrite LB.
 apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. apply l.
+}
 rewrite W_equation.
 rewrite if_true by auto.
 reflexivity.
 rewrite nth_rev_generate_word; auto.
-Focus 2. {
+2: {
 split.
 apply Nat2Z.inj_le. change (Z.of_nat 16) with 16.
 rewrite Z2Nat.id by omega. omega.
@@ -1026,7 +1028,7 @@ change (Z.of_nat 64) with 64.
 apply Nat2Z.inj_le in H.
 rewrite Z2Nat.id in H by omega.
 omega.
-} Unfocus.
+} 
 rewrite W_equation.
 rewrite if_false by omega.
 rewrite inj_S in H0.
@@ -1104,7 +1106,7 @@ rewrite (rnd_64_S _ _ _
     (nthi K256 (Z.of_nat n))
     (nthi block (Z.of_nat n))).
 2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
-Focus 2.
+2:{
 unfold nthi; rewrite Nat2Z.id.
 rewrite (nth_error_nth _ Int.zero n).
 2: rewrite rev_length, length_generate_word, rev_length, H0;
@@ -1112,6 +1114,7 @@ rewrite (nth_error_nth _ Int.zero n).
 f_equal.
 rewrite generate_word_small by omega.
 auto.
+}
 unfold rnd_function.
 destruct (rnd_64 regs K256 (firstn n (rev (generate_word (rev block) c48))))
   as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; auto.
@@ -1127,11 +1130,12 @@ rewrite (rnd_64_S _ _ _
     (nthi K256 (Z.of_nat (n+16)))
     (nthi (rev (generate_word (rev block) c48)) (Z.of_nat (n+16)))).
 2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
-Focus 2.
+2:{
 unfold nthi; rewrite Nat2Z.id.
 apply (nth_error_nth _ Int.zero (n+16)).
 rewrite rev_length, length_generate_word, rev_length, H0;
   change c48 with 48%nat; omega.
+}
 rewrite Round_equation.
 rewrite <- IHn by omega.
 rewrite if_false by omega.

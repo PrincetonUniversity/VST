@@ -114,8 +114,8 @@ Proof.
          EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs);
          ghost_var gsh1 (vint b') g0;
          data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
-         data_at_ Tsh tint (Znth r reads);
-         data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
+         data_at_ Ews tint (Znth r reads);
+         data_at Ews tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts);
          data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
          data_at sh1 (tarray (tptr (Tstruct _lock_t noattr)) N) locks (gv _lock))).
   - forward.
@@ -135,7 +135,6 @@ Proof.
         subst; rewrite eq_dec_refl; auto.
       + destruct (eq_dec b (-1)); [subst; contradiction n; auto|].
         split; auto; split; auto; apply latest_read_new; auto. }
-    apply andp_right; [apply prop_right; auto|].
     rewrite lock_struct_array; subst c l; cancel.
     destruct (eq_dec b (-1)); subst; auto.
 Qed.

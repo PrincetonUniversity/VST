@@ -17,6 +17,71 @@ Qed.
 
 Hint Resolve corable_funassert.
 
+Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
+(ALL id : ident ,
+ (ALL fs : funspec ,
+  !! ((glob_specs Delta) ! id = Some fs) -->
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_at fs (b, 0)))).
+
+Lemma corable_allp_fun_id: forall Delta rho,
+  corable (allp_fun_id Delta rho).
+Proof.
+  intros.
+  apply corable_allp; intros id.
+  apply corable_allp; intros fs.
+  apply corable_imp; [apply corable_prop |].
+  apply corable_exp; intros b.
+  apply corable_andp; [apply corable_prop |].
+  apply corable_func_at.
+Qed.
+  
+Lemma allp_fun_id_sub: forall Delta Delta' rho,
+  tycontext_sub Delta Delta' ->
+  allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
+Proof.
+  intros.
+  unfold allp_fun_id.
+  apply allp_derives; intros id.
+  apply allp_derives; intros fs.
+  apply imp_derives; auto.
+  intros ? ?; simpl in *.
+  destruct H as [_ [_ [_ [_ [? _]]]]].
+  specialize (H id).
+  hnf in H.
+  rewrite H0 in H.
+  destruct ((glob_specs Delta') ! id); [| tauto].
+  auto.
+Qed.
+
+Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
+  tycontext_sub Delta Delta' ->
+  funassert Delta' rho |-- allp_fun_id Delta rho.
+Proof.
+  intros.
+  apply andp_left1.
+  apply allp_fun_id_sub; auto.
+Qed.
+(*
+Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
+    (forall loc, corable (P loc)) ->
+    (forall loc, corable (Q loc)) ->
+    forall b, corable (jam S P Q b).
+Proof.
+intros.
+intro.
+unfold jam.
+simpl.
+if_tac.
+apply H.
+apply H0.
+Qed.
+*)
+Lemma prop_derives {A}{H: ageable A}:
+ forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
+Proof.
+intros. intros w ?; apply H0; auto.
+Qed.
+
 Section STABILITY.
 Variable CS: compspecs.
 Variables Delta Delta': tycontext.
@@ -71,13 +136,10 @@ Proof.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
-* destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
+* destruct ((temp_types Delta)!i) as [? |] eqn:H1; [ | contradiction].
   destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
-  destruct ((temp_types Delta')!i) as [[? ?]|] eqn:H2; [ | contradiction].
-  simpl @fst; simpl @snd. destruct H; subst t1; auto.
-  destruct b; simpl in H0; subst; try solve [simple_if_tac; auto].
-  simple_if_tac; intros; try contradiction.
-  destruct b0; auto. exact I.
+  destruct ((temp_types Delta')!i) as [? |] eqn:H2; [ | contradiction].
+  simpl @fst; simpl @snd. subst t1; auto.
 * destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
   rewrite !denote_tc_assert_andp in HH |- *.
   destruct HH as [[? ?] ?].
@@ -137,8 +199,8 @@ unfold tc_temp_id; intros.
 unfold typecheck_temp_id.
 intros w ?.  hnf in H0|-*.
 destruct H as [? _]. specialize (H id).
-destruct ((temp_types Delta)! id) as [[? ?]|]; try contradiction.
-destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
+destruct ((temp_types Delta)! id); try contradiction.
+destruct ((temp_types Delta')! id); try contradiction.
 destruct H; subst.
 rewrite !denote_tc_assert_andp in H0 |- *.
 split.
@@ -156,13 +218,12 @@ Lemma tc_temp_id_load_sub:
 Proof.
 rename extends into H.
 unfold tc_temp_id_load; simpl; intros.
-intros w [tto [x [? ?]]]; exists tto.
+intros w [tto [? ?]]; exists tto.
 destruct H as [H _].
 specialize (H id); hnf in H.
-rewrite H0 in H; auto.
-destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
-destruct H; subst.
-exists b; auto.
+rewrite H0 in H.
+destruct ((temp_types Delta')! id); try contradiction.
+destruct H; subst; auto.
 Qed.
 
 Lemma tc_exprlist_sub:
@@ -177,6 +238,26 @@ Proof.
   repeat rewrite denote_tc_assert_andp.
   intros [[? ?] ?]; repeat split; auto.
   + apply (tc_expr_sub _ _ H w H0); auto.
+Qed.
+
+Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
+ match (temp_types Delta) ! id with
+ | Some t => Some t
+ | None => None
+ end.
+
+Lemma typeof_temp_sub:
+   forall i t,
+    typeof_temp Delta i = Some t ->
+    typeof_temp Delta' i = Some t.
+Proof.
+intros.
+destruct extends as [? _].
+specialize (H0 i).
+unfold typeof_temp in *.
+destruct ((temp_types Delta) ! i); inv H.
+destruct ((temp_types Delta') ! i); try contradiction.
+destruct H0; subst; auto.
 Qed.
 
 End STABILITY.

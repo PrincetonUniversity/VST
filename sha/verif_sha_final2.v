@@ -50,12 +50,12 @@ rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl)))
   by (try omega; rewrite Zlength_app; omega).
 rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl))).
 2: rewrite Zlength_app; omega.
-Focus 2. {
+2:{
   apply (JMeq_trans (JMeq_sym H4)) in H2.
   erewrite <- list_func_JMeq with (f := Zlength); [| | exact H2].
   2: rewrite nested_field_type_ind; rewrite H; auto.
   autorewrite with sublist. auto.
-} Unfocus.
+} 
 apply (JMeq_trans (JMeq_sym H3)) in H1.
 apply (JMeq_trans (JMeq_sym H4)) in H2.
 apply sepcon_derives.
@@ -88,10 +88,6 @@ autorewrite with sublist.
 auto.
 Qed.
 
-Definition Delta_final_if1 :=
- (initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot nil))).
-
 Definition Body_final_if1 :=
   (Ssequence
               (Scall None
@@ -117,22 +113,23 @@ Definition Body_final_if1 :=
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
 Lemma final_if1:
-forall (Espec : OracleKind)  (a : s256abs) (md c : val) (shmd : share) (gv : globals) (r_data : list val),
+forall (Espec : OracleKind)  (a : s256abs) (md c : val) (wsh shmd : share) (gv : globals) (r_data : list val)
+ (Hwsh: writable_share wsh),
 sublist 0 (Zlength (s256a_data a)) r_data = map Vint (map Int.repr (s256a_data a)) ->
 Forall isbyteZ a ->
 Zlength r_data = CBLOCKz ->
-semax Delta_final_if1
+semax (func_tycontext f_SHA256_Final Vprog Gtot nil)
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
    temp _md md; temp _c c; gvars gv)
    SEP (K_vector gv;
-   field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
-   field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (s256a_len a))) c;
-   field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (s256a_len a))) c;
-   field_at Tsh t_struct_SHA256state_st [StructField _data]
+   field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
+   field_at wsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (s256a_len a))) c;
+   field_at wsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (s256a_len a))) c;
+   field_at wsh t_struct_SHA256state_st [StructField _data]
      ((map Vint (map Int.repr (s256a_data a)) ++ [Vint (Int.repr 128)]) ++ sublist (Zlength (s256a_data a) + 1) CBLOCKz r_data) c;
-   field_at Tsh t_struct_SHA256state_st [StructField _num]
+   field_at wsh t_struct_SHA256state_st [StructField _num]
      (Vint (Int.repr (Zlength (s256a_data a)))) c; memory_block shmd 32 md))
   (Sifthenelse
      (Ebinop Ogt (Etempvar _n tuint)
@@ -156,7 +153,7 @@ semax Delta_final_if1
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
     gvars gv)
-   SEP  (data_at Tsh t_struct_SHA256state_st
+   SEP  (data_at wsh t_struct_SHA256state_st
            (map Vint (hash_blocks init_registers hashed'),
             (Vint (lo_part (s256a_len a)),
              (Vint (hi_part (s256a_len a)),
@@ -181,7 +178,7 @@ forward_if.
  assert (DDbytes': Forall isbyteZ (s256a_data a))
    by (apply Forall_sublist; auto).
 gather_SEP 1 2 3 4 5.
-replace_SEP 0  (data_at Tsh t_struct_SHA256state_st
+replace_SEP 0  (data_at wsh t_struct_SHA256state_st
            (map Vint (hash_blocks init_registers (s256a_hashed a)),
            (Vint (lo_part (s256a_len a)),
            (Vint (hi_part (s256a_len a)),
@@ -209,18 +206,18 @@ rename H4 into H1.
 assert (H4 := s256a_hashed_divides a).
 forget (s256a_hashed a) as hashed.
 forget (s256a_data a) as dd.
-clear - H4 H3 H1 DDbytes.
+clear - Hwsh H4 H3 H1 DDbytes.
 {
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
 set (fill_len := (64 - (ddlen + 1))).
- unfold Delta_final_if1, Body_final_if1; abbreviate_semax.
+ unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
 unfold_data_at 1%nat.
 eapply semax_seq'.
 evar (Frame: list mpred).
 evar (V: list val).
-  eapply (call_memset_tuchar Tsh
+  eapply (call_memset_tuchar wsh
    (*dst*) t_struct_SHA256state_st [StructField _data] (ddlen+1)
                 V c
    (*src*) Int.zero
@@ -244,7 +241,7 @@ replace (splice_into_list (ddlen + 1) CBLOCKz
            (map Vint (map Int.repr dd) ++
             Vint (Int.repr 128) :: list_repeat (Z.to_nat fill_len) Vundef))
   with  (map Vint ddz).
-Focus 2. {
+2:{
  clear - Hddlen. subst ddz fill_len ddlen. rewrite !map_app.
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite map_list_repeat.
@@ -252,7 +249,7 @@ Focus 2. {
  unfold splice_into_list.
  change CBLOCKz with 64 in *.
  autorewrite with sublist. reflexivity.
-} Unfocus.
+} 
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': Zlength ddz = CBLOCKz). {
   clear - Hddlen H3. subst ddz ddlen.
@@ -279,9 +276,9 @@ rewrite semax_seq_skip.
 assert (Zlength (hash_blocks init_registers hashed) = 8)
  by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
 forward_call (* sha256_block_data_order (c,p); *)
-  (hash_blocks init_registers hashed, ddzw, c,
+  (hash_blocks init_registers hashed, ddzw, c, wsh,
     field_address t_struct_SHA256state_st [StructField _data] c,
-    Tsh, gv).
+    wsh, gv).
 {
   simpl.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
@@ -339,8 +336,8 @@ split3.
 rewrite Forall_app; split; auto.
 apply Forall_sublist; auto.
 repeat constructor; omega.
-split.
 autorewrite with sublist. omega.
+split.
 apply s256a_hashed_divides.
 autorewrite with sublist; auto.
 rewrite !(field_at_data_at _ _ [_]).

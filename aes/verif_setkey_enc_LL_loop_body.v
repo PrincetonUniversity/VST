@@ -489,12 +489,7 @@ forall
  (SH : writable_share ctx_sh) (SH0 : readable_share key_sh) (SH1 : readable_share ish)
  (H : Zlength key_chars = 32) (H0 : init_done = 1) (i : Z)
  (H1 : 0 <= i < 7),
-semax
-  (initialized _t'1
-     (initialized _tmp
-        (initialized _i
-           (initialized _RK
-              (func_tycontext f_mbedtls_aes_setkey_enc Vprog Gprog [])))))
+semax (func_tycontext f_mbedtls_aes_setkey_enc Vprog Gprog [])
   (PROP ( )
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK
@@ -617,6 +612,13 @@ clearbody Delta_specs.
 
     assert (Zlength RCON = 10) by reflexivity.
     pose proof masked_byte_range.
+
+  assert (H2': forall i, 0 <= Int.unsigned (Int.and i (Int.repr 255)) < 256). {
+    clear.  intros. rewrite Int.and_commut.
+    pose proof (Int.and_le (Int.repr 255) i).
+    rewrite Int.unsigned_repr in H by computable. 
+    pose proof (Int.unsigned_range (Int.and (Int.repr 255) i)). omega.
+  }
 
     Arguments Z.land _ _ : simpl never.
     set (ROT := repeat_op_table (60 - i * 8) Vundef id) in *.

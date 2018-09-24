@@ -27,13 +27,24 @@ Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
   end.
 
 Inductive array_subsc_denote {cs: compspecs}: expr -> Z -> environ -> Prop :=
-  | array_subsc_denote_intro:
-      forall e i rho, Vint (Int.repr i) = eval_expr e rho -> array_subsc_denote e i rho.
+  | array_subsc_denote_intro_int:
+      forall e i rho, Vint (Int.repr i) = eval_expr e rho -> array_subsc_denote e i rho
+  | array_subsc_denote_intro_long:
+      forall e i rho, Vlong (Int64.repr i) = eval_expr e rho -> array_subsc_denote e i rho.
 
 Inductive efield_denote {cs: compspecs}: list efield -> list gfield -> environ -> Prop :=
   | efield_denote_nil: forall rho, efield_denote nil nil rho
+  | efield_denote_ArraySubsc_int: forall ei efs i gfs rho,
+       match typeconv (typeof ei) with
+       | Tint _ Signed _ => Int.min_signed <= i <= Int.max_signed
+       | Tint _ Unsigned _ => 0 <= i <= Int.max_unsigned
+       | _ => False
+       end ->
+      array_subsc_denote ei i rho ->
+      efield_denote efs gfs rho ->
+      efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs) rho
   | efield_denote_ArraySubsc: forall ei efs i gfs rho,
-      is_int_type (typeof ei) = true ->
+      is_ptrofs_type (typeof ei) = true ->
       array_subsc_denote ei i rho ->
       efield_denote efs gfs rho ->
       efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs) rho
@@ -174,6 +185,7 @@ Proof.
   + eapply typeof_nested_efield'; eauto.
   + eapply typeof_nested_efield'; eauto.
   + eapply typeof_nested_efield'; eauto.
+  + eapply typeof_nested_efield'; eauto.
 Qed.
 
 Lemma offset_val_sem_add_pi: forall ofs t0 si e rho i,
@@ -257,6 +269,8 @@ Proof.
     eapply typeof_nested_efield'; eauto.
   + f_equal.
     eapply typeof_nested_efield'; eauto.
+  + f_equal.
+    eapply typeof_nested_efield'; eauto.
 Qed.
 
 
@@ -290,6 +304,25 @@ Proof.
 Qed.
 *)
 
+Lemma isBinOpResultType_add_ptr_ptrofs: forall e t n a t0 ei,
+  is_ptrofs_type (typeof ei) = true ->
+  typeconv (Tarray t0 n a) = typeconv (typeof e) ->
+  complete_legal_cosu_type t0 = true ->
+  eqb_type (typeof e) int_or_ptr_type = false ->
+  isBinOpResultType Cop.Oadd e ei (tptr t) = tc_isptr e.
+Proof.
+  intros.
+  unfold isBinOpResultType.
+  rewrite (classify_add_typeconv _ _ _ _ H0).
+  destruct (typeof ei); inv H.
+(*  erewrite classify_add_add_case_pi by eauto. *)
+  apply complete_legal_cosu_type_complete_type in H1.
+  simpl.
+  try destruct i; rewrite H1; simpl tc_bool; cbv iota;
+  rewrite andb_false_r; simpl; rewrite tc_andp_TT2;
+  unfold tc_int_or_ptr_type; rewrite H2; simpl; auto.
+Qed.
+
 Lemma isBinOpResultType_add_ptr: forall e t n a t0 ei,
   is_int_type (typeof ei) = true ->
   typeconv (Tarray t0 n a) = typeconv (typeof e) ->
@@ -307,6 +340,43 @@ Proof.
   destruct i; rewrite H1; simpl tc_bool; cbv iota;
   rewrite andb_false_r; simpl; rewrite tc_andp_TT2;
   unfold tc_int_or_ptr_type; rewrite H2; simpl; auto.
+Qed.
+
+Definition add_case_pptrofs t si :=
+  if Archi.ptr64 then Cop.add_case_pl t else Cop.add_case_pi t si.
+
+Lemma array_op_facts_ptrofs: forall ei rho t_root e efs gfs tts t n a t0 p,
+  legal_nested_efield_rec t_root gfs tts = true ->
+  type_almost_match e t_root (LR_of_type t_root) = true ->
+  is_ptrofs_type (typeof ei) = true ->
+  nested_field_type t_root gfs = Tarray t n a ->
+  field_compatible t_root gfs p ->
+  efield_denote efs gfs rho ->
+  (exists si, Cop.classify_add (typeof (nested_efield e efs tts)) (typeof ei) = add_case_pptrofs t si) /\
+  isBinOpResultType Cop.Oadd (nested_efield e efs tts) ei (tptr t0) = tc_isptr (nested_efield e efs tts).
+Proof.
+  intros.
+  pose proof (weakened_legal_nested_efield_spec _ _ _ _ _ _ H H0 H4).
+  rewrite H2 in H5.
+  split.
+  +
+    erewrite classify_add_typeconv
+         by (apply typeconv_typeconv'_eq; eassumption).
+   destruct (typeof ei); inv H1.
+   try (exists Unsigned; reflexivity);  (* Archi.ptr64 = true *)
+   destruct i; simpl; eexists; reflexivity. (* Archi.ptr64 = false *)
+  + eapply isBinOpResultType_add_ptr_ptrofs; [auto | apply typeconv_typeconv'_eq; eassumption | |].
+    - destruct H3 as [_ [? [_ [_ ?]]]].
+      eapply nested_field_type_complete_legal_cosu_type with (gfs0 := gfs) in H3; auto.
+      rewrite H2 in H3.
+      exact H3.
+    - destruct (typeof (nested_efield e efs tts)); try solve [inv H5];
+      apply eqb_type_false; try (unfold int_or_ptr_type; congruence).
+      Opaque eqb_type. simpl in H5. Transparent eqb_type.
+      destruct (eqb_type (Tpointer t1 a0) int_or_ptr_type) eqn:?H.
+      * apply eqb_type_true in H6.
+        unfold int_or_ptr_type in *; inv H5; inv H6.
+      * apply eqb_type_false in H6; auto.
 Qed.
 
 Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
@@ -376,12 +446,53 @@ rewrite <- H0.
 apply Ptrofs.repr_unsigned.
 Qed.
 
+Lemma Ptrofs_repr_Int64_unsigned_special:
+  Archi.ptr64=true -> forall i, Ptrofs.repr (Int64.unsigned (Int64.repr i)) = Ptrofs.repr i.
+Proof.
+intros.
+pose proof (Ptrofs.agree64_repr H i).
+hnf in H0.
+rewrite <- H0.
+apply Ptrofs.repr_unsigned.
+Qed.
+(*
 Lemma Archi_ptr64_DEPENDENCY: Archi.ptr64=false.
 Proof. reflexivity. Qed.
+*)
+
+Definition sem_add_ptr_ptrofs t si :=
+ if Archi.ptr64 then sem_add_ptr_long t else sem_add_ptr_int t si.
+
+Lemma sem_add_pptrofs_ptr_special:
+   forall t si p i,
+    isptr p ->
+    sem_add_ptr_ptrofs t si p (Vptrofs (Ptrofs.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros.
+  unfold sem_add_ptr_ptrofs, sem_add_ptr_int, sem_add_ptr_long.
+  destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_long, Cop.sem_add_ptr_int.
+  unfold Vptrofs, Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  destruct Archi.ptr64 eqn:Hp.
+  f_equal. f_equal. f_equal. rewrite Ptrofs.of_int64_to_int64 by auto.
+  rewrite <- ptrofs_mul_repr;  f_equal.
+  f_equal. f_equal. f_equal.
+  destruct si.
+  rewrite <- ptrofs_mul_repr;  f_equal.
+  rewrite ptrofs_to_int_repr.
+  rewrite Ptrofs_repr_Int_signed_special by auto. auto.
+  rewrite <- ptrofs_mul_repr;  f_equal.
+  rewrite ptrofs_to_int_repr.
+  rewrite Ptrofs_repr_Int_unsigned_special by auto. auto.
+Qed.
 
 Lemma sem_add_pi_ptr_special:
    forall t p i si,
     isptr p ->
+   match si with
+   | Signed => Int.min_signed <= i <= Int.max_signed
+   | Unsigned => 0 <= i <= Int.max_unsigned
+   end ->
     sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
   intros.
@@ -391,14 +502,49 @@ Proof.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
   f_equal. f_equal. f_equal.
   destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
-  apply (Ptrofs_repr_Int_signed_special Archi_ptr64_DEPENDENCY).
-  apply (Ptrofs_repr_Int_unsigned_special Archi_ptr64_DEPENDENCY).
+  rewrite Int.signed_repr; auto.
+  rewrite Int.unsigned_repr; auto.
 Qed.
 
-Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
+Lemma sem_add_pi_ptr_special':
+   Archi.ptr64 = false ->
+   forall t p i si,
+    isptr p ->
+    sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros Hp.
+  intros.
+ unfold sem_add_ptr_int.
+  destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_int.
+  unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  f_equal. f_equal. f_equal.
+  destruct si; rewrite <- ptrofs_mul_repr;  f_equal.
+  apply (Ptrofs_repr_Int_signed_special Hp).
+  apply (Ptrofs_repr_Int_unsigned_special Hp).
+Qed.
+
+Lemma sem_add_pl_ptr_special':
+   Archi.ptr64 = true ->
+   forall t p i,
+    isptr p ->
+    sem_add_ptr_long t p (Vlong (Int64.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros Hp.
+  intros.
+ unfold sem_add_ptr_long.
+  destruct p; try contradiction.
+  unfold offset_val, Cop.sem_add_ptr_long.
+  f_equal. f_equal. f_equal.
+  rewrite (Ptrofs.agree64_of_int_eq (Ptrofs.repr i))
+    by (apply Ptrofs.agree64_repr; auto).
+  rewrite ptrofs_mul_repr. auto.
+Qed.
+
+Lemma array_ind_step_ptrofs: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
-  is_int_type (typeof ei) = true ->
+  is_ptrofs_type (typeof ei) = true ->
   array_subsc_denote ei i rho ->
   nested_field_type t_root gfs = Tarray t0 n a ->
   tc_environ Delta rho ->
@@ -416,6 +562,86 @@ Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
 Proof.
   intros ? ? ? ? ? ? ? ? ? ? ? ? ? ?
          LEGAL_NESTED_EFIELD_REC TYPE_MATCH ? ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+  destruct (array_op_facts_ptrofs _ _ _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE) as [CLASSIFY_ADD ISBINOP].
+  pose proof field_address_isptr _ _ _ FIELD_COMPATIBLE as ISPTR.
+  rewrite tc_efield_ind; simpl.
+  rewrite andp_comm, andp_assoc.
+  eapply derives_trans; [apply andp_derives; [apply derives_refl | rewrite andp_comm; exact IH] | ].
+  rewrite (add_andp _ _ (typecheck_expr_sound _ _ _ TC_ENVIRON)).
+  unfold_lift.
+  normalize.
+  apply andp_right1; [apply prop_right | normalize].
+  +
+     assert (H3: Vptrofs (Ptrofs.repr i) = eval_expr ei rho). {
+       clear - H1 H0 H.
+       unfold is_ptrofs_type, Vptrofs in *.
+       destruct Archi.ptr64 eqn:Hp.
+       destruct (typeof ei); inv H.
+       inv H0. rewrite <- H in H1; inv H1.
+       rewrite <- H. f_equal.  apply Ptrofs.agree64_to_int_eq.
+       apply Ptrofs.agree64_repr; auto.
+       destruct (typeof ei); inv H. destruct i0; inv H3.
+       inv H0. 2: rewrite <- H in H1; inv H1.
+       rewrite <- H. f_equal. apply ptrofs_to_int_repr.
+    }
+    rewrite <- H3.
+    unfold force_val2, force_val.
+    unfold sem_add.
+    destruct CLASSIFY_ADD as [si CLASSIFY_ADD].
+    rewrite CLASSIFY_ADD.
+    match goal with |- _ = match ?A _ _ with Some _ => _ | None => _ end => 
+       change A with (sem_add_ptr_ptrofs t0 si)
+    end.
+    rewrite sem_add_pptrofs_ptr_special.
+    2: simpl in H2; rewrite <- H2; auto.
+    unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
+    reflexivity.
+  + unfold tc_lvalue.
+    Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
+    rewrite ISBINOP.
+    normalize.
+    rewrite !denote_tc_assert_andp; simpl.
+    repeat apply andp_right.
+    - apply prop_right.
+      simpl in H2; rewrite <- H2; auto.
+    - solve_andp.
+    - solve_andp.
+    - rewrite andb_false_r. simpl. apply prop_right; auto.
+    - apply prop_right.
+      simpl; unfold_lift.
+      rewrite <- H3.
+      normalize.
+Qed.
+
+Lemma array_ind_step: forall Delta ei i rho t_root e efs gfs tts t n a t0 p,
+  legal_nested_efield_rec t_root gfs tts = true ->
+  type_almost_match e t_root (LR_of_type t_root) = true ->
+(*  is_int_type (typeof ei) = true -> *)
+   match typeconv (typeof ei) with
+   | Tint _ Signed _ => Int.min_signed <= i <= Int.max_signed
+   | Tint _ Unsigned _ => 0 <= i <= Int.max_unsigned
+   | _ => False
+   end ->
+  array_subsc_denote ei i rho ->
+  nested_field_type t_root gfs = Tarray t0 n a ->
+  tc_environ Delta rho ->
+  efield_denote efs gfs rho ->
+  field_compatible t_root gfs p ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho
+  |-- !! (field_address t_root gfs p = eval_LR (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho) &&
+          tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (Tarray t0 n a)) rho ->
+  tc_LR_strong Delta e (LR_of_type t_root) rho &&
+  tc_efield Delta (eArraySubsc ei :: efs) rho
+  |-- !! (offset_val (gfield_offset (nested_field_type t_root gfs) (ArraySubsc i))
+          (field_address t_root gfs p) =
+          eval_lvalue (nested_efield e (eArraySubsc ei :: efs) (t :: tts)) rho) &&
+          tc_lvalue Delta (nested_efield e (eArraySubsc ei :: efs) (t :: tts)) rho.
+Proof.
+  intros ? ? ? ? ? ? ? ? ? ? ? ? ? ?
+         LEGAL_NESTED_EFIELD_REC TYPE_MATCH H ? NESTED_FIELD_TYPE TC_ENVIRON EFIELD_DENOTE FIELD_COMPATIBLE IH.
+  rename H into H'.
+  assert (H: is_int_type (typeof ei) = true) 
+     by (clear - H'; destruct (typeof ei) as [| | | [|] | | | | |]; try contradiction; auto).
   destruct (array_op_facts _ _ _ _ _ _ _ _ _ _ t _ LEGAL_NESTED_EFIELD_REC TYPE_MATCH H NESTED_FIELD_TYPE FIELD_COMPATIBLE EFIELD_DENOTE) as [CLASSIFY_ADD ISBINOP].
   pose proof field_address_isptr _ _ _ FIELD_COMPATIBLE as ISPTR.
   rewrite tc_efield_ind; simpl.
@@ -425,7 +651,13 @@ Proof.
   unfold_lift.
   normalize.
   apply andp_right1; [apply prop_right | normalize].
-  + inversion H0; subst.
+  + 
+     assert (H3: Vint (Int.repr i) = eval_expr ei rho). {
+       clear - H1 H0 H.
+       inv H0; auto.
+       destruct (typeof ei); inv H. rewrite <- H2 in H1.
+       destruct i0,s; contradiction.
+    }
     rewrite <- H3.
     unfold force_val2, force_val.
     unfold sem_add.
@@ -435,6 +667,9 @@ Proof.
     2: simpl in H2; rewrite <- H2; auto.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
+    clear - H' CLASSIFY_ADD.
+    destruct  (typeof (nested_efield e efs tts)) as  [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ], 
+                 (typeof ei) as  [ | [ | | | ] [ | ]| [ | ] | [ | ] | | | | | ]; inv CLASSIFY_ADD; try contradiction; auto.
   + unfold tc_lvalue.
     Opaque isBinOpResultType. simpl. Transparent isBinOpResultType.
     rewrite ISBINOP.
@@ -629,12 +864,12 @@ Proof.
   normalize.
   rename H into EFIELD_DENOTE, H0 into TC_ENVIRON.
   apply derives_trans with (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho).
-  Focus 1. {
+  {
     repeat (apply andp_derives; auto).
     eapply derives_trans; [| apply tc_LR_tc_LR_strong].
     rewrite andp_comm, prop_true_andp by auto.
     auto.
-  } Unfocus.
+  }
   pose proof legal_nested_efield_weaken _ _ _ _ LEGAL_NESTED_EFIELD as [LEGAL_NESTED_EFIELD_REC TYPE_ALMOST_MATCH].
   rewrite field_compatible_field_address by auto.
   clear LEGAL_NESTED_EFIELD.
@@ -642,7 +877,7 @@ Proof.
   (* Induction *)
   revert tts LEGAL_NESTED_EFIELD_REC; induction EFIELD_DENOTE; intros;
   destruct tts; try solve [inversion LEGAL_NESTED_EFIELD_REC];
-  [normalize; apply derives_refl | | |];
+  [normalize; apply derives_refl | ..];
   pose proof FIELD_COMPATIBLE as FIELD_COMPATIBLE_CONS;
   apply field_compatible_cons in FIELD_COMPATIBLE;
   destruct (nested_field_type t_root gfs) eqn:NESTED_FIELD_TYPE; try solve [inv FIELD_COMPATIBLE];
@@ -656,6 +891,7 @@ Proof.
   rewrite offset_val_nested_field_offset_ind by auto;
   rewrite <- field_compatible_field_address in IHEFIELD_DENOTE |- * by auto.
   + eapply array_ind_step; eauto.
+  + eapply array_ind_step_ptrofs; eauto.
   + eapply struct_ind_step; eauto.
   + eapply union_ind_step; eauto.
 Qed.
@@ -884,6 +1120,18 @@ Proof.
       * inv H9.
         unfold type_almost_match.
         rewrite H in H4 |- *; inv H4.
+        simpl.
+        change (nested_field_type (Tarray t0 n a2) (SUB i)) with t0.
+        apply eqb_type_false in HH.
+        rewrite HH.
+        rewrite !eqb_type_spec.
+        auto.
+      * inv H9.
+        unfold type_almost_match.
+        rewrite H in H4 |- *; inv H4.
+      * inv H9.
+        unfold type_almost_match.
+        rewrite H in H4 |- *; inv H4.
     - subst.
       destruct (IHe1 RRRR) as [IH _]; spec IH; [unfold LR_possible; rewrite H; auto |].
       clear IHe1 IHe2.
@@ -895,6 +1143,7 @@ Proof.
       exists (t0 :: tts).
       intros.
       inv H2.
+      {
       specialize (IH H1 H10).
       destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
       simpl.
@@ -905,6 +1154,18 @@ Proof.
       rewrite nested_field_type_ind; destruct gfs.
       * destruct t_root; inv IH5; auto.
       * rewrite IH5. auto.
+      }{
+      specialize (IH H1 H10).
+      destruct IH as [IH1 [IH2 [IH3 [IH4 IH5]]]].
+      simpl.
+      rewrite IH1, IH4.
+      simpl.
+      rewrite eqb_type_spec.
+      assert (nested_field_type t_root (gfs SUB i) = t0); auto.
+      rewrite nested_field_type_ind; destruct gfs.
+      * destruct t_root; inv IH5; auto.
+      * rewrite IH5. auto.
+      }       
   + Opaque field_type. simpl. Transparent field_type.
     destruct (typeof e) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);
     destruct (eqb_type (field_type i (co_members (get_co i0))) t) eqn:?H; try exact (compute_nested_efield_trivial _ _ _ _ _ _ eq_refl eq_refl eq_refl);

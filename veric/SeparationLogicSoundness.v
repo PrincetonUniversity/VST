@@ -14,7 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
-Require Import VST.veric.semax_congruence.
+Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.semax_call.
@@ -28,12 +28,14 @@ Require Import VST.veric.expr_rel.
 
 Require Import VST.veric.ghost_PCM.
 
-Module Type SEPARATION_LOGIC_SOUNDNESS.
+Module Type SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
-(*Declare Module ExtSpec: EXTERNAL_SPEC. *)
-Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Import CSL.
+Module CSHL_Defs := DerivedDefs(CSHL_Def).
+
+Import CSHL_Def.
+Import CSHL_Defs.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -75,39 +77,40 @@ Axiom semax_prog_rule' :
      } } }%type.
 
 
-End SEPARATION_LOGIC_SOUNDNESS.
+End SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
-Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
+Module Type MAIN_THEOREM_STATEMENT.
 
-Module CSL <: CLIGHT_SEPARATION_LOGIC.
+Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
-Definition func_ptr (f: funspec) (v: val): mpred :=
-  exp (fun b: block => andp (prop (v = Vptr b Ptrofs.zero)) (func_at f (b, 0))).
-
-Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
-
+Declare Module CSHL_MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
+(*
 Definition corable_func_ptr: forall f v, corable (func_ptr f v) :=
-  general_assert_lemmas.corable_func_ptr.
+  general_assert_lemmas.corable_func_ptr.*)
+Declare Module CSHL_PracticalLogic: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_MinimumLogic := CSHL_MinimumLogic.
 
-Lemma func_ptr_isptr:
-  forall spec f, (func_ptr spec f |-- !! isptr f)%logic.
-Proof.
-  intros.
-  unfold func_ptr.
-  destruct spec.
-  normalize.
-Qed.
+Declare Module CSHL_Sound: SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := CSHL_Def.
 
-Definition approx_func_ptr := approx_func_ptr.
-Definition func_ptr_def := eq_refl func_ptr.
+End MAIN_THEOREM_STATEMENT.
 
-Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Module VericDef <: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Definition semax := @semax.
-Definition unfold_Ssequence := unfold_Ssequence.
-Definition extract_exists := @extract_exists.
-Definition semax_body := @semax_body.
+
 Definition semax_func := @semax_func.
+
+Definition semax_external {Espec: OracleKind} ids ef A P Q :=
+  forall n, semax_external Espec ids ef A P Q n.
+
+End VericDef.
+
+Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := VericDef.
+
+Module CSHL_Def := VericDef.
+Module CSHL_Defs := DerivedDefs (VericDef).
+  
+Definition semax_extract_exists := @extract_exists_pre.
+Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
 Definition semax_prog_ext := @semax_prog_ext.
 Definition semax_func_nil := @semax_func_nil.
@@ -120,36 +123,20 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
-Definition semax_loop_nocontinue := @semax_loop_nocontinue.
-Definition semax_if_seq := @semax_if_seq.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
-Definition semax_seq_Slabel := @semax_seq_Slabel.
-Definition seq_assoc := @seq_assoc.
-Definition semax_seq_skip := @semax_seq_skip.
-Definition semax_skip_seq := @semax_skip_seq.
 Definition semax_call := @semax_call.
-Definition semax_fun_id := @semax_fun_id_alt.
 (* Definition semax_call_ext := @semax_call_ext. *)
-Definition semax_set := @semax_set.
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 Definition semax_store := @semax_store.
 Definition semax_load := @semax_load.
-Definition semax_set_forward_nl := @semax_set_forward_nl.
-Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
-Definition semax_pre_post_bupd := @semax_pre_post_bupd.
-Definition semax_extensionality_Delta := @semax_extensionality_Delta.
-Definition semax_extract_prop := @semax_extract_prop.
-Definition semax_extract_later_prop := @semax_extract_later_prop.
+Definition semax_conseq := @semax_conseq.
 Definition semax_ptr_compare := @semax_ptr_compare.
-Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
-Definition semax_external {Espec: OracleKind} ids ef A P Q :=
-  forall n, semax_external Espec ids ef A P Q n.
 Definition semax_external_FF := @semax_external_FF.
 
 Definition juicy_ext_spec := juicy_ext_spec.
@@ -157,9 +144,15 @@ Definition juicy_ext_spec := juicy_ext_spec.
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
 
-End CSL.
+End VericMinimumSeparationLogic.
+
+Module VericSound : SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := VericDef.
+
+Module CSHL_Def := VericDef.
+Module CSHL_Defs := DerivedDefs (VericDef).
 
 Definition semax_prog_rule := @semax_prog_rule.
 Definition semax_prog_rule' := @semax_prog_rule'.
 
-End SoundSeparationLogic.
+End VericSound.
+

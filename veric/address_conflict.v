@@ -116,13 +116,12 @@ Lemma pointer_range_overlap_comm: forall p1 n1 p2 n2,
 Proof.
   cut (forall p1 n1 p2 n2,
          pointer_range_overlap p1 n1 p2 n2 ->
-         pointer_range_overlap p2 n2 p1 n1).
-  {
+         pointer_range_overlap p2 n2 p1 n1). {
     intros.
     pose proof H p1 n1 p2 n2.
     pose proof H p2 n2 p1 n1.
     tauto.
-  } 
+  }
   unfold pointer_range_overlap.
   intros.
   destruct H as [l [l' [? [? ?]]]].

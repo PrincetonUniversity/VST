@@ -77,7 +77,6 @@ forward. (* n++; *)
 eapply semax_seq'.
 *
 eapply semax_post_flipped'.
-change Delta with Delta_final_if1.
 match goal with |- context [Sifthenelse _ ?c _] => change c with Body_final_if1 end.
 rewrite add_repr.
 simple apply final_if1; auto.
@@ -89,7 +88,7 @@ Intros hashed' dd' pad.
 rename H1 into DDbytes'.
 rename H2 into PAD.
 unfold_data_at 1%nat.
-erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try apply JMeq_refl; try omega.
+erewrite (field_at_Tarray wsh _ [StructField _data]); try reflexivity; try apply JMeq_refl; try omega.
 2: apply compute_legal_nested_field_spec'; repeat constructor.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 2: autorewrite with sublist; Omega1.
@@ -99,7 +98,7 @@ rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
  autorewrite with sublist.
  replace (CBLOCKz - Zlength dd' - (56 - Zlength dd')) with 8 by Omega1.
 forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
-  (Tsh,
+  (wsh,
      field_address0 t_struct_SHA256state_st
          [ArraySubsc (Zlength dd'); StructField _data] c,
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
@@ -112,8 +111,8 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')
    with (56 - Zlength dd').
-replace (memory_block Tsh (56 - Zlength dd'))
- with (memory_block Tsh (sizeof (tarray tuchar (56 - Zlength dd'))))
+replace (memory_block wsh (56 - Zlength dd'))
+ with (memory_block wsh (sizeof (tarray tuchar (56 - Zlength dd'))))
   by (f_equal; rewrite sizeof_tarray_tuchar; auto; omega).
 cancel.
 }
@@ -135,8 +134,7 @@ assert_PROP (force_val
  simpl (temp _p _).
  rewrite H2. clear H2.
  eapply semax_pre_post; [ | | | | |
-  change Delta with Delta_final_if1;
-  apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(gv:=gv)(md:=md);
+  apply final_part2 with (wsh:=wsh)(shmd:=shmd)(hashed:= s256a_hashed a)(pad:=pad)(c:=c)(gv:=gv)(md:=md);
   try eassumption; try Omega1; try apply s256a_hashed_divides].
 +
 change (Z.of_nat CBLOCK) with CBLOCKz.

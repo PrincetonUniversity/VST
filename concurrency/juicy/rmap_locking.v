@@ -451,11 +451,8 @@ Definition rmap_makelock phi phi' loc R length :=
         phi @ x = YES sh Psh (VAL val) NoneP /\
         writable_share sh /\
         phi' @ x =
-        if eq_dec x loc then
-          YES sh Psh (LK length) (pack_res_inv (approx (level phi) R))
-        else
-          YES sh Psh (CT (snd x - snd loc)) NoneP) /\
-  (ghost_of phi = ghost_of phi').
+          YES sh Psh (LK length (snd x - snd loc)) (pack_res_inv (approx (level phi) R)))
+    /\  (ghost_of phi = ghost_of phi').
 
 (* rmap_freelock phi phi' is ALMOST rmap_makelock phi' phi but we
 specify that the VAL will be the dry memory's *)
@@ -468,10 +465,8 @@ Definition rmap_freelock phi phi' m loc R length :=
         phi' @ x = YES sh Psh (VAL (contents_at m x)) NoneP /\
         writable_share sh /\
         phi @ x =
-        if eq_dec x loc then
-          YES sh Psh (LK length) (pack_res_inv (approx (level phi) R))
-        else
-          YES sh Psh (CT (snd x - snd loc)) NoneP) /\
+  
+          YES sh Psh (LK length  (snd x - snd loc)) (pack_res_inv (approx (level phi) R))) /\
   (ghost_of phi = ghost_of phi').
 
 Definition makelock_f phi loc R length : address -> resource :=
@@ -479,10 +474,7 @@ Definition makelock_f phi loc R length : address -> resource :=
     if adr_range_dec loc length x then
       match phi @ x with
       | YES sh sh' (VAL _) _ =>
-        if eq_dec x loc then
-          YES sh sh' (LK length) (pack_res_inv (approx (level phi) R))
-        else
-          YES sh sh' (CT (snd x - snd loc)) NoneP
+          YES sh sh' (LK length (snd x - snd loc)) (pack_res_inv (approx (level phi) R))
       | YES _ _ _ _
       | PURE _ _
       | NO _ _ => NO Share.bot bot_unreadable
@@ -494,8 +486,7 @@ Definition freelock_f phi m loc length : address -> resource :=
   fun x =>
     if adr_range_dec loc length x then
       match phi @ x with
-      | YES sh sh' (LK _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
-      | YES sh sh' (CT _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
+      | YES sh sh' (LK _ _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
       | YES _ _ _ _
       | PURE _ _
       | NO _ _ => NO Share.bot bot_unreadable
@@ -539,81 +530,6 @@ Proof.
 
   pose proof make_rmap (makelock_f phi loc R length) (ghost_of phi) as Hphi'.
 
-  (* the makelock_f function is valid *)
-  assert_specialize Hphi'. {
-    clear Hphi'.
-    pose proof rmap_valid phi as V.
-    unfold "oo", makelock_f in *.
-    intros b ofs.
-    pose proof j as j0.
-    eapply resource_at_join with (loc := (b, ofs)) in j0.
-    if_tac [r|nr].
-    - destruct (Hchanged (b, ofs) r) as (val & sh & Rsh & E & Wsh & E').
-      rewrite E in j0.
-      inv j0; pfulltac.
-      if_tac [e|ne].
-      + simpl.
-        intros i Hi.
-        if_tac [ri|nri].
-        * destruct (Hchanged (b, ofs + i) ri) as (vali & shi & Rshi & Ei & Wshi& Ei').
-          pose proof j as ji.
-          eapply resource_at_join with (loc := (b, ofs + i)) in ji.
-          rewrite Ei in ji.
-          inv ji; pfulltac.
-          if_tac.
-          -- assert (ofs = ofs + i) by congruence. omega.
-          -- simpl. repeat f_equal; try omega.
-             rewrite readable_part_writable; eauto.
-             rewrite readable_part_writable; eauto.
-             eapply join_writable1; eauto.
-             eapply join_writable1; eauto.
-        * destruct nri.
-          subst loc; split; auto. omega.
-      + simpl.
-        destruct loc as (b', ofs').
-        destruct r as (->, r). assert (ofs <> ofs') by congruence.
-        exists length; split. simpl in *; omega.
-        simpl.
-        replace (ofs - (ofs - ofs')) with ofs' by omega.
-        if_tac [r'|nr'].
-        * specialize (Hchanged (b, ofs') r').
-          destruct Hchanged as (val' & sh' & Rsh' & Eq & Eq' & Wsh').
-          pose proof j as j'.
-          eapply resource_at_join with (loc := (b, ofs')) in j'.
-          rewrite Eq in j'.
-          inv j'; pfulltac.
-          if_tac; try tauto.
-          simpl.
-          rewrite readable_part_writable; eauto.
-          rewrite readable_part_writable; eauto.
-          eapply join_writable1; eauto.
-          eapply join_writable1; eauto.
-        * destruct nr'; split; auto.
-          split; auto; omega.
-    - specialize (V b ofs); simpl in V.
-      destruct (phi @ (b, ofs)) as [t | t p [] p0 | k p] eqn:Ephi; simpl in V |- *; auto.
-      + intros i ri. specialize (V i ri).
-        if_tac [ri'|nri]; [ | easy ].
-        exfalso.
-        specialize (Hchanged (b, ofs + i) ri').
-        destruct Hchanged as (val & sh & Rsh & E & Wsh & E').
-        pose proof j as ji.
-        eapply resource_at_join with (loc := (b, ofs + i)) in ji.
-        rewrite E in ji.
-        revert V.
-        inv ji; simpl; congruence.
-      + if_tac [rz|nrz]; [ | easy ].
-        exfalso.
-        specialize (Hchanged (b, ofs - z) rz).
-        destruct V as (?&?&V).
-        destruct Hchanged as (?&?&?&?&?&?).
-        pose proof j as jz.
-        eapply resource_at_join with (loc := (b, ofs - z)) in jz.
-        rewr (phi1 @ (b, ofs - z)) in jz.
-        revert V.
-        inv jz; simpl; congruence.
-  }
-
   specialize (Hphi' (level phi1)).
 
   (* the makelock_f function is stable under approximation at level phi1 *)
@@ -623,7 +539,7 @@ Proof.
     extensionality x.
     replace (level phi1) with (level phi); auto.
     pose proof resource_at_approx phi x.
-    if_tac; [if_tac | ]; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
+    if_tac; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
     unfold pack_res_inv in *; simpl.
     do 2 f_equal.
     extensionality tt.
@@ -652,11 +568,7 @@ Proof.
         destruct Hchanged as (val & sh & Rsh & E & Wsh & E').
         rewrite E in j. rewrite E'.
         rewrite L1 in *.
-        if_tac [e|ne].
-        * inv j.
-          -- constructor. auto.
-          -- pfulltac.
-        * inv j.
+        inv j.
           -- constructor. auto.
           -- pfulltac.
       + specialize (Hsame x nr).
@@ -679,15 +591,7 @@ Proof.
     rewrite E in j.
     rewrite E' in j'.
     rewrite L1 in *.
-    if_tac [e|ne].
-    * inv j; inv j'; try solve [pfulltac].
-      eexists; eexists; split; eauto; split; eauto.
-      eapply join_writable1; eauto. 
-      rewrite <- H in H5. inversion H5; subst.
-      assert (sh4 = sh3) by (eapply join_eq; eauto).
-      subst. f_equal. apply proof_irr.
-      clear RJ0; exfalso; eapply join_writable_readable; eauto.
-    * inv j; inv j'; try solve [pfulltac].
+      inv j; inv j'; try solve [pfulltac].
       eexists; eexists; split; eauto; split; eauto.
       eapply join_writable1; eauto. 
       rewrite <- H in H5. inversion H5; subst.
@@ -708,61 +612,6 @@ Proof.
   assert (L1 : level phi1 = level phi) by (eapply join_level; eauto).
 
   pose proof make_rmap (freelock_f phi m loc length) (ghost_of phi) as Hphi'.
-
-  (* the freelock_f function is valid *)
-  assert_specialize Hphi'. {
-    clear Hphi'.
-    pose proof rmap_valid phi as V.
-    pose proof rmap_valid phi as V'.
-    unfold "oo", freelock_f in *.
-    intros b ofs.
-    pose proof j as j0.
-    eapply resource_at_join with (loc := (b, ofs)) in j0.
-    if_tac [r|nr].
-    - destruct (Hchanged (b, ofs) r) as (sh & Rsh & E' & Wsh & E).
-      rewrite E in j0.
-      if_tac [e|ne] in E.
-      + inv j0; pfulltac.
-        constructor.
-      + inv j0; pfulltac.
-        constructor.
-    - specialize (Hsame (b, ofs) nr).
-      specialize (V b ofs); simpl in V.
-      destruct (phi @ (b, ofs)) as [ ? | ? ? [ | | | ] | ] eqn:E1; simpl in *; auto.
-      + intros i ii; specialize (V i ii).
-        if_tac [ri|nri]; simpl; try congruence. exfalso.
-        specialize (Hchanged (b, ofs + i) ri).
-        destruct Hchanged as (shi & Rshi & Ei' & Wshi & Ei).
-        if_tac in Ei.
-        * subst loc.
-          eapply resource_at_join with (loc := (b, ofs + i)) in j.
-          rewr (phi1 @ (b, ofs + i)) in j.
-          inv j; rewr (phi @ (b, ofs + i)) in V; simpl in V; congruence.
-        * eapply resource_at_join with (loc := (b, ofs + i)) in j.
-          rewr (phi1 @ (b, ofs + i)) in j.
-          inv j; rewr (phi @ (b, ofs + i)) in V; simpl in V.
-          -- destruct loc as (b', ofs'). destruct ri as [<- ri]. simpl in *.
-             assert (Hi : ofs + i - ofs' = i) by congruence.
-             assert (ofs' = ofs) by omega. subst ofs'.
-             apply nr. split. auto. split. omega. omega.
-          -- destruct loc as (b', ofs'). destruct ri as [<- ri]. simpl in *.
-             assert (Hi : ofs + i - ofs' = i) by congruence.
-             assert (ofs' = ofs) by omega. subst ofs'.
-             apply nr. split. auto. split. omega. omega.
-      + pose proof V as V''. destruct V'' as (n & rn & Ez). exists n; split; auto.
-        if_tac [rz|nrz]; simpl; try congruence. exfalso.
-        specialize (Hchanged (b, ofs - z) rz).
-        destruct Hchanged as (shi & Rshi & Ei' & Wshi & Ei).
-        if_tac in Ei.
-        * subst loc. apply nr. split; auto. split. omega. cut (n = length). omega.
-          eapply resource_at_join with (loc := (b, ofs - z)) in j.
-          rewr (phi1 @ (b, ofs - z)) in j.
-          inv j; destruct (phi @ (b, ofs - z)) as [ ? | ? ? [ | | | ] | ] eqn:E'; simpl in *; breakhyps.
-        * eapply resource_at_join with (loc := (b, ofs - z)) in j.
-          rewr (phi1 @ (b, ofs - z)) in j.
-          destruct (phi @ (b, ofs - z)) as [ ? | ? ? [ | | | ] | ] eqn:E'; simpl in *; auto.
-          all: inv j; simpl in *; breakhyps.
-  }
 
   specialize (Hphi' (level phi1)).
 
@@ -793,11 +642,7 @@ Proof.
         destruct Hchanged as (sh & Rsh & E' & Wsh & E).
         rewrite E in j. rewrite E'.
         rewrite L1 in *.
-        if_tac [e|ne] in E.
-        * inv j.
-          -- constructor. auto.
-          -- pfulltac.
-        * inv j.
+        inv j.
           -- constructor. auto.
           -- pfulltac.
       + specialize (Hsame x nr).
@@ -819,15 +664,7 @@ Proof.
     rewrite E in j.
     rewrite E' in j'.
     rewrite L1 in *.
-    if_tac [e|ne].
-    * inv j; inv j'; try solve [pfulltac].
-      eexists; eexists; split; eauto; split; eauto.
-      eapply join_writable1; eauto. 
-      rewrite <- H in H5. inversion H5; subst.
-      assert (sh4 = sh3) by (eapply join_eq; eauto).
-      subst. f_equal. apply proof_irr.
-      clear RJ0; exfalso; eapply join_writable_readable; eauto.
-    * inv j; inv j'; try solve [pfulltac].
+    inv j; inv j'; try solve [pfulltac].
       eexists; eexists; split; eauto; split; eauto.
       eapply join_writable1; eauto. 
       rewrite <- H in H5. inversion H5; subst.
@@ -846,9 +683,7 @@ enough *)
 Definition LKspec_ext (R: pred rmap) lksize : spec :=
    fun (sh: Share.t) (l: AV.address)  =>
     allp (jam (adr_range_dec l lksize)
-              (jam (eq_dec l)
-                   (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lksize) sh)
-                   (CTat l sh))
+              (fun l' => yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lksize (snd l' - snd l)) sh l')
               (fun _ => TT)).
 
 Definition LK_at R lksize sh :=
@@ -870,56 +705,6 @@ Proof.
 
   pose proof make_rmap (makelock_f phi (b, Ptrofs.unsigned ofs) R (size_chunk Mptr * length))  (ghost_of phi) as Hphi'.
 
-  assert_specialize Hphi'. {
-    intros b' ofs'.
-    remember (size_chunk Mptr * length) as n.
-    clear Hphi'.
-    unfold "oo", makelock_f in *.
-    change compcert_rmaps.R.AV.valid with AV.valid in *.
-    change compcert_rmaps.R.res_option with res_option in *.
-    change compcert_rmaps.R.resource_fmap with resource_fmap in *.
-    change compcert_rmaps.R.resource_at with resource_at in *.
-    change compcert_rmaps.R.approx with approx in *.
-    (* pose proof Hbefore (b, Ptrofs.unsigned ofs) as E1. *)
-    if_tac [r|nr].
-    - pose proof Hbefore as E1.
-      specialize (E1 (b', ofs')).
-      if_tac in E1; [|tauto].
-      destruct E1 as (v, ->).
-      if_tac [e|ne]; simpl.
-      + intros i ri.
-        injection e as -> ->.
-        if_tac [?|nri].
-        * specialize (Hbefore (b, Ptrofs.unsigned ofs + i)).
-          if_tac in Hbefore; [|tauto].
-          destruct Hbefore as (v', ->).
-          if_tac [ei|nei]; simpl; auto.
-          -- injection ei as Ei. omega.
-          -- repeat f_equal. omega.
-        * exfalso.
-          apply nri; split; auto.
-          omega.
-      + exists n. split.
-        * unfold adr_range in *.
-          destruct r as (<-, r).
-          assert (ofs' <> Ptrofs.unsigned ofs) by congruence.
-          omega.
-        * unfold adr_range in *.
-          destruct r as (<-, r).
-          replace (ofs' - (ofs' - Ptrofs.unsigned ofs)) with (Ptrofs.unsigned ofs) by omega.
-          specialize (Hbefore (b, Ptrofs.unsigned ofs)).
-          unfold Ptrofs.unsigned in *.
-          if_tac. 2:now range_tac.
-          destruct Hbefore as (v', ->).
-          if_tac; simpl. easy.
-          congruence.
-    - specialize (Hbefore (b', ofs')).
-      if_tac in Hbefore.
-      tauto.
-      apply empty_NO in Hbefore.
-      breakhyps; rewr (phi @ (b', ofs')); simpl; auto.
-  }
-
   specialize (Hphi' (level phi)).
 
   assert_specialize Hphi'. {
@@ -927,7 +712,7 @@ Proof.
     unfold "oo", makelock_f in *.
     extensionality x.
     pose proof resource_at_approx phi x.
-    if_tac; [if_tac | ]; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
+    if_tac; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
     unfold pack_res_inv in *; simpl.
     do 2 f_equal.
     extensionality tt.
@@ -961,16 +746,11 @@ Proof.
     rewrite Ephi'. unfold makelock_f.
     if_tac. 2:easy.
     destruct Hbefore as (v, ->).
-    if_tac; subst.
-    + eexists.
-      if_tac. 2:tauto.
+     eexists.
       f_equal.
       symmetry.
       unfold pack_res_inv.
       rewrite Hlev; reflexivity.
-    + eexists.
-      if_tac. congruence.
-      f_equal.
 Qed.
 
 Lemma nat_of_Z_nonzero z n: n <> O -> nat_of_Z z = n -> z = Z.of_nat n.
@@ -997,27 +777,6 @@ Proof.
 
   pose proof make_rmap (freelock_f phi m (b, Ptrofs.unsigned ofs) LKSIZE) (ghost_of phi) as Hphi'.
   unfold LKSIZE in *.
-  assert_specialize Hphi'. {
-    intros b' ofs'.
-    clear Hphi'.
-    unfold "oo", freelock_f in *.
-    change compcert_rmaps.R.AV.valid with AV.valid in *.
-    change compcert_rmaps.R.res_option with res_option in *.
-    change compcert_rmaps.R.resource_fmap with resource_fmap in *.
-    change compcert_rmaps.R.resource_at with resource_at in *.
-    change compcert_rmaps.R.approx with approx in *.
-    (* pose proof Hbefore (b, Ptrofs.unsigned ofs) as E1. *)
-    if_tac [r|nr].
-    - pose proof Hli as E1.
-      unfold lock_inv in *.
-      specialize (E1 (b', ofs')). simpl in E1.
-      if_tac in E1. 2:tauto.
-      if_tac [e|ne] in E1; destruct E1 as (p, ->); constructor.
-    - specialize (Hli (b', ofs')). simpl in Hli.
-      if_tac [r'|nr'] in Hli. tauto.
-      apply identity_NO in Hli.
-      destruct Hli as [-> | (? & ? & ->)]; simpl; constructor.
-  }
 
   specialize (Hphi' (level phi)).
 
@@ -1043,16 +802,11 @@ Proof.
       if_tac. 2:tauto.
       specialize (Hli x). simpl in Hli.
       if_tac in Hli. 2:tauto.
-      if_tac in Hli; destruct Hli as (p, ->); simpl.
-      * exists sh, (writable_readable_share Hwritable); repeat split; auto; f_equal.
+      destruct Hli as (p, ->); simpl.
+      exists sh, (writable_readable_share Hwritable); repeat split; auto; f_equal.
         -- apply proof_irr.
-        -- if_tac; f_equal; try apply proof_irr;
+        -- f_equal; try apply proof_irr;
            try congruence.
-      * exists sh, (writable_readable_share Hwritable); repeat split; auto; f_equal.
-        -- apply proof_irr.
-        -- if_tac; f_equal; try apply proof_irr;
-             try congruence.
-           
   - rewrite data_at__memory_block.
     split.
     + repeat split.
@@ -1073,7 +827,7 @@ Proof.
       rewrite (Z.mul_comm 2) in *.
       intro b0; specialize (Hli b0); simpl in Hli.
       rewrite <- size_chunk_Mptr; if_tac; auto.
-      if_tac in Hli; destruct Hli as [? ->]; eauto.
+      destruct Hli as [? ->]; eauto.
       { apply Ptrofs.unsigned_range. }
       { simpl.
         rewrite <- size_chunk_Mptr; omega. }
@@ -1088,13 +842,10 @@ Proof.
   apply rmap_ext; try congruence.
   intros x.
   destruct (adr_range_dec loc len x) as [r | nr].
-  - specialize (in1 x r). specialize (in2 x r). if_tac in in1; breakhyps.
+  - specialize (in1 x r). specialize (in2 x r). breakhyps.
     + subst.
-      rewrite H0 in H3; inversion H3; subst.
-      rewrite H5, H2. f_equal; apply proof_irr.
-    + subst.
-      rewrite H0 in H3; inversion H3; subst.
-      rewrite H5, H2. f_equal; apply proof_irr.
+      rewrite H in H2; inversion H2; subst.
+      rewrite H4, H1. f_equal; apply proof_irr.
   - specialize (out1 x nr). specialize (out2 x nr). congruence.
 Qed.
 
@@ -1107,13 +858,10 @@ Proof.
   apply rmap_ext; try congruence.
   intros x.
   destruct (adr_range_dec loc len x) as [r | nr].
-  - specialize (in1 x r). specialize (in2 x r). if_tac in in1; breakhyps.
+  - specialize (in1 x r). specialize (in2 x r). breakhyps.
     + subst.
-      rewrite H2 in H5; inversion H5; subst.
-      rewrite H0, H3. f_equal; apply proof_irr.
-    + subst.
-      rewrite H2 in H5; inversion H5; subst.
-      rewrite H0, H3. f_equal; apply proof_irr.
+      rewrite H1 in H4; inversion H4; subst.
+      rewrite H, H2. f_equal; apply proof_irr.
   - specialize (out1 x nr). specialize (out2 x nr). congruence.
 Qed.
 
@@ -1126,7 +874,7 @@ Proof.
   intros (lev & before & after & g); intros l.
   destruct (adr_range_dec loc length l) as  [r|n].
   - specialize (after l r).
-    destruct after as (sh & Psh & -> & Hw & ->). if_tac; intros; split; congruence.
+    destruct after as (sh & Psh & -> & Hw & ->). intros; split; congruence.
   - specialize (before l n). rewrite before. tauto.
 Qed.
 
@@ -1136,7 +884,7 @@ Lemma rmap_makelock_pures_same phi phi' loc R length :
 Proof.
   intros (lev & before & after & g); intros l.
   destruct (adr_range_dec loc length l) as  [r|n].
-  - specialize (after l r). destruct after as (val & sh & Psh & -> & ? & ->). if_tac; intros; split; congruence.
+  - specialize (after l r). destruct after as (val & sh & Psh & -> & ? & ->). intros; split; congruence.
   - specialize (before l n). rewrite before. tauto.
 Qed.
 
@@ -1184,22 +932,7 @@ apply exist_ext.
 rewrite H. auto.
 Qed.
 
-Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) (ghost_of phi) _ (level phi) _ _).
-Next Obligation.
-  pose proof juicy_mem.phi_valid phi as V.
-  intros b ofs. specialize (V b ofs).
-  unfold getYES_aux, "oo" in *.
-  destruct (phi @ _); simpl in *; auto.
-  destruct k; auto.
-  - intros i ri; specialize (V i ri). destruct (phi @ _); try inversion V; subst.
-    simpl; f_equal; f_equal.
-    apply readable_part_glb; auto.
-  - destruct (phi @ _); auto;
-      try solve [destruct V as [n0 [? H0]]; inv H0].
-     destruct V as [n0 [? ?]]; inv H0.
-     exists n0; split; auto. simpl.
-     f_equal; f_equal; apply exist_ext. rewrite H2; auto.
-Qed.
+Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) (ghost_of phi) (level phi) _ _).
 Next Obligation.
   pose proof resource_at_approx phi as V.
   extensionality l. specialize (V l).
@@ -1211,13 +944,7 @@ Next Obligation.
   apply ghost_of_approx.
 Qed.
 
-Program Definition getNO (phi : rmap) := proj1_sig (make_rmap (getNO_aux phi) (core (ghost_of phi)) _ (level phi) _ _).
-Next Obligation.
-  pose proof juicy_mem.phi_valid phi as V.
-  intros b ofs. specialize (V b ofs).
-  unfold getNO_aux, "oo" in *.
-  destruct (phi @ _); simpl in *; auto.
-Qed.
+Program Definition getNO (phi : rmap) := proj1_sig (make_rmap (getNO_aux phi) (core (ghost_of phi)) (level phi) _ _).
 Next Obligation.
   pose proof resource_at_approx phi as V.
   extensionality l. specialize (V l).

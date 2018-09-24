@@ -12,7 +12,7 @@ Require Import VST.concurrency.common.Asm_event.
 Require Import VST.concurrency.common.dry_context.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import VST.msl.Coqlib2.
 
 Set Bullet Behavior "None".
@@ -295,7 +295,7 @@ Module X86SEMAxioms.
         assert (Memory.Mem.valid_block m'' b). {
           apply mem_step_nextblock in H1_.
           unfold Memory.Mem.valid_block in *.
-          eapply Plt_le_trans; eauto.
+          eapply Pos.lt_le_trans; eauto.
         }
         erewrite IHmem_step1 by auto. apply IHmem_step2; auto.
         contradict H0.

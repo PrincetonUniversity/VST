@@ -349,22 +349,22 @@ destruct Delta; simpl in *.
 unfold temp_types in *. simpl in *.
 specialize (H1 i).
 destruct (tyc_temps ! i); try (contradiction H0).
-destruct p. destruct (H1 _ _ (eq_refl _)) as [v [? ?]]. clear H1.
+destruct (H1 _ (eq_refl _)) as [v ?]. clear H1.
+destruct H.
 rewrite H.
 simpl in H0.
 destruct (is_neutral_cast t0 t) eqn:?.
-destruct b; inv H0;
-intuition;
-try solve [symmetry in Heqb0; eapply neutral_cast_subsumption; eauto].
-simpl in H0. rewrite H in H0. inv H0.
-auto.
-destruct (same_base_type t0 t) eqn:?; [ | inv H0].
-simpl in H0.
-destruct b; inv H0;
-intuition;
-try solve [eapply same_base_tc_val; eauto].
-simpl in H0. rewrite H in H0. inv H0.
-auto.
++ simpl in H0.
+  rewrite H in H0.
+  destruct H0 as [? [? ?]].
+  inv H0.
+  symmetry in Heqb; eapply neutral_cast_subsumption; eauto.
++ destruct (same_base_type t0 t) eqn:?; [ | inv H0].
+  simpl in H0.
+  rewrite H in H0.
+  destruct H0 as [? [? ?]].
+  inv H0.
+  eapply same_base_tc_val; eauto.
 Qed.
 
 Lemma typecheck_deref_sound:

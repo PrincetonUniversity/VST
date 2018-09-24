@@ -55,12 +55,7 @@ Definition perm_of_res_lock_explicit
     match r with
     | compcert_rmaps.RML.R.NO _ _ => None
     | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ => None
-    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _) _ =>
-      if writable_share_dec (Share.glb Share.Rsh sh)
-      then if eq_dec (Share.glb Share.Rsh sh) Share.top then Some Freeable else Some Writable
-      else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
-             if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
-    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.CT _) _ => 
+    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _ _) _ =>
       if writable_share_dec (Share.glb Share.Rsh sh)
       then if eq_dec (Share.glb Share.Rsh sh) Share.top then Some Freeable else Some Writable
       else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
@@ -84,8 +79,7 @@ Definition perm_of_res' (r: resource) :=
 Definition perm_of_res_lock (r: resource) := 
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
- | YES sh rsh (LK _) _ => perm_of_sh (Share.glb Share.Rsh sh)
- | YES sh rsh (CT _) _ => perm_of_sh (Share.glb Share.Rsh sh)
+ | YES sh rsh (LK _ _) _ => perm_of_sh (Share.glb Share.Rsh sh)
  | _ => None 
  end.
 (*To do a case analysis over perm_of_res_lock, use:
@@ -102,8 +96,7 @@ Definition perm_of_res_explicit
                if readable_share_dec sh
                then Some Readable
                else if eq_dec sh Share.bot then None else Some Nonempty
-           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _) _ => Some Nonempty
-           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.CT _) _ => Some Nonempty
+           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _ _) _ => Some Nonempty
            | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => Some Nonempty
            | compcert_rmaps.RML.R.PURE _ _ => Some Nonempty
         end.
@@ -191,7 +184,6 @@ Proof.
   destruct r; simpl; auto.
   - if_tac; constructor.
   - destruct k; try solve [destruct (perm_of_sh sh); constructor].
-   +
     unfold perm_of_sh.
     if_tac. if_tac.
     repeat if_tac; constructor.
@@ -200,20 +192,6 @@ Proof.
     apply writable_share_glb_Rsh; auto.
     rewrite if_true by auto.
     rewrite if_false. rewrite if_true. constructor.
-    unfold readable_share. rewrite glb_twice; auto.
-    contradict H. unfold writable_share in *. eapply join_sub_trans; eauto.
-    apply leq_join_sub. apply Share.glb_lower2.
-   +
-    unfold perm_of_sh.
-    if_tac. if_tac.
-    rewrite if_true by apply (writable_share_glb_Rsh H).
-    subst.
-    rewrite if_false by apply glb_Rsh_not_top. constructor.
-    rewrite if_true by (apply writable_share_glb_Rsh; auto).
-    rewrite if_false by apply glb_Rsh_not_top. constructor.
-    rewrite if_true by auto.
-    rewrite if_false.
-    rewrite if_true. constructor.
     unfold readable_share. rewrite glb_twice; auto.
     contradict H. unfold writable_share in *. eapply join_sub_trans; eauto.
     apply leq_join_sub. apply Share.glb_lower2.
@@ -327,21 +305,6 @@ Proof.
 intros.
 simpl in H.
 destruct (phi@loc); eauto 50.
-Qed.
-
-Lemma VAL_valid:
- forall (f: address -> option (rshare*kind)),
-   (forall l sh k, f l = Some (sh,k) -> isVAL k) ->
-   AV.valid f.
-Proof.
-intros.
-intros b ofs.
-case_eq (f (b,ofs)); intros; auto.
-destruct p.
-specialize (H _ _ _ H0).
-destruct k; solve [
-    auto
-  | inversion H ].
 Qed.
 
 Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
@@ -645,38 +608,38 @@ Definition fmap_option {A B} (v: option A) (m: B) (f: A -> B): B :=
     | Some v' => f v'
   end.
 
-Lemma resource_at_make_rmap: forall f g V lev H Hg, resource_at (proj1_sig (make_rmap f g V lev H Hg)) = f.
-refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+Lemma resource_at_make_rmap: forall f g lev H Hg, resource_at (proj1_sig (make_rmap f g lev H Hg)) = f.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj _ (conj RESOURCE_AT _) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma resource_at_remake_rmap: forall f g V lev H Hg, resource_at (proj1_sig (remake_rmap f g V lev H Hg)) = f.
-refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+Lemma resource_at_remake_rmap: forall f g lev H Hg, resource_at (proj1_sig (remake_rmap f g lev H Hg)) = f.
+refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                            | conj _ (conj RESOURCE_AT _) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma ghost_of_make_rmap: forall f g V lev H Hg, ghost_of (proj1_sig (make_rmap f g V lev H Hg)) = g.
-refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+Lemma ghost_of_make_rmap: forall f g lev H Hg, ghost_of (proj1_sig (make_rmap f g lev H Hg)) = g.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma ghost_of_remake_rmap: forall f g V lev H Hg, ghost_of (proj1_sig (remake_rmap f g V lev H Hg)) = g.
-refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+Lemma ghost_of_remake_rmap: forall f g lev H Hg, ghost_of (proj1_sig (remake_rmap f g lev H Hg)) = g.
+refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                            | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
                          end).
 Qed.
 
-Lemma level_make_rmap: forall f g V lev H Hg, @level rmap _ (proj1_sig (make_rmap f g V lev H Hg)) = lev.
-refine (fun f g V lev H Hg => match proj2_sig (make_rmap f g V lev H Hg) with
+Lemma level_make_rmap: forall f g lev H Hg, @level rmap _ (proj1_sig (make_rmap f g lev H Hg)) = lev.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj LEVEL _ => LEVEL
                          end).
 Qed.
 
-Lemma level_remake_rmap: forall f g V lev H Hg, @level rmap _ (proj1_sig (remake_rmap f g V lev H Hg)) = lev.
-refine (fun f g V lev H Hg => match proj2_sig (remake_rmap f g V lev H Hg) with
+Lemma level_remake_rmap: forall f g lev H Hg, @level rmap _ (proj1_sig (remake_rmap f g lev H Hg)) = lev.
+refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
                            | conj LEVEL _ => LEVEL
                          end).
 Qed.
@@ -684,9 +647,6 @@ Qed.
 (* Here we build the [rmap]s that correspond to [store]s, [alloc]s and [free]s on the dry memory. *)
 Section inflate.
 Variables (m: mem) (phi: rmap).
-
-Lemma phi_valid: compcert_rmaps.R.AV.valid (res_option oo resource_at phi).
-Proof. unfold valid; apply rmap_valid. Qed.
 
 Definition inflate_initial_mem' (w: rmap) (loc: address) :=
    match access_at m loc Cur with
@@ -702,7 +662,7 @@ Lemma inflate_initial_mem'_fmap:
  forall w, resource_fmap (approx (level w)) (approx (level w)) oo inflate_initial_mem' w =
                 inflate_initial_mem' w.
 Proof.
-unfold valid, CompCert_AV.valid, compose.
+unfold compose.
 intros.
 unfold inflate_initial_mem'.
 extensionality loc.
@@ -713,17 +673,8 @@ rewrite <- level_core.
   rewrite <- H. rewrite level_core. apply resource_at_approx.
 Qed.
 
-Lemma inflate_initial_mem'_valid:
-  forall lev, CompCert_AV.valid (res_option oo inflate_initial_mem' lev).
-Proof.
-unfold valid, CompCert_AV.valid, compose, inflate_initial_mem'.
-intros lev b ofs.
-destruct (access_at m (b, ofs)); try destruct p; simpl; auto.
- case_eq (lev @ (b,ofs)); intros; simpl; auto.
-Qed.
-
 Definition inflate_initial_mem (w: rmap): rmap :=
-    proj1_sig (make_rmap (inflate_initial_mem' w) (ghost_of w) (inflate_initial_mem'_valid w) _
+    proj1_sig (make_rmap (inflate_initial_mem' w) (ghost_of w) _
             (inflate_initial_mem'_fmap w) (ghost_of_approx w)).
 
 Lemma inflate_initial_mem_level: forall w, level (inflate_initial_mem w) = level w.
@@ -762,30 +713,9 @@ Definition inflate_alloc: rmap.
       end))
 
   (* phi = YES *)
-  (fun _ => phi @ loc)) (ghost_of phi) _ (level phi) _ (ghost_of_approx phi))).
+  (fun _ => phi @ loc)) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
 Proof.
-pose proof phi_valid as VALID.
-unfold valid, CompCert_AV.valid in *.
-unfold compose in *.
-intros b ofs.
-specialize VALID with b ofs.
-unfold fmap_option.
-destruct (phi @ (b, ofs)); simpl in *; auto.
-destruct (access_at m (b, ofs)); simpl in *; auto.
-destruct p; simpl in *; auto.
-destruct k; simpl in *; auto.
-intros i H.
-specialize (VALID i H).
-destruct (phi @ (b, ofs + i)); simpl in *; auto; try discriminate.
-destruct VALID as [n [H H0]].
-exists n.
-split; auto.
-destruct (phi @ (b, ofs - z)); simpl in *; auto; try discriminate.
-
-(* NO *)
-destruct (access_at m (b, ofs)); simpl; auto. destruct p0; simpl; auto.
-
-(* YES *)
+hnf; auto.
 intro.
 case_eq (phi @ l); simpl; intros; auto.
 case_eq (access_at m l Cur); simpl; intros; auto.
@@ -814,28 +744,9 @@ proj1_sig (make_rmap (fun loc =>
     | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m loc)) NoneP
     | YES _ _ _ _ => resource_fmap (approx (level phi)) (approx (level phi)) (phi @ loc)
     | _ => phi @ loc
-  end) (ghost_of phi) _ (level phi) _ (ghost_of_approx phi))).
+  end) (ghost_of phi) (level phi) _ (ghost_of_approx phi))).
 Proof.
-pose proof phi_valid as VALID.
-unfold valid, CompCert_AV.valid in *.
-unfold compose in *.
-intros b ofs.
-specialize VALID with b ofs.
-remember (phi @ (b, ofs)) as HPHI.
-destruct HPHI; simpl; auto.
-destruct k; simpl in *; auto.
-intros i H1.
-specialize VALID with i.
-destruct (phi @ (b, ofs + i)); auto.
-destruct k; simpl; auto.
-simpl in VALID.
-assert (H2 := VALID H1).
-inv H2.
-destruct VALID as [n [H1 H0]].
-exists n.
-split; auto.
-destruct (phi @ (b, ofs - z)); simpl in *; auto.
-inversion H0; subst; auto.
+hnf; auto.
 
 unfold compose.
 extensionality l.
@@ -1353,28 +1264,8 @@ Definition inflate_free: rmap. refine (
 proj1_sig (make_rmap (fun loc =>
   if adr_range_dec (b,lo) (hi-lo) loc then NO Share.bot bot_unreadable else m_phi jm @ loc)
     (ghost_of (m_phi jm))
-     _ (level (m_phi jm)) _ (ghost_of_approx (m_phi jm)))).
+     (level (m_phi jm)) _ (ghost_of_approx (m_phi jm)))).
 Proof.
-* (* AV.valid *)
-pose proof (phi_valid (m_phi jm)) as VALID.
-intros b' ofs'.
-specialize (VALID b' ofs').
-unfold compose in *; simpl in *.
-if_tac; [simpl; now auto | ].
-destruct (m_phi jm @ (b', ofs')) eqn:?; try destruct k; simpl in *; auto.
- +
- intros. specialize (VALID _ H0).
- if_tac; [ | now auto].
- destruct H1; subst b'.
- specialize (PERM (ofs'+i)).  spec PERM; [omega | ].
- destruct (m_phi jm @ (b, ofs' + i)); inv  VALID. inv PERM.
- +
- destruct VALID as [n [? ?]]; exists n; split; auto.
- if_tac; auto.
- destruct H2; subst b'.
- specialize (PERM (ofs'-z)).  spec PERM; [omega | ].
- destruct (m_phi jm @ (b, ofs' -z)); inv  H1. inv PERM.
-*
 unfold compose.
 extensionality l.
 destruct l as (b', ofs').
@@ -1477,29 +1368,6 @@ unfold adr_range; intros.
 destruct H; auto.
 Qed.
 
-Lemma after_alloc'_valid : forall lo hi b phi H,
-  AV.valid (res_option oo after_alloc' lo hi b phi H).
-Proof.
-intros; hnf; intros.
-unfold compose, after_alloc'.
-if_tac; simpl; auto.
-case_eq (phi @ (b0, ofs)); intros; simpl; auto.
-generalize (rmap_valid phi). intro H4.
-unfold AV.valid, compose in H4.
-specialize ( H4 b0 ofs).
-rewrite H1 in H4; simpl in H4.
-destruct k; auto.
-intros.
-if_tac.
-assert (b = b0) by (eapply adr_range_eq_block; eauto).
-subst. congruence.
-auto.
-destruct H4 as [? [? ?]]; eexists; split; eauto.
-if_tac; eauto.
-assert (b = b0) by (eapply adr_range_eq_block; eauto).
-subst. congruence.
-Qed.
-
 Lemma after_alloc'_ok : forall lo hi b phi H,
   resource_fmap (approx (level phi)) (approx (level phi)) oo (after_alloc' lo hi b phi H)
   = after_alloc' lo hi b phi H.
@@ -1520,7 +1388,6 @@ Qed.
 Definition after_alloc
   (lo hi: Z) (b: block) (phi: rmap)(H: forall ofs, phi @ (b,ofs) = NO Share.bot bot_unreadable) : rmap :=
   proj1_sig (make_rmap (after_alloc' lo hi b phi H) (ghost_of phi)
-    (after_alloc'_valid lo hi b phi H)
     (level phi)
     (after_alloc'_ok lo hi b phi H) (ghost_of_approx phi)).
 
@@ -1529,19 +1396,6 @@ Definition mod_after_alloc' (phi: rmap) (lo hi: Z) (b: block)
     if adr_range_dec (b,lo) (hi-lo) loc 
       then YES Share.top readable_share_top (VAL Undef) NoneP
       else core phi @ loc.
-
-Lemma mod_after_alloc'_valid : forall phi lo hi b,
-  AV.valid (res_option oo mod_after_alloc' phi lo hi b).
-Proof.
-intros; hnf; intros.
-unfold compose, mod_after_alloc'.
-if_tac; simpl; auto.
-rewrite <- core_resource_at.
-destruct (phi @ (b0,ofs)).
-rewrite core_NO; simpl; auto.
-rewrite core_YES; simpl; auto.
-rewrite core_PURE; simpl; auto.
-Qed.
 
 Lemma mod_after_alloc'_ok : forall phi lo hi b,
   resource_fmap (approx (level phi)) (approx (level phi)) oo (mod_after_alloc'  phi lo hi b)
@@ -1558,7 +1412,6 @@ Qed.
 
 Definition mod_after_alloc (phi: rmap) (lo hi: Z) (b: block) :=
   proj1_sig (make_rmap (mod_after_alloc' phi lo hi b) (ghost_of phi)
-    (mod_after_alloc'_valid phi lo hi b)
     _
     (mod_after_alloc'_ok phi lo hi b) (ghost_of_approx phi)).
 
@@ -1587,7 +1440,7 @@ intros.
 rewrite (juicy_mem_access m loc) in H.
 intro. hnf in H0.
 destruct (m_phi m @loc); simpl in *; auto.
-destruct k as [x | | |]; try inv H.
+destruct k as [x | |]; try inv H.
 unfold perm_of_sh in H2.
 if_tac in H2. if_tac in H2; inv H2.
 rewrite if_true in H2 by auto.
@@ -1606,7 +1459,7 @@ rewrite <- (alloc_access_other _ _ _ _ _ H b ofs Cur) by (right; omega).
 apply alloc_result in H.
 subst.
 apply nextblock_access_empty.
-apply Pos.le_ge, Ple_refl.
+apply Pos.le_ge, Pos.le_refl.
 Qed.
 
 Lemma alloc_dry_unchanged_on : forall m1 m2 loc lo hi b0,
@@ -1631,7 +1484,7 @@ destruct (eq_dec b (nextblock m1)).
 subst.
 rewrite invalid_noaccess in H1; [ congruence |].
 contradict H0.
-red in H0. xomega. (*apply Plt_irrefl in H0. contradiction.*)
+red in H0. apply Pos.lt_irrefl in H0. contradiction.
 rewrite PMap.gso by auto.
 auto.
 Qed.
@@ -1872,7 +1725,7 @@ Lemma inflate_free_resource_decay:
           (FREE: free (m_dry jm) b lo hi = Some m')
           (PERM: forall ofs : Z,
              lo <= ofs < hi -> perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable),
-   resource_decay (nextblock (m_dry jm)) (m_phi jm) (inflate_free jm b lo hi PERM).
+   resource_decay (nextblock (m_dry jm)) (m_phi jm) (inflate_free jm b lo hi).
 Proof.
 intros.
 split.

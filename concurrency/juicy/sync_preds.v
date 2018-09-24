@@ -90,15 +90,26 @@ Section Machine.
 
 Context (ge : genv).
 
+Lemma fst_snd0: forall loc: address,
+   (fst loc, (snd loc + 0)%Z) = loc.
+Proof.
+intros.
+ pose proof (LKSIZE_pos). destruct loc; simpl; f_equal; auto. omega.
+Qed.
+
+
 Lemma same_locks_juicyLocks_in_lockSet phi phi' lset :
   same_locks phi phi' ->
   juicyLocks_in_lockSet lset phi ->
   juicyLocks_in_lockSet lset phi'.
 Proof.
-  intros SL IN loc sh psh P n E.
-  destruct (SL loc) as [_ (rsh & sh' & n' & pp & E')].
-  { rewrite E. repeat eexists. }
-  apply (IN loc _ _ _ _ E').
+  intros SL IN loc E.
+  apply (IN loc); intros. specialize (E _ H).
+  destruct E as [sh [psh [P ?]]].
+  specialize (SL (fst loc, (snd loc + i)%Z) LKSIZE i).  destruct SL as [_ SL].
+  rewrite H0 in SL. spec SL; [split; auto|].
+  destruct (phi @ (fst loc, (snd loc + i)%Z)); try destruct k; try contradiction.
+  destruct SL; subst. do 3 eexists; reflexivity.
 Qed.
 
 Lemma lockSet_Writable_lockSet_block_bound m lset  :
@@ -242,17 +253,14 @@ Lemma juicyLocks_in_lockSet_age n (tp : jstate ge) phi :
   juicyLocks_in_lockSet (lset (age_tp_to n tp)) (age_to n phi).
 Proof.
   rewrite lset_age_tp_to.
-  intros L loc sh sh' pp z E.
-  pattern pp in E.
-  pose proof ex_intro _ pp E as H.
-  pattern (age_to n phi) in H.
-  rewrite <-rewrite_age_to in H; swap 1 2.
-  - intros; eapply age1_YES'; auto.
-  - destruct H as (pp', E').
-    specialize (L loc sh sh' pp' z E').
-    exact_eq L; f_equal.
-    symmetry.
-    apply isSome_find_map.
+  intros L loc E.
+  specialize (L loc).
+  spec L. { intros. specialize (E _ H). destruct E as [sh [psh E]]. exists sh, psh.
+   pattern (age_to n phi) in E. apply age_to_ind_opp  in E. auto.
+   intros. 
+  eapply age1_YES'; eauto.
+  }
+  rewrite isSome_find_map; auto.
 Qed.
 
 Lemma lockSet_in_juicyLocks_age n (tp : jstate ge) phi :
@@ -263,10 +271,15 @@ Proof.
   intros L loc E.
   rewrite isSome_find_map in E.
   specialize (L loc E).
-  destruct L as (sh & sh' & L). exists sh, sh'.
+  destruct L as (sh & L). exists sh.
   pattern (age_to n phi).
-  rewrite <-rewrite_age_to. easy.
-  intros; eapply age1_YES'; auto.
+  apply age_to_ind; auto. clear L.
+  intros ? ? ? ? ? ?. specialize (H0 _ H1).
+  destruct H0 as [sh2 [psh2 H0]]. exists sh2, psh2.
+  assert (join_sub sh sh2 /\ exists P, x @ (fst loc, (snd loc + i)%Z) = YES sh2 psh2 (LK LKSIZE i) P).
+  destruct H0 as [P [? ?]]; split; eauto.  clear H0; destruct H2.
+  assert (H3: exists P, y @ (fst loc, (snd loc + i)%Z) = YES sh2 psh2 (LK LKSIZE i) P); [| destruct H3 as [P ?]; exists P; auto].
+  rewrite <- age1_YES'; eauto.
 Qed.
 
 Definition same_except_cur (m m' : Mem.mem) :=
@@ -541,6 +554,7 @@ Proof.
   repeat split; auto; omega.
 Qed.
 
+(*
 Lemma isLKCT_rewrite r :
   (forall sh sh' z P,
       r <> YES sh sh' (LK z) P /\
@@ -551,7 +565,9 @@ Proof.
   - intros H; split; intros (sh & sh' & z & P & E); do 4 autospec H; intuition.
   - intros (A & B). intros sh sh' z P; split; intros ->; eauto 40.
 Qed.
+*)
 
+(*
 Lemma isLK_rewrite r :
   (forall (sh : Share.t) Psh (z : Z) (P : preds), r <> YES sh Psh (LK z) P)
   <->
@@ -562,6 +578,7 @@ Proof.
   intros E; injection E; intros; subst.
   apply H; eauto.
 Qed.
+*)
 
 Lemma isLK_age_to n phi loc : isLK (age_to n phi @ loc) = isLK (phi @ loc).
 Proof.
@@ -575,6 +592,7 @@ Proof.
     apply prop_ext; split; congruence.
 Qed.
 
+(*
 Lemma isCT_age_to n phi loc : isCT (age_to n phi @ loc) = isCT (phi @ loc).
 Proof.
   unfold isCT in *.
@@ -586,6 +604,7 @@ Proof.
   - repeat (f_equal; extensionality).
     apply prop_ext; split; congruence.
 Qed.
+*)
 
 Lemma predat_inj {phi loc R1 R2} :
   predat phi loc R1 ->
@@ -597,8 +616,8 @@ Proof.
   breakhyps.
   rewr (phi @ loc) in H.
   pose proof (YES_inj _ _ _ _ _ _ _ _ H).
-  assert (snd ((x, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
-          snd  (x2, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
+  assert (snd ((x, LK x1 0, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
+          snd  (x2, LK x4 0, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
   simpl in H2.
   apply SomeP_inj in H2.
   pose proof equal_f_dep H2 nil.
@@ -606,7 +625,7 @@ Proof.
 Qed.
 
 Lemma predat1 {phi loc} {R: mpred} {z sh psh} :
-  phi @ loc = YES sh psh (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
+  phi @ loc = YES sh psh (LK z 0) (SomeP rmaps.Mpred (fun _ => R)) ->
   predat phi loc (approx (level phi) R).
 Proof.
   intro E; hnf; eauto.
@@ -622,8 +641,8 @@ Lemma predat2 {phi loc R sh } :
 Proof.
   intros lk; specialize (lk loc); simpl in lk.
   if_tac in lk. 2:range_tac.
-  if_tac in lk. 2:congruence.
-  hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
+  hnf. unfold "oo" in *; simpl in *; destruct lk. 
+  exists sh, x, LKSIZE. rewrite Z.sub_diag in H0. auto.
 Qed.
 
 Lemma predat3 {phi loc R sh} :
@@ -642,8 +661,8 @@ Proof.
   injection E as <- <-.
   specialize (lk (b, Ptrofs.unsigned ofs)); simpl in lk.
   if_tac in lk. 2:range_tac.
-  if_tac in lk. 2:tauto.
   hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
+  exists sh, x, LKSIZE. rewrite Z.sub_diag in H0. auto.
 Qed.
 
 Lemma predat5 {phi loc R} :
@@ -661,7 +680,7 @@ Proof.
   spec H.
   { destruct loc. split; auto; pose proof LKSIZE_pos; omega. }
   destruct H as (sh & rsh & ->).
-  if_tac. 2:tauto.
+  do 3 eexists. rewrite Z.sub_diag; 
   eauto.
 Qed.
 
@@ -694,11 +713,10 @@ Proof.
     pose proof LKSIZE_pos.
     omega.
   }
-  if_tac in lk; [ | tauto ].
   destruct lk as [p lk].
   rewrite lk.
   do 3 eexists.
-  unfold compose.
+  rewrite Z.sub_diag.
   reflexivity.
 Qed.
 
@@ -708,7 +726,7 @@ Proof.
   destruct lk as (sh & rsh & E); exists sh, rsh.
   erewrite age_resource_at; eauto.
   rewrite E.
-  if_tac; simpl; f_equal.
+  simpl; f_equal.
   unfold sync_preds_defs.pack_res_inv in *.
   f_equal. extensionality Ts.
   pose proof approx_oo_approx' (level phi') (level phi) as RR.

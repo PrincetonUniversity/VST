@@ -1426,12 +1426,18 @@ Lemma lseg_nonnull (ls: listspec list_structid list_link list_token):
 Proof.
 intros. unfold nullval.
 apply lseg_neq.
-destruct v; inv H; intuition; try congruence.
-intro.
+unfold typed_true, strict_bool_val in H.
+simpl in H.
+destruct Archi.ptr64 eqn:Hp.
+*
+destruct v; inv H. 
 destruct (Int.eq i Int.zero); inv H1.
-intro.
-apply ptr_eq_e in H.
-inv H.
+destruct (Int64.eq i Int64.zero); inv H1.
+intro; apply ptr_eq_e in H; inv H.
+*
+destruct v; inv H.
+destruct (Int.eq i Int.zero); inv H1.
+intro; apply ptr_eq_e in H; inv H.
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):
@@ -2085,11 +2091,10 @@ Lemma lseg_nonnull (ls: listspec list_structid list_link list_token):
 Proof.
 intros. unfold nullval.
 apply lseg_neq; auto.
-destruct v; inv H0; intuition; try congruence.
-intro. apply ptr_eq_e in H0.
-inv H0.
-destruct (Int.eq i Int.zero); inv H2.
-intro. simpl in H0. auto.
+unfold typed_true, strict_bool_val in H0; simpl in H0.
+destruct Archi.ptr64 eqn:?;
+  destruct v; inv H0;
+  first [ revert H2; simple_if_tac; discriminate | intro Hx; inv Hx]. 
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link list_token):

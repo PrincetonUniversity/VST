@@ -37,7 +37,7 @@ Proof.
   intros.
   rename H1 into H_READABLE; rename H2 into H1.
   eapply semax_pre_post'; [ | | apply semax_load with sh t2; auto].
-  + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
+  + instantiate (1:= PROPx (tc_val (typeof e1) v2 :: P) (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
     eapply derives_trans.
@@ -48,26 +48,37 @@ Proof.
     apply derives_extract_prop; intro.
     apply andp_right.
     apply prop_right; repeat split; try eassumption.
-    instantiate (1:= `v2). assumption.
     apply andp_right.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
-  +
-    intros. apply andp_left2.
+  + intros. apply andp_left2.
     eapply derives_trans.
-    - apply exp_derives; intro old.
-      apply andp_derives; [| apply derives_refl].
-      autorewrite with subst.
-      apply derives_refl.
-    - rewrite <- exp_andp2.
+    - apply andp_right.
+      * apply exp_left; intros.
+        apply andp_left2.
+        rewrite <- insert_prop.
+        autorewrite with subst.
+        apply andp_left1, derives_refl.
+      * apply exp_derives; intro old.
+        rewrite <- insert_prop.
+        autorewrite with subst.
+        apply andp_derives; [| apply andp_left2, derives_refl].
+        autorewrite with subst.
+        apply derives_refl.
+    - apply derives_extract_prop; intro.
+      rewrite <- exp_andp2.
       rewrite <- insert_local.
       apply andp_derives; auto.
       * simpl; unfold local, lift1; unfold_lift.
-        intros; apply prop_derives; congruence.
+        intros; apply prop_derives.
+        intros; split; [congruence |].
+        intro; clear H3; subst; revert H2. apply tc_val_Vundef.
       * apply remove_localdef_temp_PROP.
-  +
-    eapply derives_trans; [apply H1 | clear H1].
-    apply andp_left2. auto.
+  + eapply derives_trans; [eapply derives_trans; [| apply H1] | clear H1].
+    - apply andp_derives; auto.
+      rewrite <- insert_prop.
+      apply andp_left2; auto.
+    - apply andp_left2. auto.
 Qed.
 
 Definition semax_cast_load_37 := @semax_cast_load.
@@ -90,8 +101,8 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
              (SEPx R)))).
 Proof.
   intros until 1. intros HCAST H_READABLE H1. pose proof I.
-  eapply semax_pre_post'; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
-  + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
+  eapply semax_pre_post'; [ | | apply semax_cast_load with (sh0:=sh)(v3:= v2); auto].
+  + instantiate (1:= PROPx (tc_val t1 (force_val (sem_cast (typeof e1) t1 v2)) :: P) (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
     eapply derives_trans.
@@ -105,24 +116,35 @@ Proof.
     apply andp_right.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
-  +
-    intros. apply andp_left2.
+  + intros. apply andp_left2.
     eapply derives_trans.
-    - apply exp_derives; intro old.
-      apply andp_derives; [| apply derives_refl].
-      autorewrite with subst.
-      apply derives_refl.
-    - rewrite <- exp_andp2.
+    - apply andp_right.
+      * apply exp_left; intros.
+        apply andp_left2.
+        rewrite <- insert_prop.
+        autorewrite with subst.
+        apply andp_left1, derives_refl.
+      * apply exp_derives; intro old.
+        rewrite <- insert_prop.
+        autorewrite with subst.
+        apply andp_derives; [| apply andp_left2, derives_refl].
+        autorewrite with subst.
+        apply derives_refl.
+    - apply derives_extract_prop; intro.
+      rewrite <- exp_andp2.
       rewrite <- insert_local.
       apply andp_derives; auto.
       * simpl; unfold local, lift1; unfold_lift.
         intros; apply prop_derives.
-        unfold force_val1.
-        congruence.
+        unfold force_val1 in *.
+        intros; split; [congruence |].
+        intro; clear H3; revert H2; rewrite H4. apply tc_val_Vundef.
       * apply remove_localdef_temp_PROP.
-  +
-    eapply derives_trans; [apply H1 | clear H1].
-    apply andp_left2. auto.
+  + eapply derives_trans; [eapply derives_trans; [| apply H1] | clear H1].
+    - apply andp_derives; auto.
+      rewrite <- insert_prop.
+      apply andp_left2; auto.
+    - apply andp_left2. auto.
 Qed.
 
 (***************************************

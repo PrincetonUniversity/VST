@@ -7,6 +7,7 @@ Require Import VST.floyd.reptype_lemmas.
 Require Import VST.floyd.proj_reptype_lemmas.
 Require Import Coq.Classes.RelationClasses.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.stronger.
 
 Require Import VST.floyd.stronger.
 Section SINGLE_HOLE.

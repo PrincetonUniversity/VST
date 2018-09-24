@@ -114,6 +114,13 @@ Proof.
   - normalize. constructor; auto.
 Qed.
 
+Lemma iter_sepcon_emp': forall (l : list B), (forall x, In x l -> p x = emp) -> iter_sepcon l = emp.
+Proof.
+  induction l; intros; simpl; auto.
+  rewrite H, IHl, sepcon_emp; simpl; auto.
+  intros; apply H; simpl; auto.
+Qed.
+
 Lemma iter_sepcon_emp: forall (l l' : list B), (forall x, p x |-- emp) -> NoDup l' -> incl l' l -> iter_sepcon l |-- iter_sepcon l'.
 Proof.
   intros.
@@ -129,7 +136,7 @@ Proof.
     destruct H2 as [l1 [l2 ?]].
     specialize (IHl' (l1 ++ l2)).
     spec IHl'.
-    Focus 1. {
+    {
       clear - H2 H1 H4.
       intros x ?H.
       specialize (H1 x).
@@ -139,7 +146,7 @@ Proof.
       rewrite in_app_iff.
       assert (a = x -> False) by (intros; subst; tauto).
       tauto.
-    } Unfocus.
+    }
     subst.
     rewrite iter_sepcon_app in *.
     simpl.

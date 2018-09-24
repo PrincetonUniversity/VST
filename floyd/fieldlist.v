@@ -615,12 +615,12 @@ Proof.
   intros.
   apply members_spec_change_composite' in H.
   assert (Forall (fun it: ident * type => field_type (fst it) (co_members (get_co id)) = snd it) (co_members (get_co id))).
-  Focus 1. {
+  1:{
     rewrite Forall_forall.
     intros it ?.
     apply In_field_type; auto.
     apply get_co_members_no_replicate.
-  } Unfocus.
+  }
   revert H0; generalize (co_members (get_co id)) at 1 3.
   induction H as [| [i t] ?]; constructor.
   + inv H1.

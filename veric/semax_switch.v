@@ -53,7 +53,7 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) ! i). {
  rewrite modifiedvars'_union in H|-*.
  destruct H;[left|right]; auto.
 Qed.
-
+(*
 Lemma typecheck_environ_join_switch2:
    forall sl Delta rho,
     typecheck_environ Delta rho ->
@@ -84,7 +84,7 @@ Proof.
  apply typecheck_environ_update in H.
  apply typecheck_environ_join_switch2; auto.
 Qed.
- 
+*) 
 
 Lemma frame_tc_expr:
   forall {CS: compspecs} (Q F: mpred) Delta e rho,
@@ -291,17 +291,15 @@ eapply H0; auto.
 Qed.
 
 Lemma switch_rguard:
- forall (Espec : OracleKind) (a : expr)
-  (sl : labeled_statements)
+ forall (Espec : OracleKind)
   (R : ret_assert)
   (psi : genv)
   (F : assert)
-  (n : int)
   (Delta' : tycontext)
   (k : cont),
- rguard Espec psi (exit_tycon (Sswitch a sl) Delta')
+ rguard Espec psi Delta'
         (frame_ret_assert R F) k |--
-(rguard Espec psi (exit_tycon (seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) Delta')
+(rguard Espec psi  Delta'
    (frame_ret_assert (switch_ret_assert R) F) 
    (Kswitch :: k)).
 Proof.
@@ -329,30 +327,12 @@ apply allp_right; intro vx'.
  apply allp_left with vx'.
  simpl current_function.
  set (rho' := construct_rho (filter_genv psi) vx' tx') in *.
- rewrite !andp_assoc.
- simple apply prop_andp_subp'; intro.
- rewrite prop_true_andp.
-Focus 2. {
- destruct H; split; auto.
-   +
-    subst ek'.
-    destruct ek; simpl in *; auto.
-    eapply typecheck_environ_join_switch1; eauto.
-    apply typecheck_environ_join_switch2; auto.
-   +
-    destruct (current_function k); auto.
-    destruct H0; split; auto. rewrite <- H1.
-    subst ek'. rewrite !ret_type_exit_tycon. auto.
-  } Unfocus.
- rewrite !funassert_exit_tycon.
  forget (funassert Delta' rho') as FDR.
  rewrite !proj_frame_ret_assert.
  simpl.
  apply fash_derives.
  destruct R as [?R ?R ?R ?R]; destruct ek; subst ek' vl'; simpl; auto.
-* apply imp_right. normalize.
-*  normalize; apply imp_derives; auto; rewrite andp_assoc; normalize.
-*  normalize; apply imp_derives; auto; rewrite andp_assoc; normalize.
+ apply imp_right. normalize.
 Qed.
 
 Lemma unfash_fash_imp:
@@ -404,7 +384,7 @@ apply assert_safe_jsafe; auto.
 Qed.
 
 Lemma semax_switch: 
-  forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
+  forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
@@ -427,7 +407,7 @@ rewrite <- andp_assoc;
  rewrite (andp_comm (believe _ _ _ _));
  rewrite andp_assoc;
  apply prop_andp_left; intro.
-unfold guard.
+unfold guard, _guard.
 apply allp_right; intro tx.
 apply allp_right; intro vx.
 rewrite andp_assoc.
@@ -483,14 +463,13 @@ apply andp_derives; [ | apply derives_refl].
 apply andp_derives; [apply derives_refl | ].
 eapply unfash_derives.
 apply switch_rguard.
-instantiate (1:=n).
 eapply derives_trans.
 apply andp_derives; [ | apply derives_refl].
 apply andp_derives; [ | apply derives_refl].
 rewrite unfash_imp.
 rewrite andp_comm.
 apply andp_imp_e.
-unfold guard.
+unfold guard, _guard.
 rewrite unfash_allp. rewrite !(allp_andp tx). apply allp_left with tx.
 rewrite unfash_allp. rewrite !(allp_andp vx). apply allp_left with vx.
 fold rho.
@@ -524,7 +503,7 @@ reflexivity.
 Qed.
 
 Lemma semax_switch_orig: 
-  forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
+  forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,

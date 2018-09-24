@@ -2,6 +2,19 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
+Module Info.
+  Definition version := "3.4"%string.
+  Definition build_number := ""%string.
+  Definition build_tag := ""%string.
+  Definition arch := "x86"%string.
+  Definition model := "32sse2"%string.
+  Definition abi := "standard"%string.
+  Definition bitsize := 32.
+  Definition big_endian := false.
+  Definition source_file := "progs/int_or_ptr.c"%string.
+  Definition normalized := true.
+End Info.
+
 Definition ___builtin_annot : ident := 10%positive.
 Definition ___builtin_annot_intval : ident := 11%positive.
 Definition ___builtin_bswap : ident := 4%positive.
@@ -126,7 +139,9 @@ Definition f_int_or_ptr_to_ptr := {|
 |}.
 
 Definition f_int_to_int_or_ptr := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_x, tuint) :: nil);
   fn_vars := nil;
@@ -136,7 +151,9 @@ Definition f_int_to_int_or_ptr := {|
 |}.
 
 Definition f_ptr_to_int_or_ptr := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tvoid)) :: nil);
   fn_vars := nil;
@@ -215,18 +232,18 @@ Definition f_makenode := {|
 |}.
 
 Definition f_maketree := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_depth, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_r, (talignas 2%N (tptr tvoid))) ::
                (_p, (talignas 2%N (tptr tvoid))) ::
-               (_q, (talignas 2%N (tptr tvoid))) ::
-               (_t'6, (talignas 2%N (tptr tvoid))) ::
+               (_q, (talignas 2%N (tptr tvoid))) :: (_t'6, (tptr tvoid)) ::
                (_t'5, (tptr (Tstruct _tree noattr))) ::
-               (_t'4, (talignas 2%N (tptr tvoid))) ::
-               (_t'3, (talignas 2%N (tptr tvoid))) ::
-               (_t'2, (talignas 2%N (tptr tvoid))) :: (_t'1, tint) :: nil);
+               (_t'4, (tptr tvoid)) :: (_t'3, (tptr tvoid)) ::
+               (_t'2, (tptr tvoid)) :: (_t'1, tint) :: nil);
   fn_body :=
 (Sifthenelse (Ebinop Oeq (Etempvar _depth tint)
                (Econst_int (Int.repr 0) tint) tint)
@@ -239,29 +256,28 @@ Definition f_maketree := {|
             (Ebinop Oadd (Etempvar _t'1 tint) (Econst_int (Int.repr 1) tint)
               tint)))
         (Scall (Some _t'2)
-          (Evar _int_to_int_or_ptr (Tfunction (Tcons tuint Tnil)
-                                     (talignas 2%N (tptr tvoid)) cc_default))
+          (Evar _int_to_int_or_ptr (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                                     cc_default))
           ((Ebinop Oor
              (Ebinop Oshl (Etempvar _t'1 tint) (Econst_int (Int.repr 1) tint)
                tint) (Econst_int (Int.repr 1) tint) tint) :: nil)))
-      (Sset _r (Etempvar _t'2 (talignas 2%N (tptr tvoid)))))
+      (Sset _r (Etempvar _t'2 (tptr tvoid))))
     (Sreturn (Some (Etempvar _r (talignas 2%N (tptr tvoid))))))
   (Ssequence
     (Ssequence
       (Scall (Some _t'3)
-        (Evar _maketree (Tfunction (Tcons tint Tnil)
-                          (talignas 2%N (tptr tvoid)) cc_default))
+        (Evar _maketree (Tfunction (Tcons tint Tnil) (tptr tvoid) cc_default))
         ((Ebinop Osub (Etempvar _depth tint) (Econst_int (Int.repr 1) tint)
            tint) :: nil))
-      (Sset _p (Etempvar _t'3 (talignas 2%N (tptr tvoid)))))
+      (Sset _p (Etempvar _t'3 (tptr tvoid))))
     (Ssequence
       (Ssequence
         (Scall (Some _t'4)
-          (Evar _maketree (Tfunction (Tcons tint Tnil)
-                            (talignas 2%N (tptr tvoid)) cc_default))
+          (Evar _maketree (Tfunction (Tcons tint Tnil) (tptr tvoid)
+                            cc_default))
           ((Ebinop Osub (Etempvar _depth tint) (Econst_int (Int.repr 1) tint)
              tint) :: nil))
-        (Sset _q (Etempvar _t'4 (talignas 2%N (tptr tvoid)))))
+        (Sset _q (Etempvar _t'4 (tptr tvoid))))
       (Ssequence
         (Ssequence
           (Scall (Some _t'5)
@@ -273,14 +289,15 @@ Definition f_maketree := {|
              (Etempvar _q (talignas 2%N (tptr tvoid))) :: nil))
           (Scall (Some _t'6)
             (Evar _ptr_to_int_or_ptr (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       (talignas 2%N (tptr tvoid))
-                                       cc_default))
+                                       (tptr tvoid) cc_default))
             ((Etempvar _t'5 (tptr (Tstruct _tree noattr))) :: nil)))
-        (Sreturn (Some (Etempvar _t'6 (talignas 2%N (tptr tvoid)))))))))
+        (Sreturn (Some (Etempvar _t'6 (tptr tvoid))))))))
 |}.
 
 Definition f_copytree := {|
-  fn_return := (talignas 2%N (tptr tvoid));
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* fn_return := (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+  fn_return := (talignas 2%N (tptr tvoid));  (* this line what we need. *)
   fn_callconv := cc_default;
   fn_params := ((_t, (talignas 2%N (tptr tvoid))) :: nil);
   fn_vars := nil;
@@ -289,9 +306,8 @@ Definition f_copytree := {|
                (_s, (tptr (Tstruct _tree noattr))) :: (_t'6, tint) ::
                (_t'5, (talignas 2%N (tptr tvoid))) ::
                (_t'4, (tptr (Tstruct _tree noattr))) ::
-               (_t'3, (talignas 2%N (tptr tvoid))) ::
-               (_t'2, (talignas 2%N (tptr tvoid))) :: (_t'1, (tptr tvoid)) ::
-               (_t'8, (talignas 2%N (tptr tvoid))) ::
+               (_t'3, (talignas 2%N (tptr tvoid))) :: (_t'2, (talignas 2%N (tptr tvoid))) ::
+               (_t'1, (tptr tvoid)) :: (_t'8, (talignas 2%N (tptr tvoid))) ::
                (_t'7, (talignas 2%N (tptr tvoid))) :: nil);
   fn_body :=
 (Ssequence
@@ -321,7 +337,10 @@ Definition f_copytree := {|
             (Scall (Some _t'2)
               (Evar _copytree (Tfunction
                                 (Tcons (talignas 2%N (tptr tvoid)) Tnil)
-                                (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+                                 cc_default))
               ((Etempvar _t'8 (talignas 2%N (tptr tvoid))) :: nil)))
           (Sset _p (Etempvar _t'2 (talignas 2%N (tptr tvoid)))))
         (Ssequence
@@ -335,7 +354,10 @@ Definition f_copytree := {|
               (Scall (Some _t'3)
                 (Evar _copytree (Tfunction
                                   (Tcons (talignas 2%N (tptr tvoid)) Tnil)
-                                  (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+                             cc_default))
                 ((Etempvar _t'7 (talignas 2%N (tptr tvoid))) :: nil)))
             (Sset _q (Etempvar _t'3 (talignas 2%N (tptr tvoid)))))
           (Ssequence
@@ -349,8 +371,7 @@ Definition f_copytree := {|
                  (Etempvar _q (talignas 2%N (tptr tvoid))) :: nil))
               (Scall (Some _t'5)
                 (Evar _ptr_to_int_or_ptr (Tfunction (Tcons (tptr tvoid) Tnil)
-                                           (talignas 2%N (tptr tvoid))
-                                           cc_default))
+                                           (talignas 2%N (tptr tvoid)) cc_default))
                 ((Etempvar _t'4 (tptr (Tstruct _tree noattr))) :: nil)))
             (Sreturn (Some (Etempvar _t'5 (talignas 2%N (tptr tvoid)))))))))))
 |}.
@@ -400,7 +421,7 @@ Definition f_print := {|
   fn_temps := ((_i, tuint) :: (_q, (tptr (Tstruct _tree noattr))) ::
                (_a, (talignas 2%N (tptr tvoid))) ::
                (_b, (talignas 2%N (tptr tvoid))) :: (_t'3, tint) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, tuint) :: nil);
+               (_t'2, (talignas 2%N (tptr tvoid))) :: (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Scall (Some _t'3)
@@ -472,8 +493,7 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_p, (talignas 2%N (tptr tvoid))) ::
-               (_t'2, (talignas 2%N (tptr tvoid))) ::
+  fn_temps := ((_p, (talignas 2%N (tptr tvoid))) :: (_t'2, (talignas 2%N (tptr tvoid))) ::
                (_t'1, (talignas 2%N (tptr tvoid))) :: nil);
   fn_body :=
 (Ssequence
@@ -481,16 +501,22 @@ Definition f_main := {|
     (Ssequence
       (Scall (Some _t'1)
         (Evar _maketree (Tfunction (Tcons tint Tnil)
-                          (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+      cc_default))
         ((Econst_int (Int.repr 3) tint) :: nil))
       (Sset _p (Etempvar _t'1 (talignas 2%N (tptr tvoid)))))
     (Ssequence
       (Ssequence
         (Scall (Some _t'2)
           (Evar _copytree (Tfunction (Tcons (talignas 2%N (tptr tvoid)) Tnil)
-                            (talignas 2%N (tptr tvoid)) cc_default))
+  (* Workaround for https://github.com/AbsInt/CompCert/issues/256  *)
+  (* (tptr tvoid);   this line printed by clightgen in CompCert 3.4 *)
+      (talignas 2%N (tptr tvoid))  (* this line what we need. *)
+                  cc_default))
           ((Etempvar _p (talignas 2%N (tptr tvoid))) :: nil))
-        (Sset _p (Etempvar _t'2 (talignas 2%N (tptr tvoid)))))
+        (Sset _p (Etempvar _t'2 (tptr tvoid))))
       (Ssequence
         (Scall None
           (Evar _print (Tfunction (Tcons (talignas 2%N (tptr tvoid)) Tnil)

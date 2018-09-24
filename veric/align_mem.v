@@ -284,7 +284,8 @@ Proof.
   + destruct s, i; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
   + destruct s; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
   + destruct f; try solve [exists 0%nat; reflexivity | exists 1%nat; reflexivity | exists 2%nat; reflexivity | exists 3%nat; reflexivity].
-  + exists 2%nat; reflexivity.
+  + simpl. unfold Mptr.
+      destruct Archi.ptr64; [exists 3%nat | exists 2%nat]; reflexivity.
   + simpl.
     auto.
   + exists 0%nat; reflexivity.
@@ -801,7 +802,7 @@ Proof.
   {
     destruct t; simpl in H |- *;
     solve [inv H | rewrite andb_true_iff in H; tauto].
-  } 
+  }
   autorewrite with align in H0.
   auto.
 Qed.
@@ -858,7 +859,7 @@ Proof.
     2: {
       rewrite (andb_comm _ false) in H.
       inv H.
-    } 
+    }
     pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H0) as [co ?].
     pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H1) as [ha ?].
     rewrite H1 in IH; rewrite H2 in H.
@@ -887,10 +888,10 @@ Proof.
   + unfold is_aligned, is_aligned_aux in H, IH.
     Opaque alignof. simpl in H, IH. Transparent alignof.
     destruct (la_env ! id) as [la |] eqn:?H.
-    2: {
+    2:{
       rewrite (andb_comm _ false) in H.
       inv H.
-    } 
+    }
     pose proof proj2 (LA_ENV_COMPL id) (ex_intro _ _ H0) as [co ?].
     pose proof proj1 (HA_ENV_COMPL id) (ex_intro _ _ H1) as [ha ?].
     rewrite H1 in IH; rewrite H2 in H.

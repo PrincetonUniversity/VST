@@ -873,7 +873,7 @@ Proof.
     (g := approx (level (getThreadR cnti))) in HC.
   destruct (join_assoc (join_comm HC) (join_comm Hj')) as (g' & Hg' & HC').
   destruct (join_level _ _ _ Hphi) as [Hl].
-  destruct (make_rmap _ g' (rmap_valid PHI) (level PHI)) as (PHI' & HL' & HR' & ?); subst.
+  destruct (make_rmap (resource_at PHI) g' (level PHI)) as (PHI' & HL' & HR' & ?); subst.
   { extensionality; apply resource_at_approx. }
   { eapply ghost_same_level_gen.
     rewrite <- (ghost_of_approx phi') in Hg'.

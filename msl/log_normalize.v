@@ -68,6 +68,15 @@ apply andp_left1; apply H.
 apply andp_left2; apply H0.
 Qed.
 
+Lemma orp_derives {A} {NA: NatDed A}:
+  forall P Q P' Q': A, P |-- P' -> Q |-- Q' -> P || Q |-- P' || Q'.
+Proof.
+intros.
+apply orp_left.
+apply orp_right1; apply H.
+apply orp_right2; apply H0.
+Qed.
+
 Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
   isCCC: CartesianClosedCat.CCC A derives eq prod expo.
 
@@ -284,14 +293,6 @@ Proof.
 Qed.
 Hint Rewrite @FF_andp @andp_FF : norm.
 
-Lemma orp_comm: forall {A: Type} `{NatDed A} (P Q: A), P || Q = Q || P.
-Proof.
-  intros.
-  apply pred_ext.
-  + apply orp_left; [apply orp_right2 | apply orp_right1]; auto.
-  + apply orp_left; [apply orp_right2 | apply orp_right1]; auto.
-Qed.
-
 Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
 Proof.
   intros.
@@ -463,6 +464,29 @@ Proof.
     apply (allp_left _ v); apply derives_refl.
 Qed.
 
+Lemma distrib_andp_orp: forall {A : Type} {ND : NatDed A} (P Q R : A),
+  (P && Q) || R = (P || R) && (Q || R).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left.
+    - apply andp_right; apply orp_right1; solve_andp.
+    - apply andp_right; apply orp_right2, derives_refl.
+  + rewrite imp_andp_adjoint.
+    apply orp_left.
+    - rewrite <- imp_andp_adjoint.
+      rewrite andp_comm.
+      rewrite imp_andp_adjoint.
+      apply orp_left.
+      * rewrite <- imp_andp_adjoint.
+        rewrite andp_comm.
+        apply orp_right1, derives_refl.
+      * rewrite <- imp_andp_adjoint.
+        apply orp_right2; solve_andp.
+    - rewrite <- imp_andp_adjoint.
+      apply orp_right2; solve_andp.
+Qed.
+    
 Lemma prop_derives {A}{ND: NatDed A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.

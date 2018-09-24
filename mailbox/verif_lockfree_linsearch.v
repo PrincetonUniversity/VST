@@ -995,13 +995,13 @@ Proof.
       forward_if (PROP () (LOCALx (temp _t'2 (vint (if eq_dec i0 Int.zero then 1
         else if eq_dec i0 (Int.repr key) then 1 else 0)) :: Q) (SEPx R))) end.
     { forward.
-      subst; rewrite eq_dec_refl; apply drop_tc_environ. }
+      subst; rewrite eq_dec_refl; apply ENTAIL_refl. }
     { forward.
       destruct (eq_dec i0 Int.zero); [absurd (i0 = Int.repr 0); auto|].
       simpl force_val.
       destruct (eq_dec i0 (Int.repr key)).
-      + subst; rewrite Int.eq_true; apply drop_tc_environ.
-      + rewrite Int.eq_false; [apply drop_tc_environ | auto]. }
+      + subst; rewrite Int.eq_true; apply ENTAIL_refl.
+      + rewrite Int.eq_false; [apply ENTAIL_refl | auto]. }
     assert (Znth i h ([], []) = Znth i h' ([], []) /\
       sublist (i + 1) (Zlength h) h = sublist (i + 1) (Zlength h') h') as (Heq & Hi1).
     { match goal with H : sublist _ _ h = sublist _ _ h' |- _ =>
@@ -1085,7 +1085,7 @@ Proof.
       entailer!.
     + intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert.
       instantiate (1 := EX i : Z, EX h' : list (hist * hist),
         PROP (0 <= i < 20; Forall2 (failed_CAS key) (sublist 0 (i + 1) h) (sublist 0 (i + 1) h');
@@ -1359,7 +1359,7 @@ Proof.
         entailer!.
       * intros.
         unfold exit_tycon, overridePost.
-        destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+        destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
         Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert.
         instantiate (1 := EX i : Z, EX h' : list (hist * hist),
           PROP (0 <= i < 20; Forall2 (failed_load key) (sublist 0 (i + 1) h) (sublist 0 (i + 1) h');

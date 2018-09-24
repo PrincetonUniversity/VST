@@ -119,7 +119,7 @@ Proof.
       + unfold repable_signed; computable.
     - intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert; entailer!. }
   rewrite sublist_same; auto.
   set (available := map (fun x => vint (if eq_dec x b0 then 0 else if in_dec eq_dec x lasts then 0 else 1))
@@ -187,7 +187,7 @@ Proof.
       destruct (in_dec _ _ _); auto; discriminate. }
     intros.
     unfold exit_tycon, overridePost.
-    destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+    destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
     Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert, loop1_ret_assert.
     instantiate (1 := EX i : Z, PROP (0 <= i < B; Znth i available (vint 0) = vint 0;
       forall j : Z, j < i -> Znth j available (vint 0) = vint 0)
@@ -1050,11 +1050,11 @@ Proof.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
         auto.
       destruct (eq_dec (- (1)) (-1)); [|absurd (-1 = -1); auto].
-      apply drop_tc_environ.
+      apply ENTAIL_refl.
     + forward.
       destruct (eq_dec b' (-1)); [subst; contradiction|].
       erewrite upd_Znth_triv with (i0 := i).
-      apply drop_tc_environ.
+      apply ENTAIL_refl.
       * rewrite !Zlength_map, Zlength_upto; auto.
       * rewrite !Znth_map', Znth_upto; [|simpl; unfold N in *; omega].
         rewrite Znth_overflow; [|omega].
@@ -1063,7 +1063,7 @@ Proof.
         contradiction n0; apply Empty_inj; auto.
     + intros.
       unfold exit_tycon, overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       Intros; unfold POSTCONDITION, abbreviate, normal_ret_assert.
       do 2 (apply andp_right; [apply prop_right; auto|]).
       Exists (t' ++ [t]) (h' ++ [vint b']).

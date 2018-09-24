@@ -7,6 +7,8 @@ Set Implicit Arguments.
 Require Import fcf.FCF.
 Require Import fcf.CompFold.
 
+Open Scope list_scope.
+
 Section DistSingle.
 
   Variable A B : Set.
@@ -75,6 +77,19 @@ Section ListHybrid.
     
   Qed.
 
+    
+  Theorem skipn_ge_nil : 
+    forall (A : Type)(ls : list A)(n : nat),
+      n >= length ls ->
+      skipn n ls = nil.
+    
+    induction ls; destruct n; intuition; simpl in *.
+    omega.
+    eapply IHls.
+    omega.
+    
+  Qed.
+
   Theorem G_1_hybrid_eq : 
     Pr[ListHybrid_G c1] == Pr[G_hybrid maxA].
     
@@ -82,19 +97,7 @@ Section ListHybrid.
     comp_skip.
     comp_simp.
     rewrite firstn_ge_all.
-    comp_skip.
-      
-    Theorem skipn_ge_nil : 
-      forall (A : Type)(ls : list A)(n : nat),
-        n >= length ls ->
-        skipn n ls = nil.
-      
-      induction ls; destruct n; intuition; simpl in *.
-      omega.
-      eapply IHls.
-      omega.
-      
-    Qed.
+    comp_skip.     
 
     rewrite skipn_ge_nil.
     eapply comp_spec_eq_impl_eq.
@@ -123,6 +126,7 @@ Section ListHybrid.
       A2 s_A lsB.
 
   Local Open Scope list_scope.
+
   Theorem compMap_unroll : 
     forall (A B : Set)(eqdb : EqDec B)(c : A -> Comp B)(ls : list A)(def : A),
       ls <> nil ->
@@ -130,6 +134,56 @@ Section ListHybrid.
     
     induction ls; intuition; simpl in *.
     comp_skip.
+    
+  Qed.
+
+  Theorem skipn_lt_nil_false : 
+    forall (A : Type)(ls : list A)(n : nat),
+      n < length ls ->
+      skipn n ls = nil ->
+      False.
+    
+    induction ls; intuition; simpl in *.
+    omega.
+    destruct n; simpl in *; intuition.
+    discriminate.
+    eapply IHls; eauto.
+    omega.
+    
+  Qed.
+
+  Theorem hd_skip_eq_nth : 
+    forall (A : Type)(def : A)(ls : list A)(n : nat),
+      hd def (skipn n ls) = nth n ls def.
+    
+    induction ls; destruct n; intuition; simpl in *.
+    eauto.
+    
+  Qed.
+
+  Theorem tl_skipn_eq : 
+    forall (A : Type)(ls : list A)(n : nat),
+      tl (skipn n ls) = skipn (S n) ls.
+    
+    induction ls; intuition; simpl in *.
+    rewrite skipn_nil.
+    trivial.
+    
+    destruct n; simpl in *.
+    trivial.
+    eauto.
+
+  Qed.
+
+  Theorem skipn_gt_nil : 
+    forall (A : Type)(ls : list A)(n : nat),
+      n >= length ls ->
+      skipn n ls = nil.
+    
+    induction ls; destruct n; intuition; simpl in *.
+    omega.
+    eapply IHls; eauto.
+    omega.
     
   Qed.
 
@@ -152,20 +206,6 @@ Section ListHybrid.
     eapply compMap_unroll.
     intuition.
     
-    Theorem skipn_lt_nil_false : 
-      forall (A : Type)(ls : list A)(n : nat),
-        n < length ls ->
-        skipn n ls = nil ->
-        False.
-      
-      induction ls; intuition; simpl in *.
-      omega.
-      destruct n; simpl in *; intuition.
-      discriminate.
-      eapply IHls; eauto.
-      omega.
-      
-    Qed.
     
     eapply skipn_lt_nil_false;
       eauto.
@@ -175,48 +215,15 @@ Section ListHybrid.
     inline_first.
     comp_skip.
 
-    Theorem hd_skip_eq_nth : 
-      forall (A : Type)(def : A)(ls : list A)(n : nat),
-        hd def (skipn n ls) = nth n ls def.
-      
-      induction ls; destruct n; intuition; simpl in *.
-      eauto.
-      
-    Qed.
 
     rewrite hd_skip_eq_nth.
     eapply comp_spec_eq_refl.
     subst.
     inline_first.
 
-    Theorem tl_skipn_eq : 
-      forall (A : Type)(ls : list A)(n : nat),
-        tl (skipn n ls) = skipn (S n) ls.
-      
-      induction ls; intuition; simpl in *.
-      rewrite skipn_nil.
-      trivial.
-      
-      destruct n; simpl in *.
-      trivial.
-      eauto.
-
-    Qed.
     
     rewrite tl_skipn_eq.
     comp_skip.
-
-    Theorem skipn_gt_nil : 
-      forall (A : Type)(ls : list A)(n : nat),
-        n >= length ls ->
-        skipn n ls = nil.
-      
-      induction ls; destruct n; intuition; simpl in *.
-      omega.
-      eapply IHls; eauto.
-      omega.
-      
-    Qed.
 
     rewrite skipn_gt_nil; intuition.
     simpl.
@@ -263,6 +270,32 @@ Section ListHybrid.
     
   Qed.
              
+  Theorem firstn_firstn : 
+    forall (A : Type)(ls : list A)(n1 n2 : nat),
+      (n1 <= n2)%nat ->
+      firstn n1 (firstn n2 ls) = firstn n1 ls.
+    
+    induction ls; destruct n1; destruct n2; intuition; simpl in *.
+    omega.
+    
+    f_equal.
+    eapply IHls.
+    omega.
+       
+  Qed.
+
+  Theorem nth_firstn : 
+    forall (A : Set)(def : A)(ls : list A)(n1 n2 : nat),
+      (n1 < n2)%nat ->
+      nth n1 (firstn n2 ls) def = nth n1 ls def.
+    
+    induction ls; destruct n1; destruct n2; intuition; simpl in *.
+    omega.
+    omega.
+    eapply IHls.
+    omega.
+  Qed.
+
   Theorem G_hybrid_DistSingle_S_eq : 
     forall i,
       Pr[G_hybrid (S i)] == Pr[DistSingle_G (B1 i) B2 c1].
@@ -285,36 +318,12 @@ Section ListHybrid.
     eapply comp_spec_eq_refl.
     inline_first.
 
-    Theorem firstn_firstn : 
-      forall (A : Type)(ls : list A)(n1 n2 : nat),
-        (n1 <= n2)%nat ->
-        firstn n1 (firstn n2 ls) = firstn n1 ls.
-      
-      induction ls; destruct n1; destruct n2; intuition; simpl in *.
-      omega.
-      
-      f_equal.
-      eapply IHls.
-      omega.
-         
-    Qed.
 
     rewrite firstn_firstn.
     comp_swap_r.
     comp_skip.
     inline_first.
 
-    Theorem nth_firstn : 
-      forall (A : Set)(def : A)(ls : list A)(n1 n2 : nat),
-        (n1 < n2)%nat ->
-        nth n1 (firstn n2 ls) def = nth n1 ls def.
-      
-      induction ls; destruct n1; destruct n2; intuition; simpl in *.
-      omega.
-      omega.
-      eapply IHls.
-      omega.
-    Qed.
     
     rewrite nth_firstn.
     comp_skip.
@@ -367,10 +376,11 @@ Section ListHybrid.
     intuition.
     
     eapply leRat_trans.
-    Focus 2.
-    eapply eqRat_impl_leRat.
-    symmetry.
-    eapply sumList_cons.
+    2:{
+      eapply eqRat_impl_leRat.
+      symmetry.
+      eapply sumList_cons.
+    }
     simpl.
     eapply leRat_trans.
     eapply ratDistance_le_trans.
@@ -416,5 +426,4 @@ Section ListHybrid.
     intuition.
 
   Qed.
-
 End ListHybrid.

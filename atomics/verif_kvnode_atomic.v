@@ -1,11 +1,11 @@
 Require Import VST.veric.rmaps.
-Require Import VST.progs.ghost.
-Require Import mailbox.general_atomics.
+Require Import VST.progs.ghosts.
+Require Import atomics.general_atomics.
 Require Import VST.progs.conclib.
-Require Import mailbox.maps.
+Require Import atomics.maps.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import mailbox.kvnode_atomic.
+Require Import atomics.kvnode_atomic.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -137,7 +137,7 @@ Proof.
   start_atomic_function.
   destruct x as ((((((((n, out), sh), version), locs), g), lg), v0), vs0); Intros.
   destruct H as (HP & HQ).
-  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
+  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply ENTAIL_refl].
   repeat forward.
   forward_call (version, P, II, lI,
     fun sh v' => !!(sh = gsh2) && EX v : Z, EX vs : _, !!(Z.even v = true /\ Forall repable_signed vs /\
@@ -332,7 +332,7 @@ Proof.
     + forward.
       entailer!.
     + intros; unfold overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       unfold POSTCONDITION, abbreviate, loop1_ret_assert.
       Intros; if_tac; [contradiction | entailer!].
       admit. (* drop snaps *)

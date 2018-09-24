@@ -1,11 +1,11 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.ghosts.
-From mailbox Require Import general_atomics acq_rel_atomics acq_rel_SW.
+From atomics Require Import general_atomics acq_rel_atomics acq_rel_SW.
 Require Import VST.progs.conclib.
-Require Import mailbox.maps.
+Require Import atomics.maps.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import mailbox.kvnode_atomic_ra.
+Require Import atomics.kvnode_atomic_ra.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -401,7 +401,7 @@ Proof.
       erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; auto; omega); reflexivity. }
     erewrite map_ext_in; eauto; intros; simpl.
     rewrite In_upto in *; erewrite Znth_map, Znth_upto; rewrite ?Zlength_upto; auto; omega. }
-  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply drop_tc_environ].
+  eapply semax_loop; [|forward; unfold loop2_ret_assert; apply ENTAIL_refl].
   Intros v ll L'.
   repeat forward.
   forward_call_dep [Z : Type] (load_acq_witness version v Z.le
@@ -642,7 +642,7 @@ Proof.
     + forward.
       entailer!.
     + intros; unfold overridePost.
-      destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
+      destruct (eq_dec ek EK_normal); [subst | apply ENTAIL_refl].
       unfold POSTCONDITION, abbreviate, loop1_ret_assert.
       Intros; go_lower.
       if_tac; [contradiction|].

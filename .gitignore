@@ -21,7 +21,6 @@ compcert/clightgen
 compcert/clightgen.byte
 compcert/tools/ndfun
 compcert/tools/modorder
-compcert/Makefile.config
 # Generated files
 compcert/.depend.extr
 compcert/compcert.ini

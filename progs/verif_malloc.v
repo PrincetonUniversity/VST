@@ -265,7 +265,7 @@ rewrite -> H1. reflexivity.
 intros.  unfold overridePost. if_tac.
 go_lowerx.
 entailer.
-apply drop_tc_environ.
+apply ENTAIL_refl.
 (* done here *)
 Admitted.
 

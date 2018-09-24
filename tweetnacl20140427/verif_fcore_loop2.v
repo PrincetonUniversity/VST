@@ -17,7 +17,7 @@ Definition Y_content (y: list val)
 
 Lemma f_core_loop2: forall (Espec : OracleKind) FR c k h nonce out w x y t
   (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-  (Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil))
+  (Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs nil)
   (xInit : list val)
   (XInit : xInit = upd_upto data 4 (list_repeat 16 Vundef)),
 @semax CompSpecs Espec

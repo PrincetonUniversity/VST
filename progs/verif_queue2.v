@@ -9,7 +9,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
-Instance QS: listspec _elem _next (fun sh => malloc_token sh t_struct_elem).
+Instance QS: listspec _elem _next (fun sh => malloc_token Tsh t_struct_elem).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
@@ -45,21 +45,21 @@ Definition surely_malloc_spec :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t p * data_at_ Tsh t p).
+       SEP (malloc_token Tsh t p * data_at_ Ews t p).
 
 Definition fifo_body (contents: list val) (hd tl : val) :=
      (if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, EX last: val,
               !!(contents = prefix++last::nil)
-            &&  (lseg QS Tsh prefix hd tl
+            &&  (lseg QS Ews prefix hd tl
                    * malloc_token Tsh t_struct_elem tl
-                   * data_at Tsh t_struct_elem (last, nullval) tl)))%logic.
+                   * data_at Ews t_struct_elem (last, nullval) tl)))%logic.
 
 Definition fifo (contents: list val) (p: val) : mpred :=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
+      data_at Ews t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
       fifo_body contents hd tl.
 
 Definition fifo_new_spec :=
@@ -77,7 +77,7 @@ Definition fifo_put_spec :=
           PROP () LOCAL (temp _Q q; temp _p p)
           SEP (fifo contents q;
                  malloc_token Tsh t_struct_elem p;
-                 data_at Tsh t_struct_elem (last,Vundef) p)
+                 data_at Ews t_struct_elem (last,Vundef) p)
   POST [ tvoid ]
           PROP() LOCAL() SEP (fifo (contents++(last :: nil)) q).
 
@@ -102,7 +102,7 @@ Definition fifo_get_spec :=
        LOCAL(temp ret_temp p)
        SEP (fifo contents q;
               malloc_token Tsh t_struct_elem p;
-              data_at Tsh t_struct_elem (first,Vundef) p).
+              data_at Ews t_struct_elem (first,Vundef) p).
 
 Definition make_elem_spec :=
  DECLARE _make_elem
@@ -114,7 +114,7 @@ Definition make_elem_spec :=
        PROP()
        LOCAL (temp ret_temp p)
        SEP (malloc_token Tsh t_struct_elem p;
-              data_at Tsh t_struct_elem (Vint i, Vundef) p).
+              data_at Ews t_struct_elem (Vint i, Vundef) p).
 
 Definition main_spec :=
  DECLARE _main
@@ -138,7 +138,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh t p * data_at_ Tsh t p)).
+   SEP (malloc_token Tsh t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -254,7 +254,7 @@ forward_if
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ last0 :: nil) last.
      entailer.
-     rewrite (field_at_list_cell Tsh last0 p).
+     rewrite (field_at_list_cell Ews last0 p).
      unfold_data_at 4%nat.
      unfold_data_at 2%nat.
      simpl sizeof.
@@ -263,7 +263,7 @@ forward_if
      end.     (* prevent it from canceling! *)
      cancel. subst A.
      eapply derives_trans;
-        [ | apply (lseg_cons_right_neq QS Tsh prefix hd last0 tl nullval p ); auto].
+        [ | apply (lseg_cons_right_neq QS Ews prefix hd last0 tl nullval p ); auto].
      simpl sizeof.  cancel.
 * (* after the if *)
      forward. (* return ; *)
@@ -345,16 +345,6 @@ forward_call (*  free(p); *)
 Qed.
 
 Existing Instance NullExtension.Espec.
-
-Lemma ret_temp_make_ext_rval:
-  forall gx ret p,
-   locald_denote (temp ret_temp p) (make_ext_rval gx ret) ->
-    p = force_val ret.
-Proof.
-  intros.
-  hnf in H.
-  rewrite retval_ext_rval in H. auto.
-Qed.
 
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.

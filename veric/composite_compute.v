@@ -203,7 +203,7 @@ Proof.
       eapply cenv_consistent; eauto.
     + apply co_consistent_rank.
       eapply cenv_consistent; eauto.
-  } 
+  }
   induction H.
   + constructor.
   + specialize (IHordered_and_complete (fun i co HH => H0 i co (or_intror HH))).

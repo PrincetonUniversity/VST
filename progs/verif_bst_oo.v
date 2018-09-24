@@ -642,11 +642,11 @@ Proof.
       forward. (* q=p->left *)
       forward. (* *t=q *)
       forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
-      Focus 1. {
+      {
         entailer!.
         rewrite memory_block_data_at_ by auto.
         cancel.
-      } Unfocus.
+      }
       forward. (* return *)
       apply modus_ponens_wand'.
       Exists pa.
@@ -691,11 +691,11 @@ Proof.
     forward.
     forward.
     forward_call (p, sizeof t_struct_tree).
-    Focus 1. {
+    {
       entailer!.
       rewrite memory_block_data_at_ by auto.
       cancel.
-    } Unfocus.
+    }
     forward_call (t1,pa).
     forward_call (t2,pb).
     entailer!.

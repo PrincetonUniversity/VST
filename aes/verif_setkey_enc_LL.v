@@ -114,14 +114,26 @@ Proof.
       rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. rep_omega.
     }
     forward. 
-    assert (Int.unsigned (Int.repr 1) = 1) by reflexivity.
-    forward.
-    assert (Int.unsigned (Int.repr 2) = 2) by reflexivity.
-    forward.
-    assert (Int.unsigned (Int.repr 3) = 3) by reflexivity.
-    forward.
+    assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 1)) < Zlength key_chars). {
+        rewrite H. unfold Int.add. rewrite E1.
+        rewrite (Int.unsigned_repr (Z.pos _)) by computable.
+        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+     }
+    forward. clear Hz.
+    assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 2)) < Zlength key_chars). {
+        rewrite H. unfold Int.add. rewrite E1.
+        rewrite (Int.unsigned_repr (Z.pos _)) by computable.
+        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+     }
+    forward. clear Hz.
+    assert (Hz: 0 <= Int.unsigned (Int.add (Int.shl (Int.repr i) (Int.repr 2)) (Int.repr 3)) < Zlength key_chars). {
+        rewrite H. unfold Int.add. rewrite E1.
+        rewrite (Int.unsigned_repr (Z.pos _)) by computable.
+        rewrite Int.unsigned_repr; [ omega | ]. rep_omega.
+     }
+    forward. clear Hz.
 
-    rewrite E1, H2, H3, H4. clear H2 H3 H4.
+    rewrite E1. (*  H2, H3, H4. clear H2 H3 H4. *)
     simpl.
     forward.
     (* assert_PROP what forward asks us to prove: *)
@@ -135,7 +147,11 @@ Proof.
     { intros. replace v1 with v2 by assumption. apply derives_refl. }
     apply field_at_change_value.
     fold ((fun i0 => get_uint32_le key_chars (i0 * 4)) i).
-    apply update_partially_filled. omega.
+   rewrite <- update_partially_filled by omega. f_equal. f_equal. 
+   unfold get_uint32_le. unfold Int.add. rewrite E1. 
+   rewrite !(Int.unsigned_repr (Z.pos _)) by computable.
+   rewrite !Int.unsigned_repr by rep_omega.
+   rewrite !(Z.mul_comm 4). reflexivity.
   }
   reassoc_seq.
   deadvars!.

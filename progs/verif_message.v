@@ -128,9 +128,6 @@ change (data_at_ sh' (tarray tint 2) buf) with
    (data_at sh' (tarray tint 2) [Vundef;Vundef] buf).
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
-(* TODO: perhaps the assert_PROP shouldn't even be necessary... *)
- assert_PROP (force_val (sem_cast_pointer buf) = field_address (tarray tint 2) nil buf).
-  entailer!; rewrite field_compatible_field_address by auto; simpl; normalize.
 forward. (*  ((int * )buf)[0]=x; *)
 forward. (*  ((int * )buf)[1]=y; *)
 forward. (* return 8; *)
@@ -147,9 +144,6 @@ start_function.
 simpl. Intros. subst len.
 destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction.
 clear H H1 H2.
-
-assert_PROP (force_val (sem_cast_pointer buf) = field_address (tarray tint 2) nil buf).
-   entailer!; rewrite field_compatible_field_address by auto; simpl; normalize.
 forward. (* x = ((int * )buf)[0]; *)
 forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
@@ -160,12 +154,7 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 name buf _buf.
-name q _q.
-name p _p.
 
-(*
-name ipm _intpair_message.
-*)
 start_function.
 set (ipm := gv _intpair_message).
 fold cc_default noattr.
@@ -202,7 +191,7 @@ assert_PROP (align_compatible tint buf).
   destruct HPbuf; subst; simpl.
   econstructor; [reflexivity | apply Z.divide_0_r].
 forward_call (* len = ser(&p, buf); *)
-      ((Vint (Int.repr 1), Vint (Int.repr 2)), p, buf, Tsh, Tsh).
+      ((Vint (Int.repr 1), Vint (Int.repr 2)), v_p, buf, Tsh, Tsh).
   repeat split; auto.
 Intros rest.
 simpl.
@@ -210,7 +199,7 @@ Intros. subst rest.
 
 forward. (* des = intpair_message.deserialize; *)
 forward_call (* des(&q, buf, 8); *)
-        ((Vint (Int.repr 1), Vint (Int.repr 2)), q, buf, Tsh, Tsh, 8).
+        ((Vint (Int.repr 1), Vint (Int.repr 2)), v_q, buf, Tsh, Tsh, 8).
   simpl. fold t_struct_intpair. entailer!.
   split3; auto. simpl; computable.
 (* after the call *)

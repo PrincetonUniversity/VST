@@ -69,6 +69,7 @@ Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.
 Hint Resolve malloc_token_valid_pointer : valid_pointer.
+
 Parameter malloc_token_local_facts:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- !! malloc_compatible (sizeof t) p.
 Hint Resolve malloc_token_local_facts : saturate_local.
@@ -89,22 +90,23 @@ Ltac change_compspecs' cs cs' ::=
   | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
   | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
  end.
+(*
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
-
+*)
 Definition malloc_spec'  {cs: compspecs} :=
    WITH t:type
-   PRE [ 1%positive OF tuint ]
-       PROP (0 <= sizeof t <= Int.max_unsigned;
+   PRE [ 1%positive OF size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vint (Int.repr (sizeof t))))
+       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))))
        SEP ()
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
        SEP (if eq_dec p nullval then emp
-            else (malloc_token Tsh t p * data_at_ Tsh t p)).
+            else (malloc_token Tsh t p * data_at_ Ews t p)).
 
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
@@ -115,7 +117,7 @@ Definition free_spec'  {cs: compspecs} :=
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
        LOCAL (temp 1%positive p)
-       SEP (malloc_token Tsh t p; data_at_ Tsh t p)
+       SEP (malloc_token Tsh t p; data_at_ Ews t p)
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
@@ -147,14 +149,15 @@ Lemma semax_func_cons_malloc_aux:
  LOCAL (temp ret_temp p)
  SEP (if eq_dec p nullval
       then emp
-      else malloc_token Tsh t p * data_at_ Tsh t p))%assert
+      else malloc_token Tsh t p * data_at_ Ews t p))%assert
   (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
  rewrite exp_unfold. Intros p.
  rewrite <- insert_local.
  rewrite lower_andp.
- apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
+ apply derives_extract_prop; intro.
+ destruct H; unfold_lift in H. rewrite retval_ext_rval in H.
  subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.

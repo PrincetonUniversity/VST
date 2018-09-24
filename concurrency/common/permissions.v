@@ -137,11 +137,7 @@ Section permMapDefs.
         destruct res; simpl; auto.
         - apply perm_coh_empty_1.
         - destruct k; try apply perm_coh_empty_1; simpl.
-          + destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
-            destruct p0; auto.
-            
-            eapply perm_of_glb_not_Freeable; eauto.
-          + destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
+            destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: ?; auto.
             destruct p0; auto.
             eapply perm_of_glb_not_Freeable; eauto.
   Qed.
@@ -165,23 +161,7 @@ Section permMapDefs.
           exfalso; eapply glb_Rsh_not_top; eauto.
         * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
           exfalso; eapply glb_Rsh_not_top; eauto.
-      + destruct (perm_of_sh  (Share.glb Share.Rsh sh2)) eqn:AA;
-        destruct (eq_dec sh1 Share.bot) eqn:BB;
-        try destruct p0;
-        try constructor.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
     - destruct k; try apply perm_coh_empty_1.
-      + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
-        destruct (eq_dec sh1 Share.bot) eqn:BB;
-        try destruct p0;
-        try constructor.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
-        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-          exfalso; eapply glb_Rsh_not_top; eauto.
       + destruct (perm_of_sh (Share.glb Share.Rsh sh2)) eqn:AA;
         destruct (eq_dec sh1 Share.bot) eqn:BB;
         try destruct p0;
@@ -243,10 +223,6 @@ Qed.
       destruct p0; try constructor.
       apply perm_of_sh_Freeable_top in HH; inversion HH.
           exfalso; eapply glb_Rsh_not_top; eauto.
-    - destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn:HH; auto.
-      destruct p0; try constructor.
-      apply perm_of_sh_Freeable_top in HH; inversion HH.
-      exfalso; eapply glb_Rsh_not_top; eauto.
   Qed.
 
   (* Some None represents the empty permission. None is used for
@@ -870,7 +846,7 @@ Proof.*)
   Definition isCanonical (pmap : access_map) := pmap.1 = fun _ => None.
   Import Maps.
   Definition TreeMaxIndex {A} (t:Maps.PTree.t A): positive:=
-    Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) 1%positive (Maps.PTree.elements t) .
+    compcert.lib.Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) 1%positive (Maps.PTree.elements t) .
   Lemma fold_max_monoton: forall  {A} (ls: seq.seq (positive * A)), forall i,
         (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >= i)%positive.
   Proof.
@@ -886,8 +862,8 @@ Proof.*)
   Qed.
   Lemma fold_max_monoton': forall  {A} (ls: seq.seq (positive * A)), forall i j,
         (i >= j)%positive ->
-        (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >=
-         Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) j ls)%positive.
+        (compcert.lib.Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >=
+         compcert.lib.Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) j ls)%positive.
   Proof.
     induction ls.
     - auto.
@@ -904,7 +880,7 @@ Proof.*)
       + apply Pos.le_ge. apply Pos.le_refl.
   Qed.
   Lemma TreeMaxIndex_help: forall {A} (ls: seq.seq (positive * A)), forall i v,
-        In (i, v) ls -> (Coqlib.list_fold_left (fun a => [eta Pos.max a.1])
+        In (i, v) ls -> (compcert.lib.Coqlib.list_fold_left (fun a => [eta Pos.max a.1])
                                               1%positive ls >= i)%positive.
   Proof.
     induction ls.
@@ -918,7 +894,7 @@ Proof.*)
          pose (ineq':=ineq).
          apply IHls in ineq'.
          apply Pos.le_ge.
-         apply (Pos.le_trans _ (Coqlib.list_fold_left
+         apply (Pos.le_trans _ (compcert.lib.Coqlib.list_fold_left
                                   (fun a0 : positive * A => [eta Pos.max a0.1])
                                   1%positive ls)).
          * apply Pos.ge_le. eapply IHls.
@@ -1015,10 +991,10 @@ Proof.*)
     apply Pos.lt_gt in Hp'; eapply max_works in Hp'.
     extensionality ofs.
     assert (H:= Mem.nextblock_noaccess m b' ofs Max).
-    assert (Hinvalid: ~ Coqlib.Plt b' (Mem.nextblock m)).
+    assert (Hinvalid: ~ compcert.lib.Coqlib.Plt b' (Mem.nextblock m)).
     { clear - Heqb Heqb'.
       subst. intros Hcontra.
-      unfold Coqlib.Plt in Hcontra.
+      unfold compcert.lib.Coqlib.Plt in Hcontra.
       apply Pos.max_lub_lt_iff in Hcontra. destruct Hcontra as [? Hcontra].
       apply Pos.max_lub_lt_iff in Hcontra. destruct Hcontra as [? Hcontra].
         by apply Pos.lt_irrefl in Hcontra.
@@ -1050,7 +1026,7 @@ Proof.*)
 
   Definition setPerm (p : option permission) (b : block)
              (ofs : Z) (pmap : access_map) : access_map :=
-    Maps.PMap.set b (fun ofs' => if Coqlib.zeq ofs ofs' then
+    Maps.PMap.set b (fun ofs' => if compcert.lib.Coqlib.zeq ofs ofs' then
                                 p
                               else
                                 Maps.PMap.get b pmap ofs')
@@ -1075,7 +1051,7 @@ Proof.*)
            exfalso. destruct Hofs. omega.
          - unfold setPerm.
            rewrite PMap.gss.
-           destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs');
+           destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs');
              first by (subst; reflexivity).
            simpl.
            eapply IHsz.
@@ -1095,7 +1071,7 @@ Proof.*)
          induction sz; simpl in *; intros; unfold setPerm.
          - reflexivity.
          - rewrite Maps.PMap.gss.
-           destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+           destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
            subst. exfalso.
            destruct Hofs; zify; omega.
            simpl. eapply IHsz.
@@ -1132,7 +1108,7 @@ Proof.*)
         * subst.
           left.
           erewrite if_true
-            by (now apply Coqlib.proj_sumbool_is_true).
+            by (now apply compcert.lib.Coqlib.proj_sumbool_is_true).
           reflexivity.
         * erewrite if_false
             by (apply Bool.negb_true_iff; now apply proj_sumbool_is_false).
@@ -1174,7 +1150,7 @@ Proof.*)
     induction sz; simpl in *; intros; unfold setPerm.
     - reflexivity.
     - rewrite Maps.PMap.gss.
-      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+      destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
       subst. exfalso.
       destruct Hofs; zify; omega.
       simpl. eapply IHsz.
@@ -1187,7 +1163,7 @@ Proof.*)
     forall p b ofs ofs' pmap sz
       (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
       (Maps.PMap.get b (setPermBlock_var p b ofs pmap sz)) ofs' =
-      p (Coqlib.nat_of_Z (ofs' - ofs +1)).
+      p (compcert.lib.Coqlib.nat_of_Z (ofs' - ofs +1)).
   Proof.
     intros.
     generalize dependent ofs'.
@@ -1196,11 +1172,11 @@ Proof.*)
       exfalso. destruct Hofs. omega.
     - unfold setPerm.
       rewrite PMap.gss.
-      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs'); simpl.
+      destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs'); simpl.
       + f_equal. rewrite -e.
         replace (ofs + Z.of_nat sz - ofs +1 )%Z with (Z.of_nat sz + 1)%Z; try omega.
-        rewrite Coqlib.nat_of_Z_plus; simpl; try omega.
-        rewrite Coqlib.nat_of_Z_of_nat Pos2Nat.inj_1; omega.
+        rewrite compcert.lib.Coqlib.nat_of_Z_plus; simpl; try omega.
+        rewrite compcert.lib.Coqlib.nat_of_Z_of_nat Pos2Nat.inj_1; omega.
       + apply IHsz; split; try omega.
         move : Hofs n=> [] l.
         rewrite Zpos_P_of_succ_nat.
@@ -1239,7 +1215,7 @@ Proof.*)
         * subst.
           left.
           erewrite if_true
-            by (now apply Coqlib.proj_sumbool_is_true).
+            by (now apply compcert.lib.Coqlib.proj_sumbool_is_true).
           reflexivity.
         * erewrite if_false
             by (apply Bool.negb_true_iff; now apply proj_sumbool_is_false).
@@ -1301,7 +1277,7 @@ Proof.*)
       exfalso. destruct Hofs. omega.
     - unfold setPerm.
       rewrite PMap.gss.
-      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs');
+      destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs');
         first by (subst; reflexivity).
       simpl.
       eapply IHsz.
@@ -1322,7 +1298,7 @@ Proof.*)
     induction sz; simpl in *; intros; unfold setPerm.
     - reflexivity.
     - rewrite Maps.PMap.gss.
-      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+      destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
       subst. exfalso.
       destruct Hofs; zify; omega.
       simpl. eapply IHsz.
@@ -1758,7 +1734,7 @@ Proof.*)
     assert (Hb : b = Pos.of_nat (Pos.to_nat b))
       by (by rewrite Pos2Nat.id).
     rewrite Hb.
-    destruct (Coqlib.plt b (Mem.nextblock m)) as [Hvalid | Hinvalid].
+    destruct (compcert.lib.Coqlib.plt b (Mem.nextblock m)) as [Hvalid | Hinvalid].
     rewrite <- canonicalPMap_sound. reflexivity.
     assert (H := Pos2Nat.is_pos b). ssromega.
     apply Pos2Nat.inj_lt in Hvalid. ssromega.
@@ -1838,9 +1814,9 @@ Proof.*)
       unfold Maps.PMap.get in *. simpl in *.
       rewrite Maps.PTree.gmap; simpl.
       match goal with
-        | [|- context[match Coqlib.option_map ?Expr1 ?Expr2  with _ => _ end]] =>
-          destruct (Coqlib.option_map Expr1 Expr2) as [f|] eqn:?
-      end; auto; unfold Coqlib.option_map in Heqo.
+        | [|- context[match compcert.lib.Coqlib.option_map ?Expr1 ?Expr2  with _ => _ end]] =>
+          destruct (compcert.lib.Coqlib.option_map Expr1 Expr2) as [f|] eqn:?
+      end; auto; unfold compcert.lib.Coqlib.option_map in Heqo.
       destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:?; try discriminate.
       + inversion Heqo; subst; clear Heqo.
         rewrite Heq in Hlt. auto.
@@ -1859,9 +1835,9 @@ Proof.*)
       assert (H := Mem.nextblock_noaccess m).
       specialize (H b). unfold Maps.PMap.get in H.
       match goal with
-        | [|- context[match Coqlib.option_map ?Expr1 ?Expr2  with _ => _ end]] =>
-          destruct (Coqlib.option_map Expr1 Expr2) as [f|] eqn:?
-      end; auto; unfold Coqlib.option_map in Heqo;
+        | [|- context[match compcert.lib.Coqlib.option_map ?Expr1 ?Expr2  with _ => _ end]] =>
+          destruct (compcert.lib.Coqlib.option_map Expr1 Expr2) as [f|] eqn:?
+      end; auto; unfold compcert.lib.Coqlib.option_map in Heqo;
       destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:Heqo2; try discriminate.
       inversion Heqo. subst f. clear Heqo.
       destruct k; auto.
@@ -1957,9 +1933,9 @@ Lemma restrPermMap_irr:
     unfold getMaxPerm.
     unfold Maps.PMap.get.
     simpl. do 2 rewrite Maps.PTree.gmap1.
-    unfold Coqlib.option_map.
+    unfold compcert.lib.Coqlib.option_map.
     rewrite Maps.PTree.gmap.
-    unfold Coqlib.option_map.
+    unfold compcert.lib.Coqlib.option_map.
     simpl.
     destruct ((Mem.mem_access m).2 ! b);
       by auto.
@@ -1994,7 +1970,7 @@ Lemma restrPermMap_irr:
     unfold getMaxPerm in *; simpl in *.
     rewrite Maps.PMap.gmap in Hlti, Hltj.
     unfold permMapsDisjoint, Maps.PMap.get in *; simpl in *.
-    do 2 rewrite Maps.PTree.gmap. unfold Coqlib.option_map.
+    do 2 rewrite Maps.PTree.gmap. unfold compcert.lib.Coqlib.option_map.
     specialize (Hdisjoint b ofs).
     assert (Hnone: (Mem.mem_access m).1 ofs Max = None)
       by (assert (Hcan_m := Max_isCanonical m);
@@ -2025,14 +2001,14 @@ Lemma restrPermMap_irr:
     rewrite Maps.PMap.gmap. split;
       unfold permMapLt in Hlt; specialize (Hlt b ofs);
       unfold Maps.PMap.get; simpl; rewrite Maps.PTree.gmap;
-      unfold Coqlib.option_map; simpl;
+      unfold compcert.lib.Coqlib.option_map; simpl;
       destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:?; auto.
     unfold Maps.PMap.get in Hlt.
     unfold isCanonical in *.
     destruct (Maps.PTree.get b p'.2) eqn:?; [| by rewrite Hcan_p'].
     rewrite Hcan_m in Hlt.
     unfold getMaxPerm in Hlt. rewrite Maps.PTree.gmap1 in Hlt.
-    unfold Coqlib.option_map in Hlt.
+    unfold compcert.lib.Coqlib.option_map in Hlt.
     rewrite Heqo in Hlt. simpl in Hlt.
     destruct (o ofs); tauto.
   Qed.
@@ -2299,7 +2275,7 @@ Lemma restrPermMap_irr:
 End permMapDefs.
 
 Require Import VST.concurrency.common.core_semantics.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 
 Lemma storebytes_decay:
   forall m loc p vl m', Mem.storebytes m loc p vl = Some m' -> decay m m'.

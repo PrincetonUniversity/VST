@@ -60,7 +60,8 @@ Defined.
 
 Lemma is_pointer_or_null_dec v: {is_pointer_or_null v} + {~ is_pointer_or_null v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial]; try solve [left; trivial].
-  apply Int.eq_dec. 
+ try apply Int.eq_dec;  (* this line works for CompCert 3.3 *)
+ destruct Archi.ptr64; auto; apply Int64.eq_dec.  (* this line needed for newer CompCert *)
 Defined.
 
 Lemma isptr_dec v: {isptr v} + {~ isptr v}.
@@ -575,6 +576,8 @@ Ltac rep_omega_setup :=
   pose_lemmas Ptrofs.unsigned Ptrofs.unsigned_range;
   pose_standard_const_equations.
 
+Ltac rep_omega_setup2 := idtac.
+
 Ltac rep_omega2 := 
  repeat  match goal with
   | |- _ /\ _ => match goal with
@@ -598,6 +601,7 @@ Ltac rep_omega2 :=
 
 Ltac rep_omega :=
    rep_omega_setup;
+   rep_omega_setup2;
    rep_omega2.
 
 Ltac repable_signed := 

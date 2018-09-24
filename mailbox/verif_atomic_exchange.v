@@ -43,13 +43,13 @@ Notation hist := (nat -> option AE_hist_el).
 (* the lock invariant used to encode an atomic invariant *)
 Definition AE_inv x g i R := EX h : list AE_hist_el, EX v : val,
   !!(apply_hist i h = Some v /\ tc_val tint v) &&
-  (data_at Tsh tint v x * ghost_ref h g * R h v).
+  (data_at Ews tint v x * ghost_ref h g * R h v).
 
 Lemma AE_inv_exclusive : forall x g i R, exclusive_mpred (AE_inv x g i R).
 Proof.
   unfold AE_inv; intros.
   eapply derives_exclusive, exclusive_sepcon1 with (Q := EX h : list AE_hist_el, EX v : val, _),
-    data_at__exclusive with (sh := Tsh)(t := tint); auto; simpl; try omega.
+    data_at__exclusive with (sh := Ews)(t := tint); auto; simpl; try omega.
   Intros h v; rewrite sepcon_assoc; apply sepcon_derives; [cancel|].
   Exists h v; apply derives_refl.
 Qed.
@@ -177,7 +177,7 @@ Proof.
 Qed.
 
 Lemma AE_loc_join : forall sh1 sh2 sh l p g i R h1 h2 (Hjoin : sepalg.join sh1 sh2 sh)
-  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hcompat : compatible h1 h2),
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hcompat : disjoint h1 h2),
   AE_loc sh1 l p g i R h1 * AE_loc sh2 l p g i R h2 = AE_loc sh l p g i R (map_add h1 h2).
 Proof.
   intros; unfold AE_loc.

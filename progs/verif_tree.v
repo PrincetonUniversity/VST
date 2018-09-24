@@ -655,7 +655,7 @@ Proof.
   {
     Intros tl1 tl2 q.
     forward_if.
-    Focus 2. {
+    2:{
       forward.
       entailer!.
       assert (tl2 = nil) by (pose proof proj1 H4 eq_refl as HH; destruct tl2; auto; inv HH).
@@ -668,7 +668,7 @@ Proof.
       rewrite <- H0, map_map.
       simpl. change (fun x : XTree * val => snd x) with (@snd XTree val).
       cancel.
-    } Unfocus.
+    }
     destruct tl2 as [| [t p'] tl2].
     {
       simpl.

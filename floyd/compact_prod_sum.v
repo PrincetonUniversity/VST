@@ -278,22 +278,21 @@ Proof.
     destruct (H i i); [intros | congruence].
     unfold eq_rect_r; rewrite <- !eq_rect_eq.
     auto.
-  + assert (@eq Type (F1 a0) (F2 a0)).
-    Focus 1. {
+  + assert (@eq Type (F1 a0) (F2 a0)). {
       clear - H0.
       specialize (H0 a0).
       apply H0.
       left; simpl; auto.
-    } Unfocus.
+    }
     assert (@eq Type (compact_prod (map F1 (a1 :: l))) (compact_prod (map F2 (a1 :: l)))).
-    Focus 1. {
+    {
       apply compact_prod_eq.
       clear - H0.
       intros i ?H.
       specialize (H0 i).
       spec H0; [right; auto |].
       symmetry; auto.
-    } Unfocus.
+    }
     destruct (H i a0) as [?H | ?H].
     - subst.
       clear IHl.
@@ -329,20 +328,20 @@ Proof.
     unfold eq_rect_r; rewrite <- !eq_rect_eq.
     auto.
   + assert (@eq Type (F1 a0) (F2 a0)).
-    Focus 1. {
+    {
       clear - H0.
       apply H0.
       left; simpl; auto.
-    } Unfocus.
+    }
     assert (@eq Type (compact_sum (map F1 (a1 :: l))) (compact_sum (map F2 (a1 :: l)))).
-    Focus 1. {
+    {
       apply compact_sum_eq.
       clear - H0.
       intros i ?H.
       specialize (H0 i).
       spec H0; [right; auto |].
       symmetry; auto.
-    } Unfocus.
+    }
     simpl in H2.
     solve_JMeq_sumtype H2.
     - simpl in H1 |- *.
@@ -376,20 +375,20 @@ Proof.
     unfold eq_rect_r; rewrite <- !eq_rect_eq.
     auto.
   + assert (@eq Type (F1 a0) (F2 a0)).
-    Focus 1. {
+    {
       clear - H0.
       apply H0.
       left; simpl; auto.
-    } Unfocus.
+    }
     assert (@eq Type (compact_sum (map F1 (a1 :: l))) (compact_sum (map F2 (a1 :: l)))).
-    Focus 1. {
+    {
       apply compact_sum_eq.
       clear - H0.
       intros i ?H.
       specialize (H0 i).
       spec H0; [right; auto |].
       symmetry; auto.
-    } Unfocus.
+    }
     simpl in H2.
     solve_JMeq_sumtype H2.
     - simpl in H1 |- *.
@@ -418,20 +417,20 @@ Proof.
     destruct (H i a0); [| tauto].
     tauto.
   + assert (@eq Type (F1 a0) (F2 a0)).
-    Focus 1. {
+    {
       clear - H0.
       apply H0.
       left; simpl; auto.
-    } Unfocus.
+    }
     assert (@eq Type (compact_sum (map F1 (a1 :: l))) (compact_sum (map F2 (a1 :: l)))).
-    Focus 1. {
+    {
       apply compact_sum_eq.
       clear - H0.
       intros i ?H.
       specialize (H0 i).
       spec H0; [right; auto |].
       symmetry; auto.
-    } Unfocus.
+    }
     simpl in H1.
     solve_JMeq_sumtype H1.
     - simpl in *.
@@ -459,23 +458,23 @@ Proof.
     auto.
   + simpl.
     assert (JMeq (fst v1) (fst v2)).
-    Focus 1. {
+    {
       apply @JMeq_fst; auto.
       + apply H0; simpl; auto.
       + apply (@compact_prod_eq _ F1 F2 (a1 :: l)).
         intros.
         apply H0.
         simpl; auto.
-    } Unfocus.
+    }
     assert (JMeq (snd v1) (snd v2)).
-    Focus 1. {
+    {
       apply @JMeq_snd; auto.
       + apply H0; simpl; auto.
       + apply (@compact_prod_eq _ F1 F2 (a1 :: l)).
         intros.
         apply H0.
         simpl; auto.
-    } Unfocus.
+    }
     destruct (H i a0).
     - subst i.
       unfold eq_rect_r.

@@ -250,7 +250,7 @@ Proof.
             omega.
             clear.
             compute; congruence.
-          } 
+          }
           destruct H2.
           intros [? ?].
           destruct H6.
@@ -312,28 +312,18 @@ Proof.
       rewrite if_true in H0
         by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
       destruct H0 as [H0 H1].
-      assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
-       YES sh H0 (VAL (Byte Byte.zero)) NoneP 
-          else core (w @ loc)))).
-      {
-        intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
-      }
-      destruct (make_rmap _ (ghost_of w) H2 (level w)) as [w1 [? ?]].
+      pose proof I.
+      destruct (make_rmap  (fun loc => if eq_dec loc (b,i) then 
+       YES sh H0 (VAL (Byte Byte.zero)) NoneP
+          else core (w @ loc)) (ghost_of w) (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
       { apply ghost_of_approx. }
-      assert (AV.valid (res_option oo
-        fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
-                       then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
-          else core (w @ loc))).
-      {
-        intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        case_eq (w @ (b',z')); intros;
-         [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
-      }
-      destruct (make_rmap _ (ghost_of w) H5 (level w)) as [w2 [? ?]].
+      pose proof I.
+      destruct (make_rmap (fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
+                       then YES sh H0 (VAL (Byte Byte.zero)) NoneP
+          else core (w @ loc)) (ghost_of w) (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
@@ -479,7 +469,7 @@ Proof.
           destruct l; inv H. exists m.
           destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
           f_equal. f_equal. rewrite Zminus_diag. reflexivity.
-        } 
+        }
     - rewrite Ptrofs.unsigned_repr by (rewrite Nat2Z.inj_succ in H0; unfold Ptrofs.max_unsigned; omega).
       change (size_chunk Mint8unsigned) with 1.
       rewrite prop_true_andp by (split; [apply tc_val'_Vundef | apply Z.divide_1_l]).
@@ -872,7 +862,7 @@ Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
   nonunit sh ->
-  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  0 < n <= Ptrofs.max_unsigned -> 0 < m <= Ptrofs.max_unsigned ->
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
   intros.
@@ -946,7 +936,7 @@ Proof.
     {
       pose proof Ptrofs.unsigned_range ofs.
       omega.
-    } 
+    }
     clear Heqofs' H'.
     assert (Ptrofs.unsigned (Ptrofs.repr ofs') = ofs' \/ n' = 0%nat) by tauto.
     clear H0; rename H2 into H0.
@@ -1005,7 +995,7 @@ Proof.
   intros.
   unfold memory_block.
   rewrite memory_block'_split with (i := n); [| omega |].
-  2: {
+  2:{
     pose proof Ptrofs.unsigned_range (Ptrofs.repr ofs).
     pose proof Ptrofs.unsigned_repr_eq ofs.
     assert (ofs mod Ptrofs.modulus <= ofs) by (apply Z.mod_le; omega).
@@ -1020,7 +1010,7 @@ Proof.
     + assert (ofs + n < Ptrofs.modulus) by omega.
       rewrite !Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
       reflexivity.
-  } 
+  }
   apply pred_ext.
   + apply prop_andp_left; intros.
     apply sepcon_derives; (apply andp_right; [intros ? _; simpl | apply derives_refl]).
@@ -1043,10 +1033,10 @@ Proof.
   intros.
   destruct p; try solve [unfold memory_block; rewrite FF_sepcon; auto].
   destruct (zle 0 n).
-  2: {
+  2:{
     rewrite !memory_block_non_pos_Vptr by omega.
     rewrite emp_sepcon; auto.
-  } 
+  }
   unfold memory_block.
   destruct (zlt (Ptrofs.unsigned i + n) Ptrofs.modulus).
   + rewrite !prop_true_andp by auto.
@@ -1109,7 +1099,7 @@ Proof.
  repeat first [rewrite @FF_orp | rewrite @orp_FF].
 *
  f_equal. if_tac; clear H.
- 2: {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1147,7 +1137,7 @@ Proof.
 *
  f_equal.
  if_tac; clear H.
- 2: {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1159,7 +1149,7 @@ Proof.
      simpl.
      destruct (zero_ext_range' 8 i); [split; cbv; intros; congruence |].
      exact H1.
- } 
+ }
  f_equal; f_equal; extensionality bl.
  f_equal. f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
@@ -1184,7 +1174,7 @@ Proof.
 *
  f_equal.
   if_tac; [| auto]; clear H.
- 2: {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1221,7 +1211,7 @@ Proof.
 *
  f_equal.
   if_tac; [| auto]; clear H.
- 2: {
+ 2:{
    f_equal.
    apply pred_ext; intros ?; hnf; simpl;
    intros; (split; [| tauto]).
@@ -1233,7 +1223,7 @@ Proof.
      simpl.
      destruct (zero_ext_range' 16 i); [split; cbv; intros; congruence |].
      exact H1.
- } 
+ }
  apply equal_f. apply f_equal. apply f_equal. extensionality bl.
  apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
  simpl;  apply prop_ext; intuition.
@@ -1257,7 +1247,7 @@ Proof.
  f_equal; auto.
 Qed.
 
-Require Import Clightdefs.
+Require Import compcert.exportclight.Clightdefs.
    
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.
@@ -1297,10 +1287,10 @@ Hint Resolve tc_val_pointer_nullval'.
 Arguments type_is_volatile ty / .
 
 Lemma mapsto_tuint_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh intptr_t p nullval.
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
 Proof.
 intros.
-unfold mapsto, intptr_t.
+unfold mapsto, size_t.
 destruct p; try reflexivity.
 destruct Archi.ptr64 eqn:Hp.
 *
@@ -1380,16 +1370,18 @@ Lemma mapsto_null_mapsto_pointer:
              mapsto sh (tptr t) v nullval.
 Proof.
   intros.
-  unfold mapsto.
-  unfold nullval; rewrite H.
-  simpl.
-  destruct v; auto. f_equal; auto.
-  if_tac.
-  + f_equal. f_equal. rewrite andb_false_r.
-   unfold is_pointer_or_null. rewrite H.
-   apply pred_ext; unfold derives; simpl; tauto.
-  + f_equal. f_equal.
-      unfold tc_val'.
-      f_equal. simpl. simple_if_tac; simpl; rewrite H; auto.
-      apply prop_ext; intuition.
+  try solve [inversion H];
+ (
+  unfold mapsto, nullval; rewrite H;
+  simpl;
+  destruct v; auto; f_equal; auto;
+  if_tac;
+   [f_equal; f_equal; rewrite andb_false_r;
+   unfold is_pointer_or_null; rewrite H;
+   apply pred_ext; unfold derives; simpl; tauto
+   | f_equal; f_equal;
+      unfold tc_val';
+      f_equal; simpl; 
+      simple_if_tac; simpl; rewrite H; auto;
+      apply prop_ext; intuition]).
 Qed.

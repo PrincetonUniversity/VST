@@ -52,7 +52,7 @@ Lemma sha256_block_data_order_loop1_proof:
      (Hregs: length regs = 8%nat)
      (Hsh: readable_share sh),
      Zlength b = LBLOCKz ->
-     semax Delta_loop1
+     semax (func_tycontext f_sha256_block_data_order Vprog Gtot nil)
   (PROP  ()
    LOCAL  (temp _a (Vint (nthi regs 0)); temp _b (Vint (nthi regs 1));
                 temp _c (Vint (nthi regs 2)); temp _d (Vint (nthi regs 3));
