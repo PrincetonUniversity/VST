@@ -77,7 +77,7 @@ Section HMAC.
 End HMAC.
 
 Definition convert (l : list int) : list bool :=
-  bytesToBits (intlist_to_Zlist l).
+  bytesToBits (intlist_to_bytelist l).
 
 (* Front/back equivalence theorems *)
 
@@ -90,15 +90,15 @@ Lemma front_equiv b d (DB32: (d*32)%nat = b):
 Proof.
   intros back BACK front FRONT f_len F_len concat_eq.
   unfold convert in *.
-  rewrite -> intlist_to_Zlist_app in concat_eq.
+  rewrite -> intlist_to_bytelist_app in concat_eq.
   rewrite -> bytesToBits_app in concat_eq.
 
   assert (back = skipn b (front ++ back)).
     rewrite skipn_exact; trivial.
-  assert (bytesToBits (intlist_to_Zlist BACK) = skipn b (front ++ back)).
+  assert (bytesToBits (intlist_to_bytelist BACK) = skipn b (front ++ back)).
     rewrite concat_eq; clear concat_eq.
     rewrite skipn_exact; trivial.
-    rewrite bytesToBits_len, length_intlist_to_Zlist, F_len. omega.
+    rewrite bytesToBits_len, length_intlist_to_bytelist, F_len. omega.
   rewrite H, H0 in concat_eq; clear H H0.
   eapply app_inv_tail. eassumption.
 Qed.
@@ -113,7 +113,7 @@ Proof.
   intros back BACK front FRONT f_len F_len concat_eq.
   assert (front ++ back = convert (FRONT ++ BACK)) as concat_eq'. apply concat_eq.
   unfold convert in *.
-  rewrite -> intlist_to_Zlist_app in concat_eq.
+  rewrite -> intlist_to_bytelist_app in concat_eq.
   rewrite -> bytesToBits_app in concat_eq.
 
   assert (front_eq : front = convert FRONT).
@@ -169,13 +169,12 @@ Qed.
 Proof. apply length_list_repeat. Qed.
 *)
 (*From SHaInstantiation -- TODO: Isolate*)
-Lemma xor_equiv_byte: forall xpad XPAD k K, isbyteZ XPAD ->
+Lemma xor_equiv_byte: forall xpad XPAD k K, 
                           bytes_bits_lists xpad (HM.sixtyfour XPAD) ->
                           length K= HF.BlockSize ->
-                          bytes_bits_lists k (map Byte.unsigned K) ->
-bytes_bits_lists (BLxor k xpad) (HM.mkArgZ K (Byte.repr XPAD)).
+                          bytes_bits_lists k K ->
+bytes_bits_lists (BLxor k xpad) (HM.mkArg K XPAD).
 Proof. intros. apply inner_general_mapByte; try assumption.
-       rewrite <- HM.SF_ByteRepr; trivial.
 Qed.
 (*
 Lemma isbyte_hmaccore ipad opad m k:
@@ -184,16 +183,15 @@ Proof. apply HF.Hash_isbyteZ. Qed. *)
 
 (*Parameter *)
 Lemma hash_block_equiv:
-  forall (bits : Blist) (bytes : list Z)
+  forall (bits : Blist) (bytes : list byte)
          (regs : Blist) REGS,
-    Forall isbyteZ bytes ->
-    regs = bytesToBits (intlist_to_Zlist REGS) ->
+    regs = bytesToBits (intlist_to_bytelist REGS) ->
     bits = bytesToBits bytes ->
     I.shah regs bits =
-    bytesToBits (intlist_to_Zlist
-                   (I.hashblock REGS (Zlist_to_intlist bytes))).
+    bytesToBits (intlist_to_bytelist
+                   (I.hashblock REGS (bytelist_to_intlist bytes))).
 Proof.
-  intros bits bytes regs REGS bytes_inrange regs_eq input_eq.
+  intros bits bytes regs REGS regs_eq input_eq.
   rewrite I.HHB. unfold intsToBits.
   apply f_equal.
   apply f_equal.
@@ -202,10 +200,8 @@ Proof.
   unfold bitsToInts.
   rewrite bytes_bits_bytes_id.
   rewrite -> bytes_bits_bytes_id.
-  rewrite -> intlist_to_Zlist_to_intlist.
+  rewrite -> intlist_to_bytelist_to_intlist.
   reflexivity.
-  * apply bytes_inrange.
-  * apply isbyte_intlist_to_Zlist.
 Qed.
 
 Lemma fold_equiv_blocks b (B:(0<b)%nat) (DB32: (I.d*32)%nat=b):
@@ -260,10 +256,9 @@ Proof.
       + rewrite -> H0 in inputs_eq.
         rewrite -> H2 in inputs_eq.
         eapply (back_equiv DB32); eassumption.
-      + rewrite (@hash_block_equiv front0 (intlist_to_Zlist front) acc ACC); auto.
-        rewrite -> intlist_to_Zlist_to_intlist.
+      + rewrite (@hash_block_equiv front0 (intlist_to_bytelist front) acc ACC); auto.
+        rewrite -> intlist_to_bytelist_to_intlist.
         reflexivity.
-        { apply isbyte_intlist_to_Zlist. }
         { rewrite -> H0 in inputs_eq.
           rewrite -> H2 in inputs_eq.
           apply (front_equiv DB32 back0 back front0 front H1 H inputs_eq). }
@@ -274,10 +269,10 @@ Qed.
 Lemma equiv_pad shaiv shasplitandpad c p (B: (0< b c p)%nat) (DB32: (I.d*32 =b c p)%nat)
      ir (IVIR: shaiv = convert ir)
        gap (GAP: forall bits, NPeano.Nat.divide I.d (length (gap (bitsToBytes bits))))
-       (sap_gap: forall bits, shasplitandpad bits = bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
+       (sap_gap: forall bits, shasplitandpad bits = bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))))
        HASH
-       (HSH: forall (m:list Z), HASH m = intlist_to_Zlist (I.hashblocks ir (gap m))):
-       forall (bits : Blist) (bytes : list Z),
+       (HSH: forall (m:list byte), HASH m = intlist_to_bytelist (I.hashblocks ir (gap m))):
+       forall (bits : Blist) (bytes : list byte),
                     bytes_bits_lists bits bytes ->
                     bytes_bits_lists
                       (hash_words_padded c p B I.shah shaiv shasplitandpad bits)
@@ -290,19 +285,17 @@ Proof.
     unfold hash_words.
     unfold h_star. rewrite HSH; clear HSH.
     apply bytes_bits_comp_ind.
-    { apply isbyte_intlist_to_Zlist. }
     { apply bytes_bits_ind_comp in input_eq.
         { subst bytes. rewrite sap_gap; clear sap_gap.
           eapply (fold_equiv_blocks B DB32).
           3: reflexivity.
           3: assumption.
-          apply InBlocks_len. rewrite bytesToBits_len, length_intlist_to_Zlist.
+          apply InBlocks_len. rewrite bytesToBits_len, length_intlist_to_bytelist.
              rewrite <- DB32. destruct (GAP bits). rewrite H. exists x.
              rewrite mult_comm, mult_assoc.
              assert ((8*4= 32)%nat) by omega. rewrite H0. rewrite mult_comm, <- mult_assoc. trivial.
           apply InBlocks_len. apply GAP.
         }
-        apply (bytesBitsLists_isbyteZ _ _ input_eq).
     }
 Qed.
 
@@ -310,17 +303,17 @@ Theorem HMAC_pad_concrete splitandpad c p (B: (0< b c p)%nat) (BS: (HF.BlockSize
         (DB32: (I.d*32 =b c p)%nat)
          ir (*ie initial_regs*) gap (*ie generate_and_pad*)
          (GAP: forall bits, NPeano.Nat.divide I.d (length (gap (bitsToBytes bits))))
-         (sap_gap: forall bits, splitandpad bits = bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
-         (HSH: forall (m:list Z), HF.Hash m = intlist_to_Zlist (I.hashblocks ir (gap m)))
-         (K : list byte) (M H : list Z) (OP IP : Z)
-                          (k m h : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
+         (sap_gap: forall bits, splitandpad bits = bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))))
+         (HSH: forall (m:list byte), HF.Hash m = intlist_to_bytelist (I.hashblocks ir (gap m)))
+         (K : list byte) (M H : list byte) (OP IP : byte)
+                          (k m h : Blist) (op ip : Blist):
   length K = HF.BlockSize ->
-  bytes_bits_lists k (map Byte.unsigned K) ->
+  bytes_bits_lists k K ->
   bytes_bits_lists m M ->
   bytes_bits_lists op (HM.sixtyfour OP) ->
   bytes_bits_lists ip (HM.sixtyfour IP) ->
   HMAC c p B I.shah (convert ir) splitandpad op ip k m = h ->
-  HM.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
+  HM.HmacCore IP OP M K = H ->
   bytes_bits_lists h H.
 Proof.
   intros padded_key_len padded_keys_eq msgs_eq ops_eq ips_eq HMAC_abstract HMAC_concrete.
@@ -342,11 +335,11 @@ Proof.
     - assumption. }
 
   { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
-         rewrite map_length, padded_key_len. apply BS.
+         rewrite padded_key_len. apply BS.
          rewrite HM.length_SF. apply BS. }
 
   { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
-         rewrite map_length, padded_key_len. apply BS.
+         rewrite padded_key_len. apply BS.
          rewrite HM.length_SF. apply BS. }
 Qed.
 
@@ -354,22 +347,22 @@ Theorem HMAC_pad_concrete' splitandpad c p (B: (0< b c p)%nat) (BS: (HF.BlockSiz
         (DB32: (I.d*32 =b c p)%nat)
          ir (*ie initial_regs*) gap (*ie generate_and_pad*)
          (GAP: forall bits, NPeano.Nat.divide I.d (length (gap (bitsToBytes bits))))
-         (sap_gap: splitandpad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
-         (HSH: forall (m:list Z), HF.Hash m = intlist_to_Zlist (I.hashblocks ir (gap m)))
-         (K : list byte) (M : list Z) (OP IP : Z)
-                          (k m : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
+         (sap_gap: splitandpad = fun bits => bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))))
+         (HSH: forall (m:list byte), HF.Hash m = intlist_to_bytelist (I.hashblocks ir (gap m)))
+         (K : list byte) (M : list byte) (OP IP : byte)
+                          (k m : Blist) (op ip : Blist):
   length K = HF.BlockSize ->
-  bytes_bits_lists k (map Byte.unsigned K) ->
+  bytes_bits_lists k K ->
   bytes_bits_lists m M ->
   bytes_bits_lists op (HM.sixtyfour OP) ->
   bytes_bits_lists ip (HM.sixtyfour IP) ->
   bytes_bits_lists
      (HMAC c p B I.shah (convert ir) splitandpad op ip k m)
-     (HM.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
+     (HM.HmacCore IP OP M K).
 Proof.
   intros. eapply HMAC_pad_concrete; try reflexivity.
   eassumption. eassumption. eassumption. eassumption. eassumption. eassumption.
-  eassumption. eassumption. eassumption. eassumption. eassumption. rewrite sap_gap. trivial.
+  eassumption. eassumption. eassumption.  rewrite sap_gap. trivial.
 Qed.
 
 End HMAC_Pad.
