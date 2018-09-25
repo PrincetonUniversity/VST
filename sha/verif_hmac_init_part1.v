@@ -38,11 +38,11 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h wsh sh key ctxkey: mp
                    else FF
               else FF
   | Vptr b ofs => if zeq r 0 then FF
-                  else !!(Forall isbyteZ key) &&
+                  else 
                     ((data_at wsh t_struct_hmac_ctx_st (*keyed*)HMS c) *
-                     (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
+                     (data_at Tsh (tarray tuchar 64) (map Vubyte (HMAC_SHA256.mkKey key))
                       ctxkey)  *
-                     (data_at sh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+                     (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key)
                       (Vptr b ofs)))
   | _ => FF
   end.
@@ -61,14 +61,14 @@ Definition PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff: environ -> mpred :=
                    initPostKeyNullConditional r c k h1 wsh sh key (Vptr ckb ckoff);
                    K_vector gv))).
 
-Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l wsh sh key gv pad
+Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs)
+           l wsh sh (key: list byte) gv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall 
 (Hwsh: writable_share wsh)
 (Hsh: readable_share sh)
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
-(isbyte_key : Forall isbyteZ key)
 (HMS' : reptype t_struct_hmac_ctx_st)
 (KHMS : HMS' = HMS)
 (FC_ctx : field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
@@ -84,7 +84,7 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l w
    lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
    temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
    gvars gv)
-   SEP  (data_at sh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+   SEP  (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key)
         (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
    K_vector gv; data_at_ wsh t_struct_hmac_ctx_st (Vptr cb cofs);
    data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
@@ -154,9 +154,9 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs) l w
                   SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                   data_at wsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs);
                   data_at sh (tarray tuchar (Zlength key))
-                      (map Vint (map Int.repr key)) (Vptr kb kofs);
+                      (map Vubyte key) (Vptr kb kofs);
                   data_at Tsh (tarray tuchar 64)
-                      (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
+                      (map Vubyte (HMAC_SHA256.mkKey key))
                       (Vptr ckb ckoff); K_vector gv))).
 Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
@@ -183,8 +183,8 @@ Proof. intros. abbreviate_semax.
       thaw FR2.
       thaw FR1.
       freeze [2;3;5;6] FR4.
-      Time forward_call (@nil Z, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
-      { unfold data_block. rewrite prop_true_andp by auto.
+      Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
+      { unfold data_block.
         Time cancel. (*0.1*)
       }
       { 
@@ -274,14 +274,14 @@ Proof. intros. abbreviate_semax.
   }
 Time Qed. (*31.3 secs versus 58 secs*)
 
-Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l wsh sh key gv pad
+Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs)
+      l wsh sh (key: list byte) gv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall
 (Hwsh: writable_share wsh)
 (Hsh: readable_share sh)
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
-(isbyte_key : Forall isbyteZ key)
 (KHMS : HMS' = HMS)
 (FC_ctx : field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
 (FC_md_ctx : field_compatible t_struct_hmac_ctx_st [StructField _md_ctx]
@@ -296,7 +296,7 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l ws
    lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
    temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
    gvars gv)
-   SEP  (data_at sh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+   SEP  (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key)
         (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
    K_vector gv; data_at_ wsh t_struct_hmac_ctx_st (Vptr cb cofs);
    data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
@@ -330,9 +330,9 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs) l ws
                   SEP  (data_at_ Tsh (tarray tuchar 64) pad;
                   data_at wsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs);
                   data_at sh (tarray tuchar (Zlength key))
-                      (map Vint (map Int.repr key)) (Vptr kb kofs);
+                      (map Vubyte key) (Vptr kb kofs);
                   data_at Tsh (tarray tuchar 64)
-                      (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
+                      (map Vubyte (HMAC_SHA256.mkKey key))
                       (Vptr ckb ckoff); K_vector gv))).
 Proof. intros.
      (*call to memcpy*)
@@ -340,7 +340,7 @@ Proof. intros.
      unfold data_at_.
      Time forward_call ((sh, Tsh), Vptr ckb ckoff,
              Vptr kb kofs, mkTrep (Tarray tuchar (Zlength key) noattr)
-                     (map Vint (map Int.repr key)), l). (*2 versus 4.4*)
+                     (map Vubyte key), l). (*2 versus 4.4*)
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible; simpl. rewrite Ptrofs.add_zero.
        rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: omega.
@@ -352,7 +352,7 @@ Proof. intros.
      { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l; repeat split; trivial; omega. }
      unfold tarray.
      remember (64 - l) as l64.
-     remember (map Vint (map Int.repr key)) as KCONT.
+     remember (map Vubyte key) as KCONT.
 
      (*call memset*)
      freeze [0;1;3] FR2.

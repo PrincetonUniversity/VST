@@ -58,32 +58,31 @@ Definition outerShaInit (k: list byte) (s:s256abs):Prop :=
   update_abs (HMAC_SHA256.mkArgZ k Opad) init_s256abs s.
 *)
 Definition innerShaInit (k: list byte):s256abs :=
-   HMAC_SHA256.mkArgZ k Ipad.
+   HMAC_SHA256.mkArg k Ipad.
 Definition outerShaInit (k: list byte):s256abs :=
-   HMAC_SHA256.mkArgZ k Opad.
+   HMAC_SHA256.mkArg k Opad.
 
-Definition hmacInit (k:list Z):hmacabs :=
+Definition hmacInit (k:list byte):hmacabs :=
   let key := HMAC_SHA256.mkKey k in
-  let keyB := map Byte.repr key in
-  let iS := innerShaInit keyB in
-  let oS := outerShaInit keyB in
+  let iS := innerShaInit key in
+  let oS := outerShaInit key in
   HMACabs iS iS oS.
 
-Definition hmacUpdate (data: list Z) (h1:hmacabs): hmacabs :=
+Definition hmacUpdate (data: list byte) (h1:hmacabs): hmacabs :=
   match h1 with
     HMACabs ctx1 iS oS
   => let ctx2 := ctx1 ++ data in
      HMACabs ctx2 iS oS
   end.
 
-Definition hmacFinalSimple h : list Z :=
+Definition hmacFinalSimple h : list byte :=
   match h with
     HMACabs ctx iS oS
   => let inner := SHA256.SHA_256 ctx in
      SHA256.SHA_256 (oS ++ inner)
   end.
 
-Definition hmacFinal h : (hmacabs * list Z) :=
+Definition hmacFinal h : (hmacabs * list byte) :=
   match h with
     HMACabs ctx iS oS
   => let inner := SHA256.SHA_256 ctx in
@@ -93,10 +92,10 @@ Definition hmacFinal h : (hmacabs * list Z) :=
 
 (*hmac cleanup not modelled*)
 
-Definition hmacSimple (k:list Z) (data:list Z):list Z:=
+Definition hmacSimple (k:list byte) (data:list byte):list byte:=
   hmacFinalSimple (hmacUpdate data (hmacInit k)).
 
-Definition hmac (k:list Z) (data:list Z):(hmacabs * list Z) :=
+Definition hmac (k:list byte) (data:list byte):(hmacabs * list byte) :=
   hmacFinal (hmacUpdate data (hmacInit k)).
 
 Lemma hmacSimple_sound k data:
@@ -161,17 +160,17 @@ Definition hmacstate_ (wsh: share) (h: hmacabs) (c: val) : mpred :=
 
 (************************ Specification of HMAC_init ********************************************)
 
-Definition has_lengthK (l:Z) (key:list Z) :=
+Definition has_lengthK (l:Z) (key:list byte) :=
   l = Zlength key /\ 0 < l <= Int.max_signed /\ (*requirement 0<l new in new_compcert - previously, it was 0<=l*)
   l * 8 < two_p 64.
 
-Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Prop :=
+Definition hmac_relate_PreInitNull (key:list byte) (h:hmacabs ) (r: hmacstate) : Prop :=
   match h with HMACabs ctx iS oS =>
     (*no clause for ctx*)
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
     s256a_len iS = 512 /\ s256a_len oS = 512 /\
-    let keyB := map Byte.repr (HMAC_SHA256.mkKey key) in
+    let keyB := HMAC_SHA256.mkKey key in
     innerShaInit keyB = iS /\ outerShaInit keyB = oS
   end.
 
@@ -201,7 +200,7 @@ Definition initPostKey (sh: share) k key:mpred :=
 
 Definition HMAC_Init_spec :=
   DECLARE _HMAC_Init
-   WITH wsh: share, sh: share, c : val, k:val, l:Z, key:list Z, h1:hmacabs, gv:globals
+   WITH wsh: share, sh: share, c : val, k:val, l:Z, key:list byte, h1:hmacabs, gv:globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -216,13 +215,13 @@ Definition HMAC_Init_spec :=
 
 (************************ Specification of HMAC_update *******************************************************)
 
-Definition has_lengthD (k l:Z) (data:list Z) :=
+Definition has_lengthD (k l:Z) (data:list byte) :=
             l = Zlength data /\ 0 <= l <= Int.max_unsigned /\
             l * 8 + k < two_p 64.
 
 Definition HMAC_Update_spec :=
   DECLARE _HMAC_Update
-   WITH wsh:share, sh:share, h1: hmacabs, c : val, d:val, len:Z, data:list Z, gv: globals
+   WITH wsh:share, sh:share, h1: hmacabs, c : val, d:val, len:Z, data:list byte, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _data OF tptr tvoid,
          _len OF tuint]
@@ -295,7 +294,7 @@ Definition HMAC_Cleanup_spec :=
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c).
+          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) Byte.zero) c).
 
 Definition HMAC_Cleanup_spec1 :=
   DECLARE _HMAC_cleanup
@@ -307,12 +306,12 @@ Definition HMAC_Cleanup_spec1 :=
   POST [ tvoid ]
           PROP ()
           LOCAL ()
-          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c).
+          SEP(data_block wsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) Byte.zero) c).
 
 
 (************************ Specification of oneshot HMAC *******************************************************)
 
-Record DATA := { LEN:Z; CONT: list Z}.
+Record DATA := { LEN:Z; CONT: list byte}.
 
 Definition HMAC_spec :=
   DECLARE _HMAC
@@ -380,7 +379,6 @@ Lemma change_compspecs_data_block: forall sh v,
 Proof.
   intros.
   unfold data_block.
-  f_equal.
   apply data_at_change_composite; auto.
 Qed.
 

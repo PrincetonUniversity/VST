@@ -86,11 +86,11 @@ Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
          end.
   Parameter D: (d * 32)%nat = b.
 
-  Parameter gap:list Z -> list int.
+  Parameter gap:list byte -> list int.
   Parameter GAP: forall bits, NPeano.Nat.divide d (length (gap (bitsToBytes bits))).
-  Parameter sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))).
+  Parameter sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))).
 
-  Parameter HASH: forall m, HF.Hash m = intlist_to_Zlist (hashblocks ir (gap m)).
+  Parameter HASH: forall m, HF.Hash m = intlist_to_bytelist (hashblocks ir (gap m)).
 
   Parameter FOLD_HB_eq: forall l ls, length l = (c + p)%nat ->
      Forall (fun x => length x = (c + p)%nat) ls ->
@@ -139,12 +139,8 @@ Module PAD := HMAC_Pad HF I.
     symmetry. subst. apply Vector.to_list_of_list_opp.
   Qed.
 
-  Definition ipd:Z := 54.
-  Definition opd:Z:=92.
-  Lemma isbyteZ_Ipad: isbyteZ ipd.
-    unfold ipd. split; omega. Qed.
-  Lemma isbyteZ_Opad: isbyteZ opd.
-    unfold opd. split; omega. Qed.
+  Definition ipd := Byte.repr 54.
+  Definition opd :=Byte.repr 92.
 
   Definition IPAD:=bytesToBits (PAD.HM.sixtyfour ipd).
   Definition OPAD:=bytesToBits (PAD.HM.sixtyfour opd).
@@ -160,13 +156,13 @@ Module PAD := HMAC_Pad HF I.
   Definition opad_v : Bvector EQ.b := of_list_length _ OL.
   Lemma OPADX:bytes_bits_lists (Vector.to_list opad_v) (PAD.HM.sixtyfour opd).
     apply bytes_bits_comp_ind.
-      unfold PAD.HM.sixtyfour. apply sublist.Forall_list_repeat. unfold opd. omega.
+      unfold PAD.HM.sixtyfour.
     unfold opad_v. rewrite of_length_proof_irrel. reflexivity.
   Qed.
 
   Lemma IPADX:bytes_bits_lists (Vector.to_list ipad_v) (PAD.HM.sixtyfour ipd).
     apply bytes_bits_comp_ind.
-      unfold PAD.HM.sixtyfour. apply sublist.Forall_list_repeat. unfold ipd. omega.
+      unfold PAD.HM.sixtyfour.
     unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.
   Qed.
 
@@ -179,12 +175,6 @@ Qed.
 
   Lemma opad_ne_ipad : opad_v <> ipad_v.
   intros N.
-  assert (BtO:isbyteZ opd). unfold opd. split; omega.
-  assert (FI: Forall isbyteZ (PAD.HM.sixtyfour ipd)).
-      rewrite PAD.HM.SF_ByteRepr; trivial. apply isbyte_map_ByteUnsigned.
-  assert (BtI:isbyteZ ipd). unfold ipd. split; omega.
-  assert (FO: Forall isbyteZ (PAD.HM.sixtyfour opd)).
-      rewrite PAD.HM.SF_ByteRepr; trivial. apply isbyte_map_ByteUnsigned.
   assert ((Vector.to_list ipad_v)  = bytesToBits (PAD.HM.sixtyfour ipd)  ).
     apply bits_bytes_ind_comp; trivial.
     apply IPADX.
@@ -193,12 +183,8 @@ Qed.
     apply OPADX.
   rewrite N, H in H0; clear N H.
   apply bytesToBits_injective in H0; trivial.
-  rewrite PAD.HM.SF_ByteRepr in H0; trivial.
-  rewrite PAD.HM.SF_ByteRepr in H0; trivial.
-  unfold PAD.HM.sixtyfour in H0. rewrite map_list_repeat in H0. rewrite map_list_repeat in H0.
-  apply list_repeat_injective in H0.
-    rewrite unsigned_Brepr_isbyte in H0; trivial.
-    rewrite unsigned_Brepr_isbyte in H0; trivial. unfold ipd, opd in H0; omega.
+  unfold PAD.HM.sixtyfour in H0.
+  apply list_repeat_injective in H0. inv H0.
   apply BS_pos.
 Qed.
 
@@ -206,9 +192,9 @@ Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divid
       (kv : Bvector EQ.b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC h_v EQ.iv_v (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v)
                       EQ.fpad_v opad_v ipad_v kv m) =
-      bytesToBits (PAD.HM.HmacCore (Byte.repr ipd) (Byte.repr opd)
+      bytesToBits (PAD.HM.HmacCore ipd opd
                      (bitsToBytes (HMAC_Abstract.Message2Blist m))
-                     (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
+                     (bitsToBytes (Vector.to_list kv))).
 Proof.
   assert (LK : length (Vector.to_list kv) = EQ.b).
     { apply VectorToList_length. }
@@ -239,21 +225,13 @@ Proof.
   2: apply EQ.sap'_InBlocks.
   rewrite <- EQ.iv_eq.
   apply bits_bytes_ind_comp.
-    apply PAD.HM.isbyte_hmaccore.
   eapply (PAD.HMAC_pad_concrete' _ _ EQ.B EQ.BS EQ.D EQ.ir _ EQ.GAP EQ.sap_gap EQ.HASH).
-    apply isbyteZ_Ipad.
-    apply isbyteZ_Opad.
-    repeat rewrite map_length.
             erewrite bitsToBytes_len_gen. reflexivity.
             rewrite LK. rewrite EQ.BS; trivial.
-    rewrite map_unsigned_Brepr_isbyte.
             apply bytes_bits_comp_ind.
-              eapply bitsToBytes_isbyteZ. reflexivity.
               rewrite bits_bytes_bits_id; trivial.
               apply InBlocks_len. rewrite LK, <- EQ.BS. eexists; reflexivity.
-            eapply bitsToBytes_isbyteZ. reflexivity.
     apply bytes_bits_comp_ind.
-              eapply bitsToBytes_isbyteZ. reflexivity.
               rewrite bits_bytes_bits_id; trivial.
               apply InBlocks_len. destruct m. simpl. apply HP. assumption.
     apply OPADX. apply IPADX. (*

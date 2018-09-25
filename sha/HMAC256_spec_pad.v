@@ -46,7 +46,7 @@ Proof. intros. eapply fold_equiv_blocks.
   reflexivity. reflexivity. trivial. trivial. trivial. trivial.
 Qed.
 *)
-Lemma splitandpad_equiv : forall (bits : Blist) (bytes : list Z),
+Lemma splitandpad_equiv : forall (bits : Blist) (bytes : list byte),
                             bytes_bits_lists bits bytes ->
                             bytes_bits_lists
                               (sha_splitandpad bits)
@@ -55,19 +55,17 @@ Proof.
   intros bits bytes inputs_eq.
   unfold concat.
   unfold sha_splitandpad.
-  specialize (bytesBitsLists_isbyteZ _ _ inputs_eq). intros isbyteZ_Bytes.
 
-  apply bytes_bits_ind_comp in inputs_eq. 2: apply isbyteZ_Bytes.
+  apply bytes_bits_ind_comp in inputs_eq.
   rewrite inputs_eq.
   apply bytes_bits_def_eq.
-  rewrite <- inputs_eq. apply pad_isbyteZ. trivial.
 Qed.
 
 Lemma gap_divide16 bits: NPeano.Nat.divide 16 (length (generate_and_pad' (bitsToBytes bits))).
 Proof.
     unfold generate_and_pad'.
     destruct (pad_len_64_nat (bitsToBytes bits)).
-     rewrite pure_lemmas.length_Zlist_to_intlist with (n:=(x*16)%nat).
+     rewrite pure_lemmas.length_bytelist_to_intlist with (n:=(x*16)%nat).
        exists x. trivial.
      rewrite H. unfold WORD. rewrite (mult_comm (Z.to_nat 4)). rewrite mult_comm.
         rewrite <- mult_assoc. reflexivity.
@@ -94,26 +92,25 @@ End I256.
 Module PAD := HMAC_Pad SHA256 I256.
 
 (* Relates the HMAC padded spec to the HMAC functional program *)
-Theorem HMAC_pad_concrete (K : list byte) (M H : list Z) (OP IP : Z)
-                          (k m h : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
+Theorem HMAC_pad_concrete (K : list byte) (M H : list byte) (OP IP : byte)
+                          (k m h : Blist) (op ip : Blist):
   ((length K) * 8)%nat = (c + p)%nat ->
-  bytes_bits_lists k (map Byte.unsigned K) ->
+  bytes_bits_lists k K ->
   bytes_bits_lists m M ->
   bytes_bits_lists op (HMAC_SHA256.sixtyfour OP) ->
   bytes_bits_lists ip (HMAC_SHA256.sixtyfour IP) ->
   sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m = h ->
-  HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
+  HMAC_SHA256.HmacCore IP OP M K = H ->
   bytes_bits_lists h H.
 Proof. intros.
 assert (sha_splitandpad =
         (fun bits : Blist =>
-   bytesToBits (intlist_to_Zlist (generate_and_pad (bitsToBytes bits))))).
+   bytesToBits (intlist_to_bytelist (generate_and_pad (bitsToBytes bits))))).
   clear.
   apply extensionality. intros l. unfold sha_splitandpad.
   f_equal. rewrite <- pad_compose_equal. unfold generate_and_pad'.
-  rewrite pure_lemmas.Zlist_to_intlist_to_Zlist. trivial.
+  rewrite pure_lemmas.bytelist_to_intlist_to_bytelist. trivial.
   destruct (pad_len_64_nat (bitsToBytes l)). rewrite Zlength_correct, H. exists (Z.of_nat (x*16)). do 2 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm, <- Z.mul_assoc.  reflexivity.
-  apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity.
 rewrite H7 in H5; clear H7.
 eapply PAD.HMAC_pad_concrete with (c:=c)(p:=p)(IP:=IP)(OP:=OP)(B:=B)(ip:=ip)(op:=op)(m:=m)(K:=K)
   (ir:=SHA256.init_registers)(gap:=generate_and_pad); try reflexivity; try eassumption.
@@ -124,20 +121,19 @@ eapply PAD.HMAC_pad_concrete with (c:=c)(p:=p)(IP:=IP)(OP:=OP)(B:=B)(ip:=ip)(op:
   unfold c, p in H0. omega.
 Qed.
 
-Theorem HMAC_pad_concrete' (K : list byte) (M : list Z) (OP IP : Z)
-                           (k m : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
+Theorem HMAC_pad_concrete' (K : list byte) (M : list byte) (OP IP : byte)
+                           (k m : Blist) (op ip : Blist):
   ((length K) * 8)%nat = (c + p)%nat ->
   Zlength K = Z.of_nat SHA256.BlockSize ->
-  bytes_bits_lists k (map Byte.unsigned K) ->
+  bytes_bits_lists k K ->
   bytes_bits_lists m M ->
   bytes_bits_lists op (HMAC_SHA256.sixtyfour OP) ->
   bytes_bits_lists ip (HMAC_SHA256.sixtyfour IP) ->
   sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m =
-  bytesToBits (HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
+  bytesToBits (HMAC_SHA256.HmacCore IP OP M K).
 Proof. intros.
   eapply bits_bytes_ind_comp.
-    apply isbyte_hmaccore.
-    eapply (HMAC_pad_concrete _ ipByte opByte); try reflexivity; trivial.
+    eapply HMAC_pad_concrete; try reflexivity; trivial.
 Qed.
 
 (*earlier /additional proofs

@@ -131,7 +131,7 @@ simpl.
 
 forward_call (Tsh, h5,c).
 match goal with |- context [data_block  Tsh ?A c] =>
-  change A with (list_repeat (Z.to_nat n324) 0)
+  change A with (list_repeat (Z.to_nat n324) Byte.zero)
 end.
 forward.
 clear H2.

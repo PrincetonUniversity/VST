@@ -64,7 +64,8 @@ unfold sha256state_.
 Intros r; destruct r as [r_h [lo' [hi' [r_data r_num]]]].
 unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct H0 as [H0 [[H1 H6] [H8 [H3 H4]]]].
+destruct H0 as [H0 [[H1 H6] [H8 H4]]].
+assert (H3:=I).
 subst.
 
 unfold_data_at 1%nat.
@@ -77,7 +78,7 @@ replace_SEP 0 (data_at wsh t_struct_SHA256state_st
     (map Vint (hash_blocks init_registers (s256a_hashed a)),
         (Vint (lo_part (s256a_len a + len * 8)),
         (Vint (hi_part (s256a_len a + len * 8)),
-        (map Vint (map Int.repr (s256a_data a))++
+        (map Vubyte (s256a_data a)++
          list_repeat (Z.to_nat (CBLOCKz - Zlength (s256a_data a))) Vundef,
          Vint (Int.repr (Zlength (s256a_data a))))))) c). {
   unfold_data_at 1%nat; entailer!.
@@ -129,7 +130,6 @@ apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data
  pattern (s256a_len a + len * 8); rewrite <- BLEN at 1.
  simple apply update_outer_if_proof; try eassumption; auto; try omega.
  apply s256a_data_Zlength_less.
- apply Forall_sublist; auto.
  apply s256a_hashed_divides.
 + simpl_ret_assert; apply ENTAIL_refl.
 + simpl_ret_assert; apply ENTAIL_refl.
@@ -149,7 +149,6 @@ apply semax_seq with (sha_update_inv wsh sh (s256a_hashed a) len c d (s256a_data
 simple apply update_while_proof; try assumption; try omega; auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
  apply s256a_data_Zlength_less.
- apply Forall_sublist; auto.
  apply s256a_hashed_divides.
 
 abbreviate_semax.
@@ -173,12 +172,6 @@ assert (BB:  0 <= b4d) by MyOmega.
 assert (UAE: S256abs (hashed ++ blocks) (sublist b4d len data) =
       S256abs hashed dd ++ sublist 0 len data). {
  apply update_abs_eq.
-    apply Forall_app; split; auto.
-    apply Forall_app; split; auto.
-    apply isbyte_intlist_to_Zlist.
-    apply Forall_sublist; auto.
-    apply Forall_app; split; auto.
-    apply isbyte_intlist_to_Zlist.
  exists blocks.
  rewrite !S256abs_hashed
    by (try apply divide_length_app; auto; autorewrite with sublist; auto).
@@ -211,7 +204,7 @@ forward_if (   PROP  ()
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
                    (list_repeat (Z.to_nat CBLOCKz) Vundef) c
    (*src*) sh (tarray tuchar (Zlength data)) [] b4d
-                   (map Int.repr data)
+                   (map Int.repr (map Byte.unsigned data))
                    d
    (*len*) (len - b4d)
         Frame); try reflexivity; auto; try MyOmega.
@@ -220,17 +213,18 @@ forward_if (   PROP  ()
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
+  rewrite map_Vubyte_eq'. cancel.
  -
  simpl tc_environ.
  subst POSTCONDITION; unfold abbreviate. simpl_ret_assert.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
- unfold data_block.  rewrite prop_true_andp by auto.
+ unfold data_block.
  unfold sha256state_.
  Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint (lo_part (bitlength hashed dd + len * 8)),
                  (Vint (hi_part (bitlength hashed dd + len * 8)),
-                  (map Vint (map Int.repr dd') ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef,
+                  (map Vubyte dd' ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef,
                    Vint (Int.repr (Zlength dd')))))).
  rewrite <- UAE.
 assert (Hbb: bitlength hashed dd + len * 8 =
@@ -255,11 +249,10 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  split3; auto.
  split; auto.
  autorewrite with sublist; auto.
- split; auto.
- apply Forall_app; split; auto.
- apply isbyte_intlist_to_Zlist.
  unfold_data_at 1%nat.
- rewrite H2. rewrite !sublist_map. cancel.
+ rewrite H2. rewrite !sublist_map.
+ rewrite !map_Vubyte_eq'.
+ cancel.
  subst dd'.
  autorewrite with sublist.
  replace (b4d + (len - b4d)) with len by omega.
@@ -281,10 +274,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  replace (bitlength hashed dd + len * 8)
   with (bitlength (hashed ++ blocks) []).
  split3; auto.
- split3; auto.
- apply Forall_app; split.
- apply isbyte_intlist_to_Zlist.
- constructor.
+ split; auto.
  f_equal. f_equal.
  rewrite Zlength_nil; omega.
  unfold bitlength.

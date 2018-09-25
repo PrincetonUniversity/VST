@@ -29,7 +29,7 @@ Lemma key_vector l:
   length (bytesToBits (HMAC_SHA256.mkKey l)) = b.
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
 
-Definition mkCont (l:list Z) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.Nat.divide 8 (length x)).
+Definition mkCont (l:list byte) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.Nat.divide 8 (length x)).
 eapply exist. split. reflexivity.
 rewrite bytesToBits_len. exists (length l). trivial.
 Qed.
@@ -102,7 +102,7 @@ Lemma hmacbodycryptoproof Espec k KEY msg  MSG gv shk shm shmd md buf
   (fn_body f_HMAC)
   (frame_ret_assert
      (function_body_ret_assert (tptr tuchar)
-        (EX  digest : list Z,
+        (EX  digest : list byte,
          PROP 
          (digest= HMAC256 (CONT MSG) (CONT KEY) /\ bytesToBits digest = bitspec KEY MSG /\
           (forall
@@ -121,8 +121,6 @@ Proof. intros. abbreviate_semax.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl LEN in *; simpl CONT in *.
 rewrite memory_block_isptr. Intros.
-(*NEW: crypto proof requires that we first extract isbyteZ key*)
-assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
 simpl fn_body.
 forward_if (isptr buf).
   { (* Branch1 *) exfalso. subst md. contradiction.  }
@@ -167,15 +165,12 @@ Exists dig. thaw FR1. entailer!.
          rewrite ByteBitRelations.bytes_bits_bytes_id.
          rewrite HMAC_equivalence.of_length_proof_irrel.
          rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
-           apply isbyteZ_mkKey. assumption.
-           assumption.
            intros ? X. apply X.
        (*split; trivial. split; trivial. *)
        intros ? X.
         unfold CRYPTO; intros. apply HMAC256_isPRF; assumption. }
 unfold data_block.
   rewrite Zlength_correct; simpl.
-  apply andp_left2.
   rewrite <- memory_block_data_at_; trivial.
   rewrite (memory_block_data_at_ Tsh
                     (tarray tuchar (@sizeof (@cenv_cs CompSpecs) (Tstruct _hmac_ctx_st noattr)))).

@@ -17,11 +17,11 @@ Require Import sha.general_lemmas.
 Definition map4 {A B} (f:A -> B) a :=
   match a with (a0, a1, a2, a3) => (f a0, f a1, f a2, f a3) end.
 
-Definition Zlist2Z (l:list Z) : Z :=
+Definition bytelist2Z (l:list byte) : Z :=
   match l with
-      [a; b; c; d] => d + c * 2^8 + b * 2^16 + a * 2^24
+      [a; b; c; d] => Byte.unsigned d + Byte.unsigned c * 2^8 + Byte.unsigned b * 2^16 + Byte.unsigned a * 2^24
     | _ => 0 end.
-Definition hexstring_to_Z s := Zlist2Z (hexstring_to_Zlist s).
+Definition hexstring_to_Z s := bytelist2Z (hexstring_to_bytelist s).
 
 Goal Zmod (hexstring_to_Z "c0a8787e"%string +
       hexstring_to_Z "9fd1161d"%string) (2^32)  =
@@ -352,21 +352,21 @@ Goal Salsa20K K0 n =
    (Byte.repr 14, Byte.repr 232, Byte.repr  5, Byte.repr  16), (Byte.repr 151, Byte.repr 140, Byte.repr 183, Byte.repr 141), (Byte.repr 171, Byte.repr  9, Byte.repr 122, Byte.repr 181), (Byte.repr 104, Byte.repr 182, Byte.repr 177, Byte.repr 193)).
 reflexivity. Qed.
 
-Goal SHA256.str_to_Z "expand 32-byte k" =
+Goal SHA256.str_to_bytes "expand 32-byte k" =
   match Sigma0 with (a, b, c, d) =>
   match Sigma1 with (e, f, g, h) =>
   match Sigma2 with (i, j, k, l) =>
   match Sigma3 with (m, n, o, p) =>
-  map Byte.unsigned [a; b; c; d; e; f; g; h; i; j; k; l; m; n; o; p]
+   [a; b; c; d; e; f; g; h; i; j; k; l; m; n; o; p]
   end end end end.
 reflexivity. Qed.
 
-Goal SHA256.str_to_Z "expand 16-byte k" =
+Goal SHA256.str_to_bytes "expand 16-byte k" =
   match Tau0 with (a, b, c, d) =>
   match Tau1 with (e, f, g, h) =>
   match Tau2 with (i, j, k, l) =>
   match Tau3 with (m, n, o, p) =>
-  map Byte.unsigned [a; b; c; d; e; f; g; h; i; j; k; l; m; n; o; p]
+   [a; b; c; d; e; f; g; h; i; j; k; l; m; n; o; p]
   end end end end.
 reflexivity. Qed.
 
@@ -536,7 +536,7 @@ Proof. destruct b as [[[b0 b1] b2] b3].
             eapply Z.le_trans. apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; try eassumption.
               apply Z.add_le_mono; eassumption.
-            rewrite int_max_unsigned_eq. simpl. omega.
+              compute. clear; congruence.
   }
   assert (0 <= Byte.unsigned b0 + 2 ^ 8 * Byte.unsigned b1 + 2 ^ 16 * Byte.unsigned b2 < 2 ^ 24).
               split. apply OMEGA2; trivial. apply OMEGA2; trivial.

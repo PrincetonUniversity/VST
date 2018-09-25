@@ -1,23 +1,24 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
+Require Import VST.floyd.functional_base.
 Require Import sha.HMAC256_functional_prog.
 
-Definition HKDF_extract (salt IKM: list Z): list Z := HMAC256 IKM salt.
+Definition HKDF_extract (salt IKM: list byte): list byte := HMAC256 IKM salt.
 
-Function Ti (PRK info: list Z) n:=
+Function Ti (PRK info: list byte) n:=
   match n with
   O => nil 
  |S m => let prev := Ti PRK info m in
-         HMAC256 (prev ++ info ++ [Z.of_nat n]) PRK
+         HMAC256 (prev ++ info ++ [Byte.repr (Z.of_nat n)]) PRK
   end.
 
-Function T (PRK info: list Z) (n:nat):list Z :=
+Function T (PRK info: list byte) (n:nat):list byte :=
   match n with
   O => nil
 | S m => (T PRK info m) ++ (Ti PRK info n)
   end.
 
-Definition HKDF_expand (PRK info:list Z) (L:Z):list Z :=
+Definition HKDF_expand (PRK info:list byte) (L:Z):list byte :=
   if zle L 0 then nil else
   let N := Z.of_nat SHA256.DigestLength in 
   let k := if zeq (L mod N) 0 then Z.div L N else (Z.div L N) + 1 in
@@ -31,7 +32,7 @@ Definition HKDF salt IKM info L:=
 (************************************ Test vectors**************************)
 
 Require Import Coq.Strings.String.
-Definition decode_hex := sha.functional_prog.hexstring_to_Zlist. 
+Definition decode_hex := sha.functional_prog.hexstring_to_bytelist. 
 
 Module HKDF_test_rfc5869_A1.
 Definition IKM   := decode_hex "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b".
@@ -41,8 +42,10 @@ Definition L     := 42.
 Definition PRK   := decode_hex "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5".
 Definition OKM   := decode_hex "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865".
 
-Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
-Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed. (*6secs*)
+Goal map Byte.unsigned (HKDF_extract salt IKM) = map Byte.unsigned PRK.
+  vm_compute; reflexivity. Qed. 
+Goal map Byte.unsigned (HKDF salt IKM info L) = map Byte.unsigned OKM.
+    vm_compute. reflexivity. Qed. (*6secs*)
 End HKDF_test_rfc5869_A1.
 
 Module HKDF_test_rfc5869_A2.
@@ -54,8 +57,10 @@ Definition L     := 82.
 Definition PRK   := decode_hex "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244".
 Definition OKM   := decode_hex "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87".
 
-Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
-Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed.
+Goal map Byte.unsigned (HKDF_extract salt IKM) = map Byte.unsigned PRK.
+     vm_compute.  reflexivity. Qed. 
+Goal map Byte.unsigned (HKDF salt IKM info L) = map Byte.unsigned OKM.
+     vm_compute. reflexivity. Qed.
 End HKDF_test_rfc5869_A2.
 
 Module HKDF_test_rfc5869_A3.
@@ -67,8 +72,10 @@ Definition L     := 42.
 Definition PRK   := decode_hex "19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb04".
 Definition OKM   := decode_hex "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8".
 
-Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
-Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed.
+Goal map Byte.unsigned (HKDF_extract salt IKM) = map Byte.unsigned PRK.
+   vm_compute.  reflexivity. Qed. 
+Goal map Byte.unsigned (HKDF salt IKM info L) = map Byte.unsigned OKM.
+   vm_compute. reflexivity. Qed.
 End HKDF_test_rfc5869_A3.
 
 
@@ -79,18 +86,6 @@ Require Import compcert.lib.Integers.
 Require Import VST.floyd.sublist.
 Require Import sha.hmac_common_lemmas.
 
-Lemma isbyteZ_Ti x y : forall n, Forall general_lemmas.isbyteZ (Ti x y n).
-Proof. induction n; simpl. constructor.
-apply isbyte_hmac. 
-Qed.
-
-Lemma isbyteZ_T: forall n x y, Forall general_lemmas.isbyteZ (T x y n).
-Proof.
-induction n; simpl; intros. constructor.
-apply Forall_app. split; trivial.
-apply isbyte_hmac.
-Qed.
-
 Lemma Zlength_Ti PRK INFO n: Zlength (Ti PRK INFO n) = match n with O => 0 | S k => 32 end.
 Proof. destruct n; simpl. apply Zlength_nil. apply HMAC_Zlength. Qed.
 
@@ -100,13 +95,6 @@ apply Zlength_nil.
 replace (T PRK INFO (S n)) with ((T PRK INFO n) ++ (Ti PRK INFO (S n))) by reflexivity.
 rewrite Zlength_app, IHn, Zlength_Ti.
 do 2 rewrite Nat2Z.inj_mul. rewrite (Nat2Z.inj_succ n), Zmult_succ_r_reverse; trivial.
-Qed.
-
-Lemma isbyteZ_HKDF_expand x y z: Forall general_lemmas.isbyteZ (HKDF_expand x y z).
-Proof. unfold HKDF_expand; intros.
-destruct (zle z 0). constructor.
-apply Forall_firstn.
-apply isbyteZ_T.
 Qed.
 
 Lemma Zlength_HKDF_expand x y z rest: 0 <= 32 * z -> 0 <= rest < 32 -> 

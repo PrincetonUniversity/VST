@@ -17,7 +17,7 @@ Require Import sha.verif_hmac_crypto.
 Module Type HMAC_ABSTRACT_SPEC.
 
 (*"Ordinary" abstract states contain a key and some data*)
-Inductive HABS := hABS: forall (key data:list Z), HABS.
+Inductive HABS := hABS: forall (key data:list byte), HABS.
 
 (*The mpred REP (hABS k d) c expresses that pointer value c holds
   a ctx representing the situation where we have hmac-ed
@@ -28,7 +28,7 @@ Parameter REP: share -> HABS -> val -> mpred.
   from hmac-final (so we can't hmac-updeate more data into ctx).
   It's the precondition of calls to hmac_init with argument key==null, ie 
   the case where we want to reuse the key k in the next round of hmac. *)
-Parameter FULL: share -> list Z -> val -> mpred.
+Parameter FULL: share -> list byte -> val -> mpred.
 
 (*EMPTY c captures the situation where we either haven't provided any key yet,
   or want to use an old ctx, but reinitialize its key. It occurs explicitly
@@ -75,7 +75,7 @@ Qed.
 Definition hmac_reset_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_reset here, and the
                        body of your wrapper function is a call to hmac_init with key==null.*)
-   WITH c : val, sh: share, l:Z, key:list Z, gv: globals
+   WITH c : val, sh: share, l:Z, key:list byte, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -91,7 +91,7 @@ Definition hmac_reset_spec :=
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_starts here, and the
                        body of your wrapper function is a call to hmac_init with the nonnull key*)
-   WITH c : val, sh: share, l:Z, key:list Z, b:block, i:ptrofs, shk: share, gv: globals
+   WITH c : val, sh: share, l:Z, key:list byte, b:block, i:ptrofs, shk: share, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -106,7 +106,7 @@ Definition hmac_starts_spec :=
 
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
-   WITH key: list Z, c : val, shc: share, d:val, shd: share, data:list Z, data1:list Z, gv:globals
+   WITH key: list byte, c : val, shc: share, d:val, shd: share, data:list byte, data1:list byte, gv:globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st, 
          _data OF tptr tvoid, 
          _len OF tuint]
@@ -124,7 +124,7 @@ Definition hmac_update_spec :=
 
 Definition hmac_final_spec :=
   DECLARE _HMAC_Final
-   WITH data:list Z, key:list Z, c : val, sh: share, md:val, shmd: share, gv:globals
+   WITH data:list byte, key:list byte, c : val, sh: share, md:val, shmd: share, gv:globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _md OF tptr tuchar ]
        PROP (writable_share sh; writable_share shmd) 
@@ -141,7 +141,7 @@ Definition hmac_final_spec :=
 (*Maybe this is not needed in mbedtls?*)
 Definition hmac_cleanup_spec :=
   DECLARE _HMAC_cleanup
-   WITH key: list Z, c : val, sh: share
+   WITH key: list byte, c : val, sh: share
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP (writable_share sh) 
          LOCAL (temp _ctx c)
@@ -223,7 +223,7 @@ Import sha.ByteBitRelations.
 Import sha.verif_hmac_crypto.
 
 Module OPENSSL_HMAC_ABSTRACT_SPEC <: HMAC_ABSTRACT_SPEC.
-Inductive HABS := hABS: forall (key data:list Z), HABS.
+Inductive HABS := hABS: forall (key data:list byte), HABS.
 
 Definition abs_relate (a: HABS) (r: hmacstate) : Prop :=
   match a with hABS key data => 
@@ -299,7 +299,7 @@ Qed.
 
 Definition hmac_reset_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, sh: share, l:Z, key:list Z, gv: globals (*, d:list Z*)
+   WITH c : val, sh: share, l:Z, key:list byte, gv: globals (*, d:list Z*)
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -314,7 +314,7 @@ Definition hmac_reset_spec :=
 
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, sh: share, l:Z, key:list Z, b:block, i:ptrofs, shk: share, gv: globals
+   WITH c : val, sh: share, l:Z, key:list byte, b:block, i:ptrofs, shk: share, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
@@ -329,7 +329,7 @@ Definition hmac_starts_spec :=
 
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
-   WITH key: list Z, c : val, shc: share, d:val, shd: share, data:list Z, data1:list Z, gv: globals
+   WITH key: list byte, c : val, shc: share, d:val, shd: share, data:list byte, data1:list byte, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st, 
          _data OF tptr tvoid, 
          _len OF tuint]
@@ -347,7 +347,7 @@ Definition hmac_update_spec :=
 
 Definition hmac_final_spec :=
   DECLARE _HMAC_Final
-   WITH data:list Z, key:list Z, c : val, sh: share, md:val, shmd: share, gv: globals
+   WITH data:list byte, key:list byte, c : val, sh: share, md:val, shmd: share, gv: globals
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _md OF tptr tuchar ]
        PROP (writable_share sh; writable_share shmd) 
@@ -364,7 +364,7 @@ Definition hmac_final_spec :=
 
 Definition hmac_cleanup_spec :=
   DECLARE _HMAC_cleanup
-   WITH key: list Z, c : val, sh: share
+   WITH key: list byte, c : val, sh: share
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP (writable_share sh) 
          LOCAL (temp _ctx c)
@@ -506,7 +506,7 @@ simpl_ret_assert; normalize.
   apply derives_refl.
   split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
-  rewrite Zlength_app, Zlength_mkArgZ, map_length, mkKey_length, Min.min_idempotent.
+  rewrite Zlength_app, Zlength_mkArgZ, mkKey_length, Min.min_idempotent.
   simpl. rewrite (Z.add_comm 64), <- Z.mul_add_distr_r, Z.add_assoc. 
   assert (Tpp: (two_power_pos 64 = two_power_pos 61 * 8)%Z) by reflexivity.
   rewrite Tpp.  
@@ -559,7 +559,7 @@ simpl_ret_assert; normalize.
 
   unfold EMPTY. 
   rewrite <- memory_block_data_at_. simpl. unfold data_block.
-  clear. simpl. apply andp_left2. apply data_at_memory_block.
+  clear. simpl. apply data_at_memory_block.
   trivial.
   apply derives_refl.
 Qed. 

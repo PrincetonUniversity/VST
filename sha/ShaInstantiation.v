@@ -34,16 +34,16 @@ Definition sha_splitandpad (msg : Blist) : Blist :=
   bytesToBits (sha_padding_lemmas.pad (bitsToBytes msg)).
 
 (* artifact of app_fpad definition *)
-Definition fpad_inner (msg : list Z) : list Z :=
+Definition fpad_inner (msg : list byte) : list byte :=
   (let n := BlockSize + Zlength msg in
-  [128%Z]
-    ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0
-    ++ intlist_to_Zlist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]))%list.
+  [Byte.repr 128%Z]
+    ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero
+    ++ intlist_to_bytelist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]))%list.
 
 Lemma fpad_inner_length l (L:length l = p): (length (fpad_inner (bitsToBytes l)) * 8)%nat = p.
 Proof.
   unfold fpad_inner. repeat rewrite app_length.
-  rewrite length_list_repeat, length_intlist_to_Zlist.
+  rewrite length_list_repeat, length_intlist_to_bytelist.
   rewrite (mult_comm 4), plus_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
     reflexivity.
@@ -59,13 +59,12 @@ apply M. (*we're exploiting the fact that c=p here*)
 Qed.
 
 (* --------------- *)
-Lemma xor_equiv_byte: forall xpad XPAD k K, isbyteZ XPAD ->
+Lemma xor_equiv_byte: forall xpad XPAD k K, 
                           bytes_bits_lists xpad (HMAC_SHA256.sixtyfour XPAD) ->
                           ((length K) * 8)%nat = (c + p)%nat ->
-                          bytes_bits_lists k (map Byte.unsigned K) ->
-bytes_bits_lists (BLxor k xpad) (HMAC_SHA256.mkArgZ K (Byte.repr XPAD)).
+                          bytes_bits_lists k K ->
+bytes_bits_lists (BLxor k xpad) (HMAC_SHA256.mkArg K XPAD).
 Proof. intros.  apply inner_general_mapByte; try assumption.
-       rewrite <- HMAC_SHA256.SF_ByteRepr; trivial.
 Qed.
 
 
@@ -79,11 +78,11 @@ Qed.
 
 
 (* modified version of sha_padding_lemmas.pad *)
-Definition pad_inc (msg : list Z) : list Z :=
+Definition pad_inc (msg : list byte) : list byte :=
   let n := BlockSize + Zlength msg in
-  msg ++ [128%Z]
-      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0
-      ++ intlist_to_Zlist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]).
+  msg ++ [Byte.repr 128%Z]
+      ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) Byte.zero
+      ++ intlist_to_bytelist ([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)]).
 
 Definition sha_splitandpad_inc (msg : Blist) : Blist :=
   bytesToBits (pad_inc (bitsToBytes msg)).
@@ -91,20 +90,12 @@ Definition sha_splitandpad_inc (msg : Blist) : Blist :=
 Lemma sha_splitandpad_inc_nil: length (sha_splitandpad_inc nil) = 512%nat.
 Proof. reflexivity. Qed.
 
-Lemma isbyteZ_pad_inc l (B:Forall isbyteZ l): Forall isbyteZ (pad_inc l).
-Proof. unfold pad_inc.
-  apply Forall_app. split. trivial.
-  apply Forall_app. split. constructor. split; omega. trivial.
-  apply Forall_app. split. apply Forall_list_repeat. split; omega.
-  apply isbyte_intlist_to_Zlist.
-Qed.
-
 Lemma pad_inc_length: forall l, exists k, (0 < k /\ length (pad_inc l) = k*64)%nat.
 Proof. unfold pad_inc.
   induction l.
   simpl. exists (1%nat). omega.
   destruct IHl as [k [K HK]]. repeat rewrite app_length in *. rewrite length_list_repeat in *.
-  rewrite length_intlist_to_Zlist in *.
+  rewrite length_intlist_to_bytelist in *.
   remember (BinInt.Z.to_nat
         (BinInt.Z.modulo
            (BinInt.Z.opp
@@ -193,11 +184,11 @@ Proof. intros r l.
   intros. destruct _x. contradiction. subst msg; clear y.
   inv H1.
   apply H; clear H. unfold sha_h, intsToBits.
-  rewrite bytesToBits_len, length_intlist_to_Zlist.
+  rewrite bytesToBits_len, length_intlist_to_bytelist.
   rewrite length_hash_block. omega.
-  unfold bitsToInts. erewrite length_Zlist_to_intlist. reflexivity.
+  unfold bitsToInts. erewrite length_bytelist_to_intlist. reflexivity.
     rewrite bitsToBytes_len_gen with (n:=32%nat). reflexivity. apply H0.
-  unfold bitsToInts. erewrite length_Zlist_to_intlist. reflexivity.
+  unfold bitsToInts. erewrite length_bytelist_to_intlist. reflexivity.
     erewrite bitsToBytes_len_gen with (n:=64%nat). reflexivity.
     rewrite H3, firstn_exact. apply H2. apply H2.
     rewrite H3, skipn_exact. assumption. apply H2.
@@ -207,19 +198,19 @@ Lemma sha_h_length iv blk: length iv = c -> length blk = b ->
       length (sha_h iv blk) = c.
 Proof. intros.
  unfold sha_h, intsToBits.
-  rewrite bytesToBits_len, length_intlist_to_Zlist.
+  rewrite bytesToBits_len, length_intlist_to_bytelist.
   rewrite common_lemmas.length_hash_block. reflexivity.
-  unfold bitsToInts. erewrite pure_lemmas.length_Zlist_to_intlist. reflexivity.
+  unfold bitsToInts. erewrite pure_lemmas.length_bytelist_to_intlist. reflexivity.
   erewrite bitsToBytes_len_gen. reflexivity.
   rewrite H; reflexivity.
-  unfold bitsToInts. erewrite pure_lemmas.length_Zlist_to_intlist. reflexivity.
+  unfold bitsToInts. erewrite pure_lemmas.length_bytelist_to_intlist. reflexivity.
   erewrite bitsToBytes_len_gen. reflexivity.
   rewrite H0; reflexivity.
 Qed.
 
 (*******Injectivity of pad_inc*************************)
 
-Lemma pad_injective_aux (l1 l2: list Z) k
+Lemma pad_injective_aux (l1 l2: list byte) k
      (K : k * Int.modulus + (BlockSize + Zlength l1) * 8 =
           (BlockSize + Zlength l2) * 8)
      (N : k <> 0):
@@ -259,10 +250,10 @@ Proof. repeat rewrite <- Z.add_assoc. unfold BlockSize.
 Qed.
 
 Lemma pad_injective_Case5 l1 l2
-  (H0 : (l1 ++ 128 :: nil) ++
-        list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) 0 =
-        (l2 ++ 128 :: nil) ++
-        list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) 0)
+  (H0 : (l1 ++ Byte.repr 128 :: nil) ++
+        list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) Byte.zero =
+        (l2 ++ Byte.repr 128 :: nil) ++
+        list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) Byte.zero)
   (H : (BlockSize + Zlength l1) * 8 =
        ((BlockSize + Zlength l2) * 8) mod Int.modulus)
   (Nonneg1 : 0 <= (BlockSize + Zlength l1) * 8)
@@ -279,10 +270,10 @@ Proof. symmetry in H.
          rewrite <- (Nat2Z.id (length l2)).
          rewrite H. reflexivity.
        clear H.
-       assert (length ((l1 ++ 128 :: nil) ++
-                list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) 0)
-             = length ((l2 ++ 128 :: nil) ++
-                list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) 0)).
+       assert (length ((l1 ++ Byte.repr 128 :: nil) ++
+                list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) Byte.zero)
+             = length ((l2 ++ Byte.repr 128 :: nil) ++
+                list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) Byte.zero)).
        rewrite H0; trivial.
        clear H0. repeat rewrite app_length in H.
        repeat rewrite length_list_repeat in H.
@@ -302,7 +293,7 @@ destruct d.
   unfold pad_inc in H.
   repeat rewrite app_assoc in H.
   destruct (app_inv_length2 _ _ _ _ H); clear H. reflexivity.
-  apply intlist_to_Zlist_inj in H1.
+  apply intlist_to_bytelist_inj in H1.
   apply cons_inv in H1. destruct H1 as [_ Y].
   apply cons_inv in Y. destruct Y as [Y _].
   assert (Int.unsigned (Int.repr ((BlockSize + Zlength l1) * 8)) = Int.unsigned (Int.repr ((BlockSize + Zlength l2) * 8))).
@@ -348,10 +339,10 @@ destruct d.
         rewrite <- (Nat2Z.id (length l1)).
         rewrite <- (Nat2Z.id (length l2)).
         rewrite H0. reflexivity. }
-      { assert (length ((l1 ++ 128 :: nil) ++
-                 list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) 0)
-              = length ((l2 ++ 128 :: nil) ++
-                 list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) 0)).
+      { assert (length ((l1 ++ Byte.repr 128 :: nil) ++
+                 list_repeat (Z.to_nat (- (BlockSize + Zlength l1 + 9) mod 64)) Byte.zero)
+              = length ((l2 ++ Byte.repr 128 :: nil) ++
+                 list_repeat (Z.to_nat (- (BlockSize + Zlength l2 + 9) mod 64)) Byte.zero)).
           rewrite H0; trivial.
         clear H0. repeat rewrite app_length in H1.
         repeat rewrite length_list_repeat in H1.
@@ -389,22 +380,6 @@ Proof.
   * apply block_8. apply len.
   * apply block_8. apply len.
 Qed.
-
-Lemma pad_isbyteZ: forall l, Forall isbyteZ l -> Forall isbyteZ (pad l).
-Proof. intros. unfold pad.
-  apply Forall_app.
-  split; trivial.
-  apply Forall_app.
-  split. constructor. unfold isbyteZ; omega. constructor.
-  apply Forall_app.
-  split. apply Forall_list_repeat. unfold isbyteZ; omega.
-  apply isbyte_intlist_to_Zlist.
-Qed.
-
-Lemma isbyte_hmaccore ipad opad m k:
-   Forall isbyteZ (HMAC_SHA256.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
-Proof. apply SHA256.Hash_isbyteZ. Qed.
-
 
 (*
 Module SHAHF <: Hashfunction.

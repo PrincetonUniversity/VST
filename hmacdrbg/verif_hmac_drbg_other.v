@@ -42,14 +42,14 @@ Proof.
       unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY Ews v1).
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
-      destruct  H1 as [xx XX]. 
+      destruct  H0 as [xx XX]. 
       forward_call (Vptr b i, (v, (v0, v1)), shc). {
          change (Tstruct _hmac_ctx_st noattr) with spec_hmac.t_struct_hmac_ctx_st.
          simpl; cancel. } 
       replace_SEP 0 (memory_block shc 12 (Vptr b i)).
             { specialize (data_at_memory_block shc t_struct_md_ctx_st xx); simpl; intros.
               entailer. apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
-              apply andp_left2. apply H1. }
+              apply andp_left2. apply H0. }
       freeze [0;1] FR1.
       replace_SEP 0 (data_at_ shc (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
@@ -100,9 +100,9 @@ Proof.
   start_function.
   abbreviate_semax.
   rename H into ASS1. rename H0 into ASS2. rename H1 into ASS3.
-  rename H2 into ASS4. rename H3 into ASS5. rename H4 into ASS6.
+  rename H2 into ASS4. rename H3 into ASS5.
   forward.  
-  forward_call (@nil Z, nullval, Tsh, Z0, output, sho, out_len, ctx, shc, initial_state,
+  forward_call (@nil byte, nullval, Tsh, Z0, output, sho, out_len, ctx, shc, initial_state,
                I, info_contents, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
@@ -114,8 +114,7 @@ Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
          RI_range (hmac256drbgabs_reseed_interval I)  /\
-         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed /\
-         Forall isbyteZ (hmac256drbgabs_value I).
+         0 <= hmac256drbgabs_reseed_counter I < Int.max_signed.
 
 Definition hmac_drbg_random_spec_simple :=
   DECLARE _mbedtls_hmac_drbg_random
@@ -143,7 +142,7 @@ Definition hmac_drbg_random_spec_simple :=
                         (hmac256drbgabs_reseed_interval I)
                       end) 
        LOCAL (temp ret_temp (Vint Int.zero))
-       SEP (data_at Ews (tarray tuchar n) (map Vint (map Int.repr bytes)) output;
+       SEP (data_at Ews (tarray tuchar n) (map Vubyte bytes) output;
             data_at Ews t_struct_hmac256drbg_context_st f ctx;
          hmac256drbg_relate F f;
          data_at Ews t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer f);
@@ -169,7 +168,7 @@ Proof.
   destruct H as [ASS1 [ASS2 [ASS3 [ASS4 ASS5]]]].
   destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
   forward.
-  forward_call (@nil Z, nullval, Tsh, Z0, output, Ews, n, ctx, Ews, i,
+  forward_call (@nil byte, nullval, Tsh, Z0, output, Ews, n, ctx, Ews, i,
                 I, info, s, gv).
   { rewrite da_emp_null; trivial. cancel. }
   { rewrite Zlength_nil.
@@ -180,9 +179,9 @@ Proof.
   rewrite ASS8 in *.
   unfold return_value_relate_result, da_emp; simpl. (* entailer!.*)
   Exists (hmac256drbgabs_generate I s
-            (Zlength (map Vint (map Int.repr bytes))) []).
+            (Zlength (map Vubyte bytes)) []).
   Exists (hmac256drbgabs_to_state (hmac256drbgabs_generate I s
-            (Zlength (map Vint (map Int.repr bytes))) []) i).
+            (Zlength (map Vubyte bytes)) []) i).
   apply AUX in ASS8. rewrite <- ASS8; clear ASS8. 
   entailer!. 
   unfold hmac256drbgabs_common_mpreds; simpl.
@@ -389,7 +388,7 @@ Proof.
   eapply semax_seq with (Q:=
          PROP ( )
          LOCAL ()
-         SEP (data_block sh (list_repeat (Z.to_nat n) 0) (Vptr b i))).
+         SEP (data_block sh (list_repeat (Z.to_nat n) Byte.zero) (Vptr b i))).
   2: solve [unfold MORE_COMMANDS, abbreviate; forward]. 
   apply semax_loop with (
   (EX k : Z,
@@ -411,9 +410,7 @@ Proof.
       subst k; clear H K. rewrite Zminus_diag.
       forward.
       entailer!. unfold data_block. normalize. simpl.
-      apply andp_right. apply prop_right. apply Forall_list_repeat. split; omega. 
-      rewrite Zlength_list_repeat; try omega. 
-      rewrite 2 general_lemmas.map_list_repeat, app_nil_r. cancel.
+      autorewrite with sublist. cancel.
     - forward. forward.
       assert (KN: 0 <= k < n) by omega.
       (*forward.  The 2 properties mentioned in the error message are equal*)

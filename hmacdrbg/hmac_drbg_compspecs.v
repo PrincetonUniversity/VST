@@ -15,7 +15,6 @@ Lemma change_compspecs_data_block: forall sh v,
 Proof.
   intros.
   unfold data_block.
-  f_equal.
   apply data_at_change_composite; auto.
 Qed.
 

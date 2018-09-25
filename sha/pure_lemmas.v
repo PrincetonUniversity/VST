@@ -17,19 +17,19 @@ Require Psatz.
 
 Global Opaque CBLOCKz LBLOCKz.
 
-Lemma Zlength_intlist_to_Zlist:
+Lemma Zlength_intlist_to_bytelist:
   forall l : list int,
-       Zlength (intlist_to_Zlist l) = (Zlength l * 4)%Z.
+       Zlength (intlist_to_bytelist l) = (Zlength l * 4)%Z.
 Proof.
 intros.
-repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
+repeat rewrite Zlength_correct. rewrite length_intlist_to_bytelist.
 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm. reflexivity.
 Qed.
 
-Hint Rewrite Zlength_intlist_to_Zlist : sublist.
+Hint Rewrite Zlength_intlist_to_bytelist : sublist.
 
-Lemma skipn_intlist_to_Zlist:
-  forall i m, skipn (4*i) (intlist_to_Zlist m) = intlist_to_Zlist (skipn i m).
+Lemma skipn_intlist_to_bytelist:
+  forall i m, skipn (4*i) (intlist_to_bytelist m) = intlist_to_bytelist (skipn i m).
 Proof.
 induction i; intros.
 reflexivity.
@@ -38,8 +38,8 @@ destruct m; try reflexivity.
 apply IHi.
 Qed.
 
-Lemma firstn_intlist_to_Zlist:
-  forall i m, firstn (4*i) (intlist_to_Zlist m) = intlist_to_Zlist (firstn i m).
+Lemma firstn_intlist_to_bytelist:
+  forall i m, firstn (4*i) (intlist_to_bytelist m) = intlist_to_bytelist (firstn i m).
 Proof.
 induction i; intros.
 reflexivity.
@@ -49,10 +49,10 @@ simpl. f_equal. f_equal. f_equal. f_equal.
 apply IHi.
 Qed.
 
-Lemma sublist_intlist_to_Zlist:
+Lemma sublist_intlist_to_bytelist:
  forall i j m,
-  sublist (i * WORD) (j * WORD) (intlist_to_Zlist m) =
-  intlist_to_Zlist (sublist i j m).
+  sublist (i * WORD) (j * WORD) (intlist_to_bytelist m) =
+  intlist_to_bytelist (sublist i j m).
 Proof.
 intros.
 unfold sublist.
@@ -65,7 +65,7 @@ reflexivity.
 rewrite ?(Z.mul_comm _ 4).
 rewrite ?Z2Nat.inj_mul by omega.
 change (Z.to_nat 4) with 4%nat.
-rewrite <- firstn_intlist_to_Zlist.
+rewrite <- firstn_intlist_to_bytelist.
 f_equal.
 destruct (zlt i 0).
 rewrite (Z2Nat_neg _ l).
@@ -73,23 +73,21 @@ rewrite (Z2Nat_neg (4*i)) by omega.
 reflexivity.
 rewrite ?Z2Nat.inj_mul by omega.
 change (Z.to_nat 4) with 4%nat.
-apply skipn_intlist_to_Zlist.
+apply skipn_intlist_to_bytelist.
 Qed.
 
-Lemma Zlist_to_intlist_to_Zlist':
-  forall nl: list Z,
+Lemma bytelist_to_intlist_to_bytelist':
+  forall nl: list byte,
   Nat.divide (Z.to_nat WORD) (length nl) ->
-  Forall isbyteZ nl ->
-  intlist_to_Zlist (Zlist_to_intlist nl) = nl.
+  intlist_to_bytelist (bytelist_to_intlist nl) = nl.
 Proof.
 intros nl [k H].
 revert nl H; induction k; intros.
 destruct nl; inv H; reflexivity.
 simpl in H.
 destruct nl as [ | a [ | b [ | c [ | d ?]]]]; inv H.
-inv H0. inv H4. inv H5. inv H6.
-unfold Zlist_to_intlist; fold Zlist_to_intlist.
-rewrite intlist_to_Zlist_Z_to_int_cons by auto.
+unfold bytelist_to_intlist; fold bytelist_to_intlist.
+rewrite intlist_to_bytelist_bytes_to_int_cons by auto.
 repeat f_equal; auto.
 Qed.
 
@@ -116,21 +114,20 @@ apply Nat2Z.inj in H0. rewrite H0.
 rewrite Z2Nat.inj_mul; auto.
 Qed.
 
-Lemma Zlist_to_intlist_to_Zlist:
-  forall nl: list Z,
+Lemma bytelist_to_intlist_to_bytelist:
+  forall nl: list byte,
   Z.divide WORD (Zlength nl) ->
-  Forall isbyteZ nl ->
-  intlist_to_Zlist (Zlist_to_intlist nl) = nl.
+  intlist_to_bytelist (bytelist_to_intlist nl) = nl.
 Proof.
 intros.
-apply Zlist_to_intlist_to_Zlist'; auto.
+apply bytelist_to_intlist_to_bytelist'; auto.
 apply Ndivide_Zdivide_length; auto.
 compute; congruence.
 Qed.
 
-Lemma length_Zlist_to_intlist: forall n l,
+Lemma length_bytelist_to_intlist: forall n l,
        length l = (Z.to_nat WORD * n)%nat ->
-       length (Zlist_to_intlist l) = n.
+       length (bytelist_to_intlist l) = n.
 Proof.
 induction n; intros.
 destruct l; inv H; reflexivity.
@@ -146,8 +143,10 @@ Qed.
 Lemma big_endian_integer4:
  forall c0 c1 c2 c3,
   big_endian_integer (c0::c1::c2::c3::nil) =
-  Int.or (Int.shl c0 (Int.repr 24)) (Int.or (Int.shl c1 (Int.repr 16))
-   (Int.or (Int.shl c2 (Int.repr 8)) c3)).
+  Int.or (Int.shl (Int.repr (Byte.unsigned c0)) (Int.repr 24)) 
+     (Int.or (Int.shl (Int.repr (Byte.unsigned c1)) (Int.repr 16))
+   (Int.or (Int.shl (Int.repr (Byte.unsigned c2)) (Int.repr 8)) 
+          (Int.repr (Byte.unsigned c3)))).
 Proof.
 intros.
 unfold big_endian_integer.
@@ -332,45 +331,37 @@ now elim Hb.
 Qed.
 
 Lemma generate_and_pad_lemma1:
-  forall hashed dd hashed' dd' pad bitlen
-   (DDbytes': Forall isbyteZ dd')
+  forall hashed (dd: list byte) hashed' (dd': list byte) pad bitlen
    (PAD : pad = 0 \/ dd' = [])
    (H0 : Zlength dd' + 8 <= CBLOCKz)
    (H1 : 0 <= pad < 8)
    (H4: (LBLOCKz | Zlength hashed))
    (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = bitlen)
    (H3: Zlength dd < CBLOCKz)
-   (DDbytes : Forall isbyteZ dd)
    (H2 : (LBLOCKz | Zlength hashed'))
-   (H5 : intlist_to_Zlist hashed' ++ dd' =
-     intlist_to_Zlist hashed ++ dd ++ [128] ++ list_repeat (Z.to_nat pad) 0),
+   (H5 : intlist_to_bytelist hashed' ++ dd' =
+     intlist_to_bytelist hashed ++ dd ++ [Byte.repr 128] ++ list_repeat (Z.to_nat pad) Byte.zero),
    let lastblock :=
-             map Int.repr
                (dd' ++
-                list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) 0 ++
-                intlist_to_Zlist [hi_part bitlen; lo_part bitlen])
+                list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) Byte.zero ++
+                intlist_to_bytelist [hi_part bitlen; lo_part bitlen])
    in let lastblock' :=
-             Zlist_to_intlist (map Int.unsigned lastblock)
-   in forall (H99: Zlength lastblock = CBLOCKz)
-         (BYTESlastblock : Forall isbyteZ (map Int.unsigned lastblock)),
- generate_and_pad (intlist_to_Zlist hashed ++ dd) = hashed' ++ lastblock'.
+             bytelist_to_intlist lastblock
+   in forall (H99: Zlength lastblock = CBLOCKz),
+ generate_and_pad (intlist_to_bytelist hashed ++ dd) = hashed' ++ lastblock'.
 Proof.
 intros.
-apply intlist_to_Zlist_inj.
-rewrite intlist_to_Zlist_app.
+apply intlist_to_bytelist_inj.
+rewrite intlist_to_bytelist_app.
 unfold lastblock'.
-rewrite Zlist_to_intlist_to_Zlist; auto.
-2: rewrite Zlength_map,H99; exists LBLOCKz; reflexivity.
+rewrite bytelist_to_intlist_to_bytelist; auto.
+2: rewrite H99; exists LBLOCKz; reflexivity.
 unfold lastblock.
-rewrite !map_app.
-rewrite map_unsigned_repr_isbyte by auto.
 rewrite <- app_ass. rewrite H5.
-rewrite !map_list_repeat.
-change (Int.unsigned (Int.repr 0)) with 0.
-rewrite map_unsigned_repr_isbyte by apply isbyte_intlist_to_Zlist.
 unfold generate_and_pad.
-rewrite intlist_to_Zlist_app.
-rewrite Zlist_to_intlist_to_Zlist; auto.
+rewrite intlist_to_bytelist_app.
+rewrite bytelist_to_intlist_to_bytelist; auto.
+*
 repeat rewrite app_ass.
 f_equal. f_equal. f_equal.
 rewrite <- app_ass.
@@ -380,16 +371,16 @@ f_equal.
 clear - H5 H2 H1 H0 PAD.
 assert (Zlength dd' <= 56) by (change CBLOCKz with 64 in H0; omega).
 clear H0.
-replace (Zlength (intlist_to_Zlist hashed ++ dd))
+replace (Zlength (intlist_to_bytelist hashed ++ dd))
   with (4*Zlength hashed' + Zlength dd' - (1+pad)).
 2:{
 rewrite Z.mul_comm.
-rewrite <-  Zlength_intlist_to_Zlist.
+rewrite <-  Zlength_intlist_to_bytelist.
 rewrite <- Zlength_app.
 rewrite H5.
 rewrite <- app_ass.
 rewrite Zlength_app.
-forget (Zlength (intlist_to_Zlist hashed ++ dd)) as B.
+forget (Zlength (intlist_to_bytelist hashed ++ dd)) as B.
 rewrite Zlength_app.
 rewrite Zlength_cons, Zlength_nil, Zlength_correct.
 rewrite length_list_repeat. rewrite Z2Nat.id by omega. omega.
@@ -422,10 +413,10 @@ f_equal. {
  rewrite <- Zminus_mod.
  rewrite Z.mod_small; omega.
 }
- rewrite Zlength_app, Zlength_intlist_to_Zlist.
+ rewrite Zlength_app, Zlength_intlist_to_bytelist.
  rewrite H7.
  reflexivity.
-{
+*
  autorewrite with sublist.
  rewrite Zlength_list_repeat by (apply Z_mod_lt; compute; auto).
  forget ( Zlength hashed * 4 + Zlength dd) as d.
@@ -451,9 +442,4 @@ f_equal. {
  rewrite Zplus_mod. rewrite Z.mod_same by omega.
  rewrite Zminus_mod.   rewrite Z.mod_mod by omega.
  rewrite Z.sub_diag. reflexivity.
-}
- repeat (apply Forall_app; split; auto).
- apply isbyte_intlist_to_Zlist.
- constructor; auto. split; clear; omega.
- apply Forall_list_repeat. split; clear; omega.
 Qed.

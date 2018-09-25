@@ -23,7 +23,7 @@ Require Import hmacdrbg.verif_hmac_drbg_seed_common.
 
 Module Instantiate_eq.
 
-Definition OptionalNonce: option (list Z) := None. (*The implementation takes nonce from entropy, using the el*3/2 calculation*)
+Definition OptionalNonce: option (list byte) := None. (*The implementation takes nonce from entropy, using the el*3/2 calculation*)
 
 (*NIST, Section 10.1: highest supported sec strength is given by the hash function's
 security strength for preimage resistance. For SHA256, this is
@@ -38,7 +38,7 @@ Definition requested_security_strength:= 32.  (*same as in reseed*)
 Definition prediction_resistance_supported:bool:=true.
 
 Definition mbedtls_HMAC256_DRBG_instantiate_function (entropy_stream: ENTROPY.stream)
-         entropy_len pr_flag (personalization_string: list Z): ENTROPY.result DRBG_state_handle :=
+         entropy_len pr_flag (personalization_string: list byte): ENTROPY.result DRBG_state_handle :=
     HMAC256_DRBG_instantiate_function entropy_len entropy_len OptionalNonce
             highest_supported_security_strength max_personalization_string_length
             prediction_resistance_supported entropy_stream
@@ -124,14 +124,14 @@ Opaque list_repeat.
   But use mbedtls_HMAC256_DRBG_instantiate_function PROP of PRE and assume SUCCESS*)
 Definition hmac_drbg_seed_simple_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
-   WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list Z,
+   WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list byte,
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
         handle_ss: DRBG_state_handle * ENTROPY.stream, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _custom OF tptr tuchar, _len OF tuint ]
-       PROP (len = Zlength Data /\ 0 <= len <=256 /\ Forall isbyteZ Data /\
+       PROP (len = Zlength Data /\ 0 <= len <=256 /\
              mbedtls_HMAC256_DRBG_instantiate_function s entlen pr_flag
                                        (contents_with_add data (Zlength Data) Data)
              = ENTROPY.success (fst handle_ss) (snd handle_ss))
@@ -141,14 +141,14 @@ Definition hmac_drbg_seed_simple_spec :=
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate Ews dp rc pr_flag ri Ctx;
          data_at Ews t_struct_mbedtls_md_info Info info;
-         da_emp Ews (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+         da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
          K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Ews t_struct_mbedtls_md_info Info info;
-            da_emp Ews (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+            da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
             K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Ews t_struct_hmac256drbg_context_st Ctx ctx *
@@ -156,7 +156,7 @@ Definition hmac_drbg_seed_simple_spec :=
             else md_empty Ews (fst Ctx) *
                  EX p:val, malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
                  match (fst Ctx, fst handle_ss) with ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR))
-                   => let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
+                   => let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                       !!(ret_value = Int.zero) 
                       && data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                          hmac256drbg_relate (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
@@ -168,7 +168,7 @@ Lemma body_hmac_drbg_seed_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function.
   abbreviate_semax.
-  destruct H as [HDlen1 [HDlen2 [HData RES]]]. destruct handle_ss as [handle ss]. simpl in RES.
+  destruct H as [HDlen1 [HDlen2 RES]]. destruct handle_ss as [handle ss]. simpl in RES.
   rewrite data_at_isptr with (p:=ctx). Intros.
   destruct ctx; try contradiction.
   unfold_data_at 1%nat.
@@ -213,12 +213,8 @@ Proof.
   }
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { simpl. cancel. }
-  { split3; auto. split; auto.  red. simpl. rewrite int_max_signed_eq.
-    split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
-    apply isbyteZ_initialKey.
+  { split3; auto. split; auto.
   }
-  Intros. clear H.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
@@ -253,7 +249,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rewrite int_max_unsigned_eq; omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -265,12 +261,11 @@ Proof.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
   freeze [1;2;3] INI.
-  specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
-  { entailer!. thaw INI. clear - FC_V IB1. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
-    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
+  { entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
+    apply andp_right. apply prop_right. repeat split; trivial.
     unfold_data_at 2%nat. 
     cancel. unfold md_full; simpl.
     rewrite field_at_data_at; simpl.
@@ -291,10 +286,7 @@ Proof.
     split. reflexivity.
     split. omega.
     split. (*change Int.modulus with 4294967296.*) rep_omega.
-    split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
-    split. apply IB1. split; omega.
-    assumption.
+     unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
   }
 
   Intros v.
@@ -365,7 +357,7 @@ Time Qed. (*Coq8.6: 26secs*)
   Entropy.ERROR, ie no hypothesis about mbedtls_HMAC256_DRBG_instantiate_function in PROP of PRE*)
 Definition hmac_drbg_seed_full_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
-   WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list Z,
+   WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list byte,
         Ctx: hmac256drbgstate,
         Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
@@ -374,21 +366,21 @@ Definition hmac_drbg_seed_full_spec :=
        PROP ( (len = Zlength Data) /\
               0 <= len /\
               48 + len < Int.modulus /\
-              0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus /\ Forall isbyteZ Data)
+              0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus)
        LOCAL (temp _ctx ctx; temp _md_info info;
               temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
          preseed_relate Ews dp rc pr_flag ri Ctx;
          data_at Ews t_struct_mbedtls_md_info Info info;
-         da_emp Ews (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+         da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
          K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Ews t_struct_mbedtls_md_info Info info;
-            da_emp Ews (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+            da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
             K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Ews t_struct_hmac256drbg_context_st Ctx ctx *
@@ -420,7 +412,7 @@ Definition hmac_drbg_seed_full_spec :=
                                        hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
                                     match handle with ((((newV, newK), newRC), newEL), newPR) =>
-                                      let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
+                                      let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                                       let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in
                                     data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                     hmac256drbg_relate CTXFinal CtxFinal *
@@ -478,12 +470,8 @@ Proof.
   }
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { simpl. cancel. }
-  { split3; auto. split; auto.  red. simpl. rewrite int_max_signed_eq.
-    split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
-    apply isbyteZ_initialKey.
+  { split3; auto. split; auto. 
   }
-  Intros. clear H.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
@@ -519,7 +507,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rewrite int_max_unsigned_eq; omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -531,12 +519,11 @@ Proof.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
   freeze [1;2;3] INI.
-  specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
-  { entailer!. thaw INI. clear - FC_V IB1. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
-    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
+  { entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
+    apply andp_right. apply prop_right. repeat split; trivial.
     unfold_data_at 2%nat. 
     cancel. unfold md_full; simpl.
     rewrite field_at_data_at; simpl.
@@ -557,10 +544,7 @@ Proof.
     split. reflexivity.
     split. omega.
     split. rep_omega.
-    split. (* change Int.modulus with 4294967296.*)
-       unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
-    split. apply IB1. split; omega.
-    assumption.
+    unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
   }
 
   Intros v.
@@ -657,9 +641,8 @@ Definition preseed_relate shc V rc pr ri (r : hmac256drbgstate):mpred:=
     match r with
      (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))) =>
     md_empty shc md_ctx' &&
-    !! (map Vint (map Int.repr V) = V' /\
+    !! (map Vubyte V = V' /\
         Zlength V = 32 /\
-        Forall isbyteZ V /\
         Vint (Int.repr rc) = reseed_counter'(* /\
         Vint (Int.repr entropy_len) = entropy_len'*) /\
         Vint (Int.repr ri) = reseed_interval' /\
@@ -668,17 +651,17 @@ Definition preseed_relate shc V rc pr ri (r : hmac256drbgstate):mpred:=
 
 Definition hmac_drbg_seed_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
-   WITH ctx: val, info:val, len: Z, data:val, Data: list Z,
+   WITH ctx: val, info:val, len: Z, data:val, Data: list byte,
         Ctx: hmac256drbgstate,
         (*CTX: hmac256drbgabs,*)
-        Info: md_info_state, s:ENTROPY.stream, rc:Z, pr:bool, ri:Z, VV:list Z, gv: globals
+        Info: md_info_state, s:ENTROPY.stream, rc:Z, pr:bool, ri:Z, VV:list byte, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _custom OF tptr tuchar, _len OF tuint ]
        PROP ( (len = Zlength Data) /\
               0 <= len (*<= 336 Int.max_unsigned*) /\
               48 + len < Int.modulus /\
-              0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus /\ Forall isbyteZ Data)
+              0 < 48 + Zlength (contents_with_add data len Data) < Int.modulus)
        LOCAL (temp _ctx ctx; temp _md_info info;
               temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
@@ -686,14 +669,14 @@ Definition hmac_drbg_seed_spec :=
          preseed_relate Ews VV rc pr ri Ctx;
          (*hmac256drbg_relate CTX Ctx;*)
          data_at Ews t_struct_mbedtls_md_info Info info;
-         da_emp Ews (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+         da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
          K_vector gv; Stream s)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp (Vint ret_value))
        SEP (data_at Ews t_struct_mbedtls_md_info Info info;
-            da_emp Ews (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+            da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
             K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Ews t_struct_hmac256drbg_context_st Ctx ctx *
@@ -707,11 +690,11 @@ Definition hmac_drbg_seed_spec :=
                      (Stream s *
                      ( let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc),
                                        (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000 in
+                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000 in
                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                      hmac256drbg_relate CTXFinal CtxFinal))
 
-                   else let myABS := HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000
+                   else let myABS := HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000
                       in match mbedtls_HMAC256_DRBG_reseed_function s myABS
                                 (contents_with_add data (Zlength Data) Data)
                          with
@@ -722,12 +705,12 @@ Definition hmac_drbg_seed_spec :=
                               end) && (Stream ss *
                                        let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc),
                                                 (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000 in
+                                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000 in
                                        data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                        hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) &&
                                     match handle with ((((newV, newK), newRC), newEL), newPR) =>
-                                      let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
+                                      let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                                       let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in
                                     data_at Ews t_struct_hmac256drbg_context_st CtxFinal ctx *
                                     hmac256drbg_relate CTXFinal CtxFinal *
@@ -773,7 +756,7 @@ Proof.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
   thaw FR0. subst.
-  rename H1 into ZL_VV. rename H2 into isbyteZ_VV.
+  rename H1 into ZL_VV.
   thaw FIELDS.
   freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
@@ -790,9 +773,7 @@ Proof.
     apply prop_right; repeat split; trivial.
   }
   { simpl. cancel. }
-  { split3; auto. split; auto. red. simpl. rewrite int_max_signed_eq, ZL_VV.
-    split. trivial. split. omega. rewrite two_power_pos_equiv. 
-    change (2^64) with 18446744073709551616. omega.
+  { split3; auto. split; auto.
   }
   Intros.
 
@@ -835,9 +816,9 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rewrite int_max_unsigned_eq; omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
 
-  set (myABS := HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000) in *.
+  set (myABS := HMAC256DRBGabs VV (list_repeat 32 Byte.one) rc 48 pr 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
         (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
@@ -848,14 +829,13 @@ Proof.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
   freeze [1;2;3] INI.
-  specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
   { go_lower. thaw INI. clear KVStreamInfoDataFreeBlk. thaw FR_CTX.
     unfold_data_at 2%nat.
     subst ST; simpl. cancel. normalize.
-    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
+    apply andp_right. apply prop_right. repeat split; trivial.
     unfold md_full. simpl.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. cancel.
@@ -874,10 +854,7 @@ Proof.
     split. reflexivity.
     split. omega.
     split. (*change Int.modulus with 4294967296.*) rep_omega.
-    split. (* change Int.modulus with 4294967296.*)
        unfold contents_with_add. simple_if_tac. rep_omega. rewrite Zlength_nil; rep_omega.
-    split. apply IB1. split; omega.
-    assumption.
   }
 
   Intros v.

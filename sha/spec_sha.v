@@ -14,16 +14,16 @@ Definition s256_Nh (s: s256state) := fst (snd (snd s)).
 Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
 Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
 
-Definition s256abs := list Z. (* SHA-256 abstract state *)
+Definition s256abs := list byte. (* SHA-256 abstract state *)
 
 Definition s256a_hashed (a: s256abs) : list int :=
-  Zlist_to_intlist (sublist 0 ((Zlength a / CBLOCKz) * CBLOCKz) a).
+  bytelist_to_intlist (sublist 0 ((Zlength a / CBLOCKz) * CBLOCKz) a).
 
-Definition s256a_data (a: s256abs) : list Z :=
+Definition s256a_data (a: s256abs) : list byte :=
   sublist ((Zlength a / CBLOCKz) * CBLOCKz) (Zlength a) a.
 
-Definition S256abs (hashed: list int) (data: list Z) : s256abs :=
- intlist_to_Zlist hashed ++ data.
+Definition S256abs (hashed: list int) (data: list byte) : s256abs :=
+ intlist_to_bytelist hashed ++ data.
 
 Definition s256a_regs (a: s256abs) : list int :=
       hash_blocks init_registers (s256a_hashed a).
@@ -35,8 +35,7 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
        /\ (s256_Nh r = Vint (hi_part (s256a_len a)) /\
             s256_Nl r = Vint (lo_part (s256a_len a)))
        /\ sublist 0 (Zlength (s256a_data a)) (s256_data r) =
-             map Vint (map Int.repr (s256a_data a))
-       /\ Forall isbyteZ a
+             map Vubyte (s256a_data a)
        /\ s256_num r = Vint (Int.repr (Zlength (s256a_data a))).
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
@@ -47,27 +46,26 @@ Definition sha256state_ (sh: share) (a: s256abs) (c: val) : mpred :=
    EX r:s256state,
     !!  s256_relate a r  &&  data_at sh t_struct_SHA256state_st r c.
 
-Definition data_block {cs: compspecs} (sh: share) (contents: list Z) :=
-  !! Forall isbyteZ contents &&
-  @data_at cs sh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)).
+Definition data_block {cs: compspecs} (sh: share) (contents: list byte) :=
+  @data_at cs sh (tarray tuchar (Zlength contents)) (map Vubyte contents).
 
 Definition _ptr : ident := 81%positive.
 Definition _x : ident := 82%positive.
 
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
-  WITH p: val, sh: share, contents: list int
+  WITH p: val, sh: share, contents: list byte
   PRE [ _ptr OF tptr tuint ]
         PROP  (Zlength contents >= 4)
         LOCAL (temp _ptr p)
-        SEP   (data_at sh (tarray tuchar 4) (map Vint contents) p)
+        SEP   (data_at sh (tarray tuchar 4) (map Vubyte contents) p)
   POST [ tuint ]
      PROP() LOCAL (temp ret_temp  (Vint (big_endian_integer contents)))
-     SEP (data_at sh (tarray tuchar 4) (map Vint contents) p).
+     SEP (data_at sh (tarray tuchar 4) (map Vubyte contents) p).
 
 Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed
-  WITH p: val, sh: share, contents: list int
+  WITH p: val, sh: share, contents: list byte
   PRE [ _ptr OF tptr tuint, _x OF tuint ]
         PROP  (writable_share sh;
                Zlength contents >= 4)
@@ -76,7 +74,7 @@ Definition __builtin_write32_reversed_spec :=
         SEP   (memory_block sh 4 p)
   POST [ tvoid ]
      PROP() LOCAL()
-     SEP(data_at sh (tarray tuchar 4) (map Vint contents)  p).
+     SEP(data_at sh (tarray tuchar 4) (map Vubyte contents)  p).
 
 Definition memcpy_spec :=
   DECLARE _memcpy
@@ -114,12 +112,12 @@ Definition sha256_block_data_order_spec :=
                   writable_share wsh; readable_share sh)
          LOCAL (temp _ctx ctx; temp _in data; gvars gv)
          SEP (field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
-                data_block sh (intlist_to_Zlist b) data;
+                data_block sh (intlist_to_bytelist b) data;
                 K_vector gv)
    POST [ tvoid ]
        PROP() LOCAL()
        SEP(field_at wsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_block regs b)) ctx;
-             data_block sh (intlist_to_Zlist b) data;
+             data_block sh (intlist_to_bytelist b) data;
              K_vector gv).
 
 Definition SHA256_addlength_spec :=
@@ -147,7 +145,7 @@ Definition SHA256_Init_spec :=
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
-   WITH a: s256abs, data: list Z, c : val, wsh: share, d: val, sh: share, len : Z, gv: globals
+   WITH a: s256abs, data: list byte, c : val, wsh: share, d: val, sh: share, len : Z, gv: globals
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
          PROP (writable_share wsh; readable_share sh; 
                    len <= Zlength data; 0 <= len <= Int.max_unsigned;
@@ -181,7 +179,7 @@ Definition SHA256_Final_spec :=
 
 Definition SHA256_spec :=
   DECLARE _SHA256
-   WITH d: val, len: Z, dsh: share, msh: share, data: list Z, md: val, gv: globals
+   WITH d: val, len: Z, dsh: share, msh: share, data: list byte, md: val, gv: globals
    PRE [ _d OF tptr tuchar, _n OF tuint, _md OF tptr tuchar ]
          PROP (readable_share dsh; writable_share msh; 
                    Zlength data * 8 < two_p 64; Zlength data <= Int.max_unsigned)

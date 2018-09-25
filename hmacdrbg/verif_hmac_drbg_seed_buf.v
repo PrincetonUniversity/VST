@@ -50,7 +50,7 @@ Proof.
   forward_call tt.
 
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.
-  rename V0 into V. rename H0 into lenV. rename H1 into isbtV.
+  rename V0 into V. rename H0 into lenV.
   thaw FIELDS.
   freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
@@ -67,7 +67,7 @@ Proof.
     apply prop_right; repeat split; trivial.
   }*)
   { rewrite lenV; simpl. cancel. }
-  { split; auto. split; auto. split; auto. split3; auto.
+  { split; auto. split; auto. split; auto.
   }
   Intros.
 
@@ -104,29 +104,26 @@ Proof.
     unfold field_address. rewrite if_true. 2: assumption. simpl. cancel.
   }
   clear INI. thaw OTHER.
-  specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
-  set (ABS:= HMAC256DRBGabs V (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
+  set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
-    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
+    apply andp_right. apply prop_right. repeat split; trivial.
     apply UNDER_SPEC.REP_FULL.
   }
 
   forward_call (Data, data, shd,  d_len, Vptr b i, shc, xx, ABS, Info, gv).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. (*thanks to "M1==info"*)
   }
-  { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
-  }
   freeze [0;1;2;3;4] ALLSEP.
   forward. Exists (Vint (Int.repr 0)). rewrite if_false; [ | intros N; inv N]. 
   thaw ALLSEP.
   unfold hmac256drbgabs_common_mpreds. simpl.
+  fold (list_repeat 32 Byte.one). fold (list_repeat 32 (Vint Int.one)).
   remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V
-             [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
-             1; 1; 1; 1; 1; 1; 1; 1; 1; 1]) as HH.
+              (list_repeat 32 Byte.one)) as HH.
   destruct HH as [KEY VALUE]. simpl.
   Exists KEY VALUE p. normalize.
-  apply andp_right; [apply prop_right; repeat split; trivial | cancel].
+  apply andp_right; [apply prop_right; repeat split; auto | cancel].
 Time Qed.
           (*Coq8.6: 13secs*)
           (*Feb22nd, 2017: 116.921 secs (111.953u,0.015s) (successful)*)
