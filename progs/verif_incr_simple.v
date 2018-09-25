@@ -147,16 +147,20 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 ctr lock lockt).
   { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
-  forward_spawn _thread_func nullval (ctr, sh1, lock, lockt).
+  subst lockt; subst lock; subst ctr.
+  forward_spawn _thread_func nullval (sh1, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
-  forward_call (ctr, sh2, lock).
-  forward_call (lockt, sh2, thread_lock_inv sh1 ctr lock lockt).
+  forward_call (gv, sh2).
+  forward_call (gv _thread_lock, sh2, thread_lock_inv sh1 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)).
   unfold thread_lock_inv at 2; unfold thread_lock_R.
   rewrite selflock_eq; Intros.
-  forward_call (ctr, sh2, lock).
+  forward_call (gv, sh2).
   Intros z.
+  set (lockt := gv _thread_lock).
+  set (lock := gv _ctr_lock).
+  set (ctr := gv _ctr).
   forward_call (lock, sh2, cptr_lock_inv ctr).
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 ctr lock, thread_lock_inv sh1 ctr lock lockt).
   { lock_props.
