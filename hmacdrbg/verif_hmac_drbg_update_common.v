@@ -6,17 +6,17 @@ Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 
-Fixpoint HMAC_DRBG_update_round (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z) (round: nat): (list Z * list Z) :=
+Fixpoint HMAC_DRBG_update_round (HMAC: list byte -> list byte -> list byte) (provided_data K V: list byte) (round: nat): (list byte * list byte) :=
   match round with
     | O => (K, V)
     | S round' =>
       let (K, V) := HMAC_DRBG_update_round HMAC provided_data K V round' in
-      let K := HMAC (V ++ [Z.of_nat round'] ++ provided_data) K in
+      let K := HMAC (V ++ [Byte.repr (Z.of_nat round')] ++ provided_data) K in
       let V := HMAC V K in
       (K, V)
   end.
 
-Definition HMAC_DRBG_update_concrete (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z): (list Z * list Z) :=
+Definition HMAC_DRBG_update_concrete (HMAC: list byte -> list byte -> list byte) (provided_data K V: list byte): (list byte * list byte) :=
   let rounds := match provided_data with
                   | [] => 1%nat
                   | _ => 2%nat
@@ -38,8 +38,8 @@ Lemma HMAC_DRBG_update_round_incremental:
     (key, V) = HMAC_DRBG_update_round HMAC256 contents
                            (hmac256drbgabs_key initial_state_abs)
                            (hmac256drbgabs_value initial_state_abs) n ->
-    (HMAC256 (V ++ (Z.of_nat n) :: contents) key,
-     HMAC256 V (HMAC256 (V ++ (Z.of_nat n) :: contents) key)) =
+    (HMAC256 (V ++ Byte.repr (Z.of_nat n) :: contents) key,
+     HMAC256 V (HMAC256 (V ++ Byte.repr (Z.of_nat n) :: contents) key)) =
     HMAC_DRBG_update_round HMAC256 contents
                            (hmac256drbgabs_key initial_state_abs)
                            (hmac256drbgabs_value initial_state_abs) (n + 1).
@@ -57,8 +57,8 @@ Lemma HMAC_DRBG_update_round_incremental_Z:
     (key, V) = HMAC_DRBG_update_round HMAC256 contents
                            (hmac256drbgabs_key initial_state_abs)
                            (hmac256drbgabs_value initial_state_abs) (Z.to_nat i) ->
-    (HMAC256 (V ++ i :: contents) key,
-     HMAC256 V (HMAC256 (V ++ i :: contents) key)) =
+    (HMAC256 (V ++ Byte.repr i :: contents) key,
+     HMAC256 V (HMAC256 (V ++ Byte.repr i :: contents) key)) =
     HMAC_DRBG_update_round HMAC256 contents
                            (hmac256drbgabs_key initial_state_abs)
                            (hmac256drbgabs_value initial_state_abs) (Z.to_nat (i + 1)).
@@ -70,7 +70,7 @@ Proof.
 Qed.
 
 Lemma update_char add_len contents (HL:add_len = Zlength contents \/ add_len = 0)
-       (key1 V0 : list Z) additional reseed_counter entropy_len prediction_resistance V key0
+       (key1 V0 : list byte) additional reseed_counter entropy_len prediction_resistance V key0
      reseed_interval
     (H : (key1, V0) =
     HMAC_DRBG_update_round HMAC256 (contents_with_add additional add_len contents) key0 V

@@ -82,35 +82,22 @@ Proof.
 Qed.
 
 Lemma inner_general_mapByte : forall (ip : Blist) (IP_list : list byte) (k : Blist) (K : list byte),
-                            bytes_bits_lists ip (map Byte.unsigned IP_list) ->
-                            bytes_bits_lists k (map Byte.unsigned K) ->
+                            bytes_bits_lists ip IP_list ->
+                            bytes_bits_lists k K ->
      bytes_bits_lists (BLxor k ip)
-                      (map Byte.unsigned
-                           (map (fun p0 : byte * byte => Byte.xor (fst p0) (snd p0))
-                                (combine K IP_list))).
+                          (map (fun p0 : byte * byte => Byte.xor (fst p0) (snd p0))
+                                (combine K IP_list)).
 Proof.
   intros ip IP_list k K ip_eq k_eq.
   unfold BLxor. simpl.
-  remember (map Byte.unsigned IP_list). remember (map Byte.unsigned K) as KL.
-  generalize dependent K. generalize dependent IP_list. generalize dependent ip. generalize dependent l.
+  generalize dependent IP_list. generalize dependent ip.
   induction k_eq.
-  - simpl; intros. destruct K; simpl in *. constructor. discriminate.
-  - intros l ip ip_eq.
-    induction ip_eq; simpl; intros.
-    + destruct IP_list; simpl in *. 2: discriminate.
-      destruct K; simpl in *. discriminate. constructor.
-    + destruct IP_list. discriminate. simpl in Heql. inversion Heql; clear Heql. subst byte0 bytes0.
-      destruct K; simpl in HeqKL. discriminate. inversion HeqKL; clear HeqKL; subst.
-      simpl.
-      constructor.
-      * eapply IHk_eq; try reflexivity.
-        apply ip_eq.
-      * unfold Byte.xor. rewrite Byte.unsigned_repr.
-        apply xor_correspondence. apply H. apply H0.
-        destruct (@isbyteZ_xor (Byte.unsigned i0) (Byte.unsigned i)).
-        apply isByte_ByteUnsigned.
-        apply isByte_ByteUnsigned.
-        assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+  - simpl; intros. constructor.
+  - intros. inv ip_eq.
+    + constructor.
+    + simpl. constructor; auto.
+        unfold Byte.xor.
+        apply xor_correspondence; auto.
 Qed.
 
 Function hash_blocks_bits (b:nat) (B:(0<b)%nat) (hash_block_bit : Blist -> Blist -> Blist) (r: Blist)

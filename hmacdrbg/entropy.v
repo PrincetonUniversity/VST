@@ -1,6 +1,7 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import Coq.Logic.FunctionalExtensionality.
+Require Import VST.floyd.functional_base.
 
 Require Import sha.ByteBitRelations. (* TODO this is only here because of bitsToBytes *)
 
@@ -21,7 +22,7 @@ Inductive result X: Type: Type :=
 Arguments success {X} _ _.
 Arguments error {X} _ _.
 
-Parameter get_bytes: nat -> stream -> result (list Z).
+Parameter get_bytes: nat -> stream -> result (list byte).
 Parameter get_bits: nat -> stream -> result (list bool).
 
 End ABSTRACT_ENTROPY.
@@ -207,7 +208,7 @@ Proof.
   simpl.
   *)
 
-Definition get_bytes (k: nat) (s: stream): result (list Z) :=
+Definition get_bytes (k: nat) (s: stream): result (list byte) :=
   match get_bits (8 * k)%nat s with
     | success bits s' => success (bitsToBytes bits) s'
     | error e s' => error e s'

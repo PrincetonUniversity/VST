@@ -67,7 +67,7 @@ Definition ipad_v: Bvector b := of_list_length _ ipad_length.
 *)
 Lemma fpad_length (v:Bvector c): length (fpad (Vector.to_list v)) = p.
 Proof. unfold fpad, fpad_inner. rewrite bytesToBits_len.
-  repeat rewrite app_length. rewrite length_list_repeat, length_intlist_to_Zlist.
+  repeat rewrite app_length. rewrite length_list_repeat, length_intlist_to_bytelist.
   rewrite (mult_comm 4), plus_comm, Zlength_correct.
   rewrite bitsToBytes_len_gen with (n:=32%nat).
     reflexivity.
@@ -230,19 +230,18 @@ Module EQ256 <: EQUIV_Inst SHA256.
          end := SHA256.hash_blocks_equation.
   Lemma D: (d * 32)%nat = b. reflexivity. Qed.
 
-  Definition gap:list Z -> list int := SHA256.generate_and_pad.
+  Definition gap:list byte -> list int := SHA256.generate_and_pad.
   Lemma GAP: forall bits, NPeano.Nat.divide d (length (gap (bitsToBytes bits))).
     intros. rewrite <- pad_compose_equal. apply gap_divide16. Qed.
 
-  Lemma sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))).
+  Lemma sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_bytelist (gap (bitsToBytes bits))).
   Proof. apply extensionality. intros l. unfold splitAndPad, sha_splitandpad.
     f_equal. rewrite <- pad_compose_equal. unfold generate_and_pad'.
-    rewrite pure_lemmas.Zlist_to_intlist_to_Zlist. trivial.
+    rewrite pure_lemmas.bytelist_to_intlist_to_bytelist. trivial.
     destruct (pad_len_64_nat (bitsToBytes l)). rewrite Zlength_correct, H. exists (Z.of_nat(x*16)). do 2 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm, <- Z.mul_assoc. reflexivity.
-    apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity.
   Qed.
 
-  Lemma HASH m: SHA256.Hash m = intlist_to_Zlist (hashblocks ir (gap m)).
+  Lemma HASH m: SHA256.Hash m = intlist_to_bytelist (hashblocks ir (gap m)).
      unfold SHA256.Hash.
      rewrite functional_prog.SHA_256'_eq; reflexivity.
   Qed.
@@ -272,9 +271,9 @@ Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divid
       (kv : Bvector b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC EQ.h_v iv_v (HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v EQ.opad_v EQ.ipad_v kv m) =
-      bytesToBits (HMAC_SHA256.HmacCore (Byte.repr EQ.ipd) (Byte.repr EQ.opd)
+      bytesToBits (HMAC_SHA256.HmacCore EQ.ipd EQ.opd
                               (bitsToBytes (HMAC_Abstract.Message2Blist m))
-                              (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
+                               (bitsToBytes (Vector.to_list kv))).
 Proof.
   specialize (EQ.Equivalence _ HP kv m); intros.
   unfold EQ.h_v in H.

@@ -36,7 +36,6 @@ Proof.
   rename H8 into XH10.
   rename H9 into XH11.
   rename H10 into XH12.
-  rename H11 into XH13.
   simpl in XH2, XH4, El2, XH6, XH7 |- *.
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
@@ -224,6 +223,7 @@ Proof.
   deadvars!.
   subst MORE_COMMANDS; unfold abbreviate.
   subst entropy_len'. subst POSTCONDITION; unfold abbreviate.
+  rewrite <- XH7.
   simple eapply reseed_REST  with (s0:=s0)(contents':=contents'); try eassumption;
     auto.
 idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 

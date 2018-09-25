@@ -141,20 +141,20 @@ Definition HKDF_spec :=
 (*generalizes spec_sha.memcpy_spec by allowing SRC/TGT-array to be longer than necessary.
  Also adds cs to the WITH clause. Because we're copying a tarray tuchar we don't need a
 field_compatible/size_compatible side condition (cf Lemma memory_block_data_at__tarray_tuchar) *)
-Definition memcpy_tuchar_array_spec :=
+Definition memcpy_tuchar_array_spec {cs:compspecs} :=
   DECLARE _memcpy
-   WITH cs:compspecs, sh : share*share, p: val, q: val, n: Z, m:Z, k:Z, contents: list int 
+   WITH shq : share, shp:share, p: val, q: val, n: Z, m:Z, k:Z, contents: list int 
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (readable_share (fst sh); writable_share (snd sh); 0 <= k <= n;
+       PROP (readable_share shq; writable_share shp; 0 <= k <= n;
        k <= m <= Int.max_unsigned) 
        LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr k)))
-       SEP (@data_at cs (fst sh) (tarray tuchar m) (map Vint contents) q;
-            @memory_block (snd sh) n p)
+       SEP (@data_at cs shq (tarray tuchar m) (map Vint contents) q;
+            @memory_block shp n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at (fst sh) (tarray tuchar m) (map Vint contents) q;
-           data_at (snd sh) (tarray tuchar k) (map Vint (sublist 0 k contents)) p;
-           memory_block (snd sh) (n-k) (offset_val k p)).
+       SEP(data_at shq (tarray tuchar m) (map Vint contents) q;
+           data_at shp (tarray tuchar k) (map Vint (sublist 0 k contents)) p;
+           memory_block shp (n-k) (offset_val k p)).
 (*Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). *)
 
 (***************** We combine all specifications to a specification context *******)

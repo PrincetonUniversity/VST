@@ -4,7 +4,19 @@ Require Import compcert.lib.Integers.
 Require Import VST.msl.Coqlib2.
 Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.sublist.
+Require Import VST.floyd.functional_base.
 
+
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+
+Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
+  0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
 
 Local Open Scope nat.
 
@@ -67,53 +79,42 @@ pose proof (Z_mod_lt a b H).
 omega.
 Qed.
 
-Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
+(*Definition isbyteZ (i: Z) := (0 <= i < 256)%Z. *)
 
 Definition Shr b x := Int.shru x (Int.repr b).
 
-Lemma isbyteZ_testbit:
-  forall i j, 0 <= i < 256 -> j >= 8 -> Z.testbit i j = false.
+Lemma byte_testbit:
+  forall i j, j >= 8 -> Z.testbit (Byte.unsigned i) j = false.
 Proof.
-intros; erewrite Byte.Ztestbit_above with (n:=8%nat); auto.
+intros. 
+apply (Byte.Ztestbit_above 8).
+apply Byte.unsigned_range.
+apply H.
 Qed.
 
-Fixpoint intlist_to_Zlist (l: list int) : list Z :=
+Fixpoint intlist_to_bytelist (l: list int) : list byte :=
  match l with
  | nil => nil
  | i::r =>
-     Int.unsigned (Shr 24 i) ::
-     Int.unsigned (Int.and (Shr 16 i) (Int.repr 255)) ::
-     Int.unsigned (Int.and (Shr 8 i) (Int.repr 255)) ::
-     Int.unsigned (Int.and i (Int.repr 255)) ::
-     intlist_to_Zlist r
+     Byte.repr (Int.unsigned (Shr 24 i)) ::
+     Byte.repr (Int.unsigned (Shr 16 i)) ::
+     Byte.repr (Int.unsigned (Shr 8 i)) ::
+     Byte.repr (Int.unsigned i) ::
+     intlist_to_bytelist r
  end.
 
-(*combining four Z into a Integer*)
-Definition Z_to_Int (a b c d : Z) : Int.int :=
-  Int.or (Int.or (Int.or (Int.shl (Int.repr a) (Int.repr 24)) (Int.shl (Int.repr b) (Int.repr 16)))
-            (Int.shl (Int.repr c) (Int.repr 8))) (Int.repr d).
+Definition bytes_to_Int (a b c d : byte) : Int.int :=
+  Int.or (Int.or (Int.or 
+       (Int.shl (Int.repr (Byte.unsigned a)) (Int.repr 24))
+      (Int.shl (Int.repr (Byte.unsigned b)) (Int.repr 16)))
+       (Int.shl (Int.repr (Byte.unsigned c)) (Int.repr 8)))
+         (Int.repr (Byte.unsigned d)).
 
-Fixpoint Zlist_to_intlist (nl: list Z) : list int :=
+Fixpoint bytelist_to_intlist (nl: list byte) : list int :=
   match nl with
-  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: Zlist_to_intlist t
+  | h1::h2::h3::h4::t => bytes_to_Int h1 h2 h3 h4 :: bytelist_to_intlist t
   | _ => nil
   end.
-
-Lemma int_min_signed_eq: Int.min_signed = -2147483648.
-Proof. reflexivity. Qed.
-
-Lemma int_max_signed_eq: Int.max_signed = 2147483647.
-Proof. reflexivity. Qed.
-
-Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
-Proof. reflexivity. Qed.
-
-
-Ltac rep_omega' :=
-   pose proof int_min_signed_eq;
-   pose proof int_max_signed_eq;
-   pose proof int_max_unsigned_eq;
-   omega.
 
 Hint Rewrite Int.bits_or using omega : testbit.
 Hint Rewrite Int.bits_shl using omega : testbit.
@@ -128,12 +129,19 @@ Hint Rewrite Z.ones_spec_high using omega : testbit.
 Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
 Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
 Hint Rewrite Z.add_simpl_r : testbit.
-Hint Rewrite Int.unsigned_repr using rep_omega' : testbit.
+Hint Rewrite Int.unsigned_repr using rep_omega : testbit.
+Hint Rewrite Byte.testbit_repr using rep_omega : testbit.
+Hint Rewrite Byte.bits_above using rep_omega : testbit.
 
 Lemma Ztest_Inttest:
  forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
 Proof. reflexivity. Qed.
 Hint Rewrite Ztest_Inttest : testbit.
+
+Lemma Ztest_Bytetest:
+ forall a, Z.testbit (Byte.unsigned a) = Byte.testbit a.
+Proof. reflexivity. Qed.
+Hint Rewrite Ztest_Bytetest : testbit.
 
 Definition swap (i: int) : int :=
  Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))
@@ -160,121 +168,78 @@ Proof. intros.
  apply map_id. extensionality x. symmetry; apply swap_swap.
 Qed.
 
-Lemma length_intlist_to_Zlist:
-  forall l, length (intlist_to_Zlist l) = (4 * length l)%nat.
+Lemma length_intlist_to_bytelist:
+  forall l, length (intlist_to_bytelist l) = (4 * length l)%nat.
 Proof.
 induction l.
 simpl. reflexivity. simpl. omega.
 Qed.
 
 
-Lemma intlist_to_Zlist_Z_to_int_cons:
+Lemma intlist_to_bytelist_bytes_to_int_cons:
   forall a b c d l,
-      isbyteZ a -> isbyteZ b -> isbyteZ c -> isbyteZ d ->
-     intlist_to_Zlist (Z_to_Int a b c d :: l) =
-     a::b::c::d:: intlist_to_Zlist l.
+     intlist_to_bytelist (bytes_to_Int a b c d :: l) =
+     a::b::c::d:: intlist_to_bytelist l.
 Proof.
 intros. simpl.
-unfold isbyteZ in *.
 assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, Shr; simpl.
+unfold bytes_to_Int, Shr; simpl.
 change 255%Z with (Z.ones 8).
+assert (Byte.zwordsize = 8) by reflexivity.
+assert (Int.zwordsize = 32) by reflexivity.
 repeat f_equal; auto;
-match goal with |- _ = ?A => transitivity (Int.unsigned (Int.repr A));
-   [f_equal | apply Int.unsigned_repr; rep_omega']
-end;
-apply Int.same_bits_eq; intros;
+apply Byte.same_bits_eq; intros;
+assert (0 <= i < Int.zwordsize) by omega;
+rewrite Byte.testbit_repr by auto;
 autorewrite with testbit.
 *
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-rewrite (isbyteZ_testbit b) by omega.
-rewrite (isbyteZ_testbit c) by omega.
-rewrite (isbyteZ_testbit d) by omega.
-autorewrite with testbit; auto.
+rewrite (Byte.bits_above b) by omega.
+rewrite (Byte.bits_above c) by omega.
+rewrite !orb_false_r. auto.
 *
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-rewrite (isbyteZ_testbit c) by omega.
-rewrite (isbyteZ_testbit d) by omega.
-autorewrite with testbit; auto.
+rewrite (Byte.bits_above c) by omega.
+rewrite !orb_false_r. auto.
 *
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-rewrite (isbyteZ_testbit d) by omega.
-autorewrite with testbit; auto.
+auto.
 *
-destruct (zlt i 8); autorewrite with testbit;  [ | symmetry; apply isbyteZ_testbit; omega].
 auto.
 Qed.
 
-Lemma intlist_to_Zlist_to_intlist:
+Lemma intlist_to_bytelist_to_intlist:
   forall il: list int,
-   Zlist_to_intlist (intlist_to_Zlist il) = il.
+   bytelist_to_intlist (intlist_to_bytelist il) = il.
 Proof.
 induction il.
 reflexivity.
 simpl.
 f_equal; auto. clear.
+assert (Byte.zwordsize = 8) by reflexivity.
 assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, Shr; simpl.
-change 255%Z with (Z.ones 8).
+unfold bytes_to_Int, Shr; simpl.
 apply Int.same_bits_eq; intros.
-rewrite Int.repr_unsigned.
 autorewrite with testbit.
-if_tac; autorewrite with testbit; [ | f_equal; omega].
-if_tac; autorewrite with testbit; [ | f_equal; omega].
-if_tac; autorewrite with testbit; [ | f_equal; omega].
-auto.
+destruct (zlt i 8); simpl.
+rewrite !if_true by omega; simpl.
+autorewrite with testbit; auto.
+destruct (zlt i 16); simpl.
+rewrite !if_true by omega; simpl.
+autorewrite with testbit.
+f_equal; omega.
+destruct (zlt i 24); simpl.
+autorewrite with testbit.
+f_equal; omega.
+autorewrite with testbit.
+f_equal; omega.
 Qed.
 
-Lemma intlist_to_Zlist_app:
- forall al bl, intlist_to_Zlist (al++bl) = intlist_to_Zlist al ++ intlist_to_Zlist bl.
+Lemma intlist_to_bytelist_app:
+ forall al bl, intlist_to_bytelist (al++bl) = intlist_to_bytelist al ++ intlist_to_bytelist bl.
 Proof. intros; induction al; simpl; auto. repeat f_equal; auto. Qed.
 Local Open Scope nat.
 
-
 Local Open Scope Z.
 
-Lemma isbyte_intlist_to_Zlist : forall l, Forall isbyteZ (intlist_to_Zlist l).
-Proof.
-induction l; simpl; intros.
-constructor.
-assert (forall i, Int.unsigned (Int.and i (Int.repr 255)) < 256).
-clear; intro.
-eapply Z.lt_le_trans.
-apply (Int.and_interval i (Int.repr (Z.ones 8))).
-change (Int.size  (Int.repr (Z.ones 8))) with 8.
-rewrite Zmin_spec.
-if_tac.
-eapply Z.le_trans with (two_p 8).
-apply two_p_monotone.
-split; [ | omega].
-apply Int.size_range.
-compute; congruence.
-compute; congruence.
-unfold Shr, isbyteZ; repeat constructor; try apply Int.unsigned_range; auto; clear IHl.
-rewrite <- (Int.divu_pow2 a (Int.repr (2 ^ 24)) (Int.repr 24) (eq_refl _)).
-unfold Int.divu.
-rewrite Int.unsigned_repr.
-rewrite Int.unsigned_repr by (compute; split; congruence).
-apply Z.div_lt_upper_bound.
-compute; congruence.
-change (2 ^ 24 * 256)%Z with (Int.modulus).
-apply Int.unsigned_range.
-assert (0 < 2 ^ 24)
- by (apply Z.pow_pos_nonneg; clear; omega).
-rewrite Int.unsigned_repr by (compute; split; congruence).
-split.
-apply Z.div_pos; auto.
-apply Int.unsigned_range.
-apply Z.div_le_upper_bound; auto.
-apply Z.le_trans with (Int.modulus+1).
-destruct (Int.unsigned_range a).
-omega.
-compute; congruence.
-Qed.
-
+(*
 Lemma isbyte_intlist_to_Zlist' : forall l,
    Forall isbyteZ (map Int.unsigned (map Int.repr (intlist_to_Zlist l))).
 Proof.
@@ -284,7 +249,9 @@ apply isbyte_intlist_to_Zlist.
 induction l; simpl; auto.
 repeat f_equal; auto; symmetry; apply Int.repr_unsigned.
 Qed.
+*)
 
+(*
 Lemma Forall_isbyte_repr_unsigned:
  forall l: list int, map Int.repr (map Int.unsigned l) = l.
 Proof.
@@ -302,6 +269,7 @@ Proof. induction l; simpl; intros; auto.
  assert (Int.max_unsigned > 256)%Z by (compute; congruence).
  omega.
 Qed.
+*)
 
 Lemma int_unsigned_inj: forall a b, Int.unsigned a = Int.unsigned b -> a=b.
 Proof.
@@ -310,58 +278,77 @@ rewrite <- (Int.repr_unsigned a); rewrite <- (Int.repr_unsigned b).
 congruence.
 Qed.
 
-Lemma intlist_to_Zlist_inj: forall al bl, intlist_to_Zlist al = intlist_to_Zlist bl -> al=bl.
+Lemma intlist_to_bytelist_inj: forall al bl, intlist_to_bytelist al = intlist_to_bytelist bl -> al=bl.
 Proof.
 induction al; destruct bl; intros; auto.
 inv H.
 inv H.
 simpl in H.
-injection H; intros.
+match type of H with ?a::?b::?c::?d::?e = ?A::?B::?C::?D::?E =>
+  assert (a=A /\ b=B /\ c=C /\ d=D /\ e=E)
+  by (repeat split; congruence)
+end. decompose [and] H0; clear H H0.
 f_equal; auto.
 clear - H1 H2 H3 H4.
 rename i into b.
-apply int_unsigned_inj in H1.
-apply int_unsigned_inj in H2.
-apply int_unsigned_inj in H3.
-apply int_unsigned_inj in H4.
-unfold Shr in *.
 apply Int.same_bits_eq; intros.
+assert (Byte.zwordsize = 8) by reflexivity.
 assert (Int.zwordsize=32)%Z by reflexivity.
-change 255%Z with (Z.ones 8) in *.
-destruct (zlt i 8).
-transitivity (Int.testbit (Int.and a (Int.repr (Z.ones 8))) i).
-autorewrite with testbit; auto.
-rewrite H1. autorewrite with testbit; auto.
-destruct (zlt i 16).
-transitivity (Int.testbit (Int.and (Int.shru a (Int.repr 8)) (Int.repr (Z.ones 8))) (i-8)).
-autorewrite with testbit.
-change (Int.unsigned (Int.repr 8)) with 8%Z.
-rewrite Z.sub_add; auto.
-rewrite H2.
-autorewrite with testbit.
-rewrite Z.sub_add. auto.
-destruct (zlt i 24).
-transitivity (Int.testbit (Int.and (Int.shru a (Int.repr 16)) (Int.repr (Z.ones 8))) (i-16)).
-autorewrite with testbit.
-change (Int.unsigned (Int.repr 16)) with 16%Z.
-rewrite Z.sub_add. auto.
-rewrite H3.
-autorewrite with testbit.
-change (Int.unsigned (Int.repr 16)) with 16%Z.
-rewrite Z.sub_add. auto.
-transitivity (Int.testbit (Int.shru a (Int.repr 24)) (i-24)).
-autorewrite with testbit.
-change (Int.unsigned (Int.repr 24)) with 24%Z.
-rewrite Z.sub_add. auto.
-rewrite H4.
-autorewrite with testbit.
-change (Int.unsigned (Int.repr 24)) with 24%Z.
-rewrite Z.sub_add. auto.
+destruct (zlt i 8); [ | destruct (zlt i 16); [ | destruct (zlt i 24)]].
+*
+rewrite <- ?Ztest_Inttest.
+rewrite <- ?Byte.testbit_repr by rep_omega.
+congruence.
+*
+pose proof (Int.bits_shru a (Int.repr 8) (i-8)).
+spec H6; [rep_omega|].
+rewrite !Int.unsigned_repr in H6 by rep_omega.
+rewrite Z.sub_add in H6.
+rewrite if_true in H6 by omega.
+pose proof (Int.bits_shru b (Int.repr 8) (i-8)).
+spec H7; [rep_omega|].
+rewrite !Int.unsigned_repr in H7 by rep_omega.
+rewrite Z.sub_add in H7.
+rewrite if_true in H7 by omega.
+rewrite <- H6. rewrite <- H7.
+rewrite <- ?Ztest_Inttest.
+rewrite <- ?Byte.testbit_repr by rep_omega.
+f_equal. apply H2.
+*
+pose proof (Int.bits_shru a (Int.repr 16) (i-16)).
+spec H6; [rep_omega|].
+rewrite !Int.unsigned_repr in H6 by rep_omega.
+rewrite Z.sub_add in H6.
+rewrite if_true in H6 by omega.
+pose proof (Int.bits_shru b (Int.repr 16) (i-16)).
+spec H7; [rep_omega|].
+rewrite !Int.unsigned_repr in H7 by rep_omega.
+rewrite Z.sub_add in H7.
+rewrite if_true in H7 by omega.
+rewrite <- H6. rewrite <- H7.
+rewrite <- ?Ztest_Inttest.
+rewrite <- ?Byte.testbit_repr by rep_omega.
+f_equal. apply H3.
+*
+pose proof (Int.bits_shru a (Int.repr 24) (i-24)).
+spec H6; [rep_omega|].
+rewrite !Int.unsigned_repr in H6 by rep_omega.
+rewrite Z.sub_add in H6.
+rewrite if_true in H6 by omega.
+pose proof (Int.bits_shru b (Int.repr 24) (i-24)).
+spec H7; [rep_omega|].
+rewrite !Int.unsigned_repr in H7 by rep_omega.
+rewrite Z.sub_add in H7.
+rewrite if_true in H7 by omega.
+rewrite <- H6. rewrite <- H7.
+rewrite <- ?Ztest_Inttest.
+rewrite <- ?Byte.testbit_repr by rep_omega.
+f_equal. apply H1.
 Qed.
 
-Lemma Zlength_intlist_to_Zlist_app:
- forall al bl,  Zlength (intlist_to_Zlist (al++bl)) =
-    (Zlength (intlist_to_Zlist al) + Zlength (intlist_to_Zlist bl))%Z.
+Lemma Zlength_intlist_to_bytelist_app:
+ forall al bl,  Zlength (intlist_to_bytelist (al++bl)) =
+    (Zlength (intlist_to_bytelist al) + Zlength (intlist_to_bytelist bl))%Z.
 Proof.
 induction al; simpl; intros; auto.
 repeat rewrite Zlength_cons.
@@ -370,14 +357,6 @@ omega.
 Qed.
 
 Local Open Scope Z.
-
-Lemma Forall_isbyteZ_unsigned_repr:
- forall l, Forall isbyteZ l -> Forall isbyteZ (map Int.unsigned (map Int.repr l)).
-Proof. induction 1. constructor.
-constructor. rewrite Int.unsigned_repr; auto.
-unfold isbyteZ in H; rep_omega'.
-apply IHForall.
-Qed.
 
 Lemma divide_length_app:
  forall {A} n (al bl: list A),
@@ -402,11 +381,7 @@ Lemma map_list_repeat:
 Proof. induction n; simpl; intros; f_equal; auto.
 Qed.
 
-Lemma isbyteZ_sublist data lo hi: Forall isbyteZ data -> Forall isbyteZ (sublist lo hi data).
-Proof. intros. destruct (Forall_forall isbyteZ data) as [F _].
-   apply Forall_forall. intros. apply (F H x). eapply sublist_In. apply H0.
-Qed.
-
+(*
 Lemma map_IntReprOfBytes_injective: forall l m, Forall isbyteZ  l -> 
   Forall isbyteZ m -> map Int.repr l = map Int.repr m -> l=m.
 Proof. induction l; intros.
@@ -421,3 +396,4 @@ Proof. induction l; intros.
   rewrite <- (Int.unsigned_repr a), <- (Int.unsigned_repr z), H1; trivial;
   rewrite int_max_unsigned_eq; omega.
 Qed.
+*)

@@ -18,7 +18,7 @@ rewrite !sepcon_assoc; (* need this with weak canceller *)
  apply sepcon_derives; [apply derives_refl | cancel].
 
 forward_call (* SHA256_Update(&c,d,n); *)
-  (@nil Z, data,v_c,Tsh, d,dsh, Zlength data, gv).
+  (@nil byte, data,v_c,Tsh, d,dsh, Zlength data, gv).
  repeat split; auto; Omega1.
  simpl app.
 

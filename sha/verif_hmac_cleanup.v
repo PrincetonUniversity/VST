@@ -31,7 +31,6 @@ forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
  entailer!; auto.
- apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
 (*Here's the proof for the alternative specification:*)
@@ -40,7 +39,7 @@ Lemma cleanupbodyproof1 Espec wsh c h
 @semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs nil)
   (PROP  ()
    LOCAL  (temp _ctx c)
-   SEP  (EX  key : list Z, hmacstate_PreInitNull wsh key h c))
+   SEP  (EX  key : list byte, hmacstate_PreInitNull wsh key h c))
   (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None))
   (frame_ret_assert
      (function_body_ret_assert tvoid
@@ -48,7 +47,7 @@ Lemma cleanupbodyproof1 Espec wsh c h
          LOCAL ()
          SEP
          (data_block wsh
-            (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) 0)
+            (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) Byte.zero)
             c))) emp).
 Proof. abbreviate_semax.
 set (x := fn_body f_HMAC_cleanup); hnf in x; subst x.
@@ -67,7 +66,6 @@ forward.
 unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
 rewrite !map_list_repeat.
  entailer!; auto.
-apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
 Lemma body_hmac_cleanup1: semax_body HmacVarSpecs HmacFunSpecs

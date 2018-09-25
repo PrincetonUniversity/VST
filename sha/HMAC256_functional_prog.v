@@ -11,9 +11,7 @@ Require Import sha.HMAC_functional_prog.
 Module SHA256 <: HP.HASH_FUNCTION.
   Definition BlockSize:= 64%nat.
   Definition DigestLength:= 32%nat.
-  Definition Hash : list Z -> list Z := SHA_256'.
-  Lemma Hash_isbyteZ m: Forall isbyteZ (SHA_256' m).
-    apply isbyte_intlist_to_Zlist. Qed.
+  Definition Hash : list byte -> list byte := SHA_256'.
 End SHA256.
 
 Module HMAC_SHA256 := HP.HMAC_FUN SHA256.
@@ -23,14 +21,14 @@ Definition Opad := Byte.repr 92. (*0x5c*)
 
 Definition HMAC256 := HMAC_SHA256.HMAC Ipad Opad.
 
-Definition HMACString (txt passwd:string): list Z :=
-  HMAC256 (str_to_Z txt) (str_to_Z passwd).
+Definition HMACString (txt passwd:string): list byte :=
+  HMAC256 (str_to_bytes txt) (str_to_bytes passwd).
 
-Definition HMACHex (text password:string): list Z :=
-  HMAC256 (hexstring_to_Zlist text) (hexstring_to_Zlist password).
+Definition HMACHex (text password:string): list byte :=
+  HMAC256 (hexstring_to_bytelist text) (hexstring_to_bytelist password).
 
 Definition check password text digest :=
-  listZ_eq (HMACString text password) (hexstring_to_Zlist digest) = true.
+  bytelist_eq (HMACString text password) (hexstring_to_bytelist digest) = true.
 
 (*a random example, solution obtained via
   http://www.freeformatter.com/hmac-generator.html#ad-output*)
@@ -44,7 +42,7 @@ Lemma RFC4231_Section4_3:
 vm_compute. reflexivity. Qed.
 
 Definition checkHex password text digest :=
-  listZ_eq (HMACHex text password) (hexstring_to_Zlist digest) = true.
+  bytelist_eq (HMACHex text password) (hexstring_to_bytelist digest) = true.
 
 
 Lemma RFC4231_Section4_2_hex: (*called PRF-1 in RFC4868*)
@@ -73,7 +71,7 @@ vm_compute. reflexivity. Qed.
 
 (*Test with a truncation of output to 128 bits, ie the first 16 bytes*)
 Definition checkHexTrunc password text digest := 
-  listZ_eq (firstn 16 (HMACHex text password)) (hexstring_to_Zlist digest) = true.
+  bytelist_eq (firstn 16 (HMACHex text password)) (hexstring_to_bytelist digest) = true.
 
 Lemma RFC4231_Section4_6_hex:
   checkHexTrunc "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c"

@@ -169,14 +169,3 @@ Proof.
   rewrite Z2Nat.id; [reflexivity | omega].
   eauto.
 Qed.
-
-Lemma get_bytes_isbyteZ:
-  forall k s b s',
-    ENTROPY.success b s' = ENTROPY.get_bytes k s ->
-    Forall isbyteZ b.
-Proof.
-  intros.
-  unfold ENTROPY.get_bytes in H.
-  destruct (ENTROPY.get_bits (8 * k) s); inv H.
-  eapply bitsToBytes_isbyteZ; reflexivity.
-Qed.

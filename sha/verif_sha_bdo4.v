@@ -61,7 +61,7 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _data data; temp _ctx ctx; temp _in data;
                 gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
    SEP  (data_at_ Tsh (tarray tuint 16) Xv;
-           data_block sh (intlist_to_Zlist b) data; K_vector gv))
+           data_block sh (intlist_to_bytelist b) data; K_vector gv))
   block_data_order_loop1
   (normal_ret_assert
     (PROP ()
@@ -77,7 +77,7 @@ Lemma sha256_block_data_order_loop1_proof:
                 gvars gv; lvar _X (tarray tuint LBLOCKz) Xv)
      SEP (K_vector gv;
             data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv;
-            data_block sh (intlist_to_Zlist b) data))).
+            data_block sh (intlist_to_bytelist b) data))).
 Proof.
 unfold block_data_order_loop1.
 intros.
@@ -103,24 +103,24 @@ forward_for_simple_bound 16
        data_at Tsh (tarray tuint LBLOCKz)
            (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16-i)) Vundef)
             Xv;
-       data_block sh (intlist_to_Zlist b) data)).
+       data_block sh (intlist_to_bytelist b) data)).
 * (* precondition of loop entails the loop invariant *)
  rewrite Round_equation. rewrite if_true by (compute; auto).
  entailer!.
 * (* loop body & loop condition preserves loop invariant *)
-assert_PROP (data_block sh (intlist_to_Zlist b) data =
+assert_PROP (data_block sh (intlist_to_bytelist b) data =
    array_at sh (tarray tuchar (Zlength b * 4)) [] 0 (i * 4)
-       (sublist 0 (i * 4) (map Vint (map Int.repr (intlist_to_Zlist b))))
+       (sublist 0 (i * 4) (map Vubyte (intlist_to_bytelist b)))
        data *
    data_at sh (tarray tuchar 4)
-        (map Vint (sublist (i * 4) ((i + 1) * 4) (map Int.repr (intlist_to_Zlist b))))
+        (map Vubyte (sublist (i * 4) ((i + 1) * 4) (intlist_to_bytelist b)))
         (offset_val (i * 4) data) *
    array_at sh (tarray tuchar (Zlength b * 4)) [] (i * 4 + 4)
        (Zlength b * 4)
        (sublist (4 + i * 4) (Zlength b * 4)
-          (map Vint (map Int.repr (intlist_to_Zlist b)))) data). {
+          (map Vubyte (intlist_to_bytelist b))) data). {
  entailer!.
- unfold data_block. rewrite prop_true_andp by auto.
+ unfold data_block.
  unfold data_at at 1.
    erewrite field_at_Tarray
    by (try reflexivity; auto; autorewrite with sublist; Omega1).
@@ -129,7 +129,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
    autorewrite with sublist.
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
-  rewrite Zlength_intlist_to_Zlist in H5.
+  rewrite Zlength_intlist_to_bytelist in H5.
   rewrite array_at_data_at' by (auto with field_compatible; omega).
   simpl.
   autorewrite with sublist.
@@ -142,13 +142,13 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
  }
 forward_call (* l = __builtin_read32_reversed(_data) *)
       (offset_val (i*4) data, sh,
-         sublist (i*4) ((i+1)*4) (map Int.repr (intlist_to_Zlist b))).
+         sublist (i*4) ((i+1)*4) (intlist_to_bytelist b)).
  entailer!.
  rewrite H1; cancel.
  autorewrite with sublist; omega.
 gather_SEP 3 0 4.
  match goal with |- context [SEPx (?A::_)] =>
-  replace A with (data_block sh (intlist_to_Zlist b) data)
+  replace A with (data_block sh (intlist_to_bytelist b) data)
     by (rewrite H1,<- !sepcon_assoc; auto)
  end.
  clear H1.

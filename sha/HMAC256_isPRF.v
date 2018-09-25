@@ -38,8 +38,6 @@ Proof. intros.
   apply bytesToBits_injective in B.
     apply pad_inc_injective in B.
     apply (bitsToBytes_injective8 _ _ B L1 L2).
-  apply isbyteZ_pad_inc. eapply bitsToBytes_isbyteZ. reflexivity.
-  apply isbyteZ_pad_inc. eapply bitsToBytes_isbyteZ. reflexivity.
 Qed.
 (*longer proof now in HAMC_equivalence
 Lemma opad_ne_ipad : EQ.opad_v <> EQ.ipad_v.
@@ -86,30 +84,18 @@ Proof. apply (PRFMod.HMAC_isPRF A_wf HH1 HH2 HH3). Qed.
 
 Lemma OpadsEQ: PRFMod.M.opad_v =  EQ.opad_v.
 Proof.
-  assert (XO: Forall (fun b : Z => (0 <= b < 256)%Z) (EQ.PAD.HM.sixtyfour EQ.opd)).
-    rewrite EQ.PAD.HM.SF_ByteRepr. apply isbyte_map_ByteUnsigned.
-    unfold EQ.opd; split; omega.
-  assert (YO: Forall (fun b : Z => (0 <= b < 256)%Z) (PRFMod.M.PAD.HM.sixtyfour PRFMod.M.opd)).
-    rewrite EQ.PAD.HM.SF_ByteRepr. apply isbyte_map_ByteUnsigned.
-    unfold PRFMod.M.opd; split; omega.
-  specialize EQ.OPADX. specialize PRFMod.M.OPADX. intros.
+   specialize EQ.OPADX. specialize PRFMod.M.OPADX. intros.
   eapply to_list_eq_inv.
-    rewrite (bits_bytes_ind_comp _ _ XO H); clear XO H.
-    rewrite (bits_bytes_ind_comp _ _ YO H0); reflexivity.
+    rewrite (bits_bytes_ind_comp _ _ H); clear H.
+    rewrite (bits_bytes_ind_comp _ _ H0); reflexivity.
 Qed.
 
 Lemma IpadsEQ: PRFMod.M.ipad_v =  EQ.ipad_v.
 Proof.
-  assert (XO: Forall (fun b : Z => (0 <= b < 256)%Z) (EQ.PAD.HM.sixtyfour EQ.ipd)).
-    rewrite EQ.PAD.HM.SF_ByteRepr. apply isbyte_map_ByteUnsigned.
-    unfold EQ.ipd; split; omega.
-  assert (YO: Forall (fun b : Z => (0 <= b < 256)%Z) (PRFMod.M.PAD.HM.sixtyfour PRFMod.M.ipd)).
-    rewrite EQ.PAD.HM.SF_ByteRepr. apply isbyte_map_ByteUnsigned.
-    unfold PRFMod.M.ipd; split; omega.
   specialize EQ.IPADX. specialize PRFMod.M.IPADX. intros.
   eapply to_list_eq_inv.
-    rewrite (bits_bytes_ind_comp _ _ XO H); clear XO H.
-    rewrite (bits_bytes_ind_comp _ _ YO H0); reflexivity.
+    rewrite (bits_bytes_ind_comp _ _ H); clear H.
+    rewrite (bits_bytes_ind_comp _ _ H0); reflexivity.
 Qed.
 
 Theorem HMAC256_isPRF' A (A_wf : well_formed_oc A) tau epsilon sigma

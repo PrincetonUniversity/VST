@@ -111,17 +111,6 @@ Proof.
   rewrite sublist_same; auto; omega.
 Qed.
 
-Lemma isbyteZ_app: forall A B, Forall general_lemmas.isbyteZ A -> Forall general_lemmas.isbyteZ B -> Forall isbyteZ (A ++ B).
-Proof.
-  intros A B HA HB.
-  induction A as [|hdA tlA].
-  simpl; assumption.
-  simpl. inversion HA. constructor.
-  assumption.
-  apply IHtlA.
-  assumption.
-Qed.
-
 Lemma data_at_complete_split:
   forall (A B: list val) lengthA lengthB AB length p offset sh,
     field_compatible (tarray tuchar (Zlength A + Zlength B)) [] p ->
