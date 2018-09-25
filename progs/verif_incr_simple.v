@@ -16,28 +16,28 @@ Definition cptr_lock_inv ctr := EX z : Z, data_at Ews tuint (Vint (Int.repr z)) 
 
 Definition incr_spec :=
  DECLARE _incr
-  WITH ctr : val, sh : share, lock : val
+  WITH gv : globals, sh : share
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv ctr))
+         LOCAL (gvars gv)
+         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr)))
   POST [ tvoid ]
          PROP ()
          LOCAL ()
-         SEP (lock_inv sh lock (cptr_lock_inv ctr)).
+         SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr))).
 
 Definition read_spec :=
  DECLARE _read
-  WITH ctr : val, sh : share, lock : val
+  WITH gv : globals, sh : share
   PRE [ ]
          PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock)
-         SEP   (lock_inv sh lock (cptr_lock_inv ctr))
+         LOCAL (gvars gv)
+         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr)))
   POST [ tuint ]
     EX z : Z,
          PROP ()
          LOCAL (temp ret_temp (Vint (Int.repr z)))
-         SEP (lock_inv sh lock (cptr_lock_inv ctr)).
+         SEP (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr))).
 
 Definition thread_lock_R sh ctr lockc :=
   lock_inv sh lockc (cptr_lock_inv ctr).
@@ -47,13 +47,13 @@ Definition thread_lock_inv sh ctr lockc lockt :=
 
 Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH y : val, x : val * share * val * val
+  WITH y : val, x : share * globals
   PRE [ _args OF (tptr tvoid) ]
-         let '(ctr, sh, lock, lockt) := x in
+         let '(sh, gv) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock; gvar _thread_lock lockt)
-         SEP   (lock_inv sh lock (cptr_lock_inv ctr);
-                lock_inv sh lockt (thread_lock_inv sh ctr lock lockt))
+         LOCAL (temp _args y; gvars gv)
+         SEP   (lock_inv sh (gv _ctr_lock) (cptr_lock_inv (gv _ctr));
+                lock_inv sh (gv _thread_lock) (thread_lock_inv sh (gv _ctr) (gv _ctr_lock) (gv _thread_lock)))
   POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
@@ -89,12 +89,12 @@ Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
   start_function.
   forward.
-  forward_call (lock, sh, cptr_lock_inv ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv (gv _ctr)).
   unfold cptr_lock_inv at 2; simpl.
   Intros z.
   forward.
   forward.
-  forward_call (lock, sh, cptr_lock_inv ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
     entailer!. }
@@ -104,11 +104,11 @@ Qed.
 Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_function.
-  forward_call (lock, sh, cptr_lock_inv ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv (gv _ctr)).
   unfold cptr_lock_inv at 2; simpl.
   Intros z.
   forward.
-  forward_call (lock, sh, cptr_lock_inv ctr).
+  forward_call (gv _ctr_lock, sh, cptr_lock_inv (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists z; entailer!. }
   forward.
@@ -120,7 +120,10 @@ Proof.
   start_function.
   Intros.
   forward.
-  forward_call (ctr, sh, lock).
+  forward_call (gv, sh).
+  set (lockt := gv _thread_lock).
+  set (lock := gv _ctr_lock).
+  set (ctr := gv _ctr).
   forward_call (lockt, sh, thread_lock_R sh ctr lock, thread_lock_inv sh ctr lock lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.

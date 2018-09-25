@@ -259,7 +259,9 @@ Proof.
     apply derives_refl. }
   { (* first loop *)
     forward.
-    replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).
+    simpl sem_binary_operation'.
+    replace (force_val _) with (thread_lock i)
+      by (rewrite sem_add_pi_ptr_special; auto; unfold N in *; rep_omega).
     rewrite data_at__tarray.
     destruct (Z.to_nat (N - i)) eqn: Hi.
     { rewrite Z2Nat.inj_sub, Nat.sub_0_le in Hi by omega.
@@ -334,7 +336,8 @@ Proof.
     rewrite !data_at__eq, !data_at_zero_array_eq; auto. }
   { (* second loop *)
     forward.
-    replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).
+    replace (force_val _) with (thread_lock i)
+      by (simpl; rewrite sem_add_pi_ptr_special; auto; unfold N in *; simpl in *; rep_omega).
     Opaque upto.
     rewrite sublist_next with (i0 := i) by (auto; rewrite Zlength_upto, Z2Nat.id; omega); simpl.
     rewrite Znth_upto by (simpl; unfold N in *; omega).
