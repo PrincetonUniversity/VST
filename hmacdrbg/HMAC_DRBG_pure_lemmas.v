@@ -1,5 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
+Require Import VST.floyd.functional_base.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 
@@ -7,7 +8,7 @@ Require Import sha.general_lemmas.
 Require Import sha.hmac_pure_lemmas.
 
 Lemma HMAC_DRBG_generate_helper_Z_any_prop_fst:
-  forall (P: list Z -> Prop) HMAC key v z,
+  forall (P: list byte -> Prop) HMAC key v z,
     0 <= z ->
     P v ->
     (forall x y, P (HMAC x y)) ->
@@ -55,105 +56,6 @@ Proof.
     simpl.
     apply H.
   }
-Qed.
-
-Lemma HMAC_DRBG_generate_helper_Z_isbyteZ_fst:
-  forall HMAC key v z,
-    0 <= z ->
-    Forall isbyteZ v ->
-    (forall x y, Forall isbyteZ (HMAC x y)) ->
-    Forall isbyteZ (fst (HMAC_DRBG_generate_helper_Z HMAC key v z)).
-Proof.
-  apply HMAC_DRBG_generate_helper_Z_any_prop_fst.
-Qed.
-
-Lemma HMAC_DRBG_generate_helper_Z_isbyteZ_snd:
-  forall HMAC key v z,
-    0 <= z ->
-    (forall x y, Forall isbyteZ (HMAC x y)) ->
-    Forall isbyteZ (snd (HMAC_DRBG_generate_helper_Z HMAC key v z)).
-Proof.
-  intros HMAC key v z Hz H.
-  remember (z/32) as n.
-  rewrite <- (Z2Nat.id n) in Heqn.
-  generalize dependent z.
-  induction (Z.to_nat n).
-  {
-    (* base case *)
-    intros.
-    rewrite (Z_div_mod_eq z 32); try omega.
-    rewrite HMAC_DRBG_generate_helper_Z_equation.
-    rewrite <- Heqn.
-    change (Z.of_nat 0) with 0.
-    change (32 * 0 + z mod 32) with (z mod 32).
-    change (Z.of_nat 32) with 32.
-    remember (0 >=? z mod 32) as zero_geb_z; destruct zero_geb_z.
-    constructor.
-    rewrite HMAC_DRBG_generate_helper_Z_equation.
-    remember (0 >=? z mod 32 - 32) as zero_geb_z_minus_32; destruct zero_geb_z_minus_32.
-    {
-      simpl.
-      apply H.
-    }
-    {
-      (* this case is bogus. z mod 32 - 32 cannot be bigger than 0 *)
-      rewrite Z.geb_leb in Heqzero_geb_z_minus_32.
-      symmetry in Heqzero_geb_z_minus_32; apply Z.leb_gt in Heqzero_geb_z_minus_32.
-      pose proof (Z_mod_lt z 32); omega.
-    }
-  }
-  {
-    (* inductive case *)
-    intros.
-    rewrite (Z_div_mod_eq z 32); try omega.
-    rewrite <- Heqn.
-    replace (32 * Z.of_nat (S n0) + z mod 32) with (32 * Z.of_nat n0 + z mod 32 + 32).
-    rewrite HMAC_DRBG_generate_helper_Z_equation.
-    destruct (0 >=? 32 * Z.of_nat n0 + z mod 32 + 32); try constructor.
-    change (Z.of_nat 32) with 32.
-    replace (32 * Z.of_nat n0 + z mod 32 + 32 - 32) with (32 * Z.of_nat n0 + z mod 32) by omega.
-    replace (HMAC_DRBG_generate_helper_Z HMAC key v
-               (32 * Z.of_nat n0 + z mod 32)) with (fst (HMAC_DRBG_generate_helper_Z HMAC key v
-               (32 * Z.of_nat n0 + z mod 32)), snd (HMAC_DRBG_generate_helper_Z HMAC key v
-               (32 * Z.of_nat n0 + z mod 32))).
-    change (snd
-        (HMAC
-           (fst
-              (HMAC_DRBG_generate_helper_Z HMAC key v
-                 (32 * Z.of_nat n0 + z mod 32))) key,
-        snd
-          (HMAC_DRBG_generate_helper_Z HMAC key v
-             (32 * Z.of_nat n0 + z mod 32)) ++
-        HMAC
-          (fst
-             (HMAC_DRBG_generate_helper_Z HMAC key v
-                (32 * Z.of_nat n0 + z mod 32))) key)) with (snd
-          (HMAC_DRBG_generate_helper_Z HMAC key v
-             (32 * Z.of_nat n0 + z mod 32)) ++
-        HMAC
-          (fst
-             (HMAC_DRBG_generate_helper_Z HMAC key v
-                (32 * Z.of_nat n0 + z mod 32))) key).
-    apply Forall_app.
-    split.
-    {
-      apply IHn0.
-      pose proof (Zle_0_nat n0).
-      pose proof (Z_mod_lt z 32); omega.
-      symmetry; eapply Zdiv_unique.
-      rewrite Z.mul_comm. reflexivity.
-      apply Z_mod_lt; omega.
-    }
-    {
-      apply H.
-    }
-    destruct (HMAC_DRBG_generate_helper_Z HMAC key v (32 * Z.of_nat n0 + z mod 32)); reflexivity.
-    rewrite Nat2Z.inj_succ.
-    rewrite <- Zmult_succ_r_reverse.
-    omega.
-  }
-  subst.
-  apply (Z_div_pos z 32); omega.
 Qed.
 
 Lemma HMAC_DRBG_generate_helper_Z_incremental_fst:

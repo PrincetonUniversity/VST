@@ -146,24 +146,18 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
     forward.
     { apply prop_right. unfold Int.mods. (* rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      rewrite ! Int.signed_repr by rep_omega. 
       rewrite Z.rem_mod_nonneg; try omega.
-      rewrite Int.unsigned_repr. omega. 
-      rewrite int_max_unsigned_eq; omega. }
+      rewrite Int.unsigned_repr by rep_omega. 
+      omega. }
     { unfold Int.mods. 
-      rewrite ! Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      rewrite ! Int.signed_repr by rep_omega.
       rewrite Z.rem_mod_nonneg; try omega.
       entailer!.
    }
     entailer!. destruct H5. inv H6.
     unfold Int.mods. 
-    rewrite ! Int.signed_repr.
-    2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-    2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+    rewrite ! Int.signed_repr by rep_omega.
     rewrite Z.rem_mod_nonneg; try omega.
     forward.
     { entailer!. simpl. Exists (upd_Znth m T (Vint v)). entailer!.
@@ -514,11 +508,9 @@ deadvars!.
    split. rep_omega. intros [? H9]; inv H9.  }
   { apply prop_right.
     unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
-    rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+    rewrite ! Int.signed_repr by rep_omega(*, add_repr, Int.signed_repr*).
     rewrite add_repr.
-    rewrite Int.unsigned_repr by (rewrite int_max_unsigned_eq; omega).
+    rewrite Int.unsigned_repr by rep_omega.
     omega. }
   { Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
     go_lower. rewrite TM. simpl. 
@@ -535,9 +527,7 @@ deadvars!.
              split. trivial.
              rewrite Z2Nat.id. split; trivial. omega. 
     + unfold Int.mods. (*rewrite ! mul_repr, add_repr.*)
-      rewrite ! Int.signed_repr(*, add_repr, Int.signed_repr*).
-        2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-        2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      rewrite ! Int.signed_repr by rep_omega(*, add_repr, Int.signed_repr*).
       rewrite add_repr.
       rewrite Z.rem_mod_nonneg; try omega. entailer!. }
   } 

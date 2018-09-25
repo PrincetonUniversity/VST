@@ -31,7 +31,7 @@ Lemma body_hmac_drbg_seed_256: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function.
   abbreviate_semax.
-  destruct H as [HDlen1 [HDlen2 [HData RES]]]. destruct handle_ss as [handle ss]. simpl in RES.
+  destruct H as [HDlen1 [HDlen2 RES]]. destruct handle_ss as [handle ss]. simpl in RES.
   
   rewrite data_at_isptr with (p:=ctx). Intros.
   destruct ctx; try contradiction.
@@ -78,12 +78,8 @@ Proof.
   }
   forward_call (Vptr b i, shc, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
   { simpl. cancel. }
-  { split3; auto. split. red. simpl. rewrite int_max_signed_eq.
-    split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
-    apply isbyteZ_initialKey.
+  { split3; auto. split; auto. 
   }
-  Intros. clear H.
 
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
@@ -119,7 +115,7 @@ Proof.
 
   assert (FOURTYEIGHT: Int.unsigned (Int.mul (Int.repr 32) (Int.repr 3)) / 2 = 48).
   { rewrite mul_repr. simpl.
-    rewrite Int.unsigned_repr. reflexivity. rewrite int_max_unsigned_eq; omega. }
+    rewrite Int.unsigned_repr. reflexivity. rep_omega. }
   set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr_flag 10000) in *.
   assert (myST: exists ST:hmac256drbgstate, ST =
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
@@ -131,12 +127,11 @@ Proof.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
   freeze [1;2;3] INI.
-  specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
   replace_SEP 0 (
          data_at shc t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
-  { entailer!. thaw INI. clear - FC_V IB1. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
-    apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
+  { entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
+    apply andp_right. apply prop_right. repeat split; trivial.
     unfold_data_at 2%nat. 
     cancel. unfold md_full; simpl.
     rewrite field_at_data_at; simpl.
@@ -157,10 +152,8 @@ Proof.
     split. reflexivity.
     split. omega.
     split. (*change Int.modulus with 4294967296.*) omega.
-    split. (* change Int.modulus with 4294967296.*)
+     (* change Int.modulus with 4294967296.*)
        unfold contents_with_add. simple_if_tac. omega. rewrite Zlength_nil; omega.
-    split. apply IB1. split; omega.
-    assumption.
   }
 
   Intros v.

@@ -42,7 +42,7 @@ Proof.
   rewrite EMPTY_isptr; Intros.
   unfold_data_at 1%nat.
   forward.
-  forward_call (@inr (val * share * Z * list Z * globals) _ (r3, Ews, l, key, b, i, shk, gv)).
+  forward_call (@inr (val * share * Z * list byte * globals) _ (r3, Ews, l, key, b, i, shk, gv)).
   { unfold spec_sha.data_block. normalize. cancel. }
   forward.
   cancel. unfold md_relate; simpl. cancel.
@@ -119,7 +119,7 @@ Proof.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
-  forward_call (@inl _ (val * share * Z * list Z * block * Ptrofs.int * share * globals)
+  forward_call (@inl _ (val * share * Z * list byte * block * Ptrofs.int * share * globals)
                              (internal_r, Ews, 32, key, gv)). 
   forward.
 

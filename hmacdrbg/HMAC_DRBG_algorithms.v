@@ -1,25 +1,26 @@
 Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
+Require Import VST.floyd.functional_base.
 
 Require Import hmacdrbg.DRBG_functions.
 
-Definition HMAC_DRBG_update (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z): (list Z * list Z) :=
-  let K := HMAC (V ++ [0] ++ provided_data) K in
+Definition HMAC_DRBG_update (HMAC: list byte -> list byte -> list byte) (provided_data K V: list byte): (list byte * list byte) :=
+  let K := HMAC (V ++ [Byte.zero] ++ provided_data) K in
   let V := HMAC V K in
   match provided_data with
     | [] => (K, V)
     | _::_ =>
-      let K := HMAC (V ++ [1] ++ provided_data) K in
+      let K := HMAC (V ++ [Byte.one] ++ provided_data) K in
       let V := HMAC V K in
       (K, V)
   end.
 
-Definition initial_key: list Z := list_repeat 32 0.
+Definition initial_key: list byte := list_repeat 32 Byte.zero.
 
-Definition initial_value: list Z := list_repeat 32 1.
+Definition initial_value: list byte := list_repeat 32 Byte.one.
 
-Definition HMAC_DRBG_instantiate_algorithm (HMAC: list Z -> list Z -> list Z)
-           (entropy_input nonce personalization_string: list Z) (security_strength: Z): DRBG_working_state :=
+Definition HMAC_DRBG_instantiate_algorithm (HMAC: list byte -> list byte -> list byte)
+           (entropy_input nonce personalization_string: list byte) (security_strength: Z): DRBG_working_state :=
   let seed_material := entropy_input ++ nonce ++ personalization_string in
   let key := initial_key in
   let value := initial_value in
@@ -27,8 +28,8 @@ Definition HMAC_DRBG_instantiate_algorithm (HMAC: list Z -> list Z -> list Z)
   let reseed_counter := 1 in
   (value, key, reseed_counter).
 
-Definition HMAC_DRBG_reseed_algorithm (HMAC: list Z -> list Z -> list Z)
-           (working_state: DRBG_working_state) (entropy_input additional_input: list Z): DRBG_working_state :=
+Definition HMAC_DRBG_reseed_algorithm (HMAC: list byte -> list byte -> list byte)
+           (working_state: DRBG_working_state) (entropy_input additional_input: list byte): DRBG_working_state :=
   match working_state with (v, key, _) =>
                            let seed_material := entropy_input ++ additional_input in
                            let (key, v) := HMAC_DRBG_update HMAC seed_material key v in
@@ -36,8 +37,8 @@ Definition HMAC_DRBG_reseed_algorithm (HMAC: list Z -> list Z -> list Z)
                            (v, key, reseed_counter)
   end.
 
-Function HMAC_DRBG_generate_helper_Z (HMAC: list Z -> list Z -> list Z) (key v: list Z)
-          (requested_number_of_bytes: Z) {measure Z.to_nat requested_number_of_bytes}: (list Z * list Z) :=
+Function HMAC_DRBG_generate_helper_Z (HMAC: list byte -> list byte -> list byte) (key v: list byte)
+          (requested_number_of_bytes: Z) {measure Z.to_nat requested_number_of_bytes}: (list byte * list byte) :=
   if 0 >=? requested_number_of_bytes then (v, [])
   else
     let len := 32%nat in
@@ -59,9 +60,9 @@ Proof.
   apply Z2Nat.inj_lt in H; omega.
 Defined.
 
-Definition HMAC_DRBG_generate_algorithm (HMAC: list Z -> list Z -> list Z) (reseed_interval: Z)
+Definition HMAC_DRBG_generate_algorithm (HMAC: list byte -> list byte -> list byte) (reseed_interval: Z)
            (working_state: DRBG_working_state) (requested_number_of_bytes: Z)
-           (additional_input: list Z): DRBG_generate_algorithm_result :=
+           (additional_input: list byte): DRBG_generate_algorithm_result :=
   match working_state with (v, key, reseed_counter) =>
     if reseed_counter >? reseed_interval then generate_algorithm_reseed_required
     else

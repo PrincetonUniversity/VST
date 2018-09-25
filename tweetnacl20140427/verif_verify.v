@@ -8,7 +8,7 @@ Require Import tweetnacl20140427.tweetNaclBase.
 
 (*from verif_ld_st*)
 Lemma Byte_unsigned_range_32 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
-Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; omega. Qed.
+Proof. rep_omega. Qed.
 
 Lemma vn_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_vn vn_spec.
@@ -71,9 +71,13 @@ forward. apply prop_right.
     f_equal. unfold Int.sub. 
     assert (Int.shru (Int.repr (Byte.unsigned b - 1)) (Int.repr 8) = Int.zero).
     - apply Int.same_bits_eq. rewrite ZWS; intros. rewrite Int.bits_zero, Int.bits_shru; try omega.
-      rewrite (Int.unsigned_repr 8), ZWS. 2: rewrite int_max_unsigned_eq; omega.
-      if_tac; trivial. rewrite Int.testbit_repr by omega. apply isbyteZ_testbit. 2: omega.
-      destruct (Byte.unsigned_range b). replace Byte.modulus with 256 in H3 by reflexivity. split; try omega.
+      rewrite (Int.unsigned_repr 8) by rep_omega; rewrite ZWS.
+      if_tac; trivial. rewrite Int.testbit_repr by omega.
+      replace (Byte.unsigned b - 1) with (Byte.unsigned (Byte.sub b Byte.one)).
+      apply byte_testbit. omega. unfold Byte.sub.
+      rewrite Byte.unsigned_repr; try rep_omega. reflexivity.
+      split; [ | rep_omega]. change (Byte.unsigned Byte.one) with 1.
+      destruct (Byte.unsigned_range b). replace Byte.modulus with 256 in H3 by reflexivity.
       destruct (zle 0 (Byte.unsigned b - 1)); trivial. elim H1; clear H1.
       assert (ZZ: Byte.unsigned b =0) by omega.
       apply initialize.zero_ext_inj. rewrite ZZ; reflexivity.
