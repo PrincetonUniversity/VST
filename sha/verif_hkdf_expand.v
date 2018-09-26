@@ -110,32 +110,7 @@ Proof.
   rewrite Hl, <- app_assoc. repeat f_equal.
   unfold Z.succ, Byte.add, Byte.one. f_equal. rewrite 2 Byte.unsigned_repr; trivial. rep_omega.
 Qed.
-(*
-Lemma sublist_HKDF_expand5 PRK INFO l i
-         (Hl : if zeq i 0 then l = []
-               else PREVcont PRK INFO i = map Vint (map Int.repr l) /\ Forall general_lemmas.isbyteZ l)
-         (Hi : 0 <= i):
-      sublist 0 32 (HMAC256_functional_prog.HMAC256 ((l ++ CONT INFO) ++ [i + 1]) (CONT PRK)) =
-      sublist (32 * i) (32 * i + 32) (HKDF_expand (CONT PRK) (CONT INFO) (32 * (i + 1))).
-Proof.
-  unfold HKDF_expand. destruct (zle (32*(i + 1)) 0); try omega. simpl.
-  rewrite (Zmod_unique _ _ (i+1) 0) by omega. simpl. 
-  rewrite (Zdiv_unique _ _(i+1) 0) by omega.
-  rewrite sublist_sublist; try omega. rewrite ! Z.add_0_r.
-  replace (Z.to_nat (i + 1)) with (S (Z.to_nat i)).
-  2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-  simpl.
-  rewrite Zpos_P_of_succ_nat, Z2Nat.id; try omega. 
-  rewrite sublist_app2; rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
-  rewrite Zminus_diag. replace ((32 * i + 32 - 32 * i)%Z) with 32%Z by omega.
-  unfold PREVcont in Hl.
-  destruct (zeq i 0). { simpl in *; subst i l; simpl; trivial. }
-  destruct Hl as [Hl isBTl]. apply map_Vint_injective in Hl.
-  apply map_IntReprOfBytes_injective in Hl; trivial. 2: apply isbyteZ_Ti.
-  rewrite Hl, <- app_assoc.
-  change (i+1)%Z with (Z.succ i); trivial.
-Qed.
-*)
+
 Lemma body_hkdf_expand: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
        f_HKDF_expand HKDF_expand_spec.
 Proof.
@@ -169,7 +144,7 @@ forward_if
    temp _out_len (Vint (Int.repr olen)); temp _prk prk;
    temp _prk_len (Vint (Int.repr (spec_hmac.LEN PRK))); 
    temp _info info; temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO)));
-   (*gvar sha._K256 kv*)gvars gv)  SEP (FRZL FR1)).
+   gvars gv)  SEP (FRZL FR1)).
 { forward. Exists (Vint (Int.repr 1)). erewrite zlt_true; try eapply H.
   entailer!. } 
 { forward.
@@ -214,7 +189,7 @@ Intros. subst v. rewrite if_false in HV; try omega.
 destruct (zlt 255 ((olen + 32 - 1) / 32)); [inv HV | clear HV]. 
 drop_LOCAL 0%nat.
 thaw FR1. 
-Time assert_PROP (isptr prk) as isPtrPrk by entailer!. (*destruct prk; try contradiction. (Vptr b i)*)
+Time assert_PROP (isptr prk) as isPtrPrk by entailer!.
 
 freeze [0;2;3;6] FR1.
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] v_hmac) as FC_hmac by entailer!.
@@ -230,12 +205,7 @@ assert_PROP (isptr v_previous /\ field_compatible (tarray tuchar 64) [] v_previo
 destruct prevPtr as [prevPtr prevFC].
 
 unfold data_at_ at 2. unfold field_at_.
-rewrite field_at_data_at. simpl. unfold tarray. (*
-assert (VV: exists vv :reptype (Tarray tuchar 64 noattr), vv= list_repeat 64 Vundef).
-{ eexists; reflexivity. }
-destruct VV as [vv VV]. (*
-assert (JMeq_1: JMeq (default_val (Tarray tuchar 64 noattr)) (sublist 0 64 vv)).
-{ subst vv. rewrite sublist_list_repeat with (k:=64); try omega. simpl. apply JMeq_refl. }*)*)
+rewrite field_at_data_at. simpl. unfold tarray.
 assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (list_repeat 64 Vundef)).
 { (*subst vv.*) rewrite sublist_list_repeat with (k:=64); try omega; reflexivity. }
 erewrite  split2_data_at_Tarray with (n1:=32); [ | omega | | apply JM | reflexivity | reflexivity].
@@ -270,7 +240,7 @@ forward_for_simple_bound bnd
                     lvar _hmac (Tstruct _hmac_ctx_st noattr) v_hmac; lvar _previous (tarray tuchar 64) v_previous;
                     temp _out_key out; temp _out_len (Vint (Int.repr olen)); temp _prk prk;
                     temp _prk_len (Vint (Int.repr (spec_hmac.LEN PRK))); temp _info info;
-                    temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO))); (*gvar sha._K256 kv*)gvars gv)
+                    temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO))); gvars gv)
              SEP (FRZL FR0; K_vector gv; data_at_ Tsh tuchar v_ctr; 
             data_at Tsh (Tarray tuchar 32 noattr) (PREVcont PRK INFO ii) v_previous;
             data_block Tsh (CONT INFO) info;
@@ -289,9 +259,9 @@ forward_for_simple_bound bnd
   + unfold OUTpred. destruct (zeq rest 0).
     - subst rest; simpl.
       destruct (zlt 0 rounds); simpl.
-      * rewrite Zplus_0_r, Z.min_l, Zminus_0_r, data_at_tuchar_zero_array_eq, isptr_offset_val_zero(*, data_at__memory_block*); trivial; try omega.
+      * rewrite Zplus_0_r, Z.min_l, Zminus_0_r, data_at_tuchar_zero_array_eq, isptr_offset_val_zero; trivial; try omega.
         cancel. 
-      * assert(R0: rounds = 0) by omega. rewrite R0 in *; clear R0. simpl. unfold tarray. (*cancel.*)
+      * assert(R0: rounds = 0) by omega. rewrite R0 in *; clear R0. simpl. unfold tarray.
         rewrite isptr_offset_val_zero, data_at_tuchar_zero_array_eq; trivial. cancel. 
     - rewrite Z.min_l by omega. rewrite Zminus_0_r, data_at_tuchar_zero_array_eq; trivial.
       rewrite isptr_offset_val_zero; trivial. cancel.
@@ -424,7 +394,7 @@ forward_for_simple_bound bnd
    freeze [0;3;4;5;6;7] FR5.
    
    idtac "Timing the call to _memcpy".
-   Time forward_call ((*hkdf_compspecs.CompSpecs, *)(Tsh, shmd), 
+   Time forward_call ((Tsh, shmd), 
                  offset_val (32*i1) out, v_previous, 
                  olen - (32* i1), 32,
              if zlt olen (32 * i1 + 32)

@@ -21,9 +21,9 @@ assert_PROP (isptr salt) as Ptr_salt.
 apply vst_lemmas.isptrD in Ptr_salt. destruct Ptr_salt as [sb [si SLT]]. subst salt.
 thaw FR1.
 idtac "Timing the call to HMAC".
-Time forward_call (out, SALT, Tsh, secret, SECRET, Tsh, shmd, sb, si, gv).
+Time forward_call (out, SALT, Tsh, secret, SECRET, Tsh, shmd, sb, si, gv). (*3.7s*)
 apply extract_exists_pre; intros Hmac. 
-idtac "Timing the normalize". Time normalize. (*Coq8.6: 2secs*)
+idtac "Timing the normalize". Time normalize. (*Coq8.6: 1secs*)
 (*yields 
 H: ByteBitRelations.bytesToBits
       (HMAC256_functional_prog.HMAC256 (CONT SECRET) (CONT SALT)) =
@@ -76,6 +76,4 @@ forward_if (PROP ( )
 forward. forward. 
 unfold HKDF_extract. cancel. 
 Time Qed.
-(*Coq 8.6: 2.5 secs*)
-(*Feb 23rd 2017 (Coq8.5pl2): Finished transaction in 24.859 secs (17.937u,0.s) (successful)*)
- (*earlier: Finished transaction in 5.781 secs (4.89u,0.s) (successful)*)
+(*Finished transaction in 0.545 secs (0.544u,0.s) (successful)*)
