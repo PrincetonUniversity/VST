@@ -1,5 +1,5 @@
 Require Import VST.sepcomp.semantics.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
 

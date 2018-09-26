@@ -5,8 +5,8 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
-Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.Clight_assert_lemmas.
 Require Import VST.veric.Clight_new.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.

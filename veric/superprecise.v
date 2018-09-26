@@ -1,5 +1,5 @@
 Require Import Reals.
-Require Export VST.veric.base.
+Require Export VST.veric.general_base. (*need Clight_base?*)
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates.
 
@@ -507,8 +507,8 @@ apply  identity_unit_equiv.
 auto.
 Qed.
 
-Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
+Require Import VST.veric.extend_tc. (-this line is in a comment-)
+Require Import VST.veric.seplog. (-this line is in a comment-)
 
 Lemma superprecise_mapsto:
  wishes_eq_horses ->

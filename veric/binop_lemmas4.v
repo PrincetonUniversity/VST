@@ -1,5 +1,5 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.

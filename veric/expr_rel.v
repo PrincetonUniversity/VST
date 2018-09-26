@@ -1,5 +1,5 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.lift.
@@ -9,7 +9,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
+Require Import VST.veric.Clight_seplog.
 
 Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_const_int: forall i ty,

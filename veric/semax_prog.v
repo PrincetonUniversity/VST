@@ -2,8 +2,8 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
-Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.Clight_assert_lemmas.
 Require Import VST.veric.Clight_new.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
@@ -1274,7 +1274,7 @@ Proof.
          ).
   apply funassert_initial_core; auto.
   revert FA.
-  pose proof assert_lemmas.corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
+  pose proof corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
   rewrite corable_spec in CO. apply CO.
   pose proof initial_mem_core as E.
   unfold juicy_mem_core in *. erewrite E; try reflexivity.
@@ -1289,8 +1289,8 @@ Proof.
     (initial_world.initial_core_ext ora (Genv.globalenv prog) G n)
          ).
   apply funassert_initial_core_ext; auto.
-  revert FA.
-  pose proof assert_lemmas.corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
+  revert FA. 
+  pose proof corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
   rewrite corable_spec in CO. apply CO.
   pose proof initial_mem_core as E.
   unfold juicy_mem_core in *. erewrite E; try reflexivity.
@@ -1500,7 +1500,7 @@ Proof.
       unfold initial_core.
       apply level_make_rmap.
   - apply initial_jm_ext_without_locks.
-  - apply initial_jm_ext_matchfunspecs.
+  - apply initial_jm_ext_matchfunspecs. 
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
 Qed.

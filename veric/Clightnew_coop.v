@@ -1,7 +1,7 @@
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_new.
 
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'

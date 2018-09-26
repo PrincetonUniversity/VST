@@ -15,7 +15,7 @@
 (* and a few modifications... *)
 (** Arithmetic and logical operators for the Compcert C and Clight languages *)
 
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.tycontext.
 
 (** Computational version of type_eq **)

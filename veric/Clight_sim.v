@@ -1,6 +1,6 @@
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.semantics.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.Clight_new.
 Require compcert.cfrontend.Clight.

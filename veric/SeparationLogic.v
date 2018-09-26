@@ -1,4 +1,4 @@
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
@@ -30,8 +30,8 @@ Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
 Require VST.veric.general_seplog.
-Require VST.veric.seplog.
-Require VST.veric.assert_lemmas.
+Require VST.veric.Clight_seplog.
+Require VST.veric.Clight_assert_lemmas.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.valid_pointer.
