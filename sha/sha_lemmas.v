@@ -4,6 +4,7 @@ Require Import sha.spec_sha.
 Require Import sha.sha.
 Require Export sha.pure_lemmas.
 Require Export sha.general_lemmas.
+Require Export sha.vst_lemmas.
 Export ListNotations.
 
 Local Open Scope logic.
@@ -175,17 +176,6 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
  | _, _ => nil
  end.
 
-Lemma data_block_local_facts:
- forall {cs: compspecs} sh f data,
-  data_block sh f data |--
-   prop (field_compatible (tarray tuchar (Zlength f)) [] data).
-Proof.
-intros. unfold data_block, array_at.
-simpl.
-entailer!.
-Qed.
-Hint Resolve @data_block_local_facts : saturate_local.
-
 Require Import JMeq.
 
 Lemma reptype_tarray {cs: compspecs}:
@@ -239,13 +229,6 @@ Local Open Scope Z.
 
 Local Open Scope logic.
 
-Lemma data_block_valid_pointer {cs: compspecs} sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
-      data_block sh l p |-- valid_pointer p.
-Proof. unfold data_block. simpl; intros.
-  apply data_at_valid_ptr; auto; simpl.
-  rewrite Z.max_r, Z.mul_1_l; omega.
-Qed.
-
 Lemma sizeof_tarray_tuchar:
  forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
 Proof. intros.
@@ -274,42 +257,6 @@ Proof.
  apply IHn; omega.
 Qed.
 
-Lemma split2_data_block:
-  forall  {cs: compspecs}  n sh data d,
-  (0 <= n <= Zlength data)%Z ->
-  data_block sh data d =
-  (data_block sh (sublist 0 n data) d *
-   data_block sh (sublist n (Zlength data) data)
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
-Proof.
-  intros.
-  unfold data_block. simpl. normalize.
-  rewrite <- !sublist_map.
-  unfold tarray.
-  rewrite split2_data_at_Tarray_tuchar with (n1:=n) by (autorewrite with sublist; auto).
-  autorewrite with sublist.
-  reflexivity.
-Qed.
-
-Lemma split3_data_block:
-  forall  {cs: compspecs} lo hi sh data d,
-  0 <= lo <= hi ->
-  hi <= Zlength data  ->
-  data_block sh data d =
-  (data_block sh (sublist 0 lo data) d *
-   data_block sh (sublist lo hi data)
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
-   data_block sh (sublist hi (Zlength data) data)
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
-Proof.
-  intros.
-  unfold data_block. 
-  rewrite <- !sublist_map.
-  unfold tarray.
-  rewrite split3_data_at_Tarray_tuchar with (n1:=lo)(n2:=hi) by (autorewrite with sublist; auto).
-  autorewrite with sublist.
-  reflexivity.
-Qed.
 
 Global Opaque WORD.
 

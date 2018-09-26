@@ -2,8 +2,7 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-Require Import sha.general_lemmas.
-Require Import sha.spec_sha.
+Require Import sha.vst_lemmas.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmac.
 
@@ -241,7 +240,7 @@ forward_for_simple_bound bnd
                     temp _out_key out; temp _out_len (Vint (Int.repr olen)); temp _prk prk;
                     temp _prk_len (Vint (Int.repr (spec_hmac.LEN PRK))); temp _info info;
                     temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO))); gvars gv)
-             SEP (FRZL FR0; K_vector gv; data_at_ Tsh tuchar v_ctr; 
+             SEP (FRZL FR0; spec_sha.K_vector gv; data_at_ Tsh tuchar v_ctr; 
             data_at Tsh (Tarray tuchar 32 noattr) (PREVcont PRK INFO ii) v_previous;
             data_block Tsh (CONT INFO) info;
             if zeq ii 0 then HMAC_SPEC.REP Tsh (HMAC_SPEC.hABS (CONT PRK) []) v_hmac
@@ -284,7 +283,7 @@ forward_for_simple_bound bnd
    temp _out_len (Vint (Int.repr olen)); temp _prk prk;
    temp _prk_len (Vint (Int.repr (LEN PRK))); temp _info info;
    temp _info_len (Vint (Int.repr (LEN INFO))); gvars gv)
-   SEP (FRZL FR0; K_vector gv;
+   SEP (FRZL FR0; spec_sha.K_vector gv;
    field_at Tsh tuchar []
      (Vint (cast_int_int I8 Unsigned (Int.add (Int.repr i1) (Int.repr 1)))) v_ctr;
    data_at Tsh (Tarray tuchar 32 noattr) (PREVcont PRK INFO i1) v_previous;
@@ -385,7 +384,7 @@ forward_for_simple_bound bnd
    temp _info info; temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO)));
    gvars gv)
    SEP (data_at Tsh (tarray tuchar 32) (map Vubyte CONTRIB) v_previous;
-   K_vector gv; HMAC_SPEC.FULL Tsh (CONT PRK) v_hmac; FRZL FR4)).
+   spec_sha.K_vector gv; HMAC_SPEC.FULL Tsh (CONT PRK) v_hmac; FRZL FR4)).
    { forward. entailer!. rewrite if_true; trivial; omega. } 
    { forward. entailer!. rewrite if_false; trivial; omega. } 
 

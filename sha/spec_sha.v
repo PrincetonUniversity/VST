@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Require Import sha.sha.
 Require Import sha.general_lemmas.
+Require Import sha.vst_lemmas.
 Require Import sha.SHA256.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -45,9 +46,6 @@ Definition t_struct_SHA256state_st := Tstruct _SHA256state_st noattr.
 Definition sha256state_ (sh: share) (a: s256abs) (c: val) : mpred :=
    EX r:s256state,
     !!  s256_relate a r  &&  data_at sh t_struct_SHA256state_st r c.
-
-Definition data_block {cs: compspecs} (sh: share) (contents: list byte) :=
-  @data_at cs sh (tarray tuchar (Zlength contents)) (map Vubyte contents).
 
 Definition _ptr : ident := 81%positive.
 Definition _x : ident := 82%positive.

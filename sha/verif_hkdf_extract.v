@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-Require Import sha.spec_sha.
+Require Import sha.vst_lemmas.
 Require Import sha.hmac_common_lemmas.
 
 Require Import sha.hkdf.
@@ -59,7 +59,7 @@ forward_if (PROP ( )
    temp _out_len olen; temp _salt (Vptr sb si); temp _salt_len (Vint (Int.repr (LEN SALT)));
    temp _secret secret; temp _secret_len (Vint (Int.repr (LEN SECRET)));
    gvars gv)
-   SEP (K_vector gv; data_block shmd Hmac out; initPostKey Tsh (Vptr sb si) (CONT SALT);
+   SEP (spec_sha.K_vector gv; data_block shmd Hmac out; initPostKey Tsh (Vptr sb si) (CONT SALT);
    data_block Tsh (CONT SECRET) secret; data_at_ Tsh tuint olen)).
 { apply denote_tc_test_eq_split. 
   + unfold data_block. normalize.
@@ -71,9 +71,9 @@ forward_if (PROP ( )
     rewrite HMAC_Zlength; simpl; omega.
   + auto with valid_pointer. }
 { subst out; contradiction. }
-{ clear H; forward. entailer!. }
+{ clear H; forward. entailer!. rewrite <- @change_compspecs_data_block. trivial. }
 
 forward. forward. 
-unfold HKDF_extract. cancel. 
+unfold HKDF_extract. cancel. rewrite @change_compspecs_data_block. trivial.
 Time Qed.
 (*Finished transaction in 0.545 secs (0.544u,0.s) (successful)*)
