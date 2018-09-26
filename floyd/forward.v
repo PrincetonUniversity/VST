@@ -3246,6 +3246,74 @@ Arguments another_gvar i !ml .
 
 Ltac start_function_hint := idtac. (* "Hint: at any time, try the 'hint' tactic.  To disable this message, 'Ltac start_function_hint ::= idtac.' ". *)
 
+
+Definition firstopt {A} (e1 e2: option A) := 
+match e1 with None => e2 | Some x => Some x end.
+
+Fixpoint check_norm_expr (e: expr) : option expr :=
+match e with
+ | Evar _ ty => match access_mode ty with
+                            | By_reference => None
+                            | _ => Some e
+                           end
+ | Ederef a ty => match access_mode ty with
+                  | By_reference => if is_pointer_type (typeof a) 
+                                               then check_norm_expr a
+                                               else Some e
+                  | _ => Some e
+                  end
+| Eunop _ e _ => check_norm_expr e
+| Ebinop _ e1 e2 _ => firstopt (check_norm_expr e1) (check_norm_expr e2)
+| Ecast e _ => check_norm_expr e
+| Efield a _ ty => match access_mode ty with
+                            | By_reference => check_norm_lvalue a
+                            | _ => Some e
+                           end
+| Eaddrof e _ => check_norm_lvalue e
+| _ => None
+end
+with check_norm_lvalue (e: expr) : option expr :=
+match e with
+| Ederef a _ => if is_pointer_type (typeof a) 
+                              then check_norm_expr a
+                              else Some e
+| Ecast e _ => check_norm_lvalue e
+| Efield e _ _ => check_norm_lvalue e
+| Eunop _ e _ => check_norm_expr e
+| Ebinop _ e1 e2 _ => firstopt (check_norm_expr e1) (check_norm_expr e2)
+| _ => None
+end.
+
+Fixpoint check_norm_stmt (s: statement) : option expr :=
+match s with
+| Sassign e1 e2 => firstopt (check_norm_lvalue e1) (check_norm_expr e2)
+| Sset _ e1 => check_norm_lvalue e1
+| Scall _ (Evar _ _) el => fold_right firstopt None (map check_norm_expr el)
+| Scall _ e el => fold_right firstopt None (map check_norm_expr (e::el))
+| Sbuiltin _ _ _ el => fold_right firstopt None (map check_norm_expr el)
+| Ssequence s1 s2 => firstopt (check_norm_stmt s1) (check_norm_stmt s2)
+| Sifthenelse e s1 s2 => firstopt (check_norm_expr e) (firstopt (check_norm_stmt s1) (check_norm_stmt s2))
+| Sloop s1 s2 => firstopt (check_norm_stmt s1) (check_norm_stmt s2)
+| Sreturn (Some e) => check_norm_expr e
+| Sswitch e ls => firstopt (check_norm_expr e)
+                              (check_norm_ls ls)
+| _ => None
+end
+with
+check_norm_ls (ls: labeled_statements) : option expr :=
+match ls with 
+| LSnil => None 
+| LScons _ s1 sr => firstopt (check_norm_stmt s1) (check_norm_ls sr)
+end.
+
+Ltac check_normalized f := 
+let x := constr:(check_norm_stmt (fn_body f)) in
+let x := eval hnf in x in
+match x with 
+| None => idtac
+| Some ?e => fail 99 "The expression " e " contains internal memory dereferences, which suggests that you ran clightgen without the -normalize flag.  Print Info.normalized and make sure it has the value 'true'"
+end.
+
 Ltac start_function :=
  match goal with |- semax_body _ _ ?F ?spec =>
    let D := constr:(type_of_function F) in 
@@ -3260,7 +3328,8 @@ Function spec:" S
    else
    (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
 Function body: " D "
-Function spec: " S)
+Function spec: " S);
+   check_normalized F
  end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
