@@ -3,6 +3,7 @@ Import ListNotations.
 Local Open Scope logic.
 
 Require Import sha.vst_lemmas.
+
 Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmac.
 
@@ -27,19 +28,6 @@ assert (exists n, Z.to_nat i = S n).
   destruct (Z.to_nat i). omega. eexists; reflexivity. }
 destruct H0; rewrite H0.
 unfold Ti; simpl. repeat rewrite Zlength_map. apply HMAC_Zlength.
-Qed.
-
-Lemma byte_modulus_lt_Int_modulus: Byte.modulus < Int.modulus. 
-Proof. cbv; trivial. Qed.
-
-Lemma map_Vubyte_injective: forall l m, map Vubyte l = map Vubyte m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H; trivial.
-+ destruct m; simpl in *; inv H. f_equal; eauto. clear IHl.
-  rewrite 2 Int.Z_mod_modulus_eq in H1. 
-  specialize byte_modulus_lt_Int_modulus; intros X.
-  rewrite 2 Zmod_small in H1; try rep_omega.
-  rewrite <- (Byte.repr_unsigned a), <- (Byte.repr_unsigned i), H1; trivial. 
 Qed.
 
 Lemma PREVcont_Sn PRK INFO i p: 0 <= i <= Byte.max_unsigned -> PREVcont PRK INFO i = map Vubyte p -> 

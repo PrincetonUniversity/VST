@@ -9,7 +9,7 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
-Require Import sha.general_lemmas.
+Require Import sha.vst_lemmas.
 Require Import VST.floyd.library.
 
 Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs

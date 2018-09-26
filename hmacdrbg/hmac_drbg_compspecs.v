@@ -1,7 +1,8 @@
 Require Import VST.floyd.proofauto.
-Require Import sha.spec_sha.
+(*Require Import sha.spec_sha.*)
 Require Import sha.spec_hmac.
 Require Import hmacdrbg.hmac_drbg.
+Require Import sha.vst_lemmas.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.

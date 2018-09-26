@@ -2,19 +2,7 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-(************************ TO BE MOVED SOMEWHERE INSODE FLOYD****************)
-Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H; trivial.
-+ destruct m; simpl in *; inv H. f_equal; eauto.
-Qed.
-
-(****************************************************************************)
-
-
 Require Import VST.floyd.library.
-
-(*Require Import sha.spec_sha.*)
 Require Import sha.vst_lemmas.
 Require Import sha.protocol_spec_hmac.
 
@@ -160,12 +148,12 @@ Definition memcpy_tuchar_array_spec {cs:compspecs} :=
        PROP (readable_share shq; writable_share shp; 0 <= k <= n;
        k <= m <= Int.max_unsigned) 
        LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr k)))
-       SEP (@data_at cs shq (tarray tuchar m) (map general_lemmas.Vubyte contents) q;
+       SEP (@data_at cs shq (tarray tuchar m) (map Vubyte contents) q;
             @memory_block shp n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at shq (tarray tuchar m) (map general_lemmas.Vubyte contents) q;
-           data_at shp (tarray tuchar k) (map general_lemmas.Vubyte (sublist 0 k contents)) p;
+       SEP(data_at shq (tarray tuchar m) (map Vubyte contents) q;
+           data_at shp (tarray tuchar k) (map Vubyte (sublist 0 k contents)) p;
            memory_block shp (n-k) (offset_val k p)).
 
 (*Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). *)

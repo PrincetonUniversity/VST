@@ -11,6 +11,32 @@ Require Export VST.floyd.sublist.
 
 Require Import VST.veric.val_lemmas.
 
+Lemma byte_zwordsize_eq: Byte.zwordsize = 8. reflexivity. Qed.
+Lemma int_zwordsize_eq: Int.zwordsize = 32. reflexivity. Qed.
+Lemma byte_half_modulus_eq: Byte.half_modulus = 128. reflexivity. Qed.
+Lemma byte_modulus_eq: Byte.modulus = 256. reflexivity. Qed.
+Lemma byte_min_signed_eq: Byte.min_signed = -128. reflexivity. Qed.
+Lemma byte_max_signed_eq: Byte.max_signed = 127. reflexivity. Qed.
+Lemma byte_max_unsigned_eq: Byte.max_unsigned = 255. reflexivity. Qed.
+Lemma int_min_signed_eq: Int.min_signed = -2147483648. reflexivity. Qed.
+Lemma int_max_signed_eq: Int.max_signed = 2147483647. reflexivity. Qed.
+Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295. reflexivity. Qed.
+
+Lemma Vint_injective i j (H: Vint i = Vint j): i=j.
+Proof. inv H; trivial. Qed. 
+
+Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
+Proof. induction l; intros.
++ destruct m; inv H; trivial.
++ destruct m; inv H. f_equal; eauto.
+Qed.
+
+Lemma byte_modulus_lt_Int_modulus: Byte.modulus < Int.modulus. 
+Proof. cbv; trivial. Qed.
+
+Lemma cons_inv {A} (a a':A) l l': a::l = a'::l' -> a=a' /\ l=l'.
+Proof. intros. inv H; eauto. Qed.
+
 Instance Inhabitant_val : Inhabitant val := Vundef.
 Instance Inhabitant_int: Inhabitant int := Int.zero.
 Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
@@ -19,8 +45,43 @@ Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
 Instance Inhabitant_float : Inhabitant float := Float.zero.
 Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
 
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+
+Lemma Vubyte_injective i j (H: Vubyte i = Vubyte j): i=j.
+Proof. 
+  specialize byte_zwordsize_eq; intros B.
+  specialize int_zwordsize_eq; intros I.
+  apply Byte.same_bits_eq; intros a A.
+  unfold Vubyte in H. remember (Int.repr (Byte.unsigned i)) as z.
+  inv H. destruct i; destruct j. unfold Byte.testbit.
+  unfold Byte.unsigned in H1. simpl in *.
+  rewrite <- 2 Int.testbit_repr, H1; trivial; omega.
+Qed. 
+
+Lemma map_Vubyte_injective: forall l m, map Vubyte l = map Vubyte m -> l=m.
+Proof. induction l; intros.
++ destruct m; simpl in *; inv H; trivial.
++ destruct m; [ inv H |]. rewrite 2 map_cons in H. apply cons_inv in H.
+  destruct H; subst. apply Vubyte_injective in H. f_equal; eauto.
+Qed.
+
 Definition Vbyte (c: Byte.int) : val :=
   Vint (Int.repr (Byte.signed c)).
+
+Lemma Vbyte_injective a b (H: Vbyte a = Vbyte b): a=b.
+Proof. unfold Vbyte in H. apply Vint_injective in H.
+  apply Byte.same_bits_eq; intros i I.
+  assert (Byte.signed a = Byte.signed b).
+  { specialize int_min_signed_eq; specialize int_max_signed_eq.
+    specialize byte_min_signed_eq; specialize byte_max_signed_eq. intros.
+    rewrite <- (Int.signed_repr (Byte.signed a)). 
+    rewrite <- (Int.signed_repr (Byte.signed b)).
+    rewrite H; trivial. specialize (Byte.signed_range b); omega.
+    specialize (Byte.signed_range a); omega. }
+  clear H. unfold Byte.testbit. rewrite 2 Byte.unsigned_signed. 
+  unfold Byte.lt. rewrite H0. trivial. 
+Qed.
 
 Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
   0 <= i < Zlength l -> Znth i (map Vbyte l)  = Vbyte (Znth i l).
@@ -34,6 +95,14 @@ Ltac fold_Vbyte :=
  repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
       fold (Vbyte c)
 end.
+
+Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
+  0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
 
 Hint Rewrite 
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)

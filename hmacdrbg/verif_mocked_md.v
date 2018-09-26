@@ -5,6 +5,7 @@ Require Import VST.floyd.sublist.
 
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
+Require Import sha.vst_lemmas.
 Require Import VST.floyd.library.
 
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -43,10 +44,10 @@ Proof.
   unfold_data_at 1%nat.
   forward.
   forward_call (@inr (val * share * Z * list byte * globals) _ (r3, Ews, l, key, b, i, shk, gv)).
-  { unfold spec_sha.data_block. normalize. cancel. }
+  { unfold data_block. normalize. cancel. }
   forward.
   cancel. unfold md_relate; simpl. cancel.
-  unfold spec_sha.data_block; normalize. cancel.
+  unfold data_block; normalize. cancel.
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -69,7 +70,7 @@ Proof.
 
   forward_call (key, internal_r, Ews, Vptr b i, sh, data, data1, gv).
   {
-    unfold spec_sha.data_block.
+    unfold data_block.
     entailer!. 
     change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
     entailer!.
@@ -79,7 +80,7 @@ Proof.
   forward.
 
   (* prove the post condition *)
-  unfold spec_sha.data_block.
+  unfold data_block.
   unfold md_relate (*; unfold convert_abs*).
   change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   entailer!.
@@ -102,7 +103,7 @@ Proof.
   forward_call (data, key, internal_r, Ews, md, shmd, gv).
 
   (* return 0 *)
-  unfold spec_sha.data_block.
+  unfold data_block.
   forward.
   change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
   cancel.
