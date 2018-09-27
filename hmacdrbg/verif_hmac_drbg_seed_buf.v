@@ -37,8 +37,7 @@ Proof.
   Time forward_call ((M1,(M2,M3)), Vptr b i, shc, Vint (Int.repr 1), info).
 
   Intros v. rename H into Hv. simpl.
-  freeze [0] FR1.
-  forward. thaw FR1.
+  forward.
   forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
@@ -46,26 +45,18 @@ Proof.
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto.  }
   subst v; clear Hv. rewrite if_true; trivial.
-  Intros. Intros p. rename H into MCp.
+  Intros. Intros p.
   forward_call tt.
 
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.
   rename V0 into V. rename H0 into lenV.
   thaw FIELDS.
-  freeze [4;5;6;7] FIELDS1.
+  freeze [3;4;5;6] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
-(*  rewrite <- lenV.*)
-  freeze [0;2;5;6;7] FR2.
-  replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
-  { entailer!. 
-    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    fix_hmacdrbg_compspecs.  apply derives_refl.
-  }
+ (* rewrite <- lenV. *)
+  freeze [0;4;5;6] FR2.
   forward_call (Vptr b i, shc, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
-  (*{ rewrite H, int_add_repr_0_r; simpl.
-    apply prop_right; repeat split; trivial.
-  }*)
   { rewrite lenV; simpl. cancel. }
   { split; auto. split; auto. split; auto.
   }
@@ -105,9 +96,9 @@ Proof.
   }
   clear INI. thaw OTHER.
   set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
-  replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
-  { entailer!. subst ABS; unfold md_full. simpl.
-    apply andp_right. apply prop_right. repeat split; trivial.
+  gather_SEP 1 2.
+  replace_SEP 0 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
+  { subst ABS. unfold md_full. entailer!. unfold md_full; simpl; entailer!.
     apply UNDER_SPEC.REP_FULL.
   }
 

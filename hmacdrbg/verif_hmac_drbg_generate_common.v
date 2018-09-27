@@ -725,7 +725,7 @@ field_at shc t_struct_hmac256drbg_context_st [StructField _md_ctx]
    (field_at shc t_struct_hmac256drbg_context_st
       [StructField _reseed_interval] (Vint (Int.repr reseed_interval1))
       (Vptr b i) * (data_at shc t_struct_mbedtls_md_info Info mc1 * emp))))) *
-(md_full Ews key1 (mc1, (mc2, mc3)) *
+(md_full key1 (mc1, (mc2, mc3)) *
  (da_emp sha (tarray tuchar (Zlength contents))
     (map Vubyte contents) additional *
   (K_vector gv *
@@ -1364,7 +1364,7 @@ Proof. intros.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
          [StructField _md_ctx] (Vptr b i)) as FC_M by entailer.
     forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),  (*md_ctx'*)(mc1,(mc2,mc3)), shc, key0, gv).
-    { simpl. cancel. }
+    { unfold md_full; simpl. cancel. }
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
     rename H into HZlength_V.  
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st [StructField _V] (Vptr b i)) as FCV by entailer!.

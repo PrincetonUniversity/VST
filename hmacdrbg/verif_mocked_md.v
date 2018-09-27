@@ -12,11 +12,12 @@ Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function. rewrite data_at_isptr. Intros.
   unfold_data_at 1%nat. destruct r as [r1 [r2 r3]]. simpl.
-  rewrite EMPTY_isptr. Intros. 
+  assert_PROP (isptr r3) by (unfold md_empty; entailer!).
   forward. 
 freeze [0;1;2] FR1.
  forward_call (Tstruct _hmac_ctx_st noattr, r3).
 { rewrite sepcon_comm. apply sepcon_derives.
+  unfold md_empty. simpl. cancel.
   eapply derives_trans. apply UNDER_SPEC.EmptyDissolve.
   fix_hmacdrbg_compspecs.
   apply derives_refl.
@@ -39,11 +40,11 @@ Proof.
   start_function.
 
   destruct r as [r1 [r2 r3]]. simpl.
-  rewrite EMPTY_isptr; Intros.
+  assert_PROP (isptr r3) by (unfold md_empty; entailer!).
   unfold_data_at 1%nat.
   forward.
   forward_call (@inr (val * share * Z * list byte * globals) _ (r3, Ews, l, key, b, i, shk, gv)).
-  { unfold spec_sha.data_block. normalize. cancel. }
+  { unfold spec_sha.data_block, md_empty. simpl. cancel. }
   forward.
   cancel. unfold md_relate; simpl. cancel.
   unfold spec_sha.data_block; normalize. cancel.
@@ -57,8 +58,8 @@ Proof.
 
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
-  simpl.
-  rewrite REP_isptr; Intros.
+  simpl. Intros.
+  assert_PROP (isptr internal_r) by entailer!.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
@@ -92,8 +93,8 @@ Proof.
 
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
-  simpl.
-  rewrite REP_isptr; Intros.
+  simpl. Intros.
+  assert_PROP (isptr internal_r) by entailer!.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
@@ -105,6 +106,7 @@ Proof.
   unfold spec_sha.data_block.
   forward.
   change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
+  unfold md_full; simpl.
   cancel.
 Qed.
 
@@ -114,8 +116,9 @@ Proof.
   start_function.
 
   destruct r as [r1 [r2 internal_r]].
+  unfold md_full. Intros.
   simpl.
-  rewrite FULL_isptr; Intros.
+  assert_PROP (isptr internal_r) by entailer!.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
@@ -155,5 +158,7 @@ Proof.
   Intros.
   unfold_data_at 1%nat.
   forward. forward. forward. Exists 0. simpl. entailer!.
-  Exists vret. unfold_data_at 1%nat. entailer!.
+  Exists vret.
+  rewrite md_empty_unfold.
+ unfold_data_at 1%nat. entailer!.
 Qed.

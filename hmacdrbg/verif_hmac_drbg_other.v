@@ -39,11 +39,13 @@ Proof.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
       destruct C1 as [? [? ?]]. rewrite field_at_data_at. simpl.
       unfold field_address. rewrite if_true. simpl. rewrite Ptrofs.add_zero. 2: trivial.
-      unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY Ews v1).
+      unfold md_full; simpl. Intros.
+      replace_SEP 3 (UNDER_SPEC.EMPTY Ews v1).
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H0 as [xx XX]. 
       forward_call (Vptr b i, (v, (v0, v1)), shc). {
+         unfold md_empty.
          change (Tstruct _hmac_ctx_st noattr) with spec_hmac.t_struct_hmac_ctx_st.
          simpl; cancel. } 
       replace_SEP 0 (memory_block shc 12 (Vptr b i)).

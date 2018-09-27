@@ -139,7 +139,7 @@ Definition hmac_drbg_seed_simple_spec :=
               temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
-         preseed_relate Ews dp rc pr_flag ri Ctx;
+         preseed_relate dp rc pr_flag ri Ctx;
          data_at Ews t_struct_mbedtls_md_info Info info;
          da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
          K_vector gv; Stream s)
@@ -152,9 +152,9 @@ Definition hmac_drbg_seed_simple_spec :=
             K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Ews t_struct_hmac256drbg_context_st Ctx ctx *
-                 preseed_relate Ews dp rc pr_flag ri Ctx * Stream s
-            else md_empty Ews (fst Ctx) *
-                 EX p:val, malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
+                 preseed_relate dp rc pr_flag ri Ctx * Stream s
+            else md_empty (fst Ctx) *
+                 EX p:val,
                  match (fst Ctx, fst handle_ss) with ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR))
                    => let CtxFinal := ((info, (M2, p)), (map Vubyte newV, (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
                       !!(ret_value = Int.zero) 
@@ -181,7 +181,7 @@ Proof.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Ews, Vint (Int.repr 1), info).
 
   Intros v. rename H into Hv.
-  freeze [0] FR1. forward. thaw FR1.
+  forward.
   forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)).
@@ -191,7 +191,7 @@ Proof.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   subst v. clear Hv. simpl.
-  Intros. Intros p. rename H into MCp. simpl in MCp.
+  Intros. Intros p.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
@@ -201,18 +201,12 @@ Proof.
   thaw FR0. subst.
   assert (ZL_VV: Zlength initial_key =32) by reflexivity.
   thaw FIELDS.
-  freeze [4;5;6;7] FIELDS1.
+  freeze [3;4;5;6] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
-  freeze [0;2;5;6;7;9] FR2.
-  replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
-  { entailer!. 
-    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    fix_hmacdrbg_compspecs. apply derives_refl.
-  }
+  freeze [0;4;5;6;8] FR2.
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
-  { simpl. cancel. }
   { split3; auto. split; auto.
   }
 
@@ -256,11 +250,11 @@ Proof.
         (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
-  freeze [0;1;2;3;4] FR_CTX.
-  freeze [3;4;6;7;8] KVStreamInfoDataFreeBlk.
+  freeze [0;2;3;4;8] FR_CTX.
+  freeze [1;6;7;8] KVStreamInfoDataFreeBlk.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
-  freeze [1;2;3] INI.
+  freeze [1;2;3;4] INI.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
@@ -275,7 +269,7 @@ Proof.
   }
 
   clear INI.
-  thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
+  thaw KVStreamInfoDataFreeBlk. freeze [6] OLD_MD.
   forward_call (Data, data, Ews, Zlength Data, Vptr b i, Ews, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
@@ -371,7 +365,7 @@ Definition hmac_drbg_seed_full_spec :=
               temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
-         preseed_relate Ews dp rc pr_flag ri Ctx;
+         preseed_relate dp rc pr_flag ri Ctx;
          data_at Ews t_struct_mbedtls_md_info Info info;
          da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
          K_vector gv; Stream s)
@@ -384,9 +378,9 @@ Definition hmac_drbg_seed_full_spec :=
             K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Ews t_struct_hmac256drbg_context_st Ctx ctx *
-                 preseed_relate Ews dp rc pr_flag ri Ctx * Stream s
-            else md_empty Ews (fst Ctx) *
-                 EX p:val, malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
+                 preseed_relate dp rc pr_flag ri Ctx * Stream s
+            else md_empty (fst Ctx) *
+                 EX p:val,
                  match (fst Ctx) with (M1, (M2, M3)) =>
                    if (zlt 256 (Zlength Data) || (zlt 384 (48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) &&
@@ -448,7 +442,7 @@ Proof.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   subst v. clear Hv. simpl.
-  Intros. Intros p. rename H into MCp. simpl in MCp.
+  Intros. Intros p.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
@@ -458,18 +452,19 @@ Proof.
   thaw FR0. subst.
   assert (ZL_VV: Zlength initial_key =32) by reflexivity.
   thaw FIELDS.
-  freeze [4;5;6;7] FIELDS1.
+  freeze [3;4;5;6] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
-  freeze [0;2;5;6;7;9] FR2.
+  freeze [0;4;5;6;8] FR2.
+(*
   replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     fix_hmacdrbg_compspecs. apply derives_refl.
   }
+*)
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
-  { simpl. cancel. }
   { split3; auto. split; auto. 
   }
 
@@ -514,11 +509,11 @@ Proof.
         (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
-  freeze [0;1;2;3;4] FR_CTX.
-  freeze [3;4;6;7;8] KVStreamInfoDataFreeBlk.
+  freeze [0;2;3;4;8] FR_CTX.
+  freeze [1;6;7;8] KVStreamInfoDataFreeBlk.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
-  freeze [1;2;3] INI.
+  freeze [1;2;3;4] INI.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
@@ -533,7 +528,7 @@ Proof.
   }
 
   clear INI.
-  thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
+  thaw KVStreamInfoDataFreeBlk. freeze [6] OLD_MD.
   forward_call (Data, data, Ews, Zlength Data, Vptr b i, Ews, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
@@ -637,10 +632,10 @@ Proof. intros.
   apply Int.eq_false. eapply ENT_GenErrAx.
 Qed.
 
-Definition preseed_relate shc V rc pr ri (r : hmac256drbgstate):mpred:=
+Definition preseed_relate V rc pr ri (r : hmac256drbgstate):mpred:=
     match r with
      (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))) =>
-    md_empty shc md_ctx' &&
+    md_empty md_ctx' &&
     !! (map Vubyte V = V' /\
         Zlength V = 32 /\
         Vint (Int.repr rc) = reseed_counter'(* /\
@@ -666,7 +661,7 @@ Definition hmac_drbg_seed_spec :=
               temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (
          data_at Ews t_struct_hmac256drbg_context_st Ctx ctx;
-         preseed_relate Ews VV rc pr ri Ctx;
+         preseed_relate VV rc pr ri Ctx;
          (*hmac256drbg_relate CTX Ctx;*)
          data_at Ews t_struct_mbedtls_md_info Info info;
          da_emp Ews (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
@@ -680,10 +675,10 @@ Definition hmac_drbg_seed_spec :=
             K_vector gv;
             if Int.eq ret_value (Int.repr (-20864))
             then data_at Ews t_struct_hmac256drbg_context_st Ctx ctx *
-                  (*hmac256drbg_relate CTX Ctx *) preseed_relate Ews VV rc pr ri Ctx *
+                  (*hmac256drbg_relate CTX Ctx *) preseed_relate VV rc pr ri Ctx *
                   Stream s
-            else md_empty Ews (fst Ctx) *
-                 EX p:val, malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p *
+            else md_empty (fst Ctx) *
+                 EX p:val, (* malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p * *)
                  match (fst Ctx) with (M1, (M2, M3)) =>
                    if (zlt 256 (Zlength Data) || (zlt 384 ((*hmac256drbgabs_entropy_len initial_state_abs*)48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) &&
@@ -748,7 +743,7 @@ Proof.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   subst v. clear Hv. simpl.
-  Intros p. rename H into MCp.
+  Intros p.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!. 
@@ -758,21 +753,15 @@ Proof.
   thaw FR0. subst.
   rename H1 into ZL_VV.
   thaw FIELDS.
-  freeze [4;5;6;7] FIELDS1.
+  freeze [3;4;5;6] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
-  freeze [0;2;5;6;7;9] FR2.
-  replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
-  { entailer!. 
-    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    fix_hmacdrbg_compspecs. apply derives_refl.
-  }
+  freeze [0;4;5;6;8] FR2.
   forward_call (Vptr b i, Ews, ((info,(M2,p)):mdstate), 32, VV, b, Ptrofs.add i (Ptrofs.repr 12), Ews, gv).
   { rewrite ZL_VV, ptrofs_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
-  { simpl. cancel. }
   { split3; auto. split; auto.
   }
   Intros.
@@ -824,11 +813,11 @@ Proof.
         (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
-  freeze [0;1;2;3;4] FR_CTX.
-  freeze [3;4;6;7;8] KVStreamInfoDataFreeBlk.
+  freeze [0;2;3;4;8] FR_CTX.
+  freeze [1;6;7;8] KVStreamInfoDataFreeBlk.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
-  freeze [1;2;3] INI.
+  freeze [1;2;3;4] INI.
   replace_SEP 0 (
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
@@ -843,7 +832,7 @@ Proof.
   }
 
   clear INI.
-  thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
+  thaw KVStreamInfoDataFreeBlk. freeze [6] OLD_MD.
   forward_call (Data, data, Ews, Zlength Data, Vptr b i, Ews, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.

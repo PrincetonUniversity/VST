@@ -78,7 +78,7 @@ Lemma reseed_REST: forall (Espec : OracleKind) (contents : list byte) additional
      (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))
      (offset_val entropy_len seed);
    da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
-   md_full Ews key md_ctx';
+   md_full key md_ctx';
    data_at shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer
         (md_ctx',

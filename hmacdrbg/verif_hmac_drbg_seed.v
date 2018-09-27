@@ -56,7 +56,7 @@ Proof.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite ptrofs_add_repr_0_r; auto. }
   subst v. clear Hv. simpl.
-  Intros. Intros p. rename H into MCp. simpl in MCp.
+  Intros. Intros p.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   deadvars!.
@@ -66,18 +66,12 @@ Proof.
   thaw FR0. subst.
   assert (ZL_VV: Zlength initial_key =32) by reflexivity.
   thaw FIELDS.
-  freeze [4;5;6;7] FIELDS1.
+  freeze [3;4;5;6] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
-  freeze [0;2;5;6;7;9] FR2.
-  replace_SEP 1 (UNDER_SPEC.EMPTY Ews p).
-  { entailer!. 
-    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
-    fix_hmacdrbg_compspecs. apply derives_refl.
-  }
+  freeze [0;4;5;6;8] FR2.
   forward_call (Vptr b i, shc, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
-  { simpl. cancel. }
   { split3; auto. split; auto. 
   }
 
@@ -122,11 +116,11 @@ Proof.
         (Vint (Int.repr 48), (Val.of_bool pr_flag, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
-  freeze [0;1;2;3;4] FR_CTX.
-  freeze [3;4;6;7;8] KVStreamInfoDataFreeBlk.
+  freeze [0;2;3;4;8] FR_CTX.
+  freeze [1;6;7;8] KVStreamInfoDataFreeBlk.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
-  freeze [1;2;3] INI.
+  freeze [1;2;3;4] INI.
   replace_SEP 0 (
          data_at shc t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
@@ -141,7 +135,7 @@ Proof.
   }
 
   clear INI.
-  thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD.
+  thaw KVStreamInfoDataFreeBlk. freeze [6] OLD_MD.
   forward_call (Data, data, shd, Zlength Data, Vptr b i, shc, ST, myABS, Info, s, gv).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.

@@ -208,12 +208,12 @@ Proof. intros. do 2 pose proof I.
     (* sep[0] = sep_value; *)
     freeze [0;1;2;3;5;6;7;8] FR2.
     forward.
-    thaw FR2. freeze [0;1;3;5;7;8] FR3.
+    thaw FR2. freeze [0;1;4;6;8;9] FR3.
 
     (* mbedtls_md_hmac_reset( &ctx->md_ctx ); *)
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, key, gv). 
-
+    {unfold md_full; simpl; cancel. }
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
     thaw FR3. rewrite <- H9. freeze [3;4;5;6;8] FR4.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
@@ -260,7 +260,7 @@ Proof. intros. do 2 pose proof I.
       temp _ctx ctx; lvar _K (tarray tuchar (Zlength V)) K;
       lvar _sep (tarray tuchar 1) sep; temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvars gv)
-      SEP  (md_relate Ews (UNDER_SPEC.hABS key (V ++ [Byte.repr i] ++ (if na then contents else nil))) (*md_ctx*)(IS1a, (IS1b, IS1c));
+      SEP  (md_relate key (V ++ [Byte.repr i] ++ (if na then contents else nil)) (*md_ctx*)(IS1a, (IS1b, IS1c));
       (data_at shc t_struct_md_ctx_st (*md_ctx*)(IS1a, (IS1b, IS1c))
           (field_address t_struct_hmac256drbg_context_st
              [StructField _md_ctx] ctx));
@@ -329,7 +329,9 @@ Proof. intros. do 2 pose proof I.
     rewrite data_at_isptr with (p:=K). Intros.
     apply vst_lemmas.isptrD in PK; destruct PK as [sk [ik HK]]; subst K.
     thaw FR9.
-    replace_SEP 1 (UNDER_SPEC.EMPTY Ews (snd (snd (*md_ctx*)(IS1a, (IS1b, IS1c))))) by (entailer!; apply UNDER_SPEC.FULL_EMPTY).
+    replace_SEP 1 (md_empty (IS1a, (IS1b, IS1c))).
+      { unfold md_full, md_empty; entailer!.
+        apply UNDER_SPEC.FULL_EMPTY. }
 
     (* mbedtls_md_hmac_starts( &ctx->md_ctx, K, md_len ); *)
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx, shc,
