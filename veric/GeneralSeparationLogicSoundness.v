@@ -9,7 +9,7 @@ Require Import VST.veric.juicy_extspec.
 
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
-Require Import VST.veric.general_seplog.
+Require Import VST.veric.seplog.
 
 (*Require Import VST.veric.initial_world. 
 Require Import VST.veric.SeparationLogic.
