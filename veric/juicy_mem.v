@@ -1,4 +1,4 @@
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.

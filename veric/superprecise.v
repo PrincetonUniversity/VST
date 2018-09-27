@@ -1,5 +1,5 @@
 Require Import Reals.
-Require Export VST.veric.general_base. (*need Clight_base?*)
+Require Export VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates.
 

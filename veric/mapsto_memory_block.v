@@ -1,6 +1,6 @@
 Require Import VST.msl.log_normalize.
 Require Import VST.msl.alg_seplog.
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates. 
 

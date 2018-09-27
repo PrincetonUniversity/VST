@@ -1,7 +1,7 @@
 Require Import Coq.Sorting.Permutation.
 Require Import Coq.Sorting.Sorting.
 Require Import Coq.Structures.Orders.
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import compcert.cfrontend.Ctypes. (*Require Import VST.veric.Clight_lemmas.*)
 Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.

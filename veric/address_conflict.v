@@ -1,6 +1,6 @@
 (* This file is developed by Qinxiang Cao, Aquinas Hobor and Shengyi Wang in 2015. *)
 
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import VST.veric.val_lemmas.
 Require Import VST.veric.Memory.
 

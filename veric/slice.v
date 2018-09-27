@@ -1,4 +1,4 @@
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.shares.
 Require Import VST.veric.compcert_rmaps.

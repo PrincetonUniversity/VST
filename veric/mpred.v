@@ -1,4 +1,4 @@
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import VST.veric.rmaps.
 Require Export compcert.cfrontend.Ctypes.
 Require Import VST.veric.compcert_rmaps.

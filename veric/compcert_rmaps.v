@@ -1,6 +1,5 @@
-
 Require Export VST.msl.msl_standard.
-Require Import VST.veric.general_base.
+Require Import VST.veric.base.
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.shares.
 Require Import VST.veric.rmaps.

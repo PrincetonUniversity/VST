@@ -1,4 +1,5 @@
 Require Export Coq.Sorting.Permutation.
+Require Import VST.veric.seplog.
 Require Import VST.floyd.base2.
 
 Local Open Scope logic.
@@ -115,7 +116,7 @@ Lemma approx_sepcon: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  apply general_seplog.approx_sepcon.
+  apply seplog.approx_sepcon.
 Qed.
 
 Lemma approx_andp: forall (P Q: mpred) n,
@@ -124,7 +125,7 @@ Lemma approx_andp: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  apply general_seplog.approx_andp.
+  apply approx_andp.
 Qed.
 
 Lemma approx_exp: forall A (P: A -> mpred) n,
@@ -132,7 +133,7 @@ Lemma approx_exp: forall A (P: A -> mpred) n,
   EX a: A, compcert_rmaps.RML.R.approx n (P a).
 Proof.
   intros.
-  apply general_seplog.approx_exp.
+  apply seplog.approx_exp.
 Qed.
 
 Lemma approx_allp: forall A (P: A -> mpred) n,
@@ -141,7 +142,7 @@ Lemma approx_allp: forall A (P: A -> mpred) n,
   ALL a: A, compcert_rmaps.RML.R.approx n (P a).
 Proof.
   intros.
-  eapply general_seplog.approx_allp; auto.
+  eapply seplog.approx_allp; auto.
 Qed.
 
 Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> mpred) n (b : B) :
@@ -151,7 +152,7 @@ Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: 
     (base.compose (compcert_rmaps.RML.R.approx n) Q) b.
 Proof.
   intros.
-  eapply general_seplog.approx_jam; auto.
+  eapply seplog.approx_jam; auto.
 Qed.
 Opaque rmaps.dependent_type_functor_rec.
 (*

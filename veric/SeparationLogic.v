@@ -29,7 +29,7 @@ Require Export VST.veric.Clight_lemmas.
 Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
-Require VST.veric.general_seplog.
+(*exported by Clight_seplog: Require VST.veric.seplog.*)
 Require VST.veric.Clight_seplog.
 Require VST.veric.Clight_assert_lemmas.
 Require Import VST.msl.Coqlib2.
@@ -610,7 +610,7 @@ auto.
 Qed.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && general_seplog.func_at f (b, 0).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
 
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
@@ -618,7 +618,7 @@ Proof.
   unfold func_ptr.
   apply corable_exp; intro.
   apply corable_andp; auto.
-  apply general_assert_lemmas.corable_func_at.
+  apply assert_lemmas.corable_func_at.
 Qed.
 
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
@@ -637,14 +637,14 @@ Definition NDmk_funspec (f: funsig) (cc: calling_convention)
 Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Proof.
-  exact general_seplog.approx_func_ptr.
+  exact seplog.approx_func_ptr.
 Qed.
 
 Definition allp_fun_id (Delta : tycontext): environ -> mpred :=
 (ALL id : ident ,
  (ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(general_seplog.func_at fs (b, 0))))).
+  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(seplog.func_at fs (b, 0))))).
 
 Lemma corable_allp_fun_id: forall Delta rho,
   corable (allp_fun_id Delta rho).
@@ -656,7 +656,7 @@ Proof.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  apply general_assert_lemmas.corable_func_at.
+  apply assert_lemmas.corable_func_at.
 Qed.
 
 Definition type_of_funsig (fsig: funsig) :=
@@ -1298,7 +1298,7 @@ Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v
     compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 
 Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && general_seplog.func_at f (b, 0).*)
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)
 Axiom semax_call :
   forall {CS: compspecs} {Espec: OracleKind},
     forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,

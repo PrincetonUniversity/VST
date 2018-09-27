@@ -1,4 +1,4 @@
-Require Export VST.veric.general_base.
+Require Export VST.veric.base.
 Require Export VST.msl.msl_standard.
 Require Export VST.veric.rmaps.
 
