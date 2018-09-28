@@ -62,7 +62,7 @@ Proof.
     intros [[? ?] [[? ?] [_ [HH _]]]];
     inversion HH].
   destruct (zlt 0 n1); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
-  destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega]. Check eq_block.
+  destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
   destruct (eq_block b b0).
   (*destruct (Clight_lemmas.block_eq_dec b b0).*)
   + subst b0.
