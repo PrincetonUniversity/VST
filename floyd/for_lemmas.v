@@ -457,20 +457,20 @@ Lemma Sfor_comparison_Signed_I32: forall i n',
   i >= n.
 Proof.
   intros.
-  unfold sem_cmp_default, Cop2.sem_binarith, binarith_type.
+  unfold sem_cmp_default, Clight_Cop2.sem_binarith, binarith_type.
   rewrite H0.
   destruct type_i as [| [| | |] [|] a_i | [|] | | | | | |]; inv I32_i;
     try solve [destruct (typeof hi) as [| | | [|] | | | | |]; inv H0].
   destruct (typeof hi) as [| i_hi s_hi a_hi | | [|] | | | | |]; try solve [inv H0].
   inv IMM.
-(*  change (Cop2.sem_cast (Tint I32 Signed a_i) (Tint I32 Signed noattr)) with sem_cast_pointer.
-  change (Cop2.sem_cast (Tint i_hi s_hi a_hi) (Tint I32 Signed noattr)) with sem_cast_pointer.
+(*  change (Clight_Cop2.sem_cast (Tint I32 Signed a_i) (Tint I32 Signed noattr)) with sem_cast_pointer.
+  change (Clight_Cop2.sem_cast (Tint i_hi s_hi a_hi) (Tint I32 Signed noattr)) with sem_cast_pointer.
 *)
   inv H.
   inv H7.
   simpl.
   unfold Int.lt.
-  unfold both_int. simpl. unfold Cop2.sem_cast, Cop2.classify_cast.
+  unfold both_int. simpl. unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast.
   destruct Archi.ptr64 eqn:Hp; simpl;
   rewrite !Int.signed_repr by (destruct i_hi, s_hi; rep_omega);
   (if_tac; [split; [intro HH; inv HH | intros; omega] |  split; auto]).
@@ -484,7 +484,7 @@ Lemma Sfor_comparison_Unsigned_I32: forall i n',
   i >= n.
 Proof.
   intros.
-  unfold sem_cmp_default, Cop2.sem_binarith, binarith_type.
+  unfold sem_cmp_default, Clight_Cop2.sem_binarith, binarith_type.
   rewrite H0.
   destruct type_i as [| [| | |] s_i a_i | [|] | | | | | |]; inv I32_i;
     try solve [destruct (typeof hi) as [| | | [|] | | | | |]; inv H0].
@@ -495,7 +495,7 @@ Proof.
   unfold Int.ltu.
   assert (s_i = Unsigned \/ s_i = Signed /\ s_hi = Unsigned /\ i_hi = I32)
     by (destruct s_i, s_hi, i_hi; auto; inv H0).
-  unfold both_int. simpl. unfold Cop2.sem_cast, Cop2.classify_cast.
+  unfold both_int. simpl. unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast.
   destruct Archi.ptr64 eqn:Hp; simpl;
   rewrite !Int.unsigned_repr
     by (destruct H as [? | [? [? ?]]]; subst; inv IMM; rep_omega);
@@ -510,7 +510,7 @@ Lemma Sfor_comparison_Signed_I64: forall i n',
   i >= n.
 Proof.
   intros.
-  unfold sem_cmp_default, Cop2.sem_binarith, binarith_type.
+  unfold sem_cmp_default, Clight_Cop2.sem_binarith, binarith_type.
   rewrite H0.
   destruct type_i as [| [| | |] s_i a_i | [|] | | | | | |]; inv I32_i.
   destruct (typeof hi) as [| [| | |] [|] | [|] | [|] | | | | |];
@@ -522,7 +522,7 @@ Proof.
   inv H6.
   simpl.
   unfold Int64.lt.
-  unfold both_long, Cop2.sem_cast; simpl.
+  unfold both_long, Clight_Cop2.sem_cast; simpl.
   replace (cast_int_long s_i (Int.repr i)) with (Int64.repr i).
   2: {
     unfold cast_int_long.
@@ -543,7 +543,7 @@ Lemma Sfor_comparison_Unsigned_I64: forall i n',
   i >= n.
 Proof.
   intros.
-  unfold sem_cmp_default, Cop2.sem_binarith, binarith_type.
+  unfold sem_cmp_default, Clight_Cop2.sem_binarith, binarith_type.
   rewrite H0.
   destruct type_i as [| [| | |] s_i a_i | [|] | | | | | |]; inv I32_i.
   destruct (typeof hi) as [| [| | |] [|] | [|] | [|] | | | | |];
@@ -552,7 +552,7 @@ Proof.
   inv H6.
   simpl.
   unfold Int64.ltu.
-  unfold both_long, Cop2.sem_cast; simpl.
+  unfold both_long, Clight_Cop2.sem_cast; simpl.
   replace (cast_int_long s_i (Int.repr i)) with (Int64.repr i).
   2: {
     unfold cast_int_long.
@@ -583,7 +583,7 @@ Proof.
   rewrite <- H3 in H1.
   forget (eval_expr hi rho) as n'.
   clear H3.
-  unfold force_val2, Cop2.sem_cmp in H1.
+  unfold force_val2, Clight_Cop2.sem_cmp in H1.
   rewrite CLASSIFY_CMP in H1.
   destruct (classify_binarith type_i (typeof hi)) as [ [|] | [|] | | |] eqn:H3;
     [| | | | 
@@ -628,7 +628,7 @@ Proof.
   rewrite <- H3 in H1.
   forget (eval_expr hi rho) as n'.
   clear H3.
-  unfold force_val2, Cop2.sem_cmp in H1.
+  unfold force_val2, Clight_Cop2.sem_cmp in H1.
   rewrite CLASSIFY_CMP in H1.
   destruct (classify_binarith type_i (typeof hi)) as [ [|] | [|] | | |] eqn:H3;
     [| | | | 
@@ -663,7 +663,7 @@ Proof.
     end.
     rewrite <- EQ_inv2, <- denote_tc_assert_andp, tc_andp_TT1, !tc_andp_TT2.
     simpl; intro rho.
-    unfold isCastResultType, Cop2.classify_cast.
+    unfold isCastResultType, Clight_Cop2.classify_cast.
     destruct Archi.ptr64 eqn:Hp;
     simpl denote_tc_assert;
     try rewrite (proj2 (eqb_attr_spec a a) (eq_refl _));
@@ -738,17 +738,17 @@ Proof.
   rewrite H0; clear H0.
   destruct type_i as [| [| | |] [|] | | | | | | |]; inv I32_i.
   + destruct s.
-    - change (force_val2 (Cop2.sem_add (Tint I32 Signed a) (Tint I32 Signed noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
+    - change (force_val2 (Clight_Cop2.sem_add (Tint I32 Signed a) (Tint I32 Signed noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
       split; [auto | congruence].
-    - change (force_val2 (Cop2.sem_add (Tint I32 Signed a) (Tint I32 Unsigned noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
+    - change (force_val2 (Clight_Cop2.sem_add (Tint I32 Signed a) (Tint I32 Unsigned noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
       split; [auto | congruence].
   + destruct s.
-    - change (force_val2 (Cop2.sem_add (Tint I32 Unsigned a) (Tint I32 Signed noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
+    - change (force_val2 (Clight_Cop2.sem_add (Tint I32 Unsigned a) (Tint I32 Signed noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
       split; [auto | congruence].
-    - change (force_val2 (Cop2.sem_add (Tint I32 Unsigned a) (Tint I32 Unsigned noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
+    - change (force_val2 (Clight_Cop2.sem_add (Tint I32 Unsigned a) (Tint I32 Unsigned noattr)) (Vint (Int.repr i)) (Vint (Int.repr 1))) with (Vint (Int.add (Int.repr i) (Int.repr 1))).
       rewrite add_repr.
       split; [auto | congruence].
 Qed.

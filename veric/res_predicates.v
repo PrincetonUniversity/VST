@@ -4,7 +4,6 @@ Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.  
 Require Import VST.veric.shares. 
 Require Import VST.veric.address_conflict.
-Locate fundef.
 
 Import RML. Import R.
 Local Open Scope pred.
@@ -1692,7 +1691,7 @@ Lemma VALspec_range_overlap: forall sh l1 n1 l2 n2,
   range_overlap l1 n1 l2 n2 ->
   VALspec_range n1 sh l1 * VALspec_range n2 sh l2 |-- FF.
 Proof.
-  intros. Locate  range_overlap_non_zero.
+  intros.
   pose proof range_overlap_non_zero _ _ _ _ H.
   apply range_overlap_spec in H; try tauto.
   destruct H.

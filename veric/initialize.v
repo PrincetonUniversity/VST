@@ -10,7 +10,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.initial_world.
+Require Import VST.veric.Clight_initial_world.
 
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
@@ -1507,9 +1507,9 @@ Lemma initial_core_rev:
 Proof.
   intros.
      unfold initial_core;  apply rmap_ext.
-    repeat rewrite level_make_rmap; auto.
-    intro loc; repeat rewrite resource_at_make_rmap; unfold initial_core'.
-    if_tac; auto. case_eq (Genv.invert_symbol gev (fst loc)); intros; auto.
++   repeat rewrite level_make_rmap; auto.
++   intro loc; repeat rewrite resource_at_make_rmap; unfold initial_core'.
+    if_tac; auto. case_eq (@Genv.invert_symbol (Ctypes.fundef function) type gev (@fst block Z loc)); intros; auto.
     replace (find_id i G) with (find_id i (rev G)); auto.
     clear - H SAME_IDS.
     assert (list_norepet (map (@fst _ _) (rev G))).
@@ -1525,11 +1525,11 @@ Proof.
    rewrite map_rev. rewrite <- in_rev.
    clear - H2.
    induction vl; simpl in *; auto. destruct a. destruct g.
-   destruct H2. simpl in *; left; auto. right; auto. right; auto.
-   rewrite map_app, list_norepet_app in H.   destruct H as [? [? ?]]; auto.
+   destruct H2. simpl in *; left; auto. right; auto. right; auto. 
+   rewrite map_app, list_norepet_app in H.   destruct H as [? [? ?]]; auto. 
     apply find_id_rev; auto.
     rewrite <- list_norepet_rev, <- map_rev. auto.
-  rewrite !ghost_of_make_rmap; auto.
++ rewrite !ghost_of_make_rmap; auto.
 Qed.
 
 Definition hackfun phi0 phi :=
@@ -2112,7 +2112,7 @@ Proof.
        rewrite <- Nat2Z.id .
        apply Z2Nat.inj_le. specialize (Pos2Z.is_pos b). omega.
        omega.
-       fold fundef. omega.
+       omega.
      }
  fold fundef in *.
  assert (POS := Pos2Z.is_pos b). {

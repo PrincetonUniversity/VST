@@ -11,9 +11,7 @@ Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.expr_lemmas2.
 Import Cop.
 Import Cop2.
-
-Opaque tc_andp. (* This is needed otherwise certain Qeds take
-    forever in Coq 8.3.  *)
+Import Clight_Cop2.
 
 Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.

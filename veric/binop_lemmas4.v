@@ -4,13 +4,14 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
-Require Import VST.veric.Cop2.
+Require Import VST.veric.Clight_Cop2.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas3.
 
 Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
+Import Clight_Cop2.
 
 Lemma denote_tc_test_eq_Vint_l: forall m i v,
   (denote_tc_test_eq (Vint i) v) m ->
@@ -325,7 +326,7 @@ Proof.
 intros.
  unfold Vptrofs, size_t, sem_cast, classify_cast, sem_cast_pointer.
  destruct Archi.ptr64 eqn:Hp.
- simpl. unfold cast_int_long, ptrofs_of_int.
++ simpl. unfold cast_int_long, ptrofs_of_int.
  destruct si; auto.
  unfold Ptrofs.to_int64.
  unfold Ptrofs.of_ints.
@@ -341,19 +342,19 @@ intros.
  rewrite H0.
  assert (Int.modulus < Int64.modulus) by (compute; auto).
  omega.
- try ((* Archi.ptr64=true *)
+ (*try ((* Archi.ptr64=true *)
    rewrite if_true by auto; simpl;
    f_equal;
    unfold ptrofs_of_int; destruct si; auto; try rewrite Ptrofs.to_int_of_int; auto;
    unfold Ptrofs.of_ints, Ptrofs.to_int;
    rewrite (Ptrofs.agree32_repr Hp); rewrite Int.repr_unsigned, Int.repr_signed;
-   auto).
- try ( (* Archi.ptr64=false *)
- simpl; f_equal;
- unfold Ptrofs.to_int, ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int;
- destruct si;
- rewrite ?(Ptrofs.agree32_repr Hp),
-   ?Int.repr_unsigned, ?Int.repr_signed; auto).
+   auto).*)
++ try ( (* Archi.ptr64=false *)
+  simpl; f_equal;
+  unfold Ptrofs.to_int, ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int;
+  destruct si;
+  rewrite ?(Ptrofs.agree32_repr Hp),
+    ?Int.repr_unsigned, ?Int.repr_signed; auto).
 Qed.
 
 Lemma test_eq_fiddle_signed_xx:

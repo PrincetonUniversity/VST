@@ -16,6 +16,7 @@ Require Export VST.veric.expr_lemmas4.
 Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
+Import Clight_Cop2.
 
 (*
 Lemma typecheck_environ_update_te:

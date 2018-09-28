@@ -84,7 +84,6 @@ Qed.
 
 Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
 Proof. exact (Coqlib.peq). Qed.
-Locate intsize.
 
 Lemma rev_if_be_singleton:
   forall x, rev_if_be (x::nil) = (x::nil).
@@ -109,3 +108,22 @@ Qed.
 Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
 Proof. congruence. Qed.
 
+Definition nullval : val := 
+  if Archi.ptr64 then Vlong Int64.zero else Vint Int.zero.
+
+Definition val_to_bool (v: val) : option bool :=
+  match v with
+    | Vint n => Some (negb (Int.eq n Int.zero))
+    | Vptr _ _ => Some true
+    | _ => None
+  end.
+
+Definition bool_of_valf (v: val): option bool :=
+match v with
+  | Vint i => Some (negb (Int.eq i Int.zero))
+  | Vlong i => Some (negb (Int64.eq i Int64.zero))
+  | Vfloat _ => None
+  | Vsingle _ => None
+  | Vptr _ _ => Some true
+  | Vundef => None
+end.

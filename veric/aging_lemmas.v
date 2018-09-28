@@ -10,7 +10,7 @@ Require Import VST.veric.seplog.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.age_to_resource_at.
-Locate age.
+
 Set Bullet Behavior "Strict Subproofs".
 
 Ltac hered :=

@@ -11,20 +11,13 @@ Require Import VST.floyd.library.
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_free md_free_spec.
 Proof.
-  start_function. rewrite data_at_isptr. Intros.
-  unfold_data_at 1%nat. destruct r as [r1 [r2 r3]]. simpl.
-  rewrite EMPTY_isptr. Intros. 
-  forward. 
-freeze [0;1;2] FR1.
+  start_function.
+  destruct r as [r1 [r2 r3]].
+  assert_PROP (isptr r3) by (unfold md_empty; entailer!).
+  forward.
  forward_call (Tstruct _hmac_ctx_st noattr, r3).
-{ rewrite sepcon_comm. apply sepcon_derives.
-  eapply derives_trans. apply UNDER_SPEC.EmptyDissolve.
-  fix_hmacdrbg_compspecs.
-  apply derives_refl.
-  cancel.
-}
-forward. thaw FR1. 
-  unfold_data_at 1%nat. cancel.
+ { rewrite md_empty_unfold. simpl. cancel. }
+ forward.
 Qed.
 
 Lemma body_md_get_size: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -38,18 +31,22 @@ Lemma body_md_start: semax_body HmacDrbgVarSpecs (HmacDrbgFunSpecs)
        f_mbedtls_md_hmac_starts md_starts_spec.
 Proof.
   start_function.
-
-  destruct r as [r1 [r2 r3]]. simpl.
-  rewrite EMPTY_isptr; Intros.
-  unfold_data_at 1%nat.
+  destruct r as [r1 [r2 r3]].
+  assert_PROP (isptr r3) by (unfold md_empty; entailer!).
   forward.
   forward_call (@inr (val * share * Z * list byte * globals) _ (r3, Ews, l, key, b, i, shk, gv)).
-  { unfold data_block. normalize. cancel. }
+ { rewrite md_empty_unfold. simpl. unfold data_block.
+   sep_apply (UNDER_SPEC.mkEmpty Ews r3). cancel.
+ }
   forward.
-  cancel. unfold md_relate; simpl. cancel.
-  unfold data_block; normalize. cancel.
-  unfold_data_at 1%nat. cancel.
+  unfold md_relate.
+  unfold data_block. simpl. cancel.
 Qed.
+
+Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_data_at_cancel; 
+       [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
 Lemma body_md_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_hmac_update md_update_spec.
@@ -58,21 +55,17 @@ Proof.
 
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
-  simpl.
-  rewrite REP_isptr; Intros.
+  simpl. Intros.
+  assert_PROP (isptr internal_r) by entailer!.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
-
+  assert_PROP (isptr d) by entailer!.
   (* HMAC_Update(hmac_ctx, input, ilen); *)
-  rewrite data_at_isptr with (p:=d); Intros.
   destruct d; try contradiction.
 
   forward_call (key, internal_r, Ews, Vptr b i, sh, data, data1, gv).
-  {
-    unfold data_block.
-    entailer!. 
-    change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
+  { unfold data_block.
     entailer!.
   }
 
@@ -82,8 +75,8 @@ Proof.
   (* prove the post condition *)
   unfold data_block.
   unfold md_relate (*; unfold convert_abs*).
-  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
-  entailer!.
+  simpl.
+  cancel.
 Qed.
 
 Lemma body_md_final: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -93,8 +86,8 @@ Proof.
 
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
-  simpl.
-  rewrite REP_isptr; Intros.
+  simpl. Intros.
+  assert_PROP (isptr internal_r) by entailer!.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
@@ -105,7 +98,7 @@ Proof.
   (* return 0 *)
   unfold data_block.
   forward.
-  change_compspecs hmac_drbg_compspecs.CompSpecs.  (* TODO: This should not be necessary *)
+  unfold md_full; simpl.
   cancel.
 Qed.
 
@@ -115,8 +108,9 @@ Proof.
   start_function.
 
   destruct r as [r1 [r2 internal_r]].
+  unfold md_full. Intros.
   simpl.
-  rewrite FULL_isptr; Intros.
+  assert_PROP (isptr internal_r) by entailer!.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward. 
@@ -125,7 +119,6 @@ Proof.
   forward.
 
   unfold md_relate; simpl. cancel.
-(*  unfold convert_abs.*)
 Qed.
 
 Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSpecs)
@@ -139,12 +132,7 @@ Proof.
   forward_if.
   { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
-    + normalize. eapply derives_trans; try apply valid_pointer_weak.
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer2.
-      apply data_at_valid_ptr.
-      apply readable_nonidentity. auto. compute. auto.
-      entailer!.
+    + entailer!.
   }
   { (*null*)
     subst vret. simpl. forward.
@@ -155,6 +143,8 @@ Proof.
   destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
   Intros.
   unfold_data_at 1%nat.
-  forward. forward. forward. Exists 0. simpl. entailer!.
-  Exists vret. unfold_data_at 1%nat. entailer!.
+  forward. forward. forward. Exists 0. simpl.
+  Exists vret.
+  rewrite md_empty_unfold.
+ unfold_data_at 1%nat. entailer!.
 Qed.

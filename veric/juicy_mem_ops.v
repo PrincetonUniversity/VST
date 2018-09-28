@@ -418,7 +418,6 @@ Qed.
 
 Existing Instance stratsem.
 
-Locate fundef.
 Require Import VST.veric.compcert_rmaps.
 
 Inductive RmapPrimexpr : pfunc rmap val -> Prop :=.

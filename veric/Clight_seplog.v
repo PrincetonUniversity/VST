@@ -19,7 +19,7 @@ Require Import compcert.cfrontend.Clight.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.binop_lemmas2.
-Require Export VST.veric.mapsto_memory_block.
+Require Export VST.veric.Clight_mapsto_memory_block.
 
 Local Open Scope pred.
 
@@ -330,30 +330,3 @@ Lemma same_glob_funassert:
      (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
               funassert Delta1 = funassert Delta2.
 Proof. intros; eapply same_FS_funspecs_assert; trivial. Qed.
-(*
->>>>>>> origin/master
-Lemma funassert_exit_tycon: forall c Delta ek,
-     funassert (exit_tycon c Delta ek) = funassert Delta.
-Proof.
-intros.
-apply same_glob_funassert.
-intro.
-unfold exit_tycon; simpl. destruct ek; auto.
-rewrite glob_specs_update_tycon. auto.
-Qed.
-*)
-(*
-Lemma strict_bool_val_sub : forall v t b,
- strict_bool_val v t = Some b ->
-  Cop.bool_val v t = Some b.
-Proof.
-  intros. destruct v; destruct t; simpl in *; auto; try congruence;
-   unfold Cop.bool_val, Cop.classify_bool; simpl.
-  destruct i0; auto.
-  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
-  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
-  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
-  destruct f0; inv  H; auto.
-  destruct f0; inv  H; auto.
-Qed.
-*)

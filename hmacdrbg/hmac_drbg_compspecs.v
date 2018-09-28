@@ -4,11 +4,18 @@ Require Import sha.spec_hmac.
 Require Import hmacdrbg.hmac_drbg.
 Require Import sha.vst_lemmas.
 
+Ltac make_cs_preserve' :=
+ match goal with |- change_composite_env ?a ?b =>
+  make_cs_preserve a b
+end.
+
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
-Instance CompSpecs_Preserve: change_composite_env spec_hmac.CompSpecs CompSpecs.
-  make_cs_preserve spec_hmac.CompSpecs CompSpecs.
-Defined.
+
+Instance CompSpecs_Preserve: change_composite_env
+      spec_hmac.CompSpecs CompSpecs := ltac:(make_cs_preserve').
+Instance CompSpecs_Preserve': change_composite_env 
+             CompSpecs spec_hmac.CompSpecs := ltac:(make_cs_preserve').
 
 Lemma change_compspecs_data_block: forall sh v,
   @data_block spec_hmac.CompSpecs sh v =

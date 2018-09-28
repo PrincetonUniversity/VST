@@ -17,7 +17,7 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
 Require Import VST.msl.normalize.
 Require Import VST.veric.semax_call.
-Require Import VST.veric.initial_world.
+Require Import VST.veric.Clight_initial_world.
 Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
 Require Import Coq.Logic.JMeq.
@@ -645,7 +645,7 @@ destruct a. destruct p.
  destruct H2 as [pp ?].
  hnf in H2.
  assert (exists pp, initial_core (Genv.globalenv prog) G n @ (loc',0) = PURE (FUN fsig' cc') pp).
-case_eq (initial_core (Genv.globalenv prog) G n @ (loc',0)); intros.
+case_eq (initial_core (@Genv.globalenv (Ctypes.fundef function) type prog) G n @ (loc', 0)); intros.
 destruct (necR_NO _ _ (loc',0) sh n0 H1) as [? _].
 rewrite H4 in H2 by auto.
 inv H2.
@@ -659,10 +659,9 @@ rewrite resource_at_make_rmap in H3.
 unfold initial_core' in H3.
 if_tac in H3; [ | inv H3].
 simpl.
-simpl @fst in *.
-revert H3; case_eq (@Genv.invert_symbol fundef type
-         (@Genv.globalenv (Ctypes.fundef function) type
-            prog) loc'); intros;
+simpl @fst in *. 
+revert H3; case_eq (@Genv.invert_symbol (Ctypes.fundef function) 
+      type (@Genv.globalenv (Ctypes.fundef function) type prog) loc' ); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
@@ -670,7 +669,7 @@ apply Genv.invert_find_symbol in H3.
 exists i.
 simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
- rewrite H3.
+ unfold fundef; rewrite H3.
  split; auto.
  assert (exists f, In (i,f) (prog_funct prog)
               /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig') cc'). {
@@ -812,9 +811,8 @@ unfold initial_core' in H3.
 if_tac in H3; [ | inv H3].
 simpl.
 simpl @fst in *.
-revert H3; case_eq (@Genv.invert_symbol fundef type
-         (@Genv.globalenv (Ctypes.fundef function) type
-            prog) loc'); intros;
+revert H3; case_eq (@Genv.invert_symbol (Ctypes.fundef function) type
+              (@Genv.globalenv (Ctypes.fundef function) type prog) loc'); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
@@ -822,7 +820,7 @@ apply Genv.invert_find_symbol in H3.
 exists i.
 simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
- rewrite H3.
+ unfold fundef; rewrite H3.
  split; auto.
  assert (exists f, In (i,f) (prog_funct prog)
               /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig') cc'). {
@@ -889,7 +887,7 @@ repeat rewrite resource_at_make_rmap.
 unfold inflate_initial_mem'.
 repeat rewrite resource_at_make_rmap.
 unfold initial_core'.
-case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst l)); intros; auto.
+case_eq (@Genv.invert_symbol (Ctypes.fundef function) type (@Genv.globalenv (Ctypes.fundef function) type prog) (@fst block Z l) ); intros; auto.
 rename i into id.
 case_eq (find_id id G); intros; auto.
 rename f into fs.
@@ -904,22 +902,22 @@ apply Genv.invert_find_symbol in H1.
 destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
 apply in_prog_funct_in_prog_defs; auto.
 inversion2 H1 H4.
-if_tac.
- destruct (IOK l) as [_ ?].
- unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
-  unfold initial_core' in H6. rewrite if_true in H6 by auto.
-  apply Genv.find_invert_symbol in H1.
-  unfold fundef in *; rewrite H1 in *.
-  rewrite H2 in *. destruct fs.
-  destruct H6 as [? [? ?]]. rewrite H7.
-  rewrite core_PURE; auto.
-  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1,H2 in *.
-  if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1 in *.
- if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
- rewrite ghost_of_core.
- unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
++ if_tac.
+ - destruct (IOK l) as [_ ?].
+   unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
+   unfold initial_core' in H6. rewrite if_true in H6 by auto.
+   apply Genv.find_invert_symbol in H1.
+   unfold fundef in *; rewrite H1 in *.
+   rewrite H2 in *. destruct fs.
+   destruct H6 as [? [? ?]]. rewrite H7.
+   rewrite core_PURE; auto.
+ - destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ (*unfold fundef in *. rewrite H1,H2 in *.*)
+   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ (*unfold fundef in *; rewrite H1 in *.*)
+  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ rewrite ghost_of_core.
+  unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
 Qed.
 
 Lemma core_inflate_initial_mem':
@@ -957,22 +955,22 @@ apply Genv.invert_find_symbol in H1.
 destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
 apply in_prog_funct_in_prog_defs; auto.
 inversion2 H1 H4.
-if_tac.
- destruct (IOK l) as [_ ?].
- unfold initial_core_ext in H6. rewrite resource_at_make_rmap in H6.
-  unfold initial_core' in H6. rewrite if_true in H6 by auto.
-  apply Genv.find_invert_symbol in H1.
-  unfold fundef in *; rewrite H1 in *.
-  rewrite H2 in *. destruct fs.
-  destruct H6 as [? [? ?]]. rewrite H7.
-  rewrite core_PURE; auto.
-  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1,H2 in *.
++ if_tac.
+  - destruct (IOK l) as [_ ?].
+   unfold initial_core_ext in H6. rewrite resource_at_make_rmap in H6.
+   unfold initial_core' in H6. rewrite if_true in H6 by auto.
+   apply Genv.find_invert_symbol in H1.
+   unfold fundef in *; rewrite H1 in *.
+   rewrite H2 in *. destruct fs.
+   destruct H6 as [? [? ?]]. rewrite H7.
+   rewrite core_PURE; auto.
+  - destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ (*unfold fundef in *; rewrite H1,H2 in *.*)
   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1 in *.
- if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
- rewrite ghost_of_core.
- unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
++ (*unfold fundef in *; rewrite H1 in *.*)
+  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ rewrite ghost_of_core.
+  unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=

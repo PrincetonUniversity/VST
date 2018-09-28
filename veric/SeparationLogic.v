@@ -545,11 +545,11 @@ Lemma mapsto_unsigned_signed:
  forall sign1 sign2 sh sz v i,
   mapsto sh (Tint sz sign1 noattr) v (Vint (Cop.cast_int_int sz sign1 i)) =
   mapsto sh (Tint sz sign2 noattr) v (Vint (Cop.cast_int_int sz sign2 i)).
-Proof. exact mapsto_memory_block.mapsto_unsigned_signed. Qed.
+Proof. exact Clight_mapsto_memory_block.mapsto_unsigned_signed. Qed.
 
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.
-Proof. exact mapsto_memory_block.mapsto_tuint_tint. Qed.
+Proof. exact Clight_mapsto_memory_block.mapsto_tuint_tint. Qed.
 
 Lemma mapsto_tuint_tptr_nullval:
   forall sh p t, 
@@ -585,7 +585,7 @@ Lemma mapsto_null_mapsto_pointer:
        Archi.ptr64 = false ->
              mapsto sh tint v nullval =
              mapsto sh (tptr t) v nullval.
-Proof. exact mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
+Proof. exact Clight_mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
@@ -1564,4 +1564,3 @@ Proof.
   apply ND_prop_ext.
   auto.
 Defined.
-

@@ -191,7 +191,6 @@ Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
 Definition in_members i (m: members): Prop :=
   In i (map fst m).
 
-Locate compute_list_norepet.
 Definition members_no_replicate (m: members) : bool :=
   compute_list_norepet (map fst m).
 

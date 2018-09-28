@@ -31,6 +31,7 @@ Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.freezer.
 Import Cop.
 Import Cop2.
+Import Clight_Cop2.
 
 Global Opaque denote_tc_test_eq.
 
@@ -322,23 +323,6 @@ Ltac semax_func_cons_ext :=
       try solve [apply typecheck_return_value; auto]
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
-          | apply compute_funspecs_norepeat_e; reflexivity
-          | reflexivity
-          | reflexivity ]]]
-      || fail "Try 'eapply semax_func_cons_ext.'"
-              "To solve [semax_external] judgments, do 'eapply semax_ext.'"
-              "Make sure that the Espec declared using 'Existing Instance'
-               is defined as 'add_funspecs NullExtension.Espec Gprog.'"
-    |
-    ].
-
-Ltac my_semax_func_cons_ext PD :=
-  eapply semax_func_cons_ext;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-    | semax_func_cons_ext_tc;
-      try solve [apply typecheck_return_value; auto]
-    | solve[ first [eapply semax_ext;
-          [ (*repeat first [reflexivity | left; reflexivity | right]*) unfold ext_link_prog; rewrite PD; apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
           | reflexivity
           | reflexivity ]]]
@@ -2557,7 +2541,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
    isptr v ->
-   Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
+   Clight_Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.

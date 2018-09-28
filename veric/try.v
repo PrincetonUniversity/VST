@@ -326,11 +326,6 @@ destruct a; intros b H.
   - reflexivity.
 Qed.
 
-
-+ rewrite <- H1 H2. reflexivity.
-
-Locate "<>".
-Locate "~".
 Lemma blah: forall x, x=O -> ~ exists y, x = S y .
 intros x H H0; destruct x.
 + destruct H0; inversion H0.

@@ -885,7 +885,7 @@ Proof.
         data_at_ sho (tarray tuchar out_len) output *
         da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional *
         data_at shc t_struct_mbedtls_md_info Info mc1 * K_vector gv *
-        md_full Ews key1 (mc1, (mc2, mc3)) *
+        md_full key1 (mc1, (mc2, mc3)) *
         Stream stream1))).
 
   { (*Case should_reseed = true*)
@@ -1016,7 +1016,7 @@ Proof.
    SEP (FRZL FR3; K_vector gv;
    da_emp sha (tarray tuchar add_len) (map Vubyte contents) additional;
     data_at shc t_struct_hmac256drbg_context_st ctx2 (Vptr b i) *
-    md_full Ews key2 (mc1, (mc2, mc3))))).
+    md_full key2 (mc1, (mc2, mc3))))).
    { rewrite H in *. subst na.
      destruct should_reseed; simpl in PRS, H. rewrite andb_false_r in H; discriminate.
      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in H.

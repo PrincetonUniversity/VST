@@ -11,13 +11,11 @@ Proof. intros.
   apply Int.eq_false. eapply ENT_GenErrAx.
 Qed.
 
-Lemma hmac_interp_empty sh d r: hmac_interp sh d r |-- md_empty sh r.
+Lemma hmac_interp_empty d r: hmac_interp d r |-- md_empty r.
+Proof.
 destruct d; simpl. auto.
-+ destruct h. simpl.
-  eapply derives_trans.
-  apply UNDER_SPEC.REP_FULL.
-  apply UNDER_SPEC.FULL_EMPTY.
-+ apply UNDER_SPEC.FULL_EMPTY.
+eapply derives_trans. apply md_relate_full. apply md_full_empty.
+apply md_full_empty.
 Qed.
 
 Lemma instantiate256_reseed d s pr_flag rc ri (ZLc'256F : (Zlength d >? 256) = false):

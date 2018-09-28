@@ -2784,3 +2784,120 @@ Ltac unfold_data_at_ p :=
   end;
   subst g; intro d; subst d; cbv beta
  end.
+
+Lemma change_compspecs_field_at_cancel:
+  forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
+        (sh: share) (t1 t2: type) gfs
+        (v1: @reptype cs1 (@nested_field_type cs1 t1 gfs))
+        (v2: @reptype cs2 (@nested_field_type cs2 t2 gfs))
+        (p: val),
+    t1 = t2 -> 
+    cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
+   JMeq v1 v2 -> 
+   @field_at cs1 sh t1 gfs v1 p |-- @field_at cs2 sh t2 gfs v2 p.
+Proof.
+intros.
+subst t2.
+apply derives_refl'.
+apply equal_f.
+apply @field_at_change_composite with CCE; auto.
+Qed.
+
+Lemma change_compspecs_data_at_cancel:
+  forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
+        (sh: share) (t1 t2: type)
+        (v1: @reptype cs1 t1) (v2: @reptype cs2 t2)
+        (p: val),
+    t1 = t2 -> 
+    cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
+   JMeq v1 v2 -> 
+   @data_at cs1 sh t1 v1 p |-- @data_at cs2 sh t2 v2 p.
+Proof.
+intros.
+apply change_compspecs_field_at_cancel; auto.
+Qed.
+
+Lemma change_compspecs_field_at_cancel2:
+  forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
+        (sh: share) (t1 t2: type) gfs
+        (p: val),
+    t1 = t2 -> 
+    cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
+   @field_at_ cs1 sh t1 gfs p |-- @field_at_ cs2 sh t2 gfs p.
+Proof.
+intros.
+subst t2.
+apply @change_compspecs_field_at_cancel with CCE; auto.
+pose proof (@nested_field_type_change_composite cs1 cs2 CCE t1 H0 gfs).
+rewrite H.
+apply @default_val_change_composite with CCE; auto.
+apply nested_field_type_preserves_change_composite; auto.
+Qed.
+
+Lemma change_compspecs_data_at_cancel2:
+  forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
+        (sh: share) (t1 t2: type)
+        (p: val),
+    t1 = t2 -> 
+    cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
+   @data_at_ cs1 sh t1 p |-- @data_at_ cs2 sh t2 p.
+Proof.
+intros.
+apply change_compspecs_field_at_cancel2; auto.
+Qed.
+
+Lemma change_compspecs_field_at_cancel3:
+  forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
+        (sh: share) (t1 t2: type) gfs
+        (v1: @reptype cs1 (@nested_field_type cs1 t1 gfs))
+        (p: val),
+    t1 = t2 -> 
+    cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
+   @field_at cs1 sh t1 gfs v1 p |-- @field_at_ cs2 sh t2 gfs p.
+Proof.
+intros.
+subst t2.
+apply derives_trans with (@field_at_ cs1 sh t1 gfs p).
+apply field_at_field_at_.
+apply @change_compspecs_field_at_cancel2 with CCE; auto.
+Qed.
+
+Lemma change_compspecs_data_at_cancel3:
+  forall {cs1 cs2: compspecs} {CCE : change_composite_env cs1 cs2}
+        (sh: share) (t1 t2: type)
+        (v1: @reptype cs1 t1)
+        (p: val),
+    t1 = t2 -> 
+    cs_preserve_type cs1 cs2 (@coeq cs1 cs2 CCE) t1 = true ->
+   @data_at cs1 sh t1 v1 p |-- @data_at_ cs2 sh t2 p.
+Proof.
+intros.
+apply @change_compspecs_field_at_cancel3 with CCE; auto.
+Qed.
+
+Hint Extern 2 (@data_at_ ?cs1 ?sh _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_data_at_cancel2; reflexivity) : cancel.
+
+Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at_ ?cs2 ?sh _ ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_data_at_cancel3; reflexivity) : cancel.
+
+Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_data_at_cancel; 
+       [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
+
+Hint Extern 2 (@field_at_ ?cs1 ?sh _ ?gfs ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_field_at_cancel2; reflexivity) : cancel.
+
+Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at_ ?cs2 ?sh _ ?gfs ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_field_at_cancel3; reflexivity) : cancel.
+
+Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p) =>
+    (tryif constr_eq cs1 cs2 then fail
+     else simple apply change_compspecs_field_at_cancel; 
+        [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
+

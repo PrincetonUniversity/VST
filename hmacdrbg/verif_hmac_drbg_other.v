@@ -17,7 +17,7 @@ Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function.
   abbreviate_semax.
-  rewrite da_emp_isptrornull. Intros.
+  assert_PROP (is_pointer_or_null ctx) as PNctx by entailer.
   destruct ctx; try contradiction.
   - (*ctx==null*)
     simpl in PNctx; subst i. rewrite da_emp_null; trivial.
@@ -26,10 +26,11 @@ Proof.
     + inv H.
     + apply semax_ff.
   - (*isptr ctx*)
-    rewrite da_emp_ptr. clear PNctx. Intros. simpl. rewrite if_false; try discriminate.
+    rewrite if_false; try discriminate.
+    rewrite da_emp_ptr.  Intros. 
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
                    [StructField _md_ctx] (Vptr b i)) as FC_mdctx.
-    { entailer!. (*unfold_data_at 1%nat. simpl. entailer.*) }
+        entailer!.
     forward_if.
     + elim H; trivial.
     + clear H. Intros.
@@ -39,17 +40,14 @@ Proof.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
       destruct C1 as [? [? ?]]. rewrite field_at_data_at. simpl.
       unfold field_address. rewrite if_true. simpl. rewrite Ptrofs.add_zero. 2: trivial.
-      unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY Ews v1).
-      { entailer. apply UNDER_SPEC.FULL_EMPTY. }
+      unfold md_full; simpl. Intros.
+      sep_apply (UNDER_SPEC.FULL_EMPTY Ews key v1).
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H0 as [xx XX]. 
       forward_call (Vptr b i, (v, (v0, v1)), shc). {
-         change (Tstruct _hmac_ctx_st noattr) with spec_hmac.t_struct_hmac_ctx_st.
-         simpl; cancel. } 
+         unfold md_empty. simpl. cancel. } 
       replace_SEP 0 (memory_block shc 12 (Vptr b i)).
-            { specialize (data_at_memory_block shc t_struct_md_ctx_st xx); simpl; intros.
-              entailer. apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
-              apply andp_left2. apply H0. }
+            { entailer!. apply @data_at_memory_block. }
       freeze [0;1] FR1.
       replace_SEP 0 (data_at_ shc (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
@@ -65,7 +63,8 @@ Proof.
               cancel.
               2:{ unfold field_compatible in *. simpl in *.
                   destruct (Ptrofs.unsigned_range i). omega. }
-              thaw FR. destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
+              thaw FR.
+               destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.

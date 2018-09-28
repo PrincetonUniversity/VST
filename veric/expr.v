@@ -5,7 +5,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.lift.
-Require Export VST.veric.Cop2.
+Require Export VST.veric.Clight_Cop2.
 Require Export VST.veric.val_lemmas.
 
 (*moved to compcert_rmaps
@@ -57,7 +57,7 @@ Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) 
 these return vundef if something goes wrong, meaning they always return some value **)
 
 Definition eval_unop (op: Cop.unary_operation) (t1 : type) :=
-       force_val1 (Cop2.sem_unary_operation op t1).
+       force_val1 (Clight_Cop2.sem_unary_operation op t1).
 
 Definition op_to_cmp cop :=
 match cop with
@@ -74,7 +74,7 @@ match op with
 end.
 
 Definition eval_binop {CS:compspecs} (op: Cop.binary_operation) (t1 t2 : type) :=
-       force_val2 (Cop2.sem_binary_operation'  op t1 t2).
+       force_val2 (Clight_Cop2.sem_binary_operation'  op t1 t2).
 Arguments eval_binop CS op t1 t2 / v1 v2.
 
 Definition eval_cast (t1 t2 : type) :=
@@ -445,7 +445,8 @@ match op with
                     end
 end.
 
-Definition size_t := if Archi.ptr64 then tulong else tuint.
+(*Moved to Cop2.
+  Definition size_t := if Archi.ptr64 then tulong else tuint.*)
 
 Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -618,78 +619,6 @@ match classify_cast tfrom tto with
       end
 end.
 
-Definition is_int (sz: intsize) (sg: signedness) (v: val) :=
-  match v with
-  | Vint i =>
-    match sz, sg with
-    | I8, Signed => Byte.min_signed <= Int.signed i <= Byte.max_signed
-    | I8, Unsigned => Int.unsigned i <= Byte.max_unsigned
-    | I16, Signed => -two_p (16-1) <= Int.signed i <= two_p (16-1) -1
-    | I16, Unsigned => Int.unsigned i <= two_p 16 - 1
-    | I32, _ => True
-    | IBool, _ => i = Int.zero \/ i = Int.one
-    end
-  | _ => False
-  end.
-
-Definition tc_val (ty: type) : val -> Prop :=
- match ty with
- | Tint sz sg _ => is_int sz sg
- | Tlong _ _ => is_long
- | Tfloat F64 _ => is_float
- | Tfloat F32 _ => is_single
- | Tpointer _ _ => if eqb_type ty int_or_ptr_type then is_pointer_or_integer else is_pointer_or_null
- | Tarray _ _ _ | Tfunction _ _ _ => is_pointer_or_null
- | Tstruct _ _ => isptr
- | Tunion _ _ => isptr
- | _ => fun _ => False
- end.
-
-Definition tc_val' t v := v <> Vundef -> tc_val t v.
-
-Fixpoint tc_vals (ty: list type) (v: list val) : Prop :=
- match v, ty with
- | v1::vs , t1::ts => tc_val t1 v1 /\ tc_vals ts vs
- | nil, nil => True
- | _, _ => False
-end.
-
-Lemma tc_val_Vundef:
-  forall t, ~tc_val t Vundef.
-Proof.
-intros.
-intro. hnf in H.
-destruct t; try contradiction.
-destruct f; try contradiction.
-destruct (eqb_type _ _) in H; try contradiction.
-Qed.
-
-Lemma tc_val'_Vundef:
-  forall t, tc_val' t Vundef.
-Proof.
-  intros.
-  intro; congruence.
-Qed.
-
-Lemma tc_val_tc_val':
-  forall t v, tc_val t v -> tc_val' t v.
-Proof.
-  intros.
-  intro; auto.
-Qed.
-
-Lemma tc_val_has_type (ty : type) (v : val) :
-  tc_val ty v ->
-  Val.has_type v (typ_of_type ty).
-Proof.
-  destruct ty eqn:?, v eqn:?;
-  try solve [simpl; auto; try destruct f; auto];
-  try solve [unfold tc_val, is_pointer_or_null;
-    try simple_if_tac; try solve [simpl; auto; intros; contradiction];
-    simpl; unfold Tptr; intros; try subst i;
-    destruct Archi.ptr64; try contradiction; subst; auto];
-  simpl; unfold Tptr; destruct Archi.ptr64; auto.
-Qed.
 
 (* A "neutral cast" from t1 to t2 is such that
   it satisfies the neutral_cast_lemma, i.e. if v already typechecks as t1

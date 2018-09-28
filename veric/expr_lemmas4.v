@@ -16,6 +16,7 @@ Require Export VST.veric.expr_lemmas3.
 Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
+Import Clight_Cop2.
 
 (** Main soundness result for the typechecker **)
 
@@ -160,7 +161,7 @@ apply H2.
 Qed.
 
 Ltac unfold_cop2_sem_cmp :=
-unfold Cop2.sem_cmp, Cop2.sem_cmp_pl, Cop2.sem_cmp_lp, Cop2.sem_cmp_pp.
+unfold Clight_Cop2.sem_cmp, Clight_Cop2.sem_cmp_pl, Clight_Cop2.sem_cmp_lp, Clight_Cop2.sem_cmp_pp.
 
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
