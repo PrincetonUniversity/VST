@@ -1006,7 +1006,9 @@ Ltac sep_apply_in_entailment H :=
              [solve [cancel] 
              | eapply derives_trans; 
                 [apply sepcon_derives; [clear frame; apply H' | apply derives_refl] 
-                | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
+                |  let x := fresh "x" in set (x := fold_right_sepcon frame);
+                  subst frame; unfold fold_right_sepcon in x; subst x; 
+                  rewrite ?sepcon_emp
                 ]
              ]
      end

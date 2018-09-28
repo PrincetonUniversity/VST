@@ -15,7 +15,7 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import VST.floyd.library.
 
-Require Import hmacdrbg.hmac_drbg_compspecs.
+Require Export hmacdrbg.hmac_drbg_compspecs.
 
 Ltac fix_hmacdrbg_compspecs :=
   rewrite (@data_at__change_composite spec_hmac.CompSpecs hmac_drbg_compspecs.CompSpecs
