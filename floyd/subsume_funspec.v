@@ -6,7 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Local Open Scope logic.
 
-Definition funsig_of_funspec (fs: funspec) : base.funsig :=
+Definition funsig_of_funspec (fs: funspec) : funsig :=
  match fs with mk_funspec fsig _ _ _ _ _ _ => fsig end.
 
 Definition params_of_funspec (fs: funspec) : list (ident * type) :=
@@ -15,10 +15,10 @@ Definition params_of_funspec (fs: funspec) : list (ident * type) :=
 Definition return_of_funspec (fs: funspec) : type :=
   snd (funsig_of_funspec fs).
 
-Definition funsig_tycontext (fs: base.funsig) : tycontext :=
+Definition funsig_tycontext (fs: funsig) : tycontext :=
   make_tycontext (fst fs) nil nil (snd fs) nil nil nil.
 
-Definition funsig_of_function (f: function) : base.funsig :=
+Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
 Definition subsume_funspec (f1 f2 : funspec) :=
