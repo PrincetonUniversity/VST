@@ -37,41 +37,6 @@ Opaque list_repeat.
 Require hmacdrbg.verif_hmac_drbg_seed.
 
 
-Ltac simplify_Delta :=
-match goal with
- | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
- | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
- | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
-       constr_eq D1 D (* ONLY this case terminates! *)
-(*                 
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
- | |- _ => simplify_func_tycontext; simplify_Delta
- | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
-     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
-     change e with (@abbreviate (PTree.t funspec) e) in DS;
-     let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
-     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
-*)
- | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
-       constr_eq D1 D (* ONLY this case terminates! *)
- | |- semax ?D _ _ _ => unfold D; simplify_Delta
- | |- ENTAIL ?D, _ |-- _ => unfold D; simplify_Delta
- | |- _ => simplify_func_tycontext; simplify_Delta
- | Delta := @abbreviate tycontext ?D 
-      |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
- | Delta := @abbreviate tycontext ?D 
-      |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
- | |- semax ?DD _ _ _ =>  simplify_Delta
- |  |- ENTAIL (ret_tycon ?DD), _ |-- _ => 
-        let D := fresh "D" in 
-          set (D := ret_tycon DD);
-          hnf in D; simpl is_void_type in D;
-          cbv beta iota in D;
-          pose (Delta := @abbreviate tycontext D);
-          change D with Delta; subst D; simplify_Delta
- | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
- end.
-
 Require Import VST.floyd.subsume_funspec.
 
 Lemma drb_seed_256_subsume:
