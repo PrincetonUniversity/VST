@@ -791,7 +791,7 @@ Definition spawn_pre :=
                            (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, gv, w, pre) =>
-     PROP (expr.tc_val (tptr Tvoid) b)
+     PROP (tc_val (tptr Tvoid) b)
      (LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)
      (SEP (
        EX _y : ident,
