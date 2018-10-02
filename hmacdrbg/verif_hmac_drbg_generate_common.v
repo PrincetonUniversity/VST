@@ -1408,6 +1408,8 @@ Proof. intros.
       entailer!.
       rewrite field_address_offset; trivial. 
     }
+    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_omega).
+    simpl sizeof. cancel.
     simpl.
     assert_PROP (field_compatible (tarray tuchar out_len) [] output) as
         Hfield_compat_output by entailer!.
@@ -1493,7 +1495,7 @@ Proof. intros.
       entailer!.
       apply derives_refl'.
       remember (fst (HLP done)) as V0'; clear HeqV0'.
-      rewrite ZL_H256, Zmin_spec.
+      rewrite Zmin_spec.
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.

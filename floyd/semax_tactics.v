@@ -211,7 +211,14 @@ match goal with
  | Delta := @abbreviate tycontext ?D 
       |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
  | |- semax ?DD _ _ _ =>  simplify_Delta
- | |- ENTAIL ?DD, _ |-- _ => simplify_Delta
+ |  |- ENTAIL (ret_tycon ?DD), _ |-- _ => 
+        let D := fresh "D" in 
+          set (D := ret_tycon DD);
+          hnf in D; simpl is_void_type in D;
+          cbv beta iota in D;
+          pose (Delta := @abbreviate tycontext D);
+          change D with Delta; subst D; simplify_Delta
+ | |- ENTAIL (ret_tycon ?DD), _ |-- _ => simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 

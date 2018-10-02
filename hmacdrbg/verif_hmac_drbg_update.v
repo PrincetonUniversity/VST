@@ -323,7 +323,9 @@ Proof. intros. do 2 pose proof I.
     Intros.
     Time forward_call ((V ++ [Byte.repr i] ++ (if na then contents else [])), key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                       (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, K, Tsh, gv). 
+                       (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, K, Tsh, gv).
+        sep_apply (memory_block_data_at__tarray_tuchar Tsh K 32).
+        rep_omega. cancel.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
@@ -344,7 +346,8 @@ Proof. intros. do 2 pose proof I.
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr; trivial. auto.
     }
-(*   rewrite <- (data_at_share_join _ _ _ _ _ _ (join_comp_Tsh Ews)); cancel. *)
+    rewrite hmac_common_lemmas.HMAC_Zlength. cancel. 
+
     {
       split3; auto.
       + (* prove that output of HMAC can serve as its key *)
@@ -386,6 +389,10 @@ Proof. intros. do 2 pose proof I.
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc,
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc, gv).
+    change 32 with (sizeof (tarray tuchar 32)) at 1.
+    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_omega).
+    simpl sizeof. cancel.
+
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
     idtac "previous timing was for go_lower (goal: 12secs)".
     apply andp_right; [ apply prop_right; repeat split; trivial |].
@@ -402,12 +409,10 @@ Proof. intros. do 2 pose proof I.
       apply hmac_common_lemmas.HMAC_Zlength. }
     thaw FR9; cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.
-    unfold hmac256drbgstate_md_FULL.
     unfold hmac256drbg_relate.
     rewrite hmac_common_lemmas.HMAC_Zlength. rewrite hmac_common_lemmas.HMAC_Zlength.
     
     cancel; unfold md_full; entailer!.
-    solve [ apply hmac_common_lemmas.HMAC_Zlength ]. 
     repeat rewrite sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply derives_refl].
     unfold_data_at 3%nat.
     thaw OtherFields. cancel.

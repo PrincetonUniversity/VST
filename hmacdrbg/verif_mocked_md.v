@@ -52,6 +52,12 @@ Lemma body_md_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_hmac_update md_update_spec.
 Proof.
   start_function.
+  assert_PROP (0 <= Zlength data1 <= Ptrofs.max_unsigned) as H0. {
+    entailer!. clear - H2. destruct H2 as [? [_ [? _]]].
+    destruct d; try contradiction.
+    red in H0. simpl in H0. rewrite Z.max_r in H0 by list_solve.
+    rep_omega.
+  }
 
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
@@ -94,11 +100,14 @@ Proof.
 
   (* HMAC_Final(hmac_ctx, output); *)
   forward_call (data, key, internal_r, Ews, md, shmd, gv).
-
+   sep_apply (data_at__memory_block_cancel shmd (tarray tuchar 32) md).
+   simpl sizeof. cancel.
+   
   (* return 0 *)
   unfold data_block.
   forward.
   unfold md_full; simpl.
+  rewrite hmac_common_lemmas.HMAC_Zlength.
   cancel.
 Qed.
 
