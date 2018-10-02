@@ -2103,7 +2103,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             { eapply contains12; eauto. }
             
             (** *Diagram No.0*)
-
+            
             assert (Hinj2:= Injfsim_match_meminj compiler_sim _ _ _ _ H1).
             simpl in Hinj2.
             
@@ -2161,8 +2161,53 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               TODO: 
 
               - Add at_external to sim_properties_inj.
-              - Review this case to prove the steps AS COMPCERT SEMANTICS
              *)
+
+            (*
+              Prove that this is a CompCert step (en external step).
+             *)
+            Print CSem.
+            assert (Smallstep.step
+                      (Clight.part_semantics2 Clight_g)
+                      (Smallstep.set_mem code1 (restrPermMap (proj1 (Hcmpt hb Hcnt1))))
+                      nil
+                      (Smallstep.set_mem code1 m1')).
+            { simpl.
+              move Hat_external1 at bottom.
+              match goal with
+                [ HH: Clight.at_external ?X = _  |- _ ] =>
+                destruct X eqn:Hcallstate; try discriminate; simpl in HH
+              end.
+              destruct fd eqn:Hext_func; inversion Hat_external1.
+              subst e args.
+              pose proof (Clight.step_external_function
+                            Clight_g (Clight.function_entry2 Clight_g)
+                         UNLOCK t0 t1 c (Vptr b1 ofs :: nil) k m Vundef nil m1') as HH.
+              assert (Events.external_call UNLOCK (Clight.genv_genv Clight_g)
+                                           (Vptr b1 ofs :: nil) m nil Vundef m1').
+              { simpl.
+                
+                     
+              
+              
+
+              destruct (Clight.set_mem code1 (restrPermMap (proj1 (Hcmpt hb Hcnt1)))) eqn:Hcalstate;
+                simpl in Hat_external1; try solve[inversion Hat_external1].
+              rewrite Hcalstate in Hat_external1.
+              (*
+
+vents.external_call ef (Clight.genv_genv ge) vargs m t vres m' ->
+                             Clight.step ge function_entry
+                               (Clight.Callstate (Ctypes.External ef targs tres cconv) vargs k
+                                  m) t (Clight.Returnstate vres k m')      
+               *)
+              
+              pose proof (Clight.step_external_function Clight_g) as HH.
+              (Clight.function_entry2 Clight_g)
+                
+              }
+            
+            
             remember (add ofs (repr delt2)) as ofs2.
             remember (computeMap (fst (getThreadR Hcnt2)) (fst virtueThread2),
                                                computeMap (snd (getThreadR Hcnt2)) (snd virtueThread2)) as new_cur2.
@@ -2290,24 +2335,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 
               * admit. (* Wrong machine state *)      
                 
-          - (* tid < hb *)
-            
-            pose proof (mtch_target _ _ _ _ _ _ CMatch _ l Htid (contains12 CMatch Htid)) as HH.
-            simpl in H5; exploit_match.
-            inversion H14; clear H14.
-            simpl.
-
-            do 5 econstructor.
-            split; [|split].
-
-            + (* reestablish the *)
-              admit.
-
-            + simpl.
-              admit.
-            + econstructor; eauto.
-              econstructor.
-              admit.
+          - (* hb < tid *)
+            pose proof (mtch_source _ _ _ _ _ _ CMatch _ l Htid (contains12 CMatch Htid)) as HH.
+            admit.
 
 
             
