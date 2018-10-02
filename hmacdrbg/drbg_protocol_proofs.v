@@ -34,9 +34,109 @@ Opaque initial_key. Opaque initial_value.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque list_repeat. 
 
+Require hmacdrbg.verif_hmac_drbg_seed.
+
+
+Ltac simplify_Delta :=
+match goal with
+ | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
+ | DS := @abbreviate (PTree.t funspec) _ |- _ => clear DS; simplify_Delta
+ | D1 := @abbreviate tycontext _ |- semax ?D _ _ _ => 
+       constr_eq D1 D (* ONLY this case terminates! *)
+(*                 
+ | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- _ => simplify_func_tycontext; simplify_Delta
+ | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ => (* delete this case? *)
+     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
+     change e with (@abbreviate (PTree.t funspec) e) in DS;
+     let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
+     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
+*)
+ | D1 := @abbreviate tycontext _ |- ENTAIL ?D, _ |-- _ => 
+       constr_eq D1 D (* ONLY this case terminates! *)
+ | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- ENTAIL ?D, _ |-- _ => unfold D; simplify_Delta
+ | |- _ => simplify_func_tycontext; simplify_Delta
+ | Delta := @abbreviate tycontext ?D 
+      |- semax ?DD _ _ _ => simplify_Delta' Delta D DD; simplify_Delta
+ | Delta := @abbreviate tycontext ?D 
+      |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
+ | |- semax ?DD _ _ _ =>  simplify_Delta
+ |  |- ENTAIL (ret_tycon ?DD), _ |-- _ => 
+        let D := fresh "D" in 
+          set (D := ret_tycon DD);
+          hnf in D; simpl is_void_type in D;
+          cbv beta iota in D;
+          pose (Delta := @abbreviate tycontext D);
+          change D with Delta; subst D; simplify_Delta
+ | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
+ end.
+
+Require Import VST.floyd.subsume_funspec.
+
+Lemma drb_seed_256_subsume:
+  NDsubsume_funspec 
+       (snd hmac_drbg_seed_inst256_spec)
+       (snd drbg_seed_inst256_spec_abs).
+Proof.
+split3; auto.
+intros [[[[[[[[[[[[[sh dp] ctx] info] len] data] Data] 
+                         Info] s] rc] pr_flag] ri] handle_ss] gv].
+unfold seedREP.
+Intros a.
+Exists (dp,  ctx, sh, info, len, data, sh, Data, a, 
+              Info, s, rc, pr_flag, ri, handle_ss, gv).
+apply andp_right.
+*
+entailer!.
+*
+apply prop_right.
+simplify_Delta.
+Intros ret_value.
+Exists ret_value.
+destruct (Int.eq ret_value (Int.repr (-20864))).
++
+entailer!.
+Exists a.
+cancel.
++
+Intros.
+Intros p.
+Exists p.
+destruct (fst a) as [d [M2 p0]].
+destruct (fst handle_ss) as [[[[newV newK] newRc] ?] newPR].
+entailer!.
+Exists (d, (M2, p0)).
+unfold AREP. Exists Info.
+unfold REP.
+Exists (info, (M2, p),
+  (map Vubyte newV,
+  (Vint (Int.repr newRc),
+  (Vint (Int.repr 32),
+  (Val.of_bool newPR, Vint (Int.repr 10000)))))).
+unfold instantiate_function_256 in H2.
+destruct (Zlength (contents_with_add data (Zlength Data) Data) >?
+       max_personalization_string_length) eqn:?.
+inv H2.
+destruct (get_entropy (32 + 32 / 2) (32 + 32 / 2) max_elength
+         pr_flag s); inv H2.
+entailer!.
+split3; auto.
+simpl.
+split; auto.
+hnf. rep_omega.
+unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_instantiate_algorithm,
+  HMAC_DRBG_instantiate_algorithm in H3.
+destruct (HMAC_DRBG_update HMAC256) as [key value].
+inv H3.
+computable.
+unfold hmac256drbg_relate.
+entailer!.
+Qed.
+
 Lemma drbg_seed_256: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed drbg_seed_inst256_spec_abs.
-Proof.
+Proof.  (* Should not need this proof if we have drb_seed_256_subsume lemma *)
   start_function.
   abbreviate_semax.
   destruct H as [HDlen1 [HDlen2 RES]]. destruct handle_ss as [handle ss]. simpl in RES.
@@ -950,7 +1050,6 @@ Proof. start_function.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, Vptr b i0, sha, V ++ [Byte.repr i], contents, gv).
       { split3; auto.
         (* prove the PROP clause matches *)
-        split. rep_omega.
         rewrite Zlength_app; rewrite H4.
         simpl. remember (Zlength contents) as n; clear - AL1.
         destruct AL1. rewrite <- Zplus_assoc.
@@ -987,6 +1086,8 @@ Proof. start_function.
     Time forward_call ((V ++ [Byte.repr i] ++ (if na then contents else [])), key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc, K, Tsh, gv). 
+        sep_apply (memory_block_data_at__tarray_tuchar Tsh K 32).
+        rep_omega. cancel.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
@@ -1006,6 +1107,7 @@ Proof. start_function.
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr; trivial. auto.
     }
+    rewrite hmac_common_lemmas.HMAC_Zlength. cancel. 
     { split3; auto.
       split; auto.
       (* prove that output of HMAC can serve as its key *)
@@ -1039,6 +1141,9 @@ Proof. start_function.
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), shc,
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc, gv).
+    change 32 with (sizeof (tarray tuchar 32)) at 1.
+    rewrite memory_block_data_at__tarray_tuchar_eq by (simpl; rep_omega).
+    simpl sizeof. cancel.
     Time go_lower. (*necessary due to existence of local () && in postcondition of for-rule*)
     idtac "previous timing was for go_lower (goal: 12secs)".
     apply andp_right; [ apply prop_right; repeat split; trivial |].
@@ -1055,12 +1160,10 @@ Proof. start_function.
       apply hmac_common_lemmas.HMAC_Zlength. }
     thaw FR9; cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.
-    unfold hmac256drbgstate_md_FULL.
     unfold hmac256drbg_relate.
     rewrite hmac_common_lemmas.HMAC_Zlength. rewrite hmac_common_lemmas.HMAC_Zlength.
     
     cancel; unfold md_full; entailer!.
-    solve [ apply hmac_common_lemmas.HMAC_Zlength ]. 
     repeat rewrite sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply derives_refl].
     unfold_data_at 3%nat.
     thaw OtherFields. cancel.

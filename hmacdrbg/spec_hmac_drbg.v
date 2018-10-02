@@ -178,7 +178,6 @@ Definition md_update_spec :=
          _input OF tptr tuchar, 
          _ilen OF tuint]
          PROP (writable_share wsh; readable_share sh;
-                   0 <= Zlength data1 <= Ptrofs.max_unsigned;
                Zlength data1 + Zlength data + 64 < two_power_pos 61)
          LOCAL (temp _ctx c; temp _input d; temp  _ilen (Vint (Int.repr (Zlength data1)));
                 gvars gv)
@@ -198,19 +197,18 @@ Definition md_final_spec :=
    PRE [ _ctx OF tptr t_struct_md_ctx_st,
          _output OF tptr tuchar ]
        PROP (writable_share wsh; writable_share shmd) 
-       LOCAL (temp _output md; temp _ctx c;
-              gvars gv)
-       SEP((md_relate key data r);
-           (data_at wsh t_struct_md_ctx_st r c);
-           (K_vector gv);
-           (memory_block shmd 32 md))
+       LOCAL (temp _output md; temp _ctx c; gvars gv)
+       SEP(md_relate key data r;
+             data_at wsh t_struct_md_ctx_st r c;
+             K_vector gv;
+             data_at_ shmd (tarray tuchar 32) md)
   POST [ tint ] 
           PROP () 
           LOCAL (temp ret_temp (Vint (Int.zero)))
           SEP(K_vector gv;
               md_full key r;
               data_at wsh t_struct_md_ctx_st r c;
-              data_at shmd (tarray tuchar (Zlength (HMAC256 data key))) (map Vubyte (HMAC256 data key)) md).
+              data_at shmd (tarray tuchar 32) (map Vubyte (HMAC256 data key)) md).
 
 Definition md_setup_spec :=
   DECLARE _mbedtls_md_setup
@@ -224,12 +222,11 @@ Definition md_setup_spec :=
   POST [ tint ] EX r:_,
           PROP (r=0 \/ r=-20864) 
           LOCAL (temp ret_temp (Vint (Int.repr r)))
-          SEP( 
-              if zeq r 0
+          SEP(if zeq r 0
               then (EX p: val, 
-                              md_empty (info, (fst(snd md_ctx), p)) *
-                              data_at wsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
-              else data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
+                         md_empty (info, (fst(snd md_ctx), p)) *
+                         data_at wsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
+             else data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
 (* end mocked_md *)
 
 Inductive hmac256drbgabs :=
@@ -241,19 +238,16 @@ Definition hmac256drbg_relate (a: hmac256drbgabs) (r: hmac256drbgstate) : mpred 
   match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
                match r with (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))) =>
                             md_full key md_ctx'
-                                      && !! (
-                                        map Vubyte V = V'
-                                        /\ Zlength V = 32 
-                                        /\ Vint (Int.repr reseed_counter) = reseed_counter'
-                                        /\ Vint (Int.repr entropy_len) = entropy_len'
-                                        /\ Vint (Int.repr reseed_interval) = reseed_interval'
-                                        /\ Val.of_bool prediction_resistance = prediction_resistance'
-                                      )
+                           && !! (
+                                map Vubyte V = V'
+                              /\ Zlength V = 32 
+                              /\ Vint (Int.repr reseed_counter) = reseed_counter'
+                              /\ Vint (Int.repr entropy_len) = entropy_len'
+                              /\ Vint (Int.repr reseed_interval) = reseed_interval'
+                              /\ Val.of_bool prediction_resistance = prediction_resistance'
+                             )
                end
   end.
-
-Definition hmac256drbgstate_md_FULL key (r: hmac256drbgstate) : mpred :=
-  md_full key (fst r).
 
 Definition hmac256drbgabs_entropy_len (a: hmac256drbgabs): Z :=
   match a with HMAC256DRBGabs _ _ _ entropy_len _ _ => entropy_len end.
