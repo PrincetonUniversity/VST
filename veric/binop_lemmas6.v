@@ -1,10 +1,11 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
-Require Import VST.veric.Cop2.
+Require Import VST.veric.Clight_Cop2.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas3.
 Import Cop.
@@ -105,7 +106,7 @@ Proof.
               destruct (eqb_type A B) eqn:J; [inv H | clear H]
     | H: app_pred (denote_tc_assert (tc_test_eq' _ _) _) _ |- _ =>
            simpl in H; super_unfold_lift; simpl in H;
-            unfold Cop2.sem_cast, Cop2.classify_cast, size_t, sem_cast_pointer in H;
+            unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast, size_t, sem_cast_pointer in H;
             simpl in H; rewrite ?Hp in H; simpl in H
     | H: app_pred (denote_tc_assert (tc_test_order' _ _) _) _ |- _ =>
             simpl in H; unfold_lift in H; unfold denote_tc_test_order in H; rewrite ?Hp in H
@@ -157,7 +158,7 @@ all:
  simpl; unfold both_int, both_long;
  destruct (eval_expr e1 rho); try contradiction; 
  destruct (eval_expr e2 rho); try contradiction;
- unfold Cop2.sem_cast, Cop2.classify_cast; rewrite ?Hp; simpl; rewrite ?Hp; simpl;
+ unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast; rewrite ?Hp; simpl; rewrite ?Hp; simpl;
     try (apply int_type_tc_val_Vtrue; auto);
     try (apply int_type_tc_val_Vfalse; auto);
     try (apply int_type_tc_val_of_bool; auto).

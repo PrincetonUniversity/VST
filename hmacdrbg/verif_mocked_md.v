@@ -5,6 +5,7 @@ Require Import VST.floyd.sublist.
 
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
+Require Import sha.vst_lemmas.
 Require Import VST.floyd.library.
 
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -34,12 +35,12 @@ Proof.
   assert_PROP (isptr r3) by (unfold md_empty; entailer!).
   forward.
   forward_call (@inr (val * share * Z * list byte * globals) _ (r3, Ews, l, key, b, i, shk, gv)).
- { rewrite md_empty_unfold. simpl. unfold spec_sha.data_block.
+ { rewrite md_empty_unfold. simpl. unfold data_block.
    sep_apply (UNDER_SPEC.mkEmpty Ews r3). cancel.
  }
   forward.
   unfold md_relate.
-  unfold spec_sha.data_block. simpl. cancel.
+  unfold data_block. simpl. cancel.
 Qed.
 
 Hint Extern 2 (@data_at ?cs1 ?sh _ _ ?p |-- @data_at ?cs2 ?sh _ _ ?p) =>
@@ -67,12 +68,10 @@ Proof.
   forward.
   assert_PROP (isptr d) by entailer!.
   (* HMAC_Update(hmac_ctx, input, ilen); *)
-(*  rewrite data_at_isptr with (p:=d); Intros. *)
   destruct d; try contradiction.
 
   forward_call (key, internal_r, Ews, Vptr b i, sh, data, data1, gv).
-  {
-    unfold spec_sha.data_block.
+  { unfold data_block.
     entailer!.
   }
 
@@ -80,7 +79,7 @@ Proof.
   forward.
 
   (* prove the post condition *)
-  unfold spec_sha.data_block.
+  unfold data_block.
   unfold md_relate (*; unfold convert_abs*).
   simpl.
   cancel.
@@ -105,7 +104,7 @@ Proof.
    simpl sizeof. cancel.
    
   (* return 0 *)
-  unfold spec_sha.data_block.
+  unfold data_block.
   forward.
   unfold md_full; simpl.
   rewrite hmac_common_lemmas.HMAC_Zlength.
@@ -129,7 +128,6 @@ Proof.
   forward.
 
   unfold md_relate; simpl. cancel.
-(*  unfold convert_abs.*)
 Qed.
 
 Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSpecs)

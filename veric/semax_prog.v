@@ -2,8 +2,8 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
-Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.Clight_assert_lemmas.
 Require Import VST.veric.Clight_new.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
@@ -17,10 +17,13 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.initial_world.
 Require Import VST.msl.normalize.
 Require Import VST.veric.semax_call.
-Require Import VST.veric.initial_world.
+Require Import VST.veric.Clight_initial_world.
 Require Import VST.veric.initialize.
 Require Import VST.veric.coqlib4.
 Require Import Coq.Logic.JMeq.
+
+Require Import Coq.Logic.JMeq.
+Require Import VST.veric.ghost_PCM.
 
 Local Open Scope pred.
 
@@ -205,15 +208,14 @@ simpl in H0.
 unfold compose in *.
 apply clos_trans_t1n in H0.
 revert H; induction H0; intros.
-2:{apply IHclos_trans_1n.
-unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
-clear - H1.
-assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
-intros; rewrite H1; intuition.
-apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
-apply H0; auto. clear - H4.  unfold natLevel in *. omega.
-apply H2; auto. clear - H4.  unfold natLevel in *. omega.
-}
+2 : { apply IHclos_trans_1n.
+      unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
+      clear - H1.
+      assert (forall w, app_pred (approx (level (S y)) (P x)) w <-> app_pred (approx (level (S y)) (P' x)) w).
+      { intros; rewrite H1; intuition. }
+      apply pred_ext; intros w ?; destruct (H w); simpl in *; intuition.
+      apply H0; auto. clear - H4.  unfold natLevel in *. omega.
+      apply H2; auto. clear - H4.  unfold natLevel in *. omega. }
 unfold age,age1 in H. unfold ag_nat in H. unfold natAge1 in H. destruct x0; inv H.
 intros z ?.
 split; intros ? ? ?.
@@ -643,7 +645,7 @@ destruct a. destruct p.
  destruct H2 as [pp ?].
  hnf in H2.
  assert (exists pp, initial_core (Genv.globalenv prog) G n @ (loc',0) = PURE (FUN fsig' cc') pp).
-case_eq (initial_core (Genv.globalenv prog) G n @ (loc',0)); intros.
+case_eq (initial_core (@Genv.globalenv (Ctypes.fundef function) type prog) G n @ (loc', 0)); intros.
 destruct (necR_NO _ _ (loc',0) sh n0 H1) as [? _].
 rewrite H4 in H2 by auto.
 inv H2.
@@ -657,10 +659,9 @@ rewrite resource_at_make_rmap in H3.
 unfold initial_core' in H3.
 if_tac in H3; [ | inv H3].
 simpl.
-simpl @fst in *.
-revert H3; case_eq (@Genv.invert_symbol fundef type
-         (@Genv.globalenv (Ctypes.fundef function) type
-            prog) loc'); intros;
+simpl @fst in *. 
+revert H3; case_eq (@Genv.invert_symbol (Ctypes.fundef function) 
+      type (@Genv.globalenv (Ctypes.fundef function) type prog) loc' ); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
@@ -668,7 +669,7 @@ apply Genv.invert_find_symbol in H3.
 exists i.
 simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
- rewrite H3.
+ unfold fundef; rewrite H3.
  split; auto.
  assert (exists f, In (i,f) (prog_funct prog)
               /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig') cc'). {
@@ -810,9 +811,8 @@ unfold initial_core' in H3.
 if_tac in H3; [ | inv H3].
 simpl.
 simpl @fst in *.
-revert H3; case_eq (@Genv.invert_symbol fundef type
-         (@Genv.globalenv (Ctypes.fundef function) type
-            prog) loc'); intros;
+revert H3; case_eq (@Genv.invert_symbol (Ctypes.fundef function) type
+              (@Genv.globalenv (Ctypes.fundef function) type prog) loc'); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
@@ -820,7 +820,7 @@ apply Genv.invert_find_symbol in H3.
 exists i.
 simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
- rewrite H3.
+ unfold fundef; rewrite H3.
  split; auto.
  assert (exists f, In (i,f) (prog_funct prog)
               /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig') cc'). {
@@ -864,10 +864,8 @@ Qed.
 (* there's a place this lemma should be applied, perhaps in proof of semax_call *)
 Lemma funassert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
-Proof.
-unfold funassert; intros.
-rewrite H; auto.
-Qed.
+Proof. intros. apply funspecs_assert_rho; trivial. Qed.
+(*Lenb: maybe move to seplog?*)
 
 Lemma core_inflate_initial_mem:
   forall (m: mem) (prog: program) (G: funspecs) (n: nat)
@@ -889,7 +887,7 @@ repeat rewrite resource_at_make_rmap.
 unfold inflate_initial_mem'.
 repeat rewrite resource_at_make_rmap.
 unfold initial_core'.
-case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst l)); intros; auto.
+case_eq (@Genv.invert_symbol (Ctypes.fundef function) type (@Genv.globalenv (Ctypes.fundef function) type prog) (@fst block Z l) ); intros; auto.
 rename i into id.
 case_eq (find_id id G); intros; auto.
 rename f into fs.
@@ -904,22 +902,22 @@ apply Genv.invert_find_symbol in H1.
 destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
 apply in_prog_funct_in_prog_defs; auto.
 inversion2 H1 H4.
-if_tac.
- destruct (IOK l) as [_ ?].
- unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
-  unfold initial_core' in H6. rewrite if_true in H6 by auto.
-  apply Genv.find_invert_symbol in H1.
-  unfold fundef in *; rewrite H1 in *.
-  rewrite H2 in *. destruct fs.
-  destruct H6 as [? [? ?]]. rewrite H7.
-  rewrite core_PURE; auto.
-  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1,H2 in *.
-  if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1 in *.
- if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
- rewrite ghost_of_core.
- unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
++ if_tac.
+ - destruct (IOK l) as [_ ?].
+   unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
+   unfold initial_core' in H6. rewrite if_true in H6 by auto.
+   apply Genv.find_invert_symbol in H1.
+   unfold fundef in *; rewrite H1 in *.
+   rewrite H2 in *. destruct fs.
+   destruct H6 as [? [? ?]]. rewrite H7.
+   rewrite core_PURE; auto.
+ - destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ (*unfold fundef in *. rewrite H1,H2 in *.*)
+   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ (*unfold fundef in *; rewrite H1 in *.*)
+  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ rewrite ghost_of_core.
+  unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
 Qed.
 
 Lemma core_inflate_initial_mem':
@@ -957,22 +955,22 @@ apply Genv.invert_find_symbol in H1.
 destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
 apply in_prog_funct_in_prog_defs; auto.
 inversion2 H1 H4.
-if_tac.
- destruct (IOK l) as [_ ?].
- unfold initial_core_ext in H6. rewrite resource_at_make_rmap in H6.
-  unfold initial_core' in H6. rewrite if_true in H6 by auto.
-  apply Genv.find_invert_symbol in H1.
-  unfold fundef in *; rewrite H1 in *.
-  rewrite H2 in *. destruct fs.
-  destruct H6 as [? [? ?]]. rewrite H7.
-  rewrite core_PURE; auto.
-  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1,H2 in *.
++ if_tac.
+  - destruct (IOK l) as [_ ?].
+   unfold initial_core_ext in H6. rewrite resource_at_make_rmap in H6.
+   unfold initial_core' in H6. rewrite if_true in H6 by auto.
+   apply Genv.find_invert_symbol in H1.
+   unfold fundef in *; rewrite H1 in *.
+   rewrite H2 in *. destruct fs.
+   destruct H6 as [? [? ?]]. rewrite H7.
+   rewrite core_PURE; auto.
+  - destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ (*unfold fundef in *; rewrite H1,H2 in *.*)
   if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-  unfold fundef in *; rewrite H1 in *.
- if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
- rewrite ghost_of_core.
- unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
++ (*unfold fundef in *; rewrite H1 in *.*)
+  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
++ rewrite ghost_of_core.
+  unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap, ghost_core; auto.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext :=
@@ -1274,7 +1272,7 @@ Proof.
          ).
   apply funassert_initial_core; auto.
   revert FA.
-  pose proof assert_lemmas.corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
+  pose proof corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
   rewrite corable_spec in CO. apply CO.
   pose proof initial_mem_core as E.
   unfold juicy_mem_core in *. erewrite E; try reflexivity.
@@ -1289,8 +1287,8 @@ Proof.
     (initial_world.initial_core_ext ora (Genv.globalenv prog) G n)
          ).
   apply funassert_initial_core_ext; auto.
-  revert FA.
-  pose proof assert_lemmas.corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
+  revert FA. 
+  pose proof corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
   rewrite corable_spec in CO. apply CO.
   pose proof initial_mem_core as E.
   unfold juicy_mem_core in *. erewrite E; try reflexivity.
@@ -1500,7 +1498,7 @@ Proof.
       unfold initial_core.
       apply level_make_rmap.
   - apply initial_jm_ext_without_locks.
-  - apply initial_jm_ext_matchfunspecs.
+  - apply initial_jm_ext_matchfunspecs. 
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
 Qed.

@@ -47,7 +47,7 @@ Require VST.msl.wandQ_frame.
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
-Export Cop2.
+Export Clight_Cop2.
 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
 Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.

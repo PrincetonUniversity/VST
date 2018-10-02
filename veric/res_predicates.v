@@ -1,13 +1,9 @@
 Require Import VST.msl.log_normalize.
 Require Export VST.veric.base.
 Require Import VST.veric.rmaps.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
-Require Import VST.veric.shares.
+Require Import VST.veric.compcert_rmaps.  
+Require Import VST.veric.shares. 
 Require Import VST.veric.address_conflict.
-
 
 Import RML. Import R.
 Local Open Scope pred.
@@ -779,11 +775,12 @@ Definition LKspec lock_size (R: pred rmap) : spec :=
                (fun l' => yesat (SomeP Mpred (fun _ => R)) (LK lock_size (snd l' - snd l)) sh l')
                noat) && noghost.
 
+(*Lenb: moved to veric/seplog.v
 Definition packPQ {A: rmaps.TypeTree}
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
   forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
   fun ts a b => if b then P ts a else Q ts a.
-
+*)
 Definition TTat (l: address) : pred rmap := TT.
 
 (*
@@ -801,6 +798,7 @@ Definition fun_assert (fml: funsig) cc (A: TypeTree)
 
 (***********)
 
+(*Lenb: dead?
 Lemma ewand_lem1x:
   forall S P: mpred,
           S |-- P * TT ->
@@ -811,7 +809,7 @@ intros w ?. specialize (H w H0).
 destruct H as [w1 [w2 [? [? _]]]].
 exists w1; exists w2; split3; auto.
 exists w1; exists w; split3; auto.
-Qed.
+Qed.*)
 
 Lemma address_mapsto_old_parametric: forall ch v, 
    spec_parametric (fun l sh l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) sh l').
@@ -997,37 +995,34 @@ apply resource_at_approx.
 { apply ghost_of_approx. }
 exists phi.
 split.
-2:{
-apply rmap_ext. do 2 rewrite level_core. auto.
-intro l; specialize (RESERVE l).
-rewrite <- core_resource_at. destruct H1. rewrite H1. unfold f.
-if_tac.
- rewrite core_YES.
- rewrite <- core_resource_at. rewrite RESERVE; auto.
- rewrite core_NO; auto.
- rewrite <- core_resource_at; rewrite core_idem; auto.
- { rewrite <- core_ghost_of.
-  destruct H1 as [_ ->].
-  rewrite core_ghost_of; auto. 
- }
-}
-exists (encode_val ch v).
-split; [split|].
-split; auto.
-apply encode_val_length.
-intro l'.
-unfold jam.
-hnf.
-unfold yesat, yesat_raw, noat.
-unfold app_pred, proj1_sig. destruct H1; rewrite H1; clear H H1.
-unfold f; clear f.
-if_tac.
-exists rsh.
-f_equal.
-rewrite <- core_resource_at.
-apply core_identity.
-simpl.
-destruct H1 as [_ ->]; auto.
++ exists (encode_val ch v).
+  split; [split|].
+  split; auto.
+  apply encode_val_length.
+  intro l'.
+  unfold jam.
+  hnf.
+  unfold yesat, yesat_raw, noat.
+  unfold app_pred, proj1_sig. destruct H1; rewrite H1; clear H H1.
+  unfold f; clear f.
+  if_tac.
+  exists rsh.
+  f_equal.
+  rewrite <- core_resource_at.
+  apply core_identity.
+  simpl.
+  destruct H1 as [_ ->]; auto.
++ apply rmap_ext. do 2 rewrite level_core. auto.
+  intro l; specialize (RESERVE l).
+  rewrite <- core_resource_at. destruct H1. rewrite H1. unfold f.
+  if_tac.
+  rewrite core_YES.
+  rewrite <- core_resource_at. rewrite RESERVE; auto.
+  rewrite core_NO; auto.
+  rewrite <- core_resource_at; rewrite core_idem; auto.
+  { rewrite <- core_ghost_of.
+    destruct H1 as [_ ->].
+    rewrite core_ghost_of; auto. }
 Qed.
 
 (*  NOT TRUE, because readable doesn't constraint NoneP ...
@@ -1827,6 +1822,17 @@ Qed.
 Definition almost_empty rm: Prop:=
   forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
 
+(*Lenb: moved here from veric.initial_world.v*)
+Definition no_locks phi :=
+  forall addr sh sh' z z' P,
+phi @ addr <> YES sh sh' (LK z z') P.
+
+(*Lenb: moved here from veric.initial_world.v
+Definition no_locks phi :=
+  forall addr sh sh' z P,
+    phi @ addr <> YES sh sh' (LK z) P /\
+    phi @ addr <> YES sh sh' (CT z) P.
+
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
    | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
@@ -1836,4 +1842,4 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   match f with
    | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
-
+*)

@@ -6,7 +6,7 @@ Require Import VST.floyd.coqlib3.
 Require Import VST.floyd.sublist.
 Require Import VST.floyd.functional_base.
 
-
+(*
 Definition Vubyte (c: Byte.int) : val :=
   Vint (Int.repr (Byte.unsigned c)).
 
@@ -16,8 +16,9 @@ Proof.
   intros i l.
   apply Znth_map.
 Qed.
+Locate Znth_map_Vubyte.
 Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
-
+*)
 Local Open Scope nat.
 
 Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
@@ -380,20 +381,3 @@ Lemma map_list_repeat:
      map f (list_repeat n x) = list_repeat n (f x).
 Proof. induction n; simpl; intros; f_equal; auto.
 Qed.
-
-(*
-Lemma map_IntReprOfBytes_injective: forall l m, Forall isbyteZ  l -> 
-  Forall isbyteZ m -> map Int.repr l = map Int.repr m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H1; trivial.
-+ destruct m; simpl in *. inv H1.
-  assert (Int.repr a = Int.repr z /\  map Int.repr l = map Int.repr m).
-  { forget (Int.repr a) as q. forget (Int.repr z) as w. inv H1; split; trivial. }
-  clear H1. destruct H2. inv H. inv H0.
-  rewrite (IHl m); trivial. f_equal.
-  clear IHl H2 H6 H7.
-  unfold isbyteZ in *. simpl in *.
-  rewrite <- (Int.unsigned_repr a), <- (Int.unsigned_repr z), H1; trivial;
-  rewrite int_max_unsigned_eq; omega.
-Qed.
-*)

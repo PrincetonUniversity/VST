@@ -7,6 +7,7 @@ Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_mem_ops.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.juicy_extspec.
+Require Import compcert.cfrontend.Clight.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.semax.

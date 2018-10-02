@@ -1,8 +1,8 @@
 Require Import Coq.Arith.EqNat.
 Require Import Coq.Relations.Relations.
-
+(*
 Require Import compcert.exportclight.Clightdefs.
-Require Import compcert.cfrontend.Ctypes. (*NEW*)
+Require Import compcert.cfrontend.Ctypes. (*NEW*)*)
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
@@ -26,7 +26,8 @@ Instance EqDec_ident: EqDec ident := ident_eq.
 
 Instance EqDec_byte: EqDec byte := Byte.eq_dec.
 
-Instance EqDec_type: EqDec type := type_eq.
+(*Moved to base.v so that this file does not need to Import Clightdefs ad Ctypes
+  Instance EqDec_type: EqDec type := type_eq.*)
 Instance EqDec_int: EqDec int := Int.eq_dec.
 Instance EqDec_int64: EqDec int64 := Int64.eq_dec.
 Instance EqDec_float: EqDec float := Float.eq_dec.

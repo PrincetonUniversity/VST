@@ -396,7 +396,7 @@ Proof.
   + assert (true = true) by auto; tauto.
   + destruct (id_in_list i (map fst m)) eqn:HH.
     - apply id_in_list_true in HH.
-       split; intros. inv H. destruct H. elimtype False; apply H.
+       split; intros. inv H.  destruct H. elimtype False; apply H.
       apply HH.
     - apply id_in_list_false in HH.
       split; intros. split; auto. destruct H; auto.

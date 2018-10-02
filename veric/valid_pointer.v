@@ -3,7 +3,8 @@ Require Import VST.msl.normalize.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.seplog.
+Require Import VST.veric.Clight_seplog. (*need Clight_seplog rather than general seplog to ensure availability of 
+                                          mapsto and memory_block -maybe move the lemmas using them elsewhere?*)
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.

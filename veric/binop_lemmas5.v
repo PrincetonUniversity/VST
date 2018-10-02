@@ -1,10 +1,11 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
-Require Import VST.veric.Cop2.
+Require Import VST.veric.Clight_Cop2.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.binop_lemmas3.
 Import Cop.
@@ -73,7 +74,7 @@ Proof.
          | cmp_default => sem_cmp_default (op_to_cmp op) (typeof e1) (typeof e2)
          end (eval_expr e1 rho) (eval_expr e2 rho))))
   by (destruct OP as [|]; subst; rewrite <- classify_cmp_eq; auto).
-  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_add in IBR |- *.
+  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_add in IBR |- *.
   unfold force_val;
   rewrite tc_val_tc_val_PM in TV1,TV2.
   replace (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
@@ -108,7 +109,7 @@ try abstract (
               destruct (eqb_type A B) eqn:J; [inv H | clear H]
     | H: app_pred (denote_tc_assert (tc_test_eq' _ _) _) _ |- _ =>
            simpl in H; super_unfold_lift; simpl in H;
-            unfold Cop2.sem_cast, Cop2.classify_cast, size_t, sem_cast_pointer in H;
+            unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast, size_t, sem_cast_pointer in H;
             simpl in H; rewrite ?Hp in H; simpl in H
    end;
   unfold denote_tc_test_eq, sem_cast_i2l, sem_cast_l2l, cast_int_long, force_val in H1;
@@ -158,8 +159,8 @@ all: try (
     try contradiction;
    destruct OP; subst op; try destruct s; try destruct s0;
   unfold sem_cmp_default, op_to_cmp,
- Cop2.sem_binarith, classify_binarith, both_int, both_long, Cop2.sem_cast,
-  Cop2.classify_cast, binarith_type; rewrite ?Hp;
+ Clight_Cop2.sem_binarith, classify_binarith, both_int, both_long, Clight_Cop2.sem_cast,
+  Clight_Cop2.classify_cast, binarith_type; rewrite ?Hp;
   simpl; rewrite ?Hp;
     try (apply int_type_tc_val_Vtrue; auto);
     try (apply int_type_tc_val_Vfalse; auto);

@@ -31,6 +31,7 @@ Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.freezer.
 Import Cop.
 Import Cop2.
+Import Clight_Cop2.
 
 Global Opaque denote_tc_test_eq.
 
@@ -49,7 +50,7 @@ Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
     apply isptr_force_sem_add_ptr_int; auto with prove_it_now.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
-Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) :
+Fixpoint mk_varspecs' (dl: list (ident * globdef Clight.fundef type)) (el: list (ident * type)) :
      list (ident * type) :=
  match dl with
  | (i,Gvar v)::dl' => mk_varspecs' dl' ((i, gvar_info v) :: el)
@@ -1305,8 +1306,8 @@ Lemma typed_true_ptr_e:
  forall t v, typed_true (tptr t) v -> isptr v.
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
-destruct Archi.ptr64; try discriminate.
-revert H1; simple_if_tac; intro H1; inv H1.
+(*destruct Archi.ptr64; try discriminate.*)
+revert H1; simple_if_tac; intro H1; inv H1. 
 Qed.
 
 Lemma typed_false_ptr_e:
@@ -1314,7 +1315,7 @@ Lemma typed_false_ptr_e:
 Proof.
  intros. destruct v; inv H; try apply Coq.Init.Logic.I.
 unfold nullval.
-destruct Archi.ptr64; try discriminate.
+(*destruct Archi.ptr64; try discriminate.*)
 f_equal.
 try (pose proof (Int64.eq_spec i Int64.zero);
       destruct (Int64.eq i Int64.zero); inv H1; auto);
@@ -2540,7 +2541,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
    isptr v ->
-   Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
+   Clight_Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.

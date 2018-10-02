@@ -1,3 +1,5 @@
+Require Import VST.veric.base.
+Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Import cjoins.
@@ -16,7 +18,6 @@ Definition perm_of_sh (sh: Share.t): option permission :=
                    then None
               else Some Nonempty.
 Functional Scheme perm_of_sh_ind := Induction for perm_of_sh Sort Prop.
-
 
 Definition contents_at (m: mem) (loc: address) : memval :=
   ZMap.get (snd loc) (PMap.get (fst loc) (mem_contents m)).

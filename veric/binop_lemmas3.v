@@ -1,10 +1,11 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
-Require Import VST.veric.Cop2.
+Require Import VST.veric.Clight_Cop2.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.binop_lemmas2.
 
@@ -454,7 +455,7 @@ Lemma tc_val_sem_binarith': forall {CS: compspecs} sem_int sem_long sem_float se
   (denote_tc_assert (binarithType' t1 t2 t deferr reterr) rho) m ->
   tc_val t
     (force_val
-      (Cop2.sem_binarith
+      (Clight_Cop2.sem_binarith
         (fun s n1 n2 => Some (Vint (sem_int s n1 n2)))
         (fun s n1 n2 => Some (Vlong (sem_long s n1 n2)))
         (fun n1 n2 => Some (Vfloat (sem_float n1 n2)))
@@ -463,7 +464,7 @@ Lemma tc_val_sem_binarith': forall {CS: compspecs} sem_int sem_long sem_float se
 Proof.
   intros.
   unfold binarithType' in H.
-  unfold Cop2.sem_binarith.
+  unfold Clight_Cop2.sem_binarith.
   rewrite classify_binarith_eq.
   destruct (classify_binarith' t1 t2) eqn:?H;
   try solve [inv H]; apply tc_bool_e in H;
@@ -483,7 +484,7 @@ Lemma tc_val_sem_cmp_binarith': forall sem_int sem_long sem_float sem_single t1 
   is_int_type t = true ->
   tc_val t
     (force_val
-      (Cop2.sem_binarith
+      (Clight_Cop2.sem_binarith
         (fun s n1 n2 => Some (Val.of_bool (sem_int s n1 n2)))
         (fun s n1 n2 => Some (Val.of_bool (sem_long s n1 n2)))
         (fun n1 n2 => Some (Val.of_bool (sem_float n1 n2)))
@@ -492,7 +493,7 @@ Lemma tc_val_sem_cmp_binarith': forall sem_int sem_long sem_float sem_single t1 
 Proof.
   intros.
   destruct t; inv H1.
-  unfold Cop2.sem_binarith.
+  unfold Clight_Cop2.sem_binarith.
   rewrite classify_binarith_eq.
   destruct (classify_binarith' t1 t2) eqn:?H.
 1,2,3,4:
@@ -523,7 +524,7 @@ forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
 Proof.
   intros.
   rewrite den_isBinOpR in IBR. 
-  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_add in IBR |- *.
+  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_add in IBR |- *.
   rewrite classify_add_eq.
   destruct (classify_add' (typeof e1) (typeof e2)) eqn:?H;
   unfold force_val2, force_val;
@@ -571,8 +572,8 @@ forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
        (eval_expr e1 rho) (eval_expr e2 rho)).
 Proof.
   intros.
-  rewrite den_isBinOpR in IBR. 
-  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_sub in IBR |- *.
+  rewrite den_isBinOpR in IBR.
+  unfold tc_int_or_ptr_type, eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_sub in IBR |- *.
   rewrite classify_sub_eq.
   destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?H;
   unfold force_val2, force_val;
@@ -624,8 +625,8 @@ forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
        (eval_expr e1 rho) (eval_expr e2 rho)).
 Proof.
   intros.
-  rewrite den_isBinOpR in IBR.
-  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_mul in IBR |- *.
+  rewrite den_isBinOpR in IBR. 
+  unfold eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_mul in IBR |- *.
   rewrite denote_tc_assert_andp in IBR. destruct IBR.
   unfold force_val2, force_val.
   eapply tc_val_sem_binarith'; eauto.
@@ -642,7 +643,7 @@ forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
 Proof.
   intros.
   rewrite den_isBinOpR in IBR.
-  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_mul in IBR |- *.
+  unfold eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_mul in IBR |- *.
   unfold force_val2, force_val.
   eapply (tc_val_sem_binarith' _ _ _ _ _ _ _ _ _ _ _ rho m); eauto.
   unfold binarithType'.
@@ -662,9 +663,9 @@ forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
 Proof.
   intros.
   rewrite den_isBinOpR in IBR.
-  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_mod in IBR |- *.
+  unfold eval_binop, sem_binary_operation', isBinOpResultType, Clight_Cop2.sem_mod in IBR |- *.
   unfold force_val2, force_val.
-  unfold Cop2.sem_binarith.
+  unfold Clight_Cop2.sem_binarith.
   rewrite classify_binarith_eq.
   destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?H.
   + solve_tc_val TV1;
@@ -684,7 +685,7 @@ Proof.
       simpl.
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
       simpl; auto.
-      unfold Cop2.sem_cast, Cop2.classify_cast.
+      unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast.
       unfold  sem_cast_pointer.
       destruct Archi.ptr64; reflexivity.
     - apply tc_bool_e in IBR0.
@@ -696,7 +697,7 @@ Proof.
       simpl.
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
       simpl; auto.
-      unfold Cop2.sem_cast, Cop2.classify_cast.
+      unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast.
       unfold  sem_cast_pointer.
       destruct Archi.ptr64; reflexivity.
   + solve_tc_val TV1;
@@ -817,7 +818,7 @@ Proof.
       try solve [inv H1 | inv H3].
     destruct OP; subst; auto;
     simpl;
-    unfold force_val, Cop2.sem_shift;
+    unfold force_val, Clight_Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl.
     - destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
@@ -848,7 +849,7 @@ Proof.
       try solve [inv H1 | inv H3].
     destruct OP; subst; auto;
     simpl;
-    unfold force_val, Cop2.sem_shift;
+    unfold force_val, Clight_Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl;
     destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
@@ -865,7 +866,7 @@ Proof.
       try solve [inv H1 | inv H3].
     destruct OP; subst; auto;
     simpl;
-    unfold force_val, Cop2.sem_shift;
+    unfold force_val, Clight_Cop2.sem_shift;
     rewrite classify_shift_eq, H;
     simpl;
     destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
@@ -906,11 +907,11 @@ Proof.
    clear e1 e2 H0 H2.
     destruct OP as [| [|]]; subst; auto;
     simpl;
-    unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+    unfold force_val, Clight_Cop2.sem_and, Clight_Cop2.sem_or, Clight_Cop2.sem_xor, Clight_Cop2.sem_binarith;
     rewrite classify_binarith_eq, H;
     simpl;
     destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto;
-    unfold both_int, Cop2.sem_cast, Cop2.classify_cast, sem_cast_pointer;
+    unfold both_int, Clight_Cop2.sem_cast, Clight_Cop2.classify_cast, sem_cast_pointer;
    destruct Archi.ptr64; reflexivity.
   + (* bin_case_l *)
     apply tc_bool_e in IBR.
@@ -924,7 +925,7 @@ Proof.
         try solve [inv H1 | inv H3].
       destruct OP as [| [|]]; subst; auto;
       simpl;
-      unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+      unfold force_val, Clight_Cop2.sem_and, Clight_Cop2.sem_or, Clight_Cop2.sem_xor, Clight_Cop2.sem_binarith;
       rewrite classify_binarith_eq, H;
       simpl;
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
@@ -932,7 +933,7 @@ Proof.
         try solve [inv H1 | inv H3].
       destruct OP as [| [|]]; subst; auto;
       simpl;
-      unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+      unfold force_val, Clight_Cop2.sem_and, Clight_Cop2.sem_or, Clight_Cop2.sem_xor, Clight_Cop2.sem_binarith;
       rewrite classify_binarith_eq, H;
       simpl;
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
@@ -940,7 +941,7 @@ Proof.
         try solve [inv H1 | inv H3].
       destruct OP as [| [|]]; subst; auto;
       simpl;
-      unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+      unfold force_val, Clight_Cop2.sem_and, Clight_Cop2.sem_or, Clight_Cop2.sem_xor, Clight_Cop2.sem_binarith;
       rewrite classify_binarith_eq, H;
       simpl;
       destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.

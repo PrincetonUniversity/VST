@@ -96,7 +96,7 @@ replace_SEP 0 (data_at wsh t_struct_SHA256state_st
   2:{
     autorewrite with sublist.
     rewrite Zlength_sublist by Omega1. Omega1.
-  } 
+  }
   pose proof CBLOCKz_eq.
   pose proof (Zlength_nonneg (s256a_data a)).
   autorewrite with sublist.

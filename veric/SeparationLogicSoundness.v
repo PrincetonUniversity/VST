@@ -4,8 +4,8 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
-Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.Clight_assert_lemmas.
 Require Import VST.veric.Clight_new.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
@@ -16,7 +16,7 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.initial_world.
+Require Import VST.veric.Clight_initial_world.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_straight.
 Require Import VST.veric.semax_loop.
@@ -25,6 +25,8 @@ Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.expr_rel.
+
+Require Import VST.veric.ghost_PCM.
 
 Module Type SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
@@ -82,7 +84,9 @@ Module Type MAIN_THEOREM_STATEMENT.
 Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Declare Module CSHL_MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := CSHL_Def.
-
+(*
+Definition corable_func_ptr: forall f v, corable (func_ptr f v) :=
+  general_assert_lemmas.corable_func_ptr.*)
 Declare Module CSHL_PracticalLogic: PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_MinimumLogic := CSHL_MinimumLogic.
 
 Declare Module CSHL_Sound: SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := CSHL_Def.

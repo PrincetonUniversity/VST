@@ -1,24 +1,5 @@
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import compcert.cfrontend.Clight.
-Definition nullval : val := 
-  if Archi.ptr64 then Vlong Int64.zero else Vint Int.zero.
-
-Definition val_to_bool (v: val) : option bool :=
-  match v with
-    | Vint n => Some (negb (Int.eq n Int.zero))
-    | Vptr _ _ => Some true
-    | _ => None
-  end.
-
-Definition bool_of_valf (v: val): option bool :=
-match v with
-  | Vint i => Some (negb (Int.eq i Int.zero))
-  | Vlong i => Some (negb (Int64.eq i Int64.zero))
-  | Vfloat _ => None
-  | Vsingle _ => None
-  | Vptr _ _ => Some true
-  | Vundef => None
-end.
 
 Definition var_name (V: Type) (bdec: ident * globvar V) : ident :=
    fst bdec.
@@ -65,6 +46,7 @@ rewrite peq_true.
 auto.
 Qed.
 
+(*moved to coqlib4
 Lemma nat_ind2_Type:
 forall P : nat -> Type,
 ((forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n):Type) ->
@@ -90,7 +72,7 @@ forall P : nat -> Prop,
 (forall n, P n).
 Proof.
 intros; apply Wf_nat.lt_wf_ind. auto.
-Qed.
+Qed.*)
 
 Lemma signed_zero: Int.signed Int.zero = 0.
 Proof. apply Int.signed_zero. Qed.
@@ -102,12 +84,14 @@ rewrite <- H; auto.
 Qed.
 Arguments equiv_e1 [A B] _ _.
 
+(*moved to coqlib4
 Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
 Proof.
 intros.
 rewrite H; auto.
 Qed.
 Arguments equiv_e2 [A B] _ _.
+*)
 
 Lemma deref_loc_fun: forall {ty m b z v v'},
    Clight.deref_loc ty m b z v -> Clight.deref_loc ty m b z v' -> v=v'.
@@ -266,7 +250,7 @@ Ltac fun_tac :=
        apply (eventval_list_match_fun H) in H'; inv H'
  end.
 
-(* Lemmas about ident lists *)
+(* Lemmas about ident lists -- moved to general_base of mpred
 
 Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
  match ids with i::ids' => orb (Pos.eqb id i) (id_in_list id ids') | _ => false end.
@@ -334,6 +318,7 @@ Qed.
 Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
 Proof. exact (Coqlib.peq). Qed.
 
+(*moved to mpred
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with
  | I8, Signed => -128 <= Int.signed i < 128
@@ -343,7 +328,7 @@ Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  | I32, Signed => -2147483648 <= Int.signed i < 2147483648
  | I32, Unsigned => 0 <= Int.unsigned i < 4294967296
  | IBool, _ => 0 <= Int.unsigned i < 256
-end.
+end.*)
 
 Lemma rev_if_be_singleton:
   forall x, rev_if_be (x::nil) = (x::nil).
@@ -368,3 +353,4 @@ Qed.
 Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
 Proof. congruence. Qed.
 
+*)

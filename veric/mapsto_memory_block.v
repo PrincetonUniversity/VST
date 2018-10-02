@@ -3,18 +3,21 @@ Require Import VST.msl.alg_seplog.
 Require Import VST.veric.base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.res_predicates.
-Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
-Require Import VST.veric.expr_lemmas3.
-Require Import VST.veric.binop_lemmas2.
+
+Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.address_conflict.
+Require Import VST.veric.val_lemmas.
+Require Import VST.veric.Cop2.
 Require Import VST.veric.shares.
 Require Import VST.veric.slice.
 
+Require Import VST.veric.mpred.
+
+(*Lenb: moved to mpred
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
+*)
 
 Lemma address_mapsto_exists:
   forall ch v sh (rsh: readable_share sh) loc w0
@@ -272,7 +275,7 @@ Proof.
             apply Z_of_nat_ge_O.
             symmetry; apply Zmax_left.
             clear.
-            pose proof (Z_of_nat_ge_O n). omega.
+            pose proof (Z_of_nat_ge_O n). omega. 
       + apply (resource_at_join _ _ _ (b',i')) in H.
         destruct H0 as [bl [[[? [? ?]] ?] _]].
         specialize (H5 (b',i')); specialize (H1 (b',i')).
@@ -305,7 +308,7 @@ Proof.
       destruct H0 as [H0 H1].
       pose proof I.
       destruct (make_rmap  (fun loc => if eq_dec loc (b,i) then 
-       YES sh H0 (VAL (Byte Byte.zero)) NoneP 
+       YES sh H0 (VAL (Byte Byte.zero)) NoneP
           else core (w @ loc)) (ghost_of w) (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
@@ -313,7 +316,7 @@ Proof.
       { apply ghost_of_approx. }
       pose proof I.
       destruct (make_rmap (fun loc => if adr_range_dec (b, Z.succ i) (Z.max (Z.of_nat n) 0) loc
-                       then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
+                       then YES sh H0 (VAL (Byte Byte.zero)) NoneP
           else core (w @ loc)) (ghost_of w) (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
       if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
@@ -444,24 +447,22 @@ Proof.
          unfold l; simpl nth; auto.
       * apply orp_left.
         apply andp_left2.
-        {
-          intros w [l [[[? [? ?]] ?] Hg]].
-           split; auto.
-           intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
-           hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
-           destruct l; inv H. exists m.
-           destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
-           f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+        { intros w [l [[[? [? ?]] ?] Hg]].
+          split; auto.
+          intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
+            hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
+          destruct l; inv H. exists m.
+          destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
+          f_equal. f_equal. rewrite Zminus_diag. reflexivity.
         }
-        {
-          rewrite prop_true_andp by auto.
+        { rewrite prop_true_andp by auto.
           intros w [v2' [l [[[? [? ?]] ?] Hg]]].
-           split; auto.
-           intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
-           hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
-           destruct l; inv H. exists m.
-           destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
-           f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+          split; auto.
+          intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
+            hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
+          destruct l; inv H. exists m.
+          destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
+          f_equal. f_equal. rewrite Zminus_diag. reflexivity.
         }
     - rewrite Ptrofs.unsigned_repr by (rewrite Nat2Z.inj_succ in H0; unfold Ptrofs.max_unsigned; omega).
       change (size_chunk Mint8unsigned) with 1.
@@ -787,7 +788,6 @@ Proof.
     omega.
 Qed.
 
-
 Lemma memory_block_overlap: forall sh p1 n1 p2 n2, nonunit sh -> pointer_range_overlap p1 n1 p2 n2 -> memory_block sh n1 p1 * memory_block sh n2 p2 |-- FF.
 Proof.
   intros.
@@ -993,11 +993,11 @@ Proof.
     pose proof Ptrofs.unsigned_repr_eq ofs.
     assert (ofs mod Ptrofs.modulus <= ofs) by (apply Z.mod_le; omega).
     omega.
-  }
+  } 
   replace (n + m - n) with m by omega.
   replace (memory_block' sh (nat_of_Z m) b (Ptrofs.unsigned (Ptrofs.repr ofs) + n)) with
     (memory_block' sh (nat_of_Z m) b (Ptrofs.unsigned (Ptrofs.repr (ofs + n)))).
-  2:{
+  2: {
     destruct (zeq m 0).
     + subst. reflexivity.
     + assert (ofs + n < Ptrofs.modulus) by omega.
@@ -1063,207 +1063,12 @@ unfold tc_val', tc_val. rewrite H, H0.
 reflexivity.
 Qed.
 
-Lemma mapsto_unsigned_signed:
- forall sign1 sign2 sh sz v i,
-  mapsto sh (Tint sz sign1 noattr) v (Vint (Cop.cast_int_int sz sign1 i)) =
-  mapsto sh (Tint sz sign2 noattr) v (Vint (Cop.cast_int_int sz sign2 i)).
-Proof.
- intros.
- unfold mapsto.
- unfold address_mapsto, res_predicates.address_mapsto.
- simpl.
- destruct sz; auto;
- destruct sign1, sign2;
- [auto | | | auto | auto | |  | auto];
- (destruct v; [auto | auto | auto | auto | auto | ]);
- simpl Cop.cast_int_int;
- repeat rewrite (prop_true_andp (_ <= _ <= _)) by
-  first [ apply (expr_lemmas3.sign_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.sign_ext_range' 16 i); compute; split; congruence
-          ];
- repeat rewrite (prop_true_andp (_ <= _)) by
-  first [ apply (expr_lemmas3.zero_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.zero_ext_range' 16 i); compute; split; congruence
-          ];
- simpl;
- repeat rewrite (prop_true_andp True) by auto;
- repeat rewrite (prop_false_andp  (Vint _ = Vundef) ) by (intro; discriminate);
- cbv beta;
- repeat first [rewrite @FF_orp | rewrite @orp_FF].
-*
- f_equal. if_tac; clear H.
- 2:{
-   f_equal.
-   apply pred_ext; intros ?; hnf; simpl;
-   intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (zero_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact H1.
-   + intros _.
-     simpl.
-     destruct (sign_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
- }
- f_equal. f_equal; extensionality bl.
- f_equal. f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H1. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
- inv H3.
- destruct bl; inv H0. destruct bl; inv H3.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
-*
- f_equal.
- if_tac; clear H.
- 2:{
-   f_equal.
-   apply pred_ext; intros ?; hnf; simpl;
-   intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (sign_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
-   + intros _.
-     simpl.
-     destruct (zero_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact H1.
- }
- f_equal; f_equal; extensionality bl.
- f_equal. f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H3.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
- destruct bl; inv H0. destruct bl; inv H3.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
-*
- f_equal.
-  if_tac; [| auto]; clear H.
- 2:{
-   f_equal.
-   apply pred_ext; intros ?; hnf; simpl;
-   intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (zero_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact H1.
-   + intros _.
-     simpl.
-     destruct (sign_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
- }
- apply equal_f. apply f_equal. apply f_equal. extensionality bl.
- apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
-*
- f_equal.
-  if_tac; [| auto]; clear H.
- 2:{
-   f_equal.
-   apply pred_ext; intros ?; hnf; simpl;
-   intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (sign_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
-   + intros _.
-     simpl.
-     destruct (zero_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact H1.
- }
- apply equal_f. apply f_equal. apply f_equal. extensionality bl.
- apply equal_f. apply f_equal. apply equal_f. apply f_equal. apply f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
-Qed.
-
-Lemma mapsto_tuint_tint:
-  forall sh, mapsto sh tuint = mapsto sh tint.
-Proof.
-intros.
-extensionality v1 v2.
-reflexivity.
-Qed.
-
 Lemma is_pointer_or_null_nullval: is_pointer_or_null nullval.
 Proof.
 unfold is_pointer_or_null, nullval.
 simple_if_tac; auto.
 Qed.
 Hint Resolve is_pointer_or_null_nullval.
-
-Lemma tc_val_pointer_nullval:
- forall t, tc_val (tptr t) nullval.
-Proof.
- intros. unfold nullval; simpl.
- rewrite andb_false_r.
- hnf. simple_if_tac; auto.
-Qed.
-Hint Resolve tc_val_pointer_nullval.
-
 
 Lemma tc_val_pointer_nullval':
  forall t a, tc_val (Tpointer t a) nullval.
@@ -1274,8 +1079,58 @@ Proof.
 Qed.
 Hint Resolve tc_val_pointer_nullval'.
 
-
 Arguments type_is_volatile ty / .
+
+Definition is_int32_noattr_type t :=
+ match t with
+ | Tint I32 _ {| attr_volatile := false; attr_alignas := None |} => True
+ | _ => False
+ end.
+
+Lemma mapsto_mapsto_int32:
+  forall sh t1 t2 p v,
+   is_int32_noattr_type t1 ->
+   is_int32_noattr_type t2 ->
+   mapsto sh t1 p v |-- mapsto sh t2 p v.
+Proof.
+intros.
+destruct t1; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+destruct t2; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+apply derives_refl.
+Qed.
+
+Lemma mapsto_mapsto__int32:
+  forall sh t1 t2 p v,
+   is_int32_noattr_type t1 ->
+   is_int32_noattr_type t2 ->
+   mapsto sh t1 p v |-- mapsto_ sh t2 p.
+Proof.
+intros.
+destruct t1; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+destruct t2; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+unfold mapsto_. apply mapsto_mapsto_.
+Qed.
+
+Lemma mapsto_tuint_tint:
+  forall sh, mapsto sh (Tint I32 Unsigned noattr) = mapsto sh (Tint I32 Signed noattr).
+Proof.
+intros.
+extensionality v1 v2.
+reflexivity.
+Qed.
+
+Lemma tc_val_pointer_nullval:
+ forall t, tc_val (Tpointer t noattr) nullval.
+Proof.
+ intros. unfold nullval; simpl.
+ rewrite andb_false_r.
+ hnf. simple_if_tac; auto.
+Qed.
+Hint Resolve tc_val_pointer_nullval.
 
 Lemma mapsto_tuint_tptr_nullval:
   forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.
@@ -1316,49 +1171,11 @@ unfold nullval; rewrite Hp; hnf; auto.
 simple_if_tac; simpl; rewrite Hp; auto.
 Qed.
 
-Definition is_int32_noattr_type t :=
- match t with
- | Tint I32 _ {| attr_volatile := false; attr_alignas := None |} => True
- | _ => False
- end.
-
-Lemma mapsto_mapsto_int32:
-  forall sh t1 t2 p v,
-   is_int32_noattr_type t1 ->
-   is_int32_noattr_type t2 ->
-   mapsto sh t1 p v |-- mapsto sh t2 p v.
-Proof.
-intros.
-destruct t1; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-destruct t2; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-apply derives_refl.
-Qed.
-
-Lemma mapsto_mapsto__int32:
-  forall sh t1 t2 p v,
-   is_int32_noattr_type t1 ->
-   is_int32_noattr_type t2 ->
-   mapsto sh t1 p v |-- mapsto_ sh t2 p.
-Proof.
-intros.
-destruct t1; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-destruct t2; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-fold noattr.
-unfold mapsto_.
-destruct s,s0; fold tuint; fold tint;
-  repeat rewrite mapsto_tuint_tint;
-  try apply mapsto_mapsto_.
-Qed.
-
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v,
    Archi.ptr64 = false -> 
-             mapsto sh tint v nullval =
-             mapsto sh (tptr t) v nullval.
+             mapsto sh (Tint I32 Signed noattr) v nullval =
+             mapsto sh (Tpointer t noattr) v nullval.
 Proof.
   intros.
   try solve [inversion H];

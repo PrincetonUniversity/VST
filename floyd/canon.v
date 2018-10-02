@@ -1,4 +1,5 @@
 Require Export Coq.Sorting.Permutation.
+Require Import VST.veric.seplog.
 Require Import VST.floyd.base2.
 
 Local Open Scope logic.
@@ -124,7 +125,7 @@ Lemma approx_andp: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  apply seplog.approx_andp.
+  apply approx_andp.
 Qed.
 
 Lemma approx_exp: forall A (P: A -> mpred) n,
@@ -279,7 +280,7 @@ Proof.
       (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%logic)
     with
       (fun P0 => (prop (a P0) && prop (fold_right and True (map (fun P1 => P1 P0) P)))%logic).
-    2:{
+    2: {
       extensionality S.
       rewrite prop_and; auto.
     }

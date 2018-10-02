@@ -667,7 +667,7 @@ Proof.
 Qed.
 
 Require Import VST.veric.tycontext.
-Require Import VST.veric.seplog.
+Require Import VST.veric.Clight_seplog.
  
 Lemma own_super_non_expansive: forall {RA: Ghost} n g a pp,
   approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).

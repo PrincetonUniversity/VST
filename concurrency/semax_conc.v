@@ -1,6 +1,6 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.msl.seplog.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
@@ -791,7 +791,7 @@ Definition spawn_pre :=
                            (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, gv, w, pre) =>
-     PROP (expr.tc_val (tptr Tvoid) b)
+     PROP (tc_val (tptr Tvoid) b)
      (LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)
      (SEP (
        EX _y : ident,

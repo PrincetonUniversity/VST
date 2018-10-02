@@ -93,16 +93,6 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
     freeze [0; 1; 2; 3; 4] FR1.
     Time forward. (*1secs, versus 2secs*)
     Time forward. (*0.8 versus 1.8 j=HMAC_MAX_MD_CBLOCK*)
-
-    (* Issue: Potential Coq (8.4?) bug about type equalities*)
-(*    assert (exists keyedHMS': reptype t_struct_hmac_ctx_st, keyedHMS'=keyedHMS). exists keyedHMS; reflexivity.
-    destruct H as [keyedHMS' KHMS].
-*)
-    assert (exists HMS': reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS; reflexivity.
-    destruct H as [HMS' KHMS].
-
-
-
     thaw FR1.
     freeze [1;2;4] FR2.
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
@@ -121,31 +111,33 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
         temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
         temp _len (Vint (Int.repr l)); gvars gv)
       SEP  (data_at_ Tsh (tarray tuchar 64) pad;
-            data_at wsh t_struct_hmac_ctx_st (*keyedHMS'*) HMS' (Vptr cb cofs);
+            data_at wsh t_struct_hmac_ctx_st (*keyedHMS'*) HMS (Vptr cb cofs);
             data_at sh (tarray tuchar (Zlength key)) (map Vubyte key)
               (Vptr kb kofs);
            data_at Tsh (tarray tuchar 64) (map Vubyte (HMAC_SHA256.mkKey key))
                   (Vptr ckb ckoff);
           K_vector gv)). (*4.3 versus 5.6*)
-    { (* j < len*)
+    { (* j < len*) 
       rename H into lt_64_l.
       thaw FR2.
       subst MORE_COMMANDS; unfold abbreviate.
       subst.
-      destruct keyLen as [? [? ?]]. unfold POSTCONDITION, abbreviate.
+      destruct keyLen as [? ?]. unfold POSTCONDITION, abbreviate.
       eapply semax_pre; [  |
         eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l wsh sh key gv pad HMS); try eassumption; trivial].
       entailer!.
-      rewrite Int.signed_repr in lt_64_l. trivial. rep_omega.
+      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_omega.
+      rewrite Int.signed_repr in lt_64_l; [ trivial | rep_omega].
     }
     { (* j >= len*)
       rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
-      destruct keyLen as [? [? ?]].
+      destruct keyLen as [? ?].
       thaw FR2.
       eapply semax_pre; [  | 
         apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l wsh sh key gv pad HMS); try eassumption; trivial].
       entailer!.
-      rewrite Int.signed_repr in ge_64_l. trivial. rep_omega.
+      replace (two_p 64) with 18446744073709551616 by reflexivity; rep_omega.
+      rewrite Int.signed_repr in ge_64_l; [ trivial | rep_omega ].
     }
    subst.
    unfold PostKeyNull, initPostKeyNullConditional.
@@ -483,7 +475,7 @@ forward_if (EX shaStates:_ ,
   }
 }
 }
-Time Qed. (*VST 2.0: 10.7s*) (*25 versus 49*)
+Time Qed. (*VST 2.0: 10.7s*) 
 
 Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init HMAC_Init_spec.

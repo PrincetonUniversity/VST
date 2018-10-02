@@ -10,6 +10,10 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.res_predicates.
 
+Require Import VST.veric.res_predicates.
+Require Import compcert.cfrontend.Clight.
+Require Import compcert.exportclight.Clightdefs.
+
 Definition funsig2signature (s : funsig) cc : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 

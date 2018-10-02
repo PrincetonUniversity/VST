@@ -66,11 +66,12 @@ Proof.
     rewrite H1.
     pose proof two_power_nat_pos x0.
     pose proof two_power_nat_pos x.
-    assert (k > 0). {
+    assert (k > 0).
+    {
       eapply Zmult_gt_0_reg_l.
       + exact H2.
       + rewrite <- H0, Z.mul_comm; omega.
-    }
+    } 
     rewrite <- (Z.mul_1_l m) at 2.
     apply Zmult_ge_compat_r; omega.
 Qed.
@@ -475,3 +476,50 @@ Proof.
     - destruct H0; subst; auto.
     - inv H0; auto.
 Qed.
+
+
+Lemma nat_ind2_Type:
+forall P : nat -> Type,
+((forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n):Type) ->
+(forall n, P n).
+Proof.
+intros.
+assert (forall j , (j <= n)%nat -> P j).
+induction n.
+intros.
+replace j with 0%nat ; try omega.
+apply X; intros.
+elimtype False; omega.
+intros.  apply X. intros.
+apply IHn.
+omega.
+apply X0.
+omega.
+Qed.
+
+Lemma nat_ind2:
+forall P : nat -> Prop,
+(forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n) ->
+(forall n, P n).
+Proof.
+intros; apply Wf_nat.lt_wf_ind. auto.
+Qed.
+
+Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
+Proof.
+intros.
+rewrite H; auto.
+Qed.
+Arguments equiv_e2 [A B] _ _.
+
+Definition opt2list (A: Type) (x: option A) :=
+  match x with Some a => a::nil | None => nil end.
+Arguments opt2list [A] _.
+
+Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
+
+Definition isSome_dec: forall {A} (P: option A), isSome P + ~ isSome P.
+Proof.
+  intros.
+  destruct P; simpl; auto.
+Defined.

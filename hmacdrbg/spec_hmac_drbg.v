@@ -8,7 +8,7 @@ Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.entropy.
 Require Import sha.protocol_spec_hmac. 
-Require Import sha.general_lemmas.
+Require Import sha.vst_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
 (* mocked_md *)
@@ -909,7 +909,7 @@ Definition hmac_init_funspec:=
                             temp hmac._len (Vint (Int.repr l)); 
                             gvars gv)
                             SEP (UNDER_SPEC.EMPTY sh c;
-                            spec_sha.data_block shk key (Vptr b0 i); 
+                            data_block shk key (Vptr b0 i); 
                             spec_sha.K_vector gv)
                         end
      POST [tvoid] match x with
@@ -924,7 +924,7 @@ Definition hmac_init_funspec:=
                       LOCAL ()
                       SEP (UNDER_SPEC.REP sh
                              (UNDER_SPEC.hABS key []) c;
-                      spec_sha.data_block shk key (Vptr b0 i); 
+                      data_block shk key (Vptr b0 i); 
                       spec_sha.K_vector gv)
                   end).
 (*

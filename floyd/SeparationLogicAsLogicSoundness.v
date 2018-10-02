@@ -5,8 +5,8 @@ Require Import VST.veric.juicy_base.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
-Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.Clight_assert_lemmas.
 Require Import VST.veric.Clight_new.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
@@ -17,7 +17,7 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.semax_conseq.
 Require Import VST.veric.Clight_lemmas.
-Require Import VST.veric.initial_world.
+Require Import VST.veric.Clight_initial_world.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_straight.
 Require Import VST.veric.semax_loop.
@@ -30,6 +30,7 @@ Require Import VST.floyd.SeparationLogicFacts.
 Require Import VST.floyd.SeparationLogicAsLogic.
 Require Import VST.veric.SeparationLogicSoundness.
 Local Open Scope logic.
+Require Import VST.veric.ghost_PCM.
 
 Module DeepEmbeddedSoundness
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)

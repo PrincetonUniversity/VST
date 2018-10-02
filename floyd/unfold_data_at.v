@@ -8,8 +8,6 @@ Opaque alignof.
 
 Local Open Scope logic.
 
-Locate JMeq_refl.
-
 (* This is not well developed or well tested yet, but it does
    get through all the Travis tests 11/10/17 *)
 Ltac unfold_field_at' :=

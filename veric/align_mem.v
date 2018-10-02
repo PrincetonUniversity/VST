@@ -2,7 +2,7 @@ Require Import Coq.Sorting.Permutation.
 Require Import Coq.Sorting.Sorting.
 Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
-Require Import VST.veric.Clight_lemmas.
+Require Import compcert.cfrontend.Ctypes. (*Require Import VST.veric.Clight_lemmas.*)
 Require Import VST.veric.type_induction.
 Require Import VST.veric.composite_compute.
 
@@ -292,8 +292,8 @@ Proof.
   + simpl.
     pose proof HA_ENV_CONS id; pose proof HA_ENV_COMPL id.
     destruct (cenv ! id) as [co |] eqn:?H, (ha_env ! id) eqn:?H.
-    2:{ pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
-    2:{ pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
+    2: { pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
+    2: { pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
     - specialize (H _ _ eq_refl eq_refl).
       subst z.
       clear - IH.
@@ -308,8 +308,8 @@ Proof.
   + simpl.
     pose proof HA_ENV_CONS id; pose proof HA_ENV_COMPL id.
     destruct (cenv ! id) as [co |] eqn:?H, (ha_env ! id) eqn:?H.
-    2:{ pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
-    2:{ pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
+    2: { pose proof proj1 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
+    2: { pose proof proj2 H0 (ex_intro _ _ eq_refl) as [? ?]; congruence. }
     - specialize (H _ _ eq_refl eq_refl).
       subst z.
       clear - IH.
@@ -392,7 +392,7 @@ Proof.
       replace z1 with (z2 + (z1 - z2)) by omega.
       erewrite hardware_alignof_by_value in H0 by eauto.
       apply Z.divide_add_r; auto.
-  }
+  } 
   intro t; type_induction t cenv CENV_CONS; intros.
   + split; intros; inv H1; inv H2.
   + eapply BY_VALUE; auto.
@@ -856,7 +856,7 @@ Proof.
   + unfold is_aligned, is_aligned_aux in H, IH.
     Opaque alignof. simpl in H, IH. Transparent alignof.
     destruct (la_env ! id) as [la |] eqn:?H.
-    2:{
+    2: {
       rewrite (andb_comm _ false) in H.
       inv H.
     }

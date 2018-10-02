@@ -51,12 +51,7 @@ Inductive hmacabs :=  (* HMAC abstract state *)
 
 Definition absCtxt (h:hmacabs): s256abs :=
   match h with HMACabs ctx _ _ => ctx end.
-(*
-Definition innerShaInit (k: list byte) (s:s256abs):Prop :=
-  update_abs (HMAC_SHA256.mkArgZ k Ipad) init_s256abs s.
-Definition outerShaInit (k: list byte) (s:s256abs):Prop :=
-  update_abs (HMAC_SHA256.mkArgZ k Opad) init_s256abs s.
-*)
+
 Definition innerShaInit (k: list byte):s256abs :=
    HMAC_SHA256.mkArg k Ipad.
 Definition outerShaInit (k: list byte):s256abs :=
@@ -161,8 +156,7 @@ Definition hmacstate_ (wsh: share) (h: hmacabs) (c: val) : mpred :=
 (************************ Specification of HMAC_init ********************************************)
 
 Definition has_lengthK (l:Z) (key:list byte) :=
-  l = Zlength key /\ 0 < l <= Int.max_signed /\ (*requirement 0<l new in new_compcert - previously, it was 0<=l*)
-  l * 8 < two_p 64.
+  l = Zlength key /\ 0 < l <= Int.max_signed. (*requirement 0<l new in new_compcert - previously, it was 0<=l*)
 
 Definition hmac_relate_PreInitNull (key:list byte) (h:hmacabs ) (r: hmacstate) : Prop :=
   match h with HMACabs ctx iS oS =>

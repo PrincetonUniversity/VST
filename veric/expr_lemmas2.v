@@ -1,17 +1,17 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 
+
 Import Cop.
 Import Cop2.
-
-Opaque tc_andp. (* This is needed otherwise certain Qeds take
-    forever in Coq 8.3.  *)
+Import Clight_Cop2.
 
 Lemma eval_lvalue_ptr : forall {CS: compspecs} rho m e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho ->
@@ -277,7 +277,7 @@ destruct IHe as [? _].
 specialize (H2 H1).
 simpl eval_expr.
 unfold_lift.
-clear - H2 H0.
+clear - H2 H0. 
 unfold eval_unop, sem_unary_operation, force_val1.
 destruct u; unfold tc_val in H2; simpl in H0;
 unfold sem_notbool, sem_notint, sem_neg, sem_absfloat, bool_val in *;

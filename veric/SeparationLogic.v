@@ -1,4 +1,4 @@
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Export compcert.lib.Integers.
@@ -22,14 +22,16 @@ Require Export VST.msl.wandQ_frame.
 Require Export VST.msl.ramification_lemmas.
 Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
+Require Export VST.veric.mpred.
 Require Export VST.veric.expr.
 Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
 Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
-Require VST.veric.seplog.
-Require VST.veric.assert_lemmas.
+(*exported by Clight_seplog: Require VST.veric.seplog.*)
+Require VST.veric.Clight_seplog.
+Require VST.veric.Clight_assert_lemmas.
 Require Import VST.msl.Coqlib2.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.valid_pointer.
@@ -302,10 +304,10 @@ Definition precondition_closed (f: function) {A: rmaps.TypeTree}
   closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\
   closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
 
-Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
+Definition typed_true (t: type) (v: val)  : Prop :=  strict_bool_val v t
 = Some true.
 
-Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
+Definition typed_false (t: type)(v: val) : Prop :=  strict_bool_val v t =
 Some false.
 
 Definition subst {A} (x: ident) (v: environ -> val) (P: environ -> A) : environ -> A :=
@@ -543,11 +545,11 @@ Lemma mapsto_unsigned_signed:
  forall sign1 sign2 sh sz v i,
   mapsto sh (Tint sz sign1 noattr) v (Vint (Cop.cast_int_int sz sign1 i)) =
   mapsto sh (Tint sz sign2 noattr) v (Vint (Cop.cast_int_int sz sign2 i)).
-Proof. exact mapsto_memory_block.mapsto_unsigned_signed. Qed.
+Proof. exact Clight_mapsto_memory_block.mapsto_unsigned_signed. Qed.
 
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.
-Proof. exact mapsto_memory_block.mapsto_tuint_tint. Qed.
+Proof. exact Clight_mapsto_memory_block.mapsto_tuint_tint. Qed.
 
 Lemma mapsto_tuint_tptr_nullval:
   forall sh p t, 
@@ -583,7 +585,7 @@ Lemma mapsto_null_mapsto_pointer:
        Archi.ptr64 = false ->
              mapsto sh tint v nullval =
              mapsto sh (tptr t) v nullval.
-Proof. exact mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
+Proof. exact Clight_mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
@@ -608,7 +610,7 @@ auto.
 Qed.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && res_predicates.func_at f (b, 0).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
 
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
@@ -642,7 +644,7 @@ Definition allp_fun_id (Delta : tycontext): environ -> mpred :=
 (ALL id : ident ,
  (ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(res_predicates.func_at fs (b, 0))))).
+  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(seplog.func_at fs (b, 0))))).
 
 Lemma corable_allp_fun_id: forall Delta rho,
   corable (allp_fun_id Delta rho).
@@ -1287,7 +1289,16 @@ Axiom semax_switch:
      @semax CS Espec Delta Q (Sswitch a sl) R.
 
 (* THESE RULES FROM semax_call *)
+(*
+Parameter func_ptr : funspec -> val ->mpred.
+Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
+Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 
+Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
+    compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+
+Axiom func_ptr_def :
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)
 Axiom semax_call :
   forall {CS: compspecs} {Espec: OracleKind},
     forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
@@ -1553,4 +1564,3 @@ Proof.
   apply ND_prop_ext.
   auto.
 Defined.
-

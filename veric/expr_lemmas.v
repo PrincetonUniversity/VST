@@ -1,7 +1,8 @@
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.msl.msl_standard.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
@@ -15,6 +16,7 @@ Require Export VST.veric.expr_lemmas4.
 Require Import VST.veric.juicy_mem.
 Import Cop.
 Import Cop2.
+Import Clight_Cop2.
 
 (*
 Lemma typecheck_environ_update_te:

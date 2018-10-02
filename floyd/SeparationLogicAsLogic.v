@@ -1,4 +1,5 @@
 From compcert Require Export Clightdefs.
+Require Export VST.veric.base.
 Require Export VST.veric.SeparationLogic.
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
@@ -248,14 +249,14 @@ Definition semax_body
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
 
-Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop :=
+Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
     forall V G C, @semax_func Espec V G C nil nil
 | semax_func_cons:
   forall {Espec: OracleKind},
      forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
       andb (id_in_list id (map (@fst _ _) G))
-      (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
+      (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
         (semax_body_params_ok f)) = true ->
       Forall
          (fun it : ident * type =>
@@ -1641,7 +1642,7 @@ Proof.
     apply andp_ENTAIL; [apply ENTAIL_refl |].
     intro rho; simpl.
     unfold local, lift1; normalize.
-    apply assert_lemmas.tc_expr_sub; auto.
+    apply Clight_assert_lemmas.tc_expr_sub; auto.
     eapply semax_lemmas.typecheck_environ_sub; eauto.
   + eapply AuxDefs.semax_seq; eauto.
   + eapply AuxDefs.semax_break; eauto.
@@ -1653,7 +1654,7 @@ Proof.
       rewrite (add_andp _ _ (H0 _)).
       unfold local, lift1; normalize.
       apply andp_left2.
-      apply assert_lemmas.tc_expr_sub; auto.
+      apply Clight_assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - intros.
       eapply semax_pre; [| apply H2].
@@ -1679,10 +1680,10 @@ Proof.
     - apply later_ENTAIL.
       apply andp_ENTAIL.
       * intro rho; simpl; unfold local, lift1; normalize.
-        apply assert_lemmas.tc_expr_sub; auto.
+        apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * intro rho; simpl; unfold local, lift1; normalize.
-        apply assert_lemmas.tc_exprlist_sub; auto.
+        apply Clight_assert_lemmas.tc_exprlist_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
     - apply ENTAIL_refl.
     - apply later_ENTAIL.
@@ -1700,7 +1701,7 @@ Proof.
     intro rho; simpl.
     unfold local, lift1; normalize.
     destruct ret.
-    - apply assert_lemmas.tc_expr_sub; auto.
+    - apply Clight_assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - simpl; auto.
   + eapply semax_pre; [| apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward].
@@ -1709,10 +1710,10 @@ Proof.
       apply andp_ENTAIL; [| apply ENTAIL_refl].
       apply andp_ENTAIL.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply assert_lemmas.tc_expr_sub; auto.
+        apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply assert_lemmas.tc_temp_id_sub; auto.
+        apply Clight_assert_lemmas.tc_temp_id_sub; auto.
     - apply exp_ENTAIL; intro cmp.
       apply exp_ENTAIL; intro e1.
       apply exp_ENTAIL; intro e2.
@@ -1730,10 +1731,10 @@ unfold local, lift1; intro rho; simpl; normalize.
         destruct H6; split; auto.
         eapply typecheck_tid_ptr_compare_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply assert_lemmas.tc_expr_sub; auto.
+        apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply assert_lemmas.tc_expr_sub; auto.
+        apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
@@ -1745,9 +1746,9 @@ unfold local, lift1; intro rho; simpl; normalize.
       apply andp_ENTAIL; [| apply later_ENTAIL, andp_ENTAIL; [apply andp_ENTAIL; [apply andp_ENTAIL |] |] ].
       * unfold local, lift1; intro rho; simpl; normalize.
         destruct H1; split; auto.
-        eapply assert_lemmas.typeof_temp_sub; eauto.
+        eapply Clight_assert_lemmas.typeof_temp_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply assert_lemmas.tc_lvalue_sub; auto.
+        apply Clight_assert_lemmas.tc_lvalue_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
@@ -1760,9 +1761,9 @@ unfold local, lift1; intro rho; simpl; normalize.
       * unfold local, lift1; intro rho; simpl; normalize.
         destruct H1; split; auto.
         destruct H2; split; auto.
-        eapply assert_lemmas.typeof_temp_sub; eauto.
+        eapply Clight_assert_lemmas.typeof_temp_sub; eauto.
       * unfold local, lift1; intro rho; simpl; normalize.
-        apply assert_lemmas.tc_lvalue_sub; auto.
+        apply Clight_assert_lemmas.tc_lvalue_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * apply ENTAIL_refl.
       * apply ENTAIL_refl.
@@ -1774,10 +1775,10 @@ unfold local, lift1; intro rho; simpl; normalize.
     apply andp_ENTAIL; [| apply ENTAIL_refl].
     apply andp_ENTAIL.
     - unfold local, lift1; intro rho; simpl; normalize.
-      apply assert_lemmas.tc_lvalue_sub; auto.
+      apply Clight_assert_lemmas.tc_lvalue_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
     - unfold local, lift1; intro rho; simpl; normalize.
-      apply assert_lemmas.tc_expr_sub; auto.
+      apply Clight_assert_lemmas.tc_expr_sub; auto.
       eapply semax_lemmas.typecheck_environ_sub; eauto.
   + apply AuxDefs.semax_skip.
   + apply AuxDefs.semax_builtin.
@@ -1788,28 +1789,28 @@ unfold local, lift1; intro rho; simpl; normalize.
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
+      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H1].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
+      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H2].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
+      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - eapply derives_trans; [| exact H3].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
+      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
     - intros.
       eapply derives_trans; [| apply H4].
       apply andp_derives; [| apply andp_derives]; auto.
       * unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
-      * intro; apply assert_lemmas.allp_fun_id_sub; auto.
+      * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
 Lemma semax_loop_nocontinue:

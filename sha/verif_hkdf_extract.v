@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-Require Import sha.spec_sha.
+Require Import sha.vst_lemmas.
 Require Import sha.hmac_common_lemmas.
 
 Require Import sha.hkdf.
@@ -21,9 +21,9 @@ assert_PROP (isptr salt) as Ptr_salt.
 apply vst_lemmas.isptrD in Ptr_salt. destruct Ptr_salt as [sb [si SLT]]. subst salt.
 thaw FR1.
 idtac "Timing the call to HMAC".
-Time forward_call (out, SALT, secret, SECRET, kv, shmd, sb, si).
-apply extract_exists_pre. intros Hmac. 
-idtac "Timing the normalize". Time normalize. (*Coq8.6: 2secs*)
+Time forward_call (out, SALT, Tsh, secret, SECRET, Tsh, shmd, sb, si, gv). (*3.7s*)
+apply extract_exists_pre; intros Hmac. 
+idtac "Timing the normalize". Time normalize. (*Coq8.6: 1secs*)
 (*yields 
 H: ByteBitRelations.bytesToBits
       (HMAC256_functional_prog.HMAC256 (CONT SECRET) (CONT SALT)) =
@@ -58,8 +58,8 @@ forward_if (PROP ( )
    LOCAL (temp _t'1 out; temp _out_key out; 
    temp _out_len olen; temp _salt (Vptr sb si); temp _salt_len (Vint (Int.repr (LEN SALT)));
    temp _secret secret; temp _secret_len (Vint (Int.repr (LEN SECRET)));
-   gvar sha._K256 kv)
-   SEP (K_vector kv; data_block shmd Hmac out; initPostKey (Vptr sb si) (CONT SALT);
+   gvars gv)
+   SEP (spec_sha.K_vector gv; data_block shmd Hmac out; initPostKey Tsh (Vptr sb si) (CONT SALT);
    data_block Tsh (CONT SECRET) secret; data_at_ Tsh tuint olen)).
 { apply denote_tc_test_eq_split. 
   + unfold data_block. normalize.
@@ -69,13 +69,11 @@ forward_if (PROP ( )
     apply sepcon_valid_pointer2. apply data_at_valid_ptr.
     apply readable_nonidentity. apply writable_readable; trivial.
     rewrite HMAC_Zlength; simpl; omega.
-  + auto with valid_pointer }
+  + auto with valid_pointer. }
 { subst out; contradiction. }
-{ clear H; forward. entailer!. }
+{ clear H; forward. entailer!. rewrite <- @change_compspecs_data_block. trivial. }
 
 forward. forward. 
-unfold HKDF_extract. cancel. 
+unfold HKDF_extract. cancel. rewrite @change_compspecs_data_block. trivial.
 Time Qed.
-(*Coq 8.6: 2.5 secs*)
-(*Feb 23rd 2017 (Coq8.5pl2): Finished transaction in 24.859 secs (17.937u,0.s) (successful)*)
- (*earlier: Finished transaction in 5.781 secs (4.89u,0.s) (successful)*)
+(*Finished transaction in 0.545 secs (0.544u,0.s) (successful)*)

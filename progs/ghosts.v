@@ -433,9 +433,9 @@ Qed.
 
 End Snapshot.
 
-Definition pos_PCM := initial_world.pos_PCM.
-Definition ref_PCM := initial_world.ref_PCM.
-Notation completable := initial_world.completable.
+Definition pos_PCM := ghost_PCM.pos_PCM.
+Definition ref_PCM := ghost_PCM.ref_PCM.
+Notation completable := ghost_PCM.completable.
 
 Section Reference.
 

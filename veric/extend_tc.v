@@ -1,7 +1,8 @@
 Require Import VST.msl.log_normalize.
 Require Import VST.msl.alg_seplog.
-Require Export VST.veric.base.
+Require Export VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.binop_lemmas2.

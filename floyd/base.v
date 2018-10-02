@@ -1,4 +1,5 @@
 From compcert Require Export Clightdefs.
+Require Export VST.veric.base.
 Require Export VST.veric.SeparationLogic.
 Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.

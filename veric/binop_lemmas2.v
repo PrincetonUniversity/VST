@@ -1,10 +1,11 @@
 Require Import VST.msl.msl_standard.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_lemmas.
+Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
-Require Import VST.veric.Cop2.
+Require Import VST.veric.Clight_Cop2.
 Import Cop.
 
 Lemma eval_expr_any:
@@ -60,7 +61,7 @@ try solve [
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    try reflexivity;
    cbv beta iota delta [
-    sem_binary_operation' Cop2.sem_cmp classify_cmp typeconv
+    sem_binary_operation' Clight_Cop2.sem_cmp classify_cmp typeconv
     remove_attributes change_attributes 
    ];
   repeat match goal with |- context [eqb_type ?A ?B] =>
@@ -78,7 +79,7 @@ all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    try reflexivity;
    cbv beta iota delta [
-    sem_binary_operation' Cop2.sem_cmp classify_cmp typeconv
+    sem_binary_operation' Clight_Cop2.sem_cmp classify_cmp typeconv
     remove_attributes change_attributes 
    ];
   repeat match goal with |- context [eqb_type ?A ?B] =>
@@ -94,7 +95,7 @@ all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence;
      auto .. ]); auto;
-  try (unfold Cop2.sem_cast, Cop2.classify_cast; repeat simple_if_tac; reflexivity).
+  try (unfold Clight_Cop2.sem_cast, Clight_Cop2.classify_cast; repeat simple_if_tac; reflexivity).
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct (cenv_cs ! i0) as [co |]; auto.
@@ -891,7 +892,7 @@ Lemma tc_val_sem_cmp:
  tc_numeric_val v1 t1 ->
  tc_numeric_val v2 t2 ->
 tc_val (Tint i3 s3 a3)
-  (force_val (Cop2.sem_cmp op t1 t2 v1 v2)).
+  (force_val (Clight_Cop2.sem_cmp op t1 t2 v1 v2)).
 Proof.
 Opaque tc_val.
 destruct op; intros;
@@ -901,8 +902,8 @@ destruct v1;
 destruct v2;
   destruct t2 as  [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  try contradiction H0;
- unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  Cop2.sem_binarith, Cop2.sem_cast, classify_cast;
+ unfold Clight_Cop2.sem_cmp, classify_cmp, typeconv,
+  Clight_Cop2.sem_binarith, Clight_Cop2.sem_cast, classify_cast;
  simpl;
 try apply tc_val_of_bool.
 Transparent tc_val.
@@ -921,13 +922,13 @@ Qed.
 
 Lemma tc_val'_sem_cmp: forall cmp t v1 v2 t1 t2,
   is_int_type t = true ->
-  tc_val' t (force_val2 (Cop2.sem_cmp cmp t1 t2) v1 v2).
+  tc_val' t (force_val2 (Clight_Cop2.sem_cmp cmp t1 t2) v1 v2).
 Proof.
   intros.
   destruct t; inv H.
   unfold force_val2, force_val.
-  destruct (Cop2.sem_cmp cmp t1 t2 v1 v2) eqn:?H; [| intros ?; congruence].
-  unfold Cop2.sem_cmp in H.
+  destruct (Clight_Cop2.sem_cmp cmp t1 t2 v1 v2) eqn:?H; [| intros ?; congruence].
+  unfold Clight_Cop2.sem_cmp in H.
   Opaque tc_val.
   destruct (Cop.classify_cmp t1 t2).
   + revert H; simple_if_tac; intros; [congruence |].
@@ -956,35 +957,35 @@ Proof.
     - eapply tc_val'_sem_cmp_pp; eauto.
     - destruct Archi.ptr64; inv H.
       eapply tc_val'_sem_cmp_pp; eauto.
-  + unfold sem_cmp_default, Cop2.sem_binarith in H.
+  + unfold sem_cmp_default, Clight_Cop2.sem_binarith in H.
     destruct (Cop.classify_binarith t1 t2).
     - unfold both_int in H.
-      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_i s0)) v1) as v1'.
-      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_i s0)) v2) as v2'.
+      forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_i s0)) v1) as v1'.
+      forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_i s0)) v2) as v2'.
       destruct v1'; [| inv H].
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
       intros _; apply tc_val_of_bool.
     - unfold both_long in H.
-      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_l s0)) v1) as v1'.
-      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_l s0)) v2) as v2'.
+      forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_l s0)) v1) as v1'.
+      forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_l s0)) v2) as v2'.
       destruct v1'; [| inv H].
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
       intros _; apply tc_val_of_bool.
     - unfold both_float in H.
-      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_f)) v1) as v1'.
-      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_f)) v2) as v2'.
+      forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_f)) v1) as v1'.
+      forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_f)) v2) as v2'.
       destruct v1'; [| inv H].
       destruct v0; inv H.
       destruct v2'; [| inv H1].
       destruct v0; inv H1.
       intros _; apply tc_val_of_bool.
     - unfold both_single in H.
-      forget (Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_s)) v1) as v1'.
-      forget (Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_s)) v2) as v2'.
+      forget (Clight_Cop2.sem_cast t1 (Cop.binarith_type (Cop.bin_case_s)) v1) as v1'.
+      forget (Clight_Cop2.sem_cast t2 (Cop.binarith_type (Cop.bin_case_s)) v2) as v2'.
       destruct v1'; [| inv H].
       destruct v0; inv H.
       destruct v2'; [| inv H1].
@@ -1003,7 +1004,7 @@ Lemma tc_val_cmp_eqne_ip:
  end ->
  tc_val (Tpointer t0 a0) v2 ->
 tc_val (Tint i2 s0 a1)
-  (force_val (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2)).
+  (force_val (Clight_Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2)).
 Proof.
 Opaque tc_val.
 intros until 1; rename H into CMP; intros;
@@ -1012,8 +1013,8 @@ intros until 1; rename H into CMP; intros;
  destruct v2; 
  try (inv H0; try rewrite H2;
  try destruct i0; destruct s;
-unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_lp, sem_cmp_pp;
+unfold Clight_Cop2.sem_cmp, classify_cmp, typeconv,
+  Clight_Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_lp, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
  try apply tc_val_of_bool).
@@ -1031,7 +1032,7 @@ Lemma tc_val_cmp_eqne_pi:
  end ->
 tc_val (Tpointer t0 a0) v2 ->
 tc_val (Tint i2 s0 a1) 
-  (force_val (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1)).
+  (force_val (Clight_Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1)).
 Proof.
 Opaque tc_val.
 intros until 1; rename H into CMP; intros.
@@ -1040,7 +1041,7 @@ intros until 1; rename H into CMP; intros.
  destruct v2; 
  try (inv H0; try rewrite H2;
  try destruct i0; destruct s;
-unfold Cop2.sem_cmp, classify_cmp, typeconv,
+unfold Clight_Cop2.sem_cmp, classify_cmp, typeconv,
   sem_binarith, sem_cast, classify_cast, sem_cmp_pl, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
@@ -1061,7 +1062,7 @@ match t1 with
   | Tfloat ?i _ => try (is_var i; destruct i)
   | _ => idtac
   end;
-  unfold Cop2.sem_cmp, sem_cmp_pl, sem_cmp_lp, sem_cmp_pp; simpl;
+  unfold Clight_Cop2.sem_cmp, sem_cmp_pl, sem_cmp_lp, sem_cmp_pp; simpl;
  repeat match goal with
             | H: _ = true |- _ =>
                 try rewrite H; clear H

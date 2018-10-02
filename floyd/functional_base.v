@@ -11,6 +11,19 @@ Require Export VST.floyd.sublist.
 
 Require Import VST.veric.val_lemmas.
 
+Lemma Vint_injective i j (H: Vint i = Vint j): i=j.
+Proof. inv H; trivial. Qed. 
+
+Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
+Proof. induction l; intros.
++ destruct m; inv H; trivial.
++ destruct m; inv H. f_equal; eauto.
+Qed.
+
+
+Lemma cons_inv {A} (a a':A) l l': a::l = a'::l' -> a=a' /\ l=l'.
+Proof. intros. inv H; eauto. Qed.
+
 Instance Inhabitant_val : Inhabitant val := Vundef.
 Instance Inhabitant_int: Inhabitant int := Int.zero.
 Instance Inhabitant_byte: Inhabitant byte := Byte.zero.
@@ -19,21 +32,11 @@ Instance Inhabitant_ptrofs: Inhabitant Ptrofs.int := Ptrofs.zero.
 Instance Inhabitant_float : Inhabitant float := Float.zero.
 Instance Inhabitant_float32 : Inhabitant float32 := Float32.zero.
 
+Definition Vubyte (c: Byte.int) : val :=
+  Vint (Int.repr (Byte.unsigned c)).
+
 Definition Vbyte (c: Byte.int) : val :=
   Vint (Int.repr (Byte.signed c)).
-
-Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
-  0 <= i < Zlength l -> Znth i (map Vbyte l)  = Vbyte (Znth i l).
-Proof.
-  intros i l.
-  apply Znth_map.
-Qed.
-Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
-
-Ltac fold_Vbyte :=
- repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
-      fold (Vbyte c)
-end.
 
 Hint Rewrite 
    (@Znth_map val _) (@Znth_map int _) (@Znth_map byte _)
@@ -606,3 +609,58 @@ Ltac rep_omega :=
 
 Ltac repable_signed := 
   idtac "Warning: repable_signed is deprecated;  use rep_omega"; rep_omega.
+
+Lemma Vubyte_injective i j (H: Vubyte i = Vubyte j): i=j.
+Proof.
+  assert (B: Byte.zwordsize = 8) by reflexivity.
+  assert (I: Int.zwordsize = 32) by reflexivity.
+  apply Byte.same_bits_eq; intros a A.
+  unfold Vubyte in H. remember (Int.repr (Byte.unsigned i)) as z.
+  inv H. destruct i; destruct j. unfold Byte.testbit.
+  unfold Byte.unsigned in H1. simpl in *.
+  rewrite <- 2 Int.testbit_repr, H1; trivial; omega.
+Qed. 
+
+Lemma map_Vubyte_injective: forall l m, map Vubyte l = map Vubyte m -> l=m.
+Proof. induction l; intros.
++ destruct m; simpl in *; inv H; trivial.
++ destruct m; [ inv H |]. rewrite 2 map_cons in H. apply cons_inv in H.
+  destruct H; subst. apply Vubyte_injective in H. f_equal; eauto.
+Qed.
+
+Lemma Vbyte_injective a b (H: Vbyte a = Vbyte b): a=b.
+Proof. unfold Vbyte in H. apply Vint_injective in H.
+  apply Byte.same_bits_eq; intros i I.
+  assert (Imin: Int.min_signed = -2147483648) by reflexivity.
+  assert (Imax: Int.max_signed = 2147483647) by reflexivity.
+  assert (Bmin: Byte.min_signed = -128) by reflexivity.
+  assert (Bmax: Byte.max_signed = 127) by reflexivity.
+  assert (Byte.signed a = Byte.signed b).
+  { rewrite <- (Int.signed_repr (Byte.signed a)). 
+    rewrite <- (Int.signed_repr (Byte.signed b)).
+    rewrite H; trivial. specialize (Byte.signed_range b); omega.
+    specialize (Byte.signed_range a); omega. }
+  clear H. unfold Byte.testbit. rewrite 2 Byte.unsigned_signed. 
+  unfold Byte.lt. rewrite H0. trivial. 
+Qed.
+
+Lemma Znth_map_Vbyte: forall (i : Z) (l : list byte),
+  0 <= i < Zlength l -> Znth i (map Vbyte l)  = Vbyte (Znth i l).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+Hint Rewrite Znth_map_Vbyte using list_solve : norm entailer_rewrite.
+
+Ltac fold_Vbyte :=
+ repeat match goal with |- context [Vint (Int.repr (Byte.signed ?c))] =>
+      fold (Vbyte c)
+end.
+
+Lemma Znth_map_Vubyte: forall (i : Z) (l : list byte),
+  0 <= i < Zlength l -> Znth i (map Vubyte l)  = Vubyte (Znth i l).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.

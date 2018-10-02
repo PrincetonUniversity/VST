@@ -914,35 +914,33 @@ rewrite H3. repeat rewrite preds_fmap_NoneP. unfold pfullshare.
 apply join_unit2. constructor. apply join_unit1; auto.
 f_equal. apply proof_irr.
 * (* ~adr_range *)
- clear H0.
-generalize (H3 _ n); intro H3'.
+  clear H0.
+  generalize (H3 _ n); intro H3'.
   assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
   do 2 rewrite core_resource_at. unfold Join_rmap in *.  unfold Sep_rmap in  *; congruence.
   apply identity_resource in H3'.
   revert H3'; case_eq (m1 @ (b0,ofs0));intros; try contradiction; try constructor.
-  apply identity_share_bot in H3'; subst sh.
-2:{
-  rewrite H6 in H0. rewrite core_PURE in H0.
-  destruct (m_phi j @ (b0,ofs0)).
-  rewrite core_NO in H0; inv H0. rewrite core_YES in H0; inv H0.
-  rewrite core_PURE in H0. inversion H0. subst k0 p0; constructor.
-}
-  rename H6 into Hm1.
- clear H0.
-destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
-(* rewrite <- H0 in *; clear H0.*)
-  assert (Ha0 := juicy_mem_access j (b0,ofs0)).
- revert Ha0;
-  case_eq (m_phi j @ (b0,ofs0)); intros.
- constructor. apply join_unit1; auto.
- constructor. apply join_unit1; auto.
+  + apply identity_share_bot in H3'; subst sh.
+    rename H6 into Hm1.
+    clear H0.
+    destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
+    (* rewrite <- H0 in *; clear H0.*)
+    assert (Ha0 := juicy_mem_access j (b0,ofs0)).
+    revert Ha0;
+      case_eq (m_phi j @ (b0,ofs0)); intros.
+    constructor. apply join_unit1; auto.
+    constructor. apply join_unit1; auto.
 
-  elimtype False.
-  clear - H2 Hm1 H0 H6.
-  assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
-  do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
-  rewrite Hm1 in H. rewrite H6 in H.
-  rewrite core_PURE in H. rewrite core_NO in H; inv H.
+    elimtype False.
+    clear - H2 Hm1 H0 H6.
+    assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
+    do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
+    rewrite Hm1 in H. rewrite H6 in H.
+    rewrite core_PURE in H. rewrite core_NO in H; inv H.
+  + rewrite H6 in H0. rewrite core_PURE in H0.
+    destruct (m_phi j @ (b0,ofs0)).
+    rewrite core_NO in H0; inv H0. rewrite core_YES in H0; inv H0.
+    rewrite core_PURE in H0. inversion H0. subst k0 p0; constructor.
 * destruct H1 as [_ Hg].
   rewrite (identity_core Hg), core_ghost_of, H2.
   subst j'; simpl.
@@ -1201,4 +1199,3 @@ Proof.
   apply glb_Rsh_not_top.
   repeat if_tac; constructor.
 Qed.
-

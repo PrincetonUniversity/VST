@@ -1,6 +1,6 @@
 Require Import VST.msl.msl_standard.
 Require Import VST.msl.seplog.
-Require Import VST.veric.base.
+Require Import VST.veric.Clight_base.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.

@@ -1,8 +1,8 @@
 (* This file is developed by Qinxiang Cao, Aquinas Hobor and Shengyi Wang in 2015. *)
 
-Require Export VST.veric.base.
-Require Import VST.veric.tycontext.
-Require Import VST.veric.expr2.
+Require Import VST.veric.base.
+Require Import VST.veric.val_lemmas.
+Require Import VST.veric.Memory.
 
 Lemma range_overlap_spec: forall l1 n1 l2 n2,
   n1 > 0 ->
@@ -63,7 +63,8 @@ Proof.
     inversion HH].
   destruct (zlt 0 n1); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
   destruct (zlt 0 n2); [| right; intros [[? ?] [[? ?] [_ [_ HH]]]]; apply range_overlap_non_zero in HH; omega].
-  destruct (Clight_lemmas.block_eq_dec b b0).
+  destruct (eq_block b b0).
+  (*destruct (Clight_lemmas.block_eq_dec b b0).*)
   + subst b0.
     unfold val2adr.
     forget (Ptrofs.unsigned i) as i1;

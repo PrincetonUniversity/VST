@@ -2,7 +2,8 @@ Require Import Coq.Sorting.Permutation.
 Require Import Coq.Sorting.Sorting.
 Require Import Coq.Structures.Orders.
 Require Import VST.veric.base.
-Require Import VST.veric.Clight_lemmas.
+
+Require Import compcert.cfrontend.Ctypes. 
 
 (* TODO: This is obviously true. Ask Xavior to remove the definition list_norepet.*)
 Axiom list_norepet_NoDup: forall {A: Type} (l: list A), list_norepet l <-> NoDup l.
@@ -153,7 +154,7 @@ Proof.
     eapply Permutation_in.
     + symmetry; apply RCT_Permutation.
     + apply PTree.elements_correct; auto.
-  }
+  } 
   clear H.
   pose proof CompositeRankSort.StronglySorted_sort (PTree.elements cenv) CompositeRankOrder.leb_trans.
   pose proof app_nil_l rebuild_composite_elements.
@@ -472,7 +473,7 @@ Proof.
     assert (CENV0: PTree.get i0 cenv = Some co0).
     { apply H1; left; auto. }
     spec IHl; [| clear H1].
-    { intros; apply H1; right; auto. }
+    { intros; apply H1; right; auto. } 
     inv H2.
     rename H1 into NOT_IN_LIST; specialize (IHl H3); clear H3.
     destruct IHl as [IH_In_equiv [IH_RDT IH_main]].

@@ -1,7 +1,8 @@
 Require Import VST.floyd.proofauto.
-Require Import sha.spec_sha.
+(*Require Import sha.spec_sha.*)
 Require Import sha.spec_hmac.
 Require Import hmacdrbg.hmac_drbg.
+Require Import sha.vst_lemmas.
 
 Ltac make_cs_preserve' :=
  match goal with |- change_composite_env ?a ?b =>

@@ -6,7 +6,7 @@ Local Open Scope logic.
 
 Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
-         (fs : list (ident * fundef)) (id : ident) (ef : external_function)
+         (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
          (G' : funspecs) cc,
        (id_in_list id (map fst fs)) = false ->
@@ -191,7 +191,7 @@ apply (@semax_loop cs Espec Delta Q Q).
  all: try (intros; apply andp_left2; destruct R; apply derives_refl).
  intros. apply andp_left2. destruct R; simpl. normalize.
  intros. apply andp_left2. destruct R; simpl. normalize.
-}
+} 
 apply semax_seq with
  (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
 apply semax_pre_simple with ( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q).

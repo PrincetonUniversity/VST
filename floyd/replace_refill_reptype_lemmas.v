@@ -9,6 +9,7 @@ Require Import Coq.Classes.RelationClasses.
 Require Import VST.floyd.sublist.
 Require Import VST.floyd.stronger.
 
+Require Import VST.floyd.stronger.
 Section SINGLE_HOLE.
 
 Context {cs: compspecs}.

@@ -1,5 +1,5 @@
 Require Import VST.veric.base.
-Require Import VST.veric.Clight_lemmas.
+Require Import compcert.cfrontend.Ctypes.
 
 Section COMPOSITE_ENV.
 

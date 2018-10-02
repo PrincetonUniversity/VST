@@ -2,24 +2,25 @@ Require Import VST.floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-(************************ TO BE MOVED SOMEWHERE INSODE FLOYD****************)
-Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H; trivial.
-+ destruct m; simpl in *; inv H. f_equal; eauto.
-Qed.
-
-(****************************************************************************)
-
-
 Require Import VST.floyd.library.
-
-Require Import sha.spec_sha.
+Require Import sha.vst_lemmas.
 Require Import sha.protocol_spec_hmac.
 
 Require Import sha.hkdf_functional_prog.
 Require Import sha.hkdf.
-Require Import sha.hkdf_compspecs.
+
+Require Import VST.veric.change_compspecs.
+
+Instance CompSpecs : compspecs. 
+Proof. make_compspecs prog. Defined. (*
+Instance CompSpecs_Preserve: change_composite_env spec_sha.CompSpecs CompSpecs.
+  make_cs_preserve spec_sha.CompSpecs CompSpecs.
+Defined.*)
+Instance CompSpecs_Preserve: change_composite_env spec_hmac.CompSpecs CompSpecs.
+  make_cs_preserve spec_hmac.CompSpecs CompSpecs.
+Defined.
+
+(*Require Import sha.hkdf_compspecs.*)
 
 Declare Module HMAC_SPEC : HMAC_ABSTRACT_SPEC.
 
@@ -52,16 +53,15 @@ Definition HKDF_expand_spec :=
                 temp _prk_len (Vint (Int.repr (spec_hmac.LEN PRK)));
                 temp _info info;
                 temp _info_len (Vint (Int.repr (spec_hmac.LEN INFO)));
-                gvars gv (*  gvar sha._K256 kv *))
+                gvars gv)
          SEP(data_block Tsh (spec_hmac.CONT INFO) info;
              data_block Tsh (spec_hmac.CONT PRK) prk;
-             K_vector gv;
-             memory_block shmd olen out
-             (*data_at_ shmd (tarray tuchar olen) out*))
+             spec_sha.K_vector gv;
+             memory_block shmd olen out)
   POST [ tint ] EX result:_,
           PROP (result = expand_out_post shmd (spec_hmac.CONT PRK) (spec_hmac.CONT INFO) olen out)
           LOCAL (temp ret_temp (Vint (Int.repr (fst result))))
-          SEP(K_vector gv;
+          SEP(spec_sha.K_vector gv;
               data_block Tsh (spec_hmac.CONT INFO) info;
               data_block Tsh (spec_hmac.CONT PRK) prk;
               (snd result)).
@@ -86,12 +86,12 @@ Definition HKDF_extract_spec :=
                 gvars gv)
          SEP(data_block Tsh (spec_hmac.CONT SECRET) secret;
              data_block Tsh (spec_hmac.CONT SALT) salt;
-             K_vector gv; data_at_ Tsh tuint olen;
+             spec_sha.K_vector gv; data_at_ Tsh tuint olen;
              memory_block shmd 32 out)
   POST [ tint ]  
           PROP ()
           LOCAL (temp ret_temp (Vint (Int.repr 1)))
-          SEP(K_vector gv;
+          SEP(spec_sha.K_vector gv;
               data_block Tsh (spec_hmac.CONT SECRET) secret;
               data_block Tsh (spec_hmac.CONT SALT) salt; data_at Tsh tuint (Vint (Int.repr 32)) olen;
               data_block shmd (HKDF_extract (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET)) out).
@@ -125,12 +125,12 @@ Definition HKDF_spec :=
          SEP(data_block Tsh (spec_hmac.CONT SECRET) secret;
              data_block Tsh (spec_hmac.CONT SALT) salt;
              data_block Tsh (spec_hmac.CONT INFO) info;
-             K_vector gv;
+             spec_sha.K_vector gv;
              memory_block shmd olen out)
   POST [ tint ] EX r:Z,
           PROP ()
           LOCAL (temp ret_temp (Vint (Int.repr r)))
-          SEP(K_vector gv;
+          SEP(spec_sha.K_vector gv;
               data_block Tsh (spec_hmac.CONT SECRET) secret;
               data_block Tsh (spec_hmac.CONT SALT) salt;
               data_block Tsh (spec_hmac.CONT INFO) info;
@@ -143,18 +143,19 @@ Definition HKDF_spec :=
 field_compatible/size_compatible side condition (cf Lemma memory_block_data_at__tarray_tuchar) *)
 Definition memcpy_tuchar_array_spec {cs:compspecs} :=
   DECLARE _memcpy
-   WITH shq : share, shp:share, p: val, q: val, n: Z, m:Z, k:Z, contents: list int 
+   WITH shq : share, shp:share, p: val, q: val, n: Z, m:Z, k:Z, contents: list byte
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
        PROP (readable_share shq; writable_share shp; 0 <= k <= n;
        k <= m <= Int.max_unsigned) 
        LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr k)))
-       SEP (@data_at cs shq (tarray tuchar m) (map Vint contents) q;
+       SEP (@data_at cs shq (tarray tuchar m) (map Vubyte contents) q;
             @memory_block shp n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
-       SEP(data_at shq (tarray tuchar m) (map Vint contents) q;
-           data_at shp (tarray tuchar k) (map Vint (sublist 0 k contents)) p;
+       SEP(data_at shq (tarray tuchar m) (map Vubyte contents) q;
+           data_at shp (tarray tuchar k) (map Vubyte (sublist 0 k contents)) p;
            memory_block shp (n-k) (offset_val k p)).
+
 (*Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). *)
 
 (***************** We combine all specifications to a specification context *******)
@@ -169,40 +170,38 @@ Definition Hkdf_VarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
 
 
 Definition hmac_init_funspec:=
-    (WITH x : val * Z * list Z * val + val * Z * list Z * val * val
+    (WITH x : share * val * Z * list byte * globals + share * val * Z * list byte * globals * val
      PRE
      [(hmac._ctx, tptr spec_hmac.t_struct_hmac_ctx_st), (hmac._key, tptr tuchar),
      (hmac._len, tint)] match x with
-                        | inl (c, l, key, kv) =>
+                        | inl (sh,c, l, key, gv) =>
                             PROP ( )
                             LOCAL (temp hmac._ctx c; temp hmac._key nullval;
-                            temp hmac._len (Vint (Int.repr l)); 
-                            gvar sha._K256 kv)
-                            SEP (HMAC_SPEC.FULL key c;
-                            spec_sha.K_vector kv)
-                        | inr (c, l, key, kv, k) =>
+                                   temp hmac._len (Vint (Int.repr l)); gvars gv)
+                            SEP (HMAC_SPEC.FULL sh key c; spec_sha.K_vector gv)
+                        | inr (sh,c, l, key, gv, k) =>
                             PROP (spec_hmac.has_lengthK l key)
                             LOCAL (temp hmac._ctx c; temp hmac._key k;
-                            temp hmac._len (Vint (Int.repr l)); 
-                            gvar sha._K256 kv)
-                            SEP (HMAC_SPEC.EMPTY c;
-                            spec_sha.data_block Tsh key k; 
-                            spec_sha.K_vector kv)
+                                   temp hmac._len (Vint (Int.repr l)); 
+                                   gvars gv)
+                            SEP (HMAC_SPEC.EMPTY sh c;
+                                 data_block Tsh key k; 
+                                 spec_sha.K_vector gv)
                         end
      POST [tvoid] match x with
-                  | inl (c, _, key, kv) =>
+                  | inl (sh,c, _, key, gv) =>
                       PROP ( )
                       LOCAL ()
-                      SEP (HMAC_SPEC.REP
+                      SEP (HMAC_SPEC.REP sh
                              (HMAC_SPEC.hABS key []) c;
-                      spec_sha.K_vector kv)
-                  | inr (c, _, key, kv, k) =>
+                           spec_sha.K_vector gv)
+                  | inr (sh,c, _, key, gv, k) =>
                       PROP ( )
                       LOCAL ()
-                      SEP (HMAC_SPEC.REP
+                      SEP (HMAC_SPEC.REP sh
                              (HMAC_SPEC.hABS key []) c;
-                      spec_sha.data_block Tsh key k; 
-                      spec_sha.K_vector kv)
+                           data_block Tsh key k; 
+                           spec_sha.K_vector gv)
                   end).
 
 Definition Hkdf_FunSpecs : funspecs := ltac:(with_library prog (
@@ -214,6 +213,16 @@ Definition Hkdf_FunSpecs : funspecs := ltac:(with_library prog (
   (HMAC_SPEC.hmac_cleanup_spec)::  
   (_HMAC_Init, hmac_init_funspec)::
   (HMAC_SPEC.hmac_crypto_spec)::nil)).
+
+Lemma change_compspecs_data_block: forall sh v,
+  @data_block spec_hmac.CompSpecs sh v =
+  @data_block CompSpecs sh v.
+Proof.
+  intros.
+  unfold data_block.
+  apply data_at_change_composite; auto.
+Qed.
+
 (*
 Inductive augmentFunspecsResult :=
   OK_aFR: funspecs -> augmentFunspecsResult 

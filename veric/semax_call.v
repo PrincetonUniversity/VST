@@ -4,8 +4,8 @@ Require Import VST.msl.normalize.
 Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
-Require Import VST.veric.seplog.
-Require Import VST.veric.assert_lemmas.
+Require Import VST.veric.Clight_seplog.
+Require Import VST.veric.Clight_assert_lemmas.
 Require Import VST.veric.Clight_new.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
@@ -173,6 +173,65 @@ Proof.
 Qed.
 
 Import JuicyMemOps.
+
+(*Lenb: moved alloc_juicy_variables, juicy_mem_alloc_core, and 
+  alloc_juicy_variables_e here from to veric/juicy_mem_ops.v*)
+
+Fixpoint alloc_juicy_variables (ge: genv) (rho: env) (jm: juicy_mem) (vl: list (ident*type)) : env * juicy_mem :=
+ match vl with
+ | nil => (rho,jm)
+ | (id,ty)::vars => match JuicyMemOps.juicy_mem_alloc jm 0 (@sizeof ge ty) with
+                              (m1,b1) => alloc_juicy_variables ge (PTree.set id (b1,ty) rho) m1 vars
+                           end
+ end.
+
+Lemma juicy_mem_alloc_core:
+  forall jm lo hi jm' b, JuicyMemOps.juicy_mem_alloc jm lo hi = (jm', b) ->
+    core (m_phi jm) = core (m_phi jm').
+Proof.
+ unfold JuicyMemOps.juicy_mem_alloc, after_alloc; intros.
+ inv H.
+ simpl.
+ apply rmap_ext.
+ repeat rewrite level_core. rewrite level_make_rmap. auto.
+ intro loc.
+ repeat rewrite <- core_resource_at.
+ rewrite resource_at_make_rmap.
+ unfold after_alloc'.
+ if_tac; auto.
+ destruct loc as [b z].
+ simpl in H.
+ rewrite core_YES.
+ rewrite juicy_mem_alloc_cohere. rewrite core_NO; auto.
+ simpl. destruct H.
+ revert H; case_eq (alloc (m_dry jm) lo hi); intros.
+ simpl in *. subst b0. apply alloc_result in H. subst b; xomega.
+ rewrite <- (core_ghost_of (proj1_sig _)), ghost_of_make_rmap, core_ghost_of; auto.
+Qed.
+
+Lemma alloc_juicy_variables_e:
+  forall ge rho jm vl rho' jm',
+    alloc_juicy_variables ge rho jm vl = (rho', jm') ->
+  Clight.alloc_variables ge rho (m_dry jm) vl rho' (m_dry jm')
+   /\ level jm = level jm'
+   /\ core (m_phi jm) = core (m_phi jm').
+Proof.
+ intros.
+ revert rho jm H; induction vl; intros.
+ inv H. split; auto. constructor.
+ unfold alloc_juicy_variables in H; fold alloc_juicy_variables in H.
+ destruct a as [id ty].
+ revert H; case_eq (JuicyMemOps.juicy_mem_alloc jm 0 (@sizeof ge ty)); intros jm1 b1 ? ?.
+ specialize (IHvl (PTree.set id (b1,ty) rho) jm1 H0).
+ destruct IHvl as [? [? ?]]; split3; auto.
+ apply alloc_variables_cons  with  (m_dry jm1) b1; auto.
+ apply JuicyMemOps.juicy_mem_alloc_succeeds in H. auto.
+ apply JuicyMemOps.juicy_mem_alloc_level in H.
+ congruence.
+ rewrite <- H3.
+ eapply  juicy_mem_alloc_core; eauto.
+Qed.
+
 
 Lemma alloc_juicy_variables_match_venv:
   forall ge jm vl ve' jm',

@@ -4,9 +4,12 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.shares.
 Require Import VST.veric.juicy_safety.
-Require Import VST.veric.juicy_mem VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.
-Require Import VST.veric.initial_world.
-Require Import VST.veric.own.
+Require Import VST.veric.juicy_mem. (*VST.veric.juicy_mem_lemmas VST.veric.juicy_mem_ops.*)
+
+Require Import VST.veric.ghost_PCM. (*avoids doing Require Import VST.veric.initial_world.*)
+Require Import VST.veric.own. (*for ghost_approx*)
+
+Require Import VST.veric.age_to_resource_at.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -78,6 +81,7 @@ Proof.
   intros. destruct H as (? & ? & ? & ?). eapply corestep_not_halted; eauto.
 Qed.
 
+(*Lenb: removed here. To be moved a more CLight-specific place
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
   jminit_prog: program;
@@ -91,7 +95,7 @@ Record jm_init_package: Type := {
 Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
   jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d)
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
-
+*)
 Definition juicy_core_sem
   {C} (csem: @CoreSemantics C mem) :
    @CoreSemantics C juicy_mem :=

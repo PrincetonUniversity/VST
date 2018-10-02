@@ -1,15 +1,13 @@
 Require Import compcert.common.Memory.
 Require Import VST.msl.Coqlib2.
 Require Import VST.msl.eq_dec.
-Require Import VST.msl.seplog.
 Require Import VST.msl.ageable.
 Require Import VST.msl.age_to.
 Require Import VST.veric.coqlib4.
 Require Import VST.veric.juicy_mem.
-Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.semax.
+Require Import VST.veric.compcert_rmaps. 
+Require Import VST.veric.seplog.
 Require Import VST.veric.juicy_extspec.
-Require Import VST.veric.tycontext.
 Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.age_to_resource_at.
 
@@ -44,13 +42,13 @@ Ltac agehyps :=
 (** * Aging and predicates *)
 
 Lemma hereditary_func_at' loc fs :
-  hereditary age (res_predicates.func_at' fs loc).
+  hereditary age (func_at' fs loc).
 Proof.
   apply pred_hered.
 Qed.
 
 Lemma anti_hereditary_func_at' loc fs :
-  hereditary (fun x y => age y x) (res_predicates.func_at' fs loc).
+  hereditary (fun x y => age y x) (func_at' fs loc).
 Proof.
   intros x y a; destruct fs as [f cc A P Q]; simpl.
   intros [pp E].
@@ -114,12 +112,12 @@ Proof.
     omega.
 Qed.
 
-Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
+Lemma jsafeN__age {G C Z HH Sem Jspec ge ora q n} jm jmaged :
   ext_spec_stable age (JE_spec _ Jspec) ->
   age jm jmaged ->
   le n (level jmaged) ->
-  @jsafeN Z Jspec ge n ora q jm ->
-  @jsafeN Z Jspec ge n ora q jmaged.
+  @jsafeN_ G Z C HH Sem Jspec ge n ora q jm ->
+  @jsafeN_ G Z C HH Sem Jspec ge n ora q jmaged.
 Proof.
   revert q jm jmaged; induction n.
   - constructor 1.
@@ -127,13 +125,13 @@ Proof.
     inv Safe.
     + destruct (jstep_age_sim A H0 ltac:(omega)) as [jmaged' [A' step']].
       econstructor 2; eauto.
-      intros C HC J.
+      intros gh Hg J.
       rewrite (age1_ghost_of _ _ (age_jm_phi A')) in J.
       destruct (own.ghost_joins_approx _ _ _ J) as (J' & Hd').
       rewrite <- level_juice_level_phi in *.
       rewrite <- (age_level _ _ A') in *.
       rewrite level_juice_level_phi, ghost_of_approx in J'.
-      destruct (H1 (own.make_join (ghost_of (m_phi m')) C)) as (b & ? & Hupd & Hsafe); auto.
+      destruct (H1 (own.make_join (ghost_of (m_phi m')) gh)) as (b & ? & Hupd & Hsafe); auto.
       { eapply make_join_ext; eauto. }
       destruct (jm_update_age _ _ _ Hupd A') as (b' & Hupd' & Hage').
       eapply IHn in Hsafe; eauto.
@@ -147,7 +145,7 @@ Proof.
         apply age_level in A.
         omega. }
     + econstructor 3.
-      * eauto.
+      * unfold j_at_external in *; rewrite <- (age_jm_dry A); eassumption. 
       * eapply (proj1 heredspec); eauto.
       * intros ret jm' z' n' Hargsty Hretty H rel post.
         destruct (H2 ret jm' z' n' Hargsty Hretty H) as (c' & atex' & safe'); eauto.
@@ -162,16 +160,16 @@ Proof.
       eapply (proj2 heredspec); eauto.
 Qed.
 
-Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
+Lemma jsafeN__age_to {G C Z HH Sem Jspec ge ora q n} l jm :
   ext_spec_stable age (JE_spec _ Jspec) ->
   le n l ->
-  @jsafeN Z Jspec ge n ora q jm ->
-  @jsafeN Z Jspec ge n ora q (age_to l jm).
+  @jsafeN_ G Z C HH Sem Jspec ge n ora q jm ->
+  @jsafeN_ G Z C HH Sem Jspec ge n ora q (age_to l jm).
 Proof.
   intros Stable nl.
   apply age_to_ind_refined.
   intros x y H L.
-  apply jsafeN_age; auto.
+  apply jsafeN__age; auto.
   omega.
 Qed.
 
