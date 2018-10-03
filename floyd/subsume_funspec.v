@@ -28,8 +28,8 @@ Definition subsume_funspec (f1 f2 : funspec) :=
  match f2 with
  | mk_funspec fsig2 cc2 A2 P2 Q2 _ _ =>
    fsig1 = fsig2 /\ cc1 = cc2 /\
-     forall ts2 x2, exists ts1, 
-        ENTAIL Delta, P2 ts2 x2 |-- EX x1:_, EX F:mpred,
+     forall ts2 x2, 
+        ENTAIL Delta, P2 ts2 x2 |-- EX ts1: list Type, EX x1:_, EX F:mpred,
                              ((`F * P1 ts1 x1) &&
                              (!! (ENTAIL (ret_tycon Delta), `F * Q1 ts1 x1 |-- Q2 ts2 x2)))
   end end.
@@ -71,6 +71,95 @@ intros [? ?].
 do 6 red.
 Opaque Nveric.
 eapply expr_lemmas.tc_val_sem_cast; eauto.
+Qed.
+
+Lemma subsume_funspec_refl:
+  forall fs, subsume_funspec fs fs.
+Proof.
+intros.
+destruct fs; simpl.
+split3; auto.
+intros.
+Exists ts2.
+Exists x2. Exists emp.
+unfold_lift.
+rewrite !emp_sepcon.
+apply andp_right.
+apply andp_left2; auto.
+apply prop_right.
+intros rho'.
+rewrite emp_sepcon.
+apply andp_left2; auto.
+Qed.
+
+
+Lemma sepcon_ENTAIL:
+ forall Delta P Q P' Q',
+  ENTAIL Delta, P |-- P' ->
+  ENTAIL Delta, Q |-- Q' ->
+  ENTAIL Delta, P * Q |-- P' * Q'.
+Proof.
+intros.
+intro rho; specialize (H rho); specialize (H0 rho); simpl in *.
+unfold local, lift1 in *.
+normalize.
+rewrite prop_true_andp in H,H0 by auto.
+apply sepcon_derives; auto.
+Qed.
+
+Lemma subsume_funspec_trans:
+  forall fs1 fs2 fs3, 
+    subsume_funspec fs1 fs2 ->
+    subsume_funspec fs2 fs3 ->
+    subsume_funspec fs1 fs3.
+Proof.
+intros.
+destruct fs1 as [f1 c1 A1 P1 Q1 Pne1 Qne1].
+destruct fs2 as [f2 c2 A2 P2 Q2 Pne2 Qne2].
+destruct fs3 as [f3 c3 A3 P3 Q3 Pne3 Qne3].
+destruct H as [H' [H'' H]].
+destruct H0 as [H0' [H0'' H0]].
+subst f3 c3. subst f2 c2.
+split3; auto.
+intros ts3 x3.
+change
+  (functors.MixVariantFunctor._functor
+        (rmaps.dependent_type_functor_rec ts3 A3) mpred)
+  in x3.
+specialize (H0 ts3 x3).
+eapply ENTAIL_trans; [apply H0 | ].
+clear H0.
+Intros ts2 x2 F.
+change
+  (functors.MixVariantFunctor._functor
+        (rmaps.dependent_type_functor_rec ts2 A2) mpred)
+  in x2.
+specialize (H ts2 x2).
+eapply derives_trans.
+apply sepcon_ENTAIL.
+apply ENTAIL_refl.
+apply H.
+clear H.
+Intros ts1 x1.
+change
+  (functors.MixVariantFunctor._functor
+        (rmaps.dependent_type_functor_rec ts1 A1) mpred)
+  in x1.
+Intros F1.
+Exists ts1 x1 (F*F1).
+apply andp_right.
+intro rho.
+unfold_lift. unfold local, lift1. simpl. normalize.
+rewrite sepcon_assoc. auto.
+apply prop_right.
+apply ENTAIL_trans with (`F * (`F1 * Q1 ts1 x1)).
+apply andp_left2.
+clear. unfold_lift; intro rho; simpl. rewrite sepcon_assoc; auto.
+simpl funsig_tycontext in *.
+eapply ENTAIL_trans; [ | apply H0].
+apply sepcon_ENTAIL.
+apply ENTAIL_refl.
+ auto.
 Qed.
 
 Lemma tc_environ_make_args':
@@ -174,7 +263,6 @@ destruct fs1.
 destruct H2 as [? [? ?]].
 subst c f.
 specialize (H4 ts x).
-destruct H4 as [ts2 H4].
 apply semax_pre with
   (|> (tc_expr Delta a && tc_exprlist Delta (snd (split argsig)) bl) &&
    ((` (func_ptr (mk_funspec (argsig, retsig) cc A0 P0 Q0 P_ne Q_ne)))
@@ -224,7 +312,7 @@ apply derives_extract_prop; intro.
 apply sepcon_derives; auto.
 rewrite (prop_true_andp (tc_environ _ _)) in H4 by auto.
 eapply derives_trans. apply H4.
-Intros x1. Exists ts2 x1. Intros F'. Exists F'.
+Intros ts1 x1 F'. Exists ts1 x1 F'.
 rewrite prop_true_andp by auto.
 apply derives_refl.
 -
@@ -405,7 +493,7 @@ destruct H as [? [? ?]].
 subst f c.
 split3; auto.
 intros.
-exists nil.
+Exists (@nil Type).
 auto.
 clear - HAB.
 destruct fs1; simpl in *.
