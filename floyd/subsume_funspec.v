@@ -162,6 +162,66 @@ apply ENTAIL_refl.
  auto.
 Qed.
 
+Lemma NDsubsume_funspec_refl:
+  forall fsig cc A P Q, 
+   NDsubsume_funspec (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
+Proof.
+intros.
+simpl.
+split3; auto.
+intros.
+Exists x2. Exists emp.
+unfold_lift.
+rewrite !emp_sepcon.
+apply andp_right.
+apply andp_left2; auto.
+apply prop_right.
+intros rho'.
+rewrite emp_sepcon.
+apply andp_left2; auto.
+Qed.
+
+Lemma NDsubsume_funspec_trans:
+  forall fsig1 cc1 A1 P1 Q1 fsig2 cc2 A2 P2 Q2 fsig3 cc3 A3 P3 Q3, 
+   NDsubsume_funspec (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
+   NDsubsume_funspec (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
+   NDsubsume_funspec (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
+Proof.
+intros.
+destruct H as [?E [?E H]]. 
+destruct H0 as [?E [?E H0]].
+subst.
+split3; auto.
+intro x3; simpl in x3.
+specialize (H0 x3).
+eapply ENTAIL_trans; [apply H0 | ].
+clear H0.
+Intros x2 F.
+simpl in x2.
+specialize (H x2).
+eapply derives_trans.
+apply sepcon_ENTAIL.
+apply ENTAIL_refl.
+apply H.
+clear H.
+Intros x1. simpl in x1.
+Intros F1.
+Exists x1 (F*F1).
+apply andp_right.
+intro rho.
+unfold_lift. unfold local, lift1. simpl. normalize.
+rewrite sepcon_assoc. auto.
+apply prop_right.
+apply ENTAIL_trans with (`F * (`F1 * Q1 x1)).
+apply andp_left2.
+clear. unfold_lift; intro rho; simpl. rewrite sepcon_assoc; auto.
+simpl funsig_tycontext in *.
+eapply ENTAIL_trans; [ | apply H0].
+apply sepcon_ENTAIL.
+apply ENTAIL_refl.
+ auto.
+Qed.
+
 Lemma tc_environ_make_args':
  forall {CS: compspecs} argsig retsig bl rho Delta,
    tc_environ Delta rho ->
