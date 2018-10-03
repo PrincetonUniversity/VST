@@ -29,9 +29,9 @@ Definition subsume_funspec (f1 f2 : funspec) :=
  | mk_funspec fsig2 cc2 A2 P2 Q2 _ _ =>
    fsig1 = fsig2 /\ cc1 = cc2 /\
      forall ts2 x2, exists ts1, 
-        ENTAIL Delta, P2 ts2 x2 |-- EX x1:_, 
-                             ((P1 ts1 x1) &&
-                             (!! (ENTAIL (ret_tycon Delta), Q1 ts1 x1 |-- Q2 ts2 x2)))
+        ENTAIL Delta, P2 ts2 x2 |-- EX x1:_, EX F:mpred,
+                             ((`F * P1 ts1 x1) &&
+                             (!! (ENTAIL (ret_tycon Delta), `F * Q1 ts1 x1 |-- Q2 ts2 x2)))
   end end.
 
 Definition NDsubsume_funspec (f1 f2 : funspec) :=
@@ -42,9 +42,9 @@ Definition NDsubsume_funspec (f1 f2 : funspec) :=
  | mk_funspec fsig2 cc2 (rmaps.ConstType A2) P2 Q2 _ _ =>
    fsig1 = fsig2 /\ cc1 = cc2 /\
      forall x2,
-        ENTAIL Delta, P2 nil x2 |-- EX x1:_, 
-                             ((P1 nil x1) &&
-                             (!! (ENTAIL (ret_tycon Delta), Q1 nil x1 |-- Q2 nil x2)))
+        ENTAIL Delta, P2 nil x2 |-- EX x1:_, EX F:mpred,
+                             ((`F * P1 nil x1) &&
+                             (!! (ENTAIL (ret_tycon Delta), `F * Q1 nil x1 |-- Q2 nil x2)))
  | _ => False end
  | _ => False end.
 
@@ -181,12 +181,12 @@ apply semax_pre with
       (eval_expr a) &&
      |> (F *
           (EX ts1:list Type, EX x1:(functors.MixVariantFunctor._functor
-        (rmaps.dependent_type_functor_rec ts1 A0) mpred),  
+        (rmaps.dependent_type_functor_rec ts1 A0) mpred), EX F':mpred,  
             !! (ENTAIL ret_tycon
                       (funsig_tycontext
                          (funsig_of_funspec
-                            (mk_funspec (argsig, retsig) cc A0 P0 Q0 P_ne Q_ne))), Q0 ts1 x1 |-- Q ts x) && 
-          (@liftx (Tarrow environ (LiftEnviron mpred))  (P0 ts1 x1)
+                            (mk_funspec (argsig, retsig) cc A0 P0 Q0 P_ne Q_ne))), `F' * Q0 ts1 x1 |-- Q ts x) && 
+          (@liftx (Tarrow environ (LiftEnviron mpred))  (`F' * P0 ts1 x1)
           (make_args' (argsig, retsig)
              (eval_exprlist (snd (split argsig)) bl))))))).
 -
@@ -224,7 +224,7 @@ apply derives_extract_prop; intro.
 apply sepcon_derives; auto.
 rewrite (prop_true_andp (tc_environ _ _)) in H4 by auto.
 eapply derives_trans. apply H4.
-Intros x1. Exists ts2 x1.
+Intros x1. Exists ts2 x1. Intros F'. Exists F'.
 rewrite prop_true_andp by auto.
 apply derives_refl.
 -
@@ -233,18 +233,19 @@ rewrite later_exp' by apply nil.
 Intros ts1.
 rewrite later_exp' by apply (HAB ts1).
 Intros x1.
+rewrite later_exp' by apply TT. Intros F'.
 apply semax_pre with
   (|> !! (ENTAIL ret_tycon
                       (funsig_tycontext
                          (funsig_of_funspec
                             (mk_funspec (argsig, retsig) cc A0 P0 Q0
-                               P_ne Q_ne))), Q0 ts1 x1 |-- 
+                               P_ne Q_ne))), `F' * Q0 ts1 x1 |-- 
              Q ts x) &&
    ( |> (tc_expr Delta a && tc_exprlist Delta (snd (split argsig)) bl) &&
    ((` (func_ptr (mk_funspec (argsig, retsig) cc A0 P0 Q0 P_ne Q_ne)))
       (eval_expr a) &&
     (|> F *
-     |> (@liftx (Tarrow environ (LiftEnviron mpred)) (P0 ts1 x1))
+     |> (@liftx (Tarrow environ (LiftEnviron mpred)) (`F' * P0 ts1 x1))
            (make_args' (argsig, retsig)
               (eval_exprlist (snd (split argsig)) bl)))))).
 apply andp_left2.
@@ -271,9 +272,14 @@ apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives.
 apply derives_refl.
-rewrite later_sepcon.
-apply sepcon_derives. apply derives_refl.
+simpl in F'.
+rewrite <- later_sepcon.
 apply later_derives.
+apply derives_trans with
+((F * `F')
+      * @liftx (Tarrow environ (LiftEnviron mpred)) (P0 ts1 x1)
+     (make_args' (argsig, retsig) (eval_exprlist (snd (split argsig)) bl))).
+intro rho; unfold_lift. simpl. rewrite <- sepcon_assoc. apply derives_refl.
 apply derives_refl.
 *
 clear H4.
@@ -281,7 +287,16 @@ Intros old. Exists old.
 forget (Q0 ts1 x1) as QQ0.
 forget (Q ts x) as QQ.
 clear x x1.
+apply ENTAIL_trans with
+ (substopt ret (` old) F *
+  (`F' * maybe_retval QQ0 retsig ret)). 
+{
+ apply andp_left2.
+ intro rho; unfold substopt, subst; unfold_lift; destruct ret; simpl;
+ rewrite <- sepcon_assoc; auto.
+}
 intro rho; simpl.
+unfold_lift.
 unfold local, lift1.
 apply derives_extract_prop; intro H8.
 apply sepcon_derives; auto.
@@ -296,6 +311,7 @@ eapply derives_trans; [ | apply H2].
 unfold local, lift1.
 simpl.
 rewrite prop_true_andp; auto.
+unfold_lift; auto.
 split3.
 --
 clear QQ QQ0 H2.
@@ -336,6 +352,7 @@ eapply derives_trans; [ | apply H2].
 unfold local, lift1.
 simpl.
 rewrite prop_true_andp; auto.
+unfold_lift; auto.
 split3.
 --
 clear QQ QQ0 H2.
