@@ -235,8 +235,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         mem_interference m2 m2' ->
         match_thread_compiled (Some i) j (Kblocked (SST code1)) m1'
                      (Kblocked (TST code2)) m2'
-    | CThread_Resume: forall j cd' code1 m1 code2 m2 v v' s1',
-        (forall m1' m2', 
+    | CThread_Resume: forall j cd' code1 m1 code2 m2 v v',
+        (forall  s1' m1' m2', 
         mem_interference m1 m1' ->
         mem_interference m2 m2' ->
         Smallstep.after_external
@@ -2084,6 +2084,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           (** *tid = hb*)
           - subst tid.
 
+            (* rename the memories, to show that they have been modified, 
+               since the execution of this thread stopped. *)
+            rename m1' into m1''.
+            rename m1 into m1'.
+            rename m2 into m2'.
+            
             (* Retrieve the match relation for this thread *)
             pose proof (mtch_compiled _ _ _ _ _ _ CMatch _ ltac:
                         (reflexivity)
@@ -2091,6 +2097,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             simpl in Hcode; rewrite Hcode in Hmatch.
             inversion Hmatch; subst.
 
+
+            
+            rename H4 into Hinterference1.
+            rename H6 into Hinterference2.
+            rename H1 into Hcomp_match.
+            
             rename Htid into Hcnt1.
             rename Hlt' into Hlt1'.
             rename virtueThread into virtueThread1.
@@ -2104,7 +2116,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             
             (** *Diagram No.0*)
             
-            assert (Hinj2:= Injfsim_match_meminj compiler_sim _ _ _ _ H1).
+            assert (Hinj2:= Injfsim_match_meminj compiler_sim _ _ _ _ Hcomp_match).
             simpl in Hinj2.
             
             (* Show that one can install Writable permissions for the lock in m3. *)
@@ -2132,7 +2144,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             assert (H: exists b2 delt2,
                        mu b1 = Some (b2, delt2) /\
                        semantics.at_external (semantics.csem (event_semantics.msem (@semSem AsmSem) ))
-                                             (code2) m2 =
+                                             (code2) m2' =
                        Some (UNLOCK, Vptr b2 (add ofs (repr delt2)) :: nil)
                                                  
                    ).
@@ -2156,44 +2168,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               admit. (*This and the previous admit (marked with HLT2)
                        Should both come from the same lemma. *)
             }
-            destruct Hstore2 as (m2'& Hstore2 & Hinj2').
+            destruct Hstore2 as (m2''& Hstore2 & Hinj2').
             (*
               TODO: 
 
               - Add at_external to sim_properties_inj.
              *)
-
-            (*
-              Prove that this is a CompCert step (en external step).
-             *)
-            Print CSem.
-            assert (Smallstep.step
-                      (Clight.part_semantics2 Clight_g)
-                      (Smallstep.set_mem code1 (restrPermMap (proj1 (Hcmpt hb Hcnt1))))
-                      nil
-                      (Smallstep.set_mem code1 m1')).
-            { simpl.
-              move Hat_external1 at bottom.
-              match goal with
-                [ HH: Clight.at_external ?X = _  |- _ ] =>
-                destruct X eqn:Hcallstate; try discriminate; simpl in HH
-              end.
-              destruct fd eqn:Hext_func; inversion Hat_external1.
-              subst e args.
-              pose proof (Clight.step_external_function
-                            Clight_g (Clight.function_entry2 Clight_g)
-                         UNLOCK t0 t1 c (Vptr b1 ofs :: nil) k m Vundef nil m1') as HH.
-              assert (Events.external_call UNLOCK (Clight.genv_genv Clight_g)
-                                           (Vptr b1 ofs :: nil) m nil Vundef m1').
-              { simpl.
-                
-                     
-              
-              
-
-              destruct (Clight.set_mem code1 (restrPermMap (proj1 (Hcmpt hb Hcnt1)))) eqn:Hcalstate;
-                simpl in Hat_external1; try solve[inversion Hat_external1].
-              rewrite Hcalstate in Hat_external1.
+            
               (*
 
 vents.external_call ef (Clight.genv_genv ge) vargs m t vres m' ->
@@ -2202,10 +2183,6 @@ vents.external_call ef (Clight.genv_genv ge) vargs m t vres m' ->
                                   m) t (Clight.Returnstate vres k m')      
                *)
               
-              pose proof (Clight.step_external_function Clight_g) as HH.
-              (Clight.function_entry2 Clight_g)
-                
-              }
             
             
             remember (add ofs (repr delt2)) as ofs2.
@@ -2217,12 +2194,143 @@ vents.external_call ef (Clight.genv_genv ge) vargs m t vres m' ->
             
             eexists.
             exists st2'. 
-            exists m2'.
+            exists m2''.
             exists (Some i).
             exists mu.
             split; [|split]. 
 
-            + simpl. admit. (*reestablish the concur. *)
+            + eapply Build_concur_match; simpl;
+                try assumption;
+                try (subst st2'; apply CMatch).
+              * admit. (*inject threads*)
+              * admit. (*inject locks*)
+              * admit. (*inject lock content*)
+              * admit. (* invariant is preserved! *)
+              * admit. (* thread_match source*)
+              * admit. (* thread_match target. *)
+              * (* thread_match compiled. *)
+                intros thread HH Hcnt1_dup Hcnt2_dup. subst thread.
+
+                Ltac same_types H1 H2:=
+                match type of H1 with
+                | ?T1 =>
+                  match type of H2 with
+                  | ?T2 =>
+                    let HH:=fresh "HH" in 
+                    assert (HH:T1 = T2) by reflexivity;
+                    try (dependent rewrite HH in H1;
+                         clear HH)
+                  end
+                end.
+                same_types Hcnt1_dup Hcnt1.
+                subst st2'.
+                same_types Hcnt2_dup Hcnt2.
+                clean_cnt.
+
+                match goal with
+                | [|- match_thread_compiled _ _ ?X _ ?Y _] =>
+                  let HH1:= fresh "HH1" in
+                  assert (HH1: X = Kresume (SST code1) Vundef) by (rewrite eqtype.eq_refl; reflexivity);
+                    let HH2:= fresh "HH2" in
+                    assert (HH2: Y = Kresume (TST code2) Vundef) by (simpl; rewrite eqtype.eq_refl; reflexivity)
+                   
+                end.
+                rewrite HH1; clear HH1.
+                rewrite HH2; clear HH2.
+                
+                econstructor.
+                intros.
+                
+              (*
+                Prove that this is a CompCert step (en external step).
+               *)
+                assert (Hstep: Smallstep.step
+                          (Clight.part_semantics2 Clight_g)
+                          (Smallstep.set_mem code1 m1)
+                          nil
+                          (Smallstep.set_mem s1' m1'')).
+                {
+                  simpl in H2. unfold Clight.after_external in H2.
+                  move Hat_external1 at bottom.
+                  unfold Clight.at_external in Hat_external1.
+                  destruct code1 eqn:Hcallstate; try discriminate.
+                  simpl in Hat_external1.
+                  destruct fd eqn:Hext_func; inversion H2; clear H2.
+                  inversion Hat_external1. subst e args.
+                  simpl.
+                  pose proof (Clight.step_external_function
+                                Clight_g (Clight.function_entry2 Clight_g)
+                                UNLOCK t0 t1 c (Vptr b1 ofs :: nil) k m1 Vundef nil m1'') as HH.
+                  assert (Hextcall: Events.external_call UNLOCK (Clight.genv_genv Clight_g)
+                                           (Vptr b1 ofs :: nil) m1 nil Vundef m1'').
+                  { simpl.
+                    
+                    Inductive release: val -> mem -> mem -> Prop  :=
+                    | ReleaseAngel:
+                        forall b ofs m m',
+                          True ->
+                          (* This shall codify, the change in permissions
+                       and changing the  lock value to 1.
+                           *)
+                          release (Vptr b ofs) m m'.
+                    
+                    Inductive extcall_release: Events.extcall_sem:=
+                    | ExtCallRelease:
+                        forall ge m m' m'' m''' b ofs,
+                          mem_interference m m' ->
+                          release (Vptr b ofs) m' m'' ->
+                          mem_interference m'' m''' ->
+                          extcall_release ge (Vptr b ofs :: nil) m
+                                          nil
+                                          Vundef m''.
+                    Lemma extcall_properties_release:
+                      Events.extcall_properties extcall_release UNLOCK_SIG.
+                    Proof.
+                    (* this is given axiomatically in compcert, 
+                     but we    must prove it*)
+                    Admitted.
+                    
+                    Axiom ReleaseExists:
+                      forall ge args m ev r m',
+                        Events.external_functions_sem "release" UNLOCK_SIG
+                                                  ge args m ev r m' =
+                        extcall_release ge args m ev r m'.
+                    (* This function is given axiomaticall in CompCert. *)
+                    
+                    rewrite ReleaseExists.
+                    econstructor.
+                    - eassumption.
+                    - admit.
+                    - Lemma interference_refl:
+                        forall m,
+                          mem_interference m m.
+                      Proof.
+                        intros; eapply Mem.unchanged_on_refl.
+                      Qed.
+                      eapply interference_refl.
+                  }
+                  eapply HH in Hextcall; auto.
+
+                }
+                
+                eapply compiler_sim in Hstep; simpl in *; eauto.
+                destruct  Hstep as (cd' & s2' & j2' & t'' & step & comp_match & Hincr2 & inj_event).
+
+                
+                
+                exists s2'. split.
+                -- move Hat_external2 at bottom.
+                   unfold Asm.after_external.
+                   
+                --
+                
+                destruct (Clight.set_mem code1 (restrPermMap (proj1 (Hcmpt hb Hcnt1)))) eqn:Hcalstate;
+                  simpl in Hat_external1; try solve[inversion Hat_external1].
+              rewrite Hcalstate in Hat_external1.
+
+
+
+              admit. (*reestablish the concur match. *)
             + (*HERE*)
               
               rewrite cat_app.
