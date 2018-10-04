@@ -21,14 +21,14 @@
 
 Require Import Relations.
 Require Import Wellfounded.
-Require Import Coqlib.
-Require Import Events.
-Require Import Globalenvs.
-Require Import Integers.
-Require Import Smallstep.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Events.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.Smallstep.
 
 
-Require Import Values. (*for meminj, compose_meminj,...*)
+Require Import compcert.common.Values. (*for meminj, compose_meminj,...*)
 
 Set Implicit Arguments.
 
@@ -43,6 +43,14 @@ Section ExposingMemory.
   Variables L1 L2: semantics.
   Variable get_mem1: state L1 -> mem.
   Variable get_mem2: state L2 -> mem.
+
+  Definition preserves_atx {index:Type} {L1 L2} match_states
+    :=
+      forall (i:index) s1 s2,
+        match_states i s1 s2 ->
+        forall f args,
+          @at_external L1 s1 = Some (f,args) -> 
+          @at_external L2 s2 = Some (f,args).
 
   (** *Equality Phases*)
   Section Equality.
@@ -68,20 +76,26 @@ Section ExposingMemory.
                               exists i', exists s2',
                                   (Plus L2 s2 t s2' \/ (Star L2 s2 t s2' /\ Eqorder i' i))
                                   /\ Eqmatch_states i' s1' s2';
+        Eqfsim_atx:
+          preserves_atx Eqmatch_states;
         Eqfsim_public_preserved:
           forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
       }.
   
+
+        
     
     Lemma sim_eqSim':
       forall index order (match_states:index -> state L1 -> state L2 -> Prop),
+        (preserves_atx match_states) ->
       (forall i s1 s2, match_states i s1 s2 ->  (get_mem1 s1) = (get_mem2 s2)) ->
       fsim_properties L1 L2 index order match_states ->
       fsim_properties_eq.
     Proof.
-      intros ? ? ? H HH; inv HH.
+      intros ? ? ? ? H HH; inv HH.
       econstructor; eauto.
     Qed.
+    
   End Equality.
 
   
@@ -110,6 +124,8 @@ Section ExposingMemory.
       exists i', exists s2',
          (Plus L2 s2 t s2' \/ (Star L2 s2 t s2' /\ Extorder i' i))
          /\ Extmatch_states i' s1' s2';
+    Extfsim_atx:
+          preserves_atx Extmatch_states;
     Extfsim_public_preserved:
       forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
   }.
@@ -199,14 +215,15 @@ Section ExposingMemory.
 
     Lemma sim_extSim:
       forall index order (match_states:index -> state L1 -> state L2 -> Prop),
+        (preserves_atx match_states) ->
       (forall i s1 s2, match_states i s1 s2 ->  Mem.extends (get_mem1 s1) (get_mem2 s2)) ->
       fsim_properties L1 L2 index order match_states ->
       fsim_properties_ext.
     Proof.
-      intros ? ? ? H HH; inv HH.
+      intros ? ? ? ? H HH; inv HH.
       econstructor; eauto.
     Qed.
-
+    
   End Extensions.
 
   (** *Injection Phases*)
@@ -235,6 +252,13 @@ Section ExposingMemory.
                                     /\ Injmatch_states i' f' s1' s2' /\
                                     Values.inject_incr f f' /\
                                     inject_trace f' t t';
+        Injsim_atx:
+          forall i j s1 s2 f args,
+          Injmatch_states i j s1 s2 ->
+          @at_external L1 s1 = Some (f,args) -> 
+          exists args',
+            @at_external L2 s2 = Some (f,args') /\
+             Val.inject_list j args args';
         Injfsim_public_preserved:
           forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
       }.
@@ -430,6 +454,14 @@ Section Composition.
   right; split. subst t; apply star_refl. right. auto.
   exists s3; auto.
   subst t; constructor.
+- (*match_states preserves at_external *)
+  intros.
+  destruct H as (?&?&?).
+  eapply SIM12 in H0; eauto.
+  destruct H0 as (args'&Hatx&Hinj).
+  exists args'. split; auto.
+  eapply SIM23; eauto.
+      
 - (* symbols *)
   intros. transitivity (Senv.public_symbol (symbolenv L2) id);
             [eapply Extfsim_public_preserved|eapply Injfsim_public_preserved]; eauto.
@@ -500,6 +532,11 @@ Section Composition.
   right; split. subst t; apply star_refl. right. auto.
   exists s3; auto.
   subst t; constructor.
+- (*match_states preserves at_external *)
+  intros.
+  destruct H as (?&?&?).
+  eapply SIM12 in H0; eauto.
+  eapply SIM23 in H0; eauto.
 - (* symbols *)
   intros. transitivity (Senv.public_symbol (symbolenv L2) id);
             [eapply Injfsim_public_preserved|eapply Extfsim_public_preserved]; eauto.
@@ -614,6 +651,37 @@ Section Composition.
   subst f.
   eapply compose_inject_incr; eauto.
   subst t; constructor.
+- intros.
+  destruct H as (?&?&?&?&?&?).
+  eapply SIM12 in H0; eauto.
+  destruct H0 as (args'&Hatx&Hinj).
+  eapply SIM23 in Hatx; eauto.
+  destruct Hatx as (args''&Hatx&Hinj').
+  exists args''.
+  split; eauto.
+  Lemma inject_compose_meminj:
+    forall v1 v2 v3 j12 j23 j13,
+      Val.inject j12 v1 v2 ->
+      Val.inject j23 v2 v3 ->
+      j13 = compose_meminj j12 j23 ->
+      Val.inject j13 v1 v3.
+  Proof.
+  Admitted.
+  Lemma inject_list_compose_meminj:
+    forall lv1 lv2 lv3 j12 j23 j13,
+      Val.inject_list j12 lv1 lv2 ->
+      Val.inject_list j23 lv2 lv3 ->
+      j13 = compose_meminj j12 j23 ->
+      Val.inject_list j13 lv1 lv3.
+  Proof.
+    induction lv1.
+    - intros. inversion H; subst; inversion H0; constructor.
+    - intros. inversion H; subst; inversion H0; subst; constructor.
+      + eapply inject_compose_meminj; eauto.
+      + eapply IHlv1; eauto.
+  Qed.
+  eapply inject_list_compose_meminj; eassumption.
+  
 - (* symbols *)
   intros. transitivity (Senv.public_symbol (symbolenv L2) id);
             [eapply Injfsim_public_preserved|eapply Injfsim_public_preserved]; eauto.
