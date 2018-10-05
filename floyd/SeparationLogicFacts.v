@@ -775,6 +775,12 @@ Declare Module CSHL_Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Import CSHL_Def.
 
+Axiom semax_extract_exists_later:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type)  (Q: environ->mpred) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (Q && |> P x) c R) ->
+   @semax CS Espec Delta (Q && |> EX x:A, P x) c R.
+
 Axiom semax_extract_exists:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),

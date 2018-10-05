@@ -1198,6 +1198,12 @@ Axiom semax_extract_exists:
   (forall x, @semax CS Espec Delta (P x) c R) ->
    @semax CS Espec Delta (EX x:A, P x) c R.
 
+Axiom semax_extract_exists_later:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type) (Q: environ -> mpred) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (Q && |> P x) c R) ->
+   @semax CS Espec Delta (Q && |> EX x:A, P x) c R.
+
 Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C, @semax_func Espec V G C nil nil.
 

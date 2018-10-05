@@ -3287,14 +3287,14 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
 (* automation for dependent funspecs *)
 Definition call_setup2'
   (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
-   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   fs argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
   (bl: list expr) (vl : list val)
   (Qactuals : PTree.t _)
   (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred)
   (Frame: list mpred)
   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
   (Qpre_temp : PTree.t _) GV' :=
- call_setup1 cs Qtemp Qvar GV a Delta P Q R R' argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals /\
+ call_setup1 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals /\
   Pre ts witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) /\
   local2ptree Qpre = (Qpre_temp, PTree.empty _, nil, GV') /\
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
@@ -3304,10 +3304,10 @@ Definition call_setup2'
 
 Lemma call_setup2'_i:
  forall  (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
-   argsig retty cc ts (A: rmaps.TypeTree) Pre Post NEPre NEPost
+   fs argsig retty cc ts (A: rmaps.TypeTree) Pre Post NEPre NEPost
   (bl: list expr) (vl : list val)
   (Qactuals : PTree.t _)
-  (SETUP1: call_setup1 cs Qtemp Qvar GV a Delta P Q R R' argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals)
+  (SETUP1: call_setup1 cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc A Pre Post NEPre NEPost bl vl Qactuals)
   (witness': functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred)
   (Frame: list mpred)
   (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
@@ -3318,7 +3318,7 @@ Lemma call_setup2'_i:
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
   check_gvars_spec GV GV' ->
   fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame ->
-  call_setup2' cs Qtemp Qvar GV a Delta P Q R R' argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+  call_setup2' cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness' Frame Ppre Qpre Rpre Qpre_temp GV'.
 Proof.
  intros. split. auto. repeat split; auto.
@@ -3355,16 +3355,16 @@ Funspec type: " TA'')
      end.
 
 Ltac prove_call_setup' ts witness :=
- prove_call_setup1;
+ prove_call_setup1 subsume_funspec_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1  _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       check_witness_type' ts A witness
  end;
  let H := fresh in
  intro H;
  match goal with | |- @semax ?CS _ _ _ _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2'_i _ _ _ _ _ _ _ _ _ _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2'_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
  [ reflexivity
  | check_prove_local2ptree
@@ -3377,7 +3377,13 @@ Ltac prove_call_setup' ts witness :=
 
 Lemma semax_call_aux55:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t (type * val)) GV (a: expr)
-     Delta P Q R argsig retty cc ts A Pre Post NEPre NEPost 
+     Delta P Q R fs argsig retty (*cc ts A Pre Post NEPre NEPost  *)
+    ts (A : rmaps.TypeTree)
+         (Pre
+          Post : forall ts : list Type,
+              functors.MixVariantFunctor._functor
+                (rmaps.dependent_type_functor_rec
+                   ts (AssertTT A)) mpred) 
     witness Frame bl Ppre Qpre Rpre Qactuals Qpre_temp GV' vl
  (PTREE : local2ptree Q = (Qtemp, Qvar, nil, GV))
  (TC0 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- tc_expr Delta a)
@@ -3396,12 +3402,12 @@ Lemma semax_call_aux55:
  (LEN : length (argtypes argsig) = length bl),
 ENTAIL Delta,
 (EX v : val,
- lift0 (func_ptr (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost) v) &&
+ lift0 (func_ptr fs v) &&
  local (` (eq v) (eval_expr a))) && |>PROPx P (LOCALx Q (SEPx R))
 |-- |> (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl) &&
-    (|> ` (Pre ts witness)
+    (|> @liftx (Tarrow environ (LiftEnviron mpred)) (Pre ts witness)
        (make_args' (argsig, retty) (eval_exprlist (argtypes argsig) bl)) *
-     ` (func_ptr' (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost))
+     ` (func_ptr' fs)
        (eval_expr a) * |>PROPx P (LOCALx Q (SEPx Frame))).
 Proof.
 intros.
@@ -3419,7 +3425,7 @@ match goal with |- _ |-- ?A * ?B * ?C => pull_right B end.
 rewrite sepcon_comm.
 rewrite func_ptr'_func_ptr_lifted.
 apply ENTAIL_trans with
- (`(func_ptr (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost)) (eval_expr a) &&
+ (`(func_ptr fs) (eval_expr a) &&
       |>PROPx P (LOCALx Q (SEPx R))).
 apply andp_left2.
 apply andp_right; [  | apply andp_left2; auto].
@@ -3491,14 +3497,14 @@ Qed.
 Lemma semax_call_id00_wow:
  forall  
   (cs: compspecs) Qtemp Qvar a GV Delta P Q R R'
-   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   fs argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
    (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
    (Frame: list mpred)
    (bl: list expr)
    (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
    (Qactuals Qpre_temp : PTree.t _) GV'
    (vl : list val)
-   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness Frame Ppre Qpre Rpre Qpre_temp GV')
   Espec 
              (Post2: environ -> mpred)
@@ -3515,7 +3521,7 @@ Lemma semax_call_id00_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-destruct SETUP as [[PTREE [SPEC [HR' [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]]
+destruct SETUP as [[PTREE [Hsub [SPEC [HR' [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]]]
                             [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]].
 apply SPEC. clear SPEC.
 eapply semax_pre; [apply andp_right; [apply andp_left2, andp_left1, derives_refl|]|].
@@ -3532,8 +3538,8 @@ rewrite <- !prop_and.
 apply semax_extract_later_prop; intros [].
 rewrite andp_comm.
 eapply semax_pre_post' ; [ | |
-   apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost 
-              ts witness argsig retty cc a bl P Q Frame)].
+   apply (@semax_call0 Espec cs Delta fs A Pre Post NEPre NEPost 
+              ts witness argsig retty cc a bl P Q Frame); auto].
 *
 eapply semax_call_aux55; eauto.
 *
@@ -3550,21 +3556,19 @@ eapply semax_call_aux55; eauto.
  apply prop_right.
  split; auto.
  normalize.
-*
-assumption.
 Qed.
 
 Lemma semax_call_id1_wow:
  forall  
   (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
-   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   fs argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
    (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
    (Frame: list mpred)
    (bl: list expr)
    (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
    (Qactuals Qpre_temp : PTree.t _) GV'
    (vl : list val)
-   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness Frame Ppre Qpre Rpre Qpre_temp GV')
    ret (Post2: environ -> mpred)  (Qnew: list localdef)
     (B: Type) (Ppost: B -> list Prop) (F: B -> val) (Rpost: B -> list mpred) Espec
@@ -3582,7 +3586,7 @@ Lemma semax_call_id1_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-destruct SETUP as [[PTREE [SPEC [HR' [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]]
+destruct SETUP as [[PTREE [Hsub [SPEC [HR' [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]]]
                             [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]].
 apply SPEC. clear SPEC.
 eapply semax_pre; [apply andp_right; [apply andp_left2, andp_left1, derives_refl|]|].
@@ -3599,10 +3603,9 @@ rewrite <- !prop_and.
 apply semax_extract_later_prop; intros [].
 rewrite andp_comm.
 eapply semax_pre_post'; [ | |
-   apply (@semax_call1 Espec cs Delta A Pre Post NEPre NEPost 
-              ts witness ret argsig retty cc a bl P Q Frame)];
+   apply (@semax_call1 Espec cs Delta fs A Pre Post NEPre NEPost 
+              ts witness ret argsig retty cc a bl P Q Frame); auto];
  [ | 
- | assumption
  | clear - OKretty; destruct retty; inv OKretty; apply I
  | hnf; clear - TYret; unfold typeof_temp in TYret;
       destruct ((temp_types Delta) ! ret); inv TYret; auto
@@ -3636,14 +3639,14 @@ Qed.
 
 Lemma semax_call_id1_x_wow:
  forall  (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
-   argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   fs argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
    (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
    (Frame: list mpred)
    (bl: list expr)
    (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
    (Qactuals Qpre_temp : PTree.t _) GV'
    (vl : list val)
-   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' argsig retty' cc ts A Pre Post NEPre NEPost bl vl Qactuals
+   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness Frame Ppre Qpre Rpre Qpre_temp GV')
    retty  Espec ret ret'
              (Post2: environ -> mpred)
@@ -3736,14 +3739,14 @@ Qed.
 
 Lemma semax_call_id1_y_wow:
  forall  (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
-   argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   fs argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
    (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
    (Frame: list mpred)
    (bl: list expr)
    (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
    (Qactuals Qpre_temp : PTree.t _) GV'
    (vl : list val)
-   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' argsig retty' cc ts A Pre Post NEPre NEPost bl vl Qactuals
+   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty' cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness Frame Ppre Qpre Rpre Qpre_temp GV')
     Espec ret ret' (retty: type) 
              (Post2: environ -> mpred)
@@ -3831,14 +3834,14 @@ Qed.
 Lemma semax_call_id01_wow:
  forall  
   (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
-   argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
+   fs argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
    (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts A) mpred) 
    (Frame: list mpred)
    (bl: list expr)
    (Ppre: list Prop) (Qpre : list localdef) (Rpre: list mpred)
    (Qactuals Qpre_temp : PTree.t _) GV'
    (vl : list val)
-   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
+   (SETUP: call_setup2' cs Qtemp Qvar GV a Delta P Q R R' fs argsig retty cc ts A Pre Post NEPre NEPost bl vl Qactuals
       witness Frame Ppre Qpre Rpre Qpre_temp GV')
    Espec
              (Post2: environ -> mpred)
@@ -3859,7 +3862,7 @@ Lemma semax_call_id01_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
-destruct SETUP as [[PTREE [SPEC [HR' [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]]
+destruct SETUP as [[PTREE [Hsub [SPEC [HR' [ATY [TC0 [TC1 [MSUBST PTREE'']]]]]]]]
                             [PRE1 [PTREE' [CHECKTEMP [CHECKG FRAME]]]]].
 apply SPEC. clear SPEC.
 eapply semax_pre; [apply andp_right; [apply andp_left2, andp_left1, derives_refl|]|].
@@ -3877,7 +3880,7 @@ apply semax_extract_later_prop; intros [].
 rewrite andp_comm.
 eapply semax_pre_post';
    [ |
-   | apply semax_call0 with (A:= A) (ts := ts)(x:=witness) (P:=P)(Q:=Q)(NEPre :=NEPre) (NEPost := NEPost)(R := Frame)
+   | apply semax_call0 with (fs:=fs)(cc:=cc)(A:= A) (ts := ts)(x:=witness) (P:=P)(Q:=Q)(NEPre :=NEPre) (NEPost := NEPost)(R := Frame); auto
    ];
    try eassumption.
 * eapply semax_call_aux55; eauto.
@@ -3902,7 +3905,10 @@ Qed.
 
 Ltac  forward_call_id1_wow' := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
+eapply (semax_call_id1_wow 
+             _ _ _ _ _ _ _ _ _ _
+             _ _ _ _ _ _ _ _ _ _ 
+             _ _ _ _ _ _ _ _ _ H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -3920,7 +3926,10 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_x_wow' :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow 
+             _ _ _ _ _ _ _ _ _ _
+             _ _ _ _ _ _ _ _ _ _ 
+             _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -3941,7 +3950,10 @@ eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_y_wow' :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow 
+             _ _ _ _ _ _ _ _ _ _
+             _ _ _ _ _ _ _ _ _ _ 
+             _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -3961,7 +3973,10 @@ eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id01_wow' :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow 
+             _ _ _ _ _ _ _ _ _ _
+             _ _ _ _ _ _ _ _ _ _ 
+             _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -3977,7 +3992,7 @@ eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 Ltac forward_call_id00_wow'  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -4000,7 +4015,7 @@ lazymatch goal with
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
          forward_call_id1_wow'
-      | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow'

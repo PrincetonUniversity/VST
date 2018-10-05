@@ -58,11 +58,11 @@ apply andp_right.
 entailer!.
 *
 apply prop_right.
-simplify_Delta.
 Intros ret_value.
 Exists ret_value.
 destruct (Int.eq ret_value (Int.repr (-20864))).
 +
+go_lower.
 entailer!.
 Exists a.
 cancel.

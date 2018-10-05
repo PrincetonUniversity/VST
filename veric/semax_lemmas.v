@@ -269,6 +269,56 @@ unfold straightline; intros.
 inv H; auto.
 Qed.
 
+Lemma extract_exists_pre_later {CS: compspecs} {Espec: OracleKind}:
+  forall  (A : Type) (Q: assert) (P : A -> assert) c Delta (R: ret_assert),
+  (forall x, semax Espec Delta (fun rho => Q rho && |> P x rho) c R) ->
+   semax Espec Delta (fun rho => Q rho && |> exp (fun x => P x rho)) c R.
+Proof.
+rewrite semax_unfold in *.
+intros.
+intros.
+intros te ve ?w ? ?w ? ?.
+destruct H4.
+destruct H4.
+destruct H6 as [w2 [w3 [? [? [HQ ?]]]]].
+destruct (age1 w2) as [w2' | ] eqn:?.
+*
+destruct (@age1_join _ _ _ _ _ _ _ _ H6 Heqo)
+  as [w3' [w1' [? [? ?]]]].
+hnf in H8.
+specialize (H8 _ (age_laterR H10)).
+destruct H8 as [x H8].
+specialize (H x psi Delta' w TS HGG Prog_OK k F H0 H1).
+unfold guard, _guard in H.
+specialize (H te ve).
+cbv beta in H.
+specialize (H w0 H2 w1 H3).
+apply H.
+split; auto. split; auto.
+exists w2, w3. split3; auto.
+split; auto.
+intros w3x ?.
+eapply pred_nec_hereditary; [ | apply H8].
+clear - H10 H12.
+eapply age_later_nec; eauto.
+*
+assert (level w1 = O). {
+  clear - H6 Heqo.
+  apply join_level in H6. destruct H6.
+  rewrite <- H. apply age1_level0.  auto.
+}
+hnf.
+intros.
+eexists; split.
+apply H10.
+exists w1.
+split3; auto. split; auto.
+simpl.
+intros.
+rewrite H9.
+constructor.
+Qed.
+
 Lemma extract_exists_pre {CS: compspecs} {Espec: OracleKind}:
   forall  (A : Type) (P : A -> assert) c Delta (R: ret_assert),
   (forall x, semax Espec Delta (P x) c R) ->

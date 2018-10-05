@@ -110,6 +110,7 @@ Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
   
 Definition semax_extract_exists := @extract_exists_pre.
+Definition semax_extract_exists_later := @extract_exists_pre_later.
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
 Definition semax_prog_ext := @semax_prog_ext.

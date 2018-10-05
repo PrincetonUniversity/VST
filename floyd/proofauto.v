@@ -8,6 +8,7 @@ Require Export VST.floyd.closed_lemmas.
 Require Export VST.floyd.compare_lemmas.
 Require Export VST.floyd.semax_tactics.
 Require Export VST.floyd.forward.
+Require Export VST.floyd.subsume_funspec.
 Require Export VST.floyd.call_lemmas.
 Require Export VST.floyd.forward_lemmas.
 Require Export VST.floyd.for_lemmas.

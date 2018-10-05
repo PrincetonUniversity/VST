@@ -893,6 +893,13 @@ Import CSHL_Def.
 
 Arguments semax {_} {_} _ _ _ _.
 
+Lemma semax_extract_exists_later:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall (A : Type)  (Q: environ -> mpred) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
+  (forall x, @semax CS Espec Delta (Q && |> P x) c R) ->
+   @semax CS Espec Delta (Q && |> EX x:A, P x) c R.
+Admitted.
+
 Lemma semax_extract_exists:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
@@ -1122,6 +1129,7 @@ Module CSHL_Def := DeepEmbeddedDef.
 
 Module CSHL_Defs := DeepEmbeddedDefs.
 
+Definition semax_extract_exists_later := @semax_extract_exists_later.
 Definition semax_extract_exists := @semax_extract_exists.
 
 Definition semax_func_nil := @AuxDefs.semax_func_nil (@Def.semax_external).

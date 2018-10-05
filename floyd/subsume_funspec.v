@@ -21,6 +21,10 @@ Definition funsig_tycontext (fs: funsig) : tycontext :=
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
+(* If we were to require that a non-void-returning function must,
+   at a function call, have its result assigned to a temp,
+   then we could change "ret0_tycon" to "ret_tycon" in this
+   definition (and in NDsubsume_funspec). *)
 Definition subsume_funspec (f1 f2 : funspec) :=
  let Delta := (funsig_tycontext (funsig_of_funspec f1)) in
  match f1 with
@@ -31,7 +35,8 @@ Definition subsume_funspec (f1 f2 : funspec) :=
      forall ts2 x2, 
         ENTAIL Delta, P2 ts2 x2 |-- EX ts1: list Type, EX x1:_, EX F:mpred,
                              ((`F * P1 ts1 x1) &&
-                             (!! (ENTAIL (ret_tycon Delta), `F * Q1 ts1 x1 |-- Q2 ts2 x2)))
+                             (!! (ENTAIL (ret0_tycon Delta), `F * Q1 ts1 x1 
+                                          |-- Q2 ts2 x2)))
   end end.
 
 Definition NDsubsume_funspec (f1 f2 : funspec) :=
@@ -40,13 +45,44 @@ Definition NDsubsume_funspec (f1 f2 : funspec) :=
  | mk_funspec fsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
  match f2 with
  | mk_funspec fsig2 cc2 (rmaps.ConstType A2) P2 Q2 _ _ =>
-   fsig1 = fsig2 /\ cc1 = cc2 /\
-     forall x2,
+   fsig1 = fsig2 /\ cc1 = cc2 /\  forall x2,
         ENTAIL Delta, P2 nil x2 |-- EX x1:_, EX F:mpred,
                              ((`F * P1 nil x1) &&
-                             (!! (ENTAIL (ret_tycon Delta), `F * Q1 nil x1 |-- Q2 nil x2)))
+                             (!! (ENTAIL (ret0_tycon Delta), `F * Q1 nil x1 
+                                      |-- Q2 nil x2)))
  | _ => False end
  | _ => False end.
+
+Definition is_NDfunspec (fs: funspec) :=
+ match fs with
+ | mk_funspec _ _ (rmaps.ConstType A) P Q _ _ =>
+    (forall ts, P ts = P nil /\ Q ts = Q nil)
+ | _ => False
+ end.
+
+Lemma NDsubsume_subsume:
+  forall f1 f2, 
+   is_NDfunspec f2 ->
+   NDsubsume_funspec f1 f2 ->
+   subsume_funspec f1 f2.
+Proof.
+intros f1 f2. pose proof I. intros H0 H1.
+destruct f1, f2; hnf in H1.
+destruct A; try contradiction. destruct A0; try contradiction.
+destruct H1 as [? [? ?]]; split3; auto.
+subst f0 c0.
+intros ts1 x1.
+specialize (H3 x1).
+simpl in H0.
+specialize (H0 ts1). destruct H0 as [H0 H0'].
+rewrite H0.
+eapply derives_trans; [apply H3 | clear H3 ].
+Intros x2 F.
+Exists (@nil Type) x2 F.
+apply andp_right; auto.
+apply prop_right.
+rewrite H0'. auto.
+Qed.
 
 Inductive empty_type : Type := .
 
@@ -297,18 +333,24 @@ rewrite PTree.gso in H3 by auto.
 simpl. auto.
 Qed.
 
+Lemma later_exp'' (A: Type) (ND: NatDed A)(Indir: Indir A):
+      forall T : Type,
+       (exists x: T, True) ->
+       forall F : T -> A,
+       |> (EX x : _, F x) = EX x : T, |> F x.
+Proof.
+intros.
+destruct H as [x _].
+apply later_exp'; auto.
+Qed.
+
 Lemma semax_call_subsume:
   forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
     subsume_funspec fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
-   forall (HAB: forall ts, Inhabitant 
-     (functors.MixVariantFunctor._functor
-        (rmaps.dependent_type_functor_rec ts (withtype_of_funspec fs1)) mpred))
-   {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
+   forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
-  (*         (retsig = Tvoid -> ret = None) ->    
-     NOTE: We are being more strict here than the standard semax_call!  *)
-             (retsig = Tvoid <-> ret = None) ->
+           (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
@@ -330,7 +372,7 @@ apply semax_pre with
      |> (F *
           (EX ts1:list Type, EX x1:(functors.MixVariantFunctor._functor
         (rmaps.dependent_type_functor_rec ts1 A0) mpred), EX F':mpred,  
-            !! (ENTAIL ret_tycon
+            !! (ENTAIL ret0_tycon
                       (funsig_tycontext
                          (funsig_of_funspec
                             (mk_funspec (argsig, retsig) cc A0 P0 Q0 P_ne Q_ne))), `F' * Q0 ts1 x1 |-- Q ts x) && 
@@ -376,14 +418,17 @@ Intros ts1 x1 F'. Exists ts1 x1 F'.
 rewrite prop_true_andp by auto.
 apply derives_refl.
 -
-rewrite later_sepcon.
-rewrite later_exp' by apply nil.
-Intros ts1.
-rewrite later_exp' by apply (HAB ts1).
-Intros x1.
-rewrite later_exp' by apply TT. Intros F'.
+rewrite (andp_comm (|> _)).
+rewrite andp_assoc.
+rewrite <- later_andp.
+rewrite exp_sepcon2, exp_andp1.
+apply semax_extract_exists_later; intro ts1.
+rewrite exp_sepcon2, exp_andp1.
+apply semax_extract_exists_later; intro x1.
+rewrite exp_sepcon2, exp_andp1.
+apply semax_extract_exists_later; intro F'.
 apply semax_pre with
-  (|> !! (ENTAIL ret_tycon
+  (|> !! (ENTAIL ret0_tycon
                       (funsig_tycontext
                          (funsig_of_funspec
                             (mk_funspec (argsig, retsig) cc A0 P0 Q0
@@ -399,19 +444,19 @@ apply semax_pre with
 apply andp_left2.
 rewrite !later_andp.
 apply andp_right.
-apply andp_left2. apply andp_left2.
-rewrite <- later_andp.
-rewrite <- later_sepcon. apply later_derives.
+apply andp_left2. apply andp_left1.
+apply later_derives.
 normalize.
 apply andp_right.
-apply andp_left1; auto.
-apply andp_right.
 apply andp_left2.
-apply andp_left1; auto.
-apply andp_left2.
-apply andp_left2.
-apply sepcon_derives; auto.
 apply andp_left2; auto.
+apply andp_right.
+apply andp_left1; auto.
+apply andp_left2.
+apply andp_left1.
+rewrite <- later_sepcon.
+apply later_derives.
+normalize.
 apply derives_refl.
 apply semax_extract_later_prop; intro.
 eapply semax_pre_post'; [ | | apply semax_call; eauto; clear -H0; intuition].
@@ -431,10 +476,15 @@ intro rho; unfold_lift. simpl. rewrite <- sepcon_assoc. apply derives_refl.
 apply derives_refl.
 *
 clear H4.
+simpl ret0_tycon in H2.
 Intros old. Exists old.
 forget (Q0 ts1 x1) as QQ0.
 forget (Q ts x) as QQ.
 clear x x1.
+change
+  (functors.MixVariantFunctor._functor
+        (rmaps.dependent_type_functor_rec ts (rmaps.ArrowType (rmaps.ConstType environ)
+             rmaps.Mpred)) mpred) in QQ, QQ0.
 apply ENTAIL_trans with
  (substopt ret (` old) F *
   (`F' * maybe_retval QQ0 retsig ret)). 
@@ -452,7 +502,6 @@ unfold SeparationLogic.maybe_retval, maybe_retval.
 change (functors.MixVariantFunctor._functor
    (rmaps.dependent_type_functor_rec ts (rmaps.ArrowType (rmaps.ConstType environ) rmaps.Mpred)) mpred)
   in QQ, QQ0.
-simpl ret_tycon in H2.
 destruct ret; [ | destruct (eq_dec retsig Tvoid)] .
 +
 eapply derives_trans; [ | apply H2].
@@ -464,10 +513,15 @@ split3.
 --
 clear QQ QQ0 H2.
 hnf; intros.
-unfold ret_tycon, temp_types in H2.
+unfold ret0_tycon, temp_types in H2.
+rewrite PTree.gempty in H2; inv H2.
+(*  ALL THIS STUFF WOULD BE USEFUL if we used ret_tycon instead
+     of ret0_tycon . . .
 simpl ret_type in H2.
 assert (is_void_type retsig = false).
-  clear - H0. destruct retsig; try reflexivity. destruct H0 as [H0 _]; spec H0; auto. inv H0.
+  clear - H0. destruct retsig; try reflexivity.
+   try match type of H0 with _ <-> _ => destruct H0 as [H0 _] end.
+   specialize (H0 (eq_refl _)); inv H0.
 rewrite H3 in H2.
 destruct (ident_eq id ret_temp).
 2: rewrite PTree.gso in H2 by auto; rewrite PTree.gempty in H2; inv H2.
@@ -485,6 +539,7 @@ specialize (H i t Heqo).
 destruct H as [v [? ?]]; exists v; split; auto.
 unfold Map.get, te_of in H.
 destruct rho. unfold eval_id. simpl. unfold Map.get. rewrite H.  reflexivity.
+*)
 --
 clear.
 hnf; intros.
@@ -505,7 +560,7 @@ split3.
 --
 clear QQ QQ0 H2.
 hnf; intros.
-unfold ret_tycon, temp_types in H2.
+unfold ret0_tycon, temp_types in H2.
 simpl ret_type in H2.
 simpl in H2. rewrite PTree.gempty  in H2. inv H2.
 --
@@ -518,21 +573,46 @@ clear.
 hnf; intros.
 simpl in *. rewrite PTree.gempty in H. inv H.
 +
-rewrite (proj2 H0) in n. contradiction n; auto. auto.
+(* rewrite (proj2 H0) in n. contradiction n; auto. auto. *)
+assert (@derives mpred _
+             (F' * EX v : val, QQ0 (make_args (ret_temp :: nil) (v :: nil) rho))
+             (EX v : val, QQ (make_args (ret_temp :: nil) (v :: nil) rho))).
+2: destruct retsig; [contradiction n; auto | assumption.. ].
+Intros v. Exists v.
+specialize (H2 (make_args (ret_temp :: nil) 
+     (v :: nil) rho)).
+simpl in H2.
+simpl.
+eapply derives_trans; [ | apply H2].
+unfold_lift; unfold local, lift1; simpl.
+apply andp_right; auto.
+apply prop_right.
+unfold ret0_tycon.
+split3.
+--
+unfold temp_types.
+intros id ty ?.
+rewrite PTree.gempty in H3; inv H3.
+--
+clear.
+hnf; intros.
+simpl. rewrite PTree.gempty. split; intro. inv H.
+destruct H. inv H.
+--
+clear.
+hnf; intros.
+simpl in *. rewrite PTree.gempty in H. inv H.
 Qed.
 
 Lemma semax_call_NDsubsume :
   forall (fs1: funspec) A P Q argsig retsig cc,
     NDsubsume_funspec fs1 
         (NDmk_funspec  (argsig,retsig) cc A P Q)  ->
-     forall  {HAB: Inhabitant (withtype_of_NDfunspec fs1)}
-      {CS: compspecs} {Espec: OracleKind},
+     forall {CS: compspecs} {Espec: OracleKind},
     forall  Delta  x (F: environ -> mpred) ret a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
-  (*         (retsig = Tvoid -> ret = None) ->    
-     NOTE: We are being more strict here than the standard semax_call!  *)
-           (retsig = Tvoid <-> ret = None) ->
+           (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
@@ -555,10 +635,6 @@ split3; auto.
 intros.
 Exists (@nil Type).
 auto.
-clear - HAB.
-destruct fs1; simpl in *.
-destruct A; try solve [inv HAB].
-intros. apply HAB.
 apply nil.
 Qed.
 

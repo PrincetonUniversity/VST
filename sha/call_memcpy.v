@@ -203,10 +203,11 @@ Lemma semax_call_id0_alt:
 Proof.
 intros.
 subst tfun.
-apply (@semax_call_id0 Espec cs Delta P Q R id bl argsig retty cc (rmaps.ConstType A) nil x
+apply (@semax_call_id0 Espec cs Delta P Q R id bl (NDmk_funspec (argsig, retty) cc A Pre Post) argsig retty cc (rmaps.ConstType A) nil x
                   (fun _ => Pre) (fun _ => Post)
                (const_super_non_expansive _ _)
                (const_super_non_expansive _ _)); auto.
+apply subsume_funspec_refl.
 Qed.
 
 Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
