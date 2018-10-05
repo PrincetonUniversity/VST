@@ -80,7 +80,8 @@ Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{S
  apply @predicates_hered.axiomK.
  apply @predicates_hered.later_allp.
  simpl. intros; apply @box_ex.
-  simpl. intros; apply @later_ex; auto.
+ simpl. intros; apply @later_ex; auto.
+ simpl. intros; apply @later_ex''.
  apply @predicates_hered.later_imp.
  apply @predicates_hered.later_prop.
  apply @predicates_hered.loeb; auto.
