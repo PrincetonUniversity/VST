@@ -937,6 +937,10 @@ forward_call subsume_treebox_free ((t_update
 forward.
 Qed.
 
+End TREE_ABS.
+
+End Abstractions.
+
 
 
 
