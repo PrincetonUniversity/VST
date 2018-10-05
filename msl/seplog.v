@@ -141,6 +141,7 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later_allp: forall T (F: T -> A),  later (allp F) = ALL x:T, later (F x);
   later_exp: forall T (F: T-> A), EX x:T, later (F x) |-- later (exp F);
   later_exp': forall T (any:T) F, later (exp F) = EX x:T, later (F x);
+  later_exp'': forall T F, later (exp F) |-- (EX x:T, later (F x)) || later FF;
   later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
   later_prop: forall PP: Prop, later (!! PP) |-- !! PP || later FF;
   loeb: forall P,   later P |-- P ->  TT |-- P
@@ -156,6 +157,7 @@ Instance LiftIndir (A: Type) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
  simpl; intros. extensionality rho. apply later_allp.
  simpl; intros. apply later_exp.
  simpl; intros. extensionality rho. apply later_exp'; auto.
+ simpl; intros. apply later_exp''.
  simpl; intros. extensionality rho. apply later_imp.
  simpl; intros. apply later_prop.
  simpl; intros. apply loeb; auto.

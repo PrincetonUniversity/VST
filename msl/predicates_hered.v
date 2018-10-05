@@ -758,6 +758,31 @@ Proof.
   rewrite H1 in H2; discriminate.
 Qed.
 
+Lemma later_ex'' {A} `{ageable A} : forall B (F:B->pred A),
+  |>(exp F) |-- (EX x:B, |>(F x)) || |> FF.
+Proof.
+  intros.
+  unfold derives; intros.
+  simpl in H |- *.
+  destruct (age1 a) eqn:?H; [left | right].
+  + simpl in H0.
+    pose proof H0 a0.
+    destruct H2 as [b ?].
+    {
+      constructor.
+      auto.
+    }
+    exists b.
+    intros.
+    revert H2; apply pred_nec_hereditary.
+    eapply age_later_nec; eauto.
+  + intros.
+    clear - H2 H1.
+    induction H2.
+    - hnf in H0; congruence.
+    - auto.
+Qed.
+
 Lemma later_imp {A} `{ageable A} : forall P Q,
   |>(P --> Q) = |>P --> |>Q.
 Proof.
