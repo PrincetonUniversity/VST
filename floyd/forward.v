@@ -3633,6 +3633,6 @@ Tactic Notation "assert_after" constr(n) constr(PQR) :=
       end
  | |- semax _ _ (Ssequence ?c1 ?c2) _ =>
  let c := reassociate_to c1 c2 n
-  in  apply (semax_unfold_Ssequence _ c); [reflexivity | ]
+  in  apply (semax_unfold_Ssequence c); [reflexivity | ]
  end;
  apply semax_seq' with PQR; abbreviate_semax.
