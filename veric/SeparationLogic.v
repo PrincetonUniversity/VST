@@ -528,6 +528,11 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   memory_block sh n p |-- valid_pointer (offset_val i p).
 Proof. exact @memory_block_valid_pointer. Qed.
 
+Lemma memory_block_weak_valid_pointer: forall {cs: compspecs} sh n p i,
+  0 <= i <= n -> 0 < n -> sepalg.nonidentity sh ->
+  memory_block sh n p |-- weak_valid_pointer (offset_val i p).
+Proof. exact @memory_block_weak_valid_pointer. Qed.
+
 Lemma mapsto_zeros_memory_block: forall sh n p,
   readable_share sh ->
   mapsto_zeros n sh p |--
