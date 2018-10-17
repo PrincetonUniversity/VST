@@ -52,6 +52,13 @@ Section ExposingMemory.
           @at_external L1 s1 = Some (f,args) -> 
           @at_external L2 s2 = Some (f,args).
 
+  Definition simulation_atx {index:Type} {L1 L2} (match_states: index -> _ -> _ -> Prop)
+    :=
+      forall s1 t s1', Step L1 s1 t s1' ->
+                  forall i s2, match_states i s1 s2 ->
+                          exists i', exists s2', Step L2 s2 t s2' /\
+                                       match_states i' s1' s2'.
+
   (** *Equality Phases*)
   Section Equality.
     Record fsim_properties_eq: Type :=
@@ -76,6 +83,8 @@ Section ExposingMemory.
                               exists i', exists s2',
                                   (Plus L2 s2 t s2' \/ (Star L2 s2 t s2' /\ Eqorder i' i))
                                   /\ Eqmatch_states i' s1' s2';
+        Eqfsim_simulation_atx:
+          simulation_atx Eqmatch_states;
         Eqfsim_atx:
           preserves_atx Eqmatch_states;
         Eqfsim_public_preserved:
@@ -87,12 +96,13 @@ Section ExposingMemory.
     
     Lemma sim_eqSim':
       forall index order (match_states:index -> state L1 -> state L2 -> Prop),
+        (simulation_atx match_states) ->
         (preserves_atx match_states) ->
       (forall i s1 s2, match_states i s1 s2 ->  (get_mem1 s1) = (get_mem2 s2)) ->
       fsim_properties L1 L2 index order match_states ->
       fsim_properties_eq.
     Proof.
-      intros ? ? ? ? H HH; inv HH.
+      intros ? ? ? ? ? H HH; inv HH.
       econstructor; eauto.
     Qed.
     
@@ -124,6 +134,8 @@ Section ExposingMemory.
       exists i', exists s2',
          (Plus L2 s2 t s2' \/ (Star L2 s2 t s2' /\ Extorder i' i))
          /\ Extmatch_states i' s1' s2';
+    Extfsim_simulation_atx:
+          simulation_atx Extmatch_states;
     Extfsim_atx:
           preserves_atx Extmatch_states;
     Extfsim_public_preserved:
@@ -215,12 +227,13 @@ Section ExposingMemory.
 
     Lemma sim_extSim:
       forall index order (match_states:index -> state L1 -> state L2 -> Prop),
+        (simulation_atx match_states) ->
         (preserves_atx match_states) ->
       (forall i s1 s2, match_states i s1 s2 ->  Mem.extends (get_mem1 s1) (get_mem2 s2)) ->
       fsim_properties L1 L2 index order match_states ->
       fsim_properties_ext.
     Proof.
-      intros ? ? ? ? H HH; inv HH.
+      intros ? ? ? ? ? H HH; inv HH.
       econstructor; eauto.
     Qed.
     
@@ -228,6 +241,28 @@ Section ExposingMemory.
 
   (** *Injection Phases*)
   Section Injection.
+
+    Definition preserves_atx_inj {index:Type} {L1 L2} match_states
+        :=
+          forall (i:index)(j:meminj) s1 s2,
+            match_states i j s1 s2 ->
+            forall f args,
+              @at_external L1 s1 = Some (f,args) ->
+          exists args',
+            @at_external L2 s2 = Some (f,args') /\
+            Val.inject_list j args args'.
+
+    Definition simulation_atx_inj {index:Type} {L1 L2}
+               (match_states: index -> meminj -> _ -> _ -> Prop)
+      :=
+        forall s1 t s1', Step L1 s1 t s1' ->
+                    forall i f s2, match_states i f s1 s2 ->
+                              exists i', exists s2' f' t',
+                                  Step L2 s2 t' s2' /\
+                                  match_states i' f' s1' s2' /\
+                                  Values.inject_incr f f' /\
+                                  inject_trace f' t t'.
+    
     Record fsim_properties_inj: Type :=
       {  Injindex: Type;
         Injorder: Injindex -> Injindex -> Prop;
@@ -252,13 +287,10 @@ Section ExposingMemory.
                                     /\ Injmatch_states i' f' s1' s2' /\
                                     Values.inject_incr f f' /\
                                     inject_trace f' t t';
+        Injsim_simulation_atx:
+          simulation_atx_inj Injmatch_states;
         Injsim_atx:
-          forall i j s1 s2 f args,
-          Injmatch_states i j s1 s2 ->
-          @at_external L1 s1 = Some (f,args) -> 
-          exists args',
-            @at_external L2 s2 = Some (f,args') /\
-             Val.inject_list j args args';
+            preserves_atx_inj Injmatch_states;
         Injfsim_public_preserved:
           forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
       }.
@@ -454,8 +486,18 @@ Section Composition.
   right; split. subst t; apply star_refl. right. auto.
   exists s3; auto.
   subst t; constructor.
+- (*simulation at_external*)
+  unfold simulation_atx_inj; intros.
+  destruct H0 as [s3 [A B]]. destruct i as [i2 i1]; simpl in *.
+  exploit (Injsim_simulation_atx SIM12); eauto.
+  intros [i1' [s2'[ f' [t' [C [D [E F]]]]]]].
+  exploit (Extfsim_simulation_atx); eauto.
+  intros [i2' [s3' [P Q]]].
+  exists (i2', i1'); exists s3'; exists f', t'. repeat (split; auto).
+  exists s2'; auto.
+    
 - (*match_states preserves at_external *)
-  intros.
+  unfold preserves_atx_inj; intros.
   destruct H as (?&?&?).
   eapply SIM12 in H0; eauto.
   destruct H0 as (args'&Hatx&Hinj).
@@ -532,8 +574,17 @@ Section Composition.
   right; split. subst t; apply star_refl. right. auto.
   exists s3; auto.
   subst t; constructor.
+- (*simulation at_external*)
+  unfold simulation_atx_inj; intros.
+  destruct H0 as [s3 [A B]]. destruct i as [i2 i1]; simpl in *.
+  exploit (Extfsim_simulation_atx); eauto.
+  intros [i1' [s2' [P Q]]].
+  exploit (Injsim_simulation_atx SIM23); eauto.
+  intros [i2' [s3'[ f' [t' [C [D [E F]]]]]]].
+  exists (i2', i1'); exists s3'; exists f', t'. repeat (split; auto).
+  exists s2'; auto.
 - (*match_states preserves at_external *)
-  intros.
+  unfold preserves_atx_inj; intros.
   destruct H as (?&?&?).
   eapply SIM12 in H0; eauto.
   eapply SIM23 in H0; eauto.
@@ -651,7 +702,20 @@ Section Composition.
   subst f.
   eapply compose_inject_incr; eauto.
   subst t; constructor.
-- intros.
+- (*simulation at_external*)
+  unfold simulation_atx_inj; intros.
+  destruct H0 as [s3 [f12 [f23 [A [B C]]]]]. destruct i as [i2 i1]; simpl in *.
+  exploit (Injsim_simulation_atx SIM12); eauto.
+  intros [i1' [s2'[ f12' [t2' [? [? [? ?]]]]]]].
+  exploit (Injsim_simulation_atx SIM23); eauto.
+  intros [i2' [s3'[ f23' [t3' [? [? [? ?]]]]]]].
+  exists (i2', i1'); exists s3'; exists (compose_meminj f12' f23'), t3'. repeat (split; auto).
+  + exists s2',f12', f23'; auto.
+  + subst; eapply compose_inject_incr; auto.
+  + subst; eapply inject_trace_compose; eauto.
+  
+- (*match_states preserves at_external *)
+  unfold preserves_atx_inj; intros.
   destruct H as (?&?&?&?&?&?).
   eapply SIM12 in H0; eauto.
   destruct H0 as (args'&Hatx&Hinj).

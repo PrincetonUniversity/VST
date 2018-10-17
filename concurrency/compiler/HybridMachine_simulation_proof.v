@@ -1,9 +1,9 @@
 Require Import compcert.common.AST.
 Require Import Coq.omega.Omega.
-Require Import Clight.
-Require Import Memory.
-Require Import Values.
-Require Import Globalenvs.
+Require Import compcert.cfrontend.Clight.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.Globalenvs.
 
 Require Import Coq.Classes.Morphisms.
 
