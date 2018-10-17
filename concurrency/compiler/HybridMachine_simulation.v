@@ -70,13 +70,20 @@ Section HybridSimulation.
   Context (SG TG TID SCH SC TC R1 R2 (*s_thread_type t_thread_type*): Type).
   Variable SourceHybridMachine: @ConcurSemantics SG TID SCH (list machine_event) SC mem R1.
   Variable TargetHybridMachine: @ConcurSemantics TG TID SCH (list machine_event) TC mem R2.
-  Variable opt_init_mem_source : option Memory.Mem.mem.
-  Variable opt_init_mem_target : option Memory.Mem.mem.
+  (* 
+     Variable opt_init_mem_source : option Memory.Mem.mem.
+     Variable opt_init_mem_target : option Memory.Mem.mem.
+  *)
 
   Inductive inject_address (f : meminj) : address -> address -> Prop :=
   | inj_addr : forall b1 o1 b2 ofs, f b1 = Some (b2, ofs) ->
       inject_address f (b1, o1) (b2, o1 + ofs).
 
+  Parameter inject_delta_content: meminj -> delta_content -> delta_content -> Prop.
+  (* Same as memories that are injected...
+     but, we should reconsider if we really want sync_events.
+   *)
+  
   Inductive inject_sync_event (f : meminj) : sync_event -> sync_event -> Prop :=
   | inj_release : forall l1 l2 r1 r2, inject_address f l1 l2 ->
       match r1, r2 with
