@@ -130,7 +130,31 @@ Definition semax_call := @semax_call.
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
-Definition semax_store := @semax_store.
+
+Lemma semax_store:forall (CS : compspecs) (Espec : OracleKind) 
+         (Delta : tycontext) (e1 e2 : expr) (sh : share)
+         (P : environ -> pred rmap),
+       writable_share sh ->
+       semax Espec Delta
+         (fun rho : environ =>
+          (|> (extend_tc.tc_lvalue Delta e1 rho &&
+               extend_tc.tc_expr Delta (Ecast e2 (typeof e1)) rho &&
+               (mapsto_memory_block.mapsto_ sh 
+                  (typeof e1) (eval_lvalue e1 rho) * 
+                P rho)))%pred) (Sassign e1 e2)
+         (Clight_seplog.normal_ret_assert
+            (fun rho : environ =>
+             (mapsto_memory_block.mapsto sh (typeof e1)
+                (eval_lvalue e1 rho)
+                (force_val
+                   (sem_cast (typeof e2) (typeof e1) (eval_expr e2 rho))) *
+              P rho)%pred)).
+Proof.
+intros; apply semax_store; auto.
+Qed.
+
+(*Definition semax_store := @semax_store. *)
+
 Definition semax_load := @semax_load.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.

@@ -192,6 +192,7 @@ assert_PROP (align_compatible tint buf).
   econstructor; [reflexivity | apply Z.divide_0_r].
 forward_call (* len = ser(&p, buf); *)
       ((Vint (Int.repr 1), Vint (Int.repr 2)), v_p, buf, Tsh, Tsh).
+  split3; auto.
   repeat split; auto.
 Intros rest.
 simpl.

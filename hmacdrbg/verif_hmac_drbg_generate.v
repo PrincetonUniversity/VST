@@ -898,7 +898,7 @@ Proof.
     { subst I initial_state; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { simpl in *. repeat split; trivial; try omega.
+    { split3; auto. simpl in *. repeat split; trivial; try omega.
       rep_omega.
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; omega. 
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.

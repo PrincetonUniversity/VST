@@ -275,7 +275,7 @@ Proof.
     { subst I aaa; cancel.
       unfold hmac256drbg_relate. simpl in *. entailer!.
     } 
-    { red in WFI; simpl in *. repeat split; trivial; try rep_omega.
+    { split3; auto. red in WFI; simpl in *. repeat split; trivial; try rep_omega.
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; rep_omega.
     }
      

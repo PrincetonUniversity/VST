@@ -574,7 +574,7 @@ Qed.
 Lemma YES_join_full: 
    forall sh rsh n P r2 r3,
        join (R.YES sh rsh n P) r2 r3 ->
-       writable_share sh ->
+       writable0_share sh ->
        exists sh2 rsh2, r2 = NO sh2 rsh2.
 Proof.
   intros.
@@ -603,7 +603,7 @@ Lemma YES_overlap:
 forall sh0 rsh0 sh1 rsh1 (phi0 phi1: rmap) loc k k' p p',
   joins phi0 phi1 ->
   phi1@loc = R.YES sh1 rsh1 k p -> 
-  writable_share sh1 ->
+  writable0_share sh1 ->
   phi0@loc = R.YES sh0 rsh0 k' p' ->
   False.
 Proof.

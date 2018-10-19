@@ -581,7 +581,7 @@ Definition rfullshare : rshare := mk_rshare _ pure_readable_Rsh.
 Program Definition writable (l: address): pred rmap :=
  fun phi =>
   match phi @ l with
-    | YES sh _ k lp => writable_share sh /\ isVAL k
+    | YES sh _ k lp => writable0_share sh /\ isVAL k
     | _ => False
   end.
  Next Obligation.
@@ -591,7 +591,7 @@ Program Definition writable (l: address): pred rmap :=
   simpl in H1.
   destruct (a' @ l); inv H1; auto.
   destruct H0; split; auto.
-  unfold writable_share in *.
+  unfold writable0_share in *.
   clear - H3 H0.
   apply leq_join_sub in H0.
   apply leq_join_sub.
@@ -637,7 +637,7 @@ destruct (phi2 @ l); try contradiction.
 inv H1.
 destruct H0.
 clear - RJ H0 r.
-unfold readable_share, writable_share in *.
+unfold readable_share, writable0_share in *.
 destruct H0.
 destruct (join_assoc (join_comm H) (join_comm RJ)) as [a [? ?]].
 clear - r H0.
@@ -646,8 +646,8 @@ destruct H0.
 rewrite H. auto.
 Qed.
 
-Lemma writable_join_sub:
-  forall sh sh', join_sub sh sh' -> writable_share sh -> writable_share sh'.
+Lemma writable0_join_sub:
+  forall sh sh', join_sub sh sh' -> writable0_share sh -> writable0_share sh'.
 Proof.
 intros.
 destruct H.
@@ -664,7 +664,7 @@ simpl in *.
 destruct H; generalize (resource_at_join _ _ _ loc H); clear H.
 revert H0; destruct (phi1 @ loc); intros; try contradiction.
 destruct H0; subst.
-inv H; split; auto; eapply writable_join_sub; eauto; eexists; eauto.
+inv H; split; auto; eapply writable0_join_sub; eauto; eexists; eauto.
 Qed.
 
 Lemma writable_readable: forall loc m, writable loc m -> readable loc m.
@@ -676,7 +676,7 @@ Qed.
 Lemma writable_e: forall loc m, 
    writable loc m -> 
    exists sh, exists rsh, exists v, exists p, 
-     m @ loc = YES sh rsh (VAL v) p /\ writable_share sh.
+     m @ loc = YES sh rsh (VAL v) p /\ writable0_share sh.
 Proof.
 unfold writable; simpl; intros; destruct (m@loc); try contradiction.
 destruct H.
@@ -715,7 +715,7 @@ intros.
 unfold writable. simpl.
 destruct (phi @ loc); auto.
 destruct (isVAL_dec k).
-destruct (writable_share_dec sh).
+destruct (writable0_share_dec sh).
 left; auto.
 right; auto. contradict n; auto.
 destruct n; auto.

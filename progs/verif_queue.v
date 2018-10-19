@@ -22,6 +22,31 @@ Definition Qsh' := Share.lub (snd (Share.split extern_retainer)) Share.Rsh.
 Lemma writable_share_Qsh': writable_share Qsh'.
 Proof.
 unfold writable_share, Qsh', Ews.
+split.
+*
+rewrite Share.distrib1. rewrite glb_Lsh_Rsh, Share.lub_bot.
+unfold extern_retainer.
+intro. apply identity_share_bot in H.
+destruct (Share.split Share.Lsh) eqn:?H.
+pose proof (split_join _ _ _ H0).
+simpl in *.
+destruct (Share.split t) eqn:?H.
+pose proof (split_join _ _ _ H2).
+simpl in *.
+destruct (Share.ord_spec1 t2 Share.Lsh) as [? _].
+spec H4. apply leq_join_sub. apply sepalg.join_sub_trans with t; eexists; eauto.
+rewrite Share.glb_commute,  <- H4 in H.
+subst.
+apply Share.split_nontrivial in H2; auto.
+subst.
+apply Share.split_nontrivial in H0; auto.
+clear - H0.
+unfold Share.Lsh in *.
+destruct (Share.split Share.top) eqn:?H.
+simpl in *; subst.
+apply Share.split_nontrivial in H; auto.
+apply Share.nontrivial; auto.
+*
 apply leq_join_sub.
 apply Share.lub_upper2.
 Qed.

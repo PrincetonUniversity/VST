@@ -274,7 +274,7 @@ Proof.
     }
     {
       (* prove the PROP clauses *)
-      repeat split; auto; try omega.
+      split3; auto; omega.
     }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
@@ -389,6 +389,7 @@ Proof.
   }
   {
     (* prove the PROP clauses *)
+    split3; auto.
     simpl in *. repeat split; auto; try omega. (*
     rewrite H2 in *;*) rep_omega.
     left; rewrite Zlength_app, ZLbytes; trivial.

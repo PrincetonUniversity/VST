@@ -71,7 +71,7 @@ repeat if_tac in H; inv H.
 inv H0. rewrite Share.glb_commute, Share.glb_top in H; subst x.
  rewrite (Share.lub_bot).
 rewrite if_true by auto. rewrite if_true by auto. constructor.
-+ apply join_writable1 in H0 ;auto. rewrite if_true by auto.
++ apply join_writable01 in H0 ;auto. rewrite if_true by auto.
   if_tac; constructor.
 + apply join_readable1 in H0; auto.
   if_tac. if_tac; constructor. rewrite if_true by auto. constructor.
@@ -683,7 +683,7 @@ repeat match goal with [ H: context[ _ /\ _ ] |- _] => destruct H end.
 auto.
 Qed.
 
-Lemma mapsto_valid_access_wr: forall ch v sh (wsh: writable_share sh) b ofs jm,
+Lemma mapsto_valid_access_wr: forall ch v sh (wsh: writable0_share sh) b ofs jm,
   (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
   -> Mem.valid_access (m_dry jm) ch b ofs Writable.
 Proof.
@@ -707,9 +707,9 @@ rewrite preds_fmap_NoneP in H.
 simpl in H.
 generalize (resource_at_join _ _ _ (b,ofs') Hjoin); rewrite H; intro.
 forget ((nth (nat_of_Z (ofs' - ofs)) bl Undef)) as v'.
-assert (exists sh' (wsh': writable_share sh'), m_phi jm @ (b,ofs') = YES sh' (writable_readable_share wsh') (VAL v') NoneP).
-inv H1; [ | contradiction (join_writable_readable RJ wsh rsh2)].
-exists sh3, (join_writable1 RJ wsh).
+assert (exists sh' (wsh': writable0_share sh'), m_phi jm @ (b,ofs') = YES sh' (writable0_readable wsh') (VAL v') NoneP).
+inv H1; [ | contradiction (join_writable0_readable RJ wsh rsh2)].
+exists sh3, (join_writable01 RJ wsh).
 apply YES_ext; auto.
 destruct H6 as [sh' [wsh' ?]].
 generalize (juicy_mem_access jm (b,ofs')); rewrite H6; unfold perm_of_res; simpl; intro.
@@ -724,7 +724,7 @@ repeat match goal with [ H: context[ _ /\ _ ] |- _] => destruct H end.
 auto.
 Qed.
 
-Program Definition mapsto_can_store_definition ch v sh (wsh: writable_share sh) b ofs jm (v':val)
+Program Definition mapsto_can_store_definition ch v sh (wsh: writable0_share sh) b ofs jm (v':val)
   (MAPSTO: (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)):
   Memory.mem. 
 Proof. intros.
@@ -739,7 +739,7 @@ intros. destruct jm; simpl.
   apply contents_default.
 Defined.
 
-Lemma mapsto_can_store_property: forall (ch:memory_chunk) v sh (wsh: writable_share sh) b ofs jm v'
+Lemma mapsto_can_store_property: forall (ch:memory_chunk) v sh (wsh: writable0_share sh) b ofs jm v'
   (MAPSTO: (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)),
   Mem.store ch (m_dry jm) b ofs v' = 
   Some(mapsto_can_store_definition _ _ _ wsh _ _ jm v' MAPSTO).
@@ -754,7 +754,7 @@ contradiction.
 Opaque Mem.store.
 Qed.
 
-Lemma mapsto_can_store: forall ch v sh (wsh: writable_share sh) b ofs jm v',
+Lemma mapsto_can_store: forall ch v sh (wsh: writable0_share sh) b ofs jm v',
   (address_mapsto ch v sh (b, ofs) * TT)%pred (m_phi jm)
   -> exists m', Mem.store ch (m_dry jm) b ofs v' = Some m'.
 Proof.
@@ -1151,9 +1151,9 @@ Proof.
   if_tac. rewrite if_false. constructor.
   contradict H0. subst. apply join_top in J; auto.
   repeat if_tac; constructor.
-  assert (~writable_share sh2) by (contradict H; eapply join_writable1; eauto).
+  assert (~writable0_share sh2) by (contradict H; eapply join_writable01; eauto).
   if_tac. rewrite if_false by auto. repeat if_tac; constructor.
-  rewrite (if_false (writable_share sh2)) by auto.
+  rewrite (if_false (writable0_share sh2)) by auto.
   assert (~readable_share sh2) by (contradict H1; eapply join_readable1; eauto).
   rewrite (if_false (readable_share sh2)) by auto.
   if_tac.

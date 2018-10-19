@@ -31,24 +31,6 @@ Proof.
 destruct a; destruct b; intros; inv H; auto.
 Qed.
 
-Lemma unlater_writable:
-  forall m m', laterR m m' ->
-            forall loc, writable loc m' -> writable loc m.
-Proof.
-induction 1; intros; auto.
-hnf in *.
-simpl in H0.
-assert (match y @ loc with
-     | YES sh rsh k _ => writable_share sh /\ isVAL k
-     | _ => False
-     end) by (destruct (y @ loc); eauto).
-clear H0.
-revert H1; case_eq (y @ loc); intros; try contradiction.
-destruct H1; subst.
-destruct (rmap_unage_YES _ _ _ _ _ _ _ H H0).
-rewrite H3; simpl; auto.
-Qed.
-
 Lemma age_twin' {A B} `{HA: ageable A} `{HB: ageable B}:
   forall (x: A) (y: B) (x': A),
        level x = level y -> age x x' ->

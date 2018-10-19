@@ -119,7 +119,7 @@ Proof.
     Intros b bufs.
     assert_PROP (field_compatible tint [] b) by entailer!.
     forward_call (Ews, tbuffer, b, 0, 1).
-    { repeat split; simpl; auto; try computable.
+    { split; auto; repeat split; simpl; auto; try computable.
       destruct H3 as [? [? [? [? ?]]]]; auto. }
     clear H3.
     forward.
