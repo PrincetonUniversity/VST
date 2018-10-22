@@ -1,3 +1,7 @@
+If the current version does not build, please use git commit "e1c9457b" which is the commit for the CPP submission.
+
+-----------------------------
+
 How to build?
 
 Step 1: build VST. In the parent folder of this folder, do "make depend; make floyd".
