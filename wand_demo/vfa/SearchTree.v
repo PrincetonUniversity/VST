@@ -677,8 +677,6 @@ intros.
 try omega.  (* Oops! [omega] cannot solve this one.
     The problem is that [i] and [j] have type [key] instead of type [nat].
     The solution is easy enough: *)
-unfold key in *.
-omega.
 
 (** So, if you get stuck on an [omega] that ought to work,
    try unfolding the types from [key] to [nat] *)
