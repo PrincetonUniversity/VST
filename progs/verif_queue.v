@@ -240,7 +240,7 @@ Definition surely_malloc_spec :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t p * data_at_ Ews t p).
+       SEP (malloc_token Ews t p * data_at_ Ews t p).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   field_at Ews t_struct_elem [StructField _a] (fst rep) p *
@@ -259,7 +259,7 @@ Definition fifo_body (contents: list val) (hd tl: val) :=
 Definition fifo (contents: list val) (p: val) : mpred :=
   (EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Ews t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
+      data_at Ews t_struct_fifo (hd, tl) p * malloc_token Ews t_struct_fifo p *
       fifo_body contents hd tl).
 
 Definition fifo_new_spec :=
@@ -316,7 +316,7 @@ Definition make_elem_spec :=
               field_at Qsh' list_struct [StructField _b] (Vint b) p;
               list_cell QS Qsh (Vundef, Vundef) p;
               field_at_ Ews t_struct_elem [StructField _next] p;
-              malloc_token Tsh t_struct_elem p)).
+              malloc_token Ews t_struct_elem p)).
 
 Definition main_spec :=
  DECLARE _main
@@ -340,7 +340,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh t p * data_at_ Ews t p)).
+   SEP (malloc_token Ews t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -557,7 +557,7 @@ forward_call (*  free(p, sizeof( *p)); *)
    data_at Ews t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2 *
-   malloc_token Tsh t_struct_elem p2).
+   malloc_token Ews t_struct_elem p2).
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  rewrite make_unmake; cancel.
  apply derives_trans with

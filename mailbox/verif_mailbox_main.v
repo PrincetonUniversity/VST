@@ -91,11 +91,11 @@ Proof.
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
         fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N reads));
         fold_right sepcon emp (map (data_at_ Ews tint) (sublist i N lasts));
-        fold_right sepcon emp (map (malloc_token Tsh tint) comms);
-        fold_right sepcon emp (map (malloc_token Tsh tlock) locks);
-        fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs);
-        fold_right sepcon emp (map (malloc_token Tsh tint) reads);
-        fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
+        fold_right sepcon emp (map (malloc_token Ews tint) comms);
+        fold_right sepcon emp (map (malloc_token Ews tlock) locks);
+        fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+        fold_right sepcon emp (map (malloc_token Ews tint) reads);
+        fold_right sepcon emp (map (malloc_token Ews tint) lasts);
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs)))).
   { unfold N; computable. }
   { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!.

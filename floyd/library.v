@@ -106,7 +106,7 @@ Definition malloc_spec'  {cs: compspecs} :=
        PROP ()
        LOCAL (temp ret_temp p)
        SEP (if eq_dec p nullval then emp
-            else (malloc_token Tsh t p * data_at_ Ews t p)).
+            else (malloc_token Ews t p * data_at_ Ews t p)).
 
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
@@ -117,7 +117,7 @@ Definition free_spec'  {cs: compspecs} :=
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
        LOCAL (temp 1%positive p)
-       SEP (malloc_token Tsh t p; data_at_ Ews t p)
+       SEP (malloc_token Ews t p; data_at_ Ews t p)
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
@@ -149,7 +149,7 @@ Lemma semax_func_cons_malloc_aux:
  LOCAL (temp ret_temp p)
  SEP (if eq_dec p nullval
       then emp
-      else malloc_token Tsh t p * data_at_ Ews t p))%assert
+      else malloc_token Ews t p * data_at_ Ews t p))%assert
   (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).
 Proof.
  intros.
