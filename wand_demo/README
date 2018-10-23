@@ -1,3 +1,7 @@
+If the current version does not build, please use git commit "e1c9457b" which is the commit for the CPP submission.
+
+-----------------------------
+
 How to build?
 
 Step 1: build VST. In the parent folder of this folder, do "make depend; make floyd".
@@ -27,3 +31,15 @@ Where are all proofs?
 6. lst_lemmas: the definition and proofs (and alternative definitions and proofs) of list_rep, lseg etc.
 
 7. verif_list: the proof (and alternative proofs) of linked list append.
+
+----------------------
+
+Explanation for Print Assumptions.
+
+The "Print Assumptions" command will output a long list which can be classified into 3 category:
+
+1. Extensionality Axioms, e.g. functional extensinoality, propositional extensionality ((P <-> Q) -> (P = Q)).
+
+2. Axioms of real numbers. They come from Coq's standard library of Real. And CompCert's floating point number reasoning uses that.
+
+3. Axioms of Hoare logic rules for C. They actually not Coq axioms; they are Coq theorems which have been proved sound. It is a Coq's bug related to the interaction between "Print Assumptions" and Coq's modular system.

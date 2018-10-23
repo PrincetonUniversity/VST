@@ -37,6 +37,16 @@ int fib_rec(int n) {
   return fib_rec(n - 2) + fib_rec(n - 1);
 }
 
+void swap_int(int * x, int * y) {
+  int a, b;
+  a = * x;
+  b = * y;
+  if (a == b)
+    return;
+  * x = b;
+  * y = a;
+}
+
 int main () {
 }
 
