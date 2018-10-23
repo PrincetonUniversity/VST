@@ -422,11 +422,11 @@ rewrite (andp_comm (|> _)).
 rewrite andp_assoc.
 rewrite <- later_andp.
 rewrite exp_sepcon2, exp_andp1.
-apply semax_extract_exists_later; intro ts1.
+apply extract_exists_pre_later; intro ts1.
 rewrite exp_sepcon2, exp_andp1.
-apply semax_extract_exists_later; intro x1.
+apply extract_exists_pre_later; intro x1.
 rewrite exp_sepcon2, exp_andp1.
-apply semax_extract_exists_later; intro F'.
+apply extract_exists_pre_later; intro F'.
 apply semax_pre with
   (|> !! (ENTAIL ret0_tycon
                       (funsig_tycontext
@@ -450,6 +450,7 @@ normalize.
 apply andp_right.
 apply andp_left2.
 apply andp_left2; auto.
+apply derives_refl.
 apply andp_right.
 apply andp_left1; auto.
 apply andp_left2.
@@ -1042,6 +1043,6 @@ clear; split; intros. inv H. destruct H. inv H.
 +
 simpl in H3. rewrite PTree.gempty in H3. inv H3.
 all:fail.
-Admitted.
+Abort.
 
 End Junk.

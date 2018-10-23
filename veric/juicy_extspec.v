@@ -218,7 +218,7 @@ Proof.
       rewrite <- (approx_oo_approx' j2' (S j2')) at 1 by auto.
       rewrite <- (approx'_oo_approx j2' (S j2')) at 2 by auto.
       rewrite <- preds_fmap_fmap; rewrite H5. rewrite preds_fmap_NoneP. auto. 
-    - pose proof (age1_YES _ _ l sh (writable_readable_share wsh) (VAL v') H1).
+    - pose proof (age1_YES _ _ l sh (writable0_readable wsh) (VAL v') H1).
       rewrite H4 in H3. auto.
   + destruct H2 as [? [v ?]]; right; right; left.
     split; auto. exists v.   apply (age1_YES _ _ l _ _ _ H1) in H3. auto.

@@ -29,15 +29,15 @@ Definition md_info_state: Type := val%type.
 Definition t_struct_md_ctx_st := Tstruct _mbedtls_md_context_t noattr.
 
 Definition md_relate (key data : list byte) (r:mdstate) :=
-  malloc_token Tsh (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
+  malloc_token Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
   UNDER_SPEC.REP Ews (UNDER_SPEC.hABS key data) (snd (snd r)).
 
 Definition md_full (key: list byte) (r:mdstate) :=
-  malloc_token Tsh (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
+  malloc_token Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
   UNDER_SPEC.FULL Ews key (snd (snd r)).
 
 Definition md_empty (r:mdstate) := 
-  malloc_token Tsh (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
+  malloc_token Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
   UNDER_SPEC.EMPTY Ews (snd (snd r)).
 
 Lemma md_relate_full: forall key data r, md_relate key data r |-- md_full key r.
@@ -52,7 +52,7 @@ Qed.
 
 Lemma md_empty_unfold: forall (r: mdstate), 
        md_empty r = 
-       malloc_token Tsh (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
+       malloc_token Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)) *
        data_at_ Ews (Tstruct _hmac_ctx_st noattr) (snd (snd r)).
 Proof.
 intros.
@@ -766,7 +766,7 @@ Definition hmac_drbg_seed_inst256_spec :=
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
             else !!(ret_value = Int.zero) && 
                  md_empty (fst Ctx) *
-                 EX p:val, (* malloc_token Tsh (Tstruct _hmac_ctx_st noattr) p * *)
+                 EX p:val, (* malloc_token Ews (Tstruct _hmac_ctx_st noattr) p * *)
                  match (fst Ctx, fst handle_ss) with
                      ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR)) =>
                    let CtxFinal := ((info, (M2, p)),

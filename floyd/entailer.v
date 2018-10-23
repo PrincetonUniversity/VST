@@ -290,6 +290,22 @@ intros.
  hnf; eauto.
 Qed.
 
+Lemma extend_weak_valid_pointer:
+  forall p Q, weak_valid_pointer p * Q |-- weak_valid_pointer p.
+Proof.
+  intros. unfold weak_valid_pointer.
+  pose proof (extend_tc.extend_valid_pointer' p 0).
+  pose proof (predicates_hered.boxy_e _ _ H). 
+  pose proof (extend_tc.extend_valid_pointer' p (-1)).
+  pose proof (predicates_hered.boxy_e _ _ H1).
+  change (_ |-- _) with
+      (predicates_hered.derives
+         (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)) * Q)
+         (predicates_hered.orp (valid_pointer' p 0) (valid_pointer' p (-1)))).
+  intros ? (w1 & w2 & Hj & Hp & ?). simpl in Hp |- * .
+  destruct Hp; [left; apply (H0 w1) | right; apply (H2 w1)]; auto; hnf; eauto.
+Qed.
+
 Lemma sepcon_valid_pointer1:
      forall (P Q: mpred) p,
         P |-- valid_pointer p ->

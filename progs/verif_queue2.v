@@ -9,7 +9,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
-Instance QS: listspec _elem _next (fun sh => malloc_token Tsh t_struct_elem).
+Instance QS: listspec _elem _next (fun sh => malloc_token Ews t_struct_elem).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
@@ -45,7 +45,7 @@ Definition surely_malloc_spec :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t p * data_at_ Ews t p).
+       SEP (malloc_token Ews t p * data_at_ Ews t p).
 
 Definition fifo_body (contents: list val) (hd tl : val) :=
      (if isnil contents
@@ -53,13 +53,13 @@ Definition fifo_body (contents: list val) (hd tl : val) :=
       else (EX prefix: list val, EX last: val,
               !!(contents = prefix++last::nil)
             &&  (lseg QS Ews prefix hd tl
-                   * malloc_token Tsh t_struct_elem tl
+                   * malloc_token Ews t_struct_elem tl
                    * data_at Ews t_struct_elem (last, nullval) tl)))%logic.
 
 Definition fifo (contents: list val) (p: val) : mpred :=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Ews t_struct_fifo (hd, tl) p * malloc_token Tsh t_struct_fifo p *
+      data_at Ews t_struct_fifo (hd, tl) p * malloc_token Ews t_struct_fifo p *
       fifo_body contents hd tl.
 
 Definition fifo_new_spec :=
@@ -76,7 +76,7 @@ Definition fifo_put_spec :=
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (temp _Q q; temp _p p)
           SEP (fifo contents q;
-                 malloc_token Tsh t_struct_elem p;
+                 malloc_token Ews t_struct_elem p;
                  data_at Ews t_struct_elem (last,Vundef) p)
   POST [ tvoid ]
           PROP() LOCAL() SEP (fifo (contents++(last :: nil)) q).
@@ -101,7 +101,7 @@ Definition fifo_get_spec :=
        PROP ()
        LOCAL(temp ret_temp p)
        SEP (fifo contents q;
-              malloc_token Tsh t_struct_elem p;
+              malloc_token Ews t_struct_elem p;
               data_at Ews t_struct_elem (first,Vundef) p).
 
 Definition make_elem_spec :=
@@ -113,7 +113,7 @@ Definition make_elem_spec :=
     EX p:val,
        PROP()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t_struct_elem p;
+       SEP (malloc_token Ews t_struct_elem p;
               data_at Ews t_struct_elem (Vint i, Vundef) p).
 
 Definition main_spec :=
@@ -138,7 +138,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh t p * data_at_ Ews t p)).
+   SEP (malloc_token Ews t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.

@@ -32,7 +32,7 @@ Definition surely_malloc_spec :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh t p * data_at_ Ews t p).
+       SEP (malloc_token Ews t p * data_at_ Ews t p).
 
 Definition memset_spec :=
  DECLARE _memset
@@ -135,11 +135,11 @@ Definition initialize_channels_spec :=
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
         fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
-        fold_right sepcon emp (map (malloc_token Tsh tint) comms);
-        fold_right sepcon emp (map (malloc_token Tsh tlock) locks);
-        fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs);
-        fold_right sepcon emp (map (malloc_token Tsh tint) reads);
-        fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
+        fold_right sepcon emp (map (malloc_token Ews tint) comms);
+        fold_right sepcon emp (map (malloc_token Ews tlock) locks);
+        fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+        fold_right sepcon emp (map (malloc_token Ews tint) reads);
+        fold_right sepcon emp (map (malloc_token Ews tint) lasts);
         data_at sh1 tbuffer (vint 0) (Znth 0 bufs);
         fold_right sepcon emp (map (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
         fold_right sepcon emp (map (data_at_ Ews tint) reads);
@@ -295,7 +295,7 @@ Definition reader_spec :=
    let '(r, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2, gv) := x in
    PROP (readable_share sh; readable_share sh1; readable_share sh2; isptr (Znth r comms))
    LOCAL (temp _arg arg; gvars gv)
-   SEP (data_at Ews tint (vint r) arg; malloc_token Tsh tint arg;
+   SEP (data_at Ews tint (vint r) arg; malloc_token Ews tint arg;
         data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
         data_at_ Ews tint (Znth r reads); data_at_ Ews tint (Znth r lasts);

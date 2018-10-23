@@ -221,8 +221,7 @@ Proof. intros. do 2 pose proof I.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, shc,
                        @nil byte, V, gv). 
     {
-      rewrite H9.
-      repeat split; auto.
+      rewrite H9. split3; auto.
     }
     Intros. 
     simpl.
@@ -243,9 +242,7 @@ Proof. intros. do 2 pose proof I.
 (*   rewrite <- (data_at_share_join _ _ _ _ _ _ (join_comp_Tsh shc)); cancel. *)
     {
       (* prove the PROP clauses *)
-      rewrite H9.
-      change (Zlength [i]) with 1.
-      repeat split; auto.
+      rewrite H9. split3; auto.
     }
     Intros.
 (*    sep_apply (data_at_share_join_W _ _ _ (tarray tuchar 1) [Vint (Int.repr i)] [Vint (Int.repr i)]  sep 
@@ -287,7 +284,7 @@ Proof. intros. do 2 pose proof I.
                          (*md_ctx*)(IS1a, (IS1b, IS1c)),  shc,Vptr b i0, sha, V ++ [Byte.repr i], contents, gv).
       {
         (* prove the PROP clause matches *)
-        repeat split; auto; try rep_omega.
+        split3; auto.
         rewrite Zlength_app; rewrite H9.
         simpl. remember (Zlength contents) as n; clear - H.
         destruct H. rewrite <- Zplus_assoc.
@@ -376,8 +373,7 @@ Proof. intros. do 2 pose proof I.
     }
     {
       (* prove the PROP clauses *)
-      rewrite H9.
-      repeat split; auto.
+      rewrite H9. split3; auto.
     }
     Intros.
     rewrite H9.

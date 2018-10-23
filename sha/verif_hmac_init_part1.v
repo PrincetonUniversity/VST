@@ -349,7 +349,8 @@ Proof. intros.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
            simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  apply derives_refl. omega.
        Time cancel. (*0.1 versus 2.4*) }
-     { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l; repeat split; trivial; omega. }
+     { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l by omega.
+      split ; [ | split3]; auto; omega. }
      unfold tarray.
      remember (64 - l) as l64.
      remember (map Vubyte key) as KCONT.

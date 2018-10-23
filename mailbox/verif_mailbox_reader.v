@@ -26,7 +26,7 @@ Proof.
     LOCAL (temp _r (vint r); temp _arg arg; gvars gv)
     SEP (data_at sh1 (tarray (tptr tint) N) reads (gv _reading); data_at sh1 (tarray (tptr tint) N) lasts (gv _last_read);
          data_at Ews tint Empty (Znth r reads); data_at Ews tint (vint b0) (Znth r lasts);
-         data_at Ews tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Tsh tint arg;
+         data_at Ews tint (vint r) (force_val (sem_cast_pointer arg)); malloc_token Ews tint arg;
          data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
          data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
          data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);

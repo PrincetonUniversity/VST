@@ -1533,7 +1533,7 @@ Proof. intros.
       rewrite field_address_offset; trivial. 
     }
     { simpl. rewrite !sublist_map, !map_map. cancel. }
-    { repeat split; auto;
+    { split3; auto.
       subst use_len; destruct (Z.min_dec 32 (out_len - done)); try rep_omega.
     }
 

@@ -528,6 +528,11 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   memory_block sh n p |-- valid_pointer (offset_val i p).
 Proof. exact @memory_block_valid_pointer. Qed.
 
+Lemma memory_block_weak_valid_pointer: forall {cs: compspecs} sh n p i,
+  0 <= i <= n -> 0 < n -> sepalg.nonidentity sh ->
+  memory_block sh n p |-- weak_valid_pointer (offset_val i p).
+Proof. exact @memory_block_weak_valid_pointer. Qed.
+
 Lemma mapsto_zeros_memory_block: forall sh n p,
   readable_share sh ->
   mapsto_zeros n sh p |--
@@ -1197,12 +1202,6 @@ Axiom semax_extract_exists:
   forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
   (forall x, @semax CS Espec Delta (P x) c R) ->
    @semax CS Espec Delta (EX x:A, P x) c R.
-
-Axiom semax_extract_exists_later:
-  forall {CS: compspecs} {Espec: OracleKind},
-  forall (A : Type) (Q: environ -> mpred) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
-  (forall x, @semax CS Espec Delta (Q && |> P x) c R) ->
-   @semax CS Espec Delta (Q && |> EX x:A, P x) c R.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C, @semax_func Espec V G C nil nil.

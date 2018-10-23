@@ -60,7 +60,7 @@ Definition foo_invariant : object_invariant :=
   (fun (history: list Z) p =>
     withspacer Ews (sizeof size_t + sizeof tint) (2 * sizeof size_t) (field_at Ews (Tstruct _foo_object noattr) 
             [StructField _data] (Vint (Int.repr (2*fold_right Z.add 0 history)))) p
-      *  malloc_token Tsh (Tstruct _foo_object noattr) p).
+      *  malloc_token Ews (Tstruct _foo_object noattr) p).
 
 Definition foo_reset_spec :=
  DECLARE _foo_reset (reset_spec foo_invariant).
@@ -150,7 +150,7 @@ Intros p.
 forward_if
   (PROP ( )
    LOCAL (temp _p p; gvars gv)
-   SEP (malloc_token Tsh (Tstruct _foo_object noattr) p;
+   SEP (malloc_token Ews (Tstruct _foo_object noattr) p;
           data_at_ Ews (Tstruct _foo_object noattr) p;
           object_methods foo_invariant (gv _foo_methods))).
 *

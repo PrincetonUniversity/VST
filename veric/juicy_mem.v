@@ -8,7 +8,7 @@ Definition dec_share_nonidentity (sh: Share.t) : {~identity sh}+{identity sh} :=
    (Sumbool.sumbool_not _ _ (dec_share_identity sh)).
 
 Definition perm_of_sh (sh: Share.t): option permission :=
-  if writable_share_dec sh
+  if writable0_share_dec sh
   then if eq_dec sh Share.top
             then Some Freeable
             else Some Writable
@@ -56,7 +56,7 @@ Definition perm_of_res_lock_explicit
     | compcert_rmaps.RML.R.NO _ _ => None
     | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ => None
     | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _ _) _ =>
-      if writable_share_dec (Share.glb Share.Rsh sh)
+      if writable0_share_dec (Share.glb Share.Rsh sh)
       then if eq_dec (Share.glb Share.Rsh sh) Share.top then Some Freeable else Some Writable
       else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
              if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
@@ -90,7 +90,7 @@ Definition perm_of_res_explicit
         match r with
         | compcert_rmaps.RML.R.NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
            | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ =>
-             if writable_share_dec sh
+             if writable0_share_dec sh
              then if eq_dec sh Share.top then Some Freeable else Some Writable
              else
                if readable_share_dec sh
@@ -139,6 +139,7 @@ Lemma perm_of_sh_fullshare: perm_of_sh fullshare = Some Freeable.
 Proof. unfold perm_of_sh.
   rewrite if_true. rewrite if_true by auto. auto.
    unfold fullshare.
+   apply writable_writable0.
    apply writable_share_top.
 Qed.
 
@@ -189,11 +190,11 @@ Proof.
     repeat if_tac; constructor.
     rewrite if_true. rewrite if_false. constructor.
     apply glb_Rsh_not_top.
-    apply writable_share_glb_Rsh; auto.
+    apply writable0_share_glb_Rsh; auto.
     rewrite if_true by auto.
     rewrite if_false. rewrite if_true. constructor.
     unfold readable_share. rewrite glb_twice; auto.
-    contradict H. unfold writable_share in *. eapply join_sub_trans; eauto.
+    contradict H. unfold writable0_share in *. eapply join_sub_trans; eauto.
     apply leq_join_sub. apply Share.glb_lower2.
 Qed.
 
@@ -280,14 +281,14 @@ destruct H; generalize (resource_at_join _ _ _ loc H); clear H.
 revert H0; destruct (phi1 @ loc); intros; try contradiction.
 destruct H0; subst.
 inv H.
-split. eapply join_writable1; eauto. auto.
-contradiction (join_writable_readable RJ H0 rsh2).
+split. eapply join_writable01; eauto. auto.
+contradiction (join_writable0_readable RJ H0 rsh2).
 Qed.
 
 Lemma writable_inv: forall phi loc, writable loc phi ->
   exists sh, exists rsh, exists k, exists pp, 
        phi @ loc = YES sh rsh k pp /\ 
-       writable_share sh /\
+       writable0_share sh /\
        isVAL k.
 Proof.
 simpl.
@@ -844,7 +845,7 @@ rewrite if_true by auto. rewrite if_false; auto.
 Qed.
 
 Lemma perm_of_readable:
-  forall sh (rsh: readable_share sh), ~writable_share sh -> perm_of_sh sh = Some Readable.
+  forall sh (rsh: readable_share sh), ~writable0_share sh -> perm_of_sh sh = Some Readable.
 Proof.
 intros. unfold perm_of_sh. rewrite if_false by auto. rewrite if_true; auto.
 Qed.
@@ -866,7 +867,7 @@ rewrite if_false. rewrite if_false.
 rewrite if_true; auto.
 apply bot_unreadable.
 intro.
-apply writable_readable_share in H.
+apply writable0_readable in H.
 apply bot_unreadable in H; auto.
 Qed.
 
@@ -1525,10 +1526,10 @@ Definition resource_decay (nextb: block) (phi1 phi2: rmap) :=
  forall l: address,
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot bot_unreadable) /\
   (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
-  (exists sh, exists (wsh: writable_share sh), exists v, exists v',
+  (exists sh, exists (wsh: writable0_share sh), exists v, exists v',
        resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = 
-                       YES sh (writable_readable_share wsh) (VAL v) NoneP /\ 
-       phi2 @ l = YES sh (writable_readable_share wsh) (VAL v') NoneP)
+                       YES sh (writable0_readable wsh) (VAL v) NoneP /\ 
+       phi2 @ l = YES sh (writable0_readable wsh) (VAL v') NoneP)
   \/ ((fst l >= nextb)%positive /\ exists v, phi2 @ l = YES Share.top readable_share_top (VAL v) NoneP)
   \/ (exists v, exists pp, phi1 @ l = YES Share.top readable_share_top (VAL v) pp 
                         /\ phi2 @ l = NO Share.bot bot_unreadable)).
@@ -1538,9 +1539,9 @@ Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) :=
   forall l: address,
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot bot_unreadable) /\
   (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
-  (exists sh, exists (wsh: writable_share sh), exists v, exists v',
-       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES sh (writable_readable_share wsh) (VAL v) NoneP
-      /\ phi2 @ l = YES sh (writable_readable_share wsh) (VAL v') NoneP)).
+  (exists sh, exists (wsh: writable0_share sh), exists v, exists v',
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES sh (writable0_readable wsh) (VAL v) NoneP
+      /\ phi2 @ l = YES sh (writable0_readable wsh) (VAL v') NoneP)).
 
 Lemma resource_nodecay_decay:
    forall b phi1 phi2, resource_nodecay b phi1 phi2 -> resource_decay b phi1 phi2.
@@ -1687,7 +1688,7 @@ specialize (PERM ofs' HA1).
 destruct ( m_phi jm @ (b, ofs') ) eqn:?H; try destruct k; simpl in PERM; try if_tac in PERM; try inv PERM.
 destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
 simpl.
-assert (writable_share sh). {
+assert (writable0_share sh). {
  clear - PERM.
  unfold perm_of_sh in PERM.
  if_tac in PERM; auto. if_tac in PERM. inv PERM.

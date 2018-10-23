@@ -17,7 +17,7 @@ Proof.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh t p * data_at_ Ews t p)).
+   SEP (malloc_token Ews t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -109,7 +109,7 @@ Proof.
          EX bufs : list val, !!(Zlength bufs = i /\ Forall isptr bufs) &&
            data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) (gv _bufs) *
            fold_right sepcon emp (map (@data_at CompSpecs Ews tbuffer (vint 0)) bufs) *
-           fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
+           fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs))).
   { unfold B, N; computable. }
   { unfold B, N; computable. }
   { entailer!.
@@ -119,7 +119,7 @@ Proof.
     Intros b bufs.
     assert_PROP (field_compatible tint [] b) by entailer!.
     forward_call (Ews, tbuffer, b, 0, 1).
-    { repeat split; simpl; auto; try computable.
+    { split; auto; repeat split; simpl; auto; try computable.
       destruct H3 as [? [? [? [? ?]]]]; auto. }
     clear H3.
     forward.
@@ -160,24 +160,24 @@ Proof.
              (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs
              (Znth r shs) gsh2 empty_map) (upto (Z.to_nat i))) *
            fold_right sepcon emp (map (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g) *
-           fold_right sepcon emp (map (malloc_token Tsh tlock) locks)) *
+           fold_right sepcon emp (map (malloc_token Ews tlock) locks)) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
            fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2) *
-           fold_right sepcon emp (map (malloc_token Tsh tint) comms);
+           fold_right sepcon emp (map (malloc_token Ews tint) comms);
          EX reads : list val, !!(Zlength reads = i) &&
            data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) (gv _reading) *
            fold_right sepcon emp (map (data_at_ Ews tint) reads) *
-           fold_right sepcon emp (map (malloc_token Tsh tint) reads);
+           fold_right sepcon emp (map (malloc_token Ews tint) reads);
          EX lasts : list val, !!(Zlength lasts = i) &&
            data_at Ews (tarray (tptr tint) N) (lasts ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_read) *
            fold_right sepcon emp (map (data_at_ Ews tint) lasts) *
-           fold_right sepcon emp (map (malloc_token Tsh tint) lasts);
+           fold_right sepcon emp (map (malloc_token Ews tint) lasts);
          @data_at CompSpecs Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
          EX sh : share, !!(sepalg_list.list_join sh1 (sublist i N shs) sh) &&
            @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs);
          fold_right sepcon emp (map (@data_at CompSpecs Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
-         fold_right sepcon emp (map (malloc_token Tsh tbuffer) bufs))).
+         fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs))).
   { unfold N; computable. }
   { Exists ([] : list val) ([] : list val) ([] : list gname) ([] : list gname) ([] : list gname)
       ([] : list gname) ([] : list val) ([] : list val) Ews; rewrite !data_at__eq; entailer!.

@@ -138,7 +138,7 @@ Definition nonempty_share (sh: share) :=
 Definition readable_share (sh: share) :=
        nonempty_share (Share.glb Share.Rsh sh).
 Definition writable_share (sh: share) :=
-    join_sub Share.Rsh sh.
+    nonempty_share (Share.glb Share.Lsh sh) /\ join_sub Share.Rsh sh.
 
 
 Lemma lub_Lsh_Rsh:
@@ -169,8 +169,14 @@ Defined.
 Lemma writable_share_dec: forall sh, {writable_share sh} + {~ writable_share sh}.
 Proof.
   unfold writable_share. intros.
-  destruct (Share.EqDec_share (Share.glb Share.Rsh sh) Share.Rsh); [left|right].
+  destruct (Share.EqDec_share (Share.glb Share.Rsh sh) Share.Rsh); [|right].
 *
+  destruct (Share.EqDec_share (Share.glb Share.Lsh sh) Share.bot); [right|left].
+ + intros [? ?]. rewrite e0 in H. apply H. apply bot_identity.
+ +
+  split. unfold nonempty_share, nonidentity. contradict n.
+  apply identity_share_bot; auto.
+  clear n.  
   exists (Share.glb Share.Lsh sh).
   split.
   -
@@ -193,7 +199,7 @@ Proof.
   rewrite Share.glb_absorb. rewrite e. auto.
 *
   contradict n.
-  destruct n as [a [? ?]].
+  destruct n as [_ [a [? ?]]].
   subst sh.
   rewrite Share.glb_absorb. auto.
 Qed.
@@ -202,7 +208,7 @@ Lemma writable_readable:
  forall sh, writable_share sh -> readable_share sh.
 Proof.
 unfold writable_share, readable_share.
-intros.
+intros. destruct H as [_ H].
 intro.
 destruct H as [a ?].
 destruct H.
@@ -277,6 +283,16 @@ Arguments glb_Rsh_not_top sh _ : clear implicits.
 Lemma writable_share_top: writable_share Tsh.
 Proof.
 red.
+split.
+*
+rewrite Share.glb_top. 
+unfold Share.Lsh.
+intro.
+destruct (Share.split Share.top) eqn:?H.
+apply split_nontrivial' in H0; auto.
+apply identity_share_bot in H0.
+apply Share.nontrivial; auto.
+*
 exists Share.Lsh.
 apply join_comm.
 unfold Share.Lsh, Share.Rsh, Tsh.
@@ -299,7 +315,28 @@ Definition Ews (* extern_write_share *) :=
 
 Lemma writable_Ews: writable_share Ews.
 Proof.
-unfold writable_share, Ews.
+split; unfold Ews.
+*
+unfold extern_retainer.
+rewrite Share.distrib1.
+rewrite glb_Lsh_Rsh, Share.lub_bot.
+destruct (Share.split Share.Lsh) eqn:?H.
+assert (H1: nonempty_share t). {
+ intro. apply identity_share_bot in H0. subst.
+ apply Share.split_nontrivial in H; auto.
+ unfold Share.Lsh in H.
+ destruct (Share.split Share.top) eqn:?H.
+ apply Share.split_nontrivial in H0; auto.
+ apply Share.nontrivial; auto.
+}
+apply split_join in H.
+simpl.
+destruct H.
+rewrite <- H0.
+rewrite Share.glb_commute, Share.distrib1.
+rewrite H, Share.lub_bot.
+rewrite Share.glb_idem; auto.
+*
 apply leq_join_sub.
 apply Share.lub_upper2.
 Qed.
@@ -307,8 +344,7 @@ Qed.
 Lemma writable_Rsh: writable_share Share.Rsh.
 Proof.
   unfold writable_share.
-  apply join_sub_refl.
-Qed.
+Abort.  (* Not true any more *)
 
 Hint Resolve writable_Ews.
 
@@ -957,6 +993,14 @@ Lemma join_writable1: forall sh1 sh2 sh,
 Proof.
 intros.
 red in H0|-*.
+destruct H0 as [H1 H0]; split.
+*
+unfold nonempty_share, nonidentity in *.
+contradict H1.
+destruct H0.
+destruct (join_comp_parts comp_Rsh_Lsh H) as [_ ?].
+apply split_identity in H2; auto.
+*
 eapply join_sub_trans; [apply H0 | ].
 exists sh2; auto.
 Qed.
@@ -967,6 +1011,53 @@ Lemma join_writable_readable:
 Proof.
 intros.
 red in H0,H1.
+destruct H0 as [_ [a ?]].
+destruct (join_assoc (join_comm H0) H) as [f [? ?]].
+destruct H2.
+rewrite H2 in H1.
+apply H1; auto.
+Qed.
+
+Definition writable0_share (sh: share) :=
+    join_sub Share.Rsh sh.
+
+Lemma writable_writable0: forall sh,
+  writable_share sh -> writable0_share sh.
+Proof.
+intros.
+destruct H. auto.
+Qed.
+Hint Resolve writable_writable0.
+
+Lemma writable0_readable: forall sh,
+  writable0_share sh -> readable_share sh.
+Proof.
+unfold writable_share, readable_share.
+intros.
+intro.
+destruct H as [a ?].
+destruct H.
+subst sh.
+rewrite Share.glb_absorb in H0.
+clear - H0. unfold Share.Rsh in H0.
+destruct (Share.split Share.top) eqn:?. simpl in H0.
+apply split_nontrivial' in Heqp; auto.
+apply top_share_nonidentity in Heqp. auto.
+Qed.
+Hint Resolve writable0_readable.
+
+Lemma writable0_Rsh: writable0_share Share.Rsh.
+Proof.
+  unfold writable_share.
+  apply join_sub_refl.
+Qed.
+
+Lemma join_writable0_readable:
+  forall {sh1 sh2 sh}, 
+   join sh1 sh2 sh -> writable0_share sh1 -> readable_share sh2 -> False.
+Proof.
+intros.
+red in H0,H1.
 destruct H0 as [a ?].
 destruct (join_assoc (join_comm H0) H) as [f [? ?]].
 destruct H2.
@@ -974,11 +1065,52 @@ rewrite H2 in H1.
 apply H1; auto.
 Qed.
 
-Lemma writable_share_glb_Rsh:
-  forall sh, writable_share sh -> writable_share (Share.glb Share.Rsh sh).
+Lemma join_writable01: forall sh1 sh2 sh,
+   join sh1 sh2 sh -> writable0_share sh1 -> writable0_share sh.
 Proof.
 intros.
-unfold writable_share in *.
+red in H0|-*.
+eapply join_sub_trans; [apply H0 | ].
+exists sh2; auto.
+Qed.
+
+Lemma writable0_share_dec: forall sh, {writable0_share sh} + {~ writable0_share sh}.
+Proof.
+  unfold writable0_share. intros.
+  destruct (Share.EqDec_share (Share.glb Share.Rsh sh) Share.Rsh); [left|right].
+*
+  exists (Share.glb Share.Lsh sh).
+  split.
+  -
+  rewrite <- Share.glb_assoc.
+  rewrite (Share.glb_commute Share.Rsh).
+  unfold Share.Rsh, Share.Lsh.
+  destruct (Share.split Share.top) eqn:?. simpl.
+  apply Share.split_disjoint in Heqp. rewrite Heqp.
+  rewrite Share.glb_commute, Share.glb_bot. auto.
+  -
+  apply Share.distrib_spec with Share.Rsh.
+  rewrite <- Share.lub_assoc. rewrite Share.lub_idem.
+  rewrite Share.distrib2.
+  rewrite Share.lub_commute.
+  destruct (Share.split Share.top) eqn:?.
+  unfold Share.Lsh, Share.Rsh at 1.
+  rewrite Heqp. simpl.
+  rewrite (Share.split_together _ _ _ Heqp).
+  rewrite Share.glb_commute, Share.glb_top. auto.
+  rewrite Share.glb_absorb. rewrite e. auto.
+*
+  contradict n.
+  destruct n as [a [? ?]].
+  subst sh.
+  rewrite Share.glb_absorb. auto.
+Qed.
+
+Lemma writable0_share_glb_Rsh:
+  forall sh, writable0_share sh -> writable0_share (Share.glb Share.Rsh sh).
+Proof.
+intros.
+unfold writable0_share in *.
 apply leq_join_sub in H.
 apply leq_join_sub.
 apply Share.ord_spec1.
@@ -1024,12 +1156,8 @@ Abort.  (* not needed? *)
   Proof.
     intros.
     intro.
-    unfold readable_share, writable_share in *.
-    destruct H0. destruct H.
-    destruct (join_assoc (join_comm H0) H) as [? [? _]].
-    unfold nonempty_share in H1. clear - H1 H2.
-    destruct H2 as [H2 _]. rewrite H2 in H1.
-    apply H1. apply bot_identity.
+    destruct H as [sh ?].
+    apply join_writable_readable in H; eauto.
  Qed.
 
   Lemma writable_not_join_writable :
@@ -1057,12 +1185,12 @@ Abort.  (* not needed? *)
     intros. apply glb_Rsh_not_top.
   Qed.
 *)
-  Lemma writable_right:
-    forall sh,  writable_share (Share.glb Share.Rsh sh) ->
-           writable_share sh.
+  Lemma writable0_right:
+    forall sh,  writable0_share (Share.glb Share.Rsh sh) ->
+           writable0_share sh.
   Proof.
      intros.
-     unfold writable_share in *.
+     unfold writable0_share in *.
      apply leq_join_sub in H.
      apply leq_join_sub.
      eapply Share.ord_trans; try eassumption.
@@ -1073,13 +1201,14 @@ Abort.  (* not needed? *)
 Lemma join_readable_unreadable:
   forall sh1 sh2 sh3,
     join sh1 sh2 sh3 ->
-    ~ writable_share sh1 ->
+    ~ writable0_share sh1 ->
     ~ readable_share sh2 ->
-    ~ writable_share sh3.
+    ~ writable0_share sh3.
+ (* Not true for for writable, only for writable0 *)
 Proof.
  intros.
  contradict H0.
- unfold writable_share in *.
+ unfold writable0_share in *.
  destruct H0.
  destruct (join_comp_parts comp_Lsh_Rsh H) as [_ ?].
  destruct (join_comp_parts comp_Lsh_Rsh H0) as [_ ?].
