@@ -50,8 +50,8 @@ Notation "x" := (Int.repr x%Z) (only printing, at level 10) : int_repr_scope.
 Notation "x" := (Int64.repr x%Z) (only printing, at level 10) : int64_repr_scope.
 
 Notation "({ s_val })" := s_val%C (only printing, right associativity, at level 26, s_val at level 27, format "({  s_val  })") : print_stmt_for_scope.
-Notation "id = 'builtin' ef ( el );" := (Sbuiltin (Some id%positive) ef%name_of_external _ el%print_expr_list_true) (only printing, ef at level 26, el at level 26, right associativity, at level 26, format "'[hv  ' id  =  '/' 'builtin'  ef '/' ( el ); ']'") : print_stmt_for_scope.
-Notation "'builtin' ef ( el );" := (Sbuiltin None ef%name_of_external _ el%print_expr_list_true) (only printing, ef at level 26, el at level 26, right associativity, at level 26, format "'[hv  ' 'builtin'  ef '/' ( el ); ']'") : print_stmt_for_scope.
+Notation "id = 'builtin' ef ( el )" := (Sbuiltin (Some id%positive) ef%name_of_external _ el%print_expr_list_true) (only printing, ef at level 26, el at level 26, right associativity, at level 26, format "'[hv  ' id  =  '/' 'builtin'  ef '/' ( el ) ']'") : print_stmt_for_scope.
+Notation "'builtin' ef ( el )" := (Sbuiltin None ef%name_of_external _ el%print_expr_list_true) (only printing, ef at level 26, el at level 26, right associativity, at level 26, format "'[hv  ' 'builtin'  ef '/' ( el ) ']'") : print_stmt_for_scope.
 Notation "id = e1 ( el )" := (Scall (Some id%positive) e1%expr el%print_expr_list_true) (only printing, e1 at level 26, el at level 26, right associativity, at level 26, format "'[hv  ' id  =  '/' e1 '/' ( el ) ']'") : print_stmt_for_scope.
 Notation "e1 ( el )" := (Scall None e1%expr el%print_expr_list_true) (only printing, el at level 26, right associativity, at level 26, format "'[hv  ' e1 '/' ( el ) ']'") : print_stmt_for_scope.
 Notation "s1 , s2" := (Ssequence s1%print_stmt_for s2%print_stmt_for) (only printing, s2 at level 26, right associativity, at level 26, format "s1 ,  s2") : print_stmt_for_scope.
@@ -65,10 +65,10 @@ Notation "return;" := (Sreturn None) (only printing, format "return;", at level 
 Notation "'switch' ( e_val ) { cases }" := (Sswitch e_val%expr cases%print_cases) (only printing, cases at level 26, right associativity, at level 26, format "'[v' 'switch'  ( e_val )  {  '/  ' cases '/' } ']'") : C_scope.
 Notation "continue;" := Scontinue (only printing, format "continue;", at level 10) : C_scope.
 Notation "break;" := Sbreak (only printing, format "break;", at level 10) : C_scope.
-Notation "'for' ( ; 1; s2 ) { s1 }" := (Sloop s1%C s2%print_stmt_for) (only printing, s2 at level 26, s1 at level 26, right associativity, at level 26, format "'[v' 'for'  ( ;  '/' 1;  '/' s2 )  {  '/  ' s1 '/' } ']'") : C_scope.
+Notation "'for' ( ; ; s2 ) { s1 }" := (Sloop s1%C s2%print_stmt_for) (only printing, s2 at level 26, s1 at level 26, right associativity, at level 26, format "'[v' 'for'  ( ;  '/' ;  '/' s2 )  {  '/  ' s1 '/' } ']'") : C_scope.
 Notation "'for' ( ; e ; s2 ) { s1 }" := (Sloop (Ssequence (Sifthenelse e%expr Sbreak Sskip) s1%C) s2%print_stmt_for) (only printing, s2 at level 26, s1 at level 26, right associativity, at level 26, format "'[v' 'for'  ( ;  '/' e ;  '/' s2 )  {  '/  ' s1 '/' } ']'") : C_scope.
 Notation "'for' ( ; ; ) { s1 }" := (Sloop s1%C Sskip) (only printing, s1 at level 26, right associativity, at level 26, format "'[v' 'for'  ( ; ; )  {  '/  ' s1 '/' } ']'") : C_scope.
-Notation "'for' ( s1 ; e ; s2 ) { s3 }" := (Sfor s1%C e%expr s2%print_stmt_for s3%C) (only printing, s2 at level 26, s1 at level 26, right associativity, at level 26, format "'[v' 'for'  (  '/' s1 ;  '/' e ;  '/' s2 )  {  '/  ' s3 '/' } ']'") : C_scope.
+Notation "'for' ( s1 ; e ; s2 ) { s3 }" := (Sfor s1%print_stmt_for e%expr s3%C s2%print_stmt_for) (only printing, s2 at level 26, s1 at level 26, right associativity, at level 26, format "'[v' 'for'  (  '/' s1 ;  '/' e ;  '/' s2 )  {  '/  ' s3 '/' } ']'") : C_scope.
 Notation "'if' ( e_val ) { s1 } 'else' { s2 }" := (Sifthenelse e_val%expr s1%C s2%C) (only printing, s1 at level 26, s2 at level 26, right associativity, at level 26, format "'[v' 'if'  ( e_val )  {  '/  ' s1 '/' }  'else'  {  '/  ' s2 '/' } ']'") : C_scope.
 Notation "'if' (! e_val ) { s2 }" := (Sifthenelse e_val%expr Sskip s2%C) (only printing, s2 at level 26, right associativity, at level 26, format "'[v' 'if'  (!  e_val )  {  '/  ' s2 '/' } ']'") : C_scope.
 Notation "'if' ( e_val ) { s1 }" := (Sifthenelse e_val%expr s1%C Sskip) (only printing, s1 at level 26, right associativity, at level 26, format "'[v' 'if'  ( e_val )  {  '/  ' s1 '/' } ']'") : C_scope.
