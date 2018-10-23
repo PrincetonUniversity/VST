@@ -2832,12 +2832,13 @@ To test whether a share $\mathit{sh}$ is empty or nonempty, use
 \lstinline{sepalg.nonidentity $\mathit{sh}$}.
 
 
-Memory obtained from \lstinline{malloc} comes with the top share
-\lstinline{Tsh}.  Writable extern global variables
-and stack-allocated addressable locals (which of course
-must not be deallocated) come with the ``extern writable share''
-\lstinline{Ews} which is equal to \lstinline{Rsh}.
-Read-only globals come with a half-share of \lstinline{Rsh}.
+Writable extern global variables
+come with the ``extern writable share''
+\lstinline{Ews}; so does memoryobtained from \lstinline{malloc}.
+Stack-allocated addressable locals
+come with the ``top share'' \lstinline{Tsh}.
+Read-only globals come with
+the share \lstinline{Ers}, the ``extern readable share.''
 
 Sequential programs usually have little need of any shares except
 the \lstinline{Tsh} and \lstinline{Ews}.  However, many function
@@ -4171,14 +4172,14 @@ DECLARE _malloc
     PROP ()
     LOCAL (temp ret_temp p)
     SEP (if eq_dec p nullval then emp
-        else (malloc_token Tsh t p * data_at_ Tsh t p)).
+        else (malloc_token Ews t p * data_at_ Ews t p)).
 
 DECLARE _free
    WITH cs: compspecs, t: type, p:val
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
        LOCAL (temp 1%positive p)
-       SEP (malloc_token Tsh t p; data_at_ Tsh t p)
+       SEP (malloc_token Ews t p; data_at_ Ews t p)
     POST [ Tvoid ]
        PROP ()
        LOCAL ()

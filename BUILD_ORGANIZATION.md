@@ -27,6 +27,12 @@ distributed with VST, located in `VST/compcert`.
     make
     ```
 
+Use x86_32-macosx if you're on a Mac, x86_32-cygwin on Windows.
+You may also use x86_64, but VST has not been as heavily tested in
+64-bit configurations.  You may also use other back ends besides x86,
+but VST has not been much tested on those.
+
+
 ### METHOD B [alternate]
 
 This method bases the VST on the same specification files
@@ -39,6 +45,8 @@ which uses verbatim copies of them).
     ./configure -clightgen x86_32-linux;
     make
     ```
+(Use x86_32-macosx if you're on a Mac, etc.)
+
 2. In the VST directory, create a file `CONFIGURE` containing exactly the text:  
    ```
    COMPCERT=../CompCert   # or whatever is your path to compcert
