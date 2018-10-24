@@ -3594,7 +3594,7 @@ subst d' e'.
 f_equal; apply proof_irr.
 Qed.
 
-Ltac prove_semax_prog :=
+Ltac prove_semax_prog_old :=
  split3; [ | | split3; [ | | split]];
  [ reflexivity || fail "duplicate identifier in prog_defs"
  | reflexivity || fail "unaligned initializer"
@@ -3612,6 +3612,146 @@ Ltac prove_semax_prog :=
     end
  ];
  repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+
+(**************MATERIAL FOR NEW TACTIC prove_semax_prog STARTS HERE ***************)
+
+Lemma extract_prog_main t d p m w:
+  prog_main (Clightdefs.mkprogram t d p m w) = m.
+Proof.
+  unfold Clightdefs.mkprogram.
+  destruct (build_composite_env' t w).
+  reflexivity.
+Qed.
+
+Lemma extract_compEnv t a (H: build_composite_env t = Errors.OK a)
+      d p m w:
+  a = prog_comp_env (Clightdefs.mkprogram t d p m w).
+Proof.
+  unfold Clightdefs.mkprogram.
+  destruct (build_composite_env' t w). 
+  rewrite e in H. inv H. reflexivity.
+Qed.
+
+Ltac match_composite :=
+  match goal with
+  | |- {| co_su := ?co_su1;
+         co_members := ?co_members1;
+         co_attr := ?co_attr1;
+         co_sizeof := ?co_size1 ;
+         co_alignof := ?co_alignof1;
+         co_rank := ?co_rank1;
+         co_sizeof_pos := ?co_sizeof_pos_proof1;
+         co_alignof_two_p := ?co_alignof_two_p_proof1;
+         co_sizeof_alignof := ?co_sizeof_alignof_proof1
+      |} =
+      {| co_su := ?co_su2;
+         co_members := ?co_members2;
+         co_attr := ?co_attr2;
+         co_sizeof := ?co_size2 ;
+         co_alignof := ?co_alignof2;
+         co_rank := ?co_rank2;
+         co_sizeof_pos := ?co_sizeof_pos_proof2;
+         co_alignof_two_p := ?co_alignof_two_p_proof2;
+         co_sizeof_alignof := ?co_sizeof_alignof_proof2
+      |} =>
+    replace co_sizeof_pos_proof1
+      with co_sizeof_pos_proof2;
+    replace co_alignof_two_p_proof1
+      with co_alignof_two_p_proof2;
+    replace co_sizeof_alignof_proof1
+      with co_sizeof_alignof_proof2
+  end.
+
+Lemma add_composite_definitions_nil env: add_composite_definitions env nil = Errors.OK env.
+Proof. reflexivity. Qed.
+
+Definition mk_OKComposite env su m a al PR1 PR2 PR3 : composite:=
+    {|
+       co_su := su;
+       co_members := m;
+       co_attr := a;
+       co_sizeof := align (sizeof_composite env su m) al;
+       co_alignof := al;
+       co_rank := rank_members env m;
+       co_sizeof_pos := PR1;
+       co_alignof_two_p := PR2;
+       co_sizeof_alignof := PR3 |}.
+  
+Lemma composite_abbrv env id su m a: composite_of_def env id su m a = 
+  match env ! id with
+  | Some _ => Errors.Error [Errors.MSG "Multiple definitions of struct or union "; Errors.CTX id]
+  | None => if complete_members env m
+            then let al := align_attr a (alignof_composite env m) in
+            Errors.OK (mk_OKComposite env su m a al
+                  ((fun (env0 : composite_env) (_ : ident) (su0 : struct_or_union) (m0 : members) (a0 : attr) =>
+                         Ctypes.composite_of_def_obligation_1 env0 su0 m0 a0) env id su m a)
+                  ((fun (env0 : composite_env) (_ : ident) (_ : struct_or_union) (m0 : members) (a0 : attr) =>
+                            Ctypes.composite_of_def_obligation_2 env0 m0 a0) env id su m a)
+                  ((fun (env0 : composite_env) (_ : ident) (su0 : struct_or_union) (m0 : members) (a0 : attr) =>
+                             Ctypes.composite_of_def_obligation_3 env0 su0 m0 a0) env id su m a))
+            else Errors.Error [Errors.MSG "Incomplete struct or union "; Errors.CTX id]
+  end.
+Proof. reflexivity. Qed.
+
+Ltac treat_one_compdef :=
+  match goal with
+  | |- context[add_composite_definitions _ (?h :: ?t)] =>
+    remember t as the_rest;
+    unfold add_composite_definitions;
+    rewrite composite_abbrv;
+    fold add_composite_definitions; simpl Errors.bind;
+
+    (*variant of rem_struct*)
+    match goal with
+    | |- context[Some (mk_OKComposite ?env ?su ?m ?a ?al ?PR1 ?PR2 ?PR3)] =>
+         let struct1 := fresh "structure" 
+         in remember (mk_OKComposite env su m a al PR1 PR2 PR3) as struct1
+    end;
+
+    subst the_rest
+  end.
+
+Ltac finish_composites :=
+     match goal with
+       | [ H : ?structure = ?P |- ?structure = ?Q ] => rewrite H; clear H; try solve [match_composite; solve [reflexivity | apply proof_irr]]
+     end;
+      
+     repeat match goal with
+               | [ H: ?structure = ?P |- _ ] =>  try rewrite H; clear H
+            end;
+     match_composite; solve [reflexivity | apply proof_irr].
+
+Ltac solve_cenvcs_goal :=
+  apply extract_compEnv;
+  match goal with
+  | |- build_composite_env ?com = Errors.OK ?cenv_cs =>
+    unfold build_composite_env, com
+  end;
+  repeat treat_one_compdef;
+  rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
+  solve [repeat f_equal; finish_composites].
+
+Ltac prove_semax_prog_aux tac :=
+ split3; [ | | split3; [ | | split]];
+ [ reflexivity || fail "duplicate identifier in prog_defs"
+ | reflexivity || fail "unaligned initializer"
+ | solve [solve_cenvcs_goal || fail "comp_specs not equal"]
+   (*compute; repeat f_equal; apply proof_irr] || fail "comp_specs not equal"*)
+ |
+ | reflexivity || fail "match_globvars failed"
+ | match goal with
+     |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
+     unfold prog at 1; rewrite extract_prog_main;
+     ((eexists; reflexivity) || 
+        fail "Funspec of _main is not in the proper form")
+    end
+ ]; tac.
+
+Ltac finish_semax_prog := repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+
+Ltac prove_semax_prog := prove_semax_prog_aux finish_semax_prog.
+
+(*******************************************)
 
 Ltac reassociate_to c1 c2  n :=
  match n with 
