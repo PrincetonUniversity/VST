@@ -896,3 +896,34 @@ simpl;
 try (progress unfold_for_go_lower; simpl); rewrite ?sepcon_emp;
 clear_Delta;
 try clear dependent rho].
+
+
+Ltac sep_apply_in_lifted_entailment H :=
+ apply SEP_entail'; 
+ go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
+     allows us to use propositional facts derived from the PROP and LOCAL
+     parts of the left-hand side *)
+ apply andp_right; [apply prop_right; auto | ];
+ unfold fold_right_sepcon at 1;
+ match goal with |- ?R |-- ?R2 => 
+  let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
+  sep_apply_in_entailment H; [ .. | 
+  match goal with |- ?R' |-- _ =>
+   let R'' := refold_right_sepcon R' 
+     in replace R' with (fold_right_sepcon R'') 
+           by (unfold fold_right_sepcon; rewrite ?sepcon_emp; reflexivity);
+        subst r2; apply derives_refl
+   end]
+ end.
+
+Ltac sep_apply_in_semax H :=
+   eapply semax_pre; [sep_apply_in_lifted_entailment H | ].
+
+Ltac sep_apply H :=
+ match goal with
+ | |- ENTAIL _ , _ |-- _ => eapply ENTAIL_trans; [sep_apply_in_lifted_entailment H | ] 
+ | |- @derives mpred _ _ _ => sep_apply_in_entailment H
+ | |- semax _ _ _ _ => sep_apply_in_semax H
+ end.
+
+

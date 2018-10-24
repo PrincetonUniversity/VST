@@ -21,29 +21,20 @@ Ltac refold_right_sepcon R :=
  | _ => constr:(R :: nil)
  end.
 
-Ltac sep_apply_in_lifted_entailment H :=
- apply SEP_entail;
- unfold fold_right_sepcon at 1;
- match goal with |- ?R |-- ?R2 => 
-  let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
-  sep_apply_in_entailment H; [ .. | 
-  match goal with |- ?R' |-- _ =>
-   let R'' := refold_right_sepcon R' 
-     in replace R' with (fold_right_sepcon R'') 
-           by (unfold fold_right_sepcon; rewrite ?sepcon_emp; reflexivity);
-        subst r2; apply derives_refl
-   end]
- end.
-
-Ltac sep_apply_in_semax H :=
-   eapply semax_pre; [sep_apply_in_lifted_entailment H | ].
-
-Ltac sep_apply H :=
- match goal with
- | |- ENTAIL _ , _ |-- _ => eapply ENTAIL_trans; [sep_apply_in_lifted_entailment H | ] 
- | |- @derives mpred _ _ _ => sep_apply_in_entailment H
- | |- semax _ _ _ _ => sep_apply_in_semax H
- end.
+Lemma SEP_entail':
+ forall R' Delta P Q R, 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx nil (LOCALx nil (SEPx R')) -> 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
+Proof.
+intros.
+apply andp_right.
+apply andp_left2; apply andp_left1; auto.
+apply andp_right.
+do 2 apply andp_left2; apply andp_left1; auto.
+eapply derives_trans; [ apply H|].
+do 2 apply andp_left2.
+auto.
+Qed.
 
 Arguments sem_cmp c !t1 !t2 / v1 v2.
 

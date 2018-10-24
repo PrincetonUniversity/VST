@@ -88,6 +88,16 @@ Definition main_spec :=
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     foo_reset_spec; foo_twiddle_spec; make_foo_spec; main_spec]).
 
+Lemma object_mpred_i:
+  forall (history: list Z) (self: val) (instance: object_invariant) (mtable: val),
+    object_methods instance mtable *
+     field_at Ews (Tstruct _object noattr) [StructField _mtable] mtable self *
+     instance history self 
+    |-- object_mpred history self.
+Proof.
+intros. unfold object_mpred. Exists instance mtable; auto.
+Qed.
+
 Lemma body_foo_reset: semax_body Vprog Gprog f_foo_reset foo_reset_spec.
 Proof.
 unfold foo_reset_spec, foo_invariant, reset_spec.
@@ -207,49 +217,91 @@ left; auto.
 Qed.
 
 
+Lemma make_object_methods:
+  forall sh instance reset twiddle mtable,
+  readable_share sh ->
+  func_ptr' (reset_spec instance) reset *
+  func_ptr' (twiddle_spec instance) twiddle *
+  data_at sh (Tstruct _methods noattr) (reset, twiddle) mtable
+  |-- object_methods instance mtable.
+Proof.
+  intros.
+  unfold object_methods.
+  Exists sh reset twiddle.
+  entailer!.
+Qed.
+
+Ltac method_call witness hist' result :=
+repeat apply seq_assoc1;
+match goal with 
+   |- semax _ (PROPx _ (LOCALx ?Q (SEPx ?R))) 
+            (Ssequence (Sset ?mt (Efield (Ederef (Etempvar ?x _)  _) _ _))
+                 _) _  =>
+    match Q with context [temp ?x ?x'] =>
+     match R with context [object_mpred _ x'] =>
+          let instance := fresh "instance" in let mtable := fresh "mtable" in
+          unfold object_mpred; Intros instance mtable;
+          forward;
+          unfold object_methods at 1; 
+          let sh := fresh "sh" in let r := fresh "r" in let t := fresh "t" in
+          Intros sh r t;
+          forward;
+          forward_call witness;
+          [ .. | try Intros result;
+                  sep_apply (make_object_methods sh instance r t mtable); [ auto .. | ];
+                  sep_apply (object_mpred_i hist' x' instance mtable);
+                  deadvars; try clear dependent sh; try clear r; try clear t
+           ]
+    end end
+end.
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
-set (mtable := gv _foo_methods).
 fold noattr cc_default.
 
-(* 1. Prove that [mtable] is a proper method-table for foo-objects *)
-make_func_ptr _foo_twiddle.
-make_func_ptr _foo_reset.
-set (twiddle := gv _foo_twiddle).
-set (reset := gv _foo_reset).
-gather_SEP 0 1 2 3.
-replace_SEP 0 (object_methods foo_invariant mtable).
- {
-  entailer!.
-  unfold object_methods.
-  Exists Ews reset twiddle.
+(* 0. This part should be handled automatically by start_function *)
+gather_SEP 0 1; 
+replace_SEP 0 (data_at Ews (Tstruct _methods noattr) 
+   (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)). {
   entailer!.
   unfold_data_at 2%nat.
-  rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:=twiddle)
-      by auto with field_compatible.
-  rewrite field_at_data_at.
-  clear H3 H4 H2 H0.
-  (*  rewrite <- mapsto_field_at with (v:=reset) by auto with field_compatible. *)
-  rewrite !field_compatible_field_address by auto with field_compatible.
+  rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle))
+  by  auto with field_compatible.
+  rewrite field_at_data_at.  rewrite !field_compatible_field_address by auto with field_compatible.
   rewrite !isptr_offset_val_zero by auto.
   rewrite sepcon_comm.
   apply derives_refl.
 }
-clear reset twiddle.
-(* Finished proving that [mtable] is a proper [object_methods] for foo *)
+
+(* 1. Prove that [mtable] is a proper method-table for foo-objects *)
+
+make_func_ptr _foo_twiddle.
+make_func_ptr _foo_reset.
+sep_apply (make_object_methods Ews foo_invariant(gv _foo_reset) (gv _foo_twiddle) (gv _foo_methods)); auto.
 
 (* 2. Build an instance of class [foo], called [p] *)
 forward_call (* p = make_foo(); *)
         gv.
-subst mtable. cancel.
 Intros p.
 
-(* 3. We can do these next 3 lines because we won't create any more foo objects *)
-forget (object_methods foo_invariant mtable) as MT. 
-clear mtable.
+(* 3. Done with object_methods for the foreseeable future *)
+freeze [1]  MT. gather_SEP 1.
 
+(* Illustration of an alternate method to prove the method calls.
+   Method 1:  comment out lines AA and BB and the entire range CC-DD.
+   Method 2:  comment out lines AA-BB, inclusive.
+*)
+
+(* AA *) try (tryif 
+  (method_call (p, @nil Z) (@nil Z) whatever;
+   method_call (p, 3, @nil Z) [3%Z] i;
+     [simpl; computable | ])
+(* BB *)  then fail else fail 99)
+  .
+
+(* CC *)
 (* 4. first method-call *)
 unfold object_mpred.
 Intros instance mtable0.
@@ -260,17 +312,9 @@ forward. (* p_reset = mtable->reset; *)
 forward_call (* p_reset(p); *)
       (p, @nil Z).
 (* Finish the method-call by regathering the object p back together *)
-gather_SEP 1 2 3.
-replace_SEP 0 (object_methods instance mtable0). {
-  unfold object_methods.
-  entailer!. Exists sh r0 t0. entailer!.
-}
-gather_SEP 0 1 2.
-replace_SEP 0 (object_mpred nil p). {
-  unfold object_mpred; entailer!.
- Exists instance mtable0; entailer!.
-}
-drop_LOCALs [_p_reset; _mtable]. clear sh H r0 t0 mtable0 instance.
+sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
+sep_apply (object_mpred_i [] p instance mtable0).
+deadvars!. clear.
 
 (* 5. second method-call *)
 unfold object_mpred.
@@ -284,17 +328,11 @@ forward_call (* i = p_twiddle(p,3); *)
   simpl. computable.
 Intros i.
 simpl in H0.
-(* Finish the method-call by regathering the object p back together *)
-gather_SEP 1 2 3.
-replace_SEP 0 (object_methods instance mtable0). {
-  unfold object_methods.
-  entailer!. Exists sh r0 t0. entailer!.
-}
-gather_SEP 0 1 2.
-replace_SEP 0 (object_mpred [3] p). {
-  unfold object_mpred; entailer!. Exists instance mtable0; entailer!.
-}
-drop_LOCALs [_p_twiddle; _mtable]. clear sh H r0 t0 mtable0 instance.
+sep_apply (make_object_methods sh instance r0 t0 mtable0); auto.
+sep_apply (object_mpred_i [3] p instance mtable0).
+deadvars!. clear - H0.
+
+(* DD *)
 
 (* 6. return *)
 forward.  (* return i; *)
