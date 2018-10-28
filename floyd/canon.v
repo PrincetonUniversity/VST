@@ -2061,6 +2061,9 @@ Inductive return_outer_gen: ret_assert -> ret_assert -> Prop :=
 | return_outer_gen_post: forall post P Q,
     return_outer_gen P Q ->
     return_outer_gen (overridePost post P) Q
+| return_outer_gen_for: forall P' P Q,
+    return_outer_gen P Q ->
+    return_outer_gen (for_ret_assert P' P) Q
 | return_outer_gen_loop1: forall inv P Q,
     return_outer_gen P Q ->
     return_outer_gen (loop1_ret_assert inv P) Q
