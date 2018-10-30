@@ -28,9 +28,7 @@ Section ConcurrentCopmpilerSpecification.
   Variable opt_init_mem_source: option Memory.Mem.mem.
   Variable opt_init_mem_target: option Memory.Mem.mem.
   Definition ConcurrentCompilerCorrectness_specification: Type:=
-    HybridMachine_simulation
-      (ClightConcurSem(ge:=Clight_g) opt_init_mem_source)
-      (@AsmConcurSem Asm_program Asm_genv_safe opt_init_mem_target).
+    HybridMachine_simulation (ClightConcurSem(ge:=Clight_g) opt_init_mem_source) (@AsmConcurSem Asm_program Asm_genv_safe opt_init_mem_target).
 
 
 End ConcurrentCopmpilerSpecification.

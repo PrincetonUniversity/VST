@@ -702,11 +702,6 @@ Inductive inject_event: meminj -> event -> event -> Prop :=
       inject_delta_map f dm1 dm1' ->
       inject_delta_map f dm2 dm2' ->
       inject_event f (Event_spawn v dm1 dm2) (Event_spawn v' dm1' dm2').
-Ltac trivial_inject_event:=
-  match goal with
-  | [H: inject_event ?f ?e ?e' |- _ ] =>
-    inversion H; subst; clear H
-  end.
 
 Inductive inject_trace: meminj -> trace -> trace -> Prop :=
 | injt_nil : forall f, inject_trace f nil nil
@@ -714,26 +709,6 @@ Inductive inject_trace: meminj -> trace -> trace -> Prop :=
     inject_event f e e' ->
     inject_trace f t t' ->
     inject_trace f (cons e t) (cons e' t').
-Definition trivial_inject t:=
-  forall {f t'},
-    inject_trace f t t' -> t' = t.
-Ltac trivial_inject_trace:=
-  match goal with
-  | [H: inject_trace ?f ?t ?t' |- _  ] =>
-    inversion H; subst; clear H;
-    try trivial_inject_event
-  end.
-Ltac solve_trivial_inject:=
-  lazymatch goal with
-  | [|- trivial_inject ?T] =>
-    match goal with
-    |[H:context[T] |- _ ] =>
-     intros ???;
-            inversion H; subst;
-     repeat trivial_inject_trace; reflexivity             
-    end
-  | _ => fail "Not an noninjectable goal."
-  end.
 
 
 Definition trivial_inject t:=
@@ -887,9 +862,7 @@ Record extcall_properties (sem: extcall_sem) (sg: signature) : Prop :=
     Mem.inject f m1 m1' ->
     injection_full f m1 ->
     Val.inject_list f vargs vargs' ->
-    exists f', forall t', 
-    inject_trace f' t t' ->
-    exists vres', exists m2',
+    exists f', exists vres', exists m2', exists t',
             sem ge2 vargs' m1' t' vres' m2'
     /\ Val.inject f' vres vres'
     /\ Mem.inject f' m2 m2'
@@ -897,6 +870,7 @@ Record extcall_properties (sem: extcall_sem) (sg: signature) : Prop :=
     /\ Mem.unchanged_on (loc_out_of_reach f m1) m1' m2'
     /\ inject_incr f f'
     /\ inject_separated f f' m1 m1'
+    /\ inject_trace f' t t'
     /\ injection_full f' m2;
   
 (** External calls must commute with memory injections,
@@ -1002,13 +976,6 @@ Proof.
   exists v1; constructor; auto.
 Qed.
 
-  
-Lemma volatile_load_trivial_inject:
-  forall {ge chunk m b ofs t vres},
-    volatile_load ge chunk m b ofs t vres ->
-    trivial_inject t.
-Proof. intros; solve_trivial_inject. Qed.
-
 Lemma volatile_load_ok:
   forall chunk,
   extcall_properties (volatile_load_sem chunk)
@@ -1033,11 +1000,9 @@ Proof.
 (* mem injects *)
 - inv H0. inv H3. inv H8. inversion H6; subst.
   exploit volatile_load_inject; eauto. intros [v' [A B]].
-  exists f; (*intros.
-  rewrite (volatile_load_trivial_inject A H0). *)
-  exists v'; exists m1', t;  intuition. constructor; auto.
+  exists f; exists v'; exists m1'; exists t; intuition. constructor; auto.
   red; intros. congruence.
-  (*inversion H4; repeat constructor. *)
+  inversion H4; repeat constructor.
 (* mem injects *)
 - inv H0. inv H2. inv H7. inversion H5; subst.
   exploit volatile_load_inject; eauto. intros [v' [A B]].
@@ -1178,11 +1143,7 @@ Proof.
   intros. inv H0; auto.
   eapply store_full; eauto.
 Qed.
-Lemma volatile_store_trivial_inject:
-  forall {ge chunk m b ofs v t m'},
-    volatile_store ge chunk m b ofs v t m' ->
-    trivial_inject t.
-Proof. intros; solve_trivial_inject. Qed.
+
 Lemma volatile_store_ok:
   forall chunk,
   extcall_properties (volatile_store_sem chunk)
@@ -1206,9 +1167,8 @@ Proof.
 (* mem inject *)
 - inv H0. inv H3. inv H8. inv H9. inversion H6; subst.
   exploit volatile_store_inject; eauto. intros [m2' [A [B [C D]]]].
-  exists f; intros.
-  rewrite (volatile_store_trivial_inject A H0) in *.
-  exists Vundef; exists m2'; intuition. constructor; auto. red; intros; congruence.
+  exists f; exists Vundef; exists m2'; exists t; intuition. constructor; auto. red; intros; congruence.
+  inversion A; repeat constructor.
   eapply volatile_store_full; eauto.
 (* mem inject *)
 - inv H0. inv H2. inv H7. inv H8. inversion H5; subst.
@@ -1412,9 +1372,7 @@ Proof.
   exploit Mem.store_mapped_inject. eexact A. eauto. eauto.
   instantiate (1 := Vptrofs sz). auto.
   intros [m2' [F HH]].
-  exists f'; intros.
-  trivial_inject_trace.
-  exists (Vptr b' Ptrofs.zero); exists m2'; intuition.
+  exists f'; exists (Vptr b' Ptrofs.zero); exists m2'; exists E0; intuition.
   econstructor; eauto.
   econstructor. eauto. auto.
   eapply UNCHANGED; eauto.
@@ -1422,7 +1380,7 @@ Proof.
   red; intros. destruct (eq_block b1 b).
   subst b1. rewrite C in H6. inv H6. eauto with mem.
   rewrite D in H6 by auto. congruence.
-  (* constructor. *)
+  constructor.
   eapply store_full; eauto.
 (* mem injects *)
 - inv H0. inv H2. inv H6. inv H8.
@@ -1513,9 +1471,7 @@ Proof.
     generalize (size_chunk_pos Mptr); omega.
   intro EQ.
   exploit Mem.free_parallel_inject; eauto. intros (m2' & C & D).
-  exists f; intros.
-  trivial_inject_trace.
-  exists Vundef, m2'; split.
+  exists f, Vundef, m2', E0; split.
   apply extcall_free_sem_intro with (sz := sz) (m' := m2').
     rewrite EQ. rewrite <- A. f_equal. omega.
     auto. auto.
@@ -1529,7 +1485,7 @@ Proof.
     apply P. omega.
   split. auto.
   split. red; intros. congruence.
-  (* split. constructor. *)
+  split. constructor.
   auto. eapply free_full; eauto.
 (* mem inject *)
 - inv H0. inv H2. inv H7. inv H9.
@@ -1636,9 +1592,7 @@ Proof.
   destruct (Mem.range_perm_storebytes m1' b0 (Ptrofs.unsigned (Ptrofs.add odst (Ptrofs.repr delta0))) nil)
   as [m2' SB].
   simpl. red; intros; omegaContradiction.
-  exists f; intros.
-  trivial_inject_trace.
-  exists Vundef, m2'.
+  exists f, Vundef, m2', E0.
   split. econstructor; eauto.
   intros; omegaContradiction.
   intros; omegaContradiction.
@@ -1653,7 +1607,7 @@ Proof.
   split. apply inject_incr_refl.
   split.
   red; intros; congruence.
-  (* split. constructor. *)
+  split. constructor.
   eapply storebytes_full; eauto. 
 + (* general case sz > 0 *)
   exploit Mem.loadbytes_length; eauto. intros LEN.
@@ -1671,9 +1625,7 @@ Proof.
   exploit Mem.address_inject.  eauto. eexact PDST. eauto. intros EQ2.
   exploit Mem.loadbytes_inject; eauto. intros [bytes2 [A B]].
   exploit Mem.storebytes_mapped_inject; eauto. intros [m2' [C D]].
-  exists f; intros.
-  trivial_inject_trace.
-  exists Vundef; exists m2'.
+  exists f; exists Vundef; exists m2'; exists E0.
   split. econstructor; try rewrite EQ1; try rewrite EQ2; eauto.
   intros; eapply Mem.aligned_area_inject with (m := m1); eauto.
   intros; eapply Mem.aligned_area_inject with (m := m1); eauto.
@@ -1692,7 +1644,7 @@ Proof.
   omega.
   split. apply inject_incr_refl.
   split. red; intros; congruence.
-  (* split. constructor. *) 
+  split. constructor. 
   eapply storebytes_full; eauto.
   
 - (* injections *)
@@ -1800,13 +1752,11 @@ Proof.
   eapply eventval_list_match_lessdef; eauto.
 (* mem injects *)
 - inv H0.
-  exists f; intros.
-  repeat trivial_inject_trace.
-  exists Vundef; exists m1'; intuition.
+  exists f; exists Vundef; exists m1'; exists (Event_annot text args :: E0); intuition.
   econstructor; eauto.
   eapply eventval_list_match_inject; eauto.
   red; intros; congruence.
-  (* repeat constructor. *)
+  repeat constructor.
 (* mem injects *)
 - inv H0.
   exists f; exists Vundef; exists m1'; exists (Event_annot text args :: E0); intuition.
@@ -1855,18 +1805,14 @@ Proof.
   eapply eventval_match_lessdef; eauto.
 (* mem inject *)
 - inv H0. inv H3. inv H8.
-  exists f; intros.
-  repeat trivial_inject_trace.
-  exists v'; exists m1'; intuition.
+  exists f; exists v'; exists m1'; exists (Event_annot text (arg :: nil) :: E0); intuition.
   econstructor; eauto.
   eapply eventval_match_inject; eauto.
   red; intros; congruence.
-  (* repeat constructor. *)
+  repeat constructor.
 (* mem inject *)
 - inv H0. inv H2. inv H7.
-  exists f; intros.
-  repeat trivial_inject_trace.
-  exists v'; exists m1'; exists (Event_annot text (arg :: nil) :: E0); intuition.
+  exists f; exists v'; exists m1'; exists (Event_annot text (arg :: nil) :: E0); intuition.
   econstructor; eauto.
   eapply eventval_match_inject; eauto.
   red; intros; congruence.
@@ -1909,12 +1855,10 @@ Proof.
   econstructor; eauto.
 (* mem injects *)
 - inv H0.
-  exists f; intros;
-    repeat trivial_inject_trace.
-  exists Vundef; exists m1'; intuition.
+  exists f; exists Vundef; exists m1'; exists E0; intuition.
   econstructor; eauto.
   red; intros; congruence.
-  (* constructor. *)
+  constructor.
 (* mem injects *)
 - inv H0.
   exists f; exists Vundef; exists m1'; exists E0; intuition.
@@ -2036,15 +1980,15 @@ Lemma external_call_mem_inject:
   Mem.inject f m1 m1' ->
   injection_full f m1 ->
   Val.inject_list f vargs vargs' ->
-  exists f', forall t', inject_trace f' t t' ->
-  exists vres', exists m2',
+  exists f', exists vres', exists m2', exists t',
      external_call ef ge vargs' m1' t' vres' m2'
     /\ Val.inject f' vres vres'
     /\ Mem.inject f' m2 m2'
     /\ Mem.unchanged_on (loc_unmapped f) m1 m2
     /\ Mem.unchanged_on (loc_out_of_reach f m1) m1' m2'
     /\ inject_incr f f'
-    /\ inject_separated f f' m1 m1' /\ injection_full f' m2.
+    /\ inject_separated f f' m1 m1'
+    /\ inject_trace f' t t' /\ injection_full f' m2.
 Proof.
   intros. destruct H as (A & B & C).
   eapply external_call_mem_inject_gen with (ge1 := ge); eauto.

@@ -21,19 +21,12 @@
 
 Require Import Relations.
 Require Import Wellfounded.
-Require Import Coqlib.
-Require Import Events.
-Require Import Globalenvs.
-Require Import Integers.
-Require Import Smallstep.
-
-
-(*Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Smallstep.
-*)
+
 
 Require Import compcert.common.Values. (*for meminj, compose_meminj,...*)
 
@@ -277,6 +270,9 @@ Section ExposingMemory.
         Injfsim_order_wf: well_founded Injorder;
         Injfsim_match_meminj: forall i f s1 s2, Injmatch_states i f s1 s2 ->  Mem.inject f (get_mem1 s1) (get_mem2 s2);
         Injfsim_match_full: forall i f s1 s2, Injmatch_states i f s1 s2 ->  injection_full f (get_mem1 s1);
+        (*    fsim_match_initial_states:
+      forall s1 m1 f m2, initial_state L1 (s1,m1) -> Mem.inject f m1 m2 ->
+      exists i, exists s2, initial_state L2 (s2,m2) /\ match_states i f (s1,m1) (s2,m2);*)
         Injfsim_match_initial_states:
           forall s1, initial_state L1 s1 -> 
                 exists i f s2, initial_state L2 s2 /\ Injmatch_states i f s1 s2;
