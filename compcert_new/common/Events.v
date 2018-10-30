@@ -702,6 +702,11 @@ Inductive inject_event: meminj -> event -> event -> Prop :=
       inject_delta_map f dm1 dm1' ->
       inject_delta_map f dm2 dm2' ->
       inject_event f (Event_spawn v dm1 dm2) (Event_spawn v' dm1' dm2').
+Ltac trivial_inject_event:=
+  match goal with
+  | [H: inject_event ?f ?e ?e' |- _ ] =>
+    inversion H; subst; clear H
+  end.
 
 Inductive inject_trace: meminj -> trace -> trace -> Prop :=
 | injt_nil : forall f, inject_trace f nil nil
@@ -709,6 +714,28 @@ Inductive inject_trace: meminj -> trace -> trace -> Prop :=
     inject_event f e e' ->
     inject_trace f t t' ->
     inject_trace f (cons e t) (cons e' t').
+
+
+Definition trivial_inject t:=
+  forall {f t'},
+    inject_trace f t t' -> t' = t.
+Ltac trivial_inject_trace:=
+  match goal with
+  | [H: inject_trace ?f ?t ?t' |- _  ] =>
+    inversion H; subst; clear H;
+    try trivial_inject_event
+  end.
+Ltac solve_trivial_inject:=
+  lazymatch goal with
+  | [|- trivial_inject ?T] =>
+    match goal with
+    |[H:context[T] |- _ ] =>
+     intros ???;
+            inversion H; subst;
+     repeat trivial_inject_trace; reflexivity             
+    end
+  | _ => fail "Not an noninjectable goal."
+  end.
 
 Definition injection_full (f:meminj) (m:mem):=
   forall b ,
@@ -954,6 +981,13 @@ Proof.
   exists v1; constructor; auto.
 Qed.
 
+  
+Lemma volatile_load_trivial_inject:
+  forall {ge chunk m b ofs t vres},
+    volatile_load ge chunk m b ofs t vres ->
+    trivial_inject t.
+Proof. intros; solve_trivial_inject. Qed.
+
 Lemma volatile_load_ok:
   forall chunk,
   extcall_properties (volatile_load_sem chunk)
@@ -978,7 +1012,9 @@ Proof.
 (* mem injects *)
 - inv H0. inv H3. inv H8. inversion H6; subst.
   exploit volatile_load_inject; eauto. intros [v' [A B]].
-  exists f; exists v'; exists m1'; exists t; intuition. constructor; auto.
+  exists f; (*intros.
+  rewrite (volatile_load_trivial_inject A H0). *)
+  exists v'; exists m1', t;  intuition. constructor; auto.
   red; intros. congruence.
   inversion H4; repeat constructor.
 (* mem injects *)
@@ -1121,7 +1157,11 @@ Proof.
   intros. inv H0; auto.
   eapply store_full; eauto.
 Qed.
-
+Lemma volatile_store_trivial_inject:
+  forall {ge chunk m b ofs v t m'},
+    volatile_store ge chunk m b ofs v t m' ->
+    trivial_inject t.
+Proof. intros; solve_trivial_inject. Qed.
 Lemma volatile_store_ok:
   forall chunk,
   extcall_properties (volatile_store_sem chunk)

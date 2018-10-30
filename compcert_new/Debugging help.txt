@@ -1,0 +1,18 @@
+1. “Archi is not found”
+
+   Make sure compcert_new/Makefile.configure has BITESIZE=32
+
+2. Error: Unable to locate library _
+
+	Make sure to add files:
+	-  backend/Bounds.v
+	-  backend/Conventions.v
+	-  backend/Linear.v
+	-  backend/Locations.v
+	-  backend/LTL.v
+	- x86/Asm.v
+	- x86/Conventions1.v
+	- x86/Machregs.v
+	- x86/Op.v
+	- x86/Stacklayout.v
+	- x86_32/Archi.v
