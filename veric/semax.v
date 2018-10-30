@@ -32,10 +32,42 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
   @jsafeN_ genv _ _ genv_symb_injective (*(genv_symb := fun ge: genv => Genv.genv_symb ge)*)
                (cl_core_sem ge) Hspec ge.
 
+Program Definition ext_compat {Z} (ora : Z) : mpred :=
+  fun w => joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
+Next Obligation.
+Proof.
+  repeat intro.
+  erewrite age1_ghost_of by eauto.
+  destruct H0 as (g & J).
+  change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
+    (ghost_approx a' (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+  eexists; apply ghost_fmap_join; eauto.
+Qed.
+
+Lemma ext_unapprox : forall {Z} (z : Z) n g,
+  joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+  joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
+Proof.
+  intros.
+  destruct H as (g' & J).
+  destruct g; [eexists; constructor|].
+  inv J.
+  exists (a3 :: g); repeat constructor.
+  destruct o; inv H4; constructor.
+  destruct p; inv H1; constructor; simpl in *; auto.
+  destruct p; simpl in *.
+  inv H0.
+  inv H1.
+  inj_pair_tac.
+  constructor; auto.
+  unfold NoneP; f_equal; auto.
+Qed.
+
 Program Definition assert_safe
      (Espec : OracleKind)
      (ge: genv) ve te (ctl: cont) : assert :=
   fun rho => bupd (fun w => forall ora (jm:juicy_mem),
+       ext_compat ora w ->
        rho = construct_rho (filter_genv ge) ve te ->
        m_phi jm = w ->
              jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm).
@@ -44,7 +76,10 @@ Program Definition assert_safe
   subst.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
    subst.
-   specialize (H0 ora jm0 (eq_refl _) (eq_refl _)).
+   specialize (H0 ora jm0); spec H0.
+   { erewrite age1_ghost_of in H1 by eauto.
+      eapply ext_unapprox; eauto. }
+   specialize (H0 (eq_refl _) (eq_refl _)).
    forget (State ve te ctl) as c. clear H ve te ctl.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in H0.
@@ -153,7 +188,8 @@ Definition semax_external
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
    juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
-    ALL z:_, ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z &&
+    (ALL z:_, juicy_mem_op (ext_compat z) -->
+     ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).

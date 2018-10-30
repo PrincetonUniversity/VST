@@ -1303,6 +1303,7 @@ forall (Delta : tycontext) (A : TypeTree)
   (a : expr) (bl : list expr) (R : ret_assert) (psi : genv) (vx : env)
   (tx : temp_env) (k : cont) (rho : environ) (ora : OK_ty) (jm : juicy_mem)
   (b : block)
+ (Hora : juicy_mem_op (ext_compat ora) jm)
  (TC0 : Cop.classify_fun (typeof a) =
       Cop.fun_case_f (type_of_params params) retty cc)
  (TCret : tc_fn_return Delta ret retty)
@@ -1429,7 +1430,6 @@ apply age_jm_phi; auto.
 }
 clear H14 TC2.
 destruct H15 as [x' H15].
-specialize (H15 ora).
 clear H5.
 destruct H15 as [H5 H15].
 specialize (H15 (opttyp_of_type retty)).
@@ -1461,7 +1461,8 @@ destruct n as [ | n ].
 constructor.
 eapply jsafeN_external with (x0 := x'); eauto.
 reflexivity.
-rewrite Eef. subst tys. assumption.
+rewrite Eef. subst tys. apply H5; auto.
+{ eapply pred_hereditary; eauto. }
 intros.
 specialize (H15 ret0 z').
 change ((ext_spec_post' Espec e x' (genv_symb_injective psi) (opttyp_of_type retty) ret0 z' >=>
@@ -2115,7 +2116,8 @@ Lemma semax_call_aux:
   (F : environ -> pred rmap)
   (F0 : assert) (ret : option ident) (fsig0 : funsig) cc (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
-  (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident),
+  (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident)
+  (Hora : juicy_mem_op (ext_compat ora) jm),
    Cop.classify_fun (typeof a) =
    Cop.fun_case_f (type_of_params (fst fsig0)) (snd fsig0) cc ->
    tc_fn_return Delta ret (snd fsig0) ->
@@ -2144,7 +2146,7 @@ Lemma semax_call_aux:
    jsafeN (@OK_spec Espec) psi (level (m_phi jm)) ora
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
-intros Delta A P Q Q' NEP NEQ' ts x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id.
+intros Delta A P Q Q' NEP NEQ' ts x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id Hora.
 intros TC0 TCret TC1 TC2 TC3 TC5 H HR HGG H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
@@ -2231,7 +2233,7 @@ spec H19 ; [clear H19 |]. {
  apply le_trans with (level wx); auto.
  clear wx H20 H21.
  apply own.bupd_intro.
- intros ora' jm' VR ?.
+ intros ora' jm' Hora' VR ?.
  subst w'.
  pose (H20:=True).
  assert (FL: exists m2, free_list (m_dry jm')  (Clight.blocks_of_env psi ve) = Some m2). {
@@ -2306,7 +2308,7 @@ rewrite <- H0. auto.
   EX old: val, substopt ret old F (construct_rho (filter_genv psi) vx te2)))). {
 apply sepcon_derives.
 *
- clear dependent a. clear H11 H19 H20 H10 H9 H12 H5 H6 H8.
+ clear dependent a. clear H11 H19 H20 H10 H9 H12 H5 H6 H8 Hora Hora'.
  clear Prog_OK ora ora'.  subst rho' fsig.
  clear H22b VR. clear FL jm2 FL2 FL3.
  clear b H16 H7. clear bl TC2 H14.
@@ -2615,8 +2617,8 @@ simpl @fst in *.
 }
 replace n with (level jm'').
 eapply assert_safe_jsafe, own.bupd_mono, H19.
-intros ? Hsafe ????.
-subst; specialize (Hsafe ora0 _ eq_refl eq_refl).
+intros ? Hsafe ?? Hora0 ??.
+subst; specialize (Hsafe ora0 _ Hora0 eq_refl eq_refl).
 clear - Hsafe.
 destruct (level (m_phi jm0)); simpl in *. constructor.
 inv Hsafe. econstructor; eauto. inv H0. inv H. split; auto.
@@ -2792,8 +2794,8 @@ hnf in H7.
 pose proof I.
 intros ? J; destruct (H2 _ J) as (? & J' & m' & Hl & Hr & ? & Hsafe); subst.
 eexists; split; eauto; exists m'; repeat split; auto.
-hnf in Hsafe|-*; intros.
-specialize (Hsafe ora jm H10).
+hnf in Hsafe|-*; intros ?? Hora ??.
+specialize (Hsafe ora jm Hora H10).
 eapply convergent_controls_jsafe; try apply Hsafe.
 reflexivity.
 simpl; intros ? ?. unfold cl_after_external. destruct ret0; auto.
@@ -2939,8 +2941,8 @@ Proof.
   }
   unfold tc_expropt in TC; destruct ret; simpl in TC.
   + eapply own.bupd_mono, bupd_denote_tc, H0; eauto.
-    clear TC; intros ? [TC Hsafe] ????.
-    specialize (Hsafe ora jm (eq_refl _) H6).
+    clear TC; intros ? [TC Hsafe] ?? Hora ??.
+    specialize (Hsafe ora jm Hora (eq_refl _) H6).
     eapply convergent_controls_jsafe; try apply Hsafe.
     1: simpl; auto.
     1: intros ? ?; simpl; unfold cl_after_external; auto.
@@ -3030,8 +3032,8 @@ Proof.
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
   + eapply own.bupd_mono, H0; eauto.
-    intros ? Hsafe ????.
-    specialize (Hsafe ora jm (eq_refl _) H6).
+    intros ? Hsafe ?? Hora ??.
+    specialize (Hsafe ora jm Hora (eq_refl _) H6).
     eapply convergent_controls_jsafe; try apply Hsafe.
     1: simpl; auto.
     1: intros ? ?; simpl; unfold cl_after_external; auto.

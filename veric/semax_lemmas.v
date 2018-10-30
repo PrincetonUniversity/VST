@@ -206,14 +206,14 @@ repeat intro.
 destruct (H0 _ H1) as (b & ? & m' & ? & ? & ? & HP).
 exists b; split; auto; exists m'; repeat split; auto.
 repeat intro.
-specialize (HP ora jm H6 H7).
+specialize (HP ora jm H6 H7 H8).
 destruct (@level rmap _ m').
 constructor.
 apply convergent_controls_jsafe with (State ve te k); auto.
 simpl.
 
 intros.
-destruct H8 as [? [? ?]].
+destruct H9 as [? [? ?]].
 split3; auto.
 
 econstructor; eauto.
@@ -1301,7 +1301,7 @@ apply allp_derives. intros tx.
 apply allp_derives. intros vx.
 rewrite H; apply subp_derives; auto.
 apply bupd_mono.
-intros w ? ? ? ? ?.
+intros w ? ? ? ? ? ?.
 apply H0.
 eapply H1; eauto.
 Qed.
@@ -1311,7 +1311,7 @@ Lemma assert_safe_adj:
       (forall n, control_as_safe ge n k k') ->
      assert_safe Espec ge ve te k rho |-- assert_safe Espec ge ve te k' rho.
 Proof.
- intros. apply bupd_mono. intros w ? ? ? ? ?. specialize (H0 ora jm H1 H2).
+ intros. apply bupd_mono. intros w ? ? ? ? ? ?. specialize (H0 ora jm H1 H2 H3).
  eapply H; try apply H0. apply le_refl.
 Qed.
 
@@ -1824,5 +1824,12 @@ Proof.
   destruct (H _ H1) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
-  rewrite level_juice_level_phi, <- Hl; auto.
+  rewrite level_juice_level_phi, <- Hl.
+  apply Hsafe; auto.
+  simpl.
+  eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
+  destruct H0.
+  change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
+    (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+  eexists; apply ghost_fmap_join; eauto.
 Qed.
