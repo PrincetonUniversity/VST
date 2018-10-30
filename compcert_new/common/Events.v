@@ -735,6 +735,28 @@ Ltac solve_trivial_inject:=
   | _ => fail "Not an noninjectable goal."
   end.
 
+
+Definition trivial_inject t:=
+  forall {f t'},
+    inject_trace f t t' -> t' = t.
+Ltac trivial_inject_trace:=
+  match goal with
+  | [H: inject_trace ?f ?t ?t' |- _  ] =>
+    inversion H; subst; clear H;
+    try trivial_inject_event
+  end.
+Ltac solve_trivial_inject:=
+  lazymatch goal with
+  | [|- trivial_inject ?T] =>
+    match goal with
+    |[H:context[T] |- _ ] =>
+     intros ???;
+            inversion H; subst;
+     repeat trivial_inject_trace; reflexivity             
+    end
+  | _ => fail "Not an noninjectable goal."
+  end.
+
 Definition injection_full (f:meminj) (m:mem):=
   forall b ,
     Mem.valid_block m b ->
@@ -1011,9 +1033,9 @@ Proof.
 (* mem injects *)
 - inv H0. inv H3. inv H8. inversion H6; subst.
   exploit volatile_load_inject; eauto. intros [v' [A B]].
-  exists f; intros.
-  rewrite (volatile_load_trivial_inject A H0).
-  exists v'; exists m1'; intuition. constructor; auto.
+  exists f; (*intros.
+  rewrite (volatile_load_trivial_inject A H0). *)
+  exists v'; exists m1', t;  intuition. constructor; auto.
   red; intros. congruence.
   (*inversion H4; repeat constructor. *)
 (* mem injects *)
