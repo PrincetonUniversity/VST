@@ -21,7 +21,7 @@ Inductive step2corestep (sem:part_semantics):(state sem) -> mem -> (state sem) -
     
 Program Definition sem2coresem (sem:part_semantics) corestep_not_halted : CoreSemantics _ _:=
   {|
-    initial_core := fun _ m c m' f args => entry_point sem m c f args /\ get_mem c = m'
+    initial_core := fun _ m c m' f args => start_stack sem m c f args /\ get_mem c = m'
     ; at_external := fun s m => Smallstep.at_external sem (set_mem s m) 
     ; after_external := Smallstep.after_external sem
     ; halted:= final_state sem

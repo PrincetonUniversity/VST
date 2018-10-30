@@ -21,19 +21,12 @@
 
 Require Import Relations.
 Require Import Wellfounded.
-Require Import Coqlib.
-Require Import Events.
-Require Import Globalenvs.
-Require Import Integers.
-Require Import Smallstep.
-
-
-(*Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Smallstep.
-*)
+
 
 Require Import compcert.common.Values. (*for meminj, compose_meminj,...*)
 
