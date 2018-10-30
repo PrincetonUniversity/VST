@@ -853,26 +853,28 @@ Lemma external_call_parallel_rule:
     injection_full j m1 ->
   m2 |= minjection j m1 ** globalenv_inject ge j ** P ->
   Val.inject_list j vargs1 vargs2 ->
-  exists j' vres2 m2' t',
+  exists j', forall t', inject_trace j' t t' ->
+  exists vres2 m2',
      external_call ef ge vargs2 m2 t' vres2 m2'
   /\ Val.inject j' vres1 vres2
   /\ m2' |= minjection j' m1' ** globalenv_inject ge j' ** P
   /\ inject_incr j j'
   /\ inject_separated j j' m1 m2
-  /\ inject_trace j' t t' /\
+  /\
     injection_full j m1 .
 Proof.
-
   intros until vargs2; intros CALL INJFULL SEP ARGS.
   destruct SEP as (A & B & C). simpl in A. 
   exploit external_call_mem_inject; eauto.
   eapply globalenv_inject_preserves_globals. eapply sep_pick1; eauto.
-  intros (j' & vres2 & m2' & t' & CALL' & RES & INJ' &
-          UNCH1 & UNCH2 & INCR & ISEP & INJT & INJFULL').
+  intros (j' & Hinj_preserve). exists j'; intros t' Hinjt.
+  specialize (Hinj_preserve t' Hinjt).
+  destruct Hinj_preserve as (vres2 & m2' & CALL' & RES & INJ' &
+          UNCH1 & UNCH2 & INCR & ISEP & INJFULL').
   assert (MAXPERMS: forall b ofs p,
             Mem.valid_block m1 b -> Mem.perm m1' b ofs Max p -> Mem.perm m1 b ofs Max p).
   { intros. eapply external_call_max_perm; eauto. }
-  exists j', vres2, m2', t'; intuition auto.
+  exists vres2, m2'; intuition auto.
   split; [|split].
 - exact INJ'.
 - apply m_invar with (m0 := m2).
@@ -893,25 +895,28 @@ Lemma external_call_parallel_rule_strong:
     injection_full j m1 ->
   m2 |= minjection j m1 ** globalenv_inject ge j ** P ->
   Val.inject_list j vargs1 vargs2 ->
-  exists j' vres2 m2' t',
+  exists j', forall t',  inject_trace j' t t' ->
+  exists vres2 m2',
      external_call ef ge vargs2 m2 t' vres2 m2'
   /\ Val.inject j' vres1 vres2
   /\ m2' |= minjection j' m1' ** globalenv_inject ge j' ** P
   /\ inject_incr j j'
   /\ inject_separated j j' m1 m2
-  /\ inject_trace j' t t' /\
+  /\
     injection_full j' m1' .
 Proof.
   intros until vargs2; intros CALL INJFULL SEP ARGS.
   destruct SEP as (A & B & C). simpl in A. 
   exploit external_call_mem_inject; eauto.
   eapply globalenv_inject_preserves_globals. eapply sep_pick1; eauto.
-  intros (j' & vres2 & m2' & t' & CALL' & RES & INJ' &
-          UNCH1 & UNCH2 & INCR & ISEP & INJT & INJFULL').
+  intros (j' & Hinj_preserve). exists j'; intros t' Hinjt.
+  specialize (Hinj_preserve t' Hinjt).
+  destruct Hinj_preserve as (vres2 & m2' & CALL' & RES & INJ' &
+          UNCH1 & UNCH2 & INCR & ISEP & INJFULL').
   assert (MAXPERMS: forall b ofs p,
             Mem.valid_block m1 b -> Mem.perm m1' b ofs Max p -> Mem.perm m1 b ofs Max p).
   { intros. eapply external_call_max_perm; eauto. }
-  exists j', vres2, m2', t'; intuition auto.
+  exists vres2, m2'; intuition auto.
   split; [|split].
 - exact INJ'.
 - apply m_invar with (m0 := m2).
