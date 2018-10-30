@@ -1172,7 +1172,7 @@ Fixpoint make_arguments (rs: regset) (m: mem) (al: list (rpair loc)) (lv: list v
   | _, _ => None
  end.
 
-Inductive start_stack (ge:genv): mem -> state -> val -> list val -> Prop:=
+Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop:=
 | INIT_CORE:
     forall f b rs stk m0 m1 m2 m3 m args,
       Genv.find_funct_ptr ge b = Some f ->
@@ -1186,7 +1186,7 @@ Inductive start_stack (ge:genv): mem -> state -> val -> list val -> Prop:=
         # RA <- Vnullptr
         # RSP <- sp in
       make_arguments rs0 m3 (loc_arguments (funsig f)) args = Some (rs, m) ->
-      start_stack ge m0 (State rs m) (Vptr b Ptrofs.zero) args.
+      entry_point ge m0 (State rs m) (Vptr b Ptrofs.zero) args.
 
 Definition get_extcall_arg (rs: regset) (m: mem) (l: Locations.loc) : option val :=
  match l with
@@ -1256,14 +1256,14 @@ Definition after_external_regset (ge:genv)(vret: option val) (rs: regset) : opti
       | Some res => 
           Some ((set_pair (loc_external_result (ef_sig ef)) res rs) #PC <- (rs RA))
       | None => 
-          Some (rs#(IR RAX) <- Vundef #PC <- (rs RA))
+          Some ( rs#(IR RAX) <- Vundef #PC <- (rs RA))
      end
     | _ => None
    end
    else None
  | _ => None
  end.
-
+  
 Definition after_external (ge:genv)(vret: option val)(c:state)(m:mem): option state:=
   match c with
     State rs m' =>
@@ -1287,7 +1287,7 @@ Definition set_mem (s:state)(m:mem) :=
 
 Definition part_semantics (ge: genv) :=
   Build_part_semantics get_mem set_mem (step ge)
-                       (start_stack ge)
+                       (entry_point ge)
                        (at_external ge)
                        (after_external ge)
                        final_state ge (Genv.to_senv ge).
