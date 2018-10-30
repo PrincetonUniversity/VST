@@ -18,8 +18,9 @@ Import VericMinimumSeparationLogic.
 Import VericMinimumSeparationLogic.CSHL_Def.
 Import VericMinimumSeparationLogic.CSHL_Defs.
 
-Definition dryspec : ext_spec unit :=
- Build_external_specification mem external_function unit
+(*
+Definition dryspec (oracle_ty: Type) : ext_spec oracle_ty :=
+ Build_external_specification mem external_function oracle_ty
      (*ext_spec_type*)
      (fun ef => False)
      (*ext_spec_pre*)
@@ -28,23 +29,97 @@ Definition dryspec : ext_spec unit :=
      (fun ef Hef ge ty vl m z => False)
      (*ext_spec_exit*)
      (fun rv m z => False).
+*)
+
+Definition ignores_juice Z (J: external_specification juicy_mem external_function Z) : Prop :=
+  (forall e t b tl vl x jm jm',
+     m_dry jm = m_dry jm' -> 
+    ext_spec_pre J e t b tl vl x jm ->
+    ext_spec_pre J e t b tl vl x jm') /\
+ (forall ef t b ot v x jm jm',
+     m_dry jm = m_dry jm' -> 
+    ext_spec_post J ef t b ot v x jm ->
+    ext_spec_post J ef t b ot v x jm') /\
+ (forall v x jm jm',
+     m_dry jm = m_dry jm' -> 
+     ext_spec_exit J v x jm ->
+     ext_spec_exit J v x jm').
+
+Definition juicy_dry_ext_spec (Z: Type) 
+   (J: external_specification juicy_mem external_function Z)
+   (D: external_specification mem external_function Z) :=
+   (ext_spec_type D = ext_spec_type J) /\
+  (forall e t t' b tl vl x jm,
+    JMeq.JMeq t t' ->
+    (ext_spec_pre J e t b tl vl x jm <->
+    ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
+ (forall ef t t' b ot v x jm,
+    JMeq.JMeq t t' ->
+    (ext_spec_post J ef t b ot v x jm <->
+     ext_spec_post D ef t' b ot v x (m_dry jm))) /\
+ (forall v x jm,
+     ext_spec_exit J v x jm <->
+     ext_spec_exit D v x (m_dry jm)).
+
+Definition juicy_dry_ext_spec_make (Z: Type) 
+   (J: external_specification juicy_mem external_function Z) :
+   external_specification mem external_function Z.
+destruct J.
+apply Build_external_specification with ext_spec_type.
+intros e t b tl vl x m.
+apply (forall jm, m_dry jm = m -> ext_spec_pre e t b tl vl x jm).
+intros e t b ot v x m.
+apply (forall jm, m_dry jm = m -> ext_spec_post e t b ot v x jm).
+intros v x m.
+apply (forall jm, m_dry jm = m -> ext_spec_exit v x jm).
+Defined.
+
+Lemma jdes_make_lemma:
+  forall Z J, ignores_juice Z J ->
+    juicy_dry_ext_spec Z J (juicy_dry_ext_spec_make Z J).
+Proof.
+intros.
+destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
+-
+apply JMeq.JMeq_eq in H2. subst t'.
+split; intros.
+eapply H. symmetry; eassumption.  auto.
+apply H2; auto.
+-
+apply JMeq.JMeq_eq in H2. subst t'.
+split; intros.
+eapply H0. symmetry; eassumption.  auto.
+apply H2; auto.
+-
+split; intros.
+eapply H1. symmetry; eassumption. auto.
+apply H2; auto. 
+Qed.
 
  Lemma whole_program_sequential_safety:
-   forall {CS: compspecs} prog V G m,
-     @semax_prog NullExtension.Espec CS prog V G ->
+   forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
+     (dryspec: ext_spec OK_ty)
+     (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec)
+     prog V G m,
+     @semax_prog Espec (*NullExtension.Espec*) CS prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core  (cl_core_sem (globalenv prog))
            0 m q m' (Vptr b Ptrofs.zero) nil /\
        forall n,
-        @dry_safeN _ _ _ _ (genv_symb_injective) (coresem_extract_cenv  (cl_core_sem (globalenv prog)) (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m'.
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective)
+            (coresem_extract_cenv  (cl_core_sem (globalenv prog))
+                (prog_comp_env prog)) 
+            (*(dryspec  OK_ty)*) dryspec
+            (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
+             n initial_oracle q m'.
 Proof.
  intros.
- destruct (@semax_prog_rule' NullExtension.Espec CS _ _ _ _ 
+ destruct (@semax_prog_rule' (*NullExtension.*)Espec CS _ _ _ _ 
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
      H H0) as [b [q [[H1 H2] H3]]].
- destruct (H3 O tt) as [jmx [H4x [H5x [H6x [H7x _]]]]].
+ destruct (H3 O initial_oracle) as [jmx [H4x [H5x [H6x [H7x _]]]]].
  destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
  exists b, q, (m_dry jmx').
  split3; auto.
@@ -52,35 +127,75 @@ Proof.
  subst. simpl. clear H5x H6x H7x H8y.
  forget (m_dry jmx) as m. clear jmx.
  intro n.
- specialize (H3 n tt).
+ specialize (H3 n initial_oracle).
  destruct H3 as [jm [? [? [? [? _]]]]].
  unfold semax.jsafeN in H6.
  subst m.
  assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
-   (Some (ghost_PCM.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+   (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
  { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
- clear - H4 J H6.
- revert jm q H4 J H6; induction n; simpl; intros. constructor.
+ clear - JDE H4 J H6.
+  rewrite <- H4 in H6|-*.
+ assert (level jm <= n)%nat by omega.
+ clear H4; rename H into H4.
+ forget initial_oracle as ora.
+ revert ora jm q H4 J H6; induction n; simpl; intros.
+ assert (level (m_phi jm) = 0%nat) by omega. rewrite H; constructor.
  inv H6.
- - destruct H0 as (?&?&?&Hg).
-   econstructor.
+ - constructor.
+ -
+   rewrite <- level_juice_level_phi in H4.
+   destruct H0 as (?&?&?&Hg).
+   eapply safeN_step.
    + red. red. fold (globalenv prog). eassumption.
-   + destruct (H1 (Some (ghost_PCM.ext_ref tt, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
+   + destruct (H1 (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
      { eexists; apply join_comm, core_unit. }
      { rewrite Hg.
        destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
      replace (m_dry m') with (m_dry m'') by auto.
-     apply IHn; auto.
-     change (level (m_phi jm)) with (level jm) in H4.
-     rewrite H4 in H2; inv H2; auto.
- - exfalso; auto.
+     change (level (m_phi jm)) with (level jm) in *.
+     replace n0 with (level m'') by omega.
+     apply IHn; auto. omega.
+     replace (level m'') with n0 by omega. auto.
+ -
+   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]].
+   destruct dryspec as [ty pre post exit]. simpl in *. subst ty.
+   destruct JE_spec. simpl in *.
+   change (level (m_phi jm)) with (level jm) in *.
+   apply safeN_external with (e0:=e)(args0:=args)(x0:=x).
+   assumption.
+   simpl. eapply JDE2; try apply JMeq.JMeq_refl; eassumption.
+   simpl. intros. 
+   assert (H20: exists jm', m_dry jm' = m' /\ (level jm' = n')%nat /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')) by admit.
+   destruct H20 as [jm'  [H26 [H27 H28]]].
+   specialize (H2 ret jm' z' n' Hargsty Hretty).
+   spec H2. omega.
+    spec H2. hnf; split3; auto. omega.
+  spec H2.
+  apply <- JDE3; try apply JMeq.JMeq_refl. subst m'. apply H6.
+  destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
+  hnf in H2b.
+  specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
+  spec H2b. apply join_sub_refl.
+  spec H2b.
+  admit.
+  destruct H2b as [jm'' [? [? ?]]].
+  destruct H7 as [? [? ?]].
+  subst m'. rewrite <- H7.
+  specialize (IHn  z' jm'' c').
+  subst n'. rewrite <- H9.
+  change (level (m_phi jm'')) with (level  jm'') in IHn.
+  apply IHn. omega.
+  auto.
+  rewrite H9; auto.
  - eapply safeN_halted; eauto.
+    apply JDE. auto.
  Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
-  apply Int.zero.
-Qed.
+all: fail.
+Admitted.
 
 Require Import VST.veric.juicy_safety.
 
@@ -89,7 +204,7 @@ Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_funct
 
 Print genv.
 
-Axiom module_sequential_safety : (*TODO*)
+Lemma module_sequential_safety : (*TODO*)
    forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
      let ge := Genv.globalenv prog in
      let ext_link := ext_link_prog prog in
@@ -110,3 +225,4 @@ Axiom module_sequential_safety : (*TODO*)
               (Vptr f_b Ptrofs.zero) args /\
        forall n, safeN_(genv_symb := @genv_symb_injective _ _)(Hrel := juicy_extspec.Hrel) (coresem_extract_cenv sem (prog_comp_env prog))
 (upd_exit (@OK_spec spec) x (genv_symb_injective ge)) ge n ora q m.
+Abort.
