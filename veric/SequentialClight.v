@@ -33,7 +33,7 @@ Definition dryspec (oracle_ty: Type) : ext_spec oracle_ty :=
 
 Definition ignores_juice Z (J: external_specification juicy_mem external_function Z) : Prop :=
   (forall e t b tl vl x jm jm',
-     m_dry jm = m_dry jm' -> 
+     m_dry jm = m_dry jm' ->
     ext_spec_pre J e t b tl vl x jm ->
     ext_spec_pre J e t b tl vl x jm') /\
  (forall ef t b ot v x jm jm',
@@ -45,7 +45,7 @@ Definition ignores_juice Z (J: external_specification juicy_mem external_functio
      ext_spec_exit J v x jm ->
      ext_spec_exit J v x jm').
 
-Definition juicy_dry_ext_spec (Z: Type) 
+Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
    (D: external_specification mem external_function Z) :=
    (ext_spec_type D = ext_spec_type J) /\
@@ -67,7 +67,7 @@ Definition juicy_dry_ext_spec_make (Z: Type)
 destruct J.
 apply Build_external_specification with ext_spec_type.
 intros e t b tl vl x m.
-apply (forall jm, m_dry jm = m -> ext_spec_pre e t b tl vl x jm).
+apply (forall jm, m_dry jm = m -> (* external ghost matches x -> *) ext_spec_pre e t b tl vl x jm).
 intros e t b ot v x m.
 apply (forall jm, m_dry jm = m -> ext_spec_post e t b ot v x jm).
 intros v x m.
@@ -168,9 +168,10 @@ Proof.
    apply safeN_external with (e0:=e)(args0:=args)(x0:=x).
    assumption.
    simpl. eapply JDE2; try apply JMeq.JMeq_refl; eassumption.
-   simpl. intros. 
-   assert (H20: exists jm', m_dry jm' = m' /\ (level jm' = n')%nat /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')) by admit.
-   destruct H20 as [jm'  [H26 [H27 H28]]].
+   simpl. intros.
+   assert (H20: exists jm', m_dry jm' = m' /\ (level jm' = n')%nat /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
+      /\ exists g', compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: g') by admit.
+   destruct H20 as [jm'  [H26 [H27 [H28 [g' Hg']]]]].
    specialize (H2 ret jm' z' n' Hargsty Hretty).
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
@@ -181,7 +182,9 @@ Proof.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
   spec H2b. apply join_sub_refl.
   spec H2b.
-  admit.
+  { rewrite Hg'.
+    exists (Some (ghost_PCM.ext_both z', compcert_rmaps.RML.R.NoneP) :: g');
+      repeat constructor.  }
   destruct H2b as [jm'' [? [? ?]]].
   destruct H7 as [? [? ?]].
   subst m'. rewrite <- H7.
