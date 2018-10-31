@@ -1188,7 +1188,7 @@ Proof.
 *)
 Lemma perm_of_res_lock_not_Freeable:
   forall r,
-    Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
+    perm_order'' (Some Writable) (perm_of_res_lock r).
 Proof.
   intros.
   unfold perm_of_res_lock.
@@ -1199,3 +1199,43 @@ Proof.
   apply glb_Rsh_not_top.
   repeat if_tac; constructor.
 Qed.
+
+Definition readable_perm (p: option permission) :
+  {perm_order'' p (Some Readable)}+{~perm_order'' p (Some Readable)}.
+destruct p.
+destruct p; try solve [left; constructor].
+all: right; intro; inv H.
+Defined.
+
+Definition rebuild_juicy_mem_fmap (jm: juicy_mem) (m': mem) : (AV.address -> resource) :=
+ fun loc =>
+   match m_phi jm @ loc with
+    PURE k pp => PURE k pp
+   | NO sh rsh => if readable_perm (access_at m' loc Cur)
+                            then YES Tsh (writable_readable writable_share_top)
+                                        (VAL (contents_at m' loc)) NoneP
+                            else NO sh rsh 
+   | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m' loc)) NoneP
+   | YES sh rsh _ _ => m_phi jm @ loc
+end.
+
+Definition rebuild_juicy_mem_rmap (jm: juicy_mem) (m': mem) :
+  {phi : rmap |
+  level phi = level jm /\
+  resource_at phi = rebuild_juicy_mem_fmap jm m' /\
+  ghost_of phi = ghost_of (m_phi jm)}.
+  refine (make_rmap (rebuild_juicy_mem_fmap jm m') (ghost_of (m_phi jm)) (level jm) _ _).
+extensionality loc.
+unfold compose.
+unfold rebuild_juicy_mem_fmap.
+destruct (m_phi jm @ loc) eqn:?H.
+if_tac; auto.
+pose proof (resource_at_approx (m_phi jm) loc).
+rewrite H in H0. simpl in H0.
+destruct k; simpl; auto.
+pose proof (resource_at_approx (m_phi jm) loc).
+rewrite H in *; auto.
+apply ghost_of_approx.
+Defined.
+
+

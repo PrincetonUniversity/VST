@@ -45,6 +45,16 @@ Definition ignores_juice Z (J: external_specification juicy_mem external_functio
      ext_spec_exit J v x jm ->
      ext_spec_exit J v x jm').
 
+Import VST.veric.compcert_rmaps.R.
+Search (option permission -> option permission -> Prop).
+
+Definition juicy_ext_spec_resource_decay (Z: Type) 
+  (J: external_specification juicy_mem external_function Z) :=
+ forall ef w b tl vl ot v z jm jm',
+    ext_spec_pre J ef w b tl vl z jm ->
+    ext_spec_post J ef w b ot v z jm' ->
+    resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
+
 Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
    (D: external_specification mem external_function Z) :=
@@ -100,6 +110,7 @@ Qed.
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (dryspec: ext_spec OK_ty)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec)
+     (JRD: juicy_ext_spec_resource_decay _ (@JE_spec OK_ty OK_spec))
      prog V G m,
      @semax_prog Espec (*NullExtension.Espec*) CS prog V G ->
      Genv.init_mem prog = Some m ->
@@ -137,7 +148,7 @@ Proof.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
- clear - JDE H4 J H6.
+ clear - JDE JRD H4 J H6.
   rewrite <- H4 in H6|-*.
  assert (level jm <= n)%nat by omega.
  clear H4; rename H into H4.
@@ -161,22 +172,52 @@ Proof.
      apply IHn; auto. omega.
      replace (level m'') with n0 by omega. auto.
  -
-   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]].
+   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec) by apply JDE.
+(*   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]]. *)
    destruct dryspec as [ty pre post exit]. simpl in *. subst ty.
-   destruct JE_spec. simpl in *.
+   destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
    apply safeN_external with (e0:=e)(args0:=args)(x0:=x).
    assumption.
-   simpl. eapply JDE2; try apply JMeq.JMeq_refl; eassumption.
+   simpl. eapply JDE; try apply JMeq.JMeq_refl; eassumption.
    simpl. intros.
-   assert (H20: exists jm', m_dry jm' = m' /\ (level jm' = n')%nat /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
-      /\ exists g', compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: g') by admit.
+   assert (H20: exists jm', m_dry jm' = m' 
+                      /\ (level jm' = n')%nat
+                      /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
+                      /\ exists g', compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: g'). {
+     destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') 
+            as [phi [? [? ?]]].
+     pose (phi' := age_to.age_to n' phi).
+     assert (contents_cohere m' phi') by admit.
+     assert (access_cohere m' phi') by admit.
+     assert (max_access_cohere m' phi') by admit.
+     assert (alloc_cohere m' phi') by admit.
+     pose (jm' := mkJuicyMem _ _ H10 H11 H12 H13).
+     exists jm'.  (* NOT QUITE RIGHT: it should be jm' with the ghost updated *)
+     split; [ | split3].
+     subst jm'; simpl; auto.
+     subst jm' phi'; simpl. apply age_to.level_age_to. omega.
+     hnf. split. intro loc. subst jm' phi'. simpl.
+     rewrite age_to_resource_at.age_to_resource_at.
+     rewrite H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+     destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by omega.
+      reflexivity.
+     intro loc. subst jm' phi'. simpl.
+     rewrite age_to_resource_at.age_to_resource_at.
+     rewrite H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
+     destruct (m_phi jm @ loc); auto.
+     if_tac; simpl; auto. destruct k; simpl; auto. simpl. eauto.
+     subst jm' phi'. simpl m_phi.
+     rewrite age_to_resource_at.age_to_ghost_of.
+     rewrite H9.
+     admit. (* William?  *)
+   }
    destruct H20 as [jm'  [H26 [H27 [H28 [g' Hg']]]]].
    specialize (H2 ret jm' z' n' Hargsty Hretty).
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
   spec H2.
-  apply <- JDE3; try apply JMeq.JMeq_refl. subst m'. apply H6.
+  apply <- (proj1 (proj2 (proj2 JDE))); try apply JMeq.JMeq_refl. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
