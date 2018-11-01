@@ -206,7 +206,7 @@ Proof.
      rewrite age_to_resource_at.age_to_resource_at.
      rewrite H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
      destruct (m_phi jm @ loc); auto.
-     if_tac; simpl; auto. destruct k; simpl; auto. simpl. eauto.
+     if_tac; simpl; auto. destruct k; simpl; auto. if_tac; simpl; eauto. simpl; eauto.
      subst jm' phi'. simpl m_phi.
      rewrite age_to_resource_at.age_to_ghost_of.
      rewrite H9.

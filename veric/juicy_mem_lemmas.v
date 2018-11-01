@@ -1215,7 +1215,10 @@ Definition rebuild_juicy_mem_fmap (jm: juicy_mem) (m': mem) : (AV.address -> res
                             then YES Tsh (writable_readable writable_share_top)
                                         (VAL (contents_at m' loc)) NoneP
                             else NO sh rsh 
-   | YES sh rsh (VAL _) _ => YES sh rsh (VAL (contents_at m' loc)) NoneP
+   | YES sh rsh (VAL _) _ => 
+                 if readable_perm (access_at m' loc Cur)
+                 then YES sh rsh (VAL (contents_at m' loc)) NoneP
+                 else NO _ bot_unreadable
    | YES sh rsh _ _ => m_phi jm @ loc
 end.
 
@@ -1233,6 +1236,7 @@ if_tac; auto.
 pose proof (resource_at_approx (m_phi jm) loc).
 rewrite H in H0. simpl in H0.
 destruct k; simpl; auto.
+if_tac; auto.
 pose proof (resource_at_approx (m_phi jm) loc).
 rewrite H in *; auto.
 apply ghost_of_approx.
