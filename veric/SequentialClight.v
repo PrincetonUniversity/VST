@@ -187,30 +187,38 @@ Proof.
                       /\ exists g', compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: g'). {
      destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') 
             as [phi [? [? ?]]].
-     pose (phi' := age_to.age_to n' phi).
+     assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
+        Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
+     { simpl; f_equal.
+        rewrite <- compcert_rmaps.RML.ghost_of_approx at 2.
+        destruct (compcert_rmaps.RML.R.ghost_of phi); auto. }
+     set (phi1 := initial_world.set_ghost _ _ Happrox).
+     assert (level phi1 = level phi /\ resource_at phi1 = resource_at phi) as [Hl1 Hr1].
+     { subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto. }
+     pose (phi' := age_to.age_to n' phi1).
      assert (contents_cohere m' phi') by admit.
      assert (access_cohere m' phi') by admit.
      assert (max_access_cohere m' phi') by admit.
      assert (alloc_cohere m' phi') by admit.
      pose (jm' := mkJuicyMem _ _ H10 H11 H12 H13).
-     exists jm'.  (* NOT QUITE RIGHT: it should be jm' with the ghost updated *)
+     exists jm'.
      split; [ | split3].
      subst jm'; simpl; auto.
      subst jm' phi'; simpl. apply age_to.level_age_to. omega.
      hnf. split. intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
-     rewrite H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+     rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
      destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by omega.
       reflexivity.
      intro loc. subst jm' phi'. simpl.
      rewrite age_to_resource_at.age_to_resource_at.
-     rewrite H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
+     rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
      destruct (m_phi jm @ loc); auto.
      if_tac; simpl; auto. destruct k; simpl; auto. if_tac; simpl; eauto. simpl; eauto.
      subst jm' phi'. simpl m_phi.
      rewrite age_to_resource_at.age_to_ghost_of.
-     rewrite H9.
-     admit. (* William?  *)
+     subst phi1.
+     unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl; eauto.
    }
    destruct H20 as [jm'  [H26 [H27 [H28 [g' Hg']]]]].
    specialize (H2 ret jm' z' n' Hargsty Hretty).
