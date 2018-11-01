@@ -268,7 +268,7 @@ Section ExposingMemory.
                                   Step L2 s2 t' s2' /\
                                   match_states i' f' s1' s2' /\
                                   Values.inject_incr f f' /\
-                                  inject_trace f' t t'.
+                                  inject_trace_strong f' t t'.
     
     Record fsim_properties_inj: Type :=
       {  Injindex: Type;
@@ -290,12 +290,54 @@ Section ExposingMemory.
                                     (Plus L2 s2 t' s2' \/ (Star L2 s2 t' s2' /\ Injorder i' i))
                                     /\ Injmatch_states i' f' s1' s2' /\
                                     Values.inject_incr f f' /\
-                                    inject_trace f' t t';
+                                    inject_trace_strong f' t t';
         Injsim_simulation_atx:
           simulation_atx_inj Injmatch_states;
         Injsim_atx:
             preserves_atx_inj Injmatch_states;
         Injfsim_public_preserved:
+          forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
+      }.
+
+        Definition simulation_atx_inj_relaxed {index:Type} {L1 L2}
+               (match_states: index -> meminj -> _ -> _ -> Prop)
+      :=
+        forall s1 f args,
+          @at_external L1 s1 = Some (f,args) -> 
+          forall t s1', Step L1 s1 t s1' ->
+                   forall i f s2, match_states i f s1 s2 ->
+                             exists f', forall t',
+                                 inject_trace f' t t' ->
+                              exists i', exists s2',
+                                  Step L2 s2 t' s2' /\
+                                  match_states i' f' s1' s2' /\
+                                  Values.inject_incr f f'.
+        Record fsim_properties_inj_relaxed: Type :=
+      {  InjindexX: Type;
+        InjorderX: InjindexX -> InjindexX -> Prop;
+        Injmatch_statesX: InjindexX -> meminj -> state L1 -> state L2 -> Prop;  
+        Injfsim_order_wfX: well_founded InjorderX;
+        Injfsim_match_meminjX: forall i f s1 s2, Injmatch_statesX i f s1 s2 ->  Mem.inject f (get_mem1 s1) (get_mem2 s2);
+        Injfsim_match_fullX: forall i f s1 s2, Injmatch_statesX i f s1 s2 ->  injection_full f (get_mem1 s1);
+        Injfsim_match_initial_statesX:
+          forall s1, initial_state L1 s1 -> 
+                exists i f s2, initial_state L2 s2 /\ Injmatch_statesX i f s1 s2;
+        Injfsim_match_final_statesX:
+          forall i s1 s2 r f,
+            Injmatch_statesX i f s1 s2 -> final_state L1 s1 r -> (final_state L2 s2 r);
+        Injfsim_simulationX:
+          forall s1 t s1' f, Step L1 s1 t s1' ->
+                        forall i s2, Injmatch_statesX i f s1 s2 ->
+                                exists i', exists s2' f' t',
+                                    (Plus L2 s2 t' s2' \/ (Star L2 s2 t' s2' /\ InjorderX i' i))
+                                    /\ Injmatch_statesX i' f' s1' s2' /\
+                                    Values.inject_incr f f' /\
+                                    inject_trace f' t t';
+        Injsim_simulation_atxX:
+          simulation_atx_inj_relaxed Injmatch_statesX;
+        Injsim_atxX:
+          preserves_atx_inj Injmatch_statesX;
+        Injfsim_public_preservedX:
           forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
       }.
 
@@ -309,7 +351,7 @@ Section ExposingMemory.
                 (exists i', exists s2' f' t',
                       Plus L2 s2 t' s2' /\
                       Injmatch_states SIM i' f' s1' s2'
-                      /\ inject_incr f f' /\ inject_trace f' t t')
+                      /\ inject_incr f f' /\ inject_trace_strong f' t t')
                 \/ (exists i' f', Injorder SIM i' i /\ t = E0 /\ Injmatch_states SIM i' f' s1' s2
                   /\ inject_incr f f').
     Proof.
@@ -353,7 +395,7 @@ Section ExposingMemory.
       forall s1 t s1', Plus L1 s1 t s1' ->
                   forall i f s2, Injmatch_states SIM i f s1 s2 -> 
             (exists i', exists f', exists s2' t', Plus L2 s2 t' s2' /\ Injmatch_states SIM i' f' s1' s2'
-            /\ inject_incr f f' /\ inject_trace f' t t')
+            /\ inject_incr f f' /\ inject_trace_strong f' t t')
             \/ (exists i', exists f', clos_trans _ (Injorder SIM) i' i /\ t = E0 /\ Injmatch_states SIM i' f' s1' s2
                            /\ inject_incr f f').
     Proof.
@@ -373,7 +415,7 @@ Section ExposingMemory.
       repeat split; auto.
       eapply inject_incr_trans; eauto.
       subst t.
-      admit. (*Some properties about inject_trace*)
+      admit. (*Some properties about inject_trace_strong*)
  
       
       exploit IHplus; eauto.
@@ -385,6 +427,19 @@ Section ExposingMemory.
       eapply t_trans; eauto. eapply t_step; eauto.
       eapply inject_incr_trans; eauto.
     Admitted.
+
+    Lemma Injsimulation_plus_relaxed:
+      forall (SIM:fsim_properties_inj_relaxed),
+      forall s1 t s1', Plus L1 s1 t s1' ->
+                  forall i f s2, Injmatch_statesX SIM i f s1 s2 -> 
+                  (exists i', exists f', exists s2' t',
+                          Plus L2 s2 t' s2' /\ Injmatch_statesX SIM i' f' s1' s2'
+                          /\ inject_incr f f' /\ inject_trace f' t t')
+                  \/ (exists i', exists f',
+                          clos_trans _ (InjorderX SIM) i' i /\ t = E0 /\
+                          Injmatch_statesX SIM i' f' s1' s2 /\ inject_incr f f').
+      Admitted.
+    
     
   End Injection.
 End ExposingMemory.
@@ -442,7 +497,7 @@ Section Composition.
   Variable get_mem1: state L1 -> mem.
   Variable get_mem2: state L2 -> mem.
   Variable get_mem3: state L3 -> mem.
-
+  
   Lemma injection_extension_composition:
     @fsim_properties_inj L1 L2 get_mem1 get_mem2 ->
     @fsim_properties_ext L2 L3 get_mem2 get_mem3 ->
@@ -624,6 +679,14 @@ Section Composition.
     reflexivity.
   Qed.
   
+  Lemma inject_trace_strong_trans:
+    forall f12 f23 t1 t2 t3,
+      inject_trace_strong f12 t1 t2 ->
+      inject_trace_strong f23 t2 t3 ->
+      inject_trace_strong (compose_meminj f12 f23) t1 t3.
+  Proof.
+  Admitted.
+
   Lemma inject_trace_compose:
     forall f12 f23 t1 t2 t3,
       inject_trace f12 t1 t2 ->
@@ -689,7 +752,7 @@ Section Composition.
   subst f.
   eapply compose_inject_incr; eauto.
   
-  eapply inject_trace_compose; eauto.
+  eapply inject_trace_strong_trans; eauto.
   
 * (* L3 makes no step *)
   exists (i2', i1'); exists s2; exists (compose_meminj f' f''), t'. repeat (split; auto).
@@ -716,7 +779,7 @@ Section Composition.
   exists (i2', i1'); exists s3'; exists (compose_meminj f12' f23'), t3'. repeat (split; auto).
   + exists s2',f12', f23'; auto.
   + subst; eapply compose_inject_incr; auto.
-  + subst; eapply inject_trace_compose; eauto.
+  + subst; eapply inject_trace_strong_trans ; eauto.
   
 - (*match_states preserves at_external *)
   unfold preserves_atx_inj; intros.
@@ -755,16 +818,116 @@ Section Composition.
             [eapply Injfsim_public_preserved|eapply Injfsim_public_preserved]; eauto.
   Qed.
 
+
+   Lemma injection_injection_relaxed_composition:
+    @fsim_properties_inj L1 L2 get_mem1 get_mem2->
+    @fsim_properties_inj_relaxed L2 L3 get_mem2 get_mem3 ->
+    @fsim_properties_inj_relaxed L1 L3 get_mem1 get_mem3.
+   Proof.
+    intros SIM12 SIM23.
+    set (index13:= (InjindexX SIM23 * Injindex SIM12)%type).
+    set (order13:=  (lex_ord (clos_trans _ (InjorderX SIM23)) (Injorder SIM12))).
+    set (match_states13:=
+           (fun (i: _ ) f (s1: state L1) (s3: state L3) =>
+              exists s2 f12 f23,  Injmatch_states SIM12 (snd i) f12 s1 s2 /\ Injmatch_statesX SIM23 (fst i) f23 s2 s3
+        /\ f = compose_meminj f12 f23)).
+    eapply Build_fsim_properties_inj_relaxed with (InjindexX:= index13) (InjorderX:=order13) (Injmatch_statesX:=match_states13).
+- (* well founded *)
+  apply wf_lex_ord. apply wf_clos_trans.
+  eapply Injfsim_order_wfX; eauto. eapply Injfsim_order_wf; eauto.
+- (* inject. *)
+  intros ? ? ? ? [s2' [f12 [f23 [MATCH12 [MATCH23 INJCOMP]]]]].
+  subst.
+  eapply Mem.inject_compose; [eapply SIM12| eapply SIM23]; eauto.
+- (* Full *)
+  intros ? ? ? s3 [s2 [f12 [f23 [MATCH12 [MATCH23 INJCOMP]]]]] b VALID.
+  subst f.
+  eapply SIM12 in VALID; try (exact MATCH12).
+  destruct (f12 b) eqn:F12; auto. destruct p.
+  unfold compose_meminj; rewrite F12.
+  assert (VALID2 : Mem.valid_block (get_mem2 s2) b0).
+  { eapply SIM12; eauto. }
+  eapply SIM23 in VALID2; try (exact MATCH23).
+  intros HH. apply VALID2. destruct (f23 b0); inversion HH; auto.
+  destruct p. inversion HH.
+- (* initial states *)
+  intros. exploit (Injfsim_match_initial_states SIM12); eauto.
+  intros [i [ f12 [s2 [A B]]]].
+  exploit (Injfsim_match_initial_statesX SIM23); eauto. intros [i' [f23 [s3 [C D]]]].
+  exists (i', i); exists (compose_meminj f12 f23); exists s3; split; auto. exists s2; auto.
+  exists f12, f23; repeat (split; auto). 
+- (* final states *)
+  intros. destruct H as [s3 [ f12 [ f23 [A [B C]]]]].
+  eapply (Injfsim_match_final_statesX SIM23); eauto.
+  eapply (Injfsim_match_final_states SIM12); eauto.
+- (* simulation *)
+  intros. destruct H0 as [s3 [f12 [f23 [A [B C]]]]].
+  destruct i as [i2 i1]; simpl in *.
+  exploit (Injfsim_simulation' SIM12); eauto.
+  intros [[i1' [s3'[ f' [t' [D [E [F G]]]]]]] | [i1' [f' [D [E [F G]]]]]].
+  + (* L2 makes one or several steps. *)
+    exploit Injsimulation_plus_relaxed; eauto.
+    intros [[i2' [f'' [s2' [t'' [P [? [? ?]]]]]]] | [i2' [f'' [P [Q [R SS]]]]]].
+  * (* L3 makes one or several steps *)
+  exists (i2', i1').
+  exists s2'; exists (compose_meminj f' f''), t''. repeat (split; auto).
+  exists s3', f', f''; repeat (split; auto).
+  subst f.
+  eapply compose_inject_incr; eauto.
+  eapply inject_trace_strong_compose; eauto.
   
-  (* Lemma injection_injection_composition:
-    forward_injection L1 L2 get_mem1 get_mem2 ->
-    forward_injection L2 L3 get_mem2 get_mem3 ->
-    forward_injection L1 L3 get_mem1 get_mem3.
-  Proof.
-    intros S12 S23.
-    inv S12; inv S23.
-    econstructor.
-    eapply injection_injection_composition'; eauto.
-  Qed. *)
+* (* L3 makes no step *)
+  exists (i2', i1'); exists s2; exists (compose_meminj f' f''), t'. repeat (split; auto).
+  right; split. subst t'; apply star_refl. left. auto.
+  exists s3', f', f''; auto.
+  repeat (split;auto).
+  subst f.
+  eapply compose_inject_incr; eauto.
+  subst t'; inv G. constructor.
++ (* L2 makes no step *)
+  exists (i2, i1'); exists s2; exists (compose_meminj f' f23), t. repeat (split; auto).
+  right; split. subst t; apply star_refl. right. auto.
+  exists s3, f', f23; auto.
+  subst f.
+  eapply compose_inject_incr; eauto.
+  subst t; constructor.
+- (*simulation at_external *)  
+  unfold simulation_atx_inj_relaxed; intros.
+  destruct H1 as [s3 [f12 [f23 [A [B C]]]]]. destruct i as [i2 i1]; simpl in *.
+  
+  exploit (Injsim_simulation_atx SIM12); eauto.
+  intros [i1' [s2'[ f12' [t2' [? [? [? ?]]]]]]].
+  
+  eapply Injsim_atx in H; eauto.
+  destruct H as (?&?&?).
+  exploit (Injsim_simulation_atxX SIM23); eauto.
+  intros [f23' Hsim23].
+  exists (compose_meminj f12' f23'); intros t' Htrace.
+  destruct (inject_trace_strong_interpolation Htrace) as (t2&Htrace12&Htrace23).
+  assert (t2 = t2') by (eapply inject_trace_strong_determ; eassumption).
+  subst t2'.
+  destruct (Hsim23 t' Htrace23) as 
+  [i2' [s3' [? [? ?]]]].
+  exists (i2', i1'); exists s3'. repeat (split; auto).
+  + exists s2',f12', f23'; auto.
+  + subst; eapply compose_inject_incr; auto.
+  
+- (*match_states preserves at_external *)
+  unfold preserves_atx_inj; intros.
+  destruct H as (?&?&?&?&?&?). 
+  eapply Injsim_atx in H0; try eapply H.
+  destruct H0 as (?&?&?).
+  eapply Injsim_atxX in H0; eauto.
+  destruct H0 as (args'&Hatx&Hinj).
+  exists args'.
+  split; eauto.
+
+  
+  eapply inject_list_compose_meminj; eassumption.
+  
+- (* symbols *)
+  intros. transitivity (Senv.public_symbol (symbolenv L2) id);
+            [eapply Injfsim_public_preservedX|eapply Injfsim_public_preserved]; eauto.
+   Qed.
   
   End Composition.

@@ -79,13 +79,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
   Context (compiled: 
              CC_correct.CompCert_compiler C_program = Some Asm_program).
   Definition compiler_sim:= CC_correct.simpl_clight_semantic_preservation _ _ compiled.
-  Definition compiler_index: Type:= Injindex compiler_sim.
+  Definition compiler_index: Type:= InjindexX compiler_sim.
   Definition compiler_match (i:compiler_index) (j:meminj)
        (c1:  Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)))
        (m1: mem)
        (c2: Smallstep.state (Asm.part_semantics Asm_g))
        (m2: mem): Prop
-    := Injmatch_states compiler_sim i j
+    := Injmatch_statesX compiler_sim i j
                        (Smallstep.set_mem c1 m1)
                        (Smallstep.set_mem c2 m2).
 
@@ -709,12 +709,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         (Smallstep.plus (Asm.step (Genv.globalenv Asm_program)) 
                         s3 t s2 \/
          Smallstep.star (Asm.step (Genv.globalenv Asm_program)) 
-                        s3 t s2 /\ Injorder compiler_sim cd cd0) ->
+                        s3 t s2 /\ InjorderX compiler_sim cd cd0) ->
         Smallstep.plus (Asm.step (Genv.globalenv Asm_program)) 
                        s3 t s2 \/
         t = Events.E0 /\
         s2 = s3 /\
-        Injorder compiler_sim cd cd0.
+        InjorderX compiler_sim cd cd0.
     Proof.
       intros. destruct H; eauto.
       destruct H.
@@ -754,7 +754,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
       forall (st1 : ThreadPool.t) (m1 m1' : mem) (Htid : ThreadPool.containsThread st1 hb) 
         (st2 : ThreadPool.t) (mu : meminj) (m2 : mem) (cd : option compiler_index),
         concur_match (cd) mu st1 m1 st2 m2 ->
-        forall (s' : Clight.state) (j1' : meminj) (cd' : Injindex compiler_sim)
+        forall (s' : Clight.state) (j1' : meminj) (cd' : InjindexX compiler_sim)
           (j2' : meminj) (s4' : Asm.state) (j3' : meminj) (m2' : mem)
           (Htid' : containsThread st2 hb)
         (mcompat1: mem_compatible st1 m1)
@@ -783,7 +783,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
       forall (st1 : ThreadPool.t) (m1 m1' : mem) (Htid : ThreadPool.containsThread st1 hb) 
         (st2 : ThreadPool.t) (mu : meminj) (m2 : mem) (cd : option compiler_index),
         concur_match (cd) mu st1 m1 st2 m2 ->
-        forall (s' : Clight.state) (j1' : meminj) (cd' : Injindex compiler_sim)
+        forall (s' : Clight.state) (j1' : meminj) (cd' : InjindexX compiler_sim)
           (j2' : meminj) (s4 : Asm.state) (j3' : meminj)
           (Htid' : containsThread st2 hb)
         (mcompat1: mem_compatible st1 m1)
@@ -920,7 +920,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                st2' m2' \/
              machine_semantics_lemmas.thread_step_star
                (HybConcSem (Some (S hb)) m) tge U st2 m2
-               st2' m2' /\ ord_opt (Injorder compiler_sim) cd' cd).
+               st2' m2' /\ ord_opt (InjorderX compiler_sim) cd' cd).
     Proof.
       intros.
       inversion H; subst.
@@ -2153,7 +2153,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             
             (** *Diagram No.0*)
             
-            assert (Hinj2:= Injfsim_match_meminj compiler_sim _ _ _ _ Hcomp_match).
+            assert (Hinj2:= Injfsim_match_meminjX compiler_sim _ _ _ _ Hcomp_match).
             simpl in Hinj2.
             
             (* Show that one can install Writable permissions for the lock in m3. *)
@@ -2193,7 +2193,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                                                  
                    ).
             {
-              pose proof (Injsim_atx compiler_sim _ _ _ _ Hcomp_match Hat_external1')
+              pose proof (Injsim_atxX compiler_sim _ _ _ _ Hcomp_match Hat_external1')
                 as Hatx.
               destruct Hatx as (args' & Hat_external2 & list_inj).
               inversion list_inj; subst.
@@ -2345,10 +2345,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     
                     Inductive extcall_release: Events.extcall_sem:=
                     | ExtCallRelease:
-                        forall ge m m' m'' m''' b ofs,
-                          mem_interference m m' ->
+                        forall ge m m' m'' m''' b ofs e e',
+                          mem_interference m e m' ->
                           release (Vptr b ofs) m' m'' ->
-                          mem_interference m'' m''' ->
+                          mem_interference m'' e' m''' ->
                           extcall_release ge (Vptr b ofs :: nil) m
                                           nil
                                           Vundef m''.
@@ -2372,22 +2372,23 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     - admit.
                     - Lemma interference_refl:
                         forall m,
-                          mem_interference m m.
-                      Proof.
-                        intros; eapply Mem.unchanged_on_refl.
-                      Qed.
+                          mem_interference m nil m.
+                      Proof. intros; econstructor. Qed.
                       eapply interference_refl.
                   }
                   eapply HH in Hextcall; auto.
-                  replace m with (Clight.get_mem s1') by (subst s1'; reflexivity).
+                  inversion H4.
+                  replace m1'0 with (Clight.get_mem s1') by (subst s1'; reflexivity).
                   auto.
                   
                 }
 
                 unfold compiler_match in Hcomp_match.
-                eapply (Injsim_simulation_atx compiler_sim) in Hstep; simpl in *; eauto.
+                eapply (Injsim_simulation_atxX compiler_sim) in Hstep; simpl in *; eauto.
                 specialize (Hstep _ _ _ Hcomp_match).
-                destruct  Hstep as (cd' & s2' & j2' & t'' & step & comp_match & Hincr2 & inj_event).
+                destruct Hstep as (j2'&Hstep).
+                specialize (Hstep nil ltac:(econstructor)).
+                destruct  Hstep as (cd' & s2' & step & comp_match & Hincr2 ).
 
                 (* We prove that code2 must do an external step. *)
                 {
@@ -2403,14 +2404,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                    
                    
                   inversion step; subst.
-                  - rewrite rPC in H5; inversion H5; subst.
+                  - rewrite rPC in H7; inversion H7; subst.
                     unfold the_ge in func_lookup.
-                    rewrite func_lookup in H6.
-                    inversion H6; discriminate.
-                  - rewrite rPC in H5; inversion H5; subst.
+                    rewrite func_lookup in H8.
+                    inversion H8; discriminate.
+                  - rewrite rPC in H7; inversion H7; subst.
                     unfold the_ge in func_lookup.
-                    rewrite func_lookup in H6.
-                    inversion H6; discriminate.
+                    rewrite func_lookup in H8.
+                    inversion H8; discriminate.
                   -
                     (* NOTE: 
                        - the s2' (i.e. target state) in comp_match, 
@@ -2424,9 +2425,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     (* Show that target program is executing the same function*)
                     assert (FUNeq:e0 = ef ).
                     { assert (BB0: b0 = b)
-                        by (rewrite rPC in H5; inversion H5; reflexivity).
+                        by (rewrite rPC in H7; inversion H7; reflexivity).
                       subst b0. unfold the_ge in func_lookup.
-                      rewrite func_lookup in H6; inversion H6.
+                      rewrite func_lookup in H8; inversion H8.
                       reflexivity.
                     } subst e0.
                     
@@ -2453,9 +2454,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                      repeat f_equal.
 
                      assert (Hres: res = Vundef).
-                     { clear - H8.
+                     { clear - H10.
                        unfold Events.external_call in *.
-                       rewrite ReleaseExists in H8.
+                       rewrite ReleaseExists in H10.
                        inversion H8. reflexivity.
                      }
                      subst res.
