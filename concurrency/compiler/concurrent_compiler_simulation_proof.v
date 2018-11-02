@@ -2308,14 +2308,20 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 
                 econstructor.
                 intros.
+
                 
+                  rename lev0 into lev1'.
+                  rename lev3 into lev2'.
+                  remember (fst virtueThread1) as dpm1.
+                  remember (Events.Event_acq_rel lev1 dpm1 lev1' :: nil) as rel_trace.
+                  
               (*
                 Prove that this is a CompCert step (en external step).
                *)
                 assert (Hstep: Smallstep.step
                           (Clight.part_semantics2 Clight_g)
                           (Smallstep.set_mem code1 m1)
-                          nil
+                          rel_trace
                           s1').
                 {
                   simpl in H2. unfold Clight.after_external in H2.
@@ -2329,9 +2335,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   simpl.
                   pose proof (Clight.step_external_function
                                 Clight_g (Clight.function_entry2 Clight_g)
-                                UNLOCK t0 t1 c (Vptr b1 ofs :: nil) k m1 Vundef nil (Clight.get_mem s1')) as HH.
-                  assert (Hextcall: Events.external_call UNLOCK (Clight.genv_genv Clight_g)
-                                           (Vptr b1 ofs :: nil) m1 nil Vundef (Clight.get_mem s1')).
+                                UNLOCK t0 t1 c (Vptr b1 ofs :: nil) k m1 Vundef
+                                rel_trace
+                                (Clight.get_mem s1')) as HH.
+                  assert (Hextcall: Events.external_call
+                                      UNLOCK (Clight.genv_genv Clight_g)
+                                      (Vptr b1 ofs :: nil) m1
+                                      rel_trace
+                                      Vundef (Clight.get_mem s1')).
                   { simpl.
                     
                     Inductive release: val -> mem -> mem -> Prop  :=
@@ -2342,16 +2353,16 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                        and changing the  lock value to 1.
                            *)
                           release (Vptr b ofs) m m'.
-                    
+
                     Inductive extcall_release: Events.extcall_sem:=
                     | ExtCallRelease:
-                        forall ge m m' m'' m''' b ofs e e',
+                        forall ge m m' m'' m''' b ofs e dpm e',
                           mem_interference m e m' ->
                           release (Vptr b ofs) m' m'' ->
                           mem_interference m'' e' m''' ->
                           extcall_release ge (Vptr b ofs :: nil) m
-                                          nil
-                                          Vundef m''.
+                                          (Events.Event_acq_rel e dpm e' :: nil)
+                                          Vundef m'''.
                     Lemma extcall_properties_release:
                       Events.extcall_properties extcall_release UNLOCK_SIG.
                     Proof.
@@ -2367,18 +2378,17 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     (* This function is given axiomaticall in CompCert. *)
                     
                     rewrite ReleaseExists.
-                    econstructor.
+                    subst rel_trace; econstructor.
                     - eassumption.
-                    - admit.
-                    - Lemma interference_refl:
-                        forall m,
-                          mem_interference m nil m.
-                      Proof. intros; econstructor. Qed.
-                      eapply interference_refl.
+                    -  constructor; auto. (*TODO*)
+                    - replace (Clight.get_mem s1') with m1'0.
+                      eassumption.
+                      inversion H4; reflexivity.
                   }
                   eapply HH in Hextcall; auto.
                   inversion H4.
                   replace m1'0 with (Clight.get_mem s1') by (subst s1'; reflexivity).
+                  unfold Clight.step2. 
                   auto.
                   
                 }
@@ -2387,7 +2397,19 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 eapply (Injsim_simulation_atxX compiler_sim) in Hstep; simpl in *; eauto.
                 specialize (Hstep _ _ _ Hcomp_match).
                 destruct Hstep as (j2'&Hstep).
-                specialize (Hstep nil ltac:(econstructor)).
+                
+                remember 
+                  (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)  as rel_trace2.
+                
+                assert (Hinj_trace: Events.inject_trace j2' rel_trace rel_trace2).
+                { subst rel_trace rel_trace2.
+                  econstructor; try solve[constructor].
+                  econstructor; try eassumption.
+                  (* HERE, have to move the inject_incr outside the quantification. *)
+                  
+
+                  
+                specialize (Hstep rel_trace2).
                 destruct  Hstep as (cd' & s2' & step & comp_match & Hincr2 ).
 
                 (* We prove that code2 must do an external step. *)
@@ -2454,15 +2476,28 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                      repeat f_equal.
 
                      assert (Hres: res = Vundef).
-                     { clear - H10.
-                       unfold Events.external_call in *.
+                     { unfold Events.external_call in *.
                        rewrite ReleaseExists in H10.
-                       inversion H8. reflexivity.
+                       inversion H10. reflexivity.
                      }
                      subst res.
 
                      replace m2'0 with m'. auto.
-                  
+
+                     (*  m' = m2'0 *)
+                     simpl in H10.
+                     rewrite ReleaseExists in H10.
+                     inversion H10; subst.
+
+                     rename m' into m'''.
+                     rename m'0 into m'.
+
+                     
+                     
+
+                     
+                     
+                     
                 }
                 
                 
