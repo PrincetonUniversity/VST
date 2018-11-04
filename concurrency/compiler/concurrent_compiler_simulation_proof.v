@@ -271,18 +271,20 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         match_thread_compiled (Some i) j (Kblocked (SST code1)) m1'
                      (Kblocked (TST code2)) m2'
     | CThread_Resume: forall j cd code1 m1 code2 m2 v v',
-        (forall  j s1' m1' m2' lev1 lev2,
-            Events.list_inject_mem_effect j lev1 lev2 ->
+        (forall  j' s1' m1' m2' lev1 lev2,
+            Events.list_inject_mem_effect j' lev1 lev2 ->
+            inject_incr j j' ->
             mem_interference m1 lev1 m1' ->
             mem_interference m2 lev2 m2' ->
             Smallstep.after_external
               (Smallstep.part_sem (Clight.semantics2 C_program))
               None code1 m1' = Some s1' ->
-            exists cd' j' s2',
+            exists cd' j'' s2',
               (Smallstep.after_external
                  (Asm.part_semantics Asm_g)
                  None code2 m2' = Some s2' /\
-               compiler_match cd' j' s1' (Smallstep.get_mem s1') s2' (Smallstep.get_mem s2') )) ->
+               inject_incr j' j'' ->
+               compiler_match cd' j'' s1' (Smallstep.get_mem s1') s2' (Smallstep.get_mem s2') )) ->
         match_thread_compiled (Some cd) j (Kresume (SST code1) v) m1
                               (Kresume (TST code2) v') m2
     | CThread_Init: forall j m1 m2 v1 v1' v2 v2',
@@ -2307,13 +2309,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 rewrite HH2; clear HH2.
                 
                 econstructor.
-                intros.
-
-                
-                  rename lev0 into lev1'.
-                  rename lev3 into lev2'.
-                  remember (fst virtueThread1) as dpm1.
-                  remember (Events.Event_acq_rel lev1 dpm1 lev1' :: nil) as rel_trace.
+                intros j' s1' m1'0 m2'0 lev1' lev2'.
+                intros Hinject_effects Hincr' Hinterference1' Hinterference2'
+                Hafter_ext.
+                remember (fst virtueThread1) as dpm1.
+                remember (Events.Event_acq_rel lev1 dpm1 lev1' :: nil) as rel_trace.
                   
               (*
                 Prove that this is a CompCert step (en external step).
@@ -2383,10 +2383,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     -  constructor; auto. (*TODO*)
                     - replace (Clight.get_mem s1') with m1'0.
                       eassumption.
-                      inversion H4; reflexivity.
+                      inversion Hafter_ext; reflexivity.
                   }
                   eapply HH in Hextcall; auto.
-                  inversion H4.
+                  inversion Hafter_ext.
                   replace m1'0 with (Clight.get_mem s1') by (subst s1'; reflexivity).
                   unfold Clight.step2. 
                   auto.
@@ -2396,7 +2396,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 unfold compiler_match in Hcomp_match.
                 eapply (Injsim_simulation_atxX compiler_sim) in Hstep; simpl in *; eauto.
                 specialize (Hstep _ _ _ Hcomp_match).
-                destruct Hstep as (j2'&Hstep).
+                destruct Hstep as (j2'&Hincr&Hstep).
                 
                 remember 
                   (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)  as rel_trace2.
@@ -2405,9 +2405,38 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 { subst rel_trace rel_trace2.
                   econstructor; try solve[constructor].
                   econstructor; try eassumption.
+
+                  Lemma list_inject_mem_effect_incr:
+                    forall j j' lev1 lev2, 
+                      Events.list_inject_mem_effect j lev1 lev2 ->
+                      inject_incr j j' ->
+                      Events.list_inject_mem_effect j' lev1 lev2.
+                  Proof.
+                  Admitted.
+                  - eapply list_inject_mem_effect_incr; eassumption.
+                  -
+
+                    Lemma virtueThread_inject_inject_delta_map:
+                      forall j m virtue1 virtue2,
+                        virtue2 = virtueThread_inject m j virtue1 ->
+                        Events.inject_delta_map j (fst virtue1) (fst virtue2).
+                    Proof. Admitted.
+                    Lemma inject_delta_map_incr:
+                      forall j j' dpm1 dpm2,
+                      Events.inject_delta_map j dpm1 dpm2 ->
+                      inject_incr j j' ->
+                      Events.inject_delta_map j' dpm1 dpm2.
+                    Proof. Admitted.
+                    eapply inject_delta_map_incr; try eassumption.
+                    subst dpm1.
+                    eapply virtueThread_inject_inject_delta_map; eassumption.
+                  - 
+
+                    eapply list_inject_mem_effect_incr eassumption.
+                    
                   (* HERE, have to move the inject_incr outside the quantification. *)
                   
-
+                  
                   
                 specialize (Hstep rel_trace2).
                 destruct  Hstep as (cd' & s2' & step & comp_match & Hincr2 ).
