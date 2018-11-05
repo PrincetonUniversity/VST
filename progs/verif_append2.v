@@ -63,7 +63,7 @@ Qed.
 
 Definition append_spec :=
  DECLARE _append
-  WITH sh : share, contents : list int, x: val, y: val, s1: list val, s2: list val
+  WITH sh : share, x: val, y: val, s1: list val, s2: list val
   PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
      PROP(writable_share sh)
      LOCAL (temp _x x; temp _y y)
