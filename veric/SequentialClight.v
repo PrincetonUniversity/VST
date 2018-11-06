@@ -128,9 +128,12 @@ specialize (H0 loc).
 rewrite H0.
 destruct (phi @ loc); simpl; auto.
 -
+apply I.
+(*
 rewrite age_to_resource_at.age_to_resource_at .
 specialize (H1 loc).
 destruct (phi @ loc); simpl; auto.
+*)
 -
 rewrite age_to_resource_at.age_to_resource_at .
 specialize (H2 loc H3).
@@ -159,9 +162,12 @@ specialize (H0 loc).
 rewrite H0.
 destruct (phi @ loc); simpl; auto.
 -
+apply I.
+(*
 rewrite resource_at_make_rmap.
 specialize (H1 loc).
 destruct (phi @ loc); simpl; auto.
+*)
 -
 rewrite resource_at_make_rmap.
 specialize (H2 loc H3).
@@ -181,7 +187,7 @@ destruct jm.
 simpl in *.
 unfold  juicy_mem_lemmas.rebuild_juicy_mem_fmap in H0.
 simpl in H0.
-split; [ | split3]; hnf; intros; specialize (H loc).
+split; [ | split3]; hnf; intros; try specialize (H loc).
 -
 rewrite (JMaccess loc) in *.
 rewrite H0 in *; clear H0; simpl in *.
@@ -234,7 +240,8 @@ destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradict
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
 -
-admit.  (* Should just get rid of max_access_cohere? *)
+apply I.
+(* admit.  (* Should just get rid of max_access_cohere? *) *)
 -
 rewrite H0; clear H0.
 specialize (JMalloc loc).
@@ -257,7 +264,7 @@ simpl in H.
 destruct loc as [b z]. 
 rewrite nextblock_access_empty in * by auto.
 contradiction.
-Admitted.
+Qed.
 
  Lemma whole_program_sequential_safety:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 

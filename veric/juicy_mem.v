@@ -203,9 +203,11 @@ Definition access_cohere (m: mem)  (phi: rmap) :=
 
 Definition max_access_at m loc := access_at m loc Max.
 
-Definition max_access_cohere (m: mem) (phi: rmap)  :=
+Definition max_access_cohere (m: mem) (phi: rmap)  := True.
+(*
   forall loc,
     perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).
+*)
 
 (*
 Definition max_access_cohere (m: mem) (phi: rmap)  :=
@@ -252,8 +254,10 @@ Proof.
   { intro.
     rewrite H; apply juicy_mem_access. }
   assert (max_access_cohere (m_dry jm) m') as Hmax.
-  { intro.
+apply I.
+(*  { intro.
     rewrite H; apply juicy_mem_max_access. }
+*)
   assert (alloc_cohere (m_dry jm) m') as Halloc.
   { intro.
     rewrite H; apply juicy_mem_alloc_cohere. }
@@ -381,6 +385,8 @@ Next Obligation. (* access_cohere *)
  rewrite (necR_PURE _ _ _ _ _ H H0); auto.
 Qed.
 Next Obligation. (* max_access_cohere *)
+apply I.
+(*
  assert (necR (m_phi j) phi')
    by (constructor 1; symmetry in Heq_anonymous; apply Heq_anonymous).
  destruct j; hnf; simpl in *; intros.
@@ -388,6 +394,7 @@ Next Obligation. (* max_access_cohere *)
  apply (necR_NO _ _ loc _ _ H) in H0. rewrite H0; auto.
  rewrite (necR_YES _ _ _ _ _ _ _ H H0); auto.
  rewrite (necR_PURE _ _ _ _ _ H H0); auto.
+*)
 Qed.
 Next Obligation. (* alloc_cohere *)
  assert (necR (m_phi j) phi')
@@ -501,12 +508,15 @@ assert (access_cohere m phi).
   apply (necR_YES _ _ _ _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
   apply (necR_PURE _ _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
 assert (max_access_cohere m phi).
+apply I.
+(*
   hnf; intros.
   generalize (JMmax_access loc); intros.
   case_eq (phi @ loc); intros.
   apply (necR_NO _ _ _ _ _ NEC) in H2; rewrite H2 in H1; auto.
   rewrite (necR_YES _ _ _ _ _ _ _ NEC H2) in H1; auto.
   rewrite (necR_PURE _ _ _ _ _ NEC H2) in H1; auto.
+*)
 assert (alloc_cohere m phi).
   hnf; intros.
   generalize (JMalloc loc H2); intros.
@@ -1009,6 +1019,8 @@ revert H; case_eq (access_at m loc Cur); intros.
  reflexivity.
  rewrite if_true; auto.
 * (* max_access_cohere *)
+apply I.
+(*
   { generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
     case_eq (access_at m loc Cur); try destruct p; intros.
     - unfold perm_order'', perm_order', max_access_at in *.
@@ -1033,6 +1045,7 @@ revert H; case_eq (access_at m loc Cur); intros.
       rewrite <- H0.
       apply (access_max m).
   }
+*)
 * (* alloc_cohere *)
 unfold access_at.
 unfold block; rewrite (nextblock_noaccess m (fst loc) (snd loc) Cur); auto.
@@ -1124,6 +1137,8 @@ unfold inflate_store; rewrite resource_at_make_rmap.
 rewrite <- (Memory.store_access _ _ _ _ _ _ STORE).
 destruct (m_phi jm @ loc); try destruct k; auto.
 (* max_access_cohere *)
+apply I.
+(*
 intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
 unfold inflate_store; rewrite resource_at_make_rmap.
 unfold max_access_at in *.
@@ -1131,6 +1146,7 @@ rewrite <- (Memory.store_access _ _ _ _ _ _ STORE).
 apply nextblock_store in STORE.
 destruct (m_phi jm @ loc); auto.
 destruct k; simpl; try assumption.
+*)
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1190,6 +1206,8 @@ unfold inflate_store; rewrite resource_at_make_rmap.
 rewrite <- (Memory.storebytes_access _ _ _ _ _ STOREBYTES).
 destruct (m_phi jm @ loc); try destruct k; auto.
 (* max_access_cohere *)
+apply I.
+(*
 intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
 unfold inflate_store; rewrite resource_at_make_rmap.
 unfold max_access_at in *.
@@ -1197,6 +1215,7 @@ rewrite <- (Memory.storebytes_access _ _ _ _ _ STOREBYTES).
 assert (H88:=nextblock_storebytes _ _ _ _ _ STOREBYTES).
 destruct (m_phi jm @ loc); try rewrite H88; auto.
 destruct k; simpl; try rewrite H88; auto.
+*)
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1315,6 +1334,8 @@ destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
 rewrite H2 in *. clear H2 H3.
 case_eq (m_phi jm @ (b', ofs')); intros; rewrite H2 in *; auto.
 * (* max_access_cohere *)
+apply I.
+(*
 { intros [b' ofs']. specialize (H1 (b',ofs')).
   unfold inflate_free. unfold max_access_at. rewrite resource_at_make_rmap.
   destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
@@ -1324,6 +1345,7 @@ case_eq (m_phi jm @ (b', ofs')); intros; rewrite H2 in *; auto.
     unfold max_access_at.
     destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
     rewrite <- H2. assumption. }
+*)
 * (* alloc_cohere *)
 hnf; intros.
 unfold inflate_free. rewrite resource_at_make_rmap.
@@ -1870,6 +1892,8 @@ Qed.
 Lemma max_access_cohere_age m : hereditary age (max_access_cohere m).
 Proof.
   intros x y E C.
+apply I.
+(*
   intros addr; specialize (C addr).
   destruct (y @ addr) as [sh | sh p k pp | k p] eqn:AT.
   - eapply (age1_NO x) in AT; auto.
@@ -1879,6 +1903,7 @@ Proof.
     auto.
   - destruct (age1_PURE_2 E AT) as [P Ex].
     rewrite Ex in C; auto.
+*)
 Qed.
 
 Lemma alloc_cohere_age m : hereditary age (alloc_cohere m).
@@ -1948,6 +1973,8 @@ Qed.
 Lemma max_access_cohere_unage m : hereditary unage (max_access_cohere m).
 Proof.
   intros x y E C.
+apply I.
+(*
   intros addr; specialize (C addr).
   destruct (x @ addr) as [sh | sh p k pp | k p] eqn:AT.
   - eapply (age1_NO y) in AT; auto.
@@ -1956,6 +1983,7 @@ Proof.
     auto.
   - destruct (age1_PURE_2 E AT) as [P Ex].
     rewrite Ex; auto.
+*)
 Qed.
 
 Lemma alloc_cohere_unage m : hereditary unage (alloc_cohere m).

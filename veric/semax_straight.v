@@ -1245,12 +1245,12 @@ Lemma writable0_lub_retainer_Rsh:
   apply leq_join_sub in H.  apply Share.ord_spec1 in H. auto.
 Qed.
 
-Lemma address_mapsto_can_store: forall jm ch v sh (wsh: writable0_share sh) b ofs v' my,
-       (address_mapsto ch v sh (b, Ptrofs.unsigned ofs) * exactly my)%pred (m_phi jm) ->
+Lemma address_mapsto_can_store: forall jm ch v sh (wsh: writable0_share sh) b ofs v' Q,
+       (address_mapsto ch v sh (b, Ptrofs.unsigned ofs) * Q)%pred (m_phi jm) ->
        decode_val ch (encode_val ch v') = v' ->
        exists m',
        {H: Mem.store ch (m_dry jm) b (Ptrofs.unsigned ofs) v' = Some m'|
-       (address_mapsto ch v' sh (b, Ptrofs.unsigned ofs) * exactly my)%pred 
+       (address_mapsto ch v' sh (b, Ptrofs.unsigned ofs) * Q)%pred 
        (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
 Proof.
 intros. rename H0 into DE.
@@ -1260,7 +1260,6 @@ exists m'.
 exists STORE.
 pose proof I.
 destruct H as [m1 [m2 [? [? Hmy]]]].
-do 3 red in Hmy.
 assert (H2 := I); assert (H3 := I).
 forget (Ptrofs.unsigned ofs) as i. clear ofs.
 pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
