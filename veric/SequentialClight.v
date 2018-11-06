@@ -4,6 +4,7 @@ Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_new.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.sepcomp.step_lemmas.
+Require Import VST.sepcomp.event_semantics.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.
@@ -17,19 +18,6 @@ Import VericSound.
 Import VericMinimumSeparationLogic.
 Import VericMinimumSeparationLogic.CSHL_Def.
 Import VericMinimumSeparationLogic.CSHL_Defs.
-
-(*
-Definition dryspec (oracle_ty: Type) : ext_spec oracle_ty :=
- Build_external_specification mem external_function oracle_ty
-     (*ext_spec_type*)
-     (fun ef => False)
-     (*ext_spec_pre*)
-     (fun ef Hef ge tys vl m z => False)
-     (*ext_spec_post*)
-     (fun ef Hef ge ty vl m z => False)
-     (*ext_spec_exit*)
-     (fun rv m z => False).
-*)
 
 Definition ignores_juice Z (J: external_specification juicy_mem external_function Z) : Prop :=
   (forall e t b tl vl x jm jm',
@@ -46,14 +34,25 @@ Definition ignores_juice Z (J: external_specification juicy_mem external_functio
      ext_spec_exit J v x jm').
 
 Import VST.veric.compcert_rmaps.R.
-Search (option permission -> option permission -> Prop).
 
-Definition juicy_ext_spec_resource_decay (Z: Type) 
-  (J: external_specification juicy_mem external_function Z) :=
- forall ef w b tl vl ot v z jm jm',
-    ext_spec_pre J ef w b tl vl z jm ->
-    ext_spec_post J ef w b ot v z jm' ->
-    resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
+Definition mem_evolve (m m': mem) : Prop :=
+   (* dry version of resource_decay *)
+ forall loc,
+ match access_at m loc Cur, access_at m' loc Cur with
+ | None, None => True
+ | None, Some Freeable => True
+ | Some Freeable, None => True
+ | Some Writable, Some p' => p' = Writable
+ | Some p, Some p' => p=p'
+ | _, _ => False
+ end.
+   
+Definition ext_spec_mem_evolve (Z: Type) 
+  (D: external_specification mem external_function Z) :=
+ forall ef w b tl vl ot v z m z' m',
+    ext_spec_pre D ef w b tl vl z m ->
+    ext_spec_post D ef w b ot v z' m' ->
+    mem_evolve m m'.
 
 Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
@@ -106,11 +105,165 @@ eapply H1. symmetry; eassumption. auto.
 apply H2; auto. 
 Qed.
 
+Definition mem_rmap_cohere m phi :=
+  contents_cohere m phi /\
+  access_cohere m phi /\
+  max_access_cohere m phi /\ alloc_cohere m phi.
+
+Lemma age_to_cohere:
+ forall m phi n,
+    mem_rmap_cohere m phi -> mem_rmap_cohere m (age_to.age_to n phi).
+Proof.
+intros.
+destruct H as [? [? [? ?]]].
+split; [ | split3]; hnf; intros.
+-
+hnf in H.
+rewrite age_to_resource_at.age_to_resource_at in H3.
+destruct (phi @ loc) eqn:?H; inv H3.
+destruct (H _ _ _ _ _ H4); split; subst; auto.
+-
+rewrite age_to_resource_at.age_to_resource_at .
+specialize (H0 loc).
+rewrite H0.
+destruct (phi @ loc); simpl; auto.
+-
+rewrite age_to_resource_at.age_to_resource_at .
+specialize (H1 loc).
+destruct (phi @ loc); simpl; auto.
+-
+rewrite age_to_resource_at.age_to_resource_at .
+specialize (H2 loc H3).
+rewrite H2.
+reflexivity.
+Qed.
+
+Lemma set_ghost_cohere:
+ forall m phi g H,
+    mem_rmap_cohere m phi -> 
+   mem_rmap_cohere m (initial_world.set_ghost phi g H).
+Proof.
+intros.
+unfold initial_world.set_ghost.
+rename H into Hg. rename H0 into H.
+destruct H as [? [? [? ?]]].
+split; [ | split3]; hnf; intros.
+-
+hnf in H.
+rewrite resource_at_make_rmap in H3.
+destruct (phi @ loc) eqn:?H; inv H3.
+destruct (H _ _ _ _ _ H4); split; subst; auto.
+-
+rewrite resource_at_make_rmap.
+specialize (H0 loc).
+rewrite H0.
+destruct (phi @ loc); simpl; auto.
+-
+rewrite resource_at_make_rmap.
+specialize (H1 loc).
+destruct (phi @ loc); simpl; auto.
+-
+rewrite resource_at_make_rmap.
+specialize (H2 loc H3).
+rewrite H2.
+reflexivity.
+Qed.
+
+Lemma mem_evolve_cohere:
+  forall jm m' phi',
+   mem_evolve (m_dry jm) m' ->
+   compcert_rmaps.RML.R.resource_at phi' =
+     juicy_mem_lemmas.rebuild_juicy_mem_fmap jm m' ->
+   mem_rmap_cohere m' phi'.
+Proof.
+intros.
+destruct jm.
+simpl in *.
+unfold  juicy_mem_lemmas.rebuild_juicy_mem_fmap in H0.
+simpl in H0.
+split; [ | split3]; hnf; intros; specialize (H loc).
+-
+rewrite (JMaccess loc) in *.
+rewrite H0 in *; clear H0; simpl in *.
+destruct (phi @ loc) eqn:?H.
+simpl in H. if_tac in H.
+if_tac in H1.
+inv H1; auto.
+inv H1.
+if_tac in H1.
+inv H1; auto.
+inv H1.
+destruct k; simpl in *.
+destruct (perm_of_sh sh0) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try contradiction; try discriminate; auto.
+if_tac in H1; inv H1; auto.
+if_tac in H1; inv H1; auto.
+if_tac in H1; inv H1; auto.
+if_tac in H1; inv H1; auto.
+if_tac in H1; inv H1; auto.
+inv H1; auto.
+inv H1; auto.
+inv H1; auto.
+-
+rewrite H0; clear H0.
+rewrite (JMaccess loc) in *.
+destruct (phi @ loc) eqn:?H.
+simpl in H. if_tac in H.
+destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.
+unfold perm_of_sh. rewrite if_true by auto. rewrite if_true by auto. auto.
+subst. rewrite if_true by auto; auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.
+rewrite if_false by auto; auto.
+destruct k; simpl in *; auto.
+destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+simpl. rewrite if_true; auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+elimtype False; clear - r H1.
+unfold perm_of_sh in H1. if_tac in H1. if_tac in H1; inv H1.
+rewrite if_true in H1 by auto. inv H1.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+unfold perm_of_sh in H1. if_tac in H1. if_tac in H1; inv H1.
+rewrite if_true in H1 by auto. inv H1.
+unfold perm_of_sh in H1. if_tac in H1. if_tac in H1; inv H1.
+rewrite if_true in H1 by auto.
+inv H1.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+-
+admit.  (* Should just get rid of max_access_cohere? *)
+-
+rewrite H0; clear H0.
+specialize (JMalloc loc).
+rewrite (JMaccess loc) in *.
+destruct (phi @ loc) eqn:?H.
+simpl in H. if_tac in H.
+destruct loc as [b z]. 
+rewrite nextblock_access_empty in *by auto.
+subst.
+simpl.
+f_equal. apply proof_irr.
+destruct loc as [b z]. 
+rewrite nextblock_access_empty in * by auto.
+contradiction.
+destruct loc as [b z]. 
+rewrite nextblock_access_empty in * by auto.
+simpl.
+destruct k; auto; try contradiction H.
+simpl in H.
+destruct loc as [b z]. 
+rewrite nextblock_access_empty in * by auto.
+contradiction.
+Admitted.
+
  Lemma whole_program_sequential_safety:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (dryspec: ext_spec OK_ty)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec)
-     (JRD: juicy_ext_spec_resource_decay _ (@JE_spec OK_ty OK_spec))
+     (DME: ext_spec_mem_evolve _ dryspec)
      prog V G m,
      @semax_prog Espec (*NullExtension.Espec*) CS prog V G ->
      Genv.init_mem prog = Some m ->
@@ -148,7 +301,7 @@ Proof.
    eexists; constructor; constructor.
    instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
    instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
- clear - JDE JRD H4 J H6.
+ clear - JDE DME H4 J H6.
   rewrite <- H4 in H6|-*.
  assert (level jm <= n)%nat by omega.
  clear H4; rename H into H4.
@@ -196,10 +349,19 @@ Proof.
      assert (level phi1 = level phi /\ resource_at phi1 = resource_at phi) as [Hl1 Hr1].
      { subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto. }
      pose (phi' := age_to.age_to n' phi1).
-     assert (contents_cohere m' phi') by admit.
-     assert (access_cohere m' phi') by admit.
-     assert (max_access_cohere m' phi') by admit.
-     assert (alloc_cohere m' phi') by admit.
+     assert (mem_rmap_cohere m' phi'). {
+       clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE.
+       destruct JDE as [_ [JDE2 _]]. simpl in JDE2.
+       apply (JDE2 e x x (genv_symb_injective (Genv.globalenv prog)) (sig_args (ef_sig e)) args ora jm (JMeq.JMeq_refl _))
+         in H1.
+       specialize (DME e x _ _ _ _ _ _ _ _ _ H1 H6).
+     subst phi'.
+     apply age_to_cohere.
+     subst phi1.
+     apply set_ghost_cohere.
+     eapply mem_evolve_cohere; eauto.
+   }
+    destruct H10 as [H10 [H11 [H12 H13]]].
      pose (jm' := mkJuicyMem _ _ H10 H11 H12 H13).
      exists jm'.
      split; [ | split3].
@@ -247,7 +409,7 @@ Proof.
     apply JDE. auto.
  Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
 all: fail.
-Admitted.
+Qed.
 
 Require Import VST.veric.juicy_safety.
 
