@@ -43,7 +43,7 @@ Definition mem_evolve (m m': mem) : Prop :=
  | None, Some Freeable => True
  | Some Freeable, None => True
  | Some Writable, Some p' => p' = Writable
- | Some p, Some p' => p=p'
+ | Some p, Some p' => p=p' /\ access_at m loc Max = access_at m' loc Max
  | _, _ => False
  end.
    
@@ -181,8 +181,9 @@ destruct jm.
 simpl in *.
 unfold  juicy_mem_lemmas.rebuild_juicy_mem_fmap in H0.
 simpl in H0.
-split; [ | split3]; hnf; intros; specialize (H loc).
+split; [ | split3].
 -
+hnf; intros; specialize (H loc).
 rewrite (JMaccess loc) in *.
 rewrite H0 in *; clear H0; simpl in *.
 destruct (phi @ loc) eqn:?H.
@@ -201,10 +202,13 @@ if_tac in H1; inv H1; auto.
 if_tac in H1; inv H1; auto.
 if_tac in H1; inv H1; auto.
 if_tac in H1; inv H1; auto.
+if_tac in H1; inv H1; auto.
+if_tac in H1; inv H1; auto.
 inv H1; auto.
 inv H1; auto.
 inv H1; auto.
 -
+hnf; intros; specialize (H loc).
 rewrite H0; clear H0.
 rewrite (JMaccess loc) in *.
 destruct (phi @ loc) eqn:?H.
@@ -213,14 +217,23 @@ destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try
 unfold perm_of_sh. rewrite if_true by auto. rewrite if_true by auto. auto.
 subst. rewrite if_true by auto; auto.
 destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.
+destruct H; discriminate.
+destruct H; discriminate.
+destruct H; discriminate.
 rewrite if_false by auto; auto.
 destruct k; simpl in *; auto.
 destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct H; discriminate.
+destruct H; discriminate.
+destruct H; discriminate.
 simpl. rewrite if_true; auto.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct H; discriminate.
+destruct H; discriminate.
+destruct H; discriminate.
 elimtype False; clear - r H1.
 unfold perm_of_sh in H1. if_tac in H1. if_tac in H1; inv H1.
 rewrite if_true in H1 by auto. inv H1.
@@ -231,11 +244,108 @@ unfold perm_of_sh in H1. if_tac in H1. if_tac in H1; inv H1.
 rewrite if_true in H1 by auto.
 inv H1.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct H; discriminate.
+destruct H; discriminate.
+destruct H; discriminate.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+destruct H; discriminate.
+destruct H; discriminate.
+destruct H; discriminate.
 destruct (access_at m' loc Cur) as [[ | | | ] | ]  eqn:?H; try solve [contradiction]; try discriminate; auto.
+simpl in H; destruct H; discriminate.
+simpl in H; destruct H; discriminate.
+simpl in H; destruct H; discriminate.
 -
-admit.  (* Should just get rid of max_access_cohere? *)
+hnf; intros; specialize (H loc).
+rewrite H0; clear H0.
+rewrite (JMaccess loc) in *.
+destruct (phi @ loc) eqn:?H.
+simpl in H. if_tac in H.
+destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.
+eapply perm_order''_trans; [apply access_cur_max | ].
+rewrite H2.
+unfold perm_of_sh. rewrite if_true by auto. rewrite if_true by auto. constructor.
+subst sh. rewrite if_true by auto.
+apply po_None.
+destruct (access_at m' loc Cur) as [[ | | | ] | ] eqn:?H; try contradiction; try discriminate; simpl; auto.
+destruct H; discriminate.
+destruct H; discriminate.
+destruct H; discriminate.
+rewrite if_false by auto.
+eapply perm_order''_trans; [apply access_cur_max | ].
+rewrite H2. constructor.
+destruct k; simpl in *; auto.
+destruct (perm_of_sh sh) as [[ | | | ] | ] eqn:?H; try contradiction ;auto.
+eapply perm_order''_trans; [apply access_cur_max | ].
+destruct (access_at m' loc Cur). destruct H; subst.
+match goal with |- Mem.perm_order'' _ ?A =>
+  destruct A; try constructor
+end.
+simpl.
+rewrite if_true by auto. auto.
+eapply perm_order''_trans; [apply access_cur_max | ].
+destruct (access_at m' loc Cur). destruct H; subst.
+rewrite if_true. simpl. rewrite H1. apply perm_refl.
+clear - r H1.
+unfold perm_of_sh in H1.
+if_tac in H1. if_tac in H1. inv H1; constructor.
+inv H1; constructor.
+rewrite if_true in H1 by auto. inv H1; constructor.
+contradiction.
+eapply perm_order''_trans; [apply access_cur_max | ].
+destruct (access_at m' loc Cur). destruct H; subst.
+rewrite if_true. simpl. rewrite H1. apply perm_refl.
+clear - r H1.
+unfold perm_of_sh in H1.
+if_tac in H1. if_tac in H1. inv H1; constructor.
+inv H1; constructor.
+rewrite if_true in H1 by auto. inv H1; constructor.
+contradiction.
+eapply perm_order''_trans; [apply access_cur_max | ].
+destruct (access_at m' loc Cur). destruct H; subst.
+rewrite if_true. simpl. rewrite H1. apply perm_refl.
+clear - r H1.
+unfold perm_of_sh in H1.
+if_tac in H1. if_tac in H1. inv H1; constructor.
+inv H1; constructor.
+rewrite if_true in H1 by auto. inv H1; constructor.
+contradiction.
+eapply perm_order''_trans; [apply access_cur_max | ].
+destruct (access_at m' loc Cur). destruct p0; try contradiction.
+match goal with |- Mem.perm_order'' _ ?A =>
+  destruct A; try constructor
+end.
+elimtype False.
+clear - H1 r.
+unfold perm_of_sh in H1.
+if_tac in H1. if_tac in H1. inv H1; constructor.
+inv H1; constructor.
+rewrite if_true in H1 by auto. inv H1; constructor.
+destruct (access_at m' loc Cur); try contradiction.
+destruct H; subst p0.
+specialize (JMmax_access loc).
+rewrite H0 in JMmax_access.
+simpl in JMmax_access.
+unfold max_access_at in *.
+rewrite <- H1. auto.
+destruct (access_at m' loc Cur); try contradiction.
+destruct H; subst p0.
+specialize (JMmax_access loc).
+rewrite H0 in JMmax_access.
+simpl in JMmax_access.
+unfold max_access_at in *.
+rewrite <- H1. auto.
+simpl in H.
+destruct (access_at m' loc Cur); try contradiction.
+destruct H; subst.
+simpl.
+specialize (JMmax_access loc).
+rewrite H0 in JMmax_access.
+simpl in JMmax_access.
+unfold max_access_at in *.
+rewrite <- H1. auto.
 -
+hnf; intros; specialize (H loc).
 rewrite H0; clear H0.
 specialize (JMalloc loc).
 rewrite (JMaccess loc) in *.
@@ -257,7 +367,7 @@ simpl in H.
 destruct loc as [b z]. 
 rewrite nextblock_access_empty in * by auto.
 contradiction.
-Admitted.
+Qed.
 
  Lemma whole_program_sequential_safety:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
