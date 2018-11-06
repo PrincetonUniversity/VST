@@ -134,6 +134,9 @@ Section Jspec'_properties.
     all:breakhyps.
     all:agehyps.
     all:agehyps.
+
+(* WILLIAM:  uncomment this line, run it, and see the problem. 
+{ exists x2, x3. split; auto. split; auto. split; auto.  *)
     all:eauto.
   Qed.
 
