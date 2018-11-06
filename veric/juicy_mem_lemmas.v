@@ -158,7 +158,6 @@ apply (necR_PURE w phi') in H1.
 rewrite H1 in ACCESS; auto.
 constructor 1; auto.
 assert (max_access_cohere m w).
-apply I. (*
 intro loc; specialize (MAXA loc).
 case_eq (w @ loc); intros; auto.
 apply (necR_NO w phi') in H2. rewrite H2 in MAXA. auto. constructor 1; auto.
@@ -168,7 +167,6 @@ constructor 1; auto.
 apply (necR_PURE w phi') in H2.
 rewrite H2 in MAXA; auto.
 constructor 1; auto.
-*)
 assert (alloc_cohere m w).
 intros loc ?. specialize (ALLOC _ H3).
 apply (necR_NO w phi').

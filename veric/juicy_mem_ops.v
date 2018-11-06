@@ -103,9 +103,14 @@ Lemma juicy_mem_alloc_aux1:
         forall ofs, m_phi jm @ (b,ofs) = NO Share.bot bot_unreadable.
 Proof.
  intros.
+ pose proof (juicy_mem_max_access jm (b,ofs)).
+ unfold max_access_at in H0.
+ simpl in H0.
  pose proof (alloc_result _ _ _ _ _ H).
- apply (juicy_mem_alloc_cohere jm (b,ofs)).
- simpl; rewrite <- H0. xomega.
+ subst b.
+ destruct jm; simpl in *.
+ rewrite JMalloc; auto; simpl.
+ xomega.
 Qed.
 
 (* Transparent alloc. *)
@@ -159,8 +164,6 @@ Lemma after_alloc_max_access_cohere:
 Proof.
 
 intros; pose proof I; hnf; intros.
-apply I.
-(*
 unfold after_alloc. rewrite resource_at_make_rmap.
 unfold after_alloc'.
 if_tac.
@@ -184,7 +187,6 @@ if_tac.
     { intros HHH; apply H1. split; auto. }
     xomega.
     left; auto.
-*)
 Qed.
 
 Lemma after_alloc_alloc_cohere:
