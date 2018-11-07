@@ -130,7 +130,7 @@ Proof.
 
   intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
   simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
-  destruct Pre as (phi0 & phi1 & j & Pre & HnecR).
+  destruct Pre as (phi0 & phi1 & j & Pre & HnecR & Hjoin).
   rewrite m_phi_jm_ in j.
   simpl (and _).
   intros Post.
@@ -575,12 +575,13 @@ Proof.
               apply age_to_join.
               REWR.
               REWR.
-            * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
+            * split3. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
               split. now constructor.
               split. now constructor.
               unfold canon.SEPx.
               simpl. rewrite seplog.sepcon_emp.
               apply age_to_pred; auto.
+              admit. (* WILLIAM *)
           + exact_eq Safe'.
             unfold jsafeN.
             f_equal.
@@ -617,4 +618,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). unfold JSem; rewrite Hthread.
     congruence.
-Qed.
+Admitted.

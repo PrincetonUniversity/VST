@@ -1499,7 +1499,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               Proof.
 
                 intros; intros b0 ofs0.
-                destruct (Clight_lemmas.block_eq_dec b' b0);
+                destruct (base.block_eq_dec b' b0);
                   [destruct (Intv.In_dec ofs0 ((intval ofs + delt)%Z, (intval ofs + delt + (Z.of_nat n))%Z))|
                   ].
                 - subst. unfold Intv.In in i; simpl in *.

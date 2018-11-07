@@ -133,7 +133,7 @@ Proof.
   intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
   simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
   simpl in Pre.
-  destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+  destruct Pre as (phi0 & phi1 & Join & Precond & HnecR & Hjoins).
   simpl (and _).
   intros Post.
 
@@ -185,6 +185,7 @@ Proof.
     destruct B as [v2' B]. 
     rewrite !TT_andp in B.
     apply mapsto_can_store with (v := v2') (sh := shx); try assumption.
+    auto.
     simpl (m_phi _).
     destruct B as [phi0a [phi0b [? [? ?]]]].
     destruct (join_assoc H Join) as [f [? ?]].
@@ -195,7 +196,7 @@ Proof.
   unfold tlock in *.
   match type of AT with context[Tarray _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
   pose proof data_at_rmap_makelock CS as RL.
-  specialize (RL shx b ofs Rx phi0 _ Hpos' Hwritable AT).
+  specialize (RL shx b ofs Rx phi0 _ Hpos' (writable_writable0 Hwritable) AT).
   destruct RL as (phi0' & RL0 & Hlkat).
 
   match type of Hlkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; omega) end.
@@ -779,7 +780,8 @@ Proof.
         rewrite Hjm.
         split.
         * apply age_to_join; auto.
-        * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
+        * split3.
+          2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
           split. now constructor.
           split. now constructor.
           simpl. rewrite seplog.sepcon_emp.
@@ -788,7 +790,7 @@ Proof.
           destruct RL0 as (Lphi0 & outside & inside & Hg).
           split.
           intros loc. simpl.
-          pose proof data_at_unfold _ _ _ _ _ 2 Hwritable AT as Hbefore.
+          pose proof data_at_unfold _ _ _ _ _ 2 (writable_writable0 Hwritable) AT as Hbefore.
           specialize (Hbefore loc).
           if_tac [r|nr].
           - exists ((writable_readable_share Hwritable)).
@@ -815,7 +817,9 @@ Proof.
           - simpl; rewrite age_to_ghost_of, <- Hg.
             apply data_at_noghost in AT.
             rewrite (identity_core AT), ghost_core; simpl.
-            rewrite <- (ghost_core (ghost_of phi0)); apply core_identity. }
+            rewrite <- (ghost_core (ghost_of phi0)); apply core_identity.
+         - admit. (* WILLIAM *)
+      }
       rewrite Hc' in Ec''; inv Ec''; destruct ora; auto.
     + unshelve erewrite gsoThreadCode, gsoThreadRes, <- gtc_age, gLockSetCode, <- getThreadR_age,
         gLockSetRes; auto.
@@ -848,4 +852,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
-Qed.
+Admitted.

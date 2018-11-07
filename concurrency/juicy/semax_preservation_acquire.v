@@ -31,6 +31,7 @@ Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.age_to_resource_at.
+Require Import VST.veric.ghost_PCM.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
@@ -248,13 +249,13 @@ Proof.
           assert (v = Vptr b ofs). {
             rewrite Hv.
             clear.
-            unfold expr.eval_id in *.
+            unfold mpred.eval_id in *.
             unfold val_lemmas.force_val in *.
             unfold make_ext_args in *.
             unfold te_of in *.
             unfold filter_genv in *.
             unfold Genv.find_symbol in *.
-            unfold expr.env_set in *.
+            unfold mpred.env_set in *.
             rewrite Map.gss.
             auto.
           }
@@ -608,7 +609,8 @@ Proof.
               Unset Printing Implicit.
               destruct Pre as [[[A B] [[C _] D]] E].
               simpl in *.
-              split. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
+              split3. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
+              2: destruct E; auto.
               split. now auto.
               split. now auto.
               unfold canon.SEPx in *.
@@ -632,13 +634,13 @@ Proof.
                  assert (vx = Vptr b ofs). {
                    destruct C as [-> _].
                    clear.
-                   unfold expr.eval_id in *.
+                   unfold eval_id in *.
                    unfold val_lemmas.force_val in *.
                    unfold make_ext_args in *.
                    unfold te_of in *.
                    unfold filter_genv in *.
                    unfold Genv.find_symbol in *.
-                   unfold expr.env_set in *.
+                   unfold env_set in *.
                    rewrite Map.gss.
                    auto.
                  }
@@ -669,6 +671,8 @@ Proof.
                  rewrite level_age_to. auto.
                  replace (level d_phi) with (level Phi) in * by join_level_tac.
                  omega.
+              --
+                  admit. (* WILLIAM *)
 
           + exact_eq Safe'.
             unfold jsafeN in *.
@@ -711,4 +715,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
-Qed. (* preservation_acquire *)
+Admitted. (* preservation_acquire *)

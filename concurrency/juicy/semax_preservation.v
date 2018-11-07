@@ -1021,7 +1021,7 @@ Section Preservation.
   (INV : @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m, (tr, i :: sch, tp)))
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
-  (extcompat : joins (ghost_of Phi) (Some (ext_ref tt, NoneP) :: nil))
+  (extcompat : joins (ghost_of Phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil))
   (lev : @level rmap ag_rmap Phi = S n)
   (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : @lock_sparsity lock_info (lset tp))
