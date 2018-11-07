@@ -242,9 +242,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
     Lemma mem_interference_trans:
       forall lev lev' m m' m'', 
-      mem_interference m lev m' ->
-      mem_interference m' lev' m'' ->
-      mem_interference m (lev ++ lev') m''.
+        mem_interference m lev m' ->
+        mem_interference m' lev' m'' ->
+        mem_interference m (lev ++ lev') m''.
     Proof.
       induction lev.
       - simpl; intros.
@@ -253,7 +253,85 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         inversion H; subst; auto.
         econstructor; eauto.
     Qed.
-          
+
+
+    (* This definition is similar to Events.list_inject_mem_effect but stronger:
+       it specifies that j' is just an increment to j by adding the newly 
+       allocated blocks (in lev1). It also implies that:
+       Events.list_inject_mem_effect j' lev1 lev2. 
+       But most importantly it implies that j' is sub_injection of all
+       injections that map lev1 to lev2 and increment j.
+     *)
+    (** *strict_injection_evolution *)
+
+    Inductive injection_evolution_effect:
+      meminj -> meminj ->
+      Events.mem_effect -> Events.mem_effect -> Prop:=
+    |EffEvolWrite: forall b1 b2 ofs1 ofs2 mvs1 mvs2 j,
+        Events.inject_mem_effect j
+                                 (common.Events.Write b1 ofs1 mvs1)
+                                 (common.Events.Write b2 ofs2 mvs2) ->
+        injection_evolution_effect
+          j j
+          (common.Events.Write b1 ofs1 mvs1)
+          (common.Events.Write b2 ofs2 mvs2)
+    |EffEvolAlloc: forall j j' (b1 b2:block) ofs1 ofs1',
+        j b1 = None -> (* Do we need this? *)
+        j' = (fun b => if eq_block b b1 then
+                      Some (b2, 0%Z) else j b) ->
+        injection_evolution_effect
+          j j'
+          (common.Events.Alloc b1 ofs1 ofs1')
+          (common.Events.Alloc b2 ofs1 ofs1')
+    |EffEvolFree: forall  j ls1 ls2,
+        Events.inject_mem_effect j
+                                 (common.Events.Free ls1)
+                                 (common.Events.Free ls2) ->
+        injection_evolution_effect
+          j j
+          (common.Events.Free ls1)
+          (common.Events.Free ls2).
+    
+    Inductive strict_injection_evolution:
+      meminj -> meminj ->
+      list Events.mem_effect -> list Events.mem_effect -> Prop:=
+    | EvolutionNil: forall j,
+        strict_injection_evolution j j nil nil
+    | EvolutionCons: forall j j' j'' ev1 ev2 ls1 ls2,
+        injection_evolution_effect j j' ev1 ev2 ->
+        strict_injection_evolution j' j'' ls1 ls2 ->
+        strict_injection_evolution
+          j j''
+          (ev1::ls1) (ev2::ls2).
+    
+    Lemma strict_injection_evolution_incr:
+      forall j j' lev1 lev2,
+        strict_injection_evolution j j' lev1 lev2 ->
+        inject_incr j j'.
+    Admitted.
+
+    Lemma evolution_list_inject_mem_effect:
+      forall j j' lev1 lev2,
+        strict_injection_evolution j j' lev1 lev2 ->
+        Events.list_inject_mem_effect j' lev1 lev2.
+    Admitted.
+    Lemma strict_injection_evolution_principaled:
+      forall j j' lev1 lev2,
+        strict_injection_evolution j j' lev1 lev2 ->
+        forall j0,
+          Events.list_inject_mem_effect j0 lev1 lev2 ->
+          inject_incr j j0 ->
+          inject_incr j' j0.
+    Admitted.
+    (* Lemma evolution_list_inject_mem_effect:
+      forall j j' lev1 lev2,
+        strict_injection_evolution j j' lev1 lev2 ->
+        Events.list_inject_mem_effect j' lev1 lev2.
+    Admitted. *)
+
+    
+    
+    
     Inductive match_thread_compiled:
       option compiler_index ->
       meminj ->
@@ -263,29 +341,37 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         compiler_match i j code1 m1 code2 m2 ->
         match_thread_compiled (Some i) j (Krun (SST code1)) m1
                      (Krun (TST code2)) m2
-    | CThread_Blocked: forall i j code1 m1 m1' code2 m2 m2' lev1 lev2,
+    | CThread_Blocked: forall i j j' code1 m1 m1' code2 m2 m2' lev1 lev2,
         compiler_match i j code1 m1 code2 m2 ->
-        Events.list_inject_mem_effect j lev1 lev2 ->
+        strict_injection_evolution j j' lev1 lev2 ->
+        (*Events.list_inject_mem_effect j lev1 lev2 -> *)
         mem_interference m1 lev1 m1' ->
         mem_interference m2 lev2 m2' ->
-        match_thread_compiled (Some i) j (Kblocked (SST code1)) m1'
+        match_thread_compiled (Some i) j' (Kblocked (SST code1)) m1'
                      (Kblocked (TST code2)) m2'
-    | CThread_Resume: forall j cd code1 m1 code2 m2 v v',
-        (forall  j' s1' m1' m2' lev1 lev2,
-            Events.list_inject_mem_effect j' lev1 lev2 ->
-            inject_incr j j' ->
-            mem_interference m1 lev1 m1' ->
-            mem_interference m2 lev2 m2' ->
+    | CThread_Resume: forall j' cd code1 m1 code2 m2 v v',
+        (* there are some extra conditions  
+           for the next steps.
+         *)
+        (forall  j'' s1' m1' m2' lev1'' lev2'',
+            strict_injection_evolution j' j'' lev1'' lev2'' ->
+            inject_incr j' j'' -> (*TODO: this needs to be stronger: 
+                                 increase in the most strict way.
+                                 This should be derivable from 
+                                 strict_inject_evolution.
+                                *)
+            mem_interference m1 lev1'' m1' ->
+            mem_interference m2 lev2'' m2' ->
             Smallstep.after_external
               (Smallstep.part_sem (Clight.semantics2 C_program))
               None code1 m1' = Some s1' ->
-            exists cd' j'' s2',
+            exists cd' j''' s2',
               (Smallstep.after_external
                  (Asm.part_semantics Asm_g)
                  None code2 m2' = Some s2' /\
-               inject_incr j' j'' ->
-               compiler_match cd' j'' s1' (Smallstep.get_mem s1') s2' (Smallstep.get_mem s2') )) ->
-        match_thread_compiled (Some cd) j (Kresume (SST code1) v) m1
+               inject_incr j' j''' ->
+               compiler_match cd' j''' s1' (Smallstep.get_mem s1') s2' (Smallstep.get_mem s2') )) ->
+        match_thread_compiled (Some cd) j' (Kresume (SST code1) v) m1
                               (Kresume (TST code2) v') m2
     | CThread_Init: forall j m1 m2 v1 v1' v2 v2',
         Val.inject j v1 v2 ->
@@ -2141,6 +2227,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             rename H5 into Hinterference1.
             rename H7 into Hinterference2.
             rename H1 into Hcomp_match.
+            rename H2 into Hstrict_evolution.
             
             rename Htid into Hcnt1.
             rename Hlt' into Hlt1'.
@@ -2194,14 +2281,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                        Some (UNLOCK, Vptr b2 (add ofs (repr delt2)) :: nil)
                                                  
                    ).
-            {
-              pose proof (Injsim_atxX compiler_sim _ _ _ _ Hcomp_match Hat_external1')
+              {
+                pose proof (Injsim_atxX compiler_sim _ _ _ _ Hcomp_match Hat_external1')
                 as Hatx.
-              destruct Hatx as (args' & Hat_external2 & list_inj).
-              inversion list_inj; subst.
-              inversion H3; inversion H5; subst.
-              exists b2, delta; repeat (split; auto). 
-            }
+                destruct Hatx as (args' & Hat_external2 & list_inj).
+                inversion list_inj; subst.
+                inversion H2; inversion H4; subst.
+                exists b2, delta; repeat (split; auto).
+                eapply strict_injection_evolution_incr; eassumption.
+              }
             destruct H as (b2&delt2&Hinj_b2&Hat_external2).
             assert (Hat_external2': 
                       semantics.at_external
@@ -2309,8 +2397,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 rewrite HH2; clear HH2.
                 
                 econstructor.
-                intros j' s1' m1'0 m2'0 lev1' lev2'.
-                intros Hinject_effects Hincr' Hinterference1' Hinterference2'
+                intros j'' s1' m1'0 m2'0 lev1' lev2'.
+                intros Hstrict_evolution' Hincr' Hinterference1' Hinterference2'
                 Hafter_ext.
                 remember (fst virtueThread1) as dpm1.
                 remember (Events.Event_acq_rel lev1 dpm1 lev1' :: nil) as rel_trace.
@@ -2324,7 +2412,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                           rel_trace
                           s1').
                 {
-                  simpl in H2. unfold Clight.after_external in H2.
+                  simpl in Hafter_ext. unfold Clight.after_external in Hafter_ext.
                   move Hat_external1 at bottom.
                   unfold Clight.at_external in Hat_external1.
                   destruct code1 eqn:Hcallstate; try discriminate.
@@ -2345,20 +2433,22 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                                       Vundef (Clight.get_mem s1')).
                   { simpl.
                     
-                    Inductive release: val -> mem -> mem -> Prop  :=
+                    Notation delta_perm_map:=(PTree.t (Z -> option (option permission))).
+                    
+                    Inductive release: val -> mem -> delta_perm_map ->  mem -> Prop  :=
                     | ReleaseAngel:
-                        forall b ofs m m',
+                        forall b ofs m dpm m',
                           True ->
                           (* This shall codify, the change in permissions
                        and changing the  lock value to 1.
                            *)
-                          release (Vptr b ofs) m m'.
+                          release (Vptr b ofs) m dpm m'.
 
                     Inductive extcall_release: Events.extcall_sem:=
                     | ExtCallRelease:
                         forall ge m m' m'' m''' b ofs e dpm e',
                           mem_interference m e m' ->
-                          release (Vptr b ofs) m' m'' ->
+                          release (Vptr b ofs) m' dpm m'' ->
                           mem_interference m'' e' m''' ->
                           extcall_release ge (Vptr b ofs :: nil) m
                                           (Events.Event_acq_rel e dpm e' :: nil)
@@ -2396,7 +2486,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 unfold compiler_match in Hcomp_match.
                 eapply (Injsim_simulation_atxX compiler_sim) in Hstep; simpl in *; eauto.
                 specialize (Hstep _ _ _ Hcomp_match).
-                destruct Hstep as (j2'&Hincr&Hstep).
+                destruct Hstep as (j2'&Hincr&Hstep_str&Hstep).
                 
                 remember 
                   (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)  as rel_trace2.
@@ -2405,35 +2495,400 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 { subst rel_trace rel_trace2.
                   econstructor; try solve[constructor].
                   econstructor; try eassumption.
-
-                  Lemma list_inject_mem_effect_incr:
+                  
+                  - idtac.
+                    Lemma list_inject_mem_effect_incr:
                     forall j j' lev1 lev2, 
                       Events.list_inject_mem_effect j lev1 lev2 ->
                       inject_incr j j' ->
                       Events.list_inject_mem_effect j' lev1 lev2.
                   Proof.
                   Admitted.
-                  - eapply list_inject_mem_effect_incr; eassumption.
-                  -
 
-                    Lemma virtueThread_inject_inject_delta_map:
-                      forall j m virtue1 virtue2,
-                        virtue2 = virtueThread_inject m j virtue1 ->
-                        Events.inject_delta_map j (fst virtue1) (fst virtue2).
-                    Proof. Admitted.
-                    Lemma inject_delta_map_incr:
-                      forall j j' dpm1 dpm2,
-                      Events.inject_delta_map j dpm1 dpm2 ->
-                      inject_incr j j' ->
-                      Events.inject_delta_map j' dpm1 dpm2.
-                    Proof. Admitted.
-                    eapply inject_delta_map_incr; try eassumption.
-                    subst dpm1.
-                    eapply virtueThread_inject_inject_delta_map; eassumption.
-                  - 
 
-                    eapply list_inject_mem_effect_incr eassumption.
+
+                  (** *Section Diagrams *) 
+                  Inductive consecutive: block -> list Events.mem_effect -> Prop:=
+                  | consecutiveNil: forall nb,
+                      consecutive nb nil
+                  | consecutiveWrite: forall nb b ofs mvals lev',
+                      (b <= nb)%positive -> (* needed?*)
+                      consecutive nb lev' ->
+                      consecutive nb ((common.Events.Write b ofs mvals):: lev')
+                  | consecutiveAlloc: forall nb b ofs mvals lev',
+                      (b <= nb)%positive -> (* needed?*)
+                      consecutive (Pos.succ nb) lev' ->
+                      consecutive nb ((common.Events.Alloc b ofs mvals):: lev')
+                  | consecutiveFree: forall nb lsbzz lev',
+                      (Forall (fun x => (fst (fst x)) <= nb)%positive lsbzz) ->
+                      consecutive nb lev' ->
+                      consecutive nb ((common.Events.Free lsbzz):: lev').
+                      
+                  Definition diagram (nb: block) (j j': meminj)
+                             (lev1 lev2: list Events.mem_effect):=
+                    inject_incr j j' /\
+                    Events.list_inject_mem_effect j' lev1 lev2 /\
+                    consecutive nb lev2.
+
+                  Definition principled_diagram (nb: block) (j j': meminj)
+                             (lev1 lev2: list Events.mem_effect):=
+                    strict_injection_evolution j j' lev1 lev2 /\
+                    Events.list_inject_mem_effect_strong j' lev1 lev2 /\
+                    consecutive nb lev2.
+
+                  
+                  Inductive memval_lessdef: Relation_Definitions.relation memval:=
+                  | MvUndefLessDef : forall mv, memval_lessdef Undef mv 
+                  | MvBytelLessDef : forall b, memval_lessdef (Byte b) (Byte b)
+                  | MvReflLessDef : forall v v' q n,
+                      Val.lessdef v v' ->
+                      memval_lessdef (Fragment v q n) (Fragment v' q n).
+                  
+                  Inductive effect_lessdef:
+                    Relation_Definitions.relation Events.mem_effect:=
+                  | EvWriteLessDef:
+                      forall b ofs mvs mvs',
+                        (Events.list_map_rel memval_lessdef) mvs mvs' ->
+                        effect_lessdef (common.Events.Write b ofs mvs)
+                                       (common.Events.Write b ofs mvs')
+                  | EvReflLessDef:
+                      forall eff,
+                        effect_lessdef eff eff.
                     
+                  Definition effects_lessdef:
+                    Relation_Definitions.relation (list Events.mem_effect):=
+                    Events.list_map_rel effect_lessdef.
+
+                  (** *Principaled Effects and values*)
+                  Lemma principaled_val_exists:
+                    forall j v1 v2,
+                      Val.inject j v1 v2 ->
+                      exists v20,
+                        Events.inject_strong j v1 v20 /\
+                        Val.lessdef v20 v2.
+                  Proof.
+                    intros.
+                    induction H;
+                      try (eexists; split; econstructor); eassumption.
+                  Qed.
+                  Lemma principaled_memval_exists:
+                    forall j mv1 mv2,
+                      memval_inject j mv1 mv2 ->
+                      exists mv20,
+                        Events.memval_inject_strong j mv1 mv20 /\
+                        memval_lessdef mv20 mv2.
+                  Proof.
+                    intros. induction H;
+                              try solve[eexists; split; econstructor].
+                    - eapply principaled_val_exists in H.
+                      destruct H as (v20&?&?).
+                      eexists; split. econstructor; eassumption.
+                      econstructor; eauto.
+                  Qed.
+                  Lemma principaled_memvals_exists:
+                    forall j mv1 mv2,
+                      Events.list_memval_inject j mv1 mv2 ->
+                      exists mv20,
+                        Events.list_memval_inject_strong j mv1 mv20 /\
+                        Events.list_map_rel memval_lessdef mv20 mv2.
+                  Proof.
+                    intros. induction H; subst.
+                    - exists nil; split; econstructor.
+                    - destruct (principaled_memval_exists _ _ _ H) as (v20&?&?).
+                      destruct IHlist_map_rel as (mv20&?&?).
+                      exists (v20::mv20); split. constructor; eassumption.
+                      econstructor; eauto.
+                  Qed.
+                  
+                  Lemma principaled_effect_exists:
+                    forall j eff1 eff2,
+                      Events.inject_mem_effect j eff1 eff2 ->
+                      exists eff20,
+                        Events.inject_mem_effect_strong j eff1 eff20 /\
+                        effect_lessdef eff20 eff2.
+                  Proof.
+                    intros. inversion H; subst;
+                              try solve[eexists; split; econstructor; eauto].
+                    + destruct (principaled_memvals_exists _ _ _ H1) as (mv20&?&?).
+                      eexists; split. econstructor; eauto.
+                      econstructor; eassumption.
+                  Qed.
+                  Lemma principaled_effects_exists:
+                    forall j lev1 lev2,
+                      Events.list_inject_mem_effect j lev1 lev2 ->
+                      exists lev20,
+                        Events.list_inject_mem_effect_strong j lev1 lev20 /\
+                        effects_lessdef lev20 lev2.
+                  Proof.
+                    intros j lev1 lev2; revert j lev1.
+                    induction lev2; intros.
+                    - inversion H; subst.
+                      exists nil; split; econstructor.
+                    - inversion H; subst; clear H.
+                      destruct (principaled_effect_exists _ _ _ H3) as (eff20&?&?).
+                      destruct (IHlev2 _ _ H4) as (lev20&?&?).
+                      eexists; split.
+                      + econstructor; eassumption.
+                      + econstructor; eassumption.
+                  Qed.
+
+                  
+                        Lemma evolution_inject_effect:
+                          forall j j' ev1 ev2,
+                            injection_evolution_effect j j' ev1 ev2 ->
+                            Events.inject_mem_effect j' ev1 ev2.
+                        Proof.
+                          intros. inversion H; subst; eauto.
+                          econstructor.
+                          destruct (eq_block b1 b1); eauto.
+                          contradict n; reflexivity.
+                        Qed.
+                        Lemma effect_evolution_incr:
+                          forall j j' ev1 ev2,
+                            injection_evolution_effect j j' ev1 ev2 ->
+                            inject_incr j j'.
+                        Proof.
+                          intros. inversion H; subst;
+                                    try eapply inject_incr_refl.
+                          intros b1' b2' delt HH.
+                          destruct (eq_block b1' b1); auto.
+                          + subst. congruence.
+                        Qed.
+                        Lemma evolution_inject_incr:
+                          forall j j' lev1 lev2,
+                            strict_injection_evolution j j' lev1 lev2 ->
+                            inject_incr j j'.
+                        Proof.
+                          intros j j' lev1; revert j j'.
+                          induction lev1; intros.
+                          - inversion H; subst.
+                            eapply inject_incr_refl.
+                          - inversion H; subst.
+                            eapply (inject_incr_trans _ j'0).
+                            + eapply effect_evolution_incr; eassumption.
+                            + eapply IHlev1.
+                              eauto.
+                        Qed.
+                        Lemma inject_mem_effect_monotonic:
+                          forall j j' ev1 ev2,
+                            Events.inject_mem_effect j ev1 ev2 ->
+                            inject_incr j j' ->
+
+                            Events.inject_mem_effect j' ev1 ev2.
+                        Proof.
+                          intros. inversion H; econstructor;
+                                    eauto.
+                          - admit. (*easy lemma*)
+                          - admit. (*easy lemma*)
+                        Admitted.
+
+                  
+                  Lemma evolution_list_inject_mem:
+                    forall j j' lev1 lev2,
+                      strict_injection_evolution j j' lev1 lev2 ->
+                      Events.list_inject_mem_effect j' lev1 lev2.
+                  Proof.
+                    intros j j' lev1; revert j j'.
+                    induction lev1; intros.
+                    - inversion H; subst. econstructor.
+                    - inversion H; subst. econstructor.
+                      + eapply evolution_inject_effect in H4.
+                        eapply inject_mem_effect_monotonic; try eassumption.
+                        eapply evolution_inject_incr; eassumption.
+                      + eapply IHlev1; eauto.
+                  Qed.
+                  
+                  Lemma principled_diagram_exists:
+                    forall nb j j' lev1 lev2,
+                      strict_injection_evolution j j' lev1 lev2 ->
+                      consecutive nb lev2 ->
+                      exists lev20,
+                        principled_diagram nb j j' lev1 lev20 /\
+                        effects_lessdef lev20 lev2.
+                  Proof.
+                    intros.
+                    pose proof (evolution_list_inject_mem _ _ _ _ H).
+                    destruct (principaled_effects_exists _ _ _ H1) as (lev20 & HH & Horder).
+                    exists lev20.
+                    econstructor; repeat split.
+                    - Lemma principaled_injection_exists:
+                        forall j j' lev1 lev2 lev20,
+                        strict_injection_evolution j j' lev1 lev2 ->
+                        Events.list_inject_mem_effect_strong j' lev1 lev20 ->
+                        effects_lessdef lev20 lev2 ->
+                        strict_injection_evolution j j' lev1 lev20.
+                      Proof.
+                        intros j j' lev1; revert j j'.
+                        induction lev1; intros.
+                        - inversion H0; inversion H; subst. econstructor.
+                        - inversion H0; inversion H; subst; inversion H1; 
+                            subst.
+                          econstructor; eauto.
+                          + admit. (*  injection_evolution_effect j j'0 a ev2 
+                                     effect_lessdef b ev2
+                                     injection_evolution_effect j j'0 a b*) 
+                      Admitted.
+                      eapply principaled_injection_exists; eauto.
+                    - eauto.
+                    - Lemma consecutive_monotonic:
+                        forall nb lev0 lev,
+                          effects_lessdef lev0 lev ->
+                          consecutive nb lev ->
+                          consecutive nb lev0.
+                      Admitted.
+                      eapply consecutive_monotonic; eassumption.
+                    - assumption.
+                  Qed.
+                  
+                  assert (Hconsecutive: consecutive (Mem.nextblock m2'') lev2').
+                  { admit. (* this follows from Hinterference2*) }
+                  pose proof (principled_diagram_exists _ _ _ _ _
+                                                        Hstrict_evolution' Hconsecutive) as
+                  Pdiagram.
+                  destruct Pdiagram as (lev20&Hprincipled&Hlessdef).
+
+                  destruct Hstep_str as
+                      (i2_str&s2_str&t_str&Hstep_str&Hmatch_str&Hinj_trace_str).
+                  inversion Hinj_trace_str; subst.
+                  inversion H4; subst; clear H4.
+                  inversion H2; subst.
+                  
+                  inversion H5; subst; clear H5.
+                  inversion H3; subst. clear H6 H8.
+                  
+                  assert (Hdiagram: ).
+                  
+                      (* consecutive nb lev2 -> *)
+                      exists j0, strict_injection_evolution j j0 lev1 lev2.
+                    Proof.
+                      intros j j' lev1 lev2; revert j j' lev1.
+                      induction lev2; intros.
+                      - inversion H0; subst.
+                        do 2 econstructor.
+                      - inversion H0; subst.
+                        assert (
+                            exists j0,
+                              injection_evolution_effect j j0 a0 a
+                          ).
+                        { 
+                          destruct (IHlev2 _ _ _ _ H H6 H8).
+                          
+                          Lemma principaled_diagrsam_effects_exists:
+                            forall nb j j' lev1 lev2,
+                              diagram nb j j' lev1 lev2 ->
+                              exists lev20,
+                                Events.list_inject_mem_effect_strong j' lev1 lev20.
+                          Proof.
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            Lemma principled_diagram_correct:
+                              forall nb j j' j0 lev1 lev2 lev20,
+                                principled_diagram nb j j0 lev1 lev20 ->
+                                diagram nb j j' lev1 lev2 ->
+                                inject_incr j0 j' /\ events_more_defined lev2 lev20.
+                            Admitted.
+
+                            Lemma principled_diagram_exists:
+                              forall nb j j' lev1 lev2,
+                                diagram nb j j' lev1 lev2 ->
+                                exists j0 lev20,
+                                  principled_diagram nb j j0 lev1 lev20.
+                            Admitted.
+                            
+
+
+
+
+                            
+
+                            eapply list_inject_mem_effect_incr; eassumption.
+                            
+                            - idtac.
+                              Lemma virtueThread_inject_inject_delta_map:
+                                forall j m virtue1 virtue2,
+                                  virtue2 = virtueThread_inject m j virtue1 ->
+                                  Events.inject_delta_map j (fst virtue1) (fst virtue2).
+                              Proof. Admitted.
+                              Lemma inject_delta_map_incr:
+                                forall j j' dpm1 dpm2,
+                                  Events.inject_delta_map j dpm1 dpm2 ->
+                                  inject_incr j j' ->
+                                  Events.inject_delta_map j' dpm1 dpm2.
+                              Proof. Admitted.
+                              eapply inject_delta_map_incr; try eassumption.
+                              subst dpm1.
+                              eapply virtueThread_inject_inject_delta_map; eassumption.
+
+                              
+                            - destruct Hstep_str as
+                                  (i2_str&s2_str&t_str&Hstep_str&Hmatch_str&Hinj_trace_str).
+                              inversion Hinj_trace_str; subst.
+                              inversion H5; subst; clear H5.
+                              inversion H3; subst. clear H6 H8.
+                              
+                              (* Proof sketch:
+                       1) lev2' is ls2' with some Vundef changed.
+                       2) j' should also "strict_injection_evolution"
+                          to ls2'
+                       3) From there, inject_incr j' j2' 
+                       4) from there, since j' injects lev1' -> lev2'... then so does j2'
+                      
+                               *)
+
+
+                              assert (
+                                  exists res,
+                                    extcall_release (Genv.globalenv Asm_program)
+                                                    (Vptr b2 (add ofs (repr delt2)) :: nil)
+                                                    m2
+                                                    (Events.Event_acq_rel ls2 dpm2 ls2' :: nil)
+                                                    res (Asm.get_mem s2_str)).
+                              {
+                                pose ReleaseExists as release_func.
+                                clear - Hstep_str Hat_external2 release_func.
+                                destruct code2 eqn:HHH.
+                                inversion Hstep_str; subst.
+                                + (* Builtin is wrong*)
+                                  simpl in Hat_external2.
+                                  rewrite H1 in Hat_external2.
+                                  destruct (eq_dec ofs0 zero) eqn:ieq0; try congruence.
+                                  unfold the_ge in Hat_external2.
+                                  destruct (Genv.find_funct_ptr (Genv.globalenv Asm_program) b) eqn:HH; try congruence.
+                      destruct f0; try congruence.
+                    + (* External is UNLOCK *)
+                      simpl in Hat_external2.
+                      rewrite H1 in Hat_external2.
+                      destruct (eq_dec zero zero) eqn:ieq0; try congruence.
+                      unfold the_ge in Hat_external2.
+                      destruct (Genv.find_funct_ptr (Genv.globalenv Asm_program) b) eqn:HH; try congruence.
+                      destruct f; try congruence.
+                      inversion H2; subst.
+                      apply Asm_core.get_extcall_arguments_spec in H3.
+                      rewrite H3 in Hat_external2.
+                      inversion Hat_external2; subst.
+                      simpl in H4.
+                      rewrite ReleaseExists in H4.
+                      inversion H4; subst.
+
+                      simpl.
+                      eexists; eassumption. }
+                    
+                    
+                      
+                      
+                      
+                    fail "November 6".
+                    
+
+                        
                   (* HERE, have to move the inject_incr outside the quantification. *)
                   
                   
