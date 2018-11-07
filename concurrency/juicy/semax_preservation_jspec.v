@@ -118,6 +118,13 @@ Section Jspec'_properties.
     destruct (is_EF_external e x) as (name & sg & ->).
 
     apply age_jm_phi in A.
+    assert (joins (ghost_of (m_phi m1)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+       joins (ghost_of (m_phi m2)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)) as J.
+    { intros [].
+      erewrite age1_ghost_of by eauto.
+      change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
+        (own.ghost_approx (m_phi m2) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
+      eexists; apply ghost_fmap_join; eauto. }
 
     (* dependent destruction *)
     revert x.
@@ -134,10 +141,7 @@ Section Jspec'_properties.
     all:breakhyps.
     all:agehyps.
     all:agehyps.
-
-(* WILLIAM:  uncomment this line, run it, and see the problem. 
-{ exists x2, x3. split; auto. split; auto. split; auto.  *)
-    all:eauto.
+    all:eauto 7.
   Qed.
 
   Lemma Jspec'_jsafe_phi ge n ora c jm ext :
