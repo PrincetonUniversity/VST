@@ -32,19 +32,18 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
   @jsafeN_ genv _ _ genv_symb_injective (*(genv_symb := fun ge: genv => Genv.genv_symb ge)*)
                (cl_core_sem ge) Hspec ge.
 
-Program Definition ext_compat {Z} (ora : Z) : mpred :=
-  fun w => joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
-Next Obligation.
+Lemma ext_join_approx : forall {Z} (z : Z) n g,
+  joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+  joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
 Proof.
-  repeat intro.
-  erewrite age1_ghost_of by eauto.
-  destruct H0 as (g & J).
-  change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
-    (ghost_approx a' (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+  intros.
+  destruct H.
+  change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
+    (ghost_fmap (approx n) (approx n) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
 Qed.
 
-Lemma ext_unapprox : forall {Z} (z : Z) n g,
+Lemma ext_join_unapprox : forall {Z} (z : Z) n g,
   joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
   joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
 Proof.
@@ -63,6 +62,15 @@ Proof.
   unfold NoneP; f_equal; auto.
 Qed.
 
+Program Definition ext_compat {Z} (ora : Z) : mpred :=
+  fun w => joins (ghost_of w) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil).
+Next Obligation.
+Proof.
+  repeat intro.
+  erewrite age1_ghost_of by eauto.
+  apply ext_join_approx; auto.
+Qed.
+
 Program Definition assert_safe
      (Espec : OracleKind)
      (ge: genv) ve te (ctl: cont) : assert :=
@@ -78,7 +86,7 @@ Program Definition assert_safe
    subst.
    specialize (H0 ora jm0); spec H0.
    { erewrite age1_ghost_of in H1 by eauto.
-      eapply ext_unapprox; eauto. }
+      eapply ext_join_unapprox; eauto. }
    specialize (H0 (eq_refl _) (eq_refl _)).
    forget (State ve te ctl) as c. clear H ve te ctl.
   change (level (m_phi jm)) with (level jm).

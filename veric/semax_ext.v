@@ -426,7 +426,7 @@ eapply nec_hereditary, Hpre; auto.
 apply JE_pre_hered.
 apply necR_jm_phi in H0.
 erewrite necR_ghost_of in H1 by eauto.
-eapply ext_unapprox; eauto.
+eapply ext_join_unapprox; eauto.
 
 intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
 eapply add_funspecs_post in Hpost; eauto.
@@ -485,7 +485,7 @@ eapply nec_hereditary, Hpre; auto.
 apply JE_pre_hered.
 apply necR_jm_phi in H0.
 erewrite necR_ghost_of in H1 by eauto.
-eapply ext_unapprox; eauto.
+eapply ext_join_unapprox; eauto.
 
 intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
 eapply add_funspecs_post_void in Hpost; eauto.

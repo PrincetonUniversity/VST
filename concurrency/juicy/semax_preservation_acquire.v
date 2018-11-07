@@ -608,6 +608,7 @@ Proof.
               cbv iota beta in Pre.
               Unset Printing Implicit.
               destruct Pre as [[[A B] [[C _] D]] E].
+Opaque age_tp_to.
               simpl in *.
               split3. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
               2: destruct E; auto.
@@ -671,8 +672,14 @@ Proof.
                  rewrite level_age_to. auto.
                  replace (level d_phi) with (level Phi) in * by join_level_tac.
                  omega.
-              --
-                  admit. (* WILLIAM *)
+              -- setoid_rewrite <- getThreadR_age.
+                   rewrite age_to_ghost_of.
+                   setoid_rewrite OrdinalPool.gLockSetRes.
+                   rewrite OrdinalPool.gssThreadRes.
+                   destruct E as [_ E].
+                   apply ext_join_approx.
+                   (* We have to know that the d_phi we get from the lock pool is compatible with the external ghost. *)
+                   admit.
 
           + exact_eq Safe'.
             unfold jsafeN in *.

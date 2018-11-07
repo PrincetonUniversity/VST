@@ -775,7 +775,15 @@ Proof.
               apply age_to_pred.
               assumption.
               apply age_to_pred. assumption.
-              admit. (* WILLIAM *)
+              setoid_rewrite <- getThreadR_age.
+              rewrite age_to_ghost_of.
+              unshelve erewrite gRemLockSetRes; auto.
+              rewrite gssThreadRes.
+              apply ghost_of_join in Join; apply ghost_of_join in j'.
+              destruct Hrmap0 as (_ & _ & _ & Hg); rewrite Hg in Join.
+              eapply join_eq in Join; eauto.
+              destruct ora.
+              rewrite Join; apply ext_join_approx; auto.
           + exact_eq Safe'.
             unfold jsafeN.
             f_equal.

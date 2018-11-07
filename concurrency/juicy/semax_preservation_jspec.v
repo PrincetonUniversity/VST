@@ -120,11 +120,7 @@ Section Jspec'_properties.
     apply age_jm_phi in A.
     assert (joins (ghost_of (m_phi m1)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
        joins (ghost_of (m_phi m2)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)) as J.
-    { intros [].
-      erewrite age1_ghost_of by eauto.
-      change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
-        (own.ghost_approx (m_phi m2) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
-      eexists; apply ghost_fmap_join; eauto. }
+    { erewrite (age1_ghost_of _ _ A); apply ext_join_approx. }
 
     (* dependent destruction *)
     revert x.

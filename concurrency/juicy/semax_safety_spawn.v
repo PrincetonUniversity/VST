@@ -521,7 +521,14 @@ clear - Initcore.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
         apply FA.
-      * admit. (* WILLIAM *)
+      * rewrite Ejm; simpl.
+         rewrite age_to_ghost_of.
+         destruct ora.
+         eapply join_sub_joins_trans, ext_join_approx, extcompat.
+         destruct (compatible_threadRes_sub cnti (juice_join compat)).
+         eapply join_sub_trans.
+         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
+         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
 
     + (* safety of spawning thread *)
       subst j.

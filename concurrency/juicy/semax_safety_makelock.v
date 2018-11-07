@@ -818,7 +818,12 @@ Proof.
             apply data_at_noghost in AT.
             rewrite (identity_core AT), ghost_core; simpl.
             rewrite <- (ghost_core (ghost_of phi0)); apply core_identity.
-         - admit. (* WILLIAM *)
+         - rewrite age_to_ghost_of.
+            apply ghost_of_join in Join; apply ghost_of_join in j'.
+            destruct RL0 as (_ & _ & _ & Hg); rewrite Hg in Join.
+            eapply join_eq in Join; eauto.
+            destruct ora.
+            rewrite Join; apply ext_join_approx; auto.
       }
       rewrite Hc' in Ec''; inv Ec''; destruct ora; auto.
     + unshelve erewrite gsoThreadCode, gsoThreadRes, <- gtc_age, gLockSetCode, <- getThreadR_age,

@@ -581,7 +581,14 @@ Proof.
               unfold canon.SEPx.
               simpl. rewrite seplog.sepcon_emp.
               apply age_to_pred; auto.
-              admit. (* WILLIAM *)
+              setoid_rewrite <- getThreadR_age.
+              rewrite age_to_ghost_of.
+              setoid_rewrite OrdinalPool.gLockSetRes.
+              setoid_rewrite OrdinalPool.gssThreadRes.
+              destruct ora.
+              eapply join_sub_joins_trans, ext_join_approx, Hjoin.
+              eexists; apply ghost_fmap_join.
+              apply join_comm, ghost_of_join; eauto.
           + exact_eq Safe'.
             unfold jsafeN.
             f_equal.
