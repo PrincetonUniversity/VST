@@ -61,7 +61,9 @@ match classify_cast tfrom tto with
                         then (andb (is_long_type tto) (is_long_type tfrom)) 
                         else (andb (is_int_type tto) (is_int_type tfrom)))
               then tc_TT
-              else tc_iszero a)
+              else if eqb_type tto int_or_ptr_type && is_int_type tfrom
+                   then tc_TT
+                   else tc_iszero a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)

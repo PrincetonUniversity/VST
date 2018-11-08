@@ -377,11 +377,21 @@ inv H.
 *
 unfold sem_cast in H.
 destruct t; try solve [inv H].
+{
+  simpl in H.
+  rewrite N.eqb_refl in H.
+  simpl in H1.
+  destruct v; try inv H1.
+  simpl.
+  destruct Archi.ptr64 eqn:Hp; auto; inv Hp.
+}
+{
 unfold classify_cast in H.
 unfold int_or_ptr_type at 1 in H.
 rewrite eqb_type_refl in H.
 rewrite (proj2 (eqb_type_false _ _) J) in H.
 inv H.
+}
 *
 revert H.
 clear - J J0 H0 H1.
@@ -433,7 +443,8 @@ unfold denote_tc_test_eq in H;
 rewrite Heqv, Hp in H; destruct H;
 apply weak_valid_pointer_dry in H1;
 unfold Mem.weak_valid_pointer; rewrite H1, Hp; reflexivity].
-simpl in H0; rewrite Hp in H0; inv H0.
+all: try solve [inv Hp].
+all: simpl in H0; rewrite Hp in H0; inv H0.
 Qed.
 
 (*
@@ -812,6 +823,7 @@ assert (Heq2 := Heq).
 apply eqb_type_false in Heq.
 destruct (eqb_type t int_or_ptr_type) eqn:Heq'.
 apply eqb_type_true in Heq'. subst t.
+destruct (is_int_type (typeof e)) eqn:?HH.
 elimtype False; clear - Heq Heq2 H1.
 unfold sem_cast, classify_cast in H1.
 rewrite Heq2 in H1.
@@ -819,7 +831,7 @@ rewrite eqb_type_refl in H1.
 unfold int_or_ptr_type at 1 in H1.
 change (eqb true false) with false in H1. cbv iota in H1.
 destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:Tx, (eval_expr e rho); 
-  simpl in H1;   try discriminate H1.
+  simpl in H1;   try discriminate H1. 
 destruct (eqb_type (typeof e) int_or_ptr_type) eqn:Heq''.
 apply eqb_type_true in Heq''. rewrite Heq'' in *.
 clear - H1 TC' Heq2.

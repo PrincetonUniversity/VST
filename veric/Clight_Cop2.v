@@ -250,7 +250,7 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   (* To pointer types *)
   | Tpointer _ _, Tint _ _ _ =>
       if eqb_type tto int_or_ptr_type 
-      then cast_case_default 
+      then cast_case_pointer
       else if Archi.ptr64 then cast_case_i2l Unsigned 
       else cast_case_pointer
   | Tpointer _ _, Tlong _ _ =>
