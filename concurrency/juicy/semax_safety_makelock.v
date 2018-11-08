@@ -857,4 +857,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
-Admitted.
+Qed.

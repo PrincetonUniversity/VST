@@ -775,7 +775,7 @@ Proof.
               apply age_to_pred.
               assumption.
               apply age_to_pred. assumption.
-              setoid_rewrite <- getThreadR_age.
+              unshelve setoid_rewrite <- getThreadR_age; auto.
               rewrite age_to_ghost_of.
               unshelve erewrite gRemLockSetRes; auto.
               rewrite gssThreadRes.
@@ -822,4 +822,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). simpl.
     congruence.
-Admitted.
+Qed.

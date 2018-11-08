@@ -555,7 +555,10 @@ clear - Initcore.
           apply necR_trans with phi1; [ |apply age_to_necR].
           destruct necr; auto.
         - destruct necr as [? JOINS].
-           admit. (* WILLIAM *)
+           rewrite Ejm, age_to_ghost_of.
+           destruct ora.
+           eapply join_sub_joins_trans; [|apply ext_join_approx, JOINS].
+           eexists; apply ghost_fmap_join, ghost_of_join; eauto.
       }
 
       destruct Post as (c'_ & afterex_ & safe').
@@ -605,4 +608,4 @@ clear - Initcore.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)

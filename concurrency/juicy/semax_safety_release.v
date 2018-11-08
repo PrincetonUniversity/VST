@@ -581,9 +581,9 @@ Proof.
               unfold canon.SEPx.
               simpl. rewrite seplog.sepcon_emp.
               apply age_to_pred; auto.
-              setoid_rewrite <- getThreadR_age.
+              unshelve setoid_rewrite <- getThreadR_age; auto.
               rewrite age_to_ghost_of.
-              setoid_rewrite OrdinalPool.gLockSetRes.
+              unshelve setoid_rewrite OrdinalPool.gLockSetRes; auto.
               setoid_rewrite OrdinalPool.gssThreadRes.
               destruct ora.
               eapply join_sub_joins_trans, ext_join_approx, Hjoin.
@@ -625,4 +625,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). unfold JSem; rewrite Hthread.
     congruence.
-Admitted.
+Qed.
