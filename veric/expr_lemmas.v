@@ -210,7 +210,11 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  -
   apply eqb_type_true in J0. subst t0.
   unfold int_or_ptr_type at 1 in H0. unfold int_or_ptr_type at 1.
-  destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | ]; destruct v; try contradiction.
+  destruct (is_int_type t) eqn:?HH.
+  ** destruct t; try inv HH.
+     eauto.
+  ** 
+  destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | ]; destruct v; try contradiction; try inv HH.
  -
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;
   destruct t as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; 
@@ -265,7 +269,7 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  -
   apply eqb_type_true in J0. subst t0.
   unfold int_or_ptr_type at 1 in H0. unfold int_or_ptr_type at 1.
-  destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | ]; destruct v; try contradiction.
+  destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | ]; destruct v; try contradiction; eauto.
  -
  simpl in *.
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;

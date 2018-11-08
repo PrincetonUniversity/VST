@@ -824,15 +824,27 @@ apply eqb_type_false in Heq.
 destruct (eqb_type t int_or_ptr_type) eqn:Heq'.
 apply eqb_type_true in Heq'. subst t.
 destruct (is_int_type (typeof e)) eqn:?HH.
-elimtype False; clear - Heq Heq2 H1.
+-
+  destruct (typeof e); try inv HH.
+  unfold sem_cast, classify_cast in H1.
+  
+rewrite eqb_type_refl in H1.
+unfold int_or_ptr_type at 1 in H1.
+simpl.
+destruct Archi.ptr64 eqn:HH; try inv HH.
+unfold sem_cast_pointer in H1.
+simpl in TC'.
+inv H1.
+destruct (eval_expr e (construct_rho (filter_genv ge) ve te)); auto; inv TC'.
+- elimtype False; clear - Heq Heq2 H1 HH.
 unfold sem_cast, classify_cast in H1.
 rewrite Heq2 in H1.
 rewrite eqb_type_refl in H1.
 unfold int_or_ptr_type at 1 in H1.
 change (eqb true false) with false in H1. cbv iota in H1.
 destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:Tx, (eval_expr e rho); 
-  simpl in H1;   try discriminate H1. 
-destruct (eqb_type (typeof e) int_or_ptr_type) eqn:Heq''.
+  simpl in H1;   try discriminate H1; inv HH.
+- destruct (eqb_type (typeof e) int_or_ptr_type) eqn:Heq''.
 apply eqb_type_true in Heq''. rewrite Heq'' in *.
 clear - H1 TC' Heq2.
 destruct t  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:Tx, (eval_expr e rho); 
