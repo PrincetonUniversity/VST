@@ -14,6 +14,7 @@ Require Import VST.concurrency.compiler.HybridMachine_simulation.
 
 Require Import VST.concurrency.compiler.Clight_self_simulation.
 Require Import VST.concurrency.compiler.Asm_self_simulation.
+Require Import VST.concurrency.compiler.diagrams.
 
 Require Import VST.concurrency.memsem_lemmas.
 Import BinNums.
@@ -262,8 +263,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
        But most importantly it implies that j' is sub_injection of all
        injections that map lev1 to lev2 and increment j.
      *)
-
-    
     
     
     Inductive match_thread_compiled:
@@ -2222,7 +2221,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 inversion list_inj; subst.
                 inversion H2; inversion H4; subst.
                 exists b2, delta; repeat (split; auto).
-                eapply strict_injection_evolution_incr; eassumption.
+                eapply evolution_inject_incr; eassumption.
               }
             destruct H as (b2&delt2&Hinj_b2&Hat_external2).
             assert (Hat_external2': 
