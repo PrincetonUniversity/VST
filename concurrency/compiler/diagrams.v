@@ -382,7 +382,7 @@ Proof.
   - assumption.
 Qed.
 
-
+(*
 Lemma principaled_diagrsam_effects_exists:
   forall nb j j' lev1 lev2,
     diagram nb j j' lev1 lev2 ->
@@ -390,23 +390,24 @@ Lemma principaled_diagrsam_effects_exists:
       Events.list_inject_mem_effect_strong j' lev1 lev20.
 Proof.
   
-                            
-                            
-                            
-                            
-                            
-                            
-                            (*
-                            Lemma principled_diagram_correct:
-                              forall nb j j' j0 lev1 lev2 lev20,
-                                principled_diagram nb j j0 lev1 lev20 ->
-                                diagram nb j j' lev1 lev2 ->
-                                inject_incr j0 j' /\ events_more_defined lev2 lev20.
-                            Admitted.
+  
+  
+  
+  
+  
+  
+  
+  Lemma principled_diagram_correct:
+    forall nb j j' j0 lev1 lev2 lev20,
+      principled_diagram nb j j0 lev1 lev20 ->
+      diagram nb j j' lev1 lev2 ->
+      inject_incr j0 j' /\ events_more_defined lev2 lev20.
+  Admitted.
 
-                            Lemma principled_diagram_exists:
-                              forall nb j j' lev1 lev2,
-                                diagram nb j j' lev1 lev2 ->
-                                exists j0 lev20,
-                                  principled_diagram nb j j0 lev1 lev20.
-                            Admitted.*)
+  Lemma principled_diagram_exists:
+    forall nb j j' lev1 lev2,
+      diagram nb j j' lev1 lev2 ->
+      exists j0 lev20,
+        principled_diagram nb j j0 lev1 lev20.
+  Admitted.*)
+  
