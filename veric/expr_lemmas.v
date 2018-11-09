@@ -648,19 +648,32 @@ simpl.
 rewrite isCastR in H6.
 unfold tc_val, sem_cast, classify_cast in *.
 destruct (eqb_type t2 int_or_ptr_type) eqn:J.
+{
 apply eqb_type_true in J; subst t2.
 simpl in *.
 destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0.
+{
 apply eqb_type_true in J0; rewrite J0 in *.
 simpl in *.
 destruct (eval_expr e2 rho); inv H; auto.
+}
+{
+destruct (is_int_type (typeof e2)) eqn:?HH.
+{
+destruct (typeof e2); try solve [inv HH].
+simpl in H6.
+rewrite N.eqb_refl in H6.
+destruct Archi.ptr64 eqn:?HH; try inv HH0.
+simpl in H6.
+inv H.
+destruct (eval_expr e2 rho); auto; inv H8.
+}
+{
 destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-inv H6; try inv H8; try inv H2; auto.
-destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0.
-apply eqb_type_true in J0; rewrite J0 in *.
-simpl in *.
-destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; contradiction.
-
+inv HH; inv H6; try inv H8; try inv H2; auto.
+}
+}
+}
 unfold sem_cast_pointer in *;
 destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:T2;
 destruct Archi.ptr64 eqn:Hp;
@@ -736,6 +749,14 @@ do 3 red in H6;
 apply is_true_e in H6; apply int64_eq_e in H6; subst; hnf; rewrite Hp; auto).
 
 all: try (inv H1; reflexivity).
+
+all: try inv Hp.
+
+all: try (revert H; simple_if_tac; intros; inv H; try inv H6; simpl in *).
+all: try solve [(rewrite denote_tc_assert_iszero' in H6; simpl in H6;
+unfold_lift in H6; simpl in H6;
+destruct (eval_expr e2 rho); try inv H6; simpl; auto)].
+
 
 Qed.
 
