@@ -30,6 +30,12 @@ Require Import VST.concurrency.common.ClightMachine.
 (*Asm Machine*)
 Require Import VST.concurrency.common.x86_context.
 
+Instance inject_delta_map_monotonic:
+  Inject_Monotonic Events.inject_delta_map.
+Proof.
+  intros ??????.
+Admitted.
+
 (** *One thread simulation*)
 Module ThreadedSimulation (CC_correct: CompCert_correctness).
    
@@ -255,6 +261,32 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         econstructor; eauto.
     Qed.
 
+    Lemma mem_effect_forward_determ:
+      forall eff m m1' m2',
+        mem_effect_forward m eff m1' -> 
+        mem_effect_forward m eff m2' ->
+        m1' = m2'.
+    Proof.
+      intros. 
+    Admitted.
+    Lemma mem_interference_determ:
+      forall lev m m1' m2',
+        mem_interference m lev m1' -> 
+        mem_interference m lev m2' ->
+        m1' = m2'.
+    Proof.
+      intros lev; induction lev; intros.
+      - inversion H; subst;
+          inversion H0; subst;
+            reflexivity.
+      - inversion H; subst;
+          inversion H0; subst.
+        pose proof (mem_effect_forward_determ
+                      _ _ _ _
+                      H4 H5); subst.
+        eapply IHlev; eassumption.
+    Qed.
+
 
     (* This definition is similar to Events.list_inject_mem_effect but stronger:
        it specifies that j' is just an increment to j by adding the newly 
@@ -302,7 +334,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               (Smallstep.after_external
                  (Asm.part_semantics Asm_g)
                  None code2 m2' = Some s2' /\
-               inject_incr j' j''' ->
+               inject_incr j' j''' /\
                compiler_match cd' j''' s1' (Smallstep.get_mem s1') s2' (Smallstep.get_mem s2') )) ->
         match_thread_compiled (Some cd) j' (Kresume (SST code1) v) m1
                               (Kresume (TST code2) v') m2
@@ -2190,7 +2222,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             assert (Hlt2': permMapLt
            (setPermBlock (Some Writable) b1 (intval ofs)
               (snd (getThreadR Hcnt2)) LKSIZE_nat) 
-           (getMaxPerm m2)).
+           (getMaxPerm m2')).
             { move Hlt1' at bottom.
               move Hinj2 at bottom.
               admit. (* HLT2 *)
@@ -2265,10 +2297,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               [|- context[concur_match _ _ ?st1 ?m1 _ _] ] =>
               remember st1 as st1'
             end. 
-            
-            eexists.
-            exists st2', m2'', (Some i), mu.
-            split; [|split]. 
 
             assert (Hcmpt1': mem_compatible st1' m1'').
             {
@@ -2282,6 +2310,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             {
               admit. (*TODO: from Hcmpt2 *)
             }
+
+
+            
+            eexists.
+            exists st2', m2'', (Some i), mu.
+            split; [|split].
+            
             + eapply Build_concur_match
                      with (memcompat1:=Hcmpt1')(memcompat2:=Hcmpt2')
               ; simpl;
@@ -2330,7 +2365,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 rewrite HH2; clear HH2.
                 
                 econstructor.
-                intros j'' s1' m1'0 m2'0 lev1' lev2'.
+                intros j'' s1' m1''' m2''' lev1' lev2'.
                 intros Hstrict_evolution' Hincr' Hinterference1' Hinterference2'
                 Hafter_ext.
                 remember (fst virtueThread1) as dpm1.
@@ -2404,13 +2439,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     subst rel_trace; econstructor.
                     - eassumption.
                     -  constructor; auto. (*TODO*)
-                    - replace (Clight.get_mem s1') with m1'0.
+                    - replace (Clight.get_mem s1') with m1'''.
                       eassumption.
                       inversion Hafter_ext; reflexivity.
                   }
                   eapply HH in Hextcall; auto.
                   inversion Hafter_ext.
-                  replace m1'0 with (Clight.get_mem s1') by (subst s1'; reflexivity).
+                  replace m1''' with (Clight.get_mem s1') by (subst s1'; reflexivity).
                   unfold Clight.step2. 
                   auto.
                   
@@ -2420,155 +2455,142 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 eapply (Injsim_simulation_atxX compiler_sim) in Hstep; simpl in *; eauto.
                 specialize (Hstep _ _ _ Hcomp_match).
                 destruct Hstep as (j2'&Hincr&Hstep_str&Hstep).
-                
+                destruct Hstep_str as
+                    (i2_str&s2_str&t_str&Hstep_str&Hmatch_str&Hinj_trace_str).
                 remember 
                   (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)  as rel_trace2.
+                assert (Htrace_str : exists lev2_str dpm_str lev2_str',
+                           t_str =
+                           Events.Event_acq_rel lev2_str
+                                                dpm_str
+                                                lev2_str' :: nil).
+                { subst. inversion Hinj_trace_str; subst.
+                  inversion H4; subst.
+                  inversion H2; subst.
+                  do 3 eexists. f_equal.
+                }
+                destruct Htrace_str as (lev2_str&dpm_str&lev2_str'&Htrace_str).
+
+                assert (Hconsecutive:
+                          consecutive (Mem.nextblock m2) lev2).
+                { admit. (* this follows from Hinterference2*) }
+
+                assert (Hconsecutive': consecutive (Mem.nextblock m2'') lev2').
+                { admit. (* this follows from Hinterference2*) }
+
+                (** *Left Diagrams *)
+                pose proof (principled_diagram_exists
+                              _ _ _ _ _
+                              Hstrict_evolution Hconsecutive) as
+                    Pdiagram.
+                destruct Pdiagram as (lev20&Hprincipled&Hlessdef).
+                assert (Hdiagram: diagram (Mem.nextblock m2) j j2' lev1 lev2_str).
+                { econstructor.
+                  - eauto.
+                  - subst rel_trace t_str;
+                      inversion Hinj_trace_str; subst.
+                    inversion H3; subst. auto.
+                    Lemma list_inject_weaken: 
+                      forall j lev1 lev2,
+                      Events.list_inject_mem_effect_strong j lev1 lev2 ->
+                      Events.list_inject_mem_effect j lev1 lev2.
+                    Proof.
+                      intros. inversion H; subst; constructor.
+                      -
+                    Admitted.
+
+                    eapply list_inject_weaken; auto.
+                  - admit. (* follows from the syntas. *)
+                }
+                destruct (principled_diagram_correct
+                            _ _ _ _ _ _ _ Hprincipled Hdiagram)
+                  as (Hincr_mu & lessdef_str).
+
+                (** *Right Diagrams*)
+                pose proof (principled_diagram_exists
+                              _ _ _ _ _
+                              Hstrict_evolution' Hconsecutive') as
+                    Pdiagram'.
+                destruct Pdiagram' as (lev20'&Hprincipled'&Hlessdef').
+
                 
+                assert (Hdiagram':
+                          diagram (Mem.nextblock m2'') mu j2' lev1' lev2_str').
+                { econstructor.
+                  - eauto.
+                  - subst rel_trace t_str;
+                      inversion Hinj_trace_str; subst.
+                    inversion H3; subst. 
+                    eapply list_inject_weaken; auto.
+                  - admit. (* follows from the syntax. *)
+                }
+                destruct (principled_diagram_correct
+                            _ _ _ _ _ _ _ Hprincipled' Hdiagram')
+                  as (Hincr_mu_j2' & lessdef_str').
+                
+                    
                 assert (Hinj_trace: Events.inject_trace j2' rel_trace rel_trace2).
                 { subst rel_trace rel_trace2.
                   econstructor; try solve[constructor].
                   econstructor; try eassumption.
-                  
-                  - idtac.
-                    Lemma list_inject_mem_effect_incr:
-                    forall j j' lev1 lev2, 
-                      Events.list_inject_mem_effect j lev1 lev2 ->
-                      inject_incr j j' ->
-                      Events.list_inject_mem_effect j' lev1 lev2.
-                  Proof.
-                  Admitted.
-
-                  assert (Hconsecutive: consecutive (Mem.nextblock m2'') lev2').
-                  { admit. (* this follows from Hinterference2*) }
-                  pose proof (principled_diagram_exists _ _ _ _ _
-                                                        Hstrict_evolution' Hconsecutive) as
-                  Pdiagram.
-                  destruct Pdiagram as (lev20&Hprincipled&Hlessdef).
-
-                  destruct Hstep_str as
-                      (i2_str&s2_str&t_str&Hstep_str&Hmatch_str&Hinj_trace_str).
-                  inversion Hinj_trace_str; subst.
-                  inversion H4; subst; clear H4.
-                  inversion H2; subst.
-                  
-                  inversion H5; subst; clear H5.
-                  inversion H3; subst. clear H6 H8.
-                  
-                  assert (Hdiagram: ).
-                  
-                      (* consecutive nb lev2 -> *)
-                      exists j0, strict_injection_evolution j j0 lev1 lev2.
-                    Proof.
-                      intros j j' lev1 lev2; revert j j' lev1.
-                      induction lev2; intros.
-                      - inversion H0; subst.
-                        do 2 econstructor.
-                      - inversion H0; subst.
-                        assert (
-                            exists j0,
-                              injection_evolution_effect j j0 a0 a
-                          ).
-                        { 
-                          destruct (IHlev2 _ _ _ _ H H6 H8).
-                  
-
-                            
-
-
-
-
-                            
-
-                            eapply list_inject_mem_effect_incr; eassumption.
-                            
-                            - idtac.
-                              Lemma virtueThread_inject_inject_delta_map:
-                                forall j m virtue1 virtue2,
-                                  virtue2 = virtueThread_inject m j virtue1 ->
-                                  Events.inject_delta_map j (fst virtue1) (fst virtue2).
-                              Proof. Admitted.
-                              Lemma inject_delta_map_incr:
-                                forall j j' dpm1 dpm2,
-                                  Events.inject_delta_map j dpm1 dpm2 ->
-                                  inject_incr j j' ->
-                                  Events.inject_delta_map j' dpm1 dpm2.
-                              Proof. Admitted.
-                              eapply inject_delta_map_incr; try eassumption.
-                              subst dpm1.
-                              eapply virtueThread_inject_inject_delta_map; eassumption.
-
-                              
-                            - destruct Hstep_str as
-                                  (i2_str&s2_str&t_str&Hstep_str&Hmatch_str&Hinj_trace_str).
-                              inversion Hinj_trace_str; subst.
-                              inversion H5; subst; clear H5.
-                              inversion H3; subst. clear H6 H8.
-                              
-                              (* Proof sketch:
-                       1) lev2' is ls2' with some Vundef changed.
-                       2) j' should also "strict_injection_evolution"
-                          to ls2'
-                       3) From there, inject_incr j' j2' 
-                       4) from there, since j' injects lev1' -> lev2'... then so does j2'
-                      
-                               *)
-
-
-                              assert (
-                                  exists res,
-                                    extcall_release (Genv.globalenv Asm_program)
-                                                    (Vptr b2 (add ofs (repr delt2)) :: nil)
-                                                    m2
-                                                    (Events.Event_acq_rel ls2 dpm2 ls2' :: nil)
-                                                    res (Asm.get_mem s2_str)).
-                              {
-                                pose ReleaseExists as release_func.
-                                clear - Hstep_str Hat_external2 release_func.
-                                destruct code2 eqn:HHH.
-                                inversion Hstep_str; subst.
-                                + (* Builtin is wrong*)
-                                  simpl in Hat_external2.
-                                  rewrite H1 in Hat_external2.
-                                  destruct (eq_dec ofs0 zero) eqn:ieq0; try congruence.
-                                  unfold the_ge in Hat_external2.
-                                  destruct (Genv.find_funct_ptr (Genv.globalenv Asm_program) b) eqn:HH; try congruence.
-                      destruct f0; try congruence.
-                    + (* External is UNLOCK *)
-                      simpl in Hat_external2.
-                      rewrite H1 in Hat_external2.
-                      destruct (eq_dec zero zero) eqn:ieq0; try congruence.
-                      unfold the_ge in Hat_external2.
-                      destruct (Genv.find_funct_ptr (Genv.globalenv Asm_program) b) eqn:HH; try congruence.
-                      destruct f; try congruence.
-                      inversion H2; subst.
-                      apply Asm_core.get_extcall_arguments_spec in H3.
-                      rewrite H3 in Hat_external2.
-                      inversion Hat_external2; subst.
-                      simpl in H4.
-                      rewrite ReleaseExists in H4.
-                      inversion H4; subst.
-
-                      simpl.
-                      eexists; eassumption. }
+                  - emonotonicity; eauto.
+                    emonotonicity; eauto.
+                    eapply evolution_list_inject_mem; eauto.
+                  - emonotonicity; eauto.
+                    subst dpm1. admit. (* proof constructions correct*)
+                  - emonotonicity; eauto.
+                    eapply evolution_list_inject_mem in Hstrict_evolution'; eauto.
+                }
                     
+                    (*HERE*)
+                       
+                (*
+                assert (
+                  exists res,
+                    extcall_release (Genv.globalenv Asm_program)
+                                    (Vptr b2 (add ofs (repr delt2)) :: nil)
+                                    m2
+                                    t_str
+                                    res (Asm.get_mem s2_str)).
+                {
+                  pose ReleaseExists as release_func.
+                  clear - Hstep_str Hat_external2 release_func.
+                  destruct code2 eqn:HHH.
+                  inversion Hstep_str; subst.
+                  + (* Builtin is wrong*)
+                    simpl in Hat_external2.
+                    rewrite H1 in Hat_external2.
+                    destruct (eq_dec ofs0 zero) eqn:ieq0; try congruence.
+                    unfold the_ge in Hat_external2.
+                    destruct (Genv.find_funct_ptr (Genv.globalenv Asm_program) b) eqn:HH; try congruence.
+                    destruct f0; try congruence.
+                  + (* External is UNLOCK *)
+                    simpl in Hat_external2.
+                    rewrite H1 in Hat_external2.
+                    destruct (eq_dec zero zero) eqn:ieq0; try congruence.
+                    unfold the_ge in Hat_external2.
+                    destruct (Genv.find_funct_ptr (Genv.globalenv Asm_program) b) eqn:HH; try congruence.
+                    destruct f; try congruence.
+                    inversion H2; subst.
+                    apply Asm_core.get_extcall_arguments_spec in H3.
+                    rewrite H3 in Hat_external2.
+                    inversion Hat_external2; subst.
+                    simpl in H4.
+                    rewrite ReleaseExists in H4.
+                    inversion H4; subst.
                     
-                      
-                      
-                      
-                    fail "November 6".
+                    simpl.
+                    eexists; eassumption. }
+                 *)
                     
+                destruct  (Hstep _ Hinj_trace)
+                  as (cd' & s2' & step & comp_match ).
 
-                        
-                  (* HERE, have to move the inject_incr outside the quantification. *)
-                  
-                  
-                  
-                specialize (Hstep rel_trace2).
-                destruct  Hstep as (cd' & s2' & step & comp_match & Hincr2 ).
 
                 (* We prove that code2 must do an external step. *)
-                {
-                  move Hat_external2' at bottom.
+                (* Note: no need for a { here. 
+                 TODO: better formating *)
+                { move Hat_external2' at bottom.
                   unfold Asm.at_external in Hat_external2'.
                   destruct code2 eqn:Code.
                   simpl in Hat_external2'.
@@ -2579,16 +2601,16 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   destruct f; try discriminate.
                    
                    
-                  inversion step; subst.
-                  - rewrite rPC in H7; inversion H7; subst.
+                  inversion step; subst; try solve[inversion H5] .
+                  - rewrite rPC in H2; inversion H2; subst.
                     unfold the_ge in func_lookup.
-                    rewrite func_lookup in H8.
-                    inversion H8; discriminate.
-                  - rewrite rPC in H7; inversion H7; subst.
+                    rewrite func_lookup in H3.
+                    inversion H3; discriminate.
+                 (*  - rewrite rPC in H2; inversion H2; subst.
                     unfold the_ge in func_lookup.
-                    rewrite func_lookup in H8.
-                    inversion H8; discriminate.
-                  -
+                    rewrite func_lookup in H3.
+                    inversion H3 discriminate. *)
+                  - rename m' into m21'''.
                     (* NOTE: 
                        - the s2' (i.e. target state) in comp_match, 
                        results from inverting the step.
@@ -2601,9 +2623,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     (* Show that target program is executing the same function*)
                     assert (FUNeq:e0 = ef ).
                     { assert (BB0: b0 = b)
-                        by (rewrite rPC in H7; inversion H7; reflexivity).
+                        by (rewrite rPC in H2; inversion H2; reflexivity).
                       subst b0. unfold the_ge in func_lookup.
-                      rewrite func_lookup in H8; inversion H8.
+                      rewrite func_lookup in H3; inversion H3.
                       reflexivity.
                     } subst e0.
                     
@@ -2612,11 +2634,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                       (Asm.get_extcall_arguments r m2'
                            (Conventions1.loc_arguments (AST.ef_sig ef))); try discriminate.
                     inversion Hat_external2'. subst.
-                    do 3 eexists; split; eauto.
+                    do 3 eexists; repeat split; eauto.
                      unfold compiler_match.
                      move comp_match at bottom.
                      simpl.
-                     instantiate(1:=j2').
+                     
                      instantiate(1:=cd').
                      replace (Clight.set_mem s1' (Clight.get_mem s1')) with s1'
                        by (destruct s1'; reflexivity).
@@ -2631,42 +2653,71 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
                      assert (Hres: res = Vundef).
                      { unfold Events.external_call in *.
-                       rewrite ReleaseExists in H10.
-                       inversion H10. reflexivity.
+                       rewrite ReleaseExists in H5.
+                       inversion H5. reflexivity.
                      }
                      subst res.
 
-                     replace m2'0 with m'. auto.
+                     replace m2''' with m21'''. auto.
+                     
+                     (*  m21''' = m2''' *)
+                     simpl in H5.
+                     rewrite ReleaseExists in H5.
+                     inversion H5; subst.
+                     rename m' into m21'.
+                     rename m'' into m21''.
+                     rename H10 into Hinterference21.
+                     rename H11 into Hrelease.
+                     
+                     move Hinterference2' at bottom.
 
-                     (*  m' = m2'0 *)
-                     simpl in H10.
-                     rewrite ReleaseExists in H10.
-                     inversion H10; subst.
+                     (*
+                     m1 -lev1-> m1' -dpm-> m1'' -lev1'-> m1'''
+                     |          |         |            |
+                     |          |         |            |
+                     m2 -lev2-> m2' -dpm-> m2'' -lev2'-> m2'''
+                     !          !         !            !     
+                     m2 -lev2-> m21'-dpm-> m21''-lev2'-> m21'''
+                      *)
+                     
+                     assert (m21' =
+                             (restrPermMap (proj1 ((memcompat2 CMatch) hb Hcnt2)))).
+                     { move Hinterference2 at bottom.
+                       move Hinterference21 at bottom.
+                       eapply mem_interference_determ; eassumption.
+                     }
+                     
+                     assert (m21'' = (restrPermMap (proj1 (Hcmpt2' hb Hcnt2)))).
+                     { move Hstore2 at bottom.
+                       move Hrelease at bottom.
+                       admit.
+                       (* Sketch: release has to be defined.
+                          it should modify content without touching permissions.
+                          then show: 
+                          m2' -release-> m2''
+                          (or their restrictions to the cur)
+                          release is deterministic and so the result follows. *)
+                     }
 
-                     rename m' into m'''.
-                     rename m'0 into m'.
-
-                     
-                     
-
-                     
-                     
-                     
+                     (*  m21''' = m2''' *)
+                     eapply mem_interference_determ; subst; try eassumption.
                 }
-                
-                
 
-                 move Hat_external2 at bottom.
-                   unfold Asm.after_external.
-                   unfold Asm.at_external,Asm.set_mem in Hat_external2.
-                   destruct code2.
-                   unfold Asm.after_external_regset.
-                   destruct (r Asm.PC) eqn:rPC; try discriminate.
-                   destruct (eq_dec i0 zero) eqn:i0_0; try discriminate.
-                   unfold Asm_g.
-                   destruct (Genv.find_funct_ptr the_ge b) eqn:func_lookup; try discriminate.
-                   destruct f; try discriminate.
-                   
+
+                (* SEEMS like this was an old attempt.
+                   REMOVE
+
+                move Hat_external2 at bottom.
+              unfold Asm.after_external.
+              unfold Asm.at_external,Asm.set_mem in Hat_external2.
+              destruct code2.
+              unfold Asm.after_external_regset.
+              destruct (r Asm.PC) eqn:rPC; try discriminate.
+              destruct (eq_dec i0 zero) eqn:i0_0; try discriminate.
+              unfold Asm_g.
+              destruct (Genv.find_funct_ptr the_ge b) eqn:func_lookup; try discriminate.
+              destruct f; try discriminate.
+              
                    eexists. split; try reflexivity.
                 --
                    reflexivity.
@@ -2679,31 +2730,41 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
 
               admit. (*reestablish the concur match. *)
-            + (*HERE*)
+              *)
               
+            + (*
+                GOAL: 
+                Forall2 (inject_mevent mu)
+                (seq.cat tr1
+                (Events.external hb
+                (Events.release (b1, intval ofs)
+                (Some (build_delta_content (fst virtueThread1) m1''))) :: nil))
+                (seq.cat tr2 (Events.external hb ?e' :: nil))
+               *)
+
               rewrite cat_app.
               rewrite (cat_app tr2).
               eapply List.Forall2_app.
-              * admit.
-              (* we carry the trace arround. this should follow from 
-                   H      1 : List.Forall2 (inject_mevent mu) tr1 tr2
-                   and    
-                   inject_      incr mu mu'
-               (*the last one is not proven yet.*)
-               *)
-                
+              * eauto.
               * econstructor; try solve[constructor].
                 simpl.
+                econstructor.
+                admit.
                 (* injection of the event*)
-                  admit. (* Should be obvious by construction *)
-            + econstructor; eauto.
+                (* Should be obvious by construction *)
+            + (* HybridMachineSig.external_step *)
+
+              econstructor; eauto.
               eapply step_release with
                     (b:= b2)
                     (virtueThread:=virtueThread2)
-                    (virtueLP:=virtueLP2)
-                    (m':=m2'); eauto; try reflexivity;
+                    (virtueLP:=virtueLP2);
+                eauto; try reflexivity;
               try unfold HybridMachineSig.isCoarse,
               HybridMachineSig.HybridCoarseMachine.scheduler.
+              rename m2' into MMM.
+              rename m2 into MMM2.
+              
               * (* bounded_maps.sub_map *)
 
                 subst virtueThread2.

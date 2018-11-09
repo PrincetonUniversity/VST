@@ -3,6 +3,8 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 
+Require Import VST.msl.Coqlib2.
+
 Import BinInt.
 Import List.
 Import Relation_Definitions.
@@ -16,9 +18,12 @@ Class Inject_Monotonic {A:Type}(R: meminj -> relation A):=
     R j a1 a2 ->
     inject_incr j j' ->
     R j' a1 a2.
+
 Ltac emonotonicity:=
   try (unfold Inject_Monotonic);
   eapply monotonicity.
+
+
 Instance list_map_rel_monotonicity:
   forall {A} {R: meminj -> relation A},
     Inject_Monotonic R ->
@@ -73,6 +78,11 @@ Proof.
     econstructor; eauto.
   - emonotonicity; eassumption.
   - emonotonicity; eassumption.
+Qed.
+Instance list_inject_mem_effect_monotonic :
+  Inject_Monotonic Events.list_inject_mem_effect.
+Proof.
+  emonotonicity.
 Qed.
 
 
@@ -230,7 +240,7 @@ Inductive consecutive: block -> list Events.mem_effect -> Prop:=
     consecutive nb lev' ->
     consecutive nb ((common.Events.Write b ofs mvals):: lev')
 | consecutiveAlloc: forall nb b ofs mvals lev',
-    (b <= nb)%positive -> (* needed?*)
+    (b = nb)%positive -> (* needed?*)
     consecutive (Pos.succ nb) lev' ->
     consecutive nb ((common.Events.Alloc b ofs mvals):: lev')
 | consecutiveFree: forall nb lsbzz lev',
@@ -253,19 +263,21 @@ Proof.
 Qed.
    
 (** *Section Diagrams *) 
-Definition diagram
-           (nb: block) (j j': meminj)
-           (lev1 lev2: list Events.mem_effect):=
-  inject_incr j j' /\
-  Events.list_inject_mem_effect j' lev1 lev2 /\
-  consecutive nb lev2.
+Record diagram
+       (nb: block) (j j': meminj)
+       (lev1 lev2: list Events.mem_effect):=
+  { Dincr: inject_incr j j'
+    ; Dinj: Events.list_inject_mem_effect j' lev1 lev2
+    ; Dconsec: consecutive nb lev2
+  }.
 
-Definition principled_diagram
+Record principled_diagram
            (nb: block) (j j': meminj)
            (lev1 lev2: list Events.mem_effect):=
-  strict_injection_evolution j j' lev1 lev2 /\
-  Events.list_inject_mem_effect_strong j' lev1 lev2 /\
-  consecutive nb lev2.
+  { PDevol: strict_injection_evolution j j' lev1 lev2
+    ; PDinj_str: Events.list_inject_mem_effect_strong j' lev1 lev2
+    ; PDconsec: consecutive nb lev2
+  }.
 
 
 
@@ -382,32 +394,240 @@ Proof.
   - assumption.
 Qed.
 
-(*
-Lemma principaled_diagrsam_effects_exists:
-  forall nb j j' lev1 lev2,
-    diagram nb j j' lev1 lev2 ->
-    exists lev20,
-      Events.list_inject_mem_effect_strong j' lev1 lev20.
-Proof.
-  
-  
-  
-  
-  
-  
-  
-  
-  Lemma principled_diagram_correct:
-    forall nb j j' j0 lev1 lev2 lev20,
-      principled_diagram nb j j0 lev1 lev20 ->
-      diagram nb j j' lev1 lev2 ->
-      inject_incr j0 j' /\ events_more_defined lev2 lev20.
-  Admitted.
+Lemma consecutive_head:
+  forall nb ev ls,
+    consecutive nb (ev :: ls) ->
+    consecutive nb (ev :: nil).
+Proof. intros. inversion H; subst;
+                 econstructor; auto; constructor.
+Qed.
+Definition nextblock_eff (nb:block) (ev:mem_effect):=
+  match ev with
+  | Write _ _ _ => nb
+  | Alloc _ _ _ => Pos.succ nb
+  | Free _ => nb
+  end.
+Lemma consecutive_tail:
+  forall nb ev ls,
+    consecutive nb (ev :: ls) ->
+    consecutive (nextblock_eff nb ev ) (ls).
+Proof. intros. inversion H; subst; simpl; auto. Qed.
 
-  Lemma principled_diagram_exists:
-    forall nb j j' lev1 lev2,
-      diagram nb j j' lev1 lev2 ->
-      exists j0 lev20,
-        principled_diagram nb j j0 lev1 lev20.
-  Admitted.*)
-  
+
+    Lemma inject_lessdef:
+      forall j' j0 : meminj,
+        inject_incr j0 j' ->
+        forall v1 v3 v2 : val,
+          Val.inject j' v1 v2 ->
+          inject_strong j0 v1 v3 -> Val.lessdef v3 v2.
+    Proof.
+      intros j' j0 Hincr v1 v3 v2 H0 H1.
+      inversion H0; subst;
+        inversion H1; subst;
+          try solve[constructor].
+      - apply Hincr in H4.
+        rewrite H4 in H; inversion H; subst.
+        constructor.
+    Qed.
+    Lemma inject_memval_lessdef:
+      forall (a : memval) (j' j0 : meminj),
+        inject_incr j0 j' ->
+        forall b b0 : memval,
+          memval_inject j' a b ->
+          memval_inject_strong j0 a b0 -> memval_lessdef b0 b.
+    Proof.
+      intros a j' j0 H b b0 H4 H5.
+      inversion H4; subst;
+        inversion H5; subst;
+          try solve[constructor].
+      - constructor.
+        eapply inject_lessdef; eassumption.
+    Qed.
+    Lemma list_inject_memval_lessdef:
+      forall (j' j0 : meminj) (mvs1 mvs2 : list memval),
+        inject_incr j0 j' ->
+        forall vals2 : list memval,
+          list_memval_inject j' mvs1 vals2 ->
+          list_memval_inject_strong j0 mvs1 mvs2 ->
+          list_map_rel memval_lessdef mvs2 vals2.
+    Proof.
+      intros j' j0 mvs1. revert j' j0.
+      induction mvs1; intros.
+      - inversion H0; subst;
+          inversion H1; subst;
+            constructor.
+      - inversion H0; subst;
+          inversion H1; subst;
+            try solve[econstructor; eauto].
+        econstructor.
+        
+        +eapply inject_memval_lessdef; eassumption.
+        + eapply IHmvs1; eassumption.
+    Qed.
+
+    Lemma list_inject_hi_low_lessdef:
+      forall j0 j ls1 ls2 ls20,
+        inject_incr j0 j ->
+        list_inject_hi_low j0 ls1 ls20 ->
+        list_inject_hi_low j ls1 ls2 ->
+        ls20 = ls2.
+    Proof.
+      intros j0 j ls1; revert j0 j.
+      induction ls1; intros.
+      - inversion H0; subst;
+          inversion H1; subst; auto.
+      - inversion H0; subst;
+          inversion H1; subst; auto.
+        f_equal.
+        + clear - H4 H5 H.
+          inversion H4; subst;
+            inversion H5; subst.
+          apply H in H0; rewrite H0 in H7.
+          inversion H7; subst. reflexivity.
+        + eapply IHls1; eassumption.
+    Qed.
+    
+    Lemma incr_inject_strong:
+      forall (j0 j0' : meminj) v1 v2,
+        inject_incr j0 j0' ->
+        inject_strong j0' v1 v2 ->
+        Val.inject j0 v1 v2 ->
+        inject_strong j0 v1 v2.
+    Proof.
+      intros.
+      inversion H0; subst;
+        inversion H1; subst;
+          econstructor; eauto.
+    Qed.
+    Lemma incr_memval_inject_strong:
+      forall (j0 j0' : meminj) (val1 val2 : memval),
+        inject_incr j0 j0' ->
+        memval_inject_strong j0' val1 val2 ->
+        memval_inject j0 val1 val2 ->
+        memval_inject_strong j0 val1 val2.
+    Proof.
+      intros.
+      inversion H0; subst;
+        inversion H1; subst;
+          econstructor; eauto.
+      eapply incr_inject_strong; eassumption.
+    Qed.
+    Lemma incr_list_memval_inject_strong:
+      forall (j0 j0' : meminj) (vals1 vals2 : list memval),
+        inject_incr j0 j0' ->
+        list_memval_inject_strong j0' vals1 vals2 ->
+        list_memval_inject j0 vals1 vals2 -> list_memval_inject_strong j0 vals1 vals2.
+    Proof.
+      intros j0 j0' vals1; revert j0 j0'.
+      induction vals1; intros j0 j0' vals2 H0 H3 H11.
+      - inversion H3; subst;
+          inversion H11; subst;
+            econstructor; eauto.
+      - inversion H3; subst;
+          inversion H11; subst;
+            econstructor; eauto.
+        
+        eapply incr_memval_inject_strong; eassumption.
+        eapply IHvals1; eauto.
+    Qed.
+    Lemma evolution_injection_lessdef:
+      forall j j' j0 ev1 ev2 ev20 nb,
+        inject_incr j j' ->
+        injection_evolution_effect j j0 ev1 ev2 ->
+        inject_mem_effect_strong j0 ev1 ev2 ->
+        inject_mem_effect j' ev1 ev20 ->
+        consecutive nb (ev2 :: nil) ->
+        consecutive nb (ev20 :: nil) ->
+        effect_lessdef ev2 ev20.
+    Proof.
+      intros
+        ??????? Hincr Hevol Hinj_str Hinject Hconsec Hconsec'.
+      inversion Hevol; subst; clear Hevol;
+        inversion Hinject; subst; clear Hinject.
+      - inversion Hinj_str; subst.
+        apply Hincr in H2.
+        rewrite H2 in H4; inversion H4; subst.
+        econstructor.
+        
+        eapply list_inject_memval_lessdef; eassumption.
+      - inversion Hconsec; subst.
+        inversion Hconsec'; subst.
+        econstructor.
+      - inversion H; subst.
+          inversion Hinj_str; subst.
+          eapply list_inject_hi_low_lessdef in H1; eauto.
+          subst; econstructor.
+    Qed.
+    Lemma incr_inject_mem_effect_strong:
+        forall j0 j0' ev1 ev2,
+          inject_mem_effect_strong j0' ev1 ev2 ->
+          inject_incr j0 j0' ->
+          inject_mem_effect j0 ev1 ev2 ->
+          inject_mem_effect_strong j0 ev1 ev2.
+      Proof.
+        intros.
+        inversion H; subst;
+          inversion H1; subst;
+        econstructor; eauto.
+        - apply H0 in H6;
+            rewrite H2 in H6;
+            inversion H6; subst.
+          eapply incr_list_memval_inject_strong; eassumption.
+      Qed.
+
+
+Lemma principled_diagram_correct:
+  forall nb j j' j0 lev1 lev2 lev20,
+    principled_diagram nb j j0 lev1 lev20 ->
+    diagram nb j j' lev1 lev2 ->
+    inject_incr j0 j' /\  effects_lessdef lev20 lev2.
+Proof.
+  intros nb j j' j0 lev1; revert nb j j' j0 .
+  induction lev1; intros.
+  - inversion H as [Hevol Hinj_str Hconsec];
+      inversion H0 as [Hincr  Hinj Hconsec'].
+    inversion Hevol; inversion Hinj; subst.
+    split; auto. reflexivity.
+  -  inversion H as [Hevol Hinj_str Hconsec];
+      inversion H0 as [Hincr  Hinj Hconsec'].
+    inversion Hevol; inversion Hinj; subst.
+    inversion Hinj_str; subst.
+
+    assert (Hincr0: inject_incr j'0 j0).
+    { eapply evolution_inject_incr; eassumption. }
+    
+    assert (Hpdiagram: principled_diagram (nextblock_eff nb ev2) j'0 j0 lev1 ls2).
+    { econstructor; eauto.
+      eapply consecutive_tail; eassumption. }
+
+    assert (Hdiagram: diagram (nextblock_eff nb b) j'0 j' lev1 l2).
+    {  econstructor; try eassumption.
+       - clear - Hincr H5 H10 Hconsec' Hconsec.
+         inversion H5; subst; eauto.
+         inversion H10; subst.
+         intros ????.
+         if_tac in H0; subst; auto.
+         + inversion H0; subst.
+           inversion Hconsec'; subst.
+           inversion Hconsec; subst.
+           auto.
+       - eapply consecutive_tail; eassumption.
+    }
+
+    assert (Hlessdef: effect_lessdef ev2 b).
+    { 
+      eapply (evolution_injection_lessdef j j'); try eassumption.
+      * eapply incr_inject_mem_effect_strong; try eassumption.
+        inversion H5; subst; eauto.
+        -- eapply evolution_inject_effect; eassumption.
+      * eapply consecutive_head; eauto.
+      * eapply consecutive_head; eauto. }
+    
+    replace (nextblock_eff nb b) with (nextblock_eff nb ev2) in Hdiagram by
+        (inversion Hlessdef; reflexivity).
+    
+    edestruct (IHlev1 _ _ _ _ _ _ Hpdiagram Hdiagram) as (Hincr'&Hlessdef').
+    split.
+     + assumption.
+     + econstructor; auto.
+Qed.
