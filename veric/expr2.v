@@ -38,19 +38,6 @@ try solve [
        clear; compute; split; congruence
     end);
  try (destruct H0; subst i; try rewrite Int.eq_true; auto)].
- unfold is_neutral_cast in H.
- rewrite orb_true_iff in H.
- destruct H.
- apply eqb_type_true in H. rewrite <- H in *.
- unfold tc_val in H0.
- rewrite eqb_reflx.
- destruct (eqb_type (Tpointer _ _) _); destruct v; inv H0; reflexivity.
- rewrite andb_true_iff in H. destruct H.
- destruct (eqb_type (Tpointer t1 a) int_or_ptr_type); inv H.
- destruct (eqb_type (Tpointer t2 a0) int_or_ptr_type); inv H7.
- simpl.
- unfold tc_val in H0.
- destruct (eqb_type (Tpointer _ _) _); destruct v; inv H0; reflexivity.
 Qed.
 
 Lemma neutral_cast_subsumption: forall t1 t2 v,
@@ -267,6 +254,12 @@ Definition denote_tc_initialized id ty rho : mpred :=
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
 
+Definition denote_tc_isint v : mpred :=
+  prop (is_int I32 Signed v).
+
+Definition denote_tc_islong v : mpred :=
+  prop (is_long v).
+
 Definition test_eq_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
   then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
@@ -315,6 +308,8 @@ Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
+  | tc_isint e => `denote_tc_isint (eval_expr e)
+  | tc_islong e => `denote_tc_islong (eval_expr e)
   | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
   | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)

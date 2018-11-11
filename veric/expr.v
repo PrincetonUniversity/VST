@@ -248,6 +248,8 @@ Inductive tc_assert :=
 | tc_nonzero': expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
+| tc_isint: expr -> tc_assert
+| tc_islong: expr -> tc_assert
 | tc_test_eq': expr -> expr -> tc_assert
 | tc_test_order': expr -> expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
@@ -594,12 +596,15 @@ match classify_cast tfrom tto with
                         then (andb (is_long_type tto) (is_long_type tfrom)) 
                         else (andb (is_int_type tto) (is_int_type tfrom)))
            then tc_TT else 
-           if (andb (eqb_type tto int_or_ptr_type) (is_int_type tfrom))
+           if (andb (eqb_type tto int_or_ptr_type) ((if Archi.ptr64 then is_long_type else is_int_type) tfrom))
            then tc_TT else
            if (andb (eqb_type tto int_or_ptr_type) (is_pointer_type tfrom))
            then tc_TT else
            if (andb (eqb_type tfrom int_or_ptr_type) (is_pointer_type tto))
-            tc_iszero a)
+           then tc_isptr a else
+           if (andb (eqb_type tfrom int_or_ptr_type) ((if Archi.ptr64 then is_long_type else is_int_type) tto))
+           then (if Archi.ptr64 then tc_islong else tc_isint) a
+           else tc_iszero a
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)

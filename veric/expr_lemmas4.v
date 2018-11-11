@@ -349,7 +349,7 @@ Lemma sem_cast_e1:
    tc_val t v ->
    Cop.sem_cast v t t1 m = Some v1.
 Proof.
-intros.
+intros.  
 destruct (eqb_type t int_or_ptr_type) eqn:J;
  [apply eqb_type_true in J; subst t
  | apply eqb_type_false in J];
@@ -363,17 +363,21 @@ destruct (eqb_type t int_or_ptr_type) eqn:J;
   destruct v1; auto; inv H1.
 *
 unfold sem_cast, classify_cast in H.
-rewrite eqb_type_refl in H.
 destruct t1; auto.
-destruct i,s; auto; try solve [destruct v; inv H];
-destruct (classify_cast int_or_ptr_type (Tint IBool Signed a)) eqn:J;
- try congruence; inv J. (* contradiction H0. reflexivity. *)
-inv H.
++
+destruct i,s; auto; try solve [destruct v; inv H]; try solve [inv H0];
+simpl in H;
+simpl;
+destruct Archi.ptr64; auto;
+destruct v; inv H1; inv H; auto.
++
 destruct f; inv H.
++
 clear H0.
 unfold int_or_ptr_type at 1 in H.
-rewrite (proj2 (eqb_type_false _ _) J0) in H.
 inv H.
+simpl.
+destruct v1; inv H1; auto.
 *
 unfold sem_cast in H.
 destruct t; try solve [inv H].
@@ -388,9 +392,31 @@ destruct t; try solve [inv H].
 {
 unfold classify_cast in H.
 unfold int_or_ptr_type at 1 in H.
-rewrite eqb_type_refl in H.
-rewrite (proj2 (eqb_type_false _ _) J) in H.
 inv H.
+simpl.
+unfold tc_val in H1.
+rewrite <- eqb_type_spec in J.
+destruct (eqb_type (Tpointer t a) int_or_ptr_type); [congruence |].
+hnf in H1.
+destruct v1; tauto.
+}
+{
+unfold classify_cast in H.
+unfold int_or_ptr_type at 1 in H.
+inv H.
+simpl.
+unfold tc_val in H1.
+hnf in H1.
+destruct v1; tauto.
+}
+{
+unfold classify_cast in H.
+unfold int_or_ptr_type at 1 in H.
+inv H.
+simpl.
+unfold tc_val in H1.
+hnf in H1.
+destruct v1; tauto.
 }
 *
 revert H.
