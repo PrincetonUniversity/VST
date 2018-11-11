@@ -211,8 +211,7 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tint IBool _ _, Tfloat F64 _ => cast_case_f2bool
   | Tint IBool _ _, Tfloat F32 _ => cast_case_s2bool
   | Tint IBool _ _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-    if eqb_type tfrom int_or_ptr_type then cast_case_default 
-    else if Archi.ptr64 then cast_case_l2bool else cast_case_i2bool
+      if Archi.ptr64 then cast_case_l2bool else cast_case_i2bool
   (* To [int] other than [_Bool] *)
   | Tint sz2 si2 _, Tint _ _ _ =>
       if Archi.ptr64 then cast_case_i2i sz2 si2
@@ -222,8 +221,7 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tint sz2 si2 _, Tfloat F64 _ => cast_case_f2i sz2 si2
   | Tint sz2 si2 _, Tfloat F32 _ => cast_case_s2i sz2 si2
   | Tint sz2 si2 _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) =>
-      if eqb_type tfrom int_or_ptr_type then cast_case_default 
-      else if Archi.ptr64 then cast_case_l2i sz2 si2
+      if Archi.ptr64 then cast_case_l2i sz2 si2
       else if intsize_eq sz2 I32 then cast_case_pointer
       else cast_case_i2i sz2 si2
   (* To [long] *)
@@ -233,11 +231,9 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tlong si2 _, Tfloat F64 _ => cast_case_f2l si2
   | Tlong si2 _, Tfloat F32 _ => cast_case_s2l si2
   | Tlong si2 _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) =>
-      if eqb_type tfrom int_or_ptr_type 
-              then cast_case_default 
-      else if Archi.ptr64 
-         then cast_case_pointer 
-         else cast_case_i2l si2
+      if Archi.ptr64 
+      then cast_case_pointer 
+      else cast_case_i2l si2
   (* To [float] *)
   | Tfloat F64 _, Tint sz1 si1 _ => cast_case_i2f si1
   | Tfloat F32 _, Tint sz1 si1 _ => cast_case_i2s si1
@@ -250,17 +246,22 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   (* To pointer types *)
   | Tpointer _ _, Tint _ _ _ =>
       if eqb_type tto int_or_ptr_type 
-      then cast_case_pointer
-      else if Archi.ptr64 then cast_case_i2l Unsigned 
-      else cast_case_pointer
+      then if Archi.ptr64
+           then cast_case_default
+           else cast_case_pointer
+      else if Archi.ptr64
+           then cast_case_i2l Unsigned 
+           else cast_case_pointer
   | Tpointer _ _, Tlong _ _ =>
       if eqb_type tto int_or_ptr_type 
-      then cast_case_default 
-      else if Archi.ptr64 then cast_case_pointer else cast_case_l2i I32 Unsigned
+      then if Archi.ptr64
+           then cast_case_pointer
+           else cast_case_default
+      else if Archi.ptr64
+           then cast_case_pointer
+           else cast_case_l2i I32 Unsigned
   | Tpointer _ _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-       if eqb (eqb_type tto int_or_ptr_type) (eqb_type tfrom int_or_ptr_type)
-       then cast_case_pointer
-       else cast_case_default
+       cast_case_pointer
   (* To struct or union types *)
   | Tstruct id2 _, Tstruct id1 _ => cast_case_struct id1 id2
   | Tunion id2 _, Tunion id1 _ => cast_case_union id1 id2

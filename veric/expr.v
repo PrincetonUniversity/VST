@@ -589,14 +589,17 @@ match classify_cast tfrom tto with
              (if is_pointer_type tto then tc_iszero a else tc_TT)
 | Cop.cast_case_pointer  => 
            if eqb_type tfrom tto then tc_TT else
-           (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
+           if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
                        (if Archi.ptr64
                         then (andb (is_long_type tto) (is_long_type tfrom)) 
                         else (andb (is_int_type tto) (is_int_type tfrom)))
-              then tc_TT
-              else if (andb (eqb_type tto int_or_ptr_type) (is_int_type tfrom))
-                   then tc_TT
-                   else tc_iszero a)
+           then tc_TT else 
+           if (andb (eqb_type tto int_or_ptr_type) (is_int_type tfrom))
+           then tc_TT else
+           if (andb (eqb_type tto int_or_ptr_type) (is_pointer_type tfrom))
+           then tc_TT else
+           if (andb (eqb_type tfrom int_or_ptr_type) (is_pointer_type tto))
+            tc_iszero a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
