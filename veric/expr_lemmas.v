@@ -674,6 +674,11 @@ inv HH; inv H6; try inv H8; try inv H2; auto.
 }
 }
 }
+destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0.
+apply eqb_type_true in J0; rewrite J0 in *.
+simpl in *.
+destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; contradiction.
+
 unfold sem_cast_pointer in *;
 destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:T2;
 destruct Archi.ptr64 eqn:Hp;
@@ -749,15 +754,6 @@ do 3 red in H6;
 apply is_true_e in H6; apply int64_eq_e in H6; subst; hnf; rewrite Hp; auto).
 
 all: try (inv H1; reflexivity).
-
-all: try inv Hp.
-
-all: try (revert H; simple_if_tac; intros; inv H; try inv H6; simpl in *).
-all: try solve [(rewrite denote_tc_assert_iszero' in H6; simpl in H6;
-unfold_lift in H6; simpl in H6;
-destruct (eval_expr e2 rho); try inv H6; simpl; auto)].
-
-
 Qed.
 
 
