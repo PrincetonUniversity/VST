@@ -193,17 +193,13 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  +
   apply eqb_type_true in J. rewrite J in *.
   exists v.
+  hnf in H; rewrite eqb_type_refl in H; unfold is_pointer_or_integer in H;
+  rewrite Hp in H.
   destruct v; try contradiction;
-  destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | [ | ] ? | | | | | ]; try contradiction;
-  try (hnf in H; rewrite eqb_type_refl in H; unfold is_pointer_or_integer in H;
-       rewrite Hp in H; contradiction H);
   unfold classify_cast in *;
-  destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | [ | ] ? | | | | | ]; try contradiction;
-  try unfold int_or_ptr_type at 1 in H0; rewrite eqb_type_refl in H0|-*;
-  unfold int_or_ptr_type at 1;
-  destruct (eqb_type (Tpointer _ a) int_or_ptr_type) eqn:Heqb0; try contradiction;
-  rewrite eqb_type_sym in Heqb0; rewrite Heqb0 in H0;
-  simpl; simpl in H0; auto.
+  destruct t0 as [ | [ | | | ] [ | ] ? | i2 ? | [ | ] ? | | | | | ];
+  rewrite ?Hp in *; try contradiction;
+  simpl in H0 |- *; auto.
 +
  unfold sem_cast_pointer, classify_cast in *. rewrite Hp, J in *.
  destruct (eqb_type t0 int_or_ptr_type) eqn:J0.
@@ -212,9 +208,10 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
   unfold int_or_ptr_type at 1 in H0. unfold int_or_ptr_type at 1.
   destruct (is_int_type t) eqn:?HH.
   ** destruct t; try inv HH.
-     eauto.
+     inv H0.
   ** 
-  destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | ]; destruct v; try contradiction; try inv HH.
+    destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | ]; destruct v; try contradiction; try inv HH;
+    eauto.
  -
  destruct t0 as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; rewrite ?J0; eauto;
   destruct t as [ | [ | | | ] [ | ] ? | ? ? | [ | ] ? | | | | | ]; try contradiction; 
@@ -247,22 +244,13 @@ destruct (eqb_type t int_or_ptr_type) eqn:J.
  +
   apply eqb_type_true in J. rewrite J in *.
   exists v.
-  destruct v; try contradiction.
-  destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | [ | ] ? | | | | | ]; try contradiction.
-  unfold classify_cast in *. unfold int_or_ptr_type at 1 in H0.
-  rewrite eqb_type_refl in H0|-*.
- unfold int_or_ptr_type at 1.
-  destruct (eqb_type (Tpointer t0 a) int_or_ptr_type) eqn:?; try contradiction.
-  rewrite eqb_type_sym in Heqb. rewrite Heqb in H0.
-  simpl. simpl in H0.
-  reflexivity.
-  destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | [ | ] ? | | | | | ]; try contradiction.
-  unfold classify_cast in *. unfold int_or_ptr_type at 1 in H0.
-  rewrite eqb_type_refl in H0|-*.
- unfold int_or_ptr_type at 1.
-  destruct (eqb_type (Tpointer t0 a) int_or_ptr_type) eqn:?; try contradiction.
-  rewrite eqb_type_sym in Heqb0. rewrite Heqb0 in H0.
-  simpl. simpl in H0. auto.
+  hnf in H; rewrite eqb_type_refl in H; unfold is_pointer_or_integer in H;
+  rewrite Hp in H.
+  destruct v; try contradiction;
+  unfold classify_cast in *;
+  destruct t0 as [ | [ | | | ] [ | ] ? | i2 ? | [ | ] ? | | | | | ];
+  rewrite ?Hp in *; try contradiction;
+  simpl in H0 |- *; auto.
 +
  unfold sem_cast_pointer, classify_cast in *. rewrite Hp, J in *.
  destruct (eqb_type t0 int_or_ptr_type) eqn:J0.
@@ -594,10 +582,9 @@ apply orb_true_iff in H.
 destruct H.
 apply eqb_type_true in H. rewrite H in *.
 rewrite J in *.
-rewrite eqb_type_refl in *. rewrite eqb_reflx in *.
+rewrite eqb_type_refl in *.
 auto.
 destruct (eqb_type (Tpointer t0 a) int_or_ptr_type) eqn:?J; inv H.
-rewrite eqb_reflx in H0. 
 auto.
 Qed.
 
