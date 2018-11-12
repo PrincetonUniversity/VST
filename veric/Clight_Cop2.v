@@ -211,7 +211,9 @@ Definition classify_cast (tfrom tto: type) : classify_cast_cases :=
   | Tint IBool _ _, Tfloat F64 _ => cast_case_f2bool
   | Tint IBool _ _, Tfloat F32 _ => cast_case_s2bool
   | Tint IBool _ _, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => 
-      if Archi.ptr64 then cast_case_l2bool else cast_case_i2bool
+      if eqb_type tfrom int_or_ptr_type
+      then cast_case_default
+      else if Archi.ptr64 then cast_case_l2bool else cast_case_i2bool
   (* To [int] other than [_Bool] *)
   | Tint sz2 si2 _, Tint _ _ _ =>
       if Archi.ptr64 then cast_case_i2i sz2 si2
