@@ -626,8 +626,7 @@ Lemma tc_val_sem_cast:
       denote_tc_assert (isCastResultType (typeof e2) t2  e2) rho phi ->
       tc_val t2 (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))).
 Proof.
-Admitted.
-(*intros ? ? ? ? ? ? H2 H5 H6.
+intros ? ? ? ? ? ? H2 H5 H6.
 assert (H7 := cast_exists _ _ _ _ phi H2 H5 H6).
 assert (H8 := typecheck_expr_sound _ _ _ _ H2 H5).
 clear - H7 H6 H8.
@@ -639,35 +638,52 @@ unfold tc_val, sem_cast, classify_cast in *.
 destruct (eqb_type t2 int_or_ptr_type) eqn:J.
 {
 apply eqb_type_true in J; subst t2.
-simpl in *.
-destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0.
+destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0;
+[| destruct (is_int_type (typeof e2)) eqn:?HH;
+[| destruct (is_pointer_type (typeof e2)) eqn:?HH] ].
 {
 apply eqb_type_true in J0; rewrite J0 in *.
 simpl in *.
 destruct (eval_expr e2 rho); inv H; auto.
 }
 {
-destruct (is_int_type (typeof e2)) eqn:?HH.
-{
 destruct (typeof e2); try solve [inv HH].
 simpl in H6.
 rewrite N.eqb_refl in H6.
-destruct Archi.ptr64 eqn:?HH; try inv HH0.
+destruct Archi.ptr64 eqn:Hp; try inv H.
 simpl in H6.
-inv H.
-destruct (eval_expr e2 rho); auto; inv H8.
+destruct (eval_expr e2 rho); auto.
 }
 {
+unfold is_pointer_type in *.
+rewrite J0 in *.
+rewrite eqb_type_refl in H6.
+simpl in *.
+destruct (typeof e2); try solve [inv HH0];
+destruct Archi.ptr64 eqn:Hp; try inv H;
+destruct (eval_expr e2 rho); auto.
+}
+
+{
+unfold is_pointer_type in *.
+rewrite J0 in *.
+rewrite eqb_type_refl in H6.
+simpl in *.
 destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-inv HH; inv H6; try inv H8; try inv H2; auto.
+inv HH; inv HH0; try inv H6; try inv H8; try inv H2; auto.
 }
-}
+
 }
 destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0.
-apply eqb_type_true in J0; rewrite J0 in *.
+{
+unfold is_pointer_type in *.
+rewrite J0 in *.
+apply eqb_type_true in J0; rewrite J0, ?J in *.
+rewrite (eqb_type_sym int_or_ptr_type t2), J in *.
 simpl in *.
-destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; contradiction.
-
+destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try contradiction;
+destruct Archi.ptr64; simpl in *; inv H; try inv H6; destruct (eval_expr e2 rho); inv H6; auto.
+}
 unfold sem_cast_pointer in *;
 destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:T2;
 destruct Archi.ptr64 eqn:Hp;
@@ -747,8 +763,3 @@ Qed.
 
 
 
-
-
-
-
-*)
