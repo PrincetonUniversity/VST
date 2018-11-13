@@ -551,8 +551,8 @@ intros.
 subst.
 hnf in H1.
 simpl in H1. rewrite andb_false_r in H1.
-unfold sem_cast, classify_cast; simpl; rewrite !andb_false_r.
-destruct v; inv H1; reflexivity.
+unfold sem_cast, classify_cast; simpl.
+reflexivity.
 Qed.
 
 Lemma force_eval_var_int_ptr :

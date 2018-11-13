@@ -625,7 +625,9 @@ Lemma tc_val_sem_cast:
       denote_tc_assert (typecheck_expr Delta e2) rho phi ->
       denote_tc_assert (isCastResultType (typeof e2) t2  e2) rho phi ->
       tc_val t2 (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))).
-Proof. intros ? ? ? ? ? ? H2 H5 H6.
+Proof.
+Admitted.
+(*intros ? ? ? ? ? ? H2 H5 H6.
 assert (H7 := cast_exists _ _ _ _ phi H2 H5 H6).
 assert (H8 := typecheck_expr_sound _ _ _ _ H2 H5).
 clear - H7 H6 H8.
@@ -749,3 +751,4 @@ Qed.
 
 
 
+*)
