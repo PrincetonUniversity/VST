@@ -215,7 +215,7 @@ forward_if (EX shaStates:_ ,
       destruct k; try contradiction.
       Time simple_if_tac; entailer!. (* 0.92 *)
       Exists b i.
-      entailer!. }
+      entailer!. simpl; entailer!. }
     Intros kb kofs.
     rename H into H0.
        assert (ZZ: exists HMS':reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS. trivial.

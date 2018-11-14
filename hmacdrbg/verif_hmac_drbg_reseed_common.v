@@ -279,7 +279,7 @@ Proof.
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
     rewrite XH1, SEED.
-    go_lower. normalize.
+    go_lower. simpl. normalize.
     apply andp_right. apply prop_right. repeat split; auto.
 
 
@@ -327,7 +327,7 @@ Proof.
 
   + rewrite H in Heqnon_empty_additional; clear H.
     forward.
-    go_lower. normalize.
+    go_lower. simpl. normalize.
     assert (contents' = nil).
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl in *.
