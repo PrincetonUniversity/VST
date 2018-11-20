@@ -2187,7 +2187,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 Asm_code_inject mu code1 code2 /\
                 self_simulation.match_mem mu (restrPermMap (proj1 (Hcmpt1 tid Htid1)))
                                           (restrPermMap (proj1 (Hcmpt2 tid Htid2)))
-                /\
+                /\ 
                 List.Forall2 (inject_mevent mu')
                              (seq.cat tr1 (Events.external tid (Events.release (b, Integers.Ptrofs.unsigned ofs) (Some (build_delta_content (fst virtueThread) m1'))) :: nil))
                              (seq.cat tr2 (Events.external tid e' :: nil)) /\
