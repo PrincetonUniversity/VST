@@ -495,8 +495,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         ; INJ_lock_permissions:
             forall b b' delt rmap,
               j b = Some (b', delt) ->
-              forall ofs, lockRes cstate1 (b, intval ofs) = Some rmap ->
-                     lockRes cstate2 (b', intval (add ofs (repr delt))) =
+              forall ofs, lockRes cstate1 (b, unsigned ofs) = Some rmap ->
+                     lockRes cstate2 (b', unsigned (add ofs (repr delt))) =
                      Some (virtueLP_inject m2 j rmap)
         ; INJ_lock_content:
             forall b ofs rmap,
@@ -1221,7 +1221,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             (newThreadPerm : access_map * access_map) (pmap : lock_info)
             (Hcmpt: mem_compatible st1 m1)
           (Hlt': permMapLt
-           (setPermBlock (Some Writable) b (Integers.Ptrofs.intval ofs)
+           (setPermBlock (Some Writable) b (Integers.Ptrofs.unsigned ofs)
               (snd (ThreadPool.getThreadR Htid)) LKSIZE_nat) (getMaxPerm m1))
           (Hbounded : bounded_maps.sub_map (fst virtueThread) (snd (getMaxPerm m1)) /\
              bounded_maps.sub_map (snd virtueThread) (snd (getMaxPerm m1)))
@@ -1231,24 +1231,24 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                  Some (LOCK, (Vptr b ofs :: nil)%list) ->
             getThreadC Htid = Kblocked c ->
             Mem.load AST.Mint32 (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                     (Integers.Ptrofs.intval ofs) = Some (Vint Integers.Int.one) ->
+                     (Integers.Ptrofs.unsigned ofs) = Some (Vint Integers.Int.one) ->
              Mem.range_perm (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-              (Integers.Ptrofs.intval ofs) (BinInt.Z.add (Integers.Ptrofs.intval ofs) LKSIZE)
+              (Integers.Ptrofs.unsigned ofs) (BinInt.Z.add (Integers.Ptrofs.unsigned ofs) LKSIZE)
               Cur Readable ->
-             Mem.store AST.Mint32 (restrPermMap Hlt') b (Integers.Ptrofs.intval ofs)
+             Mem.store AST.Mint32 (restrPermMap Hlt') b (Integers.Ptrofs.unsigned ofs)
              (Vint Integers.Int.zero) = Some m1' ->
-            ThreadPool.lockRes st1 (b, Integers.Ptrofs.intval ofs) = Some pmap ->
+            ThreadPool.lockRes st1 (b, Integers.Ptrofs.unsigned ofs) = Some pmap ->
             permMapJoin (fst pmap) (fst (ThreadPool.getThreadR Htid)) (fst newThreadPerm) ->
             permMapJoin (snd pmap) (snd (ThreadPool.getThreadR Htid)) (snd newThreadPerm) ->
             exists e' (st2' : ThreadPool.t) (m2' : mem) (cd' : option compiler_index) (mu' : meminj),
               concur_match cd' mu'
                            (ThreadPool.updLockSet (ThreadPool.updThread Htid (Kresume c Vundef) newThreadPerm)
-                                                  (b, Integers.Ptrofs.intval ofs) (empty_map, empty_map)) m1' st2' m2' /\
+                                                  (b, Integers.Ptrofs.unsigned ofs) (empty_map, empty_map)) m1' st2' m2' /\
               List.Forall2 (inject_mevent mu')
                            (seq.cat tr1
                                     (Events.external tid
                                                      (Events.acquire
-                                                        (b, Integers.Ptrofs.intval ofs)
+                                                        (b, Integers.Ptrofs.unsigned ofs)
                                                      (Some (build_delta_content (fst virtueThread) m1'))) :: nil))
                                                (seq.cat tr2 (Events.external tid e' :: nil)) /\
               HybridMachineSig.external_step(scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
@@ -1426,7 +1426,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             (HTraceInj: List.Forall2 (inject_mevent mu) tr1 tr2)
             (Hlt' : permMapLt
                          (setPermBlock (Some Writable) b
-                                       (Integers.Ptrofs.intval ofs)
+                                       (Integers.Ptrofs.unsigned ofs)
                                        (snd (getThreadR Htid)) LKSIZE_nat)
                          (getMaxPerm m1))
             (Hbounded: bounded_maps.sub_map (fst virtueThread) (snd (getMaxPerm m1)) /\
@@ -1443,15 +1443,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                            Some (UNLOCK, (Vptr b ofs :: nil)%list))
             (Hload: Mem.load AST.Mint32
                              (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                             (Integers.Ptrofs.intval ofs) = Some (Vint Integers.Int.zero))
+                             (Integers.Ptrofs.unsigned ofs) = Some (Vint Integers.Int.zero))
             (Haccess: Mem.range_perm
                         (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                        (Integers.Ptrofs.intval ofs)
-                        (BinInt.Z.add (Integers.Ptrofs.intval ofs) LKSIZE) Cur Readable)
+                        (Integers.Ptrofs.unsigned ofs)
+                        (BinInt.Z.add (Integers.Ptrofs.unsigned ofs) LKSIZE) Cur Readable)
             (Hstore: Mem.store AST.Mint32 (restrPermMap Hlt') b
-                               (Integers.Ptrofs.intval ofs) (Vint Integers.Int.one) = 
+                               (Integers.Ptrofs.unsigned ofs) (Vint Integers.Int.one) = 
                      Some m1')
-            (HisLock: ThreadPool.lockRes st1 (b, Integers.Ptrofs.intval ofs) =
+            (HisLock: ThreadPool.lockRes st1 (b, Integers.Ptrofs.unsigned ofs) =
                       Some rmap)
             (Hrmap: (forall (b0 : BinNums.positive) (ofs0 : BinNums.Z),
                         (fst rmap) !! b0 ofs0 = None /\ (snd rmap) !! b0 ofs0 = None))
@@ -1468,9 +1468,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                                                   (computeMap (fst (getThreadR Htid))
                                                               (fst virtueThread),
                                                    computeMap (snd (getThreadR Htid))
-                                                              (snd virtueThread))) (b, Integers.Ptrofs.intval ofs)
+                                                              (snd virtueThread))) (b, Integers.Ptrofs.unsigned ofs)
                             virtueLP) m1' st2' m2' /\
-            List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.release (b, Integers.Ptrofs.intval ofs) (Some (build_delta_content (fst virtueThread) m1'))) :: nil))
+            List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.release (b, Integers.Ptrofs.unsigned ofs) (Some (build_delta_content (fst virtueThread) m1'))) :: nil))
                          (seq.cat tr2 (Events.external tid e' :: nil)) /\
             HybridMachineSig.external_step
               (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
@@ -1491,20 +1491,32 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             forall (b1 b2 : block) (delt ofs: Z),
               f b1 = Some (b2, delt) ->
               Mem.perm_order'' (pmap2 !! b2 (ofs+delt)%Z) (pmap1 !! b1 ofs).
+            Lemma access_map_inject_morphism':
+              Proper (Logic.eq ==> access_map_equiv  ==> access_map_equiv ==> Basics.impl)
+                     access_map_inject.
+            Proof.
+              intros ????????? HH ?????; subst.
+              rewrite <- H1, <- H0.
+              eapply HH; eauto.
+            Qed.
+            Instance access_map_inject_morphism:
+              Proper (Logic.eq ==> access_map_equiv  ==> access_map_equiv ==> Logic.iff)
+                     access_map_inject.
+            Proof. split; eapply access_map_inject_morphism'; auto; symmetry; auto. Qed.
+            (*
             Lemma access_map_injected_extentional1:
               forall f pm1 pm1' pm2,
                 access_map_inject f pm1 pm2 ->
             (forall b, pm1 !! b = pm1' !! b) ->
             access_map_inject f pm1' pm2.
-            Proof.
-              intros. intros ????. rewrite <- H0. auto. Qed.
+            Proof. intros. intros ????. rewrite <- H0. auto. Qed.
             Lemma access_map_injected_extentional2:
               forall f pm1 pm2 pm2',
                 access_map_inject f pm1 pm2 ->
             (forall b , pm2 !! b = pm2' !! b) ->
             access_map_inject f pm1 pm2'.
             Proof.
-              intros. intros ????. rewrite <- H0. auto. Qed.
+              intros. intros ????. rewrite <- H0. auto. Qed. *)
             Lemma access_map_injected_getMaxPerm:
               forall f m1 m2,
                 Mem.inject f m1 m2 ->
@@ -1546,7 +1558,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
                 (b : block) (ofs : ptrofs) P,
                 permMapLt
-                  (setPermBlock P b (intval ofs) cur_perm1 n)
+                  (setPermBlock P b (unsigned ofs) cur_perm1 n)
                   max_perm1 ->
                 Mem.inject mu m1 m2 ->
                 access_map_inject mu max_perm1 max_perm2 -> 
@@ -1554,12 +1566,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   mu b = Some (b', delt) ->
                   permMapLt cur_perm2 max_perm2 ->
                   permMapLt
-                    (setPermBlock P b' (intval ofs + delt)
+                    (setPermBlock P b' (unsigned ofs + delt)
                                   cur_perm2 n) max_perm2.
             Proof.
               intros; intros b0 ofs0.
               destruct (Clight_lemmas.block_eq_dec b' b0);
-                [destruct (Intv.In_dec ofs0 ((intval ofs + delt)%Z, (intval ofs + delt + (Z.of_nat n))%Z))|
+                [destruct (Intv.In_dec ofs0 ((unsigned ofs + delt)%Z, (unsigned ofs + delt + (Z.of_nat n))%Z))|
                 ].
               - subst. unfold Intv.In in i; simpl in *.
                 rewrite setPermBlock_same; auto.
@@ -1586,7 +1598,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 (st2 : t(resources:=dryResources)(Sem:=Sem2)) (mu : meminj) (m2 : mem) (Htid1 : containsThread st1 tid)
                 (b : block) (ofs : ptrofs),
                 permMapLt
-                  (setPermBlock (Some Writable) b (intval ofs) (snd (getThreadR Htid1)) n)
+                  (setPermBlock (Some Writable) b (unsigned ofs) (snd (getThreadR Htid1)) n)
                   (getMaxPerm m1) ->
                 Mem.inject mu m1 m2 ->
                 forall (b' : block) (delt : Z),
@@ -1594,13 +1606,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   forall Htid2 : containsThread st2 tid,
                     permMapLt (snd (getThreadR Htid2)) (getMaxPerm m2) ->
                     permMapLt
-                      (setPermBlock (Some Writable) b' (intval ofs + delt)
+                      (setPermBlock (Some Writable) b' (unsigned ofs + delt)
                                     (snd (getThreadR Htid2)) n) (getMaxPerm m2).
             Proof.
 
               intros; intros b0 ofs0. 
               destruct (Clight_lemmas.block_eq_dec b' b0);
-                [destruct (Intv.In_dec ofs0 ((intval ofs + delt)%Z, (intval ofs + delt + (Z.of_nat n))%Z))|
+                [destruct (Intv.In_dec ofs0 ((unsigned ofs + delt)%Z, (unsigned ofs + delt + (Z.of_nat n))%Z))|
                 ].
               - subst. unfold Intv.In in i; simpl in *.
                 rewrite setPermBlock_same; auto.
@@ -1812,249 +1824,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               Qed.
               Hint Resolve LKSIZE_nat_pos.
 
-              (** * End of Lemmas for relase diagram*)
+              (** * The following lemmas prove the injection 
+                  of memories unfer setPermBlock.
+               *)
 
-              
-              (* The release diagram where only a compiled thread is stepping *)
-              Lemma release_step_diagram_target:
-                forall (U : list nat) (tr1 tr2 : HybridMachineSig.event_trace)
-                  (st1 : ThreadPool (Some hb)) (m1 m1' : mem) 
-                  (tid : nat) (cd : option compiler_index)
-                  (st2 : ThreadPool (Some (S hb))) (mu : meminj) 
-                  (m2 : mem)
-                  (Htid1 : ThreadPool.containsThread st1 tid)
-                  (Htid2 : ThreadPool.containsThread st2 tid)
-                  (code1: Asm.state) (b : block) (ofs : Integers.Ptrofs.int)
-                  (virtueThread : PTree.t
-                                    (BinNums.Z -> option (option permission)) *
-                                  PTree.t
-                                    (BinNums.Z -> option (option permission)))
-                  (virtueLP : PMap.t (BinNums.Z -> option permission) *
-                              PMap.t (BinNums.Z -> option permission))
-                  (rmap : lock_info) (newThreadPerm : access_map * access_map)
-                  (HSched: HybridMachineSig.schedPeek U = Some tid)
-                  (Hcmpt1 : mem_compatible st1 m1)
-                  (CMatch:concur_match cd mu st1 m1 st2 m2)
-                  (target_inv: invariant st2)
-                  (HTraceInj: List.Forall2 (inject_mevent mu) tr1 tr2)
-                  (Hlt1 : permMapLt
-                            (setPermBlock (Some Writable) b
-                                          (Integers.Ptrofs.intval ofs)
-                                          (snd (ThreadPool.getThreadR Htid1)) LKSIZE_nat)
-                            (getMaxPerm m1))
-                  (Hbounded: bounded_maps.sub_map (fst virtueThread) (snd (getMaxPerm m1)) /\
-                             bounded_maps.sub_map (snd virtueThread) (snd (getMaxPerm m1)))
-                  (HboundedLP: bounded_maps.map_empty_def (fst virtueLP) /\
-                               bounded_maps.map_empty_def (snd virtueLP) /\
-                               bounded_maps.sub_map (snd (fst virtueLP)) (snd (getMaxPerm m1)) /\
-                               bounded_maps.sub_map (snd (snd virtueLP)) (snd (getMaxPerm m1)))
-                  (Hinv: invariant st1)
-                  (Hcode: ThreadPool.getThreadC Htid1 = Kblocked (TST code1))
-                  (Hat_external: semantics.at_external
-                                   (semantics.csem (event_semantics.msem (@semSem AsmSem) )) (code1)
-                                   (restrPermMap (fst (ssrfun.pair_of_and (Hcmpt1 tid Htid1)))) =
-                                 Some (UNLOCK, (Vptr b ofs :: nil)%list))
-                  (Hload: Mem.load AST.Mint32
-                                   (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt1 tid Htid1)))) b
-                                   (Integers.Ptrofs.intval ofs) = Some (Vint Integers.Int.zero))
-                  (Haccess: Mem.range_perm
-                              (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt1 tid Htid1)))) b
-                              (Integers.Ptrofs.intval ofs)
-                              (BinInt.Z.add (Integers.Ptrofs.intval ofs) LKSIZE) Cur Readable)
-                  (Hstore: Mem.store AST.Mint32 (restrPermMap Hlt1) b
-                                     (Integers.Ptrofs.intval ofs) (Vint Integers.Int.one) = 
-                           Some m1')
-                  (HisLock: ThreadPool.lockRes st1 (b, Integers.Ptrofs.intval ofs) =
-                            Some rmap)
-                  (Hrmap: (forall (b0 : BinNums.positive) (ofs0 : BinNums.Z),
-                              (fst rmap) !! b0 ofs0 = None /\ (snd rmap) !! b0 ofs0 = None))
-                  (Hangel1: permMapJoin (fst newThreadPerm) (fst virtueLP)
-                                        (fst (ThreadPool.getThreadR Htid1)))
-                  (Hangel2: permMapJoin (snd newThreadPerm) (snd virtueLP)
-                                        (snd (ThreadPool.getThreadR Htid1)))
-                  code2 (Hcmpt2: mem_compatible st2 m2)
-                  (Amatch : Asm_match mu code1
-                                      (restrPermMap (proj1 (Hcmpt1 tid Htid1)))
-                                      code2
-                                      (restrPermMap
-                                         (proj1
-                                            (Hcmpt2 tid (Htid2)))) )
-                  (getCode2 : Kblocked (TST code2) = ThreadPool.getThreadC Htid2)
-                  (Hinj_lock: 
-                     Mem.inject mu (restrPermMap (proj2 (Hcmpt1 tid Htid1)))
-                                (restrPermMap (proj2 (Hcmpt2 tid Htid2))))
-                  b' delt (Hinj_b : mu b = Some (b', delt)),
-                  let code1' := (Kresume (TST code1) Vundef) in
-                  exists e' (m2' : mem) Htid2
-                    (mu' : meminj),
-                    Asm_code_inject mu code1 code2 /\
-                    self_simulation.match_mem mu (restrPermMap (proj1 (Hcmpt1 tid Htid1)))
-                                              (restrPermMap (proj1 (Hcmpt2 tid Htid2)))
-                    /\
-                    List.Forall2 (inject_mevent mu')
-                                 (seq.cat tr1 (Events.external tid (Events.release (b, Integers.Ptrofs.intval ofs) (Some (build_delta_content (fst virtueThread) m1'))) :: nil))
-                                 (seq.cat tr2 (Events.external tid e' :: nil)) /\
-                    let virtueThread2:= (virtueThread_inject m2 mu virtueThread)  in
-                    let virtueLP2:= virtueLP_inject m2 mu virtueLP  in
-                    let st2':=
-                        (ThreadPool.updLockSet
-                           (ThreadPool.updThread
-                              (tp:=st2)
-                              (tid:=tid)
-                              (Sem:=HybridSem (Some (S hb)))
-                              (resources:=dryResources)
-                              Htid2 (Kresume (TST code2) Vundef)
-                              (computeMap (fst (ThreadPool.getThreadR Htid2)) (fst virtueThread2),
-                               computeMap (snd (ThreadPool.getThreadR Htid2)) (snd virtueThread2))) 
-                           (b', intval (add ofs (repr delt))) virtueLP2) in 
-                    HybridMachineSig.external_step
-                      (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-                      U tr2 st2 m2 (HybridMachineSig.schedSkip U)
-                      (seq.cat tr2
-                               (Events.external tid e' :: nil)) st2' m2'.
-              Proof.
-                intros.
 
-                
-                
-                
-                inversion Amatch; clear Amatch.
-                remember (virtueThread_inject m2 mu virtueThread)  as virtueThread2.
-                remember (virtueLP_inject m2 mu virtueLP) as virtueLP2.
-                
-                assert (Hstore': exists (Hlt2': permMapLt
-                                             (setPermBlock (Some Writable) b' (intval ofs + delt)
-                                                           (snd (getThreadR Htid2)) LKSIZE_nat) (getMaxPerm m2)),
-                           exists n2, Mem.store AST.Mint32 (restrPermMap Hlt2') b' 
-                                           (intval ofs + delt) (Vint Int.one) = Some n2 /\ 
-                                 Mem.inject mu m1' n2).
-                {
-                  
-                  (** *Constructing the target objects: events, thread_pool, mem, meminj and index*)
-
-                  (** *virtueThread*)
-                  (*First construct the virtueThread:
-                the permissions passed from the thread to the lock. *)
-
-                  (* Construct the memory with permissions to write in the lock*)
-                  assert (Hlt2':
-                            permMapLt
-                              (setPermBlock (Some Writable) b' (intval ofs + delt)%Z
-                                            (snd (getThreadR Htid2)) LKSIZE_nat) (getMaxPerm m2)).
-                  {
-                    eapply setPermBlock_inject_permMapLt; simpl in *; eauto.
-                    - eapply access_map_injected_extentional1; try eapply getMax_restr.
-                      eapply access_map_injected_extentional2; try eapply getMax_restr.
-                      eapply access_map_injected_getMaxPerm; eassumption.
-                    - eapply Hcmpt2; eauto.
-                  }
-                  exists Hlt2'.
-                  
-                  (* Construct new memory and new injection *)
-                  eapply Mem.store_mapped_inject in Hstore; eauto.
-                  { 
-
-                    (* Lemmas start here *)
-
-                    
-                    (* This lemma *)
-                    Lemma setPermBlock_range_perm:
-                      forall (m1 : mem) (b : block) (ofs : Z) (n : nat)
-                        perm perm_map,
-                        permMapLt
-                          (setPermBlock (Some perm) b ofs
-                                        perm_map n) (getMaxPerm m1) ->
-                        Mem.range_perm m1 b ofs (ofs + Z.of_nat n) Max
-                                       perm.
-                    Proof.
-                      intros m1 b ofs n perm perm_map H0.
-                      intros ? ?.
-                      specialize (H0 b ofs0).
-                      rewrite setPermBlock_same in H0; auto.
-                      unfold Mem.perm.
-                      rewrite mem_lemmas.po_oo.
-                      rewrite_getPerm; auto.
-                    Qed.
-                    
-                    Lemma range_no_overlap:
-                      forall (mu : meminj) (m1 : mem) (b1 b1' b2 b2': block)
-                        (ofs delt delta ofs0 : Z) (n : nat),
-                        Mem.meminj_no_overlap mu m1 ->
-                        mu b1 = Some (b1', delt) ->
-                        mu b2 = Some (b2', delta) ->
-                        b1 <> b2 ->
-                        Mem.perm m1 b1 ofs0 Max Nonempty ->
-                        Mem.range_perm m1 b2 ofs (ofs + Z.of_nat n) Max Nonempty ->
-                        b1' <> b2' \/ b1' = b2' /\
-                        ~ Intv.In (ofs0 + delt)
-                          ((ofs + delta)%Z, (ofs + delta + Z.of_nat n)%Z).
-                    Proof.
-                      intros ??????????? Hno_overlap Hinj1
-                             Hinj2 Hneq Hperm1 Hrange_perm2.
-                      
-                      (* The key is to do an induction over the length of the range
-                       *)
-                      assert(H: forall m, (m <= n)%nat -> b1' <> b2' \/
-                                             (~ Intv.In (ofs0 + delt)
-                                                (ofs + delta, ofs + delta + Z.of_nat m))%Z).
-                      { induction m.
-                        - intros ?. simpl; right.
-                          unfold Intv.In; simpl. clear.
-                          intros ?; omega.
-                        -  intros ?.
-                           specialize (Hno_overlap
-                                         _ _ _ _ _ _
-                                         ofs0 (ofs+Z.of_nat m)%Z
-                                         Hneq Hinj1 Hinj2).
-                           apply Hno_overlap in Hperm1.
-                           2: { eapply Hrange_perm2. omega. }
-                           destruct Hperm1 as [Hperm1|Hperm1]; auto.
-                           specialize (IHm ltac:(omega)).
-                           destruct IHm as [IHm|IHm]; auto.
-                           right; clear - IHm Hperm1.
-                           intros [? ?]; eapply IHm.
-                           split; auto.
-                           unfold Intv.In; simpl in *.
-                           clear IHm H.
-                           rewrite Zpos_P_of_succ_nat in H0.
-                           omega. }
-
-                      specialize (H _ ltac:(reflexivity)).
-                      destruct H; auto.
-                      destruct (Clight_lemmas.block_eq_dec b1' b2'); subst; auto.
-                    Qed.
-                    
-                    Lemma setPermBLock_no_overlap:
-                      forall (mu : meminj) (m1 : mem) (b b' b1 b2 : block)
-                        (ofs delt delta ofs0 : Z) (n : nat),
-                        Mem.meminj_no_overlap mu m1 ->
-                        permMapLt (setPermBlock (Some Writable)
-                                                b ofs (getCurPerm m1) n)
-                                  (getMaxPerm m1) ->
-                        mu b = Some (b', delt) ->
-                        mu b1 = Some (b2, delta) ->
-                        b1 <> b ->
-                        Mem.perm m1 b1 ofs0 Max Nonempty ->
-                        b2 <> b' \/
-                        b2 = b' /\
-                        ~ Intv.In (ofs0 + delta)
-                          ((ofs + delt)%Z, (ofs + delt + Z.of_nat n)%Z).
-                    Proof.
-                      intros; eapply range_no_overlap; eauto.
-                      clear H4.
-                      eapply setPermBlock_range_perm in H0; eauto.
-                      unfold Mem.range_perm, Mem.perm in *; intros.
-                      rewrite mem_lemmas.po_oo in *.
-                      
-                      specialize (H0 _ H4).
-                      rewrite mem_lemmas.po_oo in H0.
-                      eapply mem_lemmas.po_trans; eauto.
-                      constructor.
-                    Qed.
-
-                    (* this lemma is the first clause for proving 
-                             Mem.mem_inj (mi_perm)
-                     *)
                     Lemma setPermBlock_mi_perm_Cur:
                       forall (mu : meminj) (m1 m2 : mem) (b b' : block) (ofs delt : Z) 
                         (n : nat),
@@ -2103,7 +1877,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                           eapply juicy_mem.perm_order''_trans; eauto.
                           rewrite getCurPerm_correct.
                           eapply Mem.access_max. }
-                        
+
                         assert (Hrange_no_overlap := Hneq).
                         eapply setPermBLock_no_overlap in Hrange_no_overlap; eauto.
                         
@@ -2121,6 +1895,25 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                            simpl; omega.
                     Qed.
 
+                    Definition inject_lock_simpl
+                               size mu (b_lock:block) (ofs_lock: Z) (m1 m2:mem):=
+                      forall b_lock' delt,
+                        mu b_lock = Some (b_lock', delt) -> 
+                        ( forall ofs0,
+                            Intv.In ofs0 (ofs_lock, (ofs_lock + size)%Z) ->
+                            memval_inject mu
+                                          (ZMap.get ofs0 (Mem.mem_contents m1) !! b_lock)
+                                          (ZMap.get (ofs0 + delt)%Z
+                                                    (Mem.mem_contents m2) !! b_lock')).
+                    Lemma inject_lock_simplification:
+                      forall n mu b_lock ofs_lock m1 m2,
+                        inject_lock' n mu b_lock ofs_lock m1 m2 ->
+                        inject_lock_simpl n mu b_lock ofs_lock m1 m2.
+                    Proof. intros. destruct H as (? &? &?&HH).
+                           unfold inject_lock_simpl; intros.
+                           rewrite H in H0; inversion H0; subst.
+                           eauto.
+                    Qed.
                     Lemma setPermBlock_mem_inj:
                       forall mu m1 m2 b b' ofs delt n,
                         (0 < n)%nat ->
@@ -2161,27 +1954,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                         rewrite getCur_restr in H3.
                         destruct_address_range b ofs b1 ofs0 n.
 
-                        +
-                          Definition inject_lock_simpl
-                            size mu (b_lock:block) (ofs_lock: Z) (m1 m2:mem):=
-                            forall b_lock' delt,
-                              mu b_lock = Some (b_lock', delt) -> 
-                              ( forall ofs0,
-                                  Intv.In ofs0 (ofs_lock, (ofs_lock + size)%Z) ->
-                                  memval_inject mu
-                                                (ZMap.get ofs0 (Mem.mem_contents m1) !! b_lock)
-                                                (ZMap.get (ofs0 + delt)%Z
-                                                          (Mem.mem_contents m2) !! b_lock')).
-                          Lemma inject_lock_simplification:
-                            forall n mu b_lock ofs_lock m1 m2,
-                            inject_lock' n mu b_lock ofs_lock m1 m2 ->
-                            inject_lock_simpl n mu b_lock ofs_lock m1 m2.
-                          Proof. intros. destruct H as (? &? &?&HH).
-                                 unfold inject_lock_simpl; intros.
-                                 rewrite H in H0; inversion H0; subst.
-                                 eauto.
-                          Qed.
-                          eapply inject_lock_simplification; eauto.
+                        + eapply inject_lock_simplification; eauto.
 
                         + eapply H1; auto.
                           rewrite setPermBlock_other_1 in H3; auto.
@@ -2192,6 +1965,79 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                         + eapply H1; auto.
                           rewrite setPermBlock_other_2 in H3; auto.
                           unfold Mem.perm; rewrite_getPerm; auto.
+                    Qed.
+
+                    (* Last case for Mem.inject,
+                       using setPermBlock with Cur
+                       Helper lemma for setPermBlock_mem_inject
+                     *)
+                    Lemma setPermBlock_mi_perm_inv_Cur:
+                      forall b1 b1' ofs delt1 m1 m2 n mu,
+                        (0 < n)%nat -> 
+                        forall (Hlt1: permMapLt
+                                   (setPermBlock (Some Writable)
+                                                 b1 ofs (getCurPerm m1) n)
+                                   (getMaxPerm m1))
+                          (Hlt2: permMapLt
+                                   (setPermBlock (Some Writable)
+                                                 b1' (ofs + delt1) (getCurPerm m2) n)
+                                   (getMaxPerm m2))
+                          (Hinject:Mem.inject mu m1 m2)
+                        ,                           mu b1 = Some (b1', delt1) -> 
+                                                    forall b2 b2' ofs0 delt2 p,
+                                                      let m1_restr := (restrPermMap Hlt1) in
+                                                      let m2_restr := (restrPermMap Hlt2) in
+                                                      mu b2 = Some (b2', delt2) ->
+                                                      Mem.perm m2_restr b2' (ofs0 + delt2) Cur p ->
+                                                      Mem.perm m1_restr b2 ofs0 Cur p \/
+                                                      ~ Mem.perm m1_restr b2 ofs0 Max Nonempty.
+                    Proof.
+                      intros.
+                      unfold Mem.perm in *.
+                      repeat rewrite_getPerm.
+                      subst m1_restr m2_restr; rewrite getCur_restr in *.
+                      rewrite getMax_restr.
+                      (* try to do it backwards: destruct source blocks first*)
+                      destruct_address_range
+                        b1 (ofs)%Z b2 (ofs0)%Z n.
+                      - rewrite H0 in H1; inversion H1; subst.
+                        rewrite setPermBlock_same.
+                        2: { unfold Intv.In in *; auto. }
+                        rewrite setPermBlock_same in H2.
+                        2: { unfold Intv.In in *; simpl in *; omega. } 
+                        auto.
+                      - rewrite H0 in H1; inversion H1; subst.
+                        rewrite setPermBlock_other_1.
+                        2: { eapply Intv.range_notin in Hrange; eauto.
+                             simpl; omega. }
+                        rewrite setPermBlock_other_1 in H2.
+                        2: { eapply Intv.range_notin in Hrange; eauto;
+                             simpl in *; omega. }
+                        rewrite getCurPerm_correct, getMaxPerm_correct in *.
+                        eapply Hinject; eauto.
+                      - pose proof (Classical_Prop.classic
+                                      (Mem.perm_order' ((getMaxPerm m1) !! b2 ofs0) Nonempty))
+                          as [HH|HH]; try eauto.
+                        rewrite setPermBlock_other_2; eauto.
+                        rewrite getCurPerm_correct, getMaxPerm_correct in *.
+                        eapply Hinject; eauto.
+                        unfold Mem.perm in *; rewrite_getPerm.
+                        
+                        (* now destruct the addresses for the target blocks*)
+                        destruct_address_range
+                          b1' (ofs+delt1)%Z b2' (ofs0 + delt2)%Z n.
+                        + exploit (@range_no_overlap mu m1 b2 b1' b1 b1');
+                            try apply Hneq; eauto.
+                          * eapply Hinject.
+                          * eapply setPermBlock_range_perm in Hlt1.
+                            eapply range_perm_trans; eauto.
+                            constructor.
+                          * intros [?|[? ?]].
+                            -- contradict H3; auto.
+                            -- contradict H4; eassumption.
+                        + rewrite setPermBlock_other_1 in H2; eauto.
+                          eapply Intv.range_notin in Hrange; simpl in *; omega.
+                        + rewrite setPermBlock_other_2 in H2; eauto.
                     Qed.
                     
                     Lemma setPermBlock_mem_inject:
@@ -2255,223 +2101,221 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                             eapply (Proper_perm_max') in H4;
                             try eassumption;
                             eauto.
-                        + (* Separeate in lemma? *)
-                          Lemma setPermBlock_mi_perm_inv_Cur:
-                            forall b1 b1' ofs delt1 m1 m2 n mu,
-                              (0 < n)%nat -> 
-                              forall (Hlt1: permMapLt
-                                         (setPermBlock (Some Writable)
-                                                       b1 ofs (getCurPerm m1) n)
-                                         (getMaxPerm m1))
-                                (Hlt2: permMapLt
-                                         (setPermBlock (Some Writable)
-                                                       b1' (ofs + delt1) (getCurPerm m2) n)
-                                         (getMaxPerm m2))
-                                (Hinject:Mem.inject mu m1 m2)
-,                           mu b1 = Some (b1', delt1) -> 
-                            forall b2 b2' ofs0 delt2 p,
-                            let m1_restr := (restrPermMap Hlt1) in
-                            let m2_restr := (restrPermMap Hlt2) in
-                            mu b2 = Some (b2', delt2) ->
-                            Mem.perm m2_restr b2' (ofs0 + delt2) Cur p ->
-                            Mem.perm m1_restr b2 ofs0 Cur p \/
-                            ~ Mem.perm m1_restr b2 ofs0 Max Nonempty.
-                          Proof.
-                            intros.
-                            unfold Mem.perm in *.
-                            repeat rewrite_getPerm.
-                            subst m1_restr m2_restr; rewrite getCur_restr in *.
-                            rewrite getMax_restr.
-                            (* try to do it backwards: destruct source blocks first*)
-                            destruct_address_range
-                            b1 (ofs)%Z b2 (ofs0)%Z n.
-                            - rewrite H0 in H1; inversion H1; subst.
-                              rewrite setPermBlock_same.
-                              2: { unfold Intv.In in *; auto. }
-                              rewrite setPermBlock_same in H2.
-                              2: { unfold Intv.In in *; simpl in *; omega. } 
-                              auto.
-                            - rewrite H0 in H1; inversion H1; subst.
-                              rewrite setPermBlock_other_1.
-                              2: { eapply Intv.range_notin in Hrange; eauto.
-                                   simpl; omega. }
-                              rewrite setPermBlock_other_1 in H2.
-                              2: { eapply Intv.range_notin in Hrange; eauto;
-                                   simpl in *; omega. }
-                              rewrite getCurPerm_correct, getMaxPerm_correct in *.
-                              eapply Hinject; eauto.
-                            - pose proof (Classical_Prop.classic
-                                            (Mem.perm_order' ((getMaxPerm m1) !! b2 ofs0) Nonempty))
-                                  as [HH|HH]; try eauto.
-                              rewrite setPermBlock_other_2; eauto.
-                              rewrite getCurPerm_correct, getMaxPerm_correct in *.
-                              eapply Hinject; eauto.
-                              unfold Mem.perm in *; rewrite_getPerm.
-                              
-                              (* now destruct the addresses for the target blocks*)
-                              destruct_address_range
-                                b1' (ofs+delt1)%Z b2' (ofs0 + delt2)%Z n.
-                              + exploit (range_no_overlap mu m1 b2 b1' b1 b1');
-                                  try apply Hneq; eauto.
-                                * eapply Hinject.
-                                * eapply setPermBlock_range_perm in Hlt1.
-                                  Lemma range_perm_trans:
-                                    forall m b ofs0 ofs1 k p1 p2,
-                                    Mem.range_perm m b ofs0 ofs1 k p1 ->
-                                    perm_order p1 p2 ->
-                                    Mem.range_perm m b ofs0 ofs1 k p2.
-                                  Proof.
-                                    unfold Mem.range_perm, Mem.perm; intros.
-                                    eapply H in H1.
-                                    rewrite mem_lemmas.po_oo in *.
-                                    eapply juicy_mem.perm_order''_trans; eauto.
-                                  Qed.
-                                  eapply range_perm_trans; eauto.
-                                  constructor.
-                                * intros [?|[? ?]].
-                                  -- contradict H3; auto.
-                                  -- contradict H4; eassumption.
-                              + rewrite setPermBlock_other_1 in H2; eauto.
-                                eapply Intv.range_notin in Hrange; simpl in *; omega.
-                              + rewrite setPermBlock_other_2 in H2; eauto.
-                          Qed.
-
-                          eapply setPermBlock_mi_perm_inv_Cur; eauto.
+                        + eapply setPermBlock_mi_perm_inv_Cur; eauto.
                     Qed.
 
-                    (* Need to replace the [restrPermMap Hlt1] with the equivalent one 
-                      that matches setPermBlock_mem_inject. This can be done with the following 
-                      definition: [access_map_equiv]
-                      
-                     *)
-                    pose proof (LKSIZE_nat_pos).
-                    remember (restrPermMap (proj2 (Hcmpt1 tid Htid1))) as m1_restr.
-                    remember (restrPermMap (proj2 (Hcmpt2 tid Htid2))) as m2_restr.
 
-                    
 
-                    remember (useful_permMapLt_trans (proj2 (Hcmpt1 tid Htid1)) Hlt1)
-                      as Hlt10.
-                    remember (useful_permMapLt_trans (proj2 (Hcmpt2 tid Htid2)) Hlt2')
-                      as Hlt20.
-                    
-                    rewrite (restrPermMap_idempotent _ _ _
-                                                      _ Hlt1 Hlt10).
-                    rewrite (restrPermMap_idempotent _ _ _
-                                                      _ Hlt2' Hlt20).
+              
+              (** * End of Lemmas for relase diagram*)
 
-                    (* m1 *)
-                    assert (Hlt1'':
-                              permMapLt
-                                (setPermBlock (Some Writable) b (intval ofs)
-                                              (getCurPerm m1_restr) LKSIZE_nat)
-                                (getMaxPerm m1_restr)
-                           ).
-                    { intros; subst.
-                      rewrite getMax_restr, getCur_restr; eauto.
-                    }
-                    
-                    assert (HH:mem_equiv (restrPermMap Hlt10) (restrPermMap Hlt1'')).
-                    { eapply restrPermMap_equiv.
-                      - subst; reflexivity.
-                      - eapply setPermBlock_access_map_equiv; try reflexivity.
-                        + subst; symmetry.
-                          apply getCur_restr.
-                        + econstructor; auto.
-                    }
-                    rewrite HH.
-
-                    
-                    (* m2 *)
-                    assert (Hlt2'':
-                              permMapLt
-                                (setPermBlock (Some Writable) b' (intval ofs + delt)
-                                              (getCurPerm m2_restr) LKSIZE_nat)
-                                (getMaxPerm m2_restr)
-                           ).
-                    { intros; subst.
-                      rewrite getMax_restr, getCur_restr; eauto.
-                    }
-                    assert (mem_equiv (restrPermMap Hlt20) (restrPermMap Hlt2'')).
-                    { eapply restrPermMap_equiv.
-                      - subst; reflexivity.
-                      - eapply setPermBlock_access_map_equiv; try reflexivity.
-                        + subst; symmetry.
-                          apply getCur_restr.
-                        + econstructor; auto.
-                    }
-                    rewrite H0.
-
-                    eapply setPermBlock_mem_inject; eauto.
-                    - unfold LKSIZE_nat. rewrite Z2Nat.id.
-                      2: { pose proof LKSIZE_pos; omega. }
-                      subst m1_restr;
-                        rewrite (restr_content_equiv (proj2 (Hcmpt1 tid Htid1))).
-                      subst m2_restr;
-                        rewrite (restr_content_equiv (proj2 (Hcmpt2 tid Htid2))).
-                      eapply CMatch; auto.
-                      simpl in *; eassumption. }
-
-                  }
-
-                    
-                    (* Might not need. Erase?*)
-                    Lemma meminj_restrictPermMap:
-                      forall mu m1 m2,
-                         Mem.mem_inj mu m1 m2 ->
-                        forall perm1 perm2
-                          (Hlt1: permMapLt perm1 (getMaxPerm m1))
-                          (Hlt2: permMapLt perm2 (getMaxPerm m2))
-                          (mi_memval:
-                             forall (b1 : block) (ofs : Z) (b2 : block) (delta : Z),
-                               mu b1 = Some (b2, delta) ->
-                               Mem.perm_order' (perm1 !! b1 ofs) Readable ->
-                               memval_inject mu (ZMap.get ofs (Mem.mem_contents m1) !! b1)
-                                             (ZMap.get (ofs + delta)%Z (Mem.mem_contents m2) !! b2)),
-                          access_map_inject mu perm1 perm2 ->
-                           Mem.mem_inj mu (restrPermMap Hlt1) (restrPermMap Hlt2).
-                      Proof.
-                        intros.
-                        inversion H.
-                        econstructor.
-                        - unfold Mem.perm; intros.
-                          destruct k.
-                          + do 2 rewrite_getPerm.
-                            rewrite getMax_restr in *;
-                              rewrite getMaxPerm_correct in *.
-                            eapply mi_perm; eassumption.
-                          + do 2 rewrite_getPerm.
-                            rewrite getCur_restr in *.
-                            specialize (H0 b1 b2 delta).
-                            rewrite mem_lemmas.po_oo in *.
-                            eapply juicy_mem.perm_order''_trans; eauto.
-                        - intros.
-                          eapply mi_align; eauto.
-                          unfold Mem.range_perm, Mem.perm in *.
-                          intros ofs0 Hofs.
-                          specialize (H2 _ Hofs).
-                          rewrite_getPerm.
-                          erewrite <- getMax_restr.
-                          rewrite getMaxPerm_correct.
-                          eassumption.
-                        - intros.
-                          eapply mi_memval; auto.
-                          unfold Mem.perm in H2.
-                          rewrite_getPerm.
-                          rewrite getCur_restr in H2.
-                          assumption.
-                      Qed.
-                      
+              
+              (* The release diagram where only a compiled thread is stepping *)
+              Lemma release_step_diagram_target:
+                forall (U : list nat) (tr1 tr2 : HybridMachineSig.event_trace)
+                  (st1 : ThreadPool (Some hb)) (m1 m1' : mem) 
+                  (tid : nat) (cd : option compiler_index)
+                  (st2 : ThreadPool (Some (S hb))) (mu : meminj) 
+                  (m2 : mem)
+                  (Htid1 : ThreadPool.containsThread st1 tid)
+                  (Htid2 : ThreadPool.containsThread st2 tid)
+                  (code1: Asm.state) (b : block) (ofs : Integers.Ptrofs.int)
+                  (virtueThread : PTree.t
+                                    (BinNums.Z -> option (option permission)) *
+                                  PTree.t
+                                    (BinNums.Z -> option (option permission)))
+                  (virtueLP : PMap.t (BinNums.Z -> option permission) *
+                              PMap.t (BinNums.Z -> option permission))
+                  (rmap : lock_info) (newThreadPerm : access_map * access_map)
+                  (HSched: HybridMachineSig.schedPeek U = Some tid)
+                  (Hcmpt1 : mem_compatible st1 m1)
+                  (CMatch:concur_match cd mu st1 m1 st2 m2)
+                  (target_inv: invariant st2)
+                  (HTraceInj: List.Forall2 (inject_mevent mu) tr1 tr2)
+                  (Hlt1 : permMapLt
+                            (setPermBlock (Some Writable) b
+                                          (Integers.Ptrofs.unsigned ofs)
+                                          (snd (ThreadPool.getThreadR Htid1)) LKSIZE_nat)
+                            (getMaxPerm m1))
+                  (Hbounded: bounded_maps.sub_map (fst virtueThread) (snd (getMaxPerm m1)) /\
+                             bounded_maps.sub_map (snd virtueThread) (snd (getMaxPerm m1)))
+                  (HboundedLP: bounded_maps.map_empty_def (fst virtueLP) /\
+                               bounded_maps.map_empty_def (snd virtueLP) /\
+                               bounded_maps.sub_map (snd (fst virtueLP)) (snd (getMaxPerm m1)) /\
+                               bounded_maps.sub_map (snd (snd virtueLP)) (snd (getMaxPerm m1)))
+                  (Hinv: invariant st1)
+                  (Hcode: ThreadPool.getThreadC Htid1 = Kblocked (TST code1))
+                  (Hat_external: semantics.at_external
+                                   (semantics.csem (event_semantics.msem (@semSem AsmSem) )) (code1)
+                                   (restrPermMap (fst (ssrfun.pair_of_and (Hcmpt1 tid Htid1)))) =
+                                 Some (UNLOCK, (Vptr b ofs :: nil)%list))
+                  (Hload: Mem.load AST.Mint32
+                                   (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt1 tid Htid1)))) b
+                                   (Integers.Ptrofs.unsigned ofs) = Some (Vint Integers.Int.zero))
+                  (Haccess: Mem.range_perm
+                              (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt1 tid Htid1)))) b
+                              (Integers.Ptrofs.unsigned ofs)
+                              (BinInt.Z.add (Integers.Ptrofs.unsigned ofs) LKSIZE) Cur Readable)
+                  (Hstore: Mem.store AST.Mint32 (restrPermMap Hlt1) b
+                                     (Integers.Ptrofs.unsigned ofs) (Vint Integers.Int.one) = 
+                           Some m1')
+                  (HisLock: ThreadPool.lockRes st1 (b, Integers.Ptrofs.unsigned ofs) =
+                            Some rmap)
+                  (Hrmap: (forall (b0 : BinNums.positive) (ofs0 : BinNums.Z),
+                              (fst rmap) !! b0 ofs0 = None /\ (snd rmap) !! b0 ofs0 = None))
+                  (Hangel1: permMapJoin (fst newThreadPerm) (fst virtueLP)
+                                        (fst (ThreadPool.getThreadR Htid1)))
+                  (Hangel2: permMapJoin (snd newThreadPerm) (snd virtueLP)
+                                        (snd (ThreadPool.getThreadR Htid1)))
+                  code2 (Hcmpt2: mem_compatible st2 m2)
+                  (Amatch : Asm_match mu code1
+                                      (restrPermMap (proj1 (Hcmpt1 tid Htid1)))
+                                      code2
+                                      (restrPermMap
+                                         (proj1
+                                            (Hcmpt2 tid (Htid2)))) )
+                  (getCode2 : Kblocked (TST code2) = ThreadPool.getThreadC Htid2)
+                  (Hinj_lock: 
+                     Mem.inject mu (restrPermMap (proj2 (Hcmpt1 tid Htid1)))
+                                (restrPermMap (proj2 (Hcmpt2 tid Htid2))))
+                  b' delt (Hinj_b : mu b = Some (b', delt)),
+                  let code1' := (Kresume (TST code1) Vundef) in
+                  exists e' (m2' : mem) Htid2
+                    (mu' : meminj),
+                    Asm_code_inject mu code1 code2 /\
+                    self_simulation.match_mem mu (restrPermMap (proj1 (Hcmpt1 tid Htid1)))
+                                              (restrPermMap (proj1 (Hcmpt2 tid Htid2)))
+                    /\
+                    List.Forall2 (inject_mevent mu')
+                                 (seq.cat tr1 (Events.external tid (Events.release (b, Integers.Ptrofs.unsigned ofs) (Some (build_delta_content (fst virtueThread) m1'))) :: nil))
+                                 (seq.cat tr2 (Events.external tid e' :: nil)) /\
+                    let virtueThread2:= (virtueThread_inject m2 mu virtueThread)  in
+                    let virtueLP2:= virtueLP_inject m2 mu virtueLP  in
+                    let st2':=
+                        (ThreadPool.updLockSet
+                           (ThreadPool.updThread
+                              (tp:=st2)
+                              (tid:=tid)
+                              (Sem:=HybridSem (Some (S hb)))
+                              (resources:=dryResources)
+                              Htid2 (Kresume (TST code2) Vundef)
+                              (computeMap (fst (ThreadPool.getThreadR Htid2)) (fst virtueThread2),
+                               computeMap (snd (ThreadPool.getThreadR Htid2)) (snd virtueThread2))) 
+                           (b', unsigned (add ofs (repr delt))) virtueLP2) in 
+                    HybridMachineSig.external_step
+                      (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
+                      U tr2 st2 m2 (HybridMachineSig.schedSkip U)
+                      (seq.cat tr2
+                               (Events.external tid e' :: nil)) st2' m2'.
+              Proof.
+                intros.
+                inversion Amatch; clear Amatch.
+                remember (virtueThread_inject m2 mu virtueThread)  as virtueThread2.
+                remember (virtueLP_inject m2 mu virtueLP) as virtueLP2.
+                
+                rename Hlt1 into Hlt_setBlock1.
+                remember (proj2 (Hcmpt1 tid Htid1)) as Hlt1.
+                remember (proj2 (Hcmpt2 tid Htid2)) as Hlt2.
+                
+                assert (Hstore':
+                          exists (Hlt2': permMapLt
+                                      (setPermBlock (Some Writable) b' (unsigned ofs + delt)
+                                                    (snd (getThreadR Htid2)) LKSIZE_nat) (getMaxPerm m2)),
+                            exists n2, Mem.store AST.Mint32 (restrPermMap Hlt2') b' 
+                                            (unsigned ofs + delt) (Vint Int.one) = Some n2 /\ 
+                                  Mem.inject mu m1' n2).
+                {
                   
-                }
-                
-                
-                (* Here *)
-                
-                destruct Hstore' as (Hlt2' & m2' & Hstore2 & Hinj2).
-                
-                
+                  (** *Constructing the target objects: events, thread_pool, mem, meminj and index*)
 
+                  (** *virtueThread*)
+                  (*First construct the virtueThread:
+                the permissions passed from the thread to the lock. *)
+
+                  (* Construct the memory with permissions to write in the lock*)
+                  assert (Hlt_setBlock2:
+                            permMapLt
+                              (setPermBlock (Some Writable) b' (unsigned ofs + delt)%Z
+                                            (snd (getThreadR Htid2)) LKSIZE_nat) (getMaxPerm m2)).
+                  {
+                    eapply setPermBlock_inject_permMapLt; simpl in *; eauto.
+                    erewrite <- (getMax_restr _ _ Hlt1).
+                    erewrite <- (getMax_restr _ _ Hlt2).
+                    eapply access_map_injected_getMaxPerm; eassumption.
+                  }
+                  exists Hlt_setBlock2.
+                  
+                  (* Construct new memory and new injection *)
+                  eapply Mem.store_mapped_inject in Hstore; eauto.
+                  
+                  remember (restrPermMap Hlt1) as m1_restr.
+                  remember (restrPermMap Hlt2) as m2_restr.
+                  remember (useful_permMapLt_trans (proj2 (Hcmpt1 tid Htid1)) Hlt_setBlock1)
+                    as Hlt10.
+                  remember (useful_permMapLt_trans (proj2 (Hcmpt2 tid Htid2)) Hlt_setBlock2)
+                    as Hlt20.
+                  
+                  rewrite (restrPermMap_idempotent _ _ _
+                                                   _ Hlt_setBlock1 Hlt10).
+                  rewrite (restrPermMap_idempotent _ _ _
+                                                   _ Hlt_setBlock2 Hlt20).
+
+                  (* m1 *)
+                  assert (Hlt_setBlock1':
+                            permMapLt
+                              (setPermBlock (Some Writable) b (unsigned ofs)
+                                            (getCurPerm m1_restr) LKSIZE_nat)
+                              (getMaxPerm m1_restr)
+                         ).
+                  { intros; subst.
+                    rewrite getMax_restr, getCur_restr; eauto.
+                  }
+                  
+                  assert (HH1:mem_equiv (restrPermMap Hlt10) (restrPermMap Hlt_setBlock1')).
+                  { eapply restrPermMap_equiv.
+                    - subst; reflexivity.
+                    - eapply setPermBlock_access_map_equiv; try reflexivity.
+                      + subst; symmetry.
+                        apply getCur_restr.
+                      + econstructor; auto.
+                  }
+                  rewrite HH1.
+
+                  
+                  (* m2 *)
+                  assert (Hlt_setBlock2':
+                            permMapLt
+                              (setPermBlock (Some Writable) b' (unsigned ofs + delt)
+                                            (getCurPerm m2_restr) LKSIZE_nat)
+                              (getMaxPerm m2_restr)
+                         ).
+                  { intros; subst.
+                    rewrite getMax_restr, getCur_restr; eauto.
+                  }
+                  assert (HH2:mem_equiv (restrPermMap Hlt20) (restrPermMap Hlt_setBlock2')).
+                  { eapply restrPermMap_equiv.
+                    - subst; reflexivity.
+                    - eapply setPermBlock_access_map_equiv; try reflexivity.
+                      + subst; symmetry.
+                        apply getCur_restr.
+                      + econstructor; auto.
+                  }
+                  rewrite HH2.
+
+                  eapply setPermBlock_mem_inject; eauto.
+                  - unfold LKSIZE_nat. rewrite Z2Nat.id.
+                    2: { pose proof LKSIZE_pos; omega. }
+                    subst m1_restr;
+                      rewrite (restr_content_equiv Hlt1).
+                    subst m2_restr;
+                      rewrite (restr_content_equiv Hlt2).
+                    eapply CMatch; auto.
+                    simpl in *; eassumption.
+                }
+
+                
+                destruct Hstore' as (Hlt_setBlock2 & m2' & Hstore2 & Hinj2).
+                
                 (* Instantiate some of the existensials *)
                 econstructor. exists m2'. econstructor. exists mu.
                 split; [|split; [|split]].
@@ -2526,12 +2370,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                        
                   * clean_cnt.
                     simpl in *.
-                    (* This should follow from the simulation *)
+                    (* This should follow from the simulation 
+                       ADD IT TO THE SELF SIMULATION
+                     *)
                     move Hat_external at bottom.
                     admit.
                     
                   * (* Prove I can read the lock. *)
-                    
                     move Haccess at bottom.
                     clean_cmpt.
                     
@@ -2550,8 +2395,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                       rewrite size_chunk_Mptr.
                       destruct Archi.ptr64; omega.
                     }
-                    unfold unsigned; eauto.
-                    replace (intval ofs + delt + LKSIZE)%Z with (intval ofs + LKSIZE + delt)%Z
+                    replace (unsigned ofs + delt + LKSIZE)%Z with (unsigned ofs + LKSIZE + delt)%Z
                       by omega.
                     eassumption.
 
@@ -2559,12 +2403,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                     move Hload at bottom.
                     clean_cmpt.
                     eapply Mem.load_inject in Hload; eauto.
-                    destruct Hload as (v2& Hload & Hval_inj).
-                    simpl.
-                    inversion Hval_inj; subst.
-                    eauto.
-                    erewrite Mem.address_inject; try eapply Hinj_lock; eauto.
-
+                    2: {subst; eauto. }
+                    
+                    destruct Hload as (v2& Hload & Hval_inj); simpl.
+                    erewrite Mem.address_inject;
+                      try eapply Hinj_lock; eauto.
+                    instantiate(1:=Hcmpt2).
+                    inversion Hval_inj; subst; eauto.
+                    
+                    (* solve the arithmetic subgoal*)
                     {
                       specialize(Haccess (unsigned ofs)).
                       eapply Haccess.
@@ -2574,23 +2421,33 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                       rewrite size_chunk_Mptr.
                       destruct Archi.ptr64; omega.
                     }
-                    
 
                   * move Hstore2 at bottom.
-                    assert(Heq: intval (add ofs (repr delt)) = (intval ofs + delt)%Z ).
+                    assert(Heq: unsigned (add ofs (repr delt)) = (unsigned ofs + delt)%Z ).
                     {
                       unfold add.
                       Check unsigned_repr.
-                      (* look for the lemma with unsigned instead of intval. *)
-                      (* write proofs so that you never see intval, instead use unsigned and repr. *)
-                      admit. (*using Mem.mi_representable you get delta>= 0 and 
-                               (unsigned ofs + delt) < max_unsigned.*)
+
+                      
+                      eapply Mem.address_inject; eauto.
+
+
+                      eapply Mem.perm_store_1; eauto.
+                      eapply Mem.store_valid_access_3 in Hstore.
+                      destruct Hstore as [Hperm ?].
+                      specialize (Hperm (unsigned ofs)).
+                      move Hperm at bottom.
+                      eapply Hperm.
+                      replace unsigned with unsigned by reflexivity.
+                      pose proof (size_chunk_pos AST.Mint32).
+                      omega.
+                      
                     }
 
                     
                     match goal with
                     | [  |- context[restrPermMap ?X] ] =>
-                      replace (restrPermMap X) with (restrPermMap Hlt2')
+                      replace (restrPermMap X) with (restrPermMap Hlt_setBlock2)
                     end.
                     -- rewrite Heq; assumption.
                     -- (*Set Printing Implicit. *) 
@@ -2718,14 +2575,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             (* Show that one can install Writable permissions for the lock in m3. *)
             (*assert (Hlt2':
                       permMapLt
-                        (setPermBlock (Some Writable) b (intval ofs) (getCurPerm m2) LKSIZE_nat)
+                        (setPermBlock (Some Writable) b (unsigned ofs) (getCurPerm m2) LKSIZE_nat)
                         (getMaxPerm m2)). 
             { move Hlt2 at bottom.
               move Hinj2 at bottom.
               admit. (* HLT3 *)
             }*)
             assert (Hlt2': permMapLt
-           (setPermBlock (Some Writable) b1 (intval ofs)
+           (setPermBlock (Some Writable) b1 (unsigned ofs)
               (snd (getThreadR Hcnt2)) LKSIZE_nat) 
            (getMaxPerm m2')).
             { move Hlt_setbBlock at bottom.
@@ -2798,7 +2655,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                                                computeMap (snd (getThreadR Hcnt2)) (snd virtueThread2)) as new_cur2.
             remember ((updLockSet
                         (updThread Hcnt2 (Kresume (TST code2) Vundef) new_cur2)
-                        (b2, intval ofs2) virtueLP2)) as st2'.
+                        (b2, unsigned ofs2) virtueLP2)) as st2'.
             
             match goal with
               [|- context[concur_match _ _ ?st1 ?m1 _ _] ] =>
@@ -3251,7 +3108,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 Forall2 (inject_mevent mu)
                 (seq.cat tr1
                 (Events.external hb
-                (Events.release (b1, intval ofs)
+                (Events.release (b1, unsigned ofs)
                 (Some (build_delta_content (fst virtueThread1) m1''))) :: nil))
                 (seq.cat tr2 (Events.external hb ?e' :: nil))
                *)
@@ -3395,28 +3252,28 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
               Some (MKLOCK, (Vptr b ofs :: nil)%list) ->
               Mem.store AST.Mint32
                         (restrPermMap (fst (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                        (Integers.Ptrofs.intval ofs) (Vint Integers.Int.zero) =
+                        (Integers.Ptrofs.unsigned ofs) (Vint Integers.Int.zero) =
               Some m1' ->
               Mem.range_perm
                 (restrPermMap (fst (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                (Integers.Ptrofs.intval ofs)
-                (BinInt.Z.add (Integers.Ptrofs.intval ofs) LKSIZE) Cur Writable ->
-              setPermBlock (Some Nonempty) b (Integers.Ptrofs.intval ofs)
+                (Integers.Ptrofs.unsigned ofs)
+                (BinInt.Z.add (Integers.Ptrofs.unsigned ofs) LKSIZE) Cur Writable ->
+              setPermBlock (Some Nonempty) b (Integers.Ptrofs.unsigned ofs)
                            (fst (ThreadPool.getThreadR Htid)) LKSIZE_nat = 
               fst pmap_tid' ->
-              setPermBlock (Some Writable) b (Integers.Ptrofs.intval ofs)
+              setPermBlock (Some Writable) b (Integers.Ptrofs.unsigned ofs)
                            (snd (ThreadPool.getThreadR Htid)) LKSIZE_nat = 
               snd pmap_tid' ->
-              ThreadPool.lockRes st1 (b, Integers.Ptrofs.intval ofs) = None ->
+              ThreadPool.lockRes st1 (b, Integers.Ptrofs.unsigned ofs) = None ->
               exists
                 e' (st2' : t) (m2' : mem) (cd' : option compiler_index) 
                 (mu' : meminj),
                 concur_match cd' mu'
                              (ThreadPool.updLockSet
                                 (ThreadPool.updThread Htid (Kresume c Vundef) pmap_tid')
-                                (b, Integers.Ptrofs.intval ofs) (empty_map, empty_map))
+                                (b, Integers.Ptrofs.unsigned ofs) (empty_map, empty_map))
                              m1' st2' m2' /\
-                List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.mklock (b, Integers.Ptrofs.intval ofs)) :: nil))
+                List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.mklock (b, Integers.Ptrofs.unsigned ofs)) :: nil))
                   (seq.cat tr2 (Events.external tid e' :: nil)) /\
                 HybridMachineSig.external_step
                   (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
@@ -3447,22 +3304,22 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 (semantics.csem (event_semantics.msem semSem)) c
                 (restrPermMap (fst (ssrfun.pair_of_and (Hcmpt tid Htid)))) =
               Some (FREE_LOCK, (Vptr b ofs :: nil)%list) ->
-              ThreadPool.lockRes st1 (b, Integers.Ptrofs.intval ofs) =
+              ThreadPool.lockRes st1 (b, Integers.Ptrofs.unsigned ofs) =
               Some rmap ->
               (forall (b0 : BinNums.positive) (ofs0 : BinNums.Z),
                   (fst rmap) !! b0 ofs0 = None /\ (snd rmap) !! b0 ofs0 = None) ->
               Mem.range_perm
                 (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                (Integers.Ptrofs.intval ofs)
-                (BinInt.Z.add (Integers.Ptrofs.intval ofs) LKSIZE) Cur Writable ->
-              setPermBlock None b (Integers.Ptrofs.intval ofs)
+                (Integers.Ptrofs.unsigned ofs)
+                (BinInt.Z.add (Integers.Ptrofs.unsigned ofs) LKSIZE) Cur Writable ->
+              setPermBlock None b (Integers.Ptrofs.unsigned ofs)
                            (snd (ThreadPool.getThreadR Htid)) LKSIZE_nat = 
               snd pmap_tid' ->
               (forall i : nat,
                   BinInt.Z.le 0 (BinInt.Z.of_nat i) /\
                   BinInt.Z.lt (BinInt.Z.of_nat i) LKSIZE ->
                   Mem.perm_order'' (pdata (S i)) (Some Writable)) ->
-              setPermBlock_var pdata b (Integers.Ptrofs.intval ofs)
+              setPermBlock_var pdata b (Integers.Ptrofs.unsigned ofs)
                                (fst (ThreadPool.getThreadR Htid)) LKSIZE_nat = 
               fst pmap_tid' ->
               exists
@@ -3471,8 +3328,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 concur_match cd' mu'
                              (ThreadPool.remLockSet
                                 (ThreadPool.updThread Htid (Kresume c Vundef) pmap_tid')
-                                (b, Integers.Ptrofs.intval ofs)) m1' st2' m2' /\
-                List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.freelock (b, Integers.Ptrofs.intval ofs)) :: nil))
+                                (b, Integers.Ptrofs.unsigned ofs)) m1' st2' m2' /\
+                List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.freelock (b, Integers.Ptrofs.unsigned ofs)) :: nil))
                   (seq.cat tr2 (Events.external tid e' :: nil)) /\
                 HybridMachineSig.external_step
                   (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
@@ -3499,18 +3356,18 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
             Some (LOCK, (Vptr b ofs :: nil)%list) ->
             Mem.load AST.Mint32
                      (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-                     (Integers.Ptrofs.intval ofs) = Some (Vint Integers.Int.zero) ->
+                     (Integers.Ptrofs.unsigned ofs) = Some (Vint Integers.Int.zero) ->
             Mem.range_perm
               (restrPermMap (snd (ssrfun.pair_of_and (Hcmpt tid Htid)))) b
-              (Integers.Ptrofs.intval ofs)
-              (BinInt.Z.add (Integers.Ptrofs.intval ofs) LKSIZE) Cur Readable ->
+              (Integers.Ptrofs.unsigned ofs)
+              (BinInt.Z.add (Integers.Ptrofs.unsigned ofs) LKSIZE) Cur Readable ->
             ThreadPool.getThreadC Htid = Kblocked c ->
             invariant st1' ->
             exists
               e' (st2' : t) (m2' : mem) (cd' : option compiler_index) 
               (mu' : meminj),
               concur_match cd' mu' st1' m1' st2' m2' /\
-              List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.failacq (b, Integers.Ptrofs.intval ofs)) :: nil))
+              List.Forall2 (inject_mevent mu') (seq.cat tr1 (Events.external tid (Events.failacq (b, Integers.Ptrofs.unsigned ofs)) :: nil))
                 (seq.cat tr2 (Events.external tid e' :: nil)) /\
               HybridMachineSig.external_step
                 (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
