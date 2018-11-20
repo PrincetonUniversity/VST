@@ -2,6 +2,7 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
+
 Require Import VST.msl.Coqlib2.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.event_semantics.
@@ -1221,7 +1222,23 @@ Proof.*)
       reflexivity.
   Qed.
 
-
+  Lemma setPermBlock_range_perm:
+    forall (m1 : mem) (b : block) (ofs : Z) (n : nat)
+      perm perm_map,
+      permMapLt
+        (setPermBlock (Some perm) b ofs
+                      perm_map n) (getMaxPerm m1) ->
+      Mem.range_perm m1 b ofs (ofs + Z.of_nat n) Max
+                     perm.
+  Proof.
+    intros m1 b ofs n perm perm_map H0.
+    intros ? ?.
+    specialize (H0 b ofs0).
+    rewrite setPermBlock_same in H0; auto.
+    unfold Mem.perm.
+    rewrite mem_lemmas.po_oo.
+    rewrite getMaxPerm_correct in H0; auto.
+  Qed.
 
   (*Lemma setPermBlock_var_or:
     forall p b ofs sz pmap b' ofs',
@@ -2431,4 +2448,94 @@ Proof.
   eapply Pos.lt_le_trans; eauto.
 Qed.
 
-    
+
+
+Lemma range_no_overlap:
+  forall (mu : meminj) (m1 : mem) (b1 b1' b2 b2': block)
+    (ofs delt delta ofs0 : Z) (n : nat),
+    Mem.meminj_no_overlap mu m1 ->
+    mu b1 = Some (b1', delt) ->
+    mu b2 = Some (b2', delta) ->
+    b1 <> b2 ->
+    Mem.perm m1 b1 ofs0 Max Nonempty ->
+    Mem.range_perm m1 b2 ofs (ofs + Z.of_nat n) Max Nonempty ->
+    b1' <> b2' \/ b1' = b2' /\
+    ~ Intv.In (ofs0 + delt)
+      ((ofs + delta)%Z, (ofs + delta + Z.of_nat n)%Z).
+Proof.
+  intros ??????????? Hno_overlap Hinj1
+         Hinj2 Hneq Hperm1 Hrange_perm2.
+  
+  (* The key is to do an induction over the length of the range
+   *)
+  assert(H: forall m, (m <= n)%coq_nat -> b1' <> b2' \/
+                             (~ Intv.In (ofs0 + delt)
+                                (ofs + delta, ofs + delta + Z.of_nat m))%Z).
+  { induction m.
+    - intros ?. simpl; right.
+      unfold Intv.In; simpl. clear.
+      intros ?; omega.
+    -  intros ?.
+       specialize (Hno_overlap
+                     _ _ _ _ _ _
+                     ofs0 (ofs+Z.of_nat m)%Z
+                     Hneq Hinj1 Hinj2).
+       apply Hno_overlap in Hperm1.
+       2: { eapply Hrange_perm2. omega.     }
+       destruct Hperm1 as [Hperm1|Hperm1]; auto.
+       specialize (IHm ltac:(omega)).
+       destruct IHm as [IHm|IHm]; auto.
+       right; clear - IHm Hperm1.
+       intros [? ?]; eapply IHm.
+       split; auto.
+       unfold Intv.In; simpl in *.
+       clear IHm H.
+       rewrite Zpos_P_of_succ_nat in H0.
+       omega. }
+
+  specialize (H _ ltac:(reflexivity)).
+  destruct H; auto.
+  destruct (Clight_lemmas.block_eq_dec b1' b2'); subst; auto.
+Qed.
+
+Lemma setPermBLock_no_overlap:
+  forall (mu : meminj) (m1 : mem) (b b' b1 b2 : block)
+    (ofs delt delta ofs0 : Z) (n : nat),
+    Mem.meminj_no_overlap mu m1 ->
+    permMapLt (setPermBlock (Some Writable)
+                            b ofs (getCurPerm m1) n)
+              (getMaxPerm m1) ->
+    mu b = Some (b', delt) ->
+    mu b1 = Some (b2, delta) ->
+    b1 <> b ->
+    Mem.perm m1 b1 ofs0 Max Nonempty ->
+    b2 <> b' \/
+    b2 = b' /\
+    ~ Intv.In (ofs0 + delta)
+      ((ofs + delt)%Z, (ofs + delt + Z.of_nat n)%Z).
+Proof.
+  intros; eapply range_no_overlap; eauto.
+  clear H4.
+  eapply setPermBlock_range_perm in H0; eauto.
+  unfold Mem.range_perm, Mem.perm in *; intros.
+  rewrite mem_lemmas.po_oo.
+  specialize (H0 _ H4).
+  rewrite mem_lemmas.po_oo in H0.
+  eapply mem_lemmas.po_trans; eauto.
+  constructor.
+Qed.
+
+
+Lemma range_perm_trans:
+  forall m b ofs0 ofs1 k p1 p2,
+    Mem.range_perm m b ofs0 ofs1 k p1 ->
+    perm_order p1 p2 ->
+    Mem.range_perm m b ofs0 ofs1 k p2.
+Proof.
+  unfold Mem.range_perm, Mem.perm; intros.
+  eapply H in H1.
+  rewrite mem_lemmas.po_oo.
+  rewrite mem_lemmas.po_oo in H1.
+  eapply juicy_mem.perm_order''_trans; eauto.
+Qed.
+
