@@ -1012,23 +1012,32 @@ match type of H' with ?TH =>
      end
      end.
 
+Ltac head A := lazymatch A with _ -> ?B => head B | _ => A end.
+Ltac head_of_type_of H :=
+ match type of H with ?A => head A end.
+
 Ltac sep_apply_aux1 H := 
- lazymatch type of H with
- | context [!! ?P && _] =>
-    let H' := fresh in
-    assert (H' := H);
-    rewrite ?(andp_assoc (!! P)) in H';
-    let H := fresh in 
-    assert (H:P);
-     [ clear H' | rewrite (prop_true_andp P) in H' by apply H;
-         sep_apply_aux1 H'; clear H' ]
- | _ => sep_apply_aux2 H
-  end.
+ let B := head_of_type_of H in
+ lazymatch B with
+ | ?A |-- _ =>
+   lazymatch type of A with
+   | context [!! ?P && _] =>
+      let H' := fresh in
+      assert (H' := H);
+      rewrite ?(andp_assoc (!! P)) in H';
+      let H := fresh in 
+      assert (H:P);
+       [ clear H' | rewrite (prop_true_andp P) in H' by apply H;
+           sep_apply_aux1 H'; clear H' ]
+   | _ => sep_apply_aux2 H
+    end
+ end.
 
 Ltac sep_apply_aux0 H :=
- lazymatch type of H with
- | ?A ?B |-- _ =>
-    tryif (match type of B with ?BT => constr_eq BT globals end)
+ let B := head_of_type_of H in
+ lazymatch B with
+ | ?A ?D |-- _ =>
+    tryif (match type of D with ?DT => constr_eq DT globals end)
    then
     (tryif (unfold A in H) then sep_apply_aux1 H
     else let H' := fresh in
