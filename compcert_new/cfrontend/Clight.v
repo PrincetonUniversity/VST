@@ -523,15 +523,15 @@ Definition at_external (c: state) : option (external_function * list val) :=
  end.
 
 (**NEW *)
-Definition after_external (rv: option val) (c: state) (m0:mem): option state :=
+Definition after_external (rv: option val) (c: state) (m:mem): option state :=
   match c with
      Callstate fd vargs k m =>
         match fd with
           Internal _ => None
         | External ef tps tp cc =>
             match rv with
-              Some v => Some(Returnstate v k m0)
-            | None  => Some(Returnstate Vundef k m0)
+              Some v => Some(Returnstate v k m)
+            | None  => Some(Returnstate Vundef k m)
             end
         end
    | _ => None
@@ -714,17 +714,6 @@ Inductive step: state -> trace -> state -> Prop :=
   corresponding to the invocation of the ``main'' function of the program
   without arguments and with an empty continuation. *)
 
-
-(*Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
-  | entry_point_intro: forall b f args m0,
-      let ge := Genv.globalenv p in
-      Genv.init_mem p = Some m0 ->
-      Genv.find_symbol ge p.(prog_main) = Some b ->
-      Genv.find_funct_ptr ge b = Some f ->
-      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
-      entry_point p m0 (Callstate f nil Kstop m0) (Vptr b Ptrofs.zero) args.*)
-
-
 Inductive initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
@@ -759,14 +748,20 @@ Inductive val_casted_list: list val -> typelist -> Prop :=
       val_casted v1 ty1 -> val_casted_list vl tyl ->
       val_casted_list (v1 :: vl) (Tcons  ty1 tyl).
 
-(* Require Import Conventions.
+Require Import Conventions.
 
-Definition loc_arguments' l := if Archi.ptr64 then loc_arguments_64 l 0 0 0 else loc_arguments_32 l 0. *)
+Definition loc_arguments' l := if Archi.ptr64 then loc_arguments_64 l 0 0 0 else loc_arguments_32 l 0.
+
+Fixpoint temp_bindings (i: positive) (vl: list val) :=
+ match vl with
+ | nil => PTree.empty val
+ | v::vl' => PTree.set i v (temp_bindings (i+1)%positive vl')
+ end.
 
 (*NOTE: DOUBLE CHECK TARGS (it's not used right now)*)
-Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop :=
+Inductive start_stack (ge:genv): mem -> state -> val -> list val -> Prop :=
 | initi_core:
-    forall f fb b0 f0 m0 m1 stk args targs tres,
+    forall f fb b0 f0 m0 args targs tres,
       Genv.find_funct_ptr ge fb = Some f ->
       type_of_fundef f = Tfunction targs tres cc_default ->
       globals_not_fresh ge m0 ->
@@ -774,15 +769,12 @@ Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop :=
       Mem.arg_well_formed args m0 ->
       val_casted_list args targs ->
       Val.has_type_list args (typlist_of_typelist targs) ->
-      (*val_casted_list_func args targs 
-                           && tys_nonvoid targs 
-                           && vals_defined args
-                           && zlt (4*(2*(Zlength args))) Int.max_unsigned = true ->*)
       Genv.find_funct_ptr ge b0 = Some (Internal f0) ->
-      Mem.alloc m0 0 0 = (m1, stk) ->
-      entry_point ge m0 (Callstate f args (Kcall None f0 empty_env
-                                                 (temp_bindings
-                                                    1%positive (Vptr fb Ptrofs.zero::args)) Kstop) m1) (Vptr fb Ptrofs.zero) args.
+      start_stack ge m0
+        (Callstate f args (Kcall None f0 empty_env 
+                                     (temp_bindings 1%positive (Vptr fb Ptrofs.zero::args)) 
+                                     (Kseq (Sloop Sskip Sskip) Kstop)) m0)
+        (Vptr fb Ptrofs.zero) args.
 
 (** A final state is a [Returnstate] with an empty continuation. *)
 Inductive final_state: state -> int -> Prop :=
@@ -820,7 +812,7 @@ Definition step2 (ge: genv) := step ge (function_entry2 ge).
 
 Definition part_semantics1 (ge: genv) :=
   Build_part_semantics get_mem set_mem (step1 ge)
-                       (entry_point ge)
+                       (start_stack ge)
                        at_external
                        after_external
                        final_state ge ge.
@@ -833,7 +825,7 @@ Definition semantics1 (p: program) :=
 
 Definition part_semantics2 (ge: genv) :=
   Build_part_semantics get_mem set_mem (step2 ge)
-                       (entry_point ge)
+                       (start_stack ge)
                        at_external
                        after_external
                        final_state ge ge.

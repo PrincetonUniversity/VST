@@ -69,7 +69,11 @@ Definition initial_Clight_state : Clight.state :=
              (map (fun x => Clight.Etempvar (fst x) (snd x))
              (Clight_new.params_of_types 2 (Clight_new.params_of_fundef f))))
              (Clight.Kseq (Clight.Sloop Clight.Sskip Clight.Sskip) Clight.Kstop) Clight.empty_env
+<<<<<<< HEAD
              (temp_bindings 1 [Vptr (projT1 (spr CPROOF)) Ptrofs.zero]) init_mem.
+=======
+             (Clight.temp_bindings 1 [Vptr (projT1 (spr CPROOF)) Ptrofs.zero]) init_mem.
+>>>>>>> Revert "New external diagrams. The new quantification of the trace is wrong (need to fold that back)."
 
 (*...And we should be able to construct an initial state from the Clight_new and mem.*)
 (* See also veric/Clight_sim.v. *)
