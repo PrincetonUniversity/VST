@@ -1012,22 +1012,21 @@ match type of H' with ?TH =>
      end
      end.
 
-Ltac head A := lazymatch A with _ -> ?B => head B | _ => A end.
 Ltac head_of_type_of H :=
- match type of H with ?A => head A end.
+ match type of H with ?A => apply_find_core A end.
 
 Ltac sep_apply_aux1 H := 
  let B := head_of_type_of H in
  lazymatch B with
  | ?A |-- _ =>
-   lazymatch type of A with
+   lazymatch A with
    | context [!! ?P && _] =>
       let H' := fresh in
       assert (H' := H);
       rewrite ?(andp_assoc (!! P)) in H';
       let H := fresh in 
       assert (H:P);
-       [ clear H' | rewrite (prop_true_andp P) in H' by apply H;
+       [ clear H' | rewrite (prop_true_andp P) in H' by apply H; clear H;
            sep_apply_aux1 H'; clear H' ]
    | _ => sep_apply_aux2 H
     end
