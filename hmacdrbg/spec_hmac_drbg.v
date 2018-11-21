@@ -75,14 +75,15 @@ Hint Resolve UNDER_SPEC.REP_isptr : saturate_local.
 
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
-  WITH ctx:val, r:mdstate, sh: share
+  WITH ctx:val, r:mdstate, sh: share, gv: globals
   PRE  [ _ctx OF tptr t_struct_md_ctx_st ]
        PROP(writable_share sh) 
-       LOCAL(temp _ctx ctx) 
+       LOCAL(temp _ctx ctx; gvars gv) 
        SEP (data_at sh t_struct_md_ctx_st r ctx;
-            md_empty r)
+            md_empty r;
+             mem_mgr gv)
   POST [ tvoid ] 
-       PROP () LOCAL () SEP (data_at sh t_struct_md_ctx_st r ctx).
+       PROP () LOCAL () SEP (data_at sh t_struct_md_ctx_st r ctx; mem_mgr gv).
 
 Definition mbedtls_zeroize_spec :=
   DECLARE _mbedtls_zeroize
@@ -212,13 +213,14 @@ Definition md_final_spec :=
 
 Definition md_setup_spec :=
   DECLARE _mbedtls_md_setup
-   WITH md_ctx : mdstate, c:val, wsh: share, h:val, info:val
+   WITH md_ctx : mdstate, c:val, wsh: share, h:val, info:val, gv: globals
    PRE [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr),
          _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
          _hmac OF tint]
        PROP (writable_share wsh) 
-       LOCAL (temp _md_info info; temp _ctx c; temp _hmac h)
-       SEP(data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)
+       LOCAL (temp _md_info info; temp _ctx c; temp _hmac h; gvars gv)
+       SEP(data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c;
+             mem_mgr gv)
   POST [ tint ] EX r:_,
           PROP (r=0 \/ r=-20864) 
           LOCAL (temp ret_temp (Vint (Int.repr r)))
@@ -226,7 +228,8 @@ Definition md_setup_spec :=
               then (EX p: val, 
                          md_empty (info, (fst(snd md_ctx), p)) *
                          data_at wsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
-             else data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
+             else data_at wsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c;
+              mem_mgr gv).
 (* end mocked_md *)
 
 Inductive hmac256drbgabs :=
@@ -579,7 +582,7 @@ Definition hmac_drbg_seed_buf_spec :=
          hmac256drbg_relate CTX Ctx;
          data_at shc t_struct_mbedtls_md_info Info info;
          da_emp shd (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
-         K_vector gv)
+         K_vector gv; mem_mgr gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
@@ -598,7 +601,8 @@ Definition hmac_drbg_seed_buf_spec :=
                              && md_full key mds *
                                 data_at shc t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vubyte VAL, (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vubyte VAL, (RC', (EL', (PR', RI')))))
-                        end).
+                        end;
+            mem_mgr gv).
 
 Definition GetEntropy_PostSep sh len s buf :=
   match ENTROPY.get_bytes (Z.to_nat len) s with
@@ -753,7 +757,7 @@ Definition hmac_drbg_seed_inst256_spec :=
          preseed_relate dp rc pr_flag ri Ctx;
          data_at shc t_struct_mbedtls_md_info Info info;
          da_emp shd (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
-         K_vector gv; Stream s)
+         K_vector gv; Stream s; mem_mgr gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
@@ -774,7 +778,8 @@ Definition hmac_drbg_seed_inst256_spec :=
                    in data_at shc t_struct_hmac256drbg_context_st CtxFinal ctx *
                       hmac256drbg_relate (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
                       Stream (snd handle_ss) 
-                end).
+                end;
+             mem_mgr gv).
 
 (*********************************** end of hmac_drbg_seed specification ******************************)
 Definition setPR_ABS res (a: hmac256drbgabs): hmac256drbgabs :=
@@ -854,17 +859,19 @@ Definition hmac_drbg_setReseedInterval_spec :=
 
 Definition hmac_drbg_free_spec :=
   DECLARE _mbedtls_hmac_drbg_free
-   WITH ctx:val, shc: share, CTX:hmac256drbgstate, ABS:_
+   WITH ctx:val, shc: share, CTX:hmac256drbgstate, ABS:_, gv: globals
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
        PROP (writable_share shc )
-       LOCAL (temp _ctx ctx)
+       LOCAL (temp _ctx ctx; gvars gv)
        SEP (da_emp shc t_struct_hmac256drbg_context_st CTX ctx;
             if Val.eq ctx nullval then emp else
-                 hmac256drbg_relate ABS CTX)
+                 hmac256drbg_relate ABS CTX;
+             mem_mgr gv)
     POST [ tvoid ] 
       EX vret:unit, PROP ()
        LOCAL ()
-       SEP (if Val.eq ctx nullval then emp else data_block shc (list_repeat (Z.to_nat size_of_HMACDRBGCTX) Byte.zero) ctx).
+       SEP (if Val.eq ctx nullval then emp else data_block shc (list_repeat (Z.to_nat size_of_HMACDRBGCTX) Byte.zero) ctx;
+              mem_mgr gv).
 
 Definition HmacDrbgVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
 

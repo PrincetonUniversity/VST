@@ -66,7 +66,8 @@ Definition drbg_seed_inst256_spec_abs :=
        LOCAL (temp _ctx ctx; temp _md_info info;
               temp _len (Vint (Int.repr len)); temp _custom data; gvars gv)
        SEP (seedREP sh dp rc pr_flag ri gv Info info ctx; Stream s;
-            da_emp sh (tarray tuchar (Zlength Data)) (map Vubyte Data) data)
+            da_emp sh (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
+            mem_mgr gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
@@ -79,7 +80,8 @@ Definition drbg_seed_inst256_spec_abs :=
                  match fst handle_ss with ((((newV, newK), newRC), newEL), newPR) =>
                     AREP sh gv (HMAC256DRBGabs newK newV newRC 32 newPR 10000) ctx *
                     Stream (snd handle_ss) * EX mds:mdstate, md_empty mds   
-                 end).
+                 end;
+            mem_mgr gv).
 
 Definition drbg_seed_buf_abs_spec :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
@@ -95,7 +97,8 @@ Definition drbg_seed_buf_abs_spec :=
        LOCAL (temp _ctx ctx; temp _md_info info;
               temp _data_len (Vint (Int.repr d_len)); temp _data data; gvars gv)
        SEP (seedbufREP sh gv Info info I ctx;
-            da_emp sh (tarray tuchar (Zlength Data)) (map Vubyte Data) data)
+            da_emp sh (tarray tuchar (Zlength Data)) (map Vubyte Data) data;
+            mem_mgr gv)
     POST [ tint ]
        EX ret_value:_,
        PROP ()
@@ -107,7 +110,8 @@ Definition drbg_seed_buf_abs_spec :=
                  EX KEY:list byte, EX VAL:list byte, EX p:val, EX mds:mdstate,
                  !!(hmacdrbg.HMAC256_DRBG_functional_prog.HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 Byte.one) = (KEY, VAL))
                  && md_full key mds *
-                 REP sh gv Info (HMAC256DRBGabs KEY VAL RC EL PR RI) ctx end).
+                 REP sh gv Info (HMAC256DRBGabs KEY VAL RC EL PR RI) ctx end;
+            mem_mgr gv).
 
 Definition drbg_setPredictionResistance_spec_abs :=
   DECLARE _mbedtls_hmac_drbg_set_prediction_resistance 

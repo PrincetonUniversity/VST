@@ -35,17 +35,17 @@ Qed.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
-   WITH t:type
+   WITH t:type, gv: globals
    PRE [ _n OF tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))))
-       SEP ()
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Ews t p * data_at_ Ews t p).
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition fifo_body (contents: list val) (hd tl : val) :=
      (if isnil contents
@@ -64,11 +64,11 @@ Definition fifo (contents: list val) (p: val) : mpred :=
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
-  WITH u : unit
+  WITH gv: globals
   PRE  [  ]
-       PROP() LOCAL() SEP ()
+       PROP() LOCAL(gvars gv) SEP (mem_mgr gv)
   POST [ (tptr t_struct_fifo) ]
-    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (fifo nil v).
+    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (mem_mgr gv; fifo nil v).
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
@@ -106,14 +106,15 @@ Definition fifo_get_spec :=
 
 Definition make_elem_spec :=
  DECLARE _make_elem
-  WITH i: int
+  WITH i: int, gv: globals
   PRE  [ _data OF tint ]
-        PROP() LOCAL(temp _data (Vint i)) SEP()
+        PROP() LOCAL(temp _data (Vint i); gvars gv) SEP(mem_mgr gv)
   POST [ (tptr t_struct_elem) ]
     EX p:val,
        PROP()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Ews t_struct_elem p;
+       SEP (mem_mgr gv; 
+              malloc_token Ews t_struct_elem p;
               data_at Ews t_struct_elem (Vint i, Vundef) p).
 
 Definition main_spec :=
@@ -133,12 +134,12 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     t.
+     (t,gv).
   Intros p.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Ews t p * data_at_ Ews t p)).
+   SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -197,7 +198,7 @@ Proof.
   start_function.
 
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
-     t_struct_fifo.
+     (t_struct_fifo, gv).
     split3; simpl; auto; computable.
   Intros q.
   assert_PROP (field_compatible t_struct_fifo [] q).
@@ -306,7 +307,7 @@ Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
-    t_struct_elem.
+    (t_struct_elem, gv).
  split3; simpl; auto; computable.
  Intros p.
 forward.  (*  p->data=i; *)
@@ -319,17 +320,18 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-forward_call (* Q = fifo_new(); *)  tt.
+sep_apply (create_mem_mgr gv).
+forward_call (* Q = fifo_new(); *)  gv.
 Intros q.
 
 forward_call  (*  p = make_elem(1); *)
-     (Int.repr 1).
+     (Int.repr 1, gv).
 Intros p'.
 forward_call (* fifo_put(Q,p);*)
     ((q, @nil val),p', Vint (Int.repr 1)).
 
 forward_call  (*  p = make_elem(2); *)
-     (Int.repr 2).
+     (Int.repr 2, gv).
 Intros p2.
 simpl app.
  forward_call  (* fifo_put(Q,p); *)
@@ -340,8 +342,9 @@ forward_call  (*   p' = fifo_get(Q); p = p'; *)
 Intros p3.
 forward. (*   i = p->data;  *)
 forward_call (*  free(p); *)
-   (t_struct_elem, p3).
- forward. (* return i; *)
+   (t_struct_elem, p3, gv).
+assert_PROP (isptr p3); [entailer! | rewrite if_false by (intro; subst; contradiction) ]; cancel.
+forward. (* return i; *)
 Qed.
 
 Existing Instance NullExtension.Espec.

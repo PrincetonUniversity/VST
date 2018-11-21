@@ -15,9 +15,11 @@ Proof.
   destruct r as [r1 [r2 r3]].
   assert_PROP (isptr r3) by (unfold md_empty; entailer!).
   forward.
- forward_call (Tstruct _hmac_ctx_st noattr, r3).
- { rewrite md_empty_unfold. simpl. cancel. }
+ forward_call (Tstruct _hmac_ctx_st noattr, r3, gv).
+ { rewrite if_false by (intro; subst; contradiction).
+   rewrite md_empty_unfold. simpl. cancel. }
  forward.
+ cancel.
 Qed.
 
 Lemma body_md_get_size: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -135,7 +137,7 @@ Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSp
 Proof.
   start_function.
 
-  forward_call (Tstruct _hmac_ctx_st noattr).
+  forward_call (Tstruct _hmac_ctx_st noattr, gv).
   Intros vret.
 
   forward_if.

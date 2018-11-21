@@ -44,11 +44,11 @@ Proof.
       sep_apply (UNDER_SPEC.FULL_EMPTY Ews key v1).
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H0 as [xx XX]. 
-      forward_call (Vptr b i, (v, (v0, v1)), shc). {
+      forward_call (Vptr b i, (v, (v0, v1)), shc, gv). {
          unfold md_empty. simpl. cancel. } 
       replace_SEP 0 (memory_block shc 12 (Vptr b i)).
             { entailer!. apply @data_at_memory_block. }
-      freeze [0;1] FR1.
+      freeze [0;2] FR1.
       replace_SEP 0 (data_at_ shc (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
               entailer. rewrite data_at__memory_block.
