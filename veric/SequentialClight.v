@@ -56,14 +56,14 @@ Definition ext_spec_mem_evolve (Z: Type)
 
 Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
-   (D: external_specification mem external_function Z) :=
-   (ext_spec_type D = ext_spec_type J) /\
+   (D: external_specification mem external_function Z)
+   (dessicate: forall ef, ext_spec_type J ef -> ext_spec_type D ef) :=
   (forall e t t' b tl vl x jm,
-    JMeq.JMeq t t' ->
+    JMeq.JMeq (dessicate e t) t' ->
     (ext_spec_pre J e t b tl vl x jm <->
     ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
  (forall ef t t' b ot v x jm,
-    JMeq.JMeq t t' ->
+    JMeq.JMeq (dessicate ef t) t' ->
     (ext_spec_post J ef t b ot v x jm <->
      ext_spec_post D ef t' b ot v x (m_dry jm))) /\
  (forall v x jm,
@@ -83,9 +83,19 @@ intros v x m.
 apply (forall jm, m_dry jm = m -> ext_spec_exit v x jm).
 Defined.
 
+
+Definition dessicate_id Z 
+   (J: external_specification juicy_mem external_function Z) :
+   forall ef, ext_spec_type J ef -> 
+       ext_spec_type (juicy_dry_ext_spec_make Z J) ef.
+intros.
+destruct J; simpl in *. apply X.
+Defined.
+
 Lemma jdes_make_lemma:
   forall Z J, ignores_juice Z J ->
-    juicy_dry_ext_spec Z J (juicy_dry_ext_spec_make Z J).
+    juicy_dry_ext_spec Z J (juicy_dry_ext_spec_make Z J)
+     (dessicate_id Z J).
 Proof.
 intros.
 destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
@@ -100,9 +110,7 @@ split; intros.
 eapply H0. symmetry; eassumption.  auto.
 apply H2; auto.
 -
-split; intros.
 eapply H1. symmetry; eassumption. auto.
-apply H2; auto. 
 Qed.
 
 Definition mem_rmap_cohere m phi :=
@@ -372,7 +380,10 @@ Qed.
  Lemma whole_program_sequential_safety:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (dryspec: ext_spec OK_ty)
-     (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec)
+     (dessicate : forall ef : external_function,
+               ext_spec_type OK_spec ef ->
+               ext_spec_type dryspec ef)
+     (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
      prog V G m,
      @semax_prog Espec (*NullExtension.Espec*) CS prog V G ->
@@ -435,16 +446,21 @@ Proof.
      apply IHn; auto. omega.
      replace (level m'') with n0 by omega. auto.
  -
-   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec) by apply JDE.
+(*
+   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec)
+      by apply JDE.
+*)
 (*   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]]. *)
-   destruct dryspec as [ty pre post exit]. simpl in *. subst ty.
+   destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
-   apply safeN_external with (e0:=e)(args0:=args)(x0:=x).
-   assumption.
-   simpl. eapply JDE; try apply JMeq.JMeq_refl; eassumption.
-   simpl. intros.
-   assert (H20: exists jm', m_dry jm' = m' 
+   destruct JDE as [JDE1 [JDE2 JDE3]].
+   specialize (JDE1 e x (dessicate e x)); simpl in JDE1.
+   eapply safeN_external.
+     eassumption.
+     apply JDE1. apply JMeq.JMeq_refl. assumption.
+     simpl. intros.
+     assert (H20: exists jm', m_dry jm' = m' 
                       /\ (level jm' = n')%nat
                       /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
                       /\ exists g', compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: g'). {
@@ -460,11 +476,9 @@ Proof.
      { subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto. }
      pose (phi' := age_to.age_to n' phi1).
      assert (mem_rmap_cohere m' phi'). {
-       clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE.
-       destruct JDE as [_ [JDE2 _]]. simpl in JDE2.
-       apply (JDE2 e x x (genv_symb_injective (Genv.globalenv prog)) (sig_args (ef_sig e)) args ora jm (JMeq.JMeq_refl _))
-         in H1.
-       specialize (DME e x _ _ _ _ _ _ _ _ _ H1 H6).
+       clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE1.
+       apply JDE1 in H1; [ | apply JMeq.JMeq_refl].
+       specialize (DME e _ _ _ _ _ _ _ _ _ _ H1 H6).
      subst phi'.
      apply age_to_cohere.
      subst phi1.
@@ -497,7 +511,7 @@ Proof.
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
   spec H2.
-  apply <- (proj1 (proj2 (proj2 JDE))); try apply JMeq.JMeq_refl. subst m'. apply H6.
+  apply <- JDE2; try apply JMeq.JMeq_refl. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
