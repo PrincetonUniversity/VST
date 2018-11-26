@@ -868,9 +868,18 @@ Ltac intro_PROP :=
   | |- _ => fancy_intro true
   end.
 
+
+Fixpoint app_Prop (al bl: list Prop) :=
+ match al with a::al' => a :: app_Prop al' bl | nil => bl end.
+
 Ltac simpl_for_go_lower :=
  match goal with |- _ |-- ?A =>
-    let aa := fresh "aa" in set (aa:=A); simpl in aa; subst aa;
+     simpl msubst_denote_tc_assert;
+     simpl msubst_extract_locals;
+     simpl tc_val;
+   change (fold_right and True (@app Prop ?A ?B))
+      with (fold_right_and True (app_Prop A B));
+    unfold app_Prop, fold_right_and;
     unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp
  end.
 

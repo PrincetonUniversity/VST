@@ -98,8 +98,9 @@ Proof.
   set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   gather_SEP 1 2.
   replace_SEP 0 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
-  { subst ABS. unfold md_full. entailer!. unfold md_full; simpl; entailer!.
-    apply UNDER_SPEC.REP_FULL.
+  { subst ABS. simpl hmac256drbg_relate.  unfold md_full.
+     entailer!. simpl. entailer!.
+     apply UNDER_SPEC.REP_FULL.
   }
 
   forward_call (Data, data, shd,  d_len, Vptr b i, shc, xx, ABS, Info, gv).

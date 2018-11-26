@@ -87,18 +87,17 @@ destruct (Zlength (contents_with_add data (Zlength Data) Data) >?
 inv H2.
 destruct (get_entropy (32 + 32 / 2) (32 + 32 / 2) max_elength
          pr_flag s); inv H2.
-entailer!.
+simpl; entailer!.
 split3; auto.
-simpl.
 split; auto.
+simpl.
 hnf. rep_omega.
 unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_instantiate_algorithm,
   HMAC_DRBG_instantiate_algorithm in H3.
 destruct (HMAC_DRBG_update HMAC256) as [key value].
 inv H3.
+simpl.
 computable.
-unfold hmac256drbg_relate.
-entailer!.
 Qed.
 
 Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -188,7 +187,7 @@ Proof.
   set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   gather_SEP 1 2.
   replace_SEP 0 (hmac256drbg_relate  ABS xx).
-  { entailer!. subst ABS; unfold md_full. simpl. entailer!.
+  { entailer!. simpl. subst ABS; unfold md_full. simpl. entailer!.
     apply UNDER_SPEC.REP_FULL.
   }
 
@@ -838,8 +837,8 @@ Proof. start_function.
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H4, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
-      + subst i0. rewrite da_emp_null; trivial. entailer!.
-      + rewrite da_emp_ptr. Intros. normalize. entailer!.
+      + subst i0. rewrite da_emp_null; trivial. go_lower; simpl; entailer!.
+      + rewrite da_emp_ptr. Intros. entailer!. rewrite <- app_nil_end; auto. 
     }
 
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, K ); *)

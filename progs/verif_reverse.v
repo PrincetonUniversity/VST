@@ -194,10 +194,11 @@ forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 Exists (h::cts1,r,v,y).
+ simpl fst. simpl snd. simpl rev.
 entailer!.  (* smt_test verif_reverse_example2 *)
  - rewrite app_ass. auto.
  - rewrite (lseg_unroll _ sh (h::cts1)).
-   apply orp_right2.
+    apply orp_right2.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.

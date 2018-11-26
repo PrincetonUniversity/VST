@@ -107,7 +107,7 @@ forward_if.
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
    Exists v s1' x u.
-   subst s1. entailer!. cancel_wand.
+   subst s1. entailer!. simpl. cancel_wand.
 + (* loop test is safe to execute *)
    entailer!.
 + (* loop body preserves invariant *)

@@ -128,7 +128,7 @@ Proof.
         try (unfold N in *; omega).
       Exists 0; cancel.
     - (* Why didn't forward_call_dep discharge this? *) apply isptr_is_pointer_or_null; auto.
-    - Exists sh1'; entailer!. }
+    - Exists sh1'; entailer!. simpl; cancel. }
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.
     forward. entailer!.

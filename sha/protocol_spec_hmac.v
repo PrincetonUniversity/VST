@@ -441,7 +441,7 @@ apply semax_pre with (P':=EX h1:hmacabs,
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
    data_at_ Tsh (tarray tuchar 64) pad; K_vector gv;
    initPre sh sh c nullval h1 l key))). 
-{ unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
+{ unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!.  simpl.  auto. }
 Intros h1.
 eapply semax_post.
 5: apply (initbodyproof Espec c nullval l sh sh key gv h1 pad ctxkey); auto.
@@ -523,7 +523,8 @@ remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdum
 eapply semax_pre_post.
 6: apply (initbodyproof Espec c (Vptr b i) l sh shk key gv hdummy pad ctxkey); auto.
 
- entailer!.
+ entailer!; simpl.
+normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.

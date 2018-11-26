@@ -676,7 +676,7 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  match goal with
- | |- local _ && ?P |-- _ => go_lower; simpl; try simple apply empTrue
+ | |- local _ && ?P |-- _ => go_lower; (*simpl;*) try (*simple*) apply empTrue
  | |- ?P |-- _ =>
     match type of P with
     | ?T => unify T mpred; pull_out_props

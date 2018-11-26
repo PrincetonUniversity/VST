@@ -487,9 +487,9 @@ rename H into I.
         apply Byte.unsigned_range_2.
     + forward. erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
-      unfold field_address0. entailer!.
+      unfold field_address0. entailer!. simpl.
       autorewrite with sublist. 
-         if_tac; try contradiction.
+         if_tac; try contradiction. normalize.
       cancel.
   }
   { rewrite H in *; simpl in *. 
@@ -795,7 +795,7 @@ forward_for_simple_bound 16 (EX i:Z,
    temp _c c; temp _m m; temp _b (Vlong b); temp _n nonce; temp _k k; gvars gv)
    SEP  (FRZL FR1; EX l:_, !!(Zlength l + i = 16) && data_at Tsh (tarray tuchar 16) 
           ((list_repeat (Z.to_nat i) (Vint Int.zero)) ++ l) v_z))).
-{ Exists (list_repeat 16 Vundef). entailer!. }
+{ Exists (list_repeat 16 Vundef). entailer!. simpl; cancel. }
 { rename H into I. Intros l. rename H into LI16.
   forward. Exists (sublist 1 (Zlength l) l). entailer!.
     rewrite Zlength_sublist; omega.

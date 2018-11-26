@@ -107,6 +107,8 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
  make_Vptr c. simpl. unfold Ptrofs.of_intu, Ptrofs.of_int. normalize.
+ rewrite !mul_repr, !sub_repr.  (* Why didn't [normalize] do this? *)
+ reflexivity.
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')

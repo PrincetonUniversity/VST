@@ -260,7 +260,7 @@ Proof.
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
   { entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
-    apply andp_right. apply prop_right. repeat split; trivial.
+    simpl. entailer!.
     unfold_data_at 2%nat. 
     cancel. unfold md_full; simpl.
     rewrite field_at_data_at; simpl.
@@ -520,7 +520,7 @@ Proof.
          data_at Ews t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
   { entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
-    apply andp_right. apply prop_right. repeat split; trivial.
+    simpl; entailer!.
     unfold_data_at 2%nat. 
     cancel. unfold md_full; simpl.
     rewrite field_at_data_at; simpl.

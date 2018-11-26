@@ -451,7 +451,7 @@ forward_loop (EX i : Z,
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 *
- Exists 0. rewrite Z.sub_0_r; entailer!.
+ Exists 0. rewrite Z.sub_0_r; entailer!. simpl. entailer!.
 *
  Intros i.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
@@ -809,7 +809,7 @@ forward_loop (EX i : Z,
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 *
- Exists 0. rewrite Z.sub_0_r; entailer!.
+ Exists 0. rewrite Z.sub_0_r; entailer!. simpl; entailer!.
 *
  Intros i.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).

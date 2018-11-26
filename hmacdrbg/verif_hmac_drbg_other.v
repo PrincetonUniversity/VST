@@ -383,7 +383,7 @@ Proof.
           temp _v (Vptr b i))
    SEP (data_at sh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
                                        list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b i)))).
-  { Exists 0. rewrite Zminus_0_r. entailer!. }
+  { Exists 0. rewrite Zminus_0_r. entailer!. simpl; cancel. }
   eapply semax_seq with (Q:=
          PROP ( )
          LOCAL ()

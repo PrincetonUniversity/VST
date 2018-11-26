@@ -45,7 +45,7 @@ Proof.
     destruct p; inv H2.
     simpl in H3.
     pose proof Ptrofs.unsigned_range i.
-    rep_omega.
+    simpl. rep_omega.
   }
   assert_PROP (Int.repr (Int.unsigned (Int.divu (Int.repr (4 * n)) (Int.repr 4))) = Int.repr n) as H4.
   { entailer!. 
