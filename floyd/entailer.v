@@ -232,16 +232,6 @@ Ltac simpl_denote_tc :=
  simpl denote_tc_initialized;
  simpl denote_tc_nosignedover.
 
-Lemma valid_pointer_weak:
- forall a, valid_pointer a |-- weak_valid_pointer a.
-Proof.
-intros.
-unfold valid_pointer, weak_valid_pointer.
-change predicates_hered.orp with orp. (* delete me *)
-apply orp_right1.
-auto.
-Qed.
-
 Lemma denote_tc_test_eq_split:
   forall P x y,
     P |-- valid_pointer x ->
@@ -326,6 +316,23 @@ Proof.
  auto.
 Qed.
 
+Lemma sepcon_weak_valid_pointer1: 
+ forall (P Q : mpred) (p : val),
+   P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
+Proof.
+  intros.
+  eapply derives_trans; [ | apply (extend_weak_valid_pointer p Q)].
+  apply sepcon_derives; auto.
+Qed.
+
+Lemma sepcon_weak_valid_pointer2:
+  forall (P Q : mpred) (p : val),
+    P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
+Proof.
+  intros. rewrite sepcon_comm.
+  apply sepcon_weak_valid_pointer1; auto.
+Qed.
+
  Lemma andp_valid_pointer1:
      forall (P Q: mpred) p,
         P |-- valid_pointer p ->
@@ -368,6 +375,9 @@ Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
 Hint Resolve valid_pointer_null : valid_pointer.
 Hint Resolve valid_pointer_zero32 : valid_pointer.
 Hint Resolve valid_pointer_zero64 : valid_pointer.
+Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
+Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
+
 
 (* TODO: test_order need to be added *)
 Ltac solve_valid_pointer :=

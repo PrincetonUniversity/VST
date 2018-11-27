@@ -1689,6 +1689,51 @@ End CENV.
 Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
   (apply memory_block_valid_ptr; [auto with valid_pointer | rep_omega]) : valid_pointer.
 
+Lemma valid_pointer_weak:
+ forall a, valid_pointer a |-- weak_valid_pointer a.
+Proof.
+intros.
+unfold valid_pointer, weak_valid_pointer.
+change predicates_hered.orp with orp. (* delete me *)
+apply orp_right1.
+auto.
+Qed.
+
+Lemma valid_pointer_weak':
+  forall P q, P |-- valid_pointer q ->
+                 P |-- weak_valid_pointer q.
+Proof.
+intros.
+eapply derives_trans; try eassumption.
+apply valid_pointer_weak.
+Qed.
+
+Hint Resolve valid_pointer_weak' : valid_pointer.
+
+Lemma valid_pointer_offset_zero: forall P q, 
+   P |-- valid_pointer (offset_val 0 q) ->
+   P |-- valid_pointer q.
+Proof.
+intros.
+destruct q; auto.
+eapply derives_trans; try eassumption.
+simpl valid_pointer.
+change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero))).
+intros ? ?. contradiction H0.
+rewrite offset_val_zero_Vptr in H.
+auto.
+Qed.
+
+Hint Extern 1 (_ |-- valid_pointer ?Q) =>
+  lazymatch Q with
+  | offset_val _ _ => fail 
+  | _ => apply valid_pointer_offset_zero
+  end.
+
+Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
+  (apply SeparationLogic.memory_block_weak_valid_pointer;
+        [rep_omega | rep_omega | auto with valid_pointer]) : valid_pointer.
+
 Ltac field_at_conflict z fld :=
 eapply derives_trans with FF; [ | apply FF_left];
  rewrite <- ?sepcon_assoc;
@@ -1866,6 +1911,12 @@ Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
 
 Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+
+Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+    (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+
+Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+    (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
