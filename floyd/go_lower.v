@@ -868,6 +868,21 @@ Ltac intro_PROP :=
   | |- _ => fancy_intro true
   end.
 
+
+Fixpoint app_Prop (al bl: list Prop) :=
+ match al with a::al' => a :: app_Prop al' bl | nil => bl end.
+
+Ltac simpl_for_go_lower :=
+ match goal with |- _ |-- ?A =>
+     simpl msubst_denote_tc_assert;
+     simpl msubst_extract_locals;
+     simpl tc_val;
+   change (fold_right and True (@app Prop ?A ?B))
+      with (fold_right_and True (app_Prop A B));
+    unfold app_Prop, fold_right_and;
+    unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp
+ end.
+
 Ltac go_lower ::=
 clear_Delta_specs;
 intros;
@@ -892,8 +907,8 @@ first
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
  end);
 unfold_for_go_lower;
-simpl;
-try (progress unfold_for_go_lower; simpl); rewrite ?sepcon_emp;
+simpl_for_go_lower;
+try (progress unfold_for_go_lower; simpl_for_go_lower); rewrite ?sepcon_emp;
 clear_Delta;
 try clear dependent rho].
 
@@ -904,7 +919,7 @@ Ltac sep_apply_in_lifted_entailment H :=
      allows us to use propositional facts derived from the PROP and LOCAL
      parts of the left-hand side *)
  apply andp_right; [apply prop_right; auto | ];
- unfold fold_right_sepcon at 1;
+(* unfold fold_right_sepcon at 1; *)
  match goal with |- ?R |-- ?R2 => 
   let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
   sep_apply_in_entailment H; [ .. | 

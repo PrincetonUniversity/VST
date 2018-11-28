@@ -996,10 +996,8 @@ Ltac adjust2_sep_apply H :=
  | _ => x
  end.
 
-Ltac sep_apply_in_entailment H :=
-    match goal with |- ?A |-- ?B =>
-     let H' := adjust2_sep_apply H in
-     match type of H' with ?TH =>
+Ltac sep_apply_aux2 H' := 
+match type of H' with ?TH =>
      match apply_find_core TH with  ?C |-- ?D =>
       let frame := fresh "frame" in evar (frame: list mpred);
        apply derives_trans with (C * fold_right_sepcon frame);
@@ -1012,7 +1010,47 @@ Ltac sep_apply_in_entailment H :=
                 ]
              ]
      end
-     end
+     end.
+
+Ltac head_of_type_of H :=
+ match type of H with ?A => apply_find_core A end.
+
+Ltac sep_apply_aux1 H := 
+ let B := head_of_type_of H in
+ lazymatch B with
+ | ?A |-- _ =>
+   lazymatch A with
+   | context [!! ?P && _] =>
+      let H' := fresh in
+      assert (H' := H);
+      rewrite ?(andp_assoc (!! P)) in H';
+      let H := fresh in 
+      assert (H:P);
+       [ clear H' | rewrite (prop_true_andp P) in H' by apply H; clear H;
+           sep_apply_aux1 H'; clear H' ]
+   | _ => sep_apply_aux2 H
+    end
+ end.
+
+Ltac sep_apply_aux0 H :=
+ let B := head_of_type_of H in
+ lazymatch B with
+ | ?A ?D |-- _ =>
+    tryif (match type of D with ?DT => constr_eq DT globals end)
+   then
+    (tryif (unfold A in H) then sep_apply_aux1 H
+    else let H' := fresh in
+         tryif (assert (H' := H); unfold A in H')
+         then sep_apply_aux1 H'
+         else sep_apply_aux1 H)
+   else sep_apply_aux1 H
+ | _ => sep_apply_aux1 H
+ end.
+
+Ltac sep_apply_in_entailment H :=
+    match goal with |- _ |-- _ =>
+     let H' := adjust2_sep_apply H in
+         sep_apply_aux0 H'
     end.
 
 Lemma wand_refl_cancel_right:

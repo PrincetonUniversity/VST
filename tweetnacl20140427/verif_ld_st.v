@@ -298,7 +298,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
               (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
                list_repeat (Z.to_nat(4-i)) Vundef)
                 x))).
-{ entailer!. }
+{ entailer!. simpl; cancel. }
 { rename H into I.
   Time assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x)
        as FC_ptrX by solve [entailer!]. (*2.3*)

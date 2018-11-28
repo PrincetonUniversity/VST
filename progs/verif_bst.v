@@ -425,7 +425,7 @@ Proof.
         forward. (* t=&p->left *)
         unfold insert_inv.
         Exists (offset_val 8 p1) t1_1.
-        entailer!.
+        entailer!. simpl.
         simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 p1)
@@ -438,7 +438,7 @@ Proof.
         forward. (* t=&p->right *)
         unfold insert_inv.
         Exists (offset_val 12 p1) t1_2.
-        entailer!.
+        entailer!. simpl.
         simpl_compb; simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 12 p1)
@@ -499,7 +499,7 @@ Proof.
       - (* TODO: merge the following 2 lines *)
         apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
-        Exists pa pb; entailer!.
+        simpl. Exists pa pb; entailer!.
     + (* else-then clause: y<x *)
       forward. (* p=p<-right *)
       Exists (pb,t0_2). unfold fst,snd.
@@ -509,7 +509,7 @@ Proof.
       - (* TODO: merge the following 2 lines *)
         apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
-        Exists pa pb; entailer!.
+        simpl. Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
       assert (x=k) by omega. subst x. clear H H3 H4.
       forward. (* v=p->value *)
@@ -575,7 +575,7 @@ Proof.
     forward. (* skip *)
     forward. (* p = *t; *)
       (* TODO entailer: The following should be solve automatically. satuate local does not work *)
-      1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!.
+ (*     1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!. *)
     simpl tree_rep.
     Intros pa pbc.
     forward. (* q = p->right *)
@@ -655,7 +655,7 @@ Proof.
         forward. (* t=&p->left *)
         unfold delete_inv.
         Exists (offset_val 8 p1) t1_1.
-        entailer!.
+        entailer!. simpl.
         simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 p1)
@@ -668,7 +668,7 @@ Proof.
         forward. (* t=&p->right *)
         unfold delete_inv.
         Exists (offset_val 12 p1) t1_2.
-        entailer!.
+        entailer!. simpl.
         simpl_compb; simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 12 p1)
@@ -882,6 +882,7 @@ unfold treebox_rep.
 Exists nullval.
 entailer!.
 constructor.
+simpl. entailer!. 
 Qed.
 
 Lemma subsume_treebox_free:

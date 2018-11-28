@@ -201,14 +201,17 @@ Time forward_for_simple_bound 4 (EX i:Z,
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     Time entailer!. (*7.8*)
+    simpl.
     rewrite app_nil_r.
     apply sepcon_derives. autorewrite with sublist.
       rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
       repeat rewrite Zminus_diag. rewrite Z.add_simpl_l.
       rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try omega.
-      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega. apply derives_refl.
+      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega.
+    rewrite Z.mul_1_l. apply derives_refl.
     rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
-    repeat rewrite Z.add_simpl_l, app_nil_r in *. apply derives_refl. }
+    repeat rewrite Z.add_simpl_l, app_nil_r in *.
+    normalize. }
 
   (*Store into x[...]*)
   thaw FR2.
@@ -355,7 +358,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FRZL FR10; ThirtyTwoByte (Key1,Key2) k))).
   { rewrite Pk in *. erewrite ThirtyTwoByte_split16 by assumption.
-    Time entailer!. (*4.6 versus 7.4*)
+    Time entailer!. (*4.6 versus 7.4*) 
+    simpl. cancel.
 
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K2) in *.
@@ -382,7 +386,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time entailer!. (*2 versus 2.8  - penalty*)
     clear - X0cont I. apply XcontUpdate; trivial.
 
-  thaw FR11. Time cancel. (*0.3*)
+  thaw FR11. simpl. Time cancel. (*0.3*)
   apply derives_refl.
  }
 apply andp_left2; apply derives_refl.

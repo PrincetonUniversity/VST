@@ -63,7 +63,7 @@ Qed.
 
 Definition append_spec :=
  DECLARE _append
-  WITH sh : share, contents : list int, x: val, y: val, s1: list val, s2: list val
+  WITH sh : share, x: val, y: val, s1: list val, s2: list val
   PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
      PROP(writable_share sh)
      LOCAL (temp _x x; temp _y y)
@@ -107,7 +107,7 @@ forward_if.
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
    Exists v s1' x u.
-   subst s1. entailer!. cancel_wand.
+   subst s1. entailer!. simpl. cancel_wand.
 + (* loop test is safe to execute *)
    entailer!.
 + (* loop body preserves invariant *)

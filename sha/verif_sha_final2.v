@@ -191,7 +191,7 @@ replace_SEP 0  (data_at wsh t_struct_SHA256state_st
  unfold_data_at 1%nat.
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  unfold data_at.
- go_lower; cancel. (* saturate_local makes entailer! is REALLY slow, but (go_lower; cancel) is fast. *)
+ go_lower; simpl; cancel. (* saturate_local makes entailer! is REALLY slow, but (go_lower; cancel) is fast. *)
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite <- !(app_ass _ [_]).
  rewrite <- app_nil_end.
@@ -275,14 +275,19 @@ forward_call (* sha256_block_data_order (c,p); *)
     field_address t_struct_SHA256state_st [StructField _data] c,
     wsh, gv).
 {
-  simpl.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   unfold data_block.
   autorewrite with sublist.
   rewrite H1', <- HU. change (LBLOCKz*4)%Z with 64.
-  replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by
-    (extensionality xx; rewrite Int.repr_unsigned; auto).
-  apply derives_refl.
+  apply derives_refl'. clear Frame. f_equal.
+  subst ddz fill_len ddlen.
+  change CBLOCKz with 64.
+  rewrite !map_app.
+  unfold splice_into_list.
+  autorewrite with sublist.
+  rewrite <- (app_ass (map Vubyte dd)).
+  autorewrite with sublist.
+  reflexivity.
 }
  rewrite hash_blocks_last by auto.
  set (pad := (CBLOCKz - (ddlen+1))%Z) in *.

@@ -12,6 +12,7 @@ Opaque upto.
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
+  sep_apply (create_mem_mgr gv).
   simpl readonly2share.  (* TODO: delete this line when possible *)
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
@@ -96,12 +97,13 @@ Proof.
         fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
         fold_right sepcon emp (map (malloc_token Ews tint) reads);
         fold_right sepcon emp (map (malloc_token Ews tint) lasts);
-        fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs)))).
+        fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs));
+        mem_mgr gv)).
   { unfold N; computable. }
   { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!.
     apply derives_refl. }
   { Intros sh'.
-    forward_call tint. split3; simpl; auto; computable. Intros d.
+    forward_call (tint, gv). split3; simpl; auto; computable. Intros d.
     forward.
     match goal with H : sepalg_list.list_join sh0 _ sh' |- _ => rewrite sublist_next in H;
       auto; [inversion H as [|????? Hj1 Hj2]; subst |
@@ -126,7 +128,7 @@ Proof.
         try (unfold N in *; omega).
       Exists 0; cancel.
     - (* Why didn't forward_call_dep discharge this? *) apply isptr_is_pointer_or_null; auto.
-    - Exists sh1'; entailer!. }
+    - Exists sh1'; entailer!. simpl; cancel. }
     forward_loop (PROP()LOCAL()(SEP(TT))) break: (@FF (environ->mpred) _).
     entailer!.
     forward. entailer!.

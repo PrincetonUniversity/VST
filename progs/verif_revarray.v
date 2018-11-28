@@ -169,6 +169,7 @@ forward. (* hi--; *)
  Exists (Z.succ j).
  entailer!.
  f_equal; f_equal; omega.
+ simpl.
  apply derives_refl'.
  unfold data_at.    f_equal.
  clear - H0 HRE H1.

@@ -453,7 +453,7 @@ freeze [0;2] FR1.
       }
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
 thaw' FR1.
-Time entailer!. (*3.4 versus 2.6*)
+Time (go_lower; simpl; entailer!). (*3.4 versus 2.6*)
 subst OPADcont; rewrite Zlength_map.
 rewrite ZLO; trivial.
 Time Qed. (*VST 2.0: 0.4s*) (*12.3 versus 18.7*)  (*FIXME NOW 36secs*)

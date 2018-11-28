@@ -310,8 +310,8 @@ Proof. intros. do 2 pose proof I.
       rewrite NAF in *. clear Heqrounds.
       forward. rewrite H9, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
-      + subst i0. rewrite da_emp_null; trivial. entailer!.
-      + rewrite da_emp_ptr. Intros. normalize. entailer!.
+      + subst i0. rewrite da_emp_null; trivial. go_lower; simpl; entailer!.
+      + rewrite da_emp_ptr. Intros. entailer!. rewrite <- app_nil_end. auto.
     }
 
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, K ); *)

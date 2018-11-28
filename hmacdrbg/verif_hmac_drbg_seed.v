@@ -42,7 +42,7 @@ Proof.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
-  Time forward_call ((M1,(M2,M3)), Vptr b i, shc, Vint (Int.repr 1), info).
+  Time forward_call ((M1,(M2,M3)), Vptr b i, shc, Vint (Int.repr 1), info, gv).
 
   Intros v. rename H into Hv.
   freeze [0] FR1.
@@ -66,17 +66,17 @@ Proof.
   thaw FR0. subst.
   assert (ZL_VV: Zlength initial_key =32) by reflexivity.
   thaw FIELDS.
-  freeze [3;4;5;6] FIELDS1.
+  freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
-  freeze [0;4;5;6;8] FR2.
+  freeze [0;5;6;7;9] FR2.
   forward_call (Vptr b i, shc, ((info,(M2,p)):mdstate), 32, initial_key, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
   { split3; auto. split; auto. 
   }
 
   (*call  memset( ctx->V, 0x01, md_size )*)
-  freeze [0;1;3;4] FR3.
+  freeze [0;1;3;4;5] FR3.
   forward_call (shc, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives.
      - apply data_at_memory_block.
@@ -124,7 +124,7 @@ Proof.
   replace_SEP 0 (
          data_at shc t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
-  { entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
+  { simpl liftx. entailer!. thaw INI. clear - FC_V. (*KVStreamInfoDataFreeBlk.*) thaw FR_CTX.
     apply andp_right. apply prop_right. repeat split; trivial.
     unfold_data_at 2%nat. 
     cancel. unfold md_full; simpl.
