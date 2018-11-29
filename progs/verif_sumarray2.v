@@ -194,29 +194,25 @@ Lemma body_sumarray_alt: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
 forward.  (* s = 0; *)
-forward_for (sumarray_Inv a sh contents size)
-   continue: (sumarray_PostBody a sh contents size).
+forward_for (sumarray_Inv a sh contents size).
 * (* initializer establishes precondition *)
 forward. (* i=0; *)
 unfold sumarray_Inv. Exists 0. entailer!.
 * (* loop-test expression typechecks *)
 entailer!.
-* (* loop body preserves invariant *)
-rename a0 into i.
+*
+rename x into i.
 assert_PROP (size=Zlength contents)
   by (entailer!; autorewrite with sublist; auto).
 forward. (* x = a[i]; *)
 forward. (* s += x; *)
-unfold sumarray_PostBody. Exists i.
+forward.  (* i++; *)
+Exists (i+1).
 entailer!.
      f_equal. f_equal.
      rewrite (sublist_split 0 i (i+1)) by omega.
      rewrite sum_Z_app. rewrite (sublist_one i) by omega.
      simpl. autorewrite with sublist norm. reflexivity.
-* (* loop increment *)
-forward. (* i++; *)
-rename a0 into i.
-Exists (i+1). entailer!.
 * (* after the loop *)
 forward. (* return s; *)
 autorewrite with sublist in *.
