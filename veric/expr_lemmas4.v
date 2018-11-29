@@ -349,7 +349,7 @@ Lemma sem_cast_e1:
    tc_val t v ->
    Cop.sem_cast v t t1 m = Some v1.
 Proof.
-intros.  
+intros.
 destruct (eqb_type t int_or_ptr_type) eqn:J;
  [apply eqb_type_true in J; subst t
  | apply eqb_type_false in J];
@@ -363,13 +363,19 @@ destruct (eqb_type t int_or_ptr_type) eqn:J;
   destruct v1; auto; inv H1.
 *
 unfold sem_cast, classify_cast in H.
-destruct t1; auto.
+destruct t1; [auto | | | auto ..].
 +
 destruct i,s; auto; try solve [destruct v; inv H]; try solve [inv H0];
 simpl in H;
 simpl;
 destruct Archi.ptr64; auto;
 destruct v; inv H1; inv H; auto.
++ rewrite <- H; clear H.
+  unfold tc_val in H1.
+  rewrite eqb_type_refl in H1.
+  simpl in H1.
+  simpl in *.
+  destruct Archi.ptr64; auto; destruct v; inv H1; auto.
 +
 destruct f; inv H.
 +
