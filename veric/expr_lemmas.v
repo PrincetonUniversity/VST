@@ -638,7 +638,6 @@ unfold tc_val, sem_cast, classify_cast in *.
 destruct (eqb_type t2 int_or_ptr_type) eqn:J.
 {
 apply eqb_type_true in J; subst t2.
-change Archi.ptr64 with true in H.
 destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0;
   [| destruct Archi.ptr64 eqn:Hp;
      [ try solve [inv Hp]; destruct (is_long_type (typeof e2)) eqn:?HH
