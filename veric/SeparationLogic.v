@@ -1135,6 +1135,20 @@ Fixpoint unfold_Ssequence c :=
   | _ => c :: nil
   end.
 
+Fixpoint nocontinue s :=
+ match s with
+ | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sswitch _ sl => nocontinue_ls sl
+ | Sgoto _ => false
+ | Scontinue => false
+ | Slabel _ s => nocontinue s
+ | _ => true
+end
+with nocontinue_ls sl :=
+ match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+ end.
+
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
@@ -1526,6 +1540,15 @@ Axiom semax_loop_nocontinue:
  forall Delta P body incr R,
  @semax CS Espec Delta P (Ssequence body incr) (loop_nocontinue_ret_assert P R) ->
  @semax CS Espec Delta P (Sloop body incr) R.
+
+Axiom semax_convert_for_while':
+ forall CS Espec Delta Pre s1 e2 s3 s4 s5 Post,
+  nocontinue s4 = true ->
+  nocontinue s3 = true -> 
+  @semax CS Espec Delta Pre 
+    (Ssequence s1 (Ssequence (Swhile e2 (Ssequence s4 s3)) s5)) Post ->
+  @semax CS Espec Delta Pre (Ssequence (Sfor s1 e2 s4 s3) s5) Post.
+Proof.
 
 Axiom semax_loop_unroll1:
   forall {CS: compspecs} {Espec: OracleKind} Delta P P' Q body incr R,

@@ -1861,19 +1861,6 @@ Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  | _ => ok EK_normal
  end.
 
-Fixpoint nocontinue s :=
- match s with
- | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
- | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
- | Sswitch _ sl => nocontinue_ls sl
- | Sgoto _ => false
- | Scontinue => false
- | _ => true
-end
-with nocontinue_ls sl :=
- match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
- end.
-
 Fixpoint nobreaksx (s: statement) : bool :=
 match s with
 | Sbreak => false
@@ -2015,6 +2002,49 @@ Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
 forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index values of type A *)
 forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
+
+Lemma semax_convert_for_while:
+ forall CS Espec Delta Pre s1 e2 s3 s4 Post,
+  nocontinue s4 = true ->
+  nocontinue s3 = true ->
+  @semax CS Espec Delta Pre (Ssequence s1 (Swhile e2 (Ssequence s4 s3))) Post ->
+  @semax CS Espec Delta Pre (Sfor s1 e2 s4 s3) Post.
+Proof.
+intros.
+Locate semax_extract_prop.
+pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
+spec H2; auto.
+apply -> semax_seq_skip in H1; auto.
+apply seq_assoc in H1; auto.
+apply <- semax_seq_skip.
+apply H2; auto.
+Qed.
+
+Tactic Notation "forward_for" constr(Inv) :=
+  check_Delta; check_POSTCONDITION;
+  repeat simple apply seq_assoc1;
+  lazymatch type of Inv with
+  | _ -> environ -> mpred => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  end;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+        apply semax_convert_for_while';
+             [(reflexivity ||
+                 fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
+               | (reflexivity || fail "Unexpected continue statement in for-loop increment")
+               | apply semax_seq' with (exp Inv);
+                   [  |  forward_while (EX x:_, Inv x); [ apply ENTAIL_refl | | |  ]  ] ]
+  | |- semax _ _ (Sfor _ _ _ _) _ =>
+        apply semax_convert_for_while;
+             [(reflexivity ||
+                 fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
+               | (reflexivity || fail "Unexpected continue statement in for-loop increment")
+               | apply semax_seq' with (exp Inv);
+                   [  |  forward_while (EX x:_, Inv x);
+                             [ apply ENTAIL_refl | | | eapply semax_post_flipped'; [apply semax_skip | ] ]  ] ]
+        
+  end.
 
 Ltac process_cases sign := 
 match goal with

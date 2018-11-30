@@ -2229,6 +2229,189 @@ Proof.
   congruence.
 Qed.
 
+Lemma semax_nocontinue_inv:
+  forall CS Espec Delta Pre s Post Post',
+    nocontinue s = true ->
+    RA_normal Post = RA_normal Post' ->
+    RA_break Post = RA_break Post' ->
+    RA_return Post = RA_return Post' ->
+    @semax CS Espec Delta Pre s Post -> @semax CS Espec Delta Pre s Post'.
+Proof.
+  intros.
+  revert H Pre Post Post' H0 H1 H2 H3; induction s; simpl; intros.
+- (* skip *)
+ apply semax_skip_inv in H3.
+ econstructor; eauto.
+ instantiate (1:=normal_ret_assert (RA_normal Post)).
+simpl RA_normal.
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
+do 2 apply andp_left2.
+rewrite H0; auto.
+simpl; normalize.
+simpl; normalize.
+simpl; normalize.
+constructor.
+- (* assign *)
+admit.
+- (* set *)
+admit.
+- (* call *) 
+admit.
+- (* builtin *)
+admit.
+- (* seq *)
+apply semax_seq_inv in H3.
+destruct H3 as [Q [? ?]].
+destruct (nocontinue s1); inv H.
+apply AuxDefs.semax_seq with Q.
+2: apply IHs2 with Post; eauto.
+apply IHs1 with (overridePost Q Post); auto.
+destruct Post, Post'; simpl in *; auto.
+destruct Post, Post'; simpl in *; auto.
+destruct Post, Post'; simpl in *; auto.
+- (* ifthenelse *)
+apply semax_ifthenelse_inv in H3.
+destruct (nocontinue s1); inv H.
+eapply AuxDefs.semax_conseq.
+6: apply AuxDefs.semax_ifthenelse.
+eassumption.
+instantiate (1:=Post').
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
+do 2 apply andp_left2; auto.
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
+do 2 apply andp_left2; auto.
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
+do 2 apply andp_left2; auto.
+intros.
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
+do 2 apply andp_left2; auto.
+admit.
+admit.
+- (* loop *)
+apply semax_loop_inv in H3.
+eapply AuxDefs.semax_conseq.
+apply H3.
+instantiate (1:= Post').
+1,2,3,4: intros; do 2 apply andp_left2; auto;
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; auto.
+apply semax_extract_exists; intro Q.
+apply semax_extract_exists; intro Q'.
+apply semax_extract_prop; intros [? ?].
+apply AuxDefs.semax_loop with Q'.
+replace (loop1_ret_assert Q' Post') with (loop1_ret_assert Q' Post); auto.
+clear - H H0 H1 H2; destruct Post, Post'; simpl in *; f_equal; auto.
+replace (loop2_ret_assert Q Post') with (loop2_ret_assert Q Post); auto.
+clear - H H0 H1 H2; destruct Post, Post'; simpl in *; f_equal; auto.
+- (* break *)
+apply semax_break_inv in H3.
+eapply AuxDefs.semax_conseq.
+apply H3.
+instantiate (1:=  Post').
+1,2,3,4: intros; do 2 apply andp_left2; auto;
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; simpl; auto.
+rewrite H1.
+apply AuxDefs.semax_break.
+- (* continue *)
+inv H.
+- (* return *)
+apply semax_return_inv in H3.
+eapply AuxDefs.semax_conseq.
+apply H3.
+instantiate (1:=  Post').
+1,2,3,4: intros; do 2 apply andp_left2; auto;
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; simpl; auto.
+(* apply AuxDefs.semax_return. *)
+admit.
+- (* switch *)
+apply semax_switch_inv in H3.
+eapply AuxDefs.semax_conseq.
+6: instantiate (1:=Post').
+6: eapply AuxDefs.semax_switch.
+eapply derives_trans; [ apply H3 | ].
+apply bupd_mono.
+apply orp_derives; auto.
+rewrite andp_assoc.
+apply derives_refl.
+1,2,3,4: intros; do 2 apply andp_left2; auto;
+eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; simpl; auto.
+intros. simpl. apply andp_left1; auto.
+admit.
+- (* label *)
+inv H3.
+econstructor.
+eapply IHs; eauto.
+econstructor.
+admit.
+- (* goto  *)
+inv H.
+all: fail.
+Admitted.
+
+Lemma semax_loop_nocontinue1:
+  forall CS Espec Delta Pre s1 s2 s3 Post,
+  nocontinue s1 = true ->
+  nocontinue s2 = true ->
+  nocontinue s3 = true ->
+   @semax CS Espec Delta Pre (Sloop (Ssequence s1 (Ssequence s2 s3)) Sskip) Post ->
+    @semax CS Espec Delta Pre (Sloop (Ssequence s1 s2) s3) Post.
+Proof.
+intros.
+ rename H1 into Hs3. rename H2 into H1.
+apply semax_loop_inv in H1.
+eapply AuxDefs.semax_conseq.
+apply H1.
+instantiate (1:=Post).
+1,2,3,4: intros; eapply derives_trans; [  | apply bupd_orp_l];
+apply orp_right2; apply andp_left2; apply andp_left2; apply bupd_intro.
+apply semax_extract_exists; intro Q.
+apply semax_extract_exists; intro Q'.
+apply semax_extract_prop; intros [? ?].
+apply seq_assoc in H2.
+apply semax_seq_inv in H2.
+destruct H2 as [Q3 [? ?]].
+apply AuxDefs.semax_loop with Q3.
+*
+assert (nocontinue (Ssequence s1 s2) = true).
+simpl; rewrite H,H0; auto.
+forget (Ssequence s1 s2) as s.
+clear - H2 H5.
+revert H2.
+apply semax_nocontinue_inv; auto; destruct Post; try reflexivity.
+*
+clear - H4 H3 Hs3.
+apply semax_seq_skip.
+econstructor; eauto.
+clear - H4 Hs3.
+revert H4; apply semax_nocontinue_inv; auto; destruct Post; try reflexivity.
+Qed.
+
+Lemma semax_convert_for_while':
+ forall CS Espec Delta Pre s1 e2 s3 s4 s5 Post,
+  nocontinue s4 = true ->
+  nocontinue s3 = true -> 
+  @semax CS Espec Delta Pre 
+    (Ssequence s1 (Ssequence (Swhile e2 (Ssequence s4 s3)) s5)) Post ->
+  @semax CS Espec Delta Pre (Ssequence (Sfor s1 e2 s4 s3) s5) Post.
+Proof.
+intros.
+rename H0 into H9. rename H1 into H0.
+apply semax_seq_inv in H0.
+destruct H0 as [Q [? ?]].
+apply semax_seq_inv in H1.
+destruct H1 as [R [? ?]].
+unfold Sfor, Swhile  in *.
+apply AuxDefs.semax_seq with R; auto.
+apply AuxDefs.semax_seq with Q; auto.
+rewrite overridePost_overridePost; auto.
+clear - H1 H H9.
+assert (nocontinue (Sifthenelse e2 Sskip Sbreak) = true) by reflexivity.
+forget (Sifthenelse e2 Sskip Sbreak) as s1.
+forget (overridePost R Post) as R'; clear - H H1 H0 H9.
+fold semax.
+apply semax_loop_nocontinue1; auto.
+Qed.
+
+
 Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
