@@ -638,8 +638,11 @@ unfold tc_val, sem_cast, classify_cast in *.
 destruct (eqb_type t2 int_or_ptr_type) eqn:J.
 {
 apply eqb_type_true in J; subst t2.
+change Archi.ptr64 with true in H.
 destruct (eqb_type (typeof e2) int_or_ptr_type) eqn:J0;
-[| destruct (is_int_type (typeof e2)) eqn:?HH;
+  [| destruct Archi.ptr64 eqn:Hp;
+     [ try solve [inv Hp]; destruct (is_long_type (typeof e2)) eqn:?HH
+     | try solve [inv Hp]; destruct (is_int_type (typeof e2)) eqn:?HH];
 [| destruct (is_pointer_type (typeof e2)) eqn:?HH] ].
 {
 apply eqb_type_true in J0; rewrite J0 in *.
@@ -650,7 +653,7 @@ destruct (eval_expr e2 rho); inv H; auto.
 destruct (typeof e2); try solve [inv HH].
 simpl in H6.
 rewrite N.eqb_refl in H6.
-destruct Archi.ptr64 eqn:Hp; try inv H.
+try inv H.
 simpl in H6.
 destruct (eval_expr e2 rho); auto.
 }
@@ -660,7 +663,7 @@ rewrite J0 in *.
 rewrite eqb_type_refl in H6.
 simpl in *.
 destruct (typeof e2); try solve [inv HH0];
-destruct Archi.ptr64 eqn:Hp; try inv H;
+try inv H;
 destruct (eval_expr e2 rho); auto.
 }
 

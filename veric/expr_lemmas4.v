@@ -375,7 +375,7 @@ destruct v; inv H1; inv H; auto.
   rewrite eqb_type_refl in H1.
   simpl in H1.
   simpl in *.
-  first [auto | destruct Archi.ptr64 eqn:?Hp; auto; destruct v; inv H1; auto].
+  solve [auto | destruct Archi.ptr64 eqn:?Hp; auto; destruct v; inv H1; auto].
 +
 destruct f; inv H.
 +

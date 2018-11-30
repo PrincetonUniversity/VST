@@ -1316,9 +1316,12 @@ end.
 Lemma typed_true_ptr_e:
  forall t v, typed_true (tptr t) v -> isptr v.
 Proof.
- intros. destruct v; inv H; try apply Coq.Init.Logic.I.
-(*destruct Archi.ptr64; try discriminate.*)
-revert H1; simple_if_tac; intro H1; inv H1. 
+  intros.
+  unfold typed_true, strict_bool_val, tptr in H.
+  destruct v; match type of H with | None = Some true => inv H | _ => idtac end.
+  + destruct Archi.ptr64 eqn:Hp; destruct (Int.eq i Int.zero); inv H.
+  + destruct Archi.ptr64 eqn:Hp; destruct (Int64.eq i Int64.zero); inv H.
+  + apply Coq.Init.Logic.I.
 Qed.
 
 Lemma typed_false_ptr_e:
