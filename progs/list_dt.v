@@ -1431,7 +1431,6 @@ simpl in H.
 destruct Archi.ptr64 eqn:Hp.
 *
 destruct v; inv H. 
-destruct (Int.eq i Int.zero); inv H1.
 destruct (Int64.eq i Int64.zero); inv H1.
 intro; apply ptr_eq_e in H; inv H.
 *
