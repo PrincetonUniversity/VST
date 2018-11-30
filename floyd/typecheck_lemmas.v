@@ -54,12 +54,18 @@ try destruct (eqb_type _ _); apply @TT_right.
 *
 unfold is_neutral_cast in H.
 destruct (eqb_type (Tpointer t a0) int_or_ptr_type) eqn:H0.
+{
 rewrite (eqb_type_true _ _ H0).
 destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
-rewrite (eqb_type_true _ _ H1).
+{
 apply @TT_right.
+}
+{
 rewrite (eqb_type_true _ _ H0) in H.
 rewrite H1 in H. inv H.
+}
+}
+{
 destruct (eqb_type (Tpointer t' a) int_or_ptr_type) eqn:H1.
 rewrite (eqb_type_true _ _ H1) in H.
 rewrite expr_lemmas4.eqb_type_sym in H.
@@ -69,6 +75,7 @@ unfold is_pointer_type.
 rewrite H0,H1.
 simpl.
 simple_if_tac; apply @TT_right.
+}
 Qed.
 
 Lemma neutral_isCastResultType_32:
@@ -94,17 +101,15 @@ unfold is_neutral_cast in H.
 rewrite orb_true_iff in H.
 destruct H.
 rewrite (eqb_type_true _ _ H).
-rewrite !eqb_reflx. rewrite eqb_type_refl. apply @TT_right.
+rewrite eqb_type_refl. apply @TT_right.
 rewrite andb_true_iff in H.
 destruct H.
 rewrite negb_true_iff in H, H0. rewrite H,H0.
-rewrite eqb_reflx.
 destruct (eqb_type (Tpointer t' a) (Tpointer t a0)); try apply @TT_right.
 unfold is_pointer_type.
 rewrite H,H0.
 apply @TT_right.
 Qed.
-
 
 Lemma neutral_isCastResultType:
   forall {cs: compspecs}  P t t' v rho,
@@ -150,31 +155,7 @@ Definition typecheck_LR {cs: compspecs} Delta e lr :=
 Definition tc_LR_strong {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR_strong Delta e lr).
 
 Definition tc_LR {cs: compspecs} Delta e lr := denote_tc_assert (typecheck_LR Delta e lr).
-(*
-Definition tc_LR_strong {cs: compspecs} Delta e lr :=
-  match lr with
-  | LLLL => typecheck_lvalue Delta e
-  | RRRR => typecheck_expr Delta e
-  end.
-  
-Definition typecheck_LR {cs: compspecs} Delta e lr: tc_assert :=
-  match e with
-  | Ederef e0 t =>
-     match lr with
-     | LLLL => tc_andp
-                 (typecheck_expr Delta e0)
-                 (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
-     | RRRR => match access_mode t with
-               | By_reference =>
-                   tc_andp
-                     (typecheck_expr Delta e0)
-                     (tc_bool (is_pointer_type (typeof e0))(op_result_type e))
-               | _ => tc_FF (deref_byvalue t)
-               end
-    end
-  | _ => typecheck_LR_strong Delta e lr
-  end.
-*)
+
 Definition eval_LR {cs: compspecs} e lr :=
   match lr with
   | LLLL => eval_lvalue e

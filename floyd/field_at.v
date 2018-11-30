@@ -1718,7 +1718,12 @@ intros.
 destruct q; auto.
 eapply derives_trans; try eassumption.
 simpl valid_pointer.
-change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero))).
+match goal with
+| |- context [Int64.zero] =>
+    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int64.zero)))
+| |- context [Int.zero] =>
+    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero)))
+end.
 intros ? ?. contradiction H0.
 rewrite offset_val_zero_Vptr in H.
 auto.

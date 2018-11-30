@@ -935,16 +935,16 @@ Proof.
     eapply tc_val'_sem_cmp_pp; eauto.
   + revert H; simple_if_tac; intros; [congruence |].
     unfold sem_cmp_pi in H.
-    destruct v2; inv H.
+    destruct v2; [ inv H | | inv H .. |].
     - eapply tc_val'_sem_cmp_pp; eauto.
-    - destruct Archi.ptr64; inv H1.
-      eapply tc_val'_sem_cmp_pp; eauto.
+    - destruct Archi.ptr64; inv H;
+      try (eapply tc_val'_sem_cmp_pp; eauto).
   + revert H; simple_if_tac; intros; [congruence |].
     unfold sem_cmp_ip in H.
-    destruct v1; inv H.
+    destruct v1; [ inv H | | inv H .. |].
     - eapply tc_val'_sem_cmp_pp; eauto.
-    - destruct Archi.ptr64; inv H1.
-      eapply tc_val'_sem_cmp_pp; eauto.
+    - destruct Archi.ptr64; inv H;
+      try (eapply tc_val'_sem_cmp_pp; eauto).
   + revert H; simple_if_tac; intros; [congruence |].
     unfold sem_cmp_pl in H.
     destruct v2; try congruence.
