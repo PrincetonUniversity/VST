@@ -2229,6 +2229,47 @@ Proof.
   congruence.
 Qed.
 
+Lemma nocontinue_ls_spec: forall sl, nocontinue_ls sl = true -> nocontinue (seq_of_labeled_statement sl) = true.
+Proof.
+  intros.
+  induction sl.
+  + reflexivity.
+  + simpl in *.
+    destruct (nocontinue s); [| inv H].
+    auto.
+Qed.
+
+Lemma nocontinue_ls_spec': forall sl n, nocontinue_ls sl = true -> nocontinue (seq_of_labeled_statement (select_switch n sl)) = true.
+Proof.
+  intros.
+  apply nocontinue_ls_spec in H.
+  unfold select_switch.
+  destruct (select_switch_case n sl) eqn:?Hs.
+  + induction sl.
+    - inv Hs.
+    - simpl in Hs.
+      destruct o as [c|]; [destruct (zeq c n) |].
+      * subst c; inv Hs.
+        apply H.
+      * change (nocontinue s && nocontinue (seq_of_labeled_statement sl) = true)%bool in H.
+        rewrite andb_true_iff in H.
+        apply IHsl; auto.
+        tauto.
+      * change (nocontinue s && nocontinue (seq_of_labeled_statement sl) = true)%bool in H.
+        rewrite andb_true_iff in H.
+        apply IHsl; auto.
+        tauto.
+  + induction sl.
+    - reflexivity.
+    - simpl in Hs |- *.
+      destruct o.
+      * change (nocontinue s && nocontinue (seq_of_labeled_statement sl) = true)%bool in H.
+        rewrite andb_true_iff in H.
+        apply IHsl; [tauto |].
+        if_tac in Hs; [inv Hs | auto].
+      * exact H.
+Qed.
+
 Lemma semax_nocontinue_inv:
   forall CS Espec Delta Pre s Post Post',
     nocontinue s = true ->
@@ -2238,114 +2279,60 @@ Lemma semax_nocontinue_inv:
     @semax CS Espec Delta Pre s Post -> @semax CS Espec Delta Pre s Post'.
 Proof.
   intros.
-  revert H Pre Post Post' H0 H1 H2 H3; induction s; simpl; intros.
-- (* skip *)
- apply semax_skip_inv in H3.
- econstructor; eauto.
- instantiate (1:=normal_ret_assert (RA_normal Post)).
-simpl RA_normal.
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
-do 2 apply andp_left2.
-rewrite H0; auto.
-simpl; normalize.
-simpl; normalize.
-simpl; normalize.
-constructor.
-- (* assign *)
-admit.
-- (* set *)
-admit.
-- (* call *) 
-admit.
-- (* builtin *)
-admit.
-- (* seq *)
-apply semax_seq_inv in H3.
-destruct H3 as [Q [? ?]].
-destruct (nocontinue s1); inv H.
-apply AuxDefs.semax_seq with Q.
-2: apply IHs2 with Post; eauto.
-apply IHs1 with (overridePost Q Post); auto.
-destruct Post, Post'; simpl in *; auto.
-destruct Post, Post'; simpl in *; auto.
-destruct Post, Post'; simpl in *; auto.
-- (* ifthenelse *)
-apply semax_ifthenelse_inv in H3.
-destruct (nocontinue s1); inv H.
-eapply AuxDefs.semax_conseq.
-6: apply AuxDefs.semax_ifthenelse.
-eassumption.
-instantiate (1:=Post').
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
-do 2 apply andp_left2; auto.
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
-do 2 apply andp_left2; auto.
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
-do 2 apply andp_left2; auto.
-intros.
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r].
-do 2 apply andp_left2; auto.
-admit.
-admit.
-- (* loop *)
-apply semax_loop_inv in H3.
-eapply AuxDefs.semax_conseq.
-apply H3.
-instantiate (1:= Post').
-1,2,3,4: intros; do 2 apply andp_left2; auto;
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; auto.
-apply semax_extract_exists; intro Q.
-apply semax_extract_exists; intro Q'.
-apply semax_extract_prop; intros [? ?].
-apply AuxDefs.semax_loop with Q'.
-replace (loop1_ret_assert Q' Post') with (loop1_ret_assert Q' Post); auto.
-clear - H H0 H1 H2; destruct Post, Post'; simpl in *; f_equal; auto.
-replace (loop2_ret_assert Q Post') with (loop2_ret_assert Q Post); auto.
-clear - H H0 H1 H2; destruct Post, Post'; simpl in *; f_equal; auto.
-- (* break *)
-apply semax_break_inv in H3.
-eapply AuxDefs.semax_conseq.
-apply H3.
-instantiate (1:=  Post').
-1,2,3,4: intros; do 2 apply andp_left2; auto;
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; simpl; auto.
-rewrite H1.
-apply AuxDefs.semax_break.
-- (* continue *)
-inv H.
-- (* return *)
-apply semax_return_inv in H3.
-eapply AuxDefs.semax_conseq.
-apply H3.
-instantiate (1:=  Post').
-1,2,3,4: intros; do 2 apply andp_left2; auto;
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; simpl; auto.
-(* apply AuxDefs.semax_return. *)
-admit.
-- (* switch *)
-apply semax_switch_inv in H3.
-eapply AuxDefs.semax_conseq.
-6: instantiate (1:=Post').
-6: eapply AuxDefs.semax_switch.
-eapply derives_trans; [ apply H3 | ].
-apply bupd_mono.
-apply orp_derives; auto.
-rewrite andp_assoc.
-apply derives_refl.
-1,2,3,4: intros; do 2 apply andp_left2; auto;
-eapply derives_trans; [apply orp_right2 |  apply bupd_orp_r]; simpl; auto.
-intros. simpl. apply andp_left1; auto.
-admit.
-- (* label *)
-inv H3.
-econstructor.
-eapply IHs; eauto.
-econstructor.
-admit.
-- (* goto  *)
-inv H.
-all: fail.
-Admitted.
+  revert Post' H0 H1 H2.
+  induction H3; intros.
+  + change (nocontinue c && nocontinue d = true)%bool in H.
+    rewrite andb_true_iff in H.
+    specialize (IHsemax1 (proj1 H) _ H0 H1 H2).
+    specialize (IHsemax2 (proj2 H) _ H0 H1 H2).
+    apply AuxDefs.semax_ifthenelse; auto.
+  + change (nocontinue h && nocontinue t = true)%bool in H.
+    rewrite andb_true_iff in H.
+    specialize (IHsemax1 (proj1 H)).
+    specialize (IHsemax2 (proj2 H) _ H0 H1 H2).
+    eapply AuxDefs.semax_seq; [| eauto].
+    apply IHsemax1; destruct Post', R; auto.
+  + rewrite H1.
+    apply AuxDefs.semax_break.
+  + inv H.
+  + clear IHsemax1 IHsemax2.
+    replace (loop1_ret_assert Q' R) with (loop1_ret_assert Q' Post') in H3_
+      by (destruct Post', R; simpl; f_equal; auto).
+    replace (loop2_ret_assert Q R) with (loop2_ret_assert Q Post') in H3_0
+      by (destruct Post', R; simpl; f_equal; auto).
+    eapply AuxDefs.semax_loop; eauto.
+  + apply AuxDefs.semax_switch; auto.
+    intros n; specialize (H2 n).
+    simpl in H.
+    apply (nocontinue_ls_spec' _ (Int.unsigned n)) in H.
+    specialize (H2 H).
+    apply H2; destruct Post', R; simpl; auto.
+  + eapply semax_post with (normal_ret_assert R);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_call_backward.
+  + rewrite H2.
+    apply AuxDefs.semax_return.
+  + eapply semax_post with (normal_ret_assert P);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward.
+  + eapply semax_post with (normal_ret_assert P);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_store_backward.
+  + eapply semax_post with (normal_ret_assert P);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_skip.
+  + apply AuxDefs.semax_builtin.
+  + specialize (IHsemax H _ H0 H1 H2).
+    apply AuxDefs.semax_label; auto.
+  + apply AuxDefs.semax_goto.
+  + apply (AuxDefs.semax_conseq _ P' (Build_ret_assert (RA_normal R') (RA_break R') (RA_continue Post') (RA_return R'))).
+    - exact H0.
+    - rewrite <- H6; exact H1.
+    - rewrite <- H7; exact H2.
+    - apply derives_full_refl.
+    - intros. rewrite <- H8; exact (H4 vl).
+    - apply IHsemax; auto.
+Qed.
 
 Lemma semax_loop_nocontinue1:
   forall CS Espec Delta Pre s1 s2 s3 Post,
