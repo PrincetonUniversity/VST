@@ -329,7 +329,7 @@ Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert 
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
  | Vint n1, Vint n2 => 
     if range_s32 (op (Int.signed n1) (Int.signed n2))
-     then tc_TT else tc_nosignedover Z.add e1 e2
+     then tc_TT else tc_nosignedover op e1 e2
  | Vlong n1, Vlong n2 => 
     if range_s64 (op (Int64.signed n1) (Int64.signed n2))
      then tc_TT else tc_nosignedover op e1 e2
