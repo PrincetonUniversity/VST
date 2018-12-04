@@ -1315,6 +1315,17 @@ Ltac entailer_for_load_tac := default_entailer_for_load_store.
 
 Ltac entailer_for_store_tac := default_entailer_for_load_store.
 
+Ltac check_hint_type :=
+ reflexivity ||
+ match goal with
+ | |- typeof ?A = ?B =>
+     let t0 := constr:(typeof A)
+     in let t1 := eval hnf in t0 in let t := eval simpl in t1
+      in let t' := eval hnf in B in let t'' := eval simpl in t'
+      in fail 1000 "unexpected failure in load/store_tac_with_hint."
+             "The expression" A "has type" t "but is expected to have type" t''
+  end.
+
 Ltac load_tac_with_hint LOCAL2PTREE :=
   eapply semax_PTree_field_load_with_hint;
   [ exact LOCAL2PTREE
@@ -1323,8 +1334,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
-  | (reflexivity                            || fail 1000 "unexpected failure in load_tac_with_hint."
-                                                         "The hint does not type match")
+  | check_hint_type
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
   | (auto                                   || fail 1000 "unexpected failure in load_tac_with_hint."
@@ -1385,8 +1395,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
-  | (reflexivity                            || fail 1000 "unexpected failure in cast_load_tac_with_hint."
-                                                         "The hint does not type match")
+  | check_hint_type
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast_load_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
   | (auto                                   || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1453,8 +1462,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
-  | (reflexivity                            || fail 1000 "unexpected failure in store_tac_with_hint."
-                                                         "The hint does not type match")
+  | check_hint_type
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "Required field_at does not exists in SEP")
   | (auto                                   || fail 1000 "unexpected failure in store_tac_with_hint."

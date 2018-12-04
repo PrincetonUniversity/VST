@@ -278,9 +278,10 @@ Ltac semax_func_cons L :=
  repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  first [apply semax_func_cons;
            [ reflexivity
-           | repeat apply Forall_cons; try apply Forall_nil; computable
-           | unfold var_sizes_ok; repeat constructor | reflexivity | precondition_closed | apply L |
-           ]
+           | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
+           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+           | reflexivity | precondition_closed | apply L
+           | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | semax_func_cons_ext_tc | apply L |
