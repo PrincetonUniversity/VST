@@ -79,7 +79,9 @@ Section HybridSimulation.
   | inj_addr : forall b1 o1 b2 ofs, f b1 = Some (b2, ofs) ->
       inject_address f (b1, o1) (b2, o1 + ofs).
 
-  Parameter inject_delta_content: meminj -> delta_content -> delta_content -> Prop.
+  Definition inject_delta_content: meminj -> delta_content -> delta_content -> Prop:=
+    fun f dc1 dc2 =>
+    True.
   (* Same as memories that are injected...
      but, we should reconsider if we really want sync_events.
    *)
