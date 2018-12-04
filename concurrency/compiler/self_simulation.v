@@ -172,6 +172,17 @@ Section SelfSimulation.
 
   Import Integers.
   Import Ptrofs.
+
+  
+  Definition self_preserves_atx_inj {s m} (Sem:semantics.CoreSemantics s m) match_states:=
+    forall (j:meminj) s1 m1 s2 m2,
+      match_states j s1 m1 s2 m2 ->
+      forall f args,
+        at_external Sem s1 m1 = Some (f,args) ->
+        exists args',
+          at_external Sem s2 m2 = Some (f,args') /\
+          Val.inject_list j args args'.
+  
  Record self_simulation: Type :=
     { code_inject: meminj -> state -> state -> Prop;
       code_inj_incr: forall c1 mu c2 mu',
@@ -197,6 +208,8 @@ Section SelfSimulation.
         j b1 = Some (b2, delt) /\
         semantics.at_external Sem c2 m2 =  
         Some (func_name, Vptr b2 (add ofs (repr delt)) :: nil)
+      ; ssim_preserves_atx:
+          self_preserves_atx_inj Sem (match_self code_inject)
     }. 
 
 End SelfSimulation.
