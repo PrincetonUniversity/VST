@@ -335,9 +335,22 @@ Ltac semax_func_cons_ext :=
     |
     ].
 
+Tactic Notation "forward_seq" :=
+  first [eapply semax_seq'; [  | abbreviate_semax ]
+         | eapply semax_post_flipped' ].
+
+Tactic Notation "forward_seq" constr(R) :=
+match goal with P := @abbreviate ret_assert _ |- semax _ _ _ ?P' =>
+  constr_eq P P'; unfold abbreviate in P; subst P;
+  first [apply semax_seq with R; abbreviate_semax
+          | apply (semax_post_flipped' R); [abbreviate_semax | ]]
+end.
+
+(* old:
 Ltac forward_seq :=
   first [eapply semax_seq'; [  | abbreviate_semax ]
          | eapply semax_post_flipped' ].
+*)
 
 (* end of "stuff to move elsewhere" *)
 

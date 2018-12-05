@@ -4,6 +4,19 @@ Require Import VST.floyd.closed_lemmas.
 Import Cop.
 Local Open Scope logic.
 
+Lemma semax_while_peel:
+  forall {CS: compspecs} {Espec: OracleKind} Inv Delta P expr body R,
+  @semax CS Espec Delta P (Ssequence (Sifthenelse expr Sskip Sbreak) body) 
+                             (loop1_ret_assert Inv R) ->
+  @semax CS Espec Delta Inv (Swhile expr body) R ->
+  @semax CS Espec Delta P (Swhile expr body) R.
+Proof.
+intros.
+apply semax_loop_unroll1 with (P' := Inv) (Q := Inv); auto.
+eapply semax_pre; [ |  apply sequential; apply semax_skip].
+destruct R; apply ENTAIL_refl.
+Qed.
+
 Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
