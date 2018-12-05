@@ -3206,8 +3206,6 @@ Also see \file{progs/verif\_min.v} for several approaches to the specification/v
 \ychapter{For loops (general iterators)}{}
 \label{refcard:for-general-iter}
 
-\textbf{\emph{This tactic is deprecated; use \lstinline{forward_loop} instead; see the next chapter.}}
-
 {\small
 The C-language \textsf{for} loop has the general form,
 \lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}.
@@ -3232,7 +3230,8 @@ the postcondition is already provided in your proof context
 (typically because a close-brace follows the entire loop).
 Depending on whether you need \emph{Post}, verify the loop with,
 
-\noindent\lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$.}\qquad or\newline
+\noindent\lstinline{forward_for $\mathit{Inv}$.}\qquad if your loop has no \lstinline{break} or \lstinline{continue} statements; or\newline
+\noindent\lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$.}\qquad if no \lstinline{break} statements; or\newline
 \lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$ break: $\mathit{Post}$.}
 
 This is demonstrated in
@@ -3784,6 +3783,41 @@ as explained in \file{progs/tutorial1.v}, Lemmas
 \lstinline{exercise4} through \lstinline{exercise4c}.
 
 
+\ychapter{Loop peeling and other manipulations}
+
+Sometimes a loop is easier to verify by first transforming it into another loop.  For example,\quad \textsf{for (init; test; incr) body}   \quad
+if not proved using the specialized for-loop tactic
+\lstinline{forward_for_simple_bound}, must be proved by \lstinline{forward_for}
+that requires \emph{two} loop invariants:  one just before the
+\lstinline{test} and another just before the \lstinline{incr}.
+(See \autoref{refcard:for} and \autoref{refcard:for-general-iter}.)
+
+However, as long as the \textsf{body} does not contain any
+(outer-level) \textsf{continue} statements, then this loop is equivalent
+to \quad \textsf{init; while (test) body} \quad
+that can be proved using \lstinline{forward_while} with just
+one \lstinline{continue} statement.  This equivalence is stated
+as the Lemma \lstinline{semax_loop_nocontinue} (and its variant
+\lstinline{semax_loop_nocontinue1}); the
+\lstinline{forward_for}  and \lstinline{forward_loop} tactics apply
+this lemma automatically
+when appropriate, to relieve the user of the obligation of
+proving the just-before-the-incr invariant.
+
+\newthought{Loop peeling.}  In some loops, it makes sense to prove
+the first iteration differently than the rest; or the loop invariant
+is established \emph{during} the first iteration instead of before it.
+For example, \file{progs/verif\_peel.v} shows the verification of this
+loop:
+\begin{lstlisting}
+int f (int b) {int i, a;   for (i=b+1; i*i>b; i--) a=i;   return a;  }
+\end{lstlisting}
+The natural invariant, $0 \le i < b < (i+1)*(i+1) ~\wedge ~ a=i+1$,
+does not hold until the first iteration is completed.
+
+Lemma \lstinline{semax_while_peel} peels the first iteration from a while loop, as demonstrated in \file{progs/verif\_peel.v};
+Lemma \lstinline{semax_loop_unroll1} peels the first iteration of a general \lstinline{Sloop}.
+
 \ychapter{Later}{(See PLCC \autoref{ch:stepindex})}
 Many of the Hoare rules (e.g., see PLCC, \autopageref{rule:semax-set-forward})
 have the operater $\later$ (pronounced ``later'') in their precondition:
@@ -4114,6 +4148,9 @@ The client of \lstinline{myfunction} sees that
 there is a private conjunct \linebreak \lstinline{MyModuleGlobs gv}
 that (presumably) uses some global variables of MyModule,
 but it does not see their names.
+
+\newthought{The file} \file{progs/verif\_libglob.v} demonstrates the verification of a module that uses private global variables.
+
 
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}

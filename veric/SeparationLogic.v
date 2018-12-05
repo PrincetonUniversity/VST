@@ -1535,6 +1535,14 @@ Axiom semax_skip_seq:
   forall Delta P s Q,
     @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
 
+Axiom semax_loop_nocontinue1:
+  forall CS Espec Delta Pre s1 s2 s3 Post,
+  nocontinue s1 = true ->
+  nocontinue s2 = true ->
+  nocontinue s3 = true ->
+   @semax CS Espec Delta Pre (Sloop (Ssequence s1 (Ssequence s2 s3)) Sskip) Post ->
+    @semax CS Espec Delta Pre (Sloop (Ssequence s1 s2) s3) Post.
+
 Axiom semax_loop_nocontinue:
   forall {CS: compspecs} {Espec: OracleKind},
  forall Delta P body incr R,
