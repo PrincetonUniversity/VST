@@ -1450,7 +1450,31 @@ Proof.*)
     rewrite Hdmap.
       by reflexivity.
   Qed.
-
+  
+  Lemma computeMap_backwards:
+    forall (pmap : access_map) (dmap : delta_map)
+      b ofs (p : option permission),
+      (computeMap pmap dmap) !! b ofs = p ->
+      (fun _=> None, dmap) !! b ofs = Some p \/
+      (fun _=> None, dmap) !! b ofs = None /\
+      pmap !! b ofs = p.
+  Proof.
+    intros.
+    unfold PMap.get; simpl.
+    destruct (dmap ! b) eqn:HH1.
+    1: destruct (o ofs) eqn:HH2.
+    - left. eapply computeMap_1 in HH1; eauto.
+      rewrite HH1 in H; inversion H; auto.
+    - right. split; auto.
+      eapply computeMap_2 in HH1; eauto.
+      rewrite HH1 in H; inversion H; auto.
+    - right; split; auto.
+      eapply computeMap_3 in HH1; eauto.
+      rewrite HH1 in H; inversion H; auto.
+      Unshelve.
+      all: assumption.
+  Qed.
+  
   Import Maps BlockList.
 
   Definition maxF (f : Z -> perm_kind -> option permission) :=

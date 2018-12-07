@@ -2,6 +2,7 @@ Require Import Coq.omega.Omega.
 Require Import compcert.cfrontend.Clight.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Maps.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import compcert.lib.Coqlib.
@@ -11,6 +12,12 @@ Require Import compcert.common.Smallstep.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.semantics.
+Require Import VST.concurrency.common.permissions.
+Require Import VST.concurrency.lib.tactics.
+
+Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.lib.setoid_help.
+Require Import Coq.Classes.Morphisms.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -73,35 +80,51 @@ Section SelfSim.
         Mem.perm m1 b1 (ofs ) Cur p \/ ~ Mem.perm m1 b1 ofs Cur Nonempty.
 
   (* The injection maps all visible locations*)
-  Definition perm_image (f:meminj)(m1:mem)(m2:mem): Prop:=
+  Definition perm_image_old (f:meminj)(m1:mem)(m2:mem): Prop:=
     forall b1 ofs,
       Mem.perm m1 b1 ofs Cur Nonempty ->
     exists b2 delta,
       f b1 = Some (b2, delta).
+  
+  Definition perm_image (f:meminj) (a1: access_map): Prop:=
+    forall b1 ofs,
+      Mem.perm_order' (a1 !! b1 ofs) (Nonempty) ->
+    exists b2 delta,
+      f b1 = Some (b2, delta).
 
   (* The injection maps to every visible location *)
-  Definition perm_preimage (f:meminj)(m1:mem)(m2:mem): Prop:=
+  Definition perm_preimage_old (f:meminj)(m1:mem)(m2:mem): Prop:=
     forall b2 ofs_delta,
       Mem.perm m2 b2 ofs_delta Cur Nonempty ->
     exists b1 delta ofs,
       f b1 = Some (b2, delta) /\
       Mem.perm m1 b1 ofs Cur Nonempty /\
-  ofs_delta = ofs + delta. 
+      ofs_delta = ofs + delta.
+  Definition perm_preimage (mu:meminj) (a1 a2: access_map):=
+    forall b2 ofs_delt,
+      Mem.perm_order' (a2 !! b2 ofs_delt) (Nonempty) ->
+      exists b1 ofs delt,
+        mu b1 = Some (b2, delt) /\
+        ofs_delt = ofs + delt /\
+        a1 !! b2 ofs_delt = a2 !! b1 ofs.
   
-(*
-  Record match_self (f: meminj) (c1:core) (m1:mem) (c2:core) (m2:mem): Prop:=
-    { cinject: code_inject f c1 c2
-    ; minject: Mem.inject f m1 m2            
-    ; pinject: perm_inject f m1 m2
-    ; pimage: perm_image f m1 m2
-    ; ppreimage: perm_preimage f m1 m2
-    }.*)
+  Global Instance perm_preimage_setoid:
+    Proper (Logic.eq ==> access_map_equiv ==> access_map_equiv ==> iff)
+           perm_preimage.
+  Proof.
+    proper_iff. proper_intros; subst.
+    unfold perm_preimage in *; intros ?? HH.
+    rewrite <- H1 in HH.
+    eapply H2 in HH.
+    destruct HH as (?&?&?&?&?&?); subst.
+    do 3 econstructor. repeat (split; eauto).
+    rewrite <- H1, <- H0; auto.
+  Qed.
 
-  
   Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
     { minject: Mem.inject f m1 m2 
-    ; pimage: perm_image f m1 m2
-    ; ppreimage: perm_preimage f m1 m2
+    ; pimage: perm_image f (getCurPerm m1) 
+    ; ppreimage: perm_preimage f (getCurPerm m1) (getCurPerm m2)
     }.
    
   Record match_self (f: meminj) (c1:core) (m1:mem) (c2:core) (m2:mem): Prop:=
@@ -125,8 +148,38 @@ Section SelfSim.
           Mem.perm m2 b ofs Cur Readable ->
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m1))) =
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2)));
-      }.
-            
+    }.
+
+
+
+  Lemma all_order_eq:
+    forall a b, (forall p, Mem.perm_order' a p <->  Mem.perm_order' b p) <-> a = b.
+  Proof.
+    clear.
+    intros. destruct a, b; auto.
+    4: tauto.
+    3: { simpl; split; intros; try congruence.
+         specialize (H Nonempty).
+         destruct H as [_ HH].
+         contradict HH. apply perm_any_N. }
+    
+    2: { simpl; split; intros; try congruence.
+         specialize (H Nonempty).
+         destruct H as [ HH _].
+         contradict HH. apply perm_any_N. }
+
+    intros; split.
+    - intros.
+      dup H as H'.
+      specialize (H p ); destruct H as [H _].
+      specialize (H ltac:(simpl; apply perm_refl)).
+      specialize (H' p0); destruct H' as [_ H'].
+      specialize (H' ltac:(simpl; apply perm_refl)).
+      simpl in *.
+      destruct p, p0; inversion H; inversion H'; auto.
+    - intros H; invert H; intros; auto. reflexivity.
+  Qed.
+    
   Lemma match_source_forward:
     forall mu c1 m1 c2 m2,
       match_self mu c1 m1 c2 m2 ->
@@ -144,17 +197,35 @@ Section SelfSim.
     split; trivial.
     * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b1 ofs PERM.
-      apply VIS1 in PERM.
-      eapply (pimage _ _ _ matchmem0) in PERM; eauto.
-      destruct PERM as (? & ? & ?).
+      assert (PERM':Mem.perm m1' b1 ofs Cur Nonempty).
+      { rewrite getCurPerm_correct in *; auto. }
+      apply VIS1 in PERM'.
+      pose proof (pimage _ _ _ matchmem0 b1 ofs); unfold perm_image in *.
+      rewrite getCurPerm_correct in H.
+      eapply H in PERM'; eauto.
+      destruct PERM' as (? & ? & ?).
       do 2 eexists; eapply INCR; eauto.
     * (*Pre_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b2 ofs_delta PERM.
-      apply VIS2 in PERM.
-      eapply (ppreimage _ _ _ matchmem0) in PERM; eauto.
-      destruct PERM as (? & ? & ? & ? & ? & ?).
+      assert (PERM':Mem.perm m2' b2 ofs_delta Cur Nonempty).
+      { rewrite getCurPerm_correct in *; auto. }
+      apply VIS2 in PERM'.
+      pose proof (ppreimage _ _ _ matchmem0 b2 ofs_delta).
+      rewrite getCurPerm_correct in H.
+      eapply H in PERM'; eauto.
+      destruct PERM' as (? & ? & ? & ? & ? & ?).
       do 3 eexists; repeat split; try eapply INCR; eauto.
-      eapply VIS1; eauto.
+      repeat rewrite getCurPerm_correct in *.
+      repeat unfold permission_at in *.
+      pose proof (same_cur _ _ VIS1 b2 ofs_delta) as HH1.
+      pose proof (same_cur _ _ VIS2 x x0) as HH2.
+      unfold Mem.perm in *.
+      etransitivity. etransitivity.
+      symmetry.
+      1,3: eapply all_order_eq.
+      eapply HH1.
+      eapply HH2.
+      eauto.
   Qed.
 
 End SelfSim.
@@ -212,4 +283,7 @@ Section SelfSimulation.
           self_preserves_atx_inj Sem (match_self code_inject)
     }. 
 
-End SelfSimulation.
+End SelfSimulation. 
+
+
+

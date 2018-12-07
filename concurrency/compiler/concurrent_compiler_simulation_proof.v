@@ -9,6 +9,7 @@ Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
 
+Require Import VST.concurrency.lib.tactics.
 Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.common.semantics. 
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation.
@@ -485,6 +486,32 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
         Proper (Logic.eq ==> Logic.eq ==> Logic.eq ==>
                          content_equiv ==> content_equiv ==> iff) inject_lock.
       Proof. split; eapply inject_lock_morphism'; eauto; symmetry; auto. Qed.
+
+      
+      Notation thread_perms cnt:= (fst (getThreadR cnt)).
+      Notation lock_perms cnt:= (snd (getThreadR cnt)).
+      Record thread_compat {Sem st i}
+             (cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i) m:=
+        { th_comp: permMapLt (thread_perms cnt) (getMaxPerm m);
+          lock_comp: permMapLt (lock_perms cnt) (getMaxPerm m)}.
+      Arguments th_comp {_ _ _ _ _}.
+      Arguments lock_comp {_ _ _ _ _}.
+      (*TODO: Need all this Pair stuff?*)
+      Notation "'Pair'  T " := (T * T)%type (at level 100).
+      Definition and_pair (a: Pair Prop): Prop:= fst a /\ snd a.
+      Definition func_pair {T1 T2: Type} (f:T1 -> T2): (Pair T1) -> Pair T2:=
+        fun aa:Pair T1 => (f (fst aa), f (snd aa)).
+      Definition pair_appl {T1 T2: Type}  (f: Pair (T1 -> T2)) (a: Pair T1):=
+        ((fst f) (fst a),(snd f) (snd a)).
+      Definition func_pair2 {T1 T2 T3: Type} (f:T1 -> T2 -> T3):=
+        fun aa bb=> pair_appl (func_pair f aa) bb.
+      
+      Definition mk_pair {T:Type} (a:T): Pair T:= (a,a).
+      
+      Definition PTree_get2 (a: access_map * access_map) b ofs:=
+        func_pair (fun x => (x !! b) ofs) a.
+      Infix "!!!":=PTree_get2 (at level 1).
+      Definition Ple2 b ofs := and_pair (func_pair2 Mem.perm_order'' b ofs).
       
       Record concur_match (ocd: option compiler_index)
              (j:meminj) (cstate1: ThreadPool (Some hb)) (m1: Mem.mem) (cstate2: ThreadPool(Some (S hb))) (m2: mem):=
@@ -492,6 +519,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           ; memcompat1: mem_compatible cstate1 m1
           ; memcompat2: mem_compatible cstate2 m2
           ; INJ: Mem.inject j m1 m2
+          ; lock_perm_preimage:
+              forall i (cnt1: ThreadPool.containsThread cstate1 i)
+                (cnt2: ThreadPool.containsThread cstate2 i),
+              perm_preimage j (lock_perms cnt1) (lock_perms cnt2)
           ; INJ_threads:
               forall i (cnt1: ThreadPool.containsThread cstate1 i)
                 (cnt2: ThreadPool.containsThread cstate2 i)
@@ -2049,29 +2080,30 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
 
           pose proof (restr_Max_equiv Hlt1) as HH.
           destruct H3 as [H3|H3];
-            (* 2 goals solved by the following*)
-            eapply (Proper_perm_max') in H3;
+          eapply (Proper_perm_max) in H3;
+            try (symmetry; apply restr_Max_equiv);
             try eassumption;
             try solve[econstructor];
             auto.
+
         - intros.
           pose proof (restr_Max_equiv Hlt1) as HH1.
           pose proof (restr_Max_equiv Hlt2) as HH2.
           destruct k.
-          + eapply (Proper_perm_max') in H3;
+          + eapply (Proper_perm_max) in H3;
+              try (symmetry; apply restr_Max_equiv);
               try eassumption;
               eauto.
             eapply H1 in H3; eauto.
             destruct H3 as [H3|H3].
-            * left; eapply Proper_perm_max';
+            * left; eapply Proper_perm_max;
                 try eassumption;
                 try solve[econstructor];
                 auto.
-              symmetry; auto.
             * right; intros ?; apply H3.
-              eapply (Proper_perm_max') in H4;
-                try eassumption;
-                eauto.
+              eapply (Proper_perm_max) in H4;
+                try eassumption; eauto.
+              symmetry; apply restr_Max_equiv.
           + eapply setPermBlock_mi_perm_inv_Cur; eauto.
       Qed.
 
@@ -2188,8 +2220,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 bounded_maps.sub_map (snd (snd (virtueLP v))) (snd m)
             }.
           Record permMapJoin_pair (a b c : access_map * access_map):=
-            { JoinFirst:> permMapJoin (fst a) (fst b) (fst c);
-              JoinSnd:> permMapJoin (fst a) (fst b) (fst c)
+            { JoinFst:> permMapJoin (fst a) (fst b) (fst c);
+              JoinSnd:> permMapJoin (snd a) (snd b) (snd c)
             }.
             
          Definition inject_virtue (m: mem) (mu: meminj) (angel:virtue):=
@@ -2220,13 +2252,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           Qed.
 
           
-          Notation thread_perms cnt:= (fst (getThreadR cnt)).
-          Notation lock_perms cnt:= (snd (getThreadR cnt)).
-          Record thread_compat {Sem st i} (cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i) m:=
-            { th_comp: permMapLt (thread_perms cnt) (getMaxPerm m);
-              lock_comp: permMapLt (lock_perms cnt) (getMaxPerm m)}.
-          Arguments th_comp {_ _ _ _ _}.
-          Arguments lock_comp {_ _ _ _ _}.
 
           
           Inductive coerce_state {a b}: forall t, @state_sum a b -> t -> Prop:=
@@ -2308,7 +2333,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           Proof. intros; eapply restrPermMap_rewrite; auto. Qed.
           
           
-          Lemma release_step_diagram_target' Sem:
+          Lemma release_step_diagram_self Sem:
             let CoreSem:= sem_coresem Sem in
             forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
               (st1 : mach_state hb) (st2 : mach_state (S hb))
@@ -2570,6 +2595,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 eassumption.
 
               * (* Prove the load succeeds. *)
+                !goal (Mem.load _ _ b' _ = _).
                 move Hload at bottom.
                 clean_cmpt.
                 eapply Mem.load_inject in Hload; eauto.
@@ -2591,7 +2617,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   destruct Archi.ptr64; omega.
                 }
 
-              * (* Show the store *)
+              * !goal (Mem.store _ _ b' _ _ = _).
                 move Hstore2 at bottom.
                 match goal with
                 | [  |- context[restrPermMap ?X] ] =>
@@ -2604,7 +2630,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                    
                    apply restrPermMap_rewrite_strong.
                    
-              * (* ThreadPool.lockRes *)
+              * !goal (lockRes _ (b',_) = Some _).
                 eapply INJ_lock_permissions; eauto.
               * (* new lock is empty *)
                 intros.
@@ -2612,13 +2638,76 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 
               * (* Claims the transfered resources join in the appropriate way *)
                 simpl. move Hjoin_angel at bottom.
+
+
                 
-                subst angelLP2.
-                (*    Sketch: 
-                      Should follow from the constructions of the transfered permissions and
-                      Hangel1.
-                 *)
-                admit.
+                  
+                  
+                    
+                
+
+                Lemma permMapJoin_inject:
+                  forall mu newThreadPerm1 newThreadPerm2 virtueLP1 virtueLP2 mem_cur1 mem_cur2,
+                    perm_preimage mu newThreadPerm1 newThreadPerm2 ->
+                    perm_preimage mu virtueLP1 virtueLP2 ->
+                    perm_preimage mu mem_cur1 mem_cur2 ->
+                    permMapJoin newThreadPerm1 virtueLP1 mem_cur1 ->
+                    permMapJoin newThreadPerm2 virtueLP2 mem_cur2.
+                Proof.
+                  intros.
+                Admitted.
+                Definition perm_preimage_pair mu ap1 ap2:=
+                  and_pair (func_pair2 (perm_preimage mu) ap1 ap2).
+                Lemma permMapJoin_pair_inject:
+                  forall mu newThreadPerm1 newThreadPerm2 virtueLP1 virtueLP2 mem_cur1 mem_cur2,
+                    perm_preimage_pair mu newThreadPerm1 newThreadPerm2 ->
+                    perm_preimage_pair mu virtueLP1 virtueLP2 ->
+                    perm_preimage_pair mu mem_cur1 mem_cur2 ->
+                    permMapJoin_pair newThreadPerm1 virtueLP1 mem_cur1 ->
+                    permMapJoin_pair newThreadPerm2 virtueLP2 mem_cur2.
+                Proof.
+                  intros.
+                  constructor; eapply permMapJoin_inject;
+                    first[eapply H|eapply H0|eapply H1|eapply H2].
+                Qed.
+                
+                clear - Heqangel2 CMatch Hjoin_angel matchmem compiled.
+                set (newThreadPerm2 := computeMap_pair (getThreadR cnt2) (virtueThread angel2)).                match goal with |- ?f ?x _ _ => replace x with (fst newThreadPerm2)
+                                  by reflexivity end.
+                eapply (permMapJoin_pair_inject mu); eauto.
+                3: { split; simpl.
+                     pose proof (ppreimage _ _ _ matchmem) as HH.
+                     unfold th_mem1,th_mem2 in *.
+                     repeat rewrite getCur_restr in HH; eauto.
+
+                     eapply CMatch.
+                }
+
+                (*HERE FRIDAY 7 *)
+                     
+
+                  pose proof (ppreimage _ _ _ matchmem).
+                     
+
+                  split; simpl.
+                     pose proof (ppreimage _ _ _  matchmem).
+                     unfold perm_preimage, preimage_accmap in *.
+                     unfold thread_perms.
+                     intros ? ? H0.
+                     
+                     unfold Mem.perm, Mem.perm_order' in H.
+                     !goal (exists _ _,
+                               _ /\
+                               _ = _ /\
+                               _ = _ ).
+                     
+                     eapply H in H0.
+                     eapply H.
+                     eapply match_mem.
+                  
+                -- admit.
+                -- admit.
+                -- admit.
 
                 
               * (* Claims the transfered resources join in the appropriate way *)
@@ -2627,6 +2716,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                      Should follow from the constructions of the transfered permissions and
                      Hangel2.
                  *)
+                Tactic Notation "my_instantiate" int_or_var(n) ident(x):= instantiate(n:=x).
+                Goal forall x:nat, exists y, x=y.
+                  intros; eexists.
+                  BBB (1) x.
+                
                 admit.
 
               * subst; simpl; repeat f_equal.
@@ -2656,7 +2750,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           clear sim_atx.
           destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
           
-          (edestruct (release_step_diagram_target' AsmSem) as
+          (edestruct (release_step_diagram_self AsmSem) as
               (e' & m2' & Hthread_match & Htrace_inj & external_step);
            first[ eassumption|
                   econstructor; eassumption|
@@ -3428,7 +3522,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
 
           
-          (edestruct (release_step_diagram_target' CSem) as
+          (edestruct (release_step_diagram_self CSem) as
               (e' & m2' & Hthread_match & Htrace_inj & external_step);
            first[ eassumption|
                   econstructor; eassumption|

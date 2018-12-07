@@ -6,8 +6,10 @@ Require Import Relation_Definitions.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 
+Require Import VST.concurrency.lib.setoid_help.
 Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.common.Clight_bounds.
+Require Import VST.concurrency.common.permissions.
 
 
 Import FunctionalExtensionality.
@@ -17,10 +19,13 @@ Import BinInt.
 
 Set Bullet Behavior "Strict Subproofs".
 
+
+
 (** *Extension to rewrite library:*)
 (*    We add partially reflexive relations:
     https://coq.inria.fr/refman/addendum/generalized-rewriting.html#rewriting-and-non-reflexive-relations
-    *)
+ *)
+
 
 Class PartReflexive {A:Type} (P: A -> Prop) R:=
   { PReflex: forall x : A, P x -> R x x }.
@@ -124,7 +129,7 @@ Instance setPermBlock_access_map_equiv:
                         access_map_equiv ==> eq_P (lt 0) ==>  access_map_equiv)
          (setPermBlock ).
 Proof.
-  intros ???????????????; inversion H3; subst.
+  proper_intros; inversion H3; subst.
   intros b; extensionality ofs.
   destruct_address_range y0 y1 b ofs y3.
   - unfold Intv.In in *; simpl in *.
@@ -203,73 +208,47 @@ Proof.
     econstructor; etransitivity; eauto.
 Qed.
 
-Lemma Proper_perm_max':
-  Proper (Max_equiv ==> eq ==> eq ==> (trieq Max) ==> eq ==> impl) Mem.perm.
-Proof.
-  intros ???????????????; subst.
-  inversion H2; subst.
-  unfold Max_equiv in *.
-  unfold Mem.perm;
-    repeat rewrite_getPerm.
-  - rewrite <- H; reflexivity.
-Qed.
-Instance Proper_perm_max_equiv:
+Instance Proper_perm_max:
   Proper (Max_equiv ==> eq ==> eq ==> (trieq Max) ==> eq ==> iff) Mem.perm.
 Proof.
-  intros ???????????????; subst.
-  split; apply Proper_perm_max'; auto; symmetry; assumption.
-Qed.
-Lemma Proper_perm_cur':
-  Proper (Cur_equiv ==> eq ==> eq ==> (trieq Cur) ==> eq ==> impl) Mem.perm.
-Proof.
-  intros ???????????????; subst.
+  proper_iff; proper_intros; subst.
   inversion H2; subst.
-  unfold Cur_equiv in *.
-  unfold Mem.perm;
+  unfold Max_equiv in *.
+  unfold Mem.perm in *;
     repeat rewrite_getPerm.
-  - rewrite <- H; reflexivity.
+  rewrite <- H; auto.
 Qed.
-Instance Proper_perm_cur_equiv:
+Instance Proper_perm_cur:
   Proper (Cur_equiv ==> eq ==> eq ==> (trieq Cur) ==> eq ==> iff) Mem.perm.
 Proof.
-  intros ???????????????; subst.
-  split; apply Proper_perm_cur'; auto; symmetry; assumption.
+  proper_iff; proper_intros; subst.
+  inversion H2; subst.
+  unfold Cur_equiv in *.
+  unfold Mem.perm in *;
+    repeat rewrite_getPerm.
+  - rewrite <- H; auto.
 Qed.
 
-Lemma Proper_perm':
-  Proper (mem_equiv ==> eq ==> eq ==> eq ==> eq ==> impl) Mem.perm.
-Proof.
-  intros ???????????????; subst.
-  destruct y2; [rewrite (max_eqv _ _ H)| erewrite (cur_eqv _ _ H)];
-    reflexivity.
-Qed.
-Instance Proper_perm_mem_equiv:
+Instance Proper_perm:
   Proper (mem_equiv ==> eq ==> eq ==> eq ==> eq ==> iff) Mem.perm.
 Proof.
-  intros ???????????????; subst.
-  split; apply Proper_perm'; auto. symmetry; assumption.
-Qed.
-
-Lemma range_perm_mem_equiv':
-  Proper (mem_equiv ==> eq ==>  eq ==>  eq ==>  eq ==>  eq ==> impl) Mem.range_perm.
-Proof.
-  intros ??? ??? ??? ??? ??? ???; subst.
-  unfold Mem.range_perm; intros ???.
-  rewrite <- H. eapply H0; auto.
+  proper_iff; proper_intros; subst.
+  destruct y2; [rewrite <- (max_eqv _ _ H)| erewrite <- (cur_eqv _ _ H)];
+    assumption.
 Qed.
 
 Instance range_perm_mem_equiv:
   Proper (mem_equiv ==> eq ==>  eq ==>  eq ==>  eq ==>  eq ==> iff) Mem.range_perm.
 Proof.
-  intros ??? ??? ??? ??? ??? ???.
-  split; eapply range_perm_mem_equiv'; eauto.
-  symmetry; auto.
+  proper_iff; proper_intros; subst.
+  unfold Mem.range_perm in *; intros.
+  rewrite <- H. eapply H5; auto.
 Qed.
 
-Lemma mem_inj_equiv':
-  Proper ( eq ==> mem_equiv ==> mem_equiv ==> impl) Mem.mem_inj.
+Instance mem_inj_equiv:
+  Proper ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.mem_inj.
 Proof.
-  intros ??? ??? ??? ?; subst.
+  proper_iff. proper_intros; subst.
   econstructor; intros.
   - rewrite <- H1.
     rewrite <- H0 in H3.
@@ -282,15 +261,6 @@ Proof.
     rewrite <- content_eqv0.
     rewrite <- content_eqv1.
     eapply H2; eauto.
-Qed.
-
-Global Instance mem_inj_equiv:
-  Proper ( Logic.eq ==> mem_equiv ==> mem_equiv ==> Logic.iff) Mem.mem_inj.
-Proof.
-  intros ?????????.
-  subst; split; eapply mem_inj_equiv'; auto.
-  symmetry; assumption.
-  symmetry; assumption.
 Qed.
 
 Instance Proper_nextblock:
@@ -306,12 +276,12 @@ Proof.
 Qed.
 
 
-Lemma Proper_no_overlap_max_equiv':
-  Proper (Logic.eq ==> Max_equiv ==> Basics.impl)
+Instance Proper_no_overlap_max_equiv:
+  Proper (Logic.eq ==> Max_equiv ==> iff)
          Mem.meminj_no_overlap.
 Proof.
   unfold Mem.meminj_no_overlap.
-  intros ???????;subst; intros.
+  proper_iff. proper_intros; subst.
   eapply H1; unfold  Mem.perm in *; eauto.
   - repeat rewrite_getPerm.
     rewrite H0; auto.
@@ -319,31 +289,19 @@ Proof.
     rewrite H0; auto.
 Qed.
 
-Instance Proper_no_overlap_max_equiv:
-  Proper (Logic.eq ==> Max_equiv ==> iff) Mem.meminj_no_overlap.
-Proof.
-  split; eapply Proper_no_overlap_max_equiv'; eauto;
-    symmetry; eauto.
-Qed.
-
-Lemma Proper_no_overlap_mem_equiv':
-  Proper (eq ==> mem_equiv ==> impl) Mem.meminj_no_overlap.
-Proof.
-  intros ??????.
-  eapply Proper_no_overlap_max_equiv'; eauto.
-  apply H0.
-Qed.
 
 Instance Proper_no_overlap_mem_equiv:
   Proper (eq ==> mem_equiv ==> iff) Mem.meminj_no_overlap.
-Proof. 
-  split; eapply Proper_no_overlap_mem_equiv'; eauto;
-    symmetry; eauto.
+Proof.
+  proper_iff. proper_intros; subst.
+  eapply Proper_no_overlap_max_equiv; eauto.
+  symmetry; apply H0.
 Qed.
 
-Lemma mem_inject_equiv':
-      Proper  ( eq ==> mem_equiv ==> mem_equiv ==> impl) Mem.inject.
+Instance mem_inject_equiv:
+      Proper  ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.inject.
 Proof.
+  proper_iff.
   intros ?????  Heqv1 ?? Heqv2 Hinj; subst.
   symmetry in Heqv1, Heqv2.
   econstructor.
@@ -360,22 +318,10 @@ Proof.
     apply Hinj; auto.
 Qed.
 
-Instance mem_inject_equiv:
-  Proper  ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.inject.
-Proof. split; eapply mem_inject_equiv'; auto; symmetry; assumption. Qed.
-
-
-
-Lemma permMapLt_equiv':
-  Proper (access_map_equiv ==> access_map_equiv ==> Basics.impl)
-         permMapLt.
-Proof. intros ?????? HH ??; rewrite <- H, <- H0; auto. Qed.
 Instance permMapLt_equiv:
   Proper (access_map_equiv ==> access_map_equiv ==> iff)
          permMapLt.
-Proof. split; eapply permMapLt_equiv'; eauto; symmetry; auto. Qed.
-
-
+Proof. proper_iff. intros ?????? HH ??; rewrite <- H, <- H0; auto. Qed.
 
 Lemma getCur_restr:
   forall perm m (Hlt: permMapLt perm (getMaxPerm m)),
@@ -454,3 +400,4 @@ Lemma restrPermMap_idempotent':
               (@restrPermMap perm1 (@restrPermMap perm0 m1 Hlt0)
                              (useful_permMapLt_trans Hlt0 Hlt1)).
 Proof. intros; eapply restrPermMap_idempotent. Qed.
+
