@@ -2137,3 +2137,8 @@ Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
  Exists' x0; Exists' x1; Exists x2; Exists' x3; Exists' x4;
  Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
  Exists' x10; Exists' x11; Exists' x12.
+
+Tactic Notation "freeze1" uconstr(a) :=
+    let x := fresh "x" in set (x:=a);
+    let fr := fresh "freeze" in pose (fr := @abbreviate mpred x);
+    change x with fr; subst x.

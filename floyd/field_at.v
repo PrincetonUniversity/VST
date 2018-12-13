@@ -2086,6 +2086,8 @@ Ltac find_data_at N :=
 Definition protect (T: Type) (x: T) := x.
 Global Opaque protect.
 
+(* The following code is obsolete, use the version in floyd/unfold_data_at.v instead. 
+
 Ltac unfold_field_at' :=
  match goal with
  | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
@@ -2124,11 +2126,12 @@ Ltac unfold_field_at' :=
      repeat simplify_project_default_val
  end.
 
-Ltac unfold_field_at N  :=
+Ltac unfold_field_at_tac N  :=
   find_field_at N; unfold_field_at'.
 
-Ltac unfold_data_at N  :=
+Ltac unfold_data_at_tac N  :=
   find_data_at N; unfold_field_at'.
+*)
 
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,

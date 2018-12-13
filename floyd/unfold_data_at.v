@@ -82,9 +82,54 @@ Ltac unfold_field_at' :=
      repeat simplify_project_default_val
  end.
 
-Ltac unfold_field_at N  :=
+Ltac unfold_field_at_tac N  :=
   find_field_at N; unfold_field_at'.
 
-Ltac unfold_data_at N  :=
+Ltac unfold_data_at_tac N  :=
   find_data_at N; unfold_field_at'.
+
+Ltac is_nat_uconstr a :=
+  try (tryif (pattern (a : nat)) then fail else fail 1).
+
+Import reptype_lemmas.
+
+Tactic Notation "unfold_data_at" uconstr(a) :=
+ tryif (is_nat_uconstr a)
+ then (let fr := fresh "fr" in set (fr:=a);
+   revert fr; match goal with |- let _ := ?n : nat in _ =>
+    idtac "Warning: unfold_data_at with numeric argument is deprecated";
+     intro fr; clear fr; unfold_data_at_tac n
+    end
+   )
+ else
+ (freeze1 a;
+lazymatch goal with
+| fr := @abbreviate mpred ?D |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+  match R with context [fr :: ?R'] =>
+    match D with
+     | (@data_at_ ?cs ?sh ?t ?p) =>
+            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in fr
+     | (@data_at ?cs ?sh ?t ?v ?p) =>
+            change D with (@field_at_mark cs sh t (@nil gfield) v p) in fr
+     | (@field_at_ ?cs ?sh ?t ?gfs ?p) =>
+            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in fr
+     | (@field_at ?cs ?sh ?t ?gfs ?v ?p) =>
+            change D with (@field_at_mark cs sh t gfs v p) in fr
+     end;
+        unfold abbreviate in fr; subst fr;  unfold_field_at';
+    repeat match goal with |- context [field_at ?sh ?t ?gfs ?v ?p] => 
+       change (field_at sh t gfs v p) with (field_at_ sh t gfs p)
+    end
+   end
+end).
+
+Tactic Notation "unfold_field_at" uconstr(a) :=
+ tryif (is_nat_uconstr a)
+ then (let fr := fresh "fr" in set (fr:=a);
+   revert fr; match goal with |- let _ := ?n : nat in _ =>
+    idtac "Warning: unfold_field_at with numeric argument is deprecated";
+     intro fr; clear fr; unfold_field_at_tac n
+    end
+   )
+ else unfold_data_at a.
 
