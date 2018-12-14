@@ -22,7 +22,7 @@ Lemma field_at_list_cell:
   field_at sh t_struct_elem [StructField _next] v p.
 Proof.
 intros.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 f_equal.
 unfold field_at, list_cell.
 autorewrite with gather_prop.
@@ -256,8 +256,8 @@ forward_if
      Exists  (prefix ++ last0 :: nil) last.
      entailer.
      rewrite (field_at_list_cell Ews last0 p).
-     unfold_data_at 4%nat.
-     unfold_data_at 2%nat.
+     unfold_data_at (@data_at CompSpecs Ews t_struct_elem (last,nullval) p).
+     unfold_data_at (data_at _ _ _ p).
      simpl sizeof.
      match goal with
      | |- _ |-- _ * _ * (_ * ?AA) => remember AA as A
@@ -288,7 +288,8 @@ destruct prefix; inversion H; clear H.
    forward. (* return p; *)
    unfold fifo, fifo_body. Exists tl (nullval, tl).
    rewrite if_true by congruence.
-   entailer!. simpl sizeof. unfold_data_at 1%nat. unfold_data_at 1%nat. cancel.
+   entailer!. simpl sizeof.
+   do 2 unfold_data_at (data_at _ _ _ _). cancel.
 + rewrite @lseg_cons_eq by auto.
     Intros x.
     simpl @valinject. (* can we make this automatic? *)

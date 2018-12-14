@@ -412,7 +412,7 @@ Proof.
         by (unfold field_address; simpl;
             rewrite if_true by auto with field_compatible; auto).
       simpl_compb. simpl_compb.
-      unfold_data_at 1%nat.
+      unfold_data_at (data_at _ _ _ p1).
       rewrite (field_at_data_at _ t_struct_tree [StructField _value]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).

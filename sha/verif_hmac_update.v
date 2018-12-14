@@ -43,7 +43,7 @@ assert (FC_md_ctx: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c
  {red in FC_c. repeat split; try solve [apply FC_c]. constructor; trivial. }
 assert (FC_i_ctx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] c).
  {red in FC_c. repeat split; try solve [apply FC_c]. simpl. right; left; reflexivity. }
-unfold_data_at 1%nat.
+unfold_data_at (@data_at CompSpecs _ _ _ c). 
 freeze FR := - (K_vector _) (field_at _ _ [StructField _md_ctx] _ _) (data_block _ _ d).
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
@@ -68,7 +68,7 @@ unfold hmacstate_, sha256state_, hmac_relate.
 Intros r.  Exists (r,(iCtx ST, oCtx ST)).
 Time entailer!. (*2.1*)
 thaw FR.
-unfold_data_at 2%nat.
+unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
 destruct ST as [ST1 [ST2 ST3]]. simpl in *.
 Time cancel. (*0.5*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).

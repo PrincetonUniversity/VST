@@ -68,7 +68,7 @@ destruct H0 as [H0 [[H1 H6] [H8 H4]]].
 assert (H3:=I).
 subst.
 
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 forward_call (* SHA256_addlength(c, len); *)
   (len, c, wsh, s256a_len a).
  split; auto.  repeat split; simpl; auto; omega.
@@ -81,7 +81,7 @@ replace_SEP 0 (data_at wsh t_struct_SHA256state_st
         (map Vubyte (s256a_data a)++
          list_repeat (Z.to_nat (CBLOCKz - Zlength (s256a_data a))) Vundef,
          Vint (Int.repr (Zlength (s256a_data a))))))) c). {
-  unfold_data_at 1%nat; entailer!.
+  unfold_data_at (data_at _ _ _ _); entailer!.
   assert (legal_nested_field t_struct_SHA256state_st [StructField _data]).
     apply compute_legal_nested_field_spec'; repeat constructor.
   erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity; [ | auto..].
@@ -115,7 +115,7 @@ forward. (* p=c->data; *)
 simpl (temp _p _).
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
 assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val 40 c).
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ _).
   rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
   normalize.
@@ -199,7 +199,7 @@ forward_if (   PROP  ()
     assert_PROP (field_compatible0 (tarray tuchar (Zlength data)) [ArraySubsc b4d] d)
       by (entailer!; auto with field_compatible).
  evar (Frame: list mpred).
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ c).
   eapply(call_memcpy_tuchar
    (*dst*) wsh t_struct_SHA256state_st [StructField _data] 0
                    (list_repeat (Z.to_nat CBLOCKz) Vundef) c
@@ -249,7 +249,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  split3; auto.
  split; auto.
  autorewrite with sublist; auto.
- unfold_data_at 1%nat.
+ unfold_data_at (data_at _ _ _ c).
  rewrite H2. rewrite !sublist_map.
  rewrite !map_Vubyte_eq'.
  cancel.

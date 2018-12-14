@@ -62,12 +62,11 @@ Proof.
  start_function.
  unfold_repinj.
  simpl in v.
- unfold data_at.
- unfold_field_at 1%nat.
+ unfold_data_at (data_at _ _ _ _).
  Time forward. (* 18.88 sec -> 14.36 sec -> 0.9 sec *)
 Time forward. (* 13 sec -> 98 sec *)
 unfold data_at.
-Time unfold_field_at 3%nat. (* 0.86 sec *)
+Time unfold_field_at (field_at _ _ nil _ _). (* 0.86 sec *)
 Time cancel. (* 1.875 sec *)
 Qed. (* 77 sec *)
 

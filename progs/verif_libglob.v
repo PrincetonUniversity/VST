@@ -82,7 +82,7 @@ apply orp_right2.
 entailer!.
 rewrite !data_at_tuint_tint.
 cancel.
-unfold_data_at 2%nat.
+unfold_data_at (data_at _ (Tstruct _foo _) _ _).
 rewrite sepcon_comm.
 apply sepcon_derives.
 rewrite field_at_data_at.

@@ -100,25 +100,23 @@ Tactic Notation "unfold_data_at" uconstr(a) :=
      let x := constr:(a) in unfold_data_at_tac x
    )
  else
- (freeze1 a;
-lazymatch goal with
-| fr := @abbreviate mpred ?D |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
-  match R with context [fr :: ?R'] =>
+ (let x := fresh "x" in set (x := a : mpred);
+  lazymatch goal with
+  | x := ?D : mpred |- _ =>
     match D with
      | (@data_at_ ?cs ?sh ?t ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in fr
+            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
      | (@data_at ?cs ?sh ?t ?v ?p) =>
-            change D with (@field_at_mark cs sh t (@nil gfield) v p) in fr
+            change D with (@field_at_mark cs sh t (@nil gfield) v p) in x
      | (@field_at_ ?cs ?sh ?t ?gfs ?p) =>
-            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in fr
+            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
      | (@field_at ?cs ?sh ?t ?gfs ?v ?p) =>
-            change D with (@field_at_mark cs sh t gfs v p) in fr
+            change D with (@field_at_mark cs sh t gfs v p) in x
      end;
-        unfold abbreviate in fr; subst fr;  unfold_field_at';
-    repeat match goal with |- context [field_at ?sh ?t ?gfs ?v ?p] => 
-       change (field_at sh t gfs v p) with (field_at_ sh t gfs p)
+        subst x;  unfold_field_at';
+   repeat match goal with |- context [@field_at ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
+       change (@field_at cs sh t gfs (default_val cs' t') p) with (@field_at_ cs sh t gfs p)
     end
-   end
 end).
 
 Tactic Notation "unfold_field_at" uconstr(a) :=

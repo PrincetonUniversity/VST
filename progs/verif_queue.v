@@ -197,7 +197,7 @@ Lemma make_unmake:
  field_at_ Ews t_struct_elem [StructField _next] p.
 Proof.
 intros.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 rewrite <- !sepcon_assoc.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.

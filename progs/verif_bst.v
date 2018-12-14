@@ -92,13 +92,13 @@ Proof.
     apply pred_ext; entailer!.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 1%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 3%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
@@ -316,7 +316,7 @@ Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
         treebox_rep (T t1' k v t2) b).
 Proof.
   intros.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
 
@@ -328,7 +328,7 @@ Proof.
   Intros p1.
   Exists p1 p2.
   entailer!.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   cancel.
 Qed.
@@ -345,7 +345,7 @@ Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
         treebox_rep (T t1 k v t2') b).
 Proof.
   intros.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
 
@@ -357,7 +357,7 @@ Proof.
   Intros p2.
   Exists p1 p2.
   entailer!.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   cancel.
 Qed.
@@ -680,7 +680,7 @@ Proof.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x.
-        unfold_data_at 2%nat.
+        unfold_data_at (data_at _ _ _ p1).
         gather_SEP 3 5.
         replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
         {

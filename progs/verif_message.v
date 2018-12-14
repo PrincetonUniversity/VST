@@ -167,7 +167,7 @@ replace_SEP 0
     (data_at Ews t_struct_message
       (Vint (Int.repr (mf_size intpair_message)), (ser, des)) ipm). {
  entailer!.
- unfold_data_at 2%nat.
+ unfold_data_at (data_at _ t_struct_message _ ipm).
  rewrite (field_at_data_at _ _ _ _ ipm).
 rewrite data_at_tuint_tint.
 (* rewrite <- (mapsto_field_at _ _ [StructField _bufsize] (Vint (Int.repr 8))) by auto with field_compatible. *)

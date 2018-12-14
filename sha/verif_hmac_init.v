@@ -234,7 +234,7 @@ forward_if (EX shaStates:_ ,
     freeze FR1 := - (K_vector _) (data_at _ _ _ (Vptr cb _)).
     Time (assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C
        by entailer!). (*1.9 versus 6.5*)
-    Time unfold_data_at 1%nat. (*1*)
+    Time unfold_data_at (@data_at CompSpecs _ _ _ _).
     freeze FR2 := - (field_at _ _ [StructField _md_ctx] _ (Vptr cb _))
                              (field_at _ _ [StructField _i_ctx] _ (Vptr cb _)).
     rewrite (field_at_data_at  wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
@@ -319,7 +319,7 @@ forward_if (EX shaStates:_ ,
     Exists (innerShaInit (HMAC_SHA256.mkKey key),(iUpd,(outerShaInit (HMAC_SHA256.mkKey key),oUpd))).
     simpl. rewrite !prop_true_andp by (auto; intuition).
     Time cancel. (*5 versus 4*)
-    unfold_data_at 3%nat.
+    unfold_data_at (@data_at CompSpecs _ t_struct_hmac_ctx_st _ (Vptr cb _)).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     rewrite field_address_offset by auto with field_compatible.
@@ -374,7 +374,7 @@ forward_if (EX shaStates:_ ,
      assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
      { red in FC_cb. repeat split; try solve [apply FC_cb]. left. reflexivity. }
 
-     Time unfold_data_at 1%nat. (*0.8, was slow*)
+     Time unfold_data_at (@data_at CompSpecs _ _ _ _).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
      (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 3; rewrite field_at_data_at at 1. SUCCEED???
         Answer: instead of using "at 2", use the field-specificer in the line above.*)
@@ -403,7 +403,7 @@ forward_if (EX shaStates:_ ,
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
       simpl. Time entailer!. (*1.9 versus 5.6*)
-     unfold_data_at 1%nat.
+     unfold_data_at (data_at _ _ _ _).
      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       rewrite field_address_offset by auto with field_compatible.
@@ -429,7 +429,7 @@ forward_if (EX shaStates:_ ,
     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
     { red in FC_cb. repeat split; try solve [apply FC_cb]. left; reflexivity. }
 
-    unfold_data_at 1%nat.
+    unfold_data_at (@data_at CompSpecs _ _ _ _).
     freeze FR7 := - (field_at _ _ [StructField _md_ctx] _ _) (field_at _ _ [StructField _i_ctx] _ _).
     rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _md_ctx]).
@@ -460,7 +460,7 @@ forward_if (EX shaStates:_ ,
       unfold s256a_len, innerShaInit, outerShaInit.
            rewrite !Zlength_mkArgZ.
            rewrite mkKey_length. split; reflexivity.
-    unfold_data_at 1%nat.
+    unfold_data_at (@data_at CompSpecs _ _ _ (Vptr cb cofs)).
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
     rewrite field_address_offset by auto with field_compatible.

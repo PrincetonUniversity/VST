@@ -188,7 +188,7 @@ replace_SEP 0  (data_at wsh t_struct_SHA256state_st
             [Vint (Int.repr 128)] ++
             list_repeat (Z.to_nat (64 - (Zlength (s256a_data a) + 1)))
               Vundef, Vint (Int.repr (Zlength (s256a_data a))))))) c).
- unfold_data_at 1%nat.
+ unfold_data_at (data_at _ _ _ _).
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  unfold data_at.
  go_lower; simpl; cancel. (* saturate_local makes entailer! is REALLY slow, but (go_lower; cancel) is fast. *)
@@ -213,7 +213,7 @@ set (ddlen := Zlength dd) in *.
 set (fill_len := (64 - (ddlen + 1))).
  unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 eapply semax_seq'.
 evar (Frame: list mpred).
 evar (V: list val).
@@ -308,7 +308,7 @@ split.
  f_equal.
 *
  rewrite Zlength_nil, Z.sub_0_r.
- unfold_data_at 1%nat.
+ unfold_data_at (data_at _ _ _ _).
  unfold data_block. simpl.
  Intros.
  cancel.
@@ -322,7 +322,7 @@ split.
 * (* else-clause *)
 forward. (* skip; *)
 Exists (s256a_hashed a) ((s256a_data a) ++ [Byte.repr 128]) 0.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 Time entailer!. (* 10.2 secs (3.8u, 0.s) *)
 split3.
 autorewrite with sublist. omega.

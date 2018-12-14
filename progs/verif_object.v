@@ -187,7 +187,7 @@ sep_apply (split_object_methods foo_invariant (gv _foo_methods)).
 unfold foo_invariant at 4.
 entailer!.
 simpl.
-unfold_field_at 1%nat.
+unfold_data_at (field_at _ _ nil _ p).
 cancel.
 unfold withspacer; simpl.
 rewrite !field_at_data_at.
@@ -268,7 +268,7 @@ gather_SEP 1 2;
 replace_SEP 0 (data_at Ews (Tstruct _methods noattr) 
    (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)). {
   entailer!.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ (Tstruct _methods _) _ (gv _foo_methods)).
   rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle))
   by  auto with field_compatible.
   rewrite field_at_data_at.  rewrite !field_compatible_field_address by auto with field_compatible.

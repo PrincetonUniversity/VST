@@ -163,7 +163,7 @@ Proof. intros. abbreviate_semax.
       freeze FR1 := - (K_vector _) (data_at_ _ _ (Vptr cb _)).
       unfold data_at_ at 1. unfold field_at_ at 1.
       simpl.
-      Time unfold_field_at 1%nat. (*7.7*)
+      Time unfold_data_at (@field_at CompSpecs _ _ _ _ _). (*7.7*)
       rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       simpl. rewrite Ptrofs.add_zero.
@@ -266,7 +266,7 @@ Proof. intros. abbreviate_semax.
        Time entailer!. (*2.1*)
        thaw FR5.
        unfold data_at_, field_at_, tarray, data_block.
-       unfold_data_at 2%nat. simpl. Time cancel. (*0.7*)
+       unfold_data_at (@data_at CompSpecs _ _ _ (Vptr cb cofs)). simpl. Time cancel. (*0.7*)
        Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
