@@ -28,8 +28,9 @@ assert (JM: default_val (Tarray tuchar 64 noattr) = sublist 0 64 (list_repeat 64
 erewrite  split2_data_at_Tarray with (n1:=32); [ | omega | | apply JM | reflexivity | reflexivity]. 
 2: rewrite Zlength_list_repeat'; simpl; omega.
 normalize. 
-
-freeze [1; 5; 7] FR1.
+freeze FR1 := - (data_at _ _ _ (field_address _ nil v_prk))
+             (data_at _ _ _ (field_address _ nil v_prk_len))
+             (data_block _ _ secret) (data_block _ _ salt) (spec_sha.K_vector _).
 idtac "Timing the call to HKDF_extract".
 Time forward_call (v_prk, v_prk_len, secret, SECRET, salt, SALT, gv, Tsh).
 (* Finished transaction in 5.715 secs (3.985u,0.026s) (successful)*)
@@ -43,15 +44,17 @@ Time forward_call (v_prk, v_prk_len, secret, SECRET, salt, SALT, gv, Tsh).
 forward.
 
 assert (Zlength (HKDF_extract (CONT SALT) (CONT SECRET))=32) as ZlengthExtract by apply HMAC_Zlength.
-thaw FR1. freeze [1; 2; 5] FR2.
-
+thaw FR1.
+freeze FR2 := - (spec_sha.K_vector _) (data_at _ _ _ v_prk_len)
+                    (data_block _ _ v_prk) (data_block _ _ info)
+                    (memory_block _ _ out).
 idtac "Timing the call to HKDF_expand".
 Time forward_call (out, olen, v_prk,
               Build_DATA 32 (HKDF_extract (CONT SALT) (CONT SECRET)),
               info, INFO, gv, shmd).
 (*Finished transaction in 4.185 secs (3.25u,0.016s) (successful)*)
 { simpl. cancel. }
-{ simpl. repeat split; try solve [trivial]; omega. }
+{ simpl. split3; auto. split; rep_omega. }
 
 apply extract_exists_pre. intros x. destruct x. Intros. rename H into EXPAND_RES. (*simpl in *.*)
 unfold expand_out_post, digest_len in EXPAND_RES. rewrite if_false in EXPAND_RES; try omega.
@@ -70,7 +73,7 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
         data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) v_prk;
         memory_block shmd olen out; FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) v_prk_len)).
   { congruence. }
-  { forward. entailer!. }
+  { forward. entailer!. simpl; cancel. }
 
   forward_if (`FF).
   { forward. Exists 0. entailer!.
@@ -93,7 +96,7 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
         data_block shmd (HKDF_expand (HKDF_extract (CONT SALT) (CONT SECRET)) (CONT INFO) olen) out;
    FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) v_prk_len))).
   { congruence. }
-  { forward. entailer!. }
+  { forward. entailer!. simpl; cancel. }
 
   forward_if (
   (PROP ( )

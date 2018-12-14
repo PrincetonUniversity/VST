@@ -95,11 +95,9 @@ Import reptype_lemmas.
 
 Tactic Notation "unfold_data_at" uconstr(a) :=
  tryif (is_nat_uconstr a)
- then (let fr := fresh "fr" in set (fr:=a);
-   revert fr; match goal with |- let _ := ?n : nat in _ =>
+ then (
     idtac "Warning: unfold_data_at with numeric argument is deprecated";
-     intro fr; clear fr; unfold_data_at_tac n
-    end
+     let x := constr:(a) in unfold_data_at_tac x
    )
  else
  (freeze1 a;
@@ -125,11 +123,9 @@ end).
 
 Tactic Notation "unfold_field_at" uconstr(a) :=
  tryif (is_nat_uconstr a)
- then (let fr := fresh "fr" in set (fr:=a);
-   revert fr; match goal with |- let _ := ?n : nat in _ =>
+ then (
     idtac "Warning: unfold_field_at with numeric argument is deprecated";
-     intro fr; clear fr; unfold_field_at_tac n
-    end
+     let x := constr:(a) in unfold_field_at_tac x
    )
  else unfold_data_at a.
 

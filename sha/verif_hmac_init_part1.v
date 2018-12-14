@@ -160,7 +160,7 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs: ptrofs)
                       (Vptr ckb ckoff); K_vector gv))).
 Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
-      freeze [0; 1; 4] FR1.
+      freeze FR1 := - (K_vector _) (data_at_ _ _ (Vptr cb _)).
       unfold data_at_ at 1. unfold field_at_ at 1.
       simpl.
       Time unfold_field_at 1%nat. (*7.7*)
@@ -168,7 +168,7 @@ Proof. intros. abbreviate_semax.
       rewrite field_address_offset by auto with field_compatible.
       simpl. rewrite Ptrofs.add_zero.
 
-      freeze [0;1] FR2.
+      freeze FR2 := - (data_at _ _ _ (Vptr cb _)) (field_at _ _ [StructField _i_ctx] _ _) (field_at _ _ [StructField _o_ctx] _ _).
 
       (*new: extract info from field_address as early as possible*)
       Time assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
@@ -176,13 +176,13 @@ Proof. intros. abbreviate_semax.
       Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr cb cofs)) as
          FCcb by entailer!. (*3.8*)
 
-      freeze [0;2;3] FR3.
+      freeze FR3 := - (data_at _ _ _ (Vptr cb _)).
       Time forward_call (Vptr cb cofs, wsh). (* 4.3 versus 18 *)
        (*call to SHA256_Update*)
       thaw FR3.
       thaw FR2.
       thaw FR1.
-      freeze [2;3;5;6] FR4.
+      freeze FR4 := - (sha256state_ _ _ _) (data_at _ _ _ (Vptr kb _)) (K_vector _).
       Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
       { unfold data_block.
         Time cancel. (*0.1*)
@@ -195,8 +195,8 @@ Proof. intros. abbreviate_semax.
 
      (*call Final*)
      thaw FR4. simpl.
-     freeze [2;3;5;6] FR5.
-     freeze [0;1;2] FR6.
+     freeze FR5 := - (K_vector _) (sha256state_ _ _ _) (data_at_ _ _ (Vptr ckb _)).
+     freeze FR6 := - (data_at_ _ _ (Vptr ckb _)).
      unfold data_at_ at 1. unfold field_at_.
      Time rewrite field_at_data_at at 1. (* 4.2*)
      rewrite field_address_offset by auto with field_compatible.
@@ -217,13 +217,13 @@ Proof. intros. abbreviate_semax.
      flatten_sepcon_in_SEP.
 
      thaw FR6.
-     freeze [0;4] FR7.
+     freeze FR7 := - (K_vector _) (sha256state_ _ _ _) (memory_block _ _ (Vptr ckb _)).
      Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, wsh, Tsh, gv). (*3.3.versus 4.3*)
        
      (*call memset*)
      thaw FR7.
      unfold tarray.
-     freeze [0;1;2;3] FR8. (*everything except memory_block Ews 32 (Vptr ckb (Ptrofs.repr (Ptrofs.unsigned ckoff + 32))))*)
+     freeze FR8 := - (memory_block _ _ _).
      Time forward_call (Tsh, Vptr ckb (Ptrofs.repr (Ptrofs.unsigned ckoff + 32)), 32, Int.zero). (*6.1 versus 6.9*)
      { Time entailer!. (*10.2*)
        unfold data_block. simpl. Time normalize. (*1.4*)
@@ -336,7 +336,7 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:ptrofs)
                       (Vptr ckb ckoff); K_vector gv))).
 Proof. intros.
      (*call to memcpy*)
-     freeze [1; 2; 3] FR1.
+     freeze FR1 := - (data_at _ _ _ (Vptr kb _)) (data_at_ _ _ (Vptr ckb _)).
      unfold data_at_.
      Time forward_call ((sh, Tsh), Vptr ckb ckoff,
              Vptr kb kofs, mkTrep (Tarray tuchar (Zlength key) noattr)
@@ -356,7 +356,7 @@ Proof. intros.
      remember (map Vubyte key) as KCONT.
 
      (*call memset*)
-     freeze [0;1;3] FR2.
+     freeze FR2 := - (@data_at CompSpecs _ _ _ (@field_address0 CompSpecs _ _ (Vptr ckb _))).
      Time forward_call (Tsh, Vptr ckb (Ptrofs.add ckoff (Ptrofs.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
      { (*Issue: this side condition is NEW*)
        apply prop_right. unfold Ptrofs.of_ints, Ptrofs.of_int, Ptrofs.to_int. normalize.

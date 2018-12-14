@@ -290,6 +290,8 @@ Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) ucons
 Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8) uconstr(a9) uconstr(a10):=
   freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freeze1 a9; freeze1 a10; freezer i.
 
+Tactic Notation "freeze" ident(i) ":=" "-"  :=
+    complement_freezer i.
 Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) :=
   freeze1 a1; complement_freezer i.
 Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) :=

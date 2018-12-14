@@ -286,7 +286,7 @@ Proof. intros. abbreviate_semax.
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
-        Time freeze [0;1] FR1.
+        Time freeze FR1 := - (@data_at CompSpecs _ _ _ (Vptr ckb _)).
         Time forward; (*6.7 versus 9*)
         change Inhabitant_val with Vundef in X;
          rewrite X.
@@ -313,7 +313,7 @@ Proof. intros. abbreviate_semax.
 
         thaw FR1.
 
-        freeze [0; 2] FR2.
+        freeze FR2 := - (data_at _ _ _ (Vptr pb _)).
         Time forward. (*5.4 versus 5*) (*FIXME NOW takes 20secs; this is the forward the ran out of 2GB memory in the previous version of floyd*)
         Time entailer!. (*5.7 versus 9.6*)
          thaw FR2; simpl.
@@ -383,7 +383,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l wsh key gv (FR:mpred): 
             data_at Tsh (Tarray tuchar 64 noattr) OPADcont (Vptr pb pofs);
             FR))).
 Proof. intros. abbreviate_semax.
-freeze [0;2] FR1.
+freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
       forward_for_simple_bound 64 (EX i:Z,
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
@@ -418,7 +418,7 @@ freeze [0;2] FR1.
               2:{ repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. }
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
-        freeze [0;2] FR2.
+        freeze FR2 := - (data_at _ _ _ (Vptr ckb _)).
         Time forward;
         change Inhabitant_val with Vundef in X;
         rewrite X.  (*5.3 versus 7.8, and we've eliminated some floyds preceding the call*)

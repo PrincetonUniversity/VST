@@ -105,7 +105,7 @@ start_function.
 rename H into LenPRK. rename H0 into LEN_INFO1.
 destruct H1 as [LEN_INFO2 LEN_INFO3]. rename H2 into OLEN.
 
-freeze [0;1;2;3;4;5;6] FR1.
+freeze FR1 := - .
 forward. forward. forward. forward.
 { entailer!. inv H. }
 unfold Int.divu, Int.add, Int.sub.
@@ -178,7 +178,7 @@ drop_LOCAL 0%nat.
 thaw FR1. 
 Time assert_PROP (isptr prk) as isPtrPrk by entailer!.
 
-freeze [0;2;3;6] FR1.
+freeze FR1 := - (data_at_ _ _ v_hmac) (data_block _ _ prk) (spec_sha.K_vector _).
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] v_hmac) as FC_hmac by entailer!.
 replace_SEP 1 (HMAC_SPEC.EMPTY Tsh v_hmac).
 { entailer!. eapply HMAC_SPEC.mkEmpty; trivial. }
@@ -204,7 +204,8 @@ rewrite field_address0_offset by auto with field_compatible. simpl.
 rewrite memory_block_field_compatible_tarraytuchar by rep_omega.
 Intros. rename H into FCout. 
 
-freeze [1;3] FR0. 
+freeze FR0 := (data_at _ _ _ (offset_val 32 v_previous)) (data_block _ _ prk).
+
 assert_PROP (isptr out) as isPTRout by entailer!.
 assert (Arith: 32 > 0) by omega.
 specialize (Z_div_mod_eq olen 32 Arith); intros OLEN1.
@@ -280,7 +281,7 @@ forward_for_simple_bound bnd
    HMAC_SPEC.REP Tsh (HMAC_SPEC.hABS (CONT PRK) l) v_hmac)).
 
    { destruct (zlt i1 bnd); try omega. rewrite if_false; trivial.
-     freeze [0;2;4;6] FR1.
+     freeze FR1 := - (spec_sha.K_vector _) (data_at _ _ _ v_previous) (HMAC_SPEC.FULL _ _ v_hmac).
      idtac "Timing the call to _HMAC_Init".
      Time forward_call (@inl _ (share * val * Z * list byte * globals * val) (Tsh, v_hmac,0,CONT PRK, gv)).
      (* Finished transaction in 1.73 secs (1.472u,0.011s) (successful)*)
@@ -300,7 +301,7 @@ forward_for_simple_bound bnd
        split. apply writable_share_top. split. apply readable_share_top.
        rewrite hmac_pure_lemmas.int_max_unsigned_eq; omega.
      * Exists prev. rewrite if_false; trivial. entailer!. thaw FR1. cancel.
-       unfold data_block. normalize. rewrite Hprev, Zlength_prev. cancel. }
+       unfold data_block. normalize. rewrite Hprev, Zlength_prev. simpl app; cancel. }
    { subst i1. forward. Exists (@nil byte). rewrite ! if_true; try omega.
      entailer!. }
 
@@ -317,7 +318,8 @@ forward_for_simple_bound bnd
      + assert (Arith1: 0<= i1) by omega. specialize (PREV_len PRK INFO i1 Arith1); intros HZ.
        rewrite Hl, Zlength_map in HZ; rewrite HZ, <- Zplus_assoc; simpl. omega. }
 
-   simpl. freeze [1;3;5;6] FR3.
+   freeze FR3 := - (HMAC_SPEC.REP _ _ _) (spec_sha.K_vector _)
+            (field_at _ _ _ _ v_ctr).
    assert_PROP (field_compatible (tarray tuchar 1) [] v_ctr /\ isptr v_ctr) as HH by entailer!.
    destruct HH as [FC_cptr isptrCtr].
 
@@ -342,7 +344,9 @@ forward_for_simple_bound bnd
      + specialize (PREV_len PRK INFO i1). rewrite Hl, Zlength_map.
        intros HH; rewrite HH; omega. } 
 
-   normalize. thaw FR3. freeze [1;3;4;6] FR4.
+   normalize. thaw FR3. 
+   freeze FR4 := - (HMAC_SPEC.REP _ _ v_hmac) (spec_sha.K_vector _)
+                     (data_at _ _ _ v_previous).
    replace_SEP 3 (memory_block Tsh 32 v_previous).
    { entailer!. eapply derives_trans. apply data_at_memory_block. simpl; trivial. }
    idtac "Timing the call to _HMAC_Final".
@@ -378,8 +382,8 @@ forward_for_simple_bound bnd
 
    thaw FR4. 
    unfold OUTpred, Done, digest_len. normalize.
-   freeze [0;3;4;5;6;7] FR5.
-   
+   freeze FR5 := - (memory_block _ _ (offset_val (32*i1) out)) 
+                       (data_at _ _ _ v_previous).   
    idtac "Timing the call to _memcpy".
    Time forward_call ((Tsh, shmd), 
                  offset_val (32*i1) out, v_previous, 
@@ -518,7 +522,7 @@ forward_for_simple_bound bnd
   normalize. rewrite if_false in H. 2: omega. clear H. (*eliminate this PROP in loop invariant entirely?*)
 
   forward. 
-    freeze [0;1;2;3;4;6] FR6.
+  freeze FR6 := - (if zeq bnd 0 then _ else _).
   
   idtac "Timing the call to _HMAC_cleanup".
   Time forward_call (CONT PRK, v_hmac, Tsh).

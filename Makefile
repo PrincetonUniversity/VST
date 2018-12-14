@@ -484,7 +484,7 @@ travis: default_target progs sha hmac mailbox
 
 files: _CoqProject $(FILES:.v=.vo)
 
-all: default_target files travis hmacdrbg tweetnacl aes
+all: default_target files travis hkdf hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)
