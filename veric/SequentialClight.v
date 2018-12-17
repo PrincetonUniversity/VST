@@ -57,15 +57,15 @@ Definition ext_spec_mem_evolve (Z: Type)
 Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
    (D: external_specification mem external_function Z)
-   (dessicate: forall ef, ext_spec_type J ef -> ext_spec_type D ef) :=
+   (dessicate: forall ef jm, ext_spec_type J ef -> ext_spec_type D ef) :=
   (forall e t t' b tl vl x jm,
-    JMeq.JMeq (dessicate e t) t' ->
-    (ext_spec_pre J e t b tl vl x jm <->
+    dessicate e jm t = t' ->
+    (ext_spec_pre J e t b tl vl x jm ->
     ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
  (forall ef t t' b ot v x jm,
-    JMeq.JMeq (dessicate ef t) t' ->
-    (ext_spec_post J ef t b ot v x jm <->
-     ext_spec_post D ef t' b ot v x (m_dry jm))) /\
+    (exists tl vl x0 jm0, dessicate ef jm0 t = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
+    (ext_spec_post D ef t' b ot v x (m_dry jm) ->
+     ext_spec_post J ef t b ot v x jm)) /\
  (forall v x jm,
      ext_spec_exit J v x jm <->
      ext_spec_exit D v x (m_dry jm)).
@@ -86,7 +86,7 @@ Defined.
 
 Definition dessicate_id Z 
    (J: external_specification juicy_mem external_function Z) :
-   forall ef, ext_spec_type J ef -> 
+   forall ef (jm : juicy_mem), ext_spec_type J ef -> 
        ext_spec_type (juicy_dry_ext_spec_make Z J) ef.
 intros.
 destruct J; simpl in *. apply X.
@@ -100,15 +100,12 @@ Proof.
 intros.
 destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
 -
-apply JMeq.JMeq_eq in H2. subst t'.
-split; intros.
+subst t'.
 eapply H. symmetry; eassumption.  auto.
-apply H2; auto.
 -
-apply JMeq.JMeq_eq in H2. subst t'.
-split; intros.
-eapply H0. symmetry; eassumption.  auto.
-apply H2; auto.
+destruct H2 as (? & ? & ? & ? & ? & ?).
+subst t'.
+eapply H0; auto.
 -
 eapply H1. symmetry; eassumption. auto.
 Qed.
@@ -380,7 +377,7 @@ Qed.
  Lemma whole_program_sequential_safety:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (dryspec: ext_spec OK_ty)
-     (dessicate : forall ef : external_function,
+     (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
@@ -455,10 +452,10 @@ Proof.
    destruct JE_spec as [ty' pre' post' exit']. simpl in *.
    change (level (m_phi jm)) with (level jm) in *.
    destruct JDE as [JDE1 [JDE2 JDE3]].
-   specialize (JDE1 e x (dessicate e x)); simpl in JDE1.
+   specialize (JDE1 e x (dessicate e jm x)); simpl in JDE1.
    eapply safeN_external.
      eassumption.
-     apply JDE1. apply JMeq.JMeq_refl. assumption.
+     apply JDE1. reflexivity. assumption.
      simpl. intros.
      assert (H20: exists jm', m_dry jm' = m' 
                       /\ (level jm' = n')%nat
@@ -477,7 +474,7 @@ Proof.
      pose (phi' := age_to.age_to n' phi1).
      assert (mem_rmap_cohere m' phi'). {
        clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE1.
-       apply JDE1 in H1; [ | apply JMeq.JMeq_refl].
+       apply JDE1 in H1; [ | reflexivity].
        specialize (DME e _ _ _ _ _ _ _ _ _ _ H1 H6).
      subst phi'.
      apply age_to_cohere.
@@ -511,7 +508,7 @@ Proof.
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
   spec H2.
-  apply <- JDE2; try apply JMeq.JMeq_refl. subst m'. apply H6.
+  eapply JDE2. { eauto 6. } subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
