@@ -106,7 +106,7 @@ Section SelfSim.
       exists b1 ofs delt,
         mu b1 = Some (b2, delt) /\
         ofs_delt = ofs + delt /\
-        a1 !! b2 ofs_delt = a2 !! b1 ofs.
+        a2 !! b2 ofs_delt = a1 !! b1 ofs.
   
   Global Instance perm_preimage_setoid:
     Proper (Logic.eq ==> access_map_equiv ==> access_map_equiv ==> iff)
@@ -217,14 +217,14 @@ Section SelfSim.
       do 3 eexists; repeat split; try eapply INCR; eauto.
       repeat rewrite getCurPerm_correct in *.
       repeat unfold permission_at in *.
-      pose proof (same_cur _ _ VIS1 b2 ofs_delta) as HH1.
-      pose proof (same_cur _ _ VIS2 x x0) as HH2.
+      pose proof (same_cur _ _ VIS1 x x0) as HH1.
+      pose proof (same_cur _ _ VIS2 b2 ofs_delta) as HH2.
       unfold Mem.perm in *.
       etransitivity. etransitivity.
       symmetry.
       1,3: eapply all_order_eq.
-      eapply HH1.
       eapply HH2.
+      eapply HH1.
       eauto.
   Qed.
 

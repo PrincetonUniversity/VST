@@ -1367,7 +1367,8 @@ Proof.*)
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
-     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission))
+     @Maps.PTree.combine (Z -> option permission)
+                         (Z -> option (option permission))
                          (Z -> option permission)
                          (fun p1 pd => match pd, p1 with
                                     | Some pd', Some p1' =>

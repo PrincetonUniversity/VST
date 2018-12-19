@@ -22,6 +22,7 @@ Require Import VST.concurrency.compiler.Clight_self_simulation.
 Require Import VST.concurrency.compiler.Asm_self_simulation.
 Require Import VST.concurrency.compiler.diagrams.
 Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.compiler.pair.
 
 
 Require Import VST.concurrency.memsem_lemmas.
@@ -30,6 +31,7 @@ Import BinInt.
 Import List.
 Import Integers.
 Import Ptrofs.
+Import Basics.
 Import FunctionalExtensionality.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -496,22 +498,18 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
           lock_comp: permMapLt (lock_perms cnt) (getMaxPerm m)}.
       Arguments th_comp {_ _ _ _ _}.
       Arguments lock_comp {_ _ _ _ _}.
-      (*TODO: Need all this Pair stuff?*)
-      Notation "'Pair'  T " := (T * T)%type (at level 100).
-      Definition and_pair (a: Pair Prop): Prop:= fst a /\ snd a.
-      Definition func_pair {T1 T2: Type} (f:T1 -> T2): (Pair T1) -> Pair T2:=
-        fun aa:Pair T1 => (f (fst aa), f (snd aa)).
-      Definition pair_appl {T1 T2: Type}  (f: Pair (T1 -> T2)) (a: Pair T1):=
-        ((fst f) (fst a),(snd f) (snd a)).
-      Definition func_pair2 {T1 T2 T3: Type} (f:T1 -> T2 -> T3):=
-        fun aa bb=> pair_appl (func_pair f aa) bb.
       
-      Definition mk_pair {T:Type} (a:T): Pair T:= (a,a).
+
+      
+      
+      (* OLD version*)
+      (*
+       *)
       
       Definition PTree_get2 (a: access_map * access_map) b ofs:=
-        func_pair (fun x => (x !! b) ofs) a.
+        pair1 (fun x => (x !! b) ofs) a.
       Infix "!!!":=PTree_get2 (at level 1).
-      Definition Ple2 b ofs := and_pair (func_pair2 Mem.perm_order'' b ofs).
+      Definition Ple2 := (pair2_prop Mem.perm_order'').
       
       Record concur_match (ocd: option compiler_index)
              (j:meminj) (cstate1: ThreadPool (Some hb)) (m1: Mem.mem) (cstate2: ThreadPool(Some (S hb))) (m2: mem):=
@@ -2112,9 +2110,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
       (** * End of Lemmas for relase diagram*)
 
       
-      Definition computeMap_pair am dm:=
-        (computeMap (fst am) (fst dm),
-         computeMap (snd am) (snd dm)).
+      Definition computeMap_pair:=
+        pair2 computeMap.
       Record virtue:=
         { virtueThread:
             PTree.t (Z -> option (option permission)) *
@@ -2218,11 +2215,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                 bounded_maps.sub_map (snd (fst (virtueLP v))) (snd m) /\
                 bounded_maps.sub_map (snd (snd (virtueLP v))) (snd m)
             }.
-          Record permMapJoin_pair (a b c : access_map * access_map):=
-            { JoinFst:> permMapJoin (fst a) (fst b) (fst c);
-              JoinSnd:> permMapJoin (snd a) (snd b) (snd c)
-            }.
-            
+          
+          Definition permMapJoin_pair:=
+            pair3_prop permMapJoin.  
          Definition inject_virtue (m: mem) (mu: meminj) (angel:virtue):=
             Build_virtue
               (virtueThread_inject m mu (virtueThread angel))
@@ -2644,44 +2639,586 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness).
                   
                     
                 
+                Definition no_overlap_perms' (mu:meminj) (p p': access_map):=
+                  forall b1 b1' b2 delt delt',
+                    mu b1 = Some(b2, delt) ->
+                    mu b1' = Some(b2, delt') ->
+                    forall ofs ofs',
+                      Mem.perm_order' (p !! b1 ofs) Nonempty ->
+                      Mem.perm_order' (p' !! b1' ofs') Nonempty ->
+                      ofs + delt = ofs' + delt' ->
+                      b1 = b1'.
+                Definition no_overlap_perms (mu:meminj) (p p': access_map):=
+                  forall b1 b1' b2 delt delt',
+                    mu b1 = Some(b2, delt) ->
+                    mu b1' = Some(b2, delt') ->
+                    forall ofs ofs',
+                      Mem.perm_order' (p !! b1 ofs) Nonempty ->
+                      Mem.perm_order' (p' !! b1' ofs') Nonempty ->
+                      ofs + delt = ofs' + delt' ->
+                      b1 = b1' /\ ofs = ofs' /\ delt = delt' .
+                Lemma no_overlap_perms_iff:
+                  forall mu p1 p2,
+                    no_overlap_perms' mu p1 p2 <-> no_overlap_perms mu p1 p2.
+                Proof.
+                  intros; unfold no_overlap_perms, no_overlap_perms';
+                    split; intros HH b1 b1' **; exploit (HH b1 b1');
+                      eauto; intros HH'; destruct_and; auto.
+                  - !goal (_/\_/\_).
+                    subst. rewrite H in H0; inversion H0; subst.
+                    reduce_and; auto; omega.
+                Qed.
 
-                Lemma permMapJoin_inject:
-                  forall mu newThreadPerm1 newThreadPerm2 virtueLP1 virtueLP2 mem_cur1 mem_cur2,
-                    perm_preimage mu newThreadPerm1 newThreadPerm2 ->
-                    perm_preimage mu virtueLP1 virtueLP2 ->
-                    perm_preimage mu mem_cur1 mem_cur2 ->
-                    permMapJoin newThreadPerm1 virtueLP1 mem_cur1 ->
-                    permMapJoin newThreadPerm2 virtueLP2 mem_cur2.
+                (* Use no_overlap_perms when possible*)
+                  Definition perm_image_full (f:meminj) (a1 a2: access_map): Prop:=
+                    forall b1 ofs,
+                      Mem.perm_order' (a1 !! b1 ofs) (Nonempty) ->
+                      exists b2 delta,
+                        f b1 = Some (b2, delta) /\
+                        a1 !! b1 ofs = a2 !! b2 (ofs + delta).
+                  
+                  Lemma perm_order_from_map:
+                      forall perm b (ofs : Z) p,
+                        perm !! b ofs  = Some p ->
+                        Mem.perm_order' (perm !! b ofs) Nonempty.
+                  Proof. intros * H; rewrite H; constructor. Qed.
+                  Record perm_perfect_image mu a1 a2:=
+                    { p_image: perm_image_full mu a1 a2;
+                      ppre_perfect_image: perm_preimage mu a1 a2}.
+                  Local Ltac exploit_p_image H:=
+                    destruct
+                      (p_image _ _ _ H _ _ ltac:(eapply perm_order_from_map; eauto))
+                  as (?&?&?&?); subst.
+                  Local Ltac exploit_ppre_miage H:=
+                    destruct
+                      (ppre_perfect_image _ _ _ H _ _ ltac:(eapply perm_order_from_map; eauto))
+                    as (?&?&?&?&?&?); subst.
+                  Local Ltac exploit_perfect_image H:=
+                    try (exploit_p_image H); try (exploit_ppre_miage H). 
+                    
+
+                  
+                  Local Ltac exploit_no_overlap_perm H:=
+                    (* TODO: remove coqlib*)
+                    ( Coqlib.exploit H;
+                      try (eapply perm_order_from_map; eauto);
+                      eauto;
+                      intros ?; destruct_and; subst
+                    ).
+                  Local Ltac unify_injection:=
+                    match goal with
+                      [H: ?mu ?x = _,H0: ?mu ?x = _ |- _] =>
+                      match type of mu with
+                      | meminj => rewrite H in H0; invert H0
+                      end
+                    end.
+                  Local Ltac unify_mapping:=
+                    match goal with
+                      [H: ?a !! ?x ?y = Some _ ,
+                          H0: ?a !! ?x ?y = _ |- _] => rewrite H in H0
+                    | [H: ?a !! ?x ?y = None ,
+                          H0: ?a !! ?x ?y = _ |- _] => rewrite H in H0
+                    | [H: ?a !! ?x ?y = Some _ ,
+                          H0: _ = ?a !! ?x ?y |- _] => rewrite H in H0
+                    | [H: ?a !! ?x ?y = None ,
+                          H0: _ = ?a !! ?x ?y |- _] => rewrite H in H0
+                    end.
+                    
+                  Lemma permMapJoin_inject:
+                  forall mu a1 a2 b1 b2 c1 c2,
+                    no_overlap_perms mu a1 b1 ->
+                    no_overlap_perms mu b1 c1 ->
+                    no_overlap_perms mu c1 a1 ->
+                    perm_perfect_image mu a1 a2 ->
+                    perm_perfect_image mu b1 b2 ->
+                    perm_perfect_image mu c1 c2 ->
+                    permMapJoin a1 b1 c1 ->
+                    permMapJoin a2 b2 c2.
                 Proof.
-                  intros.
-                Admitted.
-                Definition perm_preimage_pair mu ap1 ap2:=
-                  and_pair (func_pair2 (perm_preimage mu) ap1 ap2).
-                Lemma permMapJoin_pair_inject:
-                  forall mu newThreadPerm1 newThreadPerm2 virtueLP1 virtueLP2 mem_cur1 mem_cur2,
-                    perm_preimage_pair mu newThreadPerm1 newThreadPerm2 ->
-                    perm_preimage_pair mu virtueLP1 virtueLP2 ->
-                    perm_preimage_pair mu mem_cur1 mem_cur2 ->
-                    permMapJoin_pair newThreadPerm1 virtueLP1 mem_cur1 ->
-                    permMapJoin_pair newThreadPerm2 virtueLP2 mem_cur2.
-                Proof.
-                  intros.
-                  constructor; eapply permMapJoin_inject;
-                    first[eapply H|eapply H0|eapply H1|eapply H2].
+                  intros * H12 H23 H31 Ha Hb Hc HH ??.
+                  destruct (a2 !! b ofs) eqn:AA; 
+                  destruct (b2 !! b ofs) eqn:BB; 
+                  destruct (c2 !! b ofs) eqn:CC;
+                  exploit_perfect_image Ha;
+                  exploit_perfect_image Hb;
+                  exploit_perfect_image Hc;
+                  repeat unify_mapping;
+                  (* use no_pverlap_mem to set which blocks and ofsets are equal*)
+                  try (exploit_no_overlap_perm H12);
+                  try (exploit_no_overlap_perm H23);
+                  try (exploit_no_overlap_perm H31);
+                  !goal (permjoin_def.permjoin _ _ _);
+
+                  (* inistantiate hypothesis wiith permMapJoin *)
+                  try (match goal with
+                  |[H: mu ?b = _, _:Some _ = ?a !! ?b ?ofs |-_] => specialize (HH b ofs)
+                  end;
+                       (*rewriite the values ini the joiin*)
+                       repeat match goal with
+                              | [ H: Some _ = _ |- _] => rewrite <- H in HH
+                              end; auto);
+
+                 (*destruct the parts that are not mapped*)
+                  repeat match type of HH with
+                    context[?a !! ?b ?ofs] =>
+                    let H1:= fresh in 
+                    destruct (a !! b ofs) eqn:H1
+                         end; try eassumption;
+
+                  (* map the ones that are not mapped yet (and show a contradictoni)*)
+                  exploit_perfect_image Ha;
+                  exploit_perfect_image Hb;
+                  exploit_perfect_image Hc;
+                  repeat unify_injection;
+                  repeat unify_mapping;
+                  try discriminate.
+                  - !goal (permjoin_def.permjoin None None None).
+                    constructor.
                 Qed.
                 
-                clear - Heqangel2 CMatch Hjoin_angel matchmem compiled.
+                Definition perm_perfect_image_pair mu:=
+                  pair2_prop (perm_perfect_image mu).
+                
+                Definition no_overlap_perms_pair mu:=
+                  pair2_prop (no_overlap_perms mu).
+
+
+                Hint Unfold no_overlap_perms_pair.
+                Lemma permMapJoin_pair_inject:
+                  forall mu a1 a2 b1 b2 c1 c2,
+                    no_overlap_perms_pair mu a1 b1 -> 
+                    no_overlap_perms_pair mu b1 c1 ->
+                    no_overlap_perms_pair mu c1 a1 ->
+                    perm_perfect_image_pair mu a1 a2 ->
+                    perm_perfect_image_pair mu b1 b2 ->
+                    perm_perfect_image_pair mu c1 c2 ->
+                    permMapJoin_pair a1 b1 c1 ->
+                    permMapJoin_pair a2 b2 c2.
+                Proof.
+                  intros * ?H ?H ?H ?H ?H ?H [INJ1 INJ2];
+                    constructor;
+                    [eapply permMapJoin_inject; try apply INJ1|
+                     eapply permMapJoin_inject; try apply INJ2];
+                      first[eapply H|eapply H0|eapply H1|eapply H2|
+                        eapply H3|eapply H4].
+                Qed.
+                
+                (* clear - Heqangel2 CMatch Hjoin_angel matchmem compiled. *)
                 set (newThreadPerm2 := computeMap_pair (getThreadR cnt2) (virtueThread angel2)).                match goal with |- ?f ?x _ _ => replace x with (fst newThreadPerm2)
                                   by reflexivity end.
                 eapply (permMapJoin_pair_inject mu); eauto.
+            - !goal (no_overlap_perms_pair mu _ _).
+              Definition permMapLt_pair2:= pair2_prop permMapLt.
+              Definition permMapLt_pair pp1 p2:=
+                permMapLt_pair2 pp1 (pair0 p2).
+
+
+              
+              Lemma permMapLt_trans:
+                transitive _ permMapLt.
+              Proof. unfold permMapLt; intros ? **.
+                     eapply mem_lemmas.po_trans; eauto.
+              Qed.
+              Lemma permMapLt_pair_trans211:
+                forall pa pb c,
+                  permMapLt_pair2 pa pb ->
+                  permMapLt_pair pb c ->
+                  permMapLt_pair pa c.
+              Proof.
+                unfold permMapLt_pair; intros;
+                  eapply impr_rel_trans; eauto.
+                eapply permMapLt_trans.
+              Qed.
+              
+              Lemma perm_order_trans211:
+                forall oa ob c,
+                  Mem.perm_order'' oa ob ->
+                  Mem.perm_order' ob c ->
+                  Mem.perm_order' oa c.
+              Proof.
+                intros. rewrite mem_lemmas.po_oo in *.
+                eapply juicy_mem.perm_order''_trans; eassumption.
+              Qed.
+              Lemma no_overlap_perms_under_mem:
+                forall mu a1 a2 m,
+                  Mem.meminj_no_overlap mu m ->
+                  permMapLt a1 (getMaxPerm m) ->
+                  permMapLt a2 (getMaxPerm m) ->
+                  no_overlap_perms mu a1 a2.
+              Proof.
+                intros ** ????????????.
+                destruct (Clight_lemmas.block_eq_dec b1 b1').
+                - subst; unify_injection.
+                  repeat (split; auto); omega.
+                - exfalso.
+                  exploit H; eauto; unfold Mem.perm;
+                    try (rewrite_getPerm_goal; eapply perm_order_trans211).
+                  2: exact H4.
+                  3: exact H5.
+                  + eapply H0.
+                  + eapply H1.
+                  + intros [?| ?]; tauto.
+              Qed.
+              Lemma no_overlap_perms_under_mem_pair:
+                forall mu a1 a2 m,
+                  Mem.meminj_no_overlap mu m ->
+                  permMapLt_pair a1 (getMaxPerm m) ->
+                  permMapLt_pair a2 (getMaxPerm m) ->
+                  no_overlap_perms_pair mu a1 a2.
+              Proof.
+                intros; split;
+                  eapply no_overlap_perms_under_mem; eauto;
+                    first [eapply H0 | eapply H1].
+              Qed.
+
+              eapply no_overlap_perms_under_mem_pair.
+              -- (*from Mem.iinject ni the concur_match*)
+                eapply CMatch.
+              -- eapply (permMapLt_pair_trans211 _ (getThreadR cnt1)).
+                 ++ !goal (permMapLt_pair2 newThreadPerm1 (getThreadR cnt1)).
+                    unfold permMapLt_pair2.
+                    solve_pair.
+                    admit. (* Follows from permMapJoiin_pair *)
+                 ++ !goal (permMapLt_pair (getThreadR cnt1) (getMaxPerm m1)).
+                    admit. (* follos from thread_compat*)
+              --
+
+                   
                 3: { split; simpl.
                      pose proof (ppreimage _ _ _ matchmem) as HH.
                      unfold th_mem1,th_mem2 in *.
                      repeat rewrite getCur_restr in HH; eauto.
-
                      eapply CMatch.
                 }
+                1: {
+                  subst newThreadPerm1 newThreadPerm2.
+                  
+                  
+                  Lemma inject_virtue_preimage1:
+                    forall {A} m mu angel1 angel2,
+                      angel2 = tree_map_inject_over_mem(A:=A) m mu angel1 ->
+                      forall b2 pf2 ofs_delta p,
+                        (angel2) ! b2 = Some pf2 ->
+                        pf2 ofs_delta = Some p ->
+                        exists b1 delt ofs pb pf1,
+                          mu b1 = Some(b2, delt) /\
+                          ofs_delta = ofs + delt /\
+                          (getMaxPerm m) !! b2 = pb /\
+                          (angel1) ! b1 = Some pf1 /\
+                          pf1 ofs = Some p.
+                  (* don't need no_overlap:
+                     just take the last one that maps...
+                           *)
+                          Admitted.
+                          Lemma inject_virtue_preimage2:
+                          forall {A} m mu angel1 angel2,
+                            angel2 = tree_map_inject_over_mem(A:=A) m mu angel1 ->
+                            forall b2 ofs_delta pf2,
+                              (angel2) ! b2 = Some pf2 ->
+                              pf2 ofs_delta = None ->
+                              exists pb,
+                                (getMaxPerm m) !! b2 = pb /\
+                                forall b1 delt ofs,
+                                  mu b1 = Some (b2, delt) ->
+                                  ofs_delta = ofs + delt ->
+                                  (angel1) ! b1 = None \/
+                                  exists pf1,
+                                    (angel1) ! b1 = Some pf1 /\
+                                    pf1 ofs = None.
+                        (* don't need no_overlap:
+                           just take  the last one that maps...
+                         *)
+                          Admitted.
+                          Lemma inject_virtue_preimage3:
+                            forall {A} m mu angel1 angel2,
+                              angel2 = tree_map_inject_over_mem(A:=A) m mu angel1 ->
+                              forall b2,
+                                (angel2) ! b2 = None ->
+                                (snd (getMaxPerm m)) ! b2 = None.
+                          Proof.
+                            intros.
+                            subst angel2. 
+                          unfold virtueThread_inject in *.
+                          simpl in H0.
+                          unfold tree_map_inject_over_mem,
+                           tree_map_inject_over_tree in H0.
+                          rewrite PTree.gmap in H0.
+                          match goal with
+                            |- ?X = _ => destruct X eqn:?HH; try reflexivity
+                          end.
+                          simpl in H0; congruence.
+                        Qed.
+                  
+                  Record delta_perm_preimage (mu:meminj)
+                         (angel1 angel2: delta_map):=
+                    {
+                      AAA: forall b2 pf2, angel2 ! b2 = Some pf2 ->
+                                     forall ofs_delt p, pf2 ofs_delt = Some p ->
+                                                       exists b1 delta ofs pf1,
+                                                         mu b1 = Some(b2,delta) /\
+                                                         ofs_delt = ofs + delta  /\
+                                                         angel1 ! b1 = Some pf1 /\
+                                                         pf1 ofs = Some p ;
+                      BBB: forall b2 pf2, angel2 ! b2 = Some pf2 ->
+                                     forall ofs_delt,  pf2 ofs_delt = None ->
+                                                  forall b1 delta ofs,
+                                                    mu b1 = Some(b2,delta) ->
+                                                    ofs_delt = ofs + delta ->
+                                                    angel1 ! b1 = None \/  
+                                                    exists pf1, angel1 ! b1 = Some pf1 /\
+                                                           pf1 ofs = None }.
+                  Definition delta_bound (p:access_map) (angel:delta_map):=
+                    forall b, angel ! b = None ->
+                         forall ofs, p !! b ofs = None.
+                  Definition delta_bound_pair p angel:=
+                  and_pair (pair2 delta_bound p angel). 
+                  Definition delta_perm_preimage_pair mu ap1 ap2:=
+                    and_pair (pair2 (delta_perm_preimage mu) ap1 ap2).
+                  
 
+                    Lemma preimage_computeMap:
+                      forall p1 p2 angel1 angel2 mu,
+                        delta_bound p2 angel2 ->
+                        perm_preimage mu p1 p2 ->
+                        delta_perm_preimage mu angel1 angel2 ->
+                        perm_preimage
+                          mu
+                          (computeMap p1 angel1)
+                          (computeMap p2 angel2).
+                    Proof.
+                      intros ** ???.
+                      destruct ((computeMap p2 angel2) !! b2 ofs_delt) eqn:HH.
+                      1: clear H2. 2: solve[inversion H2].
+                      
+                      eapply computeMap_backwards in HH.
+                      destruct HH as [HH| [HH HH']].
+                      - unfold PMap.get in HH; simpl in HH.
+                        destruct (angel2 ! b2) eqn:angel2_b2; simpl in *;
+                          try discriminate.
+                        pose proof (AAA _ _ _ H1 _ _ angel2_b2 _ _ HH).
+                        destruct H2 as (?&?&?&?&?&?&?&?).
+                        repeat (econstructor; eauto).
+                        erewrite computeMap_1; eauto.
+                      - unfold PMap.get in HH; simpl in HH.
+                        destruct (angel2 ! b2) eqn:angel2_b2; simpl in *.
+                        + pose proof (BBB _ _ _ H1 _ _ angel2_b2 _ HH).
+                          pose proof (computeMap_2 p2 _ _ _ angel2_b2 HH).
+                          specialize (H0 b2 ofs_delt
+                                        ltac:(rewrite HH';destruct p; constructor)).
+                          destruct H0 as (?&?&?&?&?&?).
+                          repeat (econstructor; eauto).
+                          symmetry.
+                          rewrite <- HH',H5. 
+                          specialize (H2 _ _ _ H0 H4).
+                          destruct H2 as [? | (?&?&?)].
+                          * eapply computeMap_3; auto.
+                          * eapply computeMap_2; eauto.
+                        + clear HH.
+                          (*pose proof (CCC _ _ _ H0 _ angel2_b2).*)
+                          rewrite (H _ angel2_b2) in HH'; discriminate.
+                    Qed.
+                    Lemma preimage_computeMap_pair:
+                      forall p1 p2 (angel1 angel2:Pair delta_map)  mu,
+                        delta_bound_pair p2 angel2 ->
+                        perm_preimage_pair mu p1 p2 ->
+                        delta_perm_preimage_pair mu angel1 angel2 ->
+                        perm_preimage_pair
+                          mu
+                          (computeMap_pair p1 angel1)
+                          (computeMap_pair p2 angel2).
+                    Proof.
+                      intros.
+                      econstructor; 
+                        eapply preimage_computeMap; 
+                        first[apply H|apply H0| apply H1].
+                    Qed.
+                    
+                    eapply preimage_computeMap_pair.
+                  - destruct angel as (angel_thread1 & angel_lock1);
+                      destruct angel_thread1;
+                        subst angel2; constructor; simpl; intros ???.
+                    + exploit (inject_virtue_preimage3(A:=option permission)); eauto.
+                      intros.
+                      assert ((getMaxPerm m2) !! b ofs = None).
+                      { unfold PMap.get. rewrite H1.
+                        unfold getMaxPerm; simpl.
+                        (*   forall (m : Mem.mem') (loc : Z) (k : perm_kind), 
+                             fst (Mem.mem_access m) loc k = None
+                         *)
+                        apply Clight_bounds.Mem_canonical_useful.
+                      }
+                      pose proof (th_comp thread_compat2 b ofs).
+                      rewrite H0 in H2.
+                      destruct ((thread_perms cnt2) !! b ofs);
+                        auto; inversion H2.
+                    + (* TODO:
+                         translate all the "inject_virtue_preimage3" lemmas 
+                         into lemmas about tree_map_inject_over_mem.
+                       *)
+                      exploit (inject_virtue_preimage3(A:=option permission)); eauto.
+                      intros.
+                      assert ((getMaxPerm m2) !! b ofs = None).
+                      { unfold PMap.get. rewrite H1.
+                        unfold getMaxPerm; simpl.
+                        (*   forall (m : Mem.mem') (loc : Z) (k : perm_kind), 
+                             fst (Mem.mem_access m) loc k = None
+                         *)
+                        apply Clight_bounds.Mem_canonical_useful.
+                      }
+                      pose proof (lock_comp thread_compat2 b ofs).
+                      rewrite H0 in H2.
+                      destruct ((lock_perms cnt2) !! b ofs);
+                        auto; inversion H2.
+                  -  econstructor.
+                     + destruct matchmem.
+                       subst th_mem1 th_mem2.
+                       do 2 rewrite (getCur_restr) in ppreimage.
+                       assumption.
+                    + eapply CMatch.
+                  - destruct angel as (angel_thread1 & angel_lock1);
+                      destruct angel_thread1;
+                        subst angel2; constructor; simpl.
+                    + econstructor; simpl; intros.
+                      * exploit (inject_virtue_preimage1(A:=option permission));
+                          simpl; eauto.
+                        intros (?&?&?&?&?&?&?&?&?).
+                        repeat (econstructor; eauto). 
+                      *  exploit (inject_virtue_preimage2(A:=option permission)); simpl; eauto.
+                         intros (?&?&[?|?]); eauto.
+                         
+                    + econstructor; simpl; intros.
+                      * exploit (inject_virtue_preimage1(A:=option permission));
+                          simpl; eauto.
+                        intros (?&?&?&?&?&?&?&?&?).
+                        repeat (econstructor; eauto). 
+                      *  exploit (inject_virtue_preimage2(A:=option permission)); simpl; eauto.
+                         intros (?&?&[?|?]); eauto.
+                }
+                  - simpl;
+                      intros ???.
+                    destruct
+                      ((computeMap (thread_perms cnt2)
+                                   (fst (virtueThread angel2))) !! b2 ofs_delt) eqn:HH.
+                    
+                    + { eapply computeMap_backwards in HH.
+                        destruct HH as [HH| [HH HH']].
+                        + simpl in HH.
+                          unfold PMap.get in HH; simpl in HH.
+                          destruct ((fst (virtueThread angel2)) ! b2) eqn:Hangel2;
+                            try discriminate.
+                          
+                          pose proof (inject_virtue_preimage1 m2 mu
+                                                              (virtueThread angel)
+                                                              (virtueThread angel2)
+                                                              ltac:(subst;reflexivity)
+                                                                     b2 o ofs_delt (Some p)
+                                                                     ltac:(assumption)
+                                                                            ltac:(assumption)) as Hinj_virt_pre.
+                          destruct Hinj_virt_pre as (?&?&?&?&?&?&?&?&?&?).
+                          repeat (econstructor; try eassumption; auto).  
+                          simpl; erewrite computeMap_1; eauto.
+                          simpl; erewrite computeMap_1; eauto.
+                        + simpl in HH.
+                          (* destruct angel as [angelThread angelLock].
+                      unfold inject_virtue in Heqangel2; simpl in Heqangel2.
+                      subst angel2; simpl in *. *)
+                          unfold PMap.get in HH; simpl in HH.
+                          match type of HH with
+                          | (match ?x with _ => _ end ?ofs = _ ) =>
+                            destruct x eqn:angel2_b2
+                          end.
+                          * 
+
+                            pose proof (inject_virtue_preimage2 m2 mu 
+                                                                (virtueThread angel)
+                                                                (virtueThread angel2)
+                                                                ltac:(subst;reflexivity)
+                                                                       b2 ofs_delt o
+                                                                       ltac:(assumption)
+                                                                              ltac:(assumption)) as Hinj_virt_pre.
+                            destruct Hinj_virt_pre as [? [?  ?]].
+                            
+                            pose proof (ppreimage _ _ _ matchmem b2 ofs_delt).
+                            unfold th_mem2 in *.
+                            rewrite (getCur_restr) in H2.
+                            rewrite HH' in H2.
+                            unfold Mem.perm_order' in H2.
+                            specialize (H2 ltac:(apply perm_any_N)).
+                            destruct H2 as (?&?&?&?&?&?).
+                            repeat (econstructor; try assumption; eauto).
+                            specialize (H1 _ _ _ H2 H3).
+                            destruct H1 as [?|[? [? ?]]].
+                            -- eapply computeMap_3 in H1.
+                               simpl; rewrite H1.
+                               erewrite computeMap_2; eauto.
+                               rewrite HH'.
+                               rewrite H4.
+                               unfold th_mem1.
+                               rewrite (getCur_restr).
+                               auto.
+
+                            -- eapply computeMap_2 in H1; eauto.
+                               simpl; rewrite H1.
+                               erewrite computeMap_2; eauto.
+                               rewrite HH'.
+                               rewrite H4.
+                               unfold th_mem1.
+                           rewrite (getCur_restr).
+                           auto.
+
+                      * simpl; rewrite computeMap_3; eauto.
+                        
+                        pose proof (inject_virtue_preimage3 m2 mu 
+                                                         (virtueThread angel)
+                                                         (virtueThread angel2)
+                                                         ltac:(subst;reflexivity)
+                                                                ltac:(assumption)
+                                                                       ltac:(assumption)).
+                        assert ((getMaxPerm m2) !! b2 ofs_delt = None).
+                        { unfold PMap.get. rewrite H0.
+                          unfold getMaxPerm; simpl.
+                          (*
+                             forall (m : Mem.mem') (loc : Z) (k : perm_kind), 
+                             fst (Mem.mem_access m) loc k = None
+                           *)
+                          apply Clight_bounds.Mem_canonical_useful.
+                        }
+                        pose proof (th_comp thread_compat2 b2 ofs_delt).
+                        rewrite H1, HH' in H2.
+                        inversion H2.
+                    }
+                    + match type of H with
+                        Mem.perm_order' ?X _ =>
+                        assert (X = None) by assumption
+                      end.
+                      rewrite H0 in H.
+                      inversion H.
+                  - 
+                      
+                      Customer service 611
+                      
+                      eapply computeMap_backwards in HH.
+                      destruct HH as [HH | HH].
+                      * unfold PMap.get in HH.
+                        match type of HH with
+                          (match ?X with _=>_ end  _ = _ ) =>
+                          destruct X eqn:XX; simpl in *
+                        end.
+                        2: solve[congruence].
+                        pose proof (inject_virtue_preimage1 m2 mu
+                                                         (virtueThread angel)
+                                                         (virtueThread angel2)
+                                                         ltac:(subst;reflexivity)
+                                                         b2 o ofs_delt None
+                                                         ltac:(assumption)
+                                                         ltac:(assumption)) as Hinj_virt_pre.
+                        
+                      destruct Hinj_virt_pre as (?&?&?&?&?&?&?&?&?&?).
+                      do 3 eexists.
+                      repeat (split; eauto).
+                      
+                                      assert ().
+                    
                 (*HERE FRIDAY 7 *)
                      
 
