@@ -13,8 +13,11 @@ Inductive find_nth_preds_rec {A: Type} (pred: A -> Prop): nat -> list A -> optio
 | find_nth_preds_rec_cons_tail: forall n R0 R R_res, find_nth_preds_rec pred (S n) R R_res -> find_nth_preds_rec pred n (R0 :: R) R_res
 | find_nth_preds_rec_nil: forall n, find_nth_preds_rec pred n nil None.
 
+Local Unset Elimination Schemes. (* ensure that we avoid name collision with the above *)
 Inductive find_nth_preds {A: Type} (pred: A -> Prop): list A -> option (nat * A) -> Prop :=
 | find_nth_preds_constr: forall R R_res, find_nth_preds_rec pred 0 R R_res -> find_nth_preds pred R R_res.
+Scheme Minimality for find_nth_preds Sort Prop.
+Local Set Elimination Schemes.
 
 Lemma find_nth_preds_Some: forall {A: Type} (pred: A -> Prop) R n R0, find_nth_preds pred R (Some (n, R0)) ->
   nth_error R n = Some R0 /\ pred R0.

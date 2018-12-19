@@ -733,10 +733,13 @@ Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> 
 | construct_fold_right_sepcon_rec_single: forall P R,
     construct_fold_right_sepcon_rec P R (P :: R).
 
+Local Unset Elimination Schemes. (* ensure that we avoid name collision with the above *)
 Inductive construct_fold_right_sepcon: mpred -> list mpred-> Prop :=
 | construct_fold_right_sepcon_constr: forall P R,
     construct_fold_right_sepcon_rec P nil R ->
     construct_fold_right_sepcon P R.
+Scheme Minimality for construct_fold_right_sepcon Sort Prop.
+Local Set Elimination Schemes.
 
 Lemma construct_fold_right_sepcon_spec: forall P R,
   construct_fold_right_sepcon P R ->
