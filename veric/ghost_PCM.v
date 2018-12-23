@@ -14,7 +14,7 @@ Proof.
   apply lub_bot_e; auto.
 Qed.
 
-Global Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G);
+Global Program Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G);
   valid a := match a with Some (sh, _) => sh <> Share.bot | _ => True end;
   Join_G a b c := match a, b, c with
   | Some (sha, a'), Some (shb, b'), Some (shc, c') =>
@@ -23,10 +23,24 @@ Global Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G);
   | None, None, None => True
   | _, _, _ => False
   end }.
-Proof.
-  2: constructor.
-  - exists (fun _ => None); auto.
-    intros [[]|]; constructor.
+Next Obligation.
+repeat split; intros; intro H; decompose [and] H; congruence.
+Defined.
+Next Obligation.
+repeat split; intros; intro H; decompose [and] H; congruence.
+Defined.
+Next Obligation.
+repeat split; intros; intro H; decompose [and] H; congruence.
+Defined.
+Next Obligation.
+repeat split; intros; intro H; decompose [and] H; congruence.
+Defined.
+Next Obligation.
+exists (fun _ => None); auto.
+intros [[]|]; constructor.
+Defined.
+Next Obligation.
+constructor.
   - intros [[]|] [[]|] [[]|] [[]|]; unfold join; simpl; auto; try contradiction; try congruence.
     intros (? & ? & ? & ?) (? & ? & ? & ?); f_equal; f_equal; eapply join_eq; eauto.
   - intros [[]|] [[]|] [[]|] [[]|] [[]|]; try contradiction; unfold join; simpl;
@@ -42,19 +56,24 @@ Proof.
     intros (? & ? & ? & ?); split; auto; split; auto; split; apply join_comm; auto.
   - intros [[]|] [[]|] [[]|] [[]|]; try contradiction; auto.
     intros (? & ? & ? & ?) (? & ? & ? & ?); f_equal; f_equal; eapply join_positivity; eauto.
-  - intros [[]|] [[]|] [[]|]; try contradiction; auto.
-    + intros []; auto.
-    + unfold join; simpl; congruence.
+Defined.
+Next Obligation.
+destruct a as [[]|]; destruct b as [[]|]; destruct c as [[]|]; try trivial;
+unfold join in *; try contradiction.
+- decompose [and] H; assumption.
+- congruence.
 Defined.
 
 Definition completable {P : Ghost} (a: @G (pos_PCM P)) r := exists x, join a x (Some (Tsh, r)).
+
+Set Refine Instance Mode.
 
 Global Instance ref_PCM (P : Ghost) : Ghost :=
 { valid a := valid (fst a) /\ match snd a with Some r => completable (fst a) r | None => True end;
   Join_G a b c := @Join_G (pos_PCM P) (fst a) (fst b) (fst c) /\
     @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c) }.
 Proof.
-  - apply sepalg_generators.Sep_prod.
+  -  apply sepalg_generators.Sep_prod.
     + apply @Sep_G.
     + apply psepalg.Sep_option.
   - apply sepalg_generators.Perm_prod.

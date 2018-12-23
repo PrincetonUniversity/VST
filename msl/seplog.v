@@ -33,7 +33,7 @@ Class NatDed (A: Type) := mkNatDed {
 (* not_prop_right: forall (P: A) (Q: Prop), (Q -> derives P FF) -> derives P (prop (not Q)) *)
 }.
 
-Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
+Program Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
  mkNatDed (A -> B)
     (*andp*) (fun P Q x => andp (P x) (Q x))
     (*orp*) (fun P Q x => orp (P x) (Q x))
@@ -43,23 +43,58 @@ Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
     (*prop*) (fun P x => prop P)
     (*derives*) (fun P Q => forall x, derives (P x) (Q x))
      _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
+Next Obligation.
  intros; extensionality x; apply pred_ext; auto.
+Defined.
+Next Obligation.
  intros; apply derives_refl.
+Defined.
+Next Obligation.
  intros; eapply derives_trans; eauto.
+Defined.
+Next Obligation.
  intros; eapply andp_right; eauto.
+Defined.
+Next Obligation.
  intros; eapply andp_left1; eauto.
+Defined.
+Next Obligation.
  intros; eapply andp_left2; eauto.
+Defined.
+Next Obligation.
  intros; eapply orp_left; eauto.
+Defined.
+Next Obligation.
  intros; eapply orp_right1; eauto.
+Defined.
+Next Obligation.
  intros; eapply orp_right2; eauto.
+Defined.
+Next Obligation.
  intros; eapply exp_right; eauto.
+Defined.
+Next Obligation.
  intros; eapply exp_left; eauto.
+Defined.
+Next Obligation.
  intros; eapply allp_left; eauto.
+Defined.
+Next Obligation.
  intros; eapply allp_right; eauto.
+Defined.
+Next Obligation.
  intros; split; intros;  eapply imp_andp_adjoint; eauto.
+Defined.
+Next Obligation.
  intros; eapply prop_left; eauto.
+Defined.
+Next Obligation.
  intros; eapply prop_right; eauto.
+Defined.
+Next Obligation.
  intros; eapply prop_imp_prop_left; eauto.
+Defined.
+Next Obligation.
  intros; eapply allp_prop_left; eauto.
 Defined.
 
