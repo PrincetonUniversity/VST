@@ -189,7 +189,7 @@ Proof.
     eapply H0; assumption.
 Qed.
 
-Lemma YYY:
+Lemma pair_impl:
   forall X Y: Pair Prop,
     pair_prop 
       ((fst X -> fst Y), (snd X -> snd Y)) ->
@@ -217,7 +217,7 @@ Ltac pair_prop_simpl X1 X2:=
 Ltac pair_prop_implications':=
   match goal with
   | |- pair_prop _ -> pair_prop _ =>
-    eapply YYY
+    eapply pair_impl
   | |- pair_prop _ -> ?G =>
     let HH:= fresh in
     intros HH;
@@ -234,8 +234,8 @@ Ltac solve_pair:=
                                  Unfold all superfluous definitions,
                                  leaving pair_prop
    *)
-  unfold pair1_prop, pair2_prop, pair2,
-  pair1, pair_appl, compose; simpl;
+  unfold pair3_prop, pair2_prop, pair1_prop,
+  pair3, pair2, pair1, pair_appl, compose; simpl;
 
   (*turn all the universal quant into ONE*)
   merge_quant;
