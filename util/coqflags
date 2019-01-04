@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # THIS SCRIPT COMPUTES THE LOADPATH and other useful Coq flags
 # for users of VST.
 #
