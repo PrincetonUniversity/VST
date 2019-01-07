@@ -66,31 +66,35 @@ Defined.
 
 Definition completable {P : Ghost} (a: @G (pos_PCM P)) r := exists x, join a x (Some (Tsh, r)).
 
-Set Refine Instance Mode.
+Local Obligation Tactic := idtac.
 
-Global Instance ref_PCM (P : Ghost) : Ghost :=
+Global Program Instance ref_PCM (P : Ghost) : Ghost :=
 { valid a := valid (fst a) /\ match snd a with Some r => completable (fst a) r | None => True end;
   Join_G a b c := @Join_G (pos_PCM P) (fst a) (fst b) (fst c) /\
     @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c) }.
-Proof.
-  -  apply sepalg_generators.Sep_prod.
-    + apply @Sep_G.
-    + apply psepalg.Sep_option.
-  - apply sepalg_generators.Perm_prod.
-    + apply @Perm_G.
-    + apply psepalg.Perm_option.
-  - intros ??? [? J] []; split; [eapply join_valid; eauto|].
-    destruct a, b, c; simpl in *; inv J; auto.
-    + destruct o1; auto.
-      destruct H1.
-      destruct (join_assoc H H1) as (? & ? & ?); eexists; eauto.
-    + inv H2.
+Next Obligation.
+  intros P; apply sepalg_generators.Sep_prod.
+  + apply @Sep_G.
+  + apply psepalg.Sep_option.
+Defined.
+Next Obligation.
+  intros P; apply sepalg_generators.Perm_prod.
+  + apply @Perm_G.
+  + apply psepalg.Perm_option.
+Defined.
+Next Obligation.
+  intros P ??? [? J] []; split; [eapply join_valid; eauto|].
+  destruct a, b, c; simpl in *; inv J; auto.
+  + destruct o1; auto.
+    destruct H1.
+    destruct (join_assoc H H1) as (? & ? & ?); eexists; eauto.
+  + inv H2.
 Defined.
 
 End Reference.
 
-Instance exclusive_PCM A : Ghost := { valid a := True; Join_G := Join_lower (Join_discrete A) }.
-Proof. auto. Defined.
+Program Instance exclusive_PCM A : Ghost := { valid a := True; Join_G := Join_lower (Join_discrete A) }.
+
 
 Definition ext_PCM Z : Ghost := ref_PCM (exclusive_PCM Z).
 
