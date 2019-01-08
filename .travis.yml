@@ -104,6 +104,7 @@ jobs:
 #    - echo -en 'travis_fold:end:atomics.build\\r'
   - script:
     - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
+    - opam switch list-available
     - opam switch create coq_beta ${COMPILER}
     - eval $(opam config env)
     - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
