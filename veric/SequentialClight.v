@@ -54,6 +54,9 @@ Definition ext_spec_mem_evolve (Z: Type)
     ext_spec_post D ef w b ot v z' m' ->
     mem_evolve m m'.
 
+Print mapsto.
+(* unique rmap for a dry mem: mem -> mpred -> level -> rmap? take this as an argument! *)
+
 Definition juicy_dry_ext_spec (Z: Type)
    (J: external_specification juicy_mem external_function Z)
    (D: external_specification mem external_function Z)
@@ -62,8 +65,9 @@ Definition juicy_dry_ext_spec (Z: Type)
     dessicate e jm t = t' ->
     (ext_spec_pre J e t b tl vl x jm ->
     ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
- (forall ef t t' b ot v x jm,
-    (exists tl vl x0 jm0, dessicate ef jm0 t = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
+ (forall ef t t' b ot v x n jm0 jm,
+    (exists tl vl x0, dessicate ef jm0 t = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
+    Hrel n jm0 jm ->
     (ext_spec_post D ef t' b ot v x (m_dry jm) ->
      ext_spec_post J ef t b ot v x jm)) /\
  (forall v x jm,
@@ -103,7 +107,7 @@ destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
 subst t'.
 eapply H. symmetry; eassumption.  auto.
 -
-destruct H2 as (? & ? & ? & ? & ? & ?).
+destruct H2 as (? & ? & ? & ? & ?).
 subst t'.
 eapply H0; auto.
 -
@@ -508,7 +512,7 @@ Proof.
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
   spec H2.
-  eapply JDE2. { eauto 6. } subst m'. apply H6.
+  eapply JDE2. { eauto 6. } split3; auto; omega. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
