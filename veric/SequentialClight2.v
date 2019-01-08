@@ -94,10 +94,10 @@ intros.
 destruct J; simpl in *. apply X.
 Defined.
 
-Lemma jdes_make_lemma:
+(*Lemma jdes_make_lemma:
   forall Z J, ignores_juice Z J ->
     juicy_dry_ext_spec Z J (juicy_dry_ext_spec_make Z J)
-     (dessicate_id Z J).
+     (dessicate_id Z J) ().
 Proof.
 intros.
 destruct H as [? [? ?]], J; split; [ | split3]; simpl in *; intros; auto.
@@ -110,7 +110,7 @@ subst t'.
 eapply H0; auto.
 -
 eapply H1. symmetry; eassumption. auto.
-Qed.
+Qed.*)
 
 Definition mem_rmap_cohere m phi :=
   contents_cohere m phi /\
