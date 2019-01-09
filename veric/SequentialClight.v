@@ -64,8 +64,9 @@ Definition juicy_dry_ext_spec (Z: Type)
     ext_spec_pre D e t' b tl vl x (m_dry jm))) /\
  (forall ef t t' b ot v x jm0 jm,
     (exists tl vl x0, dessicate ef jm0 t = t' /\ ext_spec_pre J ef t b tl vl x0 jm0) ->
-(*    Hrel n jm0 jm ->*)
+    (level jm <= level jm0)%nat ->
     resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
+    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
     (ext_spec_post D ef t' b ot v x (m_dry jm) ->
      ext_spec_post J ef t b ot v x jm)) /\
  (forall v x jm,
@@ -463,7 +464,7 @@ Proof.
                       /\ (level jm' = n')%nat
                       /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
                       /\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm')
-                      /\ exists g', compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: g'). {
+                      /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))). {
      destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') 
             as [phi [? [? ?]]].
      assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
@@ -509,21 +510,22 @@ Proof.
      rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by omega.
      unfold initial_world.set_ghost; rewrite resource_at_make_rmap.
      rewrite H8; auto.
-     unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl; eauto.
+     unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.
+     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; omega); simpl; auto.
    }
-   destruct H20 as [jm'  [H26 [H27 [H28 [H29 [g' Hg']]]]]].
+   destruct H20 as [jm'  [H26 [H27 [H28 [H29 Hg']]]]].
    specialize (H2 ret jm' z' n' Hargsty Hretty).
    spec H2. omega.
     spec H2. hnf; split3; auto. omega.
   spec H2.
-  eapply JDE2. { eauto 6. } auto. subst m'. apply H6.
+  eapply JDE2; eauto 6. omega. subst m'. apply H6.
   destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
   hnf in H2b.
   specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
   spec H2b. apply join_sub_refl.
   spec H2b.
   { rewrite Hg'.
-    exists (Some (ghost_PCM.ext_both z', compcert_rmaps.RML.R.NoneP) :: g');
+    eexists (Some (ghost_PCM.ext_both z', compcert_rmaps.RML.R.NoneP) :: _);
       repeat constructor.  }
   destruct H2b as [jm'' [? [? ?]]].
   destruct H7 as [? [? ?]].
