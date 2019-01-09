@@ -48,6 +48,7 @@ git:
 install:
 - opam --version
 - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
+- opam switch list
 - opam switch ${COMPILER}
 - eval $(opam config env)
 - opam config list
@@ -104,7 +105,7 @@ jobs:
 #    - echo -en 'travis_fold:end:atomics.build\\r'
   - script:
     - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
-    - opam switch create coq_beta
+    - opam switch create coq_beta system
     - eval $(opam config env)
     - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
     - opam update
