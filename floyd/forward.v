@@ -882,7 +882,11 @@ intros. constructor.
 Qed.
 
 Ltac prove_call_setup1 subsumes :=
-match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
+match goal with
+| |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+      fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros to move the existentially bound variables above the line"
+| |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
  lazymatch c with
  | context [Scall _ (Evar ?id ?ty) ?bl] =>
     let R' := strip1_later R in
@@ -1066,6 +1070,10 @@ fail 1000 "Please make sure hnf can simplify"
 
 (* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
 Ltac solve_msubst_eval :=
+    let e := match goal with
+       | |- msubst_eval_expr _ _ _ _ ?a = _ => a
+       | |- msubst_eval_lvalue _ _ _ _ ?a = _ => a
+    end in
      match goal with
      | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
      end;
@@ -1088,8 +1096,10 @@ Ltac solve_msubst_eval :=
          => change E with (offset_val ofs E'')
        | _ => change E with E'
        end
-     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
-                                         NotSome "to an expression of the form (Some _)"
+     | |- ?NotSome = Some _ => 
+             fail 1000 "The C-language expression " e
+                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
+
      end.
 
 Ltac ignore x := idtac.
