@@ -611,7 +611,44 @@ Proof.
   exfalso; apply H8; auto.
 Qed.
 
+Ltac hint_msg_aux R1 A :=
+  lazymatch A with
+  | data_at => idtac
+  | field_at => idtac
+  | data_at_ => idtac
+  | field_at_ => idtac
+  | memory_block => idtac
+  | @exp _ _ _ _  => idtac "
+Or, perhaps you need to do [Intros x] to introduce the EXistential" R1 "in your SEP clause."
+  | _ _ => idtac
+  | _ => idtac "
+Or, perhaps the definition [" A "] needs to be unfolded so that your SEP conjuct" R1 "can be used effectively."
+  end.
+
+Ltac hint_msg_aux2 R p2 :=
+ match R with
+  | nil => idtac
+  | ?R1 :: ?R' =>
+     lazymatch R1 with
+              | ?A _ _ _ _ _ _ _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ _ _ _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ _ _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ _ p2 => hint_msg_aux R1 A
+              | ?A _ _ p2 => hint_msg_aux R1 A
+              | ?A _ p2 => hint_msg_aux R1 A
+              | ?A p2 => hint_msg_aux R1 A
+              | context [p2] => hint_msg_aux R1 R1
+              | _ => idtac
+             end;
+      hint_msg_aux2 R' p2
+   end.
+
 Ltac hint_msg LOCAL2PTREE Delta e :=
+ match goal with |- semax _ (|> PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   eapply (hint_msg_lemma Delta e);
   [ exact LOCAL2PTREE
   | reflexivity
@@ -623,7 +660,8 @@ Ltac hint_msg LOCAL2PTREE Delta e :=
   | ];
  match goal with
   | |- ?eq1 /\ ?eq2 /\ False =>
-        match eq1 with _ = field_address _ _ ?p =>
+        match eq1 with ?p1 = field_address _ _ ?p =>
+          try match p1 with offset_val _ ?p2 => hint_msg_aux2 R p2 end;
           first [ constr_eq eq1 eq2;
                    fail 1000 "
 It is not obvious how to move forward here.  One way:
@@ -636,7 +674,8 @@ then use assert_PROP to prove an equality of the form" eq1
 "or if this does not hold, prove an equality of the form" eq2 ", then try [forward] again."
                     ]
     end
-  end.
+  end
+ end.
 
 Section SEMAX_PTREE.
 

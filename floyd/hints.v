@@ -33,7 +33,7 @@ Ltac hint_loop :=
 Ltac print_hint_forward c :=
 match c with
 | Ssequence ?c1 _ => print_hint_forward c1
-| Scall _ _ _ => idtac "Hint: try 'forward_call x', where x is a value to instantiate the tuple of the function's WITH clause"
+| Scall _ _ _ => idtac "Hint: try 'forward_call x', where x is a value to instantiate the tuple of the function's WITH clause.  If you want more information about the _type_ of the argument that you must supply to forward_call, do 'forward' for information"
 | Swhile _ _ => idtac "Hint: try 'forward_while Inv', where Inv is a loop invariant"
 | Sifthenelse _ _ _ => idtac "Hint: try 'forward_if', which may inform you that you need to supply a postcondition"
 | Sloop _ _ =>hint_loop
@@ -173,6 +173,10 @@ Ltac hint_solves :=
  | match goal with |- context [field_compatible] => idtac | |- context [field_compatible0] => idtac end;
        tryif (try (assert True; [ | solve [auto with field_compatible]]; fail 1)) then fail
        else  idtac "Hint:  'auto with field_compatible' solves the goal"
+ | match goal with |- @derives mpred _ _ _ =>
+     tryif (try (assert True; [ | solve [cancel]]; fail 1)) then fail
+     else  idtac "Hint:  'cancel' or 'entailer!' solves the goal"
+   end
  | tryif (try (assert True; [ | solve [entailer!]]; fail 1)) then fail
      else  idtac "Hint:  'entailer!' solves the goal"
  | match goal with |- ?A |-- ?B => 
@@ -224,6 +228,7 @@ match P with
 | @prop mpred _ _ => idtac
 | @allp _ _ _ _ => idtac
 | @exp _ _ _ _ => idtac
+| @emp _ _ _ => idtac
 | _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P |-- prop x);
                     [subst x; solve [eauto with saturate_local] | fail 1]))
                then hint_saturate_local' P
@@ -241,7 +246,7 @@ match goal with
 end.
 
 Ltac hint_progress any n :=
- lazymatch n with 8%nat => constr_eq any true
+ lazymatch n with 10%nat => constr_eq any true
  | _ =>
  tryif lazymatch n with
  | 0%nat => print_sumbool_hint_hyp
@@ -257,7 +262,11 @@ Ltac hint_progress any n :=
                       tryif (try (clear D; fail 1)) then fail
                       else  idtac "Hint:  clear" D
                     end
- | 7%nat => lazymatch goal with
+ | 7%nat => tryif (try (progress rewrite if_true by (auto; omega); fail 1)) then fail
+     else  idtac "Hint:  try 'rewrite if_true by auto' or 'rewrite if_true by omega'"
+ | 8%nat => tryif (try (progress rewrite if_false by (auto; omega); fail 1)) then fail
+     else  idtac "Hint:  try 'rewrite if_false by auto' or 'rewrite if_false by omega'"
+ |9%nat => lazymatch goal with
    | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
      else idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
