@@ -883,17 +883,23 @@ if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
 Qed.
 
 
-Ltac cstring :=
-  match goal with H: ~In Byte.zero _ |- _ => idtac end;
- lazymatch goal with
- | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
- | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
- end;
 (* THIS TACTIC solves goals of the form,
     ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
     ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
 *)
-  pose_Zlength_nonneg;
+Ltac cstring :=
+  lazymatch goal with
+  | H: ~In Byte.zero _ |- _ => idtac
+  | |- _ => fail "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
+  end;
+ lazymatch goal with
+ | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
+ | |- _ => fail "The cstring tactic expects to see one of the following hypotheses above the line:
+Znth _ (_++[Byte.zero]) = Byte.zero
+Znth _ (_++[Byte.zero]) <> Byte.zero"
+ end;
+ (pose_Zlength_nonneg;
   apply Classical_Prop.NNPP; intro;
   match goal with
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
@@ -901,5 +907,12 @@ Ltac cstring :=
     rewrite app_Znth1 by omega; apply Znth_In; omega
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
      constr_eq ls ls'; apply H1;
-    rewrite app_Znth2 by omega; apply Znth_zero_zero
+     rewrite app_Znth2 by omega; apply Znth_zero_zero
+  end) || 
+  match goal with |- @eq ?t (?f1 _) (?f2 _) =>
+       (unify t Z || unify t nat) ||
+       (constr_eq f1 f2;
+        fail 2  "The cstring tactic solves omega-style goals.
+Your goal is an equality at type" t ", not type Z.
+Try the [f_equal] tactic first.")
  end.

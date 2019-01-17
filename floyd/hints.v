@@ -151,6 +151,20 @@ Ltac hint_simplify_value_fits :=
   idtac "    (this is not often useful, but it can tell you for example that the contents of an array has the right length.  To disable this hint, 'Ltac hint_simplify_value_fits ::= idtac.' ")
   end.
 
+Ltac f_equal_cstring_hint_aux :=
+  match goal with H: ~In Byte.zero _ |- _ => idtac end;
+  lazymatch goal with
+  | H1: Znth _ (app _ (Byte.zero::nil)) = Byte.zero |- _ => idtac 
+  | H1: Znth _ (app _ (Byte.zero::nil)) <> Byte.zero |- _ => idtac
+  end;
+  try match goal with 
+  | |- @eq ?t _ _ => unify t Z; fail 1
+  end;
+  repeat match goal with 
+     | |- @eq ?t (?f _) (?g _) => (unify t Z; fail 1) || simple apply f_equal
+     end;
+  cstring.
+
 Ltac hint_solves := 
  first [
     tryif (try (assert True; [ | solve [auto]]; fail 1))
@@ -170,6 +184,8 @@ Ltac hint_solves :=
      else  idtac "Hint:  'list_solve' solves the goal"
  | tryif (try (assert True; [ | solve [cstring]]; fail 1)) then fail
      else  idtac "Hint:  'cstring' solves the goal"
+ | tryif (try (assert True; [ | solve [f_equal_cstring_hint_aux]]; fail 1)) then fail
+     else  idtac "Hint:  'f_equal' followed by 'cstring' solves the goal"
  | match goal with |- context [field_compatible] => idtac | |- context [field_compatible0] => idtac end;
        tryif (try (assert True; [ | solve [auto with field_compatible]]; fail 1)) then fail
        else  idtac "Hint:  'auto with field_compatible' solves the goal"
@@ -287,13 +303,55 @@ Ltac hint_progress any n :=
   else hint_progress any (S n)
  end.
 
+Ltac progress_entailer :=
+ match goal with |- ?A =>
+    progress entailer!; 
+   try (match goal with |- ?B => constr_eq A B end; fail 1)
+  end.
+
+Ltac try_redundant_omega H :=
+  match type of H with ?P =>
+   tryif (try (clear H; assert P by omega; fail 1)) then idtac
+   else idtac "Hint: hypothesis" H "is redundant, perhaps clear it"
+ end.
+
 Ltac hint_whatever :=
  try match goal with  |- @derives mpred _ ?A ?B =>
             hint_saturate_local A;
-            tryif (try (assert True; [ | progress entailer!]; fail 1)) then idtac
+            tryif (try (assert True; [ | progress_entailer]; fail 1)) then idtac
               else  idtac "Hint:  try 'entailer!'";
             try hint_allp_left A;
             try print_sumbool_hint (A |-- B)
+ end;
+ try match goal with
+ | H: ?A = ?B |- _ => unify A B; idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
+ end;
+ try match goal with
+ | H: is_int I8 Signed (Vbyte _) |- _ =>       
+   idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
+ end;
+ try match goal with
+ | H: is_int I8 Signed (Vint (Int.repr (Byte.signed _))) |- _ =>
+   idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
+ end;
+ try match goal with
+ | H: Forall (value_fits _) _ |- _ =>
+   idtac "Hint: hypothesis" H "is a 'value_fits' fact; often these are not useful, _maybe_ 'clear" H "'"    
+ end;
+ try match goal with
+     H: is_pointer_or_null ?A, H': field_compatible _ _ ?A |- _ =>
+      idtac "Hint:" H' "implies" H ", perhaps 'clear" H "'"
+    end;
+ match goal with
+ | H: @eq Z _ _ |- _ => try_redundant_omega H
+ | H: Z.le _ _ |- _ =>  try_redundant_omega H
+ | H: Z.lt _ _ |- _ =>  try_redundant_omega H
+ | H: Z.ge _ _ |- _ =>  try_redundant_omega H
+ | H: Z.gt _ _ |- _ =>  try_redundant_omega H
+ | H: Z.le _ _ /\ Z.le _ _ |- _ =>  try_redundant_omega H
+ | H: Z.le _ _ /\ Z.lt _ _ |- _ =>  try_redundant_omega H
+ | H: Z.lt _ _ /\ Z.le _ _ |- _ =>  try_redundant_omega H
+ | H: Z.lt _ _ /\ Z.lt _ _ |- _ =>  try_redundant_omega H
  end;
  hint_simplify_value_fits;
  tryif (try (rewrite prop_sepcon; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon'";
