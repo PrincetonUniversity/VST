@@ -816,9 +816,19 @@ Definition cstring {CS : compspecs} sh (s: list byte) p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
 
-Lemma cstring_local_facts: forall {CS : compspecs} sh s p, cstring sh s p |-- !! (isptr p).
+Lemma cstring_local_facts: forall {CS : compspecs} sh s p, 
+  cstring sh s p |-- !! (isptr p /\ Zlength s + 1 < Ptrofs.modulus).
 Proof.
   intros; unfold cstring; entailer!.
+  destruct H0 as [? [_ [? _]]].
+  destruct p; try contradiction.
+  red in H3.
+  unfold sizeof in H3; clear H1.
+  rewrite Z.max_r in H3 by list_solve.
+  fold sizeof in H3.
+  change (sizeof tschar) with 1 in H3.
+  pose proof (Ptrofs.unsigned_range i).
+  omega. 
 Qed.
 
 Hint Resolve cstring_local_facts : saturate_local.
@@ -847,13 +857,21 @@ Proof.
 Qed.
 
 Lemma cstringn_local_facts: forall {CS : compspecs} sh s n p, 
-   cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n).
+   cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned).
 Proof.
   intros; unfold cstringn; entailer!.
   autorewrite with sublist in H1.
   pose proof (Zlength_nonneg s).
   pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef)).
-  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; omega.
+  destruct H0 as [? [_ [? _]]].
+  destruct p; try contradiction.
+  red in H5.
+  clear H2.
+  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; split; try omega.
+  unfold sizeof in H5. rewrite Hn in H5. fold sizeof in H5.
+  change (sizeof tschar) with 1 in H5. 
+  pose proof (Ptrofs.unsigned_range i).
+  rep_omega.
 Qed.
 
 Hint Resolve cstringn_local_facts : saturate_local.
