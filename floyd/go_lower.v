@@ -912,7 +912,6 @@ try (progress unfold_for_go_lower; simpl_for_go_lower); rewrite ?sepcon_emp;
 clear_Delta;
 try clear dependent rho].
 
-
 Ltac sep_apply_in_lifted_entailment H :=
  apply SEP_entail'; 
  go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
@@ -940,5 +939,49 @@ Ltac sep_apply H :=
  | |- @derives mpred _ _ _ => sep_apply_in_entailment H
  | |- semax _ _ _ _ => sep_apply_in_semax H
  end.
+
+Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
+  apply SEP_entail';
+  go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
+     allows us to use propositional facts derived from the PROP and LOCAL
+     parts of the left-hand side *)
+  apply andp_right; [apply prop_right; auto | ];
+  (* unfold fold_right_sepcon at 1; *)
+  match goal with |- ?R |-- ?R2 =>
+    let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
+    new_sep_apply_in_entailment H evar_tac prop_tac; [ .. |
+    match goal with |- ?R' |-- _ =>
+      let R'' := refold_right_sepcon R' in
+      replace R' with (fold_right_sepcon R'')
+             by (unfold fold_right_sepcon; rewrite ?sepcon_emp; reflexivity);
+          subst r2; apply derives_refl
+    end]
+  end.
+
+Ltac new_sep_apply_in_semax H evar_tac prop_tac :=
+  eapply semax_pre; [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ].
+
+Ltac new_sep_apply H evar_tac prop_tac :=
+  lazymatch goal with
+  | |- ENTAIL _ , _ |-- _ => eapply ENTAIL_trans; [new_sep_apply_in_lifted_entailment H evar_tac prop_tac | ]
+  | |- @derives mpred _ _ _ => new_sep_apply_in_entailment H evar_tac prop_tac
+  | |- semax _ _ _ _ => new_sep_apply_in_semax H evar_tac prop_tac
+  end.
+
+Ltac sep_apply_evar_tac x := fail 0 "Unable to find an instance for the variable" x.
+Ltac default_sep_apply_prop_tac := first [reflexivity | assumption | idtac].
+Ltac sep_apply_prop_tac := default_sep_apply_prop_tac.
+
+Ltac sep_apply H ::=
+  new_sep_apply H sep_apply_evar_tac sep_apply_prop_tac.
+
+Ltac sep_eapply_evar_tac x := shelve.
+
+Ltac sep_eapply_prop_tac := sep_apply_prop_tac.
+
+Ltac sep_eapply H :=
+  new_sep_apply H sep_eapply_evar_tac sep_apply_prop_tac.
+
+
 
 

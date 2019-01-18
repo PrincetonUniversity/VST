@@ -51,7 +51,6 @@ simpl; abbreviate_semax.
 forward. (* return; *)
 fold (hash_block regs b).
 entailer!.
-apply derives_refl.
 Qed.
 
 

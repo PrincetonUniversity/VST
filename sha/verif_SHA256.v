@@ -14,8 +14,6 @@ abbreviate_semax.
 
 forward_call (* SHA256_Init(&c); *)
    (v_c, Tsh).
-rewrite !sepcon_assoc; (* need this with weak canceller *)
- apply sepcon_derives; [apply derives_refl | cancel].
 
 forward_call (* SHA256_Update(&c,d,n); *)
   (@nil byte, data,v_c,Tsh, d,dsh, Zlength data, gv).

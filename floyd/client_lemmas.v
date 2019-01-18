@@ -2138,6 +2138,52 @@ Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
  Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
  Exists' x10; Exists' x11; Exists' x12.
 
+(* EExists *)
+Ltac my_evar name T cb :=
+  let x := fresh name
+  in
+  evar (x : T);
+    let x' := eval unfold x in x
+    in
+    clear x; cb x'.
+
+Ltac tuple_evar name T cb :=
+  lazymatch T with
+  | prod ?A ?B => tuple_evar name A
+    ltac: (fun xA =>
+      tuple_evar name B ltac: (fun xB =>
+        cb (xA, xB)))
+  | _ => my_evar name T cb
+  end; idtac.
+
+Ltac EExists'' :=
+  let EExists_core :=
+    match goal with [ |- _ |-- EX x:?T, _ ] =>
+      tuple_evar x T ltac: (fun x => apply exp_right with x)
+    end; idtac
+  in
+  first [ EExists_core
+         | rewrite exp_andp1; EExists''
+         | rewrite exp_andp2; EExists''
+         | rewrite exp_sepcon1; EExists''
+         | rewrite exp_sepcon2; EExists''
+         | extract_exists_from_SEP_right; EExists_core
+         ].
+
+Ltac EExists' :=
+  match goal with |- ?A |-- ?B =>
+     let z := fresh "z" in pose (z:=A); change (z|--B); EExists''; unfold z at 1; clear z
+  end.
+
+Ltac EExists := EExists'.
+
+Ltac EExists_alt :=
+  let T := fresh "T"
+  in
+  let x := fresh "x"
+  in
+  evar (T:Type); evar (x:T); subst T; Exists x; subst x.
+
 Tactic Notation "freeze1" uconstr(a) :=
     let x := fresh "x" in set (x:=a);
     let fr := fresh "freeze" in pose (fr := @abbreviate mpred x);

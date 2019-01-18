@@ -184,9 +184,6 @@ Proof. intros. abbreviate_semax.
       thaw FR1.
       freeze FR4 := - (sha256state_ _ _ _) (data_at _ _ _ (Vptr kb _)) (K_vector _).
       Time forward_call (@nil byte, key, Vptr cb cofs, wsh, Vptr kb kofs, sh, l, gv). (*4.5*)
-      { unfold data_block.
-        Time cancel. (*0.1*)
-      }
       { 
         specialize Int.max_signed_unsigned.
         subst l. intro; split3; [ | | split3]; auto; omega.
