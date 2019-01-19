@@ -342,7 +342,7 @@ Ltac hint_whatever :=
      H: is_pointer_or_null ?A, H': field_compatible _ _ ?A |- _ =>
       idtac "Hint:" H' "implies" H ", perhaps 'clear" H "'"
     end;
- match goal with
+ try lazymatch goal with
  | H: @eq Z _ _ |- _ => try_redundant_omega H
  | H: Z.le _ _ |- _ =>  try_redundant_omega H
  | H: Z.lt _ _ |- _ =>  try_redundant_omega H

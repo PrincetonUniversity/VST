@@ -664,3 +664,10 @@ Proof.
   apply Znth_map.
 Qed.
 Hint Rewrite Znth_map_Vubyte using list_solve : norm entailer_rewrite.
+
+Ltac hint := idtac "Hints are only available when verifying C programs,
+that is, when VST.floyd.proofauto has been imported.  But you have
+imported only VST.floyd.functional_base, without separation logic.
+
+In VST.floyd.functional_base the following VST tactics are available:
+rep_omega, list_solve, if_tac, autorewrite with sublist, computable, ...".
