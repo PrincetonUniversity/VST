@@ -268,7 +268,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v new_tactics.v
+   subsume_funspec.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -292,7 +292,7 @@ PROGS_FILES= \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
-  libglob.v verif_libglob.v peel.v verif_peel.v 
+  libglob.v verif_libglob.v peel.v verif_peel.v
 # verif_insertion_sort.v
 
 SHA_FILES= \

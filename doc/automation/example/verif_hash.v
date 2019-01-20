@@ -1,6 +1,6 @@
 (** * verif_hash.v: Correctness proof of hash.c *)
 
-Require Import VST.floyd.new_tactics.
+Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import  hash.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -20,12 +20,12 @@ Definition strcmp_spec :=
   PRE [ 1 OF tptr tschar, 2 OF tptr tschar ]
     PROP ()
     LOCAL (temp 1 str1; temp 2 str2)
-    SEP (cstring Tsh s1 str1; cstring Tsh s2 str2)
+    SEP (cstring Ews s1 str1; cstring Ews s2 str2)
   POST [ tint ]
    EX i : int,
     PROP (if Int.eq_dec i Int.zero then s1 = s2 else s1 <> s2)
     LOCAL (temp ret_temp (Vint i))
-    SEP (cstring Tsh s1 str1; cstring Tsh s2 str2).
+    SEP (cstring Ews s1 str1; cstring Ews s2 str2).
 
 Definition strcpy_spec :=
  DECLARE _strcpy
@@ -33,11 +33,11 @@ Definition strcpy_spec :=
   PRE [ 1 OF tptr tschar, 2 OF tptr tschar ]
     PROP (Zlength s < n)
     LOCAL (temp 1 dest; temp 2 src)
-    SEP (data_at_ Tsh (tarray tschar n) dest; cstring Tsh s src)
+    SEP (data_at_ Ews (tarray tschar n) dest; cstring Ews s src)
   POST [ tptr tschar ]
     PROP ()
     LOCAL (temp ret_temp dest)
-    SEP (cstringn Tsh s n dest; cstring Tsh s src).
+    SEP (cstringn Ews s n dest; cstring Ews s src).
 
 Definition strlen_spec :=
  DECLARE _strlen
@@ -45,11 +45,11 @@ Definition strlen_spec :=
   PRE [ 1 OF tptr tschar ]
     PROP ( )
     LOCAL (temp 1 str)
-    SEP (cstring Tsh s str)
+    SEP (cstring Ews s str)
   POST [ tptr tschar ]
     PROP ()
     LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr (Zlength s))))
-    SEP (cstring Tsh s str).
+    SEP (cstring Ews s str).
 
 (*  STRING FUNCTIONS:  COPY, HASH *)
 
@@ -57,10 +57,10 @@ Definition copy_string_spec : ident * funspec :=
  DECLARE _copy_string
  WITH s: val, sigma : string
  PRE [ _s OF tptr tschar ] 
-    PROP ( ) LOCAL (temp _s s) SEP (cstring Tsh sigma s)
+    PROP ( ) LOCAL (temp _s s) SEP (cstring Ews sigma s)
  POST [ tptr tschar ] 
     EX p: val, PROP ( ) LOCAL (temp ret_temp p) 
-    SEP (cstring Tsh sigma s; cstring Tsh sigma p).
+    SEP (cstring Ews sigma s; cstring Ews sigma p).
 
 Definition hash_spec : ident * funspec :=
   DECLARE _hash
@@ -68,11 +68,11 @@ Definition hash_spec : ident * funspec :=
   PRE [ _s OF (tptr tschar) ]
           PROP  (readable_share sh)
           LOCAL (temp _s s)
-          SEP   (cstring Tsh contents s)
+          SEP   (cstring Ews contents s)
   POST [ tuint ]
         PROP ()
 	LOCAL(temp ret_temp  (Vint (Int.repr (hashfun contents))))
-        SEP (cstring Tsh contents s).
+        SEP (cstring Ews contents s).
 
 (** ** DATA STRUCTURES FOR HASHTABLE *)
 
@@ -80,8 +80,8 @@ Definition tcell := Tstruct _cell noattr.
 Definition thashtable := Tstruct _hashtable noattr.
 
 Definition list_cell (key: string) (count: Z) (next: val) (p: val): mpred :=
- EX kp: val, cstring Tsh key kp * data_at Tsh tcell (kp,(Vint (Int.repr count), next)) p 
-                     * malloc_token Tsh tcell p.
+ EX kp: val, cstring Ews key kp * data_at Ews tcell (kp,(Vint (Int.repr count), next)) p 
+                     * malloc_token Ews tcell p.
 
 Definition list_cell_local_facts: 
   forall key count next p, list_cell key count next p |-- !! isptr p.
@@ -94,7 +94,7 @@ Proof. intros. unfold list_cell. Intros kp. entailer!. Qed.
 Hint Resolve list_cell_valid_pointer: valid_pointer.
 
 Lemma listcell_fold: forall key kp count p' p,
-  cstring Tsh key kp * data_at Tsh tcell (kp, (Vint (Int.repr count), p')) p * malloc_token Tsh tcell p 
+  cstring Ews key kp * data_at Ews tcell (kp, (Vint (Int.repr count), p')) p * malloc_token Ews tcell p 
          |-- list_cell key count p' p.
 Proof. intros. unfold list_cell. Exists kp. auto. Qed.
 
@@ -137,7 +137,7 @@ Lemma listrep_fold: forall key count p' p al,
 Proof. intros. simpl. Exists p'. cancel. Qed.
 
 Definition listboxrep al r :=
- EX p:val, data_at Tsh (tptr tcell) p r * listrep al p.
+ EX p:val, data_at Ews (tptr tcell) p r * listrep al p.
 
 Definition uncurry {A B C} (f: A -> B -> C) (xy: A*B) : C :=
   f (fst xy) (snd xy).
@@ -145,8 +145,8 @@ Definition uncurry {A B C} (f: A -> B -> C) (xy: A*B) : C :=
 Definition hashtable_rep (contents: hashtable_contents) (p: val) : mpred :=
   EX bl: list (list (string * Z) * val),
     !! (contents = map fst bl) &&
-    malloc_token Tsh thashtable p * 
-    field_at Tsh thashtable [StructField _buckets] (map snd bl) p 
+    malloc_token Ews thashtable p * 
+    field_at Ews thashtable [StructField _buckets] (map snd bl) p 
     * iter_sepcon (uncurry listrep) bl.
 
 (*Eval compute in (reptype (Tarray tint 10 noattr)).
@@ -181,60 +181,60 @@ Hint Resolve hashtable_rep_valid_pointer : valid_pointer.
 
 Definition new_table_spec : ident * funspec :=
  DECLARE _new_table
- WITH u: unit
- PRE [ ] 
+ WITH gv: globals
+ PRE [ ]
    PROP()
-   LOCAL()
-   SEP()
- POST [ tptr thashtable ] 
-   EX p:val, PROP() 
-      LOCAL(temp ret_temp p) 
-      SEP(hashtable_rep empty_table p).
+   LOCAL(gvars gv)
+   SEP(mem_mgr gv)
+ POST [ tptr thashtable ]
+   EX p:val, PROP()
+      LOCAL(temp ret_temp p)
+      SEP(hashtable_rep empty_table p; mem_mgr gv).
 
 Definition new_cell_spec : ident * funspec :=
  DECLARE _new_cell
- WITH s: val, key: string, count: Z, next: val
+ WITH s: val, key: string, count: Z, next: val, gv: globals
  PRE [ _key OF tptr tschar, _count OF tint, _next OF tptr tcell ] 
    PROP()
-   LOCAL(temp _key s; temp _count (Vint (Int.repr count)); temp _next next)
-   SEP(cstring Tsh key s)
+   LOCAL(temp _key s; temp _count (Vint (Int.repr count)); temp _next next; gvars gv)
+   SEP(cstring Ews key s; mem_mgr gv)
  POST [ tptr tcell ] 
    EX p:val, PROP() 
       LOCAL(temp ret_temp p) 
-      SEP(list_cell key count next p; cstring Tsh key s).
+      SEP(list_cell key count next p; cstring Ews key s; mem_mgr gv).
 
 Definition get_spec : ident * funspec :=
  DECLARE _get
  WITH p: val, contents: hashtable_contents, s: val, sigma : string
- PRE [ _table OF tptr (Tstruct _hashtable noattr), _s OF tptr tschar ] 
+ PRE [ _table OF tptr (Tstruct _hashtable noattr), _s OF tptr tschar ]
     PROP () 
     LOCAL (temp _table p; temp _s s)
-    SEP (hashtable_rep contents p; cstring Tsh sigma s)
+    SEP (hashtable_rep contents p; cstring Ews sigma s)
  POST [ tuint ]
       PROP ( ) LOCAL (temp ret_temp (Vint (Int.repr (hashtable_get sigma contents))))
-      SEP (hashtable_rep contents p; cstring Tsh sigma s).
+      SEP (hashtable_rep contents p; cstring Ews sigma s).
 
 Definition incr_list_spec : ident * funspec :=
  DECLARE _incr_list
- WITH r0: val, al: list (string * Z), s: val, sigma : string
- PRE [ _r0 OF tptr (tptr tcell), _s OF tptr tschar ] 
-    PROP (list_get sigma al < Int.max_unsigned) 
-    LOCAL (temp _r0 r0; temp _s s)
-    SEP (listboxrep al r0; cstring Tsh sigma s)
+ WITH r0: val, al: list (string * Z), s: val, sigma : string, gv : globals
+ PRE [ _r0 OF tptr (tptr tcell), _s OF tptr tschar ]
+    PROP (list_get sigma al < Int.max_unsigned)
+    LOCAL (temp _r0 r0; temp _s s; gvars gv)
+    SEP (listboxrep al r0; cstring Ews sigma s; mem_mgr gv)
  POST [ tvoid ]
       PROP ( ) LOCAL ()
-      SEP (listboxrep (list_incr sigma al) r0; cstring Tsh sigma s).
+      SEP (listboxrep (list_incr sigma al) r0; cstring Ews sigma s; mem_mgr gv).
 
 Definition incr_spec : ident * funspec :=
  DECLARE _incr
- WITH p: val, contents: hashtable_contents, s: val, sigma : string
+ WITH p: val, contents: hashtable_contents, s: val, sigma : string, gv : globals
  PRE [ _table OF tptr (Tstruct _hashtable noattr), _s OF tptr tschar ] 
     PROP (hashtable_get sigma contents < Int.max_unsigned) 
-    LOCAL (temp _table p; temp _s s)
-    SEP (hashtable_rep contents p; cstring Tsh sigma s)
+    LOCAL (temp _table p; temp _s s; gvars gv)
+    SEP (hashtable_rep contents p; cstring Ews sigma s; mem_mgr gv)
  POST [ tvoid ]
       PROP ( ) LOCAL ()
-      SEP (hashtable_rep (hashtable_incr sigma  contents) p; cstring Tsh sigma s).
+      SEP (hashtable_rep (hashtable_incr sigma  contents) p; cstring Ews sigma s; mem_mgr gv).
 
 (*  PUTTING ALL THE FUNSPECS TOGETHER *)
 
@@ -292,8 +292,7 @@ Qed.
 Lemma thashtable_local_facts: forall sh contents p,
   data_at sh thashtable contents p |-- !! (isptr p /\ Zlength contents = N).
 Proof.
-  intros. entailer!. destruct H0. unfold unfold_reptype in H0. simpl in H0.
-  rep_omega.
+  intros. entailer!. destruct H0. apply H0.
 Qed.
 Hint Resolve thashtable_local_facts : saturate_local.
 
@@ -324,11 +323,11 @@ intros.
   Furthermore, suppose we have determined (by an if-test) that
   s[i] is not zero, then we have the hypothesis H0 above.
 
-  The [cstring Tsh] tactic processes all three of them to conclude
+  The [cstring Ews] tactic processes all three of them to conclude
   that [i < Zlength contents]. *)
 assert (H7: i < Zlength contents) by cstring.
 
-(* But actually, [cstring Tsh] tactic will prove any rep_omega consequence
+(* But actually, [cstring Ews] tactic will prove any rep_omega consequence
    of that fact.  For example: *)
 clear H7.
 autorewrite with sublist.
@@ -336,7 +335,7 @@ cstring.
 Fail idtac.  (* demonstrates that there are "No more subgoals." *)
 Abort. (* Throw this away.  Don't apply this lemma in the
     body_hash proof, instead, use [autorewrite with sublist] and
-    [cstring Tsh] directly, where appropriate. *)
+    [cstring Ews] directly, where appropriate. *)
 
 Lemma demonstrate_cstring2: 
  forall i contents,
@@ -349,7 +348,7 @@ intros.
 (* Here is another demonstration.  When you loop on the
    string contents reaches the end, so that s[i] is the zero byte,
    you'll have the an assumption like [H0] above the line.
-   The [cstring Tsh] tactic handles this case too, to prove 
+   The [cstring Ews] tactic handles this case too, to prove 
    [i = Zlength contents].   *)
 cstring.
 Fail idtac. (* No more subgoals. *)
@@ -381,7 +380,7 @@ forward_while
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr (hashfun (sublist 0 i contents))));
           temp _s s)
-   SEP   (data_at Tsh (tarray tschar (Zlength contents + 1)) (map Vbyte (contents ++ [Byte.zero])) s)).
+   SEP   (data_at Ews (tarray tschar (Zlength contents + 1)) (map Vbyte (contents ++ [Byte.zero])) s)).
 * (* current state *)
 EExists. entailer!. rep_omega.
 * (* type check *)
@@ -406,14 +405,14 @@ Qed.
 
 Lemma body_new_table_helper: 
  (* This lemma is useful as the very last thing to do in body_new_table *)
- forall p, 
-  data_at Tsh thashtable (list_repeat (Z.to_nat N) nullval) p
-  |-- field_at Tsh thashtable [StructField _buckets]
+ forall p sh,
+  data_at sh thashtable (list_repeat (Z.to_nat N) nullval) p
+  |-- field_at sh thashtable [StructField _buckets]
        (list_repeat (Z.to_nat N) nullval) p *
          iter_sepcon (uncurry listrep) (list_repeat (Z.to_nat N) ([], nullval)).
 Proof.
 intros.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ p).
 cancel.
 unfold listrep, uncurry.
 rewrite N_eq. simpl.
@@ -450,35 +449,35 @@ Lemma body_new_table: semax_body Vprog Gprog f_new_table new_table_spec.
 Proof.
 (* The loop invariant in this function describes a partially initialized array.
    The best way to do that is with something like,
-  [data_at Tsh thashtable 
+  [data_at Ews thashtable 
       (list_repeat (Z.to_nat i) nullval ++ list_repeat (Z.to_nat (N-i)) Vundef) p].
   Then at some point you'll have to prove something about,
-  [data_at Tsh thashtable
+  [data_at Ews thashtable
       (list_repeat (Z.to_nat (i + 1)) nullval ++ list_repeat (Z.to_nat (N - (i + 1))) Vundef) p]
   In particular, you'll have to split up [list_repeat (Z.to_nat (i + 1)) nullval]
    into [list_repeat (Z.to_nat i) nullval ++ list_repeat (Z.to_nat 1) nullval].
   The best way to do that is [rewrite <- list_repeat_app'.]
 *)
 start_function.
-forward_call thashtable.
+forward_call (thashtable, gv).
 (* verify precondition of calling malloc *)
 unfold sizeof. simpl. repeat split; rep_omega.
 Intros vret.
 forward_if
   (PROP ( )
    LOCAL (temp _p vret)
-   SEP (malloc_token Tsh thashtable vret * data_at_ Tsh thashtable vret)).
+   SEP (malloc_token Ews thashtable vret * data_at_ Ews thashtable vret * mem_mgr gv)).
 destruct (Memory.EqDec_val vret nullval); entailer.
 forward_call tt.
 entailer.
 forward.
 entailer.
-destruct (Memory.EqDec_val vret nullval); entailer.
+destruct (Memory.EqDec_val vret nullval); entailer. cancel.
 (* after if *)
 forward_for_simple_bound N (EX i:Z, EX contents : list val,
     PROP (forall j, 0 <= j < i -> Znth j contents = nullval)
     LOCAL (temp _p vret)
-    SEP (malloc_token Tsh thashtable vret * data_at Tsh thashtable contents vret))%assert.
+    SEP (malloc_token Ews thashtable vret * data_at Ews thashtable contents vret * mem_mgr gv))%assert.
 EExists.
 entailer!.
 intros. omega.
@@ -503,7 +502,7 @@ intros.
 }
 (* after loop *)
 Intro x. rename x into contents.
-forward.
+forward. simpl in H1.
 EExists. entailer!.
 assert (contents = (list_repeat (Z.to_nat N) nullval)). {
   apply Znth_eq_list_eq.
@@ -644,7 +643,7 @@ Lemma body_get: semax_body Vprog Gprog f_get get_spec.
 Proof.
 start_function.
 rename p into table.
-forward_call (s, Tsh, sigma).
+forward_call (s, Ews, sigma).
 forward.
 pose proof (hashfun_inrange sigma).
 rewrite modu_repr by rep_omega.
@@ -665,8 +664,8 @@ set (entry_list :=  fst (Znth b bl)).
 forward_while (EX p : val, EX cl : list (string * Z), EX dl : list (string * Z),
       PROP ( ~ In sigma (map fst cl); cl ++ dl = entry_list)
       LOCAL (temp _p p; temp _s s)
-      SEP (cstring Tsh sigma s; malloc_token Tsh thashtable table;
-          field_at Tsh thashtable [StructField _buckets] (map snd bl) table;
+      SEP (cstring Ews sigma s; malloc_token Ews thashtable table;
+          field_at Ews thashtable [StructField _buckets] (map snd bl) table;
           iter_sepcon (uncurry listrep) (sublist 0 b bl) *
           iter_sepcon (uncurry listrep) (sublist (b+1) (Zlength bl) bl) *
           sublistrep cl (snd (Znth b bl)) p *
@@ -696,10 +695,10 @@ Intros intcmp.
 forward_if (
    PROP ( dsigma <> sigma )
    LOCAL (temp _t'2 (Vint intcmp); temp _t'4 ds; temp _p p; temp _s s)
-   SEP (cstring Tsh sigma s; malloc_token Tsh thashtable table;
-   field_at Tsh thashtable [StructField _buckets] (map snd bl) table; iter_sepcon (uncurry listrep) (sublist 0 b bl);
+   SEP (cstring Ews sigma s; malloc_token Ews thashtable table;
+   field_at Ews thashtable [StructField _buckets] (map snd bl) table; iter_sepcon (uncurry listrep) (sublist 0 b bl);
    iter_sepcon (uncurry listrep) (sublist (b + 1) (Zlength bl) bl); sublistrep cl (snd (Znth b bl)) p;
-   cstring Tsh dsigma ds; data_at Tsh tcell (ds, (Vint (Int.repr dc), p')) p; malloc_token Tsh tcell p; listrep dl p')).
+   cstring Ews dsigma ds; data_at Ews tcell (ds, (Vint (Int.repr dc), p')) p; malloc_token Ews tcell p; listrep dl p')).
 (* if ds = sigma *)
 forward.
 forward.
@@ -720,7 +719,7 @@ entailer!. destruct (Int.eq_dec intcmp Int.zero); contradiction.
 forward.
 (* end of loop *)
 EExists. simpl (fst _); simpl (snd _).
-sep_apply listcell_fold.
+sep_apply (listcell_fold dsigma).
 sep_apply sublistrep_one.
 sep_apply (fun al bl ap => sublistrep_app al bl ap p).
 entailer!.
@@ -746,11 +745,11 @@ Qed.
 Lemma listboxrep_traverse:
   forall p kp key count r, 
           field_compatible tcell [] p ->
-            cstring Tsh key kp * 
-            field_at Tsh tcell [StructField _key] kp p *
-            field_at Tsh tcell [StructField _count] (Vint (Int.repr count)) p *
-            malloc_token Tsh tcell p *
-            data_at Tsh (tptr tcell) p r |-- 
+            cstring Ews key kp * 
+            field_at Ews tcell [StructField _key] kp p *
+            field_at Ews tcell [StructField _count] (Vint (Int.repr count)) p *
+            malloc_token Ews tcell p *
+            data_at Ews (tptr tcell) p r |-- 
             ALL dl: list (string * Z), 
               listboxrep dl (field_address tcell [StructField _next] p)
                 -* listboxrep ((key, count) :: dl) r.
@@ -759,10 +758,10 @@ Proof.
   apply allp_right; intro dl.
   apply -> wand_sepcon_adjoint.
    (* Sometime during the proof below, you will have
-       data_at Tsh tcell ... p
+       data_at Ews tcell ... p
      that you want to expand into 
-       field_at Tsh tcell [StructField _key] ... p * field_at Tsh tcell [StructField _count] ... p 
-       * field_at Tsh tcell [StructField _next] ... p.
+       field_at Ews tcell [StructField _key] ... p * field_at Ews tcell [StructField _count] ... p 
+       * field_at Ews tcell [StructField _next] ... p.
      You can do this with   [unfold_data_at x%nat] where x is the number
      indicating _which_ of the data_at or field_at conjucts you want to expand.
 *)
@@ -799,7 +798,7 @@ Proof.
 Qed.
 
 Definition sublistrep_p al ap bpp : mpred :=
-  ALL bp:val, data_at Tsh (tptr tcell) bp bpp -* sublistrep al ap bp.
+  ALL bp:val, data_at Ews (tptr tcell) bp bpp -* sublistrep al ap bp.
 
 Lemma sepcon_prop_TT: forall P,
   !! P = !! P * TT.
@@ -832,10 +831,10 @@ Intros p0.
 (* before loop *)
 forward_loop (EX r:val, EX p:val, EX bl:list (string * Z), EX cl:list (string * Z),
     PROP  (~ In sigma (map fst bl) /\ al = bl ++ cl)
-    LOCAL (temp _r r; temp _s s)
-    SEP   (cstring Tsh sigma s; data_at Tsh (tptr tcell) p r; listrep cl p;
+    LOCAL (temp _r r; temp _s s; gvars gv)
+    SEP   (cstring Ews sigma s; data_at Ews (tptr tcell) p r; listrep cl p; mem_mgr gv;
             (if (Val.eq r r0) then !! (p = p0) && !! (bl = []) && emp
-                else data_at Tsh (tptr tcell) p0 r0 * sublistrep_p bl p0 r)))%assert.
+                else data_at Ews (tptr tcell) p0 r0 * sublistrep_p bl p0 r)))%assert.
 {
   do 4 EExists. instantiate (2 := []).
   entailer!. destruct (Val.eq r0 r0); try contradiction. entailer.
@@ -843,7 +842,7 @@ forward_loop (EX r:val, EX p:val, EX bl:list (string * Z), EX cl:list (string * 
 Intros r p bl cl.
 forward.
 forward_if.
-  forward_call (s, sigma, 1, nullval). Intros pnew.
+  forward_call (s, sigma, 1, nullval, gv). Intros pnew.
   forward.
   forward.
   unfold listboxrep, sublistrep_p.
@@ -856,7 +855,7 @@ forward_if.
   simpl. EExists. entailer.
   (* r <> r0 *)
   EExists. ecancel.
-  sep_eapply (allp_instantiate' (B := val)).
+  sep_eapply allp_instantiate'.
   sep_apply wand_frame_elim''.
   sep_apply sublistrep_one.
   sep_apply listrep_app.
@@ -885,7 +884,7 @@ destruct (Val.eq r r0); subst.
 (* r = r0 *)
 Intros. subst p bl. instantiate (1 := p0). ecancel. apply sublistrep_nil.
 (* r <> r0 *)
-sep_eapply (allp_instantiate' (B := val)).
+sep_eapply (allp_instantiate').
 sep_apply wand_frame_elim''.
 cancel.
 (* else (if (cmp = 0)) *)
@@ -917,10 +916,10 @@ rewrite H5.
 destruct (Val.eq (field_address tcell [StructField _next] p) r0); try contradiction.
 
 assert (forall p s c next,
-  field_at Tsh tcell [StructField _key] s p *
-  field_at Tsh tcell [StructField _count] c p *
-  field_at Tsh tcell [StructField _next] next p
-  |-- data_at Tsh tcell (s, (c, next)) p).
+  field_at Ews tcell [StructField _key] s p *
+  field_at Ews tcell [StructField _count] c p *
+  field_at Ews tcell [StructField _next] next p
+  |-- data_at Ews tcell (s, (c, next)) p).
 {
   intros. unfold_data_at 1%nat. cancel.
 }
@@ -941,7 +940,7 @@ unfold sublistrep_p.
 apply allp_right. clear dependent p'. intros p'. apply -> wand_sepcon_adjoint.
 sep_apply H13.
 sep_apply listcell_fold.
-sep_eapply (allp_instantiate' (B := val)).
+sep_eapply (allp_instantiate').
 sep_apply wand_frame_elim''.
 sep_apply sublistrep_one.
 sep_apply (sublistrep_app bl).
@@ -958,8 +957,8 @@ Lemma field_at_data_at':
 Proof.
 intros.
 apply pred_ext.
-entailer!. rewrite field_at_data_at; auto.
-entailer!. rewrite field_at_data_at; auto.
+entailer!.
+entailer!.
 Qed.
 
 Ltac wand_slice_array_spec t :=
@@ -1036,13 +1035,13 @@ pose (j := EX cts:list (list (string * Z) * val),
   (PROP (contents = map fst cts; 0 <= hashfun sigma mod N < N; Zlength cts = N)
   LOCAL (temp _b (Vint (Int.repr (hashfun sigma mod N)));
          temp _h (Vint (Int.repr (hashfun sigma)));
-         temp _table table; temp _s s)
-  SEP (cstring Tsh sigma s; malloc_token Tsh thashtable table;
-       data_at Tsh (tarray (tptr tcell) N) (map snd cts) (field_address thashtable [StructField _buckets] table);
+         temp _table table; temp _s s; gvars gv)
+  SEP (cstring Ews sigma s; malloc_token Ews thashtable table; mem_mgr gv;
+       data_at Ews (tarray (tptr tcell) N) (map snd cts) (field_address thashtable [StructField _buckets] table);
        iter_sepcon (uncurry listrep) cts))%assert).
 apply semax_seq' with j; subst j; abbreviate_semax.
 {
-  forward_call (s, Tsh, sigma).
+  forward_call (s, Ews, sigma).
   forward.
   assert_PROP (Zlength contents = N) by entailer.
   unfold hashtable_rep. Intros bl. EExists.
@@ -1051,7 +1050,6 @@ apply semax_seq' with j; subst j; abbreviate_semax.
   split.
   autorewrite with sublist in *. auto.
   f_equal. symmetry. apply modu_repr. apply hashfun_inrange. rep_omega.
-  ecancel.
 }
 
 Intros cts.
@@ -1088,10 +1086,8 @@ assert_PROP (
   entailer.
 }
 
-
-
 forward_call ((field_address thashtable (DOT _buckets SUB h) table),
-      fst (Znth h cts), s, sigma).
+      fst (Znth h cts), s, sigma, gv).
 3: rewrite Znth_map in Hmax by rep_omega; auto.
 rewrite H.
 assert_PROP (is_pointer_or_null (field_address thashtable [ArraySubsc h; StructField _buckets] table)). {
@@ -1118,7 +1114,7 @@ cancel.
 unfold hashtable_rep.
 unfold listboxrep. Intros ap.
 erewrite <- data_at_singleton_array_eq by auto.
-sep_eapply (allp_instantiate' (B := list val)).
+sep_eapply (allp_instantiate').
 rewrite H.
 sep_apply wand_frame_elim''.
 set (al := list_incr sigma (fst (Znth h cts))).

@@ -872,25 +872,9 @@ Ltac new_cancel local_tac :=
     end
   ].
 
-(* may enhance cancel to solve field_at and data_at *)
-(*
-Lemma field_at_data_at_cancel': forall {cs : compspecs} sh t v p,
-  field_at sh t nil v p = data_at sh t v p.
-Proof.
-  intros. apply pred_ext.
-  apply field_at_data_at_cancel.
-  apply data_at_field_at_cancel.
-Qed.
-
 Ltac cancel_unify_tac :=
-  rewrite ?field_at_data_at_cancel';
-  rewrite ?field_at_data_at;
-  rewrite ?field_at__data_at_;
-  rewrite ?data_at__data_at;
+  autorewrite with cancel;
   careful_unify.
-*)
-
-Ltac cancel_unify_tac := careful_unify.
 
 Ltac cancel_local_tac :=
   cbv beta;
@@ -905,16 +889,9 @@ Ltac cancel ::= new_cancel cancel_local_tac.
 Ltac no_evar_cancel_local_tac := local_cancel_in_syntactic_cancel cancel_unify_tac.
 Ltac no_evar_cancel := new_cancel no_evar_cancel_local_tac.
 
-(*
 Ltac ecancel_unify_tac :=
-  rewrite ?field_at_data_at_cancel';
-  rewrite ?field_at_data_at;
-  rewrite ?field_at__data_at_;
-  rewrite ?data_at__data_at;
+  autorewrite with cancel;
   ecareful_unify.
-*)
-
-Ltac ecancel_unify_tac := ecareful_unify.
 
 Ltac ecancel_local_tac := local_cancel_in_syntactic_cancel ecancel_unify_tac.
 Ltac pure_ecancel := new_cancel ecancel_local_tac.
@@ -1288,7 +1265,7 @@ Ltac normalize :=
               fancy_intros true);
    repeat normalize1; try contradiction.
 
-Lemma allp_instantiate: 
+Lemma allp_instantiate:
    forall {A : Type} {NA : NatDed A} {B : Type} (P : B -> A) (x : B),
        ALL y : B, P y |-- P x.
 Proof.
@@ -1299,6 +1276,15 @@ Ltac allp_left x :=
  match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
    sep_apply_in_entailment (@allp_instantiate T ND B P x)
  end end.
+
+(* these two lemmas work better with new sep_apply and sep_eapply *)
+Lemma allp_instantiate': forall (B : Type) (P : B -> mpred) (x : B),
+  allp P |-- P x.
+Proof. intros. apply allp_instantiate. Qed.
+
+Lemma wand_frame_elim'': forall P Q,
+  (P -* Q) * P |-- Q.
+Proof. intros. rewrite sepcon_comm. apply wand_frame_elim. Qed.
 
 Lemma prop_sepcon: forall {A}{ND: NatDed A}{SL: SepLog A}
     P Q, !! P * Q = !! P && (TT * Q).
