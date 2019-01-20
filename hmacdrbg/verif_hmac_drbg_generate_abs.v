@@ -354,7 +354,7 @@ Proof.
  
   forward_if (temp _t'5 (Val.of_bool na)).
   { destruct additional; simpl in PNadditional; try contradiction.
-    + subst i0; entailer.
+    + subst i0; entailer!.
     + rewrite da_emp_ptr. normalize.
       apply denote_tc_test_eq_split.
       apply sepcon_valid_pointer2. 
@@ -408,7 +408,8 @@ Proof.
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
         split3; auto.
-       { (*subst na.*)subst after_reseed_add_len.  entailer. unfold hmac256drbgabs_common_mpreds.
+       { (*subst na.*)subst after_reseed_add_len.  entailer. simpl; entailer. 
+         unfold hmac256drbgabs_common_mpreds.
          remember ( HMAC256_DRBG_update
              (contents_with_add (Vptr b0 i0) (Zlength contents) contents) key
              V) as UPD. destruct UPD as [KK VV]. simpl. 

@@ -131,7 +131,7 @@ forward_loop (EX i : Z,
   forward. normalize.
   forward. fold_Vbyte.
  forward_if.
-  { forward. 
+  { forward. simpl. 
     Exists (offset_val i str).
     entailer!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
@@ -552,7 +552,7 @@ forward_loop (EX i : Z,
   forward. fold_Vbyte.
   forward_if (Znth i (ls ++ [Byte.zero]) <> c).
 
-  { forward. 
+  { forward. simpl.
     Exists (offset_val i str).
     entailer!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }

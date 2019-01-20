@@ -139,13 +139,14 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
    subst.
    unfold PostKeyNull, initPostKeyNullConditional.
    Exists cb cofs 1.
-   Time entailer; cancel. (* 1.115 sec;  was: 7.3 versus 8.1*)
+   Time entailer!; simpl; entailer!.
   }
   { (*key == NULL*)
      rename H into Hk; rewrite Hk in *.
      Time forward. (*0.2*)
      unfold PostKeyNull, initPre, initPostKeyNullConditional. subst k.
      Time entailer. (*4.2 versus 3.9*)
+      simpl.
         unfold hmacstate_PreInitNull. Intros r v.
         Time assert_PROP (isptr c) as Pctx' by entailer!. (*4.3*)
         apply isptrD in Pctx'; destruct Pctx' as [cb [cofs CTX']].
@@ -450,7 +451,7 @@ forward_if (EX shaStates:_ ,
     }
     freeze FR8 := - .
     Time forward. (*return*) (*3.4 versus 17*) (*Issue: leaves messy subgoal*)
-    Time entailer!. (* 1.2 versus 9*)
+    simpl.
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).
     change (@data_at spec_sha.CompSpecs sh (tarray tuchar (@Zlength byte key)))

@@ -1036,7 +1036,8 @@ Proof.
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
        split3; auto. 
-       { (*subst na.*)subst after_reseed_add_len. entailer. unfold hmac256drbgabs_common_mpreds.
+       { (*subst na.*)subst after_reseed_add_len. 
+         entailer. simpl.  progress entailer. unfold hmac256drbgabs_common_mpreds.
          remember ( HMAC256_DRBG_update
              (contents_with_add (Vptr b0 i0) (Zlength contents) contents) key
              V) as UPD. destruct UPD as [KK VV]. simpl. 

@@ -149,6 +149,7 @@ forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
 forward. (* p->y = y; *)
 forward. (* return; *)
+simpl; entailer!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -207,6 +208,8 @@ forward_call (* des(&q, buf, 8); *)
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)
+simpl.
+entailer!.
 sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (Int.repr 2)] buf).
 simpl sizeof.
 sep_apply (memory_block_data_at__tarray_tuchar Tsh buf 8).

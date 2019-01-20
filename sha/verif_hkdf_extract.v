@@ -74,6 +74,7 @@ forward_if (PROP ( )
 { clear H; forward. entailer!. rewrite <- @change_compspecs_data_block. simpl; auto. }
 
 forward. forward. 
+simpl.
 unfold HKDF_extract. cancel. rewrite @change_compspecs_data_block. trivial.
 Time Qed.
 (*Finished transaction in 0.545 secs (0.544u,0.s) (successful)*)

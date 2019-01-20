@@ -697,6 +697,7 @@ Proof.
       cancel.
   }
   forward.
+  simpl.
   Exists q_root; cancel.
   Exists (map snd tl).
   cancel.

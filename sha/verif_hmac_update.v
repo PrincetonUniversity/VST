@@ -63,6 +63,7 @@ split; [ | split3]; auto. rep_omega. simpl; rep_omega.
 rewrite sublist_same; trivial.
 freeze FR1 := - (FRZL FR).
 Time forward. (*12 versus 12.4*)
+simpl.
 thaw FR1.
 unfold hmacstate_, sha256state_, hmac_relate.
 Intros r.  Exists (r,(iCtx ST, oCtx ST)).

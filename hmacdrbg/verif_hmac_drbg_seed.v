@@ -49,7 +49,7 @@ Proof.
   forward. thaw FR1.
   forward_if.
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
-    forward. Exists (Int.repr (-20864)).
+    forward. simpl. Exists (Int.repr (-20864)).
     rewrite Int.eq_true.
     entailer!. thaw FR0. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel.

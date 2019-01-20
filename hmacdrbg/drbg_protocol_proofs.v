@@ -273,7 +273,7 @@ Proof.
   }
 
   forward_if.
-  { rewrite H in *. subst add_len_too_high. forward.
+  { rewrite H in *. subst add_len_too_high. forward. simpl.
     Exists (Vint (Int.neg (Int.repr 5))). unfold AREP.
     rewrite <- Heqadd_len_too_high.
     Exists Info.

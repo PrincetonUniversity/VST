@@ -446,7 +446,8 @@ Proof.
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
   unfold_data_at 1%nat. forward. forward.
-  unfold_data_at 1%nat. cancel.
+  simpl.
+  unfold_data_at 1%nat. entailer!.
 Qed.
 
 Lemma body_hmac_drbg_setEntropyLen:
@@ -459,7 +460,7 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward.
+  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -473,7 +474,7 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward.
+  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 

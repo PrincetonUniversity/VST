@@ -614,6 +614,26 @@ Ltac entailer' :=
               | simple apply FF_left
               | simple apply TT_right].
 
+Fixpoint app_mpred (al bl: list mpred) :=
+ match al with a::al' => a :: app_mpred al' bl | nil => bl end.
+
+Ltac fixup_folds_from_return := 
+ (* Really this should not be necessary.  The right thing to do is 
+   fix foward_return so that it uses app_Prop and app_mpred
+   instead of the general app, so that they can be unfolded without
+   bothering the user's instances of app. *)
+fold fold_right_and; fold app_Prop;
+change (@app Prop) with app_Prop;
+change (@app mpred) with app_mpred;
+unfold app_mpred, app_Prop, fold_right_and, fold_right_sepcon;
+fold app_mpred; fold app_Prop; fold fold_right_and; fold fold_right_sepcon.
+
+Lemma empTrue:
+ @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
+Proof.
+apply prop_right; auto.
+Qed.
+
 Ltac entailer :=
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
@@ -624,7 +644,9 @@ Ltac entailer :=
  match goal with
  | |- ?P |-- _ =>
     match type of P with
-    | ?T => unify T (environ->mpred); go_lower; simpl
+    | ?T => unify T (environ->mpred); go_lower;
+                (*simpl;*)
+                fixup_folds_from_return
     | _ => clear_Delta; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
@@ -669,12 +691,6 @@ Lemma prop_and_same_derives' {A}{NA: NatDed A}:
   forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.
 Proof.
 intros. apply andp_right; auto. apply prop_right; auto.
-Qed.
-
-Lemma empTrue:
- @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
-Proof.
-apply prop_right; auto.
 Qed.
 
 Ltac entbang :=

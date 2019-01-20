@@ -451,7 +451,7 @@ Proof.
         assert (x=k) by omega.
         subst x.  clear H H1 H3.
         forward. (* p->value=value *)
-        forward. (* return *)
+        forward. (* return *) simpl.
         (* TODO: SIMPLY THIS LINE *)
         simpl_compb.
         simpl_compb.
@@ -513,7 +513,7 @@ Proof.
     + (* else-else clause: x=y *)
       assert (x=k) by omega. subst x. clear H H3 H4.
       forward. (* v=p->value *)
-      forward. (* return v; *)
+      forward. (* return v; *) simpl.
       unfold treebox_rep. unfold normal_ret_assert.
       entailer!.
       - rewrite <- H0. simpl.
@@ -593,9 +593,10 @@ Proof.
         cancel.
       }
       forward. (* return *)
+      simpl.
       apply modus_ponens_wand'.
       Exists pa.
-      cancel.
+      entailer!.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. normalize. }
       Time forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
@@ -699,6 +700,7 @@ Proof.
         }
         Time forward_call (t1_1, k, v, t1_2, b1, p1).
         forward. (* return *)
+        simpl.
         simpl_compb.
         simpl_compb.
         apply modus_ponens_wand'.

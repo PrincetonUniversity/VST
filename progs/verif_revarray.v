@@ -189,8 +189,8 @@ forward. (* hi--; *)
  reflexivity.
 * (* after the loop *)
 forward. (* return; *)
-rewrite map_rev. rewrite flip_fact_1 by omega.
-auto.
+rewrite map_rev. rewrite flip_fact_1; try omega; auto.
+cancel.
 Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].

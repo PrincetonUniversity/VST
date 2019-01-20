@@ -120,10 +120,13 @@ forward.  (* self -> data = d+2*i; *)
  forget (fold_right Z.add 0 history) as h.
  entailer!.
 forward.  (* return d+i; *)
+simpl.
  set (j:= Int.max_signed / 4) in *; compute in j; subst j.
  forget (fold_right Z.add 0 history) as h.
  entailer!.
 Exists (2 * fold_right Z.add 0 history + i).
+simpl;
+entailer!.
 rewrite Z.mul_add_distr_l, Z.add_comm.
 unfold withspacer; simpl.
 entailer!.
