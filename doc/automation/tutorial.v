@@ -1,4 +1,4 @@
-Require Import VST.floyd.new_tactics.
+Require Import VST.floyd.proofauto.
 
 (********* EExists *********************************************************************
  * This tactic is like eexists. It instantiates EX qualtifier with
@@ -79,7 +79,7 @@ Goal forall P (x : val),
   ALL y:val, P y |-- P x.
 Proof.
   intros.
-  sep_eapply (allp_instantiate' (B := val)).
+  sep_eapply allp_instantiate'.
   ecancel.
 Qed.
 
