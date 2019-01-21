@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-#CLIGHTGEN=$(COMPCERT)/clightgen 
+#CLIGHTGEN=$(COMPCERT)/clightgen
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -34,7 +34,7 @@ ANNOTATE=silent   # suppress chatty output from coqc
 
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
+VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86
 OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
@@ -98,7 +98,7 @@ DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 # The warning setting -overriding-logical-loadpath is needed until
-#  CompCert issue 199 is resolve satisfactorily: 
+#  CompCert issue 199 is resolve satisfactorily:
 #  https://github.com/AbsInt/CompCert/issues/199
 COQC=$(COQBIN)coqc -w -overriding-logical-loadpath,-notation-overridden
 COQTOP=$(COQBIN)coqtop
@@ -292,7 +292,7 @@ PROGS_FILES= \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
-  libglob.v verif_libglob.v peel.v verif_peel.v 
+  libglob.v verif_libglob.v peel.v verif_peel.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
@@ -443,9 +443,9 @@ else ifeq ($(strip $(ANNOTATE)), true)
 	@$(COQC) $(COQF) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
 else ifeq ($(strip $(ANNOTATE)), silent)
 	@$(COQC) $(COQF) $*.v >/dev/null
-else 
+else
 	@$(COQC) $(COQF) $*.v
-#	@util/annotate $(COQC) $(COQF) $*.v 
+#	@util/annotate $(COQC) $(COQF) $*.v
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
@@ -496,7 +496,7 @@ all: default_target files travis hkdf hmacdrbg tweetnacl aes
 # $(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
 # msl/Coqlib2.vo: compcert
 # endif
- 
+
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
@@ -519,7 +519,7 @@ aes: _CoqProject $(AES_FILES:%.v=aes/%.vo)
 hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
-atomics: _CoqProject mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
+atomics: _CoqProject mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo
 
 CGFLAGS =  -DCOMPCERT
 
@@ -557,7 +557,7 @@ endif
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export: Makefile util/coqflags 
+_CoqProject _CoqProject-export: Makefile util/coqflags
 	echo $(COQFLAGS) > _CoqProject
 	util/coqflags > _CoqProject-export
 

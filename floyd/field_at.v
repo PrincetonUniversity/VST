@@ -2783,6 +2783,22 @@ Hint Extern 1 (_ = @default_val _ _) =>
 Hint Extern 1 (_ = _) => 
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
 
+(* enhance cancel to solve field_at and data_at *)
+
+Lemma field_at_data_at_cancel': forall {cs : compspecs} sh t v p,
+  field_at sh t nil v p = data_at sh t v p.
+Proof.
+  intros. apply pred_ext.
+  apply field_at_data_at_cancel.
+  apply data_at_field_at_cancel.
+Qed.
+
+Hint Rewrite
+  @field_at_data_at_cancel'
+  @field_at_data_at
+  @field_at__data_at_
+  @data_at__data_at : cancel.
+
 (* END new experiments *)
 
 

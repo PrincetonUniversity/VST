@@ -17,7 +17,6 @@ Proof.
   exploit (split_shares (Z.to_nat N) Ews); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
   forward_call (sh0, shs, gv).
-  { fast_cancel. }
   Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2).
   assert_PROP (Zlength comms = N).
   { go_lowerx; apply sepcon_derives_prop.

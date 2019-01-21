@@ -177,7 +177,7 @@ rewrite data_at_tuint_tint.
  rewrite !field_compatible_field_address by auto with field_compatible.
  simpl.
  normalize.
- cancel. rewrite sepcon_comm. apply derives_refl.
+ cancel.
 }
 forward. (* p.x = 1; *)
 forward. (* p.y = 2; *)

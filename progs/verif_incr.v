@@ -179,7 +179,6 @@ Proof.
   ghost_alloc (ghost_var Tsh 0).
   Intro g2.
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
-  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
     rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto.
@@ -187,7 +186,6 @@ Proof.
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt).
-  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
   forward_spawn _thread_func nullval (sh1, g1, g2, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.

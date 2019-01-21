@@ -367,8 +367,8 @@ eapply semax_pre_post';
  rewrite !field_at_data_at.
  rewrite (data_at_type_changable _ _ _ _ _ H0 H3).
  rewrite (data_at_type_changable _ _ _ _ _ H1 H2).
- sep_apply (array_with_hole_intro shp tuchar lop (lop + len) np vp' (field_address tp pathp p)); [omega | omega |].
- sep_apply (array_with_hole_intro shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)); [omega | omega |].
+ sep_apply (array_with_hole_intro shp tuchar lop (lop + len) np vp' (field_address tp pathp p)); [omega | ].
+ sep_apply (array_with_hole_intro shq tuchar loq (loq + len) nq (map Vint contents) (field_address tq pathq q)); [omega | ].
  cancel.
  apply sepcon_derives.
  - apply derives_refl'.

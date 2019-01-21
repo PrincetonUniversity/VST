@@ -306,7 +306,6 @@ Proof.
     rewrite eq_dec_refl in Hj.
     destruct (eq_dec sh Share.bot); [contradiction|].
     destruct Hj; subst; entailer!.
-    apply derives_refl.
   - Intros; Exists (sh, v2); entailer!.
     split; simpl; rewrite ?eq_dec_refl.
     + apply bot_join_eq.
@@ -559,7 +558,6 @@ Proof.
     destruct a as [(sh, v')|]; inv H.
     destruct H2 as (? & ? & Hv); inv Hv.
     Exists sh; entailer!.
-    apply derives_refl.
   - Intros sh; subst.
     Exists (Some (sh, v2)); apply andp_right, derives_refl.
     apply prop_right; repeat (split; auto); simpl.
