@@ -53,7 +53,6 @@ Time forward_call (out, olen, v_prk,
               Build_DATA 32 (HKDF_extract (CONT SALT) (CONT SECRET)),
               info, INFO, gv, shmd).
 (*Finished transaction in 4.185 secs (3.25u,0.016s) (successful)*)
-{ simpl. cancel. }
 { simpl. split3; auto. split; rep_omega. }
 
 apply extract_exists_pre. intros x. destruct x. Intros. rename H into EXPAND_RES. (*simpl in *.*)

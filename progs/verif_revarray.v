@@ -137,8 +137,7 @@ forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 Exists 0.
 entailer!.
-+ f_equal; f_equal; omega.
-+ unfold flip_ends; autorewrite with sublist; auto.
+unfold flip_ends; autorewrite with sublist; auto.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 * (* Prove that loop body preserves invariant *)

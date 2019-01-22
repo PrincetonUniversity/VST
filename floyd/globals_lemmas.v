@@ -469,7 +469,6 @@ erewrite (split2_data_at_Tarray sh t (Z.succ (Zlength data)) 1).
 rewrite (sublist_one) by list_solve.
 autorewrite with sublist.
 rewrite sublist_1_cons.
-rewrite Znth_0_cons.
 rewrite sublist_same by list_solve.
 apply sepcon_derives.
 +

@@ -307,7 +307,6 @@ split.
   repeat rewrite app_ass.
  f_equal.
 *
- rewrite Zlength_nil, Z.sub_0_r.
  unfold_data_at (data_at _ _ _ _).
  unfold data_block. simpl.
  Intros.

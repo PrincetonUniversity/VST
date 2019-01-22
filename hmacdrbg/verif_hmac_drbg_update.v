@@ -311,7 +311,7 @@ Proof. intros. do 2 pose proof I.
       forward. rewrite H9, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
       + subst i0. rewrite da_emp_null; trivial. go_lower; simpl; entailer!.
-      + rewrite da_emp_ptr. Intros. entailer!. rewrite <- app_nil_end. auto.
+      + rewrite da_emp_ptr. Intros. entailer!.
     }
 
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, K ); *)
@@ -409,12 +409,9 @@ Proof. intros. do 2 pose proof I.
     rewrite hmac_common_lemmas.HMAC_Zlength. rewrite hmac_common_lemmas.HMAC_Zlength.
     
     cancel; unfold md_full; entailer!.
-    repeat rewrite sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply derives_refl].
+(*    repeat rewrite sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply derives_refl]. *)
     unfold_data_at 3%nat.
     thaw OtherFields. cancel.
-    rewrite (field_at_data_at _ _ [StructField _md_ctx]);
-    rewrite (field_at_data_at _ _ [StructField _V]).
-    cancel.
   } 
   Intros key value final_state_abs.
   assert (UPD: hmac256drbgabs_hmac_drbg_update initial_state_abs (contents_with_add additional add_len contents) = final_state_abs).

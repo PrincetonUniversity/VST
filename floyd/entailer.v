@@ -946,7 +946,29 @@ Znth _ (_++[Byte.zero]) <> Byte.zero"
   match goal with |- @eq ?t (?f1 _) (?f2 _) =>
        (unify t Z || unify t nat) ||
        (constr_eq f1 f2;
-        fail 2  "The cstring tactic solves omega-style goals.
+        fail "The cstring tactic solves omega-style goals.
 Your goal is an equality at type" t ", not type Z.
 Try the [f_equal] tactic first.")
  end.
+
+Ltac progress_entailer :=
+ lazymatch goal with
+ | |- @derives mpred _ ?A ?B => 
+     entailer!; try match goal with |- @derives mpred _ A B => fail 2 end
+ | |- _ => progress entailer!
+ end.
+
+Ltac cstring' := 
+lazymatch goal with
+| |- @eq Z _ _ => cstring
+| |- ?A _ = ?B _ => constr_eq A B; f_equal; cstring'
+| |- _ => cstring
+end.
+
+Ltac cstring1 :=
+match goal with 
+| H: 0 <= ?x < Zlength ?s + 1,
+  H1: Znth ?x (?s ++ [Byte.zero]) = Byte.zero |- _ =>
+  is_var x; assert  (x = Zlength s) by cstring; subst x
+end.
+

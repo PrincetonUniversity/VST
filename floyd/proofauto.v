@@ -108,5 +108,19 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
+Ltac step :=
+first [ progress Intros
+       | let x := fresh "x" in Intros x
+       | forward
+       | forward_if
+       | rep_omega | cstring' | list_solve
+       | EExists
+       | progress (autorewrite with sublist in *|-)
+       | progress (autorewrite with sublist)
+       | progress (autorewrite with norm)
+       | cstring1
+       | deadvars!
+       | progress_entailer
+       ].
 
 

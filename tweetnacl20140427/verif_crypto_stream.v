@@ -58,8 +58,7 @@ assert (exists HSalsaRes, hSalsaOut v =
 destruct H0 as [HSalsaRes HS]. rewrite HS.
 forward_call (c, v_s, offset_val 16 nonce, d, Nonce2, HSalsaRes, gv).
 { unfold SByte, Sigma_vector, ThirtyTwoByte.
-  destruct HSalsaRes as [q1 q2]. cancel.
-  unfold data_at_. cancel. }
+  destruct HSalsaRes as [q1 q2]. cancel. }
 forward.
 unfold ThirtyTwoByte. entailer.
  Exists HSalsaRes. entailer. cancel.
@@ -97,7 +96,7 @@ assert (exists HSalsaRes, hSalsaOut v =
   do 2 rewrite SixteenByte2ValList_char. repeat rewrite <- app_assoc. trivial. }
 destruct H0 as [[q1 q2] HS]. rewrite HS. 
 forward_call (c, s, m, offset_val 16 nonce, d, Nonce2, (q1,q2), mCont, gv).
-{ unfold SByte, Sigma_vector, data_at_. unfold ThirtyTwoByte at 2. cancel. }
+{ unfold SByte, Sigma_vector, data_at_. cancel. }
 forward.
 Exists (q1, q2). unfold ThirtyTwoByte. entailer!.
 Qed.

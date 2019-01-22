@@ -476,6 +476,7 @@ Qed.
 
 Lemma Znth_0_cons {A}{a: Inhabitant A} l (v:A): Znth 0 (v::l) = v.
 Proof. reflexivity. Qed.
+Hint Rewrite @Znth_0_cons : sublist.
 
 Lemma Znth_pos_cons {A}{a: Inhabitant A} i l (v:A): 0<i -> Znth i (v::l) = Znth (i-1) l.
 Proof. intros. unfold Znth. if_tac. omega. if_tac. omega.
@@ -537,6 +538,8 @@ inv H0.
 apply IHn; auto.
 omega.
 Qed.
+
+Hint Rewrite @app_nil_l @app_nil_r : sublist.
 
 Lemma app_Znth1:
   forall A (a: Inhabitant A) (l l': list A) (i:Z),

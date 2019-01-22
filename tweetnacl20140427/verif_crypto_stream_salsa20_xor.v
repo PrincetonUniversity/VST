@@ -438,7 +438,7 @@ forward_for_simple_bound 64 (EX i:Z,
                = Some l)
          && data_at Tsh (Tarray tuchar cLen noattr)
                         (Bl2VL l ++ list_repeat (Z.to_nat (cLen - i)) Vundef) c))).
-{ entailer!. rewrite Zminus_0_r. autorewrite with sublist.
+{ entailer!. autorewrite with sublist.
   Exists (@nil byte). 
   unfold Bl2VL; simpl.
   entailer!.

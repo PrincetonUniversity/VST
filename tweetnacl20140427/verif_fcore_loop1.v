@@ -387,7 +387,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
     clear - X0cont I. apply XcontUpdate; trivial.
 
   thaw FR11. simpl. Time cancel. (*0.3*)
-  apply derives_refl.
  }
 apply andp_left2; apply derives_refl.
 Time Qed. (*VST 20.: 5.5s*) (* 19.046 secs (17.109u,0.015s) (successful)*)
