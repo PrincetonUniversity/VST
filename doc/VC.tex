@@ -1522,7 +1522,9 @@ ENTAIL $\Delta$,
 This entailment proves straightforwardly by
 \lstinline{entailer!}.
 
-
+The \lstinline{EExists} tactic takes no argument; it instantiates
+the existential with a unification variable (much like Coq's
+\lstinline{eex$$ists} versus \lstinline{exi$$sts}).
 
 
 \ychapter{Integers: \upshape\textsf{nat, Z, int}}
@@ -2429,6 +2431,11 @@ cancel leaves a residual subgoal $A\vdash A'$ where $A=_\beta A'$;
 sometimes the only differences are in (invisible) implicit arguments.
 You can \lstinline{apply derives_refl} to solve such residual goals.
 
+\newthought{Unification variables.}  \lstinline{cancel} does not
+instantiate unification variables, other than the Frame as described above.
+The \lstinline{ecancel} tactic does instantiate evars
+(much like the difference between \lstinline{assumption} and \lstinline{eassumption}).
+
 \ychapter{entailer!}{(PLCC Ch.~\ref{ch:clight-auto})}
 \label{refcard:entailer}
 The \lstinline{entailer} and \lstinline{entailer!} tactics
@@ -2699,10 +2706,8 @@ J*B*D |-- E
 Or suppose you have,\quad  
 \lstinline{Lemma L: forall x y, F(x)*G(y)=H(x,y)} \newline
 and your proof goal is, \quad   \lstinline{A*G(1)*C*F(2) |-- E} \newline
-then you can do ~\lstinline{sep_apply (L 2 1)}~ to obtain,
-\quad \lstinline{H(2,1)*A*C |-- E.} \newline
-As illustrated here, you must fully instantiate the arguments of the
-lemma, that is, write \lstinline{(L 2 1)} and not just \lstinline{L}.
+then you can do ~\lstinline{sep_apply L}~ to obtain,
+\quad \lstinline{H(2,1)*A*C |-- E.} 
 
 \lstinline{sep_apply} also works on the precondition of \lstinline{semax} or on the \lstinline{SEP} part of an \lstinline{ENTAIL} goal.
 
