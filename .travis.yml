@@ -33,8 +33,8 @@ env:
   # system is == 4.02.3
 #  - COMPILER="4.02.3+32bit"
   - COMPILER="default"
-  - COQ_VERSION="8.8.0"
-  - NEXT_VERSION="8.8.1"
+  - COQ_VERSION="8.9.0"
+  - NEXT_VERSION="8.9.0"
 branches:
   only:
   - master
