@@ -171,7 +171,7 @@ Ltac default_canon_load_result :=
           | rewrite (@Znth_map val _)
           | rewrite (@Znth_map Z _) ];
     [ | solve [auto; list_solve] + match goal with
-        | |- ?Bounds => fail 1000 "Make sure list_solve or auto can prove" Bounds
+        | |- ?Bounds => fail 10 "Make sure list_solve or auto can prove" Bounds
         end  ]
   ).
 
