@@ -113,6 +113,7 @@ first [ progress Intros
        | let x := fresh "x" in Intros x
        | forward
        | forward_if
+       | forward_call
        | rep_omega | cstring' | list_solve
        | EExists
        | progress (autorewrite with sublist in *|-)
