@@ -999,6 +999,111 @@ Tactic Notation "forward_call" constr(witness) := fwd_call subsume_funspec_refl 
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := fwd_call subsumes witness.
 
+Ltac tuple_evar2 name T cb evar_tac :=
+  lazymatch T with
+  | prod ?A ?B => tuple_evar2 name A
+    ltac: (fun xA =>
+      tuple_evar2 name B ltac: (fun xB =>
+        cb (xA, xB)) evar_tac) evar_tac
+  | _ => my_unshelve_evar name T cb evar_tac
+  end; idtac.
+
+Ltac get_function_witness_type func :=
+ let TA := constr:(functors.MixVariantFunctor._functor
+     (rmaps.dependent_type_functor_rec nil func) mpred) in
+  let TA' := eval cbv 
+     [functors.MixVariantFunctor._functor
+      functors.MixVariantFunctorGenerator.fpair
+      functors.MixVariantFunctorGenerator.fconst
+      functors.MixVariantFunctorGenerator.fidentity
+      rmaps.dependent_type_functor_rec
+      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+      functors.CovariantFunctorGenerator.fconst
+      functors.CovariantFunctorGenerator.fidentity
+      functors.CovariantBiFunctor._functor
+      functors.CovariantBiFunctorGenerator.Fpair
+      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+      functors.CovariantFunctor._functor
+      functors.MixVariantFunctor.fmap
+      ] in TA
+ in let TA'' := eval simpl in TA'
+ in TA''.
+
+Ltac new_prove_call_setup :=
+ prove_call_setup1 subsume_funspec_refl;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
+      ltac:(fun witness =>
+ let H := fresh in
+ intro H;
+ match goal with | |- @semax ?CS _ _ _ _ _ =>
+ let Frame := fresh "Frame" in evar (Frame: list mpred);
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ [ reflexivity
+ | check_prove_local2ptree
+ | Forall_pTree_from_elements
+ | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | try change_compspecs CS; cancel_for_forward_call
+ |
+ ]
+ end)
+ ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
+ end].
+
+Ltac new_fwd_call' :=
+lazymatch goal with
+| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+  eapply semax_seq';
+    [new_prove_call_setup;
+     clear_Delta_specs; clear_MORE_POST;
+     [ .. |
+      lazymatch goal with
+      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
+         forward_call_id1_wow
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+                semax _ _ (Scall None _ _) _ =>
+        tryif (unify retty Tvoid)
+        then forward_call_id00_wow
+        else forward_call_id01_wow
+     end]
+   | after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [new_prove_call_setup;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_x_wow ]
+         |  after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Etempvar ?ret'2 _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [new_prove_call_setup;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_y_wow ]
+         |  after_forward_call ]
+| |- _ => rewrite <- seq_assoc; new_fwd_call'
+end.
+
+
+Ltac new_fwd_call:=
+ try lazymatch goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ repeat lazymatch goal with
+  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      rewrite <- seq_assoc
+ end;
+lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+  lazymatch C with context [Scall _ _ _] =>
+         new_fwd_call'
+    end
+end.
+
+Tactic Notation "forward_call"  := new_fwd_call.
+
 Lemma seq_assoc2:
   forall (Espec: OracleKind) {cs: compspecs}  Delta P c1 c2 c3 c4 Q,
   semax Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
