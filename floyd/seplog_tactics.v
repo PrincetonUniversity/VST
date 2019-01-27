@@ -637,10 +637,6 @@ Ltac cancel_for_evar_frame' local_tac :=
             unfold fold_left_sepconx; cbv iota beta ]
   ].
 
-(* old local cancel is still kept for internal usage of floyd *)
-Ltac old_local_tac := local_cancel_in_syntactic_cancel careful_unify.
-Ltac cancel_for_evar_frame := cancel_for_evar_frame' old_local_tac.
-
 (* To solve: |- fold_right_sepcon G |-- fold_right_sepcon L * TT *)
 Ltac cancel_for_TT local_tac :=
   eapply syntactic_cancel_spec1;
@@ -896,6 +892,9 @@ Ltac ecancel_unify_tac :=
 Ltac ecancel_local_tac := local_cancel_in_syntactic_cancel ecancel_unify_tac.
 Ltac pure_ecancel := new_cancel ecancel_local_tac.
 Ltac ecancel := no_evar_cancel; pure_ecancel.
+
+Ltac old_local_tac := local_cancel_in_syntactic_cancel careful_unify.
+Ltac cancel_for_evar_frame := cancel_for_evar_frame' ecancel_local_tac.
 
 Ltac info_cancel_local_tac :=
   (tryif try (cancel_local_tac; gfail 1)
