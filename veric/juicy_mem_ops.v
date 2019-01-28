@@ -315,7 +315,7 @@ Inductive AbsPrimcom : relation juicy_mem -> Prop :=
 *).
 Inductive AbsPrimexpr : pfunc juicy_mem val -> Prop :=.
 
-Instance abstract : GenericSemantics juicy_mem AbsPrimcom AbsPrimexpr.
+Instance abstract : GenericSemantics juicy_mem AbsPrimcom AbsPrimexpr := {}.
 
 Inductive ConcPrimcom : relation mem -> Prop :=
 | ConcPrimcom_store : forall ch b ofs v,
@@ -327,7 +327,7 @@ Inductive ConcPrimcom : relation mem -> Prop :=
 
 Inductive ConcPrimexpr : pfunc mem val -> Prop :=.
 
-Instance concrete : GenericSemantics mem ConcPrimcom ConcPrimexpr.
+Instance concrete : GenericSemantics mem ConcPrimcom ConcPrimexpr := {}.
 
 Inductive VU : relation juicy_mem -> relation mem -> Prop :=
 | VU_store : forall ch b ofs v,
