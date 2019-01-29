@@ -30,14 +30,14 @@ eapply semax_seq'. {
       [  ]
       [field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx].
   simpl sequence.
-  simple apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs gv Xv); auto.
+   apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs gv Xv); auto.
 }
 eapply semax_seq'. {
   semax_frame  [ ]
         [field_at wsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
          data_block sh (intlist_to_bytelist b) data].
   match goal with |- semax _ _ ?c _ => change c with block_data_order_loop2 end.
-  simple eapply sha256_block_data_order_loop2_proof; eassumption.
+  eapply sha256_block_data_order_loop2_proof; eassumption.
 }
 eapply seq_assocN with (cs := add_them_back). {
   semax_frame  [  lvar _X (tarray tuint 16) Xv ]

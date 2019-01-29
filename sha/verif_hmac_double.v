@@ -160,9 +160,11 @@ assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
 rewrite (split2_data_block 32 _ (dig2 ++ dig2))
  by (autorewrite with sublist; omega).
 autorewrite with sublist.
+match goal with |- data_at _ ?t1 _ _ * _ * _ |-- _ * _ * data_at_ _ ?t2 _ =>
+  change t2 with t1
+end.
 cancel.
 apply derives_refl'.
-  f_equal.
   rewrite field_address0_offset  by auto with field_compatible.
   reflexivity.
 Qed.
