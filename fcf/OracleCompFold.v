@@ -4,8 +4,8 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
 
 Local Open Scope list_scope.
 
@@ -64,7 +64,7 @@ Theorem oc_compMap_eq :
   
 Qed.
 
-Require Import fcf.PRF.
+Require Import FCF.PRF.
 
 Theorem compMap_randomFunc_NoDup : 
   forall (A B C: Set){eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}(ls : list A)(f : A -> B -> Comp C)(rndB : Comp B)(lsf : list (A * B)),

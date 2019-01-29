@@ -5,8 +5,8 @@
 (* A general purpose array indexed by an arbitrary type *)
 
 Set Implicit Arguments.
-Require Import fcf.Crypto.
-Require Import fcf.Fold.
+Require Import FCF.Crypto.
+Require Import FCF.Fold.
 
 Local Open Scope list_scope.
 
@@ -190,7 +190,7 @@ Definition arrayLookupList(A B : Set)(eqd : EqDec A)(ls : list (A * (list B)))(a
       | Some ls => ls
     end.
 
-Require Import fcf.CompFold.
+Require Import FCF.CompFold.
 
 Lemma arrayLookup_Some_In_unzip : 
   forall (A B : Set)(eqd : EqDec A)(arr : Array A B) a b,

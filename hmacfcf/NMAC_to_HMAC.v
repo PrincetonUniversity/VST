@@ -5,8 +5,8 @@ Set Implicit Arguments.
 
 (*Add LoadPath "../FCF".*)
 
-Require Import fcf.FCF.
-Require Import fcf.PRF.
+Require Import FCF.FCF.
+Require Import FCF.PRF.
 Require Import hmacfcf.splitVector.
 
 Require Import hmacfcf.HMAC_spec.

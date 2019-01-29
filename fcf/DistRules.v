@@ -5,12 +5,12 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.DistSem.
-Require Import fcf.Fold.
+Require Import FCF.DistSem.
+Require Import FCF.Fold.
 Require Import Permutation.
-Require Import fcf.SemEquiv.
-Require Import fcf.DetSem.
-Require Import fcf.NotationV1.
+Require Import FCF.SemEquiv.
+Require Import FCF.DetSem.
+Require Import FCF.NotationV1.
 
  
 Local Open Scope rat_scope.
@@ -881,8 +881,8 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   econstructor.
   eauto.
   simpl.
-  econstructor.
-  trivial.
+  2:eassumption.
+  constructor.
   
   inversion H2; clear H2; subst.
   simpl in *.
@@ -923,8 +923,8 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   econstructor.
   eauto.
   simpl.
-  econstructor.
-  trivial.
+  2:eassumption.
+  constructor.
   
   apply evalDet_steps_bind_eof_inv in H2.
   intuition.

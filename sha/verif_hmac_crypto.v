@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Require Import fcf.Blist.
+Require Import FCF.Blist.
 
 Require Import sha.vst_lemmas.
 Require Import sha.hmac_pure_lemmas.

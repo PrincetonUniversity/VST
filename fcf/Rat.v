@@ -6,7 +6,7 @@ Set Implicit Arguments.
 
 Require Import Omega.
 Require Import List.
-Require Import fcf.StdNat.
+Require Import FCF.StdNat.
 Require Import Arith.
 Require Import Lia.
 

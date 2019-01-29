@@ -12,10 +12,10 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
-Require Import fcf.RndNat.
-Require Export fcf.Hybrid.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
+Require Import FCF.RndNat.
+Require Export FCF.Hybrid.
 
 Local Open Scope list_scope.
 

@@ -6,9 +6,9 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.RndNat.
-Require Export fcf.GroupTheory.
+Require Import FCF.FCF.
+Require Import FCF.RndNat.
+Require Export FCF.GroupTheory.
 
 Local Open Scope group_scope.
 

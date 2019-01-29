@@ -4,8 +4,8 @@
 
 
 (* Sampling an element from a finite cyclic group *)
-Require Import fcf.FCF.
-Require Export fcf.GroupTheory.
+Require Import FCF.FCF.
+Require Export FCF.GroupTheory.
 
 Local Open Scope group_scope.
 

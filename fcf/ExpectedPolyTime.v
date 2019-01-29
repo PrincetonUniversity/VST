@@ -2,9 +2,9 @@
  * in the LICENSE file at the root of the source tree.		*)
 (* An axiomatization of expected polynomial time as a type class.  *)
 
-Require Import fcf.Crypto.
-Require Import fcf.Asymptotic.
-Require Import fcf.FCF.
+Require Import FCF.Crypto.
+Require Import FCF.Asymptotic.
+Require Import FCF.FCF.
 
 Definition procedure_family(A : nat -> Type) := forall n, A n.
 Definition efficiency_predicate := forall (A : nat -> Type), procedure_family A -> Prop.

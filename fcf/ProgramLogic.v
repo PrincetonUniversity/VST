@@ -2,9 +2,9 @@
  * in the LICENSE file at the root of the source tree.		*)
 Set Implicit Arguments.
 
-Require Import fcf.Crypto.
-Require Import fcf.Bernoulli.
-Require Import fcf.NotationV1.
+Require Import FCF.Crypto.
+Require Import FCF.Bernoulli.
+Require Import FCF.NotationV1.
 
 (* stuff that needs to go somewhere else *)
 

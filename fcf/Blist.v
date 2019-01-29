@@ -5,12 +5,12 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.StdNat.
+Require Import FCF.StdNat.
 Require Export List.
 Require Export Bvector.
 Require Import Omega.
-Require Import fcf.EqDec.
-Require Import fcf.Fold.
+Require Import FCF.EqDec.
+Require Import FCF.Fold.
 Require Import Coq.NArith.Ndigits.
 Require Import ZArith.
 Local Open Scope list_scope.

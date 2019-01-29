@@ -4,9 +4,9 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
+Require Import FCF.FCF.
 Require Import hmacfcf.HMAC_spec.
-Require Import fcf.PRF.
+Require Import FCF.PRF.
 Require Import hmacfcf.NMAC_to_HMAC.
 Require Import hmacfcf.hF.
 Require Import hmacfcf.GHMAC_PRF.

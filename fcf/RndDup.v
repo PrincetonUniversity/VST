@@ -3,8 +3,8 @@
 
 (* A basic argument about encountering a specific value in a list of randomly-generated values. *)
 
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
 
 Section RndDup.
 

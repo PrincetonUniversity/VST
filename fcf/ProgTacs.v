@@ -6,15 +6,15 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.Rat.
-Require Import fcf.Comp.
-Require Import fcf.DistRules.
-Require Import fcf.DistSem.
-Require Import fcf.StdNat.
-Require Import fcf.Fold.
-Require Import fcf.ProgramLogic.
-Require Import fcf.DistTacs.
-Require Import fcf.NotationV1.
+Require Import FCF.Rat.
+Require Import FCF.Comp.
+Require Import FCF.DistRules.
+Require Import FCF.DistSem.
+Require Import FCF.StdNat.
+Require Import FCF.Fold.
+Require Import FCF.ProgramLogic.
+Require Import FCF.DistTacs.
+Require Import FCF.NotationV1.
 
 Local Open Scope rat_scope.
 Local Open Scope comp_scope.

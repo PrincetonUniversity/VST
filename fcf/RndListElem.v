@@ -6,7 +6,7 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
+Require Import FCF.FCF.
 
 Section RndListElem.
 

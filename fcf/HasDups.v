@@ -4,8 +4,8 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
 Local Open Scope list_scope.
 
 Fixpoint hasDups (A : Set)(eqd : EqDec A)(ls : list A) :=
@@ -107,7 +107,7 @@ Theorem Permutation_hasDups :
      
 Qed.
 
-Require Import fcf.RndInList.
+Require Import FCF.RndInList.
 
 Section DupProb.
 

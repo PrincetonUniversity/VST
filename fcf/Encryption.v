@@ -6,9 +6,9 @@
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Require Import fcf.FCF.
-Require Import fcf.CompFold.
-Require Export fcf.Hybrid.
+Require Import FCF.FCF.
+Require Import FCF.CompFold.
+Require Export FCF.Hybrid.
 
 Local Open Scope type_scope.
 Local Open Scope comp_scope.
@@ -349,8 +349,8 @@ Section Encryption_SecretKey_concrete.
 
 End Encryption_SecretKey_concrete.
 
-Require Import fcf.Asymptotic.
-Require Import fcf.Admissibility.
+Require Import FCF.Asymptotic.
+Require Import FCF.Admissibility.
 
 Section Encryption_SecretKey.
 

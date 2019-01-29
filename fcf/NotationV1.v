@@ -3,7 +3,7 @@
  * in the LICENSE file at the root of the source tree.		*)
 Set Implicit Arguments.
 
-Require Import fcf.Comp.
+Require Import FCF.Comp.
 
 Local Open Scope comp_scope.
 

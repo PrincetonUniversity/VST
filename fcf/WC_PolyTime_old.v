@@ -4,7 +4,7 @@
 
 (* An efficiency predicate that characterizes of non-uniform PPT turing machines.  *)
 
-Require Import fcf.Crypto.
+Require Import FCF.Crypto.
 Set Implicit Arguments.
 
 Definition CostModel := forall (A B : Type), (A -> B) -> nat -> Prop.
@@ -303,7 +303,7 @@ Section constant_cost_theory.
   
 End constant_cost_theory.
 
-Require Import fcf.Asymptotic.
+Require Import FCF.Asymptotic.
 
 Definition poly_time_nonuniform(cost : CostModel)(A B : nat -> Type)(f : forall n, (A n) -> (B n)) :=
   exists x, polynomial x /\

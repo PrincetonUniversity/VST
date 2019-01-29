@@ -7,11 +7,11 @@
 Set Implicit Arguments.
 
 Require Import Arith.
-Require Import fcf.Fold.
+Require Import FCF.Fold.
 Require Import List.
 
-Require Import fcf.StdNat.
-Require Import fcf.Rat.
+Require Import FCF.StdNat.
+Require Import FCF.Rat.
 
 Section Limit.
 

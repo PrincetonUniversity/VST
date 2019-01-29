@@ -6,9 +6,9 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.Crypto.
+Require Import FCF.Crypto.
 Require Import Permutation.
-Require Import fcf.NotationV1.
+Require Import FCF.NotationV1.
   
 Definition RndNat_unchecked(n : nat) :=
   v <-$ {0,1} ^ (lognat n);

@@ -4,7 +4,7 @@
 (* Definitions for public key encryption. *)
 
 Set Implicit Arguments.
-Require Import fcf.FCF.
+Require Import FCF.FCF.
 
 Local Open Scope rat_scope.
 Local Open Scope list_scope.

@@ -4,7 +4,7 @@
 Set Implicit Arguments.
 
 Require Import List.
-Require Import fcf.Fold.
+Require Import FCF.Fold.
 
 Section In_gen.
   Variable A : Type.
@@ -211,7 +211,7 @@ Section NoDup_gen_map.
   
 End NoDup_gen_map.
 
-Require Import fcf.RepeatCore.
+Require Import FCF.RepeatCore.
  
 Theorem In_gen_weaken : 
   forall (A : Type)(e1 e2 : A -> A -> Prop) ls a,

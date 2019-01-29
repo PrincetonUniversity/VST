@@ -201,7 +201,8 @@ Fixpoint BvIsZero n (v : Bvector n) : bool  :=
   end.
 *)
 
-Instance unit_EqDec : EqDec unit := {eqb := (fun x y => true)}.
+Instance unit_EqDec : EqDec unit.
+refine {| eqb := (fun x y => true) |}.
 
 intuition.
 destruct x.
@@ -210,7 +211,8 @@ trivial.
 
 Qed.
 
-Instance bool_EqDec : EqDec bool := {eqb := Bool.eqb}.
+Instance bool_EqDec : EqDec bool.
+refine {| eqb := Bool.eqb |}.
 eapply eqb_true_iff.
 Qed.
 
@@ -235,7 +237,8 @@ Theorem eqbBvector_complete : forall n (v : Bvector n),
   apply eqb_vector_refl.
 Qed.
  
-Instance Bvector_EqDec : forall n, EqDec (Bvector n) := {eqb := (@eqbBvector n)}.
+Instance Bvector_EqDec n : EqDec (Bvector n).
+refine {| eqb := (@eqbBvector n) |}.
 intuition.
 eapply eqbBvector_sound; auto.
 intuition.
@@ -244,7 +247,8 @@ eapply eqbBvector_complete; eauto.
 Defined.
 
 
-Instance nat_EqDec : EqDec nat := {eqb := (fun x y => (leb x y) && (leb y x))}.
+Instance nat_EqDec : EqDec nat.
+refine {| eqb := (fun x y => (leb x y) && (leb y x)) |}.
 
 intuition.
 apply andb_true_iff in H.
@@ -261,7 +265,8 @@ Qed.
 Definition eqbPair (A B : Set)(dA : EqDec A)(dB : EqDec B)(p1 p2 : (A*B)) :=
   (eqb (fst p1) (fst p2)) && (eqb (snd p1) (snd p2)).
 
-Instance pair_EqDec : forall (A B : Set)(dA : EqDec A)(dB : EqDec B), EqDec (prod A B) := {eqb := (@eqbPair A B dA dB)}.
+Instance pair_EqDec (A B : Set) (dA : EqDec A) (dB : EqDec B) : EqDec (prod A B).
+refine {| eqb := (@eqbPair A B dA dB) |}.
 
 intuition; unfold eqbPair in *; simpl in *.
 apply andb_true_iff in H.
@@ -288,8 +293,9 @@ Definition eqbSum(A B : Set)(dA : EqDec A)(dB : EqDec B)(s1 s2 : (A + B)) :=
     end
   end.
 
-Instance sum_EqDec : forall (A B : Set)(dA : EqDec A)(dB : EqDec B), 
-    EqDec (sum A B) := {eqb := (@eqbSum A B dA dB)}.
+Instance sum_EqDec (A B : Set) (dA : EqDec A) (dB : EqDec B) :
+    EqDec (sum A B).
+refine {| eqb := (@eqbSum A B dA dB) |}.
 
 intuition; unfold eqbSum in *; try
 match goal with
@@ -315,7 +321,8 @@ Definition eqbOption (A : Set)(dA : EqDec A)(o1 o2 : option A) :=
       end
   end.
 
-Instance option_EqDec : forall (A : Set)(dA : EqDec A), EqDec (option A) := {eqb := (@eqbOption A dA )}.
+Instance option_EqDec (A : Set) (dA : EqDec A) : EqDec (option A).
+refine {| eqb := (@eqbOption A dA ) |}.
 
 intuition; unfold eqbOption in *; simpl in *.
 destruct x.
@@ -376,8 +383,8 @@ Lemma eqbList_correct2 : forall (A : Set)(eqd : EqDec A) ls1 ls2,
   trivial.
 Qed.
 
-Instance list_EqDec : forall (A : Set)(dA : EqDec A), EqDec (list A) := {eqb := (@eqbList A dA )}.
-
+Instance list_EqDec (A : Set) (dA : EqDec A) : EqDec (list A).
+refine {| eqb := (@eqbList A dA ) |}.
 intuition.
 eapply eqbList_correct1; trivial.
 eapply eqbList_correct2; trivial.

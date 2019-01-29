@@ -4,7 +4,7 @@
 (* Operations that fold and map a computation over a list, and related theory. *)
 
 Set Implicit Arguments.
-Require Import fcf.FCF.
+Require Import FCF.FCF.
 
 Local Open Scope list_scope.
 

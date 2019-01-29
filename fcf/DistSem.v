@@ -6,14 +6,14 @@
 
 Set Implicit Arguments.
 
-Require Export fcf.Comp.
-Require Export fcf.Rat.
-Require Import fcf.Fold.
+Require Export FCF.Comp.
+Require Export FCF.Rat.
+Require Import FCF.Fold.
 Require Import List.
-Require Import fcf.Blist.
+Require Import FCF.Blist.
 Require Import Omega.
-Require Import fcf.StdNat.
-Require Import fcf.NotationV1.
+Require Import FCF.StdNat.
+Require Import FCF.NotationV1.
  
  
 Local Open Scope list_scope.

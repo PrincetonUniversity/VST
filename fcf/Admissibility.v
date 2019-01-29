@@ -5,7 +5,7 @@
 (* Some basic definitions used in cost models, admissibility predicates, etc. *)
 Set Implicit Arguments.
 
-Require Import fcf.Comp.
+Require Import FCF.Comp.
 
 Definition DataTypeFamily := nat -> Set.
 

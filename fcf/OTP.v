@@ -5,7 +5,7 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
+Require Import FCF.FCF.
 
 Definition D := evalDist.
 Definition dist_iso := evalDist_iso.
@@ -176,8 +176,8 @@ End xor_OTP.
 
 
 (* OTP for cyclic groups *)
-Require Import fcf.RndNat.
-Require Import fcf.RndGrpElem.
+Require Import FCF.RndNat.
+Require Import FCF.RndGrpElem.
 
 Local Open Scope group_scope.
 

@@ -3,10 +3,10 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.Crypto.
-Require Import fcf.Encryption.
-Require Import fcf.CompFold.
-Require Import fcf.FCF.
+Require Import FCF.Crypto.
+Require Import FCF.Encryption.
+Require Import FCF.CompFold.
+Require Import FCF.FCF.
 
 Section EncryptClassify.
 

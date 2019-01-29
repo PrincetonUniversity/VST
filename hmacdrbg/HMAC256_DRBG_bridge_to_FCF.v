@@ -1,18 +1,18 @@
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import VST.floyd.functional_base.
-(*Require Import fcf.HMAC_DRBG_definitions_only.*)
-Require Import fcf.HMAC_DRBG_nonadaptive.
+(*Require Import FCF.HMAC_DRBG_definitions_only.*)
+Require Import FCF.HMAC_DRBG_nonadaptive.
 Require Import sha.ByteBitRelations.
 Require Import BinInt.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
 Require Import sha.HMAC256_functional_prog.
-Require Import fcf.DetSem.
+Require Import FCF.DetSem.
 Require Import sha.general_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 Require Import compcert.lib.Coqlib.
-Require Import fcf.Fold.
+Require Import FCF.Fold.
 Import ListNotations.
 
 Lemma false_zgt z a: false = (z >? a) -> z<=a. 
@@ -99,7 +99,7 @@ Proof.
   rewrite <- Heqp. rewrite Zlength_cons. omega. 
 Qed. 
 
-(*Variant of fcf.HMAC_DRBG_definitions_only.Gen_loop that
+(*Variant of FCF.HMAC_DRBG_definitions_only.Gen_loop that
   - specializes eta to 256
   - specializes f to HMAC256
   - replaces v'::bits with bits++[v']*)
@@ -432,7 +432,7 @@ Opaque mult.
 Lemma GenerateCorrect RI k v z n (Z: (z<=RI)%Z) (N:(0<n)%nat):
   match GenUpdate_original_Zlist (k,v) n with (blocks,(k',v')) => 
     FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = 
-    generate_algorithm_success (firstn ((32 * n)%nat) (fcf.Fold.flatten (rev blocks))) (v',k',(z+1)%Z) 
+    generate_algorithm_success (firstn ((32 * n)%nat) (FCF.Fold.flatten (rev blocks))) (v',k',(z+1)%Z) 
   end.
 Proof. remember (GenUpdate_original_Zlist (k, v) n) as p; destruct p as [kk [vv zz]]; symmetry in Heqp. 
   unfold GenUpdate_original_Zlist in Heqp.
@@ -674,7 +674,7 @@ Proof.
  rewrite H. omega.
 Qed.  
 
-Require Import fcf.FCF.
+Require Import FCF.FCF.
 Definition AsGame {A} f (a:A) : Comp (list (Bvector 256) * KV 256) := ret(f a).
 Definition Generate_refactored state := AsGame (GenUpdate_original_core state). 
 

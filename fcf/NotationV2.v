@@ -5,7 +5,7 @@ Set Implicit Arguments.
 
 (* An attempt at uniform notation.  It works okay for writing definitions, but eventually you have to leave the monad in a proof, and then you lose the notation.  So this approach probably won't work very well. *)
 
-Require Import fcf.Comp.
+Require Import FCF.Comp.
 
 Class Monad
       (M : Set -> Type) :=

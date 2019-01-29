@@ -35,7 +35,7 @@ ANNOTATE=silent   # suppress chatty output from coqc
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86
-OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
+OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
@@ -413,7 +413,7 @@ FILES = \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
- $(FCF_FILES:%=fcf/%) \
+ $(FCF_FILES:%=FCF/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
@@ -510,7 +510,7 @@ wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
 hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
-fcf:     _CoqProject $(FCF_FILES:%.v=fcf/%.vo)
+FCF:     _CoqProject $(FCF_FILES:%.v=FCF/%.vo)
 hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: _CoqProject $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: _CoqProject sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
