@@ -125,72 +125,73 @@ unfold flip_ends.
 autorewrite with sublist. auto.
 Qed.
 
+Hint Rewrite @Znth_rev using Zlength_solve : Znth_solve.
+Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
-forward.  (* lo = 0; *)
-forward. (* hi = n; *)
+repeat step.
 
 assert_PROP (Zlength (map Vint contents) = size)
     as ZL by entailer!.
 forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
-Exists 0.
-entailer!.
-unfold flip_ends; autorewrite with sublist; auto.
+repeat step.
+apply data_at_data_at_cancel.
+unfold flip_ends.
+apply (Znth_eq_ext _ Inhabitant_val).
+- Zlength_solve. (* why slow? *)
+- autorewrite with Zlength. intros. Znth_solve.
+  do 2 f_equal. omega.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 * (* Prove that loop body preserves invariant *)
-forward. (* t = a[lo]; *)
-{
-  entailer!.
-  clear - H0 HRE.
-  autorewrite with sublist in *|-*.
-  rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
-  apply I.
-}
-forward.  (* s = a[hi-1]; *)
-{
-  entailer!.
-  clear - H H0 HRE.
-  autorewrite with sublist in *|-*.
-  rewrite flip_ends_map.
-  rewrite Znth_map by list_solve.
-  apply I.
-}
-rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
-forward. (*  a[hi-1] = t; *)
-forward. (* a[lo] = s; *)
-forward. (* lo++; *)
-forward. (* hi--; *)
-(* Prove postcondition of loop body implies loop invariant *)
- Exists (Z.succ j).
- entailer!.
- f_equal; f_equal; omega.
- simpl.
- apply derives_refl'.
- unfold data_at.    f_equal.
- clear - H0 HRE H1.
- unfold Z.succ.
- rewrite <- flip_fact_3 by auto.
- rewrite <- (Znth_map (Zlength (map Vint contents)-j-1) Vint) by (autorewrite with sublist in *; list_solve).
- forget (map Vint contents) as al. clear contents.
- remember (Zlength al) as size.
- repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
- unfold upd_Znth.
- rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try omega).
- rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
- rewrite ?Zlength_flip_ends by omega.
- rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; omega).
- unfold Z.succ. rewrite <- Heqsize. autorewrite with sublist.
- replace (size - j - 1 + (1 + j)) with size by (clear; omega).
- reflexivity.
+(* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
+autorewrite with sublist in * |-.
+forward.
+progress_entailer.
+autorewrite with sublist in * |-. { unfold flip_ends. Znth_solve. }
+forward.
+progress_entailer.
+autorewrite with sublist in * |-. { unfold flip_ends. Znth_solve. }
+forward.
+forward.
+forward.
+autorewrite with norm.
+forward.
+autorewrite with norm.
+Exists (j+1). (* put value here because entailer! did wrong unification *)
+repeat info_step.
++ do 2 f_equal. omega.
++ apply data_at_data_at_cancel. unfold flip_ends.
+  apply (Znth_eq_ext _ Inhabitant_val).
+  Zlength_solve.
+  autorewrite with Zlength.
+  unfold upd_Znth. intros. list_form.
+  Time Znth_solve. (* This takes quite a few minutes *)
+  (* Finished transaction in 435.348 secs (433.171u,0.218s) (successful) *)
+  - do 2 f_equal. omega.
+  - do 2 f_equal. omega.
+  - do 2 f_equal. omega.
+  - do 2 f_equal. omega.
+  - do 2 f_equal. omega.
 * (* after the loop *)
 forward. (* return; *)
-rewrite map_rev. rewrite flip_fact_1; try omega; auto.
-cancel.
-Qed.
+apply data_at_data_at_cancel. unfold flip_ends.
+autorewrite with Zlength in * |-.
+apply (Znth_eq_ext _ Inhabitant_val).
+Require Import Coq.Program.Tactics.
+Ltac Zlength_solve ::= show_goal; autorewrite with Zlength; pose_Zlength_nonneg; omega.
+Time Zlength_solve. (* example of slow rewrite *)
+autorewrite with Zlength in *.
+intros.
+Znth_solve.
+- do 2 f_equal. omega.
+- do 2 f_equal. omega.
+- do 2 f_equal. omega.
+Time Qed.
+(* Finished transaction in 53.902 secs (53.859u,0.s) (successful) *)
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 

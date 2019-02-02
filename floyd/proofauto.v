@@ -207,6 +207,20 @@ Hint Rewrite Zlist_repeat_fold upd_Znth_unfold Znth_singleton_sublist cons_Zlist
 Hint Rewrite Znth_Zlist_repeat_1_sublist using Zlength_solve: list_form.
 Hint Rewrite <- Znth_map using Zlength_solve: list_form.
 
+Lemma Znth_map2 : forall (B : Type) (db : Inhabitant B) (A : Type) (da : Inhabitant A) (i : Z) (f : A -> B) (al : list A),
+  0 <= i < Zlength al ->
+  Znth i (map f al) = f (Znth i al).
+Proof. intros. apply Znth_map; auto. Qed.
+
+Hint Rewrite <- (@Znth_map2 float32 Inhabitant_float32) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 ptrofs Inhabitant_ptrofs) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 int64 Inhabitant_int64) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 byte Inhabitant_byte) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 int Inhabitant_int) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 val Inhabitant_val) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 Z Inhabitant_Z) using Zlength_solve : list_form.
+Hint Rewrite <- (@Znth_map2 nat Inhabitant_nat) using Zlength_solve : list_form.
+
 Ltac list_form :=
   autorewrite with list_form.
 
@@ -290,18 +304,66 @@ Ltac list_deduce :=
 
 Hint Rewrite @sublist_sublist using Zlength_solve : sublist2.
 
-Lemma Znth_map2 : forall (B : Type) (db : Inhabitant B) (A : Type) (da : Inhabitant A) (i : Z) (f : A -> B) (al : list A),
-  0 <= i < Zlength al ->
-  Znth i (map f al) = f (Znth i al).
-Proof. intros. apply Znth_map; auto. Qed.
 
-Hint Rewrite <- (@Znth_map2 float32 Inhabitant_float32) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 ptrofs Inhabitant_ptrofs) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 int64 Inhabitant_int64) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 byte Inhabitant_byte) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 int Inhabitant_int) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 val Inhabitant_val) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 Z Inhabitant_Z) using Zlength_solve : list_form.
-Hint Rewrite <- (@Znth_map2 nat Inhabitant_nat) using Zlength_solve : list_form.
 
+
+
+
+
+(* solve list equation by list extentionality *)
+Lemma nth_eq_ext : forall (A : Type) (default : A) (al bl : list A),
+  length al = length bl ->
+  (forall (i : nat), (0 <= i < length al)%nat -> nth i al default = nth i bl default) ->
+  al = bl.
+Proof.
+  intros. generalize dependent bl.
+  induction al; intros;
+    destruct bl; try discriminate; auto.
+  f_equal.
+  - apply (H0 0%nat). simpl. omega.
+  - apply IHal.
+    + simpl in H. omega.
+    + intros. apply (H0 (S i)). simpl. omega.
+Qed.
+
+Lemma Znth_eq_ext : forall (A : Type) (d : Inhabitant A) (al bl : list A),
+  Zlength al = Zlength bl ->
+  (forall (i : Z), 0 <= i < Zlength al -> Znth i al = Znth i bl) ->
+  al = bl.
+Proof.
+  intros. rewrite !Zlength_correct in *. apply nth_eq_ext with d.
+  - omega.
+  - intros. rewrite  <- (Nat2Z.id i).
+    specialize (H0 (Z.of_nat i) ltac:(omega)).
+    rewrite !nth_Znth by (rewrite !Zlength_correct in *; omega).
+    apply H0.
+Qed.
+
+Hint Resolve Znth_eq_ext : list_ext.
+
+Hint Rewrite @Znth_list_repeat_inrange using Zlength_solve : Znth_solve.
+Hint Rewrite @Znth_sublist using Zlength_solve : Znth_solve.
+Hint Rewrite app_Znth1 app_Znth2 using Zlength_solve : Znth_solve.
+Hint Rewrite Znth_Zlist_repeat using Zlength_solve : Znth_solve.
+
+Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_byte) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_int) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_Z) using Zlength_solve : Znth_solve.
+Hint Rewrite (@Znth_map _ Inhabitant_nat) using Zlength_solve : Znth_solve.
+
+Ltac Znth_solve :=
+  autorewrite with Znth_solve;
+  autorewrite with Zlength;
+  auto;
+  try match goal with
+  | |- context [Znth ?n (app ?al ?bl)] =>
+    let H := fresh in
+    pose (H := Z_lt_le_dec n (Zlength al));
+    autorewrite with Zlength in H; destruct H;
+    Znth_solve
+  end.
 

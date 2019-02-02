@@ -1,4 +1,5 @@
 Require Import VST.floyd.proofauto.
+Require Import Coq.Program.Tactics.
 
 Lemma strcat_clause : forall n ld,
   map Vbyte (ld ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef =
@@ -30,5 +31,18 @@ Proof.
   all : f_equal; Zlength_solve.
 Qed.
 
+Ltac Zlength_solve ::= show_goal; autorewrite with Zlength; pose_Zlength_nonneg; omega.
+
+Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+Lemma revarray_same_length : forall j contents,
+  0 <= j <= Zlength contents - j ->
+  Zlength
+  (sublist 0 j (rev (map Vint contents)) ++
+   sublist j (Zlength (map Vint contents) - j) (map Vint contents) ++
+   sublist (Zlength (map Vint contents) - j) (Zlength (map Vint contents)) (rev (map Vint contents))) =
+Zlength (map Vint (rev contents)).
+Proof.
+  intros. Zlength_solve.
+ 
 
 
