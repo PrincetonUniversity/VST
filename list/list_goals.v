@@ -46,6 +46,9 @@ Lemma revarray_same_length : forall (i : Z) j contents,
 Zlength (map Vint (rev contents)).
 Proof.
   intros.
+  
+  rewrite Zlength_app.
+  Show Proof.
   Ltac dup :=
     match goal with
     | |- ?Goal => assert Goal
