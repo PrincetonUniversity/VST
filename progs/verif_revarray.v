@@ -183,6 +183,27 @@ autorewrite with Zlength in * |-.
 apply (Znth_eq_ext _ Inhabitant_val).
 Require Import Coq.Program.Tactics.
 Ltac Zlength_solve ::= show_goal; autorewrite with Zlength; pose_Zlength_nonneg; omega.
+assert (forall (T : Type) (al bl : list T), Zlength (al ++ bl) = Zlength al + Zlength bl).
+intros.
+Ltac dup :=
+    match goal with
+    | |- ?Goal => assert Goal
+    end;
+    only 2:
+    match goal with
+    | H : ?Goal |- ?Goal => clear H
+    end.
+  Set Ltac Profiling.
+  do 6 dup;
+  rewrite Zlength_app.
+  Show Ltac Profile.
+Set Ltac Profiling.
+rewrite Zlength_app.
+rewrite Zlength_app.
+rewrite Zlength_sublist by Zlength_solve.
+Show Ltac Profile.
+ by Zlength_solve.
+  Zlength_solve.
 Time Zlength_solve. (* example of slow rewrite *)
 autorewrite with Zlength in *.
 intros.
