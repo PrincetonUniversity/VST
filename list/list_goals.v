@@ -34,15 +34,37 @@ Qed.
 Ltac Zlength_solve ::= show_goal; autorewrite with Zlength; pose_Zlength_nonneg; omega.
 
 Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
-Lemma revarray_same_length : forall j contents,
+Lemma revarray_same_length : forall (i : Z) j contents,
   0 <= j <= Zlength contents - j ->
+  j >= Zlength contents - j - 1 ->
+  0 <= j ->
+  j <= Zlength contents - j ->
   Zlength
   (sublist 0 j (rev (map Vint contents)) ++
    sublist j (Zlength (map Vint contents) - j) (map Vint contents) ++
    sublist (Zlength (map Vint contents) - j) (Zlength (map Vint contents)) (rev (map Vint contents))) =
 Zlength (map Vint (rev contents)).
 Proof.
-  intros. Zlength_solve.
+  intros.
+  
+  rewrite Zlength_app.
+  Show Proof.
+  Ltac dup :=
+    match goal with
+    | |- ?Goal => assert Goal
+    end;
+    only 2:
+    match goal with
+    | H : ?Goal |- ?Goal => clear H
+    end.
+  Set Ltac Profiling.
+  do 6 dup;
+  rewrite Zlength_app.
+  Show Ltac Profile.
+  Set Ltac Profiling.
+  Zlength_solve.
+  Show Ltac Profile.
+  
  
 
 
