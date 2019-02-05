@@ -276,7 +276,16 @@ first [simple apply quick_finish_lower
 unfold_for_go_lower;
 simpl; rewrite ?sepcon_emp;
 repeat match goal with
-| H: eval_id ?i rho = ?v |- _ =>
+| H: eval_id ?i rho = ?v |- ?G =>
+ try (match G with
+       | context [?v' = eval_id i rho] => 
+        has_evar v'; unify v v'
+(*  UNIFICATION OF LOCAL "temp" variables.
+     A more conservative version would be,
+       | context [Vint (Int.repr ?v') = eval_id i rho] => 
+        is_evar v'; unify v (Vint (Int.repr v'))
+*)
+        end);
  first [rewrite ?H in *; clear H; match goal with
                | H:context[eval_id i rho]|-_ => fail 2
                | |- _ => idtac
@@ -872,6 +881,13 @@ Ltac intro_PROP :=
 Fixpoint app_Prop (al bl: list Prop) :=
  match al with a::al' => a :: app_Prop al' bl | nil => bl end.
 
+Ltac unify_for_go_lower :=
+    try match goal with |- _ |-- !! fold_right_and True (app_Prop _ ?B) && _ =>
+      repeat match B with context [(?x = ?y) :: _] =>
+       has_evar x; progress (unify x y)
+      end
+    end.
+
 Ltac simpl_for_go_lower :=
  match goal with |- _ |-- ?A =>
      simpl msubst_denote_tc_assert;
@@ -879,6 +895,7 @@ Ltac simpl_for_go_lower :=
      simpl tc_val;
    change (fold_right and True (@app Prop ?A ?B))
       with (fold_right_and True (app_Prop A B));
+    unify_for_go_lower;
     unfold app_Prop, fold_right_and;
     unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp
  end.

@@ -799,4 +799,3 @@ Qed.
 
 End Alternate.
 
-
