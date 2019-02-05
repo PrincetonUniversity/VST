@@ -854,4 +854,3 @@ Qed.
 
 End Alternate.
 
-

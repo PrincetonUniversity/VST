@@ -1129,14 +1129,18 @@ Ltac new_sep_apply_in_entailment originalH evar_tac prop_tac :=
     lazymatch type of H with
     | forall x:?T, _ =>
       lazymatch type of T with
-      | Prop => let H' := fresh "H" in assert (H':T); revgoals; [sep_apply_in_entailment_rec (H H'); clear H' | prop_tac]; revgoals
+      | Prop => let H' := fresh "H" in assert (H':T);
+           [ | sep_apply_in_entailment_rec (H H'); clear H'];
+           [ prop_tac | .. ]
       | _ => my_unshelve_evar x T
         ltac:(fun x => sep_apply_in_entailment_rec (H x))
         evar_tac
       end
     | ?T -> _ =>
       lazymatch type of T with
-      | Prop => let H' := fresh "H" in assert (H':T); revgoals; [sep_apply_in_entailment_rec (H H'); clear H' | prop_tac]; revgoals
+      | Prop => let H' := fresh "H" in assert (H':T);
+           [ | sep_apply_in_entailment_rec (H H'); clear H'];
+           [ prop_tac | .. ]
       | _ => let x := fresh "arg" in
         my_unshelve_evar x T
           ltac:(fun x => sep_apply_in_entailment_rec (H x))
