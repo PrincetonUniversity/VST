@@ -17,11 +17,32 @@ Qed.
 
 Hint Resolve corable_funassert.
 
-Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
+Definition allp_fun_id_strong (Delta : tycontext) (rho : environ): pred rmap :=
 (ALL id : ident ,
  (ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
   (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_at fs (b, 0)))).
+
+Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
+(ALL id : ident ,
+ (ALL fs : funspec ,
+  !! ((glob_specs Delta) ! id = Some fs) -->
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && 
+    match fs with
+    mk_funspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
+    end))).
+
+Lemma allp_fun_id_strong_implies Delta rho: 
+  allp_fun_id_strong Delta rho |--  allp_fun_id Delta rho.
+Proof.
+  apply allp_derives; intros id.
+  apply allp_derives; intros fs.
+  apply imp_derives; auto.
+  intros ? ?; simpl in *.
+  destruct H as [b [B1 B2]].
+  exists b; split; [trivial |]. destruct fs.
+  eexists; apply B2.
+Qed.
 
 Lemma corable_allp_fun_id: forall Delta rho,
   corable (allp_fun_id Delta rho).
@@ -32,11 +53,28 @@ Proof.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  apply corable_func_at.
+  (*apply corable_func_at.*) destruct fs. apply corable_exp; intros cc. apply corable_pureat.
 Qed.
   
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
+  tycontext_subsume Delta Delta' ->
+  allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
+Proof.
+  intros.
+  unfold allp_fun_id.
+  apply allp_derives; intros id. 
+  intros w W fs u WU FS.
+  destruct H as [_ [_ [_ [_ [? _]]]]].
+  specialize (H id).
+  hnf in H.
+  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  destruct (W gs u WU GSA) as [b [B1 B2]].
+  exists b; split; [trivial | destruct fs; destruct gs]. 
+  destruct GSB as [[GSBa GCBb] _]. subst c0 f0. trivial. 
+Qed.
+(*old proof
+Lemma allp_fun_id_strong_sub: forall Delta Delta' rho,
+  tycontext_subsume Delta Delta' ->
   allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
 Proof.
   intros.
@@ -51,15 +89,23 @@ Proof.
   rewrite H0 in H.
   destruct ((glob_specs Delta') ! id); [| tauto].
   auto.
-Qed.
+Qed.*)
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
-  tycontext_sub Delta Delta' ->
+  tycontext_subsume Delta Delta' ->
   funassert Delta' rho |-- allp_fun_id Delta rho.
 Proof.
   intros.
-  apply andp_left1.
-  apply allp_fun_id_sub; auto.
+  (*old proof: apply andp_left1; apply allp_fun_id_sub. auto.*)
+  apply andp_left1. apply allp_derives; intros id. 
+  intros w W fs u WU FS.
+  destruct H as [_ [_ [_ [_ [? _]]]]].
+  specialize (H id).
+  hnf in H.
+  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  specialize (W gs u WU GSA) as [b [B1 B2]].
+  exists b; split; [trivial | destruct fs; destruct gs]. 
+  destruct GSB as [[GSBa GCBb] _]. subst c0 f0. eexists. apply B2.
 Qed.
 (*
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
@@ -85,7 +131,7 @@ Qed.
 Section STABILITY.
 Variable CS: compspecs.
 Variables Delta Delta': tycontext.
-Hypothesis extends: tycontext_sub Delta Delta'.
+Hypothesis extends: tycontext_subsume Delta Delta'.
 
 Lemma tc_bool_e_sub: forall b b' err rho phi,
   (b = true -> b' = true) ->

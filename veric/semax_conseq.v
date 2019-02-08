@@ -409,7 +409,7 @@ Qed.
 
 Lemma _guard_allp_fun_id:
   forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) f k,
-    tycontext_sub Delta Delta' ->
+    tycontext_subsume Delta Delta' ->
     _guard Espec ge Delta' (fun rho => F rho * P rho) f k = _guard Espec ge Delta' (fun rho => F rho * (allp_fun_id Delta rho && P rho)) f k.
 Proof.
   intros.
@@ -428,7 +428,7 @@ Proof.
 Qed.
 
 Lemma guard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) k,
-  tycontext_sub Delta Delta' ->
+  tycontext_subsume Delta Delta' ->
   guard Espec ge Delta' (fun rho => F rho * P rho) k = guard Espec ge Delta' (fun rho => F rho * (allp_fun_id Delta rho && P rho)) k.
 Proof.
   intros.
@@ -436,7 +436,7 @@ Proof.
 Qed.
 
 Lemma rguard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta (F: environ -> pred rmap) P k,
-  tycontext_sub Delta Delta' ->
+  tycontext_subsume Delta Delta' ->
   rguard Espec ge Delta' (frame_ret_assert P F) k = rguard Espec ge Delta' (frame_ret_assert (conj_ret_assert P (allp_fun_id Delta)) F) k.
 Proof.
   intros.
@@ -450,7 +450,7 @@ Qed.
 
 Lemma _guard_tc_environ:
   forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) f k,
-    tycontext_sub Delta Delta' ->
+    tycontext_subsume Delta Delta' ->
     _guard Espec ge Delta' (fun rho => F rho * P rho) f k = _guard Espec ge Delta' (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) f k.
 Proof.
   intros.
@@ -470,7 +470,7 @@ Proof.
 Qed.
 
 Lemma guard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) k,
-  tycontext_sub Delta Delta' ->
+  tycontext_subsume Delta Delta' ->
   guard Espec ge Delta' (fun rho => F rho * P rho) k = guard Espec ge Delta' (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) k.
 Proof.
   intros.
@@ -478,7 +478,7 @@ Proof.
 Qed.
 
 Lemma rguard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta (F: environ -> pred rmap) P k,
-  tycontext_sub Delta Delta' ->
+  tycontext_subsume Delta Delta' ->
   rguard Espec ge Delta' (frame_ret_assert P F) k = rguard Espec ge Delta' (frame_ret_assert (conj_ret_assert P (fun rho => !! typecheck_environ Delta rho)) F) k.
 Proof.
   intros.

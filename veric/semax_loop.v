@@ -323,14 +323,14 @@ Proof.
   clear Delta TS.
   generalize H; rewrite semax_unfold; intros H'.
 (*  change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.*)
-  specialize (H' psi Delta' (level a2) (tycontext_sub_refl _) HGG Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
+  specialize (H' psi Delta' (level a2) (tycontext_subsume_refl _) HGG Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
   spec H'.
   {
   intros ek vl.
   destruct ek.
   + simpl exit_cont.
     rewrite semax_unfold in H0.
-    specialize (H0 psi _ (level a2) (tycontext_sub_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
+    specialize (H0 psi _ (level a2) (tycontext_subsume_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
     spec H0.
     {
       intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
@@ -394,7 +394,7 @@ Proof.
     intros tx2 vx2. cbv zeta. simpl seplog.sepcon.
     destruct POST; simpl tycontext.RA_continue.
     rewrite semax_unfold in H0.
-    eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
+    eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_subsume_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
     {
       apply derives_subp.
       apply andp_derives; auto.

@@ -14,6 +14,7 @@ Require Import VST.veric.expr_lemmas2.
 Require Export VST.veric.expr_lemmas3.
 Require Export VST.veric.expr_lemmas4.
 Require Import VST.veric.juicy_mem.
+Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
@@ -599,7 +600,7 @@ end.
 
 Lemma typecheck_tid_ptr_compare_sub:
    forall Delta Delta',
-    tycontext_sub Delta Delta' ->
+    tycontext_subsume Delta Delta' ->
     forall id, typecheck_tid_ptr_compare Delta id = true ->
                 typecheck_tid_ptr_compare Delta' id = true.
 Proof.

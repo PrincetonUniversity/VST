@@ -31,7 +31,7 @@ Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
   (forall jm jm1 Delta' ge ve te rho k F,
-              tycontext_sub Delta Delta' ->
+              tycontext_subsume Delta Delta' ->
               app_pred (B rho) (m_phi jm) ->
               guard_environ Delta' (current_function k) rho ->
               closed_wrt_modvars c F ->
@@ -685,7 +685,7 @@ pose proof TC3 as TC3'.
 apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
 assert (typeof_temp Delta' id = Some t) as H97.
   unfold typeof_temp in *.
-  unfold tycontext_sub in TS. destruct TS as [?TS _]. specialize (TS id).
+  unfold tycontext_subsume in TS. destruct TS as [?TS _]. specialize (TS id).
   destruct ((temp_types Delta) ! id); inversion H99.
   destruct ((temp_types Delta') ! id); inversion TS.
   subst; auto.
@@ -809,7 +809,7 @@ pose proof TC3 as TC3'.
 apply (tc_expr_sub _ _ _ TS) in TC3'; [| auto].
 assert (typeof_temp Delta' id = Some t) as H97.
   unfold typeof_temp in *.
-  unfold tycontext_sub in TS. destruct TS as [?TS _]. specialize (TS id).
+  unfold tycontext_subsume in TS. destruct TS as [?TS _]. specialize (TS id).
   destruct ((temp_types Delta) ! id); inversion H99.
   destruct ((temp_types Delta') ! id); inversion TS.
   subst; auto.

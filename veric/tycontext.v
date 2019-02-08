@@ -11,6 +11,8 @@ Require Export VST.veric.lift.
 
 Require Export VST.veric.mpred.
 
+Require Import VST.veric.seplog. (*for definition of tycontext*)
+
 Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  match c with
  | Sset id e => insert_idset id S
@@ -97,6 +99,7 @@ hnf. intros.
 decide equality.
 Defined.
 
+(*Moved to seplog.v
 Inductive Annotation :=
   WeakAnnotation : (environ -> mpred) -> Annotation
 | StrongAnnotation : (environ -> mpred) -> Annotation.
@@ -161,6 +164,7 @@ Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type))
    (make_tycontext_g V G)
    (make_tycontext_s G)
    (make_tycontext_a A).
+*)
 
 Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
  mk_tycontext
@@ -292,6 +296,7 @@ destruct a; destruct b; simpl in *; trivial; try discriminate.
 destruct a; destruct a0; subst; trivial. inv H0; trivial. 
 Qed.
 
+(*replaced by tycontext_subsume in expr.
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
                  | None, _ => True
@@ -302,7 +307,7 @@ Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
  /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
- /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).
+ /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).*)
 
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
@@ -312,6 +317,7 @@ Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id)
  /\ (forall id, (annotations Delta) ! id = (annotations Delta') ! id).
 
+(*not needed
 Lemma tycontext_eqv_spec: forall Delta Delta',
   tycontext_eqv Delta Delta' <-> tycontext_sub Delta Delta' /\ tycontext_sub Delta' Delta.
 Proof.
@@ -379,6 +385,7 @@ Proof.
   * intros. eapply sub_option_trans; eauto.
   * intros. eapply Annotation_sub_trans; eauto.
 Qed.
+*)
 
 Definition binop_stable cenv op a1 a2 : bool :=
 match op with
@@ -481,6 +488,7 @@ Qed.
 
 End STABILITY.
 
+(*not needed as func_tycontext'_eqv is not needed
 Section TYCON_SUB.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
@@ -503,6 +511,9 @@ Proof.
 Qed.
 
 End TYCON_SUB.
+*)
+
+(*Eliminated -- not needed
 
 Section TYCON_EQUIV.
 
@@ -518,6 +529,7 @@ Proof.
 Qed.
 
 End TYCON_EQUIV.
+*)
 
 Lemma tycontext_eqv_symm:
   forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
@@ -526,6 +538,7 @@ intros.
 destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
+(*
 Lemma tycontext_eqv_sub:
   forall Delta Delta', tycontext_eqv Delta Delta' ->
          tycontext_sub Delta Delta'.
@@ -539,6 +552,7 @@ rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
 rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
 rewrite H4. apply Annotation_sub_refl.
 Qed.
+*)
 
 Record ret_assert : Type := {
  RA_normal: environ->mpred;

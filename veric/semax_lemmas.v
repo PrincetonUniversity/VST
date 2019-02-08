@@ -118,7 +118,7 @@ Qed.
 Hint Resolve @age_laterR.
 
 Lemma typecheck_environ_sub:
-  forall Delta Delta', tycontext_sub Delta Delta' ->
+  forall Delta Delta', tycontext_subsume Delta Delta' ->
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
 Proof.
@@ -262,7 +262,7 @@ Qed.
 Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
   semax Espec = fun Delta P c R =>
     forall (psi: Clight.genv) Delta' (w: nat)
-          (TS: tycontext_sub Delta Delta')
+          (TS: tycontext_subsume Delta Delta')
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
@@ -421,7 +421,7 @@ Qed.
 
 Lemma guard_environ_sub:
   forall {Delta Delta' f rho},
-   tycontext_sub Delta Delta' ->
+   tycontext_subsume Delta Delta' ->
    guard_environ Delta' f rho ->
    guard_environ Delta f rho.
 Proof.
@@ -432,7 +432,7 @@ destruct f; auto.
 destruct H1; split; auto.
 destruct H as [? [? [? ?]]]. rewrite H4; auto.
 Qed.
-
+(*not needed
 Lemma guard_environ_eqv:
   forall Delta Delta' f rho,
   tycontext_eqv Delta Delta' ->
@@ -442,7 +442,7 @@ Proof.
   rewrite tycontext_eqv_spec in H.
   eapply guard_environ_sub; eauto.
   tauto.
-Qed.
+Qed.*)
 
 Lemma proj_frame_ret_assert:
  forall (R: ret_assert) (F: assert) ek vl,
@@ -458,7 +458,7 @@ Lemma semax_extensionality0 {CS: compspecs} {Espec: OracleKind}:
       ALL Delta:tycontext, ALL Delta':tycontext,
       ALL P:assert, ALL P':assert,
       ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
-       ((!! tycontext_sub Delta Delta'
+       ((!! tycontext_subsume Delta Delta'
        &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  
                (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && semax' Espec Delta P c R) >=> semax' Espec Delta' P' c R').
@@ -472,7 +472,7 @@ intros gx Delta''.
 apply prop_imp_i; intros [TS HGG].
 intros w3 ? ?.
 specialize (H5 gx Delta'' _ (necR_refl _)
-  (conj (tycontext_sub_trans _ _ _ H2 TS) HGG)
+  (conj (tycontext_subsume_trans _ _ _ H2 TS) HGG)
                   _ H6 H7).
 
 intros k F w4 Hw4 [? ?].
@@ -511,7 +511,7 @@ Qed.
 
 Lemma semax_extensionality1 {CS: compspecs} {Espec: OracleKind}:
   forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
-       tycontext_sub Delta Delta' ->
+       tycontext_subsume Delta Delta' ->
        ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  
           (proj_ret_assert R ek vl rho >=> proj_ret_assert R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && (semax' Espec Delta P c R) |-- semax' Espec Delta' P' c R').
@@ -1448,7 +1448,7 @@ Qed.
 
 Lemma semax_extensionality_Delta {CS: compspecs} {Espec: OracleKind}:
   forall Delta Delta' P c R,
-       tycontext_sub Delta Delta' ->
+       tycontext_subsume Delta Delta' ->
      semax Espec Delta P c R -> semax Espec Delta' P c R.
 Proof.
 intros.
@@ -1736,7 +1736,7 @@ Lemma semax_eq:
   semax Espec Delta P c R = 
   (TT |-- (ALL psi : genv,
          ALL Delta' : tycontext,
-         !! (tycontext_sub Delta Delta' /\ genv_cenv psi = cenv_cs) -->
+         !! (tycontext_subsume Delta Delta' /\ genv_cenv psi = cenv_cs) -->
          believe Espec Delta' psi Delta' -->
          ALL k : cont ,
          ALL F : assert ,

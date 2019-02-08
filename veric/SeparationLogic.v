@@ -29,7 +29,7 @@ Require Export VST.veric.Clight_lemmas.
 Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
-(*exported by Clight_seplog: Require VST.veric.seplog.*)
+(*exported by Clight_seplog:*) Require Import VST.veric.seplog.
 Require VST.veric.Clight_seplog.
 Require VST.veric.Clight_assert_lemmas.
 Require Import VST.msl.Coqlib2.
@@ -652,12 +652,21 @@ Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v
 Proof.
   exact seplog.approx_func_ptr.
 Qed.
-
+(*This property is now called allp_fun_id_strong in Clight_assert_lemmas
 Definition allp_fun_id (Delta : tycontext): environ -> mpred :=
 (ALL id : ident ,
  (ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(seplog.func_at fs (b, 0))))).
+  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(seplog.func_at fs (b, 0))))).*)
+
+Definition allp_fun_id (Delta : tycontext) (rho: environ): mpred :=
+(ALL id : ident ,
+ (ALL fs : funspec ,
+  !! ((glob_specs Delta) ! id = Some fs) -->
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && 
+    match fs with
+    mk_funspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
+    end))).
 
 Lemma corable_allp_fun_id: forall Delta rho,
   corable (allp_fun_id Delta rho).
@@ -669,7 +678,7 @@ Proof.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  apply assert_lemmas.corable_func_at.
+  (*apply assert_lemmas.corable_func_at.*) destruct fs; apply assert_lemmas.corable_sigcc.
 Qed.
 
 Definition type_of_funsig (fsig: funsig) :=
@@ -1512,7 +1521,7 @@ Axiom semax_fun_id:
 Axiom semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
-       tycontext_sub Delta Delta' ->
+       tycontext_subsume Delta Delta' ->
      @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
 
 Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,

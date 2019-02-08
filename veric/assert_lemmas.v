@@ -269,6 +269,14 @@ Proof.
   apply corable_pureat.
 Qed.
 
+Lemma corable_sigcc: forall f c b, corable (sigcc_at f c (pair b Z0)).
+Proof. 
+  intros.
+  unfold sigcc_at.
+  apply corable_exp; intro.
+  apply corable_pureat.
+Qed.
+
 Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
 Proof.
   intros.

@@ -350,7 +350,8 @@ simpl in H1.
 rewrite PTree.gss in H1.
 inv H1; auto.
 contradiction (Genv.global_addresses_distinct ge n0 H0 H4); auto.
-(*destruct H. *)
+(*destruct H. *) 
+intros Delta' k NK HDelta'.
 intros ts x.
 simpl in H1.
 pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
@@ -358,19 +359,21 @@ destruct H4 as [H4' [H4 [H4a [H4b H4c]]]].
 subst A' fsig cc'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
-subst P' Q'.
+subst P' Q'. 
 specialize (H3 Espec ts x). 
 rename H3 into H4. (* destruct H3 as [Ann H4].*)
 pose proof I.
-specialize (H4 n).
+(*specialize (H4 n).*)specialize (H4 k).
 apply now_later.
 rewrite HGG.
-clear - Hpclos H4.
-rewrite semax_fold_unfold in H4|-*.
-revert n H4.
-apply allp_derives; intro gx.
-apply allp_derives; intro Delta'.
-apply imp_derives; auto.
+clear - Hpclos H4 NK HDelta'.
+rewrite semax_fold_unfold in H4|-*. clear n NK. intros gx DD u KU [SUB GX] v UV BEL.
+assert (HDD: tycontext_subsume (func_tycontext f V G nil) DD).
+{ unfold func_tycontext, func_tycontext'. simpl.
+  eapply tycontext_subsume_trans; eauto. }
+
+specialize (H4 gx DD u KU (conj HDD GX) v UV BEL).
+revert H4.
 (*{ unfold func_tycontext, func_tycontext'. simpl.
   apply prop_derives. intros [AA BB]; split; trivial.
   eapply tycontext_sub_trans. 2: eassumption.
@@ -383,8 +386,8 @@ apply imp_derives; auto.
   + rewrite PTree.gempty.
     unfold Annotation_sub; simpl. destruct (PTree.get id (make_tycontext_a Ann)); trivial. destruct a; trivial.
 } *)
-apply imp_derives; auto.
-apply allp_derives; intro k.
+(*apply imp_derives; auto.*)
+apply allp_derives; intro kk.
 apply allp_derives; intro F.
 apply imp_derives; auto.
 unfold guard.

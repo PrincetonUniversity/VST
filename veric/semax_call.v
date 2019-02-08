@@ -2390,11 +2390,14 @@ specialize (H14 _ (age_laterR (age_jm_phi H13))).
 destruct H15 as [b' [f [[? [? [COMPLETE [? ?]]]] ?]]].
 destruct H18 as [H17' [Hvars [H18 H18']]].
 inversion H15; clear H15; subst b'.
-specialize (H19 ts x n LATER).
+
+assert (HDelta: forall f : function, tycontext_subsume (func_tycontext' f Delta) (func_tycontext' f Delta)).
+{ simpl; intros; apply tycontext_subsume_refl. }
+specialize (H19 Delta (level (m_phi jm)) (necR_refl _) HDelta ts x n LATER).
 rewrite semax_fold_unfold in H19.
 apply (pred_nec_hereditary _ _ n (laterR_necR LATER)) in Prog_OK.
 pose (F0F := fun _: environ => F0 rho * F rho).
-specialize (H19 _ _ _ (necR_refl _) (conj (tycontext_sub_refl _) HGG)  _ (necR_refl _) (Prog_OK)
+specialize (H19 _ _ _ (necR_refl _) (conj (tycontext_subsume_refl _) HGG)  _ (necR_refl _) (Prog_OK)
                       ((*Kseq (Sreturn None) ::*) Kcall ret f (vx) (tx) :: k)
                        F0F _ (necR_refl _)).
 unfold F0F in *; clear F0F.
