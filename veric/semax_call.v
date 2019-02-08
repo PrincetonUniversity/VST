@@ -261,6 +261,84 @@ Lemma resource_decay_funassert:
          app_pred (funassert G rho) w'.
 Proof.
 unfold resource_decay, funassert; intros until w'; intro CORE; intros.
+destruct H. 
+destruct H0.
+split; [clear H2 | clear H0].
++ intros id fs w2 Hw2 H3.
+  specialize (H0 id fs). cbv beta in H0.
+  specialize (H0 _ (necR_refl _) H3).
+  destruct H0 as [loc [? ?]].
+  exists loc; split; auto.
+  destruct fs as [f cc A a a0].
+  simpl in H2|-*.
+  pose proof (necR_resource_at (core w) (core w') (loc,0)
+         (PURE (FUN f cc) (SomeP (SpecTT A) (packPQ a a0))) CORE).
+  pose proof (necR_resource_at _ _ (loc,0)
+         (PURE (FUN f cc) (SomeP (SpecTT A) (packPQ a a0))) Hw2).
+  apply H5.
+  clear - H4 H2.
+  repeat rewrite <- core_resource_at in *.
+  spec H4. rewrite H2.  rewrite core_PURE.  simpl.  rewrite level_core; reflexivity.
+  destruct (w' @ (loc,0)).
+  rewrite core_NO in H4; inv H4.
+  rewrite core_YES in H4; inv H4.
+  rewrite core_PURE in H4; inv H4. rewrite level_core; reflexivity.
++
+intros loc (*fs*) sig cc w2 Hw2 H6.
+specialize (H2 loc (*fs*)sig cc _ (necR_refl _)).
+spec H2.
+{ clear - Hw2 CORE H6. simpl in *.
+  (*destruct fs; simpl in *.*)
+  destruct H6 as [pp H6].
+  rewrite <- resource_at_approx.
+  case_eq (w @ (loc,0)); intros.
+  + assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
+     - rewrite <- core_resource_at.
+       simpl; erewrite <- core_NO; f_equal; eassumption.
+     - pose proof (necR_resource_at _ _ _ _ CORE H0).
+       pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
+       rewrite <- core_resource_at in H2; rewrite H6 in H2;
+       rewrite core_PURE in H2; inv H2.
+  + assert (core w @ (loc,0) = resource_fmap (approx (level (core w))) (approx (level (core w))) (NO _ bot_unreadable)).
+    - rewrite <- core_resource_at.
+      simpl; erewrite <- core_YES; f_equal; eassumption.
+    - pose proof (necR_resource_at _ _ _ _ CORE H0).
+      pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
+      rewrite <- core_resource_at in H2; rewrite H6 in H2;
+      rewrite core_PURE in H2; inv H2.
+  + pose proof (resource_at_approx w (loc,0)).
+    pattern (w @ (loc,0)) at 1 in H0; rewrite H in H0.
+    symmetry in H0.
+    assert (core (w @ (loc,0)) = core (resource_fmap (approx (level w)) (approx (level w))
+       (PURE k p))) by (f_equal; auto).
+    rewrite core_resource_at in H1.
+    assert (core w @ (loc,0) =
+        resource_fmap (approx (level (core w))) (approx (level (core w)))
+         (PURE k p)).
+    - rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
+    - pose proof (necR_resource_at _ _ _ _ CORE H2).
+      assert (w' @ (loc,0) = resource_fmap
+         (approx (level w')) (approx (level w')) (PURE k p)).
+      * rewrite <- core_resource_at in H3. rewrite level_core in H3.
+        destruct (w' @ (loc,0)).
+        ++ rewrite core_NO in H3; inv H3.
+        ++ rewrite core_YES in H3; inv H3.
+        ++ rewrite core_PURE in H3; inv H3.
+           reflexivity.
+      * pose proof (necR_resource_at _ _ _ _ Hw2 H4).
+        inversion2 H6 H5.
+        exists p. reflexivity. }
+destruct H2 as [id [? ?]].
+exists id. split; auto.
+Qed. (*
+Lemma resource_decay_funassert:
+  forall G rho b w w',
+         necR (core w) (core w') ->
+         resource_decay b w w' ->
+         app_pred (funassert G rho) w ->
+         app_pred (funassert G rho) w'.
+Proof.
+unfold resource_decay, funassert; intros until w'; intro CORE; intros.
 destruct H.
 destruct H0.
 split; [clear H2 | clear H0].
@@ -331,7 +409,7 @@ pose proof (necR_resource_at _ _ _ _ CORE H2).
  
 destruct H2 as [id [? ?]].
 exists id. split; auto.
-Qed.
+Qed.*)
 
 Definition substopt {A} (ret: option ident) (v: val) (P: environ -> A)  : environ -> A :=
    match ret with
@@ -547,12 +625,12 @@ Lemma semax_call_typecheck_environ:
     exists b1 : block,
         filter_genv psi b = Some b1 /\
         func_at b0 (b1,0) a')
-    (H1: forall (b : block) (b0 : funspec) (a' : rmap),
+    (*Not needed any longer(H1: forall (b : block) (b0 : funspec) (a' : rmap),
      necR (m_phi jm') a' ->
      (func_at' b0 (b, 0)) a' ->
      exists (b1 : ident),
        filter_genv psi b1 = Some b /\
-       (exists fs : funspec, (glob_specs Delta) ! b1 = Some fs))
+       (exists fs : funspec, (glob_specs Delta) ! b1 = Some fs))*)
    (l : list ident) (l0 : list type)
     (Heqp : (l, l0) = split (fn_params f))
    (TC2 : denote_tc_assert (typecheck_exprlist Delta l0 bl)
@@ -569,7 +647,7 @@ Lemma semax_call_typecheck_environ:
       (make_tycontext_v (fn_vars f))
       (fn_return f)  (glob_types Delta) (glob_specs Delta) (annotations Delta))
      (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
-Proof.
+Proof. assert (H1:= True).
  intros.
  pose (rho3 := mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 
@@ -1273,7 +1351,7 @@ Proof.
  spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
  rewrite !ghost_of_core, free_juicy_mem_ghost; auto.
 Qed.
-
+(*
 Lemma same_glob_funassert':
   forall Delta1 Delta2 rho rho',
      (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
@@ -1292,6 +1370,43 @@ intros loc fs w' Hw' H4; destruct (H2 loc fs w' Hw' H4)  as [id H3].
 exists id; rewrite <- (H id), <- H0; auto.
 intros.
 apply pred_ext; apply H; intros; auto.
+Qed.*)(*
+Lemma same_glob_funassert':
+  forall Delta1 Delta2 rho rho',
+     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
+      ge_of rho = ge_of rho' ->
+              funassert Delta1 rho = funassert Delta2 rho'.
+Proof.
+assert (forall Delta Delta' rho rho',
+             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
+             ge_of rho = ge_of rho' ->
+             funassert Delta rho |-- funassert Delta' rho').
+{ intros.
+  unfold funassert.
+  intros w ?. intro id. rewrite <- (H id), <- H0; auto. }
+(*intros loc fs w' Hw' H4; destruct (H2 loc fs w' Hw' H4)  as [id H3].
+exists id; rewrite <- (H id), <- H0; auto.*)
+intros.
+apply pred_ext; apply H; intros; auto.
+Qed.*)
+Lemma same_glob_funassert':
+  forall Delta1 Delta2 rho rho',
+     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
+      ge_of rho = ge_of rho' ->
+              funassert Delta1 rho = funassert Delta2 rho'.
+Proof.
+assert (forall Delta Delta' rho rho',
+             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
+             ge_of rho = ge_of rho' ->
+             funassert Delta rho |-- funassert Delta' rho').
++ intros.
+  unfold funassert.
+  intros w [? ?]; split.
+  - clear H2; intro id. rewrite <- (H id), <- H0; auto.
+  - intros loc sig cc w' Hw' H4; destruct (H2 loc sig cc w' Hw' H4)  as [id H3].
+    exists id; rewrite <- (H id), <- H0; auto.
++ intros.
+  apply pred_ext; apply H; intros; auto.
 Qed.
 
 Lemma semax_call_external:
@@ -1682,10 +1797,10 @@ right.
 unfold Map.get, make_tenv.
 destruct ret0; auto.
 rewrite PTree.gso by auto.
-auto.
+auto. (*
 *
 assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m')).
-{ clear - Hage H6 H4.
+{ clear - Hage H6 H4. 
 destruct H6 as (?&?&?).
 destruct H4.
 assert (Hnec: necR (m_phi jm) (m_phi jm')). {
@@ -1737,6 +1852,95 @@ pose proof (resource_at_approx (m_phi jm') (b,0)).
 rewrite H6 in H; simpl in H.
 injection H; intro. symmetry in H7. apply H7.
 }
+match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
+}
+exists
+match ret0 with
+| Some v =>
+    match ret with
+    | Some id => (State vx (PTree.set id v tx) k)
+    | None => (State vx tx k) (* bogus *)
+    end
+| None => match ret with
+          | Some _ => (State vx tx k) (* bogus *)
+          | None => (State vx tx k)
+          end
+end.
+split.
+unfold cl_after_external.
+revert Htc TC5.
+destruct (type_eq retty Tvoid).
++ subst retty. simpl. destruct ret0; try solve[inversion 1].
+  intros _. intros X; spec X; auto. rewrite X; auto.
++ intros Hret0.
+  assert (Hv: exists v, ret0 = Some v).
+  { revert Hret0.
+    destruct retty; destruct ret0; simpl;
+      try solve[intros _; eexists; eauto]; try inversion 1.
+    exfalso; auto. }
+  revert TCret.
+  unfold tc_fn_return.
+  destruct Hv as [v Hv]. rewrite Hv.
+  destruct ret; auto.
++
+destruct H6 as (?&?&?).
+subst n'.
+rewrite level_juice_level_phi.
+destruct ret; destruct ret0; apply assert_safe_jsafe; auto.
+Qed.*)
+*
+assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m')).
+{ clear - Hage H6 H4.
+  destruct H6 as (?&?&?).
+  destruct H4. (*rename H4 into H2.*)
+  assert (Hnec: necR (m_phi jm) (m_phi jm')).
+  {  cut (age jm jm'). intro Hx.
+    constructor. apply age_jm_phi in Hx; auto. eauto. }
+  split.
+  * intros id fs ???.
+    specialize (H2 id fs (m_phi jm')).
+    specialize (H2 Hnec); spec H2; auto.
+    destruct H2 as [b [? ?]]. (*rename H5 into H6.*)
+    destruct H1 as [H1 H1'].
+    specialize (H1 (b,0)).
+    unfold func_at in H6. destruct fs; simpl in *.
+    rewrite H6 in H1.
+    apply (necR_PURE (m_phi m') a') in H1; eauto.
+    exists b. split; auto. rewrite H1. simpl.
+    f_equal. f_equal.
+    assert (Hlev1: (level (m_phi m') >= level a')%nat).
+    { apply necR_level in H4; auto. }
+    extensionality ts x.
+    extensionality b0 rho.
+    rewrite !fmap_app.
+    match goal with
+    | |- ?A (?B (?C ?D)) = _ => change (A (B (C D))) with ((A oo B oo C) D)
+    end.
+    rewrite approx_oo_approx' by omega.
+    rewrite approx_oo_approx' by omega.
+    rewrite approx'_oo_approx by omega.
+    rewrite approx'_oo_approx by omega.
+    auto.
+  * intros b (*fs*)sig cc ???.
+    specialize (H3 b (*fs*)sig cc (m_phi jm')).
+    specialize (H3 Hnec); spec H3; auto.
+    destruct H1 as [H1 H1'].
+    specialize (H1' (b,0)).
+    (*destruct fs;*) simpl in *.
+    destruct H5 as [b0 ?].
+    destruct (m_phi m' @ (b,0)) eqn:?.
+    eapply necR_NOx in Heqr; try apply H4. inversion2 H5 Heqr.
+    eapply necR_YES in Heqr; try apply H4. inversion2 H5 Heqr.
+    destruct H1' as [pp ?].
+    rewrite H6.
+    exists pp.
+    assert (H9 := necR_PURE _ _ _ _ _ H4 Heqr).
+    rewrite H5 in H9. inv H9.
+    f_equal.
+    pose proof (resource_at_approx (m_phi jm') (b,0)).
+    rewrite H6 in H; simpl in H.
+    injection H; intro. symmetry in H7. apply H7.
+  }
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 }
 exists
@@ -2150,7 +2354,7 @@ pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
 assert (Prog_OK' := Prog_OK).
-specialize (Prog_OK' (Vptr b Ptrofs.zero) fsig cc A P Q' _ (necR_refl _)).
+specialize (Prog_OK' (Vptr b Ptrofs.zero) fsig cc A P Q' _ (necR_refl _)). 
 (*************************************************)
 case_eq (level (m_phi jm)); [solve [simpl; constructor] | intros n H2].
 simpl.
@@ -2158,20 +2362,22 @@ rewrite <- level_juice_level_phi in H2.
 destruct (levelS_age1 _ _ H2) as [jmx H13].
 assert (LATER: laterR (level (m_phi jm)) n) by (constructor 1; rewrite <- level_juice_level_phi, H2; reflexivity).
 spec Prog_OK'.
-hnf. exists id, NEP, NEQ'; split; auto.
-exists b; split; auto.
+{ hnf. exists id, NEP, NEQ'; split; auto.
+  exists b; split; auto.
+}
+clear H8 H7 id.
+pose (H8:=True); pose (H7:=True).
+
 clear H16.
 clear H10 H6 H5 H8.
 do 4 (pose proof I).
-destruct Prog_OK'. {
-clear H5 H6 H8 H10 H9 H12.
+destruct Prog_OK'. { 
+clear H5 H6 H8 H10 H9 H12. clear H7 H13 jmx Prog_OK.
 destruct fsig as [params retty].
 simpl @fst in *; simpl @snd in *.
 rewrite @snd_split in *.
 clear LATER.
-clear id H7.
-clear jmx H13.
-clear Prog_OK.
+
 edestruct semax_call_external; eauto.
 destruct H5 as [? [? ?]].
 inv H5.
@@ -2517,7 +2723,6 @@ rewrite (age_jm_dry H20x) in H15.
 unfold func_tycontext'.
 unfold construct_rho.
 
-
 clear - H0 TC2 TC3 H18 H16 H21 H15 H23 H17 H17' H13.
 unfold rho3 in *. simpl in *. destruct H23.
 destruct rho. inv H0. simpl in *.
@@ -2525,11 +2730,11 @@ remember (split (fn_params f)). destruct p.
 assert (TE := TC3).
  destruct TC3 as [TC3 TC3'].
 destruct TC3 as [TC3 [TC4 TC5]].
-simpl in *. if_tac in H16; try congruence. clear H0.
+simpl in *. if_tac in H16; try congruence. (*clear H0.*)
 eapply semax_call_typecheck_environ with (jm := jmx); try eassumption.
 erewrite <- age_jm_dry by eauto; auto.
 destruct TE; intros; auto.
-}
+ }
 normalize.
 split; auto. unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23.
 simpl ge_of in H23. auto.
@@ -2654,79 +2859,18 @@ Lemma semax_call:
 Proof.
 rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
-rename H0 into H1.
+rename H into Cloased; rename H0 into RGUARD.
 intros tx vx.
-intros ? ? ? ? [[TC3 ?] ?].
-assert (H0': necR w (level a')).
-apply nec_nat. apply necR_level in H2. apply le_trans with (level y); auto.
-eapply pred_nec_hereditary in H1; [ | apply H0'].
-eapply pred_nec_hereditary in Prog_OK; [ | apply H0'].
-clear w H0' H0 y H2.
+intros ? ? ? NecR_ya' [[TC3 ?] funassertDelta'].
+
+assert (NecR_wa': necR w (level a')).
+{ apply nec_nat. apply necR_level in NecR_ya'. apply le_trans with (level y); auto. }
+eapply pred_nec_hereditary in RGUARD; [ | apply NecR_wa'].
+eapply pred_nec_hereditary in Prog_OK; [ | apply NecR_wa'].
+clear w NecR_wa' NecR_ya' y H.
 rename a' into w.
 
-rewrite !later_andp in H3.
-apply extend_sepcon_andp in H3; auto.
-destruct H3 as [H2 H3].
-normalize in H3. unfold func_ptr in *.
-destruct H3 as [[b [H3 H6]] H5].
-generalize H4; intros [_ H7].
-destruct (level w) eqn: Hl.
-{ apply own.bupd_intro; repeat intro.
-  rewrite Hl; constructor. }
-rewrite <- Hl in *.
-destruct (levelS_age w n) as (w' & Hage & Hw'); auto.
-specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) _ (necR_refl _)).
-spec H7.
-1: apply func_at_func_at'; apply H6.
-destruct H7 as [id [H7 H9]].
-hnf in H9.
-destruct H2 as [TC1 TC2].
-generalize H9; intros [fs H8].
-generalize H4; intros [H10 _].
-specialize (H10 id fs _ (necR_refl _) H8).
-destruct H10 as [v' [H10 H13]].
-assert (H11: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by reflexivity.
-simpl in H10. simpl in H7. inversion2 H7 H10.
-unfold func_at in H13.
-(* rewrite H12 in H13.*)
-destruct fs as [fsig' cc' A' P' Q' NEP' NEQ'].
-hnf in H6,H13.
-inversion2 H13 H6.
-apply inj_pair2 in H14. rename H14 into H15.
-pose (H6:=True).
-clear H9; pose (H9:=True).
 
-unfold filter_genv in H7.
-remember (construct_rho (filter_genv psi) vx tx) as rho.
-set (args := eval_exprlist (snd (split argsig)) bl rho).
-fold args in H5.
-rename H11 into H10'.
-
-destruct (function_pointer_aux A' P P' Q Q' w NEP NEQ NEP' NEQ') as [H10 H11].
-f_equal; auto.
-clear H15.
-specialize (H10 ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig))bl rho) rho)).
-specialize (H11 ts x).
-assert (H14: app_pred (|> (F0 rho * F rho * P' ts x (make_args (map (@fst  _ _) argsig)
-  (eval_exprlist (snd (split argsig)) bl rho) rho))) w).
-{
-  do 3 red in H10.
-  apply eqp_later1 in H10.
-  apply pred_eq_e2 in H10.
-  rewrite later_sepcon.
-  eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level w)); eauto.
-  rewrite <- later_sepcon, sepcon_assoc, later_sepcon.
-  eapply derives_e, H5.
-  apply sepcon_derives, derives_refl; apply now_later.
-}
-assert (typecheck_environ Delta rho) as TC4.
-{
-  destruct TC3 as [TC3 TC4].
-  eapply typecheck_environ_sub in TC3; [| eauto].
-  auto.
-}
-eapply later_derives in TC2; [|apply (tc_exprlist_sub _ _ _ TS); auto].
-eapply later_derives in TC1; [|apply (tc_expr_sub _ _ _ TS); auto].
 assert (TC7': tc_fn_return Delta' ret retsig).
 {
   clear - TC7 TS.
@@ -2737,13 +2881,76 @@ assert (TC7': tc_fn_return Delta' ret retsig).
   destruct ((temp_types Delta') ! i ).
   destruct H; auto.
   auto.
+} clear TC7.
+
+rewrite !later_andp in H0.
+apply extend_sepcon_andp in H0; auto.
+destruct H0 as [[TC1 TC2] pre].
+normalize in pre. unfold func_ptr in *.
+destruct pre as [[b [EvalA funcatb]] HP].
+destruct (level w) eqn: Hl.
+{ apply own.bupd_intro; repeat intro.
+  rewrite Hl; constructor. }
+rewrite <- Hl in *.
+destruct (levelS_age w n) as (w' & Hage & Hw'); auto.
+
+hnf in funcatb. 
+(*Here
+specialize (funassertDelta (b) (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) _ (necR_refl _)).
+spec H7.
+1: apply func_at_func_at'; apply H6.*)
+assert (XX: exists id:ident, (Map.get (ge_of (construct_rho (filter_genv psi) vx tx)) id = Some b)
+                             /\ exists fs, (glob_specs Delta')!id = Some fs).
+{ destruct funassertDelta' as [_ FD]. apply (FD b (argsig, retsig) cc _ (necR_refl _)).
+  simpl. eexists; eapply funcatb. }
+destruct XX as [id [Hb [fs specID]]]; simpl in Hb.
+destruct funassertDelta' as [funassertDeltaA funassertDeltaB].
+
+destruct (funassertDeltaA id fs _ (necR_refl _) specID) as [v [Hv funcatv]]; simpl in Hv.
+assert (VB: b=v); [inversion2 Hb Hv; trivial | subst; clear Hb].
+unfold func_at in funcatv.
+destruct fs as [fsig' cc' A' P' Q' NEP' NEQ'].
+hnf in funcatb, funcatv.
+inversion2 funcatv funcatb; clear funcatv.
+apply inj_pair2 in H3; rename H3 into HSpecs.
+destruct (function_pointer_aux A' P P' Q Q' w NEP NEQ NEP' NEQ') as [Hpre Hpost]; [f_equal; apply HSpecs | clear HSpecs].
+
+assert (Hpsi: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by reflexivity.
+unfold filter_genv in Hpsi.
+remember (construct_rho (filter_genv psi) vx tx) as rho.
+set (args := eval_exprlist (snd (split argsig)) bl rho).
+fold args in HP. clear Hpsi.
+
+specialize (Hpre ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig))bl rho) rho)).
+specialize (Hpost ts x).
+assert (ArgsW: app_pred (|> (F0 rho * F rho * P' ts x (make_args (map (@fst  _ _) argsig)
+  (eval_exprlist (snd (split argsig)) bl rho) rho))) w).
+{
+  do 3 red in Hpre.
+  apply eqp_later1 in Hpre.
+  apply pred_eq_e2 in Hpre.
+  rewrite later_sepcon.
+  eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level w)); eauto.
+  rewrite <- later_sepcon, sepcon_assoc, later_sepcon.
+  eapply derives_e, HP.
+  apply sepcon_derives, derives_refl; apply now_later.
 }
-clear TC7.
+clear Hpre.
+assert (typecheck_environ Delta rho) as TC4.
+{ clear - TC3 TS.
+  destruct TC3 as [TC3 TC4].
+  eapply typecheck_environ_sub in TC3; [| eauto].
+  auto.
+} 
+eapply later_derives in TC2; [|apply (tc_exprlist_sub _ _ _ TS); auto].
+eapply later_derives in TC1; [|apply (tc_expr_sub _ _ _ TS); auto].
+clear TC4.
+ 
 apply own.bupd_intro; repeat intro; subst.
 eapply semax_call_aux; try eassumption;
- try solve [simpl; assumption].
-simpl RA_normal.
-auto.
+ try solve [simpl; eassumption].
+simpl RA_normal; auto.
+split; trivial.
 Qed.
 
 Lemma semax_call_alt:

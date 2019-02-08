@@ -293,7 +293,7 @@ Proof.
    apply corable_prop|
    apply corable_imp].
  + apply corable_func_at.
- + apply corable_func_at'.
+ + apply corable_pureat.
 Qed.
 
 Hint Resolve corable_funspecs_assert.

@@ -20,6 +20,8 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   match f with
    | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
+Definition sigcc_at (fsig: funsig) (cc:calling_convention) (loc: address) : pred rmap :=
+  EX pp:_, pureat pp (FUN fsig cc) loc.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Ptrofs.zero) && func_at f (b, 0).
@@ -198,8 +200,8 @@ Definition funspecs_assert (FunSpecs: PTree.t funspec): assert :=
    (ALL  id: ident, ALL fs:funspec,  !! (FunSpecs!id = Some fs) -->
               EX b:block,
                    !! (Map.get (ge_of rho) id = Some b) && func_at fs (b,0))
-   &&
-   (ALL  b: block, ALL fs:funspec, func_at' fs (b,0) -->
+ &&  (ALL  b: block, (*WAS: ALL fs:funspec, WAS:func_at' fs (b,0) -->*)
+             (*NOW:*) ALL fsig:funsig, ALL cc: calling_convention, sigcc_at fsig cc (b,0) -->
              EX id:ident, !! (Map.get (ge_of rho) id = Some b)
                              && !! exists fs, FunSpecs!id = Some fs).
 
@@ -220,10 +222,10 @@ Proof.
 assert (forall FS FS' rho,
              (forall id, FS ! id = FS' ! id) ->
              funspecs_assert FS rho |-- funspecs_assert FS' rho).
-{ intros; intros w [? ?]; split.
-  clear H1; intro id. rewrite <- (H id); auto.
-  intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4)  as [id H3].
-  exists id; rewrite <- (H id); auto. }
+{ intros. intros w [? ?]. split.
+  + intro id. rewrite <- (H id); auto.
+  + intros loc sig cc w' Hw' HH. hnf in H0. destruct (H1 loc sig cc w' Hw' HH)  as [id ID].
+    exists id; rewrite <- (H id); auto. }
 intros.
 extensionality rho.
 apply pred_ext; apply H; intros; auto.

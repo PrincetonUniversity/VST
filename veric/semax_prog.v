@@ -639,8 +639,8 @@ destruct a. destruct p.
  eapply match_fdecs_norepet; eauto.
  apply list_norepet_prog_funct'; auto.
 *
- intros loc'  [fsig' cc' A' P' Q' NEP' NEQ'].
- unfold func_at.
+ (*intros loc'  [fsig' cc' A' P' Q' NEP' NEQ']; unfold func_at.*)
+ intros loc' fsig' cc'.
  intros w ? ?.
  destruct H2 as [pp ?].
  hnf in H2.
@@ -790,8 +790,8 @@ destruct a. destruct p.
  eapply match_fdecs_norepet; eauto.
  apply list_norepet_prog_funct'; auto.
 *
- intros loc'  [fsig' cc' A' P' Q' NEP' NEQ'].
- unfold func_at.
+ (*intros loc'  [fsig' cc' A' P' Q' NEP' NEQ']; unfold func_at.*)
+ intros loc'  fsig' cc'.
  intros w ? ?.
  destruct H2 as [pp ?].
  hnf in H2.
