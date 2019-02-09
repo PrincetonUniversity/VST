@@ -2088,15 +2088,15 @@ Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> 
 | return_inner_gen_main: forall ov_gen P ts u,
     return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
 | return_inner_gen_canon_nil:
-    forall ov_gen P R,
+    forall ov_gen P R Res,
+      PROPx P (LOCALx nil (SEPx (R ++ S))) = Res ->
       return_inner_gen S ov_gen
-        (PROPx P (LOCALx nil (SEPx R)))
-        (PROPx P (LOCALx nil (SEPx (R ++ S))))
+        (PROPx P (LOCALx nil (SEPx R))) Res
 | return_inner_gen_canon_Some:
-    forall P v R v_gen,
+    forall P v R v_gen Res,
+      PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx (R ++ S))) = Res ->
       return_inner_gen S (Some v_gen)
-        (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R)))
-        (PROPx (P ++ (v_gen = v) :: nil) (LOCALx nil (SEPx (R ++ S))))
+        (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R))) Res
 | return_inner_gen_EX':
     forall ov_gen (A: Type) (post1 post2: A -> environ -> mpred),
       (forall a: A, return_inner_gen S ov_gen (post1 a) (post2 a)) ->

@@ -23,7 +23,7 @@ Ltac refold_right_sepcon R :=
 
 Lemma SEP_entail':
  forall R' Delta P Q R, 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx nil (LOCALx nil (SEPx R')) -> 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (fold_right_sepcon R') -> 
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -32,8 +32,7 @@ apply andp_left2; apply andp_left1; auto.
 apply andp_right.
 do 2 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans; [ apply H|].
-do 2 apply andp_left2.
-auto.
+apply derives_refl.
 Qed.
 
 Arguments sem_cmp c !t1 !t2 / v1 v2.
@@ -370,6 +369,57 @@ Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
  | nil => P0
  | b::r => b  /\ fold_right_and P0 r
  end.
+
+Fixpoint fold_right_and_True (l: list Prop) : Prop :=
+ match l with
+ | nil => True
+ | b :: nil => b
+ | b::r => b /\ fold_right_and_True r
+ end.
+
+Fixpoint fold_right_sepcon_emp (l: list mpred) : mpred :=
+ match l with
+ | nil => emp
+ | b :: nil => b
+ | b::r => b * fold_right_sepcon_emp r
+ end.
+
+Definition fold_right_PROP_SEP (l1: list Prop) (l2: list mpred) : mpred :=
+ match l1 with
+ | nil => fold_right_sepcon_emp l2
+ | l => !! (fold_right_and_True l) && fold_right_sepcon_emp l2
+ end.
+
+Lemma fold_right_PROP_SEP_spec: forall l1 l2,
+  fold_right_PROP_SEP l1 l2 = !! (fold_right and True l1) && fold_right_sepcon l2.
+Proof.
+  intros.
+  assert (fold_right_sepcon_emp l2 = fold_right_sepcon l2).
+  {
+    destruct l2; auto.
+    revert m; induction l2; intros.
+    + simpl.
+      rewrite sepcon_emp; auto.
+    + specialize (IHl2 a).
+      simpl in *.
+      rewrite IHl2; auto.
+  }
+  assert (fold_right_and_True l1 <-> fold_right and True l1).
+  {
+    destruct l1; [tauto |].
+    revert P; induction l1; intros.
+    - simpl; tauto.
+    - change (P /\ fold_right_and_True (a :: l1) <-> P /\ fold_right and True (a :: l1)).
+      specialize (IHl1 a).
+      tauto.
+  }
+  destruct l1.
+  + simpl.
+    normalize.
+  + unfold fold_right_PROP_SEP.
+    rewrite H, H0.
+    auto.
+Qed.
 
 Lemma typed_true_isptr:
  forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ _ => True | _ => False end ->

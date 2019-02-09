@@ -611,7 +611,7 @@ Inductive clean_LOCAL_right {cs: compspecs} (Delta: tycontext) (T1: PTree.t val)
 | clean_LOCAL_right_tc_efield: forall efs, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_efield Delta efs)) (msubst_tc_efield Delta T1 T2 GV efs)
 | clean_LOCAL_right_tc_exprlist: forall ts es, clean_LOCAL_right Delta T1 T2 GV (denote_tc_assert (typecheck_exprlist Delta ts es)) (msubst_tc_exprlist Delta T1 T2 GV ts es)
 | clean_LOCAL_right_tc_expropt: forall e t, clean_LOCAL_right Delta T1 T2 GV (tc_expropt Delta e t) (msubst_tc_expropt Delta T1 T2 GV e t)
-| clean_LOCAL_right_canon: forall P Q R, clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) (!! (fold_right and True (P ++ msubst_extract_locals Delta T1 T2 GV Q)) && fold_right_sepcon R)
+| clean_LOCAL_right_canon: forall P Q R Res, (fold_right_PROP_SEP (P ++ msubst_extract_locals Delta T1 T2 GV Q) R) = Res -> clean_LOCAL_right Delta T1 T2 GV (PROPx P (LOCALx Q (SEPx R))) Res
 | clean_LOCAL_right_eval_lvalue: forall e u v, msubst_eval_lvalue Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_lvalue e))) (!! (u = v))
 | clean_LOCAL_right_eval_expr: forall e u v, msubst_eval_expr Delta T1 T2 GV e = Some u -> clean_LOCAL_right Delta T1 T2 GV (local (`(eq v) (eval_expr e))) (!! (u = v))
 | clean_LOCAL_right_andp: forall P1 P2 Q1 Q2, clean_LOCAL_right Delta T1 T2 GV P1 Q1 -> clean_LOCAL_right Delta T1 T2 GV P2 Q2 -> clean_LOCAL_right Delta T1 T2 GV (P1 && P2) (Q1 && Q2)
@@ -664,9 +664,11 @@ Proof.
   + eapply go_lower_localdef_canon_tc_efield; eauto.
   + eapply go_lower_localdef_canon_tc_exprlist; eauto.
   + eapply go_lower_localdef_canon_tc_expropt; eauto.
-  + eapply derives_trans; [| eapply (go_lower_localdef_canon_canon Delta P Q R); eauto].
+  + subst Res.
+    eapply derives_trans; [| eapply (go_lower_localdef_canon_canon Delta P Q R); eauto].
     apply andp_right; [apply andp_left1; auto |].
     go_lowerx.
+    rewrite fold_right_PROP_SEP_spec.
     normalize.
     solve_andp.
   + eapply go_lower_localdef_canon_eval_lvalue; eauto.
@@ -755,7 +757,8 @@ Ltac solve_clean_LOCAL_right :=
     | try unfold tc_efield; simple apply clean_LOCAL_right_tc_efield
     | try unfold tc_exprlist; simple apply clean_LOCAL_right_tc_exprlist
     | simple apply clean_LOCAL_right_tc_expropt
-    | simple apply clean_LOCAL_right_canon
+    | simple apply clean_LOCAL_right_canon;
+      unfold app at 1; reflexivity
     | simple apply clean_LOCAL_right_eval_lvalue; solve_msubst_eval_lvalue
     | simple apply clean_LOCAL_right_eval_expr; solve_msubst_eval_expr
     | simple apply clean_LOCAL_right_andp; solve_clean_LOCAL_right
@@ -897,6 +900,7 @@ Ltac simpl_for_go_lower :=
       with (fold_right_and True (app_Prop A B));
     unify_for_go_lower;
     unfold app_Prop, fold_right_and;
+    try unfold fold_right_PROP_SEP, fold_right_and_True, fold_right_sepcon_emp;
     unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp
  end.
 
@@ -934,7 +938,6 @@ Ltac sep_apply_in_lifted_entailment H :=
  go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
      allows us to use propositional facts derived from the PROP and LOCAL
      parts of the left-hand side *)
- apply andp_right; [apply prop_right; auto | ];
 (* unfold fold_right_sepcon at 1; *)
  match goal with |- ?R |-- ?R2 => 
   let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
@@ -962,7 +965,6 @@ Ltac new_sep_apply_in_lifted_entailment H evar_tac prop_tac :=
   go_lower; (* Using SEP_entail' and go_lower, instead of just SEP_entail,
      allows us to use propositional facts derived from the PROP and LOCAL
      parts of the left-hand side *)
-  apply andp_right; [apply prop_right; auto | ];
   (* unfold fold_right_sepcon at 1; *)
   match goal with |- ?R |-- ?R2 =>
     let r2 := fresh "R2" in pose (r2 := R2); change (R |-- r2);
