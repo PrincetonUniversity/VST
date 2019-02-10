@@ -2877,10 +2877,13 @@ Ltac solve_return_inner_gen :=
       ]
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with
-      | Some _ => first [ simple apply return_inner_gen_canon_Some
-                        | simple apply return_inner_gen_canon_nil
+      | Some _ => first [ simple apply return_inner_gen_canon_Some;
+                          unfold VST_floyd_app; reflexivity
+                        | simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
-      | None   => first [ simple apply return_inner_gen_canon_nil
+      | None   => first [ simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
     | _ => first [ simple apply return_inner_gen_main
@@ -2931,12 +2934,12 @@ Ltac solve_Forall2_fn_data_at :=
 
 Ltac solve_canon_derives_stackframe :=
   solve
-    [ try unfold stackframe_of;
+    [ simple apply canonicalize_stackframe_emp
+    | try unfold stackframe_of;
       simple eapply canonicalize_stackframe;
       [ prove_local2ptree
       | solve_Forall2_fn_data_at
       ]
-    | simple apply canonicalize_stackframe_emp
     ].
 
 Ltac fold_frame_function_body :=

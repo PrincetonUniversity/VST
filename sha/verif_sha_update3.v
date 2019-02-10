@@ -389,8 +389,8 @@ forward_if.
   repeat rewrite TT_andp.
   unfold data_block.
   subst k.
-  rewrite (prop_true_andp (_ /\ _));
-     [ | split; [apply update_inner_if_update_abs; auto; omega | auto ]].
+  rewrite (prop_true_andp);
+     [ | apply update_inner_if_update_abs; auto; omega ].
  rewrite (sepcon_comm (K_vector gv)).
  apply sepcon_derives; [ | auto].
  rewrite map_Vubyte_eq'. 
