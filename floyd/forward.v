@@ -2878,18 +2878,12 @@ Ltac solve_return_inner_gen :=
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with
       | Some _ => first [ simple apply return_inner_gen_canon_Some;
-                          unfold app at 1;
-                          match goal with
-                          | |- context [SEPx (?P ++ ?Q)] =>
-                            let PQ := eval unfold app at 1 in (P ++ Q) in
-                            change (P ++ Q) with PQ;
-                            reflexivity
-                          end
+                          unfold VST_floyd_app; reflexivity
                         | simple apply return_inner_gen_canon_nil;
-                          unfold app at 1; reflexivity
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
       | None   => first [ simple apply return_inner_gen_canon_nil;
-                          unfold app at 1; reflexivity
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
     | _ => first [ simple apply return_inner_gen_main
