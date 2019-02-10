@@ -252,7 +252,7 @@ VERIC_FILES= \
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
-   library.v proofauto.v computable_theorems.v \
+   library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
    sublist.v extract_smt.v \
@@ -449,7 +449,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.8.0 or-else 8.8.1 or-else 8.8.2 or-else 8.9+alpha or-else 8.9.0
+COQVERSION= 8.9+alpha or-else 8.9.0
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else

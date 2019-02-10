@@ -377,33 +377,16 @@ Fixpoint fold_right_and_True (l: list Prop) : Prop :=
  | b::r => b /\ fold_right_and_True r
  end.
 
-Fixpoint fold_right_sepcon_emp (l: list mpred) : mpred :=
- match l with
- | nil => emp
- | b :: nil => b
- | b::r => b * fold_right_sepcon_emp r
- end.
-
 Definition fold_right_PROP_SEP (l1: list Prop) (l2: list mpred) : mpred :=
  match l1 with
- | nil => fold_right_sepcon_emp l2
- | l => !! (fold_right_and_True l) && fold_right_sepcon_emp l2
+ | nil => fold_right_sepcon l2
+ | l => !! (fold_right_and_True l) && fold_right_sepcon l2
  end.
 
 Lemma fold_right_PROP_SEP_spec: forall l1 l2,
   fold_right_PROP_SEP l1 l2 = !! (fold_right and True l1) && fold_right_sepcon l2.
 Proof.
   intros.
-  assert (fold_right_sepcon_emp l2 = fold_right_sepcon l2).
-  {
-    destruct l2; auto.
-    revert m; induction l2; intros.
-    + simpl.
-      rewrite sepcon_emp; auto.
-    + specialize (IHl2 a).
-      simpl in *.
-      rewrite IHl2; auto.
-  }
   assert (fold_right_and_True l1 <-> fold_right and True l1).
   {
     destruct l1; [tauto |].
@@ -417,7 +400,7 @@ Proof.
   + simpl.
     normalize.
   + unfold fold_right_PROP_SEP.
-    rewrite H, H0.
+    rewrite H.
     auto.
 Qed.
 

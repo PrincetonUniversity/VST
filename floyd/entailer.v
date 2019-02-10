@@ -614,10 +614,11 @@ Ltac entailer' :=
               | simple apply FF_left
               | simple apply TT_right].
 
+(*
 Fixpoint app_mpred (al bl: list mpred) :=
  match al with a::al' => a :: app_mpred al' bl | nil => bl end.
-
-Ltac fixup_folds_from_return := 
+*)
+Ltac fixup_folds_from_return := idtac. (*
  (* Really this should not be necessary.  The right thing to do is 
    fix foward_return so that it uses app_Prop and app_mpred
    instead of the general app, so that they can be unfolded without
@@ -627,7 +628,7 @@ change (@app Prop) with app_Prop;
 change (@app mpred) with app_mpred;
 unfold app_mpred, app_Prop, fold_right_and, fold_right_sepcon;
 fold app_mpred; fold app_Prop; fold fold_right_and; fold fold_right_sepcon.
-
+*)
 Lemma empTrue:
  @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
 Proof.
