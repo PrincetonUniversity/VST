@@ -693,6 +693,18 @@ Ltac entbang :=
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
+ (* The following lines are only a temporary solution. Many current proofs
+ depend on one original feature of "entailer!": sem_cast expressions and
+ sem_binary_operation' expressions will be simplified. This step was done
+ in go_lower. But that is not a reasonable design. Current version of
+ go_lower does not "simpl" user's expressions any longer---go_lower should
+ be safe. Thus we add the following lines here. *)
+ repeat match goal with
+        | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
+          progress simpl (force_val (sem_binary_operation' op t1 t2 v1 v2))
+        end;
+ simpl sem_cast;
+ (* end of temporary solution *)
  saturate_local;
  ent_iter;
  first [ contradiction

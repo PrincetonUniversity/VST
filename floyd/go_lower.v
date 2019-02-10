@@ -11,10 +11,8 @@ Local Open Scope logic.
 Ltac unfold_for_go_lower :=
   cbv delta [PROPx LOCALx SEPx locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt
-                       sem_cast eval_binop eval_unop force_val1 force_val2
-                      tc_expropt tc_expr tc_exprlist tc_lvalue tc_LR tc_LR_strong
+                       eval_binop eval_unop force_val1 force_val2
                       msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 
-                      typecheck_expr typecheck_exprlist typecheck_lvalue typecheck_LR typecheck_LR_strong typecheck_efield
                       function_body_ret_assert frame_ret_assert
                       make_args' bind_ret get_result1 retval
                        classify_cast
