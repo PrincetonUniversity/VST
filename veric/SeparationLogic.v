@@ -1556,7 +1556,6 @@ Axiom semax_convert_for_while':
   @semax CS Espec Delta Pre 
     (Ssequence s1 (Ssequence (Swhile e2 (Ssequence s4 s3)) s5)) Post ->
   @semax CS Espec Delta Pre (Ssequence (Sfor s1 e2 s4 s3) s5) Post.
-Proof.
 
 Axiom semax_loop_unroll1:
   forall {CS: compspecs} {Espec: OracleKind} Delta P P' Q body incr R,
