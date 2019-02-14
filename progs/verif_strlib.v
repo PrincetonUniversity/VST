@@ -71,7 +71,7 @@ Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
 Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
-
+(*
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.
 start_function.
@@ -119,30 +119,23 @@ forward_loop (EX i : Z,
   Forall (fun d : byte => d <> c) []
 *)
 (* but repeat step does *)
-repeat info_step.
+(* This is because application order *)
+repeat step.
 constructor.
 *
-info_step.
-assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by list_solve.
-info_step.
-info_step.
-info_step.
-info_step.
+repeat step.
 {
-  repeat info_step.
   rename x into i.
-  simpl. left. eexists. repeat info_step; auto; auto.
-  Fail progress autorewrite with sublist. (* why this doesn't work *)
-  rewrite app_Znth1; auto. cstring.
+  simpl. left. eexists. repeat step; auto; auto.
+  Znth_solve. cstring.
 }
-repeat info_step.
 rename x into i.
 assert (i <> Zlength ls) by cstring.
 rewrite (sublist_split 0 i) by rep_omega.
 rewrite Forall_app. split; auto.
 rewrite sublist_len_1 by rep_omega. autorewrite with sublist in *. constructor; auto.
 *
-repeat info_step.
+repeat step.
 Qed.
 
 Lemma split_data_at_app_tschar:
@@ -488,7 +481,7 @@ forward_loop (EX i : Z,
   Exists i.
   entailer!.
 Qed.
-
+*)
 Module Alternate.
 
 (* Alternate proofs of these functions, using the form of "forward_loop"
@@ -499,16 +492,16 @@ Proof.
 start_function.
 unfold cstring in *.
 rename s into ls.
-repeat info_step.
+repeat step.
 forward_loop  (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 *
-repeat info_step.
+repeat step.
 *
-repeat info_step.
+repeat step.
 Qed.
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
@@ -523,8 +516,10 @@ forward_loop (EX i : Z,
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
-  Exists 0; rewrite sublist_nil; entailer!.
-- Intros i.
+- repeat step. auto.
+- repeat step.
+  left. eexists x. repeat step. 3 : normalize. simpl. 3 : reflexivity.
+Intros i.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
@@ -553,7 +548,7 @@ forward_loop (EX i : Z,
   rewrite app_Znth1 in H4 by rep_omega. auto.
 Qed.
 
-Lemma data_at_array_cancel : forall sh n (al bl cl dl : list val) p,
+(* Lemma data_at_array_cancel : forall sh n (al bl cl dl : list val) p,
       n = Zlength (al ++ bl) ->
       n = Zlength (cl ++ dl) ->
       al = cl ->
@@ -565,14 +560,14 @@ Proof.
   rewrite split_data_at_app_tschar by omega.
   rewrite split_data_at_app_tschar by omega.
   subst cl. cancel.
-Qed.
+Qed. *)
 
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.
 Proof.
 start_function.
 unfold cstringn, cstring in *.
 rename sd into ld. rename ss into ls.
-repeat info_step.
+repeat step.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
     LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
@@ -589,12 +584,12 @@ forward_loop (EX i : Z,
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
    data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src)).
+- (* before loop1 *)
+  repeat step.
+- (* loop1 body *)
+  repeat step.
 -
-  repeat info_step.
--
-  repeat info_step.
--
-  repeat info_step.
+  repeat step.
   forward_loop (EX j : Z,
     PROP (0 <= j < Zlength ls + 1)
     LOCAL (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr (Zlength ld)));
@@ -604,26 +599,29 @@ forward_loop (EX i : Z,
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
-  { repeat info_step.
-    list_normalize.
-    rewrite split_data_at_app_tschar by Zlength_solve.
-    rewrite (split_data_at_app_tschar _ n) by Zlength_solve.
-    autorewrite with Zlength.
-    cancel.
+  { repeat step.
+    list_form. apply data_subsume_array_ext; only 1,2:Zlength_solve.
+    intros. Znth_solve; auto.
   }
-  { repeat info_step.
-  - rewrite in_app in H14. tauto.
-  - list_normalize.
-    do 3 (apply data_at_array_cancel; try Zlength_solve; auto).
-    autorewrite with sublist.
-    replace (n - (Zlength ld + Zlength ls + 1)) with (n - Zlength ld - Zlength ls - Z.succ 0) by omega.
-    cancel.
+  {
+  repeat info_step.
+  - (* PROP *)
+    rewrite in_app in H14. tauto.
+  - list_form.
+    apply data_subsume_array_ext; only 1,2:Zlength_solve.
+    intros. Znth_solve; auto.
   -
-    apply derives_refl'; f_equal.
-    assert (x < Zlength ls) by cstring.
+    assert (x < Zlength ls) by cstring. (* saturate_local? *)
+    apply derives_refl'. f_equal.
+    eapply Znth_eq_ext; only 1 : Zlength_solve.
+    autorewrite with Zlength. intros. list_form. Znth_solve.
+    fold_Vbyte. do 2 f_equal. omega.
+    (* alternate
+    apply data_subsume_array_ext; only 1,2:Zlength_solve.
+    intros. list_form. unfold data_subsume; intros; Znth_solve.
     fold_Vbyte.
-    list_normalize. repeat list_deduce.
-    all : f_equal; Zlength_solve.
+    auto with cancel Zlength_solve f_equal.
+    *)
   }
 Qed.
 
@@ -636,108 +634,65 @@ forward.
 Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
-        sublist 0 i ls1 = sublist 0 i ls2)
+        forall (j:Z), 0 <= j < i -> Znth j ls1 = Znth j ls2)
   LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
   SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
        data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
-- Exists 0; entailer!.
-- Intros i.
-  assert (Zlength (ls1 ++ [Byte.zero]) = Zlength ls1 + 1) by (autorewrite with sublist; auto).
-  forward. normalize.
-  assert (Zlength (ls2 ++ [Byte.zero]) = Zlength ls2 + 1) by (autorewrite with sublist; auto).
-  forward. fold_Vbyte.
+- repeat step. intros. omega.
+- repeat step.
+  rename x into i.
   assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
-  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by omega; auto].
-    destruct (zlt i (Zlength ls1)); [|omega].
-    intro X; lapply (Znth_In i ls1); [|omega]. cstring. }
+  { split; intros; [cstring | list_form; Znth_solve]. }
   assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls2) as Hs2.
-  { split; [|intro; subst; rewrite app_Znth2, Zminus_diag by omega; auto].
-    destruct (zlt i (Zlength ls2)); [|omega].
-    intro X; lapply (Znth_In i ls2); [|omega]. cstring. }
-  forward. normalize.
-  forward. fold_Vbyte.
+  { split; intros; [cstring | list_form; Znth_solve]. }
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
-  { forward.
-    simpl force_val. normalize.
-    rewrite Hs1 in *.
-    destruct (Byte.eq_dec (Znth i (ls2 ++ [Byte.zero])) Byte.zero).
-    + rewrite e; simpl force_val.
-         assert (i = Zlength ls2) by cstring.
-        rewrite  (proj2 Hs1 H6).
-     rewrite (proj2 (Z.eqb_eq i (Zlength ls1)) H6).
-     rewrite (proj2 (Z.eqb_eq i (Zlength ls2)) H7).
-     entailer!.
-  +
-    rewrite Int.eq_false.
-     rewrite (proj2 (Z.eqb_eq i (Zlength ls1)) H6).
-     rewrite Hs2 in n.
-     rewrite (proj2 (Z.eqb_neq i (Zlength ls2))) by auto.
-    entailer!.
-     contradict n.
-     apply repr_inj_signed in n; try rep_omega. normalize in n.
- }
-  { forward.
-    entailer!.
-    destruct (i =? Zlength ls1) eqn: Heq; auto.
-    rewrite Z.eqb_eq in Heq; tauto. }
-  forward_if. 
- +
-  rewrite andb_true_iff in H6; destruct H6.
-  rewrite Z.eqb_eq in H6,H7.
-  forward.
-  Exists (Int.repr 0).
-  entailer!. simpl.
-  autorewrite with sublist in H3.
-  auto.
- +
-  rewrite andb_false_iff in H6. rewrite !Z.eqb_neq in H6.
-  forward_if.
-  *
-    forward. Exists (Int.repr (-1)). entailer!.
-    simpl. intro; subst. omega.
- *
-   forward_if.
-   forward.
-   Exists (Int.repr 1). entailer!. simpl. intro. subst. omega.
-
-   assert (H17: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
+  (* this part is not much simplified *)
+  { repeat step.
+    rewrite (proj2 (Z.eqb_eq _ _)) by auto.
+    destruct (Int.eq (Int.repr (Byte.signed (Znth (Zlength ls1) (ls2 ++ [Byte.zero])))) (Int.repr 0)) eqn:Heqb;
+    do_repr_inj Heqb. (* utilize this internal tactic *)
+    - rewrite (proj2 (Z.eqb_eq _ _)) by cstring.
+      auto.
+    - rewrite (proj2 (Z.eqb_neq _ _)) by cstring.
+      auto.
+  }
+  {
+    repeat step.
+    rewrite (proj2 (Z.eqb_neq _ _)) by cstring.
+    auto.
+  }
+  repeat step.
+  { simpl. rewrite andb_true_iff in H4; destruct H4 as [Hi1 Hi2].
+    rewrite Z.eqb_eq in Hi1, Hi2.
+    apply Znth_eq_ext. omega.
+    intros. apply H3. omega.
+  }
+  { simpl. intro. subst. omega. }
+  { simpl. intro. subst. omega. }
+  (* split too early here *)
+  all : rewrite andb_false_iff in *; rewrite !Z.eqb_neq in *.
+  all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
-   normalize in H17. clear H7 H8.
-   forward.
-   Exists (i+1).
-   entailer!.
-   clear - H17 H6 Hs1 Hs2 H3 H1 H2 H H0.
-   destruct (zlt i (Zlength ls1)).
-  2:{
-         assert (i = Zlength ls1) by omega. subst.
-         destruct H6; [congruence | ].
-         assert (Zlength ls1 < Zlength ls2) by omega.
-         rewrite app_Znth2 in H17 by rep_omega.
-         rewrite app_Znth1 in H17 by rep_omega.
-         rewrite Z.sub_diag in H17. contradiction H0.
-         change (Znth 0 [Byte.zero]) with Byte.zero in H17.
-         rewrite H17. apply Znth_In. omega.
-   }
-  destruct (zlt i (Zlength ls2)).
-  2:{
-         assert (i = Zlength ls2) by omega. subst.
-         destruct H6; [ | congruence].
-         assert (Zlength ls1 > Zlength ls2) by omega.
-         rewrite app_Znth1 in H17 by rep_omega.
-         rewrite app_Znth2 in H17 by rep_omega.
-         rewrite Z.sub_diag in H17. contradiction H.
-         change (Znth 0 [Byte.zero]) with Byte.zero in H17.
-         rewrite <- H17.  apply Znth_In. omega.
-   }
-  rewrite (sublist_split 0 i (i+1)) by omega.
-  rewrite (sublist_split 0 i (i+1)) by omega.
-  f_equal; auto.
-  rewrite !sublist_len_1 by omega.
-  autorewrite with sublist in H17.
-  split. rep_omega. split. rep_omega.
-  f_equal; auto. f_equal. auto.
+  all : normalize in HZnth.
+  all : assert (i <> Zlength ls1 -> i <> Zlength ls2) by
+    ( intro; intro;
+      assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero) by tauto;
+      assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero) by congruence;
+      tauto ).
+  all : assert (i <> Zlength ls2 -> i <> Zlength ls1) by
+    ( intro; intro;
+      assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero) by tauto;
+      assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero) by congruence;
+      tauto ).
+  all : assert (i <> Zlength ls1) by tauto.
+  all : assert (i <> Zlength ls2) by tauto.
+  { omega. }
+  { omega. }
+  { intros. assert (0 <= j < i \/ j = i) by omega. autorewrite with Znth_solve in HZnth.
+    destruct H23; subst; auto.
+  }
 Qed.
 
 Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
@@ -745,56 +700,25 @@ Proof.
 start_function.
 unfold cstring,cstringn in *.
 rename s into ls.
-forward.
-Intros.
+repeat step.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
   SEP (data_at sh (tarray tschar n)
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
-*
- Exists 0. rewrite Z.sub_0_r; entailer!. simpl; entailer!.
-*
- Intros i.
- assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
- forward. normalize.
- forward. fold_Vbyte.
- forward.
- forward_if.
-+ forward.
-   entailer!.
-  assert (i = Zlength ls) by cstring. subst i.
-  autorewrite with sublist.
-  rewrite !map_app.
-  rewrite <- app_assoc.
-   rewrite (split_data_at_app_tschar _ n) by list_solve.
-   rewrite (split_data_at_app_tschar _ n) by list_solve.
-   autorewrite with sublist.
-   replace (n - Zlength ls) with (1 + (n - (Zlength ls + 1))) at 2 by list_solve.
-  rewrite <- list_repeat_app' by omega.
-  autorewrite with sublist.
-  rewrite !split_data_at_app_tschar by list_solve.
-  cancel.
-+
-   assert (i < Zlength ls) by cstring.
-  forward.
-  Exists (i+1). entailer!.
-  rewrite upd_Znth_app2 by list_solve.
-  assert (i < Zlength ls) by cstring.
-  rewrite (sublist_split 0 i (i+1)) by list_solve.
-  rewrite !map_app. rewrite <- app_assoc.
-  autorewrite with sublist.
-  rewrite !(split_data_at_app_tschar _ n) by list_solve.
-  autorewrite with sublist.
-   replace (n - i) with (1 + (n-(i+ 1))) at 2 by list_solve.
-  rewrite <- list_repeat_app' by omega.
-  autorewrite with sublist.
-  cancel.
-  rewrite !split_data_at_app_tschar by list_solve.
-  autorewrite with sublist.
-  rewrite sublist_len_1 by omega.
-  simpl. cancel.
+-
+  repeat step.
+-
+  repeat step.
+  + list_form.
+    apply data_subsume_array_ext. Zlength_solve. Zlength_solve.
+    autorewrite with Zlength. intros. Znth_solve.
+  + list_form. assert (x < Zlength ls) by cstring.
+    apply derives_refl'.
+    f_equal. apply Znth_eq_ext. Zlength_solve.
+    autorewrite with Zlength. intros. Znth_solve. fold_Vbyte.
+    do 2 f_equal. omega.
 Qed.
 
 End Alternate.

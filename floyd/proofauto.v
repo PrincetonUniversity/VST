@@ -326,7 +326,7 @@ Proof.
     + intros. apply (H0 (S i)). simpl. omega.
 Qed.
 
-Lemma Znth_eq_ext : forall (A : Type) (d : Inhabitant A) (al bl : list A),
+Lemma Znth_eq_ext : forall {A : Type} {d : Inhabitant A} (al bl : list A),
   Zlength al = Zlength bl ->
   (forall (i : Z), 0 <= i < Zlength al -> Znth i al = Znth i bl) ->
   al = bl.
@@ -338,8 +338,6 @@ Proof.
     rewrite !nth_Znth by (rewrite !Zlength_correct in *; omega).
     apply H0.
 Qed.
-
-Hint Resolve Znth_eq_ext : list_ext.
 
 Hint Rewrite @Znth_list_repeat_inrange using Zlength_solve : Znth_solve.
 Hint Rewrite @Znth_sublist using Zlength_solve : Znth_solve.
@@ -367,3 +365,57 @@ Ltac Znth_solve :=
     Znth_solve
   end.
 
+Definition data_subsume {cs : compspecs} (t : type) (x y : reptype t) : Prop :=
+  forall sh p, data_at sh t x p |-- data_at sh t y p.
+
+Lemma data_subsume_refl : forall {cs : compspecs} (t : type) (x : reptype t),
+  data_subsume t x x.
+Proof. unfold data_subsume. intros. auto. Qed.
+
+Lemma data_subsume_default : forall {cs : compspecs} (t : type) (x y : reptype t),
+  y = default_val t ->
+  data_subsume t x y.
+Proof. unfold data_subsume. intros. subst y. apply data_at_data_at_. Qed.
+
+Hint Resolve data_subsume_refl data_subsume_default.
+
+Lemma data_subsume_array_ext : forall {cs : compspecs} (t : type) (n : Z) (al bl : list (reptype t)),
+  n = Zlength al ->
+  n = Zlength bl ->
+  (forall (i : Z), 0 <= i < n -> data_subsume t (Znth i al) (Znth i bl)) ->
+  data_subsume (tarray t n) al bl.
+Proof.
+  intros.
+  generalize dependent bl.
+  generalize dependent n.
+  induction al; intros; destruct bl as [ | b bl];
+    autorewrite with list_form Zlength in *; try Zlength_solve;
+    unfold data_subsume; intros.
+  - (* al = [] /\ bl = [] *)
+    entailer!.
+  - (* al <> [] /\ bl <> [] *)
+    do 2 rewrite split2_data_at_Tarray_app with (mid := 1) by Zlength_solve.
+    apply sepcon_derives.
+    + specialize (H1 0 ltac:(Zlength_solve)).
+      autorewrite with Znth_solve in H1.
+      rewrite data_at_singleton_array_eq with (v := a) by auto.
+      rewrite data_at_singleton_array_eq with (v := b) by auto.
+      apply H1.
+    + apply IHal; try Zlength_solve.
+      intros. specialize (H1 (i+1) ltac:(Zlength_solve)).
+      autorewrite with Znth_solve in H1.
+      autorewrite with Zlength norm in H1.
+      replace (i + 1 - 1) with i in H1 by omega.
+      apply H1.
+Qed.
+
+Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
+Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
+
+(* A better way to deal with sem_cast_i2bool *)
+Lemma sem_cast_i2bool_of_bool : forall (b : bool),
+  sem_cast_i2bool (Val.of_bool b) = Some (Val.of_bool b).
+Proof.
+  destruct b; auto.
+Qed.
+Hint Rewrite sem_cast_i2bool_of_bool : norm.

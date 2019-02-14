@@ -35,20 +35,33 @@ Definition reverse_Inv a0 sh contents size :=
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
    SEP (data_at sh (tarray tint size) (flip_ends j (size-j) contents) a0)))%assert.
 
-
-Lemma Zlength_flip_ends:
- forall A i j (al: list A),
- 0 <= i  -> i<=j -> j <= Zlength al ->
- Zlength (flip_ends i j al) = Zlength al.
-Proof.
-intros.
-unfold flip_ends.
-autorewrite with sublist. omega.
-Qed.
-Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; omega) : sublist.
-
 Hint Rewrite @Znth_rev using Zlength_solve : Znth_solve.
 Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+
+Ltac dup :=
+    match goal with
+    | |- ?Goal => assert Goal
+    end;
+    only 2:
+    match goal with
+    | H : ?Goal |- ?Goal => clear H
+    end.
+
+Goal 
+  forall j contents,
+    (1 + BIG = BIG1)%nat /\Zlength (sublist 0 j (rev (map Vint contents))) +
+Zlength
+  (sublist j (Zlength (map Vint contents) - j) (map Vint contents) ++
+   sublist (Zlength (map Vint contents) - j) (Zlength (map Vint contents)) (rev (map Vint contents))) =
+Zlength (map Vint (rev contents)).
+Proof.
+  intros.
+  split.
+  auto.
+  Set Ltac Profiling.
+  do 6 dup;
+  rewrite Zlength_app.
+  Show Ltac Profile.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -59,47 +72,32 @@ assert_PROP (Zlength (map Vint contents) = size)
     as ZL by entailer!.
 forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
-simpl (data_at _ _ _).
-Time repeat step.
-(* after simpl *)
-(* Finished transaction in 2.42 secs (2.375u,0.s) (successful) *)
-(* without simpl *)
-(* Finished transaction in 11.494 secs (11.453u,0.031s) (successful) *)
-apply data_at_data_at_cancel.
-unfold flip_ends.
-apply (Znth_eq_ext _ Inhabitant_val).
-- Zlength_solve. (* why slow? *) (* because implicit argument not simplified! *)
-- autorewrite with Zlength. intros. Znth_solve.
-  do 2 f_equal. omega.
+admit.
 * (* Prove that loop invariant implies typechecking condition *)
-Time simpl (data_at _ _ _). Time entailer!.
+admit.
 * (* Prove that loop body preserves invariant *)
 (* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
-simpl.
-repeat info_step.
-+ unfold flip_ends. Znth_solve.
-+ unfold flip_ends. Znth_solve.
-+ do 2 f_equal. omega.
-+ simpl. apply data_at_data_at_cancel. unfold flip_ends.
-  apply (Znth_eq_ext _ Inhabitant_val).
-  Zlength_solve.
-  autorewrite with Zlength.
-  unfold upd_Znth. intros. list_form.
-  Time Znth_solve. (* This takes quite a few minutes *)
-  (* Finished transaction in 435.348 secs (433.171u,0.218s) (successful) *)
-  (* much much faster after simpl things *)
-  (* Finished transaction in 11.228 secs (11.234u,0.s) (successful) *)
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
+admit.
 * (* after the loop *)
-simpl.
 forward. (* return; *)
 apply data_at_data_at_cancel. unfold flip_ends.
 autorewrite with Zlength in * |-.
 apply (Znth_eq_ext _ Inhabitant_val).
+Require Import Coq.Program.Tactics.
+Ltac Zlength_solve ::= show_goal; autorewrite with Zlength; pose_Zlength_nonneg; omega.
+clear.
+
+  Set Ltac Profiling.
+  do 6 dup;
+  rewrite Zlength_app.
+  Show Ltac Profile.
+Set Ltac Profiling.
+rewrite Zlength_app.
+rewrite Zlength_app.
+rewrite Zlength_sublist by Zlength_solve.
+Show Ltac Profile.
+ by Zlength_solve.
+  Zlength_solve.
 Time Zlength_solve. (* example of slow rewrite *)
 autorewrite with Zlength in *.
 intros.
@@ -108,7 +106,7 @@ Znth_solve.
 - do 2 f_equal. omega.
 - do 2 f_equal. omega.
 Time Qed.
-(* Finished transaction in 5.455 secs (5.453u,0.s) (successful) *)
+(* Finished transaction in 53.902 secs (53.859u,0.s) (successful) *)
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 
