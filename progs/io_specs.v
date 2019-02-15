@@ -3,21 +3,21 @@ Require Import VST.veric.juicy_extspec.
 Require Import DeepWeb.Free.Monad.Free.
 Import MonadNotations.
 Require Import DeepWeb.Free.Monad.Common.
-Require Import DeepWeb.Free.Monad.Verif.
+Require Import DeepWeb.Free.Monad.Eq.Utt.
 Import String.
 
 Inductive IO_event : Type -> Type :=
 | ERead : IO_event int
 | EWrite (c : int) : IO_event unit.
 
-Definition read : M IO_event int := embed ERead.
+Definition read : itree IO_event int := embed ERead.
 
-Definition write (c : int) : M IO_event unit := embed (EWrite c).
+Definition write (c : int) : itree IO_event unit := embed (EWrite c).
 
-Definition IO_itree := M IO_event unit.
+Definition IO_itree := itree IO_event unit.
 
 (* We need a layer of equivalence to allow us to use the monad laws. *)
-Definition ITREE (tr : IO_itree) := EX tr' : _, !!(EquivUpToTau tr tr') &&
+Definition ITREE (tr : IO_itree) := EX tr' : _, !!(eq_utt tr tr') &&
   has_ext tr'.
 
 Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
@@ -55,7 +55,7 @@ Fixpoint write_list l : IO_itree :=
   | c :: rest => write c ;; write_list rest
   end.
 
-Lemma ITREE_impl : forall tr tr', EquivUpToTau tr tr' ->
+Lemma ITREE_impl : forall tr tr', eq_utt tr tr' ->
   ITREE tr |-- ITREE tr'.
 Proof.
   intros.
@@ -65,7 +65,7 @@ Proof.
   symmetry; auto.
 Qed.
 
-Lemma ITREE_ext : forall tr tr', EquivUpToTau tr tr' ->
+Lemma ITREE_ext : forall tr tr', eq_utt tr tr' ->
   ITREE tr = ITREE tr'.
 Proof.
   intros; apply pred_ext; apply ITREE_impl; auto.
@@ -75,15 +75,19 @@ Qed.
 Opaque bind.
 
 Lemma write_list_app : forall l1 l2,
-  EquivUpToTau (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
+  eq_utt (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
 Proof.
   induction l1; simpl; intros.
-  - symmetry; apply leftId.
-  - rewrite <- bindAssoc.
-    Transparent bind.
-    simpl.
-    apply cong_bind; [reflexivity|].
-    intro; apply IHl1.
+  - rewrite Monad.ret_bind.
+    apply push_tau; reflexivity.
+  - (* There must be a better way than this. *)
+    econstructor; try apply NoTau.
+    unfold write; simpl.
+    unfold liftE.
+    rewrite !Monad.vis_bind.
+    constructor; intro.
+    rewrite !Monad.ret_bind, Monad.tau_bind.
+    constructor; auto.
 Qed.
 
 Definition char0 : Z := 48.
