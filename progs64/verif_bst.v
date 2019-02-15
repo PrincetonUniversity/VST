@@ -556,6 +556,26 @@ Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
   SEP   (treebox_rep (T ta x v tb) b;
          (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
 
+Lemma cancel_emp_spacer:
+  forall sh x y p, x=y -> 
+    emp |-- spacer sh x y p.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
+Lemma cancel_spacer_emp:
+  forall sh x y p, x=y -> 
+    spacer sh x y p |-- emp.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
 Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
 Proof.
   start_function.
