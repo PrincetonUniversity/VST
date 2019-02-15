@@ -72,22 +72,16 @@ Proof.
   symmetry; auto.
 Qed.
 
-Opaque bind.
-
 Lemma write_list_app : forall l1 l2,
   eq_utt (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
 Proof.
-  induction l1; simpl; intros.
-  - rewrite Monad.ret_bind.
+  induction l1; simpl in *; intros.
+  - rewrite ret_bind.
     apply push_tau; reflexivity.
   - (* There must be a better way than this. *)
-    econstructor; try apply NoTau.
-    unfold write; simpl.
-    unfold liftE.
-    rewrite !Monad.vis_bind.
-    constructor; intro.
-    rewrite !Monad.ret_bind, Monad.tau_bind.
-    constructor; auto.
+    rewrite bind_bind.
+    apply bind_mor; [reflexivity|].
+    intro; auto.
 Qed.
 
 Definition char0 : Z := 48.
