@@ -1,8 +1,6 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: _CoqProject msl veric floyd progs
-
 COMPCERT ?= compcert
 -include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
@@ -18,6 +16,7 @@ COMPCERT ?= compcert
 # You can override ARCH and BITSIZE in the configure file, too;
 # otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
 
+default_target: _CoqProject msl veric floyd $(PROGSDIR)
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -32,9 +31,15 @@ COMPCERT ?= compcert
 ANNOTATE=silent   # suppress chatty output from coqc
 # ANNOTATE=false  # leave chatty output of coqc unchanged
 
+ifeq ($(BITSIZE),64)
+PROGSDIR=progs64
+else
+PROGSDIR=progs
+endif
+
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86
+VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
 OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
@@ -480,6 +485,12 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
+ifeq ($(BITSIZE),64)
+travis: default_target progs64
+else
+travis: default_target progs sha hmac mailbox
+endif
+
 travis: default_target progs sha hmac mailbox
 
 files: _CoqProject $(FILES:.v=.vo)
@@ -552,6 +563,8 @@ mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
 $(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
+$(patsubst %.c,progs64/%.v, $(SINGLE_C_FILES)): progs64/%.v: progs64/%.c
+	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
@@ -599,6 +612,24 @@ util/calibrate: util/calibrate.ml
 
 calibrate: util/calibrate
 	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
+
+C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
+	bst.c
+V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
+    verif_append2.v verif_bin_search.v \
+    verif_bst.v
+
+progs64/%.c: progs/%.c
+	$(if $(findstring $(@F), $(C64_ORDINARY)), cp $< $@)
+
+FIX64= "{sub(/VST[.]progs[.]/,\"VST.progs64.\"); print}"
+progs64/%.v: progs/%.v
+	$(if $(findstring $(@F), $(V64_ORDINARY)), awk $(FIX64) < $< > $@)
+
+PROGS64_FILES= $(V64_ORDINARY)
+
+progs64v: $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v)
+progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
