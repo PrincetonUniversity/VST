@@ -238,13 +238,13 @@ Proof.
     apply Znth_In_sublist; omega.
   - forward_if.
     + forward. (*  lo = mid + 1; *)
-      Exists ((mid + 1), hi'); entailer!.
+      Exists ((mid + 1), hi'); simpl fst; simpl snd; entailer!.
       rewrite H_tgt_sublist.
       split; intro Hin'.
       eapply In_sorted_gt; eauto; omega.
       eapply sublist_In_sublist; try apply Hin'; omega.
     + forward. (* hi=mid; *)
-      Exists (lo', mid); entailer!.
+      Exists (lo',mid). simpl fst. simpl snd. entailer!.
       rewrite H_tgt_sublist.
       split; intro Hin'.
       eapply In_sorted_lt; eauto; omega.

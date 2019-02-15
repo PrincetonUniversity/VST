@@ -248,6 +248,8 @@ Inductive tc_assert :=
 | tc_nonzero': expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
+| tc_isint: expr -> tc_assert
+| tc_islong: expr -> tc_assert
 | tc_test_eq': expr -> expr -> tc_assert
 | tc_test_order': expr -> expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
@@ -327,7 +329,7 @@ Definition tc_nobinover (op: Z->Z->Z) {CS: compspecs} (e1 e2: expr) : tc_assert 
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
  | Vint n1, Vint n2 => 
     if range_s32 (op (Int.signed n1) (Int.signed n2))
-     then tc_TT else tc_nosignedover Z.add e1 e2
+     then tc_TT else tc_nosignedover op e1 e2
  | Vlong n1, Vlong n2 => 
     if range_s64 (op (Int64.signed n1) (Int64.signed n2))
      then tc_TT else tc_nosignedover op e1 e2
@@ -589,12 +591,20 @@ match classify_cast tfrom tto with
              (if is_pointer_type tto then tc_iszero a else tc_TT)
 | Cop.cast_case_pointer  => 
            if eqb_type tfrom tto then tc_TT else
-           (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
+           if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom))
                        (if Archi.ptr64
                         then (andb (is_long_type tto) (is_long_type tfrom)) 
                         else (andb (is_int_type tto) (is_int_type tfrom)))
-              then tc_TT
-              else tc_iszero a)
+           then tc_TT else 
+           if (andb (eqb_type tto int_or_ptr_type) ((if Archi.ptr64 then is_long_type else is_int_type) tfrom))
+           then tc_TT else
+           if (andb (eqb_type tto int_or_ptr_type) (is_pointer_type tfrom))
+           then tc_TT else
+           if (andb (eqb_type tfrom int_or_ptr_type) (is_pointer_type tto))
+           then tc_isptr a else
+           if (andb (eqb_type tfrom int_or_ptr_type) ((if Archi.ptr64 then is_long_type else is_int_type) tto))
+           then (if Archi.ptr64 then tc_islong else tc_isint) a
+           else tc_iszero a
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)

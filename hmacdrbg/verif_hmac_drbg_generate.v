@@ -966,7 +966,7 @@ Proof.
   }
   { (*Case should_reseed = false*)
     forward. subst after_reseed_add_len. rewrite H (*, Hinitial_state*) in *. clear H (*Hinitial_state*).
-    Exists s key initial_state. entailer!. thaw FR2; cancel.
+    Exists s key initial_state. go_lower; simpl. entailer!. thaw FR2; cancel.
   }
   clear FR2. Intros stream1 key1 ctx1. rename H into PRS. 
 
@@ -1036,7 +1036,8 @@ Proof.
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
        split3; auto. 
-       { (*subst na.*)subst after_reseed_add_len. entailer. unfold hmac256drbgabs_common_mpreds.
+       { (*subst na.*)subst after_reseed_add_len. 
+         entailer. simpl.  progress entailer. unfold hmac256drbgabs_common_mpreds.
          remember ( HMAC256_DRBG_update
              (contents_with_add (Vptr b0 i0) (Zlength contents) contents) key
              V) as UPD. destruct UPD as [KK VV]. simpl. 
@@ -1052,7 +1053,7 @@ Proof.
          exists b0, i0, VV. repeat split; trivial. }  
      }
      { clear - H. forward. rewrite H in *. 
-       Exists ctx1 key1. entailer!. }
+       Exists ctx1 key1. entailer!. simpl; auto. }
   Intros ctx2 key2. rename H into PUPD.
 
 (*exfalso. apply myAx. Time Qed. 54s*)
@@ -1196,7 +1197,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     rewrite Hafter_update.
     (*entailer!.*) go_lower. normalize. apply andp_right. apply prop_right; repeat split; trivial. omega. omega.
     left; exists 0; omega.
-    cancel.
+    simpl; cancel.
   }
   {
     (* prove the type checking of the loop condition *)

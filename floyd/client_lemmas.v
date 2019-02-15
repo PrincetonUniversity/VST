@@ -23,7 +23,7 @@ Ltac refold_right_sepcon R :=
 
 Lemma SEP_entail':
  forall R' Delta P Q R, 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx nil (LOCALx nil (SEPx R')) -> 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (fold_right_sepcon R') -> 
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -32,8 +32,7 @@ apply andp_left2; apply andp_left1; auto.
 apply andp_right.
 do 2 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans; [ apply H|].
-do 2 apply andp_left2.
-auto.
+apply derives_refl.
 Qed.
 
 Arguments sem_cmp c !t1 !t2 / v1 v2.
@@ -371,6 +370,40 @@ Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
  | b::r => b  /\ fold_right_and P0 r
  end.
 
+Fixpoint fold_right_and_True (l: list Prop) : Prop :=
+ match l with
+ | nil => True
+ | b :: nil => b
+ | b::r => b /\ fold_right_and_True r
+ end.
+
+Definition fold_right_PROP_SEP (l1: list Prop) (l2: list mpred) : mpred :=
+ match l1 with
+ | nil => fold_right_sepcon l2
+ | l => !! (fold_right_and_True l) && fold_right_sepcon l2
+ end.
+
+Lemma fold_right_PROP_SEP_spec: forall l1 l2,
+  fold_right_PROP_SEP l1 l2 = !! (fold_right and True l1) && fold_right_sepcon l2.
+Proof.
+  intros.
+  assert (fold_right_and_True l1 <-> fold_right and True l1).
+  {
+    destruct l1; [tauto |].
+    revert P; induction l1; intros.
+    - simpl; tauto.
+    - change (P /\ fold_right_and_True (a :: l1) <-> P /\ fold_right and True (a :: l1)).
+      specialize (IHl1 a).
+      tauto.
+  }
+  destruct l1.
+  + simpl.
+    normalize.
+  + unfold fold_right_PROP_SEP.
+    rewrite H.
+    auto.
+Qed.
+
 Lemma typed_true_isptr:
  forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ _ => True | _ => False end ->
           typed_true t = isptr.
@@ -551,8 +584,8 @@ intros.
 subst.
 hnf in H1.
 simpl in H1. rewrite andb_false_r in H1.
-unfold sem_cast, classify_cast; simpl; rewrite !andb_false_r.
-destruct v; inv H1; reflexivity.
+unfold sem_cast, classify_cast; simpl.
+reflexivity.
 Qed.
 
 Lemma force_eval_var_int_ptr :
@@ -2137,3 +2170,54 @@ Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
  Exists' x0; Exists' x1; Exists x2; Exists' x3; Exists' x4;
  Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
  Exists' x10; Exists' x11; Exists' x12.
+
+(* EExists *)
+Ltac my_evar name T cb :=
+  let x := fresh name
+  in
+  evar (x : T);
+    let x' := eval unfold x in x
+    in
+    clear x; cb x'.
+
+Ltac tuple_evar name T cb :=
+  lazymatch T with
+  | prod ?A ?B => tuple_evar name A
+    ltac: (fun xA =>
+      tuple_evar name B ltac: (fun xB =>
+        cb (xA, xB)))
+  | _ => my_evar name T cb
+  end; idtac.
+
+Ltac EExists'' :=
+  let EExists_core :=
+    match goal with [ |- _ |-- EX x:?T, _ ] =>
+      tuple_evar x T ltac: (fun x => apply exp_right with x)
+    end; idtac
+  in
+  first [ EExists_core
+         | rewrite exp_andp1; EExists''
+         | rewrite exp_andp2; EExists''
+         | rewrite exp_sepcon1; EExists''
+         | rewrite exp_sepcon2; EExists''
+         | extract_exists_from_SEP_right; EExists_core
+         ].
+
+Ltac EExists' :=
+  match goal with |- ?A |-- ?B =>
+     let z := fresh "z" in pose (z:=A); change (z|--B); EExists''; unfold z at 1; clear z
+  end.
+
+Ltac EExists := EExists'.
+
+Ltac EExists_alt :=
+  let T := fresh "T"
+  in
+  let x := fresh "x"
+  in
+  evar (T:Type); evar (x:T); subst T; Exists x; subst x.
+
+Tactic Notation "freeze1" uconstr(a) :=
+    let x := fresh "x" in set (x:=a);
+    let fr := fresh "freeze" in pose (fr := @abbreviate mpred x);
+    change x with fr; subst x.

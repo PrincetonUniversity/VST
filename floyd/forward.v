@@ -278,9 +278,10 @@ Ltac semax_func_cons L :=
  repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  first [apply semax_func_cons;
            [ reflexivity
-           | repeat apply Forall_cons; try apply Forall_nil; computable
-           | unfold var_sizes_ok; repeat constructor | reflexivity | precondition_closed | apply L |
-           ]
+           | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
+           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+           | reflexivity | precondition_closed | apply L
+           | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | semax_func_cons_ext_tc | apply L |
@@ -334,9 +335,22 @@ Ltac semax_func_cons_ext :=
     |
     ].
 
+Tactic Notation "forward_seq" :=
+  first [eapply semax_seq'; [  | abbreviate_semax ]
+         | eapply semax_post_flipped' ].
+
+Tactic Notation "forward_seq" constr(R) :=
+match goal with P := @abbreviate ret_assert _ |- semax _ _ _ ?P' =>
+  constr_eq P P'; unfold abbreviate in P; subst P;
+  first [apply semax_seq with R; abbreviate_semax
+          | apply (semax_post_flipped' R); [abbreviate_semax | ]]
+end.
+
+(* old:
 Ltac forward_seq :=
   first [eapply semax_seq'; [  | abbreviate_semax ]
          | eapply semax_post_flipped' ].
+*)
 
 (* end of "stuff to move elsewhere" *)
 
@@ -868,7 +882,11 @@ intros. constructor.
 Qed.
 
 Ltac prove_call_setup1 subsumes :=
-match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
+match goal with
+| |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+      fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros to move the existentially bound variables above the line"
+| |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
  lazymatch c with
  | context [Scall _ (Evar ?id ?ty) ?bl] =>
     let R' := strip1_later R in
@@ -981,6 +999,111 @@ Tactic Notation "forward_call" constr(witness) := fwd_call subsume_funspec_refl 
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := fwd_call subsumes witness.
 
+Ltac tuple_evar2 name T cb evar_tac :=
+  lazymatch T with
+  | prod ?A ?B => tuple_evar2 name A
+    ltac: (fun xA =>
+      tuple_evar2 name B ltac: (fun xB =>
+        cb (xA, xB)) evar_tac) evar_tac
+  | _ => my_unshelve_evar name T cb evar_tac
+  end; idtac.
+
+Ltac get_function_witness_type func :=
+ let TA := constr:(functors.MixVariantFunctor._functor
+     (rmaps.dependent_type_functor_rec nil func) mpred) in
+  let TA' := eval cbv 
+     [functors.MixVariantFunctor._functor
+      functors.MixVariantFunctorGenerator.fpair
+      functors.MixVariantFunctorGenerator.fconst
+      functors.MixVariantFunctorGenerator.fidentity
+      rmaps.dependent_type_functor_rec
+      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+      functors.CovariantFunctorGenerator.fconst
+      functors.CovariantFunctorGenerator.fidentity
+      functors.CovariantBiFunctor._functor
+      functors.CovariantBiFunctorGenerator.Fpair
+      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+      functors.CovariantFunctor._functor
+      functors.MixVariantFunctor.fmap
+      ] in TA
+ in let TA'' := eval simpl in TA'
+ in TA''.
+
+Ltac new_prove_call_setup :=
+ prove_call_setup1 subsume_funspec_refl;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
+      ltac:(fun witness =>
+ let H := fresh in
+ intro H;
+ match goal with | |- @semax ?CS _ _ _ _ _ =>
+ let Frame := fresh "Frame" in evar (Frame: list mpred);
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ [ reflexivity
+ | check_prove_local2ptree
+ | Forall_pTree_from_elements
+ | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | try change_compspecs CS; cancel_for_forward_call
+ |
+ ]
+ end)
+ ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
+ end].
+
+Ltac new_fwd_call' :=
+lazymatch goal with
+| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+  eapply semax_seq';
+    [new_prove_call_setup;
+     clear_Delta_specs; clear_MORE_POST;
+     [ .. |
+      lazymatch goal with
+      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
+         forward_call_id1_wow
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+                semax _ _ (Scall None _ _) _ =>
+        tryif (unify retty Tvoid)
+        then forward_call_id00_wow
+        else forward_call_id01_wow
+     end]
+   | after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [new_prove_call_setup;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_x_wow ]
+         |  after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Etempvar ?ret'2 _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [new_prove_call_setup;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_y_wow ]
+         |  after_forward_call ]
+| |- _ => rewrite <- seq_assoc; new_fwd_call'
+end.
+
+
+Ltac new_fwd_call:=
+ try lazymatch goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ repeat lazymatch goal with
+  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      rewrite <- seq_assoc
+ end;
+lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+  lazymatch C with context [Scall _ _ _] =>
+         new_fwd_call'
+    end
+end.
+
+Tactic Notation "forward_call"  := new_fwd_call.
+
 Lemma seq_assoc2:
   forall (Espec: OracleKind) {cs: compspecs}  Delta P c1 c2 c3 c4 Q,
   semax Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
@@ -1052,6 +1175,10 @@ fail 1000 "Please make sure hnf can simplify"
 
 (* solve msubst_eval_expr, msubst_eval_lvalue, msubst_eval_LR *)
 Ltac solve_msubst_eval :=
+    let e := match goal with
+       | |- msubst_eval_expr _ _ _ _ ?a = _ => a
+       | |- msubst_eval_lvalue _ _ _ _ ?a = _ => a
+    end in
      match goal with
      | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
      end;
@@ -1074,8 +1201,10 @@ Ltac solve_msubst_eval :=
          => change E with (offset_val ofs E'')
        | _ => change E with E'
        end
-     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
-                                         NotSome "to an expression of the form (Some _)"
+     | |- ?NotSome = Some _ => 
+             fail 1000 "The C-language expression " e
+                 " does not necessarily evaluate, perhaps because some variable is missing from your LOCAL clause"
+
      end.
 
 Ltac ignore x := idtac.
@@ -1316,9 +1445,12 @@ end.
 Lemma typed_true_ptr_e:
  forall t v, typed_true (tptr t) v -> isptr v.
 Proof.
- intros. destruct v; inv H; try apply Coq.Init.Logic.I.
-(*destruct Archi.ptr64; try discriminate.*)
-revert H1; simple_if_tac; intro H1; inv H1. 
+  intros.
+  unfold typed_true, strict_bool_val, tptr in H.
+  destruct v; match type of H with | None = Some true => inv H | _ => idtac end.
+  + destruct Archi.ptr64 eqn:Hp; destruct (Int.eq i Int.zero); inv H.
+  + destruct Archi.ptr64 eqn:Hp; destruct (Int64.eq i Int64.zero); inv H.
+  + apply Coq.Init.Logic.I.
 Qed.
 
 Lemma typed_false_ptr_e:
@@ -1858,19 +1990,6 @@ Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  | _ => ok EK_normal
  end.
 
-Fixpoint nocontinue s :=
- match s with
- | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
- | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
- | Sswitch _ sl => nocontinue_ls sl
- | Sgoto _ => false
- | Scontinue => false
- | _ => true
-end
-with nocontinue_ls sl :=
- match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
- end.
-
 Fixpoint nobreaksx (s: statement) : bool :=
 match s with
 | Sbreak => false
@@ -2013,6 +2132,49 @@ forward_for  Inv   (* where Inv: A->environ->mpred is a predicate on index value
 forward_for Inv continue: PreInc (* where Inv,PreInc are predicates on index values of type A *)
 forward_for Inv continue: PreInc break:Post (* where Post: environ->mpred is an assertion *)".
 
+Lemma semax_convert_for_while:
+ forall CS Espec Delta Pre s1 e2 s3 s4 Post,
+  nocontinue s4 = true ->
+  nocontinue s3 = true ->
+  @semax CS Espec Delta Pre (Ssequence s1 (Swhile e2 (Ssequence s4 s3))) Post ->
+  @semax CS Espec Delta Pre (Sfor s1 e2 s4 s3) Post.
+Proof.
+intros.
+Locate semax_extract_prop.
+pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
+spec H2; auto.
+apply -> semax_seq_skip in H1; auto.
+apply seq_assoc in H1; auto.
+apply <- semax_seq_skip.
+apply H2; auto.
+Qed.
+
+Tactic Notation "forward_for" constr(Inv) :=
+  check_Delta; check_POSTCONDITION;
+  repeat simple apply seq_assoc1;
+  lazymatch type of Inv with
+  | _ -> environ -> mpred => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  end;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+        apply semax_convert_for_while';
+             [(reflexivity ||
+                 fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
+               | (reflexivity || fail "Unexpected continue statement in for-loop increment")
+               | apply semax_seq' with (exp Inv);
+                   [  |  forward_while (EX x:_, Inv x); [ apply ENTAIL_refl | | |  ]  ] ]
+  | |- semax _ _ (Sfor _ _ _ _) _ =>
+        apply semax_convert_for_while;
+             [(reflexivity ||
+                 fail "Your for-loop has a continue statement, so your forward_for needs a continue: clause")
+               | (reflexivity || fail "Unexpected continue statement in for-loop increment")
+               | apply semax_seq' with (exp Inv);
+                   [  |  forward_while (EX x:_, Inv x);
+                             [ apply ENTAIL_refl | | | eapply semax_post_flipped'; [apply semax_skip | ] ]  ] ]
+        
+  end.
+
 Ltac process_cases sign := 
 match goal with
 | |- semax _ _ (seq_of_labeled_statement 
@@ -2113,15 +2275,15 @@ match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
-    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+    else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ (@exp _ _ _ _) _ _ =>
-      fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
+      fail "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
+     fail "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
-     fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
 Lemma ENTAIL_break_normal:
@@ -2715,10 +2877,13 @@ Ltac solve_return_inner_gen :=
       ]
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with
-      | Some _ => first [ simple apply return_inner_gen_canon_Some
-                        | simple apply return_inner_gen_canon_nil
+      | Some _ => first [ simple apply return_inner_gen_canon_Some;
+                          unfold VST_floyd_app; reflexivity
+                        | simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
-      | None   => first [ simple apply return_inner_gen_canon_nil
+      | None   => first [ simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
     | _ => first [ simple apply return_inner_gen_main
@@ -2769,12 +2934,12 @@ Ltac solve_Forall2_fn_data_at :=
 
 Ltac solve_canon_derives_stackframe :=
   solve
-    [ try unfold stackframe_of;
+    [ simple apply canonicalize_stackframe_emp
+    | try unfold stackframe_of;
       simple eapply canonicalize_stackframe;
       [ prove_local2ptree
       | solve_Forall2_fn_data_at
       ]
-    | simple apply canonicalize_stackframe_emp
     ].
 
 Ltac fold_frame_function_body :=
@@ -2873,12 +3038,14 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
 Ltac advise_forward_call :=
- prove_call_setup1;
+ prove_call_setup1 subsume_funspec_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
-             fail "To prove this function call, use forward_call(W), where W:"T" is a WITH-clause witness"
+             fail "To prove this function call, use forward_call(W), where
+W:"T"
+is a WITH-clause witness"
   | _ => fail "This function has a complex calling convention not recognized by forward_call"
  end 
 end].
@@ -2908,22 +3075,22 @@ Ltac forward_advise_loop c :=
  try lazymatch c with
  | Sfor _ _ Sskip ?body =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Swhile _ ?body =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  end;
  lazymatch c with
   | Sfor _ ?test ?body ?incr  =>
        tryif (unify (nobreaksx body) true; test_simple_bound test incr)
-       then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+       then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
-       else fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+       else fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
   | Sloop _ _ =>
-     fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+     fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
  end.
 
 Ltac forward_advise_for :=
@@ -3776,3 +3943,4 @@ Tactic Notation "assert_after" constr(n) constr(PQR) :=
   in  apply (semax_unfold_Ssequence c); [reflexivity | ]
  end;
  apply semax_seq' with PQR; abbreviate_semax.
+

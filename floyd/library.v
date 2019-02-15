@@ -65,6 +65,9 @@ Parameter body_exit:
        {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
    exit_spec'.
 
+Parameter mem_mgr: globals -> mpred.
+Axiom create_mem_mgr: forall gv, emp |-- mem_mgr gv.
+
 Parameter malloc_token : forall {cs: compspecs}, share -> type -> val -> mpred.
 Parameter malloc_token_valid_pointer:
   forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.
@@ -95,17 +98,18 @@ Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
 *)
 Definition malloc_spec'  {cs: compspecs} :=
-   WITH t:type
+   WITH t:type, gv: globals
    PRE [ 1%positive OF size_t ]
        PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))))
-       SEP ()
+       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp
+       SEP (mem_mgr gv;
+             if eq_dec p nullval then emp
             else (malloc_token Ews t p * data_at_ Ews t p)).
 
 Parameter body_malloc:
@@ -113,15 +117,17 @@ Parameter body_malloc:
   body_lemma_of_funspec EF_malloc malloc_spec'.
 
 Definition free_spec'  {cs: compspecs} :=
-   WITH t: type, p:val
+   WITH t: type, p:val, gv: globals
    PRE [ 1%positive OF tptr tvoid ]
        PROP ()
-       LOCAL (temp 1%positive p)
-       SEP (malloc_token Ews t p; data_at_ Ews t p)
+       LOCAL (temp 1%positive p; gvars gv)
+       SEP (mem_mgr gv;
+              if eq_dec p nullval then emp
+              else (malloc_token Ews t p * data_at_ Ews t p))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP ().
+       SEP (mem_mgr gv).
 
 Parameter body_free:
  forall {Espec: OracleKind} {cs: compspecs} ,
@@ -143,11 +149,12 @@ Ltac with_library prog G :=
     with_library' pr x.
 
 Lemma semax_func_cons_malloc_aux:
-  forall {cs: compspecs} (gx : genviron) (t :type) (ret : option val),
+  forall {cs: compspecs} (gv: globals) (gx : genviron) (t :type) (ret : option val),
 (EX p : val,
  PROP ( )
  LOCAL (temp ret_temp p)
- SEP (if eq_dec p nullval
+ SEP (mem_mgr gv;
+      if eq_dec p nullval
       then emp
       else malloc_token Ews t p * data_at_ Ews t p))%assert
   (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).

@@ -175,7 +175,7 @@ intros.
                     (map Vubyte (dd ++ sublist 0 len data)
                        ++list_repeat (Z.to_nat (64 - Zlength dd - len)) Vundef,
                      Vint (Int.repr (Zlength dd + len)))))).
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ c).
   rewrite prop_true_andp.
   cancel. rewrite !map_app, <- ?sublist_map, <- app_assoc. cancel.
   assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz).
@@ -266,7 +266,7 @@ forward_if.
    (*len*) k
         Frame);
   try reflexivity; auto; try omega.
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ c).
   entailer!.
   rewrite field_address_offset by auto.
   rewrite !field_address0_offset by (subst k; auto with field_compatible).
@@ -339,7 +339,7 @@ forward_if.
     by (pose proof LBLOCKz_eq; subst k; auto with field_compatible).
   f_equal. f_equal. unfold k. simpl. Omega1.
   unfold data_block.
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ c).
   rewrite map_Vubyte_eq'; cancel.
 + (* else clause: len < fragment *)
   unfold k.
@@ -368,7 +368,7 @@ forward_if.
   rewrite field_address0_offset by
    (subst k; auto with field_compatible).
   rewrite offset_offset_val; simpl. rewrite Z.mul_1_l; auto.
-  unfold_data_at 1%nat. rewrite map_Vubyte_eq'. cancel.
+  unfold_data_at (data_at _ _ _ c). rewrite map_Vubyte_eq'. cancel.
   abbreviate_semax.
   autorewrite with sublist.
   unfold splice_into_list.
@@ -389,8 +389,8 @@ forward_if.
   repeat rewrite TT_andp.
   unfold data_block.
   subst k.
-  rewrite (prop_true_andp (_ /\ _));
-     [ | split; [apply update_inner_if_update_abs; auto; omega | auto ]].
+  rewrite (prop_true_andp);
+     [ | apply update_inner_if_update_abs; auto; omega ].
  rewrite (sepcon_comm (K_vector gv)).
  apply sepcon_derives; [ | auto].
  rewrite map_Vubyte_eq'. 

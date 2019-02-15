@@ -14,13 +14,13 @@ git clone https://github.com/PrincetonUniversity/VST.git vst-temp
 cd vst-temp
 bash util/make_version
 rm -r sepcomp/submit*
-mv BUILD_ORGANIZATION.md HISTORY LICENSE pg README.md VERSION version.v ../vst
+mv BUILD_ORGANIZATION.md HISTORY LICENSE pg README.md VERSION ../vst
 grep -v CONCPROGS <Makefile  >../vst/Makefile
 mv compcert msl sepcomp veric floyd progs examples util ../vst
 mv doc/VC.pdf ../vst/doc
 mv doc/concurrency.pdf ../vst/doc
 cd ..
-touch vst/version.v # make it newest so "make" won't rebuild it
+touch vst/veric/version.v # make it newest so "make" won't rebuild it
 rm -rf vst-temp
 echo "COMPRESSING: tar cfz vst"-`cat vst/VERSION`".tgz vst"
 tar cfz vst-`cat vst/VERSION`.tgz vst

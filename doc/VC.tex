@@ -1,6 +1,6 @@
 \documentclass[12pt,fleqn,openany,oneside,showtrims]{memoir}
 
-\newcommand\vstversion{2.3alpha}
+\newcommand\vstversion{2.3}
 \newcommand\coqversion{8.8}
 \newcommand\compcertversion{3.4}
 
@@ -1522,7 +1522,9 @@ ENTAIL $\Delta$,
 This entailment proves straightforwardly by
 \lstinline{entailer!}.
 
-
+The \lstinline{EExists} tactic takes no argument; it instantiates
+the existential with a unification variable (much like Coq's
+\lstinline{eex$$ists} versus \lstinline{exi$$sts}).
 
 
 \ychapter{Integers: \upshape\textsf{nat, Z, int}}
@@ -1946,7 +1948,7 @@ LOCAL(gvars gv) $~$ SEP(data_at $\mathit{sh}$ t_struct_b ($u$,($v$,$w$)) (gv _pb
 The postcondition (after the load) would include the new \LOCAL{} fact,
 \lstinline{temp _i $w$}.
 
-The tactic \lstinline{(unfold_data_at 1%nat)}
+The tactic \lstinline{(unfold_data_at (data_at _ _ _ (gv _p)))}
 \label{refcard:unfold-data-at}
 changes the SEP part of the assertion as follows:
 \begin{lstlisting}
@@ -1989,11 +1991,12 @@ data_at_ sh $t$ $p$ = data_at sh $t$ (default_val $t$) $p$
 
 Similarly, \lstinline{field_at_ $$ sh $t$ $\mathit{gfs}$ $p$ = field_at sh $t$ $\mathit{gfs}$ (default_val $t$) $p$}.
 
-\newthought{The tactic} ~~\lstinline{unfold_data_at_ $~p$}~~ does more
-than simply unfolding \lstinline{data_at_}:
-it changes \lstinline{data_at_ sh $t$ $p$} into
-\lstinline{data_at sh $t$ $v$ $p$}, where the value $v$
-is the unfolded-and-cleaned-up description of the default value.
+% No longer true . . .
+% \newthought{The tactic} ~~\lstinline{unfold_data_at_ $~p$}~~ does more
+% than simply unfolding \lstinline{data_at_}:
+% it changes \lstinline{data_at_ sh $t$ $p$} into
+% \lstinline{data_at sh $t$ $v$ $p$}, where the value $v$
+% is the unfolded-and-cleaned-up description of the default value.
 
 
 \chapter{\upshape\textsf{reptype', repinj}}
@@ -2428,6 +2431,11 @@ cancel leaves a residual subgoal $A\vdash A'$ where $A=_\beta A'$;
 sometimes the only differences are in (invisible) implicit arguments.
 You can \lstinline{apply derives_refl} to solve such residual goals.
 
+\newthought{Unification variables.}  \lstinline{cancel} does not
+instantiate unification variables, other than the Frame as described above.
+The \lstinline{ecancel} tactic does instantiate evars
+(much like the difference between \lstinline{assumption} and \lstinline{eassumption}).
+
 \ychapter{entailer!}{(PLCC Ch.~\ref{ch:clight-auto})}
 \label{refcard:entailer}
 The \lstinline{entailer} and \lstinline{entailer!} tactics
@@ -2698,10 +2706,8 @@ J*B*D |-- E
 Or suppose you have,\quad  
 \lstinline{Lemma L: forall x y, F(x)*G(y)=H(x,y)} \newline
 and your proof goal is, \quad   \lstinline{A*G(1)*C*F(2) |-- E} \newline
-then you can do ~\lstinline{sep_apply (L 2 1)}~ to obtain,
-\quad \lstinline{H(2,1)*A*C |-- E.} \newline
-As illustrated here, you must fully instantiate the arguments of the
-lemma, that is, write \lstinline{(L 2 1)} and not just \lstinline{L}.
+then you can do ~\lstinline{sep_apply L}~ to obtain,
+\quad \lstinline{H(2,1)*A*C |-- E.} 
 
 \lstinline{sep_apply} also works on the precondition of \lstinline{semax} or on the \lstinline{SEP} part of an \lstinline{ENTAIL} goal.
 
@@ -3206,8 +3212,6 @@ Also see \file{progs/verif\_min.v} for several approaches to the specification/v
 \ychapter{For loops (general iterators)}{}
 \label{refcard:for-general-iter}
 
-\textbf{\emph{This tactic is deprecated; use \lstinline{forward_loop} instead; see the next chapter.}}
-
 {\small
 The C-language \textsf{for} loop has the general form,
 \lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}.
@@ -3232,7 +3236,8 @@ the postcondition is already provided in your proof context
 (typically because a close-brace follows the entire loop).
 Depending on whether you need \emph{Post}, verify the loop with,
 
-\noindent\lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$.}\qquad or\newline
+\noindent\lstinline{forward_for $\mathit{Inv}$.}\qquad if your loop has no \lstinline{break} or \lstinline{continue} statements; or\newline
+\noindent\lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$.}\qquad if no \lstinline{break} statements; or\newline
 \lstinline{forward_for $\mathit{Inv}$ continue: $\mathit{PreInc}$ break: $\mathit{Post}$.}
 
 This is demonstrated in
@@ -3784,6 +3789,41 @@ as explained in \file{progs/tutorial1.v}, Lemmas
 \lstinline{exercise4} through \lstinline{exercise4c}.
 
 
+\ychapter{Loop peeling and other manipulations}
+
+Sometimes a loop is easier to verify by first transforming it into another loop.  For example,\quad \textsf{for (init; test; incr) body}   \quad
+if not proved using the specialized for-loop tactic
+\lstinline{forward_for_simple_bound}, must be proved by \lstinline{forward_for}
+that requires \emph{two} loop invariants:  one just before the
+\lstinline{test} and another just before the \lstinline{incr}.
+(See \autoref{refcard:for} and \autoref{refcard:for-general-iter}.)
+
+However, as long as the \textsf{body} does not contain any
+(outer-level) \textsf{continue} statements, then this loop is equivalent
+to \quad \textsf{init; while (test) body} \quad
+that can be proved using \lstinline{forward_while} with just
+one \lstinline{continue} statement.  This equivalence is stated
+as the Lemma \lstinline{semax_loop_nocontinue} (and its variant
+\lstinline{semax_loop_nocontinue1}); the
+\lstinline{forward_for}  and \lstinline{forward_loop} tactics apply
+this lemma automatically
+when appropriate, to relieve the user of the obligation of
+proving the just-before-the-incr invariant.
+
+\newthought{Loop peeling.}  In some loops, it makes sense to prove
+the first iteration differently than the rest; or the loop invariant
+is established \emph{during} the first iteration instead of before it.
+For example, \file{progs/verif\_peel.v} shows the verification of this
+loop:
+\begin{lstlisting}
+int f (int b) {int i, a;   for (i=b+1; i*i>b; i--) a=i;   return a;  }
+\end{lstlisting}
+The natural invariant, $0 \le i < b < (i+1)*(i+1) ~\wedge ~ a=i+1$,
+does not hold until the first iteration is completed.
+
+Lemma \lstinline{semax_while_peel} peels the first iteration from a while loop, as demonstrated in \file{progs/verif\_peel.v};
+Lemma \lstinline{semax_loop_unroll1} peels the first iteration of a general \lstinline{Sloop}.
+
 \ychapter{Later}{(See PLCC \autoref{ch:stepindex})}
 Many of the Hoare rules (e.g., see PLCC, \autopageref{rule:semax-set-forward})
 have the operater $\later$ (pronounced ``later'') in their precondition:
@@ -4115,6 +4155,9 @@ there is a private conjunct \linebreak \lstinline{MyModuleGlobs gv}
 that (presumably) uses some global variables of MyModule,
 but it does not see their names.
 
+\newthought{The file} \file{progs/verif\_libglob.v} demonstrates the verification of a module that uses private global variables.
+
+
 \chapter{\textsf{with\_library}: Library functions}
 \label{refcard:with-library}
 
@@ -4376,16 +4419,25 @@ means for flexible framing, by implementing a veil that opaquely hides
 selected items of a SEP clause from non-symbolic treatment by
 non-freezer tactics.
 
-The freezer abstraction consists of two main tactics, $\mathit{freeze}\
-N\ F$ and $\mathit{thaw}\ F$, where $N:\mathit{list\ nat}$ and $F$ is
-a user-supplied (fresh) Coq name. The result of applying
-$\mathit{freeze}\ [i_1;\ldots;i_n]\ F$ to a semax goal is to remove
-items $i_1,\ldots,i_n$ from the precondition's SEP clause, inserting
+The freezer abstraction consists of two main tactics, \textsf{freeze} and \textsf{thaw}.
+
+$\mathsf{freeze}\ F\ \mathsf{:=}\ \mathit{pattern}_1  ~ \mathit{pattern}_2 \ldots \mathit{pattern}_n$\qquad
+where each pattern matches \emph{one} SEP conjunct and $F$ is
+ a user-supplied (fresh) Coq name.
+An example pattern is \lstinline{(data_at _ $~$ _ $~$ _ $~$ p)}.
+The result is that each conjunct matching a pattern is removed from the precondition's SEP clause, inserting
 the item $\mathit{FRZL}\ F$ at the head of the SEP list, and adding a
 hypothesis $F := \mathit{abbreviate}$ to Coq's proof context.
 
+You can also write \qquad
+$\mathit{freeze}\ F\ \mathsf{:=}\ \mathsf{-}\ \mathit{pattern}_1  ~\mathit{pattern}_2 \ldots \mathit{pattern}_n$ \newline
+to freeze into $F$ every conjunct \emph{except} those that match the patterns.
+
+$\mathsf{thaw}\ F$ \qquad expands $F$ back into separate conjuncts.
+
+
 The term $\mathit{FRZL}\ F$ participates symbolically in all
-non-freezer tactics just like any other SEP item, so can in particular
+nonfreezer tactics just like any other SEP item, so can in particular
 be canceled, and included in a function call's frame.  Unfolding a
 freezer is not tied to the associativity structure of program
 statements but can be achieved by invoking $\mathit{thaw}\ F$, which

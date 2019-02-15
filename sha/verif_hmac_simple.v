@@ -43,7 +43,7 @@ Time forward_if  (
   { (*Branch1*) exfalso. subst md. contradiction.  }
   { (* Branch2 *) Time forward. (*0.3*) fold t_struct_hmac_ctx_st. Time entailer!. (*1.9*)}
 Time normalize. (*0.8*)
-freeze [2;4] FR1.
+freeze FR1 := - (data_at_ _ _ c) (data_block _ _ k) (K_vector _).
 assert_PROP (isptr k) as isPtrK.
 { unfold data_block. Time normalize. (*1.6 versus 2.2*) rewrite data_at_isptr with (p:=k). Time entailer!. (*1.6 versus 2.5*) }
 
@@ -51,23 +51,23 @@ Time forward_call (Tsh, shk, c, k, kl, key, HMACabs nil nil nil, gv). (*3*)
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
    unfold initPre. Time entailer!. (*0.6 versus 1.1*)
  }
-freeze [1;2;3] FR2.
+freeze FR2 := - (hmacstate_ _ _ c).
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512 /\
              field_compatible (Tstruct _hmac_ctx_st noattr) [] c).
   { unfold hmacstate_. Intros r. entailer!. apply H. }
 destruct H as [H0_len512 FC_c].
 thaw FR2.
 thaw FR1.
-freeze [0;3] FR3.
+freeze FR3 := - (K_vector _) (data_block _ _ d) (hmacstate_ _ _ c).
 Time forward_call (Tsh, shm, hmacInit key, c, d, dl, data, gv). (*2.8*)
   { split3; auto. rewrite H0_len512; assumption. }
 
 thaw FR3.
-freeze [2;3] FR4.
+freeze FR4 := - (K_vector _) (hmacstate_ _ _ c) (memory_block _ _ md).
 Time forward_call (Tsh, hmacUpdate data (hmacInit key), c, md, shmd, gv). (*2.3*)
-freeze [0;2;3] FR5.
+freeze FR5 := - (hmacstate_PostFinal _ _ c).
 forward_call (Tsh, fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
-freeze [0;1] FR6.
+freeze FR6 := - .
 Time forward. (*4.2*)
 Exists (HMAC256 data key). entailer.
 thaw FR6. thaw FR5. Time cancel. (*2.2*)

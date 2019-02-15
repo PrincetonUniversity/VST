@@ -149,6 +149,7 @@ forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
 forward. (* p->y = y; *)
 forward. (* return; *)
+simpl; entailer!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -167,7 +168,7 @@ replace_SEP 0
     (data_at Ews t_struct_message
       (Vint (Int.repr (mf_size intpair_message)), (ser, des)) ipm). {
  entailer!.
- unfold_data_at 2%nat.
+ unfold_data_at (data_at _ t_struct_message _ ipm).
  rewrite (field_at_data_at _ _ _ _ ipm).
 rewrite data_at_tuint_tint.
 (* rewrite <- (mapsto_field_at _ _ [StructField _bufsize] (Vint (Int.repr 8))) by auto with field_compatible. *)
@@ -176,7 +177,7 @@ rewrite data_at_tuint_tint.
  rewrite !field_compatible_field_address by auto with field_compatible.
  simpl.
  normalize.
- cancel. rewrite sepcon_comm. apply derives_refl.
+ cancel.
 }
 forward. (* p.x = 1; *)
 forward. (* p.y = 2; *)
@@ -207,6 +208,8 @@ forward_call (* des(&q, buf, 8); *)
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)
+simpl.
+entailer!.
 sep_apply (data_at_memory_block Tsh (tarray tint 2) [Vint (Int.repr 1); Vint (Int.repr 2)] buf).
 simpl sizeof.
 sep_apply (memory_block_data_at__tarray_tuchar Tsh buf 8).

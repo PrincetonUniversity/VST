@@ -333,19 +333,30 @@ unfold decode_val.
 destruct (proj_bytes vl) eqn:?H.
 2: {
      unfold proj_value.
-     destruct ch; auto.
-     +
-       destruct Archi.ptr64; auto.
+     destruct ch eqn:Hch; auto.
+     + destruct Archi.ptr64; auto.
        destruct vl; auto.
        destruct m; auto.
-       destruct (check_value (size_quantity_nat Q32) v Q32 (Fragment v q n :: vl)) eqn:?; auto.
+       match type of Hch with
+       | ch = Mint64 =>
+           destruct (check_value (size_quantity_nat Q64) v Q64 (Fragment v q n :: vl)) eqn:?; auto
+       | ch = Mint32 =>
+           destruct (check_value (size_quantity_nat Q32) v Q32 (Fragment v q n :: vl)) eqn:?; auto
+       end.
+       revert Hch.
        destruct vl'; inv H.
        inv H4.
+       intro.
        unfold proj_bytes.
        destruct (Val.eq v Vundef).
-       subst.
+       subst v.
        simpl. auto.
-       assert (H9: check_value (size_quantity_nat Q32) v2 Q32 (Fragment v2 q n :: vl') = true).
+       match type of Hch with
+       | ch = Mint64 =>
+           assert (H9: check_value (size_quantity_nat Q64) v2 Q64 (Fragment v2 q n :: vl') = true)
+       | ch = Mint32 =>
+           assert (H9: check_value (size_quantity_nat Q32) v2 Q32 (Fragment v2 q n :: vl') = true)
+       end.
        2: rewrite H9; apply Val.load_result_lessdef; apply val_inject_id; auto.
        assert (v2=v).
        apply val_inject_id in H5.

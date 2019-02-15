@@ -101,12 +101,11 @@ Proof.
   forward.
   forward.
   forward_call (cond, Ews).
-  { unfold tcond; entailer!. }
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lock, Ews, dlock_inv data).
-   change tlock with (tarray (tptr tvoid) 2). cancel.
+   change tlock with (tarray (tptr tvoid) 2).
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
-   change tlock with (tarray (tptr tvoid) 2). cancel.
+   change tlock with (tarray (tptr tvoid) 2).
   forward_spawn _thread_func nullval (sh1, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.

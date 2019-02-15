@@ -106,7 +106,7 @@ forward_for_simple_bound 16
        data_block sh (intlist_to_bytelist b) data)).
 * (* precondition of loop entails the loop invariant *)
  rewrite Round_equation. rewrite if_true by (compute; auto).
- entailer!.
+ entailer!. simpl; cancel.
 * (* loop body & loop condition preserves loop invariant *)
 assert_PROP (data_block sh (intlist_to_bytelist b) data =
    array_at sh (tarray tuchar (Zlength b * 4)) [] 0 (i * 4)

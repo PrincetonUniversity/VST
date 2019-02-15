@@ -162,7 +162,6 @@ Proof.
   { (* Prove that the precon implies the loop invariant *)
     Exists 0.
     entailer!.
-    do 2 f_equal; omega.
   }
   { (* Prove that loop body preserves invariant *)
     Intros i.
@@ -193,4 +192,3 @@ Proof.
   }
   forward. (* return a0; *)
 Qed.
-

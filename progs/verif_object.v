@@ -73,10 +73,10 @@ Definition make_foo_spec :=
  WITH gv: globals
  PRE [ ]
     PROP () LOCAL (gvars gv) 
-    SEP (object_methods foo_invariant (gv _foo_methods))
+    SEP (mem_mgr gv; object_methods foo_invariant (gv _foo_methods))
  POST [ tobject ]
     EX p: val, PROP () LOCAL (temp ret_temp p)
-     SEP (object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).
+     SEP (mem_mgr gv; object_mpred nil p; object_methods foo_invariant (gv _foo_methods)).
 
 Definition main_spec :=
  DECLARE _main
@@ -120,10 +120,13 @@ forward.  (* self -> data = d+2*i; *)
  forget (fold_right Z.add 0 history) as h.
  entailer!.
 forward.  (* return d+i; *)
+simpl.
  set (j:= Int.max_signed / 4) in *; compute in j; subst j.
  forget (fold_right Z.add 0 history) as h.
  entailer!.
 Exists (2 * fold_right Z.add 0 history + i).
+simpl;
+entailer!.
 rewrite Z.mul_add_distr_l, Z.add_comm.
 unfold withspacer; simpl.
 entailer!.
@@ -154,13 +157,14 @@ Lemma body_make_foo: semax_body Vprog Gprog f_make_foo make_foo_spec.
 Proof.
 unfold make_foo_spec.
 start_function.
-forward_call (Tstruct _foo_object noattr).
+forward_call (Tstruct _foo_object noattr, gv).
    split3; simpl; auto; computable.
 Intros p.
 forward_if
   (PROP ( )
    LOCAL (temp _p p; gvars gv)
-   SEP (malloc_token Ews (Tstruct _foo_object noattr) p;
+   SEP (mem_mgr gv;
+          malloc_token Ews (Tstruct _foo_object noattr) p;
           data_at_ Ews (Tstruct _foo_object noattr) p;
           object_methods foo_invariant (gv _foo_methods))).
 *
@@ -186,7 +190,7 @@ sep_apply (split_object_methods foo_invariant (gv _foo_methods)).
 unfold foo_invariant at 4.
 entailer!.
 simpl.
-unfold_field_at 1%nat.
+unfold_data_at (field_at _ _ nil _ p).
 cancel.
 unfold withspacer; simpl.
 rewrite !field_at_data_at.
@@ -258,15 +262,16 @@ end.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.
 
 (* 0. This part should be handled automatically by start_function *)
-gather_SEP 0 1; 
+gather_SEP 1 2; 
 replace_SEP 0 (data_at Ews (Tstruct _methods noattr) 
    (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)). {
   entailer!.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ (Tstruct _methods _) _ (gv _foo_methods)).
   rewrite <- mapsto_field_at with (gfs := [StructField _twiddle]) (v:= (gv _foo_twiddle))
   by  auto with field_compatible.
   rewrite field_at_data_at.  rewrite !field_compatible_field_address by auto with field_compatible.
@@ -287,7 +292,7 @@ forward_call (* p = make_foo(); *)
 Intros p.
 
 (* 3. Done with object_methods for the foreseeable future *)
-freeze [1]  MT. gather_SEP 1.
+freeze [2]  MT. gather_SEP 1.
 
 (* Illustration of an alternate method to prove the method calls.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.

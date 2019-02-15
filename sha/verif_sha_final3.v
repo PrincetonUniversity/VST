@@ -147,7 +147,7 @@ Proof.
   intros. Intros.
   unfold sha_final_epilog.
   abbreviate_semax.
-  Time unfold_data_at 1%nat.
+  Time unfold_data_at (data_at _ _ _ _).
   assert (Zlength (hash_blocks init_registers hashed) = 8)
    by (rewrite Zlength_length;[apply length_hash_blocks|]; auto).
   Time forward_call (* sha256_block_data_order (c,p); *)
@@ -182,7 +182,7 @@ Proof.
         (Vundef,
          (Vundef,
           (list_repeat (Z.to_nat CBLOCKz) (Vint Int.zero), Vint Int.zero)))) c).
- unfold_data_at 2%nat.
+ unfold_data_at (data_at _ _ _ c).
  change (Z.to_nat 64) with (Z.to_nat CBLOCKz).
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  entailer!.
@@ -525,7 +525,7 @@ Proof.
   pose (lastblock' := bytelist_to_intlist lastblock).
   eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c wsh shmd hashed' lastblock'); auto].
   * Time entailer!.
-     Time unfold_data_at 1%nat. (*0.62*)
+     Time unfold_data_at (data_at _ _ _ _). (*0.62*)
       unfold lastblock'.
       rewrite bytelist_to_intlist_to_bytelist; auto.
       2:    rewrite H99; exists LBLOCKz; reflexivity.

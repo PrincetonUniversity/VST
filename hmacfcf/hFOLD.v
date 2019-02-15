@@ -1,10 +1,10 @@
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.PRF.
+Require Import FCF.FCF.
+Require Import FCF.PRF.
 Require Import hmacfcf.splitVector.
 Require Import hmacfcf.cAU.
-Require Import fcf.CompFold.
+Require Import FCF.CompFold.
 
 Local Open Scope list_scope.
 
@@ -64,7 +64,7 @@ Section hF.
     reflexivity.
   Qed.
 
-  Require Import fcf.DetSem fcf.SemEquiv.
+  Require Import FCF.DetSem FCF.SemEquiv.
 
 
   Theorem G0_1_G0_equiv :

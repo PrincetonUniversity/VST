@@ -212,7 +212,7 @@ Lemma freeze_SEP'':
 Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H.
   eapply freeze_SEP'; eassumption.  Qed.
 
-Ltac freeze L name :=
+Ltac freeze_tac L name :=
   eapply (freeze_SEP'' (map nat_of_Z L));
   first [solve [reflexivity] |
          match goal with
@@ -223,6 +223,95 @@ Ltac freeze L name :=
            change xs with (@abbreviate (list mpred) xs) in D;
            simpl nat_of_Z; unfold my_delete_nth
          end].
+
+Module ZOrder <: Orders.TotalLeBool.
+  Definition t := Z.
+  Definition leb := Z.leb.
+  Theorem leb_total : forall a1 a2, Z.leb a1 a2 = true \/ Z.leb a2 a1 = true.
+  Proof.  intros. destruct (Zle_bool_total a1 a2); auto. Qed. 
+End ZOrder.
+Module SortZ := Mergesort.Sort(ZOrder).
+
+Function Zlist_complement'  (i: Z) (n: nat) (bl: list Z) : list Z :=
+ match n with O => nil
+ | S n' =>
+   match bl with
+   | nil => i :: Zlist_complement' (Z.succ i) n' bl
+   | b::bl' => if Z.ltb i b then i :: Zlist_complement' (Z.succ i) n' bl
+                    else Zlist_complement' (Z.succ i) n' bl'
+   end
+ end.
+
+Definition Zlist_complement (n: nat) (al: list Z) : list Z :=
+  let bl := SortZ.sort al
+  in Zlist_complement' 0 n bl.
+
+(* Compute Zlist_complement 9 [4;5;3]. *)
+
+Ltac find_freeze1 comp id A :=
+lazymatch goal with
+| fr := @abbreviate mpred _ |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+  match R with context [fr :: ?R'] =>
+    let L := constr:(Zlength R - (Z.succ (Zlength R'))) in
+     let L := eval cbn in L in
+      let A' := constr:(L::A) in
+        unfold abbreviate in fr; subst fr; find_freeze1 comp id A'
+   end
+| |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
+            let A' := constr:(if comp then Zlist_complement (length R) A 
+                                     else A) in
+            let A' := eval compute in A' in
+            freeze_tac A' id
+end.
+
+Ltac freezer i := find_freeze1  false i (@nil Z).
+Ltac complement_freezer i := find_freeze1 true i (@nil Z).
+
+Tactic Notation "freeze" constr(L) ident(i) :=
+  freeze_tac L i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) :=
+  freeze1 a1; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) :=
+  freeze1 a1; freeze1 a2; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) :=
+  freeze1 a1; freeze1 a2; freeze1 a3; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) :=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) :=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8) uconstr(a9):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freeze1 a9; freezer i.
+Tactic Notation "freeze" ident(i) ":=" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8) uconstr(a9) uconstr(a10):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freeze1 a9; freeze1 a10; freezer i.
+
+Tactic Notation "freeze" ident(i) ":=" "-"  :=
+    complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) :=
+  freeze1 a1; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) :=
+  freeze1 a1; freeze1 a2; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) :=
+  freeze1 a1; freeze1 a2; freeze1 a3; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) :=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) :=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8) uconstr(a9):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freeze1 a9; complement_freezer i.
+Tactic Notation "freeze" ident(i) ":=" "-" uconstr(a1) uconstr(a2) uconstr(a3) uconstr(a4) uconstr(a5) uconstr(a6) uconstr(a7) uconstr(a8) uconstr(a9) uconstr(a10):=
+  freeze1 a1; freeze1 a2; freeze1 a3; freeze1 a4; freeze1 a5; freeze1 a6; freeze1 a7; freeze1 a8; freeze1 a9; freeze1 a10; complement_freezer i.
 
 (****************************************************************************)
 

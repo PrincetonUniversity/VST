@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
-Require Import fcf.Blist.
+Require Import FCF.Blist.
 
 Require Import sha.vst_lemmas.
 Require Import sha.hmac_pure_lemmas.
@@ -150,14 +150,14 @@ destruct RES as [h2 dig].
 simpl.
 
 forward_call (Tsh, h2,buf).
-freeze [0; 1; 2; 3; 4] FR1.
+freeze FR1 := - . 
 forward.
 (*assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) nil buf).
 { unfold data_block at 1. unfold Zlength. simpl. apply prop_right. assumption. }
 rename H5 into FBUF.*)
 specialize (hmac_sound key data). unfold hmac.
 rewrite <- HeqRES. simpl; intros.
-Exists dig. thaw FR1. entailer!. 
+Exists dig. thaw FR1.  entailer!. 
 { subst.
        split. unfold bitspec. simpl. rewrite Equivalence.
          f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.

@@ -22,17 +22,17 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 (* utility function specs *)
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
-   WITH t:type
+   WITH t:type, gv: globals
    PRE [ _n OF tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))))
-       SEP ()
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Ews t p * data_at_ Ews t p).
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition memset_spec :=
  DECLARE _memset
@@ -117,7 +117,8 @@ Definition initialize_channels_spec :=
    LOCAL (gvars gv)
    SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm); data_at_ Ews (tarray (tptr tlock) N) (gv _lock);
         data_at_ Ews (tarray (tptr tbuffer) B) (gv _bufs);
-        data_at_ Ews (tarray (tptr tint) N) (gv _reading); data_at_ Ews (tarray (tptr tint) N) (gv _last_read))
+        data_at_ Ews (tarray (tptr tint) N) (gv _reading); data_at_ Ews (tarray (tptr tint) N) (gv _last_read);
+        mem_mgr gv)
   POST [ tvoid ]
    EX comms : list val, EX locks : list val, EX bufs : list val, EX reads : list val, EX lasts : list val,
      EX g : list gname, EX g0 : list gname, EX g1 : list gname, EX g2 : list gname,
@@ -143,7 +144,8 @@ Definition initialize_channels_spec :=
         data_at sh1 tbuffer (vint 0) (Znth 0 bufs);
         fold_right sepcon emp (map (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
         fold_right sepcon emp (map (data_at_ Ews tint) reads);
-        fold_right sepcon emp (map (data_at_ Ews tint) lasts)).
+        fold_right sepcon emp (map (data_at_ Ews tint) lasts);
+        mem_mgr gv).
 (* All the communication channels are now inside locks. Buffer 0 also starts distributed among the channels. *)
 
 Definition initialize_reader_spec :=

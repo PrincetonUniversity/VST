@@ -11,7 +11,7 @@ Require Import sha.HMAC_spec_pad.
 Require Import sha.HMAC_spec_concat.
 Require Import sha.HMAC_spec_abstract.
 
-Require Import fcf.Blist.
+Require Import FCF.Blist.
 
 Lemma of_length_proof_irrel {A:Set} n (l: list A) M:
       Vector.to_list (@of_list_length _ n l M) = l.

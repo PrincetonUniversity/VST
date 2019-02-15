@@ -12,7 +12,7 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
    | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-             if Int.eq n Int.zero then Some false else None
+            if Archi.ptr64 then None else if Int.eq n Int.zero then Some false else None
    | Vlong n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
             if Archi.ptr64 then if Int64.eq n Int64.zero then Some false else None else None
    | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true

@@ -188,10 +188,10 @@ replace_SEP 0  (data_at wsh t_struct_SHA256state_st
             [Vint (Int.repr 128)] ++
             list_repeat (Z.to_nat (64 - (Zlength (s256a_data a) + 1)))
               Vundef, Vint (Int.repr (Zlength (s256a_data a))))))) c).
- unfold_data_at 1%nat.
+ unfold_data_at (data_at _ _ _ _).
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  unfold data_at.
- go_lower; cancel. (* saturate_local makes entailer! is REALLY slow, but (go_lower; cancel) is fast. *)
+ go_lower; simpl; cancel. (* saturate_local makes entailer! is REALLY slow, but (go_lower; cancel) is fast. *)
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite <- !(app_ass _ [_]).
  rewrite <- app_nil_end.
@@ -213,7 +213,7 @@ set (ddlen := Zlength dd) in *.
 set (fill_len := (64 - (ddlen + 1))).
  unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 eapply semax_seq'.
 evar (Frame: list mpred).
 evar (V: list val).
@@ -275,14 +275,19 @@ forward_call (* sha256_block_data_order (c,p); *)
     field_address t_struct_SHA256state_st [StructField _data] c,
     wsh, gv).
 {
-  simpl.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   unfold data_block.
   autorewrite with sublist.
   rewrite H1', <- HU. change (LBLOCKz*4)%Z with 64.
-  replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by
-    (extensionality xx; rewrite Int.repr_unsigned; auto).
-  apply derives_refl.
+  apply derives_refl'. clear Frame. f_equal.
+  subst ddz fill_len ddlen.
+  change CBLOCKz with 64.
+  rewrite !map_app.
+  unfold splice_into_list.
+  autorewrite with sublist.
+  rewrite <- (app_ass (map Vubyte dd)).
+  autorewrite with sublist.
+  reflexivity.
 }
  rewrite hash_blocks_last by auto.
  set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
@@ -302,8 +307,7 @@ split.
   repeat rewrite app_ass.
  f_equal.
 *
- rewrite Zlength_nil, Z.sub_0_r.
- unfold_data_at 1%nat.
+ unfold_data_at (data_at _ _ _ _).
  unfold data_block. simpl.
  Intros.
  cancel.
@@ -317,7 +321,7 @@ split.
 * (* else-clause *)
 forward. (* skip; *)
 Exists (s256a_hashed a) ((s256a_data a) ++ [Byte.repr 128]) 0.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 Time entailer!. (* 10.2 secs (3.8u, 0.s) *)
 split3.
 autorewrite with sublist. omega.

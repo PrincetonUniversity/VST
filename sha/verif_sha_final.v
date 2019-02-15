@@ -44,7 +44,7 @@ unfold s256_relate in H.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H.
 destruct H as [H0 [[H1 H6] [H2 H4]]].
 assert (H3 := s256a_data_Zlength_less a).
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 
 assert_PROP (Zlength r_data = CBLOCKz
     /\ r_data = map Vubyte (s256a_data a) ++ sublist (Zlength (s256a_data a)) CBLOCKz r_data
@@ -87,7 +87,7 @@ abbreviate_semax.
 Intros hashed' dd' pad.
 rename H1 into DDbytes'.
 rename H2 into PAD.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 erewrite (field_at_Tarray wsh _ [StructField _data]); try reflexivity; try apply JMeq_refl; try omega.
 2: apply compute_legal_nested_field_spec'; repeat constructor.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
@@ -107,6 +107,8 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
  make_Vptr c. simpl. unfold Ptrofs.of_intu, Ptrofs.of_int. normalize.
+ rewrite !mul_repr, !sub_repr.  (* Why didn't [normalize] do this? *)
+ reflexivity.
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')

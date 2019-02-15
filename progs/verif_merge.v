@@ -269,7 +269,7 @@ rewrite (lseg_unfold LS _ _ b_).
 Time entailer!. (* 24.7 sec -> 10.16 sec*)
 Exists b_'.
 rewrite list_cell_field_at.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 Time entailer!.  (* 12.6 -> 3.2 sec *)
 }
 
@@ -292,8 +292,8 @@ Time entailer!.  (* 42.3 sec -> 13.9 sec -> 11.4 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
-unfold_data_at 1%nat.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ c_). 
+unfold_data_at (data_at _ _ _ a_).
 match goal with |- ?B * ?C * ?D * ?E * ?F * ?G * (?H * ?A) |-- _ =>
  apply derives_trans with ((H * A * G * C) * (B * D * E * F));
   [cancel | ]
@@ -361,7 +361,7 @@ simpl map. rewrite @lseg_cons_eq.
 Exists a_'.
 rewrite list_cell_field_at.
 entailer!.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 entailer!.
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
@@ -390,8 +390,8 @@ pattern merged at 3; rewrite snoc by auto.
 rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_).
 simpl in LCR. rewrite emp_sepcon, list_cell_field_at in LCR.
-unfold_data_at 1%nat.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ c_).
+unfold_data_at (data_at _ _ _ b_).
 match goal with |- ?B * ?C * ?D * ?E * (?F * ?A) |-- _ =>
  apply derives_trans with ((F * A * E * D) * (B * C)); [cancel | ]
 end.
@@ -543,7 +543,7 @@ remember (hmerge :: tmerge) as merged.
  rewrite (lseg_unfold LS _ _ c_).
  Exists ab_; entailer!.
  rewrite list_cell_field_at.
- unfold_data_at 1%nat.
+ unfold_data_at (data_at _ _ _ _).
  simpl. cancel.
 
  (* part 3 : left part of the list *)

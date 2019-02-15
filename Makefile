@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-#CLIGHTGEN=$(COMPCERT)/clightgen 
+#CLIGHTGEN=$(COMPCERT)/clightgen
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -34,8 +34,8 @@ ANNOTATE=silent   # suppress chatty output from coqc
 
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86 
-OTHERDIRS= wand_demo sha fcf hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
+VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86
+OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
@@ -98,7 +98,7 @@ DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
 # The warning setting -overriding-logical-loadpath is needed until
-#  CompCert issue 199 is resolve satisfactorily: 
+#  CompCert issue 199 is resolve satisfactorily:
 #  https://github.com/AbsInt/CompCert/issues/199
 COQC=$(COQBIN)coqc -w -overriding-logical-loadpath,-notation-overridden
 COQTOP=$(COQBIN)coqtop
@@ -252,7 +252,7 @@ VERIC_FILES= \
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
-   library.v proofauto.v computable_theorems.v \
+   library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
    sublist.v extract_smt.v \
@@ -291,7 +291,8 @@ PROGS_FILES= \
   funcptr.v verif_funcptr.v tutorial1.v  \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
   verif_strlib.v verif_fib.v bug83.v \
-  tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v
+  tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
+  libglob.v verif_libglob.v peel.v verif_peel.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
@@ -397,7 +398,7 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c
+SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c
 
 LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
@@ -412,7 +413,7 @@ FILES = \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
- $(FCF_FILES:%=fcf/%) \
+ $(FCF_FILES:%=FCF/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
@@ -442,13 +443,13 @@ else ifeq ($(strip $(ANNOTATE)), true)
 	@$(COQC) $(COQF) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
 else ifeq ($(strip $(ANNOTATE)), silent)
 	@$(COQC) $(COQF) $*.v >/dev/null
-else 
+else
 	@$(COQC) $(COQF) $*.v
-#	@util/annotate $(COQC) $(COQF) $*.v 
+#	@util/annotate $(COQC) $(COQF) $*.v
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.8.0 or-else 8.8.1 or-else 8.8.2 or-else 8.9+alpha
+COQVERSION= 8.9+alpha or-else 8.9.0
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -483,7 +484,7 @@ travis: default_target progs sha hmac mailbox
 
 files: _CoqProject $(FILES:.v=.vo)
 
-all: default_target files travis hmacdrbg tweetnacl aes
+all: default_target files travis hkdf hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)
@@ -495,7 +496,7 @@ all: default_target files travis hmacdrbg tweetnacl aes
 # $(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
 # msl/Coqlib2.vo: compcert
 # endif
- 
+
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
@@ -509,7 +510,7 @@ wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
 hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
-fcf:     _CoqProject $(FCF_FILES:%.v=fcf/%.vo)
+FCF:     _CoqProject $(FCF_FILES:%.v=FCF/%.vo)
 hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: _CoqProject $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: _CoqProject sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
@@ -518,7 +519,7 @@ aes: _CoqProject $(AES_FILES:%.v=aes/%.vo)
 hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
-atomics: _CoqProject mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo 
+atomics: _CoqProject mailbox/verif_kvnode_atomic.vo mailbox/verif_kvnode_atomic_ra.vo mailbox/verif_hashtable_atomic.vo mailbox/verif_hashtable_atomic_ra.vo
 
 CGFLAGS =  -DCOMPCERT
 
@@ -556,7 +557,7 @@ endif
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export: Makefile util/coqflags 
+_CoqProject _CoqProject-export: Makefile util/coqflags
 	echo $(COQFLAGS) > _CoqProject
 	util/coqflags > _CoqProject-export
 

@@ -1689,6 +1689,56 @@ End CENV.
 Hint Extern 2 (memory_block _ _ _ |-- valid_pointer _) =>
   (apply memory_block_valid_ptr; [auto with valid_pointer | rep_omega]) : valid_pointer.
 
+Lemma valid_pointer_weak:
+ forall a, valid_pointer a |-- weak_valid_pointer a.
+Proof.
+intros.
+unfold valid_pointer, weak_valid_pointer.
+change predicates_hered.orp with orp. (* delete me *)
+apply orp_right1.
+auto.
+Qed.
+
+Lemma valid_pointer_weak':
+  forall P q, P |-- valid_pointer q ->
+                 P |-- weak_valid_pointer q.
+Proof.
+intros.
+eapply derives_trans; try eassumption.
+apply valid_pointer_weak.
+Qed.
+
+Hint Resolve valid_pointer_weak' : valid_pointer.
+
+Lemma valid_pointer_offset_zero: forall P q, 
+   P |-- valid_pointer (offset_val 0 q) ->
+   P |-- valid_pointer q.
+Proof.
+intros.
+destruct q; auto.
+eapply derives_trans; try eassumption.
+simpl valid_pointer.
+match goal with
+| |- context [Int64.zero] =>
+    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int64.zero)))
+| |- context [Int.zero] =>
+    change (@predicates_hered.derives compcert_rmaps.R.rmap _ predicates_hered.FF (predicates_hered.prop (i = Int.zero)))
+end.
+intros ? ?. contradiction H0.
+rewrite offset_val_zero_Vptr in H.
+auto.
+Qed.
+
+Hint Extern 1 (_ |-- valid_pointer ?Q) =>
+  lazymatch Q with
+  | offset_val _ _ => fail 
+  | _ => apply valid_pointer_offset_zero
+  end.
+
+Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
+  (apply SeparationLogic.memory_block_weak_valid_pointer;
+        [rep_omega | rep_omega | auto with valid_pointer]) : valid_pointer.
+
 Ltac field_at_conflict z fld :=
 eapply derives_trans with FF; [ | apply FF_left];
  rewrite <- ?sepcon_assoc;
@@ -1867,6 +1917,12 @@ Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
 Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
     (unfold field_at_; simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
 
+Hint Extern 1 (data_at_ _ _ _ |-- valid_pointer _) =>
+    (simple apply data_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+
+Hint Extern 1 (field_at_ _ _ _ _ |-- valid_pointer _) =>
+    (simple apply field_at_valid_ptr; [now auto | data_at_valid_aux]) : valid_pointer.
+
 (* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
 (*Hint Resolve field_at_local_facts : saturate_local.*)
@@ -2030,6 +2086,8 @@ Ltac find_data_at N :=
 Definition protect (T: Type) (x: T) := x.
 Global Opaque protect.
 
+(* The following code is obsolete, use the version in floyd/unfold_data_at.v instead. 
+
 Ltac unfold_field_at' :=
  match goal with
  | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
@@ -2068,11 +2126,12 @@ Ltac unfold_field_at' :=
      repeat simplify_project_default_val
  end.
 
-Ltac unfold_field_at N  :=
+Ltac unfold_field_at_tac N  :=
   find_field_at N; unfold_field_at'.
 
-Ltac unfold_data_at N  :=
+Ltac unfold_data_at_tac N  :=
   find_data_at N; unfold_field_at'.
+*)
 
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,
@@ -2723,6 +2782,22 @@ Hint Extern 1 (_ = @default_val _ _) =>
 
 Hint Extern 1 (_ = _) => 
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.
+
+(* enhance cancel to solve field_at and data_at *)
+
+Lemma field_at_data_at_cancel': forall {cs : compspecs} sh t v p,
+  field_at sh t nil v p = data_at sh t v p.
+Proof.
+  intros. apply pred_ext.
+  apply field_at_data_at_cancel.
+  apply data_at_field_at_cancel.
+Qed.
+
+Hint Rewrite
+  @field_at_data_at_cancel'
+  @field_at_data_at
+  @field_at__data_at_
+  @data_at__data_at : cancel.
 
 (* END new experiments *)
 

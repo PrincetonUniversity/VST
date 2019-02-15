@@ -61,11 +61,10 @@ assert (FC_octx: field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vpt
 { clear - FC_ctx. red; red in FC_ctx. intuition.
   split; trivial. right; right; left; trivial. }
 rewrite <- memory_block_data_at_ ; trivial.
-
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 
 destruct ST as [MD [iCTX oCTX]]. simpl in reprMD,reprI,reprO |- *.
-freeze [2;3;5] FR1.
+freeze FR1 := - (memory_block _ _ buf) (field_at _ _ [StructField _md_ctx] _ _) (K_vector _).
 Time forward_call (ctx, buf, Vptr b i, wsh, Tsh, gv). (*3.6 versus 9.5*)
   { unfold sha256state_. Exists MD.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]).
@@ -99,7 +98,7 @@ apply semax_pre with (P':=
      data_block Tsh (SHA256.SHA_256 ctx) buf;
      memory_block shmd 32 md))).
 { Time entailer!. (*5.2versus 11.7*)
-      unfold_data_at 1%nat. thaw FR1.
+      unfold_data_at (@data_at CompSpecs _ t_struct_hmac_ctx_st _ _). thaw FR1.
       rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible.
       simpl. rewrite Ptrofs.add_zero.
@@ -108,9 +107,8 @@ apply semax_pre with (P':=
       Time cancel. (*0.9*)
 }
 subst l'. clear FR1.
-
-freeze [0;2;3] FR2.
-unfold_data_at 1%nat.
+freeze FR2 := - (@data_at CompSpecs _ _ _ (Vptr b i)).
+unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
 rewrite (field_at_data_at _ _ [StructField _o_ctx]).
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible.
@@ -122,7 +120,7 @@ replace_SEP 1 (memory_block wsh 108 (Vptr b i)).
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ wsh _ _ H). apply derives_refl.
   }
-freeze [0;2] FR3.
+freeze FR3 := - (memory_block _ _ (Vptr b i)) (@data_at CompSpecs _ _ _ (Vptr b (Ptrofs.add i (Ptrofs.repr 216)))).
 Time forward_call (wsh, wsh, Vptr b i, Vptr b (Ptrofs.add i (Ptrofs.repr 216)),
               mkTrep t_struct_SHA256state_st oCTX, 108). (*5 versus 8.7*)
 (* Time solve [simpl; cancel]. (*0.1 versus 1*) *)
@@ -132,7 +130,6 @@ assert (SFL: Zlength (SHA256.SHA_256 ctx) = 32).
 
 (*Call sha256Update*)
 thaw FR3. thaw FR2.
-freeze [1;4;5] FR4.
 Time forward_call (oSha, SHA256.SHA_256 ctx, Vptr b i, wsh, buf, Tsh, Z.of_nat SHA256.DigestLength, gv).
   (*5.1 versus 10.2*)
   { unfold sha256state_.
@@ -152,20 +149,16 @@ rename H into updShaREL.
 
 (*Call SHA_Final*)
 remember (oSha ++ SHA256.SHA_256 ctx) as updSha.
-thaw FR4.
-freeze [2;3;5] FR5.
+
 Time forward_call (updSha, md, Vptr b i, wsh, shmd, gv). (*4.2 versus 21 SLOW*)
   { unfold sha256state_.
     Exists updShaST.
     change_compspecs CompSpecs. entailer!. }
 
-freeze [0;1;2;3] FR6.
 Time forward. (*Sreturn None; 2.7 versus 10.2*)
-thaw FR6.
 (*    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updShaST) md)
      with (@data_block CompSpecs shmd (SHA256.SHA_256 updShaST) md).
      Time cancel. (*0.5*)*)
-thaw FR5.
 (*change_compspecs CompSpecs.*)
 unfold data_block. simpl. rewrite SFL.
 Time (normalize; cancel). (*5.5*)
@@ -175,7 +168,7 @@ Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
-Time unfold_data_at 2%nat. (*0.6*)
+Time unfold_data_at (@data_at CompSpecs _ _ _ (Vptr b i)).
 Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr b i)) as FC by entailer!. (*1.2*)
 Time cancel. (*0.7*)
 unfold data_at_, field_at_.

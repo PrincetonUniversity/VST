@@ -232,16 +232,6 @@ Ltac simpl_denote_tc :=
  simpl denote_tc_initialized;
  simpl denote_tc_nosignedover.
 
-Lemma valid_pointer_weak:
- forall a, valid_pointer a |-- weak_valid_pointer a.
-Proof.
-intros.
-unfold valid_pointer, weak_valid_pointer.
-change predicates_hered.orp with orp. (* delete me *)
-apply orp_right1.
-auto.
-Qed.
-
 Lemma denote_tc_test_eq_split:
   forall P x y,
     P |-- valid_pointer x ->
@@ -326,6 +316,23 @@ Proof.
  auto.
 Qed.
 
+Lemma sepcon_weak_valid_pointer1: 
+ forall (P Q : mpred) (p : val),
+   P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
+Proof.
+  intros.
+  eapply derives_trans; [ | apply (extend_weak_valid_pointer p Q)].
+  apply sepcon_derives; auto.
+Qed.
+
+Lemma sepcon_weak_valid_pointer2:
+  forall (P Q : mpred) (p : val),
+    P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
+Proof.
+  intros. rewrite sepcon_comm.
+  apply sepcon_weak_valid_pointer1; auto.
+Qed.
+
  Lemma andp_valid_pointer1:
      forall (P Q: mpred) p,
         P |-- valid_pointer p ->
@@ -368,6 +375,9 @@ Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
 Hint Resolve valid_pointer_null : valid_pointer.
 Hint Resolve valid_pointer_zero32 : valid_pointer.
 Hint Resolve valid_pointer_zero64 : valid_pointer.
+Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
+Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
+
 
 (* TODO: test_order need to be added *)
 Ltac solve_valid_pointer :=
@@ -604,6 +614,12 @@ Ltac entailer' :=
               | simple apply FF_left
               | simple apply TT_right].
 
+Lemma empTrue:
+ @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
+Proof.
+apply prop_right; auto.
+Qed.
+
 Ltac entailer :=
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
@@ -661,12 +677,6 @@ Proof.
 intros. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
-Lemma empTrue:
- @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
-Proof.
-apply prop_right; auto.
-Qed.
-
 Ltac entbang :=
  intros;
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
@@ -676,15 +686,28 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  match goal with
- | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
+ | |- local _ && ?P |-- _ => go_lower; (*simpl;*) try (*simple*) apply empTrue
  | |- ?P |-- _ =>
     match type of P with
     | ?T => unify T mpred; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
+ (* The following lines are only a temporary solution. Many current proofs
+ depend on one original feature of "entailer!": sem_cast expressions and
+ sem_binary_operation' expressions will be simplified. This step was done
+ in go_lower. But that is not a reasonable design. Current version of
+ go_lower does not "simpl" user's expressions any longer---go_lower should
+ be safe. Thus we add the following lines here. *)
+ repeat match goal with
+        | |- context [force_val (sem_binary_operation' ?op ?t1 ?t2 ?v1 ?v2)] =>
+          progress simpl (force_val (sem_binary_operation' op t1 t2 v1 v2))
+        end;
+ simpl sem_cast;
+ (* end of temporary solution *)
  saturate_local;
  ent_iter;
+ repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
         | simple apply prop_right; my_auto
         | match goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';
@@ -806,9 +829,19 @@ Definition cstring {CS : compspecs} sh (s: list byte) p :=
   !!(~In Byte.zero s) &&
   data_at sh (tarray tschar (Zlength s + 1)) (map Vbyte (s ++ [Byte.zero])) p.
 
-Lemma cstring_local_facts: forall {CS : compspecs} sh s p, cstring sh s p |-- !! (isptr p).
+Lemma cstring_local_facts: forall {CS : compspecs} sh s p, 
+  cstring sh s p |-- !! (isptr p /\ Zlength s + 1 < Ptrofs.modulus).
 Proof.
   intros; unfold cstring; entailer!.
+  destruct H0 as [? [_ [? _]]].
+  destruct p; try contradiction.
+  red in H3.
+  unfold sizeof in H3; clear H1.
+  rewrite Z.max_r in H3 by list_solve.
+  fold sizeof in H3.
+  change (sizeof tschar) with 1 in H3.
+  pose proof (Ptrofs.unsigned_range i).
+  omega. 
 Qed.
 
 Hint Resolve cstring_local_facts : saturate_local.
@@ -837,13 +870,21 @@ Proof.
 Qed.
 
 Lemma cstringn_local_facts: forall {CS : compspecs} sh s n p, 
-   cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n).
+   cstringn sh s n p |-- !! (isptr p /\ Zlength s + 1 <= n <= Ptrofs.max_unsigned).
 Proof.
   intros; unfold cstringn; entailer!.
   autorewrite with sublist in H1.
   pose proof (Zlength_nonneg s).
   pose proof (Zlength_nonneg (list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef)).
-  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; omega.
+  destruct H0 as [? [_ [? _]]].
+  destruct p; try contradiction.
+  red in H5.
+  clear H2.
+  destruct (Z.max_spec 0 n) as [[? Hn] | [? Hn]]; rewrite Hn in *; split; try omega.
+  unfold sizeof in H5. rewrite Hn in H5. fold sizeof in H5.
+  change (sizeof tschar) with 1 in H5. 
+  pose proof (Ptrofs.unsigned_range i).
+  rep_omega.
 Qed.
 
 Hint Resolve cstringn_local_facts : saturate_local.
@@ -873,17 +914,23 @@ if_tac; auto. destruct (Z.to_nat i). reflexivity. destruct n; reflexivity.
 Qed.
 
 
-Ltac cstring :=
-  match goal with H: ~In Byte.zero _ |- _ => idtac end;
- lazymatch goal with
- | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
- | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
- end;
 (* THIS TACTIC solves goals of the form,
     ~In 0 ls,  Znth i (ls++[0]) = 0 |-  (any omega consequence of)  i < Zlength ls
     ~In 0 ls,  Znth i (ls++[0]) <> 0 |-  (any omega consequence of)  i >= Zlength ls
 *)
-  pose_Zlength_nonneg;
+Ltac cstring :=
+  lazymatch goal with
+  | H: ~In Byte.zero _ |- _ => idtac
+  | |- _ => fail "The cstring tactic expects to see a hypothesis above the line of the form, ~ In Byte.zero _"
+  end;
+ lazymatch goal with
+ | H1: Znth _ (_++[Byte.zero]) = Byte.zero |- _ => idtac 
+ | H1: Znth _ (_++[Byte.zero]) <> Byte.zero |- _ => idtac 
+ | |- _ => fail "The cstring tactic expects to see one of the following hypotheses above the line:
+Znth _ (_++[Byte.zero]) = Byte.zero
+Znth _ (_++[Byte.zero]) <> Byte.zero"
+ end;
+ (pose_Zlength_nonneg;
   apply Classical_Prop.NNPP; intro;
   match goal with
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) = Byte.zero |- _ =>
@@ -891,5 +938,34 @@ Ltac cstring :=
     rewrite app_Znth1 by omega; apply Znth_In; omega
   | H: ~In Byte.zero ?ls, H1: Znth ?i (?ls' ++ [Byte.zero]) <> Byte.zero |- _ =>
      constr_eq ls ls'; apply H1;
-    rewrite app_Znth2 by omega; apply Znth_zero_zero
+     rewrite app_Znth2 by omega; apply Znth_zero_zero
+  end) || 
+  match goal with |- @eq ?t (?f1 _) (?f2 _) =>
+       (unify t Z || unify t nat) ||
+       (constr_eq f1 f2;
+        fail "The cstring tactic solves omega-style goals.
+Your goal is an equality at type" t ", not type Z.
+Try the [f_equal] tactic first.")
  end.
+
+Ltac progress_entailer :=
+ lazymatch goal with
+ | |- @derives mpred _ ?A ?B => 
+     entailer!; try match goal with |- @derives mpred _ A B => fail 2 end
+ | |- _ => progress entailer!
+ end.
+
+Ltac cstring' := 
+lazymatch goal with
+| |- @eq Z _ _ => cstring
+| |- ?A _ = ?B _ => constr_eq A B; f_equal; cstring'
+| |- _ => cstring
+end.
+
+Ltac cstring1 :=
+match goal with 
+| H: 0 <= ?x < Zlength ?s + 1,
+  H1: Znth ?x (?s ++ [Byte.zero]) = Byte.zero |- _ =>
+  is_var x; assert  (x = Zlength s) by cstring; subst x
+end.
+

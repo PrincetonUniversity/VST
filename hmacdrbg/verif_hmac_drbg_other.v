@@ -44,11 +44,11 @@ Proof.
       sep_apply (UNDER_SPEC.FULL_EMPTY Ews key v1).
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H0 as [xx XX]. 
-      forward_call (Vptr b i, (v, (v0, v1)), shc). {
+      forward_call (Vptr b i, (v, (v0, v1)), shc, gv). {
          unfold md_empty. simpl. cancel. } 
       replace_SEP 0 (memory_block shc 12 (Vptr b i)).
             { entailer!. apply @data_at_memory_block. }
-      freeze [0;1] FR1.
+      freeze [0;2] FR1.
       replace_SEP 0 (data_at_ shc (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
               entailer. rewrite data_at__memory_block.
@@ -383,7 +383,7 @@ Proof.
           temp _v (Vptr b i))
    SEP (data_at sh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
                                        list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b i)))).
-  { Exists 0. rewrite Zminus_0_r. entailer!. }
+  { Exists 0. rewrite Zminus_0_r. entailer!. simpl; cancel. }
   eapply semax_seq with (Q:=
          PROP ( )
          LOCAL ()
@@ -446,7 +446,8 @@ Proof.
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
   unfold_data_at 1%nat. forward. forward.
-  unfold_data_at 1%nat. cancel.
+  simpl.
+  unfold_data_at 1%nat. entailer!.
 Qed.
 
 Lemma body_hmac_drbg_setEntropyLen:
@@ -459,7 +460,7 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward.
+  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -473,7 +474,7 @@ Proof.
   destruct ABS as [K VV RC EL PR RI].
   unfold hmac256drbg_relate. normalize.
   rewrite data_at_isptr. Intros. destruct ctx; try contradiction.
-  unfold_data_at 1%nat. forward. forward.
+  unfold_data_at 1%nat. forward. forward. simpl; entailer!.
   unfold_data_at 1%nat. cancel.
 Qed.
 

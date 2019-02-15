@@ -34,7 +34,8 @@ Proof.
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B)))))
   break: (@FF (environ->mpred) _).
-  { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (empty_map : hist) (Z.to_nat N)); entailer!.
+  { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (empty_map : hist) (Z.to_nat N)); entailer!; simpl.
+    my_auto.
     { split. unfold B, N. computable. repeat constructor; computable. }
     rewrite sepcon_map.
     apply derives_refl'.
@@ -99,4 +100,5 @@ Proof.
   forward.
   Exists (v + 1) b lasts' h'; rewrite sepcon_map; entailer!.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
+  simpl; cancel.
 Qed.

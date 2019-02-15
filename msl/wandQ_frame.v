@@ -21,6 +21,16 @@ Proof.
   apply wand_frame_intro.
 Qed.
 
+Lemma wandQ_frame_intro' {A} {ND: NatDed A} {SL: SepLog A}: forall B (P: B -> A) (Q: A) (R: B -> A),
+  (forall x: B, P x * Q |-- R x) ->
+  Q |-- allp (P -* R).
+Proof.
+  intros. simpl.
+  apply allp_right; intros a.
+  apply wand_frame_intro'.
+  apply H.
+Qed.
+
 Lemma wandQ_frame_elim {A} {ND: NatDed A} {SL: SepLog A}: forall B (P Q: B -> A) (a: B),
   P a * allp (P -* Q) |-- Q a.
 Proof.

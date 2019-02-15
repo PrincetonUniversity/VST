@@ -429,24 +429,31 @@ Ltac qcancel P :=
      end
  end.
 
-Ltac careful_unify := 
-repeat match goal with
-| |- ?X = ?X' => constr_eq X X'; reflexivity
-| |- _ ?X = _ ?X' => constr_eq X X'; apply equal_f
-| |- ?F _ = ?F' _ => constr_eq F F'; apply f_equal
-| |- ?F _ _ = ?F' _ _ => constr_eq F F'; apply f_equal2
-| |- ?F _ _ _ = ?F' _ _ _ => constr_eq F F'; apply f_equal3
-| |- ?F _ _ _ _ = ?F' _ _ _ _ => constr_eq F F'; apply f_equal4
-| |- ?F _ _ _ _ _ = ?F' _ _ _ _ _ => constr_eq F F'; apply f_equal5
-| |- ?F ?T = ?F' ?T' => 
-    constr_eq F F'; match type of T with Type => idtac end; change T with T'
-| |- ?F ?T _ = ?F' ?T' _ => 
-    constr_eq F F'; match type of T with Type => idtac end; change T with T'
-| |- ?F ?T _ _ = ?F' ?T' _ _ => 
-    constr_eq F F'; match type of T with Type => idtac end; change T with T'
-| |- ?F ?T _ _ _ = ?F' ?T' _ _ _ => 
-    constr_eq F F'; match type of T with Type => idtac end; change T with T'
-end.
+Ltac is_Type_or_type T :=
+  match type of T with
+  | Type => idtac
+  | type => idtac
+  end.
+
+Lemma fun_equal: forall {A B} (f g : A -> B) (x y : A),
+  f = g -> x = y -> f x = g y.
+Proof. congruence. Qed.
+
+Lemma fun_equal': forall {A B} (f g : forall (x:A), B x) (y : A),
+  f = g -> f y = g y.
+Proof. congruence. Qed.
+
+Ltac ecareful_unify :=
+  match goal with
+  | |- ?X = ?X' => first [is_Type_or_type X | is_evar X | is_evar X' | constr_eq X X']; reflexivity
+  | |- ?F _ = ?F' _ => first [apply fun_equal | apply fun_equal' with (f := F)]; revgoals; solve[ecareful_unify]
+  end; idtac.
+
+Ltac careful_unify :=
+  match goal with
+  | |- ?X = ?X' => first [is_Type_or_type X | constr_eq X X']; reflexivity
+  | |- ?F _ = ?F' _ => first [apply fun_equal | apply fun_equal' with (f := F)]; revgoals; solve[careful_unify]
+  end; idtac.
 
 Ltac cancel :=
   rewrite ?sepcon_assoc;
@@ -598,25 +605,27 @@ Proof.
   rewrite sepcon_emp; auto.
 Qed.
 
-Ltac local_cancel_in_syntactic_cancel :=
+Ltac local_cancel_in_syntactic_cancel unify_tac :=
   cbv beta;
   match goal with |- ?A |-- ?B => 
-    solve [constr_eq A B; simple apply (derives_refl A) | auto with nocore cancel | apply derives_refl'; solve [careful_unify]]
+    solve [ constr_eq A B; simple apply (derives_refl A)
+          | tryif first [has_evar A | has_evar B] then fail else auto with nocore cancel
+          | apply derives_refl'; unify_tac ]
   end.
 
-Ltac syntactic_cancel :=
+Ltac syntactic_cancel local_tac :=
   repeat first
          [ simple apply syntactic_cancel_nil
          | simple apply syntactic_cancel_cons;
-           [ find_nth local_cancel_in_syntactic_cancel
+           [ find_nth local_tac
            | cbv iota; unfold delete_nth; cbv zeta iota
            ]
          ].
 
 (* To solve: Frame := ?Frame |- fold_right_sepcon G |-- fold_right_sepcon L * fold_right_sepcon Frame *)
-Ltac cancel_for_evar_frame :=
+Ltac cancel_for_evar_frame' local_tac :=
   eapply syntactic_cancel_spec1;
-  [ syntactic_cancel
+  [ syntactic_cancel local_tac
   | cbv iota; cbv zeta beta;
     first [ match goal with
             | |- _ |-- _ * fold_right_sepcon ?F => try unfold F
@@ -629,9 +638,9 @@ Ltac cancel_for_evar_frame :=
   ].
 
 (* To solve: |- fold_right_sepcon G |-- fold_right_sepcon L * TT *)
-Ltac cancel_for_TT :=
+Ltac cancel_for_TT local_tac :=
   eapply syntactic_cancel_spec1;
-  [ syntactic_cancel
+  [ syntactic_cancel local_tac
   | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve2
           | match goal with
@@ -640,9 +649,9 @@ Ltac cancel_for_TT :=
             unfold fold_left_sepconx; cbv iota beta ]
   ].
 
-Ltac cancel_for_normal :=
+Ltac cancel_for_normal local_tac :=
   eapply syntactic_cancel_spec3;
-  [ syntactic_cancel
+  [ syntactic_cancel local_tac
   | cbv iota; cbv zeta beta;
     first [ simple apply syntactic_cancel_solve3
           | match goal with
@@ -651,7 +660,9 @@ Ltac cancel_for_normal :=
             unfold fold_left_sepconx; cbv iota beta ]
   ].
 
+
 (* return Some true exists TT, return Some false if exists fold_right_sepcon. *)
+(* unused?
 Ltac Check_normal_mpred_list_rec L :=
   match L with
   | nil => constr:(@None bool)
@@ -666,6 +677,7 @@ Ltac Check_pre_no_TT L :=
   | Some true => fail 1000 "No TT should appear in the SEP clause of a funcspec's precondition"
   | _ => idtac
   end.
+*)
 
 Inductive merge_abnormal_mpred: mpred -> option mpred -> option mpred -> Prop :=
 | merge_abnormal_mpred_None: forall P, merge_abnormal_mpred P None (Some P)
@@ -733,10 +745,13 @@ Inductive construct_fold_right_sepcon_rec: mpred -> list mpred -> list mpred -> 
 | construct_fold_right_sepcon_rec_single: forall P R,
     construct_fold_right_sepcon_rec P R (P :: R).
 
+Local Unset Elimination Schemes. (* ensure that we avoid name collision with the above *)
 Inductive construct_fold_right_sepcon: mpred -> list mpred-> Prop :=
 | construct_fold_right_sepcon_constr: forall P R,
     construct_fold_right_sepcon_rec P nil R ->
     construct_fold_right_sepcon P R.
+Scheme Minimality for construct_fold_right_sepcon Sort Prop.
+Local Set Elimination Schemes.
 
 Lemma construct_fold_right_sepcon_spec: forall P R,
   construct_fold_right_sepcon P R ->
@@ -828,7 +843,7 @@ Ltac fold_abnormal_mpred :=
          end
   end.
 
-Ltac new_cancel :=
+Ltac new_cancel local_tac :=
   match goal with
   | |- @derives mpred Nveric _ _ => idtac
   | _ => fail 1000 "Tactic cancel can only handle proof goals with form _ |-- _ (unlifted version)."
@@ -840,20 +855,62 @@ Ltac new_cancel :=
   | match goal with
     | |- before_symbol_cancel _ _ None =>
            cbv iota beta delta [before_symbol_cancel];
-           cancel_for_normal
+           cancel_for_normal local_tac
     | |- before_symbol_cancel _ _ (Some (fold_right_sepcon _)) =>
            cbv iota beta delta [before_symbol_cancel];
-           cancel_for_evar_frame
+           cancel_for_evar_frame' local_tac
     | |- before_symbol_cancel _ _ (Some TT) =>
            cbv iota beta delta [before_symbol_cancel];
-           cancel_for_TT
+           cancel_for_TT local_tac
     | |- before_symbol_cancel _ _ (Some (prop True)) =>
            cbv iota beta delta [before_symbol_cancel];
-           cancel_for_TT
+           cancel_for_TT local_tac
     end
   ].
 
-Ltac cancel ::= new_cancel.
+Ltac cancel_unify_tac :=
+  autorewrite with cancel;
+  careful_unify.
+
+Ltac cancel_local_tac :=
+  cbv beta;
+  match goal with |- ?A |-- ?B =>
+    solve [ constr_eq A B; simple apply (derives_refl A)
+          | auto with nocore cancel
+          | apply derives_refl'; cancel_unify_tac]
+  end.
+
+Ltac cancel ::= new_cancel cancel_local_tac.
+
+Ltac no_evar_cancel_local_tac := local_cancel_in_syntactic_cancel cancel_unify_tac.
+Ltac no_evar_cancel := new_cancel no_evar_cancel_local_tac.
+
+Ltac ecancel_unify_tac :=
+  autorewrite with cancel;
+  ecareful_unify.
+
+Ltac ecancel_local_tac := local_cancel_in_syntactic_cancel ecancel_unify_tac.
+Ltac pure_ecancel := new_cancel ecancel_local_tac.
+Ltac ecancel := no_evar_cancel; pure_ecancel.
+
+Ltac old_local_tac := local_cancel_in_syntactic_cancel careful_unify.
+Ltac cancel_for_evar_frame := cancel_for_evar_frame' ecancel_local_tac.
+
+Ltac info_cancel_local_tac :=
+  (tryif try (cancel_local_tac; gfail 1)
+    then match goal with |- ?Goal => idtac Goal "fail" end
+    else match goal with |- ?Goal => idtac Goal "success" end);
+  cancel_local_tac.
+
+Ltac info_cancel := new_cancel info_cancel_local_tac.
+
+Ltac info_ecancel_local_tac :=
+  (tryif try (ecancel_local_tac; gfail 1)
+    then match goal with |- ?Goal => idtac Goal "fail" end
+    else match goal with |- ?Goal => idtac Goal "success" end);
+  ecancel_local_tac.
+
+Ltac info_ecancel := info_cancel; new_cancel info_ecancel_local_tac.
 
 (*
 
@@ -996,14 +1053,14 @@ Ltac adjust2_sep_apply H :=
  | _ => x
  end.
 
-Ltac sep_apply_in_entailment H :=
-    match goal with |- ?A |-- ?B =>
-     let H' := adjust2_sep_apply H in
-     match type of H' with ?TH =>
+Ltac cancel_for_sep_apply := ecancel.
+
+Ltac sep_apply_aux2 H' := 
+match type of H' with ?TH =>
      match apply_find_core TH with  ?C |-- ?D =>
       let frame := fresh "frame" in evar (frame: list mpred);
        apply derives_trans with (C * fold_right_sepcon frame);
-             [solve [cancel] 
+             [ solve [cancel_for_sep_apply]
              | eapply derives_trans; 
                 [apply sepcon_derives; [clear frame; apply H' | apply derives_refl] 
                 |  let x := fresh "x" in set (x := fold_right_sepcon frame);
@@ -1012,8 +1069,89 @@ Ltac sep_apply_in_entailment H :=
                 ]
              ]
      end
-     end
+     end.
+
+Ltac head_of_type_of H :=
+ match type of H with ?A => apply_find_core A end.
+
+Ltac sep_apply_aux1 H := 
+ let B := head_of_type_of H in
+ lazymatch B with
+ | ?A |-- _ =>
+   lazymatch A with
+   | context [!! ?P && _] =>
+      let H' := fresh in
+      assert (H' := H);
+      rewrite ?(andp_assoc (!! P)) in H';
+      let H := fresh in 
+      assert (H:P);
+       [ clear H' | rewrite (prop_true_andp P) in H' by apply H; clear H;
+           sep_apply_aux1 H'; clear H' ]
+   | _ => sep_apply_aux2 H
+    end
+ end.
+
+Ltac sep_apply_aux0 H :=
+ let B := head_of_type_of H in
+ lazymatch B with
+ | ?A ?D |-- _ =>
+    tryif (match type of D with ?DT => constr_eq DT globals end)
+   then
+    (tryif (unfold A in H) then sep_apply_aux1 H
+    else let H' := fresh in
+         tryif (assert (H' := H); unfold A in H')
+         then sep_apply_aux1 H'
+         else sep_apply_aux1 H)
+   else sep_apply_aux1 H
+ | _ => sep_apply_aux1 H
+ end.
+
+Ltac sep_apply_in_entailment H :=
+    match goal with |- _ |-- _ =>
+     let H' := adjust2_sep_apply H in
+         sep_apply_aux0 H'
     end.
+
+Ltac my_unshelve_evar name T cb evar_tac :=
+  let x := fresh name
+  in
+  unshelve evar (x:T); revgoals;
+  [
+    let x' := eval unfold x in x
+    in
+    clear x; cb x'
+  |
+    evar_tac x
+  ].
+
+Ltac new_sep_apply_in_entailment originalH evar_tac prop_tac :=
+  let rec sep_apply_in_entailment_rec H :=
+    lazymatch type of H with
+    | forall x:?T, _ =>
+      lazymatch type of T with
+      | Prop => let H' := fresh "H" in assert (H':T);
+           [ | sep_apply_in_entailment_rec (H H'); clear H'];
+           [ prop_tac | .. ]
+      | _ => my_unshelve_evar x T
+        ltac:(fun x => sep_apply_in_entailment_rec (H x))
+        evar_tac
+      end
+    | ?T -> _ =>
+      lazymatch type of T with
+      | Prop => let H' := fresh "H" in assert (H':T);
+           [ | sep_apply_in_entailment_rec (H H'); clear H'];
+           [ prop_tac | .. ]
+      | _ => let x := fresh "arg" in
+        my_unshelve_evar x T
+          ltac:(fun x => sep_apply_in_entailment_rec (H x))
+          evar_tac
+      end
+    | ?A |-- ?B => sep_apply_in_entailment H
+    | ?A = ?B => sep_apply_in_entailment H
+    | _ => fail 0 originalH "is not an entailment"
+    end
+  in
+  sep_apply_in_entailment_rec originalH.
 
 Lemma wand_refl_cancel_right:
   forall {A}{ND: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}
@@ -1130,7 +1268,7 @@ Ltac normalize :=
               fancy_intros true);
    repeat normalize1; try contradiction.
 
-Lemma allp_instantiate: 
+Lemma allp_instantiate:
    forall {A : Type} {NA : NatDed A} {B : Type} (P : B -> A) (x : B),
        ALL y : B, P y |-- P x.
 Proof.
@@ -1141,6 +1279,15 @@ Ltac allp_left x :=
  match goal with |- ?A |-- _ => match A with context [@allp ?T ?ND ?B ?P] =>
    sep_apply_in_entailment (@allp_instantiate T ND B P x)
  end end.
+
+(* these two lemmas work better with new sep_apply and sep_eapply *)
+Lemma allp_instantiate': forall (B : Type) (P : B -> mpred) (x : B),
+  allp P |-- P x.
+Proof. intros. apply allp_instantiate. Qed.
+
+Lemma wand_frame_elim'': forall P Q,
+  (P -* Q) * P |-- Q.
+Proof. intros. rewrite sepcon_comm. apply wand_frame_elim. Qed.
 
 Lemma prop_sepcon: forall {A}{ND: NatDed A}{SL: SepLog A}
     P Q, !! P * Q = !! P && (TT * Q).
@@ -1155,5 +1302,4 @@ Proof.
  intros.
  rewrite sepcon_comm. apply prop_sepcon.
 Qed.
-
 

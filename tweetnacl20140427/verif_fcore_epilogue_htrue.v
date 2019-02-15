@@ -319,7 +319,7 @@ Proof. intros. abbreviate_semax.
 (*     rewrite Znth_map with (d':=Int.zero) by rep_omega.
      rewrite Uj.
 *)
-     entailer!.
+     entailer!. simpl.
      (*rewrite Uj. simpl.*)
      repeat rewrite <- sepcon_assoc.
      apply sepcon_derives.

@@ -137,8 +137,7 @@ forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 Exists 0.
 entailer!.
-+ f_equal; f_equal; omega.
-+ unfold flip_ends; autorewrite with sublist; auto.
+unfold flip_ends; autorewrite with sublist; auto.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 * (* Prove that loop body preserves invariant *)
@@ -169,6 +168,7 @@ forward. (* hi--; *)
  Exists (Z.succ j).
  entailer!.
  f_equal; f_equal; omega.
+ simpl.
  apply derives_refl'.
  unfold data_at.    f_equal.
  clear - H0 HRE H1.
@@ -188,8 +188,8 @@ forward. (* hi--; *)
  reflexivity.
 * (* after the loop *)
 forward. (* return; *)
-rewrite map_rev. rewrite flip_fact_1 by omega.
-auto.
+rewrite map_rev. rewrite flip_fact_1; try omega; auto.
+cancel.
 Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].

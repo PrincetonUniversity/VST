@@ -65,8 +65,8 @@ End PARS256.
 (* A definition of a PRF in the form of a predicate. *)
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.PRF.
+Require Import FCF.FCF.
+Require Import FCF.PRF.
 Require Import hmacfcf.NMAC_to_HMAC.
 Require Import hmacfcf.hF.
 Require Import hmacfcf.HMAC_PRF.

@@ -2229,6 +2229,176 @@ Proof.
   congruence.
 Qed.
 
+Lemma nocontinue_ls_spec: forall sl, nocontinue_ls sl = true -> nocontinue (seq_of_labeled_statement sl) = true.
+Proof.
+  intros.
+  induction sl.
+  + reflexivity.
+  + simpl in *.
+    destruct (nocontinue s); [| inv H].
+    auto.
+Qed.
+
+Lemma nocontinue_ls_spec': forall sl n, nocontinue_ls sl = true -> nocontinue (seq_of_labeled_statement (select_switch n sl)) = true.
+Proof.
+  intros.
+  apply nocontinue_ls_spec in H.
+  unfold select_switch.
+  destruct (select_switch_case n sl) eqn:?Hs.
+  + induction sl.
+    - inv Hs.
+    - simpl in Hs.
+      destruct o as [c|]; [destruct (zeq c n) |].
+      * subst c; inv Hs.
+        apply H.
+      * change (nocontinue s && nocontinue (seq_of_labeled_statement sl) = true)%bool in H.
+        rewrite andb_true_iff in H.
+        apply IHsl; auto.
+        tauto.
+      * change (nocontinue s && nocontinue (seq_of_labeled_statement sl) = true)%bool in H.
+        rewrite andb_true_iff in H.
+        apply IHsl; auto.
+        tauto.
+  + induction sl.
+    - reflexivity.
+    - simpl in Hs |- *.
+      destruct o.
+      * change (nocontinue s && nocontinue (seq_of_labeled_statement sl) = true)%bool in H.
+        rewrite andb_true_iff in H.
+        apply IHsl; [tauto |].
+        if_tac in Hs; [inv Hs | auto].
+      * exact H.
+Qed.
+
+Lemma semax_nocontinue_inv:
+  forall CS Espec Delta Pre s Post Post',
+    nocontinue s = true ->
+    RA_normal Post = RA_normal Post' ->
+    RA_break Post = RA_break Post' ->
+    RA_return Post = RA_return Post' ->
+    @semax CS Espec Delta Pre s Post -> @semax CS Espec Delta Pre s Post'.
+Proof.
+  intros.
+  revert Post' H0 H1 H2.
+  induction H3; intros.
+  + change (nocontinue c && nocontinue d = true)%bool in H.
+    rewrite andb_true_iff in H.
+    specialize (IHsemax1 (proj1 H) _ H0 H1 H2).
+    specialize (IHsemax2 (proj2 H) _ H0 H1 H2).
+    apply AuxDefs.semax_ifthenelse; auto.
+  + change (nocontinue h && nocontinue t = true)%bool in H.
+    rewrite andb_true_iff in H.
+    specialize (IHsemax1 (proj1 H)).
+    specialize (IHsemax2 (proj2 H) _ H0 H1 H2).
+    eapply AuxDefs.semax_seq; [| eauto].
+    apply IHsemax1; destruct Post', R; auto.
+  + rewrite H1.
+    apply AuxDefs.semax_break.
+  + inv H.
+  + clear IHsemax1 IHsemax2.
+    replace (loop1_ret_assert Q' R) with (loop1_ret_assert Q' Post') in H3_
+      by (destruct Post', R; simpl; f_equal; auto).
+    replace (loop2_ret_assert Q R) with (loop2_ret_assert Q Post') in H3_0
+      by (destruct Post', R; simpl; f_equal; auto).
+    eapply AuxDefs.semax_loop; eauto.
+  + apply AuxDefs.semax_switch; auto.
+    intros n; specialize (H2 n).
+    simpl in H.
+    apply (nocontinue_ls_spec' _ (Int.unsigned n)) in H.
+    specialize (H2 H).
+    apply H2; destruct Post', R; simpl; auto.
+  + eapply semax_post with (normal_ret_assert R);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_call_backward.
+  + rewrite H2.
+    apply AuxDefs.semax_return.
+  + eapply semax_post with (normal_ret_assert P);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_set_ptr_compare_load_cast_load_backward.
+  + eapply semax_post with (normal_ret_assert P);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_store_backward.
+  + eapply semax_post with (normal_ret_assert P);
+      [intros; apply andp_left2; try apply FF_left; rewrite H0; auto .. |].
+    apply AuxDefs.semax_skip.
+  + apply AuxDefs.semax_builtin.
+  + specialize (IHsemax H _ H0 H1 H2).
+    apply AuxDefs.semax_label; auto.
+  + apply AuxDefs.semax_goto.
+  + apply (AuxDefs.semax_conseq _ P' (Build_ret_assert (RA_normal R') (RA_break R') (RA_continue Post') (RA_return R'))).
+    - exact H0.
+    - rewrite <- H6; exact H1.
+    - rewrite <- H7; exact H2.
+    - apply derives_full_refl.
+    - intros. rewrite <- H8; exact (H4 vl).
+    - apply IHsemax; auto.
+Qed.
+
+Lemma semax_loop_nocontinue1:
+  forall CS Espec Delta Pre s1 s2 s3 Post,
+  nocontinue s1 = true ->
+  nocontinue s2 = true ->
+  nocontinue s3 = true ->
+   @semax CS Espec Delta Pre (Sloop (Ssequence s1 (Ssequence s2 s3)) Sskip) Post ->
+    @semax CS Espec Delta Pre (Sloop (Ssequence s1 s2) s3) Post.
+Proof.
+intros.
+ rename H1 into Hs3. rename H2 into H1.
+apply semax_loop_inv in H1.
+eapply AuxDefs.semax_conseq.
+apply H1.
+instantiate (1:=Post).
+1,2,3,4: intros; eapply derives_trans; [  | apply bupd_orp_l];
+apply orp_right2; apply andp_left2; apply andp_left2; apply bupd_intro.
+apply semax_extract_exists; intro Q.
+apply semax_extract_exists; intro Q'.
+apply semax_extract_prop; intros [? ?].
+apply seq_assoc in H2.
+apply semax_seq_inv in H2.
+destruct H2 as [Q3 [? ?]].
+apply AuxDefs.semax_loop with Q3.
+*
+assert (nocontinue (Ssequence s1 s2) = true).
+simpl; rewrite H,H0; auto.
+forget (Ssequence s1 s2) as s.
+clear - H2 H5.
+revert H2.
+apply semax_nocontinue_inv; auto; destruct Post; try reflexivity.
+*
+clear - H4 H3 Hs3.
+apply semax_seq_skip.
+econstructor; eauto.
+clear - H4 Hs3.
+revert H4; apply semax_nocontinue_inv; auto; destruct Post; try reflexivity.
+Qed.
+
+Lemma semax_convert_for_while':
+ forall CS Espec Delta Pre s1 e2 s3 s4 s5 Post,
+  nocontinue s4 = true ->
+  nocontinue s3 = true -> 
+  @semax CS Espec Delta Pre 
+    (Ssequence s1 (Ssequence (Swhile e2 (Ssequence s4 s3)) s5)) Post ->
+  @semax CS Espec Delta Pre (Ssequence (Sfor s1 e2 s4 s3) s5) Post.
+Proof.
+intros.
+rename H0 into H9. rename H1 into H0.
+apply semax_seq_inv in H0.
+destruct H0 as [Q [? ?]].
+apply semax_seq_inv in H1.
+destruct H1 as [R [? ?]].
+unfold Sfor, Swhile  in *.
+apply AuxDefs.semax_seq with R; auto.
+apply AuxDefs.semax_seq with Q; auto.
+rewrite overridePost_overridePost; auto.
+clear - H1 H H9.
+assert (nocontinue (Sifthenelse e2 Sskip Sbreak) = true) by reflexivity.
+forget (Sifthenelse e2 Sskip Sbreak) as s1.
+forget (overridePost R Post) as R'; clear - H H1 H0 H9.
+fold semax.
+apply semax_loop_nocontinue1; auto.
+Qed.
+
+
 Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.

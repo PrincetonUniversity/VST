@@ -35,7 +35,7 @@ apply semax_pre with f; subst f. (* factored out "f" to work around a bug
   in the "apply...with".  *)
  { 
 unfold data_at.
- unfold_field_at 2%nat.
+ unfold_field_at (field_at _ t_struct_foo _ _ _).
 entailer!.
 simpl.
 unfold field_at, data_at_rec, at_offset. simpl.

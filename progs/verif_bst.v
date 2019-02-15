@@ -76,6 +76,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
   | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
       data_at Tsh (tptr t_struct_tree) p b *
+      spacer Tsh (sizeof tint) (sizeof size_t) p *
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       field_at Tsh t_struct_tree [StructField _value] v p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
@@ -92,13 +93,13 @@ Proof.
     apply pred_ext; entailer!.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 1%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 3%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
@@ -316,7 +317,7 @@ Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
         treebox_rep (T t1' k v t2) b).
 Proof.
   intros.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
 
@@ -328,7 +329,7 @@ Proof.
   Intros p1.
   Exists p1 p2.
   entailer!.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   cancel.
 Qed.
@@ -345,7 +346,7 @@ Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
         treebox_rep (T t1 k v t2') b).
 Proof.
   intros.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
 
@@ -357,7 +358,7 @@ Proof.
   Intros p2.
   Exists p1 p2.
   entailer!.
-  unfold_data_at 2%nat.
+  unfold_data_at (data_at _ _ _ p).
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   cancel.
 Qed.
@@ -425,7 +426,7 @@ Proof.
         forward. (* t=&p->left *)
         unfold insert_inv.
         Exists (offset_val 8 p1) t1_1.
-        entailer!.
+        entailer!. simpl.
         simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 p1)
@@ -438,7 +439,7 @@ Proof.
         forward. (* t=&p->right *)
         unfold insert_inv.
         Exists (offset_val 12 p1) t1_2.
-        entailer!.
+        entailer!. simpl.
         simpl_compb; simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 12 p1)
@@ -451,7 +452,7 @@ Proof.
         assert (x=k) by omega.
         subst x.  clear H H1 H3.
         forward. (* p->value=value *)
-        forward. (* return *)
+        forward. (* return *) simpl.
         (* TODO: SIMPLY THIS LINE *)
         simpl_compb.
         simpl_compb.
@@ -499,7 +500,7 @@ Proof.
       - (* TODO: merge the following 2 lines *)
         apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
-        Exists pa pb; entailer!.
+        simpl. Exists pa pb; entailer!.
     + (* else-then clause: y<x *)
       forward. (* p=p<-right *)
       Exists (pb,t0_2). unfold fst,snd.
@@ -509,11 +510,11 @@ Proof.
       - (* TODO: merge the following 2 lines *)
         apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
-        Exists pa pb; entailer!.
+        simpl. Exists pa pb; entailer!.
     + (* else-else clause: x=y *)
       assert (x=k) by omega. subst x. clear H H3 H4.
       forward. (* v=p->value *)
-      forward. (* return v; *)
+      forward. (* return v; *) simpl.
       unfold treebox_rep. unfold normal_ret_assert.
       entailer!.
       - rewrite <- H0. simpl.
@@ -552,6 +553,26 @@ Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
   SEP   (treebox_rep (T ta x v tb) b;
          (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
 
+Lemma cancel_emp_spacer:
+  forall sh x y p, x=y -> 
+    emp |-- spacer sh x y p.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
+Lemma cancel_spacer_emp:
+  forall sh x y p, x=y -> 
+    spacer sh x y p |-- emp.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
 Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
 Proof.
   start_function.
@@ -575,7 +596,7 @@ Proof.
     forward. (* skip *)
     forward. (* p = *t; *)
       (* TODO entailer: The following should be solve automatically. satuate local does not work *)
-      1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!.
+ (*     1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!. *)
     simpl tree_rep.
     Intros pa pbc.
     forward. (* q = p->right *)
@@ -593,9 +614,10 @@ Proof.
         cancel.
       }
       forward. (* return *)
+      simpl.
       apply modus_ponens_wand'.
       Exists pa.
-      cancel.
+      entailer!.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. normalize. }
       Time forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
@@ -655,7 +677,7 @@ Proof.
         forward. (* t=&p->left *)
         unfold delete_inv.
         Exists (offset_val 8 p1) t1_1.
-        entailer!.
+        entailer!. simpl.
         simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 p1)
@@ -668,7 +690,7 @@ Proof.
         forward. (* t=&p->right *)
         unfold delete_inv.
         Exists (offset_val 12 p1) t1_2.
-        entailer!.
+        entailer!. simpl.
         simpl_compb; simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 12 p1)
@@ -680,7 +702,7 @@ Proof.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x.
-        unfold_data_at 2%nat.
+        unfold_data_at (data_at _ _ _ p1).
         gather_SEP 3 5.
         replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
         {
@@ -699,6 +721,7 @@ Proof.
         }
         Time forward_call (t1_1, k, v, t1_2, b1, p1).
         forward. (* return *)
+        simpl.
         simpl_compb.
         simpl_compb.
         apply modus_ponens_wand'.
@@ -882,6 +905,7 @@ unfold treebox_rep.
 Exists nullval.
 entailer!.
 constructor.
+simpl. entailer!. 
 Qed.
 
 Lemma subsume_treebox_free:

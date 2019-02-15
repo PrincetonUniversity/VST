@@ -4,12 +4,12 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.PRF.
+Require Import FCF.FCF.
+Require Import FCF.PRF.
 Require Import hmacfcf.splitVector.
 Require Import hmacfcf.cAU.
-Require Import fcf.CompFold.
-Require Import fcf.DetSem fcf.SemEquiv.
+Require Import FCF.CompFold.
+Require Import FCF.DetSem FCF.SemEquiv.
 
 Local Open Scope list_scope.
 

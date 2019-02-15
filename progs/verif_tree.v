@@ -697,6 +697,7 @@ Proof.
       cancel.
   }
   forward.
+  simpl.
   Exists q_root; cancel.
   Exists (map snd tl).
   cancel.
@@ -897,16 +898,7 @@ semax_func_cons body_Xnode_add.
 semax_func_cons body_Ynode_add.
 semax_func_cons body_YList_add.
 semax_func_cons body_YTree_add.
-(* TODO: the following lines should be replaced by "semax_func_cons body_Xfoo" *)
-repeat (apply semax_func_cons_ext_vacuous; [ reflexivity | reflexivity |  ]).
-apply semax_func_cons;
-      [ reflexivity
-      | repeat apply Forall_cons; try apply Forall_nil; first [computable | reflexivity]      | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-      | reflexivity
-      | precondition_closed
-      | apply body_Xfoo
-      |  ].
-(* TODO end *)
+semax_func_cons body_Xfoo.
 semax_func_cons body_main.
 Qed.
 

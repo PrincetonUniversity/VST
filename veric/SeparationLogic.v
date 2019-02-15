@@ -187,6 +187,12 @@ Definition denote_tc_initialized id ty rho : mpred :=
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
 
+Definition denote_tc_isint v : mpred :=
+  prop (is_int I32 Signed v).
+
+Definition denote_tc_islong v : mpred :=
+  prop (is_long v).
+
 Definition test_eq_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
   then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
@@ -239,6 +245,8 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
+  | tc_isint e => `denote_tc_isint (eval_expr e)
+  | tc_islong e => `denote_tc_islong (eval_expr e)
   | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
   | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
@@ -1127,6 +1135,20 @@ Fixpoint unfold_Ssequence c :=
   | _ => c :: nil
   end.
 
+Fixpoint nocontinue s :=
+ match s with
+ | Ssequence s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sifthenelse _ s1 s2 => if nocontinue s1 then nocontinue s2 else false
+ | Sswitch _ sl => nocontinue_ls sl
+ | Sgoto _ => false
+ | Scontinue => false
+ | Slabel _ s => nocontinue s
+ | _ => true
+end
+with nocontinue_ls sl :=
+ match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
+ end.
+
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
@@ -1513,11 +1535,27 @@ Axiom semax_skip_seq:
   forall Delta P s Q,
     @semax CS Espec Delta P s Q <-> @semax CS Espec Delta P (Ssequence Sskip s) Q.
 
+Axiom semax_loop_nocontinue1:
+  forall CS Espec Delta Pre s1 s2 s3 Post,
+  nocontinue s1 = true ->
+  nocontinue s2 = true ->
+  nocontinue s3 = true ->
+   @semax CS Espec Delta Pre (Sloop (Ssequence s1 (Ssequence s2 s3)) Sskip) Post ->
+    @semax CS Espec Delta Pre (Sloop (Ssequence s1 s2) s3) Post.
+
 Axiom semax_loop_nocontinue:
   forall {CS: compspecs} {Espec: OracleKind},
  forall Delta P body incr R,
  @semax CS Espec Delta P (Ssequence body incr) (loop_nocontinue_ret_assert P R) ->
  @semax CS Espec Delta P (Sloop body incr) R.
+
+Axiom semax_convert_for_while':
+ forall CS Espec Delta Pre s1 e2 s3 s4 s5 Post,
+  nocontinue s4 = true ->
+  nocontinue s3 = true -> 
+  @semax CS Espec Delta Pre 
+    (Ssequence s1 (Ssequence (Swhile e2 (Ssequence s4 s3)) s5)) Post ->
+  @semax CS Espec Delta Pre (Ssequence (Sfor s1 e2 s4 s3) s5) Post.
 
 Axiom semax_loop_unroll1:
   forall {CS: compspecs} {Espec: OracleKind} Delta P P' Q body incr R,

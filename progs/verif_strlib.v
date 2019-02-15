@@ -131,7 +131,7 @@ forward_loop (EX i : Z,
   forward. normalize.
   forward. fold_Vbyte.
  forward_if.
-  { forward. 
+  { forward. simpl. 
     Exists (offset_val i str).
     entailer!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
@@ -451,7 +451,7 @@ forward_loop (EX i : Z,
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 *
- Exists 0. rewrite Z.sub_0_r; entailer!.
+ Exists 0. rewrite Z.sub_0_r; entailer!. simpl. entailer!.
 *
  Intros i.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
@@ -552,7 +552,7 @@ forward_loop (EX i : Z,
   forward. fold_Vbyte.
   forward_if (Znth i (ls ++ [Byte.zero]) <> c).
 
-  { forward. 
+  { forward. simpl.
     Exists (offset_val i str).
     entailer!.
     left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
@@ -809,7 +809,7 @@ forward_loop (EX i : Z,
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 *
- Exists 0. rewrite Z.sub_0_r; entailer!.
+ Exists 0. rewrite Z.sub_0_r; entailer!. simpl; entailer!.
 *
  Intros i.
  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
@@ -853,5 +853,4 @@ forward_loop (EX i : Z,
 Qed.
 
 End Alternate.
-
 

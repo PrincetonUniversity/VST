@@ -90,6 +90,7 @@ forward_if.
  forward.
  Exists y.
  entailer!.
+ simpl; auto.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep at 1; fold listrep.
@@ -107,7 +108,7 @@ forward_if.
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
    Exists v s1' x u.
-   subst s1. entailer!. cancel_wand.
+   subst s1. entailer!. simpl. cancel_wand.
 + (* loop test is safe to execute *)
    entailer!.
 + (* loop body preserves invariant *)
@@ -155,6 +156,7 @@ forward_if.
  forward.
  Exists y.
  entailer!.
+ simpl; auto.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep; fold listrep. Intros; contradiction.
@@ -357,6 +359,7 @@ forward_if.
  forward.
  Exists y.
  entailer!.
+ simpl; auto.
 *
  forward.
  destruct s1 as [ | v s1']; unfold lseg at 1; fold lseg.

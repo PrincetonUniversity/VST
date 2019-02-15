@@ -97,11 +97,8 @@ Qed.
 
 End ghost.
 
-Instance exclusive_PCM A : Ghost := { valid a := True;
+Program Instance exclusive_PCM A : Ghost := { valid a := True;
   Join_G := Join_lower (Join_discrete A) }.
-Proof.
-  auto.
-Defined.
 
 Definition excl {A} g a := own(RA := exclusive_PCM A) g (Some a) NoneP.
 
@@ -113,10 +110,12 @@ Proof.
   inv H1.
 Qed.
 
-Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
+Local Obligation Tactic := idtac.
+
+Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
   valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
-Proof.
-  intros ??? [] []; split; eapply join_valid; eauto.
+Next Obligation.
+  intros GA GB ??? [] []; split; eapply join_valid; eauto.
 Defined.
 
 (* Can we use Santiago and Qinxiang's paper to simplify this? *)
@@ -192,26 +191,28 @@ Qed.
 (* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
    an authoritative writer and an up-to-date invariant. *)
 
-Global Instance snap_PCM : Ghost :=
+Global Program Instance snap_PCM : Ghost :=
   { valid _ := True; Join_G a b c := sepalg.join (fst a) (fst b) (fst c) /\
       if eq_dec (fst a) Share.bot then if eq_dec (fst b) Share.bot then join (snd a) (snd b) (snd c)
         else ord (snd a) (snd b) /\ snd c = snd b else snd c = snd a /\
           if eq_dec (fst b) Share.bot then ord (snd b) (snd a) else snd c = snd b }.
-Proof.
-  2: constructor.
-  - exists (fun '(sh, a) => (Share.bot, core a)); repeat intro.
-    + destruct t; constructor; auto; simpl.
-      rewrite eq_dec_refl.
-      if_tac; [apply core_unit | split; auto].
-      rewrite join_ord_eq; eexists; apply core_unit.
-    + destruct a, b, c; f_equal.
-      inv H; simpl in *.
-      destruct (eq_dec t Share.bot); [|destruct H1; subst; auto].
-      subst; apply bot_identity in H0; subst.
-      destruct (eq_dec t1 Share.bot); [|destruct H1; subst; auto].
-      * eapply join_core; eauto.
-      * rewrite join_ord_eq in H; destruct H.
-        eapply join_core; eauto.
+Next Obligation.
+  exists (fun '(sh, a) => (Share.bot, core a)); repeat intro.
+  + destruct t; constructor; auto; simpl.
+    rewrite eq_dec_refl.
+    if_tac; [apply core_unit | split; auto].
+    rewrite join_ord_eq; eexists; apply core_unit.
+  + destruct a, b, c; f_equal.
+    inv H; simpl in *.
+    destruct (eq_dec t Share.bot); [|destruct H1; subst; auto].
+    subst; apply bot_identity in H0; subst.
+    destruct (eq_dec t1 Share.bot); [|destruct H1; subst; auto].
+    * eapply join_core; eauto.
+    * rewrite join_ord_eq in H; destruct H.
+      eapply join_core; eauto.
+Defined.
+Next Obligation.
+  constructor.
   - intros ???? [? Hjoin1] [? Hjoin2].
     assert (fst z = fst z') by (eapply join_eq; eauto).
     destruct z, z'; simpl in *; subst; f_equal.
@@ -260,7 +261,9 @@ Proof.
       rewrite eq_dec_refl in Hjoin1, Hjoin2, Hjoin2.
       eapply join_positivity; eauto.
     + destruct Hjoin1; auto.
-  - auto.
+Defined.
+Next Obligation.
+  auto.
 Defined.
 
 Definition ghost_snap (a : @G P) p := own p (Share.bot, a) NoneP.
@@ -303,7 +306,6 @@ Proof.
     rewrite eq_dec_refl in Hj.
     destruct (eq_dec sh Share.bot); [contradiction|].
     destruct Hj; subst; entailer!.
-    apply derives_refl.
   - Intros; Exists (sh, v2); entailer!.
     split; simpl; rewrite ?eq_dec_refl.
     + apply bot_join_eq.
@@ -523,9 +525,9 @@ Hint Resolve self_completable : init.
 
 Section Discrete.
 
-Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
+Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
   Join_G := Join_equiv A }.
-Proof.
+Next Obligation.
   auto.
 Defined.
 
@@ -556,7 +558,6 @@ Proof.
     destruct a as [(sh, v')|]; inv H.
     destruct H2 as (? & ? & Hv); inv Hv.
     Exists sh; entailer!.
-    apply derives_refl.
   - Intros sh; subst.
     Exists (Some (sh, v2)); apply andp_right, derives_refl.
     apply prop_right; repeat (split; auto); simpl.
@@ -605,11 +606,13 @@ End GVar.
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)
 
-Global Instance nat_PCM: Ghost := { valid a := True; Join_G a b c := c = Nat.max a b }.
-Proof.
-  2: constructor.
-  - exists (fun _ => O); auto; intros.
-    apply Nat.max_0_l.
+Global Program Instance nat_PCM: Ghost := { valid a := True; Join_G a b c := c = Nat.max a b }.
+Next Obligation.
+  exists (fun _ => O); auto; intros.
+  apply Nat.max_0_l.
+Defined.
+Next Obligation.
+  constructor.
   - unfold join; congruence.
   - unfold join; eexists; split; eauto.
     rewrite Nat.max_assoc; subst; auto.
@@ -617,7 +620,9 @@ Proof.
     rewrite Nat.max_comm; auto.
   - unfold join; intros.
     apply Nat.le_antisymm; [subst b | subst a]; apply Nat.le_max_l.
-  - auto.
+Defined.
+Next Obligation.
+  auto.
 Defined.
 
 Global Instance max_order : PCM_order le.
@@ -787,11 +792,13 @@ Proof.
     destruct (m1 k) eqn: Hm1; split; auto; intros [?|?]; eauto; discriminate.
 Qed.
 
-Global Instance map_PCM : Ghost := { valid a := True; Join_G := map_join }.
-Proof.
-  2: constructor.
-  - exists (fun _ => empty_map); auto; repeat intro.
-    split; auto; intros [|]; auto; discriminate.
+Global Program Instance map_PCM : Ghost := { valid a := True; Join_G := map_join }.
+Next Obligation.
+  exists (fun _ => empty_map); auto; repeat intro.
+  split; auto; intros [|]; auto; discriminate.
+Defined.
+Next Obligation.
+  constructor.
   - intros.
     extensionality k.
     specialize (H k); specialize (H0 k).
@@ -817,7 +824,9 @@ Proof.
     + apply H0; auto.
     + destruct (H b0) as [_ H']; lapply H'; auto.
     + destruct (H0 b0) as [_ H']; lapply H'; auto.
-  - auto.
+Defined.
+Next Obligation.
+  auto.
 Defined.
 
 Instance fmap_order : PCM_order map_incl.
@@ -1024,12 +1033,14 @@ Proof.
   rewrite H, H0; auto.
 Qed.
 
-Global Instance map_disj_PCM : Ghost := { valid a := True; Join_G := map_disj_join }.
-Proof.
-  2: constructor.
-  - exists (fun _ => empty_map); auto; repeat intro.
-    simpl.
-    destruct (t k); auto.
+Global Program Instance map_disj_PCM : Ghost := { valid a := True; Join_G := map_disj_join }.
+Next Obligation.
+  exists (fun _ => empty_map); auto; repeat intro.
+  simpl.
+  destruct (t k); auto.
+Defined.
+Next Obligation.
+  constructor.
   - intros.
     extensionality k.
     specialize (H k); specialize (H0 k).
@@ -1052,7 +1063,9 @@ Proof.
     + destruct (a' k); [contradiction | auto].
     + destruct (a' k); [contradiction | auto].
     + destruct (b' k); [contradiction | auto].
-  - auto.
+Defined.
+Next Obligation.
+  auto.
 Defined.
 
 Lemma disj_join_sub : forall m1 m2, map_incl m1 m2 -> exists m3, join m1 m3 m2.

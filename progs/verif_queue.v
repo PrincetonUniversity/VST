@@ -197,7 +197,7 @@ Lemma make_unmake:
  field_at_ Ews t_struct_elem [StructField _next] p.
 Proof.
 intros.
-unfold_data_at 1%nat.
+unfold_data_at (data_at _ _ _ _).
 rewrite <- !sepcon_assoc.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.
@@ -230,17 +230,17 @@ Qed.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
-   WITH t:type
+   WITH t:type, gv: globals
    PRE [ _n OF tuint ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       LOCAL (temp _n (Vint (Int.repr (sizeof t))))
-       SEP ()
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Ews t p * data_at_ Ews t p).
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   field_at Ews t_struct_elem [StructField _a] (fst rep) p *
@@ -264,11 +264,11 @@ Definition fifo (contents: list val) (p: val) : mpred :=
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
-  WITH u : unit
+  WITH gv: globals
   PRE  [  ]
-       PROP() LOCAL() SEP ()
+       PROP() LOCAL(gvars gv) SEP (mem_mgr gv)
   POST [ (tptr t_struct_fifo) ]
-    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (fifo nil v).
+    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (mem_mgr gv; fifo nil v).
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
@@ -305,14 +305,17 @@ Definition fifo_get_spec :=
 
 Definition make_elem_spec :=
  DECLARE _make_elem
-  WITH a: int, b: int
+  WITH a: int, b: int, gv: globals
   PRE  [ _a OF tint, _b OF tint ]
-        PROP() LOCAL(temp _a (Vint a); temp _b (Vint b)) SEP()
+        PROP() 
+        LOCAL(temp _a (Vint a); temp _b (Vint b); gvars gv) 
+        SEP(mem_mgr gv)
   POST [ (tptr t_struct_elem) ]
       @exp (environ->mpred) _ _ (fun p:val =>  (* EX notation doesn't work for some reason *)
        PROP()
        LOCAL (temp ret_temp p)
-       SEP (field_at Qsh' list_struct [StructField _a] (Vint a) p;
+       SEP (mem_mgr gv;
+              field_at Qsh' list_struct [StructField _a] (Vint a) p;
               field_at Qsh' list_struct [StructField _b] (Vint b) p;
               list_cell QS Qsh (Vundef, Vundef) p;
               field_at_ Ews t_struct_elem [StructField _next] p;
@@ -335,12 +338,12 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     t.
+     (t, gv).
   Intros p.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Ews t p * data_at_ Ews t p)).
+   SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -399,7 +402,7 @@ Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
-      t_struct_fifo.
+      (t_struct_fifo, gv).
   split3;  simpl; auto; computable.
   Intros q.
   forward. (* Q->head = NULL; *)
@@ -512,7 +515,7 @@ Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function. rename a into a0; rename b into b0.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *)
-  t_struct_elem.
+  (t_struct_elem, gv).
  split3; simpl; auto; computable.
  Intros p.
   forward.  (*  p->a=a; *)
@@ -530,17 +533,18 @@ Hint Resolve readable_share_Qsh'.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-forward_call (* Q = fifo_new(); *)  tt.
+sep_apply (create_mem_mgr gv).
+forward_call (* Q = fifo_new(); *)  gv.
 Intros q.
 
 forward_call  (*  p = make_elem(1,10); *)
-     (Int.repr 1, Int.repr 10).
+     (Int.repr 1, Int.repr 10, gv).
 Intros p'.
 forward_call (* fifo_put(Q,p);*)
     ((q, @nil val),p').
 
 forward_call  (*  p = make_elem(2,20); *)
-     (Int.repr 2, Int.repr 20).
+     (Int.repr 2, Int.repr 20, gv).
 Intros p2.
 simpl app.
  forward_call  (* fifo_put(Q,p); *)
@@ -551,19 +555,11 @@ forward_call  (*   p' = fifo_get(Q); p = p'; *)
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward_call (*  free(p, sizeof( *p)); *)
-   (t_struct_elem, p').
+   (t_struct_elem, p', gv).
 {
- pose (work_around_coq_bug := fifo [p2] q *
-   data_at Ews t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
-   field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
-   field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2 *
-   malloc_token Ews t_struct_elem p2).
- apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
- rewrite make_unmake; cancel.
- apply derives_trans with
-   (data_at_ Ews t_struct_elem p' * fold_right_sepcon Frame).
+ assert_PROP (isptr p'); [entailer! | rewrite if_false by (intro; subst; contradiction) ].
+ sep_apply (eq_sym (make_unmake (Int.repr 1) (Int.repr 10) p')).
  cancel.
- rewrite data_at__memory_block by reflexivity. entailer.
 }
 forward. (* return i+j; *)
 Qed.

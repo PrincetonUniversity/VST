@@ -56,7 +56,7 @@ Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
                  initPostKey sh k key; K_vector gv)))
      (stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
-(*freeze [1; 2; 3] FR1. *)simpl. 
+simpl. 
 Time forward. (*0.8 versus 1.3*)
 
 Time assert_PROP (isptr ctxkey) as Pckey by entailer!. (*0.7*)
@@ -89,12 +89,9 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
     rename b into kb; rename i into kofs.
     replace_SEP 1 (data_at sh (tarray tuchar (Zlength key)) (map Vubyte key) (Vptr kb kofs)).
        Time unfold data_block; entailer!. (*1.5*)
-
-    freeze [0; 1; 2; 3; 4] FR1.
     Time forward. (*1secs, versus 2secs*)
     Time forward. (*0.8 versus 1.8 j=HMAC_MAX_MD_CBLOCK*)
-    thaw FR1.
-    freeze [1;2;4] FR2.
+    freeze FR2 := - (data_at_ _ _ (Vptr cb cofs)) (data_at_ _ _ pad).
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
         as FC_ctx by entailer!. (*1 versus 1.7*)
 
@@ -142,13 +139,14 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
    subst.
    unfold PostKeyNull, initPostKeyNullConditional.
    Exists cb cofs 1.
-   Time entailer; cancel. (* 1.115 sec;  was: 7.3 versus 8.1*)
+   Time entailer!; simpl; entailer!.
   }
   { (*key == NULL*)
      rename H into Hk; rewrite Hk in *.
      Time forward. (*0.2*)
      unfold PostKeyNull, initPre, initPostKeyNullConditional. subst k.
      Time entailer. (*4.2 versus 3.9*)
+      simpl.
         unfold hmacstate_PreInitNull. Intros r v.
         Time assert_PROP (isptr c) as Pctx' by entailer!. (*4.3*)
         apply isptrD in Pctx'; destruct Pctx' as [cb [cofs CTX']].
@@ -215,7 +213,7 @@ forward_if (EX shaStates:_ ,
       destruct k; try contradiction.
       Time simple_if_tac; entailer!. (* 0.92 *)
       Exists b i.
-      entailer!. }
+      entailer!. simpl; entailer!. }
     Intros kb kofs.
     rename H into H0.
        assert (ZZ: exists HMS':reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS. trivial.
@@ -234,11 +232,12 @@ forward_if (EX shaStates:_ ,
 
     (*continuation after ipad-loop*)
     Intros.
-    freeze [2;3;4] FR1.
+    freeze FR1 := - (K_vector _) (data_at _ _ _ (Vptr cb _)).
     Time (assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C
        by entailer!). (*1.9 versus 6.5*)
-    Time unfold_data_at 1%nat. (*1*)
-    freeze [0;1;4] FR2.
+    Time unfold_data_at (@data_at CompSpecs _ _ _ _).
+    freeze FR2 := - (field_at _ _ [StructField _md_ctx] _ (Vptr cb _))
+                             (field_at _ _ [StructField _i_ctx] _ (Vptr cb _)).
     rewrite (field_at_data_at  wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)) as FC_ICTX.
     { apply prop_right. clear - FC_C. red in FC_C.
@@ -252,7 +251,7 @@ forward_if (EX shaStates:_ ,
     (*Call to _SHA256_Update*)
     thaw FR2.
     thaw FR1.
-    freeze [1;3;5;6] FR3.
+    freeze FR3 := - (sha256state_ _ _ _) (data_at _ _ _ (Vptr pb _)) (K_vector _).
     Time forward_call (@nil byte,
                   HMAC_SHA256.mkArg (HMAC_SHA256.mkKey key) Ipad,
                   Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)), wsh, Vptr pb pofs, Tsh, 64, gv).
@@ -273,7 +272,7 @@ forward_if (EX shaStates:_ ,
 
     (*essentially the same for opad*)
     thaw FR3.
-    freeze [0; 3; 5;6] FR4.
+    freeze FR4 := - (sha256state_ _ _ _) (data_block _ _ _) (data_at _ _ _ (Vptr ckb _)).
     forward_seq.
     { (*opad loop*)
       eapply semax_pre.
@@ -283,8 +282,8 @@ forward_if (EX shaStates:_ ,
 
     (*continuation after opad-loop*)
     thaw FR4.
-    freeze [0;1;4;6] FR5.
-    freeze [0;1;2] FR6.
+    freeze FR5 := - (data_at _ _ _ (Vptr pb _)) (K_vector _) (field_at _ _ [StructField _o_ctx] _ _).
+    freeze FR6 := - (field_at _ _ [StructField _o_ctx] _ _).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)) as FC_OCTX.
     { apply prop_right. clear - FC_C. red in FC_C. 
@@ -321,7 +320,7 @@ forward_if (EX shaStates:_ ,
     Exists (innerShaInit (HMAC_SHA256.mkKey key),(iUpd,(outerShaInit (HMAC_SHA256.mkKey key),oUpd))).
     simpl. rewrite !prop_true_andp by (auto; intuition).
     Time cancel. (*5 versus 4*)
-    unfold_data_at 3%nat.
+    unfold_data_at (@data_at CompSpecs _ t_struct_hmac_ctx_st _ (Vptr cb _)).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at wsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     rewrite field_address_offset by auto with field_compatible.
@@ -351,7 +350,7 @@ forward_if (EX shaStates:_ ,
     subst i.
     destruct R; subst r; simpl.
     2: solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
-    freeze [0; 1; 3] FR2.
+    freeze FR2 := - (hmacstate_PreInitNull _ _ _ _).
     Time normalize. (*5.7*)
     rename H into InnerRelate.
     rename H0 into OuterRelate.
@@ -376,13 +375,13 @@ forward_if (EX shaStates:_ ,
      assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
      { red in FC_cb. repeat split; try solve [apply FC_cb]. left. reflexivity. }
 
-     Time unfold_data_at 1%nat. (*0.8, was slow*)
+     Time unfold_data_at (@data_at CompSpecs _ _ _ _).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
      (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 3; rewrite field_at_data_at at 1. SUCCEED???
         Answer: instead of using "at 2", use the field-specificer in the line above.*)
      rewrite field_address_offset by auto with field_compatible.
 
-     freeze [0; 3] FR3.
+     freeze FR3 := - (field_at _ _ [StructField _md_ctx] _ _) (data_at _ _ _ (offset_val _ (Vptr cb _))).
      Time forward_call ((wsh, wsh),
              Vptr cb cofs,
              Vptr cb (Ptrofs.add cofs (Ptrofs.repr 108)),
@@ -397,8 +396,7 @@ forward_if (EX shaStates:_ ,
          apply isptr_offset_val_zero; simpl; trivial.
        Time cancel. (*0 versus 2*)
      }
-
-     freeze [0; 1; 2] FR4.
+     freeze FR4 := - . 
      Time forward. (*return*) (* 3 versus 13*) (*Issue : leaves a somewhat messy subgoal*)
      unfold hmacInit.
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
@@ -406,7 +404,7 @@ forward_if (EX shaStates:_ ,
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
       simpl. Time entailer!. (*1.9 versus 5.6*)
-     unfold_data_at 1%nat.
+     unfold_data_at (data_at _ _ _ _).
      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       rewrite field_address_offset by auto with field_compatible.
@@ -418,22 +416,22 @@ forward_if (EX shaStates:_ ,
   }
 
   { (*k is Vptr, key!=NULL*)
-    freeze [0;1;3] FR5.
+    freeze FR5 := - (initPostResetConditional _ _ _ _ _ _ _ _ _).
     destruct R as [R | R]; rewrite R; simpl.
     solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
     Intros.
     rename H0 into InnerRelate.
     rename H2 into OuterRelate.
     unfold postResetHMS. simpl.
-    freeze [0; 2] FR6.
+    freeze FR6 := - (@data_at CompSpecs _ _ _ (Vptr cb _)).
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer!. (*2.8*)
     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
     { red in FC_cb. repeat split; try solve [apply FC_cb]. right; left; reflexivity. }
     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
     { red in FC_cb. repeat split; try solve [apply FC_cb]. left; reflexivity. }
 
-    unfold_data_at 1%nat.
-    freeze [0; 3] FR7.
+    unfold_data_at (@data_at CompSpecs _ _ _ _).
+    freeze FR7 := - (field_at _ _ [StructField _md_ctx] _ _) (field_at _ _ [StructField _i_ctx] _ _).
     rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at _ t_struct_hmac_ctx_st [StructField _md_ctx]).
     rewrite field_address_offset by auto with field_compatible.
@@ -451,9 +449,9 @@ forward_if (EX shaStates:_ ,
           eapply derives_trans. apply data_at_memory_block. apply derives_refl.
           Time cancel. (*0 versus 2*)
     }
-    freeze [0; 1; 2] FR8.
+    freeze FR8 := - .
     Time forward. (*return*) (*3.4 versus 17*) (*Issue: leaves messy subgoal*)
-    Time entailer!. (* 1.2 versus 9*)
+    simpl.
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).
     change (@data_at spec_sha.CompSpecs sh (tarray tuchar (@Zlength byte key)))
@@ -463,7 +461,7 @@ forward_if (EX shaStates:_ ,
       unfold s256a_len, innerShaInit, outerShaInit.
            rewrite !Zlength_mkArgZ.
            rewrite mkKey_length. split; reflexivity.
-    unfold_data_at 1%nat.
+    unfold_data_at (@data_at CompSpecs _ _ _ (Vptr cb cofs)).
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
     rewrite field_address_offset by auto with field_compatible.

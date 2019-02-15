@@ -21,7 +21,7 @@ Proof.
         data_at Ews (tarray tint N) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (N - i))) (gv _last_taken))).
   { unfold N; computable. }
   { unfold N; computable. }
-  { entailer!. }
+  { entailer!.  simpl. cancel. }
   - forward.
     rewrite upd_init_const; auto.
   - forward.
@@ -37,7 +37,7 @@ Proof.
         data_at_ Ews tint (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at Ews (tarray tint N) (map (fun x : Z => vint x) lasts) (gv _last_taken))).
   { unfold B, N; computable. }
-  { entailer!. }
+  { entailer!.  simpl; cancel. }
   { forward.
     rewrite upd_init_const; auto; entailer!. }
   rewrite Zminus_diag, app_nil_r.
@@ -993,7 +993,7 @@ Proof.
            destruct (zlt a (Zlength t')); [rewrite app_Znth1 | rewrite Znth_overflow]; auto; try omega.
            rewrite Znth_overflow with (al := _ ++ _); auto.
            rewrite Zlength_app, Zlength_cons, Zlength_nil; omega.
-      * fast_cancel.
+      * simpl; fast_cancel.
         replace (Zlength t') with (Zlength h') in *; eapply upd_write_shares; eauto.
   - Intros t' h'.
     forward.

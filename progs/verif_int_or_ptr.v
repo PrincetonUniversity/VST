@@ -187,7 +187,7 @@ Proof.
  forward_call (Vint (Int.repr (i+i+1))).
  forward_if.
  - (* then clause *)
-   forward.
+   forward. simpl.
    Exists (Vint (Int.repr(i+i+1))).
    entailer!.
  - (* else clause *)
@@ -227,7 +227,7 @@ Proof.
     apply field_compatible_valid_int_or_ptr; auto.
   }
   forward_call r.
-  forward.
+  forward. simpl.
   Exists r p q p1 p2.
   entailer!.
 Qed.

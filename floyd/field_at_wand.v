@@ -87,16 +87,17 @@ Proof.
           autorewrite with sublist.
           omega.
         }
-        change (array_at sh (tarray t n) nil 0 lo (sublist 0 (lo - 0) al) p *
-                array_at sh (tarray t n) nil hi n (sublist (hi - 0) (n - 0) al) p *
+        autorewrite with norm.
+        change (array_at sh (tarray t n) nil 0 lo (sublist 0 lo al) p *
+                array_at sh (tarray t n) nil hi n (sublist hi n al) p *
                 field_at sh (tarray t (hi - lo)) nil v (field_address0 (tarray t n) (SUB lo) p)
                 |-- array_at sh (tarray t n) nil 0 lo
-                      (sublist 0 (lo - 0) (sublist 0 lo al ++ v ++ sublist hi n al)) p *
+                      (sublist 0 lo (sublist 0 lo al ++ v ++ sublist hi n al)) p *
                     data_at sh (nested_field_array_type (tarray t n) nil lo hi)
-                      (sublist (lo - 0) (hi - 0) (sublist 0 lo al ++ v ++ sublist hi n al))
+                      (sublist lo hi (sublist 0 lo al ++ v ++ sublist hi n al))
                       (field_address0 (tarray t n) (SUB lo) p) *
                     array_at sh (tarray t n) nil hi n
-                      (sublist (hi - 0) (n - 0) (sublist 0 lo al ++ v ++ sublist hi n al)) p).
+                      (sublist hi n (sublist 0 lo al ++ v ++ sublist hi n al)) p).
         unfold tarray; autorewrite with sublist.
         rewrite H4.
         replace (hi - lo - (hi - lo) + hi) with hi by omega.

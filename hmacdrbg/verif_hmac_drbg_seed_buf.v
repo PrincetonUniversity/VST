@@ -34,7 +34,7 @@ Proof.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite ptrofs_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
-  Time forward_call ((M1,(M2,M3)), Vptr b i, shc, Vint (Int.repr 1), info).
+  Time forward_call ((M1,(M2,M3)), Vptr b i, shc, Vint (Int.repr 1), info,gv).
 
   Intros v. rename H into Hv. simpl.
   forward.
@@ -51,11 +51,11 @@ Proof.
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.
   rename V0 into V. rename H0 into lenV.
   thaw FIELDS.
-  freeze [3;4;5;6] FIELDS1.
+  freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
  (* rewrite <- lenV. *)
-  freeze [0;4;5;6] FR2.
+  freeze [0;5;6;7] FR2.
   forward_call (Vptr b i, shc, (((*M1*)info,(M2,p)):mdstate), 32, V, b, Ptrofs.add i (Ptrofs.repr 12), shc, gv).
   { rewrite lenV; simpl. cancel. }
   { split; auto. split; auto. split; auto.
@@ -64,14 +64,14 @@ Proof.
 
   forward_call tt.
 
-  freeze [0;1;3;4] FR3. rewrite lenV.
+  freeze [0;1;3;4;5] FR3. rewrite lenV.
   forward_call (shc, Vptr b (Ptrofs.add i (Ptrofs.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel. 
     eapply derives_trans. apply data_at_memory_block. simpl sizeof. cancel.
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
-  freeze [1;3;5;6;7;8] OTHER.
+  freeze [1;3;5;6;7;8;9] OTHER.
   freeze [1;2;3] INI.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =
@@ -98,8 +98,9 @@ Proof.
   set (ABS:= HMAC256DRBGabs V (list_repeat 32 Byte.one) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   gather_SEP 1 2.
   replace_SEP 0 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
-  { subst ABS. unfold md_full. entailer!. unfold md_full; simpl; entailer!.
-    apply UNDER_SPEC.REP_FULL.
+  { subst ABS. simpl hmac256drbg_relate.  unfold md_full.
+     entailer!. simpl. entailer!.
+     apply UNDER_SPEC.REP_FULL.
   }
 
   forward_call (Data, data, shd,  d_len, Vptr b i, shc, xx, ABS, Info, gv).

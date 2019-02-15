@@ -111,7 +111,7 @@ Lemma sizeof_tuchar: forall {cs: compspecs}, sizeof tuchar = 1%Z.
 Proof. reflexivity. Qed.
 Hint Rewrite @sizeof_tuchar: norm.
 
-Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
+Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r Z.sub_0_r : norm.
 
 Hint Rewrite eval_id_same : norm.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.

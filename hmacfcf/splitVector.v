@@ -4,9 +4,9 @@
 
 Set Implicit Arguments.
 
-Require Import fcf.FCF.
-Require Import fcf.SemEquiv.
-Require Import fcf.DetSem.
+Require Import FCF.FCF.
+Require Import FCF.SemEquiv.
+Require Import FCF.DetSem.
 
 Fixpoint splitVector(A : Set)(n m : nat) : Vector.t A (n + m) -> (Vector.t A n * Vector.t A m) :=
   match n with

@@ -28,6 +28,8 @@ Fixpoint msubst_denote_tc_assert (tc: tc_assert): mpred :=
   | tc_orp' b c => (msubst_denote_tc_assert b) || (msubst_denote_tc_assert c)
   | tc_nonzero' e => denote_tc_nonzero (force_val (msubst_eval_expr Delta T1 T2 GV e))
   | tc_isptr e => denote_tc_isptr (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_isint e => denote_tc_isint (force_val (msubst_eval_expr Delta T1 T2 GV e))
+  | tc_islong e => denote_tc_islong (force_val (msubst_eval_expr Delta T1 T2 GV e))
   | tc_test_eq' e1 e2 => denote_tc_test_eq (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
   | tc_test_order' e1 e2 => denote_tc_test_order (force_val (msubst_eval_expr Delta T1 T2 GV e1)) (force_val (msubst_eval_expr Delta T1 T2 GV e2))
   | tc_ilt' e i => denote_tc_igt i (force_val (msubst_eval_expr Delta T1 T2 GV e))
@@ -130,6 +132,36 @@ Proof.
       normalize.
     - apply andp_left1, imp_andp_adjoint, andp_left2.
       unfold denote_tc_isptr.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_isint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr Delta T1 T2 GV e) eqn:?H.
+    - eapply derives_trans; [eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_islong.
       unfold local, lift1; unfold_lift.
       intros rho.
       simpl.

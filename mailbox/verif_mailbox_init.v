@@ -12,12 +12,12 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     t.
+     (t, gv).
   Intros p.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Ews t p * data_at_ Ews t p)).
+   SEP (mem_mgr gv; malloc_token Ews t p; data_at_ Ews t p)).
 *
   if_tac.
     subst p. entailer!.
@@ -45,7 +45,7 @@ Proof.
     destruct p; inv H2.
     simpl in H3.
     pose proof Ptrofs.unsigned_range i.
-    rep_omega.
+    simpl. rep_omega.
   }
   assert_PROP (Int.repr (Int.unsigned (Int.divu (Int.repr (4 * n)) (Int.repr 4))) = Int.repr n) as H4.
   { entailer!. 
@@ -80,7 +80,7 @@ Proof.
         exists 1; auto.
     - rewrite data_at__eq.
       unfold default_val, reptype_gen; simpl.
-      rewrite repeat_list_repeat, Z.sub_0_r; apply derives_refl. }
+      rewrite repeat_list_repeat; apply derives_refl. }
   - forward.
     rewrite upd_init_const; [|omega].
     entailer!.
@@ -109,12 +109,13 @@ Proof.
          EX bufs : list val, !!(Zlength bufs = i /\ Forall isptr bufs) &&
            data_at Ews (tarray (tptr tbuffer) B) (bufs ++ repeat Vundef (Z.to_nat (B - i))) (gv _bufs) *
            fold_right sepcon emp (map (@data_at CompSpecs Ews tbuffer (vint 0)) bufs) *
-           fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs))).
+           fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+          mem_mgr gv)).
   { unfold B, N; computable. }
   { unfold B, N; computable. }
   { entailer!.
     Exists ([] : list val); simpl; entailer!. }
-  { forward_call tbuffer.
+  { forward_call (tbuffer, gv).
     { split3; simpl; auto; computable. }
     Intros b bufs.
     assert_PROP (field_compatible tint [] b) by entailer!.
@@ -177,7 +178,8 @@ Proof.
          EX sh : share, !!(sepalg_list.list_join sh1 (sublist i N shs) sh) &&
            @data_at CompSpecs sh tbuffer (vint 0) (Znth 0 bufs);
          fold_right sepcon emp (map (@data_at CompSpecs Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
-         fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs))).
+         fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+         mem_mgr gv)).
   { unfold N; computable. }
   { Exists ([] : list val) ([] : list val) ([] : list gname) ([] : list gname) ([] : list gname)
       ([] : list gname) ([] : list val) ([] : list val) Ews; rewrite !data_at__eq; entailer!.
@@ -185,14 +187,14 @@ Proof.
     - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; omega).
       simpl; cancel. }
   { Intros locks comms g g0 g1 g2 reads lasts sh.
-    forward_call tint.  split3; simpl; auto; computable. Intros c.
+    forward_call (tint, gv).  split3; simpl; auto; computable. Intros c.
     forward.
     forward.
-    forward_call tint.  split3; simpl; auto; computable. Intros rr.
+    forward_call (tint, gv).  split3; simpl; auto; computable. Intros rr.
     forward.
-    forward_call tint.  split3; simpl; auto; computable. Intros ll.
+    forward_call (tint, gv).  split3; simpl; auto; computable. Intros ll.
     forward.
-    forward_call tlock.  split3; simpl; auto; computable. Intros l.
+    forward_call (tlock, gv).  split3; simpl; auto; computable. Intros l.
     rewrite <- lock_struct_array.
     forward.
     ghost_alloc (ghost_var Tsh (vint 1)).

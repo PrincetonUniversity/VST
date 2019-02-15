@@ -33,7 +33,7 @@ Ltac hint_loop :=
 Ltac print_hint_forward c :=
 match c with
 | Ssequence ?c1 _ => print_hint_forward c1
-| Scall _ _ _ => idtac "Hint: try 'forward_call x', where x is a value to instantiate the tuple of the function's WITH clause"
+| Scall _ _ _ => idtac "Hint: try 'forward_call x', where x is a value to instantiate the tuple of the function's WITH clause.  If you want more information about the _type_ of the argument that you must supply to forward_call, do 'forward' for information"
 | Swhile _ _ => idtac "Hint: try 'forward_while Inv', where Inv is a loop invariant"
 | Sifthenelse _ _ _ => idtac "Hint: try 'forward_if', which may inform you that you need to supply a postcondition"
 | Sloop _ _ =>hint_loop
@@ -151,6 +151,20 @@ Ltac hint_simplify_value_fits :=
   idtac "    (this is not often useful, but it can tell you for example that the contents of an array has the right length.  To disable this hint, 'Ltac hint_simplify_value_fits ::= idtac.' ")
   end.
 
+Ltac f_equal_cstring_hint_aux :=
+  match goal with H: ~In Byte.zero _ |- _ => idtac end;
+  lazymatch goal with
+  | H1: Znth _ (app _ (Byte.zero::nil)) = Byte.zero |- _ => idtac 
+  | H1: Znth _ (app _ (Byte.zero::nil)) <> Byte.zero |- _ => idtac
+  end;
+  try match goal with 
+  | |- @eq ?t _ _ => unify t Z; fail 1
+  end;
+  repeat match goal with 
+     | |- @eq ?t (?f _) (?g _) => (unify t Z; fail 1) || simple apply f_equal
+     end;
+  cstring.
+
 Ltac hint_solves := 
  first [
     tryif (try (assert True; [ | solve [auto]]; fail 1))
@@ -170,9 +184,15 @@ Ltac hint_solves :=
      else  idtac "Hint:  'list_solve' solves the goal"
  | tryif (try (assert True; [ | solve [cstring]]; fail 1)) then fail
      else  idtac "Hint:  'cstring' solves the goal"
+ | tryif (try (assert True; [ | solve [f_equal_cstring_hint_aux]]; fail 1)) then fail
+     else  idtac "Hint:  'f_equal' followed by 'cstring' solves the goal"
  | match goal with |- context [field_compatible] => idtac | |- context [field_compatible0] => idtac end;
        tryif (try (assert True; [ | solve [auto with field_compatible]]; fail 1)) then fail
        else  idtac "Hint:  'auto with field_compatible' solves the goal"
+ | match goal with |- @derives mpred _ _ _ =>
+     tryif (try (assert True; [ | solve [cancel]]; fail 1)) then fail
+     else  idtac "Hint:  'cancel' or 'entailer!' solves the goal"
+   end
  | tryif (try (assert True; [ | solve [entailer!]]; fail 1)) then fail
      else  idtac "Hint:  'entailer!' solves the goal"
  | match goal with |- ?A |-- ?B => 
@@ -224,6 +244,7 @@ match P with
 | @prop mpred _ _ => idtac
 | @allp _ _ _ _ => idtac
 | @exp _ _ _ _ => idtac
+| @emp _ _ _ => idtac
 | _ => tryif (try (let x := fresh "x" in evar (x: Prop); assert (P |-- prop x);
                     [subst x; solve [eauto with saturate_local] | fail 1]))
                then hint_saturate_local' P
@@ -241,7 +262,7 @@ match goal with
 end.
 
 Ltac hint_progress any n :=
- lazymatch n with 8%nat => constr_eq any true
+ lazymatch n with 10%nat => constr_eq any true
  | _ =>
  tryif lazymatch n with
  | 0%nat => print_sumbool_hint_hyp
@@ -257,7 +278,11 @@ Ltac hint_progress any n :=
                       tryif (try (clear D; fail 1)) then fail
                       else  idtac "Hint:  clear" D
                     end
- | 7%nat => lazymatch goal with
+ | 7%nat => tryif (try (progress rewrite if_true by (auto; omega); fail 1)) then fail
+     else  idtac "Hint:  try 'rewrite if_true by auto' or 'rewrite if_true by omega'"
+ | 8%nat => tryif (try (progress rewrite if_false by (auto; omega); fail 1)) then fail
+     else  idtac "Hint:  try 'rewrite if_false by auto' or 'rewrite if_false by omega'"
+ |9%nat => lazymatch goal with
    | D := @abbreviate tycontext _, Po := @abbreviate ret_assert _ |- semax ?D' ?Pre ?c ?Post =>
      tryif (constr_eq D D'; constr_eq Po Post) then print_hint_semax D Pre c Post
      else idtac "Hint: use abbreviate_semax to put your proof goal into a more standard form"
@@ -278,13 +303,58 @@ Ltac hint_progress any n :=
   else hint_progress any (S n)
  end.
 
+Ltac progress_entailer :=
+ match goal with |- ?A =>
+    progress entailer!; 
+   try (match goal with |- ?B => constr_eq A B end; fail 1)
+  end.
+
+Ltac try_redundant_omega H :=
+  match type of H with ?P =>
+   tryif (try (clear H; assert P by omega; fail 1)) then idtac
+   else idtac "Hint: hypothesis" H "is redundant, perhaps clear it"
+ end.
+
 Ltac hint_whatever :=
  try match goal with  |- @derives mpred _ ?A ?B =>
             hint_saturate_local A;
-            tryif (try (assert True; [ | progress entailer!]; fail 1)) then idtac
+            tryif (try (assert True; [ | progress_entailer]; fail 1)) then idtac
               else  idtac "Hint:  try 'entailer!'";
             try hint_allp_left A;
             try print_sumbool_hint (A |-- B)
+ end;
+ try match goal with |- @eq mpred _ _ => 
+              idtac "Hint: try 'apply pred_ext'"
+      end;
+ try match goal with
+ | H: ?A = ?B |- _ => unify A B; idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
+ end;
+ try match goal with
+ | H: is_int I8 Signed (Vbyte _) |- _ =>       
+   idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
+ end;
+ try match goal with
+ | H: is_int I8 Signed (Vint (Int.repr (Byte.signed _))) |- _ =>
+   idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
+ end;
+ try match goal with
+ | H: Forall (value_fits _) _ |- _ =>
+   idtac "Hint: hypothesis" H "is a 'value_fits' fact; often these are not useful, _maybe_ 'clear" H "'"    
+ end;
+ try match goal with
+     H: is_pointer_or_null ?A, H': field_compatible _ _ ?A |- _ =>
+      idtac "Hint:" H' "implies" H ", perhaps 'clear" H "'"
+    end;
+ try lazymatch goal with
+ | H: @eq Z _ _ |- _ => try_redundant_omega H
+ | H: Z.le _ _ |- _ =>  try_redundant_omega H
+ | H: Z.lt _ _ |- _ =>  try_redundant_omega H
+ | H: Z.ge _ _ |- _ =>  try_redundant_omega H
+ | H: Z.gt _ _ |- _ =>  try_redundant_omega H
+ | H: Z.le _ _ /\ Z.le _ _ |- _ =>  try_redundant_omega H
+ | H: Z.le _ _ /\ Z.lt _ _ |- _ =>  try_redundant_omega H
+ | H: Z.lt _ _ /\ Z.le _ _ |- _ =>  try_redundant_omega H
+ | H: Z.lt _ _ /\ Z.lt _ _ |- _ =>  try_redundant_omega H
  end;
  hint_simplify_value_fits;
  tryif (try (rewrite prop_sepcon; fail 1)) then idtac else idtac "Hint: try 'rewrite prop_sepcon'";

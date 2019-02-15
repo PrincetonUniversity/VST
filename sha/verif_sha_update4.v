@@ -126,9 +126,34 @@ simpl. normalize.
   ...
   with automatic cancel...
 *)
- Time unfold_data_at 1%nat. (*0.7*)
- Time unfold_data_at 1%nat. (*0.8*)
- Time cancel. (*0.4*)
+
+Tactic Notation "unfold_data_atx" uconstr(a) :=
+ tryif (is_nat_uconstr a)
+ then (
+    idtac "Warning: unfold_data_at with numeric argument is deprecated";
+     let x := constr:(a) in unfold_data_at_tac x
+   )
+ else
+ (let x := fresh "x" in set (x := a : mpred);
+  lazymatch goal with
+  | x := ?D : mpred |- _ =>
+    match D with
+     | (@data_at_ ?cs ?sh ?t ?p) =>
+            change D with (@field_at_mark cs sh t (@nil gfield) (@default_val cs (@nested_field_type cs t nil)) p) in x
+     | (@data_at ?cs ?sh ?t ?v ?p) =>
+            change D with (@field_at_mark cs sh t (@nil gfield) v p) in x
+     | (@field_at_ ?cs ?sh ?t ?gfs ?p) =>
+            change D with (@field_at_mark cs sh t gfs (@default_val cs (@nested_field_type cs t gfs)) p) in x
+     | (@field_at ?cs ?sh ?t ?gfs ?v ?p) =>
+            change D with (@field_at_mark cs sh t gfs v p) in x
+     end;
+        subst x;  unfold_field_at';
+idtac (*
+   repeat match goal with |- context [@field_at ?cs ?sh ?t ?gfs (@default_val ?cs' ?t') ?p] => 
+       change (@field_at cs sh t gfs (default_val cs' t') p) with (@field_at_ cs sh t gfs p)
+    end*)
+end).
+ match goal with |- ?A |-- ?B => unfold_data_at A; unfold_data_at B; cancel end.
 Time Qed. (*5.4*)
 
 Lemma update_while_proof:
@@ -223,7 +248,7 @@ assert (Zlength bl = LBLOCKz). {
    (hash_blocks init_registers (hashed++blocks),  bl, c, wsh,
     field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
     sh, gv). (*3.8*)
-  { Time unfold_data_at 1%nat. (*0.8*)
+  { Time unfold_data_at (data_at _ _ _ c). (*0.8*)
     Time cancel. (*2.5*)
   }
  rewrite hash_blocks_last by auto.
@@ -250,7 +275,7 @@ assert (Zlength bl = LBLOCKz). {
       simpl. f_equal. Omega1.
   + f_equal. f_equal. Omega1.
  }
- Time unfold_data_at 1%nat. (*0.8*)
+ Time unfold_data_at (data_at _ _ _ c).  (*0.8*)
  rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
     by (auto; subst lo; try Omega1).
  rewrite app_ass.

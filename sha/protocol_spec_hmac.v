@@ -523,7 +523,8 @@ remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdum
 eapply semax_pre_post.
 6: apply (initbodyproof Espec c (Vptr b i) l sh shk key gv hdummy pad ctxkey); auto.
 
- entailer!.
+ entailer!; simpl.
+normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
 simpl_ret_assert; normalize.
