@@ -263,23 +263,28 @@ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  apply Mem.load_result in H2; subst;
  unfold Val.load_result, Mptr; 
  destruct Archi.ptr64 eqn:Hp; 
-simpl Mem.getN; 
- match goal with
+simpl Mem.getN.
+all:
+try match goal with
   | |- context [decode_val _ (?x :: nil)] => destruct x; try reflexivity
   | |- context [decode_val _ (?x :: ?y :: nil)] => destruct x,y; try reflexivity
-  | |- context [decode_val _ (?a :: ?b :: ?c :: ?d :: nil)] => destruct a,b,c,d; try reflexivity
-  | |- context [decode_val _ (?a :: ?b :: ?c :: ?d :: ?e :: ?f :: ?g :: ?h :: nil)] => 
-                destruct a,b,c,d,e,f,g,h; try reflexivity
  end;
-  unfold decode_val, proj_bytes;
-  try rewrite Int.sign_ext_idem by omega;
-  try rewrite Int.zero_ext_idem by omega;
-  try reflexivity; simpl;
-  rewrite ?Hp; simpl; try reflexivity;
-  repeat match goal with n: nat |- _ =>
-     destruct n; try (rewrite !andb_false_r; reflexivity)
-   end;
- try solve [simple_if_tac; destruct v; auto].
+repeat match goal with |- context [ZMap.get ?A ?B] =>
+  let c := fresh "c" in
+  forget (ZMap.get A B) as c
+end;
+try solve [
+match goal with |- context [decode_val ?A ?B] =>
+  pose proof (decode_val_type A B);
+    destruct (decode_val A B); auto; 
+    try solve [inv H];
+    try solve [hnf in H; elimtype False; congruence]
+end];
+try solve [
+  unfold decode_val; simpl;
+  rewrite ?Int.sign_ext_idem by omega;
+  rewrite ?Int.zero_ext_idem by omega;
+  reflexivity].
 Qed.
 
 Lemma rel_LR'_fun:

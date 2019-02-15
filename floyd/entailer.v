@@ -707,6 +707,7 @@ Ltac entbang :=
  (* end of temporary solution *)
  saturate_local;
  ent_iter;
+ repeat change (mapsto_memory_block.spacer _ _ _ _) with emp;
  first [ contradiction
         | simple apply prop_right; my_auto
         | match goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';

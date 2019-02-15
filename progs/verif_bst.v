@@ -76,6 +76,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
   | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
       data_at Tsh (tptr t_struct_tree) p b *
+      spacer Tsh (sizeof tint) (sizeof size_t) p *
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       field_at Tsh t_struct_tree [StructField _value] v p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
@@ -551,6 +552,26 @@ Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
   LOCAL (temp _t b)
   SEP   (treebox_rep (T ta x v tb) b;
          (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
+
+Lemma cancel_emp_spacer:
+  forall sh x y p, x=y -> 
+    emp |-- spacer sh x y p.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
+Lemma cancel_spacer_emp:
+  forall sh x y p, x=y -> 
+    spacer sh x y p |-- emp.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
 
 Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
 Proof.
