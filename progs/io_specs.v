@@ -78,8 +78,7 @@ Proof.
   induction l1; simpl in *; intros.
   - rewrite ret_bind.
     apply push_tau; reflexivity.
-  - (* There must be a better way than this. *)
-    rewrite bind_bind.
+  - rewrite bind_bind.
     apply bind_mor; [reflexivity|].
     intro; auto.
 Qed.
