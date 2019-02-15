@@ -91,18 +91,33 @@ Ltac solve_Equivalence:=
 
 (** Claim what the current goal looks like *)
 (* Usefull for marking cases in a dynamic way *)
-Ltac print_goal:= match goal with [|- ?G] => idtac G end.
-Ltac errors_for_current current:= 
-  idtac "That's not the current goal. " ;
-  idtac current;
-  idtac " provided, but found";
-  print_goal.
+Ltac get_goal:=
+  match goal with [|- ?goal] =>  goal end.
+Ltac print_goal:= 
+  let goal:= get_goal in idtac goal.
+Ltac errors_for_current current:=
+  let goal:= get_goal in 
+  fail 1
+    "That's not the current goal. "
+    current
+    " provided, but found"
+    goal.
 Ltac equate x y :=
   let dummy := constr:(eq_refl x : x = y) in idtac.
 Ltac goal_is g:=
   match goal with |- ?g_targ => equate g g_targ end.
 Ltac current_goal goal:= first[goal_is goal|change goal| errors_for_current goal].
 Tactic Notation "!goal " uconstr(goal) := current_goal goal.
+
+(*Sometimes !goal fails due dependencies in the arguements.
+  It can be useful to use the tactic bellow, even though it allows no "_"
+*)
+Ltac my_context_match g :=
+  match goal with
+  | |- context[g] => idtac
+  end.
+Tactic Notation "!context_goal " constr(in_goal) := my_context_match in_goal.
+                
 
 (* Print type for and ident*)
 Ltac get_type x:= match type of x with ?T => T end. 
