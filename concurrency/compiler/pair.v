@@ -198,6 +198,31 @@ Proof.
   intros [] [] [] [].
   constructor; auto.
 Qed.
+Lemma pair_and:
+  forall X Y: Pair Prop,
+    pair_prop 
+      ((fst X /\ fst Y), (snd X /\ snd Y)) ->
+    pair_prop X /\ pair_prop Y.
+Proof.
+  intros [] [] [[][]]; simpl in *.
+  do 2 constructor; assumption.
+Qed.
+Lemma pair_iff:
+  forall X Y: Pair Prop,
+    pair_prop 
+      ((fst X <-> fst Y), (snd X <-> snd Y)) ->
+    pair_prop X  <-> pair_prop Y.
+Proof.
+  intros [] [] [[][]]; simpl in *.
+  constructor; eapply pair_impl; constructor; auto.
+Qed.
+Lemma single_pair_impl
+  : forall (x: Prop) (Y : Pair Prop),
+    pair_prop (x -> fst Y, x -> snd Y) ->
+    x -> pair_prop Y.
+Proof.
+  intros * [] **. econstructor; eauto.
+Qed.
 Ltac ez:= intros; constructor; simpl; eauto.
 Lemma trivial_predicate:
   forall T (P: T-> Prop) x,
@@ -218,14 +243,25 @@ Ltac pair_prop_implications':=
   match goal with
   | |- pair_prop _ -> pair_prop _ =>
     eapply pair_impl
+  | |- pair_prop _ <-> pair_prop _ =>
+    eapply pair_iff
+  | |- pair_prop _ /\ pair_prop _ =>
+    eapply pair_and
   | |- pair_prop _ -> ?G =>
     let HH:= fresh in
     intros HH;
     pair_prop_implications';
     revert HH;
     pair_prop_implications'
+  | |- ?G -> pair_prop _ =>
+    eapply single_pair_impl
   | |- ?G1 -> ?G2 =>
-    idtac "Don't know how to progress"
+    (* This case we think G1 is not a pair predicate*)
+    let HH:= fresh in
+    intros HH;
+    pair_prop_implications';
+    revert HH;
+    pair_prop_implications'
   end.
 Ltac pair_prop_implications X1 X2:=
   pair_prop_implications'; simpl; pair_prop_simpl X1 X2.

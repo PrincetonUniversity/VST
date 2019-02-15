@@ -68,12 +68,14 @@ Definition initial_Clight_state : Clight.state :=
   Clight.State main_handler (Clight.Scall None (Clight.Etempvar 1%positive (Clight.type_of_fundef f))
              (map (fun x => Clight.Etempvar (fst x) (snd x))
              (Clight_new.params_of_types 2 (Clight_new.params_of_fundef f))))
-             (Clight.Kseq (Clight.Sloop Clight.Sskip Clight.Sskip) Clight.Kstop) Clight.empty_env
+               (Clight.Kseq (Clight.Sloop Clight.Sskip Clight.Sskip) Clight.Kstop) Clight.empty_env
+(*
 <<<<<<< HEAD
              (temp_bindings 1 [Vptr (projT1 (spr CPROOF)) Ptrofs.zero]) init_mem.
 =======
+*)
              (Clight.temp_bindings 1 [Vptr (projT1 (spr CPROOF)) Ptrofs.zero]) init_mem.
->>>>>>> Revert "New external diagrams. The new quantification of the trace is wrong (need to fold that back)."
+(*>>>>>>> Revert "New external diagrams. The new quantification of the trace is wrong (need to fold that back)." *)
 
 (*...And we should be able to construct an initial state from the Clight_new and mem.*)
 (* See also veric/Clight_sim.v. *)
@@ -514,8 +516,8 @@ Proof.
     inv Hstep.
     inv H; simpl.
     apply memsem_lemmas.mem_step_obeys_cur_write; auto.
-  (* apply memsem_lemmas.mem_step_refl. *)
-    eapply mem_step_alloc; eauto.
+   apply memsem_lemmas.mem_step_refl.
+  (*  eapply mem_step_alloc; eauto. *)
   - intros.
     inv H.
     inv H0; simpl.
