@@ -53,7 +53,10 @@ Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.resource_decay_lemmas.
 Require Import VST.concurrency.juicy.resource_decay_join.
 Require Import VST.concurrency.juicy.semax_invariant.
-
+Require Import VST.veric.Clight_aging_lemmas.
+Import Clight_initial_world.
+Import Clight_seplog.
+Import ghost_PCM.
 Set Bullet Behavior "Strict Subproofs".
 
 Lemma flat_inj_incr : forall b b', (b <= b')%positive ->
@@ -777,12 +780,12 @@ Qed.
 
 Lemma shape_of_args F V args b ofs ge :
   Val.has_type_list args (AST.Tint :: nil) ->
-  Vptr b ofs = expr.eval_id _lock (make_ext_args (filter_genv (symb2genv (@genv_symb_injective F V ge))) (_lock :: nil) args) ->
+  Vptr b ofs = mpred.eval_id _lock (make_ext_args (filter_genv (symb2genv (@genv_symb_injective F V ge))) (_lock :: nil) args) ->
   args = Vptr b ofs :: nil.
 Proof.
   intros Hargsty.
   assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
-  unfold expr.eval_id.
+  unfold mpred.eval_id.
   unfold val_lemmas.force_val.
   intros Preb.
   match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.

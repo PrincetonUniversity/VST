@@ -30,7 +30,7 @@ Module THE_JUICY_MACHINE.
 
   Section THE_JUICY_MACHINE.
 
-  Context {ge : genv}.
+  Context {ge : Clight.genv}.
   Instance JSem : Semantics := Clight_newSem ge.
   Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig:=JuicyMachineShell)).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
@@ -61,9 +61,9 @@ Module THE_JUICY_MACHINE.
   (* Without this initial condition, a thread pool could be vacuously safe by being inconsistent
      with itself or the external environment. Since we want juicy safety to imply dry safety,
      we need to rule out the vacuous case. *)
-  (exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (initial_world.ext_ref tt, NoneP) :: nil)) /\
+  (exists phi, join_all tp phi /\ joins (ghost_of phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil)) /\
   forall phi, join_all tp phi ->
-    forall c : ghost, join_sub (Some (initial_world.ext_ref tt, NoneP) :: nil) c ->
+    forall c : ghost, join_sub (Some (ghost_PCM.ext_ref tt, NoneP) :: nil) c ->
      joins (ghost_of phi) (ghost_fmap (approx (level phi)) (approx (level phi)) c) ->
      exists b : ghost,
        joins b (ghost_fmap (approx (level phi)) (approx (level phi)) c) /\

@@ -369,16 +369,16 @@ Proof.
 Qed.*)
 
 Lemma data_at_unfold CS sh b ofs phi length :
-  forall (Hw: writable_share sh),
+  forall (Hw: writable0_share sh),
   app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
   forall loc,
     if adr_range_dec (b, Ptrofs.intval ofs) (size_chunk Mptr * Z.of_nat length)%Z loc then
-      exists v, phi @ loc = YES sh (writable_readable_share Hw) (VAL v) NoneP
+      exists v, phi @ loc = YES sh (writable0_readable Hw) (VAL v) NoneP
     else
       identity (phi @ loc).
 Proof.
   intros Hw Hat.
-  pose proof writable_readable_share Hw as Hr.
+  pose proof writable0_readable Hw as Hr.
   pose proof data_at_unfold_readable _ _ _ _ _ _ Hr Hat as H.
   intros loc; specialize (H loc).
   if_tac; auto.
@@ -449,7 +449,7 @@ Definition rmap_makelock phi phi' loc R length :=
       adr_range loc length x ->
       exists val sh Psh,
         phi @ x = YES sh Psh (VAL val) NoneP /\
-        writable_share sh /\
+        writable0_share sh /\
         phi' @ x =
           YES sh Psh (LK length (snd x - snd loc)) (pack_res_inv (approx (level phi) R)))
     /\  (ghost_of phi = ghost_of phi').
@@ -463,7 +463,7 @@ Definition rmap_freelock phi phi' m loc R length :=
       adr_range loc length x ->
       exists sh Psh,
         phi' @ x = YES sh Psh (VAL (contents_at m x)) NoneP /\
-        writable_share sh /\
+        writable0_share sh /\
         phi @ x =
   
           YES sh Psh (LK length  (snd x - snd loc)) (pack_res_inv (approx (level phi) R))) /\
@@ -497,11 +497,11 @@ Definition freelock_f phi m loc length : address -> resource :=
 (*The name is legacy. Comes from the time there was two shares. Then
  * The contradiction would look like 
  * forall (sh2 sh3:pshares) -> join pfullshare sh2 sh3 -> False. *)
-Local Ltac pfulltac := try solve [exfalso; eapply join_writable_readable; eauto].
+Local Ltac pfulltac := try solve [exfalso; eapply join_writable0_readable; eauto].
 
-Lemma readable_part_writable:
+Lemma readable_part_writable0:
                forall sh
-                 (Hw : writable_share sh)
+                 (Hw : writable0_share sh)
                  (Hr : readable_share sh),
                  readable_part (Hr) =
                  exist _ _ pure_readable_Rsh.
@@ -509,7 +509,7 @@ Proof.
 intros.
 apply exist_ext.
 clear Hr.
-unfold writable_share in Hw.
+unfold writable0_share in Hw.
 apply leq_join_sub in Hw.
 apply Share.ord_antisym.
 apply (Share.glb_lower1 Share.Rsh sh).
@@ -593,11 +593,11 @@ Proof.
     rewrite L1 in *.
       inv j; inv j'; try solve [pfulltac].
       eexists; eexists; split; eauto; split; eauto.
-      eapply join_writable1; eauto. 
+      eapply join_writable01; eauto. 
       rewrite <- H in H5. inversion H5; subst.
       assert (sh4 = sh3) by (eapply join_eq; eauto).
       subst. f_equal. apply proof_irr.
-      clear RJ0; exfalso; eapply join_writable_readable; eauto.
+      clear RJ0; exfalso; eapply join_writable0_readable; eauto.
 Qed.
 
 Lemma rmap_freelock_join phi1 phi1' m loc R length phi2 phi :
@@ -666,11 +666,11 @@ Proof.
     rewrite L1 in *.
     inv j; inv j'; try solve [pfulltac].
       eexists; eexists; split; eauto; split; eauto.
-      eapply join_writable1; eauto. 
+      eapply join_writable01; eauto. 
       rewrite <- H in H5. inversion H5; subst.
       assert (sh4 = sh3) by (eapply join_eq; eauto).
       subst. f_equal. apply proof_irr.
-      clear RJ0; exfalso; eapply join_writable_readable; eauto.
+      clear RJ0; exfalso; eapply join_writable0_readable; eauto.
 Qed.
 
 (* TODO those definitions are also in sync_preds_defs, see if we can
@@ -691,7 +691,7 @@ Definition LK_at R lksize sh :=
 
 Lemma data_at_rmap_makelock CS sh b ofs R phi length :
   0 < length ->
-  writable_share sh ->
+  writable0_share sh ->
   app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) length noattr) (Vptr b ofs)) phi ->
   exists phi',
     rmap_makelock phi phi' (b, Ptrofs.unsigned ofs) R (size_chunk Mptr * length) /\
@@ -737,7 +737,7 @@ Proof.
       specialize (Hbefore x).
       if_tac in Hbefore. 2:tauto.
       destruct Hbefore as (val & ->).
-      exists val, sh, (writable_readable_share Hwritable).
+      exists val, sh, (writable0_readable Hwritable).
       repeat split; auto; reflexivity.
   - intros x.
     simpl.
@@ -763,7 +763,7 @@ Qed.
 Lemma lock_inv_rmap_freelock CS sh b ofs R phi m :
   (align_chunk Mptr | Ptrofs.unsigned ofs) ->
   Ptrofs.unsigned ofs + LKSIZE < Ptrofs.modulus ->
-  writable_share sh ->
+  writable0_share sh ->
   app_pred (@lock_inv sh (Vptr b ofs) R) phi ->
   exists phi',
     rmap_freelock phi phi' m (b, Ptrofs.unsigned ofs) R LKSIZE /\
@@ -803,7 +803,7 @@ Proof.
       specialize (Hli x). simpl in Hli.
       if_tac in Hli. 2:tauto.
       destruct Hli as (p, ->); simpl.
-      exists sh, (writable_readable_share Hwritable); repeat split; auto; f_equal.
+      exists sh, (writable0_readable Hwritable); repeat split; auto; f_equal.
         -- apply proof_irr.
         -- f_equal; try apply proof_irr;
            try congruence.
@@ -821,7 +821,7 @@ Proof.
       { rewrite size_chunk_Mptr, Z.mul_comm in Hbound; auto. }
       rewrite mapsto_memory_block.memory_block'_eq;
         unfold mapsto_memory_block.memory_block'_alt; rewrite ?Z2Nat.id; try apply Z.ge_le, sizeof_pos.
-      rewrite if_true by (apply writable_readable_share; auto).
+      rewrite if_true by (apply writable0_readable; auto).
       split; simpl; [|rewrite Hg'; auto].
       rewrite Ephi'; unfold freelock_f.
       rewrite (Z.mul_comm 2) in *.
@@ -980,10 +980,10 @@ Proof.
   destruct (phi @ _); congruence.
 Qed.
 
-Lemma writable_glb_Rsh:
-  forall sh, writable_share sh -> Share.glb Share.Rsh sh = Share.Rsh.
+Lemma writable0_glb_Rsh:
+  forall sh, writable0_share sh -> Share.glb Share.Rsh sh = Share.Rsh.
 Proof.
- intros. unfold writable_share in H.
+ intros. unfold writable0_share in H.
 apply leq_join_sub in H.
 apply Share.ord_antisym.
 apply (Share.glb_lower1 Share.Rsh sh).
@@ -999,16 +999,16 @@ it would give us a simpler invariant, but maybe not. *)
 (* Variable unrel_lsh_rsh : Share.unrel Share.Lsh Share.Rsh = Share.bot. *)
 
 Lemma mapsto_getYES sh t v v' phi :
-  writable_share sh ->
+  writable0_share sh ->
   app_pred (mapsto sh t v v') phi ->
   app_pred (mapsto Share.Rsh t v v') (getYES phi).
 Proof.
-  intros Hw At. pose proof writable_readable_share Hw as Hr.
-  assert (Hw' : writable_share Share.Rsh). {
-    apply writable_Rsh.
+  intros Hw At. pose proof writable0_readable Hw as Hr.
+  assert (Hw' : writable0_share Share.Rsh). {
+    apply writable0_Rsh.
   }
   assert (Hr' : readable_share Share.Rsh)
-    by (apply writable_readable_share; auto).
+    by (apply writable0_readable; auto).
   cut
     (forall m v loc,
         (address_mapsto m v sh loc) phi ->
@@ -1032,12 +1032,12 @@ Proof.
     destruct (phi @ x); try congruence.
     injection M as -> -> ->.
     assert (p' : readable_share Share.Rsh). {
-      apply writable_readable_share.
-      apply writable_Rsh.
+      apply writable0_readable.
+      apply writable0_Rsh.
     }
     exists p'; f_equal.
     +
-      apply YES_ext. apply  writable_glb_Rsh; auto.
+      apply YES_ext. apply  writable0_glb_Rsh; auto.
   - apply empty_NO in M.
     unfold getYES, getYES_aux in *.
     rewrite resource_at_make_rmap.
@@ -1048,19 +1048,19 @@ Proof.
 Qed.
 
 Lemma memory_block_getYES sh z v phi :
-  writable_share sh ->
+  writable0_share sh ->
   app_pred (memory_block sh z v) phi ->
   app_pred (memory_block Share.Rsh z v) (getYES phi).
 Proof.
-  intros Hw At. pose proof writable_readable_share Hw as Hr.
-  assert (Hr' : readable_share Share.Rsh) by (apply writable_readable_share, writable_Rsh).
+  intros Hw At. pose proof writable0_readable Hw as Hr.
+  assert (Hr' : readable_share Share.Rsh) by (apply writable0_readable, writable0_Rsh).
   Transparent memory_block.
   unfold memory_block in *. destruct v; auto.
   unfold mapsto_memory_block.memory_block' in *.
 Abort.
 
 Lemma field_at_getYES CS sh t gfs v v' phi :
-  writable_share sh ->
+  writable0_share sh ->
   app_pred (@field_at CS sh t gfs v v') phi ->
   app_pred (@field_at CS Share.Rsh t gfs v v') (getYES phi).
 Proof.

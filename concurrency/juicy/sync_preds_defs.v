@@ -77,7 +77,7 @@ Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
   + { sh : _ & { Psh : _ & { v : _ & { v' : _ |
        resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES sh Psh (VAL v) NoneP /\
        phi2 @ l = YES sh Psh (VAL v') NoneP /\
-       shares.writable_share sh}}}}
+       shares.writable0_share sh}}}}
 
   + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top shares.readable_share_top  (VAL v) NoneP }
 
@@ -120,7 +120,7 @@ Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b :=
   (exists sh, exists Psh, exists v, exists v',
        resource_fmap (approx (n)) (approx (n)) (r1) = YES sh Psh (VAL v) NoneP /\
        r2 = YES sh Psh (VAL v') NoneP /\
-       shares.writable_share sh)
+       shares.writable0_share sh)
   \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top shares.readable_share_top  (VAL v) NoneP)
   \/ (exists v, exists pp, r1 = YES Share.top shares.readable_share_top (VAL v) pp /\ r2 = NO Share.bot shares.bot_unreadable)).
 

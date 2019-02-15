@@ -34,12 +34,18 @@ Global Opaque pred.
 
 Hint Resolve @pred_hereditary.
 
-Lemma pred_nec_hereditary {A} `{ageable A} (p:pred A) :
+Lemma nec_hereditary {A} `{ageable A} (p: A -> Prop) : hereditary age p ->
   forall a a':A, necR a a' -> p a -> p a'.
 Proof.
   intros.
-  induction H0; auto.
-  apply pred_hereditary with x; auto.
+  induction H1; auto.
+  apply H0 with x; auto.
+Qed.
+
+Lemma pred_nec_hereditary {A} `{ageable A} (p:pred A) :
+  forall a a':A, necR a a' -> p a -> p a'.
+Proof.
+  apply nec_hereditary, pred_hereditary.
 Qed.
 
 Program Definition mkPred {A} `{ageable A} (p:A -> Prop) : pred A :=

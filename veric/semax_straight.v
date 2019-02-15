@@ -59,7 +59,7 @@ clear H w.
 rename w0 into w.
 apply assert_safe_last'; intro Hage.
 apply own.bupd_intro.
-intros ora jm _ H2. subst w.
+intros ora jm Hora _ H2. subst w.
 destruct Hglob as [[TC' Hglob] Hglob'].
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
 apply extend_sepcon_andp in Hglob; auto.

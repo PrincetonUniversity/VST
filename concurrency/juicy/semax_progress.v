@@ -1019,7 +1019,7 @@ Section Progress.
         assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
 
         destruct Precond as [[Hwritable _] [[[B1 _] _] AT]].
-        assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
+        assert (Hreadable : readable_share shx) by (apply writable0_readable; auto).
 
         (* [data_at_] from the precondition *)
         unfold canon.SEPx in *.
@@ -1068,7 +1068,7 @@ Section Progress.
           *)
           unfold SeparationLogic.mapsto in *.
           simpl in B.
-          destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable_readable; auto.
+          destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable0_readable; auto.
           autorewrite with norm in B.
           rewrite !FF_orp in B.
           autorewrite with norm in B.
@@ -1077,6 +1077,7 @@ Section Progress.
           destruct B as [v2' B]. 
           rewrite !TT_andp in B.
           apply mapsto_can_store with (v := v2') (sh := shx); try assumption.
+          auto.
           simpl (m_phi _).
           destruct B as [phi0a [phi0b [? [? ?]]]].
           destruct (join_assoc H Join) as [f [? ?]].
@@ -1090,7 +1091,7 @@ Section Progress.
         unfold tlock in *.
         match type of AT with context[Tarray _ ?n] => assert (Hpos : (0 < n)%Z) by omega end.
         pose proof data_at_rmap_makelock CS as RL.
-        specialize (RL shx b ofs Rx phi0 _ Hpos Hwritable AT).
+        specialize (RL shx b ofs Rx phi0 _ Hpos (writable_writable0 Hwritable) AT).
         destruct RL as (phi0' & RL0 & lkat).
 
         match type of lkat with context[LK_at _ ?n] => assert (Hpos' : (0 < n)%Z) by (rewrite size_chunk_Mptr in *; destruct Archi.ptr64; omega) end.
@@ -1164,7 +1165,7 @@ Section Progress.
         destruct PreC as (Hexclusive, AT).
         (* pose proof AT as islock. *)
         (* apply lock_inv_at in islock. *)
-        assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
+        assert (Hreadable : readable_share shx) by (apply writable0_readable; auto).
 
         (* [data_at_] from the precondition *)
         unfold canon.SEPx in *.

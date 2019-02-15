@@ -115,3 +115,13 @@ Qed.
 
 Definition ext_ref {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
   existT _ (ext_PCM _) (exist _ _ (valid_ext_ref ora)).
+
+Lemma valid_ext_both : forall {Z} (ora : Z), @valid (ext_PCM _) (Some (Tsh, Some ora), Some (Some ora)).
+Proof.
+  intros; simpl; split; auto.
+  - apply Share.nontrivial.
+  - exists None; constructor.
+Qed.
+
+Definition ext_both {Z} (ora : Z) : {g : ghost.Ghost & {a : ghost.G | ghost.valid a}} :=
+  existT _ (ext_PCM _) (exist _ _ (valid_ext_both ora)).

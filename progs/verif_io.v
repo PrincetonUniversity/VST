@@ -4,7 +4,7 @@ Require Import VST.floyd.proofauto.
 Require Import DeepWeb.Free.Monad.Free.
 Import MonadNotations.
 Require Import DeepWeb.Free.Monad.Common.
-Require Import DeepWeb.Free.Monad.Verif.
+Require Import DeepWeb.Free.Monad.Eq.Utt.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -119,11 +119,11 @@ Proof.
     { apply Z2Nat_inj_0 in Hi; omega. }
     rewrite <- Hi, mod_Zmod, Z2Nat.id by omega; simpl; clear dependent n.
     erewrite ITREE_ext
-      by (apply cong_bind with (k' := fun _ => tr); [apply write_list_app | reflexivity]).
-    change (bindM _ _) with ((write_list (intr (Z.to_nat i / 10));; write_list [Int.repr (i mod 10 + char0)]);; tr).
-    erewrite ITREE_ext by (symmetry; apply bindAssoc).
+      by (apply bind_mor with (y0 := fun _ => tr); [apply write_list_app | reflexivity]).
+    erewrite ITREE_ext by apply bind_bind.
     forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
-    { replace (Z.to_nat i / 10)%nat with (Z.to_nat (i / 10)); [cancel|].
+    { rewrite <- sepcon_emp at 1; apply sepcon_derives; cancel.
+      replace (Z.to_nat i / 10)%nat with (Z.to_nat (i / 10)); [apply derives_refl|].
       rewrite <- (Z2Nat.id i) at 1 by omega.
       rewrite <- (div_Zdiv _ 10) by omega.
       rewrite Nat2Z.id; auto. }
@@ -132,16 +132,16 @@ Proof.
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
       unfold write_list.
-      apply cong_bind; [|reflexivity].
-      simpl.
-      replace (fun _ => Ret tt) with (fun x : unit => Ret(Event := IO_event) x)
-        by (extensionality x; destruct x; auto).
-      apply (rightId(s := write (Int.repr (i mod 10 + char0)))). }
+      apply bind_mor; [|reflexivity].
+      etransitivity; [|apply bind_ret].
+      apply bind_mor; [|intros []]; reflexivity. }
     entailer!.
   - forward.
     subst; entailer!.
     erewrite ITREE_ext; [apply derives_refl|].
-    apply (leftId tt (fun _ => tr)).
+    simpl.
+    rewrite ret_bind.
+    apply pop_tau; reflexivity.
   - forward.
 Qed.
 
@@ -186,10 +186,9 @@ Proof.
       change (_ / _)%nat with O; simpl.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
-      apply cong_bind; [|reflexivity].
-      replace (fun _ => Ret tt) with (fun x : unit => Ret(Event := IO_event) x)
-        by (extensionality x; destruct x; auto).
-      apply (rightId(s := write (Int.repr char0))). }
+      apply bind_mor; [|reflexivity].
+      etransitivity; [|apply bind_ret].
+      apply bind_mor; [|intros []]; reflexivity. }
     entailer!.
   - forward_call (i, tr).
     { unfold chars_of_Z.
@@ -200,8 +199,6 @@ Proof.
   - forward.
 Qed.
 
-Opaque bind.
-
 Lemma read_sum_eq : forall n d, read_sum n d =
   (if zlt n 1000 then if zlt d 10 then
      write_list (chars_of_Z (n + d));; write (Int.repr newline);;
@@ -209,8 +206,8 @@ Lemma read_sum_eq : forall n d, read_sum n d =
    else ret tt else ret tt).
 Proof.
   intros.
-  rewrite matchM; simpl.
-  rewrite <- matchM; auto.
+  rewrite (match_itree (read_sum n d)); simpl.
+  rewrite <- match_itree; auto.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.

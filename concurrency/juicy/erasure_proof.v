@@ -54,7 +54,7 @@ Module Parching <: ErasureSig.
 
   Section Parching.
 
-  Context (ge : genv).
+  Context (ge : Clight.genv).
 
   Instance Sem : Semantics := ClightSemanticsForMachines.Clight_newSem ge.
 
@@ -809,6 +809,14 @@ Module Parching <: ErasureSig.
       - split; generalize i; inversion MATCH; assumption.
     Qed.
 
+Lemma perm_of_writable0: 
+   forall sh, shares.writable0_share sh -> sh <> Share.top -> perm_of_sh sh = Some Writable.
+Proof.
+intros.
+unfold perm_of_sh.
+rewrite if_true; auto. rewrite if_false; auto.
+Qed.
+
     Lemma MTCH_addThread: forall js ds parg arg phi res lres,
         match_st js ds ->
         (forall b0 ofs0, perm_of_res (phi@(b0, ofs0)) = res !! b0 ofs0) ->
@@ -1034,7 +1042,7 @@ Module Parching <: ErasureSig.
     - erewrite if_true by (apply shares.readable_glb; auto); constructor.
   Qed.
 
-  Lemma perm_of_writable' : forall sh, shares.writable_share sh ->
+  Lemma perm_of_writable' : forall sh, shares.writable0_share sh ->
     Mem.perm_order' (perm_of_sh sh) Writable.
   Proof.
     intros; unfold perm_of_sh.
@@ -3640,8 +3648,8 @@ SearchAbout access_map delta_map.
        rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
        intros [X Hg]; destruct (X _ HH') as (val & sh & Rsh & sh_before & Wsh & sh_after); clear X.
        rewrite sh_after.
-       apply perm_of_writable;
-         try apply shares.writable_share_glb_Rsh; eauto;
+       apply perm_of_writable0;
+         try apply shares.writable0_share_glb_Rsh; eauto;
            apply shares.glb_Rsh_not_top.
        auto.
 
@@ -3858,7 +3866,7 @@ SearchAbout access_map delta_map.
                  destruct (eq_dec sh1 Share.bot); constructor.
               -- rewrite -H7; simpl.
                  apply join_comm in RJ.
-                 exfalso. eapply shares.join_writable_readable; eauto.
+                 exfalso. eapply shares.join_writable0_readable; eauto.
             + apply Intv.range_notin in n; simpl in n; try (pose proof LKSIZE_pos; simpl; omega).
               rewrite setPermBlock_other_1; auto.
               rewrite /pmap_tid.
@@ -3896,7 +3904,7 @@ SearchAbout access_map delta_map.
                  destruct (eq_dec sh1 Share.bot); constructor.
               -- rewrite -H7; simpl.
                  apply join_comm in RJ.
-                 exfalso. eapply shares.join_writable_readable; eauto.
+                 exfalso. eapply shares.join_writable0_readable; eauto.
             + apply Intv.range_notin in n; simpl in n; try (pose proof LKSIZE_pos; simpl; omega).
               rewrite setPermBlock_other_1; auto.
               rewrite /pmap_tid.
@@ -4415,9 +4423,9 @@ Here be dragons
               intros [X Hg]; destruct (X _ H3) as (sh & Rsh & _ & Wsh & Heq); clear X.
               rewrite Heq.
               simpl.
-                rewrite perm_of_writable.
+                rewrite perm_of_writable0.
                 (*1*) constructor.
-                (*2*) eapply shares.writable_share_glb_Rsh; eauto.
+                (*2*) eapply shares.writable0_share_glb_Rsh; eauto.
                 (*3*) apply shares.glb_Rsh_not_top.
             + replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
               reflexivity.
@@ -4457,7 +4465,7 @@ Here be dragons
               intros [X Hg]; destruct (X _ H3) as (sh & ? & -> & Wsh & _); clear X; simpl.
               destruct (eq_dec sh Share.top); try subst.
               * rewrite perm_of_freeable; constructor.
-              * rewrite perm_of_writable; auto; constructor.
+              * rewrite perm_of_writable0; auto; constructor.
             + replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
               reflexivity.
         }

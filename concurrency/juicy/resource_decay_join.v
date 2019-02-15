@@ -98,8 +98,8 @@ Proof.
     destruct D.
     + autospec nn. congruence.
     + sumsimpl.
-      destruct (writable_share_dec sh1);
-      destruct (writable_share_dec sh2).
+      destruct (writable0_share_dec sh1);
+      destruct (writable0_share_dec sh2).
       destruct (eq_dec k1 k2); try subst k2.
       left. breakhyps. inv H. inv H0. rewrite H4.  apply YES_ext; auto.
       destruct k1, k2; try solve [exfalso; breakhyps].
@@ -271,7 +271,7 @@ Proof.
         * intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
           congruence.
         * right. left. simpl. exists sh3, rsh3, v, v'. split3; auto; try congruence.
-          clear - H2 E1''. eapply join_writable1; eauto.
+          clear - H2 E1''. eapply join_writable01; eauto.
         * simpl. f_equal.
       + injection E1; intros; subst.
         rewr (phi1 @ loc) in J.

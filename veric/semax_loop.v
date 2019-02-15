@@ -118,7 +118,7 @@ assert (assert_safe Espec psi vx tx (Kseq (if b' then c else d) :: k)
   destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
 eapply own.bupd_mono, bupd_denote_tc, Hw0; eauto.
-intros r [Htc Hr] ora jm Hge Hphi.
+intros r [Htc Hr] ora jm Hora Hge Hphi.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 apply wlog_jsafeN_gt0; intro.
 subst r.
@@ -445,7 +445,7 @@ Proof.
   { apply pred_hereditary with a'; auto.
     subst; split; auto; split; auto. }
   apply own.bupd_intro.
-  intros ora jm RE ?; subst.
+  intros ora jm Hora RE ?; subst.
   destruct (can_age1_juicy_mem _ _ LEVa2) as [jm2 LEVa2'].
   unfold age in LEVa2.
   assert (a2 = m_phi jm2).
@@ -487,8 +487,8 @@ Proof.
   rewrite sepcon_comm.
   eapply andp_derives; try apply H0; auto.
   apply own.bupd_mono.
-  repeat intro.
-  specialize (H0 ora jm H1 H2).
+  intros ???? Hora ??.
+  specialize (H0 ora jm Hora H1 H2).
   destruct (@level rmap _ a). constructor.
   apply convergent_controls_jsafe with (State ve te (break_cont k)); auto.
   simpl.
@@ -518,8 +518,8 @@ repeat intro.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 apply own.bupd_mono.
-repeat intro.
-specialize (H0 ora jm H1 H2).
+intros ???? Hora ??.
+specialize (H0 ora jm Hora H1 H2).
 destruct (@level rmap _ a). constructor.
 apply convergent_controls_jsafe with (State ve te (continue_cont k)); auto.
 simpl.

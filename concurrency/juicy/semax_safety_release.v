@@ -130,7 +130,7 @@ Proof.
 
   intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
   simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
-  destruct Pre as (phi0 & phi1 & j & Pre & HnecR).
+  destruct Pre as (phi0 & phi1 & j & Pre & HnecR & Hjoin).
   rewrite m_phi_jm_ in j.
   simpl (and _).
   intros Post.
@@ -575,12 +575,20 @@ Proof.
               apply age_to_join.
               REWR.
               REWR.
-            * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
+            * split3. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
               split. now constructor.
               split. now constructor.
               unfold canon.SEPx.
               simpl. rewrite seplog.sepcon_emp.
               apply age_to_pred; auto.
+              unshelve setoid_rewrite <- getThreadR_age; auto.
+              rewrite age_to_ghost_of.
+              unshelve setoid_rewrite OrdinalPool.gLockSetRes; auto.
+              setoid_rewrite OrdinalPool.gssThreadRes.
+              destruct ora.
+              eapply join_sub_joins_trans, ext_join_approx, Hjoin.
+              eexists; apply ghost_fmap_join.
+              apply join_comm, ghost_of_join; eauto.
           + exact_eq Safe'.
             unfold jsafeN.
             f_equal.

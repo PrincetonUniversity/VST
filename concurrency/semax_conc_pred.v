@@ -11,7 +11,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
-Require Import VST.veric.semax_ext_oracle.
+(*Require Import VST.veric.semax_ext_oracle.*)
 Require Import VST.veric.juicy_safety.
 Require Import VST.veric.Clight_new.
 Require Import VST.veric.res_predicates.
