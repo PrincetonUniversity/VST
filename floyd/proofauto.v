@@ -55,6 +55,7 @@ Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
 Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.
 Hint Rewrite neg_repr neg64_repr : entailer_rewrite.
 Hint Rewrite ptrofs_to_int_repr: entailer_rewrite norm.
+Hint Rewrite ptrofs_to_int64_repr using reflexivity: entailer_rewrite norm.
 
 Lemma Vptrofs_unfold_false: 
 Archi.ptr64 = false -> Vptrofs = fun x => Vint (Ptrofs.to_int x).

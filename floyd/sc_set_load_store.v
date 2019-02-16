@@ -287,6 +287,18 @@ Proof.
   apply Ptrofs.eqm_sym, Ptrofs.eqm_unsigned_repr.
 Qed.
 
+Lemma ptrofs_unsigned_ofint64_repr:
+  Archi.ptr64 = true -> 
+  forall x, Ptrofs.repr (Ptrofs.unsigned (Ptrofs.of_int64 (Int64.repr x))) = 
+               Ptrofs.repr x.
+Proof.
+intros.
+unfold Ptrofs.of_int64.
+rewrite Ptrofs_repr_Int64_unsigned_special by auto.
+rewrite Ptrofs.repr_unsigned.
+auto.
+Qed.
+
 Ltac solve_Ptrofs_eqm_unsigned :=
   solve
    [ autorewrite with norm;
@@ -306,6 +318,7 @@ Ltac solve_Ptrofs_eqm_unsigned :=
       | _ => rewrite <- (Ptrofs.repr_unsigned V) at 1
       end
     end;
+    rewrite ?ptrofs_unsigned_ofint64_repr by reflexivity;
     apply Ptrofs_eqm_unsigned_repr
   ].
 
