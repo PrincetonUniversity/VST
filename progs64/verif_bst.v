@@ -708,15 +708,18 @@ Proof.
         assert (x=k) by omega.
         subst x.
         unfold_data_at (data_at _ _ _ p1).
-        gather_SEP 4 6.
+        gather_SEP (field_at _ _ [StructField _left] _ _)
+                        (tree_rep _ pa).
+
         replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
         {
           unfold treebox_rep; entailer!.
           Exists pa.
-          rewrite field_at_data_at.
+          rewrite field_at_data_at. simpl.
           entailer!.
         }
-        gather_SEP 5 6.
+        gather_SEP (field_at _ _ [StructField _right] _ _)
+                        (tree_rep _ pb).
         replace_SEP 0 (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1)).
         {
           unfold treebox_rep; entailer!.
@@ -724,7 +727,8 @@ Proof.
           rewrite field_at_data_at.
           entailer!.
         }
-        Time forward_call (t1_1, k, v, t1_2, b1, p1).
+        Time forward_call (t1_1, k, v, t1_2, b1, p1);
+                    [entailer! .. | ].
         forward. (* return *)
         simpl.
         simpl_compb.
