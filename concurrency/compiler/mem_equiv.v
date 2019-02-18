@@ -386,6 +386,7 @@ Proof.
     etransitivity; try eapply (restr_content_equiv Hlt2).
   - simpl; eapply nextblock_eqv; reflexivity.
 Qed.
+Arguments restrPermMap_idempotent {_ _ _} _ _.
 
 Lemma useful_permMapLt_trans:
   forall {perm m perm0} Hlt0,
@@ -401,3 +402,10 @@ Lemma restrPermMap_idempotent':
                              (useful_permMapLt_trans Hlt0 Hlt1)).
 Proof. intros; eapply restrPermMap_idempotent. Qed.
 
+Lemma restr_proof_irr_equiv:
+  forall m perm Hlt Hlt',
+    mem_equiv (@restrPermMap m perm Hlt) (@restrPermMap m perm Hlt').
+  intros. replace Hlt with Hlt'.
+  - reflexivity. 
+  - apply Axioms.proof_irr.
+Qed.
