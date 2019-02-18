@@ -71,6 +71,10 @@ stages:
 jobs:
   include:
   - stage: setup
+    env: BITSIZE=32
+    script: ./.travis-script floyd
+  - stage: setup
+    env: BITSIZE=64
     script: ./.travis-script floyd
   - stage: test
     script: ./.travis-script progsdir
