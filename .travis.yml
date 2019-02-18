@@ -71,24 +71,24 @@ stages:
 jobs:
   include:
   - stage: setup
+    if: env(BITSIZE)=32
     script: ./.travis-script floyd
-    env: BITSIZE=32
-  - stage: setup
+  -
+    if: env(BITSIZE)=64
     script: ./.travis-script floyd
-    env: BITSIZE=64
   - stage: test
+    if: env(BITSIZE)=32
     script: ./travis-script progsdir
-    env: BITSIZE=32
-  - stage: test
+  -
+    if: env(BITSIZE)=64
     script: ./travis-script progsdir
-    env: BITSIZE=64
-  - stage: test
+  -
+    if: env(BITSIZE)=32
     script: ./travis-script sha-hmac
-    env: BITSIZE=32
-  - stage: test
+  -
+    if: env(BITSIZE)=32
     script: ./travis-script mailbox
-    env: BITSIZE=32
-  - stage: test
+  -
     script:
     - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
     - opam switch create coq_beta ocaml-base-compiler.4.07.1 || true
