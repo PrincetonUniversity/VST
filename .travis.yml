@@ -66,7 +66,6 @@ install:
 
 stages:
   - setup
-    script: ./.travis-script floyd
   - test
 
 jobs:
@@ -74,7 +73,8 @@ jobs:
   - stage: setup
     script: ./.travis-script floyd
     env: BITSIZE=32
-  - script: ./.travis-script floyd
+  - stage: setup
+    script: ./.travis-script floyd
     env: BITSIZE=64
   - stage: test
     env: BITSIZE=32
