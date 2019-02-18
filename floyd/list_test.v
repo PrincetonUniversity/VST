@@ -187,6 +187,43 @@ Proof.
   do 2 f_equal. omega.
 Qed.
 
+Ltac Znth_solve2 :=
+  autorewrite with Zlength in *; autorewrite with Znth_solve in *; auto; try congruence; (* try solve [exfalso; auto]; *)
+  try first
+  [ match goal with
+    | |- context [ Znth ?n (?al ++ ?bl) ] =>
+          let H := fresh in
+          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
+    end
+  | match goal with
+    | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
+          let H := fresh in
+          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
+    end
+  ].
+
+Ltac Zlength_solve ::= autorewrite with Zlength; pose_Zlength_nonneg; omega.
+
+Ltac list_form ::=
+  autorewrite with list_form in *.
+Hint Rewrite app_nil_r : list_form.
+
+Example strcpy_loop_new : forall {cs : compspecs} sh n x ls dest,
+  Zlength ls < n ->
+  0 <= x < Zlength ls + 1 ->
+  Znth x (ls ++ [Byte.zero]) <> Byte.zero ->
+  data_at sh (tarray tschar n)
+  (map Vbyte (sublist 0 x ls) ++
+   upd_Znth 0 (list_repeat (Z.to_nat (n - x)) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero])))))) dest
+|-- data_at sh (tarray tschar n) (map Vbyte (sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (x + 1))) Vundef) dest.
+Proof.
+  intros. list_form.
+  apply derives_refl'.
+  f_equal. apply Znth_eq_ext. Znth_solve2. Zlength_solve.
+  intros. Znth_solve2.
+  fold_Vbyte. do 2 f_equal. omega.
+Qed.
+
 Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,
   Zlength ls < n ->
   0 <= x < Zlength ls + 1 ->
@@ -214,9 +251,138 @@ Proof.
   simpl. cancel.
 Qed.
 
+
+Lemma imp_refl' : forall P Q : Prop,
+  P = Q -> P -> Q.
+Proof. intros. congruence. Qed.
+
+Ltac fapply H :=
+  match type of H with ?HH =>
+  eapply (imp_refl' HH); only 2 : assumption; repeat f_equal
+  end.
+
+Lemma not_In_forall : forall {A : Type} {d : Inhabitant A} (x : A) (l : list A),
+  ~ In x l <-> forall i, 0 <= i < Zlength l -> Znth i l <> x.
+Proof.
+  intros; split; intros.
+  - intro. apply H. subst x. apply Znth_In. auto.
+  - intro. induction l; auto.
+    inversion H0.
+    + subst a. apply H with 0. list_solve.
+      autorewrite with sublist. auto.
+    + apply IHl; auto. intros.
+        specialize (H (i+1) ltac:(list_solve)). autorewrite with list_form Znth_solve in *.
+        fapply H. Zlength_solve.
+Qed.
+
+Lemma range_le_lt_dec : forall lo i hi,
+  (lo <= i < hi) + ~(lo <= i < hi).
+Proof.
+  intros.
+  Search ((_ <= _)%Z + (_ < _)%Z).
+  destruct (Z_lt_le_dec i lo); destruct (Z_lt_le_dec i hi); left + right; omega.
+Qed.
+
+Ltac destruct_range Hrange :=
+  let Hrange := eval simpl in Hrange in
+  lazymatch Hrange with
+  | ?lo <= ?i < ?hi =>
+    destruct (range_le_lt_dec lo i hi)
+  end.
+
+Ltac fassumption :=
+  first
+  [ assumption
+  | match goal with
+    | H : _ |- _ => fapply H; match goal with |- (_ = _)%Z => idtac end; Zlength_solve
+    end
+  ].
+
+Definition range_uni {A : Type} {d : Inhabitant A} (lo hi : Z) (l : list A) (P : A -> Prop) :=
+  forall i, lo <= i < hi -> P (Znth i l).
+
+Definition range_bin {A : Type} {dA : Inhabitant A} {B : Type} {dB : Inhabitant B}
+  (lo hi offset : Z) (al : list A) (bl : list B) (P : A -> B -> Prop) :=
+  forall i, lo <= i < hi -> P (Znth i al) (Znth (i+offset) bl).
+
+Lemma range_uni_app1 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+  0 <= lo <= hi /\ hi <= Zlength al ->
+  range_uni lo hi (al ++ bl) P ->
+  range_uni lo hi al P.
+Proof.
+  unfold range_uni. intros. specialize (H0 i). autorewrite with Znth_solve in H0. auto.
+Qed.
+
+Lemma range_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+  Zlength al <= lo <= hi /\ hi <= Zlength al + Zlength bl ->
+  range_uni lo hi (al ++ bl) P ->
+  range_uni (lo - Zlength al) (hi - Zlength al) bl P.
+Proof.
+  unfold range_uni. intros. specialize (H0 (i + Zlength al) ltac:(omega)).
+  autorewrite with Znth_solve in H0. fapply H0. omega.
+Qed.
+
+Lemma range_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
+  0 <= lo <= Zlength al /\ Zlength al <= hi <= Zlength bl ->
+  range_uni lo hi (al ++ bl) P ->
+  range_uni lo (Zlength al) al P /\
+  range_uni 0 (hi - Zlength al) bl P.
+Proof.
+  unfold range_uni. intros. split; intros.
+  - specialize (H0 i ltac:(omega)). autorewrite with Znth_solve in H0. apply H0.
+  - specialize (H0 (i + Zlength al) ltac:(omega)). autorewrite with Znth_solve in H0. fapply H0. omega.
+Qed.
+
+Ltac Znth_saturate :=
+  repeat match goal with
+  H : range_uni ?lo ?hi ?l ?P |- _ =>
+    match goal with
+    | _ : context [Znth ?i l] |- _ =>
+      let res := eval cbv beta in (P (Znth i l)) in
+      assert_fails (assert res by assumption);
+      assert res by (apply H; Zlength_solve)
+    end
+  end;
+  repeat match goal with
+  H : forall i : Z, ?Hrange -> Znth i ?l1 = Znth i ?l2 |- _ =>
+    match goal with
+    | _ : context [Znth ?i l1] |- _ =>
+    assert_fails (assert (Znth i l1 = Znth i l2) by assumption);
+      first
+      [ assert (Znth i l1 = Znth i l2) by (apply H; Zlength_solve)
+      | assert_fails (assert (~(fun i => Hrange) i) by Zlength_solve);
+        destruct_range ((fun i => Hrange) i); try assert (Znth i l1 = Znth i l2) by (apply H; Zlength_solve)
+      ]
+    | |- context [Znth ?i l1] =>
+    assert_fails (assert (Znth i l1 = Znth i l2) by assumption);
+      first
+      [ assert (Znth i l1 = Znth i l2) by (apply H; Zlength_solve)
+      | assert_fails (assert (~(fun i => Hrange) i) by Zlength_solve);
+        destruct_range ((fun i => Hrange) i); try assert (Znth i l1 = Znth i l2) by (apply H; Zlength_solve)
+      ]
+    end
+  end.
+
+Lemma not_In_range_uni : forall {A : Type} {d : Inhabitant A} (x : A) (l : list A),
+  ~ In x l ->
+  range_uni 0 (Zlength l) l (fun e => e <> x).
+Proof.
+  intros. rewrite @not_In_forall in *. unfold range_uni. apply H.
+Qed.
+
+Ltac apply_in lem H :=
+  apply lem in H.
+
+Ltac apply_in_hyps' lem :=
+  repeat match goal with
+  | H : ?T |- _ => apply lem in H; let n := numgoals in guard n = 1
+  end.
+
+Tactic Notation "apply_in_hyps" uconstr(lem) := apply_in_hyps' lem.
+
 (* This is a very hard case, a lot of deductions are needed *)
-(* this is not much automated, just better written comparing with old version *)
-Example strcmp_loop : forall i ls1 ls2,
+(* cool automation now! *)
+Example strcmp_loop_new : forall i ls1 ls2,
   ~ In Byte.zero ls1 ->
   ~ In Byte.zero ls2 ->
   0 <= i < Zlength ls1 + 1 ->
@@ -224,31 +390,14 @@ Example strcmp_loop : forall i ls1 ls2,
   (forall j : Z, 0 <= j < i -> Znth j ls1 = Znth j ls2) ->
   i <> Zlength ls1 \/ i <> Zlength ls2 ->
   Znth i (ls1 ++ [Byte.zero]) = Znth i (ls2 ++ [Byte.zero]) ->
-  (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) -> (* these two are not needed as they can be derived *)
-  (Znth i (ls2 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls2) -> (* it makes proof easier to put them here *)
   i + 1 < Zlength ls1 + 1 /\
   i + 1 < Zlength ls2 + 1 /\
   forall j : Z, 0 <= j < i + 1 -> Znth j ls1 = Znth j ls2.
 Proof.
   intros.
-  assert (i <> Zlength ls1 -> i <> Zlength ls2) by
-    ( intro; intro;
-      assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero) by tauto;
-      assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero) by congruence;
-      tauto ).
-  assert (i <> Zlength ls2 -> i <> Zlength ls1) by
-    ( intro; intro;
-      assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero) by tauto;
-      assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero) by congruence;
-      tauto ).
-  assert (i <> Zlength ls1) by tauto.
-  assert (i <> Zlength ls2) by tauto.
-  repeat split.
-  { omega. }
-  { omega. }
-  { intros. assert (0 <= j < i \/ j = i) by omega. autorewrite with Znth_solve in H5.
-    destruct H13; subst; auto.
-  }
+  list_form. apply_in_hyps not_In_range_uni.
+  Time split3; intros; Znth_solve2; try omega; Znth_saturate; try congruence; fassumption.
+  (* Finished transaction in 1.383 secs (1.375u,0.s) (successful) *)
 Qed.
 
 Example strcmp_loop_old : forall i ls1 ls2,
