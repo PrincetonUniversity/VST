@@ -10,6 +10,7 @@ Create HintDb pair.
 Create HintDb deep_pair. (*TODO: add the Hiint Unfold for all constructors*)
 
 Notation "'Pair'  T " := (T * T)%type (at level 100).
+Create HintDb pair.
 Definition Liftable (f: Type -> Type):=
   forall a b, f (a -> b) -> (f a -> f b).
 
@@ -161,14 +162,12 @@ Ltac solve_pair_cut:=
               process_cut HH (tt,tt);
               simpl in HH; auto 
   end.
-
 Ltac merge_quant:=
   match goal with
     |- ?G => let new_G:=merge_quant' constr:(fun _: Pair unit => G) in
            cut new_G; 
            [solve_pair_cut|simpl]
   end.
-
 Ltac unmerge_quant:=
   repeat (match goal with
           | |- forall _:unit, _ => simpl; intros _
@@ -266,9 +265,13 @@ Ltac pair_prop_implications':=
 Ltac pair_prop_implications X1 X2:=
   pair_prop_implications'; simpl; pair_prop_simpl X1 X2.
 Ltac solve_pair:=
-  (* do this better 
-                                 Unfold all superfluous definitions,
-                                 leaving pair_prop
+  (* Unfold definitions hiding the "pair" 
+     These must be defined as
+     Hint Unfold _ : pair.
+   *)
+  autounfold with pair;
+  (* Unfold all superfluous definitions,
+     leaving pair_prop
    *)
   unfold pair3_prop, pair2_prop, pair1_prop,
   pair3, pair2, pair1, pair_appl, compose; simpl;

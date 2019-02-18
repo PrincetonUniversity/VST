@@ -2,6 +2,7 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
+Require Import Coq.Classes.RelationClasses.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.sepcomp.mem_lemmas.
@@ -2540,3 +2541,58 @@ Proof.
   eapply juicy_mem.perm_order''_trans; eauto.
 Qed.
 
+Lemma perm_order''_trans:
+  transitive _ Mem.perm_order''.
+  intros a b c H1 H2; destruct a, b, c; inversion H1;
+    inversion H2; subst; eauto;
+      eapply perm_order_trans; eauto.
+Qed.
+
+Lemma perm_order_trans211:
+  forall oa ob c,
+    Mem.perm_order'' oa ob ->
+    Mem.perm_order' ob c ->
+    Mem.perm_order' oa c.
+Proof.
+  intros. rewrite mem_lemmas.po_oo in H0.
+  eapply (perm_order''_trans _ _ (Some c)); eassumption.
+Qed.
+
+Lemma permMapJoin_lt:
+  forall p1 p2 p3
+    (Hjoin: permMapJoin p1 p2 p3), permMapLt p1 p3.
+Proof. intros ** ??; eapply permMapJoin_order in Hjoin; eapply Hjoin. Qed.
+
+Lemma perm_order_from_map:
+  forall perm b (ofs : Z) p,
+    perm !! b ofs  = Some p ->
+    Mem.perm_order' (perm !! b ofs) Nonempty.
+Proof. intros * H; rewrite H; constructor. Qed.
+
+Lemma restr_proof_irr:
+  forall m perm Hlt Hlt',
+    (@restrPermMap m perm Hlt) = (@restrPermMap m perm Hlt').
+  intros. replace Hlt with Hlt'.
+  - reflexivity.
+  - apply Axioms.proof_irr.
+Qed.
+Lemma restrPermMap_rewrite:
+  forall p1 p2 m H1 H2,
+    p1 = p2 -> @restrPermMap p1 m H1 = @restrPermMap p2 m H2.
+Proof. intros; subst p1; apply restr_proof_irr. Qed.
+Lemma permMapLt_eq:
+  forall {p1 p2 m}, p1 = p2 -> permMapLt p1 m -> permMapLt p2 m.
+Proof. intros; subst; assumption. Qed.
+Lemma restrPermMap_rewrite_strong:
+  forall p1 p2 m H1
+    (Heq: p1 = p2),
+    @restrPermMap p1 m H1 =
+    @restrPermMap p2 m (permMapLt_eq Heq H1).
+Proof. intros; eapply restrPermMap_rewrite; auto. Qed.
+
+Lemma permMapJoin_comm:
+  forall A B C, permMapJoin A B C -> permMapJoin B A C.
+Proof.
+  unfold permMapJoin; intros * HH b ofs.
+  specialize (HH b ofs); inversion HH; econstructor.
+Qed.
