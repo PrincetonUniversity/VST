@@ -78,16 +78,16 @@ jobs:
     script: ./.travis-script floyd
   - stage: test
     if: env(BITSIZE)=32
-    script: ./travis-script progsdir
+    script: ./.travis-script progsdir
   -
     if: env(BITSIZE)=64
-    script: ./travis-script progsdir
+    script: ./.travis-script progsdir
   -
     if: env(BITSIZE)=32
-    script: ./travis-script sha-hmac
+    script: ./.travis-script sha-hmac
   -
     if: env(BITSIZE)=32
-    script: ./travis-script mailbox
+    script: ./.travis-script mailbox
   -
     script:
     - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
