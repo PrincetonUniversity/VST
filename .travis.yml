@@ -70,7 +70,7 @@ stages:
 
 jobs:
   include:
-  - stage: setup
+  - stage: setup 
      env: BITSIZE=32
      script: ./.travis-script floyd
   - stage: setup
