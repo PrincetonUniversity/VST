@@ -60,6 +60,10 @@ install:
 - opam list
 - file `which coqc`
 
+env:
+- BITSIZE=32
+- BITSIZE=64
+
 stages:
   - setup
   - test
@@ -80,30 +84,26 @@ jobs:
     - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true progs
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true progsdir
     - echo -en 'travis_fold:end:progs.build\\r'
-  - script:
+  - stage: test
+    script:
     - echo 'Building hmac...' && echo -en 'travis_fold:start:hmac.build\\r'
     - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true sha hmac
+    - cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true sha-hmac
     - echo -en 'travis_fold:end:hmac.build\\r'
-  - script:
+  - stage: test
+    script:
     - echo 'Building mailbox...' && echo -en 'travis_fold:start:mailbox.build\\r'
     - git show --format='COMMIT %H %ci' -s; coqc -v
     - mkdir -p build
     - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
     - cd build; travis_wait 30 make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true mailbox
     - echo -en 'travis_fold:end:mailbox.build\\r'
-#  - script:
-#    - echo 'Building atomics...' && echo -en 'travis_fold:start:atomics.build\\r'
-#    - git show --format='COMMIT %H %ci' -s; coqc -v
-#    - mkdir -p build
-#    - for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
-#    - cd build; travis_wait 50 make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true atomics
-#    - echo -en 'travis_fold:end:atomics.build\\r'
-  - script:
+  - stage: test
+    script:
     - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
     - opam switch create coq_beta ocaml-base-compiler.4.07.1 || true
     - opam switch coq_beta
