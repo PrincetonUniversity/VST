@@ -66,11 +66,12 @@ install:
 
 stages:
   - setup
-    script: ./.travis-script floyd
   - test
 
 jobs:
   include:
+  - stage: setup
+    script: ./.travis-script floyd
   - stage: test
     env: BITSIZE=32
     script: ./.travis-script progsdir
