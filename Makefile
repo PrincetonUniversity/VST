@@ -16,6 +16,12 @@ COMPCERT ?= compcert
 # You can override ARCH and BITSIZE in the configure file, too;
 # otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
 
+ifeq ($(BITSIZE),64)
+PROGSDIR=progs64
+else
+PROGSDIR=progs
+endif
+
 default_target: _CoqProject msl veric floyd $(PROGSDIR)
 
 #Note2:  By default, the rules for converting .c files to .v files
@@ -30,12 +36,6 @@ default_target: _CoqProject msl veric floyd $(PROGSDIR)
 # ANNOTATE=true   # label chatty output from coqc with file name
 ANNOTATE=silent   # suppress chatty output from coqc
 # ANNOTATE=false  # leave chatty output of coqc unchanged
-
-ifeq ($(BITSIZE),64)
-PROGSDIR=progs64
-else
-PROGSDIR=progs
-endif
 
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
