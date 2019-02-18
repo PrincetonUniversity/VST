@@ -70,8 +70,8 @@ stages:
 
 jobs:
   include:
-#  - stage: setup
-#     script: ./.travis-script floyd
+  - stage: setup
+     script: ./.travis-script floyd
   - stage: test
     script: ./.travis-script progsdir
 #  -
