@@ -35,6 +35,10 @@ env:
   - COMPILER="default"
   - COQ_VERSION="8.9.0"
   - NEXT_VERSION="8.9.0"
+  matrix:
+  - BITSIZE=32
+  - BITSIZE=64
+
 branches:
   only:
   - master
@@ -59,10 +63,6 @@ install:
 - opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam list
 - file `which coqc`
-
-env:
-- BITSIZE=32
-- BITSIZE=64
 
 stages:
   - setup
