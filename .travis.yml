@@ -77,17 +77,17 @@ jobs:
     script: ./.travis-script floyd
     env: BITSIZE=64
   - stage: test
-    env: BITSIZE=32
     script: ./.travis-script progsdir
+    env: BITSIZE=32
   - stage: test
+    script: ./.travis-script progsdir
     env: BITSIZE=64
-    script: ./.travis-script progsdir
   - stage: test
-    env: BITSIZE=32
     script: ./.travis-script sha-hmac
-  - stage: test
     env: BITSIZE=32
+  - stage: test
     script: ./.travis-script mailbox
+    env: BITSIZE=32
 #  -
 #    if: env(BITSIZE)=32
 #    script: ./.travis-script sha-hmac
