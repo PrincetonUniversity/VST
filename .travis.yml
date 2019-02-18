@@ -74,6 +74,7 @@ jobs:
     script: ./.travis-script floyd
     env: BITSIZE=32
   - env: BITSIZE=64
+    script: ./.travis-script floyd
   - stage: test
     env: BITSIZE=32
     script: ./.travis-script progsdir
