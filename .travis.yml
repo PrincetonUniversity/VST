@@ -64,9 +64,9 @@ install:
 - opam list
 - file `which coqc`
 
-# stages:
-#   - setup
-#   - test
+stages:
+  - setup
+  - test
 
 jobs:
  include:
