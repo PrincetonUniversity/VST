@@ -68,6 +68,8 @@ stages:
   - setup
   - test
 
+script: echo "No script"
+
 jobs:
  include:
   - stage: setup
@@ -109,3 +111,4 @@ jobs:
 #    - cd build_beta; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true floyd calibrate
 #    - echo -en 'travis_fold:end:VST.build_beta\\r'
 #    env: BITSIZE=32
+  
