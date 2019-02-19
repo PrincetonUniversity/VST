@@ -251,6 +251,14 @@ inv H; try reflexivity;
  end.
 Qed.
 
+Lemma val_eq_refl:
+ forall v, Val.eq v v = left (eq_refl v).
+Proof.
+intros.
+Transparent Val.eq.
+destruct (Val.eq v v). f_equal. apply proof_irr. contradiction n; auto.
+Qed.
+
 Lemma deref_loc_load_result:
   forall t ch m loc ofs v2,
   access_mode t = By_value ch ->

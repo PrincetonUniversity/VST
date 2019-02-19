@@ -1,0 +1,8 @@
+#!/bin/bash
+set -ev
+echo 'Building '$1 && echo -en 'travis_fold:start:'$1'.build\\r'
+git show --format='COMMIT %H %ci' -s; coqc -v
+mkdir -p build
+for i in `ls -a | grep -Ev '^(build|\.\.?)$'`; do rsync -rc $i build; done
+cd build; make -j ${NJOBS} TIMINGS=simple IGNORECOQVERSION=true $1 calibrate
+echo -en 'travis_fold:end:'$1'.build\\r'

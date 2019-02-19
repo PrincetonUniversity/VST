@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.progs.bst.
+Require Import VST.progs64.bst.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

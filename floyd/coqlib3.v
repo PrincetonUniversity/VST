@@ -605,6 +605,31 @@ apply Ptrofs.agree32_repr.
 auto.
 Qed.
 
+Lemma ptrofs_to_int64_repr: 
+ Archi.ptr64 = true ->
+ forall x, (Ptrofs.to_int64 (Ptrofs.repr x)) = Int64.repr x.
+Proof.
+intros Hp x.
+unfold Ptrofs.to_int64. 
+apply Int64.eqm_samerepr.
+unfold Int64.eqm.
+rewrite Ptrofs.unsigned_repr_eq.
+unfold Ptrofs.modulus.
+unfold Ptrofs.wordsize.
+unfold Wordsize_Ptrofs.wordsize.
+rewrite Hp.
+unfold Int64.modulus.
+unfold Int64.wordsize.
+unfold Wordsize_64.wordsize.
+apply Int64.eqmod_divides with (two_power_nat 64).
+apply Int.eqmod_sym.
+apply Int.eqmod_mod.
+compute. auto.
+exists 1.
+reflexivity.
+Qed.
+
+
 
 
 

@@ -85,13 +85,13 @@ Qed.
 Tactic Notation "freeze1_SEP" constr(n) :=
   eapply (freeze1_SEP' (nat_of_Z n)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) :=
-  (gather_SEP n m); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  :=
-  (gather_SEP n m k); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  constr(p) :=
-  (gather_SEP n m k p); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k) constr(p) constr(q) :=
-  (gather_SEP n m k p q); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
 
 (*******************freezing a list of mpreds ******************************)
 
@@ -716,3 +716,39 @@ Tactic Notation "unlocalize" constr(R_G2) "using" constr(wit) :=
 Tactic Notation "unlocalize" constr(R_G2) "using" constr(wit) "assuming" constr(assu) :=
   let tac := prove_ramif_frame_gen_prop assu in
   unlocalize_wit R_G2 wit tac.
+
+Ltac thaw'' i :=
+ thaw' i; simpl nat_of_Z; unfold my_delete_nth, my_nth, fold_right_sepcon;
+   rewrite sepcon_emp.
+
+Ltac gather_SEP'' L :=
+ gather_SEP' L;
+ idtac "Warning: gather_SEP with numeric arguments is deprecated".
+
+Tactic Notation "gather_SEP" uconstr(a) :=
+  gather_SEP'' (a::nil) ||  (let i := fresh "i" in freeze i := a; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) :=
+  gather_SEP'' (a::b::nil) ||  (let i := fresh "i" in freeze i := a b; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) :=
+  gather_SEP'' (a::b::c::nil) ||  (let i := fresh "i" in freeze i := a b c; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) :=
+  gather_SEP'' (a::b::c::d::nil) ||  (let i := fresh "i" in freeze i := a b c d; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr(e) :=
+  gather_SEP'' (a::b::c::d::e::nil) ||  (let i := fresh "i" in freeze i := a b c d e; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr(e) uconstr(f) :=
+  gather_SEP'' (a::b::c::d::e::f::nil) ||  (let i := fresh "i" in freeze i := a b c d e f; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr(e) uconstr(f) uconstr(g) :=
+  gather_SEP'' (a::b::c::d::e::f::g::nil) ||  (let i := fresh "i" in freeze i := a b c d e f g; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr(e) uconstr(f) uconstr(g) uconstr(h) :=
+  gather_SEP'' (a::b::c::d::e::f::g::h::nil) ||  (let i := fresh "i" in freeze i := a b c d e f g h; thaw'' i).
+
+Tactic Notation "gather_SEP" uconstr(a) uconstr(b) uconstr(c) uconstr(d) uconstr(e) uconstr(f) uconstr(g) uconstr(h) uconstr(i0) :=
+  gather_SEP'' (a::b::c::d::e::f::g::h::i0::nil) ||  (let i := fresh "i" in freeze i := a b c d e f g h i0; thaw'' i).
+
