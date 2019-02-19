@@ -1,5 +1,5 @@
-Require Import VST.progs.io_specs.
-Require Import VST.progs.io.
+Require Import VST.progs.io_specs_mem.
+Require Import VST.progs.io_mem.
 Require Import VST.floyd.proofauto.
 Require Import DeepWeb.Free.Monad.Free.
 Require Import DeepWeb.Free.Monad.Eq.Utt.
@@ -12,60 +12,157 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.conclib.
+Require Import VST.veric.mem_lessdef.
 
-Definition io_specs :=
-  [(_getchar, getchar_spec); (_putchar, putchar_spec)].
+(* functions on byte arrays and CompCert mems *)
+Fixpoint store_byte_list m b ofs lv :=
+  match lv with
+  | [] => Some m
+  | v :: lv => match Mem.store Mint8unsigned m b ofs v with
+               | Some m' => store_byte_list m' b (ofs + 1)%Z lv
+               | None => None
+               end
+  end.
 
-Definition ext_link := ext_link_prog prog.
+Lemma store_byte_list_access : forall m b ofs v m',
+  store_byte_list m b ofs v = Some m' ->
+  Memory.access_at m = Memory.access_at m'.
+Proof.
+  intros until v; revert m ofs; induction v; simpl; intros.
+  - inv H; auto.
+  - destruct (Mem.store _ _ _ _ _) eqn: Hstore; [|discriminate].
+    rewrite (Memory.store_access _ _ _ _ _ _ Hstore); eauto.
+Qed.
 
-(* Should we really need a concrete user program in order to build enough of an external_specification for the juicy_dry proof? *)
-Definition io_ext_spec
-  :=
-  add_funspecs_rec
-    ext_link
-    (ok_void_spec IO_itree).(@OK_ty)
-    (ok_void_spec IO_itree).(@OK_spec)
-    io_specs.
+Lemma store_byte_list_nextblock : forall m b ofs v m',
+  store_byte_list m b ofs v = Some m' ->
+  Mem.nextblock m' = Mem.nextblock m.
+Proof.
+  intros until v; revert m ofs; induction v; simpl; intros.
+  - inv H; auto.
+  - destruct (Mem.store _ _ _ _ _) eqn: Hstore; [|discriminate].
+    etransitivity; [|eapply Mem.nextblock_store; eauto]; eauto.
+Qed.
 
-Definition getchar_pre (m : mem) (k : int -> IO_itree) (z : IO_itree) :=
-  (z = (r <- read;; k r))%eq_utt.
+Lemma store_byte_list_contents : forall m b ofs v m',
+  store_byte_list m b ofs v = Some m' ->
+  forall b' ofs',
+    (b=b' /\ ofs <= ofs' < ofs + Zlength v) \/
+     contents_at m (b', ofs') = contents_at m' (b', ofs').
+Proof.
+  intros until v; revert m ofs; induction v; simpl; intros.
+  - inv H; auto.
+  - destruct (Mem.store _ _ _ _ _) eqn: Hstore; [|discriminate].
+    rewrite Zlength_cons.
+    destruct (IHv _ _ _ H b' ofs') as [(? & ? & ?) | <-];
+      [left; split; auto; split; auto; omega|].
+    destruct (eq_block b b').
+    subst b'.
+    assert (ofs <= ofs' < ofs + Z.succ (Zlength v) \/
+      (ofs' < ofs \/ ofs' >= ofs + Z.succ (Zlength v))) as [? | ?] by omega; auto.
+    right.
+    unfold contents_at; rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore); simpl.
+    rewrite PMap.gss.
+    rewrite Mem.setN_other; auto.
+    intro; rewrite encode_val_length; simpl.
+    pose proof Zlength_nonneg v; omega.
+    { right.
+      unfold contents_at; rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore); simpl.
+      rewrite PMap.gso by auto. auto. }
+Qed.
 
-Definition getchar_post (m0 m : mem) r (k : int -> IO_itree) (z : IO_itree) :=
-  m0 = m /\ - two_p 7 <= Int.signed r <= two_p 7 - 1 /\ z = k r.
+Lemma store_byte_list_contents' : forall jm b ofs v m' loc' rsh sh mv,
+  store_byte_list (m_dry jm) b ofs v = Some m' ->
+  ~ adr_range (b, ofs) (Zlength v) loc'
+  -> (m_phi jm) @ loc' = YES rsh sh (VAL mv) NoneP -> contents_at m' loc' = mv.
+Proof.
+destruct jm. simpl.
+intros.
+destruct loc' as (b', ofs').
+destruct (store_byte_list_contents _ _ _ _ _ H b' ofs') as [|<-]; [contradiction|].
+eapply JMcontents; eauto.
+Qed.
 
-Definition putchar_pre (m : mem) c (k : IO_itree) (z : IO_itree) :=
-  (z = (write c;; k))%eq_utt.
+Definition store_byte_list_juicy_mem jm m' b ofs v
+  (Hstore : store_byte_list (m_dry jm) b ofs v = Some m') : juicy_mem.
+Proof.
+ refine (mkJuicyMem m' (inflate_store m' (m_phi jm)) _ _ _ _).
+(* contents_cohere *)
+intros rsh sh' v' loc' pp H2.
+unfold inflate_store in H2; rewrite resource_at_make_rmap in H2.
+destruct (m_phi jm @ loc'); try destruct k; try solve [inversion H2].
+inversion H2; auto.
+(* access_cohere *)
+intro loc; generalize (juicy_mem_access jm loc); intro H0.
+unfold inflate_store; rewrite resource_at_make_rmap.
+rewrite <- (store_byte_list_access _ _ _ _ _ Hstore).
+destruct (m_phi jm @ loc); try destruct k; auto.
+(* max_access_cohere *)
+intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
+unfold inflate_store; rewrite resource_at_make_rmap.
+unfold max_access_at in *.
+rewrite <- (store_byte_list_access _ _ _ _ _ Hstore).
+apply store_byte_list_nextblock in Hstore.
+destruct (m_phi jm @ loc); auto.
+destruct k; simpl; try assumption.
+(* alloc_cohere *)
+hnf; intros.
+unfold inflate_store. rewrite resource_at_make_rmap.
+generalize (juicy_mem_alloc_cohere jm loc); intro.
+rewrite (store_byte_list_nextblock _ _ _ _ _ Hstore) in H.
+rewrite (H0 H). auto.
+Defined.
 
-Definition putchar_post (m0 m : mem) r (c : int) (k : IO_itree) (z : IO_itree) :=
-  m0 = m /\ r = c /\ z = k.
+
+(* dry specs for I/O *)
+Definition getchars_pre (m : mem) (sh : share) (buf : val) (len : Z) (k : list int -> IO_itree)
+  (z : IO_itree) := (z = (r <- read_list (Z.to_nat len);; k r))%eq_utt /\
+    match buf with Vptr b ofs =>
+      Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + Z.max 0 len) Memtype.Cur Memtype.Writable
+      | _ => False end.
+
+Definition getchars_post (m0 m : mem) r (sh : share) (buf : val) (len : Z) (k : list int -> IO_itree) (z : IO_itree) :=
+  m0 = m /\ r = Int.repr len /\ exists msg, z = k msg /\
+    match buf with Vptr b ofs => exists m', store_byte_list m0 b (Ptrofs.unsigned ofs) (map Vint msg) = Some m' /\
+        mem_equiv m m'
+    | _ => False end.
+
+Definition putchars_pre (m : mem) (sh : share) (buf : val) (msg : list int) (k : IO_itree) (z : IO_itree) :=
+  (z = (write_list msg;; k))%eq_utt /\
+  exists m0, match buf with Vptr b ofs =>
+    store_byte_list m0 b (Ptrofs.unsigned ofs) (map Vint msg) = Some m
+    | _ => False end.
+
+Definition putchars_post (m0 m : mem) r (sh : share) (buf : val) (msg : list int) (k : IO_itree) (z : IO_itree) :=
+  m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
 
 Program Definition io_dry_spec : external_specification mem external_function IO_itree.
 Proof.
   unshelve econstructor.
   - intro e.
-    pose (ext_spec_type io_ext_spec e) as T; simpl in T.
+    pose (ext_spec_type IO_ext_spec e) as T; simpl in T.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|exact False]];
       match goal with T := (_ * ?A)%type |- _ => exact (mem * A)%type end.
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
-    + destruct X as (m0 & _ & k).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ getchar_pre X3 k X2).
-    + destruct X as (m0 & _ & (c, k)).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ putchar_pre X3 c k X2).
+    + destruct X as (m0 & _ & (((sh, buf), len), k)).
+      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ getchars_pre X3 sh buf len k X2).
+    + destruct X as (m0 & _ & (((sh, buf), msg), k)).
+      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ putchars_pre X3 sh buf msg k X2).
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
-    + destruct X as (m0 & _ & k).
+    + destruct X as (m0 & _ & (((sh, buf), len), k)).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (getchar_post m0 X3 i k X2).
-    + destruct X as (m0 & _ & (c, k)).
+      exact (getchars_post m0 X3 i sh buf len k X2).
+    + destruct X as (m0 & _ & (((sh, buf), msg), k)).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (putchar_post m0 X3 i c k X2).
+      exact (putchars_post m0 X3 i sh buf msg k X2).
   - intros; exact False.
 Defined.
 
-Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.
+Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type IO_ext_spec ef -> ext_spec_type io_dry_spec ef.
 Proof.
   simpl; intros.
   destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|assumption]].
@@ -133,27 +230,6 @@ Proof.
     + destruct vc0 as (? & [[]|] & vc0); hnf in vc0; try congruence.
       clear - vc0; destruct vc0 as (? & ? & ?%join_Tsh & ?); tauto.
     + unfold ext_ghost; simpl; repeat f_equal; apply proof_irr.
-Qed.
-
-Lemma rebuild_same : forall jm,
-  juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm) = resource_at (m_phi jm).
-Proof.
-  intros; extensionality l.
-  unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
-  destruct (m_phi jm @ l) eqn: Hl; auto.
-  - if_tac; auto.
-    destruct jm; simpl in *.
-    rewrite (JMaccess l) in H.
-    rewrite Hl in H; simpl in H.
-    if_tac in H; inv H.
-  - destruct k; auto.
-    destruct jm; simpl in *.
-    if_tac.
-    + apply JMcontents in Hl as [-> ?]; subst; auto.
-    + contradiction H.
-      rewrite (JMaccess l), Hl; simpl.
-      unfold perm_of_sh.
-      if_tac; if_tac; try contradiction; constructor.
 Qed.
 
 Lemma change_ext : forall {Z} (a a' z : Z) (b c : ghost),
@@ -235,18 +311,18 @@ Proof.
     apply J.
 Qed.
 
-Theorem juicy_dry_specs : juicy_dry_ext_spec _ io_ext_spec io_dry_spec dessicate.
+Theorem juicy_dry_specs : juicy_dry_ext_spec _ IO_ext_spec io_dry_spec dessicate.
 Proof.
   split; [|split]; try reflexivity; simpl.
   - unfold funspec2pre, dessicate; simpl.
     intros ?; if_tac.
     + intros; subst.
-      destruct t as (? & ? & k); simpl in *.
+      destruct t as (? & ? & (((sh, buf), len), k)); simpl in *.
       destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      unfold getchar_pre; split; auto; split; auto.
+      unfold getchars_pre; split; auto; split; auto.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as (_ & _ & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       symmetry.
@@ -254,7 +330,7 @@ Proof.
     + unfold funspec2pre; simpl.
       if_tac; [|contradiction].
       intros; subst.
-      destruct t as (? & ? & (c, k)); simpl in *.
+      destruct t as (? & ? & c & k); simpl in *.
       destruct H2 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
       unfold putchar_pre; split; auto; split; auto.
       unfold SEPx in Hpre; simpl in Hpre.
@@ -301,7 +377,7 @@ Proof.
       intros; subst.
       destruct H1 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
       destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & (c, k)); simpl in *.
+      destruct t as (? & c & k); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as (_ & _ & ? & ? & Htrace).
@@ -349,7 +425,7 @@ Proof.
     destruct Hpost; subst.
     reflexivity.
   - if_tac in Hpre; [|contradiction].
-    destruct w as (m0 & _ & (c, k)).
+    destruct w as (m0 & _ & c & k).
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
