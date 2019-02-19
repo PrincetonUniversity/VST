@@ -924,6 +924,14 @@ Use Intros to move the existentially bound variables above the line"
  end
 end.
 
+Ltac check_gvars :=
+  first [exact Logic.I
+         | reflexivity
+         | match goal with |- check_gvars_spec None (Some ?gv) =>
+              fail 100 "The function precondition requires (gvars" gv ")" "which is not present in your current assertion's LOCAL clause"
+           end
+         ].
+
 Ltac prove_call_setup subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
@@ -938,7 +946,7 @@ Ltac prove_call_setup subsumes witness :=
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
- | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | check_gvars
  | try change_compspecs CS; cancel_for_forward_call
  |
  ]
