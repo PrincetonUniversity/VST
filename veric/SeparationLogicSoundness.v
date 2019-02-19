@@ -76,6 +76,27 @@ Axiom semax_prog_rule' :
            app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 
+(* This version lets the user choose the external state instead of quantifying over it,
+    and start with knowledge of that state in the precondition of main. *)
+Axiom semax_prog_rule_ext :
+  forall {Espec: OracleKind}{CS: compspecs},
+  forall V G prog m h z,
+     @semax_prog_ext Espec CS prog z V G ->
+     Genv.init_mem prog = Some m ->
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                    jm q jm' (Vptr b Ptrofs.zero) nil) *
+       forall n,
+         { jm |
+           m_dry jm = m /\ level jm = n /\
+           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+           jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
+           no_locks (m_phi jm) /\
+           matchfunspecs (globalenv prog) G (m_phi jm) /\
+           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
+     } } }%type.
+
 
 End SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
@@ -177,6 +198,7 @@ Module CSHL_Defs := DerivedDefs (VericDef).
 
 Definition semax_prog_rule := @semax_prog_rule.
 Definition semax_prog_rule' := @semax_prog_rule'.
+Definition semax_prog_rule_ext := @semax_prog_rule_ext.
 
 End VericSound.
 

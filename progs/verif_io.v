@@ -12,28 +12,39 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition putchar_spec := DECLARE _putchar putchar_spec.
 Definition getchar_spec := DECLARE _getchar getchar_spec.
 
-Program Fixpoint chars_of_nat n { measure n } : list int :=
-  match (n / 10)%nat with
-  | O => [Int.repr (Z.of_nat n + char0)]
-  | n' => chars_of_nat n' ++ [Int.repr (Z.of_nat (n mod 10) + char0)]
-  end.
+Lemma div_10_dec : forall n, 0 < n ->
+  (Z.to_nat (n / 10) < Z.to_nat n)%nat.
+Proof.
+  intros.
+  change 10 with (Z.of_nat 10).
+  rewrite <- (Z2Nat.id n) by omega.
+  rewrite <- div_Zdiv by discriminate.
+  rewrite !Nat2Z.id.
+  apply Nat2Z.inj_lt.
+  rewrite div_Zdiv, Z2Nat.id by omega; simpl.
+  apply Z.div_lt; auto; omega.
+Qed.
+
+Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list int :=
+  let n' := n / 10 in
+  match n' <=? 0 with true => [Int.repr (n + char0)] | false => chars_of_Z n' ++ [Int.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
-  apply (Nat.div_lt n 10); try omega.
-  destruct n; [contradiction | omega].
+  apply div_10_dec.
+  symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous.
+  eapply Z.lt_le_trans, Z_mult_div_ge with (b := 10); omega.
 Defined.
 
-Definition chars_of_Z z := chars_of_nat (Z.to_nat z).
-
 (* The function computed by print_intr *)
-Program Fixpoint intr n { measure n } : list int :=
-  match n with
-  | O => []
-  | _ => intr (n / 10) ++ [Int.repr (Z.of_nat (n mod 10) + char0)]
+Program Fixpoint intr n { measure (Z.to_nat n) } : list int :=
+  match n <=? 0 with
+  | true => []
+  | false => intr (n / 10) ++ [Int.repr (n mod 10 + char0)]
   end.
 Next Obligation.
 Proof.
-  apply (Nat.div_lt n 10); try omega.
+  apply div_10_dec.
+  symmetry in Heq_anonymous; apply Z.leb_nle in Heq_anonymous; omega.
 Defined.
 
 Definition print_intr_spec :=
@@ -42,7 +53,7 @@ Definition print_intr_spec :=
   PRE [ _i OF tuint ]
     PROP (0 <= i <= Int.max_unsigned)
     LOCAL (temp _i (Vint (Int.repr i)))
-    SEP (ITREE (write_list (intr (Z.to_nat i)) ;; tr))
+    SEP (ITREE (write_list (intr i) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -68,10 +79,6 @@ CoFixpoint read_sum n d : IO_itree :=
 
 Definition main_itree := c <- read;; read_sum 0 (Int.unsigned c - char0).
 
-Definition ext_link := ext_link_prog prog.
-
-Instance IO_Espec : OracleKind := Build_OracleKind _ (IO_ext_spec ext_link).
-
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
@@ -94,9 +101,9 @@ Opaque bind.
 Opaque Nat.div Nat.modulo.
 
 Lemma intr_eq : forall n, intr n =
-  match n with
-  | O => []
-  | _ => intr (n / 10) ++ [Int.repr (Z.of_nat (n mod 10) + char0)]
+  match n <=? 0 with
+  | true => []
+  | false => intr (n / 10) ++ [Int.repr (n mod 10 + char0)]
   end.
 Proof.
   intros.
@@ -115,18 +122,13 @@ Proof.
     forward.
     rewrite modu_repr, divu_repr by (omega || computable).
     rewrite intr_eq.
-    destruct (Z.to_nat i) eqn: Hi.
-    { apply Z2Nat_inj_0 in Hi; omega. }
-    rewrite <- Hi, mod_Zmod, Z2Nat.id by omega; simpl; clear dependent n.
-    erewrite ITREE_ext
-      by (apply bind_mor with (y0 := fun _ => tr); [apply write_list_app | reflexivity]).
+    destruct (i <=? 0) eqn: Hi.
+    { apply Zle_bool_imp_le in Hi; omega. }
+    erewrite ITREE_ext by (apply bind_mor with (y0 := fun _ => tr); [apply write_list_app | reflexivity]).
     erewrite ITREE_ext by apply bind_bind.
     forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; cancel.
-      replace (Z.to_nat i / 10)%nat with (Z.to_nat (i / 10)); [apply derives_refl|].
-      rewrite <- (Z2Nat.id i) at 1 by omega.
-      rewrite <- (div_Zdiv _ 10) by omega.
-      rewrite Nat2Z.id; auto. }
+      apply derives_refl. }
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
     forward_call (Int.repr (i mod 10 + char0), tr).
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
@@ -145,35 +147,35 @@ Proof.
   - forward.
 Qed.
 
-Lemma chars_of_nat_eq : forall n, chars_of_nat n =
-  match (n / 10)%nat with
-  | O => [Int.repr (Z.of_nat n + char0)]
-  | n' => chars_of_nat n' ++ [Int.repr (Z.of_nat (n mod 10) + char0)]
-  end.
+Lemma chars_of_Z_eq : forall n, chars_of_Z n =
+  let n' := n / 10 in
+  match n' <=? 0 with true => [Int.repr (n + char0)] | false => chars_of_Z n' ++ [Int.repr (n mod 10 + char0)] end.
 Proof.
   intros.
-  unfold chars_of_nat at 1.
-  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_nat.
-  destruct (n / 10)%nat; reflexivity.
+  unfold chars_of_Z at 1.
+  rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold chars_of_Z.
+  destruct (_ <=? _); reflexivity.
 Qed.
 
-Lemma chars_of_nat_intr : forall n, (0 < n)%nat ->
-  chars_of_nat n = intr n.
+Lemma chars_of_Z_intr : forall n, 0 < n ->
+  chars_of_Z n = intr n.
 Proof.
-  induction n using (well_founded_induction lt_wf); intro.
-  rewrite chars_of_nat_eq, intr_eq.
-  destruct n; [omega|].
-  forget (S n) as m.
-  destruct (_ / _)%nat eqn: Hdiv.
-  - rewrite mod_Zmod by omega; simpl.
+  induction n using (well_founded_induction (Zwf.Zwf_well_founded 0)); intro.
+  rewrite chars_of_Z_eq, intr_eq.
+  destruct (n <=? 0) eqn: Hn; [apply Zle_bool_imp_le in Hn; omega|].
+  simpl.
+  destruct (n / 10 <=? 0) eqn: Hdiv.
+  - apply Zle_bool_imp_le in Hdiv.
+    assert (0 <= n / 10).
+    { apply Z.div_pos; omega. }
+    assert (n / 10 = 0) as Hz by omega.
+    rewrite Hz; simpl.
+    apply Z.div_small_iff in Hz as [|]; try omega.
     rewrite Zmod_small; auto.
+  - apply Z.leb_nle in Hdiv.
+    rewrite H; auto; try omega.
     split; try omega.
-    apply Z2Nat.inj_lt; try omega.
-    rewrite Nat2Z.id; simpl.
-    destruct (lt_dec m 10); auto.
-    exploit (Nat.div_str_pos m 10); omega.
-  - rewrite H; auto; try omega.
-    rewrite <- Hdiv; apply Nat.div_lt; auto; omega.
+    apply Z.div_lt; auto; omega.
 Qed.
 
 Lemma body_print_int: semax_body Vprog Gprog f_print_int print_int_spec.
@@ -182,8 +184,7 @@ Proof.
   forward_if (PROP () LOCAL () SEP (ITREE tr)).
   - subst.
     forward_call (Int.repr char0, tr).
-    { unfold chars_of_Z; rewrite chars_of_nat_eq.
-      change (_ / _)%nat with O; simpl.
+    { rewrite chars_of_Z_eq; simpl.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
       apply bind_mor; [|reflexivity].
@@ -191,10 +192,7 @@ Proof.
       apply bind_mor; [|intros []]; reflexivity. }
     entailer!.
   - forward_call (i, tr).
-    { unfold chars_of_Z.
-      rewrite chars_of_nat_intr; [cancel|].
-      destruct (Z.to_nat i) eqn: Hi; [|omega].
-      apply Z2Nat_inj_0 in Hi; omega. }
+    { rewrite chars_of_Z_intr by omega; cancel. }
     entailer!.
   - forward.
 Qed.
@@ -267,13 +265,18 @@ Proof.
   forward.
 Qed.
 
-Instance Espec : OracleKind := add_funspecs IO_Espec (ext_link_prog prog) Gprog.
+Definition ext_link := ext_link_prog prog.
+
+(*Instance IO_Espec : OracleKind := Build_OracleKind _ (IO_ext_spec ext_link).*)
+
+(*Instance Espec : OracleKind := add_funspecs IO_Espec ext_link Gprog.*)
+
+Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
   semax_prog_ext prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 { simpl; Intro i.
   apply typecheck_return_value; auto. }
@@ -282,3 +285,48 @@ semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
 semax_func_cons body_main.
 Qed.
+
+Require Import VST.veric.SequentialClight.
+Require Import VST.progs.io_dry.
+
+Definition init_mem_exists : { m | Genv.init_mem prog = Some m }.
+Proof.
+  unfold Genv.init_mem; simpl.
+Admitted. (* seems true, but hard to prove -- can we compute it? *)
+
+Definition init_mem := proj1_sig init_mem_exists.
+
+Definition main_block_exists : {b | Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b}.
+Proof.
+  eexists; simpl.
+  unfold Genv.find_symbol; simpl; reflexivity.
+Qed.
+
+Definition main_block := proj1_sig main_block_exists.
+
+Theorem prog_toplevel : exists q : Clight_new.corestate,
+  semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
+  forall n, @step_lemmas.dry_safeN _ _ _ _ Clight_sim.genv_symb_injective (Clight_sim.coresem_extract_cenv (Clight_new.cl_core_sem (globalenv prog)) (prog_comp_env prog))
+             (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
+            main_itree q init_mem.
+Proof.
+  edestruct whole_program_sequential_safety_ext with (V := Vprog)(G := Gprog) as (b & q & m' & Hb & Hq & Hsafe).
+  - apply juicy_dry_specs.
+  - apply dry_spec_mem.
+  - (* apply prog_correct. *) (* This seems to fail because of something in the SL abstraction layer. *) admit. (*
+pose proof prog_correct.
+    split; destruct H; eauto.
+    split; destruct H0; auto.
+    split; destruct H1; auto.
+    split; destruct H2; eauto.
+simpl in *.
+    destruct H3.
+simpl.
+    apply H4.
+    apply prog_correct.*)
+  - apply (proj2_sig init_mem_exists).
+  - exists q.
+    rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
+    assert (m' = init_mem); [|subst; auto].
+    destruct Hq; tauto.
+Admitted.
