@@ -110,7 +110,9 @@ Global Transparent peq.
 Global Transparent Archi.ptr64.
 
 Ltac EExists_unify1 x P :=
-match P with context [?A = ?B] =>
+ match P with
+ | ?P1 /\ ?P2 => first [EExists_unify1 x P1 | EExists_unify1 x P2]
+ | ?A = ?B =>
   match A with context [x] =>
   pattern (A=B);
   let y := fresh "y" in match goal with |- ?F _ => set (y:=F) end;
@@ -129,7 +131,6 @@ match P with context [?A = ?B] =>
   subst y; cbv beta
   end
 end.
-
 
 Ltac EExists_unify := 
   let T := fresh "T"  in
@@ -155,7 +156,7 @@ first [ progress Intros
        | progress (autorewrite with norm)
        | cstring1
        | deadvars!
-       | solve [cancel]
+       | solve [match goal with |- @derives mpred _ _ _ => cancel end]
        | solve [entailer!; try cstring']
        ].
 
