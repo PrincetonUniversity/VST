@@ -109,7 +109,57 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
+Ltac EExists_unify1 x P :=
+match P with context [?A = ?B] =>
+  match A with context [x] =>
+  pattern (A=B);
+  let y := fresh "y" in match goal with |- ?F _ => set (y:=F) end;
+  autorewrite with entailer_rewrite;
+  first  [subst x; match goal with |- _ (?A' = ?B') => unify A' B' end
+  | match goal with
+  | x:= ?u |- _ (Vint (Int.repr (x - ?i)) = Vint (Int.repr ?j)) =>
+        unify u (j+i); subst x
+  | x:= ?u |- _ (Vint (Int.repr (x + ?i)) = Vint (Int.repr ?j)) =>
+        unify u (j-i); subst x
+  | x:= ?u |- _ (Vlong (Int64.repr (x - ?i)) = Vlong (Int64.repr ?j)) =>
+        unify u (j+i); subst x
+  | x:= ?u |- _ (Vlong (Int64.repr (x + ?i)) = Vlong (Int64.repr ?j)) =>
+        unify u (j-i); subst x
+  end];
+  subst y; cbv beta
+  end
+end.
+
+
+Ltac EExists_unify := 
+  let T := fresh "T"  in
+  let x := fresh "x" in
+  evar (T:Type); evar (x:T); subst T; 
+  Exists x;
+  match goal with
+  | |- _ |-- !! ?P && _ => EExists_unify1 x P
+  | |- _ |-- !! ?P => EExists_unify1 x P
+  end.
+
 Ltac step :=
+first [ progress Intros
+       | let x := fresh "x" in Intros x
+       | forward
+       | forward_if
+       | forward_call
+       | rep_omega | cstring' | list_solve
+       | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
+       | EExists_unify
+       | progress (autorewrite with sublist in *|-)
+       | progress (autorewrite with sublist)
+       | progress (autorewrite with norm)
+       | cstring1
+       | deadvars!
+       | solve [cancel]
+       | solve [entailer!; try cstring']
+       ].
+
+Tactic Notation "step!"  :=
 first [ progress Intros
        | let x := fresh "x" in Intros x
        | forward

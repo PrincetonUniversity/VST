@@ -82,18 +82,18 @@ jobs:
     env: BITSIZE=64
   - stage: test
     name: "Progs 32-bit"
-    script: ./.travis-script progsdir
+    script: ./.travis-script progs
     env: BITSIZE=32
   - stage: test
     name: "Progs 64-bit"
-    script: ./.travis-script progsdir
+    script: ./.travis-script progs64
     env: BITSIZE=64
   - stage: test
-    name: "SHA-HMAC"
+    name: "SHA-HMAC 32-bit"
     script: ./.travis-script sha-hmac
     env: BITSIZE=32
   - stage: test
-    name: "Mailbox"
+    name: "Mailbox 32-bit"
     script: ./.travis-script mailbox
     env: BITSIZE=32
 #    script:
