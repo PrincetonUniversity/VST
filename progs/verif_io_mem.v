@@ -1,5 +1,5 @@
-Require Import VST.progs.io.
-Require Import VST.progs.io_specs.
+Require Import VST.progs.io_mem.
+Require Import VST.progs.io_specs_mem.
 Require Import VST.floyd.proofauto.
 Require Import DeepWeb.Free.Monad.Free.
 Import MonadNotations.
@@ -9,8 +9,8 @@ Require Import DeepWeb.Free.Monad.Eq.Utt.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition putchar_spec := DECLARE _putchar putchar_spec.
-Definition getchar_spec := DECLARE _getchar getchar_spec.
+Definition putchars_spec := DECLARE _putchars putchars_spec.
+Definition getchars_spec := DECLARE _getchars getchars_spec.
 
 Lemma div_10_dec : forall n, 0 < n ->
   (Z.to_nat (n / 10) < Z.to_nat n)%nat.
@@ -288,6 +288,7 @@ Qed.
 
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.io_dry.
+Require Import VST.floyd.SeparationLogicAsLogicSoundness.
 
 Definition init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
@@ -304,6 +305,9 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
+(*Import CSHL_Sound.
+Check semax_prog_sound.*)
+
 Theorem prog_toplevel : exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
   forall n, @step_lemmas.dry_safeN _ _ _ _ Clight_sim.genv_symb_injective (Clight_sim.coresem_extract_cenv (Clight_new.cl_core_sem (globalenv prog)) (prog_comp_env prog))
@@ -313,10 +317,24 @@ Proof.
   edestruct whole_program_sequential_safety_ext with (V := Vprog)(G := Gprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
-  - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.
+  - Locate semax_prog_ext_sound.
+pose proof prog_correct.
+    split; destruct H; eauto.
+    split; destruct H0; auto.
+    split; destruct H1; auto.
+    split; destruct H2; eauto.
+Import DeepEmbeddedSoundness.
+Print DeepEmbeddedSoundness.
+apply semax_prog_sound.
+    apply semax_func_sound.
+simpl in *.
+    destruct H3.
+simpl.
+    apply H4.
+    apply prog_correct.*)
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
     assert (m' = init_mem); [|subst; auto].
     destruct Hq; tauto.
-Qed.
+Admitted.

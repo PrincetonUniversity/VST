@@ -175,7 +175,7 @@ Proof.
   + eapply MinimumLogic.semax_func_cons_ext; eauto.
 Qed.
 
-Theorem semax_prog_sound: forall Espec CS prog Vspec Gspec,
+Theorem semax_prog_sound': forall Espec CS prog Vspec Gspec,
   @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog Vspec Gspec ->
   @MinimumLogic.CSHL_Defs.semax_prog Espec CS prog Vspec Gspec.
 Proof.
@@ -185,7 +185,7 @@ Proof.
   tauto.
 Qed.
 
-Theorem semax_prog_ext_sound: forall Espec CS prog z Vspec Gspec,
+Theorem semax_prog_ext_sound': forall Espec CS prog z Vspec Gspec,
   @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog z Vspec Gspec ->
   @MinimumLogic.CSHL_Defs.semax_prog_ext Espec CS prog z Vspec Gspec.
 Proof.
@@ -193,6 +193,22 @@ Proof.
   hnf in H |- *.
   pose proof semax_func_sound Espec Vspec Gspec CS (prog_funct prog) Gspec.
   tauto.
+Qed.
+
+Theorem semax_prog_sound: forall Espec CS prog Vspec Gspec,
+  @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
+Proof.
+  intros.
+  apply Sound.semax_prog_sound, semax_prog_sound'; auto.
+Qed.
+
+Theorem semax_prog_ext_sound: forall Espec CS prog z Vspec Gspec,
+  @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+Proof.
+  intros.
+  apply Sound.semax_prog_ext_sound, semax_prog_ext_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule :
@@ -216,7 +232,7 @@ Theorem semax_prog_rule :
 Proof.
   intros.
   apply Sound.semax_prog_rule; auto.
-  apply semax_prog_sound; auto.
+  apply semax_prog_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule' :
@@ -240,7 +256,7 @@ Theorem semax_prog_rule' :
 Proof.
   intros.
   apply Sound.semax_prog_rule'; auto.
-  apply semax_prog_sound; auto.
+  apply semax_prog_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule_ext :
@@ -264,7 +280,7 @@ Theorem semax_prog_rule_ext :
 Proof.
   intros.
   apply Sound.semax_prog_rule_ext; auto.
-  apply semax_prog_ext_sound; auto.
+  apply semax_prog_ext_sound'; auto.
 Qed.
 
 End DeepEmbeddedSoundness.

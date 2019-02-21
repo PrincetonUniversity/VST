@@ -5,7 +5,6 @@ Import MonadNotations.
 Require Import DeepWeb.Free.Monad.Common.
 Require Import DeepWeb.Free.Monad.Eq.Utt.
 Import String.
-Require Import VST.progs.io_mem. (* for CompSpecs -- do we need this? *)
 
 Inductive IO_event : Type -> Type :=
 | ERead : IO_event int
@@ -99,11 +98,9 @@ Definition char0 : Z := 48.
 Definition newline := 10.
 
 (* Build the external specification. *)
-Definition ext_link := ext_link_prog prog.
+Definition IO_void_Espec : OracleKind := ok_void_spec IO_itree.
 
-Definition IO_ext_spec :=
-  semax_ext.add_funspecs_rec
-    ext_link
-    (ok_void_spec IO_itree).(@OK_ty)
-    (ok_void_spec IO_itree).(@OK_spec)
-    [getchars_spec; putchars_spec].
+Definition IO_specs (ext_link : string -> ident) :=
+  [(ext_link "putchars"%string, putchars_spec); (ext_link "getchars"%string, getchars_spec)].
+
+Definition IO_Espec (ext_link : string -> ident) : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs ext_link).

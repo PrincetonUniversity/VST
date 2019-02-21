@@ -37,6 +37,16 @@ Module CSHL_Defs := DerivedDefs(CSHL_Def).
 Import CSHL_Def.
 Import CSHL_Defs.
 
+Axiom semax_prog_sound :
+  forall {Espec: OracleKind}{CS: compspecs} prog Vspec Gspec,
+  @semax_prog Espec CS prog Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
+
+Axiom semax_prog_ext_sound :
+  forall {Espec: OracleKind}{CS: compspecs} prog z Vspec Gspec,
+  @semax_prog_ext Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
   OK_ty = unit -> 
@@ -195,6 +205,22 @@ Module VericSound : SEPARATION_HOARE_LOGIC_SOUNDNESS with Module CSHL_Def := Ver
 
 Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
+
+Lemma semax_prog_sound :
+  forall {Espec}{CS} prog Vspec Gspec,
+  @CSHL_Defs.semax_prog Espec CS prog Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
+Proof.
+  intros; apply H.
+Qed.
+
+Lemma semax_prog_ext_sound :
+  forall {Espec}{CS} prog z Vspec Gspec,
+  @CSHL_Defs.semax_prog_ext Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+Proof.
+  intros; apply H.
+Qed.
 
 Definition semax_prog_rule := @semax_prog_rule.
 Definition semax_prog_rule' := @semax_prog_rule'.

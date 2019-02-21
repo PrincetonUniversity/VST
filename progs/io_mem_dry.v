@@ -15,6 +15,8 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
 
+Section IO_Dry.
+
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list int -> IO_itree)) (z : IO_itree) :=
   let '(sh, buf, len, k) := witness in (z = (r <- read_list (Z.to_nat len);; k r))%eq_utt /\
     match buf with Vptr b ofs =>
@@ -35,6 +37,12 @@ Definition putchars_pre (m : mem) (witness : share * val * list int * IO_itree) 
 
 Definition putchars_post (m0 m : mem) r (witness : share * val * list int * IO_itree) (z : IO_itree) :=
   let '(sh, buf, msg, k) := witness in m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
+
+Context (ext_link : String.string -> ident).
+
+Instance Espec : OracleKind := IO_Espec ext_link.
+
+Definition io_ext_spec := OK_spec.
 
 Program Definition io_dry_spec : external_specification mem external_function IO_itree.
 Proof.
@@ -226,5 +234,4 @@ Proof.
     reflexivity.
 Qed.
 
-(* specialize whole_program_sequential_safety 
-   Given that, what can we prove in CertiKOS about its execution? *)
+End IO_dry.

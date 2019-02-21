@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.veric.juicy_extspec.
-Require Import DeepWeb.Free.Monad.Free.
+Require Import DeepWeb.Free.Monad.Free. (* switch to ITree *)
 Import MonadNotations.
 Require Import DeepWeb.Free.Monad.Common.
 Require Import DeepWeb.Free.Monad.Eq.Utt.
@@ -93,10 +93,3 @@ Definition IO_specs (ext_link : string -> ident) :=
   [(ext_link "putchar"%string, putchar_spec); (ext_link "getchar"%string, getchar_spec)].
 
 Definition IO_Espec (ext_link : string -> ident) : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
-
-(*Definition IO_ext_spec ext_link :=
-  semax_ext.add_funspecs_rec
-    ext_link
-    (ok_void_spec IO_itree).(@OK_ty)
-    (ok_void_spec IO_itree).(@OK_spec)
-    (IO_specs ext_link).*)

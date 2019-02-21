@@ -16,7 +16,6 @@ Require Import VST.progs.dry_mem_lemmas.
 
 Section IO_Dry.
 
-(* bundle witness *)
 Definition getchar_pre (m : mem) (witness : int -> IO_itree) (z : IO_itree) :=
   let k := witness in (z = (r <- read;; k r))%eq_utt.
 

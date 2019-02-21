@@ -133,8 +133,8 @@ Definition semax_prog {C: compspecs}
   | None => False
   end.
 
-Definition semax_prog_ext {Z : Type} {C: compspecs}
-           (prog: program) (ora: Z) (V: varspecs) (G: funspecs) : Prop :=
+Definition semax_prog_ext {C: compspecs}
+           (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
@@ -1296,7 +1296,7 @@ Qed.
 
 Lemma semax_prog_rule_ext {CS: compspecs} :
   forall V G prog m h z,
-     @semax_prog_ext _ CS prog z V G ->
+     @semax_prog_ext CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
