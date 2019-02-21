@@ -35,9 +35,6 @@ env:
   - COMPILER="default"
   - COQ_VERSION="8.9.0"
   - NEXT_VERSION="8.9.0"
-  matrix:
-  - BITSIZE=32
-  - BITSIZE=64
 
 branches:
   only:
