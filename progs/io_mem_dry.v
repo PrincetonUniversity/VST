@@ -38,7 +38,7 @@ Definition putchars_pre (m : mem) (witness : share * val * list int * IO_itree) 
 Definition putchars_post (m0 m : mem) r (witness : share * val * list int * IO_itree) (z : IO_itree) :=
   let '(sh, buf, msg, k) := witness in m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
 
-Context (ext_link : String.string -> ident).
+Context {CS : compspecs} (ext_link : String.string -> ident).
 
 Instance Espec : OracleKind := IO_Espec ext_link.
 
@@ -48,29 +48,29 @@ Program Definition io_dry_spec : external_specification mem external_function IO
 Proof.
   unshelve econstructor.
   - intro e.
-    pose (ext_spec_type IO_ext_spec e) as T; simpl in T.
+    pose (ext_spec_type io_ext_spec e) as T; simpl in T.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|exact False]];
       match goal with T := (_ * ?A)%type |- _ => exact (mem * A)%type end.
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ getchars_pre X3 w X2).
-    + destruct X as (m0 & _ & w).
       exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ putchars_pre X3 w X2).
+    + destruct X as (m0 & _ & w).
+      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ getchars_pre X3 w X2).
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (getchars_post m0 X3 i w X2).
+      exact (putchars_post m0 X3 i w X2).
     + destruct X as (m0 & _ & w).
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (putchars_post m0 X3 i w X2).
+      exact (getchars_post m0 X3 i w X2).
   - intros; exact False.
 Defined.
 
-Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type IO_ext_spec ef -> ext_spec_type io_dry_spec ef.
+Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.
 Proof.
   simpl; intros.
   destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|assumption]].
@@ -78,12 +78,28 @@ Proof.
   - destruct X as [_ X]; exact (m_dry jm, X).
 Defined.
 
-Theorem juicy_dry_specs : juicy_dry_ext_spec _ IO_ext_spec io_dry_spec dessicate.
+Theorem juicy_dry_specs : juicy_dry_ext_spec _ io_ext_spec io_dry_spec dessicate.
 Proof.
   split; [|split]; try reflexivity; simpl.
   - unfold funspec2pre, dessicate; simpl.
     intros ?; if_tac.
     + intros; subst.
+      destruct t as (? & ? & (((sh, buf), msg), k)); simpl in *.
+      destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
+      unfold putchars_pre; split; auto; split; auto.
+      unfold SEPx in Hpre; simpl in Hpre.
+      rewrite seplog.sepcon_emp in Hpre.
+      destruct Hpre as ([Hreadable _] & _ & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
+      apply has_ext_eq in Htrace.
+      eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
+      split.
+      * symmetry.
+        eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | eauto]; subst; auto.
+      * (* data_at to bytes in mem *) admit.
+    + clear H.
+      unfold funspec2pre; simpl.
+      if_tac; [|contradiction].
+      intros; subst.
       destruct t as (? & ? & (((sh, buf), len), k)); simpl in *.
       destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
       unfold getchars_pre; split; auto; split; auto.
@@ -100,34 +116,63 @@ Proof.
           eexists; eauto. }
         simpl in Hperm.
         rewrite Z.mul_1_l in Hperm; auto.
-    + unfold funspec2pre; simpl.
-      if_tac; [|contradiction].
-      intros; subst.
-      destruct t as (? & ? & (((sh, buf), msg), k)); simpl in *.
-      destruct H2 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      unfold putchars_pre; split; auto; split; auto.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hreadable _] & _ & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
-      apply has_ext_eq in Htrace.
-      eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
-      split.
-      * symmetry.
-        eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | eauto]; subst; auto.
-      * (* data_at to bytes in mem *) admit.
   - unfold funspec2pre, funspec2post, dessicate; simpl.
     intros ?; if_tac.
     + intros; subst.
       destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
       destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & (((sh, buf), len), k)); simpl in *.
+      destruct t as (? & (((sh, buf), msg), k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (? & msg & ? & Hpost); subst.
+      destruct H4 as (Hmem & ? & ?); subst.
+      rewrite <- Hmem in *.
+      rewrite rebuild_same in H2.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      destruct buf; try solve [destruct Hbuf as [[]]; contradiction].
+      assert (res_predicates.noghost phir) as Hg.
+      { eapply data_at__VALspec_range; eauto.
+        apply data_at_data_at_ in Hbuf; eauto. }
+      destruct (join_level _ _ _ J).
+      split; [|split3].
+      * apply ghost_of_join, join_comm, Hg in J1.
+        rewrite J1 in Hgx.
+        eapply age_rejoin; eauto.
+        intro; rewrite H2; auto.
+      * split3; simpl.
+        { split; auto. }
+        { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
+        unfold SEPx; simpl.
+        rewrite seplog.sepcon_emp.
+        unshelve eexists (age_to.age_to _ (set_ghost phig _ _)), (age_to.age_to _ phir);
+          try (split; [apply age_to.age_to_join_eq|]); try apply set_ghost_join; eauto.
+        { unfold set_ghost; rewrite level_make_rmap; omega. }
+        split.
+        -- unfold ITREE; exists k; split; [apply Reflexive_eq_utt|].
+             eapply age_to.age_to_pred, change_has_ext; eauto.
+        -- apply age_to.age_to_pred; auto.
+      * eapply necR_trans; eauto; apply age_to.age_to_necR.
+      * rewrite H3; eexists; constructor; constructor.
+        instantiate (1 := (_, _)).
+        constructor; simpl; [|constructor; auto].
+        apply ext_ref_join.
+  + clear H.
+    unfold funspec2pre, funspec2post, dessicate; simpl.
+    if_tac; [|contradiction].
+    intros; subst.
+    destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
+    destruct t as (phi1 & t); subst; simpl in *.
+    destruct t as (? & (((sh, buf), len), k)); simpl in *.
+    unfold SEPx in Hpre; simpl in Hpre.
+    rewrite seplog.sepcon_emp in Hpre.
+    destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
+    pose proof (has_ext_eq _ _ Htrace) as Hgx.
+    destruct v; try contradiction.
+    destruct v; try contradiction.
+    destruct H4 as (? & msg & ? & Hpost); subst.
 
       (* need to make the new rmap with the data in it *)
       admit.
@@ -161,50 +206,7 @@ Proof.
         instantiate (1 := (_, _)).
         constructor; simpl; [|constructor; auto].
         apply ext_ref_join. *)
-    + unfold funspec2pre, funspec2post, dessicate; simpl.
-      if_tac; [|contradiction].
-      intros; subst.
-      destruct H1 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
-      destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & (((sh, buf), msg), k)); simpl in *.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hreadable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
-      pose proof (has_ext_eq _ _ Htrace) as Hgx.
-      destruct v; try contradiction.
-      destruct v; try contradiction.
-      destruct H5 as (Hmem & ? & ?); subst.
-      rewrite <- Hmem in *.
-      rewrite rebuild_same in H3.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
-      destruct buf; try solve [destruct Hbuf as [[]]; contradiction].
-      assert (res_predicates.noghost phir) as Hg.
-      { eapply data_at__VALspec_range; eauto.
-        apply data_at_data_at_ in Hbuf; eauto. }
-      destruct (join_level _ _ _ J).
-      split; [|split3].
-      * apply ghost_of_join, join_comm, Hg in J1.
-        rewrite J1 in Hgx.
-        eapply age_rejoin; eauto.
-        intro; rewrite H3; auto.
-      * split3; simpl.
-        { split; auto. }
-        { split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate. }
-        unfold SEPx; simpl.
-        rewrite seplog.sepcon_emp.
-        unshelve eexists (age_to.age_to _ (set_ghost phig _ _)), (age_to.age_to _ phir);
-          try (split; [apply age_to.age_to_join_eq|]); try apply set_ghost_join; eauto.
-        { unfold set_ghost; rewrite level_make_rmap; omega. }
-        split.
-        -- unfold ITREE; exists k; split; [apply Reflexive_eq_utt|].
-             eapply age_to.age_to_pred, change_has_ext; eauto.
-        -- apply age_to.age_to_pred; auto.
-      * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H4; eexists; constructor; constructor.
-        instantiate (1 := (_, _)).
-        constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
-Qed.
+Admitted.
 
 Instance mem_evolve_refl : Reflexive mem_evolve.
 Proof.
@@ -224,14 +226,14 @@ Proof.
     destruct v; try contradiction.
     destruct v; try contradiction.
     destruct Hpost; subst.
-    admit.
+    reflexivity.
   - if_tac in Hpre; [|contradiction].
     destruct w as (m0 & _ & (((?, ?), ?), ?)).
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.
     destruct Hpost; subst.
-    reflexivity.
-Qed.
+    admit.
+Admitted.
 
-End IO_dry.
+End IO_Dry.

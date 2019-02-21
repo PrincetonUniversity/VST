@@ -399,3 +399,39 @@ Proof.
     + rewrite Z2Nat.inj_succ; omega.
     + rep_omega.
 Qed.
+
+Check Mem.load_bytes.
+Lemma data_at_store_bytes : forall {CS : compspecs} sh z (bytes : list val) buf jm phi
+  (Hreadable : readable_share sh) (Hlen : z = Zlength bytes) (J : join_sub phi (m_phi jm))
+  (Hbuf : app_pred (data_at sh (tarray tuchar z) bytes buf) phi),
+  exists m0,
+    match buf with
+    | Vptr b ofs =>
+        store_byte_list m0 b (Ptrofs.unsigned ofs) bytes = Some (m_dry jm)
+    | _ => False
+   end.
+Proof.
+  intros.
+  destruct Hbuf as [[? _] Hbuf].
+  unfold at_offset in Hbuf.
+  destruct buf; try contradiction; simpl in Hbuf.
+  rewrite ptrofs_add_repr_0_r, data_at_rec_eq in Hbuf; simpl in Hbuf.
+  destruct Hbuf as [_ Hbuf].
+  rewrite Z.sub_0_r, Z.max_r in Hbuf by rep_omega.
+  clear H.
+  rewrite <- (ptrofs_add_repr_0_r i).
+  remember 0 as lo in |- *.
+  rewrite <- Heqlo in Hbuf at 1.
+  clear Heqlo.
+  remember (Z.to_nat z) as n; revert dependent z; revert dependent phi; revert lo.
+  induction n; simpl; intros; subst.
+  - rewrite ZtoNat_Zlength in Heqn.
+    symmetry in Heqn; apply length_zero_iff_nil in Heqn; subst; simpl.
+    eauto.
+  - destruct Hbuf as (? & ? & J' & Hbyte & Hbytes).
+    apply IHn in Hbytes; auto.
+Search length O.
+Focus 2.
+Search aggregate_pred.rangespec .
+  unfold at_offset in Hbuf.
+  Search data_at.

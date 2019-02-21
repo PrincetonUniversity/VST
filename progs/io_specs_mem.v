@@ -40,10 +40,7 @@ Proof.
   Exists tr; entailer!.
 Qed.
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-Definition putchars_spec := DECLARE _putchars
+Definition putchars_spec {CS : compspecs} :=
   WITH sh : share, buf : val, msg : list int, k : IO_itree
   PRE [ 1%positive OF tint ]
     PROP (readable_share sh)
@@ -54,7 +51,7 @@ Definition putchars_spec := DECLARE _putchars
     LOCAL (temp ret_temp (Vint (Int.repr (Zlength msg))))
     SEP (ITREE k; data_at sh (tarray tuchar (Zlength msg)) (map Vint msg) buf).
 
-Definition getchars_spec := DECLARE _getchars
+Definition getchars_spec {CS : compspecs} :=
   WITH sh : share, buf : val, len : Z, k : list int -> IO_itree
   PRE [ ]
     PROP (writable_share sh)
@@ -100,7 +97,8 @@ Definition newline := 10.
 (* Build the external specification. *)
 Definition IO_void_Espec : OracleKind := ok_void_spec IO_itree.
 
-Definition IO_specs (ext_link : string -> ident) :=
+Definition IO_specs {CS : compspecs} (ext_link : string -> ident) :=
   [(ext_link "putchars"%string, putchars_spec); (ext_link "getchars"%string, getchars_spec)].
 
-Definition IO_Espec (ext_link : string -> ident) : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
+Definition IO_Espec {CS : compspecs} (ext_link : string -> ident) : OracleKind :=
+  add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
