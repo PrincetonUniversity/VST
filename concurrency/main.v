@@ -21,15 +21,18 @@ Require Import VST.concurrency.common.threadPool.
 Require Import VST.concurrency.common.erased_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 
+Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Module Main (CC_correct: CompCert_correctness).
+Module Main
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
   (*Import the *)
   (*Import the safety of the compiler for concurrent programs*)
   
   (* Module ConcurCC_safe:= (SafetyStatement CC_correct). *)
-  Module ConcurCC_safe := (Concurrent_Safety CC_correct).
+  Module ConcurCC_safe := (Concurrent_Safety CC_correct Args).
   Import ConcurCC_safe.
 
   (*Importing the definition for ASM semantics and machines*)
@@ -268,12 +271,22 @@ Module CC_correct: CompCert_correctness.
   Axiom simpl_clight_semantic_preservation :
     forall (p : Clight.program) (tp : Asm.program),
       CompCert_compiler p = Some tp ->
-      ExposedSimulations.fsim_properties_inj (Clight.semantics2 p) (Asm.semantics tp)
+      ExposedSimulations.fsim_properties_inj_relaxed (Clight.semantics2 p) (Asm.semantics tp)
                                              Clight.get_mem Asm.get_mem.
 
 End CC_correct.
 
-Module Test_Main:= (Main CC_correct).
+Module ProgramArgs: ThreadSimulationArguments.
+
+  Parameter C_program: Clight.program.
+  Parameter Asm_program: Asm.program.
+  Definition Asm_g := (@x86_context.X86Context.the_ge Asm_program).
+  Parameter Asm_genv_safe: Asm_core.safe_genv Asm_g.
+    
+End ProgramArgs.
+
+
+Module Test_Main:= (Main CC_correct ProgramArgs).
 Import Test_Main.
 
 Check CSL2FineBareAsm_safety.

@@ -1220,7 +1220,8 @@ Module X86Inj.
     simpl.
     split; auto.
     apply regset_ren_set; auto.
-    apply Hinj.
+    - eapply regset_ren_set; auto; econstructor.
+    - apply Hinj.
   Qed.
 
   Lemma core_inj_halted :
