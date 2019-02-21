@@ -24,14 +24,19 @@ Require Import VST.concurrency.common.ClightMachine.
 (*Asm Machine*)
 Require Import VST.concurrency.common.x86_context.
 
-Module Concurrent_Safety (CC_correct: CompCert_correctness).
+
+Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
+
+Module Concurrent_Safety
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
   (*Import the Clight Hybrid Machine*)
   Import ClightMachine.
   Import DMS.
   (*Import the Asm X86 Hybrid Machine*)
   Import X86Context.
 
-  Module ConcurCC_correct:= (Concurrent_correctness CC_correct).
+  Module ConcurCC_correct:= (Concurrent_correctness CC_correct Args).
   Import ConcurCC_correct.
   
   Definition Clight_init_state (p: Clight.program):=

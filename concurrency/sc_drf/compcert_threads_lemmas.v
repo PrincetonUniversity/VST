@@ -146,7 +146,7 @@ Module SimDefs.
            Maps.PTree.get b' deltaMap' = None).
 
    
-  Definition delta_content_inj (f : memren) (deltaMap deltaMap' : delta_content) : Prop :=
+  Definition delta_content_inj (f : memren) (deltaMap deltaMap' : delta_map) : Prop :=
     (forall b b',
         f b = Some b' ->
         match Maps.PTree.get b deltaMap, Maps.PTree.get b' deltaMap' with
