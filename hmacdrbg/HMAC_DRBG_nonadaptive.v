@@ -13,6 +13,8 @@ Require Import Coq.Program.Wf.
 Require Import FCF.OracleCompFold.
 Require Import Permutation.
 Require Import FCF.Tactics.
+Require Import hmacdrbg.map_swap.        (* TODO move to top *)
+Require Import FCF.RndInList.
 
 (* Shortcuts for FCF tactics *)
 (* TODO remove / inline these *)
@@ -799,7 +801,7 @@ Proof.
     simplify. simpl in *.
     fcf_skip_eq; kv_exist.
     destruct (lt_dec n (n + S (length calls'))).
-    Focus 2. omega.
+    2: omega.
     + Transparent Generate_rb_intermediate.
       repeat (simplify; fcf_skip_eq; simplify).
     + simplify. destruct b.
@@ -1529,7 +1531,7 @@ Proof.
         simpl.
         assert (beq_nat i i = true) by apply Nat.eqb_refl.
         destruct (beq_nat i i).
-        Focus 2. inversion H.
+        2: inversion H.
         clear H.
         fcf_skip; kv_exist.
         instantiate (1 := (fun x y => fst x = fst (fst y) /\ snd x = snd (fst y))).
@@ -1685,7 +1687,7 @@ Proof.
         Transparent choose_Generate. Transparent Oi_oc'.
         simpl.
         destruct (lt_dec calls i).
-        Focus 2. omega.         (* contradiction *)
+        2: omega.         (* contradiction *)
         clear l.                (* calls < i *)
         unfold Generate_rb_intermediate.
         simplify.
@@ -2566,10 +2568,10 @@ Proof.
     + Opaque Oi_oc''. Opaque Oi_oc'''.
       simplify. Transparent Oi_oc''. simplify.
       (* intuitively, what should the calls < i proof look like? *)
-      destruct (lt_dec calls i). Focus 2. omega.
+      destruct (lt_dec calls i). 2: omega.
 
       (* calls < i *)
-      Transparent Oi_oc'''. simplify. destruct (lt_dec calls i). Focus 2. omega.
+      Transparent Oi_oc'''. simplify. destruct (lt_dec calls i). 2: omega.
       simplify.
 
       rewrite_r.
@@ -2675,9 +2677,7 @@ Proof.
       fcf_skip_eq; kv_exist.
       simplify.
       eapply comp_spec_eq_trans_r.
-      Focus 2.
-
-      instantiate (1 :=
+      2:{ instantiate (1 :=
                      (* Check ( *)
                          (res <-$ (k0 <-$ RndK;
                                        a0 <-$
@@ -2694,7 +2694,7 @@ Proof.
                                   ([resList, state'']<-2 z; $ ret (a1 :: resList, state''))
                                     (list (Blist * Bvector eta)) (list_EqDec (pair_EqDec eqdbl eqdbv))
                                     rb_oracle s'); ret a2)).
-       simplify. fcf_skip; kv_exist. simplify. fcf_skip_eq; kv_exist. 
+          simplify. fcf_skip; kv_exist. simplify. fcf_skip_eq; kv_exist. } 
 
       fcf_skip; kv_exist.
       fcf_ident_expand_l.
@@ -2819,7 +2819,7 @@ Proof.
       destruct (lt_dec i i). omega. 
       clear n.
       destruct (lt_dec i (S i)).
-      Focus 2. omega. clear l.
+      2: omega. clear l.
       assert (idec : i = 0 \/ i <> 0) by omega.
       destruct idec as [ itrue | ifalse].
       apply beq_nat_true_iff in itrue.
@@ -2999,11 +2999,11 @@ Proof.
       Transparent choose_Generate. Transparent Oi_oc'''.
       simpl.
       destruct (lt_dec calls i).
-      Focus 2. omega.         (* contradiction *)
+      2: omega.         (* contradiction *)
       clear l.                (* calls < i *)
       assert (H_calls_lt : calls < S i) by omega.
       destruct (lt_dec calls (S i)).
-      Focus 2. omega. 
+      2: omega. 
       fcf_skip; kv_exist.   (* Generate_rb_intermediate(_oc) *)
       (* postcondition: output keys are unchanged from input *)
       instantiate (1 := (fun x y => x = fst y /\ fst (snd x) = fst (snd (fst y)) = k)).
@@ -3946,12 +3946,12 @@ Proof.
     
     apply Permutation_hasDups.
 
-    eapply perm_trans. Focus 2.
-    instantiate (1 :=      (to_list skip_v
-      :: to_list v
-         :: map (to_list (n:=eta)) a ++ map (fst (B:=Bvector eta)) init)).
-     apply perm_swap. 
-     constructor.
+    eapply perm_trans. 
+    2:{ instantiate (1 := (to_list skip_v
+           :: to_list v
+           :: map (to_list (n:=eta)) a ++ map (fst (B:=Bvector eta)) init)).
+        apply perm_swap. } 
+    constructor.
 
     eapply perm_trans.
     instantiate (1 :=      ((map (to_list (n:=eta)) a ++
@@ -4062,7 +4062,6 @@ Proof.
     Opaque Vector.to_list.
 Qed.
 
-Require Import hmacdrbg.map_swap.        (* TODO move to top *)
 
 (* more general version of compMap_v_eq and compMap_v_eq_h, closer to the form of the induction *)
 Lemma compMap_v_eq_init_list_placeholder : forall (a b : Bvector eta) init blocks,
@@ -4150,7 +4149,7 @@ Proof.
       simplify.
 
       (* clean up left side *)
-      destruct (lt_dec callsSoFar i). Focus 2. omega.
+      destruct (lt_dec callsSoFar i). 2: omega.
       clear l.
 
       (* strip off first call on left side, since it doesn't use the oracle *)
@@ -4194,9 +4193,7 @@ Proof.
 
         (* replace v_prev with v, since the const vector in front doesn't matter *)
         eapply comp_spec_eq_trans_r.
-        Focus 2.
-
-        eapply (compMap_v_eq_init_list_placeholder v v_prev); auto.
+        2: eapply (compMap_v_eq_init_list_placeholder v v_prev); auto.
 
         eapply comp_spec_eq_trans_r.
         (* can get rid of following oracleCompMap *)
@@ -4231,9 +4228,9 @@ Proof.
 
         (* replace v_prev with v, since the const vector in front doesn't matter *)
         eapply comp_spec_eq_trans_r.
-        Focus 2.
-        unfold compMap_v_init.
-        eapply (compMap_v_eq_init_list_placeholder v v_prev); auto.
+        2:{ unfold compMap_v_init.
+            eapply (compMap_v_eq_init_list_placeholder v v_prev); auto. }
+
         (* pose proof (compMap_v_eq_init_list v v_prev init blocks nil) as compMap_v_eq_inner. *)
         (* destruct compMap_v_eq_inner as [ l_init compMap_v_eq_inner ]. *)
         (* eapply compMap_v_eq_inner. *)
@@ -4332,7 +4329,6 @@ Qed.
 
 (* probability of bad event happening in RB game is bounded by the probability of collisions in a list of length (n+1) of randomly-sampled (Bvector eta) *)
 
-Require Import FCF.RndInList.
 
 Theorem hasDups_cons_orb : 
   forall (A  : Set)(eqd : EqDec A)(ls : list A)(a : A),
@@ -4483,9 +4479,9 @@ Proof.
   - simpl. 
     simplify.
     destruct (lt_dec callsSoFar n) as [calls_lt_n | calls_gte_n].
-    Focus 2. omega. 
+    2: omega. 
     destruct (lt_dec callsSoFar (S n)) as [calls_lt_Sn | calls_gte_Sn].
-    Focus 2. omega.
+    2: omega.
     fcf_skip_eq; kv_exist.
     simplify. destruct b.
     apply IHlen'. auto. omega.

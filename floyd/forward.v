@@ -1003,7 +1003,7 @@ lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
     end
 end.
 
-Tactic Notation "forward_call" constr(witness) := fwd_call subsume_funspec_refl witness.
+Tactic Notation "forward_call" constr(witness) := fwd_call subsume_funspec_weak_refl witness.
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := fwd_call subsumes witness.
 
