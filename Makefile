@@ -614,13 +614,13 @@ C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
     bst.c field_loadstore.c float.c object.c \
     global.c min.c nest2.c nest3.c \
     logical_compare.c \
-    strlib.c switch.c union.c 
+    strlib.c switch.c union.c message.c
 V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
     verif_append2.v verif_bin_search.v \
     verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
     verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
     verif_logical_compare.v \
-    verif_strlib.v verif_switch.v verif_union.v 
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v
 progs64/%.c: progs/%.c
 	$(if $(findstring $(@F), $(C64_ORDINARY)), cp $< $@)
 
