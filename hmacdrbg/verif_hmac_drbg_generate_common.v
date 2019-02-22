@@ -1347,13 +1347,13 @@ Proof. intros.
       (* md_len < left *)
       forward.
       entailer!.
-      rewrite Z.min_l; [reflexivity | omega].
+      rewrite Z.min_l; [reflexivity | simpl; omega].
     }
     {
       (* md_len >= left *)
       forward.
       entailer!.
-      rewrite Z.min_r; [reflexivity | omega].
+      rewrite Z.min_r; [reflexivity | simpl; omega].
     }
     forward.
 
@@ -1670,7 +1670,11 @@ Proof. intros.
       { apply prop_right. repeat split; trivial.
         + subst. rewrite Zmin_spec.
           destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; omega.
-        + subst done_output. rewrite offset_offset_val; trivial.
+        + subst done_output. simpl. destruct output; simpl; auto.
+            f_equal. autorewrite with norm. 
+            assert (0 <= use_len <= 32); [ | rewrite Int.unsigned_repr by rep_omega; auto].
+            subst use_len; clear - Hdone DD.
+            destruct (Z.min_spec 32 (out_len - done)) as [[? ?]|[? ?]]; omega.
         + f_equal; f_equal. omega.
         + subst HLP. apply HMAC_DRBG_generate_helper_Z_Zlength_fst; trivial. apply hmac_common_lemmas.HMAC_Zlength. }
       subst done use_len. cancel. 

@@ -58,7 +58,13 @@ assert (exists HSalsaRes, hSalsaOut v =
 destruct H0 as [HSalsaRes HS]. rewrite HS.
 forward_call (c, v_s, offset_val 16 nonce, d, Nonce2, HSalsaRes, gv).
 { unfold SByte, Sigma_vector, ThirtyTwoByte.
-  destruct HSalsaRes as [q1 q2]. cancel. }
+  destruct HSalsaRes as [q1 q2].
+  replace (@field_at CompSpecs Tsh
+  (Tarray tuchar (Int64.unsigned d) noattr) [])
+  with (@data_at CompSpecs Tsh
+  (Tarray tuchar (Int64.unsigned d) noattr)).
+  cancel.
+  unfold data_at. extensionality z. reflexivity. }
 forward.
 unfold ThirtyTwoByte. entailer.
  Exists HSalsaRes. entailer. cancel.

@@ -204,7 +204,7 @@ Proof.
   destruct HH as [KEY VALUE]. unfold hmac256drbgstate_md_info_pointer; simpl.
   Exists KEY VALUE p (M1, (M2, M3)). normalize. simpl in *.
   apply andp_right.
-  { apply prop_right. split; trivial. split; trivial. }
+  { apply prop_right. split; trivial. }
   cancel. unfold REP. 
   Exists (info, (M2, p),
           (map Vubyte VALUE,
