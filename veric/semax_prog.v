@@ -368,9 +368,9 @@ apply now_later.
 rewrite HGG.
 clear - Hpclos H4 NK HDelta'.
 rewrite semax_fold_unfold in H4|-*. clear n NK. intros gx DD u KU [SUB GX] v UV BEL.
-assert (HDD: tycontext_subsume (func_tycontext f V G nil) DD).
+assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
 { unfold func_tycontext, func_tycontext'. simpl.
-  eapply tycontext_subsume_trans; eauto. }
+  eapply tycontext_sub_trans; eauto. }
 
 specialize (H4 gx DD u KU (conj HDD GX) v UV BEL).
 revert H4.
@@ -1420,14 +1420,17 @@ Proof.
       simpl.
       auto.
     + hnf; intros; intuition.
-    + hnf; intros; intuition.
+    + (*hnf; intros; intuition.
       unfold normal_ret_assert; simpl.
       extensionality rho'.
       normalize.
       unfold post'.
       apply pred_ext.
            normalize. intro rv. do 2 apply exp_right with rv; auto.
-           normalize. intro rv. apply exp_right with rv; auto. 
+           normalize. intro rv. apply exp_right with rv; auto. *)
+      intros rho' u U y UY k YK K.
+      unfold normal_ret_assert; simpl.
+      destruct K as [v [a1 [a2 [J [A1 [w A2]]]]]]. exists a1, a2; intuition. exists w; trivial.
     + rewrite (corable_funassert _ _).
       simpl m_phi.
       rewrite core_inflate_initial_mem'; auto.
@@ -1437,7 +1440,8 @@ Proof.
       unfold rho1; apply funassert_initial_core; auto.
       apply same_glob_funassert.
       reflexivity.
-    + intros ek vl tx' vx'.
+    + apply now_later.
+      intros ek vl tx' vx'.
       cbv zeta. rewrite proj_frame_ret_assert. simpl seplog.sepcon.
       subst post'. cbv beta.
       destruct ek; simpl proj_ret_assert; normalize.
@@ -1728,7 +1732,10 @@ Proof.
                        (temp_bindings 2 (map fst ((arg, Tpointer Tvoid noattr) :: nil))))).
   pose proof I.
   intros z.
-  evar (R : environ -> mpred).
+(*  evar (R : environ -> mpred).*)
+  set (R:= fun rho' => EX _ : val,
+           (EX x : val, emp * Q ts a (env_set (globals_only rho') ret_temp x))).
+
   eapply
     (semax_call_aux
        (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
@@ -1756,18 +1763,24 @@ Proof.
   intro.
   reflexivity.
 
-  (* equality of normal_ret_assert *)
+  (* equality of normal_ret_assert 
   unfold R.
   unfold normal_ret_assert; simpl.
   extensionality rho'.
   normalize.
-  reflexivity.
+  reflexivity.*)
+  
+  (*entailment of  normal_ret_assert *)
+  rewrite <- box_all. apply now_later. unfold R.
+  unfold normal_ret_assert. simpl. intros. destruct H2 as [v [a1 [a2 [J [HY [w HQ]]]]]].
+  exists v, w, a1, a2; auto.
 
   (* globalenv prog = cenv_cs *)
   destruct SP as [? [AL [HGG [[H2 H3] [GV _]]]]].
   rewrite HGG. reflexivity.
 
   (* safety: we conclude as we add an infinite loop at the end *)
+  apply now_later.
   intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert].
   apply own.bupd_intro; intros ora jm0 Heq <-.
   rewrite proj_frame_ret_assert in FrameRA. simpl seplog.sepcon in FrameRA.

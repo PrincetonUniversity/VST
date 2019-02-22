@@ -296,7 +296,7 @@ destruct a; destruct b; simpl in *; trivial; try discriminate.
 destruct a; destruct a0; subst; trivial. inv H0; trivial. 
 Qed.
 
-(*replaced by tycontext_subsume in expr.
+(*replaced by tycontext_subs in expr.
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
                  | None, _ => True

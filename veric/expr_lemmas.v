@@ -600,7 +600,7 @@ end.
 
 Lemma typecheck_tid_ptr_compare_sub:
    forall Delta Delta',
-    tycontext_subsume Delta Delta' ->
+    tycontext_sub Delta Delta' ->
     forall id, typecheck_tid_ptr_compare Delta id = true ->
                 typecheck_tid_ptr_compare Delta' id = true.
 Proof.

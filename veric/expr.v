@@ -1177,24 +1177,9 @@ Definition funsig_of_function (f: function) : funsig :=
    definition (and in NDsubsume_funspec). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ TT |-- subsume_funspec hspec gspec
+| Some hspec => exists gspec, y = Some gspec /\ TT |-- subsume_funspec gspec hspec (*contravariance!*)
 | None => True
 end. 
-
-Definition tycontext_subsume (Delta Delta' : tycontext) : Prop :=
- (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
-                 | None, _ => True
-                 | Some t, None => False
-                 | Some t, Some t' => t=t'
-                end)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
- /\ ret_type Delta = ret_type Delta'
- /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
-
- /\ (forall id, subsumespec ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
-
- /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).
-
 
 Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
      subsumespec x z.
@@ -1210,10 +1195,25 @@ Proof. unfold subsumespec.
  destruct x; trivial. exists f; split; [trivial| apply subsume_funspec_refl ].
 Qed.
 
-Lemma tycontext_subsume_trans:
+Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
+ (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
+                 | None, _ => True
+                 | Some t, None => False
+                 | Some t, Some t' => t=t'
+                end)
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
+
+ /\ (forall id, subsumespec ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
+
+ /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).
+
+
+Lemma tycontext_sub_trans:
  forall Delta1 Delta2 Delta3,
-  tycontext_subsume Delta1 Delta2 -> tycontext_subsume Delta2 Delta3 ->
-  tycontext_subsume Delta1 Delta3.
+  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
+  tycontext_sub Delta1 Delta3.
 Proof.
   intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
   repeat split.
@@ -1230,7 +1230,7 @@ Proof.
   * intros. eapply Annotation_sub_trans; eauto.
 Qed.
 
-Lemma tycontext_subsume_refl Delta: tycontext_subsume Delta Delta.
+Lemma tycontext_sub_refl Delta: tycontext_sub Delta Delta.
 Proof.
   repeat split; trivial.
   * intros. destruct ((temp_types Delta) ! id); trivial. 

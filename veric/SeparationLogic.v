@@ -29,7 +29,7 @@ Require Export VST.veric.Clight_lemmas.
 Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
 Require Export VST.veric.shares.
-(*exported by Clight_seplog:*) Require Import VST.veric.seplog.
+Require Export VST.veric.seplog.
 Require VST.veric.Clight_seplog.
 Require VST.veric.Clight_assert_lemmas.
 Require Import VST.msl.Coqlib2.
@@ -622,24 +622,25 @@ simpl;
 auto.
 Qed.
 
-Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).
+Definition func_ptr (f: funspec) (v: val): mpred := seplog.func_ptr f v.
 
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
-  intros.
-  unfold func_ptr.
+  intros. apply assert_lemmas.corable_func_ptr.
+(*  unfold func_ptr.
   apply corable_exp; intro.
-  apply corable_andp; auto.
-  apply assert_lemmas.corable_func_at.
+  apply corable_andp; auto. 
+  apply corable_exp; intro.
+  apply corable_andp. apply assert_lemmas.corable_subsume_funspec.
+  apply assert_lemmas.corable_func_at.*)
 Qed.
 
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-Proof.
+Proof. exact seplog.func_ptr_isptr. (*
   intros.
   unfold func_ptr.
   destruct spec.
-  normalize.
+  normalize.*)
 Qed.
 
 Definition NDmk_funspec (f: funsig) (cc: calling_convention)
@@ -649,36 +650,23 @@ Definition NDmk_funspec (f: funsig) (cc: calling_convention)
 
 Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
-Proof.
-  exact seplog.approx_func_ptr.
-Qed.
-(*This property is now called allp_fun_id_strong in Clight_assert_lemmas
-Definition allp_fun_id (Delta : tycontext): environ -> mpred :=
-(ALL id : ident ,
- (ALL fs : funspec ,
-  !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, local (`eq (fun rho => Map.get (ge_of rho) id) `(Some b)) && `(seplog.func_at fs (b, 0))))).*)
+Proof. exact seplog.approx_func_ptr. Qed.
 
-Definition allp_fun_id (Delta : tycontext) (rho: environ): mpred :=
-(ALL id : ident ,
- (ALL fs : funspec ,
+Definition allp_fun_id (Delta : tycontext) (rho : environ): mpred :=
+ALL id : ident, ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && 
-    match fs with
-    mk_funspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
-    end))).
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_ptr fs (Vptr b Ptrofs.zero)).
 
 Lemma corable_allp_fun_id: forall Delta rho,
   corable (allp_fun_id Delta rho).
 Proof.
   intros.
-  unfold allp_fun_id; simpl.
   apply corable_allp; intros id.
   apply corable_allp; intros fs.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  (*apply assert_lemmas.corable_func_at.*) destruct fs; apply assert_lemmas.corable_sigcc.
+  apply corable_func_ptr.
 Qed.
 
 Definition type_of_funsig (fsig: funsig) :=
@@ -1521,7 +1509,7 @@ Axiom semax_fun_id:
 Axiom semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
-       tycontext_subsume Delta Delta' ->
+       tycontext_sub Delta Delta' ->
      @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
 
 Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
