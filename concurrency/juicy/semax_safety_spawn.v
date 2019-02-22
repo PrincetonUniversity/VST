@@ -79,12 +79,12 @@ Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
   Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
-  expr.eval_id _args (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (_f :: _args :: nil) args) ->
+  eval_id _args (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (_f :: _args :: nil) args) ->
   exists arg1, args = arg1 :: v :: nil.
 Proof.
   intros Hargsty Nu.
   assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
-  unfold expr.eval_id.
+  unfold eval_id.
   unfold val_lemmas.force_val.
   intros Preb.
   match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
@@ -102,12 +102,12 @@ Lemma shape_of_args3 (F V : Type) (args : list val) v (ge : Genv.t F V) :
   Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
-  expr.eval_id _f (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (_f :: _args :: nil) args) ->
+  eval_id _f (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (_f :: _args :: nil) args) ->
   exists arg2, args = v :: arg2 :: nil.
 Proof.
   intros Hargsty Nu.
   assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
-  unfold expr.eval_id.
+  unfold eval_id.
   unfold val_lemmas.force_val.
   intros Preb.
   match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
@@ -246,8 +246,10 @@ Proof.
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
   assert (l01 : level phi01 = S n).
   { rewrite <-l0. apply join_sub_level. eexists; eauto. }
-
-  Import SeparationLogicSoundness.SoundSeparationLogic.CSL.
+Print Module SeparationLogicSoundness.VericSound.
+  Import SeparationLogic Clight_initial_world Clightdefs. 
+(*  Import VericMinimumSeparationLogic.CSHL_Defs *)
+(*   Import SeparationLogicSoundness.VericSound.CSHL_Defs. *)
   assert (phi01 = phi0). {
     eapply join_unit1_e; eauto.
     assumption.
@@ -289,7 +291,6 @@ Proof.
   }
 
   specialize (gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default).
-  rewrite func_ptr_def in Func.
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
 
@@ -477,7 +478,7 @@ clear - Initcore.
         now constructor.
 
         split.
-        unfold SeparationLogic.local, expr.lift1.
+        unfold SeparationLogic.local, lift1.
 
         split.
 
@@ -485,7 +486,7 @@ clear - Initcore.
         split.
         simpl.
         unfold liftx, lift. simpl.
-        unfold expr.eval_id in *.
+        unfold eval_id in *.
         unfold val_lemmas.force_val in *.
         unfold te_of in *.
         unfold construct_rho in *.
@@ -500,7 +501,7 @@ clear - Initcore.
         split3. hnf.
         clear - PreB3. destruct PreB3 as [PreB3 _].
         hnf in PreB3. rewrite PreB3; clear PreB3.
-        unfold Map.get, make_ext_args. unfold expr.env_set. 
+        unfold Map.get, make_ext_args. unfold env_set. 
         unfold ge_of.
         unfold filter_genv.
         extensionality i. unfold Genv.find_symbol. simpl. auto.
@@ -520,6 +521,14 @@ clear - Initcore.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
         apply FA.
+      * rewrite Ejm; simpl.
+         rewrite age_to_ghost_of.
+         destruct ora.
+         eapply join_sub_joins_trans, ext_join_approx, extcompat.
+         destruct (compatible_threadRes_sub cnti (juice_join compat)).
+         eapply join_sub_trans.
+         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
+         -- eexists; apply ghost_fmap_join, ghost_of_join; eauto.
 
     + (* safety of spawning thread *)
       subst j.
@@ -536,15 +545,20 @@ clear - Initcore.
         apply pures_eq_age_to. omega. }
 
       spec Post. (* Postcondition *)
-      { exists (age_to n phi00), (age_to n phi1); split3.
+      { exists (age_to n phi00), (age_to n phi1); split; [ | split3].
         - rewrite Ejm. apply age_to_join. auto.
         - split; auto. split; auto. split.
           apply prop_app_pred; auto.
           unfold canon.SEPx in *. simpl.
           apply age_to_pred. auto.
         - simpl.
-          apply necR_trans with phi1; auto.
-          apply age_to_necR.
+          apply necR_trans with phi1; [ |apply age_to_necR].
+          destruct necr; auto.
+        - destruct necr as [? JOINS].
+           rewrite Ejm, age_to_ghost_of.
+           destruct ora.
+           eapply join_sub_joins_trans; [|apply ext_join_approx, JOINS].
+           eexists; apply ghost_fmap_join, ghost_of_join; eauto.
       }
 
       destruct Post as (c'_ & afterex_ & safe').

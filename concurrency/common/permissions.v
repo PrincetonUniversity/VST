@@ -560,16 +560,40 @@ Qed.
           joins sh1 sh2 ->
           permDisjoint (perm_of_sh sh1) (perm_of_sh sh2).
   
+
+  Lemma writable0_not_join_readable:
+    forall sh1 sh2,
+      joins sh1 sh2 ->
+      writable0_share sh1 ->
+      ~ readable_share sh2.
+  Proof.
+    intros.
+    intro.
+    destruct H as [sh ?].
+    apply join_writable0_readable in H; eauto.
+ Qed.
+
+  Lemma writable0_not_join_writable0 :
+    forall sh1 sh2,
+      joins sh1 sh2 ->
+      writable0_share sh1 ->
+      ~ writable0_share sh2.
+   Proof.
+     intros. intro.
+    pose proof (writable0_not_join_readable H H0).
+    apply H2. auto.
+   Qed.
+
     Ltac joins_sh_contradiction_onside:=
       match goal with
       | [ H: joins ?sh1 ?sh2,
-             W1: writable_share ?sh1,
-                 W2: writable_share ?sh2 |- _ ] =>
-        exfalso; eapply writable_not_join_writable; eassumption
+             W1: writable0_share ?sh1,
+                 W2: writable0_share ?sh2 |- _ ] =>
+        exfalso; eapply writable0_not_join_writable0; eassumption
       | [ H: joins ?sh1 ?sh2,
-             W1: writable_share ?sh1,
+             W1: writable0_share ?sh1,
                  W2: readable_share ?sh2 |- _ ] =>
-        exfalso; eapply writable_not_join_readable; eassumption
+        exfalso; eapply writable0_not_join_readable; eassumption
       | [ H: joins Share.top ?sh2,
              H0: ?sh2 <> Share.bot |- _ ] =>
         exfalso; eapply H0; eapply only_bot_joins_top; eassumption
@@ -726,13 +750,13 @@ Qed.
   
   Ltac glb_contradictions:=
     repeat match goal with
-           | [ H: writable_share_dec _ = _ |- _ ] => clear H
+           | [ H: writable0_share_dec _ = _ |- _ ] => clear H
            end;
     match goal with
     | [ H:  Share.glb Share.Rsh ?sh = Share.top  |- _ ] =>
       exfalso; eapply glb_Rsh_not_top; eassumption
-    | [ H: writable_share (Share.glb Share.Rsh ?sh) |- _ ] =>
-      eapply writable_right in H
+    | [ H: writable0_share (Share.glb Share.Rsh ?sh) |- _ ] =>
+      eapply writable0_right in H
     end; join_sh_contradiction.
   
   Lemma joins_permDisjoint_lock: forall r1 r2,

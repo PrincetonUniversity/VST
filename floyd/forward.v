@@ -924,6 +924,14 @@ Use Intros to move the existentially bound variables above the line"
  end
 end.
 
+Ltac check_gvars :=
+  first [exact Logic.I
+         | reflexivity
+         | match goal with |- check_gvars_spec None (Some ?gv) =>
+              fail 100 "The function precondition requires (gvars" gv ")" "which is not present in your current assertion's LOCAL clause"
+           end
+         ].
+
 Ltac prove_call_setup subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
@@ -938,7 +946,7 @@ Ltac prove_call_setup subsumes witness :=
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
- | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | check_gvars
  | try change_compspecs CS; cancel_for_forward_call
  |
  ]
@@ -2275,15 +2283,15 @@ match goal with
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ =>
     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true)
     then (apply semax_if_seq; forward_if'_new)
-    else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+    else fail "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 | |- semax _ (@exp _ _ _ _) _ _ =>
-      fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
+      fail "First use Intros ... to take care of the EXistentially quantified variables in the precondition"
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
 | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ => 
-     fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
+     fail "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form"
 | |- semax _ _ (Ssequence (Sswitch _ _) _) _ => 
-     fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
+     fail "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop"
 end.
 
 Lemma ENTAIL_break_normal:
@@ -2877,10 +2885,13 @@ Ltac solve_return_inner_gen :=
       ]
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with
-      | Some _ => first [ simple apply return_inner_gen_canon_Some
-                        | simple apply return_inner_gen_canon_nil
+      | Some _ => first [ simple apply return_inner_gen_canon_Some;
+                          unfold VST_floyd_app; reflexivity
+                        | simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
-      | None   => first [ simple apply return_inner_gen_canon_nil
+      | None   => first [ simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
     | _ => first [ simple apply return_inner_gen_main
@@ -2931,12 +2942,12 @@ Ltac solve_Forall2_fn_data_at :=
 
 Ltac solve_canon_derives_stackframe :=
   solve
-    [ try unfold stackframe_of;
+    [ simple apply canonicalize_stackframe_emp
+    | try unfold stackframe_of;
       simple eapply canonicalize_stackframe;
       [ prove_local2ptree
       | solve_Forall2_fn_data_at
       ]
-    | simple apply canonicalize_stackframe_emp
     ].
 
 Ltac fold_frame_function_body :=
@@ -3072,22 +3083,22 @@ Ltac forward_advise_loop c :=
  try lazymatch c with
  | Sfor _ _ Sskip ?body =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward; forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Swhile _ ?body =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  | Sloop (Ssequence (Sifthenelse _ Sbreak Sskip) ?body) Sskip =>
         unify (nobreaksx body) true;
-        fail 100 "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+        fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
  end;
  lazymatch c with
   | Sfor _ ?test ?body ?incr  =>
        tryif (unify (nobreaksx body) true; test_simple_bound test incr)
-       then fail 100 "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+       then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv should not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
 Otherwise, you can use the general case: Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
-       else fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+       else fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
   | Sloop _ _ =>
-     fail 100 "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
+     fail "Use [forward_loop Inv] to prove this loop, where Inv is a loop invariant of type (environ -> mpred).  The [forward_loop] tactic will advise you if you need continue: or break: assertions in addition"
  end.
 
 Ltac forward_advise_for :=

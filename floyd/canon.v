@@ -985,6 +985,7 @@ Ltac gather_SEP' L :=
    try (intro r; unfold r; clear r)
  end.
 
+(* replaced by the new gather_SEP in freezer.v ...
 Tactic Notation "gather_SEP" constr(a) :=
   gather_SEP' (a::nil).
 Tactic Notation "gather_SEP" constr(a) constr(b) :=
@@ -1005,6 +1006,7 @@ Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) c
   gather_SEP' (a::b::c::d::e::f::g::h::i::nil).
 Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) :=
   gather_SEP' (a::b::c::d::e::f::g::h::i::j::nil).
+*)
 
 Fixpoint replace_nth {A} (n: nat) (al: list A) (x: A) {struct n}: list A :=
  match n, al with
@@ -2087,12 +2089,12 @@ Qed.
 Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
 | return_inner_gen_main: forall ov_gen P ts u,
     return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
-| return_inner_gen_canon_nil:
+| return_inner_gen_canon_nil':
     forall ov_gen P R,
       return_inner_gen S ov_gen
         (PROPx P (LOCALx nil (SEPx R)))
         (PROPx P (LOCALx nil (SEPx (R ++ S))))
-| return_inner_gen_canon_Some:
+| return_inner_gen_canon_Some':
     forall P v R v_gen,
       return_inner_gen S (Some v_gen)
         (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R)))
@@ -2111,6 +2113,24 @@ Proof.
   intro a; specialize (H a).
   destruct H as [? [? ?]]; subst.
   auto.
+Qed.
+
+Lemma return_inner_gen_canon_nil S: forall ov_gen P R Res,
+  PROPx P (LOCALx nil (SEPx (VST_floyd_app R S))) = Res ->
+  return_inner_gen S ov_gen (PROPx P (LOCALx nil (SEPx R))) Res.
+Proof.
+  intros.
+  subst Res.
+  apply return_inner_gen_canon_nil'.
+Qed.
+
+Lemma return_inner_gen_canon_Some S: forall P v R v_gen Res,
+  PROPx (VST_floyd_app P ((v_gen = v) :: nil)) (LOCALx nil (SEPx (VST_floyd_app R S))) = Res ->
+  return_inner_gen S (Some v_gen) (PROPx P (LOCALx (temp ret_temp v :: nil) (SEPx R))) Res.
+Proof.
+  intros.
+  subst Res.
+  apply return_inner_gen_canon_Some'.
 Qed.
 
 Lemma return_inner_gen_None_spec: forall S post1 post2,

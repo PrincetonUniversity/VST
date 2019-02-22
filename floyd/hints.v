@@ -323,6 +323,9 @@ Ltac hint_whatever :=
             try hint_allp_left A;
             try print_sumbool_hint (A |-- B)
  end;
+ try match goal with |- @eq mpred _ _ => 
+              idtac "Hint: try 'apply pred_ext'"
+      end;
  try match goal with
  | H: ?A = ?B |- _ => unify A B; idtac "Hint: hypothesis" H "is a tautology, perhaps 'clear" H "'"
  end;

@@ -285,7 +285,7 @@ Lemma invariant_thread_step
   (Stable : ext_spec_stable age Jspec)
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
   (envcoh : env_coherence Jspec ge Gamma Phi)
-  (extcompat : joins (ghost_of Phi) (Some (ext_ref tt, NoneP) :: nil))
+  (extcompat : joins (ghost_of Phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil))
   (compat : mem_compatible_with tp m Phi)
   (En : level Phi = S n)
   (lock_bound : lockSet_block_bound (lset tp) (Mem.nextblock m))

@@ -19,14 +19,14 @@ rewrite Float32.to_of_bits. auto.
 inv H0.
 Qed.
 
-
 Lemma NOT_decode_int32_float32:
+  Archi.ptr64=false ->
  ~ (forall (bl: list memval) (x: float32),
      size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
      decode_val Mint32 bl = Vint (Float32.to_bits x) ->
      decode_val Mfloat32 bl = Vsingle x).
 Proof.
-+
+intro Hp.
 intro.
 set (x := Float32.zero). (* nothing special about zero, any value would do *)
 set (i := Float32.to_bits x).
@@ -35,6 +35,7 @@ specialize (H bl x).
 specialize (H (eq_refl _)).
 assert (decode_val Mint32 bl = Vint (Float32.to_bits x)).
 unfold decode_val, bl.
+rewrite Hp.
 simpl.
 destruct (Val.eq (Vint i) (Vint i)); [ | congruence].
 destruct (quantity_eq Q32 Q32); [ | congruence].
@@ -45,7 +46,6 @@ clear - H. subst bl i.
 unfold decode_val in H.
 simpl in H. inversion H.
 Qed.
-
 
 Lemma decode_float32_iff_int32:
   forall (bl: list Memdata.memval) (x: float32),

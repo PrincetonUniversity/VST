@@ -92,7 +92,7 @@ Module ErasureSafety.
         eapply step_diagram in Hstep; try eassumption.
         destruct Hstep as [ds' [dinv' [MATCH' [dtr' stp']]]].
         destruct Hsafe as [[? [Hphi Hext]] Hsafe].
-        specialize (Hsafe _ Hphi [:: Some (initial_world.ext_ref tt, NoneP)])
+        specialize (Hsafe _ Hphi [:: Some (ghost_PCM.ext_ref tt, NoneP)])
           as (? & ? & ? & ? & Hr & ? & Hsafe); auto.
         { apply join_sub_refl. }
         eapply MTCH_tp_update in MATCH'; eauto.
@@ -112,7 +112,7 @@ Module ErasureSafety.
         { apply stp'. }
         intro U''; specialize (Hsafe U'').
         destruct Hsafe as [[? [Hphi Hext]] Hsafe].
-        specialize (Hsafe _ Hphi [:: Some (initial_world.ext_ref tt, NoneP)])
+        specialize (Hsafe _ Hphi [:: Some (ghost_PCM.ext_ref tt, NoneP)])
           as (? & ? & ? & ? & Hr & ? & Hsafe); auto.
         { apply join_sub_refl. }
         eapply MTCH_tp_update in MATCH'; eauto. }
@@ -184,8 +184,8 @@ Section DrySafety.
 
   Variable (CPROOF : CSL_proof).
 
-  Instance Sem : Semantics := ClightSemanticsForMachines.Clight_newSem (globalenv CPROOF.(CSL_prog)).
-  Definition ge := globalenv CPROOF.(CSL_prog).
+  Instance Sem : Semantics := ClightSemanticsForMachines.Clight_newSem (Clight.globalenv CPROOF.(CSL_prog)).
+  Definition ge := Clight.globalenv CPROOF.(CSL_prog).
   Instance DTP : threadPool.ThreadPool.ThreadPool := Parching.DTP ge.
   Instance DMS : HybridMachineSig.MachineSig := Parching.DMS ge.
   Definition init_mem := proj1_sig (init_mem CPROOF).

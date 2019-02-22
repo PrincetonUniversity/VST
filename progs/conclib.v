@@ -93,7 +93,7 @@ Proof.
 Qed.
 
 Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
-  upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vint 0) = complete MAX l.
+  upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vptrofs 0) = complete MAX l.
 Proof.
   intros; unfold complete.
   rewrite upd_Znth_app1 by (rewrite Zlength_app, ?Zlength_cons; rep_omega).
@@ -422,7 +422,7 @@ Proof.
   induction n; simpl; auto.
 Qed.
 
-Lemma Forall_complete : forall P l m, Forall P l -> P (vint 0) ->
+Lemma Forall_complete : forall P l m, Forall P l -> P (vptrofs 0) ->
   Forall P (complete m l).
 Proof.
   intros; unfold complete.
@@ -549,7 +549,7 @@ Proof.
 Qed.
 
 Lemma rotate_1 : forall v l n m, 0 <= n < m -> Zlength l < m ->
-  rotate (upd_Znth 0 (complete m (v :: l)) (vint 0)) n m =
+  rotate (upd_Znth 0 (complete m (v :: l)) (vptrofs 0)) n m =
   rotate (complete m l) ((n + 1) mod m) m.
 Proof.
   intros.

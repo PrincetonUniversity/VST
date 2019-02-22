@@ -360,7 +360,7 @@ Proof.
 intros.
 intros w [Hw Hw'] ? J.
 eexists; split; eauto; eexists; repeat split; eauto.
-intros ora jm ? ?. subst.
+intros ora jm Hora ? ?. subst.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn) as [phi' H1].
@@ -540,7 +540,7 @@ spec H1.
   do 3 red. split; auto.
   fold rho. rewrite prop_true_andp by auto. auto. }
 intros ? J; eexists; split; eauto; repeat eexists; auto.
-intros ora jm H7 H8. subst; clear H7.
+intros ora jm Hora H7 H8. subst; clear H7.
 destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn0) as [phi' ?].

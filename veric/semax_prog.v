@@ -1409,6 +1409,10 @@ Proof.
               _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
     + simpl.
+        unfold inflate_initial_mem; rewrite ghost_of_make_rmap.
+        unfold initial_core_ext; rewrite ghost_of_make_rmap.
+        exists (Some (ext_both z, NoneP) :: nil); repeat constructor.
+    + simpl.
       exists (Vptr b Ptrofs.zero).
       split; auto.
     + simpl snd.
@@ -1449,7 +1453,7 @@ Proof.
       normalize. intro rv.
       simpl.
       eapply derives_trans, own.bupd_intro.
-      intros ? ? ? ? _ ?.
+      intros ? ? ? ? Hora _ ?.
       destruct H9 as [[? [H10' [H11 ?]]] ?].
       hnf in H10', H11.
       destruct H9.
@@ -1643,7 +1647,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A
       app_pred (P ts a rho1) (m_phi jm) ->
 (*      (forall rho, app_pred (! (Q ts a rho >=> !!False)) (m_phi jm)) ->*)
       app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
-      forall z, jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
+      forall z, app_pred (ext_compat z) (m_phi jm) -> jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
   intros SP Findb id_in_G arg_p.
   destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & Believe) & _).
@@ -1731,11 +1735,9 @@ Proof.
             (PTree.set 1 (Vptr b Ptrofs.zero)
                        (temp_bindings 2 (map fst ((arg, Tpointer Tvoid noattr) :: nil))))).
   pose proof I.
-  intros z.
-(*  evar (R : environ -> mpred).*)
+  intros z HZ.
   set (R:= fun rho' => EX _ : val,
            (EX x : val, emp * Q ts a (env_set (globals_only rho') ret_temp x))).
-
   eapply
     (semax_call_aux
        (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
@@ -1782,7 +1784,7 @@ Proof.
   (* safety: we conclude as we add an infinite loop at the end *)
   apply now_later.
   intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert].
-  apply own.bupd_intro; intros ora jm0 Heq <-.
+  apply own.bupd_intro; intros ora jm0 Hora Heq <-.
   rewrite proj_frame_ret_assert in FrameRA. simpl seplog.sepcon in FrameRA.
   destruct ek; simpl proj_ret_assert in FrameRA;
    try solve [elimtype False; clear - FrameRA; destruct FrameRA as [? [? [? [[? ?] ?]]]]; contradiction];

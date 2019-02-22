@@ -25,6 +25,11 @@ Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.permissions.
 
+Import Ctypes. 
+Require Import compcert.cfrontend.Clight.
+Import Cop.
+Arguments sizeof {env} !t / .
+
 (*Semantics*)
 Require Import VST.veric.Clight_new.
 Require Import VST.veric.Clightnew_coop.
@@ -40,6 +45,7 @@ Lemma extcall_malloc_sem_inv: forall g v m t res m2 (E:Events.extcall_malloc_sem
                            Mem.alloc m (- size_chunk Mptr) (Ptrofs.unsigned sz) = (m1, b) /\
                            Mem.store Mptr m1 b (- size_chunk Mptr) (Vptrofs sz) = Some m2. 
 Proof. intros.  inv E. exists m', b, sz. intuition. Qed.
+
 
 Inductive deref_locT (ty : type) (m : mem) (b : block) (ofs : ptrofs) : val -> list mem_event -> Prop :=
     deref_locT_value : forall (chunk : memory_chunk) bytes,
@@ -338,16 +344,16 @@ Inductive assign_locT (ce : composite_env) (ty : type) (m : mem) (b : block) (of
                        assign_locT ce ty m b ofs v m' (Write b (Ptrofs.unsigned ofs) (encode_val chunk v) ::nil)
   | assign_locT_copy : forall (b' : block) (ofs' : ptrofs) (bytes : list memval) (m' : mem),
                       access_mode ty = By_copy ->
-                      (sizeof ty > 0 -> (alignof_blockcopy ce ty | Ptrofs.unsigned ofs')) ->
-                      (sizeof ty > 0 -> (alignof_blockcopy ce ty | Ptrofs.unsigned ofs)) ->
+                      (@sizeof ce ty > 0 -> (alignof_blockcopy ce ty | Ptrofs.unsigned ofs')) ->
+                      (@sizeof ce ty > 0 -> (alignof_blockcopy ce ty | Ptrofs.unsigned ofs)) ->
                       b' <> b \/
                       Ptrofs.unsigned ofs' = Ptrofs.unsigned ofs \/
-                      Ptrofs.unsigned ofs' + sizeof ty <= Ptrofs.unsigned ofs \/
-                      Ptrofs.unsigned ofs + sizeof ty <= Ptrofs.unsigned ofs' ->
-                      Mem.loadbytes m b' (Ptrofs.unsigned ofs') (sizeof ty) = Some bytes ->
+                      Ptrofs.unsigned ofs' + @sizeof ce ty <= Ptrofs.unsigned ofs \/
+                      Ptrofs.unsigned ofs + @sizeof ce ty <= Ptrofs.unsigned ofs' ->
+                      Mem.loadbytes m b' (Ptrofs.unsigned ofs') (@sizeof ce ty) = Some bytes ->
                       Mem.storebytes m b (Ptrofs.unsigned ofs) bytes = Some m' ->
                       assign_locT ce ty m b ofs (Vptr b' ofs') m'
-                                  (Read b' (Ptrofs.unsigned ofs') (sizeof ty) bytes ::
+                                  (Read b' (Ptrofs.unsigned ofs') (@sizeof ce ty) bytes ::
                                    Write b (Ptrofs.unsigned ofs) bytes :: nil).
 
 Lemma assign_locT_ax1 ce ty m b ofs v m' T (A:assign_locT ce ty m b ofs v m' T):
