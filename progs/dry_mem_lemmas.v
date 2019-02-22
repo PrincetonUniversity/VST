@@ -4,105 +4,12 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.progs.conclib.
+Require Import VST.veric.SequentialClight.
+Require Import VST.veric.mem_lessdef.
 
 (* functions on byte arrays and CompCert mems *)
-Fixpoint store_byte_list m b ofs lv :=
-  match lv with
-  | [] => Some m
-  | v :: lv => match Mem.store Mint8unsigned m b ofs v with
-               | Some m' => store_byte_list m' b (ofs + 1)%Z lv
-               | None => None
-               end
-  end.
-
-Lemma store_byte_list_access : forall m b ofs v m',
-  store_byte_list m b ofs v = Some m' ->
-  Memory.access_at m = Memory.access_at m'.
-Proof.
-  intros until v; revert m ofs; induction v; simpl; intros.
-  - inv H; auto.
-  - destruct (Mem.store _ _ _ _ _) eqn: Hstore; [|discriminate].
-    rewrite (Memory.store_access _ _ _ _ _ _ Hstore); eauto.
-Qed.
-
-Lemma store_byte_list_nextblock : forall m b ofs v m',
-  store_byte_list m b ofs v = Some m' ->
-  Mem.nextblock m' = Mem.nextblock m.
-Proof.
-  intros until v; revert m ofs; induction v; simpl; intros.
-  - inv H; auto.
-  - destruct (Mem.store _ _ _ _ _) eqn: Hstore; [|discriminate].
-    etransitivity; [|eapply Mem.nextblock_store; eauto]; eauto.
-Qed.
-
-Lemma store_byte_list_contents : forall m b ofs v m',
-  store_byte_list m b ofs v = Some m' ->
-  forall b' ofs',
-    (b=b' /\ ofs <= ofs' < ofs + Zlength v) \/
-     contents_at m (b', ofs') = contents_at m' (b', ofs').
-Proof.
-  intros until v; revert m ofs; induction v; simpl; intros.
-  - inv H; auto.
-  - destruct (Mem.store _ _ _ _ _) eqn: Hstore; [|discriminate].
-    rewrite Zlength_cons.
-    destruct (IHv _ _ _ H b' ofs') as [(? & ? & ?) | <-];
-      [left; split; auto; split; auto; omega|].
-    destruct (eq_block b b').
-    subst b'.
-    assert (ofs <= ofs' < ofs + Z.succ (Zlength v) \/
-      (ofs' < ofs \/ ofs' >= ofs + Z.succ (Zlength v))) as [? | ?] by omega; auto.
-    right.
-    unfold contents_at; rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore); simpl.
-    rewrite PMap.gss.
-    rewrite Mem.setN_other; auto.
-    intro; rewrite encode_val_length; simpl.
-    pose proof Zlength_nonneg v; omega.
-    { right.
-      unfold contents_at; rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore); simpl.
-      rewrite PMap.gso by auto. auto. }
-Qed.
-
-Lemma store_byte_list_contents' : forall jm b ofs v m' loc' rsh sh mv,
-  store_byte_list (m_dry jm) b ofs v = Some m' ->
-  ~ adr_range (b, ofs) (Zlength v) loc'
-  -> (m_phi jm) @ loc' = YES rsh sh (VAL mv) NoneP -> contents_at m' loc' = mv.
-Proof.
-destruct jm. simpl.
-intros.
-destruct loc' as (b', ofs').
-destruct (store_byte_list_contents _ _ _ _ _ H b' ofs') as [|<-]; [contradiction|].
-eapply JMcontents; eauto.
-Qed.
-
-Definition store_byte_list_juicy_mem jm m' b ofs v
-  (Hstore : store_byte_list (m_dry jm) b ofs v = Some m') : juicy_mem.
-Proof.
- refine (mkJuicyMem m' (inflate_store m' (m_phi jm)) _ _ _ _).
-(* contents_cohere *)
-intros rsh sh' v' loc' pp H2.
-unfold inflate_store in H2; rewrite resource_at_make_rmap in H2.
-destruct (m_phi jm @ loc'); try destruct k; try solve [inversion H2].
-inversion H2; auto.
-(* access_cohere *)
-intro loc; generalize (juicy_mem_access jm loc); intro H0.
-unfold inflate_store; rewrite resource_at_make_rmap.
-rewrite <- (store_byte_list_access _ _ _ _ _ Hstore).
-destruct (m_phi jm @ loc); try destruct k; auto.
-(* max_access_cohere *)
-intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
-unfold inflate_store; rewrite resource_at_make_rmap.
-unfold max_access_at in *.
-rewrite <- (store_byte_list_access _ _ _ _ _ Hstore).
-apply store_byte_list_nextblock in Hstore.
-destruct (m_phi jm @ loc); auto.
-destruct k; simpl; try assumption.
-(* alloc_cohere *)
-hnf; intros.
-unfold inflate_store. rewrite resource_at_make_rmap.
-generalize (juicy_mem_alloc_cohere jm loc); intro.
-rewrite (store_byte_list_nextblock _ _ _ _ _ Hstore) in H.
-rewrite (H0 H). auto.
-Defined.
+Definition store_byte_list m b ofs lv :=
+  Mem.storebytes m b ofs (concat (map (encode_val Mint8unsigned) lv)).
 
 Lemma has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
   ghost_of phi = [Some (ext_ghost z, NoneP)].
@@ -252,6 +159,25 @@ Proof.
     apply J.
 Qed.
 
+Lemma access_at_readable : forall m b o sh (Hsh : readable_share sh),
+  access_at m (b, o) Cur = perm_of_sh sh ->
+  Mem.perm m b o Cur Readable.
+Proof.
+  unfold access_at, perm_of_sh, Mem.perm; intros.
+  simpl in H; rewrite H.
+  if_tac; if_tac; constructor || contradiction.
+Qed.
+
+Lemma access_at_writable : forall m b o sh (Hsh : writable_share sh),
+  access_at m (b, o) Cur = perm_of_sh sh ->
+  Mem.perm m b o Cur Writable.
+Proof.
+  unfold access_at, perm_of_sh, Mem.perm; intros.
+  simpl in H; rewrite H.
+  apply writable_writable0 in Hsh.
+  if_tac; if_tac; constructor || contradiction.
+Qed.
+
 Lemma memory_block_writable_perm : forall sh n b ofs r jm, writable_share sh ->
   (0 <= ofs)%Z -> (Z.of_nat n + ofs < Ptrofs.modulus)%Z ->
   app_pred (mapsto_memory_block.memory_block' sh n b ofs) r -> sepalg.join_sub r (m_phi jm) ->
@@ -267,17 +193,11 @@ Proof.
   pose proof (juicy_mem_access jm (b, ofs0)) as Hperm.
   rewrite Hb in J; inversion J; subst; simpl in *.
   - rewrite <- H8 in Hperm; simpl in Hperm.
-    unfold perm_of_sh in Hperm.
+    eapply access_at_writable, Hperm.
     apply join_writable1 in RJ; auto.
-    destruct (writable0_share_dec _); [|destruct RJ; contradiction].
-    destruct (eq_dec _ _); [|apply Memory.access_perm; auto].
-    eapply Mem.perm_implies; [apply Memory.access_perm; eauto | constructor].
   - rewrite <- H8 in Hperm; simpl in Hperm.
-    unfold perm_of_sh in Hperm.
+    eapply access_at_writable, Hperm.
     apply join_writable1 in RJ; auto.
-    destruct (writable0_share_dec _); [|destruct RJ; contradiction].
-    destruct (eq_dec _ _); [|apply Memory.access_perm; auto].
-    eapply Mem.perm_implies; [apply Memory.access_perm; eauto | constructor].
   - apply shares.writable_readable in H; contradiction.
 Qed.
 
@@ -400,38 +320,410 @@ Proof.
     + rep_omega.
 Qed.
 
-Check Mem.load_bytes.
-Lemma data_at_store_bytes : forall {CS : compspecs} sh z (bytes : list val) buf jm phi
+Lemma data_at_bytes : forall {CS : compspecs} sh z (bytes : list val) buf jm phi
   (Hreadable : readable_share sh) (Hlen : z = Zlength bytes) (J : join_sub phi (m_phi jm))
-  (Hbuf : app_pred (data_at sh (tarray tuchar z) bytes buf) phi),
-  exists m0,
-    match buf with
-    | Vptr b ofs =>
-        store_byte_list m0 b (Ptrofs.unsigned ofs) bytes = Some (m_dry jm)
-    | _ => False
-   end.
+  (Hbuf : app_pred (data_at sh (tarray tuchar z) bytes buf) phi)
+  (Hdef : Forall (fun x => x <> Vundef) bytes),
+  match buf with
+  | Vptr b ofs =>
+      Mem.loadbytes (m_dry jm) b (Ptrofs.unsigned ofs) z =
+        Some (concat (map (encode_val Mint8unsigned) bytes))
+  | _ => False
+ end.
 Proof.
   intros.
-  destruct Hbuf as [[? _] Hbuf].
+  destruct Hbuf as [(Hptr & _ & Hlim & _) Hbuf].
   unfold at_offset in Hbuf.
   destruct buf; try contradiction; simpl in Hbuf.
   rewrite ptrofs_add_repr_0_r, data_at_rec_eq in Hbuf; simpl in Hbuf.
+  unfold unfold_reptype in *; simpl in *.
   destruct Hbuf as [_ Hbuf].
   rewrite Z.sub_0_r, Z.max_r in Hbuf by rep_omega.
-  clear H.
-  rewrite <- (ptrofs_add_repr_0_r i).
+  clear Hptr.
+  erewrite <- (sublist_same _ _ bytes) by eauto.
+  rewrite <- (Z.add_0_r (Ptrofs.unsigned i)).
+  rewrite <- (Z.add_0_r z) at 2.
   remember 0 as lo in |- *.
+  assert (0 <= lo) by omega.
   rewrite <- Heqlo in Hbuf at 1.
-  clear Heqlo.
-  remember (Z.to_nat z) as n; revert dependent z; revert dependent phi; revert lo.
-  induction n; simpl; intros; subst.
-  - rewrite ZtoNat_Zlength in Heqn.
-    symmetry in Heqn; apply length_zero_iff_nil in Heqn; subst; simpl.
-    eauto.
-  - destruct Hbuf as (? & ? & J' & Hbyte & Hbytes).
-    apply IHn in Hbytes; auto.
-Search length O.
-Focus 2.
-Search aggregate_pred.rangespec .
-  unfold at_offset in Hbuf.
-  Search data_at.
+  remember (Z.to_nat z) as n.
+  rewrite <- (Z2Nat.id z), <- Heqn by rep_omega.
+  assert (lo + Z.of_nat n = Zlength bytes) by (subst; rewrite Z2Nat.id; rep_omega).
+  assert (Ptrofs.unsigned i + Zlength bytes < Ptrofs.modulus).
+  { rewrite Z.max_r in Hlim by rep_omega; omega. }
+  clear Heqlo Hlen.
+  clear dependent z.
+  revert dependent phi; revert dependent lo.
+  induction n; intros; subst.
+  - unfold sublist; simpl.
+    rewrite Z.add_0_l, Zminus_diag.
+    apply Mem.loadbytes_empty; reflexivity.
+  - simpl in Hbuf.
+    destruct Hbuf as (phi0 & ? & J' & Hbyte & Hbytes).
+    rewrite Nat2Z.inj_succ in *.
+    apply IHn in Hbytes; try omega.
+    rewrite sublist_next by omega; simpl.
+    unfold Z.succ in *; rewrite (Z.add_comm _ 1) in *.
+    apply Mem.loadbytes_concat; try omega.
+    clear Hbytes.
+    unfold at_offset in Hbyte; simpl in Hbyte.
+    rewrite data_at_rec_eq in Hbyte; simpl in Hbyte.
+    unfold unfold_reptype, mapsto in Hbyte; simpl in Hbyte.
+    rewrite if_true in Hbyte by auto.
+    destruct Hbyte as [[? Hbyte] | [? Hbyte]].
+    destruct Hbyte as (mv & ((? & Hdecode & _) & Hbyte) & _); subst.
+    specialize (Hbyte (b, Ptrofs.unsigned i + lo)); simpl in Hbyte.
+    replace (Ptrofs.unsigned (Ptrofs.add _ _)) with (Ptrofs.unsigned i +lo) in Hbyte.
+    rewrite if_true in Hbyte by (split; auto; omega).
+    destruct Hbyte as [? Hval].
+    rewrite Zminus_diag in Hval.
+    destruct mv; try discriminate.
+    unfold decode_val in Hdecode; simpl in *.
+    rewrite Z.sub_0_r in *.
+    apply Forall_Znth with (i0 := lo) in Hdef; try omega.
+    setoid_rewrite <- Hdecode in Hdef.
+    destruct m; try contradiction; clear Hdef.
+    destruct mv; try discriminate; simpl in *.
+    setoid_rewrite <- Hdecode; simpl.
+    assert (join_sub phi0 (m_phi jm)) as [? J0].
+    { eapply join_sub_trans; [eexists|]; eauto. }
+    Transparent Mem.loadbytes.
+    unfold Mem.loadbytes.
+    Opaque Mem.loadbytes.
+    destruct jm; simpl in *.
+    assert (exists sh1 rsh1, phi1 @ (b, Ptrofs.unsigned i + lo) = YES sh1 rsh1 (VAL (Byte i0)) NoneP) as (? & ? & Hr).
+    { apply (resource_at_join _ _ _ (b, Ptrofs.unsigned i + lo)) in J0.
+      rewrite Hval in J0; inv J0; eauto. }
+    specialize (JMaccess (b, Ptrofs.unsigned i + lo)); rewrite Hr in JMaccess; simpl in JMaccess.
+    apply JMcontents in Hr as [Hr _].
+    rewrite if_true.
+    unfold contents_at in Hr; simpl in Hr.
+    rewrite Hr.
+    unfold decode_int; simpl.
+    rewrite rev_if_be_singleton; simpl.
+    assert (0 <= Byte.unsigned i0 <= Int.max_unsigned) by rep_omega.
+    rewrite Z.add_0_r, zero_ext_inrange, Int.unsigned_repr; auto.
+    unfold encode_int; simpl.
+    rewrite rev_if_be_singleton; simpl.
+    rewrite Byte.repr_unsigned; auto.
+    * rewrite Int.unsigned_repr by auto.
+      destruct (Byte.unsigned_range i0) as [_ Hmax].
+      unfold Byte.modulus in Hmax.
+      unfold Byte.wordsize, Wordsize_8.wordsize in Hmax.
+      rewrite two_power_nat_two_p in Hmax; simpl Z.of_nat in Hmax; omega.
+    * unfold Mem.range_perm; intros.
+      unfold Mem.perm.
+      assert (ofs = Ptrofs.unsigned i + lo) by omega; subst.
+      unfold access_at in JMaccess; simpl in JMaccess; rewrite JMaccess.
+      unfold perm_of_sh.
+      if_tac; if_tac; try constructor; contradiction.
+    * unfold Ptrofs.add.
+      setoid_rewrite Ptrofs.unsigned_repr at 2; [|rep_omega].
+      rewrite Ptrofs.unsigned_repr; rep_omega.
+    * apply Forall_Znth with (i0 := lo - 0) in Hdef; try omega; contradiction.
+    * rewrite Z.add_assoc in *.
+      replace (1 + Z.of_nat n + lo) with (Z.of_nat n + (lo + 1)) by omega; auto.
+    * eapply join_sub_trans; [eexists|]; eauto.
+Qed.
+
+(* up *)
+Lemma perm_order_antisym : forall p p', perm_order p p' -> perm_order p' p -> p = p'.
+Proof.
+  inversion 1; auto; inversion 1; auto.
+Qed.
+
+Lemma mem_equiv_access : forall m m', mem_equiv m m' -> access_at m = access_at m'.
+Proof.
+  intros ?? (_ & Hperm & _).
+  unfold Mem.perm in Hperm.
+  extensionality l.
+  destruct l as (b, o).
+  extensionality k.
+  apply equal_f with b, equal_f with o, equal_f with k in Hperm.
+  unfold access_at; simpl.
+  destruct (_ !! _).
+  - pose proof (equal_f Hperm p) as Hp; simpl in *.
+    pose proof (perm_refl p) as Hrefl; rewrite Hp in Hrefl.
+    destruct (_ !! _); [simpl in * | contradiction].
+    f_equal; apply perm_order_antisym; auto.
+    apply equal_f with p0 in Hperm.
+    rewrite Hperm; apply perm_refl.
+  - destruct (_ !! _); auto.
+    apply equal_f with p in Hperm; simpl in Hperm.
+    pose proof (perm_refl p) as Hrefl; rewrite <- Hperm in Hrefl; contradiction.
+Qed.
+
+Lemma mem_equiv_contents : forall m m' b o (Heq : mem_equiv m m')
+  (Hreadable : Mem.perm m b o Cur Readable),
+  contents_at m (b, o) = contents_at m' (b, o).
+Proof.
+  intros ???? (Hload & Hperm & _) ?.
+  Transparent Mem.loadbytes.
+  unfold Mem.loadbytes in Hload.
+  Opaque Mem.loadbytes.
+  apply equal_f with b, equal_f with o, equal_f with 1 in Hload.
+  unfold contents_at; simpl.
+  rewrite 2if_true  in Hload.
+  inv Hload; auto.
+  { unfold Mem.range_perm.
+    intros; assert (ofs = o) by omega; subst.
+    rewrite <- Hperm; auto. }
+  { unfold Mem.range_perm.
+    intros; assert (ofs = o) by omega; subst; auto. }
+Qed.
+
+Lemma mem_evolve_access : forall m1 m2, access_at m1 = access_at m2 -> mem_evolve m1 m2.
+Proof.
+  intros; unfold mem_evolve.
+  intro; rewrite H.
+  destruct (access_at _ _ _); auto.
+  destruct p; auto.
+Qed.
+
+Lemma mem_evolve_equiv1 : forall m1 m2 m1', mem_evolve m1 m2 -> mem_equiv m1 m1' -> mem_evolve m1' m2.
+Proof.
+  unfold mem_evolve; intros.
+  rewrite <- (mem_equiv_access _ _ H0); apply H.
+Qed.
+
+Lemma mem_evolve_equiv2 : forall m1 m2 m2', mem_evolve m1 m2 -> mem_equiv m2 m2' -> mem_evolve m1 m2'.
+Proof.
+  unfold mem_evolve; intros.
+  rewrite <- (mem_equiv_access _ _ H0); apply H.
+Qed.
+
+Definition mem_equiv_jm jm m (Heq : mem_equiv (m_dry jm) m) :
+  {jm' | level jm' = level jm /\ m_dry jm' = m /\ m_phi jm' = m_phi jm}.
+Proof.
+  destruct jm; simpl in *.
+  unshelve eexists (mkJuicyMem m phi _ _ _ _); simpl; auto.
+  - unfold contents_cohere in *; intros.
+    destruct (JMcontents _ _ _ _ _ H) as []; subst; split; auto.
+    symmetry; apply mem_equiv_contents; auto.
+    specialize (JMaccess loc).
+    rewrite H in JMaccess; simpl in JMaccess.
+    apply access_at_readable in JMaccess; auto.
+  - unfold access_cohere in *; intros.
+    erewrite <- JMaccess, <- mem_equiv_access; eauto.
+  - unfold max_access_cohere in *; intros.
+    unfold max_access_at in *.
+    erewrite <- mem_equiv_access; eauto.
+  - unfold alloc_cohere in *.
+    destruct Heq as (_ & _ & <-); auto.
+Defined.
+
+(* up *)
+Lemma has_ext_noat : forall {Z} (z : Z), has_ext z |-- ALL x : _, res_predicates.noat x.
+Proof.
+  intros; unfold has_ext, own.own.
+  apply exp_left; intro.
+  apply andp_left1; auto.
+Qed.
+
+Lemma inflate_store_join1 : forall phi1 phi2 phi3 m (J : join phi1 phi2 phi3)
+  (Hno : app_pred (ALL x : _, res_predicates.noat x) phi1),
+  join phi1 (inflate_store m phi2) (inflate_store m phi3).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J).
+  apply resource_at_join2; intros; unfold inflate_store;
+    rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; try apply ghost_of_join; auto.
+  apply (resource_at_join _ _ _ loc) in J.
+  specialize (Hno loc).
+  apply empty_NO in Hno as [Hno | (? & ? & Hno)]; rewrite Hno in *; inv J; try constructor; auto.
+  rewrite H0.
+  destruct k; constructor; auto.
+Qed.
+
+Lemma inflate_store_join : forall phi1 phi2 phi3 m (J : join phi1 phi2 phi3),
+  join (inflate_store m phi1) (inflate_store m phi2) (inflate_store m phi3).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J) as [H1 H2].
+  apply resource_at_join2; intros; unfold inflate_store;
+    rewrite ?level_make_rmap, ?resource_at_make_rmap, ?ghost_of_make_rmap; try apply ghost_of_join; auto.
+  apply (resource_at_join _ _ _ loc) in J.
+  rewrite H1, H2.
+  inv J; try constructor; auto; destruct k; constructor; auto.
+Qed.
+
+Lemma rebuild_store : forall jm0 phi m m' b o lv phi0 phi1 loc
+  (Hlevel : (level phi <= level (m_phi jm0))%nat)
+  (Hrebuild : compcert_rmaps.R.resource_at phi =
+     compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level phi))
+       (compcert_rmaps.R.approx (level phi))
+     oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 m)
+  (Hstore : Mem.storebytes (m_dry jm0) b o lv = Some m') (Heq : mem_equiv m m')
+  (J : join phi0 phi1 (m_phi jm0))
+  (Hout1 : forall l sh rsh k p, phi1 @ l = YES sh rsh k p -> ~ adr_range (b, o) (Zlength lv) l),
+  join (age_to.age_to (level phi) (inflate_store m' phi0) @ loc)
+         (age_to.age_to (level phi) phi1 @ loc) (phi @ loc).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J).
+  rewrite Hrebuild, !age_to_resource_at.age_to_resource_at.
+  unfold compose, inflate_store, juicy_mem_lemmas.rebuild_juicy_mem_fmap; rewrite !resource_at_make_rmap.
+  apply (resource_at_join _ _ _ loc) in J.
+  inv J; try constructor.
+  - rewrite if_false; [constructor; auto|].
+    erewrite mem_equiv_access by eauto.
+    erewrite <- storebytes_access by eauto.
+    destruct jm0; simpl in *.
+    rewrite (JMaccess loc), <- H4; simpl.
+    if_tac; auto.
+    intro X; inv X.
+  - destruct k; try (rewrite resource_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; constructor; auto).
+    destruct jm0; simpl in *.
+    pose proof (JMaccess loc) as Haccess.
+    rewrite <- H4 in Haccess; simpl in Haccess.
+    erewrite storebytes_access, <- mem_equiv_access in Haccess by eauto.
+    destruct loc as (b', o').
+    erewrite <- mem_equiv_contents; eauto.
+    rewrite Haccess, if_true.
+    constructor; auto.
+    { unfold perm_of_sh.
+      if_tac; if_tac; constructor || contradiction. }
+    { eapply access_at_readable; eauto. }
+  - destruct k; try (constructor; auto).
+    pose proof (juicy_mem_access jm0 loc) as Haccess.
+    rewrite <- H4 in Haccess; simpl in Haccess.
+    erewrite storebytes_access, <- mem_equiv_access in Haccess by eauto.
+    rewrite Haccess, if_true.
+    destruct loc as (b', o').
+    erewrite mem_equiv_contents; eauto.
+    exploit (juicy_mem_contents jm0); eauto; intros []; subst.
+    erewrite (storebytes_phi_elsewhere_eq _ _ _ _ _ Hstore); eauto.
+    constructor; auto.
+    { eapply access_at_readable; eauto. }
+    { unfold perm_of_sh.
+      if_tac; if_tac; constructor || contradiction. }
+  - destruct k; try (rewrite resource_fmap_fmap, approx_oo_approx', approx'_oo_approx by omega; constructor; auto).
+    pose proof (juicy_mem_access jm0 loc) as Haccess.
+    rewrite <- H4 in Haccess; simpl in Haccess.
+    erewrite storebytes_access, <- mem_equiv_access in Haccess by eauto.
+    rewrite Haccess, if_true.
+    destruct loc as (b', o').
+    erewrite (mem_equiv_contents m); eauto.
+    exploit (juicy_mem_contents jm0); eauto; intros []; subst.
+    erewrite (storebytes_phi_elsewhere_eq _ _ _ _ _ Hstore); eauto.
+    constructor; auto.
+    { eapply access_at_readable; eauto. }
+    { unfold perm_of_sh.
+      if_tac; if_tac; constructor || contradiction. }
+Qed.
+
+Lemma inflate_emp : forall m phi, app_pred emp phi -> app_pred emp (inflate_store m phi).
+Proof.
+  simpl; intros.
+  apply all_resource_at_identity.
+  - intros; unfold inflate_store; rewrite resource_at_make_rmap.
+    apply (resource_at_identity _ l) in H.
+    destruct (phi @ l); auto.
+    apply YES_not_identity in H; contradiction.
+  - unfold inflate_store; rewrite ghost_of_make_rmap.
+    apply ghost_of_identity; auto.
+Qed.
+
+Lemma encode_vals_length : forall lv,
+  length (concat (map (encode_val Mint8unsigned) lv)) = length lv.
+Proof.
+  induction lv; auto; simpl.
+  rewrite app_length, IHlv.
+  unfold encode_val; simpl.
+  destruct a; auto.
+Qed.
+
+Lemma store_bytes_data_at : forall {CS : compspecs} phi m0 m sh lv b o
+  (Hsh : readable_share sh) (Hvals : Forall (fun v => exists i, v = Vint i /\ Int.unsigned i <= Byte.max_unsigned) lv)
+  (Hdata : app_pred (res_predicates.VALspec_range (Zlength lv) sh (b, Ptrofs.unsigned o)) phi)
+  (Hstore : Mem.storebytes m0 b (Ptrofs.unsigned o) (concat (map (encode_val Mint8unsigned) lv)) = Some m)
+  (Hbounds : Ptrofs.unsigned o + Zlength lv <= Ptrofs.max_unsigned),
+  app_pred (data_at sh (tarray tuchar (Zlength lv)) lv (Vptr b o)) (inflate_store m phi).
+Proof.
+  split.
+  { split; simpl; auto.
+    split; auto.
+    split; [rewrite Z.max_r by rep_omega; unfold Ptrofs.max_unsigned in Hbounds; omega|].
+    split; auto.
+    constructor.
+    intros; econstructor; simpl; eauto.
+    apply Z.divide_1_l. }
+  unfold at_offset; rewrite data_at_rec_eq; simpl.
+  rewrite Z.max_r by rep_omega.
+  rewrite ptrofs_add_repr_0_r.
+  unfold unfold_reptype; simpl.
+  split.
+  { rewrite Z.sub_0_r; reflexivity. }
+  rewrite Z.sub_0_r.
+  rewrite <- (Z.add_0_r (Ptrofs.unsigned o)) in Hdata.
+  remember 0 as lo.
+  assert (0 <= lo) by omega.
+  rewrite Heqlo; rewrite <- Heqlo at 1.
+  remember (Z.to_nat (Zlength lv)) as n.
+  replace (Zlength lv) with (Z.of_nat n) in Hdata by (subst; rewrite Z2Nat.id; rep_omega).
+  assert (lo + Z.of_nat n = Zlength lv) as Hlen.
+  { subst; rewrite Z2Nat.id; rep_omega. }
+  clear Heqlo Heqn.
+  revert dependent lo; revert dependent phi; induction n; intros.
+  - rewrite res_predicates.VALspec_range_0 in Hdata; simpl.
+    apply inflate_emp; auto.
+  - rewrite Nat2Z.inj_succ, res_predicates.VALspec_range_split2 with (n := 1)(m := Z.of_nat n) in Hdata by omega.
+    destruct Hdata as (phi1 & phi2 & J & Hval1 & Hval2).
+    rewrite Nat2Z.inj_succ in Hlen.
+    rewrite <- Z.add_assoc in Hval2; apply IHn in Hval2; try omega.
+    eexists _, _; split; [apply inflate_store_join; eauto|].
+    split; auto.
+    unfold at_offset.
+    rewrite data_at_rec_eq; simpl.
+    unfold unfold_reptype; simpl.
+    rewrite Z.sub_0_r.
+    unfold mapsto; simpl.
+    rewrite if_true by auto.
+    left.
+    apply Forall_Znth with (i := lo) in Hvals as (i & Hi & ?); try omega.
+    split.
+    { setoid_rewrite Hi; auto. }
+    unfold res_predicates.address_mapsto.
+    exists [Byte (Byte.repr (Int.unsigned i))].
+    destruct Hval1 as [Hval1 Hg].
+    split; [|simpl; unfold inflate_store; rewrite ghost_of_make_rmap; auto].
+    split.
+    { split; auto.
+      setoid_rewrite Hi.
+      split; [|apply Z.divide_1_l].
+      unfold decode_val; simpl.
+      unfold decode_int; simpl.
+      rewrite rev_if_be_singleton; simpl.
+      rewrite Byte.unsigned_repr by rep_omega.
+      rewrite Z.add_0_r, Int.repr_unsigned.
+      rewrite zero_ext_inrange; auto. }
+    intro l; simpl.
+    unfold inflate_store; rewrite resource_at_make_rmap.
+    specialize (Hval1 l); simpl in Hval1.
+    unfold Ptrofs.add.
+    replace (Ptrofs.unsigned (Ptrofs.repr (1 * lo))) with lo
+      by (rewrite Ptrofs.unsigned_repr; rep_omega).
+    rewrite Ptrofs.unsigned_repr by rep_omega.
+    if_tac.
+    + destruct Hval1 as (mv & rsh & ->); exists rsh.
+      destruct l as (b', o'); destruct H1; subst.
+      assert (o' = Ptrofs.unsigned o + lo) by omega; subst; simpl.
+      rewrite Zminus_diag; simpl; f_equal; f_equal.
+      Transparent Mem.storebytes.
+      unfold Mem.storebytes in Hstore.
+      Opaque Mem.storebytes.
+      if_tac in Hstore; inv Hstore; unfold contents_at; simpl.
+      rewrite PMap.gss.
+      replace lv with (sublist 0 lo lv ++ Znth lo lv :: sublist (lo + 1) (Zlength lv) lv).
+      rewrite map_app, concat_app; simpl.
+      rewrite Mem.setN_concat.
+      rewrite Hi; simpl.
+      unfold encode_int; simpl.
+      rewrite rev_if_be_singleton; simpl.
+      rewrite encode_vals_length, <- Zlength_correct.
+      rewrite Zlength_sublist, Mem.setN_outside by omega.
+      rewrite Z.sub_0_r, ZMap.gss; auto.
+      { rewrite <- sublist_next, sublist_rejoin, sublist_same by omega; auto. }
+  + destruct (phi1 @ l); auto.
+    apply YES_not_identity in Hval1; contradiction.
+Qed.
