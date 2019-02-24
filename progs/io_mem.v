@@ -94,7 +94,7 @@ Definition f_print_intr := {|
   fn_callconv := cc_default;
   fn_params := ((_i, tuint) :: (_buf, (tptr tuchar)) :: (_j, tint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_q, tuchar) :: (_r, tuchar) :: (_k, tint) :: (_t'1, tint) ::
+  fn_temps := ((_q, tuint) :: (_r, tuchar) :: (_k, tint) :: (_t'1, tint) ::
                nil);
   fn_body :=
 (Ssequence
@@ -104,9 +104,8 @@ Definition f_print_intr := {|
                    (Econst_int (Int.repr 0) tint) tint)
       (Ssequence
         (Sset _q
-          (Ecast
-            (Ebinop Odiv (Etempvar _i tuint) (Econst_int (Int.repr 10) tuint)
-              tuint) tuchar))
+          (Ebinop Odiv (Etempvar _i tuint) (Econst_int (Int.repr 10) tuint)
+            tuint))
         (Ssequence
           (Sset _r
             (Ecast
@@ -119,7 +118,7 @@ Definition f_print_intr := {|
                                     (Tcons tuint
                                       (Tcons (tptr tuchar) (Tcons tint Tnil)))
                                     tint cc_default))
-                ((Etempvar _q tuchar) :: (Etempvar _buf (tptr tuchar)) ::
+                ((Etempvar _q tuint) :: (Etempvar _buf (tptr tuchar)) ::
                  (Etempvar _j tint) :: nil))
               (Sset _k (Etempvar _t'1 tint)))
             (Sassign
@@ -161,11 +160,13 @@ Definition f_print_int := {|
               (Ebinop Oadd (Etempvar _buf (tptr tuchar))
                 (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar)
             (Econst_int (Int.repr 48) tint))
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Etempvar _buf (tptr tuchar))
-                (Econst_int (Int.repr 1) tint) (tptr tuchar)) tuchar)
-            (Econst_int (Int.repr 10) tint)))
+          (Ssequence
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _buf (tptr tuchar))
+                  (Econst_int (Int.repr 1) tint) (tptr tuchar)) tuchar)
+              (Econst_int (Int.repr 10) tint))
+            (Sset _k (Econst_int (Int.repr 2) tint))))
         (Ssequence
           (Ssequence
             (Scall (Some _t'2)
@@ -176,15 +177,19 @@ Definition f_print_int := {|
               ((Etempvar _i tuint) :: (Etempvar _buf (tptr tuchar)) ::
                (Econst_int (Int.repr 0) tint) :: nil))
             (Sset _k (Etempvar _t'2 tint)))
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Etempvar _buf (tptr tuchar)) (Etempvar _k tint)
-                (tptr tuchar)) tuchar) (Econst_int (Int.repr 10) tint))))
+          (Ssequence
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _buf (tptr tuchar)) (Etempvar _k tint)
+                  (tptr tuchar)) tuchar) (Econst_int (Int.repr 10) tint))
+            (Sset _k
+              (Ebinop Oadd (Etempvar _k tint) (Econst_int (Int.repr 1) tint)
+                tint)))))
       (Ssequence
         (Scall None
-          (Evar _putchars (Tfunction (Tcons (tptr tuchar) Tnil) tint
-                            cc_default))
-          ((Etempvar _buf (tptr tuchar)) :: nil))
+          (Evar _putchars (Tfunction (Tcons (tptr tuchar) (Tcons tint Tnil))
+                            tint cc_default))
+          ((Etempvar _buf (tptr tuchar)) :: (Etempvar _k tint) :: nil))
         (Scall None
           (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
           ((Etempvar _buf (tptr tuchar)) :: nil))))))
@@ -195,7 +200,7 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tschar) ::
+  fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tuchar) ::
                (_buf, (tptr tuchar)) :: (_i, tint) :: (_j, tint) ::
                (_t'3, tint) :: (_t'2, tint) :: (_t'1, (tptr tvoid)) ::
                (_t'4, tuchar) :: nil);
@@ -219,9 +224,11 @@ Definition f_main := {|
         (Ssequence
           (Ssequence
             (Scall (Some _t'2)
-              (Evar _getchars (Tfunction (Tcons (tptr tuchar) Tnil) tint
+              (Evar _getchars (Tfunction
+                                (Tcons (tptr tuchar) (Tcons tint Tnil)) tint
                                 cc_default))
-              ((Etempvar _buf (tptr tuchar)) :: nil))
+              ((Etempvar _buf (tptr tuchar)) ::
+               (Econst_int (Int.repr 4) tint) :: nil))
             (Sset _i (Etempvar _t'2 tint)))
           (Ssequence
             (Swhile
@@ -242,17 +249,20 @@ Definition f_main := {|
                             (Ederef
                               (Ebinop Oadd (Etempvar _buf (tptr tuchar))
                                 (Etempvar _j tint) (tptr tuchar)) tuchar))
-                          (Sset _c (Ecast (Etempvar _t'4 tuchar) tschar)))
+                          (Sset _c (Ecast (Etempvar _t'4 tuchar) tuchar)))
                         (Ssequence
                           (Sset _d
-                            (Ebinop Osub (Ecast (Etempvar _c tschar) tuint)
+                            (Ebinop Osub (Ecast (Etempvar _c tuchar) tuint)
                               (Ecast (Econst_int (Int.repr 48) tint) tuint)
                               tuint))
                           (Ssequence
                             (Sifthenelse (Ebinop Oge (Etempvar _d tuint)
                                            (Econst_int (Int.repr 10) tint)
                                            tint)
-                              Sbreak
+                              (Scall None
+                                (Evar _exit (Tfunction (Tcons tint Tnil)
+                                              tvoid cc_default))
+                                ((Econst_int (Int.repr 0) tint) :: nil))
                               Sskip)
                             (Ssequence
                               (Sset _n
@@ -268,9 +278,11 @@ Definition f_main := {|
                         (Econst_int (Int.repr 1) tint) tint))))
                 (Ssequence
                   (Scall (Some _t'3)
-                    (Evar _getchars (Tfunction (Tcons (tptr tuchar) Tnil)
+                    (Evar _getchars (Tfunction
+                                      (Tcons (tptr tuchar) (Tcons tint Tnil))
                                       tint cc_default))
-                    ((Etempvar _buf (tptr tuchar)) :: nil))
+                    ((Etempvar _buf (tptr tuchar)) ::
+                     (Econst_int (Int.repr 4) tint) :: nil))
                   (Sset _i (Etempvar _t'3 tint)))))
             (Ssequence
               (Scall None
@@ -541,13 +553,14 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_getchars,
    Gfun(External (EF_external "getchars"
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons (tptr tuchar) Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tuchar) (Tcons tint Tnil))
+     tint cc_default)) ::
  (_putchars,
    Gfun(External (EF_external "putchars"
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons (tptr tuchar) Tnil) tint cc_default)) ::
- (_print_intr, Gfun(Internal f_print_intr)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tuchar) (Tcons tint Tnil))
+     tint cc_default)) :: (_print_intr, Gfun(Internal f_print_intr)) ::
  (_print_int, Gfun(Internal f_print_int)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 

@@ -1,5 +1,4 @@
-Require Import VST.progs.io_specs_mem.
-Require Import VST.progs.io_mem.
+Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import DeepWeb.Free.Monad.Free.
 Require Import DeepWeb.Free.Monad.Eq.Utt.
@@ -40,15 +39,15 @@ Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list int -
         mem_equiv m m'
     | _ => False end.
 
-Definition putchars_pre (m : mem) (witness : share * val * list int * IO_itree) (z : IO_itree) :=
-  let '(sh, buf, msg, k) := witness in (z = (write_list msg;; k))%eq_utt /\
+Definition putchars_pre (m : mem) (witness : share * val * list int * Z * list val * IO_itree) (z : IO_itree) :=
+  let '(sh, buf, msg, _, _, k) := witness in (z = (write_list msg;; k))%eq_utt /\
   match buf with Vptr b ofs =>
     Mem.loadbytes m b (Ptrofs.unsigned ofs) (Zlength msg) =
       Some (ints_to_memvals msg)
     | _ => False end.
 
-Definition putchars_post (m0 m : mem) r (witness : share * val * list int * IO_itree) (z : IO_itree) :=
-  let '(sh, buf, msg, k) := witness in m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
+Definition putchars_post (m0 m : mem) r (witness : share * val * list int * Z * list val * IO_itree) (z : IO_itree) :=
+  let '(sh, buf, msg, _, _, k) := witness in m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
 
 Context {CS : compspecs} (ext_link : String.string -> ident).
 
@@ -96,7 +95,7 @@ Proof.
   - unfold funspec2pre, dessicate; simpl.
     intros ?; if_tac.
     + intros; subst.
-      destruct t as (? & ? & (((sh, buf), msg), k)); simpl in *.
+      destruct t as (? & ? & (((((sh, buf), msg), len), rest), k)); simpl in *.
       destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
       unfold putchars_pre; split; auto; split; auto.
       unfold SEPx in Hpre; simpl in Hpre.
@@ -107,11 +106,25 @@ Proof.
       split.
       * symmetry.
         eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | eauto]; subst; auto.
-      * eapply data_at_bytes in Hbuf; eauto.
+      * assert (Z.max 0 len = Zlength msg + Zlength rest) as Hlen.
+        { apply data_array_at_local_facts in Hbuf as (_ & ? & _).
+          rewrite Zlength_app, Zlength_map in *; auto. }
+        destruct (zlt len 0).
+        { rewrite Z.max_l in Hlen by omega.
+          destruct msg; [|rewrite Zlength_cons in *; rep_omega].
+          destruct Hbuf as [[? _]]; destruct buf; try contradiction.
+          rewrite Zlength_nil; apply Mem.loadbytes_empty; auto; omega. }
+        rewrite Z.max_r in Hlen by omega; subst.
+        rewrite split2_data_at_Tarray_app with (mid := Zlength msg) in Hbuf.
+        destruct Hbuf as (? & ? & ? & Hbuf & _).
+        eapply data_at_bytes in Hbuf; eauto.
         rewrite map_map in Hbuf; eauto.
         { rewrite Zlength_map; auto. }
-        { eapply join_sub_trans; eexists; eauto. }
+        { eapply join_sub_trans; [|eexists; eauto].
+          eapply join_sub_trans; eexists; eauto. }
         { apply Forall_map, Forall_forall; simpl; discriminate. }
+        { rewrite Zlength_map; auto. }
+        { rewrite Z.add_simpl_l; auto. }
     + clear H.
       unfold funspec2pre; simpl.
       if_tac; [|contradiction].
@@ -137,7 +150,7 @@ Proof.
     + intros; subst.
       destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
       destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & (((sh, buf), msg), k)); simpl in *.
+      destruct t as (? & (((((sh, buf), msg), len), rest), k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
       destruct Hpre as ([Hwritable _] & _ & phig & phir & J1 & (? & ? & Htrace) & Hbuf).
@@ -266,7 +279,7 @@ Proof.
   simpl in Hpre, Hpost.
   simpl in *.
   if_tac in Hpre.
-  - destruct w as (m0 & _ & (((?, ?), ?), ?)).
+  - destruct w as (m0 & _ & (((((?, ?), ?), ?), ?), ?)).
     destruct Hpre as (_ & ? & Hpre); subst.
     destruct v; try contradiction.
     destruct v; try contradiction.

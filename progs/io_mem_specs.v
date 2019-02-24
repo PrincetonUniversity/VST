@@ -41,25 +41,27 @@ Proof.
 Qed.
 
 Definition putchars_spec {CS : compspecs} :=
-  WITH sh : share, buf : val, msg : list int, k : IO_itree
-  PRE [ 1%positive OF tint ]
+  WITH sh : share, buf : val, msg : list int, len : Z, rest : list val, k : IO_itree
+  PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
     PROP (readable_share sh)
-    LOCAL (temp 1%positive buf)
-    SEP (ITREE (write_list msg ;; k); data_at sh (tarray tuchar (Zlength msg)) (map Vint msg) buf)
+    LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr (Zlength msg))))
+    SEP (ITREE (write_list msg ;; k);
+           data_at sh (tarray tuchar len) (map Vint msg ++ rest) buf)
   POST [ tint ]
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr (Zlength msg))))
-    SEP (ITREE k; data_at sh (tarray tuchar (Zlength msg)) (map Vint msg) buf).
+    SEP (ITREE k;
+           data_at sh (tarray tuchar len) (map Vint msg ++ rest) buf).
 
 Definition getchars_spec {CS : compspecs} :=
   WITH sh : share, buf : val, len : Z, k : list int -> IO_itree
-  PRE [ ]
+  PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
     PROP (writable_share sh)
-    LOCAL ()
+    LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
     SEP (ITREE (r <- read_list (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
   POST [ tint ]
-   EX msg : list int, (* for a first pass, assume it always fills the buffer *)
-    PROP ()
+   EX msg : list int,
+    PROP (Forall (fun i => Int.unsigned i <= Byte.max_unsigned) msg)
     LOCAL (temp ret_temp (Vint (Int.repr len)))
     SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vint msg) buf).
 

@@ -267,10 +267,6 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-(*Instance IO_Espec : OracleKind := Build_OracleKind _ (IO_ext_spec ext_link).*)
-
-(*Instance Espec : OracleKind := add_funspecs IO_Espec ext_link Gprog.*)
-
 Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:

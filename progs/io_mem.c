@@ -3,12 +3,13 @@
 #include <stdlib.h>
 
 #define EOF (-1)
-extern int getchars(unsigned char *buf);
-extern int putchars(unsigned char *buf);
+extern int getchars(unsigned char *buf, int len);
+extern int putchars(unsigned char *buf, int len);
 
 
 int print_intr(unsigned int i, unsigned char *buf, int j) {
-  unsigned char q,r;
+  unsigned int q;
+  unsigned char r;
   int k = 0;
   if (i!=0) {
     q=i/10u;
@@ -22,15 +23,18 @@ int print_intr(unsigned int i, unsigned char *buf, int j) {
 void print_int(unsigned int i) {
   unsigned char *buf = malloc(5);
   if (!buf) exit(1);
+  int k;
   if (i==0){
     buf[0] = '0';
     buf[1] = '\n';
+    k = 2;
   }
   else{
-    int k = print_intr(i, buf, 0);
+    k = print_intr(i, buf, 0);
     buf[k] = '\n';
+    k++;
   }
-  putchars(buf);
+  putchars(buf, k);
   free(buf);
 }
 
@@ -42,23 +46,23 @@ void print_int(unsigned int i) {
 */
 
 int main(void) {
-  unsigned int n, d; char c;
+  unsigned int n, d; unsigned char c;
   unsigned char *buf;
   int i, j;
 
   n=0;
   buf = malloc(4);
   if (!buf) exit(1);
-  i = getchars(buf);
+  i = getchars(buf, 4);
   while (n<1000) {
     for(j = 0; j < i; j++){
       c = buf[j];
       d = ((unsigned)c)-(unsigned)'0';
-      if (d>=10) break;
+      if (d>=10) exit(0);
       n+=d;
       print_int(n);
     }
-    i = getchars(buf);
+    i = getchars(buf, 4);
   }
   free(buf);
   return 0;
