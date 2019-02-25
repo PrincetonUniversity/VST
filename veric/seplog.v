@@ -118,9 +118,9 @@ Definition ret0_tycon (Delta: tycontext): tycontext :=
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
-   definition (and in NDsubsume_funspec). *)
+   definition (and in NDfunspec_sub). *)
 
-Definition subsume_funspec (f1 f2 : funspec):mpred :=
+Definition funspec_sub (f1 f2 : funspec):mpred :=
 let Delta := funsig_tycontext (funsig_of_funspec f1) in
 match f1 with
 | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
@@ -136,7 +136,7 @@ match f1 with
     end
 end.
 
-Definition subsume_funspec_early (f1 f2 : funspec):mpred :=
+Definition funspec_sub_early (f1 f2 : funspec):mpred :=
 let Delta := funsig_tycontext (funsig_of_funspec f1) in
 match f1 with
 | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
@@ -152,7 +152,7 @@ match f1 with
     end
 end.
 
-Definition subsume_funspec_weak (f1 f2 : funspec):Prop :=
+Definition funspec_sub_weak (f1 f2 : funspec):Prop :=
 let Delta := funsig_tycontext (funsig_of_funspec f1) in
 match f1 with
 | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
@@ -172,7 +172,7 @@ match f1 with
     end
 end.
 
-Lemma Weak_Full f1 f2: subsume_funspec_weak f1 f2 -> TT |-- subsume_funspec f1 f2.
+Lemma Weak_Full f1 f2: funspec_sub_weak f1 f2 -> TT |-- funspec_sub f1 f2.
 Proof. intros. destruct f1; destruct f2; simpl in *.
 destruct H as [? [? H']]; subst. intros w _. split; [split; trivial |].
 intros ts2 x2 rho y WY k YK K.
@@ -180,11 +180,11 @@ destruct (H' ts2 x2 rho _ K) as [ts1 [x1 [F [HF1 HF2]]]]; clear H'.
 exists ts1, x1, F; split; trivial.
 intros rho' v KV z VZ Z. hnf in HF2. apply HF2; trivial.
 Qed.
-Lemma Weak_Full' f1 f2: !!(subsume_funspec_weak f1 f2) |-- subsume_funspec f1 f2.
+Lemma Weak_Full' f1 f2: !!(funspec_sub_weak f1 f2) |-- funspec_sub f1 f2.
 Proof. intros w W. apply Weak_Full; trivial.
 Qed.
 
-Lemma Early_Full f1 f2: subsume_funspec_early f1 f2 |-- subsume_funspec f1 f2.
+Lemma Early_Full f1 f2: funspec_sub_early f1 f2 |-- funspec_sub f1 f2.
 Proof. intros p P. destruct f1; destruct f2; simpl in *.
 destruct P as [[? ?] H']; subst. split; [split; trivial |].
 intros ts2 x2 rho y WY k YK K.
@@ -192,14 +192,14 @@ destruct (H' ts2 x2 rho) as [ts1 [x1 [F HF]]]; clear H'.
 exists ts1, x1, F. apply (HF _ WY _ YK K).
 Qed.
 
-Lemma subsume_funspec_weak_refl f: subsume_funspec_weak f f.
+Lemma funspec_sub_weak_refl f: funspec_sub_weak f f.
 Proof. destruct f; split; [ trivial | split; [trivial | intros ts2 x2 rho w [T W]]].
 exists ts2, x2, emp. rewrite emp_sepcon. split; trivial. hnf; intros. 
 rewrite emp_sepcon. apply andp_left2; trivial.
 Qed.
 
-Lemma subsume_funspec_weak_trans f1 f2 f3: subsume_funspec_weak f1 f2 -> 
-      subsume_funspec_weak f2 f3 -> subsume_funspec_weak f1 f3.
+Lemma funspec_sub_weak_trans f1 f2 f3: funspec_sub_weak f1 f2 -> 
+      funspec_sub_weak f2 f3 -> funspec_sub_weak f1 f3.
 Proof. destruct f1; destruct f2; destruct f3; intros.
 destruct H as [? [? H12]]; subst f0 c0.
 destruct H0 as [? [? H23]]; subst f1 c1.
@@ -221,14 +221,14 @@ exists ts2, x2, (F*G); split.
    eapply derives_trans. 2: apply Y12. simpl. apply prop_andp_right; trivial.
 Qed.
 
-Lemma subsume_funspec_early_refl f: TT |-- subsume_funspec_early f f.
+Lemma funspec_sub_early_refl f: TT |-- funspec_sub_early f f.
 Proof. destruct f; split; [ split; trivial | clear H]. intros ts2 x2 rho.
 exists ts2, x2, emp. intros y AY m YM [M1 M2]. rewrite emp_sepcon. split; trivial.
 intros rho' k WK u necKU U. rewrite emp_sepcon in U. apply U.
 Qed.
 
-Lemma subsume_funspec_early_trans f1 f2 f3: subsume_funspec_early f1 f2 && subsume_funspec_early f2 f3 |--
-      subsume_funspec_early f1 f3.
+Lemma funspec_sub_early_trans f1 f2 f3: funspec_sub_early f1 f2 && funspec_sub_early f2 f3 |--
+      funspec_sub_early f1 f3.
 Proof. destruct f1; destruct f2; destruct f3.
 intros w [[X H12] [Y H23]]; destruct X; subst; destruct Y; subst; split; [split; trivial|].
 intros ts x rho. 
@@ -251,15 +251,15 @@ split.
   apply (B23 rho' _ Mv _ (necR_refl _)). split; [ trivial | exists v1, v2; auto].
 Qed.
 
-Lemma subsume_funspec_refl f: TT |-- subsume_funspec f f.
+Lemma funspec_sub_refl f: TT |-- funspec_sub f f.
 Proof. destruct f; split; [ split; trivial | clear H; intros ts2 x2 rho].
 exists ts2, x2, emp; rewrite emp_sepcon. split. apply H1. 
 intros rho' k WK u necKU Z. 
 rewrite emp_sepcon in Z. apply Z.
 Qed.
 
-Lemma subsume_funspec_trans f1 f2 f3: subsume_funspec f1 f2 && subsume_funspec f2 f3 |--
-      subsume_funspec f1 f3.
+Lemma funspec_sub_trans f1 f2 f3: funspec_sub f1 f2 && funspec_sub f2 f3 |--
+      funspec_sub f1 f3.
 Proof. destruct f1; destruct f2; destruct f3.
 intros w [[X H12] [Y H23]]; destruct X; subst; destruct Y; subst; split; [split; trivial|].
 intros ts x rho y WY m YM M. 
@@ -294,13 +294,13 @@ Definition sigcc_at (fsig: funsig) (cc:calling_convention) (loc: address) : pred
   EX pp:_, pureat pp (FUN fsig cc) loc.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, subsume_funspec gs f && func_at gs (b, 0)).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, funspec_sub gs f && func_at gs (b, 0)).
 
 Definition func_ptr_early (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, subsume_funspec_early gs f && func_at gs (b, 0)).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, funspec_sub_early gs f && func_at gs (b, 0)).
 
 Definition func_ptr_weak (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, !!(subsume_funspec_weak gs f) && func_at gs (b, 0)).
+  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, !!(funspec_sub_weak gs f) && func_at gs (b, 0)).
 
 Lemma func_ptr_early_full f v: func_ptr_early f v |-- func_ptr f v.
 Proof. apply exp_derives; intros b. apply andp_derives; trivial.
@@ -313,49 +313,57 @@ Proof. apply exp_derives; intros b. apply andp_derives; trivial.
 Qed.
 
 Lemma funspec_subsume_func_ptr_derives fs gs v: 
-      subsume_funspec fs gs && func_ptr fs v |-- func_ptr gs v.
+      funspec_sub fs gs && func_ptr fs v |-- func_ptr gs v.
 Proof. unfold func_ptr. rewrite exp_andp2. apply exp_derives; intros b.
   rewrite andp_comm, andp_assoc. apply andp_derives; trivial.
   rewrite andp_comm, exp_andp2. apply exp_derives; intros hs.
   rewrite <- andp_assoc. apply andp_derives; trivial.
-  rewrite andp_comm. apply subsume_funspec_trans.
+  rewrite andp_comm. apply funspec_sub_trans.
 Qed.
 
 Lemma funspec_subsume_early_func_ptr_derives fs gs v: 
-      subsume_funspec_early fs gs && func_ptr fs v |-- func_ptr gs v.
+      funspec_sub_early fs gs && func_ptr fs v |-- func_ptr gs v.
 Proof. eapply derives_trans. 2: apply (funspec_subsume_func_ptr_derives fs).
   apply andp_derives; trivial. apply Early_Full.
 Qed.
 
 Lemma funspec_subsume_early_func_ptr_early_derives fs gs v: 
-      subsume_funspec_early fs gs && func_ptr_early fs v |-- func_ptr_early gs v.
+      funspec_sub_early fs gs && func_ptr_early fs v |-- func_ptr_early gs v.
 Proof. unfold func_ptr_early. rewrite exp_andp2. apply exp_derives; intros b.
   rewrite andp_comm, andp_assoc. apply andp_derives; trivial.
   rewrite andp_comm, exp_andp2. apply exp_derives; intros hs.
   rewrite <- andp_assoc. apply andp_derives; trivial.
-  rewrite andp_comm. apply subsume_funspec_early_trans.
+  rewrite andp_comm. apply funspec_sub_early_trans.
 Qed.
 
-Lemma funspec_subsume_weak_func_ptr_derives fs gs v: subsume_funspec_weak fs gs -> 
+Lemma funspec_subsume_weak_func_ptr_derives fs gs v: funspec_sub_weak fs gs -> 
       func_ptr fs v |-- func_ptr gs v.
 Proof. intros. unfold func_ptr. apply exp_derives; intros b.
   apply andp_derives; trivial. apply exp_derives; intros hs.
   apply andp_derives; trivial. apply Weak_Full in H. 
-  intros w W. eapply subsume_funspec_trans. split. apply W. apply H; trivial.
+  intros w W. eapply funspec_sub_trans. split. apply W. apply H; trivial.
 Qed.
 
-Lemma funspec_subsume_weak_func_ptr_weak_derives fs gs v: subsume_funspec_weak fs gs -> 
+Lemma funspec_subsume_weak_func_ptr_weak_derives fs gs v: funspec_sub_weak fs gs -> 
       func_ptr_weak fs v |-- func_ptr_weak gs v.
 Proof. intros. unfold func_ptr_weak. apply exp_derives; intros b.
   apply andp_derives; trivial. apply exp_derives; intros hs.
   apply andp_derives; trivial. 
-  intros w W. eapply subsume_funspec_weak_trans; [ apply W | apply H].
+  intros w W. eapply funspec_sub_weak_trans; [ apply W | apply H].
 Qed.
 
 Definition NDmk_funspec (f: funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
   mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
              (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Lemma type_of_funspec_sub:
+  forall fs1 fs2, funspec_sub_weak fs1 fs2 ->
+  type_of_funspec fs1 = type_of_funspec fs2.
+Proof.
+intros.
+destruct fs1, fs2; destruct H as [? [? _]]. subst; simpl; auto.
+Qed.
 
 (* Definition assert: Type := environ -> pred rmap. *)
 
@@ -498,19 +506,19 @@ Proof.
   simpl.
   apply pred_ext; intros w; simpl; intros [? ?]; split; auto.
   + (*destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply subsume_funspec_trans; split. apply SUBS. clear SUBS H0; hnf.
+    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros ts2 a rho m WM u necU U. simpl in U.
     exists ts2, a, emp. rewrite emp_sepcon. split; intros; [ apply U | intros rho' k UP j KJ J; hnf].
     rewrite emp_sepcon in J. simpl in J. intuition. apply necR_level in KJ. apply necR_level in necU. omega. *)
     destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply subsume_funspec_trans; split. apply SUBS. clear SUBS H0; hnf.
+    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros ts2 a rho m WM u necU U. simpl in U.
     exists ts2, a, emp. rewrite emp_sepcon. split; intros; [ apply U | intros rho' k UP j KJ z JZ HZ; hnf].
     rewrite emp_sepcon in HZ. simpl in HZ. intuition. apply necR_level in JZ. apply laterR_level in UP. omega.
   + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply subsume_funspec_trans; split. apply SUBS. clear SUBS H0; hnf.
+    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros ts2 a rho m WM u necU U. simpl in U.
     exists ts2, a, emp. rewrite emp_sepcon. split; intros. 
@@ -555,20 +563,20 @@ Proof.
   simpl.
   apply pred_ext; intros w; simpl; intros [? ?]; split; auto.
   + (*destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply subsume_funspec_trans; split. apply SUBS. clear SUBS H0; hnf.
+    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros ts2 a rho m WM u necU U. simpl in U.
     exists ts2, a, emp. rewrite emp_sepcon. split; intros; [ apply U | intros rho' k UP j KJ J; hnf].
     rewrite emp_sepcon in J. simpl in J. intuition. apply necR_level in KJ. apply necR_level in necU. omega. *)
     destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply subsume_funspec_trans; split. apply SUBS. clear SUBS H0; hnf.
+    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial. 
     intros ts2 a rho m WM u necU [U1 U2]. simpl in U1.
     exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. } 
     intros rho' y UY k YK K; hnf; intros. rewrite emp_sepcon in K. simpl in K.
     apply necR_level in necU.  apply necR_level in YK. split; [ omega | apply K]. 
   + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply subsume_funspec_trans; split. apply SUBS. clear SUBS H0; hnf.
+    eapply funspec_sub_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros ts2 a rho m WM u necU [U1 U2]. simpl in U1.
     exists ts2, a, emp. rewrite emp_sepcon; split. 

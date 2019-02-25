@@ -98,7 +98,7 @@ Proof.
   destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
   simpl in X; inv X.
   exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
-  exists hs; split; trivial. eapply subsume_funspec_trans; split. apply HS. apply GSB.
+  exists hs; split; trivial. eapply funspec_sub_trans; split. apply HS. apply GSB.
 Qed.
 
 Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
@@ -112,7 +112,7 @@ Proof. apply andp_left1.
   apply prop_andp_right; trivial.
   eapply exp_right with (x:=fs).
   apply andp_right; trivial.
-  eapply derives_trans. 2: apply subsume_funspec_refl. trivial.
+  eapply derives_trans. 2: apply funspec_sub_refl. trivial.
 Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,

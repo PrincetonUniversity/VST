@@ -1906,7 +1906,7 @@ Proof.
       change (@PTree.set) with @ptree_set in IHG.
       fold make_tycontext_s in *.
       destruct (peq id i); eauto; subst; simpl.
-      * exists f0; split; [ | apply subsume_funspec_refl].
+      * exists f0; split; [ | apply funspec_sub_refl].
         apply make_tycontext_s_distinct with (a:=(i,f0)); auto.
       * apply IHG; auto.
   - apply Annotation_sub_refl.
@@ -3355,7 +3355,7 @@ Funspec type: " TA'')
      end.
 
 Ltac prove_call_setup' ts witness :=
- prove_call_setup1 subsume_funspec_weak_refl;
+ prove_call_setup1 funspec_sub_weak_refl;
  [ .. | 
  match goal with |- call_setup1  _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       check_witness_type' ts A witness

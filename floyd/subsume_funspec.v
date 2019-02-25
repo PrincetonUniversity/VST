@@ -6,7 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Local Open Scope logic.
 
-Definition NDsubsume_funspec (f1 f2 : funspec) :=
+Definition NDfunspec_sub (f1 f2 : funspec) :=
  let Delta := (funsig_tycontext (funsig_of_funspec f1)) in
  match f1 with
  | mk_funspec fsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
@@ -30,8 +30,8 @@ Definition is_NDfunspec (fs: funspec) :=
 Lemma NDsubsume_subsume:
   forall f1 f2, 
    is_NDfunspec f2 ->
-   NDsubsume_funspec f1 f2 ->
-   subsume_funspec_weak f1 f2.
+   NDfunspec_sub f1 f2 ->
+   funspec_sub_weak f1 f2.
 Proof.
 intros f1 f2. pose proof I. intros H0 H1.
 destruct f1, f2; hnf in H1.
@@ -73,9 +73,9 @@ rewrite prop_true_andp in H,H0 by auto.
 apply sepcon_derives; auto.
 Qed.
 
-Lemma NDsubsume_funspec_refl:
+Lemma NDfunspec_sub_refl:
   forall fsig cc A P Q, 
-   NDsubsume_funspec (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
+   NDfunspec_sub (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
 Proof.
 intros.
 simpl.
@@ -92,11 +92,11 @@ rewrite emp_sepcon.
 apply andp_left2; auto.
 Qed.
 
-Lemma NDsubsume_funspec_trans:
+Lemma NDfunspec_sub_trans:
   forall fsig1 cc1 A1 P1 Q1 fsig2 cc2 A2 P2 Q2 fsig3 cc3 A3 P3 Q3, 
-   NDsubsume_funspec (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
-   NDsubsume_funspec (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
-   NDsubsume_funspec (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
+   NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
+   NDfunspec_sub (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
+   NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
 Proof.
 intros.
 destruct H as [?E [?E H]]. 
@@ -146,7 +146,7 @@ Qed.
 
 Lemma semax_call_subsume_weak:
   forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
-    subsume_funspec_weak fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
+    funspec_sub_weak fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
    forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
@@ -178,7 +178,7 @@ Lemma semax_call_subsume:
   @semax CS Espec Delta
           ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  && 
           
-         (`(func_ptr fs1) (eval_expr a) && `(subsume_funspec fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
+         (`(func_ptr fs1) (eval_expr a) && `(funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -192,7 +192,7 @@ Qed.
 
 Lemma semax_call_NDsubsume :
   forall (fs1: funspec) A P Q argsig retsig cc,
-    NDsubsume_funspec fs1 
+    NDfunspec_sub fs1 
         (NDmk_funspec  (argsig,retsig) cc A P Q)  ->
      forall {CS: compspecs} {Espec: OracleKind},
     forall  Delta  x (F: environ -> mpred) ret a bl,
@@ -218,7 +218,7 @@ Qed.
 
 Module Junk.   (* experiments, not necessarily useful *)
 
-Definition subsume_funspec0 (f1 f2 : funspec) :=
+Definition funspec_sub0 (f1 f2 : funspec) :=
  match f1 with
  | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
  match f2 with
@@ -230,7 +230,7 @@ Definition subsume_funspec0 (f1 f2 : funspec) :=
            Q1 ts1 x1 |-- Q2 ts2 x2
   end end.
 
-Definition subsume_funspec' (f1 f2 : funspec) :=
+Definition funspec_sub' (f1 f2 : funspec) :=
  match f1 with
  | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
  match f2 with
@@ -243,7 +243,7 @@ Definition subsume_funspec' (f1 f2 : funspec) :=
   end end.
 
 Lemma subsume_semax_body: 
-  forall fs1 fs2 (H: subsume_funspec0 fs1 fs2),
+  forall fs1 fs2 (H: funspec_sub0 fs1 fs2),
    forall Vprog Gprog cs f id,
     @semax_body Vprog Gprog cs f (id,fs1) ->
     @semax_body Vprog Gprog cs f (id,fs2).
@@ -280,7 +280,7 @@ apply H2'.
 Qed.
 
 Lemma subsume_semax_body': 
-  forall fs1 fs2 (H: subsume_funspec' fs1 fs2),
+  forall fs1 fs2 (H: funspec_sub' fs1 fs2),
    forall Vprog Gprog cs f id,
     @semax_body Vprog Gprog cs f (id,fs1) ->
     @semax_body Vprog Gprog cs f (id,fs2).
@@ -321,7 +321,7 @@ unfold_lift.
 auto.
 Qed.
 
-Definition subsume_funspec'' (Delta: tycontext) (f1 f2 : funspec) :=
+Definition funspec_sub'' (Delta: tycontext) (f1 f2 : funspec) :=
  match f1 with
  | mk_funspec fsig1 cc1 A1 P1 Q1 _ _ =>
  match f2 with
@@ -337,7 +337,7 @@ Import ListNotations.
 
 Lemma subsume_semax_body'': 
    forall Vprog Gprog cs f id fs1 fs2,
-    subsume_funspec'' (func_tycontext f Vprog Gprog nil) fs1 fs2 ->
+    funspec_sub'' (func_tycontext f Vprog Gprog nil) fs1 fs2 ->
     @semax_body Vprog Gprog cs f (id,fs1) ->
     @semax_body Vprog Gprog cs f (id,fs2).
 Proof.
@@ -492,7 +492,7 @@ Abort.
 Lemma subsume_semax_body3: 
    forall Vprog Gprog cs f id fs1 fs2,
     funsig_of_function f = funsig_of_funspec fs2 ->
-    subsume_funspec'' (funsig_tycontext (funsig_of_funspec fs2)) fs1 fs2 ->
+    funspec_sub'' (funsig_tycontext (funsig_of_funspec fs2)) fs1 fs2 ->
     @semax_body Vprog Gprog cs f (id,fs1) ->
     @semax_body Vprog Gprog cs f (id,fs2).
 Proof.

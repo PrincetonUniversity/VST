@@ -1174,10 +1174,10 @@ Definition funsig_of_function (f: function) : funsig :=
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
-   definition (and in NDsubsume_funspec). *)
+   definition (and in NDfunspec_sub). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ TT |-- subsume_funspec gspec hspec (*contravariance!*)
+| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub gspec hspec (*contravariance!*)
 | None => True
 end. 
 
@@ -1187,12 +1187,12 @@ Proof. unfold subsumespec in *.
  destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
  destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
  intros w W.
- eapply subsume_funspec_trans; split; eauto.
+ eapply funspec_sub_trans; split; eauto.
 Qed.
 
 Lemma subsumespec_refl x: subsumespec x x.
 Proof. unfold subsumespec.
- destruct x; trivial. exists f; split; [trivial| apply subsume_funspec_refl ].
+ destruct x; trivial. exists f; split; [trivial| apply funspec_sub_refl ].
 Qed.
 
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=

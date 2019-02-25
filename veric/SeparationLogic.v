@@ -631,7 +631,7 @@ Proof.
   apply corable_exp; intro.
   apply corable_andp; auto. 
   apply corable_exp; intro.
-  apply corable_andp. apply assert_lemmas.corable_subsume_funspec.
+  apply corable_andp. apply assert_lemmas.corable_funspec_sub.
   apply assert_lemmas.corable_func_at.*)
 Qed.
 

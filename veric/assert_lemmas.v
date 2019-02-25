@@ -241,7 +241,7 @@ left. destruct H; eauto.
 right. destruct H0; eauto.
 Qed.
 
-Lemma corable_subsume_funspec f g: corable (subsume_funspec f g).
+Lemma corable_funspec_sub f g: corable (funspec_sub f g).
 Proof.
  intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
 + intros ts. rewrite level_core. specialize (H0 ts); auto.
@@ -265,7 +265,7 @@ Proof.
   unfold func_at.
   destruct f as [fsig0 cc A P Q]. 
   (*apply corable_exp; intro.
-  apply corable_andp. apply corable_subsume_funspec.
+  apply corable_andp. apply corable_funspec_sub.
   destruct b.*) apply corable_pureat.
 Qed.
 
@@ -293,7 +293,7 @@ Proof.
   apply corable_exp; intro.
   apply corable_andp; auto.
   apply corable_exp; intro.
-  apply corable_andp. apply corable_subsume_funspec.
+  apply corable_andp. apply corable_funspec_sub.
   apply corable_func_at.
 Qed.
 
@@ -311,7 +311,7 @@ Proof.
    apply corable_allp; intro|
    apply corable_prop|
    apply corable_imp].
- + (*apply corable_subsume_funspec.*) apply corable_func_at.
+ + (*apply corable_funspec_sub.*) apply corable_func_at.
  + destruct b2; apply corable_pureat.
 (* + apply corable_pureat.*)
 Qed.
