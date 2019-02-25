@@ -31,7 +31,7 @@ Lemma NDsubsume_subsume:
   forall f1 f2, 
    is_NDfunspec f2 ->
    NDfunspec_sub f1 f2 ->
-   funspec_sub_weak f1 f2.
+   funspec_sub f1 f2.
 Proof.
 intros f1 f2. pose proof I. intros H0 H1.
 destruct f1, f2; hnf in H1.
@@ -144,9 +144,9 @@ destruct H as [x _].
 apply later_exp'; auto.
 Qed.
 
-Lemma semax_call_subsume_weak:
+Lemma semax_call_subsume:
   forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
-    funspec_sub_weak fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
+    funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
    forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
@@ -165,10 +165,11 @@ apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. intros rho. clear - H.
 remember (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) as gs.
 remember (eval_expr a rho) as v.
-apply funspec_subsume_weak_func_ptr_derives; trivial.
+unfold func_ptr.
+apply func_ptr_mono; trivial.
 Qed.
 
-Lemma semax_call_subsume:
+Lemma semax_call_subsume_si:
   forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
    forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
@@ -178,7 +179,7 @@ Lemma semax_call_subsume:
   @semax CS Espec Delta
           ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  && 
           
-         (`(func_ptr fs1) (eval_expr a) && `(funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
+         (`(func_ptr fs1) (eval_expr a) && `(funspec_sub_si fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert
@@ -187,7 +188,7 @@ Proof. intros.
 eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. clear. intros rho.
-rewrite andp_comm. apply funspec_subsume_func_ptr_derives.
+rewrite andp_comm. apply func_ptr_si_mono.
 Qed.
 
 Lemma semax_call_NDsubsume :
@@ -209,7 +210,7 @@ Lemma semax_call_NDsubsume :
           (EX old:val, substopt ret (`old) F * maybe_retval (Q x) retsig ret)).
 Proof.
 intros.
-apply (semax_call_subsume_weak fs1 (rmaps.ConstType A) (fun _ => P) (fun _ => Q)
+apply (semax_call_subsume fs1 (rmaps.ConstType A) (fun _ => P) (fun _ => Q)
    (const_super_non_expansive A _) (const_super_non_expansive A _)
     argsig retsig cc); auto.
 clear - H.

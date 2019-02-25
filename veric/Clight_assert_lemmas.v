@@ -20,7 +20,7 @@ Hint Resolve corable_funassert.
 Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
  ALL id : ident , ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_ptr fs (Vptr b Ptrofs.zero)).
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_ptr_si fs (Vptr b Ptrofs.zero)).
 
 Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): pred rmap :=
 (ALL id : ident ,
@@ -53,7 +53,7 @@ Proof.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  apply corable_func_ptr.
+  apply corable_func_ptr_si.
 Qed.
 
 Lemma corable_allp_fun_id_sigcc: forall Delta rho,
@@ -98,7 +98,7 @@ Proof.
   destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
   simpl in X; inv X.
   exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
-  exists hs; split; trivial. eapply funspec_sub_trans; split. apply HS. apply GSB.
+  exists hs; split; trivial. eapply funspec_sub_si_trans; split. apply HS. apply GSB.
 Qed.
 
 Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
@@ -112,7 +112,7 @@ Proof. apply andp_left1.
   apply prop_andp_right; trivial.
   eapply exp_right with (x:=fs).
   apply andp_right; trivial.
-  eapply derives_trans. 2: apply funspec_sub_refl. trivial.
+  eapply derives_trans. 2: apply funspec_sub_si_refl. trivial.
 Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,

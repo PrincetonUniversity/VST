@@ -622,11 +622,17 @@ simpl;
 auto.
 Qed.
 
-Definition func_ptr (f: funspec) (v: val): mpred := seplog.func_ptr f v.
+(*We're exporting the step-indexed version so that semax_fun_id does syntatically not change*)
+Definition func_ptr (f: funspec) (v: val): mpred := seplog.func_ptr_si f v.
+
+(*veric.seplog has a lemma that weakens the hypothesis here to funspec_sub_si*)
+Lemma func_ptr_mono fs gs v (H:funspec_sub fs gs): func_ptr fs v |-- func_ptr gs v.
+Proof. apply funspec_sub_implies_func_prt_si_mono; trivial.
+Qed.
 
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
-  intros. apply assert_lemmas.corable_func_ptr.
+  intros. apply assert_lemmas.corable_func_ptr_si.
 (*  unfold func_ptr.
   apply corable_exp; intro.
   apply corable_andp; auto. 
@@ -636,7 +642,7 @@ Proof.
 Qed.
 
 Lemma func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-Proof. exact seplog.func_ptr_isptr. (*
+Proof. exact seplog.func_ptr_si_isptr. (*
   intros.
   unfold func_ptr.
   destruct spec.
@@ -649,8 +655,9 @@ Definition NDmk_funspec (f: funsig) (cc: calling_convention)
     (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
-  compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
-Proof. exact seplog.approx_func_ptr. Qed.
+  compcert_rmaps.RML.R.approx n (func_ptr_si (NDmk_funspec fsig0 cc A P Q) v) =
+  compcert_rmaps.RML.R.approx n (func_ptr_si (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+Proof. exact seplog.approx_func_ptr_si. Qed.
 
 Definition allp_fun_id (Delta : tycontext) (rho : environ): mpred :=
 ALL id : ident, ALL fs : funspec ,
