@@ -161,7 +161,9 @@ rewrite (split2_data_block 32 _ (dig2 ++ dig2))
  by (autorewrite with sublist; omega).
 autorewrite with sublist.
 cancel.
-apply derives_refl'.
-  rewrite field_address0_offset  by auto with field_compatible.
-  reflexivity.
+rewrite field_address0_offset  by auto with field_compatible.
+simpl.
+change n324 with 324.
+autorewrite with sublist.
+cancel.
 Qed.
