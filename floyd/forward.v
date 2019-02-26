@@ -319,6 +319,7 @@ intros.
 Qed.
 
 Ltac semax_func_cons_ext :=
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc;

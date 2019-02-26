@@ -33,7 +33,6 @@ Existing Instance Espec.
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 semax_func_cons body_odd.
 Qed.

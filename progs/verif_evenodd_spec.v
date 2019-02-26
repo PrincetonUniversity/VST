@@ -24,7 +24,7 @@ Definition even_spec :=
 
 Definition main_spec :=
  DECLARE _main
-  WITH z : Z, v : val
-  PRE [ ] PROP() LOCAL() SEP ()
+  WITH gv : globals
+  PRE  [] main_pre prog nil gv
   POST [ tint ]
     PROP() LOCAL(temp ret_temp (Vint (if Z.even 42 then Int.one else Int.zero))) SEP().
