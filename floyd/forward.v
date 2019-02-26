@@ -1003,7 +1003,7 @@ lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
     end
 end.
 
-Tactic Notation "forward_call" constr(witness) := fwd_call subsume_funspec_refl witness.
+Tactic Notation "forward_call" constr(witness) := fwd_call funspec_sub_refl witness.
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := fwd_call subsumes witness.
 
@@ -1038,7 +1038,7 @@ Ltac get_function_witness_type func :=
  in TA''.
 
 Ltac new_prove_call_setup :=
- prove_call_setup1 subsume_funspec_refl;
+ prove_call_setup1 funspec_sub_refl;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
@@ -3046,7 +3046,7 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
 Ltac advise_forward_call :=
- prove_call_setup1 subsume_funspec_refl;
+ prove_call_setup1 funspec_sub_refl;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with

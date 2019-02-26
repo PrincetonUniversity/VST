@@ -5,6 +5,7 @@ Require Import FCF.HasDups.
 Require Import FCF.RndInList.
 Require Import FCF.CompFold.
 Require Import FCF.Tactics.
+Require Import Permutation.
 
 (* Indistinguishability definition for DRBGs *)
 Section DRBG.
@@ -702,9 +703,7 @@ Check PRF_DRBG_f_bad.
   Definition PRF_DRBG_G3_bad_1 :=
     ls <-$ PRF_DRBG_f_bad v_init l;
     ret (hasDups _ ls).
-  
-   Require Import Permutation.
-   
+
    (* The relational specification on the new computation that produces the bad event.  We prove that the list of values produced by this computation is a permutation of the list produced by the oracle interaction in game 3.  Perhaps this could be an equality of we adjust the model, but a permutation works fine for our purposes, since the only thing that matters is the presence/absence of duplicates in the list. *)  
    (* not sure why ls is needed, why not []? needed for induction? *)
    (* don't we have to reason about injD in the latter? *)

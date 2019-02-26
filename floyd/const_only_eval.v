@@ -1,8 +1,9 @@
 Require Import VST.floyd.base.
 Require Import VST.floyd.val_lemmas.
 Require Import VST.floyd.typecheck_lemmas.
+Require Import compcert.cfrontend.Ctypes.
 
-Definition const_only_isUnOpResultType {CS: compspecs} op typeof_a valueof_a ty : bool :=
+Definition const_only_isUnOpResultType {CS: compspecs} op (typeof_a:type) valueof_a ty : bool :=
 match op with
   | Cop.Onotbool => match typeof_a with
                     | Tint _ _ _

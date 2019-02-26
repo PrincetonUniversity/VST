@@ -40,7 +40,7 @@ Require hmacdrbg.verif_hmac_drbg_seed.
 Require Import VST.floyd.subsume_funspec.
 
 Lemma drb_seed_256_subsume:
-  NDsubsume_funspec 
+  NDfunspec_sub 
        (snd hmac_drbg_seed_inst256_spec)
        (snd drbg_seed_inst256_spec_abs).
 Proof.

@@ -791,7 +791,7 @@ Proof.
 Qed.
 
 Module Abstractions.
-(* Demonstration of data abstraction via subsume_funspec. *)
+(* Demonstration of data abstraction via funspec_sub. *)
 
 
 (* Definitions of [combine] and [Abs] taken from 
@@ -873,7 +873,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil gv.
 
 Lemma subsume_insert:
- subsume_funspec (snd insert_spec) (snd abs_insert_spec).
+ funspec_sub (snd insert_spec) (snd abs_insert_spec).
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
@@ -894,7 +894,7 @@ apply insert_relate; auto.
 Qed.
 
 Lemma subsume_treebox_new:
- subsume_funspec (snd treebox_new_spec) (snd abs_treebox_new_spec).
+ funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
@@ -918,7 +918,7 @@ simpl. entailer!.
 Qed.
 
 Lemma subsume_treebox_free:
- subsume_funspec (snd treebox_free_spec) (snd abs_treebox_free_spec).
+ funspec_sub (snd treebox_free_spec) (snd abs_treebox_free_spec).
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.

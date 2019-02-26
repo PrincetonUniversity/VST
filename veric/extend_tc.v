@@ -7,6 +7,8 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.binop_lemmas2.
 
+Require Import VST.veric.seplog. (*For definition of tycontext*)
+
 Local Open Scope pred.
 
 Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred:=
