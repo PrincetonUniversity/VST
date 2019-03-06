@@ -88,6 +88,8 @@ ifeq ($(COMPCERT), compcert_new)
 SHIM= -Q concurrency/shim VST.veric
 endif
 
+EXTFLAGS:=$(EXTFLAGS) -R DeepWeb DeepWeb -Q DeepWeb/Custom Custom
+
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 
 
@@ -449,7 +451,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.9+alpha or-else 8.9.0
+COQVERSION= 8.9+alpha or-else 8.9.0 or-else 8.8.1
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
