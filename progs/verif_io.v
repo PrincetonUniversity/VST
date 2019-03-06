@@ -130,10 +130,10 @@ Proof.
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; cancel.
       apply derives_refl. }
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
+    simpl write_list.
     forward_call (Int.repr (i mod 10 + char0), tr).
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      erewrite ITREE_ext; [apply derives_refl|].
-      unfold write_list.
+      apply ITREE_impl.
       apply bind_mor; [|reflexivity].
       etransitivity; [|apply bind_ret].
       apply bind_mor; [|intros []]; reflexivity. }
