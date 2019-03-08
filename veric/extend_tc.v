@@ -462,3 +462,25 @@ Qed.
 
 Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_expropt extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
+
+Require Import VST.veric.expr_lemmas.
+
+Lemma tc_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
+  a rho Delta w (T: @tc_expr CS Delta a rho w): @tc_expr CS' Delta a rho w.
+Proof. unfold tc_expr in *. apply  (denote_tc_assert_cenv_sub' CSUB); trivial. Qed.
+
+Lemma tc_exprlist_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho w:
+      forall types bl, (@tc_exprlist CS Delta types bl rho) w ->
+      (@tc_exprlist CS' Delta types bl rho) w.
+Proof.
+  induction types; simpl; intros.
+  + destruct bl; simpl in *; trivial.
+  + destruct bl; simpl in *; trivial. specialize (IHtypes bl).
+    unfold tc_exprlist in *. simpl in H. simpl.
+    remember (@typecheck_expr CS Delta e) as TCE. remember (@typecheck_expr CS' Delta e) as TCE'.
+    remember (@isCastResultType CS (typeof e) a e) as CAST.    
+    remember (@isCastResultType CS' (typeof e) a e) as CAST'.
+    remember (@typecheck_exprlist CS Delta types bl) as BL.
+    remember (@typecheck_exprlist CS' Delta types bl) as BL'.
+    unfold tc_andp; simpl. unfold tc_andp in H; simpl in H.
+ Admitted.

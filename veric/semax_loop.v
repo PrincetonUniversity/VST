@@ -55,8 +55,8 @@ Proof.
 intros.
 rewrite semax_unfold in H0, H1 |- *.
 intros.
-specialize (H0 psi _ _ TS HGG Prog_OK k F).
-specialize (H1 psi _ _ TS HGG Prog_OK k F).
+specialize (H0 psi _ _ _ TS HGG Prog_OK k F).
+specialize (H1 psi _ _ _ TS HGG Prog_OK k F).
 spec H0.  {
   intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
   left; clear - H5.
@@ -117,8 +117,9 @@ assert (assert_safe Espec psi vx tx (Kseq (if b' then c else d) :: k)
   rewrite denote_tc_assert_andp in TC2; destruct TC2.
   destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
-eapply own.bupd_mono, bupd_denote_tc, Hw0; eauto.
-intros r [Htc Hr] ora jm Hora Hge Hphi.
+destruct HGG as [CSUB HGG]. apply (tc_expr_cenv_sub CSUB) in TC2'. 
+eapply own.bupd_mono, bupd_denote_tc; eauto. 
+intros r [Htc Hr] ora jm Hora Hge Hphi. 
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 apply wlog_jsafeN_gt0; intro.
 subst r.
@@ -128,9 +129,9 @@ omegaContradiction.
 apply levelS_age1 in H9. destruct H9 as [jm' ?].
 clear H10.
 apply jsafe_step'_back2 with (st' := State vx tx (Kseq (if b' then c else d) :: k))
-  (m' := jm').
+  (m' := jm').  Set Printing Implicit. 
 split3.
-assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) Htc).
+assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) Htc). 
 unfold tc_expr in Htc.
 simpl in Htc.
 rewrite denote_tc_assert_andp in Htc.
@@ -139,23 +140,24 @@ rewrite <- (age_jm_dry H9); econstructor; eauto.
 { assert (exists b': bool, Cop.bool_val (eval_expr b rho) (typeof b) (m_dry jm) = Some b') as [].
   { clear - TS TC H TC2 TC2' TC2'a TCS.
     simpl in TCS. unfold_lift in TCS.
- unfold Cop.bool_val;
- destruct (eval_expr b rho) eqn:H15;
- simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ] eqn:?;
-    intuition; simpl in *; try rewrite TCS; eauto.
-all: try (
-unfold tc_expr in TC2; simpl typecheck_expr in TC2; rewrite Heqt in TC2;
-rewrite denote_tc_assert_andp in TC2; destruct TC2 as [_ TC2];
-destruct TC as [TC _];
-assert (H2 := typecheck_expr_sound _ _ _ _  (typecheck_environ_sub _ _ TS _ TC) TC2);
-rewrite Heqt, H15 in H2; contradiction H2).
-all: 
-rewrite denote_tc_assert_andp in TC2'; destruct TC2' as [TC2'' TC2'];
- rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2';
- simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2'.
-all: destruct Archi.ptr64 eqn:Hp; try contradiction; eauto.
-all: apply tc_test_eq1 in TC2'; simpl; rewrite TC2'; eauto.
-}
+    unfold Cop.bool_val;
+      destruct (eval_expr b rho) eqn:H15;
+      simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ] eqn:?;
+      intuition; simpl in *; try rewrite TCS; eauto.
+    all: try (
+             unfold tc_expr in TC2; simpl typecheck_expr in TC2; rewrite Heqt in TC2;
+             rewrite denote_tc_assert_andp in TC2; destruct TC2 as [_ TC2];
+             destruct TC as [TC _];
+             assert (H2 := typecheck_expr_sound _ _ _ _  (typecheck_environ_sub _ _ TS _ TC) TC2);
+             rewrite Heqt, H15 in H2; contradiction H2).
+    all: 
+      rewrite denote_tc_assert_andp in TC2'; destruct TC2' as [TC2'' TC2'];
+      rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2';
+      simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2'.
+    all: destruct Archi.ptr64 eqn:Hp; try contradiction; eauto.
+    all: apply tc_test_eq1 in TC2'; simpl; rewrite TC2'; eauto.
+  }
+  apply (bool_val_cenv_sub CSUB) in Hb.
   rewrite H10; symmetry; eapply f_equal, bool_val_Cop; eauto. }
 apply age1_resource_decay; auto.
 split; [apply age_level; auto|].
@@ -188,8 +190,8 @@ Proof.
 intros.
 rewrite semax_unfold in H,H0|-*.
 intros.
-specialize (H psi _ w TS HGG Prog_OK).
-specialize (H0 psi Delta' w).
+specialize (H psi _ CS' w TS HGG Prog_OK).
+specialize (H0 psi Delta' CS' w).
 spec H0; auto.
 spec H0; auto.
 spec H0. {
@@ -323,14 +325,14 @@ Proof.
   clear Delta TS.
   generalize H; rewrite semax_unfold; intros H'.
 (*  change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.*)
-  specialize (H' psi Delta' (level a2) (tycontext_sub_refl _) HGG Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
+  specialize (H' psi Delta' CS' (level a2) (tycontext_sub_refl _) HGG Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
   spec H'.
   {
   intros ek vl.
   destruct ek.
   + simpl exit_cont.
     rewrite semax_unfold in H0.
-    specialize (H0 psi _ (level a2) (tycontext_sub_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
+    specialize (H0 psi _ CS' (level a2) (tycontext_sub_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
     spec H0.
     {
       intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
@@ -394,7 +396,7 @@ Proof.
     intros tx2 vx2. cbv zeta. simpl seplog.sepcon.
     destruct POST; simpl tycontext.RA_continue.
     rewrite semax_unfold in H0.
-    eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
+    eapply subp_trans'; [ | apply (H0 _ _ CS' _ (tycontext_sub_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
     {
       apply derives_subp.
       apply andp_derives; auto.

@@ -117,9 +117,24 @@ Definition rel_lvalue'_expr'_sch CS rho phi P P0 :=
   conj (rel_expr'_sch CS rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17)
        (rel_lvalue'_sch CS rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17).
 
+Lemma field_offset_rec_cenv_sub {ce ce'} (CSUB: cenv_sub ce ce'):
+  forall m (C: complete_members ce m = true) i z r,
+    field_offset_rec ce i m z = r -> field_offset_rec ce' i m z = r.
+Proof.
+  induction m; simpl; intros; auto.
+  destruct a. apply andb_true_iff in C; destruct C.
+  rewrite (cenv_sub_alignof CSUB t), (cenv_sub_sizeof CSUB t); trivial.
+  destruct (ident_eq i i0); subst; eauto.
+Qed. 
+
+Lemma field_offset_cenv_sub {ce ce'} (CSUB: cenv_sub ce ce') m
+      (C: complete_members ce m = true) i r:
+      field_offset ce i m = r -> field_offset ce' i m = r.
+Proof. intros. apply (field_offset_rec_cenv_sub CSUB); trivial. Qed.
+
 Lemma rel_lvalue_expr_relate:
   forall {CS: compspecs} ge te ve rho jm,
-    genv_cenv ge = cenv_cs ->
+    (*genv_cenv ge = cenv_cs*) (cenv_sub cenv_cs (genv_cenv ge)) ->
     rho = construct_rho (filter_genv ge) ve te ->
     (forall e v,
            rel_expr e v rho (m_phi jm) ->
@@ -145,11 +160,12 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
    destruct v; try contradiction. constructor; auto.
 * (* Ebinop *)
   econstructor; eauto.
-  rewrite H. auto.
+  apply (sem_binary_operation_cenv_sub H).
+  (*rewrite H.*) auto.
 * (* Esizeof *)
-  rewrite <- H.  constructor.
+  rewrite <- (cenv_sub_sizeof H _ H1). constructor. 
 * (* Ealignof *)
-  unfold alignof; rewrite <- H. constructor.
+  rewrite <- (cenv_sub_alignof H _ H1). constructor. 
 * (* lvalue *)
   destruct v1; try contradiction.
   eapply Clight.eval_Elvalue; eauto.
@@ -184,13 +200,14 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   + eapply Clight.eval_Elvalue; eauto.
     apply deref_loc_copy.
     rewrite H3; auto.
-  + rewrite H; eauto.
-  + rewrite H; eauto.
+  + specialize (H id); rewrite H4 in H; apply H. (*rewrite H; eauto.*)
+  + apply (field_offset_cenv_sub H); trivial. 
+    apply co_consistent_complete. apply (@cenv_consistent CS id); trivial. 
 Qed.
 
 Lemma rel_expr_relate:
   forall {CS: compspecs} ge te ve rho e jm v,
-           genv_cenv ge = cenv_cs ->
+           (*genv_cenv ge = cenv_cs ->*) (cenv_sub cenv_cs (genv_cenv ge)) ->
            rho = construct_rho (filter_genv ge) ve te ->
            rel_expr e v rho (m_phi jm) ->
            Clight.eval_expr ge ve te (m_dry jm) e v.
@@ -202,7 +219,7 @@ Qed.
 
 Lemma rel_lvalue_relate:
   forall {CS: compspecs}  ge te ve rho e jm b z,
-           genv_cenv ge = cenv_cs ->
+           (*genv_cenv ge = cenv_cs ->*) (cenv_sub cenv_cs (genv_cenv ge)) ->
            rho = construct_rho (filter_genv ge) ve te ->
            rel_lvalue e (Vptr b z) rho (m_phi jm) ->
            Clight.eval_lvalue ge ve te (m_dry jm) e b z.

@@ -397,6 +397,7 @@ intros.
 rewrite semax_eq.
 apply allp_right; intro psi.
 apply allp_right; intro Delta'.
+apply allp_right; intro CS'.
 apply prop_imp_right; intros [TS HGG].
 apply imp_right.
 rewrite TT_and.
@@ -440,6 +441,7 @@ auto.
 clear H1.
 rewrite unfash_allp. rewrite (allp_andp psi). apply allp_left with psi.
 rewrite unfash_allp. rewrite (allp_andp Delta'). apply allp_left with Delta'.
+rewrite unfash_allp. rewrite (allp_andp CS'). apply allp_left with CS'.
 rewrite unfash_prop_imp.
 rewrite prop_true_imp by auto.
 rewrite unfash_imp.
@@ -492,13 +494,15 @@ eapply derives_trans.
 apply andp_derives; [ | apply derives_refl].
 rewrite andp_comm. apply andp_imp_e.
 eapply typecheck_environ_sub in H4; try eassumption.
-clear - H4 HGG Heqv Heqt.
+clear - H4 HGG Heqv Heqt; destruct HGG as [ HGG].
 apply assert_safe_step_nostore.
-intros.
+intros. 
+assert (H1': (@tc_expr CS' Delta a rho) (m_phi jm)) by (apply (tc_expr_cenv_sub HGG); trivial).
+clear H1; rename H1' into H1.
 econstructor.
-eapply eval_expr_relate; eauto.
-fold rho.
-rewrite Heqv, Heqt.
++ eapply eval_expr_relate; eauto.
++ fold rho.
+ rewrite (*Heqv,*) (eval_expr_cenv_sub_Vint HGG _ _ _ Heqv), Heqt.
 reflexivity.
 Qed.
 
@@ -527,7 +531,7 @@ destruct (typeof a) eqn:?; inv H.
 destruct (eval_expr a rho) as [ | n | | | |] eqn:?;  try contradiction H0'.
 specialize (H1 n).
 rewrite semax_unfold in H1.
-specialize (H1 psi Delta' w TS HGG Prog_OK (Kswitch :: k) F).
+specialize (H1 psi Delta' CS' w TS HGG Prog_OK (Kswitch :: k) F).
 specialize (H1 (closed_wrt_modvars_switch _ _ _ _ H2)); clear H2.
 set (c := seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) in *.
 spec H1.
@@ -545,25 +549,25 @@ destruct (level (m_phi jm)) eqn:?.
 constructor.
 destruct (levelS_age1 _ _ Heqn0) as [phi' ?].
 destruct (can_age1_juicy_mem _ _ H) as [jm' H9].
-clear phi' H.
+clear phi' H. destruct HGG as [CSUB HGG].
+specialize (tc_expr_cenv_sub CSUB _ _ _ _ H0); intros TCa'. 
 econstructor 2 with (m' := jm').
-econstructor.
-rewrite <- (age_jm_dry H9).
-econstructor.
-eapply eval_expr_relate; eauto.
-eapply tc_expr_sub; eauto.
-eapply typecheck_environ_sub; eauto.
-fold rho. rewrite Heqv, Heqt.
-reflexivity.
-split.
-apply age1_resource_decay; assumption.
-split; [apply age_level; assumption|].
-apply age1_ghost_of, age_jm_phi; auto.
-
-pose  proof (age_level _ _ H9).
-rewrite <- level_juice_level_phi in Heqn0.
-rewrite Heqn0 in H.
-inv H. clear Heqn0.
-eapply assert_safe_jsafe, pred_hereditary, H1.
-apply age_jm_phi; auto.
++ econstructor.
+  - rewrite <- (age_jm_dry H9).
+    econstructor.
+    * eapply eval_expr_relate; eauto.
+      eapply tc_expr_sub; eauto.
+      eapply typecheck_environ_sub; eauto.
+    * fold rho. rewrite (*Heqv*) (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv), Heqt.
+      reflexivity.
+  - split.
+    apply age1_resource_decay; assumption.
+    split; [apply age_level; assumption|].
+    apply age1_ghost_of, age_jm_phi; auto.
++ pose  proof (age_level _ _ H9).
+  rewrite <- level_juice_level_phi in Heqn0.
+  rewrite Heqn0 in H.
+   inv H. clear Heqn0.
+   eapply assert_safe_jsafe, pred_hereditary, H1.
+   apply age_jm_phi; auto.
 Qed.

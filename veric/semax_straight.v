@@ -25,8 +25,8 @@ Require Import VST.veric.expr_rel.
 Local Open Scope pred.
 
 Section extensions.
-Context {CS: compspecs} {Espec: OracleKind}.
-
+  Context {CS: compspecs} {Espec: OracleKind}.
+  
 Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
@@ -38,7 +38,7 @@ Lemma semax_straight_simple:
               rho = construct_rho (filter_genv ge) ve te  ->
               age jm jm1 ->
               ((F rho * |>P rho) && funassert Delta' rho) (m_phi jm) ->
-              genv_cenv ge = cenv_cs ->
+              (*genv_cenv ge = cenv_cs*) cenv_sub cenv_cs (genv_cenv ge) ->
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
@@ -50,7 +50,8 @@ Lemma semax_straight_simple:
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
-intros psi Delta' n TS HGG _ k F Hcl Hsafe te ve w Hx w0 H Hglob.
+intros psi Delta' CS' n TS [CSUB HGG'] _ k F Hcl Hsafe te ve w Hx w0 H Hglob.
+specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 apply nec_nat in Hx.
 apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
 clear n Hx.
@@ -206,7 +207,8 @@ eauto.
 Qed.
 
 Lemma pointer_cmp_eval:
-   forall (Delta : tycontext) (cmp : Cop.binary_operation) (e1 e2 : expr) sh1 sh2,
+  forall (Delta : tycontext) (cmp : Cop.binary_operation) (e1 e2 : expr) sh1 sh2 ge
+         (GE: cenv_sub cenv_cs (genv_cenv ge)),
    is_comparison cmp = true ->
    forall (jm : juicy_mem) (rho : environ),
    (tc_expr Delta e1 rho) (m_phi jm) ->
@@ -219,7 +221,7 @@ Lemma pointer_cmp_eval:
    (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
    eqb_type (typeof e1) int_or_ptr_type = false ->
    eqb_type (typeof e2) int_or_ptr_type = false ->
-   Cop.sem_binary_operation cenv_cs cmp (eval_expr e1 rho)
+   Cop.sem_binary_operation (*cenv_cs*)ge cmp (eval_expr e1 rho)
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
   Some
      (force_val
@@ -462,7 +464,7 @@ Proof.
       destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
       rewrite H6. rewrite H7. unfold eval_binop.
       rewrite <- H6. rewrite <- H7. clear H6 H7.
-      rewrite HGG.
+      (* rewrite HGG.*)
       apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); auto;
       try (eauto; simpl; eauto).
     - split.
@@ -1625,6 +1627,7 @@ split3; [apply age_level; auto | |].
     destruct H4 as [w1 [w2 [? [_ ?]]]].
     specialize (H2 _ _ H7). rewrite H6.
     pose proof (boxy_e _ _ (rel_expr_extend e v rho) w2 (m_phi jm')).
+    Locate rel_expr_relate.
     eapply rel_expr_relate; try eassumption; eauto.
     apply H8; auto.
     exists w1; auto.

@@ -764,5 +764,272 @@ apply is_true_e in H6; apply int64_eq_e in H6; subst; hnf; rewrite Hp; auto).
 all: try (inv H1; reflexivity).
 Qed.
 
+Lemma eval_expr_cenv_sub_Vint {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e i, 
+    @eval_expr CS e rho = Vint i -> @eval_expr CS' e rho = Vint i.
+Admitted. 
+Lemma eval_expr_cenv_sub_Vlong {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e i, 
+    @eval_expr CS e rho = Vlong i -> @eval_expr CS' e rho = Vlong i.
+Admitted.
+Lemma eval_expr_cenv_sub_Vptr {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e b i, 
+    @eval_expr CS e rho = Vptr b i -> @eval_expr CS' e rho = Vptr b i.
+Admitted.
+Lemma eval_expr_cenv_sub_Vfloat {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e f, 
+    @eval_expr CS e rho = Vfloat f -> @eval_expr CS' e rho = Vfloat f.
+Admitted.
+Lemma eval_expr_cenv_sub_Vsingle {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e f, 
+    @eval_expr CS e rho = Vsingle f -> @eval_expr CS' e rho = Vsingle f.
+Admitted.
+
+Lemma denote_tc_iszero_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w e
+    (E : (` denote_tc_iszero) (@eval_expr CS e) rho w):
+  (` denote_tc_iszero) (@eval_expr CS' e) rho w.
+Proof.
+  unfold denote_tc_iszero, liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction.
+  rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv); apply E.
+  rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv); apply E.
+Qed.
+
+Lemma denote_tc_nonzero_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w e
+    (E : (` denote_tc_nonzero) (@eval_expr CS e) rho w):
+  (` denote_tc_nonzero) (@eval_expr CS' e) rho w.
+Proof.
+  unfold denote_tc_nonzero, liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction.
+  rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv); apply E.
+  rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv); apply E.
+Qed.
+
+Lemma isptr_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e
+    (E : isptr (@eval_expr CS e rho)):
+  isptr (@eval_expr CS' e rho).
+Proof.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction.
+  rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv); trivial. 
+Qed.
+
+Lemma isint_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e
+    (E: is_int I32 Signed (@eval_expr CS e rho)):
+  is_int I32 Signed (@eval_expr CS' e rho).
+Proof.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction.
+  rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv); trivial. 
+Qed.
+
+Lemma islong_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e
+    (E: is_long (@eval_expr CS e rho)):
+  is_long (@eval_expr CS' e rho).
+Proof.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction.
+  rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv); trivial. 
+Qed.
+
+Lemma denote_tc_test_eq_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w
+    (E: (` denote_tc_test_eq) (@eval_expr CS e1) (@eval_expr CS e2) rho w):
+  (` denote_tc_test_eq) (@eval_expr CS' e1) (@eval_expr CS' e2) rho w.
+Proof.
+  unfold liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
+  remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
+  destruct v1; destruct v2; simpl in E; try contradiction; simpl;
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
+  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
+Qed. 
+  
+Lemma denote_tc_test_order_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w
+    (E: (` denote_tc_test_order) (@eval_expr CS e1) (@eval_expr CS e2) rho w):
+  (` denote_tc_test_order) (@eval_expr CS' e1) (@eval_expr CS' e2) rho w.
+Proof.
+  unfold liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
+  remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
+  destruct v1; destruct v2; simpl in E; try contradiction; simpl;
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
+  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
+Qed.
+
+Lemma denote_tc_igt_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e w i
+    (E: (` denote_tc_igt i) (@eval_expr CS e) rho w):
+  (` denote_tc_igt i) (@eval_expr CS' e) rho w.
+Proof.
+  unfold liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction; simpl.
+  rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv); simpl; trivial.
+Qed.
+
+Lemma denote_tc_lgt_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e w i
+    (E: (` denote_tc_lgt i) (@eval_expr CS e) rho w):
+  (` denote_tc_lgt i) (@eval_expr CS' e) rho w.
+Proof.
+  unfold liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction; simpl.
+  rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv); simpl; trivial.
+Qed.
+
+Lemma denote_tc_Zge_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e w z
+    (E: (` denote_tc_Zge z) (@eval_expr CS e) rho w):
+  (` denote_tc_Zge z) (@eval_expr CS' e) rho w.
+Proof.
+  unfold liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction; simpl.
+  + rewrite (eval_expr_cenv_sub_Vfloat CSUB _ _ _ Heqv); simpl; trivial.
+  + rewrite (eval_expr_cenv_sub_Vsingle CSUB _ _ _ Heqv); simpl; trivial.
+Qed.
+
+Lemma denote_tc_Zle_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e w z
+    (E: (` denote_tc_Zle z) (@eval_expr CS e) rho w):
+  (` denote_tc_Zle z) (@eval_expr CS' e) rho w.
+Proof.
+  unfold liftx, lift in *; simpl in *.
+  remember (@eval_expr CS e rho) as v; symmetry in Heqv.
+  destruct v; simpl in E; try contradiction; simpl.
+  + rewrite (eval_expr_cenv_sub_Vfloat CSUB _ _ _ Heqv); simpl; trivial.
+  + rewrite (eval_expr_cenv_sub_Vsingle CSUB _ _ _ Heqv); simpl; trivial.
+Qed.
+
+Lemma istrue_sameblock_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2
+    (E: is_true (sameblock (@eval_expr CS e1 rho) (@eval_expr CS e2 rho))):
+  is_true (sameblock (@eval_expr CS' e1 rho) (@eval_expr CS' e2 rho)).
+Proof.
+  unfold is_true, sameblock in *; simpl in *.
+  remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
+  remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
+  destruct v1; destruct v2; simpl in E; try contradiction; simpl.
+  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
+Qed.
+
+Lemma denote_tc_nodivover_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w 
+      (E: (` denote_tc_nodivover) (@eval_expr CS e1) (@eval_expr CS e2) rho w):
+(` denote_tc_nodivover) (@eval_expr CS' e1) (@eval_expr CS' e2) rho w.
+Proof.
+  unfold liftx, lift, denote_tc_nodivover in *; simpl in *.
+  remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
+  remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
+  destruct v1; destruct v2; simpl in E; try contradiction; simpl;
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
+  try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2); simpl; trivial.
+Qed.
+
+Lemma denote_tc_nosignedover_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w (z:Z -> Z -> Z)
+      (E: @app_pred rmap ag_rmap
+        (@liftx (Tarrow val (Tarrow val (LiftEnviron mpred)))
+           (denote_tc_nosignedover z) (@eval_expr CS e1) 
+           (@eval_expr CS e2) rho) w):
+  @app_pred rmap ag_rmap
+        (@liftx (Tarrow val (Tarrow val (LiftEnviron mpred)))
+           (denote_tc_nosignedover z) (@eval_expr CS' e1) 
+           (@eval_expr CS' e2) rho) w.
+Proof.
+  unfold liftx, lift, denote_tc_nodivover in *; simpl in *.
+  remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
+  remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
+  destruct v1; destruct v2; simpl in E; try contradiction; simpl;
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1);
+  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
+  try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2); simpl; trivial.
+Qed.
+
+Lemma denote_tc_assert_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w: forall a, 
+    @denote_tc_assert CS a rho w -> @denote_tc_assert CS' a rho w.
+Proof.
+  induction a; simpl; intros; trivial.
+  + destruct H; split; eauto.
+  + destruct H; [left | right]; auto.
+  + apply (denote_tc_nonzero_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_iszero_eval_expr_cenv_sub CSUB); trivial.
+  + apply (isptr_eval_expr_cenv_sub CSUB); trivial.
+  + apply (isint_eval_expr_cenv_sub CSUB); trivial.
+  + apply (islong_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_test_eq_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_test_order_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_igt_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_lgt_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_Zge_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_Zle_eval_expr_cenv_sub CSUB); trivial.
+  + apply (istrue_sameblock_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_nodivover_eval_expr_cenv_sub CSUB); trivial.
+  + apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); trivial.
+Qed.
+(*
+Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta:
+      forall a, @typecheck_expr CS' Delta a = @typecheck_expr CS Delta a.
+Proof.
+  induction a; simpl; intros; eauto. 
++ rewrite IHa; trivial.
++ rewrite IHa; trivial.
++ rewrite IHa; trivial.
++ rewrite IHa; trivial.
+
+Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta:
+      forall a x (E: (@typecheck_expr CS Delta a) = x), (@typecheck_expr CS' Delta a) = x.
+Proof.
+  induction a; simpl; intros; eauto. 
++ rewrite IHa.*)
+Set Printing Implicit.
+Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 
+    @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->
+    @denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho w.
+Proof.
+  induction a; simpl; intros; trivial;
+    apply (denote_tc_assert_cenv_sub CSUB); trivial.
+  + destruct (access_mode t); trivial.
+    remember (@typecheck_expr CS Delta a) as TCA; symmetry in HeqTCA.
+    remember (@typecheck_expr CS' Delta a) as TCA'; symmetry in HeqTCA'.
+    destruct TCA. simpl. simpl in H, IHa.  specialize (IHa H).
+    destruct TCA'; simpl; simpl in IHa; trivial. unfold tc_andp in *; simpl in *.
+    remember (@typecheck_expr CS Delta a) as TCA; symmetry in HeqTCA. destruct TCA.
+Admitted.
+
+Lemma bool_val_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
+  rho b v (Hb : bool_val (typeof b) (@eval_expr CS b rho) = Some v):
+  bool_val (typeof b) (@eval_expr CS' b rho) = Some v.
+Proof.
+  unfold bool_val in *. destruct (typeof b); trivial.
+  +  unfold bool_val_i in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
+     rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqr); trivial.
+  + unfold bool_val_l in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
+     rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqr); trivial.
+  + destruct f.
+ - unfold bool_val_s in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
+  rewrite (eval_expr_cenv_sub_Vsingle CSUB _ _ _ Heqr); trivial.
+  - unfold bool_val_f in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
+  rewrite (eval_expr_cenv_sub_Vfloat CSUB _ _ _ Heqr); trivial.
+  + destruct (eqb_type (Tpointer t a) int_or_ptr_type). inv Hb.
+  unfold bool_val_p in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
+  rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqr); trivial.
+  rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqr); trivial.
+Qed.
+
+Lemma sem_binary_operation_cenv_sub {ge ge'} (CSUB:cenv_sub ge ge') op v1 t1 v2 t2 m v:
+  sem_binary_operation ge op v1 t1 v2 t2 m = Some v ->
+  sem_binary_operation ge' op v1 t1 v2 t2 m = Some v.
+Admitted.  
 
 
+Lemma typecheck_expr_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
+      Delta rho (D:typecheck_environ Delta rho) m: forall e, 
+    (@denote_tc_assert CS (@typecheck_expr CS Delta e) rho) m ->
+    @eval_expr CS e rho = @eval_expr CS' e rho.
+Proof. Admitted.
+
+Lemma typecheck_exprlist_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
+      Delta rho (D:typecheck_environ Delta rho) m: forall types e, 
+    (@denote_tc_assert CS (@typecheck_exprlist CS Delta types e) rho) m ->
+    @eval_exprlist CS types e rho = @eval_exprlist CS' types e rho.
+Admitted.

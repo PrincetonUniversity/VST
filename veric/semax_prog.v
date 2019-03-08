@@ -71,7 +71,7 @@ Definition semax_func
          (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
    match_fdecs fdecs G1 /\
   forall ge, prog_contains ge fdecs ->
-          genv_cenv ge = cenv_cs ->
+          cenv_sub cenv_cs (genv_cenv ge) ->
           forall n, believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : list Type -> (ident->val) -> assert :=
@@ -275,6 +275,24 @@ clear - Hin H2 Hmf.
 eapply match_fdecs_in in Hmf; eauto.
 Qed.
 
+Lemma var_block'_cenv_sub {CS CS'} (CSUB: cenv_sub CS CS') sh a
+  (CT: complete_type CS (@snd ident type a) = true):
+  var_block' sh CS a = var_block' sh CS' a.
+Proof.
+  extensionality rho.
+  unfold var_block'. rewrite (cenv_sub_sizeof CSUB); trivial.
+Qed. 
+
+Lemma stackframe_of'_cenv_sub {CS CS'} (CSUB: cenv_sub CS CS') f
+      (COMPLETE : Forall (fun it : ident * type => complete_type CS (snd it) = true) (fn_vars f)):
+  stackframe_of' CS f = stackframe_of' CS' f .
+Proof.
+  extensionality rho. 
+  unfold stackframe_of'. forget (fn_vars f) as vars.
+  induction vars; simpl; trivial.
+  inv COMPLETE. rewrite (var_block'_cenv_sub CSUB _ _ H1), IHvars; clear IHvars; trivial.
+Qed.
+
 Lemma semax_func_cons:
    forall
          fs id f cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
@@ -328,19 +346,25 @@ destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [?H|?H].
 subst v.
 right.
 exists b; exists f.
-split; auto.
+split(*; auto*).
++
 apply andb_true_iff in H.
 destruct H as [H H'].
 apply compute_list_norepet_e in H.
 apply compute_list_norepet_e in H'.
-split3; auto.
+(*split3; auto.*)
 rewrite Genv.find_funct_find_funct_ptr in H2; auto.
 split; auto.
+split; auto.
+split; auto.
+split; auto.
+split; auto.
+(*
 rewrite HGG; auto.
 split; auto.
 split; auto.
 split.
-rewrite HGG; auto.
+rewrite HGG; auto.*)
 (* split; auto.*)
 destruct H1 as [id' [NEP' [NEQ' [? [b' [? ?]]]]]].
 symmetry in H5; inv H5.
@@ -350,8 +374,9 @@ simpl in H1.
 rewrite PTree.gss in H1.
 inv H1; auto.
 contradiction (Genv.global_addresses_distinct ge n0 H0 H4); auto.
-(*destruct H. *) 
-intros Delta' k NK HDelta'.
++
+  (*destruct H. *) 
+intros Delta' CS' k NK HDelta' w KW CSUB.
 intros ts x.
 simpl in H1.
 pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
@@ -364,15 +389,17 @@ specialize (H3 Espec ts x).
 rename H3 into H4. (* destruct H3 as [Ann H4].*)
 pose proof I.
 (*specialize (H4 n).*)specialize (H4 k).
-apply now_later.
-rewrite HGG.
-clear - Hpclos H4 NK HDelta'.
-rewrite semax_fold_unfold in H4|-*. clear n NK. intros gx DD u KU [SUB GX] v UV BEL.
+apply now_later. 
+rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
+apply (semax'_cssub CSUB). Set Printing Implicit.
+(*rewrite HGG.*)
+clear - Hpclos H4 NK KW HDelta'.
+rewrite semax_fold_unfold in H4|-*. intros gx DD CS' u WU [SUB GX] v UV BEL.
 assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
 { unfold func_tycontext, func_tycontext'. simpl.
   eapply tycontext_sub_trans; eauto. }
-
-specialize (H4 gx DD u KU (conj HDD GX) v UV BEL).
+assert (WV: @necR nat ag_nat w v). { eapply necR_trans.  apply WU. apply UV. }
+specialize (H4 gx DD CS' _ KW (conj HDD GX) v WV BEL). 
 revert H4.
 (*{ unfold func_tycontext, func_tycontext'. simpl.
   apply prop_derives. intros [AA BB]; split; trivial.
@@ -1318,6 +1345,8 @@ Proof.
   intros until m.
   pose proof I; intros.
   destruct H0 as [? [AL [HGG [[? ?] [GV ?]]]]].
+  assert (CSUBmain: cenv_sub  (@cenv_cs CS) (@prog_comp_env function prog)).
+  { rewrite HGG; apply cenv_sub_refl. }
   destruct (find_id (prog_main prog) G) as [fspec|] eqn:Hfind; try contradiction.
   assert (H4': exists post, In (prog_main prog, main_spec' prog post) G /\ fspec = main_spec' prog post). {
     destruct (find_id (prog_main prog) G) eqn:?.
@@ -1650,11 +1679,12 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A
       forall z, app_pred (ext_compat z) (m_phi jm) -> jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
   intros SP Findb id_in_G arg_p.
+  assert (CSUBmain: cenv_sub (@cenv_cs CS) (globalenv prog)).
+  { destruct SP as [_ [_ [CSEQ _]]]. rewrite CSEQ; apply cenv_sub_refl. }
   destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & Believe) & _).
   specialize (Believe (globalenv prog)).
   spec Believe. now apply prog_contains_prog_funct, compute_list_norepet_e, SP.
-  spec Believe. now symmetry; apply SP.
-
+  spec Believe. (*now symmetry; apply SP.*) apply CSUBmain. 
   pose proof Believe as Believe_.
   specialize (Believe 5%nat).
   unfold claims in *.
@@ -1778,8 +1808,8 @@ Proof.
   exists v, w, a1, a2; auto.
 
   (* globalenv prog = cenv_cs *)
-  destruct SP as [? [AL [HGG [[H2 H3] [GV _]]]]].
-  rewrite HGG. reflexivity.
+  (*destruct SP as [? [AL [HGG [[H2 H3] [GV _]]]]].
+  rewrite HGG. reflexivity.*)
 
   (* safety: we conclude as we add an infinite loop at the end *)
   apply now_later.
@@ -1814,4 +1844,716 @@ Proof.
   now destruct i; reflexivity.
 Qed.
 
+Lemma match_fdecs_length funs K:
+      match_fdecs funs K -> length funs = length K.
+Proof. induction 1; trivial. 
+simpl; rewrite IHmatch_fdecs; trivial.
+Qed.
+
+Lemma match_fdecs_nil_iff funs K (M: match_fdecs funs K):
+ (funs = nil) <-> (K=nil).
+Proof. apply match_fdecs_length in M. 
+ split; intros; subst; simpl in M.
+ destruct K; trivial; inv M.
+ destruct funs; trivial; inv M.
+Qed.
+
+Lemma match_fdecs_cons_D f funs k K (M: match_fdecs (cons f funs) (cons k K)):
+  exists i fd fspec, f=(i,fd) /\ k=(i,fspec) /\ 
+         type_of_fundef fd = type_of_funspec fspec /\
+         match_fdecs funs K.
+Proof. inv M. exists i, fd, fspec; intuition. Qed.
+
+Lemma match_fdecs_cons_D1 f funs K (M: match_fdecs (cons f funs) K):
+  exists i fd fspec G, f=(i,fd) /\ K=cons (i,fspec) G /\ 
+         type_of_fundef fd = type_of_funspec fspec /\
+         match_fdecs funs G.
+Proof. inv M. exists i, fd, fspec, G; intuition. Qed.
+
+Lemma match_fdecs_cons_D2 funs k K (M: match_fdecs funs (cons k K)):
+  exists i fd fspec fs, funs=cons (i,fd) fs /\ k=(i,fspec) /\ 
+         type_of_fundef fd = type_of_funspec fspec /\
+         match_fdecs fs K.
+Proof. inv M. exists i, fd, fspec, fs; intuition. Qed.
+
+Lemma semax_func_length V G {C: compspecs} funs K (M: semax_func V G funs K):
+     length funs = length K.
+Proof. destruct M as [M _]. apply match_fdecs_length in M; trivial. Qed.
+
+Lemma match_fdecs_app: forall vl G vl' G',
+  match_fdecs vl G -> match_fdecs vl' G' -> match_fdecs (vl ++ vl') (G ++ G').
+Proof. induction vl; simpl; intros; inv H; simpl in *; trivial; econstructor; eauto. Qed.
+
+Lemma prog_contains_nil ge: prog_contains ge nil.
+Proof. red; intros. inv H. Qed.
+Lemma prog_contains_app_inv ge: forall funs1 funs2, prog_contains ge (funs1 ++ funs2) ->
+      prog_contains ge funs1 /\ prog_contains ge funs2.
+Proof. induction funs1; simpl; intros; split; trivial.
++ apply prog_contains_nil.
++ red; intros. apply (H id f).
+  destruct H0; [ left; trivial | right; apply in_or_app; left; trivial].
++ red; intros. apply (H id f).
+  right; apply in_or_app; right; trivial.
+Qed.
+
+Lemma find_id_app i fs: forall (G1 G2: funspecs) (G: find_id i (G1 ++ G2) = Some fs),
+  find_id i G1 = Some fs \/ find_id i G2 = Some fs.
+Proof. induction G1; simpl; intros. right; trivial. 
+destruct a. destruct (eq_dec i i0); [ left; trivial | eauto].
+Qed.
+
+Lemma make_tycontext_s_app_inv i fs G1 G2 (G: (make_tycontext_s (G1 ++ G2)) ! i = Some fs):
+      (make_tycontext_s G1) ! i = Some fs \/ (make_tycontext_s G2) ! i = Some fs.
+Proof. rewrite ! find_id_maketycontext_s  in *. apply find_id_app; trivial. Qed.
+ 
+Lemma believe_app_inv {cs} ge V H G1 G2 n 
+  (B1: @believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V G1) n)
+  (B2: @believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V G2) n):
+  @believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V (G1 ++ G2)) n.
+Proof. 
+intros v fsig cc A P Q k NEC CL.
+destruct CL as [i [HP [HQ [G B]]]].
+simpl in G. apply make_tycontext_s_app_inv in G; destruct G.
++ apply B1; trivial. exists i, HP, HQ; simpl; split; trivial.
++ apply B2; trivial. exists i, HP, HQ; simpl; split; trivial.
+Qed.
+
+Lemma semax_func_app cs V H: forall funs1 funs2 G1 G2
+   (SF1: @semax_func V H cs funs1 G1) (SF2: @semax_func V H cs funs2 G2)
+   (L:length funs1 = length G1),
+   @semax_func V H cs (funs1 ++ funs2) (G1++G2).
+Proof.
+intros. destruct SF1 as [MF1 B1]. destruct SF2 as [MF2 B2]. 
+split; [ apply match_fdecs_app; trivial | intros; subst].
+apply prog_contains_app_inv in H0; destruct H0 as [PG1 PG2].
+specialize (B1 ge PG1 H1 n). specialize (B2 ge PG2 H1 n).
+clear -B1 B2.
+apply believe_app_inv; eauto.
+Qed.
+
+Lemma semax_func_subsumption cs V V' F F'
+      (SUB: tycontext_sub (nofunc_tycontext V F) (nofunc_tycontext V F'))
+      (HV: forall id, sub_option (make_tycontext_g V F) ! id (make_tycontext_g V' F') ! id):
+  forall funs G (SF: @semax_func V F cs funs G),  @semax_func V' F' cs funs G.
+Proof.
+  intros. destruct SF as [MF B]. split; [trivial | intros]. specialize (B _ H H0 n).
+  assert (TS: forall f, tycontext_sub (func_tycontext' f (nofunc_tycontext V F)) (func_tycontext' f (nofunc_tycontext V' F'))).
+  { clear - SUB HV.
+    destruct SUB as [SUBa [SUBb [SUBc [SUBd [SUBe SUBf]]]]]; simpl in *.
+    unfold func_tycontext'; split; simpl; intuition.
+    destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); trivial. }
+  eapply believe_monoL; [eassumption | apply cspecs_sub_refl | eassumption]. 
+Qed.
+            
+Lemma semax_func_join cs V1 H1 V2 H2 V funs1 funs2 G1 G2 H
+      (SF1: @semax_func V1 H1 cs funs1 G1) (SF2: @semax_func V2 H2 cs funs2 G2)
+      
+      (K1: forall i, sub_option ((make_tycontext_g V1 H1) ! i) ((make_tycontext_g V1 H) ! i))
+      (K2: forall i, subsumespec ((make_tycontext_s H1) ! i) ((make_tycontext_s H) ! i))
+      (K3: forall i, sub_option ((make_tycontext_g V1 H) ! i) ((make_tycontext_g V H) ! i))
+      
+      (N1: forall i, sub_option ((make_tycontext_g V2 H2) ! i) ((make_tycontext_g V2 H) ! i))
+      (N2: forall i, subsumespec ((make_tycontext_s H2) ! i) ((make_tycontext_s H) ! i))
+      (N3: forall i, sub_option ((make_tycontext_g V2 H) ! i) ((make_tycontext_g V H) ! i)):
+  @semax_func V H cs (funs1 ++ funs2) (G1++G2).
+Proof.
+  apply semax_func_app.
+  + eapply semax_func_subsumption; [ | | apply SF1].
+  - hnf; simpl. intuition.
+    * rewrite PTree.gempty; trivial.
+    * rewrite PTree.gempty. simpl; trivial.
+  - intros. specialize (K1 id). eapply sub_option_trans. apply K1. trivial.
+  + eapply semax_func_subsumption; [ | | apply SF2].
+  - hnf; simpl. intuition.
+    * rewrite PTree.gempty; trivial.
+    * rewrite PTree.gempty. simpl; trivial.
+  - intros. specialize (N1 id). eapply sub_option_trans. apply N1. trivial.
+  + clear - SF1. eapply semax_func_length. apply SF1.
+Qed.
+
+Lemma semax_func_join_sameV cs H1 H2 V funs1 funs2 G1 G2 H
+      (SF1: @semax_func V H1 cs funs1 G1) (SF2: @semax_func V H2 cs funs2 G2)
+      
+      (K1: forall i, sub_option ((make_tycontext_g V H1) ! i) ((make_tycontext_g V H) ! i))
+      (K2: forall i, subsumespec ((make_tycontext_s H1) ! i) ((make_tycontext_s H) ! i))
+      
+      (N1: forall i, sub_option ((make_tycontext_g V H2) ! i) ((make_tycontext_g V H) ! i))
+      (N2: forall i, subsumespec ((make_tycontext_s H2) ! i) ((make_tycontext_s H) ! i)):
+  @semax_func V H cs (funs1 ++ funs2) (G1++G2).
+Proof.
+  eapply semax_func_join; try eassumption.
+  intros. apply sub_option_refl.
+  intros. apply sub_option_refl.
+Qed.
+
+Lemma sub_option_subsumespec x1 x2 (H:sub_option x1 x2): subsumespec x1 x2.
+Proof.
+  destruct x1 as [fs1 |]; destruct x2 as [fs2 |]; trivial; inv H.
+  apply subsumespec_refl.
+Qed.
+
+Lemma make_tycontext_g_nilV_elim G i t: (make_tycontext_g nil G) ! i = Some t ->
+      exists fs, find (fun x => ident_eq i (fst x)) G = Some (i,fs) /\ t=type_of_funspec fs.
+Proof.
+  induction G; simpl; intros. rewrite PTree.gempty in H. congruence.
+  destruct a as [j fs]; unfold ident_eq; simpl in *.
+  rewrite PTree.gsspec in H. destruct (peq i j); subst; simpl; eauto.
+  inv H. exists fs; split; trivial.
+Qed.
+
+Fixpoint find_idV (id : ident) (G : varspecs) {struct G} : option type:=
+  match G with
+  | nil => None
+  | (id', f) :: G' => if peq id id' then Some f else find_idV id G'
+  end.
+(*
+Lemma find_id_maketycontext_g V G id : (make_tycontext_g V G) ! id =
+                                       match find_idV id V with
+                                         None => find_id id G | Some t => Some  t
+                                       end.
+Proof.
+  induction G as [|(i,t) G]; simpl.
+  - destruct id; reflexivity.
+  - rewrite PTree.gsspec.
+    do 2 if_tac; congruence.
+Qed.*)
+
+Lemma make_tycontext_s_g V H i fs (HH: (make_tycontext_s H) ! i = Some fs):
+      (make_tycontext_g V H) ! i = Some (type_of_funspec fs).
+Proof.
+  induction H; simpl in *.  rewrite PTree.gempty in HH; congruence.
+  destruct a as [j gs]; simpl in *.  rewrite PTree.gsspec.
+  destruct (peq i j); subst.
+  + rewrite PTree.gss in HH; inv HH; trivial.
+  + rewrite PTree.gso in HH; auto.
+Qed.
+
+Lemma make_tycontext_g_consV_elim:
+  forall i t v vs G (HV: list_norepet ((map fst (v::vs)) ++ (map fst G))),
+   (make_tycontext_g (v::vs) G) ! i = Some t ->
+   if peq i (fst v) then t=snd v else (make_tycontext_g vs G) ! i = Some t.
+Proof.
+  intros. destruct v as [j u]. induction G; simpl in *.
++ rewrite PTree.gsspec in H. destruct (peq i j); subst; trivial. inv H; trivial.
++ destruct a as [k s]; simpl in *.  rewrite PTree.gsspec in *.
+  destruct (peq i k); subst.
+  - inv H. destruct (peq k j); trivial; subst. clear - HV. inv HV.
+    elim H1; clear. apply in_or_app.  right; left; trivial.
+  - apply IHG; trivial.  clear - HV. inv HV. apply list_norepet_append_inv in H2.
+    destruct H2 as [? [? ?]]. constructor.
+    * intros N. apply H1; clear - N.  apply in_app_or in N. apply in_or_app.
+      destruct N; [left; trivial | right; right; trivial].
+    * inv H0. apply list_norepet_append; trivial.
+      clear - H2. hnf; intros. apply H2; trivial.  right; trivial.
+Qed.
+Lemma make_tycontext_g_consV_mk:
+  forall i t v vs G (HV: list_norepet ((map fst (v::vs)) ++ (map fst G))),
+   (if peq i (fst v) then t=snd v else (make_tycontext_g vs G) ! i = Some t) ->
+   (make_tycontext_g (v::vs) G) ! i = Some t.
+Proof.
+  intros. destruct v as [j u]. simpl in *. induction G; simpl in *. rewrite app_nil_r in HV.
++ rewrite PTree.gsspec. destruct (peq i j); subst; trivial.
++ destruct a as [k s]; simpl in *. rewrite PTree.gsspec in *.
+  destruct (peq i k); subst.
+  - destruct (peq k j); trivial; subst. clear - HV. inv HV.
+    elim H1; clear. apply in_or_app.  right; left; trivial.
+  - apply IHG; trivial.  clear - HV. inv HV. apply list_norepet_append_inv in H2.
+    destruct H2 as [? [? ?]]. constructor.
+    * intros N. apply H1; clear - N.  apply in_app_or in N. apply in_or_app.
+      destruct N; [left; trivial | right; right; trivial].
+    * inv H0. apply list_norepet_append; trivial.
+      clear - H2. hnf; intros. apply H2; trivial.  right; trivial.
+Qed.
+
+Lemma make_tycontext_g_nilG_findV V i: (make_tycontext_g V nil) ! i = find_idV i V.
+Proof.
+  induction V; simpl. apply PTree.gempty.
+  destruct a as [j t]; simpl.
+  rewrite PTree.gsspec. destruct (peq i j); subst; simpl; eauto.
+Qed.
+
+Lemma make_tycontext_g_consG_elim i t V g G (HG: (make_tycontext_g V (g::G)) ! i = Some t):
+   if peq i (fst g) then t=type_of_funspec (snd g) else (make_tycontext_g V G) ! i = Some t.
+Proof.
+  destruct g as [j fs]; simpl in *.
+  rewrite PTree.gsspec in HG. destruct (peq i j); subst; auto. inv HG; trivial.
+Qed.
+Lemma make_tycontext_g_consG_mk i t V g G
+      (HG: if peq i (fst g) then t=type_of_funspec (snd g) else (make_tycontext_g V G) ! i = Some t):
+  (make_tycontext_g V (g::G)) ! i = Some t.
+Proof.
+  destruct g as [j fs]; simpl in *.
+  rewrite PTree.gsspec. destruct (peq i j); subst; auto.
+Qed.
+
+Lemma find_idV_In_map_fst i t: forall V (Hi: find_idV i V = Some t), In i (map fst V).
+Proof.
+  induction V; simpl; intros. inv Hi.
+  destruct a as [j u]; simpl. destruct (peq i j); subst; [left | right]; auto.
+Qed.
+
+Lemma list_norepet_cit_middle {A:Set} l1 l2 (a:A) (Ha: list_norepet (l1 ++ (a :: l2))): list_norepet (l1 ++ l2).
+Proof.
+  apply list_norepet_append_inv in Ha. destruct Ha as [VH1 [VH2 D]]. inv VH2.
+  apply list_norepet_append; trivial.
+  intros x y X Y. apply D; [ trivial | right; trivial].
+Qed.
+
+Lemma make_context_g_mk_findV_mk: forall H V (VH:list_norepet (map fst V ++ map fst H)) i t
+  (Heqd : find_idV i V = Some t), (make_tycontext_g V H) ! i = Some t.
+Proof.
+  induction H; intros.
+  + rewrite make_tycontext_g_nilG_findV; trivial.
+  + apply make_tycontext_g_consG_mk. destruct a as [j fs]; simpl in *.
+    destruct (peq i j); subst; simpl.
+  - apply list_norepet_append_inv in VH. destruct VH as [_ [_ VH]].
+    elim (VH j j); trivial.
+    apply (find_idV_In_map_fst _ _ _ Heqd). left; trivial.
+  - apply list_norepet_cit_middle in VH. apply IHlist; trivial.
+Qed.
+
+Lemma make_context_g_char:
+  forall H V (VH:list_norepet (map fst V ++ map fst H)) i,
+    (make_tycontext_g V H) ! i = match (make_tycontext_s H)!i with
+                                   None => find_idV i V
+                                 | Some fs => Some (type_of_funspec fs)
+                                 end.
+Proof.
+  induction H; intros.
+  + rewrite make_tycontext_g_nilG_findV.
+    simpl; rewrite PTree.gleaf; trivial.
+  + apply list_norepet_cit_middle in VH.
+    remember ((make_tycontext_g V (a :: H)) ! i) as d; symmetry in Heqd; destruct d. 
+  - apply make_tycontext_g_consG_elim in Heqd. destruct a as [j fs]; simpl in *. rewrite PTree.gsspec.
+    destruct (peq i j); subst; simpl in *; trivial. rewrite <- IHlist, Heqd; trivial.
+  - destruct a as [j fs]; simpl in *; rewrite PTree.gsspec in *.
+    destruct (peq i j); subst; simpl in *. congruence.
+    rewrite <- IHlist, Heqd; trivial.
+Qed.
+
+Lemma suboption_make_tycontext_s_g V G H 
+      (GH: forall i : positive, sub_option (make_tycontext_s G) ! i (make_tycontext_s H) ! i)
+      (VH: list_norepet (map fst V ++ map fst H))
+      (LNR : list_norepet (map fst G)) i:
+  sub_option (make_tycontext_g V G) ! i (make_tycontext_g V H) ! i.
+Proof.
+  remember ((make_tycontext_g V G) ! i) as d; destruct d; simpl; trivial; symmetry in Heqd.
+  rewrite make_context_g_char in *; trivial.
+  - remember ((make_tycontext_s G) ! i) as q; destruct q.
+    * specialize (GH i). rewrite <- Heqq in GH; simpl in GH. rewrite GH; trivial.
+    * rewrite Heqd, find_id_maketycontext_s. apply find_idV_In_map_fst in Heqd.
+      remember (find_id i H) as w; destruct w; trivial. symmetry in Heqw; apply find_id_e in Heqw.
+      apply list_norepet_append_inv in VH. destruct VH as [_ [_ D]].
+      elim (D i i); trivial. eapply in_map_fst in Heqw; apply Heqw.
+  - clear Heqd i t. apply list_norepet_append_inv in VH. destruct VH as [LNRV [LNRH D]].
+    apply list_norepet_append; trivial.
+    intros x y ? ?. apply D; trivial.  specialize (GH y). clear - GH H1 LNR.
+    hnf in GH. rewrite 2 find_id_maketycontext_s in GH. apply list_in_map_inv in H1.
+    destruct H1 as [[i fs] [? ?]]; subst.
+    erewrite find_id_i in GH; [| apply H1 | trivial]. apply find_id_e in GH. apply in_map_fst in GH. apply GH.
+Qed.
+
+Lemma semax_func_join_sameV' cs H1 H2 V funs1 funs2 G1 G2 H
+      (SF1: @semax_func V H1 cs funs1 G1) (SF2: @semax_func V H2 cs funs2 G2)
+      
+      (K1: forall i, sub_option ((make_tycontext_s H1) ! i) ((make_tycontext_s H) ! i))
+      (K2: forall i, sub_option ((make_tycontext_s H2) ! i) ((make_tycontext_s H) ! i))
+      
+      (LNR: list_norepet ((map fst V)++(map fst H)))
+      (LNR1: list_norepet (map fst H1)) (LNR2: list_norepet (map fst H2)):
+  @semax_func V H cs (funs1 ++ funs2) (G1++G2).
+Proof.
+  eapply semax_func_join_sameV; try eassumption.
+  + apply suboption_make_tycontext_s_g; eauto.
+  + intros. apply sub_option_subsumespec; auto.
+  + apply suboption_make_tycontext_s_g; eauto.
+  + intros. apply sub_option_subsumespec; auto.
+Qed.
+
+Lemma find_id_firstn i fs: forall n G (N: find_id i (firstn n G) = Some fs), find_id i G = Some fs.
+Proof.
+  induction n; simpl; intros. inv N.
+  destruct G; simpl in *. inv N.
+  destruct p as [j gs]; simpl in *.
+  destruct (eq_dec i j); subst; trivial. auto.
+Qed.
+
+Lemma find_id_skipn i fs: forall n G (HG: list_norepet (map fst G))
+                                 (N: find_id i (skipn n G) = Some fs), find_id i G = Some fs.
+Proof.
+  induction n; simpl; intros; trivial.
+  destruct G; simpl in *; trivial.
+  destruct p as [j gs]; simpl in *. inv HG.
+  destruct (eq_dec i j); [ subst | auto].
+  apply IHn in N; [clear IHn; exfalso| trivial].
+  apply find_id_e in N. apply in_map_fst in N; auto.
+Qed.
+
+Lemma In_firstn {A} (a:A): forall n l, In a (firstn n l) -> In a l.
+Proof.
+  induction n; simpl; intros. contradiction.
+  destruct l; inv H. left; trivial. right; auto.
+Qed.
+Lemma In_skipn {A} (a:A): forall n l, In a (skipn n l) -> In a l.
+Proof.
+  induction n; simpl; intros. trivial. 
+  destruct l. inv H. right; auto.
+Qed.
+
+Definition semax_prefunc ge V G (cs : compspecs) (fdecs : list (ident * fundef)) (G1 : funspecs) :=
+  match_fdecs fdecs G1 /\ prog_contains ge fdecs /\
+  forall n : nat, (believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1)) n.
+
+Lemma semax_prefunc_firstn ge cs H V:
+  forall n funs G (SF: @semax_prefunc ge V H cs funs G),
+    @semax_prefunc ge V H cs (firstn n funs) (firstn n G).
+Proof.
+  intros. destruct SF as [SF1 [SF2 SF3]]; split; [|split].
+  + clear SF2 SF3. specialize (match_fdecs_length _ _ SF1); intros.
+    generalize dependent G. generalize dependent funs. induction n; simpl; intros. constructor.
+    destruct funs; simpl in *. destruct G; simpl in *. constructor. congruence.
+    destruct G; simpl in *. congruence. inv SF1. inv H0. constructor; auto.
+  + clear SF1 SF3. red; intros. apply SF2. eapply In_firstn; eauto. 
+  + clear SF1 SF2 funs; intros k v fsig cc A P Q p KP HP. apply (SF3 k v fsig cc A P Q p KP).
+    hnf; hnf in HP. destruct HP as [i [HP [HQ [GS B]]]].
+    exists i, HP, HQ; split; trivial.
+    clear B SF3. simpl in*. rewrite find_id_maketycontext_s.
+    rewrite find_id_maketycontext_s in GS. apply find_id_firstn in GS; trivial.
+Qed.
+
+Lemma semax_prefunc_skipn ge cs H V funs (HV:list_norepet (map fst funs)) G (SF: @semax_prefunc ge V H cs funs G):
+  forall n ,
+    @semax_prefunc ge V H cs (skipn n funs) (skipn n G).
+Proof.
+  destruct SF as [SF1 [SF2 SF3]]; split; [|split].
+  + clear SF2 SF3. specialize (match_fdecs_length _ _ SF1); intros.
+    generalize dependent G. generalize dependent funs. induction n; simpl; intros; trivial.
+    destruct funs; simpl in *. inv SF1; constructor. destruct G; simpl in *; inv SF1. inv H0. inv HV. auto.
+  + clear SF1 SF3; red; intros. apply SF2. eapply In_skipn; eauto.
+  + clear SF2; intros k v fsig cc A P Q p KP HP. eapply match_fdecs_norepet in HV; [| eassumption ].
+    apply (SF3 k v fsig cc A P Q p KP).
+    hnf; hnf in HP. destruct HP as [i [HP [HQ [GS B]]]].
+    exists i, HP, HQ; split; trivial.
+    clear B SF1 SF3. simpl in *. rewrite find_id_maketycontext_s.
+    rewrite find_id_maketycontext_s in GS. apply find_id_skipn in GS; trivial.
+Qed.
+
+Lemma semax_func_firstn cs H V:
+  forall n funs G (SF: @semax_func V H cs funs G) (*(PC: prog_contains (expr_lemmas3.empty_genv cenv_cs) funs)*),
+    @semax_func V H cs (firstn n funs) (firstn n G).
+Proof.
+  intros. destruct SF as [SF1 SF2]; split.
+  + clear SF2. specialize (match_fdecs_length _ _ SF1); intros. (*clear PC.*)
+    generalize dependent G. generalize dependent funs. induction n; simpl; intros. constructor.
+    destruct funs; simpl in *. destruct G; simpl in *. constructor. congruence.
+    destruct G; simpl in *. congruence. inv SF1. inv H0. constructor; auto.
+  + intros ? ? ? k. specialize (SF2 ge).
+    assert (PCC: prog_contains ge funs). admit. 
+    intros v fsig cc A P Q p KP HP. apply (SF2 PCC H1 k v fsig cc A P Q p KP); clear SF2.
+    hnf; hnf in HP. destruct HP as [i [HP [HQ [GS B]]]].
+    exists i, HP, HQ; split; trivial.
+    clear B. simpl in*. rewrite find_id_maketycontext_s.
+    rewrite find_id_maketycontext_s in GS. apply find_id_firstn in GS; trivial.
+Admitted.
+
+Lemma semax_func_skipn cs H V funs (HV:list_norepet (map fst funs)) G (SF: @semax_func V H cs funs G):
+  forall n ,
+    @semax_func V H cs (skipn n funs) (skipn n G).
+Proof.
+  destruct SF as [SF1 SF2]; split.
+  + clear SF2. specialize (match_fdecs_length _ _ SF1); intros.
+    generalize dependent G. generalize dependent funs. induction n; simpl; intros; trivial.
+    destruct funs; simpl in *. inv SF1; constructor. destruct G; simpl in *; inv SF1. inv H0. inv HV. auto.
+  + intros ? ? ? k. specialize (SF2 ge). eapply match_fdecs_norepet in HV; [| eassumption ].
+    assert (PCC: prog_contains ge funs). admit.
+    intros v fsig cc A P Q p KP HP. apply (SF2 PCC H1 k v fsig cc A P Q p KP).
+    hnf; hnf in HP. destruct HP as [i [HP [HQ [GS B]]]].
+    exists i, HP, HQ; split; trivial.
+    clear B SF2. simpl in *. rewrite find_id_maketycontext_s.
+    rewrite find_id_maketycontext_s in GS. apply find_id_skipn in GS; trivial.
+Admitted.
+Print prog_contains.
 End semax_prog.
+(*
+Goal forall Espec ge V H cs fdecs G, @semax_prefunc Espec ge V H cs fdecs G -> prog_contains ge fdecs ->
+                               @semax_func Espec V H cs fdecs G.
+Proof.
+  intros. destruct H0. split; [ trivial | ].
+*)
+ 
+
+
+      (*Fixpoint merge {A} (*(eqd: forall (a a':A), {a = a'} + {a <> a'})*)(eqd : A -> A -> bool) (l1 l2: list (ident * A)): option (list (ident * A)) :=
+  match l1 with
+    nil => Some l2
+  | (i,a)::t => match merge eqd t l2 with
+                  None => None
+                | Some m => match find (fun x=> eqb_ident i (fst x)) m with
+                              None => Some ((i,a)::m)
+                            | Some b => if eqd a (snd b) then Some m else None
+                            end
+                end
+  end.
+
+Definition VarSpec_merge (V1 V2:varspecs): option varspecs := merge eqb_type V1 V2.
+(*
+Definition identtype_eqdec: forall (x y : ident * type), {x = y}+{x <> y}.
+Proof.
+  destruct x as [i1 t1]. destruct y as [i2 t2].
+  destruct (ident_eq i1 i2); [ subst i2|].
+  + destruct (type_eq t1 t2); [ left; subst t2; reflexivity | right ].
+    intros N. inv N. apply n; reflexivity.
+  + right. intros N. inv N. apply n; reflexivity.
+Defined.
+
+Definition funsig_eqdec: forall (x y : funsig), {x = y}+{x <> y}.
+Proof.
+  destruct x as [args1 ret1]. destruct y as [args2 ret2].
+  destruct (type_eq ret1 ret2).
++ subst. destruct (list_eq_dec identtype_eqdec args1 args2). left; subst; reflexivity.
+  right; intros N; inv N. apply n; reflexivity.
++ right. intros N; inv N. apply n; reflexivity.
+Defined.
+(*
+Definition funspec_combine (fs1 fs2 fs:funspec):Prop.
+Proof.
+  destruct fs1 as [sig1 cc1 A1 P1 Q1 P_ne1 Q_ne1].
+  destruct fs2 as [sig2 cc2 A2 P2 Q2 P_ne2 Q_ne2].
+  destruct fs as [sig cc A P Q P_ne Q_ne].
+  Print TypeTree.
+  apply (sig1 = sig2 /\ sig1=sig /\ cc1=cc2 /\ cc1=cc /\ A = PiType bool (fun b => if b then A1 else A2)).
+         forall ts, P ts = *)
+Fixpoint Funspecs_insert fs (fspecs: funspecs) : funspecs:=
+  match funspecs with
+    nil => [fs]
+  | (i,s)::t => if ideqnt_eq i (fst fs) then (i, 
+*)
+                 
+
+Definition varspecs_sub (V1 V2:varspecs):=
+  forall i, sub_option (find_idV i V1) (find_idV i V2).
+
+Lemma X: forall H H', tycontext_sub (nofunc_tycontext nil H) (nofunc_tycontext nil H') -> 
+      forall V i, sub_option ((make_tycontext_g V H) ! i) ((make_tycontext_g V H') ! i).
+Proof.
+  intros H H' HH'. induction V; intros. apply HH'.
+  hnf. remember ((make_tycontext_g (a :: V) H) ! i). destruct o; trivial.
+  specialize (IHV i). destruct a as [j u]. unfold make_tycontext_g in *. simpl in *.
+  remember (fun v : ident * type => PTree.set (fst v) (snd v)) as f.
+  remember (fun var : ident * funspec => PTree.set (fst var) (type_of_funspec (snd var))) as g.
+  clear Heqf Heqg.
+  remember  (fold_right f (PTree.empty type) V) as GG. clear HeqGG.
+  Search PTree.fold. Search fold_left fold_right.
+  Check fold_symmetric.
+  remember ().
+  rewrite PTree.gsspec. ; simpl in *. apply H1.
+  Lemma make_tycontext_g_consD a V G i t: (make_tycontext_g (a :: V) G) ! i = Some t ->
+                                        (make_tycontext_g V G) ! i = Some t.
+Proof.
+  intros. hnf. hnf in H. unfold make_tycontext_g in H.
+  remember simpl in H.
+  erewrite <- fold_symmetric in H.
+  Search fold_right.
+Lemma make_tycontext_g_nil_up G i t: forall V U (HU: (make_tycontext_g U G) ! i = Some t),
+  (make_tycontext_g (V++U) G) ! i = Some t.
+Proof.
+  induction V; simpl. trivial.
+  intros.
+
+  Lemma make_tycontext_g_nil_up G i t U (HU: (make_tycontext_g U G) ! i = Some t):
+  forall V, (make_tycontext_g (V++U) G) ! i = Some t.
+Proof.
+ induction V; simpl. trivial. 
+ unfold make_tycontext_g. simpl. rewrite PTree.gsspec. Search fold_right cons.
+ Lemma make_tycontext_mono1 V1 V2 G (V:  varspecs_sub V1 V2) i:
+  sub_option ((make_tycontext_g V1 G)!i) ((make_tycontext_g V2 G)!i).
+Proof.
+  hnf. hnf in V. remember ((make_tycontext_g V1 G) ! i) as d; destruct d; symmetry in Heqd; trivial.
+  induction V1; simpl in *. Search make_tycontext_g nil.
+  unfold make_tycontext_g in *. hnf.
+Definition specs_sub (V1 V2:varspecs):=
+  forall i, sub_option (find_idV i V1) (find_idV i V2).
+
+Lemma make_tycontext_mono2 V G1 G2 (G: tycontext_sub G1 G2) i:
+  sub_option ((make_tycontext_g V G1)!i) ((make_tycontext_g V G2)!i).
+                                              
+Lemma semax_func_join' cs V1 H1 V2 H2 V funs1 funs2 G1 G2 H
+      (SF1: @semax_func V1 H1 cs funs1 G1) (SF2: @semax_func V2 H2 cs funs2 G2)
+      (K1: tycontext_sub (nofunc_tycontext V1 H) (nofunc_tycontext V H)) 
+      (K2: tycontext_sub (nofunc_tycontext V2 H2) (nofunc_tycontext V H))
+      (HV1: varspecs_sub V1 V)  (HV2: varspecs_sub V2 V): 
+  @semax_func V H cs (funs1 ++ funs2) (G1++G2).
+Proof.
+  destruct K1 as [Q1 [Q2 [Q3 [Q4 [Q5 Q6]]]]]; simpl in *.
+  destruct K2 as [P1 [P2 [P3 [P4 [P5 P6]]]]]; simpl in *.
+  apply semax_func_app.
+  + eapply semax_func_subsumption; [ | | apply SF1].
+  - hnf; simpl. intuition.
+    intros. eapply sub_option_trans. apply Q4. Print find_id. hnf.
+    Print make_tycontext_g. trivial.
+  + eapply semax_func_subsumption; [ | | apply SF2].
+  - hnf; simpl. intuition.
+    * rewrite PTree.gempty; trivial.
+    * rewrite PTree.gempty. simpl; trivial.
+  - intros. specialize (N1 id). eapply sub_option_trans. apply N1. trivial.
+  + clear - SF1. eapply semax_func_length. apply SF1.
+Qed.
+Lemma semax_func_join cs V1 H1 V2 H2: forall funs1 funs2 G1 G2
+   (SF1: @semax_func V1 H1 cs funs1 G1) (SF2: @semax_func V2 H2 cs funs2 G2),
+   @semax_func (mergeV H cs (funs1 ++ funs2) (G1++G2).
+Proof.
+intros. destruct SF1 as [MF1 B1]. destruct SF2 as [MF2 B2]. 
+split; [ apply match_fdecs_app; trivial | intros; subst].
+apply prog_contains_app_inv in H0; destruct H0 as [PG1 PG2].
+specialize (B1 ge PG1 H1 n). specialize (B2 ge PG2 H1 n).
+clear -B1 B2.
+apply believe_app_inv; eauto.
+Qed.
+End semax_prog.
+(*
+Definition external_specification_sub {Z Z'}
+           (spec:  external_specification juicy_mem external_function Z)
+           (spec': external_specification juicy_mem external_function Z'):Prop :=
+  match spec, spec' with
+    Build_external_specification es_type es_pre es_post es_exit,
+    Build_external_specification es_type' es_pre' es_post' es_exit' =>
+    forall e t x typs args z m, es_pre e t x typs args z m ->
+              exists t' z', es_pre' e t' x typs args z' m /\
+                          ((forall ot ov mm, es_post' e t' x ot ov z' mm -> es_post e t x ot ov z mm)
+                           /\ (forall ov mm, es_exit' ov z' mm -> es_exit ov z mm))
+  end.
+           
+Definition  juicy_ext_spec_sub {Z Z'} (spec: juicy_ext_spec Z) (spec': juicy_ext_spec Z') :=
+  external_specification_sub (JE_spec _ spec) (JE_spec _ spec').
+
+Definition OracleKind_sub (Espec Espec': OracleKind): Prop :=
+        match Espec, Espec' with
+          Build_OracleKind ty spec, Build_OracleKind ty' spec' => juicy_ext_spec_sub spec spec'
+        end.
+
+Check Build_OracleKind. Print juicy_ext_spec. Print external_specification. add_funspecs_rec.
+Lemma believe_external_subsumption {Espec Espec'} (OSUB : OracleKind_sub Espec Espec')
+  (ge : genv) b sig cc A P Q m (B: (believe_external Espec ge b sig cc A P Q) m):
+  (believe_external Espec' ge b sig cc A P Q) m.
+Proof.
+  do 3 red in B. do 3 red.
+  destruct Espec as [OKty JExtSpec]. destruct Espec' as [OKty' JExtSpec']. simpl in *.
+  remember (Genv.find_funct ge b) as p; destruct p; [ | trivial].
+  destruct f; [ trivial | destruct B as [[B1 B2] B3]].
+  split; [ split; [ trivial | ] | trivial]. clear B1 B3. hnf in OSUB, B2. unfold  ext_spec_type in B2.
+Locate OK_ty. Print semax_external. Print semax_. Print _guard. Print believepred.
+ Print believe_external. Locate semax_ext. pred.  remember (JE_spec OKty JExtSpec) as JES; destruct JES as [es_type es_pre es_post es_exit].
+  remember (JE_spec OKty' JExtSpec') as JES'; destruct JES' as [es_type' es_pre' es_post' es_exit']. simpl in *.
+  intros g ts x k MK F ts' args w KW a WA Ha.
+  specialize (B2 g ts x k MK F ts' args w KW a WA Ha).
+  destruct B2 as [u [U1 U2]]. subst. rewrite <- HeqJES in u. simpl in u, U1, U2; unfold ext_spec_type in u. (*exists u. type error in implicit arg*)
+  destruct Espec as [OKty JExtSpec]. destruct Espec' as [OKty' JExtSpec']. (* simpl in *.*)
+  hnf in OSUB.
+  remember (JE_spec OKty JExtSpec) as JES; destruct JES as [es_type es_pre es_post es_exit].
+  remember (JE_spec OKty' JExtSpec') as JES'; destruct JES' as [es_type' es_pre' es_post' es_exit'].
+  remember (JE_spec OK_ty OK_spec) as JESS; destruct JESS as [es_typeX es_preX es_postX es_exitX].
+  simpl in u. unfold ext_spec_type in u.
+  specialize (OSUB e). simpl in OSUB. destruct Ha as [Ha1 Ha2]. simpl in u. Print ext_compat. Set Printing All. None. as [es_type es_pre es_post es_exit]. destruct (JE_spec OK_ty0 OK_spec0).
+
+exists u. split. 2: apply B3. split; trivial. hnf in B. admit. in B. red in B. destruct B. hnf in B. remember (believe_external Espec ge b sig cc A P Q). destruct p.
+       simpl in *.
+       
+       destruct B. intros.
+
+  Qed.
+
+  Lemma semax_func_externalsubsumption {Espec Espec' cs V F}
+      (OSUB:  OracleKind_sub Espec Espec'):
+  forall funs G (SF: @semax_func Espec V F cs funs G),  @semax_func Espec' V F cs funs G.
+Proof. intros. destruct SF as [MF B].
+  split; [trivial | intros; specialize (B _ H H0 n); clear - OSUB B].
+  intros b sig cc A P Q m NEC Claim.
+  destruct (B b sig cc A P Q _ NEC Claim) as [HB | HB]; [ left | right]; clear Claim B.
++ (*believe_externalEpsec_sub*)
+  hnf. Print believe_external. destruct B. hnf in B. eapply allp_derives.  simpl in B. specialize (B _ H H0 n b). hnf in B.
+  clear - OSUB B. hnf; intros. specialize apply B.
+  eapply believe_monoL; [| eassumption]; intros.
+  clear - SUB HV.
+  destruct SUB as [SUBa [SUBb [SUBc [SUBd [SUBe SUBf]]]]]; simpl in *.
+  unfold func_tycontext'; split; simpl; intuition.
+  destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); trivial.
+Qed.
+
+Definition funspecs_sub V (G1 G2:funspecs) :=
+(forall i s, (make_tycontext_s G1) ! i = Some s -> (make_tycontext_s G2) ! i = Some s) /\
+(forall i t, (make_tycontext_g V G1) ! i = Some t -> (make_tycontext_g V G2) ! i = Some t).
+
+Lemma funspecs_sub_sub_option_s V G1 G2 (F: funspecs_sub V G1 G2) id:
+  sub_option ((make_tycontext_s G1) ! id) ((make_tycontext_s G2) ! id).
+Proof.
+red. remember ((make_tycontext_s G1) ! id) as t; symmetry in Heqt.
+destruct t; trivial. apply F in Heqt; trivial. 
+Qed.
+
+Lemma funspecs_sub_sub_option_g V G1 G2 (F: funspecs_sub V G1 G2) id:
+  sub_option ((make_tycontext_g V G1) ! id) ((make_tycontext_g V G2) ! id).
+Proof.
+red. remember ((make_tycontext_g V G1) ! id) as t; symmetry in Heqt.
+destruct t; trivial. apply F in Heqt; trivial. 
+Qed.
+
+Lemma funspecs_sub_refl V G: funspecs_sub V G G.
+Proof. split; intros; trivial. Qed.
+
+Lemma funspecs_sub_trans V G1 G2 G3: funspecs_sub V G1 G2 ->
+  funspecs_sub V G2 G3 -> funspecs_sub V G1 G3.
+Proof. intros. destruct H as [A1 A2]. destruct H0 as [B1 B2]. 
+split; intros; eauto.
+Qed.
+
+Lemma funspecs_sub_nofunctycontext_sub {V} G1 G2 (HSUB: funspecs_sub V G1 G2) f:
+tycontext_sub (func_tycontext' f (nofunc_tycontext V G1))
+  (func_tycontext' f (nofunc_tycontext V G2)).
+Proof. red. unfold func_tycontext; simpl; intuition.
++ destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); trivial.
++ apply funspecs_sub_sub_option_g; trivial.
++ eapply funspecs_sub_sub_option_s; eauto.
++ apply Annotation_sub_refl.
+Qed.
+
+Lemma funspecs_sub_functycontext_sub {V} G1 G2 (HSUB: funspecs_sub V G1 G2) f K:
+tycontext_sub (func_tycontext f V G1 K) (func_tycontext f V G2 K).
+Proof. red. unfold func_tycontext; simpl; intuition.
++ destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); trivial.
++ apply funspecs_sub_sub_option_g; trivial.
++ eapply funspecs_sub_sub_option_s; eauto.
++ apply Annotation_sub_refl.
+Qed.
+
+(*We may always add unused assumptions to G - intuitively, this context weakening rule 
+  is sound since one could have done the proof of f wrt the larger gprog in the first place. *)
+Lemma semax_func_weakening_L {cs} V H G funs K:
+   @semax_func V H cs funs K -> funspecs_sub V H G ->
+   @semax_func V G cs funs K.
+Proof.
+intros [MF B] SUB.
+split; [ trivial | intros]. specialize (B _ H0 H1 n). clear - B SUB.
+eapply believe_monoL; [ clear B; intros | eassumption].
+apply funspecs_sub_nofunctycontext_sub; trivial.
+Qed.
+
+(*Similarly for semax_body*)
+Lemma semax_body_weakening {cs} V G1 f spec G2 :
+  @semax_body V G1 cs f spec -> funspecs_sub V G1 G2 -> 
+  @semax_body V G2 cs f spec.
+Proof. intros. red. destruct spec. destruct f0; intros.
+intros n. eapply semax.semax_mono. 
+apply funspecs_sub_functycontext_sub; eauto.
+apply H.
+Qed.
+
+Definition match_fdecs_sub funs G funs' G' :=
+  sublist funs funs' /\
+  sublist G G' /\ 
+  match_fdecs funs G.
+
+Definition hide_auxiliary_functions {cs} V K funs G := 
+   exists funs' G', match_fdecs_sub funs G funs' G' /\
+                    @semax_func V K cs funs' G'.
+*)
+*)
