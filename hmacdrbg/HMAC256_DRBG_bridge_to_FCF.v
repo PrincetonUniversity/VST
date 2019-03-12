@@ -1,7 +1,7 @@
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import VST.floyd.functional_base.
 (*Require Import FCF.HMAC_DRBG_definitions_only.*)
-Require Import FCF.HMAC_DRBG_nonadaptive.
+Require Import hmacdrbg.HMAC_DRBG_nonadaptive.
 Require Import sha.ByteBitRelations.
 Require Import BinInt.
 Require Import hmacdrbg.DRBG_functions.
@@ -69,13 +69,12 @@ Goal forall k' v, bitsToBytes (to_list (HMAC_Bvec k' v)) = HMAC256  (bitsToBytes
 Proof. unfold HMAC_Bvec; intros.
   rewrite to_list_eq, HMAC_equivalence.of_length_proof_irrel, bytes_bits_bytes_id; trivial.
 Qed.
-
 Lemma HMAC_DRBG_generate_helper_Z_equation':
   forall (HMAC : list byte -> list byte -> list byte) (key v : list byte) (requested_number_of_bytes : Z),
   0 < requested_number_of_bytes ->
   HMAC_DRBG_generate_helper_Z HMAC key v requested_number_of_bytes =
     let (v0, rest) := HMAC_DRBG_generate_helper_Z HMAC key v (requested_number_of_bytes - Z.of_nat 32) in
-    (HMAC v0 key, rest ++ HMAC v0 key).
+    (HMAC v0 key, rest ++ HMAC v0 key)%list.
 Proof. intros. rewrite HMAC_DRBG_generate_helper_Z_equation.
   remember (0 >=? requested_number_of_bytes). destruct b; trivial.
   symmetry in Heqb;  apply Z.geb_le in Heqb. omega.
@@ -292,8 +291,8 @@ Qed.
 
 Lemma E_aux k: forall n v blocks u,
                Gen_loop_Zlist k (HMAC256 v k) n = (blocks, u) ->
-      flatten (rev blocks) ++ HMAC256 u k =
-      HMAC256 (HMAC256 v k) k ++ flatten (rev (map (fun z : list byte => HMAC256 z k) blocks)).
+      (flatten (rev blocks) ++ HMAC256 u k =
+      HMAC256 (HMAC256 v k) k ++ flatten (rev (map (fun z : list byte => HMAC256 z k) blocks)))%list.
 Proof. induction n; intros.
 + inv H; simpl. rewrite app_nil_r; trivial.
 + simpl in H.
@@ -343,7 +342,7 @@ Definition GenUpdate_original_core (state : KV 256) (n : nat) :
   (list (Bvector 256) * KV 256) :=
   match state with (k, v) =>
     match Gen_loop HMAC_Bvec k v n with (bits, v') => 
-        let k' := HMAC_Bvec k (to_list v' ++ zeroes) in
+        let k' := HMAC_Bvec k (to_list v' ++ zeroes)%list in
         let v'' := HMAC_Bvec k' (to_list v') in (bits, (k', v''))
     end
   end.
@@ -352,7 +351,7 @@ Definition GenUpdate_original_Bvec (state : KV 256) (n : nat) :
   (list (Bvector 256) * KV 256) :=
   match state with (k, v) =>
     match Gen_loop_Bvec k v n with (bits, v') => 
-        let k' := HMAC_Bvec k (to_list v' ++ zeroes) in
+        let k' := HMAC_Bvec k (to_list v' ++ zeroes)%list in
         let v'' := HMAC_Bvec k' (to_list v') in (bits, (k', v''))
     end
   end.
@@ -370,7 +369,7 @@ Definition GenUpdate_original_Blist (state : Blist * Blist) (n : nat) :
   (list Blist * (Blist * Blist)) :=
   match state with (k, v) =>
     match Gen_loop_Blist k v n with (bits, v') => 
-        let k' := HMAC_Blist k (v' ++ zeroes) in
+        let k' := HMAC_Blist k (v' ++ zeroes)%list in
         let v'' := HMAC_Blist k' v' in (bits, (k', v''))
     end
   end.

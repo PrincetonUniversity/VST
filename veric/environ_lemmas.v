@@ -6,6 +6,8 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 
+Require Import VST.veric.seplog. (*For definition of tycontext*)
+
 Lemma eqb_type_eq: forall t1 t2, eqb_type t1 t2 = proj_sumbool (type_eq t1 t2).
 Proof.
 intros.

@@ -748,9 +748,23 @@ Ltac simpl_app_localdefs_tc :=
   simpl_temp_types_get;
   cbv iota zeta beta.
 
+Ltac solve_all_legal_glob_ident :=
+ reflexivity ||
+lazymatch goal with
+| gv: globals |- fold_right andb true (map ?F ?L) = true =>
+  let L' := constr:(List.filter (Basics.compose negb F) L) 
+  in let L' := eval simpl in L' 
+  in fail 1 "The following global identifiers," L'
+     "are not mentioned in your type-context,
+therefore entailer or go_lower cannot operate on them."
+"You can work around this problem by doing"
+"(forget (" gv "i) as i')" "for each of those global identifiers i.
+Then entailer or go_lower will work"
+end.
+
 Ltac clean_LOCAL_canon_mix :=
   eapply_clean_LOCAL_right_spec;
-  [reflexivity | prove_local2ptree | solve_clean_LOCAL_right | simpl_app_localdefs_tc].
+  [solve_all_legal_glob_ident | prove_local2ptree | solve_clean_LOCAL_right | simpl_app_localdefs_tc].
 
 Lemma is_int_Vint_intro: forall sz sg v (P: Prop),
   ((exists i, v = Vint i /\ is_int sz sg (Vint i)) -> P) ->

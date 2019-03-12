@@ -287,6 +287,18 @@ Proof.
   apply Ptrofs.eqm_sym, Ptrofs.eqm_unsigned_repr.
 Qed.
 
+Lemma ptrofs_unsigned_ofint64_repr:
+  Archi.ptr64 = true -> 
+  forall x, Ptrofs.repr (Ptrofs.unsigned (Ptrofs.of_int64 (Int64.repr x))) = 
+               Ptrofs.repr x.
+Proof.
+intros.
+unfold Ptrofs.of_int64.
+rewrite Ptrofs_repr_Int64_unsigned_special by auto.
+rewrite Ptrofs.repr_unsigned.
+auto.
+Qed.
+
 Ltac solve_Ptrofs_eqm_unsigned :=
   solve
    [ autorewrite with norm;
@@ -306,6 +318,7 @@ Ltac solve_Ptrofs_eqm_unsigned :=
       | _ => rewrite <- (Ptrofs.repr_unsigned V) at 1
       end
     end;
+    rewrite ?ptrofs_unsigned_ofint64_repr by reflexivity;
     apply Ptrofs_eqm_unsigned_repr
   ].
 
@@ -1493,6 +1506,39 @@ Lemma data_equal_congr {cs: compspecs}:
 Proof. intros. subst. intro. reflexivity.
 Qed.
 
+Definition intsize_leq a b := 
+ match a,b with
+ | IBool, IBool => True
+ | IBool, _ => False
+ | _, IBool => False
+ | I8, _ => True
+ | _, I8 => False
+ | I16, _ => True
+ | _, I16 => False
+ | I32, I32 => True
+ end.
+
+Lemma sem_cast_i2i_compose:
+ forall sz1 sg sz2 x,
+   intsize_leq sz2 sz1 ->
+   sem_cast_i2i sz1 sg (force_val (sem_cast_i2i sz2 sg x)) =
+   sem_cast_i2i sz2 sg x.
+Proof.
+intros.
+destruct x; auto.
+simpl.
+destruct sz1,sz2; try contradiction;
+destruct sg; simpl;
+rewrite ?Int.sign_ext_widen,
+           ?Int.zero_ext_widen by omega; auto;
+destruct (Int.eq i Int.zero); auto.
+Qed.
+
+Ltac convert_stored_value :=
+  rewrite ?sem_cast_i2i_compose by apply Logic.I;
+   apply JMeq_refl
+  || fail 1000 "store_tac: unexpected failure in converting stored value".
+ 
 Ltac store_tac_with_hint LOCAL2PTREE :=
   eapply semax_PTree_field_store_with_hint;
   [ exact LOCAL2PTREE
@@ -1506,8 +1552,7 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
                                                          "Required field_at does not exists in SEP")
   | (auto                                   || fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "Cannot prove writable_share")
-  | (apply JMeq_refl                        || fail 1000 "unexpected failure in store_tac_with_hint."
-                                                         "unexpected failure in converting stored value")
+  | convert_stored_value
   | first [apply data_equal_congr; solve_store_rule_evaluation
                                              | fail 1000 "unexpected failure in store_tac_with_hint."
                                                          "unexpected failure in computing stored result"]
@@ -1529,8 +1574,7 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
   | (auto                                   || fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "Cannot prove writable_share")
-  | (apply JMeq_refl                        || fail 1000 "unexpected failure in store_tac_no_hint."
-                                                         "unexpected failure in converting stored value")
+  | convert_stored_value
   | first [apply data_equal_congr; solve_store_rule_evaluation
                                              | fail 1000 "unexpected failure in store_tac_no_hint."
                                                          "unexpected failure in computing stored result"]

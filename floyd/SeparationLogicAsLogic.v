@@ -2206,6 +2206,35 @@ Proof.
   rewrite andp_comm.
   rewrite imp_andp_adjoint.
   rewrite imp_andp_adjoint.
+  intros rho.
+  apply (allp_left _ id).
+  apply (allp_left _ f).
+  rewrite prop_imp by auto.
+  apply exp_left; intros b.
+  unfold local, lift1; unfold_lift; simpl. normalize.
+  rewrite <- imp_andp_adjoint.
+  rewrite <- imp_andp_adjoint. normalize. 
+  unfold derives. apply predicates_hered.exp_right with (x:=b). eapply predicates_hered.prop_andp_right.
+  - unfold eval_var. rewrite H3.
+    destruct H4 as [_ [? _]].
+    specialize (H4 id).
+    rewrite H in H4.
+    destruct (Map.get (ve_of rho) id) as [[? ?] |]; [exfalso | auto].
+    specialize (H4 t).
+    destruct H4 as [_ ?].
+    specialize (H4 ltac:(eexists; eauto)). congruence.
+  - unfold func_ptr, seplog.func_ptr. (* apply predicates_hered.exp_right with (x:=f). *)
+    apply predicates_hered.andp_left1. 
+    apply predicates_hered.exp_left; intros bb.
+    apply normalize.derives_extract_prop; intros X; inv X. trivial.
+Qed. (*old proof:
+  intros.
+  eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
+  reduceR.
+  apply andp_right; [solve_andp |].
+  rewrite andp_comm.
+  rewrite imp_andp_adjoint.
+  rewrite imp_andp_adjoint.
   apply (allp_left _ id).
   apply (allp_left _ f).
   rewrite prop_imp by auto.
@@ -2228,6 +2257,47 @@ Proof.
   specialize (H4 ltac:(eexists; eauto)).
   congruence.
 Qed.
+*)
+(*Lemma semax_fun_id:
+  forall {CS: compspecs} {Espec: OracleKind},
+      forall id f Delta P Q c,
+    (var_types Delta) ! id = None ->
+    (glob_specs Delta) ! id = Some f ->
+    (glob_types Delta) ! id = Some (type_of_funspec f) ->
+    @semax CS Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
+                  c Q ->
+    @semax CS Espec Delta P c Q.
+Proof.
+  intros.
+  eapply semax_conseq; [| intros; apply derives_full_refl .. | apply H2].
+  reduceR.
+  apply andp_right; [solve_andp |].
+  rewrite andp_comm.
+  rewrite imp_andp_adjoint.
+  rewrite imp_andp_adjoint. hnf. 
+(*  apply (allp_left _ id).
+  apply (allp_left _ f).*)
+  rewrite prop_imp by auto.
+  apply exp_left; intros b.
+  rewrite <- imp_andp_adjoint.
+  rewrite <- imp_andp_adjoint.
+  unfold local, lift1; unfold_lift; intro rho; simpl.
+  unfold eval_var, func_ptr.
+  apply (exp_right b).
+  normalize.
+  rewrite H3.
+  apply andp_right; [| solve_andp].
+  apply prop_right.
+  destruct H4 as [_ [? _]].
+  specialize (H4 id).
+  rewrite H in H4.
+  destruct (Map.get (ve_of rho) id) as [[? ?] |]; [exfalso | auto].
+  specialize (H4 t).
+  destruct H4 as [_ ?].
+  specialize (H4 ltac:(eexists; eauto)).
+  congruence.
+Qed.
+*)
 
 Lemma nocontinue_ls_spec: forall sl, nocontinue_ls sl = true -> nocontinue (seq_of_labeled_statement sl) = true.
 Proof.

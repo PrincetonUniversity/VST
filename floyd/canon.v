@@ -301,7 +301,7 @@ Proof.
   apply SEPx_nonexpansive; auto.
 Qed.
 
-Notation "'EX'  x ':' T ',' P " := (@exp (environ->mpred) _ T (fun x:T => P%assert)) (at level 65, x at level 99) : assert.
+Notation "'EX'  x ':' T ',' P " := (@exp (environ->mpred) _ T (fun x:T => P%assert)) (at level 65, x ident, right associativity) : assert.
 
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
   (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 80, P at level 79, Q at level 79).
@@ -985,6 +985,7 @@ Ltac gather_SEP' L :=
    try (intro r; unfold r; clear r)
  end.
 
+(* replaced by the new gather_SEP in freezer.v ...
 Tactic Notation "gather_SEP" constr(a) :=
   gather_SEP' (a::nil).
 Tactic Notation "gather_SEP" constr(a) constr(b) :=
@@ -1005,6 +1006,7 @@ Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) c
   gather_SEP' (a::b::c::d::e::f::g::h::i::nil).
 Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) :=
   gather_SEP' (a::b::c::d::e::f::g::h::i::j::nil).
+*)
 
 Fixpoint replace_nth {A} (n: nat) (al: list A) (x: A) {struct n}: list A :=
  match n, al with

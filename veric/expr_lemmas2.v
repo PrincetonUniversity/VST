@@ -8,6 +8,7 @@ Require Import VST.veric.expr.
 Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 
+Require Import VST.veric.seplog. (*For definition of tycontext*)
 
 Import Cop.
 Import Cop2.

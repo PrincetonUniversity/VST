@@ -101,8 +101,8 @@ Defined.
 Delimit Scope logic with logic.
 Local Open Scope logic.
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
-Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%logic)) (at level 65, x at level 99) : logic.
-Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%logic)) (at level 65, x at level 99) : logic.
+Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%logic)) (at level 65, x ident, right associativity) : logic.
+Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%logic)) (at level 65, x ident, right associativity) : logic.
 Infix "||" := orp (at level 50, left associativity) : logic.
 Infix "&&" := andp (at level 40, left associativity) : logic.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : logic.

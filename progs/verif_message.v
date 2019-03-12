@@ -163,7 +163,18 @@ make_func_ptr _intpair_deserialize.
 make_func_ptr _intpair_serialize.
 set (des := gv _intpair_deserialize).
 set (ser := gv _intpair_serialize).
-gather_SEP 5 6 7.
+match goal with 
+ |- context [memory_block Ews 4 _] => 
+  (* 64-bit mode *)
+  gather_SEP (mapsto _ _ _ (offset_val 0 des))
+      (mapsto _ _ _ (offset_val 0 ser))
+      (memory_block Ews 4 _)
+      (data_at _ _ _ ipm)
+ | _ => (*32-bit mode *)
+  gather_SEP (mapsto _ _ _ (offset_val 0 des))
+      (mapsto _ _ _ (offset_val 0 ser))
+      (data_at _ _ _ ipm)
+end.
 replace_SEP 0 
     (data_at Ews t_struct_message
       (Vint (Int.repr (mf_size intpair_message)), (ser, des)) ipm). {
@@ -177,6 +188,7 @@ rewrite data_at_tuint_tint.
  rewrite !field_compatible_field_address by auto with field_compatible.
  simpl.
  normalize.
+ unfold spacer, at_offset; simpl.
  cancel.
 }
 forward. (* p.x = 1; *)

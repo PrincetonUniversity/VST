@@ -8,6 +8,8 @@ Require Export VST.veric.lift.
 Require Export VST.veric.Clight_Cop2.
 Require Export VST.veric.val_lemmas.
 
+Require Import VST.veric.seplog. (*For definition of tycontext*)
+
 (*moved to compcert_rmaps
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
@@ -817,7 +819,7 @@ match tl,el with
 end.
 
 (** Environment typechecking functions **)
-
+(*moved to seplog.v
 Definition typecheck_temp_environ
 (te: tenviron) (tc: PTree.t type) :=
 forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
@@ -830,7 +832,7 @@ Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
 forall id  t,  tc ! id = Some t ->
 (exists b, Map.get ge id = Some b).
-
+*)
 (*
 Definition specs_types (Delta: tycontext) :=
   forall id s, (glob_specs Delta) ! id = Some s ->
@@ -854,10 +856,12 @@ Definition all_var_ids (Delta : tycontext) : list positive :=
 (fst (split (PTree.elements (glob_types Delta)))).
 *)
 
+(*moved to seplog.v
 Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta).
+*)
 
 Lemma typecheck_var_environ_None: forall ve vt,
   typecheck_var_environ ve vt ->
@@ -1129,7 +1133,7 @@ Next Obligation.
 split; intros; congruence.
 Qed.
 Next Obligation.
-hnf; simpl; intros.
+hnf; simpl; intros. hnf; simpl; intros. 
 destruct (a@(b,Ptrofs.unsigned ofs + d)) eqn:?; try contradiction.
 rewrite (necR_NO a a') in Heqr.
 rewrite Heqr; auto.
@@ -1154,3 +1158,85 @@ Definition valid_pointer (p: val) : mpred :=
 
 Definition weak_valid_pointer (p: val) : mpred :=
  orp (valid_pointer' p 0) (valid_pointer' p (-1)).
+
+(********************SUBSUME****************)
+
+Definition params_of_funspec (fs: funspec) : list (ident * type) :=
+  fst (funsig_of_funspec fs).
+
+Definition return_of_funspec (fs: funspec) : type :=
+  snd (funsig_of_funspec fs).
+
+
+Definition funsig_of_function (f: function) : funsig :=
+  (fn_params f, fn_return f).
+
+(* If we were to require that a non-void-returning function must,
+   at a function call, have its result assigned to a temp,
+   then we could change "ret0_tycon" to "ret_tycon" in this
+   definition (and in NDfunspec_sub). *)
+Definition subsumespec x y:=
+match x with
+| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
+| None => True
+end. 
+
+Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
+     subsumespec x z.
+Proof. unfold subsumespec in *.
+ destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
+ destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
+ intros w W.
+ eapply funspec_sub_si_trans; split; eauto.
+Qed.
+
+Lemma subsumespec_refl x: subsumespec x x.
+Proof. unfold subsumespec.
+ destruct x; trivial. exists f; split; [trivial| apply funspec_sub_si_refl ].
+Qed.
+
+Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
+ (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
+                 | None, _ => True
+                 | Some t, None => False
+                 | Some t, Some t' => t=t'
+                end)
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
+
+ /\ (forall id, subsumespec ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
+
+ /\ (forall id, Annotation_sub ((annotations Delta) ! id) ((annotations Delta') ! id)).
+
+
+Lemma tycontext_sub_trans:
+ forall Delta1 Delta2 Delta3,
+  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
+  tycontext_sub Delta1 Delta3.
+Proof.
+  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
+  repeat split.
+  * intros. specialize (G1 id); specialize (H1 id).
+    destruct ((temp_types Delta1) ! id); auto.
+    destruct ((temp_types Delta2) ! id);
+      try contradiction.
+    destruct ((temp_types Delta3) ! id); try contradiction.
+    destruct G1, H1; split; subst; auto.
+  * intros. specialize (G2 id); specialize (H2 id); congruence.
+  * congruence.
+  * intros. eapply sub_option_trans; eauto.
+  * clear - H5 G5. intros. eapply subsumespec_trans; eauto.
+  * intros. eapply Annotation_sub_trans; eauto.
+Qed.
+
+Lemma tycontext_sub_refl Delta: tycontext_sub Delta Delta.
+Proof.
+  repeat split; trivial.
+  * intros. destruct ((temp_types Delta) ! id); trivial. 
+  * intros. apply sub_option_refl. 
+  * intros. apply subsumespec_refl.
+  * intros. eapply Annotation_sub_refl.
+Qed.
+
+(*************************************)
