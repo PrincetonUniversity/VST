@@ -106,8 +106,8 @@ Proof.
     inv H7.
 Qed.
 
-Lemma change_has_ext : forall {Z} (a a' : Z) r H, has_ext a r ->
-  has_ext a' (set_ghost r [Some (ext_ghost a', NoneP)] H).
+Lemma change_has_ext : forall {Z} (a a' : Z) r H, app_pred (has_ext a) r ->
+  app_pred (has_ext a') (set_ghost r [Some (ext_ghost a', NoneP)] H).
 Proof.
   intros; simpl in *.
   destruct H0 as (p & ? & ?); exists p.

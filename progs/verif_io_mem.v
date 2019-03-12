@@ -2,10 +2,17 @@ Require Import VST.progs.io_mem.
 Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import DeepWeb.Free.Monad.Free.
-Import MonadNotations.
-Require Import DeepWeb.Free.Monad.Common.
-Require Import DeepWeb.Free.Monad.Eq.Utt.
+Require Import ITree.ITree.
+(*Import ITreeNotations.*)
+Notation "t1 >>= k2" := (ITree.bind t1 k2)
+  (at level 50, left associativity) : itree_scope.
+Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
+  (at level 100, t1 at next level, right associativity) : itree_scope.
+Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
+  (at level 100, right associativity) : itree_scope.
+Notation "' p <- t1 ;; t2" :=
+  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
+(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -76,20 +83,21 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (mem_mgr gv; ITREE tr).
 
-CoFixpoint for_loop i z (body : Z -> IO_itree) :=
-  if i <? z then body i ;; for_loop (i + 1) z body else Ret tt.
+Definition for_loop i z (body : Z -> IO_itree) :=
+  ITree.aloop (fun j => if j <? z then inl (body j ;; Ret (j + 1)) else inr tt) i.
 
 Definition sum_Z l := fold_right Z.add 0 l.
 
 Definition read_sum_inner n nums j :=
   write_list (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Int.repr newline]).
 
-CoFixpoint read_sum n lc : IO_itree :=
+Definition read_sum n lc : IO_itree :=
+  ITree.aloop (fun '(n, lc) =>
   if zlt n 1000 then
     let nums := map (fun c => Int.unsigned c - char0) lc in
-    for_loop 0 4 (read_sum_inner n nums) ;;
-    lc' <- read_list 4;; read_sum (n + sum_Z nums) lc'
-  else ret tt.
+    inl (for_loop 0 4 (read_sum_inner n nums) ;;
+    lc' <- read_list 4;; Ret (n + sum_Z nums, lc'))
+  else inr tt) (n, lc).
 
 Definition main_itree := lc <- read_list 4;; read_sum 0 lc.
 
@@ -346,24 +354,34 @@ Proof.
     forward.
 Qed.
 
-Lemma read_sum_eq : forall n lc, read_sum n lc =
+Lemma read_sum_eq : forall n lc, read_sum n lc ≈
   if zlt n 1000 then
     let nums := map (fun c => Int.unsigned c - char0) lc in
     for_loop 0 4 (read_sum_inner n nums) ;;
     lc' <- read_list 4;; read_sum (n + sum_Z nums) lc'
-  else ret tt.
+  else Ret tt.
 Proof.
   intros.
-  rewrite (match_itree (read_sum n lc)); simpl.
-  rewrite <- match_itree; auto.
+  unfold read_sum.
+  rewrite unfold_aloop.
+  if_tac; [|reflexivity].
+  unfold ITree._aloop, id.
+  repeat setoid_rewrite bind_bind.
+  repeat setoid_rewrite ret_bind.
+  reflexivity.
 Qed.
 
 Lemma for_loop_eq : forall i z body,
-  for_loop i z body = if i <? z then body i ;; for_loop (i + 1) z body else Ret tt.
+  for_loop i z body ≈ if i <? z then body i ;; for_loop (i + 1) z body else Ret tt.
 Proof.
   intros.
-  rewrite (match_itree (for_loop i z body)); simpl.
-  rewrite <- match_itree; auto.
+  unfold for_loop.
+  rewrite unfold_aloop.
+  simple_if_tac; [|reflexivity].
+  unfold ITree._aloop, id.
+  repeat setoid_rewrite bind_bind.
+  repeat setoid_rewrite ret_bind.
+  reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
@@ -405,7 +423,7 @@ Proof.
   - subst Inv.
     clear dependent lc; Intros n lc.
     forward_if.
-    rewrite read_sum_eq.
+    erewrite ITREE_ext by apply read_sum_eq.
     rewrite if_true by auto; simpl ITREE.
     set (nums := map (fun i => Int.unsigned i - char0) lc).
     assert_PROP (Zlength lc = 4).
@@ -417,8 +435,7 @@ Proof.
      SEP (ITREE (for_loop j 4 (read_sum_inner n nums) ;; lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc');
              data_at Ews (tarray tuchar 4) (map Vint lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
     + entailer!.
-       { omega. }
-      simpl; auto.
+      omega.
     + simpl.
       forward.
       { entailer!.
@@ -441,7 +458,7 @@ Proof.
       rewrite Int.unsigned_repr by computable.
       forward.
       rewrite add_repr.
-      rewrite for_loop_eq.
+      erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
       destruct (Z.ltb_spec i 4); try omega.
       unfold read_sum_inner at 1.
       assert (sublist 0 (i + 1) nums = sublist 0 i nums ++ [Int.unsigned (Znth i lc) - char0]) as Hi.
@@ -454,18 +471,17 @@ Proof.
         rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_assoc, Z.add_0_r; auto. }
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        apply ITREE_impl, bind_bind; auto. }
+        apply ITREE_impl; rewrite bind_bind; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; omega. }
       entailer!.
       rewrite Hi, sum_Z_app; simpl.
       rewrite Z.add_0_r, Z.add_assoc; split; auto; omega.
-    + rewrite for_loop_eq.
+    + erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
       destruct (Z.ltb_spec 4 4); try omega.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
         apply ITREE_impl.
-        simpl; rewrite ret_bind.
-        apply pop_tau; reflexivity. }
+        simpl; rewrite ret_bind; reflexivity. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.

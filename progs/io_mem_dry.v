@@ -1,8 +1,6 @@
+Require Import ITree.ITree.
 Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
-Require Import DeepWeb.Free.Monad.Free.
-Require Import DeepWeb.Free.Monad.Eq.Utt.
-Import MonadNotations.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_mem.
@@ -13,6 +11,16 @@ Require Import VST.veric.SequentialClight.
 Require Import VST.progs.conclib.
 Require Import VST.progs.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
+(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
+Notation "t1 >>= k2" := (ITree.bind t1 k2)
+  (at level 50, left associativity) : itree_scope.
+Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
+  (at level 100, t1 at next level, right associativity) : itree_scope.
+Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
+  (at level 100, right associativity) : itree_scope.
+Notation "' p <- t1 ;; t2" :=
+  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
+(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Section IO_Dry.
 
@@ -27,7 +35,7 @@ Proof.
 Qed.
 
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list int -> IO_itree)) (z : IO_itree) :=
-  let '(sh, buf, len, k) := witness in (z = (r <- read_list (Z.to_nat len);; k r))%eq_utt /\
+  let '(sh, buf, len, k) := witness in (eutt eq z (r <- read_list (Z.to_nat len);; k r)) /\
     match buf with Vptr b ofs =>
       Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + Z.max 0 len) Memtype.Cur Memtype.Writable
       | _ => False end.
@@ -40,7 +48,7 @@ Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list int -
     | _ => False end.
 
 Definition putchars_pre (m : mem) (witness : share * val * list int * Z * list val * IO_itree) (z : IO_itree) :=
-  let '(sh, buf, msg, _, _, k) := witness in (z = (write_list msg;; k))%eq_utt /\
+  let '(sh, buf, msg, _, _, k) := witness in (eutt eq z (write_list msg;; k)) /\
   match buf with Vptr b ofs =>
     Mem.loadbytes m b (Ptrofs.unsigned ofs) (Zlength msg) =
       Some (ints_to_memvals msg)
@@ -180,7 +188,7 @@ Proof.
           try (split; [apply age_to.age_to_join_eq|]); try apply set_ghost_join; eauto.
         { unfold set_ghost; rewrite level_make_rmap; omega. }
         split.
-        -- unfold ITREE; exists k; split; [apply Reflexive_eq_utt|].
+        -- unfold ITREE; exists k; split; [apply Reflexive_eutt|].
              eapply age_to.age_to_pred, change_has_ext; eauto.
         -- apply age_to.age_to_pred; auto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
@@ -252,7 +260,7 @@ Proof.
            ++ apply age_to.age_to_pred; simpl.
               unfold inflate_store; rewrite ghost_of_make_rmap.
               apply Hbuf.
-           ++ unfold ITREE; exists (k msg); split; [apply Reflexive_eq_utt|].
+           ++ unfold ITREE; exists (k msg); split; [apply Reflexive_eutt|].
               eapply change_has_ext, age_to.age_to_pred; eauto.
            ++ apply age_to.age_to_pred.
               rewrite <- (Zlength_map _ _ Vint).

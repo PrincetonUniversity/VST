@@ -1,7 +1,6 @@
 Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
-Require Import ExtLib.Structures.Monad.
 Require Import ITree.ITree.
 (*Import ITreeNotations.*)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
@@ -79,11 +78,14 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (ITREE tr).
 
-CoFixpoint read_sum n d : IO_itree :=
-  if zlt n 1000 then if zlt d 10 then
-    write_list (chars_of_Z (n + d));; write (Int.repr newline);;
-    c <- read;; read_sum (n + d) (Int.unsigned c - char0)
-  else ret tt else ret tt.
+Definition read_sum n d : IO_itree :=
+   ITree.aloop (fun '(n, d) =>
+       if zlt n 1000 then if zlt d 10 then
+         inl (write_list (chars_of_Z (n + d));; write (Int.repr newline);;
+              c <- read;;
+              Ret (n + d, Int.unsigned c - char0)) (* loop again with these parameters *)
+       else inr tt else inr tt) (* inr to end the loop *)
+     (n, d).
 
 Definition main_itree := c <- read;; read_sum 0 (Int.unsigned c - char0).
 
@@ -104,8 +106,6 @@ Proof.
   rewrite !Int.unsigned_repr; auto.
 Qed.
 
-Opaque bind.
-
 Opaque Nat.div Nat.modulo.
 
 Lemma intr_eq : forall n, intr n =
@@ -120,7 +120,12 @@ Proof.
   destruct n; reflexivity.
 Qed.
 
-Transparent bind.
+Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
+Proof.
+  intros.
+  etransitivity; [|apply subrelation_eq_eutt, bind_ret].
+  apply eutt_bind; [|intros []]; reflexivity.
+Qed.
 
 Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
 Proof.
@@ -130,28 +135,21 @@ Proof.
     forward.
     rewrite modu_repr, divu_repr by (omega || computable).
     rewrite intr_eq.
-    destruct (i <=? 0) eqn: Hi.
-    { apply Zle_bool_imp_le in Hi; omega. }
-    erewrite ITREE_ext by (apply bind_mor with (y0 := fun _ => tr); [apply write_list_app | reflexivity]).
-    erewrite ITREE_ext by apply bind_bind.
+    destruct (Z.leb_spec i 0); try omega.
+    erewrite ITREE_ext by (apply eutt_bind with (y0 := fun _ => tr); [apply write_list_app | reflexivity]).
+    erewrite ITREE_ext by apply subrelation_eq_eutt, bind_bind.
     forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
-    { rewrite <- sepcon_emp at 1; apply sepcon_derives; cancel.
-      apply derives_refl. }
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
     simpl write_list.
     forward_call (Int.repr (i mod 10 + char0), tr).
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      apply ITREE_impl.
-      apply bind_mor; [|reflexivity].
-      etransitivity; [|apply bind_ret].
-      apply bind_mor; [|intros []]; reflexivity. }
+      apply ITREE_impl; rewrite bind_ret'; reflexivity. }
     entailer!.
   - forward.
     subst; entailer!.
     erewrite ITREE_ext; [apply derives_refl|].
     simpl.
-    rewrite ret_bind.
-    apply pop_tau; reflexivity.
+    rewrite ret_bind; reflexivity.
   - forward.
 Qed.
 
@@ -195,9 +193,7 @@ Proof.
     { rewrite chars_of_Z_eq; simpl.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
-      apply bind_mor; [|reflexivity].
-      etransitivity; [|apply bind_ret].
-      apply bind_mor; [|intros []]; reflexivity. }
+      rewrite bind_ret'; reflexivity. }
     entailer!.
   - forward_call (i, tr).
     { rewrite chars_of_Z_intr by omega; cancel. }
@@ -205,15 +201,21 @@ Proof.
   - forward.
 Qed.
 
-Lemma read_sum_eq : forall n d, read_sum n d =
+Lemma read_sum_eq : forall n d, read_sum n d ≈
   (if zlt n 1000 then if zlt d 10 then
      write_list (chars_of_Z (n + d));; write (Int.repr newline);;
      c <- read;; read_sum (n + d) (Int.unsigned c - char0)
-   else ret tt else ret tt).
+   else Ret tt else Ret tt).
 Proof.
   intros.
-  rewrite (match_itree (read_sum n d)); simpl.
-  rewrite <- match_itree; auto.
+  unfold read_sum; rewrite unfold_aloop.
+  unfold ITree._aloop.
+  if_tac; [|reflexivity].
+  if_tac; [|reflexivity].
+  unfold id.
+  repeat setoid_rewrite bind_bind.
+  setoid_rewrite ret_bind.
+  reflexivity.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
@@ -250,7 +252,7 @@ Proof.
   { rewrite Int.unsigned_repr_eq in H1.
     rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in H1; unfold char0 in *; rep_omega. }
   rewrite Int.unsigned_repr in H1 by (unfold char0 in *; rep_omega).
-  rewrite read_sum_eq.
+  erewrite ITREE_ext by apply read_sum_eq.
   rewrite if_true by auto.
   destruct (zlt _ _); [|unfold char0 in *; omega].
   forward_call (n + (Int.unsigned c - char0),

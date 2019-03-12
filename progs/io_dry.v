@@ -1,9 +1,6 @@
 Require Import VST.progs.io_specs.
 Require Import VST.progs.io.
 Require Import VST.floyd.proofauto.
-Require Import DeepWeb.Free.Monad.Free.
-Require Import DeepWeb.Free.Monad.Eq.Utt.
-Import MonadNotations.
 Require Import VST.sepcomp.extspec.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_mem.
@@ -13,17 +10,28 @@ Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.conclib.
 Require Import VST.progs.dry_mem_lemmas.
+Require Import ITree.ITree.
+(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
+Notation "t1 >>= k2" := (ITree.bind t1 k2)
+  (at level 50, left associativity) : itree_scope.
+Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
+  (at level 100, t1 at next level, right associativity) : itree_scope.
+Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
+  (at level 100, right associativity) : itree_scope.
+Notation "' p <- t1 ;; t2" :=
+  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
+(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Section IO_Dry.
 
 Definition getchar_pre (m : mem) (witness : int -> IO_itree) (z : IO_itree) :=
-  let k := witness in (z = (r <- read;; k r))%eq_utt.
+  let k := witness in (eutt eq z (r <- read;; k r)).
 
 Definition getchar_post (m0 m : mem) r (witness : int -> IO_itree) (z : IO_itree) :=
   m0 = m /\ - two_p 7 <= Int.signed r <= two_p 7 - 1 /\ let k := witness in z = k r.
 
 Definition putchar_pre (m : mem) (witness : int * IO_itree) (z : IO_itree) :=
-  let '(c, k) := witness in (z = (write c;; k))%eq_utt.
+  let '(c, k) := witness in (eutt eq z (write c;; k)).
 
 Definition putchar_post (m0 m : mem) r (witness : int * IO_itree) (z : IO_itree) :=
   m0 = m /\ let '(c, k) := witness in r = c /\ z = k.
@@ -119,10 +127,10 @@ Proof.
         intro; rewrite H2; auto.
       * split3; simpl.
         -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate.
+        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
-             unfold ITREE; exists k; split; [apply Reflexive_eq_utt|].
+             unfold ITREE; exists k; split; [apply Reflexive_eutt|].
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.
@@ -152,10 +160,10 @@ Proof.
       * exists i.
         split3; simpl.
         -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift; auto; discriminate.
+        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
-             unfold ITREE; exists (k i); split; [apply Reflexive_eq_utt|].
+             unfold ITREE; exists (k i); split; [apply Reflexive_eutt|].
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.
