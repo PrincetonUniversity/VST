@@ -7,6 +7,26 @@ Require Import VST.floyd.client_lemmas.
 
 Local Open Scope logic.
 
+Module ZOrder <: Orders.TotalLeBool.
+  Definition t := Z.
+  Definition leb := Z.leb.
+  Theorem leb_total : forall a1 a2, Z.leb a1 a2 = true \/ Z.leb a2 a1 = true.
+  Proof.  intros. destruct (Zle_bool_total a1 a2); auto. Qed. 
+End ZOrder.
+Module SortZ := Mergesort.Sort(ZOrder).
+
+Module NatOrder <: Orders.TotalLeBool.
+  Definition t := nat.
+  Definition leb := Nat.leb.
+  Theorem leb_total : forall a1 a2, Nat.leb a1 a2 = true \/ Nat.leb a2 a1 = true.
+  Proof.  intros. 
+    pose proof (Nat.leb_spec a1 a2).
+    pose proof (Nat.leb_spec a2 a1).
+    inv H; inv H0; auto; omega.
+  Qed.
+End NatOrder.
+Module SortNat := Mergesort.Sort(NatOrder).
+
 Module Type FREEZER.
 Parameter FRZ : mpred -> mpred.
 Parameter FRZ1: forall p, p |-- FRZ p.
@@ -95,12 +115,146 @@ Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k) constr(p) constr(q) 
 
 (*******************freezing a list of mpreds ******************************)
 
+Fixpoint delete_list {A: Type} (ns: list nat) (xs: list A) : list A :=
+ (* ns must already be sorted *)
+ match ns with
+ | nil => xs
+ | n::ns' => delete_nth n (delete_list ns' xs)
+ end.
+
+Definition freezelist_nth (ns: list nat) (al: list mpred) : list mpred * list mpred :=
+  (map (fun i => my_nth i al emp) ns,
+   delete_list (SortNat.sort ns) al).
+
+Lemma my_nth_delete_nth_permutation: 
+  forall al a, 
+   (a < length al)%nat -> Permutation al (my_nth a al emp :: delete_nth a al).
+Proof.
+induction al; simpl; intros.
+omega.
+destruct a0; simpl.
+apply Permutation_refl.
+eapply Permutation_trans; [ | apply perm_swap].
+apply perm_skip.
+apply IHal.
+omega.
+Qed.
+
+Function is_increasing (ns: list nat) (last: nat) {measure length ns}: bool  :=
+ match ns with
+ | nil => true
+ | a::nil => Nat.ltb a last
+ | a::b::ns' => andb (Nat.ltb a b) (is_increasing (b::ns') last)
+ end.
+Proof. intros. subst. simpl. omega.
+Defined.
+
+
+(*
+Theorem Forall_perm: forall {A} (f: A -> Prop) al bl,
+  Permutation al bl ->
+  Forall f al -> Forall f bl.
+Proof.
+  induction 1; simpl; intros; auto.
+  inv H0; constructor; auto.
+  inv H. inv H3. constructor; auto.
+Qed.
+*)
+
+Lemma delete_nth_length:
+   forall {A} i (al: list A), (i < length al)%nat ->
+     (S (length (delete_nth i al)) = length al)%nat.
+Proof.
+induction i; destruct al; simpl; intros; try omega.
+apply f_equal.
+apply IHi; omega.
+Qed.
+
+Lemma freezelist_nth_permutation: forall ns al,
+  is_increasing (SortNat.sort ns) (length al) = true ->
+  Permutation al (fst (freezelist_nth ns al) ++ snd (freezelist_nth ns al)).
+Proof.
+unfold freezelist_nth.
+simpl.
+intros.
+apply Permutation_trans
+ with 
+ (map (fun i : nat => my_nth i al emp) (SortNat.sort ns) ++
+   delete_list (SortNat.sort ns) al).
+2:{ apply Permutation_app_tail.
+     apply Permutation_map.
+     apply Permutation_sym.
+     apply SortNat.Permuted_sort.
+}
+ forget (SortNat.sort ns) as ns'; clear ns; rename ns' into ns.
+ revert al H; induction ns; simpl; intros.
+ apply Permutation_refl.
+ replace (my_nth a al emp) with (my_nth a (delete_list ns al) emp).
+-
+ eapply Permutation_trans; [ | apply Permutation_sym; apply Permutation_middle].
+ eapply Permutation_trans; [ | apply Permutation_app_head; apply my_nth_delete_nth_permutation].
+   apply IHns.
+  rewrite is_increasing_equation in H. destruct ns; simpl; auto.
+  rewrite andb_true_iff in H; destruct H; auto.
+  rewrite is_increasing_equation in H. destruct ns; simpl; auto. 
+  apply Nat.ltb_lt; auto.
+  rewrite andb_true_iff in H; destruct H; auto.
+  apply Nat.ltb_lt in H.
+  clear - H H0.
+  change (delete_nth n (delete_list ns al)) with (delete_list (n::ns) al).
+  revert n a al H H0; induction ns; intros;
+  rewrite is_increasing_equation in H0.
+  simpl.
+  apply Nat.ltb_lt in H0.
+  pose proof (delete_nth_length n al H0). omega.
+ change (delete_list (n :: a :: ns) al)%nat with (delete_nth n (delete_list ( a :: ns) al))%nat.
+  rewrite andb_true_iff in H0; destruct H0; auto.
+  apply Nat.ltb_lt in H0.
+ specialize (IHns a n al).
+ spec IHns; [omega|]. specialize (IHns H1).
+ pose proof (delete_nth_length n (delete_list (a::ns) al) IHns).
+ assert (a0 <= S (Datatypes.length
+   (delete_nth n (delete_list (a :: ns) al))))%nat; [ | omega].
+  rewrite H2.
+ omega.
+-
+ clear - H.
+ revert a al H; induction ns; intros.
+ simpl. auto.
+ simpl.
+ transitivity (my_nth a0 (delete_list ns al) emp).
+ +
+  rewrite is_increasing_equation in H.
+  rewrite andb_true_iff in H; destruct H.
+  apply Nat.ltb_lt in H.
+  forget (delete_list ns al) as bl.
+  clear - H.
+  revert a0 bl H; induction a; destruct a0, bl; simpl; intros; auto; try omega.
+  apply IHa. omega.
+ +  apply IHns.
+   clear - H.
+  rewrite is_increasing_equation in H.
+  rewrite andb_true_iff in H; destruct H.
+  apply Nat.ltb_lt in H.
+  rewrite is_increasing_equation in H0.
+  rewrite is_increasing_equation.
+  destruct ns.
+  apply Nat.ltb_lt in H0.
+  apply Nat.ltb_lt. omega.
+  rewrite andb_true_iff in H0; destruct H0.
+  rewrite andb_true_iff; split; auto.
+  apply Nat.ltb_lt in H0.
+  apply Nat.ltb_lt. omega.
+Qed.
+
+(* This older version of freezelist_nth didn't work when the l list was not sorted 
 Fixpoint freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list mpred) :=
  match l with
  | nil => (nil,al)
  | (n::l') => let (xs, ys) := freezelist_nth l' al
               in (nth n ys emp::xs, delete_nth n ys)
  end.
+*)
 Lemma FRZL_ax ps: FRZL ps = fold_right_sepcon ps.
 Proof. intros. apply pred_ext. apply Freezer.FRZL2. apply Freezer.FRZL1. Qed.
 
@@ -124,25 +278,43 @@ Proof.
   do 2 rewrite <- sepcon_assoc. rewrite (sepcon_comm (l x)). trivial.
 Qed.
 
+Lemma fold_right_sepcon_permutation:
+ forall al bl, Permutation al bl -> fold_right_sepcon al = fold_right_sepcon bl.
+Proof.
+intros.
+induction H; simpl; auto.
+congruence.
+rewrite <- ! sepcon_assoc.
+rewrite (sepcon_comm x).
+auto.
+congruence.
+Qed.
+
 Lemma freeze_SEP':
  forall l Espec {cs: compspecs} Delta P Q  R c Post xs ys,
+  is_increasing (SortNat.sort l) (length R) = true ->
  (xs, ys) = freezelist_nth l R ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) c Post ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
-intros. subst.
+intros *. intro Hii; intros. subst.
 eapply semax_pre; try eassumption.
 apply andp_left2. unfold PROPx. normalize.
-unfold LOCALx. apply derives_refl'.
-f_equal. unfold SEPx. rewrite FRZL_ax. clear - H.
-generalize dependent xs. generalize dependent ys.
+apply andp_derives; auto.
+pose proof (freezelist_nth_permutation _ _ Hii).
+rewrite <- H in H2.
+simpl in H2.
+clear - H2.
+unfold SEPx.
+intros _.
+rewrite (fold_right_sepcon_permutation _ _ H2).
+rewrite FRZL_ax.
 clear.
-induction l; intros. simpl in *. inv H. extensionality x. simpl. rewrite emp_sepcon; trivial.
-simpl in H. remember (freezelist_nth l R). destruct p. inv H.
-specialize (IHl _ _ (eq_refl _)). rewrite IHl. clear IHl.
-extensionality. simpl.
-rewrite (sepcon_comm (nth a l1 emp)). repeat rewrite sepcon_assoc. f_equal.
-apply fold_right_sepcon_deletenth.
+induction xs; simpl.
+rewrite emp_sepcon.
+auto.
+rewrite sepcon_assoc.
+apply sepcon_derives; auto.
 Qed.
 
 Lemma map_delete_nth {A B} (f:A->B): forall n l, delete_nth n (map f l) = map f (delete_nth n l).
@@ -182,20 +354,28 @@ Fixpoint my_delete_nth {A} (n:nat) (xs:list A) : list A :=
 Lemma my_delete_nth_delete_nth {A}: forall n (l:list A), my_delete_nth n l = delete_nth n l.
 Proof. induction n; destruct l; intros; simpl; trivial. Qed.
 
-Fixpoint my_freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list mpred) :=
- match l with
- | nil => (nil,al)
- | (n::l') => let (xs, ys) := my_freezelist_nth l' al
-              in (my_nth n ys emp::xs, my_delete_nth n ys)
+Fixpoint my_delete_list {A: Type} (ns: list nat) (xs: list A) : list A :=
+ (* ns must already be sorted *)
+ match ns with
+ | nil => xs
+ | n::ns' => my_delete_nth n (my_delete_list ns' xs)
  end.
+
+Definition my_freezelist_nth (ns: list nat) (al: list mpred) : list mpred * list mpred :=
+  (map (fun i => my_nth i al emp) ns,
+   my_delete_list (SortNat.sort ns) al).
+
 Lemma my_freezelist_nth_freezelist_nth: forall l al,
   my_freezelist_nth l al = freezelist_nth l al.
 Proof. (*unfold my_freezelist_nth, freezelist_nth. *)
+ intros. unfold my_freezelist_nth, freezelist_nth.
+ f_equal.
   induction l; simpl; intros; trivial.
-  rewrite IHl; clear IHl.
-  remember (freezelist_nth l al) as F. destruct F.
-  rewrite my_nth_nth, my_delete_nth_delete_nth; trivial.
+  f_equal; auto.
+  clear.
+  revert al; induction a; destruct al; simpl; auto. 
 Qed.
+
 (*Variant if l is monotonically decreasing
 Fixpoint new_freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list mpred) :=
  match l with
@@ -206,31 +386,26 @@ Fixpoint new_freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list
 
 Lemma freeze_SEP'':
  forall l Espec {cs: compspecs} Delta P Q  R c Post xs ys,
+  is_increasing (SortNat.sort l) (length R) = true ->
  (xs, ys) = my_freezelist_nth l R ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) c Post ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H.
+Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H0.
   eapply freeze_SEP'; eassumption.  Qed.
 
 Ltac freeze_tac L name :=
-  eapply (freeze_SEP'' (map nat_of_Z L));
-  first [solve [reflexivity] |
-         match goal with
-           | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: _)))) _ _ =>
+  eapply (freeze_SEP'' (map nat_of_Z L)); 
+   [reflexivity | reflexivity 
+   | match goal with
+           | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
            let D := fresh name in
            set (D:=xs);
 (*           hnf in D;*)
            change xs with (@abbreviate (list mpred) xs) in D;
-           simpl nat_of_Z; unfold my_delete_nth
+            let x := fresh "x" in 
+            set (x:=A); compute in x; subst x;
+             unfold my_delete_list, my_delete_nth
          end].
-
-Module ZOrder <: Orders.TotalLeBool.
-  Definition t := Z.
-  Definition leb := Z.leb.
-  Theorem leb_total : forall a1 a2, Z.leb a1 a2 = true \/ Z.leb a2 a1 = true.
-  Proof.  intros. destruct (Zle_bool_total a1 a2); auto. Qed. 
-End ZOrder.
-Module SortZ := Mergesort.Sort(ZOrder).
 
 Function Zlist_complement'  (i: Z) (n: nat) (bl: list Z) : list Z :=
  match n with O => nil
@@ -397,7 +572,19 @@ Ltac thaw' name :=
 (*add simplification of the list operations inside the freezer,
    flatten the sepcon, and eliminate the emp term*)
 Ltac thaw name :=
-  thaw' name; simpl nat_of_Z; unfold my_delete_nth, my_nth, fold_right_sepcon;
+thaw' name;
+let x := fresh "x" in let y := fresh "y" in let a := fresh "a" in 
+match goal with |- context [fold_right_sepcon (map ?F ?A)] =>
+  set (x:= fold_right_sepcon (map F A));
+  set (y := F) in *; 
+  simpl in x
+end;
+pattern x;
+match goal with |- ?A x => set (a:=A) end;
+revert x;
+rewrite <- !sepcon_assoc, sepcon_emp;
+intro x; subst a x y;
+  unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
 (************************ Ramification ************************)
@@ -718,8 +905,19 @@ Tactic Notation "unlocalize" constr(R_G2) "using" constr(wit) "assuming" constr(
   unlocalize_wit R_G2 wit tac.
 
 Ltac thaw'' i :=
- thaw' i; simpl nat_of_Z; unfold my_delete_nth, my_nth, fold_right_sepcon;
-   rewrite sepcon_emp.
+thaw' i;
+let x := fresh "x" in let y := fresh "y" in let a := fresh "a" in 
+match goal with |- context [fold_right_sepcon (map ?F ?A)] =>
+  set (x:= fold_right_sepcon (map F A));
+  set (y := F) in *; 
+  simpl in x
+end;
+pattern x;
+match goal with |- ?A x => set (a:=A) end;
+revert x;
+rewrite <- !sepcon_assoc, sepcon_emp;
+intro x; subst a x y;
+  unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon.
 
 Ltac gather_SEP'' L :=
  gather_SEP' L;

@@ -265,9 +265,8 @@ start_function.
 sep_apply (create_mem_mgr gv).
 (* assert_gvar _foo_methods. (* TODO: this is needed for a field_compatible later on *) *)
 fold noattr cc_default.
-
 (* 0. This part should be handled automatically by start_function *)
-gather_SEP 1 2; 
+gather_SEP 1 2;
 replace_SEP 0 (data_at Ews (Tstruct _methods noattr) 
    (gv _foo_reset, gv _foo_twiddle) (gv _foo_methods)). {
   entailer!.
@@ -276,8 +275,7 @@ replace_SEP 0 (data_at Ews (Tstruct _methods noattr)
   by  auto with field_compatible.
   rewrite field_at_data_at.  rewrite !field_compatible_field_address by auto with field_compatible.
   rewrite !isptr_offset_val_zero by auto.
-  rewrite sepcon_comm.
-  apply derives_refl.
+  cancel.
 }
 
 (* 1. Prove that [mtable] is a proper method-table for foo-objects *)
@@ -292,7 +290,8 @@ forward_call (* p = make_foo(); *)
 Intros p.
 
 (* 3. Done with object_methods for the foreseeable future *)
-freeze [2]  MT. gather_SEP 1.
+freeze [2]  MT.
+ gather_SEP 1.
 
 (* Illustration of an alternate method to prove the method calls.
    Method 1:  comment out lines AA and BB and the entire range CC-DD.
