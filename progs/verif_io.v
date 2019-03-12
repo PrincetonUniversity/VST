@@ -1,10 +1,18 @@
 Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
-Require Import DeepWeb.Free.Monad.Free.
-Import MonadNotations.
-Require Import DeepWeb.Free.Monad.Common.
-Require Import DeepWeb.Free.Monad.Eq.Utt.
+Require Import ExtLib.Structures.Monad.
+Require Import ITree.ITree.
+(*Import ITreeNotations.*)
+Notation "t1 >>= k2" := (ITree.bind t1 k2)
+  (at level 50, left associativity) : itree_scope.
+Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
+  (at level 100, t1 at next level, right associativity) : itree_scope.
+Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
+  (at level 100, right associativity) : itree_scope.
+Notation "' p <- t1 ;; t2" :=
+  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
+(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

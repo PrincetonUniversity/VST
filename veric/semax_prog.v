@@ -1424,14 +1424,9 @@ Proof.
       simpl.
       auto.
     + hnf; intros; intuition.
-    + hnf; intros; intuition.
+    +       intros rho' u U y UY k YK K.
       unfold normal_ret_assert; simpl.
-      extensionality rho'.
-      normalize.
-      unfold post'.
-      apply pred_ext.
-           normalize. intro rv. do 2 apply exp_right with rv; auto.
-           normalize. intro rv. apply exp_right with rv; auto. 
+      destruct K as [v [a1 [a2 [J [A1 [w A2]]]]]]. exists a1, a2; intuition. exists w; trivial.
     + rewrite (corable_funassert _ _).
       simpl m_phi.
       rewrite core_inflate_initial_mem'; auto.
@@ -1441,7 +1436,7 @@ Proof.
       unfold rho1; apply funassert_initial_core; auto.
       apply same_glob_funassert.
       reflexivity.
-    + intros ek vl tx' vx'.
+    + apply now_later. intros ek vl tx' vx'.
       cbv zeta. rewrite proj_frame_ret_assert. simpl seplog.sepcon.
       subst post'. cbv beta.
       destruct ek; simpl proj_ret_assert; normalize.
