@@ -494,10 +494,10 @@ eapply derives_trans.
 apply andp_derives; [ | apply derives_refl].
 rewrite andp_comm. apply andp_imp_e.
 eapply typecheck_environ_sub in H4; try eassumption.
-clear - H4 HGG Heqv Heqt; destruct HGG as [ HGG].
+(*clear - H4 HGG Heqv Heqt;*) destruct HGG as [ HGG].
 apply assert_safe_step_nostore.
-intros. 
-assert (H1': (@tc_expr CS' Delta a rho) (m_phi jm)) by (apply (tc_expr_cenv_sub HGG); trivial).
+intros. Set Printing Implicit. 
+assert (H1': (@tc_expr CS' Delta a rho) (m_phi jm)) by apply (@tc_expr_cenv_sub _ _ HGG a rho _ _ H3). 
 clear H1; rename H1' into H1.
 econstructor.
 + eapply eval_expr_relate; eauto.
@@ -506,6 +506,7 @@ econstructor.
 reflexivity.
 Qed.
 
+(*
 Lemma semax_switch_orig: 
   forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
@@ -571,3 +572,4 @@ econstructor 2 with (m' := jm').
    eapply assert_safe_jsafe, pred_hereditary, H1.
    apply age_jm_phi; auto.
 Qed.
+*)

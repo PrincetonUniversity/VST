@@ -117,7 +117,7 @@ assert (assert_safe Espec psi vx tx (Kseq (if b' then c else d) :: k)
   rewrite denote_tc_assert_andp in TC2; destruct TC2.
   destruct b'; [apply H0 | apply H1]; split; subst; auto; split; auto; do 3 eexists; eauto; split;
     auto; split; auto; apply bool_val_strict; auto; eapply typecheck_expr_sound; eauto. }
-destruct HGG as [CSUB HGG]. apply (tc_expr_cenv_sub CSUB) in TC2'. 
+destruct HGG as [CSUB HGG]. apply (@tc_expr_cenv_sub _ _ CSUB) in TC2'. 
 eapply own.bupd_mono, bupd_denote_tc; eauto. 
 intros r [Htc Hr] ora jm Hora Hge Hphi. 
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.

@@ -764,8 +764,162 @@ apply is_true_e in H6; apply int64_eq_e in H6; subst; hnf; rewrite Hp; auto).
 all: try (inv H1; reflexivity).
 Qed.
 
-Lemma eval_expr_cenv_sub_Vint {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e i, 
-    @eval_expr CS e rho = Vint i -> @eval_expr CS' e rho = Vint i.
+Section CENV_SUB.
+
+  Set Printing Implicit.
+  
+(*
+  Lemma exal_expr_any_environ_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')): forall a,
+    @eval_expr CS a any_environ =  @eval_expr CS' a any_environ /\
+    @eval_lvalue CS a any_environ =  @eval_lvalue CS' a any_environ.
+Proof.
+  induction a; simpl; unfold liftx, lift; simpl; intros; auto; try destruct IHa as [IH1 IH2]; auto.
+  + rewrite <- IH1. split; trivial.
+  + destruct IHa1 as [Ka1 La1]. destruct IHa2 as [Ka2 La2]. rewrite <- Ka1, <- Ka2. split; auto.
+    unfold force_val. remember (@eval_expr CS a1 any_environ) as v1. remember  (@eval_expr CS a2 any_environ) as v2.
+    remember (typeof a1) as t1. remember (typeof a2) as t2. 
+    remember (@sem_binary_operation' CS b t1 t2 v1 v2).
+Admitted.
+
+Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho
+      (D: typecheck_environ Delta rho) w: forall a (A:@denote_tc_assert CS (@typecheck_expr CS Delta a) rho w),
+    @denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho w /\ (@eval_expr CS a rho =  @eval_expr CS' a rho) .
+Proof. intros.
+  Search typecheck_expr.
+  specialize (@typecheck_expr_sound CS _ _ w a D); intros X.
+  hnf. hnf in H. remember ( @denote_tc_assert CS (@typecheck_expr CS Delta a) rho) as p; destruct p. 
+  simpl in *.
+  specialize (X H). clear Heqp. generalize dependent x.  
+  induction a; simpl; intros; trivial; try solve [inv A](*; hnf in X; simpl in X*).
+  + destruct t; auto.
+    destruct i0; auto. 
+  + destruct t; auto.
+    destruct f0; auto.
+  + destruct t; auto.
+    destruct f0; auto.
+  + destruct (access_mode t); auto.
+    remember (get_var_type Delta i) as q; destruct q; try solve[inv A].
+    unfold tc_bool in *.  destruct (eqb_type t t0); auto.
+  + remember ((temp_types Delta) ! i) as q; destruct q; auto.
+    destruct (is_neutral_cast t0 t); simpl in *; auto.
+    destruct (same_base_type t0 t); simpl in *; auto.
+  + destruct (access_mode t); auto; simpl in A; try solve[inv A].
+    repeat rewrite denote_tc_assert_andp.
+    repeat rewrite denote_tc_assert_andp in A. destruct A as [[? ?] ?].
+    specialize (@typecheck_expr_sound CS _ _ _ _ D H); intros.
+    destruct (IHa H); clear IHa. split; trivial.
+    split.
+  - split; [trivial|]. unfold tc_bool in *.
+    remember ((typeof a)). destruct t0; simpl in *; try contradiction; trivial.
+    remember ( (eqb_type t0 Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})) as u.
+    destruct u; simpl in H0; try solve [inv H0]; simpl; trivial.
+  - simpl in *. rewrite <- H4; trivial.
+    + rewrite denote_tc_assert_andp in A; unfold tc_bool in A; destruct A.
+      remember (is_pointer_type t) as b; destruct b; try contradiction. clear H0. simpl.
+      rewrite denote_tc_assert_andp. simpl. split. split.
+      Admitted. (*
+Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho
+      (D: typecheck_environ Delta rho) w: forall a,
+      (@eval_expr CS a any_environ -> 
+      ( @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->
+        (@denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho w /\ (@eval_expr CS a rho =  @eval_expr CS' a rho))) /\
+      ( @denote_tc_assert CS (@typecheck_lvalue CS Delta a) rho w ->
+        (@denote_tc_assert CS' (@typecheck_lvalue CS' Delta a) rho w /\ (@eval_lvalue CS a rho =  @eval_lvalue CS' a rho))).
+Proof. (*intros.
+  Search typecheck_expr.
+  specialize (@typecheck_expr_sound CS _ _ w a D); intros X.
+  hnf. hnf in H. remember ( @denote_tc_assert CS (@typecheck_expr CS Delta a) rho) as p; destruct p. 
+  simpl in *.
+  specialize (X H). clear Heqp. generalize dependent x.  *)
+  induction a; simpl; split; intros A; trivial; try solve [inv A](*; hnf in X; simpl in X*).
+  + destruct t; auto.
+    destruct i0; auto. 
+  + destruct t; auto.
+    destruct f0; auto.
+  + destruct t; auto.
+    destruct f0; auto.
+  + destruct (access_mode t); auto.
+    remember (get_var_type Delta i) as q; destruct q; try solve[inv A].
+    unfold tc_bool in *.  destruct (eqb_type t t0); auto.
+  + remember (get_var_type Delta i) as q; destruct q; try solve[inv A].
+    unfold tc_bool in *.  destruct (eqb_type t t0); auto.
+  + remember ((temp_types Delta) ! i) as q; destruct q; auto.
+    destruct (is_neutral_cast t0 t); simpl in *; auto.
+    destruct (same_base_type t0 t); simpl in *; auto.
+  + destruct (access_mode t); auto; simpl in A; try solve[inv A].
+    repeat rewrite denote_tc_assert_andp.
+    repeat rewrite denote_tc_assert_andp in A. destruct A as [[? ?] ?].
+    specialize (@typecheck_expr_sound CS _ _ _ _ D H); intros.
+    destruct IHa as [IHa1 IHa2]. destruct (IHa1 H); clear IHa1. split; trivial.
+    split.
+    - split; [trivial|]. unfold tc_bool in *.
+      remember ((typeof a)). destruct t0; simpl in *; try contradiction; trivial.
+      remember ( (eqb_type t0 Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})) as u.
+      destruct u; simpl in H0; try solve [inv H0]; simpl; trivial.
+    - simpl in *. rewrite <- H4; trivial.
+  + do 2 rewrite denote_tc_assert_andp in A; unfold tc_bool in A; destruct A.
+    do 2 rewrite denote_tc_assert_andp; unfold tc_bool.
+    destruct IHa as [IHa1 IHa2]. destruct H. destruct (IHa1 H); clear IHa1.
+    split; trivial. remember ( is_pointer_type (typeof a)) as q; destruct q; [ clear H1; simpl | contradiction]. 
+    split; [ split; trivial |]. simpl in H0. rewrite <- H3; trivial.
+  + rewrite denote_tc_assert_andp in A; unfold tc_bool in A; destruct A.
+    rewrite denote_tc_assert_andp; unfold tc_bool; destruct IHa as [IHa1 IHa2]. 
+    remember (is_pointer_type t) as b; destruct b; try contradiction. clear H0. simpl.
+    destruct (IHa2 H); clear IHa2.
+    split; [ split; auto | trivial].
+  + rewrite denote_tc_assert_andp in A; simpl in A; destruct A.
+    rewrite denote_tc_assert_andp; simpl. destruct IHa as [IHa1 IHa2]. 
+    destruct (IHa1 H0); clear IHa1. unfold liftx, lift; simpl. rewrite <- H2. split; trivial.
+    split; trivial.
+    destruct u; simpl in *. unfold tc_bool, tc_int_or_ptr_type in *.
+    - destruct (typeof a); auto; try destruct (is_int_type t); auto.
+      do 2 rewrite denote_tc_assert_andp in H. do 2 rewrite denote_tc_assert_andp; unfold tc_bool in *; simpl in *.
+      intuition. destruct (negb (eqb_type t0 Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})); auto.
+      unfold tc_test_eq in *. remember (@eval_expr CS a any_environ) as r; destruct r; auto. .  Search any_environ.      destruct (Archi.ptr64). simpl. 
+      unfold 
+      simpl. s
+    unfold isUnOpResultType in *.
+    remember (is_pointer_type t) as b; destruct b; try contradiction. clear H0. simpl.
+    
+    rewrite denote_tc_assert_andp. simpl. split. split.
+      Locate typecheck_lvalue. eapply IHa. auto. simpl in A. Search tc_andp. hnf. intuition.
+    split. split; [ trivial |  ].
+    * unfold tc_bool in *. remember (is_pointer_type (typeof a)). destruct b; auto.
+    * clear IHa H0. induction a; try contradiction; trivial.
+      simpl. simpl in H1.  simpl in H2. simpl in IHa. destruct (). simpl. simpl in H1. hnf in H2.  hnf in IHa. unfold tc_bool in H0;  simpl in H0.
+      destruct (typeof a); simpl in H1; simpl; try contradiction.
+      simpl in H0. remember ( (eqb_type t0 Tvoid && eqb_attr a1 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})) as q; destruct q; simpl in H0; try solve [inv H0].
+      destruct (eqb_type (Tpointer t0 a1) int_or_ptr_type). hnf in H2. , unfold tc_isptr. Search tc_bool. auto. Check @tc_val.  hnf in H2.
+    assert (X: (@denote_tc_assert CS' (tc_isptr a) rho)%pred w).
+    { hnf. hnf in H1. Search denote_tc_assert.  Search hnf in IHa. 
+     split; auto.
+    split.
+    * split; auto.
+      destruct (is_pointer_type (typeof a)); auto.
+    * unfold denote_tc_assert in H1; unfold denote_tc_assert; simpl in H1; simpl. . simpl in *.  tc_isptr. clear - CSUB H1.  Search tc_isptr. tc_isptr. .
+  + destruct (); auto.   
+  + destruct (); auto.   
+  + destruct (); auto.   
+  + destruct (); auto.  
+  + destruct (); auto.
+  + destruct (); auto.
+  + destruct (); auto.
+  + destruct (); auto.
+  + destruct (); auto.
+  + destruct (); auto.
+  + destruct (); auto.*)
+Lemma eval_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
+  forall e,
+    (isptr (@eval_expr CS e rho) -> isptr (@eval_expr CS' e rho)) /\ 
+    (isptr (@eval_lvalue CS e rho) -> isptr (@eval_lvalue CS' e rho)).
+Proof. induction e; simpl; intros; auto.
++ destruct IHe. split; trivial.
++ destruct IHe. split; trivial.
++ destruct IHe. split; trivial.
+Admitted.*)
+
+Lemma eval_expr_cenv_sub_Vint {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
+  forall e i, @eval_expr CS e rho = Vint i -> @eval_expr CS' e rho = Vint i.
 Admitted. 
 Lemma eval_expr_cenv_sub_Vlong {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e i, 
     @eval_expr CS e rho = Vlong i -> @eval_expr CS' e rho = Vlong i.
@@ -943,7 +1097,7 @@ Proof.
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1);
   try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
   try rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2); simpl; trivial.
-Qed.
+Qed. Print denote_tc_assert.
 
 Lemma denote_tc_assert_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w: forall a, 
     @denote_tc_assert CS a rho w -> @denote_tc_assert CS' a rho w.
@@ -982,18 +1136,63 @@ Proof.
   induction a; simpl; intros; eauto. 
 + rewrite IHa.*)
 Set Printing Implicit.
+
+Lemma denote_tc_assert_isptr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho w: forall a
+  (Ha: (@denote_tc_assert CS (@typecheck_expr CS Delta a) rho) w ->
+        (@denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho) w),
+  (@denote_tc_assert CS (tc_isptr a) rho) w ->
+  (@denote_tc_assert CS' (tc_isptr a) rho) w.
+Admitted. (*Proof. 
+  simpl.
+  induction a; simpl; intros; auto.
+  + destruct ( access_mode t); auto; simpl in *.
+    destruct t; auto. apply IHa. clear IHa. destruct t; simpl in *; simpl.
+    unfold denote_tc_assert in *.
+    unfold typecheck_expr. simpl.
+  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
+    admit. (*    isptr preserved *)
+  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
+    admit. (*    isptr preserved by eval_lvalue*)
+  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
+    admit. (*    isptr preserved by eval_unop*)
+  + unfold liftx, lift; simpl. unfold denote_tc_isptr, force_val.
+    simpl. intros w W. simpl.
+    admit. (*    isptr preserved by eval_unop*)
+  +
+    Admitted.*)
+
 Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 
     @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->
     @denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho w.
-Proof.
-  induction a; simpl; intros; trivial;
-    apply (denote_tc_assert_cenv_sub CSUB); trivial.
-  + destruct (access_mode t); trivial.
-    remember (@typecheck_expr CS Delta a) as TCA; symmetry in HeqTCA.
-    remember (@typecheck_expr CS' Delta a) as TCA'; symmetry in HeqTCA'.
-    destruct TCA. simpl. simpl in H, IHa.  specialize (IHa H).
-    destruct TCA'; simpl; simpl in IHa; trivial. unfold tc_andp in *; simpl in *.
-    remember (@typecheck_expr CS Delta a) as TCA; symmetry in HeqTCA. destruct TCA.
+Proof. 
+  induction a; simpl; intros; trivial.
+  + destruct t; auto.
+    destruct i0; auto.
+  + destruct t; auto.
+    destruct f0; auto.
+  + destruct t; auto.
+    destruct f0; auto.
+  + destruct t; auto.
+  - destruct i0; auto;
+    destruct s; auto. 
+  - destruct f; auto.
+  - destruct (get_var_type Delta i); auto. simpl in *.
+    destruct t0; auto. 
+    destruct (eqb_type t t0 && (Zeq_bool z z0 && eqb_attr a a0)); auto.
+  - destruct (get_var_type Delta i); auto. simpl in *.
+    destruct t1; auto.
+    destruct ((eqb_typelist t t1 && eqb_type t0 t2 && eqb_calling_convention c c0)); auto.
+  + destruct ((temp_types Delta) ! i); auto.
+    destruct (is_neutral_cast t0 t || same_base_type t0 t); auto.    
+  + destruct t; auto; simpl in *.      
+  - destruct i; destruct s; auto.
+  - destruct f; auto.                      
+  - repeat rewrite denote_tc_assert_andp.
+    repeat rewrite denote_tc_assert_andp in H. destruct H as [[? ?] ?].
+    split.
+    * split; auto.
+      destruct (is_pointer_type (typeof a)); auto.
+    * admit.
 Admitted.
 
 Lemma bool_val_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
@@ -1027,9 +1226,30 @@ Lemma typecheck_expr_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cen
     (@denote_tc_assert CS (@typecheck_expr CS Delta e) rho) m ->
     @eval_expr CS e rho = @eval_expr CS' e rho.
 Proof. Admitted.
+Lemma eval_both_relate:
+  forall {CS: compspecs} Delta ge te ve rho e m,
+           (*genv_cenv ge = cenv_cs ->*)
+           cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
+           rho = construct_rho (filter_genv ge) ve te ->
+           typecheck_environ Delta rho ->
+           (denote_tc_assert (typecheck_expr Delta e) rho (m_phi m) ->
+             Clight.eval_expr ge ve te (m_dry m) e  (eval_expr e rho))
+           /\
+           (denote_tc_assert (typecheck_lvalue Delta e) rho (m_phi m) ->
+             exists b, exists ofs,
+              Clight.eval_lvalue ge ve te (m_dry m) e b ofs /\
+              eval_lvalue e rho = Vptr b ofs).
+Proof.
+intros until m; intro Hcenv; intros.
+(*generalize dependent ge.*)
+ induction e; intros;
+try solve[intuition; constructor; auto | subst; inv H1]; intuition.
+Admitted.
 
 Lemma typecheck_exprlist_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
       Delta rho (D:typecheck_environ Delta rho) m: forall types e, 
     (@denote_tc_assert CS (@typecheck_exprlist CS Delta types e) rho) m ->
     @eval_exprlist CS types e rho = @eval_exprlist CS' types e rho.
 Admitted.
+
+End CENV_SUB.

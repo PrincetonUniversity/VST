@@ -3961,21 +3961,11 @@ Definition tc_expropt {CS} Delta (e: option expr) (t: type) : environ -> mpred :
                      | Some e' => @denote_tc_assert CS (typecheck_expr Delta (Ecast e' t))
    end.
 
-Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta ret t rho:
-  @tc_expropt CS Delta ret t rho |--  @tc_expropt CS' Delta ret t rho.
-Proof.
-  intros w W. destruct ret; simpl in *.
-  + rewrite denote_tc_assert_andp. rewrite denote_tc_assert_andp in W. destruct W.
-    split. apply (denote_tc_assert_cenv_sub' CSUB); trivial. clear H.
-    forget (typeof e) as s. unfold isCastResultType in *.
-    destruct s; destruct t; simpl in *; trivial.
-    destruct i; trivial. destruct f; trivial.
-    destruct i; destruct i0; destruct s; destruct s0; destruct a; destruct a0; trivial;
-    unfold isCastResultType in *; simpl in *; destruct Archi.ptr64; trivial;
-      destruct ((eqb attr_volatile attr_volatile0 && @eqb_option N N.eqb attr_alignas attr_alignas0)%bool); simpl in *; trivial.
-    destruct i; destruct f; simpl in *; trivial. 
-    destruct i; destruct t; simpl in *; trivial.
-Admitted.
+Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
+                                      match e with None => `!!(t=Tvoid)
+                                              | Some e' => @tc_expr CS Delta (Ecast e' t)
+                                      end.
+Proof. reflexivity. Qed.
 
 Lemma RA_return_castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
@@ -3987,9 +3977,21 @@ Proof.
   + simpl in W; subst. simpl; trivial.
 Qed.
 
-Lemma tc_expropt_sub {CS} Delta Delta' (SUB:tycontext_sub Delta Delta') ret t rho:
+Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
+Proof.
+  intros w W. simpl. rewrite  tc_expropt_char in W; rewrite tc_expropt_char.
+  specialize (tc_expr_cenv_sub CSUB); intros.
+  destruct ret; trivial; auto.
+Qed.
+
+Lemma tc_expropt_sub {CS} Delta Delta' rho (TS:tycontext_sub Delta Delta') (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- @tc_expropt CS Delta' ret t rho.
-Admitted.
+Proof.
+  intros w W. rewrite  tc_expropt_char in W; rewrite tc_expropt_char.
+  specialize (tc_expr_sub _ _ _ TS); intros.
+  destruct ret; [ eapply H; assumption | trivial]. 
+Qed.
 
 Lemma  semax_return {CS}:
    forall Delta R ret,
@@ -4009,7 +4011,7 @@ Proof.
   apply derives_imp.
   clear n.
   intros w ? k F.
-  intros w' ? ?.
+  intros w' ? ?. 
   clear H.
   clear w H0.
   rename w' into w.
@@ -4029,19 +4031,22 @@ Proof.
   pose proof I.
   remember ((construct_rho (filter_genv psi) ve te)) as rho.
   assert (H1': ((F rho * proj_ret_assert R EK_return (cast_expropt ret (ret_type Delta') rho) rho))%pred w').
-  {
-    eapply sepcon_derives; try apply H1; auto. simpl. forget (ret_type Delta') as t.
-    intros w [W1 W2]. simpl in H3; destruct H3 as [TCD _].
-    apply (tc_expropt_sub _ _ TS) in W1.
-    specialize (RA_return_castexpropt_cenv_sub CSUB Delta' rho TCD _ _ _ W1); simpl; intros X.
-    rewrite <- X; trivial.
+  { 
+    eapply sepcon_derives; try apply H1; auto. (*apply andp_left2. simpl. destrforget (ret_type Delta') as t.*)
+    intros w [W1 W2]. simpl in H3; destruct H3 as [TCD' _].
+    assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto). 
+    apply (tc_expropt_sub _ _ _ TS) in W1; trivial. 
+(*    apply (tc_expropt_cenv_sub CSUB _ _ TCD) in W1. *)
+    rewrite <- (RA_return_castexpropt_cenv_sub CSUB Delta' rho TCD' _ _ _ W1); trivial.
   }
   assert (TC: (tc_expropt Delta ret (ret_type Delta') rho) w').
   {
-    clear - H1 CSUB Espec. destruct H1 as [w1 [w2 [? [? [? ?]]]]]. intros.
-    apply (tc_expropt_cenv_sub CSUB) in H1.
-    unfold tc_expropt in *.
-    destruct ret; try apply H1.
+    simpl in H3; destruct H3 as [TCD' _].
+    clear - H1 TCD' TS CSUB Espec. 
+    assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto); clear TS.
+    destruct H1 as [w1 [w2 [? [? [? ?]]]]].
+    apply (tc_expropt_cenv_sub CSUB) in H1; trivial.
+    rewrite tc_expropt_char; rewrite tc_expropt_char in H1. destruct ret; [ |trivial].
     apply (boxy_e _ _ (extend_tc_expr _ _ _) w2); auto.
     exists w1; auto.
   }

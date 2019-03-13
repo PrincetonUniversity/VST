@@ -2201,8 +2201,15 @@ Proof.
 Qed.
 
 Definition semax_prefunc ge V G (cs : compspecs) (fdecs : list (ident * fundef)) (G1 : funspecs) :=
-  match_fdecs fdecs G1 /\ prog_contains ge fdecs /\
+  match_fdecs fdecs G1 /\ prog_contains ge fdecs /\ (*cenv_sub cenv_cs (genv_cenv ge) /\*)
   forall n : nat, (believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1)) n.
+
+Lemma semax_prefunc_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') ge V G fdecs G1:
+  semax_prefunc ge V G CS fdecs G1 -> semax_prefunc ge V G CS' fdecs G1 .
+Proof.
+  intros [MF [PC B]]. split3; [ trivial | trivial | intros ].
+  eapply (@believe_monoL CS Espec CS' ge); [ intros f; apply tycontext_sub_refl | assumption | apply (B n)].
+Qed. 
 
 Lemma semax_prefunc_firstn ge cs H V:
   forall n funs G (SF: @semax_prefunc ge V H cs funs G),
@@ -2272,7 +2279,16 @@ Proof.
     clear B SF2. simpl in *. rewrite find_id_maketycontext_s.
     rewrite find_id_maketycontext_s in GS. apply find_id_skipn in GS; trivial.
 Admitted.
-Print prog_contains.
+
+Lemma semax_func_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) V H funs G:
+  @semax_func V H CS funs G -> @semax_func V H CS' funs G.
+Proof.
+  unfold semax_func; intros [? ?]. split; trivial. intros.
+  assert (X: cenv_sub (@cenv_cs CS) ge) by (eapply cenv_sub_trans; trivial). 
+  specialize (H1 _ H2 X n).
+  eapply (@believe_monoL CS Espec CS'); [ intros f; apply tycontext_sub_refl | apply CSUB | apply H1].
+Qed.
+
 End semax_prog.
 (*
 Goal forall Espec ge V H cs fdecs G, @semax_prefunc Espec ge V H cs fdecs G -> prog_contains ge fdecs ->
