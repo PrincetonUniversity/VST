@@ -297,7 +297,8 @@ Proof.
   { destruct ( zlt 384 (entropy_len + add_len)); try discriminate; trivial. }
 
   thaw FR2. thaw FR1.
-  unfold hmac256drbgstate_md_info_pointer; simpl. freeze [0;1;2;4;5;6;7] FR3.
+  unfold hmac256drbgstate_md_info_pointer; simpl.
+  freeze [0;1;2;4;5;6] FR3.
   (* memset( seed, 0, MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT ); *)
   forward_call (Tsh, seed, 384, Int.zero).
   { rewrite data_at__memory_block.

@@ -946,7 +946,7 @@ Intros xorlist. rename H into XOR.
 rewrite sublist_same in XOR; try omega.
 forward.
 thaw FR3. unfold CoreInSEP. repeat flatten_sepcon_in_SEP.
-freeze [1;2;3;4;5;6;7;8] FR4.
+freeze [1;2;3;4;5;6;7] FR4.
 unfold SByte. 
 forward_seq. rewrite D.
   apply (For_i_8_16_loop Espec (FRZL FR4) v_x v_z c m 
@@ -973,7 +973,10 @@ forward_if (EX m:_,
    destruct M as [II M]; rewrite M in *.
      apply valid_pointer_null.
    rewrite M in *.
-     thaw FR5; thaw FR4. apply sepcon_valid_pointer1. apply sepcon_valid_pointer2.
+     thaw FR5; thaw FR4.
+        apply sepcon_valid_pointer1.
+       rewrite ?sepcon_assoc.
+       apply sepcon_valid_pointer2.
         apply sepcon_valid_pointer2.  apply sepcon_valid_pointer2.  apply sepcon_valid_pointer2.
          apply sepcon_valid_pointer2.  apply sepcon_valid_pointer1. entailer!.
         unfold message_at. eapply derives_trans. apply data_at_memory_block.
@@ -1078,7 +1081,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
     rewrite Zlength_correct, SRBL. reflexivity.
     apply prepare_data_length.
   rename H into SRL.
-  freeze [0;2;3;6] FR1.
+  freeze [0;2;3] FR1.
   remember (offset_val r64 cInit) as c.
   assert (BB: Int64.unsigned (Int64.sub bInit (Int64.repr r64)) < Int.max_unsigned).
      rep_omega. 

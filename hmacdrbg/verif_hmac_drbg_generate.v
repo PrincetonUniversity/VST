@@ -1315,8 +1315,12 @@ Opaque hmac256drbgabs_reseed.
 (*
   clear - WFI HeqABS4 HeqABS3 STREAM1 H1 H3 H4 H6 Hreseed_counter_in_range
           Hout_lenb ZLa Hreseed_interval.*) subst I contents'. 
-  eapply derives_trans.
-  apply (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 reseed_interval0); try assumption; simpl in *.
+ pose proof (entailment2 key0 V0 reseed_counter0 entropy_len0 prediction_resistance0 
+   reseed_interval0 contents additional sha output sho out_len b i shc key V
+    reseed_counter entropy_len 
+    prediction_resistance reseed_interval 
+       gv s ).
+  simpl in H6. sep_apply H6; clear H6.
   + red in Hreseed_interval; red; simpl in *. repeat split; trivial; try omega.
   + unfold drbg_protocol_specs.AREP, drbg_protocol_specs.REP, hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer;
     normalize. rewrite <- H8.
