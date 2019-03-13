@@ -94,7 +94,7 @@ ifeq ($(COMPCERT), compcert_new)
 SHIM= -Q concurrency/shim VST.veric
 endif
 
-EXTFLAGS:=$(EXTFLAGS) -R DeepWeb DeepWeb -Q DeepWeb/Custom Custom
+EXTFLAGS:=$(EXTFLAGS)
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 
