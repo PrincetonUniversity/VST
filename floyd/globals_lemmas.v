@@ -831,7 +831,7 @@ auto.
 Qed.
 
 Lemma main_pre_ext_start:
- forall {Espec : OracleKind} prog u gv ora,
+ forall {Z} prog u gv (ora : Z),
    main_pre_ext prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
 Proof.
 intros.
