@@ -149,7 +149,7 @@ Proof.
   replace_SEP 0 (data_at Tsh (tarray tuchar 384)
          ((map Vubyte entropy_bytes) ++ (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))) seed).
   {
-    entailer!. thaw SEED; clear FR6. (*subst entropy_len.*) rewrite sepcon_emp.
+    entailer!. thaw SEED; clear FR6. (*subst entropy_len.*) rewrite ?sepcon_emp.
     apply derives_refl'. symmetry.
     apply data_at_complete_split; repeat rewrite Zlength_map;
     try rewrite (*Hentropy_bytes_length,*) Zlength_list_repeat; try rewrite Zplus_minus; trivial; omega.
@@ -420,7 +420,7 @@ Proof.
      assumption.
   }
   (* ctx->reseed_counter = 1; *)
-  my_thaw FR11.
+  thaw FR11.
   freeze [0;1] FR12. rewrite XH6, XH7, XH8, XH9.
   unfold hmac256drbgabs_to_state. simpl.
   remember (HMAC256_DRBG_functional_prog.HMAC256_DRBG_update
