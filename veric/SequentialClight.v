@@ -46,7 +46,14 @@ Definition mem_evolve (m m': mem) : Prop :=
  | Some p, Some p' => p=p' /\ access_at m loc Max = access_at m' loc Max
  | _, _ => False
  end.
-   
+
+Instance mem_evolve_refl : RelationClasses.Reflexive mem_evolve.
+Proof.
+  repeat intro.
+  destruct (access_at x loc Cur); auto.
+  destruct p; auto.
+Qed.
+
 Definition ext_spec_mem_evolve (Z: Type) 
   (D: external_specification mem external_function Z) :=
  forall ef w b tl vl ot v z m z' m',
@@ -377,7 +384,8 @@ rewrite nextblock_access_empty in * by auto.
 contradiction.
 Qed.
 
- Lemma whole_program_sequential_safety:
+(* In this version, the program doesn't start with any knowledge of the external state. *)
+Lemma whole_program_sequential_safety:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
      (dryspec: ext_spec OK_ty)
      (dessicate : forall (ef : external_function) jm,
@@ -413,6 +421,172 @@ Proof.
  forget (m_dry jmx) as m. clear jmx.
  intro n.
  specialize (H3 n initial_oracle).
+ destruct H3 as [jm [? [? [? [? _]]]]].
+ unfold semax.jsafeN in H6.
+ subst m.
+ assert (joins (compcert_rmaps.RML.R.ghost_of (m_phi jm))
+   (Some (ghost_PCM.ext_ref initial_oracle, compcert_rmaps.RML.R.NoneP) :: nil)) as J.
+ { destruct (compcert_rmaps.RML.R.ghost_of (m_phi jm)); inv H5.
+   eexists; constructor; constructor.
+   instantiate (1 := (_, _)); constructor; simpl; constructor; auto.
+   instantiate (1 := (Some _, _)); repeat constructor; simpl; auto. }
+ clear - JDE DME H4 J H6.
+  rewrite <- H4 in H6|-*.
+ assert (level jm <= n)%nat by omega.
+ clear H4; rename H into H4.
+ forget initial_oracle as ora.
+ revert ora jm q H4 J H6; induction n; simpl; intros.
+ assert (level (m_phi jm) = 0%nat) by omega. rewrite H; constructor.
+ inv H6.
+ - constructor.
+ -
+   rewrite <- level_juice_level_phi in H4.
+   destruct H0 as (?&?&?&Hg).
+   eapply safeN_step.
+   + red. red. fold (globalenv prog). eassumption.
+   + destruct (H1 (Some (ghost_PCM.ext_ref ora, compcert_rmaps.RML.R.NoneP) :: nil)) as (m'' & J'' & (? & ? & ?) & ?); auto.
+     { eexists; apply join_comm, core_unit. }
+     { rewrite Hg.
+       destruct J; eexists; apply compcert_rmaps.RML.ghost_fmap_join; eauto. }
+     replace (m_dry m') with (m_dry m'') by auto.
+     change (level (m_phi jm)) with (level jm) in *.
+     replace n0 with (level m'') by omega.
+     apply IHn; auto. omega.
+     replace (level m'') with n0 by omega. auto.
+ -
+(*
+   assert (JDE1': ext_spec_type dryspec = ext_spec_type OK_spec)
+      by apply JDE.
+*)
+(*   destruct JDE as [JDE1 [JDE2 [JDE3 JDE4]]]. *)
+   destruct dryspec as [ty pre post exit]. simpl in *. (* subst ty. *)
+   destruct JE_spec as [ty' pre' post' exit']. simpl in *.
+   change (level (m_phi jm)) with (level jm) in *.
+   destruct JDE as [JDE1 [JDE2 JDE3]].
+   specialize (JDE1 e x (dessicate e jm x)); simpl in JDE1.
+   eapply safeN_external.
+     eassumption.
+     apply JDE1. reflexivity. assumption.
+     simpl. intros.
+     assert (H20: exists jm', m_dry jm' = m' 
+                      /\ (level jm' = n')%nat
+                      /\ juicy_safety.pures_eq (m_phi jm) (m_phi jm')
+                      /\ resource_at (m_phi jm') = resource_fmap (approx (level jm')) (approx (level jm')) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm (m_dry jm')
+                      /\ compcert_rmaps.RML.R.ghost_of (m_phi jm') = Some (ghost_PCM.ext_ghost z', compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm')) (approx (level jm')) (tl (ghost_of (m_phi jm)))). {
+     destruct (juicy_mem_lemmas.rebuild_juicy_mem_rmap jm m') 
+            as [phi [? [? ?]]].
+     assert (own.ghost_approx phi (Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) =
+        Some (ghost_PCM.ext_ghost z', NoneP) :: tl (compcert_rmaps.RML.R.ghost_of phi)) as Happrox.
+     { simpl; f_equal.
+        rewrite <- compcert_rmaps.RML.ghost_of_approx at 2.
+        destruct (compcert_rmaps.RML.R.ghost_of phi); auto. }
+     set (phi1 := initial_world.set_ghost _ _ Happrox).
+     assert (level phi1 = level phi /\ resource_at phi1 = resource_at phi) as [Hl1 Hr1].
+     { subst phi1; unfold initial_world.set_ghost; rewrite level_make_rmap, resource_at_make_rmap; auto. }
+     pose (phi' := age_to.age_to n' phi1).
+     assert (mem_rmap_cohere m' phi'). {
+       clear - H1 Hr1 Hl1 H8 H7 H6 H3 DME JDE1.
+       apply JDE1 in H1; [ | reflexivity].
+       specialize (DME e _ _ _ _ _ _ _ _ _ _ H1 H6).
+     subst phi'.
+     apply age_to_cohere.
+     subst phi1.
+     apply set_ghost_cohere.
+     eapply mem_evolve_cohere; eauto.
+   }
+    destruct H10 as [H10 [H11 [H12 H13]]].
+     pose (jm' := mkJuicyMem _ _ H10 H11 H12 H13).
+     exists jm'.
+     split; [ | split3].
+     subst jm'; simpl; auto.
+     subst jm' phi'; simpl. apply age_to.level_age_to. omega.
+     hnf. split. intro loc. subst jm' phi'. simpl.
+     rewrite age_to_resource_at.age_to_resource_at.
+     rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap.
+     destruct (m_phi jm @ loc); auto. rewrite age_to.level_age_to by omega.
+      reflexivity.
+     intro loc. subst jm' phi'. simpl.
+     rewrite age_to_resource_at.age_to_resource_at.
+     rewrite Hr1, H8. unfold juicy_mem_lemmas.rebuild_juicy_mem_fmap; simpl.
+     destruct (m_phi jm @ loc); auto.
+     if_tac; simpl; auto. destruct k; simpl; auto. if_tac; simpl; eauto. simpl; eauto.
+     subst jm' phi'. simpl m_phi.
+     rewrite age_to_resource_at.age_to_ghost_of.
+     subst phi1.
+     split.
+     extensionality; unfold compose; simpl.
+     rewrite age_to_resource_at.age_to_resource_at, age_to.level_age_to by omega.
+     unfold initial_world.set_ghost; rewrite resource_at_make_rmap.
+     rewrite H8; auto.
+     unfold initial_world.set_ghost; rewrite ghost_of_make_rmap; simpl.
+     rewrite age_to.level_age_to, H9 by (rewrite level_make_rmap; omega); simpl; auto.
+   }
+   destruct H20 as [jm'  [H26 [H27 [H28 [H29 Hg']]]]].
+   specialize (H2 ret jm' z' n' Hargsty Hretty).
+   spec H2. omega.
+    spec H2. hnf; split3; auto. omega.
+  spec H2.
+  eapply JDE2; eauto 6. omega. subst m'. apply H6.
+  destruct H2 as [c' [H2a H2b]]; exists c'; split; auto.
+  hnf in H2b.
+  specialize (H2b (Some (ghost_PCM.ext_ref z', compcert_rmaps.RML.R.NoneP) :: nil)).
+  spec H2b. apply join_sub_refl.
+  spec H2b.
+  { rewrite Hg'.
+    eexists (Some (ghost_PCM.ext_both z', compcert_rmaps.RML.R.NoneP) :: _);
+      repeat constructor.  }
+  destruct H2b as [jm'' [? [? ?]]].
+  destruct H7 as [? [? ?]].
+  subst m'. rewrite <- H7.
+  specialize (IHn  z' jm'' c').
+  subst n'. rewrite <- H9.
+  change (level (m_phi jm'')) with (level  jm'') in IHn.
+  apply IHn. omega.
+  auto.
+  rewrite H9; auto.
+ - eapply safeN_halted; eauto.
+    apply JDE. auto.
+ Unshelve. simpl. split; [apply Share.nontrivial | hnf]. exists None; constructor.
+all: fail.
+Qed.
+
+(* In this version, the program starts with knowledge of the external state. *)
+Lemma whole_program_sequential_safety_ext:
+   forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
+     (dryspec: ext_spec OK_ty)
+     (dessicate : forall (ef : external_function) jm,
+               ext_spec_type OK_spec ef ->
+               ext_spec_type dryspec ef)
+     (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
+     (DME: ext_spec_mem_evolve _ dryspec)
+     prog V G m,
+     @semax_prog_ext Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
+     Genv.init_mem prog = Some m ->
+     exists b, exists q, exists m',
+       Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
+       initial_core  (cl_core_sem (globalenv prog))
+           0 m q m' (Vptr b Ptrofs.zero) nil /\
+       forall n,
+        @dry_safeN _ _ _ OK_ty (genv_symb_injective)
+            (coresem_extract_cenv  (cl_core_sem (globalenv prog))
+                (prog_comp_env prog)) 
+            (*(dryspec  OK_ty)*) dryspec
+            (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) 
+             n initial_oracle q m'.
+Proof.
+ intros.
+ destruct (@semax_prog_rule_ext (*NullExtension.*)Espec CS _ _ _ _ 
+     0 (*additional temporary argument - TODO (Santiago): FIXME*)
+     initial_oracle H H0) as [b [q [[H1 H2] H3]]].
+ destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
+ destruct (H2 jmx H4x) as [jmx' [H8x H8y]].
+ exists b, q, (m_dry jmx').
+ split3; auto.
+ rewrite H4x in H8y. auto.
+ subst. simpl. clear H5x H6x H7x H8y.
+ forget (m_dry jmx) as m. clear jmx.
+ intro n.
+ specialize (H3 n).
  destruct H3 as [jm [? [? [? [? _]]]]].
  unfold semax.jsafeN in H6.
  subst m.

@@ -809,12 +809,12 @@ Lemma closed_wrtl_main_pre:
 Proof.
 intros. apply closed_wrtl_globvars. Qed.
 Lemma closed_wrt_main_pre_ext:
-  forall {Espec : OracleKind} prog z u v S, closed_wrt_vars S (main_pre_ext prog z u v).
+  forall {Z} prog (z : Z) u v S, closed_wrt_vars S (main_pre_ext prog z u v).
 Proof.
 intros. unfold main_pre_ext. apply closed_wrt_sepcon; [apply closed_wrt_globvars | apply closed_wrt_const].
 Qed.
 Lemma closed_wrtl_main_pre_ext:
-  forall {Espec : OracleKind} prog z u v S, closed_wrt_lvars S (main_pre_ext prog z u v).
+  forall {Z} prog (z : Z) u v S, closed_wrt_lvars S (main_pre_ext prog z u v).
 Proof.
 intros. unfold main_pre_ext. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
 Qed.
