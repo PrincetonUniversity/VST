@@ -2976,3 +2976,31 @@ Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p
      else simple apply change_compspecs_field_at_cancel; 
         [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
+Lemma data_at_nullptr:
+ forall {cs: compspecs} sh t p, 
+  data_at sh size_t nullval p =
+  data_at sh (tptr t) nullval p.
+Proof.
+intros.
+unfold data_at, field_at.
+f_equal.
+f_equal.
+unfold field_compatible; simpl.
+f_equal; auto.
+f_equal; auto.
+f_equal.
+f_equal.
+unfold align_compatible.
+destruct p; try auto.
+apply prop_ext; split; intro;
+(eapply align_compatible_rec_by_value_inv in H; [ | reflexivity];
+ eapply align_compatible_rec_by_value; [reflexivity | ];
+ apply H).
+simpl.
+unfold at_offset.
+rewrite !by_value_data_at_rec_nonvolatile by reflexivity.
+simpl.
+unfold nested_field_type; simpl.
+rewrite <- mapsto_size_t_tptr_nullval with (t:=t).
+f_equal.
+Qed.

@@ -70,11 +70,13 @@ Ltac unfold_varspecs al :=
 Ltac mk_varspecs prog :=
  let a := constr:(prog)
    in let a := eval unfold prog in a
-   in match a with Clightdefs.mkprogram _ ?d _ _ _ => 
-         let e := constr:(mk_varspecs' d nil)
+   in let d :=  match a with
+                    | Clightdefs.mkprogram _ ?d _ _ _ => constr:(d)
+                    | {| prog_defs := ?d |} => constr:(d)
+                    end
+   in let e := constr:(mk_varspecs' d nil)
           in let e := eval hnf in e
-          in unfold_varspecs e
-      end.
+          in unfold_varspecs e.
 
 Hint Resolve field_address_isptr : norm.
 
@@ -3692,7 +3694,7 @@ end.
 
 Ltac make_composite_env composites :=
 let j := constr:(build_composite_env' composites I)
- in let j := eval unfold composites in j
+ (* in let j := eval unfold composites in j *)
 in let j := eval cbv beta iota zeta delta [
        build_composite_env' build_composite_env
        PTree.empty
@@ -3705,13 +3707,16 @@ in let j := eval cbv beta iota zeta delta [
 Ltac make_composite_env0 prog :=
 let c := constr:(prog_types prog) in
 let c := eval unfold prog, prog_types, Clightdefs.mkprogram in c in 
-match c with context C [build_composite_env' ?comp I] => 
-    let comp' := make_composite_env comp
+let comp := match c with
+                  | context [build_composite_env' ?comp I] => 
+                     let j := eval unfold comp in comp in constr:(j)
+                  | _ :: _ => constr:(c)
+                  | nil => constr:(c)
+                  end in 
+let comp' := make_composite_env comp
    in match comp' with Errors.OK ?ce =>
             ce
-       end
-end.
-
+       end.
 
 Ltac make_compspecs prog :=
   let cenv := make_composite_env0 prog in
@@ -3747,8 +3752,11 @@ Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
  end.
 
 Ltac simpl_prog_defs p := 
- match p with context C [prog_defs (Clightdefs.mkprogram _ ?d _ _ _)] =>
-   let q := context C [d] in q
+ match p with
+ | context C [prog_defs (Clightdefs.mkprogram _ ?d _ _ _)] =>
+       let q := context C [d] in q
+ | context C [prog_defs ({| prog_defs := ?d |})] =>
+       let q := context C [d] in q
   end.
 
 Ltac with_library' p G :=

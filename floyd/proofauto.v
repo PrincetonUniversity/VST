@@ -45,6 +45,7 @@ Require Export VST.floyd.Clightnotations.
 Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
 Require VST.msl.wandQ_frame.
+Require VST.floyd.linking.
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
