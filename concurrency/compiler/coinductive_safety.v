@@ -5,7 +5,7 @@
 (** printing /\ $\land$ #&and;# *)
 
 Require Import Setoid Program.
-Require Import VST.concurrency.paco.src.paco.
+From Paco Require Import paco.
 
 Section safety_equivalence.
 
@@ -62,15 +62,16 @@ Section safety_equivalence.
           [ econstructor 1; eauto |
             econstructor 2; eauto |
             econstructor 3; eauto ]; intros x'' VAL'.
-      - cofix CO; intros x y HH.
-        inversion HH. inversion SIM;
+      - cofix CO. intros x y HH.
+        inversion HH; inversion paco_observe;
+          inversion SIM;
           [ econstructor 1; eauto |
             econstructor 2; eauto |
             econstructor 3; eauto ]; intros x'' VAL'; eapply CO.
-        + specialize (LE _ _ (H0 _ VAL')).
+        + specialize (LE _ (H0 _ VAL')).
           destruct LE. 2: compute in *; tauto.
           apply H1.
-        + specialize (LE _ _ (H0 _ VAL')).
+        + specialize (LE _ (H0 _ VAL')).
           destruct LE. 2: compute in *; tauto.
           apply H1.
     Qed.
@@ -132,7 +133,7 @@ Section safety_equivalence.
       split; generalize x y VAL; clear VAL x y.
       - pcofix CO.
         intros x y VAL HH.
-        inversion HH.
+        inversion HH; inversion paco_observe.
         inversion SIM; subst; clear SIM.
         + pfold.
           econstructor 1; eassumption.
@@ -142,7 +143,7 @@ Section safety_equivalence.
           intros x' AA.
           right.
           eapply CO; try assumption.
-          specialize (LE _ _ (H0 _ AA)).
+          specialize (LE _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
           apply H1.
@@ -151,29 +152,29 @@ Section safety_equivalence.
           intros x'0 AA.
           right.
           eapply CO; try assumption.
-          specialize (LE _ _ (H0 _ AA)).
+          specialize (LE _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
           apply H1.
       - pcofix CO.
         intros x y VAL HH; inversion HH; clear HH.
-        inversion SIM; subst; clear SIM.
+        inversion paco_observe; inversion SIM; subst; clear paco_observe SIM.
         + pfold.
           econstructor 1; eassumption.
         + cut (valid x y').
           { intros VAL'.
             assert (LE':= LE).
-            specialize (LE _ _ (H0 _ VAL')).
+            specialize (LE _ (H0 _ VAL')).
             destruct LE. 2: compute in *; tauto.
             generalize dependent y; generalize x.
             induction n.
             * (*base case*)
-              intros ? ? VAL H; inversion H; inversion H4; subst; clear H H4.
+              intros ? ? VAL H. inversion H. inversion H4; subst; clear H H4.
               pfold. econstructor 2. eassumption.
               intros x' AA.
               right.
               eapply CO; try assumption.
-              specialize (LE' _ _ (H0 _ AA)).
+              specialize (LE' _ (H0 _ AA)).
               destruct LE'; [ | compute in *; tauto].
               unfold paco_exp_safetyN.
               apply H.
@@ -194,7 +195,7 @@ Section safety_equivalence.
           intros x'0 AA.
           right.
           eapply CO; try assumption.
-          specialize (LE _ _ (H0 _ AA)).
+          specialize (LE _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
           apply H1.
@@ -246,25 +247,25 @@ Section safety_equivalence.
         [ econstructor 1; eauto |
             econstructor 2; eauto |
             econstructor 3; eauto |
-            econstructor 4; eauto ]; intros x'' VAL'.
+            econstructor 4; eauto ].
     - cofix CO; intros cd x y HH.
-      inversion HH. inversion SIM;
+      inversion HH. inversion paco_observe; inversion SIM;
         [ econstructor 1; eauto |
           econstructor 2; eauto |
           econstructor 3; eauto |
           econstructor 4; eauto ].
       + intros x'' VAL'; eapply CO.
-        specialize (LE _ _ _ (H0 _ VAL')).
+        specialize (LE _ (H0 _ VAL')).
         destruct LE. 2: compute in *; tauto.
-        apply H1.
+        constructor; apply H1.
       + intros x'' VAL'; eapply CO.
-        specialize (LE _ _ _ (H0 _ VAL')).
+        specialize (LE _ (H0 _ VAL')).
           destruct LE. 2: compute in *; tauto.
-          apply H1.
+          constructor; apply H1.
       + eapply CO .
-        specialize (LE _ _ _ (H0)).
+        specialize (LE _ (H0)).
         destruct LE. 2: compute in *; tauto.
-        apply H1.
+        constructor; apply H1.
   Qed.
 
   (*The stutter doesn't matter*)
@@ -276,17 +277,18 @@ Section safety_equivalence.
     intros cd x y.
     split; generalize cd x y; clear cd x y.
     - pcofix CO.
-      intros cd x y HH; inversion HH; subst; clear HH.
+      intros cd x y HH.
+      inversion HH; subst; clear HH.
       pfold.
-      inversion SIM;
+      inversion paco_observe; inversion SIM;
         [ econstructor 1; eauto |
           econstructor 2; eauto |
           econstructor 3; eauto ]; intros x0 VAL'.
-      + specialize (LE _ _ (H0 _ VAL')).
+      + specialize (LE _ (H0 _ VAL')).
         destruct LE; [| compute in *; tauto].
         unfold upaco3. right. apply CO. eapply H1.
 
-      + specialize (LE _ _ (H0 _ VAL')).
+      + specialize (LE _ (H0 _ VAL')).
         destruct LE; [| compute in *; tauto].
         unfold upaco3. right. apply CO. eapply H1.
     - pcofix CO.
@@ -298,35 +300,59 @@ Section safety_equivalence.
                                       paco_exp_safetyN_stutter bot3 cd x y ->
                                       exp_safetyN_gen x y)); auto.
 
-      (*now do teh cofixpoint induction*)
+      (*now do the cofixpoint induction*)
 
       intros x wf_ind x' y HH; inversion HH; subst; clear HH.
-      inversion SIM; clear SIM;
+      inversion paco_observe; inversion SIM; clear paco_observe SIM;
         [ econstructor 1; eauto |
           econstructor 2; eauto |
           econstructor 3; eauto |].
-      + intros x0 VAL'. specialize (LE _ _ _ (H0 _ VAL')).
+      + intros x0 VAL'. specialize (LE _ (H0 _ VAL')).
         destruct LE; [| compute in *; tauto].
-        unfold upaco3. right. eapply CO. eapply H1.
-      + intros x0 VAL'. specialize (LE _ _ _ (H0 _ VAL')).
+        unfold upaco2. right. eapply CO. constructor; eapply H1.
+      + intros x0 VAL'. specialize (LE _ (H0 _ VAL')).
         destruct LE; [| compute in *; tauto].
-        unfold upaco3. right. eapply CO. eapply H1.
+        unfold upaco2. right. eapply CO. constructor; eapply H1.
       + eapply wf_ind in H; [ exact H|].
-        pfold. specialize (LE _ _ _ (H0)).
+        pfold. specialize (LE _ (H0)).
         destruct LE; [| compute in *; tauto].
-        simpl. punfold H1.
+        simpl in H1.
+
+        clear - H1.
+        match goal with
+          [H1: pacon.paco ?AA ?BB ?CC |- _ ] =>
+          pose (curry3 (pacon.paco AA BB)) 
+        end.
+
+        (* there must be e problem, where soemthing is unfolded too much.
+           pacon.paco shouldn't be exposed.
+         *)
+        eassert (HH1: @paco3
+                  core_data (fun _ : core_data => X) (fun (_ : core_data) (_ : X) => Y)
+                  (fun R0 =>
+                     @exp_safetyN_stutter_gen
+                       R0
+                  )
+                  bot3
+                  cd' ((fun _ => x') cd') ((fun _ _ => y) cd' _)
+                ).
+        { eapply H1. }
+        punfold HH1.
+        
+        (*punfold H1.*)
         {
           clear.
+          
           unfold monotone3.
-          intros.
+          intros ? **.
           inversion IN;
         [ econstructor 1; eauto |
           econstructor 2; eauto |
           econstructor 3; eauto |
-          econstructor 4; eauto ]. }
+          econstructor 4; eauto ].
+        }
         Grab Existential Variables.
-        assumption.
-        assumption.
+        all: eauto.
   Qed.
   End explicit_safetyN_stutter.
 

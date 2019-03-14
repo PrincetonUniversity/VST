@@ -34,6 +34,7 @@ Import Ptrofs.
 Import Basics.
 Import FunctionalExtensionality.
 
+Set Nested Proofs Allowed.
 Set Bullet Behavior "Strict Subproofs".
 
 (*Clight Machine *)

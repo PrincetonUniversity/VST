@@ -23,8 +23,9 @@ Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.common.threadPool.
 
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
-Set Bullet Behavior "Strict Subproofs".
 
+Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 Definition map_leq {A B} (m1: PTree.t A)(m2: PTree.t B): Prop :=
   forall p, m1 ! p -> m2 ! p.

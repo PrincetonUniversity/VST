@@ -217,7 +217,7 @@ Proof.
     constructor.
 Qed.
 
-Lemma upd_lt {A} i x l : @upd i A x l <> None <-> lt i (length l).
+Lemma upd_lt {A} i x l : @upd i A x l <> None <-> lt i (List.length l).
 Proof.
   revert i; induction l; intros i.
   - split.
@@ -228,7 +228,7 @@ Proof.
       * auto with *.
       * congruence.
     + specialize (IHl i).
-      transitivity (lt i (length l)).
+      transitivity (lt i (List.length l)).
       * rewrite <- IHl; clear IHl.
         simpl. destruct (upd i x l); split; congruence.
       * simpl; split; omega.
@@ -251,7 +251,7 @@ Qed.
 Lemma upd_app_None {A} i x (l1 l2 : list A) :
   upd i x l1 = None ->
   upd i x (l1 ++ l2) =
-  option_map (app l1) (upd (i - length l1) x l2).
+  option_map (app l1) (upd (i - List.length l1) x l2).
 Proof.
   revert i; induction l1; intros i.
   - simpl. intros _. replace (i - 0)%nat with i by omega.
@@ -259,11 +259,11 @@ Proof.
   - destruct i; simpl; intros E. discriminate.
     destruct (upd i x l1) as [o|] eqn:Eo. discriminate.
     rewrite (IHl1 _ Eo).
-    destruct (upd (i - length l1) x l2); reflexivity.
+    destruct (upd (i - List.length l1) x l2); reflexivity.
 Qed.
 
 Lemma upd_last {A} i l (a x : A) :
-  i = length l ->
+  i = List.length l ->
   upd i x (l ++ a :: nil) = Some (l ++ x :: nil).
 Proof.
   revert l a x; induction i; intros l a x.
@@ -273,27 +273,27 @@ Proof.
 Qed.
 
 Lemma upd_rev {A} i x (l : list A) :
-  (i < length l)%nat ->
-  upd i x (rev l) = option_map (@rev A) (upd (length l - 1 - i) x l).
+  (i < List.length l)%nat ->
+  upd i x (rev l) = option_map (@rev A) (upd (List.length l - 1 - i) x l).
 Proof.
   revert i; induction l; intros i li.
   - destruct i; auto.
-  - simpl rev; simpl length.
-    destruct (eq_dec i (length l)).
-    + subst i. simpl. replace (length l - 0 - length l)%nat with O by omega.
+  - simpl rev; simpl List.length.
+    destruct (eq_dec i (List.length l)).
+    + subst i. simpl. replace (List.length l - 0 - List.length l)%nat with O by omega.
       simpl.
-      apply upd_last. symmetry. apply rev_length.
+      apply upd_last. symmetry. apply List.rev_length.
     + simpl in li.
-      assert (U : (i < length l)%nat) by omega.
+      assert (U : (i < List.length l)%nat) by omega.
       pose proof U as Hi.
-      rewrite <-rev_length in U.
+      rewrite <- List.rev_length in U.
       rewrite <-(upd_lt _ x) in U.
       destruct (upd i x (rev l)) as [o|] eqn:Eo. 2:tauto. clear U.
       specialize (IHl i Hi).
       rewrite Eo in IHl.
-      replace (S (length l) - 1 - i)%nat with (S (length l - 1 - i)) by omega.
+      replace (S (List.length l) - 1 - i)%nat with (S (List.length l - 1 - i)) by omega.
       simpl.
-      destruct (upd (length l - 1 - i) x l) as [o'|] eqn:Eo'. 2: discriminate.
+      destruct (upd (List.length l - 1 - i) x l) as [o'|] eqn:Eo'. 2: discriminate.
       simpl in *.
       apply upd_app_Some. congruence.
 Qed.
@@ -461,7 +461,7 @@ Proof.
   unfold getThreadsR in *.
   unfold containsThread in *.
   simpl in *.
-  rewrite map_length.
+  rewrite List.map_length.
   clear -cnti.
   rewrite length_enum.
   pose proof @ssrnat.ltP i n.
@@ -729,7 +729,7 @@ Proof.
   }
   rewrite upd_rev; auto.
   2:now rewrite map_length, length_enum_from; auto.
-  rewrite map_length, length_enum_from.
+  rewrite List.map_length, length_enum_from.
   match goal with
     |- _ = Some (?a ?x) =>
     change (Some (a x)) with (option_map a (Some x))

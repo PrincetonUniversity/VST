@@ -1322,6 +1322,7 @@ Proof.
   exists (Val.load_result chunk v'). constructor; auto.
   exists v1; constructor; auto.
 Qed.
+
   
 (* Lemma volatile_load_trivial_inject:
   forall {ge chunk m b ofs t vres},

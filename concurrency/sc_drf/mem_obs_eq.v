@@ -27,6 +27,8 @@ Require Import VST.concurrency.common.dry_context.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.sepcomp.mem_wd.
 
+Set Nested Proofs Allowed.
+
 (** ** Block renamings*)
 Module Renamings.
   Definition memren := block -> option block.
