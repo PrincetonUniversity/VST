@@ -1057,33 +1057,6 @@ Proof.
   auto.
 Qed.
 
-(*
-(* originaly, premises are nested_non_volatile, sizeof < modulus, sizeof = sz *)
-Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at__memory_block_cancel;
-       [reflexivity
-       | rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         rep_omega
-       | try apply f_equal_Int_repr;
-         rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
-       ])
-    : cancel.
-
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at_memory_block;
-       [reflexivity
-       | rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         rep_omega
-       | try apply f_equal_Int_repr;
-         rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
-       ])
-    : cancel.
-*)
-
 Lemma array_at_array_at_: forall sh t gfs lo hi v p,
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
