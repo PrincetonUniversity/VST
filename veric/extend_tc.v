@@ -463,6 +463,7 @@ Qed.
 Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_expropt extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
+Require Import VST.veric.binop_lemmas4.
 Require Import VST.veric.expr_lemmas.
 
 Section CENV_SUB.
@@ -472,126 +473,206 @@ Section CENV_SUB.
   Lemma tc_expr_cenv_sub a rho Delta w (T: @tc_expr CS Delta a rho w): @tc_expr CS' Delta a rho w.
   Proof. unfold tc_expr in *. apply  (denote_tc_assert_cenv_sub' CSUB); trivial. Qed.
   
-    Lemma eval_anyenv_cenv_sub: forall e, @eval_expr CS e any_environ = @eval_expr CS' e any_environ /\
-                                        @eval_lvalue CS e any_environ = @eval_lvalue CS' e any_environ. 
-  Proof.
-    induction e; simpl in *; auto; intuition; unfold liftx, lift; simpl; try solve [rewrite H; trivial].
-    assert (stable: forall id co, (@cenv_cs CS) ! id = @Some composite co -> (@cenv_cs CS') ! id = @Some composite co).
-    { intros. specialize (CSUB id). rewrite H3 in CSUB. simpl in CSUB; trivial. }
-    specialize (@Cop_sem_binary_operation_stable (@cenv_cs CS) (@cenv_cs CS') stable b); intros.
-   Admitted. (*similar stuff in tycontext:
-Lemma binop_stable_stable: forall b e1 e2,
-  binop_stable env b e1 e2 = true ->
-  binop_stable env' b e1 e2 = true.
-Proof.
-  intros.
-  destruct b; unfold binop_stable in H |- *; auto.
-  + destruct (Cop.classify_add (typeof e1) (typeof e2));
-    try (eapply (complete_type_stable env env'); eauto).
-     auto.
-  + destruct (Cop.classify_sub (typeof e1) (typeof e2));
-    try (eapply (complete_type_stable env env'); eauto).
-     auto.
-Qed.
-
-Lemma Cop_Sem_add_ptr_int_stable ty si u v (H:complete_type env ty = true):
-  Cop.sem_add_ptr_int env ty si u v =
-  Cop.sem_add_ptr_int env' ty si u v.
-Proof. unfold Cop.sem_add_ptr_int.
-  destruct u; destruct v; trivial; erewrite <- sizeof_stable; eauto.
-Qed.
-
-Lemma Cop_Sem_add_ptr_long_stable ty u v (H:complete_type env ty = true):
-  Cop.sem_add_ptr_long env ty u v =
-  Cop.sem_add_ptr_long env' ty u v.
-Proof. unfold Cop.sem_add_ptr_long.
-  destruct u; destruct v; trivial; erewrite <- sizeof_stable; eauto.
-Qed.
-
-Lemma Cop_sem_binary_operation_stable:
-  forall b v1 e1 v2 e2 m,
-  binop_stable env b e1 e2 = true ->
-  Cop.sem_binary_operation env b v1 (typeof e1) v2 (typeof e2) m =
-    Cop.sem_binary_operation env' b v1 (typeof e1) v2 (typeof e2) m.
-Proof.
-  intros.
-  unfold binop_stable in H.
-  destruct b; try auto.
-  + simpl.
-    unfold Cop.sem_add.
-    destruct (Cop.classify_add (typeof e1) (typeof e2)), v1, v2;
-    try (erewrite <- Cop_Sem_add_ptr_int_stable; eauto);
-    try (erewrite <- Cop_Sem_add_ptr_long_stable; eauto);
-(*    try (eapply (complete_type_stable env env'); eauto);*)
-    try erewrite <- sizeof_stable; eauto.
-  + simpl.
-    unfold Cop.sem_sub.
-    destruct (Cop.classify_sub (typeof e1) (typeof e2)), v1, v2;
-    try erewrite <- sizeof_stable; eauto.
-Qed.
-
-Lemma field_offset_stable: forall i id co ofs,
-  composite_env_consistent env ->
-  env ! i = Some co ->
-  field_offset env id (co_members co) = Errors.OK ofs ->
-  field_offset env' id (co_members co) = Errors.OK ofs.
-Proof.
-  unfold field_offset.
-  generalize 0.
-  intros.
-  destruct (H i co H0) as [HH _ _ _].
-  revert z H1.
-  clear H H0.
-  induction (co_members co); intros.
-  + simpl in H1 |- *.
-    inversion H1.
-  + simpl in H1 |- *.
-    destruct a.
-    simpl in HH.
-    rewrite andb_true_iff in HH.
-    if_tac.
-    - rewrite alignof_stable with (env := env) by tauto. assumption.
-    - rewrite alignof_stable with (env := env) by tauto.
-      rewrite sizeof_stable with (env := env) by tauto.
-      apply IHm; try tauto.
-Qed.
-              *)
+   Lemma tc_iszero_cenv_sub Delta rho w: forall e
+     (TC: @tc_expr CS Delta e rho w),
+    (@denote_tc_assert CS (@tc_iszero CS e) rho) w ->
+    (@denote_tc_assert CS' (@tc_iszero CS' e) rho) w.
+   Proof.
+   intros.
+    rewrite denote_tc_assert_iszero' in H.
+    rewrite denote_tc_assert_iszero' in *.
+    simpl in *. super_unfold_lift.
+    unfold denote_tc_iszero in *.
+    destruct (@eval_expr CS e rho) eqn:Hv; auto; try contradiction.
+    apply eval_expr_cenv_sub_Vint in Hv; eauto; rewrite Hv; auto.
+    apply eval_expr_cenv_sub_Vlong in Hv; eauto; rewrite Hv; auto.
+   Qed.
   
+  Lemma eqb_type_false': forall a b, a<>b -> eqb_type a b = false.
+  Proof. intros. apply eqb_type_false; auto. Qed.
+
+Lemma denote_tc_assert_iszero_cenv_sub'' rho w:
+  forall e
+    (CAST: app_pred (@denote_tc_assert CS (@tc_iszero CS e) rho) w),
+    app_pred (@denote_tc_assert CS (@tc_iszero CS' e) rho) w.
+Proof.
+intros.
+unfold tc_iszero in *.
+destruct (@eval_expr CS e any_environ) eqn:?; auto.
+-
+simpl in CAST.
+unfold_lift in CAST.
+destruct (@eval_expr CS e rho) eqn:?; auto;
+try contradiction CAST;
+destruct (@eval_expr CS' e any_environ) eqn:?; auto;
+try solve [simpl; unfold_lift; rewrite Heqv0; auto].
+ +
+  apply (eval_expr_cenv_sub_Vint CSUB) in Heqv0.
+  apply (eval_expr_any rho) in Heqv1; [ | clear; congruence].
+  inversion2 Heqv0 Heqv1.
+  do 3 red in CAST. simpl in CAST. 
+  rewrite (is_true_e _ CAST).
+  apply I.
+ +
+  apply (eval_expr_cenv_sub_Vint CSUB) in Heqv0.
+  apply (eval_expr_any rho) in Heqv1; [ | clear; congruence].
+  inversion2 Heqv0 Heqv1.
+ +
+  apply (eval_expr_cenv_sub_Vlong CSUB) in Heqv0.
+  apply (eval_expr_any rho) in Heqv1; [ | clear; congruence].
+  inversion2 Heqv0 Heqv1.
+ +
+  apply (eval_expr_cenv_sub_Vlong CSUB) in Heqv0.
+  apply (eval_expr_any rho) in Heqv1; [ | clear; congruence].
+  inversion2 Heqv0 Heqv1. 
+  do 3 red in CAST. simpl in CAST. 
+  rewrite (is_true_e _ CAST).
+  apply I.
+-
+apply (eval_expr_cenv_sub_Vint CSUB) in Heqv.
+rewrite Heqv. auto.
+-
+apply (eval_expr_cenv_sub_Vlong CSUB) in Heqv.
+rewrite Heqv. auto.
+-
+apply (eval_expr_cenv_sub_Vfloat CSUB) in Heqv.
+rewrite Heqv. auto.
+-
+apply (eval_expr_cenv_sub_Vsingle CSUB) in Heqv.
+rewrite Heqv. auto.
+-
+apply (eval_expr_cenv_sub_Vptr CSUB) in Heqv.
+rewrite Heqv. auto.
+Qed.
+
+Require Import VST.veric.binop_lemmas4.
+
+Lemma denote_tc_assert_test_eq_cenv_sub'' rho w:
+  forall e1 e2
+    (CAST: app_pred (@denote_tc_assert CS (@tc_test_eq CS e1 e2) rho) w),
+    app_pred (@denote_tc_assert CS (@tc_test_eq CS' e1 e2) rho) w.
+Proof.
+intros.
+unfold tc_test_eq in *.
+destruct (@eval_expr CS e1 any_environ) eqn:?; auto;
+simpl in CAST;
+unfold_lift in CAST;
+unfold denote_tc_test_eq in CAST;
+repeat 
+ (match goal with
+  | H: app_pred (denote_tc_assert match @eval_expr CS ?e ?rho with _ => _ end _) _ |- _ =>
+         destruct (@eval_expr CS e rho) eqn:?H
+  | H: app_pred match @eval_expr CS ?e ?rho with _ => _ end _ |- _ =>
+         destruct (@eval_expr CS e rho) eqn:?H
+  | |- app_pred (denote_tc_assert match @eval_expr ?cs ?e ?rho with _ => _ end _) _ =>
+     destruct (@eval_expr cs e rho) eqn:?H
+(*  | |- app_pred match @eval_expr ?cs ?e ?rho with _ => _ end _ =>
+     destruct (@eval_expr cs e rho) eqn:?H*)
+  | H: @eval_expr CS _ _ = _ |- _ => rewrite H
+  | H: @eval_expr CS ?e any_environ = _,
+    H': @eval_expr CS' ?e' rho = _ |- _ =>
+          constr_eq e e'; 
+       rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ H) in H'; 
+        symmetry in H'; inv H'
+  | H: @eval_expr ?cs ?e any_environ = _ |- _ =>
+          lazymatch goal with H': @eval_expr cs e rho = _ |- _ => fail | _ => idtac end;
+          apply (eval_expr_any rho) in H; [| clear; congruence]
+  | H: @eval_expr CS ?e rho = Vint _,
+    H': @eval_expr CS' ?e' rho =  _ |- _ =>
+      constr_eq e e'; 
+       rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ H) in H';
+      symmetry in H'; inv H'
+  | H: @eval_expr CS ?e rho = Vlong _,
+    H': @eval_expr CS' ?e' rho =  _ |- _ =>
+      constr_eq e e'; 
+       rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ H) in H';
+      symmetry in H'; inv H'
+  | H: @eval_expr CS ?e rho = Vptr _ _,
+    H': @eval_expr CS' ?e' rho =  _ |- _ =>
+      constr_eq e e'; 
+       rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ H) in H';
+      symmetry in H'; inv H'
+ | H: app_pred (denote_tc_assert (tc_test_eq' _ _) _) _ |- _ =>
+    simpl in H; unfold denote_tc_test_eq in H; unfold_lift in H
+ | |- app_pred (denote_tc_assert (tc_test_eq' _ _) _) _ => 
+        unfold denote_tc_assert, denote_tc_test_eq; unfold_lift
+ | H: app_pred (andp _ _) _ |- _ => destruct H
+ | H: app_pred (prop _) _ |- _ => simpl in H
+ |  |- app_pred ((` denote_tc_test_eq) _ _ _) _  =>
+    unfold denote_tc_test_eq; unfold_lift
+ |  H: app_pred ((` denote_tc_test_eq) _ _ _) _ |- _ =>
+    unfold denote_tc_test_eq in H; unfold_lift in H
+ | H: app_pred (if Archi.ptr64 then _ else _) _ |- _ =>
+   destruct Archi.ptr64 eqn:Hp; try contradiction
+ | Hp: Archi.ptr64 = _ |- context[Archi.ptr64] => rewrite Hp
+ | |- context [Archi.ptr64] => destruct Archi.ptr64 eqn:Hp
+ | Hp: Archi.ptr64 = _ , H: context[Archi.ptr64] |- _ => rewrite Hp in H
+ | H: app_pred (denote_tc_assert (if ?A then _ else _) _) _ |- _ =>
+   match A with context [Int.eq ?i Int.zero] =>
+     let H1 := fresh "H" in 
+     assert (H1 := Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero)
+   end
+ | H: Vint _ = Vint _ |- _ => inv H
+ | H: Vlong _ = Vlong _ |- _ => inv H
+ | |- _ => rewrite Int.eq_true
+ | |- _ => rewrite Int64.eq_true
+ | |- _ => progress (simpl in *)
+  end; auto; try contradiction; simpl; subst; try congruence; auto).
+Qed.
+
     Lemma isCastResultType_cenv_sub Delta rho w: forall e a
     (TC: @tc_expr CS Delta e rho w)
     (CAST: @denote_tc_assert CS (@isCastResultType CS  (typeof e) a e) rho w),
     @denote_tc_assert CS' (@isCastResultType CS' (typeof e) a e) rho w.
   Proof.
-    induction e;  unfold isCastResultType; intros; auto.
-    + remember (classify_cast (typeof (Econst_int i t)) a) as q; destruct q; auto.
-      remember (eqb_type (typeof (Econst_int i t)) a) as r; destruct r; auto; trivial.
-      remember ((is_pointer_type a && is_pointer_type (typeof (Econst_int i t))
-               || (if Archi.ptr64
-                   then is_long_type a && is_long_type (typeof (Econst_int i t))
-                   else is_int_type a && is_int_type (typeof (Econst_int i t))))%bool) as u; destruct u; auto.
-      simpl. simpl in *. 
-    Admitted.
-    
+intros.
+simple apply (denote_tc_assert_cenv_sub CSUB); auto.
+unfold isCastResultType in *.
+destruct (classify_cast (typeof e) a); auto.
+-
+destruct (eqb_type (typeof e) a); auto.
+simple_if_tac; auto.
+simple_if_tac; auto.
+simple_if_tac; auto.
+simple_if_tac; auto.
+simple_if_tac; auto.
+eapply denote_tc_assert_iszero_cenv_sub''; eauto.
+-
+rewrite denote_tc_assert_andp in CAST; 
+rewrite denote_tc_assert_andp; destruct CAST; split; auto.
+destruct (is_pointer_type a); auto.
+eapply denote_tc_assert_iszero_cenv_sub''; eauto.
+-
+rewrite denote_tc_assert_andp in CAST; 
+rewrite denote_tc_assert_andp; destruct CAST; split; auto.
+destruct (is_pointer_type a); auto.
+eapply denote_tc_assert_iszero_cenv_sub''; eauto.
+-
+destruct (is_pointer_type _); auto.
+eapply denote_tc_assert_test_eq_cenv_sub''; eauto.
+-
+destruct (is_pointer_type _); auto.
+eapply denote_tc_assert_test_eq_cenv_sub''; eauto.
+Qed.
+
   Lemma tc_exprlist_cenv_sub (*{CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS'))*) Delta rho w:
     forall types bl, (@tc_exprlist CS Delta types bl rho) w ->
                      (@tc_exprlist CS' Delta types bl rho) w.
   Proof.
     induction types; simpl; intros.
     + destruct bl; simpl in *; trivial.
-    + destruct bl; simpl in *; trivial. specialize (IHtypes bl).
-      unfold tc_exprlist in H. simpl in H.  unfold tc_exprlist. simpl.
-      do 2 rewrite denote_tc_assert_andp.
-      do 2 rewrite denote_tc_assert_andp in H. destruct H as [[? ?] ?].
-      split; [ clear IHtypes H1 | auto]. split; [ apply (tc_expr_cenv_sub); apply H | ].
-assert (@tc_expr CS Delta e rho w).      apply H. unfold isCastResultType. simpl.
-      Search isCastResultType.
-      Search tc_andp.
-      remember (@typecheck_expr CS Delta e) as TCE. remember (@typecheck_expr CS' Delta e) as TCE'.
-      remember (@isCastResultType CS (typeof e) a e) as CAST.    
-      remember (@isCastResultType CS' (typeof e) a e) as CAST'.
-      remember (@typecheck_exprlist CS Delta types bl) as BL.
-      remember (@typecheck_exprlist CS' Delta types bl) as BL'.
-      unfold tc_andp; simpl. unfold tc_andp in H; simpl in H.
- Admitted.
+    + destruct bl; simpl in *; trivial.
+        specialize (IHtypes bl).
+      unfold tc_exprlist in H|-*. rename a into t.
+   unfold typecheck_exprlist; fold typecheck_exprlist.
+      change 
+        (app_pred (@denote_tc_assert CS
+            (tc_andp (@typecheck_expr CS Delta (Ecast e t))
+             (@typecheck_exprlist CS Delta types bl))  rho) w) in H.
+    rewrite denote_tc_assert_andp in H.
+    rewrite denote_tc_assert_andp.
+    destruct H. split; auto.
+    eapply tc_expr_cenv_sub; try eassumption.
+  Qed.
 
   End CENV_SUB.
