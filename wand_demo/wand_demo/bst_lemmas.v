@@ -4,6 +4,7 @@ Require Import VFA.SearchTree.
 Require Import WandDemo.SearchTree_ext.
 Require Import WandDemo.wand_frame.
 Require Import WandDemo.wandQ_frame.
+Require Import WandDemo.wandQ_frame_tactic.
 Require Import WandDemo.bst.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -96,12 +97,8 @@ Proof.
   + Exists pb pa; entailer!.
     unfold_data_at 1%nat.
     cancel.
-    rewrite !field_at_data_at.
-    cancel.
   + Exists pb pa; entailer!.
     unfold_data_at 3%nat.
-    cancel.
-    rewrite !field_at_data_at.
     cancel.
 Qed.
 
@@ -169,8 +166,6 @@ Proof.
   Exists nullval nullval.
   unfold_data_at 1%nat.
   entailer!.
-  rewrite !field_at_data_at.
-  cancel.
 Qed.
 
 Lemma treebox_rep_internal: forall l x v r b p,
@@ -216,6 +211,14 @@ Proof.
   sep_apply (wandQ_frame_refine _ _ (fun t => rep t p2 -* rep (pt23 t) p3) pt12).
   rewrite sepcon_comm.
   apply wandQ_frame_ver.
+Qed.
+
+Lemma partialT_rep_partialT_rep_proof_by_tactic: forall rep pt12 pt23 p1 p2 p3,
+  partialT rep pt12 p2 p1 * partialT rep pt23 p3 p2 |-- partialT rep (Basics.compose pt23 pt12) p3 p1.
+Proof.
+  intros.
+  solve_wandQ partialT.
+  simpl; auto.
 Qed.
 
 Lemma emp_partialT_rep_H: forall rep p,

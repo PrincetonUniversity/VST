@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import WandDemo.wand_frame.
 Require Import WandDemo.wandQ_frame.
 Require Import WandDemo.list.
+Require Import WandDemo.wandQ_frame_tactic.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
@@ -212,6 +213,15 @@ Proof.
   auto.
 Qed.
 
+Lemma lseg_lseg_proof_by_tactic: forall sh (s1 s2: list int) (x y z: val),
+  lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
+Proof.
+  intros.
+  solve_wandQ lseg.
+  rewrite app_assoc.
+  auto.
+Qed.
+
 Lemma list_lseg: forall sh (s1 s2: list int) (x y: val),
   listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
 Proof.
@@ -224,6 +234,14 @@ Proof.
      (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh (s1 ++ tcontents) x))).
    change (listrep sh (s1 ++ s2) x) with ((fun s2 => listrep sh (s1 ++ s2) x) s2).
    apply wandQ_frame_elim.
+Qed.
+
+Lemma list_lseg_proof_by_tactic: forall sh (s1 s2: list int) (x y: val),
+  listrep sh s2 y * lseg sh s1 x y |-- listrep sh (s1 ++ s2) x.
+Proof.
+  intros.
+  solve_wandQ lseg.
+  auto.
 Qed.
 
 End GeneralLseg.
@@ -244,6 +262,18 @@ Proof.
   apply allp_right; intros.
   apply -> wand_sepcon_adjoint.
   simpl app.
+  simpl listrep.
+  Exists y.
+  cancel.
+Qed.
+
+Lemma singleton_lseg_proof_by_tactic: forall sh (a: int) (x y: val),
+  field_at sh t_struct_list [StructField _head] (Vint a) x *
+  field_at sh t_struct_list [StructField _tail] y x |--
+  lseg sh [a] x y.
+Proof.
+  intros.
+  solve_wandQ lseg.
   simpl listrep.
   Exists y.
   cancel.

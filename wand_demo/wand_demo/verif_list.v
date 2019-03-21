@@ -131,6 +131,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -191,6 +192,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -249,6 +251,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -264,7 +267,7 @@ Proof.
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
    Exists v s1' x u.
-   subst s1. entailer!. cancel_wand.
+   subst s1. entailer!. simpl app; cancel_wand.
 + (* loop test is safe to execute *)
    entailer!.
 + (* loop body preserves invariant *)
@@ -304,6 +307,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -363,6 +367,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -491,8 +496,7 @@ Proof.
       1: rewrite <- app_assoc; auto.
     sep_apply (singleton_lbseg sh b curp cur).
     sep_apply (lbseg_lbseg sh s1a [b] retp curp (field_address t_struct_list [StructField _tail] cur)).
-    rewrite field_at_data_at.
-    cancel.
+    auto.
   + (* After loop *)
     rewrite (listrep_null _ _ cur) by auto.
     Intros.
@@ -558,6 +562,7 @@ Proof.
     forward. (* return x *)
     Exists x.
     entailer!.
+    simpl app.
     unfold listrep at 2; fold listrep.
     Exists x''.
     entailer!.
