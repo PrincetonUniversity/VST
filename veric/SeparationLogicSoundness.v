@@ -24,7 +24,6 @@ Require Import VST.veric.semax_switch.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
-Require Import VST.veric.expr_rel.
 
 Require Import VST.veric.ghost_PCM.
 

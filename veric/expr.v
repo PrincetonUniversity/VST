@@ -135,8 +135,10 @@ Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  | Evar id ty => eval_var id ty (* typecheck ensure by-reference *)
  | Ederef a ty => eval_expr a (* typecheck ensure by-reference and isptr *)
  | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) (* typecheck ensure by-reference *)
- | Esizeof t ty => `(Vptrofs (Ptrofs.repr (sizeof t)))
- | Ealignof t ty => `(Vptrofs (Ptrofs.repr (alignof t)))
+ | Esizeof t ty => `(if complete_type cenv_cs t 
+                             then Vptrofs (Ptrofs.repr (sizeof t)) else Vundef)
+ | Ealignof t ty => `(if complete_type cenv_cs t 
+                             then Vptrofs (Ptrofs.repr (alignof t)) else Vundef)
  end
 
  with eval_lvalue {CS: compspecs} (e: expr) : environ -> val :=

@@ -766,7 +766,6 @@ Qed.
 
 Section CENV_SUB.
 
-  Set Printing Implicit.
   
 (*
   Lemma exal_expr_any_environ_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')): forall a,
@@ -918,21 +917,220 @@ Proof. induction e; simpl; intros; auto.
 + destruct IHe. split; trivial.
 Admitted.*)
 
+Lemma cenv_sub_complete_type:
+  forall cs1 cs2, cenv_sub (@cenv_cs cs1) (@cenv_cs cs2) ->
+  forall t, complete_type (@cenv_cs cs1) t = true -> 
+      complete_type (@cenv_cs cs2) t = true.
+Proof.
+intros until t.
+apply complete_type_stable.
+intros.
+specialize (H id).
+hnf in H. rewrite H0 in H. auto.
+Qed.
+
+Lemma cenv_sub_e:
+  forall env1 env2, cenv_sub env1 env2 ->
+    forall i c,  env1 ! i = Some c -> env2 ! i = Some c.
+Proof.
+intros.
+specialize (H i).
+hnf in H. rewrite H0 in H; auto.
+Qed.
+
+Lemma eval_expr_cenv_sub_eq {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
+  forall e, @eval_expr CS e rho <> Vundef -> 
+    @eval_expr CS e rho = @eval_expr CS' e rho
+ with eval_lvalue_cenv_sub_eq {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
+  forall e, @eval_lvalue CS e rho <> Vundef -> 
+    @eval_lvalue CS e rho = @eval_lvalue CS' e rho.
+Proof.
+-
+clear eval_expr_cenv_sub_eq.
+induction e; simpl; intros; auto; super_unfold_lift.
+ + (* unop *)
+  forget (@eval_expr CS e rho) as v;
+  forget (@eval_expr CS' e rho) as v'.
+  clear - CSUB IHe H.
+  unfold eval_unop, sem_unary_operation in *.
+  destruct u; simpl in *; auto; unfold bool_val in *; simpl in *;
+  destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct v; simpl in *;  try solve [contradiction H; auto];
+  try solve [ rewrite <- IHe by (intro Hx; inv Hx); auto].
+  simple_if_tac; auto.
+  contradiction H; auto.
+ + (* binop *)
+  forget (@eval_expr CS e1 rho) as v1;
+  forget (@eval_expr CS' e1 rho) as v1'.
+  forget (@eval_expr CS e2 rho) as v2;
+  forget (@eval_expr CS' e2 rho) as v2'.
+  clear - CSUB IHe1 IHe2 H.
+  destruct (Val.eq v1 Vundef); [ | destruct (Val.eq v2 Vundef)].
+  * subst.
+   elimtype False; apply H; clear.
+   unfold sem_binary_operation'.
+   destruct b; auto;
+  destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct v2; auto;
+  unfold sem_add; 
+  simpl; unfold sem_add_int_ptr, sem_add_ptr_int, sem_add_long_ptr, sem_add_ptr_long,
+      sem_sub_pi, sem_sub_pl, sem_sub_pp;
+  try simple_if_tac; auto;
+  try solve [unfold sem_cmp; simpl; simple_if_tac; auto].
+ * subst.
+   elimtype False; apply H; clear.
+   unfold sem_binary_operation'.
+   destruct b; auto;
+  destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  try (destruct v1; reflexivity);
+  unfold sem_add, sem_cmp; 
+  simpl; unfold sem_add_int_ptr, sem_add_ptr_int, sem_add_long_ptr, sem_add_ptr_long,
+      sem_sub_pi, sem_sub_pl, sem_sub_pp;
+  try simple_if_tac; auto;
+  try (destruct v1; reflexivity).
+ *
+   rewrite <- (IHe1 n) in *.
+   rewrite <- (IHe2 n0) in *.
+  clear IHe1 IHe2.
+  destruct b; auto;
+  unfold sem_binary_operation' in *; simpl in *;
+  unfold sem_add, sem_sub in *; simpl in *;
+  destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  simpl in *;
+  unfold sem_add_int_ptr, sem_add_ptr_int, sem_add_long_ptr, sem_add_ptr_long,
+      sem_sub_pi, sem_sub_pl, sem_sub_pp in *.
+all: try (
+  destruct (complete_type (@cenv_cs CS) t) eqn:H5;
+    [ | contradiction H; reflexivity];
+  rewrite (cenv_sub_complete_type _ _ CSUB _ H5); auto);
+  try (
+  unfold Cop.sem_add_ptr_int, Cop.sem_add_ptr_long;
+  rewrite (cenv_sub_sizeof CSUB _ H5); auto).
+ + (* cast *)
+  forget (@eval_expr CS e rho) as v;
+  forget (@eval_expr CS' e rho) as v'.
+  clear - CSUB IHe H.
+  destruct (Val.eq v Vundef).
+  *
+    subst. clear IHe.  elimtype False; apply H; clear H.
+  unfold sem_cast.
+  destruct (classify_cast (typeof e) t); auto.
+  * rewrite <- IHe; auto.
+ + (* field *)
+  specialize (eval_lvalue_cenv_sub_eq _ _ CSUB rho e).
+  destruct (Val.eq (@eval_expr CS e rho) Vundef).
+  *
+  clear IHe.
+  elimtype False; apply H; clear H;
+  unfold eval_field;
+  destruct (typeof e); auto;
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; auto;
+  clear - e0;
+  induction e; simpl in *; auto; rewrite ?e0; auto.
+ * 
+  rewrite <- eval_lvalue_cenv_sub_eq; auto.
+  unfold eval_field in *.
+  destruct (typeof e); auto.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:H2;
+    [ | contradiction H; destruct (@eval_lvalue CS e rho); reflexivity].
+  eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
+    try eassumption.
+  rewrite H2; auto.
+  intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
+  apply cenv_consistent.
+  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
+  auto.
+  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity.
+  contradict H. rewrite H.
+  clear.
+  unfold eval_field.
+  destruct (typeof e); simpl; auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+ +
+   destruct (complete_type (@cenv_cs CS) t) eqn:?H.
+  rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
+  rewrite (cenv_sub_sizeof CSUB _ H0); auto.
+  contradiction H; auto.
+ +
+   destruct (complete_type (@cenv_cs CS) t) eqn:?H.
+  rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
+  rewrite (cenv_sub_alignof CSUB _ H0); auto.
+  contradiction H; auto.
+-
+  clear eval_lvalue_cenv_sub_eq.
+  induction e; intros; auto.
+  simpl. auto.
+  simpl.
+  unfold_lift.
+  assert (@eval_lvalue CS e rho <> Vundef). {
+    clear - H.
+    contradict H.
+    simpl; unfold_lift.
+  destruct (typeof e); simpl; auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
+   rewrite H; auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+   rewrite H; auto.
+  }
+  specialize (IHe H0).
+  rewrite <- IHe.
+  unfold eval_field.
+  destruct (typeof e) eqn:H9; simpl; auto.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  rewrite (cenv_sub_e _ _ CSUB _ _ H1).
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; auto.
+  erewrite (field_offset_stable (@cenv_cs CS)); try apply H2; auto.
+  apply cenv_sub_e; auto.
+  apply cenv_consistent. eauto.
+  contradiction H.
+  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. rewrite H2. reflexivity.
+  contradiction H.
+  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. reflexivity.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  rewrite (cenv_sub_e _ _ CSUB _ _ H1).
+  auto.
+  contradiction H.
+  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. reflexivity.
+Qed.
+
+
 Lemma eval_expr_cenv_sub_Vint {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
   forall e i, @eval_expr CS e rho = Vint i -> @eval_expr CS' e rho = Vint i.
-Admitted. 
+Proof.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vlong {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e i, 
     @eval_expr CS e rho = Vlong i -> @eval_expr CS' e rho = Vlong i.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vptr {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e b i, 
     @eval_expr CS e rho = Vptr b i -> @eval_expr CS' e rho = Vptr b i.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vfloat {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e f, 
     @eval_expr CS e rho = Vfloat f -> @eval_expr CS' e rho = Vfloat f.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vsingle {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e f, 
     @eval_expr CS e rho = Vsingle f -> @eval_expr CS' e rho = Vsingle f.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 
 Lemma denote_tc_iszero_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w e
     (E : (` denote_tc_iszero) (@eval_expr CS e) rho w):
@@ -1135,31 +1333,6 @@ Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs C
 Proof.
   induction a; simpl; intros; eauto. 
 + rewrite IHa.*)
-Set Printing Implicit.
-
-Lemma denote_tc_assert_isptr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho w: forall a
-  (Ha: (@denote_tc_assert CS (@typecheck_expr CS Delta a) rho) w ->
-        (@denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho) w),
-  (@denote_tc_assert CS (tc_isptr a) rho) w ->
-  (@denote_tc_assert CS' (tc_isptr a) rho) w.
-Admitted. (*Proof. 
-  simpl.
-  induction a; simpl; intros; auto.
-  + destruct ( access_mode t); auto; simpl in *.
-    destruct t; auto. apply IHa. clear IHa. destruct t; simpl in *; simpl.
-    unfold denote_tc_assert in *.
-    unfold typecheck_expr. simpl.
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
-    admit. (*    isptr preserved *)
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
-    admit. (*    isptr preserved by eval_lvalue*)
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
-    admit. (*    isptr preserved by eval_unop*)
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr, force_val.
-    simpl. intros w W. simpl.
-    admit. (*    isptr preserved by eval_unop*)
-  +
-    Admitted.*)
 
 Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 
     @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->
@@ -1192,8 +1365,8 @@ Proof.
     split.
     * split; auto.
       destruct (is_pointer_type (typeof a)); auto.
-    * admit.
-Admitted.
+    * 
+Abort.
 
 Lemma bool_val_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
   rho b v (Hb : bool_val (typeof b) (@eval_expr CS b rho) = Some v):
@@ -1218,14 +1391,23 @@ Qed.
 Lemma sem_binary_operation_cenv_sub {ge ge'} (CSUB:cenv_sub ge ge') op v1 t1 v2 t2 m v:
   sem_binary_operation ge op v1 t1 v2 t2 m = Some v ->
   sem_binary_operation ge' op v1 t1 v2 t2 m = Some v.
-Admitted.  
-
+Proof.
+Abort.
 
 Lemma typecheck_expr_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
       Delta rho (D:typecheck_environ Delta rho) m: forall e, 
     (@denote_tc_assert CS (@typecheck_expr CS Delta e) rho) m ->
     @eval_expr CS e rho = @eval_expr CS' e rho.
-Proof. Admitted.
+Proof.
+intros.
+assert (H0 := typecheck_expr_sound _ _ _ _ D H).
+assert (@eval_expr CS e rho <> Vundef). {
+  intro. rewrite H1 in H0. apply tc_val_Vundef in H0. auto.
+}
+apply eval_expr_cenv_sub_eq; auto.
+Qed.
+
+(*
 Lemma eval_both_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
            (*genv_cenv ge = cenv_cs ->*)
@@ -1245,11 +1427,21 @@ intros until m; intro Hcenv; intros.
  induction e; intros;
 try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 Admitted.
+*)
 
 Lemma typecheck_exprlist_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
       Delta rho (D:typecheck_environ Delta rho) m: forall types e, 
     (@denote_tc_assert CS (@typecheck_exprlist CS Delta types e) rho) m ->
     @eval_exprlist CS types e rho = @eval_exprlist CS' types e rho.
-Admitted.
+Proof.
+induction types; destruct e; intros; auto.
+simpl.
+unfold_lift.
+simpl in H. rewrite !denote_tc_assert_andp in H.
+destruct H as [[? ?] ?].
+erewrite <- (typecheck_expr_sound_cenv_sub CSUB _ _ D); eauto.
+f_equal; auto.
+Qed.
+
 
 End CENV_SUB.
