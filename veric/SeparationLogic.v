@@ -24,7 +24,6 @@ Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.
 Require Export VST.veric.expr.
-Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
 Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
@@ -1019,114 +1018,7 @@ Qed.
 
 (* End misc lemmas *)
 
-(* BEGIN rel_expr stuff *)
-Lemma rel_expr_const_int: forall {CS: compspecs} i ty P rho,
-              P |-- rel_expr (Econst_int i ty) (Vint i) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_const_float: forall {CS: compspecs}  f ty P rho,
-              P |-- rel_expr (Econst_float f ty) (Vfloat f) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_const_single: forall {CS: compspecs}   f ty P rho,
-              P |-- rel_expr (Econst_single f ty) (Vsingle f) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_const_long: forall {CS: compspecs}  i ty P rho,
-             P |--  rel_expr (Econst_long i ty) (Vlong i) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_tempvar: forall {CS: compspecs}  id ty v P rho,
-          Map.get (te_of rho) id = Some v ->
-          P |-- rel_expr (Etempvar id ty) v rho.
-Proof. intros. intros ? ?. constructor; auto. Qed.
-
-Lemma rel_expr_addrof: forall {CS: compspecs} a ty v P rho,
-               P |-- rel_lvalue a v rho ->
-               P |-- rel_expr (Eaddrof a ty) v rho.
-Proof. intros. intros ? ?. constructor; auto. apply H; auto. Qed.
-
-Lemma rel_expr_unop: forall {CS: compspecs}  P a1 v1 v ty op rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 (forall m, Cop.sem_unary_operation op v1 (typeof a1) m = Some v) ->
-                 P |-- rel_expr (Eunop op a1 ty) v rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
-
-Lemma rel_expr_binop: forall {CS: compspecs}  a1 a2 v1 v2 v ty op P rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 P |-- rel_expr  a2 v2 rho ->
-                 binop_stable cenv_cs op a1 a2 = true ->
-                 (forall m, Cop.sem_binary_operation cenv_cs op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
-                 P |-- rel_expr (Ebinop op a1 a2 ty) v rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
-
-Lemma rel_expr_cast: forall {CS: compspecs}  a1 v1 v ty P rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 (forall m, Cop.sem_cast v1 (typeof a1) ty m = Some v) ->
-                 P |-- rel_expr (Ecast a1 ty) v rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
-
-Lemma rel_expr_lvalue_By_value: forall {CS: compspecs} ch a sh v1 v2 P rho,
-           access_mode (typeof a) = By_value ch ->
-           P |-- rel_lvalue a v1 rho ->
-           P |-- mapsto sh (typeof a) v1 v2 * TT  ->
-           v2 <> Vundef ->
-           readable_share sh ->
-           P |-- rel_expr a v2 rho.
-Proof.
-intros. intros ? ?.
-econstructor; eauto.
-+ apply H0; auto.
-+ apply H1; auto.
-Qed.
-
-Lemma rel_expr_lvalue_By_reference: forall {CS: compspecs} a v1 P rho,
-           access_mode (typeof a) = By_reference ->
-           P |-- rel_lvalue a v1 rho ->
-           P |-- rel_expr a v1 rho.
-Proof.
-intros. intros ? ?.
-hnf.
-eapply rel_expr'_lvalue_By_reference; eauto.
-apply H0; auto.
- Qed.
-
-Lemma rel_lvalue_local: forall {CS: compspecs} id ty b P rho,
-                 P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
-                 P |-- rel_lvalue (Evar id ty) (Vptr  b Ptrofs.zero) rho.
-Proof.
-intros. intros ? ?. constructor.  specialize (H _ H0). apply H.
-Qed.
-
-Lemma rel_lvalue_global: forall {CS: compspecs} id ty b P rho,
-              P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->
-              P |-- rel_lvalue (Evar id ty) (Vptr b Ptrofs.zero) rho.
-Proof.
-intros. intros ? ?. specialize (H _ H0). destruct H. constructor 2; auto.
-Qed.
-
-Lemma rel_lvalue_deref: forall {CS: compspecs} a b z ty P rho,
-              P |-- rel_expr a (Vptr b z) rho->
-              P |-- rel_lvalue (Ederef a ty) (Vptr b z) rho.
-Proof. intros. intros ? ?. constructor. apply H. auto. Qed.
-
-Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta co P rho,
-               typeof a = Tstruct id att ->
-               cenv_cs ! id = Some co ->
-               field_offset cenv_cs i (co_members co) = Errors.OK delta ->
-               P |-- rel_lvalue a (Vptr b z) rho ->
-               P |-- rel_lvalue (Efield a i ty) (Vptr b (Ptrofs.add z (Ptrofs.repr delta))) rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
-
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
-Global Opaque rel_expr.
-Global Opaque rel_lvalue.
-
-(* END rel_expr stuff *)
 
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"

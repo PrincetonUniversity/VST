@@ -54,24 +54,33 @@ Proof.
 *
   destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
-  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ];
-try solve [
+  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ].
+ {
   destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    try reflexivity;
    cbv beta iota delta [
-    sem_binary_operation' Clight_Cop2.sem_cmp classify_cmp typeconv
+    sem_binary_operation'
+    Clight_Cop2.sem_add Clight_Cop2.sem_sub
+    classify_add classify_sub sem_sub_pi sem_sub_pl sem_sub_pp
+    Clight_Cop2.sem_add_ptr_int
+    Clight_Cop2.sem_add_ptr_long
+    sem_add_int_ptr sem_add_ptr_int
+    sem_add_long_ptr sem_add_ptr_long
+   Clight_Cop2.sem_cmp classify_cmp typeconv
     remove_attributes change_attributes 
    ];
+  try (simple_if_tac; [ | reflexivity]);
   repeat match goal with |- context [eqb_type ?A ?B] =>
   let J := fresh "J" in 
     destruct (eqb_type A B) eqn:J;
       [apply eqb_type_true in J; try solve [inv J] | apply eqb_type_false in J]
   end;
   try reflexivity;
-  destruct (eval_expr e2 any_environ); reflexivity].
-all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+  destruct (eval_expr e2 any_environ); reflexivity.
+ }
+all:  destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ];
    destruct b;
@@ -79,9 +88,17 @@ all: destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    try reflexivity;
    cbv beta iota delta [
-    sem_binary_operation' Clight_Cop2.sem_cmp classify_cmp typeconv
+    sem_binary_operation'
+    Clight_Cop2.sem_add Clight_Cop2.sem_sub
+    classify_add classify_sub sem_sub_pi sem_sub_pl sem_sub_pp
+    Clight_Cop2.sem_add_ptr_int
+    Clight_Cop2.sem_add_ptr_long
+    sem_add_int_ptr sem_add_ptr_int
+    sem_add_long_ptr sem_add_ptr_long
+   Clight_Cop2.sem_cmp classify_cmp typeconv
     remove_attributes change_attributes 
    ];
+  try (simple_if_tac; [ | reflexivity]);
   repeat match goal with |- context [eqb_type ?A ?B] =>
   let J := fresh "J" in 
     destruct (eqb_type A B) eqn:J;

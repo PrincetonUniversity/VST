@@ -19,116 +19,6 @@ Import Cop.
 Import Cop2.
 Import Clight_Cop2.
 
-(*
-Lemma typecheck_environ_update_te:
-  forall rho c Delta, typecheck_temp_environ (te_of rho) (temp_types (update_tycon Delta c))
-     ->
-typecheck_temp_environ  (te_of rho) (temp_types Delta)
-
-with typecheck_ls_update_te : forall Delta ty b id l,
-(temp_types Delta) ! id = Some (ty, b) ->
-exists b2, (temp_types (join_tycon_labeled l Delta)) ! id = Some (ty, b2).
-Proof.
-intros.
-unfold typecheck_temp_environ in H. unfold typecheck_temp_environ.
-destruct c; intros; simpl in *; try solve[eapply H; apply H0].
-*
-destruct (eq_dec id i). subst.
-destruct (H i true ty). unfold initialized. rewrite H0.
-unfold temp_types. simpl. rewrite PTree.gsspec. rewrite peq_true.
-auto. destruct H1. destruct H2. inv H2. exists x. auto.
-apply H.
-unfold initialized.
-remember ((temp_types Delta) ! i). destruct o. destruct p.
-unfold temp_types. simpl. rewrite PTree.gsspec.
-rewrite peq_false by auto. apply H0. auto.
-*
-destruct o.
-destruct (eq_dec id i). subst. destruct (H i true ty).
-unfold initialized.
-remember ((temp_types Delta) ! i). destruct o. destruct p.
-unfold temp_types. simpl. inv H0.
-rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
-destruct H1. destruct H2. inv H2. eauto.
-eapply H. unfold initialized.
-remember ((temp_types Delta) ! i). destruct o. destruct p.
-unfold temp_types. simpl. rewrite PTree.gsspec.
-rewrite peq_false by auto. apply H0. auto. eauto.
-*
-destruct (update_tycon_te_same c1 _ _ _ _ H0).
-destruct (update_tycon_te_same c2 _ _ _ _ H1).
-destruct (H _ _ _ H2) as [v [? ?]]. exists v.
-split; auto. destruct H4; auto. left. destruct b; simpl; auto.
-*
-destruct (update_tycon_te_same c1 _ _ _ _ H0).
-destruct (update_tycon_te_same c2 _ _ _ _ H0).
-specialize (H id ((b || x) && (b || x0))%bool ty ).
-spec H.
- unfold join_tycon. remember (update_tycon Delta c1).
-destruct t. remember (update_tycon Delta c2).
-destruct t. unfold temp_types in *.
-unfold update_tycon. simpl in *.
-apply join_te_eqv; eauto.    destruct b; auto. simpl in *.
-destruct H. exists x1. split. destruct H. auto. left. auto.
-*
- edestruct (update_labeled_te_same l Delta id).  apply H0.
- edestruct H. apply H1.
- destruct H2. exists x0. split; auto. destruct b; simpl; auto.
-* destruct (update_tycon_te_same c _ _ _ _ H0) as [bb HH].
-  simpl in HH.
-  destruct (H _ _ _ HH) as [v [AA BB]]. exists v; split; trivial.
-  destruct BB. 2: right; trivial.
-  destruct b; simpl in *. contradiction. left; trivial.
-*
-intros. destruct l; simpl in *.
-exists b; assumption.
- destruct (update_tycon_te_same s _ _ _ _ H).
-edestruct typecheck_ls_update_te. apply H.
-rewrite temp_types_update_dist. erewrite join_te_eqv; eauto.
-Qed.
-
-Lemma typecheck_environ_update_ve : forall (rho : environ) (c : statement) (Delta : tycontext),
-typecheck_var_environ (ve_of rho) (var_types (update_tycon Delta c)) ->
-typecheck_var_environ (ve_of rho) (var_types Delta).
-Proof.
-intros.
-intros id t; specialize (H id t).
-induction c; simpl in *; try apply H;
-try destruct o; try rewrite set_temp_ve in *;
- try apply H.
-repeat rewrite update_tycon_same_ve in *; auto.
-rewrite var_types_update_dist, update_tycon_same_ve in H; auto.
-rewrite update_le_same_ve in H; auto.
-auto.
-Qed.
-
-
-Lemma typecheck_environ_update_ge : forall (rho : environ) (c : statement) (Delta : tycontext),
-typecheck_glob_environ (ge_of rho) (glob_types (update_tycon Delta c)) ->
-typecheck_glob_environ (ge_of rho) (glob_types Delta).
-Proof.
-intros. destruct c; simpl in *; try apply H;
-try destruct o; try rewrite set_temp_ge in *; try apply H;
-unfold typecheck_glob_environ in *; intros; eapply H; try rewrite glob_types_update_dist;
-try apply join_ge_eqv;
-repeat rewrite update_tycon_same_ge in *; try rewrite update_le_same_ge;
-eauto.
-Qed.
-
-Lemma typecheck_environ_update:
-  forall rho c Delta, typecheck_environ (update_tycon Delta c) rho ->
-       typecheck_environ Delta rho.
-Proof.
-intros. unfold typecheck_environ in *. intuition.
-clear - H0. unfold typecheck_temp_environ in *.
-eapply typecheck_environ_update_te; eauto.
-
-clear -H. eapply typecheck_environ_update_ve; eauto.
-
-eapply typecheck_environ_update_ge.
-eauto.
-Qed.
-*)
 Lemma tc_bool_val:
   forall v t,
        tc_val t v ->
@@ -766,173 +656,220 @@ Qed.
 
 Section CENV_SUB.
 
-  Set Printing Implicit.
-  
-(*
-  Lemma exal_expr_any_environ_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')): forall a,
-    @eval_expr CS a any_environ =  @eval_expr CS' a any_environ /\
-    @eval_lvalue CS a any_environ =  @eval_lvalue CS' a any_environ.
+Lemma cenv_sub_complete_type:
+  forall cs1 cs2, cenv_sub (@cenv_cs cs1) (@cenv_cs cs2) ->
+  forall t, complete_type (@cenv_cs cs1) t = true -> 
+      complete_type (@cenv_cs cs2) t = true.
 Proof.
-  induction a; simpl; unfold liftx, lift; simpl; intros; auto; try destruct IHa as [IH1 IH2]; auto.
-  + rewrite <- IH1. split; trivial.
-  + destruct IHa1 as [Ka1 La1]. destruct IHa2 as [Ka2 La2]. rewrite <- Ka1, <- Ka2. split; auto.
-    unfold force_val. remember (@eval_expr CS a1 any_environ) as v1. remember  (@eval_expr CS a2 any_environ) as v2.
-    remember (typeof a1) as t1. remember (typeof a2) as t2. 
-    remember (@sem_binary_operation' CS b t1 t2 v1 v2).
-Admitted.
+intros until t.
+apply complete_type_stable.
+intros.
+specialize (H id).
+hnf in H. rewrite H0 in H. auto.
+Qed.
 
-Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho
-      (D: typecheck_environ Delta rho) w: forall a (A:@denote_tc_assert CS (@typecheck_expr CS Delta a) rho w),
-    @denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho w /\ (@eval_expr CS a rho =  @eval_expr CS' a rho) .
-Proof. intros.
-  Search typecheck_expr.
-  specialize (@typecheck_expr_sound CS _ _ w a D); intros X.
-  hnf. hnf in H. remember ( @denote_tc_assert CS (@typecheck_expr CS Delta a) rho) as p; destruct p. 
-  simpl in *.
-  specialize (X H). clear Heqp. generalize dependent x.  
-  induction a; simpl; intros; trivial; try solve [inv A](*; hnf in X; simpl in X*).
-  + destruct t; auto.
-    destruct i0; auto. 
-  + destruct t; auto.
-    destruct f0; auto.
-  + destruct t; auto.
-    destruct f0; auto.
-  + destruct (access_mode t); auto.
-    remember (get_var_type Delta i) as q; destruct q; try solve[inv A].
-    unfold tc_bool in *.  destruct (eqb_type t t0); auto.
-  + remember ((temp_types Delta) ! i) as q; destruct q; auto.
-    destruct (is_neutral_cast t0 t); simpl in *; auto.
-    destruct (same_base_type t0 t); simpl in *; auto.
-  + destruct (access_mode t); auto; simpl in A; try solve[inv A].
-    repeat rewrite denote_tc_assert_andp.
-    repeat rewrite denote_tc_assert_andp in A. destruct A as [[? ?] ?].
-    specialize (@typecheck_expr_sound CS _ _ _ _ D H); intros.
-    destruct (IHa H); clear IHa. split; trivial.
-    split.
-  - split; [trivial|]. unfold tc_bool in *.
-    remember ((typeof a)). destruct t0; simpl in *; try contradiction; trivial.
-    remember ( (eqb_type t0 Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})) as u.
-    destruct u; simpl in H0; try solve [inv H0]; simpl; trivial.
-  - simpl in *. rewrite <- H4; trivial.
-    + rewrite denote_tc_assert_andp in A; unfold tc_bool in A; destruct A.
-      remember (is_pointer_type t) as b; destruct b; try contradiction. clear H0. simpl.
-      rewrite denote_tc_assert_andp. simpl. split. split.
-      Admitted. (*
-Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho
-      (D: typecheck_environ Delta rho) w: forall a,
-      (@eval_expr CS a any_environ -> 
-      ( @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->
-        (@denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho w /\ (@eval_expr CS a rho =  @eval_expr CS' a rho))) /\
-      ( @denote_tc_assert CS (@typecheck_lvalue CS Delta a) rho w ->
-        (@denote_tc_assert CS' (@typecheck_lvalue CS' Delta a) rho w /\ (@eval_lvalue CS a rho =  @eval_lvalue CS' a rho))).
-Proof. (*intros.
-  Search typecheck_expr.
-  specialize (@typecheck_expr_sound CS _ _ w a D); intros X.
-  hnf. hnf in H. remember ( @denote_tc_assert CS (@typecheck_expr CS Delta a) rho) as p; destruct p. 
-  simpl in *.
-  specialize (X H). clear Heqp. generalize dependent x.  *)
-  induction a; simpl; split; intros A; trivial; try solve [inv A](*; hnf in X; simpl in X*).
-  + destruct t; auto.
-    destruct i0; auto. 
-  + destruct t; auto.
-    destruct f0; auto.
-  + destruct t; auto.
-    destruct f0; auto.
-  + destruct (access_mode t); auto.
-    remember (get_var_type Delta i) as q; destruct q; try solve[inv A].
-    unfold tc_bool in *.  destruct (eqb_type t t0); auto.
-  + remember (get_var_type Delta i) as q; destruct q; try solve[inv A].
-    unfold tc_bool in *.  destruct (eqb_type t t0); auto.
-  + remember ((temp_types Delta) ! i) as q; destruct q; auto.
-    destruct (is_neutral_cast t0 t); simpl in *; auto.
-    destruct (same_base_type t0 t); simpl in *; auto.
-  + destruct (access_mode t); auto; simpl in A; try solve[inv A].
-    repeat rewrite denote_tc_assert_andp.
-    repeat rewrite denote_tc_assert_andp in A. destruct A as [[? ?] ?].
-    specialize (@typecheck_expr_sound CS _ _ _ _ D H); intros.
-    destruct IHa as [IHa1 IHa2]. destruct (IHa1 H); clear IHa1. split; trivial.
-    split.
-    - split; [trivial|]. unfold tc_bool in *.
-      remember ((typeof a)). destruct t0; simpl in *; try contradiction; trivial.
-      remember ( (eqb_type t0 Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})) as u.
-      destruct u; simpl in H0; try solve [inv H0]; simpl; trivial.
-    - simpl in *. rewrite <- H4; trivial.
-  + do 2 rewrite denote_tc_assert_andp in A; unfold tc_bool in A; destruct A.
-    do 2 rewrite denote_tc_assert_andp; unfold tc_bool.
-    destruct IHa as [IHa1 IHa2]. destruct H. destruct (IHa1 H); clear IHa1.
-    split; trivial. remember ( is_pointer_type (typeof a)) as q; destruct q; [ clear H1; simpl | contradiction]. 
-    split; [ split; trivial |]. simpl in H0. rewrite <- H3; trivial.
-  + rewrite denote_tc_assert_andp in A; unfold tc_bool in A; destruct A.
-    rewrite denote_tc_assert_andp; unfold tc_bool; destruct IHa as [IHa1 IHa2]. 
-    remember (is_pointer_type t) as b; destruct b; try contradiction. clear H0. simpl.
-    destruct (IHa2 H); clear IHa2.
-    split; [ split; auto | trivial].
-  + rewrite denote_tc_assert_andp in A; simpl in A; destruct A.
-    rewrite denote_tc_assert_andp; simpl. destruct IHa as [IHa1 IHa2]. 
-    destruct (IHa1 H0); clear IHa1. unfold liftx, lift; simpl. rewrite <- H2. split; trivial.
-    split; trivial.
-    destruct u; simpl in *. unfold tc_bool, tc_int_or_ptr_type in *.
-    - destruct (typeof a); auto; try destruct (is_int_type t); auto.
-      do 2 rewrite denote_tc_assert_andp in H. do 2 rewrite denote_tc_assert_andp; unfold tc_bool in *; simpl in *.
-      intuition. destruct (negb (eqb_type t0 Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})); auto.
-      unfold tc_test_eq in *. remember (@eval_expr CS a any_environ) as r; destruct r; auto. .  Search any_environ.      destruct (Archi.ptr64). simpl. 
-      unfold 
-      simpl. s
-    unfold isUnOpResultType in *.
-    remember (is_pointer_type t) as b; destruct b; try contradiction. clear H0. simpl.
-    
-    rewrite denote_tc_assert_andp. simpl. split. split.
-      Locate typecheck_lvalue. eapply IHa. auto. simpl in A. Search tc_andp. hnf. intuition.
-    split. split; [ trivial |  ].
-    * unfold tc_bool in *. remember (is_pointer_type (typeof a)). destruct b; auto.
-    * clear IHa H0. induction a; try contradiction; trivial.
-      simpl. simpl in H1.  simpl in H2. simpl in IHa. destruct (). simpl. simpl in H1. hnf in H2.  hnf in IHa. unfold tc_bool in H0;  simpl in H0.
-      destruct (typeof a); simpl in H1; simpl; try contradiction.
-      simpl in H0. remember ( (eqb_type t0 Tvoid && eqb_attr a1 {| attr_volatile := false; attr_alignas := @Some N log2_sizeof_pointer |})) as q; destruct q; simpl in H0; try solve [inv H0].
-      destruct (eqb_type (Tpointer t0 a1) int_or_ptr_type). hnf in H2. , unfold tc_isptr. Search tc_bool. auto. Check @tc_val.  hnf in H2.
-    assert (X: (@denote_tc_assert CS' (tc_isptr a) rho)%pred w).
-    { hnf. hnf in H1. Search denote_tc_assert.  Search hnf in IHa. 
-     split; auto.
-    split.
-    * split; auto.
-      destruct (is_pointer_type (typeof a)); auto.
-    * unfold denote_tc_assert in H1; unfold denote_tc_assert; simpl in H1; simpl. . simpl in *.  tc_isptr. clear - CSUB H1.  Search tc_isptr. tc_isptr. .
-  + destruct (); auto.   
-  + destruct (); auto.   
-  + destruct (); auto.   
-  + destruct (); auto.  
-  + destruct (); auto.
-  + destruct (); auto.
-  + destruct (); auto.
-  + destruct (); auto.
-  + destruct (); auto.
-  + destruct (); auto.
-  + destruct (); auto.*)
-Lemma eval_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
-  forall e,
-    (isptr (@eval_expr CS e rho) -> isptr (@eval_expr CS' e rho)) /\ 
-    (isptr (@eval_lvalue CS e rho) -> isptr (@eval_lvalue CS' e rho)).
-Proof. induction e; simpl; intros; auto.
-+ destruct IHe. split; trivial.
-+ destruct IHe. split; trivial.
-+ destruct IHe. split; trivial.
-Admitted.*)
+Lemma cenv_sub_e:
+  forall env1 env2, cenv_sub env1 env2 ->
+    forall i c,  env1 ! i = Some c -> env2 ! i = Some c.
+Proof.
+intros.
+specialize (H i).
+hnf in H. rewrite H0 in H; auto.
+Qed.
+
+Lemma eval_expr_cenv_sub_eq {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
+  forall e, @eval_expr CS e rho <> Vundef -> 
+    @eval_expr CS e rho = @eval_expr CS' e rho
+ with eval_lvalue_cenv_sub_eq {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
+  forall e, @eval_lvalue CS e rho <> Vundef -> 
+    @eval_lvalue CS e rho = @eval_lvalue CS' e rho.
+Proof.
+-
+clear eval_expr_cenv_sub_eq.
+induction e; simpl; intros; auto; super_unfold_lift.
+ + (* unop *)
+  forget (@eval_expr CS e rho) as v;
+  forget (@eval_expr CS' e rho) as v'.
+  clear - CSUB IHe H.
+  unfold eval_unop, sem_unary_operation in *.
+  destruct u; simpl in *; auto; unfold bool_val in *; simpl in *;
+  destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct v; simpl in *;  try solve [contradiction H; auto];
+  try solve [ rewrite <- IHe by (intro Hx; inv Hx); auto].
+  simple_if_tac; auto.
+  contradiction H; auto.
+ + (* binop *)
+  forget (@eval_expr CS e1 rho) as v1;
+  forget (@eval_expr CS' e1 rho) as v1'.
+  forget (@eval_expr CS e2 rho) as v2;
+  forget (@eval_expr CS' e2 rho) as v2'.
+  clear - CSUB IHe1 IHe2 H.
+  destruct (Val.eq v1 Vundef); [ | destruct (Val.eq v2 Vundef)].
+  * subst.
+   elimtype False; apply H; clear.
+   unfold sem_binary_operation'.
+   destruct b; auto;
+  destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct v2; auto;
+  unfold sem_add; 
+  simpl; unfold sem_add_int_ptr, sem_add_ptr_int, sem_add_long_ptr, sem_add_ptr_long,
+      sem_sub_pi, sem_sub_pl, sem_sub_pp;
+  try simple_if_tac; auto;
+  try solve [unfold sem_cmp; simpl; simple_if_tac; auto].
+ * subst.
+   elimtype False; apply H; clear.
+   unfold sem_binary_operation'.
+   destruct b; auto;
+  destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  try (destruct v1; reflexivity);
+  unfold sem_add, sem_cmp; 
+  simpl; unfold sem_add_int_ptr, sem_add_ptr_int, sem_add_long_ptr, sem_add_ptr_long,
+      sem_sub_pi, sem_sub_pl, sem_sub_pp;
+  try simple_if_tac; auto;
+  try (destruct v1; reflexivity).
+ *
+   rewrite <- (IHe1 n) in *.
+   rewrite <- (IHe2 n0) in *.
+  clear IHe1 IHe2.
+  destruct b; auto;
+  unfold sem_binary_operation' in *; simpl in *;
+  unfold sem_add, sem_sub in *; simpl in *;
+  destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; auto;
+  simpl in *;
+  unfold sem_add_int_ptr, sem_add_ptr_int, sem_add_long_ptr, sem_add_ptr_long,
+      sem_sub_pi, sem_sub_pl, sem_sub_pp in *.
+all: try (
+  destruct (complete_type (@cenv_cs CS) t) eqn:H5;
+    [ | contradiction H; reflexivity];
+  rewrite (cenv_sub_complete_type _ _ CSUB _ H5); auto);
+  try (
+  unfold Cop.sem_add_ptr_int, Cop.sem_add_ptr_long;
+  rewrite (cenv_sub_sizeof CSUB _ H5); auto).
+ + (* cast *)
+  forget (@eval_expr CS e rho) as v;
+  forget (@eval_expr CS' e rho) as v'.
+  clear - CSUB IHe H.
+  destruct (Val.eq v Vundef).
+  *
+    subst. clear IHe.  elimtype False; apply H; clear H.
+  unfold sem_cast.
+  destruct (classify_cast (typeof e) t); auto.
+  * rewrite <- IHe; auto.
+ + (* field *)
+  specialize (eval_lvalue_cenv_sub_eq _ _ CSUB rho e).
+  destruct (Val.eq (@eval_expr CS e rho) Vundef).
+  *
+  clear IHe.
+  elimtype False; apply H; clear H;
+  unfold eval_field;
+  destruct (typeof e); auto;
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto;
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; auto;
+  clear - e0;
+  induction e; simpl in *; auto; rewrite ?e0; auto.
+ * 
+  rewrite <- eval_lvalue_cenv_sub_eq; auto.
+  unfold eval_field in *.
+  destruct (typeof e); auto.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:H2;
+    [ | contradiction H; destruct (@eval_lvalue CS e rho); reflexivity].
+  eapply (field_offset_stable (@cenv_cs CS) (@cenv_cs CS')) in H2; 
+    try eassumption.
+  rewrite H2; auto.
+  intros. specialize (CSUB id). hnf in CSUB; rewrite H3 in CSUB; auto.
+  apply cenv_consistent.
+  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  assert (H1 := CSUB i0); hnf in H1; rewrite H0 in H1; rewrite H1.
+  auto.
+  contradiction H; destruct (@eval_lvalue CS e rho); reflexivity.
+  contradict H. rewrite H.
+  clear.
+  unfold eval_field.
+  destruct (typeof e); simpl; auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+ +
+   destruct (complete_type (@cenv_cs CS) t) eqn:?H.
+  rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
+  rewrite (cenv_sub_sizeof CSUB _ H0); auto.
+  contradiction H; auto.
+ +
+   destruct (complete_type (@cenv_cs CS) t) eqn:?H.
+  rewrite (cenv_sub_complete_type _ _ CSUB _ H0); auto.
+  rewrite (cenv_sub_alignof CSUB _ H0); auto.
+  contradiction H; auto.
+-
+  clear eval_lvalue_cenv_sub_eq.
+  induction e; intros; auto.
+  simpl. auto.
+  simpl.
+  unfold_lift.
+  assert (@eval_lvalue CS e rho <> Vundef). {
+    clear - H.
+    contradict H.
+    simpl; unfold_lift.
+  destruct (typeof e); simpl; auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+  destruct (field_offset (@cenv_cs CS) i (co_members c)); auto.
+   rewrite H; auto.
+  destruct ((@cenv_cs CS) ! i0); auto.
+   rewrite H; auto.
+  }
+  specialize (IHe H0).
+  rewrite <- IHe.
+  unfold eval_field.
+  destruct (typeof e) eqn:H9; simpl; auto.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  rewrite (cenv_sub_e _ _ CSUB _ _ H1).
+  destruct (field_offset (@cenv_cs CS) i (co_members c)) eqn:?H; auto.
+  erewrite (field_offset_stable (@cenv_cs CS)); try apply H2; auto.
+  apply cenv_sub_e; auto.
+  apply cenv_consistent. eauto.
+  contradiction H.
+  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. rewrite H2. reflexivity.
+  contradiction H.
+  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. reflexivity.
+  destruct ((@cenv_cs CS) ! i0) eqn:?H; auto.
+  rewrite (cenv_sub_e _ _ CSUB _ _ H1).
+  auto.
+  contradiction H.
+  simpl. unfold_lift. rewrite H9. simpl. rewrite H1. reflexivity.
+Qed.
+
 
 Lemma eval_expr_cenv_sub_Vint {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho:
   forall e i, @eval_expr CS e rho = Vint i -> @eval_expr CS' e rho = Vint i.
-Admitted. 
+Proof.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vlong {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e i, 
     @eval_expr CS e rho = Vlong i -> @eval_expr CS' e rho = Vlong i.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vptr {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e b i, 
     @eval_expr CS e rho = Vptr b i -> @eval_expr CS' e rho = Vptr b i.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vfloat {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e f, 
     @eval_expr CS e rho = Vfloat f -> @eval_expr CS' e rho = Vfloat f.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 Lemma eval_expr_cenv_sub_Vsingle {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho: forall e f, 
     @eval_expr CS e rho = Vsingle f -> @eval_expr CS' e rho = Vsingle f.
-Admitted.
+ intros. 
+ rewrite <- (@eval_expr_cenv_sub_eq _ _ CSUB rho e); auto; congruence.
+Qed.
 
 Lemma denote_tc_iszero_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w e
     (E : (` denote_tc_iszero) (@eval_expr CS e) rho w):
@@ -1135,31 +1072,6 @@ Lemma typecheck_expr_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs C
 Proof.
   induction a; simpl; intros; eauto. 
 + rewrite IHa.*)
-Set Printing Implicit.
-
-Lemma denote_tc_assert_isptr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho w: forall a
-  (Ha: (@denote_tc_assert CS (@typecheck_expr CS Delta a) rho) w ->
-        (@denote_tc_assert CS' (@typecheck_expr CS' Delta a) rho) w),
-  (@denote_tc_assert CS (tc_isptr a) rho) w ->
-  (@denote_tc_assert CS' (tc_isptr a) rho) w.
-Admitted. (*Proof. 
-  simpl.
-  induction a; simpl; intros; auto.
-  + destruct ( access_mode t); auto; simpl in *.
-    destruct t; auto. apply IHa. clear IHa. destruct t; simpl in *; simpl.
-    unfold denote_tc_assert in *.
-    unfold typecheck_expr. simpl.
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
-    admit. (*    isptr preserved *)
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
-    admit. (*    isptr preserved by eval_lvalue*)
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr. intros w W. simpl.
-    admit. (*    isptr preserved by eval_unop*)
-  + unfold liftx, lift; simpl. unfold denote_tc_isptr, force_val.
-    simpl. intros w W. simpl.
-    admit. (*    isptr preserved by eval_unop*)
-  +
-    Admitted.*)
 
 Lemma denote_tc_assert_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho w Delta: forall a, 
     @denote_tc_assert CS (@typecheck_expr CS Delta a) rho w ->
@@ -1192,8 +1104,8 @@ Proof.
     split.
     * split; auto.
       destruct (is_pointer_type (typeof a)); auto.
-    * admit.
-Admitted.
+    * 
+Abort.
 
 Lemma bool_val_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
   rho b v (Hb : bool_val (typeof b) (@eval_expr CS b rho) = Some v):
@@ -1218,38 +1130,35 @@ Qed.
 Lemma sem_binary_operation_cenv_sub {ge ge'} (CSUB:cenv_sub ge ge') op v1 t1 v2 t2 m v:
   sem_binary_operation ge op v1 t1 v2 t2 m = Some v ->
   sem_binary_operation ge' op v1 t1 v2 t2 m = Some v.
-Admitted.  
-
+Proof.
+Abort.
 
 Lemma typecheck_expr_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
       Delta rho (D:typecheck_environ Delta rho) m: forall e, 
     (@denote_tc_assert CS (@typecheck_expr CS Delta e) rho) m ->
     @eval_expr CS e rho = @eval_expr CS' e rho.
-Proof. Admitted.
-Lemma eval_both_relate:
-  forall {CS: compspecs} Delta ge te ve rho e m,
-           (*genv_cenv ge = cenv_cs ->*)
-           cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
-           rho = construct_rho (filter_genv ge) ve te ->
-           typecheck_environ Delta rho ->
-           (denote_tc_assert (typecheck_expr Delta e) rho (m_phi m) ->
-             Clight.eval_expr ge ve te (m_dry m) e  (eval_expr e rho))
-           /\
-           (denote_tc_assert (typecheck_lvalue Delta e) rho (m_phi m) ->
-             exists b, exists ofs,
-              Clight.eval_lvalue ge ve te (m_dry m) e b ofs /\
-              eval_lvalue e rho = Vptr b ofs).
 Proof.
-intros until m; intro Hcenv; intros.
-(*generalize dependent ge.*)
- induction e; intros;
-try solve[intuition; constructor; auto | subst; inv H1]; intuition.
-Admitted.
+intros.
+assert (H0 := typecheck_expr_sound _ _ _ _ D H).
+assert (@eval_expr CS e rho <> Vundef). {
+  intro. rewrite H1 in H0. apply tc_val_Vundef in H0. auto.
+}
+apply eval_expr_cenv_sub_eq; auto.
+Qed.
 
 Lemma typecheck_exprlist_sound_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
       Delta rho (D:typecheck_environ Delta rho) m: forall types e, 
     (@denote_tc_assert CS (@typecheck_exprlist CS Delta types e) rho) m ->
     @eval_exprlist CS types e rho = @eval_exprlist CS' types e rho.
-Admitted.
+Proof.
+induction types; destruct e; intros; auto.
+simpl.
+unfold_lift.
+simpl in H. rewrite !denote_tc_assert_andp in H.
+destruct H as [[? ?] ?].
+erewrite <- (typecheck_expr_sound_cenv_sub CSUB _ _ D); eauto.
+f_equal; auto.
+Qed.
+
 
 End CENV_SUB.

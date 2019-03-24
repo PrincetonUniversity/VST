@@ -538,7 +538,9 @@ Proof.
              let J := fresh "J" in
               destruct (eqb_type A B) eqn:J; [inv H | clear H]              
     end;
-  try solve [
+  try (unfold sem_add_ptr_int, sem_add_ptr_long,
+              sem_add_int_ptr, sem_add_long_ptr; simpl; rewrite H3).
+all:  try solve [
     unfold is_pointer_type in H1;
     destruct (typeof e1) as [| [| | |] ? ? | | [|] | | | | |]; inv TV1;
     destruct (typeof e2) as [| [| | |] ? ? | | [|] | | | | |]; inv TV2;
@@ -586,8 +588,10 @@ Proof.
     | H: negb (eqb_type ?A ?B) = true |- _ =>
              let J := fresh "J" in
               destruct (eqb_type A B) eqn:J; [inv H | clear H]              
-    end;
-  try solve [
+    end.
+all:  try (unfold sem_sub_pi, sem_sub_pp, sem_sub_pl; simpl;
+      match goal with H: complete_type _ _ = _ |- _ => rewrite H end).
+1,3: solve [
     unfold is_pointer_type in H1;
     destruct (typeof e1); inv TV1; destruct (typeof e2) as [| [| | |] [|] | | | | | | |]; inv TV2;
     simpl in H; inv H;
