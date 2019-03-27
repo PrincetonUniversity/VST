@@ -123,7 +123,7 @@ revert bl; induction argsig; destruct bl as [ | b bl]; simpl; intros; unfold_lif
 Qed.
 
 Section extensions.
-Context (*{CS: compspecs}*) {Espec: OracleKind}.
+(*Context {CS: compspecs} {Espec: OracleKind}.*)
 
 (* Scall *)
 
@@ -1509,7 +1509,7 @@ assert (forall Delta Delta' rho rho',
   apply pred_ext; apply H; intros; auto.
 Qed.
 
-Lemma semax_call_external {CS}:
+Lemma semax_call_external {CS Espec}:
 forall (Delta : tycontext) (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
@@ -2107,7 +2107,7 @@ rewrite level_juice_level_phi.
 destruct ret; destruct ret0; apply assert_safe_jsafe; auto. 
 Qed.
 
-Lemma semax_call_external' {CS}:
+Lemma semax_call_external' {CS Espec}:
 forall (Delta : tycontext) (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
@@ -2489,7 +2489,7 @@ Qed.
 
 Set Printing Implicit.
 
-Lemma semax_call_aux {CS}:
+Lemma semax_call_aux {CS Espec}:
  forall (Delta : tycontext)
   (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
@@ -3064,7 +3064,7 @@ apply age_level in H20x.
 rewrite <- level_juice_level_phi in *; congruence.
 Qed.
 
-Lemma semax_call_aux' {CS}:
+Lemma semax_call_aux' {CS Espec}:
  forall (Delta : tycontext)
   (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
@@ -3110,7 +3110,7 @@ Proof. intros. apply now_later in H6. apply now_later in H11. rewrite box_all in
 eapply semax_call_aux; eassumption. 
 Qed.
 
-Lemma semax_call {CS}:
+Lemma semax_call {CS Espec}:
   forall Delta (A: TypeTree)
   (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
@@ -3297,7 +3297,6 @@ assert (CSUBpsi:cenv_sub (@cenv_cs CS) psi).
 destruct HGG as [CSUB HGG].
 
 rewrite (typecheck_expr_sound_cenv_sub CSUB Delta' _ TCD' w' a) in EvalA by (apply (TC1 w' (age_laterR  Hage))).
-
 eapply (@semax_call_aux' CS') with (F := fun rho => F rho * G)(P:=P')(F0:=F0)(rho:=construct_rho (filter_genv psi) vx tx)
  (ts:=ts1)(x:=x1)(fsig0:=(argsig, retsig)); try eassumption; try trivial.
 { clear - TC1 CSUB; intros w W. apply (tc_expr_cenv_sub CSUB _ _ _ _ (TC1 _ W)) . }
@@ -3336,7 +3335,7 @@ destruct ret.
   - destruct M2 as [z M2]; exists z. apply HG2. simpl. split; [ hnf; simpl; intuition | exists u2, m2; auto].
 Qed.
 
-Lemma semax_call_si {CS}:
+Lemma semax_call_si {CS Espec}:
   forall Delta (A: TypeTree)
   (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
@@ -3581,7 +3580,7 @@ destruct ret; simpl.
     *  destruct retsig; try solve [ congruence]; exists vv; trivial.
 Qed.
 
-Lemma semax_call_early {CS}:
+Lemma semax_call_early {CS Espec}:
   forall Delta (A: TypeTree)
   (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
   (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
@@ -3829,7 +3828,7 @@ destruct ret; simpl.
     *  destruct retsig; try solve [ congruence]; exists vv; trivial.
 Qed.
 
-Lemma semax_call_alt {CS}:
+Lemma semax_call_alt {CS Espec}:
  forall Delta (A: TypeTree)
    (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
    (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
@@ -3848,7 +3847,7 @@ Lemma semax_call_alt {CS}:
           (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof. exact semax_call_si. Qed.
 
-Lemma semax_call_ext {CS}:
+Lemma semax_call_ext {CS Espec}:
    forall (IF_ONLY: False),
      forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
@@ -3993,7 +3992,7 @@ Proof.
   destruct ret; [ eapply H; assumption | trivial]. 
 Qed.
 
-Lemma  semax_return {CS}:
+Lemma  semax_return {CS Espec}:
    forall Delta R ret,
       @semax CS Espec Delta
                 (fun rho => tc_expropt Delta ret (ret_type Delta) rho &&
