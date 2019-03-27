@@ -675,17 +675,19 @@ Ltac tc_expr_cenv_sub_tac2 :=
   tc_expr_cenv_sub_tac.  
   all: apply (denote_tc_nosignedover_eval_expr_cenv_sub CSUB); auto.
  + (* Ebinop *)
-  rewrite den_isBinOpR.
-  rewrite den_isBinOpR in H.
+ abstract (
+  rewrite den_isBinOpR;
+  rewrite den_isBinOpR in H;
    destruct b; simpl in H|-*;
   unfold binarithType' in *; tc_expr_cenv_sub_tac;
    repeat match goal with |- app_pred (denote_tc_assert match ?A with _ => _ end _) _ =>
       destruct A; tc_expr_cenv_sub_tac
    end;
    tc_expr_cenv_sub_tac;
-  try solve [simple apply tc_nobinover_cenv_sub; auto].
+  try solve [simple apply tc_nobinover_cenv_sub; auto]).
  +  (* Ecast *)
-   unfold isCastResultType in *.
+ abstract (
+   unfold isCastResultType in *;
    repeat match goal with |- app_pred (denote_tc_assert match ?A with _ => _ end _) _ =>
       destruct A; tc_expr_cenv_sub_tac
    end;
@@ -696,7 +698,7 @@ Ltac tc_expr_cenv_sub_tac2 :=
                   rewrite ?denote_tc_assert_iszero;
                  destruct (Val.eq (@eval_expr CS a rho) Vundef) as [e|n];
                   [rewrite e in *; contradiction | 
-                    rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n); auto]].
+                    rewrite <- ?(eval_expr_cenv_sub_eq CSUB _ _ n); auto]]).
  + (* Efield *)
     destruct (access_mode t); tc_expr_cenv_sub_tac.
     destruct (typeof a); tc_expr_cenv_sub_tac.
@@ -735,4 +737,23 @@ Ltac tc_expr_cenv_sub_tac2 :=
     auto.
 Qed.
 
+  Lemma tc_exprlist_cenv_sub Delta rho w:
+    forall types bl, (@tc_exprlist CS Delta types bl rho) w ->
+                     (@tc_exprlist CS' Delta types bl rho) w.
+  Proof.
+    induction types; simpl; intros.
+    + destruct bl; simpl in *; trivial.
+    + destruct bl; simpl in *; trivial.
+        specialize (IHtypes bl).
+      unfold tc_exprlist in H|-*. rename a into t.
+   unfold typecheck_exprlist; fold typecheck_exprlist.
+      change 
+        (app_pred (@denote_tc_assert CS
+            (tc_andp (@typecheck_expr CS Delta (Ecast e t))
+             (@typecheck_exprlist CS Delta types bl))  rho) w) in H.
+    rewrite denote_tc_assert_andp in H.
+    rewrite denote_tc_assert_andp.
+    destruct H. split; auto.
+    eapply tc_expr_cenv_sub; try eassumption.
+  Qed.
 End CENV_SUB.
