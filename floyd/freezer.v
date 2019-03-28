@@ -393,9 +393,19 @@ Lemma freeze_SEP'':
 Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H0.
   eapply freeze_SEP'; eassumption.  Qed.
 
+Ltac solve_is_increasing :=
+  reflexivity ||
+  match goal with |- is_increasing (SortNat.sort ?L) ?K = true =>
+   let L' := eval compute in L in
+   let K' := eval compute in K in
+   (unify (is_increasing L' (S (List.fold_right Nat.max O L'))) false;
+           fail 1 "Your freeze-list" L' "has repeated indexes") ||
+    fail "Your freeze-list" L' "contains an index >= the number of SEP conjuncts, which is" K'
+  end.
+
 Ltac freeze_tac L name :=
   eapply (freeze_SEP'' (map nat_of_Z L)); 
-   [reflexivity | reflexivity 
+   [solve_is_increasing | reflexivity 
    | match goal with
            | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
            let D := fresh name in
@@ -574,16 +584,20 @@ Ltac thaw' name :=
 Ltac thaw name :=
 thaw' name;
 let x := fresh "x" in let y := fresh "y" in let a := fresh "a" in 
-match goal with |- context [fold_right_sepcon (map ?F ?A)] =>
+lazymatch goal with
+|  |- context [fold_right_sepcon (map ?F ?A)] =>
   set (x:= fold_right_sepcon (map F A));
   set (y := F) in *; 
   simpl in x
+|  |- context [fold_right_sepcon ?A] =>
+  set (x:= fold_right_sepcon A);
+   unfold fold_right_sepcon in x
 end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-rewrite <- !sepcon_assoc, sepcon_emp;
-intro x; subst a x y;
+rewrite <- ?sepcon_assoc, sepcon_emp;
+intro x; subst a x; try subst y;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
@@ -915,7 +929,7 @@ end;
 pattern x;
 match goal with |- ?A x => set (a:=A) end;
 revert x;
-rewrite <- !sepcon_assoc, sepcon_emp;
+rewrite <- ?sepcon_assoc, sepcon_emp;
 intro x; subst a x y;
   unfold my_delete_list, my_delete_nth, my_nth, fold_right_sepcon.
 

@@ -6,6 +6,27 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Import Memdata.
 
+Definition Gprog : funspecs :=
+    ltac:(with_library prog (@nil(ident*funspec))).
+
+
+Definition g_spec :=
+ DECLARE _g
+ WITH i: Z
+ PRE [ _i OF size_t]
+   PROP() LOCAL(temp _i (Vptrofs (Ptrofs.repr i))) SEP()
+ POST [ size_t ]
+   PROP() LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr i))) SEP().
+
+Lemma body_g: semax_body Vprog Gprog f_g g_spec.
+Proof.
+start_function.
+forward.
+forward.
+forward.
+cancel.
+Qed.
+
 Lemma decode_float32_int32:
   forall (bl: list memval) (x: float32),
  size_chunk Mfloat32 = Z.of_nat (Datatypes.length bl) ->
@@ -196,11 +217,8 @@ Definition fabs_single_spec :=
  POST [ Tfloat F32 noattr ]
    PROP() LOCAL (temp ret_temp (Vsingle (Float32.abs x))) SEP().
 
-Definition Gprog : funspecs :=
-    ltac:(with_library prog [ fabs_single_spec ]).
-
 Lemma union_field_address: forall id,
-  composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
+  tl composites = (Composite id Union ((_f, tfloat) :: (_i, tuint) :: nil) noattr :: nil) ->
  forall p,
   field_address (Tunion id noattr) [UnionField _f] p = field_address (Tunion id noattr) [UnionField _i] p.
 Proof.
@@ -260,9 +278,6 @@ Definition fabs_single_spec :=
    PROP() LOCAL(temp _x (Vfloat x)) SEP()
  POST [ Tfloat F32 noattr ]
    PROP() LOCAL (temp ret_temp (Vfloat (Float.abs x))) SEP().
-
-Definition Gprog : funspecs :=
-    ltac:(with_library prog [ fabs_single_spec ]).
 
 Lemma body_fabs_single: semax_body Vprog Gprog f_fabs_single fabs_single_spec.
 Proof.

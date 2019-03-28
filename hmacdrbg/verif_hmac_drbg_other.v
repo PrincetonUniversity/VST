@@ -65,11 +65,12 @@ Proof.
                   destruct (Ptrofs.unsigned_range i). omega. }
               thaw FR.
                destruct (Ptrofs.unsigned_range i).  eapply derives_trans.
+               rewrite ?sepcon_assoc.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
                eapply sepcon_derives. apply field_at_field_at_.
-               eapply sepcon_derives. apply field_at_field_at_. apply derives_refl.
+               apply field_at_field_at_.
                repeat rewrite field_at__memory_block. simpl.
                unfold field_address. repeat rewrite if_true. simpl. rewrite  <- ptrofs_add_repr.
                specialize (memory_block_split shc b (Ptrofs.unsigned i + 12) 32 16); simpl.  rewrite <- ptrofs_add_repr.

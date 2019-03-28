@@ -209,7 +209,7 @@ Proof.
   unfold hmac256drbgabs_common_mpreds.
   simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl.
   unfold_data_at 1%nat. 
-  freeze [0;1;2;4;5;6;7;8;9;10;11;12;13] ALLSEP.
+  freeze [0;1;2;4;5;6;7;8;9;10;11;12] ALLSEP.
   forward. forward.
  
   Exists Int.zero. simpl.

@@ -1,5 +1,5 @@
-Require Import VST.veric.juicy_extspec.
 Require Import VST.floyd.proofauto.
+Require Import VST.veric.juicy_extspec.
 Require Import ITree.ITree.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
@@ -22,6 +22,20 @@ Definition write (c : int) : itree IO_event unit := embed (EWrite c).
 
 Definition IO_itree := itree IO_event unit.
 
+Fixpoint write_list l : IO_itree :=
+  match l with
+  | nil => Ret tt
+  | c :: rest => write c ;; write_list rest
+  end.
+
+Fixpoint read_list_aux n d : itree IO_event (list int) :=
+  match n with
+  | O => Ret d
+  | S n' => x <- read ;; read_list_aux n' (x :: d)
+  end.
+
+Definition read_list n : itree IO_event (list int) := read_list_aux n [].
+
 (* We need a layer of equivalence to allow us to use the monad laws. *)
 Definition ITREE (tr : IO_itree) := EX tr' : _, !!(eutt eq tr tr') &&
   has_ext tr'.
@@ -32,34 +46,30 @@ Proof.
   Exists tr; entailer!.
 Qed.
 
-Definition putchar_spec :=
-  WITH c : int, k : IO_itree
-  PRE [ 1%positive OF tint ]
-    PROP ()
-    LOCAL (temp 1%positive (Vint c))
-    SEP (ITREE (write c ;; k))
+Definition putchars_spec {CS : compspecs} :=
+  WITH sh : share, buf : val, msg : list int, len : Z, rest : list val, k : IO_itree
+  PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
+    PROP (readable_share sh)
+    LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr (Zlength msg))))
+    SEP (ITREE (write_list msg ;; k);
+           data_at sh (tarray tuchar len) (map Vint msg ++ rest) buf)
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint c))
-    SEP (ITREE k).
+    LOCAL (temp ret_temp (Vint (Int.repr (Zlength msg))))
+    SEP (ITREE k;
+           data_at sh (tarray tuchar len) (map Vint msg ++ rest) buf).
 
-Definition getchar_spec :=
-  WITH k : int -> IO_itree
-  PRE [ ]
-    PROP ()
-    LOCAL ()
-    SEP (ITREE (r <- read ;; k r))
+Definition getchars_spec {CS : compspecs} :=
+  WITH sh : share, buf : val, len : Z, k : list int -> IO_itree
+  PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
+    PROP (writable_share sh)
+    LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
+    SEP (ITREE (r <- read_list (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
   POST [ tint ]
-   EX i : int,
-    PROP (- two_p 7 <= Int.signed i <= two_p 7 - 1)
-    LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (k i)).
-
-Fixpoint write_list l : IO_itree :=
-  match l with
-  | nil => Ret tt
-  | c :: rest => write c ;; write_list rest
-  end.
+   EX msg : list int,
+    PROP (Forall (fun i => Int.unsigned i <= Byte.max_unsigned) msg)
+    LOCAL (temp ret_temp (Vint (Int.repr len)))
+    SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vint msg) buf).
 
 Lemma ITREE_impl : forall tr tr', eutt eq tr tr' ->
   ITREE tr |-- ITREE tr'.
@@ -94,7 +104,8 @@ Definition newline := 10.
 (* Build the external specification. *)
 Definition IO_void_Espec : OracleKind := ok_void_spec IO_itree.
 
-Definition IO_specs (ext_link : string -> ident) :=
-  [(ext_link "putchar"%string, putchar_spec); (ext_link "getchar"%string, getchar_spec)].
+Definition IO_specs {CS : compspecs} (ext_link : string -> ident) :=
+  [(ext_link "putchars"%string, putchars_spec); (ext_link "getchars"%string, getchars_spec)].
 
-Definition IO_Espec (ext_link : string -> ident) : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
+Definition IO_Espec {CS : compspecs} (ext_link : string -> ident) : OracleKind :=
+  add_funspecs IO_void_Espec ext_link (IO_specs ext_link).
