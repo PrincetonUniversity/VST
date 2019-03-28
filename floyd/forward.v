@@ -41,14 +41,17 @@ Hint Rewrite @sem_add_pl_ptr_special' using (solve [try reflexivity; auto with n
 
 Lemma isptr_force_sem_add_ptr_int:
   forall {cs: compspecs}  t si p i,
+ complete_type cenv_cs t = true ->
  isptr p ->
  isptr (force_val (sem_add_ptr_int t si p (Vint (Int.repr i)))).
 Proof.
-intros. destruct p; inv H; hnf; auto.
+intros. destruct p; inv H0; hnf; auto.
+unfold sem_add_ptr_int.
+rewrite H; simpl; auto.
 Qed.
 
 Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
-    apply isptr_force_sem_add_ptr_int; auto with prove_it_now.
+    apply isptr_force_sem_add_ptr_int; [reflexivity | auto with prove_it_now].
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
 Fixpoint mk_varspecs' (dl: list (ident * globdef Clight.fundef type)) (el: list (ident * type)) :
@@ -2722,14 +2725,18 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
 
 Lemma sem_add_ptr_int_lem:
  forall {cs: compspecs} v t i,
+   complete_type cenv_cs t = true ->
    isptr v ->
    Clight_Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
 Proof.
-intros. destruct v; inv H; reflexivity.
+intros. destruct v; inv H0; simpl.
+unfold add_ptr_int; simpl; unfold sem_add_ptr_int.
+rewrite H. reflexivity.
 Qed.
-Hint Rewrite @sem_add_ptr_int_lem using assumption : norm1.
+Hint Rewrite @sem_add_ptr_int_lem using (try reflexivity; assumption) : norm1.
 
 Lemma sem_add_pi': forall {CS: compspecs} t0 si v i,
+   complete_type cenv_cs t0 = true ->
   isptr v ->
   match si with
   | Signed => Int.min_signed <= i <= Int.max_signed
@@ -2740,9 +2747,10 @@ Lemma sem_add_pi': forall {CS: compspecs} t0 si v i,
 Proof.
   intros.
   unfold sem_add_ptr_int.
+  rewrite H.
   rewrite sem_add_pi_ptr; auto.
 Qed.
-Hint Rewrite @sem_add_pi' using (solve [auto with norm ; rep_omega]) : norm.
+Hint Rewrite @sem_add_pi' using (solve [try reflexivity; auto with norm ; rep_omega]) : norm.
 
 (*
 Lemma offset_val_sem_add_pi: forall {CS: compspecs} ofs t0 si v i,
