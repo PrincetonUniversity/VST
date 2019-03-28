@@ -1454,6 +1454,7 @@ Proof.
     +       intros rho' u U y UY k YK K.
       unfold normal_ret_assert; simpl.
       destruct K as [v [a1 [a2 [J [A1 [w A2]]]]]]. exists a1, a2; intuition. exists w; trivial.
+    + rewrite HGG. apply cenv_sub_refl.
     + rewrite (corable_funassert _ _).
       simpl m_phi.
       rewrite core_inflate_initial_mem'; auto.
@@ -1479,6 +1480,7 @@ Proof.
       change Clight_new.true_expr with true_expr.
       change (level (m_phi jm)) with (level jm).
       apply safe_loop_skip.
+    +rewrite HGG. apply cenv_sub_refl.
     + unfold glob_types, Delta1. simpl @snd.
       forget (prog_main prog) as main.
       instantiate (1:= post).
