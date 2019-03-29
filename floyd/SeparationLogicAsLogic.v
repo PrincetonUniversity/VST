@@ -249,12 +249,12 @@ Definition semax_body
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
 
-Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
+Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)(fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
-    forall V G C, @semax_func Espec V G C nil nil
+    forall V G C ge, @semax_func Espec V G C ge nil nil
 | semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -264,14 +264,15 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
+ (*NEW*)  (exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f)) -> 
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
-      semax_func V G fs G' ->
-      semax_func V G ((id, Internal f)::fs)
+      semax_func V G ge fs G' ->
+      semax_func V G ge ((id, Internal f)::fs)
                  ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G')
 | semax_func_cons_ext:
   forall {Espec: OracleKind},
-   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q NEP NEQ
+   forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
           (G': funspecs) cc (ids: list ident),
       ids = map fst argsig' -> (* redundant but useful for the client,
@@ -287,9 +288,10 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
             |-- !!tc_option_val retsig ret)) ->
+(*new*)     (exists b : block, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc)) ->
       @semax_external Espec ids ef A P Q ->
-      semax_func V G fs G' ->
-      semax_func V G ((id, External ef argsig retsig cc)::fs)
+      semax_func V G ge fs G' ->
+      semax_func V G ge ((id, External ef argsig retsig cc)::fs)
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 
 End AuxDefs.
@@ -1237,6 +1239,22 @@ Definition semax_ext := @MinimumLogic.semax_ext.
 Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
+
+(*Definition semax_func_mono := @MinimumLogic.semax_func_mono.
+(*Definition semax_func_app := @MinimumLogic.semax_func_app.
+Definition semax_func_subsumption := @MinimumLogic.semax_func_subsumption.
+Definition semax_func_join  := @MinimumLogic.semax_func_join.
+Definition semax_func_firstn := @MinimumLogic.semax_func_firstn.
+Definition semax_func_skipn := @MinimumLogic.semax_func_skipn.*)
+Check semax_func_mono. (*forall (Espec : OracleKind) (CS CS' : compspecs),
+       cspecs_sub CS CS' ->
+       forall ge ge' : Genv.t Clight.fundef type,
+       (forall i : ident, sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i)) ->
+       (forall b : block, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b)) ->
+       forall (V : varspecs) (G : funspecs) (fdecs : list (ident * Clight.fundef)) (G1 : funspecs),
+       MinimumLogic.CSHL_Def.semax_func V G ge fdecs G1 ->
+       MinimumLogic.CSHL_Def.semax_func V G ge' fdecs G1*)*)
+
 
 End DeepEmbeddedMinimumSeparationLogic.
 

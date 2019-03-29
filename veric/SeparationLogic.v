@@ -1052,7 +1052,7 @@ Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
 
 Parameter semax_func:
     forall {Espec: OracleKind},
-    forall (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
+    forall (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t fundef type) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
 Parameter semax_external:
   forall {Hspec: OracleKind} (ids: list ident) (ef: external_function)
@@ -1082,7 +1082,7 @@ Definition semax_prog
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @Def.semax_func Espec V G C (prog_funct prog) G /\
+  @Def.semax_func Espec V G C  (Genv.globalenv prog) (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec' prog post
@@ -1095,7 +1095,7 @@ Definition semax_prog_ext
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @Def.semax_func Espec V G C (prog_funct prog) G /\
+  @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec_ext' prog z post
@@ -1120,13 +1120,13 @@ Axiom semax_extract_exists:
   forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
   (forall x, @semax CS Espec Delta (P x) c R) ->
    @semax CS Espec Delta (EX x:A, P x) c R.
-
+  
 Axiom semax_func_nil:   forall {Espec: OracleKind},
-        forall V G C, @semax_func Espec V G C nil nil.
+        forall V G C ge, @semax_func Espec V G C ge nil nil.
 
 Axiom semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -1136,15 +1136,16 @@ Axiom semax_func_cons:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
+ (*NEW*)  (exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f)) -> 
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
-      semax_func V G fs G' ->
-      semax_func V G ((id, Internal f)::fs)
+      semax_func V G ge fs G' ->
+      semax_func V G ge ((id, Internal f)::fs)
            ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
 
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
-   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q NEP NEQ
+   forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
           (G': funspecs) cc (ids: list ident),
       ids = map fst argsig' -> (* redundant but useful for the client,
@@ -1160,11 +1161,51 @@ Axiom semax_func_cons_ext:
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
             |-- !!tc_option_val retsig ret)) ->
+(*new*)     (exists b : block, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc)) ->
       @semax_external Espec ids ef A P Q ->
-      semax_func V G fs G' ->
-      semax_func V G ((id, External ef argsig retsig cc)::fs)
+      semax_func V G ge fs G' ->
+      semax_func V G ge ((id, External ef argsig retsig cc)::fs)
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 
+Axiom semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
+  (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
+  (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
+  V G fdecs G1 (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1.
+
+Axiom semax_func_app:
+  forall Espec ge cs V H funs1 funs2 G1 G2
+         (SF1: @semax_func Espec V H cs ge funs1 G1) (SF2: @semax_func Espec V H cs ge funs2 G2)
+         (L:length funs1 = length G1),
+    @semax_func Espec V H cs ge (funs1 ++ funs2) (G1++G2).
+  
+Axiom semax_func_subsumption:
+  forall Espec ge cs V V' F F'
+         (SUB: tycontext_sub (nofunc_tycontext V F) (nofunc_tycontext V F'))
+         (HV: forall id, sub_option (make_tycontext_g V F) ! id (make_tycontext_g V' F') ! id),
+  forall funs G (SF: @semax_func Espec V F cs ge funs G),  @semax_func Espec V' F' cs ge funs G.
+  
+Axiom semax_func_join:
+  forall {Espec cs ge V1 H1 V2 H2 V funs1 funs2 G1 G2 H}
+  (SF1: @semax_func Espec V1 H1 cs ge funs1 G1) (SF2: @semax_func Espec V2 H2 cs ge funs2 G2)
+
+  (K1: forall i, sub_option ((make_tycontext_g V1 H1) ! i) ((make_tycontext_g V1 H) ! i))
+  (K2: forall i, subsumespec ((make_tycontext_s H1) ! i) ((make_tycontext_s H) ! i))
+  (K3: forall i, sub_option ((make_tycontext_g V1 H) ! i) ((make_tycontext_g V H) ! i))
+
+  (N1: forall i, sub_option ((make_tycontext_g V2 H2) ! i) ((make_tycontext_g V2 H) ! i))
+  (N2: forall i, subsumespec ((make_tycontext_s H2) ! i) ((make_tycontext_s H) ! i))
+  (N3: forall i, sub_option ((make_tycontext_g V2 H) ! i) ((make_tycontext_g V H) ! i)),
+  @semax_func Espec V H cs ge (funs1 ++ funs2) (G1++G2).
+  
+Axiom semax_func_firstn:
+  forall {Espec cs ge H V n funs G} (SF: @semax_func Espec V H cs ge funs G),
+    @semax_func Espec V H cs ge (firstn n funs) (firstn n G).
+  
+Axiom semax_func_skipn:
+  forall {Espec cs ge H V funs G} (HV:list_norepet (map fst funs))
+         (SF: @semax_func Espec V H cs ge funs G) n,
+    @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
+  
 (* THESE RULES FROM semax_loop *)
 
 Axiom semax_ifthenelse :

@@ -118,6 +118,14 @@ Definition semax_func_cons := @semax_func_cons.
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
+
+Definition semax_func_mono := semax_func_mono.
+Definition semax_func_app := semax_func_app.
+Definition semax_func_subsumption := semax_func_subsumption.
+Definition semax_func_join  := semax_func_join.
+Definition semax_func_firstn := semax_func_firstn.
+Definition semax_func_skipn := semax_func_skipn.
+
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
