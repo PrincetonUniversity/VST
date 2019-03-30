@@ -278,19 +278,19 @@ Ltac semax_func_skipn :=
 *)
 
 Ltac semax_func_cons L :=
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
- first [apply semax_func_cons;
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity |]);
+ first [eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | precondition_closed | apply L
+           | reflexivity |  reflexivity |  reflexivity | precondition_closed | apply L
            | ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | semax_func_cons_ext_tc | apply L |
              ]
         ];
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity |]);
  try apply semax_func_nil.
 
 (* This is a better way of finding an element in a long list. *)
@@ -322,11 +322,31 @@ intros.
 Qed.
 
 Ltac semax_func_cons_ext :=
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity | ]);
+eapply semax_func_cons_ext; [reflexivity | reflexivity | reflexivity | reflexivity |
+solve [semax_func_cons_ext_tc;
+      try solve [apply typecheck_return_value; auto]] 
+| solve [semax_func_cons_ext_tc;
+         try solve [apply typecheck_return_value; auto]]
+| reflexivity | reflexivity
+| solve[ first [eapply semax_ext;
+          [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
+          | apply extcall_lemmas.compute_funspecs_norepeat_e; reflexivity
+          | reflexivity
+          | reflexivity ]]
+      || fail "Try 'eapply semax_func_cons_ext.'"
+              "To solve [semax_external] judgments, do 'eapply semax_ext.'"
+              "Make sure that the Espec declared using 'Existing Instance'
+               is defined as 'add_funspecs NullExtension.Espec Gprog.'" ]
+    |
+    ].
+(*Ltac semax_func_cons_ext :=
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity | ]);
   eapply semax_func_cons_ext;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |
     | semax_func_cons_ext_tc;
       try solve [apply typecheck_return_value; auto]
+    | reflexivity | reflexivity
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
@@ -337,7 +357,7 @@ Ltac semax_func_cons_ext :=
               "Make sure that the Espec declared using 'Existing Instance'
                is defined as 'add_funspecs NullExtension.Espec Gprog.'"
     |
-    ].
+    ].*)
 
 Tactic Notation "forward_seq" :=
   first [eapply semax_seq'; [  | abbreviate_semax ]
@@ -3795,7 +3815,7 @@ Ltac prove_semax_prog_old :=
         fail "Funspec of _main is not in the proper form"
     end
  ];
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity | ]).
 
 (**************MATERIAL FOR NEW TACTIC prove_semax_prog STARTS HERE ***************)
 
@@ -3931,7 +3951,7 @@ Ltac prove_semax_prog_aux tac :=
     end
  ]; tac.
 
-Ltac finish_semax_prog := repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity | ]).
 
 Ltac prove_semax_prog := prove_semax_prog_aux finish_semax_prog.
 

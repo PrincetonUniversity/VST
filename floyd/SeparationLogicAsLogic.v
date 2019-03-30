@@ -254,7 +254,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
     forall V G C ge, @semax_func Espec V G C ge nil nil
 | semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge,
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -264,7 +264,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
- (*NEW*)  (exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f)) -> 
+ (*NEW*)  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
       semax_func V G ge fs G' ->
@@ -274,7 +274,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
-          (G': funspecs) cc (ids: list ident),
+          (G': funspecs) cc (ids: list ident) b,
       ids = map fst argsig' -> (* redundant but useful for the client,
                to calculate ids by reflexivity *)
       argsig' = zip_with_tl ids argsig ->
@@ -288,11 +288,49 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
             |-- !!tc_option_val retsig ret)) ->
-(*new*)     (exists b : block, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc)) ->
+(*new*) Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G')
+| semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
+  (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
+  (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
+  V G fdecs G1 (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1
+                                                                      
+| semax_func_app:
+  forall Espec ge cs V H funs1 funs2 G1 G2
+         (SF1: @semax_func Espec V H cs ge funs1 G1) (SF2: @semax_func Espec V H cs ge funs2 G2)
+         (L:length funs1 = length G1),
+    @semax_func Espec V H cs ge (funs1 ++ funs2) (G1++G2)
+                
+| semax_func_subsumption:
+  forall Espec ge cs V V' F F'
+         (SUB: tycontext_sub (nofunc_tycontext V F) (nofunc_tycontext V F'))
+         (HV: forall id, sub_option (make_tycontext_g V F) ! id (make_tycontext_g V' F') ! id),
+  forall funs G (SF: @semax_func Espec V F cs ge funs G),  @semax_func Espec V' F' cs ge funs G
+                                                                       
+| semax_func_join:
+  forall {Espec cs ge V1 H1 V2 H2 V funs1 funs2 G1 G2 H}
+  (SF1: @semax_func Espec V1 H1 cs ge funs1 G1) (SF2: @semax_func Espec V2 H2 cs ge funs2 G2)
+
+  (K1: forall i, sub_option ((make_tycontext_g V1 H1) ! i) ((make_tycontext_g V1 H) ! i))
+  (K2: forall i, subsumespec ((make_tycontext_s H1) ! i) ((make_tycontext_s H) ! i))
+  (K3: forall i, sub_option ((make_tycontext_g V1 H) ! i) ((make_tycontext_g V H) ! i))
+
+  (N1: forall i, sub_option ((make_tycontext_g V2 H2) ! i) ((make_tycontext_g V2 H) ! i))
+  (N2: forall i, subsumespec ((make_tycontext_s H2) ! i) ((make_tycontext_s H) ! i))
+  (N3: forall i, sub_option ((make_tycontext_g V2 H) ! i) ((make_tycontext_g V H) ! i)),
+  @semax_func Espec V H cs ge (funs1 ++ funs2) (G1++G2)
+  
+| semax_func_firstn:
+  forall {Espec cs ge H V n funs G} (SF: @semax_func Espec V H cs ge funs G),
+    @semax_func Espec V H cs ge (firstn n funs) (firstn n G)
+                
+| semax_func_skipn:
+  forall {Espec cs ge H V funs G} (HV:list_norepet (map fst funs))
+         (SF: @semax_func Espec V H cs ge funs G) n,
+    @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
 
 End AuxDefs.
 
@@ -1240,21 +1278,13 @@ Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 
-(*Definition semax_func_mono := @MinimumLogic.semax_func_mono.
-(*Definition semax_func_app := @MinimumLogic.semax_func_app.
-Definition semax_func_subsumption := @MinimumLogic.semax_func_subsumption.
-Definition semax_func_join  := @MinimumLogic.semax_func_join.
-Definition semax_func_firstn := @MinimumLogic.semax_func_firstn.
-Definition semax_func_skipn := @MinimumLogic.semax_func_skipn.*)
-Check semax_func_mono. (*forall (Espec : OracleKind) (CS CS' : compspecs),
-       cspecs_sub CS CS' ->
-       forall ge ge' : Genv.t Clight.fundef type,
-       (forall i : ident, sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i)) ->
-       (forall b : block, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b)) ->
-       forall (V : varspecs) (G : funspecs) (fdecs : list (ident * Clight.fundef)) (G1 : funspecs),
-       MinimumLogic.CSHL_Def.semax_func V G ge fdecs G1 ->
-       MinimumLogic.CSHL_Def.semax_func V G ge' fdecs G1*)*)
+Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).
 
+Definition semax_func_app := @AuxDefs.semax_func_app (@Def.semax_external).
+Definition semax_func_subsumption := @AuxDefs.semax_func_subsumption (@Def.semax_external).
+Definition semax_func_join  := @AuxDefs.semax_func_join (@Def.semax_external).
+Definition semax_func_firstn := @AuxDefs.semax_func_firstn (@Def.semax_external).
+Definition semax_func_skipn := @AuxDefs.semax_func_skipn (@Def.semax_external).
 
 End DeepEmbeddedMinimumSeparationLogic.
 

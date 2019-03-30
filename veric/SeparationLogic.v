@@ -1126,7 +1126,7 @@ Axiom semax_func_nil:   forall {Espec: OracleKind},
 
 Axiom semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge,
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -1136,7 +1136,7 @@ Axiom semax_func_cons:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
- (*NEW*)  (exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f)) -> 
+ (*NEW*)  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
       semax_func V G ge fs G' ->
@@ -1147,7 +1147,7 @@ Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
-          (G': funspecs) cc (ids: list ident),
+          (G': funspecs) cc (ids: list ident) b,
       ids = map fst argsig' -> (* redundant but useful for the client,
                to calculate ids by reflexivity *)
       argsig' = zip_with_tl ids argsig ->
@@ -1161,7 +1161,7 @@ Axiom semax_func_cons_ext:
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
             |-- !!tc_option_val retsig ret)) ->
-(*new*)     (exists b : block, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc)) ->
+(*new*) Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, External ef argsig retsig cc)::fs)

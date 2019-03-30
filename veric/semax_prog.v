@@ -354,7 +354,7 @@ rewrite <- (stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | t
 Qed. 
 
 Lemma semax_func_cons: forall 
-     fs id f cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge,
+     fs id f cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
   andb (id_in_list id (map (@fst _ _) G))
   (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
     (semax_body_params_ok f)) = true ->
@@ -364,7 +364,7 @@ Lemma semax_func_cons: forall
       true) (fn_vars f) ->
    var_sizes_ok cenv_cs (f.(fn_vars)) ->
    f.(fn_callconv) = cc ->
- (*NEW*)  (exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (Internal f)) -> 
+ (*NEW*)  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
    precondition_closed f P ->
   semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ) ->
   semax_func V G ge fs G' ->
@@ -372,7 +372,7 @@ Lemma semax_func_cons: forall
        ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until C.
-intros ge H' COMPLETE Hvars Hcc [b [Hb1 Hb2]] Hpclos H3 [HfsG' [Hfs HG]].
+intros ge b H' COMPLETE Hvars Hcc Hb1 Hb2 Hpclos H3 [HfsG' [Hfs HG]].
 apply andb_true_iff in H'.
 destruct H' as [Hin H'].
 apply andb_true_iff in H'.
@@ -511,7 +511,7 @@ Qed.
 Lemma semax_func_cons_ext:
 forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
       argsig'
-      (G': funspecs) cc (ids: list ident),
+      (G': funspecs) cc (ids: list ident) b,
   ids = map fst argsig' -> (* redundant but useful for the client,
            to calculate ids by reflexivity *)
   argsig' = zip_with_tl ids argsig ->
@@ -525,14 +525,14 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
      (Q ts x (make_ext_rval gx ret)
         && !!has_opttyp ret (opttyp_of_type retsig)
         |-- !!tc_option_val retsig ret)) ->
-(*new*)     (exists b : block, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc)) ->
+(*new*) Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
   (forall n, semax_external Espec ids ef A P Q n) ->
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, External ef argsig retsig cc)::fs)
        ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until ids.
-intros Hids Hargsig Hef Hni Hlen Hretty B H [Hf' [GC Hf]].
+intros b Hids Hargsig Hef Hni Hlen Hretty B1 B2 H [Hf' [GC Hf]].
 rewrite Hargsig in *.  clear Hids Hargsig argsig'.
 apply id_in_list_false in Hni.
 split.
@@ -544,13 +544,12 @@ revert ids Hlen; induction argsig; simpl; intros; auto.
 destruct ids; auto.
 destruct ids; auto. inv Hlen. simpl. f_equal; auto.
 auto.
-split; [ clear - B GC; red; intros; destruct H; [ symmetry in H; inv H; apply B | apply GC; trivial] |]. 
+split; [ clear - B1 B2 GC; red; intros; destruct H; [ symmetry in H; inv H; exists b; auto | apply GC; trivial] |].
 intros ge' GE1 GE2 ?.
 specialize (Hf ge' GE1 GE2). 
 unfold believe.
 intros v' fsig' cc' A' P' Q'.
 apply derives_imp. clear n. intros n ?. 
-destruct B as [b [B1 B2]].
 specialize (GE1 id); simpl in GE1. unfold fundef in GE1; rewrite B1 in GE1; simpl in GE1. 
 specialize (GE2 b); simpl in GE2. unfold fundef in GE2; rewrite B2 in GE2; simpl in GE2.
 destruct (eq_dec  (Vptr b Ptrofs.zero) v') as [?H|?H].

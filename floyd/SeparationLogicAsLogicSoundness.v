@@ -162,25 +162,33 @@ Proof.
   apply H.
 Qed.
 
-Theorem semax_func_sound: forall Espec Vspec Gspec CS ids fs,
-  @DeepEmbedded.DeepEmbeddedDef.semax_func Espec Vspec Gspec CS ids fs ->
-  @Def.semax_func Espec Vspec Gspec CS ids fs.
+Theorem semax_func_sound: forall Espec Vspec Gspec CS ge ids fs,
+  @DeepEmbedded.DeepEmbeddedDef.semax_func Espec Vspec Gspec CS ge ids fs ->
+  @Def.semax_func Espec Vspec Gspec CS ge ids fs.
 Proof.
   intros.
   induction H.
   + apply MinimumLogic.semax_func_nil.
-  + apply MinimumLogic.semax_func_cons; auto.
+  + eapply MinimumLogic.semax_func_cons; eauto.
     apply semax_body_sound; auto.
   + eapply MinimumLogic.semax_func_cons_ext; eauto.
+  + apply (@MinimumLogic.semax_func_mono Espec _ _ CSUB ge ge' Gfs Gffp); auto.
+  + apply MinimumLogic.semax_func_app; auto.
+  + eapply MinimumLogic.semax_func_subsumption; eauto.
+  + eapply MinimumLogic.semax_func_join; eauto.
+  + eapply MinimumLogic.semax_func_firstn; eauto.
+  + eapply MinimumLogic.semax_func_skipn; eauto.
 Qed.
 
-Theorem semax_prog_sound: forall Espec prog Vspec Gspec f,
-  @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec prog Vspec Gspec f ->
-  @MinimumLogic.CSHL_Defs.semax_prog Espec prog Vspec Gspec f.
+Theorem semax_prog_sound: forall 
+     (Espec: OracleKind) (CS: compspecs)
+     (prog: program)  (V: varspecs) (G: funspecs),
+  @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog V G ->
+  @MinimumLogic.CSHL_Defs.semax_prog Espec CS prog V G.
 Proof.
   intros.
   hnf in H |- *.
-  pose proof semax_func_sound Espec Gspec f prog (prog_funct Vspec) f.
+  pose proof (@semax_func_sound Espec V G CS (Genv.globalenv prog) (prog_funct prog) G).
   tauto.
 Qed.
 
