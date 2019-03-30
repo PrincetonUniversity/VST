@@ -180,7 +180,7 @@ Proof.
   + eapply MinimumLogic.semax_func_skipn; eauto.
 Qed.
 
-Theorem semax_prog_sound: forall 
+Theorem semax_prog_sound': forall 
      (Espec: OracleKind) (CS: compspecs)
      (prog: program)  (V: varspecs) (G: funspecs),
   @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog V G ->
@@ -190,6 +190,32 @@ Proof.
   hnf in H |- *.
   pose proof (@semax_func_sound Espec V G CS (Genv.globalenv prog) (prog_funct prog) G).
   tauto.
+Qed.
+
+Theorem semax_prog_ext_sound': forall Espec CS prog z Vspec Gspec,
+  @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog z Vspec Gspec ->
+  @MinimumLogic.CSHL_Defs.semax_prog_ext Espec CS prog z Vspec Gspec.
+Proof.
+  intros.
+  hnf in H |- *.
+  pose proof semax_func_sound Espec Vspec Gspec CS (Genv.globalenv prog) (prog_funct prog) Gspec.
+  tauto.
+Qed.
+
+Theorem semax_prog_sound: forall Espec CS prog Vspec Gspec,
+  @DeepEmbedded.DeepEmbeddedDefs.semax_prog Espec CS prog Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
+Proof.
+  intros.
+  apply Sound.semax_prog_sound, semax_prog_sound'; auto.
+Qed.
+
+Theorem semax_prog_ext_sound: forall Espec CS prog z Vspec Gspec,
+  @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+Proof.
+  intros.
+  apply Sound.semax_prog_ext_sound, semax_prog_ext_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule :
@@ -213,7 +239,7 @@ Theorem semax_prog_rule :
 Proof.
   intros.
   apply Sound.semax_prog_rule; auto.
-  apply semax_prog_sound; auto.
+  apply semax_prog_sound'; auto.
 Qed.
 
 Theorem semax_prog_rule' :
@@ -237,7 +263,31 @@ Theorem semax_prog_rule' :
 Proof.
   intros.
   apply Sound.semax_prog_rule'; auto.
-  apply semax_prog_sound; auto.
+  apply semax_prog_sound'; auto.
+Qed.
+
+Theorem semax_prog_rule_ext :
+  forall {Espec: OracleKind}{CS: compspecs},
+  forall V G prog m h z,
+     @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog z V G ->
+     Genv.init_mem prog = Some m ->
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                    jm q jm' (Vptr b Ptrofs.zero) nil) *
+       forall n,
+         { jm |
+           m_dry jm = m /\ level jm = n /\
+           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
+           jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
+           no_locks (m_phi jm) /\
+           matchfunspecs (globalenv prog) G (m_phi jm) /\
+           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
+     } } }%type.
+Proof.
+  intros.
+  apply Sound.semax_prog_rule_ext; auto.
+  apply semax_prog_ext_sound'; auto.
 Qed.
 
 End DeepEmbeddedSoundness.

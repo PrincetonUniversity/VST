@@ -344,11 +344,14 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
     match v1 with
      | Vptr b ofs =>
        if readable_share_dec sh
-       then (!!tc_val t v2 &&
-             res_predicates.address_mapsto ch v2 sh (b, Ptrofs.unsigned ofs)) ||
-            (!! (v2 = Vundef) &&
-             EX v2':val, res_predicates.address_mapsto ch v2' sh (b, Ptrofs.unsigned ofs))
-       else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Ptrofs.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Ptrofs.unsigned ofs) (Memdata.size_chunk ch)
+       then @orp mpred _ 
+            (@andp mpred _ (!!tc_val t v2)
+             (res_predicates.address_mapsto ch v2 sh (b, Ptrofs.unsigned ofs)))
+            (@andp mpred _ (!! (v2 = Vundef))
+             (@exp mpred _ val (fun v2' =>res_predicates.address_mapsto ch v2' sh (b, Ptrofs.unsigned ofs))))
+       else @andp mpred _ 
+              (!! (tc_val' t v2 /\ (Memdata.align_chunk ch | Ptrofs.unsigned ofs)))
+              (res_predicates.nonlock_permission_bytes sh (b, Ptrofs.unsigned ofs) (Memdata.size_chunk ch))
      | _ => FF
     end
     | _ => FF
@@ -356,6 +359,7 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end.
 
+ 
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
@@ -893,7 +897,7 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 Definition main_pre (prog: program) : list Type -> globals -> environ -> mpred :=
 (fun nil gv => globvars2pred gv (prog_vars prog)).
 
-Definition main_pre_ext {Espec: OracleKind} (prog: program) (ora: OK_ty) : list Type -> globals -> environ -> mpred :=
+Definition main_pre_ext {Z: Type} (prog: program) (ora: Z) : list Type -> globals -> environ -> mpred :=
 (fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=

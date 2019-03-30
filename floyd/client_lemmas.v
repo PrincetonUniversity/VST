@@ -1714,7 +1714,6 @@ Ltac already_saturated :=
 end || auto with nocore saturate_local)
  || simple apply prop_True_right.
 
-
 Ltac saturate_local :=
 simple eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
@@ -1730,23 +1729,6 @@ simple eapply saturate_aux21x;
        subst P
       end
  ].
-
-(* old version:
-Ltac saturate_local :=
-simple eapply saturate_aux21x;
- [repeat simple apply saturate_aux20;
-   (* use already_saturated if want to be fancy,
-         otherwise the next lines *)
-    auto with nocore saturate_local;
-    simple apply prop_True_right
-(* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
- | simple apply derives_extract_prop;
-   match goal with |- _ -> ?A =>
-       let P := fresh "P" in set (P := A); autorewrite with norm;
-              rewrite -> ?and_assoc; fancy_intros true;  subst P
-      end
- ].
-*)
 
 (*********************************************************)
 

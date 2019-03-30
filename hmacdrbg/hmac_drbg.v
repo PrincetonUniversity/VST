@@ -2,6 +2,19 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
+Module Info.
+  Definition version := "3.5"%string.
+  Definition build_number := ""%string.
+  Definition build_tag := ""%string.
+  Definition arch := "x86"%string.
+  Definition model := "32sse2"%string.
+  Definition abi := "standard"%string.
+  Definition bitsize := 32.
+  Definition big_endian := false.
+  Definition source_file := "hmacdrbg/hmac_drbg.c"%string.
+  Definition normalized := false.
+End Info.
+
 Definition _HMAC : ident := 113%positive.
 Definition _HMAC2 : ident := 115%positive.
 Definition _HMAC_Final : ident := 109%positive.
@@ -95,7 +108,7 @@ Definition _e : ident := 67%positive.
 Definition _entropy_len : ident := 122%positive.
 Definition _f : ident := 68%positive.
 Definition _fragment : ident := 88%positive.
-Definition _free : ident := 128%positive.
+Definition _free : ident := 127%positive.
 Definition _g : ident := 69%positive.
 Definition _get_entropy : ident := 150%positive.
 Definition _h : ident := 1%positive.
@@ -120,7 +133,7 @@ Definition _ll : ident := 91%positive.
 Definition _m : ident := 111%positive.
 Definition _m__1 : ident := 114%positive.
 Definition _main : ident := 95%positive.
-Definition _malloc : ident := 127%positive.
+Definition _malloc : ident := 128%positive.
 Definition _mbedtls_hmac_drbg_context : ident := 125%positive.
 Definition _mbedtls_hmac_drbg_free : ident := 182%positive.
 Definition _mbedtls_hmac_drbg_init : ident := 153%positive.
@@ -2171,9 +2184,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_malloc,
    Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
- (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_memcpy,
    Gfun(External (EF_external "memcpy"
                    (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
@@ -2251,7 +2264,7 @@ Definition public_idents : list ident :=
  _test_md_get_size :: _mbedtls_md_get_size :: _mbedtls_md_info_from_type ::
  _mbedtls_md_info_from_string :: _HMAC2 :: _HMAC :: _HMAC_cleanup ::
  _HMAC_Final :: _HMAC_Update :: _HMAC_Init :: _SHA256_Final ::
- _SHA256_Update :: _SHA256_Init :: _memset :: _memcpy :: _free :: _malloc ::
+ _SHA256_Update :: _SHA256_Init :: _memset :: _memcpy :: _malloc :: _free ::
  ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
