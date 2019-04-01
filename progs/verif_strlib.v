@@ -517,9 +517,7 @@ forward_loop (EX i : Z,
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 - repeat step. auto.
-- repeat step.
-  left. eexists x. repeat step. 3 : normalize. simpl. 3 : reflexivity.
-Intros i.
+- Intros i.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
   forward. fold_Vbyte.
@@ -690,7 +688,7 @@ forward_loop (EX i : Z,
   all : assert (i <> Zlength ls2) by tauto.
   { omega. }
   { omega. }
-  { intros. assert (0 <= j < i \/ j = i) by omega. autorewrite with Znth_solve in HZnth.
+  { intros. assert (0 <= j < i \/ j = i) by omega. autorewrite with Znth in HZnth.
     destruct H23; subst; auto.
   }
 Qed.
@@ -711,14 +709,10 @@ forward_loop (EX i : Z,
   repeat step.
 -
   repeat step.
-  + list_form.
-    apply data_subsume_array_ext. Zlength_solve. Zlength_solve.
-    autorewrite with Zlength. intros. Znth_solve.
-  + list_form. assert (x < Zlength ls) by cstring.
-    apply derives_refl'.
-    f_equal. apply Znth_eq_ext. Zlength_solve.
-    autorewrite with Zlength. intros. Znth_solve. fold_Vbyte.
-    do 2 f_equal. omega.
+  + list_form. apply_list_ext. Znth_solve.
+  + list_form. Znth_solve2. apply_list_ext.
+    Znth_solve. fold_Vbyte.
+    apply data_subsume_refl'. do 2 f_equal. omega.
 Qed.
 
 End Alternate.

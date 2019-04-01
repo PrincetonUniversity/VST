@@ -75,7 +75,6 @@ forward_if (PostKeyNull c k pad gv h1 l wsh sh key ckb ckoff).
 
   { (* THEN*)
     simpl.
-    unfold force_val2, force_val1 in H; simpl in H.
     unfold initPre.
     destruct k; try solve [eapply semax_pre; try eapply semax_ff; entailer].
     (*key' is integer, ie Null*)

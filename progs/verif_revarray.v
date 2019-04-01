@@ -47,7 +47,7 @@ autorewrite with sublist. omega.
 Qed.
 Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; omega) : sublist.
 
-Hint Rewrite @Znth_rev using Zlength_solve : Znth_solve.
+Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
@@ -66,13 +66,10 @@ Time repeat step.
 (* without simpl *)
 (* Finished transaction in 11.494 secs (11.453u,0.031s) (successful) *)
 apply data_at_data_at_cancel.
-unfold flip_ends.
-apply (Znth_eq_ext _ Inhabitant_val).
-- Zlength_solve. (* why slow? *) (* because implicit argument not simplified! *)
-- autorewrite with Zlength. intros. Znth_solve.
+unfold flip_ends. apply_list_ext. Znth_solve.
   do 2 f_equal. omega.
 * (* Prove that loop invariant implies typechecking condition *)
-Time simpl (data_at _ _ _). Time entailer!.
+simpl (data_at _ _ _). Time entailer!.
 * (* Prove that loop body preserves invariant *)
 (* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
 simpl.
@@ -81,10 +78,11 @@ repeat info_step.
 + unfold flip_ends. Znth_solve.
 + do 2 f_equal. omega.
 + simpl. apply data_at_data_at_cancel. unfold flip_ends.
-  apply (Znth_eq_ext _ Inhabitant_val).
+  apply (@Znth_eq_ext _ Inhabitant_val).
   Zlength_solve.
   autorewrite with Zlength.
   unfold upd_Znth. intros. list_form.
+  Print Ltac Znth_solve_rec.
   Time Znth_solve. (* This takes quite a few minutes *)
   (* Finished transaction in 435.348 secs (433.171u,0.218s) (successful) *)
   (* much much faster after simpl things *)
@@ -99,7 +97,7 @@ simpl.
 forward. (* return; *)
 apply data_at_data_at_cancel. unfold flip_ends.
 autorewrite with Zlength in * |-.
-apply (Znth_eq_ext _ Inhabitant_val).
+apply (@Znth_eq_ext _ Inhabitant_val).
 Time Zlength_solve. (* example of slow rewrite *)
 autorewrite with Zlength in *.
 intros.

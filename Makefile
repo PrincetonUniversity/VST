@@ -268,7 +268,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v
+   subsume_funspec.v list_solver.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and

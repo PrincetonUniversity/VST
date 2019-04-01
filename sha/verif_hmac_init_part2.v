@@ -397,13 +397,29 @@ freeze FR1 := - (data_at _ _ _ (Vptr ckb _)) (data_block _ _ _).
           data_at Tsh (Tarray tuchar 64 noattr)
               ((sublist 0 i OPADcont) ++ (sublist i 64 IPADcont)) (Vptr pb pofs)))).
       { (*precondition implies "invariant"*)
-        unfold data_block.
-        rewrite sublist_nil, sublist_same; trivial.
-          simpl app. Time entailer!. (*6 versus 3.1 -- penalty?*)
-          rewrite ZLI. unfold tarray. apply derives_refl.
-          subst IPADcont. rewrite Zlength_map. rewrite ZLI. trivial.
+        entailer!. unfold data_block. rewrite ZLI. apply_list_ext. list_form. Znth_solve2. apply data_subsume_refl'. eq_solve.
       }
       { rename H into I.
+      pose proof (mkKey_length key). unfold SHA256.BlockSize in H.
+        apply (f_equal (Z.of_nat)) in H. simpl in H. rewrite <- Zlength_correct in H.
+        forward. entailer!. simpl. apply isbyte_zeroExt8'.
+        forward.
+        entailer!. simpl. apply_list_ext. list_form. Znth_solve.
+        - apply data_subsume_refl'; eq_solve.
+        - apply data_subsume_refl'. unfold Vubyte. assert (i0 = i) by omega. subst i0. replace (i + 0) with i by omega.
+           unfold HMAC_SHA256.mkArg.
+           rewrite Znth_map. unfold Znth.
+                   rewrite combine_nth.
+                   unfold Inhabitant_byte.
+                   2:{ rewrite length_SF, mkKey_length. reflexivity. }
+                   rewrite Byte.xor_commut.
+                    unfold fst, snd.
+                   remember (HMAC_SHA256.sixtyfour Opad) as lll.
+                   assert (NTH: nth (Z.to_nat i) lll Byte.zero = Byte.repr 92).
+                     subst lll. apply nth_list_repeat'. apply (Z2Nat.inj_lt _ 64). apply I. omega. omega.
+                    simpl. rewrite NTH; trivial.
+          admit.
+        - apply data_subsume_refl'; eq_solve.
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero = qb).
           { destruct (nth_mapIn (Z.to_nat i) (HMAC_SHA256.mkKey key) Byte.zero) as [? ?].
              rewrite mkKey_length.
