@@ -1959,16 +1959,29 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             (virtueLP_inject m mu (virtueLP angel)).
         Definition build_release_event addr dmap m:=
           Events.release addr (Some (build_delta_content dmap m)).
-      
+
+        
+        Definition pair21_prop {A B} (f: A -> B -> Prop) (aa:Pair A) (b: B):Prop :=
+          pair1_prop (fun a => f a b) aa.
+        Hint Unfold pair21_prop: pair.
+        Definition permMapLt_pair1:= pair21_prop permMapLt.
+        Hint Unfold permMapLt_pair1: pair.
+        (*
+        Definition deltaMapLt_pair1:= pair21_prop deltaMapLt. 
+        pair1_prop (fun A => deltaMapLt A m).
+          Hint Unfold deltaMapLt_pair1: pair.
+         *)
+
+        (*Take just the tree*)
+        Definition sub_map' {A A' B} (a:A'* _) b:=
+          @bounded_maps.sub_map A B (snd a) b. 
       Record sub_map_virtue (v:virtue)(m:access_map):=
         { virtueThread_sub_map:
-            bounded_maps.sub_map (fst (virtueThread v)) (snd m) /\
-            bounded_maps.sub_map (snd (virtueThread v)) (snd m);
+            pair21_prop bounded_maps.sub_map (virtueThread v) (snd m);
           virtueLP_sub_map:
             bounded_maps.map_empty_def (fst (virtueLP v)) /\
             bounded_maps.map_empty_def (snd (virtueLP v)) /\
-            bounded_maps.sub_map (snd (fst (virtueLP v))) (snd m) /\
-            bounded_maps.sub_map (snd (snd (virtueLP v))) (snd m)
+            pair21_prop sub_map' (virtueLP v) (snd m)
         }.
       
       (*  *)
@@ -2113,15 +2126,23 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             { p_image: perm_image_full mu a1 a2;
               ppre_perfect_image: perm_preimage mu a1 a2}.
           Local Ltac exploit_p_image H:=
+            let b:=fresh "b" in
+            let delt:=fresh "delt" in
+            let Hinj:=fresh "Hinj" in
             destruct
               (p_image _ _ _ H _ _ ltac:(eapply perm_order_from_map; eauto))
-            as (?&?&?&?); subst.
-          Local Ltac exploit_ppre_miage H:=
+            as (b&delt&Hinj&?); subst.
+          Local Ltac exploit_ppre_image H:=
+            let b:=fresh "b" in
+            let ofs:=fresh "ofs" in
+            let delt:=fresh "delt" in
+            let Hinj:=fresh "Hinj" in
             destruct
               (ppre_perfect_image _ _ _ H _ _ ltac:(eapply perm_order_from_map; eauto))
-            as (?&?&?&?&?&?); subst.
+            as (b&ofs&delt&Hinj&?&?); subst.
           Local Ltac exploit_perfect_image H:=
-            try (exploit_p_image H); try (exploit_ppre_miage H). 
+            first [exploit_p_image H | exploit_ppre_image H]. (*
+            progress (try (exploit_p_image H); try (exploit_ppre_image H)). *) 
           Local Ltac exploit_no_overlap_perm H:=
             (* TODO: remove coqlib*)
             ( Coqlib.exploit H;
@@ -2165,9 +2186,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             destruct (a2 !! b ofs) eqn:AA; 
               destruct (b2 !! b ofs) eqn:BB; 
               destruct (c2 !! b ofs) eqn:CC;
-              exploit_perfect_image Ha;
-              exploit_perfect_image Hb;
-              exploit_perfect_image Hc;
+              try exploit_perfect_image Ha;
+              try exploit_perfect_image Hb;
+              try exploit_perfect_image Hc;
               repeat unify_mapping;
               (* use no_pverlap_mem to set which blocks and ofsets are equal*)
               try (exploit_no_overlap_perm H12);
@@ -2192,9 +2213,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                      end; try eassumption;
 
                 (* map the ones that are not mapped yet (and show a contradictoni)*)
-                exploit_perfect_image Ha;
-                exploit_perfect_image Hb;
-                exploit_perfect_image Hc;
+                try exploit_perfect_image Ha;
+                try exploit_perfect_image Hb;
+                try exploit_perfect_image Hc;
                 repeat unify_injection;
                 repeat unify_mapping;
                 try discriminate.
@@ -2360,7 +2381,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             - erewrite computeMap_2; eauto.
             - erewrite computeMap_3; eauto.
           Qed.
-          
+
+          (* Why is subsummed different to submap?*)
           Inductive subsumed: option permission -> option permission -> Prop:=
           | subsumedNone: forall x, subsumed None x
           | subsumedNENE: subsumed (Some Nonempty) (Some Nonempty)
@@ -2376,13 +2398,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             intros x y; split;
               intros HH; inversion HH; subst; constructor.
           Qed.
+
           
           Inductive option_join :
             option (option permission) ->
             option permission ->
             option permission -> Prop :=
           | NoneJoin: forall l c,
-              subsumed l c ->
+              subsumed l c -> (* why subsumed? *)
               option_join None l c
           | SomeJoin: forall a b c,
               permjoin_def.permjoin a b c ->
@@ -2449,12 +2472,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           | SomeOrder:forall a b,
                 r a b -> option_relation r (Some a) (Some b)
           | NoneOrder:
-              forall a, option_relation r a None.
+              option_relation r None None.
           Definition perm_image_full_dmap f dm1 dm2:=
             forall b1 ofs,
               (option_relation Mem.perm_order''
                                (dmap_get dm1 b1 ofs)
-                               (Some (Some Nonempty))) ->
+                               (Some (*Some Nonempty*) None )) ->
               exists b2 delta,
                 f b1 = Some (b2, delta) /\
                 (dmap_get dm1 b1 ofs) = (dmap_get dm2 b2 (ofs + delta)).
@@ -2462,7 +2485,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             forall b2 ofs_delt,
               (option_relation Mem.perm_order''
                                (dmap_get dm2 b2 ofs_delt)
-                               (Some (Some Nonempty))) ->
+                               (Some (*Some Nonempty*) None)) ->
               exists (b1 : block) (ofs delt : Z),
                 f b1 = Some (b2, delt) /\
                 ofs_delt = ofs + delt /\
@@ -2470,28 +2493,422 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           Record perm_perfect_image_dmap (mu : meminj) (a1 a2 : delta_map) : Prop
             := { p_image_dmap : perm_image_full_dmap mu a1 a2;
                  ppre_perfect_image_dmap : perm_preimage_dmap mu a1 a2 }.
+          Lemma perm_order_from_dmap:
+         forall dmap b (ofs : Z) p,
+           dmap_get  dmap b ofs  = Some (Some p) ->
+           option_relation Mem.perm_order''  (dmap_get  dmap b ofs)
+                           (Some (Some Nonempty)).
+          Proof. intros * H; rewrite H; repeat constructor. Qed.
+           Lemma perm_order_from_dmap':
+         forall dmap b (ofs : Z) p,
+           dmap_get  dmap b ofs  = Some p ->
+           option_relation Mem.perm_order''  (dmap_get  dmap b ofs)
+                           (Some None).
+          Proof. intros * H; rewrite H;  destruct p; repeat constructor. Qed.
+            Local Ltac exploit_p_image_dmap H:=
+            let b:=fresh "b" in
+            let delt:=fresh "delt" in
+            let Hinj:=fresh "Hinj" in
+            destruct
+              (p_image_dmap _ _ _ H _ _ ltac:(eapply perm_order_from_dmap'; eauto))
+            as (b&delt&Hinj&?); subst.
+          Local Ltac exploit_ppre_image_dmap H:=
+            let b:=fresh "b" in
+            let ofs:=fresh "ofs" in
+            let delt:=fresh "delt" in
+            let Hinj:=fresh "Hinj" in
+            destruct
+              (ppre_perfect_image_dmap _ _ _ H _ _ ltac:(eapply perm_order_from_dmap'; eauto))
+            as (b&ofs&delt&Hinj&?&?); subst.
+          Local Ltac exploit_perfect_image_dmap H:=
+            first [exploit_p_image_dmap H| exploit_ppre_image_dmap H]. (*
+            progress (try (exploit_p_image_dmap H); try (exploit_ppre_image_dmap H)).*)
+
+          
+          Definition no_overlap_contrapositive f m:=
+            forall (b1 b1':block) delta1 b2 b2' delta2 ofs1 ofs2,
+              b1' = b2' /\ ofs1 + delta1 = ofs2 + delta2 ->
+              f b1 = Some (b1', delta1) ->
+              f b2 = Some (b2', delta2) ->
+              Mem.perm m b1 ofs1 Max Nonempty ->
+              Mem.perm m b2 ofs2 Max Nonempty -> b1 = b2. 
+          
+          
+          Lemma no_overlap_contrapositive_iff:
+            forall f m,
+              Mem.meminj_no_overlap f m <-> no_overlap_contrapositive f m.
+          Proof.
+            intros **. split; intros H.
+            - intros ? **. destruct H0; subst.
+              destruct (Clight_lemmas.block_eq_dec b1 b2); auto.
+              exploit H; eauto.
+              intros [? | ?]; congruence.
+            - intros ? **. 
+              destruct (Clight_lemmas.block_eq_dec b1' b2'); auto.
+              destruct (Z_noteq_dec (ofs1 + delta1) (ofs2 + delta2)); auto.
+              exploit H; eauto.
+          Qed.
+          Definition deltaMapLt (dmap: delta_map) (pmap : access_map) : Prop :=
+            forall b ofs,
+              option_relation
+                Mem.perm_order''
+                (Some (Maps.PMap.get b pmap ofs))
+                (dmap_get dmap b ofs).
+          Ltac Note str:=
+            assert (str: True) by auto;
+            move str at top.
           Lemma delta_map_join_inject:
-            forall f A1 A2 B1 B2 C1 C2,
+            forall (m:mem) f A1 A2 B1 B2 C1 C2,
+              Mem.meminj_no_overlap f m ->
+              (*deltaMapLt A1 (getMaxPerm m) ->
+              permMapLt B1  (getMaxPerm m) -> *)
+              permMapLt C1  (getMaxPerm m) ->
               perm_perfect_image_dmap f A1 A2 ->
               perm_perfect_image f B1 B2 ->
+              perm_perfect_image f C1 C2 ->
               delta_map_join A1 B1 C1 ->
               delta_map_join A2 B2 C2.
           Proof.
-            intros ** b2 ofs_delta.
+            intros * Hno_overlap HltC HppiA HppiB HppiC Hjoin b2 ofs_delta.
+            assert (HltB : permMapLt B1 (getMaxPerm m)).
+                   { intros b ofs. eapply perm_order''_trans.
+                     - eapply HltC.
+                     - revert b ofs.
+                       Lemma dmap_join_lt:
+                         forall A B C,
+                           delta_map_join A B C->
+                           permMapLt B C.
+                       Proof.
+                         intros ??? H b ofs. specialize (H b ofs).
+                         inv H.
+                         - Lemma subsumed_order:
+                             forall b c, subsumed b c -> Mem.perm_order'' c b.
+                           Proof. intros b c H; destruct b, c; inv H; constructor. Qed.
+                           apply subsumed_order; assumption.
+                         - apply permjoin_def.permjoin_order in H1 as [? ?]; auto.
+                       Qed.
+                       apply dmap_join_lt with A1; assumption. }
+                   
+            
+            (* Ltacs for this goal *)
+            
+            Ltac auto_exploit_pimage :=
+              match goal with
+              | [ H: perm_perfect_image_dmap _ _ _ |- _ ] =>
+                exploit_perfect_image_dmap H; clear H; idtac H
+              | [ H: perm_perfect_image _ _ _ |- _ ] => 
+                exploit_perfect_image H; clear H; idtac H
+            end.
+
+            Local Ltac rewrite_double:=
+              match goal with
+              | [ H: ?L = ?R, H0: ?L = Some _  |- _ ] =>
+                rewrite H0 in H; try rewrite <- H in *
+              | [ H: ?R = ?L, H0: ?L = Some _  |- _ ] =>
+                rewrite H0 in H; try rewrite H in *
+              | [ H: ?L = ?R, H0: ?L = None  |- _ ] =>
+                rewrite H0 in H; try rewrite <- H in *
+              | [ H: ?R = ?L, H0: ?L = None  |- _ ] =>
+                rewrite H0 in H; try rewrite H in *
+              end.
+            
+            
+            (* Case analysis on first term*)
+            match goal with
+            | [ |- option_join _ ?B _ ] => destruct B as [o|] eqn:HB2 
+            end.
+
+            - (*B2 -> Some *)
+              Note B2_Some.
+              auto_exploit_pimage.
+              match goal with
+              | [ |- option_join _ _ ?C ] => destruct C eqn:HC2 
+              end.
+              * (*C2 Some *)
+                auto_exploit_pimage.
+                apply no_overlap_contrapositive_iff in Hno_overlap.
+                exploit Hno_overlap; try unfold  Mem.perm;  eauto.
+                -- specialize (HltB b ofs).
+                   rewrite_double.
+                   rewrite getMaxPerm_correct in HltB.
+                   eapply perm_order_trans211; eauto.
+                   repeat rewrite_double.
+                   constructor.
+                -- specialize (HltC b0 ofs0).
+                   rewrite_double.
+                   rewrite getMaxPerm_correct in HltC.
+                   eapply perm_order_trans211; eauto.
+                   constructor.
+                -- intros ?; subst.
+                   unify_injection.
+                   repeat rewrite_double.
+                   assert (ofs = ofs0) by omega; subst.
+                   dup Hjoin as Hjoin'.
+                   specialize (Hjoin b0 ofs0).
+                   rewrite <- H0, <- H1 in Hjoin.
+                   inv Hjoin.
+                   ++ (* I think A2 b2 (ofs0+delt0) = None *)
+                     destruct (dmap_get A2 b2 (ofs0 + delt0)) eqn:HA2;
+                       try solve[constructor; auto].
+                     auto_exploit_pimage.
+                     specialize (Hjoin' b ofs).
+                     rewrite_double.
+                     (* B1 !! b ofs = C1 !! b ofs = None (by overlap) *)
+                     assert (HB1: B1 !! b ofs = None).
+                     { destruct (B1 !! b ofs) eqn:HB1; auto.
+                       exploit Hno_overlap; eauto.
+                       - specialize (HltB b0 ofs0).
+                         rewrite getMaxPerm_correct in HltB.
+                         eapply perm_order_trans211; eauto.
+                         rewrite <- H0; constructor.
+                       - specialize (HltC b ofs).
+                         rewrite getMaxPerm_correct in HltC.
+                         eapply perm_order_trans211; eauto.
+                         inv Hjoin'. inv H7; constructor.
+                       - intros HH. rewrite HH in Hinj.
+                         unify_injection.
+                         assert (ofs = ofs0) by omega; subst.
+                         repeat rewrite_double.
+                         rewrite <- H2 in *; congruence.
+                     }
+                     assert (HC1:C1 !! b ofs = None).
+                     { destruct (C1 !! b ofs) eqn:HC1; auto.
+                       exploit Hno_overlap; eauto.
+                       - specialize (HltC b0 ofs0).
+                         rewrite getMaxPerm_correct in HltC.
+                         eapply perm_order_trans211; eauto.
+                         rewrite <- H1; constructor.
+                       - specialize (HltC b ofs).
+                         rewrite getMaxPerm_correct in HltC.
+                         eapply perm_order_trans211; eauto.
+                         rewrite HC1; constructor.
+                       - intros HH. rewrite HH in Hinj.
+                         unify_injection.
+                         assert (ofs = ofs0) by omega; subst.
+                         repeat rewrite_double.
+                         congruence.
+                     }
+                     rewrite HB1, HC1 in Hjoin'.
+                     inv Hjoin'.
           Admitted.
+          (*
+                     assert (HH:o0=None) by (inv H7; auto)
+                     
+                     rename o into OO.
+                     rename p into PP.
+                     constructor.
+                     inv H8;
+                       try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; do 2 constructor
+                                 end
+                         end.
+
+            
+            fail "End of new attem: destruct B and C first.".
+            
+
+            (* Case analysis on first term*)
+            match goal with
+            | [ |- option_join ?A _ _ ] => destruct A as [o|] eqn:HA2 
+            end.
+            
+            
+            - (*A2 -> some *)
+              Note A2_Some. 
+               destruct o. 
+              + (*A2 -> Some Some *)
+                Note A2_Some_Some.
+                repeat auto_exploit_pimage.
+                
+                (* Case analysis on second term*)
+                match goal with
+                | [ |- option_join _ ?B _ ] => destruct B eqn:HB2 
+                end.
+                * (*B2 Some *)
+                  auto_exploit_pimage.
+                  
+                  apply no_overlap_contrapositive_iff in H.
+                  exploit H; try unfold  Mem.perm;  eauto.
+                  -- specialize (H0 b ofs).
+                     repeat rewrite_double.
+                     rewrite getMaxPerm_correct in H0.
+                     inv H0.
+                     eapply perm_order_trans211; eauto.
+                     constructor.
+                   
+                  -- exploit H1.
+                     rewrite <- H6, HB2, getMaxPerm_correct.
+                     intros; eapply perm_order_trans211; eauto.
+                     constructor.
+                  -- intros ?; subst.
+                     unify_injection.
+                     rewrite H2,HB2,HA2 in *.
+                     assert (ofs = ofs0) by omega; subst.
+                     specialize (H5 b0 ofs0).
+                     rewrite <- H6, <- H7 in H5.
+                     inv H5.
+                     inv H8;
+                       try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; do 2 constructor
+                                 end
+                         end.
+                * (*B2 None *)
+                  (*B1 b ofs has to be None too*)
+                  specialize (H5 b ofs).
+                  rewrite_double.
+                  destruct (B1 !! b ofs) eqn:HB1.
+                  -- (*B1 Some*)
+                    auto_exploit_pimage.
+                    unify_injection.
+                    repeat rewrite_double; congruence.
+                  -- inv H5.
+                     inv H6;
+                       try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; do 2 constructor
+                                                             
+                                 end
+                           end.
+              +  (*A2 -> Some None *)
+                Note A2_b2_Some_None.
+                assert (HH1: True -> perm_perfect_image_dmap f A1 A2)
+                  by auto.
+                constructor.
+                auto_exploit_pimage.
+
+                specialize (H5 b ofs).
+                repeat rewrite_double.
+                
+                match goal with
+                | [  |- permjoin_def.permjoin _ ?B _ ] =>
+                  destruct B eqn:HB2
+                end.
+                * (*B2 Some *)
+                  Note B2_b2_Some.
+                  repeat auto_exploit_pimage.
+                  rewrite HB2 in H6.
+                  rewrite HA2 in H7.
+                  assert (Hjoin:= H5).
+                  specialize (H5 b0 ofs0).
+                  rewrite <- H6 in H5.
+                  match goal with
+                  | [ HH: option_join ?A1 _ _  |-  _ ] =>
+                    destruct A1 as [o|] eqn:HA1; [destruct o|]
+                  end.
+                  -- (*A1 Some Some*)
+                    specialize (HH1 I).
+                    auto_exploit_pimage.
+                    unify_injection.
+                    rewrite HA1, <- H2 in H3.
+                    rewrite <- H3 in HA2; congruence.
+                  -- (*A1 Some None  = A2 *)
+                    inv H5.
+                    rewrite H2.
+                    specialize (HH1 I).
+                    auto_exploit_pimage.
+                    unify_injection.
+                    
+                    inv H8;
+                    try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; do 2 constructor
+                                                             
+                                 end
+                        end.
+                  -- (*A1 None *)
+                    Note A1_b_None.
+                    specialize (Hjoin b ofs).
+                    rename b into bb.
+                    rewrite <- H7 in Hjoin.
+                    specialize (HH1 I).
+                    auto_exploit_pimage.
+                    unify_injection.
+                    
+                    fail "End of change".
+
+                    inv H5.
+                    rewrite H2.
+                    inv H3;
+                    try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; repeat constructor
+                                                             
+                                 end
+                        end.
+                    
+                  
+                  -- (*A1 (Some Some _) *)
+                    auto_exploit_pimage.
+                    unify_injection.
+                    repeat rewrite_double; congruence.
+                  -- (* A1 Some None*)
+                    inv H5.
+                     inv H6;
+                       try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; do 2 constructor
+                                                             
+                                 end
+                           end.
+                  -- (*A1 None*)
+                    inv H5.
+                    constructor.
+                     inv H6;
+                       try match goal with
+                             [ HH: ?L = C1 !! _ _ |- _ ] =>
+                             auto_exploit_pimage; unify_injection;
+                               try match goal with
+                                     [ HH': ?L' = C2 !! _ _ |- _ ] =>
+                                     rewrite <- HH', <- HH; do 2 constructor
+                                                             
+                                 end
+                           end.
+                    
+                
+            - admit.
+           *)
+          
+                     
+          
 
           Definition perm_perfect_image_dmap_pair f:=
             pair2_prop (perm_perfect_image_dmap f).
           Hint Unfold perm_perfect_image_dmap_pair: pair.
 
-          Lemma delta_map_join_inject_pair f:
+          Definition deltaMapLt_pair1:= pair21_prop deltaMapLt.
+          Hint Unfold deltaMapLt_pair1: pair.
+          Lemma delta_map_join_inject_pair (m:mem) f:
+              
             forall A1 A2 B1 B2 C1 C2,
+              Mem.meminj_no_overlap f m ->
+              deltaMapLt_pair1 A1 (getMaxPerm m) ->
+              permMapLt_pair1 B1 (getMaxPerm m) ->
               perm_perfect_image_dmap_pair f A1 A2 ->
               perm_perfect_image_pair f B1 B2 ->
               delta_map_join_pair A1 B1 C1 ->
               delta_map_join_pair A2 B2 C2.
-          Proof. solve_pair; eapply delta_map_join_inject. Qed.
-                      
+          Proof. Admitted. (* solve_pair; eapply delta_map_join_inject. Qed. *)
+          
           Inductive injects (mu:meminj) (b:block): Prop:=
           | InjectsBlock: forall b2 delta,
               mu b = Some (b2, delta) -> injects mu b.
@@ -2603,6 +3020,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                                       (virtueLP (inject_virtue m2 mu angel)).
           Proof.
             intros.
+            
           Admitted.
           Definition map_valid_pair m:= pair1_prop (map_valid m).
           Hint Unfold map_valid_pair: pair.
@@ -2855,9 +3273,21 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                  
                  eapply compute_map_join_pair.
                  eapply delta_map_join_inject_pair.
+                 - !goal (Mem.meminj_no_overlap _ _).
+                 (*apply Hinj2.*)
+                   admit.
+                 - !goal (deltaMapLt_pair1 _ _).
+                   instantiate (2:=virtueThread angel).
+                   clear -Hangel_bound.
+                   inversion Hangel_bound.
+                   
+                   
+                   admit.
+                 - !goal (permMapLt_pair1 _ _). admit.
+                   
                  - !goal (perm_perfect_image_dmap_pair _ _ _).
-                   instantiate (2:=mu).
-                   instantiate (1:=virtueThread angel).
+                   (* instantiate (2:=mu).
+                   instantiate (1:=virtueThread angel).*)
                    subst angel2.
 
                    eapply inject_virtue_perm_perfect_image_dmap.
@@ -3012,7 +3442,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                   clear - Hlt_setBlock2 Heq.
                   f_equal; auto.
                 }
-          Qed.
+          Admitted.
           
           pose proof (mtch_target _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
           simpl in Hcode; exploit_match ltac:(apply CMatch).
@@ -3064,13 +3494,52 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
          + exists e'. eexists. exists m2', cd, mu.
            split ; [|split].
            * (* reestablish concur *)
-              admit.
+             rename b into BB.
+             Lemma concur_match_update:
+               forall cd mu st1 m1 st2 m2,
+                 concur_match cd mu st1 m1 st2 m2 ->
+                 forall i (cnt1:containsThread st1 i)(cnt2:containsThread st2 i)
+                   code1 perm1 code2 perm2,
+                   getThreadC cnt1 = Kblocked code1 ->
+                   getThreadR cnt1 = perm1 ->
+                   getThreadC cnt2 = Kblocked code2 ->
+                   getThreadR cnt2 = perm2 ->
+                   forall b b' ofs delt,
+                     mu b = Some (b', delt) -> 
+                     (* Stuff about the lock*)
+                     forall virtueThread1 virtueLP1 virtueThread2 virtueLP2,
+                       (*Stuff over virtues*)
+                       forall m1' m2',
+                   concur_match cd mu
+                                (updLockSet
+                                   (updThread cnt1 (Kresume code1 Vundef)
+                                   (computeMap_pair perm1 virtueThread1))
+                                   (b, unsigned ofs) virtueLP1) m1'
+                                (updLockSet
+                                   (updThread cnt2 (Kresume code2 Vundef)
+                                   (computeMap_pair perm2 virtueThread2))
+                                   (b', unsigned (add ofs (repr delt))) virtueLP2) m2'.
+             Admitted.
+             eapply concur_match_update.
+(*updLockSet
+    (updThread (contains12 CMatch cnt1) (Kresume (TState semC semC code2) Vundef)
+       (computeMap_pair (getThreadR (contains12 CMatch cnt1))
+          (virtueThread (inject_virtue m2 mu angel)))) (b', unsigned (add ofs (repr delt)))
+    (virtueLP (inject_virtue m2 mu angel)) = *)
+             -- (*concur_match*) eassumption.
+             -- (*getThreadC cnt1*) eassumption.
+             -- (*getThreadR cnt1*) reflexivity.
+             -- (*getThreadC cnt2*)
+               symmetry; eassumption.
+             -- (*getThreadR cnt2*)
+               reflexivity.
+             -- eassumption.
+                
            * eapply List.Forall2_app.
              -- eapply inject_incr_trace; eauto.     
              -- econstructor; try solve[constructor]; eauto.
-            * econstructor; eauto.
-              
-            
+           * econstructor; eauto.
+             
         (** *tid = hb*)
         - subst tid.
           
@@ -3129,7 +3598,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                                     (Clight.set_mem code1 m1) = Some (UNLOCK, Vptr b1 ofs :: nil)).
           { (* This follows from self simulation:
                    interferences, preserves at_external.
-             *) admit.
+             *)
+            
+            
+            admit.
           }
           assert (H: exists b2 delt2,
                      mu b1 = Some (b2, delt2) /\
@@ -3531,15 +4003,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                   replace Archi.ptr64 with false in comp_match by reflexivity. 
                   simpl in comp_match.
                   
-                  repeat f_equal.
-
                   assert (Hres: res = Vundef).
                   { unfold Events.external_call in *.
                     rewrite ReleaseExists in H5.
                     inversion H5. reflexivity.
                   }
                   subst res.
-
+                  (* Here *)
                   replace m2''' with m21'''. auto.
                   
                   (*  m21''' = m2''' *)
@@ -3599,7 +4069,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                           (or their restrictions to the cur)
                           release is deterministic and so the result follows. *)
                   }
-
                   (*  m21''' = m2''' *)
                   eapply mem_interference_determ; subst; try eassumption.
                   erewrite restr_proof_irr; eauto.
@@ -4047,19 +4516,21 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                                                            m2_restr).
           rewrite Hcode in mtch_compiled0.
           inv mtch_compiled0.
-
+          
           (* TODO: Add the precondition of H10 to the concur match.
              that means: assert all the preconditions for the current state,
              and also have the precondition for all future states that satisfy the hyps.
              
-             WAIT: Maybe not, I think you just need to instantiate it with the current values.
-             all the precontidions are refelxive.
+             WAIT: Maybe not, I think you just need to instantiate it with the 
+             current values. All the precontidions are refelxive.
 
            *)
           simpl in H10.
           inv Hafter_external.
+          erewrite (restr_proof_irr m1_restr) in H10.
           destruct ((Clight.after_external None code1 m')) eqn:Hafter_x1; inv H4.
-          specialize (H10 mu s (restrPermMap m1_restr) (restrPermMap m2_restr) nil nil
+          rewrite Hperm in Hafter_x1.
+          specialize (H10 mu s (restrPermMap _) (restrPermMap m2_restr) nil nil
                           ltac:(constructor)
                           ltac:(constructor)
                           ltac:(constructor)
