@@ -251,7 +251,7 @@ Proof.
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
     rewrite selflock_eq at 2; cancel.
-    rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | cancel]. }
+    (*rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | cancel].*) }
   forward.
 Qed.
 
@@ -274,7 +274,7 @@ Proof.
   start_function.
   fold N.
   forward_call (N, gv).
-  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
+  (*{ rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }*)
   { unfold N; omega. }
   Intros lg.
   (* need to split off shares for the locks here *)
@@ -298,7 +298,7 @@ Proof.
     apply derives_refl. }
   { (* first loop *)
     forward.
-    replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).
+    (*replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).*)
     rewrite data_at__tarray.
     destruct (Z.to_nat (N - i)) eqn: Hi.
     { rewrite Z2Nat.inj_sub, Nat.sub_0_le in Hi by omega.
@@ -362,10 +362,10 @@ Proof.
   { unfold N; computable. }
   { rewrite !sublist_nil; Exists shx; entailer!.
     { constructor. }
-    rewrite !data_at__eq, !data_at_zero_array_eq; auto. }
+    rewrite !data_at__eq, !data_at_zero_array_eq; auto. simpl; cancel. }
   { (* second loop *)
     forward.
-    replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).
+    (*replace (force_val _) with (thread_lock i) by (simpl; rewrite sem_add_pi_ptr_special; auto).*)
     Opaque upto.
     rewrite sublist_next with (i0 := i) by (auto; rewrite Zlength_upto, Z2Nat.id; omega); simpl.
     rewrite Znth_upto by (simpl; unfold N in *; omega).
@@ -431,7 +431,13 @@ Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
 prove_semax_prog.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+do 7 semax_func_cons_ext.
+semax_func_cons body_init_ctr.
+semax_func_cons body_dest_ctr.
+semax_func_cons body_incr.
+semax_func_cons body_thread_func.
+semax_func_cons body_main.
+(*   repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 semax_func_cons_ext.
 semax_func_cons_ext.
@@ -443,5 +449,5 @@ semax_func_cons body_init_ctr.
 semax_func_cons body_dest_ctr.
 semax_func_cons body_incr.
 semax_func_cons body_thread_func.
-semax_func_cons body_main.
+semax_func_cons body_main.*)
 Qed.

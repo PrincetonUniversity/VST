@@ -181,16 +181,9 @@ Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
 prove_semax_prog.
-repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity | ]).
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
+do 7 semax_func_cons_ext.
 semax_func_cons body_incr.
 semax_func_cons body_read.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
-Admitted. (*Proof complete, but Qed does not terminate*)
+Qed. 

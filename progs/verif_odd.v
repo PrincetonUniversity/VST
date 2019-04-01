@@ -31,7 +31,7 @@ Existing Instance Espec.
 (* Can't prove   prog_correct: semax_prog prog Vprog Gprog
   because there is no _main function, so prove all_funcs_correct instead. *)
 Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+  semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) Gprog.
 Proof.
 semax_func_cons_ext.
 semax_func_cons body_odd.

@@ -143,7 +143,7 @@ Proof.
   forward.
   ghost_alloc (fun g => ghost_both g Tsh O O).
   { split; auto.
-    apply self_completable. }
+    apply (@self_completable sum_ghost). }
   Intros g.
   forward_call (gv _ctr_lock, Ews, cptr_lock_inv g (gv _ctr)).
   forward_call (gv _ctr_lock, Ews, cptr_lock_inv g (gv _ctr)).
@@ -234,7 +234,7 @@ Proof.
   start_function.
   fold N.
   forward_call gv.
-  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
+  (*{ rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }*)
   Intros g.
   (* need to split off shares for the locks and ghost here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
@@ -333,7 +333,7 @@ Proof.
   { unfold N; computable. }
   { rewrite !sublist_nil; Exists shx gshx; entailer!.
     { split; constructor. }
-    rewrite !data_at__eq, !data_at_zero_array_eq; auto. }
+    rewrite !data_at__eq, !data_at_zero_array_eq; auto. simpl; cancel. }
   { (* second loop *)
     forward.
     replace (force_val _) with (thread_lock i)
@@ -407,17 +407,11 @@ Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
 prove_semax_prog.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
+do 7 semax_func_cons_ext.
 semax_func_cons body_init_ctr.
 semax_func_cons body_dest_ctr.
 semax_func_cons body_incr.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
 Qed.
+
