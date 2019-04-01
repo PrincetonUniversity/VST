@@ -269,7 +269,7 @@ Ltac solve_pair:=
      These must be defined as
      Hint Unfold _ : pair.
    *)
-  autounfold with pair;
+  repeat autounfold with pair;
   (* Unfold all superfluous definitions,
      leaving pair_prop
    *)
