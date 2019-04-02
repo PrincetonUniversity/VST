@@ -156,6 +156,7 @@ Definition semax_func_subsumption := semax_func_subsumption.
 Definition semax_func_join  := semax_func_join.
 Definition semax_func_firstn := semax_func_firstn.
 Definition semax_func_skipn := semax_func_skipn.
+Definition semax_body_subsumption:= semax_body_subsumption. 
 
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.

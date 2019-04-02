@@ -2477,6 +2477,17 @@ Qed.
 Lemma semax_func_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) V H ge funs G:
 @semax_func V H CS ge funs G -> @semax_func V H CS' ge funs G.
 Proof. apply semax_func_mono; [ apply CSUB | | ]; intros ?; apply sub_option_refl. Qed. 
+
+Lemma semax_body_subsumption cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  @semax_body V' F' cs f spec.
+Proof.
+  intros.
+  destruct spec. destruct f0; hnf; intros. intros n. 
+  eapply semax_mono.  apply TS. apply (SF Espec0 ts x n).
+Qed. 
+  
 (*
 Lemma semax_func_loeb V G C (prog:program):
 @semax_func V G C (Genv.globalenv prog) (prog_funct prog) G ->

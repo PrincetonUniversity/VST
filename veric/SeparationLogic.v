@@ -1209,6 +1209,11 @@ Axiom semax_func_skipn:
   forall {Espec cs ge H V funs G} (HV:list_norepet (map fst funs))
          (SF: @semax_func Espec V H cs ge funs G) n,
     @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
+
+Axiom semax_body_subsumption: forall cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
+  @semax_body V' F' cs f spec.
   
 (* THESE RULES FROM semax_loop *)
 
