@@ -43,7 +43,7 @@ Context { prec_gt_0_ : Prec_gt_0 }.
 (* unbounded floating-point format *)
 Definition FLX_format (x : R) :=
   exists f : float beta,
-  x = F2R f /\ (Zabs (Fnum f) < Zpower beta prec)%Z.
+  x = F2R f /\ (Z.abs (Fnum f) < Zpower beta prec)%Z.
 
 Definition FLX_exp (e : Z) := (e - prec)%Z.
 
@@ -135,14 +135,14 @@ apply FLX_format_generic.
 apply generic_format_FIX in Fx.
 revert Fx.
 apply generic_inclusion with (e := e)...
-apply Zle_refl.
+apply Z.le_refl.
 Qed.
 
 (** unbounded floating-point format with normal mantissas *)
 Definition FLXN_format (x : R) :=
   exists f : float beta,
   x = F2R f /\ (x <> R0 ->
-  Zpower beta (prec - 1) <= Zabs (Fnum f) < Zpower beta prec)%Z.
+  Zpower beta (prec - 1) <= Z.abs (Fnum f) < Zpower beta prec)%Z.
 
 Theorem generic_format_FLXN :
   forall x, FLXN_format x -> generic_format beta FLX_exp x.

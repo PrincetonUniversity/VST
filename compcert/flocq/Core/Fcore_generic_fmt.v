@@ -53,7 +53,7 @@ Proof.
 intros k l Hk H.
 apply Znot_ge_lt.
 intros Hl.
-apply Zge_le in Hl.
+apply Z.ge_le in Hl.
 assert (H' := proj2 (proj2 (valid_exp l) Hl) k).
 omega.
 Qed.
@@ -66,8 +66,8 @@ Proof.
 intros k l Hk H.
 apply Znot_ge_lt.
 intros H'.
-apply Zge_le in H'.
-assert (Hl := Zle_trans _ _ _ H H').
+apply Z.ge_le in H'.
+assert (Hl := Z.le_trans _ _ _ H H').
 apply valid_exp in Hl.
 assert (H1 := proj2 Hl k H').
 omega.
@@ -140,7 +140,7 @@ now apply valid_exp_.
 rewrite <- H.
 apply valid_exp.
 rewrite H.
-apply Zle_refl.
+apply Z.le_refl.
 Qed.
 
 Theorem generic_format_F2R :
@@ -149,7 +149,7 @@ Theorem generic_format_F2R :
   generic_format (F2R (Float beta m e)).
 Proof.
 intros m e.
-destruct (Z_eq_dec m 0) as [Zm|Zm].
+destruct (Z.eq_dec m 0) as [Zm|Zm].
 intros _.
 rewrite Zm, F2R_0.
 apply generic_format_0.
@@ -194,7 +194,7 @@ Qed.
 Theorem canonic_abs :
   forall m e,
   canonic (Float beta m e) ->
-  canonic (Float beta (Zabs m) e).
+  canonic (Float beta (Z.abs m) e).
 Proof.
 intros m e H.
 unfold canonic.
@@ -379,7 +379,7 @@ simpl.
 specialize (Ex' Zx).
 apply (mantissa_small_pos _ _ Ex').
 assert (ex' <= fexp ex)%Z.
-apply Zle_trans with (2 := He).
+apply Z.le_trans with (2 := He).
 apply bpow_lt_bpow with beta.
 now apply Rle_lt_trans with (2 := Ex).
 now rewrite (proj2 (proj2 (valid_exp _) He)).
@@ -397,7 +397,7 @@ apply Rlt_le_trans with (1 := bpow_ln_beta_gt beta _).
 apply bpow_le.
 unfold scaled_mantissa.
 rewrite ln_beta_mult_bpow with (1 := Zx).
-apply Zle_refl.
+apply Z.le_refl.
 Qed.
 
 Theorem ln_beta_generic_gt :
@@ -411,13 +411,13 @@ unfold canonic_exp.
 destruct (ln_beta beta x) as (ex,Ex) ; simpl.
 specialize (Ex Zx).
 intros H.
-apply Zge_le in H.
+apply Z.ge_le in H.
 generalize (scaled_mantissa_small x ex (proj2 Ex) H).
 contradict Zx.
 rewrite Gx.
 replace (Ztrunc (scaled_mantissa x)) with Z0.
 apply F2R_0.
-cut (Zabs (Ztrunc (scaled_mantissa x)) < 1)%Z.
+cut (Z.abs (Ztrunc (scaled_mantissa x)) < 1)%Z.
 clear ; zify ; omega.
 apply lt_Z2R.
 rewrite Z2R_abs.
@@ -584,7 +584,7 @@ omega.
 intros H.
 rewrite <- H in Hx.
 rewrite Zfloor_Z2R, Zrnd_Z2R in Hx.
-apply Zlt_irrefl with (1 := Hx).
+apply Z.lt_irrefl with (1 := Hx).
 Qed.
 
 Theorem Zrnd_ZR_or_AW :
@@ -720,7 +720,7 @@ assert (Heq: fexp ex = fexp ey -> (round x <= round y)%R).
 destruct (Zle_or_lt ey (fexp ey)) as [Hy1|Hy1].
   apply Heq.
   apply valid_exp with (1 := Hy1).
-  now apply Zle_trans with ey.
+  now apply Z.le_trans with ey.
 destruct (Zle_lt_or_eq _ _ He) as [He'|He'].
 2: now apply Heq, f_equal.
 apply Rle_trans with (bpow (ey - 1)).
@@ -821,7 +821,7 @@ Section Zround_opp.
 Variable rnd : R -> Z.
 Context { valid_rnd : Valid_rnd rnd }.
 
-Definition Zrnd_opp x := Zopp (rnd (-x)).
+Definition Zrnd_opp x := Z.opp (rnd (-x)).
 
 Global Instance valid_rnd_opp : Valid_rnd Zrnd_opp.
 Proof with auto with typeclass_instances.
@@ -830,14 +830,14 @@ split.
 intros x y Hxy.
 unfold Zrnd_opp.
 apply Zopp_le_cancel.
-rewrite 2!Zopp_involutive.
+rewrite 2!Z.opp_involutive.
 apply Zrnd_le...
 now apply Ropp_le_contravar.
 (* *)
 intros n.
 unfold Zrnd_opp.
 rewrite <- Z2R_opp, Zrnd_Z2R...
-apply Zopp_involutive.
+apply Z.opp_involutive.
 Qed.
 
 Theorem round_opp :
@@ -849,7 +849,7 @@ unfold round.
 rewrite <- F2R_Zopp, canonic_exp_opp, scaled_mantissa_opp.
 apply F2R_eq_compat.
 apply sym_eq.
-exact (Zopp_involutive _).
+exact (Z.opp_involutive _).
 Qed.
 
 End Zround_opp.
@@ -1071,7 +1071,7 @@ unfold round.
 rewrite scaled_mantissa_opp.
 rewrite <- F2R_Zopp.
 unfold Zceil.
-rewrite Zopp_involutive.
+rewrite Z.opp_involutive.
 now rewrite canonic_exp_opp.
 Qed.
 
@@ -1418,7 +1418,7 @@ Theorem ln_beta_round :
   forall rnd {Hrnd : Valid_rnd rnd} x,
   (round rnd x <> 0)%R ->
   (ln_beta beta (round rnd x) = ln_beta beta x :> Z) \/
-  Rabs (round rnd x) = bpow (Zmax (ln_beta beta x) (fexp (ln_beta beta x))).
+  Rabs (round rnd x) = bpow (Z.max (ln_beta beta x) (fexp (ln_beta beta x))).
 Proof with auto with typeclass_instances.
 intros rnd Hrnd x.
 destruct (round_ZR_or_AW rnd x) as [Hr|Hr] ; rewrite Hr ; clear Hr rnd Hrnd.
@@ -1433,7 +1433,7 @@ rewrite <- ln_beta_abs.
 rewrite <- round_AW_abs.
 destruct (Zle_or_lt ex (fexp ex)) as [He|He].
 right.
-rewrite Zmax_r with (1 := He).
+rewrite Z.max_r with (1 := He).
 rewrite round_AW_pos with (1 := Rabs_pos _).
 now apply round_UP_small_pos.
 destruct (round_bounded_large_pos Zaway _ ex He Ex) as (H1,[H2|H2]).
@@ -1442,7 +1442,7 @@ apply ln_beta_unique.
 rewrite <- round_AW_abs, Rabs_Rabsolu.
 now split.
 right.
-now rewrite Zmax_l with (1 := Zlt_le_weak _ _ He).
+now rewrite Z.max_l with (1 := Zlt_le_weak _ _ He).
 Qed.
 
 Theorem ln_beta_DN :
@@ -1584,7 +1584,7 @@ Proof with auto with typeclass_instances.
 intros x.
 destruct (round_ZR_or_AW rnd x) as [H|H] ; rewrite H ; clear H ; intros Zr.
 rewrite ln_beta_round_ZR with (1 := Zr).
-apply Zle_refl.
+apply Z.le_refl.
 apply ln_beta_le_abs.
 contradict Zr.
 rewrite Zr.
@@ -1640,7 +1640,7 @@ Theorem Znearest_ge_floor :
 Proof.
 intros x.
 destruct (Znearest_DN_or_UP x) as [Hx|Hx] ; rewrite Hx.
-apply Zle_refl.
+apply Z.le_refl.
 apply le_Z2R.
 apply Rle_trans with x.
 apply Zfloor_lb.
@@ -1657,7 +1657,7 @@ apply le_Z2R.
 apply Rle_trans with x.
 apply Zfloor_lb.
 apply Zceil_ub.
-apply Zle_refl.
+apply Z.le_refl.
 Qed.
 
 Global Instance valid_rnd_N : Valid_rnd Znearest.
@@ -1666,8 +1666,8 @@ split.
 (* *)
 intros x y Hxy.
 destruct (Rle_or_lt (Z2R (Zceil x)) y) as [H|H].
-apply Zle_trans with (1 := Znearest_le_ceil x).
-apply Zle_trans with (2 := Znearest_ge_floor y).
+apply Z.le_trans with (1 := Znearest_le_ceil x).
+apply Z.le_trans with (2 := Znearest_ge_floor y).
 now apply Zfloor_lub.
 (* . *)
 assert (Hf: Zfloor y = Zfloor x).
@@ -1696,14 +1696,14 @@ elim Rlt_not_le with (1 := Hy).
 rewrite <- Hx.
 now apply Rplus_le_compat_r.
 replace y with x.
-apply Zle_refl.
+apply Z.le_refl.
 apply Rplus_eq_reg_l with (- Z2R (Zfloor x))%R.
 rewrite 2!(Rplus_comm (- (Z2R (Zfloor x)))).
 change (x - Z2R (Zfloor x) = y - Z2R (Zfloor x))%R.
 now rewrite Hy.
-apply Zle_trans with (Zceil x).
+apply Z.le_trans with (Zceil x).
 case choice.
-apply Zle_refl.
+apply Z.le_refl.
 apply le_Z2R.
 apply Rle_trans with x.
 apply Zfloor_lb.
@@ -1859,7 +1859,7 @@ Theorem Znearest_imp :
   Znearest x = n.
 Proof.
 intros x n Hd.
-cut (Zabs (Znearest x - n) < 1)%Z.
+cut (Z.abs (Znearest x - n) < 1)%Z.
 clear ; zify ; omega.
 apply lt_Z2R.
 rewrite Z2R_abs, Z2R_minus.
@@ -2090,10 +2090,10 @@ rewrite <- Zceil_floor_neq with (1 := Hx).
 unfold Zceil.
 rewrite Ropp_involutive.
 case Rcompare ; simpl ; trivial.
-rewrite Zopp_involutive.
+rewrite Z.opp_involutive.
 case (choice (Zfloor (- x))) ; simpl ; trivial.
-now rewrite Zopp_involutive.
-now rewrite Zopp_involutive.
+now rewrite Z.opp_involutive.
+now rewrite Z.opp_involutive.
 unfold Zceil.
 rewrite Z2R_opp.
 apply Rplus_comm.
@@ -2174,7 +2174,7 @@ intros Fx.
 apply generic_format_abs_inv.
 rewrite Hx2.
 apply generic_format_bpow'...
-apply Zle_trans with (1 := He).
+apply Z.le_trans with (1 := He).
 apply generic_format_bpow_inv...
 rewrite <- Hx2.
 now apply generic_format_abs.
@@ -2202,7 +2202,7 @@ apply generic_inclusion with (e := e2).
 apply He.
 split.
 apply He'.
-apply Zle_refl.
+apply Z.le_refl.
 rewrite Hx2.
 split.
 apply bpow_le.
@@ -2225,7 +2225,7 @@ apply He.
 now apply ln_beta_le_bpow.
 apply generic_inclusion with (e := e2).
 apply He.
-apply Zle_refl.
+apply Z.le_refl.
 rewrite Hx.
 split.
 apply bpow_le.

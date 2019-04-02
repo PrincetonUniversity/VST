@@ -391,7 +391,7 @@ End Fprop_relative_generic.
 Section Fprop_relative_FLT.
 
 Variable emin prec : Z.
-Variable Hp : Zlt 0 prec.
+Variable Hp : Z.lt 0 prec.
 
 Lemma relative_error_FLT_aux :
   forall k, (emin + prec - 1 < k)%Z -> (prec <= k - FLT_exp emin prec k)%Z.
@@ -662,7 +662,7 @@ Qed.
 Section Fprop_relative_FLX.
 
 Variable prec : Z.
-Variable Hp : Zlt 0 prec.
+Variable Hp : Z.lt 0 prec.
 
 Lemma relative_error_FLX_aux :
   forall k, (prec <= k - FLX_exp prec k)%Z.

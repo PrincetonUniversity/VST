@@ -54,7 +54,7 @@ Qed.
 
 Theorem Falign_spec_exp:
   forall f1 f2 : float beta,
-  snd (Falign f1 f2) = Zmin (Fexp f1) (Fexp f2).
+  snd (Falign f1 f2) = Z.min (Fexp f1) (Fexp f2).
 Proof.
 intros (m1,e1) (m2,e2).
 unfold Falign; simpl.
@@ -76,7 +76,7 @@ Qed.
 
 Definition Fabs (f1 : float beta) : float beta :=
   let '(Float m1 e1) := f1 in
-  Float (Zabs m1)%Z e1.
+  Float (Z.abs m1)%Z e1.
 
 Theorem F2R_abs :
   forall f1 : float beta,
@@ -116,7 +116,7 @@ Qed.
 
 Theorem Fexp_Fplus :
   forall f1 f2 : float beta,
-  Fexp (Fplus f1 f2) = Zmin (Fexp f1) (Fexp f2).
+  Fexp (Fplus f1 f2) = Z.min (Fexp f1) (Fexp f2).
 Proof.
 intros f1 f2.
 unfold Fplus.

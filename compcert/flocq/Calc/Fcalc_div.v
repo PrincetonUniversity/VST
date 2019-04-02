@@ -52,7 +52,7 @@ Definition Fdiv_core prec m1 e1 m2 e2 :=
     | Zpos p => (m1 * Zpower_pos beta p, e + Zneg p)%Z
     | _ => (m1, e)
     end in
-  let '(q, r) :=  Zdiv_eucl m m2 in
+  let '(q, r) :=  Z.div_eucl m m2 in
   (q, e', new_location m2 r loc_Exact).
 
 Theorem Fdiv_core_correct :
@@ -82,7 +82,7 @@ destruct (d2 + prec - d1)%Z as [|p|p] ;
 ring_simplify (e1 - e2 + e2)%Z.
 repeat split.
 now rewrite <- H0.
-apply Zle_refl.
+apply Z.le_refl.
 replace (e1 - e2 + Zneg p + e2)%Z with (e1 - Zpos p)%Z by (unfold Zminus ; simpl ; ring).
 fold (Zpower beta (Zpos p)).
 split.
@@ -97,7 +97,7 @@ exact Hm1.
 now apply Zpower_gt_0.
 rewrite Zdigits_mult_Zpower.
 rewrite Zplus_comm.
-apply Zle_refl.
+apply Z.le_refl.
 apply sym_not_eq.
 now apply Zlt_not_eq.
 easy.
@@ -108,8 +108,8 @@ omega.
 (* . *)
 destruct Hs as (Hs1, (Hs2, Hs3)).
 rewrite <- Hs1.
-generalize (Z_div_mod m' m2 (Zlt_gt _ _ Hm2)).
-destruct (Zdiv_eucl m' m2) as (q, r).
+generalize (Z_div_mod m' m2 (Z.lt_gt _ _ Hm2)).
+destruct (Z.div_eucl m' m2) as (q, r).
 intros (Hq, Hr).
 split.
 (* . the result mantissa q has enough digits *)
@@ -126,13 +126,13 @@ clear -Hprec Hs3 ; omega.
 cut (q * m2 = m' - r)%Z. clear -Hr H ; omega.
 rewrite Hq.
 ring.
-apply Zle_trans with (Zdigits beta (m2 + q + m2 * q)).
+apply Z.le_trans with (Zdigits beta (m2 + q + m2 * q)).
 apply Zdigits_le.
 rewrite <- Hq.
 now apply Zlt_le_weak.
 clear -Hr Hq'. omega.
 apply Zdigits_mult_strong ; apply Zlt_le_weak.
-now apply Zle_lt_trans with r.
+now apply Z.le_lt_trans with r.
 exact Hq'.
 (* . the location is correctly computed *)
 unfold inbetween_float, F2R. simpl.

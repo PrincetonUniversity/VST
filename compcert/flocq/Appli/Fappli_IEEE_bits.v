@@ -79,7 +79,7 @@ split.
   clear -He ; omega.
   now rewrite Zmult_0_l.
   clear -Hm ; omega.
-- apply Zlt_le_trans with (((if s then 2 ^ ew else 0) + e + 1) * 2 ^ mw)%Z.
+- apply Z.lt_le_trans with (((if s then 2 ^ ew else 0) + e + 1) * 2 ^ mw)%Z.
   rewrite (Zmult_plus_distr_l _ 1).
   apply Zplus_lt_compat_l.
   now rewrite Zmult_1_l.
@@ -98,7 +98,7 @@ Qed.
 Definition split_bits x :=
   let mm := Zpower 2 mw in
   let em := Zpower 2 ew in
-  (Zle_bool (mm * em) x, Zmod x mm, Zmod (Zdiv x mm) em)%Z.
+  (Zle_bool (mm * em) x, Zmod x mm, Zmod (Z.div x mm) em)%Z.
 
 Theorem split_join_bits :
   forall s m e,
@@ -125,7 +125,7 @@ apply Zle_bool_false.
 apply Zplus_lt_reg_l with (2^mw * (-e))%Z.
 replace (2 ^ mw * - e + ((0 + e) * 2 ^ mw + m))%Z with (m * 1)%Z by ring.
 rewrite <- Zmult_plus_distr_r.
-apply Zlt_le_trans with (2^mw * 1)%Z.
+apply Z.lt_le_trans with (2^mw * 1)%Z.
 now apply Zmult_lt_compat_r.
 apply Zmult_le_compat_l.
 clear -He. omega.
@@ -173,12 +173,12 @@ cut (x / (2^mw * 2^ew) < 2)%Z. clear ; omega.
 apply Zdiv_lt_upper_bound.
 try apply Hx. (* 8.2/8.3 compatibility *)
 now apply Zmult_lt_0_compat.
-rewrite <- Zpower_exp ; try ( apply Zle_ge ; apply Zlt_le_weak ; assumption ).
+rewrite <- Zpower_exp ; try ( apply Z.le_ge ; apply Zlt_le_weak ; assumption ).
 change 2%Z at 1 with (Zpower 2 1).
 rewrite <- Zpower_exp.
 now rewrite Zplus_comm.
 discriminate.
-apply Zle_ge.
+apply Z.le_ge.
 now apply Zplus_le_0_compat ; apply Zlt_le_weak.
 apply Zdiv_le_lower_bound.
 try apply Hx. (* 8.2/8.3 compatibility *)
@@ -245,7 +245,7 @@ simpl. apply split_join_bits; split; try (zify; omega).
 destruct (digits2_Pnat_correct plx).
 rewrite Zpos_digits2_pos, <- Z_of_nat_S_digits2_Pnat in Hplx.
 rewrite Zpower_nat_Z in H0.
-eapply Zlt_le_trans. apply H0.
+eapply Z.lt_le_trans. apply H0.
 change 2%Z with (radix_val radix2). apply Zpower_le.
 rewrite Z.ltb_lt in Hplx.
 unfold prec in *. zify; omega.
@@ -271,7 +271,7 @@ apply (Zpower_gt_Zdigits radix2 _ (Zpos mx)).
 apply Hf.
 unfold prec.
 rewrite Zplus_comm.
-apply Zpower_exp ; apply Zle_ge.
+apply Zpower_exp ; apply Z.le_ge.
 discriminate.
 now apply Zlt_le_weak.
 (* *)
@@ -285,9 +285,9 @@ generalize (Zle_bool_imp_le _ _ Hx').
 clear ; omega.
 apply sym_eq.
 rewrite (Zsucc_pred ew).
-unfold Zsucc.
+unfold Z.succ.
 rewrite Zplus_comm.
-apply Zpower_exp ; apply Zle_ge.
+apply Zpower_exp ; apply Z.le_ge.
 discriminate.
 now apply Zlt_0_le_0_pred.
 Qed.
@@ -371,7 +371,7 @@ apply Zdigits_le_Zpower.
 simpl.
 rewrite <- Hm.
 eapply Z_mod_lt.
-now apply Zlt_gt.
+now apply Z.lt_gt.
 apply bounded_canonic_lt_emax ; try assumption.
 unfold canonic, canonic_exp.
 fold emin.
@@ -414,7 +414,7 @@ rewrite Zdigits_ln_beta. 2: discriminate.
 apply sym_eq.
 apply ln_beta_unique.
 rewrite <- Z2R_abs.
-unfold Zabs.
+unfold Z.abs.
 replace (prec - 1)%Z with mw by ( unfold prec ; ring ).
 rewrite <- Z2R_Zpower with (1 := Zlt_le_weak _ _ Hmw).
 rewrite <- Z2R_Zpower. 2: now apply Zlt_le_weak.
@@ -424,14 +424,14 @@ apply Z2R_le.
 change (radix2^mw)%Z with (0 + 2^mw)%Z.
 apply Zplus_le_compat_r.
 eapply Z_mod_lt.
-now apply Zlt_gt.
+now apply Z.lt_gt.
 apply Z2R_lt.
 unfold prec.
-rewrite Zpower_exp. 2: now apply Zle_ge ; apply Zlt_le_weak. 2: discriminate.
+rewrite Zpower_exp. 2: now apply Z.le_ge ; apply Zlt_le_weak. 2: discriminate.
 rewrite <- Zplus_diag_eq_mult_2.
 apply Zplus_lt_compat_r.
 eapply Z_mod_lt.
-now apply Zlt_gt.
+now apply Z.lt_gt.
 (* . *)
 apply bounded_canonic_lt_emax ; try assumption.
 unfold canonic, canonic_exp.
@@ -448,7 +448,7 @@ cut (0 <= ex)%Z.
 unfold emin.
 clear ; intros H1 H2 ; omega.
 eapply Z_mod_lt.
-apply Zlt_gt.
+apply Z.lt_gt.
 apply (Zpower_gt_0 radix2).
 now apply Zlt_le_weak.
 apply Rnot_le_lt.
@@ -472,7 +472,7 @@ apply refl_equal.
 discriminate.
 clear -Hew ; omega.
 eapply Z_mod_lt.
-apply Zlt_gt.
+apply Z.lt_gt.
 apply (Zpower_gt_0 radix2).
 now apply Zlt_le_weak.
 apply bpow_gt_0.
@@ -563,7 +563,7 @@ intros (sx, mx) ex Sx.
 assert (Bm: (0 <= mx < 2^mw)%Z).
 inversion_clear Sx.
 apply Z_mod_lt.
-now apply Zlt_gt.
+now apply Z.lt_gt.
 case Zeq_bool_spec ; intros He1.
 (* subnormal *)
 case_eq mx.

@@ -50,7 +50,7 @@ Complexity is fine as long as p1 <= 2p-1.
 
 Definition Fsqrt_core prec m e :=
   let d := Zdigits beta m in
-  let s := Zmax (2 * prec - d) 0 in
+  let s := Z.max (2 * prec - d) 0 in
   let e' := (e - s)%Z in
   let (s', e'') := if Zeven e' then (s, e') else (s + 1, e' - 1)%Z in
   let m' :=
@@ -62,7 +62,7 @@ Definition Fsqrt_core prec m e :=
   let l :=
     if Zeq_bool r 0 then loc_Exact
     else loc_Inexact (if Zle_bool r q then Lt else Gt) in
-  (q, Zdiv2 e'', l).
+  (q, Z.div2 e'', l).
 
 Theorem Fsqrt_core_correct :
   forall prec m e,
@@ -74,7 +74,7 @@ Proof.
 intros prec m e Hm.
 unfold Fsqrt_core.
 set (d := Zdigits beta m).
-set (s := Zmax (2 * prec - d) 0).
+set (s := Z.max (2 * prec - d) 0).
 (* . exponent *)
 case_eq (if Zeven (e - s) then (s, (e - s)%Z) else ((s + 1)%Z, (e - s - 1)%Z)).
 intros s' e' Hse.
@@ -84,19 +84,19 @@ case_eq (Zeven (e - s)) ; intros He Hse ; inversion Hse.
 repeat split.
 exact He.
 unfold s.
-apply Zle_max_r.
-apply Zle_max_l.
+apply Z.le_max_r.
+apply Z.le_max_l.
 ring.
-assert (H: (Zmax (2 * prec - d) 0 <= s + 1)%Z).
+assert (H: (Z.max (2 * prec - d) 0 <= s + 1)%Z).
 fold s.
 apply Zle_succ.
 repeat split.
 unfold Zminus at 1.
 now rewrite Zeven_plus, He.
-apply Zle_trans with (2 := H).
-apply Zle_max_r.
-apply Zle_trans with (2 := H).
-apply Zle_max_l.
+apply Z.le_trans with (2 := H).
+apply Z.le_max_r.
+apply Z.le_trans with (2 := H).
+apply Z.le_max_l.
 ring.
 clear -Hm He.
 destruct He as (He1, (He2, (He3, He4))).
@@ -143,9 +143,9 @@ split.
 apply Zmult_le_reg_r with 2%Z.
 easy.
 rewrite Zmult_comm.
-apply Zle_trans with (1 := Hs2).
+apply Z.le_trans with (1 := Hs2).
 rewrite Hq.
-apply Zle_trans with (Zdigits beta (q + q + q * q)).
+apply Z.le_trans with (Zdigits beta (q + q + q * q)).
 apply Zdigits_le.
 rewrite <- Hq.
 now apply Zlt_le_weak.
@@ -162,7 +162,7 @@ rewrite sqrt_mult.
 destruct (Zeven_ex e') as (e2, Hev).
 rewrite He1, Zplus_0_r in Hev. clear He1.
 rewrite Hev.
-replace (Zdiv2 (2 * e2)) with e2 by now case e2.
+replace (Z.div2 (2 * e2)) with e2 by now case e2.
 replace (2 * e2)%Z with (e2 + e2)%Z by ring.
 rewrite bpow_plus.
 fold (Rsqr (bpow e2)).

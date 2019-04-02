@@ -496,13 +496,13 @@ Definition Bcompare (f1 f2 : binary_float) : option comparison :=
     | true, false => Some Lt
     | false, true => Some Gt
     | false, false =>
-      match Zcompare e1 e2 with
+      match Z.compare e1 e2 with
       | Lt => Some Lt
       | Gt => Some Gt
       | Eq => Some (Pcompare m1 m2 Eq)
       end
     | true, true =>
-      match Zcompare e1 e2 with
+      match Z.compare e1 e2 with
       | Lt => Some Gt
       | Gt => Some Lt
       | Eq => Some (CompOpp (Pcompare m1 m2 Eq))
@@ -586,7 +586,7 @@ destruct (ln_beta radix2 (F2R (Float radix2 (Zpos mx) ex))) as (e',Ex).
 unfold ln_beta_val.
 intros H.
 apply Rlt_le_trans with (bpow radix2 e').
-change (Zpos mx) with (Zabs (Zpos mx)).
+change (Zpos mx) with (Z.abs (Zpos mx)).
 rewrite F2R_Zabs.
 apply Ex.
 apply Rgt_not_eq.
@@ -631,11 +631,11 @@ unfold canonic, Fexp in Cx.
 rewrite Cx.
 unfold canonic_exp, fexp, FLT_exp.
 destruct (ln_beta radix2 (F2R (Float radix2 (Zpos mx) ex))) as (e',Ex). simpl.
-apply Zmax_lub.
+apply Z.max_lub.
 cut (e' - 1 < emax)%Z. clear ; omega.
 apply lt_bpow with radix2.
 apply Rle_lt_trans with (2 := Bx).
-change (Zpos mx) with (Zabs (Zpos mx)).
+change (Zpos mx) with (Z.abs (Zpos mx)).
 rewrite F2R_Zabs.
 apply Ex.
 apply Rgt_not_eq.
@@ -753,7 +753,7 @@ rewrite Zplus_0_r.
 now destruct l as [|[| |]].
 rewrite iter_nat_S.
 rewrite inj_S.
-unfold Zsucc.
+unfold Z.succ.
 rewrite Zplus_assoc.
 revert IHn0.
 apply inbetween_shr_1.
@@ -902,17 +902,17 @@ assert (Hm: (m1 <= m1')%Z).
 (* . *)
 unfold m1', choice_mode, cond_incr.
 case m ;
-  try apply Zle_refl ;
+  try apply Z.le_refl ;
   match goal with |- (m1 <= if ?b then _ else _)%Z =>
-    case b ; [ apply Zle_succ | apply Zle_refl ] end.
+    case b ; [ apply Zle_succ | apply Z.le_refl ] end.
 assert (Hr: Rabs (round radix2 fexp (round_mode m) x) = F2R (Float radix2 m1' e1)).
 (* . *)
-rewrite <- (Zabs_eq m1').
-replace (Zabs m1') with (Zabs (cond_Zopp (Rlt_bool x 0) m1')).
+rewrite <- (Z.abs_eq m1').
+replace (Z.abs m1') with (Z.abs (cond_Zopp (Rlt_bool x 0) m1')).
 rewrite F2R_Zabs.
 now apply f_equal.
 apply abs_cond_Zopp.
-apply Zle_trans with (2 := Hm).
+apply Z.le_trans with (2 := Hm).
 apply Zlt_succ_le.
 apply F2R_gt_0_reg with radix2 e1.
 apply Rle_lt_trans with (1 := Rabs_pos x).
@@ -922,7 +922,7 @@ assert (Br: inbetween_float radix2 m1' e1 (Rabs (round radix2 fexp (round_mode m
 now apply inbetween_Exact.
 destruct m1' as [|m1'|m1'].
 (* . m1' = 0 *)
-rewrite shr_truncate. 2: apply Zle_refl.
+rewrite shr_truncate. 2: apply Z.le_refl.
 generalize (truncate_0 radix2 fexp e1 loc_Exact).
 destruct (truncate radix2 fexp (Z0, e1, loc_Exact)) as ((m2, e2), l2).
 rewrite shr_m_shr_record_of_loc.
@@ -962,7 +962,7 @@ elim Rgt_not_eq with (2 := H3).
 rewrite F2R_0.
 now apply F2R_gt_0_compat.
 rewrite F2R_cond_Zopp, H3, abs_cond_Ropp, <- F2R_abs.
-simpl Zabs.
+simpl Z.abs.
 case_eq (Zle_bool e2 (emax - prec)) ; intros He2.
 assert (bounded m2 e2 = true).
 apply andb_true_intro.
@@ -1003,7 +1003,7 @@ intros p Hp.
 apply Zle_antisym.
 cut (prec - 1 < Zdigits radix2 (Zpos p))%Z. clear ; omega.
 apply Zdigits_gt_Zpower.
-simpl Zabs. rewrite <- Hp.
+simpl Z.abs. rewrite <- Hp.
 cut (Zpower radix2 (prec - 1) < Zpower radix2 prec)%Z. clear ; omega.
 apply lt_Z2R.
 rewrite 2!Z2R_Zpower. 2: now apply Zlt_le_weak.
@@ -1011,7 +1011,7 @@ apply bpow_lt.
 apply Zlt_pred.
 now apply Zlt_0_le_0_pred.
 apply Zdigits_le_Zpower.
-simpl Zabs. rewrite <- Hp.
+simpl Z.abs. rewrite <- Hp.
 apply Zlt_pred.
 intros p Hp.
 generalize (Zpower_gt_1 radix2 _ (prec_gt_0 prec)).
@@ -1199,7 +1199,7 @@ case_eq (ex' - ex)%Z.
 intros H.
 repeat split.
 rewrite Zminus_eq with (1 := H).
-apply Zle_refl.
+apply Z.le_refl.
 (* d > 0 *)
 intros d Hd.
 repeat split.
@@ -1211,7 +1211,7 @@ now apply Zplus_le_compat_r.
 intros d Hd.
 rewrite shift_pos_correct, Zmult_comm.
 change (Zpower_pos 2 d) with (Zpower radix2 (Zpos d)).
-change (Zpos d) with (Zopp (Zneg d)).
+change (Zpos d) with (Z.opp (Zneg d)).
 rewrite <- Hd.
 split.
 replace (- (ex' - ex))%Z with (ex - ex')%Z by ring.
@@ -1219,7 +1219,7 @@ apply F2R_change_exp.
 apply Zle_0_minus_le.
 replace (ex - ex')%Z with (- (ex' - ex))%Z by ring.
 now rewrite Hd.
-apply Zle_refl.
+apply Z.le_refl.
 Qed.
 
 Theorem snd_shl_align :
@@ -1378,7 +1378,7 @@ Definition Bplus plus_nan m x y :=
   | B754_zero _, _ => y
   | _, B754_zero _ => x
   | B754_finite sx mx ex Hx, B754_finite sy my ey Hy =>
-    let ez := Zmin ex ey in
+    let ez := Z.min ex ey in
     binary_normalize m (Zplus (cond_Zopp sx (Zpos (fst (shl_align mx ex ez)))) (cond_Zopp sy (Zpos (fst (shl_align my ey ez)))))
       ez (match m with mode_DN => true | _ => false end)
   end.
@@ -1431,15 +1431,15 @@ apply generic_format_B2R.
 clear Fx Fy.
 simpl.
 set (szero := match m with mode_DN => true | _ => false end).
-set (ez := Zmin ex ey).
+set (ez := Z.min ex ey).
 set (mz := (cond_Zopp sx (Zpos (fst (shl_align mx ex ez))) + cond_Zopp sy (Zpos (fst (shl_align my ey ez))))%Z).
 assert (Hp: (F2R (Float radix2 (cond_Zopp sx (Zpos mx)) ex) +
   F2R (Float radix2 (cond_Zopp sy (Zpos my)) ey))%R = F2R (Float radix2 mz ez)).
 rewrite 2!F2R_cond_Zopp.
 generalize (shl_align_correct mx ex ez).
 generalize (shl_align_correct my ey ez).
-generalize (snd_shl_align mx ex ez (Zle_min_l ex ey)).
-generalize (snd_shl_align my ey ez (Zle_min_r ex ey)).
+generalize (snd_shl_align mx ex ez (Z.le_min_l ex ey)).
+generalize (snd_shl_align my ey ez (Z.le_min_r ex ey)).
 destruct (shl_align mx ex ez) as (mx', ex').
 destruct (shl_align my ey ez) as (my', ey').
 simpl.
@@ -1617,8 +1617,8 @@ replace (xorb sx sy) with (Rlt_bool (F2R (Float radix2 (cond_Zopp sx (Zpos mx)) 
 unfold Rdiv.
 destruct mz as [|mz|mz].
 (* . mz = 0 *)
-elim (Zlt_irrefl prec).
-now apply Zle_lt_trans with Z0.
+elim (Z.lt_irrefl prec).
+now apply Z.le_lt_trans with Z0.
 (* . mz > 0 *)
 apply binary_round_aux_correct.
 rewrite Rabs_mult, Rabs_Rinv.
@@ -1646,7 +1646,7 @@ apply Rinv_0_lt_compat.
 now apply F2R_gt_0_compat.
 (* *)
 case sy ; simpl.
-change (Zneg my) with (Zopp (Zpos my)).
+change (Zneg my) with (Z.opp (Zpos my)).
 rewrite F2R_Zopp.
 rewrite <- Ropp_inv_permute.
 rewrite Ropp_mult_distr_r_reverse.
@@ -1746,7 +1746,7 @@ Qed.
 
 Definition Fsqrt_core_binary m e :=
   let d := Zdigits2 m in
-  let s := Zmax (2 * prec - d) 0 in
+  let s := Z.max (2 * prec - d) 0 in
   let e' := (e - s)%Z in
   let (s', e'') := if Zeven e' then (s, e') else (s + 1, e' - 1)%Z in
   let m' :=
@@ -1758,7 +1758,7 @@ Definition Fsqrt_core_binary m e :=
   let l :=
     if Zeq_bool r 0 then loc_Exact
     else loc_Inexact (if Zle_bool r q then Lt else Gt) in
-  (q, Zdiv2 e'', l).
+  (q, Z.div2 e'', l).
 
 Lemma Bsqrt_correct_aux :
   forall m mx ex (Hx : bounded mx ex = true),
@@ -1781,8 +1781,8 @@ destruct (Fsqrt_core radix2 prec (Zpos mx) ex) as ((mz, ez), lz).
 intros (Pz, Bz).
 destruct mz as [|mz|mz].
 (* . mz = 0 *)
-elim (Zlt_irrefl prec).
-now apply Zle_lt_trans with Z0.
+elim (Z.lt_irrefl prec).
+now apply Z.le_lt_trans with Z0.
 (* . mz > 0 *)
 refine (_ (binary_round_aux_correct m (sqrt (F2R (Float radix2 (Zpos mx) ex))) mz ez lz _ _)).
 rewrite Rlt_bool_false. 2: apply sqrt_ge_0.
@@ -1845,7 +1845,7 @@ unfold emin.
 clear -Hmax ; omega.
 apply generic_format_ge_bpow with fexp.
 intros.
-apply Zle_max_r.
+apply Z.le_max_r.
 now apply F2R_gt_0_compat.
 apply generic_format_canonic.
 apply (canonic_canonic_mantissa false).

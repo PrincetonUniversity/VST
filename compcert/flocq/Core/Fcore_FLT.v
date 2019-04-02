@@ -41,9 +41,9 @@ Context { prec_gt_0_ : Prec_gt_0 prec }.
 (* floating-point format with gradual underflow *)
 Definition FLT_format (x : R) :=
   exists f : float beta,
-  x = F2R f /\ (Zabs (Fnum f) < Zpower beta prec)%Z /\ (emin <= Fexp f)%Z.
+  x = F2R f /\ (Z.abs (Fnum f) < Zpower beta prec)%Z /\ (emin <= Fexp f)%Z.
 
-Definition FLT_exp e := Zmax (e - prec) emin.
+Definition FLT_exp e := Z.max (e - prec) emin.
 
 (** Properties of the FLT format *)
 Global Instance FLT_exp_valid : Valid_exp FLT_exp.
@@ -66,7 +66,7 @@ apply generic_format_F2R.
 intros Zmx.
 unfold canonic_exp, FLT_exp.
 rewrite ln_beta_F2R with (1 := Zmx).
-apply Zmax_lub with (2 := H3).
+apply Z.max_lub with (2 := H3).
 apply Zplus_le_reg_r with (prec - ex)%Z.
 ring_simplify.
 now apply ln_beta_le_Zpower.
@@ -87,7 +87,7 @@ rewrite Z2R_Zpower. 2: now apply Zlt_le_weak.
 apply Rmult_lt_reg_r with (bpow ex).
 apply bpow_gt_0.
 rewrite <- bpow_plus.
-change (F2R (Float beta (Zabs mx) ex) < bpow (prec + ex))%R.
+change (F2R (Float beta (Z.abs mx) ex) < bpow (prec + ex))%R.
 rewrite F2R_Zabs.
 rewrite <- Hx.
 destruct (Req_dec x 0) as [Hx0|Hx0].
@@ -101,8 +101,8 @@ apply Rlt_le_trans with (1 := proj2 He).
 apply bpow_le.
 cut (ex' - prec <= ex)%Z. omega.
 unfold ex, FLT_exp.
-apply Zle_max_l.
-apply Zle_max_r.
+apply Z.le_max_l.
+apply Z.le_max_r.
 Qed.
 
 
@@ -174,7 +174,7 @@ apply generic_format_F2R.
 intros _.
 rewrite <- Hx.
 unfold canonic_exp, FLX_exp, FLT_exp.
-apply Zle_max_l.
+apply Z.le_max_l.
 Qed.
 
 Theorem round_FLT_FLX : forall rnd x,
@@ -214,7 +214,7 @@ rewrite Hx.
 apply generic_format_F2R.
 intros _.
 rewrite <- Hx.
-apply Zle_max_r.
+apply Z.le_max_r.
 Qed.
 
 Theorem generic_format_FLT_FIX :
@@ -226,9 +226,9 @@ Proof with auto with typeclass_instances.
 apply generic_inclusion_le...
 intros e He.
 unfold FIX_exp.
-apply Zmax_lub.
+apply Z.max_lub.
 omega.
-apply Zle_refl.
+apply Z.le_refl.
 Qed.
 
 Theorem ulp_FLT_small: forall x, (Rabs x < bpow (emin+prec))%R ->
@@ -240,7 +240,7 @@ unfold ulp; case Req_bool_spec; intros Hx2.
 case (negligible_exp_spec FLT_exp).
 intros T; specialize (T (emin-1)%Z); contradict T.
 apply Zle_not_lt; unfold FLT_exp.
-apply Zle_trans with (2:=Z.le_max_r _ _); omega.
+apply Z.le_trans with (2:=Z.le_max_r _ _); omega.
 assert (V:FLT_exp emin = emin).
 unfold FLT_exp; apply Z.max_r.
 unfold Prec_gt_0 in prec_gt_0_; omega.

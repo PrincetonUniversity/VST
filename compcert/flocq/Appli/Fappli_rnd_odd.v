@@ -41,16 +41,16 @@ split.
 intros x y Hxy.
 assert (Zfloor x <= Zrnd_odd y)%Z.
 (* .. *)
-apply Zle_trans with (Zfloor y).
+apply Z.le_trans with (Zfloor y).
 now apply Zfloor_le.
 unfold Zrnd_odd; destruct (Req_EM_T  y (Z2R (Zfloor y))).
-now apply Zle_refl.
+now apply Z.le_refl.
 case (Zeven (Zfloor y)).
 apply le_Z2R.
 apply Rle_trans with y.
 apply Zfloor_lb.
 apply Zceil_ub.
-now apply Zle_refl.
+now apply Z.le_refl.
 unfold Zrnd_odd at 1.
 (* . *)
 destruct (Req_EM_T  x (Z2R (Zfloor x))) as [Hx|Hx].
@@ -556,7 +556,7 @@ intros Y.
 apply generic_format_bpow.
 apply valid_exp.
 rewrite <- Fexp_d; trivial.
-apply Zlt_le_trans with  (ln_beta beta (F2R d))%Z.
+apply Z.lt_le_trans with  (ln_beta beta (F2R d))%Z.
 rewrite Cd; apply ln_beta_generic_gt...
 now apply Rgt_not_eq.
 apply Hd.
@@ -788,7 +788,7 @@ apply generic_format_F2R' with g.
 assumption.
 intros H; unfold canonic_exp; rewrite Hg2.
 rewrite ln_beta_m_0; try assumption.
-apply Zle_trans with (1:=fexpe_fexp _).
+apply Z.le_trans with (1:=fexpe_fexp _).
 assert (fexp (ln_beta beta (F2R u)-1) < fexp (ln_beta beta (F2R u))+1)%Z;[idtac|omega].
 now apply fexp_m_eq_0.
 Qed.
@@ -816,7 +816,7 @@ apply exists_even_fexp_lt.
 exists g; split; trivial.
 rewrite Hg2.
 rewrite ln_beta_m_0; trivial.
-apply Zle_lt_trans with (1:=fexpe_fexp _).
+apply Z.le_lt_trans with (1:=fexpe_fexp _).
 assert (fexp (ln_beta beta (F2R u)-1) < fexp (ln_beta beta (F2R u))+1)%Z;[idtac|omega].
 now apply fexp_m_eq_0.
 Qed.
@@ -903,7 +903,7 @@ destruct (exists_even_fexp_lt fexpe o) as (k',(Hk'1,(Hk'2,Hk'3))).
 eexists; split.
 apply sym_eq, Y.
 simpl; unfold canonic_exp.
-apply Zle_lt_trans with (1:=fexpe_fexp _).
+apply Z.le_lt_trans with (1:=fexpe_fexp _).
 omega.
 absurd (true=false).
 discriminate.

@@ -159,7 +159,7 @@ rewrite ulp_neq_0.
 unfold F2R; simpl.
 apply Rmult_le_compat_r.
 apply bpow_ge_0.
-apply (Z2R_le (Zsucc 0)).
+apply (Z2R_le (Z.succ 0)).
 apply Zlt_le_succ.
 apply F2R_gt_0_reg with beta (canonic_exp beta fexp x).
 now rewrite <- Fx.
@@ -248,7 +248,7 @@ apply generic_format_bpow.
 case (Zle_or_lt (e+1) (fexp (e+1))); intros H4.
 absurd (e+1 <= e)%Z.
 omega.
-apply Zle_trans with (1:=H4).
+apply Z.le_trans with (1:=H4).
 replace (fexp (e+1)) with (fexp n).
 now apply le_bpow with beta.
 now apply fexp_negligible_exp_eq.
@@ -298,11 +298,11 @@ rewrite ulp_neq_0; trivial.
 apply bpow_le; unfold canonic_exp.
 generalize (ln_beta beta x); intros l.
 case (Zle_or_lt l (fexp l)); intros Hl.
-rewrite (fexp_negligible_exp_eq n l); trivial; apply Zle_refl.
+rewrite (fexp_negligible_exp_eq n l); trivial; apply Z.le_refl.
 case (Zle_or_lt (fexp n) (fexp l)); trivial; intros K.
 absurd (fexp n <= fexp l)%Z.
 omega.
-apply Zle_trans with (2:= H _).
+apply Z.le_trans with (2:= H _).
 apply Zeq_le, sym_eq, valid_exp; trivial.
 omega.
 Qed.
@@ -879,7 +879,7 @@ rewrite Lex.
 pattern (bpow (fexp ex)) at 1; rewrite <- Rmult_1_l.
 apply Rmult_le_compat_r.
 apply bpow_ge_0.
-replace 1%R with (Z2R (Zsucc 0)) by reflexivity.
+replace 1%R with (Z2R (Z.succ 0)) by reflexivity.
 apply Z2R_le.
 apply Zlt_le_succ.
 apply F2R_gt_0_reg with beta (canonic_exp beta fexp x).
@@ -1876,7 +1876,7 @@ case negligible_exp_spec.
 intros K; contradict Hx2.
 apply Rlt_not_eq.
 apply F2R_gt_0_compat; simpl.
-apply Zlt_le_trans with 1%Z.
+apply Z.lt_le_trans with 1%Z.
 apply Pos2Z.is_pos.
 apply Zfloor_lub.
 simpl; unfold scaled_mantissa, canonic_exp.

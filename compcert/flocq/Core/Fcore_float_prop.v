@@ -29,7 +29,7 @@ Notation bpow e := (bpow beta e).
 
 Theorem Rcompare_F2R :
   forall e m1 m2 : Z,
-  Rcompare (F2R (Float beta m1 e)) (F2R (Float beta m2 e)) = Zcompare m1 m2.
+  Rcompare (F2R (Float beta m1 e)) (F2R (Float beta m2 e)) = Z.compare m1 m2.
 Proof.
 intros e m1 m2.
 unfold F2R. simpl.
@@ -110,7 +110,7 @@ Qed.
 
 Theorem F2R_Zabs:
   forall m e : Z,
-   F2R (Float beta (Zabs m) e) = Rabs (F2R (Float beta m e)).
+   F2R (Float beta (Z.abs m) e) = Rabs (F2R (Float beta m e)).
 Proof.
 intros m e.
 unfold F2R.
@@ -125,7 +125,7 @@ Qed.
 
 Theorem F2R_Zopp :
   forall m e : Z,
-  F2R (Float beta (Zopp m) e) = Ropp (F2R (Float beta m e)).
+  F2R (Float beta (Z.opp m) e) = Ropp (F2R (Float beta m e)).
 Proof.
 intros m e.
 unfold F2R. simpl.
@@ -359,7 +359,7 @@ Qed.
 
 Theorem F2R_lt_bpow :
   forall f : float beta, forall e',
-  (Zabs (Fnum f) < Zpower beta (e' - Fexp f))%Z ->
+  (Z.abs (Fnum f) < Zpower beta (e' - Fexp f))%Z ->
   (Rabs (F2R f) < bpow e')%R.
 Proof.
 intros (m, e) e' Hm.
@@ -396,7 +396,7 @@ Qed.
 
 Theorem F2R_prec_normalize :
   forall m e e' p : Z,
-  (Zabs m < Zpower beta p)%Z ->
+  (Z.abs m < Zpower beta p)%Z ->
   (bpow (e' - 1)%Z <= Rabs (F2R (Float beta m e)))%R ->
   F2R (Float beta m e) = F2R (Float beta (m * Zpower beta (e - e' + p)) (e' - p)).
 Proof.
@@ -465,7 +465,7 @@ assert (He: (e2 < e1)%Z).
 apply Znot_ge_lt.
 intros H0.
 elim Rlt_not_le with (1 := H21).
-apply Zge_le in H0.
+apply Z.ge_le in H0.
 apply (F2R_change_exp e1 m2 e2) in H0.
 rewrite H0.
 apply F2R_le_compat.
@@ -486,14 +486,14 @@ simpl.
 apply sym_eq.
 apply ln_beta_unique.
 assert (H2 : (bpow (e1' - 1) <= F2R (Float beta m1 e1) < bpow e1')%R).
-rewrite <- (Zabs_eq m1), F2R_Zabs.
+rewrite <- (Z.abs_eq m1), F2R_Zabs.
 apply H1.
 apply Rgt_not_eq.
 apply Rlt_gt.
 now apply F2R_gt_0_compat.
 now apply Zlt_le_weak.
 clear H1.
-rewrite <- F2R_Zabs, Zabs_eq.
+rewrite <- F2R_Zabs, Z.abs_eq.
 split.
 apply Rlt_le.
 apply Rle_lt_trans with (2 := H12).

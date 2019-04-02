@@ -390,7 +390,7 @@ rewrite <- Z2R_mult.
 apply Rcompare_not_Lt.
 apply Z2R_le.
 rewrite Hk.
-apply Zle_refl.
+apply Z.le_refl.
 exact Hstep.
 Qed.
 
@@ -419,7 +419,7 @@ Definition new_location_even k l :=
     match l with loc_Exact => l | _ => loc_Inexact Lt end
   else
     loc_Inexact
-    match Zcompare (2 * k) nb_steps with
+    match Z.compare (2 * k) nb_steps with
     | Lt => Lt
     | Eq => match l with loc_Exact => Eq | _ => Gt end
     | Gt => Gt
@@ -476,7 +476,7 @@ Definition new_location_odd k l :=
     match l with loc_Exact => l | _ => loc_Inexact Lt end
   else
     loc_Inexact
-    match Zcompare (2 * k + 1) nb_steps with
+    match Z.compare (2 * k + 1) nb_steps with
     | Lt => Lt
     | Eq => match l with loc_Inexact l => l | loc_Exact => Lt end
     | Gt => Gt
@@ -529,7 +529,7 @@ Theorem new_location_correct :
 Proof.
 intros x k l Hk Hx.
 unfold new_location.
-generalize (refl_equal nb_steps) (Zle_lt_trans _ _ _ (proj1 Hk) (proj2 Hk)).
+generalize (refl_equal nb_steps) (Z.le_lt_trans _ _ _ (proj1 Hk) (proj2 Hk)).
 pattern nb_steps at 2 3 5 ; case nb_steps.
 now intros _.
 (* . *)
@@ -619,7 +619,7 @@ Theorem inbetween_float_new_location :
   forall x m e l k,
   (0 < k)%Z ->
   inbetween_float m e x l ->
-  inbetween_float (Zdiv m (Zpower beta k)) (e + k) x (new_location (Zpower beta k) (Zmod m (Zpower beta k)) l).
+  inbetween_float (Z.div m (Zpower beta k)) (e + k) x (new_location (Zpower beta k) (Zmod m (Zpower beta k)) l).
 Proof.
 intros x m e l k Hk Hx.
 unfold inbetween_float in *.
@@ -630,7 +630,7 @@ apply (f_equal (fun r => F2R (Float beta (m * Zpower _ r) e))).
 ring.
 omega.
 assert (Hp: (Zpower beta k > 0)%Z).
-apply Zlt_gt.
+apply Z.lt_gt.
 apply Zpower_gt_0.
 now apply Zlt_le_weak.
 (* . *)
@@ -650,7 +650,7 @@ Qed.
 Theorem inbetween_float_new_location_single :
   forall x m e l,
   inbetween_float m e x l ->
-  inbetween_float (Zdiv m beta) (e + 1) x (new_location beta (Zmod m beta) l).
+  inbetween_float (Z.div m beta) (e + 1) x (new_location beta (Zmod m beta) l).
 Proof.
 intros x m e l Hx.
 replace (radix_val beta) with (Zpower beta 1).

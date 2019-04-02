@@ -240,7 +240,7 @@ rewrite H.
 apply Zceil_Z2R.
 apply Zceil_imp.
 split.
-change (m + 1 - 1)%Z with (Zpred (Zsucc m)).
+change (m + 1 - 1)%Z with (Z.pred (Z.succ m)).
 now rewrite <- Zpred_succ.
 now apply Rlt_le.
 now apply Rge_le.
@@ -538,7 +538,7 @@ Qed.
 Definition truncate_aux t k :=
   let '(m, e, l) := t in
   let p := Zpower beta k in
-  (Zdiv m p, (e + k)%Z, new_location p (Zmod m p) l).
+  (Z.div m p, (e + k)%Z, new_location p (Zmod m p) l).
 
 Theorem truncate_aux_comp :
   forall t k1 k2,
@@ -603,17 +603,17 @@ rewrite Zdigits_div_Zpower with (1 := Hm).
 replace (Zdigits beta m - k + (e + k))%Z with (Zdigits beta m + e)%Z by ring.
 unfold k.
 ring_simplify.
-apply Zle_refl.
+apply Z.le_refl.
 split.
 now apply Zlt_le_weak.
 apply Znot_gt_le.
 contradict Hd.
 apply Zdiv_small.
 apply conj with (1 := Hm).
-rewrite <- Zabs_eq with (1 := Hm).
+rewrite <- Z.abs_eq with (1 := Hm).
 apply Zpower_gt_Zdigits.
 apply Zlt_le_weak.
-now apply Zgt_lt.
+now apply Z.gt_lt.
 (* *)
 destruct (Zle_lt_or_eq _ _ Hm) as [Hm'|Hm'].
 apply generic_format_F2R.
@@ -721,7 +721,7 @@ simpl.
 apply sym_eq.
 apply valid_exp.
 exact H2.
-apply Zle_trans with e.
+apply Z.le_trans with e.
 eapply bpow_lt_bpow.
 apply Rle_lt_trans with (1 := proj1 Hex).
 rewrite Rabs_pos_eq.
@@ -764,8 +764,8 @@ exact H4.
 now left.
 (* . not enough digits but loc_Exact *)
 destruct H2 as [H2|H2].
-elim (Zlt_irrefl e).
-now apply Zle_lt_trans with (1 := H2).
+elim (Z.lt_irrefl e).
+now apply Z.le_lt_trans with (1 := H2).
 rewrite H2 in H1 |- *.
 unfold truncate.
 generalize (Zlt_cases 0 (fexp (Zdigits beta m + e) - e)).
@@ -915,7 +915,7 @@ now apply Rge_le.
 (* *)
 destruct (Rlt_bool_spec x 0) as [Zx|Zx].
 (* . *)
-apply Zopp_inj.
+apply Z.opp_inj.
 change (- m = cond_Zopp true (choice true m loc_Exact))%Z.
 rewrite <- (Zrnd_Z2R rnd (-m)) at 1.
 assert (Z2R (-m) < 0)%R.
@@ -1048,7 +1048,7 @@ Definition truncate_FIX t :=
   let k := (emin - e)%Z in
   if Zlt_bool 0 k then
     let p := Zpower beta k in
-    (Zdiv m p, (e + k)%Z, new_location p (Zmod m p) l)
+    (Z.div m p, (e + k)%Z, new_location p (Zmod m p) l)
   else t.
 
 Theorem truncate_FIX_correct :
