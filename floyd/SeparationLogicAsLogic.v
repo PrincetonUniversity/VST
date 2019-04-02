@@ -1169,7 +1169,7 @@ Definition semax_func_nil := @AuxDefs.semax_func_nil (@Def.semax_external).
 Definition semax_func_cons := @AuxDefs.semax_func_cons (@Def.semax_external).
 
 Definition semax_func_cons_ext := @AuxDefs.semax_func_cons_ext (@Def.semax_external).
-
+  
 Theorem semax_ifthenelse :
   forall {CS: compspecs} {Espec: OracleKind},
    forall Delta P (b: expr) c d R,
@@ -1285,6 +1285,12 @@ Definition semax_func_subsumption := @AuxDefs.semax_func_subsumption (@Def.semax
 Definition semax_func_join  := @AuxDefs.semax_func_join (@Def.semax_external).
 Definition semax_func_firstn := @AuxDefs.semax_func_firstn (@Def.semax_external).
 Definition semax_func_skipn := @AuxDefs.semax_func_skipn (@Def.semax_external).
+
+Definition semax_body_subsumption: forall cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
+    @semax_body V' F' cs f spec. 
+Admitted.
 
 End DeepEmbeddedMinimumSeparationLogic.
 
