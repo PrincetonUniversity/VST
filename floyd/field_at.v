@@ -2977,3 +2977,72 @@ unfold nested_field_type; simpl.
 rewrite <- mapsto_size_t_tptr_nullval with (t:=t).
 f_equal.
 Qed.
+
+Lemma data_at_int_or_ptr_int:
+ forall {CS: compspecs} i p,
+  data_at Tsh int_or_ptr_type (Vptrofs i) p
+  = data_at Tsh size_t (Vptrofs i) p.
+Proof.
+ intros.
+ unfold data_at, field_at.
+ simpl. f_equal.
+ f_equal.
+ unfold field_compatible.
+ f_equal.
+ f_equal.
+ f_equal.
+ f_equal.
+ unfold align_compatible.
+ destruct p; auto.
+ apply prop_ext; split; intro; 
+  eapply align_compatible_rec_by_value_inv in H;
+   try reflexivity;
+  try (eapply align_compatible_rec_by_value; eauto).
+  reflexivity.
+  reflexivity.
+Qed.
+
+Lemma data_at_int_or_ptr_ptr:
+ forall {CS: compspecs} t v p,
+  isptr v ->
+  data_at Tsh int_or_ptr_type v p
+  = data_at Tsh (tptr t) v p.
+Proof.
+ intros.
+ destruct v; try contradiction.
+ clear H.
+ unfold data_at, field_at.
+ simpl. f_equal.
+ f_equal.
+ unfold field_compatible.
+ f_equal.
+ f_equal.
+ f_equal.
+ f_equal.
+ unfold align_compatible.
+ destruct p; auto.
+ apply prop_ext; split; intro; 
+  eapply align_compatible_rec_by_value_inv in H;
+   try reflexivity;
+  try (eapply align_compatible_rec_by_value; eauto).
+  reflexivity.
+  reflexivity.
+ unfold at_offset.
+ unfold nested_field_type;  simpl.
+ unfold data_at_rec; simpl.
+ unfold mapsto.
+ simpl.
+ destruct p; simpl; auto.
+ if_tac; auto.
+ f_equal.
+ simple_if_tac; auto.
+ f_equal. rewrite andb_false_r. reflexivity.
+ f_equal. rewrite andb_false_r. reflexivity.
+ f_equal.
+ f_equal.
+ f_equal.
+ unfold tc_val'.
+ unfold tc_val; simpl.
+ rewrite N.eqb_refl.
+ rewrite andb_false_r. reflexivity.
+Qed.

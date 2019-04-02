@@ -80,9 +80,15 @@ Proof.
   unfold modulus. apply two_power_nat_two_p.
 Qed.
 
+Remark modulus_gt_one: modulus > 1.
+Proof.
+  rewrite modulus_power. apply Z.lt_gt. apply (two_p_monotone_strict 0).
+  generalize wordsize_pos; omega.
+Qed.
+
 Remark modulus_pos: modulus > 0.
 Proof.
-  rewrite modulus_power. apply two_p_gt_ZERO. generalize wordsize_pos; omega.
+  generalize modulus_gt_one; omega.
 Qed.
 
 (** * Representation of machine integers *)
@@ -150,19 +156,19 @@ Lemma Z_mod_modulus_range:
 Proof.
   intros; unfold Z_mod_modulus.
   destruct x.
-  - generalize modulus_pos; omega.
+  - generalize modulus_pos; intuition.
   - apply P_mod_two_p_range.
   - set (r := P_mod_two_p p wordsize).
     assert (0 <= r < modulus) by apply P_mod_two_p_range.
     destruct (zeq r 0).
-    + generalize modulus_pos; omega.
-    + omega.
+    + generalize modulus_pos; intuition.
+    + Psatz.lia.
 Qed.
 
 Lemma Z_mod_modulus_range':
   forall x, -1 < Z_mod_modulus x < modulus.
 Proof.
-  intros. generalize (Z_mod_modulus_range x); omega.
+  intros. generalize (Z_mod_modulus_range x); intuition.
 Qed.
 
 Lemma Z_mod_modulus_eq:
@@ -178,10 +184,10 @@ Proof.
     set (r := P_mod_two_p p wordsize) in *.
     rewrite <- B in C.
     change (Z.neg p) with (- (Z.pos p)). destruct (zeq r 0).
-    + symmetry. apply Zmod_unique with (-q). rewrite C; rewrite e. ring.
-      generalize modulus_pos; omega.
-    + symmetry. apply Zmod_unique with (-q - 1). rewrite C. ring.
-      omega.
+    + symmetry. apply Zmod_unique with (-q). rewrite C; rewrite e. Psatz.lia.
+      intuition.
+    + symmetry. apply Zmod_unique with (-q - 1). rewrite C. Psatz.lia.
+      intuition.
 Qed.
 
 (** The [unsigned] and [signed] functions return the Coq integer corresponding
