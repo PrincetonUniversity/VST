@@ -70,11 +70,13 @@ Ltac unfold_varspecs al :=
 Ltac mk_varspecs prog :=
  let a := constr:(prog)
    in let a := eval unfold prog in a
-   in match a with Clightdefs.mkprogram _ ?d _ _ _ => 
-         let e := constr:(mk_varspecs' d nil)
+   in let d :=  match a with
+                    | Clightdefs.mkprogram _ ?d _ _ _ => constr:(d)
+                    | {| prog_defs := ?d |} => constr:(d)
+                    end
+   in let e := constr:(mk_varspecs' d nil)
           in let e := eval hnf in e
-          in unfold_varspecs e
-      end.
+          in unfold_varspecs e.
 
 Hint Resolve field_address_isptr : norm.
 
@@ -319,6 +321,7 @@ intros.
 Qed.
 
 Ltac semax_func_cons_ext :=
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc;
@@ -924,6 +927,14 @@ Use Intros to move the existentially bound variables above the line"
  end
 end.
 
+Ltac check_gvars :=
+  first [exact Logic.I
+         | reflexivity
+         | match goal with |- check_gvars_spec None (Some ?gv) =>
+              fail 100 "The function precondition requires (gvars" gv ")" "which is not present in your current assertion's LOCAL clause"
+           end
+         ].
+
 Ltac prove_call_setup subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
@@ -938,7 +949,7 @@ Ltac prove_call_setup subsumes witness :=
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
- | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | check_gvars
  | try change_compspecs CS; cancel_for_forward_call
  |
  ]
@@ -995,7 +1006,7 @@ lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
     end
 end.
 
-Tactic Notation "forward_call" constr(witness) := fwd_call subsume_funspec_refl witness.
+Tactic Notation "forward_call" constr(witness) := fwd_call funspec_sub_refl witness.
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := fwd_call subsumes witness.
 
@@ -1030,7 +1041,7 @@ Ltac get_function_witness_type func :=
  in TA''.
 
 Ltac new_prove_call_setup :=
- prove_call_setup1 subsume_funspec_refl;
+ prove_call_setup1 funspec_sub_refl;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
@@ -2877,10 +2888,13 @@ Ltac solve_return_inner_gen :=
       ]
     | PROPx _ (LOCALx _ (SEPx _)) =>
       match v with
-      | Some _ => first [ simple apply return_inner_gen_canon_Some
-                        | simple apply return_inner_gen_canon_nil
+      | Some _ => first [ simple apply return_inner_gen_canon_Some;
+                          unfold VST_floyd_app; reflexivity
+                        | simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should only contain ret_temp. Other variables appears there now."]
-      | None   => first [ simple apply return_inner_gen_canon_nil
+      | None   => first [ simple apply return_inner_gen_canon_nil;
+                          unfold VST_floyd_app; reflexivity
                         | fail 1000 "the LOCAL clauses of this POSTCONDITION should not contain any variable."]
       end
     | _ => first [ simple apply return_inner_gen_main
@@ -2931,12 +2945,12 @@ Ltac solve_Forall2_fn_data_at :=
 
 Ltac solve_canon_derives_stackframe :=
   solve
-    [ try unfold stackframe_of;
+    [ simple apply canonicalize_stackframe_emp
+    | try unfold stackframe_of;
       simple eapply canonicalize_stackframe;
       [ prove_local2ptree
       | solve_Forall2_fn_data_at
       ]
-    | simple apply canonicalize_stackframe_emp
     ].
 
 Ltac fold_frame_function_body :=
@@ -3035,7 +3049,7 @@ end.
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
 Ltac advise_forward_call :=
- prove_call_setup1 subsume_funspec_refl;
+ prove_call_setup1 funspec_sub_refl;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
@@ -3409,68 +3423,85 @@ Ltac start_function_hint := idtac. (* "Hint: at any time, try the 'hint' tactic.
 Definition firstopt {A} (e1 e2: option A) := 
 match e1 with None => e2 | Some x => Some x end.
 
-Fixpoint check_norm_expr (e: expr) : option expr :=
+Inductive diagnose_expr :=
+|  DE_OK : diagnose_expr
+|  DE_value: expr -> diagnose_expr
+|  DE_copy: expr -> diagnose_expr
+|  DE_nothing: expr -> diagnose_expr.
+
+Definition DE_compose (e1 e2: diagnose_expr) := 
+match e1 with DE_OK => e2 | _ => e1 end.
+
+Definition diagnose_this_expr (m: mode) (e: expr) : diagnose_expr :=
+ match m with
+ | By_reference => DE_OK
+ | By_copy => DE_copy e
+ | By_value _ => DE_value e
+ | By_nothing => DE_nothing e
+ end.
+
+
+Fixpoint check_norm_expr (e: expr) : diagnose_expr :=
 match e with
- | Evar _ ty => match access_mode ty with
-                            | By_reference => None
-                            | _ => Some e
-                           end
+ | Evar _ ty => diagnose_this_expr (access_mode ty) e
  | Ederef a ty => match access_mode ty with
                   | By_reference => if is_pointer_type (typeof a) 
                                                then check_norm_expr a
-                                               else Some e
-                  | _ => Some e
+                                               else DE_value e
+                  | m => diagnose_this_expr m e
                   end
 | Eunop _ e _ => check_norm_expr e
-| Ebinop _ e1 e2 _ => firstopt (check_norm_expr e1) (check_norm_expr e2)
+| Ebinop _ e1 e2 _ => DE_compose (check_norm_expr e1) (check_norm_expr e2)
 | Ecast e _ => check_norm_expr e
 | Efield a _ ty => match access_mode ty with
                             | By_reference => check_norm_lvalue a
-                            | _ => Some e
+                            | m => diagnose_this_expr m e
                            end
 | Eaddrof e _ => check_norm_lvalue e
-| _ => None
+| _ => DE_OK
 end
-with check_norm_lvalue (e: expr) : option expr :=
+with check_norm_lvalue (e: expr) : diagnose_expr :=
 match e with
 | Ederef a _ => if is_pointer_type (typeof a) 
                               then check_norm_expr a
-                              else Some e
+                              else DE_value e
 | Ecast e _ => check_norm_lvalue e
 | Efield e _ _ => check_norm_lvalue e
 | Eunop _ e _ => check_norm_expr e
-| Ebinop _ e1 e2 _ => firstopt (check_norm_expr e1) (check_norm_expr e2)
-| _ => None
+| Ebinop _ e1 e2 _ => DE_compose (check_norm_expr e1) (check_norm_expr e2)
+| _ => DE_OK
 end.
 
-Fixpoint check_norm_stmt (s: statement) : option expr :=
+Fixpoint check_norm_stmt (s: statement) : diagnose_expr :=
 match s with
-| Sassign e1 e2 => firstopt (check_norm_lvalue e1) (check_norm_expr e2)
+| Sassign e1 e2 => DE_compose (check_norm_lvalue e1) (check_norm_expr e2)
 | Sset _ e1 => check_norm_lvalue e1
-| Scall _ (Evar _ _) el => fold_right firstopt None (map check_norm_expr el)
-| Scall _ e el => fold_right firstopt None (map check_norm_expr (e::el))
-| Sbuiltin _ _ _ el => fold_right firstopt None (map check_norm_expr el)
-| Ssequence s1 s2 => firstopt (check_norm_stmt s1) (check_norm_stmt s2)
-| Sifthenelse e s1 s2 => firstopt (check_norm_expr e) (firstopt (check_norm_stmt s1) (check_norm_stmt s2))
-| Sloop s1 s2 => firstopt (check_norm_stmt s1) (check_norm_stmt s2)
+| Scall _ (Evar _ _) el => fold_right DE_compose DE_OK (map check_norm_expr el)
+| Scall _ e el => fold_right DE_compose DE_OK (map check_norm_expr (e::el))
+| Sbuiltin _ _ _ el => fold_right DE_compose DE_OK (map check_norm_expr el)
+| Ssequence s1 s2 => DE_compose (check_norm_stmt s1) (check_norm_stmt s2)
+| Sifthenelse e s1 s2 => DE_compose (check_norm_expr e) (DE_compose (check_norm_stmt s1) (check_norm_stmt s2))
+| Sloop s1 s2 => DE_compose (check_norm_stmt s1) (check_norm_stmt s2)
 | Sreturn (Some e) => check_norm_expr e
-| Sswitch e ls => firstopt (check_norm_expr e)
+| Sswitch e ls => DE_compose (check_norm_expr e)
                               (check_norm_ls ls)
-| _ => None
+| _ => DE_OK
 end
 with
-check_norm_ls (ls: labeled_statements) : option expr :=
+check_norm_ls (ls: labeled_statements) : diagnose_expr :=
 match ls with 
-| LSnil => None 
-| LScons _ s1 sr => firstopt (check_norm_stmt s1) (check_norm_ls sr)
+| LSnil => DE_OK 
+| LScons _ s1 sr => DE_compose (check_norm_stmt s1) (check_norm_ls sr)
 end.
 
 Ltac check_normalized f := 
 let x := constr:(check_norm_stmt (fn_body f)) in
 let x := eval hnf in x in
 match x with 
-| None => idtac
-| Some ?e => fail 99 "The expression " e " contains internal memory dereferences, which suggests that you ran clightgen without the -normalize flag.  Print Info.normalized and make sure it has the value 'true'"
+| DE_OK => idtac
+| DE_value ?e => fail 99 "The expression " e " contains internal memory dereferences, which suggests that you ran clightgen without the -normalize flag.  Print Info.normalized and make sure it has the value 'true'"
+| DE_copy ?e => fail 99 "The expression " e " contains internal structure-copying, a feature of C not currently supported in Verifiable C"
+| DE_nothing ?e => fail 99 "The expression " e " contains a dereference of an expression with a 'By_nothing' access mode, which is quite unexpected"
 end.
 
 Ltac start_function :=
@@ -3663,7 +3694,7 @@ end.
 
 Ltac make_composite_env composites :=
 let j := constr:(build_composite_env' composites I)
- in let j := eval unfold composites in j
+ (* in let j := eval unfold composites in j *)
 in let j := eval cbv beta iota zeta delta [
        build_composite_env' build_composite_env
        PTree.empty
@@ -3676,13 +3707,16 @@ in let j := eval cbv beta iota zeta delta [
 Ltac make_composite_env0 prog :=
 let c := constr:(prog_types prog) in
 let c := eval unfold prog, prog_types, Clightdefs.mkprogram in c in 
-match c with context C [build_composite_env' ?comp I] => 
-    let comp' := make_composite_env comp
+let comp := match c with
+                  | context [build_composite_env' ?comp I] => 
+                     let j := eval unfold comp in comp in constr:(j)
+                  | _ :: _ => constr:(c)
+                  | nil => constr:(c)
+                  end in 
+let comp' := make_composite_env comp
    in match comp' with Errors.OK ?ce =>
             ce
-       end
-end.
-
+       end.
 
 Ltac make_compspecs prog :=
   let cenv := make_composite_env0 prog in
@@ -3718,8 +3752,11 @@ Fixpoint missing_ids {A} (t: PTree.tree A) (al: list ident) :=
  end.
 
 Ltac simpl_prog_defs p := 
- match p with context C [prog_defs (Clightdefs.mkprogram _ ?d _ _ _)] =>
-   let q := context C [d] in q
+ match p with
+ | context C [prog_defs (Clightdefs.mkprogram _ ?d _ _ _)] =>
+       let q := context C [d] in q
+ | context C [prog_defs ({| prog_defs := ?d |})] =>
+       let q := context C [d] in q
   end.
 
 Ltac with_library' p G :=

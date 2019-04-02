@@ -46,7 +46,7 @@ Module Clight_newMachine.
   Module DMS.
   Section DMS.
 
-  Context {ge : genv}.
+  Context {ge : Clight.genv}.
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Instance DSem : Semantics := Clight_newSem ge.
 
@@ -72,7 +72,7 @@ Module ClightMachine.
   Module DMS.
   Section DMS.
 
-  Context {ge : genv}.
+  Context {ge : Clight.genv}.
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Instance DSem : Semantics := ClightSem ge.
 

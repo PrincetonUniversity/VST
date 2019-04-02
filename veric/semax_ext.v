@@ -96,7 +96,7 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
     | left _ => fun x' => Val.has_type_list args (sig_args (ef_sig ef)) /\
                       exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ P (projT1 (snd x')) (projT2 (snd x')) (make_ext_args (filter_genv (symb2genv ge_s)) ids args) phi0
-                       /\ necR (fst x') phi1
+                       /\ necR (fst x') phi1 /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
@@ -108,7 +108,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
                        /\ Q (projT1 (snd x')) (projT2 (snd x')) (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0
-                       /\ necR (fst x') phi1
+                       /\ necR (fst x') phi1 /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
 
@@ -158,14 +158,18 @@ destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros.
 if_tac [e0|e0].
 * destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage.
-intros [Hargs [phi0 [phi1 [Hjoin [Hx Hy]]]]].
+intros [Hargs [phi0 [phi1 [Hjoin [Hx [Hy Hg]]]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
 destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
 split; auto. exists x', y'; split; auto.
 destruct P. split. eapply h; eauto.
-apply (necR_trans (fst t0) phi1 y'); auto.
+split. apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
+erewrite age1_ghost_of by eauto.
+change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
+  (own.ghost_approx (m_phi a') (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
+destruct Hg; eexists; apply ghost_fmap_join; eauto.
 * intros ? ?; auto.
 destruct Espec; simpl; apply JE_pre_hered.
 Qed.
@@ -174,14 +178,18 @@ destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros.
 if_tac [e0|e0].
 * destruct e; try discriminate; injection e0 as E; subst i sg. intros a a' Hage. destruct Q; simpl.
-intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
+intros [phi0 [phi1 [Hjoin [Hx [Hy Hg]]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
 destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
 exists x', y'; split; auto.
 split; [solve[eapply h; eauto]|].
-apply (necR_trans (fst t0) phi1 y'); auto.
+split. apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
+erewrite age1_ghost_of by eauto.
+change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
+  (own.ghost_approx (m_phi a') (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
+destruct Hg; eexists; apply ghost_fmap_join; eauto.
 * intros ? ?; auto.
 destruct Espec; simpl; apply JE_post_hered.
 Qed.
@@ -213,7 +221,8 @@ Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
   P (projT1 x) (projT2 x) (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split (fst sig))) args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
-    /\ forall z, ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
+    /\ forall z, joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+          ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hargsty Hpre.
 destruct H1 as [H1|H1].
@@ -225,7 +234,7 @@ destruct sig; simpl.
 if_tac [e0|e0].
 rewrite fst_split.
 intros x Hjoin Hp. exists (phi1, x). split; eauto.
-split; eauto.
+split; eauto 6.
 elimtype False; auto.
 }
 
@@ -256,7 +265,8 @@ Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
   P (projT1 x) (projT2 x) (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split sig)) args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
-    /\ forall z, ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
+    /\ forall z, joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+          ext_spec_pre (add_funspecs_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hargsty Hpre.
 destruct H1 as [H1|H1].
@@ -268,7 +278,7 @@ if_tac [e|e].
 intros x Hjoin Hp. exists (phi1,x). split; eauto.
 unfold funsig2signature in e.
 simpl in e.
-split; eauto.
+split; eauto 6.
 
 elimtype False; auto.
 }
@@ -307,7 +317,7 @@ destruct H1 as [H1|H1].
 subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspec2post; simpl.
 if_tac [e|e].
-intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
+intros x [phi0 [phi1 [Hjoin [Hq [Hnec Hg]]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; destruct s; auto.
 elimtype False; auto.
@@ -347,7 +357,7 @@ subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspec2post; simpl.
 destruct sig; simpl.
 if_tac [e|e].
-intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
+intros x [phi0 [phi1 [Hjoin [Hq [Hnec Hg]]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
 elimtype False; auto.
@@ -373,6 +383,13 @@ Definition add_funspecs (Espec : OracleKind) (ext_link: Strings.String.string ->
     | Build_OracleKind ty spec =>
       Build_OracleKind ty (add_funspecs_rec ext_link ty spec fs)
   end.
+
+Lemma necR_jm_phi : forall jm jm', necR jm jm' -> necR (m_phi jm) (m_phi jm').
+Proof.
+  induction 1; auto.
+  - apply age_jm_phi in H; constructor; auto.
+  - eapply necR_trans; eauto.
+Qed.
 
 Section semax_ext.
 
@@ -403,10 +420,15 @@ destruct (@add_funspecs_pre ext_link _ _ _ _ _ _ _ _ _ _ (existT _ Ts x) _ _ OK_
   as [x' [Heq Hpre]].
 simpl.
 exists x'.
-intros z.
-split; [solve[apply Hpre]|].
-intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
+split.
+intros z ???.
+eapply nec_hereditary, Hpre; auto.
+apply JE_pre_hered.
+apply necR_jm_phi in H0.
+erewrite necR_ghost_of in H1 by eauto.
+eapply ext_join_unapprox; eauto.
 
+intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
 eapply add_funspecs_post in Hpost; eauto.
 destruct Hpost as [phi0 [phi1 [phi1' [x'' [Hjoin' [Hnec' [Hjmeq' Hq']]]]]]].
 exists phi0, phi1; split; auto.
@@ -457,10 +479,15 @@ destruct (@add_funspecs_pre_void ext_link _ _ _ _ _ _ _ _ _ _ (existT _ Ts x) _ 
   as [x' [Heq Hpre]].
 simpl.
 exists x'.
-intros z.
-split; [solve[apply Hpre]|].
-intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
+split.
+intros z ???.
+eapply nec_hereditary, Hpre; auto.
+apply JE_pre_hered.
+apply necR_jm_phi in H0.
+erewrite necR_ghost_of in H1 by eauto.
+eapply ext_join_unapprox; eauto.
 
+intros tret ret z' jm2 Hlev jm3 Hnec Hpost.
 eapply add_funspecs_post_void in Hpost; eauto.
 destruct Hpost as [phi0 [phi1 [phi1' [x'' [Hjoin' [Hnec' [Hjmeq' Hq']]]]]]].
 exists phi0, phi1; split; auto.

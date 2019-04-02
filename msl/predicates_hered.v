@@ -34,12 +34,18 @@ Global Opaque pred.
 
 Hint Resolve @pred_hereditary.
 
-Lemma pred_nec_hereditary {A} `{ageable A} (p:pred A) :
+Lemma nec_hereditary {A} `{ageable A} (p: A -> Prop) : hereditary age p ->
   forall a a':A, necR a a' -> p a -> p a'.
 Proof.
   intros.
-  induction H0; auto.
-  apply pred_hereditary with x; auto.
+  induction H1; auto.
+  apply H0 with x; auto.
+Qed.
+
+Lemma pred_nec_hereditary {A} `{ageable A} (p:pred A) :
+  forall a a':A, necR a a' -> p a -> p a'.
+Proof.
+  apply nec_hereditary, pred_hereditary.
 Qed.
 
 Program Definition mkPred {A} `{ageable A} (p:A -> Prop) : pred A :=
@@ -278,8 +284,8 @@ Definition boxy {A} `{ageable A} (m: modality) (p: pred A): Prop :=  box m p = p
 
 (* A pile of notations for the operators we have defined *)
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
-Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
-Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
+Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x ident, right associativity) : pred.
+Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x ident, right associativity) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.

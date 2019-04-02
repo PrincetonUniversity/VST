@@ -1,8 +1,6 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: _CoqProject msl veric floyd progs
-
 COMPCERT ?= compcert
 -include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
@@ -18,6 +16,13 @@ COMPCERT ?= compcert
 # You can override ARCH and BITSIZE in the configure file, too;
 # otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
 
+ifeq ($(BITSIZE),64)
+PROGSDIR=progs64
+else
+PROGSDIR=progs
+endif
+
+default_target: _CoqProject msl veric floyd $(PROGSDIR)
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -34,8 +39,9 @@ ANNOTATE=silent   # suppress chatty output from coqc
 
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-VSTDIRS= msl sepcomp veric floyd progs concurrency ccc26x86
-OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics
+VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
+OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics  boringssl_fips_20180730
+
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
@@ -252,7 +258,7 @@ VERIC_FILES= \
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
-   library.v proofauto.v computable_theorems.v \
+   library.v proofauto.v computable_theorems.v computable_functions.v \
    type_induction.v align_compatible_dec.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v \
    sublist.v extract_smt.v \
@@ -268,7 +274,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v list_solver.v
+   subsume_funspec.v linking.v list_solver.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -286,7 +292,7 @@ PROGS_FILES= \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
-  verif_bin_search.v verif_floyd_tests.v \
+  verif_bin_search.v verif_floyd_tests.v verif_structcopy.v \
   verif_sumarray2.v verif_switch.v verif_message.v verif_object.v \
   funcptr.v verif_funcptr.v tutorial1.v  \
   verif_int_or_ptr.v verif_union.v verif_cast_test.v verif_dotprod.v \
@@ -330,9 +336,7 @@ FCF_FILES= \
   DiffieHellman.v Limit.v TwoWorldsEquiv.v \
   DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
-  DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
-  PRF_DRBG.v HMAC_DRBG_nonadaptive.v HMAC_DRBG_definitions_only.v \
-  map_swap.v
+  DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v
 # ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
@@ -370,6 +374,7 @@ TWEETNACL_FILES = \
 HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
+  map_swap.v PRF_DRBG.v HMAC_DRBG_nonadaptive.v \
   HMAC_DRBG_update.v \
   hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v HMAC256_DRBG_bridge_to_FCF.v spec_hmac_drbg_pure_lemmas.v \
@@ -398,7 +403,7 @@ AES_FILES = \
 # SINGLE_C_FILES are those to be clightgen'd individually with -normalize flag
 # LINKED_C_FILES are those that need to be clightgen'd in a batch with others
 
-SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c
+SINGLE_C_FILES = reverse.c reverse_client.c revarray.c queue.c queue2.c message.c object.c insertionsort.c float.c global.c logical_compare.c nest2.c nest3.c ptr_compare.c load_demo.c store_demo.c dotprod.c string.c field_loadstore.c merge.c append.c bin_search.c bst.c bst_oo.c min.c switch.c funcptr.c floyd_tests.c incr.c cond.c sumarray.c sumarray2.c int_or_ptr.c union.c cast_test.c strlib.c tree.c fib.c loop_minus1.c libglob.c peel.c structcopy.c
 
 LINKED_C_FILES = even.c odd.c
 C_FILES = $(SINGLE_C_FILES) $(LINKED_C_FILES)
@@ -413,6 +418,7 @@ FILES = \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
+ $(FIPSDIGEST_FILES:%=boringssl-fips20180730/%) \
  $(FCF_FILES:%=FCF/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
@@ -449,7 +455,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.8.0 or-else 8.8.1 or-else 8.8.2 or-else 8.9+alpha or-else 8.9.0
+COQVERSION= 8.9+alpha or-else 8.9.0 or-else 8.8.2
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -480,7 +486,11 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
+ifeq ($(BITSIZE),64)
+travis: default_target progs64
+else
 travis: default_target progs sha hmac mailbox
+endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
@@ -506,10 +516,13 @@ linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
+progsdir: $(PROGSDIR)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
 hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+sha-hmac: sha hmac
 hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+fipsdigest:    _CoqProject $(FIPSDIGEST_FILES:%.v=boringssl_fips_20180730/%.vo)
 FCF:     _CoqProject $(FCF_FILES:%.v=FCF/%.vo)
 hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: _CoqProject $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
@@ -599,6 +612,35 @@ util/calibrate: util/calibrate.ml
 
 calibrate: util/calibrate
 	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
+
+C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
+    bst.c field_loadstore.c float.c object.c \
+    global.c min.c nest2.c nest3.c \
+    logical_compare.c \
+    strlib.c switch.c union.c message.c
+V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
+    verif_append2.v verif_bin_search.v \
+    verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
+    verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
+    verif_logical_compare.v \
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v
+progs64/%.c: progs/%.c
+	$(if $(findstring $(@F), $(C64_ORDINARY)), cp $< $@)
+
+ifdef CLIGHTGEN
+$(patsubst %.c,progs64/%.v, $(C64_ORDINARY)): progs64/%.v: progs64/%.c
+	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
+endif
+
+FIX64= "BEGIN{print \"(* Do not edit this file, it was generated automatically *)\"} 1 {sub(/VST[.]progs[.]/,\"VST.progs64.\"); print}"
+progs64/verif_%.v: progs/verif_%.v
+	$(if $(findstring $(@F), $(V64_ORDINARY)), awk $(FIX64) < $< > $@)
+
+PROGS64_FILES= $(V64_ORDINARY)
+
+progs64c: $(C64_ORDINARY:%.c=progs64/%.c)
+progs64v: progs64c $(V64_ORDINARY:%.v=progs64/%.v) $(C64_ORDINARY:%.c=progs64/%.v) depend
+progs64: _CoqProject  $(PROGS64_FILES:%.v=progs64/%.vo)
 
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)

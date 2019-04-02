@@ -31,6 +31,7 @@ Require Import VST.veric.semax_ext.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.mem_lessdef.
 Require Import VST.veric.age_to_resource_at.
+Require Import VST.veric.ghost_PCM.
 Require Import VST.floyd.coqlib3.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.sepcomp.event_semantics.
@@ -67,6 +68,24 @@ Local Arguments juicyRestrict : clear implicits.
 Set Bullet Behavior "Strict Subproofs".
 
 Open Scope string_scope.
+
+Lemma listoption_inv_In : forall {A} (x : A) l, In (Some x) l -> In x (listoption_inv l).
+Proof.
+  induction l; auto; simpl.
+  intros [|]; subst; simpl; auto.
+  destruct a; simpl; auto.
+Qed.
+
+Lemma lockRes_thread : forall ge (tp : jstate ge) l r, lockRes tp l = Some (Some r) ->
+  In r (listoption_inv (map snd (AMap.elements (elt:=lock_info) (lockGuts tp)))).
+Proof.
+  destruct tp; simpl.
+  unfold OrdinalPool.lockRes; simpl.
+  intros ?? H%AMap.find_2%AMap.elements_1.
+  apply SetoidList.InA_alt in H as ((?,?) & [] & ?); simpl in *; subst.
+  apply listoption_inv_In, in_map_iff.
+  do 2 eexists; eauto; auto.
+Qed.
 
 (* to make the proof faster, we avoid unfolding of those definitions *)
 Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
@@ -248,13 +267,13 @@ Proof.
           assert (v = Vptr b ofs). {
             rewrite Hv.
             clear.
-            unfold expr.eval_id in *.
+            unfold mpred.eval_id in *.
             unfold val_lemmas.force_val in *.
             unfold make_ext_args in *.
             unfold te_of in *.
             unfold filter_genv in *.
             unfold Genv.find_symbol in *.
-            unfold expr.env_set in *.
+            unfold mpred.env_set in *.
             rewrite Map.gss.
             auto.
           }
@@ -607,8 +626,10 @@ Proof.
               cbv iota beta in Pre.
               Unset Printing Implicit.
               destruct Pre as [[[A B] [[C _] D]] E].
+Opaque age_tp_to.
               simpl in *.
-              split. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
+              split3. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
+              2: destruct E; auto.
               split. now auto.
               split. now auto.
               unfold canon.SEPx in *.
@@ -632,13 +653,13 @@ Proof.
                  assert (vx = Vptr b ofs). {
                    destruct C as [-> _].
                    clear.
-                   unfold expr.eval_id in *.
+                   unfold eval_id in *.
                    unfold val_lemmas.force_val in *.
                    unfold make_ext_args in *.
                    unfold te_of in *.
                    unfold filter_genv in *.
                    unfold Genv.find_symbol in *.
-                   unfold expr.env_set in *.
+                   unfold env_set in *.
                    rewrite Map.gss.
                    auto.
                  }
@@ -669,6 +690,29 @@ Proof.
                  rewrite level_age_to. auto.
                  replace (level d_phi) with (level Phi) in * by join_level_tac.
                  omega.
+              -- unshelve setoid_rewrite <- getThreadR_age; auto.
+                   rewrite age_to_ghost_of.
+                   unshelve setoid_rewrite OrdinalPool.gLockSetRes; auto.
+                   rewrite OrdinalPool.gssThreadRes.
+                   destruct E as [_ E].
+                   apply ext_join_approx.
+                   pose proof (juice_join compat) as H; inv H.
+                   destruct ora.
+                   eapply join_sub_joins_trans, extcompat.
+                   apply lockRes_thread in His_unlocked.
+                   inv H2.
+                   { apply join_list'_None in H1; setoid_rewrite H1 in His_unlocked; contradiction. }
+                   apply join_list'_Some in H1.
+                   eapply joinlist_join_sub in H1; eauto.
+                   unfold join_threads in H0.
+                   rewrite join_list_joinlist in H0.
+                   eapply joinlist_join_sub in H0; [|eapply nth_error_In, (getThreadR_nth _ _ cnti)].
+                   destruct H0 as (x1 & J1), H1 as (x2 & J2).
+                   destruct (join_assoc (join_comm J1) H5) as (? & J1' & Ja).
+                   destruct (join_assoc (join_comm J2) (join_comm J1')) as (? & J & Jb).
+                   pose proof (join_eq (join_comm J) Hadd_lock_res); subst.
+                   destruct (join_assoc (join_comm Jb) (join_comm Ja)) as (? & ? & ?).
+                   eexists; apply ghost_of_join; eauto.
 
           + exact_eq Safe'.
             unfold jsafeN in *.

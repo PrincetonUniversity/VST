@@ -61,6 +61,7 @@ forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 simpl (data_at _ _ _).
 Time repeat step.
+entailer!.
 (* after simpl *)
 (* Finished transaction in 2.42 secs (2.375u,0.s) (successful) *)
 (* without simpl *)
@@ -73,7 +74,7 @@ simpl (data_at _ _ _). Time entailer!.
 * (* Prove that loop body preserves invariant *)
 (* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
 simpl.
-repeat info_step.
+repeat step!.
 + unfold flip_ends. Znth_solve.
 + unfold flip_ends. Znth_solve.
 + do 2 f_equal. omega.
@@ -82,7 +83,7 @@ repeat info_step.
   Zlength_solve.
   autorewrite with Zlength.
   unfold upd_Znth. intros. list_form.
-  Print Ltac Znth_solve_rec.
+  Print Ltac Znth_solve_rec. simpl.
   Time Znth_solve. (* This takes quite a few minutes *)
   (* Finished transaction in 435.348 secs (433.171u,0.218s) (successful) *)
   (* much much faster after simpl things *)

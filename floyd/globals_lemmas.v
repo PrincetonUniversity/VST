@@ -308,29 +308,26 @@ Proof.
  pose proof (init_data_size_pos a); omega.
 Qed.
 
-Definition globvar_all_aligned {cs: compspecs} gv : bool :=
-  forallb (fun a =>andb
-                (init_data_size a mod hardware_alignof ha_env_cs (gvar_info gv) =? 0)
-                (init_data_size a mod alignof (gvar_info gv) =? 0))
-           (gvar_init gv).
-
 Lemma unpack_globvar_star  {cs: compspecs}:
   forall Delta gz i gv,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
-  (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)% bool = true ->
+(*
+  (complete_legal_cosu_type (gvar_info gv)
+      && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)% bool = true ->
+*)
    gvar_volatile gv = false ->
-  (globvar_all_aligned gv = true) ->
-   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned ->
+(*  (globvar_all_aligned gv = true) -> *)
+(*   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Ptrofs.max_unsigned -> *)
    local (`and (tc_environ Delta) (fun rho =>gz = globals_of_env rho)) && globvar2pred gz (i, gv) |-- 
        id2pred_star Delta gz (readonly2share (gvar_readonly gv)) (gz i) (gvar_init gv).
 Proof.
-intros until 4.
-intros H5.
-unfold globvar_all_aligned in H5.
+intros until 2. pose proof I. intros H2.
+pose (H5 := True).
 remember (gvar_info gv) as t eqn:H3; symmetry in H3.
 remember (gvar_init gv) as idata eqn:H4; symmetry in H4.
 intros.
+pose (H6:=True).
 go_lowerx. subst gz.
 eapply derives_trans; [eapply tc_globalvar_sound'; eassumption | ].
 normalize.
@@ -343,73 +340,24 @@ forget (readonly2share (gvar_readonly gv)) as sh.
 set (ofs:=0%Z).
 assert (alignof t | Ptrofs.unsigned (Ptrofs.repr ofs)) by (subst ofs; simpl; apply Z.divide_0_r).
 destruct (globvar_eval_var _ _ _ _ H7 H H0) as [b [_ H9']].
-unfold globals_of_env. rewrite H9'.
+unfold globals_of_env. rewrite H9'. clear H9'.
 remember (Vptr b Ptrofs.zero) as x.
-assert (H10: x = offset_val ofs x) by (subst ofs x; reflexivity).
-rewrite H10 at 1.
-clear H10.
-assert (H11: init_data_list_size idata + ofs <= sizeof t)  by (unfold ofs; omega).
-assert (H12:  sizeof t <= Ptrofs.max_unsigned)  by omega.
-assert (0 <= ofs) by (unfold ofs; omega).
+replace x with (offset_val ofs x) at 1 2 by (subst x; normalize).
 fold (globals_of_env rho).
-match goal with |- _ |-- ?F _ _ _ _ _ _ _  => change F with @id2pred_star end.
-replace x with (offset_val ofs x) at 2. 2: subst x; normalize.
-change 0 with ofs in H1.
 clearbody ofs.
-revert ofs H1 H5 H8 H9 H9' H11 H12.
-clear dependent gv. clear H H0 H6.
-induction idata; simpl; auto; intros. 
-match goal with |- _ |-- _ * ?F _ _ _ _ _ _ _  => change F with @id2pred_star end.
+clear H1 H8 gv H3 H2 H4 H H0 H6 H5.
+revert ofs.
+induction idata; simpl; auto; intros.
+match goal with |- _ |-- _ * ?F _ _ _ _ _ _ _  => 
+    change F with @id2pred_star 
+end.
 apply sepcon_derives.
 *
   clear IHidata. 
-  rewrite andb_true_iff in H1 by (pose proof (init_data_list_size_pos idata); omega).
-  pose proof (init_data_size_pos a).
-  pose proof (init_data_list_size_pos idata).
-  assert (Ptrofs.max_unsigned = Ptrofs.modulus-1) by computable.
-  destruct H1.
-  rewrite Ptrofs.unsigned_repr in H8 by omega.
-  eapply init_data2pred_rejigger; eauto; try tauto;
-  clear x Heqx; clear RS H7 H9' b.
+  eapply init_data2pred_rejigger; eauto.
 * specialize (IHidata (ofs + init_data_size a)).
-rewrite offset_offset_val.
- pose proof (init_data_list_size_pos idata).
-pose proof (init_data_size_pos a).
- rewrite Ptrofs.unsigned_repr in H8 by omega.
- rewrite !andb_true_iff in H5.
- destruct H5 as [[H5a H5b] H5].
- assert (hardware_alignof ha_env_cs t | init_data_size a). {
-   clear - H5a.
-   assert (hardware_alignof ha_env_cs t > 0). {
-     eapply hardware_alignof_pos; eauto.
-     apply cenv_consistent.
-     apply ha_env_cs_consistent.
-     apply ha_env_cs_complete.
-   }
-   rewrite Z.eqb_eq in H5a.
-   rewrite Z.mod_divide in H5a by omega. auto.
- }   
- assert (alignof t | init_data_size a). {
-   clear - H5b.
-   pose proof (alignof_pos t).
-   rewrite Z.eqb_eq in H5b.
-   rewrite Z.mod_divide in H5b by omega. auto.
- }   
- assert (Halign: is_aligned cenv_cs ha_env_cs la_env_cs t (ofs + init_data_size a) = true). {
-    clear - H1 H2.
-    rewrite andb_true_iff in H1; destruct H1; auto.
-    unfold is_aligned, is_aligned_aux in *.
-    rewrite andb_true_iff in H0|-*; destruct H0; split; auto.
-    rewrite Z.eqb_eq in H1|-*.
-   destruct (zeq (hardware_alignof ha_env_cs t) 0).
-   rewrite e. apply Zmod_0_r.
-   rewrite Z.mod_divide in H1|-* by auto.
-   apply Z.divide_add_r; auto.
- }
- apply IHidata; clear IHidata; try omega; auto.
- rewrite andb_true_iff in H1|-*; destruct H1; split; auto.
- rewrite Ptrofs.unsigned_repr by omega.
- apply Z.divide_add_r; auto.
+   rewrite offset_offset_val.
+ apply IHidata.
 Qed.
 
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
@@ -589,7 +537,7 @@ Lemma unpack_globvar_array  {cs: compspecs}:
    (glob_types Delta) ! i = Some (gvar_info gv) ->
    gvar_info gv = tarray t n ->
    gvar_volatile gv = false ->
-   globvar_all_aligned gv = true ->
+(*   globvar_all_aligned gv = true -> *)
    t = Tint sz sign noattr ->
   forall    (NBS: notboolsize sz),
    n = Zlength (gvar_init gv) ->
@@ -601,7 +549,7 @@ Lemma unpack_globvar_array  {cs: compspecs}:
          (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)
          (gz i)).
 Proof.
-  intros until 4. intros Hgal; intros. subst t.
+  intros. subst t.
   match goal with |- ?A |-- _ =>
     erewrite (add_andp A (local (tc_environ Delta)))
   end.
@@ -616,15 +564,9 @@ Proof.
   eapply derives_trans.
   apply andp_right.
   apply andp_left1. apply andp_left1. apply andp_left1. apply derives_refl.
-  apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl].
-* rewrite andb_true_iff.
-  split; rewrite H1.
-  reflexivity.
-  unfold is_aligned, is_aligned_aux. rewrite andb_true_iff; split.
-  destruct sz, sign; simpl; auto.
-  rewrite Z.mod_0_l. reflexivity.
-  destruct sz, sign; simpl; computable.
-*
+  apply andp_derives; [ apply andp_derives;
+    [ eapply unpack_globvar_star; try eassumption; try reflexivity
+    | apply derives_refl]  | apply derives_refl].
  (* rewrite H1.*)  (* rewrite H3.*) rewrite H5.
   rewrite <- andp_assoc.
   apply andp_left1.
@@ -722,7 +664,7 @@ Lemma process_globvar_array:
        (glob_types Delta) ! i = Some (gvar_info gv) ->
        gvar_info gv = tarray t n ->
        gvar_volatile gv = false ->
-       globvar_all_aligned gv = true ->
+(*       globvar_all_aligned gv = true -> *)
        t = Tint sz sign noattr ->
        notboolsize sz ->
        n = Zlength (gvar_init gv) ->
@@ -741,9 +683,9 @@ Lemma process_globvar_array:
                       * globvars2pred gz ((i,gv)::gvs) * SF)
      c Post.
 Proof.
-intros until 4. intro Hgal; intros.
+intros.
 eapply semax_pre; [ | apply H8]. clear H8.
-pose proof (unpack_globvar_array _ _ _ _ _ _ gz _ _ H H0 H1 H2 Hgal H3 H4 H5 H6 H7).
+pose proof (unpack_globvar_array _ _ _ _ _ _ gz _ _ H H0 H1 H2 H3 H4 H5 H6 H7).
 clear H H0 H1 H2 H3 H4 H5 H6 H7.
 rewrite <- !insert_local.
 rewrite <- insert_SEP.
@@ -770,7 +712,7 @@ Lemma process_globvar_star':
        (glob_types Delta) ! i = Some (gvar_info gv) ->
   (complete_legal_cosu_type (gvar_info gv) && is_aligned cenv_cs ha_env_cs la_env_cs (gvar_info gv) 0)%bool = true ->
        gvar_volatile gv = false ->
-       globvar_all_aligned gv = true ->
+(*       globvar_all_aligned gv = true ->*)
        init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <=
        Ptrofs.max_unsigned ->
   semax Delta (PROPx P (LOCALx (gvars gz :: Q)
@@ -783,9 +725,9 @@ Lemma process_globvar_star':
                       * globvars2pred gz ((i,gv)::gvs) * SF)
      c Post.
 Proof.
-intros.
+intros until 4. pose proof I. intros.
 eapply semax_pre; [ | apply H5]. clear H5.
-pose proof (unpack_globvar_star _ gz _ _ H H0 H1 H2 H3 H4).
+pose proof (unpack_globvar_star _ gz _ _ H H0 (*H1*) H2 (*H3 H4*)).
 clear H H0 H1 H2 H3 H4.
 rewrite <- !insert_local.
 forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
@@ -889,7 +831,7 @@ auto.
 Qed.
 
 Lemma main_pre_ext_start:
- forall {Espec : OracleKind} prog u gv ora,
+ forall {Z} prog u gv (ora : Z),
    main_pre_ext prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
 Proof.
 intros.
@@ -971,13 +913,13 @@ Ltac process_one_globvar :=
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence | ]
   | simple eapply process_globvar_array;
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I
       | compute; clear; congruence
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence |  ]
   | simple eapply process_globvar_star';
         [reflexivity | reflexivity | reflexivity | reflexivity
-        | reflexivity | compute; split; clear; congruence
+        | compute; split; clear; congruence
        | simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
          change (Share.lub extern_retainer Tsh) with Ews
          ]

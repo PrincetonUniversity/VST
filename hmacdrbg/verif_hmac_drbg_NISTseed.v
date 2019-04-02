@@ -335,7 +335,7 @@ Proof.
   rewrite <- instantiate_reseed, RES in HeqMRS; trivial. subst MRS. clear H RES Heqd. 
   destruct handle as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros.
-  unfold_data_at 1%nat. freeze [0;1;2;4;5;6;7;8;9;10;11;12;13] ALLSEP.
+  unfold_data_at 1%nat. freeze [0;1;2;4;5;6;7;8;9;10;11;12] ALLSEP.
   forward. forward.
   Exists Int.zero. simpl.
   apply andp_right. apply prop_right; split; trivial.
@@ -791,7 +791,7 @@ Proof.
   }
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
-  freeze [0;1;2;3;4;5;6;7;8;9;1] ALLSEP.
+  freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 (*  set (ent_len := new_ent_len (Zlength V0)) in *.*)
 
   forward_if (temp _t'4 (Vint (Int.repr 32))).
@@ -816,8 +816,16 @@ Proof.
         (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
   destruct myST as [ST HST].
 
-  freeze [0;3;4;5;13] FR_CTX.
-  freeze [1;7;8;9] KVStreamInfoDataFreeBlk.
+  freeze FR_CTX := (data_at _ _ _ (Vptr b (Ptrofs.add i (Ptrofs.repr 12))))
+         (field_at _ _ [StructField _reseed_counter] _ (Vptr b i))
+         (field_at _ _ [StructField _entropy_len] _ (Vptr b i))
+         (UNDER_SPEC.REP _ _ p)
+         (malloc_token _ _ p).
+  freeze KVStreamInfoDataFreeBlk :=
+      (K_vector gv) 
+      (data_at _ _ _ info)
+      (da_emp _ _ _ data)
+      (Stream s).
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
   freeze [1;3;4;5] INI.

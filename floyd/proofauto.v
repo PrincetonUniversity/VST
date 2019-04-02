@@ -46,6 +46,7 @@ Require Export VST.floyd.list_solver.
 Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
 Require VST.msl.wandQ_frame.
+Require VST.floyd.linking.
 
 Arguments semax {CS} {Espec} Delta Pre%assert cmd%C Post%assert.
 Export ListNotations.
@@ -56,6 +57,7 @@ Hint Rewrite ptrofs_add_repr ptrofs_mul_repr ptrofs_sub_repr : entailer_rewrite.
 Hint Rewrite mul64_repr add64_repr sub64_repr or64_repr and64_repr : entailer_rewrite.
 Hint Rewrite neg_repr neg64_repr : entailer_rewrite.
 Hint Rewrite ptrofs_to_int_repr: entailer_rewrite norm.
+Hint Rewrite ptrofs_to_int64_repr using reflexivity: entailer_rewrite norm.
 
 Lemma Vptrofs_unfold_false: 
 Archi.ptr64 = false -> Vptrofs = fun x => Vint (Ptrofs.to_int x).
@@ -109,14 +111,66 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
+Ltac EExists_unify1 x P :=
+ match P with
+ | ?P1 /\ ?P2 => first [EExists_unify1 x P1 | EExists_unify1 x P2]
+ | ?A = ?B =>
+  match A with context [x] =>
+  pattern (A=B);
+  let y := fresh "y" in match goal with |- ?F _ => set (y:=F) end;
+  autorewrite with entailer_rewrite;
+  first  [subst x; match goal with |- _ (?A' = ?B') => unify A' B' end
+  | match goal with
+  | x:= ?u |- _ (Vint (Int.repr (x - ?i)) = Vint (Int.repr ?j)) =>
+        unify u (j+i); subst x
+  | x:= ?u |- _ (Vint (Int.repr (x + ?i)) = Vint (Int.repr ?j)) =>
+        unify u (j-i); subst x
+  | x:= ?u |- _ (Vlong (Int64.repr (x - ?i)) = Vlong (Int64.repr ?j)) =>
+        unify u (j+i); subst x
+  | x:= ?u |- _ (Vlong (Int64.repr (x + ?i)) = Vlong (Int64.repr ?j)) =>
+        unify u (j-i); subst x
+  end];
+  subst y; cbv beta
+  end
+end.
+
+Ltac EExists_unify := 
+  let T := fresh "T"  in
+  let x := fresh "x" in
+  evar (T:Type); evar (x:T); subst T; 
+  Exists x;
+  match goal with
+  | |- _ |-- !! ?P && _ => EExists_unify1 x P
+  | |- _ |-- !! ?P => EExists_unify1 x P
+  end.
+
 Ltac step :=
   first
   [ progress Intros
+  | let x := fresh "x" in Intros x
+  | progress autorewrite with sublist in *|-
+  | progress autorewrite with sublist
+  | progress autorewrite with norm
+  | forward
+  | forward_if
+  | forward_call
+  | rep_omega | cstring' | list_solve
+  | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
+  | EExists_unify
+  | cstring1
+  | deadvars!
+  | solve [match goal with |- @derives mpred _ _ _ => cancel end]
+  | solve [entailer!; try cstring']
+  ].
+
+Tactic Notation "step!"  :=
+  first
+  [ progress Intros
+  | let x := fresh "x" in
+    Intros x
   | progress autorewrite with sublist in * |-
   | progress autorewrite with sublist
   | progress autorewrite with norm
-  | let x := fresh "x" in
-    Intros x
   | forward
   | forward_if
   | forward_call
@@ -130,15 +184,15 @@ Ltac step :=
   | match goal with |- _ /\ _ => split end
   ].
 
-Ltac info_step :=
+Tactic Notation "info_step!" :=
   first
   [ progress Intros; idtac "Intros."
-  | progress autorewrite with sublist in * |-; idtac "autorewrite with sublist in * |-."
-  | progress autorewrite with sublist; idtac "autorewrite with sublist."
-  | progress autorewrite with norm; idtac "autorewrite with norm."
   | let x := fresh "x" in
     Intros x;
     idtac "Intros x."
+  | progress autorewrite with sublist in * |-; idtac "autorewrite with sublist in * |-."
+  | progress autorewrite with sublist; idtac "autorewrite with sublist."
+  | progress autorewrite with norm; idtac "autorewrite with norm."
   | forward; idtac "forward."
   | forward_if; idtac "forward_if."
   | forward_call; idtac "forward_call."

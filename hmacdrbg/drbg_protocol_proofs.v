@@ -40,7 +40,7 @@ Require hmacdrbg.verif_hmac_drbg_seed.
 Require Import VST.floyd.subsume_funspec.
 
 Lemma drb_seed_256_subsume:
-  NDsubsume_funspec 
+  NDfunspec_sub 
        (snd hmac_drbg_seed_inst256_spec)
        (snd drbg_seed_inst256_spec_abs).
 Proof.
@@ -204,7 +204,7 @@ Proof.
   destruct HH as [KEY VALUE]. unfold hmac256drbgstate_md_info_pointer; simpl.
   Exists KEY VALUE p (M1, (M2, M3)). normalize. simpl in *.
   apply andp_right.
-  { apply prop_right. split; trivial. split; trivial. }
+  { apply prop_right. split; trivial. }
   cancel. unfold REP. 
   Exists (info, (M2, p),
           (map Vubyte VALUE,
@@ -297,7 +297,8 @@ Proof.
   { destruct ( zlt 384 (entropy_len + add_len)); try discriminate; trivial. }
 
   thaw FR2. thaw FR1.
-  unfold hmac256drbgstate_md_info_pointer; simpl. freeze [0;1;2;4;5;6;7] FR3.
+  unfold hmac256drbgstate_md_info_pointer; simpl.
+  freeze [0;1;2;4;5;6] FR3.
   (* memset( seed, 0, MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT ); *)
   forward_call (Tsh, seed, 384, Int.zero).
   { rewrite data_at__memory_block.

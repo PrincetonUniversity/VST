@@ -10,6 +10,15 @@ Proof.
   rewrite sepcon_comm; auto.
 Qed.
 
+Lemma wand_frame_intro' {A} {ND: NatDed A} {SL: SepLog A}: forall (P Q R: A),
+  P * Q |-- R ->
+  Q |-- P -* R.
+Proof.
+  intros.
+  apply wand_sepcon_adjoint.
+  rewrite sepcon_comm; auto.
+Qed.
+
 Lemma wand_frame_elim {A} {ND: NatDed A} {SL: SepLog A}: forall (P Q: A),
   P * (P -* Q) |-- Q.
 Proof.

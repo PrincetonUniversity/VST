@@ -207,7 +207,7 @@ apply (@semax_call_id0 Espec cs Delta P Q R id bl (NDmk_funspec (argsig, retty) 
                   (fun _ => Pre) (fun _ => Post)
                (const_super_non_expansive _ _)
                (const_super_non_expansive _ _)); auto.
-apply subsume_funspec_refl.
+apply funspec_sub_refl.
 Qed.
 
 Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)

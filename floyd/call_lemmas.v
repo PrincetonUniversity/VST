@@ -40,7 +40,7 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost
    | _, _ => True
    end ->
    forall (Hret: tc_fn_return Delta ret retsig)
-   (Hsub: subsume_funspec fs (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost))
+   (Hsub: funspec_sub fs (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost))
 (*   (HAB: forall ts : list Type,
        Inhabitant (functors.MixVariantFunctor._functor
                          (rmaps.dependent_type_functor_rec ts
@@ -97,7 +97,7 @@ Proof.
 Qed.
 
 Lemma semax_call1: forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost ts x id argsig retsig cc a bl P Q R
-   (Hsub: subsume_funspec fs (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)),
+   (Hsub: funspec_sub fs (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)),
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc ->
    match retsig with
    | Tvoid => False
@@ -123,7 +123,7 @@ Definition ifvoid {T} t (A B: T) :=
 
 Lemma semax_call0: forall Espec {cs: compspecs} Delta fs A Pre Post NEPre NEPost ts x
       argsig retty cc a bl P Q R
-   (Hsub: subsume_funspec fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)),
+   (Hsub: funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)),
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
   @semax cs Espec Delta
          (|>(tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl)
@@ -215,18 +215,10 @@ destruct cc; simpl.
 destruct cc_vararg, cc_unproto, cc_structret; reflexivity.
 Qed.
 
-Lemma type_of_subsume_funspec: (* move to subsume_funspec.v *)
-  forall fs1 fs2, subsume_funspec fs1 fs2 ->
-  type_of_funspec fs1 = type_of_funspec fs2.
-Proof.
-intros.
-destruct fs1, fs2; destruct H as [? [? _]]. subst; simpl; auto.
-Qed.
-
 (* TODO: Change argument order. ==> A Pre Post NEPre NEPost ts x *)
 Lemma semax_call_id0:
  forall Espec {cs: compspecs} Delta P Q R id bl fs argsig retty cc A ts x Pre Post NEPre NEPost
-   (Hsub: subsume_funspec fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost))
+   (Hsub: funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost))
    (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some fs ->
        (glob_types Delta) ! id = Some (type_of_funspec fs) ->
@@ -258,7 +250,7 @@ norm_rewrite. apply prop_left; intro.
 unfold get_var_type. rewrite GLBL. rewrite H0.
 rewrite denote_tc_assert_bool; simpl. apply prop_right.
 simpl.
-rewrite (type_of_subsume_funspec _ _ Hsub).
+rewrite (type_of_funspec_sub _ _ Hsub).
 simpl; auto.
 rewrite eqb_typelist_refl.
 simpl. auto.
@@ -272,13 +264,13 @@ apply andp_left2, andp_left2, andp_left2.
 intro; simpl.
 rewrite later_sepcon, <- sepcon_assoc.
 apply sepcon_derives; auto.
-rewrite (type_of_subsume_funspec _ _ Hsub).
+rewrite (type_of_funspec_sub _ _ Hsub).
 rewrite sepcon_comm; apply derives_refl.
 Qed.
 
 Lemma semax_call_id1:
  forall Espec {cs: compspecs} Delta P Q R ret id fs retty cc bl argsig A ts x Pre Post NEPre NEPost
-   (Hsub: subsume_funspec fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost))
+   (Hsub: funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost))
    (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some fs ->
        (glob_types Delta) ! id = Some (type_of_funspec fs) ->
@@ -313,7 +305,7 @@ intro rho; unfold tc_expr, local,lift1; simpl.
 subst.
 norm_rewrite.
 unfold get_var_type. rewrite GLBL. rewrite Ht.
-rewrite (type_of_subsume_funspec _ _ Hsub).
+rewrite (type_of_funspec_sub _ _ Hsub).
 rewrite denote_tc_assert_bool.
 simpl.
 rewrite eqb_typelist_refl.
@@ -327,7 +319,7 @@ apply andp_left2.
 apply andp_left2.
 rewrite later_sepcon, <- sepcon_assoc.
 apply sepcon_derives; auto.
-rewrite (type_of_subsume_funspec _ _ Hsub).
+rewrite (type_of_funspec_sub _ _ Hsub).
 rewrite sepcon_comm.
 apply derives_refl.
 Qed.
@@ -579,7 +571,7 @@ Definition call_setup1
   (Qactuals : PTree.t _)
  :=
   local2ptree Q = (Qtemp, Qvar, nil, GV) /\
-  subsume_funspec fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) /\
+  funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) /\
   can_assume_funcptr  cs Delta P Q R' a fs /\
   PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) /\
   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc /\
@@ -601,7 +593,7 @@ Lemma call_setup1_i:
   local2ptree Q = (Qtemp, Qvar, nil, GV) ->
   msubst_eval_expr Delta Qtemp Qvar GV a = Some v ->
   fold_right_sepcon R' |--  func_ptr fs v ->
-  subsume_funspec fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
+  funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
   fold_right_sepcon R' |-- |> fold_right_sepcon R ->
   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
@@ -642,7 +634,7 @@ Lemma call_setup1_i2:
   (Qactuals : PTree.t _),
   local2ptree Q = (Qtemp, Qvar, nil, GV) ->
   can_assume_funcptr  cs Delta P Q R' (Evar id ty) fs ->
-  subsume_funspec fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
+  funspec_sub fs (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
   PROPx P (LOCALx Q (SEPx R')) |-- |> PROPx P (LOCALx Q (SEPx R)) ->
   Cop.classify_fun ty = Cop.fun_case_f (type_of_params argsig) retty cc ->
   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 

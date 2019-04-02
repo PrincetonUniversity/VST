@@ -2,6 +2,19 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
+Module Info.
+  Definition version := "3.5"%string.
+  Definition build_number := ""%string.
+  Definition build_tag := ""%string.
+  Definition arch := "x86"%string.
+  Definition model := "32sse2"%string.
+  Definition abi := "standard"%string.
+  Definition bitsize := 32.
+  Definition big_endian := false.
+  Definition source_file := "sha/hkdf.c"%string.
+  Definition normalized := false.
+End Info.
+
 Definition _HKDF : ident := 201%positive.
 Definition _HKDF_expand : ident := 197%positive.
 Definition _HKDF_extract : ident := 188%positive.
@@ -103,7 +116,7 @@ Definition _extr1 : ident := 198%positive.
 Definition _extr2 : ident := 200%positive.
 Definition _f : ident := 68%positive.
 Definition _fragment : ident := 88%positive.
-Definition _free : ident := 128%positive.
+Definition _free : ident := 127%positive.
 Definition _g : ident := 69%positive.
 Definition _get_entropy : ident := 150%positive.
 Definition _h : ident := 1%positive.
@@ -129,7 +142,7 @@ Definition _ll : ident := 91%positive.
 Definition _m : ident := 111%positive.
 Definition _m__1 : ident := 114%positive.
 Definition _main : ident := 95%positive.
-Definition _malloc : ident := 127%positive.
+Definition _malloc : ident := 128%positive.
 Definition _mbedtls_hmac_drbg_context : ident := 125%positive.
 Definition _mbedtls_hmac_drbg_free : ident := 182%positive.
 Definition _mbedtls_hmac_drbg_init : ident := 153%positive.

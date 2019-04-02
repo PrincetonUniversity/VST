@@ -135,7 +135,7 @@ Proof.
   intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
   simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
   simpl in Pre.
-  destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+  destruct Pre as (phi0 & phi1 & Join & Precond & HnecR & Hjoins).
   simpl (and _).
   intros Post.
 
@@ -425,7 +425,7 @@ Proof.
         destruct Hrmap' as (_ & outside & inside & _).
         specialize (inside (b, Ptrofs.intval ofs)). spec inside. now split; auto; unfold Ptrofs.unsigned; omega.
         breakhyps.
-        simpl in H7. unfold Ptrofs.unsigned in *. rewrite Z.sub_diag in H7.
+        unfold Ptrofs.unsigned in *. rewrite Z.sub_diag in H7.
         destruct (E'' 0) as [? [? [? E3]]]. pose proof LKSIZE_pos; omega.
         rewrite age_to_resource_at in E3. simpl in E3. rewrite Z.add_0_r in E3.
         rewrite H5 in E3.
@@ -764,7 +764,7 @@ Proof.
               apply age_to_join.
               REWR.
               REWR.
-            * split. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
+            * split3. 2: now eapply necR_trans; [ eassumption | apply age_to_necR ].
               split. now constructor.
               split. now constructor.
               simpl. rewrite seplog.sepcon_emp.
@@ -775,6 +775,15 @@ Proof.
               apply age_to_pred.
               assumption.
               apply age_to_pred. assumption.
+              unshelve setoid_rewrite <- getThreadR_age; auto.
+              rewrite age_to_ghost_of.
+              unshelve erewrite gRemLockSetRes; auto.
+              rewrite gssThreadRes.
+              apply ghost_of_join in Join; apply ghost_of_join in j'.
+              destruct Hrmap0 as (_ & _ & _ & Hg); rewrite Hg in Join.
+              eapply join_eq in Join; eauto.
+              destruct ora.
+              rewrite Join; apply ext_join_approx; auto.
           + exact_eq Safe'.
             unfold jsafeN.
             f_equal.

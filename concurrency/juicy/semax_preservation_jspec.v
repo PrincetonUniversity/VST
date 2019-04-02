@@ -118,6 +118,9 @@ Section Jspec'_properties.
     destruct (is_EF_external e x) as (name & sg & ->).
 
     apply age_jm_phi in A.
+    assert (joins (ghost_of (m_phi m1)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
+       joins (ghost_of (m_phi m2)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)) as J.
+    { erewrite (age1_ghost_of _ _ A); apply ext_join_approx. }
 
     (* dependent destruction *)
     revert x.
@@ -134,7 +137,7 @@ Section Jspec'_properties.
     all:breakhyps.
     all:agehyps.
     all:agehyps.
-    all:eauto.
+    all:eauto 7.
   Qed.
 
   Lemma Jspec'_jsafe_phi ge n ora c jm ext :

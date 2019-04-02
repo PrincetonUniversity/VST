@@ -76,6 +76,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
   | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
       data_at Tsh (tptr t_struct_tree) p b *
+      spacer Tsh (sizeof tint) (sizeof size_t) p *
       field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       field_at Tsh t_struct_tree [StructField _value] v p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
@@ -191,6 +192,7 @@ Definition pushdown_left_spec :=
     PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
     LOCAL(temp _t b)
     SEP (data_at Tsh (tptr t_struct_tree) p b;
+         spacer Tsh (sizeof tint) (sizeof size_t) p;
          field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
          field_at Tsh t_struct_tree [StructField _value] v p;
          treebox_rep ta (field_address t_struct_tree [StructField _left] p);
@@ -424,27 +426,29 @@ Proof.
       - (* Inner if, then clause: x<k *)
         forward. (* t=&p->left *)
         unfold insert_inv.
-        Exists (offset_val 8 p1) t1_1.
+        Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
         entailer!. simpl.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
+        (* TODO: SIMPLY THIS LINE 
         replace (offset_val 8 p1)
           with (field_address t_struct_tree [StructField _left] p1)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
+*)
         apply RAMIF_PLAIN.trans'.
         apply bst_left_entail; auto.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold insert_inv.
-        Exists (offset_val 12 p1) t1_2.
+        Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
+        (* TODO: SIMPLY THIS LINE 
         replace (offset_val 12 p1)
           with (field_address t_struct_tree [StructField _right] p1)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
+*)
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
@@ -552,6 +556,26 @@ Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
   SEP   (treebox_rep (T ta x v tb) b;
          (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
 
+Lemma cancel_emp_spacer:
+  forall sh x y p, x=y -> 
+    emp |-- spacer sh x y p.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
+Lemma cancel_spacer_emp:
+  forall sh x y p, x=y -> 
+    spacer sh x y p |-- emp.
+Proof.
+intros.
+subst.
+unfold spacer.
+rewrite Z.sub_diag. simpl. auto.
+Qed.
+
 Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
 Proof.
   start_function.
@@ -655,42 +679,47 @@ Proof.
       - (* Inner if, then clause: x<k *)
         forward. (* t=&p->left *)
         unfold delete_inv.
-        Exists (offset_val 8 p1) t1_1.
+        Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
         entailer!. simpl.
         simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
+        (* TODO: SIMPLY THIS LINE 
         replace (offset_val 8 p1)
           with (field_address t_struct_tree [StructField _left] p1)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
+*)
         apply RAMIF_PLAIN.trans'.
         apply bst_left_entail; auto.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold delete_inv.
-        Exists (offset_val 12 p1) t1_2.
+        Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
         entailer!. simpl.
         simpl_compb; simpl_compb.
-        (* TODO: SIMPLY THIS LINE *)
+        (* TODO: SIMPLY THIS LINE 
         replace (offset_val 12 p1)
           with (field_address t_struct_tree [StructField _right] p1)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
+*)
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x.
         unfold_data_at (data_at _ _ _ p1).
-        gather_SEP 3 5.
+        gather_SEP (field_at _ _ [StructField _left] _ _)
+                        (tree_rep _ pa).
+
         replace_SEP 0 (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1)).
         {
           unfold treebox_rep; entailer!.
           Exists pa.
-          rewrite field_at_data_at.
+          rewrite field_at_data_at. simpl.
           entailer!.
         }
-        gather_SEP 4 5.
+        gather_SEP (field_at _ _ [StructField _right] _ _)
+                        (tree_rep _ pb).
         replace_SEP 0 (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1)).
         {
           unfold treebox_rep; entailer!.
@@ -698,7 +727,8 @@ Proof.
           rewrite field_at_data_at.
           entailer!.
         }
-        Time forward_call (t1_1, k, v, t1_2, b1, p1).
+        Time forward_call (t1_1, k, v, t1_2, b1, p1);
+                    [entailer! .. | ].
         forward. (* return *)
         simpl.
         simpl_compb.
@@ -761,7 +791,7 @@ Proof.
 Qed.
 
 Module Abstractions.
-(* Demonstration of data abstraction via subsume_funspec. *)
+(* Demonstration of data abstraction via funspec_sub. *)
 
 
 (* Definitions of [combine] and [Abs] taken from 
@@ -843,7 +873,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil gv.
 
 Lemma subsume_insert:
- subsume_funspec (snd insert_spec) (snd abs_insert_spec).
+ funspec_sub (snd insert_spec) (snd abs_insert_spec).
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
@@ -864,7 +894,7 @@ apply insert_relate; auto.
 Qed.
 
 Lemma subsume_treebox_new:
- subsume_funspec (snd treebox_new_spec) (snd abs_treebox_new_spec).
+ funspec_sub (snd treebox_new_spec) (snd abs_treebox_new_spec).
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
@@ -888,7 +918,7 @@ simpl. entailer!.
 Qed.
 
 Lemma subsume_treebox_free:
- subsume_funspec (snd treebox_free_spec) (snd abs_treebox_free_spec).
+ funspec_sub (snd treebox_free_spec) (snd abs_treebox_free_spec).
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
@@ -943,7 +973,3 @@ Qed.
 End TREE_ABS.
 
 End Abstractions.
-
-
-
-

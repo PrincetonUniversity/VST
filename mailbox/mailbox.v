@@ -2,6 +2,19 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
+Module Info.
+  Definition version := "3.5"%string.
+  Definition build_number := ""%string.
+  Definition build_tag := ""%string.
+  Definition arch := "x86"%string.
+  Definition model := "32sse2"%string.
+  Definition abi := "standard"%string.
+  Definition bitsize := 32.
+  Definition big_endian := false.
+  Definition source_file := "mailbox/mailbox.c"%string.
+  Definition normalized := false.
+End Info.
+
 Definition ___builtin_annot : ident := 9%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
 Definition ___builtin_bswap : ident := 3%positive.

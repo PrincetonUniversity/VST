@@ -424,7 +424,8 @@ Proof.
   rewrite (andp_comm (allp_fun_id _ _ )), andp_assoc.
   f_equal.
   apply pred_ext; [apply andp_right; auto | apply andp_left2; auto].
-  apply funassert_allp_fun_id_sub; auto.
+  intros w W. hnf.
+  eapply funassert_allp_fun_id_sub; eauto.
 Qed.
 
 Lemma guard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) k,
@@ -446,7 +447,7 @@ Proof.
   rewrite !proj_frame.
   rewrite proj_conj.
   apply _guard_allp_fun_id; auto.
-Qed.
+Qed. 
 
 Lemma _guard_tc_environ:
   forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) f k,
@@ -516,7 +517,7 @@ Proof.
   apply allp_derives; intros f.
   apply imp_derives; [apply andp_derives; auto |].
   + erewrite (rguard_allp_fun_id _ _ _ _ R') by eauto.
-    erewrite (rguard_tc_environ _ _ _ _ (conj_ret_assert _ _)) by eauto.
+    erewrite (rguard_tc_environ _ _ _ _ (conj_ret_assert R' _)) by eauto.
     rewrite (rguard_except_0 _ _ _ R).
     rewrite (rguard_bupd _ _ _ (except_0_ret_assert _)).
     apply rguard_mono.

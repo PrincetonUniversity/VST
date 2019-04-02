@@ -71,7 +71,7 @@ Proof.
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
-  freeze [1;3;5;6;7;8;9] OTHER.
+  freeze [1;3;5;6;7;8] OTHER.
   freeze [1;2;3] INI.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =

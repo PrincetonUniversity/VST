@@ -1057,33 +1057,6 @@ Proof.
   auto.
 Qed.
 
-(*
-(* originaly, premises are nested_non_volatile, sizeof < modulus, sizeof = sz *)
-Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at__memory_block_cancel;
-       [reflexivity
-       | rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         rep_omega
-       | try apply f_equal_Int_repr;
-         rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
-       ])
-    : cancel.
-
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at_memory_block;
-       [reflexivity
-       | rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl;
-         rep_omega
-       | try apply f_equal_Int_repr;
-         rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; rep_omega
-       ])
-    : cancel.
-*)
-
 Lemma array_at_array_at_: forall sh t gfs lo hi v p,
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
@@ -2976,3 +2949,100 @@ Hint Extern 2 (@field_at ?cs1 ?sh _ ?gfs _ ?p |-- @field_at ?cs2 ?sh _ ?gfs _ ?p
      else simple apply change_compspecs_field_at_cancel; 
         [ reflexivity | reflexivity | apply JMeq_refl]) : cancel.
 
+Lemma data_at_nullptr:
+ forall {cs: compspecs} sh t p, 
+  data_at sh size_t nullval p =
+  data_at sh (tptr t) nullval p.
+Proof.
+intros.
+unfold data_at, field_at.
+f_equal.
+f_equal.
+unfold field_compatible; simpl.
+f_equal; auto.
+f_equal; auto.
+f_equal.
+f_equal.
+unfold align_compatible.
+destruct p; try auto.
+apply prop_ext; split; intro;
+(eapply align_compatible_rec_by_value_inv in H; [ | reflexivity];
+ eapply align_compatible_rec_by_value; [reflexivity | ];
+ apply H).
+simpl.
+unfold at_offset.
+rewrite !by_value_data_at_rec_nonvolatile by reflexivity.
+simpl.
+unfold nested_field_type; simpl.
+rewrite <- mapsto_size_t_tptr_nullval with (t:=t).
+f_equal.
+Qed.
+
+Lemma data_at_int_or_ptr_int:
+ forall {CS: compspecs} i p,
+  data_at Tsh int_or_ptr_type (Vptrofs i) p
+  = data_at Tsh size_t (Vptrofs i) p.
+Proof.
+ intros.
+ unfold data_at, field_at.
+ simpl. f_equal.
+ f_equal.
+ unfold field_compatible.
+ f_equal.
+ f_equal.
+ f_equal.
+ f_equal.
+ unfold align_compatible.
+ destruct p; auto.
+ apply prop_ext; split; intro; 
+  eapply align_compatible_rec_by_value_inv in H;
+   try reflexivity;
+  try (eapply align_compatible_rec_by_value; eauto).
+  reflexivity.
+  reflexivity.
+Qed.
+
+Lemma data_at_int_or_ptr_ptr:
+ forall {CS: compspecs} t v p,
+  isptr v ->
+  data_at Tsh int_or_ptr_type v p
+  = data_at Tsh (tptr t) v p.
+Proof.
+ intros.
+ destruct v; try contradiction.
+ clear H.
+ unfold data_at, field_at.
+ simpl. f_equal.
+ f_equal.
+ unfold field_compatible.
+ f_equal.
+ f_equal.
+ f_equal.
+ f_equal.
+ unfold align_compatible.
+ destruct p; auto.
+ apply prop_ext; split; intro; 
+  eapply align_compatible_rec_by_value_inv in H;
+   try reflexivity;
+  try (eapply align_compatible_rec_by_value; eauto).
+  reflexivity.
+  reflexivity.
+ unfold at_offset.
+ unfold nested_field_type;  simpl.
+ unfold data_at_rec; simpl.
+ unfold mapsto.
+ simpl.
+ destruct p; simpl; auto.
+ if_tac; auto.
+ f_equal.
+ simple_if_tac; auto.
+ f_equal. rewrite andb_false_r. reflexivity.
+ f_equal. rewrite andb_false_r. reflexivity.
+ f_equal.
+ f_equal.
+ f_equal.
+ unfold tc_val'.
+ unfold tc_val; simpl.
+ rewrite N.eqb_refl.
+ rewrite andb_false_r. reflexivity.
+Qed.

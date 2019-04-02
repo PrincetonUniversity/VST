@@ -75,10 +75,17 @@ and in your-compcert-directory build with "./configure" specifying
 a 64-bit architecture; and you'll get the corresponding 64-bit Verifiable C.
 No need to specify BITSIZE in your CONFIGURE file.
 
-Warning:  In the standard VST distribution, in the progs/ and sha/ directories
+In the standard VST distribution, in the progs/ and sha/ directories
 there are .v files built by clightgen from .c files.  These are built
 with a 32-bit clightgen, and will not be portable to 64-bit mode;
-they'll need to be rebuilt.
+that is, they work if "make floyd" has been done with BITSIZE=32.
+
+The progs64/ directory contains a subset of the .c files from progs/,
+compiled in 64-bit mode to the corresponding .v files.  The files
+progs64/verif_*.v are copied from progs/verif*.v with no change except
+to replace "Import VST.progs.XXX" with "Import VST.progs64.XXX",
+and will build only if "make floyd" has been done with BITSIZE=64.
+
 
 --------------------------------------------------------------------------------
 

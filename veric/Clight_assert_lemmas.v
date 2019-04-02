@@ -18,10 +18,31 @@ Qed.
 Hint Resolve corable_funassert.
 
 Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
+ ALL id : ident , ALL fs : funspec ,
+  !! ((glob_specs Delta) ! id = Some fs) -->
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_ptr_si fs (Vptr b Ptrofs.zero)).
+
+Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): pred rmap :=
 (ALL id : ident ,
  (ALL fs : funspec ,
   !! ((glob_specs Delta) ! id = Some fs) -->
-  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_at fs (b, 0)))).
+  (EX b : block, !! (Map.get (ge_of rho) id = Some b) && 
+    match fs with
+    mk_funspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
+    end))).
+
+Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta rho: 
+  allp_fun_id Delta rho |--  allp_fun_id_sigcc Delta rho.
+Proof.
+  apply allp_derives; intros id.
+  apply allp_derives; intros fs.
+  apply imp_derives; trivial.
+  apply exp_derives; intros b.
+  apply andp_derives; trivial.
+  unfold func_ptr. intros w [bb [H [gs [GS F]]]].
+  simpl in H; inv H. destruct gs; destruct fs; destruct GS as [[? ?] ?]; subst.
+  simpl. eexists; rewrite F; clear F. reflexivity.
+Qed.
 
 Lemma corable_allp_fun_id: forall Delta rho,
   corable (allp_fun_id Delta rho).
@@ -32,34 +53,89 @@ Proof.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  apply corable_func_at.
+  apply corable_func_ptr_si.
 Qed.
-  
+
+Lemma corable_allp_fun_id_sigcc: forall Delta rho,
+  corable (allp_fun_id_sigcc Delta rho).
+Proof.
+  intros.
+  apply corable_allp; intros id.
+  apply corable_allp; intros fs.
+  apply corable_imp; [apply corable_prop |].
+  apply corable_exp; intros b.
+  apply corable_andp; [apply corable_prop |].
+  destruct fs. apply corable_exp; intros cc. apply corable_pureat.
+Qed.
+
+Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
+  tycontext_sub Delta Delta' ->
+  allp_fun_id_sigcc Delta' rho |-- allp_fun_id_sigcc Delta rho.
+Proof.
+  intros.
+  apply allp_derives; intros id.
+  intros w W fs u WU FS.
+  destruct H as [_ [_ [_ [_ [? _]]]]].
+  specialize (H id).
+  hnf in H.
+  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  destruct (W gs u WU GSA) as [b [B1 B2]].
+  exists b; split; [trivial | destruct fs; destruct gs]. 
+  destruct GSB as [[GSBa GCBb] _]. subst c0 f0. trivial. 
+Qed.
+
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
   allp_fun_id Delta' rho |-- allp_fun_id Delta rho.
 Proof.
   intros.
-  unfold allp_fun_id.
   apply allp_derives; intros id.
-  apply allp_derives; intros fs.
-  apply imp_derives; auto.
-  intros ? ?; simpl in *.
+  intros w W fs u WU FS.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
-  rewrite H0 in H.
-  destruct ((glob_specs Delta') ! id); [| tauto].
-  auto.
+  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
+  simpl in X; inv X.
+  exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
+  exists hs; split; trivial. eapply funspec_sub_si_trans; split. apply HS. apply GSB.
+Qed.
+
+Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
+Proof. apply andp_left1.
+  apply allp_derives; intros id.
+  apply allp_derives; intros fs.
+  apply imp_derives; trivial.
+  apply exp_derives; intros b.
+  apply andp_derives; trivial.
+  eapply exp_right with (x:=b).
+  apply prop_andp_right; trivial.
+  eapply exp_right with (x:=fs).
+  apply andp_right; trivial.
+  eapply derives_trans. 2: apply funspec_sub_si_refl. trivial.
 Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,
   tycontext_sub Delta Delta' ->
   funassert Delta' rho |-- allp_fun_id Delta rho.
 Proof.
-  intros.
-  apply andp_left1.
-  apply allp_fun_id_sub; auto.
+  intros. eapply derives_trans. apply funassert_allp_fun_id.
+  apply allp_fun_id_sub; trivial.
+Qed.
+
+Lemma funassert_allp_fun_id_sigcc Delta rho:
+  funassert Delta rho |-- allp_fun_id_sigcc Delta rho.
+Proof.
+eapply derives_trans. apply funassert_allp_fun_id.
+apply allp_fun_id_ex_implies_allp_fun_sigcc.
+Qed.
+
+Lemma funassert_allp_fun_id_sigcc_sub: forall Delta Delta' rho,
+  tycontext_sub Delta Delta' ->
+  funassert Delta' rho |-- allp_fun_id_sigcc Delta rho.
+Proof.
+  intros. eapply derives_trans. apply funassert_allp_fun_id_sigcc.
+  apply allp_fun_id_sigcc_sub; trivial.
 Qed.
 (*
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),

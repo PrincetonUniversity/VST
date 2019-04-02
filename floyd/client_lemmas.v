@@ -23,7 +23,7 @@ Ltac refold_right_sepcon R :=
 
 Lemma SEP_entail':
  forall R' Delta P Q R, 
-   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx nil (LOCALx nil (SEPx R')) -> 
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- ` (fold_right_sepcon R') -> 
    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
@@ -32,8 +32,7 @@ apply andp_left2; apply andp_left1; auto.
 apply andp_right.
 do 2 apply andp_left2; apply andp_left1; auto.
 eapply derives_trans; [ apply H|].
-do 2 apply andp_left2.
-auto.
+apply derives_refl.
 Qed.
 
 Arguments sem_cmp c !t1 !t2 / v1 v2.
@@ -370,6 +369,40 @@ Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
  | nil => P0
  | b::r => b  /\ fold_right_and P0 r
  end.
+
+Fixpoint fold_right_and_True (l: list Prop) : Prop :=
+ match l with
+ | nil => True
+ | b :: nil => b
+ | b::r => b /\ fold_right_and_True r
+ end.
+
+Definition fold_right_PROP_SEP (l1: list Prop) (l2: list mpred) : mpred :=
+ match l1 with
+ | nil => fold_right_sepcon l2
+ | l => !! (fold_right_and_True l) && fold_right_sepcon l2
+ end.
+
+Lemma fold_right_PROP_SEP_spec: forall l1 l2,
+  fold_right_PROP_SEP l1 l2 = !! (fold_right and True l1) && fold_right_sepcon l2.
+Proof.
+  intros.
+  assert (fold_right_and_True l1 <-> fold_right and True l1).
+  {
+    destruct l1; [tauto |].
+    revert P; induction l1; intros.
+    - simpl; tauto.
+    - change (P /\ fold_right_and_True (a :: l1) <-> P /\ fold_right and True (a :: l1)).
+      specialize (IHl1 a).
+      tauto.
+  }
+  destruct l1.
+  + simpl.
+    normalize.
+  + unfold fold_right_PROP_SEP.
+    rewrite H.
+    auto.
+Qed.
 
 Lemma typed_true_isptr:
  forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ _ => True | _ => False end ->
@@ -1681,7 +1714,6 @@ Ltac already_saturated :=
 end || auto with nocore saturate_local)
  || simple apply prop_True_right.
 
-
 Ltac saturate_local :=
 simple eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
@@ -1697,23 +1729,6 @@ simple eapply saturate_aux21x;
        subst P
       end
  ].
-
-(* old version:
-Ltac saturate_local :=
-simple eapply saturate_aux21x;
- [repeat simple apply saturate_aux20;
-   (* use already_saturated if want to be fancy,
-         otherwise the next lines *)
-    auto with nocore saturate_local;
-    simple apply prop_True_right
-(* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
- | simple apply derives_extract_prop;
-   match goal with |- _ -> ?A =>
-       let P := fresh "P" in set (P := A); autorewrite with norm;
-              rewrite -> ?and_assoc; fancy_intros true;  subst P
-      end
- ].
-*)
 
 (*********************************************************)
 

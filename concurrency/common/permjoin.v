@@ -147,7 +147,18 @@ Lemma top_aint_bot:
   - f_equal. apply proof_irr.
 Qed.
 
-  
+
+Lemma writable0_share_top: writable0_share Tsh.
+Proof.
+red.
+exists Share.Lsh.
+apply join_comm.
+unfold Share.Lsh, Share.Rsh, Tsh.
+destruct (Share.split Share.top) eqn:?. simpl.
+apply split_join; auto.
+Qed.
+Hint Resolve writable0_share_top.
+
 Ltac common_contradictions:=
   match goal with
   | [H: Share.glb _ _ = Share.top |- _ ] =>
@@ -156,11 +167,11 @@ Ltac common_contradictions:=
     | [ H: Share.bot = Share.top |- _ ] => exfalso; apply Share.nontrivial; symmetry; assumption
     | [ H: Share.top = Share.bot |- _ ] => exfalso; apply Share.nontrivial; assumption
     | [ H: ~ shares.readable_share Share.top |- _ ] => pose proof shares.readable_share_top; contradiction
-    | [ H: ~ shares.writable_share Share.top |- _ ] => pose proof shares.writable_share_top; contradiction
+    | [ H: ~ shares.writable0_share Share.top |- _ ] => pose proof writable0_share_top; contradiction
     | [ H: shares.readable_share Share.bot |- _ ] => pose proof shares.bot_unreadable; contradiction        
-    | [ H: shares.writable_share Share.bot |- _ ] => apply shares.writable_readable in H; pose proof shares.bot_unreadable; contradiction
-    | [ H: shares.writable_share ?sh, H0: ~ shares.readable_share ?sh   |- _ ] =>
-      exfalso; apply H0; eapply shares.writable_readable; assumption
+    | [ H: shares.writable0_share Share.bot |- _ ] => apply shares.writable0_readable in H; pose proof shares.bot_unreadable; contradiction
+    | [ H: shares.writable0_share ?sh, H0: ~ shares.readable_share ?sh   |- _ ] =>
+      exfalso; apply H0; eapply shares.writable0_readable; assumption
     | _ => contradiction 
     end.
   
@@ -178,19 +189,19 @@ Ltac common_contradictions:=
             H: join ?sh1 ?sh2 _ |- _ ] =>
       pose proof (shares.join_unreadable_shares H H1 H2);
       first [common_contradictions | subst]
-    | [ H1: ~ shares.writable_share ?sh1,
+    | [ H1: ~ shares.writable0_share ?sh1,
         H2: ~ shares.readable_share ?sh2,
             H: join ?sh1 ?sh2 _ |- _ ] =>
       pose proof (join_readable_unreadable _ _ _ H H1 H2);
       first [common_contradictions | subst]
-    | [ H1: shares.writable_share ?sh1,
-        H2: shares.writable_share ?sh2,
+    | [ H1: shares.writable0_share ?sh1,
+        H2: shares.writable0_share ?sh2,
             H: join ?sh1 ?sh2 _ |- _ ] =>
-      exfalso; eapply shares.join_writable_readable;
-      try eapply shares.writable_readable; eassumption
-    | [ H1: shares.writable_share ?sh1,
+      exfalso; eapply shares.join_writable0_readable;
+      try eapply shares.writable0_readable; eassumption
+    | [ H1: shares.writable0_share ?sh1,
             H: join ?sh1 _ _ |- _ ] =>
-      pose proof (shares.join_writable1 H H1);
+      pose proof (shares.join_writable01 H H1);
       first [common_contradictions | subst]
     | [ H1: shares.readable_share ?sh1,
             H: join ?sh1 ?sh2 _ |- _ ] =>
@@ -230,7 +241,7 @@ Proof.
     try (do 2 join_share_contradictions);
     unfold perm_of_sh; if_simpl; 
     try econstructor.
-    contradiction (join_readable_unreadable RJ _x _x2); apply writable_share_top.
+    contradiction (join_readable_unreadable RJ _x _x2); apply writable0_share_top.
     contradiction (join_readable_unreadable RJ _x _x2).
     contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0); apply writable_share_top.
     contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).

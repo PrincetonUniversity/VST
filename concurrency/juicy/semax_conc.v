@@ -23,6 +23,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.jmeq_lemmas.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.juicy.semax_conc_pred.
+Import Clightdefs.
 Import String.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -787,7 +788,7 @@ Definition spawn_pre :=
                            (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, gv, w, pre) =>
-     PROP (expr.tc_val (tptr Tvoid) b)
+     PROP (tc_val (tptr Tvoid) b)
      (LOCALx (temp _f f :: temp _args b :: gvars (gv w) :: nil)
      (SEP (
        EX _y : ident,

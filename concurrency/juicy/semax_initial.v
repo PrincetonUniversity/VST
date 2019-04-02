@@ -177,7 +177,7 @@ Section Initial_State.
       destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & A & NL & MFS & FA).
       simpl in jm. unfold jm.
       subst jm tp; clear - E.
-      assert (@ghost.valid (ext_PCM unit) (Some (Tsh, Some tt), Some (Some tt))).
+      assert (@ghost.valid (ghost_PCM.ext_PCM unit) (Some (Tsh, Some tt), Some (Some tt))).
       { simpl; split; [apply Share.nontrivial|].
         eexists; apply join_comm, core_unit. }
       eexists; apply join_comm, own.singleton_join_gen with (k := O).

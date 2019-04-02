@@ -466,6 +466,10 @@ Definition lock_coherence' tp PHI m (mcompat : mem_compatible_with tp m PHI) :=
        (mem_compatible_locks_ltwritable
           (mem_compatible_forget mcompat))).
 
+Import Clight_initial_world.
+Import Clight_seplog.
+Import ghost_PCM.
+
 Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
   matchfunspecs ge Gamma PHI /\
   exists prog CS V,

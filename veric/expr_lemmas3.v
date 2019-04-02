@@ -9,6 +9,9 @@ Require Import VST.veric.expr2.
 Require Export VST.veric.environ_lemmas.
 Require Import VST.veric.binop_lemmas2.
 Require Import VST.veric.expr_lemmas2.
+
+Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
+
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.

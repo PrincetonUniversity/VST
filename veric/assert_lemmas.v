@@ -241,6 +241,20 @@ left. destruct H; eauto.
 right. destruct H0; eauto.
 Qed.
 
+Lemma corable_funspec_sub_si f g: corable (funspec_sub_si f g).
+Proof.
+ intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
++ intros ts. rewrite level_core. specialize (H0 ts); auto.
++ intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
+Qed.
+
+Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
+Proof.
+ intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
++ intros ts. rewrite level_core. specialize (H0 ts); auto.
++ intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
+Qed.
+
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.
  intros. intro w.
@@ -256,8 +270,10 @@ Lemma corable_func_at: forall f l, corable (func_at f l).
 Proof.
   intros.
   unfold func_at.
-  destruct f as [fsig0 cc A P Q].
-  apply corable_pureat.
+  destruct f as [fsig0 cc A P Q]. 
+  (*apply corable_exp; intro.
+  apply corable_andp. apply corable_funspec_sub.
+  destruct b.*) apply corable_pureat.
 Qed.
 
 Lemma corable_func_at': forall f l, corable (func_at' f l).
@@ -269,16 +285,46 @@ Proof.
   apply corable_pureat.
 Qed.
 
+Lemma corable_sigcc: forall f c b, corable (sigcc_at f c (pair b Z0)).
+Proof. 
+  intros.
+  unfold sigcc_at.
+  apply corable_exp; intro.
+  apply corable_pureat.
+Qed.
+
+Lemma corable_func_ptr_si : forall f v, corable (func_ptr_si f v).
+Proof.
+  intros.
+  unfold func_ptr_si.
+  apply corable_exp; intro.
+  apply corable_andp; auto.
+  apply corable_exp; intro.
+  apply corable_andp. apply corable_funspec_sub_si.
+  apply corable_func_at.
+Qed.
+Lemma corable_func_ptr_early : forall f v, corable (func_ptr_early f v).
+Proof.
+  intros.
+  unfold func_ptr_early.
+  apply corable_exp; intro.
+  apply corable_andp; auto.
+  apply corable_exp; intro.
+  apply corable_andp. apply corable_funspec_sub_early.
+  apply corable_func_at.
+Qed.
 Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
 Proof.
   intros.
-  unfold func_ptr.
+  unfold func_ptr_early.
   apply corable_exp; intro.
   apply corable_andp; auto.
+  apply corable_exp; intro.
+  apply corable_andp. apply corable_prop.
   apply corable_func_at.
 Qed.
 
-Hint Resolve corable_func_ptr.
+Hint Resolve corable_func_ptr corable_func_ptr_si corable_func_ptr_early.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).
@@ -292,8 +338,9 @@ Proof.
    apply corable_allp; intro|
    apply corable_prop|
    apply corable_imp].
- + apply corable_func_at.
- + apply corable_func_at'.
+ + (*apply corable_funspec_sub.*) apply corable_func_at.
+ + destruct b2; apply corable_pureat.
+(* + apply corable_pureat.*)
 Qed.
 
 Hint Resolve corable_funspecs_assert.

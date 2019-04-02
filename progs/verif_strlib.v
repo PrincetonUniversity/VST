@@ -71,71 +71,69 @@ Definition Gprog : funspecs :=
          ltac:(with_library prog [ strchr_spec; strcat_spec; strcmp_spec ]).
 
 Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
-(*
+
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.
 start_function.
 unfold cstring in *.
 rename s into ls.
-repeat step.
+Intros.
+forward.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
-          (map Vbyte (ls ++ [Byte.zero])) str))
- continue: (EX i : Z,
-  PROP (0 <= i+1 < Zlength ls + 1)
-  LOCAL (temp _str str; temp _i (Vptrofs (Ptrofs.repr i)))
-  SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 *
-repeat step.
+Exists 0. entailer!.
 *
-repeat step.
-*
-repeat step.
+Intros i.
+forward.
+forward_if.
+forward.
+entailer!. repeat f_equal. cstring.
+forward. 
+Exists (i+1).
+entailer!. cstring.
 Qed.
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
 start_function.
+forward.
 unfold cstring in *.
 rename s into ls.
-repeat step.
+Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
-  LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
-  SEP (data_at sh (tarray tschar (Zlength ls + 1))
-          (map Vbyte (ls ++ [Byte.zero])) str))
- continue: (EX i : Z,
-  PROP (0 <= i+1 < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 (i+1) ls))
-  LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr (i))))
+  LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
-*
-(* Tactics
   Exists 0; rewrite sublist_nil; entailer!.
-  don't leave goal
-  Forall (fun d : byte => d <> c) []
-*)
-(* but repeat step does *)
-(* This is because application order *)
-repeat step.
-constructor.
-*
-repeat step.
-{
-  rename x into i.
-  simpl. left. eexists. repeat step; auto; auto.
-  Znth_solve. cstring.
-}
-rename x into i.
-assert (i <> Zlength ls) by cstring.
-rewrite (sublist_split 0 i) by rep_omega.
-rewrite Forall_app. split; auto.
-rewrite sublist_len_1 by rep_omega. autorewrite with sublist in *. constructor; auto.
-*
-repeat step.
+- Intros i. 
+  assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
+  forward. normalize.
+  forward. fold_Vbyte.
+ forward_if.
+  { forward. simpl. 
+    Exists (offset_val i str).
+    entailer!.
+    left. exists i. split3; auto. rewrite app_Znth1; auto. cstring. }
+  { forward_if.
+    { forward.
+      Exists nullval; rewrite !map_app; entailer!.
+      right. split; auto.
+      assert (i = Zlength ls) by cstring.
+      subst i.
+     autorewrite with sublist in H2; auto. }
+  forward.
+  Exists (i+1); entailer!.
+  assert (i <> Zlength ls) by cstring.
+  split. omega.
+  rewrite (sublist_split 0 i) by rep_omega. rewrite Forall_app. split; auto.
+  rewrite sublist_len_1 by rep_omega. repeat constructor.
+  rewrite app_Znth1 in H4 by rep_omega. auto.
+  }
 Qed.
 
 Lemma split_data_at_app_tschar:
@@ -161,22 +159,14 @@ Intros.
 forward.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
-    LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
-    SEP (data_at sh (tarray tschar n)
-          (map Vbyte (ld ++ [Byte.zero]) ++
-           list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
-   data_at sh' (tarray tschar (Zlength ls + 1))
-     (map Vbyte (ls ++ [Byte.zero])) src))
- continue: (EX i : Z,
-    PROP (0 <= i < Zlength ld + 1)
-    LOCAL (temp _i (Vint (Int.repr (i-1))); temp _dest dest; temp _src src)
+    LOCAL (temp _i (Vptrofs (Ptrofs.repr i)); temp _dest dest; temp _src src)
     SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
    data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src))
   break: (PROP ( )
-   LOCAL (temp _i (Vint (Int.repr (Zlength ld))); temp _dest dest; 
+   LOCAL (temp _i (Vptrofs (Ptrofs.repr (Zlength ld))); temp _dest dest; 
    temp _src src)
    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
@@ -198,24 +188,12 @@ forward_loop (EX i : Z,
   +
     forward.
     Exists (i+1); entailer!. cstring.
-- Intros i.
-   forward.
-   Exists i. entailer!. 
 -
   abbreviate_semax.
   forward.
   forward_loop (EX j : Z,
     PROP (0 <= j < Zlength ls + 1)
-    LOCAL (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr (Zlength ld)));
-           temp _dest dest; temp _src src)
-    SEP (data_at sh (tarray tschar n)
-          (map Vbyte (ld ++ sublist 0 j ls) ++
-           list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
-         data_at sh' (tarray tschar (Zlength ls + 1))
-           (map Vbyte (ls ++ [Byte.zero])) src))
-   continue: (EX j : Z,
-    PROP (0 <= j < Zlength ls + 1)
-    LOCAL (temp _j (Vint (Int.repr (j-1))); temp _i (Vint (Int.repr (Zlength ld)));
+    LOCAL (temp _j (Vptrofs (Ptrofs.repr j)); temp _i (Vptrofs (Ptrofs.repr (Zlength ld)));
            temp _dest dest; temp _src src)
     SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ sublist 0 j ls) ++
@@ -227,7 +205,7 @@ forward_loop (EX i : Z,
     rewrite split_data_at_app_tschar by list_solve.
     rewrite (split_data_at_app_tschar _ n) by list_solve.
     autorewrite with sublist.
-    ecancel.    
+    cancel.    
    }
   { Intros j.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
@@ -276,7 +254,6 @@ forward_loop (EX i : Z,
   rewrite sublist_len_1 by rep_omega.
   cancel.
   }
- + Intros j. forward. Exists j. entailer!.
 Qed.
 
 Lemma body_strcmp: semax_body Vprog Gprog f_strcmp strcmp_spec.
@@ -289,15 +266,7 @@ Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         sublist 0 i ls1 = sublist 0 i ls2)
-  LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
-  SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
-          (map Vbyte (ls1 ++ [Byte.zero])) str1;
-       data_at sh2 (tarray tschar (Zlength ls2 + 1))
-          (map Vbyte (ls2 ++ [Byte.zero])) str2))
-  continue: (EX i : Z,
-  PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
-        sublist 0 i ls1 = sublist 0 i ls2)
-  LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr (i-1))))
+  LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
        data_at sh2 (tarray tschar (Zlength ls2 + 1))
@@ -352,7 +321,6 @@ forward_loop (EX i : Z,
   autorewrite with sublist in H3.
   auto.
  +
-  deadvars!.
   rewrite andb_false_iff in H6. rewrite !Z.eqb_neq in H6.
   forward_if.
   *
@@ -405,11 +373,6 @@ forward_loop (EX i : Z,
   rewrite !app_Znth1 in H17 by list_solve.
   split. rep_omega. split. rep_omega.
   f_equal; auto. f_equal. auto.
- -
-  Intros i.
-  forward.
-  Exists i.
-  entailer!.
 Qed.
 
 Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
@@ -421,13 +384,7 @@ forward.
 Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
-  LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
-  SEP (data_at sh (tarray tschar n)
-        (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
-       data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src))
- continue: (EX i : Z,
-  PROP (0 <= i < Zlength ls + 1)
-  LOCAL (temp _i (Vint (Int.repr (i-1))); temp _dest dest; temp _src src)
+  LOCAL (temp _i (Vptrofs (Ptrofs.repr i)); temp _dest dest; temp _src src)
   SEP (data_at sh (tarray tschar n)
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
@@ -475,17 +432,11 @@ forward_loop (EX i : Z,
   autorewrite with sublist.
   rewrite sublist_len_1 by omega.
   simpl. cancel.
-*
-  Intros i.
-  forward.
-  Exists i.
-  entailer!.
 Qed.
-*)
+
 Module Alternate.
 
-(* Alternate proofs of these functions, using the form of "forward_loop"
-  that relies on semax_loop_nocontinue *)
+(* Alternate proofs of these functions, using list solver *)
 
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.
@@ -516,7 +467,7 @@ forward_loop (EX i : Z,
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
-- repeat step. auto.
+- repeat step!. auto.
 - Intros i.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
@@ -585,7 +536,7 @@ forward_loop (EX i : Z,
 - (* before loop1 *)
   repeat step.
 - (* loop1 body *)
-  repeat step.
+  repeat step!.
 -
   repeat step.
   forward_loop (EX j : Z,
@@ -597,12 +548,12 @@ forward_loop (EX i : Z,
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
-  { repeat step.
+  { repeat step. entailer!.
     list_form. apply data_subsume_array_ext; only 1,2:Zlength_solve.
     intros. Znth_solve; auto.
   }
   {
-  repeat info_step.
+  repeat step!.
   - (* PROP *)
     rewrite in_app in H14. tauto.
   - list_form.
@@ -638,8 +589,8 @@ forward_loop (EX i : Z,
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
        data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
-- repeat step. intros. omega.
-- repeat step.
+- repeat step!. intros. omega.
+- repeat step!.
   rename x into i.
   assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
   { split; intros; [cstring | list_form; Znth_solve]. }
@@ -647,7 +598,7 @@ forward_loop (EX i : Z,
   { split; intros; [cstring | list_form; Znth_solve]. }
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   (* this part is not much simplified *)
-  { repeat step.
+  { repeat step!.
     rewrite (proj2 (Z.eqb_eq _ _)) by auto.
     destruct (Int.eq (Int.repr (Byte.signed (Znth (Zlength ls1) (ls2 ++ [Byte.zero])))) (Int.repr 0)) eqn:Heqb;
     do_repr_inj Heqb. (* utilize this internal tactic *)
@@ -657,11 +608,11 @@ forward_loop (EX i : Z,
       auto.
   }
   {
-    repeat step.
+    repeat step!.
     rewrite (proj2 (Z.eqb_neq _ _)) by cstring.
     auto.
   }
-  repeat step.
+  repeat step!.
   { simpl. rewrite andb_true_iff in H4; destruct H4 as [Hi1 Hi2].
     rewrite Z.eqb_eq in Hi1, Hi2.
     apply Znth_eq_ext. omega.
@@ -698,7 +649,7 @@ Proof.
 start_function.
 unfold cstring,cstringn in *.
 rename s into ls.
-repeat step.
+repeat step!.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
@@ -706,9 +657,9 @@ forward_loop (EX i : Z,
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 -
-  repeat step.
+  repeat step!.
 -
-  repeat step.
+  repeat step!.
   + list_form. apply_list_ext. Znth_solve.
   + list_form. Znth_solve2. apply_list_ext.
     Znth_solve. fold_Vbyte.
@@ -716,4 +667,3 @@ forward_loop (EX i : Z,
 Qed.
 
 End Alternate.
-
