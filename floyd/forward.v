@@ -3935,6 +3935,7 @@ Ltac finish_composites :=
      match_composite; solve [reflexivity | apply proof_irr].
 
 Ltac solve_cenvcs_goal :=
+ (
   apply extract_compEnv;
   match goal with
   | |- build_composite_env ?com = Errors.OK ?cenv_cs =>
@@ -3942,7 +3943,8 @@ Ltac solve_cenvcs_goal :=
   end;
   repeat treat_one_compdef;
   rewrite add_composite_definitions_nil; unfold mk_OKComposite in *; f_equal; simpl cenv_cs;
-  solve [repeat f_equal; finish_composites].
+  solve [repeat f_equal; finish_composites])
+ || (cbv; repeat f_equal; apply proof_irr).
 
 Ltac prove_semax_prog_aux tac :=
  split3; [ | | split3; [ | | split]];
