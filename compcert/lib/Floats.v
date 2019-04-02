@@ -118,7 +118,7 @@ Next Obligation.
   simpl. rewrite Z.ltb_lt in *.
   assert (forall x, Fcore_digits.digits2_pos x = Pos.size x).
   { induction x0; simpl; auto; rewrite IHx0; zify; omega. }
-  rewrite H, Psize_log_inf, <- Zlog2_log_inf in *. clear H.
+  rewrite H, Psize_Zlog2 in *; clear H.
   change (Z.pos (Pos.lor x 2251799813685248)) with (Z.lor (Z.pos x) 2251799813685248%Z).
   rewrite Z.log2_lor by (zify; omega).
   apply Z.max_case. auto. simpl. omega.
@@ -911,7 +911,7 @@ Next Obligation.
   simpl. rewrite Z.ltb_lt in *.
   assert (forall x, Fcore_digits.digits2_pos x = Pos.size x).
   { induction x0; simpl; auto; rewrite IHx0; zify; omega. }
-  rewrite H, Psize_log_inf, <- Zlog2_log_inf in *. clear H.
+  rewrite H, Psize_Zlog2 in *. clear H.
   change (Z.pos (Pos.lor x 4194304)) with (Z.lor (Z.pos x) 4194304%Z).
   rewrite Z.log2_lor by (zify; omega).
   apply Z.max_case. auto. simpl. omega.
