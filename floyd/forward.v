@@ -3836,6 +3836,11 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma extract_prog_main' {F} defs publics main types compenv prf:
+  @prog_main F {| prog_defs := defs; prog_public := publics; prog_main:=main; prog_types:=types;
+                     prog_comp_env := compenv; prog_comp_env_eq := prf |} = main.
+Proof. reflexivity. Qed.
+
 Lemma extract_compEnv t a (H: build_composite_env t = Errors.OK a)
       d p m w:
   a = prog_comp_env (Clightdefs.mkprogram t d p m w).
@@ -3956,7 +3961,7 @@ Ltac prove_semax_prog_aux tac :=
  | reflexivity || fail "match_globvars failed"
  | match goal with
      |- match initial_world.find_id (prog_main ?prog) ?Gprog with _ => _ end =>
-     unfold prog at 1; rewrite extract_prog_main;
+     unfold prog at 1; (rewrite extract_prog_main || rewrite extract_prog_main');
      ((eexists; reflexivity) || 
         fail "Funspec of _main is not in the proper form")
     end
