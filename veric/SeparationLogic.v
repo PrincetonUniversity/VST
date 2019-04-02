@@ -1427,6 +1427,12 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
+Axiom semax_extensionality_Delta:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta Delta' P c R,
+       tycontext_sub Delta Delta' ->
+       @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
+
 End MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Module Type PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
@@ -1455,11 +1461,12 @@ Axiom semax_fun_id:
                   c Q ->
     @semax CS Espec Delta P c Q.
 
+(*MOVED TO MINIMUM
 Axiom semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
-     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
+     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.*)
 
 Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
