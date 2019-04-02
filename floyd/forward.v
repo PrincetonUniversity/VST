@@ -3638,7 +3638,7 @@ apply Z.geb_le in H. omega.
 Qed.
 
 Lemma prove_alignof_two_p (i: Z) : 
-    i = two_power_nat (Z.to_nat (log_sup (Z.to_pos i))) ->
+    i = two_power_nat (Z.to_nat (Z.log2_up i)) ->
 exists n: nat, i = two_power_nat n.
 Proof.
 intros. eexists; eassumption.
