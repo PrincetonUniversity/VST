@@ -60,13 +60,13 @@ Proof.
     apply pred_ext; entailer!.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 1%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 3%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
@@ -95,10 +95,10 @@ Proof.
   unfold treebox_rep; simpl.
   apply pred_ext; Intros pa pb.
   + Exists pb pa; entailer!.
-    unfold_data_at 1%nat.
+    unfold_data_at (data_at _ _ _ p).
     cancel.
   + Exists pb pa; entailer!.
-    unfold_data_at 3%nat.
+    unfold_data_at (data_at _ _ _ p).
     cancel.
 Qed.
 
@@ -164,7 +164,7 @@ Proof.
   Exists p.
   rewrite !treebox_rep_spec.
   Exists nullval nullval.
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ p).
   entailer!.
 Qed.
 
@@ -235,6 +235,14 @@ Lemma rep_partialT_rep: forall rep t P p q,
 Proof.
   intros.
   exact (wandQ_frame_elim _ (fun t => rep t p) (fun t => rep (P t) q) t).
+Qed.
+
+Lemma rep_partialT_rep_proof_by_tactic: forall rep t P p q,
+  rep t p * partialT rep P q p |-- rep (P t) q.
+Proof.
+  intros.
+  solve_wandQ partialT.
+  simpl; auto.
 Qed.
 
 End PartialTree_WandQFrame_Func_Hole.

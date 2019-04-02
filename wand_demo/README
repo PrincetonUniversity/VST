@@ -1,4 +1,4 @@
-If the current version does not build, please use git commit "e1c9457b" which is the commit for the CPP submission.
+If the current version does not build, please use git commit "e1c9457b" which is the commit for the ITP submission.
 
 -----------------------------
 
@@ -34,12 +34,35 @@ Where are all proofs?
 
 ----------------------
 
+Where are automated tactics? Where are their applications?
+
+1. sep_absorb (mentioned in the paper) is in wandQ_frame_tactic.v.
+
+2. solve_wandQ [sp] is the tactic for proving both elimination rules and vertical combination rules.
+2.1. It uses sep_absorb.
+2.2. [sp] is the name of separation logic predicate which is defined by quantified wand expression, e.g. [lseg].
+2.3. This tactic is also defined in wandQ_frame_tactic.v.
+
+3. Toy demos: Module solve_wandQ_playground in wandQ_frame_tactic.v.
+
+4. lseg_lseg_proof_by_tactic, list_lseg_proof_by_tactic in list_lemmas.v.
+
+5. partialT_rep_partialT_rep_proof_by_tactic, rep_partialT_rep_proof_by_tactic in bst_lemmas.v.
+
+6.1. The majority of our proofs is not done by this automated tactic [solve_wandQ].
+6.2. We put a comment on line 516 indicating that we can also use automated tactics there. At places like this, we just choose not to use [solve_wandQ] but to illustrate the usage of [wandQ_frame] rules.
+6.3. Even for those several application examples, we have already proved them manually. We redo them by [solve_wandQ] in order to show that our tactic can complete the proof.
+
+----------------------
+
 Explanation for Print Assumptions.
 
-The "Print Assumptions" command will output a long list which can be classified into 3 category:
+The "Print Assumptions" command will output a long list which can be classified into 4 category:
 
 1. Extensionality Axioms, e.g. functional extensinoality, propositional extensionality ((P <-> Q) -> (P = Q)).
 
 2. Axioms of real numbers. They come from Coq's standard library of Real. And CompCert's floating point number reasoning uses that.
 
 3. Axioms of Hoare logic rules for C. They actually not Coq axioms; they are Coq theorems which have been proved sound. It is a Coq's bug related to the interaction between "Print Assumptions" and Coq's modular system.
+
+4. Exercises in VFA, which are admitted proofs. Their proofs appear in VFA's internal development but not in released versions.
