@@ -1,16 +1,14 @@
 Require Import VST.floyd.proofauto.
 Require Import Coq.Program.Tactics.
 
-Example strcat_preloop2 : forall {cs : compspecs} n ld,
+Example strcat_preloop2_new : forall {cs : compspecs} n ld,
   n > Zlength ld ->
   data_subsume (tarray tschar n)
     (map Vbyte (ld ++ [Byte.zero]) ++ list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef)
     (map Vbyte ld ++ list_repeat (Z.to_nat (n - Zlength ld)) Vundef).
 Proof.
   intros.
-  list_form.
-  apply data_subsume_array_ext; only 1, 2 : Zlength_solve.
-  intros. Znth_solve.
+  list_form. apply_list_ext. Znth_solve.
 Qed.
 
 Lemma split_data_at_app_tschar:
@@ -42,7 +40,7 @@ Proof.
   cancel.
 Qed.
 
-Example strcat_retutn : forall n (ld ls : list byte),
+Example strcat_retutn_new : forall n (ld ls : list byte),
   Zlength ld + Zlength ls < n ->
   map Vbyte (ld ++ ls) ++
   upd_Znth 0 (list_repeat (Z.to_nat (n - (Zlength ld + Zlength ls))) Vundef) (Vint (Int.repr (Byte.signed (Znth 0 [Byte.zero])))) =
@@ -81,7 +79,7 @@ Proof.
   reflexivity.
 Qed.
 
-Example strcat_loop2 : forall {cs : compspecs} sh n x ld ls dest,
+Example strcat_loop2_new : forall {cs : compspecs} sh n x ld ls dest,
   Zlength ls + Zlength ld < n ->
   0 <= x < Zlength ls ->
   data_at sh (tarray tschar n)
@@ -105,8 +103,9 @@ Example strcat_loop2_alt : forall {cs : compspecs} sh n x ld ls dest,
 |-- data_at sh (tarray tschar n) (map Vbyte (ld ++ sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (Zlength ld + (x + 1)))) Vundef)
       dest.
 Proof.
-  intros. apply_list_ext. list_form. Znth_solve.
-  fold_Vbyte. apply data_subsume_refl'.
+  intros. fold_Vbyte.
+  apply_list_ext. list_form. Znth_solve.
+  apply data_subsume_refl'.
   do 2 f_equal. omega.
 Qed.
 
@@ -135,7 +134,7 @@ Proof.
   cancel.
 Qed.
 
-Example strcpy_return : forall {cs : compspecs} sh n ls dest,
+Example strcpy_return_new : forall {cs : compspecs} sh n ls dest,
   Zlength ls < n ->
   data_at sh (tarray tschar n)
   (map Vbyte ls ++ upd_Znth 0 (list_repeat (Z.to_nat (n - Zlength ls)) Vundef) (Vint (Int.repr (Byte.signed Byte.zero)))) dest
@@ -165,22 +164,6 @@ Proof.
   cancel.
 Qed.
 
-Example strcpy_loop : forall {cs : compspecs} sh n x ls dest,
-  Zlength ls < n ->
-  0 <= x < Zlength ls + 1 ->
-  Znth x (ls ++ [Byte.zero]) <> Byte.zero ->
-  ~ In Byte.zero ls ->
-  data_at sh (tarray tschar n)
-  (map Vbyte (sublist 0 x ls) ++
-   upd_Znth 0 (list_repeat (Z.to_nat (n - x)) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero])))))) dest
-|-- data_at sh (tarray tschar n) (map Vbyte (sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (x + 1))) Vundef) dest.
-Proof.
-  intros.
-  list_form. Znth_solve2.
-  apply_list_ext. Znth_solve.
-  fold_Vbyte. apply data_subsume_refl'. do 2 f_equal. omega.
-Qed.
-
 Example strcpy_loop_new : forall {cs : compspecs} sh n x ls dest,
   Zlength ls < n ->
   0 <= x < Zlength ls + 1 ->
@@ -190,9 +173,10 @@ Example strcpy_loop_new : forall {cs : compspecs} sh n x ls dest,
    upd_Znth 0 (list_repeat (Z.to_nat (n - x)) Vundef) (Vint (Int.repr (Byte.signed (Znth x (ls ++ [Byte.zero])))))) dest
 |-- data_at sh (tarray tschar n) (map Vbyte (sublist 0 (x + 1) ls) ++ list_repeat (Z.to_nat (n - (x + 1))) Vundef) dest.
 Proof.
-  intros. list_form. Znth_solve2.
-  apply_list_ext. Znth_solve.
-  fold_Vbyte. apply data_subsume_refl'. do 2 f_equal. omega.
+  intros.
+  list_form. Znth_solve2.
+  fold_Vbyte. apply_list_ext. Znth_solve.
+  apply data_subsume_refl'. do 2 f_equal. omega.
 Qed.
 
 Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,

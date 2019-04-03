@@ -65,12 +65,12 @@ Lemma Znth_Zrepeat_1_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al 
   Zrepeat 1 (Znth i al) = sublist i (i+1) al.
 Proof. intros. rewrite sublist_one by omega; auto. Qed.
 
-Hint Rewrite Zrepeat_fold upd_Znth_unfold cons_Zrepeat_1_app : list_form.
-Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form.
-Hint Rewrite app_nil_r app_nil_l : list_form.
+Hint Rewrite Zrepeat_fold upd_Znth_unfold cons_Zrepeat_1_app : list_form_rewrite.
+Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form_rewrite.
+Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
 
 Ltac list_form :=
-  autorewrite with list_form in *.
+  autorewrite with list_form_rewrite in *.
 
 (* handling of map is not in list_form now *)
 (*
@@ -125,6 +125,7 @@ Ltac Znth_solve :=
   autorewrite with Zlength in *;
   Znth_solve_rec.
 
+(*************** list extentionality *************)
 Lemma nth_eq_ext : forall (A : Type) (default : A) (al bl : list A),
   length al = length bl ->
   (forall (i : nat), (0 <= i < length al)%nat -> nth i al default = nth i bl default) ->
@@ -182,7 +183,7 @@ Proof.
   generalize dependent bl.
   generalize dependent n.
   induction al; intros; destruct bl as [ | b bl];
-    autorewrite with list_form Zlength in *; try Zlength_solve;
+    autorewrite with list_form_rewrite Zlength in *; try Zlength_solve;
     unfold data_subsume; intros.
   - (* al = [] /\ bl = [] *)
     entailer!.
@@ -660,7 +661,7 @@ Proof.
     + subst a. apply H with 0. list_solve.
       autorewrite with sublist. auto.
     + apply IHl; auto. intros.
-        specialize (H (i+1) ltac:(list_solve)). autorewrite with list_form Znth in *.
+        specialize (H (i+1) ltac:(list_solve)). autorewrite with list_form_rewrite Znth in *.
         fassumption.
 Qed.
 
@@ -781,16 +782,6 @@ Ltac range_saturate :=
       pose_new_res (i - offset) lo hi H res
     end
   end.
-
-
-
-
-
-
-
-
-
-
 
 
 (**************** Znth_solve2 is Znth_solve in * ***************)
