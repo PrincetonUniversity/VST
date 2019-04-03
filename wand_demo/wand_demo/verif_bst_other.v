@@ -137,11 +137,11 @@ Proof.
       forward. (* q=p->left *)
       forward. (* *t=q *)
       forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
-      Focus 1. {
+      {
         entailer!.
         rewrite memory_block_data_at_ by auto.
         cancel.
-      } Unfocus.
+      }
       forward. (* return *)
       rewrite (tree_rep_spec E).
       rewrite <- H.
@@ -158,7 +158,7 @@ Proof.
       forward. (* t = &q->left; *) simpl in H.
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0 (fun t => P (T t y vy tc0)).
       entailer!.
-      unfold_data_at 2%nat.
+      unfold_data_at (data_at _ _ _ pbc).
       rewrite (treebox_rep_tree_rep (T _ _ _ _)). Exists p0. rewrite (field_at_data_at _ _ [StructField _left]); cancel.
       eapply derives_trans; [| apply (partial_treebox_rep_partial_treebox_rep _ _ _ b0)].
       cancel.
