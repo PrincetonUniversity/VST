@@ -123,8 +123,8 @@ Qed.
 Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
 Proof.
   intros.
-  etransitivity; [|apply subrelation_eq_eutt, bind_ret].
-  apply eutt_bind; [|intros []]; reflexivity.
+  etransitivity; [|apply subrelation_eq_eutt, bind_ret2].
+  apply eutt_bind; [intros []|]; reflexivity.
 Qed.
 
 Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
@@ -136,8 +136,7 @@ Proof.
     rewrite modu_repr, divu_repr by (omega || computable).
     rewrite intr_eq.
     destruct (Z.leb_spec i 0); try omega.
-    erewrite ITREE_ext by (apply eutt_bind with (y0 := fun _ => tr); [apply write_list_app | reflexivity]).
-    erewrite ITREE_ext by apply subrelation_eq_eutt, bind_bind.
+    erewrite ITREE_ext by (rewrite write_list_app, bind_bind; reflexivity).
     forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
     simpl write_list.
@@ -149,7 +148,7 @@ Proof.
     subst; entailer!.
     erewrite ITREE_ext; [apply derives_refl|].
     simpl.
-    rewrite ret_bind; reflexivity.
+    rewrite bind_ret; reflexivity.
   - forward.
 Qed.
 
@@ -214,7 +213,7 @@ Proof.
   if_tac; [|reflexivity].
   unfold id.
   repeat setoid_rewrite bind_bind.
-  setoid_rewrite ret_bind.
+  setoid_rewrite bind_ret.
   reflexivity.
 Qed.
 

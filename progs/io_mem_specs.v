@@ -65,11 +65,13 @@ Definition getchars_spec {CS : compspecs} :=
     PROP (writable_share sh)
     LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
     SEP (ITREE (r <- read_list (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
+                                                                  (* buf |-> _ *)
   POST [ tint ]
    EX msg : list int,
     PROP (Forall (fun i => Int.unsigned i <= Byte.max_unsigned) msg)
     LOCAL (temp ret_temp (Vint (Int.repr len)))
     SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vint msg) buf).
+                                                                  (* buf |-> msg *)
 
 Lemma ITREE_impl : forall tr tr', eutt eq tr tr' ->
   ITREE tr |-- ITREE tr'.
@@ -92,10 +94,9 @@ Lemma write_list_app : forall l1 l2,
   eutt eq (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
 Proof.
   induction l1; simpl in *; intros.
-  - rewrite ret_bind; reflexivity.
+  - rewrite bind_ret; reflexivity.
   - rewrite bind_bind.
-    apply eutt_bind; [reflexivity|].
-    intro; auto.
+    setoid_rewrite IHl1; reflexivity.
 Qed.
 
 Definition char0 : Z := 48.
