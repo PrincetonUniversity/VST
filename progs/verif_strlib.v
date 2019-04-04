@@ -497,20 +497,6 @@ forward_loop (EX i : Z,
   rewrite app_Znth1 in H4 by rep_omega. auto.
 Qed.
 
-(* Lemma data_at_array_cancel : forall sh n (al bl cl dl : list val) p,
-      n = Zlength (al ++ bl) ->
-      n = Zlength (cl ++ dl) ->
-      al = cl ->
-      data_at sh (tarray tschar (n - Zlength al)) bl (field_address0 (tarray tschar n) [ArraySubsc (Zlength al)] p)
-        |-- data_at sh (tarray tschar (n - Zlength cl)) dl (field_address0 (tarray tschar n) [ArraySubsc (Zlength al)] p) ->
-      data_at sh (tarray tschar n) (al ++ bl) p |-- data_at sh (tarray tschar n) (cl ++ dl) p.
-Proof.
-  intros.
-  rewrite split_data_at_app_tschar by omega.
-  rewrite split_data_at_app_tschar by omega.
-  subst cl. cancel.
-Qed. *)
-
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.
 Proof.
 start_function.
@@ -536,7 +522,7 @@ forward_loop (EX i : Z,
 - (* before loop1 *)
   repeat step.
 - (* loop1 body *)
-  repeat step!.
+  repeat step.
 -
   repeat step.
   forward_loop (EX j : Z,
@@ -548,29 +534,21 @@ forward_loop (EX i : Z,
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
-  { repeat step. entailer!.
-    list_form. apply data_subsume_array_ext; only 1,2:Zlength_solve.
-    intros. Znth_solve; auto.
+  { repeat step!.
+    list_form. apply_list_ext. Znth_solve.
   }
   {
   repeat step!.
   - (* PROP *)
-    rewrite in_app in H14. tauto.
-  - list_form.
-    apply data_subsume_array_ext; only 1,2:Zlength_solve.
-    intros. Znth_solve; auto.
-  -
-    assert (x < Zlength ls) by cstring. (* saturate_local? *)
-    apply derives_refl'. f_equal.
-    eapply Znth_eq_ext; only 1 : Zlength_solve.
-    autorewrite with Zlength. intros. list_form. Znth_solve.
-    fold_Vbyte. do 2 f_equal. omega.
-    (* alternate
-    apply data_subsume_array_ext; only 1,2:Zlength_solve.
-    intros. list_form. unfold data_subsume; intros; Znth_solve.
-    fold_Vbyte.
-    auto with cancel Zlength_solve f_equal.
+    (* This should be supported by range_form later. In particular, range_form does not interpret
+      In Byte.zero (ld ++ ls) now. This can be rewritten as exists i, (Znth i (ld ++ ls) = Byte.zero).
     *)
+    rewrite in_app in H14. tauto.
+  - list_form. apply_list_ext. Znth_solve.
+  - fold_Vbyte. list_form. Znth_solve2.
+    apply_list_ext. Znth_solve.
+    apply data_subsume_refl'.
+    eq_solve.
   }
 Qed.
 
@@ -579,8 +557,7 @@ Proof.
 start_function.
 unfold cstring in *.
 rename s1 into ls1. rename s2 into ls2.
-forward.
-Intros.
+repeat step.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         forall (j:Z), 0 <= j < i -> Znth j ls1 = Znth j ls2)
@@ -592,12 +569,12 @@ forward_loop (EX i : Z,
 - repeat step!. intros. omega.
 - repeat step!.
   rename x into i.
-  assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
+  (* assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
   { split; intros; [cstring | list_form; Znth_solve]. }
   assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls2) as Hs2.
-  { split; intros; [cstring | list_form; Znth_solve]. }
+  { split; intros; [cstring | list_form; Znth_solve]. } *)
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
-  (* this part is not much simplified *)
+  (* these two parts are not much simplified *)
   { repeat step!.
     rewrite (proj2 (Z.eqb_eq _ _)) by auto.
     destruct (Int.eq (Int.repr (Byte.signed (Znth (Zlength ls1) (ls2 ++ [Byte.zero])))) (Int.repr 0)) eqn:Heqb;
@@ -625,23 +602,8 @@ forward_loop (EX i : Z,
   all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
   all : normalize in HZnth.
-  all : assert (i <> Zlength ls1 -> i <> Zlength ls2) by
-    ( intro; intro;
-      assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero) by tauto;
-      assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero) by congruence;
-      tauto ).
-  all : assert (i <> Zlength ls2 -> i <> Zlength ls1) by
-    ( intro; intro;
-      assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero) by tauto;
-      assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero) by congruence;
-      tauto ).
-  all : assert (i <> Zlength ls1) by tauto.
-  all : assert (i <> Zlength ls2) by tauto.
-  { omega. }
-  { omega. }
-  { intros. assert (0 <= j < i \/ j = i) by omega. autorewrite with Znth in HZnth.
-    destruct H23; subst; auto.
-  }
+  all: list_form; range_form.
+  Time all: intros; Znth_solve2; try omega; range_saturate; try congruence; fassumption.
 Qed.
 
 Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
@@ -649,7 +611,7 @@ Proof.
 start_function.
 unfold cstring,cstringn in *.
 rename s into ls.
-repeat step!.
+repeat step.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
   LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
@@ -657,13 +619,13 @@ forward_loop (EX i : Z,
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).
 -
-  repeat step!.
+  repeat step.
 -
   repeat step!.
   + list_form. apply_list_ext. Znth_solve.
   + list_form. Znth_solve2. apply_list_ext.
     Znth_solve. fold_Vbyte.
-    apply data_subsume_refl'. do 2 f_equal. omega.
+    apply data_subsume_refl'. eq_solve.
 Qed.
 
 End Alternate.
