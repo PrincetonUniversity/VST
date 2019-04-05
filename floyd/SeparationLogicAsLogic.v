@@ -237,8 +237,22 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- |==> |> FF || RA_break R ->
     local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- |==> |> FF || RA_continue R ->
     (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
-   @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
+    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R
+(*Add it here (I have swapped the role of CS and CS' to mauch the generic parameters of the Inductive) ?
+|  semax_cssub: forall {CS'} (CSUB: cspecs_sub CS CS') P c R
+      (SEM: @semax CS' Espec Delta P c R), @semax CS Espec Delta P c R *) . 
+(*Downside: all the inversion lemmas below need to be reproven....*)
 
+(*Or add this lemma?
+Lemma  semax_cssub {CS CS'} (CSUB: cspecs_sub CS CS') Espec Delta: forall P c R
+      (SEM: @semax CS Espec Delta P c R), @semax CS' Espec Delta P c R.
+Proof.
+  Set Printing All.
+  intros.
+  induction SEM; try solve [econstructor; eauto].
+  { clear SEM1 SEM2. eapply semax_conseq. 6: apply (@semax_ifthenelse CS' Espec Delta P b c d R).
+ *)
+                                            
 Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
@@ -332,6 +346,14 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
          (SF: @semax_func Espec V H cs ge funs G) n,
     @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
 
+Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
+    @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+(*Proof.
+  destruct spec. simpl. destruct f0; intros.  specialize (H Espec ts x). 
+  rewrite <- (semax_prog.stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+Qed. *)
+
 End AuxDefs.
 
 End AuxDefs.
@@ -348,6 +370,13 @@ Definition semax_func := @AuxDefs.semax_func (@Def.semax_external).
 
 Definition semax_external := @Def.semax_external.
 
+(*Then add it here
+Lemma semax_cssub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R,
+    @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+Proof. intros. apply (@AuxDefs.semax_cssub CS' Espec Delta CS); trivial. Qed.
+ *)
+(*Axiom semax_cssub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R,
+    @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.*)
 End DeepEmbeddedDef.
 
 Module DeepEmbeddedDefs := DerivedDefs (DeepEmbeddedDef).
@@ -1533,7 +1562,13 @@ unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
-
+(*
+Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
+      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+Proof.
+  intros. unfold semax. Set Printing All. Locate semax. intros n. apply (semax'_cssub CSUB); trivial. 
+Qed.
+*)
 Lemma semax_body_subsumption: forall cs V V' F F' f spec
       (SF: @semax_body V F cs f spec)
       (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
@@ -1543,6 +1578,20 @@ Proof.
   destruct spec. destruct f0; hnf; intros. 
   eapply semax_extensionality_Delta. apply TS. apply (SF Espec ts x).
 Qed. 
+
+(*This is what we really need
+Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+    @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+Proof.
+  destruct spec. simpl. destruct f0; intros.  specialize (H Espec ts x). 
+  rewrite <- (semax_prog.stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+Qed. 
+ *)
+Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+    @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+Proof. apply AuxDefs.semax_body_cenv_sub; trivial. Qed. 
 
 End DeepEmbeddedMinimumSeparationLogic.
 

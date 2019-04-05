@@ -131,7 +131,9 @@ Definition semax_func := @semax_func.
 
 Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
-
+(*
+Definition semax_cssub := @semax_cssub.
+  *)
 End VericDef.
 
 Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := VericDef.
@@ -157,7 +159,8 @@ Definition semax_func_subsumption := semax_func_subsumption.
 Definition semax_func_join  := semax_func_join.
 Definition semax_func_firstn := semax_func_firstn.
 Definition semax_func_skipn := semax_func_skipn.
-Definition semax_body_subsumption:= semax_body_subsumption. 
+Definition semax_body_subsumption:= semax_body_subsumption.
+Definition semax_body_cenv_sub:= @semax_body_cenv_sub.
 
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.

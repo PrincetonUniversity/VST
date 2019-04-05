@@ -1053,7 +1053,10 @@ Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
-
+(*
+Parameter semax_cssub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R,
+      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+*)
 Parameter semax_func:
     forall {Espec: OracleKind},
     forall (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t fundef type) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
@@ -1215,6 +1218,10 @@ Axiom semax_body_subsumption: forall cs V V' F F' f spec
       (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
   @semax_body V' F' cs f spec.
   
+Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
+  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+
 (* THESE RULES FROM semax_loop *)
 
 Axiom semax_ifthenelse :
