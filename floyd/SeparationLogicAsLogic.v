@@ -1567,14 +1567,17 @@ Proof.
   apply expr2.denote_tc_assert_andp.
 Qed.
 
+Lemma denote_tc_assert_eq {CS}: @denote_tc_assert CS = expr2.denote_tc_assert.
+Proof. reflexivity. Qed.
+
+Lemma tc_expr_eq CS Delta e: @tc_expr CS Delta e = @extend_tc.tc_expr CS Delta e.
+Proof. reflexivity. Qed.
+
 Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
 Proof.
-  intros.
-  specialize (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). intros.
-  unfold tc_expr.  
-  unfold extend_tc.tc_expr in H0.
+  intros. (*rewrite tc_expr_eq . eapply derives_trans. 2: rewrite tc_expr_eq . apply derives_refl.*)
 Admitted.
 
 Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
@@ -1591,13 +1594,13 @@ Proof. unfold tc_exprlist; simpl. rewrite  denote_tc_assert_andp; trivial. Qed.
 Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
   tc_environ Delta rho ->
   @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
-Proof. 
+Proof. (*again, extend_tc has a proof of this result
   induction types; intros.
   + destruct e; simpl; unfold tc_exprlist, typecheck_exprlist; simpl. trivial.
     unfold liftx, lift; simpl; trivial.
   + destruct e; simpl. unfold tc_exprlist, typecheck_exprlist; simpl; trivial.
     rewrite 2 tc_exprlist_consD. simpl. apply andp_derives. 2: auto.
-    rewrite (@denote_tc_assert_andp CS'). simpl. 
+    rewrite (@denote_tc_assert_andp CS'). simpl. *)
 Admitted.
 
 Lemma tc_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e t rho,
@@ -1605,22 +1608,38 @@ Lemma tc_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e 
   @tc_expropt CS Delta e t rho |-- @tc_expropt CS' Delta e t rho.
 Proof. intros. destruct e; simpl; [ apply tc_expr_cspecs_sub; trivial | normalize]. Qed.
 
+Lemma cast_expropt_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD:  tc_environ Delta rho):
+  forall e t v, @cast_expropt CS e t rho = Some v -> @cast_expropt CS' e t rho = Some v.
+Admitted.
+
 Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e t R rho x,
   tc_environ Delta rho ->
   RA_return R (@cast_expropt CS e t rho) x |-- RA_return R (@cast_expropt CS' e t rho) x.
-Proof. intros. destruct e; simpl; [ | trivial ]. destruct R. simpl.
-       (*destruct t. Set Printing Implicit. simpl. unfold RA_return. simpl.  *)
+Proof.
+  intros. remember  (@cast_expropt CS e t rho); destruct o; symmetry in Heqo.
+  + rewrite (cast_expropt_cspecs_sub CSUB _ _ H _ _ _ Heqo). trivial.
+  + simpl. 
 Admitted.
 
 Lemma rvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- !! (@eval_expr CS e rho = @eval_expr CS' e rho).
-Admitted.
+Proof.
+  intros. apply derives_trans with (!! tc_val (typeof e) (@eval_expr CS e rho) && @tc_expr CS Delta e rho).
+  { apply andp_right; trivial. apply typecheck_expr_sound; trivial. }
+  normalize. rewrite (expr_lemmas.eval_expr_cenv_sub_eq CSUB). normalize.
+  intros N; rewrite N in H0; clear N. apply tc_val_Vundef in H0; trivial.
+Qed.
 
 Lemma lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_lvalue CS Delta e rho |-- !! (@eval_lvalue CS e rho = @eval_lvalue CS' e rho).
-Admitted.
+Proof. 
+  intros. apply derives_trans with (!! is_pointer_or_null (@eval_lvalue CS e rho) && @tc_lvalue CS Delta e rho).
+  { apply andp_right; trivial. apply typecheck_lvalue_sound; trivial. }
+  normalize. rewrite (expr_lemmas.eval_lvalue_cenv_sub_eq CSUB). normalize.
+  intros N; rewrite N in H0; clear N. apply H0.
+Qed.
 
 Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
   forall types e,
@@ -1641,12 +1660,14 @@ Proof.
   normalize. split; trivial. intros N. rewrite N in H; clear N. apply tc_val_Vundef in H; trivial.
 Qed. 
 
-Lemma func_ptr_later_iff  phi a: func_ptr phi a = |> func_ptr phi a.
-Admitted.
-
 Lemma tc_temp_id_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho e i:
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho && @tc_temp_id i (typeof e) CS Delta e rho |-- @tc_temp_id i (typeof e) CS' Delta e rho.
+Proof.
+  intros. unfold tc_temp_id.
+Admitted.
+
+Lemma func_ptr_later_iff  phi a: func_ptr phi a = |> func_ptr phi a.
 Admitted.
 
 Definition SETpre CS Delta id e P :=
