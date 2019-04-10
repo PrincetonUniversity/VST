@@ -664,6 +664,92 @@ Lemma funspecs_assert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funspecs_assert G rho |-- funspecs_assert G rho'.
 Proof. unfold funspecs_assert; intros. rewrite H; auto. Qed.
 
+Definition binarySUM {A1 A2}
+           (P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A1)) mpred)
+           (P2: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A2)) mpred):
+  forall ts : list Type,
+    (dependent_type_functor_rec ts (AssertTT (PiType bool (fun b : bool => if b then A1 else A2)))) mpred.
+Proof.
+  intros ts. specialize (P1 ts). specialize (P2 ts). simpl in *. intros X rho.
+  apply (EX b:bool, if b then P1 (X true) rho else P2 (X false) rho).
+Defined.
+
+Lemma binarySUM_ne {A1 A2}
+           {P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A1)) mpred}
+           {P2: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A2)) mpred}
+           (P1_ne: super_non_expansive P1) (P2_ne: super_non_expansive P2):
+  super_non_expansive (binarySUM P1 P2).
+Proof.
+  hnf; simpl; intros. unfold binarySUM. rewrite 2 approx_exp.
+  specialize (P1_ne n ts (x true) rho).
+  specialize (P2_ne n ts (x false) rho).
+  apply pred_ext; apply exp_derives; intros b; destruct b; first [ rewrite P1_ne; trivial | rewrite P2_ne; trivial].
+Qed.
+
+Definition binary_intersection (phi psi:funspec): option funspec.
+  destruct phi as [f c A1 P1 Q1 P1_ne Q1_ne]. destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
+  destruct (eq_dec f f2); [subst f2 | apply None].
+  destruct (eq_dec c c2); [subst c2 | apply None].
+  remember (binarySUM P1 P2) as P.
+  remember (binarySUM Q1 Q2) as Q.
+  apply Some. apply (mk_funspec f c (PiType bool (fun b => if b then A1 else A2)) P Q).
+  subst P; apply (binarySUM_ne P1_ne P2_ne).
+  subst Q; apply (binarySUM_ne Q1_ne Q2_ne).
+Qed.
+
+Definition SUM {I A} (Pi: forall i ts,   (dependent_type_functor_rec ts (AssertTT (A i))) mpred):
+  forall ts : list Type, (dependent_type_functor_rec ts (AssertTT (PiType I A))) mpred.
+Proof.
+  intros ts X rho.
+  apply (EX i:I, Pi i ts (X i) rho).
+Defined.
+
+Lemma SUM_ne {I A} {Pi: forall i ts, (dependent_type_functor_rec ts (AssertTT (A i))) mpred}
+           (P_ne: forall i, super_non_expansive (Pi i)):
+  super_non_expansive (@SUM I A Pi).
+Proof.
+  hnf; simpl; intros. unfold SUM; rewrite 2 approx_exp.
+  apply pred_ext; apply exp_derives; intros i; rewrite (P_ne i n ts (x i) rho); trivial.
+Qed.
+
+Definition funspec_Pi (sig:funsig) (cc:calling_convention) (I:Type) (A : I -> TypeTree)
+           (Pre Post: forall i, (forall ts, (dependent_type_functor_rec ts (AssertTT (A i))) mpred))
+           (Pre_ne: forall i, super_non_expansive (Pre i))
+           (Post_ne: forall i, super_non_expansive (Post i)): funspec.
+Proof.
+  eapply (mk_funspec sig cc (PiType I A)). apply (SUM_ne Pre_ne). apply (SUM_ne Post_ne).
+Defined.
+
+Lemma SUM_binarySUM {A1 A2}
+      (P: forall (b:bool) (ts:list Type), (dependent_type_functor_rec ts (AssertTT (if b then A1 else A2))) mpred):
+  @binarySUM A1 A2 (P true) (P false) = @SUM bool (fun b => if b then A1 else A2) P.
+Proof.
+  unfold binarySUM, SUM. extensionality ts X rho. 
+  apply pred_ext; apply exp_left; intros b; apply (exp_right b); destruct b; trivial.
+Qed. 
+
+(*HERE The two rules S-inter1 and S-inter2 from page 206 of TAPL
+Lemma funspec_Pi_sub fsig cc I A Pre Post Pre_ne Post_ne i:
+  funspec_sub (funspec_Pi fsig cc I A Pre Post Pre_ne Post_ne)
+              (mk_funspec fsig cc (A i) (Pre i) (Post i) (Pre_ne i) (Post_ne i)).
+Proof.
+  unfold funspec_Pi. split. trivial. split. trivial. intros; simpl in *. 
+  exists ts2. Check (@existT). i). x2). , emp. rewrite emp_sepcon.
+  split. apply H. simpl; intros. rewrite emp_sepcon.
+  intros u U. apply U.                                      
+Qed.
+
+(*Rule S-inter3 from page 206 of TAPL*)
+Lemma funspec_Pi_sub3 fsig cc I A Pre Post g (i:I)
+      (HI: forall i,  funspec_sub g (NDmk_funspec fsig cc (A i) (Pre i) (Post i))):
+  funspec_sub g (funspec_Pi_ND fsig cc I A Pre Post).
+Proof.
+  assert (HIi := HI i). destruct g. destruct HIi as [? [? Hi]]; subst f c.
+  split. trivial. split. trivial.
+  simpl; intros. clear i Hi. destruct x2 as [i Ai].
+  specialize (HI i). destruct HI as [_ [_ Hi]]. apply (Hi ts2 Ai rho).
+Qed.*)
+
 (*Called ndfs_merge  in hmacdrbg_spec_hmacdrbg.v*)
 Definition funspec_intersection_ND fA cA A PA QA FSA (HFSA: FSA = NDmk_funspec fA cA A PA QA) 
                     fB cB B PB QB FSB (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec.
