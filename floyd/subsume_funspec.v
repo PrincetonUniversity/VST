@@ -153,7 +153,7 @@ Lemma semax_call_subsume:
            (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr fs1) (eval_expr a) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
@@ -177,7 +177,7 @@ Lemma semax_call_subsume_si:
            (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  && 
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  && 
           
          (`(func_ptr fs1) (eval_expr a) && `(funspec_sub_si fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
@@ -202,7 +202,7 @@ Lemma semax_call_NDsubsume :
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr fs1) (eval_expr a) &&
           |>(F * `(P x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)

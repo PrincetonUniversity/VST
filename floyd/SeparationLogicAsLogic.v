@@ -164,7 +164,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (switch_ret_assert R)) ->
      @semax CS Espec Delta (!! (is_int_type (typeof a) = true) && Q) (Sswitch a sl) R
-| semax_call_backward: forall ret a bl R,
+(*| semax_call_backward: forall ret a bl R,
      @semax CS Espec Delta
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
@@ -173,6 +173,19 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
           (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
+         (Scall ret a bl)
+         (normal_ret_assert R)*)
+| semax_call_backward: forall ret a bl R,
+     @semax CS Espec Delta
+         (EX argsig: _, EX retsig: _, EX cc: _,
+          EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
+         !! (Cop.classify_fun (typeof a) =
+             Cop.fun_case_f (type_of_params argsig) retsig cc /\
+             (retsig = Tvoid -> ret = None) /\
+             tc_fn_return Delta ret retsig) &&
+          (((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
@@ -239,21 +252,6 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
     @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
-(*Add it here (I have swapped the role of CS and CS' to mauch the generic parameters of the Inductive) ?
-|  semax_cssub: forall {CS'} (CSUB: cspecs_sub CS CS') P c R
-      (SEM: @semax CS' Espec Delta P c R), @semax CS Espec Delta P c R *) 
-(*Downside: all the inversion lemmas below need to be reproven....*)
-
-(*Or add this lemma?
-Lemma  semax_cssub {CS CS'} (CSUB: cspecs_sub CS CS') Espec Delta: forall P c R
-      (SEM: @semax CS Espec Delta P c R), @semax CS' Espec Delta P c R.
-Proof.
-  Set Printing All.
-  intros.
-  induction SEM; try solve [econstructor; eauto].
-  { clear SEM1 SEM2. eapply semax_conseq. 6: apply (@semax_ifthenelse CS' Espec Delta P b c d R).
- *)
-                                            
 Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
   match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
@@ -346,14 +344,6 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
   forall {Espec cs ge H V funs G} (HV:list_norepet (map fst funs))
          (SF: @semax_func Espec V H cs ge funs G) n,
     @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
-(*
-Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
-      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
-    @semax_body V G CS f spec -> @semax_body V G CS' f spec.
-Proof.
-  destruct spec. simpl. destruct f0; intros.  specialize (H Espec ts x). 
-  rewrite <- (semax_prog.stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
-Qed. *)
 
 End AuxDefs.
 
@@ -577,7 +567,7 @@ Lemma semax_call_inv: forall {CS: compspecs} {Espec: OracleKind} Delta ret a bl 
              Cop.fun_case_f (type_of_params argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
-          (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* |==> |> FF || RA_normal Post))).
 Proof.
@@ -1421,14 +1411,23 @@ Proof.
       destruct H0; split; [auto |].
       destruct H2; split; [auto |].
       eapply tc_fn_return_sub; eauto.
-    - apply later_ENTAIL.
+    - (*apply later_ENTAIL.
       apply andp_ENTAIL.
       * intro rho; simpl; unfold local, lift1; normalize.
         apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * intro rho; simpl; unfold local, lift1; normalize.
         apply Clight_assert_lemmas.tc_exprlist_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.*)
+      apply andp_right. 
+      * rewrite <- andp_assoc. apply andp_left1. intro rho; simpl; unfold local, lift1; normalize.
+        apply Clight_assert_lemmas.tc_expr_sub; auto.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
+      * rewrite (andp_comm (tc_expr Delta a)). rewrite <- andp_assoc. apply andp_left1.
+        intro rho; simpl; unfold local, lift1; normalize.
+        apply Clight_assert_lemmas.tc_exprlist_sub; auto.
+        eapply semax_lemmas.typecheck_environ_sub; eauto.
+        
     - apply ENTAIL_refl.
     - apply later_ENTAIL.
       apply sepcon_ENTAIL; [apply ENTAIL_refl |].
@@ -1557,70 +1556,6 @@ unfold local, lift1; intro rho; simpl; normalize.
       * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
-Lemma denote_tc_assert_andp: (* from typecheck_lemmas *)
-  forall {CS: compspecs} (a b : tc_assert),
-  denote_tc_assert (tc_andp a b) = andp (denote_tc_assert a) (denote_tc_assert b).
-Proof.
-  intros.
-  extensionality rho.
-  simpl.
-  apply expr2.denote_tc_assert_andp.
-Qed.
-
-Lemma denote_tc_assert_eq {CS}: @denote_tc_assert CS = expr2.denote_tc_assert.
-Proof. reflexivity. Qed.
-
-Lemma tc_expr_eq CS Delta e: @tc_expr CS Delta e = @extend_tc.tc_expr CS Delta e.
-Proof. reflexivity. Qed.
-
-Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
-  tc_environ Delta rho ->
-  @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
-Proof.
-  intros. (*rewrite tc_expr_eq . eapply derives_trans. 2: rewrite tc_expr_eq . apply derives_refl.*)
-Admitted.
-
-Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
-  tc_environ Delta rho ->
-  @tc_lvalue CS Delta e rho |-- @tc_lvalue CS' Delta e rho.
-Admitted.
-
-Lemma tc_exprlist_consD CS Delta rho t types e1 es:
-  @tc_exprlist CS Delta (cons t types) (cons e1 es) rho =
-  ((denote_tc_assert (tc_andp (typecheck_expr Delta e1) (isCastResultType (typeof e1) t e1))) &&
-   (@tc_exprlist CS Delta types es)) rho.
-Proof. unfold tc_exprlist; simpl. rewrite  denote_tc_assert_andp; trivial. Qed.
-
-Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
-  tc_environ Delta rho ->
-  @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
-Proof. (*again, extend_tc has a proof of this result
-  induction types; intros.
-  + destruct e; simpl; unfold tc_exprlist, typecheck_exprlist; simpl. trivial.
-    unfold liftx, lift; simpl; trivial.
-  + destruct e; simpl. unfold tc_exprlist, typecheck_exprlist; simpl; trivial.
-    rewrite 2 tc_exprlist_consD. simpl. apply andp_derives. 2: auto.
-    rewrite (@denote_tc_assert_andp CS'). simpl. *)
-Admitted.
-
-Lemma tc_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e t rho,
-  tc_environ Delta rho ->
-  @tc_expropt CS Delta e t rho |-- @tc_expropt CS' Delta e t rho.
-Proof. intros. destruct e; simpl; [ apply tc_expr_cspecs_sub; trivial | normalize]. Qed.
-
-Lemma cast_expropt_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD:  tc_environ Delta rho):
-  forall e t v, @cast_expropt CS e t rho = Some v -> @cast_expropt CS' e t rho = Some v.
-Admitted.
-
-Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e t R rho x,
-  tc_environ Delta rho ->
-  RA_return R (@cast_expropt CS e t rho) x |-- RA_return R (@cast_expropt CS' e t rho) x.
-Proof.
-  intros. remember  (@cast_expropt CS e t rho); destruct o; symmetry in Heqo.
-  + rewrite (cast_expropt_cspecs_sub CSUB _ _ H _ _ _ Heqo). trivial.
-  + simpl. 
-Admitted.
-
 Lemma rvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- !! (@eval_expr CS e rho = @eval_expr CS' e rho).
@@ -1641,14 +1576,6 @@ Proof.
   intros N; rewrite N in H0; clear N. apply H0.
 Qed.
 
-Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
-  forall types e,
-  @tc_exprlist CS Delta types e rho |-- !! (@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho).
-Proof.
-  induction types. intros; simpl. normalize.
-  intros. destruct e; simpl. normalize.
-  rewrite tc_exprlist_consD. unfold liftx, lift; simpl. unfold force_val.
-Admitted.
 
 Lemma denote_tc_bool_CSCS' {CS CS'} v e: @denote_tc_assert CS (tc_bool v e) = @denote_tc_assert CS' (tc_bool v e).
 Proof. destruct v; simpl; trivial. Qed.
@@ -1659,16 +1586,6 @@ Proof.
   eapply derives_trans. apply typecheck_expr_sound; trivial.
   normalize. split; trivial. intros N. rewrite N in H; clear N. apply tc_val_Vundef in H; trivial.
 Qed. 
-
-Lemma tc_temp_id_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho e i:
-  tc_environ Delta rho ->
-  @tc_expr CS Delta e rho && @tc_temp_id i (typeof e) CS Delta e rho |-- @tc_temp_id i (typeof e) CS' Delta e rho.
-Proof.
-  intros. unfold tc_temp_id.
-Admitted.
-
-Lemma func_ptr_later_iff  phi a: func_ptr phi a = |> func_ptr phi a.
-Admitted.
 
 Definition SETpre CS Delta id e P :=
   |> (@tc_expr CS Delta e && @tc_temp_id id (typeof e) CS Delta e && @subst mpred id (@eval_expr CS e) P)
@@ -1732,7 +1649,7 @@ Definition CALLpre CS Delta ret a bl R :=
              end) A) mpred,
      !! (Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc /\
          (retsig = Tvoid -> ret = @None ident) /\ tc_fn_return Delta ret retsig) &&
-     |> (@tc_expr CS Delta a && @tc_exprlist CS Delta (@snd (list ident) (list type) (@split ident type argsig)) bl) &&
+     (*|>*) (@tc_expr CS Delta a && @tc_exprlist CS Delta (@snd (list ident) (list type) (@split ident type argsig)) bl) &&
      (` (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ))) (@eval_expr CS a) &&
      |>  (@sepcon (lifted (LiftEnviron mpred)) (@LiftNatDed' mpred Nveric) (@LiftSepLog' mpred Nveric Sveric)
                    (@liftx (Tarrow environ (LiftEnviron mpred)) (P ts x)
@@ -1827,13 +1744,13 @@ Proof.
       apply exp_derives; intros NEQ.
       apply exp_derives; intros ts.
       apply exp_derives; intros x. rewrite ! andp_assoc.
-      apply andp_derives. trivial. unfold liftx, lift; simpl.
+      apply andp_derives. trivial. (* unfold liftx, lift; simpl.
       assert (ZZ: (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) (@eval_expr CS' a rho) =
                    |> (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) (@eval_expr CS' a rho)))).
       { apply func_ptr_later_iff. }
       rewrite ZZ, func_ptr_later_iff; clear ZZ.
-      rewrite <- ! later_andp.
-      apply later_derives.
+      (*rewrite <- ! later_andp.
+      apply later_derives.*)
       apply derives_trans with
       ( ( (!!(@eval_expr CS a rho =  @eval_expr CS' a rho)) &&
           (!!((@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl) rho = 
@@ -1861,7 +1778,37 @@ Proof.
       apply exp_derives; intros NEP.
       apply exp_derives; intros NEQ.
       apply exp_derives; intros ts.
-      apply exp_derives; intros x. apply derives_refl. 
+      apply exp_derives; intros x. apply derives_refl. *) Set Printing Implicit.
+      apply derives_trans with
+      ( ( (!!(@eval_expr CS a rho =  @eval_expr CS' a rho)) &&
+          (!!((@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl) rho = 
+              (@eval_exprlist CS' (@snd (list ident) (list type) (@split ident type argsig)) bl) rho)))
+          && (@tc_expr CS Delta a rho &&
+              (@tc_exprlist CS Delta (@snd (list ident) (list type) (@split ident type argsig)) bl rho &&
+                ((` (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ))) (@eval_expr CS a) rho &&
+                  |> ((` (P ts x)) (make_args' (argsig, retsig) (@eval_exprlist CS (@snd (list ident) (list type)
+                                                                (@split ident type argsig)) bl)) rho *
+               oboxopt Delta ret (fun rho0 : environ => maybe_retval (Q ts x) retsig ret rho0 -* R rho0) rho))))).
+      { apply andp_right; [| trivial]. rewrite <- andp_assoc. apply andp_left1. apply andp_derives.
+        apply rvalue_cspecs_sub; trivial. apply eval_exprlist_cspecs_sub; trivial. }
+      normalize. unfold liftx, lift, make_args'; simpl. rewrite ! H; rewrite ! H0.
+      apply andp_derives; [ | apply andp_derives; [|trivial]].
+      eapply tc_expr_cspecs_sub; trivial. apply tc_exprlist_cspecs_sub; trivial. 
+    - eapply semax_pre; [| apply AuxDefs.semax_call_backward].
+      simpl. intros rho.
+      apply derives_extract_prop; intros TC.
+      apply andp_left2. unfold CALLpre; simpl.
+      apply exp_derives; intros argsig.
+      apply exp_derives; intros retsig.
+      apply exp_derives; intros cc.
+      apply exp_derives; intros A.
+      apply exp_derives; intros P.
+      apply exp_derives; intros Q.
+      apply exp_derives; intros NEP.
+      apply exp_derives; intros NEQ.
+      apply exp_derives; intros ts.
+      apply exp_derives; intros x. apply derives_refl.
+      
   + apply semax_pre with                        
       (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric)
              (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric)
@@ -1872,8 +1819,8 @@ Proof.
                     (@liftx (Tarrow (option val) (Tarrow environ (LiftEnviron mpred))) (RA_return R) (@cast_expropt CS' ret (ret_type Delta)) (@id environ)))).
     - apply andp_right; [ solve_andp |].
       unfold local, lift1; normalize. simpl. intros rho. apply derives_extract_prop; intros TC.
-      apply andp_derives. apply tc_expropt_cspecs_sub; trivial.
-      unfold liftx, lift; simpl. apply RA_return_cast_expropt_cspecs_sub with (Delta); trivial.
+      apply andp_right. apply andp_left1. apply tc_expropt_cenv_sub; trivial.
+      unfold liftx, lift; simpl. apply (RA_return_cast_expropt_cspecs_sub CSUB); trivial.
     - eapply semax_pre; [| apply AuxDefs.semax_return]. solve_andp. 
   + apply semax_pre with  (andp (SETpre CS Delta id e P) (SETpre CS' Delta id e P)).
     - simpl. intros rho. apply derives_extract_prop; intros TEDelta.
@@ -1881,7 +1828,7 @@ Proof.
       { apply orp_derives.
         + apply orp_derives.
           - apply later_derives. apply andp_right.
-            * apply andp_left1. apply andp_right. apply andp_left1. apply tc_expr_cspecs_sub; trivial.
+            * apply andp_left1. apply andp_derives. apply tc_expr_cspecs_sub; trivial.
               apply tc_temp_id_cspecs_sub; trivial.
             * apply derives_trans with (((@tc_expr CS Delta e) && (@subst mpred id (@eval_expr CS e) P)) rho).
               simpl. solve_andp.
@@ -2116,8 +2063,8 @@ Proof.
         apply andp_left1.
         apply wand_sepcon_adjoint.
         eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply now_later] |].
-        rewrite <- later_sepcon.
-        apply later_derives.
+        (*rewrite <- later_sepcon.
+        apply later_derives.*)
         intro rho.
         simpl.
         apply (predicates_sl.extend_sepcon (extend_tc.extend_andp _ _ (extend_tc.extend_tc_expr Delta a rho) (extend_tc.extend_tc_exprlist Delta (snd (split argsig)) bl rho))).
