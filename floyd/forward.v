@@ -890,7 +890,7 @@ Lemma trivial_Forall_inclusion0:
 Proof.
 intros. constructor.
 Qed.
-
+(*
 Ltac prove_call_setup1 subsumes :=
 match goal with
 | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
@@ -900,7 +900,7 @@ Use Intros to move the existentially bound variables above the line"
  lazymatch c with
  | context [Scall _ (Evar ?id ?ty) ?bl] =>
     let R' := strip1_later R in
-    exploit (call_setup1_i2 CS Delta P Q R' R id ty bl);
+    exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl);
     [check_prove_local2ptree
     | apply can_assume_funcptr2;
       [ check_function_name
@@ -909,7 +909,7 @@ Use Intros to move the existentially bound variables above the line"
       | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
       ]
     | apply subsumes
-    | auto 50 with derives
+(*    | auto 50 with derives*)
     | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
     |check_typecheck
     |check_typecheck
@@ -919,12 +919,12 @@ Use Intros to move the existentially bound variables above the line"
     ]
  | context [Scall _ ?a ?bl] =>
     let R' := strip1_later R in
- exploit (call_setup1_i CS Delta P Q R R' a bl);
+ exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
  [check_prove_local2ptree
  |reflexivity
  |prove_func_ptr
  | apply subsumes
- |auto 50 with derives
+(* |auto 50 with derives*)
  |check_parameter_types
  |check_typecheck
  |check_typecheck
@@ -932,7 +932,49 @@ Use Intros to move the existentially bound variables above the line"
  |reflexivity
  | ]
  end
-end.
+end.*)
+Ltac prove_call_setup1 subsumes :=
+    match goal with
+    | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+      fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros to move          the existentially bound variables above the line"
+    | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+      lazymatch c with
+      | context [Scall _ (Evar ?id ?ty) ?bl] =>
+        let R := strip1_later R' in
+        exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
+        [check_prove_local2ptree
+        | apply can_assume_funcptr2;
+          [ check_function_name
+          | lookup_spec id
+          | find_spec_in_globals'
+          | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
+          ]
+        | apply subsumes
+        (*    | auto 50 with derives*)
+        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
+        |check_typecheck
+        |check_typecheck
+        |check_cast_params
+        |reflexivity
+        | ..
+        ]
+      | context [Scall _ ?a ?bl] =>
+        let R := strip1_later R' in
+        exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
+        [check_prove_local2ptree
+        |reflexivity
+        |prove_func_ptr
+        | apply subsumes
+(*        |auto 50 with derives*)
+        |check_parameter_types
+        |check_typecheck
+        |check_typecheck
+        |check_cast_params
+        |reflexivity
+        | ]
+      end
+    end.
 
 Ltac check_gvars :=
   first [exact Logic.I
@@ -941,11 +983,11 @@ Ltac check_gvars :=
               fail 100 "The function precondition requires (gvars" gv ")" "which is not present in your current assertion's LOCAL clause"
            end
          ].
-
+(*
 Ltac prove_call_setup subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (* _*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       check_witness_type A witness
  end;
  let H := fresh in
@@ -956,6 +998,28 @@ Ltac prove_call_setup subsumes witness :=
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
+ | check_gvars
+ | try change_compspecs CS; cancel_for_forward_call
+ |
+ ]
+ end].*)
+
+Ltac prove_call_setup subsumes witness := 
+ prove_call_setup1 subsumes;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (* _*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      check_witness_type A witness
+ end;
+ let H := fresh in
+ intro H;
+ match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
+ let Frame := fresh "Frame" in evar (Frame: list mpred); 
+ let R := strip1_later R' in
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ [ reflexivity
+ | check_prove_local2ptree
+ | Forall_pTree_from_elements
+ | auto 50 with derives
  | check_gvars
  | try change_compspecs CS; cancel_for_forward_call
  |
@@ -1046,11 +1110,11 @@ Ltac get_function_witness_type func :=
       ] in TA
  in let TA'' := eval simpl in TA'
  in TA''.
-
+(*
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
       ltac:(fun witness =>
  let H := fresh in
@@ -1067,8 +1131,33 @@ Ltac new_prove_call_setup :=
  ]
  end)
  ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
+ end].*)
+
+Ltac new_prove_call_setup :=
+ prove_call_setup1 funspec_sub_refl;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
+      ltac:(fun witness =>
+ let H := fresh in
+ intro H;
+ match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
+ let Frame := fresh "Frame" in evar (Frame: list mpred); 
+ let R := strip1_later R' in
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ [ reflexivity
+ | check_prove_local2ptree
+ | Forall_pTree_from_elements
+ | auto 50 with derives
+ | unfold check_gvars_spec; solve [exact I | reflexivity]
+ | try change_compspecs CS; cancel_for_forward_call
+ |
+ ]
+ end)
+ ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
  end].
 
+                  
 Ltac new_fwd_call' :=
 lazymatch goal with
 | |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
@@ -3063,7 +3152,7 @@ Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_giv
 Ltac advise_forward_call :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
   | rmaps.ConstType ?T => 
              fail "To prove this function call, use forward_call(W), where

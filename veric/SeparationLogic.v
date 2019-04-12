@@ -1020,6 +1020,96 @@ simpl.
 eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
 
+(***************LENB: ADDED THESE LEMMAS IN INTERFACE************************************)
+
+(*
+Lemma denote_tc_assert_eq {CS}: @denote_tc_assert CS = expr2.denote_tc_assert.
+Proof. reflexivity. Qed.
+*)
+Lemma tc_expr_eq CS Delta e: @tc_expr CS Delta e = @extend_tc.tc_expr CS Delta e.
+Proof. reflexivity. Qed.
+
+Lemma denote_tc_assert_andp: (* from typecheck_lemmas *)
+  forall {CS: compspecs} (a b : tc_assert),
+  denote_tc_assert (tc_andp a b) = andp (denote_tc_assert a) (denote_tc_assert b).
+Proof.
+  intros.
+  extensionality rho.
+  simpl.
+  apply expr2.denote_tc_assert_andp.
+Qed.
+
+Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
+Proof. intros. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
+
+Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
+                                      match e with None => `!!(t=Tvoid)
+                                              | Some e' => @tc_expr CS Delta (Ecast e' t)
+                                      end.
+Proof. reflexivity. Qed.
+
+Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
+Proof.
+  destruct ret; simpl. 2: apply  predicates_hered.derives_refl.
+  apply (tc_expr_cspecs_sub CSUB Delta (Ecast e t) rho D). 
+Qed.
+
+Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_lvalue CS Delta e rho |-- @tc_lvalue CS' Delta e rho.
+Proof. intros; simpl. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
+
+Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
+  tc_environ Delta rho ->
+  @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
+Proof. intros. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
+
+Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
+  forall types e,
+  @tc_exprlist CS Delta types e rho |-- !! (@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho).
+Proof. intros. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
+
+Lemma denote_tc_assert_tc_bool_cs_invariant {CS CS'} b E:
+  @denote_tc_assert CS (tc_bool b E) = @denote_tc_assert CS' (tc_bool b E).
+Proof. unfold tc_bool. destruct b; reflexivity. Qed.
+
+Lemma tc_temp_id_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho e i:
+  tc_environ Delta rho -> @tc_temp_id i (typeof e) CS Delta e rho |-- @tc_temp_id i (typeof e) CS' Delta e rho.
+Proof.
+  intros.  unfold tc_temp_id, typecheck_temp_id; intros w W.
+  destruct ((temp_types Delta)! i); [| apply W].
+  rewrite denote_tc_assert_andp in W.
+  rewrite denote_tc_assert_andp; destruct W as [W1 W2];  split.
++ rewrite (@denote_tc_assert_tc_bool_cs_invariant CS' CS). exact W1. 
++ apply expr2.tc_bool_e in W1. eapply expr2.neutral_isCastResultType.
+  exact W1.
+Qed. 
+
+(*Proof exists in semax_call under name RA_eturn_castexpropt_cenv_sub -- repeat here for the exposed def of castexprof?*)
+Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+  @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
+Proof.
+  intros w W. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
+  specialize (expr_lemmas.typecheck_expr_sound_cenv_sub CSUB Delta rho D w (Ecast e t) W); clear W; intros H.
+  hnf. unfold cast_expropt. simpl; simpl in H. 
+  unfold force_val1, force_val, sem_cast, liftx, lift; simpl.
+  unfold force_val1, force_val, sem_cast, liftx, lift in H; simpl in H. rewrite H; trivial.
+Qed.
+
+Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e t R rho,
+  tc_environ Delta rho ->
+  @tc_expropt CS Delta e t rho && RA_return R (@cast_expropt CS e t rho) (id rho)
+  |-- RA_return R (@cast_expropt CS' e t rho) (id rho).
+Proof.
+  intros. intros w [W1 W2].
+  rewrite (castexpropt_cenv_sub CSUB _ _ H e t w W1) in W2. apply W2.
+Qed.
+
+(********************************************* LENB: END OF ADDED LEMMAS********************)
+
 (* End misc lemmas *)
 
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
@@ -1053,7 +1143,10 @@ Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
-
+(*
+Parameter semax_cssub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R,
+      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+*)
 Parameter semax_func:
     forall {Espec: OracleKind},
     forall (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t fundef type) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
@@ -1215,6 +1308,10 @@ Axiom semax_body_subsumption: forall cs V V' F F' f spec
       (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
   @semax_body V' F' cs f spec.
   
+Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
+  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+
 (* THESE RULES FROM semax_loop *)
 
 Axiom semax_ifthenelse :
@@ -1271,7 +1368,7 @@ Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v
     compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 
 Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)(*
 Axiom semax_call :
   forall {CS: compspecs} {Espec: OracleKind},
     forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
@@ -1281,6 +1378,20 @@ Axiom semax_call :
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+         (Scall ret a bl)
+         (normal_ret_assert
+          (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).*)
+Axiom semax_call :
+  forall {CS: compspecs} {Espec: OracleKind},
+    forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+           Cop.classify_fun (typeof a) =
+           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           (retsig = Tvoid -> ret = None) ->
+          tc_fn_return Delta ret retsig ->
+  @semax CS Espec Delta
+          ((((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)

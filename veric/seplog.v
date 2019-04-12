@@ -664,7 +664,11 @@ Lemma funspecs_assert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funspecs_assert G rho |-- funspecs_assert G rho'.
 Proof. unfold funspecs_assert; intros. rewrite H; auto. Qed.
 
+(************** INTERSECTION OF funspecs -- case ND  ************************)
+
+(* --------------------------------- Binary case: 2 specs only ----------  *)
 (*Called ndfs_merge  in hmacdrbg_spec_hmacdrbg.v*)
+
 Definition funspec_intersection_ND fA cA A PA QA FSA (HFSA: FSA = NDmk_funspec fA cA A PA QA) 
                     fB cB B PB QB FSB (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec.
 destruct (eq_dec fA fB); subst.
@@ -706,6 +710,8 @@ Proof.
   do 2 rewrite if_true in I; trivial. inv I. simpl. split. trivial. split. trivial. intros.
   destruct x2 as [a | b]; auto.
 Qed.
+
+(*-------------------- ND case, specification families --------------------- *)
 
 Definition funspec_Pi_ND (sig:funsig) (cc:calling_convention) (I:Type) (A : I -> Type)
            (Pre Post: forall i, A i -> environ -> mpred): funspec.
@@ -783,7 +789,243 @@ Proof.
   intros N. unfold funspec_intersection_ND in N.
   do 2 rewrite if_true in N; trivial. discriminate.
 Qed.
+
+(*-------------------Bifunctor version, binary case ------------*)
+
+Definition binarySUM {A1 A2}
+           (P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A1)) mpred)
+           (P2: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A2)) mpred):
+  forall ts : list Type,
+    (dependent_type_functor_rec ts (AssertTT (ProdType A1 A2))) mpred.
+Proof.
+  intros ts X rho. specialize (P1 ts). specialize (P2 ts). 
+  apply (EX b:bool, if b then P1 (fst X) rho else P2 (snd X) rho).
+Defined.
+
+Lemma binarySUM_ne {A1 A2}
+           {P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A1)) mpred}
+           {P2: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A2)) mpred}
+           (P1_ne: super_non_expansive P1) (P2_ne: super_non_expansive P2):
+  super_non_expansive (binarySUM P1 P2).
+Proof.
+  hnf; simpl; intros. unfold binarySUM. rewrite 2 approx_exp.
+  specialize (P1_ne n ts (fst x) rho).
+  specialize (P2_ne n ts (snd x) rho).  unfold dependent_type_functor_rec in P1_ne, P2_ne. 
+  apply pred_ext; apply exp_derives; intros b; destruct b; first[ rewrite P1_ne; trivial | rewrite P2_ne; trivial].
+Qed.
+
+Definition binary_intersection (phi psi:funspec): option funspec.
+  destruct phi as [f c A1 P1 Q1 P1_ne Q1_ne]. destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
+  destruct (eq_dec f f2); [subst f2 | apply None].
+  destruct (eq_dec c c2); [subst c2 | apply None].
+  remember (binarySUM P1 P2) as P.
+  remember (binarySUM Q1 Q2) as Q.
+  apply Some. apply (mk_funspec f c (ProdType A1 A2) P Q).
+  subst P; apply (binarySUM_ne P1_ne P2_ne).
+  subst Q; apply (binarySUM_ne Q1_ne Q2_ne).
+Defined.
 (*
+Lemma binaryintersection_Pi_sub phi psi omega:
+  binary_intersection phi psi = Some omega ->
+  funspec_sub omega phi /\  funspec_sub omega psi.
+Proof.
+  destruct phi as [f1 c1 A1 P1 Q1 P1_ne Q1_ne].
+  destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
+  destruct omega as [f c A P Q P_ne Q_ne]. intros.
+  destruct (eq_dec f1 f2); [ simpl in H; rewrite if_true in H; subst f2 | inv H]. 
+  destruct (eq_dec c1 c2); [ simpl in H; subst c2 | inv H]. inv H.
+  apply inj_pair2 in H5. apply inj_pair2 in H4. subst P Q. split.
+  + split. trivial. split. trivial. intros. exists ts2. fold (@dependent_type_functor_rec ts2) in *.
+    simpl. simpl in H; destruct H. Check dependent_type_functor_rec.  Search functor. (*Print fsig: forall I : Type, (I -> functor) -> functor*)
+    BoolFunctor A1 A2 := fun ts fsig bool (fun b => if b then DTF1 ts A1 else DTF ts A2)
+    Search fpair.
+    assert (PP2 := P2 ts2). simpl in PP2.
+    exists ts2. destruct H as [TCE HP1].
+    Print dependent_type_functor_rec.
+    remember (dependent_type_functor_rec ts2 (AssertTT (ProdType A1 A2))) as FUNC. simpl in HeqFUNC.
+    unfold ffunc in HeqFUNC. simpl in HeqFUNC.
+    assert (X: FUNC mpred). subst FUNC. simpl. admit.  exists X. FUNC. rho).
+    Check assert (XX:= P2 ts2). simpl in XX. simpl in x2. Check (x2, P2 ts2).
+    Definition TRIV ts2 A1 A2
+               (x2 : ((fix dtfr (T : TypeTree) : functor :=
+           match T with
+           | ConstType A => fconst A
+           | Mpred => fidentity
+           | DependentType n => fconst (nth n ts2 unit)
+           | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
+           | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+           | PiType I0 f => fpi (fun i : I0 => dtfr (f i))
+           | ListType T0 => flist (dtfr T0)
+           end) A1) mpred) (r: (dependent_type_functor_rec nil (AssertTT A2)) mpred):
+      (fpair
+        ((fix dtfr (T : TypeTree) : functor :=
+            match T with
+            | ConstType A => fconst A
+            | Mpred => fidentity
+            | DependentType n => fconst (nth n ts2 unit)
+            | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
+            | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+            | PiType I0 f0 => fpi (fun i : I0 => dtfr (f0 i))
+            | ListType T0 => flist (dtfr T0)
+            end) A1)
+        ((fix dtfr (T : TypeTree) : functor :=
+            match T with
+            | ConstType A => fconst A
+            | Mpred => fidentity
+            | DependentType n => fconst (nth n ts2 unit)
+            | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
+            | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+            | PiType I0 f0 => fpi (fun i : I0 => dtfr (f0 i))
+            | ListType T0 => flist (dtfr T0)
+            end) A2)) mpred.
+      Proof. Print fpair. constructor. apply x2. unfold dependent_type_functor_rec in r. simpl in r. hnf in r. apply r. simpl. hnf. simpl. eapply ConstType. econstructor. apply fidentity.  Search functor. apply (fun x => emp:mpred). . (fix dtfr (T : TypeTree) : functor :=
+             match T with
+             | ConstType A => fconst A
+             | Mpred => fidentity
+             | DependentType n => fconst (nth n ts2 unit)
+             | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
+             | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+             | PiType I0 f0 => fpi (fun i : I0 => dtfr (f0 i))
+             | ListType T0 => flist (dtfr T0)
+             end) A2) mpred. simpl. Check Check (AssertTT A1). exists (fpair (fconst(AssertTT A1) (fconst unit))). Search functor. eexists.
+    exists emp. rewrite emp_sepcon. split. unfold binarySUM.  exists true. _sum. Search emp.
+  [unfold binary_intersection. split. trivial. split. trivial. intros; simpl in *. 
+  exists ts2. Check (@existT). i). x2). , emp. rewrite emp_sepcon.
+  split. apply H. simpl; intros. rewrite emp_sepcon.
+  intros u U. apply U.                                      
+Qed.
+
+(*Rule S-inter3 from page 206 of TAPL*)
+Lemma binaryfunspec_Pi_sub3 fsig cc I A Pre Post g (i:I)
+      (HI: forall i,  funspec_sub g (NDmk_funspec fsig cc (A i) (Pre i) (Post i))):
+  funspec_sub g (funspec_Pi_ND fsig cc I A Pre Post).
+Proof.
+  assert (HIi := HI i). destruct g. destruct HIi as [? [? Hi]]; subst f c.
+  split. trivial. split. trivial.
+  simpl; intros. clear i Hi. destruct x2 as [i Ai].
+  specialize (HI i). destruct HI as [_ [_ Hi]]. apply (Hi ts2 Ai rho).
+Qed.*) (*
+Definition binarySUM {A1 A2}
+           (P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A1)) mpred)
+           (P2: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A2)) mpred):
+  forall ts : list Type,
+    (dependent_type_functor_rec ts (AssertTT (PiType bool (fun b : bool => if b then A1 else A2)))) mpred.
+Proof.
+  intros ts. specialize (P1 ts). specialize (P2 ts). simpl in *. intros X rho.
+  apply (EX b:bool, if b then P1 (X true) rho else P2 (X false) rho).
+Defined.
+
+Lemma binarySUM_ne {A1 A2}
+           {P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A1)) mpred}
+           {P2: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A2)) mpred}
+           (P1_ne: super_non_expansive P1) (P2_ne: super_non_expansive P2):
+  super_non_expansive (binarySUM P1 P2).
+Proof.
+  hnf; simpl; intros. unfold binarySUM. rewrite 2 approx_exp.
+  specialize (P1_ne n ts (x true) rho).
+  specialize (P2_ne n ts (x false) rho).
+  apply pred_ext; apply exp_derives; intros b; destruct b; first [ rewrite P1_ne; trivial | rewrite P2_ne; trivial].
+Qed.
+Definition binary_intersection (phi psi:funspec): option funspec.
+  destruct phi as [f c A1 P1 Q1 P1_ne Q1_ne]. destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
+  destruct (eq_dec f f2); [subst f2 | apply None].
+  destruct (eq_dec c c2); [subst c2 | apply None].
+  remember (binarySUM P1 P2) as P.
+  remember (binarySUM Q1 Q2) as Q.
+  apply Some. Check (mk_funspec f c). Print TypeTree. (PiType bool (fun b => if b then A1 else A2)) P Q).
+  subst P; apply (binarySUM_ne P1_ne P2_ne).
+  subst Q; apply (binarySUM_ne Q1_ne Q2_ne).
+Defined.
+
+Lemma binaryintersection_Pi_sub phi psi omega:
+  binary_intersection phi psi = Some omega ->
+  funspec_sub omega phi /\  funspec_sub omega psi.
+Proof.
+  destruct phi as [f1 c1 A1 P1 Q1 P1_ne Q1_ne].
+  destruct psi as [f2 c2 A2 P2 Q2 P2_ne Q2_ne].
+  destruct omega as [f c A P Q P_ne Q_ne]. simpl; intros.
+  destruct (eq_dec f1 f2); [ simpl in H; subst f2 | inv H].
+  destruct (eq_dec c1 c2); [ simpl in H; subst c2 | inv H]. inv H.
+  split.
+  + split. trivial. split. trivial. intros. apply inj_pair2 in H5. apply inj_pair2 in H4. subst P Q.
+    exists ts2. simpl in *. destruct H as [TCE HP1].
+    exists (
+    exists emp. split.
+  [unfold binary_intersection. split. trivial. split. trivial. intros; simpl in *. 
+  exists ts2. Check (@existT). i). x2). , emp. rewrite emp_sepcon.
+  split. apply H. simpl; intros. rewrite emp_sepcon.
+  intros u U. apply U.                                      
+Qed.
+
+(*Rule S-inter3 from page 206 of TAPL*)
+Lemma binaryfunspec_Pi_sub3 fsig cc I A Pre Post g (i:I)
+      (HI: forall i,  funspec_sub g (NDmk_funspec fsig cc (A i) (Pre i) (Post i))):
+  funspec_sub g (funspec_Pi_ND fsig cc I A Pre Post).
+Proof.
+  assert (HIi := HI i). destruct g. destruct HIi as [? [? Hi]]; subst f c.
+  split. trivial. split. trivial.
+  simpl; intros. clear i Hi. destruct x2 as [i Ai].
+  specialize (HI i). destruct HI as [_ [_ Hi]]. apply (Hi ts2 Ai rho).
+Qed.*)
+  
+(* ------------------------- Bifunctor version, non-binary case ---------*)
+(*
+Definition SUM {I A} (Pi: forall i ts,   (dependent_type_functor_rec ts (AssertTT (A i))) mpred):
+  forall ts : list Type, (dependent_type_functor_rec ts (AssertTT (PiType I A))) mpred.
+Proof.
+  intros ts X rho.
+  apply (EX i:I, Pi i ts (X i) rho).
+Defined.
+
+Lemma SUM_ne {I A} {Pi: forall i ts, (dependent_type_functor_rec ts (AssertTT (A i))) mpred}
+           (P_ne: forall i, super_non_expansive (Pi i)):
+  super_non_expansive (@SUM I A Pi).
+Proof.
+  hnf; simpl; intros. unfold SUM; rewrite 2 approx_exp.
+  apply pred_ext; apply exp_derives; intros i; rewrite (P_ne i n ts (x i) rho); trivial.
+Qed.
+
+Definition funspec_Pi (sig:funsig) (cc:calling_convention) (I:Type) (A : I -> TypeTree)
+           (Pre Post: forall i, (forall ts, (dependent_type_functor_rec ts (AssertTT (A i))) mpred))
+           (Pre_ne: forall i, super_non_expansive (Pre i))
+           (Post_ne: forall i, super_non_expansive (Post i)): funspec.
+Proof.
+  (*HERE -- shouldn't this be a sigma type?*)
+  eapply (mk_funspec sig cc (PiType I A)). apply (SUM_ne Pre_ne). apply (SUM_ne Post_ne).
+Defined.
+
+Lemma SUM_binarySUM {A1 A2}
+      (P: forall (b:bool) (ts:list Type), (dependent_type_functor_rec ts (AssertTT (if b then A1 else A2))) mpred):
+  @binarySUM A1 A2 (P true) (P false) = @SUM bool (fun b => if b then A1 else A2) P.
+Proof.
+  unfold binarySUM, SUM. extensionality ts X rho. 
+  apply pred_ext; apply exp_left; intros b; apply (exp_right b); destruct b; trivial.
+Qed. 
+*)
+(*HERE The two rules S-inter1 and S-inter2 from page 206 of TAPL
+Lemma funspec_Pi_sub fsig cc I A Pre Post Pre_ne Post_ne i:
+  funspec_sub (funspec_Pi fsig cc I A Pre Post Pre_ne Post_ne)
+              (mk_funspec fsig cc (A i) (Pre i) (Post i) (Pre_ne i) (Post_ne i)).
+Proof.
+  unfold funspec_Pi. split. trivial. split. trivial. intros; simpl in *. 
+  exists ts2. Check (@existT). i). x2). , emp. rewrite emp_sepcon.
+  split. apply H. simpl; intros. rewrite emp_sepcon.
+  intros u U. apply U.                                      
+Qed.
+
+(*Rule S-inter3 from page 206 of TAPL*)
+Lemma funspec_Pi_sub3 fsig cc I A Pre Post g (i:I)
+      (HI: forall i,  funspec_sub g (NDmk_funspec fsig cc (A i) (Pre i) (Post i))):
+  funspec_sub g (funspec_Pi_ND fsig cc I A Pre Post).
+Proof.
+  assert (HIi := HI i). destruct g. destruct HIi as [? [? Hi]]; subst f c.
+  split. trivial. split. trivial.
+  simpl; intros. clear i Hi. destruct x2 as [i Ai].
+  specialize (HI i). destruct HI as [_ [_ Hi]]. apply (Hi ts2 Ai rho).
+Qed.*)
+
+
+(*----------------------------- Quarry ------------------------------
 Definition sum_pred {A B} (P1: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
   (P2 : forall ts : list Type, (dependent_type_functor_rec ts (AssertTT B)) mpred):
   forall ts : list Type,
