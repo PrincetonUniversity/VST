@@ -2156,14 +2156,30 @@ Ltac forward_loop_nocontinue_nobreak Inv :=
 end.
 
 Tactic Notation "forward_loop" constr(Inv)  := 
-  match goal with |- semax _ _ ?c _ =>
+ repeat simple apply seq_assoc1;
+ repeat apply -> semax_seq_skip;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
+     let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
+    tryif (check_nocontinue c)
+     then forward_loop_nocontinue_nobreak Inv
+     else (check_no_incr c; forward_loop Inv continue: Inv)
+  | |- semax _ _ ?c _ =>
   tryif (check_nocontinue c)
    then forward_loop_nocontinue_nobreak Inv
   else (check_no_incr c; forward_loop Inv continue: Inv)
  end.
 
 Tactic Notation "forward_loop" constr(Inv) "break:" constr(Post) :=
-  match goal with |- semax _ _ ?c _ =>
+ repeat simple apply seq_assoc1;
+ repeat apply -> semax_seq_skip;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sfor _ ?e2 ?s3 ?s4) _) _ =>
+     let c := constr:(Sloop (Ssequence (Sifthenelse e2 Sskip Sbreak) s3) s4) in
+      tryif (check_nocontinue c)
+       then forward_loop_nocontinue Inv Post
+       else (check_no_incr c; forward_loop Inv continue: Inv break: Post)
+  | |- semax _ _ ?c _ =>
   tryif (check_nocontinue c)
    then forward_loop_nocontinue Inv Post
   else (check_no_incr c; forward_loop Inv continue: Inv break: Post)

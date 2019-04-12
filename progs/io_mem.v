@@ -11,8 +11,8 @@ Module Info.
   Definition abi := "standard"%string.
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "io_mem.c"%string.
-  Definition normalized := true.
+  Definition source_file := "progs/io_mem.c"%string.
+  Definition normalized := false.
 End Info.
 
 Definition ___builtin_ais_annot : ident := 1%positive.
@@ -87,7 +87,6 @@ Definition _r : ident := 62%positive.
 Definition _t'1 : ident := 70%positive.
 Definition _t'2 : ident := 71%positive.
 Definition _t'3 : ident := 72%positive.
-Definition _t'4 : ident := 73%positive.
 
 Definition f_print_intr := {|
   fn_return := tint;
@@ -202,8 +201,7 @@ Definition f_main := {|
   fn_vars := nil;
   fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tuchar) ::
                (_buf, (tptr tuchar)) :: (_i, tint) :: (_j, tint) ::
-               (_t'3, tint) :: (_t'2, tint) :: (_t'1, (tptr tvoid)) ::
-               (_t'4, tuchar) :: nil);
+               (_t'3, tint) :: (_t'2, tint) :: (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -244,12 +242,12 @@ Definition f_main := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Ssequence
-                          (Sset _t'4
+                        (Sset _c
+                          (Ecast
                             (Ederef
                               (Ebinop Oadd (Etempvar _buf (tptr tuchar))
-                                (Etempvar _j tint) (tptr tuchar)) tuchar))
-                          (Sset _c (Ecast (Etempvar _t'4 tuchar) tuchar)))
+                                (Etempvar _j tint) (tptr tuchar)) tuchar)
+                            tuchar))
                         (Ssequence
                           (Sset _d
                             (Ebinop Osub (Ecast (Etempvar _c tuchar) tuint)
@@ -259,10 +257,13 @@ Definition f_main := {|
                             (Sifthenelse (Ebinop Oge (Etempvar _d tuint)
                                            (Econst_int (Int.repr 10) tint)
                                            tint)
-                              (Scall None
-                                (Evar _exit (Tfunction (Tcons tint Tnil)
-                                              tvoid cc_default))
-                                ((Econst_int (Int.repr 0) tint) :: nil))
+                              (Ssequence
+                                (Scall None
+                                  (Evar _free (Tfunction
+                                                (Tcons (tptr tvoid) Tnil)
+                                                tvoid cc_default))
+                                  ((Etempvar _buf (tptr tuchar)) :: nil))
+                                (Sreturn (Some (Econst_int (Int.repr 0) tint))))
                               Sskip)
                             (Ssequence
                               (Sset _n
