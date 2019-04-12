@@ -192,8 +192,8 @@ Lemma semax_call_id0_alt:
        (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
        (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
    tfun = type_of_params argsig ->
-  @semax cs Espec Delta (|> (tc_exprlist Delta (argtypes argsig) bl
-                  && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
+  @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
+                  && |>((`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
                          * PROPx P (LOCALx Q (SEPx R)))))
     (Scall None (Evar id (Tfunction tfun retty cc)) bl)
     (normal_ret_assert
@@ -309,11 +309,11 @@ eapply semax_pre_post';
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 
 *
- eapply derives_trans, now_later.
  rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
  eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
  rewrite !andp_assoc.
  apply andp_right; [apply andp_left2, andp_left1, derives_refl |].
+ eapply derives_trans; [ | apply now_later].
  assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
  {
    unfold tc_exprlist.
@@ -551,11 +551,11 @@ eapply semax_pre_post';
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
- eapply derives_trans, now_later.
  rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
  eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].
  rewrite !andp_assoc.
  apply andp_right; [apply andp_left2, andp_left1, derives_refl |].
+ eapply derives_trans; [ | apply now_later].
  assert_PROP (field_address0 tp (pathp SUB lop) p <> Vundef) as DEFp.
  {
    unfold tc_exprlist.

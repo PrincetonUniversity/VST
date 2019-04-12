@@ -3086,7 +3086,6 @@ Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
 (* revised start_function that mostly works for dependent specs *)
-(*REENABLE
 Ltac start_dep_function := 
   match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
@@ -3142,7 +3141,7 @@ Ltac start_dep_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax.
-REENABLE END*)
+
 (* Notations for dependent funspecs *)
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A

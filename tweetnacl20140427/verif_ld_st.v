@@ -317,8 +317,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
         inv HeqU. clear - ZW EIGHT I.
         destruct (zeq i 0); subst; simpl. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.
-            rewrite (Fcore_Zaux.Zmod_mod_mult _ (2^8) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
-            rewrite (Fcore_Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
+            rewrite (Zaux.Zmod_mod_mult _ (2^8) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
+            rewrite (Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
             rewrite <- (Int.zero_ext_mod 8).
               rewrite Int.repr_unsigned; trivial.
               rewrite ZW; omega.
