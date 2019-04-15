@@ -3285,6 +3285,7 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 
              P at level 100, Q at level 100).
 
 (* automation for dependent funspecs *)
+(*moved to call_lemmas
 Definition call_setup2'
   (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
    fs argsig retty cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
@@ -3324,7 +3325,7 @@ Lemma call_setup2'_i:
       witness' Frame Ppre Qpre Rpre Qpre_temp GV'.
 Proof.
  intros. split. auto. repeat split; auto.
-Qed.
+Qed.*)
 
 Ltac check_witness_type' ts A witness :=
   (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
@@ -3366,8 +3367,9 @@ Ltac prove_call_setup' ts witness :=
  intro H;
  match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
- let R := strip1_later R' in
- exploit (call_setup2'_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ let R := strip1_later R' in(*
+ exploit (call_setup2'_i_nil _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;*)
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
  [ reflexivity
  | check_prove_local2ptree
@@ -3498,7 +3500,7 @@ apply andp_left2. apply andp_left1.
  eapply check_specs_lemma; try eassumption.
 Qed.*)
 
-(*duplicate of lemma in floyd/call_lemmas*)
+(*moved to floyd/call_lemmas
 Lemma semax_call_aux55:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t (type * val)) GV (a: expr)
      Delta P Q R R' fs argsig retty (*cc ts A Pre Post NEPre NEPost  *)
@@ -3630,7 +3632,7 @@ rewrite later_andp; apply andp_right.
   apply prop_derives; intro. forget (var_names argsig) as fl.
   forget (eval_exprlist tys bl rho) as vl.
   eapply check_specs_lemma; try eassumption.
-Qed.
+Qed.*)
 
 (*
 Lemma semax_call_id00_wow:
@@ -3698,7 +3700,7 @@ eapply semax_call_aux55; eauto.
 Qed.
  *)
 
-(*almost same proof as in call_lemmas*)
+(*moved to call_lemmas
 Lemma semax_call_id00_wow:
  forall  
   (cs: compspecs) Qtemp Qvar a GV Delta P Q R R'
@@ -3776,7 +3778,7 @@ eapply semax_pre_post'; [ | |
 *
 assumption.
 Qed.
-
+*)
 (*
 Lemma semax_call_id1_wow:
  forall  
@@ -3857,7 +3859,7 @@ eapply semax_call_aux55; eauto.
  rewrite !fold_right_and_app_low in H4. destruct H4; split; auto.
 Qed.
  *)
-
+(*moved to call_lemmas
 Lemma semax_call_id1_wow:
  forall  
   (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
@@ -3950,7 +3952,8 @@ subst TChecks; eapply semax_call_aux55; eauto.
  rewrite !fold_right_and_app_low.
  rewrite !fold_right_and_app_low in H4. destruct H4; split; auto.
 Qed.
-
+*)
+(*moved to call_lemmas
 Lemma semax_call_id1_x_wow:
  forall  (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
    fs argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
@@ -4049,8 +4052,9 @@ Proof.
     assert (H7 := expr2.neutral_cast_lemma); unfold eval_cast in H7.
     rewrite H7 in H0 by auto; clear H7.
     split; congruence.
-Qed.
+Qed.*)
 
+(*moved to call_lemmas
 Lemma semax_call_id1_y_wow:
  forall  (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
    fs argsig retty' cc ts (A: rmaps.TypeTree)  Pre Post NEPre NEPost
@@ -4144,7 +4148,8 @@ Proof.
     rewrite H3 in *. apply Pos.eqb_neq in H3.
     split; congruence.
 Qed.
-
+ *)
+(*moved to call_lemmas
 Lemma semax_call_id01_wow:
  forall  
   (cs: compspecs) Qtemp Qvar GV a Delta P Q R R'
@@ -4229,6 +4234,7 @@ eapply semax_pre_post';
  clear.
  rewrite fold_right_sepcon_app. auto.
 Qed.
+ *)
 
 Ltac  forward_call_id1_wow' := 
 let H := fresh in intro H;
@@ -4343,8 +4349,10 @@ lazymatch goal with
      [ .. |
       lazymatch goal with
       | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
-         forward_call_id1_wow'
+         forward_call_id1_wow'(*
       | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+                semax _ _ (Scall None _ _) _ =>*)
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow'
