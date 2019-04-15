@@ -863,7 +863,7 @@ Proof.
   forward_if (v = nullval).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
-    unfold reseedPOST.
+    unfold reseedPOST. rename H into Mcompat.
 
     remember ((zlt 256 (Zlength Data) || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data)) %bool) as d.
     unfold myABS in Heqd; simpl in Heqd.
@@ -877,7 +877,7 @@ Proof.
       unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. normalize.
       rename H into RV.
       remember (mbedtls_HMAC256_DRBG_reseed_function s myABS
-         (contents_with_add data (Zlength Data) Data)) as MRS.
+                                                     (contents_with_add data (Zlength Data) Data)) as MRS.
       rewrite (ReseedRes _ _ _ RV). cancel.
       unfold return_value_relate_result in RV.
       destruct MRS.
@@ -918,3 +918,4 @@ Proof.
 Time Qed. (*Coq8.6: 40secs*)
           (*Jan 22nd 2017: 267.171 secs (182.812u,0.015s) (successful)*)
           (*earlier: Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)
+          (*Coq8.9, April 2019: 8.3s*)
