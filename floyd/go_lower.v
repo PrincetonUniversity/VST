@@ -830,7 +830,7 @@ intro rho;
 first
 [ simple apply quick_finish_lower
 |          
- (let TC := fresh "TC" in simple apply finish_lower; intros TC ||
+ (let TC := fresh "TC" in apply finish_lower; intros TC ||
  match goal with
  | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
  | |- _ => fail 1 "PROP part of precondition is not a concrete list"
