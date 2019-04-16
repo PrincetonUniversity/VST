@@ -2202,4 +2202,4 @@ Ltac EExists_alt :=
 Tactic Notation "freeze1" uconstr(a) :=
     let x := fresh "x" in set (x:=a);
     let fr := fresh "freeze" in pose (fr := @abbreviate mpred x);
-    change x with fr; subst x.
+    change (cons x) with (cons fr); subst x.
