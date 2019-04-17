@@ -812,15 +812,25 @@ Ltac intro_PROP :=
   | |- _ => fancy_intro true
   end.
 
+
+Ltac check_mpreds R :=
+ lazymatch R with
+ | ?a :: ?al => match type of a with ?t =>
+                          first [constr_eq t mpred | fail 10 "The SEP conjunct" a "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                     end; check_mpreds al
+ | nil => idtac
+ | _ => match type of R with ?t => 
+               first [constr_eq t (list mpred)
+                      | fail 10 "The SEP list" R "has type" t "but should have type (list mpred); these two types may be convertible but they are not identical"]
+            end
+ end.
+
 Ltac go_lower :=
 clear_Delta_specs;
 intros;
 match goal with
-(* | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
-       apply ENTAIL_normal_ret_assert; fancy_intros true
-*)
- | |- local _ && _ |-- _ => idtac
- | |- ENTAIL _, _ |-- _ => idtac
+ | |- local _ && PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
+ | |- ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) |-- _ => check_mpreds R
  | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
 end;
 clean_LOCAL_canon_mix;

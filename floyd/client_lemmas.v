@@ -1714,15 +1714,26 @@ Ltac already_saturated :=
 end || auto with nocore saturate_local)
  || simple apply prop_True_right.
 
+Ltac check_mpreds2 R :=
+ lazymatch R with
+ | @sepcon mpred _ _ ?a ?b => check_mpreds2 a; check_mpreds2 b
+ | _ => match type of R with ?t =>
+                          first [constr_eq t mpred 
+                                 | fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                     end
+ | nil => idtac
+ end.
+
 Ltac saturate_local :=
- eapply saturate_aux21x;
- [repeat  apply saturate_aux20;
+ match goal with |- ?R |-- _ => check_mpreds2 R end;
+ simple eapply saturate_aux21x;
+ [repeat simple apply saturate_aux20;
    (* use already_saturated if want to be fancy,
          otherwise the next lines *)
     auto with nocore saturate_local;
-     apply prop_True_right
+     simple apply prop_True_right
 (* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
- |  apply derives_extract_prop;
+ | simple apply derives_extract_prop;
    match goal with |- _ -> ?A =>
        let P := fresh "P" in set (P := A);
        fancy_intros true;
