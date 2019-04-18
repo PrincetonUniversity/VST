@@ -528,6 +528,20 @@ Proof. intros.
  rewrite sublist_same; try omega; auto.
 Qed.
 
+Lemma split2_data_at_Tarray_tschar {cs: compspecs} sh n n1 (v: list val) p:
+   0 <= n1 <= n ->
+   Zlength v = n ->
+   data_at sh (Tarray tschar n noattr) v p =
+    data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p *
+    data_at sh (Tarray tschar (n - n1) noattr) (sublist n1 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p).
+Proof. intros.
+ eapply split2_data_at_Tarray; auto;
+ change (@reptype cs tschar) with val.
+ symmetry in H0.
+ list_solve.
+ rewrite sublist_same; try omega; auto.
+Qed.
+
 Lemma split3_data_at_Tarray_tuchar {cs: compspecs} sh n n1 n2 (v: list val) p:
    0 <= n1 <= n2 ->
    n2 <= n ->
@@ -543,7 +557,25 @@ Proof. intros.
  rewrite sublist_same; try omega; auto.
 Qed.
 
+Lemma split3_data_at_Tarray_tschar {cs: compspecs} sh n n1 n2 (v: list val) p:
+   0 <= n1 <= n2 ->
+   n2 <= n ->
+   Zlength v = n ->
+   data_at sh (Tarray tschar n noattr) v p =
+    data_at sh (Tarray tschar n1 noattr) (sublist 0 n1 v) p *
+    data_at sh (Tarray tschar (n2 - n1) noattr) (sublist n1 n2 v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n1::nil) p) *
+    data_at sh (Tarray tschar (n - n2) noattr) (sublist n2 n v) (field_address0 (Tarray tschar n noattr) (ArraySubsc n2::nil) p).
+Proof. intros.
+ eapply split3_data_at_Tarray; auto;
+ change (@reptype cs tschar) with val.
+  split; simpl; auto. list_solve.
+ rewrite sublist_same; try omega; auto.
+Qed.
+
 Lemma sizeof_tarray_tuchar {cs} n (N:0<=n): @sizeof cs (tarray tuchar n) = n.
+Proof. simpl. rewrite Z.max_r. destruct n; trivial. omega. Qed. 
+
+Lemma sizeof_tarray_tschar {cs} n (N:0<=n): @sizeof cs (tarray tschar n) = n.
 Proof. simpl. rewrite Z.max_r. destruct n; trivial. omega. Qed. 
 
 Opaque sizeof.
@@ -566,9 +598,32 @@ Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
    + reflexivity.
 Qed.
 
+Lemma memory_block_field_compatible_tarraytschar_ent {cs} sh n p (N:0<=n < Ptrofs.modulus):
+memory_block sh n p |-- !! @field_compatible cs (tarray tschar n) nil p.
+Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
+   destruct p; try solve [apply FF_left]. normalize.
+   apply prop_right. red.
+   destruct (Ptrofs.unsigned_range i). simpl.
+   repeat split; try rewrite sizeof_tarray_tschar; trivial; try omega.
+   (* TODO: abstract this proof. *)
+   eapply align_compatible_rec_hardware_1.
+   + exact cenv_consistent.
+   + exact cenv_legal_su.
+   + exact ha_env_cs_consistent.
+   + exact ha_env_cs_complete.
+   + reflexivity.
+   + reflexivity.
+Qed.
+
 Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Ptrofs.modulus):
 memory_block sh n p = !!(@field_compatible cs (tarray tuchar n) nil p) && memory_block sh n p.
 Proof. apply pred_ext. apply andp_right; trivial. apply memory_block_field_compatible_tarraytuchar_ent; trivial.
+normalize.
+Qed. 
+
+Lemma memory_block_field_compatible_tarraytschar {cs} sh n p (N:0<=n < Ptrofs.modulus):
+memory_block sh n p = !!(@field_compatible cs (tarray tschar n) nil p) && memory_block sh n p.
+Proof. apply pred_ext. apply andp_right; trivial. apply memory_block_field_compatible_tarraytschar_ent; trivial.
 normalize.
 Qed. 
 
@@ -584,12 +639,32 @@ Proof.
   rewrite Ptrofs.add_zero, sizeof_tarray_tuchar; try apply derives_refl; omega.
 Qed.
 
+Lemma memory_block_data_at__tarray_tschar {cs} sh p n (N: 0<=n < Ptrofs.modulus):
+  memory_block sh n p |-- @data_at_ cs sh (tarray tschar n) p.
+Proof. 
+  rewrite memory_block_field_compatible_tarraytschar, memory_block_isptr; trivial. 
+  normalize. destruct p; try solve [inv Pp].
+  unfold data_at_, data_at.
+  rewrite field_at__memory_block. 
+  unfold field_address. rewrite if_true; trivial.
+  unfold nested_field_offset, nested_field_type; simpl.
+  rewrite Ptrofs.add_zero, sizeof_tarray_tschar; try apply derives_refl; omega.
+Qed.
+
 Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
   memory_block sh n p = @data_at_ cs sh (tarray tuchar n) p.
 Proof.
   apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
   rewrite data_at__memory_block; simpl. normalize. 
   rewrite sizeof_tarray_tuchar; try apply derives_refl; omega. 
+Qed.
+
+Lemma memory_block_data_at__tarray_tschar_eq {cs} sh p n (N: 0<=n < Ptrofs.modulus):
+  memory_block sh n p = @data_at_ cs sh (tarray tschar n) p.
+Proof.
+  apply pred_ext. apply memory_block_data_at__tarray_tschar; trivial.
+  rewrite data_at__memory_block; simpl. normalize. 
+  rewrite sizeof_tarray_tschar; try apply derives_refl; omega. 
 Qed.
 
 Lemma isptr_field_compatible0_tarray {cs}:
@@ -670,12 +745,24 @@ Lemma data_at_tuchar_singleton_array {cs} sh (v: val) p:
   @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
 Proof. apply data_at_singleton_array. reflexivity. Qed.
 
+Lemma data_at_tschar_singleton_array {cs} sh (v: val) p:
+  @data_at cs sh tschar v p |-- @data_at cs sh (tarray tschar 1) [v] p.  
+Proof. apply data_at_singleton_array. reflexivity. Qed.
+
 Lemma data_at_tuchar_singleton_array_inv {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
 Proof. apply data_at_singleton_array_inv. reflexivity. Qed.
 
+Lemma data_at_tschar_singleton_array_inv {cs} sh (v: val) p:
+  @data_at cs sh (tarray tschar 1) [v] p |-- @data_at cs sh tschar v p.  
+Proof. apply data_at_singleton_array_inv. reflexivity. Qed.
+
 Lemma data_at_tuchar_singleton_array_eq {cs} sh (v: val) p:
   @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
+Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
+
+Lemma data_at_tschar_singleton_array_eq {cs} sh (v: val) p:
+  @data_at cs sh (tarray tschar 1) [v] p = @data_at cs sh tschar v p.  
 Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
 
 Lemma data_at_zero_array {cs} sh t (v: list (reptype t)) p:
@@ -721,8 +808,16 @@ Lemma data_at_tuchar_zero_array {cs} sh p: isptr p ->
   emp |-- @data_at cs sh (tarray tuchar 0) [] p.  
 Proof. intros. apply data_at_zero_array; auto. Qed.
 
+Lemma data_at_tschar_zero_array {cs} sh p: isptr p ->
+  emp |-- @data_at cs sh (tarray tschar 0) [] p.  
+Proof. intros. apply data_at_zero_array; auto. Qed.
+
 Lemma data_at_tuchar_zero_array_inv {cs} sh p:
   @data_at cs sh (tarray tuchar 0) [] p |-- emp.  
+Proof. intros. apply data_at_zero_array_inv; auto. Qed.
+
+Lemma data_at_tschar_zero_array_inv {cs} sh p:
+  @data_at cs sh (tarray tschar 0) [] p |-- emp.  
 Proof. intros. apply data_at_zero_array_inv; auto. Qed.
 
 Lemma data_at_tuchar_zero_array_eq {cs} sh p:
@@ -730,13 +825,26 @@ Lemma data_at_tuchar_zero_array_eq {cs} sh p:
   @data_at cs sh (tarray tuchar 0) [] p = emp.  
 Proof. intros. apply data_at_zero_array_eq; auto. Qed.
 
+Lemma data_at_tschar_zero_array_eq {cs} sh p:
+  isptr p ->
+  @data_at cs sh (tarray tschar 0) [] p = emp.  
+Proof. intros. apply data_at_zero_array_eq; auto. Qed.
+
 Lemma data_at__tuchar_zero_array {cs} sh p (H: isptr p):
   emp |-- @data_at_ cs sh (tarray tuchar 0) p.  
 Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array; trivial. Qed.
 
+Lemma data_at__tschar_zero_array {cs} sh p (H: isptr p):
+  emp |-- @data_at_ cs sh (tarray tschar 0) p.  
+Proof. unfold data_at_, field_at_. apply data_at_tschar_zero_array; trivial. Qed.
+
 Lemma data_at__tuchar_zero_array_inv {cs} sh p:
   @data_at_ cs sh (tarray tuchar 0) p |-- emp.  
 Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array_inv. Qed.
+
+Lemma data_at__tschar_zero_array_inv {cs} sh p:
+  @data_at_ cs sh (tarray tschar 0) p |-- emp.  
+Proof. unfold data_at_, field_at_. apply data_at_tschar_zero_array_inv. Qed.
 
 Lemma data_at__tuchar_zero_array_eq {cs} sh p (H: isptr p):
   @data_at_ cs sh (tarray tuchar 0) p = emp.  
@@ -744,6 +852,14 @@ Proof. intros.
   apply pred_ext.
   apply data_at__tuchar_zero_array_inv.
   apply data_at__tuchar_zero_array; trivial.
+Qed. 
+
+Lemma data_at__tschar_zero_array_eq {cs} sh p (H: isptr p):
+  @data_at_ cs sh (tarray tschar 0) p = emp.  
+Proof. intros.
+  apply pred_ext.
+  apply data_at__tschar_zero_array_inv.
+  apply data_at__tschar_zero_array; trivial.
 Qed. 
 
 Lemma split2_data_at__Tarray_tuchar
@@ -756,6 +872,29 @@ Lemma split2_data_at__Tarray_tuchar
 Proof. intros. unfold data_at_ at 1; unfold field_at_.
 rewrite field_at_data_at.
 erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
+instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
+instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
+unfold field_address. simpl. 
+rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
+trivial.
+simpl.
+instantiate (1:=list_repeat (Z.to_nat n) Vundef).
+list_solve.
+unfold default_val. simpl. autorewrite with sublist. reflexivity.
+unfold default_val. simpl. autorewrite with sublist. reflexivity.
+unfold default_val. simpl. autorewrite with sublist. reflexivity.
+Qed. 
+
+Lemma split2_data_at__Tarray_tschar
+     : forall {cs} (sh : Share.t)  (n n1 : Z) (p : val),
+       0 <= n1 <= n -> isptr p ->field_compatible (Tarray tschar n noattr) [] p ->
+       @data_at_ cs sh (Tarray tschar n noattr) p =
+       @data_at_ cs sh (Tarray tschar n1 noattr) p *
+       @data_at_ cs sh (Tarray tschar (n - n1) noattr)
+         (field_address0 (Tarray tschar n noattr) [ArraySubsc n1] p).
+Proof. intros. unfold data_at_ at 1; unfold field_at_.
+rewrite field_at_data_at.
+erewrite (@split2_data_at_Tarray cs sh tschar n n1).
 instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
 instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
 unfold field_address. simpl. 
@@ -789,4 +928,3 @@ autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 autorewrite with sublist; auto.
 Qed.
-

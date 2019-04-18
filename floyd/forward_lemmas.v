@@ -58,50 +58,6 @@ rewrite Int.eq_true in H; inv H.
 Qed.
 
 
-Lemma repr_inj_signed:
-  forall i j,
-    repable_signed i -> repable_signed j -> Int.repr i = Int.repr j -> i=j.
-Proof.
-intros.
-rewrite <- (Int.signed_repr i) by rep_omega.
-rewrite <- (Int.signed_repr j) by rep_omega.
-congruence.
-Qed.
-
-Lemma repr_inj_unsigned:
-  forall i j,
-    0 <= i <= Int.max_unsigned ->
-    0 <= j <= Int.max_unsigned ->
-    Int.repr i = Int.repr j -> i=j.
-Proof.
-intros.
-rewrite <- (Int.unsigned_repr i) by rep_omega.
-rewrite <- (Int.unsigned_repr j) by rep_omega.
-congruence.
-Qed.
-
-
-Lemma repr_inj_signed':
-  forall i j,
-    (* The first two premises are not needed to prove this,
-     but are used to limit its applicability *)
-    repable_signed i -> repable_signed j ->
-    Int.repr i <> Int.repr j -> i<>j.
-Proof.
-intros.
-congruence.
-Qed.
-
-Lemma repr_inj_unsigned':
-  forall i j,
-    0 <= i <= Int.max_unsigned ->
-    0 <= j <= Int.max_unsigned ->
-    Int.repr i <> Int.repr j -> i<>j.
-Proof.
-intros.
-congruence.
-Qed.
-
 Lemma semax_ifthenelse_PQR' :
    forall Espec {cs: compspecs} (v: val) Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
