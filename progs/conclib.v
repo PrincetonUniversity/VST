@@ -2065,7 +2065,7 @@ Proof.
   eapply local_facts_isptr with (P := fun v => lock_inv sh v R); eauto.
   Transparent mpred.
   unfold lock_inv; Intros b o.
-  subst; simpl; entailer.
+  subst; simpl. apply prop_right; auto.
   Opaque mpred.
 Qed.
 
@@ -2594,8 +2594,7 @@ Proof.
     if_tac.
     + apply orp_left; Intros; auto.
       Exists v2; auto.
-    + entailer!.
-      intro X; contradiction X; auto.
+    + normalize. apply andp_right; auto. apply prop_right; split; auto. hnf; intros. contradiction H3; auto.
   - rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
     apply andp_right; [apply prop_right; auto|].
     if_tac.
@@ -2610,9 +2609,12 @@ Proof.
         Exists v2; auto.
     + Intro v2'.
       assert_PROP (v1 = v2') by (apply res_predicates.address_mapsto_value_cohere).
-      subst; entailer!.
-    + entailer!.
-      intro; auto.
+      subst. apply sepcon_derives; auto. apply andp_right; auto.
+      apply prop_right; auto.
+    + apply sepcon_derives; auto.
+      normalize. apply andp_right; auto.
+      apply prop_right; split; auto.
+      intro; auto. 
 Opaque mpred.
 Qed.
 
@@ -2903,7 +2905,7 @@ Proof.
 Transparent mpred.
 Transparent predicates_hered.pred.
   destruct v; simpl; auto; try apply derives_refl.
-  entailer!.
+  apply prop_right; auto.
 Opaque mpred. Opaque predicates_hered.pred.
 Qed.
 
