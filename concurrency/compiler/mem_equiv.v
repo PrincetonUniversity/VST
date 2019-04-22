@@ -236,11 +236,35 @@ Proof.
   destruct y2; [rewrite <- (max_eqv _ _ H)| erewrite <- (cur_eqv _ _ H)];
     assumption.
 Qed.
+Instance Proper_perm_Max:
+  Proper (Max_equiv ==> eq ==> eq ==> trieq Max ==> eq ==> iff) Mem.perm.
+Proof.
+  proper_iff; unfold Mem.perm; proper_intros; subst.
+  inversion H2; subst.
+  repeat rewrite_getPerm; auto. 
+  rewrite <- H; assumption.
+Qed.
 
 Instance range_perm_mem_equiv:
   Proper (mem_equiv ==> eq ==>  eq ==>  eq ==>  eq ==>  eq ==> iff) Mem.range_perm.
 Proof.
   proper_iff; proper_intros; subst.
+  unfold Mem.range_perm in *; intros.
+  rewrite <- H. eapply H5; auto.
+Qed.
+Instance range_perm_mem_equiv_Max:
+  Proper (Max_equiv ==> eq ==>  eq ==>  eq ==>  trieq Max  ==>  eq ==> iff) Mem.range_perm.
+Proof.
+  proper_iff; proper_intros; subst.
+  inversion H3; subst.
+  unfold Mem.range_perm in *; intros.
+  rewrite <- H. eapply H5; auto.
+Qed.
+Instance range_perm_mem_equiv_Cur:
+  Proper (Cur_equiv ==> eq ==>  eq ==>  eq ==>  trieq Cur  ==>  eq ==> iff) Mem.range_perm.
+Proof.
+  proper_iff; proper_intros; subst.
+  inversion H3; subst.
   unfold Mem.range_perm in *; intros.
   rewrite <- H. eapply H5; auto.
 Qed.

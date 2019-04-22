@@ -34,7 +34,7 @@ Lemma Proper_two_way
     Proper (a ==> R2) f.
 Proof. proper_intros; eapply TwoWay; eapply H ; auto. Qed.
 
-(* BUG: [Check Proper_two_way] binds to iff impl *)
+(* BUGish: [Check Proper_two_way] binds to iff impl *)
 
 Ltac proper_iff:=
   intros;
