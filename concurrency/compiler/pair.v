@@ -234,7 +234,13 @@ Lemma pair_prop_simpl:
       pair_prop (R x1, R x2).
 Proof. ez. Qed.
 
-
+Lemma pair_immidiate:
+  forall {T} (A: T -> Prop),
+    (forall X, A X) -> 
+    forall X1 X2, pair_prop (A X1, A X2).
+Proof.
+  intros ? ? H; split; simpl; eapply H.
+Qed.
 Ltac pair_prop_simpl X1 X2:= 
   try (revert X1 X2;
        eapply pair_prop_simpl).
@@ -263,7 +269,7 @@ Ltac pair_prop_implications':=
     pair_prop_implications'
   end.
 Ltac pair_prop_implications X1 X2:=
-  pair_prop_implications'; simpl; pair_prop_simpl X1 X2.
+  try pair_prop_implications'; simpl; pair_prop_simpl X1 X2.
 Ltac solve_pair:=
   (* Unfold definitions hiding the "pair" 
      These must be defined as
