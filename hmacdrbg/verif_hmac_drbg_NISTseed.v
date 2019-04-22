@@ -863,18 +863,18 @@ Proof.
   forward_if (v = nullval).
   { rename H into Hv. forward. simpl. Exists v.
     apply andp_right. apply prop_right; split; trivial.
-    unfold reseedPOST. rename H into Mcompat.
+    unfold reseedPOST. (*rename H into Mcompat.*)
 
     remember ((zlt 256 (Zlength Data) || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data)) %bool) as d.
     unfold myABS in Heqd; simpl in Heqd.
     destruct (zlt 256 (Zlength Data)); simpl in Heqd.
     + subst d. unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl.
-      simpl. subst myABS. normalize. simpl. cancel.
-      Exists p. thaw OLD_MD. normalize.
-      apply andp_right. apply prop_right; repeat split; trivial. cancel.
+      simpl. subst myABS. Intros. subst v; simpl. cancel.
+      Exists p. thaw OLD_MD. cancel. 
+      apply andp_right; [ apply prop_right; trivial |  cancel; entailer!]. 
     + destruct (zlt 384 (48 + Zlength Data)); simpl in Heqd; try omega.
       subst d.
-      unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. normalize.
+      unfold hmac256drbgstate_md_info_pointer, hmac256drbg_relate; simpl. Intros. cancel. 
       rename H into RV.
       remember (mbedtls_HMAC256_DRBG_reseed_function s myABS
                                                      (contents_with_add data (Zlength Data) Data)) as MRS.
@@ -883,14 +883,13 @@ Proof.
       destruct MRS.
       - exfalso. inv RV. simpl in Hv. discriminate.
       - unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer; simpl.
-        Intros. Exists p. thaw OLD_MD. cancel. normalize.
-        apply andp_right. apply prop_right; repeat split; trivial.
-        cancel.
+        Intros. Exists p. thaw OLD_MD. cancel.
+        apply andp_right. apply prop_right; trivial.
+        cancel. entailer!.
   }
-  { rename H into Hv. forward.
-    go_lower. simpl in Hv. apply typed_false_of_bool in Hv. apply negb_false_iff in Hv.
-    symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv. subst v.
-    entailer!.
+  { rename H into Hv. forward. simpl in Hv. entailer!.
+    apply negb_false_iff in Hv.
+    symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv. subst v; trivial.
   }
   deadvars!. Intros. subst v.
   unfold reseedPOST.
@@ -912,9 +911,9 @@ Proof.
   destruct (zlt 256 (Zlength Data)); try discriminate.
   apply andp_right. apply prop_right; split; trivial. 
   thaw XX. thaw OLD_MD. cancel. simpl in *. rewrite Heqd2, <- HeqMRS.
-  Exists p. normalize. 
-  apply andp_right. apply prop_right; repeat split; trivial.
-  unfold_data_at 1%nat. cancel.
+  Exists p. 
+  apply andp_right. apply prop_right; trivial.
+  unfold_data_at 1%nat. cancel. entailer!.
 Time Qed. (*Coq8.6: 40secs*)
           (*Jan 22nd 2017: 267.171 secs (182.812u,0.015s) (successful)*)
           (*earlier: Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)
