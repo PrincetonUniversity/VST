@@ -18,22 +18,24 @@ destruct R; apply ENTAIL_refl.
 Qed.
 
 Lemma semax_func_cons_ext_vacuous:
-     forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
+     forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
-         (G' : funspecs) cc,
+         (G' : funspecs) cc b,
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
          sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
          sig_res := opttyp_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
-       semax_func V G fs G' ->
-       semax_func V G ((id, External ef argsig retsig cc) :: fs)
+       (*new*) Genv.find_symbol ge id = Some b ->
+       (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+       semax_func V G ge fs G' ->
+       semax_func V G ge ((id, External ef argsig retsig cc) :: fs)
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof.
 intros.
-eapply semax_func_cons_ext; try reflexivity; auto.
+eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
 *
  clear.
  forget 1%positive as i.
@@ -45,8 +47,7 @@ eapply semax_func_cons_ext; try reflexivity; auto.
   revert i; induction argsig; simpl; intros; auto.
 *
   intros. simpl. apply andp_left1, FF_left.
-*
-  apply semax_external_FF.
+*  apply semax_external_FF.
 Qed.
 
 Lemma int_eq_false_e:

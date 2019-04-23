@@ -135,8 +135,10 @@ Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  | Evar id ty => eval_var id ty (* typecheck ensure by-reference *)
  | Ederef a ty => eval_expr a (* typecheck ensure by-reference and isptr *)
  | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) (* typecheck ensure by-reference *)
- | Esizeof t ty => `(Vptrofs (Ptrofs.repr (sizeof t)))
- | Ealignof t ty => `(Vptrofs (Ptrofs.repr (alignof t)))
+ | Esizeof t ty => `(if complete_type cenv_cs t 
+                             then Vptrofs (Ptrofs.repr (sizeof t)) else Vundef)
+ | Ealignof t ty => `(if complete_type cenv_cs t 
+                             then Vptrofs (Ptrofs.repr (alignof t)) else Vundef)
  end
 
  with eval_lvalue {CS: compspecs} (e: expr) : environ -> val :=
@@ -1240,3 +1242,19 @@ Proof.
 Qed.
 
 (*************************************)
+
+
+
+(*Could weaken and say that only the data components of the composite need to identical, not the proofs*)
+Definition cenv_sub (ce ce':composite_env) := forall i, sub_option (ce!i) (ce'!i).
+Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs').
+
+Lemma cenv_sub_refl {ce}: cenv_sub ce ce.
+Proof. intros i; apply sub_option_refl. Qed.
+Lemma cenv_sub_trans {ce ce' ce''}: cenv_sub ce ce' -> cenv_sub ce' ce'' -> cenv_sub ce ce''.
+Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
+
+Lemma cspecs_sub_refl {cs}: cspecs_sub cs cs.
+Proof. apply cenv_sub_refl. Qed. 
+Lemma cspecs_sub_trans {cs cs' cs''}: cspecs_sub cs cs' -> cspecs_sub cs' cs'' -> cspecs_sub cs cs''.
+Proof. apply cenv_sub_trans. Qed.

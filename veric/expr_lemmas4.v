@@ -130,8 +130,7 @@ apply tc_bool_e in H0.
 apply tc_bool_e in H1.
 rewrite eqb_type_spec in H1.
 subst.
-simpl.
-reflexivity.
+simpl. rewrite H0; reflexivity.
 * (* Ealignof *)
 simpl in H0.
 repeat rewrite denote_tc_assert_andp in H0.
@@ -140,8 +139,7 @@ apply tc_bool_e in H0.
 apply tc_bool_e in H1.
 rewrite eqb_type_spec in H1.
 subst.
-simpl.
-reflexivity.
+simpl. rewrite H0; reflexivity.
 Qed.
 
 Lemma typecheck_expr_sound : forall {CS: compspecs} Delta rho m e,
@@ -168,7 +166,8 @@ unfold Clight_Cop2.sem_cmp, Clight_Cop2.sem_cmp_pl, Clight_Cop2.sem_cmp_lp, Clig
 
 Lemma eval_binop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho b e1 e2 t m
-        (Hcenv: genv_cenv ge = @cenv_cs CS),
+(*        (Hcenv: genv_cenv ge = @cenv_cs CS)*)
+        (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge)),
     rho = construct_rho (filter_genv ge) ve te ->
     typecheck_environ Delta rho ->
     ((denote_tc_assert (typecheck_expr Delta e1) rho) (m_phi m) ->
@@ -189,7 +188,7 @@ apply typecheck_expr_sound in TC1; [| auto].
 apply typecheck_expr_sound in TC2; [| auto].
 clear H0 H.
 clear Delta.
-eapply eval_binop_relate'; eassumption.
+apply eval_binop_relate'; assumption. 
 Qed.
 
 Lemma valid_pointer_dry0:
@@ -508,9 +507,28 @@ Proof.
     auto.
 Qed.
 
+Lemma cenv_sub_sizeof {ge ge'} (Hcenv : cenv_sub ge' ge): forall t,
+  complete_type ge' t = true -> @sizeof ge t = @sizeof ge' t.
+Proof.
+  induction t; simpl; intros; trivial.
+  + rewrite IHt; trivial.
+  + specialize (Hcenv i). destruct (ge' ! i); try congruence. rewrite Hcenv; trivial.
+  + specialize (Hcenv i). destruct (ge' ! i); try congruence. rewrite Hcenv; trivial.
+Qed.
+
+Lemma cenv_sub_alignof {ge ge'} (Hcenv : cenv_sub ge' ge): forall t,
+  complete_type ge' t = true -> @alignof ge t = @alignof ge' t.
+Proof.
+  induction t; simpl; intros; trivial.
+  + rewrite IHt; trivial.
+  + specialize (Hcenv i). destruct (ge' ! i); try congruence. rewrite Hcenv; trivial.
+  + specialize (Hcenv i). destruct (ge' ! i); try congruence. rewrite Hcenv; trivial.
+Qed.
+
 Lemma eval_unop_relate:
  forall {CS: compspecs} Delta (ge: genv) te ve rho u e t m 
- (Hcenv : genv_cenv ge = @cenv_cs CS)
+ (*(Hcenv : genv_cenv ge = @cenv_cs CS)*)
+ (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
  (H : rho = construct_rho (filter_genv ge) ve te)
  (H0 : typecheck_environ Delta rho)
  (H1 : (denote_tc_assert (typecheck_expr Delta e) rho) (m_phi m) ->
@@ -594,7 +612,8 @@ Qed.
 
 Lemma eval_both_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
-           genv_cenv ge = cenv_cs ->
+           (*genv_cenv ge = cenv_cs ->*)
+           cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
            (denote_tc_assert (typecheck_expr Delta e) rho (m_phi m) ->
@@ -755,8 +774,10 @@ simpl in H1.
   eapply Clight.eval_Elvalue; auto. eassumption.
   rewrite Heqt0.
   apply Clight.deref_loc_copy. auto.
-  rewrite Hcenv; eassumption.
-  rewrite Hcenv; eassumption.
+  { (*rewrite Hcenv; eassumption.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+  { (*rewrite Hcenv; eassumption.*) eapply field_offset_stable; eauto.
+    intros. specialize (Hcenv id); rewrite H in Hcenv; apply Hcenv.
+    apply cenv_consistent.  }
   unfold_lift.
   unfold Datatypes.id; simpl.
   rewrite Heqt0. rewrite H4. simpl. rewrite Hco. rewrite Heqr.
@@ -769,7 +790,7 @@ simpl in H1.
   eapply Clight.eval_Elvalue; eauto.
   apply Clight.deref_loc_copy.
   rewrite Heqt0. auto. eauto.
-  rewrite Hcenv; eauto.
+  { (*rewrite Hcenv; eauto.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
   rewrite H4. simpl.
   apply Clight.deref_loc_reference; auto.
 *
@@ -791,15 +812,17 @@ intuition.
  eapply Clight.eval_Efield_struct; auto; try eassumption.
 eapply Clight.eval_Elvalue in H2. apply H2.
 rewrite Heqt0. apply Clight.deref_loc_copy. simpl; auto.
-rewrite Hcenv; eassumption.
-rewrite Hcenv; eassumption.
+{ (*rewrite Hcenv; eassumption.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
+{ (*rewrite Hcenv; eassumption.*) eapply field_offset_stable; eauto.
+  intros. specialize (Hcenv id); rewrite H5 in Hcenv; apply Hcenv.
+  apply cenv_consistent.  }
 +
 exists b, ofs. simpl. split; auto.
 eapply Clight.eval_Efield_union; eauto.
 eapply Clight.eval_Elvalue; eauto.
 rewrite Heqt0. apply Clight.deref_loc_copy.
 auto.
-rewrite Hcenv; eassumption.
+{ (*rewrite Hcenv; eassumption.*) specialize (Hcenv i0); rewrite Hco in Hcenv; apply Hcenv. }
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
@@ -810,8 +833,10 @@ rewrite eqb_type_spec in H2.
 subst.
 unfold eval_expr.
 unfold_lift; simpl.
-rewrite <- Hcenv.
-apply Clight.eval_Esizeof.
+{ (*rewrite <- Hcenv.*) 
+  rewrite H1.
+  rewrite <- (cenv_sub_sizeof Hcenv _ H1).
+  apply Clight.eval_Esizeof. }
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
@@ -820,13 +845,15 @@ apply tc_bool_e in H1.
 apply tc_bool_e in H2.
 unfold eval_expr.
 unfold_lift; simpl.
-unfold alignof; rewrite <- Hcenv.
+rewrite H1.
+(*unfold alignof. rewrite <- Hcenv.*) rewrite <- (cenv_sub_alignof Hcenv _ H1). 
 constructor.
 Qed.
 
 Lemma eval_expr_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
-           genv_cenv ge = cenv_cs ->
+           (*genv_cenv ge = cenv_cs ->*)
+           cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
            (denote_tc_assert (typecheck_expr Delta e) rho (m_phi m) ->
@@ -838,7 +865,8 @@ Qed.
 
 Lemma eval_lvalue_relate:
   forall {CS: compspecs} Delta ge te ve rho e m,
-           genv_cenv ge = cenv_cs ->
+           cenv_sub (@cenv_cs CS) (genv_cenv ge) ->
+(*           genv_cenv ge = cenv_cs ->*)
            rho = construct_rho (filter_genv ge) ve te->
            typecheck_environ Delta rho ->
            (denote_tc_assert (typecheck_lvalue Delta e) rho (m_phi m) ->

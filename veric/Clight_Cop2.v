@@ -433,16 +433,24 @@ Definition sem_binarith
   end.
 
 Definition sem_add_ptr_int {CS: compspecs} ty si v1 v2 :=
- Cop.sem_add_ptr_int cenv_cs ty si v1 v2.
+  if complete_type cenv_cs ty 
+  then Cop.sem_add_ptr_int cenv_cs ty si v1 v2
+  else None.
 
 Definition sem_add_int_ptr {CS: compspecs} ty si v1 v2 :=
- Cop.sem_add_ptr_int cenv_cs ty si v2 v1.
+ if complete_type cenv_cs ty 
+  then Cop.sem_add_ptr_int cenv_cs ty si v2 v1
+  else None.
 
 Definition sem_add_ptr_long {CS: compspecs} ty v1 v2 :=
- Cop.sem_add_ptr_long cenv_cs ty v1 v2.
+ if complete_type cenv_cs ty 
+  then Cop.sem_add_ptr_long cenv_cs ty v1 v2
+  else None.
 
 Definition sem_add_long_ptr {CS: compspecs} ty v1 v2 :=
- Cop.sem_add_ptr_long cenv_cs ty v2 v1.
+ if complete_type cenv_cs ty 
+  then Cop.sem_add_ptr_long cenv_cs ty v2 v1
+  else None.
 
 (** *** Addition *)
 Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
@@ -467,7 +475,8 @@ Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
 (** *** Subtraction *)
 
 Definition sem_sub_pi {CS: compspecs} (ty:type) (si: signedness) (v1 v2 : val) : option val :=
-      match v1, v2 with
+    if complete_type cenv_cs ty 
+     then match v1, v2 with
       | Vptr b1 ofs1, Vint n2 =>
           let n2 := ptrofs_of_int si n2 in
           Some (Vptr b1 (Ptrofs.sub ofs1 (Ptrofs.mul (Ptrofs.repr (sizeof ty)) n2)))
@@ -477,10 +486,12 @@ Definition sem_sub_pi {CS: compspecs} (ty:type) (si: signedness) (v1 v2 : val) :
           let n2 := cast_int_long si n2 in
           if Archi.ptr64 then Some (Vlong (Int64.sub n1 (Int64.mul (Int64.repr (sizeof ty)) n2))) else None
       | _,  _ => None
-      end.
+      end
+  else None.
 
 Definition sem_sub_pl {CS: compspecs} (ty:type) (v1 v2 : val) : option val := 
-      match v1, v2 with
+     if complete_type cenv_cs ty 
+     then match v1, v2 with
       | Vptr b1 ofs1, Vlong n2 =>
           let n2 := Ptrofs.of_int64 n2 in
           Some (Vptr b1 (Ptrofs.sub ofs1 (Ptrofs.mul (Ptrofs.repr (sizeof ty)) n2)))
@@ -490,10 +501,12 @@ Definition sem_sub_pl {CS: compspecs} (ty:type) (v1 v2 : val) : option val :=
       | Vlong n1, Vlong n2 =>
           if Archi.ptr64 then Some (Vlong (Int64.sub n1 (Int64.mul (Int64.repr (sizeof ty)) n2))) else None
       | _,  _ => None
-      end.
+      end
+     else None.
 
 Definition sem_sub_pp {CS: compspecs} (ty:type) (v1 v2 : val) : option val :=
-      match v1,v2 with
+     if complete_type cenv_cs ty 
+     then match v1,v2 with
       | Vptr b1 ofs1, Vptr b2 ofs2 =>
           if eq_block b1 b2 then
             let sz := sizeof ty in
@@ -502,7 +515,8 @@ Definition sem_sub_pp {CS: compspecs} (ty:type) (v1 v2 : val) : option val :=
             else None
           else None
       | _, _ => None
-      end.
+      end
+      else None.
 
 Definition sem_sub_default (t1 t2:type) (v1 v2 : val) : option val :=
  sem_binarith

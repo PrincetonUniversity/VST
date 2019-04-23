@@ -139,14 +139,14 @@ Proof.
   forward.
   forward.
   forward_call (lock, Ews, cptr_lock_inv ctr).
-  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
+  (*{ rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }*)
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { lock_props.
     unfold cptr_lock_inv; Exists 0; entailer!. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 ctr lock lockt).
-  { rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }
+  (*{ rewrite sepcon_comm; apply sepcon_derives; [apply derives_refl | cancel]. }*)
   subst lockt; subst lock; subst ctr.
   forward_spawn _thread_func nullval (sh1, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
@@ -181,16 +181,9 @@ Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
 prove_semax_prog.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
-semax_func_cons_ext.
+do 7 semax_func_cons_ext.
 semax_func_cons body_incr.
 semax_func_cons body_read.
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
-Qed.
+Qed. 

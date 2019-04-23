@@ -52,8 +52,12 @@ Fixpoint msubst_eval_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (
 
   | Ederef a ty => msubst_eval_expr Delta T1 T2 GV a
   | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue Delta T1 T2 GV a)
-  | Esizeof t _ => Some (Vptrofs (Ptrofs.repr (sizeof t)))
-  | Ealignof t _ => Some (Vptrofs (Ptrofs.repr (alignof t)))
+  | Esizeof t _ => Some (if complete_type cenv_cs t
+                                    then Vptrofs (Ptrofs.repr (sizeof t))
+                                    else Vundef)
+  | Ealignof t _ => Some (if complete_type cenv_cs t
+                                     then Vptrofs (Ptrofs.repr (alignof t))
+                                     else Vundef)
   end
   with msubst_eval_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (e: Clight.expr) : option val :=
   match e with

@@ -686,9 +686,42 @@ destruct (Int64.eq i Int64.zero);
 subst; reflexivity.
 Qed.
 
+
+Lemma sem_binary_operation_stable: 
+  forall (cs1: compspecs) cs2 
+   (CSUB: forall id co, (@cenv_cs cs1)!id = Some co -> cs2!id = Some co)
+   b v1 e1 v2 e2 phi m v t rho,
+   app_pred
+       (@denote_tc_assert cs1 (@isBinOpResultType cs1 b e1 e2 t) rho) phi ->
+   sem_binary_operation  (@cenv_cs cs1) b v1 (typeof e1) v2 (typeof e2) m = Some v ->
+   sem_binary_operation cs2 b v1 (typeof e1) v2 (typeof e2) m = Some v.
+Proof.
+intros.
+assert (CONSIST:= @cenv_consistent cs1).
+rewrite den_isBinOpR in H.
+simpl in H.
+forget (op_result_type (Ebinop b e1 e2 t)) as err.
+forget (arg_type (Ebinop b e1 e2 t)) as err0.
+destruct b; simpl in *; auto;
+destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:H1,
+    (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] eqn:H2;
+auto;
+simpl in *; decompose [and] H; clear H;
+repeat match goal with H: app_pred (denote_tc_assert (tc_bool _ _) _) _ |- _ =>
+    apply tc_bool_e in H 
+end;
+unfold Cop.sem_add, Cop.sem_sub,
+    Cop.sem_add_ptr_int, Cop.sem_add_ptr_long in *;
+simpl in *;
+destruct v1,v2; auto;
+rewrite <- (sizeof_stable _ _ CSUB) in H0 by auto; auto.
+Qed.
+
+
 Lemma eval_binop_relate':
  forall {CS: compspecs} (ge: genv) te ve rho b e1 e2 t m
-    (Hcenv: genv_cenv ge = @cenv_cs CS)
+(*  (Hcenv: genv_cenv ge = @cenv_cs CS)*)
+    (Hcenv: cenv_sub (@cenv_cs CS) (genv_cenv ge))
     (H1: Clight.eval_expr ge ve te (m_dry m) e1 (eval_expr e1 rho))
     (H2: Clight.eval_expr ge ve te (m_dry m) e2 (eval_expr e2 rho))
     (H3: app_pred (denote_tc_assert (isBinOpResultType b e1 e2 t) rho) (m_phi m))
@@ -699,6 +732,20 @@ Clight.eval_expr ge ve te (m_dry m) (Ebinop b e1 e2 t)
      (eval_expr e1 rho) (eval_expr e2 rho)).
 Proof.
 intros.
+econstructor; try eassumption; clear H1 H2.
+assert (sem_binary_operation (@cenv_cs CS) b (@eval_expr CS e1 rho) 
+  (typeof e1) (@eval_expr CS e2 rho) (typeof e2) (m_dry m) =
+@Some val
+  (force_val2 (@sem_binary_operation' CS b (typeof e1) (typeof e2))
+     (@eval_expr CS e1 rho) (@eval_expr CS e2 rho))).
+2:{
+eapply sem_binary_operation_stable; try eassumption.
+clear - Hcenv.
+hnf in Hcenv.
+intros.
+specialize (Hcenv id). hnf in Hcenv. rewrite H in Hcenv. auto.
+}
+clear Hcenv ge.
 rewrite den_isBinOpR in H3.
 simpl in H3.
 forget (op_result_type (Ebinop b e1 e2 t)) as err.
@@ -727,11 +774,7 @@ end;
 forget (eval_expr e1 rho) as v1;
 forget (eval_expr e2 rho) as v2;
 try clear rho;
-econstructor; eauto;
-clear H1 H2;
-try clear err err0;
-rewrite Hcenv; clear Hcenv.
-
+try clear err err0.
 all: try abstract (
 destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
 try discriminate C;
@@ -763,16 +806,18 @@ repeat match goal with
   sem_binary_operation sem_binary_operation' 
    Cop.sem_add sem_add Cop.sem_sub sem_sub Cop.sem_div
    Cop.sem_mod sem_mod Cop.sem_shl Cop.sem_shift 
-   sem_shl sem_shift
+   sem_shl sem_shift sem_add_ptr_long sem_add_ptr_int
+   sem_add_long_ptr sem_add_int_ptr
    Cop.sem_shr sem_shr Cop.sem_cmp sem_cmp
-   sem_cmp_pp sem_cmp_pl sem_cmp_lp
+   sem_cmp_pp sem_cmp_pl sem_cmp_lp 
    Cop.sem_binarith classify_cmp classify_add
    binarith_type classify_binarith
    classify_shift sem_shift_ii sem_shift_ll sem_shift_il sem_shift_li
-   classify_sub sem_sub_pp
+   classify_sub sem_sub_pp sem_sub_pi sem_sub_pl 
    force_val2 typeconv remove_attributes change_attributes
    sem_add_ptr_int force_val both_int both_long force_val2
  ];
+ try match goal with H: complete_type _ _ = _ |- _ => rewrite H end;
  rewrite ?sem_cast_relate, ?sem_cast_relate_long, ?sem_cast_relate_int_long;
  rewrite ?sem_cast_int_lemma, ?sem_cast_long_lemma, ?sem_cast_int_long_lemma;
  rewrite ?if_true by auto;
@@ -953,4 +998,3 @@ repeat match goal with
 Unshelve.
 all: exact (empty_rmap O).
 Qed.
-
