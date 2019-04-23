@@ -928,10 +928,13 @@ Proof.
   remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
   remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
   destruct v1; destruct v2; simpl in E; try contradiction; simpl;
-  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1);
-  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
-  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1);
-  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
+  rewrite
+     ?(eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1),
+     ?(eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1),
+     ?(eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2),
+     ?(eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2),
+     ?(eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1),
+     ?(eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
 Qed. 
   
 Lemma denote_tc_test_order_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e1 e2 w
@@ -942,10 +945,13 @@ Proof.
   remember (@eval_expr CS e1 rho) as v1; symmetry in Heqv1.
   remember (@eval_expr CS e2 rho) as v2; symmetry in Heqv2.
   destruct v1; destruct v2; simpl in E; try contradiction; simpl;
-  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1);
-  try rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2);
-  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1);
-  try rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
+  rewrite
+     ?(eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv1),
+     ?(eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv1),
+     ?(eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv2),
+     ?(eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqv2),
+     ?(eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv1),
+     ?(eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqv2); simpl; trivial.
 Qed.
 
 Lemma denote_tc_igt_eval_expr_cenv_sub {CS CS'} (CSUB : cenv_sub (@cenv_cs CS) (@cenv_cs CS')) rho e w i
@@ -1111,20 +1117,28 @@ Lemma bool_val_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
   rho b v (Hb : bool_val (typeof b) (@eval_expr CS b rho) = Some v):
   bool_val (typeof b) (@eval_expr CS' b rho) = Some v.
 Proof.
-  unfold bool_val in *. destruct (typeof b); trivial.
+  unfold bool_val in *.
+  destruct (typeof b); trivial.
   +  unfold bool_val_i in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
-     rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqr); trivial.
-  + unfold bool_val_l in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
-     rewrite (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqr); trivial.
+     rewrite ?(eval_expr_cenv_sub_Vint CSUB _ _ _ Heqr);
+     rewrite ? (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqr); 
+     trivial.
+  + unfold bool_val_l in *.
+      remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb;
+     rewrite ? (eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqr); 
+     rewrite ? (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqr); 
+     trivial.
   + destruct f.
  - unfold bool_val_s in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
   rewrite (eval_expr_cenv_sub_Vsingle CSUB _ _ _ Heqr); trivial.
   - unfold bool_val_f in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
   rewrite (eval_expr_cenv_sub_Vfloat CSUB _ _ _ Heqr); trivial.
   + destruct (eqb_type (Tpointer t a) int_or_ptr_type). inv Hb.
-  unfold bool_val_p in *. remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb.
-  rewrite (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqr); trivial.
-  rewrite (eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqr); trivial.
+  unfold bool_val_p in *.
+  remember (@eval_expr CS b rho) as r; symmetry in Heqr; destruct r; inv Hb;
+  rewrite ?(eval_expr_cenv_sub_Vint CSUB _ _ _ Heqr);
+  rewrite ?(eval_expr_cenv_sub_Vlong CSUB _ _ _ Heqr);
+  rewrite ?(eval_expr_cenv_sub_Vptr CSUB _ _ _ _ Heqr); trivial.
 Qed.
 
 Lemma sem_binary_operation_cenv_sub {ge ge'} (CSUB:cenv_sub ge ge') op v1 t1 v2 t2 m v:
