@@ -9,6 +9,7 @@ Require Export VST.veric.juicy_extspec.
 Require Import VST.veric.NullExtension.
 
 Require Import VST.floyd.assert_lemmas.
+Import LiftNotation.
 
 Local Open Scope logic.
 

@@ -9,6 +9,7 @@ Require Import VST.floyd.field_compat.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 (*Require Import VST.floyd.unfold_data_at.*)
+Import LiftNotation.
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=

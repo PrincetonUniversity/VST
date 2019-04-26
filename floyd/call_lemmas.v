@@ -5,6 +5,7 @@ Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.subsume_funspec.
+Import LiftNotation.
 Local Open Scope logic.
 
 Fixpoint argtypes (al: list (ident * type)) : list type :=

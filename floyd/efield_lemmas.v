@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.fieldlist.
+Import LiftNotation.
 Local Open Scope logic.
 
 Inductive efield : Type :=

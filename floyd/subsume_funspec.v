@@ -4,6 +4,7 @@ Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.mapsto_memory_block.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
+Import LiftNotation.
 Local Open Scope logic.
 
 Definition NDfunspec_sub (f1 f2 : funspec) :=

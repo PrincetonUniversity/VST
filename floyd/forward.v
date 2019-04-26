@@ -33,6 +33,7 @@ Require Import VST.floyd.freezer.
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
+Import LiftNotation.
 
 Global Opaque denote_tc_test_eq.
 

@@ -19,7 +19,7 @@ Require Import VST.veric.expr_lemmas4.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
-
+Import LiftNotation.
 Local Open Scope pred.
 
 Lemma age_later {A} {agA : ageable A}: forall {w w1 w2} (AGE: age w w1) (L: laterR w w2), w1=w2 \/ laterR w1 w2.

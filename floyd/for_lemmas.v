@@ -9,6 +9,7 @@ Require Import VST.floyd.entailer.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Import Cop.
+Import LiftNotation.
 Local Open Scope logic.
 
 Definition int_type_min_max (type_i type_hi: type): option (Z * Z) :=

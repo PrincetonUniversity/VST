@@ -4,7 +4,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
-Require Export VST.veric.lift.
+Require Export VST.veric.lift. Import LiftNotation.
 Require Export VST.veric.Clight_Cop2.
 Require Export VST.veric.val_lemmas.
 

@@ -5,6 +5,7 @@ Require Export VST.msl.Extensionality.
 Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Export VST.floyd.functional_base.
+Import LiftNotation.
 
 Lemma is_int_dec i s v: {is_int i s v} + {~ is_int i s v}.
 Proof. destruct v; simpl; try solve [right; intros N; trivial].
