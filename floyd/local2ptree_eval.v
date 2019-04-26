@@ -291,26 +291,42 @@ Proof.
 Qed.
 
 Ltac solve_msubst_eval_lvalue :=
-  simpl;
+  (simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-  reflexivity.
+  reflexivity) ||
+  match goal with 
+  |- msubst_eval_lvalue _ _ _ _ ?e = _ =>
+   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+  end.
 
 Ltac solve_msubst_eval_expr :=
-  simpl;
+  (simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-  reflexivity.
+  reflexivity) ||
+  match goal with 
+  |- msubst_eval_expr _ _ _ _ ?e = _ =>
+   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+  end.
 
 Ltac solve_msubst_eval_LR :=
-  unfold msubst_eval_LR;
+  (unfold msubst_eval_LR;
   simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-  reflexivity.
+  reflexivity) ||
+  match goal with 
+  |- msubst_eval_LR _ _ _ _ ?e _ = _ =>
+   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+  end.
 
 Ltac solve_msubst_eval_lvar :=
-  unfold msubst_eval_lvar; reflexivity.
+  (unfold msubst_eval_lvar; reflexivity) ||
+  match goal with 
+  |- msubst_eval_lvar _ _ ?id _ = _ =>
+   fail "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"
+  end.
 
 (**********************************************************)
 (* Continuation *)

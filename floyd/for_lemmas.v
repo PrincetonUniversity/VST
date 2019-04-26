@@ -935,7 +935,7 @@ Ltac prove_Int6432_val :=
 Ltac prove_Sfor_inv_rec :=
   match goal with
   | |- Sfor_inv_rec _ _ _ _ _ _ ?assert_callee _ _ =>
-    match assert_callee with
+    lazymatch assert_callee with
     | exp (fun x => _) =>
         let x' := fresh x in
         eapply Sfor_inv_rec_step;
