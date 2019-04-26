@@ -2070,14 +2070,15 @@ Ltac forward_for_simple_bound n Pre :=
       apply -> seq_assoc; abbreviate_semax
  | _ => idtac
  end;
- first [
-    match type of n with
-      ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
-    end;
-    match type of Pre with
-      ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
-    end
-  | match goal with
+ match type of n with
+      ?t => tryif (unify t Z) then idtac 
+               else fail "Type of bound" n "should be Z but is" t
+ end;
+ match type of Pre with
+ | ?t => tryif (unify t (environ->mpred)) then idtac 
+               else fail "Type of precondition" Pre "should be environ->mpred but is" t
+  end;
+ match goal with
     | |- semax _ _ (Sfor _ _ _ _) _ =>
            rewrite semax_seq_skip
     | |- semax _ _ (Ssequence _ (Sloop _ _)) _ =>
@@ -2091,8 +2092,7 @@ Ltac forward_for_simple_bound n Pre :=
         end
     | _ => idtac
     end;
-    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; cbv beta; try fwd_skip]
-  ].
+    forward_for_simple_bound'' n Pre; [.. | abbreviate_semax; cbv beta; try fwd_skip].
 
 Ltac forward_for3 Inv PreInc Postcond :=
    apply semax_seq with Postcond;
@@ -4080,6 +4080,17 @@ Ltac simpl_prog_defs p :=
        let q := context C [d] in q
   end.
 
+Definition duplicate_ids (il: list ident) : list ident :=
+ let ptree_incr := fun t id => 
+        match PTree.get id t with
+        | Some _ => PTree.set id (true,id) t
+        | None => PTree.set id (false,id) t
+        end
+  in let t := List.fold_left ptree_incr il (PTree.empty (bool*ident))
+  in let dl := PTree.fold (fun (dl: list ident) (id: ident) (b: bool*ident) => 
+                      if fst b then (snd b)::dl else dl) t nil
+  in dl.
+
 Ltac with_library' p G :=
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
@@ -4094,7 +4105,14 @@ Ltac with_library' p G :=
    let t := eval compute in t in
    let missing := constr:(missing_ids t (map fst G)) in
    let missing := eval simpl in missing in
-   match missing with
+   let dups := constr:(duplicate_ids (map fst G))
+   in let dups := eval hnf in dups in 
+   let dups := eval simpl in dups in
+   lazymatch dups with
+   | nil => idtac
+   | _::_ => fail "Duplicate funspecs:" dups
+   end;
+   lazymatch missing with
    | nil => fail "Superfluous funspecs?"
    | _ => fail  "The following names have funspecs but no function definitions: " missing
   end

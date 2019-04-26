@@ -1977,14 +1977,14 @@ match goal with
 end.
 
 Ltac Intro'' a :=
-  first [ simple apply extract_exists_pre; intro a
-         | simple apply exp_left; intro a
-         | rewrite exp_andp1; Intro'' a
-         | rewrite exp_andp2; Intro'' a
-         | rewrite exp_sepcon1; Intro'' a
-         | rewrite exp_sepcon2; Intro'' a
-         | extract_exists_from_SEP; intro a
-         ].
+   ( (simple apply extract_exists_pre; intro a)
+   || (simple apply exp_left; intro a)
+   || (rewrite exp_andp1; Intro'' a)
+   || (rewrite exp_andp2; Intro'' a)
+   || (rewrite exp_sepcon1; Intro'' a)
+   || (rewrite exp_sepcon2; Intro'' a)
+   || (extract_exists_from_SEP; intro a)
+   ).
 
 Ltac Intro a :=
   repeat Intro_prop;

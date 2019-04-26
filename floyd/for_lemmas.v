@@ -841,6 +841,37 @@ Proof.
     - intros; apply andp_left2, FF_left.
 Qed.
 
+Lemma semax_for_x :
+ forall (Inv: environ->mpred) (n: Z) Espec {cs: compspecs} Delta
+           (Pre: environ->mpred)
+           (_i: ident) (init: statement) (m: Z) (hi: expr) (body MORE_COMMAND: statement) (Post: ret_assert)
+           (type_i: type)
+           (assert_callee: Z -> environ -> mpred)
+           (inv0: environ -> mpred)
+           (inv1 inv2: Z -> environ -> mpred) s
+           test incr,
+     test = Ebinop Olt (Etempvar _i type_i) hi (Tint I32 Signed noattr) ->
+     incr = Sset _i (Ebinop Oadd (Etempvar _i type_i) (Econst_int (Int.repr 1) (Tint I32 s noattr)) type_i) ->
+     forall
+     (TI: (temp_types Delta) ! _i = Some type_i)
+     (CALLEE: Inv = exp assert_callee)
+     (INV: Sfor_inv Delta _i m hi n assert_callee inv0 inv1 inv2)
+     (SETUP: Sfor_setup Delta _i Pre init hi type_i m n assert_callee inv0),
+     (forall i, m <= i < n ->
+     @semax cs Espec Delta (inv1 i)
+        body
+        (for_ret_assert (inv2 i) Post)) ->
+     @semax cs Espec Delta
+        (inv1 n) MORE_COMMAND Post ->
+     @semax cs Espec Delta Pre
+       (Ssequence (Sfor init test body incr)
+         MORE_COMMAND) Post.
+Proof.
+intros.
+subst test incr.
+eapply semax_for; eauto.
+Qed.
+
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
    TT |-- Q -> P |-- Q.
@@ -960,9 +991,27 @@ Ltac simplify_Sfor_setup :=
     | ]
 ].
 
+Ltac check_forloop_test :=
+ reflexivity ||
+ match goal with |- ?test = ?desired =>
+  fail "To use forward_for_simple_bound, your loop test must have the form i<n, where i is the loop iteration variable and n is the bound expression.
+ You have:" test "
+Required:" desired
+  end.
+
+Ltac check_forloop_incr :=
+ reflexivity ||
+ match goal with |- ?incr = ?desired =>
+  fail "To use forward_for_simple_bound, your loop increment must be i=i+1, where i is the loop iteration variable.
+ You have:" incr "
+Required:" desired
+  end.
+
 Ltac forward_for_simple_bound'' n Inv :=
-  eapply (semax_for Inv n);
-  [ reflexivity
+  eapply (semax_for_x Inv n);
+  [ check_forloop_test
+  | check_forloop_incr
+  | reflexivity
   | (reflexivity || fail 1000 "The loop invariant for forward_for_simple_bound should have form (EX i: Z, _).")
   | prove_Sfor_inv
   | simplify_Sfor_setup
