@@ -22,7 +22,7 @@ else
 PROGSDIR=progs
 endif
 
-default_target: _CoqProject msl veric floyd $(PROGSDIR)
+default_target: _CoqProject msl veric floyd VSTmodules $(PROGSDIR)
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -39,7 +39,7 @@ ANNOTATE=silent   # suppress chatty output from coqc
 
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
+VSTDIRS= msl sepcomp veric floyd VSTmodules $(PROGSDIR) concurrency ccc26x86
 OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics  boringssl_fips_20180730
 
 DIRS = $(VSTDIRS) $(OTHERDIRS)
@@ -255,6 +255,9 @@ VERIC_FILES= \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
   semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v
 
+VSTmodules_FILES= \
+   semax_body_linking.v VST_module.v
+
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
    base2.v functional_base.v go_lower.v \
@@ -414,6 +417,7 @@ FILES = \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
+ $(VSTmodule_FILES_FILES:%=VSTmodules/%) \
  $(PROGS_FILES:%=progs/%) \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
@@ -515,6 +519,7 @@ paco: _CoqProject $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
+vstmodules:   _CoqProject $(VSTmodules_FILES:%.v=VSTmodules/%.vo)
 progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
 progsdir: $(PROGSDIR)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
@@ -544,7 +549,7 @@ cvfiles: $(CVFILES)
 
 dochtml:
 	mkdir -p doc/html
-	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
+	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(VSTmodules_FILES:%=VSTmodules/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
 dochtml-full:
 	mkdir -p doc/html
@@ -567,7 +572,7 @@ $(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
-veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(VSTmodules_FILES:%=VSTmodules/%)
 	sh util/make_version
 
 _CoqProject _CoqProject-export: Makefile util/coqflags
