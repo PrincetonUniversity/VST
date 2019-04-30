@@ -30,6 +30,7 @@ Lemma Zlength_Zrepeat : forall (A : Type) (n : Z) (x : A),
 Proof. intros *. unfold Zrepeat. rewrite repeat_list_repeat. apply @Zlength_list_repeat. Qed.
 
 Ltac Zlength_solve := autorewrite with Zlength; pose_Zlength_nonneg; omega.
+Hint Rewrite Zlength_cons : Zlength.
 Hint Rewrite Zlength_nil : Zlength.
 Hint Rewrite Zlength_app : Zlength.
 Hint Rewrite Zlength_map : Zlength.
@@ -37,7 +38,6 @@ Hint Rewrite Zlength_Zrepeat using Zlength_solve : Zlength.
 Hint Rewrite @Zlength_list_repeat using Zlength_solve : Zlength.
 Hint Rewrite @upd_Znth_Zlength using Zlength_solve : Zlength.
 Hint Rewrite @Zlength_sublist using Zlength_solve : Zlength.
-
 
 (******** list_form *************)
 Lemma Zrepeat_fold : forall (A : Type) (n : Z) (x : A),
@@ -100,6 +100,7 @@ Hint Rewrite @Znth_sublist using Zlength_solve : Znth.
 Hint Rewrite app_Znth1 app_Znth2 using Zlength_solve : Znth.
 Hint Rewrite Znth_Zrepeat using Zlength_solve : Znth.
 
+Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_float32) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_ptrofs) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_int64) using Zlength_solve : Znth.
@@ -109,10 +110,12 @@ Hint Rewrite (@Znth_map _ Inhabitant_val) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_Z) using Zlength_solve : Znth.
 Hint Rewrite (@Znth_map _ Inhabitant_nat) using Zlength_solve : Znth.
 
+Create HintDb Znth_solve_hint.
+
 Ltac Znth_solve_rec :=
   autorewrite with Znth;
   autorewrite with Zlength;
-  auto;
+  auto with Znth_solve_hint;
   try match goal with
   | |- context [Znth ?n (app ?al ?bl)] =>
     let H := fresh in
@@ -124,6 +127,22 @@ Ltac Znth_solve_rec :=
 Ltac Znth_solve :=
   autorewrite with Zlength in *;
   Znth_solve_rec.
+
+(**************** Znth_solve2 is Znth_solve in * ***************)
+Ltac Znth_solve2 :=
+  autorewrite with Zlength in *; autorewrite with Znth in *; auto with Znth_solve_hint; try congruence; (* try solve [exfalso; auto]; *)
+  try first
+  [ match goal with
+    | |- context [ Znth ?n (?al ++ ?bl) ] =>
+          let H := fresh in
+          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
+    end
+  | match goal with
+    | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
+          let H := fresh in
+          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
+    end
+  ].
 
 (*************** list extentionality *************)
 Lemma nth_eq_ext : forall (A : Type) (default : A) (al bl : list A),
@@ -250,6 +269,24 @@ Ltac eq_solve_with tac :=
 Tactic Notation "eq_solve" "with" tactic(tac) := eq_solve_with (tac).
 Tactic Notation "eq_solve" := eq_solve with fail.
 
+Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
+
+(*************** list_solve2 **********************)
+Ltac list_solve2' :=
+  repeat match goal with [ |- _ /\ _ ] => split end;
+  try match goal with
+  | |- @eq Z _ _ => Zlength_solve
+  end;
+  list_form; autorewrite with Zlength in *; Znth_solve2;
+  match goal with
+  | |- @eq Z _ _ => Zlength_solve
+  | _ => apply_list_ext; Znth_solve
+  | _ => idtac "list_solve2 cannot solve this goal"
+  end.
+
+Ltac list_solve2 :=
+  solve [list_solve2'].
+
 (*************** range definitions **********************)
 Definition rangei (lo hi : Z) (P : Z -> Prop) :=
   forall i, lo <= i < hi -> P i.
@@ -345,7 +382,7 @@ Lemma range_uni_app2 : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl :
 Proof.
   unfold range_uni. intros. eapply rangei_shift'. 3 : apply H0.
   + omega.
-  + unfold rangei. intros. apply prop_unext, f_equal. Znth_solve. f_equal. omega.
+  + unfold rangei. intros. apply prop_unext, f_equal. Znth_solve.
 Qed.
 
 Lemma range_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : A -> Prop),
@@ -365,7 +402,7 @@ Lemma range_uni_sublist : forall {A : Type} {d : Inhabitant A} (lo hi lo' hi' : 
   range_uni (lo+lo') (hi+lo') l P.
 Proof.
   unfold range_uni, rangei. intros.
-  fapply (H0 (i - lo') ltac:(omega)). f_equal. Znth_solve. f_equal. omega.
+  fapply (H0 (i - lo') ltac:(omega)). f_equal. Znth_solve.
 Qed.
 
 Lemma range_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -413,7 +450,7 @@ Proof.
   + omega.
   + unfold rangei. intros. apply prop_unext. f_equal.
     - omega.
-    - Znth_solve. f_equal. omega.
+    - Znth_solve.
 Qed.
 
 Lemma rangei_uni_app : forall {A : Type} {d : Inhabitant A} (lo hi : Z) (al bl : list A) (P : Z -> A -> Prop),
@@ -434,7 +471,7 @@ Lemma rangei_uni_sublist : forall {A : Type} {d : Inhabitant A}
   rangei_uni (lo+lo') (hi+lo') l (fun i => P (i - lo')).
 Proof.
   unfold rangei_uni, rangei. intros.
-  fapply (H0 (i - lo') ltac:(omega)). f_equal. Znth_solve. f_equal. omega.
+  fapply (H0 (i - lo') ltac:(omega)). f_equal. Znth_solve.
 Qed.
 
 Lemma rangei_uni_map : forall {A : Type} {da : Inhabitant A} {B : Type} {db : Inhabitant B}
@@ -783,22 +820,44 @@ Ltac range_saturate :=
     end
   end.
 
+Ltac range_saturate_full :=
+  repeat match goal with
+  | H : range_uni ?lo ?hi ?l ?P |- _ =>
+    (let res := eval cbv beta in (P (Znth lo l)) in
+     pose_new_res lo lo hi H res);
+    (let res := eval cbv beta in (P (Znth (hi - 1) l)) in
+     pose_new_res (hi-1) lo hi H res);
+    match goal with
+    | _ : context [Znth ?i l] |- _ =>
+      let res := eval cbv beta in (P (Znth i l)) in
+      pose_new_res i lo hi H res
+    | |- context [Znth ?i l] =>
+      let res := eval cbv beta in (P (Znth i l)) in
+      pose_new_res i lo hi H res
+    end
+  | H : range_bin ?lo ?hi ?offset ?l1 ?l2 ?P |- _ =>
+    (let res := eval cbv beta in (P (Znth lo l1) (Znth (lo + offset) l2)) in
+     pose_new_res lo lo hi H res);
+    (let res := eval cbv beta in (P (Znth (hi - 1) l1) (Znth (hi - 1 + offset) l2)) in
+     pose_new_res (hi-1) lo hi H res);
+    match goal with
+    | _ : context [Znth ?i l1] |- _ =>
+      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
+      pose_new_res i lo hi H res
+    | |- context [Znth ?i l1] =>
+      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
+      pose_new_res i lo hi H res
+    | _ : context [Znth ?i l2] |- _ =>
+      let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
+      pose_new_res (i - offset) lo hi H res
+    | |- context [Znth ?i l2] =>
+      let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
+      pose_new_res (i - offset) lo hi H res
+    end
+  end.
 
-(**************** Znth_solve2 is Znth_solve in * ***************)
-Ltac Znth_solve2 :=
-  autorewrite with Zlength in *; autorewrite with Znth in *; auto; try congruence; (* try solve [exfalso; auto]; *)
-  try first
-  [ match goal with
-    | |- context [ Znth ?n (?al ++ ?bl) ] =>
-          let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
-    end
-  | match goal with
-    | H0 : context [ Znth ?n (?al ++ ?bl) ] |- _ =>
-          let H := fresh in
-          pose (H := Z_lt_le_dec n (Zlength al)); autorewrite with Zlength in *; destruct H; Znth_solve2
-    end
-  ].
+Ltac list_prop_solve :=
+  list_form; range_form; range_rewrite; Znth_solve2; range_saturate_full; Znth_solve2.
 
 (***************** Zlength_solve using a database *************)
 Definition Zlength_tag := True.

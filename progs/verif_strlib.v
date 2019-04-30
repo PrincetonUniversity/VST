@@ -534,8 +534,8 @@ forward_loop (EX i : Z,
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
-  { repeat step!.
-    list_form. apply_list_ext. Znth_solve.
+  { repeat step!. list_solve2.
+    (* list_form. apply_list_ext. Znth_solve. *)
   }
   {
   repeat step!.
@@ -544,11 +544,14 @@ forward_loop (EX i : Z,
       In Byte.zero (ld ++ ls) now. This can be rewritten as exists i, (Znth i (ld ++ ls) = Byte.zero).
     *)
     rewrite in_app in H14. tauto.
-  - list_form. apply_list_ext. Znth_solve.
-  - fold_Vbyte. list_form. Znth_solve2.
+  - list_solve2. (* list_form. apply_list_ext. Znth_solve. *)
+  - fold_Vbyte. list_solve2.
+    (*
+    Znth_solve2. list_form.
     apply_list_ext. Znth_solve.
     apply data_subsume_refl'.
     eq_solve.
+    *)
   }
 Qed.
 
@@ -622,10 +625,13 @@ forward_loop (EX i : Z,
   repeat step.
 -
   repeat step!.
-  + list_form. apply_list_ext. Znth_solve.
-  + list_form. Znth_solve2. apply_list_ext.
+  + list_solve2. (* list_form. apply_list_ext. Znth_solve. *)
+  + fold_Vbyte. list_solve2.
+    (*
+    list_form. Znth_solve2. apply_list_ext.
     Znth_solve. fold_Vbyte.
     apply data_subsume_refl'. eq_solve.
+    *)
 Qed.
 
 End Alternate.

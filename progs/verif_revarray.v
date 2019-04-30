@@ -242,7 +242,6 @@ entailer!.
 (* Finished transaction in 11.494 secs (11.453u,0.031s) (successful) *)
 apply data_at_data_at_cancel.
 unfold flip_ends. apply_list_ext. Znth_solve.
-  do 2 f_equal. omega.
 * (* Prove that loop invariant implies typechecking condition *)
 simpl (data_at _ _ _). Time entailer!.
 * (* Prove that loop body preserves invariant *)
@@ -252,7 +251,8 @@ repeat step!.
 + unfold flip_ends. Znth_solve.
 + unfold flip_ends. Znth_solve.
 + do 2 f_equal. omega.
-+ simpl. apply data_at_data_at_cancel. unfold flip_ends.
++ simpl. unfold flip_ends. Time list_solve2.
+  (* apply data_at_data_at_cancel. unfold flip_ends.
   apply (@Znth_eq_ext _ Inhabitant_val).
   Zlength_solve.
   autorewrite with Zlength.
@@ -266,11 +266,12 @@ repeat step!.
   - do 2 f_equal. omega.
   - do 2 f_equal. omega.
   - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
+  - do 2 f_equal. omega. *)
 * (* after the loop *)
 simpl.
 forward. (* return; *)
-apply data_at_data_at_cancel. unfold flip_ends.
+unfold flip_ends. Time list_solve2.
+(*apply data_at_data_at_cancel. unfold flip_ends.
 autorewrite with Zlength in * |-.
 apply (@Znth_eq_ext _ Inhabitant_val).
 Time Zlength_solve. (* example of slow rewrite *)
@@ -279,7 +280,7 @@ intros.
 Znth_solve.
 - do 2 f_equal. omega.
 - do 2 f_equal. omega.
-- do 2 f_equal. omega.
+- do 2 f_equal. omega. *)
 Time Qed.
 (* Finished transaction in 5.455 secs (5.453u,0.s) (successful) *)
 
