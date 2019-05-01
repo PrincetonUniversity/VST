@@ -1,6 +1,6 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.ghosts.
-Require Import atomics.general_atomics.
+Require Import atomics.SC_atomics.
 Require Import VST.progs.conclib.
 Require Import atomics.maps.
 Require Import VST.floyd.library.
@@ -19,24 +19,26 @@ Definition tnode := Tstruct _node noattr.
 
 Opaque upto.
 
-Existing Instances fmap_PCM fmap_order.
+Existing Instances map_PCM fmap_order.
 
-Definition node_entry sh v vs locs lg i := EX v' : Z, EX log : Z -> option Z, EX d : Z,
-  !!(repable_signed d /\ (if Z.even v then v' = v /\ d = Znth i vs 0 else v' >= v - 1) /\ log_latest log v' d) &&
-  ghost (sh, log) (Znth i lg Vundef) * data_at sh tint (vint d) (Znth i locs Vundef).
+Print ghost_master.
 
-Existing Instances max_PCM max_order.
+Definition node_entry sh v vs locs lg i := EX v' : nat, EX log : nat -> option Z, EX d : Z,
+  !!(repable_signed d /\ (if Nat.even v then v' = v /\ d = Znth i vs else (v' >= v - 1)%nat) /\ log_latest log v' d) &&
+  ghost_master(ORD := fmap_order) sh log (Znth i lg) * data_at sh tint (vint d) (Znth i locs).
 
-Definition node_state sh v vs version locs g lg := !!(repable_signed v /\
+Existing Instances nat_PCM max_order.
+
+Definition node_state sh v vs version locs g lg := !!(repable_signed (Z.of_nat v) /\
     Forall repable_signed vs /\ Zlength vs = Zlength locs /\ Zlength lg = Zlength locs) &&
-  ghost (sh, v) g * data_at sh tint (vint v) version *
+  ghost_master(ORD := max_order) sh v g * data_at sh tint (vint (Z.of_nat v)) version *
   fold_right sepcon emp (map (node_entry sh v vs locs lg) (upto (length locs))).
 
-Definition node_inv v vs version locs g lg := EX v' : Z, !!(Z.even v = true /\ (v' = v \/ v' = v + 1)) &&
+Definition node_inv v vs version locs g lg := EX v' : nat, !!(Nat.even v = true /\ (v' = v \/ v' = v + 1)%nat) &&
   node_state gsh2 v' vs version locs g lg.
 
 Program Definition read_spec := DECLARE _read atomic_spec
-  (ConstType (val * val * share * val * list val * val * list val * Z * list Z)) (0, [])
+  (ConstType (val * val * share * val * list val * gname * list gname * nat * list Z))
   [(_n, tptr tnode); (_out, tptr tint)] tvoid
   [fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) => temp _n n;
    fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) => temp _out out]
@@ -46,13 +48,9 @@ Program Definition read_spec := DECLARE _read atomic_spec
   (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) => node_inv v vs version locs g lg)
   tt []
   (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) _ =>
-   data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vs) out)
-  (fun _ '(n, out, sh, version, locs, g, lg, v0, vs0) '(v, vs) _ => node_inv v vs version locs g lg)
-  _ _ _ _ _ _.
-Next Obligation.
-Proof.
-  intros ?? w; decompose [prod] w; auto.
-Qed.
+   data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vs) out *
+   node_inv v vs version locs g lg)
+  (Empty_set _) (Full_set _) _ _ _ _ _.
 Next Obligation.
 Proof.
   intros ?? w; decompose [prod] w; auto.
@@ -76,26 +74,20 @@ Qed.
 
 (* The gsh1 share of the node state acts as the write permission. *)
 Program Definition write_spec := DECLARE _write atomic_spec
-  (ConstType (val * val * share * val * list val * list Z * val * list val * Z * list Z)) (0, [])
+  (ConstType (val * val * share * val * list val * list Z * gname * list gname * nat * list Z))
   [(_n, tptr tnode); (_in, tptr tint)] tvoid
   [fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) => temp _n n;
    fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) => temp _in input]
   (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) => !!(readable_share sh /\ isptr version /\
-     Forall isptr locs /\ Zlength locs = 8 /\ Forall repable_signed vals /\ Z.even v0 = true) &&
+     Forall isptr locs /\ Zlength locs = 8 /\ Forall repable_signed vals /\ Nat.even v0 = true) &&
    data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) input *
    node_state gsh1 v0 vs0 version locs g lg)
   (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) '(v, vs) => node_inv v vs version locs g lg)
   tt []
   (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) '(v, vs) _ =>
    data_at sh tnode (version, locs) n * data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) input *
-   node_state gsh1 (v0 + 2) vals version locs g lg)
-  (fun _ '(n, input, sh, version, locs, vals, g, lg, v0, vs0) '(v, vs) _ =>
-   node_inv (v0 + 2) vals version locs g lg)
-  _ _ _ _ _ _.
-Next Obligation.
-Proof.
-  intros ?? w; decompose [prod] w; auto.
-Qed.
+   node_state gsh1 (v0 + 2) vals version locs g lg * node_inv (v0 + 2) vals version locs g lg)
+  (Empty_set _) (Full_set _) _ _ _ _ _.
 Next Obligation.
 Proof.
   intros ?? w; decompose [prod] w; auto.

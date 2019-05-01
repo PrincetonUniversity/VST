@@ -4,7 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
 Require Export VST.progs.invariants.
 Require Export VST.progs.fupd.
-Require Import atomics.general_atomics.
+Require Export atomics.general_atomics.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 

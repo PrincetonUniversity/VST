@@ -4,7 +4,9 @@ Require Import VST.progs.conclib.
 Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Import mailbox.general_atomics.
+Require Import VST.progs.invariants.
+Require Import VST.progs.fupd.
+Require Import atomics.general_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -23,6 +25,10 @@ Proof.
   - apply emp_objective.
   - inv H; apply sepcon_objective; auto.
 Qed.
+
+Section inv.
+
+Context {inv_names : invG}.
 
 (* unsound without objective, until we redefine protocols to use thread-local info *)
 Axiom inv_alloc : forall N E P, objective P -> |> P |-- |={E}=> invariant N P.
@@ -123,23 +129,13 @@ Proof.
   apply bupd_mono; Exists x x; auto.
 Qed.
 
-Definition weak_dup P := weak_view_shift P (P * P).
-
-Lemma duplicable_super_non_expansive : forall n P,
-  approx n (weak_dup P) = approx n (weak_dup (approx n P)).
-Proof.
-  intros; unfold weak_dup.
-  rewrite view_shift_nonexpansive, approx_sepcon; auto.
-Qed.
-
-Lemma dup_weak_dup : forall P, duplicable P -> TT |-- weak_dup P.
-Proof.
-  intros; apply view_shift_weak; auto.
-Qed.
+Definition weak_dup P := P -* |==> (P * P).
 
 End dup.
 
-Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable' ghost_snap_duplicable prop_duplicable : dup.Section atomics.
+Hint Resolve emp_duplicable sepcon_duplicable invariant_duplicable' ghost_snap_duplicable prop_duplicable : dup.
+
+Section atomics.
 
 Context {CS : compspecs}.
 
@@ -161,14 +157,6 @@ Parameter protocol_A : val -> state -> (state -> state -> Prop) ->
 
 Context (ord : state -> state -> Prop) `{RelationClasses.PreOrder _ ord}
   (Tread Tfull : state -> Z -> mpred).
-
-Axiom ex_protocol_A_precise : forall l ord Tread Tfull, precise (EX s : _, protocol_A l s ord (Tread, Tfull))%logic.
-
-Corollary protocol_A_precise : forall l s ord Tread Tfull, precise (protocol_A l s ord (Tread, Tfull)).
-Proof.
-  intros; eapply derives_precise', ex_protocol_A_precise.
-  Exists s; apply derives_refl.
-Qed.
 
 Axiom protocol_A_nonexpansive : forall l s ord Tread1 Tfull1 Tread2 Tfull2,
   (ALL s : state, ALL v : Z, (Tread1 s v <=> Tread2 s v) && (Tfull1 s v <=> Tfull2 s v)) |--
@@ -235,16 +223,16 @@ Definition PredType s := ArrowType s (ArrowType (ConstType Z) Mpred).
 Definition LA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
   (ConstType val) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0))))
-  Mpred) (ConstType (namespace -> Prop))) (PredType (DependentType 0)).
+  Mpred) (ConstType (iname -> Prop))) (PredType (DependentType 0)).
 
 Program Definition load_acq_spec := TYPE LA_type
   WITH l : val, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
-       P : mpred, E : Ensemble namespace, Q : _ -> Z -> mpred
+       P : mpred, E : Ensemble iname, Q : _ -> Z -> mpred
   PRE [ 1%positive OF tptr tint ]
    PROP ()
    LOCAL (temp 1%positive l)
    SEP (ALL s' : _, !!(st_ord s s') --> ALL v : _,
-          weak_fview_shift E E (fst T s' v * P * protocol_A l s' st_ord T) (Q s' v) && emp;
+          ((fst T s' v * P * protocol_A l s' st_ord T) -* |={E}=> Q s' v) && emp;
         P; protocol_A l s st_ord T)
   POST [ tint ]
    EX v : Z, EX s' : _,
@@ -262,8 +250,7 @@ Proof.
   setoid_rewrite approx_imp; f_equal; f_equal.
   rewrite !(approx_allp _ _ _ 0); f_equal; extensionality.
   rewrite !approx_andp; f_equal.
-  rewrite fview_shift_nonexpansive.
-  setoid_rewrite fview_shift_nonexpansive at 2.
+  setoid_rewrite fview_shift_nonexpansive.
   rewrite !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
 Qed.
 Next Obligation.
@@ -279,7 +266,7 @@ Qed.
 Definition SR_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
   (ConstType (val * Z)) (DependentType 0)) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0))))
-  Mpred) (ConstType (namespace -> Prop))) Mpred.
+  Mpred) (ConstType (iname -> Prop))) Mpred.
 
 (*Program Definition store_rel_spec := TYPE SR_type
   WITH l : val, v : Z, s : _, s'' : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
@@ -406,7 +393,7 @@ Qed.*)
 Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType
   (ProdType (ProdType (ConstType (val * Z * Z)) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0)))) Mpred)
-  (ConstType (namespace -> Prop))) (ArrowType (DependentType 0) Mpred))
+  (ConstType (iname -> Prop))) (ArrowType (DependentType 0) Mpred))
   (PredType (DependentType 0)).
 
 Program Definition CAS_RA_spec := TYPE CRA_type
@@ -415,11 +402,11 @@ Program Definition CAS_RA_spec := TYPE CRA_type
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
-   SEP (ALL s' : _, !!(st_ord s s') --> weak_fview_shift E E (snd T s' c * P)
+   SEP (ALL s' : _, !!(st_ord s s') --> ((snd T s' c * P) -* |={E}=>
           (EX s'' : _, !!(st_ord s' s'') && |> snd T s'' v *
-           weak_fview_shift E E (protocol_A l s'' st_ord T) (Q s'')) && emp;
+           ((protocol_A l s'' st_ord T) -* |={E}=>(Q s'')) && emp)) && emp;
         ALL s' : _, ALL v' : _, !!(st_ord s s' /\ repable_signed v' /\ v <> c) -->
-          weak_fview_shift E E (|> fst T s' v' * protocol_A l s' st_ord T * P) (R s' v') && emp;
+          ((|> fst T s' v' * protocol_A l s' st_ord T * P) -* |={E}=> (R s' v')) && emp;
         protocol_A l s st_ord T; P)
   POST [ tint ]
    EX v' : Z, EX s' : _,
@@ -437,24 +424,21 @@ Proof.
   - rewrite !approx_allp by auto; f_equal; extensionality.
     setoid_rewrite approx_imp; f_equal; f_equal.
     rewrite !approx_andp; f_equal.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2.
-    rewrite !approx_sepcon, !approx_idem; f_equal; f_equal.
+    setoid_rewrite fview_shift_nonexpansive.
+    rewrite !approx_sepcon, !approx_idem; f_equal; f_equal; f_equal.
     rewrite !approx_exp; f_equal; extensionality.
-    rewrite !approx_sepcon, !approx_andp; f_equal.
+    rewrite !approx_andp, !approx_sepcon, !approx_andp; f_equal; f_equal.
     + f_equal.
       destruct n; [rewrite !approx_0; auto|].
       setoid_rewrite approx_later.
       etransitivity; [rewrite <- approx_oo_approx' with (n' := S n)|]; auto.
-    + rewrite fview_shift_nonexpansive.
-      setoid_rewrite fview_shift_nonexpansive at 2.
+    + setoid_rewrite fview_shift_nonexpansive.
       rewrite !approx_idem, protocol_A_super_non_expansive; auto.
   - rewrite !approx_allp by auto; f_equal; extensionality.
     rewrite !approx_allp by auto; f_equal; extensionality.
     setoid_rewrite approx_imp; f_equal; f_equal.
     rewrite !approx_andp; f_equal.
-    rewrite fview_shift_nonexpansive.
-    setoid_rewrite fview_shift_nonexpansive at 2.
+    setoid_rewrite fview_shift_nonexpansive.
     rewrite !approx_sepcon, !approx_idem; f_equal; f_equal.
     rewrite protocol_A_super_non_expansive; f_equal; f_equal.
     destruct n; [rewrite !approx_0; auto|].
@@ -473,3 +457,5 @@ Proof.
 Qed.
 
 End atomics.
+
+End inv.

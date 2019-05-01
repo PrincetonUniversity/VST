@@ -253,7 +253,7 @@ Ltac start_atomic_function :=
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
    match Pre with 
    | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
-   | (fun i => _) => intros Espec DependedTypeList (x, Q)
+   | (fun i => _) => intros Espec DependedTypeList ((x, Q), inv_names)
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
