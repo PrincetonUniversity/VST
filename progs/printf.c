@@ -11,8 +11,11 @@ extern FILE _stdin, _stdout, _stderr;
 extern int fprintf (FILE *__restrict, const char *__restrict, ...)
                __attribute__ ((__format__ (__printf__, 2, 3)));
 
+extern int printf (const char *__restrict, ...)
+               __attribute__ ((__format__ (__printf__, 1, 2)));
+
 int main(void) {
-  fprintf(stdout, "Hello, world!\n");
-  fprintf(stdout, "This is line %d.\n", 2);
+  printf("Hello, world!\n");
+  fprintf(stdout, "This is %s %d.\n", "line", 2);
   return 0;
 }

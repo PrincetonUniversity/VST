@@ -12,7 +12,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "progs/printf.c"%string.
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
 Definition ___builtin_annot : ident := 7%positive.
@@ -67,11 +67,36 @@ Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
 Definition ___sFILE : ident := 53%positive.
-Definition ___stringlit_1 : ident := 55%positive.
-Definition ___stringlit_2 : ident := 56%positive.
+Definition ___stringlit_1 : ident := 56%positive.
+Definition ___stringlit_2 : ident := 57%positive.
+Definition ___stringlit_3 : ident := 58%positive.
 Definition __stdout : ident := 52%positive.
 Definition _fprintf : ident := 54%positive.
-Definition _main : ident := 57%positive.
+Definition _main : ident := 59%positive.
+Definition _printf : ident := 55%positive.
+
+Definition v___stringlit_3 := {|
+  gvar_info := (tarray tschar 16);
+  gvar_init := (Init_int8 (Int.repr 84) :: Init_int8 (Int.repr 104) ::
+                Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 115) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 105) ::
+                Init_int8 (Int.repr 115) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 37) :: Init_int8 (Int.repr 115) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 37) ::
+                Init_int8 (Int.repr 100) :: Init_int8 (Int.repr 46) ::
+                Init_int8 (Int.repr 10) :: Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition v___stringlit_2 := {|
+  gvar_info := (tarray tschar 5);
+  gvar_init := (Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 105) ::
+                Init_int8 (Int.repr 110) :: Init_int8 (Int.repr 101) ::
+                Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
 
 Definition v___stringlit_1 := {|
   gvar_info := (tarray tschar 15);
@@ -83,21 +108,6 @@ Definition v___stringlit_1 := {|
                 Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 100) ::
                 Init_int8 (Int.repr 33) :: Init_int8 (Int.repr 10) ::
                 Init_int8 (Int.repr 0) :: nil);
-  gvar_readonly := true;
-  gvar_volatile := false
-|}.
-
-Definition v___stringlit_2 := {|
-  gvar_info := (tarray tschar 18);
-  gvar_init := (Init_int8 (Int.repr 84) :: Init_int8 (Int.repr 104) ::
-                Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 115) ::
-                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 105) ::
-                Init_int8 (Int.repr 115) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 105) ::
-                Init_int8 (Int.repr 110) :: Init_int8 (Int.repr 101) ::
-                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 37) ::
-                Init_int8 (Int.repr 100) :: Init_int8 (Int.repr 46) ::
-                Init_int8 (Int.repr 10) :: Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
 |}.
@@ -119,13 +129,9 @@ Definition f_main := {|
 (Ssequence
   (Ssequence
     (Scall None
-      (Evar _fprintf (Tfunction
-                       (Tcons (tptr (Tstruct ___sFILE noattr))
-                         (Tcons (tptr tschar) Tnil)) tint
-                       {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
-      ((Eaddrof (Evar __stdout (Tstruct ___sFILE noattr))
-         (tptr (Tstruct ___sFILE noattr))) ::
-       (Evar ___stringlit_1 (tarray tschar 15)) :: nil))
+      (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil) tint
+                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+      ((Evar ___stringlit_1 (tarray tschar 15)) :: nil))
     (Ssequence
       (Scall None
         (Evar _fprintf (Tfunction
@@ -134,7 +140,8 @@ Definition f_main := {|
                          {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
         ((Eaddrof (Evar __stdout (Tstruct ___sFILE noattr))
            (tptr (Tstruct ___sFILE noattr))) ::
-         (Evar ___stringlit_2 (tarray tschar 18)) ::
+         (Evar ___stringlit_3 (tarray tschar 16)) ::
+         (Evar ___stringlit_2 (tarray tschar 5)) ::
          (Econst_int (Int.repr 2) tint) :: nil))
       (Sreturn (Some (Econst_int (Int.repr 0) tint)))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
@@ -144,8 +151,9 @@ Definition composites : list composite_definition :=
 nil.
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___stringlit_1, Gvar v___stringlit_1) ::
+((___stringlit_3, Gvar v___stringlit_3) ::
  (___stringlit_2, Gvar v___stringlit_2) ::
+ (___stringlit_1, Gvar v___stringlit_1) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -394,27 +402,34 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr (Tstruct ___sFILE noattr)) (Tcons (tptr tschar) Tnil)) tint
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+ (_printf,
+   Gfun(External (EF_external "printf"
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint)
+                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+     (Tcons (tptr tschar) Tnil) tint
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _fprintf :: __stdout :: ___builtin_debug :: ___builtin_nop ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_memcpy_aligned :: ___builtin_fsqrt :: ___builtin_fabs ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap :: nil).
+(_main :: _printf :: _fprintf :: __stdout :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
+ ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
+ ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
+ ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
+ ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
+ ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
+ ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
+ ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fsqrt ::
+ ___builtin_fabs :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

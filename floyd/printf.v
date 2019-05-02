@@ -57,7 +57,11 @@ destruct fi; simpl in stuff.
 - (* FI_int *)
 apply (SEP_of_format CS fl' (snd stuff)).
 - (* FI_string *)
-apply (readable_cstring (fst stuff) :: SEP_of_format CS fl' (snd stuff)).
+apply (
+(* cstring (fst (fst (fst stuff))) (snd (fst (fst stuff))) (snd (fst stuff))
+          :: SEP_of_format CS fl' (snd stuff)). *)
+match stuff with ((sh,s,p),_) => cstring sh s p end
+          :: SEP_of_format CS fl' (match stuff with (_,r) => r end)).
 - (* FI_text *)
 apply (SEP_of_format CS fl' stuff).
 - (* FI_error *)
@@ -79,6 +83,20 @@ apply (LOCAL_of_format fl' id stuff).
 apply (LOCAL_of_format fl' id stuff).
 Defined.
 
+Fixpoint PROP_of_format (fl: list format_item) (stuff: format_stuff fl) {struct fl} : list Prop.
+destruct fl as [ | fi fl'].
+apply nil.
+destruct fi; simpl in stuff.
+- (* FI_int *)
+apply (PROP_of_format fl' (snd stuff)).
+- (* FI_string *)
+apply (readable_share (fst (fst (fst stuff))) :: PROP_of_format fl' (snd stuff)).
+- (* FI_text *)
+apply (PROP_of_format fl' stuff).
+- (* FI_error *)
+apply (PROP_of_format fl' stuff).
+Defined.
+
 Definition fprintf_spec_parametrized {CS: compspecs} FILEid (fmtz: list Z) :=
   let fl := interpret_format_string fmtz in
   NDmk_funspec 
@@ -90,9 +108,33 @@ Definition fprintf_spec_parametrized {CS: compspecs} FILEid (fmtz: list Z) :=
      (val * share * list byte * val * format_stuff fl)
      (fun x : (val * share * list byte * val * format_stuff fl) => 
       match x with (outp,sh,fmt,fmtp,stuff) =>
-        PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) :: nil)
+        PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) :: 
+                      PROP_of_format fl stuff)
         (LOCALx (temp 1 outp ::
                       LOCAL_of_format fl 3%positive stuff)
+         (SEPx (cstring sh fmt fmtp :: SEP_of_format  fl stuff)))
+      end)
+     (fun x : (val * share * list byte * val * format_stuff fl) => 
+      match x with (outp,sh,fmt,fmtp,stuff) =>
+       EX n:int,
+        PROPx nil 
+        (LOCALx (temp ret_temp (Vint n)::nil)
+         (SEPx (cstring sh fmt fmtp :: SEP_of_format fl stuff)))
+       end).
+
+Definition printf_spec_parametrized {CS: compspecs} (fmtz: list Z) :=
+  let fl := interpret_format_string fmtz in
+  NDmk_funspec 
+    (((1%positive, tptr tschar) :: 
+      format_argtys 2%positive fl),
+     tint)
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
+     (val * share * list byte * val * format_stuff fl)
+     (fun x : (val * share * list byte * val * format_stuff fl) => 
+      match x with (outp,sh,fmt,fmtp,stuff) =>
+        PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) :: 
+                      PROP_of_format fl stuff)
+        (LOCALx (LOCAL_of_format fl 2%positive stuff)
          (SEPx (cstring sh fmt fmtp :: SEP_of_format  fl stuff)))
       end)
      (fun x : (val * share * list byte * val * format_stuff fl) => 
@@ -113,10 +155,24 @@ Definition fprintf_placeholder_spec FILEid : funspec :=
      (fun x : unit =>  PROP (False) LOCAL () SEP ())
      (fun x : unit =>  PROP () LOCAL () SEP ()).
 
+Definition printf_placeholder_spec : funspec :=
+  NDmk_funspec 
+    (((1%positive, tptr tschar) :: nil),
+     tint)
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
+     unit
+     (fun x : unit =>  PROP (False) LOCAL () SEP ())
+     (fun x : unit =>  PROP () LOCAL () SEP ()).
+
 Axiom fprintf_spec_sub:
   forall {CS: compspecs} FILEid fmtz, 
    funspec_sub (fprintf_placeholder_spec FILEid)
       (fprintf_spec_parametrized FILEid fmtz).
+
+Axiom printf_spec_sub:
+  forall {CS: compspecs} fmtz, 
+   funspec_sub (printf_placeholder_spec)
+      (printf_spec_parametrized fmtz).
 
 Definition ascii2byte (a: Ascii.ascii) : byte :=
  Byte.repr (Z.of_N (Ascii.N_of_ascii a)).
@@ -183,36 +239,69 @@ lazymatch type of Hsub with funspec_sub _ (NDmk_funspec _ _ ?t _ _) =>
  lazymatch t with (_ * _ * _ * _ * ?t')%type =>
   lazymatch type of w with ?tw => 
    tryif unify tw t' then idtac
-   else fail 10 "In forward_fprintf, your witness type does not match the format string.
+   else fail 10 "In forward_printf, your witness type does not match the format string.
 Witness:" w "
 Witness Type:" tw "
 Format Type:" t' "
 "
   end end end.
 
+Ltac forward_fprintf' gv Pre id sub outv w :=
+ lazymatch Pre with context [cstring ?sh (string2bytes ?s) (gv id)] => 
+   let fmtz := constr:(string2Zs s) in
+   let u := constr:(interpret_format_string fmtz) in
+   let u := eval compute in u in
+   let H := fresh "Hsub" in
+   assert (H := sub fmtz);
+    unfold fprintf_spec_parametrized, printf_spec_parametrized in H;
+    change (interpret_format_string _) with u in H;
+    simpl format_argtys in H;
+    simpl format_stuff in H; 
+    simpl PROP_of_format in H; 
+    simpl LOCAL_of_format in H; 
+    simpl SEP_of_format in H;
+    check_fprintf_witness H w;
+    forward_call H (outv, sh, string2bytes s, gv id, w);
+    clear H
+ end.
+
 Ltac forward_fprintf outv w :=
  repeat rewrite <- seq_assoc;
  try match goal with |- semax _ _ (Scall _ _) _ =>
    rewrite -> semax_seq_skip
  end;
-match goal with
-   gv: globals |- semax _ ?Pre (Ssequence (Scall None (Evar _ _) (?f :: Evar ?id _ :: _)) _) _ =>
- match Pre with context [cstring Ers (string2bytes ?s) (gv id)] => 
+lazymatch goal with
+ | gv: globals |- @semax ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (?f :: Evar ?id _ :: _)) _) _ =>
    let tf := constr:(typeof f) in
    let tf := eval hnf in tf in
-   match tf with Tpointer (Tstruct ?FILEid _) _ =>
-   let fmtz := constr:(string2Zs s) in
-   let u := constr:(interpret_format_string fmtz) in
-   let u := eval compute in u in
-   let H := fresh "Hsub" in
-   assert (H := fprintf_spec_sub FILEid fmtz);
-    unfold fprintf_spec_parametrized in H;
-    change (interpret_format_string _) with u in H;
-    simpl format_argtys in H;
-    simpl format_stuff in H; 
-    simpl LOCAL_of_format in H; 
-    simpl SEP_of_format in H;
-    check_fprintf_witness H w;
-    forward_call H (outv, Ers, string2bytes s, gv id, w);
-    clear H
- end end end.
+   lazymatch tf with Tpointer (Tstruct ?FILEid _) _ =>
+     let sub := constr:(@fprintf_spec_sub cs FILEid) in
+       forward_fprintf' gv Pre id sub outv w 
+   end
+end.
+
+Ltac forward_printf w :=
+ repeat rewrite <- seq_assoc;
+ try match goal with |- semax _ _ (Scall _ _) _ =>
+   rewrite -> semax_seq_skip
+ end;
+match goal with
+ | gv: globals |- @semax ?cs _ _ ?Pre (Ssequence (Scall None (Evar _ _) (Evar ?id _ :: _)) _) _ =>
+       forward_fprintf' gv Pre id (@printf_spec_sub cs) nullval w
+end.
+
+Fixpoint make_printf_specs' (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
+ match defs with
+ | (i, Gfun (External (EF_external "fprintf" _) 
+                       (Tcons (Tpointer (Tstruct id _) _) _) _ _)) :: defs' => 
+         (i, fprintf_placeholder_spec id) :: make_printf_specs' defs'
+ | (i, Gfun (External (EF_external "printf" _) _ _ _)) :: defs' => 
+         (i, printf_placeholder_spec) :: make_printf_specs' defs'
+ | _ :: defs' => make_printf_specs' defs'
+ | nil => nil
+ end.
+
+Ltac make_printf_specs prog :=
+ let s := constr:(make_printf_specs' (prog_defs prog)) in
+ let s := eval simpl in s in
+ exact s.
