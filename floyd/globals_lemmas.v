@@ -906,9 +906,38 @@ assert (Ptrofs.modulus = Ptrofs.max_unsigned + 1) by computable.
 omega.
 Qed.
 
+Lemma process_globvar_extern:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P gz Q R i gv gvs SF c Post,
+       gvar_init gv = nil ->
+       gvar_volatile gv = false ->
+       semax Delta
+         (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars2pred gz gvs * SF) c Post ->
+       semax Delta
+         (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars2pred gz ((i, gv) :: gvs) * SF) c Post.
+Proof.
+intros.
+eapply semax_pre; [ | apply H1]; clear H1.
+apply andp_left2.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+intro rho.
+unfold globvars2pred.
+apply andp_derives; auto.
+simpl.
+rewrite <- emp_sepcon.
+apply sepcon_derives; auto.
+unfold globvar2pred.
+simpl. rewrite H0, H.
+simpl.
+auto.
+Qed.
+
 Ltac process_one_globvar :=
  first
-  [ simple eapply process_globvar_space;
+  [ simple eapply process_globvar_extern; [reflexivity | reflexivity | ]
+  | simple eapply process_globvar_space;
     [simpl; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | simpl; computable | ]
   | simple eapply process_globvar';
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity

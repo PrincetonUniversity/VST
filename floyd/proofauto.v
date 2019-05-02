@@ -111,6 +111,8 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
+Hint Resolve readable_Ers.
+
 Ltac EExists_unify1 x P :=
  match P with
  | ?P1 /\ ?P2 => first [EExists_unify1 x P1 | EExists_unify1 x P2]
