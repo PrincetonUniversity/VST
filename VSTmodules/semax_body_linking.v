@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 
-Definition tcret_proof retsig (A: rmaps.TypeTree) 
+Definition tcret_proof retsig (A: rmaps.TypeTree)
   (Q: forall ts : list Type,
           functors.MixVariantFunctor._functor
             (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)  :=
@@ -13,7 +13,7 @@ Inductive semax_body_proof :=
 | mk_body: forall {Vprog: varspecs} {Gprog: funspecs} {cs: compspecs}
                                {f: function} {id: ident} {fspec: funspec},
     @semax_body Vprog Gprog cs f (id,fspec) -> semax_body_proof
-| mk_external: forall (id: ident) retsig {Espec: OracleKind} {ids: list ident} {ef: external_function} 
+| mk_external: forall (id: ident) retsig {Espec: OracleKind} {ids: list ident} {ef: external_function}
     {A} {P Q: forall ts : list Type,
           functors.MixVariantFunctor._functor
             (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred},
@@ -39,7 +39,7 @@ Lemma sub_option_get {A: Type} (s t: PTree.t A):
 Proof.
   intros; specialize (sub_option_get' s t A Some H i); intros.
   destruct (s!i); [simpl; destruct (t!i); inv H0 | ]; trivial.
-Qed.   
+Qed.
 
 Lemma tycontext_sub_nofunc_tycontext:
   forall V1 G1 V2 G2,
@@ -55,17 +55,17 @@ intros; apply semax_prog.sub_option_subsumespec; auto.
 intros; apply Annotation_sub_refl.
 Qed.
 
-Ltac adapt_module module := 
+Ltac adapt_module module :=
 match type of module with @semax_func _ _ _ ?cs _ _ _ =>
-eapply @semax_func_subsumption; 
+eapply @semax_func_subsumption;
  [ | | eapply (@semax_func_mono _ cs);
     [ | | | apply module]];
   [  |   |
   | intros; apply sub_option_refl | intros; apply sub_option_refl];
- [ 
- | apply @sub_option_get; 
+ [
+ | apply @sub_option_get;
   repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
- | red; red; apply @sub_option_get; 
+ | red; red; apply @sub_option_get;
   repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil]
 end;
  apply tycontext_sub_nofunc_tycontext; apply sub_option_get;
@@ -75,11 +75,11 @@ Module FunspecOrder <: Orders.TotalLeBool.
   Definition t := (ident * funspec)%type.
   Definition leb := fun x y : (ident * funspec)=> Pos.leb (fst x) (fst y).
   Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
-  Proof.  intros. unfold leb. 
+  Proof.  intros. unfold leb.
     pose proof (Pos.leb_spec (fst a1) (fst a2)).
     pose proof (Pos.leb_spec (fst a2) (fst a1)).
     inv H; inv H0; auto.
-    clear - H2 H3. 
+    clear - H2 H3.
     pose proof (Pos.lt_trans _ _ _ H2 H3).
     apply Pos.lt_irrefl in H. contradiction.
   Qed.
@@ -96,11 +96,11 @@ Module BodyProofOrder <: Orders.TotalLeBool.
   Definition t := semax_body_proof.
   Definition leb := fun x y : semax_body_proof=> Pos.leb (ident_of_proof x) (ident_of_proof y).
   Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
-  Proof.  intros. unfold leb. 
+  Proof.  intros. unfold leb.
     pose proof (Pos.leb_spec (ident_of_proof a1) (ident_of_proof a2)).
     pose proof (Pos.leb_spec (ident_of_proof a2) (ident_of_proof a1)).
     inv H; inv H0; auto.
-    clear - H2 H3. 
+    clear - H2 H3.
     pose proof (Pos.lt_trans _ _ _ H2 H3).
     apply Pos.lt_irrefl in H. contradiction.
   Qed.
@@ -127,7 +127,7 @@ Definition delete_dups (al: funspecs) : funspecs :=
  end.
 
 Definition merge_Gprogs_of (module: list semax_body_proof) :=
- delete_dups 
+ delete_dups
  (SortFunspec.sort
   (List.fold_right (fun m G => Gprog_of_proof m ++ G) (nil: funspecs) module)).
 
@@ -177,7 +177,7 @@ Qed.
 
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
- [red; red; apply @sub_option_get; 
+ [red; red; apply @sub_option_get;
     repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
  | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
  | simple apply tycontext_sub_refl ||
@@ -192,8 +192,8 @@ Ltac semax_func_cons' L H :=
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | LookupID | LookupB | simpl; precondition_closed | 
-               Time (apply_semax_body L)
+           | reflexivity | LookupID | LookupB | simpl; precondition_closed |
+           (apply_semax_body L)
            | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -222,4 +222,3 @@ Proof.
  intros. hnf; intros. reflexivity.
 Qed.
 Hint Resolve @closed_wrt_FF @closed_wrtl_FF : closed.
-

@@ -22,7 +22,7 @@ else
 PROGSDIR=progs
 endif
 
-default_target: _CoqProject msl veric floyd VSTmodules $(PROGSDIR)
+default_target: _CoqProject msl veric floyd vstmodules $(PROGSDIR)
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -417,7 +417,7 @@ FILES = \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
- $(VSTmodule_FILES_FILES:%=VSTmodules/%) \
+ $(VSTmodules_FILES:%=VSTmodules/%) \
  $(PROGS_FILES:%=progs/%) \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
