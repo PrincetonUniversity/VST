@@ -42,14 +42,14 @@ Record ClientFacingSpecification := ClientFacingSpec {
 
    gvar_function: ident -> option (sigT (fun A => A -> val -> mpred));
    gvarAX:
-     forall i rep,
-       gvar_function i = Some rep ->
+     forall global_ident rep,
+       gvar_function global_ident = Some rep ->
        exists v,
-         In (i, Gvar v) (prog_defs (code ModDecl)) /\
+         In (global_ident, Gvar v) (prog_defs (code ModDecl)) /\
          exists R: reptype (gvar_info v) -> projT1 rep -> Prop,
          forall x rx,  R x rx <->
             forall p, (data_at Ews (gvar_info v) x p |--
-                    (projT2 rep) rx p)
+                          (projT2 rep) rx p)
 }.
 
 Definition especs (CFS: ClientFacingSpecification) : list (ident * funspec) :=
