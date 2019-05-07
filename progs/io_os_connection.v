@@ -15,7 +15,7 @@ Local Ltac inj :=
   | H: _ = _ |- _ => assert_succeeds (injection H); inv H
   end.
 
-Section CommonPrefix.
+Section ListFacts.
 
   Context {A: Type}.
   Variable Aeq : forall (x y : A), {x = y} + {x <> y}.
@@ -27,17 +27,26 @@ Section CommonPrefix.
     | _, _ => nil
     end.
 
-  Definition split_at_common_prefix (xs ys : list A) : list A * list A :=
-    let i := length (common_prefix xs ys) in
-    let pre := firstn i xs in
-    let post := if length xs <=? length ys then skipn i ys else skipn i xs in
-    (pre, post).
+  Definition common_suffix (xs ys : list A) : list A :=
+    rev (common_prefix (rev xs) (rev ys)).
+
+  Definition split_at_common_suffix (xs ys : list A) : list A * list A :=
+    let longer := if length xs <=? length ys then ys else xs in
+    let i := length longer - length (common_suffix xs ys) in
+    (firstn i longer, common_suffix xs ys).
 
   Lemma common_prefix_sym : forall xs ys,
     common_prefix xs ys = common_prefix ys xs.
   Proof.
     induction xs as [| x xs]; destruct ys as [| y ys]; cbn; auto.
     destruct (Aeq x y), (Aeq y x); congruence.
+  Qed.
+
+  Lemma common_suffix_sym : forall xs ys,
+    common_suffix xs ys = common_suffix ys xs.
+  Proof.
+    unfold common_suffix; intros.
+    rewrite common_prefix_sym; auto.
   Qed.
 
   Lemma common_prefix_correct : forall xs ys,
@@ -48,19 +57,81 @@ Section CommonPrefix.
     destruct (Aeq x y); cbn; congruence.
   Qed.
 
-  Lemma split_at_common_prefix_correct : forall xs ys,
+  Lemma common_prefix_length : forall xs ys,
+    length (common_prefix xs ys) <= length xs.
+  Proof.
+    induction xs as [| x xs]; destruct ys as [| y ys]; cbn; try lia.
+    destruct (Aeq x y); cbn; try lia.
+    specialize (IHxs ys); lia.
+  Qed.
+
+  Lemma common_suffix_length : forall xs ys,
+    length (common_suffix xs ys) <= length xs.
+  Proof.
+    unfold common_suffix; intros.
+    rewrite rev_length.
+    etransitivity; [apply common_prefix_length |].
+    rewrite rev_length; auto.
+  Qed.
+
+  Lemma common_suffix_correct : forall xs ys,
+    let post := common_suffix xs ys in
+    post = skipn (length xs - length post) xs.
+  Proof.
+    unfold common_suffix; intros; cbn.
+    rewrite common_prefix_correct at 1.
+    rewrite <- (rev_involutive (skipn _ _)).
+    rewrite rev_skipn.
+    repeat f_equal.
+    generalize (common_suffix_length xs ys); unfold common_suffix.
+    rewrite rev_length; lia.
+  Qed.
+
+  Lemma common_prefix_full : forall xs,
+    common_prefix xs xs = xs.
+  Proof.
+    induction xs as [| x xs]; cbn; auto.
+    destruct (Aeq x x); cbn; congruence.
+  Qed.
+
+  Lemma common_suffix_full : forall xs,
+    common_suffix xs xs = xs.
+  Proof.
+    unfold common_suffix; intros.
+    rewrite common_prefix_full.
+    apply rev_involutive.
+  Qed.
+
+  Lemma common_prefix_app : forall xs x,
+    common_prefix xs (xs ++ x :: nil) = xs.
+  Proof.
+    induction xs as [| x xs]; cbn; auto.
+    destruct (Aeq x x); cbn; congruence.
+  Qed.
+
+  Lemma common_suffix_cons : forall xs x,
+    common_suffix xs (x :: xs) = xs.
+  Proof.
+    unfold common_suffix; intros; cbn.
+    rewrite common_prefix_app.
+    apply rev_involutive.
+  Qed.
+
+  Lemma split_at_common_suffix_correct : forall xs ys,
     length xs <= length ys ->
-    let (pre, post) := split_at_common_prefix xs ys in
+    let (pre, post) := split_at_common_suffix xs ys in
     ys = pre ++ post.
   Proof.
     induction xs as [| x xs]; destruct ys as [| y ys]; cbn; intros; auto; try lia.
-    rewrite leb_correct by lia.
-    destruct (Aeq x y); cbn; subst; auto.
-    rewrite <- common_prefix_correct.
-    rewrite common_prefix_sym.
-    rewrite common_prefix_correct at 1.
-    rewrite firstn_skipn.
-    auto.
+    - rewrite firstn_all, app_nil_r; auto.
+    - rewrite leb_correct by lia.
+      change (rev xs ++ x :: nil) with (rev (x :: xs)).
+      change (rev ys ++ y :: nil) with (rev (y :: ys)).
+      fold (common_suffix (x :: xs) (y :: ys)).
+      rewrite common_suffix_sym.
+      rewrite common_suffix_correct.
+      rewrite <- common_suffix_correct at 1.
+      rewrite firstn_skipn; auto.
   Qed.
 
   Fact list_eq_in_or : forall (xs ys xs' ys' : list A) x y,
@@ -108,7 +179,20 @@ Section CommonPrefix.
       intuition congruence.
   Qed.
 
-End CommonPrefix.
+  Lemma in_tail : forall (xs : list A) x,
+    In x (tl xs) -> In x xs.
+  Proof.
+    destruct xs; intros *; cbn; auto.
+  Qed.
+
+  Lemma Zlength_tail : forall (xs : list A),
+    (Zlength (tl xs) <= Zlength xs)%Z.
+  Proof.
+    destruct xs; [cbn; lia |].
+    rewrite Zlength_cons; cbn; lia.
+  Qed.
+
+End ListFacts.
 
 Import MonadNotation.
 Local Open Scope monad_scope.
@@ -212,14 +296,14 @@ Section Specs.
     CONSOLE_MAX_LEN : Z;
     console_len_pos : 0 < CONSOLE_MAX_LEN
   }.
-  Context {Hclen : ConsoleLen}.
+  Context `{ConsoleLen}.
 
   Class SerialOracle := {
     serial_oracle : etrace -> Z;
     serial_oracle_in_range : forall tr,
       0 <= serial_oracle tr <= 255
   }.
-  Context {Horacle : SerialOracle}.
+  Context `{SerialOracle}.
 
   Record state := mkSt {
     st_mem : mem;
@@ -268,21 +352,22 @@ Section Specs.
     (* Error *)
     else (st', -1).
 
-  (** Invariants *)
+End Specs.
+
+Section Invariants.
+
+  Context {Hclen : ConsoleLen} {Horacle : SerialOracle}.
+
   (* Everything in the trace was put there by the serial device. *)
   Definition valid_trace_serial tr :=
-    forall ridx c,
-      In (ETReadOS ridx c) tr ->
-      exists tr',
-        serial_oracle tr' = c /\ length tr' = ridx /\
-        Zlength tr' <= Zlength tr /\
-        let lo := Z.max 0 (Zlength tr - (Zlength tr' + 1)) in
-        sublist lo (Zlength tr) tr = ETReadOS ridx c :: tr'.
+    forall ridx c pre post,
+      tr = post ++ ETReadOS ridx c :: pre ->
+      serial_oracle pre = c /\ length pre = ridx.
 
   (* Every user read has a matching OS read earlier in the trace. *)
   Definition valid_trace_user tr :=
     forall ridx c pre post,
-      tr = post ++ (ETReadUser ridx c) :: pre ->
+      tr = post ++ ETReadUser ridx c :: pre ->
       In (ETReadOS ridx c) pre /\ hd_error (compute_console pre) = Some (c, ridx).
 
   (* Every event in the trace is unique. *)
@@ -294,28 +379,47 @@ Section Specs.
       In (c, ridx) (compute_console tr) ->
       In (ETReadOS ridx c) tr.
 
-  (* The console buffer never overflows *)
+  (* The console buffer never overflows. *)
   Definition valid_console_len tr :=
     Zlength (compute_console tr) <= CONSOLE_MAX_LEN.
 
-  Record valid_state st := {
-    valid_state_trace_serial : valid_trace_serial st.(st_trace);
-    (* Every user read has a matching OS read earlier in the trace. *)
-    valid_state_trace_user : valid_trace_user st.(st_trace);
-    (* Every event in the trace is unique. *)
-    valid_state_trace_unique : valid_trace_unique st.(st_trace);
-    (* Everything in the console buffer is also in the trace. *)
-    valid_state_console : valid_console st.(st_trace);
-    (* The console buffer never overflows *)
-    valid_state_console_len : valid_console_len st.(st_trace);
+  (* All trace invariants hold. *)
+  Record valid_trace st := {
+    vt_trace_serial : valid_trace_serial st.(st_trace);
+    vt_trace_user : valid_trace_user st.(st_trace);
+    vt_trace_unique : valid_trace_unique st.(st_trace);
+    vt_console : valid_console st.(st_trace);
+    vt_console_len : valid_console_len st.(st_trace);
   }.
 
+  (* Compute the newly added events in the trace. *)
+  Definition new_trace (st st' : state) : etrace :=
+    fst (split_at_common_suffix IO_trace_event_eq st.(st_trace) st'.(st_trace)).
+
+  (* Invariants about the returned character and traces. *)
+  Definition valid_ret (st st' : state) (c : Z) :=
+    (* c is in the proper range. *)
+    (c = -1 \/ 0 <= c <= 255) /\
+    (* The memory is unchanged. *)
+    st.(st_mem) = st'.(st_mem) /\
+    let t := new_trace st st' in
+    (* The new trace is the old one plus the newly added events. *)
+    st'.(st_trace) = t ++ st.(st_trace) /\
+    (* The newly added events are either nil or a single user read. *)
+    (c = -1 -> t = nil) /\
+    (0 <= c <= 255 -> exists ridx, t = ETReadUser ridx c :: nil).
+
+  (** Trace Invariants *)
   Lemma hd_error_app {A} : forall (xs ys : list A) x,
     hd_error xs = Some x ->
     hd_error (xs ++ ys) = Some x.
   Proof.
     destruct xs; cbn; easy.
   Qed.
+
+  Fact hd_error_app_case {A} : forall (xs : list A) x,
+    hd_error (xs ++ x :: nil) = hd_error xs \/ xs = nil.
+  Proof. destruct xs; auto. Qed.
 
   Lemma compute_console_ridx_increase : forall tr ev ridx c ridx' c',
     let cons := compute_console tr in
@@ -330,7 +434,7 @@ Section Specs.
     - destruct (_ <? _)eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt].
       + erewrite hd_error_app in Hhd' by eauto; inj; auto.
       + pose proof console_len_pos.
-        destruct (compute_console tr) eqn:Heq; cbn in *; inj; try lia.
+        destruct (compute_console tr) as [| ? cons] eqn:Heq; cbn in *; inj; try lia.
         admit.
     - admit.
     - admit.
@@ -348,76 +452,37 @@ Section Specs.
   (*   - eapply IHtr. *)
   (* Qed. *)
 
-  Lemma serial_getc_preserve_trace_unique : forall st st',
-    valid_state st ->
+  Lemma serial_getc_preserve_valid_trace : forall st st',
+    valid_trace st ->
     serial_getc st = st' ->
-    valid_trace_unique st'.(st_trace).
+    valid_trace st'.
   Proof.
     unfold serial_getc; intros * Hvalid Hspec.
-    destruct st as [? tr]; subst; destruct Hvalid; cbn in *.
-    constructor; auto.
-    intros * Hin.
-    apply valid_state_trace_serial0 in Hin.
-    destruct Hin as (? & ? & Hlen & ? & Hsub); cbn in Hsub.
-    rewrite Z.max_l in Hsub
-      by (rewrite !Zlength_correct, Hlen; lia).
-    rewrite conclib.sublist_all in Hsub by easy.
-    rewrite Hsub in Hlen; cbn in Hlen; lia.
-  Qed.
-
-  Lemma serial_getc_preserve_valid_state : forall st st',
-    valid_state st ->
-    serial_getc st = st' ->
-    valid_state st'.
-  Proof.
-    unfold serial_getc; intros * Hvalid Hspec.
-    pose proof Hvalid as Hvalid'.
-    eapply serial_getc_preserve_trace_unique in Hvalid'; eauto.
     destruct st as [? tr]; subst; destruct Hvalid; cbn in *.
     split; cbn; red; auto.
     - (* valid_trace_serial *)
-      rewrite !Zlength_cons.
-      intros *; cbn.
-      intuition eauto; inj.
-      + repeat (esplit; eauto); try lia.
-        rewrite Z.max_l by lia.
-        rewrite conclib.sublist_all; auto.
-        rewrite Zlength_cons; easy.
-      + edestruct valid_state_trace_serial0 as (tr' & ? & ? & ? & Hsub); eauto; subst.
-        repeat (esplit; eauto); try lia.
-        rewrite <- Hsub.
-        rewrite Z.max_r by lia.
-        apply Z.max_case_strong; intros.
-        * (* length tr <= length tr' + 1 *)
-          rewrite Z.max_l in Hsub by lia; cbn in Hsub.
-          rewrite conclib.sublist_all in Hsub by lia; subst.
-          rewrite ?Zlength_cons in *.
-          replace (Z.succ _ - (_ + 1)) with 1 by lia.
-          rewrite conclib.sublist_S_cons by lia.
-          f_equal; lia.
-        * (* length tr' + 1 <= length tr *)
-          rewrite Z.max_r in Hsub by lia; cbn in Hsub.
-          rewrite conclib.sublist_S_cons by lia.
-          f_equal; lia.
+      intros * Heq.
+      destruct post; inj; eauto.
     - (* valid_trace_user *)
       intros * Heq.
-      pose proof Heq as Heq'.
-      apply list_eq_in_r in Heq'; try congruence.
-      apply in_split in Heq'.
-      destruct Heq' as (post' & pre' & ?); subst.
-      rewrite app_comm_cons in Heq.
-      apply list_unique_match in Heq; auto.
-      destruct Heq as (? & ?); subst; eauto.
+      destruct post; inj; eauto.
+    - (* valid_trace_unique *)
+      constructor; auto; intros Hin.
+      apply in_split in Hin.
+      destruct Hin as (post & pre & Heq); subst.
+      edestruct vt_trace_serial0 as (? & Hlen); eauto.
+      rewrite Heq, app_length in Hlen.
+      cbn in Hlen; lia.
     - (* valid_console *)
       intros *; cbn.
       rewrite !in_app_iff, Zlength_correct; cbn.
       destruct (_ <? _) eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt].
       + intuition (inj; auto).
-      + red in valid_state_console0.
+      + red in vt_console0.
         destruct (compute_console tr); intuition (inj; auto; try easy).
         intuition.
     - (* valid_console_len *)
-      red in valid_state_console_len0.
+      red in vt_console_len0.
       repeat (rewrite ?Zlength_correct, ?app_length in *; cbn).
       pose proof console_len_pos.
       destruct (_ <? _) eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt];
@@ -425,103 +490,110 @@ Section Specs.
       destruct (compute_console tr); cbn in *; lia.
   Qed.
 
-  Lemma console_read_preserve_trace_unique : forall st st' c,
-    valid_state st ->
+  Lemma console_read_preserve_valid_trace : forall st st' c,
+    valid_trace st ->
     console_read st = (st', c) ->
-    valid_trace_unique st'.(st_trace).
+    valid_trace st'.
   Proof.
     unfold console_read; intros * Hvalid Hspec.
     destruct st as [? tr]; destruct Hvalid; cbn in *.
-    destruct (compute_console tr) as [| (c' & ridx) cons] eqn:Hcons; inj; red; cbn; auto.
-    constructor; auto.
-    intros Hin; apply in_split in Hin.
-    destruct Hin as (post & pre & ?); subst.
-    edestruct valid_state_trace_user0 as (Hin & Hhd); eauto.
-    admit.
+    destruct (compute_console tr) as [| (c' & ridx) cons] eqn:Hcons; inj.
+    - repeat (split; auto).
+    - split; cbn; red; auto using in_tail.
+      + (* valid_trace_serial *)
+        intros * Heq.
+        destruct post; inj; eauto.
+      + (* valid_trace_user *)
+        intros * Heq.
+        symmetry in Heq; destruct post; inj; cbn in *; eauto.
+        assert (Hin: In (ETReadOS ridx c) tr).
+        { apply vt_console0.
+          rewrite Hcons; cbn; auto.
+        }
+        apply in_split in Hin.
+        destruct Hin as (post & pre & ?); subst.
+        edestruct vt_trace_serial0; eauto; subst.
+        rewrite in_app_iff, Hcons; cbn; auto.
+      + (* valid_trace_unique *)
+        constructor; auto; intros Hin.
+        apply in_split in Hin.
+        destruct Hin as (post & pre & ?); subst.
+        edestruct vt_trace_user0 as (Hin & Hhd); eauto.
+        admit.
+      + (* valid_console_len *)
+        cbn; etransitivity; [apply Zlength_tail |]; auto.
   Admitted.
 
-  Definition new_trace (st st' : state) : etrace :=
-    snd (split_at_common_prefix IO_trace_event_eq st.(st_trace) st'.(st_trace)).
-
-  Definition valid_ret (st st' : state) (c : Z) :=
-    (c = -1 \/ 0 <= c <= 255) /\ st.(st_mem) = st'.(st_mem) /\
-    (c = -1 -> new_trace st st' = nil) /\
-    (0 <= c <= 255 -> exists ridx, new_trace st st' = ETReadUser ridx c :: nil).
-
-  Lemma console_read_preserve_valid_state : forall st st' c,
-    valid_state st ->
-    console_read st = (st', c) ->
-    valid_state st' /\ valid_ret st st' c.
-  Proof.
-    admit.
-  (*   unfold console_read; intros * Hvalid Hspec. *)
-  (*   destruct st as [? [| (c' & ridx) cons] tr]; destruct Hvalid; inj; cbn in *. *)
-  (*   { repeat (split; eauto). } *)
-  (*   split; [split; red |]; rewrite ?Zlength_correct in *; cbn -[Z.of_nat] in *; *)
-  (*     eauto; try lia. *)
-  (*   - (1* valid_trace_serial *1) *)
-  (*     intros *; rewrite in_app_iff; cbn. *)
-  (*     intuition (try congruence). *)
-  (*     edestruct valid_state_trace_serial0 as (tr' & ? & ? & Hsub); eauto; subst. *)
-  (*     repeat (esplit; eauto). *)
-  (*     rewrite sublist0_app1; auto. *)
-  (*     replace (Zlength tr' + 1) *)
-  (*       with (Zlength (tr' ++ ETReadOS (length tr') (serial_oracle tr') :: nil)) *)
-  (*       by (rewrite Zlength_app; auto). *)
-  (*     rewrite <- Hsub. *)
-  (*     auto using conclib.sublist_max_length, Zlength_nonneg. *)
-  (*   - (1* valid_trace_user *1) *)
-  (*     intros ridx' c' * Heq. *)
-  (*     assert (Hcase: ETReadUser ridx c = ETReadUser ridx' c' \/ *)
-  (*                    ETReadUser ridx c <> ETReadUser ridx' c'). *)
-  (*     { clear; repeat decide equality. } *)
-  (*     destruct Hcase; inj. *)
-  (*     + apply list_unique_match in Heq; auto. *)
-  (*       { destruct Heq; subst; auto. *)
-  (*         split. *)
-  (*         - eapply valid_state_console0; cbn; auto. *)
-  (*         - hnf in *. *)
-  (*       } *)
-  (*       apply conclib.NoDup_add; rewrite app_nil_r; auto. *)
-  (*       intros Hin. *)
-  (*       apply in_split in Hin. *)
-  (*       destruct Hin as (pre' & post' & ?); subst. *)
-  (*       assert (Hin: In (ETReadOS ridx' c') (pre' ++ ETReadUser ridx' c' :: post')). *)
-  (*       { rewrite in_app_iff; left. *)
-  (*         eapply valid_state_trace_user0; eauto. } *)
-  (*       eapply valid_state_trace_serial0 in Hin. *)
-  (*       destruct Hin as (? & ? & ? & ?); subst. *)
-  (*       red in valid_state_console0. *)
-  (*     + pose proof Heq as Heq'. *)
-  (*       apply list_eq_in_l in Heq'; auto. *)
-  (*       apply in_split in Heq'. *)
-  (*       destruct Heq' as (pre' & post' & Heq''). *)
-  (*       assert (In (ETReadOS ridx' c') pre'). *)
-  (*       { apply valid_state_trace_user0 in Heq''; auto. } *)
-  (*       subst. *)
-  (*   - (1* valid_console *1) *)
-  (*     intuition idtac. *)
-  (*   - (1* c in range *1) *)
-  (*     pose proof serial_oracle_in_range. *)
-  (*     right; cut (exists tr, serial_oracle tr = c); eauto. *)
-  (*     intros (? & ?); subst; eauto. *)
-  Admitted.
-
-  Lemma getchar_spec_preserve_valid_state : forall st st' c,
-    valid_state st ->
+  Lemma getchar_spec_preserve_valid_trace : forall st st' c,
+    valid_trace st ->
     getchar_spec st = (st', c) ->
-    valid_state st' /\ valid_ret st st' c.
+    valid_trace st'.
   Proof.
     unfold getchar_spec; intros * Hvalid Hspec.
     destruct (console_read st) eqn:Hread.
-    eapply console_read_preserve_valid_state in Hread; eauto.
+    eapply console_read_preserve_valid_trace in Hread; eauto.
+    destruct (0 <=? _) eqn:Hle; inj; eauto.
+  Qed.
+
+  (** Return Invariants *)
+  Lemma console_read_valid_ret : forall st st' c,
+    valid_trace st ->
+    console_read st = (st', c) ->
+    valid_ret st st' c.
+  Proof.
+    unfold console_read; intros * Hvalid Hspec.
+    destruct st as [? tr]; destruct Hvalid; cbn in *.
+    destruct (compute_console tr) as [| (c' & ridx) cons] eqn:Hcons; inj.
+    - repeat (split; eauto using common_suffix_full); cbn -[common_suffix]; try lia.
+      all: rewrite Nat.leb_refl, common_suffix_full, Nat.sub_diag; cbn; auto.
+    - repeat split.
+      + (* c in range *)
+        assert (Hin: In (ETReadOS ridx c) tr).
+        { apply vt_console0.
+          rewrite Hcons; cbn; auto.
+        }
+        apply in_split in Hin.
+        destruct Hin as (post & pre & ?); subst.
+        edestruct vt_trace_serial0; eauto; subst.
+        right; apply serial_oracle_in_range.
+      + (* new event + old trace = new trace *)
+        cbn -[common_suffix]; rewrite leb_correct by lia.
+        rewrite common_suffix_cons.
+        replace (length (_ :: _) - length _)%nat with 1%nat.
+        { cbn; eauto. }
+        clear; induction tr; auto.
+      + (* empty trace *)
+        assert (Hin: In (ETReadOS ridx c) tr).
+        { apply vt_console0.
+          rewrite Hcons; cbn; auto.
+        }
+        apply in_split in Hin.
+        destruct Hin as (post & pre & ?); subst.
+        edestruct vt_trace_serial0; eauto; subst.
+        pose proof (serial_oracle_in_range pre); lia.
+      + (* singleton trace *)
+        intros; cbn -[common_prefix]; rewrite leb_correct by lia.
+        rewrite common_suffix_cons.
+        replace (length (_ :: _) - length _)%nat with 1%nat.
+        { cbn; eauto. }
+        clear; induction tr; auto.
+  Qed.
+
+  Lemma getchar_spec_valid_ret : forall st st' c,
+    valid_trace st ->
+    getchar_spec st = (st', c) ->
+    valid_ret st st' c.
+  Proof.
+    unfold getchar_spec; intros * Hvalid Hspec.
+    destruct (console_read st) eqn:Hread.
+    eapply console_read_valid_ret in Hread; eauto.
     destruct (0 <=? _) eqn:Hle; inj; eauto.
     rewrite Z.leb_nle in Hle.
-    destruct Hread as (? & ([? | ?] & ? & ? & ?)); subst; try lia.
+    destruct Hread as ([? | ?] & ? & ? & ? & ?); subst; try lia.
     repeat (split; auto).
   Qed.
 
-End Specs.
+End Invariants.
 
 Section SpecsCorrect.
 
@@ -536,38 +608,41 @@ Section SpecsCorrect.
       is_trace z0 (app_trace t t').
 
   Lemma getchar_correct k z st :
-    (* Initial state is valid *)
-    valid_state st ->
+    (* Initial trace is valid *)
+    valid_trace st ->
     (* Pre condition holds *)
     getchar_pre' st.(st_mem) k z ->
     exists st' r,
       (* Spec with same initial memory returns some state and result *)
       getchar_spec st = (st', r) /\
-      (* Compute the newly added events *)
-      let t' := new_trace st st' in
       (* New itree is old k applied to result, or same as old itree if nothing
          to read *)
       let z' := if 0 <=? r then k (Int.repr r) else z in
       (* Post condition holds on new state, itree, and result *)
       getchar_post' st.(st_mem) st'.(st_mem) (Int.repr r) (k, z) z' /\
+      (* Compute the newly added events *)
+      let t := new_trace st st' in
       (* The new itree 'consumed' the generated trace *)
-      consume_trace z z' t'.
+      consume_trace z z' t /\
+      (* t is the correct prefix *)
+      st'.(st_trace) = t ++ st.(st_trace).
   Proof.
-    unfold getchar_pre'; intros Hval Hpre; cbn.
-    destruct (getchar_spec st) as (st' & r) eqn:Hspec.
-    eapply getchar_spec_preserve_valid_state in Hspec; auto.
-    destruct Hspec as (Hval' & (Hr & Hmem & Htr & Htr')).
+    unfold getchar_pre'; intros Hval Hpre; cbn -[new_trace].
+    destruct (getchar_spec st) as (st' & r) eqn:Hinv.
+    pose proof Hinv as Hret.
+    eapply getchar_spec_preserve_valid_trace in Hinv; auto.
+    eapply getchar_spec_valid_ret in Hret; auto.
+    destruct Hret as (Hr & Hmem & Htr & Ht & Ht').
     exists st', r.
-    repeat (split; auto).
+    repeat (split; auto); try congruence.
     - destruct Hr; subst; auto.
       rewrite Int.signed_repr by (cbn; lia).
       rewrite Zle_imp_le_bool by lia.
       auto.
     - hnf; intros * Htrace.
-      (* apply Hpre. *)
       destruct Hr; subst; cbn in *.
-      + rewrite Htr; auto.
-      + destruct Htr' as (? & ->); auto.
+      + rewrite Ht; auto.
+      + destruct Ht' as (? & ->); auto.
         apply Hpre.
         hnf; cbn.
         repeat constructor.
