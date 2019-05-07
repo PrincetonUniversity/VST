@@ -391,15 +391,15 @@ Lemma Zlxor_of_byte_range x y: 0 <= Z.lxor (Byte.unsigned x) (Byte.unsigned y) <
 Proof.
  destruct (Byte.unsigned_range x).
  destruct (Byte.unsigned_range y).
- split; apply Byte.Ztestbit_le.
+ split; apply Zbits.Ztestbit_le.
  + apply Z.lxor_nonneg. omega.
  + intros. destruct i; discriminate.
  + unfold Byte.max_unsigned. simpl; omega.
  + intros. unfold Byte.max_unsigned. simpl. rewrite Z.lxor_spec in H4.
    unfold xorb in H4.
-   specialize (Byte.Ztestbit_two_p_m1 8 i); simpl. intros X; rewrite X; clear X; try omega.
+   specialize (Zbits.Ztestbit_two_p_m1 8 i); simpl. intros X; rewrite X; clear X; try omega.
    destruct (zlt i 8); trivial.
-   rewrite 2 (Byte.Ztestbit_above 8) in H4. discriminate.
+   rewrite 2 (Zbits.Ztestbit_above 8) in H4. discriminate.
    apply Byte.unsigned_range. simpl; omega.
    apply Byte.unsigned_range. simpl; omega.
 Qed.
@@ -418,10 +418,10 @@ Lemma Z_lxor_byte_neq b1 b2 (B:b1 <> b2): exists b,
       Z.lxor (Byte.unsigned b1) (Byte.unsigned b2) = Byte.unsigned b /\ b <> Byte.zero.
 Proof.
   exists (Byte.xor b1 b2); split. 2: intros N; apply Byte.xor_zero_equal in N; contradiction.
-  apply Byte.equal_same_bits; intros.
+  apply Zbits.equal_same_bits; intros.
   destruct (zlt i 8).
   + unfold Byte.xor. rewrite Byte.unsigned_repr; trivial. apply Zlxor_of_byte_range. 
-  + rewrite ! (Byte.Ztestbit_above 8); simpl; trivial; try omega. apply Byte.unsigned_range.
+  + rewrite ! (Zbits.Ztestbit_above 8); simpl; trivial; try omega. apply Byte.unsigned_range.
     specialize (Zlxor_of_byte_range b1 b2). 
     replace (two_power_nat 8) with 256 by reflexivity.
     replace Byte.max_unsigned with 255 by reflexivity. omega.
@@ -432,11 +432,11 @@ Proof.
  destruct (Byte.unsigned_range x).
  destruct (Byte.unsigned_range y).
  split.
-+ apply Byte.Ztestbit_le.
++ apply Zbits.Ztestbit_le.
   - apply Z.lor_nonneg. omega.
   - destruct i; discriminate.
 + unfold Byte.max_unsigned. simpl.
-  apply Byte.Ztestbit_le. omega. intros.
+  apply Zbits.Ztestbit_le. omega. intros.
   rewrite Z.lor_spec in H4. 
   destruct (zlt i 8 ).
   - destruct (zeq i 0). subst; reflexivity. 
@@ -447,7 +447,7 @@ Proof.
     destruct (zeq i 5). subst; reflexivity. 
     destruct (zeq i 6). subst; reflexivity. 
     destruct (zeq i 7). subst; reflexivity. omega.  
-  - rewrite 2 (Byte.Ztestbit_above 8) in H4; try discriminate; simpl; try omega; apply Byte.unsigned_range.
+  - rewrite 2 (Zbits.Ztestbit_above 8) in H4; try discriminate; simpl; try omega; apply Byte.unsigned_range.
 Qed. 
 
 Lemma Zlor_Byteor b1 b2: Z.lor (Byte.unsigned b1) (Byte.unsigned b2) = Byte.unsigned (Byte.or b1 b2).

@@ -418,7 +418,7 @@ end.
 
 Fixpoint grab_calc' (k: Z) (z: nat) (ns: list (option nat)): list (option nat) :=
 match z, ns with
-| O, _::ns' => Some (nat_of_Z k) :: ns'
+| O, _::ns' => Some (Z.to_nat k) :: ns'
 | S z', None::ns' => None :: grab_calc' k z' ns'
 | S z', Some n :: ns => Some n :: grab_calc' (k-1) z' ns
 | O, nil => Some O :: nil
@@ -428,7 +428,7 @@ end.
 Fixpoint grab_calc (k: Z) (zs: list Z) (ns: list (option nat)) : list (option nat) :=
 match zs with
 | nil => ns
-| z::zs' => grab_calc (k+1) zs' (grab_calc' k (nat_of_Z z) ns)
+| z::zs' => grab_calc (k+1) zs' (grab_calc' k (Z.to_nat z) ns)
 end.
 
 (* Eval compute in grab_calc 0 (3::1::5::nil) nil. *)
@@ -1144,13 +1144,13 @@ apply sepcon_derives; auto.
 Qed.
 
 Tactic Notation "replace_SEP" constr(n) constr(R) :=
-  first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
-  unfold my_nth,replace_nth; simpl nat_of_Z;
+  first [apply (replace_SEP' (Z.to_nat n) R) | apply (replace_SEP'' (Z.to_nat n) R)];
+  unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
 Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic1(t):=
-  first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
-  unfold my_nth,replace_nth; simpl nat_of_Z;
+  first [apply (replace_SEP' (Z.to_nat n) R) | apply (replace_SEP'' (Z.to_nat n) R)];
+  unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 
 Lemma replace_SEP'_bupd:
@@ -1197,13 +1197,13 @@ revert Rs H; induction n; destruct Rs; simpl ; intros; auto; try solve [apply bu
 Qed.
 
 Tactic Notation "viewshift_SEP" constr(n) constr(R) :=
-  first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
-  unfold my_nth,replace_nth; simpl nat_of_Z;
+  first [apply (replace_SEP'_bupd (Z.to_nat n) R) | apply (replace_SEP''_bupd (Z.to_nat n) R)];
+  unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
 Tactic Notation "viewshift_SEP" constr(n) constr(R) "by" tactic1(t):=
-  first [apply (replace_SEP'_bupd (nat_of_Z n) R) | apply (replace_SEP''_bupd (nat_of_Z n) R)];
-  unfold my_nth,replace_nth; simpl nat_of_Z;
+  first [apply (replace_SEP'_bupd (Z.to_nat n) R) | apply (replace_SEP''_bupd (Z.to_nat n) R)];
+  unfold my_nth,replace_nth; simpl Z.to_nat;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 
 Ltac replace_in_pre S S' :=

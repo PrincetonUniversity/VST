@@ -32,7 +32,7 @@ Ltac my_thaw' name :=
 (*add simplification of the list operations inside the freezer,
    flatten the sepcon, and eliminate the emp term*)
 Ltac my_thaw name :=
-  my_thaw' name; simpl nat_of_Z; unfold my_delete_nth, my_nth, my_fold_right;
+  my_thaw' name; simpl Z.to_nat; unfold my_delete_nth, my_nth, my_fold_right;
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.

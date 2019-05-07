@@ -1094,7 +1094,7 @@ end.
  2: rewrite Ptrofs.unsigned_zero; omega.
  2:{
  rewrite Ptrofs.unsigned_zero. rewrite Zplus_0_r.
- rewrite Coqlib.nat_of_Z_eq.
+ rewrite Z2Nat.id.
  change (Ptrofs.unsigned Ptrofs.zero) with 0 in H99.
  omega.
  pose proof (sizeof_pos ty); omega.
@@ -1102,7 +1102,7 @@ end.
  rewrite Z.sub_0_r.
  unfold memory_block'_alt.
  rewrite if_true by apply readable_share_top.
- rewrite Coqlib.nat_of_Z_eq.
+ rewrite Z2Nat.id.
  + rewrite (cenv_sub_sizeof HGG); auto.
  + pose proof (sizeof_pos ty); omega.
 }
@@ -1294,7 +1294,6 @@ Proof.
   rewrite eqb_type_refl in H3.
   (*destruct (type_is_volatile t) eqn:?; try (simpl in H3; tauto).*)
   simpl in H3; destruct H3 as [H99 H3].
-  change nat_of_Z with Z.to_nat in H3.
   rewrite memory_block'_eq in H3;
   try rewrite Ptrofs.unsigned_zero; try omega.
   2:{
@@ -2386,12 +2385,12 @@ rewrite Ptrofs.unsigned_zero.
 omega.
 rewrite Ptrofs.unsigned_zero.
 rewrite memory_block'_eq; try omega.
-2: rewrite Coqlib.nat_of_Z_eq; omega.
+2: rewrite Z2Nat.id; omega.
 unfold memory_block'_alt.
 rewrite if_true by apply readable_share_top.
 split.
 intro loc. hnf.
-rewrite Coqlib.nat_of_Z_eq by omega.
+rewrite Z2Nat.id by omega.
 if_tac.
 exists Undef.
 exists readable_share_top.

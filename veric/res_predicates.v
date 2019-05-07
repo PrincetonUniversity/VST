@@ -677,7 +677,7 @@ Definition nonlock_permission_bytes (sh: share) (a: address) (n: Z) : pred rmap 
   andp (allp (jam (adr_range_dec a n) (fun i => shareat i sh && nonlockat i) noat)) noghost.
 
 Definition nthbyte (n: Z) (l: list memval) : memval :=
-     nth (nat_of_Z n) l Undef.
+     nth (Z.to_nat n) l Undef.
 
 (*  Unfortunately address_mapsto_old, while a more elegant definition than
    address_mapsto, is not quite right.  For example, it doesn't uniquely determine v *)
@@ -692,7 +692,7 @@ Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
            EX bl: list memval, 
                !! (length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l))  &&
                 (allp (jam (adr_range_dec l (size_chunk ch))
-                                    (fun loc => yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd l)) bl Undef)) sh loc)
+                                    (fun loc => yesat NoneP (VAL (nth (Z.to_nat (snd loc - snd l)) bl Undef)) sh loc)
                                     noat)) && noghost.
 
 Lemma address_mapsto_align: forall ch v sh l,
@@ -729,7 +729,7 @@ rewrite Hlen.
 rewrite size_chunk_conv in H.
 omega.
 rewrite <- Hlen' in Hlen.
-rewrite nat_of_Z_eq in *.
+rewrite Nat2Z.id in *.
 destruct H1; destruct H2.
 unfold yesat_raw in *.
 repeat rewrite preds_fmap_NoneP in *.
@@ -955,7 +955,7 @@ pose proof (equal_f H2 (adr_add l i)).
 unfold f in H5.
 rewrite if_true in H5.
 rewrite H0 in H5.
-exists (nth (nat_of_Z (snd (adr_add l i) - snd l)) bl Undef).
+exists (nth (Z.to_nat (snd (adr_add l i) - snd l)) bl Undef).
 exists x.
 unfold yesat_raw.
 hnf in H0|-*.
@@ -1066,7 +1066,7 @@ Proof.
        exists rsh: readable_share sh,
          w @ b1 =
          YES sh rsh
-           (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
+           (VAL (nth (Z.to_nat (snd b1 - snd l)) b0 Undef))
            (SomeP (ConstType unit) (fun _ => tt))
       else identity (w @ b1))).
   {
@@ -1085,7 +1085,7 @@ Proof.
        exists rsh: readable_share sh,
          w @ b1 =
          YES sh rsh
-           (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
+           (VAL (nth (Z.to_nat (snd b1 - snd l)) b0 Undef))
            (SomeP (ConstType unit) (fun _ => tt)))).
   {
     intros.
@@ -1137,8 +1137,7 @@ Proof.
         destruct b1; destruct H2 as [_ ?].
         exists p; clear - H2 H3.
         unfold snd in *.
-        replace (nat_of_Z (z - ofs)) with (S (nat_of_Z (z - (ofs + 1)))); [exact H3 |].
-        unfold nat_of_Z.
+        replace (Z.to_nat (z - ofs)) with (S (Z.to_nat (z - (ofs + 1)))); [exact H3 |].
         replace (z - ofs) with (Z.succ (z - (ofs + 1))) by omega.
         rewrite Z2Nat.inj_succ; auto.
         omega.
@@ -1158,7 +1157,7 @@ intro l'.
 specialize ( H l').
 unfold jam in *.
 hnf in H|-*. if_tac; auto.
-exists (nth (nat_of_Z (snd l' - snd l)) bl Undef).
+exists (nth (Z.to_nat (snd l' - snd l)) bl Undef).
 destruct H as [p ?].
 exists p.
 auto.
@@ -1487,7 +1486,7 @@ Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
     allp (jam (adr_range_dec l (size_chunk ch))
       (fun l' phi => exists sh, exists rsh, phi @ l' 
-        = YES sh rsh (VAL (nth (nat_of_Z (snd l' - snd l)) bl Undef)) NoneP)
+        = YES sh rsh (VAL (nth (Z.to_nat (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
  Next Obligation.
     intros; intro; intros.
@@ -1502,7 +1501,7 @@ Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
     allp (jam (adr_range_dec l (size_chunk ch))
       (fun l' phi => exists sh, exists rsh, phi @ l' 
-        = YES sh rsh (VAL (nth (nat_of_Z (snd l' - snd l)) bl Undef)) NoneP)
+        = YES sh rsh (VAL (nth (Z.to_nat (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
  Next Obligation.
     intros; intro; intros.

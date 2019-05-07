@@ -367,7 +367,7 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
   | Vptr b z => 
     !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
-    mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
+    mapsto_memory_block.address_mapsto_zeros sh (Z.to_nat n) (b, Ptrofs.unsigned z)
   | _ => FF
   end.
 
@@ -455,7 +455,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Ptrofs.unsigned ofs)
+ | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (Z.to_nat n) b (Ptrofs.unsigned ofs)
  | _ => FF
  end.
 

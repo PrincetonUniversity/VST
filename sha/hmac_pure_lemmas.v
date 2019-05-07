@@ -97,7 +97,7 @@ Lemma IntModulus32: Int.modulus = 2^32. reflexivity. Qed.
 
 Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) ->
                           Int.size (Int.repr a) <= Int.size (Int.repr b).
-Proof. apply Int.Zsize_monotone. Qed.
+Proof. apply Zbits.Zsize_monotone. Qed.
 
 Lemma list_nil {A} l (L:@length A l = 0%nat): l = nil.
 Proof. destruct l; simpl in *; eauto. inv L. Qed.
@@ -319,12 +319,12 @@ Theorem xor_inrange : forall (x y : Z),
                         -> y = y mod Byte.modulus
                         -> Z.lxor x y = (Z.lxor x y) mod Byte.modulus.
 Proof.
-  intros. symmetry. apply Byte.equal_same_bits. intros.
+  intros. symmetry. apply Zbits.equal_same_bits. intros.
   assert (ZZ: Z.lxor x y mod Byte.modulus =
         Z.lxor x y mod two_p (Z.of_nat Byte.wordsize)).
         rewrite Byte.modulus_power. reflexivity.
   rewrite ZZ; clear ZZ.
-  rewrite Byte.Ztestbit_mod_two_p; try omega.
+  rewrite Zbits.Ztestbit_mod_two_p; try omega.
   destruct (zlt i (Z.of_nat Byte.wordsize)); trivial.
   symmetry. rewrite Z.lxor_spec.
   assert (BB: Byte.modulus = two_p (Z.of_nat Byte.wordsize)).
@@ -332,8 +332,8 @@ Proof.
   rewrite BB in H, H0.
 
   rewrite H; clear H; rewrite H0; clear H0 BB.
-   rewrite Byte.Ztestbit_mod_two_p; try omega.
-   rewrite Byte.Ztestbit_mod_two_p; try omega.
+   rewrite Zbits.Ztestbit_mod_two_p; try omega.
+   rewrite Zbits.Ztestbit_mod_two_p; try omega.
    destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
 Qed.
 

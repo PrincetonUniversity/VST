@@ -54,11 +54,11 @@ Qed.
 
 Lemma nat_of_Z_minus_le : forall z a b,
   b <= a ->
-  (nat_of_Z (z - a) <= nat_of_Z (z - b))%nat.
+  (Z.to_nat (z - a) <= Z.to_nat (z - b))%nat.
 Proof.
   intros.
   apply inj_le_rev.
-  do 2 rewrite nat_of_Z_max.
+  do 2 rewrite Z_to_nat_max.
   rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-a)).
   rewrite Coqlib.Zmax_spec.

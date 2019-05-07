@@ -13,7 +13,7 @@ Fixpoint fib_of_nat (n: nat): Z :=
     end
   end.
 
-Definition fib_of_Z (n: Z): Z := fib_of_nat (nat_of_Z n).
+Definition fib_of_Z (n: Z): Z := fib_of_nat (Z.to_nat n).
 
 Theorem fib_0: fib_of_Z 0 = 0.
 Proof. reflexivity. Qed.
@@ -25,7 +25,7 @@ Theorem fib_rec: forall n, n >= 0 -> fib_of_Z (n + 2) = fib_of_Z n + fib_of_Z (n
 Proof.
   intros.
   unfold fib_of_Z.
-  rewrite !nat_of_Z_plus, !(plus_comm (nat_of_Z n)) by omega.
+  rewrite !Z2Nat.inj_add, !(plus_comm (Z.to_nat n)) by omega.
   reflexivity.
 Qed.
 
@@ -33,7 +33,7 @@ Lemma fib_nonneg: forall n, 0 <= fib_of_Z n.
 Proof.
   intros.
   unfold fib_of_Z.
-  forget (nat_of_Z n) as m; clear.
+  forget (Z.to_nat n) as m; clear.
   assert (0 <= fib_of_nat m /\ 0 <= fib_of_nat (S m)); [| tauto].
   induction m; [simpl; try omega |].
   

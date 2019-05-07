@@ -22,7 +22,9 @@ Context {cs: compspecs}.
 Definition dec_type := sigT (fun P: Z -> Prop => forall z: Z, {P z} + {~ P z}).
 
 Definition dec_by_value (ch: memory_chunk): dec_type :=
-  existT (fun P: Z -> Prop => forall z: Z, {P z} + {~ P z}) (fun z => (Memdata.align_chunk ch | z)) (fun z => Zdivide_dec (Memdata.align_chunk ch) z (Memdata.align_chunk_pos _)).
+  existT (fun P: Z -> Prop => forall z: Z, {P z} + {~ P z}) 
+   (fun z => (Memdata.align_chunk ch | z))
+   (fun z => Zdivide_dec (Memdata.align_chunk ch) z (*Memdata.align_chunk_pos _*)).
 
 Definition dec_False: dec_type :=
   existT (fun P: Z -> Prop => forall z: Z, {P z} + {~ P z}) (fun z => False) (fun z => right (fun H => H)).
@@ -100,7 +102,7 @@ clear IHn Hrank;
 match goal with |- context [align_compatible_rec _ ?t _] =>
 evar (ch: memory_chunk);
 assert (access_mode t = By_value ch) by (subst ch; reflexivity);
-(destruct (Zdivide_dec (Memdata.align_chunk ch) z (Memdata.align_chunk_pos _));
+(destruct (Zdivide_dec (Memdata.align_chunk ch) z);
    [left; econstructor; try reflexivity; eassumption
    |right;  contradict n; inv n; inv H0; auto])
 end];

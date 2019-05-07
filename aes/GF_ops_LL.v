@@ -79,7 +79,7 @@ Lemma pow3_range: forall e,
 Admitted.
 
 Lemma pow3_inj: forall (i j : Z),
-  pow3 i = pow3 j -> Int.eqmod 255 i j.
+  pow3 i = pow3 j -> Zbits.eqmod 255 i j.
 Admitted.
 
 Lemma invert_pow3: forall i,

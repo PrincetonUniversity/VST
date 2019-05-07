@@ -87,11 +87,14 @@ Proof.
   { Opaque B.
     go_lowerx; eapply derives_trans with (Q := _ * _);
       [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].
-    rewrite Znth_map by (rewrite (Zlength_upto), Z2Nat.id; omega).
-    rewrite Znth_upto by (rewrite ?Z2Nat.id; omega).
+
+    rewrite Znth_map by (rewrite (Zlength_upto); assumption).
+    rewrite Znth_upto by assumption.
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
     Exists Ews v; entailer!. }
+  change (upto 3) with (upto (Z.to_nat N)).
+  change (upto 5) with (upto (Z.to_nat B)).
   forward_call (comms, locks, bufs, b, b0, lasts,
     sh1, lsh, shs, g, g0, g1, g2, h, sh0, gv).
   { repeat (split; auto). }

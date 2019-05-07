@@ -489,7 +489,7 @@ intros.
 apply Int.eqm_samerepr.
 apply Zmod_divide_minus in H; [ | reflexivity].
 unfold Int.eqm.
-unfold Int.eqmod.
+unfold Zbits.eqmod.
 set (m := Int.modulus) in *.
 destruct H as [z ?].
 assert (x = y mod m + z * m) by omega.
