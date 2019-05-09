@@ -534,24 +534,14 @@ forward_loop (EX i : Z,
            list_repeat (Z.to_nat (n - (Zlength ld + j))) Vundef) dest;
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
-  { repeat step!. list_solve2.
-    (* list_form. apply_list_ext. Znth_solve. *)
-  }
+  (* before loop2 *)
+  repeat step!. list_solve2.
+  (* loop2 body and return *)
   {
   repeat step!.
-  - (* PROP *)
-    (* This should be supported by range_form later. In particular, range_form does not interpret
-      In Byte.zero (ld ++ ls) now. This can be rewritten as exists i, (Znth i (ld ++ ls) = Byte.zero).
-    *)
-    rewrite in_app in H14. tauto.
-  - list_solve2. (* list_form. apply_list_ext. Znth_solve. *)
+  - list_prop_solve.
+  - list_solve2.
   - fold_Vbyte. list_solve2.
-    (*
-    Znth_solve2. list_form.
-    apply_list_ext. Znth_solve.
-    apply data_subsume_refl'.
-    eq_solve.
-    *)
   }
 Qed.
 

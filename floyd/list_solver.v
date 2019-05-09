@@ -741,6 +741,25 @@ Lemma eq_range_bin_reverse_minus_offset : forall {A : Type} {d : Inhabitant A} (
   range_bin (lo - offset) (hi - offset) offset l1 l2 eq.
 Proof. unfold range_bin, rangei. intros. fapply (H (i + offset) ltac:(omega)). eq_solve. Qed.
 
+Lemma In_Znth_iff : forall {A : Type} {d : Inhabitant A} (l : list A) (x : A),
+  In x l <-> exists i, 0 <= i < Zlength l /\ Znth i l = x.
+Proof.
+  intros. split; intro.
+  - induction l; inversion H.
+    + exists 0. list_solve2'; Zlength_solve.
+    + specialize (IHl H0). destruct IHl as [i []].
+      exists (i + 1). list_solve2'; try Zlength_solve. autorewrite with Zlength.
+      fassumption.
+  - destruct H as [i []]. subst x. apply Znth_In. auto.
+Qed.
+
+Ltac rewrite_In_Znth_iff :=
+  repeat match goal with
+  | H : In ?x ?l |- _ =>
+    rewrite In_Znth_iff in H;
+    destruct H as [? []]
+  end.
+
 Ltac range_form :=
   apply_in_hyps not_In_range_uni;
   apply_in_hyps eq_range_bin_no_offset;
@@ -749,7 +768,8 @@ Ltac range_form :=
   apply_in_hyps eq_range_bin_minus_offset;
   apply_in_hyps eq_range_bin_reverse;
   apply_in_hyps eq_range_bin_reverse_left_offset;
-  apply_in_hyps eq_range_bin_reverse_minus_offset.
+  apply_in_hyps eq_range_bin_reverse_minus_offset;
+  rewrite_In_Znth_iff.
 
 (**************** range tactics **************************)
 Ltac range_rewrite :=
@@ -791,6 +811,46 @@ Ltac pose_new_res i lo hi H res :=
     assert res by apply (H i ltac:(omega))
   | try omega
   ].
+
+Definition range_saturate_shift {A : Type} (l : list A) (s : Z) :=
+  True.
+
+Lemma range_saturate_shift_pose : forall {A : Type} (l : list A) (s : Z),
+  range_saturate_shift l s.
+Proof. intros. apply I. Qed.
+
+Ltac range_saturate_check_non_zero_loop_core1 :=
+  repeat lazymatch goal with
+  | H : range_saturate_shift ?l1 ?s1,
+    H1 : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
+    lazymatch goal with
+    | H2 : range_saturate_shift l2 ?s2 |- _ =>
+      tryif assert (s1 + s = s2) by Zlength_solve
+      then idtac
+      else fail 1
+    | |- _ =>
+      pose (range_saturate_shift_pose l2 (s + s1))
+    end;
+    clear H1
+  | H : range_saturate_shift ?l2 ?s2,
+    H1 : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
+    pose (range_saturate_shift_pose l1 (s2 - s));
+    clear H1
+  end.
+
+Ltac range_saturate_check_non_zero_loop_core :=
+  repeat lazymatch goal with
+  | H : range_bin ?lo ?hi ?s ?l1 ?l2 ?P |- _ =>
+    pose (range_saturate_shift_pose l1 0);
+    tryif range_saturate_check_non_zero_loop_core1
+    then idtac
+    else fail 1
+  end.
+
+Ltac range_saturate_check_non_zero_loop :=
+  tryif (try (range_saturate_check_non_zero_loop_core; fail 1))
+  then fail "The goal has non-zero loop"
+  else idtac.
 
 Ltac range_saturate :=
   repeat match goal with
@@ -857,7 +917,8 @@ Ltac range_saturate_full :=
   end.
 
 Ltac list_prop_solve :=
-  list_form; range_form; range_rewrite; Znth_solve2; range_saturate_full; Znth_solve2.
+  list_form; range_form; range_rewrite; Znth_solve2;
+  range_saturate_check_non_zero_loop; range_saturate_full; Znth_solve2.
 
 (***************** Zlength_solve using a database *************)
 Definition Zlength_tag := True.
