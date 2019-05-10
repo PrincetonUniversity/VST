@@ -1089,9 +1089,22 @@ eapply semax_pre; [ | apply H].
 go_lowerx; normalize.
 Qed.
 
+Lemma prog_defs_Clight_mkprogram:
+ forall c g p m w,
+ prog_defs (Clightdefs.mkprogram c g p m w) = g.
+Proof.
+intros. unfold Clightdefs.mkprogram.
+destruct ( build_composite_env' c w).
+reflexivity.
+Qed.
+
 Ltac expand_main_pre :=
- (rewrite main_pre_start || rewrite main_pre_ext_start);
- unfold prog_vars, prog_vars'; simpl globvars2pred;
+ match goal with |- semax _ (main_pre ?prog _ _ * _) _ _ =>
+    (rewrite main_pre_start || rewrite main_pre_ext_start);
+    unfold prog_vars, prog
+ end;
+ rewrite prog_defs_Clight_mkprogram;
+ simpl globvars2pred;
  repeat  process_idstar;
  apply eliminate_globvars2pred_nil;
  rewrite ?offset_val_unsigned_repr;

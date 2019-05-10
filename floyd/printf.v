@@ -302,6 +302,10 @@ Fixpoint make_printf_specs' (defs: list (ident * globdef (fundef function) type)
  end.
 
 Ltac make_printf_specs prog :=
- let s := constr:(make_printf_specs' (prog_defs prog)) in
+ let d := constr:(prog_defs prog) in
+  let d := eval unfold prog in d in
+match d with prog_defs (Clightdefs.mkprogram _ ?d' _ _ _) =>
+ let s := constr:(make_printf_specs' d') in
  let s := eval simpl in s in
- exact s.
+ exact s
+ end.

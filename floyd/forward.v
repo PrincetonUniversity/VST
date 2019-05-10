@@ -3497,7 +3497,7 @@ Qed.
 Ltac make_func_ptr id :=
   eapply (make_func_ptr id);
   [ (reflexivity || fail 99  "Local variable " id " is shadowing the global variable" id)
-  | (reflexivity || fail 99 "No specification of function " id " in Delta")
+  | (reflexivity || fail 99 "No specification of function " id " in Delta.  If the current function is a leaf function, you may need to invoke the [function_pointers] tactic before [start_function].  If that doesn't work, make sure you have not done clear_Delta_specs or [clearbody Delta_specs].")
   | (reflexivity || fail 99 "No global variable " id " in Delta, i.e., in your extern declarations")
   | split; reflexivity | ].
 
@@ -3566,50 +3566,12 @@ Ltac check_parameter_vals Delta al :=
  | nil => idtac
  end.
 
-Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
- match c with
- | Sskip => x
- | Sassign e1 e2 => f e1 (f e2 x)
- | Sset _ e => f e x
- | Scall _ (Evar _ _) el => fold_right f x el
- | Scall _ e el => f e (fold_right f x el)
- | Sbuiltin _ _ _ el => fold_right f x el
- | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
- | Sifthenelse e c1 c2 => f e (find_expressions f c1 (find_expressions f c2 x))
- | Sloop c1 c2 => find_expressions f c1 (find_expressions f c2 x)
- | Sbreak => x
- | Scontinue => x
- | Sreturn (Some e) => f e x
- | Sreturn None => x
- | Sswitch e cl => f e (find_expressions_sl f cl x)
- | Slabel _ c => find_expressions f c x
- | Sgoto _ => x
- end
-with find_expressions_sl {A: Type} (f: expr -> A -> A) (c: labeled_statements) (x: A) : A :=
- match c with
- | LSnil => x
- | LScons _ c1 c2 => find_expressions f c1 (find_expressions_sl f c2 x)
- end.
-
-Fixpoint find_vars {A: Type} (f: ident -> A -> A) (e: expr) (x: A) : A :=
- match e with
- | Evar i _ => f i x
- | Ederef e _ => find_vars f e x
- | Eaddrof e _ => find_vars f e x
- | Eunop _ e _ => find_vars f e x
- | Ebinop _ e1 e2 _ => find_vars f e1 (find_vars f e2 x)
- | Ecast e _ => find_vars f e x
- | Efield e _ _ => find_vars f e x
- | _ => x
- end.
-
 Fixpoint find_lvars (locals: list localdef)  (m: PTree.t unit) : PTree.t unit :=
  match locals with
  | lvar i _ _ :: locals'=> find_lvars locals' (PTree.set i tt m)
  | _ :: locals' => find_lvars locals' m
  | nil => m
  end.
-
 
 Definition another_gvar (i: ident) (ml: PTree.t unit * list ident) : (PTree.t unit * list ident) :=
  match ml with (t,il) =>
@@ -3705,6 +3667,7 @@ match x with
 end.
 
 Ltac start_function :=
+ leaf_function;
  match goal with |- semax_body _ _ ?F ?spec =>
    let D := constr:(type_of_function F) in 
    let S := constr:(type_of_funspec (snd spec)) in
@@ -3779,6 +3742,9 @@ Function spec: " S);
  lazymatch goal with 
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
  | _ => idtac
+ end;
+ try match goal with DS := @abbreviate (PTree.t funspec) PTree.Leaf |- _ =>
+     clearbody DS
  end;
  start_function_hint.
 
