@@ -2,6 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.local2ptree_denote.
+Import LiftNotation.
 
 Local Open Scope logic.
 
@@ -52,8 +53,12 @@ Fixpoint msubst_eval_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (
 
   | Ederef a ty => msubst_eval_expr Delta T1 T2 GV a
   | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue Delta T1 T2 GV a)
-  | Esizeof t _ => Some (Vptrofs (Ptrofs.repr (sizeof t)))
-  | Ealignof t _ => Some (Vptrofs (Ptrofs.repr (alignof t)))
+  | Esizeof t _ => Some (if complete_type cenv_cs t
+                                    then Vptrofs (Ptrofs.repr (sizeof t))
+                                    else Vundef)
+  | Ealignof t _ => Some (if complete_type cenv_cs t
+                                     then Vptrofs (Ptrofs.repr (alignof t))
+                                     else Vundef)
   end
   with msubst_eval_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t (type * val)) (GV: option globals) (e: Clight.expr) : option val :=
   match e with
@@ -287,26 +292,42 @@ Proof.
 Qed.
 
 Ltac solve_msubst_eval_lvalue :=
-  simpl;
+  (simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-  reflexivity.
+  reflexivity) ||
+  match goal with 
+  |- msubst_eval_lvalue _ _ _ _ ?e = _ =>
+   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+  end.
 
 Ltac solve_msubst_eval_expr :=
-  simpl;
+  (simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-  reflexivity.
+  reflexivity) ||
+  match goal with 
+  |- msubst_eval_expr _ _ _ _ ?e = _ =>
+   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+  end.
 
 Ltac solve_msubst_eval_LR :=
-  unfold msubst_eval_LR;
+  (unfold msubst_eval_LR;
   simpl;
   cbv beta iota zeta delta [force_val2 force_val1];
   rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
-  reflexivity.
+  reflexivity) ||
+  match goal with 
+  |- msubst_eval_LR _ _ _ _ ?e _ = _ =>
+   fail "Cannot symbolically evaluate expression" e "given the information in your LOCAL clause; did you forget a 'temp' declaration?"
+  end.
 
 Ltac solve_msubst_eval_lvar :=
-  unfold msubst_eval_lvar; reflexivity.
+  (unfold msubst_eval_lvar; reflexivity) ||
+  match goal with 
+  |- msubst_eval_lvar _ _ ?id _ = _ =>
+   fail "Cannot symbolically evaluate lvar" id "given the information in your LOCAL clause; did you forget an 'lvar' declaration?"
+  end.
 
 (**********************************************************)
 (* Continuation *)

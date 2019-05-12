@@ -24,7 +24,6 @@ Require Import VST.veric.semax_switch.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.SeparationLogic.
-Require Import VST.veric.expr_rel.
 
 Require Import VST.veric.ghost_PCM.
 
@@ -132,7 +131,9 @@ Definition semax_func := @semax_func.
 
 Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
-
+(*
+Definition semax_cssub := @semax_cssub.
+  *)
 End VericDef.
 
 Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := VericDef.
@@ -150,18 +151,74 @@ Definition semax_func_cons := @semax_func_cons.
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
+Definition semax_extensionality_Delta := @semax_lemmas.semax_extensionality_Delta.
+
+Definition semax_func_mono := semax_func_mono.
+Definition semax_func_app := semax_func_app.
+Definition semax_func_subsumption := semax_func_subsumption.
+Definition semax_func_join  := semax_func_join.
+Definition semax_func_firstn := semax_func_firstn.
+Definition semax_func_skipn := semax_func_skipn.
+Definition semax_body_subsumption:= semax_body_subsumption.
+Definition semax_body_cenv_sub:= @semax_body_cenv_sub.
+
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
 Definition semax_switch := @semax_switch.
 Definition semax_Slabel := @semax_Slabel.
-Definition semax_call := @semax_call_si.
+
+(*See below
+Definition semax_call := @semax_call_si.*)
 (* Definition semax_call_ext := @semax_call_ext. *)
+
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 
+Lemma semax_call {CS : compspecs} {Espec : OracleKind}:
+  forall (Delta : tycontext) (A : rmaps.TypeTree)
+         (P Q : forall ts : list Type, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)
+         (NEP : @super_non_expansive A P) (NEQ : @super_non_expansive A Q) (ts : list Type)
+         (x : functors.MixVariantFunctor._functor
+                ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
+                    match T return functors.MixVariantFunctor.functor with
+                    | rmaps.ConstType A0 => functors.MixVariantFunctorGenerator.fconst A0
+                    | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
+                    | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts unit)
+                    | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
+                    | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
+                    | rmaps.PiType I0 f => @functors.MixVariantFunctorGenerator.fpi I0 (fun i : I0 => dtfr (f i))
+                    | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
+                    end) A) mpred) (F : forall _ : environ, mpred) (ret : option ident) (argsig : list (prod ident type)) 
+         (retsig : type) (cc : calling_convention) (a : expr) (bl : list expr)
+         (_ : @eq classify_fun_cases (classify_fun (typeof a)) (fun_case_f (type_of_params argsig) retsig cc))
+         (_ : forall _ : @eq type retsig Tvoid, @eq (option ident) ret (@None ident)) (_ : tc_fn_return Delta ret retsig),
+       @semax CS Espec Delta
+         (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric)
+            (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@tc_expr CS Delta a)
+               (@tc_exprlist CS Delta (@snd (list ident) (list type) (@split ident type argsig)) bl))
+            (@andp (lifted (LiftEnviron mpred)) (@LiftNatDed' mpred Nveric)
+               (@liftx (Tarrow val (LiftEnviron mpred))
+                  (func_ptr (mk_funspec (@pair (list (prod ident type)) type argsig retsig) cc A P Q NEP NEQ)) (@eval_expr CS a))
+               (@later (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@LiftIndir environ mpred Nveric Iveric)
+                  (@sepcon (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@LiftSepLog' mpred Nveric Sveric) F
+                     (@liftx (Tarrow environ (LiftEnviron mpred)) (P ts x)
+                        (make_args' (@pair (list (prod ident type)) type argsig retsig)
+                           (@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl))))))) (Scall ret a bl)
+         (normal_ret_assert
+            (@exp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) val
+               (fun old : val =>
+                @sepcon (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@LiftSepLog' mpred Nveric Sveric)
+                  (@substopt mpred ret (@liftx (LiftEnviron val) old) F) (maybe_retval (Q ts x) retsig ret)))).
+Proof.
+  intros. specialize (@semax_call_si CS Espec Delta A P Q NEP NEQ ts x F ret argsig retsig cc a bl H H0 H1); intros X.
+  eapply semax_pre; [| apply X].
+  intros. simpl. intros w [TC [W1 W2]]; split; trivial.
+  eapply predicates_hered.now_later. rewrite <- tc_expr_eq; apply W1.
+Qed. 
+  
 Lemma semax_store:forall (CS : compspecs) (Espec : OracleKind) 
          (Delta : tycontext) (e1 e2 : expr) (sh : share)
          (P : environ -> pred rmap),

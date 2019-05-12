@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Import ListNotations.
+Import LiftNotation.
 Local Open Scope logic.
 
 Require Import sha.vst_lemmas.

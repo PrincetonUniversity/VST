@@ -863,6 +863,39 @@ Definition cstringn {CS : compspecs} sh (s: list byte) n p :=
   data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero]) ++
     list_repeat (Z.to_nat (n - (Zlength s + 1))) Vundef) p.
 
+Fixpoint no_zero_bytes (s: list byte) : bool :=
+ match s with
+ | nil => true
+ | b :: s' => andb (negb (Byte.eq b Byte.zero)) (no_zero_bytes s')
+ end.
+
+Lemma data_at_to_cstring:
+ forall {CS: compspecs} sh n s p,
+  no_zero_bytes s = true ->
+ data_at sh (tarray tschar n) (map Vbyte (s ++ [Byte.zero])) p |--
+ cstring sh s p.
+Proof.
+intros.
+saturate_local. clear H0 H2.
+rewrite Zlength_map, Zlength_app, Zlength_cons, Zlength_nil in H1.
+simpl in H1.
+destruct (Z.max_spec 0 n) as [[? ?]|[? ?]].
+2:{ rewrite H2 in H1. pose proof (Zlength_nonneg s). omega. }
+rewrite H2 in *.
+clear H0 H2.
+subst n.
+unfold cstring.
+apply andp_right; auto.
+apply prop_right.
+intro.
+induction s; simpl in *; auto.
+rewrite andb_true_iff in H.
+destruct H.
+destruct H0; subst.
+rewrite Byte.eq_true in H. inv H.
+auto.
+Qed.
+
 Lemma cstringn_equiv : forall {CS : compspecs} sh s p, cstring sh s p = cstringn sh s (Zlength s + 1) p.
 Proof.
   intros; unfold cstring, cstringn.

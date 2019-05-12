@@ -200,7 +200,7 @@ Lemma array_pred_len_0: forall {A}{d: Inhabitant A} lo hi P p,
 Proof.
   intros.
   unfold array_pred.
-  replace (Z.to_nat (hi - lo)) with 0%nat by (symmetry; apply nat_of_Z_neg; omega).
+  replace (Z.to_nat (hi - lo)) with 0%nat by (symmetry; apply Z_to_nat_neg; omega).
   simpl.
   rewrite prop_true_andp by (unfold Zlength; simpl; omega).
   reflexivity.

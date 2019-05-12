@@ -155,7 +155,7 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 name buf _buf.
-
+function_pointers.
 start_function.
 set (ipm := gv _intpair_message).
 fold cc_default noattr.

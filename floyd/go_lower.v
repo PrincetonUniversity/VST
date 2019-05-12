@@ -5,6 +5,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.local2ptree_typecheck.
 Require Import VST.floyd.semax_tactics.
+Import LiftNotation.
 
 Local Open Scope logic.
 

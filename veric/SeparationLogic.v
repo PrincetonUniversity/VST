@@ -24,7 +24,6 @@ Require Export VST.veric.tycontext.
 Require Export VST.veric.change_compspecs.
 Require Export VST.veric.mpred.
 Require Export VST.veric.expr.
-Require Export VST.veric.expr_rel.
 Require Export VST.veric.Clight_lemmas.
 Require Export VST.veric.composite_compute.
 Require Export VST.veric.align_mem.
@@ -38,6 +37,7 @@ Require Import VST.veric.valid_pointer.
 Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
+Import LiftNotation.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -367,7 +367,7 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
   | Vptr b z => 
     !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
-    mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
+    mapsto_memory_block.address_mapsto_zeros sh (Z.to_nat n) (b, Ptrofs.unsigned z)
   | _ => FF
   end.
 
@@ -455,7 +455,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Ptrofs.unsigned ofs)
+ | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (Z.to_nat n) b (Ptrofs.unsigned ofs)
  | _ => FF
  end.
 
@@ -1021,116 +1021,99 @@ simpl.
 eapply expr_lemmas4.typecheck_expr_sound; eauto.
 Qed.
 
+(***************LENB: ADDED THESE LEMMAS IN INTERFACE************************************)
+
+(*
+Lemma denote_tc_assert_eq {CS}: @denote_tc_assert CS = expr2.denote_tc_assert.
+Proof. reflexivity. Qed.
+*)
+Lemma tc_expr_eq CS Delta e: @tc_expr CS Delta e = @extend_tc.tc_expr CS Delta e.
+Proof. reflexivity. Qed.
+
+Lemma denote_tc_assert_andp: (* from typecheck_lemmas *)
+  forall {CS: compspecs} (a b : tc_assert),
+  denote_tc_assert (tc_andp a b) = andp (denote_tc_assert a) (denote_tc_assert b).
+Proof.
+  intros.
+  extensionality rho.
+  simpl.
+  apply expr2.denote_tc_assert_andp.
+Qed.
+
+Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
+Proof. intros. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
+
+Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
+                                      match e with None => `!!(t=Tvoid)
+                                              | Some e' => @tc_expr CS Delta (Ecast e' t)
+                                      end.
+Proof. reflexivity. Qed.
+
+Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
+Proof.
+  destruct ret; simpl. 2: apply  predicates_hered.derives_refl.
+  apply (tc_expr_cspecs_sub CSUB Delta (Ecast e t) rho D). 
+Qed.
+
+Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_lvalue CS Delta e rho |-- @tc_lvalue CS' Delta e rho.
+Proof. intros; simpl. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
+
+Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
+  tc_environ Delta rho ->
+  @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
+Proof. intros. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
+
+Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
+  forall types e,
+  @tc_exprlist CS Delta types e rho |-- !! (@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho).
+Proof. intros. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
+
+Lemma denote_tc_assert_tc_bool_cs_invariant {CS CS'} b E:
+  @denote_tc_assert CS (tc_bool b E) = @denote_tc_assert CS' (tc_bool b E).
+Proof. unfold tc_bool. destruct b; reflexivity. Qed.
+
+Lemma tc_temp_id_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho e i:
+  tc_environ Delta rho -> @tc_temp_id i (typeof e) CS Delta e rho |-- @tc_temp_id i (typeof e) CS' Delta e rho.
+Proof.
+  intros.  unfold tc_temp_id, typecheck_temp_id; intros w W.
+  destruct ((temp_types Delta)! i); [| apply W].
+  rewrite denote_tc_assert_andp in W.
+  rewrite denote_tc_assert_andp; destruct W as [W1 W2];  split.
++ rewrite (@denote_tc_assert_tc_bool_cs_invariant CS' CS). exact W1. 
++ apply expr2.tc_bool_e in W1. eapply expr2.neutral_isCastResultType.
+  exact W1.
+Qed. 
+
+(*Proof exists in semax_call under name RA_eturn_castexpropt_cenv_sub -- repeat here for the exposed def of castexprof?*)
+Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+  @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
+Proof.
+  intros w W. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
+  specialize (expr_lemmas.typecheck_expr_sound_cenv_sub CSUB Delta rho D w (Ecast e t) W); clear W; intros H.
+  hnf. unfold cast_expropt. simpl; simpl in H. 
+  unfold force_val1, force_val, sem_cast, liftx, lift; simpl.
+  unfold force_val1, force_val, sem_cast, liftx, lift in H; simpl in H. rewrite H; trivial.
+Qed.
+
+Lemma RA_return_cast_expropt_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e t R rho,
+  tc_environ Delta rho ->
+  @tc_expropt CS Delta e t rho && RA_return R (@cast_expropt CS e t rho) (id rho)
+  |-- RA_return R (@cast_expropt CS' e t rho) (id rho).
+Proof.
+  intros. intros w [W1 W2].
+  rewrite (castexpropt_cenv_sub CSUB _ _ H e t w W1) in W2. apply W2.
+Qed.
+
+(********************************************* LENB: END OF ADDED LEMMAS********************)
+
 (* End misc lemmas *)
 
-(* BEGIN rel_expr stuff *)
-Lemma rel_expr_const_int: forall {CS: compspecs} i ty P rho,
-              P |-- rel_expr (Econst_int i ty) (Vint i) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_const_float: forall {CS: compspecs}  f ty P rho,
-              P |-- rel_expr (Econst_float f ty) (Vfloat f) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_const_single: forall {CS: compspecs}   f ty P rho,
-              P |-- rel_expr (Econst_single f ty) (Vsingle f) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_const_long: forall {CS: compspecs}  i ty P rho,
-             P |--  rel_expr (Econst_long i ty) (Vlong i) rho.
-Proof. intros. intros ? ?; constructor. Qed.
-
-Lemma rel_expr_tempvar: forall {CS: compspecs}  id ty v P rho,
-          Map.get (te_of rho) id = Some v ->
-          P |-- rel_expr (Etempvar id ty) v rho.
-Proof. intros. intros ? ?. constructor; auto. Qed.
-
-Lemma rel_expr_addrof: forall {CS: compspecs} a ty v P rho,
-               P |-- rel_lvalue a v rho ->
-               P |-- rel_expr (Eaddrof a ty) v rho.
-Proof. intros. intros ? ?. constructor; auto. apply H; auto. Qed.
-
-Lemma rel_expr_unop: forall {CS: compspecs}  P a1 v1 v ty op rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 (forall m, Cop.sem_unary_operation op v1 (typeof a1) m = Some v) ->
-                 P |-- rel_expr (Eunop op a1 ty) v rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
-
-Lemma rel_expr_binop: forall {CS: compspecs}  a1 a2 v1 v2 v ty op P rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 P |-- rel_expr  a2 v2 rho ->
-                 binop_stable cenv_cs op a1 a2 = true ->
-                 (forall m, Cop.sem_binary_operation cenv_cs op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
-                 P |-- rel_expr (Ebinop op a1 a2 ty) v rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
-
-Lemma rel_expr_cast: forall {CS: compspecs}  a1 v1 v ty P rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 (forall m, Cop.sem_cast v1 (typeof a1) ty m = Some v) ->
-                 P |-- rel_expr (Ecast a1 ty) v rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
-
-Lemma rel_expr_lvalue_By_value: forall {CS: compspecs} ch a sh v1 v2 P rho,
-           access_mode (typeof a) = By_value ch ->
-           P |-- rel_lvalue a v1 rho ->
-           P |-- mapsto sh (typeof a) v1 v2 * TT  ->
-           v2 <> Vundef ->
-           readable_share sh ->
-           P |-- rel_expr a v2 rho.
-Proof.
-intros. intros ? ?.
-econstructor; eauto.
-+ apply H0; auto.
-+ apply H1; auto.
-Qed.
-
-Lemma rel_expr_lvalue_By_reference: forall {CS: compspecs} a v1 P rho,
-           access_mode (typeof a) = By_reference ->
-           P |-- rel_lvalue a v1 rho ->
-           P |-- rel_expr a v1 rho.
-Proof.
-intros. intros ? ?.
-hnf.
-eapply rel_expr'_lvalue_By_reference; eauto.
-apply H0; auto.
- Qed.
-
-Lemma rel_lvalue_local: forall {CS: compspecs} id ty b P rho,
-                 P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
-                 P |-- rel_lvalue (Evar id ty) (Vptr  b Ptrofs.zero) rho.
-Proof.
-intros. intros ? ?. constructor.  specialize (H _ H0). apply H.
-Qed.
-
-Lemma rel_lvalue_global: forall {CS: compspecs} id ty b P rho,
-              P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->
-              P |-- rel_lvalue (Evar id ty) (Vptr b Ptrofs.zero) rho.
-Proof.
-intros. intros ? ?. specialize (H _ H0). destruct H. constructor 2; auto.
-Qed.
-
-Lemma rel_lvalue_deref: forall {CS: compspecs} a b z ty P rho,
-              P |-- rel_expr a (Vptr b z) rho->
-              P |-- rel_lvalue (Ederef a ty) (Vptr b z) rho.
-Proof. intros. intros ? ?. constructor. apply H. auto. Qed.
-
-Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta co P rho,
-               typeof a = Tstruct id att ->
-               cenv_cs ! id = Some co ->
-               field_offset cenv_cs i (co_members co) = Errors.OK delta ->
-               P |-- rel_lvalue a (Vptr b z) rho ->
-               P |-- rel_lvalue (Efield a i ty) (Vptr b (Ptrofs.add z (Ptrofs.repr delta))) rho.
-Proof.
-intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
-
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
-Global Opaque rel_expr.
-Global Opaque rel_lvalue.
-
-(* END rel_expr stuff *)
 
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"
@@ -1161,10 +1144,13 @@ Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
-
+(*
+Parameter semax_cssub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R,
+      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+*)
 Parameter semax_func:
     forall {Espec: OracleKind},
-    forall (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
+    forall (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t fundef type) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
 Parameter semax_external:
   forall {Hspec: OracleKind} (ids: list ident) (ef: external_function)
@@ -1194,7 +1180,7 @@ Definition semax_prog
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @Def.semax_func Espec V G C (prog_funct prog) G /\
+  @Def.semax_func Espec V G C  (Genv.globalenv prog) (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec' prog post
@@ -1207,7 +1193,7 @@ Definition semax_prog_ext
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
-  @Def.semax_func Espec V G C (prog_funct prog) G /\
+  @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
   | Some s => exists post, s = main_spec_ext' prog z post
@@ -1232,13 +1218,13 @@ Axiom semax_extract_exists:
   forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
   (forall x, @semax CS Espec Delta (P x) c R) ->
    @semax CS Espec Delta (EX x:A, P x) c R.
-
+  
 Axiom semax_func_nil:   forall {Espec: OracleKind},
-        forall V G C, @semax_func Espec V G C nil nil.
+        forall V G C ge, @semax_func Espec V G C ge nil nil.
 
 Axiom semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -1248,17 +1234,18 @@ Axiom semax_func_cons:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
+ (*NEW*)  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
-      semax_func V G fs G' ->
-      semax_func V G ((id, Internal f)::fs)
+      semax_func V G ge fs G' ->
+      semax_func V G ge ((id, Internal f)::fs)
            ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
 
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
-   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q NEP NEQ
+   forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
-          (G': funspecs) cc (ids: list ident),
+          (G': funspecs) cc (ids: list ident) b,
       ids = map fst argsig' -> (* redundant but useful for the client,
                to calculate ids by reflexivity *)
       argsig' = zip_with_tl ids argsig ->
@@ -1272,10 +1259,59 @@ Axiom semax_func_cons_ext:
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
             |-- !!tc_option_val retsig ret)) ->
+(*new*) Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
       @semax_external Espec ids ef A P Q ->
-      semax_func V G fs G' ->
-      semax_func V G ((id, External ef argsig retsig cc)::fs)
+      semax_func V G ge fs G' ->
+      semax_func V G ge ((id, External ef argsig retsig cc)::fs)
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+
+Axiom semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
+  (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
+  (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
+  V G fdecs G1 (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1.
+
+Axiom semax_func_app:
+  forall Espec ge cs V H funs1 funs2 G1 G2
+         (SF1: @semax_func Espec V H cs ge funs1 G1) (SF2: @semax_func Espec V H cs ge funs2 G2)
+         (L:length funs1 = length G1),
+    @semax_func Espec V H cs ge (funs1 ++ funs2) (G1++G2).
+  
+Axiom semax_func_subsumption:
+  forall Espec ge cs V V' F F'
+         (SUB: tycontext_sub (nofunc_tycontext V F) (nofunc_tycontext V F'))
+         (HV: forall id, sub_option (make_tycontext_g V F) ! id (make_tycontext_g V' F') ! id),
+  forall funs G (SF: @semax_func Espec V F cs ge funs G),  @semax_func Espec V' F' cs ge funs G.
+  
+Axiom semax_func_join:
+  forall {Espec cs ge V1 H1 V2 H2 V funs1 funs2 G1 G2 H}
+  (SF1: @semax_func Espec V1 H1 cs ge funs1 G1) (SF2: @semax_func Espec V2 H2 cs ge funs2 G2)
+
+  (K1: forall i, sub_option ((make_tycontext_g V1 H1) ! i) ((make_tycontext_g V1 H) ! i))
+  (K2: forall i, subsumespec ((make_tycontext_s H1) ! i) ((make_tycontext_s H) ! i))
+  (K3: forall i, sub_option ((make_tycontext_g V1 H) ! i) ((make_tycontext_g V H) ! i))
+
+  (N1: forall i, sub_option ((make_tycontext_g V2 H2) ! i) ((make_tycontext_g V2 H) ! i))
+  (N2: forall i, subsumespec ((make_tycontext_s H2) ! i) ((make_tycontext_s H) ! i))
+  (N3: forall i, sub_option ((make_tycontext_g V2 H) ! i) ((make_tycontext_g V H) ! i)),
+  @semax_func Espec V H cs ge (funs1 ++ funs2) (G1++G2).
+  
+Axiom semax_func_firstn:
+  forall {Espec cs ge H V n funs G} (SF: @semax_func Espec V H cs ge funs G),
+    @semax_func Espec V H cs ge (firstn n funs) (firstn n G).
+  
+Axiom semax_func_skipn:
+  forall {Espec cs ge H V funs G} (HV:list_norepet (map fst funs))
+         (SF: @semax_func Espec V H cs ge funs G) n,
+    @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
+
+Axiom semax_body_subsumption: forall cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
+  @semax_body V' F' cs f spec.
+  
+Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
+  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
 
 (* THESE RULES FROM semax_loop *)
 
@@ -1333,7 +1369,7 @@ Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v
     compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 
 Axiom func_ptr_def :
-  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Ptrofs.zero) && seplog.func_at f (b, 0).*)(*
 Axiom semax_call :
   forall {CS: compspecs} {Espec: OracleKind},
     forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
@@ -1343,6 +1379,20 @@ Axiom semax_call :
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+         (Scall ret a bl)
+         (normal_ret_assert
+          (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).*)
+Axiom semax_call :
+  forall {CS: compspecs} {Espec: OracleKind},
+    forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+           Cop.classify_fun (typeof a) =
+           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           (retsig = Tvoid -> ret = None) ->
+          tc_fn_return Delta ret retsig ->
+  @semax CS Espec Delta
+          ((((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
@@ -1489,6 +1539,12 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
+Axiom semax_extensionality_Delta:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta Delta' P c R,
+       tycontext_sub Delta Delta' ->
+       @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
+
 End MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Module Type PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
@@ -1517,11 +1573,12 @@ Axiom semax_fun_id:
                   c Q ->
     @semax CS Espec Delta P c Q.
 
+(*MOVED TO MINIMUM
 Axiom semax_extensionality_Delta:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
-     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.
+     @semax CS Espec Delta P c R -> @semax CS Espec Delta' P c R.*)
 
 Axiom semax_unfold_Ssequence: forall {CS: compspecs} {Espec: OracleKind} c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->

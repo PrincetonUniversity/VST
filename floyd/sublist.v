@@ -586,7 +586,7 @@ Qed.
 Lemma Znth_skipn: forall {A}{a: Inhabitant A}  i n xs,
   0 <= i ->
   0 <= n ->
-  Znth i (skipn (nat_of_Z n) xs) = Znth (i+n) xs.
+  Znth i (skipn (Z.to_nat n) xs) = Znth (i+n) xs.
 Proof.
   intros.
   unfold Znth.
@@ -657,7 +657,7 @@ intros.
 pose proof (Znth_skipn 0 i al).
 rewrite Z.add_0_l in H0.
 rewrite <- H0 by omega; clear H0.
-change (Znth 0 (skipn (nat_of_Z i) al) :: bl) with
+change (Znth 0 (skipn (Z.to_nat i) al) :: bl) with
    ([Znth 0 (skipn (Z.to_nat i) al)] ++ bl).
 f_equal.
 unfold Znth.

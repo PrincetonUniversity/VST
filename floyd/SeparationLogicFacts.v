@@ -9,6 +9,7 @@ Require Export VST.veric.juicy_extspec.
 Require Import VST.veric.NullExtension.
 
 Require Import VST.floyd.assert_lemmas.
+Import LiftNotation.
 
 Local Open Scope logic.
 
@@ -991,7 +992,7 @@ Axiom semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tyc
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          ((|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
@@ -1015,7 +1016,7 @@ Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
              Cop.fun_case_f (type_of_params argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
-          (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
@@ -1049,7 +1050,7 @@ Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
              Cop.fun_case_f (type_of_params argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
-          (|>((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
          `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
           |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
@@ -1069,7 +1070,8 @@ Proof.
   rewrite !andp_assoc.
   apply semax_extract_prop; intros [? [? ?]].
   eapply semax_pre_post'; [.. | apply semax_call_forward; auto].
-  + apply andp_left2.
+  + apply andp_left2. rewrite andp_assoc.
+    apply andp_derives; [apply derives_refl |].
     apply andp_derives; [apply derives_refl |].
     apply andp_derives; [apply derives_refl |].
     apply later_derives.
@@ -1102,7 +1104,7 @@ Import Def.
 Import Conseq.
 Import ConseqFacts.
 Import CallB.
-
+(*
 Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
@@ -1127,6 +1129,49 @@ Proof.
   rewrite andp_comm, imp_andp_adjoint.
   apply andp_left2.
   apply andp_left2.
+  rewrite <- imp_andp_adjoint, andp_comm.
+  apply later_left2.
+  rewrite <- corable_andp_sepcon1 by (intro; apply corable_prop).
+  rewrite sepcon_comm.
+  apply sepcon_derives; auto.
+  eapply derives_trans; [apply (odiaopt_D _ ret) |].
+    1: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+  rewrite <- oboxopt_odiaopt.
+    2: destruct ret; hnf in H1 |- *; [destruct ((temp_types Delta) ! i) |]; auto; congruence.
+  apply oboxopt_K.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite <- exp_sepcon1.
+  apply sepcon_derives; auto.
+  apply odiaopt_derives_EX_substopt.
+Qed.
+*)
+Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
+    forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+           Cop.classify_fun (typeof a) =
+           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           (retsig = Tvoid -> ret = None) ->
+          tc_fn_return Delta ret retsig ->
+  @semax CS Espec Delta
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+         (Scall ret a bl)
+         (normal_ret_assert
+            (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
+Proof.
+  intros.
+  eapply semax_pre; [| apply semax_call_backward].
+  apply (exp_right argsig), (exp_right retsig), (exp_right cc), (exp_right A), (exp_right P), (exp_right Q), (exp_right NEP), (exp_right NEQ), (exp_right ts), (exp_right x).
+  rewrite !andp_assoc.
+  apply andp_right; [apply prop_right; auto |].
+  apply andp_right; [solve_andp |].
+  apply andp_right; [solve_andp |]. 
+  rewrite andp_comm, imp_andp_adjoint.
+  apply andp_left2.
+  apply andp_left2.
+  rewrite <- imp_andp_adjoint, andp_comm.
+  apply andp_right. solve_andp. 
+  rewrite andp_comm, imp_andp_adjoint. apply andp_left2.
   rewrite <- imp_andp_adjoint, andp_comm.
   apply later_left2.
   rewrite <- corable_andp_sepcon1 by (intro; apply corable_prop).

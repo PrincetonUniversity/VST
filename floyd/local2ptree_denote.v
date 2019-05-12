@@ -1,6 +1,7 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 
+Import LiftNotation.
 Local Open Scope logic.
 
 Definition pTree_from_elements {A} (el: list (positive * A)) : PTree.t A :=

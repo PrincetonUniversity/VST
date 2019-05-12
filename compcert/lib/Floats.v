@@ -16,11 +16,10 @@
 
 (** Formalization of floating-point numbers, using the Flocq library. *)
 
-Require Import Coqlib.
-Require Import Integers.
+Require Import Coqlib Zbits Integers.
 (*From Flocq*)
 Require Import Binary Bits Core.
-Require Import Fappli_IEEE_extra.
+Require Import IEEE754_extra.
 Require Import Program.
 Require Archi.
 
@@ -94,6 +93,17 @@ Proof.
   destruct x as [[]|]; simpl; intros; discriminate.
 Qed.
 
+(** Relation between number of bits and base-2 logarithm *)
+
+Lemma digits2_log2:
+  forall p, Z.pos (Digits.digits2_pos p) = Z.succ (Z.log2 (Z.pos p)).
+Proof.
+  assert (E: forall p, Digits.digits2_pos p = Pos.size p).
+  { induction p; simpl; rewrite ?IHp; auto. }
+  intros p. rewrite E.
+  destruct p; simpl; rewrite ?Pos.add_1_r; reflexivity.
+Qed.
+
 Local Notation __ := (eq_refl Datatypes.Lt).
 
 Local Hint Extern 1 (Prec_gt_0 _) => exact (eq_refl Datatypes.Lt).
@@ -115,12 +125,9 @@ Lemma transform_quiet_nan_proof (p : positive) :
   nan_pl 53 (Pos.lor p (iter_nat xO 51 1%positive)) = true.
 Proof.
   unfold nan_pl. intros K.
-  simpl. rewrite Z.ltb_lt in *.
-  assert (H : forall x, Digits.digits2_pos x = Pos.size x).
-  { induction x; simpl; auto; rewrite IHx; zify; omega. }
-  rewrite H, Psize_log_inf, <- Zlog2_log_inf in *. clear H.
+  simpl. rewrite Z.ltb_lt, digits2_log2 in *.
   change (Z.pos (Pos.lor p 2251799813685248)) with (Z.lor (Z.pos p) 2251799813685248%Z).
-  rewrite Z.log2_lor by (zify; omega).
+  rewrite Z.log2_lor by xomega.
   now apply Z.max_case.
 Qed.
 
@@ -918,12 +925,9 @@ Lemma transform_quiet_nan_proof (p : positive) :
   nan_pl 24 (Pos.lor p (iter_nat xO 22 1%positive)) = true.
 Proof.
   unfold nan_pl. intros K.
-  simpl. rewrite Z.ltb_lt in *.
-  assert (H : forall x, Digits.digits2_pos x = Pos.size x).
-  { induction x; simpl; auto; rewrite IHx; zify; omega. }
-  rewrite H, Psize_log_inf, <- Zlog2_log_inf in *. clear H.
+  simpl. rewrite Z.ltb_lt, digits2_log2 in *.
   change (Z.pos (Pos.lor p 4194304)) with (Z.lor (Z.pos p) 4194304%Z).
-  rewrite Z.log2_lor by (zify; omega).
+  rewrite Z.log2_lor by xomega.
   now apply Z.max_case.
 Qed.
 
@@ -1213,7 +1217,7 @@ Proof.
   set (m := n mod 2^p + (2^p-1)) in *.
   assert (C: m / 2^p = if zeq (n mod 2^p) 0 then 0 else 1).
   { unfold m. destruct (zeq (n mod 2^p) 0).
-    rewrite e. apply Zdiv_small. omega.
+    rewrite e. apply Z.div_small. omega.
     eapply Zdiv_unique with (n mod 2^p - 1). ring. omega. }
   assert (D: Z.testbit m p = if zeq (n mod 2^p) 0 then false else true).
   { destruct (zeq (n mod 2^p) 0).
@@ -1221,7 +1225,7 @@ Proof.
     apply Z.testbit_true; auto. rewrite C; auto. }
   assert (E: forall i, p < i -> Z.testbit m i = false).
   { intros. apply Z.testbit_false. omega.
-    replace (m / 2^i) with 0. auto. symmetry. apply Zdiv_small.
+    replace (m / 2^i) with 0. auto. symmetry. apply Z.div_small.
     unfold m. split. omega. apply Z.lt_le_trans with (2 * 2^p). omega.
     change 2 with (2^1) at 1. rewrite <- (Zpower_plus radix2) by omega.
     apply Zpower_le. omega. }
@@ -1351,9 +1355,9 @@ Proof.
   rewrite Int64.testbit_repr by auto. f_equal. f_equal. unfold Int64.and.
   change (Int64.unsigned (Int64.repr 2047)) with 2047.
   change 2047 with (Z.ones 11). rewrite ! Z.land_ones by omega.
-  rewrite Int64.unsigned_repr. apply Int64.eqmod_mod_eq.
+  rewrite Int64.unsigned_repr. apply eqmod_mod_eq.
   apply Z.lt_gt. apply (Zpower_gt_0 radix2); omega.
-  apply Int64.eqmod_divides with (2^64). apply Int64.eqm_signed_unsigned.
+  apply eqmod_divides with (2^64). apply Int64.eqm_signed_unsigned.
   exists (2^(64-11)); auto.
   exploit (Z_mod_lt (Int64.unsigned n) (2^11)). compute; auto.
   assert (2^11 < Int64.max_unsigned) by (compute; auto). omega.

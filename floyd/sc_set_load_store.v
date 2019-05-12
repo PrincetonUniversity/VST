@@ -17,6 +17,7 @@ Require Import VST.floyd.nested_loadstore.
 Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.simpl_reptype.
+Import LiftNotation.
 
 Local Open Scope logic.
 

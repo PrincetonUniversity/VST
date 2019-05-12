@@ -511,6 +511,7 @@ Proof.
   rewrite semax_fold_unfold.
   apply allp_derives; intros gx.
   apply allp_derives; intros Delta'.
+  apply allp_derives; intros CS'.
   apply prop_imp_derives; intros [? _].
   apply imp_derives; auto.
   apply allp_derives; intros k.
@@ -547,6 +548,7 @@ intros.
 rewrite semax_fold_unfold.
 apply allp_derives; intro psi.
 apply allp_derives; intro Delta'.
+apply allp_derives; intro CS'.
 apply prop_imp_derives; intros [TS HGG].
 apply imp_derives; auto.
 apply allp_derives; intro k.
@@ -617,6 +619,7 @@ intros.
 repeat rewrite semax_fold_unfold.
 apply allp_derives; intro psi.
 apply allp_derives; intro Delta'.
+apply allp_derives; intro CS'.
 apply prop_imp_derives; intros [TS HGG].
 apply imp_derives; auto.
 apply allp_derives; intro k.

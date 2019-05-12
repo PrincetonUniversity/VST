@@ -21,10 +21,10 @@ Existing Instance Espec.
 
 (* This lemma ties all the function proofs into a single proof for the entire program. *)
 Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+  semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct, main_pre, main_post, prog_vars; simpl.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
+repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
@@ -42,7 +42,7 @@ semax_func_cons body_finish_read.
 semax_func_cons body_initialize_writer.
 eapply semax_func_cons; [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; simpl; auto; computable
-           | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | precondition_closed
+           | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | LookupID | LookupB | precondition_closed
            | apply body_start_write |].
 semax_func_cons body_finish_write.
 semax_func_cons body_reader.

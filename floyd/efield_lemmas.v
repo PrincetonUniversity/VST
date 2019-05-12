@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.fieldlist.
+Import LiftNotation.
 Local Open Scope logic.
 
 Inductive efield : Type :=
@@ -420,19 +421,19 @@ intros.
 apply Ptrofs.eqm_samerepr.
 unfold Ptrofs.eqm.
 rewrite (Ptrofs.modulus_eq32 H).
-change (Int.eqmod Int.modulus (Int.signed (Int.repr i)) i).
+change (Zbits.eqmod Int.modulus (Int.signed (Int.repr i)) i).
 rewrite Int.signed_repr_eq.
 if_tac.
-apply Int.eqmod_sym.
-apply Int.eqmod_mod.
+apply Zbits.eqmod_sym.
+apply Zbits.eqmod_mod.
 computable.
-apply Int.eqmod_sym.
-eapply Int.eqmod_trans.
-apply Int.eqmod_mod.
+apply Zbits.eqmod_sym.
+eapply Zbits.eqmod_trans.
+apply Zbits.eqmod_mod.
 computable.
 rewrite <- (Z.sub_0_r (i mod Int.modulus)) at 1.
-apply Int.eqmod_sub.
-apply Int.eqmod_refl.
+apply Zbits.eqmod_sub.
+apply Zbits.eqmod_refl.
 hnf. exists (-1). omega.
 Qed. 
 
@@ -465,6 +466,7 @@ Definition sem_add_ptr_ptrofs t si :=
 
 Lemma sem_add_pptrofs_ptr_special:
    forall t si p i,
+    complete_type cenv_cs t = true ->
     isptr p ->
     sem_add_ptr_ptrofs t si p (Vptrofs (Ptrofs.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
@@ -473,6 +475,7 @@ Proof.
   destruct p; try contradiction.
   unfold offset_val, Cop.sem_add_ptr_long, Cop.sem_add_ptr_int.
   unfold Vptrofs, Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
+  rewrite H.
   destruct Archi.ptr64 eqn:Hp.
   f_equal. f_equal. f_equal. rewrite Ptrofs.of_int64_to_int64 by auto.
   rewrite <- ptrofs_mul_repr;  f_equal.
@@ -488,6 +491,7 @@ Qed.
 
 Lemma sem_add_pi_ptr_special:
    forall t p i si,
+    complete_type cenv_cs t = true ->
     isptr p ->
    match si with
    | Signed => Int.min_signed <= i <= Int.max_signed
@@ -497,6 +501,7 @@ Lemma sem_add_pi_ptr_special:
 Proof.
   intros.
  unfold sem_add_ptr_int.
+ rewrite H.
   destruct p; try contradiction.
   unfold offset_val, Cop.sem_add_ptr_int.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
@@ -509,12 +514,14 @@ Qed.
 Lemma sem_add_pi_ptr_special':
    Archi.ptr64 = false ->
    forall t p i si,
+    complete_type cenv_cs t = true ->
     isptr p ->
     sem_add_ptr_int t si p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
   intros Hp.
   intros.
  unfold sem_add_ptr_int.
+  rewrite H.
   destruct p; try contradiction.
   unfold offset_val, Cop.sem_add_ptr_int.
   unfold Cop.ptrofs_of_int, Ptrofs.of_ints, Ptrofs.of_intu, Ptrofs.of_int.
@@ -527,12 +534,14 @@ Qed.
 Lemma sem_add_pl_ptr_special':
    Archi.ptr64 = true ->
    forall t p i,
+    complete_type cenv_cs t = true ->
     isptr p ->
     sem_add_ptr_long t p (Vlong (Int64.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
   intros Hp.
   intros.
  unfold sem_add_ptr_long.
+  rewrite H.
   destruct p; try contradiction.
   unfold offset_val, Cop.sem_add_ptr_long.
   f_equal. f_equal. f_equal.
@@ -593,6 +602,14 @@ Proof.
        change A with (sem_add_ptr_ptrofs t0 si)
     end.
     rewrite sem_add_pptrofs_ptr_special.
+   2:{
+     clear - NESTED_FIELD_TYPE FIELD_COMPATIBLE.
+     assert (H := field_compatible_nested_field _ _ _ FIELD_COMPATIBLE).
+     rewrite NESTED_FIELD_TYPE in H.
+     destruct H as [_ [? _]].
+     simpl in H.
+     apply complete_legal_cosu_type_complete_type; auto.
+    }
     2: simpl in H2; rewrite <- H2; auto.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.
@@ -664,6 +681,14 @@ Proof.
     destruct CLASSIFY_ADD as [si CLASSIFY_ADD].
     rewrite CLASSIFY_ADD.
     rewrite sem_add_pi_ptr_special.
+   2:{
+     clear - NESTED_FIELD_TYPE FIELD_COMPATIBLE.
+     assert (H := field_compatible_nested_field _ _ _ FIELD_COMPATIBLE).
+     rewrite NESTED_FIELD_TYPE in H.
+     destruct H as [_ [? _]].
+     simpl in H.
+     apply complete_legal_cosu_type_complete_type; auto.
+    }
     2: simpl in H2; rewrite <- H2; auto.
     unfold gfield_offset; rewrite NESTED_FIELD_TYPE, H2.
     reflexivity.

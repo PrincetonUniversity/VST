@@ -124,8 +124,7 @@ Existing Instance NullExtension.Espec.
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
-prove_semax_prog.
-semax_func_cons body_sumarray.
-semax_func_cons body_main.
+  prove_semax_prog.
+  semax_func_cons body_sumarray.
+  semax_func_cons body_main.
 Qed.
-

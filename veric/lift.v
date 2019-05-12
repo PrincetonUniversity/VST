@@ -69,8 +69,10 @@ Tactic Notation "unfold_lift" "in" "*" :=
 
 (* The reason for writing   liftx(x : _) instead
   of just (liftx x)  is to get the case  `(fun v => ..v...) to work *)
+Module LiftNotation.
 Notation "'`' x" := (liftx x) (at level 10, x at next level). (* use level 10 for compatibility with coq/Theories/Program/Utils.v *)
 Notation "'`(' x ')'" := (liftx (x : _)).
+End LiftNotation.
 
 (*  EXAMPLES OF USE
 
