@@ -359,19 +359,19 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Proof. split; eapply inject_lock_morphism'; eauto; symmetry; auto. Qed.
 
       
-      Notation thread_perms cnt:= (fst (getThreadR cnt)).
-      Notation lock_perms cnt:= (snd (getThreadR cnt)).
-      Record thread_compat {Sem st i}
+      Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
+      Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
+      Record thread_compat {Sem} st i
              (cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i) m:=
-        { th_comp: permMapLt (thread_perms cnt) (getMaxPerm m);
-          lock_comp: permMapLt (lock_perms cnt) (getMaxPerm m)}.
+        { th_comp: permMapLt (thread_perms _ _ cnt) (getMaxPerm m);
+          lock_comp: permMapLt (lock_perms _ _ cnt) (getMaxPerm m)}.
       Arguments th_comp {_ _ _ _ _}.
       Arguments lock_comp {_ _ _ _ _}.
       
       Lemma mem_compatible_thread_compat:
         forall n (st1 : ThreadPool.t(ThreadPool:=TP n)) (m1 : mem) (tid : nat)
           (cnt1 : containsThread st1 tid),
-          mem_compatible st1 m1 -> thread_compat cnt1 m1.
+          mem_compatible st1 m1 -> thread_compat _ _ cnt1 m1.
       Proof. intros * H; constructor; apply H. Qed.
       
 
@@ -415,11 +415,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                                                     permission transfer is not deleted*)
           ; memcompat1: mem_compatible cstate1 m1
           ; memcompat2: mem_compatible cstate2 m2
-          ; INJ: Mem.inject j m1 m2
+          (*; INJ: Mem.inject j m1 m2 *)
           ; lock_perm_preimage:
               forall i (cnt1: ThreadPool.containsThread cstate1 i)
                 (cnt2: ThreadPool.containsThread cstate2 i),
-                perm_preimage j (lock_perms cnt1) (lock_perms cnt2)
+                perm_preimage j (lock_perms _ _ cnt1) (lock_perms _ _  cnt2)
           ; INJ_threads:
               forall i (cnt1: ThreadPool.containsThread cstate1 i)
                 (cnt2: ThreadPool.containsThread cstate2 i)
@@ -444,6 +444,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               forall b ofs rmap,
                 lockRes cstate1 (b, ofs) = Some rmap ->
                 inject_lock j b ofs m1 m2    
+          ; source_invariant: invariant cstate1    
           ; target_invariant: invariant cstate2
           ; mtch_source:
               forall (i:nat),
@@ -571,15 +572,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Hint Unfold computeMap_pair: pair.
 
       
-          Inductive full_update {hb}: nat -> ThreadPool hb -> Address.address ->
+          Inductive lock_update {hb}: nat -> ThreadPool hb -> Address.address ->
                                       (Pair access_map) -> lock_info -> _ -> ThreadPool hb -> Prop:=
-          | Build_full_update:
+          | Build_lock_update:
               forall st st' i add th_perms lock_perms c
                 (cnt : containsThread st i),
                 st' = updLockSet
                         (updThread(resources:=dryResources) cnt c th_perms)
                         add lock_perms ->
-                @full_update hb i st add th_perms lock_perms c st'.
+                @lock_update hb i st add th_perms lock_perms c st'.
           
           Notation sstate:= (state_sum (@semC CSem) (@semC AsmSem)).
           Inductive one_thread_match  (hb i:nat): option compiler_index ->
@@ -600,10 +601,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 match_thread_compiled ocd f c1 m1 c2 m2 ->
                 one_thread_match hb i ocd f c1 m1 c2 m2.
           
-          Inductive full_update' {hb}:
+          Inductive lock_update' {hb}:
             nat -> ThreadPool hb -> Address.address ->
             (Pair access_map) -> @lock_info dryResources -> _ -> ThreadPool hb -> Prop:=
-          | Build_full_update':
+          | Build_lock_update':
               forall (st st': ThreadPool hb)
                 i add th_perms th_lock_perms lk_perms c
                 (* contains *)
@@ -639,19 +640,19 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 (* Lock perms *)
                 (gls: ThreadPool.lockRes st' add  = Some lk_perms)
                 (glo: forall add', add<>add' -> ThreadPool.lockRes st' add' = ThreadPool.lockRes st add),
-                @full_update' hb i st add (th_perms,th_lock_perms) lk_perms  c st'.
+                @lock_update' hb i st add (th_perms,th_lock_perms) lk_perms  c st'.
           
-          Lemma full_update_getters:
+          Lemma lock_update_getters:
             forall {hb  i st b ofs th_perms th_lock_perms lock_perms c st'},
-              @full_update hb i st (b,ofs) (th_perms,th_lock_perms)
-                           lock_perms c st' ->
-              @full_update' hb i st (b,ofs) (th_perms,th_lock_perms)
-                            lock_perms c st'.
+              @lock_update hb i st (b,ofs) (th_perms,th_lock_perms)
+                           lock_perms  c st' ->
+              @lock_update' hb i st (b,ofs) (th_perms,th_lock_perms)
+                            lock_perms  c st'.
           Proof.
           Admitted.
 
-      Inductive full_update_mem: mem -> Address.address -> memval -> mem -> Prop:=
-      | Build_full_update_mem:
+      Inductive lock_update_mem: mem -> Address.address -> memval -> mem -> Prop:=
+      | Build_lock_update_mem:
           forall m m' adr v
             (Hcontent_almost_equiv: forall (b : positive) (ofs : ZIndexed.t),
                 b <> fst adr \/ ~ Intv.In ofs (ofs,ofs+ LKSIZE) ->
@@ -661,14 +662,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             (Hcur_equiv: Cur_equiv m' m)
             (Hmax_equiv: Max_equiv m' m)
             (Hnb_equiv: Mem.nextblock m' = Mem.nextblock m),
-            full_update_mem m adr v m'.
-      Ltac destruct_full_update_getters:=
+            lock_update_mem m adr v m'.
+      Ltac destruct_lock_update_getters:=
         match goal with
-        | [ H: full_update _ _ _ _ _ _ _ |- _ ] =>
-          apply full_update_getters in H; inv H
-        | [H: full_update_mem _ _ _ _ |- _ ] => inv H
+        | [ H: lock_update _ _ _ _ _ _ _ |- _ ] =>
+          apply lock_update_getters in H; inv H
+        | [H: lock_update_mem _ _ _ _ |- _ ] => inv H
         end.
-      Ltac full_update_contains:=
+      Ltac lock_update_contains:=
         match goal with
         | [ H: containsThread ?st ?i  |- _ ] =>
           match goal with
@@ -688,8 +689,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         match goal with
         | [ H: _ |- _ ] => erewrite H by solve[eauto] 
         end.
-      Ltac full_update_rewrite:=
-        repeat full_update_contains;
+      Ltac lock_update_rewrite:=
+        repeat lock_update_contains;
         simpl in *;
         unshelve (repeat (super_rewrite)); try eassumption.
 
@@ -715,14 +716,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           concur_match ocd f st1 m1 st2 m2 ->
           forall ocd' (st1':t) m1' st2' m2' b_lock1 b_lock2 ofs_lock delta,
           forall th_perms1 th_perms2 v
-            (Hupdate_mem1: full_update_mem m1 (b_lock1, ofs_lock) v m1')
-            (Hupdate_mem2: full_update_mem m2 (b_lock2, ofs_lock+delta) v m2')
+            (Hupdate_mem1: lock_update_mem m1 (b_lock1, ofs_lock) v m1')
+            (Hupdate_mem2: lock_update_mem m2 (b_lock2, ofs_lock+delta) v m2')
             (Hinj: Mem.inject f m1' m2')
             (Hlt1 : permMapLt th_perms1 (getMaxPerm m1'))
             (Hlt2 : permMapLt th_perms2 (getMaxPerm m2'))
             (Hinj_perms:
                Mem.inject f (restrPermMap Hlt1) (restrPermMap Hlt2))
             
+            (Hinv1: invariant(tpool:=OrdinalThreadPool) st1')
             (Hinv2: invariant(tpool:=OrdinalThreadPool) st2')
             
             (Hmem_compat1: mem_compatible(tpool:=OrdinalThreadPool) st1' m1')
@@ -744,45 +746,45 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           forall lock_perms1
             (cnt1 : containsThread st1 i)
             (cnt2 : containsThread st2 i),
-            full_update i st1 (b_lock1,ofs_lock) (th_perms1,th_lock_perms1)
+            lock_update i st1 (b_lock1,ofs_lock) (th_perms1,th_lock_perms1)
                         lock_perms1 c1 st1' ->
-            full_update i st2 (b_lock2,ofs_lock+delta) (th_perms2,th_lock_perms2)
+            lock_update i st2 (b_lock2,ofs_lock+delta) (th_perms2,th_lock_perms2)
                         (virtueLP_inject m2' f lock_perms1) c2 st2' ->
             concur_match ocd' f st1' m1' st2' m2'.
       Proof.
         intros.
-
+        
         assert (Hsame_lenght1: num_threads st1 = num_threads st1').
         { inv H0; reflexivity. }
         assert (Hsame_lenght2: num_threads st2 = num_threads st2').
         { inv H1; reflexivity. }
 
-        repeat destruct_full_update_getters.
+        repeat destruct_lock_update_getters.
         eapply Build_concur_match; simpl; eauto.
         - rewrite <- Hsame_lenght1, <- Hsame_lenght2; apply H.
         - intros b ?. eapply H. unfold Mem.valid_block.
           rewrite <- Hnb_equiv0; eauto.
         - intros i0 ??; destruct (Nat.eq_dec i0 i); subst.
-          + full_update_rewrite.
-          + full_update_rewrite. eapply H.
+          + lock_update_rewrite.
+          + lock_update_rewrite. eapply H.
         - intros i0 ??; destruct (Nat.eq_dec i i0); subst.
-          + full_update_rewrite.
+          + lock_update_rewrite.
             intros. unify_props. assumption.
-          + full_update_rewrite.
+          + lock_update_rewrite.
             admit.
         - intros i0 ??; destruct (Nat.eq_dec i i0); subst.
-          + full_update_rewrite; simpl.
+          + lock_update_rewrite; simpl.
             intros. unify_props. assumption.
           + admit.
         - intros until ofs.
-          full_update_rewrite; simpl.
+          lock_update_rewrite; simpl.
           replace (unsigned (add ofs (repr delt))) with (unsigned ofs + delt).
           2: { admit. }
           destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, unsigned ofs) ).
           + inv e. unify_injection.
-            full_update_rewrite.
+            lock_update_rewrite.
             intros HH; inv HH; reflexivity.
-          + full_update_rewrite.
+          + lock_update_rewrite.
             rewrite glo; auto.
             * admit.
             * admit.
@@ -795,11 +797,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           + admit.
         - intros ? Hneq ??.
           assert (Hneq': i0 <> hb) by omega.
-          full_update_rewrite.
+          lock_update_rewrite.
           admit.
         - intros ? Hneq ??.
           assert (Hneq': i0 <> hb) by omega.
-          full_update_rewrite.
+          lock_update_rewrite.
           admit.
         - intros. admit.
       Admitted.
@@ -2516,7 +2518,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Qed.
       Definition thread_mems {Sem st i m}
                  {cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i}
-                 (th_compat: thread_compat cnt m):=
+                 (th_compat: thread_compat _ _ cnt m):=
         (restrPermMap (th_comp th_compat),restrPermMap (lock_comp th_compat)).
       Definition permMapJoin_pair:= pair3_prop permMapJoin.
       Hint Unfold permMapJoin_pair: pair.
@@ -3215,19 +3217,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             rewrite H0, HB1 in Hjoin.
             inv Hjoin. assert ((C1 !! b ofs) = o) by (inv H1; auto).
             constructor.
-            (* Case 
-                   A2 = A1 = Some o
-                   B2 = B1 = None 
-                   C1 = o
-                   
-             *)
-            (* Maybe this is the problem. 
-                   If C2 !! b2 (ofs+delt) is newly allocated, 
-                   there is nothing transfered, and the injection
-                   doesn't map anything in B.
-
-
-             *)
             exploit HppiC; eauto.  
             * rewrite <- mem_lemmas.po_oo. 
               eapply Hfilter in H0.
@@ -3422,7 +3411,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Qed.
       Lemma cur_equiv_restr_mem_equiv:
         forall (m:mem) p
-        (Hlt: permMapLt p (getMaxPerm m)),
+          (Hlt: permMapLt p (getMaxPerm m)),
           access_map_equiv p (getCurPerm m) ->
           mem_equiv (restrPermMap Hlt) m.
       Proof.
@@ -3432,85 +3421,17 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         - eapply getMax_restr.
         - eapply restr_content_equiv.
       Qed.
-          
-        
-      Lemma release_step_diagram:
-        let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
-        forall (angel: virtue) m1 (U : list nat) (tid : nat) (cd : option compiler_index)
-          (HSched: HybridMachineSig.schedPeek U = Some tid)
-          (mu : meminj)
-          (st1 : ThreadPool (Some hb)) (m1' : mem) 
-          (tr1 tr2 : HybridMachineSig.event_trace)
-          (st2 : ThreadPool (Some (S hb))) (m2 : mem)
-          (cnt1 : containsThread(Sem:=HybridSem (Some hb)) st1 tid)
-          (c : semC) (b : block) (ofs : int)
-          (rmap : lock_info)
-          (Hwritable_lock1 : writable_lock b (unsigned ofs) (snd (getThreadR cnt1)) m1)
-          (Hcmpt : mem_compatible st1 m1)
-          (thread_compat1: thread_compat cnt1 m1)
-          (Hthread_mem: access_map_equiv (thread_perms cnt1) (getCurPerm m1) ),
-          let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
-          let locks_mem1:= snd (thread_mems thread_compat1) in
-          let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
-          let virtueThread:= virtueThread angel in
-          let virtueLP := virtueLP angel in
-          forall (CMatch:concur_match cd mu st1 m1 st2 m2)
-            (HTraceInj: List.Forall2 (inject_mevent mu) tr1 tr2)
-            (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
-            (Hinv: invariant st1)
-            (Hcode: getThreadC cnt1 = Kblocked c)
-            (Hat_external: semantics.at_external hybrid_sem c m1 =
-                           Some (UNLOCK, (Vptr b ofs :: nil)%list))
-            (Hload: Mem.load AST.Mint32 locks_mem1 b (unsigned ofs) = Some (Vint Integers.Int.zero))
-            (Haccess: Mem.range_perm locks_mem1 b (unsigned ofs)
-                                     (Z.add (unsigned ofs) LKSIZE) Cur Readable)
-            (Hstore: Mem.store AST.Mint32 m_writable_lock_1 b
-                               (unsigned ofs) (Vint Int.one) = Some m1')
-            (HisLock: ThreadPool.lockRes st1 (b, unsigned ofs) = Some rmap)
-            (Hrmap: empty_doublemap rmap)
-            (Hjoin_angel: permMapJoin_pair newThreadPerm1 virtueLP (getThreadR cnt1)),
-          exists
-            evnt' (st2' : t) (m2' : mem) (cd' : option compiler_index)(mu' : meminj),
-            let evnt:= (Events.release (b, unsigned ofs) (Some (build_delta_content (fst virtueThread) m1'))) in 
-            concur_match cd' mu'
-                         (updLockSet
-                            (updThread cnt1 (Kresume c Vundef)
-                                       (computeMap_pair (getThreadR cnt1) (virtueThread)))
-                            (b, unsigned ofs) virtueLP) m1' st2' m2' /\
-            List.Forall2 (inject_mevent mu')
-                         (tr1 ++ (Events.external tid evnt :: nil))
-                         (tr2 ++ (Events.external tid evnt' :: nil)) /\
-            HybridMachineSig.external_step
-              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-              U tr2 st2 m2 (HybridMachineSig.schedSkip U)
-              (tr2 ++ (Events.external tid evnt' :: nil)) st2' m2'.
-      Proof.
-        intros; simpl in *.
-        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem) as
-            Hmem_equiv.
-        
-        (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
-        destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[?|?]|?].
 
-        (** * tid < hb *)
-        - (* Virtue is the permissions transfered by the angel:
-             VirtueThread: the permissions transfered to the thread
-             VirtueLP: the permissions transfered to the lockpool
-           *)
-          
-          
-          
-          
-          Lemma sub_map_valid:
-            forall m (a:access_map),
-              (fun a => bounded_maps.sub_map (snd a) (snd (getMaxPerm m))) a ->
-              map_valid m a.
-          Proof.
-            intros ** ? **.
-            unfold bounded_maps.sub_map in H.
-            eapply strong_tree_leq_spec in H; try constructor.
-            instantiate (1:=b) in H.
-          (*
+      Lemma sub_map_valid:
+        forall m (a:access_map),
+          (fun a => bounded_maps.sub_map (snd a) (snd (getMaxPerm m))) a ->
+          map_valid m a.
+      Proof.
+        intros ** ? **.
+        unfold bounded_maps.sub_map in H.
+        eapply strong_tree_leq_spec in H; try constructor.
+        instantiate (1:=b) in H.
+      (*
                         eapply map_get_Some in H0;
                           destruct H0 as [f [H0 ?]].
                         rewrite H0 in H.
@@ -3525,642 +3446,89 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                         destruct (mem_lemmas.valid_block_dec m b); auto.
                         eapply m in n.
                         rewrite H2 in n; congruence.*)
-          Admitted.
-          Lemma sub_map_valid_pair:
-            forall m (aa:Pair access_map),
-              pair1_prop
-                (fun a => bounded_maps.sub_map (snd a) (snd (getMaxPerm m))) aa ->
-              map_valid_pair m aa.
-          Proof.
-            intros m; solve_pair. eapply sub_map_valid.
-          Qed.
-          Lemma inject_almost_perfect:
-                     forall f m1 m2,
-                       Mem.inject f m1 m2 ->
-                       almost_perfect_image f
-                                            (getMaxPerm m1) (getCurPerm m1) (getCurPerm m2).
-                   Admitted.
-                   Lemma almost_perfect_image_proper:
-                       Proper (Logic.eq ==> access_map_equiv
-                                        ==> access_map_equiv
-                                        ==> access_map_equiv
-                                        ==> iff) almost_perfect_image.
-                     Proof.
-                       setoid_help.proper_iff;
-                         setoid_help.proper_intros; subst.
-                       intros ? **.
-                       rewrite <- H0, <- H1, <- H2  in *; auto.
-                     Qed.
+      Admitted.
+      Lemma sub_map_valid_pair:
+        forall m (aa:Pair access_map),
+          pair1_prop
+            (fun a => bounded_maps.sub_map (snd a) (snd (getMaxPerm m))) aa ->
+          map_valid_pair m aa.
+      Proof.
+        intros m; solve_pair. eapply sub_map_valid.
+      Qed.
+      Lemma inject_almost_perfect:
+          forall f m1 m2,
+            Mem.inject f m1 m2 ->
+            almost_perfect_image f
+                                 (getMaxPerm m1) (getCurPerm m1) (getCurPerm m2).
+      Admitted.
+      Lemma almost_perfect_image_proper:
+        Proper (Logic.eq ==> access_map_equiv
+                         ==> access_map_equiv
+                         ==> access_map_equiv
+                         ==> iff) almost_perfect_image.
+      Proof.
+        setoid_help.proper_iff;
+          setoid_help.proper_intros; subst.
+        intros ? **.
+        rewrite <- H0, <- H1, <- H2  in *; auto.
+      Qed.
 
-          Lemma mem_access_max_equiv:
-                         forall m1 m2, Mem.mem_access m1 =
-                                  Mem.mem_access m2 ->
-                                  Max_equiv m1 m2.
-                       Proof. intros ** ?.
-                              unfold getMaxPerm; simpl.
-                              rewrite H; reflexivity.
-                       Qed.
-                       Lemma mem_access_cur_equiv:
-                         forall m1 m2, Mem.mem_access m1 =
-                                  Mem.mem_access m2 ->
-                                  Cur_equiv m1 m2.
-                       Proof. intros ** ?.
-                              unfold getCurPerm; simpl.
-                              rewrite H; reflexivity.
-                       Qed.
-                   Lemma sub_map_filtered:
-                     forall m a,
-                       bounded_maps.sub_map a (snd (getMaxPerm m)) ->
-                       dmap_vis_filtered a m.
-                   Proof.
-                     unfold dmap_vis_filtered, Mem.perm.
-                     Lemma sub_map_lt:
-                       forall {A B} dmap amap,
-                         @bounded_maps.sub_map A B dmap (amap) ->
-                         forall b,
-                           bounded_maps.fun_leq (dmap ! b) (amap ! b).
-                     Proof.
-                       intros. eapply strong_tree_leq_spec; try constructor.
-                       eapply H.
-                     Qed.
-                     intros. 
-                     intros; eapply sub_map_lt in H.
-                     instantiate(1:=b) in H.
-                     rewrite_getPerm.
-                     unfold PMap.get.
-                     unfold dmap_get in H0.
-                     destruct (a ! b) ; try solve[inv H0].
-                     destruct ((snd (getMaxPerm m)) ! b) eqn:HMax;
-                       try solve[inv H].
-                     simpl in H.
-                     exploit H.
-                     - destruct (o ofs) eqn:HH; try congruence.
-                       rewrite HH; auto.
-                     - intros HH; destruct (o0 ofs); inv HH.
-                       constructor.
-                   Qed.
-                   Lemma sub_map_filtered_pair:
-                     forall m a,
-                       pair21_prop bounded_maps.sub_map a (snd (getMaxPerm m)) ->
-                       dmap_vis_filtered_pair a m.
-                   Proof. intros m; solve_pair.
-                          eapply sub_map_filtered. Qed.
-                   
-          Lemma release_step_diagram_self Sem:
-            let CoreSem:= sem_coresem Sem in
-            forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
-              (st1 : mach_state hb) (st2 : mach_state (S hb))
-              (Hinv1: invariant st1) (Hinv2: invariant st2)
-              (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
-              (Hinj_b : mu b = Some (b', delt))
-              (Hcmpt2: mem_compatible st2 m2) (*this can't be remove because ext_step requires it*)
-              (cnt1 : ThreadPool.containsThread st1 tid) (cnt2 : ThreadPool.containsThread st2 tid)
-              (thread_compat1: thread_compat cnt1 m1) (thread_compat2: thread_compat cnt2 m2)
-              (CMatch: concur_match i mu st1 m1 st2 m2)
-              (* Thread states *)
-              (th_state1: @semC Sem) th_state2 sum_state1 sum_state2
-              (HState1: coerce_state_type _ sum_state1 th_state1  
-                                          (CSem, Clight.state) (AsmSem,Asm.state) (Sem,@semC Sem))
-              (HState2: coerce_state_type _ sum_state2 th_state2
-                                          (CSem, Clight.state) (AsmSem,Asm.state) (Sem,@semC Sem))
-              (Hget_th_state1: getThreadC cnt1 = Kblocked sum_state1)
-              (Hget_th_state2 : getThreadC cnt2 = Kblocked sum_state2)
-              (* angel,lock permissions and new thread permissions *)
-              (angel: virtue) empty_perms
-              (Hempty_map: empty_doublemap empty_perms)
-              (HisLock: lockRes st1 (b, Integers.Ptrofs.unsigned ofs) = Some empty_perms)
-              (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
-              (Hwritable_lock1 : writable_lock b (unsigned ofs) (snd (getThreadR cnt1)) m1),
-              let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
-              let th_mem1:= fst (thread_mems thread_compat1) in
-              let locks_mem1:= snd (thread_mems thread_compat1) in
-              let th_mem2:= fst (thread_mems thread_compat2) in
-              let locks_mem2:= snd (thread_mems thread_compat2) in
-              let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
-              forall (Hjoin_angel: permMapJoin_pair newThreadPerm1 (virtueLP angel) (getThreadR cnt1))
-                (Hinj_lock: Mem.inject mu locks_mem1 locks_mem2)
-                (Hat_external: semantics.at_external CoreSem th_state1 th_mem1 =
-                               Some (UNLOCK, (Vptr b ofs :: nil)%list))
-                (Hload: Mem.load AST.Mint32 locks_mem1 b (unsigned ofs) = Some (Vint Integers.Int.zero))
-                (Haccess: Mem.range_perm locks_mem1 b (unsigned ofs) (Z.add (unsigned ofs) LKSIZE) Cur Readable)
-                (Hstore: Mem.store AST.Mint32 (m_writable_lock_1) b (unsigned ofs) (Vint Int.one) = 
-                         Some m1')
-                (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 th_mem1 th_state2 th_mem2),
-                let event1 := build_release_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
-                exists event2 (m2' : mem),
-                  match_self (code_inject _ _ SelfSim) mu th_state1 th_mem1 th_state2 th_mem2 /\
-                  (inject_mevent mu) (Events.external tid event1) (Events.external tid event2) /\
-                  let angel2:= inject_virtue m2 mu angel in
-                  let newThreadPerm2:= (computeMap_pair (getThreadR cnt2) (virtueThread angel2)) in
-                  let st2':= updThread(tp:=st2) cnt2 (Kresume sum_state2 Vundef) newThreadPerm2 in
-                  let st2'':=updLockSet st2' (b', unsigned (add ofs (repr delt))) (virtueLP angel2) in
-                  syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2'' m2' event2.
-          Proof.
-            intros; simpl in *.
-            inversion Amatch; clear Amatch.
+      Lemma mem_access_max_equiv:
+        forall m1 m2, Mem.mem_access m1 =
+                 Mem.mem_access m2 ->
+                 Max_equiv m1 m2.
+      Proof. intros ** ?.
+             unfold getMaxPerm; simpl.
+             rewrite H; reflexivity.
+      Qed.
+      Lemma mem_access_cur_equiv:
+        forall m1 m2, Mem.mem_access m1 =
+                 Mem.mem_access m2 ->
+                 Cur_equiv m1 m2.
+      Proof. intros ** ?.
+             unfold getCurPerm; simpl.
+             rewrite H; reflexivity.
+      Qed.
+      Lemma sub_map_filtered:
+        forall m a,
+          bounded_maps.sub_map a (snd (getMaxPerm m)) ->
+          dmap_vis_filtered a m.
+      Proof.
+        unfold dmap_vis_filtered, Mem.perm.
+        Lemma sub_map_lt:
+          forall {A B} dmap amap,
+            @bounded_maps.sub_map A B dmap (amap) ->
+            forall b,
+              bounded_maps.fun_leq (dmap ! b) (amap ! b).
+        Proof.
+          intros. eapply strong_tree_leq_spec; try constructor.
+          eapply H.
+        Qed.
+        intros. 
+        intros; eapply sub_map_lt in H.
+        instantiate(1:=b) in H.
+        rewrite_getPerm.
+        unfold PMap.get.
+        unfold dmap_get in H0.
+        destruct (a ! b) ; try solve[inv H0].
+        destruct ((snd (getMaxPerm m)) ! b) eqn:HMax;
+          try solve[inv H].
+        simpl in H.
+        exploit H.
+        - destruct (o ofs) eqn:HH; try congruence.
+          rewrite HH; auto.
+        - intros HH; destruct (o0 ofs); inv HH.
+          constructor.
+      Qed.
+      Lemma sub_map_filtered_pair:
+        forall m a,
+          pair21_prop bounded_maps.sub_map a (snd (getMaxPerm m)) ->
+          dmap_vis_filtered_pair a m.
+      Proof. intros m; solve_pair.
+             eapply sub_map_filtered. Qed.
 
-            (* Add the filters. *)
-
-            
-            remember (inject_virtue m2 mu angel) as angel2.
-            
-            remember (virtueThread angel2) as angelThread2.
-            remember (virtueLP angel2) as angelLP2.
-            
-            assert (Hstore':
-                      exists (Hlt_setBlock2: writable_lock b' (unsigned ofs + delt)%Z (lock_perms cnt2) m2),
-                        exists n2, Mem.store AST.Mint32 (restrPermMap Hlt_setBlock2) b' 
-                                        (unsigned ofs + delt) (Vint Int.one) = Some n2 /\ 
-                              Mem.inject mu m1' n2).
-            {
-              
-              (** *Constructing the target objects: events, thread_pool, mem, meminj and index*)
-
-              (** *virtueThread*)
-              (*First construct the virtueThread:
-                the permissions passed from the thread to the lock. *)
-
-              (* Construct the memory with permissions to write in the lock*)
-              assert (Hwritable_lock2:
-                        writable_lock b' (unsigned ofs + delt)%Z (lock_perms cnt2) m2).
-              { 
-                eapply setPermBlock_inject_permMapLt; simpl in *; eauto.
-                (* Mem.inject access_map_inejct mu b permMapLt *)
-                erewrite <- (getMax_restr _ _ (lock_comp thread_compat1)).
-                erewrite <- (getMax_restr _ _ (lock_comp thread_compat2)).
-                subst locks_mem1 locks_mem2.
-                subst th_mem1.
-                eapply access_map_injected_getMaxPerm; eassumption.
-                eapply thread_compat2.
-              }
-              
-              exists Hwritable_lock2.
-              
-              (* Construct new memory and new injection *)
-              eapply Mem.store_mapped_inject in Hstore; eauto.
-
-              unfold m_writable_lock_1.
-              remember (useful_permMapLt_trans (lock_comp thread_compat1) Hwritable_lock1)
-                as Hlt_restr_setBlock1 eqn:HH; clear HH.
-              remember (useful_permMapLt_trans (lock_comp thread_compat2) Hwritable_lock2)
-                as Hlt_restr_setBlock2 eqn:HH; clear HH.
-              
-              rewrite (restrPermMap_idempotent _ Hwritable_lock1 Hlt_restr_setBlock1).
-              rewrite (restrPermMap_idempotent _ Hwritable_lock2 Hlt_restr_setBlock2).
-              
-              (* m1 *)
-              assert (Hlt_setBlock1': writable_lock b (unsigned ofs) (getCurPerm locks_mem1) locks_mem1).
-              { intros; subst th_mem1 locks_mem1.
-                unfold writable_lock.
-                rewrite getMax_restr, getCur_restr; eauto. }
-              
-              assert (HH1:mem_equiv (restrPermMap Hlt_restr_setBlock1) (restrPermMap Hlt_setBlock1')).
-              { eapply restrPermMap_equiv.
-                - eapply restr_proof_irr_equiv.
-                - eapply setPermBlock_access_map_equiv; try reflexivity.
-                  + subst; symmetry.
-                    apply getCur_restr.
-                  + econstructor; auto.
-              }
-              rewrite HH1.
-              
-              
-              (* m2 *)
-              assert(Hlt_setBlock2':
-                       writable_lock b' (unsigned ofs + delt) (getCurPerm locks_mem2) locks_mem2).
-              { intros; subst.
-                subst locks_mem2.
-                unfold writable_lock.
-                rewrite getMax_restr, getCur_restr; eauto. }
-              
-              assert (HH2:mem_equiv (restrPermMap Hlt_restr_setBlock2) (restrPermMap Hlt_setBlock2')).
-              { eapply restrPermMap_equiv.
-                - eapply restr_proof_irr_equiv.
-                - eapply setPermBlock_access_map_equiv; try reflexivity.
-                  + subst; symmetry.
-                    apply getCur_restr.
-                  + econstructor; auto. }
-              rewrite HH2.
-
-              subst th_mem1 locks_mem1 th_mem2 locks_mem2.
-              eapply setPermBlock_mem_inject; eauto.
-              - unfold LKSIZE_nat. rewrite Z2Nat.id.
-                2: { pose proof LKSIZE_pos; omega. }
-                rewrite (restr_content_equiv (lock_comp thread_compat1)).
-                rewrite (restr_content_equiv (lock_comp thread_compat2)).
-                eapply CMatch; auto.
-                simpl in *; eassumption.
-            }
-            destruct Hstore' as (Hlt_setBlock2 & m2' & Hstore2 & Hinj2).
-            
-            
-            remember (build_release_event (b', unsigned ofs + delt ) (fst (virtueThread angel2)) m2')
-              as event2. 
-            
-            (* Instantiate some of the existensials *)
-            exists event2; exists m2'.  
-            split; [|split]. (* 4 goal*)
-            
-            + (* Goal:  match_self code_inject *)
-              constructor; eassumption.
-              
-            + (*Goal: Inject the trace*)
-              subst event1 event2.
-              do 2 econstructor. 
-              * constructor; eauto.
-              * unfold inject_delta_content.
-                (* todo, redefine inject_delta_content *)
-                constructor.
-                
-            + !goal (syncStep _ _ _ _ _ _).
-              (* Goal: show the source-external-step*)
-              (* get the memory and injection *)
-              
-              assert(Heq: unsigned (add ofs (repr delt)) = (unsigned ofs + delt)%Z ).
-              { unfold add.
-                eapply Mem.address_inject; eauto.
-                eapply Mem.perm_store_1; eauto.
-                eapply Mem.store_valid_access_3 in Hstore.
-                destruct Hstore as [Hperm ?].
-                specialize (Hperm (unsigned ofs)).
-                move Hperm at bottom.
-                eapply Hperm.
-                replace unsigned with unsigned by reflexivity.
-                pose proof (size_chunk_pos AST.Mint32).
-                omega.
-              }
-              
-              subst event2 ; unfold build_release_event.
-              rewrite <-  Heq.
-
-              (*Prove that the new ThreadVirtue Joins in the right way:
-                old_thread "+" delta_map = new_thread.
-               *)
-              set (newThreadPerm2 := computeMap_pair (getThreadR cnt2) (virtueThread angel2)).
-
-              assert (permMapJoin_pair newThreadPerm2 (virtueLP angel2) (getThreadR cnt2)).
-              {  subst newThreadPerm2; simpl.
-                 apply compute_map_join_pair.
-                 eapply delta_map_join_inject_pair.
-                 - !goal (Mem.meminj_no_overlap _ _).
-                   instantiate (1:= m1).
-                   instantiate (1:= mu).
-                   assert (Max_equiv m1 m1').
-                   { etransitivity.
-                     - symmetry.
-                       eapply restr_Max_equiv. 
-                     - eapply Mem.store_access in Hstore.
-                       symmetry in Hstore.
-                       (* Move to compiler/mem_equiv.v *)
-                       subst m_writable_lock_1.
-                       apply mem_access_max_equiv; eauto.
-                   }
-                   rewrite H; apply Hinj2.
-                   
-                 - clear -Hangel_bound.
-                   move Hangel_bound at bottom.
-                   instantiate(1:=(virtueThread angel)).
-                   pose proof (virtueThread_sub_map _ _ Hangel_bound).
-                   eapply sub_map_filtered_pair.
-                   eauto.
-                   
-                 - !goal (permMapLt_pair1 _ _).
-                   instantiate(1:=(getThreadR cnt1)).
-                   apply compat_permMapLt; assumption.
-                 - !goal (perm_perfect_image_dmap_pair _ _ _).
-                   (* instantiate (2:=mu).
-                   instantiate (1:=virtueThread angel).*)
-                   subst angel2.
-                   
-                   eapply inject_virtue_perm_perfect_image_dmap.
-                   eapply full_inject_dmap_pair.
-                   
-                   + !goal (Events.injection_full mu _ ).
-                     eapply CMatch.
-                   + !goal (dmap_valid_pair _ _).
-                     apply join_dmap_valid_pair.
-                     eapply Hangel_bound.
-                 - !goal (perm_perfect_image_pair _ _ _).
-                   subst angel2.
-                   eapply inject_virtue_perm_perfect_image.
-                   eapply full_inject_map_pair.
-                   + !goal (Events.injection_full mu _ ).
-                     eapply CMatch.
-                   + eapply sub_map_valid_pair.
-                     eapply Hangel_bound.
-                 - !goal (almost_perfect_image_pair _ _ _ _).
-                   
-                   pose proof (memcompat1 CMatch) as H.
-                   eapply compat_th in H as [Hlt11 Hlt12].
-                   pose proof (memcompat2 CMatch) as H.
-                   eapply compat_th in H as [Hlt21 Hlt22].
-                   split; simpl.
-                   + 
-                     
-                     unshelve exploit INJ_threads (*INJ_locks*); eauto.
-                     intros HH; apply inject_almost_perfect in HH.
-                     
-                     
-
-                      
-                     eapply almost_perfect_image_proper; eauto.
-                     * symmetry; eapply restr_Max_equiv.
-                     * symmetry; eapply getCur_restr.
-                     * symmetry; eapply getCur_restr.
-                       
-                   + unshelve exploit @INJ_locks; eauto.
-                     intros HH; apply inject_almost_perfect in HH.
-                     eapply almost_perfect_image_proper; eauto.
-                     * symmetry; eapply restr_Max_equiv.
-                     * symmetry; eapply getCur_restr.
-                     * symmetry; eapply getCur_restr.
-                 -  eapply compute_map_join_pair.
-                    subst newThreadPerm1.
-                    eapply Hjoin_angel.
-              }
-              
-              eapply step_release with
-                  (b0:= b')(m':=m2')
-                  (virtueThread:=(virtueThread angel2))
-                  (virtueLP:=angelLP2)
-                  (rmap:=virtueLP_inject m2 mu empty_perms)
-              ; eauto; try reflexivity. 
-              
-              (* 10 goals produced. *)
-              
-              * destruct Hangel_bound as ((A&B)&?).
-                subst angelThread2 angel2.
-                destruct angel as (virtueT&?); destruct virtueT as (virtueT_A & virtueT_B). 
-                remember (snd (getMaxPerm m2)) as TEMP.
-                simpl; subst TEMP.
-                split; eapply inject_virtue_sub_map; eauto.
-                
-              * unfold HybridMachineSig.isCoarse,
-                HybridMachineSig.HybridCoarseMachine.scheduler.
-                destruct Hangel_bound as (?&(?&?&?&?)).
-                subst.
-                eapply (proj1 (Logic.and_assoc _ _ _)).
-                
-                split.
-                -- unfold virtueLP_inject,
-                   bounded_maps.map_empty_def, access_map_injected; auto.
-                -- split; eapply inject_virtue_sub_map; eauto.
-                   
-              * !goal (semantics.at_external _ _ _ = Some (UNLOCK, _)).
-                { clean_cnt.
-                  eapply ssim_preserves_atx in Hat_external.
-                  2: { constructor; eauto. }
-                  destruct Hat_external as (args' & Hat_external2 & val_inj).
-                  replace ( Vptr b' (add ofs (repr delt)) :: nil) with args'.
-                  
-                  simpl; unfold at_external_sum, sum_func.
-                  subst CoreSem. 
-                  subst th_mem2.
-                  rewrite <- (restr_proof_irr (th_comp thread_compat2)).
-                  rewrite <- Hat_external2; simpl.
-                  clear - HState2.
-                  
-                  inversion HState2; subst.
-                  - simpl; repeat f_equal.
-                    eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
-                  - simpl; repeat f_equal.
-                    eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
-                  - clear - val_inj Hinj_b.
-                    inversion val_inj; subst.
-                    inversion H3; f_equal.
-                    inversion H1; subst.
-                    rewrite Hinj_b in H4; inversion H4; subst.
-                    reflexivity. }
-                
-              * (* Prove I can read the lock. *)
-                clean_cmpt.
-                
-                assert (Hperm_range:=Hinj_lock).
-                eapply Mem.range_perm_inject in Hperm_range; eauto.
-                simpl.
-                clean_cnt.
-                erewrite Mem.address_inject; try eapply Hinj_lock; eauto.
-                2: {
-                  specialize(Haccess (unsigned ofs)).
-                  eapply Haccess.
-                  unfold unsigned; split; try omega.
-                  eapply Z.lt_add_pos_r.
-                  unfold LKSIZE.
-                  rewrite size_chunk_Mptr.
-                  destruct Archi.ptr64; omega.
-                }
-                replace (unsigned ofs + delt + LKSIZE)%Z with (unsigned ofs + LKSIZE + delt)%Z
-                  by omega.
-                eassumption.
-
-              * (* Prove the load succeeds. *)
-                !goal (Mem.load _ _ b' _ = _).
-                move Hload at bottom.
-                clean_cmpt.
-                eapply Mem.load_inject in Hload; eauto.
-                
-                destruct Hload as (v2& Hload & Hval_inj); simpl.
-                erewrite Mem.address_inject;
-                  try eapply Hinj_lock; eauto.
-                (* instantiate(1:=Hcmpt2). *)
-                inversion Hval_inj; subst; eauto.
-                
-                (* solve the arithmetic subgoal*)
-                {
-                  specialize(Haccess (unsigned ofs)).
-                  eapply Haccess.
-                  unfold unsigned; split; try omega.
-                  eapply Z.lt_add_pos_r.
-                  unfold LKSIZE.
-                  rewrite size_chunk_Mptr.
-                  destruct Archi.ptr64; omega.
-                }
-
-              * !goal (Mem.store _ _ b' _ _ = _).
-                move Hstore2 at bottom.
-                match goal with
-                | [  |- context[restrPermMap ?X] ] =>
-                  replace (restrPermMap X) with (restrPermMap Hlt_setBlock2)
-                end.
-                -- replace intval with unsigned by reflexivity.
-                   rewrite Heq; assumption.
-                -- clear - Hlt_setBlock2 Heq.
-                   apply restrPermMap_rewrite_strong.
-                   
-              * !goal (lockRes _ (b',_) = Some _).
-                eapply INJ_lock_permissions; eauto.
-              * (* new lock is empty *)
-                eapply empty_map_useful.
-                eapply inject_empty_maps; assumption.
-                
-              * (* Claims the transfered resources join in the appropriate way *)
-                simpl.
-                subst newThreadPerm2 angelLP2; eapply H.
-                
-                
-              * (* Claims the transfered resources join in the appropriate way *)
-                subst newThreadPerm2 angelLP2; eapply H.
-
-              * subst; simpl; repeat f_equal.
-
-                Unshelve. {
-                  clear - Hlt_setBlock2 Heq.
-                  f_equal; auto.
-                }
-          Qed.    (* release_step_diagram_self *)
-          
-          
-          pose proof (mtch_target _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
-          simpl in Hcode; exploit_match ltac:(apply CMatch).
-          inversion H3. (* Asm_match *)
-          
-          (*Destruct the values of the self simulation *)
-          pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
-          assert (Hinj':=Hinj).
-          pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
-          eapply sim_atx in Hinj'; eauto.
-          2: { (*at_external*)
-            idtac.
-            clean_cmpt. 
-            erewrite restr_proof_irr.
-            rewrite Hmem_equiv; simpl; eassumption.
-          }
-          clear sim_atx.
-          destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-          
-          (edestruct (release_step_diagram_self AsmSem) as
-              (e' & m2' & Hthread_match & Htrace_inj & external_step);
-           first[ eassumption|
-                  econstructor; eassumption|
-                  solve[econstructor; eauto] |
-                  eauto]).
-
-          + (* invariant st2 *) 
-            eapply CMatch.
-          (*
-          + (* sub_map *)
-            clean_cmpt.
-            instantiate (1:=Build_virtue virtueThread virtueLP).
-            econstructor; auto.
-             
-          + (*permMapJoin_pair*)
-            econstructor; simpl; eauto.
-           *)
-            
-          + (*Mem.inject *)
-            eapply CMatch.
-          + (*at external *)
-            clean_cmpt. unfold thread_mems.
-            rewrite Hmem_equiv; simpl; assumption.
-            
-          + (*match_self*)
-            econstructor.
-            * eapply H3.
-            * simpl; clean_cmpt.
-              erewrite <- (restr_proof_irr Hlt1).
-              erewrite <- (restr_proof_irr Hlt2).
-              assumption.
-          + exists e'. eexists. exists m2', cd, mu.
-            split ; [|split].
-            * (* reestablish concur *)
-              rename b into BB.
-
-              (* Working here *)
-              (*
-                eapply concur_match_update_lock_same.     
-              -- (*concur_match*) eassumption.
-              -- (*getThreadC cnt1*) eassumption.
-              -- (*getThreadR cnt1*) reflexivity.
-              -- (*getThreadC cnt2*)
-                symmetry; eassumption.
-              -- (*getThreadR cnt2*)
-                reflexivity.
-              -- eassumption.*)
-
-              admit.
-              
-
-
-            (*
-              eapply concur_match_update_lock; eauto.
-              -- !goal(full_update_mem _ _ _ _).
-                 { econstructor; simpl; eauto.
-                   Lemma store_content:
-                     forall chunk m b ofs v m',
-                       Mem.store chunk m b ofs v = Some m' -> 
-                       forall (b' : positive) (ofs0 : ZIndexed.t),
-                         b' <> b \/ ~ Intv.In ofs0 (ofs0, ofs0 + LKSIZE) ->
-                         ZMap.get ofs0 (Mem.mem_contents m') !! b' = ZMap.get ofs0 (Mem.mem_contents m) !! b'.
-                   Admitted.
-                   intros.
-                   - etransitivity.
-                     eapply store_content; eauto.
-                     subst m_writable_lock_1.
-                     apply restr_content_equiv.
-                   - intros ?; extensionality ofs'.
-                     etransitivity.
-                     symmetry.
-                     eapply memory_lemmas.MemoryLemmas.mem_store_cur;
-                       eauto.
-                     subst m_writable_lock_1.
-                     rewrite getCur_restr.
-                     *)
-              
-                   
-            * eapply List.Forall2_app.
-              -- eapply inject_incr_trace; eauto.     
-              -- econstructor; try solve[constructor]; eauto.
-            * econstructor; eauto.
-              
-        (** *tid = hb*)
-        - subst tid. 
-          (* rename the memories, to show that they have been modified, 
-               since the execution of this thread stopped. *)
-          rename m1' into m1''.
-          rename m1 into m1'.
-          rename m2 into m2'.
-          
-          (* Retrieve the match relation for this thread *)
-          pose proof (mtch_compiled _ _ _ _ _ _ CMatch _ ltac:
-                      (reflexivity)
-                        cnt1 (contains12 CMatch cnt1)) as Hmatch.
-          exploit_match ltac:(apply CMatch).
-          
-          rename H5 into Hinterference1.
-          rename H7 into Hinterference2.
-          rename H1 into Hcomp_match.
-          rename H2 into Hstrict_evolution.
-          
-          rename cnt1 into Hcnt1.
-          (*rename Hlt' into Hlt_setbBlock1. *)
-          remember (virtueThread angel) as virtueThread1.
-          remember (virtueLP angel) as virtueLP1.
-          rename Hat_external into Hat_external1.
-          rename b into b1.
-          rename Hstore into Hstore1.
-          
-          (* to remove until 'end to remove'*)
-          rename rmap into lock_map.
-          subst virtueThread0.
-
-          (* end to remove *)
-
-
-          (*
-
-Lemmas that where moved:        
-           *)
-
-          
-
-          (* Definition that defines memoryes 
-               that are equal in all visible locations.
-
-               Can be define generically or by using mem_interference.
-               (using memn_interference is more restrictive, but 
-               might be enough.)
-           *)
-          
+      
+        
           Lemma interference_same_visible:
             forall m m' lev, mem_interference m lev m' ->
                         same_visible m m'.
@@ -4373,8 +3741,8 @@ Lemmas that where moved:
           Definition all_threads_inject_perm
                      (f:meminj) {n m} (st1: ThreadPool n) (st2: ThreadPool m) m1 m2:=
             forall (i : nat) (cnt1 : containsThread st1 i) (cnt2 : containsThread st2 i)
-              (Hlt1 : permMapLt (thread_perms cnt1) (getMaxPerm m1))
-              (Hlt2 : permMapLt (thread_perms cnt2) (getMaxPerm m2)),
+              (Hlt1 : permMapLt (thread_perms  _ _ cnt1) (getMaxPerm m1))
+              (Hlt2 : permMapLt (thread_perms  _ _ cnt2) (getMaxPerm m2)),
               Mem.inject f (restrPermMap Hlt1) (restrPermMap Hlt2).
           Lemma all_threads_inject_perm_updLock1:
             forall {n m} f st1 st2 m1 m2  adr lock_perm,
@@ -4432,7 +3800,7 @@ Lemmas that where moved:
           Definition all_threads_lock_perm_preimage
                      (f:meminj) {n m} (st1: ThreadPool n) (st2: ThreadPool m):=
             forall (i : nat) (cnt1 : containsThread st1 i) (cnt2 : containsThread st2 i),
-              perm_preimage f (lock_perms cnt1) (lock_perms cnt2).
+              perm_preimage f (lock_perms  _ _ cnt1) (lock_perms  _ _ cnt2).
           Lemma perm_preimage_updLockSet:
             forall f n m st1 st2 adr1 adr2 lock_perms1 lock_perms2,
               @all_threads_lock_perm_preimage f n m st1 st2 ->
@@ -4445,6 +3813,7 @@ Lemmas that where moved:
             unshelve (do 2 erewrite gLockSetRes); try eapply H.
             all : unshelve eapply cntUpdateL'; auto.
           Qed.
+          
           Lemma perm_preimage_updThread:
             forall f n m st1 st2 c1 c2 thred_perms1 thred_perms2,
               @all_threads_lock_perm_preimage f n m st1 st2 ->
@@ -4466,9 +3835,6 @@ Lemmas that where moved:
           Lemma perm_preimage_compute:
             forall (f:meminj) perm1 perm2 dmap1 dmap2,
               perm_preimage f perm1 perm2 ->
-              (* perm_perfect_image_dmap is slightly too strong,
-                        don't need it's full. But generally have it.
-               *)
               perm_perfect_image_dmap f dmap1 dmap2 ->
               perm_preimage f (computeMap perm1 dmap1) (computeMap perm2 dmap2).
           Proof.
@@ -4510,7 +3876,6 @@ Lemmas that where moved:
           (* Lemmas end *)
           
           
-          (** *Diagram No.0*)
           Definition expl_restrPermMap p m Hlt:=
             @restrPermMap p m Hlt.
           Lemma expl_restr:
@@ -4586,78 +3951,705 @@ Lemmas that where moved:
               restrPermMap Hlt1 = restrPermMap Hlt2.
           Proof. intros. subst. apply restr_proof_irr. Qed.
 
+          Inductive lock_step b ofs lock_perm m m': val -> val -> Prop :=
+          | Build_lock_step:
+              forall lock_mem_lt vload vstore
+                (Hwritable_lock1 : writable_lock b ofs lock_perm m),
+                let lock_mem:= @restrPermMap lock_perm m lock_mem_lt in
+                let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
+                forall (Haccess: Mem.range_perm lock_mem b ofs (Z.add ofs LKSIZE) Cur Readable)
+                  (Hload: Mem.load AST.Mint32 lock_mem b ofs = Some vload)
+                  (Hstore: Mem.store AST.Mint32 m_writable_lock_1 b ofs vstore = Some m'),
+                  lock_step b ofs lock_perm m m' vload vstore.
+          
+          Definition fullThreadUpdate
+            {sem} st i cnt th_st (angel: virtue) adr  :=
+            (updLockSet
+               (@updThread dryResources sem i st cnt th_st (computeMap_pair (getThreadR cnt) (virtueThread angel)))
+               adr (virtueLP angel)).
 
+          (** *step_diagram_Self*)
+          
+          Lemma acquire_step_diagram_self Sem:
+            let CoreSem:= sem_coresem Sem in
+            forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
+              (st1 : mach_state hb) (st2 : mach_state (S hb))
+              (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
+              (Hinj_b : mu b = Some (b', delt))
+              cnt1 cnt2 (* Threads are contained *)
+              (CMatch: concur_match i mu st1 m1 st2 m2)
+              
+              (* Thread states *)
+              (th_state1: @semC Sem) th_state2 sum_state1 sum_state2
+              (HState1: coerce_state_type _ sum_state1 th_state1  
+                                          (CSem, Clight.state) (AsmSem,Asm.state) (Sem,@semC Sem))
+              (HState2: coerce_state_type _ sum_state2 th_state2
+                                          (CSem, Clight.state) (AsmSem,Asm.state) (Sem,@semC Sem))
+              (Hget_th_state1: @getThreadC _ _ tid st1 cnt1 = Kblocked sum_state1)
+              (Hget_th_state2: @getThreadC _ _ tid st2 cnt2 = Kblocked sum_state2)
+              
+              (* angel,lock permissions and new thread permissions *)
+              (angel: virtue) lock_perms
+              (HisLock: lockRes st1 (b, Integers.Ptrofs.unsigned ofs) = Some lock_perms)
+              (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
+              (Hthread_mem1: access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
+              (Hthread_mem2: access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2)),
+              let Hcmpt2:= memcompat2 CMatch in
+              let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
+              forall (Hjoin_angel: permMapJoin_pair lock_perms (getThreadR cnt1) newThreadPerm1)
+                (Hlock_step: lock_step b (unsigned ofs)  (snd (getThreadR cnt1))
+                                       m1 m1' (Vint Int.one) (Vint Int.zero))
+                (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2)
+                (Hat_external: semantics.at_external CoreSem th_state1 m1 =
+                               Some (LOCK, (Vptr b ofs :: nil)%list)),
+                let event1 := build_acquire_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
+                exists event2 (m2' : mem),
+                  match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2 /\
+                  (inject_mevent mu) (Events.external tid event1) (Events.external tid event2) /\
+                  let angel2:= inject_virtue m2 mu angel in
+                  let new_perms2:= Build_virtue (virtueThread angel2) (empty_map, empty_map) in
+                  let st2'':= fullThreadUpdate st2 tid cnt2 (Kresume sum_state2 Vundef)
+                                               new_perms2 (b', unsigned (add ofs (repr delt))) in
+                  syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2'' m2' event2.
+          Proof.
+          Admitted. (* END acquire_step_diagram_self *)
+          
+          Lemma release_step_diagram_self Sem:
+            let CoreSem:= sem_coresem Sem in
+            forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
+              (st1 : mach_state hb) (st2 : mach_state (S hb))
+              (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
+              (Hinj_b : mu b = Some (b', delt))
+              cnt1 cnt2 (* Threads are contained *)
+              (CMatch: concur_match i mu st1 m1 st2 m2)
+
+              (* Thread states *)
+              (th_state1: @semC Sem) th_state2 sum_state1 sum_state2
+              (HState1: coerce_state_type _ sum_state1 th_state1  
+                                          (CSem, Clight.state) (AsmSem,Asm.state) (Sem,@semC Sem))
+              (HState2: coerce_state_type _ sum_state2 th_state2
+                                          (CSem, Clight.state) (AsmSem,Asm.state) (Sem,@semC Sem))
+              (Hget_th_state1: @getThreadC _ _ tid st1 cnt1 = Kblocked sum_state1)
+              (Hget_th_state2: @getThreadC _ _ tid st2 cnt2 = Kblocked sum_state2)
+              
+              (* angel, lock permissions and new thread permissions *)
+              (angel: virtue) empty_perms
+              (Hempty_map: empty_doublemap empty_perms)
+              (HisLock: lockRes st1 (b, Integers.Ptrofs.unsigned ofs) = Some empty_perms)
+              (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
+              (Hthread_mem1: access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
+              (Hthread_mem2: access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2)),
+              let Hcmpt2:= memcompat2 CMatch in
+              let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
+              forall (Hjoin_angel: permMapJoin_pair newThreadPerm1 (virtueLP angel) (getThreadR cnt1))
+                (Hlock_step: lock_step b (unsigned ofs)  (snd (getThreadR cnt1))
+                                       m1 m1' (Vint Int.zero) (Vint Int.one))
+                (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2)
+                (Hat_external: semantics.at_external CoreSem th_state1 m1 =
+                               Some (UNLOCK, (Vptr b ofs :: nil)%list)),
+                let event1 := build_release_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
+                exists event2 (m2' : mem),
+                  match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2 /\
+                  (inject_mevent mu) (Events.external tid event1) (Events.external tid event2) /\
+                  let angel2:= inject_virtue m2 mu angel in
+                  let st2'':= fullThreadUpdate st2 tid cnt2 (Kresume sum_state2 Vundef)
+                                               angel2 (b', unsigned (add ofs (repr delt))) in
+                  syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2'' m2' event2.
+          Proof.
+            intros; simpl in *.
+            inversion Hlock_step. subst vload vstore.
+            rename lock_mem into locks_mem1.
+            assert (Hcmpt1: mem_compatible st1 m1) by apply CMatch.
+            assert (thread_compat1:thread_compat _ _ cnt1 m1) by (apply mem_compatible_thread_compat; auto).
+            assert (thread_compat2:thread_compat _ _ cnt2 m2) by (apply mem_compatible_thread_compat; auto).
+            remember (snd (thread_mems thread_compat2)) as locks_mem2.
+            assert (Hinj_lock: Mem.inject mu locks_mem1 locks_mem2 ) by (subst locks_mem2 locks_mem1; eapply CMatch).
+            inversion Amatch; clear Amatch.
+
+            remember (inject_virtue m2 mu angel) as angel2.
+            remember (virtueThread angel2) as angelThread2.
+            remember (virtueLP angel2) as angelLP2.
+            
+            assert (Hstore':
+                      exists (Hlt_setBlock2: writable_lock b' (unsigned ofs + delt)%Z (lock_perms _ _ cnt2) m2),
+                        exists n2, Mem.store AST.Mint32 (restrPermMap Hlt_setBlock2) b' 
+                                        (unsigned ofs + delt) (Vint Int.one) = Some n2 /\ 
+                              Mem.inject mu m1' n2).
+            {
+              -
+              (** *Constructing the target objects: events, thread_pool, mem, meminj and index*)
+
+              (** *virtueThread*)
+              (*First construct the virtueThread:
+                the permissions passed from the thread to the lock. *)
+
+              (* Construct the memory with permissions to write in the lock*)
+              assert (Hwritable_lock2:
+                        writable_lock b' (unsigned ofs + delt)%Z (lock_perms _ _ cnt2) m2).
+              { 
+                eapply (setPermBlock_inject_permMapLt); simpl in *; eauto.
+                (* Mem.inject access_map_inejct mu b permMapLt *)
+                erewrite <- (getMax_restr _ _ lock_mem_lt).
+                erewrite <- (getMax_restr _ _ (lock_comp thread_compat2)).
+                subst locks_mem1 locks_mem2.
+                eapply access_map_injected_getMaxPerm; assumption.
+                eapply thread_compat2.
+              }
+              
+              exists Hwritable_lock2.
+              
+              (* Construct new memory and new injection *)
+              eapply Mem.store_mapped_inject in Hstore; eauto.
+
+              unfold m_writable_lock_1.
+              remember (useful_permMapLt_trans (lock_comp thread_compat1) Hwritable_lock1)
+                as Hlt_restr_setBlock1 eqn:HH; clear HH.
+              remember (useful_permMapLt_trans (lock_comp thread_compat2) Hwritable_lock2)
+                as Hlt_restr_setBlock2 eqn:HH; clear HH.
+              
+              rewrite (restrPermMap_idempotent _ Hwritable_lock1 Hlt_restr_setBlock1).
+              rewrite (restrPermMap_idempotent _ Hwritable_lock2 Hlt_restr_setBlock2).
+              
+              (* m1 *)
+              assert (Hlt_setBlock1': writable_lock b (unsigned ofs) (getCurPerm locks_mem1) locks_mem1).
+              { intros; subst locks_mem1.
+                unfold writable_lock.
+                rewrite getMax_restr, getCur_restr; eauto. }
+              
+              assert (HH1:mem_equiv (restrPermMap Hlt_restr_setBlock1) (restrPermMap Hlt_setBlock1')).
+              { eapply restrPermMap_equiv.
+                - eapply restr_proof_irr_equiv.
+                - eapply setPermBlock_access_map_equiv; try reflexivity.
+                  + subst; symmetry.
+                    apply getCur_restr.
+                  + econstructor; auto.
+              }
+              rewrite HH1.
+              
+              
+              (* m2 *)
+              assert(Hlt_setBlock2':
+                       writable_lock b' (unsigned ofs + delt) (getCurPerm locks_mem2) locks_mem2).
+              { intros; subst locks_mem2.
+                unfold writable_lock.
+                simpl; rewrite getMax_restr, getCur_restr; eauto. }
+              
+              assert (HH2:mem_equiv (restrPermMap Hlt_restr_setBlock2) (restrPermMap Hlt_setBlock2')).
+              { eapply restrPermMap_equiv.
+                - subst; eapply restr_proof_irr_equiv.
+                - eapply setPermBlock_access_map_equiv; try reflexivity.
+                  + subst; symmetry.
+                    apply getCur_restr.
+                  + econstructor; auto. }
+              rewrite HH2.
+
+              subst locks_mem1 locks_mem2.
+              eapply setPermBlock_mem_inject; eauto.
+              - unfold LKSIZE_nat. rewrite Z2Nat.id.
+                2: { pose proof LKSIZE_pos; omega. }
+                rewrite (restr_content_equiv lock_mem_lt).
+                rewrite (restr_content_equiv (lock_comp thread_compat2)).
+                eapply CMatch; auto.
+                simpl in *; eassumption.
+            }
+            destruct Hstore' as (Hlt_setBlock2 & m2' & Hstore2 & Hinj2).
+            
+            
+            remember (build_release_event (b', unsigned ofs + delt ) (fst (virtueThread angel2)) m2')
+              as event2. 
+            
+            (* Instantiate some of the existensials *)
+            exists event2; exists m2'.  
+            split; [|split]. (* 4 goal*)
+            
+            + (* Goal:  match_self code_inject *)
+              constructor; eassumption.
+              
+            + (*Goal: Inject the trace*)
+              subst event1 event2.
+              do 2 econstructor. 
+              * constructor; eauto.
+              * unfold inject_delta_content.
+                (* todo, redefine inject_delta_content *)
+                constructor.
+                
+            + !goal (syncStep _ _ _ _ _ _).
+              (* Goal: show the source-external-step*)
+              (* get the memory and injection *)
+              
+              assert(Heq: unsigned (add ofs (repr delt)) = (unsigned ofs + delt)%Z ).
+              { unfold add.
+                eapply Mem.address_inject; eauto.
+                eapply Mem.perm_store_1; eauto.
+                eapply Mem.store_valid_access_3 in Hstore.
+                destruct Hstore as [Hperm ?].
+                specialize (Hperm (unsigned ofs)).
+                move Hperm at bottom.
+                eapply Hperm.
+                replace unsigned with unsigned by reflexivity.
+                pose proof (size_chunk_pos AST.Mint32).
+                omega.
+              }
+              
+              subst event2 ; unfold build_release_event.
+              rewrite <-  Heq.
+
+              (*Prove that the new ThreadVirtue Joins in the right way:
+                old_thread "+" delta_map = new_thread.
+               *)
+              set (newThreadPerm2 := computeMap_pair (getThreadR cnt2) (virtueThread angel2)).
+
+              assert (permMapJoin_pair newThreadPerm2 (virtueLP angel2) (getThreadR cnt2)).
+              {  subst newThreadPerm2; simpl.
+                 apply compute_map_join_pair.
+                 eapply delta_map_join_inject_pair.
+                 - !goal (Mem.meminj_no_overlap _ _).
+                   instantiate (1:= m1).
+                   instantiate (1:= mu).
+                   assert (Max_equiv m1 m1').
+                   { etransitivity.
+                     - symmetry.
+                       eapply restr_Max_equiv. 
+                     - eapply Mem.store_access in Hstore.
+                       symmetry in Hstore.
+                       (* Move to compiler/mem_equiv.v *)
+                       subst m_writable_lock_1.
+                       apply mem_access_max_equiv; eauto.
+                   }
+                   rewrite H; apply Hinj2.
+                   
+                 - clear -Hangel_bound.
+                   move Hangel_bound at bottom.
+                   instantiate(1:=(virtueThread angel)).
+                   pose proof (virtueThread_sub_map _ _ Hangel_bound).
+                   eapply sub_map_filtered_pair.
+                   eauto.
+                   
+                 - !goal (permMapLt_pair1 _ _).
+                   instantiate(1:=(getThreadR cnt1)).
+                   apply compat_permMapLt; assumption.
+                 - !goal (perm_perfect_image_dmap_pair _ _ _).
+                   (* instantiate (2:=mu).
+                   instantiate (1:=virtueThread angel).*)
+                   subst angel2.
+                   
+                   eapply inject_virtue_perm_perfect_image_dmap.
+                   eapply full_inject_dmap_pair.
+                   
+                   + !goal (Events.injection_full mu _ ).
+                     eapply CMatch.
+                   + !goal (dmap_valid_pair _ _).
+                     apply join_dmap_valid_pair.
+                     eapply Hangel_bound.
+                 - !goal (perm_perfect_image_pair _ _ _).
+                   subst angel2.
+                   eapply inject_virtue_perm_perfect_image.
+                   eapply full_inject_map_pair.
+                   + !goal (Events.injection_full mu _ ).
+                     eapply CMatch.
+                   + eapply sub_map_valid_pair.
+                     eapply Hangel_bound.
+                 - !goal (almost_perfect_image_pair _ _ _ _).
+                   
+                   pose proof (memcompat1 CMatch) as H.
+                   eapply compat_th in H as [Hlt11 Hlt12].
+                   pose proof (memcompat2 CMatch) as H.
+                   eapply compat_th in H as [Hlt21 Hlt22].
+                   split; simpl.
+                   + unshelve exploit INJ_threads (*INJ_locks*); eauto.
+                     intros HH; apply inject_almost_perfect in HH.
+                     eapply almost_perfect_image_proper; try eapply HH; eauto.
+                     * symmetry; eapply restr_Max_equiv.
+                     * symmetry; eapply getCur_restr.
+                     * symmetry; eapply getCur_restr.
+                       
+                   + unshelve exploit @INJ_locks; eauto.
+                     intros HH; apply inject_almost_perfect in HH.
+                     eapply almost_perfect_image_proper; eauto.
+                     * symmetry; eapply restr_Max_equiv.
+                     * symmetry; eapply getCur_restr.
+                     * symmetry; eapply getCur_restr.
+                 -  eapply compute_map_join_pair.
+                    subst newThreadPerm1.
+                    eapply Hjoin_angel.
+              }
+              
+              eapply step_release with
+                  (b0:= b')(m':=m2')
+                  (virtueThread:=(virtueThread angel2))
+                  (virtueLP:=angelLP2)
+                  (rmap:=virtueLP_inject m2 mu empty_perms)
+              ; eauto; try reflexivity. 
+              
+              (* 10 goals produced. *)
+              
+              * move Hangel_bound at bottom.
+                destruct Hangel_bound as ((A&B)&?).
+                subst angelThread2 angel2.
+                destruct angel as (virtueT&?); destruct virtueT as (virtueT_A & virtueT_B). 
+                remember (snd (getMaxPerm m2)) as TEMP.
+                simpl; simpl in A, B, virtueLP_sub_map0. subst TEMP.
+                subst locks_mem1 locks_mem2.
+                split; eapply inject_virtue_sub_map; try apply Hinj_lock; eauto.
+                
+              * unfold HybridMachineSig.isCoarse,
+                HybridMachineSig.HybridCoarseMachine.scheduler.
+                destruct Hangel_bound as (?&(?&?&?&?)).
+                subst.
+                eapply (proj1 (Logic.and_assoc _ _ _)).
+                
+                split.
+                -- unfold virtueLP_inject,
+                   bounded_maps.map_empty_def, access_map_injected; auto.
+                -- split; eapply inject_virtue_sub_map; eauto;
+                   subst locks_mem1; try eapply Hinj_lock; eauto.
+              * eapply CMatch.
+              * !goal (semantics.at_external _ _ _ = Some (UNLOCK, _)).
+                { clean_cnt.
+                  eapply ssim_preserves_atx in Hat_external.
+                  2: { constructor; eauto. }
+                  destruct Hat_external as (args' & Hat_external2 & val_inj).
+                  replace ( Vptr b' (add ofs (repr delt)) :: nil) with args'.
+                  
+                  simpl; unfold at_external_sum, sum_func.
+                  subst CoreSem. 
+                  rewrite <- (restr_proof_irr (th_comp thread_compat2)).
+                  rewrite <- Hat_external2; simpl.
+                  clear - HState2.
+                  
+                  inversion HState2; subst.
+                  - !goal ( Clight.at_external _ = _ _ m2).
+                    simpl; repeat f_equal.
+                    eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+                    admit. (*mem_equiv.*)
+                  - !goal ( Asm.at_external _ _ = _ _ m2).
+                    simpl; repeat f_equal.
+                    eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+                    admit. (*mem_equiv*)
+                  - clear - val_inj Hinj_b.
+                    inversion val_inj; subst.
+                    inversion H3; f_equal.
+                    inversion H1; subst.
+                    rewrite Hinj_b in H4; inversion H4; subst.
+                    reflexivity. }
+                
+              * (* Prove I can read the lock. *)
+                clean_cmpt.
+                
+                assert (Hperm_range:=Hinj_lock).
+                eapply Mem.range_perm_inject in Hperm_range; eauto.
+                simpl.
+                clean_cnt.
+                erewrite Mem.address_inject; try eapply Hinj_lock; eauto.
+                2: {
+                  specialize(Haccess (unsigned ofs)).
+                  eapply Haccess.
+                  unfold unsigned; split; try omega.
+                  eapply Z.lt_add_pos_r.
+                  unfold LKSIZE.
+                  rewrite size_chunk_Mptr.
+                  destruct Archi.ptr64; omega.
+                }
+                replace (unsigned ofs + delt + LKSIZE)%Z with (unsigned ofs + LKSIZE + delt)%Z
+                  by omega.
+                subst. eassumption.
+
+              * (* Prove the load succeeds. *)
+                !goal (Mem.load _ _ b' _ = _).
+                move Hload at bottom.
+                clean_cmpt.
+                eapply Mem.load_inject in Hload; eauto.
+                
+                destruct Hload as (v2& Hload & Hval_inj); simpl.
+                erewrite Mem.address_inject;
+                  try eapply Hinj_lock; eauto.
+                (* instantiate(1:=Hcmpt2). *)
+                inversion Hval_inj; subst; eauto.
+                
+                (* solve the arithmetic subgoal*)
+                {
+                  specialize(Haccess (unsigned ofs)).
+                  eapply Haccess.
+                  unfold unsigned; split; try omega.
+                  eapply Z.lt_add_pos_r.
+                  unfold LKSIZE.
+                  rewrite size_chunk_Mptr.
+                  destruct Archi.ptr64; omega.
+                }
+
+                (* erewrite (@restr_proof_irr _ m1).
+                erewrite (@restr_proof_irr _ m2).
+                subst locks_mem1 locks_mem2; eauto. *)
+                
+              * !goal (Mem.store _ _ b' _ _ = _).
+                move Hstore2 at bottom.
+                match goal with
+                | [  |- context[restrPermMap ?X] ] =>
+                  replace (restrPermMap X) with (restrPermMap Hlt_setBlock2)
+                end.
+                -- replace intval with unsigned by reflexivity.
+                   rewrite Heq; assumption.
+                -- clear - Hlt_setBlock2 Heq.
+                   apply restrPermMap_rewrite_strong.
+                   
+              * !goal (lockRes _ (b',_) = Some _).
+                eapply INJ_lock_permissions; eauto.
+              * (* new lock is empty *)
+                eapply empty_map_useful.
+                eapply inject_empty_maps; assumption.
+                
+              * (* Claims the transfered resources join in the appropriate way *)
+                simpl.
+                subst newThreadPerm2 angelLP2; eapply H.
+                
+                
+              * (* Claims the transfered resources join in the appropriate way *)
+                subst newThreadPerm2 angelLP2; eapply H.
+
+              * subst; simpl; repeat f_equal.
+
+                Unshelve. {
+                  clear - Hlt_setBlock2 Heq.
+                  f_equal; auto.
+                }
+          Admitted.    (* release_step_diagram_self *)
+
+
+
+
+
+          
+      Lemma release_step_diagram:
+        let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
+        forall (angel: virtue) (m1 m1' : mem)  (U : list nat) (tid : nat) cd
+          (HSched: HybridMachineSig.schedPeek U = Some tid)
+          (mu : meminj)
+          (st1 : ThreadPool (Some hb)) 
+          (tr2 : HybridMachineSig.event_trace)
+          (st2 : ThreadPool (Some (S hb))) (m2 : mem)
+          (cnt1 : containsThread(Sem:=HybridSem _) st1 tid)
+          (cnt2 : containsThread(Sem:=HybridSem _) st2 tid)
+          (c : semC) (b : block) (ofs : int)
+          (rmap : lock_info)
+          (Hthread_mem1: access_map_equiv (thread_perms _ _ cnt1) (getCurPerm m1))
+          (Hthread_mem2: access_map_equiv (thread_perms _ _ cnt2) (getCurPerm m2))
+          (CMatch: concur_match cd mu st1 m1 st2 m2)
+          (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
+          (Hcode: getThreadC cnt1 = Kblocked c)
+          (Hat_external: semantics.at_external hybrid_sem c m1 =
+                         Some (UNLOCK, (Vptr b ofs :: nil)%list))
+          (Hlock_step: lock_step b (unsigned ofs)  (snd (getThreadR cnt1))
+                                 m1 m1' (Vint Int.zero) (Vint Int.one))
+          (HisLock: ThreadPool.lockRes st1 (b, unsigned ofs) = Some rmap)
+          (Hrmap: empty_doublemap rmap),
+          let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
+          forall (Hjoin_angel: permMapJoin_pair newThreadPerm1 (virtueLP angel) (getThreadR cnt1)),
+          exists evnt' (st2' : t) (m2' : mem),
+            let evnt:= build_release_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
+            let st1':= fullThreadUpdate st1 tid cnt1 (Kresume c Vundef) angel (b, unsigned ofs) in
+            concur_match cd mu st1' m1' st2' m2' /\
+            (inject_mevent mu (Events.external tid evnt) (Events.external tid evnt')) /\
+            HybridMachineSig.external_step
+              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
+              U tr2 st2 m2 (HybridMachineSig.schedSkip U)
+              (tr2 ++ (Events.external tid evnt' :: nil)) st2' m2'.
+      Proof.
+        intros; simpl in *.
+        pose proof (memcompat1 CMatch) as Hcmpt1.
+        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
+            (apply mem_compatible_thread_compat; apply CMatch).
+        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+            Hmem_equiv.
+        inversion Hlock_step. subst vload vstore.
+        
+        (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
+        destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[?|?]|?].
+        
+        (** * tid < hb *)
+        
+        - pose proof (mtch_target _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
+          simpl in Hcode; exploit_match ltac:(apply CMatch).
+          inversion H3. (* Asm_match *)
+          
+          (*Destruct the values of the self simulation *)
+          pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
+          assert (Hinj':=Hinj).
+          pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
+          eapply sim_atx in Hinj'; eauto.
+          2: { (*at_external*)
+            idtac.
+            clean_cmpt. 
+            erewrite restr_proof_irr.
+            rewrite Hmem_equiv; simpl; eassumption.
+          }
+          clear sim_atx.
+          destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
+          
+          (edestruct (release_step_diagram_self AsmSem) as
+              (e' & m2' & Hthread_match & Htrace_inj & external_step);
+           first[ eassumption|
+                  econstructor; eassumption|
+                  solve[econstructor; eauto] |
+                  eauto]).
+          + clean_cnt; eassumption.
+         (* + (*at external *)
+            clean_cmpt. unfold thread_mems.
+            rewrite Hmem_equiv; simpl; assumption.*)
+          + (*match_self*)
+            econstructor.
+            * eapply H3.
+            * simpl; clean_cmpt.
+              move matchmem at bottom.
+              admit. (* match_mem proper with mem_equiv*)
+               (* erewrite <- (restr_proof_irr Hlt1).
+              erewrite <- (restr_proof_irr Hlt2).
+              assumption. *)
+          + exists e'. eexists. exists m2'.
+            split ; [|split].
+            * (* reestablish concur *)
+              rename b into BB.
+
+              (* Working here *)
+              (*
+                eapply concur_match_update_lock_same.     
+              -- (*concur_match*) eassumption.
+              -- (*getThreadC cnt1*) eassumption.
+              -- (*getThreadR cnt1*) reflexivity.
+              -- (*getThreadC cnt2*)
+                symmetry; eassumption.
+              -- (*getThreadR cnt2*)
+                reflexivity.
+              -- eassumption.*)
+
+              admit.
+              
+
+
+            (*
+              eapply concur_match_update_lock; eauto.
+              -- !goal(lock_update_mem _ _ _ _).
+                 { econstructor; simpl; eauto.
+                   Le mma store_content:
+                     forall chunk m b ofs v m',
+                       Mem.store chunk m b ofs v = Some m' -> 
+                       forall (b' : positive) (ofs0 : ZIndexed.t),
+                         b' <> b \/ ~ Intv.In ofs0 (ofs0, ofs0 + LKSIZE) ->
+                         ZMap.get ofs0 (Mem.mem_contents m') !! b' = ZMap.get ofs0 (Mem.mem_contents m) !! b'.
+                   Admitted.
+                   intros.
+                   - etransitivity.
+                     eapply store_content; eauto.
+                     subst m_writable_lock_1.
+                     apply restr_content_equiv.
+                   - intros ?; extensionality ofs'.
+                     etransitivity.
+                     symmetry.
+                     eapply memory_le mmas.MemoryLe mmas.mem_store_cur;
+                       eauto.
+                     subst m_writable_lock_1.
+                     rewrite getCur_restr.
+                     *)
+              
+                   
+            * clear - Htrace_inj. 
+              unfold build_release_event in *. (*subst virtueThread0; *) eauto.
+              (*
+              (* eapply List.Forall2_app.
+              -- eapply inject_incr_trace; eauto. *)     
+              -- simpl. econstructor; try solve[constructor]; eauto. *)
+            * econstructor; eauto.
+              
+        (** *tid = hb*)
+        - subst tid. 
+          (* rename the memories, to show that they have been modified, 
+               since the execution of this thread stopped. *)
+          rename m1' into m1''.
+          rename m1 into m1'.
+          rename m2 into m2'.
+          
+          (* Retrieve the match relation for this thread *)
+          pose proof (mtch_compiled _ _ _ _ _ _ CMatch _ ltac:
+                      (reflexivity)
+                        cnt1 (contains12 CMatch cnt1)) as Hmatch.
+          exploit_match ltac:(apply CMatch).
+          
+          rename H5 into Hinterference1.
+          rename H7 into Hinterference2.
+          rename H1 into Hcomp_match.
+          rename H2 into Hstrict_evolution.
+          
+          rename cnt1 into Hcnt1.
+          (*rename Hlt' into Hlt_setbBlock1. *)
+          remember (virtueThread angel) as virtueThread1.
+          remember (virtueLP angel) as virtueLP1.
+          rename Hat_external into Hat_external1.
+          rename b into b1.
+          rename Hstore into Hstore1.
+          
+          (* to remove until 'end to remove'*)
+          rename rmap into lock_map.
+          (* end to remove *)
+          
+          
+          Inductive strict_evolution_diagram cd mu code1 m1' code2 m2' m1:=
+          | build_stric_diagram:
+              forall lev1 lev2 j m2
+                (Hcomp_match : compiler_match cd j code1 m1 code2 m2)
+                (Hstrict_evolution : strict_injection_evolution j mu lev1 lev2)
+                (Hinterference1 : mem_interference m1 lev1 m1')
+                (Hinterference2 : mem_interference m2 lev2 m2'),
+          strict_evolution_diagram cd mu code1 m1' code2 m2' m1.
 
           (** *RELEASE COMPILED*)
           Lemma release_step_diagram_compiled:
             let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
             forall (angel: virtue) (U : list nat) (cd : compiler_index)
-              (virtueThread1 : Pair delta_perm_map)
-              (virtueLP1 : Pair access_map)
-              (Hangel_eq: angel = Build_virtue virtueThread1 virtueLP1)
-              (HSched: HybridMachineSig.schedPeek U = Some hb)
-              (mu : meminj)
+              (HSched: HybridMachineSig.schedPeek U = Some hb) mu tr2
               (st1 : ThreadPool (Some hb)) (m1 m1' m1'' : mem) 
-              (tr1 tr2 : HybridMachineSig.event_trace)
-              (st2 : ThreadPool (Some (S hb))) (m2 m2' : mem)
-              (Hcnt1 : containsThread(Sem:=HybridSem (Some hb)) st1 hb)
-              (b1 : block) (ofs : int)
-              (lock_map : lock_info)
-              (Hwritable_lock1 : writable_lock b1 (unsigned ofs) (snd (getThreadR Hcnt1)) m1')
-              (Hcmpt : mem_compatible st1 m1')
-              (code1 : semC) 
-              (thread_compat1: thread_compat Hcnt1 m1'),
-              let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
-              let th_mem1 :=  fst (thread_mems thread_compat1) in
-              let locks_mem1:= snd (thread_mems thread_compat1) in
-              let virtueThread:= virtueThread angel in
-              let virtueLP := virtueLP angel in
-              let newThreadPerm1:= (computeMap_pair (getThreadR Hcnt1) virtueThread) in
-              forall (CMatch:concur_match (Some cd) mu st1 m1' st2 m2')
-                (HTraceInj: List.Forall2 (inject_mevent mu) tr1 tr2)
-                (Hangel_bound: sub_map_virtue angel (getMaxPerm m1'))
-                (Hinv: invariant st1)
-                (Hcode: getThreadC Hcnt1 = Kblocked (SST code1))
-                (Hat_external1: semantics.at_external hybrid_sem (SST code1) th_mem1 =
-                                Some (UNLOCK, (Vptr b1 ofs :: nil)%list))
-                (Hstore1: Mem.store AST.Mint32 m_writable_lock_1 b1
-                                    (unsigned ofs) (Vint Int.one) = Some m1'')
-                (Haccess: Mem.range_perm locks_mem1 b1 (unsigned ofs)
-                                         (Z.add (unsigned ofs) LKSIZE) Cur Readable)
-                (Hload: Mem.load AST.Mint32 locks_mem1 b1 (unsigned ofs) =
-                        Some (Vint Integers.Int.zero))
-                (HisLock: ThreadPool.lockRes st1 (b1, unsigned ofs) = Some lock_map)
-                (Hrmap: empty_doublemap lock_map)
-                (Hjoin_angel: permMapJoin_pair newThreadPerm1 virtueLP (getThreadR Hcnt1))
-
-                (Hlt1 : permMapLt (thread_perms Hcnt1) (getMaxPerm m1'))
-                (Hlt2 : permMapLt (thread_perms (contains12 CMatch Hcnt1)) (getMaxPerm m2'))
-                (j : meminj) (code2 : Asm.state)
-                (lev1 lev2 : list Events.mem_effect)
-                (Hcomp_match : compiler_match (cd) j code1 m1 code2 m2)
-                (Hstrict_evolution : strict_injection_evolution j mu lev1 lev2)
-                (Hinterference1 : mem_interference m1 lev1 (restrPermMap Hlt1))
-                (Hinterference2 : mem_interference m2 lev2 (restrPermMap Hlt2))
-                (H0 : Kblocked (TST code2) = getThreadC (contains12 CMatch Hcnt1)),
+              (st2 : ThreadPool (Some (S hb))) (m2' : mem)
+              (Hcnt1 : containsThread(Sem:=HybridSem _) st1 hb)
+              (Hcnt2 : containsThread(Sem:=HybridSem _) st2 hb)
+              b1 ofs lock_map (code1 : semC)  (code2 : Asm.state)
+              (Hthread_mem1: access_map_equiv (thread_perms hb st1 Hcnt1) (getCurPerm m1'))
+              (Hthread_mem2: access_map_equiv (thread_perms hb st2 Hcnt2) (getCurPerm m2'))
+              (CMatch: concur_match (Some cd) mu st1 m1' st2 m2')
+              (Hangel_bound: sub_map_virtue angel (getMaxPerm m1'))
+              (Hcode1: getThreadC Hcnt1 = Kblocked (SST code1))
+              (Hcode2 : getThreadC Hcnt2 = Kblocked (TST code2))
+              (Hat_external1: semantics.at_external hybrid_sem (SST code1) m1 =
+                              Some (UNLOCK, (Vptr b1 ofs :: nil)%list))
+              (Hlock_step: lock_step b1 (unsigned ofs)  (snd (getThreadR Hcnt1))
+                                     m1' m1'' (Vint Int.zero) (Vint Int.one))
+              (HisLock: ThreadPool.lockRes st1 (b1, unsigned ofs) = Some lock_map)
+              (Hrmap: empty_doublemap lock_map),
+              let newThreadPerm1:= (computeMap_pair (getThreadR Hcnt1) (virtueThread angel)) in
+              forall (Hjoin_angel: permMapJoin_pair newThreadPerm1 (virtueLP angel) (getThreadR Hcnt1))
+                (Hlt1 : permMapLt (thread_perms _ _ Hcnt1) (getMaxPerm m1'))
+                (Hlt2 : permMapLt (thread_perms _ _ Hcnt2) (getMaxPerm m2'))
+                (Hstrict: strict_evolution_diagram cd mu code1 m1' code2 m2' m1)
+              ,
               exists
-                evnt' (st2' : t) (m2'' : mem) (cd' : option compiler_index)(mu' : meminj),
-                let evnt:= (Events.release (b1, unsigned ofs) (Some (build_delta_content (fst virtueThread) m1''))) in 
-                concur_match cd' mu'
-                             (updLockSet
-                                (updThread Hcnt1 (Kresume (SST code1) Vundef)
-                                           (computeMap_pair (getThreadR Hcnt1) (virtueThread)))
-                                (b1, unsigned ofs) virtueLP) m1'' st2' m2'' /\
-                List.Forall2 (inject_mevent mu')
-                             (tr1 ++ (Events.external hb evnt :: nil))
-                             (tr2 ++ (Events.external hb evnt' :: nil)) /\
+                evnt' (st2' : t) (m2'' : mem),
+                let evnt:= build_release_event (b1, unsigned ofs) (fst (virtueThread angel)) m1'' in 
+                let st1':= fullThreadUpdate st1 hb Hcnt1 (Kresume (SST code1) Vundef) angel (b1, unsigned ofs)  in
+                concur_match (Some cd) mu st1' m1'' st2' m2'' /\
+                (inject_mevent mu (Events.external hb evnt) (Events.external hb evnt')) /\
                 HybridMachineSig.external_step
                   (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
                   U tr2 st2 m2' (HybridMachineSig.schedSkip U)
                   (tr2 ++ (Events.external hb evnt' :: nil)) st2' m2''.
           Proof.
             intros.
+            inversion Hstrict.
+            pose proof (memcompat1 CMatch) as Hcmpt1.
+            assert (thread_compat1: thread_compat st1 hb Hcnt1 m1') by
+                (apply mem_compatible_thread_compat; auto). 
+            assert (Hinv: invariant st1) by apply CMatch.
+            remember (virtueThread angel) as virtueThread1.
+            remember (virtueLP angel) as virtueLP1.
             remember (virtueThread_inject m2' mu virtueThread1)  as virtueThread2.
             remember (virtueLP_inject m2' mu virtueLP1) as virtueLP2.
+            inversion Hlock_step. subst vload vstore.
             
             
             (* NOTE: this proof has three diagrams:
@@ -4679,12 +4671,14 @@ Lemmas that where moved:
             (* 0. Stablish facts about m2' *)
             
             assert (Hcmpt2: mem_compatible st2 m2') by eapply CMatch.
-            assert (Hcnt2: containsThread st2 hb) by (eapply contains12; eauto).
             assert (Hinj: Mem.inject j m1 m2).
             { pose proof (Injfsim_match_meminjX compiler_sim _ _ _ _ Hcomp_match).
               destruct code1, code2; auto. }
-            assert (Hinj': Mem.inject mu m1' m2') by (eapply CMatch; auto).
-
+            assert (Hinj': Mem.inject mu m1' m2').
+            { rewrite <- (cur_equiv_restr_mem_equiv m1'); eauto.
+              rewrite <- (cur_equiv_restr_mem_equiv m2'); eauto.
+              eapply CMatch.
+            }
             
             (* 1. Set all the at_externals for m1 m1' m2 m2' *)
             
@@ -4694,14 +4688,16 @@ Lemmas that where moved:
                                       (Smallstep.part_sem (Clight.semantics2 C_program))
                                       (Clight.set_mem code1 m1) =
                                     Some (UNLOCK, Vptr b1 ofs :: nil)).
-            { replace (restrPermMap Hlt1) with th_mem1 in Hinterference1
+            { eauto.
+              (*
+              replace (restrPermMap Hlt1) with m1 in Hinterference1.
                 by eapply restr_proof_irr.
               exploit same_visible_at_external; eauto.
               - exact Cself_simulation.
               - symmetry.
                 eapply (interference_same_visible m1 th_mem1); eassumption.
               - apply Hat_external1.
-              - simpl; eauto. 
+              - simpl; eauto. *)
             }
             
             (* Target at_external for Left diagram [m2] *)
@@ -4717,7 +4713,7 @@ Lemmas that where moved:
                 as Hatx.
               destruct Hatx as (args' & Hat_external2 & list_inj).
               inversion list_inj; subst.
-              inversion H2; inversion H4; subst.
+              inversion H1; inversion H3; subst.
               exists b2, delta; repeat (split; auto).
               eapply evolution_inject_incr; eassumption.
             }
@@ -4735,9 +4731,9 @@ Lemmas that where moved:
                 try eapply Hat_external2.
               - exact Aself_simulation.
               - eapply (interference_same_visible m2); eassumption.
-              - simpl; eauto. 
-                intros <-. repeat f_equal.
-                apply Axioms.proof_irr. }
+              - simpl; eauto. admit. (*at_external up to mem_equiv*)
+                
+            }
 
             
             assert (Hlt_setbBlock2: permMapLt
@@ -4767,7 +4763,7 @@ Lemmas that where moved:
             
             (* build m2' *)
 
-            dup Hstore1 as Hstore2.
+            dup Hstore as Hstore2.
             remember (restrPermMap Hlt_setbBlock2) as m_writable_lock_2.
             assert (Hinj_writable: Mem.inject mu m_writable_lock_1 m_writable_lock_2).
             {
@@ -4806,7 +4802,7 @@ Lemmas that where moved:
                   repeat rewrite getCur_restr in H.
                   rewrite restr_content_equiv in H.
                   eapply H.
-              - apply CMatch.
+              - assumption.
             }
             eapply (Mem.store_mapped_inject mu) in Hstore2; eauto.
             
@@ -4817,12 +4813,8 @@ Lemmas that where moved:
             remember ((updLockSet
                          (updThread Hcnt2 (Kresume (TST code2) Vundef) new_cur2)
                          (b2, unsigned ofs2) virtueLP2)) as st2'.
-            match goal with
-              [|- context[concur_match _ _ ?st1 ?m1 _ _] ] =>
-              remember st1 as st1'
-            end. 
-
-            
+            remember (fullThreadUpdate st1 hb Hcnt1 (Kresume (SST code1) Vundef) angel
+                                       (b1, unsigned ofs)) as st1'.
             
             assert (Hcmpt1': mem_compatible(tpool:=OrdinalThreadPool) st1' m1'').
             { 
@@ -4838,12 +4830,11 @@ Lemmas that where moved:
                 reflexivity.
                 
                 eapply mem_compatible_updLock; eauto.
-                + cut (permMapLt_pair virtueLP0  (getMaxPerm m1')) ; auto.
+                + cut (permMapLt_pair (virtueLP angel)  (getMaxPerm m1')) ; auto.
                   apply (permMapLt_pair_trans211 _ (getThreadR Hcnt1)).
-                  eapply permMapJoin_lt_pair2. eauto.
-                  eapply Hcmpt.
+                  eapply permMapJoin_lt_pair2; subst virtueLP1; eauto.
+                  eapply Hcmpt1.
                 + simpl.
-                  pose proof (INJ _ _ _ _ _ _ CMatch).
                   destruct (mem_lemmas.valid_block_dec m1' b1); auto.
                   eapply Mem.mi_freeblocks in n; eauto.
                   unify_injection.
@@ -4852,8 +4843,9 @@ Lemmas that where moved:
                   2: reflexivity.
                   fold newThreadPerm1.
                   apply (permMapLt_pair_trans211 _ (getThreadR Hcnt1)).
-                  eapply permMapJoin_lt_pair1. eauto.
-                  eapply Hcmpt.
+                  eapply permMapJoin_lt_pair1.
+                  subst virtueLP1 newThreadPerm1 virtueThread1; eauto.
+                  eapply Hcmpt1.
                   assumption.
             }
             assert (H: ThreadPool (Some (S hb)) =
@@ -4893,11 +4885,11 @@ Lemmas that where moved:
                   eapply Hcmpt2.
                   assumption.
             }
-
+            
             
             
             eexists.
-            exists st2', m2'', (Some cd), mu.
+            exists st2', m2''.
             split; [|split].
             
             (* Print num_threads.
@@ -4909,25 +4901,21 @@ Lemmas that where moved:
               assert (Hlt21 : permMapLt (fst new_cur2) (getMaxPerm m2'')).
               { admit. }
               
-
-
               eapply concur_match_update_lock; eauto.
-              + !context_goal full_update_mem. admit.
-              + !context_goal full_update_mem. admit.
+              + !context_goal lock_update_mem. admit.
+              + !context_goal lock_update_mem. admit.
               + !context_goal Mem.inject. admit.
+              + !goal (@invariant (HybridSem _) _ st1'). admit.
               + !goal (invariant st2'). admit.
               + instantiate(1:=snd new_cur2); instantiate (1:=snd newThreadPerm1).
                 subst newThreadPerm1 new_cur2; simpl.
                 eapply perm_preimage_compute.
                 ++ eapply CMatch.
                 ++ subst virtueThread2.
-                   replace virtueThread1 with virtueThread0.
-                   2: { subst virtueThread0 angel; reflexivity. }
                    cut (perm_perfect_image_dmap_pair
-                          mu (virtueThread0)
-                          (virtueThread_inject m2' mu virtueThread0)).
+                          mu virtueThread1 (virtueThread_inject m2' mu virtueThread1)).
                    { intros HH; apply HH. }
-                   subst virtueThread0.
+                   subst virtueThread1.
                    eapply inject_virtue_perm_perfect_image_dmap.
                    eapply full_inject_dmap_pair.
                    ** !goal (Events.injection_full mu _ ).
@@ -5031,8 +5019,8 @@ Lemmas that where moved:
                                                 dpm_str
                                                 lev2_str' :: nil).
                 { subst. inversion Hinj_trace_str; subst.
-                  inversion H4; subst.
-                  inversion H2; subst.
+                  inversion H3; subst.
+                  inversion H1; subst.
                   do 3 eexists. f_equal.
                 }
                 destruct Htrace_str as (lev2_str&dpm_str&lev2_str'&Htrace_str).
@@ -5058,7 +5046,7 @@ Lemmas that where moved:
                   - eauto.
                   - subst rel_trace t_str;
                       inversion Hinj_trace_str; subst.
-                    inversion H3; subst. auto.
+                    inversion H2; subst. auto.
                     eapply list_inject_weaken; auto.
                   - 
                     eapply Asm_step_consecutive; eassumption.
@@ -5081,7 +5069,7 @@ Lemmas that where moved:
                   - eauto.
                   - subst rel_trace t_str;
                       inversion Hinj_trace_str; subst.
-                    inversion H3; subst. 
+                    inversion H2; subst. 
                     eapply list_inject_weaken; auto.
                   - (* Go back and do that with *)
                     admit. (* follows from the syntax. *)
@@ -5106,7 +5094,7 @@ Lemmas that where moved:
                 
                 destruct  (Hstep _ Hinj_trace)
                   as (cd' & s2' & step & comp_match ).
-
+                
 
                 (* We prove that code2 must do an external step. *)
                 (* Note: no need for a { here. 
@@ -5122,11 +5110,12 @@ Lemmas that where moved:
                   destruct f; try discriminate.
                   
                   
+                  subst rel_trace2;
                   inversion step; subst; try solve[inversion H5] .
-                  - rewrite rPC in H2; inversion H2; subst.
+                  - rewrite rPC in H1; inversion H1; subst.
                     unfold the_ge in func_lookup.
-                    rewrite func_lookup in H3.
-                    inversion H3; discriminate.
+                    rewrite func_lookup in H2.
+                    inversion H2; discriminate.
                   (*  - rewrite rPC in H2; inversion H2; subst.
                     unfold the_ge in func_lookup.
                     rewrite func_lookup in H3.
@@ -5144,10 +5133,9 @@ Lemmas that where moved:
                     (* Show that target program is executing the same function*)
                     assert (FUNeq:e0 = ef ).
                     { assert (BB0: b0 = b)
-                        by (rewrite rPC in H2; inversion H2; reflexivity).
+                        by (rewrite rPC in H1; inversion H1; reflexivity).
                       subst b0. unfold the_ge in func_lookup.
-                      rewrite func_lookup in H3; inversion H3.
-                      reflexivity.
+                      rewrite func_lookup in H2; inversion H2; reflexivity.
                     } subst e0.
                     
                     (* Show that the function is UNLOCK*)
@@ -5171,24 +5159,26 @@ Lemmas that where moved:
                     unfold Asm.loc_external_result,Conventions1.loc_result in comp_match.
                     replace Archi.ptr64 with false in comp_match by reflexivity. 
                     simpl in comp_match.
-                    
+
                     assert (Hres: res = Vundef).
                     { unfold Events.external_call in *.
-                      rewrite ReleaseExists in H5.
-                      inversion H5. reflexivity.
+                      rewrite ReleaseExists in H4.
+                      inversion H4. reflexivity.
                     }
                     subst res.
                     (* Here *)
-                    replace m2''' with m21'''. auto.
+
+                    replace m2''' with m21'''. eassumption.
+                    
                     
                     (*  m21''' = m2''' *)
-                    simpl in H5.
-                    rewrite ReleaseExists in H5.
-                    inversion H5; subst.
+                    simpl in H4.
+                    rewrite ReleaseExists in H4.
+                    inversion H4; subst.
                     rename m' into m21'.
                     rename m'' into m21''.
-                    rename H10 into Hinterference21.
-                    rename H11 into Hrelease.
+                    rename H9 into Hinterference21.
+                    rename H10 into Hrelease.
                     
                     move Hinterference2' at bottom.
 
@@ -5207,7 +5197,8 @@ Lemmas that where moved:
                       move Hinterference21 at bottom.
                       eapply mem_interference_determ. eassumption.
                       repeat clean_proofs.
-                      erewrite restr_proof_irr; eauto.
+                      admit. (* mem interference up to equivalence*)
+                        
                     }
                     
                     assert (m21'' = (restrPermMap Hlt21)).
@@ -5222,27 +5213,34 @@ Lemmas that where moved:
                           release is deterministic and so the result follows. *)
                     }
                     (*  m21''' = m2''' *)
+                    
                     eapply mem_interference_determ; subst; try eassumption.
                 }
 
-              + !goal(full_update _ st1 _ _ _ _ st1').
+              + !goal(lock_update _ st1 _ _ _ _ st1').
                 admit.
 
                 
-              + !goal(full_update _ st2 _ _ _ _ st2').
+              + !goal(lock_update _ st2 _ _ _ _ st2').
                 admit. 
                 
-            - eapply List.Forall2_app.
+            - 
+              (* eapply List.Forall2_app.
               + eauto.
-              + econstructor; try solve[constructor].
+              + *) econstructor; try solve[constructor].
                 simpl.
                 econstructor.
-                admit.
+                econstructor; eauto.
+                instantiate (1:= Some (build_delta_content (fst virtueThread2) m2'')).
+                simpl. 
+                admit. (*TODO define inject_delta_content *)
+                
             (* injection of the event*)
             (* Should be obvious by construction *)
             - (* HybridMachineSig.external_step *)
               assert (Hofs2: intval ofs2 = unsigned ofs + delt2).
               { admit. }
+              rewrite <- Hofs2.
               
               econstructor; eauto.
               eapply step_release with
@@ -5266,10 +5264,15 @@ Lemmas that where moved:
                 split.
                 -- eapply inject_virtue_sub_map.
                    eapply CMatch.
-                   subst angel virtueThread0. assumption.
+                   inversion HeqvirtueThread1.
+                   destruct angel; simpl in H0.
+                   subst virtueThread0.
+                   eassumption.
                 -- eapply inject_virtue_sub_map.
                    eapply CMatch.
-                   subst angel virtueThread0.
+                   inversion HeqvirtueThread1.
+                   destruct angel; simpl in H0.
+                   subst virtueThread0.
                    eassumption.
                    
               + (* bounded_maps.sub_map *)
@@ -5289,12 +5292,12 @@ Lemmas that where moved:
                 unfold virtueLP_inject,
                 bounded_maps.map_empty_def, access_map_injected;
                   simpl.
-                subst angel; auto.
+                subst virtueLP1;  auto.
 
                 assert (HboundedLP':
                           bounded_maps.sub_map (snd (fst virtueLP1)) (snd (getMaxPerm m1')) /\
                           bounded_maps.sub_map (snd (snd virtueLP1)) (snd (getMaxPerm m1'))
-                       ) by (subst angel; eassumption).
+                       ) by (subst virtueLP1; eassumption).
                 
                 
                 subst virtueLP2.
@@ -5316,7 +5319,10 @@ Lemmas that where moved:
                 eapply CMatch.
                 
               + (* at_external for code 4. *)
-                simpl in *; eassumption.
+                simpl in *.
+                clean_cmpt.
+                clean_cnt.
+                eassumption.
                 
               + (* Mem.range_perm *)
                 (* Can read the lock *)
@@ -5331,7 +5337,6 @@ Lemmas that where moved:
                 
                 replace (intval ofs2) with (unsigned ofs + delt2) by assumption.
                 eapply (load_inject' mu); eauto; try congruence.
-                subst locks_mem1.
                 unfold thread_mems; simpl.
                 unshelve eapply INJ_locks; eauto.
                 
@@ -5343,9 +5348,6 @@ Lemmas that where moved:
                 * subst m_writable_lock_2.
                   
                   eapply restr_proof_irr'; auto; f_equal; auto.
-                  unfold lock_perms; simpl.
-                  clear.
-                  clean_cnt; reflexivity.
               + (* content of lockres*)
                 (* ThreadPool.lockRes st4 (b4', ofs4') *)
                 (* NOTE: why is it rmap? It should be an injection of rmap 
@@ -5374,12 +5376,24 @@ Lemmas that where moved:
                 
           Admitted. (* release_step_diagram_compiled *)
 
+
+          rewrite RPM in Hinterference1.
+          symmetry in H0.
+          clean_cnt.
+          exploit release_step_diagram_compiled;
+            try eapply CMatch;
+           eauto;
+           try reflexivity.
           
-          exploit release_step_diagram_compiled; eauto;
-            try solve reflexivity.
-          + destruct angel; subst; auto.
-          +  admit.
-            (* subst th_mem1; simpl; eauto. *)
+          + !goal(semantics.at_external _ _ _ = Some _).
+            admit.
+          + subst newThreadPerm1 virtueThread1 virtueLP1; eassumption.
+          + econstructor; eauto.
+            * !goal(mem_interference m1 lev1 m1'). admit.   
+            * !goal(mem_interference m2 lev2 m2'). admit.
+          + clear. subst virtueThread1.
+            intros (?&?&?&?&?&?).
+            do 3 eexists; eauto.
             
         - (* hb < tid *)
           pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
@@ -5406,28 +5420,30 @@ Lemmas that where moved:
                   econstructor; eassumption|
                   solve[econstructor; eauto] |
                   eauto]).
+          
+          + clean_cnt; eassumption.
 
-          + (* invariant st2 *) 
+          (*  + (*Mem.inject *)
             eapply CMatch.
-          + (*Mem.inject *)
-            eapply CMatch.
-          + (*at external *)
+          (* + (*at external *)
             clean_cmpt. unfold thread_mems.
-            rewrite Hmem_equiv; simpl; assumption. 
+            rewrite Hmem_equiv; simpl; assumption.  *)*)
           + (*match_self*)
             econstructor.
             * eapply H3.
             * simpl; clean_cmpt.
-              erewrite <- (restr_proof_irr Hlt1).
-              erewrite <- (restr_proof_irr Hlt2).
-              assumption.
-          + exists e'. eexists. exists m2', cd, mu.
+              move matchmem at bottom.
+              admit. (*match_mem Proper mem_equiv*)
+          + exists e'. eexists. exists m2'.
             split ; [|split].
             * (* reestablish concur *)
               admit.
-            * eapply List.Forall2_app.
-              -- eapply inject_incr_trace; eauto.     
-              -- econstructor; try solve[constructor]; eauto.
+            *  clear - Htrace_inj.
+              unfold build_release_event in *. auto.
+              (*
+              (* eapply List.Forall2_app.
+              -- eapply inject_incr_trace; eauto. *)     
+              -- simpl. econstructor; try solve[constructor]; eauto. *)
             * econstructor; eauto.
 
               
@@ -5440,175 +5456,106 @@ Lemmas that where moved:
       Admitted.
 
       Lemma acquire_step_diagram:
-        let hybrid_sem:= (semantics.csem (event_semantics.msem semSem)) in
-        forall (angel: virtue)
-               (U : list nat) (tid : nat) (cd : option compiler_index)
-               (Hpeek : HybridMachineSig.schedPeek U = Some tid) 
-               (mu : meminj)
-               (st1 : ThreadPool (Some hb)) (m1 m1' : mem)
-               (tr1 tr2 : HybridMachineSig.event_trace)
-               (st2 : ThreadPool.t) (m2 : mem)
-               (CMatch : concur_match cd mu st1 m1 st2 m2) (Htr : List.Forall2 (inject_mevent mu) tr1 tr2)
-               (cnt1 : ThreadPool.containsThread st1 tid)
-               (c : semC) (b : block) (ofs : int)
-               (lock_perms : lock_info)
-               (Hwritable_lock1 : writable_lock b (unsigned ofs) (snd (getThreadR cnt1)) m1)
-               (Hcmpt: mem_compatible st1 m1)
-               (thread_compat1: thread_compat cnt1 m1),
-          let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
-          let th_mem1 :=  fst (thread_mems thread_compat1) in
-          let locks_mem1:= snd (thread_mems thread_compat1) in
+        let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
+        forall (angel: virtue) (m1 m1' : mem)  (U : list nat) (tid : nat) cd
+          (HSched: HybridMachineSig.schedPeek U = Some tid)
+          (mu : meminj)
+          (st1 : ThreadPool (Some hb)) 
+          (tr2 : HybridMachineSig.event_trace)
+          (st2 : ThreadPool (Some (S hb))) (m2 : mem)
+          (cnt1 : containsThread(Sem:=HybridSem _) st1 tid)
+          (cnt2 : containsThread(Sem:=HybridSem _) st2 tid)
+          (c : semC) (b : block) (ofs : int)
+          (lock_perms : lock_info)
+          (Hthread_mem1: access_map_equiv (thread_perms _ _ cnt1) (getCurPerm m1))
+          (Hthread_mem2: access_map_equiv (thread_perms _ _ cnt2) (getCurPerm m2))
+          (CMatch: concur_match cd mu st1 m1 st2 m2)
+          (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
+          (Hcode: getThreadC cnt1 = Kblocked c)
+          (Hat_external: semantics.at_external hybrid_sem c m1 =
+                         Some (LOCK, (Vptr b ofs :: nil)%list))
+          (Hlock_step: lock_step b (unsigned ofs)  (snd (getThreadR cnt1))
+                                 m1 m1' (Vint Int.one) (Vint Int.zero) )
+          (HisLock: ThreadPool.lockRes st1 (b, unsigned ofs) = Some lock_perms),
           let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
-          let virtueThread:= virtueThread angel in
-          forall (Hbounded : pair21_prop bounded_maps.sub_map virtueThread (snd (getMaxPerm m1)))
-                 (Hinv : invariant st1)
-                 (Hcode: getThreadC cnt1 = Kblocked c)
-                 (Hat_external: semantics.at_external hybrid_sem c th_mem1 =
-                                Some (LOCK, (Vptr b ofs :: nil)%list))
-                 (Hload: Mem.load AST.Mint32 locks_mem1 b (unsigned ofs) = Some (Vint Int.one))
-                 (Haccess: Mem.range_perm locks_mem1 b (unsigned ofs) (Z.add (unsigned ofs) LKSIZE)
-                                          Cur Readable)
-                 (Hstore: Mem.store AST.Mint32 m_writable_lock_1 b
-                                    (unsigned ofs) (Vint Int.zero) = Some m1')
-                 (HisLock: ThreadPool.lockRes st1 (b, unsigned ofs) = Some lock_perms)
-                 (Hjoin_angel: permMapJoin_pair lock_perms (ThreadPool.getThreadR cnt1) newThreadPerm1),
-          exists evnt' (st2' : ThreadPool.t) (m2' : mem) (cd' : option compiler_index) (mu' : meminj),
-            let evnt:= (Events.acquire (b, unsigned ofs) (Some (build_delta_content (fst virtueThread) m1'))) in
-            concur_match cd' mu'
-                         (updLockSet (updThread cnt1 (Kresume c Vundef) newThreadPerm1)
-                                     (b, unsigned ofs) (empty_map, empty_map)) m1' st2' m2' /\
-            List.Forall2 (inject_mevent mu')
-                         (tr1 ++ (Events.external tid evnt :: nil))
-                         (tr2 ++ (Events.external tid evnt' :: nil)) /\
+          let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
+          forall (Hjoin_angel: permMapJoin_pair lock_perms (getThreadR cnt1) newThreadPerm1),
+          exists evnt' (st2' : ThreadPool.t) (m2' : mem),
+            let evnt:= build_acquire_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
+            let st1':= fullThreadUpdate st1 tid cnt1 (Kresume c Vundef) new_perms (b, unsigned ofs) in
+            concur_match cd mu st1' m1' st2' m2' /\
+            (inject_mevent mu (Events.external tid evnt) (Events.external tid evnt')) /\
             HybridMachineSig.external_step
               (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
               U tr2 st2 m2 (HybridMachineSig.schedSkip U)
               (tr2 ++ (Events.external tid evnt' :: nil)) st2' m2'.
       Proof.
-        intros.
+        intros; simpl in *.
+        pose proof (memcompat1 CMatch) as Hcmpt1.
+        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
+            (apply mem_compatible_thread_compat; apply CMatch).
+        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+            Hmem_equiv.
+        inversion Hlock_step. subst vload vstore.
 
         (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
         destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[?|?]|?].
 
         (* tid < hb *)
-        -  Lemma acquire_step_diagram_self Sem:
-             let CoreSem:= sem_coresem Sem in
-             forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
-                    (st1 : mach_state hb) (st2 : mach_state (S hb))
-                    (Hinv1: invariant st1) (Hinv2: invariant st2)
-                    (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
-                    (Hinj_b : mu b = Some (b', delt))
-                    (Hcmpt2: mem_compatible st2 m2)
-                    (cnt1 : ThreadPool.containsThread st1 tid)
-                    (cnt2 : ThreadPool.containsThread st2 tid)
-                    (thread_compat1: thread_compat cnt1 m1)
-                    (thread_compat2: thread_compat cnt2 m2)
-                    (CMatch: concur_match i mu st1 m1 st2 m2)
-                    (* Thread states *)
-                    (th_state1: @semC Sem) th_state2 sum_state1 sum_state2
-                    (HState1: coerce_state_type _ sum_state1 th_state1  
-                                                (CSem, Clight.state)
-                                                (AsmSem,Asm.state)
-                                                (Sem,@semC Sem))
-                    (HState2: coerce_state_type _ sum_state2 th_state2
-                                                (CSem, Clight.state)
-                                                (AsmSem,Asm.state)
-                                                (Sem,@semC Sem))
-                    (Hget_th_state1: getThreadC cnt1 = Kblocked sum_state1)
-                    (Hget_th_state2 : getThreadC cnt2 = Kblocked sum_state2)
-                    (* angel,lock permissions and new thread permissions *)
-                    (angel: virtue) lock_perms
-                    (HisLock: lockRes st1 (b, Integers.Ptrofs.unsigned ofs) =
-                              Some lock_perms)
-                    (Hangel_bound: sub_map_virtue angel (getMaxPerm m1))
-                    (Hwritable_lock1 : writable_lock b (unsigned ofs) (snd (getThreadR cnt1)) m1),
-               let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
-               let th_mem1:= fst (thread_mems thread_compat1) in
-               let locks_mem1:= snd (thread_mems thread_compat1) in
-               let th_mem2:= fst (thread_mems thread_compat2) in
-               let locks_mem2:= snd (thread_mems thread_compat2) in
-               let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
-               forall (Hjoin_angel: permMapJoin_pair lock_perms (ThreadPool.getThreadR cnt1) newThreadPerm1)
-                      (Hinj_lock: Mem.inject mu locks_mem1 locks_mem2)
-                      (Hat_external: semantics.at_external CoreSem th_state1 th_mem1 =
-                                     Some (LOCK, (Vptr b ofs :: nil)%list))
-                      (Hload: Mem.load AST.Mint32 locks_mem1 b (unsigned ofs) = Some (Vint Int.one))
-                      (Haccess: Mem.range_perm locks_mem1 b (unsigned ofs) (Z.add (unsigned ofs) LKSIZE) Cur Readable)
-                      (Hstore: Mem.store AST.Mint32 (m_writable_lock_1) b (unsigned ofs) (Vint Int.zero) = 
-                               Some m1')
-                      (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 th_mem1 th_state2 th_mem2),
-                 let event1 := build_acquire_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
-                 exists event2 (m2' : mem),
-                   match_self (code_inject _ _ SelfSim) mu th_state1 th_mem1 th_state2 th_mem2 /\
-                   (inject_mevent mu) (Events.external tid event1) (Events.external tid event2) /\
-                   let angel2:= inject_virtue m2 mu angel in
-                   let newThreadPerm2:= (computeMap_pair (getThreadR cnt2) (virtueThread angel2)) in
-                   let st2':= updThread(tp:=st2) cnt2 (Kresume sum_state2 Vundef) newThreadPerm2 in
-                   let st2'':=updLockSet st2' (b', unsigned (add ofs (repr delt))) (virtueLP angel2) in
-                   syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2'' m2' event2.
-           Proof.
-           Admitted. (* END acquire_step_diagram_self *)
-
-           
-           pose proof (mtch_target _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
-           simpl in Hcode; exploit_match ltac:(apply CMatch).
-           inversion H3. (* Asm_match *)
-           
-           (*Destruct the values of the self simulation *)
-           pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
-           assert (Hinj':=Hinj).
-           pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
-           eapply sim_atx in Hinj'; eauto.
-           2: { (*at_external*)
-             clean_cmpt.
-             erewrite restr_proof_irr; simpl; eauto.
-           }
-           clear sim_atx.
-           destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-
-
-           
-           edestruct (acquire_step_diagram_self AsmSem) as
-               (e' & m2' & Hthread_match & Htrace_inj & external_step);
-             first[ eassumption|
-                    econstructor; eassumption|
-                    solve[econstructor; eauto] |
-                    eauto].
-           + !goal(invariant(tpool:=OrdinalThreadPool) st2).
-             eapply CMatch.
-           + !goal ( sub_map_virtue angel (getMaxPerm m1)).
-             admit. (* Think about this. c*)
-           + (*Mem.inject *)
-             !goal(Mem.inject mu _ _).
-             eapply CMatch.
-           + (*at external *)
-             clean_cmpt. unfold thread_mems.
-             erewrite restr_proof_irr; simpl; eassumption. 
-           + (*match_self*)
-             econstructor.
-             * eapply H3.
-             * simpl; clean_cmpt.
-               erewrite <- (restr_proof_irr Hlt1).
-               erewrite <- (restr_proof_irr Hlt2).
-               assumption.
-           + exists e'. eexists. exists m2', cd, mu.
-             split ; [|split].
-             * (* reestablish concur *)
-               admit.
-             * eapply List.Forall2_app.
-               -- eapply inject_incr_trace; eauto.     
-               -- econstructor; try solve[constructor]; eauto.
-             * econstructor; eauto.
-               
+        - pose proof (mtch_target _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
+          simpl in Hcode; exploit_match ltac:(apply CMatch).
+          inversion H3. (* Asm_match *)
+          
+          (*Destruct the values of the self simulation *)
+          pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
+          assert (Hinj':=Hinj).
+          pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
+          eapply sim_atx in Hinj'; eauto.
+          2: { (*at_external*)
+            clean_cmpt. 
+            erewrite restr_proof_irr.
+            rewrite Hmem_equiv; simpl; eassumption.
+          }
+          clear sim_atx.
+          destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
+          
+          (edestruct (acquire_step_diagram_self AsmSem) as
+              (e' & m2' & Hthread_match & Htrace_inj & external_step);
+           first[ eassumption|
+                  econstructor; eassumption|
+                  solve[econstructor; eauto] |
+                  eauto]).
+          + clean_cnt; eassumption.
+          + (*match_self*)
+            econstructor.
+            * eapply H3.
+            * simpl; clean_cmpt.
+              move matchmem at bottom.
+              admit. (* match_mem proper with mem_equiv*)
+               (* erewrite <- (restr_proof_irr Hlt1).
+              erewrite <- (restr_proof_irr Hlt2).
+              assumption. *)
+          + exists e'. eexists. exists m2'.
+            split ; [|split].
+            * (* reestablish concur *)
+              rename b into BB.
+              !goal (concur_match _ _ (fullThreadUpdate _ _ _ _ _ _ ) _ _ _).
+              admit.
+            * clear - Htrace_inj. 
+              unfold build_release_event in *. (*subst virtueThread0; *) eauto.
+              (*
+              (* eapply List.Forall2_app.
+              -- eapply inject_incr_trace; eauto. *)     
+              -- simpl. econstructor; try solve[constructor]; eauto. *)
+            * econstructor; eauto.
                
         (* tid = hb *)
         - admit.
           
         (* tid > hb *)
-          
         - pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
           simpl in Hcode; exploit_match ltac:(apply CMatch).
-          inversion H3. (* Asm_match *)
+          inversion H3. (* Clight_match *)
           
           (*Destruct the values of the self simulation *)
           pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
@@ -5616,46 +5563,43 @@ Lemmas that where moved:
           pose proof (self_simulation.ssim_external _ _ Cself_simulation) as sim_atx.
           eapply sim_atx in Hinj'; eauto.
           2: { (*at_external*)
-            clean_cmpt.
-            erewrite restr_proof_irr; simpl; eauto.
+            clean_cmpt. 
+            erewrite restr_proof_irr.
+            rewrite Hmem_equiv; simpl; eassumption.
           }
           clear sim_atx.
           destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-
-
           
-          edestruct (acquire_step_diagram_self CSem) as
+          (edestruct (acquire_step_diagram_self CSem) as
               (e' & m2' & Hthread_match & Htrace_inj & external_step);
-            first[ eassumption|
-                   econstructor; eassumption|
-                   solve[econstructor; eauto] |
-                   eauto].
-          (* exploit (release_step_diagram_self CSem); eauto. *)
-          + !goal(invariant(tpool:=OrdinalThreadPool) st2).
-            eapply CMatch.
-          + !goal ( sub_map_virtue angel (getMaxPerm m1)).
-            admit. (* Think about this. c*)
-          + (*Mem.inject *)
-            !goal(Mem.inject mu _ _).
-            eapply CMatch.
-          + (*at external *)
-            clean_cmpt. unfold thread_mems.
-            erewrite restr_proof_irr; simpl; eassumption. 
+           first[ eassumption|
+                  econstructor; eassumption|
+                  solve[econstructor; eauto] |
+                  eauto]).
+          + clean_cnt; eassumption.
           + (*match_self*)
             econstructor.
             * eapply H3.
             * simpl; clean_cmpt.
-              erewrite <- (restr_proof_irr Hlt1).
+              move matchmem at bottom.
+              admit. (* match_mem proper with mem_equiv*)
+               (* erewrite <- (restr_proof_irr Hlt1).
               erewrite <- (restr_proof_irr Hlt2).
-              assumption.
-          + exists e'. eexists. exists m2', cd, mu.
+              assumption. *)
+          + exists e'. eexists. exists m2'.
             split ; [|split].
             * (* reestablish concur *)
+              rename b into BB.
+              !goal (concur_match _ _ (fullThreadUpdate _ _ _ _ _ _ ) _ _ _).
               admit.
-            * eapply List.Forall2_app.
-              -- eapply inject_incr_trace; eauto.     
-              -- econstructor; try solve[constructor]; eauto.
+            * clear - Htrace_inj. 
+              unfold build_release_event in *. (*subst virtueThread0; *) eauto.
+              (*
+              (* eapply List.Forall2_app.
+              -- eapply inject_incr_trace; eauto. *)     
+              -- simpl. econstructor; try solve[constructor]; eauto. *)
             * econstructor; eauto.
+
       Admitted.
 
 
@@ -5876,6 +5820,9 @@ Lemmas that where moved:
 
       
       
+      Instance sub_map_virtue_proper:
+        Proper (Logic.eq ==> access_map_equiv ==> iff) sub_map_virtue.
+      Admitted.
       Lemma external_step_diagram:
         forall (U : list nat) (tr1 tr2 : HybridMachineSig.event_trace) (st1 : ThreadPool.t) 
                (m1 : mem) (st1' : ThreadPool.t) (m1' : mem) (tid : nat) (ev : Events.sync_event),
@@ -5894,51 +5841,118 @@ Lemmas that where moved:
                 (seq.cat tr2 (Events.external tid ev' :: nil)) st2' m2'.
       Proof.
         intros.
-        assert (thread_compat1:thread_compat cnt1 m1) by (apply mem_compatible_thread_compat; assumption).
+        assert (thread_compat1:thread_compat _ _ cnt1 m1) by
+            (apply mem_compatible_thread_compat; assumption).
+        assert (cnt2: ThreadPool.containsThread st2 tid) by
+            (eapply contains12; eauto).
+        assert (thread_compat2:thread_compat _ _ cnt2 m2) by
+            (apply mem_compatible_thread_compat; eapply H).
         inversion H2; subst.
         - (*Acquire*)
+          rename m1 into m1_base.
+          remember (fst (thread_mems thread_compat1)) as m1.
+          rename m2 into m2_base.
+          remember (fst (thread_mems thread_compat2)) as m2.
+          assert (Hmax_equiv1: Max_equiv m1_base m1).
+          { subst. symmetry.  eapply restr_Max_equiv. }
+          assert (Hnb1: Mem.nextblock m1_base = Mem.nextblock m1).
+          { subst;reflexivity. }
+          assert (Hmem_compat: mem_compatible st1 m1).
+          { eapply mem_compat_Max; try eapply Hcmpt; eauto. }
+
           remember (Build_virtue virtueThread0 (getThreadR cnt1)) as angel'.
-          edestruct (acquire_step_diagram angel') as
-              (?&?&?&?&?&?&?&?); subst angel'; simpl in *;
+          edestruct (acquire_step_diagram angel' m1) as
+              (?&?&?&?&?&?); subst angel'; simpl in *;
             eauto;
             try rewrite (restr_proof_irr _ (proj1 (Hcmpt tid cnt1)));
             eauto.
-          + split; simpl; auto.            
-          + do 5 eexists; split; eauto.
+          + !goal(access_map_equiv _ (_ m1) ).
+            subst. symmetry; apply getCur_restr.
+          + !goal(access_map_equiv _ (_ m2) ).
+            subst. symmetry; apply getCur_restr.
+          + !goal(concur_match _ _ _ _ _ _).
+            eapply concur_match_perm_restrict in H.
+            instantiate (1:= mu).
+            instantiate (1:= cd).
+            admit. (* almost, concur_match up to restrict*)
+          + !goal(sub_map_virtue _ _).
+            unfold Max_equiv in *;
+            rewrite <- Hmax_equiv1.
+            constructor; eauto.
+            simpl. (* COME BACK HERE *)
+            admit.
+            
+          + simpl. admit. (* at_external up to mem_equiv*)
+          + instantiate(1:= m1').
+            assert (Hlock_step:lock_step b (unsigned ofs) (lock_perms _ _ cnt1) m1_base m1' 
+                                         (Vint Int.one) (Vint Int.zero)).
+            { econstructor; eauto. }
+            Lemma lock_step_restr:
+              forall b ofs l_perms m m' lval sval p Hlt,
+              lock_step b ofs l_perms m m' lval sval ->
+              lock_step b ofs l_perms (@restrPermMap p m Hlt) m' lval sval.
+            Proof.
+            Admitted.
+            subst m1; eapply lock_step_restr; auto.
+          + econstructor; eauto.
+          + unfold fullThreadUpdate in *.
+            subst newThreadPerm.
+            simpl in H3.
+            do 5 econstructor;
+            repeat match goal with
+              |- _ /\ _ => split; eauto
+            end.
+            * eapply List.Forall2_app; auto.
+              econstructor; try solve[constructor]; eauto.
+            * clear - H5.
+              instantiate(1:=tr2) in H5.
+              admit. (* sync up to cur *)
+            
         - (*Release*)
+          (*Shifting to the threads cur.*)
           rename m1 into m1_base.
           remember (fst (thread_mems thread_compat1)) as m1.
+          rename m2 into m2_base.
+          remember (fst (thread_mems thread_compat2)) as m2.
           remember (Build_virtue virtueThread0 virtueLP0) as angel'.
           assert (Hmax_equiv1: Max_equiv m1_base m1).
           { subst. symmetry.  eapply restr_Max_equiv. }
           assert (Hnb1: Mem.nextblock m1_base = Mem.nextblock m1).
           { subst;reflexivity. }
+          assert (Hmem_compat: mem_compatible st1 m1).
+          { eapply mem_compat_Max; try eapply Hcmpt; eauto. }
+          
           edestruct (release_step_diagram angel' m1) as
-              (?&?&?&?&?&?&?&?);
+              (?&?&?&?&?&?);
             subst angel'; simpl in *; eauto.
-          + eapply mem_compat_Max;
-              try eapply Hcmpt; eauto.
-          + !goal(access_map_equiv _ _ ).
+          + !goal(access_map_equiv _ (_ m1) ).
+            subst. symmetry; apply getCur_restr.
+          + !goal(access_map_equiv _ (_ m2) ).
             subst. symmetry; apply getCur_restr.
           + !goal(concur_match _ _ _ _ _ _).
             eapply concur_match_perm_restrict in H.
-            instantiate (1:= m2).
-            instantiate (1:= st2).
+            instantiate (1:= mu).
             instantiate (1:= cd).
-            admit. (* almost, but what to do with m2. prove proper of concur_match*)
-          + admit.
-            
-            (* constructor; eauto. *)
+            admit. (* almost, concur_match up to restrict*)
+          + !goal(sub_map_virtue _ _).
+            unfold Max_equiv in *;
+            rewrite <- Hmax_equiv1.
+            constructor; eauto.
           + simpl. admit. (* at_external up to mem_equiv*)
-          + subst m1; unfold lock_comp.
-            erewrite <- restrPermMap_idempotent; eauto.
-          + subst m1; unfold lock_comp.
-            erewrite <- restrPermMap_idempotent; eauto.
-          + subst m1; unfold lock_comp.
-            erewrite <- restrPermMap_idempotent; eauto.
+          + instantiate(1:= m1').
+            assert (Hlock_step:lock_step b (unsigned ofs) (lock_perms _ _ cnt1) m1_base m1' 
+                                         (Vint Int.zero) (Vint Int.one)).
+            { econstructor; eauto. }
+            subst m1; eapply lock_step_restr; auto.
           + eapply empty_map_useful; auto.
           + econstructor; eauto.
-          + do 5 eexists; split; eauto.
+          + do 5 econstructor; repeat (split; eauto).
+            * eapply List.Forall2_app; auto.
+              econstructor; try solve[constructor]; eauto.
+            * clear - H5.
+              instantiate(1:=tr2) in H5.
+              admit. (* sync up to cur *)
+              
         - (*Create/Spawn*)
           admit.
         - (*Make Lock*)
@@ -5949,7 +5963,7 @@ Lemmas that where moved:
           eapply acquire_fail_step_diagram; eauto.
 
           Unshelve.
-          assumption.
+          all: try eassumption.
       Admitted.
 
 
@@ -6016,9 +6030,9 @@ Lemmas that where moved:
           subst. inversion H2; subst.
           inversion H. simpl in *.
           clean_cnt.
-          assert (m1_restr: permMapLt (thread_perms Htid) (getMaxPerm m1')) by
+          assert (m1_restr: permMapLt (thread_perms _ _ Htid) (getMaxPerm m1')) by
               eapply memcompat3.
-          assert (m2_restr: permMapLt (thread_perms Hcnt2) (getMaxPerm m2)) by
+          assert (m2_restr: permMapLt (thread_perms _ _ Hcnt2) (getMaxPerm m2)) by
               eapply memcompat4.
           specialize (mtch_compiled0 hb ltac:(reflexivity) Htid Hcnt2
                                                            m1_restr
