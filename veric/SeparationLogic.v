@@ -303,14 +303,12 @@ Definition closed_wrt_lvars {B} (S: ident -> Prop) (F: environ -> B) : Prop :=
 Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
   ~ In i (map (@fst _ _) params).
 
-Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
-  In  i (map (@fst _ _) vars) .
 
 Definition precondition_closed (f: function) {A: rmaps.TypeTree}
   (P: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) : Prop :=
  forall ts x,
   closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\
-  closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
+  closed_wrt_lvars (fun _ => True) (P ts x).
 
 Definition typed_true (t: type) (v: val)  : Prop :=  strict_bool_val v t
 = Some true.

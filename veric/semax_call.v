@@ -2244,7 +2244,7 @@ Lemma make_args_close_precondition:
     bind_parameter_temps params args tx = Some te' ->
     alloc_juicy_variables ge empty_env m vars = (ve', m') ->
     P (make_args (map fst params) args (construct_rho (filter_genv ge) ve te))
-   |-- close_precondition params vars P (construct_rho (filter_genv ge) ve' te').
+   |-- close_precondition params P (construct_rho (filter_genv ge) ve' te').
 Proof.
 intros.
 intros phi ?.
@@ -2270,10 +2270,11 @@ assert (exists e : temp_env,
 }
 destruct H3 as [e ?].
 exists (fun i => e!i).
-split3; intros.
+split; intros.
 *
 unfold Map.get.
 simpl. specialize (H3 i). rewrite if_true in H3 by auto. auto.
+(*
 *
 simpl.
  destruct (in_dec ident_eq i (map fst vars)).
@@ -2292,6 +2293,7 @@ simpl.
  eapply IHvars; try apply H1.
  rewrite PTree.gso; auto.
  contradict n. left. auto.
+*)
 *
  simpl.
  replace (mkEnviron (filter_genv ge) (Map.empty (block * type)) (fun i : positive => e ! i))
@@ -3028,7 +3030,7 @@ simpl @fst in *.
  forget (fn_params f) as params.
  forget (eval_exprlist (map snd params) bl rho) as args.
  clear - H21 H14 AJV H17 H17' H0 Hvars HGG COMPLETE.
- assert (app_pred (Frame * close_precondition params (fn_vars f) (P ts x)
+ assert (app_pred (Frame * close_precondition params (P ts x)
                                (construct_rho (filter_genv psi) ve' te')) (m_phi jmx)).
  eapply sepcon_derives; try apply H14; auto.
  subst rho.
@@ -3036,7 +3038,7 @@ simpl @fst in *.
  apply list_norepet_app in H17; intuition.
  clear H14.
  forget (Frame *
-     close_precondition params (fn_vars f) (P ts x)
+     close_precondition params (P ts x)
        (construct_rho (filter_genv psi) ve' te')) as Frame2.
  clear - H17' H21 AJV H Hvars HGG COMPLETE.
  (*rewrite HGG.*) change (stackframe_of' cenv_cs) with stackframe_of.
