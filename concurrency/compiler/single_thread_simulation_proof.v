@@ -1534,9 +1534,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         forall n (NZ: (0 < n)%nat)
           (m1 m2 : mem) 
           (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
-          (b : block) (ofs : ptrofs) P,
+          (b : block) ofs P,
           permMapLt
-            (setPermBlock P b (unsigned ofs) cur_perm1 n)
+            (setPermBlock P b (ofs) cur_perm1 n)
             max_perm1 ->
           Mem.inject mu m1 m2 ->
           access_map_inject mu max_perm1 max_perm2 -> 
@@ -1544,12 +1544,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             mu b = Some (b', delt) ->
             permMapLt cur_perm2 max_perm2 ->
             permMapLt
-              (setPermBlock P b' (unsigned ofs + delt)
+              (setPermBlock P b' (ofs + delt)
                             cur_perm2 n) max_perm2.
       Proof.
         intros; intros b0 ofs0.
         destruct (Clight_lemmas.block_eq_dec b' b0);
-          [destruct (Intv.In_dec ofs0 ((unsigned ofs + delt)%Z, (unsigned ofs + delt + (Z.of_nat n))%Z))|
+          [destruct (Intv.In_dec ofs0 ((ofs + delt)%Z, (ofs + delt + (Z.of_nat n))%Z))|
           ].
         - subst. unfold Intv.In in i; simpl in *.
           rewrite setPermBlock_same; auto.
@@ -1570,13 +1570,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         - subst.
           rewrite setPermBlock_other_2; eauto.
       Qed.
+      
       Lemma setPermBlock_inject_permMapLt':
         forall {Sem1 Sem2} (n:nat) (NZ: (0 < n)%nat) 
           (st1 : t(resources:=dryResources)(Sem:=Sem1)) (m1 : mem) (tid : nat) 
           (st2 : t(resources:=dryResources)(Sem:=Sem2)) (mu : meminj) (m2 : mem) (Htid1 : containsThread st1 tid)
-          (b : block) (ofs : ptrofs),
+          (b : block) ofs,
           permMapLt
-            (setPermBlock (Some Writable) b (unsigned ofs) (snd (getThreadR Htid1)) n)
+            (setPermBlock (Some Writable) b (ofs) (snd (getThreadR Htid1)) n)
             (getMaxPerm m1) ->
           Mem.inject mu m1 m2 ->
           forall (b' : block) (delt : Z),
@@ -1584,13 +1585,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             forall Htid2 : containsThread st2 tid,
               permMapLt (snd (getThreadR Htid2)) (getMaxPerm m2) ->
               permMapLt
-                (setPermBlock (Some Writable) b' (unsigned ofs + delt)
+                (setPermBlock (Some Writable) b' (ofs + delt)
                               (snd (getThreadR Htid2)) n) (getMaxPerm m2).
       Proof.
 
         intros; intros b0 ofs0. 
         destruct (Clight_lemmas.block_eq_dec b' b0);
-          [destruct (Intv.In_dec ofs0 ((unsigned ofs + delt)%Z, (unsigned ofs + delt + (Z.of_nat n))%Z))|
+          [destruct (Intv.In_dec ofs0 ((ofs + delt)%Z, (ofs + delt + (Z.of_nat n))%Z))|
           ].
         - subst. unfold Intv.In in i; simpl in *.
           rewrite setPermBlock_same; auto.
@@ -2501,6 +2502,44 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Definition writable_lock b ofs perm1 m1:=
         permMapLt (setPermBlock (Some Writable) b ofs perm1 LKSIZE_nat) (getMaxPerm m1).
       
+      Lemma writable_lock_inject:
+        forall b1 ofs cperm1 cperm2 m1 m2 f  b2 delt LKS,  
+          (0 < LKS)%nat ->
+          writable_lock b1 ofs cperm1 m1 ->
+          Mem.inject f m1 m2 ->
+          f b1 = Some (b2, delt) ->
+          permMapLt cperm2 (getMaxPerm m2) ->
+          writable_lock b2 (ofs + delt)%Z cperm2 m2.
+      Proof.
+        intros.
+        eapply setPermBlock_inject_permMapLt; simpl in *; eauto.
+        apply access_map_injected_getMaxPerm; auto.
+      Qed.
+      Instance writable_lock_proper:
+        Proper (Logic.eq ==> Logic.eq ==> access_map_equiv ==> Max_equiv ==> iff) writable_lock.
+      Proof.
+        setoid_help.proper_iff;
+          setoid_help.proper_intros; subst.
+        unfold writable_lock in *.
+        unfold Max_equiv in *.
+        rewrite <- H2, <- H1; auto.
+      Qed.
+      Lemma writable_lock_inject_restr:
+        forall b1 ofs cperm1 cperm2 m1 m2 f  b2 delt LKS,  
+          (0 < LKS)%nat ->
+          writable_lock b1 ofs cperm1 m1 ->
+          forall p1 p2 Hlt1 Hlt2,
+          Mem.inject f (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2) ->
+          f b1 = Some (b2, delt) ->
+          permMapLt cperm2 (getMaxPerm m2) ->
+          writable_lock b2 (ofs + delt)%Z cperm2 m2.
+      Proof.
+        intros.
+        erewrite <- restr_Max_equiv.
+        erewrite <- restr_Max_equiv in H0.
+        eapply writable_lock_inject; eauto.
+        rewrite getMax_restr; auto.
+      Qed.
       Lemma writable_lock_perm:
         forall b ofs perm m,
           writable_lock b ofs perm m ->
@@ -4069,89 +4108,81 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             remember (inject_virtue m2 mu angel) as angel2.
             remember (virtueThread angel2) as angelThread2.
             remember (virtueLP angel2) as angelLP2.
-            
+
+              Lemma lock_step_inject:
+                forall f b b' ofs delt perms1 perms2 m1 m2 m1' vl vs,
+                forall (Hinj_b : f b = Some (b', delt))
+                  Hlt1 Hlt2
+                  (Hinj_lock: Mem.inject f (restrPermMap' perms1 m1 Hlt1)
+                                         (restrPermMap' perms2 m2 Hlt2)),
+                  permMapLt perms2 (getMaxPerm m2) ->
+                  lock_step b ofs perms1 m1 m1' (Vint vl) (Vint vs) ->
+                  inject_lock' LKSIZE f b ofs m1 m2 ->
+                  exists m2',
+                    lock_step b' (ofs+ delt) perms2 m2 m2' (Vint vl) (Vint vs) /\
+                    Mem.inject f m1' m2'.
+              Proof.
+                intros. inv H0.
+                rewrite <- (restr_proof_irr_equiv _ _ lock_mem_lt),
+                  <- (restr_proof_irr_equiv _ _ H) in Hinj_lock.
+                assert (writable_lock b' (ofs + delt) perms2 m2).
+                { eapply writable_lock_inject_restr; eauto. }
+
+                
+                eapply Mem.store_mapped_inject in Hstore; eauto.
+                - destruct Hstore as (m2'&Hstore2&Hinj2).
+                  exists m2'; split; auto.
+                  unshelve econstructor; eauto.
+                  + match goal with
+                      |- context[?a + ?b + ?c]=>
+                      replace (a + b + c) with ((a + c) + b) by omega   
+                    end.
+                    eapply Mem.range_perm_inject; eauto.
+                  + eapply Mem.load_inject in Hload; eauto.
+                    * destruct Hload as (v2 & ? & HH).
+                      inv HH; eauto.
+                - simpl.
+                  eapply mem_inject_equiv; 
+                    try (eapply setPermBlock_mem_inject; try eapply Hinj_lock);
+                    eauto.
+                  { subst m_writable_lock_1 lock_mem.
+                    etransitivity; [|eapply restrPermMap_idempotent].
+                    apply restrPermMap_equiv; try reflexivity.
+                    eapply setPermBlock_access_map_equiv; eauto.
+                    rewrite getCur_restr. reflexivity.
+                    econstructor; auto.  }
+                  { etransitivity; [|eapply restrPermMap_idempotent].
+                    apply restrPermMap_equiv; try reflexivity.
+                    eapply setPermBlock_access_map_equiv; eauto.
+                    simpl; rewrite getCur_restr. reflexivity.
+                    econstructor; auto. }
+                  
+                  Unshelve.
+                  all: unfold writable_lock in *;
+                    try rewrite getCur_restr;
+                    try rewrite getMax_restr;
+                    try assumption.
+              Qed.
+              
             assert (Hstore':
                       exists (Hlt_setBlock2: writable_lock b' (unsigned ofs + delt)%Z (lock_perms _ _ cnt2) m2),
                         exists n2, Mem.store AST.Mint32 (restrPermMap Hlt_setBlock2) b' 
                                         (unsigned ofs + delt) (Vint Int.one) = Some n2 /\ 
                               Mem.inject mu m1' n2).
             {
-              -
-              (** *Constructing the target objects: events, thread_pool, mem, meminj and index*)
-
-              (** *virtueThread*)
-              (*First construct the virtueThread:
-                the permissions passed from the thread to the lock. *)
-
-              (* Construct the memory with permissions to write in the lock*)
-              assert (Hwritable_lock2:
-                        writable_lock b' (unsigned ofs + delt)%Z (lock_perms _ _ cnt2) m2).
-              { 
-                eapply (setPermBlock_inject_permMapLt); simpl in *; eauto.
-                (* Mem.inject access_map_inejct mu b permMapLt *)
-                erewrite <- (getMax_restr _ _ lock_mem_lt).
-                erewrite <- (getMax_restr _ _ (lock_comp thread_compat2)).
-                subst locks_mem1 locks_mem2.
-                eapply access_map_injected_getMaxPerm; assumption.
-                eapply thread_compat2.
-              }
-              
-              exists Hwritable_lock2.
-              
-              (* Construct new memory and new injection *)
-              eapply Mem.store_mapped_inject in Hstore; eauto.
-
-              unfold m_writable_lock_1.
-              remember (useful_permMapLt_trans (lock_comp thread_compat1) Hwritable_lock1)
-                as Hlt_restr_setBlock1 eqn:HH; clear HH.
-              remember (useful_permMapLt_trans (lock_comp thread_compat2) Hwritable_lock2)
-                as Hlt_restr_setBlock2 eqn:HH; clear HH.
-              
-              rewrite (restrPermMap_idempotent _ Hwritable_lock1 Hlt_restr_setBlock1).
-              rewrite (restrPermMap_idempotent _ Hwritable_lock2 Hlt_restr_setBlock2).
-              
-              (* m1 *)
-              assert (Hlt_setBlock1': writable_lock b (unsigned ofs) (getCurPerm locks_mem1) locks_mem1).
-              { intros; subst locks_mem1.
-                unfold writable_lock.
-                rewrite getMax_restr, getCur_restr; eauto. }
-              
-              assert (HH1:mem_equiv (restrPermMap Hlt_restr_setBlock1) (restrPermMap Hlt_setBlock1')).
-              { eapply restrPermMap_equiv.
-                - eapply restr_proof_irr_equiv.
-                - eapply setPermBlock_access_map_equiv; try reflexivity.
-                  + subst; symmetry.
-                    apply getCur_restr.
-                  + econstructor; auto.
-              }
-              rewrite HH1.
-              
-              
-              (* m2 *)
-              assert(Hlt_setBlock2':
-                       writable_lock b' (unsigned ofs + delt) (getCurPerm locks_mem2) locks_mem2).
-              { intros; subst locks_mem2.
-                unfold writable_lock.
-                simpl; rewrite getMax_restr, getCur_restr; eauto. }
-              
-              assert (HH2:mem_equiv (restrPermMap Hlt_restr_setBlock2) (restrPermMap Hlt_setBlock2')).
-              { eapply restrPermMap_equiv.
-                - subst; eapply restr_proof_irr_equiv.
-                - eapply setPermBlock_access_map_equiv; try reflexivity.
-                  + subst; symmetry.
-                    apply getCur_restr.
-                  + econstructor; auto. }
-              rewrite HH2.
-
               subst locks_mem1 locks_mem2.
-              eapply setPermBlock_mem_inject; eauto.
-              - unfold LKSIZE_nat. rewrite Z2Nat.id.
-                2: { pose proof LKSIZE_pos; omega. }
-                rewrite (restr_content_equiv lock_mem_lt).
-                rewrite (restr_content_equiv (lock_comp thread_compat2)).
-                eapply CMatch; auto.
-                simpl in *; eassumption.
-            }
+              eapply lock_step_inject in Hlock_step as (?&?&?);
+                try eapply Hinj_lock;
+                eauto.
+              2: eapply CMatch.
+              2: eapply CMatch; eassumption.
+              inversion H.
+              do 2 eexists; eauto. }
+
+
+
+
+            
             destruct Hstore' as (Hlt_setBlock2 & m2' & Hstore2 & Hinj2).
             
             
@@ -4160,7 +4191,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             
             (* Instantiate some of the existensials *)
             exists event2; exists m2'.  
-            split; [|split]. (* 4 goal*)
+            split; [|split]. (* 3 goal*)
             
             + (* Goal:  match_self code_inject *)
               constructor; eassumption.
