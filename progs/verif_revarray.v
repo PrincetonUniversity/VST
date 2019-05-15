@@ -235,54 +235,25 @@ forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 simpl (data_at _ _ _).
 Time repeat step.
-entailer!.
-(* after simpl *)
-(* Finished transaction in 2.42 secs (2.375u,0.s) (successful) *)
-(* without simpl *)
-(* Finished transaction in 11.494 secs (11.453u,0.031s) (successful) *)
-apply data_at_data_at_cancel.
-unfold flip_ends. apply_list_ext. Znth_solve.
+entailer!. unfold flip_ends. list_solve2.
 * (* Prove that loop invariant implies typechecking condition *)
 simpl (data_at _ _ _). Time entailer!.
 * (* Prove that loop body preserves invariant *)
 (* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
 simpl.
 repeat step!.
-+ unfold flip_ends. Znth_solve.
-+ unfold flip_ends. Znth_solve.
-+ do 2 f_equal. omega.
++ unfold flip_ends. list_solve2.
++ unfold flip_ends. list_solve2.
++ list_solve2. (* a better way is eq_solve *)
 + simpl. unfold flip_ends. Time list_solve2.
-  (* apply data_at_data_at_cancel. unfold flip_ends.
-  apply (@Znth_eq_ext _ Inhabitant_val).
-  Zlength_solve.
-  autorewrite with Zlength.
-  unfold upd_Znth. intros. list_form.
-  Print Ltac Znth_solve_rec. simpl.
-  Time Znth_solve. (* This takes quite a few minutes *)
-  (* Finished transaction in 435.348 secs (433.171u,0.218s) (successful) *)
-  (* much much faster after simpl things *)
-  (* Finished transaction in 11.228 secs (11.234u,0.s) (successful) *)
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega.
-  - do 2 f_equal. omega. *)
+(* Finished transaction in 29.44 secs (29.25u,0.171s) (successful) *)
 * (* after the loop *)
 simpl.
 forward. (* return; *)
 unfold flip_ends. Time list_solve2.
-(*apply data_at_data_at_cancel. unfold flip_ends.
-autorewrite with Zlength in * |-.
-apply (@Znth_eq_ext _ Inhabitant_val).
-Time Zlength_solve. (* example of slow rewrite *)
-autorewrite with Zlength in *.
-intros.
-Znth_solve.
-- do 2 f_equal. omega.
-- do 2 f_equal. omega.
-- do 2 f_equal. omega. *)
+(* Finished transaction in 2.587 secs (2.593u,0.s) (successful) *)
 Time Qed.
-(* Finished transaction in 5.455 secs (5.453u,0.s) (successful) *)
+(* Finished transaction in 6.801 secs (6.796u,0.015s) (successful) *)
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 

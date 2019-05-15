@@ -562,10 +562,6 @@ forward_loop (EX i : Z,
 - repeat step!. intros. omega.
 - repeat step!.
   rename x into i.
-  (* assert (Znth i (ls1 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls1) as Hs1.
-  { split; intros; [cstring | list_form; Znth_solve]. }
-  assert (Znth i (ls2 ++ [Byte.zero]) = Byte.zero <-> i = Zlength ls2) as Hs2.
-  { split; intros; [cstring | list_form; Znth_solve]. } *)
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
   (* these two parts are not much simplified *)
   { repeat step!.
@@ -594,9 +590,9 @@ forward_loop (EX i : Z,
   all : rewrite andb_false_iff in *; rewrite !Z.eqb_neq in *.
   all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
-  all : normalize in HZnth.
-  all: list_form; range_form.
-  Time all: intros; Znth_solve2; try omega; range_saturate; try congruence; fassumption.
+  all : normalize in HZnth. all: clear -Espec sh1 sh2 str1 ls1 str2 ls2 H H0 i H1 H2 H3 H4 HZnth.
+  Time all: intros; list_prop_solve.
+  (* Finished transaction in 12.274 secs (12.187u,0.062s) (successful) *)
 Qed.
 
 Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
@@ -615,13 +611,8 @@ forward_loop (EX i : Z,
   repeat step.
 -
   repeat step!.
-  + list_solve2. (* list_form. apply_list_ext. Znth_solve. *)
+  + list_solve2.
   + fold_Vbyte. list_solve2.
-    (*
-    list_form. Znth_solve2. apply_list_ext.
-    Znth_solve. fold_Vbyte.
-    apply data_subsume_refl'. eq_solve.
-    *)
 Qed.
 
 End Alternate.

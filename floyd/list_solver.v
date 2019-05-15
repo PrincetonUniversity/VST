@@ -130,7 +130,7 @@ Ltac Znth_solve :=
 
 (**************** Znth_solve2 is Znth_solve in * ***************)
 Ltac Znth_solve2 :=
-  autorewrite with Zlength in *; autorewrite with Znth in *; auto with Znth_solve_hint; try congruence; (* try solve [exfalso; auto]; *)
+  autorewrite with Zlength in *; autorewrite with Znth in *; auto with Znth_solve_hint; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
   try first
   [ match goal with
     | |- context [ Znth ?n (?al ++ ?bl) ] =>
@@ -270,6 +270,7 @@ Tactic Notation "eq_solve" "with" tactic(tac) := eq_solve_with (tac).
 Tactic Notation "eq_solve" := eq_solve with fail.
 
 Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
+Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
 
 (*************** list_solve2 **********************)
 Ltac list_solve2' :=
@@ -748,8 +749,7 @@ Proof.
   - induction l; inversion H.
     + exists 0. list_solve2'; Zlength_solve.
     + specialize (IHl H0). destruct IHl as [i []].
-      exists (i + 1). list_solve2'; try Zlength_solve. autorewrite with Zlength.
-      fassumption.
+      exists (i + 1). list_solve2'; try Zlength_solve.
   - destruct H as [i []]. subst x. apply Znth_In. auto.
 Qed.
 
@@ -896,29 +896,34 @@ Ltac range_saturate_full :=
       pose_new_res i lo hi H res
     end
   | H : range_bin ?lo ?hi ?offset ?l1 ?l2 ?P |- _ =>
-    (let res := eval cbv beta in (P (Znth lo l1) (Znth (lo + offset) l2)) in
-     pose_new_res lo lo hi H res);
-    (let res := eval cbv beta in (P (Znth (hi - 1) l1) (Znth (hi - 1 + offset) l2)) in
-     pose_new_res (hi-1) lo hi H res);
-    match goal with
-    | _ : context [Znth ?i l1] |- _ =>
-      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
-      pose_new_res i lo hi H res
-    | |- context [Znth ?i l1] =>
-      let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
-      pose_new_res i lo hi H res
-    | _ : context [Znth ?i l2] |- _ =>
-      let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
-      pose_new_res (i - offset) lo hi H res
-    | |- context [Znth ?i l2] =>
-      let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
-      pose_new_res (i - offset) lo hi H res
-    end
+    first
+    [ let res := eval cbv beta in (P (Znth lo l1) (Znth (lo + offset) l2)) in
+      pose_new_res lo lo hi H res
+    | let res := eval cbv beta in (P (Znth (hi - 1) l1) (Znth (hi - 1 + offset) l2)) in
+      pose_new_res (hi-1) lo hi H res
+    | match goal with
+      | _ : context [Znth ?i l1] |- _ =>
+        let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
+        pose_new_res i lo hi H res
+      | |- context [Znth ?i l1] =>
+        let res := eval cbv beta in (P (Znth i l1) (Znth (i + offset) l2)) in
+        pose_new_res i lo hi H res
+      | _ : context [Znth ?i l2] |- _ =>
+        let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
+        pose_new_res (i - offset) lo hi H res
+      | |- context [Znth ?i l2] =>
+        let res := eval cbv beta in (P (Znth (i - offset) l1) (Znth i l2)) in
+        pose_new_res (i - offset) lo hi H res
+      end
+    ]
   end.
 
 Ltac list_prop_solve :=
   list_form; range_form; range_rewrite; Znth_solve2;
   range_saturate_check_non_zero_loop; range_saturate_full; Znth_solve2.
+
+Tactic Notation "list_solve2!" :=
+  try list_solve2; solve [list_prop_solve].
 
 (***************** Zlength_solve using a database *************)
 Definition Zlength_tag := True.
