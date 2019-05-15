@@ -20,6 +20,18 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition putchars_spec := DECLARE _putchars putchars_spec.
 Definition getchars_spec := DECLARE _getchars getchars_spec.
 
+(* make a new exit_spec that only allows exit code 0 if the ITREE is fully used, or that exit is only done w/ 1,
+and put empty itree in main_post *)
+
+(* This tells us that exit(0) is never called, so if we terminate successfully, the postcondition of main
+  must hold. *)
+Definition exit_spec := DECLARE _exit
+ WITH i : Z
+ PRE [1%positive OF tint]
+   PROP (repable_signed i; i <> 0) LOCAL(temp 1%positive (Vint (Int.repr i))) SEP()
+ POST [ tvoid ]
+   PROP(False) LOCAL() SEP().
+
 Lemma div_10_dec : forall n, 0 < n ->
   (Z.to_nat (n / 10) < Z.to_nat n)%nat.
 Proof.
@@ -83,32 +95,51 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (mem_mgr gv; ITREE tr).
 
-Definition for_loop i z (body : Z -> IO_itree) :=
-  ITree.aloop (fun j => if j <? z then inl (body j ;; Ret (j + 1)) else inr tt) i.
+Definition for_loop i z (body : Z -> itree IO_event bool) :=
+  ITree.aloop (fun '(b, j) => if (b : bool) then inr true else if j <? z then inl (b <- body j ;; Ret (b, j + 1)) else inr false) (false, i).
 
 Definition sum_Z l := fold_right Z.add 0 l.
 
 Definition read_sum_inner n nums j :=
-  write_list (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Int.repr newline]).
+  if orb (10 <=? Znth j nums) (Znth j nums <? 0) then Ret true
+  else write_list (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Int.repr newline]);; Ret false.
 
 Definition read_sum n lc : IO_itree :=
-  ITree.aloop (fun '(n, lc) =>
+  ITree.aloop (fun '(b, n, lc) => if (b : bool) then inr tt else
   if zlt n 1000 then
     let nums := map (fun c => Int.unsigned c - char0) lc in
-    inl (for_loop 0 4 (read_sum_inner n nums) ;;
-    lc' <- read_list 4;; Ret (n + sum_Z nums, lc'))
-  else inr tt) (n, lc).
+    inl (b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (true, n, lc) else
+    lc' <- read_list 4;; Ret (false, n + sum_Z nums, lc'))
+  else inr tt) (false, n, lc).
 
-Definition main_itree := lc <- read_list 4;; read_sum 0 lc.
+Definition main_itree := lc <- read_list 4;; read_sum 0 lc (* ;; exit 0 *).
+(* !! Making exit an effect and requiring it to be called at the end of a program is a good
+   way to get around the problem of dropping suffixes of an itree. *)
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre_ext prog main_itree nil gv
-  POST [ tint ] main_post prog nil gv.
+  POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt)).
+(* making the post false forces user to call exit to terminate *)
+
+(* override default spec for exit *)
+Definition library_G  {cs: compspecs} prog :=
+ let defs := prog_defs prog in
+  try_spec "_malloc" malloc_spec' defs ++
+  try_spec "_free" free_spec' defs.
+
+Ltac with_library prog G :=
+  let pr := eval unfold prog in prog in  
+ let x := constr:(library_G pr ++ G) in
+  let x := eval cbv beta delta [app library_G] in x in
+  let x := simpl_prog_defs x in 
+  let x := eval cbv beta iota zeta delta [try_spec] in x in 
+  let x := eval simpl in x in 
+    with_library' pr x.
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
-  print_intr_spec; print_int_spec; main_spec]).
+  exit_spec; print_intr_spec; print_int_spec; main_spec]).
 
 Lemma divu_repr : forall x y,
   0 <= x <= Int.max_unsigned -> 0 <= y <= Int.max_unsigned ->
@@ -133,8 +164,6 @@ Proof.
   rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold intr.
   destruct n; reflexivity.
 Qed.
-
-(*Transparent bind.*)
 
 (* missing from standard library *)
 Lemma Zdiv_le_compat_r : forall m n p, p > 0 -> m <= n -> m / p <= n / p.
@@ -297,6 +326,7 @@ Proof.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
   { forward_call.
+    rep_omega.
     entailer!. }
   { forward.
     entailer!. }
@@ -357,7 +387,7 @@ Qed.
 Lemma read_sum_eq : forall n lc, read_sum n lc ≈
   if zlt n 1000 then
     let nums := map (fun c => Int.unsigned c - char0) lc in
-    for_loop 0 4 (read_sum_inner n nums) ;;
+    b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else
     lc' <- read_list 4;; read_sum (n + sum_Z nums) lc'
   else Ret tt.
 Proof.
@@ -366,22 +396,31 @@ Proof.
   rewrite unfold_aloop.
   if_tac; [|reflexivity].
   unfold ITree._aloop, id.
-  repeat setoid_rewrite bind_bind.
-  repeat setoid_rewrite ret_bind.
-  reflexivity.
+  rewrite bind_bind.
+  apply eutt_bind; [|reflexivity].
+  intros [].
+  - rewrite bind_ret, unfold_aloop.
+    reflexivity.
+  - rewrite bind_bind.
+    apply eutt_bind; [|reflexivity].
+    intro.
+    rewrite bind_ret; reflexivity.
 Qed.
 
 Lemma for_loop_eq : forall i z body,
-  for_loop i z body ≈ if i <? z then body i ;; for_loop (i + 1) z body else Ret tt.
+  for_loop i z body ≈ if i <? z then b <- body i ;; if (b : bool) then Ret true else for_loop (i + 1) z body else Ret false.
 Proof.
   intros.
   unfold for_loop.
   rewrite unfold_aloop.
   simple_if_tac; [|reflexivity].
   unfold ITree._aloop, id.
-  repeat setoid_rewrite bind_bind.
-  repeat setoid_rewrite ret_bind.
-  reflexivity.
+  rewrite bind_bind.
+  apply eutt_bind; [|reflexivity].
+  intros [].
+  - rewrite bind_ret, unfold_aloop.
+    reflexivity.
+  - rewrite bind_ret; reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
@@ -405,6 +444,7 @@ Proof.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
   { forward_call.
+    rep_omega.
     entailer!. }
   { forward.
     entailer!. }
@@ -418,11 +458,10 @@ Proof.
     LOCAL (temp _i (Vint (Int.repr 4)); temp _buf buf; temp _n (Vint (Int.repr n)); gvars gv)
     SEP (ITREE (read_sum n lc); data_at Ews (tarray tuchar 4) (map Vint lc) buf;
       mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
-  unfold Swhile; forward_loop Inv break: Inv.
+  forward_while Inv.
   { Exists 0 lc; entailer!. }
-  - subst Inv.
-    clear dependent lc; Intros n lc.
-    forward_if.
+  { entailer!. }
+  - clear dependent lc; rename lc0 into lc.
     erewrite ITREE_ext by apply read_sum_eq.
     rewrite if_true by auto; simpl ITREE.
     set (nums := map (fun i => Int.unsigned i - char0) lc).
@@ -432,20 +471,37 @@ Proof.
     assert (Zlength nums = 4) by (subst nums; rewrite Zlength_map; auto).
     forward_for_simple_bound 4 (EX j : Z, PROP (0 <= n + sum_Z (sublist 0 j nums) < 1000 + 10 * j)
      LOCAL (temp _i (Vint (Int.repr 4)); temp _buf buf; temp _n (Vint (Int.repr (n + sum_Z (sublist 0 j nums)))); gvars gv)
-     SEP (ITREE (for_loop j 4 (read_sum_inner n nums) ;; lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc');
+     SEP (ITREE (b <- for_loop j 4
+         (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc');
              data_at Ews (tarray tuchar 4) (map Vint lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
     + entailer!.
-      omega.
+      { omega. }
     + simpl.
       forward.
       { entailer!.
+        rewrite zero_ext_inrange by (apply Forall_Znth; auto; omega).
         apply Forall_Znth; auto; omega. }
       forward.
       rewrite zero_ext_inrange by (apply Forall_Znth; auto; omega).
-      forward.
       forward_if (0 <= Int.unsigned (Znth i lc) - char0 < 10).
-      { forward_call.
-        entailer!. }
+      { forward_call (tarray tuchar 4, buf, gv).
+        { rewrite if_false by auto; cancel. }
+        forward.
+        entailer!.
+        apply ITREE_impl.
+        rewrite for_loop_eq.
+        destruct (Z.ltb_spec i 4); try omega.
+        unfold read_sum_inner at 2.
+        replace (_ || _)%bool with true.
+        rewrite !bind_ret; reflexivity.
+        symmetry; rewrite orb_true_iff.
+        rewrite Int.unsigned_sub_borrow in *.
+        unfold Int.sub_borrow in *.
+        subst nums; rewrite Znth_map by omega.
+        rewrite (Int.unsigned_repr 48), Int.unsigned_zero, Z.sub_0_r in * by rep_omega.
+        destruct (zlt _ _); [right; apply Z.ltb_lt | left; apply Z.leb_le]; auto.
+        rewrite Int.unsigned_zero in *; simpl in *.
+        unfold char0; omega. }
       { forward.
         entailer!.
         unfold Int.sub in *.
@@ -460,39 +516,48 @@ Proof.
       rewrite add_repr.
       erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
       destruct (Z.ltb_spec i 4); try omega.
-      unfold read_sum_inner at 1.
+      unfold read_sum_inner at 2.
+      unfold nums; rewrite Znth_map by omega.
+      assert (((10 <=? Int.unsigned (Znth i lc) - char0) || (Int.unsigned (Znth i lc) - char0 <? 0))%bool = false) as Hin.
+      { rewrite orb_false_iff.
+        split; [apply Z.leb_nle | apply Z.ltb_nlt]; omega. }
+      rewrite Hin.
       assert (sublist 0 (i + 1) nums = sublist 0 i nums ++ [Int.unsigned (Znth i lc) - char0]) as Hi.
       { rewrite (sublist_split _ i (i + 1)), (sublist_one i (i + 1)) by omega.
         f_equal; subst nums.
         rewrite Znth_map by omega; auto. }
       forward_call (gv, n + sum_Z (sublist 0 (i + 1) nums),
-        for_loop (i + 1) 4 (read_sum_inner n nums) ;; lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc').
+        b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc').
       { entailer!.
         rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_assoc, Z.add_0_r; auto. }
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        apply ITREE_impl; rewrite bind_bind; reflexivity. }
+        apply ITREE_impl; rewrite !bind_bind.
+        apply eutt_bind; [|reflexivity].
+        intros [].
+        rewrite bind_ret; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; omega. }
       entailer!.
-      rewrite Hi, sum_Z_app; simpl.
-      rewrite Z.add_0_r, Z.add_assoc; split; auto; omega.
+      { rewrite Hi, sum_Z_app; simpl.
+        rewrite Z.add_0_r, Z.add_assoc; split; auto; omega. }
     + erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
       destruct (Z.ltb_spec 4 4); try omega.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
         apply ITREE_impl.
-        simpl; rewrite ret_bind; reflexivity. }
+        simpl; rewrite bind_ret; reflexivity. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.
-      Exists (n + sum_Z nums); Exists lc'; entailer!.
-    + forward.
-      Exists n; Exists lc; entailer!.
+      Exists (n + sum_Z nums, lc'); entailer!.
+      apply derives_refl.
   - subst Inv.
-    Intros n lc'.
     forward_call (tarray tuchar 4, buf, gv).
     { rewrite if_false by auto; cancel. }
     forward.
+    cancel; apply ITREE_impl.
+    rewrite read_sum_eq.
+    rewrite if_false; [reflexivity | omega].
 Qed.
 
 Definition ext_link := ext_link_prog prog.

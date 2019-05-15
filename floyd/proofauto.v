@@ -43,6 +43,7 @@ Require Export VST.floyd.deadvars.
 Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
 Require Export VST.floyd.list_solver.
+Require Export VST.floyd.data_at_lemmas.
 Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
 Require VST.msl.wandQ_frame.
@@ -110,6 +111,8 @@ Arguments Z.sub !m !n.
 Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
+
+Hint Resolve readable_Ers.
 
 Ltac EExists_unify1 x P :=
  match P with

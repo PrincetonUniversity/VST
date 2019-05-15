@@ -884,7 +884,7 @@ unfold tmap_rep.
 Intros t.
 Exists (b, x, v, t).
 Exists emp.
-change (`emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
+change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
 apply andp_right; auto.
 entailer!.
 apply prop_right.
@@ -903,7 +903,7 @@ split3; auto.
 intros x. simpl in x.
 Exists x.
 Exists emp.
-change (`emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
+change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
 apply andp_right; auto.
 apply prop_right.
 simplify_Delta.
@@ -929,7 +929,7 @@ unfold tmap_rep.
 Intros t.
 Exists (t,p).
 Exists emp.
-change (`emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
+change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
 apply andp_right; auto.
 apply prop_right.
 simplify_Delta.

@@ -1,6 +1,51 @@
 Require Import VST.floyd.base2.
 Import ListNotations.
 
+Module PosOrder <: Orders.TotalLeBool.
+  Definition t := positive.
+  Definition leb := Pos.leb.
+  Theorem leb_total : forall a1 a2, Pos.leb a1 a2 = true \/ Pos.leb a2 a1 = true.
+  Proof.  intros. 
+    pose proof (Pos.leb_spec a1 a2).
+    pose proof (Pos.leb_spec a2 a1).
+    inv H; inv H0; auto.
+    clear - H2 H3. 
+    pose proof (Pos.lt_trans _ _ _ H2 H3).
+    apply Pos.lt_irrefl in H. contradiction.
+  Qed.
+End PosOrder.
+Module SortPos := Mergesort.Sort(PosOrder).
+
+Module CompOrder <: Orders.TotalLeBool.
+  Definition t := composite_definition.
+  Definition leb := fun x y => Pos.leb (name_composite_def x) (name_composite_def y).
+  Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
+  Proof.  intros. unfold leb. 
+    pose proof (Pos.leb_spec (name_composite_def a1) (name_composite_def a2)).
+    pose proof (Pos.leb_spec (name_composite_def a2) (name_composite_def a1)).
+    inv H; inv H0; auto.
+    clear - H2 H3. 
+    pose proof (Pos.lt_trans _ _ _ H2 H3).
+    apply Pos.lt_irrefl in H. contradiction.
+  Qed.
+End CompOrder.
+Module SortComp := Mergesort.Sort(CompOrder).
+
+Module GlobdefOrder <: Orders.TotalLeBool.
+  Definition t := (ident * globdef (fundef function) type)%type.
+  Definition leb := fun x y : (ident * globdef (fundef function) type)=> Pos.leb (fst x) (fst y).
+  Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
+  Proof.  intros. unfold leb. 
+    pose proof (Pos.leb_spec (fst a1) (fst a2)).
+    pose proof (Pos.leb_spec (fst a2) (fst a1)).
+    inv H; inv H0; auto.
+    clear - H2 H3. 
+    pose proof (Pos.lt_trans _ _ _ H2 H3).
+    apply Pos.lt_irrefl in H. contradiction.
+  Qed.
+End GlobdefOrder.
+Module SortGlobdef := Mergesort.Sort(GlobdefOrder).
+
 Definition isnil {A} (al: list A) := 
    match al with nil => true | _ => false end.
 
@@ -60,38 +105,6 @@ Definition merge_global_definitions
     (d1 d2: list (ident * globdef (fundef function) type)) :=
  merge_global_definitions' d1 d2 (length d1 + length d2).
 
-
-Module PosOrder <: Orders.TotalLeBool.
-  Definition t := positive.
-  Definition leb := Pos.leb.
-  Theorem leb_total : forall a1 a2, Pos.leb a1 a2 = true \/ Pos.leb a2 a1 = true.
-  Proof.  intros. 
-    pose proof (Pos.leb_spec a1 a2).
-    pose proof (Pos.leb_spec a2 a1).
-    inv H; inv H0; auto.
-    clear - H2 H3. 
-    pose proof (Pos.lt_trans _ _ _ H2 H3).
-    apply Pos.lt_irrefl in H. contradiction.
-  Qed.
-End PosOrder.
-Module SortPos := Mergesort.Sort(PosOrder).
-
-Search (composite_definition -> ident).
-Module CompOrder <: Orders.TotalLeBool.
-  Definition t := composite_definition.
-  Definition leb := fun x y => Pos.leb (name_composite_def x) (name_composite_def y).
-  Theorem leb_total : forall a1 a2, leb a1 a2 = true \/ leb a2 a1 = true.
-  Proof.  intros. unfold leb. 
-    pose proof (Pos.leb_spec (name_composite_def a1) (name_composite_def a2)).
-    pose proof (Pos.leb_spec (name_composite_def a2) (name_composite_def a1)).
-    inv H; inv H0; auto.
-    clear - H2 H3. 
-    pose proof (Pos.lt_trans _ _ _ H2 H3).
-    apply Pos.lt_irrefl in H. contradiction.
-  Qed.
-End CompOrder.
-Module SortComp := Mergesort.Sort(CompOrder).
-
 Fixpoint merge_prog_types' (e1 e2: list composite_definition)
                  (fuel: nat) 
               : Errors.res (list composite_definition) :=
@@ -136,8 +149,9 @@ Definition link_progs (prog1 prog2 : Clight.program) :
     prog_types := t2;
     prog_comp_env := e2;
     prog_comp_env_eq := q2|}  =>
- Errors.bind (merge_global_definitions d1 d2) (fun d =>
- Errors.bind (merge_prog_types t1 t2) (fun t =>
+ Errors.bind (merge_global_definitions 
+               (SortGlobdef.sort d1) (SortGlobdef.sort d2)) (fun d =>
+ Errors.bind (merge_prog_types (SortComp.sort t1) (SortComp.sort t2)) (fun t =>
  match build_composite_env t as e 
        return (build_composite_env t = e -> Errors.res Clight.program) with
  | Errors.Error err => fun _ => Errors.Error err
@@ -166,8 +180,10 @@ Fixpoint link_progs_list (pl: list Clight.program) :
   end.
 
 Ltac link_progs_list pl :=
- let q := constr:(link_progs_list pl) in
+ let q := constr:(linking.link_progs_list pl) in
  let q := eval hnf in q in
+ let q := eval cbv beta iota delta [linking.SortComp.sort] in q in
+ let q := eval simpl in q in
  match q with
  | Errors.Error ?e => fail 1 e
  | Errors.OK ?q' => exact q'

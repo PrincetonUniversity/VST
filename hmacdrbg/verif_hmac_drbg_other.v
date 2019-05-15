@@ -21,7 +21,7 @@ Proof.
   destruct ctx; try contradiction.
   - (*ctx==null*)
     simpl in PNctx; subst i. rewrite da_emp_null; trivial.
-    forward_if (`FF).
+    forward_if (liftx FF).
     + forward. apply tt.
     + inv H.
     + apply semax_ff.

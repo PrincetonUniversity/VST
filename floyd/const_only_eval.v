@@ -324,11 +324,13 @@ Proof.
     rewrite IHe; auto.*)
   + intros.
     simpl in *.
-    destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.
+    destruct (complete_type cenv_cs t); inv H.
+    destruct (eqb_type t0 size_t); inv H1.
     auto.
   + intros.
     simpl in *.
-    destruct (complete_type cenv_cs t && eqb_type t0 size_t); inv H.
+    destruct (complete_type cenv_cs t); inv H.
+    destruct (eqb_type t0 size_t); inv H1.
     auto.
 Qed.
 

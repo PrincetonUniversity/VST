@@ -131,6 +131,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -191,6 +192,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -249,6 +251,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -264,7 +267,7 @@ Proof.
                    listrep sh s2 y))%assert.
 + (* current assertion implies loop invariant *)
    Exists v s1' x u.
-   subst s1. entailer!. cancel_wand.
+   subst s1. entailer!. simpl app; cancel_wand.
 + (* loop test is safe to execute *)
    entailer!.
 + (* loop body preserves invariant *)
@@ -304,6 +307,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -363,6 +367,7 @@ Proof.
     forward. (* return; *)
     Exists y.
     entailer!.
+    simpl app; auto.
   * forward. (* t = x; *)
     rewrite (listrep_nonnull _ _ x) by auto.
     Intros v s1' u.
@@ -475,11 +480,11 @@ Proof.
               (align (align 0 (alignof tint) + sizeof tint)
                 (alignof (tptr (Tstruct _list noattr)))) cur =
                  field_address t_struct_list [StructField _tail] cur).
-    Focus 1. {
+    {
       entailer!.
       symmetry; apply field_address_eq_offset'; auto.
       auto with field_compatible.
-    } Unfocus.
+    }
     rewrite H0; clear H0.
     rewrite (listrep_nonnull _ _ cur) by auto.
     Intros b s1c next.
@@ -491,36 +496,37 @@ Proof.
       1: rewrite <- app_assoc; auto.
     sep_apply (singleton_lbseg sh b curp cur).
     sep_apply (lbseg_lbseg sh s1a [b] retp curp (field_address t_struct_list [StructField _tail] cur)).
-    rewrite field_at_data_at.
-    cancel.
+    auto.
   + (* After loop *)
     rewrite (listrep_null _ _ cur) by auto.
     Intros.
     forward. (* * curp = y *)
-    gather_SEP 1 2 3.
+    gather_SEP emp (listrep _ _ _) (data_at _ _ _ _).
     replace_SEP 0 (listboxrep sh s2 curp).
-    Focus 1. {
+    {
       entailer!.
       unfold listboxrep; Exists y.
       cancel.
-    } Unfocus.
-    gather_SEP 0 1.
+    }
+    gather_SEP (listboxrep _ _ _) (lbseg _ _ _ _).
     replace_SEP 0 (listboxrep sh (s1a ++ s2) retp).
-    Focus 1. {
+    {
       entailer!.
+      (** This step can also be done by
+            [wandQ_frame_tactic.solve_wandQ lbseg]. *)
       sep_apply (listbox_lbseg sh s1a s2 retp curp).
       cancel.
-    } Unfocus.
+    }
     unfold listboxrep; Intros head'.
     thaw Fr.
-    gather_SEP 0 2.
+    gather_SEP (data_at _ _ _ _) (allp _).
     replace_SEP 0 (data_at Tsh (tptr t_struct_list) head' retp).
-    Focus 1. {
+    {
       entailer!.
       rewrite sepcon_comm; apply wand_sepcon_adjoint.
       apply (allp_left _ head').
       auto.
-    } Unfocus.
+    }
     forward. (* ret = * retp *)
     forward. (* return ret *)
     Exists head'.
@@ -558,6 +564,7 @@ Proof.
     forward. (* return x *)
     Exists x.
     entailer!.
+    simpl app.
     unfold listrep at 2; fold listrep.
     Exists x''.
     entailer!.

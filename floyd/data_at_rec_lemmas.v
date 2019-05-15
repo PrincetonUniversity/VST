@@ -422,7 +422,7 @@ Qed.
  Lemma Z2Nat_max0: forall z, Z.to_nat (Z.max 0 z) = Z.to_nat z.
  Proof.
   intros.
-  rewrite Z.max_comm, <- nat_of_Z_max, Nat2Z.id.
+  rewrite Z.max_comm, <- Z_to_nat_max, Nat2Z.id.
   auto.
 Qed.
 

@@ -577,7 +577,7 @@ Lemma decode_val_getN_lem1:
   forall j i b,
           decode_val Mint32 (getN 4 i b) = Vint Int.zero ->
           0 <= j-i < 4 ->
-          nth (nat_of_Z (j-i)) (getN 4 i b) Undef = Byte Byte.zero.
+          nth (Z.to_nat (j-i)) (getN 4 i b) Undef = Byte Byte.zero.
 Proof.
  intros.
  unfold decode_val in H.
@@ -639,14 +639,6 @@ intros.
 apply Z.max_l.
 omega.
 Qed.
-(*
-Lemma Zmax_of_nat:
-  forall n, Z_of_nat (nat_of_Z n) = Z.max n 0.
-Proof.
- intros.
- apply nat_of_Z_max.
-Qed.
-*)
 
 Lemma snd_split_fullshare_not_bot: snd (Share.split fullshare) <> Share.bot.
 Proof.
@@ -891,7 +883,7 @@ Proof.
  split; auto.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
 rewrite Zmax_Z_of_nat.
-rewrite nat_of_Z_max.
+rewrite Z_to_nat_max.
 if_tac; auto.
 
   exists READABLE.
@@ -1724,7 +1716,7 @@ Proof.
                 rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
               | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
- rewrite nat_of_Z_max in *.
+ rewrite Z_to_nat_max in *.
  split.  destruct H1; omega.
  destruct H1 as [H1' [H1 Hg1]]; split; [|simpl; rewrite <- Hg; auto].
  intro loc; specialize (H1 loc).
@@ -1820,7 +1812,7 @@ Proof.
 Qed.
 
 Lemma Pos_to_nat_eq_S:
-  forall b, Pos.to_nat b = S (nat_of_Z (Z.pos b) - 1).
+  forall b, Pos.to_nat b = S (Z.to_nat (Z.pos b) - 1).
 Proof. intros. simpl; pose proof (Pos2Nat.is_pos b); omega.
 Qed.
 
@@ -2118,7 +2110,7 @@ Proof.
  assert (POS := Pos2Z.is_pos b). {
  rewrite H.
  rewrite Pos_to_nat_eq_S.
- replace (length vl - (nat_of_Z (Z.pos b) - 1))%nat with (S (length vl - S (nat_of_Z (Z.pos b) - 1)))%nat
+ replace (length vl - (Z.to_nat (Z.pos b) - 1))%nat with (S (length vl - S (Z.to_nat (Z.pos b) - 1)))%nat
   by (simpl;  pose proof (Pos2Nat.is_pos b); omega).
  simpl.
   replace (Datatypes.length vl - (Pos.to_nat b - 1))%nat with
@@ -2143,7 +2135,6 @@ Proof.
 rewrite Pos_to_nat_eq_S.
  rewrite Zlength_correct.
   rewrite Z2Pos.id by omega.
- unfold nat_of_Z.
  rewrite Z2Nat.inj_succ by omega.
  rewrite Nat2Z.id. omega.
 }
@@ -2248,7 +2239,6 @@ rewrite Pos_to_nat_eq_S.
   rewrite inj_S. rewrite <- H90. clear.
   rewrite Pos_to_nat_eq_S.
   replace (Z.succ (Z.pos (nextblock m0) - 1)) with (Z.pos (nextblock m0)) by omega.
-  unfold nat_of_Z.
   replace (S (Z.to_nat (Z.pos (nextblock m0)) - 1))
     with (Z.to_nat (Z.pos (nextblock m0)))
   by (rewrite Z2Nat.inj_pos; pose proof (Pos2Nat.is_pos (nextblock m0)); omega).

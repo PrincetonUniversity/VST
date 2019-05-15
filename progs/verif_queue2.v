@@ -353,16 +353,16 @@ Existing Instance NullExtension.Espec.
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
-prove_semax_prog.
-semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
-semax_func_cons body_free.
-semax_func_cons body_exit.
-semax_func_cons body_surely_malloc.
-semax_func_cons body_fifo_new.
-semax_func_cons body_fifo_put.
-semax_func_cons body_fifo_empty.
-semax_func_cons body_fifo_get.
-semax_func_cons body_make_elem.
-semax_func_cons body_main.
+  prove_semax_prog.
+  semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+  semax_func_cons body_free.
+  semax_func_cons body_exit.
+  semax_func_cons body_surely_malloc.
+  semax_func_cons body_fifo_new.
+  semax_func_cons body_fifo_put.
+  semax_func_cons body_fifo_empty.
+  semax_func_cons body_fifo_get.
+  semax_func_cons body_make_elem.
+  semax_func_cons body_main.
 Qed.
 

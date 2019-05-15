@@ -82,14 +82,6 @@ Proof. intros; subst. auto. Qed.
 Lemma sizeof_Tarray {cs: composite_env} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.
 
-
-Lemma sepcon_fold: forall Frame P rho,
-Frame = cons `(P) nil ->
-P |-- fold_right
-      (fun (P Q : environ -> mpred) (rho0 : environ) => P rho0 * Q rho0)
-      `(emp) Frame rho.
-Proof. intros. subst. simpl. entailer. Qed.
-
 Lemma nth_mapVint: forall i (l:list Z) (Hi: (0 <= i < length l)%nat),
   exists n, nth i (map Vint (map Int.repr l)) Vundef = Vint n.
 Proof. intros i.

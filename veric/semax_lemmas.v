@@ -54,11 +54,11 @@ Qed.
 
 Lemma nat_of_Z_minus_le : forall z a b,
   b <= a ->
-  (nat_of_Z (z - a) <= nat_of_Z (z - b))%nat.
+  (Z.to_nat (z - a) <= Z.to_nat (z - b))%nat.
 Proof.
   intros.
   apply inj_le_rev.
-  do 2 rewrite nat_of_Z_max.
+  do 2 rewrite Z_to_nat_max.
   rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-a)).
   rewrite Coqlib.Zmax_spec.
@@ -206,7 +206,7 @@ Proof.
 intros ? ? ? ?; intros.
 intros n.
 rewrite semax_fold_unfold.
-intros psi Delta'.
+intros psi Delta' CS'.
 apply prop_imp_i; intros [? HGG].
 clear H0 Delta. rename Delta' into Delta.
 intros ?w _ _. clear n.
@@ -261,10 +261,10 @@ Qed.
 
 Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
   semax Espec = fun Delta P c R =>
-    forall (psi: Clight.genv) Delta' (w: nat)
+    forall (psi: Clight.genv) Delta' CS' (w: nat)
           (TS: tycontext_sub Delta Delta')
-          (HGG: genv_cenv psi = cenv_cs)
-           (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (F: assert),
+          (HGG: (*genv_cenv psi = cenv_cs*)cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv psi))
+           (Prog_OK: @believe CS' Espec Delta' psi Delta' w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
        rguard Espec psi Delta' (frame_ret_assert R F) k w ->
        guard Espec psi Delta' (fun rho => F rho * P rho) (Kseq c :: k) w.
@@ -272,13 +272,14 @@ Proof.
 unfold semax; rewrite semax_fold_unfold.
 extensionality Delta P c R.
 apply prop_ext; split; intros.
-eapply (H w); eauto.
-split; auto. split; auto.
-intros psi Delta'.
-apply prop_imp_i; intros [? HGG].
-intros w' ? ? k F w'' ? [? ?].
-eapply H; eauto.
-eapply pred_nec_hereditary; eauto.
++ eapply (H w); eauto.
+  - split; auto. 
+  - split; trivial.
++ intros psi Delta' CS'.
+  apply prop_imp_i; intros [? HGG].
+  intros w' ? ? k F w'' ? [? ?].
+  apply (H psi Delta' CS' w'' H0 HGG); trivial. 
+  eapply pred_nec_hereditary; eauto.
 Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
@@ -314,7 +315,7 @@ destruct (@age1_join _ _ _ _ _ _ _ _ H6 Heqo)
 hnf in H8.
 specialize (H8 _ (age_laterR H10)).
 destruct H8 as [x H8].
-specialize (H x psi Delta' w TS HGG Prog_OK k F H0 H1).
+specialize (H x psi Delta' CS' w TS HGG Prog_OK k F H0 H1).
 unfold guard, _guard in H.
 specialize (H te ve).
 cbv beta in H.
@@ -358,7 +359,7 @@ rewrite exp_sepcon2 in H4.
 destruct H4 as [[TC [x H5]] ?].
 (*destruct H4 as [[[TC [x H5]] ?] ?].*)
 specialize (H x).
-specialize (H psi Delta' w TS HGG Prog_OK k F H0).
+specialize (H psi Delta' CS' w TS HGG Prog_OK k F H0).
 spec H. {
  clear - H1.
  unfold rguard in *.
@@ -468,11 +469,11 @@ intros w ? Delta Delta' P P' c R R'.
 intros w1 ? w2 ? [[[? ?] ?] ?].
 do 3 red in H2.
 rewrite semax_fold_unfold; rewrite semax_fold_unfold in H5.
-intros gx Delta''.
-apply prop_imp_i; intros [TS HGG].
+intros gx Delta'' CS'.
+apply prop_imp_i. intros [TS HGG].
 intros w3 ? ?.
-specialize (H5 gx Delta'' _ (necR_refl _)
-  (conj (tycontext_sub_trans _ _ _ H2 TS) HGG)
+specialize (H5 gx Delta'' CS' _ (necR_refl _)
+ (conj (tycontext_sub_trans _ _ _ H2 TS) HGG)
                   _ H6 H7).
 
 intros k F w4 Hw4 [? ?].
@@ -536,7 +537,7 @@ rewrite semax_unfold.
 rewrite semax_unfold in H.
 intros.
 pose (F0F := fun rho => F0 rho * F rho).
-specialize (H psi Delta' w TS HGG Prog_OK k F0F).
+specialize (H psi Delta' CS' w TS HGG Prog_OK k F0F).
 spec H. {
  unfold F0F.
  clear - H0 CL.
@@ -1735,9 +1736,10 @@ Lemma semax_eq:
  forall {CS: compspecs} {Espec: OracleKind} Delta P c R,
   semax Espec Delta P c R = 
   (TT |-- (ALL psi : genv,
-         ALL Delta' : tycontext,
-         !! (tycontext_sub Delta Delta' /\ genv_cenv psi = cenv_cs) -->
-         believe Espec Delta' psi Delta' -->
+         ALL Delta' : tycontext, ALL CS':compspecs,
+         !! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\
+                                          cenv_sub (@cenv_cs CS') (genv_cenv psi)) -->
+         @believe CS' Espec Delta' psi Delta' -->
          ALL k : cont ,
          ALL F : assert ,
          !! closed_wrt_modvars c F &&
@@ -1772,6 +1774,7 @@ rewrite semax_eq. rewrite semax_eq in H.
 eapply derives_trans. eassumption. clear H.
 apply allp_derives; intros psi.
 apply allp_derives; intros Delta.
+apply allp_derives; intros CS'.
 apply prop_imp_derives; intros TC.
 apply imp_derives; [ apply derives_refl | ].
 apply allp_derives; intros k.

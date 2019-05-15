@@ -85,8 +85,8 @@ intros.
 pose proof (Int.eqmod_sign_ext n (Int.repr i) H).
 pose proof (Int.eqmod_sign_ext n (Int.repr j) H).
 rewrite H2 in H3.
-apply Int.eqmod_sym in H3.
-pose proof (Int.eqmod_trans _ _ _ _ H3 H4).
+apply Zbits.eqmod_sym in H3.
+pose proof (Zbits.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
@@ -95,7 +95,7 @@ rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
-apply Int.eqmod_small_eq in H5; auto.
+apply Zbits.eqmod_small_eq in H5; auto.
 Qed.
 
 
@@ -111,8 +111,8 @@ intros.
 pose proof (Int.eqmod_zero_ext n (Int.repr i) H).
 pose proof (Int.eqmod_zero_ext n (Int.repr j) H).
 rewrite H2 in H3.
-apply Int.eqmod_sym in H3.
-pose proof (Int.eqmod_trans _ _ _ _ H3 H4).
+apply Zbits.eqmod_sym in H3.
+pose proof (Zbits.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
@@ -121,7 +121,7 @@ rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
-apply Int.eqmod_small_eq in H5; auto.
+apply Zbits.eqmod_small_eq in H5; auto.
 Qed.
 
 Lemma repr_decode_int_inj:
@@ -183,16 +183,16 @@ unfold Float.of_bits in H.
 rewrite <- (Int64.repr_unsigned i).
 rewrite <- (Int64.repr_unsigned j).
 f_equal.
-unfold Fappli_IEEE_bits.b64_of_bits in H.
-rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _) (refl_equal _) (Int64.unsigned i))
+unfold Bits.b64_of_bits in H.
+rewrite <- (Bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _) (refl_equal _) (Int64.unsigned i))
   by (apply Int64.unsigned_range).
-rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _) (refl_equal _) (Int64.unsigned j))
+rewrite <- (Bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _) (refl_equal _) (Int64.unsigned j))
   by (apply Int64.unsigned_range).
 f_equal; apply H.
 Qed.
 
 Require Import ZArith.
-From compcert Require Import Fappli_IEEE Fcore_Zaux Fcore_generic_fmt.
+From compcert Require Import Zaux Binary Generic_fmt.
 
 Lemma binary_normalize_inj:
   forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),
@@ -211,15 +211,15 @@ clear.
 intros s m e h.
 generalize (binary_normalize_correct 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s (Zpos m)) e s).
 rewrite round_generic ; auto with typeclass_instances.
-rewrite  Fcore_Raux.Rlt_bool_true.
+rewrite Raux.Rlt_bool_true.
 intros [-> _].
 easy.
 apply Raxioms.Rlt_trans with (1 := abs_B2R_lt_emax _ _ (B754_finite 24 128 s m e h)).
-now apply Fcore_Raux.bpow_lt.
-apply Fcore_FLT.generic_format_FLT.
+now apply Raux.bpow_lt.
+apply FLT.generic_format_FLT.
 assert (h' := generic_format_B2R 24 128 (B754_finite 24 128 s m e h)).
-apply Fcore_FLT.FLT_format_generic in h'.
-destruct h' as [f [H1 [H2 H3]]].
+apply FLT.FLT_format_generic in h'.
+destruct h' as [f H1 H2 H3].
 exists f.
 rewrite <- H1.
 repeat split.
@@ -241,19 +241,21 @@ Proof.
 intros s m e h.
 generalize (binary_normalize_correct 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s (Zpos m)) e s).
 rewrite round_generic ; auto with typeclass_instances.
-rewrite Fcore_Raux.Rlt_bool_true.
+rewrite Raux.Rlt_bool_true.
 (****)
 intros [H _].
 assert (H': B2R 53 1024 (binary_normalize 53 1024 eq_refl eq_refl mode_NE (cond_Zopp s (Z.pos m)) e s) <> 0%R).
-  rewrite H, <- (Fcore_float_prop.F2R_0 radix2 e).
+  rewrite H, <- (Float_prop.F2R_0 radix2 e).
   case s.
-  now apply RIneq.Rlt_not_eq, Fcore_float_prop.F2R_lt_compat.
-  now apply RIneq.Rgt_not_eq, Fcore_float_prop.F2R_lt_compat.
+(* This code worked until CompCert 3.5,
+  then Flocq changed.  It's still provable, in principle.
+  now apply RIneq.Rlt_not_eq, Float_prop.F2R_lt_compat.
+  now apply RIneq.Rgt_not_eq, Float_prop.F2R_lt_compat.
 clear H.
 destruct binary_normalize ; try easy ; now elim H'.
 (****)
 apply Raxioms.Rlt_trans with (1 := abs_B2R_lt_emax _ _ (B754_finite 24 128 s m e h)).
-now apply Fcore_Raux.bpow_lt.
+now apply Raux.bpow_lt.
 apply Fcore_FLT.generic_format_FLT.
 assert (h' := generic_format_B2R 24 128 (B754_finite 24 128 s m e h)).
 apply Fcore_FLT.FLT_format_generic in h'.
@@ -266,7 +268,10 @@ now apply Zpower_lt.
 now apply Z.le_trans with (2 := H3).
 easy.
 Qed.
+*)
+Abort.
 
+(*
 Lemma float32_preserves_payload:
  forall s pl,
     let '(s1,pl1) := Float.of_single_pl s pl in
@@ -288,9 +293,11 @@ intros.
  simpl in *.
  assert (a=b); [ | subst a; f_equal; apply Axioms.proof_irr].
 Abort.
+*)
 
 Inductive wishes_eq_horses := .
 
+(*
 Lemma float32_payload_inj:
   wishes_eq_horses ->
   forall s1 pl1 s2 pl2,
@@ -332,6 +339,7 @@ Qed.
 
 Lemma Vint_inj: forall i j, Vint i = Vint j -> i=j.
 Proof. congruence. Qed.
+*)
 
 Lemma decode_val_uniq:
    (* Just not true any more, with Fragments *)

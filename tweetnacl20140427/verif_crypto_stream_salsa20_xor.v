@@ -84,7 +84,7 @@ Proof.
   destruct (Byte.unsigned_range_2 b1).
   destruct (Byte.unsigned_range_2 b2).
   split. apply Z.lxor_nonneg. omega. 
-  apply Byte.Ztestbit_le. omega. clear.
+  apply Zbits.Ztestbit_le. omega. clear.
   intros i I H. rewrite Z.lxor_spec in H.
   destruct (zlt i 8).
   + clear - I l.  
@@ -311,9 +311,9 @@ forward_for_simple_bound 16 (i_8_16_inv F x z c b m nonce k zbytes gv).
   rewrite W. do 2 rewrite <- upd_Znth_map.
   rewrite Byte.unsigned_repr.
   + unfold Int.add. rewrite Int_unsigned_repr_byte.
-    f_equal. unfold Int.zero_ext. f_equal. apply Int.equal_same_bits.
+    f_equal. unfold Int.zero_ext. f_equal. apply Zbits.equal_same_bits.
     intros j J. 
-    rewrite Int.Zzero_ext_spec; trivial. rewrite (Byte.Ztestbit_mod_two_p 8); trivial.
+    rewrite Zbits.Zzero_ext_spec; trivial. rewrite (Zbits.Ztestbit_mod_two_p 8); trivial.
     rewrite Int.unsigned_repr; trivial.
     symmetry in HeqX. apply ZZ_is_byte in HeqX.
     destruct (Byte.unsigned_range_2 (Znth i Zi)). rep_omega.

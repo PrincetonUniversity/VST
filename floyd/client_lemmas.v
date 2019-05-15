@@ -1,5 +1,6 @@
 Require Import VST.floyd.base2.
 Require Export VST.floyd.canon.
+Import LiftNotation.
 Local Open Scope logic.
 
 Lemma SEP_entail:
@@ -1714,13 +1715,24 @@ Ltac already_saturated :=
 end || auto with nocore saturate_local)
  || simple apply prop_True_right.
 
+Ltac check_mpreds2 R :=
+ lazymatch R with
+ | @sepcon mpred _ _ ?a ?b => check_mpreds2 a; check_mpreds2 b
+ | _ => match type of R with ?t =>
+                          first [constr_eq t mpred 
+                                 | fail 10 "The conjunct" R "has type" t "but should have type mpred; these two types may be convertible but they are not identical"]
+                     end
+ | nil => idtac
+ end.
+
 Ltac saturate_local :=
-simple eapply saturate_aux21x;
+ match goal with |- ?R |-- _ => check_mpreds2 R end;
+ simple eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
    (* use already_saturated if want to be fancy,
          otherwise the next lines *)
     auto with nocore saturate_local;
-    simple apply prop_True_right
+     simple apply prop_True_right
 (* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
  | simple apply derives_extract_prop;
    match goal with |- _ -> ?A =>
@@ -1966,14 +1978,14 @@ match goal with
 end.
 
 Ltac Intro'' a :=
-  first [ simple apply extract_exists_pre; intro a
-         | simple apply exp_left; intro a
-         | rewrite exp_andp1; Intro'' a
-         | rewrite exp_andp2; Intro'' a
-         | rewrite exp_sepcon1; Intro'' a
-         | rewrite exp_sepcon2; Intro'' a
-         | extract_exists_from_SEP; intro a
-         ].
+   ( (simple apply extract_exists_pre; intro a)
+   || (simple apply exp_left; intro a)
+   || (rewrite exp_andp1; Intro'' a)
+   || (rewrite exp_andp2; Intro'' a)
+   || (rewrite exp_sepcon1; Intro'' a)
+   || (rewrite exp_sepcon2; Intro'' a)
+   || (extract_exists_from_SEP; intro a)
+   ).
 
 Ltac Intro a :=
   repeat Intro_prop;
@@ -2202,4 +2214,4 @@ Ltac EExists_alt :=
 Tactic Notation "freeze1" uconstr(a) :=
     let x := fresh "x" in set (x:=a);
     let fr := fresh "freeze" in pose (fr := @abbreviate mpred x);
-    change x with fr; subst x.
+    change (cons x) with (cons fr); subst x.

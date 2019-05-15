@@ -9,6 +9,7 @@ Require Import VST.floyd.field_compat.
 Require Import VST.floyd.closed_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 (*Require Import VST.floyd.unfold_data_at.*)
+Import LiftNotation.
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=
@@ -905,9 +906,38 @@ assert (Ptrofs.modulus = Ptrofs.max_unsigned + 1) by computable.
 omega.
 Qed.
 
+Lemma process_globvar_extern:
+ forall {Espec: OracleKind} {CS: compspecs} Delta P gz Q R i gv gvs SF c Post,
+       gvar_init gv = nil ->
+       gvar_volatile gv = false ->
+       semax Delta
+         (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars2pred gz gvs * SF) c Post ->
+       semax Delta
+         (PROPx P (LOCALx (gvars gz :: Q) (SEPx R)) *
+          globvars2pred gz ((i, gv) :: gvs) * SF) c Post.
+Proof.
+intros.
+eapply semax_pre; [ | apply H1]; clear H1.
+apply andp_left2.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+intro rho.
+unfold globvars2pred.
+apply andp_derives; auto.
+simpl.
+rewrite <- emp_sepcon.
+apply sepcon_derives; auto.
+unfold globvar2pred.
+simpl. rewrite H0, H.
+simpl.
+auto.
+Qed.
+
 Ltac process_one_globvar :=
  first
-  [ simple eapply process_globvar_space;
+  [ simple eapply process_globvar_extern; [reflexivity | reflexivity | ]
+  | simple eapply process_globvar_space;
     [simpl; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | simpl; computable | ]
   | simple eapply process_globvar';
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -1059,9 +1089,22 @@ eapply semax_pre; [ | apply H].
 go_lowerx; normalize.
 Qed.
 
+Lemma prog_defs_Clight_mkprogram:
+ forall c g p m w,
+ prog_defs (Clightdefs.mkprogram c g p m w) = g.
+Proof.
+intros. unfold Clightdefs.mkprogram.
+destruct ( build_composite_env' c w).
+reflexivity.
+Qed.
+
 Ltac expand_main_pre :=
- (rewrite main_pre_start || rewrite main_pre_ext_start);
- unfold prog_vars, prog_vars'; simpl globvars2pred;
+ match goal with |- semax _ (main_pre ?prog _ _ * _) _ _ =>
+    (rewrite main_pre_start || rewrite main_pre_ext_start);
+    unfold prog_vars, prog
+ end;
+ rewrite prog_defs_Clight_mkprogram;
+ simpl globvars2pred;
  repeat  process_idstar;
  apply eliminate_globvars2pred_nil;
  rewrite ?offset_val_unsigned_repr;

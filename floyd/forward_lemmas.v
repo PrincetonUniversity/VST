@@ -2,6 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Import Cop.
+Import LiftNotation.
 Local Open Scope logic.
 
 Lemma semax_while_peel:
@@ -18,22 +19,24 @@ destruct R; apply ENTAIL_refl.
 Qed.
 
 Lemma semax_func_cons_ext_vacuous:
-     forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
+     forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
-         (G' : funspecs) cc,
+         (G' : funspecs) cc b,
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
          sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
          sig_res := opttyp_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
-       semax_func V G fs G' ->
-       semax_func V G ((id, External ef argsig retsig cc) :: fs)
+       (*new*) Genv.find_symbol ge id = Some b ->
+       (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+       semax_func V G ge fs G' ->
+       semax_func V G ge ((id, External ef argsig retsig cc) :: fs)
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof.
 intros.
-eapply semax_func_cons_ext; try reflexivity; auto.
+eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
 *
  clear.
  forget 1%positive as i.
@@ -45,8 +48,7 @@ eapply semax_func_cons_ext; try reflexivity; auto.
   revert i; induction argsig; simpl; intros; auto.
 *
   intros. simpl. apply andp_left1, FF_left.
-*
-  apply semax_external_FF.
+*  apply semax_external_FF.
 Qed.
 
 Lemma int_eq_false_e:
@@ -57,50 +59,6 @@ intro; subst.
 rewrite Int.eq_true in H; inv H.
 Qed.
 
-
-Lemma repr_inj_signed:
-  forall i j,
-    repable_signed i -> repable_signed j -> Int.repr i = Int.repr j -> i=j.
-Proof.
-intros.
-rewrite <- (Int.signed_repr i) by rep_omega.
-rewrite <- (Int.signed_repr j) by rep_omega.
-congruence.
-Qed.
-
-Lemma repr_inj_unsigned:
-  forall i j,
-    0 <= i <= Int.max_unsigned ->
-    0 <= j <= Int.max_unsigned ->
-    Int.repr i = Int.repr j -> i=j.
-Proof.
-intros.
-rewrite <- (Int.unsigned_repr i) by rep_omega.
-rewrite <- (Int.unsigned_repr j) by rep_omega.
-congruence.
-Qed.
-
-
-Lemma repr_inj_signed':
-  forall i j,
-    (* The first two premises are not needed to prove this,
-     but are used to limit its applicability *)
-    repable_signed i -> repable_signed j ->
-    Int.repr i <> Int.repr j -> i<>j.
-Proof.
-intros.
-congruence.
-Qed.
-
-Lemma repr_inj_unsigned':
-  forall i j,
-    0 <= i <= Int.max_unsigned ->
-    0 <= j <= Int.max_unsigned ->
-    Int.repr i <> Int.repr j -> i<>j.
-Proof.
-intros.
-congruence.
-Qed.
 
 Lemma semax_ifthenelse_PQR' :
    forall Espec {cs: compspecs} (v: val) Delta P Q R (b: expr) c d Post,
@@ -531,7 +489,7 @@ intros.
 apply Int.eqm_samerepr.
 apply Zmod_divide_minus in H; [ | reflexivity].
 unfold Int.eqm.
-unfold Int.eqmod.
+unfold Zbits.eqmod.
 set (m := Int.modulus) in *.
 destruct H as [z ?].
 assert (x = y mod m + z * m) by omega.

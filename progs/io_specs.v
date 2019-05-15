@@ -82,10 +82,9 @@ Lemma write_list_app : forall l1 l2,
   eutt eq (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
 Proof.
   induction l1; simpl in *; intros.
-  - rewrite ret_bind; reflexivity.
+  - rewrite bind_ret; reflexivity.
   - rewrite bind_bind.
-    apply eutt_bind; [reflexivity|].
-    intro; auto.
+    setoid_rewrite IHl1; reflexivity.
 Qed.
 
 Definition char0 : Z := 48.

@@ -105,8 +105,8 @@ Proof.
     + destruct (zle 0 k).
       * clear p2.
         f_equal.
-        rewrite <-(Coqlib.nat_of_Z_eq k) in p1. 2:omega.
-        revert p1. generalize (nat_of_Z k); clear k l; intros n.
+        rewrite <-(Z2Nat.id k) in p1. 2:omega.
+        revert p1. generalize (Z.to_nat k); clear k l; intros n.
         revert ofs.
         induction n; auto; intros ofs p.
         simpl. f_equal.
@@ -121,7 +121,7 @@ Proof.
            intros ofs' r'.
            apply p.
            zify. omega.
-      * rewrite nat_of_Z_neg. auto. omega.
+      * rewrite Z_to_nat_neg. auto. omega.
     + destruct np2.
       unfold Mem.range_perm in *.
       rewrite <-P.

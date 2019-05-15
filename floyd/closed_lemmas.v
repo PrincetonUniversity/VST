@@ -1,6 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
-
+Import LiftNotation.
 Local Open Scope logic.
 
 (*
@@ -91,8 +91,12 @@ Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: ex
  | Evar id ty => eval_var id ty
  | Ederef a ty => subst_eval_expr j v a
  | Efield a i ty => `(eval_field (typeof a) i) (subst_eval_lvalue j v a)
- | Esizeof t ty => `(Vptrofs (Ptrofs.repr (sizeof t)))
- | Ealignof t ty => `(Vptrofs (Ptrofs.repr (alignof t)))
+ | Esizeof t ty => `(if complete_type cenv_cs t
+                             then Vptrofs (Ptrofs.repr (sizeof t))
+                             else Vundef)
+ | Ealignof t ty => `(if complete_type cenv_cs t
+                              then Vptrofs (Ptrofs.repr (alignof t))
+                              else Vundef)
  end
 
  with subst_eval_lvalue {cs: compspecs} (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
@@ -108,27 +112,32 @@ Lemma subst_eval_expr_eq:
 with subst_eval_lvalue_eq:
     forall {cs: compspecs} j v e, subst j v (eval_lvalue e) = subst_eval_lvalue j v e.
 Proof.
+-
 intros cs j v; clear subst_eval_expr_eq; induction e; intros; simpl; try auto.
-unfold eqb_ident.
-unfold subst, eval_id, env_set, te_of. extensionality rho.
-pose proof (Pos.eqb_spec j i).
-destruct H. subst. rewrite Map.gss. reflexivity.
-rewrite Map.gso; auto.
-rewrite <- IHe; clear IHe.
-unfold_lift.
-extensionality rho; unfold subst.
-reflexivity.
-unfold_lift.
-extensionality rho; unfold subst.
-rewrite <- IHe1, <- IHe2; reflexivity.
-unfold_lift.
-extensionality rho; unfold subst.
-rewrite <- IHe; reflexivity.
-unfold_lift.
-rewrite <- subst_eval_lvalue_eq.
-extensionality rho; unfold subst.
-f_equal. f_equal.
-
+ + unfold eqb_ident.
+     unfold subst, eval_id, env_set, te_of. extensionality rho.
+     pose proof (Pos.eqb_spec j i).
+     destruct H. subst. rewrite Map.gss. reflexivity.
+     rewrite Map.gso; auto.
+  + 
+     rewrite <- IHe; clear IHe.
+     unfold_lift.
+     extensionality rho; unfold subst.
+     reflexivity.
+  + 
+     unfold_lift.
+     extensionality rho; unfold subst.
+     rewrite <- IHe1, <- IHe2; reflexivity.
+   +
+      unfold_lift.
+      extensionality rho; unfold subst.
+      rewrite <- IHe; reflexivity.
+   +
+      unfold_lift.
+      rewrite <- subst_eval_lvalue_eq.
+      extensionality rho; unfold subst.
+      auto.
+-
 intros Delta j v; clear subst_eval_lvalue_eq; induction e; intros; simpl; try auto.
 unfold_lift.
 extensionality rho; unfold subst.

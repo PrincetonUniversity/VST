@@ -4,6 +4,7 @@ Require Import VFA.SearchTree.
 Require Import WandDemo.SearchTree_ext.
 Require Import WandDemo.wand_frame.
 Require Import WandDemo.wandQ_frame.
+Require Import WandDemo.wandQ_frame_tactic.
 Require Import WandDemo.bst.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -59,13 +60,13 @@ Proof.
     apply pred_ext; entailer!.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 1%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
     - Intros pa pb.
       Exists pb pa.
-      unfold_data_at 3%nat.
+      unfold_data_at (data_at _ _ _ p).
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
       cancel.
@@ -94,14 +95,10 @@ Proof.
   unfold treebox_rep; simpl.
   apply pred_ext; Intros pa pb.
   + Exists pb pa; entailer!.
-    unfold_data_at 1%nat.
-    cancel.
-    rewrite !field_at_data_at.
+    unfold_data_at (data_at _ _ _ p).
     cancel.
   + Exists pb pa; entailer!.
-    unfold_data_at 3%nat.
-    cancel.
-    rewrite !field_at_data_at.
+    unfold_data_at (data_at _ _ _ p).
     cancel.
 Qed.
 
@@ -167,10 +164,8 @@ Proof.
   Exists p.
   rewrite !treebox_rep_spec.
   Exists nullval nullval.
-  unfold_data_at 1%nat.
+  unfold_data_at (data_at _ _ _ p).
   entailer!.
-  rewrite !field_at_data_at.
-  cancel.
 Qed.
 
 Lemma treebox_rep_internal: forall l x v r b p,
@@ -218,6 +213,14 @@ Proof.
   apply wandQ_frame_ver.
 Qed.
 
+Lemma partialT_rep_partialT_rep_proof_by_tactic: forall rep pt12 pt23 p1 p2 p3,
+  partialT rep pt12 p2 p1 * partialT rep pt23 p3 p2 |-- partialT rep (Basics.compose pt23 pt12) p3 p1.
+Proof.
+  intros.
+  solve_wandQ partialT.
+  simpl; auto.
+Qed.
+
 Lemma emp_partialT_rep_H: forall rep p,
   emp |-- partialT rep (fun t => t) p p.
 Proof.
@@ -232,6 +235,14 @@ Lemma rep_partialT_rep: forall rep t P p q,
 Proof.
   intros.
   exact (wandQ_frame_elim _ (fun t => rep t p) (fun t => rep (P t) q) t).
+Qed.
+
+Lemma rep_partialT_rep_proof_by_tactic: forall rep t P p q,
+  rep t p * partialT rep P q p |-- rep (P t) q.
+Proof.
+  intros.
+  solve_wandQ partialT.
+  simpl; auto.
 Qed.
 
 End PartialTree_WandQFrame_Func_Hole.

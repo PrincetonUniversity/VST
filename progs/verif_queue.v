@@ -569,7 +569,7 @@ Existing Instance NullExtension.Espec.
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
-prove_semax_prog.
+prove_semax_prog. 
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons body_free.
 semax_func_cons body_exit.

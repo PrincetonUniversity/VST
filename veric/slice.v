@@ -951,12 +951,12 @@ Proof.
    ((allp
       (jam (adr_range_dec a (size_chunk ch))
          (fun loc : address =>
-          yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd a)) bl Undef)) sh1
+          yesat NoneP (VAL (nth (Z.to_nat (snd loc - snd a)) bl Undef)) sh1
             loc) noat) && noghost) *
     (allp
       (jam (adr_range_dec a (size_chunk ch))
          (fun loc : address =>
-          yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd a)) bl Undef)) sh2
+          yesat NoneP (VAL (nth (Z.to_nat (snd loc - snd a)) bl Undef)) sh2
             loc) noat) && noghost))).
   + pose proof log_normalize.exp_congr (pred rmap) _ (list memval).
     simpl in H0.

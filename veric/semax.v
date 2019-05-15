@@ -147,6 +147,7 @@ Definition rguard (Espec : OracleKind)
     _guard Espec gx Delta (proj_ret_assert R ek vl) (current_function ctl) (exit_cont ek vl ctl).
 
 Record semaxArg :Type := SemaxArg {
+ sa_cs: compspecs;
  sa_Delta: tycontext;
  sa_P: assert;
  sa_c: statement;
@@ -251,28 +252,28 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
   fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp)
      (map (fun idt => var_block' Share.top cenv idt) (Clight.fn_vars f)).
 
-
-Definition believe_internal_
+Definition believe_internal_ CS
   (semax:semaxArg -> pred nat)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  let ce := (@cenv_cs CS) (*Was: (genv_cenv gx)*) in
   (EX b: block, EX f: function,
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
-                 /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
+                 /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
   &&
-(*NEW*)ALL Delta':tycontext,
-(*NEW*)imp (prop (forall f, tycontext_sub (func_tycontext' f Delta)
-(*NEW*)                                   (func_tycontext' f Delta')))
+(*NEW*)ALL Delta':tycontext, ALL CS':compspecs,
+(*NEW*)imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
+(*NEW*)  (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS'))) 
      ( ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
-        |> semax (SemaxArg  (func_tycontext' f Delta')
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (genv_cenv gx) f rho)
+        |> semax (SemaxArg CS' (func_tycontext' f Delta')
+                                (fun rho => (bind_args f.(fn_params) (P ts x) rho * stackframe_of' (@cenv_cs CS')(*ce*) f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                               (Ssequence f.(fn_body) (Sreturn None))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (genv_cenv gx) f)))) ).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS')(*ce*) f)))) )).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -280,7 +281,7 @@ Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
   exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
 
-Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
+Definition believepred CS (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
   ALL A: TypeTree,
@@ -288,15 +289,14 @@ Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
   ALL Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
-        || believe_internal_ semax gx Delta v fsig cc A P Q).
+        || believe_internal_ CS semax gx Delta v fsig cc A P Q).
 
-Definition semax_  {CS: compspecs}  (Espec: OracleKind)
+Definition semax_ (* {CS: compspecs} *) (Espec: OracleKind)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
- match a with SemaxArg Delta P c R =>
-  ALL gx: genv, ALL Delta': tycontext,
-(*       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs)-->*)
-       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs)-->
-      (believepred Espec semax Delta' gx Delta') -->
+ match a with SemaxArg CS Delta P c R =>
+  ALL gx: genv, ALL Delta': tycontext,ALL CS':compspecs,
+       !! (tycontext_sub Delta Delta' /\ (*genv_cenv gx = cenv_cs*)cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)) -->
+      (believepred CS' Espec semax Delta' gx Delta') -->
      ALL k: cont, ALL F: assert,
        (!! (closed_wrt_modvars c F) &&
               rguard Espec gx Delta' (frame_ret_assert R F) k) -->
@@ -304,28 +304,30 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
   end.
 
 Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
-     HORec (semax_  Espec) (SemaxArg Delta P c R).
+     HORec (semax_ Espec) (SemaxArg CS Delta P c R).
 
 Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  let ce := @cenv_cs CS (*Was(genv_cenv gx)*) in
   (EX b: block, EX f: function,
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
-                 /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
+                 /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
   && 
-(*NEW*)ALL Delta':tycontext,
-(*NEW*)imp (prop (forall f, tycontext_sub (func_tycontext' f Delta)
-(*NEW*)                                   (func_tycontext' f Delta')))
+(*NEW*)ALL Delta':tycontext,ALL CS':compspecs,
+(*NEW*)imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
+      (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS')))
+                                               
        (ALL ts: list Type,
      ALL x : dependent_type_functor_rec ts A (pred rmap),
-     |> semax' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (genv_cenv gx)  f rho)
+     |> @semax' CS' Espec (func_tycontext' f Delta')
+                                (fun rho => (bind_args f.(fn_params) (P ts x) rho * stackframe_of' (@cenv_cs CS') (*ce*)f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (Ssequence f.(fn_body) (Sreturn None))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (genv_cenv gx) f)))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') (*ce*) f))))).
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
@@ -339,9 +341,9 @@ Definition believe {CS: compspecs} (Espec:OracleKind)
 
 Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>
-  ALL gx: genv, ALL Delta': tycontext,
-       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
-       believe Espec Delta' gx Delta' -->
+  ALL gx: genv, ALL Delta': tycontext,ALL CS':compspecs,
+       !! (tycontext_sub Delta Delta' /\ (*genv_cenv gx = cenv_cs*)cenv_sub (@cenv_cs CS) (@cenv_cs CS') /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)) -->
+       @believe CS' Espec Delta' gx Delta' -->
      ALL k: cont, ALL F: assert,
         (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
@@ -356,7 +358,7 @@ intros.
 unfold semax_.
 clear.
 sub_unfold.
-do 2 (apply subp_allp; intros).
+do 3 (apply subp_allp; intros).
 apply subp_imp; [auto with contractive | ].
 apply subp_imp; [ | auto 50 with contractive].
 apply subp_allp; intros.
@@ -370,6 +372,19 @@ apply subp_orp; [ auto 50 with contractive | ].
 apply subp_exp; intros.
 apply subp_exp; intros.
 auto 50 with contractive.
+Qed.
+
+Lemma semax'_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
+      @semax' CS Espec Delta P c R |-- @semax' CS' Espec Delta P c R.
+Proof.
+  rewrite 2 semax_fold_unfold.
+  apply allp_derives; intros gx.
+  apply allp_derives; intros Delta'.
+  apply allp_derives; intros CS''.
+  intros w W m WM [TC [M1 M2]] u MU U. specialize (W m WM).
+  assert (X: (!! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS'') /\ cenv_sub (@cenv_cs CS'') gx)) m).
+  { clear W U. split. apply TC. split; trivial. intros i. eapply sub_option_trans. apply CSUB. apply M1. }
+  apply (W X); trivial.
 Qed.
 
 Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c Q: assert :=
@@ -650,51 +665,67 @@ Lemma believe_antimonoR gx Delta Gamma Gamma'
                         (glob_specs Gamma) ! id = Some spec):
   @believe CS Espec Delta gx Gamma |-- @believe CS Espec Delta gx Gamma'.
 Proof. intros n B v sig cc A P Q k nec CL. apply B; trivial. eapply claims_antimono; eauto. Qed.
+Set Printing Implicit.
 
-Lemma believe_internal_mono gx Delta Delta' v sig cc A P Q
+Lemma complete_type_cspecs_sub {cs cs'} (C: cspecs_sub cs cs') t (T:complete_type (@cenv_cs cs) t = true):
+  complete_type (@cenv_cs cs') t = true.
+Proof. apply (complete_type_stable (@cenv_cs cs) (@cenv_cs cs')); trivial. intros. specialize (C id). rewrite H in C; apply C.
+Qed.
+(*
+Lemma cenv_sub_stackframe_of' {cs cs'} (C: cspecs_sub cs cs') f
+*)
+Lemma believe_internal_mono {CS'} gx Delta Delta' v sig cc A P Q
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
                                 (func_tycontext' f Delta')) k
-  (BI: believe_internal Espec gx Delta v sig cc A P Q k):
-  believe_internal Espec gx Delta' v sig cc A P Q k.
+  (CSUB: cspecs_sub  CS CS')
+  (BI: @believe_internal CS Espec gx Delta v sig cc A P Q k):
+  @believe_internal CS' Espec gx Delta' v sig cc A P Q k.
 Proof. destruct BI as [b [f [Hv X]]].
-  exists b, f; split; [trivial | clear Hv].
-  intros PSI w W HSUB ts x. apply (X PSI w W).
-  simpl; intros. eapply tycontext_sub_trans. 2: apply HSUB. eauto.
+  exists b, f; split; [clear X | clear Hv].
+  - simpl; simpl in Hv. intuition.
+    + eapply Forall_impl. 2: apply H0. simpl; intros. apply (complete_type_cspecs_sub CSUB _ H6).
+    + clear - CSUB H0 H4. forget (fn_vars f) as vars. induction vars.
+      constructor. inv H4. inv H0.  specialize (IHvars H5 H3).
+      constructor; [ rewrite (cenv_sub_sizeof CSUB); trivial | apply IHvars].
+  - intros PSI CS'' w W HSUB u WU HU ts x. apply (X PSI CS'' w W); trivial.
+    + simpl; intros. eapply tycontext_sub_trans. 2: apply HSUB. eauto.
+    + clear - CSUB HU; simpl. apply (cenv_sub_trans CSUB HU). 
 Qed.
 
-Lemma believe_monoL gx Delta Delta' Gamma
+Lemma believe_monoL {CS'} gx Delta Delta' Gamma
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
-                                (func_tycontext' f Delta')):
-  @believe CS Espec Delta gx Gamma |-- @believe CS Espec Delta' gx Gamma.
+                                (func_tycontext' f Delta'))
+  (CSUB: cspecs_sub  CS CS'):
+  @believe CS Espec Delta gx Gamma |-- @believe CS' Espec Delta' gx Gamma.
 Proof.
  intros n B v sig cc A P Q k nec CL.
  destruct (B v sig cc A P Q k nec).
 + eapply claims_antimono; eauto.
 + left; trivial.
-+ right. clear -SUB H.
-  eapply believe_internal_mono; eauto.
++ right. clear -SUB CSUB H.
+  apply (@believe_internal_mono CS' gx Delta); eauto.
 Qed.
 
 Lemma believe_internal__mono sem gx Delta Delta' v sig cc A P Q
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
                                 (func_tycontext' f Delta')) k
-  (BI: believe_internal_ sem gx Delta v sig cc A P Q k):
-(believe_internal_ sem gx Delta' v sig cc A P Q) k.
+  (BI: believe_internal_ CS sem gx Delta v sig cc A P Q k):
+(believe_internal_ CS sem gx Delta' v sig cc A P Q) k.
 Proof. destruct BI as [b [f [Hv X]]].
   exists b, f; split; [trivial | clear Hv].
-  intros PSI w W HSUB ts x. apply (X PSI w W).
+  intros PSI CS' w W HSUB u WU HU ts x. apply (X PSI CS' w W); trivial.
   simpl; intros. eapply tycontext_sub_trans. 2: apply HSUB. eauto.
 Qed.
 End believe_monotonicity.
 
 Lemma semax__mono {CS} Espec Delta Delta'
   (SUB: tycontext_sub Delta Delta') sem P c R:
-  derives (@semax_ CS Espec sem {| sa_Delta := Delta; sa_P := P; sa_c := c; sa_R := R |})
-      (@semax_ CS Espec sem {| sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}).
+  derives (@semax_ (*CS*) Espec sem {| sa_cs := CS; sa_Delta := Delta; sa_P := P; sa_c := c; sa_R := R |})
+      (@semax_ (*CS*) Espec sem {| sa_cs:=CS; sa_Delta := Delta'; sa_P := P; sa_c := c; sa_R := R |}).
 Proof. unfold semax_; intros w W.
-intros gx Gamma n N [HSUB HENV] m M B k F a A CL.
+intros gx Gamma CS' n N [HSUB HCS] m M B k F a A CL.
 assert (X: tycontext_sub Delta Gamma) by (eapply tycontext_sub_trans; eauto).
-apply (W gx Gamma n N (conj X HENV) m M B k F a A CL).
+apply (W gx Gamma CS' n N (conj X HCS) m M B k F a A CL).
 Qed.
 
 Lemma semax_mono {CS} Espec Delta Delta' P Q
@@ -703,9 +734,9 @@ Lemma semax_mono {CS} Espec Delta Delta' P Q
    @semax' CS Espec Delta' P c Q w.
 Proof.
 rewrite semax_fold_unfold in *.
-intros gx Gamma m M X. destruct X as [HH HENV].
+intros gx Gamma CS' m M [HH HCS].
 assert (SUB': tycontext_sub Delta Gamma) by (eapply tycontext_sub_trans; eassumption).
-apply (Hyp gx Gamma m M (conj SUB' HENV)).
+apply (Hyp gx Gamma CS' m M (conj SUB' HCS)).
 Qed.
 
 Lemma semax_mono_box {CS} Espec Delta Delta' P Q
@@ -728,3 +759,9 @@ Lemma semax_mono' {CS} Espec Delta Delta' P Q
   @box nat ag_nat (@laterM nat ag_nat)
           (@semax' CS Espec (func_tycontext' f Delta') P c Q) w.
 Proof. eapply semax_mono_box. eauto. eassumption. Qed.
+
+Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
+      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+Proof.
+  intros. intros n. apply (semax'_cssub CSUB); trivial. 
+Qed.

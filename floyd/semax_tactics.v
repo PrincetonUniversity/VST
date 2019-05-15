@@ -76,17 +76,6 @@ match goal with
 | |- _ => intro S1; simpl in S1
 end.
 
-Ltac ensure_no_augment_funspecs Gprog :=
-            let x := fresh "x" in
-            pose (x := Gprog); unfold Gprog in x;
-             match goal with
-             | x:=augment_funspecs _ _:_
-               |- _ =>
-                   fail 10 "Do not define Gprog with augment_funspecs,"
-                    "use with_library instead; see the reference manual"
-             | |- _ => clear x
-             end.
-
 Ltac check_ground_ptree t :=
 match t with
 | @PTree.Node _ ?a _ ?b => check_ground_ptree a; check_ground_ptree b
@@ -115,7 +104,6 @@ end.
   both in execution and in Qed *)
 Ltac simplify_func_tycontext' DD :=
   match DD with context [(func_tycontext ?f ?V ?G ?A)] =>
-   ensure_no_augment_funspecs G;
     let D1 := fresh "D1" in let Delta := fresh "Delta" in
     pose (Delta := @abbreviate tycontext (func_tycontext f V G A));
     change (func_tycontext f V G A) with Delta;
@@ -445,3 +433,266 @@ Ltac check_POSTCONDITION :=
   | |- semax _ _ _ ?P => check_POSTCONDITION' P
   | _ => fail 100 "Your POSTCONDITION is ill-formed in some way "
   end.
+
+Fixpoint find_expressions {A: Type} (f: expr -> A -> A) (c: statement) (x: A) : A :=
+ match c with
+ | Sskip => x
+ | Sassign e1 e2 => f e1 (f e2 x)
+ | Sset _ e => f e x
+ | Scall _ e el => f e (fold_right f x el)
+ | Sbuiltin _ _ _ el => fold_right f x el
+ | Ssequence c1 c2 => find_expressions f c1 (find_expressions f c2 x)
+ | Sifthenelse e c1 c2 => f e (find_expressions f c1 (find_expressions f c2 x))
+ | Sloop c1 c2 => find_expressions f c1 (find_expressions f c2 x)
+ | Sbreak => x
+ | Scontinue => x
+ | Sreturn (Some e) => f e x
+ | Sreturn None => x
+ | Sswitch e cl => f e (find_expressions_sl f cl x)
+ | Slabel _ c => find_expressions f c x
+ | Sgoto _ => x
+ end
+with find_expressions_sl {A: Type} (f: expr -> A -> A) (c: labeled_statements) (x: A) : A :=
+ match c with
+ | LSnil => x
+ | LScons _ c1 c2 => find_expressions f c1 (find_expressions_sl f c2 x)
+ end.
+
+Fixpoint find_vars {A: Type} (f: ident -> A -> A) (e: expr) (x: A) : A :=
+ match e with
+ | Evar i _ => f i x
+ | Ederef e _ => find_vars f e x
+ | Eaddrof e _ => find_vars f e x
+ | Eunop _ e _ => find_vars f e x
+ | Ebinop _ e1 e2 _ => find_vars f e1 (find_vars f e2 x)
+ | Ecast e _ => find_vars f e x
+ | Efield e _ _ => find_vars f e x
+ | _ => x
+ end.
+
+Definition isNone {A} (x: option A) :=
+ match x with None => true | _ => false end.
+
+Definition check_no_overlap
+    (V: varspecs) (G: funspecs) : bool :=
+  let table :=  List.fold_left (fun t v => PTree.set (fst v) tt t) G (PTree.empty _)
+   in forallb (fun f => isNone (table ! (fst f))) V.
+
+Lemma check_no_overlap_e:
+  forall V G, check_no_overlap V G = true ->
+  forall i, In i (map fst V) -> ~ In i (map fst G).
+Proof.
+intros *. intros H i H1 H0.
+unfold check_no_overlap in *.
+assert ((fun (f: positive * type)  =>
+       isNone
+         (fold_left
+            (fun t v =>
+             PTree.set (fst v) tt t) G (PTree.empty unit)) ! (fst f))
+ =  (fun f =>
+       isNone
+         (fold_right
+            (fun v t=>
+             PTree.set (fst v) tt t) (PTree.empty unit) G) ! (fst f))).
+{
+clear.
+extensionality idx.
+destruct idx as [j ?].
+simpl. clear t.
+unfold isNone.
+replace ((fold_right
+     (fun v t
+      => PTree.set (fst v) tt t)
+     (PTree.empty unit) G) ! j) with
+    ((fold_left
+     (fun t v
+      => PTree.set (fst v) tt t) G
+     (PTree.empty unit)) ! j); auto.
+rewrite <- fold_left_rev_right.
+forget (PTree.empty unit) as base.
+revert base.
+induction G; intros; simpl; auto.
+rewrite fold_right_app.
+simpl.
+rewrite IHG; clear IHG.
+destruct (ident_eq j (fst a)).
+subst j.
+rewrite PTree.gss.
+revert base; induction G; intros.
+apply PTree.gss.
+simpl.
+change positive with ident .
+destruct (ident_eq (fst a) (fst a0)).
+rewrite <- e.
+rewrite PTree.gss; auto.
+rewrite PTree.gso; auto.
+rewrite PTree.gso; auto.
+revert base; induction G; intros.
+simpl; auto.
+rewrite PTree.gso; auto.
+simpl.
+change positive with ident .
+destruct (ident_eq j (fst a0)).
+subst.
+rewrite !PTree.gss; auto.
+rewrite !PTree.gso; auto.
+}
+rewrite H2 in *. clear H2.
+induction V.
+inv H1.
+destruct H1.
+-
+subst i.
+simpl in *.
+rewrite andb_true_iff in H.
+destruct H.
+apply IHV in H1; clear IHV.
+auto.
+clear H1.
+elimtype False.
+induction G.
+inv H0.
+destruct H0.
+simpl in H.
+change positive with ident in *.
+rewrite H0 in H.
+rewrite PTree.gss in H.
+inv H.
+apply IHG; auto.
+clear H0 IHG.
+simpl in H.
+change positive with ident in *.
+destruct (ident_eq (fst a0) (fst a)).
+rewrite e in *.
+rewrite PTree.gss in H.
+inv H.
+rewrite PTree.gso in H by auto.
+auto.
+-
+simpl in H.
+rewrite andb_true_iff in H.
+destruct H.
+auto.
+Qed.
+
+Lemma leaf_function': 
+ forall Vprog Gprog (CS: compspecs) f s,
+ check_no_overlap Vprog Gprog = true ->
+ semax_body Vprog nil f s ->
+ semax_body Vprog Gprog f s.
+Proof.
+intros.
+unfold semax_body in *.
+destruct s as [id fs].
+destruct fs.
+intros.
+specialize (H0 Espec ts x).
+eapply semax_extensionality_Delta; [ | apply H0].
+clear - H.
+split3; [ | | split3; [ | | split]]; auto.
+-
+intros; simpl; auto.
+destruct ((make_tycontext_t (fn_params f) (fn_temps f))
+  ! id); auto.
+-
+intros; hnf; intros.
+destruct ((glob_types (func_tycontext f Vprog nil nil))
+  ! id) eqn:?H; auto.
+simpl in *.
+unfold make_tycontext_g.
+apply check_no_overlap_e with (i:=id) in H.
+forget (fold_right
+      (fun v : ident * type =>
+       PTree.set (fst v) (snd v))
+      (PTree.empty type) Vprog) as base.
+induction Gprog.
+simpl. auto.
+simpl in H.
+apply Decidable.not_or in H.
+destruct H.
+simpl.
+rewrite PTree.gso by auto.
+auto.
+clear - H0.
+induction Vprog.
+simpl in H0. rewrite PTree.gempty in H0. inv H0.
+simpl in *.
+destruct (ident_eq (fst a) id).
+auto.
+rewrite PTree.gso in H0 by auto.
+auto.
+-
+intros; hnf; intros.
+simpl.
+rewrite PTree.gempty.
+auto.
+-
+intros.
+hnf; intros.
+simpl.
+rewrite !PTree.gempty; auto.
+Qed.
+
+Definition check_no_overlap'
+    (V: varspecs) (Gtable: PTree.t unit) : bool :=
+  forallb (fun f => isNone (Gtable ! (fst f))) V.
+
+Definition check_no_Gvars (Gtable: PTree.t unit) (s: statement) : bool :=
+  find_expressions 
+    (find_vars (fun i b => match Gtable!i with Some _=> false | None => b end))
+    s true.
+
+Lemma leaf_function: 
+ forall Vprog Gprog (CS: compspecs) f s Gtable,
+ Gtable = fold_left
+    (fun (t : PTree.t unit) (v : ident * funspec) =>
+     PTree.set (fst v) tt t) Gprog (PTree.empty unit) ->
+ check_no_overlap' Vprog Gtable = true ->
+ check_no_Gvars Gtable (fn_body f) = true ->
+ semax_body Vprog nil f s ->
+ semax_body Vprog Gprog f s.
+Proof.
+intros.
+clear H1.
+eapply leaf_function'; try apply H2.
+subst Gtable.
+apply H0.
+Qed.
+
+Definition function_pointers := tt.
+Ltac function_pointers :=
+ let x := fresh "there_are" in
+ pose (x := function_pointers).
+
+Ltac leaf_function := 
+ try lazymatch goal with
+ | x := function_pointers |- _ => clear x
+ | |- semax_body ?Vprog ?Gprog _ _ =>
+ eapply leaf_function;
+ [reflexivity 
+ | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
+ | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
+ | ]
+end.
+
+(*
+Definition any_gvars (ds: PTree.t funspec) (s: statement) : bool :=
+  find_expressions 
+    (find_vars (fun i b => match ds!i with Some _=> true | None => b end))
+    s false.
+
+Ltac suggest_leaf_function :=
+ lazymatch goal with 
+ | x := function_pointers |- _ => clear x
+ | DS := @abbreviate (PTree.t funspec) ?ds,
+   D := @abbreviate tycontext (mk_tycontext _ _ _ _ ?DS' _) |-
+   semax ?D' _ ?c _ =>
+   constr_eq DS DS'; constr_eq D D';
+   let b := constr:(any_gvars ds c) in
+   let b := eval compute in b in
+   constr_eq b false;
+   idtac "This function appears to be a leaf function, that is, has no function calls.
+* If you will reason about function-pointers (using make_func_ptr) in this proof, apply the tactic [function_pointers] before doing [start_function].
+* If this semax_body proof does NOT involve function-pointers, use the tactic [leaf_function] before [start_function]; this is optional but will speed up the proof by clearing the body of Delta_specs."
+end.
+*)

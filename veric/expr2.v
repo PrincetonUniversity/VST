@@ -4,8 +4,8 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.expr.
-
 Require Import VST.veric.mpred.
+Import LiftNotation.
 
 Lemma neutral_cast_lemma: forall t1 t2 v,
   is_neutral_cast t1 t2 = true ->
@@ -170,24 +170,25 @@ Definition denote_tc_lgt l v : mpred :=
 
 Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
   match f with
-    | Fappli_IEEE.B754_finite s m (Zpos e) _ =>
-       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
-    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
-    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
-    | Fappli_IEEE.B754_zero _ => Some 0
+    | IEEE754.Binary.B754_finite s m (Zpos e) _ =>
+       Some (Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
+    | IEEE754.Binary.B754_finite s m 0 _ => Some (Zaux.cond_Zopp s (Zpos m))
+    | IEEE754.Binary.B754_finite s m (Zneg e) _ => Some (Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
+    | IEEE754.Binary.B754_zero _ => Some 0
     | _ => None
-  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
+  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4,
+             then adapted after CompCert 3.5 when Flocq was rearranged *)
 
 Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
   match f with
-    | Fappli_IEEE.B754_finite s m (Zpos e) _ =>
-       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
-    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
-    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
-    | Fappli_IEEE.B754_zero _ => Some 0
+    | IEEE754.Binary.B754_finite s m (Zpos e) _ =>
+       Some (Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
+    | IEEE754.Binary.B754_finite s m 0 _ => Some (Zaux.cond_Zopp s (Zpos m))
+    | IEEE754.Binary.B754_finite s m (Zneg e) _ => Some (Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
+    | IEEE754.Binary.B754_zero _ => Some 0
     | _ => None
-  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
-
+  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4,
+             then adapted after CompCert 3.5 when Flocq was rearranged *)
 
 Definition denote_tc_Zge z v : mpred :=
           match v with

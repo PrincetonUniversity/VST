@@ -187,13 +187,13 @@ Proof. unfold bendian. specialize (lendian_range (rev l)). rewrite Zlength_rev; 
 
 Lemma Zlor_2powpos_add a b (n:positive) (B: 0<=b <Z.pow_pos 2 n):
       a * Z.pow_pos 2 n + b = Z.lor (a * Z.pow_pos 2 n) b.
-Proof. apply Byte.equal_same_bits; intros.
+Proof. apply Zbits.equal_same_bits; intros.
   rewrite Z.lor_spec. apply Byte.Z_add_is_or; trivial.
   intros. rewrite Z.pow_pos_fold in *.
   destruct (zlt j (Z.pos n)).
   + rewrite Z.mul_pow2_bits_low; simpl; trivial.
   + rewrite <- (positive_nat_Z n) in g, B.
-    erewrite (Byte.Ztestbit_above _ b), andb_false_r. trivial. 2: eassumption.
+    erewrite (Zbits.Ztestbit_above _ b), andb_false_r. trivial. 2: eassumption.
     rewrite two_power_nat_equiv. apply B.
 Qed. 
 
@@ -317,8 +317,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
         inv HeqU. clear - ZW EIGHT I.
         destruct (zeq i 0); subst; simpl. f_equal. f_equal.
         { rewrite Byte.unsigned_repr.
-            rewrite (Fcore_Zaux.Zmod_mod_mult _ (2^8) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
-            rewrite (Fcore_Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
+            rewrite (Zaux.Zmod_mod_mult _ (2^8) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
+            rewrite (Zaux.Zmod_mod_mult _ (2^16) (2^8)). 2: cbv; trivial. 2: cbv; intros; discriminate.
             rewrite <- (Int.zero_ext_mod 8).
               rewrite Int.repr_unsigned; trivial.
               rewrite ZW; omega.
@@ -335,8 +335,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
           apply Int.same_bits_eq. rewrite ZW; intros.
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H.
           rewrite (Z.div_pow2_bits _ 8); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 16); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 24); try omega.
+          rewrite (Zbits.Ztestbit_mod_two_p 16); try omega.
+          rewrite (Zbits.Ztestbit_mod_two_p 24); try omega.
           rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW. (* Ztest_Inttest.*)
           remember (zlt i 8). 
           destruct s. repeat rewrite zlt_true. trivial. omega. omega. omega.
@@ -353,7 +353,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
           rewrite Int.bits_zero_ext, Int.testbit_repr; try apply H.
           rewrite Int.bits_shru; try omega. rewrite EIGHT, ZW.
           rewrite (Z.div_pow2_bits _ 16); try omega.
-          rewrite (Int.Ztestbit_mod_two_p 24); try omega.
+          rewrite (Zbits.Ztestbit_mod_two_p 24); try omega.
           (*rewrite Ztest_Inttest.*)
           remember (zlt i 8). 
           destruct s. repeat rewrite zlt_true. rewrite Int.bits_shru, EIGHT, ZW.

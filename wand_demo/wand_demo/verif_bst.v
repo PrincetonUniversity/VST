@@ -183,13 +183,14 @@ Proof.
     + (* else clause *)
       destruct t; rewrite tree_rep_treebox_rep.
       { normalize. }
-      Intros. clear H1.
+      Intros. clear H1. simpl in H3.
       forward. (* y=q->key; *)
       forward_if; [ | forward_if ].
       - (* Inner if, then clause: x<k *)
         forward. (* p=&q->left *)
         Exists (field_address t_struct_tree [StructField _left] q) t1.
         entailer!.
+        simpl treebox_rep.
         simpl_compb.
         sep_apply (partial_treebox_rep_singleton_left (insert x v t1) t2 k v0 q p); auto.
         cancel; apply partial_treebox_rep_partial_treebox_rep.
@@ -197,6 +198,7 @@ Proof.
         forward. (* p=&q->right *)
         Exists (field_address t_struct_tree [StructField _right] q) t2.
         entailer!.
+        simpl treebox_rep.
         simpl_compb; simpl_compb.
         sep_apply (partial_treebox_rep_singleton_right t1 (insert x v t2) k v0 q p); auto.
         cancel; apply partial_treebox_rep_partial_treebox_rep.
@@ -206,6 +208,7 @@ Proof.
         forward. (* q->value=value *)
         forward. (* return *)
         entailer!.
+        simpl treebox_rep.
         simpl_compb; simpl_compb.
         sep_apply (treebox_rep_internal t1 k v t2 p q); auto.
         apply treebox_rep_partial_treebox_rep.

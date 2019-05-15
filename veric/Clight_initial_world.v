@@ -386,7 +386,7 @@ assert (d = Gfun fd).
 clear - H H5 H1.
 unfold prog_defs_names in H.
 change (AST.prog_defs prog) with (prog_defs prog) in H.
-forget (prog_defs prog) as dl. forget (nat_of_Z (Z.pos b-1)) as n.
+forget (prog_defs prog) as dl. forget (Z.to_nat (Z.pos b-1)) as n.
 revert dl H H5 H1; induction n; simpl; intros.
 destruct dl; inv H1.
 inv H. simpl in H5.
@@ -409,30 +409,30 @@ rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.
 2 : { rewrite rev_length. clear - RANGE.
       destruct RANGE.
-      apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega. }
+      apply inj_lt_iff. rewrite Z2Nat.id by omega. omega. }
 rename H1 into H5.
-replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
- with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
+replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
+ with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
 2 : { rewrite rev_length.
       clear - RANGE.
-      replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
-      assert (nat_of_Z (Z.pos b) <= length dl)%nat.
+      replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
+      assert (Z.to_nat (Z.pos b) <= length dl)%nat.
       destruct RANGE.
-      apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq by omega. auto.
-      assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff.
-      rewrite Coqlib.nat_of_Z_eq by omega.  simpl. omega.
+      apply inj_le_iff. rewrite Z2Nat.id by omega. auto.
+      assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
+      rewrite Z2Nat.id by omega.  simpl. omega.
       omega. destruct RANGE as [? _].
       apply nat_of_Z_lem1.
-      assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
+      assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
       pose proof (Pos2Nat.is_pos b); omega.
       omega. }
-assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
+assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
 { clear - RANGE.
   destruct RANGE; split.
-  apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq; try omega. simpl. auto.
-  apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq; try omega. }
+  apply inj_lt_iff. rewrite Z2Nat.id; try omega. simpl. auto.
+  apply inj_le_iff. rewrite Z2Nat.id; try omega. }
 clear RANGE; rename H0 into RANGE.
-unfold nat_of_Z in *. rewrite Z2Nat.inj_pos in *.
+rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
 forget (rev dl) as dl'; clear dl; rename dl' into dl.
 destruct RANGE.
@@ -568,7 +568,7 @@ assert (d = Gfun fd).
 clear - H H5 H1.
 unfold prog_defs_names in H.
 change (AST.prog_defs prog) with (prog_defs prog) in H.
-forget (prog_defs prog) as dl. forget (nat_of_Z (Z.pos b-1)) as n.
+forget (prog_defs prog) as dl. forget (Z.to_nat (Z.pos b-1)) as n.
 revert dl H H5 H1; induction n; simpl; intros.
 destruct dl; inv H1.
 inv H. simpl in H5.
@@ -592,30 +592,30 @@ rewrite nth_error_rev in H1.
 2 : {
   rewrite rev_length. clear - RANGE.
   destruct RANGE.
-  apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq by omega. omega. }
+  apply inj_lt_iff. rewrite Z2Nat.id by omega. omega. }
 rename H1 into H5.
-replace (length (rev dl) - nat_of_Z (Z.pos b - 1) - 1)%nat
-  with (length (rev dl) - nat_of_Z (Z.pos b))%nat in H5.
+replace (length (rev dl) - Z.to_nat (Z.pos b - 1) - 1)%nat
+  with (length (rev dl) - Z.to_nat (Z.pos b))%nat in H5.
 2 : { rewrite rev_length.
   clear - RANGE.
-  replace (nat_of_Z (Z.pos b-1)) with (nat_of_Z (Z.pos b) - 1)%nat.
-  assert (nat_of_Z (Z.pos b) <= length dl)%nat.
+  replace (Z.to_nat (Z.pos b-1)) with (Z.to_nat (Z.pos b) - 1)%nat.
+  assert (Z.to_nat (Z.pos b) <= length dl)%nat.
   destruct RANGE.
-  apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq by omega. auto.
-  assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff.
-  rewrite Coqlib.nat_of_Z_eq by omega.  simpl. omega.
+  apply inj_le_iff. rewrite Z2Nat.id by omega. auto.
+  assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff.
+  rewrite Z2Nat.id by omega.  simpl. omega.
   omega. destruct RANGE as [? _].
   apply nat_of_Z_lem1.
-  assert (nat_of_Z (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
+  assert (Z.to_nat (Z.pos b) > 0)%nat. apply inj_gt_iff. simpl.
   pose proof (Pos2Nat.is_pos b); omega.
   omega. }
-assert (0 < nat_of_Z (Z.pos b) <= length dl)%nat.
+assert (0 < Z.to_nat (Z.pos b) <= length dl)%nat.
 { clear - RANGE.
   destruct RANGE; split.
-  apply inj_lt_iff. rewrite Coqlib.nat_of_Z_eq; try omega. simpl. auto.
-  apply inj_le_iff. rewrite Coqlib.nat_of_Z_eq; try omega. }
+  apply inj_lt_iff. rewrite Z2Nat.id; try omega. simpl. auto.
+  apply inj_le_iff. rewrite Z2Nat.id; try omega. }
 clear RANGE; rename H0 into RANGE.
-unfold nat_of_Z in *. rewrite Z2Nat.inj_pos in *.
+rewrite Z2Nat.inj_pos in *.
 rewrite <- rev_length in RANGE.
 forget (rev dl) as dl'; clear dl; rename dl' into dl.
 destruct RANGE.

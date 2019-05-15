@@ -274,7 +274,7 @@ Proof.
               + replace (Zlength log) with 256 by assumption. apply pow3_range; omega.
               + replace (Zlength log) with 256 by assumption. apply pow3_range; omega.
               + intro E. apply unsigned_eq_eq in E.
-                apply pow3_inj in E. unfold Int.eqmod in E. destruct E as [k E]. omega.
+                apply pow3_inj in E. unfold Zbits.eqmod in E. destruct E as [k E]. omega.
             * subst. rewrite upd_Znth_same.
               + reflexivity.
               + replace (Zlength log) with 256 by assumption. apply pow3_range; omega.

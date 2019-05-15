@@ -153,7 +153,7 @@ rewrite Z.ones_equiv.
 rewrite two_power_nat_equiv.
 omega.
 rewrite inj_S.
-rewrite Int.Ztestbit_succ by omega.
+rewrite Zbits.Ztestbit_succ by omega.
 apply (IHj n); clear IHj.
 +
 omega.
@@ -176,6 +176,28 @@ rewrite two_power_nat_S in H1.
 rewrite (Zdiv2_odd_eqn i) in H1.
 destruct (Z.odd i) eqn:?H; omega.
 Qed.
+
+(*
+Lemma sign_ext_inrange:
+  forall n i, - two_p (n-1) <= Int.signed i <= two_p (n-1) - 1 ->
+       Int.sign_ext n i = i.
+Proof.
+intros.
+destruct (zlt 0 n).
+-
+apply Int.same_bits_eq; intros j ?.
+rewrite Int.bits_sign_ext; try omega.
+if_tac; auto.
+assert (Int.size i < n); [ | rewrite !Int.bits_size_2 by omega; auto].
+pose proof (Int.size_interval_2 i (n-1)).
+spec H2; [omega |].
+spec H2; [ | omega].
+clear H2.
+assert (0 < n < Int.zwordsize) by omega.
+clear l j H0 H1.
+split; [apply Int.unsigned_range| ].
+Search Int.unsigned Int.signed.
+*)
 
 Lemma sign_ext_inrange:
   forall n i, - two_p (n-1) <= Int.signed i <= two_p (n-1) - 1 ->
@@ -210,23 +232,12 @@ rewrite (testbit_signed_neg i (n-1) (n-1)); auto; try omega.
 rewrite (testbit_signed_neg i j (n-1)%Z); auto; omega.
 * (* nonnegative *)
 rewrite Int.signed_eq_unsigned in H by (apply Int.signed_positive; auto).
-unfold Int.testbit in *.
-transitivity false.
-apply (Int.Ztestbit_above (Z.to_nat (n-1))).
-rewrite two_power_nat_two_p.
-rewrite Z2Nat.id by omega.
-pose proof (Int.unsigned_range i).
+assert (Int.size i <= n-1);
+  [ | rewrite !Int.bits_size_2 by omega; auto].
+apply Z.ge_le.
+apply Int.size_interval_2.
 omega.
-rewrite Z2Nat.id by omega.
-omega.
-symmetry.
-apply (Int.Ztestbit_above (Z.to_nat (n-1))).
-rewrite two_power_nat_two_p.
-rewrite Z2Nat.id by omega.
-pose proof (Int.unsigned_range i).
-omega.
-rewrite Z2Nat.id by omega.
-omega.
+pose proof (Int.unsigned_range i); omega.
 Qed.
 
 Lemma zero_ext_inrange:
@@ -253,10 +264,13 @@ apply Int.same_bits_eq; intros j ?.
 rewrite (Int.bits_zero_ext n i j) by omega.
 if_tac; auto.
 symmetry.
-unfold Int.testbit.
-apply (Int.Ztestbit_above (Z.to_nat n));
- [ | rewrite Z2Nat.id by omega; omega].
-rewrite two_power_nat_two_p.
-rewrite Z2Nat.id by omega.
-pose proof (Int.unsigned_range i); omega.
+apply Int.bits_size_2.
+apply Z.ge_le.
+apply Int.size_interval_2.
+omega.
+split.
+apply Int.unsigned_range.
+assert (two_p n <= two_p j); try omega.
+apply two_p_monotone.
+omega.
 Qed.

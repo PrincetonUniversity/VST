@@ -103,15 +103,15 @@ generalize dependent R.
 induction n; destruct R; simpl; cancel. apply Freezer.FRZ1.
 Qed.
 Tactic Notation "freeze1_SEP" constr(n) :=
-  eapply (freeze1_SEP' (nat_of_Z n)); simpl.
+  eapply (freeze1_SEP' (Z.to_nat n)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) :=
-  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  :=
-  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  constr(p) :=
-  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k) constr(p) constr(q) :=
-  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 
 (*******************freezing a list of mpreds ******************************)
 
@@ -317,6 +317,34 @@ rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 Qed.
 
+Lemma freeze_SEP'entail:
+ forall l Delta P Q  R Post xs ys,
+  is_increasing (SortNat.sort l) (length R) = true ->
+ (xs, ys) = freezelist_nth l R ->
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) |-- Post ->
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx R))) |-- Post.
+Proof.
+intros *. intro Hii; intros. subst.
+eapply derives_trans; try apply H0.
+unfold PROPx. normalize.
+apply andp_derives; auto.
+pose proof (freezelist_nth_permutation _ _ Hii).
+rewrite <- H in H2.
+simpl in H2.
+clear - H2.
+apply andp_derives; auto.
+unfold SEPx.
+intros _.
+rewrite (fold_right_sepcon_permutation _ _ H2).
+rewrite FRZL_ax.
+clear.
+induction xs; simpl.
+rewrite emp_sepcon.
+auto.
+rewrite sepcon_assoc.
+apply sepcon_derives; auto.
+Qed.
+
 Lemma map_delete_nth {A B} (f:A->B): forall n l, delete_nth n (map f l) = map f (delete_nth n l).
 Proof.
   induction n; intros; destruct l; simpl; trivial.
@@ -393,6 +421,15 @@ Lemma freeze_SEP'':
 Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H0.
   eapply freeze_SEP'; eassumption.  Qed.
 
+Lemma freeze_SEP''entail:
+ forall l Delta P Q  R Post xs ys,
+  is_increasing (SortNat.sort l) (length R) = true ->
+ (xs, ys) = my_freezelist_nth l R ->
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx (FRZL xs:: ys)))) |-- Post ->
+ ENTAIL Delta, (PROPx P (LOCALx Q (SEPx R))) |-- Post.
+Proof. intros. rewrite my_freezelist_nth_freezelist_nth in H0.
+  eapply freeze_SEP'entail; eassumption.  Qed.
+
 Ltac solve_is_increasing :=
   reflexivity ||
   match goal with |- is_increasing (SortNat.sort ?L) ?K = true =>
@@ -404,10 +441,23 @@ Ltac solve_is_increasing :=
   end.
 
 Ltac freeze_tac L name :=
-  eapply (freeze_SEP'' (map nat_of_Z L)); 
+  eapply (freeze_SEP'' (map Z.to_nat L)); 
    [solve_is_increasing | reflexivity 
    | match goal with
            | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
+           let D := fresh name in
+           set (D:=xs);
+           change xs with (@abbreviate (list mpred) xs) in D;
+            let x := fresh "x" in 
+            set (x:=A); compute in x; subst x;
+             unfold my_delete_list, my_delete_nth
+         end].
+
+Ltac freeze_tac_entail L name :=
+  eapply (freeze_SEP''entail (map Z.to_nat L)); 
+   [solve_is_increasing | reflexivity 
+   | match goal with
+           | |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) |-- _ =>
            let D := fresh name in
            set (D:=xs);
 (*           hnf in D;*)
@@ -447,6 +497,18 @@ lazymatch goal with
                                      else A) in
             let A' := eval compute in A' in
             freeze_tac A' id
+| fr := @abbreviate mpred _ |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ =>
+  match R with context [fr :: ?R'] =>
+    let L := constr:(Zlength R - (Z.succ (Zlength R'))) in
+     let L := eval cbn in L in
+      let A' := constr:(L::A) in
+        unfold abbreviate in fr; subst fr; find_freeze1 comp id A'
+   end
+| |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ => 
+            let A' := constr:(if comp then Zlist_complement (length R) A 
+                                     else A) in
+            let A' := eval compute in A' in
+            freeze_tac_entail A' id
 end.
 
 Ltac freezer i := find_freeze1  false i (@nil Z).

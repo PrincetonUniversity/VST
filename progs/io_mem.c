@@ -58,7 +58,7 @@ int main(void) {
     for(j = 0; j < i; j++){
       c = buf[j];
       d = ((unsigned)c)-(unsigned)'0';
-      if (d>=10) exit(0);
+      if (d>=10) { free(buf); return 0; }
       n+=d;
       print_int(n);
     }
@@ -67,7 +67,3 @@ int main(void) {
   free(buf);
   return 0;
 }
-
-  
-
-  

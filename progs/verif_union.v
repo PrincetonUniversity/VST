@@ -151,25 +151,6 @@ Proof.
         exact H10.
 Qed.
 
-Lemma float32_to_bits_abs':
- forall x,
-  Fappli_IEEE_bits.bits_of_b32 (Fappli_IEEE.Babs 24 128 (fun _ pl => (false,pl)) x) =
-   Z.land (Fappli_IEEE_bits.bits_of_b32 x) (2 ^ 31 - 1).
-Proof.
-intros.
-destruct x,b; try reflexivity.
-* (* nan sign=true *)
-simpl.
-destruct n.
-unfold Fappli_IEEE_bits.join_bits.
-change (0+255) with 255.
-admit.
-* (* nan sign=false*)
-admit.
-* (* finite sign=true *)
-unfold Fappli_IEEE_bits.bits_of_b32, Fappli_IEEE.Babs, Fappli_IEEE_bits.bits_of_binary_float.
-Admitted.
-
 Lemma float32_to_bits_abs: 
   forall x, Float32.to_bits (Float32.abs x) = Int.and (Float32.to_bits x) (Int.repr (2 ^ 31 - 1)).
 Proof.
@@ -182,9 +163,7 @@ f_equal.
 Transparent Float32.abs.
 unfold Float32.abs.
 Opaque Float32.abs.
-unfold Float32.abs_pl.
-apply float32_to_bits_abs'.
-Qed.
+Admitted.
 
 Lemma fabs_float32_lemma:
   forall x: float32,
