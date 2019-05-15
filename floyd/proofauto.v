@@ -147,10 +147,14 @@ Ltac EExists_unify :=
   | |- _ |-- !! ?P => EExists_unify1 x P
   end.
 
+Ltac simpl_implicit :=
+  simpl projT1.
+
 Ltac step :=
   first
   [ progress Intros
   | let x := fresh "x" in Intros x
+  | progress simpl_implicit
   | progress autorewrite with sublist in *|-
   | progress autorewrite with sublist
   | progress autorewrite with norm
@@ -164,6 +168,7 @@ Ltac step :=
   | deadvars!
   | solve [match goal with |- @derives mpred _ _ _ => cancel end]
   | solve [entailer!; try cstring']
+  | list_solve!
   ].
 
 Tactic Notation "step!"  :=
@@ -171,6 +176,7 @@ Tactic Notation "step!"  :=
   [ progress Intros
   | let x := fresh "x" in
     Intros x
+  | progress simpl_implicit
   | progress autorewrite with sublist in * |-
   | progress autorewrite with sublist
   | progress autorewrite with norm
@@ -184,7 +190,8 @@ Tactic Notation "step!"  :=
   | cstring1
   | deadvars!
   | progress_entailer
-  | match goal with |- _ /\ _ => split end
+  (* | match goal with |- _ /\ _ => split end *)
+  | list_solve!
   ].
 
 Tactic Notation "info_step!" :=
@@ -193,6 +200,7 @@ Tactic Notation "info_step!" :=
   | let x := fresh "x" in
     Intros x;
     idtac "Intros x."
+  | progress simpl_implicit; idtac "simpl_implicit."
   | progress autorewrite with sublist in * |-; idtac "autorewrite with sublist in * |-."
   | progress autorewrite with sublist; idtac "autorewrite with sublist."
   | progress autorewrite with norm; idtac "autorewrite with norm."
@@ -206,7 +214,8 @@ Tactic Notation "info_step!" :=
   | cstring1; idtac "cstring1."
   | deadvars!; idtac "deadvars!."
   | progress_entailer; idtac "progress_entailer."
-  | match goal with |- _ /\ _ => split end; idtac "split."
+  (* | match goal with |- _ /\ _ => split end; idtac "split." *)
+  | list_solve!; idtac "list_solve!."
   ].
 
 (* A better way to deal with sem_cast_i2bool *)

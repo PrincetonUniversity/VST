@@ -472,7 +472,7 @@ forward_loop (EX i : Z,
   LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
-- repeat step!. auto.
+- repeat step!.
 - Intros i.
   assert (Zlength (ls ++ [Byte.zero]) = Zlength ls + 1) by (autorewrite with sublist; auto).
   forward. normalize.
@@ -540,13 +540,13 @@ forward_loop (EX i : Z,
          data_at sh' (tarray tschar (Zlength ls + 1))
            (map Vbyte (ls ++ [Byte.zero])) src)).
   (* before loop2 *)
-  repeat step!. list_solve2.
+  repeat step!.
   (* loop2 body and return *)
   {
   repeat step!.
-  - list_prop_solve.
+  (* - list_prop_solve.
   - list_solve2.
-  - fold_Vbyte. list_solve2.
+  - fold_Vbyte. list_solve2. *)
   }
 Qed.
 
@@ -564,7 +564,7 @@ forward_loop (EX i : Z,
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
        data_at sh2 (tarray tschar (Zlength ls2 + 1))
           (map Vbyte (ls2 ++ [Byte.zero])) str2)).
-- repeat step!. intros. omega.
+- repeat step!.
 - repeat step!.
   rename x into i.
   forward_if (temp _t'1 (Val.of_bool (Z.eqb i (Zlength ls1) && Z.eqb i (Zlength ls2)))).
@@ -590,13 +590,13 @@ forward_loop (EX i : Z,
     intros. apply H3. omega.
   }
   { simpl. intro. subst. omega. }
-  { simpl. intro. subst. omega. }
+  (* { simpl. intro. subst. omega. } *)
   (* split too early here *)
   all : rewrite andb_false_iff in *; rewrite !Z.eqb_neq in *.
   all : assert (HZnth: Byte.signed (Znth i (ls1 ++ [Byte.zero])) =
      Byte.signed (Znth i (ls2 ++ [Byte.zero]))) by omega.
   all : normalize in HZnth. all: clear -Espec sh1 sh2 str1 ls1 str2 ls2 H H0 i H1 H2 H3 H4 HZnth.
-  Time all: intros; list_prop_solve.
+  Time all: list_solve!.
   (* Finished transaction in 12.274 secs (12.187u,0.062s) (successful) *)
 Qed.
 
@@ -616,8 +616,7 @@ forward_loop (EX i : Z,
   repeat step.
 -
   repeat step!.
-  + list_solve2.
-  + fold_Vbyte. list_solve2.
+  (* + fold_Vbyte. list_solve2. *)
 Qed.
 
 End Alternate.

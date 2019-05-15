@@ -223,6 +223,7 @@ Module Alternate.
 
 Hint Rewrite @Znth_rev using Zlength_solve : Znth.
 Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+Hint Unfold flip_ends : list_solve_unfold.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -234,24 +235,26 @@ assert_PROP (Zlength (map Vint contents) = size)
 forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 simpl (data_at _ _ _).
-Time repeat step.
-entailer!. unfold flip_ends. list_solve2.
+Time repeat step!.
 * (* Prove that loop invariant implies typechecking condition *)
-simpl (data_at _ _ _). Time entailer!.
+Time repeat step!.
 * (* Prove that loop body preserves invariant *)
 (* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
-simpl.
-repeat step!.
+Time repeat step!.
+(* Finished transaction in 32.154 secs (32.031u,0.s) (successful) *)
+(* solved in step! *)
+(* + unfold flip_ends. list_solve2.
 + unfold flip_ends. list_solve2.
-+ unfold flip_ends. list_solve2.
++ list_solve2.
 + list_solve2. (* a better way is eq_solve *)
-+ simpl. unfold flip_ends. Time list_solve2.
++ simpl. unfold flip_ends. Time list_solve!. *)
 (* Finished transaction in 29.44 secs (29.25u,0.171s) (successful) *)
 * (* after the loop *)
-simpl.
+repeat step!.
+(* simpl.
 forward. (* return; *)
-unfold flip_ends. Time list_solve2.
-(* Finished transaction in 2.587 secs (2.593u,0.s) (successful) *)
+unfold flip_ends. Time list_solve!. *)
+(* Finished transaction in 2.587 secs (2.593u,0.s) (successful) *) 
 Time Qed.
 (* Finished transaction in 6.801 secs (6.796u,0.015s) (successful) *)
 

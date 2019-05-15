@@ -52,21 +52,14 @@ Lemma upd_Znth_unfold : forall (A : Type) (n : Z) (al : list A) (x : A),
   upd_Znth n al x = sublist 0 n al ++ [x] ++ sublist (n+1) (Zlength al) al.
 Proof. auto. Qed.
 
-(* this is included in Znth_Zrepeat_1_sublist *)
-(*
-Lemma Znth_singleton_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al : list A),
-  0 <= i < Zlength al ->
-  [Znth i al] = sublist i (i+1) al.
-Proof. intros. rewrite sublist_one by omega; auto. Qed.
-*)
-
-Lemma Znth_Zrepeat_1_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al : list A),
+(* this seems not needed *)
+(*Lemma Znth_Zrepeat_1_sublist : forall (A : Type) (d : Inhabitant A) (i : Z) (al : list A),
   0 <= i < Zlength al ->
   Zrepeat 1 (Znth i al) = sublist i (i+1) al.
-Proof. intros. rewrite sublist_one by omega; auto. Qed.
+Proof. intros. rewrite sublist_one by omega; auto. Qed. *)
 
 Hint Rewrite Zrepeat_fold upd_Znth_unfold cons_Zrepeat_1_app : list_form_rewrite.
-Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form_rewrite.
+(* Hint Rewrite Znth_Zrepeat_1_sublist using Zlength_solve: list_form_rewrite. *)
 Hint Rewrite app_nil_r app_nil_l : list_form_rewrite.
 
 Ltac list_form :=
@@ -130,7 +123,7 @@ Ltac Znth_solve :=
 
 (**************** Znth_solve2 is Znth_solve in * ***************)
 Ltac Znth_solve2 :=
-  autorewrite with Zlength in *; autorewrite with Znth in *; auto with Znth_solve_hint; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
+  autorewrite with Zlength in *; autorewrite with Znth in *; try Zlength_solve; try congruence; (* try solve [exfalso; auto]; *)
   try first
   [ match goal with
     | |- context [ Znth ?n (?al ++ ?bl) ] =>
@@ -270,23 +263,27 @@ Tactic Notation "eq_solve" "with" tactic(tac) := eq_solve_with (tac).
 Tactic Notation "eq_solve" := eq_solve with fail.
 
 Hint Extern 1 (@eq _ _ _) => eq_solve : Znth_solve_hint.
-Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
+(* Hint Extern 1 (@eq _ _ _) => fassumption : Znth_solve_hint.
+Hint Extern 1 (@eq _ _ _) => congruence : Znth_solve_hint. *)
 
 (*************** list_solve2 **********************)
 Ltac list_solve2' :=
   repeat match goal with [ |- _ /\ _ ] => split end;
-  try match goal with
-  | |- @eq Z _ _ => Zlength_solve
-  end;
+  intros;
+  try Zlength_solve;
   list_form; autorewrite with Zlength in *; Znth_solve2;
-  match goal with
-  | |- @eq Z _ _ => Zlength_solve
-  | _ => apply_list_ext; Znth_solve
-  | _ => idtac "list_solve2 cannot solve this goal"
-  end.
+  auto with Znth_solve_hint;
+  first
+  [ fassumption
+  | Zlength_solve
+  | apply_list_ext; Znth_solve
+  ];
+  auto with Znth_solve_hint;
+  try fassumption.
 
 Ltac list_solve2 :=
-  solve [list_solve2'].
+  list_solve2';
+  fail "list_solve2 cannot solve this goal".
 
 (*************** range definitions **********************)
 Definition rangei (lo hi : Z) (P : Z -> Prop) :=
@@ -747,9 +744,9 @@ Lemma In_Znth_iff : forall {A : Type} {d : Inhabitant A} (l : list A) (x : A),
 Proof.
   intros. split; intro.
   - induction l; inversion H.
-    + exists 0. list_solve2'; Zlength_solve.
+    + exists 0. list_solve2.
     + specialize (IHl H0). destruct IHl as [i []].
-      exists (i + 1). list_solve2'; try Zlength_solve.
+      exists (i + 1). list_solve2.
   - destruct H as [i []]. subst x. apply Znth_In. auto.
 Qed.
 
@@ -920,10 +917,27 @@ Ltac range_saturate_full :=
 
 Ltac list_prop_solve :=
   list_form; range_form; range_rewrite; Znth_solve2;
-  range_saturate_check_non_zero_loop; range_saturate_full; Znth_solve2.
+  range_saturate_check_non_zero_loop; range_saturate_full; Znth_solve2;
+  auto with Znth_solve_hint;
+  try fassumption;
+  fail "list_prop_solve cannot solve this goal".
 
-Tactic Notation "list_solve2!" :=
-  try list_solve2; solve [list_prop_solve].
+Create HintDb list_solve_unfold.
+
+Ltac list_solve_preprocess :=
+  fold_Vbyte;
+  autounfold with list_solve_unfold;
+  simpl data_at;
+  repeat match goal with [ |- _ /\ _ ] => split end;
+  intros.
+
+Tactic Notation "list_solve!" :=
+  list_solve_preprocess;
+  solve
+  [ Zlength_solve
+  | list_solve2
+  | list_prop_solve
+  ].
 
 (***************** Zlength_solve using a database *************)
 Definition Zlength_tag := True.
