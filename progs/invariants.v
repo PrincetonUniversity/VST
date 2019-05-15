@@ -49,6 +49,11 @@ Proof.
   apply own.cored_emp.
 Qed.
 
+Lemma emp_cored : emp |-- cored.
+Proof.
+  apply own.emp_cored.
+Qed.
+
 Section Invariants.
 
 Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
