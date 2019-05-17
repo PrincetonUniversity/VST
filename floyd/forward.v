@@ -3711,8 +3711,9 @@ Fixpoint rename_localdefs (olds news: list ident) (ds: list localdef) : option (
                               | Some j, Some r => Some (temp j v::r)
                               | _, _ => None
                               end
- | d::ds' => match rename_localdefs olds news ds' with
-                  | Some r => Some (d::r)
+ | lvar _ _ _ :: _ => None
+ | gvars gv ::ds' => match rename_localdefs olds news ds' with
+                  | Some r => Some (gvars gv :: r)
                   | None => None
                   end
  | nil => Some nil
@@ -3720,12 +3721,102 @@ Fixpoint rename_localdefs (olds news: list ident) (ds: list localdef) : option (
 
 Lemma compute_close_precondition: 
   forall olds news P Q Q' R,
+  compute_list_norepet olds = true ->
   rename_localdefs olds news Q = Some Q' ->
   Clight_seplog.close_precondition olds news (PROPx P (LOCALx Q (SEPx R))) =
     (PROPx P (LOCALx Q' (SEPx R))).
 Proof.
-intros.
-Admitted.
+intros *. intros Hno. intros.
+apply compute_list_norepet_e in Hno.
+extensionality rho.
+apply predicates_hered.pred_ext.
+-
+ intros ? [ve' [te' [? ?]]].
+ destruct H1; split; auto. clear H1.
+ destruct H2; split; auto. clear H2.
+ revert Q' H H1; induction Q; intros; destruct Q'.
+ inv H.
+ apply H1.
+ inv H.
+ elimtype False; clear - H. destruct a0; simpl in H.
+ destruct (rename_ident olds news i); try discriminate.
+ destruct (rename_localdefs olds news Q); try discriminate.
+ destruct (rename_localdefs olds news Q); try discriminate.
+ destruct (rename_localdefs olds news Q); try discriminate.
+ simpl in H.
+ destruct (rename_localdefs olds news Q) eqn:H3.
+2:{ destruct a0; try discriminate. destruct (rename_ident olds news i); discriminate. }
+ destruct H1.
+ split.
+2:{ apply IHQ; auto. clear - H. destruct a0; try solve [inv H; auto].
+     destruct (rename_ident olds news i); inv H; auto.
+  }
+ clear dependent Q.
+ destruct a0.
+ 2,3: inv H; apply H1.
+ destruct (rename_ident olds news i) eqn:?H; try discriminate.
+ inv H.
+ clear - H2 H1 H0.
+ hnf in H1|-*. unfold_lift in *. destruct H1; subst v.
+ split; auto.
+ clear H1.
+ unfold eval_id in *; simpl in *.
+ f_equal.
+ revert news H2 H0; induction olds; destruct news; simpl; intros; inv H2.
+ if_tac in H1. inv H1.
+ rewrite (H0 O a i0); auto.
+ apply (IHolds news); auto.
+ intros. apply (H0 (S n)); auto.
+-
+intros ? ?.
+exists (ve_of rho).
+destruct rho as [ge ve te].
+simpl te_of.
+pose (f (i: ident) := 
+      match rename_ident olds news i with
+      | Some j => Map.get te j
+      | None => None
+      end).
+exists f.
+split; simpl.
+ *
+ clear - Hno.
+ unfold Map.get in *.
+ subst f.
+ intros.
+ simpl.
+ revert olds news i j H H0 Hno; induction n; destruct olds, news; simpl; intros; try discriminate.
+ inv H0. inv H. rewrite if_true by auto. auto.
+ inv Hno.
+ if_tac.
+ subst.
+ apply nth_error_in in H. contradiction.
+ apply (IHn _ _ _ _ H H0 H4).
+ *
+  destruct H0 as [? [? ?]]; split3; auto.
+ clear - Hno H H1.
+ revert Q' H H1; induction Q; destruct Q'; simpl; intros; auto.
+ inv H.
+ elimtype False; clear - H.
+ destruct a0; try discriminate;
+ try destruct (rename_ident olds news i); try discriminate;
+ destruct (rename_localdefs olds news Q); discriminate.
+ destruct H1.
+ destruct (rename_localdefs olds news Q) eqn:?H.
+2:{ destruct a0; try discriminate; destruct (rename_ident olds news i); try discriminate. }
+  assert (l0 = Q'). { destruct a0; inv H; auto. 
+      destruct (rename_ident olds news i); inv H4; auto.
+  }
+ subst l0. 
+ split; [ | apply (IHQ Q'); auto].
+ destruct a0; try solve [inv H; auto].
+ destruct (rename_ident olds news i) eqn:?H; inv H.
+ hnf in H0|-*. unfold_lift in *.
+ destruct H0; subst. split; auto.
+ unfold eval_id; simpl. f_equal.
+ unfold Map.get; subst f.
+ simpl. rewrite H3. reflexivity.
+Qed.
 
 Ltac start_function :=
  leaf_function;
