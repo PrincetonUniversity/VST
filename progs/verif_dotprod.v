@@ -159,13 +159,10 @@ name i_ _i.
 name x_ _x.
 name y_ _y.
 name z_ _z.
+Hint Rewrite Zlength_map2 using Zlength_solve : Zlength.
 pose (fx := map2 Float.add fy fz).
 assert_PROP (Zlength fx = 3 /\ Zlength fy = 3 /\ Zlength fz = 3). {
-  entailer!.
-  autorewrite with sublist in *.
-  split3; auto.
-  subst fx. clear - H1 H4.
-  rewrite Zlength_map2 by omega; auto.
+  entailer!. subst fx. list_solve2.
 } destruct H as [Hx [Hy Hz]].
 forward_for_simple_bound 3
    (EX i:Z,
@@ -182,30 +179,10 @@ forward. (* x[i] = y[i] + z[i]; *)
 forward.
 forward.
 entailer!. {
-  autorewrite with sublist in *.
-  simpl.
-  unfold data_at.
-  apply derives_refl'. f_equal.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite map_app.
- rewrite <- app_assoc.
- f_equal.
- replace (Z.to_nat (3-i)) with (Init.Nat.add (Z.to_nat 1) (Z.to_nat (3-(i+1)))).
- rewrite <-list_repeat_app.
- rewrite upd_Znth_app1 by list_solve.
- f_equal.
- autorewrite with sublist.
- simpl list_repeat.
- rewrite upd_Znth0.
- rewrite !sublist_len_1 by list_solve.
- autorewrite with sublist.
- simpl. 
- subst fx.
-  f_equal. f_equal.
- rewrite Znth_map2 with (a:=Float.zero) (b:=Float.zero) (c:=Float.zero); try omega.
- auto.
- rewrite <- Z2Nat.inj_add by omega.
- f_equal. omega.
+  simpl force_val.
+  Hint Rewrite (Znth_map2 _ _ _ Inhabitant_float Inhabitant_float Inhabitant_float) using Zlength_solve : Znth.
+  Hint Rewrite (@Znth_map _ Inhabitant_float) using Zlength_solve : Znth.
+  subst fx. list_solve2.
 }
 *
  forward.
