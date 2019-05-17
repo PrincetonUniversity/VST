@@ -28,13 +28,13 @@ struct foo_object {
 };
 
 
-void foo_reset (struct foo_object *self) {
-  self -> data = 0;
+void foo_reset (struct object *self) {
+  ((struct foo_object *)self) -> data = 0;
 }
 
-int foo_twiddle (struct foo_object *self, int i) {
-  int d = self->data;
-  self -> data = d+2*i;
+int foo_twiddle (struct object *self, int i) {
+  int d = ((struct foo_object *)self)->data;
+  ((struct foo_object *)self) -> data = d+2*i;
   return d+i;
 }
 

@@ -157,7 +157,7 @@ Proof.
   unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
   destruct id.
   destruct f0.
-  intros.
+  destruct H as [H' H]; split; auto. clear H'; intros.
   apply semax_sound.
   apply H.
 Qed.

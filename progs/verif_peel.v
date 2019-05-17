@@ -25,11 +25,11 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 Definition f_spec : ident * funspec :=
  DECLARE _f
   WITH b: Z
-  PRE [ _a OF tint ]
+  PRE [ _b OF tint ]
           PROP  (0 <= b; (b+1)*(b+1) < Int.max_signed)
           LOCAL (temp _b (Vint (Int.repr b)))
           SEP   ()
-  POST [ tuint ]
+  POST [ tint ]
         EX a:Z, 
         PROP ((a-1)*(a-1)<=b /\ a*a>b)
         LOCAL(temp ret_temp  (Vint (Int.repr a)))

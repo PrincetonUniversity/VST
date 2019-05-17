@@ -42,7 +42,7 @@ semax_func_cons body_finish_read.
 semax_func_cons body_initialize_writer.
 eapply semax_func_cons; [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; simpl; auto; computable
-           | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | LookupID | LookupB | precondition_closed
+           | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | LookupID | LookupB 
            | apply body_start_write |].
 semax_func_cons body_finish_write.
 semax_func_cons body_reader.

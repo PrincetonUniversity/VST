@@ -262,7 +262,10 @@ Definition believe_internal_ CS
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
+                 /\ (map snd (fst fsig) = map snd (fst (fn_funsig f))
+                      /\ snd fsig = snd (fn_funsig f)
+                      /\ list_norepet (map fst (fst fsig)))
+                 /\ f.(fn_callconv) = cc)
   &&
    ALL Delta':tycontext, ALL CS':compspecs,
    imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
@@ -270,7 +273,7 @@ Definition believe_internal_ CS
       (ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
         |> semax (SemaxArg CS' (func_tycontext' f Delta')
-                         (fun rho => (bind_args f.(fn_params) (P ts x) rho 
+                         (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho 
                                               * stackframe_of' (@cenv_cs CS') f rho)
                                         && funassert (func_tycontext' f Delta') rho)
                           (Ssequence f.(fn_body) (Sreturn None))
@@ -319,16 +322,19 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
+                 /\ (map snd (fst fsig) = map snd (fst (fn_funsig f))
+                      /\ snd fsig = snd (fn_funsig f)
+                      /\ list_norepet (map fst (fst fsig)))
+                 /\ f.(fn_callconv) = cc)
   && 
-(*NEW*)ALL Delta':tycontext,ALL CS':compspecs,
-(*NEW*)imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
+    ALL Delta':tycontext,ALL CS':compspecs,
+     imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
       (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS')))
                                                
        (ALL ts: list Type,
      ALL x : dependent_type_functor_rec ts A (pred rmap),
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args f.(fn_params) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
+                                (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (Ssequence f.(fn_body) (Sreturn None))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
@@ -670,7 +676,6 @@ Lemma believe_antimonoR gx Delta Gamma Gamma'
                         (glob_specs Gamma) ! id = Some spec):
   @believe CS Espec Delta gx Gamma |-- @believe CS Espec Delta gx Gamma'.
 Proof. intros n B v sig cc A P Q k nec CL. apply B; trivial. eapply claims_antimono; eauto. Qed.
-Set Printing Implicit.
 
 Lemma complete_type_cspecs_sub {cs cs'} (C: cspecs_sub cs cs') t (T:complete_type (@cenv_cs cs) t = true):
   complete_type (@cenv_cs cs') t = true.
@@ -688,7 +693,8 @@ Lemma believe_internal_mono {CS'} gx Delta Delta' v sig cc A P Q
 Proof. destruct BI as [b [f [Hv X]]].
   exists b, f; split; [clear X | clear Hv].
   - simpl; simpl in Hv. intuition.
-    + eapply Forall_impl. 2: apply H0. simpl; intros. apply (complete_type_cspecs_sub CSUB _ H6).
+    + eapply Forall_impl. 2: apply H0. simpl; intros.
+       apply (complete_type_cspecs_sub CSUB); auto.
     + clear - CSUB H0 H4. forget (fn_vars f) as vars. induction vars.
       constructor. inv H4. inv H0.  specialize (IHvars H5 H3).
       constructor; [ rewrite (cenv_sub_sizeof CSUB); trivial | apply IHvars].

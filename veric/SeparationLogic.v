@@ -303,11 +303,10 @@ Definition closed_wrt_lvars {B} (S: ident -> Prop) (F: environ -> B) : Prop :=
 Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
   ~ In i (map (@fst _ _) params).
 
-
-Definition precondition_closed (f: function) {A: rmaps.TypeTree}
+Definition precondition_closed (fs: list (ident*type)) {A: rmaps.TypeTree}
   (P: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) : Prop :=
  forall ts x,
-  closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\
+  closed_wrt_vars (not_a_param fs) (P ts x) /\
   closed_wrt_lvars (fun _ => True) (P ts x).
 
 Definition typed_true (t: type) (v: val)  : Prop :=  strict_bool_val v t
@@ -1163,14 +1162,17 @@ Module DerivedDefs (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF).
 Local Open Scope pred.
 
 Definition semax_body
-       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
-  match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
-    forall Espec ts x, (*exists Ann,*)
-      @Def.semax C Espec (func_tycontext f V G nil (*Ann*))
-          (P ts x *  stackframe_of f)
-          (Ssequence f.(fn_body) (Sreturn None))
-          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
- end.
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+match spec with (_, mk_funspec fsig cc A P Q _ _) =>
+  (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
+                      /\ snd fsig = snd (fn_funsig f)
+                      /\ list_norepet (map fst (fst fsig))) /\
+forall Espec ts x, 
+  @Def.semax C Espec (func_tycontext f V G nil)
+      (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
+       (Ssequence f.(fn_body) (Sreturn None))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
+end.
 
 Definition semax_prog
     {Espec: OracleKind} {C: compspecs}
@@ -1222,7 +1224,7 @@ Axiom semax_func_nil:   forall {Espec: OracleKind},
 
 Axiom semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+     forall fs id f fsig cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -1232,12 +1234,11 @@ Axiom semax_func_cons:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
- (*NEW*)  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
-       precondition_closed f P ->
-      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
+       Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
+      semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ)->
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, Internal f)::fs)
-           ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
+           ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
 
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},

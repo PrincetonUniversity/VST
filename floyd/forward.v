@@ -289,7 +289,7 @@ Ltac semax_func_cons L :=
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | LookupID | LookupB | precondition_closed | apply L
+           | reflexivity | LookupID | LookupB | apply L
            | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -3666,25 +3666,71 @@ match x with
 | DE_nothing ?e => fail 99 "The expression " e " contains a dereference of an expression with a 'By_nothing' access mode, which is quite unexpected"
 end.
 
+Lemma elim_close_precondition:
+  forall {CS: compspecs} {Espec: OracleKind} al Delta P F c Q,
+   closed_wrt_vars (fun i => ~ In i al) P  ->
+   closed_wrt_lvars (fun _ => True) P ->    
+   semax Delta (P * F) c Q ->
+   semax Delta (Clight_seplog.close_precondition al al P * F) c Q.
+Proof.
+intros.
+ apply semax_pre with (P*F); auto.
+ apply andp_left2.
+ apply sepcon_derives; [ | apply derives_refl].
+ intro rho.
+ apply Clight_seplog.close_precondition_e'; auto.
+Qed.
+
+Ltac check_parameter_types' :=
+ try reflexivity;
+ simpl;
+ match goal with |- ?A = ?B =>
+   fail "Parameter types of funspec don't match types of fundef.
+funspec:" A "
+fundef:" B
+  end.
+
+Ltac check_return_type :=
+ try reflexivity;
+ simpl;
+ match goal with |- ?A = ?B =>
+   fail "Return type of funspec doesn't match return type of fundef.
+funspec:" A "
+fundef:" B
+  end.
+
+Fixpoint rename_ident (olds news: list ident) i :=
+ match olds, news with
+ | a::al, b::bl => if ident_eq i a then Some b else rename_ident al bl i
+ | _,_ => None
+ end.
+
+Fixpoint rename_localdefs (olds news: list ident) (ds: list localdef) : option (list localdef) :=
+ match ds with
+ | temp i v :: ds' => match rename_ident olds news i, rename_localdefs olds news ds' with
+                              | Some j, Some r => Some (temp j v::r)
+                              | _, _ => None
+                              end
+ | d::ds' => match rename_localdefs olds news ds' with
+                  | Some r => Some (d::r)
+                  | None => None
+                  end
+ | nil => Some nil
+ end.
+
+Lemma compute_close_precondition: 
+  forall olds news P Q Q' R,
+  rename_localdefs olds news Q = Some Q' ->
+  Clight_seplog.close_precondition olds news (PROPx P (LOCALx Q (SEPx R))) =
+    (PROPx P (LOCALx Q' (SEPx R))).
+Proof.
+intros.
+Admitted.
+
 Ltac start_function :=
  leaf_function;
- match goal with |- semax_body _ _ ?F ?spec =>
-   let D := constr:(type_of_function F) in 
-   let S := constr:(type_of_funspec (snd spec)) in
-   let D := eval hnf in D in let D := eval simpl in D in 
-   let S := eval hnf in S in let S := eval simpl in S in 
-   tryif (unify D S) then idtac else
-   tryif function_types_compatible D S 
-   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
-Function body:" D "
-Function spec:" S
-   else
-   (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
-Function body: " D "
-Function spec: " S);
-   check_normalized F
- end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
+    check_normalized F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
     match goal with
@@ -3697,18 +3743,30 @@ Function spec: " S);
  end;
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
+   split; [split3; [check_parameter_types' | check_return_type
+          | try (apply compute_list_norepet_e; reflexivity);
+             fail "Duplicate formal parameter names in funspec signature"  ] 
+         |];
    match Pre with
    | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
+ try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
+     change (fun rho => ?A rho * ?B rho) with (A * B)
+  end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
- repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+ repeat match goal with
+ | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
-           end;
+ | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+       end;
+ first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
+        | erewrite compute_close_precondition by reflexivity];
  simplify_func_tycontext;
  repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>

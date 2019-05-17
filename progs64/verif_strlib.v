@@ -63,7 +63,7 @@ Definition strlen_spec :=
     PROP (readable_share sh)
     LOCAL (temp _str str)
     SEP (cstring sh s str)
-  POST [ tptr tschar ]
+  POST [ size_t ]
     PROP ()
     LOCAL (temp ret_temp (Vptrofs (Ptrofs.repr (Zlength s))))
     SEP (cstring sh s str).
@@ -75,6 +75,7 @@ Hint Rewrite Z.add_simpl_r Z.sub_simpl_r : norm entailer_rewrite.
 
 Lemma body_strlen: semax_body Vprog Gprog f_strlen strlen_spec.
 Proof.
+leaf_function. (* speeds up proof script *)
 start_function.
 unfold cstring in *.
 rename s into ls.
@@ -100,6 +101,7 @@ Qed.
 
 Lemma body_strchr: semax_body Vprog Gprog f_strchr strchr_spec.
 Proof.
+leaf_function. (* speeds up proof script *)
 start_function.
 forward.
 unfold cstring in *.
@@ -153,6 +155,7 @@ Qed.
 
 Lemma body_strcat: semax_body Vprog Gprog f_strcat strcat_spec.
 Proof.
+leaf_function. (* speeds up proof script *)
 start_function.
 unfold cstringn, cstring in *.
 rename sd into ld. rename ss into ls.
@@ -259,6 +262,7 @@ Qed.
 
 Lemma body_strcmp: semax_body Vprog Gprog f_strcmp strcmp_spec.
 Proof.
+leaf_function. (* speeds up proof script *)
 start_function.
 unfold cstring in *.
 rename s1 into ls1. rename s2 into ls2.
@@ -378,6 +382,7 @@ Qed.
 
 Lemma body_strcpy: semax_body Vprog Gprog f_strcpy strcpy_spec.
 Proof.
+leaf_function.
 start_function.
 unfold cstring,cstringn in *.
 rename s into ls.
