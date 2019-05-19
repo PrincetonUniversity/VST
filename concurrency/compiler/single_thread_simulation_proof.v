@@ -3948,11 +3948,18 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       
       Inductive release: val -> mem -> delta_perm_map ->  mem -> Prop  :=
       | ReleaseAngel:
-          forall b ofs m dpm m',
-            True ->
-            (* This shall codify, the change in permissions
-                       and changing the  lock value to 1.
-             *)
+          forall b ofs m dpm m' m_release
+            (* change the permission to be able to lock *)
+            lock_perms Hlt
+            thread_perm m_back Hlt_thread,
+            m = @restrPermMap thread_perm m_back Hlt_thread ->
+            Mem.store AST.Mint32 (@restrPermMap lock_perms m Hlt)
+                      b (unsigned ofs) (Vint Int.one) = Some m_release ->
+            (* return to the new, transfered permissions*)
+            forall new_perms Hlt',
+              (* Need to relate new_perms and dpm *)
+              new_perms = computeMap (getCurPerm m) dpm ->
+              m' = @restrPermMap new_perms m_release Hlt' ->
             release (Vptr b ofs) m dpm m'.
 
       Inductive extcall_release: Events.extcall_sem:=
@@ -5156,6 +5163,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           { admit. }
           assert (Hlt21 : permMapLt (fst new_cur2) (getMaxPerm m2'')).
           { admit. }
+          
 
           eapply concur_match_update_lock; eauto.
           + !context_goal lock_update_mem.
@@ -5206,7 +5214,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               admit.
           +  (* Proof of match goes after the comment *)
             (* ENDEND *) 
-            { !context_goal one_thread_match.
+            { 
+              !context_goal one_thread_match.
               eapply build_match_compiled; auto.
               instantiate(1:= Hlt21).
               instantiate(1:=(Kresume (TST code2) Vundef)).
@@ -5219,13 +5228,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               clear Hangel_bound Hcode1 Hcode2 Hat_external1' Hat_external2.
               revert Hat_external1 Hat_external2'.
               clear Hlt1 Hlt2 Hstrict Hcmpt1 Hcmpt1' Hcmpt2 Hcmpt2'.
-              clear Heqnew_cur2 HeqvirtueThread2 thread_compat2 Heqlocks_mem2.
+              clear  HeqvirtueThread2 thread_compat2 Heqlocks_mem2.
               clear Hload2 lock_mem_lt2 lock_mem2 lock_mem_lt2' Hlock_update_mem_strict2.
               clear   Hjoin_angel2.
-              revert Hwritable_lock2 m_writable_lock_2 Hstore2.
+              revert Heqnew_cur2 Hwritable_lock2 m_writable_lock_2 Hstore2 Hstore.
               revert  Hcnt2 lev2 Hinterference2 virtueThread2 Hmatch_states
-                     lev1 Hinterference1 Hstrict_evolution .
+                     lev1 Hinterference1 Hstrict_evolution Heqofs2.
               clear. intros.
+
+              
               
             match goal with
             | [|- match_thread_compiled _ _ ?X _ ?Y _] =>
@@ -5247,11 +5258,56 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             remember (Events.Event_acq_rel lev1 dpm1 lev1' :: nil) as rel_trace.
 
             
-            
+            assert (Hext_rel: extcall_release
+                      Asm_g (Vptr b2 ofs2 :: nil)
+                      m2
+                      (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)
+                      Vundef m2''').
+            { Inductive release': val -> mem -> delta_perm_map ->  mem -> Prop  :=
+              | ReleaseAngel':
+                  forall b ofs m dpm m' m_release
+                    (* change the permission to be able to lock *)
+                    lock_perms Hlt,
+                    Mem.store AST.Mint32 (@restrPermMap lock_perms m Hlt)
+                              b (unsigned ofs) (Vint Int.one) = Some m_release ->
+                    (* return to the new, transfered permissions*)
+                    forall new_perms Hlt',
+                      (* Need to relate new_perms and dpm *)
+                      new_perms = computeMap (getCurPerm m) dpm ->
+                      m' = @restrPermMap new_perms m_release Hlt' ->
+                      release' (Vptr b ofs) m dpm m'.
+              Lemma RR: release = release'.
+              Admitted.
+
+
+              econstructor; eauto.
+              rewrite RR.
+              econstructor.
+              3: { reflexivity. }
+              - subst m_writable_lock_2.
+                clear - Hstore2.
+                Lemma cur_mem_interference:
+                  forall m le m',
+                    mem_interference  m le m' ->
+                    Cur_equiv m m'.
+                Proof.
+                Admitted.
+                move Hstore2 at bottom.
+                replace (unsigned ofs2) with (unsigned ofs + delt2) by admit.
+                instantiate(1:=Hwritable_lock2). eassumption.
+              - subst new_cur2; simpl.
+                !goal (computeMap (thread_perms hb st2 Hcnt2) _ =
+                       computeMap (getCurPerm m2') _).
+                (* They are equiv but not equal... *)
+                admit.
+                
+                
+            }
+              
             (** *1. Prove that this is a CompCert step (en external step).
              *)
 
-            Lemma large_step_as_compcert_step:
+            Lemma C_large_step_as_compcert_step:
               forall code1 m1 rel_trace s1' m1''' args
                 func fname fsig
                 (Hfunc: func = AST.EF_external fname fsig)
@@ -5261,8 +5317,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 (Hafter_ext: Clight.after_external None code1 m1''' = Some s1')
                 (Hat_external1: Clight.at_external (Clight.set_mem code1 m1) =
                 Some (func, args)),
-              Smallstep.step
-                             (Clight.part_semantics2 Clight_g)
+              Smallstep.step (Clight.part_semantics2 Clight_g)
                              (Clight.set_mem code1 m1)
                              rel_trace
                              (Clight.set_mem s1' m1''').
@@ -5278,16 +5333,29 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               eapply Clight.step_external_function; eauto.
             Qed.
 
-            (** *Proof it's a Compcert step:
+            (** *Proof it's a Compcert step in Clight:
                 - Grtanted it's an external function call
              *)
-            exploit large_step_as_compcert_step; eauto.
+            exploit C_large_step_as_compcert_step; eauto.
             { !goal(Events.external_call UNLOCK _ _ _ _ _ _).
               simpl; rewrite ReleaseExists.
               subst rel_trace; econstructor; try eassumption.
-              econstructor; auto. }
+              rewrite RR.
+              econstructor; eauto.
+              subst newThreadPerm1; simpl.
+              instantiate(2:=(fst virtueThread1)).
+              (* need to replace the way we construct virtue 1:
+                 do it by replacein thread_perms with (getCurperm m1')
+                 they are the same by hypothesis
+               *)
+              admit.
+            }
+            rewrite <- Heqdpm1.
             intros Hstep; simpl in *.
+            
 
+            
+            
 
             (** *Apply the simulation *)
             eapply (Injsim_simulation_atxX compiler_sim) in Hstep;
@@ -5296,11 +5364,18 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             destruct Hstep as (j2'&Hincr&Hstep_str&Hstep).
             clear Hat_external1 Hafter_ext.
 
+            assert (Hconsecutive:
+                      consecutive (Mem.nextblock m2) lev2).
+            { eapply interference_consecutive; eassumption. }
+            
+            assert (Hconsecutive': consecutive (Mem.nextblock m2'') lev2').
+            { erewrite <- restrPermMap_nextblock.
+              eapply interference_consecutive; eassumption.
+            }
+            
             (** *???*)
             destruct Hstep_str as
                 (i2_str&s2_str&t_str&Hstep_str&Hmatch_str&Hinj_trace_str).
-            remember 
-              (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)  as rel_trace2.
             assert (Htrace_str : exists lev2_str dpm_str lev2_str',
                        t_str = Events.Event_acq_rel lev2_str
                                             dpm_str
@@ -5311,15 +5386,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               do 3 eexists; f_equal.
             }
             destruct Htrace_str as (lev2_str&dpm_str&lev2_str'&Htrace_str).
-
-            assert (Hconsecutive:
-                      consecutive (Mem.nextblock m2) lev2).
-            { eapply interference_consecutive; eassumption. }
             
-            assert (Hconsecutive': consecutive (Mem.nextblock m2'') lev2').
-            { erewrite <- restrPermMap_nextblock.
-              eapply interference_consecutive; eassumption.
-            }
 
             (** *Left Diagrams *)
             pose proof (principled_diagram_exists
@@ -5334,13 +5401,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                   inversion Hinj_trace_str; subst.
                 inversion H2; subst. auto.
                 eapply list_inject_weaken; auto.
-              - 
-                eapply Asm_step_consecutive; eassumption.
+              - eapply Asm_step_consecutive; eassumption.
             }
             destruct (principled_diagram_correct
                         _ _ _ _ _ _ _ Hprincipled Hdiagram)
-              as (Hincr_mu & lessdef_str).
-
+              as (Hincr_mu & lessdef_str). 
+ 
             (** *Right Diagrams*)
             pose proof (principled_diagram_exists
                           _ _ _ _ _
@@ -5348,7 +5414,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 Pdiagram'.
             destruct Pdiagram' as (lev20'&Hprincipled'&Hlessdef').
 
-            
             assert (Hdiagram':
                       diagram (Mem.nextblock m2'') mu j2' lev1' lev2_str').
             { econstructor.
@@ -5364,6 +5429,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                         _ _ _ _ _ _ _ Hprincipled' Hdiagram')
               as (Hincr_mu_j2' & lessdef_str').
             
+            remember 
+              (Events.Event_acq_rel lev2 (fst virtueThread2) lev2' :: nil)  as rel_trace2.
             
             assert (Hinj_trace: Events.inject_trace j2' rel_trace rel_trace2).
             { subst rel_trace rel_trace2.
@@ -5377,6 +5444,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               - emonotonicity; eauto.
                 eapply evolution_list_inject_mem in Hstrict_evolution'; eauto.
             }
+            clear Hstrict_evolution'.
 
             subst rel_trace.
             destruct  (Hstep _ Hinj_trace)
@@ -5387,20 +5455,20 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             (* Note: no need for a { here. 
                  TODO: better formating *)
             { move Hat_external2' at bottom.
-
+              
               (*Build the after_external, from the at_external. *)
               unfold Asm.at_external in Hat_external2'.
-                destruct code2 eqn:Code.
-                simpl in Hat_external2'.
-                destruct (r Asm.PC) eqn:rPC; try discriminate.
-                destruct (eq_dec i zero) eqn:i0_0; try discriminate.
-                unfold Asm_g. 
-                destruct (Genv.find_funct_ptr Asm_g b) eqn:func_lookup; try discriminate.
-                destruct f0; try discriminate.
-                unfold Asm.after_external.
-                unfold Asm.after_external_regset.
-                unfold Asm_g, the_ge in *.
-                rewrite rPC, i0_0, func_lookup.
+              destruct code2 eqn:Code.
+              simpl in Hat_external2'.
+              destruct (r Asm.PC) eqn:rPC; try discriminate.
+              destruct (eq_dec i zero) eqn:i0_0; try discriminate.
+              unfold Asm_g. 
+              destruct (Genv.find_funct_ptr Asm_g b) eqn:func_lookup; try discriminate.
+              destruct f0; try discriminate.
+              unfold Asm.after_external.
+              unfold Asm.after_external_regset.
+              unfold Asm_g, the_ge in *.
+              rewrite rPC, i0_0, func_lookup.
                 
               
               (* subst rel_trace2;*)
@@ -5410,7 +5478,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 unfold Asm_g, the_ge in *.
                 rewrite func_lookup in H2.
                 inversion H2; discriminate.
-              -  rename m' into m21'''.
+              - rename m' into m21'''.
                 (* NOTE: 
                        - the s2' (i.e. target state) in comp_match, 
                        results from inverting the step.
@@ -5459,53 +5527,33 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 (* Here *)
 
                 replace m2''' with m21'''. eassumption.
-                
-                
                 (*  m21''' = m2''' *)
-                simpl in H4.
-                rewrite ReleaseExists in H4.
-                inversion H4; subst.
-                rename m' into m21'.
-                rename m'' into m21''.
-                rename H9 into Hinterference21.
-                rename H10 into Hrelease.
-                
-                move Hinterference2' at bottom.
-
-                (*
-                     m1 -lev1-> m1' -dpm-> m1'' -lev1'-> m1'''
-                     |          |         |            |
-                     |          |         |            |
-                     m2 -lev2-> m2' -dpm-> m2'' -lev2'-> m2'''
-                     !          !         !            !     
-                     m2 -lev2-> m21'-dpm-> m21''-lev2'-> m21'''
-                 *)
-
-                assert (Hm_eq:m21' = m2').
-                { move Hinterference2 at bottom.
-                  move Hinterference21 at bottom.
-                  eapply mem_interference_determ; eassumption. }
-                subst.
-                
-                assert (m21'' = (restrPermMap Hlt21)).
-                { move Hstore2 at bottom.
-                  move Hrelease at bottom.
-                  rewrite RPM.
-                  admit.
-                (* Sketch: release has to be defined.
-                          it should modify content without touching permissions.
-                          then show: 
-                          m2' -release-> m2''
-                          (or their restrictions to the cur)
-                          release is deterministic and so the result follows. *)
-                } 
-                (*  m21''' = m2''' *)
-                
-                eapply mem_interference_determ; subst; try eassumption.
-                
+                Lemma asm_step_determ:
+                  forall g_env s1 lev s2 s2',
+                    Asm.step g_env s1 lev s2 -> 
+                    Asm.step g_env s1 lev s2' ->
+                    s2 = s2'.
+                Admitted.
+                remember (Asm.State
+              (Asm.Pregmap.set Asm.PC (r Asm.RA)
+                 (Asm.set_pair (Asm.loc_external_result (AST.ef_sig UNLOCK)) Vundef
+                    (Asm.undef_caller_save_regs r))) m21''') as s2'.
+                replace m21''' with (Asm.get_mem s2')
+                                    by (subst s2'; auto).
+                Local Ltac repalce_mem s m:=
+                  replace m with (Asm.get_mem (Asm.set_mem s m))
+                  by (destruct s; auto).
+                repalce_mem s2' m2'''.
+                f_equal; eapply asm_step_determ; try eassumption.
+                subst s2'; simpl. 
+                eapply Asm.exec_step_external; eauto; simpl.
+                rewrite ReleaseExists.
+                replace args with (Vptr b2 (add ofs (repr delt2)) :: nil) in *.
+                assumption.
+                admit.
+            } (*ENDEND*)
             }
             
-            } (*ENDEND*) 5498
           + !context_goal memval_inject.
             repeat econstructor.
           + !goal(lock_update _ st1 _ _ _ _ st1').
