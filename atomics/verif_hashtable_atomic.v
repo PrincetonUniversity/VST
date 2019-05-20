@@ -309,11 +309,11 @@ Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
   start_function.
-  forward_call.
+  forward_call (t, gv).
   Intros v.
   forward_if (v <> nullval).
   { if_tac; entailer!. }
-  - forward_call.
+  - forward_call tt.
     entailer!.
   - forward.
     entailer!.
@@ -433,10 +433,10 @@ Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_atomic_function.
   destruct x as ((((((k, v), gv), sh), entries), g), lg); Intros.
-  forward_call k.
-  pose proof size_pos.
   unfold atomic_shift; Intros P.
   set (AS := _ -* _).
+  forward_call k.
+  pose proof size_pos.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
     PROP (i1 mod size = (i + hash k) mod size; 0 <= i < size; Zlength keys = size;
           Forall (fun z => z <> 0 /\ z <> k) (sublist 0 i (rebase keys (hash k))))
@@ -2123,7 +2123,7 @@ Proof.
   replace 16384 with size by (setoid_rewrite (proj2_sig has_size); auto).
   sep_apply (create_mem_mgr gv).
   forward.
-  forward_call.
+  forward_call gv.
   Intros x; destruct x as ((entries, g), lg).
   ghost_alloc (ghost_hist_ref(hist_el := hashtable_hist_el) Tsh empty_map empty_map).
   { split; auto; apply @self_completable. }
