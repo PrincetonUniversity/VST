@@ -32,7 +32,7 @@ Parameter semax_seq_inv': forall {CS: compspecs} {Espec: OracleKind} Delta P R h
     @semax CS Espec Delta P (Ssequence h t) R ->
     @semax CS Espec Delta P h (overridePost (EX Q: environ -> mpred, !! (@semax CS Espec Delta Q t R) && Q) R).
 (* line 478 in SeparationLogicAsLogic *)
-
+Check semax_conseq.
 Lemma wp_seq: forall {CS: compspecs} {Espec: OracleKind} Delta P c1 c2,
   wp Delta (Ssequence c1 c2) P = wp Delta c1 (overridePost (wp Delta c2 P) P).
 Proof.
