@@ -8,6 +8,9 @@ Open Scope Z.
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   idtac "Starting body_aes_encrypt".
+  function_pointers.  (* This is a temporary expedient.  It signals to start_function
+                                  NOT to clearbody Delta_specs, so that the 
+                                  [eapply encryption_loop_body_proof] works. *)
   start_function.
   Opaque list_repeat.
   simpl.
