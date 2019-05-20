@@ -635,6 +635,13 @@ Proof.
   - rewrite Hg, <- (ghost_core nil); apply core_identity.
 Qed.
 
+Lemma emp_cored : emp |-- cored.
+Proof.
+  repeat intro; simpl in *.
+  destruct H1.
+  eapply nec_identity, identity_unit' in H; eauto.
+Qed.
+
 Lemma join_singleton_inv: forall k a b RA c v pp,
   join a b (singleton k (existT _ RA (exist _ (core c) v), pp)) ->
   a = singleton k (existT _ RA (exist _ (core c) v), pp) \/ b = singleton k (existT _ RA (exist _ (core c) v), pp).

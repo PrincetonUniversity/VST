@@ -147,7 +147,7 @@ Proof.
  specialize (r _ H0).
  hnf in r.
  unfold access_at. simpl.
- destruct ((Mem.mem_access m1) !! b ofs Cur); try contradiction.
+ destruct (((Mem.mem_access m1) !! b) ofs Cur); try contradiction.
  assert (p=Freeable) by (destruct p; inversion r; auto). subst p.
  split; auto.
  simpl. rewrite PMap.gss.
@@ -186,12 +186,12 @@ Proof.
  rewrite PMap.gss.
  destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; auto.
  split; auto.
- specialize (r _ H0). hnf in r. destruct ( (Mem.mem_access m) !! b ofs Cur) eqn:?; try contradiction.
+ specialize (r _ H0). hnf in r. destruct ( ((Mem.mem_access m) !! b) ofs Cur) eqn:?; try contradiction.
  assert (p0=Freeable) by (destruct p0; inv r; auto). subst.
  pose proof (Mem.access_max m b ofs).
  rewrite Heqo in H.
  destruct k; auto.
- destruct ((Mem.mem_access m) !! b ofs Max); inv H; auto.
+ destruct (((Mem.mem_access m) !! b) ofs Max); inv H; auto.
 Qed.
 
 Lemma access_drop_2:

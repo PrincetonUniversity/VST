@@ -1728,4 +1728,4 @@ Module PTree_Properties := Tree_Properties(PTree).
 (** * Useful notations *)
 
 Notation "a ! b" := (PTree.get b a) (at level 1).
-Notation "a !! b" := (PMap.get b a) (at level 1).
+Notation "a !! b" := (PMap.get b a) (at level 20).
