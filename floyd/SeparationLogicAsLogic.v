@@ -245,11 +245,11 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     @semax CS Espec Delta P c Q -> @semax CS Espec Delta P (Slabel l c) Q
 | semax_goto: forall P l, @semax CS Espec Delta FF (Sgoto l) P
 | semax_conseq: forall P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- |==> |> FF || P' ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- |==> |> FF || RA_normal R ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- |==> |> FF || RA_break R ->
-    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- |==> |> FF || RA_continue R ->
-    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && P) |-- (|==> |> FF || P') ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_normal R') |-- (|==> |> FF || RA_normal R) ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_break R') |-- (|==> |> FF || RA_break R) ->
+    local (tc_environ Delta) && ((allp_fun_id Delta) && RA_continue R') |-- (|==> |> FF || RA_continue R) ->
+    (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- (|==> |> FF || RA_return R vl)) ->
     @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Definition semax_body
@@ -1954,9 +1954,9 @@ Proof.
 Qed.
 
 Lemma sepcon_derives_full: forall Delta P1 P2 Q1 Q2,
-  local (tc_environ Delta) && (allp_fun_id Delta && P1) |-- |==> |> FF || P2 ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q1) |-- |==> |> FF || Q2 ->
-  local (tc_environ Delta) && (allp_fun_id Delta && (P1 * Q1)) |-- |==> |> FF || (P2 * Q2).
+  local (tc_environ Delta) && (allp_fun_id Delta && P1) |-- (|==> |> FF || P2) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q1) |-- (|==> |> FF || Q2) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && (P1 * Q1)) |-- (|==> |> FF || (P2 * Q2)).
 Proof.
   intros.
   pose proof sepcon_ENTAILL  _ _ _ _ _ H H0.

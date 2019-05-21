@@ -13,8 +13,57 @@ Require Import VST.veric.seplog.*)
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.SeparationLogic.
 
-Instance mpred_equiv : Equiv mpred := eq.
-Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
+Section cofe.
+  Instance mpred_equiv : Equiv mpred := eq.
+  Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
+
+  Lemma dist_equiv : forall (P Q : pred rmap), (∀ n : nat, P ≡{n}≡ Q) -> P = Q.
+  Proof.
+    intros; apply predicates_hered.pred_ext; repeat intro.
+    - specialize (H (level a)); hnf in H.
+      assert (approx (S (level a)) P a) as HP' by (split; auto).
+      rewrite H in HP'; apply HP'.
+    - specialize (H (level a)); hnf in H.
+      assert (approx (S (level a)) Q a) as HP' by (split; auto).
+      rewrite <- H in HP'; apply HP'.
+  Qed.
+
+  Definition mpred_ofe_mixin : OfeMixin mpred.
+  Proof.
+    split.
+    - intros P Q; split.
+      + intros HPQ n; hnf in *; subst; auto.
+      + apply dist_equiv.
+    - intros n; split; auto.
+      congruence.
+    - intros ? P Q ?; hnf in *.
+      apply predicates_hered.pred_ext; intros ? []; split; auto.
+      + assert (approx (S (S n)) P a) as HP by (split; auto; lia).
+        rewrite H in HP; apply HP.
+      + assert (approx (S (S n)) Q a) as HP by (split; auto; lia).
+        rewrite <- H in HP; apply HP.
+  Qed.
+  Canonical Structure mpredC : ofeT := OfeT mpred mpred_ofe_mixin.
+
+  Program Definition mpred_compl : Compl mpredC := fun c w => c (level w) w.
+  Next Obligation.
+  Proof.
+    repeat intro; simpl in *.
+    eapply pred_hereditary in H0; eauto.
+    assert (approx (S (level a')) (c (level a)) a') as Ha by (split; auto).
+    rewrite chain_cauchy in Ha; [apply Ha | apply age_level in H; lia].
+  Qed.
+  Global Program Instance mpred_cofe : Cofe mpredC := {| compl := mpred_compl |}.
+  Next Obligation.
+    intros; hnf.
+    apply predicates_hered.pred_ext; intros ? []; split; auto; simpl in *.
+    - assert (approx (S (level a)) (c (level a)) a) as Ha by (split; auto).
+      rewrite <- (chain_cauchy c (level a) n) in Ha; [apply Ha | lia].
+    - assert (approx (S (level a)) (c n) a) as Ha by (split; auto).
+      rewrite chain_cauchy in Ha; [apply Ha | lia].
+  Qed.
+End cofe.
+Arguments mpredC : clear implicits.
 
 Lemma approx_imp : forall n P Q, approx n (P --> Q) = approx n (approx n P --> approx n Q).
 Proof.
@@ -348,3 +397,9 @@ Proof.
       symmetry in Ha; apply levelS_age in Ha as (? & ? & ?); exfalso; eapply H1.
       constructor; eauto.
 Qed.
+
+Canonical Structure mpredI : bi :=
+  {| bi_ofe_mixin := mpred_ofe_mixin; bi_bi_mixin := mpred_bi_mixin |}.
+Canonical Structure mpredSI : sbi :=
+  {| sbi_ofe_mixin := mpred_ofe_mixin;
+     sbi_bi_mixin := mpred_bi_mixin; sbi_sbi_mixin := mpred_sbi_mixin |}.

@@ -682,17 +682,17 @@ Qed.
 Lemma semax_pre_post_bupd:
   forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
  forall P' (R': ret_assert) P c (R: ret_assert) ,
-    local (tc_environ Delta) && P |-- |==> P' ->
-    local (tc_environ Delta) && RA_normal R' |-- |==> RA_normal R ->
-    local (tc_environ Delta) && RA_break R' |-- |==> RA_break R ->
-    local (tc_environ Delta) && RA_continue R' |-- |==> RA_continue R ->
-    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- |==> RA_return R vl) ->
+    local (tc_environ Delta) && P |-- (|==> P') ->
+    local (tc_environ Delta) && RA_normal R' |-- (|==> RA_normal R) ->
+    local (tc_environ Delta) && RA_break R' |-- (|==> RA_break R) ->
+    local (tc_environ Delta) && RA_continue R' |-- (|==> RA_continue R) ->
+    (forall vl, local (tc_environ Delta) && RA_return R' vl |-- (|==> RA_return R vl)) ->
    @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 Proof. exact @CConseqFacts.semax_pre_post_bupd. Qed.
 
 Lemma semax_pre_bupd:
  forall P' Espec {cs: compspecs} Delta P c R,
-     ENTAIL Delta , P |-- |==> P' ->
+     ENTAIL Delta , P |-- (|==> P') ->
      @semax cs Espec Delta P' c R  -> @semax cs Espec Delta P c R.
 Proof. exact @CConseqFacts.semax_pre_bupd. Qed.
 
@@ -785,10 +785,10 @@ Qed.
 
 Lemma semax_post_bupd:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   ENTAIL Delta, RA_normal R' |-- |==> RA_normal R ->
-   ENTAIL Delta, RA_break R' |-- |==> RA_break R ->
-   ENTAIL Delta, RA_continue R' |-- |==> RA_continue R ->
-   (forall vl, ENTAIL Delta, RA_return R' vl |-- |==> RA_return R vl) ->
+   ENTAIL Delta, RA_normal R' |-- (|==> RA_normal R) ->
+   ENTAIL Delta, RA_break R' |-- (|==> RA_break R) ->
+   ENTAIL Delta, RA_continue R' |-- (|==> RA_continue R) ->
+   (forall vl, ENTAIL Delta, RA_return R' vl |-- (|==> RA_return R vl)) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post_bupd; try eassumption.
@@ -1176,8 +1176,8 @@ Qed.
 Lemma replace_SEP''_bupd:
  forall n R' Delta P Q Rs Post,
  ENTAIL Delta, PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil))) |-- `(|==> R') ->
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- |==> Post ->
- ENTAIL Delta, PROPx P (LOCALx Q (SEPx Rs)) |-- |==> Post.
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- (|==> Post) ->
+ ENTAIL Delta, PROPx P (LOCALx Q (SEPx Rs)) |-- (|==> Post).
 Proof.
 intros.
 eapply derives_trans, bupd_trans.
