@@ -24,7 +24,7 @@ Class BupdSepLog (A N D: Type) {ND: NatDed A}{SL: SepLog A} := mkBSL {
     own g a pp |-- bupd emp
   }.
 
-Notation "|==> P" := (bupd P) (at level 62): logic.
+Notation "|==> P" := (bupd P) (at level 99, P at level 200): logic.
 
 Lemma bupd_orp_r: forall `{BupdSepLog} (P Q: A), ((|==> P) || Q) |-- |==> P || Q.
 Proof.

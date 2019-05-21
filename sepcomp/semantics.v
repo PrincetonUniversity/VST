@@ -74,7 +74,7 @@ Record perm_lesseq (m m': mem):= {
     forall b ofs, Mem.perm_order'' ((Mem.mem_access m')#b ofs Max) ((Mem.mem_access m)#b ofs Max)
 ; perm_le_cont:
     forall b ofs, Mem.perm m b ofs Cur Readable ->
-     ZMap.get ofs (Mem.mem_contents m') !! b= ZMap.get ofs (Mem.mem_contents m) !! b
+     ZMap.get ofs ((Mem.mem_contents m') !! b)= ZMap.get ofs ((Mem.mem_contents m) !! b)
 ; perm_le_nb: Mem.nextblock m = Mem.nextblock m'
 }.
 

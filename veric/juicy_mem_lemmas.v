@@ -399,7 +399,7 @@ specialize (H0 (b, ofs')).
 unfold Mem.perm, Mem.perm_order'.
 rewrite H in H0.
 unfold access_at in H0.  simpl in H0.
-destruct ((mem_access m) !! b ofs' Cur).
+destruct (((mem_access m) !! b) ofs' Cur).
 clear - H0 rsh.
 unfold perm_of_sh in H0.
 if_tac in H0.
@@ -580,7 +580,7 @@ hnf in H0.
 (*unfold access_at in H3.
 simpl in H3.
 *)
-destruct ((mem_access (m_dry m)) !! b ofs' Cur); try contradiction.
+destruct (((mem_access (m_dry m)) !! b) ofs' Cur); try contradiction.
 destruct (m_phi m @ (b, ofs')) eqn:H8; try contradiction.
 if_tac in PERM; inv PERM.
 destruct k; try now inv PERM.
@@ -673,7 +673,7 @@ generalize (juicy_mem_access jm (b,ofs')); rewrite H6; unfold perm_of_res; simpl
 clear - H7 sh'.
 unfold perm, access_at in *.
 simpl in H7.
-forget ((mem_access (m_dry jm)) !! b ofs' Cur) as p1.
+forget (((mem_access (m_dry jm)) !! b) ofs' Cur) as p1.
 unfold perm_of_sh in H7.
 if_tac in H7.
 if_tac in H7; inv H7; constructor.
@@ -716,7 +716,7 @@ generalize (juicy_mem_access jm (b,ofs')); rewrite H6; unfold perm_of_res; simpl
 clear - H7 wsh'.
 unfold perm, access_at in *.
 simpl in H7.
-forget ((mem_access (m_dry jm)) !! b ofs' Cur) as p1.
+forget (((mem_access (m_dry jm)) !! b) ofs' Cur) as p1.
 unfold perm_of_sh in H7.
 rewrite if_true in H7 by auto.
 subst. if_tac; constructor.

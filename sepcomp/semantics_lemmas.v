@@ -271,7 +271,7 @@ Theorem preserves_max_eq_or_free:
                                   forall b (VB: Mem.valid_block m b) ofs,
                                    (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/
                                    (Mem.perm m b ofs Max Freeable /\
-                                    Mem.perm_order'' None ((Mem.mem_access m') !! b ofs Max))).
+                                    Mem.perm_order'' None (((Mem.mem_access m') !! b) ofs Max))).
 Proof.
 constructor.
 + intros; split. eapply mem_forward_trans. apply H. apply H0.
@@ -282,8 +282,8 @@ constructor.
   - right; split; trivial. apply K1; trivial.
   - right; split; trivial. simpl in *. specialize (K2 Max).
     unfold Mem.perm in *.
-    remember ((Mem.mem_access m3) !! b ofs Max) as w; destruct w; trivial.
-    destruct ((Mem.mem_access m2) !! b ofs Max); try contradiction.
+    remember (((Mem.mem_access m3) !! b) ofs Max) as w; destruct w; trivial.
+    destruct (((Mem.mem_access m2) !! b) ofs Max); try contradiction.
     destruct (K2 p); simpl in *. apply H2. apply perm_refl.
   - right; split; trivial.
 + intros; induction H.
@@ -301,7 +301,7 @@ constructor.
     * left; intros. eapply freelist_perm; eassumption.
     * destruct (Mem.perm_dec m b ofs Max Freeable); trivial.
        right; split; trivial. unfold Mem.perm in n; simpl in *.
-       destruct ((Mem.mem_access m') !! b ofs Max); trivial.
+       destruct (((Mem.mem_access m') !! b) ofs Max); trivial.
        elim n; clear n. constructor.
       left; intros.
       split; intros. 2: eapply perm_freelist; eassumption.
@@ -317,20 +317,20 @@ constructor.
     * right. split; trivial. apply K; trivial.
     * right. split; trivial.
       clear K1. unfold Mem.perm in *. simpl in *. specialize (L Max).
-      remember ((Mem.mem_access m') !! b ofs Max) as d; destruct d; trivial.
-      destruct ((Mem.mem_access m'') !! b ofs Max); try contradiction.
+      remember (((Mem.mem_access m') !! b) ofs Max) as d; destruct d; trivial.
+      destruct (((Mem.mem_access m'') !! b) ofs Max); try contradiction.
       specialize (L p); simpl in *. apply L. apply perm_refl.
     * right. split; trivial.
 Qed.
 
 Theorem mem_step_max_eq_or_free m m' (STEP: mem_step m m') b (VB: Mem.valid_block m b) ofs:
        (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/
-       (Mem.perm m b ofs Max Freeable /\ None = ((Mem.mem_access m') !! b ofs Max)).
+       (Mem.perm m b ofs Max Freeable /\ None = (((Mem.mem_access m') !! b) ofs Max)).
 Proof. intros.
 exploit preserve_mem. apply preserves_max_eq_or_free. eassumption.
 simpl; intros [A B]. destruct (B _ VB ofs). left; trivial. right.
   destruct H; split; trivial.
-  destruct ((Mem.mem_access m') !! b ofs Max); trivial; contradiction.
+  destruct (((Mem.mem_access m') !! b) ofs Max); trivial; contradiction.
 Qed.
 
 Lemma memsem_preserves {C} (s: @MemSem C) P (HP:memstep_preserve P):
@@ -563,8 +563,8 @@ destruct H; split; auto.
 intros ? ?. specialize (H ofs H1).
 hnf in H|-*.
 specialize (perm_le_Cur b ofs).
-destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
-destruct ((Mem.mem_access m1) !! b ofs Cur);
+destruct (((Mem.mem_access m) !! b) ofs Cur); try contradiction.
+destruct (((Mem.mem_access m1) !! b) ofs Cur);
 inv perm_le_Cur; auto; try constructor; try inv H.
 Qed.
 
@@ -618,14 +618,14 @@ specialize (H _ H1).
 clear - H perm_le_Cur.
 specialize (perm_le_Cur b ofs).
 hnf in H|-*.
-destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
+destruct (((Mem.mem_access m) !! b) ofs Cur); try contradiction.
 inv H;
-destruct ((Mem.mem_access m1) !! b ofs Cur);
+destruct (((Mem.mem_access m1) !! b) ofs Cur);
 inv perm_le_Cur; auto; try constructor; try inv H.
 Qed.
 
 Lemma free_access_inv m b lo hi m' (FR: Mem.free m b lo hi = Some m') b' ofs k p
-  (P: (Mem.mem_access m') !! b' ofs k = Some p):  (Mem.mem_access m) !! b' ofs k = Some p.
+  (P: ((Mem.mem_access m') !! b') ofs k = Some p):  ((Mem.mem_access m) !! b') ofs k = Some p.
 Proof.
 apply Mem.free_result in FR; subst. simpl in *.
 rewrite PMap.gsspec in P.
@@ -634,9 +634,9 @@ destruct (zle lo ofs && zlt ofs hi); inv P; trivial.
 Qed.
 
 Lemma free_access_inv_None m b lo hi m' (FR: Mem.free m b lo hi = Some m') b' ofs k
-  (P: (Mem.mem_access m') !! b' ofs k = None):
-  (b' = b /\ Z.le lo ofs /\ Z.lt ofs hi /\  (Mem.mem_access m) !! b' ofs k = Some Freeable) \/
-  ((b' <> b \/ Z.lt ofs lo \/ Z.le hi ofs) /\ (Mem.mem_access m) !! b' ofs k = None).
+  (P: ((Mem.mem_access m') !! b') ofs k = None):
+  (b' = b /\ Z.le lo ofs /\ Z.lt ofs hi /\  ((Mem.mem_access m) !! b') ofs k = Some Freeable) \/
+  ((b' <> b \/ Z.lt ofs lo \/ Z.le hi ofs) /\ ((Mem.mem_access m) !! b') ofs k = None).
 Proof.
 specialize (Mem.free_result _ _ _ _ _ FR). intros; subst. simpl in *.
 rewrite PMap.gsspec in P.
@@ -649,9 +649,9 @@ destruct (peq b' b); subst.
     assert (RP: Mem.perm m b ofs Cur Freeable). apply (Mem.free_range_perm _ _ _ _ _ FR ofs); omega.
     destruct k.
     * eapply Mem.perm_max in RP.
-      unfold Mem.perm in RP. destruct ((Mem.mem_access m) !! b ofs Max); simpl in *; try discriminate.
+      unfold Mem.perm in RP. destruct (((Mem.mem_access m) !! b) ofs Max); simpl in *; try discriminate.
       destruct p; simpl in *; try inv RP; simpl; trivial. contradiction.
-    * unfold Mem.perm in RP. destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try discriminate.
+    * unfold Mem.perm in RP. destruct (((Mem.mem_access m) !! b) ofs Cur); simpl in *; try discriminate.
       destruct p; simpl in *; try inv RP; simpl; trivial. contradiction.
   - right; split; trivial. right.
     destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; try omega.
@@ -665,8 +665,8 @@ Proof. intros.
   assert (RF: Mem.range_perm m1 b lo hi Cur Freeable).
   { destruct PLE. red; intros.
     specialize (perm_le_Cur b ofs). specialize (H _ H0). unfold Mem.perm in *.
-    destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try contradiction.
-    destruct ((Mem.mem_access m1) !! b ofs Cur); simpl in *; try contradiction.
+    destruct (((Mem.mem_access m) !! b) ofs Cur); simpl in *; try contradiction.
+    destruct (((Mem.mem_access m1) !! b) ofs Cur); simpl in *; try contradiction.
     eapply perm_order_trans; eassumption.
   }
   destruct (Mem.range_perm_free m1 b lo hi RF) as [mm MM].
@@ -674,13 +674,13 @@ Proof. intros.
   destruct PLE.
   split; intros.
   - specialize (perm_le_Cur b0 ofs); clear perm_le_Max perm_le_cont.
-    remember ((Mem.mem_access mm) !! b0 ofs Cur) as q; symmetry in Heqq.
+    remember (((Mem.mem_access mm) !! b0) ofs Cur) as q; symmetry in Heqq.
       destruct q; simpl in *.
       * rewrite (free_access_inv _ _ _ _ _ MM _ _ _ _ Heqq) in *.
-        remember ((Mem.mem_access m') !! b0 ofs Cur) as w; symmetry in Heqw.
+        remember (((Mem.mem_access m') !! b0) ofs Cur) as w; symmetry in Heqw.
          destruct w; trivial.
          rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *. simpl in *; trivial.
-      * remember ((Mem.mem_access m') !! b0 ofs Cur) as w; symmetry in Heqw.
+      * remember (((Mem.mem_access m') !! b0) ofs Cur) as w; symmetry in Heqw.
         destruct w; trivial.
         rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *.
         destruct (free_access_inv_None _ _ _ _ _ MM _ _ _ Heqq).
@@ -691,13 +691,13 @@ Proof. intros.
            destruct (zle lo ofs); destruct (zlt ofs hi); simpl in *; try discriminate; omega.
         ++ destruct H0 as [? ?]. rewrite H1 in *; simpl in *; contradiction.
   - specialize (perm_le_Max b0 ofs); clear perm_le_Cur perm_le_cont.
-    remember ((Mem.mem_access mm) !! b0 ofs Max) as q; symmetry in Heqq.
+    remember (((Mem.mem_access mm) !! b0) ofs Max) as q; symmetry in Heqq.
       destruct q; simpl in *.
       * rewrite (free_access_inv _ _ _ _ _ MM _ _ _ _ Heqq) in *.
-        remember ((Mem.mem_access m') !! b0 ofs Max) as w; symmetry in Heqw.
+        remember (((Mem.mem_access m') !! b0) ofs Max) as w; symmetry in Heqw.
          destruct w; trivial.
          rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *. simpl in *; trivial.
-      * remember ((Mem.mem_access m') !! b0 ofs Max) as w; symmetry in Heqw.
+      * remember (((Mem.mem_access m') !! b0) ofs Max) as w; symmetry in Heqw.
         destruct w; trivial.
         rewrite (free_access_inv _ _ _ _ _ FL _ _ _ _ Heqw) in *.
         destruct (free_access_inv_None _ _ _ _ _ MM _ _ _ Heqq).
@@ -758,10 +758,10 @@ destruct (Mem.range_perm_dec m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writab
 + elim n; clear - PLE r. destruct PLE.
   red; intros. specialize (r _ H). specialize (perm_le_Cur b ofs0).
   unfold Mem.perm in *.
-  destruct ((Mem.mem_access m1) !! b ofs0 Cur).
-  destruct ((Mem.mem_access m) !! b ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
+  destruct (((Mem.mem_access m1) !! b) ofs0 Cur).
+  destruct (((Mem.mem_access m) !! b) ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
   inv r.
-  destruct ((Mem.mem_access m) !! b ofs0 Cur); inv perm_le_Cur. inv r.
+  destruct (((Mem.mem_access m) !! b) ofs0 Cur); inv perm_le_Cur. inv r.
 Qed.
 
 Lemma ple_loadbytes m b ofs n bytes
@@ -780,16 +780,16 @@ destruct (Mem.range_perm_dec m1 b ofs (ofs + n) Cur Readable).
 + elim n0; clear - RP1 perm_le_Cur.
   red; intros. specialize (RP1 _ H). specialize (perm_le_Cur b ofs0).
   unfold Mem.perm in *.
-  destruct ((Mem.mem_access m1) !! b ofs0 Cur).
-  destruct ((Mem.mem_access m) !! b ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
+  destruct (((Mem.mem_access m1) !! b) ofs0 Cur).
+  destruct (((Mem.mem_access m) !! b) ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
   inv RP1.
-  destruct ((Mem.mem_access m) !! b ofs0 Cur); inv perm_le_Cur. inv RP1.
+  destruct (((Mem.mem_access m) !! b) ofs0 Cur); inv perm_le_Cur. inv RP1.
 Qed.
 
 Lemma alloc_access_inv m b lo hi m' (ALLOC: Mem.alloc m lo hi = (m', b)) b' ofs k p
-  (P: (Mem.mem_access m') !! b' ofs k = Some p):
+  (P: ((Mem.mem_access m') !! b') ofs k = Some p):
   (b'=b /\ Z.le lo ofs /\ Z.lt ofs hi) \/
-  (b' <> b /\ (Mem.mem_access m) !! b' ofs k = Some p).
+  (b' <> b /\ ((Mem.mem_access m) !! b') ofs k = Some p).
 Proof.
 Transparent Mem.alloc. unfold Mem.alloc in ALLOC. Opaque Mem.alloc. inv ALLOC; simpl in *.
 rewrite PMap.gsspec in P.
@@ -801,7 +801,7 @@ destruct (peq b' (Mem.nextblock m)); subst; trivial.
 Qed.
 
 Lemma alloc_access_inv_None m b lo hi m' (ALLOC: Mem.alloc m lo hi = (m', b)) b' ofs k
-  (P: (Mem.mem_access m') !! b' ofs k = None): (Mem.mem_access m) !! b' ofs k = None.
+  (P: ((Mem.mem_access m') !! b') ofs k = None): ((Mem.mem_access m) !! b') ofs k = None.
 Proof.
 Transparent Mem.alloc. unfold Mem.alloc in ALLOC. Opaque Mem.alloc. inv ALLOC; simpl in *.
 rewrite PMap.gsspec in P.

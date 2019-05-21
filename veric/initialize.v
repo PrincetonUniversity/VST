@@ -934,7 +934,7 @@ if_tac; auto.
   inv H5.
   left. split; [apply I | ].
   rewrite H4 in H.
- exists  (getN (size_chunk_nat Mptr) z (mem_contents m3) !! b).
+ exists  (getN (size_chunk_nat Mptr) z ((mem_contents m3) !! b)).
  repeat split; auto.
  clear - H. 
  cbv iota. congruence.
@@ -1956,7 +1956,7 @@ destruct (perm_mem_access _ _ _ _ H1) as [p [H4 H5]].
 assert (H2 := perm_drop_2 _ _ _ _ _ _ H 0 Cur p H9).
 rewrite H5.
 unfold perm in *.
-unfold access_at in H5. simpl in H5. destruct ((mem_access m) !! (nextblock m0) 0 Cur); inv H5.
+unfold access_at in H5. simpl in H5. destruct (((mem_access m) !! (nextblock m0)) 0 Cur); inv H5.
 spec H2; [constructor | ].
 destruct p; try solve [inv H2].
 unfold initial_core'. simpl.

@@ -762,18 +762,18 @@ Qed.
 (*A new lemma, used in CompCert2.5 where CompComp-4-CompCert2.1 used decode_val_pointer_inv*)
 Lemma load_ptr_is_fragment ch m b ofs b0 i
       (LD: Mem.load ch m b ofs = Some (Vptr b0 i)):
-  exists q n, ZMap.get ofs (Mem.mem_contents m) !! b = Fragment (Vptr b0 i) q n.
+  exists q n, ZMap.get ofs ((Mem.mem_contents m) !! b) = Fragment (Vptr b0 i) q n.
 Proof.
   apply Mem.load_result in LD.
   apply eq_sym in LD.
   unfold decode_val in LD.
   remember (proj_bytes
-         (Mem.getN (size_chunk_nat ch) ofs (Mem.mem_contents m) !! b)) as v.
+         (Mem.getN (size_chunk_nat ch) ofs ((Mem.mem_contents m) !! b))) as v.
   destruct v.
   + destruct ch; inv LD.
   + destruct ch; try solve [inv LD].
     - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
-      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w.
+      remember (ZMap.get ofs ((Mem.mem_contents m) !! b)) as w.
       destruct w; try discriminate. clear Heqv.
       destruct (Val.eq v v); try discriminate.
       destruct q; try discriminate. simpl in *.
@@ -782,8 +782,8 @@ Proof.
         rewrite proj_sumbool_is_true in LD by auto;
         simpl in LD;
         repeat (destruct n; simpl in LD; try discriminate; [idtac]);
-        match type of LD with context [ZMap.get ?X _ !! _] =>
-          destruct (ZMap.get X (Mem.mem_contents m) !! b); try discriminate LD; [idtac]
+        match type of LD with context [ZMap.get ?X (_ !! _)] =>
+          destruct (ZMap.get X ((Mem.mem_contents m) !! b)); try discriminate LD; [idtac]
         end;
         destruct (Val.eq v v0); try discriminate LD; subst v0;
         destruct q; simpl in LD; try discriminate; [idtac]).
@@ -792,7 +792,7 @@ Proof.
        destruct n; simpl in LD; try discriminate; [idtac].
        destruct v; inv LD. eauto.
     - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
-      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w.
+      remember (ZMap.get ofs ((Mem.mem_contents m) !! b)) as w.
       destruct w; try discriminate. clear Heqv.
       destruct (Val.eq v v); try discriminate.
       destruct q; try discriminate. simpl in *.
@@ -800,8 +800,8 @@ Proof.
         rewrite proj_sumbool_is_true in LD by auto;
         simpl in LD;
         repeat (destruct n; simpl in LD; try discriminate; [idtac]);
-        match type of LD with context [ZMap.get ?X _ !! _] =>
-          destruct (ZMap.get X (Mem.mem_contents m) !! b); try discriminate LD; [idtac]
+        match type of LD with context [ZMap.get ?X (_ !! _)] =>
+          destruct (ZMap.get X ((Mem.mem_contents m) !! b)); try discriminate LD; [idtac]
         end;
         destruct (Val.eq v v0); try discriminate LD; subst v0;
         destruct q; simpl in LD; try discriminate; [idtac]).
@@ -811,7 +811,7 @@ Proof.
        destruct v; inv LD;
       destruct Archi.ptr64 eqn:Hp; try discriminate LD; eauto.
     - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
-      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w.
+      remember (ZMap.get ofs ((Mem.mem_contents m) !! b)) as w.
       destruct w; try discriminate. clear Heqv.
         rewrite ?proj_sumbool_is_true in LD by auto.
         destruct q; simpl in LD; try discriminate; [idtac].
@@ -820,8 +820,8 @@ Proof.
         rewrite ?proj_sumbool_is_true in LD by auto;
         simpl in LD;
         repeat (destruct n; simpl in LD; try discriminate; [idtac]);
-        match type of LD with context [ZMap.get ?X _ !! _] =>
-          destruct (ZMap.get X (Mem.mem_contents m) !! b); try discriminate LD; [idtac]
+        match type of LD with context [ZMap.get ?X (_ !! _)] =>
+          destruct (ZMap.get X ((Mem.mem_contents m) !! b)); try discriminate LD; [idtac]
         end;
         destruct (Val.eq v v0); try discriminate LD; subst v0;
         destruct q; simpl in LD; try discriminate; [idtac]).
@@ -1933,7 +1933,7 @@ Qed.
 Opaque Mem.alloc.
 
 Lemma AllocContentsUndef1: forall z,
-     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
+     ZMap.get z ((Mem.mem_contents m2) !! b) = Undef.
 Proof. intros. rewrite AllocContentsUndef . apply ZMap.gi. Qed.
 
 Lemma AllocContentsOther1: forall b', b' <> b ->

@@ -1683,7 +1683,7 @@ generalize (juicy_mem_access jm (b, ofs')); intro ACCESS.
 unfold perm, perm_order' in H1.
 unfold access_at in ACCESS.
 simpl in *.
-destruct ((mem_access (m_dry jm)) !! b ofs' Cur) eqn:?H; try contradiction.
+destruct (((mem_access (m_dry jm)) !! b) ofs' Cur) eqn:?H; try contradiction.
 specialize (PERM ofs' HA1).
 destruct ( m_phi jm @ (b, ofs') ) eqn:?H; try destruct k; simpl in PERM; try if_tac in PERM; try inv PERM.
 destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
