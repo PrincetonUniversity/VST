@@ -283,13 +283,107 @@ Ltac semax_func_skipn :=
 Ltac LookupID := first [ cbv;reflexivity | fail "Lookup for a function identifier in Genv failed" ].
 Ltac LookupB := first [ cbv;reflexivity | fail "Lookup for a function pointer block in Genv failed" ].
 
-Ltac semax_func_cons L :=
+Lemma semax_body_subsumption' cs cs' V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (CSUB: cspecs_sub cs cs')
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs cs) (snd it) = true) (fn_vars f))
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  @semax_body V' F' cs' f spec.
+Proof.
+  intros.
+  apply (@semax_body_cenv_sub _ _ CSUB); auto.
+  eapply semax_body_subsumption; try eassumption.
+Qed.
+
+Lemma sub_option_get' {A: Type} (s t: PTree.t A) B (f:A -> option B):
+  Forall (fun x => PTree.get (fst x) t = Some (snd x)) (PTree.elements s) ->
+  forall i, sub_option (match PTree.get i s with Some x => f x | _ => None end)
+                       (match PTree.get i t with Some x => f x | _ => None end).
+Proof.
+intros.
+destruct (s ! i) eqn:?H; [ | apply I].
+pose proof (PTree.elements_correct s i H0).
+rewrite Forall_forall in H.
+apply H in H1.
+simpl in H1. rewrite H1. apply sub_option_refl.
+Qed.
+
+Lemma sub_option_get {A: Type} (s t: PTree.t A):
+  Forall (fun x => PTree.get (fst x) t = Some (snd x)) (PTree.elements s) ->
+  forall i, sub_option (PTree.get i s) (PTree.get i t).
+Proof.
+  intros; specialize (sub_option_get' s t A Some H i); intros.
+  destruct (s!i); [simpl; destruct (t!i); inv H0 | ]; trivial.
+Qed. 
+
+Definition tycontext_subVG Vprog1 Gprog1 Vprog2 Gprog2 :=
+ (forall id : positive,
+   sub_option (make_tycontext_g Vprog1 Gprog1) ! id
+    (make_tycontext_g Vprog2 Gprog2) ! id) /\
+ (forall id : positive,
+   subsumespec (make_tycontext_s Gprog1) ! id (make_tycontext_s Gprog2) ! id).
+
+Lemma tycontext_sub_i99:
+ forall f Vprog1 Vprog2 Gprog1 Gprog2 Annot,
+ tycontext_subVG Vprog1 Gprog1 Vprog2 Gprog2 ->
+  tycontext_sub (func_tycontext f Vprog1 Gprog1 Annot)
+                    (func_tycontext f Vprog2 Gprog2 Annot).
+Proof.
+intros.
+destruct H.
+split3; [ | | split3; [ | | split]]; auto.
+-
+unfold temp_types, func_tycontext, make_tycontext.
+intros. destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); auto.
+-
+intros. apply Annotation_sub_refl.
+Qed.
+
+Lemma subsume_spec_get:
+  forall (s t: PTree.t funspec),
+   Forall (fun x => subsumespec (Some (snd x)) (t ! (fst x))) (PTree.elements s) ->
+   (forall i, subsumespec (s ! i) (t ! i)).
+Proof.
+intros.
+destruct (s ! i) eqn:?H; [ | apply I].
+pose proof (PTree.elements_correct s i H0).
+rewrite Forall_forall in H.
+apply H in H1.
+auto.
+Qed.
+
+Ltac apply_semax_body L :=
+eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
+ [red; red; apply @sub_option_get; 
+    repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
+ | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
+ | simple apply tycontext_sub_refl ||
+  (apply tycontext_sub_i99; assumption)].
+
+Ltac try_prove_tycontext_subVG L :=
+  match goal with |- semax_func ?V2 ?G2 _ _ _ =>
+    try match type of L with
+    | semax_body ?V1 ?G1 _ _ =>
+     lazymatch goal with
+     | H: tycontext_subVG V1 G1 V2 G2 |- _ => idtac
+     | _ => 
+      let H := fresh in
+      try assert (H: tycontext_subVG V1 G1 V2 G2) by
+       (split;
+        [ apply sub_option_get;  repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
+        | apply subsume_spec_get;
+         repeat (apply Forall_cons; [apply subsumespec_refl | ]); apply Forall_nil])
+     end end end.
+
+Ltac semax_func_cons L := 
  repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
+ try_prove_tycontext_subVG L;
  first [eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | LookupID | LookupB | precondition_closed | apply L
+           | reflexivity | LookupID | LookupB | precondition_closed 
+           | try solve [apply L]; apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -3936,7 +4030,7 @@ Definition duplicate_ids (il: list ident) : list ident :=
                       if fst b then (snd b)::dl else dl) t nil
   in dl.
 
-Ltac with_library' p G :=
+Ltac old_with_library' p G :=
   let g := eval hnf in G in
   let x := constr:(augment_funspecs' (prog_funct p) g) in
   let x := eval cbv beta iota zeta delta [prog_funct] in x in 
@@ -3963,8 +4057,35 @@ Ltac with_library' p G :=
   end
  end.
 
+Ltac old_with_library prog G :=
+  let pr := eval unfold prog in prog in  old_with_library' pr G.
+
+Ltac with_library' p G :=
+   let t := constr:(List.fold_right (fun i t => PTree.set i tt t) (PTree.empty _)
+                           (map fst (prog_funct p))) in
+   let t := eval compute in t in
+   let missing := constr:(missing_ids t (map fst G)) in
+   let missing := eval simpl in missing in
+   let dups := constr:(duplicate_ids (map fst G))
+   in let dups := eval hnf in dups in 
+   let dups := eval simpl in dups in
+   lazymatch dups with
+   | nil => idtac
+   | _::_ => fail "Duplicate funspecs:" dups
+   end;
+   lazymatch missing with
+   | nil => idtac
+   | _ => fail  "The following names have funspecs but no function definitions: " missing
+  end;
+  let x := eval hnf in G in
+  exact x.
+
 Ltac with_library prog G :=
   let pr := eval unfold prog in prog in  with_library' pr G.
+
+Definition semax_prog {Espec} {CS} prog V G :=
+ @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
+  Espec CS prog V (augment_funspecs prog G).
 
 Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',
@@ -4124,6 +4245,12 @@ Ltac solve_cenvcs_goal :=
  || (cbv; repeat f_equal; apply proof_irr).
 
 Ltac prove_semax_prog_aux tac :=
+  match goal with
+    |- semax_prog ?prog ?Vprog ?Gprog =>
+     let x := constr:(ltac:(old_with_library prog Gprog))
+     in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
+                    prog Vprog x)
+  end;
  split3; [ | | split3; [ | | split]];
  [ reflexivity || fail "duplicate identifier in prog_defs"
  | reflexivity || fail "unaligned initializer"
@@ -4137,7 +4264,13 @@ Ltac prove_semax_prog_aux tac :=
      ((eexists; reflexivity) || 
         fail "Funspec of _main is not in the proper form")
     end
- ]; tac.
+ ]; 
+ match goal with |- semax_func ?V ?G ?g ?D ?G' =>
+   let Gprog := fresh "Gprog" in 
+   pose (Gprog := @abbreviate _ G); 
+  change (semax_func V Gprog g D G')
+ end;
+ tac.
 
 Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]).
 
