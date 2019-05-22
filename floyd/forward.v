@@ -4060,22 +4060,30 @@ Ltac old_with_library' p G :=
 Ltac old_with_library prog G :=
   let pr := eval unfold prog in prog in  old_with_library' pr G.
 
+Definition ptree_incr (s:PTree.t(bool*ident)) (id:ident) := 
+        match PTree.get id s with
+        | Some _ => PTree.set id (true,id) s
+        | None => PTree.set id (false,id) s
+        end.
+
 Ltac with_library' p G :=
    let t := constr:(List.fold_right (fun i t => PTree.set i tt t) (PTree.empty _)
                            (map fst (prog_funct p))) in
    let t := eval compute in t in
    let missing := constr:(missing_ids t (map fst G)) in
    let missing := eval simpl in missing in
-   let dups := constr:(duplicate_ids (map fst G))
-   in let dups := eval hnf in dups in 
-   let dups := eval simpl in dups in
+   let t := constr:(List.fold_left ptree_incr (map fst G) (PTree.empty (bool*ident))) in
+   let t := eval compute in t in 
+   let dups := constr:(PTree.fold (fun (dl: list ident) (id: ident) (b: bool*ident) => 
+                      if fst b then (snd b)::dl else dl) t nil) in
+   let dups := eval simpl in dups in 
    lazymatch dups with
    | nil => idtac
    | _::_ => fail "Duplicate funspecs:" dups
    end;
    lazymatch missing with
    | nil => idtac
-   | _ => fail  "The following names have funspecs but no function definitions: " missing
+   | _ => idtac  "Warning: The following names have funspecs but no function definitions: " missing
   end;
   let x := eval hnf in G in
   exact x.
