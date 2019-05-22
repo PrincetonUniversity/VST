@@ -117,6 +117,11 @@ Ltac my_context_match g :=
   | |- context[g] => idtac
   end.
 Tactic Notation "!context_goal " constr(in_goal) := my_context_match in_goal.
+
+(* simpler way to comment out tactics*)
+Tactic Notation "dont" tactic(t):=
+  idtac.
+                
                 
 
 (* Print type for and ident*)
