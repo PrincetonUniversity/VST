@@ -37,17 +37,11 @@ Qed.
 Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog even.prog) Gprog.
 Existing Instance Espec.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) Gprog.
-Proof.
-semax_func_cons_ext.
-semax_func_cons body_even.
-semax_func_cons body_main.
-Qed.
-
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
 Proof.
-prove_semax_prog_aux idtac.
-apply all_funcs_correct.
+prove_semax_prog.
+semax_func_cons_ext.
+semax_func_cons body_even.
+semax_func_cons body_main.
 Qed.

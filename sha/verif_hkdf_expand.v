@@ -136,9 +136,9 @@ forward_if
   entailer!. } 
 { forward.
   Exists (Val.of_bool (Int.ltu (Int.repr 255) (Int.repr ((olen + 32 - 1) / 32)))).
-  rewrite if_false; trivial. 
-  entailer!. unfold sem_cast, sem_cast_i2bool, Val.of_bool; simpl.
-  destruct (Int.ltu (Int.repr 255) (Int.repr ((olen + 32 - 1) / 32))); simpl; reflexivity. }
+  rewrite if_false; trivial.
+  entailer!.
+}
 apply extract_exists_pre. intros v. Intros. rename H into HV.
 unfold Int.ltu in HV.
 rewrite Int.unsigned_repr in HV; [| rewrite hmac_pure_lemmas.int_max_unsigned_eq; omega].

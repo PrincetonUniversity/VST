@@ -42,6 +42,7 @@ Require Export VST.floyd.freezer.
 Require Export VST.floyd.deadvars.
 Require Export VST.floyd.hints.
 Require Export VST.floyd.Clightnotations.
+Require Export VST.floyd.list_solver.
 Require Export VST.floyd.data_at_lemmas.
 Require VST.msl.iter_sepcon.
 Require VST.msl.wand_frame.
@@ -146,38 +147,86 @@ Ltac EExists_unify :=
   | |- _ |-- !! ?P => EExists_unify1 x P
   end.
 
+Ltac simpl_implicit :=
+  simpl projT1.
+
 Ltac step :=
-first [ progress Intros
-       | let x := fresh "x" in Intros x
-       | forward
-       | forward_if
-       | forward_call
-       | rep_omega | cstring' | list_solve
-       | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
-       | EExists_unify
-       | progress (autorewrite with sublist in *|-)
-       | progress (autorewrite with sublist)
-       | progress (autorewrite with norm)
-       | cstring1
-       | deadvars!
-       | solve [match goal with |- @derives mpred _ _ _ => cancel end]
-       | solve [entailer!; try cstring']
-       ].
+  first
+  [ progress Intros
+  | let x := fresh "x" in Intros x
+  | progress simpl_implicit
+  | progress autorewrite with sublist in *|-
+  | progress autorewrite with sublist
+  | progress autorewrite with norm
+  | forward
+  | forward_if
+  | forward_call
+  | rep_omega | cstring' | list_solve
+  | match goal with |- ENTAIL _, _ |-- _ =>  go_lower end
+  | EExists_unify
+  | cstring1
+  | deadvars!
+  | solve [match goal with |- @derives mpred _ _ _ => cancel end]
+  | solve [entailer!; try cstring']
+  | list_solve!
+  ].
 
 Tactic Notation "step!"  :=
-first [ progress Intros
-       | let x := fresh "x" in Intros x
-       | forward
-       | forward_if
-       | forward_call
-       | rep_omega | cstring' | list_solve
-       | EExists
-       | progress (autorewrite with sublist in *|-)
-       | progress (autorewrite with sublist)
-       | progress (autorewrite with norm)
-       | cstring1
-       | deadvars!
-       | progress_entailer
-       ].
+  first
+  [ progress Intros
+  | let x := fresh "x" in
+    Intros x
+  | progress simpl_implicit
+  | progress autorewrite with sublist in * |-
+  | progress autorewrite with sublist
+  | progress autorewrite with norm
+  | forward
+  | forward_if
+  | forward_call
+  | rep_omega
+  | cstring'
+  | list_solve
+  | EExists
+  | cstring1
+  | deadvars!
+  | progress_entailer
+  (* | match goal with |- _ /\ _ => split end *)
+  | list_solve!
+  ].
 
+Tactic Notation "info_step!" :=
+  first
+  [ progress Intros; idtac "Intros."
+  | let x := fresh "x" in
+    Intros x;
+    idtac "Intros x."
+  | progress simpl_implicit; idtac "simpl_implicit."
+  | progress autorewrite with sublist in * |-; idtac "autorewrite with sublist in * |-."
+  | progress autorewrite with sublist; idtac "autorewrite with sublist."
+  | progress autorewrite with norm; idtac "autorewrite with norm."
+  | forward; idtac "forward."
+  | forward_if; idtac "forward_if."
+  | forward_call; idtac "forward_call."
+  | rep_omega; idtac "rep_omega."
+  | cstring'; idtac "cstring'."
+  | list_solve; idtac "list_solve."
+  | EExists; idtac "EExists."
+  | cstring1; idtac "cstring1."
+  | deadvars!; idtac "deadvars!."
+  | progress_entailer; idtac "progress_entailer."
+  (* | match goal with |- _ /\ _ => split end; idtac "split." *)
+  | list_solve!; idtac "list_solve!."
+  ].
 
+(* A better way to deal with sem_cast_i2bool *)
+Lemma sem_cast_i2bool_of_bool : forall (b : bool),
+  sem_cast_i2bool (Val.of_bool b) = Some (Val.of_bool b).
+Proof.
+  destruct b; auto.
+Qed.
+Hint Rewrite sem_cast_i2bool_of_bool : norm.
+
+Hint Extern 1 (@eq Z _ _) => Zlength_solve : Zlength_solve.
+Hint Extern 1 (@eq _ _ _) => f_equal : f_equal.
+
+Ltac list_solve ::= Zlength_solve.
