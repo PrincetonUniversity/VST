@@ -746,16 +746,15 @@ Qed.
 Program Definition BinaryPi fsig cc (A B:Type)
         (PA QA: A -> environ ->mpred) (PB QB:B -> environ -> mpred): funspec :=
   funspec_Pi_ND fsig cc bool _ _ _.
-Proof.
-  Next Obligation.
-    intros sig cc A B PA QA PB QB x. destruct x. apply A. apply B.
-  Defined.
-  Next Obligation.
-    intros ? ? ? ? ? ? ? ? b X rho. destruct b; simpl in X. apply (PA X rho). apply (PB X rho).
-  Defined.
-  Next Obligation.
-    intros ? ? ? ? ? ? ? ? b X rho. destruct b; simpl in X. apply (QA X rho). apply (QB X rho).
-  Defined.
+Next Obligation.
+  intros sig cc A B PA QA PB QB x. destruct x. apply A. apply B.
+Defined.
+Next Obligation.
+  intros ? ? ? ? ? ? ? ? b X rho. destruct b; simpl in X. apply (PA X rho). apply (PB X rho).
+Defined.
+Next Obligation.
+  intros ? ? ? ? ? ? ? ? b X rho. destruct b; simpl in X. apply (QA X rho). apply (QB X rho).
+Defined.
 
 Definition funspecspec_sub_antisym (f g: funspec):= funspec_sub f g /\ funspec_sub g f.
   

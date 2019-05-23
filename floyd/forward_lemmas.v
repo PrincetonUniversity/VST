@@ -2,6 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.closed_lemmas.
 Import Cop.
+Import LiftNotation.
 Local Open Scope logic.
 
 Lemma semax_while_peel:
@@ -488,7 +489,7 @@ intros.
 apply Int.eqm_samerepr.
 apply Zmod_divide_minus in H; [ | reflexivity].
 unfold Int.eqm.
-unfold Int.eqmod.
+unfold Zbits.eqmod.
 set (m := Int.modulus) in *.
 destruct H as [z ?].
 assert (x = y mod m + z * m) by omega.

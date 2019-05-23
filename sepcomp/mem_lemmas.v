@@ -750,7 +750,7 @@ Qed.
 Lemma loadbytes_D: forall m b ofs n bytes
       (LD: Mem.loadbytes m b ofs n = Some bytes),
       Mem.range_perm m b ofs (ofs + n) Cur Readable /\
-      bytes = Mem.getN (nat_of_Z n) ofs (PMap.get b (Mem.mem_contents m)).
+      bytes = Mem.getN (Z.to_nat n) ofs (PMap.get b (Mem.mem_contents m)).
 Proof. intros.
   Transparent Mem.loadbytes.
   unfold Mem.loadbytes in LD.

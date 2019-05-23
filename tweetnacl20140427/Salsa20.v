@@ -35,8 +35,8 @@ Definition sum (a b:int): int :=
 (*Of course, it's equivalnt to Int.add:*)
 Lemma sum_add: forall x y, sum x y = Int.add x y.
 Proof. intros. unfold sum. rewrite Int.add_unsigned.
-  apply Int.eqm_samerepr. apply Int.eqmod_sym.
-  apply Int.eqmod_mod. cbv; trivial.
+  apply Int.eqm_samerepr. apply Zbits.eqmod_sym.
+  apply Zbits.eqmod_mod. cbv; trivial.
 Qed.
 
 Lemma sum_zero_r a: sum a Int.zero = a.

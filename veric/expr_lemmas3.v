@@ -133,7 +133,7 @@ Definition general_offloat (prec emax : Z)
 
 Definition general_float_to_int (prec emax : Z) (lo hi: Z) (f: Binary.binary_float prec emax) : option int :=
  option_map Int.repr
-   (Fappli_IEEE_extra.ZofB_range prec emax f lo hi).
+   (IEEE754_extra.ZofB_range prec emax f lo hi).
 
 Goal Zoffloat = general_offloat 53 1024.
 reflexivity.
@@ -181,7 +181,7 @@ destruct H0 as [H0 H1].
 apply Z.leb_le in H0; apply Z.leb_le in H1.
 destruct f; inv H.
 { (* zero case *)
-rewrite Fappli_IEEE_extra.ZofB_range_correct. simpl.
+rewrite IEEE754_extra.ZofB_range_correct. simpl.
 unfold Raux.Ztrunc.
 rewrite Raux.Rlt_bool_false by apply RIneq.Rle_refl.
 replace (Raux.Zfloor 0) with 0.
@@ -205,13 +205,13 @@ assert (z = Zaux.cond_Zopp b (Z.pos m) * Z.pow 2 e). {
   pose proof (Pos2Z.neg_is_neg p); omega.
 }
 clear H3. subst z.
-rewrite Fappli_IEEE_extra.ZofB_range_correct.
+rewrite IEEE754_extra.ZofB_range_correct.
 replace
    (Raux.Ztrunc
       (Binary.B2R prec emax (Binary.B754_finite prec emax b m e e0)))
   with (Zaux.cond_Zopp b (Z.pos m) * 2^e).
 rewrite H0,H1; clear H0 H1.
-rewrite (Fappli_IEEE_extra.is_finite_strict_finite prec emax).
+rewrite (IEEE754_extra.is_finite_strict_finite prec emax).
 reflexivity.
 reflexivity.
 unfold Zaux.cond_Zopp.
@@ -304,13 +304,13 @@ assert (z = Zaux.cond_Zopp b (Z.pos m / Z.pow 2 (- e))). {
   rewrite positive_nat_Z; auto.
 }
 clear H3. subst z.
-rewrite Fappli_IEEE_extra.ZofB_range_correct.
+rewrite IEEE754_extra.ZofB_range_correct.
 replace
    (Raux.Ztrunc
       (Binary.B2R prec emax (Binary.B754_finite prec emax b m e e0)))
   with (Zaux.cond_Zopp b (Z.pos m / 2^(-e))).
 rewrite H0,H1; clear H0 H1.
-rewrite (Fappli_IEEE_extra.is_finite_strict_finite prec emax).
+rewrite (IEEE754_extra.is_finite_strict_finite prec emax).
 reflexivity.
 reflexivity.
 unfold Zaux.cond_Zopp.

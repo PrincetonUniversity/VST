@@ -27,6 +27,7 @@ rewrite Nat2Z.inj_mul. rewrite Z.mul_comm. reflexivity.
 Qed.
 
 Hint Rewrite Zlength_intlist_to_bytelist : sublist.
+Hint Rewrite Zlength_intlist_to_bytelist : Zlength.
 
 Lemma skipn_intlist_to_bytelist:
   forall i m, skipn (4*i) (intlist_to_bytelist m) = intlist_to_bytelist (skipn i m).

@@ -55,34 +55,32 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma arith_aux00: forall a b, b <= a -> 0%nat = nat_of_Z (a - b) -> a - b = 0.
+Lemma arith_aux00: forall a b, b <= a -> 0%nat = Z.to_nat (a - b) -> a - b = 0.
 Proof.
   intros.
   pose proof Z2Nat.id (a - b).
-  unfold nat_of_Z in H0.
   rewrite <- H0 in H1.
   simpl Z.of_nat in H1.
   omega.
 Qed.
 
-Lemma arith_aux01: forall a b n, S n = nat_of_Z (a - b) -> b < a.
+Lemma arith_aux01: forall a b n, S n = Z.to_nat (a - b) -> b < a.
 Proof.
   intros.
   destruct (zlt a b); auto.
   + rewrite Z2Nat_neg in H by omega.
     inversion H.
   + pose proof Z2Nat.id (a - b).
-    unfold nat_of_Z in H; rewrite <- H in H0.
+    rewrite <- H in H0.
     spec H0; [omega |].
     rewrite Nat2Z.inj_succ in H0.
     omega.
 Qed.
 
-Lemma arith_aux02: forall n a b, S n = nat_of_Z (a - b) -> n = nat_of_Z (a - Z.succ b).
+Lemma arith_aux02: forall n a b, S n = Z.to_nat (a - b) -> n = Z.to_nat (a - Z.succ b).
 Proof.
   intros.
   pose proof arith_aux01 _ _ _ H.
-  unfold nat_of_Z in *.
   pose proof Z2Nat.id (a - b).
   spec H1; [omega |].
   rewrite <- H in H1.
@@ -168,24 +166,25 @@ Solve_mod_modulus
 
 Definition int_modm x := x mod Int.modulus.
 
-Lemma int_modm_mod_eq: forall x y, Int.eqmod Int.modulus x y -> x mod Int.modulus = int_modm y.
+Lemma int_modm_mod_eq: 
+  forall x y, Zbits.eqmod Int.modulus x y -> x mod Int.modulus = int_modm y.
 Proof.
   intros.
-  apply Int.eqmod_mod_eq; auto.
+  apply Zbits.eqmod_mod_eq; auto.
   apply Int.modulus_pos.
 Qed.
 
-Lemma int_modm_mod_elim: forall x y, Int.eqmod Int.modulus x y -> Int.eqmod Int.modulus (x mod Int.modulus) y.
+Lemma int_modm_mod_elim: forall x y, Zbits.eqmod Int.modulus x y -> Zbits.eqmod Int.modulus (x mod Int.modulus) y.
 Proof.
   intros.
-  eapply Int.eqmod_trans; eauto.
-  apply Int.eqmod_sym, Int.eqmod_mod.
+  eapply Zbits.eqmod_trans; eauto.
+  apply Zbits.eqmod_sym, Zbits.eqmod_mod.
   apply Int.modulus_pos.
 Qed.
 
 Definition int_reprm := Int.repr.
 
-Lemma int_modm_repr_eq: forall x y, Int.eqmod Int.modulus x y -> Int.repr x = int_reprm y.
+Lemma int_modm_repr_eq: forall x y, Zbits.eqmod Int.modulus x y -> Int.repr x = int_reprm y.
 Proof.
   intros.
   apply Int.eqm_samerepr; auto.
@@ -197,19 +196,19 @@ Ltac int_simpl_mod A H :=
   match A with
   | (?B + ?C)%Z =>
     int_simpl_mod B H0; int_simpl_mod C H1;
-    pose proof Int.eqmod_add Int.modulus _ _ _ _ H0 H1 as H;
+    pose proof Zbits.eqmod_add Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B - ?C)%Z =>
     int_simpl_mod B H0; int_simpl_mod C H1;
-    pose proof Int.eqmod_sub Int.modulus _ _ _ _ H0 H1 as H;
+    pose proof Zbits.eqmod_sub Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B * ?C)%Z =>
     int_simpl_mod B H0; int_simpl_mod C H1;
-    pose proof Int.eqmod_mult Int.modulus _ _ _ _ H0 H1 as H;
+    pose proof Zbits.eqmod_mult Int.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (- ?B)%Z =>
     int_simpl_mod B H0;
-    pose proof Int.eqmod_neg Int.modulus _ _ H0 as H;
+    pose proof Zbits.eqmod_neg Int.modulus _ _ H0 as H;
     clear H0
   | ?B mod Int.modulus =>
     int_simpl_mod B H0;
@@ -220,30 +219,30 @@ Ltac int_simpl_mod A H :=
     pose proof int_modm_mod_elim B _ H0 as H;
     clear H0
   | _ =>
-    pose proof Int.eqmod_refl Int.modulus A as H
+    pose proof Zbits.eqmod_refl Int.modulus A as H
   end.
 
 
 Definition ptrofs_modm x := x mod Ptrofs.modulus.
 
-Lemma ptrofs_modm_mod_eq: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> x mod Ptrofs.modulus = ptrofs_modm y.
+Lemma ptrofs_modm_mod_eq: forall x y, Zbits.eqmod Ptrofs.modulus x y -> x mod Ptrofs.modulus = ptrofs_modm y.
 Proof.
   intros.
-  apply Ptrofs.eqmod_mod_eq; auto.
+  apply Zbits.eqmod_mod_eq; auto.
   apply Ptrofs.modulus_pos.
 Qed.
 
-Lemma ptrofs_modm_mod_elim: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> Ptrofs.eqmod Ptrofs.modulus (x mod Ptrofs.modulus) y.
+Lemma ptrofs_modm_mod_elim: forall x y, Zbits.eqmod Ptrofs.modulus x y -> Zbits.eqmod Ptrofs.modulus (x mod Ptrofs.modulus) y.
 Proof.
   intros.
-  eapply Ptrofs.eqmod_trans; eauto.
-  apply Ptrofs.eqmod_sym, Ptrofs.eqmod_mod.
+  eapply Zbits.eqmod_trans; eauto.
+  apply Zbits.eqmod_sym, Zbits.eqmod_mod.
   apply Ptrofs.modulus_pos.
 Qed.
 
 Definition ptrofs_reprm := Ptrofs.repr.
 
-Lemma ptrofs_modm_repr_eq: forall x y, Ptrofs.eqmod Ptrofs.modulus x y -> Ptrofs.repr x = ptrofs_reprm y.
+Lemma ptrofs_modm_repr_eq: forall x y, Zbits.eqmod Ptrofs.modulus x y -> Ptrofs.repr x = ptrofs_reprm y.
 Proof.
   intros.
   apply Ptrofs.eqm_samerepr; auto.
@@ -255,19 +254,19 @@ Ltac ptrofs_simpl_mod A H :=
   match A with
   | (?B + ?C)%Z =>
     ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
-    pose proof Ptrofs.eqmod_add Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    pose proof Zbits.eqmod_add Ptrofs.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B - ?C)%Z =>
     ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
-    pose proof Ptrofs.eqmod_sub Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    pose proof Zbits.eqmod_sub Ptrofs.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (?B * ?C)%Z =>
     ptrofs_simpl_mod B H0; ptrofs_simpl_mod C H1;
-    pose proof Ptrofs.eqmod_mult Ptrofs.modulus _ _ _ _ H0 H1 as H;
+    pose proof Zbits.eqmod_mult Ptrofs.modulus _ _ _ _ H0 H1 as H;
     clear H1 H0
   | (- ?B)%Z =>
     ptrofs_simpl_mod B H0;
-    pose proof Ptrofs.eqmod_neg Ptrofs.modulus _ _ H0 as H;
+    pose proof Zbits.eqmod_neg Ptrofs.modulus _ _ H0 as H;
     clear H0
   | ?B mod Ptrofs.modulus =>
     ptrofs_simpl_mod B H0;
@@ -278,7 +277,7 @@ Ltac ptrofs_simpl_mod A H :=
     pose proof ptrofs_modm_mod_elim B _ H0 as H;
     clear H0
   | _ =>
-    pose proof Ptrofs.eqmod_refl Ptrofs.modulus A as H
+    pose proof Zbits.eqmod_refl Ptrofs.modulus A as H
   end.
 
 Ltac solve_mod_modulus :=
@@ -341,8 +340,8 @@ Proof.
 intros. unfold Int.mul.
 apply Int.eqm_samerepr.
 repeat rewrite Int.unsigned_repr_eq.
-apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
-apply Int.eqmod_mod; compute; congruence.
+apply Int.eqm_mult; unfold Int.eqm; apply Zbits.eqmod_sym;
+apply Zbits.eqmod_mod; compute; congruence.
 Qed.
 
 Lemma sub_repr: forall i j,
@@ -369,8 +368,8 @@ Proof.
 intros. unfold Ptrofs.mul.
 apply Ptrofs.eqm_samerepr.
 repeat rewrite Ptrofs.unsigned_repr_eq.
-apply Ptrofs.eqm_mult; unfold Ptrofs.eqm; apply Ptrofs.eqmod_sym;
-apply Ptrofs.eqmod_mod; compute; congruence.
+apply Ptrofs.eqm_mult; unfold Ptrofs.eqm; apply Zbits.eqmod_sym;
+apply Zbits.eqmod_mod; compute; congruence.
 Qed.
 
 Lemma ptrofs_sub_repr: forall i j,
@@ -436,8 +435,8 @@ Proof.
 intros. unfold Int64.mul.
 apply Int64.eqm_samerepr.
 repeat rewrite Int64.unsigned_repr_eq.
-apply Int64.eqm_mult; unfold Int64.eqm; apply Int64.eqmod_sym;
-apply Int64.eqmod_mod; compute; congruence.
+apply Int64.eqm_mult; unfold Int64.eqm; apply Zbits.eqmod_sym;
+apply Zbits.eqmod_mod; compute; congruence.
 Qed.
 
 Lemma sub64_repr: forall i j,
@@ -593,9 +592,9 @@ rewrite Hp.
 unfold Int.modulus.
 unfold Int.wordsize.
 unfold Wordsize_32.wordsize.
-apply Int.eqmod_divides with (two_power_nat 64).
-apply Int.eqmod_sym.
-apply Int.eqmod_mod.
+apply Zbits.eqmod_divides with (two_power_nat 64).
+apply Zbits.eqmod_sym.
+apply Zbits.eqmod_mod.
 compute. auto.
 exists (two_power_nat 32).
 reflexivity.
@@ -621,9 +620,9 @@ rewrite Hp.
 unfold Int64.modulus.
 unfold Int64.wordsize.
 unfold Wordsize_64.wordsize.
-apply Int64.eqmod_divides with (two_power_nat 64).
-apply Int.eqmod_sym.
-apply Int.eqmod_mod.
+apply Zbits.eqmod_divides with (two_power_nat 64).
+apply Zbits.eqmod_sym.
+apply Zbits.eqmod_mod.
 compute. auto.
 exists 1.
 reflexivity.

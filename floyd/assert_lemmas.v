@@ -5,6 +5,7 @@ Require Export compcert.lib.Coqlib.
 Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Import VST.floyd.val_lemmas.
 Local Open Scope logic.
+Import LiftNotation.
 
 Ltac _destruct_var_types i Heq_vt Heq_ve t b ::=
   let HH := fresh "H" in

@@ -52,7 +52,7 @@ Intros a.
 Exists (dp,  ctx, sh, info, len, data, sh, Data, a, 
               Info, s, rc, pr_flag, ri, handle_ss, gv).
 Exists emp.
-change (`emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
+change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
 apply andp_right.
 *
 entailer!.

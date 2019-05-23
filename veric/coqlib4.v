@@ -92,12 +92,12 @@ Proof.
   destruct (Z_le_dec m1 m2).
   + rewrite Z.max_r by omega.
     rewrite power_nat_divide_le in l by auto.
-    pose proof Zdivides_trans m1 m2 m.
+    pose proof Z.divide_trans m1 m2 m.
     tauto.
   + rewrite Z.max_l by omega.
     assert (m2 <= m1) by omega.
     rewrite power_nat_divide_le in H1 by auto.
-    pose proof Zdivides_trans m2 m1 m.
+    pose proof Z.divide_trans m2 m1 m.
     tauto.
 Qed.
 
@@ -148,12 +148,11 @@ intros. revert al H; induction i; destruct al; simpl; intros; auto; try omega.
 apply IHi. omega.
 Qed.
 
-Lemma nat_of_Z_eq: forall i, nat_of_Z (Z_of_nat i) = i.
+Lemma nat_of_Z_eq: forall i, Z.to_nat (Z_of_nat i) = i.
 Proof.
 intros.
 apply inj_eq_rev.
-rewrite nat_of_Z_eq; auto.
-omega.
+rewrite Nat2Z.id; auto.
 Qed.
 
 Lemma nth_error_length:

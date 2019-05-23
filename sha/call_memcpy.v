@@ -5,6 +5,7 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Local Open Scope nat.
 Local Open Scope logic.
+Import LiftNotation.
 
 Lemma Zlength_list_repeat:
   forall {A} n (x:A), Zlength (list_repeat (Z.to_nat n) x) = Z.max 0 n.

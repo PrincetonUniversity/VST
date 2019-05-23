@@ -35,98 +35,6 @@ Context {CS : compspecs} {inv_names : invG}.
 Section atomicity.
 
 (* up *)
-Lemma approx_mono: forall n P Q, (P >=> Q) (Nat.pred n) -> approx n P |-- approx n Q.
-Proof.
-  intros.
-  change (predicates_hered.derives (approx n P) (approx n Q)).
-  intros ? [? HP]; split; auto.
-  eapply H in HP; eauto; omega.
-Qed.
-
-(* up *)
-Lemma subp_wand: forall (G : Triv) (P P' Q Q' : mpred), G |-- P' >=> P -> G |-- Q >=> Q' ->
-    G |-- ((P -* Q) >=> (P' -* Q'))%pred.
-Proof.
-  repeat intro.
-  exploit join_level; eauto; intros [].
-  pose proof (necR_level _ _ H3); pose proof (necR_level _ _ H5).
-  eapply (H0 _ H1 z ltac:(omega) _ (necR_refl _)), H4; eauto.
-  eapply (H _ H1 y0 ltac:(omega) _ (necR_refl _)); auto.
-Qed.
-
-Lemma eqp_wand: forall (G : Triv) (P P' Q Q' : mpred), G |-- P <=> P' -> G |-- Q <=> Q' ->
-    G |-- ((P -* Q) <=> (P' -* Q')).
-Proof.
-  intros.
-  rewrite fash_andp in *.
-  apply andp_right; apply subp_wand.
-  - eapply derives_trans; [apply H | apply andp_left2, derives_refl].
-  - eapply derives_trans; [apply H0 | apply andp_left1, derives_refl].
-  - eapply derives_trans; [apply H | apply andp_left1, derives_refl].
-  - eapply derives_trans; [apply H0 | apply andp_left2, derives_refl].
-Qed.
-
-Lemma subp_fupd: forall (G : Triv) E1 E2 (P P' : mpred), G |-- P >=> P' ->
-    G |-- ((|={E1,E2}=> P) >=> |={E1,E2}=> P').
-Proof.
-  intros; unfold fupd.
-  apply subp_wand; [apply subp_refl|].
-  apply own.subp_bupd.
-  apply subtypes.subp_orp, subtypes.subp_refl.
-  apply subtypes_sl.subp_sepcon; auto; apply subtypes.subp_refl.
-Qed.
-
-Lemma eqp_fupd: forall (G : Triv) E1 E2 (P P' : mpred), G |-- P <=> P' ->
-    G |-- ((|={E1,E2}=> P) <=> |={E1,E2}=> P').
-Proof.
-  intros.
-  rewrite fash_andp in *.
-  apply andp_right; apply subp_fupd; eapply derives_trans; try apply H;
-    [apply andp_left1 | apply andp_left2]; apply derives_refl.
-Qed.
-
-Lemma eqp_imp: forall (G : Triv) (P P' Q Q' : mpred),
-       G |-- P <=> P' -> G |-- Q <=> Q' -> G |-- (P --> Q) <=> P' --> Q'.
-Proof.
-  intros.
-  rewrite fash_andp in *.
-  apply andp_right; apply subp_imp.
-  - eapply derives_trans; [apply H | apply andp_left2, derives_refl].
-  - eapply derives_trans; [apply H0 | apply andp_left1, derives_refl].
-  - eapply derives_trans; [apply H | apply andp_left1, derives_refl].
-  - eapply derives_trans; [apply H0 | apply andp_left2, derives_refl].
-Qed.
-
-Lemma fview_shift_nonexpansive: forall E1 E2 P Q n,
-  approx n (P -* |={E1,E2}=> Q) = approx n (approx n P -* |={E1,E2}=> (approx n Q)).
-Proof.
-  intros ??; apply nonexpansive2_super_non_expansive; intros ???.
-  - apply eqp_wand, eqp_fupd.
-    + apply eqp_refl.
-    + apply derives_refl.
-  - apply eqp_wand, eqp_fupd.
-    + apply derives_refl.
-    + apply eqp_refl.
-Qed.
-
-(*Lemma apply_fview_shift: forall E1 E2 P Q, (weak_fview_shift E1 E2 P Q && emp) * P |-- |={E1, E2}=> Q.
-Proof.
-  intros; unfold weak_fview_shift.
-  eapply derives_trans, modus_ponens_wand.
-  rewrite sepcon_comm; apply sepcon_derives, andp_left1; apply derives_refl.
-Qed.
-
-Lemma apply_fview_shift' : forall E1 E2 P Q P', P' |-- |==> P ->
-  weak_fview_shift E1 E2 P Q && emp * P' |-- |={E1,E2}=> Q.
-Proof.
-  intros.
-  apply fupd_bupd.
-  eapply derives_trans, bupd_mono, apply_fview_shift.
-  eapply derives_trans; [apply sepcon_derives, H; apply derives_refl|].
-  apply bupd_frame_l.
-Qed.*)
-
-(* up *)
 Lemma emp_dup: forall P, P && emp = (P && emp) * (P && emp).
 Proof.
   intros.
@@ -253,7 +161,7 @@ Ltac start_atomic_function :=
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
    match Pre with 
    | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
-   | (fun i => _) => intros Espec DependedTypeList (x, Q)
+   | (fun i => _) => intros Espec DependedTypeList ((x, Q), inv_names)
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;

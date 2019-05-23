@@ -399,12 +399,12 @@ Proof.
   rewrite bind_bind.
   apply eutt_bind; [|reflexivity].
   intros [].
-  - rewrite bind_ret, unfold_aloop.
+  - rewrite Shallow.bind_ret, unfold_aloop.
     reflexivity.
   - rewrite bind_bind.
     apply eutt_bind; [|reflexivity].
     intro.
-    rewrite bind_ret; reflexivity.
+    rewrite Shallow.bind_ret; reflexivity.
 Qed.
 
 Lemma for_loop_eq : forall i z body,
@@ -418,9 +418,9 @@ Proof.
   rewrite bind_bind.
   apply eutt_bind; [|reflexivity].
   intros [].
-  - rewrite bind_ret, unfold_aloop.
+  - rewrite Shallow.bind_ret, unfold_aloop.
     reflexivity.
-  - rewrite bind_ret; reflexivity.
+  - rewrite Shallow.bind_ret; reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
@@ -493,7 +493,7 @@ Proof.
         destruct (Z.ltb_spec i 4); try omega.
         unfold read_sum_inner at 2.
         replace (_ || _)%bool with true.
-        rewrite !bind_ret; reflexivity.
+        rewrite !Shallow.bind_ret; reflexivity.
         symmetry; rewrite orb_true_iff.
         rewrite Int.unsigned_sub_borrow in *.
         unfold Int.sub_borrow in *.
@@ -535,7 +535,7 @@ Proof.
         apply ITREE_impl; rewrite !bind_bind.
         apply eutt_bind; [|reflexivity].
         intros [].
-        rewrite bind_ret; reflexivity. }
+        rewrite Shallow.bind_ret; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; omega. }
       entailer!.
       { rewrite Hi, sum_Z_app; simpl.
@@ -545,7 +545,7 @@ Proof.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
         apply ITREE_impl.
-        simpl; rewrite bind_ret; reflexivity. }
+        simpl; rewrite Shallow.bind_ret; reflexivity. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.

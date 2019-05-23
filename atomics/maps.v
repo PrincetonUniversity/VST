@@ -57,11 +57,13 @@ Qed.
 End ListMaps.
 
 Section Logs.
-(* A log is a map from Z, and a finite log has a latest element. *)
+(* A log is a map from nat, and a finite log has a latest element. *)
 
 Context {B : Type}.
 
-Definition log_latest s (v1 : Z) (v2 : B) := s v1 = Some v2 /\ forall v', v1 < v' -> s v' = None.
+Local Close Scope Z.
+
+Definition log_latest s (v1 : nat) (v2 : B) := s v1 = Some v2 /\ forall v', v1 < v' -> s v' = None.
 
 Lemma log_latest_singleton : forall v1 v2, log_latest (singleton v1 v2) v1 v2.
 Proof.
@@ -74,7 +76,7 @@ Lemma log_incl_latest : forall k1 k2 v1 v2 log1 log2 (Hincl : map_incl log1 log2
   (Hv1 : log1 k1 = Some v1) (Hlatest : log_latest log2 k2 v2), k1 <= k2.
 Proof.
   intros.
-  destruct (zlt k2 k1); [|omega].
+  destruct (lt_dec k2 k1); [|omega].
   destruct Hlatest as (? & Hlatest).
   specialize (Hlatest _ l).
   specialize (Hincl _ _ Hv1); rewrite Hincl in Hlatest; discriminate.
@@ -106,19 +108,19 @@ Qed.
 
 Lemma log_latest_add : forall m1 m2 k1 k2 (v1 v2 : B)
   (Hlatest1 : log_latest m1 k1 v1) (Hlatest2 : log_latest m2 k2 v2),
-  log_latest (map_add m1 m2) (Z.max k1 k2) (if zlt k1 k2 then v2 else v1).
+  log_latest (map_add m1 m2) (max k1 k2) (if lt_dec k1 k2 then v2 else v1).
 Proof.
   unfold log_latest, map_add; intros.
   destruct Hlatest1 as (Hv1 & Hk1), Hlatest2 as (Hv2 & Hk2).
-  destruct (zlt k1 k2).
-  - rewrite Z.max_r by omega.
+  destruct (lt_dec k1 k2).
+  - rewrite max_r by omega.
     rewrite Hk1 by auto; split; auto.
     intros; rewrite Hk1, Hk2; auto; omega.
-  - rewrite Z.max_l, Hv1 by omega; split; auto.
+  - rewrite max_l, Hv1 by omega; split; auto.
     intros; rewrite Hk1, Hk2; auto; omega.
 Qed.
 
-Lemma log_latest_upd_list : forall l (m : Z -> option B) k v k' v' (Hm : log_latest m k v)
+Lemma log_latest_upd_list : forall l (m : nat -> option B) k v k' v' (Hm : log_latest m k v)
   (Hlast : last l (k, v) = (k', v')) (Hlt : k <= k') (Hordered : Forall (fun '(k, v) => k <= k') l),
   log_latest (map_upd_list m l) k' v'.
 Proof.

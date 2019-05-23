@@ -20,7 +20,7 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
 Local Open Scope pred.
-
+Import LiftNotation.
 Section extensions.
   Context {CS: compspecs} {Espec: OracleKind}.
   
@@ -1350,7 +1350,7 @@ subst b'.
 rewrite (nth_getN m' b _ _ _ H0).
 rewrite (store_mem_contents _ _ _ _ _ _ STORE).
 rewrite PMap.gss.
-replace (nat_of_Z (size_chunk ch)) with (size_chunk_nat ch) by (destruct ch; simpl; auto).
+replace (Z.to_nat (size_chunk ch)) with (size_chunk_nat ch) by (destruct ch; simpl; auto).
 rewrite <- (encode_val_length ch v').
 rewrite getN_setN_same.
 apply YES_ext.

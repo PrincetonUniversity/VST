@@ -1716,65 +1716,47 @@ Ltac ghosts_alloc G n :=
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
    apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init|] end.
 
-(* weak view shift for use in funspecs *)
-(* This could be replaced with P -* |==> Q. *)
-Program Definition weak_view_shift (P Q: mpred): mpred :=
-  fun w => predicates_hered.derives (approx (S (level w)) P) (own.bupd (approx (S (level w)) Q)).
-Next Obligation.
-  repeat intro.
-  destruct H1.
-  apply age_level in H.
-  lapply (H0 a0); [|split; auto; omega].
-  intro HQ; destruct (HQ _ H2) as (? & ? & ? & ? & ? & ? & []).
-  eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
-Defined.
-
-Lemma view_shift_nonexpansive: forall P Q n,
-  approx n (weak_view_shift P Q) = approx n (weak_view_shift (approx n P) (approx n Q)).
-Proof.
-  apply nonexpansive2_super_non_expansive; repeat intro.
-  - split; intros ??%necR_level Hshift ? HP ? J;
-      destruct (Hshift _ HP _ J) as (? & ? & m' & ? & ? & ? & []); destruct HP;
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto;
-      apply (H m'); auto; omega.
-  - split; intros ??%necR_level Hshift ? []; apply Hshift; split; auto; apply (H a0); auto; omega.
-Qed.
-
-Lemma view_shift_nonexpansive_l: forall P Q n,
-  approx n (weak_view_shift P Q) = approx n (weak_view_shift (approx n P) Q).
+Lemma wand_nonexpansive_l: forall P Q n,
+  approx n (P -* Q)%logic = approx n (approx n P  -* Q)%logic.
 Proof.
   repeat intro.
-  apply (nonexpansive_super_non_expansive (fun P => weak_view_shift P Q)); repeat intro.
-  split; intros ??%necR_level Hshift ? []; apply Hshift; split; auto; apply (H a0); auto; omega.
+  apply (nonexpansive_super_non_expansive (fun P => predicates_sl.wand P Q)).
+  split; intros ?? Hshift ??????.
+  - eapply Hshift; eauto.
+    apply necR_level in H1; apply necR_level in H2.
+    apply join_level in H3 as [].
+    apply (H y0); auto; omega.
+  - eapply Hshift; eauto.
+    apply necR_level in H1; apply necR_level in H2.
+    apply join_level in H3 as [].
+    apply (H y0); auto; omega.
 Qed.
 
-Lemma view_shift_nonexpansive_R: forall P Q n,
-  approx n (weak_view_shift P Q) = approx n (weak_view_shift P (approx n Q)).
+Lemma wand_nonexpansive_r: forall P Q n,
+  approx n (P -* Q)%logic = approx n (P  -* approx n Q)%logic.
 Proof.
   repeat intro.
-  apply (nonexpansive_super_non_expansive (fun Q => weak_view_shift P Q)); repeat intro.
-  split; intros ??%necR_level Hshift ? HP ? J;
-      destruct (Hshift _ HP _ J) as (? & ? & m' & ? & ? & ? & []); destruct HP;
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto;
-      apply (H m'); auto; omega.
+  apply (nonexpansive_super_non_expansive (fun Q => predicates_sl.wand P Q)).
+  split; intros ?? Hshift ??????.
+  - eapply Hshift in H4; eauto.
+    apply necR_level in H1; apply necR_level in H2.
+    apply join_level in H3 as [].
+    apply (H z); auto; omega.
+  - eapply Hshift in H4; eauto.
+    apply necR_level in H1; apply necR_level in H2.
+    apply join_level in H3 as [].
+    apply (H z); auto; omega.
 Qed.
 
-Lemma view_shift_weak: forall P Q, P |-- (|==> Q) -> TT |-- weak_view_shift P Q.
+Lemma wand_nonexpansive: forall P Q n,
+  approx n (P -* Q)%logic = approx n (approx n P  -* approx n Q)%logic.
+Proof.
+  intros; rewrite wand_nonexpansive_l, wand_nonexpansive_r; reflexivity.
+Qed.
+
+Corollary view_shift_nonexpansive : forall P Q n,
+  approx n (P -* |==> Q)%logic = approx n (approx n P  -* |==> approx n Q)%logic.
 Proof.
   intros.
-  change (predicates_hered.derives TT (weak_view_shift P Q)).
-  intros w _ ? [? HP] ? J.
-  destruct (H _ HP _ J) as (? & ? & ? & ? & ? & ? & ?).
-  eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
-Qed.
-
-Lemma apply_view_shift: forall P Q, (weak_view_shift P Q && emp) * P |-- |==> Q.
-Proof.
-  intros.
-  change (predicates_hered.derives ((weak_view_shift P Q && emp) * P) (own.bupd Q)).
-  intros ? (? & ? & ? & [Hshift Hemp] & HP) ? J.
-  destruct (join_level _ _ _ H).
-  apply Hemp in H; subst.
-  lapply (Hshift a); [|split; auto; omega].
-  intro X; destruct (X _ J) as (? & ? & ? & ? & ? & ? & []); eauto 7.
+  rewrite wand_nonexpansive, approx_bupd; reflexivity.
 Qed.

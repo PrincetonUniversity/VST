@@ -85,8 +85,8 @@ intros.
 pose proof (Int.eqmod_sign_ext n (Int.repr i) H).
 pose proof (Int.eqmod_sign_ext n (Int.repr j) H).
 rewrite H2 in H3.
-apply Int.eqmod_sym in H3.
-pose proof (Int.eqmod_trans _ _ _ _ H3 H4).
+apply Zbits.eqmod_sym in H3.
+pose proof (Zbits.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
@@ -95,7 +95,7 @@ rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
-apply Int.eqmod_small_eq in H5; auto.
+apply Zbits.eqmod_small_eq in H5; auto.
 Qed.
 
 
@@ -111,8 +111,8 @@ intros.
 pose proof (Int.eqmod_zero_ext n (Int.repr i) H).
 pose proof (Int.eqmod_zero_ext n (Int.repr j) H).
 rewrite H2 in H3.
-apply Int.eqmod_sym in H3.
-pose proof (Int.eqmod_trans _ _ _ _ H3 H4).
+apply Zbits.eqmod_sym in H3.
+pose proof (Zbits.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
@@ -121,7 +121,7 @@ rewrite Int.unsigned_repr in H5.
 2: pose proof (two_p_monotone_strict n Int.zwordsize);
    change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
-apply Int.eqmod_small_eq in H5; auto.
+apply Zbits.eqmod_small_eq in H5; auto.
 Qed.
 
 Lemma repr_decode_int_inj:

@@ -21,7 +21,8 @@ Existing Instance Espec.
 
 (* This lemma ties all the function proofs into a single proof for the entire program. *)
 Lemma all_funcs_correct:
-  semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) Gprog.
+  semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) 
+   ltac:(old_with_library prog Gprog).
 Proof.
 unfold Gprog, prog, prog_funct, main_pre, main_post, prog_vars; simpl.
 repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]).

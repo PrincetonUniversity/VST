@@ -37,6 +37,7 @@ Require Import VST.veric.valid_pointer.
 Require Import VST.veric.own.
 Require VST.veric.semax_prog.
 Require VST.veric.semax_ext.
+Import LiftNotation.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -302,14 +303,12 @@ Definition closed_wrt_lvars {B} (S: ident -> Prop) (F: environ -> B) : Prop :=
 Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
   ~ In i (map (@fst _ _) params).
 
-Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
-  In  i (map (@fst _ _) vars) .
 
 Definition precondition_closed (f: function) {A: rmaps.TypeTree}
   (P: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) : Prop :=
  forall ts x,
   closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\
-  closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
+  closed_wrt_lvars (fun _ => True) (P ts x).
 
 Definition typed_true (t: type) (v: val)  : Prop :=  strict_bool_val v t
 = Some true.
@@ -366,7 +365,7 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
   | Vptr b z => 
     !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
-    mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
+    mapsto_memory_block.address_mapsto_zeros sh (Z.to_nat n) (b, Ptrofs.unsigned z)
   | _ => FF
   end.
 
@@ -454,7 +453,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Ptrofs.unsigned ofs)
+ | Vptr b ofs => (!! (Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && mapsto_memory_block.memory_block' sh (Z.to_nat n) b (Ptrofs.unsigned ofs)
  | _ => FF
  end.
 

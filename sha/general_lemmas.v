@@ -88,7 +88,7 @@ Lemma byte_testbit:
   forall i j, j >= 8 -> Z.testbit (Byte.unsigned i) j = false.
 Proof.
 intros. 
-apply (Byte.Ztestbit_above 8).
+apply (Zbits.Ztestbit_above 8).
 apply Byte.unsigned_range.
 apply H.
 Qed.

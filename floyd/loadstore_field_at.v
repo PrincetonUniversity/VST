@@ -8,6 +8,7 @@ Require Import VST.floyd.data_at_rec_lemmas.
 Require Import VST.floyd.field_at.
 Require Import VST.floyd.loadstore_mapsto.
 
+Import LiftNotation.
 Local Open Scope logic.
 
 Lemma is_neutral_cast_by_value: forall t t',

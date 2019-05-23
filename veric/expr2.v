@@ -4,8 +4,8 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Clight_lemmas.
 Require Export VST.veric.expr.
-
 Require Import VST.veric.mpred.
+Import LiftNotation.
 
 Lemma neutral_cast_lemma: forall t1 t2 v,
   is_neutral_cast t1 t2 = true ->

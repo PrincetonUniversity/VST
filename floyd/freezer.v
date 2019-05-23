@@ -103,15 +103,15 @@ generalize dependent R.
 induction n; destruct R; simpl; cancel. apply Freezer.FRZ1.
 Qed.
 Tactic Notation "freeze1_SEP" constr(n) :=
-  eapply (freeze1_SEP' (nat_of_Z n)); simpl.
+  eapply (freeze1_SEP' (Z.to_nat n)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) :=
-  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  :=
-  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k)  constr(p) :=
-  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::p::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 Tactic Notation "freeze1_SEP" constr(n) constr(m) constr(k) constr(p) constr(q) :=
-  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (nat_of_Z 0)); simpl.
+  (gather_SEP' (n::m::k::p::q::nil)); eapply (freeze1_SEP' (Z.to_nat 0)); simpl.
 
 (*******************freezing a list of mpreds ******************************)
 
@@ -441,7 +441,7 @@ Ltac solve_is_increasing :=
   end.
 
 Ltac freeze_tac L name :=
-  eapply (freeze_SEP'' (map nat_of_Z L)); 
+  eapply (freeze_SEP'' (map Z.to_nat L)); 
    [solve_is_increasing | reflexivity 
    | match goal with
            | |- semax _ (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) _ _ =>
@@ -454,7 +454,7 @@ Ltac freeze_tac L name :=
          end].
 
 Ltac freeze_tac_entail L name :=
-  eapply (freeze_SEP''entail (map nat_of_Z L)); 
+  eapply (freeze_SEP''entail (map Z.to_nat L)); 
    [solve_is_increasing | reflexivity 
    | match goal with
            | |- ENTAIL _, (PROPx _ (LOCALx _ (SEPx ((FRZL ?xs) :: my_delete_list ?A _)))) |-- _ =>

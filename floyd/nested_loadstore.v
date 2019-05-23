@@ -14,6 +14,7 @@ Require Import VST.floyd.proj_reptype_lemmas.
 Require Import VST.floyd.replace_refill_reptype_lemmas.
 Require Import VST.floyd.loadstore_field_at.
 Import DataCmpNotations.
+Import LiftNotation.
 
 Local Open Scope logic.
 

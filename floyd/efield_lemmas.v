@@ -3,6 +3,7 @@ Require Import VST.floyd.client_lemmas.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.fieldlist.
+Import LiftNotation.
 Local Open Scope logic.
 
 Inductive efield : Type :=
@@ -420,19 +421,19 @@ intros.
 apply Ptrofs.eqm_samerepr.
 unfold Ptrofs.eqm.
 rewrite (Ptrofs.modulus_eq32 H).
-change (Int.eqmod Int.modulus (Int.signed (Int.repr i)) i).
+change (Zbits.eqmod Int.modulus (Int.signed (Int.repr i)) i).
 rewrite Int.signed_repr_eq.
 if_tac.
-apply Int.eqmod_sym.
-apply Int.eqmod_mod.
+apply Zbits.eqmod_sym.
+apply Zbits.eqmod_mod.
 computable.
-apply Int.eqmod_sym.
-eapply Int.eqmod_trans.
-apply Int.eqmod_mod.
+apply Zbits.eqmod_sym.
+eapply Zbits.eqmod_trans.
+apply Zbits.eqmod_mod.
 computable.
 rewrite <- (Z.sub_0_r (i mod Int.modulus)) at 1.
-apply Int.eqmod_sub.
-apply Int.eqmod_refl.
+apply Zbits.eqmod_sub.
+apply Zbits.eqmod_refl.
 hnf. exists (-1). omega.
 Qed. 
 

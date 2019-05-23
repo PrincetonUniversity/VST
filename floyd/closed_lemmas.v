@@ -1,6 +1,6 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
-
+Import LiftNotation.
 Local Open Scope logic.
 
 (*

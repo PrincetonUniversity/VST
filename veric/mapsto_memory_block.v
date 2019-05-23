@@ -381,7 +381,7 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
   | Vptr b z => 
     !! (0 <= Ptrofs.unsigned z  /\ n + Ptrofs.unsigned z < Ptrofs.modulus)%Z &&
-    address_mapsto_zeros sh (nat_of_Z n) (b, Ptrofs.unsigned z)
+    address_mapsto_zeros sh (Z.to_nat n) (b, Ptrofs.unsigned z)
   | _ => FF
   end.
 
@@ -475,7 +475,7 @@ Qed.
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with
- | Vptr b ofs => (!!(Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && memory_block' sh (nat_of_Z n) b (Ptrofs.unsigned ofs)
+ | Vptr b ofs => (!!(Ptrofs.unsigned ofs + n < Ptrofs.modulus)) && memory_block' sh (Z.to_nat n) b (Ptrofs.unsigned ofs)
  | _ => FF
  end.
 
@@ -547,12 +547,12 @@ Proof.
   unfold memory_block.
   rewrite memory_block'_eq.
   2: pose proof Ptrofs.unsigned_range ofs; omega.
-  2: rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega); omega.
+  2: rewrite Z2Nat.id by (pose proof size_chunk_pos ch; omega); omega.
   destruct (readable_share_dec sh).
  *
   rewrite mapsto__exp_address_mapsto with (ch := ch); auto.
   unfold memory_block'_alt. rewrite if_true by auto.
-  rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega).
+  rewrite Z2Nat.id by (pose proof size_chunk_pos ch; omega).
   rewrite VALspec_range_exp_address_mapsto_eq by (exact H1).
   rewrite <- (TT_and (EX  v2' : val,
    address_mapsto ch v2' sh (b, Ptrofs.unsigned ofs))) at 1.
@@ -584,7 +584,7 @@ Proof.
   unfold memory_block.
   rewrite memory_block'_eq.
   2: pose proof Ptrofs.unsigned_range ofs; omega.
-  2: rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega); omega.
+  2: rewrite Z2Nat.id by (pose proof size_chunk_pos ch; omega); omega.
   destruct (readable_share_dec sh).
  * tauto.
  * unfold mapsto_, mapsto, memory_block'_alt.
@@ -765,24 +765,24 @@ Proof.
 Qed.
 
 Lemma Nat2Z_add_lt: forall n i, Ptrofs.unsigned i + n < Ptrofs.modulus ->
-  Z.of_nat (nat_of_Z n) + Ptrofs.unsigned i < Ptrofs.modulus.
+  Z.of_nat (Z.to_nat n) + Ptrofs.unsigned i < Ptrofs.modulus.
 Proof.
   intros.
   destruct (zle 0 n).
-  + rewrite Coqlib.nat_of_Z_eq by omega. omega.
-  + rewrite nat_of_Z_neg by omega.
+  + rewrite Z2Nat.id by omega. omega.
+  + rewrite Z2Nat_neg by omega.
     pose proof Ptrofs.unsigned_range i.
     simpl.
     omega.
 Qed.
 
 Lemma Nat2Z_add_le: forall n i, Ptrofs.unsigned i + n <= Ptrofs.modulus ->
-  Z.of_nat (nat_of_Z n) + Ptrofs.unsigned i <= Ptrofs.modulus.
+  Z.of_nat (Z.to_nat n) + Ptrofs.unsigned i <= Ptrofs.modulus.
 Proof.
   intros.
   destruct (zle 0 n).
-  + rewrite Coqlib.nat_of_Z_eq by omega. omega.
-  + rewrite nat_of_Z_neg by omega.
+  + rewrite Z2Nat.id by omega. omega.
+  + rewrite Z2Nat_neg by omega.
     pose proof Ptrofs.unsigned_range i.
     simpl.
     omega.
@@ -805,14 +805,14 @@ Proof.
   + clear H2.
     apply VALspec_range_overlap.
     pose proof pointer_range_overlap_non_zero _ _ _ _ H0.
-    rewrite !Coqlib.nat_of_Z_eq by omega.
+    rewrite !Z2Nat.id by omega.
     destruct H0 as [[? ?] [[? ?] [? [? ?]]]].
     inversion H0; inversion H4.
     subst.
     auto.
   + apply nonlock_permission_bytes_overlap; auto.
     pose proof pointer_range_overlap_non_zero _ _ _ _ H0.
-    rewrite !Coqlib.nat_of_Z_eq by omega.
+    rewrite !Z2Nat.id by omega.
     destruct H0 as [[? ?] [[? ?] [? [? ?]]]].
     inversion H0; inversion H5.
     subst.
@@ -882,7 +882,7 @@ Qed.
 Lemma memory_block_non_pos_Vptr: forall sh n b z, n <= 0 -> memory_block sh n (Vptr b z) = emp.
 Proof.
   intros. unfold memory_block.
-  replace (nat_of_Z n) with (0%nat) by (symmetry; apply nat_of_Z_neg; auto).
+  rewrite Z_to_nat_neg by auto.
   unfold memory_block'.
   pose proof Ptrofs.unsigned_range z.
   assert (Ptrofs.unsigned z + n < Ptrofs.modulus) by omega.
@@ -909,7 +909,7 @@ Proof.
   intros. rename H into RS. pose proof I.
   unfold memory_block.
   destruct (zlt n 0).   {
-     rewrite nat_of_Z_neg by omega. simpl.
+     rewrite Z_to_nat_neg by omega. simpl.
      apply andp_derives; auto.
      intros ? ?. simpl in *. destruct H0.
      omega. 
@@ -919,7 +919,6 @@ Proof.
  assert (n <= Ptrofs.modulus) by omega. clear H H0. rename H1 into H'.
  assert (0 <= n <= Ptrofs.modulus) by omega. clear H2 g.
     rewrite <- (Z2Nat.id n) in H', H by omega.
-    change nat_of_Z with Z.to_nat.
     forget (Z.to_nat n) as n'.
     clear n.
     remember (Ptrofs.unsigned ofs) as ofs'.
@@ -960,15 +959,15 @@ Lemma memory_block'_split:
   forall sh b ofs i j,
    0 <= i <= j ->
     j <= j+ofs < Ptrofs.modulus ->
-   memory_block' sh (nat_of_Z j) b ofs =
-      memory_block' sh (nat_of_Z i) b ofs * memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
+   memory_block' sh (Z.to_nat j) b ofs =
+      memory_block' sh (Z.to_nat i) b ofs * memory_block' sh (Z.to_nat (j-i)) b (ofs+i).
 Proof.
   intros.
-  rewrite memory_block'_eq; try rewrite Coqlib.nat_of_Z_eq; try omega.
-  rewrite memory_block'_eq; try rewrite Coqlib.nat_of_Z_eq; try omega.
-  rewrite memory_block'_eq; try rewrite Coqlib.nat_of_Z_eq; try omega.
+  rewrite memory_block'_eq; try rewrite Z2Nat.id; try omega.
+  rewrite memory_block'_eq; try rewrite Z2Nat.id; try omega.
+  rewrite memory_block'_eq; try rewrite Z2Nat.id; try omega.
   unfold memory_block'_alt.
-  repeat (rewrite Coqlib.nat_of_Z_eq; try omega).
+  repeat (rewrite Z2Nat.id; try omega).
   if_tac.
   + etransitivity ; [ | eapply VALspec_range_split2; [reflexivity | omega | omega]].
     f_equal.
@@ -995,8 +994,8 @@ Proof.
     omega.
   } 
   replace (n + m - n) with m by omega.
-  replace (memory_block' sh (nat_of_Z m) b (Ptrofs.unsigned (Ptrofs.repr ofs) + n)) with
-    (memory_block' sh (nat_of_Z m) b (Ptrofs.unsigned (Ptrofs.repr (ofs + n)))).
+  replace (memory_block' sh (Z.to_nat m) b (Ptrofs.unsigned (Ptrofs.repr ofs) + n)) with
+    (memory_block' sh (Z.to_nat m) b (Ptrofs.unsigned (Ptrofs.repr (ofs + n)))).
   2: {
     destruct (zeq m 0).
     + subst. reflexivity.
@@ -1033,7 +1032,7 @@ Proof.
   unfold memory_block.
   destruct (zlt (Ptrofs.unsigned i + n) Ptrofs.modulus).
   + rewrite !prop_true_andp by auto.
-    repeat (rewrite memory_block'_eq; [| pose proof Ptrofs.unsigned_range i; omega | rewrite Coqlib.nat_of_Z_eq; omega]).
+    repeat (rewrite memory_block'_eq; [| pose proof Ptrofs.unsigned_range i; omega | rewrite Z2Nat.id; omega]).
     unfold memory_block'_alt.
     destruct (readable_share_dec sh1), (readable_share_dec sh2).
     - rewrite if_true by (eapply readable_share_join; eauto).

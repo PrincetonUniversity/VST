@@ -270,7 +270,7 @@ Definition believe_internal_ CS
      ( ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
         |> semax (SemaxArg CS' (func_tycontext' f Delta')
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (@cenv_cs CS')(*ce*) f rho)
+                                (fun rho => (bind_args f.(fn_params) (P ts x) rho * stackframe_of' (@cenv_cs CS')(*ce*) f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                               (Ssequence f.(fn_body) (Sreturn None))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS')(*ce*) f)))) )).
@@ -324,7 +324,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
        (ALL ts: list Type,
      ALL x : dependent_type_functor_rec ts A (pred rmap),
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (@cenv_cs CS') (*ce*)f rho)
+                                (fun rho => (bind_args f.(fn_params) (P ts x) rho * stackframe_of' (@cenv_cs CS') (*ce*)f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (Ssequence f.(fn_body) (Sreturn None))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') (*ce*) f))))).
