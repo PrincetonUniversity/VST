@@ -60,21 +60,4 @@ Proof.
     auto.
 Qed.
 
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+End wp_seq.

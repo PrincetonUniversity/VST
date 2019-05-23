@@ -1,4 +1,5 @@
 From iris.bi Require Import interface.
+From iris.proofmode Require Export tactics.
 
 (* Conflicting notations:
 
@@ -403,3 +404,36 @@ Canonical Structure mpredI : bi :=
 Canonical Structure mpredSI : sbi :=
   {| sbi_ofe_mixin := mpred_ofe_mixin;
      sbi_bi_mixin := mpred_bi_mixin; sbi_sbi_mixin := mpred_sbi_mixin |}.
+
+Lemma approx_bupd: forall P n, (approx n (|==> P) = (|==> approx n P))%logic.
+Proof.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? [? HP].
+    change ((own.bupd (approx n P)) a).
+    intros ? J.
+    destruct (HP _ J) as (? & ? & m' & ? & ? & ? & ?);
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
+  - intros ? HP.
+    destruct (HP nil) as (? & ? & m' & ? & ? & ? & []).
+    { eexists; constructor. }
+    split; [omega|].
+    change ((own.bupd P) a).
+    intros ? J.
+    destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto.
+Qed.
+
+Lemma mpred_bupd_mixin : BiBUpdMixin mpredI bupd.
+Proof.
+  split.
+  - repeat intro; hnf in *.
+    rewrite !approx_bupd; congruence.
+  - exact: bupd_intro.
+  - exact: bupd_mono.
+  - exact: bupd_trans.
+  - exact: bupd_frame_r.
+Qed.
+Global Instance mpred_bi_bupd : BiBUpd mpredI := {| bi_bupd_mixin := mpred_bupd_mixin |}.
+
+Open Scope Z.
+Open Scope logic.

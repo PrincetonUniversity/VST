@@ -44,9 +44,7 @@ Definition main_spec :=
 Definition Gprog : funspecs :=
         ltac:(with_library prog [sumarray_spec; main_spec]).
 
-From iris.proofmode Require Import tactics.
 Require Import VST.veric.bi.
-Open Scope Z.
 Require Import VST.floyd.sublist.
 
 (** Proof that f_sumarray, the body of the sumarray() function,
@@ -54,7 +52,8 @@ Require Import VST.floyd.sublist.
  **)
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
-start_function. (* Always do this at the beginning of a semax_body proof *)
+start_function.
+ (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* i = 0; *)

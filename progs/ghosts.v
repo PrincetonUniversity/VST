@@ -1759,7 +1759,7 @@ Proof.
       apply (H m'); auto; omega.
 Qed.
 
-Lemma view_shift_weak: forall P Q, P |-- |==> Q -> TT |-- weak_view_shift P Q.
+Lemma view_shift_weak: forall P Q, P |-- (|==> Q) -> TT |-- weak_view_shift P Q.
 Proof.
   intros.
   change (predicates_hered.derives TT (weak_view_shift P Q)).
