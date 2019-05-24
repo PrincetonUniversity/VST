@@ -18,17 +18,16 @@ Section SC_atomics.
 Context {CS : compspecs}.
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
-  (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType Z) Mpred))
-  (ConstType invG).
+  (ConstType coPset)) (ConstType coPset))
+  (ArrowType (ConstType Z) Mpred)) (ConstType invG).
 
 Program Definition load_SC_spec := TYPE AL_type
-  WITH p : val, Eo : Ensemble iname, Ei : Ensemble iname, Q : Z -> mpred, inv_names : invG
+  WITH p : val, Eo : coPset, Ei : coPset, Q : Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint ]
-   PROP (Included Ei Eo)
+   PROP (subseteq Ei Eo)
    LOCAL (temp 1%positive p)
    SEP (|={Eo,Ei}=> EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
-              data_at sh tint (vint v) p * (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q v))
+              data_at sh tint (vint v) p * (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q v))%I
   POST [ tint ]
    EX v : Z,
    PROP (repable_signed v)
@@ -39,7 +38,7 @@ Proof.
   repeat intro.
   destruct x as ((((?, ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
   rewrite !approx_exp; apply f_equal; extensionality v. 
@@ -52,20 +51,19 @@ Proof.
   destruct x as ((((?, ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality v.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
 Definition AS_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
-  (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  Mpred) (ConstType invG).
+  (ConstType coPset)) (ConstType coPset)) Mpred) (ConstType invG).
 
 Program Definition store_SC_spec := TYPE AS_type
-  WITH p : val, v : Z, Eo : Ensemble iname, Ei : Ensemble iname, Q : mpred, inv_names : invG
+  WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
-   PROP (repable_signed v)
+   PROP (repable_signed v; subseteq Ei Eo)
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
    SEP (|={Eo,Ei}=> EX sh : share, !!(writable_share sh) && data_at_ sh tint p *
-      (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q))
+      (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q))%I
   POST [ tvoid ]
    PROP ()
    LOCAL ()
@@ -75,7 +73,7 @@ Proof.
   repeat intro.
   destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
   rewrite !approx_sepcon; f_equal.
@@ -86,22 +84,21 @@ Proof.
   repeat intro.
   destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
 Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z))
-  (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType Z) Mpred))
-  (ConstType invG).
+  (ConstType coPset)) (ConstType coPset))
+  (ArrowType (ConstType Z) Mpred)) (ConstType invG).
 
 Program Definition CAS_SC_spec := TYPE ACAS_type
-  WITH p : val, c : Z, v : Z, Eo : Ensemble iname, Ei : Ensemble iname, Q : Z -> mpred, inv_names : invG
+  WITH p : val, c : Z, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
-   PROP (repable_signed c; repable_signed v)
+   PROP (repable_signed c; repable_signed v; subseteq Ei Eo)
    LOCAL (temp 1%positive p; temp 2%positive (vint c); temp 3%positive (vint v))
    SEP (|={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
               data_at sh tint (vint v0) p *
-           (data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -* |={Ei,Eo}=> Q v0))
+           (data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -* |={Ei,Eo}=> Q v0))%I
   POST [ tint ]
    EX v' : Z,
    PROP (repable_signed v')
@@ -112,7 +109,7 @@ Proof.
   repeat intro.
   destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
   rewrite !approx_exp; apply f_equal; extensionality v0.
@@ -125,22 +122,21 @@ Proof.
   destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality vr.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
 Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
-  (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  (ArrowType (ConstType Z) Mpred))
-  (ConstType invG).
+  (ConstType coPset)) (ConstType coPset))
+  (ArrowType (ConstType Z) Mpred)) (ConstType invG).
 
 Program Definition AEX_SC_spec := TYPE AEX_type
-  WITH p : val, v : Z, Eo : Ensemble iname, Ei : Ensemble iname, Q : Z -> mpred, inv_names : invG
+  WITH p : val, v : Z, Eo : coPset, Ei : coPset, Q : Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint ]
-   PROP (repable_signed v)
+   PROP (repable_signed v; subseteq Ei Eo)
    LOCAL (temp 1%positive p; temp 2%positive (vint v))
    SEP (|={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
               data_at sh tint (vint v0) p *
-        (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q v0))
+        (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q v0))%I
   POST [ tint ]
    EX v' : Z,
    PROP (repable_signed v')
@@ -151,7 +147,7 @@ Proof.
   repeat intro.
   destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
   rewrite !approx_exp; apply f_equal; extensionality sh.
   rewrite !approx_exp; apply f_equal; extensionality v0.
@@ -164,7 +160,7 @@ Proof.
   destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality vr.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
 End SC_atomics.

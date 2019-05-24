@@ -1,14 +1,14 @@
 Require Import VST.veric.rmaps.
 Require Import atomics.general_atomics.
-Require Import atomics.SC_atomics.
 Require Import VST.progs.conclib.
+Require Import atomics.SC_atomics.
 Require Import VST.veric.bi.
 Require Import VST.progs.ghosts.
-Require Import List.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import atomics.hashtable_atomic.
 Require Import atomics.hashtable.
+Import List.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -142,7 +142,7 @@ Program Definition set_item_spec := DECLARE _set_item atomic_spec
   tt []
   (fun _ '(k, v, gv, sh, entries, g, lg) H _ =>
    data_at sh (tarray tentry size) entries (gv _m_entries) * hashtable (map_upd H k v) g lg entries)
-  (Empty_set _) (Full_set _) _ _ _ _ _.
+  empty top _ _ _ _ _.
 Next Obligation.
 Proof.
   intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
@@ -177,7 +177,7 @@ Program Definition get_item_spec := DECLARE _get_item atomic_spec
   0 [fun _ _ v => temp ret_temp (vint v)]
   (fun _ '(k, gv, sh, entries, g, lg) H v => data_at sh (tarray tentry size) entries (gv _m_entries) *
    ( !!(if eq_dec v 0 then H k = None else H k = Some v) && hashtable H g lg entries))
-  (Empty_set _) (Full_set _) _ _ _ _ _.
+  empty top _ _ _ _ _.
 Next Obligation.
 Proof.
   intros ?? (((((k, p), sh), entries), g), lg); auto.
@@ -212,7 +212,7 @@ Program Definition add_item_spec := DECLARE _add_item atomic_spec
   true [fun _ _ b => temp ret_temp (Val.of_bool b)]
   (fun _ '(k, v, gv, sh, entries, g, lg) H b => data_at sh (tarray tentry size) entries (gv _m_entries) *
    ( !!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries))
-  (Empty_set _) (Full_set _) _ _ _ _ _.
+  empty top _ _ _ _ _.
 Next Obligation.
 Proof.
   intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
@@ -432,6 +432,9 @@ Proof.
     iMod (IHl with "snaps"); auto.
 Qed.
 
+Notation empty := (@empty coPset _).
+Notation top := (@top coPset _).
+
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_atomic_function.
@@ -476,58 +479,33 @@ Proof.
     replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
     (* syntactic_cancel breaks here for some reason *)
     Ltac cancel_for_forward_call ::= cancel.
-    forward_call (pki, Full_set iname, Empty_set iname,
+    forward_call (pki, top, empty,
       fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
     { simpl.
-      rewrite <- !sepcon_assoc, 3sepcon_assoc; apply sepcon_derives; [|cancel]. (* IPM doesn't do cancel_frame *)
+      rewrite <- !sepcon_assoc, 3sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
       iIntros "(P & [AS1 _])".
-      iPoseProof ("AS1" with "P") as "AS1".
-      iSplitL "P AS1".
-      2: { subst Frame; instantiate (1 := [_; _; _]); simpl.
-              iSplitL "AS2"; [iApply "AS2"|].
-              iSplitL "entries"; [iApply "entries"|].
-              iSplitL "snaps"; [iApply "snaps" | auto]. }
-      
-
-      rewrite <- !sepcon_assoc.
-cancel.
-      rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
-      rewrite <- emp_sepcon at 1; apply sepcon_derives.
-      + rewrite <- wand_sepcon_adjoint, emp_sepcon.
-        unfold AS.
-        rewrite sepcon_comm.
-        eapply derives_trans; [apply sepcon_derives, andp_left1; apply derives_refl|].
-        eapply derives_trans; [apply modus_ponens_wand | apply fupd_mono].
-        Intros HT.
-        eapply derives_trans; [apply sepcon_derives, andp_left1; apply derives_refl|].
-        unfold hashtable at 1; Intros T.
-        rewrite extract_nth_sepcon with (i := i1 mod size)
-          by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega).
-        erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; omega).
-        unfold hashtable_entry.
-        rewrite Hpi.
-        destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
-        Intros; Exists Ews ki HT T; rewrite HHi; entailer!.
-      + apply allp_right; intro sh0.
-        apply allp_right; intro v0.
-        rewrite <- wand_sepcon_adjoint, emp_sepcon.
-        Intros HT T.
-        destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi; Intros.
-        rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master1 _ _)).
-        rewrite !sepcon_assoc; eapply derives_trans.
-        { apply sepcon_derives, derives_refl.
-          apply (make_snap(ORD := zero_order)). }
-        eapply derives_trans; [apply bupd_frame_r|].
-        apply fupd_bupd, bupd_mono.
-        eapply derives_trans, fupd_frame_r.
-        subst v0; cancel.
-        apply modus_ponens_wand'.
-        unfold hashtable; Exists T.
-        rewrite extract_nth_sepcon with (i := i1 mod size)(l := map _ _)
-          by (rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega).
-        erewrite Znth_map, Znth_upto by (rewrite ?Zlength_upto, Z2Nat.id; omega).
-        unfold hashtable_entry.
-        rewrite Hpi, HHi; entailer!. }
+      iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
+      iDestruct "hashtable" as (T) "((% & excl) & entries)".
+      rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)
+          by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; omega).
+      erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+      unfold hashtable_entry.
+      rewrite Hpi.
+      destruct (Znth (i1 mod size) T) as (ki, vi) eqn: HHi.
+      iDestruct "entries" as "((((% & master) & k) & v) & entries)".
+      iModIntro; iExists Ews, ki; iFrame "k".
+      iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
+      iIntros "k".
+      iMod (make_snap with "master") as "[$ master]".
+      iDestruct "Hclose" as "[Hclose _]"; iApply "Hclose".
+      unfold hashtable; iExists T; iFrame "excl".
+      iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
+      rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto _)
+          by (rewrite -> ?Zlength_map, Zlength_upto, Z2Nat.id; omega); iFrame "entries".
+      erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
+      unfold hashtable_entry.
+      rewrite Hpi HHi; iFrame.
+      iSplit; auto; iPureIntro; split; auto; tauto. }
     Intros k1.
     focus_SEP 1.
     match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
@@ -571,7 +549,7 @@ cancel.
       forward_call (pki, 0, k, |> P * (AS && cored) * ghost_snap 0 (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))),
-        Full_set iname, Empty_set iname, fun sh v => !!(sh = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
+        top, empty, fun sh v => !!(sh = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
           forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
           !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) &&
           ghost_master1 ki (Znth (i1 mod size) lg) * data_at Ews tint (vint vi) pvi *
@@ -580,7 +558,7 @@ cancel.
           ghost_snap 0 (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))) *
-          (hashtable H g lg entries -* |={Empty_set iname,Full_set iname}=> |> P),
+          (hashtable H g lg entries -* |={empty,top}=> |> P),
         fun v : Z => |> P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))), inv_names).
@@ -661,7 +639,7 @@ cancel.
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
         replace_SEP 3 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
-        forward_call (pki, |> P * (AS && cored) * ghost_snap k1 (Znth (i1 mod size) lg), Full_set iname, Empty_set iname,
+        forward_call (pki, |> P * (AS && cored) * ghost_snap k1 (Znth (i1 mod size) lg), top, empty,
           fun sh v => !!(sh = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
             forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
             !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) &&
@@ -669,7 +647,7 @@ cancel.
             excl g H * fold_right sepcon emp (upd_Znth (i1 mod size)
               (map (hashtable_entry T lg entries) (upto (Z.to_nat size))) emp) *
             ghost_snap k1 (Znth (i1 mod size) lg) *
-            (hashtable H g lg entries -* |={Empty_set iname,Full_set iname}=> |> P),
+            (hashtable H g lg entries -* |={empty,top}=> |> P),
           fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { cancel.
           rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
@@ -743,7 +721,7 @@ cancel.
           data_at sh (tarray tentry size) entries (gv _m_entries) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))),
-        Full_set iname, Empty_set iname,
+        top, empty,
         fun sh1 => !!(sh1 = Ews) && data_at sh (tarray tentry size) entries (gv _m_entries) *
         EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
             forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
@@ -754,7 +732,7 @@ cancel.
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))) *
           (ALL y : unit, (data_at sh (tarray tentry size) entries (gv _m_entries) *
-              hashtable (map_upd H k v) g lg entries) -* |={Empty_set iname,Full_set iname}=> Q y),
+              hashtable (map_upd H k v) g lg entries) -* |={empty,top}=> Q y),
         Q tt, inv_names).
       { cancel.
         rewrite <- emp_sepcon, <- sepcon_emp at 1.
@@ -892,7 +870,7 @@ Proof.
     replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
     forward_call (pki, |> P * (AS && cored) * fold_right sepcon emp (map (fun i0 : Z =>
         ghost_snap (Znth ((i0 + hash k) mod size) keys) (Znth ((i0 + hash k) mod size) lg))
-        (upto (Z.to_nat i))) * data_at sh (tarray tentry size) entries (gv _m_entries), Full_set iname, Empty_set iname,
+        (upto (Z.to_nat i))) * data_at sh (tarray tentry size) entries (gv _m_entries), top, empty,
       fun sh1 v => !!(sh1 = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
       forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
       !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) && ghost_master1 ki (Znth (i1 mod size) lg) *
@@ -902,12 +880,12 @@ Proof.
           (Znth ((i0 + hash k) mod size) lg)) (upto (Z.to_nat i))) *
         data_at sh (tarray tentry size) entries (gv _m_entries) *
       ((hashtable H g lg entries -*
-              (|={ Empty_set iname, Full_set iname }=> |> P)) &&
+              (|={ empty, top }=> |> P)) &&
              (ALL y : Z ,
               data_at sh (tarray tentry size) entries (gv _m_entries) *
               (!! (if eq_dec y 0 then H k = None else H k = Some y) &&
                hashtable H g lg entries) -*
-              (|={ Empty_set iname, Full_set iname }=> Q y))),
+              (|={ empty, top }=> Q y))),
       fun v => if eq_dec v 0 then Q v else |> P * ghost_snap v (Znth (i1 mod size) lg) *
         fold_right sepcon emp (map (fun i0 : Z => ghost_snap (Znth ((i0 + hash k) mod size) keys)
           (Znth ((i0 + hash k) mod size) lg)) (upto (Z.to_nat i))) *
@@ -986,7 +964,7 @@ Proof.
       forward_call (pvi, |> P * (AS && cored) * ghost_snap k (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i0 : Z => ghost_snap (Znth ((i0 + hash k) mod size) keys) (Znth ((i0 + hash k) mod size) lg))
           (upto (Z.to_nat i))) * data_at sh (tarray tentry size) entries (gv _m_entries),
-        Full_set iname, Empty_set iname,
+        top, empty,
         fun sh1 v => !!(sh1 = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
             forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
         !!(ki = k /\ vi = v /\ repable_signed vi) && ghost_master1 k (Znth (i1 mod size) lg) *
@@ -999,7 +977,7 @@ Proof.
               data_at sh (tarray tentry size) entries (gv _m_entries) *
               (!! (if eq_dec y 0 then H k = None else H k = Some y) &&
                hashtable H g lg entries) -*
-              (|={ Empty_set iname, Full_set iname }=> Q y)),
+              (|={ empty, top }=> Q y)),
         Q, inv_names).
       { cancel.
         rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
@@ -1162,13 +1140,13 @@ Proof.
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
     replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
-    forward_call (pki, |> P * (AS && cored), Full_set iname, Empty_set iname,
+    forward_call (pki, |> P * (AS && cored), top, empty,
       fun sh v => !!(sh = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
       forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
       !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) && ghost_master1 ki (Znth (i1 mod size) lg) *
       data_at Ews tint (vint vi) pvi * excl g H * fold_right sepcon emp (upd_Znth (i1 mod size)
           (map (hashtable_entry T lg entries) (upto (Z.to_nat size))) emp) *
-      (hashtable H g lg entries -* |={Empty_set iname,Full_set iname}=> |> P),
+      (hashtable H g lg entries -* |={empty,top}=> |> P),
       fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
     { cancel.
       rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
@@ -1252,7 +1230,7 @@ Proof.
       forward_call (pki, 0, k, |> P * (AS && cored) * ghost_snap 0 (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
             (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))),
-        Full_set iname, Empty_set iname, fun sh v => !!(sh = Ews) && EX H : _, EX T : _,
+        top, empty, fun sh v => !!(sh = Ews) && EX H : _, EX T : _,
           !!(Zlength T = size /\ wf_table T /\
           forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
           !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) &&
@@ -1262,7 +1240,7 @@ Proof.
           ghost_snap 0 (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
            (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))) *
-         (hashtable H g lg entries -* |={Empty_set iname,Full_set iname}=> |> P),
+         (hashtable H g lg entries -* |={empty,top}=> |> P),
         fun v : Z => |> P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg) *
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
             (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))), inv_names).
@@ -1342,7 +1320,7 @@ Proof.
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
         replace_SEP 3 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
-        forward_call (pki, |> P * (AS && cored) * ghost_snap k1 (Znth (i1 mod size) lg), Full_set iname, Empty_set iname,
+        forward_call (pki, |> P * (AS && cored) * ghost_snap k1 (Znth (i1 mod size) lg), top, empty,
           fun sh v => !!(sh = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
             forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
             !!(v = ki /\ repable_signed vi /\ (ki = 0 -> vi = 0)) &&
@@ -1350,7 +1328,7 @@ Proof.
             excl g H * fold_right sepcon emp (upd_Znth (i1 mod size)
               (map (hashtable_entry T lg entries) (upto (Z.to_nat size))) emp) *
             ghost_snap k1 (Znth (i1 mod size) lg) *
-            (hashtable H g lg entries -* |={Empty_set iname,Full_set iname}=> |> P),
+            (hashtable H g lg entries -* |={empty,top}=> |> P),
           fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { cancel.
           rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
@@ -1426,7 +1404,7 @@ Proof.
           fold_right sepcon emp (map (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
             (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i))) *
           data_at sh (tarray tentry size) entries (gv _m_entries),
-        Full_set iname, Empty_set iname, fun sh1 (v1 : Z) => !!(sh1 = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
+        top, empty, fun sh1 (v1 : Z) => !!(sh1 = Ews) && EX H : _, EX T : _, !!(Zlength T = size /\ wf_table T /\
           forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) && let '(ki, vi) := Znth (i1 mod size) T in
           !!(ki = k /\ vi = v1 /\ repable_signed vi) && ghost_master1 k (Znth (i1 mod size) lg) *
           data_at Ews tint (vint k) pki * excl g H * fold_right sepcon emp (upd_Znth (i1 mod size)
@@ -1436,7 +1414,7 @@ Proof.
           data_at sh (tarray tentry size) entries (gv _m_entries) *
           (ALL y : bool, (data_at sh (tarray tentry size) entries (gv _m_entries) *
               (!! (H k = None <-> y = true) &&
-               hashtable (if y then map_upd H k v else H) g lg entries)) -* |={Empty_set iname,Full_set iname}=> Q y),
+               hashtable (if y then map_upd H k v else H) g lg entries)) -* |={empty,top}=> Q y),
         fun v => Q (if eq_dec v 0 then true else false), inv_names).
       { cancel.
         rewrite <- emp_sepcon, <- sepcon_emp at 1.
@@ -2148,7 +2126,7 @@ Proof.
   { go_lower.
     eapply derives_trans, wsat_fupd_elim.
     cancel.
-    apply (make_inv (Empty_set _) _ (hashtable_inv gh g lg entries)).
+    apply (make_inv empty _ (hashtable_inv gh g lg entries)).
     unfold hashtable_inv.
     Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!.
     apply derives_refl. }
@@ -2446,7 +2424,7 @@ Proof.
       exists hr, HT; split; auto. }
     eapply derives_trans; [apply except0_frame_r | apply fupd_except0_elim].
     rewrite sepcon_andp_prop'; Intros.
-    replace (Subtract (Ensembles.Singleton i1) i1) with (Empty_set iname).
+    replace (Subtract (Ensembles.Singleton i1) i1) with (empty).
     eapply derives_trans, fupd_intro.
     apply prop_right.
     destruct H14 as (l & HT & ? & ?).

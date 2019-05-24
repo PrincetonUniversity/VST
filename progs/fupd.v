@@ -5,7 +5,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
 Require Import VST.progs.invariants.
-Require Import VST.veric.bi.
+Require Export VST.veric.bi.
 Require Import VST.msl.ghost_seplog.
 Import Ensembles.
 

@@ -1,4 +1,4 @@
-From stdpp Require Import coPset.
+From stdpp Require Export coPset.
 Require Import VST.msl.ghost.
 Require Import VST.msl.ghost_seplog.
 Require Import VST.msl.sepalg_generators.
