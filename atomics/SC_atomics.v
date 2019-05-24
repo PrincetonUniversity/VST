@@ -17,7 +17,7 @@ Section SC_atomics.
 
 Context {CS : compspecs}.
 
-Definition AL_type := (ProdType (ProdType (ProdType (ProdType (ConstType val)
+Definition AL_type := ProdType (ProdType (ProdType (ProdType (ConstType val)
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
   (ArrowType (ConstType Z) Mpred))
   (ConstType invG).
@@ -40,16 +40,11 @@ Proof.
   destruct x as ((((?, ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  f_equal.
-  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
-    rewrite !approx_exp; apply f_equal; extensionality sh.
-    rewrite !approx_exp; apply f_equal; extensionality v.
-    rewrite !approx_sepcon, approx_idem; auto.
-  - f_equal.
-    rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-    rewrite !(approx_allp _ _ _ 0); apply f_equal; extensionality v.
-    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
-    rewrite !approx_sepcon, approx_idem; auto.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v. 
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
 Next Obligation.
 Proof.
@@ -60,14 +55,9 @@ Proof.
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AS_type := (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
+Definition AS_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
-  Mpred)
-  (ConstType invG).
-
-(*    SEP (|={Eo,Ei}=> EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
-              data_at sh tint (vint v) p * (data_at sh tint (vint v') p -* |={Ei,Eo}=> Q)) *)
-
+  Mpred) (ConstType invG).
 
 Program Definition store_SC_spec := TYPE AS_type
   WITH p : val, v : Z, Eo : Ensemble iname, Ei : Ensemble iname, Q : mpred, inv_names : invG
@@ -86,14 +76,10 @@ Proof.
   destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  f_equal.
-  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
-    rewrite !approx_exp; apply f_equal; extensionality sh.
-    rewrite !approx_sepcon, approx_idem; auto.
-  - f_equal.
-    rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
-    rewrite !approx_sepcon, approx_idem; auto.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
 Next Obligation.
 Proof.
@@ -103,14 +89,10 @@ Proof.
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition ACAS_type := (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z))
+Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z))
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
   (ArrowType (ConstType Z) Mpred))
   (ConstType invG).
-
-(* |={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p *
-      (data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -* |={Ei,Eo}=> Q v0) *)
 
 Program Definition CAS_SC_spec := TYPE ACAS_type
   WITH p : val, c : Z, v : Z, Eo : Ensemble iname, Ei : Ensemble iname, Q : Z -> mpred, inv_names : invG
@@ -131,16 +113,11 @@ Proof.
   destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  f_equal.
-  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
-    rewrite !approx_exp; apply f_equal; extensionality sh.
-    rewrite !approx_exp; apply f_equal; extensionality v0.
-    rewrite !approx_sepcon, approx_idem; auto.
-  - f_equal.
-    rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-    rewrite !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
-    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
-    rewrite !approx_sepcon, approx_idem; auto.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v0.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
 Next Obligation.
 Proof.
@@ -151,7 +128,7 @@ Proof.
     rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
-Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
+Definition AEX_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * Z))
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
   (ArrowType (ConstType Z) Mpred))
   (ConstType invG).
@@ -175,16 +152,11 @@ Proof.
   destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  f_equal.
-  - setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; do 3 apply f_equal.
-    rewrite !approx_exp; apply f_equal; extensionality sh.
-    rewrite !approx_exp; apply f_equal; extensionality v0.
-    rewrite !approx_sepcon, approx_idem; auto.
-  - f_equal.
-    rewrite !(approx_allp _ _ _ Share.bot); apply f_equal; extensionality sh.
-    rewrite !(approx_allp _ _ _ 0); apply f_equal; extensionality v0.
-    setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; apply f_equal; f_equal.
-    rewrite !approx_sepcon, approx_idem; auto.
+  setoid_rewrite fupd_nonexpansive; do 2 f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality sh.
+  rewrite !approx_exp; apply f_equal; extensionality v0.
+  rewrite !approx_sepcon; f_equal.
+  setoid_rewrite fview_shift_nonexpansive; rewrite approx_idem; auto.
 Qed.
 Next Obligation.
 Proof.

@@ -1,3 +1,4 @@
+From stdpp Require Import coPset.
 Require Import VST.msl.ghost.
 Require Import VST.msl.ghost_seplog.
 Require Import VST.msl.sepalg_generators.
@@ -5,27 +6,8 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
 Require Import List.
-Import Ensembles.
 
 (* Where should this sit? *)
-
-Arguments In {_} _ _.
-Arguments Included {_} _ _.
-Arguments Singleton {_} _.
-Arguments Union {_} _ _.
-Arguments Add {_} _ _.
-Arguments Intersection {_} _ _.
-Arguments Complement {_} _.
-Arguments Setminus {_} _ _.
-Arguments Subtract {_} _ _.
-Arguments Disjoint {_} _ _.
-Arguments Same_set {_} _ _.
-
-Lemma Included_Full : forall {A} E, Included E (Full_set A).
-Proof.
-  repeat intro; constructor.
-Qed.
-Hint Resolve Included_Full.
 
 Definition cored : mpred := own.cored.
 
@@ -539,109 +521,59 @@ Proof.
         apply (Hnth (S n)); auto.
 Qed.
 
-Import Ensembles.
+Notation union := base.union.
 
-Instance set_PCM A : Ghost := { valid := fun _ : Ensemble A => True;
-   Join_G a b c := Disjoint a b /\ c = Union a b }.
+Instance set_PCM : Ghost := { valid := fun _ : coPset => True;
+  Join_G a b c := a ## b /\ c = union a b }.
 Proof.
-  - exists (fun _ => Empty_set _); auto.
-    intro; split.
-    + constructor; intros ??.
-      inv H; contradiction.
-    + apply Extensionality_Ensembles; split.
-      * repeat intro.
-        constructor 2; auto.
-      * repeat intro.
-        inv H; auto; contradiction.
+  - exists (fun _ => empty); auto.
+    intro; split; set_solver.
   - constructor.
     + intros.
       inv H; inv H0; auto.
     + intros.
       inv H; inv H0.
-      eexists; split; [split; eauto | split].
-      * constructor.
-        intros ? Hin; inv Hin.
-        inv H.
-        apply (H3 x); constructor; auto.
-        constructor 2; auto.
-      * constructor.
-        intros ? Hin; inv Hin.
-        inv H2.
-        -- inv H1.
-           apply (H2 x); constructor; auto.
-        -- inv H.
-           apply (H2 x); repeat constructor; auto.
-      * apply Extensionality_Ensembles; split.
-        -- repeat intro.
-           inv H0; [|repeat constructor 2; auto].
-           inv H2; [constructor 1 | constructor 2; constructor 1]; auto.
-        -- repeat intro.
-           inv H0; [repeat constructor 1; auto|].
-           inv H2; [constructor 1; constructor 2 | constructor 2]; auto.
+      eexists; split; [split; eauto | split]; set_solver.
     + intros.
       inv H.
-      split.
-      * inv H0; constructor.
-        intros ? Hin; inv Hin.
-        apply (H x); constructor; auto.
-      * apply Extensionality_Ensembles; split;
-          repeat intro; inv H; try solve [constructor 1; auto]; try solve [constructor 2; auto].
+      split; set_solver.
     + intros.
       inv H; inv H0.
-      rewrite H2.
-      apply Extensionality_Ensembles; split.
-      * intros ? Hin.
-        inv Hin; [|constructor 1; constructor 2; auto].
-        inv H0; [repeat constructor 1; auto | constructor 2; auto].
-      * intros ? Hin.
-        inv Hin; auto.
-        constructor 1; constructor 2; auto.
+      set_solver.
   - auto.
 Defined.
 
-Definition ghost_set {A} g s := own(RA := set_PCM A) g s NoneP.
+Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
 
-Lemma ghost_set_join : forall {A} g (s1 s2 : Ensemble A),
-  ghost_set g s1 * ghost_set g s2 = !!(Disjoint s1 s2) && ghost_set g (Union s1 s2).
+Lemma ghost_set_join : forall g (s1 s2 : coPset),
+  ghost_set g s1 * ghost_set g s2 = !!(s1 ## s2) && ghost_set g (union s1 s2).
 Proof.
   intros.
   setoid_rewrite own_op_gen.
-  - instantiate (1 := Union s1 s2).
+  - instantiate (1 := union s1 s2).
     unfold ghost_set; apply pred_ext.
     + Intros; entailer!.
-      destruct H as (? & H & ?); inv H; auto.
+      destruct H as (? & [] & ?); auto.
     + Intros; entailer!.
       eexists; repeat (split; auto).
   - intros (? & H & ?); inv H; split; auto.
 Qed.
 
-Lemma ghost_set_subset : forall {A} g (s s' : Ensemble A)
-  (Hdec : forall a, In s' a \/ ~In s' a),
-  Included s' s -> ghost_set g s = ghost_set g s' * ghost_set g (Setminus s s').
+Lemma ghost_set_subset : forall g (s s' : coPset),
+  subseteq s' s -> ghost_set g s = ghost_set g s' * ghost_set g (difference s s').
 Proof.
   intros.
   apply own_op.
   split.
-  - constructor; intros ? Hin.
-    inv Hin.
-    inv H1; contradiction.
-  - apply Extensionality_Ensembles; split; intros ? Hin.
-    + destruct (Hdec x).
-      * constructor 1; auto.
-      * constructor 2; constructor; auto.
-    + inv Hin; auto.
-      inv H0; auto.
+  - set_solver.
+  - apply union_difference_L; auto.
 Qed.
 
-Corollary ghost_set_remove : forall {A} g a (s : Ensemble A) (Hdec : forall b, b = a \/ b <> a),
-  In s a -> ghost_set g s = ghost_set g (Ensembles.Singleton a) * ghost_set g (Subtract s a).
+Corollary ghost_set_remove : forall g a (s : coPset),
+  elem_of a s -> ghost_set g s = ghost_set g (base.singleton a) * ghost_set g (difference s (base.singleton a)).
 Proof.
   intros; apply ghost_set_subset.
-  - intro x; destruct (Hdec x).
-    + subst; left; constructor.
-    + right; intro Hin; inv Hin; contradiction.
-  - intros ? Hin.
-    inv Hin; auto.
+  set_solver.
 Qed.
 
 Definition iname := nat.
@@ -666,7 +598,7 @@ Definition wsat : mpred := EX I : list mpred, EX lg : list gname, EX lb : list (
   master_list g_inv (map (fun i => match Znth i lb with Some _ => Some (Znth i lg)
                                    | None => None end) (upto (length I))) *
   ghost_list g_dis (map (fun o => match o with Some true => Some (Some tt) | _ => None end) lb) *
-  ghost_set g_en (fun i : iname => nth i lb None = Some false) *
+  ghost_set g_en (list_to_set (map (fun i => Pos.of_nat (S i)) (filter (fun i => decide (nth i lb None = Some false)) (seq 0 (length lb))))) *
   iter_sepcon (fun i => match Znth i lb with
                         | Some true => agree (Znth i lg) (Znth i I) * |> Znth i I
                         | Some false => agree (Znth i lg) (Znth i I)
@@ -775,6 +707,25 @@ Proof.
         intro X; inv X; auto.
 Qed.
 
+Lemma seq_app : forall a b c, seq a (b + c) = seq a b ++ seq (a + b) c.
+Proof.
+  intros ??; revert a; induction b; simpl; intros; auto.
+  rewrite IHb; do 3 f_equal; omega.
+Qed.
+
+Lemma filter_ext_in : forall {A} (f g : A -> bool) l, (forall x, In x l -> f x = g x) -> filter f l = filter g l.
+Proof.
+  induction l; auto; simpl; intros.
+  rewrite -> H by auto.
+  rewrite IHl; auto.
+Qed.
+
+Lemma filter_none : forall {A} (f : A -> bool) l, (forall x, In x l -> f x = false) -> filter f l = [].
+Proof.
+  induction l; auto; simpl; intros.
+  rewrite H; auto.
+Qed.
+
 Lemma wsat_alloc : forall P, (wsat * |> P |-- |==> wsat * EX i : _, invariant i P)%I.
 Proof.
   intros; iIntros "[wsat P]".
@@ -842,18 +793,19 @@ Proof.
     erewrite prop_true_andp by (erewrite !app_length, !repeat_length; lia).
     iFrame.
     iSplitL "en".
-    + erewrite Extensionality_Ensembles at 1; auto.
-      split; intro; unfold In.
-      * intro Hx; rewrite <- app_assoc, app_nth.
-        if_tac; auto.
-        erewrite nth_overflow in Hx by lia; discriminate.
-      * rewrite <- app_assoc, !app_nth.
-        if_tac; auto.
-        if_tac.
-        -- pose proof (nth_In _ None H2) as Hin.
-           apply repeat_spec in Hin as ->; discriminate.
-        -- destruct (_ - _ - _)%nat; simpl; try discriminate.
-           destruct n; discriminate.
+    + rewrite app_length -plus_assoc seq_app filter_app.
+      rewrite (filter_none _ (seq _ (_ + 1))).
+      rewrite app_nil_r.
+      erewrite filter_ext_in; auto.
+      * intros ??%in_seq; simpl.
+        rewrite <- app_assoc, app_nth1 by lia; auto.
+      * intros ??%in_seq; simpl.
+        rewrite <- app_assoc, app_nth2 by lia.
+        destruct (lt_dec (x - length lb) i); [rewrite app_nth1 | rewrite app_nth2];
+          rewrite ?repeat_length; try lia.
+        -- rewrite nth_repeat; auto.
+        -- destruct (x - length lb - i)%nat; auto; simpl.
+          destruct n0; auto.
     + erewrite app_length, upto_app, iter_sepcon_app.
       rewrite <- sepcon_emp at 1; iDestruct "I" as "[I emp]".
       iSplitL "I".
@@ -872,8 +824,16 @@ Proof.
     iExists g; rewrite H; iFrame.
 Qed.
 
+Lemma list_to_set_eq : forall (l1 l2 : list positive), (forall x, elem_of x l1 <-> elem_of x l2) ->
+  (list_to_set l1 : coPset) = list_to_set l2.
+Proof.
+  intros.
+  apply coPset_leibniz, elem_of_equiv; intros.
+  rewrite !elem_of_list_to_set; auto.
+Qed.
+
 Lemma wsat_open : forall i P,
-  (wsat * invariant i P * ghost_set g_en (Singleton i) |--
+  (wsat * invariant i P * ghost_set g_en (base.singleton (Pos.of_nat (S i))) |--
   |==> wsat * |> P * ghost_list g_dis (list_singleton i (Some tt)))%I.
 Proof.
   intros; unfold wsat, invariant.
@@ -915,17 +875,22 @@ Proof.
   - rewrite map_replace_nth; auto.
   - iCombine "en en1" as "en"; erewrite ghost_set_join.
     iDestruct "en" as "[% en]".
-    erewrite Extensionality_Ensembles at 1; auto; split.
-    + intros ? Hin; unfold In.
-      inv Hin.
-      * destruct (eq_dec x i); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth'];
-          auto; lia.
-      * inv H2.
-        rewrite nth_replace_nth; auto; lia.
-    + intros ? Hin; unfold In in Hin.
-      destruct (eq_dec x i); [subst; constructor 2; constructor|].
-      erewrite nth_replace_nth' in Hin by auto.
-      constructor 1; auto.
+    erewrite coPset_leibniz; auto; split.
+    + intros Hin%elem_of_union; rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff in *; destruct Hin as [Hin | Hin].
+      * destruct Hin as (x' & ? & Hin); subst.
+        apply filter_In in Hin as [Hin ?].
+        do 2 eexists; eauto; apply filter_In; split; auto.
+        destruct (decide (x' = i)); [subst; rewrite nth_replace_nth | rewrite nth_replace_nth']; auto; lia.
+      * apply elem_of_singleton in Hin; subst.
+        do 2 eexists; eauto; apply filter_In.
+        split; [|rewrite nth_replace_nth; auto; lia].
+        apply in_seq; lia.
+    + intros Hin; rewrite elem_of_union; rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff in *.
+      destruct Hin as (x' & ? & Hin); subst.
+      destruct (decide (x' = i)); [subst; rewrite elem_of_singleton; auto|].
+      left; do 2 eexists; eauto.
+      apply filter_In in Hin as [Hin ?]; rewrite filter_In; split; auto.
+      erewrite nth_replace_nth' in H2; auto.
   - erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     erewrite Znth_upto, Znth_replace_nth by lia; iFrame.
@@ -936,9 +901,13 @@ Proof.
     apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
   - iCombine "en en1" as "en"; erewrite ghost_set_join.
     iDestruct "en" as "[% en]".
-    inv H2.
-    contradiction (H3 i).
-    repeat constructor; auto.
+    rewrite -> elem_of_disjoint in H2.
+    contradiction (H2 (Pos.of_nat (S i))).
+    + rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff.
+      do 2 eexists; eauto.
+      rewrite filter_In; split; [|rewrite Hi'; auto].
+      apply in_seq; lia.
+    + apply elem_of_singleton; auto.
 Qed.
 
 (* up *)
@@ -949,7 +918,7 @@ Qed.
 
 Lemma wsat_close : forall i P,
   (wsat * invariant i P * |> P * ghost_list g_dis (list_singleton i (Some tt)) |--
-  |==> wsat * ghost_set g_en (Singleton i)).
+  |==> wsat * ghost_set g_en (base.singleton (Pos.of_nat (S i))))%I.
 Proof.
   intros; unfold wsat, invariant.
   iIntros "(((H & inv1) & HP) & dis1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
@@ -976,7 +945,7 @@ Proof.
     rewrite Hi' in J; inv J.
     inv H5.
     inv H3. }
-  erewrite ghost_set_remove with (a := i); auto; [|intro; omega].
+  erewrite ghost_set_remove with (a := Pos.of_nat (S i)).
   iDestruct "en" as "[$ en]".
   iExists l, lg, (replace_nth i lb (Some true)).
   rewrite replace_nth_length prop_true_andp; last auto.
@@ -994,16 +963,22 @@ Proof.
     { rewrite map_length; lia. }
     erewrite nth_map' with (d' := None) by lia.
     rewrite Hi'; constructor.
-  - erewrite Extensionality_Ensembles at 1; auto; split.
-    + intros ? Hin; unfold In.
-      inv Hin.
+  - erewrite coPset_leibniz; auto; split.
+    + rewrite -> elem_of_difference, !elem_of_list_to_set, !elem_of_list_In, !in_map_iff.
+      intros ((? & ? & Hin) & Hout); subst.
+      do 2 eexists; eauto.
+      rewrite -> filter_In in *; destruct Hin; split; auto.
       rewrite nth_replace_nth'; auto.
-      intro; subst; contradiction H3; constructor.
-    + intros ? Hin; unfold In in Hin.
-      destruct (eq_dec x i); [subst; erewrite nth_replace_nth in Hin by lia; discriminate|].
+      intro; subst; contradiction Hout; apply elem_of_singleton; auto.
+    + rewrite -> elem_of_difference, !elem_of_list_to_set, !elem_of_list_In, !in_map_iff.
+      intros (x' & ? & Hin) ; subst.
+      rewrite -> filter_In in *; destruct Hin as [? Hin].
+      destruct (decide (x' = i)); [subst; erewrite nth_replace_nth in Hin by lia; discriminate|].
       erewrite nth_replace_nth' in Hin by auto.
-      constructor; auto.
-      intro Hx; inv Hx; contradiction.
+      split; [|rewrite elem_of_singleton; auto].
+      do 2 eexists; eauto.
+      rewrite filter_In; split; auto.
+      intros X%Nat2Pos.inj; congruence.
   - erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)
       by (rewrite Zlength_upto; split; [|apply Nat2Z.inj_lt]; lia).
     erewrite iter_sepcon_Znth with (i0 := Z.of_nat i)(l0 := upto _)
@@ -1018,6 +993,10 @@ Proof.
     rewrite Znth_replace_nth'; auto.
     intro; subst.
     apply in_app in Hin as [?%In_sublist_upto | ?%In_sublist_upto]; lia.
+  - rewrite -> elem_of_list_to_set, elem_of_list_In, in_map_iff.
+    do 2 eexists; eauto.
+    rewrite filter_In; split; [|rewrite Hi'; auto].
+    apply in_seq; lia.
 Qed.
 
 Lemma invariant_dealloc : forall i P, (invariant i P |-- |==> emp)%I.
@@ -1053,31 +1032,15 @@ Qed.
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
 
-Lemma Setminus_self : forall {A} s, Setminus s s = Empty_set A.
-Proof.
-  intros; apply Extensionality_Ensembles; split; intros ? X; inv X; contradiction.
-Qed.
-
-Lemma Included_self : forall {A} s, @Included A s s.
-Proof.
-  repeat intro; auto.
-Qed.
-
-Lemma ghost_set_empty : forall {A} g (s : Ensemble A),
-  ghost_set g s = ghost_set g s * ghost_set g (Empty_set A).
+Lemma ghost_set_empty : forall g s,
+  ghost_set g s = ghost_set g s * ghost_set g empty.
 Proof.
   intros.
   apply own_op.
-  split.
-  - constructor; intros ? X; inv X.
-    inv H0.
-  - apply Extensionality_Ensembles; split; intros ? X.
-    + constructor 1; auto.
-    + inv X; auto.
-      inv H.
+  hnf; set_solver.
 Qed.
 
-Lemma wsat_empty_eq : wsat = wsat * ghost_set g_en (Empty_set iname).
+Lemma wsat_empty_eq : wsat = wsat * ghost_set g_en empty.
 Proof.
   unfold wsat.
   repeat (rewrite exp_sepcon1; f_equal; extensionality).
@@ -1093,13 +1056,8 @@ Proof.
   iIntros.
   iMod (own_alloc(RA := snap_PCM(ORD := list_order gname)) (Tsh, nil) NoneP with "[$]") as (g_inv) "inv"; first (simpl; auto).
   iMod (own_alloc(RA := list_PCM (exclusive_PCM unit)) nil NoneP with "[$]") as (g_dis) "dis"; first (simpl; auto).
-  iMod (own_alloc(RA := set_PCM iname) (Empty_set _) NoneP with "[$]") as (g_en) "en"; first (simpl; auto).
+  iMod (own_alloc(RA := set_PCM) empty NoneP with "[$]") as (g_en) "en"; first (simpl; auto).
   iModIntro.
   iExists {| g_inv := g_inv; g_dis := g_dis; g_en := g_en |}.
-  iExists nil, nil, nil; simpl; iFrame.
-  iSplitR "en"; auto.
-  erewrite Extensionality_Ensembles at 1; auto; split.
-  * intros ? X; inv X.
-  * intros ? X.
-    destruct x; inv X.
+  iExists nil, nil, nil; simpl; iFrame; auto.
 Qed.
