@@ -1169,18 +1169,12 @@ Ltac check_gvars :=
            end
          ].
 
-Ltac prove_call_setup ts subsumes witness :=
- prove_call_setup1 subsumes;
- [ .. | 
- match goal with |- call_setup1  _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
-      check_witness_type ts A witness
- end;
+Ltac prove_call_setup_aux  ts witness :=
  let H := fresh in
  intro H;
  match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
- let R := strip1_later R' in(*
- exploit (call_setup2'_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;*)
+ let R := strip1_later R' in
  exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
  [ reflexivity
@@ -1189,9 +1183,17 @@ Ltac prove_call_setup ts subsumes witness :=
  | auto 50 with derives
  | unfold check_gvars_spec; solve [exact I | reflexivity]
  | try change_compspecs CS; cancel_for_forward_call
- | 
+ |
  ]
- end].
+ end.
+
+Ltac prove_call_setup ts subsumes witness :=
+ prove_call_setup1 subsumes;
+ [ .. | 
+ match goal with |- call_setup1  _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      check_witness_type ts A witness
+ end;
+ prove_call_setup_aux ts witness].
 
 Ltac fwd_call' ts subsumes witness :=
 lazymatch goal with
@@ -1284,29 +1286,17 @@ Ltac get_function_witness_type func :=
       ] in TA
  in let TA'' := eval simpl in TA'
  in TA''.
-(*
+
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
-      ltac:(fun witness =>
- let H := fresh in
- intro H;
- match goal with | |- @semax ?CS _ _ _ _ _ =>
- let Frame := fresh "Frame" in evar (Frame: list mpred);
- exploit (call_setup2_i_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
- [ reflexivity
- | check_prove_local2ptree
- | Forall_pTree_from_elements
- | unfold check_gvars_spec; solve [exact I | reflexivity]
- | try change_compspecs CS; cancel_for_forward_call
- |
- ]
- end)
- ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
- end].*)
+      ltac:(prove_call_setup_aux (@nil Type))
+      ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
+ end].
 
+(*
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
@@ -1318,8 +1308,8 @@ Ltac new_prove_call_setup :=
  match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let R := strip1_later R' in
-(* exploit (call_setup2_i_nil _ _ _ _ _ _ _ _ R R' _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;*)
- exploit (call_setup2_i _ _ _ _ _ _ _ _ _ R R' _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ nil _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ simpl functors.MixVariantFunctor._functor;
  [ reflexivity
  | check_prove_local2ptree
  | Forall_pTree_from_elements
@@ -1331,8 +1321,8 @@ Ltac new_prove_call_setup :=
  end)
  ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
  end].
+*)
 
-                  
 Ltac new_fwd_call' :=
 lazymatch goal with
 | |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
