@@ -4248,6 +4248,10 @@ Ltac prove_semax_prog_aux tac :=
      let x := constr:(ltac:(old_with_library prog Gprog))
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
                     prog Vprog x)
+    | |- semax_prog_ext ?prog ?z ?Vprog ?Gprog =>
+     let x := constr:(ltac:(old_with_library prog Gprog))
+     in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog_ext
+                    prog z Vprog x)
   end;
  split3; [ | | split3; [ | | split]];
  [ reflexivity || fail "duplicate identifier in prog_defs"

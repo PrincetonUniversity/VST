@@ -212,7 +212,7 @@ Proof.
   do 3 eexists; eauto.
   destruct Hdata as [? Hblock].
   eapply memory_block_writable_perm in Hblock; eauto;
-    rewrite ?nat_of_Z_max, ?Z.max_l in * by (pose proof sizeof_pos t; omega); auto.
+    rewrite ?Z2Nat.id, ?nat_of_Z_max, ?Z.max_l in * by (pose proof sizeof_pos t; omega); auto.
   { apply Ptrofs.unsigned_range. }
   { rewrite Z.add_comm; auto. }
 Qed.

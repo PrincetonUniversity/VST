@@ -325,7 +325,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call.
+  { forward_call 1.
     rep_omega.
     entailer!. }
   { forward.
@@ -443,7 +443,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call.
+  { forward_call 1.
     rep_omega.
     entailer!. }
   { forward.
