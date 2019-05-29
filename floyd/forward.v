@@ -4085,6 +4085,10 @@ Definition semax_prog {Espec} {CS} prog V G :=
  @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
   Espec CS prog V (augment_funspecs prog G).
 
+Definition semax_prog_ext {Espec} {CS} prog z V G :=
+ @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog_ext
+  Espec CS prog z V (augment_funspecs prog G).
+
 Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',
    a=a' -> b=b' -> c=c' -> JMeq d d' -> JMeq e e' ->

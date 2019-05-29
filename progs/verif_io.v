@@ -282,7 +282,6 @@ Instance Espec : OracleKind := IO_Espec ext_link.
 Lemma prog_correct:
   semax_prog_ext prog main_itree Vprog Gprog.
 Proof.
-(* Something seems to be wrong with the new with_library when interacting with external functions.
 prove_semax_prog.
 semax_func_cons_ext.
 { simpl; Intro i.
@@ -291,7 +290,7 @@ semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
 semax_func_cons body_main.
-Qed.*) Admitted.
+Qed.
 
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.io_dry.
@@ -317,7 +316,7 @@ Theorem prog_toplevel : exists q : Clight_new.corestate,
              (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
-  edestruct whole_program_sequential_safety_ext with (V := Vprog)(G := Gprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
   - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.
