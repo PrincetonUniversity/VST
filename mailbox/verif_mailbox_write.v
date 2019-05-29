@@ -806,7 +806,7 @@ Proof.
       apply allp_right; intro vc.
       apply allp_right; intro vx.
       rewrite <- imp_andp_adjoint; Intros.
-      apply andp_right; auto; eapply derives_trans, view_shift_weak; auto.
+      rewrite <- wand_sepcon_adjoint, emp_sepcon; Intros.
       Intros.
       unfold comm_R at 1 2.
       rewrite rev_app_distr; simpl.
