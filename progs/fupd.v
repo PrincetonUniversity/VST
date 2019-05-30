@@ -636,6 +636,26 @@ Qed.
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs
    in veric (a la own). *)
 
+Lemma fupd_nonexpansive: forall E1 E2 P n, approx n (|={E1,E2}=> P) = approx n (|={E1,E2}=> approx n P).
+Proof.
+  intros; unfold fupd.
+  rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 2.
+  f_equal; f_equal.
+  rewrite !approx_bupd; f_equal.
+  unfold except0.
+  setoid_rewrite approx_orp; f_equal.
+  rewrite !approx_sepcon, approx_idem; reflexivity.
+Qed.
+
+Corollary fview_shift_nonexpansive : forall E1 E2 P Q n,
+  approx n (P -* |={E1,E2}=> Q)%logic = approx n (approx n P  -* |={E1,E2}=> approx n Q)%logic.
+Proof.
+  intros.
+  rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 3.
+  rewrite approx_idem; f_equal; f_equal.
+  apply fupd_nonexpansive.
+Qed.
+
 End FancyUpdates.
 
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 62): logic.

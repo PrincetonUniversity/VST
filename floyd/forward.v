@@ -4085,6 +4085,10 @@ Definition semax_prog {Espec} {CS} prog V G :=
  @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
   Espec CS prog V (augment_funspecs prog G).
 
+Definition semax_prog_ext {Espec} {CS} prog z V G :=
+ @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog_ext
+  Espec CS prog z V (augment_funspecs prog G).
+
 Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',
    a=a' -> b=b' -> c=c' -> JMeq d d' -> JMeq e e' ->
@@ -4248,6 +4252,10 @@ Ltac prove_semax_prog_aux tac :=
      let x := constr:(ltac:(old_with_library prog Gprog))
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
                     prog Vprog x)
+    | |- semax_prog_ext ?prog ?z ?Vprog ?Gprog =>
+     let x := constr:(ltac:(old_with_library prog Gprog))
+     in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog_ext
+                    prog z Vprog x)
   end;
  split3; [ | | split3; [ | | split]];
  [ reflexivity || fail "duplicate identifier in prog_defs"

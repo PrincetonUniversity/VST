@@ -1100,7 +1100,16 @@ Qed.
 
 Ltac expand_main_pre :=
  match goal with |- semax _ (main_pre ?prog _ _ * _) _ _ =>
-    (rewrite main_pre_start || rewrite main_pre_ext_start);
+    rewrite main_pre_start;
+    unfold prog_vars, prog
+                          | |- semax _ (main_pre ?prog _ _) _ _ =>
+    rewrite main_pre_start;
+    unfold prog_vars, prog
+                          | |- semax _ (main_pre_ext ?prog _ _ _ * _) _ _ =>
+    rewrite main_pre_ext_start;
+    unfold prog_vars, prog
+                          | |- semax _ (main_pre_ext ?prog _ _ _) _ _ =>
+    rewrite main_pre_ext_start;
     unfold prog_vars, prog
  end;
  (match goal with |- context C [prog_defs (Build_program ?d _ _ _ _)] =>

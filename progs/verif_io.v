@@ -148,7 +148,7 @@ Proof.
     subst; entailer!.
     erewrite ITREE_ext; [apply derives_refl|].
     simpl.
-    rewrite bind_ret; reflexivity.
+    rewrite Shallow.bind_ret; reflexivity.
   - forward.
 Qed.
 
@@ -213,13 +213,14 @@ Proof.
   if_tac; [|reflexivity].
   unfold id.
   repeat setoid_rewrite bind_bind.
-  setoid_rewrite bind_ret.
+  setoid_rewrite Shallow.bind_ret.
   reflexivity.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
+  unfold main_pre_ext.
   replace_SEP 0 (ITREE main_itree).
   { go_lower.
     apply has_ext_ITREE. }
@@ -315,7 +316,7 @@ Theorem prog_toplevel : exists q : Clight_new.corestate,
              (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
-  edestruct whole_program_sequential_safety_ext with (V := Vprog)(G := Gprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
   - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.

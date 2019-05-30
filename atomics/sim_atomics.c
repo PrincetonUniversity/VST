@@ -59,7 +59,7 @@ int CAS_SC(atomic_loc *tgt, int c, int v){
   return x;
 }
 
-int atomic_exchange_SC(int *tgt, int v){
+int atomic_exchange_SC(atomic_loc *tgt, int v){
   int x;
   lock_t *l = tgt->lock;
   acquire(l);
