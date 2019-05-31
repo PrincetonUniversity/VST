@@ -85,6 +85,8 @@ match classify_cast tfrom tto with
       then tc_test_eq a (Econst_int Int.zero (Tint I32 Unsigned noattr))
       else tc_TT
 | Cop.cast_case_void => tc_noproof
+| Cop.cast_case_i2s _ => tc_TT
+| Cop.cast_case_i2f _ => tc_TT
 | _ => match tto with
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
       | Tfloat F64 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)
