@@ -4,7 +4,7 @@ Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
 Require Export VST.progs.invariants.
 Require Export VST.progs.fupd.
-Require Import atomics.general_atomics.
+Require Export atomics.general_atomics.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 
@@ -15,12 +15,19 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section SC_atomics.
 
-Context {CS : compspecs} (*{inv_names : invG}*).
+Context {CS : compspecs}.
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
   (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred))
   (ConstType invG).
+
+(*    SEP (|={Eo,Ei}=> EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
+              data_at sh tint (vint v) p * (data_at sh tint (vint v) p -* |={Ei,Eo}=> Q v)) *)
+
+(*    SEP (|={Eo,Ei}=> EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
+              data_at sh tint (vint v) p * (data_at sh tint (vint v') p -* |={Ei,Eo}=> Q)) *)
+
 
 Program Definition load_SC_spec := TYPE AL_type
   WITH p : val, P : mpred, Eo : Ensemble iname, Ei : Ensemble iname,
@@ -108,6 +115,10 @@ Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdTy
   (ArrowType (ConstType iname) (ConstType Prop))) (ArrowType (ConstType iname) (ConstType Prop)))
   (ArrowType (ConstType share) (ArrowType (ConstType Z) Mpred))) (ArrowType (ConstType Z) Mpred))
   (ConstType invG).
+
+(* |={Eo,Ei}=> EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
+              data_at sh tint (vint v0) p *
+      (data_at sh tint (vint (if eq_dec v0 c then v else v0)) p -* |={Ei,Eo}=> Q v0) *)
 
 Program Definition CAS_SC_spec := TYPE ACAS_type
   WITH p : val, c : Z, v : Z, P : mpred, Eo : Ensemble iname, Ei : Ensemble iname,

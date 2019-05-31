@@ -1,6 +1,6 @@
 Require Import VST.veric.rmaps.
 Require Import VST.progs.conclib.
-Require Import VST.progs.ghost.
+Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import atomics.sim_atomics.
@@ -16,23 +16,25 @@ Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 
 Definition surely_malloc_spec :=
- DECLARE _surely_malloc
-   WITH n:Z
+  DECLARE _surely_malloc
+   WITH t:type, gv: globals
    PRE [ _n OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)))
-       SEP ()
+       PROP (0 <= sizeof t <= Int.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh n p * memory_block Tsh n p).
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 (* lock invariant for atomic locations *)
 Definition tatomic := Tstruct _atomic_loc noattr.
 
 Definition A_inv p l R := EX v : Z, !!(repable_signed v) &&
   (field_at Tsh tatomic [StructField _val] (vint v) p * R v *
-   (weak_precise_mpred (R v) && emp) * malloc_token Tsh (sizeof tatomic) p * malloc_token Tsh (sizeof tlock) l).
+   (weak_exclusive_mpred (R v) && emp) * malloc_token Tsh tatomic p * malloc_token Tsh tlock l).
 
 Definition atomic_loc sh p R := !!(field_compatible tatomic [] p) &&
   (EX lock : val, field_at sh tatomic [StructField _lock] lock p * lock_inv sh lock (A_inv p lock R)).
@@ -45,8 +47,8 @@ Proof.
   rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_andp, !approx_sepcon, !approx_andp.
   rewrite approx_idem.
-  rewrite (nonexpansive_super_non_expansive (fun R => weak_precise_mpred R))
-    by (apply precise_mpred_nonexpansive); auto.
+  rewrite (nonexpansive_super_non_expansive (fun R => weak_exclusive_mpred R))
+    by (apply exclusive_mpred_nonexpansive); auto.
 Qed.
 
 Lemma atomic_loc_super_non_expansive : forall n sh p R,
@@ -63,16 +65,16 @@ Proof.
   rewrite A_inv_super_non_expansive; auto.
 Qed.
 
-Definition MA_spec i P (R : Z -> mpred) Q := view_shift P (R i * (weak_precise_mpred (R i) && emp) * Q).
+Definition MA_spec i P (R : Z -> mpred) Q := P -* |==> (R i * (weak_exclusive_mpred (R i) && emp) * Q).
 
 Definition MA_type := ProdType (ProdType (ProdType (ConstType Z) Mpred) (ArrowType (ConstType Z) Mpred)) Mpred.
 
 Program Definition make_atomic_spec := DECLARE _make_atomic TYPE MA_type
   WITH i : Z, P : mpred, R : Z -> mpred, Q : mpred
   PRE [ _i OF tint ]
-   PROP (MA_spec i P R Q; repable_signed i)
+   PROP (repable_signed i)
    LOCAL (temp _i (vint i))
-   SEP (P)
+   SEP (P; MA_spec i P R Q)
   POST [ tptr tatomic ]
    EX p : val,
    PROP ()
@@ -82,13 +84,14 @@ Next Obligation.
 Proof.
   repeat intro.
   destruct x as (((?, ?), ?), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem]; auto.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
   f_equal; unfold MA_spec.
+  f_equal.
   rewrite view_shift_super_non_expansive.
   setoid_rewrite view_shift_super_non_expansive at 2.
   rewrite !approx_sepcon, !approx_idem, !approx_andp.
-  rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
+  rewrite (nonexpansive_super_non_expansive weak_exclusive_mpred) by (apply exclusive_mpred_nonexpansive); auto.
 Qed.
 Next Obligation.
 Proof.

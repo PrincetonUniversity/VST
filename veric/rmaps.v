@@ -18,6 +18,7 @@ Inductive TypeTree: Type :=
   | DependentType: nat -> TypeTree
   | ProdType: TypeTree -> TypeTree -> TypeTree
   | ArrowType: TypeTree -> TypeTree -> TypeTree
+  | SigType: forall (I : Type), (I -> TypeTree) -> TypeTree
   | PiType: forall (I : Type), (I -> TypeTree) -> TypeTree
   | ListType: TypeTree -> TypeTree.
 
@@ -29,6 +30,7 @@ Definition dependent_type_functor_rec (ts: list Type): TypeTree -> functor :=
   | DependentType n => fconst (nth n ts unit)
   | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
   | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+  | SigType _ f => fsig (fun i => dtfr (f i))
   | PiType _ f => fpi (fun i => dtfr (f i))
   | ListType T => flist (dtfr T)
   end.
@@ -42,6 +44,7 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   | DependentType n => nth n ts unit
   | ProdType T1 T2 => (dtfr T1 * dtfr T2)%type
   | ArrowType T1 T2 => dtfr T1 -> dtfr T2
+  | SigType A f => sigT (fun a => dtfr (f a))
   | PiType A f => forall a, dtfr (f a)
   | ListType T => list (dtfr T)
   end.

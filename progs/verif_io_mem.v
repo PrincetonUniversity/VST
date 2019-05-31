@@ -325,7 +325,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call.
+  { forward_call 1.
     rep_omega.
     entailer!. }
   { forward.
@@ -399,12 +399,12 @@ Proof.
   rewrite bind_bind.
   apply eutt_bind; [|reflexivity].
   intros [].
-  - rewrite bind_ret, unfold_aloop.
+  - rewrite Shallow.bind_ret, unfold_aloop.
     reflexivity.
   - rewrite bind_bind.
     apply eutt_bind; [|reflexivity].
     intro.
-    rewrite bind_ret; reflexivity.
+    rewrite Shallow.bind_ret; reflexivity.
 Qed.
 
 Lemma for_loop_eq : forall i z body,
@@ -418,9 +418,9 @@ Proof.
   rewrite bind_bind.
   apply eutt_bind; [|reflexivity].
   intros [].
-  - rewrite bind_ret, unfold_aloop.
+  - rewrite Shallow.bind_ret, unfold_aloop.
     reflexivity.
-  - rewrite bind_ret; reflexivity.
+  - rewrite Shallow.bind_ret; reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
@@ -443,7 +443,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call.
+  { forward_call 1.
     rep_omega.
     entailer!. }
   { forward.
@@ -493,7 +493,7 @@ Proof.
         destruct (Z.ltb_spec i 4); try omega.
         unfold read_sum_inner at 2.
         replace (_ || _)%bool with true.
-        rewrite !bind_ret; reflexivity.
+        rewrite !Shallow.bind_ret; reflexivity.
         symmetry; rewrite orb_true_iff.
         rewrite Int.unsigned_sub_borrow in *.
         unfold Int.sub_borrow in *.
@@ -535,7 +535,7 @@ Proof.
         apply ITREE_impl; rewrite !bind_bind.
         apply eutt_bind; [|reflexivity].
         intros [].
-        rewrite bind_ret; reflexivity. }
+        rewrite Shallow.bind_ret; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; omega. }
       entailer!.
       { rewrite Hi, sum_Z_app; simpl.
@@ -545,7 +545,7 @@ Proof.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
         apply ITREE_impl.
-        simpl; rewrite bind_ret; reflexivity. }
+        simpl; rewrite Shallow.bind_ret; reflexivity. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.
@@ -602,7 +602,7 @@ Theorem prog_toplevel : exists q : Clight_new.corestate,
              (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
             main_itree q init_mem.
 Proof.
-  edestruct whole_program_sequential_safety_ext with (V := Vprog)(G := Gprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
   - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.

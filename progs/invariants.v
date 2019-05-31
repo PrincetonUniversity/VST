@@ -4,6 +4,7 @@ Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
+Require Import List.
 Import Ensembles.
 
 (* Where should this sit? *)
@@ -46,6 +47,11 @@ Qed.
 Lemma cored_emp: cored |-- |==> emp.
 Proof.
   apply own.cored_emp.
+Qed.
+
+Lemma emp_cored : emp |-- cored.
+Proof.
+  apply own.emp_cored.
 Qed.
 
 Section Invariants.
@@ -849,7 +855,7 @@ Proof.
   unfold invariant, master_list, ghost_master1, ghost_list.
   Exists g; entailer!.
   { rewrite !app_length, !repeat_length; omega. }
-  rewrite !sepcon_assoc, sepcon_comm, !sepcon_assoc; repeat apply sepcon_derives; try apply derives_refl.
+  apply sepcon_derives.
   - apply derives_refl'; f_equal; apply Extensionality_Ensembles.
     split; intro; unfold In.
     + intro Hx; rewrite <- app_assoc, app_nth.
@@ -1057,7 +1063,8 @@ Qed.
 Lemma invariant_cored : forall i P, invariant i P |-- cored.
 Proof.
   intros; unfold invariant.
-  Intro g; rewrite cored_duplicable.
+  apply exp_left; intro g.
+  rewrite cored_duplicable.
   apply sepcon_derives; apply own_cored; hnf; auto; simpl.
   split; auto.
   rewrite !eq_dec_refl.
@@ -1116,12 +1123,9 @@ Proof.
     Intros g_inv g_dis g_en.
     Exists {| g_inv := g_inv; g_dis := g_dis; g_en := g_en |}.
     Exists (@nil mpred) (@nil gname) (@nil (option bool)); simpl; entailer!.
-    apply sepcon_derives; [apply sepcon_derives|].
-    + apply derives_refl.
-    + apply derives_refl.
-    + apply derives_refl'; unfold ghost_set; f_equal.
-      apply Extensionality_Ensembles; split.
-      * intros ? X; inv X.
-      * intros ? X.
-        destruct x; inv X.
+    apply derives_refl'; unfold ghost_set; f_equal.
+    apply Extensionality_Ensembles; split.
+    * intros ? X; inv X.
+    * intros ? X.
+      destruct x; inv X.
 Qed.

@@ -83,8 +83,8 @@ Qed.
 (* This predicate describes the valid pre- and postconditions for a given atomic invariant R. *)
 Definition AE_spec i P R Q := ALL hc : _, ALL hx : _, ALL vc : _, ALL vx : _,
   !!(apply_hist i hx = Some vx /\ hist_incl hc hx) -->
-  weak_view_shift (R hx vx * P hc vc) (R (hx ++ [AE vx vc]) vc *
-    Q (map_upd hc (length hx) (AE vx vc)) vx) && emp.
+  ((R hx vx * P hc vc) -* (|==> R (hx ++ [AE vx vc]) vc *
+    Q (map_upd hc (length hx) (AE vx vc)) vx)).
 
 Definition AE_type := ProdType (ProdType (ProdType
   (ConstType (share * val * gname * val * val * val * hist))
@@ -118,7 +118,6 @@ Proof.
   rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
   rewrite !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
   setoid_rewrite approx_imp; f_equal; f_equal.
-  rewrite !approx_andp; f_equal.
   rewrite view_shift_nonexpansive, !approx_sepcon; auto.
 Qed.
 Next Obligation.
@@ -164,7 +163,7 @@ Proof.
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with (Vint v)].
     eapply derives_trans; [apply allp_sepcon1 | apply allp_left with (Vint v')].
     rewrite prop_imp by auto.
-    apply apply_view_shift. }
+    rewrite sepcon_comm; apply modus_ponens_wand. }
   forward_call (l, lsh, AE_inv tgt g i R).
   { lock_props.
     unfold AE_inv.

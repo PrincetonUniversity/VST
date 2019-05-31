@@ -1,6 +1,7 @@
 Require Import VST.veric.juicy_extspec.
 Require Import VST.floyd.proofauto.
 Require Import ITree.ITree.
+Require Export ITree.Eq.UpToTausEquivalence.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
   (at level 50, left associativity) : itree_scope.
