@@ -15,11 +15,13 @@ Local Ltac inj :=
   | H: _ = _ |- _ => assert_succeeds (injection H); inv H
   end.
 
+(** Helper Lemmas *)
 Section ListFacts.
 
-  Context {A: Type}.
+  Context {A : Type}.
   Variable Aeq : forall (x y : A), {x = y} + {x <> y}.
 
+  (** common_prefix/common_suffix *)
   Fixpoint common_prefix (xs ys : list A) : list A :=
     match xs, ys with
     | x :: xs', y :: ys' =>
@@ -134,62 +136,68 @@ Section ListFacts.
       rewrite firstn_skipn; auto.
   Qed.
 
-  Fact list_eq_in_or : forall (xs ys xs' ys' : list A) x y,
-    xs ++ x :: xs' = ys ++ y :: ys' ->
-    x <> y ->
-    In y xs \/ In y xs'.
-  Proof.
-    induction xs; destruct ys; cbn; intros * Heq Hneq; inj; eauto.
-    - rewrite in_app_iff; cbn; auto.
-    - cut (In y xs \/ In y xs'); eauto.
-      intuition auto.
-  Qed.
-
-  Fact list_eq_in_l : forall (xs ys ys' : list A) x y,
-    xs ++ x :: nil = ys ++ y :: ys' ->
-    x <> y ->
-    In y xs.
-  Proof.
-    intros.
-    cut (In y xs \/ In y nil); [intuition |].
-    eapply list_eq_in_or; eauto.
-  Qed.
-
-  Fact list_eq_in_r : forall (xs' ys ys' : list A) x y,
-    x :: xs' = ys ++ y :: ys' ->
-    x <> y ->
-    In y xs'.
-  Proof.
-    intros.
-    cut (In y nil \/ In y xs'); [intuition |].
-    eapply list_eq_in_or; eauto.
-  Qed.
-
-  Fact list_unique_match : forall (xs ys xs' ys': list A) x,
-    xs ++ x :: xs' = ys ++ x :: ys' ->
-    NoDup (xs ++ x :: xs') ->
-    xs = ys /\ xs' = ys'.
-  Proof.
-    induction xs; destruct ys; cbn; intros * Heq Huniq; inj; inv Huniq; auto.
-    - rewrite in_app_iff in *; cbn in *.
-      intuition.
-    - rewrite in_app_iff in *; cbn in *.
-      intuition.
-    - cut (xs = ys /\ xs' = ys'); eauto.
-      intuition congruence.
-  Qed.
-
+  (** Misc tl/hd_error facts *)
   Lemma in_tail : forall (xs : list A) x,
     In x (tl xs) -> In x xs.
-  Proof.
-    destruct xs; intros *; cbn; auto.
-  Qed.
+  Proof. destruct xs; intros *; cbn; auto. Qed.
+
+  Lemma tail_not_nil_has_head : forall (xs ys : list A),
+    ys <> nil ->
+    tl xs = ys ->
+    exists x, xs = x :: ys.
+  Proof. destruct xs; cbn; intros; subst; eauto; easy. Qed.
 
   Lemma Zlength_tail : forall (xs : list A),
     (Zlength (tl xs) <= Zlength xs)%Z.
   Proof.
     destruct xs; [cbn; lia |].
     rewrite Zlength_cons; cbn; lia.
+  Qed.
+
+  Lemma Zlength_tail_strong : forall (xs : list A),
+    xs <> nil ->
+    (Zlength (tl xs) = Zlength xs - 1)%Z.
+  Proof.
+    destruct xs; [easy |].
+    intros; cbn [tl].
+    rewrite Zlength_cons; lia.
+  Qed.
+
+  Lemma hd_error_app : forall (xs ys : list A) x,
+    hd_error xs = Some x ->
+    hd_error (xs ++ ys) = Some x.
+  Proof. destruct xs; cbn; easy. Qed.
+
+  Lemma hd_error_app_case : forall (xs : list A) x,
+    hd_error (xs ++ x :: nil) = hd_error xs \/ xs = nil.
+  Proof. destruct xs; auto. Qed.
+
+  Lemma hd_error_tl : forall (xs : list A) x,
+    hd_error (tl xs) = Some x ->
+    exists y, hd_error xs = Some y.
+  Proof. destruct xs; cbn; eauto. Qed.
+
+  Lemma hd_error_in : forall (xs : list A) x,
+    hd_error xs = Some x ->
+    In x xs.
+  Proof. destruct xs; cbn; intros; inj; auto; easy. Qed.
+
+  Lemma app_tail_case : forall (xs ys ys' : list A) x y,
+    xs ++ x :: nil = ys ++ y :: ys' ->
+    ys' = nil /\ x = y /\ xs = ys \/
+    exists ys'', xs = ys ++ y :: ys'' /\ ys' = ys'' ++ x :: nil.
+  Proof.
+    intros * Heq.
+    assert (Hcase: ys' = nil \/ exists ys'' y'', ys' = ys'' ++ y'' :: nil).
+    { clear; induction ys'; auto.
+      intuition (subst; eauto using app_nil_l).
+      destruct H as (? & ? & ?); subst.
+      eauto using app_comm_cons.
+    }
+    destruct Hcase as [? | (? & ? & ?)]; subst.
+    - apply app_inj_tail in Heq; intuition auto.
+    - rewrite app_comm_cons, app_assoc in Heq.
+      apply app_inj_tail in Heq; intuition (subst; eauto).
   Qed.
 
 End ListFacts.
@@ -318,7 +326,7 @@ Section Specs.
         match ev with
         | ETReadOS ridx c =>
             let cons' := if Zlength cons <? CONSOLE_MAX_LEN then cons
-                         else skipn 1 cons in
+                         else tl cons in
             cons' ++ (c, ridx) :: nil
         | ETReadUser _ _ => tl cons
         | _ => cons
@@ -354,6 +362,7 @@ Section Specs.
 
 End Specs.
 
+(** Trace Invariants *)
 Section Invariants.
 
   Context {Hclen : ConsoleLen} {Horacle : SerialOracle}.
@@ -373,23 +382,11 @@ Section Invariants.
   (* Every event in the trace is unique. *)
   Definition valid_trace_unique (tr : etrace) := NoDup tr.
 
-  (* Everything in the console buffer is also in the trace. *)
-  Definition valid_console tr :=
-    forall ridx c,
-      In (c, ridx) (compute_console tr) ->
-      In (ETReadOS ridx c) tr.
-
-  (* The console buffer never overflows. *)
-  Definition valid_console_len tr :=
-    Zlength (compute_console tr) <= CONSOLE_MAX_LEN.
-
   (* All trace invariants hold. *)
   Record valid_trace st := {
     vt_trace_serial : valid_trace_serial st.(st_trace);
     vt_trace_user : valid_trace_user st.(st_trace);
     vt_trace_unique : valid_trace_unique st.(st_trace);
-    vt_console : valid_console st.(st_trace);
-    vt_console_len : valid_console_len st.(st_trace);
   }.
 
   (* Compute the newly added events in the trace. *)
@@ -409,49 +406,177 @@ Section Invariants.
     (c = -1 -> t = nil) /\
     (0 <= c <= 255 -> exists ridx, t = ETReadUser ridx c :: nil).
 
-  (** Trace Invariants *)
-  Lemma hd_error_app {A} : forall (xs ys : list A) x,
-    hd_error xs = Some x ->
-    hd_error (xs ++ ys) = Some x.
+  Lemma valid_trace_serial_cons : forall tr ev,
+    valid_trace_serial (ev :: tr) ->
+    valid_trace_serial tr.
   Proof.
-    destruct xs; cbn; easy.
+    unfold valid_trace_serial.
+    intros; subst; eauto using app_comm_cons.
   Qed.
 
-  Fact hd_error_app_case {A} : forall (xs : list A) x,
-    hd_error (xs ++ x :: nil) = hd_error xs \/ xs = nil.
-  Proof. destruct xs; auto. Qed.
+  Lemma valid_trace_serial_app : forall tr' tr,
+    valid_trace_serial (tr' ++ tr) ->
+    valid_trace_serial tr.
+  Proof.
+    induction tr'; cbn; eauto using valid_trace_serial_cons.
+  Qed.
 
-  Lemma compute_console_ridx_increase : forall tr ev ridx c ridx' c',
+  Local Hint Resolve valid_trace_serial_cons valid_trace_serial_app.
+
+  Lemma read_os_ordered : forall mid pre ridx c ridx' c',
+    valid_trace_serial (ETReadOS ridx' c' :: mid ++ ETReadOS ridx c :: pre) ->
+    (ridx < ridx')%nat.
+  Proof.
+    intros * Hvalid.
+    edestruct (Hvalid ridx); eauto using app_comm_cons.
+    edestruct (Hvalid ridx'); eauto using app_nil_l.
+    subst; rewrite app_length; cbn; lia.
+  Qed.
+
+  Lemma in_console_in_trace : forall tr ridx c,
+    In (c, ridx) (compute_console tr) ->
+    In (ETReadOS ridx c) tr.
+  Proof.
+    induction tr as [| ev tr]; cbn; intros * Hin; auto.
+    destruct ev; cbn in Hin; auto using in_tail.
+    rewrite in_app_iff in Hin; cbn in Hin.
+    intuition (inj; auto).
+    destruct (_ <? _); auto using in_tail.
+  Qed.
+
+  Lemma console_trace_same_order : forall tr pre mid post ridx c ridx' c',
+    compute_console tr = pre ++ (c, ridx) :: mid ++ (c', ridx') :: post ->
+    exists pre' mid' post',
+      tr = post' ++ ETReadOS ridx' c' :: mid' ++ ETReadOS ridx c :: pre'.
+  Proof.
+    induction tr as [| ev tr]; cbn; intros * Hcons;
+      [contradict Hcons; auto using app_cons_not_nil |].
+    destruct ev; cbn in Hcons;
+      try solve [edestruct IHtr as (? & ? & ? & ?); eauto; subst; eauto using app_comm_cons].
+    - rewrite app_comm_cons, app_assoc in Hcons.
+      destruct @app_tail_case with (1 := Hcons) as [(? & ? & Hcons') | (? & Hcons' & ?)]; inj; subst;
+        destruct (_ <? _).
+      + assert (Hin: In (c, ridx) (compute_console tr)).
+        { rewrite Hcons', in_app_iff; cbn; auto. }
+        apply in_console_in_trace in Hin.
+        apply in_split in Hin; destruct Hin as (? & ? & ?); subst; eauto using app_nil_l.
+      + apply tail_not_nil_has_head in Hcons'; auto using app_cons_not_nil.
+        destruct Hcons' as (? & Hcons').
+        rewrite app_comm_cons in Hcons'.
+        assert (Hin: In (c, ridx) (compute_console tr)).
+        { rewrite Hcons', in_app_iff; cbn; auto. }
+        apply in_console_in_trace in Hin.
+        apply in_split in Hin; destruct Hin as (? & ? & Heq); subst; eauto using app_nil_l.
+      + rewrite <- app_assoc, <- app_comm_cons in Hcons'.
+        edestruct IHtr as (? & ? & ? & Heq'); eauto; subst; eauto using app_comm_cons.
+      + apply tail_not_nil_has_head in Hcons'; auto using app_cons_not_nil.
+        destruct Hcons' as (? & Hcons').
+        rewrite <- app_assoc, <- app_comm_cons in Hcons'.
+        rewrite app_comm_cons in Hcons'.
+        edestruct IHtr as (? & ? & ? & Heq); eauto; subst; eauto using app_comm_cons.
+    - assert (Hcons': exists el,
+        compute_console tr = el :: pre ++ (c, ridx) :: mid ++ (c', ridx') :: post).
+      { destruct (compute_console tr); cbn in Hcons; subst; eauto.
+        contradict Hcons; auto using app_cons_not_nil.
+      }
+      destruct Hcons' as (? & Hcons').
+      rewrite app_comm_cons in Hcons'; eauto.
+        edestruct IHtr as (? & ? & ? & Heq); eauto; subst; eauto using app_comm_cons.
+  Qed.
+
+  Corollary console_tl_trace_same_order : forall tr ridx c ridx' c',
+    hd_error (compute_console tr) = Some (c, ridx) ->
+    hd_error (tl (compute_console tr)) = Some (c', ridx') ->
+    exists pre' mid' post',
+      tr = post' ++ ETReadOS ridx' c' :: mid' ++ ETReadOS ridx c :: pre'.
+  Proof.
+    intros * Hcons Hcons'.
+    destruct (compute_console tr) as [| ? cons] eqn:Heq; cbn in Hcons, Hcons'; [easy |]; inj.
+    destruct cons as [| ? cons'] eqn:Heq'; cbn in Hcons'; [easy |]; inj.
+    eapply console_trace_same_order.
+    instantiate (1 := cons'); repeat instantiate (1 := nil); eauto.
+  Qed.
+
+  Lemma compute_console_ordered : forall tr ev ridx c ridx' c',
     let cons := compute_console tr in
     let cons' := compute_console (ev :: tr) in
-    valid_console (ev :: tr) ->
     valid_trace_serial (ev :: tr) ->
     hd_error cons = Some (c, ridx) ->
     hd_error cons' = Some (c', ridx') ->
-    (ridx <= ridx')%nat.
+    match ev with
+    | ETReadUser _ _ => (ridx < ridx')%nat
+    | _ => (ridx <= ridx')%nat
+    end.
   Proof.
-    destruct ev; intros * Hcons Htr Hhd Hhd'; red in Hcons, Htr; subst cons cons'; cbn in *.
-    - destruct (_ <? _)eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt].
-      + erewrite hd_error_app in Hhd' by eauto; inj; auto.
-      + pose proof console_len_pos.
-        destruct (compute_console tr) as [| ? cons] eqn:Heq; cbn in *; inj; try lia.
-        admit.
-    - admit.
-    - admit.
-  Admitted.
+    intros * Hserial Hcons Hcons'; subst cons cons'.
+    destruct ev; cbn in Hcons'.
+    - destruct (_ <? _).
+      + erewrite hd_error_app in Hcons'; eauto; inj; auto.
+      + destruct (hd_error_app_case (tl (compute_console tr)) (r, ridx0)) as [Heq | Heq];
+          rewrite Heq in Hcons'; clear Heq.
+        * edestruct console_tl_trace_same_order as (? & ? & ? & Heq); eauto; subst.
+          rewrite app_comm_cons in Hserial.
+          apply valid_trace_serial_app in Hserial.
+          eapply read_os_ordered in Hserial; eauto; lia.
+        * cbn in Hcons'; inj.
+          apply hd_error_in in Hcons.
+          apply in_console_in_trace in Hcons.
+          apply in_split in Hcons; destruct Hcons as (? & ? & ?); subst.
+          apply read_os_ordered in Hserial; lia.
+    - edestruct console_tl_trace_same_order as (? & ? & ? & Heq); eauto; subst.
+      eapply read_os_ordered; eauto.
+    - rewrite Hcons in Hcons'; inj; auto.
+  Qed.
 
-  (* Lemma compute_console_ridx_increase : forall ridx c tr ridx' c', *)
-  (*   let cons := compute_console tr in *)
-  (*   let cons' := compute_console (ETReadUser ridx c :: tr) in *)
-  (*   hd_error cons = Some (c', ridx') -> *)
-  (*   (ridx' < ridx)%nat. *)
-  (* Proof. *)
-  (*   induction tr as [| ev tr]; cbn; intros * Hhd; [discriminate |]. *)
-  (*   destruct ev; eauto. *)
-  (*   - admit. *)
-  (*   - eapply IHtr. *)
-  (* Qed. *)
+  Lemma compute_console_user_ridx_increase : forall post pre ridx c ridx' c',
+    let tr := post ++ ETReadUser ridx c :: pre in
+    let cons := compute_console pre in
+    let cons' := compute_console tr in
+    valid_trace_serial tr ->
+    hd_error cons = Some (c, ridx) ->
+    hd_error cons' = Some (c', ridx') ->
+    (ridx < ridx')%nat.
+  Proof.
+    induction post as [| ev post]; intros * Hserial Hcons Hcons'; subst tr cons cons'.
+    - eapply compute_console_ordered in Hcons; eauto.
+      cbn in Hcons; auto.
+    - assert (Hcase:
+        (exists ridx'' c'',
+          hd_error (compute_console (post ++ ETReadUser ridx c :: pre)) = Some (c'', ridx'')) \/
+        ev = ETReadOS ridx' c' /\ compute_console (post ++ ETReadUser ridx c :: pre) = nil).
+      { cbn in Hcons'; destruct ev; eauto.
+        - destruct (compute_console (post ++ _ :: pre)) as [| (? & ?) ?] eqn:?; cbn; eauto.
+          right; destruct (_ <? _); cbn in Hcons'; inj; eauto.
+        - eapply hd_error_tl in Hcons'.
+          destruct Hcons' as ((? & ?) & ?); eauto.
+      }
+      destruct Hcase as [(ridx'' & c'' & Hcons'') | (? & Hcons'')]; subst.
+      + enough (ridx < ridx'' <= ridx')%nat by lia.
+        split; eauto.
+        destruct ev; eapply compute_console_ordered in Hcons'; eauto; lia.
+      + apply hd_error_in in Hcons.
+        apply in_console_in_trace in Hcons.
+        apply in_split in Hcons; destruct Hcons as (? & ? & ?); subst.
+        rewrite <- app_comm_cons in Hserial.
+        rewrite (app_comm_cons _ _ (ETReadUser _ _)) in Hserial.
+        rewrite app_assoc in Hserial.
+        eauto using read_os_ordered.
+  Qed.
 
+  Lemma console_len : forall tr,
+    Zlength (compute_console tr) <= CONSOLE_MAX_LEN.
+  Proof.
+    pose proof console_len_pos.
+    induction tr as [| ev tr]; cbn; try lia.
+    destruct ev; cbn; auto.
+    - destruct (_ <? _) eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt];
+        rewrite Zlength_app, Zlength_cons, Zlength_nil; try lia.
+      rewrite Zlength_tail_strong; try lia.
+      intros Hcons; rewrite Hcons in *; cbn in *; lia.
+    - etransitivity; [apply Zlength_tail |]; auto.
+  Qed.
+
+  (** Trace Invariants Preserved *)
   Lemma serial_getc_preserve_valid_trace : forall st st',
     valid_trace st ->
     serial_getc st = st' ->
@@ -473,21 +598,6 @@ Section Invariants.
       edestruct vt_trace_serial0 as (? & Hlen); eauto.
       rewrite Heq, app_length in Hlen.
       cbn in Hlen; lia.
-    - (* valid_console *)
-      intros *; cbn.
-      rewrite !in_app_iff, Zlength_correct; cbn.
-      destruct (_ <? _) eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt].
-      + intuition (inj; auto).
-      + red in vt_console0.
-        destruct (compute_console tr); intuition (inj; auto; try easy).
-        intuition.
-    - (* valid_console_len *)
-      red in vt_console_len0.
-      repeat (rewrite ?Zlength_correct, ?app_length in *; cbn).
-      pose proof console_len_pos.
-      destruct (_ <? _) eqn:Hlt; [rewrite Z.ltb_lt in Hlt | rewrite Z.ltb_nlt in Hlt];
-        try lia.
-      destruct (compute_console tr); cbn in *; lia.
   Qed.
 
   Lemma console_read_preserve_valid_trace : forall st st' c,
@@ -507,7 +617,7 @@ Section Invariants.
         intros * Heq.
         symmetry in Heq; destruct post; inj; cbn in *; eauto.
         assert (Hin: In (ETReadOS ridx c) tr).
-        { apply vt_console0.
+        { apply in_console_in_trace.
           rewrite Hcons; cbn; auto.
         }
         apply in_split in Hin.
@@ -519,10 +629,10 @@ Section Invariants.
         apply in_split in Hin.
         destruct Hin as (post & pre & ?); subst.
         edestruct vt_trace_user0 as (Hin & Hhd); eauto.
-        admit.
-      + (* valid_console_len *)
-        cbn; etransitivity; [apply Zlength_tail |]; auto.
-  Admitted.
+        enough (ridx < ridx)%nat by lia.
+        eapply compute_console_user_ridx_increase; eauto.
+        rewrite Hcons; cbn; auto.
+  Qed.
 
   Lemma getchar_spec_preserve_valid_trace : forall st st' c,
     valid_trace st ->
@@ -535,7 +645,7 @@ Section Invariants.
     destruct (0 <=? _) eqn:Hle; inj; eauto.
   Qed.
 
-  (** Return Invariants *)
+  (** Return Invariants Preserved *)
   Lemma console_read_valid_ret : forall st st' c,
     valid_trace st ->
     console_read st = (st', c) ->
@@ -549,7 +659,7 @@ Section Invariants.
     - repeat split.
       + (* c in range *)
         assert (Hin: In (ETReadOS ridx c) tr).
-        { apply vt_console0.
+        { apply in_console_in_trace.
           rewrite Hcons; cbn; auto.
         }
         apply in_split in Hin.
@@ -564,7 +674,7 @@ Section Invariants.
         clear; induction tr; auto.
       + (* empty trace *)
         assert (Hin: In (ETReadOS ridx c) tr).
-        { apply vt_console0.
+        { apply in_console_in_trace.
           rewrite Hcons; cbn; auto.
         }
         apply in_split in Hin.
@@ -601,6 +711,7 @@ Section SpecsCorrect.
 
   (* For any trace that the new itree (z) allows, the old itree (z0) allowed it
      with the generated trace (t) as a prefix. *)
+
   Definition consume_trace (z0 z : IO_itree) (et : etrace) :=
     let t := trace_of_etrace et in
     forall t',
@@ -625,9 +736,11 @@ Section SpecsCorrect.
       (* The new itree 'consumed' the generated trace *)
       consume_trace z z' t /\
       (* t is the correct prefix *)
-      st'.(st_trace) = t ++ st.(st_trace).
+      st'.(st_trace) = t ++ st.(st_trace) /\
+      (* The new trace is valid *)
+      valid_trace st'.
   Proof.
-    unfold getchar_pre'; intros Hval Hpre; cbn -[new_trace].
+    unfold getchar_pre'; intros Hvalid Hpre; cbn -[new_trace].
     destruct (getchar_spec st) as (st' & r) eqn:Hinv.
     pose proof Hinv as Hret.
     eapply getchar_spec_preserve_valid_trace in Hinv; auto.
