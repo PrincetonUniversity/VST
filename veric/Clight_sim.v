@@ -4,6 +4,7 @@ Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.Clight_new.
 Require compcert.cfrontend.Clight.
+Import compcert.lib.Maps.
 Module CC := Clight.
 Require VST.veric.Clight_core.
 Module CC' := Clight_core.

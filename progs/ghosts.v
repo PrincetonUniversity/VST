@@ -1732,7 +1732,7 @@ Ltac ghost_alloc G :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
   [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
-   rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
+   rewrite <- emp_sepcon at 1; eapply derives_trans, ghost_seplog.bupd_frame_r;
    apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init|] end.
 
 Ltac ghosts_alloc G n :=

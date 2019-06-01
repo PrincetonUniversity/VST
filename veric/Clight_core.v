@@ -9,6 +9,7 @@ Require Import compcert.cfrontend.Clight.
 Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
+Import compcert.lib.Maps.
 
 Inductive CC_core : Type :=
     CC_core_State : function ->

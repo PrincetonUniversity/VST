@@ -102,7 +102,7 @@ Proof.
   gather_SEP 2 3 4.
   viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
-  { go_lower.
+  { go_lower; simpl.
     destruct left.
     - rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
       erewrite ghost_var_share_join' by eauto.
@@ -111,6 +111,7 @@ Proof.
     - erewrite ghost_var_share_join' by eauto.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update. }
+  Ltac cancel_for_forward_call ::= simpl; cancel.
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
@@ -147,25 +148,13 @@ Proof.
   Intros.
   forward.
   forward_call (sh, g1, g2, true, 0, gv).
-  simpl.
+  rewrite Z.add_0_l.
   forward_call ((gv _thread_lock), sh, thread_lock_R sh g1 g2 (gv _ctr) (gv _ctr_lock), thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
     rewrite selflock_eq at 2; cancel. }
   forward.
 Qed.
-
-Ltac cancel_for_forward_call ::=
-  match goal with
-  | gv: globals |- _ =>
-    repeat
-    match goal with
-    | x := gv ?i |- context [gv ?i] =>
-        change (gv i) with x
-    end
-  | _ => idtac
-  end;
-  cancel_for_evar_frame.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

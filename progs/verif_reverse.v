@@ -219,6 +219,8 @@ Qed.
  ** to have a nicer proof theory for reasoning about this kind of thing.
  **)
 
+Import compcert.lib.Maps.
+
 Lemma setup_globals:
  forall Delta gv,
   PTree.get _three (glob_types Delta) = Some (tarray t_struct_list 3) ->
