@@ -14,6 +14,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.semax.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.own.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

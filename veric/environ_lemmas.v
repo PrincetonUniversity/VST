@@ -5,6 +5,7 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.mpred.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
+Import compcert.lib.Maps.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 

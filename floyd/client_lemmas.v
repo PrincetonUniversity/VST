@@ -1,6 +1,7 @@
 Require Import VST.floyd.base2.
 Require Export VST.floyd.canon.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Lemma SEP_entail:

@@ -9,6 +9,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
 Require Export VST.veric.shares.
 Require Import VST.veric.Cop2. (*for definition of tc_val'*)
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

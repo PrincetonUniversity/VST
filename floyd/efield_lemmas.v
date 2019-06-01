@@ -4,6 +4,7 @@ Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.nested_field_lemmas.
 Require Import VST.floyd.fieldlist.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Inductive efield : Type :=

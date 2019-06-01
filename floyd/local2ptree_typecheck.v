@@ -6,6 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Definition msubst_simpl_tc_assert (T1: PTree.t val): tc_assert -> tc_assert :=

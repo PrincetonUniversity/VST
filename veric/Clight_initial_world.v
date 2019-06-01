@@ -10,6 +10,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 
 Require Export VST.veric.initial_world.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

@@ -16,6 +16,7 @@ Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Def.
 Export SeparationLogicAsLogicSoundness.MainTheorem.CSHL_PracticalLogic.CSHL_MinimumLogic.CSHL_Defs.
+Import compcert.lib.Maps.
 
 Local Open Scope logic.
 

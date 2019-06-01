@@ -20,6 +20,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.binop_lemmas2.
 Require Export VST.veric.Clight_mapsto_memory_block.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

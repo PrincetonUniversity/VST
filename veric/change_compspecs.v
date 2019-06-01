@@ -8,6 +8,7 @@ Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.Cop2.
+Import compcert.lib.Maps.
 
 Section cs_preserve.
 

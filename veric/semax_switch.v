@@ -15,6 +15,7 @@ Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_lemmas.
 Require Import VST.veric.Clight_lemmas.
+Import compcert.lib.Maps.
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,

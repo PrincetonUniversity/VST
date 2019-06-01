@@ -2,6 +2,7 @@ Require Import VST.msl.msl_standard.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.rmaps.
 Require Import VST.veric.compcert_rmaps.
+Import compcert.lib.Maps.
 
 (*Clight-specific Imports*)
 Require Import VST.veric.Clight_lemmas. 

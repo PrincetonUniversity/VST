@@ -34,6 +34,7 @@ Import Cop.
 Import Cop2.
 Import Clight_Cop2.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Global Opaque denote_tc_test_eq.
 

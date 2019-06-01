@@ -3,6 +3,7 @@ Require Import VST.veric.Memory.
 Require Import VST.veric.juicy_base.
 Require Import VST.veric.shares.
 Import cjoins.
+Import compcert.lib.Maps.
 
 Definition dec_share_nonidentity (sh: Share.t) : {~identity sh}+{identity sh} :=
    (Sumbool.sumbool_not _ _ (dec_share_identity sh)).

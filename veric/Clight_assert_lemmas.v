@@ -6,6 +6,7 @@ Require Export VST.veric.assert_lemmas.
 Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.extend_tc.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

@@ -24,6 +24,7 @@ Require Import Coq.Logic.JMeq.
 
 Require Import Coq.Logic.JMeq.
 Require Import VST.veric.ghost_PCM.
+Import compcert.lib.Maps.
 
 Local Open Scope pred.
 

@@ -1,6 +1,7 @@
 Require Import VST.floyd.base2.
 Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.computable_theorems.
+Import compcert.lib.Maps.
 Open Scope nat.
 
 Inductive ListType: list Type -> Type :=

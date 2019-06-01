@@ -21,6 +21,7 @@ Require Import VST.veric.binop_lemmas.
 Require Import VST.veric.binop_lemmas4.
 Local Open Scope pred.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Section extensions.
   Context {CS: compspecs} {Espec: OracleKind}.
   

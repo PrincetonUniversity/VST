@@ -14,6 +14,7 @@ Require Import VST.veric.tycontext.
 Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.own.
+Import compcert.lib.Maps.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.

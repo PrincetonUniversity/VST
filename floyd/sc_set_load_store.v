@@ -18,6 +18,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.simpl_reptype.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Local Open Scope logic.
 

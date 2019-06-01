@@ -2,6 +2,7 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.veric.Clight_base.
 Require Import VST.veric.Clight_lemmas.
 Require compcert.common.Globalenvs.
+Import compcert.lib.Maps.
 
 Inductive cont': Type :=
   | Kseq: statement -> cont'       (**r [Kseq s2 k] = after [s1] in [s1;s2] *)

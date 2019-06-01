@@ -6,6 +6,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.composite_compute.
 Require Import VST.veric.align_mem.
 Require Import VST.veric.val_lemmas.
+Import compcert.lib.Maps.
 
 Definition strict_bool_val (v: val) (t: type) : option bool :=
    match v, t with

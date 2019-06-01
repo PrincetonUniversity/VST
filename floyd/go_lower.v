@@ -6,6 +6,7 @@ Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.local2ptree_typecheck.
 Require Import VST.floyd.semax_tactics.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Local Open Scope logic.
 
@@ -625,7 +626,7 @@ Lemma clean_LOCAL_right_bupd_spec: forall {cs: compspecs} gvar_ident (Delta: tyc
   (LEGAL: fold_right andb true (map (legal_glob_ident Delta) gvar_ident) = true),
   local2ptree Q = (T1, T2, nil, GV) ->
   clean_LOCAL_right Delta T1 T2 GV S S' ->
-  local (tc_environ Delta) && PROPx (VST_floyd_app P (localdefs_tc Delta gvar_ident Q)) (LOCALx nil (SEPx R)) |-- |==> ` S' ->
+  local (tc_environ Delta) && PROPx (VST_floyd_app P (localdefs_tc Delta gvar_ident Q)) (LOCALx nil (SEPx R)) |-- (|==> ` S') ->
   local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R)) |-- |==> S.
 Proof.
   intros.

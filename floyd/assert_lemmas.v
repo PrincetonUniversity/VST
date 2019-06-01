@@ -6,6 +6,7 @@ Require Export VST.msl.Coqlib2 VST.veric.coqlib4 VST.floyd.coqlib3.
 Require Import VST.floyd.val_lemmas.
 Local Open Scope logic.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 Ltac _destruct_var_types i Heq_vt Heq_ve t b ::=
   let HH := fresh "H" in
@@ -674,9 +675,9 @@ Proof.
 Qed.
 
 Lemma derives_bupd_trans: forall TC P Q R,
-  local TC && P |-- |==> Q ->
-  local TC && Q |-- |==> R ->
-  local TC && P |-- |==> R.
+  local TC && P |-- (|==> Q) ->
+  local TC && Q |-- (|==> R) ->
+  local TC && P |-- (|==> R).
 Proof.
   intros.
   rewrite (add_andp _ _ H).
@@ -698,9 +699,9 @@ Lemma derives_bupd0_refl: forall TC P,
 Proof. intros. apply (derives_trans _ _ _ (derives_bupd_refl TC P)), bupd_mono, orp_right2, derives_refl. Qed.
 
 Lemma derives_bupd0_trans: forall TC P Q R,
-  local TC && P |-- |==> ((|> FF) || Q) ->
-  local TC && Q |-- |==> ((|> FF) || R) ->
-  local TC && P |-- |==> ((|> FF) || R).
+  local TC && P |-- (|==> ((|> FF) || Q)) ->
+  local TC && Q |-- (|==> ((|> FF) || R)) ->
+  local TC && P |-- (|==> ((|> FF) || R)).
 Proof.
   intros.
   eapply derives_bupd_trans; [exact H |].
@@ -721,9 +722,9 @@ Lemma derives_full_refl: forall Delta P,
 Proof. intros. refine (derives_trans _ _ _ _ (derives_bupd0_refl (tc_environ Delta) P)). solve_andp. Qed.
 
 Lemma derives_full_trans: forall Delta P Q R,
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> ((|> FF) || Q) ->
-  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- |==> ((|> FF) || R) ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> ((|> FF) || R).
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || Q)) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && Q) |-- (|==> ((|> FF) || R)) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || R)).
 Proof.
   intros.
   eapply derives_bupd0_trans; [| exact H0].
@@ -746,13 +747,13 @@ Lemma ENTAIL_derives_bupd: forall TC P Q,
 Proof. intros. apply (derives_trans _ _ _ H), bupd_intro. Qed.
 
 Lemma derives_bupd_derives_bupd0: forall TC P Q,
-  local TC && P |-- |==> Q ->
-  local TC && P |-- |==> ((|> FF) || Q).
+  local TC && P |-- (|==> Q) ->
+  local TC && P |-- (|==> ((|> FF) || Q)).
 Proof. intros. apply (derives_trans _ _ _ H), bupd_mono, orp_right2, derives_refl. Qed.
 
 Lemma derives_bupd0_derives_full: forall Delta P Q,
-  local (tc_environ Delta) && P |-- |==> ((|> FF) || Q) ->
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> ((|> FF) || Q).
+  local (tc_environ Delta) && P |-- (|==> ((|> FF) || Q)) ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> ((|> FF) || Q)).
 Proof. intros. refine (derives_trans _ _ _ _ H). solve_andp. Qed.
 
 Lemma andp_ENTAIL: forall TC P P' Q Q',
@@ -926,7 +927,7 @@ Proof.
 Qed.
 
 Lemma derives_bupd_bupd_left: forall TC P Q,
-  local TC && P |-- |==> Q ->
+  local TC && P |-- (|==> Q) ->
   (local TC && |==> P) |-- |==> Q.
 Proof.
   intros.
@@ -936,7 +937,7 @@ Proof.
 Qed.
 
 Lemma derives_bupd0_bupd0_left: forall TC P Q,
-  local TC && P |-- |==> |> FF || Q ->
+  local TC && P |-- (|==> |> FF || Q) ->
   (local TC && |==> |> FF || P) |-- |==> |> FF || Q.
 Proof.
   intros.
@@ -950,7 +951,7 @@ Proof.
 Qed.
 
 Lemma derives_full_bupd0_left: forall Delta P Q,
-  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || Q ->
+  local (tc_environ Delta) && (allp_fun_id Delta && P) |-- (|==> |> FF || Q) ->
   local (tc_environ Delta) && (allp_fun_id Delta && |==> |> FF || P) |-- |==> |> FF || Q.
 Proof.
   intros.
@@ -1089,7 +1090,7 @@ Ltac solve_derives_trans :=
   first [simple apply derives_full_refl | eapply derives_full_trans; [eassumption | solve_derives_trans]].
 
 Lemma aux1_reduceR: forall P Q: environ -> mpred,
-  P |-- |==> Q ->
+  P |-- (|==> Q) ->
   P |-- |==> |> FF || Q.
 Proof.
   intros.

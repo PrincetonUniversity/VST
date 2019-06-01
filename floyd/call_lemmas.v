@@ -6,6 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Require Import VST.floyd.subsume_funspec.
 Import LiftNotation.
+Import compcert.lib.Maps.
 Local Open Scope logic.
 
 Fixpoint argtypes (al: list (ident * type)) : list type :=

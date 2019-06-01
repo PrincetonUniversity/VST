@@ -1,4 +1,5 @@
 Require Import VST.floyd.base.
+Import compcert.lib.Maps.
 
 Ltac simpl_PTree_get :=
   repeat match goal with

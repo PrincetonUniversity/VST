@@ -21,6 +21,7 @@
 Require Import VST.veric.base.
 Require Import compcert.cfrontend.Ctypes.
 Require Import VST.veric.val_lemmas.
+Import compcert.lib.Maps.
 
 (** Computational version of type_eq **)
 

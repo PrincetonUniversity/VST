@@ -4,6 +4,7 @@ Require Import VST.floyd.fieldlist.
 Require Import VST.floyd.type_induction.
 Require Import VST.floyd.nested_pred_lemmas.
 Require Import VST.floyd.align_compatible_dec.
+Import compcert.lib.Maps.
 Open Scope Z.
 
 (************************************************
