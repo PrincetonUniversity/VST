@@ -5,173 +5,30 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
 Require Import VST.progs.invariants.
+Require Export VST.veric.bi.
+Require Import VST.msl.ghost_seplog.
 Import Ensembles.
 
 (* Where should this sit? *)
-
-Section Timeless.
-
-Definition except0 P := P || |>FF.
-
-Definition timeless P := |>P |-- except0 P.
 
 Definition timeless' (P : mpred) := forall (a a' : rmap),
   predicates_hered.app_pred P a' -> age a a' ->
   predicates_hered.app_pred P a.
 
-Lemma timeless'_timeless : forall P, timeless' P -> timeless P.
+Lemma timeless'_timeless : forall P, timeless' P -> Timeless P.
 Proof.
-  unfold timeless; intros.
-  change (_ |-- _) with (predicates_hered.derives (|>P) (P || |>FF)); intros ? HP.
+  unfold Timeless; intros; simpl.
+  change (_ -∗ _) with (predicates_hered.derives (|>P) (|>FF || P)); intros ? HP.
   destruct (level a) eqn: Ha.
-  - right; intros ? ?%laterR_level; omega.
-  - left.
+  - left; intros ? ?%laterR_level.
+    rewrite Ha in H1; apply Nat.nlt_0_r in H1; contradiction H1.
+  - right.
     destruct (levelS_age a n) as [b [Hb]]; auto.
     specialize (HP _ (semax_lemmas.age_laterR Hb)).
     eapply H; eauto.
 Qed.
 
-Lemma except0_mono : forall P Q, P |-- Q -> except0 P |-- except0 Q.
-Proof.
-  intros; unfold except0.
-  apply orp_left; [apply orp_right1 | apply orp_right2]; auto.
-Qed.
-
-Lemma except0_intro : forall P, P |-- except0 P.
-Proof.
-  intros; unfold except0.
-  apply orp_right1; auto.
-Qed.
-
-Lemma except0_trans : forall P, except0 (except0 P) |-- except0 P.
-Proof.
-  intros; unfold except0.
-  apply orp_left; [|apply orp_right2]; auto.
-Qed.
-
-Lemma except0_timeless : forall P Q, P |-- except0 Q -> timeless P -> |> P |-- except0 Q.
-Proof.
-  intros.
-  eapply derives_trans; eauto.
-  eapply derives_trans, except0_trans.
-  apply except0_mono; auto.
-Qed.
-
-Lemma except0_frame_r : forall P Q, except0 P * Q |-- except0 (P * Q).
-Proof.
-  intros; unfold except0.
-  rewrite distrib_orp_sepcon.
-  apply orp_left; [apply orp_right1 | apply orp_right2]; auto.
-  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-  rewrite <- later_sepcon; apply later_derives.
-  rewrite FF_sepcon; auto.
-Qed.
-
-Lemma except0_frame_l : forall P Q, P * except0 Q |-- except0 (P * Q).
-Proof.
-  intros; rewrite sepcon_comm, (sepcon_comm _ Q); apply except0_frame_r.
-Qed.
-
-Lemma except0_bupd_elim : forall P, except0 (|==> except0 P) |-- |==> except0 P.
-Proof.
-  intros; unfold except0.
-  apply orp_left; auto.
-  eapply derives_trans, bupd_intro.
-  apply orp_right2; auto.
-Qed.
-
-Lemma except0_bupd : forall P, except0 (|==> P) = |==> (except0 P).
-Proof.
-  intro; apply pred_ext.
-  - eapply derives_trans, except0_bupd_elim.
-    apply except0_mono, bupd_mono, except0_intro.
-  - change (predicates_hered.derives (own.bupd (except0 P)) (except0 (own.bupd P))).
-    intros ??; simpl in H.
-    destruct (level a) eqn: Hl.
-    + right.
-      change ((|> FF)%pred a).
-      intros ??%laterR_level; omega.
-    + left.
-      rewrite <- Hl in *.
-      intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
-      do 2 eexists; eauto; do 2 eexists; eauto; repeat split; auto.
-      destruct HP as [|Hfalse]; auto.
-      destruct (levelS_age a' n) as (a'' & Hage & ?); [omega|].
-      exfalso; apply (Hfalse a'').
-      constructor; auto.
-Qed.
-
-Lemma except0_sepcon : forall P Q, except0 (P * Q) = except0 P * except0 Q.
-Proof.
-  intros; unfold except0.
-  rewrite distrib_orp_sepcon, !distrib_orp_sepcon2.
-  apply pred_ext.
-  - apply orp_left.
-    + apply orp_right1, orp_right1; auto.
-    + apply orp_right2, orp_right2.
-      rewrite <- later_sepcon, FF_sepcon; auto.
-  - apply orp_left; apply orp_left.
-    + apply orp_right1; auto.
-    + apply orp_right2.
-      eapply derives_trans; [apply sepcon_derives, derives_refl; apply now_later|].
-      rewrite <- later_sepcon; apply later_derives; rewrite sepcon_FF; auto.
-    + apply orp_right2.
-      eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-      rewrite <- later_sepcon; apply later_derives; rewrite FF_sepcon; auto.
-    + apply orp_right2.
-      rewrite <- later_sepcon, FF_sepcon; auto.
-Qed.
-
-Lemma except0_andp : forall P Q, except0 (P && Q) = except0 P && except0 Q.
-Proof.
-  intros; unfold except0.
-  rewrite distrib_orp_andp.
-  rewrite 2(andp_comm _ (_ || _)), !distrib_orp_andp.
-  apply pred_ext.
-  - apply orp_left.
-    + apply orp_right1, orp_right1.
-      rewrite andp_comm; auto.
-    + apply orp_right2, orp_right2.
-      rewrite <- later_andp, FF_andp; auto.
-  - apply orp_left; apply orp_left.
-    + apply orp_right1.
-      rewrite andp_comm; auto.
-    + apply orp_right2.
-      rewrite andp_comm.
-      eapply derives_trans; [apply andp_derives, derives_refl; apply now_later|].
-      rewrite <- later_andp; apply later_derives; rewrite andp_FF; auto.
-    + apply orp_right2.
-      rewrite andp_comm.
-      eapply derives_trans; [apply andp_derives, now_later; apply derives_refl|].
-      rewrite <- later_andp; apply later_derives; rewrite FF_andp; auto.
-    + apply orp_right2.
-      rewrite <- later_andp, FF_andp; auto.
-Qed.
-
-Lemma except0_exp : forall {A} (x : A) P, except0 (EX x : A, P x) = EX x : A, except0 (P x).
-Proof.
-  intros; unfold except0; apply pred_ext.
-  - apply orp_left.
-    + Intro y; Exists y; apply orp_right1; auto.
-    + Exists x; apply orp_right2; auto.
-  - Intro y; apply orp_left; [apply orp_right1; Exists y | apply orp_right2]; auto.
-Qed.
-
-Lemma timeless_sepcon : forall P Q, timeless P -> timeless Q -> timeless (P * Q).
-Proof.
-  unfold timeless; intros.
-  rewrite later_sepcon, except0_sepcon.
-  apply sepcon_derives; auto.
-Qed.
-
-Lemma timeless_andp : forall P Q, timeless P -> timeless Q -> timeless (P && Q).
-Proof.
-  unfold timeless; intros.
-  rewrite later_andp, except0_andp.
-  apply andp_derives; auto.
-Qed.
-
-Lemma own_timeless : forall {P : Ghost} g (a : G), timeless (own g a NoneP).
+Instance own_timeless : forall {P : Ghost} g (a : G), Timeless (own g a NoneP).
 Proof.
   intros; apply timeless'_timeless.
   intros ?? (v & ? & Hg) ?.
@@ -179,7 +36,7 @@ Proof.
   split.
   + intros; eapply age1_resource_at_identity; eauto.
   + erewrite age1_ghost_of in Hg by eauto.
-    rewrite own.ghost_fmap_singleton in *.
+    erewrite own.ghost_fmap_singleton in *.
     apply own.ghost_fmap_singleton_inv in Hg as ([] & -> & Heq).
     inv Heq.
     destruct p; inv H3.
@@ -188,23 +45,7 @@ Proof.
     destruct (_f l); auto.
 Qed.
 
-Lemma timeless_exp : forall {A} (x : A) P, (forall x, timeless (P x)) -> timeless (EX x : A, P x).
-Proof.
-  unfold timeless; intros.
-  rewrite later_exp' by auto.
-  Intro y.
-  eapply derives_trans; eauto.
-  apply except0_mono.
-  Exists y; auto.
-Qed.
-
-Lemma timeless_prop : forall P, timeless (!! P).
-Proof.
-  intro; apply timeless'_timeless.
-  intro; auto.
-Qed.
-
-Lemma address_mapsto_timeless : forall m v sh p, timeless (res_predicates.address_mapsto m v sh p).
+Lemma address_mapsto_timeless : forall m v sh p, Timeless (res_predicates.address_mapsto m v sh p : mpred).
 Proof.
   intros; apply timeless'_timeless.
   repeat intro.
@@ -222,13 +63,42 @@ Proof.
   - rewrite age1_ghost_of_identity; eauto.
 Qed.
 
-Lemma timeless_FF : timeless FF.
+Instance timeless_FF : Timeless FF.
 Proof.
-  unfold timeless, except0.
-  apply orp_right2; auto.
+  unfold Timeless; intros.
+  iIntros ">?"; auto.
 Qed.
 
-Lemma timeless_emp : timeless emp.
+Lemma nonlock_permission_bytes_timeless : forall sh l z,
+  Timeless (res_predicates.nonlock_permission_bytes sh l z : mpred).
+Proof.
+  intros; apply timeless'_timeless.
+  repeat intro.
+  simpl in *.
+  destruct H; split.
+  intro b'; specialize (H b').
+  if_tac.
+  - erewrite age1_resource_at in H by (erewrite ?resource_at_approx; eauto).
+    destruct (a @ b'); auto.
+  - rewrite age1_resource_at_identity; eauto.
+  - rewrite age1_ghost_of_identity; eauto.
+Qed.
+
+Lemma mapsto_timeless : forall sh t v p, Timeless (mapsto sh t p v).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try apply timeless_FF.
+  destruct (type_is_volatile); try apply timeless_FF.
+  destruct p; try apply timeless_FF.
+  if_tac.
+  - apply (@bi.or_timeless mpredSI).
+    + apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply address_mapsto_timeless].
+    + apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI)|].
+      apply (@bi.exist_timeless mpredSI); intro; apply address_mapsto_timeless.
+  - apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply nonlock_permission_bytes_timeless].
+Qed.
+
+Lemma emp_timeless : Timeless seplog.emp.
 Proof.
   apply timeless'_timeless; intros ????.
   apply all_resource_at_identity.
@@ -239,125 +109,85 @@ Proof.
     eapply ghost_of_identity; eauto.
 Qed.
 
-Lemma nonlock_permission_bytes_timeless : forall sh l z,
-  timeless (res_predicates.nonlock_permission_bytes sh l z).
-Proof.
-  intros; apply timeless'_timeless.
-  repeat intro.
-  simpl in *.
-  destruct H; split.
-  intro b'; specialize (H b').
-  if_tac.
-  - erewrite age1_resource_at in H by (rewrite ?resource_at_approx; eauto).
-    destruct (a @ b'); auto.
-  - rewrite age1_resource_at_identity; eauto.
-  - rewrite age1_ghost_of_identity; eauto.
-Qed.
-
-Lemma timeless_orp : forall P Q, timeless P -> timeless Q -> timeless (P || Q).
-Proof.
-  unfold timeless, except0; intros.
-  rewrite later_orp.
-  apply orp_left; eapply derives_trans; try eassumption; apply orp_left.
-  - apply orp_right1, orp_right1; auto.
-  - apply orp_right2; auto.
-  - apply orp_right1, orp_right2; auto.
-  - apply orp_right2; auto.
-Qed.
-
-Lemma mapsto_timeless : forall sh t v p, timeless (mapsto sh t p v).
-Proof.
-  intros; unfold mapsto.
-  destruct (access_mode t); try apply timeless_FF.
-  destruct (type_is_volatile); try apply timeless_FF.
-  destruct p; try apply timeless_FF.
-  if_tac.
-  - apply timeless_orp.
-    + apply timeless_andp; [apply timeless_prop | apply address_mapsto_timeless].
-    + apply timeless_andp; [apply timeless_prop|].
-      apply (timeless_exp Vundef); intro; apply address_mapsto_timeless.
-  - apply timeless_andp; [apply timeless_prop | apply nonlock_permission_bytes_timeless].
-Qed.
-
 Lemma memory_block'_timeless : forall sh n b z,
-  timeless (mapsto_memory_block.memory_block' sh n b z).
+  Timeless (mapsto_memory_block.memory_block' sh n b z).
 Proof.
   induction n; simpl; intros.
-  - apply timeless_emp.
-  - apply timeless_sepcon, IHn.
+  - apply emp_timeless.
+  - apply (@bi.sep_timeless), IHn.
     apply mapsto_timeless.
 Qed.
 
 Lemma memory_block_timeless : forall sh n p,
-  timeless (memory_block sh n p).
+  Timeless (memory_block sh n p).
 Proof.
   intros.
   destruct p; try apply timeless_FF.
-  apply timeless_andp; [apply timeless_prop | apply memory_block'_timeless].
+  apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply memory_block'_timeless].
 Qed.
 
 Lemma struct_pred_timeless : forall {CS : compspecs} sh m f t off
-  (IH : Forall (fun it : ident * type =>
+  (IH : Forall (fun it : _ * type =>
         forall (v : reptype (t it)) (p : val),
-        timeless (data_at_rec sh (t it) v p)) m) v p,
-  timeless (struct_pred m (fun (it : ident * type) v =>
+        Timeless (data_at_rec sh (t it) v p)) m) v p,
+  Timeless (struct_pred m (fun (it : _ * type) v =>
       withspacer sh (f it + sizeof (t it)) (off it)
         (at_offset (data_at_rec sh (t it) v) (f it))) v p).
 Proof.
   induction m; intros.
-  - apply timeless_emp.
+  - apply emp_timeless.
   - destruct a; inv IH.
     destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply timeless_sepcon; auto.
+      apply (@bi.sep_timeless mpredSI); auto.
       unfold spacer.
       if_tac.
-      * apply timeless_emp.
+      * apply emp_timeless.
       * unfold at_offset; apply memory_block_timeless.
     + rewrite struct_pred_cons2.
-      apply timeless_sepcon; auto.
+      apply (@bi.sep_timeless mpredSI); auto.
       unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply timeless_sepcon; auto.
+      apply (@bi.sep_timeless mpredSI); auto.
       unfold spacer.
       if_tac.
-      * apply timeless_emp.
+      * apply emp_timeless.
       * unfold at_offset; apply memory_block_timeless.
 Qed.
 
 Lemma union_pred_timeless : forall {CS : compspecs} sh m t off
-  (IH : Forall (fun it : ident * type =>
+  (IH : Forall (fun it : _ * type =>
         forall (v : reptype (t it)) (p : val),
-        timeless (data_at_rec sh (t it) v p)) m) v p,
-  timeless (union_pred m (fun (it : ident * type) v =>
+        Timeless (data_at_rec sh (t it) v p)) m) v p,
+  Timeless (union_pred m (fun (it : _ * type) v =>
       withspacer sh (sizeof (t it)) (off it)
         (data_at_rec sh (t it) v)) v p).
 Proof.
   induction m; intros.
-  - apply timeless_emp.
+  - apply emp_timeless.
   - destruct a; inv IH.
     destruct m.
     + unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply timeless_sepcon; auto.
+      apply (@bi.sep_timeless mpredSI); auto.
       unfold spacer.
       if_tac.
-      * apply timeless_emp.
+      * apply emp_timeless.
       * unfold at_offset; apply memory_block_timeless.
     + rewrite union_pred_cons2.
       destruct v; auto.
       unfold withspacer, at_offset; simpl.
       if_tac; auto.
-      apply timeless_sepcon; auto.
+      apply (@bi.sep_timeless mpredSI); auto.
       unfold spacer.
       if_tac.
-      * apply timeless_emp.
+      * apply emp_timeless.
       * unfold at_offset; apply memory_block_timeless.
 Qed.
 
 Lemma data_at_rec_timeless : forall {CS : compspecs} sh t v p,
-  timeless (data_at_rec sh t v p).
+  Timeless (data_at_rec sh t v p).
 Proof.
   intros ???.
   type_induction.type_induction t; intros; rewrite data_at_rec_eq; try apply timeless_FF.
@@ -365,102 +195,77 @@ Proof.
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
   - simple_if_tac; [apply memory_block_timeless | apply mapsto_timeless].
-  - apply timeless_andp; [apply timeless_prop|].
+  - apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI)|].
     rewrite Z.sub_0_r.
     forget (Z.to_nat (Z.max 0 z)) as n.
     set (lo := 0) at 1.
     clearbody lo.
     revert lo; induction n; simpl; intros.
-    + apply timeless_emp.
-    + apply timeless_sepcon, IHn.
+    + apply emp_timeless.
+    + apply (@bi.sep_timeless mpredSI), IHn.
       unfold at_offset; apply IH.
   - apply struct_pred_timeless; auto.
   - apply union_pred_timeless; auto.
 Qed.
 
-Lemma data_at_timeless : forall {CS : compspecs} sh t v p, timeless (data_at sh t v p).
+Lemma data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
 Proof.
-  intros; apply timeless_andp; [apply timeless_prop | apply data_at_rec_timeless].
+  intros; apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply data_at_rec_timeless].
 Qed.
-
-End Timeless.
 
 Section FancyUpdates.
 
 Context {inv_names : invG}.
 
-Definition fupd (E1 E2 : Ensemble iname) P :=
-  (wsat * ghost_set g_en E1) -* |==> except0 (wsat * ghost_set g_en E2 * P).
+Definition fupd E1 E2 P :=
+  (wsat * ghost_set g_en E1) -* (|==> sbi_except_0 (wsat * ghost_set g_en E2 * P))%I.
 
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 62): logic.
-Notation "|={ E }=> P" := (fupd E E P) (at level 62): logic.
+Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
+Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
 
-Lemma fupd_mono : forall E1 E2 P Q, P |-- Q -> |={E1, E2}=> P |-- |={E1, E2}=> Q.
+Lemma fupd_mono : forall E1 E2 P Q, P |-- Q -> (|={E1, E2}=> P) |-- (|={E1, E2}=> Q).
 Proof.
-  intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  rewrite sepcon_comm; eapply derives_trans; [apply modus_ponens_wand|].
-  apply bupd_mono, except0_mono; cancel.
+  intros; unfold fupd; iIntros "H Hpre".
+  iMod ("H" with "Hpre") as ">($ & P)"; do 2 iModIntro.
+  iApply (H with "P").
 Qed.
 
-Lemma bupd_fupd : forall E P, |==> P |-- |={E}=> P.
+Lemma bupd_fupd : forall E P, (|==> P)%I |-- |={E}=> P.
 Proof.
-  intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  eapply derives_trans; [apply bupd_frame_r|].
-  rewrite sepcon_comm; apply bupd_mono, except0_intro.
+  intros; unfold fupd; iIntros ">P Hpre".
+  iModIntro; iFrame; auto.
 Qed.
 
 Lemma fupd_frame_r : forall E1 E2 P Q, (|={E1,E2}=> P) * Q |-- |={E1,E2}=> (P * Q).
 Proof.
-  intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  rewrite sepcon_comm, <- sepcon_assoc.
-  eapply derives_trans; [apply sepcon_derives, derives_refl; apply modus_ponens_wand|].
-  eapply derives_trans; [apply bupd_frame_r|].
-  apply bupd_mono.
-  rewrite <- sepcon_assoc.
-  apply except0_frame_r.
+  intros; unfold fupd; iIntros "[H Q] Hpre".
+  iMod ("H" with "Hpre") as ">($ & $)"; auto.
 Qed.
 
-Lemma fupd_intro_mask : forall E1 E2 P (Hdec : forall a, In E2 a \/ ~In E2 a),
-  Included E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
+Lemma fupd_intro_mask : forall E1 E2 P,
+  subseteq E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
 Proof.
-  intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  eapply derives_trans, bupd_intro.
-  eapply derives_trans, except0_intro.
-  rewrite ghost_set_subset with (s' := E2) by auto.
-  cancel.
-  rewrite <- wand_sepcon_adjoint.
-  eapply derives_trans, bupd_intro.
-  eapply derives_trans, except0_intro; cancel.
+  intros; unfold fupd; iIntros "P Hpre".
+  erewrite ghost_set_subset with (s' := E2) by auto.
+  iDestruct "Hpre" as "(? & ? & en)".
+  do 2 iModIntro; iSplitR "P en"; iFrame; auto.
 Qed.
 
 Lemma fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
 Proof.
-  intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  rewrite sepcon_comm.
-  eapply derives_trans; [apply modus_ponens_wand|].
-  eapply derives_trans; [apply bupd_mono, except0_mono, modus_ponens_wand|].
-  eapply derives_trans, bupd_trans; apply bupd_mono.
-  apply except0_bupd_elim.
+  intros; unfold fupd; iIntros "H Hpre".
+  iMod ("H" with "Hpre") as ">(Hpre & H)".
+  iMod ("H" with "Hpre") as ">H"; iFrame; auto.
 Qed.
 
-Lemma fupd_timeless : forall E P, timeless P -> |> P |-- |={E}=> P.
+Lemma fupd_timeless : forall E P, Timeless P -> |> P |-- |={E}=> P.
 Proof.
-  intros; unfold fupd.
-  eapply derives_trans; [apply except0_timeless; auto; apply except0_intro|].
-  rewrite <- wand_sepcon_adjoint.
-  eapply derives_trans; [apply except0_frame_r|].
-  rewrite sepcon_comm.
-  apply bupd_intro.
+  intros; unfold fupd; iIntros ">P Hpre"; iFrame; auto.
 Qed.
 
 Lemma fupd_frame_l : forall E1 E2 P Q, P * (|={E1,E2}=> Q) |-- |={E1,E2}=> (P * Q).
 Proof.
-  intros; rewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
+  intros; erewrite sepcon_comm, (sepcon_comm P Q); apply fupd_frame_r.
 Qed.
 
 (* This is a generally useful pattern. *)
@@ -468,35 +273,35 @@ Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
   app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
 Proof.
   intros.
-  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
+  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) seplog.emp)) a) as HP'.
   { apply (fupd_frame_r _ _ _ _ a).
     do 3 eexists; [apply join_comm, core_unit | split; auto].
     split; [|apply core_identity].
     rewrite level_core; auto. }
   eapply fupd_mono in HP'; eauto.
-  change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
+  change (predicates_hered.derives (P * approx (S (level a)) seplog.emp) Q).
   intros a0 (? & ? & J & HP & [? Hemp]).
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
   eapply Himp in HP; try apply necR_refl; auto; omega.
 Qed.
 
-Lemma fupd_bupd : forall E1 E2 P Q, P |-- |==> (|={E1,E2}=> Q) -> P |-- |={E1,E2}=> Q.
+Lemma fupd_bupd : forall E1 E2 P Q, P |-- (|==> (|={E1,E2}=> Q)) -> P |-- |={E1,E2}=> Q.
 Proof.
   intros; eapply derives_trans, fupd_trans; eapply derives_trans, bupd_fupd; auto.
 Qed.
 
-Lemma fupd_bupd_elim : forall E1 E2 P Q, P |-- |={E1,E2}=> Q -> |==> P |-- |={E1,E2}=> Q.
+Lemma fupd_bupd_elim : forall E1 E2 P Q, P |-- (|={E1,E2}=> Q) -> (|==> P) |-- |={E1,E2}=> Q.
 Proof.
   intros; apply fupd_bupd, bupd_mono; auto.
 Qed.
 
 Lemma fupd_intro : forall E P, P |-- |={E}=> P.
 Proof.
-  intros; eapply derives_trans, bupd_fupd; apply bupd_intro.
+  intros; eapply derives_trans, bupd_fupd; apply updates.bupd_intro.
 Qed.
 
-Lemma fupd_timeless' : forall E1 E2 P Q, timeless P -> P |-- |={E1,E2}=> Q ->
+Lemma fupd_timeless' : forall E1 E2 P Q, Timeless P -> P |-- (|={E1,E2}=> Q) ->
   |> P |-- |={E1,E2}=> Q.
 Proof.
   intros.
@@ -505,58 +310,61 @@ Proof.
   apply fupd_mono; eauto.
 Qed.
 
-Lemma fupd_except0_elim : forall E1 E2 P Q, P |-- |={E1,E2}=> Q -> except0 P |-- |={E1,E2}=> Q.
+Lemma fupd_except0_elim : forall E1 E2 P Q, P |-- (|={E1,E2}=> Q) -> sbi_except_0 P |-- |={E1,E2}=> Q.
 Proof.
-  intros.
-  unfold except0.
-  apply orp_left; auto.
-  unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  eapply derives_trans, bupd_intro.
-  unfold except0.
-  apply orp_right2.
-  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
-  rewrite <- later_sepcon; apply later_derives.
-  rewrite FF_sepcon; auto.
+  intros; iIntros ">P Hpre".
+  iPoseProof (H with "P Hpre") as ">>Q"; iFrame; auto.
 Qed.
 
-Lemma wsat_fupd_elim : forall P, wsat * (|={Empty_set _,Empty_set _}=> P) |-- |==> except0 (wsat * P).
+Lemma wsat_fupd_elim : forall P, wsat * (|={empty,empty}=> P) |-- (|==> sbi_except_0 (wsat * P))%I.
 Proof.
   intros; unfold fupd.
   rewrite <- wsat_empty_eq; apply modus_ponens_wand.
 Qed.
 
-Lemma fupd_prop' : forall E1 E2 E2' P Q, Included E1 E2 -> (forall a, In E1 a \/ ~ In E1 a) ->
-  Q |-- |={E1,E2'}=> !!P ->
-  |={E1, E2}=> Q |-- |={E1}=> !!P && (|={E1, E2}=> Q).
+Lemma bupd_except_0 : forall P, ((|==> sbi_except_0 P) |-- sbi_except_0 (|==> P))%I.
 Proof.
-  unfold fupd; intros ??????? HQ.
-  rewrite <- wand_sepcon_adjoint in *.
-  rewrite sepcon_comm; eapply derives_trans; [apply modus_ponens_wand|].
-  apply bupd_mono.
-  eapply derives_trans, except0_trans; apply except0_mono.
-  rewrite ghost_set_subset with (s' := E1) by auto.
-  rewrite (add_andp (_ * _ * Q) (except0 (!! P))) at 1.
-- eapply derives_trans; [apply andp_derives, derives_refl; apply except0_intro|].
-  rewrite <- except0_andp; apply except0_mono.
-  Intros.
-  apply andp_right; [apply prop_right; auto | cancel].
-  rewrite <- wand_sepcon_adjoint.
-  eapply derives_trans, bupd_intro; eapply derives_trans, except0_intro; cancel.
-- rewrite sepcon_comm, <- !sepcon_assoc.
-  eapply derives_trans; [apply sepcon_derives, derives_refl; rewrite sepcon_assoc; apply HQ|].
-  setoid_rewrite <- (own.bupd_prop P) at 2.
-  rewrite except0_bupd.
-  eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
-  eapply derives_trans; [apply except0_frame_r | apply except0_mono].
-  rewrite (sepcon_comm _ (!!P)), !sepcon_assoc.
-  apply derives_left_sepcon_right_corable, derives_refl.
-  change (!!P)%pred with (!!P); apply corable_prop.
+  intros; change (predicates_hered.derives (own.bupd (sbi_except_0 P)) (sbi_except_0 (own.bupd P : mpred))).
+  intros ??; simpl in H.
+  destruct (level a) eqn: Hl.
+  + left.
+    change ((|> FF)%pred a).
+    intros ??%laterR_level.
+    rewrite Hl in H1; apply Nat.nlt_0_r in H1; contradiction H1.
+  + right.
+    rewrite <- Hl in *.
+    intros ? J; specialize (H _ J) as (? & ? & a' & ? & ? & ? & HP); subst.
+    do 2 eexists; eauto; do 2 eexists; eauto; repeat split; auto.
+    destruct HP as [Hfalse|]; auto.
+    destruct (levelS_age a' n) as (a'' & Hage & ?); [omega|].
+    exfalso; apply (Hfalse a'').
+    constructor; auto.
 Qed.
 
-Lemma fupd_prop : forall E1 E2 P Q, Included E1 E2 -> (forall a, In E1 a \/ ~ In E1 a) ->
+Lemma fupd_prop' : forall E1 E2 E2' P Q, subseteq E1 E2 ->
+  Q |-- (|={E1,E2'}=> !!P) ->
+  (|={E1, E2}=> Q) |-- |={E1}=> !!P && (|={E1, E2}=> Q).
+Proof.
+  unfold fupd; intros ?????? HQ.
+  iIntros "H Hpre".
+  iMod ("H" with "Hpre") as ">(Hpre & Q)".
+  erewrite ghost_set_subset with (s' := E1) by auto.
+  iDestruct "Hpre" as "(wsat & en1 & en2)".
+  iCombine ("wsat en1 Q") as "Q".
+  erewrite (add_andp (_ ∗ _ ∗ Q)%I (sbi_except_0 ( !! P))) at 1.
+  rewrite sepcon_andp_prop bi.except_0_and.
+  iModIntro; iSplit.
+  { iDestruct "Q" as "[? ?]"; auto. }
+  iDestruct "Q" as "[(? & ? & ?) _]"; iFrame; auto.
+  { iIntros "(? & ? & Q)".
+    setoid_rewrite <- (own.bupd_prop P).
+    iApply bupd_except_0.
+    iMod (HQ with "Q [$]") as ">(? & ?)"; auto. }
+Qed.
+
+Lemma fupd_prop : forall E1 E2 P Q, subseteq E1 E2 ->
   Q |-- !!P ->
-  |={E1, E2}=> Q |-- |={E1}=> !!P && (|={E1, E2}=> Q).
+  (|={E1, E2}=> Q) |-- |={E1}=> !!P && (|={E1, E2}=> Q).
 Proof.
   intros; eapply fupd_prop'; auto.
   eapply derives_trans; eauto.
@@ -565,14 +373,8 @@ Qed.
 
 Lemma inv_alloc : forall E P, |> P |-- |={E}=> EX i : _, invariant i P.
 Proof.
-  intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
-  rewrite <- sepcon_assoc, (sepcon_comm _ wsat).
-  eapply derives_trans; [apply sepcon_derives, derives_refl; apply wsat_alloc|].
-  eapply derives_trans; [apply bupd_frame_r|].
-  apply bupd_mono.
-  rewrite sepcon_assoc, (sepcon_comm _ (ghost_set _ _)), <- sepcon_assoc.
-  apply except0_intro.
+  intros; unfold fupd; iIntros "P (wsat & ?)".
+  iMod (wsat_alloc with "[$]") as "(? & ?)"; iFrame; auto.
 Qed.
 
 Lemma make_inv : forall E P Q, P |-- Q -> P |-- |={E}=> EX i : _, invariant i Q.
@@ -583,48 +385,46 @@ Proof.
 Qed.
 
 Lemma inv_close_aux : forall E (i : iname) P,
-  ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
-  (wsat * ghost_set g_en (Subtract E i))
-  |-- |==> except0 (wsat * (ghost_set g_en (Singleton i) * ghost_set g_en (Subtract E i))).
+  (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
+  (wsat * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))
+  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (base.singleton (Pos.of_nat (S i))) * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))))%I.
 Proof.
   intros.
   sep_apply (wsat_close i P).
-  eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
-  rewrite <- sepcon_assoc; apply except0_intro.
+  eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
+  rewrite <- sepcon_assoc; apply bi.except_0_intro.
 Qed.
 
-Lemma inv_open : forall E i P, In E i ->
-  invariant i P |-- |={E, Subtract E i}=> (|> P) * (|>P -* |={Subtract E i, E}=> emp).
+Lemma inv_open : forall E i P, elem_of (Pos.of_nat (S i)) E ->
+  invariant i P |-- |={E, difference E (singleton (Pos.of_nat (S i)))}=> (|> P) * (|>P -* |={difference E (base.singleton (Pos.of_nat (S i))), E}=> emp%I).
 Proof.
   intros; unfold fupd.
   rewrite <- wand_sepcon_adjoint.
   erewrite ghost_set_remove; eauto.
   rewrite invariant_dup.
   sep_apply (wsat_open i P).
-  eapply derives_trans; [apply bupd_frame_r | apply bupd_mono].
-  eapply derives_trans, except0_intro.
-  cancel.
+  eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
+  eapply derives_trans, bi.except_0_intro.
+  unfold bi_sep; simpl; cancel.
   rewrite <- !wand_sepcon_adjoint.
+  rewrite sepcon_emp.
   apply inv_close_aux.
-  { intro; omega. }
 Qed.
 
 (* these last two are probably redundant *)
-Lemma inv_close : forall E i P, In E i ->
+Lemma inv_close : forall E i P, elem_of (Pos.of_nat (S i)) E ->
   invariant i P * |> P * ghost_list(P := exclusive_PCM _) g_dis (list_singleton i (Some tt)) |--
-  |={Subtract E i, E}=> TT.
+  |={difference E (base.singleton (Pos.of_nat (S i))), E}=> TT.
 Proof.
-  intros; unfold fupd.
-  rewrite <- !wand_sepcon_adjoint.
-  rewrite (sepcon_comm _ (ghost_list _ _)), <- 2sepcon_assoc, sepcon_assoc.
-  eapply derives_trans; [apply inv_close_aux|].
-  erewrite (ghost_set_remove _ _ E); eauto.
-  apply bupd_mono, except0_mono; cancel.
-  { intro; omega. }
+  intros; unfold fupd; iIntros "((? & ?) & ?) ?".
+  iMod (inv_close_aux with "[-]") as ">H"; [iFrame|].
+  do 2 iModIntro.
+  erewrite (ghost_set_remove _ _ E) by eauto; iFrame; auto.
 Qed.
 
-Lemma inv_access : forall E i P, In E i ->
-  invariant i P |-- |={E, Subtract E i}=> |> P * (|> P -* |={Subtract E i, E}=> TT).
+Lemma inv_access : forall E i P, elem_of (Pos.of_nat (S i)) E ->
+  invariant i P |-- |={E, difference E (base.singleton (Pos.of_nat (S i)))}=>
+    |> P * (|> P -* |={difference E (base.singleton (Pos.of_nat (S i))), E}=> TT).
 Proof.
   intros.
   eapply derives_trans; [apply inv_open; eauto|].
@@ -642,9 +442,9 @@ Proof.
   rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 2.
   f_equal; f_equal.
   rewrite !approx_bupd; f_equal.
-  unfold except0.
+  unfold sbi_except_0.
   setoid_rewrite approx_orp; f_equal.
-  rewrite !approx_sepcon, approx_idem; reflexivity.
+  erewrite !approx_sepcon, approx_idem; reflexivity.
 Qed.
 
 Corollary fview_shift_nonexpansive : forall E1 E2 P Q n,
@@ -658,5 +458,29 @@ Qed.
 
 End FancyUpdates.
 
-Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 62): logic.
-Notation "|={ E }=> P" := (fupd E E P) (at level 62): logic.
+Lemma mpred_fupd_mixin {inv_names : invG} : BiFUpdMixin mpredSI fupd.
+Proof.
+  split.
+  - repeat intro; hnf in *.
+    setoid_rewrite fupd_nonexpansive; congruence.
+  - exact fupd_intro_mask.
+  - iIntros (E1 E2 P) ">H ?".
+    iApply "H"; auto.
+  - exact fupd_mono.
+  - exact fupd_trans.
+  - intros E1 E2 Ef P HE1Ef.
+    symmetry in HE1Ef.
+    unfold updates.fupd, fupd.
+    unfold ghost_set at 3; erewrite (own_op(RA := set_PCM) _ _ _ (union E1 Ef)) by (split; auto).
+    iIntros "Hvs (Hw & HE1 &HEf)".
+    iMod ("Hvs" with "[Hw HE1]") as ">(($ & HE2) & HP)"; first by iFrame.
+    iCombine "HE2 HEf" as "H"; setoid_rewrite ghost_set_join.
+    iDestruct "H" as "[% H]"; iFrame.
+    iIntros "!> !>". iPoseProof ("HP" with "[%]") as "HP"; auto.
+  - exact fupd_frame_r.
+Qed.
+Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredSI :=
+  {| bi_fupd_mixin := mpred_fupd_mixin |}.
+
+Instance mpred_bi_bupd_fupd {inv_names : invG} : BiBUpdFUpd mpredSI.
+Proof. hnf. by iIntros (E P) ">? [$ $] !> !>". Qed.

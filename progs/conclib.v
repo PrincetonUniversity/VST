@@ -6,6 +6,7 @@ Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Export VST.floyd.sublist.
 Import LiftNotation.
+Import compcert.lib.Maps.
 
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).

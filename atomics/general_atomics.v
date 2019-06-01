@@ -34,26 +34,12 @@ Context {CS : compspecs} {inv_names : invG}.
 
 Section atomicity.
 
-(* up *)
-Lemma emp_dup: forall P, P && emp = (P && emp) * (P && emp).
-Proof.
-  intros.
-  apply (predicates_hered.pred_ext _ (P && emp)).
-  - intros a [H Hemp].
-    exists a, a; split.
-    { apply identity_unit'; auto. }
-    split; split; auto.
-  - intros ? (? & ? & J & [? Hemp1] & [? Hemp2]).
-    pose proof (Hemp1 _ _ J); specialize (Hemp2 _ _ (join_comm J)); subst.
-    split; auto.
-Qed.
-
 (* The logical atomicity of Iris. *)
 (* We use the cored predicate to mimic Iris's persistent modality. *)
 Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
   EX P : mpred, |> P * ((|> P -* |={Eo,Ei}=> (EX x : A, a x *
     ((a x -* |={Ei,Eo}=> |> P) &&
-     ALL y : B, b x y -* |={Ei,Eo}=> Q y))) && cored).
+     ALL y : B, b x y -* |={Ei,Eo}=> Q y))) && cored)%I.
 
 End atomicity.
 
@@ -72,12 +58,14 @@ Definition super_non_expansive_b {A B W} (b : forall ts : list Type, functors.Mi
   approx n (b ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) x y).
 
 Definition super_non_expansive_la {W} la := forall n ts w rho,
-  Forall (fun l => approx n (!! locald_denote (l ts w) rho) = approx n (!! locald_denote (l ts
+  Forall (fun l => approx n ( !! locald_denote (l ts w) rho) = approx n ( !! locald_denote (l ts
     (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w)) rho)) la.
 
 Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
-  Forall (fun l => approx n (!! locald_denote (l ts w v) rho) = approx n (!! locald_denote (l ts
+  Forall (fun l => approx n ( !! locald_denote (l ts w v) rho) = approx n ( !! locald_denote (l ts
     (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) v) rho)) lb.
+
+Import List.
 
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
@@ -94,6 +82,7 @@ Program Definition atomic_spec {A T} W args tz la P a (t : T) lb b Ei Eo
     (SEP (Q v)))) _ _.
 Next Obligation.
 Proof.
+  intros.
   replace _ with (fun (ts : list Type) (x : _ * (T -> mpred) * _) rho =>
     PROP ()
     (LOCALx (map (fun Q0 => Q0 ts x) (map (fun l ts x => let '(x, Q, _) := x in l ts x) la))
@@ -103,27 +92,28 @@ Proof.
     (map (fun l ts x => let '(x, Q, _) := x in l ts x) la) [fun _ => _]);
     repeat constructor; hnf; intros; try destruct x as ((x, Q), ?); auto; simpl.
   - rewrite Forall_forall; intros ? Hin.
-    rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
+    rewrite -> in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
     intros ?? ((x, Q), ?) ?.
-    specialize (Hla n ts x rho); rewrite Forall_forall in Hla; apply (Hla _ Hin).
+    specialize (Hla n ts x rho); rewrite -> Forall_forall in Hla; apply (Hla _ Hin).
   - unfold atomic_shift.
     rewrite !approx_sepcon; f_equal; auto.
     rewrite !approx_exp; f_equal; extensionality.
-    rewrite !approx_sepcon, !approx_andp; f_equal; f_equal.
+    rewrite -> !approx_sepcon, !approx_andp; f_equal; f_equal.
     setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; f_equal.
     rewrite !approx_exp; f_equal; extensionality.
-    rewrite !approx_sepcon, !approx_andp; f_equal; auto.
+    rewrite -> !approx_sepcon, !approx_andp; f_equal; auto.
     f_equal.
     + setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
-    + rewrite !approx_allp by auto; f_equal; extensionality.
+    + rewrite -> !approx_allp by auto; f_equal; extensionality.
       setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
       rewrite approx_idem; auto.
   - extensionality ts x rho.
     destruct x as ((?, ?), ?).
-    unfold SEPx; simpl; rewrite map_map, !sepcon_assoc; auto.
+    unfold SEPx; simpl; rewrite -> map_map, !sepcon_assoc; auto.
 Qed.
 Next Obligation.
 Proof.
+  intros.
   replace _ with (fun (ts : list Type) (w : _ * (T -> mpred) * invG) rho =>
     EX v : T, PROP ()
     (LOCALx (map (fun Q0 => Q0 ts w) (map (fun l ts w => let '(w, Q, _) := w in l ts w v) lb))
@@ -135,12 +125,12 @@ Proof.
     [fun ts w => let '(w, Q, _) := w in Q v]);
     repeat constructor; hnf; intros; try destruct x0 as ((x0, Q), ?); auto; simpl.
   - rewrite Forall_forall; intros ? Hin.
-    rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
+    rewrite -> in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
     intros ?? ((x', Q), ?) ?.
-    specialize (Hlb n0 ts0 x' v rho0); rewrite Forall_forall in Hlb; apply (Hlb _ Hin).
+    specialize (Hlb n0 ts0 x' v rho0); rewrite -> Forall_forall in Hlb; apply (Hlb _ Hin).
   - rewrite approx_idem; auto.
   - extensionality ts x rho.
-    destruct x as ((?, ?), ?).
+    destruct x as ((?, ?), ?); simpl.
     apply f_equal; extensionality.
     unfold SEPx; simpl; rewrite map_map; auto.
 Qed.
