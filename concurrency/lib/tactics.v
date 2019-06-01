@@ -173,3 +173,31 @@ Ltac exploit H:=
   match type of H with
     ?T => cut T; [|exact H];exploit_in
   end.
+
+
+(** *Making notes
+    Good for keeping track of what subgoal you are in. 
+    Mostly for proof exploration/debugging.
+*)
+Ltac Note str:=
+  assert (str: True) by auto;
+  move str at top.
+
+(** *Split is too strong sometimes, since it just uses [constructor]*)
+Ltac weak_split tac:=
+  match goal with
+    |- _ /\ _ => split; tac
+  end.
+Tactic Notation "weak_split" tactic(t):= weak_split t.
+Tactic Notation "weak_split":= weak_split idtac.
+
+
+
+Ltac destruct_lhs:=
+  match goal with
+  | |- ?LHS = ?RHS => destruct LHS eqn:?
+  end.
+Ltac destruct_rhs:=
+  match goal with
+  | |- ?LHS = ?RHS => destruct RHS eqn:?
+  end.

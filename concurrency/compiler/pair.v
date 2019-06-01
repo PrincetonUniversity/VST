@@ -270,6 +270,15 @@ Ltac pair_prop_implications':=
   end.
 Ltac pair_prop_implications X1 X2:=
   try pair_prop_implications'; simpl; pair_prop_simpl X1 X2.
+Hint Unfold pair3_prop : pair.
+Hint Unfold pair2_prop : pair.
+Hint Unfold pair1_prop : pair.
+Hint Unfold pair3 : pair.
+Hint Unfold pair2 : pair.
+Hint Unfold pair1 : pair.
+Hint Unfold pair0 : pair.
+Hint Unfold pair_appl : pair.
+Hint Unfold compose : pair.
 Ltac solve_pair:=
   (* Unfold definitions hiding the "pair" 
      These must be defined as
