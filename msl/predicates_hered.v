@@ -284,8 +284,10 @@ Definition boxy {A} `{ageable A} (m: modality) (p: pred A): Prop :=  box m p = p
 
 (* A pile of notations for the operators we have defined *)
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
-Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x ident, right associativity) : pred.
-Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x ident, right associativity) : pred.
+Notation "'EX' x .. y , P " :=
+  (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
+Notation "'ALL' x .. y , P " :=
+  (allp (fun x => .. (allp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
