@@ -3,7 +3,6 @@ Require Import atomics.general_atomics.
 Require Import VST.progs.conclib.
 Require Import atomics.SC_atomics.
 Require Import VST.veric.bi.
-Require Import VST.progs.ghosts.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import atomics.hashtable_atomic.
@@ -527,11 +526,9 @@ Proof.
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
     replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
-    (* syntactic_cancel breaks here for some reason *)
-    Ltac cancel_for_forward_call ::= simpl; cancel.
     forward_call (pki, top, empty,
       fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
-    { rewrite -> 2sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
+    { rewrite <- !sepcon_assoc, -> 2sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
       iIntros "(P & [AS1 _])".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".

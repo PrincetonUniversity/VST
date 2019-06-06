@@ -3,8 +3,8 @@ Require Import VST.msl.ghost.
 Require Import VST.msl.ghost_seplog.
 Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.progs.ghosts.
 Require Import VST.progs.conclib.
+Require Export VST.progs.ghostsI.
 Require Import List.
 
 (* Where should this sit? *)
@@ -780,7 +780,7 @@ Proof.
     erewrite app_length, upto_app, map_app, app_nth2; erewrite map_length, upto_length, app_length,
       repeat_length; try lia.
     replace (_ - _)%nat with O by lia; simpl.
-    erewrite Nat2Z.inj_add, Z.add_0_r.
+    rewrite Nat2Z.inj_add Z.add_0_r.
     rewrite !app_Znth2; erewrite !Zlength_app, !Zlength_repeat, <- Zlength_correct; try lia.
     replace (_ - _) with 0 by lia; replace (_ - _) with 0 by lia; auto. }
   iModIntro; iSplitR "agree2 snap".

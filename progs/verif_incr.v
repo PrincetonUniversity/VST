@@ -102,7 +102,7 @@ Proof.
   gather_SEP 2 3 4.
   viewshift_SEP 0 (!!((if left then x else y) = n) && ghost_var Tsh (n+1) (if left then g1 else g2) *
     ghost_var gsh1 (if left then y else x) (if left then g2 else g1)).
-  { go_lower; simpl.
+  { go_lower.
     destruct left.
     - rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
       erewrite ghost_var_share_join' by eauto.
@@ -111,7 +111,6 @@ Proof.
     - erewrite ghost_var_share_join' by eauto.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update. }
-  Ltac cancel_for_forward_call ::= simpl; cancel.
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
@@ -178,23 +177,25 @@ Proof.
   forward_spawn _thread_func nullval (sh1, g1, g2, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
-    entailer!. }
+    subst ctr lock lockt; entailer!. }
   forward_call (sh2, g1, g2, false, 0, gv).
-  simpl.
+  rewrite Z.add_0_l.
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
+  { subst ctr lock lockt; cancel. }
   unfold thread_lock_inv at 2; unfold thread_lock_R.
   rewrite selflock_eq.
   Intros.
   forward_call (sh2, g1, g2, 1, 1, gv).
   (* We've proved that t is 2! *)
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).
+  { subst ctr lock; cancel. }
   forward_call (lockt, Ews, sh1, thread_lock_R sh1 g1 g2 ctr lock, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst ctr lock; cancel. }
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
-    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
+    erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; subst lock ctr; cancel. }
   forward.
 Qed.
 

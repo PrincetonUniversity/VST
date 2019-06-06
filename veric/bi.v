@@ -1,6 +1,12 @@
 From iris.bi Require Import interface.
 From iris.proofmode Require Export tactics.
 
+(* undo some "simpl never" settings from std++ *)
+Arguments Pos.of_nat : simpl nomatch.
+Arguments N.add n m : simpl nomatch.
+Arguments Z.of_nat n : simpl nomatch.
+Arguments Z.to_nat z : simpl nomatch.
+
 (* Conflicting notations:
 
   !!   PMap.get (level 1) vs lookup (level 20), fixed for now by not exporting compcert.lib.Maps
