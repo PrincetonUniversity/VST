@@ -147,7 +147,7 @@ Proof.
   Intros.
   forward.
   forward_call (sh, g1, g2, true, 0, gv).
-  rewrite Z.add_0_l.
+  simpl.
   forward_call ((gv _thread_lock), sh, thread_lock_R sh g1 g2 (gv _ctr) (gv _ctr_lock), thread_lock_inv sh g1 g2 (gv _ctr) (gv _ctr_lock) (gv _thread_lock)).
   { lock_props.
     unfold thread_lock_inv, thread_lock_R.
@@ -179,12 +179,12 @@ Proof.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     subst ctr lock lockt; entailer!. }
   forward_call (sh2, g1, g2, false, 0, gv).
-  rewrite Z.add_0_l.
   forward_call (lockt, sh2, thread_lock_inv sh1 g1 g2 ctr lock lockt).
   { subst ctr lock lockt; cancel. }
   unfold thread_lock_inv at 2; unfold thread_lock_R.
   rewrite selflock_eq.
   Intros.
+  simpl.
   forward_call (sh2, g1, g2, 1, 1, gv).
   (* We've proved that t is 2! *)
   forward_call (lock, sh2, cptr_lock_inv g1 g2 ctr).

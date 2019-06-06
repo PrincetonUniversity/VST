@@ -3,7 +3,7 @@ From iris.proofmode Require Export tactics.
 
 (* undo some "simpl never" settings from std++ *)
 Arguments Pos.of_nat : simpl nomatch.
-Arguments Pos.to_nat : simpl nomatch.
+Arguments Pos.to_nat !x / .
 Arguments N.add : simpl nomatch.
 Arguments Z.of_nat : simpl nomatch.
 Arguments Z.to_nat : simpl nomatch.

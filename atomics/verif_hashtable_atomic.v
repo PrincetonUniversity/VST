@@ -1893,7 +1893,7 @@ Proof.
     Exists (res ++ [r]) (locks ++ [l]); rewrite -> !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
     rewrite lock_inv_isptr data_at__isptr; Intros.
     rewrite -> Z2Nat.inj_add, upto_app, !iter_sepcon_app by omega.
-    simpl; change (upto (Z.to_nat 1)) with [0]; simpl.
+    simpl. change (upto 1) with [0]; simpl.
     rewrite -> Z2Nat.id, Z.add_0_r by omega.
     replace (Zlength res + 1) with (Zlength (res ++ [r]))
       by (rewrite -> Zlength_app, Zlength_cons, Zlength_nil; auto).
@@ -2076,18 +2076,17 @@ Proof.
     gather_SEP 0 5; rewrite <- mem_mgr_dup.
     gather_SEP 12 3.
     replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks)).
-    { go_lower; simpl.
-      rewrite <- lock_struct_array, sepcon_emp.
+    { go_lower.
+      rewrite <- lock_struct_array.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join by eauto; apply derives_refl. }
     gather_SEP 10 4.
     replace_SEP 0 (data_at w1 (tarray (tptr tint) 3) res (gv _results)).
-    { go_lower; simpl.
-      rewrite sepcon_emp.
+    { go_lower.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join by eauto; apply derives_refl. }
-    gather_SEP 8 3; simpl; erewrite sepcon_emp, ghost_hist_join; eauto.
-    gather_SEP 5 4; simpl; erewrite sepcon_emp, data_at_share_join by eauto.
+    gather_SEP 8 3; erewrite ghost_hist_join; eauto.
+    gather_SEP 5 4; erewrite data_at_share_join by eauto.
     assert (0 <= Zlength (filter id [b1; b2; b3]) <= 3).
     { split; [apply Zlength_nonneg|].
       etransitivity; [apply Zlength_filter|].
@@ -2101,8 +2100,6 @@ Proof.
         intros []; simpl; omega.
       * rewrite Zlength_map; omega. }
     forward.
-    { entailer!.
-      rewrite !Int.signed_repr; unfold Int.min_signed, Int.max_signed, Int.half_modulus, Int.modulus, two_power_nat, Z.div; simpl; lia. }
     go_lowerx; Exists (w1, lr ++ [(hi, [b1; b2; b3])]) w1'; entailer!.
     rewrite -> !map_app, concat_app, filter_app, !Zlength_app, Zlength_cons, Zlength_nil; simpl;
       repeat (split; auto).
@@ -2122,8 +2119,8 @@ Proof.
     rewrite sublist_nil in H; inv H end.
   gather_SEP 4 3.
   replace_SEP 0 (|={inv i1}=> !!(Zlength (filter id (concat (map snd lr))) = 3) : mpred)%I.
-  { go_lower; simpl.
-    iIntros "(hist & >inv & _)".
+  { go_lower.
+    iIntros "(hist & >inv)".
     iMod (inv_open (inv i1) with "inv") as "[>inv Hclose]"; [auto|].
     unfold hashtable_inv.
     iDestruct "inv" as (HT) "[hashtable ref]"; iDestruct "ref" as (hr) "[% ref]".
