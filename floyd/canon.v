@@ -302,7 +302,12 @@ Proof.
   apply SEPx_nonexpansive; auto.
 Qed.
 
-Notation "'EX'  x ':' T ',' P " := (@exp (environ->mpred) _ T (fun x:T => P%assert)) (at level 65, x ident, right associativity) : assert.
+Notation "'EX' x .. y , P " :=
+  (@exp (environ->mpred) _ _ (fun x =>
+    ..
+    (@exp (environ->mpred) _ _ (fun y => P%assert))
+    ..
+    )) (at level 65, x binder, y binder, right associativity) : assert.
 
 Notation " 'ENTAIL' d ',' P '|--' Q " :=
   (@derives (environ->mpred) _ (andp (local (tc_environ d)) P%assert) Q%assert) (at level 80, P at level 79, Q at level 79).
