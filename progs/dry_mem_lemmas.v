@@ -727,3 +727,61 @@ Proof.
   + destruct (phi1 @ l); auto.
     apply YES_not_identity in Hval1; contradiction.
 Qed.
+
+Print main_pre_ext.
+
+Definition main_pre_dry {Z} (m : mem) (prog : Clight.program) (ora : Z)
+  (ts : list Type) (gv : globals) (z : Z) :=
+  (*  /\ *) z = ora.
+
+Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
+  (ts : list Type) (gv : globals) (z : Z) := True. (* the desired postcondition might vary by program *)
+
+(* simulate funspec2pre/post *)
+
+Definition main_pre_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) (tys : list typ) args (z : Z) (m : juicy_mem) :=
+    Val.has_type_list args [] /\
+(*    (exists phi0 phi1 : rmap,
+       join phi0 phi1 (m_phi m) /\*)
+       (app_pred (main_pre_ext prog ora ts gv
+          (semax.make_ext_args (filter_genv (semax_ext.symb2genv ge_s)) [] []))
+         (m_phi m) (*phi0 /\
+       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
+
+Definition main_post_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
+  (*exists phi0 phi1 : rmap,
+       join phi0 phi1 (m_phi m) /\*)
+       (app_pred (main_post prog ts gv
+          (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) ret))
+         (m_phi m)(*phi0 /\
+       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
+
+Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
+  (forall t b tl vl x jm,
+  main_pre_juicy prog ora ts gv t b tl vl x jm ->
+  main_pre_dry (m_dry jm) prog ora ts gv x) /\
+  (forall t b ot v x jm0 jm,
+    (exists tl vl x0, main_pre_juicy prog ora ts gv t b tl vl x0 jm0) ->
+    (level jm <= level jm0)%nat ->
+    resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
+    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
+    (main_post_dry (m_dry jm0) (m_dry jm) prog ora ts gv x ->
+     main_post_juicy prog ora ts gv t b ot v x jm)).
+Proof.
+  split; intros.
+  - unfold main_pre_juicy, main_pre_dry in *.
+    destruct H as (? & Hpre & Hext).
+    unfold main_pre_ext in Hpre.
+    destruct Hpre as (? & ? & J & Hglobals & Htrace).
+    apply has_ext_eq in Htrace.
+    eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join, join_comm; eauto].
+    eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
+  - unfold main_post_juicy.
+    split; [apply I|].
+    rewrite H2.
+    eexists; constructor; constructor.
+    instantiate (1 := (_, _)); constructor; simpl; [|constructor; auto].
+    apply ext_ref_join.
+Qed.

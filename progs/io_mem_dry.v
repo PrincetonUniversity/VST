@@ -156,7 +156,7 @@ Proof.
   - unfold funspec2pre, funspec2post, dessicate; simpl.
     intros ?; if_tac.
     + intros; subst.
-      destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
+      destruct H0 as (_ & vl & z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
       destruct t as (phi1 & t); subst; simpl in *.
       destruct t as (? & (((((sh, buf), msg), len), rest), k)); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
