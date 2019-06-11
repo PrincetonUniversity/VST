@@ -6,6 +6,7 @@ Require Import VST.veric.ghost_PCM.
 Require Import VST.progs.conclib.
 Require Import VST.veric.SequentialClight.
 Require Import VST.veric.mem_lessdef.
+Import Maps.
 
 (* functions on byte arrays and CompCert mems *)
 Definition store_byte_list m b ofs lv :=
