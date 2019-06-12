@@ -11,12 +11,18 @@ Require Import VST.veric.mem_lessdef.
 Definition store_byte_list m b ofs lv :=
   Mem.storebytes m b ofs (concat (map (encode_val Mint8unsigned) lv)).
 
-Lemma has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
-  ghost_of phi = [Some (ext_ghost z, NoneP)].
+Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
+  ghost_of phi = [Some (ext_ghost z, NoneP)] /\ forall l, identity (phi @ l).
 Proof.
-  intros ??? (? & _ & ->); simpl.
+  intros ??? (? & Hno & ->); simpl; split; auto.
   unfold ext_ghost; simpl; repeat f_equal.
   apply proof_irr.
+Qed.
+
+Corollary has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
+  ghost_of phi = [Some (ext_ghost z, NoneP)].
+Proof.
+  intros; apply has_ext_eq'; auto.
 Qed.
 
 Lemma nth_nil : forall {A} n (d : A), nth n nil d = d.
@@ -728,11 +734,9 @@ Proof.
     apply YES_not_identity in Hval1; contradiction.
 Qed.
 
-Print main_pre_ext.
-
 Definition main_pre_dry {Z} (m : mem) (prog : Clight.program) (ora : Z)
   (ts : list Type) (gv : globals) (z : Z) :=
-  (*  /\ *) z = ora.
+  Genv.globals_initialized (Genv.globalenv prog) (Genv.globalenv prog) m /\ z = ora.
 
 Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
   (ts : list Type) (gv : globals) (z : Z) := True. (* the desired postcondition might vary by program *)
@@ -760,6 +764,7 @@ Definition main_post_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type
 
 Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
   (forall t b tl vl x jm,
+  Genv.init_mem (program_of_program prog) = Some (m_dry jm) ->
   main_pre_juicy prog ora ts gv t b tl vl x jm ->
   main_pre_dry (m_dry jm) prog ora ts gv x) /\
   (forall t b ot v x jm0 jm,
@@ -772,12 +777,14 @@ Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
 Proof.
   split; intros.
   - unfold main_pre_juicy, main_pre_dry in *.
-    destruct H as (? & Hpre & Hext).
+    destruct H0 as (? & Hpre & Hext).
     unfold main_pre_ext in Hpre.
     destruct Hpre as (? & ? & J & Hglobals & Htrace).
     apply has_ext_eq in Htrace.
-    eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join, join_comm; eauto].
-    eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
+    split.
+    + apply Genv.init_mem_characterization_gen; auto.
+    + eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join, join_comm; eauto].
+      eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
   - unfold main_post_juicy.
     split; [apply I|].
     rewrite H2.
