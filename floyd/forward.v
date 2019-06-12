@@ -1211,46 +1211,90 @@ inv H1.
 auto.
 Qed.
 
+(*
 Ltac prove_call_setup1 subsumes :=
-    match goal with
-    | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
-      fail 1 "forward_call fails because your precondition starts with EX.
-Use Intros to move          the existentially bound variables above the line"
-    | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
-      lazymatch c with
-      | context [Scall _ (Evar ?id ?ty) ?bl] =>
-        let R := strip1_later R' in
-        exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
-        [check_prove_local2ptree
-        | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
-          [ check_function_name
-          | lookup_spec id
-          | find_spec_in_globals'
-          | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
-          ]
-        | apply subsumes
-        | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
-        |check_typecheck
-        |check_typecheck
-        |check_cast_params
-        |reflexivity
-        | ..
+  match goal with
+  | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+    fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros  to move          the existentially bound variables above the line"
+  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+    lazymatch c with
+    | context [Scall _ (Evar ?id ?ty) ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
+      [check_prove_local2ptree
+      | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
+        [ check_function_name
+        | lookup_spec id
+        | find_spec_in_globals'
+        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
         ]
- | context [Scall _ ?a ?bl] =>
-    let R := strip1_later R' in
- exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
- [check_prove_local2ptree
- |reflexivity
- |prove_func_ptr
- | apply subsumes
- |check_parameter_types
- |check_typecheck
- |check_typecheck
- |check_cast_params
- |reflexivity
- | ]
-      end
-    end.
+      | apply subsumes
+      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ..
+      ]
+    | context [Scall _ ?a ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
+      [check_prove_local2ptree
+      |reflexivity
+      |prove_func_ptr
+      | apply subsumes
+      |check_parameter_types
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ]
+    end
+  end.
+ *)
+(*The following version swaps the two context-cases and replaces the lazymatch by a match-
+  we believe this priorizitizes func_ptr lookup over Delta-lookup*)
+Ltac prove_call_setup1 subsumes :=
+  match goal with
+  | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+    fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros  to move          the existentially bound variables above the line"
+  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+    match c with
+    | context [Scall _ ?a ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
+      [check_prove_local2ptree
+      |reflexivity
+      |prove_func_ptr
+      | apply subsumes
+      |check_parameter_types
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ]
+    | context [Scall _ (Evar ?id ?ty) ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
+      [check_prove_local2ptree
+      | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
+        [ check_function_name
+        | lookup_spec id
+        | find_spec_in_globals'
+        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
+        ]
+      | apply subsumes
+      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ..
+      ]
+    end
+  end.
 
 Ltac check_gvars :=
   first [exact Logic.I
