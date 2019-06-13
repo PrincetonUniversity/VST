@@ -6542,7 +6542,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       (* Line: 5367 *)
       Lemma release_step_diagram_compiled:
         let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
-        forall (angel: virtue) (U : list nat) (cd : compiler_index) mu (*tr2*)
+        forall (angel: virtue) (cd : compiler_index) mu (*tr2*)
           st1 (m1 m1' m1'' : mem) Hcnt1 st2 (m2' : mem) Hcnt2
           (Hsame_cnt: same_cnt hb st1 st2 Hcnt1 Hcnt2)
           b1 ofs lock_map (code1 : semC)  (code2 : Asm.state)
@@ -7605,14 +7605,12 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           symmetry in H0.
           clean_cnt.
           exploit release_step_diagram_compiled;
+            try eapply Hthread_mem1;
+            try eapply Hthread_mem2;
             try eapply CMatch;
             eauto;
             try reflexivity.
           
-          (* + !goal(semantics.at_external _ _ _ = Some _).
-            move Hat_external1 at bottom.
-            simpl.
-            admit. *)
           + econstructor; eauto.
           + subst newThreadPerm1 virtueThread1 virtueLP1; eassumption.
           + econstructor; eauto.
@@ -7620,7 +7618,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             * !goal(mem_interference m2 lev2 m2'). admit.
           + clear. subst virtueThread1.
             intros (?&?&?&?&?&?).
-            do 3 eexists; eauto.
+            do 3 eexists; repeat weak_split eauto.
+            econstructor; eauto.
+            
             
         - (* hb < tid *)
           pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
@@ -7807,6 +7807,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           symmetry in H0.
           clean_cnt.
           exploit acquire_step_diagram_compiled;
+            try eapply Hthread_mem1;
+            try eapply Hthread_mem2;
             try eapply CMatch; eauto;
             try reflexivity.
           + econstructor; eassumption.
@@ -7815,11 +7817,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           + econstructor; eauto; simpl.
             * !goal(mem_interference m1 lev1 m1'). admit.   
             * !goal(mem_interference m2 lev2 m2'). admit.
-          + instantiate(1:=tr2).
-            subst virtueThread1.
+          + subst virtueThread1.
             clear. 
             intros (?&?&?&?&?&?).
-            do 3 eexists; eauto.
+            do 3 eexists; repeat weak_split eauto.
+            econstructor; eauto.
             
         (* tid > hb *)
         - pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1))
@@ -7876,6 +7878,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Lemma make_step_diagram:
         let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
         forall (m1 m1' m2 : mem)  (U : list nat) (tid : nat) cd tr2 (mu : meminj)
+          (HSched: HybridMachineSig.schedPeek U = Some tid)
           (st1 : ThreadPool (Some hb)) cnt1
           (st2 : ThreadPool (Some (S hb))) cnt2
           (Hsame_sch: same_cnt tid st1 st2 cnt1 cnt2)
@@ -8097,6 +8100,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Lemma free_step_diagram:
         let hybrid_sem:= (sem_coresem (HybridSem(Some hb))) in 
         forall (m1 m2: mem) (U : list nat) tid cd tr2 (mu : meminj)
+          (HSched: HybridMachineSig.schedPeek U = Some tid)
           (st1 : ThreadPool (Some hb)) cnt1
           (st2 : ThreadPool (Some (S hb))) cnt2
           (Hsame_sch: same_cnt tid st1 st2 cnt1 cnt2)
@@ -8426,7 +8430,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 (Hthread_mem1: access_map_equiv (thread_perms hb st1 Hcnt1) (getCurPerm m1'))
                 (Hthread_mem2: access_map_equiv (thread_perms hb st2 Hcnt2) (getCurPerm m2'))
                 (CMatch: concur_match (Some cd) mu st1 m1' st2 m2')
-
                 (Hcode1: getThreadC Hcnt1 = Kblocked (SST code1))
                 (Hcode2 : getThreadC Hcnt2 = Kblocked (TST code2))
                 (Hat_external1': semantics.at_external hybrid_sem (SST code1) m1' =
@@ -8460,6 +8463,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Lemma acquire_fail_step_diagram:
         let hybrid_sem:= (sem_coresem (HybridSem(Some hb))) in 
         forall (m1 m2: mem) (U : list nat) tr2 tid mu cd b ofs c
+          (HSched: HybridMachineSig.schedPeek U = Some tid)
           (st1 : ThreadPool (Some hb)) cnt1
           (st2 : ThreadPool (Some (S hb))) cnt2
           (Hsame_sch: same_cnt tid st1 st2 cnt1 cnt2)
