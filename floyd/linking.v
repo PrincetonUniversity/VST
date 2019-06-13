@@ -132,7 +132,7 @@ Fixpoint merge_prog_types' (e1 e2: list composite_definition)
 end.
 
 Definition merge_prog_types e1 e2 :=
- merge_prog_types' e1 e2 (length e1 + length e2).
+ merge_prog_types' e1 e2 (S(length e1 + length e2)).
  
 Definition link_progs (prog1 prog2 : Clight.program) : 
   Errors.res Clight.program :=
