@@ -16,13 +16,31 @@ Local Ltac inj :=
   | H: _ = _ |- _ => assert_succeeds (injection H); inv H
   end.
 
+Ltac prename' pat H name :=
+  match type of H with
+  | context[?pat'] => unify pat pat'; rename H into name
+  end.
+
+Tactic Notation "prename" open_constr(pat) "into" ident(name) :=
+  lazymatch goal with
+  | H: pat, H': pat |- _ =>
+      fail 0 "Multiple possible matches for" pat ":" H "and" H'
+  | H: pat |- _ => prename' pat H name
+  | H: context[pat], H': context[pat] |- _ =>
+      fail 0 "Multiple possible matches for" pat ":" H "and" H'
+  | H: context[pat] |- _ => prename' pat H name
+  | _ => fail 0 "No hypothesis matching" pat
+  end.
+
 Ltac simpl_rev :=
   repeat (rewrite rev_app_distr; cbn [rev app]);
-  rewrite <- ?app_assoc; cbn [rev app].
+  rewrite <- ?app_assoc; cbn [rev app];
+  rewrite ?rev_involutive.
 
 Ltac simpl_rev_in H :=
   repeat (rewrite rev_app_distr in H; cbn [rev app] in H);
-  rewrite <- ?app_assoc in H; cbn [rev app] in H.
+  rewrite <- ?app_assoc in H; cbn [rev app] in H;
+  rewrite ?rev_involutive in H.
 
 (** Helper Lemmas *)
 Section ListFacts.
@@ -209,6 +227,10 @@ Section ListFacts.
       apply app_inj_tail in Heq; intuition (subst; eauto).
   Qed.
 
+  Lemma cons_app_single : forall (xs ys : list A) x,
+    xs ++ x :: ys = (xs ++ x :: nil) ++ ys.
+  Proof. intros; rewrite <- app_assoc; auto. Qed.
+
 End ListFacts.
 
 Import MonadNotation.
@@ -317,24 +339,6 @@ Section Invariants.
     end.
   Definition compute_console tr := compute_console' (rev tr).
 
-  Lemma app_tail_case' {A} : forall (xs ys ys' : list A) x,
-    xs ++ x :: nil = ys ++ ys' ->
-    ys' = nil \/
-    exists ys'', xs = ys ++ ys'' /\ ys' = ys'' ++ x :: nil.
-  Proof.
-    intros * Heq.
-    assert (Hcase: ys' = nil \/ exists ys'' y'', ys' = ys'' ++ y'' :: nil).
-    { clear; induction ys'; auto.
-      intuition (subst; eauto using app_nil_l).
-      destruct H as (? & ? & ?); subst.
-      eauto using app_comm_cons.
-    }
-    destruct Hcase as [? | (? & ? & ?)]; subst; auto.
-    rewrite app_assoc in Heq.
-    apply app_inj_tail in Heq.
-    intuition (subst; eauto).
-  Qed.
-
   (* Everything in the trace was put there by the serial device. *)
   Definition valid_trace_serial tr :=
     forall logIdx strIdx c pre post,
@@ -354,11 +358,15 @@ Section Invariants.
   (* Every event in the trace is unique. *)
   Definition valid_trace_unique (tr : ostrace) := NoDup tr.
 
+  (* The console matches compute_console. *)
+  Definition valid_trace_console tr cons := cons = compute_console tr.
+
   (* All trace invariants hold. *)
   Record valid_trace (st : RData) := {
     vt_trace_serial : valid_trace_serial st.(io_log);
     vt_trace_user : valid_trace_user st.(io_log);
     vt_trace_unique : valid_trace_unique st.(io_log);
+    vt_trace_console : valid_trace_console st.(io_log) st.(console).(cons_buf);
   }.
 
   (* Compute the newly added events in the trace. *)
@@ -386,10 +394,6 @@ Section Invariants.
     intros * Hvalid * ->; eapply Hvalid.
     rewrite app_comm_cons, <- app_assoc; eauto.
   Qed.
-
-  Lemma cons_app_single {A} : forall (xs ys : list A) x,
-    xs ++ x :: ys = (xs ++ x :: nil) ++ ys.
-  Proof. intros; rewrite <- app_assoc; auto. Qed.
 
   Lemma valid_trace_serial_app : forall tr' tr,
     valid_trace_serial (tr ++ tr') ->
@@ -570,7 +574,7 @@ Section Invariants.
   Proof.
     unfold compute_console; intros *; simpl_rev; intros Hserial Hcons Hcons'.
     eapply compute_console_user_idx_increase'; eauto.
-    simpl_rev; rewrite !rev_involutive; auto.
+    simpl_rev; auto.
   Qed.
 
   Lemma console_len' : forall tr,
@@ -590,130 +594,267 @@ Section Invariants.
   Proof. intros; apply console_len'. Qed.
 
   (** Trace Invariants Preserved *)
-  Lemma serial_getc_preserve_valid_trace : forall st st',
-    valid_trace st ->
-    serial_getc st = st' ->
-    valid_trace st'.
+  (* Specs:
+       serial_intr_enable_spec
+       serial_intr_disable_spec
+       thread_serial_intr_enable_spec
+       thread_serial_intr_disable_spec
+       uctx_arg2_spec
+       uctx_set_retval1_spec
+       uctx_set_errno_spec
+       serial_putc_spec
+       cons_buf_read_spec
+       thread_cons_buf_read_spec
+       thread_serial_putc_spec
+       sys_getc_spec
+       sys_putc_spec
+  *)
+
+  Context `{ThreadsConfigurationOps}.
+
+  Ltac destruct_spec Hspec :=
+    repeat match type of Hspec with
+    | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
+    end.
+
+  Lemma idxs_NoDup {A} : forall (xs : list A),
+    NoDup (idxs xs).
   Proof.
-    unfold serial_getc; intros * Hvalid Hspec.
-    destruct st as [? tr]; subst; destruct Hvalid; cbn in *.
-    split; cbn; red; auto.
-    - (* valid_trace_serial *)
-      intros * Heq.
-      destruct post; inj; eauto.
-    - (* valid_trace_user *)
-      intros * Heq.
-      destruct post; inj; eauto.
-    - (* valid_trace_unique *)
-      constructor; auto; intros Hin.
-      apply in_split in Hin.
-      destruct Hin as (post & pre & Heq); subst.
-      edestruct vt_trace_serial0 as (? & Hlen); eauto.
-      rewrite Heq, app_length in Hlen.
-      cbn in Hlen; lia.
+    induction xs; cbn; constructor.
+    - clear IHxs; induction (idxs xs); cbn in *; intuition (auto || easy).
+    - apply FinFun.Injective_map_NoDup; try red; auto.
   Qed.
 
-  Lemma console_read_preserve_valid_trace : forall st st' c,
+  Lemma combine_NoDup {A B} : forall (xs : list A) (ys : list B),
+    NoDup xs -> NoDup (combine xs ys).
+  Proof.
+    induction xs; intros * Hnodup; cbn in *; [constructor | inv Hnodup].
+    destruct ys; cbn; constructor; auto.
+    intros Hin; apply in_combine_l in Hin; easy.
+  Qed.
+
+  Lemma mkRecvEvents_NoDup : forall logIdx cs,
+    NoDup (mkRecvEvents logIdx cs).
+  Proof.
+    unfold mkRecvEvents, enumerate; intros.
+    apply FinFun.Injective_map_NoDup; auto using combine_NoDup, idxs_NoDup.
+    red; intros (? & ?) (? & ?); intros; inj; auto.
+  Qed.
+
+  Lemma cons_intr_aux_preserve_valid_trace : forall st st',
     valid_trace st ->
-    console_read st = (st', c) ->
+    cons_intr_aux st = Some st' ->
     valid_trace st'.
   Proof.
-    unfold console_read; intros * Hvalid Hspec.
-    destruct st as [? tr]; destruct Hvalid; cbn in *.
-    destruct (compute_console tr) as [| (c' & logIdx & strIdx) cons] eqn:Hcons; inj.
-    - repeat (split; auto).
-    - split; cbn; red; auto using in_tail.
+    unfold cons_intr_aux; intros * Hvalid Hspec; destruct_spec Hspec.
+    - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
+      destruct st; inv Hvalid; constructor; cbn in *; subst; red.
       + (* valid_trace_serial *)
         intros * Heq.
-        destruct post; inj; eauto.
+        admit.
       + (* valid_trace_user *)
         intros * Heq.
-        symmetry in Heq; destruct post; inj; cbn in *; eauto.
-        assert (Hin: In (IOEvRecv logIdx strIdx c) tr).
-        { apply in_console_in_trace.
-          rewrite Hcons; cbn; auto.
-        }
-        apply in_split in Hin.
-        destruct Hin as (post & pre & ?); subst.
-        edestruct vt_trace_serial0; eauto; subst.
-        rewrite in_app_iff, Hcons; cbn; auto.
+        admit.
       + (* valid_trace_unique *)
-        constructor; auto; intros Hin.
-        apply in_split in Hin.
-        destruct Hin as (post & pre & ?); subst.
-        edestruct vt_trace_user0 as (Hin & Hhd); eauto.
-        enough logIdx + strIdx < logIdx + strIdx by lia.
-        eapply compute_console_user_idx_increase; eauto.
-        rewrite Hcons; cbn; auto.
-  Qed.
+        rewrite conclib.NoDup_app_iff; repeat split; auto using mkRecvEvents_NoDup.
+        admit.
+      + (* valid_trace_console *)
+        destruct console; cbn in *.
+        rewrite vt_trace_console0.
+        admit.
+    - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
+      destruct st; inv Hvalid; constructor; cbn in *; subst; red.
+      + (* valid_trace_serial *)
+        intros * Heq.
+        admit.
+      + (* valid_trace_user *)
+        intros * Heq.
+        admit.
+      + (* valid_trace_unique *)
+        rewrite conclib.NoDup_app_iff; repeat split; auto using mkRecvEvents_NoDup.
+        admit.
+      + (* valid_trace_console *)
+        destruct console; cbn in *.
+        rewrite vt_trace_console0.
+        rewrite Zlength_app, Zlength_map.
+        admit.
+  Admitted.
 
-  Lemma getchar_spec_preserve_valid_trace : forall st st' c,
+  Lemma serial_intr_enable_aux_preserve_valid_trace : forall n st st',
     valid_trace st ->
-    getchar_spec st = (st', c) ->
+    serial_intr_enable_aux n st = Some st' ->
     valid_trace st'.
   Proof.
-    unfold getchar_spec; intros * Hvalid Hspec.
-    destruct (console_read st) eqn:Hread.
-    eapply console_read_preserve_valid_trace in Hread; eauto.
-    destruct (0 <=? _) eqn:Hle; inj; eauto.
+    induction n; intros * Hvalid Hspec; cbn -[cons_intr_aux] in Hspec; inj; auto.
+    destruct_spec Hspec; auto.
+    eapply IHn; [| eauto].
+    eapply cons_intr_aux_preserve_valid_trace; eauto.
   Qed.
 
-  (** Return Invariants Preserved *)
-  Lemma console_read_valid_ret : forall st st' c,
+  Lemma serial_intr_enable_preserve_valid_trace : forall st st',
     valid_trace st ->
-    console_read st = (st', c) ->
-    valid_ret st st' c.
+    serial_intr_enable_spec st = Some st' ->
+    valid_trace st'.
   Proof.
-    unfold console_read; intros * Hvalid Hspec.
-    destruct st as [? tr]; destruct Hvalid; cbn in *.
-    destruct (compute_console tr) as [| (c' & logIdx & strIdx) cons] eqn:Hcons; inj.
-    - repeat (split; eauto using common_suffix_full); cbn -[common_suffix]; try lia.
-      all: rewrite Nat.leb_refl, common_suffix_full, Nat.sub_diag; cbn; auto.
-    - repeat split.
-      + (* c in range *)
-        assert (Hin: In (IOEvRecv logIdx strIdx c) tr).
-        { apply in_console_in_trace.
-          rewrite Hcons; cbn; auto.
-        }
-        apply in_split in Hin.
-        destruct Hin as (post & pre & ?); subst.
-        edestruct vt_trace_serial0; eauto; subst.
-        right; apply serial_oracle_in_range.
-      + (* new event + old trace = new trace *)
-        cbn -[common_suffix]; rewrite leb_correct by lia.
-        rewrite common_suffix_cons.
-        replace (length (_ :: _) - length _)%nat with 1%nat.
-        { cbn; eauto. }
-        clear; induction tr; auto.
-      + (* empty trace *)
-        assert (Hin: In (IOEvRecv logIdx strIdx c) tr).
-        { apply in_console_in_trace.
-          rewrite Hcons; cbn; auto.
-        }
-        apply in_split in Hin.
-        destruct Hin as (post & pre & ?); subst.
-        edestruct vt_trace_serial0; eauto; subst.
-        pose proof (serial_oracle_in_range pre); lia.
-      + (* singleton trace *)
-        intros; cbn -[common_prefix]; rewrite leb_correct by lia.
-        rewrite common_suffix_cons.
-        replace (length (_ :: _) - length _)%nat with 1%nat.
-        { cbn; eauto. }
-        clear; induction tr; auto.
+    unfold serial_intr_enable_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    prename serial_intr_enable_aux into Hspec.
+    eapply serial_intr_enable_aux_preserve_valid_trace in Hspec.
+    2: destruct st; inv Hvalid; constructor; auto.
+    destruct r; inv Hspec; constructor; auto.
   Qed.
 
-  Lemma getchar_spec_valid_ret : forall st st' c,
+  Lemma serial_intr_disable_aux_preserve_valid_trace : forall n mask st st',
     valid_trace st ->
-    getchar_spec st = (st', c) ->
-    valid_ret st st' c.
+    serial_intr_disable_aux n mask st = Some st' ->
+    valid_trace st'.
   Proof.
-    unfold getchar_spec; intros * Hvalid Hspec.
-    destruct (console_read st) eqn:Hread.
-    eapply console_read_valid_ret in Hread; eauto.
-    destruct (0 <=? _) eqn:Hle; inj; eauto.
-    rewrite Z.leb_nle in Hle.
-    destruct Hread as ([? | ?] & ? & ? & ? & ?); subst; try lia.
-    repeat (split; auto).
+    induction n; intros * Hvalid Hspec; cbn -[cons_intr_aux] in Hspec; inj; auto.
+    destruct_spec Hspec; auto.
+    - eapply IHn; [| eauto].
+      admit.
+    - eapply IHn; [| eauto].
+      eapply cons_intr_aux_preserve_valid_trace; [| eauto].
+      admit.
+  Admitted.
+
+  Lemma serial_intr_disable_preserve_valid_trace : forall st st',
+    valid_trace st ->
+    serial_intr_disable_spec st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold serial_intr_disable_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    prename serial_intr_disable_aux into Hspec.
+    eapply serial_intr_disable_aux_preserve_valid_trace in Hspec.
+    2: destruct st; inv Hvalid; constructor; auto.
+    destruct r; inv Hspec; constructor; auto.
+  Qed.
+
+  Lemma thread_serial_intr_enable_preserve_valid_trace : forall st st',
+    valid_trace st ->
+    thread_serial_intr_enable_spec st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold thread_serial_intr_enable_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply serial_intr_enable_preserve_valid_trace; eauto.
+  Qed.
+
+  Lemma thread_serial_intr_disable_preserve_valid_trace : forall st st',
+    valid_trace st ->
+    thread_serial_intr_disable_spec st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold thread_serial_intr_disable_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply serial_intr_disable_preserve_valid_trace; eauto.
+  Qed.
+
+  Lemma uctx_set_retval1_preserve_valid_trace : forall st v st',
+    valid_trace st ->
+    uctx_set_retval1_spec v st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold uctx_set_retval1_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    destruct st; inv Hvalid; constructor; cbn in *; auto.
+  Qed.
+
+  Lemma uctx_set_errno_preserve_valid_trace : forall st e st',
+    valid_trace st ->
+    uctx_set_errno_spec e st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold uctx_set_errno_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    destruct st; inv Hvalid; constructor; cbn in *; auto.
+  Qed.
+
+  Lemma serial_putc_preserve_valid_trace : forall st c st',
+    valid_trace st ->
+    serial_putc_spec c st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold serial_putc_spec; intros * Hvalid Hspec; destruct_spec Hspec; eauto.
+    all: destruct st; inv Hvalid; constructor; cbn in *; subst; red; auto.
+  Qed.
+
+  Lemma cons_buf_read_preserve_valid_trace : forall st st' c,
+    valid_trace st ->
+    cons_buf_read_spec st = Some (st', c) ->
+    valid_trace st'.
+  Proof.
+    unfold cons_buf_read_spec; intros * Hvalid Hspec; destruct_spec Hspec; eauto.
+    prename (cons_buf _ = _) into Hcons.
+    destruct st; inv Hvalid; constructor; cbn in *; subst; red.
+    - (* valid_trace_serial *)
+      intros * Heq.
+      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq.
+      destruct (rev post); cbn in Heq; inj; prename (rev _ = _) into Heq.
+      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq; subst; eauto.
+    - (* valid_trace_user *)
+      intros * Heq.
+      symmetry in Heq.
+      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq.
+      destruct (rev post); cbn in Heq; inj; prename (_ = rev _) into Heq;
+        apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq; subst; eauto.
+      rewrite <- vt_trace_console0, Hcons; cbn; split; auto.
+      apply in_console_in_trace.
+      rewrite <- vt_trace_console0, Hcons; cbn; auto.
+    - (* valid_trace_unique *)
+      rewrite conclib.NoDup_app_swap; cbn.
+      constructor; auto; intros Hin.
+      apply in_split in Hin.
+      destruct Hin as (post & pre & ?); subst.
+      edestruct vt_trace_user0 as (Hin & Hhd); eauto.
+      rewrite vt_trace_console0 in Hcons.
+      apply (f_equal (@hd_error _)) in Hcons.
+      eapply compute_console_user_idx_increase in Hcons; eauto; lia.
+    - (* valid_trace_console *)
+      destruct console; cbn in *; subst.
+      red in vt_trace_console0.
+      unfold compute_console in *; simpl_rev; cbn.
+      rewrite <- vt_trace_console0; cbn; auto.
+  Qed.
+
+  Lemma thread_cons_buf_read_preserve_valid_trace : forall st st' c,
+    valid_trace st ->
+    thread_cons_buf_read_spec st = Some (st', c) ->
+    valid_trace st'.
+  Proof.
+    unfold thread_cons_buf_read_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply cons_buf_read_preserve_valid_trace; eauto.
+  Qed.
+
+  Lemma thread_serial_putc_preserve_valid_trace : forall st c st',
+    valid_trace st ->
+    thread_serial_putc_spec c st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold thread_serial_putc_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply serial_putc_preserve_valid_trace; eauto.
+  Qed.
+
+  Lemma sys_getc_preserve_valid_trace : forall st st',
+    valid_trace st ->
+    sys_getc_spec st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold sys_getc_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply uctx_set_errno_preserve_valid_trace; [| eauto].
+    eapply uctx_set_retval1_preserve_valid_trace; [| eauto].
+    eapply thread_serial_intr_enable_preserve_valid_trace; [| eauto].
+    eapply thread_cons_buf_read_preserve_valid_trace; [| eauto].
+    eapply thread_serial_intr_disable_preserve_valid_trace; [| eauto].
+    eauto.
+  Qed.
+
+  Lemma sys_putc_preserve_valid_trace : forall st st',
+    valid_trace st ->
+    sys_putc_spec st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold sys_putc_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply uctx_set_errno_preserve_valid_trace; [| eauto].
+    eapply thread_serial_intr_enable_preserve_valid_trace; [| eauto].
+    eapply thread_serial_putc_preserve_valid_trace; [| eauto].
+    eapply thread_serial_intr_disable_preserve_valid_trace; [| eauto].
+    eauto.
   Qed.
 
 End Invariants.
