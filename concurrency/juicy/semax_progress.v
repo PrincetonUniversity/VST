@@ -931,7 +931,8 @@ Section Progress.
           apply (predat_join_sub SUB) in E3.
           assert (level phi_lockinv = level Phi) by apply join_sub_level, SUB.
           assert (level unlockedphi = level Phi).
-          { eapply join_sub_level, compatible_lockRes_sub; simpl; eauto; apply compat. }
+          { eapply join_sub_level, compatible_lockRes_sub_all; simpl;
+              eauto; apply compat. }
           rewr (level phi_lockinv) in E3.
           assert (join_sub phi_sat Phi). {
             apply join_sub_trans with phi0. hnf; eauto.
@@ -1260,7 +1261,7 @@ Section Progress.
               apply join_sub_trans with phi0; eauto. eexists; eauto.
             }
             assert (Ja : join_sub phi_sat Phi). {
-              eapply compatible_lockRes_sub; simpl; eauto.
+              eapply compatible_lockRes_sub_all; simpl; eauto.
               apply compat.
             }
             assert (J01 : join_sub phi0lockinv Phi). {

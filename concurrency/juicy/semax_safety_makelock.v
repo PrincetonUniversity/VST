@@ -724,7 +724,7 @@ Proof.
               eauto.
            ++ destruct sat as [sat | ?]. 2:omega. left.
               unfold age_to. replace (level r) with (level Phi); swap 1 2.
-              { symmetry. apply join_sub_level. eapply compatible_lockRes_sub; simpl; eauto. apply compat. }
+              { symmetry. apply join_sub_level. eapply compatible_lockRes_sub_all; simpl; eauto. apply compat. }
               rewr (level Phi). replace (S n - n)%nat with 1%nat by omega.
               apply age_by_ind. destruct R as [x h]. apply h. apply sat.
 

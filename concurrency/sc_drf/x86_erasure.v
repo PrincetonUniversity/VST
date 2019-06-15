@@ -214,6 +214,20 @@ Module X86CoreErasure.
       rewrite Hget_ext'.
       reflexivity.
     Qed.
+    Lemma regs_erasure_undef_caller_save_regs:
+        forall r r0,
+        regs_erasure r r0->
+        regs_erasure (undef_caller_save_regs r) (undef_caller_save_regs r0).
+    Proof.
+      intros ** ? . unfold reg_erasure, Pregmap.get.
+      unfold undef_caller_save_regs.
+      repeat match goal with
+               |- context[if ?X then _ else _]=>
+               destruct X
+             end; eauto.
+      eapply H.
+      econstructor.
+    Qed.
     
     Lemma after_external_erase :
       forall v v' c c' m m' c2
@@ -248,7 +262,9 @@ Module X86CoreErasure.
           eexists; split; eauto; [destruct (loc_external_result (ef_sig e0))|];
             eauto;
             repeat eapply regs_erasure_set;
-            now eauto with regs_erasure val_erasure.
+            eauto with regs_erasure val_erasure;
+      apply regs_erasure_undef_caller_save_regs; auto.
+      
     Qed.
 
     Lemma make_arguments_nil_erasure:

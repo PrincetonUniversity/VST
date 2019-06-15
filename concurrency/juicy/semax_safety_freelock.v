@@ -179,7 +179,7 @@ Proof.
         apply join_sub_trans with phi0; eauto. eexists; eauto.
       }
       assert (Ja : join_sub phi_sat Phi). {
-        eapply compatible_lockRes_sub; simpl; eauto.
+        eapply compatible_lockRes_sub_all; simpl; eauto.
         apply compat.
       }
       assert (J01 : join_sub phi0lockinv Phi). {

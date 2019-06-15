@@ -1,8 +1,8 @@
+From Paco Require Import paco.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype.
 
 Require Import compcert.common.Globalenvs.
-Require Import VST.concurrency.paco.src.paco.
 
 Require Import VST.concurrency.common.HybridMachineSig.
 Import HybridMachineSig.
@@ -38,12 +38,14 @@ Module Concurrent_Safety
 
   Module ConcurCC_correct:= (Concurrent_correctness CC_correct Args).
   Import ConcurCC_correct.
-  
+
+
+  (*USed to be start_stack*)
   Definition Clight_init_state (p: Clight.program):=
-    Clight.start_stack (Clight.globalenv p).
+    Clight.initial_state p.
   
   Definition Asm_init_state (p: Asm.program):=
-    Asm.start_stack (@the_ge p).
+    Asm.initial_state  p.
 
   Notation valid Sem:=
     (valid dryResources Sem OrdinalPool.OrdinalThreadPool).
@@ -234,11 +236,12 @@ Module Concurrent_Safety
             simpl.
             now eauto.
         + (* Step Star case *)
-          eapply paco3_pfold; eauto.
+          eapply paco3_fold; eauto.
           destruct HstepT as [n HstepN].
           destruct n.
           * simpl in HstepN; inversion HstepN; subst.
             econstructor 4; eauto.
+            right.
             eapply HsafeT; try apply Hevs'; eauto.
             intros.
             eapply explicit_safety_trace_irr with (tr := evS).
@@ -267,6 +270,7 @@ Module Concurrent_Safety
                    destruct HstepN as [C_target'' [m_t'' [HstepT' HstepN]]].
                    econstructor 2 with (_y := (tr2, C_target'', m_t'')); simpl; eauto.
             ** intros.
+               right.
                eapply HsafeT; try apply Hevs'; eauto.
                intros.
                eapply explicit_safety_trace_irr with (tr := evS); eauto.

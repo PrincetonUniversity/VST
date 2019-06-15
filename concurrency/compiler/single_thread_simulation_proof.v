@@ -3441,6 +3441,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         - erewrite computeMap_2; eauto.
         - erewrite computeMap_3; eauto.
       Qed.
+      
 
       (* Why is subsummed different to submap?*)
       Inductive subsumed: option permission -> option permission -> Prop:=
@@ -3451,6 +3452,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       | subsumedRR: subsumed (Some Readable) (Some Readable)
       | subsumedRW: subsumed (Some Readable) (Some Writable).
 
+      
       Lemma subsumed_order:
         forall b c, subsumed b c -> Mem.perm_order'' c b.
       Proof. intros b c H; destruct b, c; inv H; constructor. Qed.
@@ -3553,15 +3555,10 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             (computeMap_pair CC AA) BB CC ->
           delta_map_join_pair AA BB CC.
       Proof. solve_pair; apply compute_map_join_bkw. Qed.
-
-
       
       Inductive option_relation {A}  (r: relation A): relation (option A):=
-      | SomeOrder:forall a b,
-          r a b -> option_relation r (Some a) (Some b)
-      | NoneOrder:
-          forall p,
-            option_relation r p None.
+      | SomeOrder:forall a b, r a b -> option_relation r (Some a) (Some b)
+      | NoneOrder: forall p, option_relation r p None.
       Definition perm_image_full_dmap f dm1 dm2:=
         forall b1 ofs,
           (option_relation Mem.perm_order''
@@ -5228,6 +5225,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                 inversion H1; subst.
                 rewrite Hinj_b in H4; inversion H4; subst.
                 reflexivity. }
+          + simpl. admit.
           + !goal (lockRes _ (b',_) = Some _).
             eapply INJ_lock_permissions_Some; eauto.
           + (* Claims the transfered resources join in the appropriate way *)
@@ -5238,7 +5236,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             repeat (f_equal; simpl).
 
 
-            (*Only one admit: join. *)
+            (*Only onethreee admit: join.
+             and the  new  permMapLt*)
       Admitted. (* END acquire_step_diagram_self *)
       
 
@@ -7070,17 +7069,36 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         { reflexivity. }
         dependent rewrite <- H in st2'. clear H.
 
-        assert (Hjoin_angel2: permMapJoin_pair virtueLP2 (getThreadR Hcnt2)  new_cur2).
+        assert (Hjoin_angel2: permMapJoin_pair virtueLP2
+                                               (getThreadR Hcnt2)  new_cur2).
         { admit. }
         
         inversion Hlock_update_mem_strict_load1; subst vload vstore.
-
-        
-        
         
         assert (Hcmpt1': mem_compatible(tpool:=OrdinalThreadPool) st1' m1'').
-        { 
-          
+        {
+          try unfold_state_forward.
+
+            (let Hcmpt_update_state := fresh "Hcmpt_update" in
+             eapply (mem_compatible_fullThreadUpdate _ (TP _)) 
+               in Heqst1' as Hcmpt_update_state; try reflexivity; simpl;
+             [ 
+             | eassumption
+             | try solve_permMapLt_pair
+             | try solve_permMapLt_pair
+             | solve_valid_block ]; idtac).
+            2:{ admit. }
+            admit.
+            Lemma permMapLt_empty_pair:
+              forall a, permMapLt_pair (pair0 empty_map) a.
+            Proof.
+              intros ?. solve_pair; apply empty_LT.
+            Qed.
+            eapply permMapLt_empty_pair.
+            
+        
+
+            (*
           eapply mem_compat_Max.
           - eapply store_max_equiv; eassumption.
           - symmetry;
@@ -7091,14 +7109,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             { symmetry. apply restr_Max_equiv. }
             { reflexivity. }
             eapply mem_compatible_updLock; eauto.
-            + Lemma empty_LT_pair:
-                forall pp,
-                  permMapLt_pair (pair0 empty_map) pp.
-              Proof.
-                intros x; solve_pair.
-                apply empty_LT.
-              Qed.
-              apply empty_LT_pair.
+            + apply permMapLt_empty_pair.
             + simpl.
               destruct (mem_lemmas.valid_block_dec m1' b1); auto.
               eapply Mem.mi_freeblocks in n; eauto.
@@ -7107,7 +7118,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               2: reflexivity.
               2: assumption.
               !goal(permMapLt_pair (computeMap_pair _ _) _).
-              admit.
+              admit. *)
         } 
         
         (* TODO: This is equivalent to the previous Hcmpt1', make lemma? *)
@@ -7125,7 +7136,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             reflexivity.
             
             eapply mem_compatible_updLock; eauto.
-            + apply empty_LT_pair.
+            + apply permMapLt_empty_pair.
             + simpl.
               eapply Mem.valid_block_inject_2 with (f:=mu);
                 eauto.
@@ -7378,8 +7389,16 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             eapply (load_inject' mu); eauto; try congruence.
             unfold thread_mems; simpl.
             unshelve eapply INJ_locks; eauto.
+          
+          + !goal(permMapLt _ _ /\ _).
+            simpl.  admit.
+          (* Solve: make a lemma for permMapLt and compose_map 
+             the first part is solved by mem_compat.
+             second part is solved by an injection lemma.
+           *)
             
           + (* the store *)
+            
             !goal ( Mem.store AST.Mint32 _ _ _ _ = Some _ ).
             rewrite <- Hstore2.
             

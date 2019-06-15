@@ -154,7 +154,7 @@ Lemma join_all_level_lset (tp : jstate ge) Phi l phi :
 Proof.
   intros J F.
   apply rmap_join_sub_eq_level.
-  eapply compatible_lockRes_sub; eauto; simpl; eauto.
+  eapply compatible_lockRes_sub_all; eauto; simpl; eauto.
 Qed.
 
 Lemma lset_range_perm m (tp : jstate ge) b ofs

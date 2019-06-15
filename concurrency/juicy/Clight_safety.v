@@ -35,6 +35,7 @@ Import ThreadPool.
 Import event_semantics.
 
 Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 Section Clight_safety_equivalence.
 Context (CPROOF : semax_to_juicy_machine.CSL_proof).
@@ -398,6 +399,18 @@ Proof.
     pose proof (restrPerm_sub_map _ _ Hlt).
     eapply step_acquire; eauto.
     destruct Hbounded; split; eapply sub_map_trans; eauto.
+    simpl.
+    + destruct Hlt_new as [Hlt_new1 Hlt_new2].
+      split.
+      * subst newThreadPerm; simpl in Hlt_new1.
+        intros b0 ofs0.
+        specialize (Hlt_new1 b0 ofs0).
+        rewrite getMax_restr in Hlt_new1; auto.
+        
+      * subst newThreadPerm; simpl in Hlt_new2.
+        intros b0 ofs0.
+        specialize (Hlt_new2 b0 ofs0).
+        rewrite getMax_restr in Hlt_new2; auto.
   - assert (permMapLt (setPermBlock (Some Writable) b (Ptrofs.intval ofs)
       (snd (getThreadR(ThreadPool := OrdinalPool.OrdinalThreadPool) Htid)) LKSIZE_nat)
       (getMaxPerm m)) as H.
@@ -1406,6 +1419,24 @@ Proof.
         * eapply MTCH_invariant; eauto.
         * erewrite restrPermMap_irr; eauto.
         * erewrite restrPermMap_irr; eauto.
+        * subst newThreadPerm; eauto.
+          destruct Hlt_new as [Hlt_new1 Hlt_new2].
+          Lemma computeMap_eq:
+            forall x x' y y',
+            (forall b ofs, x !! b ofs = x' !! b ofs) -> 
+            (forall b, PTree.get b y = PTree.get b y') -> 
+            forall b ofs,
+            (computeMap x y) # b ofs = (computeMap x' y') # b ofs.
+          Proof.
+          Admitted.
+
+          split;intros  ??.
+          -- erewrite computeMap_eq; try eapply Hlt_new1.
+             move mtch_gtr1 at bottom.
+             symmetry; eapply mtch_gtr1.
+             reflexivity.
+          -- simpl in *.
+             erewrite <- mtch_gtr2; eauto.
         * erewrite restrPermMap_irr; eauto.
           erewrite mtch_gtr2; eauto.
         * rewrite <- mtch_locks; eauto.
