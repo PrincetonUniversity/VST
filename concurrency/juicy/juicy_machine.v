@@ -39,6 +39,7 @@ Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.jstep.
 
 Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 (*  This shoul be replaced by global:
     Require Import VST.concurrency.lksize.  *)
@@ -689,61 +690,61 @@ Qed.
 
     (*Move this to veric.juicy_mem_lemmas.v *)
     Lemma po_join_sub': forall r1 r2 : resource,
-       join_sub r2 r1 ->
-       Mem.perm_order'' (perm_of_res' r1) (perm_of_res' r2).
+        join_sub r2 r1 ->
+        Mem.perm_order'' (perm_of_res' r1) (perm_of_res' r2).
 
-         intros r1 r2[r J]; inversion J; subst; simpl.
-         - if_tac.
-           + subst.
-             if_tac.
-             * eauto with *.
-             * apply join_to_bot_l in RJ; subst;
-               congruence.
-           + if_tac; constructor.
-         - destruct k; try solve [constructor].
-           + apply po_join_sub_sh.
-             eexists; eauto.
-           + apply po_join_sub_sh.
-             * eexists; eauto.
-           + apply po_join_sub_sh.
-             * eexists; eauto.
-         - destruct k.
-           + if_tac.
-             * hnf. destruct (perm_of_sh _); apply I.
-             * apply perm_order''_trans with (perm_of_sh sh3).
-               -- apply po_join_sub_sh.
-                  ++ eexists; eauto.
-               -- destruct  (perm_of_sh sh3) eqn:E.
-                  ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ E; subst.
-                     apply join_to_bot_l in RJ; subst; congruence.
-           + if_tac.
-             * hnf. destruct (perm_of_sh _); apply I.
-             * apply perm_order''_trans with (perm_of_sh sh1).
-               -- apply po_join_sub_sh.
-                  ++ eexists; eauto.
-               -- destruct  (perm_of_sh sh1) eqn:E.
-                  ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
-           + if_tac.
-             * hnf. destruct (perm_of_sh _); apply I.
-             * apply perm_order''_trans with (perm_of_sh sh1).
-               -- apply po_join_sub_sh.
-                  ++ eexists; eauto.
-               -- destruct  (perm_of_sh sh1) eqn:E.
-                  ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
-         - destruct k; try constructor.
-           + apply po_join_sub_sh; eexists; eauto.
-           + apply po_join_sub_sh; eexists; eauto.
-           + apply po_join_sub_sh; eexists; eauto.
-         - constructor.
+      intros r1 r2[r J]; inversion J; subst; simpl.
+      - if_tac.
+        + subst.
+          if_tac.
+          * eauto with *.
+          * apply join_to_bot_l in RJ; subst;
+              congruence.
+        + if_tac; constructor.
+      - destruct k; try solve [constructor].
+        + apply po_join_sub_sh.
+          eexists; eauto.
+        + apply po_join_sub_sh.
+          * eexists; eauto.
+        + apply po_join_sub_sh.
+          * eexists; eauto.
+      - destruct k.
+        + if_tac.
+          * hnf. destruct (perm_of_sh _); apply I.
+          * apply perm_order''_trans with (perm_of_sh sh3).
+            -- apply po_join_sub_sh.
+               ++ eexists; eauto.
+            -- destruct  (perm_of_sh sh3) eqn:E.
+               ++ constructor.
+               ++ pose proof @perm_of_empty_inv _ E; subst.
+                  apply join_to_bot_l in RJ; subst; congruence.
+        + if_tac.
+          * hnf. destruct (perm_of_sh _); apply I.
+          * apply perm_order''_trans with (perm_of_sh sh1).
+            -- apply po_join_sub_sh.
+               ++ eexists; eauto.
+            -- destruct  (perm_of_sh sh1) eqn:E.
+               ++ constructor.
+               ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
+        + if_tac.
+          * hnf. destruct (perm_of_sh _); apply I.
+          * apply perm_order''_trans with (perm_of_sh sh1).
+            -- apply po_join_sub_sh.
+               ++ eexists; eauto.
+            -- destruct  (perm_of_sh sh1) eqn:E.
+               ++ constructor.
+               ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
+      - destruct k; try constructor.
+        + apply po_join_sub_sh; eexists; eauto.
+        + apply po_join_sub_sh; eexists; eauto.
+        + apply po_join_sub_sh; eexists; eauto.
+      - constructor.
     Qed.
 
     Lemma mem_access_coh_sub: forall phi1 phi2 m,
-          max_access_cohere m phi1 ->
-          join_sub phi2 phi1 ->
-          max_access_cohere m phi2.
+        max_access_cohere m phi1 ->
+        join_sub phi2 phi1 ->
+        max_access_cohere m phi2.
     Proof.
       rewrite /max_access_cohere => phi1 phi2 m H H0 loc.
       eapply po_trans; eauto.
@@ -752,9 +753,9 @@ Qed.
     Qed.
 
     Lemma mem_cohere_sub: forall phi1 phi2 m,
-          mem_cohere' m phi1 ->
-          join_sub phi2 phi1 ->
-          mem_cohere' m phi2.
+        mem_cohere' m phi1 ->
+        join_sub phi2 phi1 ->
+        mem_cohere' m phi2.
     Proof.
       intros. constructor.
       - unfold contents_cohere; intros.
@@ -784,21 +785,16 @@ Qed.
         f_equal; apply proof_irr.
     Qed.
 
-    Lemma compatible_threadRes_sub:
-        forall js i (cnt:containsThread js i),
-        forall all_juice,
-          join_all js all_juice ->
-          join_sub (getThreadR cnt) all_juice.
-      Proof.
-        intros. inv H.
-        assert (H9: join_sub (Some (getThreadR cnt)) (Some all_juice));
-       [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
-       apply join_sub_trans with (Some r0); [ | eexists; eauto].
-       clear - H0.
-       assert (H9: join_sub (getThreadR cnt) r0);
-       [ | destruct H9 as [x H9]; exists (Some x); constructor; auto].
-       unfold getThreadR. unfold join_threads in H0.
-       unfold getThreadsR in H0.
+    
+    Lemma join_threads_sub:
+      forall js i (cnt:containsThread js i) r0
+        (H0:join_threads js r0),
+        join_sub (getThreadR cnt) r0.
+    Proof.
+      intros.
+      
+      unfold getThreadR. unfold join_threads in H0.
+      unfold getThreadsR in H0.
       destruct js; simpl in *.
       pose proof (mem_ord_enum (n:= n num_threads0)).
 
@@ -815,23 +811,144 @@ Qed.
       unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
       pose proof @orP.
       specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j)).
-    destruct ((j == a)
-              || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
-    inv H1. destruct H.
-    pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
-    simpl in H0. destruct H0 as [? [? ?]].
-    exists x; auto.
-    unfold pred_of_eq_seq in H.
-    destruct H0 as [? [? ?]].
-    apply (IHel x) in H; auto. apply join_sub_trans with x; auto. eexists; eauto.
+      destruct ((j == a)
+                || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
+      inv H1. destruct H.
+      pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
+      simpl in H0. destruct H0 as [? [? ?]].
+      exists x; auto.
+      unfold pred_of_eq_seq in H.
+      destruct H0 as [? [? ?]].
+      apply (IHel x) in H; auto. apply join_sub_trans with x; auto. eexists; eauto.
 
- (*   Lemma ord_enum_enum:
+      (*   Lemma ord_enum_enum:
       forall n,
         ord_enum n = enum n.
           Set Printing All.
     Ad mitted.*)
-    apply ord_enum_enum.
-      Qed.
+      apply ord_enum_enum.
+    Qed.
+
+    Lemma compatible_threadRes_sub:
+      forall js i (cnt:containsThread js i),
+      forall all_juice,
+        join_all js all_juice ->
+        join_sub (getThreadR cnt) all_juice.
+    Proof.
+      intros. inv H.
+      assert (H9: join_sub (Some (getThreadR cnt)) (Some all_juice));
+        [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
+      apply join_sub_trans with (Some r0); [ | eexists; eauto].
+      clear - H0.
+      assert (H9: join_sub (getThreadR cnt) r0) by (eapply join_threads_sub; eauto).
+      destruct H9 as [x H9]; exists (Some x); constructor; auto.
+    Qed.
+    
+    Lemma join_sub_souble_join:
+      forall (a1 b1 c1 a2 b2 c2: rmap),
+        join_sub a1 a2 ->
+        join_sub b1 b2 ->
+        sepalg.join a1 b1 c1 ->
+        sepalg.join a2 b2 c2 ->
+        join_sub c1 c2.
+    Proof.
+      intros.  
+      inv H. inv H0.
+      eapply sepalg.join_comm in H3.
+      pose proof (sepalg.join_assoc H3 H2) as X.
+      destruct X as (x1 & ? & ?).
+      eapply sepalg.join_comm in H.
+      eapply sepalg.join_comm in H0.
+      pose proof (sepalg.join_assoc H H0) as X.
+      destruct X as (x2 & ? & ?).
+      eapply sepalg.join_comm in H5.
+      eapply sepalg.join_comm in H4.
+      eapply sepalg.join_comm in H6.
+      pose proof (sepalg.join_assoc H6 H4) as X.
+      destruct X as (x3 & ? & ?).
+      exists x3.
+      replace c1 with x2; auto.
+      eapply sepalg.join_eq; auto.
+    Qed.
+    
+    Lemma join_list_not_none:
+      forall el l phi x,
+        join_list' (List.map snd el) x ->
+        SetoidList.InA (AMap.eq_key_elt (elt:=option rmap))
+                       (l, Some phi) el ->
+        exists s, x = Some s.
+    Proof.
+      induction el.
+      - intros. inv H0.
+      - intros. destruct H as (?&?&?).
+        inv H0.
+        + inv H3. simpl in *.
+          replace a.2 with (Some phi) in H;
+            inv H;
+            eexists; reflexivity.
+        + exploit IHel; eauto.
+          intros [s HH].
+          subst x0. inv H; eexists; reflexivity.
+    Qed.
+    
+    Lemma compatible_lockRes_sub:
+      forall js l (phi:rmap) all_juice,
+        join_locks js (Some all_juice) ->
+        lockRes(resources:=LocksAndResources) js l = Some (Some phi) ->
+        join_sub phi all_juice.
+    Proof.
+      intros.
+      inv H0. unfold join_locks in H.
+      apply AMap.find_2 in H2. unfold OrdinalPool.lockGuts in H2.
+      apply AMap.elements_1 in H2. simpl in *.
+
+      
+      match type of H2 with SetoidList.InA _ _ ?X => forget X as el end.
+
+      revert all_juice H; induction el; simpl; intros.
+      - inv H.
+      - destruct H as [? [ ? ?]].
+        inv H2.
+        + inv H3; simpl in *; subst.
+          replace a.2 with (Some phi) in H.
+          inv H.
+          * apply join_sub_refl.
+          * eexists; eauto.
+        + exploit join_list_not_none; eauto; intros [s HH].
+          subst x. inv H.
+          * eapply IHel; eauto.
+          * eapply join_sub_trans.
+            eapply IHel; eauto.
+            eexists; eauto.
+    Qed.
+    Lemma lockres_join_locks_not_none:
+      forall js a d_phi,
+        lockRes(resources:=LocksAndResources)
+               js a = Some (Some d_phi) ->
+        ~ join_locks js None.
+    Proof.
+      intros.
+      apply AMap.find_2 in H. unfold OrdinalPool.lockGuts in *.
+      apply AMap.elements_1 in H. simpl in *.
+      intros HH. 
+      unfold join_locks in HH.
+      exploit join_list_not_none; eauto.
+      intros [? ?]; discriminate.
+    Qed.
+    Lemma lock_thread_sub_all_juice:
+      forall js all_juice d_phi phi i Hi a,
+        join_all js all_juice ->
+        lockRes js a = Some (Some d_phi) ->
+        sepalg.join (@getThreadR _ _ _ i js Hi) d_phi phi ->
+        join_sub phi all_juice.
+    Proof.
+      intros.
+      inv H. inv H4.
+      - exfalso; eapply lockres_join_locks_not_none; eauto.
+      - eapply join_sub_souble_join; eauto.
+        eapply join_threads_sub; assumption.
+        eapply compatible_lockRes_sub; eassumption.
+    Qed.
 
 
     Lemma mem_compat_thread_max_cohere {tp m} (compat: mem_compatible tp m):
@@ -858,7 +975,7 @@ Qed.
            eapply mem_cohere_sub; eauto.
     Qed.
 
-    Lemma compatible_lockRes_sub: forall js l phi,
+    Lemma compatible_lockRes_sub_all: forall js l phi,
         lockRes js l = Some (Some phi) ->
         forall all_juice,
           join_all js all_juice ->
@@ -887,7 +1004,7 @@ Qed.
            inversion H.
            unfold mem_thcohere; intros.
           unfold mem_lock_cohere; intros.
-          eapply compatible_lockRes_sub in juice_join0; [|apply H0].
+          eapply compatible_lockRes_sub_all in juice_join0; [|apply H0].
           eapply mem_cohere_sub; eauto.
     Qed.
 
@@ -1495,7 +1612,8 @@ Qed.
        specialize (max_coh0 (b,ofs)).
        eapply max_coh0. }
       { apply po_join_sub'.
-        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto; apply H0. }
+        apply resource_at_join_sub.
+        eapply compatible_lockRes_sub_all; eauto; apply H0. }
       Qed.
 
 
@@ -1516,7 +1634,8 @@ Qed.
        specialize (max_coh0 (b,ofs)).
        apply max_coh0. }
       { apply po_join_sub.
-        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto; apply H0. }
+        apply resource_at_join_sub.
+        eapply compatible_lockRes_sub_all; eauto; apply H0. }
     Qed.
 
     Lemma access_cohere_sub': forall phi1 phi2 m,
@@ -1688,7 +1807,7 @@ Qed.
       Proof.
         intros.
         inversion H0 as [all_juice M]; inversion M.
-        apply (compatible_lockRes_sub _ H ) in juice_join0.
+        apply (compatible_lockRes_sub_all _ H ) in juice_join0.
         apply (mem_cohere_sub all_cohere0) in juice_join0.
         assumption.
       Qed.

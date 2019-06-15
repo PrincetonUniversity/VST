@@ -136,6 +136,8 @@ Module DryHybridMachine.
                      | Some _ => Some (ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)))
                      end) dm.
     
+      
+    
     Inductive ext_step {isCoarse:bool} {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
@@ -167,6 +169,10 @@ Module DryHybridMachine.
             (Hset_perm: setPermBlock (Some Writable)
                                      b (Ptrofs.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
+            (Hlt_new: if isCoarse then
+                       ( permMapLt (fst newThreadPerm) (getMaxPerm m) /\
+                         permMapLt (snd newThreadPerm) (getMaxPerm m))
+                     else True )
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (** acquire the lock*)
             (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')

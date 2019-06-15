@@ -45,6 +45,7 @@ Require Import VST.concurrency.common.ssromega. (*omega in ssrnat *)
 From mathcomp.ssreflect Require Import ssreflect seq.
 
 Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 Module Parching <: ErasureSig.
   Import THE_JUICY_MACHINE.
@@ -1306,7 +1307,7 @@ Qed.
                   symmetry. inversion MATCH; auto.
                 }
                 destruct Hcmpt as [x Hcmpt']; inversion Hcmpt'.
-                move: juice_join => /Concur.compatible_lockRes_sub.
+                move: juice_join => /Concur.compatible_lockRes_sub_all.
                 move => /(_ _ _ His_unlocked) /(resource_at_join_sub _ _ (b0, ofs0)) .
                 cut (x @ (b0, ofs0) = NO Share.bot shares.bot_unreadable).
                 { move=> -> . elim=> X Join. inversion Join; subst.
@@ -1376,7 +1377,7 @@ Qed.
                   symmetry. inversion MATCH; auto.
                 }
                 destruct Hcmpt as [x Hcmpt']; inversion Hcmpt'.
-                move: juice_join => /Concur.compatible_lockRes_sub.
+                move: juice_join => /Concur.compatible_lockRes_sub_all.
                 move => /(_ _ _ His_unlocked) /(resource_at_join_sub _ _ (b0, ofs0)) .
                 cut (x @ (b0, ofs0) = NO Share.bot shares.bot_unreadable).
                 { move=> -> . elim=> X Join. inversion Join; subst.
@@ -1791,10 +1792,10 @@ Qed.
       change virtue1 with (virtue1, virtue2).1.
       econstructor 1.
 
-      15: reflexivity.
-      15: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+      16: reflexivity.
+      16: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
       8: eassumption.
-      10: eassumption.
+      11: eassumption.
       + (*boundedness*)
         split.
         * eapply sub_map_and_shape;
@@ -1873,12 +1874,43 @@ Qed.
         assumption.
       + eapply lock_range_perm;  eauto.
       + reflexivity.
+      + (*permMapLt 1*) simpl.
+        replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
+        destruct Hcmpt as [all_juice Hcmpt].
+        assert (Hcmpt':= Hcmpt).
+        inv Hcmpt'.
+        apply Concur.max_coh in  all_cohere.
+        unfold max_access_at,access_at in all_cohere.
+          
+
+        split; intros b0 ofs0.
+        * rewrite virtue_correct1.
+          specialize (all_cohere (b0,ofs0)).
+          rewrite getMaxPerm_correct. unfold permission_at.
+          eapply juicy_mem.perm_order''_trans; eauto.
+          eapply juicy_mem.perm_order''_trans; eauto. 
+          apply perm_of_res_op1.
+          eapply juicy_mem_lemmas.po_join_sub.
+          eapply resource_at_join_sub.
+          eapply Concur.lock_thread_sub_all_juice; eauto.
+          
+        * rewrite virtue_correct2.
+          specialize (all_cohere (b0,ofs0)).
+          rewrite getMaxPerm_correct. unfold permission_at.
+          eapply juicy_mem.perm_order''_trans; eauto.
+          eapply juicy_mem.perm_order''_trans; eauto.
+          2:{ eapply perm_of_res_op2. }
+          eapply Concur.po_join_sub'.
+          eapply resource_at_join_sub.
+          eapply Concur.lock_thread_sub_all_juice; eauto.
+          
       + instantiate (1:= Hlt'').
         apply restrPermMap_ext.
         intros b0.
         extensionality ofs0.
         destruct (ident_eq b b0); [
-            destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z) |].
+          destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs,
+                                      Ptrofs.intval ofs + lksize.LKSIZE)%Z) |].
         * unfold Intv.In in i0.
           subst. repeat (rewrite setPermBlock_same; auto).
         * subst. apply Intv.range_notin in n; auto.
@@ -4534,7 +4566,7 @@ Here be dragons
                assumption.
                eapply Concur.compatible_threadRes_sub; eauto.
     }
-  Qed.
+  Admitted.
 
 
   (* 'Decaying memory' preserves invariant.

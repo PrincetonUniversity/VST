@@ -44,6 +44,29 @@ Qed.
 Definition access_map := Maps.PMap.t (Z -> option permission).
 Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
 
+
+      Definition dmap_get (dm:delta_map) b ofs:=
+        match dm ! b with
+          Some f =>
+          match f ofs with
+            Some p => Some p
+          | None => None 
+          end
+        |None => None
+        end.
+      Lemma dmap_get_Some:
+        forall dm b ofs p,
+          dmap_get dm b ofs = Some p ->
+          exists f, dm ! b = Some f /\
+               f ofs = Some p.
+      Proof.
+        intros * H.
+        unfold dmap_get in *.
+        destruct (dm ! b) eqn:HH1; try solve[inversion H].
+        destruct (o ofs) eqn: HH2; inv H.
+        do 2 econstructor; eauto.
+      Qed.
+
 Section permMapDefs.
 
   Definition empty_map : access_map :=
@@ -1452,6 +1475,30 @@ Proof.*)
     rewrite Hdmap.
       by reflexivity.
   Qed.
+  
+      Lemma dmap_get_copmute_Some:
+        forall C A b ofs p,
+          dmap_get A b ofs = Some p ->
+          (computeMap C A) !! b ofs = p.
+      Proof.
+        intros; unfold dmap_get in H.
+        destruct (A ! b) eqn:Ab; try solve[inversion H].
+        destruct (o ofs) eqn:oofs; try solve[inversion H].
+        erewrite computeMap_1; eauto.
+        rewrite oofs; assumption.
+      Qed.
+      Lemma dmap_get_copmute_None:
+        forall C A b ofs,
+          dmap_get A b ofs = None ->
+          (computeMap C A) !! b ofs = C !! b ofs.
+      Proof.
+        intros.
+        unfold dmap_get in H.
+        destruct (A ! b) eqn:Ab.
+        destruct (o ofs) eqn:oofs; try solve[inversion H].
+        - erewrite computeMap_2; eauto.
+        - erewrite computeMap_3; eauto.
+      Qed.
   
   Lemma computeMap_backwards:
     forall (pmap : access_map) (dmap : delta_map)

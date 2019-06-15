@@ -8450,8 +8450,9 @@ relation*)
         intros U.
         assert (HsyncStepF: syncStep false pff (mem_compf Hsim) tpf'' mf'
                                      (acquire (b2, Ptrofs.intval ofs)
-                                              (Some (build_delta_content virtueF#1 mf'))))
-          by (eapply step_acquire with (b0:=b2); eauto).
+                                              (Some (build_delta_content virtueF#1 mf')))).
+        { eapply step_acquire with (b0:=b2); eauto.  }
+
         econstructor;
            now eauto.
         (** Proof that the new coarse and fine state are in simulation*)
