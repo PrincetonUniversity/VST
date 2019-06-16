@@ -6,7 +6,7 @@ Require Import Decimal.
 Require Import List.
 Require Import ZArith.
 
-(* Utils *)
+(** Utils *)
 Definition zle_le :
   forall x y z : Z, {x <= y <= z} + {x > y \/ y > z}.
 Proof.
@@ -28,7 +28,7 @@ Fixpoint idxs {A} (xs : list A) : list nat :=
   end.
 Definition enumerate {A} (xs : list A) : list (nat * A) := combine (idxs xs) xs.
 
-(* Datatypes *)
+(** Datatypes *)
 Inductive SyncChannel :=
   | SyncChanUndef
   | SyncChanValid (to senderpaddr count busy : int).
@@ -376,7 +376,7 @@ Notation "a '{' 'ioapic' '/' 's' '/' 'IoApicEnables' '[' n ']' : x }" :=
   (update_ioapic a (update_s (ioapic a) (update_IoApicEnables (s (ioapic a))
                                                               (replace x n (IoApicEnables (s (ioapic a))))))) (at level 1).
 
-(* Constants *)
+(** Constants *)
 Notation TOTAL_CPU := 8.
 Notation CONS_BUFFER_SIZE := 512.
 Notation CONS_BUFFER_MAX_CHARS := (CONS_BUFFER_SIZE - 1).
@@ -397,7 +397,7 @@ Context `{ThreadsConfigurationOps}.
 Definition mkRecvEvents (logIdx : Z) (cs : list Z) : list IOEvent :=
   map (fun ic : nat * Z => let (i, c) := ic in IOEvRecv logIdx i c) (enumerate cs).
 
-(* Interrupts *)
+(** Interrupts *)
 Definition cons_intr_aux (abd : RData) : option RData :=
   match (abd.(ikern), abd.(ihost), abd.(init), abd.(in_intr)) with
   | (true, true, true, true) =>
@@ -463,11 +463,7 @@ Fixpoint serial_intr_disable_aux (n : nat) (masked : bool) (abd : RData) : optio
   | O => Some abd
   | S n' =>
     let (data, ev) := serial_intr abd.(com1) in
-    let new_log := match ev with
-                   | SerialRecv str => mkRecvEvents abd.(com1).(l1) str
-                   | _ => nil
-                   end in
-    let d0 := abd {com1 : data} {io_log : abd.(io_log) ++ new_log} in
+    let d0 := abd {com1 : data} in
     if d0.(com1).(s).(SerialIrq) then
       if masked then serial_intr_disable_aux n' true d0
       else match cons_intr_aux d0 with
@@ -524,7 +520,7 @@ Definition thread_serial_intr_disable_spec (abd : RData) : option RData :=
   if zeq (ZMap.get (abd.(CPU_ID)) (abd.(cid))) dev_handling_cid
   then if abd.(init) then serial_intr_disable_spec abd else None else None.
 
-(* User context *)
+(** User context *)
 Fixpoint B_GetContainerUsed_aux (tid : Z) (cid : Z) (l : BigLog) : bool :=
   match l with
   | nil => false
@@ -595,7 +591,7 @@ Definition uctx_set_errno_spec (n : Z) (adt : RData) : option RData :=
   | _ => None
   end.
 
-(* Serial Driver *)
+(** Serial Driver *)
 Fixpoint putc_scan_log (t : Z) (bound : nat) : option Z :=
   match bound with
   | O => None
@@ -638,7 +634,7 @@ Definition serial_putc_spec (c : Z) (abd : RData) : option RData :=
   | _ => None
   end.
 
-(* Console *)
+(** Console *)
 Definition cons_buf_read_spec (abd : RData) : option (RData * Z) :=
   match (abd.(ikern), abd.(ihost), abd.(init)) with
   | (true, true, true) =>
@@ -663,7 +659,7 @@ Definition thread_serial_putc_spec (c : Z) (abd : RData) : option RData :=
   if zeq (ZMap.get abd.(CPU_ID) abd.(cid)) dev_handling_cid
   then if abd.(init) then serial_putc_spec c abd else None else None.
 
-(* Syscalls *)
+(** Syscalls *)
 Definition sys_getc_spec (abd : RData) : option RData :=
   match thread_serial_intr_disable_spec abd with
   | Some d1 =>

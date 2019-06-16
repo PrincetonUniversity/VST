@@ -32,12 +32,12 @@ Tactic Notation "prename" open_constr(pat) "into" ident(name) :=
   | _ => fail 0 "No hypothesis matching" pat
   end.
 
-Ltac simpl_rev :=
+Local Ltac simpl_rev :=
   repeat (rewrite rev_app_distr; cbn [rev app]);
   rewrite <- ?app_assoc; cbn [rev app];
   rewrite ?rev_involutive.
 
-Ltac simpl_rev_in H :=
+Local Ltac simpl_rev_in H :=
   repeat (rewrite rev_app_distr in H; cbn [rev app] in H);
   rewrite <- ?app_assoc in H; cbn [rev app] in H;
   rewrite ?rev_involutive in H.
@@ -227,11 +227,38 @@ Section ListFacts.
       apply app_inj_tail in Heq; intuition (subst; eauto).
   Qed.
 
+  Lemma in_app_case : forall (xs ys xs' ys' : list A) x,
+    xs ++ ys = xs' ++ x :: ys' ->
+    (In x ys /\ exists zs, ys = zs ++ x :: ys') \/ (In x xs /\ exists zs, xs = xs' ++ x :: zs).
+  Proof.
+    induction xs; cbn; intros * Heq; subst; eauto.
+    - rewrite in_app_iff; cbn; intuition eauto.
+    - destruct xs'; inj; cbn; eauto.
+      edestruct IHxs as [(? & ? & ?) | (? & ? & ?)]; eauto; subst; eauto.
+  Qed.
+
   Lemma cons_app_single : forall (xs ys : list A) x,
     xs ++ x :: ys = (xs ++ x :: nil) ++ ys.
   Proof. intros; rewrite <- app_assoc; auto. Qed.
 
+  Lemma combine_map_fst {B C} : forall (xs : list A) (ys : list B) (f : A -> C),
+    combine (map f xs) ys = map (fun '(x, y) => (f x, y)) (combine xs ys).
+  Proof.
+    induction xs; intros *; cbn; auto.
+    destruct ys; cbn; auto.
+    f_equal; auto.
+  Qed.
+
 End ListFacts.
+
+Definition lex_lt (p1 p2 : Z * Z) : Prop :=
+  let (x1, y1) := p1 in let (x2, y2) := p2 in
+  (x1 < x2 \/ x1 = x2 /\ y1 < y2)%Z.
+Local Infix "<l" := lex_lt (at level 70).
+
+Definition lex_le (p1 p2 : Z * Z) : Prop :=
+  p1 = p2 \/ p1 <l p2 .
+Local Infix "<=l" := lex_le (at level 70).
 
 Import MonadNotation.
 Local Open Scope monad_scope.
@@ -340,14 +367,20 @@ Section Invariants.
   Definition compute_console tr := compute_console' (rev tr).
 
   (* Everything in the trace was put there by the serial device. *)
-  Definition valid_trace_serial tr :=
+  Definition valid_trace_serial tr lrx :=
     forall logIdx strIdx c pre post,
       tr = pre ++ IOEvRecv logIdx strIdx c :: post ->
-      Zlength pre = logIdx + Z.of_nat strIdx /\
+      logIdx < lrx - 1 /\
       match SerialEnv logIdx with
       | SerialRecv str => nth_error str strIdx = Some c
       | _ => False
       end.
+
+  (* OS reads are ordered lexicographically by logIdx and strIdx. *)
+  Definition valid_trace_ordered tr :=
+    forall post mid pre logIdx strIdx c logIdx' strIdx' c',
+      tr = pre ++ IOEvRecv logIdx strIdx c :: mid ++ IOEvRecv logIdx' strIdx' c' :: post ->
+      (logIdx, Z.of_nat strIdx) <l (logIdx', Z.of_nat strIdx').
 
   (* Every user read has a matching OS read earlier in the trace. *)
   Definition valid_trace_user tr :=
@@ -363,7 +396,8 @@ Section Invariants.
 
   (* All trace invariants hold. *)
   Record valid_trace (st : RData) := {
-    vt_trace_serial : valid_trace_serial st.(io_log);
+    vt_trace_serial : valid_trace_serial st.(io_log) st.(com1).(l1);
+    vt_trace_ordered : valid_trace_ordered st.(io_log);
     vt_trace_user : valid_trace_user st.(io_log);
     vt_trace_unique : valid_trace_unique st.(io_log);
     vt_trace_console : valid_trace_console st.(io_log) st.(console).(cons_buf);
@@ -386,39 +420,27 @@ Section Invariants.
   (*   (c = -1 -> t = nil) /\ *)
   (*   (0 <= c <= 255 -> exists logIdx, t = IOEvGetc logIdx c :: nil). *)
 
-  Lemma valid_trace_serial_snoc : forall tr ev,
-    valid_trace_serial (tr ++ ev :: nil) ->
-    valid_trace_serial tr.
+  (* Console entries are ordered by logIdx and strIdx *)
+  Lemma valid_trace_ordered_snoc : forall tr ev,
+    valid_trace_ordered (tr ++ ev :: nil) ->
+    valid_trace_ordered tr.
   Proof.
-    unfold valid_trace_serial.
+    unfold valid_trace_ordered.
     intros * Hvalid * ->; eapply Hvalid.
-    rewrite app_comm_cons, <- app_assoc; eauto.
+    do 2 (rewrite <- app_assoc, <- app_comm_cons); auto.
   Qed.
 
-  Lemma valid_trace_serial_app : forall tr' tr,
-    valid_trace_serial (tr ++ tr') ->
-    valid_trace_serial tr.
+  Lemma valid_trace_ordered_app : forall tr' tr,
+    valid_trace_ordered (tr ++ tr') ->
+    valid_trace_ordered tr.
   Proof.
     induction tr'; cbn; intros *.
     - rewrite app_nil_r; auto.
     - rewrite cons_app_single.
-      eauto using valid_trace_serial_snoc.
+      eauto using valid_trace_ordered_snoc.
   Qed.
 
-  Local Hint Resolve valid_trace_serial_snoc valid_trace_serial_app.
-
-  Lemma read_os_ordered : forall post mid pre logIdx strIdx c logIdx' strIdx' c',
-    valid_trace_serial (pre ++ IOEvRecv logIdx strIdx c :: mid ++ IOEvRecv logIdx' strIdx' c' :: post) ->
-    logIdx + Z.of_nat strIdx < logIdx' + Z.of_nat strIdx'.
-  Proof.
-    intros * Hvalid.
-    edestruct (Hvalid logIdx) as (Hlen & ?); eauto; intros.
-    edestruct (Hvalid logIdx') as (Hlen' & ?); intros.
-    { rewrite app_comm_cons, app_assoc; eauto. }
-    pose proof (Zlength_nonneg mid).
-    rewrite Zlength_app, Zlength_cons in Hlen'.
-    lia.
-  Qed.
+  Local Hint Resolve valid_trace_ordered_snoc valid_trace_ordered_app.
 
   Lemma in_console_in_trace' : forall tr logIdx strIdx c,
     In (c, logIdx, strIdx) (compute_console' tr) ->
@@ -495,44 +517,44 @@ Section Invariants.
   Lemma compute_console_ordered' : forall tr ev logIdx strIdx c logIdx' strIdx' c',
     let cons := compute_console' tr in
     let cons' := compute_console' (ev :: tr) in
-    valid_trace_serial (rev tr ++ ev :: nil) ->
+    valid_trace_ordered (rev tr ++ ev :: nil) ->
     hd_error cons = Some (c, logIdx, strIdx) ->
     hd_error cons' = Some (c', logIdx', strIdx') ->
     match ev with
-    | IOEvGetc _ _ _ => logIdx + Z.of_nat strIdx < logIdx' + Z.of_nat strIdx'
-    | _ => logIdx + Z.of_nat strIdx <= logIdx' + Z.of_nat strIdx'
+    | IOEvGetc _ _ _ => (logIdx, Z.of_nat strIdx) <l (logIdx', Z.of_nat strIdx')
+    | _ => (logIdx, Z.of_nat strIdx) <=l (logIdx', Z.of_nat strIdx')
     end.
   Proof.
-    intros * Hserial Hcons Hcons'; subst cons cons'.
+    unfold lex_le, lex_lt; intros * Horder Hcons Hcons'.
     destruct ev; cbn in Hcons'.
     - destruct (_ <? _).
-      + erewrite hd_error_app in Hcons'; eauto; inj; lia.
+      + erewrite hd_error_app in Hcons'; eauto; inj; auto.
       + destruct (hd_error_app_case (tl (compute_console' tr)) (c0, logIdx0, strIdx0)) as [Heq | Heq];
           rewrite Heq in Hcons'; clear Heq.
         * edestruct console_tl_trace_same_order' as (? & ? & ? & Heq); eauto; subst.
-          simpl_rev_in Hserial.
-          eapply read_os_ordered in Hserial; lia.
+          simpl_rev_in Horder.
+          right; eapply Horder; eauto.
         * cbn in Hcons'; inj.
           apply hd_error_in in Hcons.
           apply in_console_in_trace' in Hcons.
           apply in_split in Hcons; destruct Hcons as (? & ? & ?); subst.
-          simpl_rev_in Hserial.
-          apply read_os_ordered in Hserial; lia.
+          simpl_rev_in Horder.
+          right; eapply Horder; eauto.
     - edestruct console_tl_trace_same_order' as (? & ? & ? & Heq); eauto; subst.
-      simpl_rev_in Hserial.
-      eapply read_os_ordered; eauto.
+      simpl_rev_in Horder.
+      eapply Horder; eauto.
   Qed.
 
   Lemma compute_console_user_idx_increase' : forall post pre logIdx strIdx c logIdx' strIdx' c',
     let tr := post ++ IOEvGetc logIdx strIdx c :: pre in
     let cons := compute_console' pre in
     let cons' := compute_console' tr in
-    valid_trace_serial (rev tr) ->
+    valid_trace_ordered (rev tr) ->
     hd_error cons = Some (c, logIdx, strIdx) ->
     hd_error cons' = Some (c', logIdx', strIdx') ->
-    logIdx + Z.of_nat strIdx < logIdx' + Z.of_nat strIdx'.
+    (logIdx, Z.of_nat strIdx) <l (logIdx', Z.of_nat strIdx').
   Proof.
-    induction post as [| ev post]; intros * Hserial Hcons Hcons'; subst tr cons cons'; simpl_rev_in Hserial.
+    unfold lex_le, lex_lt; induction post as [| ev post]; intros * Horder Hcons Hcons'; simpl_rev_in Horder.
     - eapply compute_console_ordered' in Hcons; eauto.
       cbn in Hcons, Hcons'; auto.
     - assert (Hcase:
@@ -546,33 +568,35 @@ Section Invariants.
           destruct Hcons' as (((? & ?) & ?) & ?); eauto.
       }
       destruct Hcase as [(logIdx'' & strIdx'' & c'' & Hcons'') | (? & Hcons'')]; subst.
-      + enough (logIdx + Z.of_nat strIdx < logIdx'' + Z.of_nat strIdx'' <= logIdx' + Z.of_nat strIdx') by lia.
-        split.
+      + enough ((logIdx, Z.of_nat strIdx) <l (logIdx'', Z.of_nat strIdx'')
+                /\ (logIdx'', Z.of_nat strIdx'') <=l (logIdx', Z.of_nat strIdx')).
+        { unfold lex_le, lex_lt in *. intuition (inj; auto; lia). }
+        unfold lex_le, lex_lt; split.
         * eapply IHpost with (pre := pre); simpl_rev; eauto.
-          eapply valid_trace_serial_snoc.
+          eapply valid_trace_ordered_snoc.
           rewrite <- app_assoc, <- app_comm_cons; eauto.
         * rewrite <- app_comm_cons in Hcons'.
           eapply compute_console_ordered' in Hcons'; eauto; simpl_rev; eauto.
-          destruct ev; lia.
+          destruct ev; auto.
       + apply hd_error_in in Hcons.
         apply in_console_in_trace' in Hcons.
         apply in_split in Hcons; destruct Hcons as (? & ? & ?); subst.
-        simpl_rev_in Hserial.
-        rewrite (app_comm_cons _ _ (IOEvGetc _ _ _)) in Hserial.
-        rewrite app_assoc in Hserial.
-        eauto using read_os_ordered.
+        simpl_rev_in Horder.
+        rewrite (app_comm_cons _ _ (IOEvGetc _ _ _)) in Horder.
+        rewrite app_assoc in Horder.
+        eapply Horder; eauto.
   Qed.
 
   Corollary compute_console_user_idx_increase : forall pre post logIdx strIdx c logIdx' strIdx' c',
     let tr := pre ++ IOEvGetc logIdx strIdx c :: post in
     let cons := compute_console pre in
     let cons' := compute_console tr in
-    valid_trace_serial tr ->
+    valid_trace_ordered tr ->
     hd_error cons = Some (c, logIdx, strIdx) ->
     hd_error cons' = Some (c', logIdx', strIdx') ->
-    logIdx + Z.of_nat strIdx < logIdx' + Z.of_nat strIdx'.
+    (logIdx, Z.of_nat strIdx) <l (logIdx', Z.of_nat strIdx').
   Proof.
-    unfold compute_console; intros *; simpl_rev; intros Hserial Hcons Hcons'.
+    unfold compute_console; intros *; simpl_rev; intros Horder Hcons Hcons'.
     eapply compute_console_user_idx_increase'; eauto.
     simpl_rev; auto.
   Qed.
@@ -593,30 +617,7 @@ Section Invariants.
     Zlength (compute_console tr) <= CONS_BUFFER_MAX_CHARS.
   Proof. intros; apply console_len'. Qed.
 
-  (** Trace Invariants Preserved *)
-  (* Specs:
-       serial_intr_enable_spec
-       serial_intr_disable_spec
-       thread_serial_intr_enable_spec
-       thread_serial_intr_disable_spec
-       uctx_arg2_spec
-       uctx_set_retval1_spec
-       uctx_set_errno_spec
-       serial_putc_spec
-       cons_buf_read_spec
-       thread_cons_buf_read_spec
-       thread_serial_putc_spec
-       sys_getc_spec
-       sys_putc_spec
-  *)
-
-  Context `{ThreadsConfigurationOps}.
-
-  Ltac destruct_spec Hspec :=
-    repeat match type of Hspec with
-    | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
-    end.
-
+  (* mkRecvEvents Lemmas *)
   Lemma idxs_NoDup {A} : forall (xs : list A),
     NoDup (idxs xs).
   Proof.
@@ -641,6 +642,148 @@ Section Invariants.
     red; intros (? & ?) (? & ?); intros; inj; auto.
   Qed.
 
+  Lemma Zlength_idxs {A} : forall (xs : list A),
+    Zlength (idxs xs) = Zlength xs.
+  Proof.
+    induction xs; auto.
+    cbn [idxs]; rewrite !Zlength_cons, Zlength_map, IHxs; auto.
+  Qed.
+
+  Lemma Zlength_enumerate {A} : forall (xs : list A),
+    Zlength (enumerate xs) = Zlength xs.
+  Proof.
+    unfold enumerate; intros.
+    rewrite conclib.Zlength_combine, Zlength_idxs; lia.
+  Qed.
+
+  Lemma idxs_length {A} : forall (xs : list A) n pre post,
+    idxs xs = pre ++ n :: post ->
+    n = length pre.
+  Proof.
+    induction xs; intros * Heq; [contradict Heq; cbn; auto using app_cons_not_nil |].
+    cbn in Heq; destruct pre; inj; cbn; auto.
+    prename (map _ _ = _) into Heq.
+    assert (n <> O).
+    { assert (Hin: In n (map S (idxs xs))).
+      { rewrite Heq, in_app_iff; cbn; auto. }
+      apply Coqlib.list_in_map_inv in Hin; destruct Hin as (? & ? & Hin); subst; auto.
+    }
+    apply (f_equal (map pred)) in Heq.
+    rewrite List.map_map in Heq; cbn in Heq.
+    rewrite map_id, map_app in Heq; cbn in Heq.
+    eapply IHxs in Heq.
+    apply (f_equal S) in Heq.
+    rewrite Nat.succ_pred, map_length in Heq; auto.
+  Qed.
+
+  Lemma enumerate_length {A} : forall (xs : list A) n x pre post,
+    enumerate xs = pre ++ (n, x) :: post ->
+    n = length pre.
+  Proof.
+    unfold enumerate; intros * Heq.
+    apply (f_equal (map fst)) in Heq.
+    rewrite conclib.combine_fst, map_app in Heq; cbn in Heq.
+    apply idxs_length in Heq; subst; auto using map_length.
+    rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
+    - apply Zlength_idxs.
+    - apply Zlength_nonneg.
+  Qed.
+
+  Lemma mkRecvEvents_strIdx : forall cs logIdx strIdx c pre post,
+    mkRecvEvents logIdx cs = pre ++ IOEvRecv logIdx strIdx c :: post ->
+    strIdx = length pre.
+  Proof.
+    unfold mkRecvEvents; intros * Heq.
+    apply (f_equal (map (fun ev =>
+      match ev with
+      | IOEvRecv _ sidx c => (sidx, c)
+      | _ => (O, 0) (* impossible *)
+      end))) in Heq.
+    rewrite List.map_map, map_app in Heq; cbn in Heq.
+    assert (Henum: map
+        (fun x : nat * Z =>
+         match (let (i, c) := x in IOEvRecv logIdx i c) with
+         | IOEvRecv _ sidx c => (sidx, c)
+         | _ => (O, 0)
+         end) (enumerate cs) = enumerate cs).
+    { clear.
+      induction (enumerate cs) as [| ev ?]; cbn; auto.
+      destruct ev; cbn; f_equal; auto.
+    }
+    rewrite Henum in Heq.
+    apply enumerate_length in Heq; subst; auto using map_length.
+  Qed.
+
+  Corollary mkRecvEvents_ordered : forall cs logIdx strIdx c strIdx' c' pre mid post,
+    mkRecvEvents logIdx cs = pre ++ IOEvRecv logIdx strIdx c :: mid ++ IOEvRecv logIdx strIdx' c' :: post ->
+    Z.of_nat strIdx < Z.of_nat strIdx'.
+  Proof.
+    intros * Heq.
+    pose proof Heq as Heq'.
+    rewrite app_comm_cons, app_assoc in Heq'.
+    apply mkRecvEvents_strIdx in Heq; apply mkRecvEvents_strIdx in Heq'; subst.
+    rewrite app_length; cbn; lia.
+  Qed.
+
+  Lemma mkRecvEvents_cons : forall cs c logIdx,
+    mkRecvEvents logIdx (c :: cs) =
+    IOEvRecv logIdx O c :: map (fun ev =>
+      match ev with
+      | IOEvRecv lidx sidx c' => IOEvRecv lidx (S sidx) c'
+      | _ => IOEvRecv 0 O 0 (* impossible *)
+      end) (mkRecvEvents logIdx cs).
+  Proof.
+    cbn; intros *; f_equal.
+    unfold mkRecvEvents, enumerate.
+    rewrite combine_map_fst, !List.map_map.
+    induction (combine (idxs cs) cs) as [| ev ?]; cbn; auto.
+    f_equal; auto.
+    destruct ev; auto.
+  Qed.
+
+  Lemma in_mkRecvEvents : forall cs ev logIdx,
+    In ev (mkRecvEvents logIdx cs) ->
+    exists strIdx c,
+      nth_error cs strIdx = Some c /\
+      nth_error (mkRecvEvents logIdx cs) strIdx = Some ev /\
+      ev = IOEvRecv logIdx strIdx c.
+  Proof.
+    induction cs; intros * Hin; try easy.
+    rewrite mkRecvEvents_cons in Hin; cbn in Hin.
+    destruct Hin as [? | Hin]; subst.
+    - repeat (esplit; eauto); cbn; auto.
+    - rewrite mkRecvEvents_cons.
+      apply Coqlib.list_in_map_inv in Hin; destruct Hin as (? & ? & Hin); subst.
+      eapply IHcs in Hin.
+      destruct Hin as (? & ? & ? & ? & ?); subst.
+      repeat (esplit; eauto); cbn; auto.
+      prename (nth_error (mkRecvEvents _ _) _ = _) into Hnth.
+      eapply map_nth_error in Hnth; rewrite Hnth; auto.
+  Qed.
+
+  (** Trace Invariants Preserved *)
+  (* Specs:
+       serial_intr_enable_spec
+       serial_intr_disable_spec
+       thread_serial_intr_enable_spec
+       thread_serial_intr_disable_spec
+       uctx_arg2_spec
+       uctx_set_retval1_spec
+       uctx_set_errno_spec
+       serial_putc_spec
+       cons_buf_read_spec
+       thread_cons_buf_read_spec
+       thread_serial_putc_spec
+       sys_getc_spec
+       sys_putc_spec
+  *)
+  Context `{ThreadsConfigurationOps}.
+
+  Local Ltac destruct_spec Hspec :=
+    repeat match type of Hspec with
+    | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
+    end.
+
   Lemma cons_intr_aux_preserve_valid_trace : forall st st',
     valid_trace st ->
     cons_intr_aux st = Some st' ->
@@ -648,35 +791,101 @@ Section Invariants.
   Proof.
     unfold cons_intr_aux; intros * Hvalid Hspec; destruct_spec Hspec.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
-      destruct st; inv Hvalid; constructor; cbn in *; subst; red.
+      destruct st; inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
       + (* valid_trace_serial *)
         intros * Heq.
-        admit.
+        rewrite Zlength_map.
+        pose proof (Zlength_nonneg (enumerate RxBuf)).
+        apply in_app_case in Heq.
+        destruct Heq as [(Hin & ? & ?) | (? & ? & ?)]; subst.
+        * eapply in_mkRecvEvents in Hin.
+          destruct Hin as (? & ? & ? & ? & ?); inj.
+          prename (SerialEnv _ = _) into Henv.
+          rewrite Henv; split; auto; lia.
+        * edestruct vt_trace_serial0; eauto.
+          split; auto; lia.
+      + (* valid_trace_ordered *)
+        intros * Heq.
+        pose proof Heq as Hcase.
+        rewrite app_comm_cons, app_assoc in Hcase.
+        apply in_app_case in Hcase.
+        destruct Hcase as [(Hin & ? & _) | (? & ? & ?)]; subst.
+        * eapply in_mkRecvEvents in Hin.
+          destruct Hin as (? & ? & ? & ? & ?); inj.
+          apply in_app_case in Heq.
+          destruct Heq as [(Hin' & ? & ?) | (? & ? & ?)]; subst.
+          -- eapply in_mkRecvEvents in Hin'.
+             destruct Hin' as (? & ? & ? & ? & ?); inj.
+             prename (mkRecvEvents _ _ = _) into Heq'.
+             apply mkRecvEvents_ordered in Heq'; auto.
+          -- edestruct vt_trace_serial0; eauto.
+        * edestruct vt_trace_ordered0; eauto.
+          rewrite <- app_assoc, <- app_comm_cons; eauto.
       + (* valid_trace_user *)
         intros * Heq.
-        admit.
+        apply in_app_case in Heq.
+        destruct Heq as [(Hin & ? & ?) | (? & ? & ?)]; subst; eauto.
+        eapply in_mkRecvEvents in Hin.
+        destruct Hin as (? & ? & ? & ? & ?); inj; easy.
       + (* valid_trace_unique *)
         rewrite conclib.NoDup_app_iff; repeat split; auto using mkRecvEvents_NoDup.
-        admit.
+        intros * Hin Hin'.
+        eapply in_mkRecvEvents in Hin'.
+        destruct Hin' as (? & ? & ? & ? & ?); inj; subst.
+        apply in_split in Hin; destruct Hin as (? & ? & ?); subst.
+        edestruct vt_trace_serial0; eauto; lia.
       + (* valid_trace_console *)
         destruct console; cbn in *.
         rewrite vt_trace_console0.
         admit.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
-      destruct st; inv Hvalid; constructor; cbn in *; subst; red.
+      destruct st; inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
       + (* valid_trace_serial *)
         intros * Heq.
-        admit.
+        rewrite Zlength_map.
+        pose proof (Zlength_nonneg (enumerate RxBuf)).
+        apply in_app_case in Heq.
+        destruct Heq as [(Hin & ? & ?) | (? & ? & ?)]; subst.
+        * eapply in_mkRecvEvents in Hin.
+          destruct Hin as (? & ? & ? & ? & ?); inj.
+          prename (SerialEnv _ = _) into Henv.
+          rewrite Henv; split; auto; lia.
+        * edestruct vt_trace_serial0; eauto.
+          split; auto; lia.
+      + (* valid_trace_ordered *)
+        intros * Heq.
+        pose proof Heq as Hcase.
+        rewrite app_comm_cons, app_assoc in Hcase.
+        apply in_app_case in Hcase.
+        destruct Hcase as [(Hin & ? & _) | (? & ? & ?)]; subst.
+        * eapply in_mkRecvEvents in Hin.
+          destruct Hin as (? & ? & ? & ? & ?); inj.
+          apply in_app_case in Heq.
+          destruct Heq as [(Hin' & ? & ?) | (? & ? & ?)]; subst.
+          -- eapply in_mkRecvEvents in Hin'.
+             destruct Hin' as (? & ? & ? & ? & ?); inj.
+             prename (mkRecvEvents _ _ = _) into Heq'.
+             apply mkRecvEvents_ordered in Heq'; auto.
+          -- edestruct vt_trace_serial0; eauto.
+        * edestruct vt_trace_ordered0; eauto.
+          rewrite <- app_assoc, <- app_comm_cons; eauto.
       + (* valid_trace_user *)
         intros * Heq.
-        admit.
+        apply in_app_case in Heq.
+        destruct Heq as [(Hin & ? & ?) | (? & ? & ?)]; subst; eauto.
+        eapply in_mkRecvEvents in Hin.
+        destruct Hin as (? & ? & ? & ? & ?); inj; easy.
       + (* valid_trace_unique *)
         rewrite conclib.NoDup_app_iff; repeat split; auto using mkRecvEvents_NoDup.
-        admit.
+        intros * Hin Hin'.
+        eapply in_mkRecvEvents in Hin'.
+        destruct Hin' as (? & ? & ? & ? & ?); inj; subst.
+        apply in_split in Hin; destruct Hin as (? & ? & ?); subst.
+        edestruct vt_trace_serial0; eauto; lia.
       + (* valid_trace_console *)
         destruct console; cbn in *.
         rewrite vt_trace_console0.
-        rewrite Zlength_app, Zlength_map.
+        rewrite Zlength_app, Zlength_map, Zlength_enumerate.
         admit.
   Admitted.
 
@@ -711,11 +920,15 @@ Section Invariants.
     induction n; intros * Hvalid Hspec; cbn -[cons_intr_aux] in Hspec; inj; auto.
     destruct_spec Hspec; auto.
     - eapply IHn; [| eauto].
-      admit.
+      destruct st; inv Hvalid; constructor; cbn in *; auto.
+      destruct com1; cbn in *; red; intros; subst; edestruct vt_trace_serial0; eauto.
+      split; auto; lia.
     - eapply IHn; [| eauto].
       eapply cons_intr_aux_preserve_valid_trace; [| eauto].
-      admit.
-  Admitted.
+      destruct st; inv Hvalid; constructor; cbn in *; auto.
+      destruct com1; cbn in *; red; intros; subst; edestruct vt_trace_serial0; eauto.
+      split; auto; lia.
+  Qed.
 
   Lemma serial_intr_disable_preserve_valid_trace : forall st st',
     valid_trace st ->
@@ -787,6 +1000,11 @@ Section Invariants.
       apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq.
       destruct (rev post); cbn in Heq; inj; prename (rev _ = _) into Heq.
       apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq; subst; eauto.
+    - (* valid_trace_ordered *)
+      intros * Heq.
+      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq.
+      destruct (rev post); cbn in Heq; inj; prename (rev _ = _) into Heq.
+      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq; subst; info_eauto.
     - (* valid_trace_user *)
       intros * Heq.
       symmetry in Heq.
@@ -804,7 +1022,8 @@ Section Invariants.
       edestruct vt_trace_user0 as (Hin & Hhd); eauto.
       rewrite vt_trace_console0 in Hcons.
       apply (f_equal (@hd_error _)) in Hcons.
-      eapply compute_console_user_idx_increase in Hcons; eauto; lia.
+      eapply compute_console_user_idx_increase in Hcons; eauto.
+      unfold lex_lt in Hcons; lia.
     - (* valid_trace_console *)
       destruct console; cbn in *; subst.
       red in vt_trace_console0.
