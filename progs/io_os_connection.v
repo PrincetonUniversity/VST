@@ -190,6 +190,15 @@ Section ListFacts.
     rewrite Zlength_cons; lia.
   Qed.
 
+  Lemma skipn_tl : forall n (xs : list A),
+    skipn (S n) xs = tl (skipn n xs).
+  Proof. induction n; destruct xs; cbn in *; auto. Qed.
+
+  Lemma tl_app : forall (xs ys : list A),
+    xs <> nil ->
+    tl (xs ++ ys) = tl xs ++ ys.
+  Proof. induction xs; cbn; easy. Qed.
+
   Lemma hd_error_app : forall (xs ys : list A) x,
     hd_error xs = Some x ->
     hd_error (xs ++ ys) = Some x.
@@ -761,6 +770,116 @@ Section Invariants.
       eapply map_nth_error in Hnth; rewrite Hnth; auto.
   Qed.
 
+  Lemma compute_console_app_space' : forall evs tr,
+    let cons := compute_console' tr in
+    (forall ev, In ev evs -> exists logIdx strIdx c, ev = IOEvRecv logIdx strIdx c) ->
+    Zlength cons + Zlength evs <= CONS_BUFFER_MAX_CHARS ->
+    compute_console' (evs ++ tr) =
+    cons ++ rev (map (fun ev =>
+      match ev with
+      | IOEvRecv logIdx strIdx c => (c, logIdx, strIdx)
+      | _ => (0, 0, O) (* impossible *)
+      end) evs).
+  Proof.
+    induction evs as [| ev evs]; cbn -[Zlength]; intros * Hall Hlen; auto using app_nil_r.
+    rewrite Zlength_cons in Hlen.
+    edestruct Hall as (? & ? & ? & ?); eauto; subst.
+    destruct (_ <? _) eqn:Hlt; auto.
+    - rewrite IHevs; auto using app_assoc; lia.
+    - rewrite Z.ltb_nlt in Hlt.
+      rewrite IHevs in Hlt; auto; try lia.
+      rewrite Zlength_app, Zlength_rev, Zlength_map in Hlt; lia.
+  Qed.
+
+  Corollary compute_console_app_space : forall evs tr,
+    let cons := compute_console tr in
+    (forall ev, In ev evs -> exists logIdx strIdx c, ev = IOEvRecv logIdx strIdx c) ->
+    Zlength cons + Zlength evs <= CONS_BUFFER_MAX_CHARS ->
+    compute_console (tr ++ evs) =
+    cons ++ (map (fun ev =>
+      match ev with
+      | IOEvRecv logIdx strIdx c => (c, logIdx, strIdx)
+      | _ => (0, 0, O) (* impossible *)
+      end) evs).
+  Proof.
+    unfold compute_console; intros.
+    rewrite rev_app_distr, compute_console_app_space'.
+    - rewrite map_rev, rev_involutive; auto.
+    - intros * Hin; rewrite <- in_rev in Hin; auto.
+    - rewrite Zlength_rev; auto.
+  Qed.
+
+  Lemma compute_console_app_no_space' : forall evs tr,
+    let cons := compute_console' tr in
+    let skip := Zlength cons + Zlength evs - CONS_BUFFER_MAX_CHARS in
+    (forall ev, In ev evs -> exists logIdx strIdx c, ev = IOEvRecv logIdx strIdx c) ->
+    Zlength cons <= CONS_BUFFER_MAX_CHARS ->
+    Zlength cons + Zlength evs > CONS_BUFFER_MAX_CHARS ->
+    compute_console' (evs ++ tr) =
+    skipn (Z.to_nat skip) (cons ++ rev (map (fun ev =>
+      match ev with
+      | IOEvRecv logIdx strIdx c => (c, logIdx, strIdx)
+      | _ => (0, 0, O) (* impossible *)
+      end) evs)).
+  Proof.
+    induction evs as [| ev evs]; cbn -[Zlength]; intros * Hall Hmax Hlen.
+    { cbn in *.
+      replace (Zlength (compute_console' tr)) with CONS_BUFFER_MAX_CHARS by lia.
+      cbn; auto using app_nil_r.
+    }
+    rewrite Zlength_cons in Hlen.
+    edestruct Hall as (? & ? & ? & ?); eauto; subst.
+    assert (Hcase:
+      Zlength (compute_console' tr) + Zlength evs > CONS_BUFFER_MAX_CHARS
+      \/ Zlength (compute_console' tr) + Zlength evs = CONS_BUFFER_MAX_CHARS) by lia.
+    destruct Hcase as [? | Hlen'].
+    - destruct (_ <? _) eqn:Hlt; auto.
+      + rewrite Z.ltb_lt in Hlt.
+        rewrite IHevs in Hlt; auto.
+        rewrite Zlength_skipn, Zlength_app, Zlength_rev, Zlength_map in Hlt; lia.
+      + rewrite Zlength_cons, IHevs; auto.
+        assert (Hskip:
+          Z.to_nat (Zlength (compute_console' tr) + Z.succ (Zlength evs) - CONS_BUFFER_MAX_CHARS)
+          = S (Z.to_nat (Zlength (compute_console' tr) + Zlength evs - CONS_BUFFER_MAX_CHARS))).
+        { rewrite <- Z2Nat.inj_succ by lia; f_equal; lia. }
+        cbn in Hskip; rewrite Hskip, skipn_tl, <- tl_app; cbn.
+        * rewrite <- Zskipn_app1 by (rewrite Zlength_app, Zlength_rev, Zlength_map; lia).
+          rewrite app_assoc; auto.
+        * intros Heq; apply (f_equal (@Zlength _)) in Heq; cbn in Heq.
+          rewrite Zlength_skipn, Zlength_app, Zlength_rev, Zlength_map in Heq; lia.
+    - rewrite compute_console_app_space'; auto; try lia.
+      rewrite Zlength_app, Zlength_rev, Zlength_map.
+      rewrite Hlen', Zlength_cons; cbn.
+      assert (Hskip:
+        Z.to_nat (Zlength (compute_console' tr) + Z.succ (Zlength evs) - CONS_BUFFER_MAX_CHARS)
+        = S (Z.to_nat (Zlength (compute_console' tr) + Zlength evs - CONS_BUFFER_MAX_CHARS))).
+      { rewrite <- Z2Nat.inj_succ by lia; f_equal; lia. }
+      cbn in Hskip; rewrite Hskip, skipn_tl, Hlen', <- tl_app; cbn.
+      + rewrite app_assoc; auto.
+      + intros Heq; apply (f_equal (@Zlength _)) in Heq; cbn in Heq.
+        rewrite Zlength_app, Zlength_rev, Zlength_map in Heq; lia.
+  Qed.
+
+  Corollary compute_console_app_no_space : forall evs tr,
+    let cons := compute_console tr in
+    let skip := Zlength cons + Zlength evs - CONS_BUFFER_MAX_CHARS in
+    (forall ev, In ev evs -> exists logIdx strIdx c, ev = IOEvRecv logIdx strIdx c) ->
+    Zlength cons <= CONS_BUFFER_MAX_CHARS ->
+    Zlength cons + Zlength evs > CONS_BUFFER_MAX_CHARS ->
+    compute_console (tr ++ evs) =
+    skipn (Z.to_nat skip) (cons ++ (map (fun ev =>
+      match ev with
+      | IOEvRecv logIdx strIdx c => (c, logIdx, strIdx)
+      | _ => (0, 0, O) (* impossible *)
+      end) evs)).
+  Proof.
+    unfold compute_console; intros.
+    rewrite rev_app_distr, compute_console_app_no_space'; auto.
+    - rewrite map_rev, rev_involutive, Zlength_rev; auto.
+    - intros * Hin; rewrite <- in_rev in Hin; auto.
+    - rewrite Zlength_rev; auto.
+  Qed.
+
   (** Trace Invariants Preserved *)
   (* Specs:
        serial_intr_enable_spec
@@ -835,9 +954,19 @@ Section Invariants.
         apply in_split in Hin; destruct Hin as (? & ? & ?); subst.
         edestruct vt_trace_serial0; eauto; lia.
       + (* valid_trace_console *)
+        prename Coqlib.zle into Htmp; clear Htmp.
+        prename (_ <= _) into Hle.
         destruct console; cbn in *.
         rewrite vt_trace_console0.
-        admit.
+        rewrite vt_trace_console0, Zlength_app, Zlength_map in Hle.
+        rewrite compute_console_app_space.
+        * unfold mkRecvEvents; f_equal; rewrite List.map_map.
+          clear; induction (enumerate _) as [| (? & ?) ?]; cbn; auto.
+          rewrite IHl; auto.
+        * intros * Hin.
+          eapply in_mkRecvEvents in Hin.
+          destruct Hin as (? & ? & ? & ? & ?); inj; subst; eauto.
+        * unfold mkRecvEvents; rewrite Zlength_map; auto.
     - prename (Coqlib.zeq _ _ = _) into Htmp; clear Htmp.
       destruct st; inv Hvalid; constructor; cbn in *; subst; red; cbn in *.
       + (* valid_trace_serial *)
@@ -883,11 +1012,22 @@ Section Invariants.
         apply in_split in Hin; destruct Hin as (? & ? & ?); subst.
         edestruct vt_trace_serial0; eauto; lia.
       + (* valid_trace_console *)
+        prename Coqlib.zle into Htmp; clear Htmp.
+        prename (_ > _) into Hgt.
         destruct console; cbn in *.
         rewrite vt_trace_console0.
         rewrite Zlength_app, Zlength_map, Zlength_enumerate.
-        admit.
-  Admitted.
+        rewrite vt_trace_console0, Zlength_app, Zlength_map in Hgt.
+        rewrite compute_console_app_no_space; auto using console_len.
+        * unfold mkRecvEvents.
+          rewrite List.map_map, Zlength_map, Zlength_enumerate; do 2 f_equal.
+          clear; induction (enumerate _) as [| (? & ?) ?]; cbn; auto.
+          rewrite IHl; auto.
+        * intros * Hin.
+          eapply in_mkRecvEvents in Hin.
+          destruct Hin as (? & ? & ? & ? & ?); inj; subst; eauto.
+        * unfold mkRecvEvents; rewrite Zlength_map; auto.
+  Qed.
 
   Lemma serial_intr_enable_aux_preserve_valid_trace : forall n st st',
     valid_trace st ->
