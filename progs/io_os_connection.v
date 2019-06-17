@@ -3,8 +3,10 @@ Require Import ZArith.
 Require Import Psatz.
 Require Import ITree.ITree.
 Require Import ITree.Interp.Traces.
+Require Import compcert.lib.Maps.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
 Require Import VST.progs.io_specs.
 Require Import VST.progs.io_dry.
 Require Import VST.progs.io_os_specs.
@@ -42,13 +44,18 @@ Local Ltac simpl_rev_in H :=
   rewrite <- ?app_assoc in H; cbn [rev app] in H;
   rewrite ?rev_involutive in H.
 
+Local Ltac destruct_spec Hspec :=
+  repeat match type of Hspec with
+  | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
+  end.
+
 (** Helper Lemmas *)
 Section ListFacts.
 
   Context {A : Type}.
   Variable Aeq : forall (x y : A), {x = y} + {x <> y}.
 
-  (** common_prefix/common_suffix *)
+  (** common_prefix *)
   Fixpoint common_prefix (xs ys : list A) : list A :=
     match xs, ys with
     | x :: xs', y :: ys' =>
@@ -56,26 +63,15 @@ Section ListFacts.
     | _, _ => nil
     end.
 
-  Definition common_suffix (xs ys : list A) : list A :=
-    rev (common_prefix (rev xs) (rev ys)).
-
-  Definition split_at_common_suffix (xs ys : list A) : list A * list A :=
+  Definition strip_common_prefix (xs ys : list A) : list A :=
     let longer := if length xs <=? length ys then ys else xs in
-    let i := length longer - length (common_suffix xs ys) in
-    (firstn i longer, common_suffix xs ys).
+    skipn (length (common_prefix xs ys)) longer.
 
   Lemma common_prefix_sym : forall xs ys,
     common_prefix xs ys = common_prefix ys xs.
   Proof.
     induction xs as [| x xs]; destruct ys as [| y ys]; cbn; auto.
     destruct (Aeq x y), (Aeq y x); congruence.
-  Qed.
-
-  Lemma common_suffix_sym : forall xs ys,
-    common_suffix xs ys = common_suffix ys xs.
-  Proof.
-    unfold common_suffix; intros.
-    rewrite common_prefix_sym; auto.
   Qed.
 
   Lemma common_prefix_correct : forall xs ys,
@@ -94,41 +90,11 @@ Section ListFacts.
     specialize (IHxs ys); lia.
   Qed.
 
-  Lemma common_suffix_length : forall xs ys,
-    length (common_suffix xs ys) <= length xs.
-  Proof.
-    unfold common_suffix; intros.
-    rewrite rev_length.
-    etransitivity; [apply common_prefix_length |].
-    rewrite rev_length; auto.
-  Qed.
-
-  Lemma common_suffix_correct : forall xs ys,
-    let post := common_suffix xs ys in
-    post = skipn (length xs - length post) xs.
-  Proof.
-    unfold common_suffix; intros; cbn.
-    rewrite common_prefix_correct at 1.
-    rewrite <- (rev_involutive (skipn _ _)).
-    rewrite rev_skipn.
-    repeat f_equal.
-    generalize (common_suffix_length xs ys); unfold common_suffix.
-    rewrite rev_length; lia.
-  Qed.
-
   Lemma common_prefix_full : forall xs,
     common_prefix xs xs = xs.
   Proof.
     induction xs as [| x xs]; cbn; auto.
     destruct (Aeq x x); cbn; congruence.
-  Qed.
-
-  Lemma common_suffix_full : forall xs,
-    common_suffix xs xs = xs.
-  Proof.
-    unfold common_suffix; intros.
-    rewrite common_prefix_full.
-    apply rev_involutive.
   Qed.
 
   Lemma common_prefix_app : forall xs x,
@@ -138,29 +104,17 @@ Section ListFacts.
     destruct (Aeq x x); cbn; congruence.
   Qed.
 
-  Lemma common_suffix_cons : forall xs x,
-    common_suffix xs (x :: xs) = xs.
-  Proof.
-    unfold common_suffix; intros; cbn.
-    rewrite common_prefix_app.
-    apply rev_involutive.
-  Qed.
-
-  Lemma split_at_common_suffix_correct : forall xs ys,
+  Lemma strip_common_prefix_correct : forall xs ys,
     length xs <= length ys ->
-    let (pre, post) := split_at_common_suffix xs ys in
-    ys = pre ++ post.
+    let post := strip_common_prefix xs ys in
+    ys = common_prefix xs ys ++ post.
   Proof.
     induction xs as [| x xs]; destruct ys as [| y ys]; cbn; intros; auto; try lia.
-    - rewrite firstn_all, app_nil_r; auto.
-    - rewrite leb_correct by lia.
-      change (rev xs ++ x :: nil) with (rev (x :: xs)).
-      change (rev ys ++ y :: nil) with (rev (y :: ys)).
-      fold (common_suffix (x :: xs) (y :: ys)).
-      rewrite common_suffix_sym.
-      rewrite common_suffix_correct.
-      rewrite <- common_suffix_correct at 1.
-      rewrite firstn_skipn; auto.
+    rewrite leb_correct by lia.
+    destruct (Aeq _ _); subst; cbn; auto.
+    rewrite common_prefix_sym.
+    rewrite common_prefix_correct at 1.
+    rewrite firstn_skipn; auto.
   Qed.
 
   (** Misc tl/hd_error facts *)
@@ -411,23 +365,6 @@ Section Invariants.
     vt_trace_unique : valid_trace_unique st.(io_log);
     vt_trace_console : valid_trace_console st.(io_log) st.(console).(cons_buf);
   }.
-
-  (* Compute the newly added events in the trace. *)
-  (* Definition new_trace (st st' : state) : ostrace := *)
-  (*   fst (split_at_common_suffix IO_trace_event_eq st.(io_log) st'.(io_log)). *)
-
-  (* Invariants about the returned character and traces. *)
-  (* Definition valid_ret (st st' : state) (c : Z) := *)
-  (*   (1* c is in the proper range. *1) *)
-  (*   (c = -1 \/ 0 <= c <= 255) /\ *)
-  (*   (1* The memory is unchanged. *1) *)
-  (*   st.(st_mem) = st'.(st_mem) /\ *)
-  (*   let t := new_trace st st' in *)
-  (*   (1* The new trace is the old one plus the newly added events. *1) *)
-  (*   st'.(io_log) = t ++ st.(io_log) /\ *)
-  (*   (1* The newly added events are either nil or a single user read. *1) *)
-  (*   (c = -1 -> t = nil) /\ *)
-  (*   (0 <= c <= 255 -> exists logIdx, t = IOEvGetc logIdx c :: nil). *)
 
   (* Console entries are ordered by logIdx and strIdx *)
   Lemma valid_trace_ordered_snoc : forall tr ev,
@@ -898,11 +835,6 @@ Section Invariants.
   *)
   Context `{ThreadsConfigurationOps}.
 
-  Local Ltac destruct_spec Hspec :=
-    repeat match type of Hspec with
-    | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
-    end.
-
   Lemma cons_intr_aux_preserve_valid_trace : forall st st',
     valid_trace st ->
     cons_intr_aux st = Some st' ->
@@ -1216,64 +1148,107 @@ Section Invariants.
     eauto.
   Qed.
 
+  (* At most one user-visible event is generated. *)
+  Definition trace_case st st' ret :=
+    let t := st.(io_log) in
+    let t' := st'.(io_log) in
+    let new := trace_of_ostrace (strip_common_prefix IOEvent_eq t t') in
+    (ret = -1 -> new = trace_of_ostrace nil) /\
+    (0 <= ret -> exists logIdx strIdx,
+       new = trace_of_ostrace (IOEvGetc logIdx strIdx ret :: nil)).
+
+  Definition get_ret (st : RData) :=
+    let curid := ZMap.get st.(CPU_ID) st.(cid) in
+    ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
+
+  Lemma sys_getc_trace_case : forall st st' ret,
+    valid_trace st ->
+    sys_getc_spec st = Some st' ->
+    get_ret st' = Vint ret ->
+    trace_case st st' (Int.signed ret).
+  Proof.
+  Admitted.
+
 End Invariants.
 
 Section SpecsCorrect.
 
-  Context `{SerialOracle} `{ConsoleLen}.
+  Context `{ThreadsConfigurationOps}.
 
-  (* For any trace that the new itree (z) allows, the old itree (z0) allowed it
-     with the generated trace (t) as a prefix. *)
-
-  Definition consume_trace (z0 z : IO_itree) (et : ostrace) :=
-    let t := trace_of_ostrace et in
+  (* For any trace that the new itree (z) allows, that trace prefixed with the
+     OS-generated trace (t) is allowed by the old itree (z0). *)
+  Definition consume_trace (z0 z : IO_itree) (t : @trace IO_event unit) :=
     forall t',
       is_trace z t' ->
       is_trace z0 (app_trace t t').
 
-  Lemma getchar_correct k z st :
+  Definition user_trace (ot ot' : ostrace) : trace :=
+    trace_of_ostrace (strip_common_prefix IOEvent_eq ot ot').
+
+  Definition trace_itree_match (z0 z : IO_itree) (ot ot' : ostrace) :=
+    (* Compute the OS-generated trace of newly added events *)
+    let ot_new := strip_common_prefix IOEvent_eq ot ot' in
+    (* Filter out the user-invisible events *)
+    let t := trace_of_ostrace ot_new in
+    (* The new itree 'consumed' the OS-generated trace *)
+    consume_trace z0 z t.
+
+  (* TODO: memory *)
+  Record sys_correct k z m st st' ret := {
+    (* New itree is old k applied to result, or same as old itree if nothing
+       to read *)
+    z' := if 0 <=? Int.signed ret then k ret else z;
+
+    (* Post condition holds on new state, itree, and result *)
+    post_ok : getchar_post' m m ret (k, z) z';
+    (* The itrees and OS traces agree on the external events *)
+    itree_trace_ok : trace_itree_match z z' st.(io_log) st'.(io_log);
+    (* The new trace is valid *)
+    trace_ok : valid_trace st';
+  }.
+
+  Lemma sys_getc_correct k z m st st' :
     (* Initial trace is valid *)
     valid_trace st ->
     (* Pre condition holds *)
-    getchar_pre' st.(st_mem) k z ->
-    exists st' r,
-      (* Spec with same initial memory returns some state and result *)
-      getchar_spec st = (st', r) /\
-      (* New itree is old k applied to result, or same as old itree if nothing
-         to read *)
-      let z' := if 0 <=? r then k (Int.repr r) else z in
-      (* Post condition holds on new state, itree, and result *)
-      getchar_post' st.(st_mem) st'.(st_mem) (Int.repr r) (k, z) z' /\
-      (* Compute the newly added events *)
-      let t := new_trace st st' in
-      (* The new itree 'consumed' the generated trace *)
-      consume_trace z z' t /\
-      (* t is the correct prefix *)
-      st'.(io_log) = t ++ st.(io_log) /\
-      (* The new trace is valid *)
-      valid_trace st'.
+    getchar_pre' m k z ->
+    (* sys_getc returns some state *)
+    sys_getc_spec st = Some st' ->
+    exists ret,
+      get_ret st' = Vint ret /\
+      sys_correct k z m st st' ret.
   Proof.
-    unfold getchar_pre'; intros Hvalid Hpre; cbn -[new_trace].
-    destruct (getchar_spec st) as (st' & r) eqn:Hinv.
-    pose proof Hinv as Hret.
-    eapply getchar_spec_preserve_valid_trace in Hinv; auto.
-    eapply getchar_spec_valid_ret in Hret; auto.
-    destruct Hret as (Hr & Hmem & Htr & Ht & Ht').
-    exists st', r.
-    repeat (split; auto); try congruence.
-    - destruct Hr; subst; auto.
+    unfold getchar_pre', get_ret; intros Hvalid Hpre Hspec.
+    pose proof Hspec as Hvalid'.
+    pose proof Hspec as Htrace_case.
+    apply sys_getc_preserve_valid_trace in Hvalid'; auto.
+    unfold sys_getc_spec in Hspec; destruct_spec Hspec.
+    unfold uctx_set_errno_spec in Hspec; destruct_spec Hspec.
+    prename (uctx_set_retval1_spec) into Hspec.
+    unfold uctx_set_retval1_spec in Hspec; destruct_spec Hspec.
+    destruct r1; cbn in *.
+    repeat (rewrite ZMap.gss in * || rewrite ZMap.gso in * by easy); subst; inj.
+    do 2 esplit; eauto.
+    eapply sys_getc_trace_case in Htrace_case; eauto.
+    2: unfold get_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto.
+    constructor; eauto; hnf.
+    - (* getchar_post *)
+      split; auto; cbn.
       rewrite Int.signed_repr by (cbn; lia).
-      rewrite Zle_imp_le_bool by lia.
-      auto.
-    - hnf; intros * Htrace.
-      destruct Hr; subst; cbn in *.
-      + rewrite Ht; auto.
-      + destruct Ht' as (? & ->); auto.
-        apply Hpre.
-        hnf; cbn.
-        repeat constructor.
+      destruct (Coqlib.zeq z0 (-1)); subst; auto.
+      left; split; try lia.
+      rewrite Zle_imp_le_bool by lia; auto.
+    - (* trace_itree_match *)
+      rewrite Int.signed_repr in * by (cbn; lia).
+      hnf in Htrace_case; cbn in Htrace_case.
+      destruct Htrace_case as (Htrace0 & Htrace1).
+      intros * Htrace; cbn.
+      destruct (Coqlib.zeq z0 (-1)); subst; cbn in Htrace, Htrace0, Htrace1.
+      + rewrite Htrace0; auto.
+      + destruct Htrace1 as (? & ? & ->); try lia.
         rewrite Zle_imp_le_bool in Htrace by lia.
-        apply Htrace.
+        apply Hpre.
+        hnf; cbn; repeat constructor; auto.
   Qed.
 
 End SpecsCorrect.
