@@ -36,17 +36,28 @@ Ltac reduce_and:=
 
 (* Stronger form of inversion. Similar to inv (from CompCert) *)
 (* It inverts and rewrites every *new* equality*)
-Ltac invert_with_continuation HH continuation:=
-  first[
-      match goal with
-      | [ H: _ |- _ ] =>
-        progress
-          match H with
-          | HH => idtac
-          | _ => revert H; invert_with_continuation HH ltac:(intros H; continuation)
-          end
-      end |
-      inversion HH; subst; continuation].
+Ltac try_intros H:=
+  first [ intros H |
+          let HH:= fresh H in
+          rename H into HH;
+          intros H].
+
+Ltac invert_with_continuation HH cont:=
+  match goal with
+  | H:_ |- _ =>
+    progress
+      match H with
+      | HH => idtac
+      | _ => revert H ;
+            (* if the tactic fails, we don't want it to keep trying 
+               so we force it to fail all the way. *)
+            first [ invert_with_continuation
+                      HH ltac:(try_intros H; cont) |
+                    fail 3 "invert failed."]
+      end
+  | _ => inversion HH ; subst ; cont
+  end.
+        
 Ltac invert HH:= invert_with_continuation HH idtac.
 
 
