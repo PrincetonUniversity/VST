@@ -107,6 +107,11 @@ Inductive SerialEvent :=
 Definition SerialEnv := LEnv SerialEvent.
 Definition SerialData := @DeviceData SerialState.
 
+(* Oracle assumptions *)
+Axiom SerialRecv_in_range : forall idx str,
+  SerialEnv idx = SerialRecv str ->
+  Forall (fun c => 0 <= c <= 255) str.
+
 Record SerialDriver := mkSerialDriver {
   serial_exists : Z
 }.
@@ -665,18 +670,16 @@ Definition sys_getc_spec (abd : RData) : option RData :=
   | Some d1 =>
     match thread_cons_buf_read_spec d1 with
     | Some (d2, x) =>
-      if zle_le (-1) x 255 then
-        match thread_serial_intr_enable_spec d2 with
-        | Some d3 =>
-          match uctx_set_retval1_spec x d3 with
-          | Some d4 =>
-            let err := if zeq x (-1) then E_NOCHAR else E_SUCC in
-            uctx_set_errno_spec err d4
-          | None => None
-          end
+      match thread_serial_intr_enable_spec d2 with
+      | Some d3 =>
+        match uctx_set_retval1_spec x d3 with
+        | Some d4 =>
+          let err := if zeq x (-1) then E_NOCHAR else E_SUCC in
+          uctx_set_errno_spec err d4
         | None => None
         end
-      else None
+      | None => None
+      end
     | None => None
     end
   | None => None
