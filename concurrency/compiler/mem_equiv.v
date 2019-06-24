@@ -433,3 +433,38 @@ Lemma restr_proof_irr_equiv:
   - reflexivity. 
   - apply Axioms.proof_irr.
 Qed.
+
+
+Instance valid_access_Proper:
+  Proper (mem_equiv  ==> Logic.eq ==> Logic.eq  ==>
+                     Logic.eq ==> Logic.eq ==> iff) Mem.valid_access.
+Proof.
+  unfold Mem.valid_access.
+  setoid_help.proper_iff; setoid_help.proper_intros; subst.
+  rewrite <- H; auto.
+Qed.
+Instance load_Proper:
+  Proper (Logic.eq ==> mem_equiv ==> Logic.eq ==> Logic.eq  ==> Logic.eq) Mem.load.
+Proof.
+  setoid_help.proper_intros; subst.
+  Transparent Mem.load.
+  unfold Mem.load.
+  destruct (Mem.valid_access_dec x0 y y1 y2 Readable) as [v|v];
+    rewrite H0 in v;
+    destruct (Mem.valid_access_dec y0 y y1 y2 Readable);
+    (* solve the impossible ones*)
+    try solve[contradict v; auto].
+  - destruct  H0. do 2 f_equal.
+    clear - content_eqv0 y1 y2.
+    revert y2 y1.
+    induction (size_chunk_nat y); auto; intros.
+    simpl.  f_equal; eauto.
+  - reflexivity.
+Qed.
+
+Instance loadv_Proper:
+  Proper (Logic.eq ==> mem_equiv ==> Logic.eq  ==> Logic.eq) Mem.loadv.
+Proof. intros ??? ??? ???; subst.
+       destruct y1; auto.
+       eapply load_Proper; auto.
+Qed.

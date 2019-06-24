@@ -31,8 +31,32 @@ Proof. intros ? ? ? H ?. apply H; auto. Qed.
 (* "Normal form"  hypothesis*)
 Ltac destruct_and:=
   repeat match goal with [ H: _ /\ _  |- _ ] => destruct H end.
+Ltac normal_hyp:=
+  repeat match goal with
+           [ H: _ /\ _  |- _ ] => destruct H
+           | [ H: exists _, _  |- _ ] => destruct H
+         end.
 Ltac reduce_and:=
   repeat match goal with [ |- _ /\ _  ] => split end.
+Ltac normal_goal:=
+  repeat match goal with
+           [ |- _ /\ _  ] => split
+         | [ |- exists _, _] => eexists
+         end.
+Ltac normal:= normal_hyp; normal_goal.
+
+(*Do case analysis to simplify a match _ with*)
+Ltac match_case_goal:=
+  match goal with
+    |- context[match ?x with _ => _ end] => destruct x eqn:?
+  end.
+Ltac match_case_hyp H:=
+  match type of H with
+    context[match ?x with _ => _ end] => destruct x eqn:?
+  end.
+Tactic Notation "match_case":= match_case_goal.
+Tactic Notation "match_case" "in" hyp(H):= (match_case_hyp H).
+
 
 (* Stronger form of inversion. Similar to inv (from CompCert) *)
 (* It inverts and rewrites every *new* equality*)
