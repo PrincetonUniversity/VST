@@ -458,11 +458,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           map_from_list mu (PTree.elements map).
         Definition virtueThread_inject m (mu:meminj) (virtue:delta_map * delta_map):
           delta_map * delta_map:=
-          let (m1,m2):= virtue in
-          (tree_map_inject_over_mem m mu m1, tree_map_inject_over_mem m mu m2).
+          pair1 (tree_map_inject_over_mem m mu) virtue.
+        Hint Unfold virtueThread_inject: pair.
 
+        (*NOTE: default is set to (fun _=> None)
+          used to be, [fst map] but this makes no sense since it is not "mapped"
+          it rellied in the fact that fst map s empty... which is the same...
+         *)
         Definition access_map_injected m (mu:meminj) (map:access_map): access_map:=
-          (fst map, tree_map_inject_over_mem m mu (snd map)).
+          ((* fst map*) (fun _=> None)  , tree_map_inject_over_mem m mu (snd map)).
 
         Lemma tree_map_inject_over_mem_correct:
           forall {A} m2 mu (perm:PTree.t (Z -> option A)) b1 b2 ofs delt,
@@ -483,13 +487,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             rewrite HH; simpl.
             reflexivity.
           Qed.
-Lemma build_function_for_a_block_correct_backwards:
+          Lemma build_function_for_a_block_correct_backwards:
             forall {A} (mu:meminj) b2 ofs_delt perm elements,
-            @build_function_for_a_block mu A b2 elements ofs_delt = Some perm ->
-            exists b1 delt ofs f, mu b1 = Some (b2, delt) /\
-                             ofs_delt = ofs + delt /\
-                             In (b1,f) elements /\
-                             f ofs = Some perm.
+              @build_function_for_a_block mu A b2 elements ofs_delt = Some perm ->
+              exists b1 delt ofs f, mu b1 = Some (b2, delt) /\
+                               ofs_delt = ofs + delt /\
+                               In (b1,f) elements /\
+                               f ofs = Some perm.
           Proof.
             intros *.
             induction elements; simpl; intros HH.
@@ -501,13 +505,21 @@ Lemma build_function_for_a_block_correct_backwards:
               + inv HH; do 4 eexists; repeat weak_split eauto.
                 omega.
           Qed.
-          Definition access_map_no_overlap (f:meminj) (perms:access_map):=
+          Definition perm_no_overlap (f:meminj) (perms:access_map):=
             forall b1 b1' delta1 b2 b2' delta2 ofs1 ofs2,
               b1 <> b2 ->
               f b1 = Some (b1', delta1) ->
               f b2 = Some (b2', delta2) ->
-              ~ perms !! b1 ofs1 = None  ->
-              ~ perms !! b2 ofs2 = None ->
+              at_least_Some (perms !! b1 ofs1)  ->
+              at_least_Some (perms !! b2 ofs2) ->
+              b1' <> b2' \/ ofs1 + delta1 <> ofs2 + delta2.
+          Definition dmap_no_overlap (f:meminj) (perms:delta_map):=
+            forall b1 b1' delta1 b2 b2' delta2 ofs1 ofs2,
+              b1 <> b2 ->
+              f b1 = Some (b1', delta1) ->
+              f b2 = Some (b2', delta2) ->
+              at_least_Some (dmap_get perms b1 ofs1)  ->
+              at_least_Some (dmap_get perms b2 ofs2) ->
               b1' <> b2' \/ ofs1 + delta1 <> ofs2 + delta2.
           Definition list_no_overlap {A} (mu:meminj) elements:Prop:=
               forall b1 b1' delta b2 delta' ofs ofs' f f' (perm perm': A) ,
@@ -538,18 +550,36 @@ Lemma build_function_for_a_block_correct_backwards:
             intros ** ? **.
             symmetry. eapply H; eauto.
           Qed.
-          Lemma list_access_map_no_overlap:
+          Lemma at_least_Some_trivial:
+            forall {A} x y, x = Some y -> @at_least_Some A x.
+          Proof. intros; subst; constructor. Qed.
+          Lemma list_perm_no_overlap:
             forall mu p,
-              access_map_no_overlap mu p ->
+              perm_no_overlap mu p ->
               list_no_overlap mu (PTree.elements (snd p)).
           Proof.
-            unfold access_map_no_overlap, list_no_overlap.
+            unfold perm_no_overlap, list_no_overlap.
             simpl; intros.
             exploit H; eauto.
             - unfold PMap.get; erewrite PTree.elements_complete; eauto.
-              rewrite H5; intros HH; congruence.
+              eapply at_least_Some_trivial; eassumption.
             - unfold PMap.get; erewrite PTree.elements_complete; eauto.
-              rewrite H6; intros HH; congruence.
+              eapply at_least_Some_trivial; eassumption.
+            - intros [? | ?]; eauto.
+          Qed.
+          
+          Lemma list_dmap_no_overlap:
+            forall mu p,
+              dmap_no_overlap mu p ->
+              list_no_overlap mu (PTree.elements p).
+          Proof.
+            unfold dmap_no_overlap, list_no_overlap.
+            simpl; intros.
+            exploit H; eauto.
+            - unfold dmap_get, PMap.get, PTree.get; erewrite PTree.elements_complete; eauto.
+              eapply at_least_Some_trivial. rewrite H5; eauto.
+            - unfold dmap_get, PMap.get, PTree.get; erewrite PTree.elements_complete; eauto.
+              eapply at_least_Some_trivial.  rewrite H6; eauto.
             - intros [? | ?]; eauto.
           Qed.
             
@@ -574,7 +604,6 @@ Lemma build_function_for_a_block_correct_backwards:
                 unfold merge_func.
                 replace (ofs + delta - delta) with ofs by omega.
                 rewrite H1; auto.
-                clear - n; contradict n; auto.
               + unfold merge_func.
                 assert (list_no_overlap_one mu b1 b2 ofs ( elements)).
                 { intros ? **. eapply H2; eauto. right; auto. }
@@ -592,26 +621,122 @@ Lemma build_function_for_a_block_correct_backwards:
                 * intros HH; inv HH.
           Qed.
 
-          
+
+          Lemma tree_map_inject_over_mem_correct_backwards:
+            forall {A} m2 mu dmap b2 fp ofs_delta p,
+              (@tree_map_inject_over_mem A m2 mu dmap) ! b2 = Some fp ->
+              fp ofs_delta = Some p ->
+              exists b1 (delt ofs:Z) fp1, mu b1 = Some (b2, delt) /\
+                                     ofs_delta = ofs + delt /\
+                                     dmap ! b1 = Some fp1 /\
+                                     fp1 ofs = Some p.
+          Proof.
+            unfold tree_map_inject_over_mem,
+            tree_map_inject_over_tree,dmap_get; simpl; intros.
+            rewrite PTree.gmap , PTree.gmap1 in H.
+            unfold option_map in H.
+            destruct ((snd (Mem.mem_access m2)) ! b2) eqn:HH.
+            2:{ simpl in H; congruence. }
+            inversion H.
+            rewrite <- H2 in H0.
+            apply build_function_for_a_block_correct_backwards in H0.
+            normal; eauto.
+            eapply PTree.elements_complete; auto.
+          Qed.
+
+          (* PTree.t (Z -> option A) *)
+          (* (PTree.t (Z -> option (option permission))) *)
+          Ltac LHS:= match goal with  |- ?lhs = ?rhs => lhs end.
+          Ltac RHS:= match goal with  |- ?lhs = ?rhs => rhs end.
+          Tactic Notation "destruct" "lhs":= (let lhs:=LHS in destruct lhs eqn:?).
+          Tactic Notation "destruct" "rhs":= (let rhs:=RHS in destruct rhs eqn:?).
+          Inductive option_relation {A}  (r: relation A): relation (option A):=
+          | SomeOrder:forall a b, r a b -> option_relation r (Some a) (Some b)
+          | NoneOrder: forall p, option_relation r p None.
+          Lemma tree_map_inject_over_mem_correct_forward:
+            forall (mu:meminj) m2 b2 ofs delta b1 (dmap: delta_map) p,
+              mu b1 = Some (b2, delta) ->
+              dmap_get dmap b1 ofs = Some p ->
+              ( option_implication (dmap ! b1) ((snd (getMaxPerm m2)) ! b2) )->
+              dmap_no_overlap mu dmap ->
+              dmap_get (tree_map_inject_over_mem m2 mu dmap) b2 (ofs + delta) = Some p.
+          Proof.
+            intros. 
+            specialize H1.
+            unfold tree_map_inject_over_mem,
+            tree_map_inject_over_tree,dmap_get, PMap.get in *;
+              simpl in *; intros.
+            repeat match_case in H0; try congruence.
+            rewrite PTree.gmap, PTree.gmap1; unfold option_map.
+            unfold getMaxPerm in H1.
+            simpl in *. rewrite PTree.gmap1 in H1; simpl.
+            destruct ((snd (Mem.mem_access m2)) ! b2) eqn:HH.
+            2:{ inv H1. }
+            simpl in *.
+            exploit (@build_function_for_a_block_correct_forward (option permission)); eauto.
+            - eapply PTree.elements_correct.
+              unfold dmap_get in *.
+              rewrite Heqo. reflexivity.
+            - eapply list_no_overlap_to_one; eauto.
+              + eapply list_dmap_no_overlap; eauto.
+              + eapply PTree.elements_correct; eauto.
+            - apply PTree.elements_keys_norepet.
+          Qed.
+          Lemma tree_map_inject_over_mem_correct_forward_perm:
+            forall (mu:meminj) m2 b2 ofs delta b1 (perm: access_map) p,
+              mu b1 = Some (b2, delta) ->
+              perm !! b1 ofs = Some p ->
+              isCanonical perm ->
+              (option_implication ((snd perm) ! b1) ((snd (getMaxPerm m2)) ! b2) )->
+              perm_no_overlap mu perm ->
+              (fun _ => None, tree_map_inject_over_mem m2 mu (snd perm)) !! b2 (ofs + delta)
+              = Some p.
+          Proof.
+            intros. 
+            unfold tree_map_inject_over_mem,
+            tree_map_inject_over_tree,dmap_get in *; simpl; intros.
+            unfold PMap.get in *; simpl in *.
+            repeat match_case in H0; try congruence.
+            2:{ rewrite H1 in H0; congruence. }
+            rewrite PTree.gmap, PTree.gmap1; unfold option_map.
+            simpl in *. rewrite PTree.gmap1 in H2; simpl.
+            destruct ((snd (Mem.mem_access m2)) ! b2) eqn:HH.
+            2:{ inv H2. }
+            simpl in *.
+            exploit (@build_function_for_a_block_correct_forward); eauto.
+            - eapply PTree.elements_correct.
+              eapply Heqo.
+            - eapply list_no_overlap_to_one; eauto.
+              + eapply list_perm_no_overlap; eauto.
+              + eapply PTree.elements_correct; eauto.
+            - apply PTree.elements_keys_norepet.
+          Qed.
+            
+          Lemma dmap_inject_correct_backwards:
+            forall m2 mu dmap b2 ofs_delt p,
+              dmap_get (tree_map_inject_over_mem m2 mu dmap) b2 (ofs_delt) = Some p ->
+              exists b1 delt ofs, mu b1 = Some (b2, delt) /\
+                             ofs_delt = ofs + delt /\
+                             dmap_get dmap b1 ofs = Some p.
+          Proof.
+            unfold dmap_get, PMap.get; intros.
+            repeat match_case in H.
+            - inv H. eapply tree_map_inject_over_mem_correct_backwards in Heqo; eauto.
+              normal; eauto. simpl. rewrite H1, H2; auto.
+          Qed.
+              
           Lemma access_map_injected_correct_backwards:
             forall m2 mu perms b2 ofs_delt p,
-              isCanonical perms -> 
               (access_map_injected m2 mu perms) !! b2 (ofs_delt) = Some p ->
               exists b1 delt ofs, mu b1 = Some (b2, delt) /\
                              ofs_delt = ofs + delt /\
                              perms !! b1 ofs = Some p.
           Proof.
-            unfold access_map_injected, tree_map_inject_over_mem,
-            tree_map_inject_over_tree,PMap.get; simpl; intros.
-            rewrite PTree.gmap, PTree.gmap1, H in H0.
-            unfold option_map in H0.
-            destruct ((snd (Mem.mem_access m2)) ! b2) eqn:HH.
-            2:{ simpl in H0; congruence. }
-            apply build_function_for_a_block_correct_backwards in H0.
-            normal; eauto.
-            eapply PTree.elements_complete in H2; rewrite H2; assumption.
+            unfold PMap.get; intros. repeat match_case in H; try congruence.
+            simpl in *.
+            eapply tree_map_inject_over_mem_correct_backwards in Heqo; eauto.
+            normal; eauto. rewrite H2; auto.
           Qed.
-          
           
           Lemma access_map_injected_correct_forward:
             forall (mu:meminj) m2 b2 ofs delta b1 perms p,
@@ -620,7 +745,7 @@ Lemma build_function_for_a_block_correct_backwards:
               perms !! b1 ofs = Some p ->
               (forall ofs, Mem.perm_order''
                         ((getMaxPerm m2) !! b2 (ofs+delta)) (perms !! b1 ofs)) ->
-              access_map_no_overlap mu perms ->
+              perm_no_overlap mu perms ->
               (access_map_injected m2 mu perms) !! b2 (ofs + delta) = Some p.
           Proof.
             intros.
@@ -642,7 +767,7 @@ Lemma build_function_for_a_block_correct_backwards:
             - unfold PMap.get in H1.
               match_case in H1.
               + eapply list_no_overlap_to_one; eauto.
-                eapply list_access_map_no_overlap; auto.
+                eapply list_perm_no_overlap; auto.
                 eapply PTree.elements_correct. auto.
               + rewrite H0 in H1; congruence.
             - apply PTree.elements_keys_norepet.
@@ -2549,10 +2674,14 @@ Lemma build_function_for_a_block_correct_backwards:
           Mem.inject mu (@restrPermMap perm1 m1 Hlt1 ) 
                      (@restrPermMap perm2 m2 Hlt2 ) ->
           bounded_maps.sub_map virtue1 (snd (getMaxPerm m1)) ->
-          bounded_maps.sub_map (tree_map_inject_over_mem m2 mu virtue1) (snd (getMaxPerm m2)).
+          bounded_maps.sub_map (tree_map_inject_over_mem m2 mu virtue1)
+                               (snd (getMaxPerm m2)).
       Proof.
         intros m1 m2 mu AT virtue1 perm1 perm2 Hlt1 Hlt2 injmem A.
-
+        pose proof (Mem.mi_inj _ _ _ injmem) as injmem'.
+        clear injmem.
+        rename injmem' into injmem.
+        
         replace  (snd (getMaxPerm m2)) with
             (PTree.map (fun _ a => a)  (snd (getMaxPerm m2)))
           by eapply trivial_map.
@@ -2596,9 +2725,8 @@ Lemma build_function_for_a_block_correct_backwards:
              destruct ((snd (getMaxPerm m1)) ! b0) eqn:Heqn;
                try solve[inversion H1].
              specialize (H1 (p - delt)%Z ltac:(rewrite Hfbp; auto)).
-             eapply Mem.mi_perm in Hinj; try apply injmem.
-             
-             
+             eapply injmem in Hinj.
+
              2: {
                
                clear IHVelmts Velmts Hinj.
@@ -3122,21 +3250,31 @@ Lemma build_function_for_a_block_correct_backwards:
           + eapply setPermBlock_mi_perm_inv_Cur; eauto.
       Qed.
       
-      Definition perm_meminj_no_overlap (f:meminj) (perm: access_map):=
+      Definition perm_meminj_no_overlap {A} (f:meminj) (perm: PMap.t (Z -> option A)):=
         forall (b1 b1' : block) (delta1 : Z) (b2 b2' : block) (delta2 ofs1 ofs2 : Z),
           b1 <> b2 ->
           f b1 = Some (b1', delta1) ->
           f b2 = Some (b2', delta2) ->
-          Mem.perm_order' (perm !! b1 ofs1) Nonempty ->
-          Mem.perm_order' (perm !! b2 ofs2) Nonempty ->
+          at_least_Some (perm !! b1 ofs1) ->
+          at_least_Some  (perm !! b2 ofs2) ->
           b1' <> b2' \/ ofs1 + delta1 <> ofs2 + delta2.
+      
+      (* Move to Self_simulation*)
+      Lemma at_least_perm_order:
+        forall x, at_least_Some x <-> Mem.perm_order' x Nonempty.
+      Proof.
+        intros; unfold at_least_Some, Mem.perm_order'.
+        destruct x; split; simpl; auto.
+        intros; apply perm_any_N.
+      Qed.
       Lemma no_overlap_mem_perm:
         forall mu m1, 
           Mem.meminj_no_overlap mu m1 ->
           perm_meminj_no_overlap mu (getMaxPerm m1).
       Proof.
         intros * H ? **; eapply H; eauto;
-          unfold Mem.perm; rewrite_getPerm; assumption.
+          unfold Mem.perm; rewrite_getPerm;
+        apply  at_least_perm_order; assumption.
       Qed.
       Definition perm_meminj_no_overlap_range (f:meminj) (perm: access_map):=
         forall (b1 b1' : block) (delta1 : Z) (b2 b2' : block) (delta2 ofs1 ofs2 SZ : Z),
@@ -3162,7 +3300,7 @@ Lemma build_function_for_a_block_correct_backwards:
         exploit (H5 (ofs2')).
         { subst; omega. }
         intros Hperm.
-        exploit H; eauto.
+        exploit H; eauto; try apply at_least_perm_order; eauto.
         intros [? | Hcontra]; try congruence.
         apply Hcontra. subst.
         omega.
@@ -3205,7 +3343,7 @@ Lemma build_function_for_a_block_correct_backwards:
                 destruct x eqn:?
               end.
             destruct_match; try solve[intros HH; inv HH].
-            exploit H; eauto.
+            exploit H; eauto; try apply at_least_perm_order; eauto.
             eapply perm_order_trans211; eauto.
             rewrite Heqo; constructor.
             
@@ -3471,6 +3609,25 @@ Lemma build_function_for_a_block_correct_backwards:
         pair1_prop is_empty_map.
       Hint Unfold empty_doublemap: pair.
 
+
+      Lemma is_empty_map_is_canon:
+        forall perms,
+          is_empty_map perms ->
+          isCanonical perms.
+      Proof.
+        unfold is_empty_map, isCanonical; destruct perms as (deflt, perms).
+        induction perms.
+        - simpl. intros H; specialize (H 1%positive).
+          extensionality ofs.
+          unfold PMap.get in *; eauto.
+        - simpl in *.
+          intros. eapply IHperms1.
+          intros.
+          specialize (H (xO b) ofs). simpl in *.
+          unfold PMap.get in *.
+          simpl in *; auto.
+      Qed.
+      
       Lemma inject_is_empty_map:
           forall  m mu empty_perms
              (Hempty_map : is_empty_map empty_perms),
@@ -3483,18 +3640,13 @@ Lemma build_function_for_a_block_correct_backwards:
         unfold PMap.get; simpl.
         rewrite PTree.gmap, PTree.gmap1.
         destruct ((snd (Mem.mem_access m)) ! b); simpl; auto.
-        - Ltac LHS:= match goal with  |- ?lhs = ?rhs => lhs end.
-          Ltac RHS:= match goal with  |- ?lhs = ?rhs => rhs end.
-          Tactic Notation "destruct" "lhs":= (let lhs:=LHS in destruct lhs eqn:?).
-          Tactic Notation "destruct" "rhs":= (let rhs:=RHS in destruct rhs eqn:?).
+        - 
           unfold build_function_for_a_block,merge_func.
           remember (PTree.elements (snd empty_perms)) as elemts eqn:HH.
           assert (forall b1 f, In (b1, f) elemts -> forall ofs, f ofs = None).
           { intros * Hin ofs0. subst; eapply PTree.elements_complete in Hin.
             specialize (Hempty_map b1 ofs0).
-            unfold PMap.get in *; match_case in Hempty_map.
-            - inv Hin; auto.
-            - congruence. }
+            unfold PMap.get in *; match_case in Hempty_map.  }
           clear Hempty_map HH. revert H.
           induction elemts.
           + simpl; auto.
@@ -3506,24 +3658,6 @@ Lemma build_function_for_a_block_correct_backwards:
             * eapply IHelemts. intros. eapply H; eauto.
             * eapply IHelemts. intros. eapply H; eauto.
             * eapply IHelemts. intros. eapply H; eauto.
-        - Lemma is_empty_map_is_canon:
-            forall perms,
-              is_empty_map perms ->
-              isCanonical perms.
-          Proof.
-            unfold is_empty_map, isCanonical; destruct perms as (deflt, perms).
-            induction perms.
-            - simpl. intros H; specialize (H 1%positive).
-              extensionality ofs.
-              unfold PMap.get in *; eauto.
-            - simpl in *.
-              intros. eapply IHperms1.
-              intros.
-              specialize (H (xO b) ofs). simpl in *.
-              unfold PMap.get in *.
-              simpl in *; auto.
-          Qed.
-          rewrite is_empty_map_is_canon; auto.
       Qed.
       
       Lemma inject_empty_maps:
@@ -3583,8 +3717,8 @@ Lemma build_function_for_a_block_correct_backwards:
           mu b1 = Some(b2, delt) ->
           mu b1' = Some(b2, delt') ->
           forall ofs ofs',
-            Mem.perm_order' (p !! b1 ofs) Nonempty ->
-            Mem.perm_order' (p' !! b1' ofs') Nonempty ->
+            at_least_Some (p !! b1 ofs) ->
+            at_least_Some (p' !! b1' ofs') ->
             ofs + delt = ofs' + delt' ->
             b1 = b1'.
       Definition no_overlap_perms (mu:meminj) (p p': access_map):=
@@ -3592,8 +3726,8 @@ Lemma build_function_for_a_block_correct_backwards:
           mu b1 = Some(b2, delt) ->
           mu b1' = Some(b2, delt') ->
           forall ofs ofs',
-            Mem.perm_order' (p !! b1 ofs) Nonempty ->
-            Mem.perm_order' (p' !! b1' ofs') Nonempty ->
+            at_least_Some (p !! b1 ofs) ->
+            at_least_Some (p' !! b1' ofs') ->
             ofs + delt = ofs' + delt' ->
             b1 = b1' /\ ofs = ofs' /\ delt = delt' .
       
@@ -3603,15 +3737,15 @@ Lemma build_function_for_a_block_correct_backwards:
       Proof.
         intros; unfold no_overlap_perms, no_overlap_perms';
           split; intros HH b1 b1' **; exploit (HH b1 b1');
-            eauto; intros HH'; destruct_and; auto.
+            eauto; intros HH'; destruct_and; eauto.
         - !goal (_/\_/\_).
           subst. rewrite H in H0; inversion H0; subst.
           reduce_and; auto; omega.
       Qed.
       (* Use no_overlap_perms when possible*)
       Definition perm_image_full (f:meminj) (a1 a2: access_map): Prop:=
-        forall b1 ofs,
-          Mem.perm_order' (a1 !! b1 ofs) (Nonempty) ->
+        forall b1 ofs, at_least_Some (a1 !! b1 ofs) ->
+          (* Mem.perm_order' (a1 !! b1 ofs) (Nonempty) -> *)
           exists b2 delta,
             f b1 = Some (b2, delta) /\
             a1 !! b1 ofs = a2 !! b2 (ofs + delta).
@@ -3634,12 +3768,13 @@ Lemma build_function_for_a_block_correct_backwards:
       Arguments pimage {_ _ _}.
       Arguments p_image {_ _ _}.
       Arguments ppre_perfect_image {_ _ _}.
+
       Local Ltac exploit_p_image H:=
         let b:=fresh "b" in
         let delt:=fresh "delt" in
         let Hinj:=fresh "Hinj" in
         destruct
-          (p_image H _ _ ltac:(eapply perm_order_from_map; eauto))
+          (p_image H _ _ ltac:(eapply at_least_Some_trivial; eauto))
           as (b&delt&Hinj&?); subst.
       Local Ltac exploit_ppre_image H:=
         let b:=fresh "b" in
@@ -3647,7 +3782,7 @@ Lemma build_function_for_a_block_correct_backwards:
         let delt:=fresh "delt" in
         let Hinj:=fresh "Hinj" in
         destruct
-          (ppre_perfect_image H _ _ ltac:(eapply perm_order_from_map; eauto))
+          (ppre_perfect_image H _ _ ltac:(eapply at_least_Some_trivial; eauto))
           as (b&ofs&delt&Hinj&?&?); subst.
       Local Ltac exploit_perfect_image H:=
         first [exploit_p_image H | exploit_ppre_image H]. (*
@@ -3655,7 +3790,7 @@ Lemma build_function_for_a_block_correct_backwards:
       Local Ltac exploit_no_overlap_perm H:=
         (* TODO: remove coqlib*)
         ( Coqlib.exploit H;
-          try (eapply perm_order_from_map; eauto);
+          try (eapply at_least_Some_trivial; eauto);
           eauto;
           intros ?; destruct_and; subst
         ).
@@ -3673,6 +3808,7 @@ Lemma build_function_for_a_block_correct_backwards:
               H0: _ = ?a !! ?x ?y |- _] => rewrite H in H0
         end.
       
+          
       Lemma permMapJoin_inject:
         forall mu a1 a2 b1 b2 c1 c2,
           no_overlap_perms mu a1 b1 ->
@@ -3692,11 +3828,13 @@ Lemma build_function_for_a_block_correct_backwards:
           try exploit_perfect_image Hb;
           try exploit_perfect_image Hc;
           repeat unify_mapping;
+        
           (* use no_pverlap_mem to set which blocks and ofsets are equal*)
           try (exploit_no_overlap_perm H12);
           try (exploit_no_overlap_perm H23);
           try (exploit_no_overlap_perm H31);
           !goal (permjoin_def.permjoin _ _ _);
+        
 
           (* inistantiate hypothesis wiith permMapJoin *)
           try (match goal with
@@ -3706,12 +3844,13 @@ Lemma build_function_for_a_block_correct_backwards:
                repeat match goal with
                       | [ H: Some _ = _ |- _] => rewrite <- H in HH
                       end; auto);
+            
 
+            
           (*destruct the parts that are not mapped*)
           repeat match type of HH with
                    context[?a !! ?b ?ofs] =>
-                   let H1:= fresh in 
-                   destruct (a !! b ofs) eqn:H1
+                   destruct (a !! b ofs) eqn:?
                  end; try eassumption;
 
             (* map the ones that are not mapped yet (and show a contradictoni)*)
@@ -3805,12 +3944,13 @@ Lemma build_function_for_a_block_correct_backwards:
         - subst; unify_injection.
           repeat (split; auto); omega.
         - exfalso.
-          exploit H; eauto; unfold Mem.perm;
-            try (rewrite_getPerm_goal; eapply perm_order_trans211).
-          2: exact H4.
-          3: exact H5.
-          + eapply H0.
-          + eapply H1.
+          exploit H; eauto; unfold Mem.perm.
+          + try (rewrite_getPerm_goal; eapply perm_order_trans211).
+            2: eapply at_least_perm_order; exact H4.
+            apply H0.
+          + try (rewrite_getPerm_goal; eapply perm_order_trans211).
+            2: eapply at_least_perm_order; exact H5.
+            apply H1.
           + intros [?| ?]; tauto.
       Qed.
       Lemma no_overlap_perms_under_mem_pair:
@@ -3945,14 +4085,14 @@ Lemma build_function_for_a_block_correct_backwards:
         
         { !goal(permjoin_def.permjoin _ _ _).
           specialize (H b ofs); inversion H; subst.
-          - unfold dmap_get in H0.
+          - unfold dmap_get, PMap.get in H0; simpl in *.
             destruct (A ! b) eqn:Ab.
             + destruct (o ofs) eqn:oofs; try inversion H0.
               erewrite computeMap_2; eauto.
               eapply subsume_same_join; auto.
             + erewrite computeMap_3; eauto.
               eapply subsume_same_join; auto. 
-          - unfold dmap_get in H0.
+          - unfold dmap_get, PMap.get in H0; simpl in *.
             destruct (A ! b) eqn:HH; try solve[inversion H0].
             erewrite computeMap_1.
             1, 2: eauto.
@@ -4000,23 +4140,17 @@ Lemma build_function_for_a_block_correct_backwards:
             (computeMap_pair CC AA) BB CC ->
           delta_map_join_pair AA BB CC.
       Proof. solve_pair; apply compute_map_join_bkw. Qed.
-      
-      Inductive option_relation {A}  (r: relation A): relation (option A):=
-      | SomeOrder:forall a b, r a b -> option_relation r (Some a) (Some b)
-      | NoneOrder: forall p, option_relation r p None.
+      (* Definition at_least_Some {A} (x:option A):=
+        option_implication (Some tt) x. *)
       Definition perm_image_full_dmap f dm1 dm2:=
         forall b1 ofs,
-          (option_relation Mem.perm_order''
-                           (dmap_get dm1 b1 ofs)
-                           (Some (*Some Nonempty*) None )) ->
+          at_least_Some (dmap_get dm1 b1 ofs) ->
           exists b2 delta,
             f b1 = Some (b2, delta) /\
             (dmap_get dm1 b1 ofs) = (dmap_get dm2 b2 (ofs + delta)).
       Definition dmap_preimage f dm1 dm2:=
         forall b2 ofs_delt,
-          (option_relation Mem.perm_order''
-                           (dmap_get dm2 b2 ofs_delt)
-                           (Some (*Some Nonempty*) None)) ->
+          at_least_Some (dmap_get dm2 b2 ofs_delt) ->
           exists (b1 : block) (ofs delt : Z),
             f b1 = Some (b2, delt) /\
             ofs_delt = ofs + delt /\
@@ -4033,10 +4167,8 @@ Lemma build_function_for_a_block_correct_backwards:
              ppre_perfect_image__dmap -> prem_surj
        *) 
       Record perm_perfect_image_dmap (mu : meminj) (a1 a2 : delta_map) : Prop
-        := { pimage_dmap: perfect_image_dmap mu a1 a2;
-             p_image_dmap : perm_image_full_dmap mu a1 a2;
+        := { p_image_dmap : perm_image_full_dmap mu a1 a2;
              ppre_perfect_image_dmap : dmap_preimage mu a1 a2 }.
-      Arguments pimage_dmap {_ _ _}.
       Arguments p_image_dmap {_ _ _}.
       Arguments ppre_perfect_image_dmap {_ _ _}.
       Lemma perm_order_from_dmap:
@@ -4048,8 +4180,7 @@ Lemma build_function_for_a_block_correct_backwards:
       Lemma perm_order_from_dmap':
         forall dmap b (ofs : Z) p,
           dmap_get  dmap b ofs  = Some p ->
-          option_relation Mem.perm_order''  (dmap_get  dmap b ofs)
-                          (Some None).
+          at_least_Some (dmap_get  dmap b ofs).
       Proof. intros * H; rewrite H;  destruct p; repeat constructor. Qed.
       Local Ltac exploit_p_image_dmap H:=
         let b:=fresh "b" in
@@ -4232,7 +4363,49 @@ Lemma build_function_for_a_block_correct_backwards:
         - (*B2 -> Some *)
           Note B2_Some.
           auto_exploit_pimage.
-          dup Hinj as Hinj'. 
+          dup Hinj as Hinj'.
+          assert (Hmax: Mem.perm_order' ((getMaxPerm m) !! b ofs) Nonempty).
+          { eapply perm_order_trans211.
+            specialize (HltB b ofs).
+            eapply HltB. rewrite H0; constructor.
+          }
+
+          (* new try*)
+          destruct (dmap_get A2 b2 (ofs + delt)) eqn:HA2.
+          + exploit (ppre_perfect_image_dmap HppiA); eauto.
+            { rewrite HA2; constructor. }
+            intros; normal. rewrite HA2 in H2.
+
+            assert (x = b).
+            { destruct (Clight_lemmas.block_eq_dec x b); auto.
+              exploit Hno_overlap; eauto.
+              unfold Mem.perm. rewrite_getPerm; eauto. 
+              intros [HH | HH]; contradict HH; auto.
+            }
+
+            subst; unify_injection.
+            assert (x0 = ofs) by omega; subst.
+            
+            specialize (Hjoin b ofs).
+            rewrite <- H2, H0 in Hjoin.
+            inv Hjoin. constructor.
+            exploit HppiC; eauto.
+            intros <-; auto.
+
+          + specialize (Hjoin b ofs).
+            destruct (dmap_get A1 b ofs) eqn:HA1.
+            * exploit (p_image_dmap HppiA); eauto.
+              { rewrite HA1. constructor. }
+              intros; normal. unify_injection.
+              rewrite HA1, HA2 in H1; congruence.
+            * rewrite H0 in Hjoin. 
+              inv Hjoin. constructor.
+              exploit HppiC; eauto.
+              intros <-; auto.
+            
+             
+          (* end of new try*)
+          (*
           eapply pimage_dmap in Hinj'; [rewrite <- Hinj'; clear Hinj'|]; eauto.
 
           assert (Mem.perm_order'' ((getMaxPerm m) !! b ofs) (Some Nonempty)).
@@ -4252,7 +4425,7 @@ Lemma build_function_for_a_block_correct_backwards:
           * eapply HppiC in H; eauto.
             rewrite_double.
             specialize (Hjoin b ofs).
-            rewrite H0, H in Hjoin; auto.
+            rewrite H0, H in Hjoin; auto. *)
         - match goal with
           | [ |- option_join ?A _ _ ] => destruct A as [o|] eqn:HA2 
           end.
@@ -4274,7 +4447,6 @@ Lemma build_function_for_a_block_correct_backwards:
               rewrite_getPerm; eauto.
             * intros <-; auto.
           + do 2 constructor.
-            
       Qed.       
       
 
@@ -4316,30 +4488,391 @@ Lemma build_function_for_a_block_correct_backwards:
           dmap_get m b ofs = Some p -> injects mu b.
       Definition injects_dmap_pair mu:= pair1_prop (injects_dmap mu).
       Hint Unfold injects_dmap_pair: pair.
+
+
       
-      Lemma inject_virtue_perm_perfect_image_dmap:
-        forall mu angel m2,
-          injects_dmap_pair mu (virtueThread angel) ->
-          perm_perfect_image_dmap_pair mu (virtueThread angel)
-                                       (virtueThread (inject_virtue m2 mu angel)).
-      Proof. unfold injects_dmap_pair.
-        intros mu ? ? [? ?].
-        econstructor; simpl in *.
-        - econstructor; simpl.
-          + intros ? **.
+      Lemma sub_map_implictaion:
+        forall {A B} x y, @bounded_maps.sub_map A B x y ->
+                     forall b, option_implication (x ! b) (y ! b).
+      Proof.
+        intros *.
+        unfold bounded_maps.sub_map; intros HH b.
+        eapply strong_tree_leq_spec in HH.
+        - instantiate(1:=b) in HH.
+          unfold option_implication.
+          repeat match_case; auto.
+        - constructor.
+      Qed.
+      Lemma option_implication_trans:
+        forall {A B C} a b c,
+          @option_implication A B a b ->
+          @option_implication B C b c ->
+          @option_implication A C a c.
+      Proof.
+        unfold option_implication.
+        intros *; repeat match_case.
+      Qed.
 
-            (* HERE Monday*)
-            (*
-              fun (m : mem) (mu : meminj) (map : access_map) =>
-              (fst map, tree_map_inject_over_mem m mu (snd map))
-              
+      Lemma no_overla_dmap_mem:
+        forall mu m dmap,
+          (forall (b : positive) (ofs : Z),
+              option_implication
+                (dmap_get dmap b ofs)
+                ((getMaxPerm m) !! b ofs)) ->
+          Mem.meminj_no_overlap mu m ->
+          dmap_no_overlap mu dmap.
+      Proof.
+        intros ** ? **.
+        eapply H0; eauto.
+        + specialize (H b1 ofs1).
+          unfold Mem.perm; rewrite_getPerm.
+          unfold option_implication in *.
+          repeat match_case in H.
+          constructor.
+          inversion H4.
+        + specialize (H b2 ofs2).
+          unfold Mem.perm; rewrite_getPerm.
+          unfold option_implication in *.
+          repeat match_case in H.
+          constructor.
+          inversion H5. 
+      Qed.
+      Lemma no_overla_perm_mem:
+        forall {A} mu m perm,
+          (forall (b : positive) (ofs : Z),
+              option_implication
+                (perm !! b ofs)
+                ((getMaxPerm m) !! b ofs)) ->
+          Mem.meminj_no_overlap mu m ->
+          @perm_meminj_no_overlap A mu perm.
+      Proof.
+        intros ** ? **.
+        eapply H0; eauto.
+        + specialize (H b1 ofs1).
+          unfold Mem.perm; rewrite_getPerm.
+          unfold option_implication in *.
+          repeat match_case in H.
+          constructor.
+          inversion H4.
+        + specialize (H b2 ofs2).
+          unfold Mem.perm; rewrite_getPerm.
+          unfold option_implication in *.
+          repeat match_case in H.
+          constructor.
+          inversion H5. 
+      Qed.
+      Lemma canon_mem_access:
+        forall m1 ofs k, fst (Mem.mem_access m1) ofs k = None.
+      Proof.
+        intros.
+        destruct k.
+        - pose proof (Max_isCanonical m1).
+          unfold getMaxPerm in *.
+          unfold isCanonical in *; simpl in *.
+          match type of H with
+            ?a = ?b => remember a as A eqn:HH;
+                        assert (A ofs = b ofs) by (rewrite H;auto);
+                        subst A; auto
+          end.
+          
+        - pose proof (Cur_isCanonical m1).
+          unfold getMaxPerm in *.
+          unfold isCanonical in *; simpl in *.
+          match type of H with
+            ?a = ?b => remember a as A eqn:HH;
+                        assert (A ofs = b ofs) by (rewrite H;auto);
+                        subst A; auto
+          end.
+      Qed.
+      
+      Ltac unfold_first:=
+        match goal with
+          |- ?X _ => unfold X
+        end.
+      Tactic Notation "unfold":= unfold_first.
+      Definition isCanonical' {A} (pmap: PMap.t (Z-> option A)):=
+        fst pmap = (fun _ : Z => None).
+      Lemma option_implication_injection:
+        forall {A} mu m1 m2 b1 b2 ofs (perm:PMap.t (Z -> option A) ) o delta
+          (Hcanon: isCanonical' perm)
+          (Hdmap: perm !! b1 ofs = Some o)
+          (Himpl: option_implication
+                    (perm !! b1 ofs)
+                    ((getMaxPerm m1) !! b1 ofs))
+          (Hmi_inj:Mem.mem_inj mu m1 m2),
+          mu b1 = Some (b2, delta) ->
+          option_implication
+            (snd perm) ! b1 (snd (getMaxPerm m2)) ! b2.
+      Proof.
+        intros.
+        unfold PMap.get in *; simpl in *.
+        repeat match_case in Hdmap.
+        2: { rewrite Hcanon in Hdmap. congruence. } 
+        eapply option_implication_trans.
+        - instantiate(1:= (snd (getMaxPerm m1)) ! b1).
+          unfold option_implication,PMap.get,getMaxPerm in *.
+          simpl. 
+          rewrite Hdmap in Himpl.
+          repeat match_case; auto.
+          repeat match_case in Himpl; auto.
+          rewrite canon_mem_access in Heqo2.
+          congruence.
+        - pose proof (Mem.mi_perm
+                        _ _ _ Hmi_inj b1 b2 delta
+                        ofs Max Nonempty H); eauto.
+          unfold Mem.perm in *.
+          repeat rewrite_getPerm.
+          rewrite Hdmap in *.
+          unfold PMap.get in *.
+          repeat match_case in Himpl.
+          2:{ rewrite canon_mem_access in *; inv Himpl. }
+          rewrite PTree.gmap1.
+          repeat match_case in H0; simpl; auto.
+          + unfold getMaxPerm in Heqo3; simpl in *.
+            rewrite PTree.gmap1 in  Heqo3.
+            rewrite  Heqo3; auto.
+          + rewrite PTree.gmap1 in  Heqo1.
+            unfold getMaxPerm in *; simpl in *.
+            rewrite PTree.gmap1 in *.
+            destruct ((snd (Mem.mem_access m1)) ! b1) eqn:HH;
+            simpl in *; inv Heqo1; inv Heqo2.
+            unfold option_implication in *.
+            rewrite canon_mem_access in H0.
+            match_case in Himpl.
+            exploit H0; try (intros HHH; inv HHH).
+            constructor.
+          
+      Qed.
+      Lemma option_implication_injection_dmap:
+        forall mu m1 m2 b1 b2 ofs dmap o delta
+          (Hdmap: dmap_get dmap b1 ofs = Some o)
+          (Himpl: option_implication
+                    (dmap_get dmap b1 ofs)
+                    ((getMaxPerm m1) !! b1 ofs))
+          (Hmi_inj:Mem.mem_inj mu m1 m2),
+          mu b1 = Some (b2, delta) ->
+          option_implication
+            dmap ! b1 (snd (getMaxPerm m2)) ! b2.
+      Proof.
+        intros.
+        exploit (@option_implication_injection (option permission)); eauto.
+        reflexivity.
+      Qed.
+      Lemma inject_perm_image_full_dmap':
+        forall mu m1 m2 dmap
+          (Hinj_dmap: injects_dmap mu dmap)
+          (Himpl:
+             forall b1 b2 delta ofs o,
+               mu b1 = Some (b2, delta) ->
+               dmap_get dmap b1 ofs = Some o ->
+          option_implication dmap ! b1 (snd (getMaxPerm m2)) ! b2)
+          (Hmi_inj:Mem.mem_inj mu m1 m2)
+          (Hnon_over: dmap_no_overlap mu dmap),
+          perm_image_full_dmap
+            mu dmap (tree_map_inject_over_mem m2 mu dmap).
+      Proof.
+        intros ** b1 ** .
+        destruct (dmap_get dmap b1 ofs) eqn:Hdmap; try solve[inv H].
+        specialize (Hinj_dmap _ _ _ Hdmap).
+        inv Hinj_dmap. normal; eauto.
+        erewrite tree_map_inject_over_mem_correct_forward; eauto.
+      Qed.
+      Lemma inject_perm_image_full':
+        forall mu m1 m2 perm
+          (Hcanon: isCanonical perm)
+          (Hinj_dmap: injects_map mu perm)
+          (Himpl:
+             forall b1 b2 delta ofs o,
+               mu b1 = Some (b2, delta) ->
+               perm !! b1 ofs = Some o ->
+          option_implication (snd perm) ! b1 (snd (getMaxPerm m2)) ! b2)
+          (Hmi_inj:Mem.mem_inj mu m1 m2)
+          (Hnon_over: perm_no_overlap mu perm),
+          perm_image_full
+            mu perm (access_map_injected m2 mu perm).
+      Proof.
+        unfold access_map_injected; intros ** b1 **. 
+        destruct (perm !! b1 ofs) eqn:Hdmap; try solve[inv H].
+        specialize (Hinj_dmap _ _ _ Hdmap).
+        inv Hinj_dmap. normal; eauto.
+        
+        exploit Himpl; eauto; intros HH.
+        unfold option_implication in *.
+        unfold PMap.get in *; simpl.
+        repeat match_case in Hdmap.
+        2:{ rewrite Hcanon in Hdmap; congruence. }
+        exploit tree_map_inject_over_mem_correct_forward_perm; eauto.
+        - unfold PMap.get; rewrite Heqo; auto.
+        - match_case in HH. unfold option_implication; match_case.
+      Qed.
+      Lemma inject_perm_image_full_dmap:
+        forall mu m1 m2 dmap
+          (Hinj_dmap: injects_dmap mu dmap)
+          (Himpl: forall b ofs,
+              option_implication
+                (dmap_get dmap b ofs)
+                ((getMaxPerm m1) !! b ofs))
+          (Hmi_inj:Mem.inject mu m1 m2),
+          perm_image_full_dmap
+            mu dmap (tree_map_inject_over_mem m2 mu dmap).
+      Proof.
+        intros.
+        eapply inject_perm_image_full_dmap'; intros; eauto.
+        - eapply option_implication_injection_dmap; eauto.
+          eapply Hmi_inj.
+        - eapply Hmi_inj.
+        - eapply no_overla_dmap_mem; auto.
+          eapply Hmi_inj.
+      Qed.
+      Lemma option_implication_fst:
+        forall {A B} (perm1 perm2:PMap.t (A -> option B)),
+          (forall b ofs,
+              option_implication (perm1 !! b ofs) (perm2 !! b ofs)) ->
+          forall ofs, option_implication ((fst perm1) ofs) ((fst perm2) ofs).
+      Proof.
+        Lemma finite_ptree:
+          forall {A} (t:PTree.t A), exists b, forall b', (b < b')%positive -> (t ! b') = None.
+        Proof.
+          intros ? t; induction t.
+          - exists xH; intros; simpl. eapply PTree.gleaf.
+          - normal_hyp.
+            exists (Pos.max (x0~0) (x~1)); intros.
+            destruct b'; simpl;
+              first [eapply H0| eapply H| idtac].
+            + cut (x~1 <  b'~1)%positive.
+              * unfold Pos.lt, Pos.compare in *; auto.
+              * eapply Pos.max_lub_lt_iff in H1 as [? ?].
+                auto.
+            + cut (x0~0 <  b'~0)%positive.
+              * unfold Pos.lt, Pos.compare in *; auto.
+              * eapply Pos.max_lub_lt_iff in H1 as [? ?]; auto.
+            + exfalso. eapply Pos.nlt_1_r; eassumption.
+        Qed.
+        intros *.
+        pose proof (finite_ptree (snd perm1)).
+        pose proof (finite_ptree (snd perm2)).
+        normal_hyp.
+        remember (Pos.max (x0 + 1) (x+1)) as bound.
+        intros.
+        specialize (H1 bound ofs). unfold PMap.get in *.
+        rewrite H, H0 in H1; auto; xomega.
+      Qed.
+      Lemma option_impl_isCanon:
+        forall perm m1,
+          (forall (b : positive) (ofs : Z),
+              option_implication (perm !! b ofs) ((getMaxPerm m1) !! b ofs)) ->
+          isCanonical perm.
+      Proof.
+        intros * Himpl; unfold.
+        extensionality ofs.
+        eapply option_implication_fst in Himpl.
+        instantiate(1:= ofs) in Himpl.
+        rewrite Max_isCanonical in Himpl.
+        unfold option_implication in Himpl. match_case in Himpl.
+      Qed.
+      Lemma inject_perm_image_full:
+        forall mu m1 m2 perm
+          (Hinj_dmap: injects_map mu perm)
+          (Himpl: forall b ofs,
+              option_implication
+                (perm !! b ofs)
+                ((getMaxPerm m1) !! b ofs))
+          (Hmi_inj:Mem.inject mu m1 m2),
+          perm_image_full
+            mu perm (access_map_injected m2 mu perm).
+      Proof.
+        intros.
+        eapply inject_perm_image_full'; intros; eauto.
+        - eapply option_impl_isCanon; eauto.
+        - eapply option_implication_injection; eauto.
+          + unfold isCanonical'. extensionality ofs0.
+          eapply option_implication_fst in Himpl.
+          instantiate(1:=ofs0) in Himpl.
+          rewrite Max_isCanonical in Himpl.
+          unfold option_implication in *.
+          match_case in Himpl.
+          + eapply Hmi_inj.
+        - eapply Hmi_inj.
+        - eapply no_overla_perm_mem; auto.
+          eapply Hmi_inj.
+      Qed.
+      Lemma inject_dmap_preimage:
+        forall mu m2 dmap,
+          dmap_preimage
+            mu dmap (tree_map_inject_over_mem m2 mu dmap).
+      Proof.
+        unfold dmap_preimage; intros.
+        unfold at_least_Some, option_implication in *.
+        match_case in H.
+        apply dmap_inject_correct_backwards in Heqo.
+        normal; eauto.
+      Qed.
+      Lemma inject_preimage:
+        forall mu m2 perm,
+          perm_preimage
+            mu perm (access_map_injected m2 mu perm).
+      Proof.
+        unfold perm_preimage; intros.
+        unfold at_least_Some, option_implication in *.
+        match_case in H.
+        eapply access_map_injected_correct_backwards in Heqo.
+        normal; eauto.
+      Qed.
+      Definition option_implication_dmap_access (dmap:delta_map)(map: access_map) :=
+        forall b ofs, option_implication (dmap_get dmap b ofs) (map !! b ofs).
+      Definition option_implication_dmap_access_pair :=
+         pair21_prop option_implication_dmap_access.
+      Hint Unfold option_implication_dmap_access_pair: pair.
+      Definition option_implication_access (a1 a2: access_map) :=
+        forall b ofs, option_implication (a1 !! b ofs) (a2 !! b ofs).
+      Definition option_implication_access_pair :=
+         pair21_prop option_implication_access.
+      Hint Unfold option_implication_access_pair: pair.
+      
+      Lemma inject_perm_perfect_image_dmap:
+        forall mu m1 m2 dmap
+          (Hmi_inj:Mem.inject mu m1 m2)
+          (Himpl: option_implication_dmap_access
+                    dmap (getMaxPerm m1))
+          (Hinj_dmap: injects_dmap mu dmap),
+          perm_perfect_image_dmap
+            mu dmap (tree_map_inject_over_mem m2 mu dmap).
+      Proof.
+        intros; constructor.
+        - eapply inject_perm_image_full_dmap; auto.
+        - eapply inject_dmap_preimage.
+      Qed.
 
-                virtueThread_inject (pait delta_map)
-            let (m1, m2) := virtue in
-            (tree_map_inject_over_mem m mu m1, tree_map_inject_over_mem m mu m2)
-             *)
-            
+      
+      Lemma inject_perm_perfect_image:
+        forall mu m1 m2 (m : access_map),
+          Mem.inject mu m1 m2 ->
+          injects_map mu m ->
+          perm_perfect_image mu m (access_map_injected m2 mu m).
+      Proof.
+        intros; constructor.
+        - eapply inject_perm_image_full; auto.
       Admitted.
+        
+
+      Lemma inject_virtue_perm_perfect_image_dmap:
+        forall mu m1 m2 angel ,
+          Mem.inject mu m1 m2 ->
+          (option_implication_dmap_access_pair
+             (virtueThread angel) (getMaxPerm m1)) ->
+          injects_dmap_pair mu (virtueThread angel) ->
+          perm_perfect_image_dmap_pair mu
+                                       (virtueThread angel)
+                                       (virtueThread (inject_virtue m2 mu angel)).
+      Proof.
+        intros *. 
+        replace (virtueThread (inject_virtue m2 mu angel)) with
+            (virtueThread_inject m2 mu (virtueThread angel)) by reflexivity.
+        remember (virtueThread angel) as virt. clear - hb virt; revert virt.
+        solve_pair.
+        eapply inject_perm_perfect_image_dmap.
+      Qed.
+
       
       Definition dmap_valid (m:mem) (dm:delta_map) :=
         forall b ofs p,
@@ -4375,7 +4908,7 @@ Lemma build_function_for_a_block_correct_backwards:
       
       Lemma join_dmap_valid:
         forall m (a:delta_map),
-          bounded_maps.sub_map ( a) (snd (getMaxPerm m)) ->
+          bounded_maps.sub_map a (snd (getMaxPerm m)) ->
           dmap_valid m a.
       Proof.
         intros ** ? **.
@@ -4411,16 +4944,19 @@ Lemma build_function_for_a_block_correct_backwards:
       Hint Unfold injects_map_pair: pair.
       Hint Unfold perm_perfect_image_pair: pair.
       Lemma inject_virtue_perm_perfect_image:
-        forall mu m2 angel,
+        forall mu m1 m2 angel,
+          Mem.inject mu m1 m2 ->
           injects_map_pair mu (virtueLP angel) ->
           perm_perfect_image_pair mu (virtueLP angel)
                                   (virtueLP (inject_virtue m2 mu angel)).
       Proof.
-        intros mu m2 angel.
+        intros mu m1 m2 angel.
         unfold inject_virtue; simpl.
         remember (virtueLP angel) as VLP; generalize VLP.
         solve_pair.
-        pose proof inject_virtue_perm_perfect_image_dmap.
+
+        pose proof inject_virtue_perm_perfect_image_dmap; eauto.
+
       Admitted.
 
       
@@ -4449,13 +4985,15 @@ Lemma build_function_for_a_block_correct_backwards:
         eapply delta_map_join_inject_pair; eauto.
       Qed.
       Lemma inject_virtue_perm_perfect:
-        forall f angel1 m,
+        forall f angel1 m1 m2,
+          Mem.inject f m1 m2 ->
           injects_angel f angel1 ->
-          perm_perfect_virtue f angel1 (inject_virtue m f angel1).
+          option_implication_dmap_access_pair (virtueThread angel1) (getMaxPerm m1) ->
+          perm_perfect_virtue f angel1 (inject_virtue m2 f angel1).
       Proof.
-        intros ? ? ? [? ?]; econstructor.
-        eapply inject_virtue_perm_perfect_image; auto.
-        eapply inject_virtue_perm_perfect_image_dmap; auto.
+        intros ? ? ? ? Hinj [? ?]; econstructor.
+        - eapply inject_virtue_perm_perfect_image; eauto.
+        - eapply inject_virtue_perm_perfect_image_dmap; eauto.
       Qed.
 
 
@@ -4668,8 +5206,9 @@ Lemma build_function_for_a_block_correct_backwards:
         instantiate(1:=b) in H.
         rewrite_getPerm.
         unfold PMap.get.
-        unfold dmap_get in H0.
-        destruct (a ! b) ; try solve[inv H0].
+        unfold dmap_get, PMap.get in H0.
+        simpl in H0.
+        match_case in H0.
         destruct ((snd (getMaxPerm m)) ! b) eqn:HMax;
           try solve[inv H].
         simpl in H.
@@ -4987,8 +5526,7 @@ Lemma build_function_for_a_block_correct_backwards:
         unfold perm_preimage; intros.
         destruct (dmap_get dmap2 b2 ofs_delt) eqn:HH.
         - exploit (ppre_perfect_image_dmap H0).
-          { rewrite HH; constructor.
-            apply event_semantics.po_None. }
+          { rewrite HH; constructor. }
           intros (?&?&?&?&?&?).
           repeat (econstructor; eauto).
           rewrite HH in H4; symmetry in H4.
@@ -5003,8 +5541,14 @@ Lemma build_function_for_a_block_correct_backwards:
           symmetry.
           destruct (dmap_get dmap1 b1 ofs) eqn: HH1.
           + revert HH; subst ofs_delt.
-            exploit (pimage_dmap H0); eauto.
-            intros <- ?. congruence.
+            intros.
+            destruct (dmap_get dmap1 b1 ofs) eqn:Heq1.
+            { exploit (p_image_dmap H0).
+              rewrite Heq1; repeat constructor.
+              intros; normal. unify_injection. inv HH1.
+              rewrite Heq1 in H4. rewrite <- H4 in HH; congruence. }
+            congruence.
+            
           + eapply dmap_get_copmute_None; eassumption.
       Qed.
 
@@ -5876,8 +6420,10 @@ Lemma build_function_for_a_block_correct_backwards:
            *)
           set (newThreadPerm2 := computeMap_pair (getThreadR cnt2) (virtueThread angel2)).
           
-          assert (Hjoin_angel2: permMapJoin_pair newThreadPerm2 (virtueLP angel2) (getThreadR cnt2)).
-          { clear - Hlt_th1 Hlt_th2 Hlt_lk1 Hlt_lk2
+          assert (Hjoin_angel2: permMapJoin_pair newThreadPerm2
+                                                 (virtueLP angel2)
+                                                 (getThreadR cnt2)).
+          { clear - Hinj_th Hlt_th1 Hlt_th2 Hlt_lk1 Hlt_lk2
                             CMatch Hangel_bound Heqangel2
                             Hmax_equiv Hinj2 thread_compat1 Hjoin_angel.
             exploit full_injects_angel; eauto; try apply CMatch; intros Hinject_angel.
@@ -5890,7 +6436,13 @@ Lemma build_function_for_a_block_correct_backwards:
                     eapply compute_map_join_bkw_pair; eassumption
                   end; eauto.
             - !goal (perm_perfect_virtue mu angel angel2).
-              subst angel2; apply inject_virtue_perm_perfect; assumption.
+              subst angel2.
+              replace (inject_virtue m2 mu angel) with
+                  (inject_virtue th_mem2 mu angel).
+              eapply inject_virtue_perm_perfect; eauto.
+               admit. (*by join*)
+              admit. (* same max structure.*)  
+                
             - !goal(Mem.meminj_no_overlap _ m1).
               rewrite Hmax_equiv; apply Hinj2.
             - !goal (dmap_vis_filtered_pair (virtueThread angel) m1).
@@ -5986,7 +6538,7 @@ Lemma build_function_for_a_block_correct_backwards:
 
           + subst; unfold fullThUpd_comp, fullThreadUpdate; auto.
 
-      Qed.  (* release_step_diagram_self *)
+      Admitted.  (* release_step_diagram_self *)
 
       Lemma make_step_diagram_self Sem: (*5336*) 
         let CoreSem:= sem_coresem Sem in
@@ -7583,7 +8135,8 @@ Lemma build_function_for_a_block_correct_backwards:
                         mu virtueThread1 (virtueThread_inject m2' mu virtueThread1)).
                  { intros HH; apply HH. }
                  subst virtueThread1.
-                 eapply inject_virtue_perm_perfect_image_dmap.
+                 eapply inject_virtue_perm_perfect_image_dmap; eauto.
+                 admit. (*from join 1*)
                  eapply full_inject_dmap_pair.
                  ** !goal (Events.injection_full mu _ ).
                     eapply CMatch.
@@ -7991,7 +8544,14 @@ Lemma build_function_for_a_block_correct_backwards:
                       mu virtueThread1 (virtueThread_inject m2' mu virtueThread1)).
                { intros HH; apply HH. }
                subst virtueThread1.
-               eapply inject_virtue_perm_perfect_image_dmap.
+               eapply inject_virtue_perm_perfect_image_dmap; eauto.
+               admit. (* from join but using a stronger one:
+                         lockres + th_res = (th_res | virtue)
+                         if virtue = Some, then one of the things that joins 
+                         (lockres or th_res) is Some... and that is smaller 
+                         than max.
+                         
+                       *)
                eapply full_inject_dmap_pair.
                ** !goal (Events.injection_full mu _ ).
                   eapply CMatch.
@@ -10416,4 +10976,3 @@ Lemma build_function_for_a_block_correct_backwards:
     
   End ThreadedSimulation.
 End ThreadedSimulation.
-)

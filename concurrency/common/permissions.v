@@ -45,27 +45,48 @@ Definition access_map := Maps.PMap.t (Z -> option permission).
 Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
 
 
-      Definition dmap_get (dm:delta_map) b ofs:=
-        match dm ! b with
-          Some f =>
-          match f ofs with
-            Some p => Some p
-          | None => None 
-          end
-        |None => None
-        end.
-      Lemma dmap_get_Some:
-        forall dm b ofs p,
-          dmap_get dm b ofs = Some p ->
-          exists f, dm ! b = Some f /\
-               f ofs = Some p.
-      Proof.
-        intros * H.
-        unfold dmap_get in *.
-        destruct (dm ! b) eqn:HH1; try solve[inversion H].
-        destruct (o ofs) eqn: HH2; inv H.
-        do 2 econstructor; eauto.
-      Qed.
+Definition dmap_get' (dm:delta_map) b ofs:=
+  match dm ! b with
+    Some f =>
+    match f ofs with
+      Some p => Some p
+    | None => None 
+    end
+  |None => None
+  end.
+
+Definition dmap_get (dm:delta_map) b ofs:=
+  (fun _ => None, dm) !! b ofs.
+Hint Transparent dmap_get.
+(* go back in time 
+   It is to go back to the previous definition.
+   only to help transitioning. Hopefully one day we get rid of this.
+ *)
+Lemma dmap_get_bit':
+  forall dm b ofs, dmap_get dm b ofs  = dmap_get' dm b ofs.
+Proof.
+  unfold dmap_get, dmap_get', PMap.get.
+  intros; simpl.
+  destruct (dm ! b); auto.
+  destruct (o ofs); auto.
+Qed.
+Lemma dmap_get_bit:
+  forall dm b, dmap_get dm b = dmap_get' dm b.
+Proof. intros. extensionality ofs; eapply dmap_get_bit'. Qed.
+
+Lemma dmap_get_Some:
+  forall dm b ofs p,
+    dmap_get dm b ofs = Some p ->
+    exists f, dm ! b = Some f /\
+         f ofs = Some p.
+Proof.
+  intros * H.
+  rewrite dmap_get_bit in H.
+  unfold dmap_get' in *.
+  destruct (dm ! b) eqn:HH1; try solve[inversion H].
+  destruct (o ofs) eqn: HH2; inv H.
+  do 2 econstructor; eauto.
+Qed.
 
 Section permMapDefs.
 
@@ -1457,7 +1478,8 @@ Proof.*)
           dmap_get A b ofs = Some p ->
           (computeMap C A) !! b ofs = p.
       Proof.
-        intros; unfold dmap_get in H.
+        intros; rewrite dmap_get_bit in H.
+        unfold dmap_get' in H.
         destruct (A ! b) eqn:Ab; try solve[inversion H].
         destruct (o ofs) eqn:oofs; try solve[inversion H].
         erewrite computeMap_1; eauto.
@@ -1468,8 +1490,8 @@ Proof.*)
           dmap_get A b ofs = None ->
           (computeMap C A) !! b ofs = C !! b ofs.
       Proof.
-        intros.
-        unfold dmap_get in H.
+        intros; rewrite dmap_get_bit in H.
+        unfold dmap_get' in H.
         destruct (A ! b) eqn:Ab.
         destruct (o ofs) eqn:oofs; try solve[inversion H].
         - erewrite computeMap_2; eauto.

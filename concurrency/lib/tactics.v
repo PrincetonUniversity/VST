@@ -46,14 +46,20 @@ Ltac normal_goal:=
 Ltac normal:= normal_hyp; normal_goal.
 
 (*Do case analysis to simplify a match _ with*)
+Ltac common_tacs_after_destruct H:=
+  first [ congruence
+        | solve[inversion H]
+        | auto].
+      
 Ltac match_case_goal:=
   match goal with
-    |- context[match ?x with _ => _ end] => destruct x eqn:?
+    |- context[match ?x with _ => _ end] =>
+    destruct x eqn:?; try congruence
   end.
 Ltac match_case_hyp H:=
   match type of H with
     context[match ?x with _ => _ end] => destruct x eqn:?
-  end.
+  end; common_tacs_after_destruct H.
 Tactic Notation "match_case":= match_case_goal.
 Tactic Notation "match_case" "in" hyp(H):= (match_case_hyp H).
 
