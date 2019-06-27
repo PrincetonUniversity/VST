@@ -44,79 +44,6 @@ Require Import VST.concurrency.common.ClightMachine.
 Require Import VST.concurrency.common.x86_context.
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
 
-
-(** *Unify Proofs:
-     - Takes any two proofs of the same thing and unifies them    
-     - Notice: only works with "unstructured proofs. "
- *)
-Ltac unify_proofs:=
-  match goal with
-  | [A: ?T, B: ?T |- _] =>
-    match type of T with
-    | Prop => assert (A = B) by apply Axioms.proof_irr;
-          first[subst A| subst B]
-    end
-  end.
-
-(** *Abstract Proofs:
-    This tactic turns every proof into a variable 
-    and forgets its structure. Since we have assume 
-    Proof Irrelevance, this doesn't lose information. 
-    Notice: SLOW! *)
-Ltac is_proof P:=
-  match type of P with
-    ?T => match type of T with Prop => idtac end
-  end.
-Ltac is_applied P:=
-  match P with ?a ?b => idtac end.
-
-Ltac abstract_proof P:=
-  let abs_proof:= fresh "abs_proof" in
-  let Heqabs_proof:= fresh "Heqabs_proof" in
-  remember P as abs_proof eqn:Heqabs_proof;
-  clear Heqabs_proof.
-
-Ltac abstract_proofs_goal:=
-  match goal with
-    |- context[ ?P ]=>
-    is_proof P; is_applied P; abstract_proof P
-  end.
-Ltac abstract_proofs_hyp:=
-  match goal with
-    [H: context[ ?P ] |- _ ] =>
-    is_proof P; is_applied P; abstract_proof P
-  end.
-Ltac abstract_proofs:=
-  repeat abstract_proofs_goal;
-  repeat abstract_proofs_hyp.
-(** *Clean Proofs:
-    - Abstracts every proof into a variable
-    - unifies all such proofs of the same thing.
- *)
-Ltac clean_proofs:= abstract_proofs; repeat unify_proofs.
-Ltac clean_proofs_goal:= repeat abstract_proofs_goal; repeat unify_proofs.
-
-(** *
-    How to rewrite equalities when there are many dependencies.
- *)
-
-Ltac dependent_rewrite Heq:=
-  match type of Heq with
-    ?LHS = ?RHS =>
-    let AA:=fresh "AA" in
-    let AAeq:=fresh "AAeq" in
-    let BB:=fresh "BB" in
-    let BBeq:=fresh "BBeq" in
-    remember LHS as AA eqn:AAeq; clear AAeq;
-    remember RHS as BB eqn:BBeq;
-    subst AA; subst BB; try clear BBeq
-  end.
-Ltac dependent_subst A B:=
-  let Heq:=fresh "Heq" in
-  assert (Heq:A = B);
-  [try solve [auto]|
-   dependent_rewrite Heq].
-
 Notation delta_perm_map:=(PTree.t (Z -> option (option permission))).
 Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
 
@@ -130,13 +57,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
 
   Section ThreadedSimulation.
-
-    
-
     Definition restrPermMap' a b H:= @restrPermMap a b H.
     Lemma RPM: restrPermMap = restrPermMap'. Proof. reflexivity. Qed.
-    (*USEFULL TO REVEAL IMPLICIT ARGUMETNS*)
-
     
     Section CompileOneThread.
       Import OrdinalPool.
@@ -646,10 +568,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
 
           (* PTree.t (Z -> option A) *)
           (* (PTree.t (Z -> option (option permission))) *)
-          Ltac LHS:= match goal with  |- ?lhs = ?rhs => lhs end.
-          Ltac RHS:= match goal with  |- ?lhs = ?rhs => rhs end.
-          Tactic Notation "destruct" "lhs":= (let lhs:=LHS in destruct lhs eqn:?).
-          Tactic Notation "destruct" "rhs":= (let rhs:=RHS in destruct rhs eqn:?).
           Inductive option_relation {A}  (r: relation A): relation (option A):=
           | SomeOrder:forall a b, r a b -> option_relation r (Some a) (Some b)
           | NoneOrder: forall p, option_relation r p None.
@@ -853,6 +771,14 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             eapply compat_lp0; eauto.
         - intros. eapply restrPermMap_valid; eauto.
       Qed.
+
+      Ltac unify_injection:=
+        match goal with
+          [H: ?mu ?x = _,H0: ?mu ?x = _ |- _] =>
+          match type of mu with
+          | meminj => rewrite H in H0; invert H0
+          end
+        end.
       
       Section ConcurMatch.
         Record concur_match (ocd: option compiler_index)
@@ -929,6 +855,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         Arguments INJ_locks {ocd j cstate1 m1 cstate2 m2}.
         Arguments memcompat1 {ocd j cstate1 m1 cstate2 m2}. 
         Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
+
+
         Lemma INJ_lock_permissions_Some:
           forall ocd j cstate1 m1 cstate2 m2,
             concur_match ocd j cstate1 m1 cstate2 m2 -> 
@@ -1086,28 +1014,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             all: 
             try (erewrite <- getMax_restr; eauto).
         Qed.
-            
-        Lemma contains12:
-          forall {data j cstate1 m1 cstate2 m2},
-            concur_match data j cstate1 m1 cstate2 m2 ->
-            forall {i:nat} (cnti1: containsThread cstate1 i),
-              containsThread cstate2 i.
-        Proof.
-          unfold containsThread.
-          intros ? ? ? ? ? ? H. destruct H.
-          rewrite same_length0; auto.
-        Qed.
-
-        Lemma contains21:
-          forall {data j cstate1 m1 cstate2 m2},
-            concur_match data j cstate1 m1 cstate2 m2 ->
-            forall {i:nat} (cnti1: containsThread cstate2 i),
-              containsThread cstate1 i.
-        Proof.
-          unfold containsThread.
-          intros ? ? ? ? ? ? H. destruct H.
-          rewrite same_length0; auto.
-        Qed.
+          
 
         Inductive state_indicator:=
         | Krun_indi
@@ -1155,6 +1062,30 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         Qed.
 
             
+   
+
+        Lemma contains12:
+          forall {data j cstate1 m1 cstate2 m2},
+            concur_match data j cstate1 m1 cstate2 m2 ->
+            forall {i:nat} (cnti1: containsThread cstate1 i),
+              containsThread cstate2 i.
+        Proof.
+          unfold containsThread.
+          intros ? ? ? ? ? ? H. destruct H.
+          rewrite same_length0; auto.
+        Qed.
+
+        Lemma contains21:
+          forall {data j cstate1 m1 cstate2 m2},
+            concur_match data j cstate1 m1 cstate2 m2 ->
+            forall {i:nat} (cnti1: containsThread cstate2 i),
+              containsThread cstate1 i.
+        Proof.
+          unfold containsThread.
+          intros ? ? ? ? ? ? H. destruct H.
+          rewrite same_length0; auto.
+        Qed.
+      
             
         Lemma concur_match_same_running:
           forall (m : option mem) (cd : option compiler_index) (mu : meminj)
@@ -1412,36 +1343,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           simpl in *;
           unshelve (repeat (super_rewrite)); try eassumption.
 
-        
-        Ltac unify_props:=
-          repeat match goal with
-                 | [ H1: ?P, H2: ?P |- _ ] =>
-                   match type of P with
-                   | Prop => 
-                     replace H2 with H1 in * by ( apply Axioms.proof_irr); clear H2
-                   end
-                 end.
-        
-        Ltac unify_injection:=
-          match goal with
-            [H: ?mu ?x = _,H0: ?mu ?x = _ |- _] =>
-            match type of mu with
-            | meminj => rewrite H in H0; invert H0
-            end
-          end.
-        (*Don't think we need this... 
-          TODO: If we do: 
-                   prove it!!
-                Else: 
-                   remove it
-         *)
-        
-        (* Inductive inject_addres f: (block * Z) -> (block * Z) -> Prop :=
-        | build_inject_addres:
-            forall b1 b2 ofs1 ofs2 delt,
-              f b1 = Some (b2, delt) ->
-              ofs2 = ofs1 + delt ->
-              inject_addres f (b1, ofs1) (b2,ofs2). *)
         Definition meminj_no_overlap_one (f: meminj) (m: mem) (adr1 adr2: block * Z) := 
         forall delta1 b1 delta2 ofs1,
             f (fst adr1) = Some (fst adr2, delta1) ->
@@ -1726,7 +1627,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           - !context_goal Mem.inject.
             intros i0 ??; destruct (Nat.eq_dec i i0); subst.
             + lock_update_rewrite.
-              intros; unify_props; assumption.
+              intros; repeat unify_proofs; assumption.
             + intros; simpl in *.
               eapply injection_update_restrict; 
                 eauto; simpl; eauto; try solve [econstructor; eauto].
@@ -1741,7 +1642,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                                               
           - intros i0 ??; destruct (Nat.eq_dec i i0); subst.
             + lock_update_rewrite; simpl.
-              intros. unify_props. assumption. 
+              intros. unify_proofs. assumption. 
             + intros; simpl in *.
               eapply injection_update_restrict; 
                 eauto; simpl; eauto; try solve [econstructor; eauto].
@@ -1828,24 +1729,23 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Arguments INJ_locks {ocd j cstate1 m1 cstate2 m2}.
       Arguments memcompat1 {ocd j cstate1 m1 cstate2 m2}. 
       Arguments memcompat2 {ocd j cstate1 m1 cstate2 m2}.
+      (* The following tactics are also in permissions.v  
+         but for some reason that one doesn't work...
+       *)
+      Ltac unfold_getCurPerm:=
+          repeat rewrite getCurPerm_correct in *;
+          unfold permission_at in *.
+      Ltac unfold_getMaxPerm:=
+          repeat rewrite getMaxPerm_correct in *;
+          unfold permission_at in *.
+      Ltac unfold_getPerm:=
+        try unfold_getMaxPerm; try unfold_getMaxPerm.
+      (** *Tactics
+         These tactics are here becasue they must be outside a section.
+         they also must be after concur_match definition.
+       *)
 
       (*Do I have to reppeat the LTAC from the section? *)
-      Ltac unify_props:=
-        repeat match goal with
-               | [ H1: ?P, H2: ?P |- _ ] =>
-                 match type of P with
-                 | Prop => 
-                   replace H2 with H1 in * by ( apply Axioms.proof_irr); clear H2
-                 end
-               end.
-      Ltac unify_injection:=
-        match goal with
-          [H: ?mu ?x = _,H0: ?mu ?x = _ |- _] =>
-          match type of mu with
-          | meminj => rewrite H in H0; invert H0
-          end
-        end.
-      
       Ltac forget_memcompat1:=
         match goal with
         | [ H: context[memcompat1 ?CM] |- _ ] =>
@@ -1857,8 +1757,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           let Hcmpt:= fresh "Hcmpt" in
           remember (memcompat1 CM) as Hcmpt eqn:HH; clear HH 
         end.
-
-      
       Ltac forget_memcompat2:=
         match goal with
         | [ H: context[memcompat2 ?CM] |- _ ] =>
@@ -1870,7 +1768,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           let Hcmpt:= fresh "Hcmpt" in
           remember (memcompat2 CM) as Hcmpt eqn:HH; clear HH 
         end.
-
       Ltac unify_mem_compatible:=
         repeat match goal with
                | [ H1: mem_compatible ?st ?m,
@@ -1882,6 +1779,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         try forget_memcompat1;
         try forget_memcompat2;
         unify_mem_compatible.
+        
       
       Ltac clean_cmpt':=
         match goal with
@@ -1899,11 +1797,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         end.
 
       
-
-      
-
-      
-
       Ltac forget_contains12:=
         match goal with
         | [ H: context[@contains12 _ _ _ _ _ _ ?CM ?i ?cnt1] |- _ ] =>
@@ -1927,7 +1820,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           let Hcnt:= fresh "Hcnt" in
           remember (@contains21 _ _ _ _ _ _ CM i cnt1) as Hcnt eqn:HH; clear HH 
         end.
-
+      
       Ltac unify_containsThread:=
         repeat match goal with
                | [ H: ThreadPool.containsThread _ _ |- _ ] => simpl in H
@@ -1937,13 +1830,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                        H2: containsThread ?st ?i |- _ ] =>
                  replace H2 with H1 in * by ( apply Axioms.proof_irr); clear H2
                end.
-      
-
       Ltac clean_cnt:=
         try forget_contains12;
         try forget_contains21;
         unify_containsThread.
-      
+
       Ltac clean_cnt':=
         match goal with
         | [ CMatch: concur_match _ _ ?st1 _ ?st2 _ |- _] =>
@@ -1976,8 +1867,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                        end) ]
           end
         end.
-      
-
       Inductive ord_opt {A} (ord: A -> A -> Prop): option A -> option A -> Prop:=
       | Some_ord:
           forall x y, ord x y -> ord_opt ord (Some x) (Some y).
@@ -2133,11 +2022,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             
             
             2 : { econstructor; simpl; eauto.
-                  - eapply CMatch. (* USE CONCUR*)
-                  - admit.
+                  - eapply CMatch. 
+                  - admit. (* USE CONCUR*)
                   - right. unfold Asm_g in *. unfold the_ge in *.
                     eauto. simpl in HH.
-                    clean_cnt. eapply HH. }
+                    clean_cnt'. eapply HH. }
 
             !goal (HybridMachineSig.schedPeek U = Some hb).
             admit.
@@ -3337,12 +3226,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           destruct (Clight_lemmas.block_eq_dec b' b2); try subst.  
           2: { rewrite (@setPermBlock_other_2); auto.
                eapply H3; auto . }
-          + Ltac destruct_match :=
-              match goal with
-              | |- context[match ?x with _ => _ end]  =>
-                destruct x eqn:?
-              end.
-            destruct_match; try solve[intros HH; inv HH].
+          + match_case; try solve[intros HH; inv HH].
             exploit H; eauto; try apply at_least_perm_order; eauto.
             eapply perm_order_trans211; eauto.
             rewrite Heqo; constructor.
@@ -4238,14 +4122,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           forall ofs,
             Mem.perm_order'' (max !! b1 ofs) (Some Nonempty) ->
             a1 !! b1 ofs = a2 !! b2 (ofs + delt).
-      
-      Ltac unfold_getMaxPerm:=
-        repeat rewrite getMaxPerm_correct in *;
-        unfold permission_at in *.
-      Ltac unfold_getCurPerm:=
-        repeat rewrite getCurPerm_correct in *;
-        unfold permission_at in *.
-
       Lemma injection_perfect_image:
         forall mu m1 m2,
           Mem.inject mu m1 m2 ->
@@ -4264,11 +4140,15 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
                    Mem.perm m1 b1 ofs Cur p).
         { intros ? HHH. eapply H2 in HHH. destruct HHH; auto.
           contradict H. unfold Mem.perm.
-          unfold_getMaxPerm. rewrite mem_lemmas.po_oo; auto. } clear H2.
+          repeat rewrite getMaxPerm_correct in *; unfold permission_at in *.
+          rewrite mem_lemmas.po_oo; auto.
+          
+        } clear H2.
         assert (Hl: forall p,
                    Mem.perm m1 b1 ofs Cur p ->
                    Mem.perm m2 b2 (ofs + delt) Cur p).
         { intros ?. eapply Mem.mi_perm; eauto; try apply Hinj. }
+        
         match goal with
           |- ?L = ?R =>
           destruct L as [pl|] eqn:LHS;
@@ -4585,11 +4465,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           end.
       Qed.
       
-      Ltac unfold_first:=
-        match goal with
-          |- ?X _ => unfold X
-        end.
-      Tactic Notation "unfold":= unfold_first.
       Definition isCanonical' {A} (pmap: PMap.t (Z-> option A)):=
         fst pmap = (fun _ : Z => None).
       Lemma option_implication_injection:
@@ -5999,7 +5874,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
            (@updThread dryResources sem i st cnt th_st (new_perms)) adr).
       
       (** *step_diagram_Self*)
-      
+
+      (* TODO: move these to the definition of concur? *)
         Ltac get_mem_compatible:=
         match goal with
           [CMatch : concur_match _ ?mu ?st1 ?m1 ?st2 ?m2,
@@ -7374,9 +7250,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         rewrite <- Hafter_x, asm_set_mem_get_mem.
         eassumption.
       Qed.
-
-
-      
       Ltac unify_at_ext:=
         repeat match goal with
               [H: semantics.at_external _ _ _ = Some _ |- _] =>
@@ -7515,9 +7388,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           - reflexivity.
         Qed.
 
-        
-        Ltac subst_set:=
-          repeat match goal with [a:= _ |- _ ] => subst a end.
         Ltac unfold_state_forward:=
           match goal with
         | H:?st' = fullThUpd_comp ?st _ _ _ _ (?b, ?ofs)
@@ -7745,15 +7615,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           | solve_permMapLt_pair
           | solve_valid_block ];
           idtac.
-        (*When repeating tactics, mark terms that haver been used. *)
-        Inductive MARK (T:Type) (a:T):=
-        | Marked: MARK T a.
-        Ltac mark H a:=
-          lazymatch goal with
-          | [H: MARK _ a |- _] => fail "that is already marked"
-          | _ => pose proof (Marked _ a)
-          end.
-
+        
         Ltac forward_state_cmpt_all :=
           let Hcmpt_fwd:= fresh "Hcmpt_update" in
           repeat unfold_state_forward;
@@ -7773,7 +7635,8 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
              (try forward_state_cmpt_all);
              clear M H
           end.
-        
+
+        (* TODO move this to the highest place possible (there the lmmas are defined?)*)
         Ltac solve_max_equiv:=
             (* solves the following cases:
                - reflexivity

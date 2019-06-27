@@ -2,6 +2,8 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Relations.Relation_Definitions.
 Require Import compcert.lib.Coqlib. (*modus ponens*)
 
+Require Import compcert.lib.Axioms. (* It imports proof irrelevance and functional ext.*)
+
 (*+ Santiago's Tactics*)
 (* This is a collection of tactics that I find convenient *)
 (* Thay come in no particular order *)
@@ -20,7 +22,32 @@ Ltac dup_as H name:=
   assert (name:=H).
 Tactic Notation "dup" hyp(H) "as" ident(name):= dup_as H name.
 
+(* left hand side and right hand side*)
+Ltac LHS:= match goal with  |- ?lhs = ?rhs => lhs end.
+Ltac RHS:= match goal with  |- ?lhs = ?rhs => rhs end.
 
+(* get print goal*)
+
+Ltac get_goal:=
+  match goal with [|- ?goal] =>  goal end.
+Ltac get_goal_type:=
+  match goal with [|- ?goal] =>
+                  match type of goal with
+                    ?T => T
+                  end
+  end.
+Ltac print_goal:= 
+  let goal:= get_goal in idtac goal.
+
+(* unfold the top definition *)
+Ltac unfold_func T:=
+  lazymatch T with
+    ?term_to_unfold _ =>
+    unfold term_to_unfold || unfold_func term_to_unfold
+  end.
+Ltac unfold_first:=
+  let T:=get_goal in first[ unfold T| unfold_func T].
+Tactic Notation "unfold":= unfold_first.
 
 (* neq is reflexive. *)
 Definition neq_rel (A:Type): relation A:=
@@ -132,10 +159,6 @@ Ltac solve_Equivalence:=
 
 (** Claim what the current goal looks like *)
 (* Usefull for marking cases in a dynamic way *)
-Ltac get_goal:=
-  match goal with [|- ?goal] =>  goal end.
-Ltac print_goal:= 
-  let goal:= get_goal in idtac goal.
 Ltac errors_for_current current:=
   let goal:= get_goal in 
   fail 1
@@ -149,6 +172,23 @@ Ltac goal_is g:=
   match goal with |- ?g_targ => equate g g_targ end.
 Ltac current_goal goal:= first[goal_is goal|change goal| errors_for_current goal].
 Tactic Notation "!goal " uconstr(goal) := current_goal goal.
+(*subst for [x:= _] expressions *)
+Ltac subst_set:=
+  repeat match goal with [a:= _ |- _ ] => subst a end.
+
+(*When repeating tactics, mark terms that haver been used. 
+  for example, if you want to apply a tactic to each hypothesis, 
+  recursively, you can mark the ones that you have done.
+  then delete all marks when you are done.
+*)
+Inductive MARK (T:Type) (a:T):=
+| Marked: MARK T a.
+Ltac mark H a:=
+  lazymatch goal with
+  | [H: MARK _ a |- _] => fail "that is already marked"
+  | _ => pose proof (Marked _ a)
+  end.
+
 
 (*Sometimes !goal fails due dependencies in the arguements.
   It can be useful to use the tactic bellow, even though it allows no "_"
@@ -242,3 +282,77 @@ Ltac destruct_rhs:=
   match goal with
   | |- ?LHS = ?RHS => destruct RHS eqn:?
   end.
+
+(*+ About proofs *)
+
+(** *Unify Proofs:
+     - Takes any two proofs of the same thing and unifies them    
+     - Notice: only works with "unstructured proofs. "
+ *)
+Ltac unify_proofs:=
+  progress (repeat match goal with
+                   | [A: ?T, B: ?T |- _] =>
+                     match type of T with
+                     | Prop => let HH:=fresh in
+                           assert (HH: A = B) by apply Axioms.proof_irr;
+                           first[subst A| subst B]; try clear HH
+                     end
+                   end).
+
+(** *Abstract Proofs:
+    This tactic turns every proof into a variable 
+    and forgets its structure. Since we have assume 
+    Proof Irrelevance, this doesn't lose information. 
+    Notice: SLOW! *)
+Ltac is_proof P:=
+  match type of P with
+    ?T => match type of T with Prop => idtac end
+  end.
+Ltac is_applied P:=
+  match P with ?a ?b => idtac end.
+Ltac abstract_proof P:=
+  let abs_proof:= fresh "abs_proof" in
+  let Heqabs_proof:= fresh "Heqabs_proof" in
+  remember P as abs_proof eqn:Heqabs_proof;
+  clear Heqabs_proof.
+
+Ltac abstract_proofs_goal:=
+  match goal with
+    |- context[ ?P ]=>
+    is_proof P; is_applied P; abstract_proof P
+  end.
+Ltac abstract_proofs_hyp:=
+  match goal with
+    [H: context[ ?P ] |- _ ] =>
+    is_proof P; is_applied P; abstract_proof P
+  end.
+Ltac abstract_proofs:=
+  repeat abstract_proofs_goal;
+  repeat abstract_proofs_hyp.
+(** *Clean Proofs:
+    - Abstracts every proof into a variable
+    - unifies all such proofs of the same thing.
+ *)
+Ltac clean_proofs:= abstract_proofs; repeat unify_proofs.
+Ltac clean_proofs_goal:= repeat abstract_proofs_goal; repeat unify_proofs.
+
+(** *
+    How to rewrite equalities when there are many dependencies.
+ *)
+
+Ltac dependent_rewrite Heq:=
+  match type of Heq with
+    ?LHS = ?RHS =>
+    let AA:=fresh "AA" in
+    let AAeq:=fresh "AAeq" in
+    let BB:=fresh "BB" in
+    let BBeq:=fresh "BBeq" in
+    remember LHS as AA eqn:AAeq; clear AAeq;
+    remember RHS as BB eqn:BBeq;
+    subst AA; subst BB; try clear BBeq
+  end.
+Ltac dependent_subst A B:=
+  let Heq:=fresh "Heq" in
+  assert (Heq:A = B);
+  [try solve [auto]|
+   dependent_rewrite Heq].
