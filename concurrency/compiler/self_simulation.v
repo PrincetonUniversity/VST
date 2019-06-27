@@ -20,6 +20,7 @@ Require Import VST.concurrency.lib.setoid_help.
 Require Import Coq.Classes.Morphisms.
 
 Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 
 
@@ -85,10 +86,16 @@ Section SelfSim.
       Mem.perm m1 b1 ofs Cur Nonempty ->
     exists b2 delta,
       f b1 = Some (b2, delta).
+  Definition option_implication {A B} (oa:option A) (ob: option B):=
+    match oa, ob with | Some _, None => False | _, _ => True end.
+  Definition map_option_implication {A B} (m1:PTree.t A) (m2:PTree.t B):=
+    forall b, option_implication (m1 ! b) (m2 ! b).
+  
+  Definition at_least_Some {A} (x:option A):=
+    option_implication (Some tt) x.
   
   Definition perm_image (f:meminj) (a1: access_map): Prop:=
-    forall b1 ofs,
-      Mem.perm_order' (a1 !! b1 ofs) (Nonempty) ->
+    forall b1 ofs, at_least_Some (a1 !! b1 ofs) ->
     exists b2 delta,
       f b1 = Some (b2, delta).
 
@@ -102,7 +109,7 @@ Section SelfSim.
       ofs_delta = ofs + delta.
   Definition perm_preimage (mu:meminj) (a1 a2: access_map):=
     forall b2 ofs_delt,
-      Mem.perm_order' (a2 !! b2 ofs_delt) (Nonempty) ->
+      at_least_Some (a2 !! b2 ofs_delt) ->
       exists b1 ofs delt,
         mu b1 = Some (b2, delt) /\
         ofs_delt = ofs + delt /\
@@ -179,7 +186,27 @@ Section SelfSim.
       destruct p, p0; inversion H; inversion H'; auto.
     - intros H; invert H; intros; auto. reflexivity.
   Qed.
-    
+
+  Lemma at_least_Some_perm_Cur:
+    forall m1 b1 ofs,
+      at_least_Some ((getCurPerm m1) !! b1 ofs) <->
+      Mem.perm m1 b1 ofs Cur Nonempty.
+  Proof.
+    intros *. rewrite getCurPerm_correct in *; auto.
+    unfold at_least_Some,Mem.perm, permission_at in *.
+    destruct ((Mem.mem_access m1) !! b1 ofs Cur);
+      split; intros; auto; constructor.
+  Qed.
+  Lemma at_least_Some_perm_Max:
+    forall m1 b1 ofs,
+      at_least_Some ((getMaxPerm m1) !! b1 ofs) <->
+      Mem.perm m1 b1 ofs Max Nonempty.
+  Proof.
+    intros *. rewrite getMaxPerm_correct in *; auto.
+    unfold at_least_Some,Mem.perm, permission_at in *.
+    destruct ((Mem.mem_access m1) !! b1 ofs Max);
+      split; intros; auto; constructor.
+  Qed.
   Lemma match_source_forward:
     forall mu c1 m1 c2 m2,
       match_self mu c1 m1 c2 m2 ->
@@ -198,20 +225,20 @@ Section SelfSim.
     * (*perm_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b1 ofs PERM.
       assert (PERM':Mem.perm m1' b1 ofs Cur Nonempty).
-      { rewrite getCurPerm_correct in *; auto. }
+      { apply at_least_Some_perm_Cur; assumption. }
       apply VIS1 in PERM'.
       pose proof (pimage _ _ _ matchmem0 b1 ofs); unfold perm_image in *.
-      rewrite getCurPerm_correct in H.
+      apply at_least_Some_perm_Cur in PERM'.
       eapply H in PERM'; eauto.
       destruct PERM' as (? & ? & ?).
       do 2 eexists; eapply INCR; eauto.
     * (*Pre_image*) (*Easy ... use lemmas to simplify same_visible*)
       intros b2 ofs_delta PERM.
       assert (PERM':Mem.perm m2' b2 ofs_delta Cur Nonempty).
-      { rewrite getCurPerm_correct in *; auto. }
+      { apply at_least_Some_perm_Cur; assumption. }
       apply VIS2 in PERM'.
       pose proof (ppreimage _ _ _ matchmem0 b2 ofs_delta).
-      rewrite getCurPerm_correct in H.
+      apply at_least_Some_perm_Cur in PERM'.
       eapply H in PERM'; eauto.
       destruct PERM' as (? & ? & ? & ? & ? & ?).
       do 3 eexists; repeat split; try eapply INCR; eauto.
