@@ -1,7 +1,8 @@
 Require Import VST.veric.juicy_extspec.
 Require Import VST.floyd.proofauto.
 Require Import ITree.ITree.
-Require Export ITree.Eq.UpToTausEquivalence.
+Require Import ITree.Interp.Traces.
+Require Export ITree.Eq.SimUpToTaus.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
   (at level 50, left associativity) : itree_scope.
@@ -24,13 +25,14 @@ Definition write (c : int) : itree IO_event unit := embed (EWrite c).
 Definition IO_itree := itree IO_event unit.
 
 (* We need a layer of equivalence to allow us to use the monad laws. *)
-Definition ITREE (tr : IO_itree) := EX tr' : _, !!(eutt eq tr tr') &&
+Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
   has_ext tr'.
 
 Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
 Proof.
   intro; unfold ITREE.
   Exists tr; entailer!.
+  apply eutt_sutt; reflexivity.
 Qed.
 
 Definition putchar_spec :=
@@ -52,9 +54,9 @@ Definition getchar_spec :=
     SEP (ITREE (r <- read ;; k r))
   POST [ tint ]
    EX i : int,
-    PROP (- two_p 7 <= Int.signed i <= two_p 7 - 1)
+    PROP (-1 <= Int.signed i <= two_p 8 - 1)
     LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (k i)).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read ;; k r) else k i)).
 
 Fixpoint write_list l : IO_itree :=
   match l with
@@ -68,8 +70,12 @@ Proof.
   intros.
   unfold ITREE.
   Intros tr1; Exists tr1; entailer!.
-  etransitivity; eauto.
-  symmetry; auto.
+  (* rewrite <- H; auto. *)
+  rewrite trace_incl_iff_sutt in *.
+  unfold trace_incl in *.
+  intros; apply H0.
+  eapply trace_incl_iff_sutt; eauto.
+  eapply eutt_sutt; symmetry; auto.
 Qed.
 
 Lemma ITREE_ext : forall tr tr', eutt eq tr tr' ->
@@ -83,8 +89,8 @@ Lemma write_list_app : forall l1 l2,
   eutt eq (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
 Proof.
   induction l1; simpl in *; intros.
-  - rewrite bind_ret; reflexivity.
-  - rewrite bind_bind.
+  - rewrite Shallow.bind_ret; reflexivity.
+  - rewrite Eq.bind_bind.
     setoid_rewrite IHl1; reflexivity.
 Qed.
 

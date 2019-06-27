@@ -2,6 +2,7 @@ Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
 Require Import ITree.ITree.
+Require Import ITree.Eq.UpToTausEquivalence.
 (*Import ITreeNotations.*)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
   (at level 50, left associativity) : itree_scope.
@@ -78,6 +79,19 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (ITREE tr).
 
+Definition getchar_blocking_spec :=
+ DECLARE _getchar_blocking
+  WITH k : int -> IO_itree
+  PRE [ ]
+    PROP ()
+    LOCAL ()
+    SEP (ITREE (r <- read ;; k r))
+  POST [ tint ]
+   EX i : int,
+    PROP (0 <= Int.signed i <= two_p 8 - 1)
+    LOCAL (temp ret_temp (Vint i))
+    SEP (ITREE (k i)).
+
 Definition read_sum n d : IO_itree :=
    ITree.aloop (fun '(n, d) =>
        if zlt n 1000 then if zlt d 10 then
@@ -96,7 +110,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchar_spec; getchar_spec;
-  print_intr_spec; print_int_spec; main_spec]).
+  print_intr_spec; print_int_spec; getchar_blocking_spec; main_spec]).
 
 Lemma divu_repr : forall x y,
   0 <= x <= Int.max_unsigned -> 0 <= y <= Int.max_unsigned ->
@@ -150,6 +164,31 @@ Proof.
     simpl.
     rewrite Shallow.bind_ret; reflexivity.
   - forward.
+Qed.
+
+Lemma body_getchar_blocking: semax_body Vprog Gprog f_getchar_blocking getchar_blocking_spec.
+Proof.
+  start_function.
+  forward.
+  forward_while (EX i : int, PROP (-1 <= Int.signed i <= two_p 8 - 1) LOCAL (temp _r (Vint i))
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read;; k r) else k i))).
+  - Exists (Int.neg (Int.repr 1)); entailer!.
+    { simpl; omega. }
+    rewrite if_true; auto.
+  - entailer!.
+  - subst; rewrite Int.signed_repr by rep_omega.
+    rewrite if_true by auto.
+    forward_call k.
+    Intros i.
+    forward.
+    Exists i; entailer!.
+  - assert (Int.signed i <> -1).
+    { intro X.
+      apply f_equal with (f := Int.repr) in X.
+      rewrite Int.repr_signed in X; auto. }
+    rewrite if_false by auto.
+    forward.
+    Exists i; entailer!.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -217,6 +256,16 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma signed_char_unsigned : forall c,
+  0 <= Int.signed c <= two_p 8 - 1 -> Int.unsigned c <= two_p 8 - 1.
+Proof.
+  intros.
+  rewrite Int.unsigned_signed.
+  unfold Int.lt.
+  rewrite Int.signed_zero.
+  if_tac; omega.
+Qed.
+
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
@@ -230,7 +279,7 @@ Proof.
   forward_call (fun c => read_sum 0 (Int.unsigned c - char0)).
   Intros c.
   forward.
-  rewrite sign_ext_inrange by auto.
+  rewrite zero_ext_inrange by (apply signed_char_unsigned; auto).
   set (Inv := EX n : Z, EX c : int,
     PROP (0 <= n < 1009)
     LOCAL (temp _c (Vint c); temp _n (Vint (Int.repr n)))
@@ -265,7 +314,7 @@ Proof.
   forward_call (fun c' => read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
   Intros c'.
   forward.
-  rewrite sign_ext_inrange by auto.
+  rewrite zero_ext_inrange by (apply signed_char_unsigned; auto).
   Exists (n + (Int.unsigned c - char0)) c'; entailer!.
   rewrite <- (Int.repr_unsigned c) at 2; rewrite sub_repr, add_repr; auto.
   { forward.
@@ -289,6 +338,7 @@ semax_func_cons_ext.
 semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
+semax_func_cons body_getchar_blocking.
 semax_func_cons body_main.
 Qed.
 
@@ -320,6 +370,24 @@ Proof.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
   - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.
+  - apply (proj2_sig init_mem_exists).
+  - exists q.
+    rewrite (proj2_sig main_block_exists) in Hb; inv Hb.
+    assert (m' = init_mem); [|subst; auto].
+    destruct Hq; tauto.
+Qed.
+
+Require Import VST.progs.io_combine.
+Require Import VST.progs.io_os_connection.
+
+Theorem prog_OSlevel : forall {Hclen : ConsoleLen} {Horacle : SerialOracle},
+  exists q : Clight_new.corestate,
+  semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
+     forall n, ext_safeN prog (IO_ext_sem prog) consume_trace IO_inj_mem st_mem n main_itree q init_mem.
+Proof.
+  intros.
+  edestruct IO_OS_safety with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  - apply prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
     rewrite (proj2_sig main_block_exists) in Hb; inv Hb.

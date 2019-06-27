@@ -21,6 +21,12 @@ void print_int(unsigned int i) {
   else print_intr(i);
 }
 
+int getchar_blocking(){
+  int r = -1;
+  while(r == -1) r = getchar();
+  return r;
+}
+
 /* Specification:
    reads a sequence of characters, each in the range '0'..'9';
    after each one (and before the next one) prints a decimal
@@ -29,17 +35,17 @@ void print_int(unsigned int i) {
 */
 
 int main(void) {
-  unsigned int n, d; char c;
+  unsigned int n, d; unsigned char c;
 
   n=0;
-  c=getchar();
+  c=getchar_blocking();
   while (n<1000) {
-    d = ((unsigned)c)-(unsigned)'0';
+    d = c-(unsigned)'0';
     if (d>=10) break;
     n+=d;
     print_int(n);
     putchar('\n');
-    c=getchar();
+    c=getchar_blocking();
   }
   return 0;
 }

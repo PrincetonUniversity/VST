@@ -21,9 +21,8 @@ Definition getchar_pre' (m : mem) (witness : int -> IO_itree) (z : IO_itree) :=
 Goal forall m w z,
   getchar_pre m w z -> getchar_pre' m w z.
 Proof.
-  unfold getchar_pre, getchar_pre', trace_incl; intros ? * Heq * Htrace.
-  apply eutt_trace_eq in Heq.
-  apply Heq; auto.
+  unfold getchar_pre, getchar_pre'; intros ? *.
+  apply sutt_trace_incl.
 Qed.
 
 (* CertiKOS specs must terminate. Could get blocking version back by
