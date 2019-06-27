@@ -383,10 +383,11 @@ Require Import VST.progs.io_os_connection.
 Theorem prog_OSlevel : forall {Hclen : ConsoleLen} {Horacle : SerialOracle},
   exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-     forall n, ext_safeN prog (IO_ext_sem prog) consume_trace IO_inj_mem st_mem n main_itree q init_mem.
+     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem st_mem lift_IO_event n traces main_itree q init_mem /\
+      forall t, Ensembles.In _ traces t -> exists z', consume_trace main_itree z' t.
 Proof.
   intros.
-  edestruct IO_OS_safety with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct IO_OS_soundness with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
