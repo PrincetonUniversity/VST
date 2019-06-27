@@ -472,17 +472,13 @@ Qed.
   Lemma getMaxPerm_correct :
     forall m b ofs,
       Maps.PMap.get b (getMaxPerm m) ofs = permission_at m b ofs Max.
-  Proof.
-    intros. unfold getMaxPerm. by rewrite Maps.PMap.gmap.
-  Qed.
+  Proof. intros. unfold getMaxPerm. by rewrite Maps.PMap.gmap. Qed.
 
   Lemma getCurPerm_correct :
     forall m b ofs,
       Maps.PMap.get b (getCurPerm m) ofs = permission_at m b ofs Cur.
-  Proof.
-    intros. unfold getCurPerm. by rewrite Maps.PMap.gmap.
-  Qed.
-
+  Proof. intros. unfold getCurPerm. by rewrite Maps.PMap.gmap. Qed.
+  
 
   Definition permDisjoint p1 p2:=
     exists pu : option permission,
@@ -2385,6 +2381,20 @@ Lemma restrPermMap_irr:
   Defined.
 
 End permMapDefs.
+
+Ltac unfold_getMaxPerm:=
+  repeat rewrite getMaxPerm_correct in *;
+  repeat rewrite getMaxPerm_correct;
+  unfold permission_at in *;
+  unfold permission_at.
+Ltac unfold_getCurPerm:=
+  repeat rewrite getCurPerm_correct in *;
+  repeat rewrite getCurPerm_correct;
+  unfold permission_at in *;
+  unfold permission_at.
+Ltac unfold_getPerm:=
+  try unfold_getMaxPerm;
+  try unfold_getCurPerm.
 
 Require Import VST.concurrency.common.core_semantics.
 Require Import compcert.lib.Coqlib.
