@@ -468,3 +468,28 @@ Proof. intros ??? ??? ???; subst.
        destruct y1; auto.
        eapply load_Proper; auto.
 Qed.
+
+Global Instance perm_preimage_setoid:
+  Proper (Logic.eq ==> access_map_equiv ==>
+                   access_map_equiv ==> iff) perm_preimage.
+Proof.
+  proper_iff. proper_intros; subst.
+  unfold perm_preimage in *; intros ?? HH.
+  rewrite <- H1 in HH.
+  eapply H2 in HH.
+  destruct HH as (?&?&?&?&?&?); subst.
+  do 3 econstructor. repeat (split; eauto).
+  rewrite <- H1, <- H0; auto.
+Qed.
+
+Lemma access_map_injected_morphism':
+  Proper (Logic.eq ==> access_map_equiv  ==> access_map_equiv ==> Basics.impl)
+         access_map_injected.
+Proof.
+  intros ????????? HH ?????; subst.
+  rewrite <- H1, <- H0. eapply HH; eauto.
+Qed.
+Instance access_map_injected_morphism:
+  Proper (Logic.eq ==> access_map_equiv  ==> access_map_equiv ==> Logic.iff)
+         access_map_injected.
+Proof. split; eapply access_map_injected_morphism'; auto; symmetry; auto. Qed.
