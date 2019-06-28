@@ -80,53 +80,7 @@ Section SelfSim.
         Mem.perm m2 b2 (ofs + delta) Cur p ->
         Mem.perm m1 b1 (ofs ) Cur p \/ ~ Mem.perm m1 b1 ofs Cur Nonempty.
 
-  (* The injection maps all visible locations*)
-  Definition perm_image_old (f:meminj)(m1:mem)(m2:mem): Prop:=
-    forall b1 ofs,
-      Mem.perm m1 b1 ofs Cur Nonempty ->
-    exists b2 delta,
-      f b1 = Some (b2, delta).
-  Definition option_implication {A B} (oa:option A) (ob: option B):=
-    match oa, ob with | Some _, None => False | _, _ => True end.
-  Definition map_option_implication {A B} (m1:PTree.t A) (m2:PTree.t B):=
-    forall b, option_implication (m1 ! b) (m2 ! b).
-  
-  Definition at_least_Some {A} (x:option A):=
-    option_implication (Some tt) x.
-  
-  Definition perm_image (f:meminj) (a1: access_map): Prop:=
-    forall b1 ofs, at_least_Some (a1 !! b1 ofs) ->
-    exists b2 delta,
-      f b1 = Some (b2, delta).
 
-  (* The injection maps to every visible location *)
-  Definition perm_preimage_old (f:meminj)(m1:mem)(m2:mem): Prop:=
-    forall b2 ofs_delta,
-      Mem.perm m2 b2 ofs_delta Cur Nonempty ->
-    exists b1 delta ofs,
-      f b1 = Some (b2, delta) /\
-      Mem.perm m1 b1 ofs Cur Nonempty /\
-      ofs_delta = ofs + delta.
-  Definition perm_preimage (mu:meminj) (a1 a2: access_map):=
-    forall b2 ofs_delt,
-      at_least_Some (a2 !! b2 ofs_delt) ->
-      exists b1 ofs delt,
-        mu b1 = Some (b2, delt) /\
-        ofs_delt = ofs + delt /\
-        a2 !! b2 ofs_delt = a1 !! b1 ofs.
-  
-  Global Instance perm_preimage_setoid:
-    Proper (Logic.eq ==> access_map_equiv ==> access_map_equiv ==> iff)
-           perm_preimage.
-  Proof.
-    proper_iff. proper_intros; subst.
-    unfold perm_preimage in *; intros ?? HH.
-    rewrite <- H1 in HH.
-    eapply H2 in HH.
-    destruct HH as (?&?&?&?&?&?); subst.
-    do 3 econstructor. repeat (split; eauto).
-    rewrite <- H1, <- H0; auto.
-  Qed.
 
   Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
     { minject: Mem.inject f m1 m2 
@@ -187,26 +141,6 @@ Section SelfSim.
     - intros H; invert H; intros; auto. reflexivity.
   Qed.
 
-  Lemma at_least_Some_perm_Cur:
-    forall m1 b1 ofs,
-      at_least_Some ((getCurPerm m1) !! b1 ofs) <->
-      Mem.perm m1 b1 ofs Cur Nonempty.
-  Proof.
-    intros *. rewrite getCurPerm_correct in *; auto.
-    unfold at_least_Some,Mem.perm, permission_at in *.
-    destruct ((Mem.mem_access m1) !! b1 ofs Cur);
-      split; intros; auto; constructor.
-  Qed.
-  Lemma at_least_Some_perm_Max:
-    forall m1 b1 ofs,
-      at_least_Some ((getMaxPerm m1) !! b1 ofs) <->
-      Mem.perm m1 b1 ofs Max Nonempty.
-  Proof.
-    intros *. rewrite getMaxPerm_correct in *; auto.
-    unfold at_least_Some,Mem.perm, permission_at in *.
-    destruct ((Mem.mem_access m1) !! b1 ofs Max);
-      split; intros; auto; constructor.
-  Qed.
   Lemma match_source_forward:
     forall mu c1 m1 c2 m2,
       match_self mu c1 m1 c2 m2 ->

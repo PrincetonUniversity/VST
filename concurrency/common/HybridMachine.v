@@ -63,6 +63,25 @@ Module DryHybridMachine.
         lockRes_blocks: forall l rmap, lockRes tp l = Some rmap ->
                                   Mem.valid_block m l.1}.
 
+    
+      Lemma  mem_compat_restrPermMap:
+        forall m perms st
+          (permMapLt: permMapLt perms (getMaxPerm m)),
+          (mem_compatible st m) ->
+          (mem_compatible st (restrPermMap permMapLt)).
+      Proof.
+        intros.
+        inversion H; econstructor.
+        - intros; unfold permissions.permMapLt.
+          split; intros;
+            erewrite getMax_restr; 
+            eapply compat_th0.
+        - intros; unfold permissions.permMapLt.
+          split; intros;
+            erewrite getMax_restr; 
+            eapply compat_lp0; eauto.
+        - intros. eapply restrPermMap_valid; eauto.
+      Qed.
 
     (* should there be something that says that if something is a lock then
      someone has at least readable permission on it?*)
