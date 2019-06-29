@@ -108,21 +108,23 @@ Section ext_trace.
 
   Context {cevent : Type -> Type} {J : juicy_ext_spec (itree cevent unit)} {OS_state : Type} {event : Type}.
   Variable prog : Clight.program.
-  Variable ext_sem : external_function -> list val -> OS_state -> OS_state * option val * list event.
+  Variable ext_sem : external_function -> list val -> OS_state -> option (OS_state * option val * list event).
   Variable inj_mem : mem -> OS_state -> Prop.
   Variable extr_mem : OS_state -> mem.
   Notation ge := (globalenv prog).
 
   Instance Espec : OracleKind := Build_OracleKind (itree cevent unit) J.
 
-  Variable lift_event : event -> {X & (cevent X * X)%type}.
+  Variable lift_event : event -> {X & option (cevent X * X)%type}.
 
   Fixpoint trace_of_events (t : list event) : @trace cevent unit :=
     match t with
     | nil => TEnd
     | e :: t' =>
-        let (e', r) := projT2 (lift_event e) in
-        TEventResponse e' r (trace_of_events t')
+        match projT2 (lift_event e) with
+        | Some (e', r) => TEventResponse e' r (trace_of_events t')
+        | None => trace_of_events t'
+        end
     end.
 
   Definition consume_trace (z z' : itree cevent unit) le := let t := trace_of_events le in
@@ -158,7 +160,7 @@ Section ext_trace.
   Lemma trace_of_events_app : forall t t', trace_of_events (t ++ t') = app_trace (trace_of_events t) (trace_of_events t').
   Proof.
     induction t; auto; simpl; intros.
-    destruct (lift_event a) as (? & ? & ?); simpl.
+    destruct (lift_event a) as (? & [(? & ?) |]); simpl; auto.
     rewrite IHt; auto.
   Qed.
 
@@ -203,7 +205,7 @@ Section ext_trace.
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
          inj_mem m s ->
-         ext_sem e args s = (s', ret, t) ->
+         ext_sem e args s = Some (s', ret, t) ->
          m' = extr_mem s' ->
          (n' <= n)%nat ->
          exists traces' z' c', consume_trace z z' t /\
@@ -213,7 +215,7 @@ Section ext_trace.
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         inj_mem m s /\ ext_sem e args s = (s', ret, t) /\ m' = extr_mem s' /\
+         inj_mem m s /\ ext_sem e args s = Some (s', ret, t) /\ m' = extr_mem s' /\
          (n' <= n)%nat /\ exists traces' z' c', consume_trace z z' t /\
            cl_after_external ret c = Some c' /\ ext_safeN_trace n' traces' z' c' m' /\
         exists t', In _ traces' t' /\ t1 = t ++ t') ->
@@ -222,7 +224,7 @@ Section ext_trace.
   Variable dryspec : ext_spec OK_ty.
   Hypothesis extcalls_correct : forall e w b tl args z m s, ext_spec_pre dryspec e w b tl args z m ->
     inj_mem m s ->
-    let '(s', ret, t') := ext_sem e args s in
+    forall s' ret t', Some (s', ret, t') = ext_sem e args s ->
     exists z', consume_trace z z' t' /\
     ext_spec_post dryspec e w b (sig_res (ef_sig e)) ret z' (extr_mem s').
 
@@ -237,13 +239,13 @@ Section ext_trace.
     - edestruct IHn as [traces ?]; eauto; exists traces; econstructor; eauto.
     - exists (fun t1 => exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         inj_mem m s /\ ext_sem e args s = (s', ret, t) /\ m' = extr_mem s' /\
+         inj_mem m s /\ ext_sem e args s = Some (s', ret, t) /\ m' = extr_mem s' /\
          (n' <= n0)%nat /\ exists traces' z' c', consume_trace z z' t /\
            cl_after_external ret q = Some c' /\ ext_safeN_trace n' traces' z' c' m' /\
         exists t', In _ traces' t' /\ t1 = t ++ t').
       eapply ext_safeN_trace_external; eauto; intros.
       eapply extcalls_correct in H1; eauto.
-      rewrite H4 in H1; destruct H1 as (z' & ? & ?).
+      destruct H1 as (z' & ? & ?).
       edestruct H2 as (? & ? & Hsafe); eauto.
       apply IHn in Hsafe as [traces ?]; [|omega].
       subst; do 4 eexists; eauto; split; eauto; split; eauto.
@@ -317,29 +319,39 @@ End ext_trace.
 
 Require Import VST.progs.io_dry.
 Require Import VST.progs.io_os_connection.
+Require Import VST.progs.io_os_specs.
 
 Section IO_safety.
 
+Context `{ThreadsConfigurationOps}.
 Variable (prog : Clight.program).
 
 Definition ext_link := ext_link_prog prog.
 
+Definition sys_getc_wrap_spec (abd : RData) : option (RData * val * ostrace) :=
+  match sys_getc_spec abd with
+  | Some abd' => Some (abd', get_sys_ret abd', strip_common_prefix IOEvent_eq abd.(io_log) abd'.(io_log))
+  | None => None
+  end.
+
 Definition IO_ext_sem e (args : list val) s :=
   if oi_eq_dec (Some (ext_link "putchar"%string, funsig2signature ([(1%positive, tint)], tint) cc_default))
     (ef_id_sig ext_link e) then
-    (* putchar_spec (Znth 0 args) s *) (s, None, []) else
+    (* putchar_spec (Znth 0 args) s *) Some (s, None, []) else
   if oi_eq_dec  (Some (ext_link "getchar"%string, funsig2signature ([], tint) cc_default))
     (ef_id_sig ext_link e) then
-    let '(s', ret, t') := getchar_spec s in (s', Some (Vint (Int.repr ret)), t')
-  else (s, None, []).
+    match sys_getc_wrap_spec s with
+    | Some (s', ret, t') => Some (s', Some ret, t')
+    | None => None
+    end
+  else Some (s, None, []).
 
-Context {Hclen : ConsoleLen} {Horacle : SerialOracle}.
-
-Definition IO_inj_mem m s := st_mem s = m /\ valid_state s. (* stub *)
+Definition IO_inj_mem (m : mem) s := valid_trace s. (* stub *)
+Definition OS_mem (s : RData) : mem := Mem.empty. (* stub *)
 
 Instance IO_Espec : OracleKind := io_specs.IO_Espec ext_link.
 
-Definition lift_IO_event e := existT (fun X => (io_specs.IO_event X * X)%type) (trace_event_rtype e) (io_event_of_io_tevent e).
+Definition lift_IO_event e := existT (fun X => option (io_specs.IO_event X * X)%type) (trace_event_rtype e) (io_event_of_io_tevent e).
 
 Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
@@ -349,22 +361,24 @@ Theorem IO_OS_soundness:
      Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
      initial_core  (cl_core_sem (globalenv prog))
          0 m q m' (Vptr b Ptrofs.zero) nil /\
-   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem st_mem lift_IO_event n traces initial_oracle q m' /\
-     forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
+   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem lift_IO_event n traces initial_oracle q m' /\
+     forall t, In _ traces t -> exists z', consume_trace lift_IO_event initial_oracle z' t.
 Proof.
   intros; eapply OS_soundness with (dryspec := io_dry_spec ext_link); eauto.
   - unfold IO_ext_sem; intros; simpl in *.
-    destruct H2 as [? Hvalid]; subst.
     if_tac; [|if_tac; [|contradiction]].
     + destruct w as (? & _ & ? & ?).
       admit. (* need putchar_spec *)
     + destruct w as (? & _ & ?).
-      destruct H1 as (? & ? & Hpre); subst.
+      destruct H2 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
-      eapply getchar_correct in Hvalid as (? & r & ? & -> & Hpost & ?).
+      unfold sys_getc_wrap_spec in *.
+      destruct (sys_getc_spec) eqn:Hspec; inv H4.
+      eapply sys_getc_correct in Hspec as (? & -> & [? Hpost ? ?]); eauto.
       * do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto.
+        admit. (* memory not handled yet *)
         destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; omega).
         -- rewrite if_false by omega; eauto.
         -- rewrite if_true; auto.

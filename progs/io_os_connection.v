@@ -1380,17 +1380,17 @@ Section Invariants.
     eapply serial_putc_trace_case; eauto.
   Qed.
 
-  Definition get_ret (st : RData) :=
+  Definition get_sys_ret (st : RData) :=
     let curid := ZMap.get st.(CPU_ID) st.(cid) in
     ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
 
   Lemma sys_getc_trace_case : forall st st' ret,
     valid_trace st ->
     sys_getc_spec st = Some st' ->
-    get_ret st' = Vint ret ->
+    get_sys_ret st' = Vint ret ->
     trace_case st.(io_log) st'.(io_log) (Int.signed ret).
   Proof.
-    unfold sys_getc_spec, get_ret; intros * Hvalid Hspec Hret; destruct_spec Hspec.
+    unfold sys_getc_spec, get_sys_ret; intros * Hvalid Hspec Hret; destruct_spec Hspec.
     prename thread_serial_intr_disable_spec into Hspec1.
     prename thread_cons_buf_read_spec into Hspec2.
     prename thread_serial_intr_enable_spec into Hspec3.
@@ -1426,7 +1426,8 @@ Section SpecsCorrect.
 
   (* For any trace that the new itree (z) allows, that trace prefixed with the
      OS-generated trace (t) is allowed by the old itree (z0). *)
-  Definition consume_trace (z0 z : IO_itree) (t : @trace IO_event unit) :=
+  (* TODO: should be merged with definition in io_combine.v *)
+  Definition consume_trace' (z0 z : IO_itree) (t : @trace IO_event unit) :=
     forall t',
       is_trace z t' ->
       is_trace z0 (app_trace t t').
@@ -1440,7 +1441,7 @@ Section SpecsCorrect.
     (* Filter out the user-invisible events *)
     let t := trace_of_ostrace ot_new in
     (* The new itree 'consumed' the OS-generated trace *)
-    consume_trace z0 z t.
+    consume_trace' z0 z t.
 
   (* TODO: memory *)
   Record sys_correct k z m st st' ret := {
@@ -1464,10 +1465,10 @@ Section SpecsCorrect.
     (* sys_getc returns some state *)
     sys_getc_spec st = Some st' ->
     exists ret,
-      get_ret st' = Vint ret /\
+      get_sys_ret st' = Vint ret /\
       sys_correct k z m st st' ret.
   Proof.
-    unfold getchar_pre', get_ret; intros Hvalid Hpre Hspec.
+    unfold getchar_pre', get_sys_ret; intros Hvalid Hpre Hspec.
     apply sys_getc_preserve_valid_trace in Hspec as Hvalid'; auto.
     pose proof Hspec as Htrace_case.
     unfold sys_getc_spec in Hspec; destruct_spec Hspec.
@@ -1481,7 +1482,7 @@ Section SpecsCorrect.
     repeat (rewrite ZMap.gss in * || rewrite ZMap.gso in * by easy); subst; inj.
     do 2 esplit; eauto.
     eapply sys_getc_trace_case in Htrace_case; eauto.
-    2: unfold get_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto.
+    2: unfold get_sys_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto.
     constructor; eauto; hnf.
     - (* getchar_post *)
       split; auto; cbn in *.
