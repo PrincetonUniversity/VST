@@ -380,11 +380,11 @@ Qed.
 Require Import VST.progs.io_combine.
 Require Import VST.progs.io_os_connection.
 
-Theorem prog_OSlevel : forall {Hclen : ConsoleLen} {Horacle : SerialOracle},
+Theorem prog_OSlevel : forall {H : io_os_specs.ThreadsConfigurationOps},
   exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem st_mem lift_IO_event n traces main_itree q init_mem /\
-      forall t, Ensembles.In _ traces t -> exists z', consume_trace main_itree z' t.
+     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem lift_IO_event n traces main_itree q init_mem /\
+      forall t, Ensembles.In _ traces t -> exists z', consume_trace lift_IO_event main_itree z' t.
 Proof.
   intros.
   edestruct IO_OS_soundness with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
