@@ -10,6 +10,7 @@ Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.threads_lemmas.
 Require Import VST.concurrency.common.permjoin_def.
 Require Import compcert.common.Memory.
+Require Import VST.concurrency.lib.Coqlib3.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
 Require Export compcert.lib.Maps.
@@ -2676,137 +2677,79 @@ Proof.
   specialize (HH b ofs); inversion HH; econstructor.
 Qed.
 
-  Definition option_implication {A B} (oa:option A) (ob: option B):=
-    match oa, ob with | Some _, None => False | _, _ => True end.
-  Definition map_option_implication {A B} (m1:PTree.t A) (m2:PTree.t B):=
-    forall b, option_implication (m1 ! b) (m2 ! b).
-  
-  Definition at_least_Some {A} (x:option A):=
-    option_implication (Some tt) x.
-  
-  Lemma at_least_Some_perm_Cur:
-    forall m1 b1 ofs,
-      at_least_Some ((getCurPerm m1) !! b1 ofs) <->
-      Mem.perm m1 b1 ofs Cur Nonempty.
-  Proof.
-    intros *. rewrite getCurPerm_correct; auto.
-    unfold at_least_Some,Mem.perm, permission_at in *.
-    destruct ((Mem.mem_access m1) !! b1 ofs Cur);
-      split; intros; auto; constructor.
-  Qed.
-  Lemma at_least_Some_perm_Max:
-    forall m1 b1 ofs,
-      at_least_Some ((getMaxPerm m1) !! b1 ofs) <->
-      Mem.perm m1 b1 ofs Max Nonempty.
-  Proof.
-    intros *. rewrite getMaxPerm_correct; auto.
-    unfold at_least_Some,Mem.perm, permission_at in *.
-    destruct ((Mem.mem_access m1) !! b1 ofs Max);
-      split; intros; auto; constructor.
-  Qed.
-  Definition perm_image (f:meminj) (a1: access_map): Prop:=
-    forall b1 ofs, at_least_Some (a1 !! b1 ofs) ->
-    exists b2 delta, f b1 = Some (b2, delta).
-
-  (* The injection maps to every visible location *)
-  Definition perm_preimage (mu:meminj) (a1 a2: access_map):=
-    forall b2 ofs_delt,
-      at_least_Some (a2 !! b2 ofs_delt) ->
-      exists b1 ofs delt, mu b1 = Some (b2, delt) /\
-                     ofs_delt = ofs + delt /\
-                     a2 !! b2 ofs_delt = a1 !! b1 ofs.
- 
-
-  
-  (* The injection maps all visible locations*)
 
 
-  
-Definition access_map_injected (f:meminj) (pmap1 pmap2: access_map):=
-  forall (b1 b2 : block) (delt ofs: Z),
-    f b1 = Some (b2, delt) ->
-    Mem.perm_order'' (pmap2 !! b2 (ofs+delt)%Z) (pmap1 !! b1 ofs).
 
-Lemma access_map_injected_getMaxPerm:
-  forall f m1 m2,
-    Mem.inject f m1 m2 ->
-    access_map_injected f (getMaxPerm m1) (getMaxPerm m2).
-  intros. intros ?????.
-  do 2 rewrite getMaxPerm_correct.
-  destruct (permission_at m1 b1 ofs Max) eqn:HH.
-  - rewrite <- mem_lemmas.po_oo.
-    eapply Mem.mi_perm; eauto.
-    + apply H.
-    + unfold Mem.perm.
-      unfold permission_at in HH; rewrite HH.
-      simpl. apply perm_refl.
-  - apply event_semantics.po_None.
-Qed.
-Lemma access_map_injected_getCurPerm:
-  forall f m1 m2,
-    Mem.inject f m1 m2 ->
-    access_map_injected f (getCurPerm m1) (getCurPerm m2).
-  intros. intros ?????.
-  do 2 rewrite getCurPerm_correct.
-  destruct (permission_at m1 b1 ofs Cur) eqn:HH.
-  - rewrite <- mem_lemmas.po_oo.
-    eapply Mem.mi_perm; eauto.
-    + apply H.
-    + unfold Mem.perm.
-      unfold permission_at in HH;
-        rewrite HH.
-      simpl.
-      apply perm_refl.
-  - apply event_semantics.po_None.
-Qed.
 
-Lemma setPermBlock_inject_permMapLt':
-  forall n (NZ: (0 < n)%coq_nat)
-    (m1 m2 : mem) 
-    (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
-    (b : block) ofs P,
-    permMapLt (setPermBlock P b (ofs) cur_perm1 n)
-              max_perm1 ->
-    Mem.inject mu m1 m2 ->
-    access_map_injected mu max_perm1 max_perm2 -> 
-    forall (b' : block) (delt : Z),
-      mu b = Some (b', delt) ->
-      permMapLt cur_perm2 max_perm2 ->
-      permMapLt (setPermBlock P b' (ofs + delt)
-                              cur_perm2 n) max_perm2.
-Proof.
-  intros; intros b0 ofs0.
-  destruct (Clight_lemmas.block_eq_dec b' b0);
-    [destruct (Intv.In_dec ofs0 ((ofs + delt)%Z, (ofs + delt + (Z.of_nat n))%Z))|
-    ].
-  - subst. unfold Intv.In in i; simpl in *.
-    rewrite setPermBlock_same; auto.
-    replace ofs0 with ((ofs0 - delt) + delt)%Z by omega.
-    eapply juicy_mem.perm_order''_trans.
-    2:{ unfold permMapLt in H.
-        specialize (H b (ofs0 - delt)%Z).
-        rewrite setPermBlock_same in H; auto; try omega.
-        eauto. }    
-    + eapply H1; auto.
-  - subst; rewrite setPermBlock_other_1; eauto.
-    + eapply Intv.range_notin in n0; auto; simpl;  omega.
-  - subst; rewrite setPermBlock_other_2; eauto.
-Qed.
-Lemma setPermBlock_inject_permMapLt:
-  forall n (NZ: (0 < n)%nat)
-    (m1 m2 : mem) 
-    (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
-    (b : block) ofs P,
-    permMapLt (setPermBlock P b (ofs) cur_perm1 n)
-              max_perm1 ->
-    Mem.inject mu m1 m2 ->
-    access_map_injected mu max_perm1 max_perm2 -> 
-    forall (b' : block) (delt : Z),
-      mu b = Some (b', delt) ->
-      permMapLt cur_perm2 max_perm2 ->
-      permMapLt (setPermBlock P b' (ofs + delt)
-                              cur_perm2 n) max_perm2.
-Proof.
-  intros ??. eapply setPermBlock_inject_permMapLt'.
-  ssromega.
-Qed.
+
+
+
+
+
+(* End of old Permissions. *)
+
+
+
+      (* cann be used to expose the implicit arguemtns. *)
+      Definition restrPermMap' a b H:= @restrPermMap a b H.
+      Lemma RPM: restrPermMap = restrPermMap'. Proof. reflexivity. Qed.
+    
+      Lemma restr_proof_irr':
+        forall (perm1 perm2 : access_map) (m1 m2 : mem)
+               (Hlt1 : permMapLt perm1 (getMaxPerm m1))
+               (Hlt2 : permMapLt perm2 (getMaxPerm m2)),
+          perm1 = perm2 ->
+          m1 = m2 ->
+          restrPermMap Hlt1 = restrPermMap Hlt2.
+      Proof. intros. subst. apply restr_proof_irr. Qed.
+      
+
+      Lemma cur_lt_max:
+        forall m, permMapLt (getCurPerm m) (getMaxPerm m).
+      Proof.
+        intros ** ??.
+        rewrite getCurPerm_correct getMaxPerm_correct; eapply m.
+      Qed.
+      
+      Lemma mem_cur_lt_max:
+        forall m, permMapLt (getCurPerm m) (getMaxPerm m).
+      Proof.
+        intros.
+        intros ??.
+        rewrite getCurPerm_correct getMaxPerm_correct.
+        unfold permission_at.
+        eapply Mem.access_max.
+      Qed.
+      Lemma restr_Max_eq:
+        forall p m Hlt,
+          getMaxPerm (@restrPermMap p m Hlt) = getMaxPerm m.  
+      Proof.
+        intros.
+        unfold getMaxPerm, restrPermMap.
+        simpl. unfold PMap.map; simpl.
+        f_equal.
+        repeat rewrite map_map1; simpl.
+        unfold PTree.map.
+        rewrite xmap_compose.
+        reflexivity.
+      Qed.
+      
+      Lemma setPermBlock_setPermBlock_var':
+        forall v, setPermBlock v = setPermBlock_var (fun _ : nat => v).
+      Proof.
+        intros.
+        extensionality b.
+        extensionality ofs.
+        extensionality pmap.
+        extensionality n.
+        eapply setPermBlock_setPermBlock_var.
+      Qed.
+      Lemma perm_range_perm:
+        forall m b low high k p,
+          Mem.range_perm m b low high k p ->
+          forall ofs', Intv.In ofs' (low,high) ->
+                  Mem.perm m b ofs' k p.
+      Proof.
+        unfold Mem.range_perm, Mem.perm; intros.
+        eapply H; eauto.
+      Qed.
