@@ -13,6 +13,8 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.permissions.
+Require Import VST.concurrency.compiler.advanced_permissions.
+Require Import VST.concurrency.compiler.diagrams.
 Require Import VST.concurrency.lib.tactics.
 
 Require Import VST.concurrency.compiler.mem_equiv.
@@ -84,31 +86,27 @@ Section SelfSim.
 
   Record match_mem (f: meminj) (m1:mem) (m2:mem): Prop:=
     { minject: Mem.inject f m1 m2 
-    ; pimage: perm_image f (getCurPerm m1) 
-    ; ppreimage: perm_preimage f (getCurPerm m1) (getCurPerm m2)
+      ; pimage: perm_image f (getCurPerm m1) 
+      ; ppreimage: perm_surj f (getCurPerm m1) (getCurPerm m2)
     }.
-   
+  
+  Instance proper_match_mem:
+    Proper (Logic.eq ==> mem_equiv ==> mem_equiv ==> iff) match_mem.
+  Proof.
+    setoid_help.proper_iff; setoid_help.proper_intros; subst.
+    inversion H2; econstructor.
+    - rewrite <- H1, <- H0; assumption.
+    - pose proof (cur_eqv _ _ H0).
+      unfold Cur_equiv in *.
+      rewrite <- H; assumption.
+    - inv H0; inv H1.
+      unfold Cur_equiv in *.
+      rewrite <- cur_eqv, <- cur_eqv0; assumption.
+  Qed.
+  
   Record match_self (f: meminj) (c1:core) (m1:mem) (c2:core) (m2:mem): Prop:=
     { cinject: code_inject f c1 c2
     ; matchmem: match_mem f m1 m2 
-    }.
-
-  
-  Record same_visible (m1 m2: mem):=
-    { same_cur:
-        forall b ofs p,
-          (Mem.perm m1 b ofs Cur p <->
-                Mem.perm m2 b ofs Cur p);
-      same_visible12:
-        forall b ofs,
-          Mem.perm m1 b ofs Cur Readable ->
-          (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m1))) =
-          (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2)));
-      same_visible21:
-        forall b ofs,
-          Mem.perm m2 b ofs Cur Readable ->
-          (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m1))) =
-          (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2)));
     }.
 
 
@@ -244,6 +242,7 @@ Section SelfSimulation.
           self_preserves_atx_inj Sem (match_self code_inject)
     }. 
 
+ 
 End SelfSimulation. 
 
 

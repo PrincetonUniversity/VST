@@ -10,7 +10,7 @@ Require Import VST.concurrency.lib.setoid_help.
 Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.common.Clight_bounds.
 Require Import VST.concurrency.common.permissions.
-
+(* Require Import VST.concurrency.lib.Coqlib3. *)
 
 Import FunctionalExtensionality.
 Import Logic.
@@ -35,16 +35,16 @@ Lemma part_reflexive_proper_proxy {A P} {R: relation A}
 Qed.
 (* This ensures that when ProperProxy is ebing resolved,
    partial reflexivity is considered
-*)
+ *)
 Hint Extern 3 (ProperProxy ?R _) => 
 not_evar R; class_apply @part_reflexive_proper_proxy;
   try typeclasses eauto; eauto
- : typeclass_instances.
+                         : typeclass_instances.
 
 
 (* We present two more relations that help take advantage of the above.*)
 Inductive trieq {A : Type} (x : A) : A -> A -> Prop :=
-  | triew_refl: trieq x x x.
+| triew_refl: trieq x x x.
 Hint Resolve (triew_refl).
 Instance trieq_PartReflexive: forall A (x:A), PartReflexive (eq x) (trieq x).
 Proof. constructor; intros; subst; constructor. Qed.
@@ -123,10 +123,10 @@ Ltac destruct_address_range b ofs b0 ofs0 n:=
      as [Hrange | Hrange]
   | ].
 
-              
+
 Instance setPermBlock_access_map_equiv:
   Proper (eq ==> eq ==> eq ==>
-                        access_map_equiv ==> eq_P (lt 0) ==>  access_map_equiv)
+             access_map_equiv ==> eq_P (lt 0) ==>  access_map_equiv)
          (setPermBlock ).
 Proof.
   proper_intros; inversion H3; subst.
@@ -166,7 +166,7 @@ Qed.
 
 Lemma restr_Max_equiv:
   forall {p m}
-    (Hlt: permMapLt p (getMaxPerm m)),
+         (Hlt: permMapLt p (getMaxPerm m)),
     Max_equiv (restrPermMap Hlt) m.
 Proof. intros ????.
        extensionality ofs.
@@ -195,7 +195,7 @@ Record mem_equiv (m1 m2: mem): Prop :=
   { cur_eqv:> Cur_equiv m1 m2;
     max_eqv:> Max_equiv m1 m2;
     content_eqv:>
-      content_equiv m1 m2 ;
+               content_equiv m1 m2 ;
     nextblock_eqv:> Mem.nextblock m1 = Mem.nextblock m2 }.
 
 Global Instance Equivalence_mem_equiv:
@@ -323,7 +323,7 @@ Proof.
 Qed.
 
 Instance mem_inject_equiv:
-      Proper  ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.inject.
+  Proper  ( eq ==> mem_equiv ==> mem_equiv ==> iff) Mem.inject.
 Proof.
   proper_iff.
   intros ?????  Heqv1 ?? Heqv2 Hinj; subst.
@@ -382,7 +382,7 @@ Proof. intros; intros ?; eapply getMax_restr. Qed.
 
 Lemma restrPermMap_equiv:
   forall perm1 perm2 m1 m2
-    Hlt1 Hlt2,
+         Hlt1 Hlt2,
     mem_equiv m1 m2 ->
     access_map_equiv perm1 perm2 ->
     mem_equiv (@restrPermMap perm1 m1 Hlt1)
@@ -469,27 +469,63 @@ Proof. intros ??? ??? ???; subst.
        eapply load_Proper; auto.
 Qed.
 
-Global Instance perm_preimage_setoid:
-  Proper (Logic.eq ==> access_map_equiv ==>
-                   access_map_equiv ==> iff) perm_preimage.
+
+Lemma cur_equiv_restr_mem_equiv:
+  forall (m:mem) p
+    (Hlt: permMapLt p (getMaxPerm m)),
+    access_map_equiv p (getCurPerm m) ->
+    mem_equiv (restrPermMap Hlt) m.
 Proof.
-  proper_iff. proper_intros; subst.
-  unfold perm_preimage in *; intros ?? HH.
-  rewrite <- H1 in HH.
-  eapply H2 in HH.
-  destruct HH as (?&?&?&?&?&?); subst.
-  do 3 econstructor. repeat (split; eauto).
-  rewrite <- H1, <- H0; auto.
+  intros. constructor; eauto.
+  - unfold Cur_equiv. etransitivity; eauto.
+    eapply getCur_restr.
+  - eapply getMax_restr.
+  - eapply restr_content_equiv.
+Qed.
+Lemma mem_access_max_equiv:
+  forall m1 m2, Mem.mem_access m1 =  Mem.mem_access m2 ->
+           Max_equiv m1 m2.
+Proof. intros ** ?; unfold getMaxPerm; simpl.
+       rewrite H; reflexivity.
+Qed.
+Lemma mem_access_cur_equiv:
+  forall m1 m2, Mem.mem_access m1 = Mem.mem_access m2 ->
+           Cur_equiv m1 m2.
+Proof. intros ** ?; unfold getCurPerm; simpl.
+       rewrite H; reflexivity.
 Qed.
 
-Lemma access_map_injected_morphism':
-  Proper (Logic.eq ==> access_map_equiv  ==> access_map_equiv ==> Basics.impl)
-         access_map_injected.
+Lemma Cur_equiv_restr:
+  forall p1 p2 m1 m2 Hlt1 Hlt2,
+    access_map_equiv p1 p2 ->
+    Cur_equiv (@restrPermMap p1 m1 Hlt1)
+              (@restrPermMap p2 m2 Hlt2).
+Proof. unfold Cur_equiv; intros.
+       do 2 rewrite getCur_restr; assumption. Qed.
+Lemma Max_equiv_restr:
+  forall p1 p2 m1 m2 Hlt1 Hlt2,
+    Max_equiv m1 m2 ->
+    Max_equiv (@restrPermMap p1 m1 Hlt1)
+              (@restrPermMap p2 m2 Hlt2).
+Proof. unfold Max_equiv; intros.
+       do 2 rewrite getMax_restr; assumption. Qed.
+
+Lemma store_max_eq:
+  forall cnk  m b ofs v m',
+    Mem.store cnk  m b ofs v = Some m' ->
+    getMaxPerm m = getMaxPerm m'.
 Proof.
-  intros ????????? HH ?????; subst.
-  rewrite <- H1, <- H0. eapply HH; eauto.
+  intros.
+  Transparent Mem.store.
+  unfold Mem.store in H; simpl in *.
+  destruct (Mem.valid_access_dec m cnk b ofs Writable); try discriminate.
+  inversion H. reflexivity.
 Qed.
-Instance access_map_injected_morphism:
-  Proper (Logic.eq ==> access_map_equiv  ==> access_map_equiv ==> Logic.iff)
-         access_map_injected.
-Proof. split; eapply access_map_injected_morphism'; auto; symmetry; auto. Qed.
+Lemma store_max_equiv:
+  forall sz m b ofs v m',
+    Mem.store sz m b ofs v = Some m' ->
+    Max_equiv m m'.
+Proof.
+  intros. intros ?.
+  erewrite store_max_eq; eauto.
+Qed.

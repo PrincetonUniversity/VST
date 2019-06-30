@@ -1186,3 +1186,74 @@ Proof.
     + eapply IHm1.
     + eapply IHm2.
 Qed.
+
+
+
+Lemma strong_tree_leq_xmap':
+  forall {A B} f1 f2 t (leq: option B -> option A -> Prop),
+  forall p,
+    (forall a p0,
+        PTree.get p0 t = Some a ->
+        leq (Some (f1 (PTree.prev_append p p0)%positive a))
+            (Some (f2 (PTree.prev_append p p0)%positive a))) ->
+    leq None None ->
+    strong_tree_leq
+      (@PTree.xmap A B f1 t p)
+      (@PTree.xmap A A f2 t p)
+      leq.
+Proof.
+  intros. revert p H.
+  induction t. simpl; auto.
+  intros.
+  repeat split.
+  - destruct o; auto.
+    move H at bottom.
+    assert ((PTree.Node t1 (Some a) t2) ! 1%positive = Some a)
+      by reflexivity.
+    eapply H in H1. auto.
+  -  eapply IHt1.
+     intros; specialize (H a (p0~0)%positive).
+     eapply H; auto.
+  -  eapply IHt2.
+     intros; specialize (H a (p0~1)%positive).
+     eapply H; auto.
+Qed.
+Lemma strong_tree_leq_map':
+  forall {A B} f1 f2 t (leq: option B -> option A -> Prop),
+    (forall a p0,
+        PTree.get p0 t = Some a ->
+        leq (Some (f1 (PTree.prev_append 1 p0)%positive a))
+            (Some (f2 (PTree.prev_append 1 p0)%positive a))) ->
+    leq None None ->
+    strong_tree_leq
+      (@PTree.map A B f1 t)
+      (@PTree.map A A f2 t)
+      leq.
+Proof. intros; eapply strong_tree_leq_xmap'; eauto. Qed.
+Lemma strong_tree_leq_spec:
+  forall {A B} (leq: option A -> option B -> Prop),
+    leq None None ->
+    forall t1 t2, strong_tree_leq t1 t2 leq ->
+             forall b, leq (@PTree.get A b t1)(@PTree.get B b t2).
+Proof.
+  intros A B leq Hleq t1.
+  induction t1; eauto.
+  - intros.
+    destruct t2; try solve[inversion H].
+    destruct b; simpl; auto.
+  - intros t2 HH.
+    destruct t2; try solve[inversion HH].
+    destruct HH as (INEQ&L&R).
+    destruct b; simpl; eauto.
+Qed.
+
+
+Lemma sub_map_lt:
+  forall {A B} dmap amap,
+    @sub_map A B dmap (amap) ->
+    forall b,
+      fun_leq (dmap ! b) (amap ! b).
+Proof.
+  intros. eapply strong_tree_leq_spec; try constructor.
+  eapply H.
+Qed.

@@ -315,7 +315,6 @@ Ltac abstract_proof P:=
   let Heqabs_proof:= fresh "Heqabs_proof" in
   remember P as abs_proof eqn:Heqabs_proof;
   clear Heqabs_proof.
-
 Ltac abstract_proofs_goal:=
   match goal with
     |- context[ ?P ]=>
@@ -329,12 +328,35 @@ Ltac abstract_proofs_hyp:=
 Ltac abstract_proofs:=
   repeat abstract_proofs_goal;
   repeat abstract_proofs_hyp.
+
+Ltac abstract_proofs_goal_of is_T:=
+  match goal with
+    |- context[ ?P ]=>
+    is_T P; is_applied P; abstract_proof P
+  end.
+Ltac abstract_proofs_hyp_of is_T:=
+  match goal with
+    [H: context[ ?P ] |- _ ] =>
+    is_T P; is_applied P; abstract_proof P
+  end.
+Tactic Notation "equate_uconstr" constr(T) uconstr(goal) := equate T goal.
+Ltac is_T_of pat P:= match type of P with ?T => equate_uconstr T pat end.
+Ltac abstract_proofs_of' pat:= 
+  repeat abstract_proofs_goal_of ltac:(is_T_of pat);
+  repeat abstract_proofs_hyp_of ltac:(is_T_of pat).
+Tactic Notation "abstract_proofs" "of" uconstr(pat):= abstract_proofs_of' pat.
+(*Ltac abstract_proofs_of is_T:=
+  repeat abstract_proofs_goal_of is_T;
+  repeat abstract_proofs_hyp_of is_T.*)
+
 (** *Clean Proofs:
     - Abstracts every proof into a variable
     - unifies all such proofs of the same thing.
  *)
 Ltac clean_proofs:= abstract_proofs; repeat unify_proofs.
 Ltac clean_proofs_goal:= repeat abstract_proofs_goal; repeat unify_proofs.
+Tactic Notation "clean_proofs" "of" uconstr(pat):=
+  abstract_proofs of pat; repeat unify_proofs.
 
 (** *
     How to rewrite equalities when there are many dependencies.
