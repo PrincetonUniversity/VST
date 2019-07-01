@@ -72,10 +72,12 @@ Qed.
 Hint Resolve LKSIZE_nat_pos'.
 
 
-Notation delta_perm_map:=(PTree.t (Z -> option (option permission))).
-Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
+Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
 
-  Module MyThreadSimulationDefinitions := ThreadSimulationDefinitions CC_correct Args.
+  Module MyThreadSimulationDefinitions :=
+    ThreadSimulationDefinitions CC_correct Args.
+
+  
   Export MyThreadSimulationDefinitions.
   Import HybridMachineSig.
   Import DryHybridMachine.
@@ -84,29 +86,27 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
   Module MyConcurMatch := ConcurMatch CC_correct Args.
+
+
   
+  Definition doesnt_return FUN:=
+    forall (res : val) (ge : Senv.t) (args : list val) (m : mem) 
+      (ev : Events.trace) (m' : mem),
+      Events.external_call FUN ge args m ev res m' -> res = Vundef.
   
-  Section ThreadedSimulation.
-    Import MyConcurMatch.
 
-    (** *Maybe move this to concur_match.v*)
-
-    (** *How about mem_interference moved to diagrams!?*)
-    
-
-
-
-
-
-    
-    
+  
     (*Lemmas about the calls: *)
     Notation vone:= (Vint Int.one).
     Notation vzero:= (Vint Int.zero).
-    
+
+    Definition build_release_event addr dmap m:=
+      Events.release addr (Some (build_delta_content dmap m)).
+    Definition build_acquire_event addr dmap m:=
+      Events.acquire addr (Some (build_delta_content dmap m)).
     
     (*TODO: Check if these guys are used/useful*)
-    Inductive release: val -> mem -> delta_perm_map ->  mem -> Prop  :=
+    Inductive release: val -> mem -> delta_map ->  mem -> Prop  :=
     | ReleaseAngel:
         forall b ofs m dpm m' m_release
           (* change the permission to be able to lock *)
@@ -119,7 +119,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             new_perms = computeMap (getCurPerm m) dpm ->
             m' = @restrPermMap new_perms m_release Hlt' ->
             release (Vptr b ofs) m dpm m'.
-    Inductive acquire: val -> mem -> delta_perm_map ->  mem -> Prop  :=
+    Inductive acquire: val -> mem -> delta_map ->  mem -> Prop  :=
     | AcquireAngel:
         forall b ofs m dpm m' m_release
           (* change the permission to be able to lock *)
@@ -164,23 +164,45 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         Events.external_functions_sem "acquire" LOCK_SIG
                                       ge args m ev r m' =
         extcall_acquire ge args m ev r m'.
-    
-    
-    Definition doesnt_return FUN:=
-      forall (res : val) (ge : Senv.t) (args : list val) (m : mem) 
-             (ev : Events.trace) (m' : mem),
-        Events.external_call FUN ge args m ev res m' -> res = Vundef.
+
     Lemma unlock_doesnt_return:
-      doesnt_return UNLOCK.
-    Proof.
-      intros ? * Hext_call.
-      unfold Events.external_call in Hext_call.
-      rewrite ReleaseExists in Hext_call.
-      inversion Hext_call; reflexivity.
-    Qed.
-    
+    doesnt_return UNLOCK.
+  Proof.
+    intros ? * Hext_call.
+    unfold Events.external_call in Hext_call.
+    rewrite ReleaseExists in Hext_call.
+    inversion Hext_call; reflexivity.
+  Qed.
+  
+  
+End SyncSimulation.
 
 
+
+
+
+
+
+Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
+
+  Module MyThreadSimulationDefinitions :=
+    ThreadSimulationDefinitions CC_correct Args.
+  Export MyThreadSimulationDefinitions.
+  Import HybridMachineSig.
+  Import DryHybridMachine.
+  Import self_simulation.
+
+  Module MySyncSimulation:= SyncSimulation CC_correct Args.
+  Import MySyncSimulation.
+  
+  Existing Instance OrdinalPool.OrdinalThreadPool.
+  Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
+  Module MyConcurMatch := ConcurMatch CC_correct Args.
+  
+
+  
+  Section ThreadedSimulation.
+    Import MyConcurMatch.
 
     
     
@@ -202,22 +224,13 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
       Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
 
-      
-      Definition build_release_event addr dmap m:=
-        Events.release addr (Some (build_delta_content dmap m)).
-      Definition build_acquire_event addr dmap m:=
-        Events.acquire addr (Some (build_delta_content dmap m)).
-      (*CONCUR*)
 
 
-      (* These make clean_cnt and clean proof stronger.*)
-      Ltac abstract_cnt:= abstract_proofs of (containsThread _ _).
-      Ltac abstract_permMapLt:= abstract_proofs of (permMapLt _ _).
 
       
       Lemma compat_permMapLt:
         forall Sem st i cnt m,
-          @thread_compat Sem st i cnt m <->
+          @thread_compat Sem _ st i cnt m <->
           permMapLt_pair (getThreadR cnt) (getMaxPerm m).
       Proof. intros; split; intros [X1 X2]; split; auto. Qed.
       
@@ -404,7 +417,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         repeat match goal with
                | [ H1: containsThread ?st ?i,
                        H2: containsThread ?st ?i |- _ ] =>
-                 replace H2 with H1 in * by ( apply Axioms.proof_irr); clear H2
+                 assert (H2 = H1) by apply Axioms.proof_irr; subst H2
                end.
       (* Ltac clean_cnt:=
         try forget_contains12;
@@ -1612,9 +1625,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
           (* the thread compat *)
           let thread_compat1:=fresh "thread_compat1" in 
           let thread_compat2:=fresh "thread_compat2" in 
-          assert (thread_compat1:thread_compat _ _ cnt1 m1)
+          assert (thread_compat1:thread_compat
+                                   (tpool:=OrdinalThreadPool) _ _ cnt1 m1)
             by (apply mem_compatible_thread_compat; auto);
-          assert (thread_compat2:thread_compat _ _ cnt2 m2)
+                  assert (thread_compat2:thread_compat
+                                           (tpool:=OrdinalThreadPool) _ _ cnt2 m2)
             by (apply mem_compatible_thread_compat; auto)
         end.
 
@@ -1622,7 +1637,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Definition thread_mems {Sem st i m}
                  {cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i}
                  (th_compat: thread_compat _ _ cnt m):=
-        (restrPermMap (th_comp th_compat),restrPermMap (lock_comp th_compat)).
+        (restrPermMap (th_comp _ th_compat),restrPermMap (lock_comp _ th_compat)).
       
       Ltac get_thread_mems:=
         match goal with
@@ -1803,7 +1818,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               
               simpl; unfold at_external_sum, sum_func.
               subst CoreSem. 
-              rewrite <- (restr_proof_irr (th_comp thread_compat2)).
+              rewrite <- (restr_proof_irr (th_comp _ thread_compat2)).
               rewrite <- Hat_external2; simpl.
               clear - Hthread_mem2 HState2.
               
@@ -2022,7 +2037,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
               replace ( Vptr b' (add ofs (repr delt)) :: nil) with args'.
               simpl; unfold at_external_sum, sum_func.
               (* subst CoreSem. *) 
-              rewrite <- (restr_proof_irr (th_comp thread_compat2)).
+              rewrite <- (restr_proof_irr (th_comp _ thread_compat2)).
               rewrite <- Hat_external2; simpl.
               (* clear - Hthread_mem2 HState2. *)
               
@@ -4087,9 +4102,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Proof.
         intros; simpl in *.
         pose proof (memcompat1 CMatch) as Hcmpt1.
-        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
-            (apply mem_compatible_thread_compat; apply CMatch).
-        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+        get_mem_compatible.
+        get_thread_mems.
+        clean_proofs.
+        pose proof (cur_equiv_restr_mem_equiv
+                      _ _ (th_comp _ thread_compat1) Hthread_mem1) as
             Hmem_equiv.
         inversion Hlock_update_mem_strict_load. subst vload vstore.
         
@@ -4301,9 +4318,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
       Proof.
         intros; simpl in *.
         pose proof (memcompat1 CMatch) as Hcmpt1.
-        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
-            (apply mem_compatible_thread_compat; apply CMatch).
-        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+        get_mem_compatible.
+        get_thread_mems.
+        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp _ thread_compat1) Hthread_mem1) as
             Hmem_equiv1.
         inversion Hlock_update_mem_strict_load. subst vload vstore.
 
@@ -4490,9 +4507,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         intros; simpl in *.
         inv Hsame_sch.
         pose proof (memcompat1 CMatch) as Hcmpt1.
-        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
-            (apply mem_compatible_thread_compat; apply CMatch).
-        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+        get_mem_compatible.
+        get_thread_mems.
+        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp _ thread_compat1) Hthread_mem1) as
             Hmem_equiv.
         
         (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
@@ -4873,10 +4890,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         
         intros; simpl in *.
         inv Hsame_sch.
-        pose proof (memcompat1 CMatch) as Hcmpt1.
-        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
-            (apply mem_compatible_thread_compat; apply CMatch).
-        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+        get_mem_compatible.
+        get_thread_mems.
+        clean_proofs.
+        pose proof (cur_equiv_restr_mem_equiv
+                      _ _ (th_comp _ thread_compat1) Hthread_mem1) as
             Hmem_equiv.
         
         (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
@@ -5077,9 +5095,9 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
         intros; simpl in *.
         inv Hsame_sch.
         pose proof (memcompat1 CMatch) as Hcmpt1.
-        assert (thread_compat1: thread_compat _ _ cnt1 m1) by
-            (apply mem_compatible_thread_compat; apply CMatch).
-        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
+        get_mem_compatible.
+        get_thread_mems.
+        pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp _ thread_compat1) Hthread_mem1) as
             Hmem_equiv.
         
         (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
@@ -5130,8 +5148,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             replace (restrPermMap Hth_lt1) with (restrPermMap Hlt1).
             replace (restrPermMap Hth_lt2) with (restrPermMap Hlt2).
             assumption.
-            assert (Hcnt = cnt2). { eapply Axioms.proof_irr. }
-                                  subst Hcnt.
             eapply restr_proof_irr.
             eapply restr_proof_irr.
             
@@ -5196,7 +5212,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             * !goal(mem_interference m1 lev1 m1'). admit.   
             * !goal(mem_interference m2 lev2 m2'). admit.
           + instantiate(1:=tr2).
-            clear - CMatch Hcnt1 Hcnt.
+            clear - CMatch Hcnt1.
             intros (?&?&?&?).
             { apply mem_compat_restrPermMap; apply CMatch. }
 
@@ -5252,8 +5268,6 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulat
             replace (restrPermMap Hth_lt1) with (restrPermMap Hlt1).
             replace (restrPermMap Hth_lt2) with (restrPermMap Hlt2).
             assumption.
-            assert (Hcnt = cnt2). { eapply Axioms.proof_irr. }
-                                  subst Hcnt.
             eapply restr_proof_irr.
             eapply restr_proof_irr.
             
