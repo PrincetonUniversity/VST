@@ -129,7 +129,8 @@ Module ThreadSimulationDefinitions
 
     (* Compiler match that holds under interference of other threads. *)
     Inductive compiler_match_padded:
-      compiler_index -> meminj -> Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)) ->
+      compiler_index -> meminj ->
+      Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)) ->
       mem -> Smallstep.state (Asm.part_semantics Asm_g) -> mem -> Prop
       :=
       | BuildCompilerMatch: forall cd j1 j2 j3 j s1 m1 s2 m2 s3 m3 s4 m4,
@@ -179,4 +180,11 @@ Module ThreadSimulationDefinitions
             compiler_match_resume_padded cd j s1 m1 s4 m4.
   
 End ThreadSimulationDefinitions.
-  
+
+
+
+(*Useful stuff: *)
+
+(* These make clean_cnt and clean proof stronger.*)
+Ltac abstract_cnt:= abstract_proofs of (OrdinalPool.containsThread _ _).
+Ltac abstract_permMapLt:= abstract_proofs of (permMapLt _ _).

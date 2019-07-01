@@ -49,7 +49,6 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 (* MOVE TO PERMISSIONS.V*)
 
 
-Notation delta_perm_map:=(PTree.t (Z -> option (option permission))).
 Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
 
   Module MyThreadSimulationDefinitions := ThreadSimulationDefinitions CC_correct Args.
@@ -166,48 +165,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
     (* Inject the value in lock locations *)
   
 
-    
-    Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
-    Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
-    Record thread_compat {Sem} st i
-           (cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i) m:=
-      { th_comp: permMapLt (thread_perms _ _ cnt) (getMaxPerm m);
-        lock_comp: permMapLt (lock_perms _ _ cnt) (getMaxPerm m)}.
-    Instance thread_compat_proper sem st i:
-        Proper (Logic.eq ==> Max_equiv ==> iff) (@thread_compat sem st i).
-      Proof. setoid_help.proper_iff;
-               setoid_help.proper_intros; subst.
-             constructor.
-             - eapply permMapLt_equiv.
-               reflexivity.
-               symmetry; apply H0.
-               eapply H1.
-             - eapply permMapLt_equiv.
-               reflexivity.
-               symmetry; apply H0.
-               eapply H1.
-      Qed.
-    Lemma mem_compatible_thread_compat:
-      forall n (st1 : ThreadPool.t(ThreadPool:=TP n)) (m1 : mem) (tid : nat)
-        (cnt1 : containsThread st1 tid),
-        mem_compatible st1 m1 -> thread_compat _ _ cnt1 m1.
-    Proof. intros * H; constructor; apply H. Qed.
-    Lemma mem_compat_Max:
-        forall Sem Tp st m m',
-          Max_equiv m m' ->
-          Mem.nextblock m = Mem.nextblock m' ->
-          @mem_compatible Sem Tp st m ->
-          @mem_compatible Sem Tp st m'.
-      Proof.
-        intros * Hmax Hnb H.
-        assert (Hmax':access_map_equiv (getMaxPerm m) (getMaxPerm m'))
-          by eapply Hmax.
-        constructor; intros;
-          repeat rewrite <- Hmax';
-          try eapply H; eauto.
-        unfold Mem.valid_block; rewrite <- Hnb;
-          eapply H; eauto.
-      Qed.
       
     
     Section ConcurMatch. (* 360 *)
