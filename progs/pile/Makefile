@@ -22,7 +22,7 @@ else
   include CONFIGURE
 endif
 
-CLIGHTGEN= $(COMPCERT_LOC)/clightgen
+CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
 
 CVFILES = $(patsubst %.c,%.v,$(CFILES))
 OFILES = $(patsubst %.c,%.o,$(CFILES))

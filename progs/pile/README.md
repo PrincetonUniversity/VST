@@ -1,6 +1,7 @@
 DEMONSTRATION OF MODULAR VERIFICATION OF MODULAR PROGRAMS
+
  * If you just want to learn how module linking works in VST proofs,
-   read _only_ section 2 of this paper:n
+   read _only_ section 2 of this paper:
 
    Abstraction and Subsumption in Modular Verification of C Programs
     by Lennart Beringer and Andrew W. Appel,

@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <limits.h>
-#include "stdlib.h"
-#include "pile.h"
+#include "../stdlib.h"
+#include "../pile.h"
 #include "fastpile_private.h"
 
 void *surely_malloc (size_t n) {

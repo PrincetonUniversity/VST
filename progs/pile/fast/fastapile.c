@@ -1,7 +1,7 @@
 #include <stddef.h>
-#include "pile.h"
+#include "../pile.h"
 #include "fastpile_private.h"
-#include "apile.h"
+#include "../apile.h"
 
 struct pile a_pile = {0};
 

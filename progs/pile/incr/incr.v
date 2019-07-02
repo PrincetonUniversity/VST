@@ -3,7 +3,7 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 
 Module Info.
-  Definition version := "3.3"%string.
+  Definition version := "3.5"%string.
   Definition build_number := ""%string.
   Definition build_tag := ""%string.
   Definition arch := "x86"%string.
@@ -11,7 +11,7 @@ Module Info.
   Definition abi := "standard"%string.
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "incr.c"%string.
+  Definition source_file := "incr/incr.c"%string.
   Definition normalized := true.
 End Info.
 

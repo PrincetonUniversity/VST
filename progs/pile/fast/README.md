@@ -28,6 +28,12 @@ verif_fasttriang.v
 verif_fastmain.v
 link_fastpile.v
 
+REMARK: It should be possible to avoid duplicating these files
+by using appropriate existential quantification to implement
+abstraction for the pilerep predicate, as hinted by footnote 2
+of the paper.
+
+
 THE FOLLOWING FILES ARE DISCUSSED IN SECTION 3 OF THE PAPER
 spec_fastpile_concrete.v
 subsume_fastpile.v

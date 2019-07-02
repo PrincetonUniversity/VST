@@ -11,7 +11,7 @@ Module Info.
   Definition abi := "standard"%string.
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "fastpile.c"%string.
+  Definition source_file := "fast/fastpile.c"%string.
   Definition normalized := true.
 End Info.
 
@@ -92,13 +92,14 @@ Definition _n : ident := 1%positive.
 Definition _next : ident := 3%positive.
 Definition _p : ident := 60%positive.
 Definition _pile : ident := 5%positive.
+Definition _placeholder : ident := 82%positive.
 Definition _q : ident := 64%positive.
 Definition _r : ident := 67%positive.
-Definition _s : ident := 83%positive.
-Definition _sum : ident := 82%positive.
+Definition _s : ident := 84%positive.
+Definition _sum : ident := 83%positive.
 Definition _surely_malloc : ident := 61%positive.
 Definition _the_pile : ident := 70%positive.
-Definition _t'1 : ident := 84%positive.
+Definition _t'1 : ident := 85%positive.
 
 Definition f_surely_malloc := {|
   fn_return := (tptr tvoid);

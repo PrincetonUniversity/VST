@@ -92,11 +92,9 @@ Definition _n : ident := 1%positive.
 Definition _next : ident := 3%positive.
 Definition _p : ident := 60%positive.
 Definition _pile : ident := 5%positive.
-Definition _placeholder : ident := 84%positive.
+Definition _placeholder : ident := 82%positive.
 Definition _q : ident := 64%positive.
 Definition _r : ident := 67%positive.
-Definition _s : ident := 83%positive.
-Definition _sum : ident := 82%positive.
 Definition _surely_malloc : ident := 61%positive.
 Definition _the_pile : ident := 70%positive.
 
