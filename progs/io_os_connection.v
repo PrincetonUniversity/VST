@@ -11,6 +11,7 @@ Require Import VST.progs.io_specs.
 Require Import VST.progs.io_dry.
 Require Import VST.progs.io_os_specs.
 Require Import VST.floyd.sublist.
+Require Import VST.progs.os_combine.
 Import ExtLib.Structures.Monad.
 
 Local Ltac inj :=
@@ -1424,14 +1425,6 @@ Section SpecsCorrect.
 
   Context `{ThreadsConfigurationOps}.
 
-  (* For any trace that the new itree (z) allows, that trace prefixed with the
-     OS-generated trace (t) is allowed by the old itree (z0). *)
-  (* TODO: should be merged with definition in io_combine.v *)
-  Definition consume_trace' (z0 z : IO_itree) (t : @trace IO_event unit) :=
-    forall t',
-      is_trace z t' ->
-      is_trace z0 (app_trace t t').
-
   Definition user_trace (ot ot' : ostrace) : trace :=
     trace_of_ostrace (strip_common_prefix IOEvent_eq ot ot').
 
@@ -1441,7 +1434,7 @@ Section SpecsCorrect.
     (* Filter out the user-invisible events *)
     let t := trace_of_ostrace ot_new in
     (* The new itree 'consumed' the OS-generated trace *)
-    consume_trace' z0 z t.
+    consume_trace z0 z t.
 
   (* TODO: memory *)
   Record sys_correct k z m st st' ret := {
