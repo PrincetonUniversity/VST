@@ -1921,7 +1921,7 @@ Proof.
   unfold semax_body; intros.
   destruct s, f0.
   destruct H as [H' H]; split; auto.
-  intros; eapply semax_extensionality_Delta, H.
+  intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.
 

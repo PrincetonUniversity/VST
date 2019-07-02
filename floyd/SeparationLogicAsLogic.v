@@ -1366,7 +1366,7 @@ Proof.
   + inv H0.
 Qed.
 
-Theorem semax_extensionality_Delta:
+Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
@@ -1881,7 +1881,7 @@ Proof.
   destruct spec. destruct f0.
   intros [? SF] ?; split; auto.
   intros.
-  eapply semax_extensionality_Delta. apply TS.
+  eapply semax_Delta_subsumption. apply TS.
   apply (SF Espec ts x).
 Qed. 
 
@@ -2286,7 +2286,7 @@ Proof.
   + inv H0.
 Qed.
 
-Theorem semax_extensionality_Delta:
+Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->

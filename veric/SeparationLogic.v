@@ -1538,7 +1538,7 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
-Axiom semax_extensionality_Delta:
+Axiom semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
@@ -1573,7 +1573,7 @@ Axiom semax_fun_id:
     @semax CS Espec Delta P c Q.
 
 (*MOVED TO MINIMUM
-Axiom semax_extensionality_Delta:
+Axiom semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
