@@ -6,7 +6,7 @@ Require Import spec_pile.
 Require Import spec_onepile.
 
 Definition Gprog : funspecs :=   
-   [Pile_new_spec; Pile_add_spec; Pile_count_spec] ++ spec_onepile.specs.
+   spec_pile.specs ++ spec_onepile.specs.
 
 Lemma body_Onepile_init: semax_body Vprog Gprog f_Onepile_init Onepile_init_spec.
 Proof.
