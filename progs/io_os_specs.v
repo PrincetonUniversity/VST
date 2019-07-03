@@ -21,12 +21,7 @@ Fixpoint replace {A} (a : A) (n : nat) (l : list A) :=
   | S n', c :: tl => c :: replace a n' tl
   end.
 
-Fixpoint idxs {A} (xs : list A) : list nat :=
-  match xs with
-  | nil => nil
-  | _ :: xs' => O :: map S (idxs xs')
-  end.
-Definition enumerate {A} (xs : list A) : list (nat * A) := combine (idxs xs) xs.
+Definition enumerate {A} (xs : list A) : list (nat * A) := combine (seq 0 (length xs)) xs.
 
 (** Datatypes *)
 Inductive SyncChannel :=

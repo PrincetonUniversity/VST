@@ -575,14 +575,6 @@ Section Invariants.
   Proof. intros; apply console_len'. Qed.
 
   (* mkRecvEvents Lemmas *)
-  Lemma idxs_NoDup {A} : forall (xs : list A),
-    NoDup (idxs xs).
-  Proof.
-    induction xs; cbn; constructor.
-    - clear IHxs; induction (idxs xs); cbn in *; intuition (auto || easy).
-    - apply FinFun.Injective_map_NoDup; try red; auto.
-  Qed.
-
   Lemma combine_NoDup {A B} : forall (xs : list A) (ys : list B),
     NoDup xs -> NoDup (combine xs ys).
   Proof.
@@ -595,42 +587,27 @@ Section Invariants.
     NoDup (mkRecvEvents logIdx cs).
   Proof.
     unfold mkRecvEvents, enumerate; intros.
-    apply FinFun.Injective_map_NoDup; auto using combine_NoDup, idxs_NoDup.
+    apply FinFun.Injective_map_NoDup; auto using combine_NoDup, seq_NoDup.
     red; intros (? & ?) (? & ?); intros; inj; auto.
-  Qed.
-
-  Lemma Zlength_idxs {A} : forall (xs : list A),
-    Zlength (idxs xs) = Zlength xs.
-  Proof.
-    induction xs; auto.
-    cbn [idxs]; rewrite !Zlength_cons, Zlength_map, IHxs; auto.
   Qed.
 
   Lemma Zlength_enumerate {A} : forall (xs : list A),
     Zlength (enumerate xs) = Zlength xs.
   Proof.
     unfold enumerate; intros.
-    rewrite conclib.Zlength_combine, Zlength_idxs; lia.
+    rewrite conclib.Zlength_combine, !Zlength_correct, seq_length; lia.
   Qed.
 
-  Lemma idxs_length {A} : forall (xs : list A) n pre post,
-    idxs xs = pre ++ n :: post ->
-    n = length pre.
+  Lemma seq_nth_app : forall len start n pre post,
+    seq start len = pre ++ n :: post ->
+    n = (start + length pre)%nat.
   Proof.
-    induction xs; intros * Heq; [contradict Heq; cbn; auto using app_cons_not_nil |].
-    cbn in Heq; destruct pre; inj; cbn; auto.
-    prename (map _ _ = _) into Heq.
-    assert (n <> O).
-    { assert (Hin: In n (map S (idxs xs))).
-      { rewrite Heq, in_app_iff; cbn; auto. }
-      apply Coqlib.list_in_map_inv in Hin; destruct Hin as (? & ? & Hin); subst; auto.
+    intros * Heq.
+    enough (n = nth (length pre) (seq start len) O); subst.
+    { rewrite Heq, app_nth2, Nat.sub_diag, seq_nth; auto; cbn.
+      rewrite <- (seq_length len start), Heq, app_length; cbn; lia.
     }
-    apply (f_equal (map pred)) in Heq.
-    rewrite List.map_map in Heq; cbn in Heq.
-    rewrite map_id, map_app in Heq; cbn in Heq.
-    eapply IHxs in Heq.
-    apply (f_equal S) in Heq.
-    rewrite Nat.succ_pred, map_length in Heq; auto.
+    rewrite Heq, app_nth2, Nat.sub_diag; auto.
   Qed.
 
   Lemma enumerate_length {A} : forall (xs : list A) n x pre post,
@@ -640,9 +617,9 @@ Section Invariants.
     unfold enumerate; intros * Heq.
     apply (f_equal (map fst)) in Heq.
     rewrite conclib.combine_fst, map_app in Heq; cbn in Heq.
-    apply idxs_length in Heq; subst; auto using map_length.
+    apply seq_nth_app in Heq; subst; cbn; auto using map_length.
     rewrite <- Nat2Z.id, <- Zlength_length; rewrite <- Zlength_correct.
-    - apply Zlength_idxs.
+    - rewrite !Zlength_correct, seq_length; auto.
     - apply Zlength_nonneg.
   Qed.
 
@@ -692,8 +669,9 @@ Section Invariants.
   Proof.
     cbn; intros *; f_equal.
     unfold mkRecvEvents, enumerate.
+    rewrite <- seq_shift.
     rewrite combine_map_fst, !List.map_map.
-    induction (combine (idxs cs) cs) as [| ev ?]; cbn; auto.
+    induction (combine (seq _ _) cs) as [| ev ?]; cbn; auto.
     f_equal; auto.
     destruct ev; auto.
   Qed.
