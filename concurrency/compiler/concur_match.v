@@ -71,6 +71,9 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
     Definition SemTop: Semantics:= (HybridSem (Some hb)).
     Definition SemBot: Semantics:= (HybridSem (Some (S hb))).
     
+    Notation thread_perms st i cnt:= (fst (@getThreadR dryResources _ i st cnt)).
+    Notation lock_perms st i cnt:= (snd (@getThreadR dryResources _ i st cnt)).
+    
     Inductive match_thread
               {sem1 sem2: Semantics}
               (state_type1: @semC sem1 -> state_sum (@semC CSem) (@semC AsmSem))
@@ -163,7 +166,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
         match_thread_compiled None j (Kinit v1 v1') m1
                               (Kinit v1 v1') m2.
     (* Inject the value in lock locations *)
-  
 
       
     
@@ -1068,6 +1070,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
 
       
     End ConcurMatch.
+
+    
     
   End OneThread.
   Arguments INJ_locks hb { ocd j cstate1 m1 cstate2 m2}.
@@ -1075,5 +1079,103 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
   Arguments memcompat2 hb { ocd j cstate1 m1 cstate2 m2}.
   Arguments th_comp {_ _ _ _ _}.
   Arguments lock_comp {_ _ _ _ _}.
+
+  (** *Tactics:*)
+  
+  Local Notation thread_perms st i cnt:= (fst (@getThreadR dryResources _ i st cnt)).
+  Local Notation lock_perms st i cnt:= (snd (@getThreadR dryResources _ i st cnt)).
+
+  
+      Ltac exploit_match tac:=  
+        unfold match_thread_target,match_thread_source in *;
+        repeat match goal with
+               | [ H: ThreadPool.getThreadC ?i = _ ?c |- _] => simpl in H
+               end;
+        match goal with
+        | [ H: getThreadC ?i = _ ?c,
+               H0: context[match_thread] |- _ ] =>
+          match type of H0 with
+          | forall (_: ?Hlt1Type) (_: ?Hlt2Type), _ =>
+            assert (Hlt1:Hlt1Type); [
+              first [eassumption | tac | idtac]|
+              assert (Hlt2:Hlt2Type); [
+                first [eassumption | tac | idtac]|
+                specialize (H0 Hlt1 Hlt2);
+                rewrite H in H0; inversion H0; subst; simpl in *; clear H0
+            ]]
+          end
+
+        | [ H: getThreadC ?i = _ ?c,
+               H0: context[match_thread_compiled] |- _ ] =>
+          match type of H0 with
+          | forall (_: ?Hlt1Type) (_: ?Hlt2Type), _ =>
+            assert (Hlt1:Hlt1Type); [
+              first [eassumption | tac | idtac]|
+              assert (Hlt2:Hlt2Type); [
+                first [eassumption | tac | idtac]|
+                specialize (H0 Hlt1 Hlt2);
+                rewrite H in H0; inversion H0; subst; simpl in *; clear H0
+            ]]
+          end
+        end;
+        fold match_thread_target in *;
+        fold match_thread_source in *.
+
+  
+  Ltac get_mem_compatible:=
+        match goal with
+  | CMatch:concur_match _ _ ?mu ?st1 ?m1 ?st2 ?m2,
+    cnt1:containsThread ?st1 ?tid,
+    cnt2:containsThread ?st2 ?tid
+    |- _ => let Hcmpt1 := fresh "Hcmpt1" in
+        let Hcmpt2 := fresh "Hcmpt2" in
+        pose proof (memcompat1 _ CMatch) as Hcmpt1;
+         (pose proof (memcompat2 _ CMatch) as Hcmpt2;
+         (let thread_compat1 := fresh "thread_compat1" in
+          let thread_compat2 := fresh "thread_compat2" in
+          assert (thread_compat1 : thread_compat(tpool:=OrdinalThreadPool) _ _ cnt1 m1) by
+           (apply mem_compatible_thread_compat; auto);
+           assert (thread_compat2 : thread_compat(tpool:=OrdinalThreadPool) _ _ cnt2 m2) by
+            (apply mem_compatible_thread_compat; auto)))
+        end.
+      
+      Definition thread_mems {Sem st i m}
+                 {cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i}
+                 (th_compat: thread_compat _ _ cnt m):=
+        (restrPermMap (th_comp _ th_compat),restrPermMap (lock_comp _ th_compat)).
+      
+      Ltac get_thread_mems:=
+        match goal with
+          [CMatch : concur_match _ _ ?mu ?st1 ?m1 ?st2 ?m2,
+                    thread_compat1:thread_compat _ _ ?cnt1 ?m1,
+                                   thread_compat2:thread_compat _ _ ?cnt2 ?m2 |- _ ] =>
+          (* Inequalities for the four perms*)
+          let Hlt_th1:=fresh "Hlt_th1" in 
+          let Hlt_th2:=fresh "Hlt_th2" in 
+          let Hlt_lk1:=fresh "Hlt_lk1" in 
+          let Hlt_lk2:=fresh "Hlt_lk2" in
+          assert (Hlt_th1: permMapLt (thread_perms _ _ cnt1) (getMaxPerm m1))
+            by eapply (memcompat1 _ CMatch);
+          assert (Hlt_th2: permMapLt (thread_perms _ _ cnt2) (getMaxPerm m2))
+            by eapply (memcompat2 _ CMatch);
+          assert (Hlt_lk1: permMapLt (lock_perms _ _ cnt1) (getMaxPerm m1))
+            by eapply (memcompat1 _ CMatch);
+          assert (Hlt_lk2: permMapLt (lock_perms _ _ cnt2) (getMaxPerm m2))
+            by eapply (memcompat2 _ CMatch);
+          (* remember the four mems *)
+          let lk_mem1:=fresh "lk_mem1" in 
+          let lk_mem2:=fresh "lk_mem2" in
+          let th_mem1:=fresh "th_mem1" in
+          let th_mem2:=fresh "th_mem2" in
+          remember (snd (thread_mems thread_compat1)) as lk_mem1;
+          remember (snd (thread_mems thread_compat2)) as lk_mem2;
+          remember (fst (thread_mems thread_compat1)) as th_mem1;
+          remember (fst (thread_mems thread_compat2)) as th_mem2;
+          (* Now the injections*)
+          assert (Hinj_lock: Mem.inject mu lk_mem1 lk_mem2 )
+            by (subst lk_mem2 lk_mem1; eapply CMatch);
+          assert (Hinj_th: Mem.inject mu th_mem1 th_mem2)
+            by (subst th_mem2 th_mem1; eapply CMatch)
+        end.
   
 End ConcurMatch.

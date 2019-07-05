@@ -715,9 +715,6 @@ Module DryHybridMachine.
       Qed.
 
   End HybDryMachineLemmas.
-  Notation thread_perms st i cnt:= (fst (@getThreadR _ _ _ st i cnt)).
-  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ _ st i cnt)).
-    
     
 End DryHybridMachine.
 

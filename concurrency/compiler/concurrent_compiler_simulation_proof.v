@@ -57,10 +57,11 @@ Module Concurrent_correctness
        (Args: ThreadSimulationArguments).
   Module TSim:= (ThreadedSimulation CC_correct Args).
   Import TSim.
-
+  Import MySyncSimulation.MySimulationTactics.MyConcurMatch.MyThreadSimulationDefinitions.
 
   
-    Section TrivialSimulations.
+  Section TrivialSimulations.
+    
       Lemma trivial_clight_simulation:
         forall (cp: Clight.program),
         (HybridMachine_simulation

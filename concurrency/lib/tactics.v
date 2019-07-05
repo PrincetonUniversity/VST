@@ -90,6 +90,13 @@ Ltac match_case_hyp H:=
 Tactic Notation "match_case":= match_case_goal.
 Tactic Notation "match_case" "in" hyp(H):= (match_case_hyp H).
 
+(* Like remember, but without the equation*)
+Ltac forget_as a A :=
+  let Heq:=fresh in
+  remember a as A eqn:Heq; clear Heq.
+Tactic Notation "forget" constr(a) "as" simple_intropattern(A):=
+  forget_as a A.
+
 
 (* Stronger form of inversion. Similar to inv (from CompCert) *)
 (* It inverts and rewrites every *new* equality*)
