@@ -60,7 +60,8 @@ End ThreadSimulationArguments.
 
 
 Module ThreadSimulationDefinitions
-       (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
 
   Import HybridMachineSig.
   Import DryHybridMachine.
