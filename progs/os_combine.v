@@ -59,7 +59,7 @@ Section ext_trace.
   Qed.
 
   Inductive ext_safeN_trace : nat -> Ensemble (@trace event unit) -> OK_ty -> corestate -> mem -> Prop :=
-  | ext_safeN_trace_0: forall z c m, ext_safeN_trace O (Empty_set _) z c m
+  | ext_safeN_trace_0: forall z c m, ext_safeN_trace O (Singleton _ TEnd) z c m
   | ext_safeN_trace_step:
       forall n traces z c m c' m',
       cl_step ge c m c' m' ->
@@ -114,11 +114,9 @@ Section ext_trace.
       eapply extcalls_correct in H1; eauto.
       destruct H1 as (z' & ? & ?).
       edestruct H2 as (? & ? & Hsafe); eauto.
-      apply IHn in Hsafe as [traces ?]; [|omega].
+      eapply IHn in Hsafe as [traces ?]; [|omega].
       subst; do 4 eexists; eauto; split; eauto; split; eauto.
-      intros; unfold In.
-      do 7 eexists; eauto; split; eauto; split; eauto; split; eauto; split; eauto; split; eauto.
-      do 4 eexists; eauto.
+      intros; unfold In; eauto 25.
   Qed.
 
   Lemma safety_trace:
@@ -139,7 +137,7 @@ Section ext_trace.
   Proof.
     intros.
     eapply CSHL_Sound.semax_prog_ext_sound, whole_program_sequential_safety_ext in H as (b & q & m' & ? & ? & Hsafe); eauto.
-    do 4 eexists; eauto; split; eauto; intro n.
+    do 4 eexists; eauto; split; eauto; intros n.
     eapply dry_safe_ext_trace_safe; eauto.
   Qed.
 
@@ -151,6 +149,7 @@ Section ext_trace.
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
     - inversion H0.
+      exists z; apply consume_trace_nil.
     - eauto.
     - destruct (H3 _ H0) as (s & s' & ret & m' & t1 & n' & ? & ? & ? & ? & ? & ? & traces' & z' & c' & ? & ? & ? & ? & ? & ?).
       edestruct (IHn n') as [z'' ?]; eauto; [omega|].
@@ -177,7 +176,7 @@ Section ext_trace.
     intros.
     eapply safety_trace in H as (b & q & m' & ? & ? & Hsafe); eauto.
     exists b, q, m'; split; auto; split; auto.
-    intro n; destruct (Hsafe n) as [traces Hsafen].
+    intros n; destruct (Hsafe n) as [traces Hsafen].
     exists traces; split; auto.
     intros; eapply trace_correct; eauto.
   Qed.
