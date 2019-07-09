@@ -555,6 +555,12 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
+VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
+VERSION2= $(subst version=,,$(shell grep version compcert/VERSION))
+ifneq ($(VERSION1),$(VERSION2))
+$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
+endif
+
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^

@@ -17,12 +17,23 @@ CC=ccomp
 CFLAGS=-O
 
 ifeq ($(ls CONFIGURE),"")
-  $(error Please create a CONFIGURE file defining VST_LOC and COMPCERT_LOC)
+  $(error Please create a CONFIGURE file defining VST_LOC.  If you also want to rerun clightgen to build foo.v from foo.c (etc.), also define COMPCERT_LOC in the CONFIGURE.)
 else
   include CONFIGURE
 endif
 
+ifdef COMPCERT_LOC
 CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
+endif 
+
+ifdef CLIGHTGEN
+VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
+VERSION2= $(subst version=,,$(shell grep version ../../compcert/VERSION))
+ifneq ($(VERSION1),$(VERSION2))
+$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
+endif
+endif
+
 
 CVFILES = $(patsubst %.c,%.v,$(CFILES))
 OFILES = $(patsubst %.c,%.o,$(CFILES))
@@ -41,11 +52,13 @@ cvfiles: $(CVFILES)
 	@echo COQC $*.v
 	@coqc $(VSTFLAGS) $*.v
 
+ifdef CLIGHTGEN
 $(CVFILES): $(CFILES) $(HFILES)
 	$(CLIGHTGEN) -normalize $(CFILES)
 
 incr/incr.v: incr/incr.c
 	$(CLIGHTGEN) -normalize $<
+endif
 
 incr/verif_incr.vo: incr/verif_incr.v incr/incr.vo
 

@@ -222,8 +222,15 @@ Ltac subst_indexes gfs :=
 Ltac solve_store_rule_evaluation :=
   match goal with |- upd_reptype ?t ?gfs ?v0 ?v1 = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
+(*
    lazy beta zeta iota delta [reptype reptype_gen] in rhs;
-   simpl in rhs;
+   cbn in rhs;
+*)
+  match type of rhs with ?A =>
+   let a := fresh "a" in set (a:=A) in rhs; 
+    lazy beta zeta iota delta [reptype reptype_gen] in a;
+    cbn in a; subst a
+  end;
    let h0 := fresh "h0" in let h1 := fresh "h1" in
    set (h0:=v0); set (h1:=v1); change (upd_reptype t gfs h0 h1 = rhs);
    remember_indexes gfs;

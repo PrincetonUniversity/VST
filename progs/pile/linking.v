@@ -163,14 +163,7 @@ apply H in H1.
 auto.
 Qed.
 
-Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
-(COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
-  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
-Proof.
-  intros. eapply (@semax_body_subsumption' CS CS'); try eassumption. 
-  apply tycontext_sub_refl.
-Qed. 
-
+(*Repetion of a lemma in forward.v*)
 Lemma semax_body_subsumption' cs cs' V V' F F' f spec
       (SF: @semax_body V F cs f spec)
       (CSUB: cspecs_sub cs cs')
@@ -182,6 +175,14 @@ Proof.
   apply (@semax_body_cenv_sub _ _ CSUB); auto.
   eapply semax_body_subsumption; try eassumption.
 Qed.
+
+Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+(COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+Proof. (*eapply (semax_body_cenv_sub CSUB); trivial.*)
+  intros. eapply (@semax_body_subsumption' CS CS'); try eassumption. 
+  apply tycontext_sub_refl.
+Qed. 
 
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
