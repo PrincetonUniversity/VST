@@ -141,86 +141,104 @@ Admitted.
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)) ->
       OS_safeN_trace (S n) t traces z s0 c m.
 
-(*  Lemma IO_ext_sem_trace : forall e args s s' ret t, IO_ext_sem e args s = Some (s', ret, t) ->
+  Lemma strip_all : forall {A} (A_eq : forall x y : A, {x = y} + {x <> y}) t, strip_common_prefix A_eq t t = [].
+  Proof.
+    intros; unfold strip_common_prefix.
+    rewrite common_prefix_full, Nat.leb_refl, skipn_exact_length; auto.
+  Qed.
+
+Local Ltac inj :=
+  repeat match goal with
+  | H: _ = _ |- _ => assert_succeeds (injection H); inv H
+  end.
+
+Local Ltac destruct_spec Hspec :=
+  repeat match type of Hspec with
+  | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
+  end.
+
+  Lemma IO_ext_sem_trace : forall e args s s' ret t, valid_trace s -> IO_ext_sem e args s = Some (s', ret, t) ->
+    s.(io_log) = common_prefix IOEvent_eq s.(io_log) s'.(io_log) /\
     t = trace_of_ostrace (strip_common_prefix IOEvent_eq s.(io_log) s'.(io_log)).
   Proof.
-    intros until t.
-    unfold IO_ext_sem.*)
+    intros until 1.
+    unfold IO_ext_sem.
+    if_tac; [|if_tac].
+    - unfold sys_putc_wrap_spec.
+      destruct sys_putc_spec eqn: Hputc; inversion 1; subst; split; auto.
+      admit.
+    - unfold sys_getc_wrap_spec.
+      destruct sys_getc_spec eqn: Hgetc; inversion 1; subst; split; auto.
+      pose proof Hgetc as Hspec.
+      unfold sys_getc_spec in Hgetc; destruct_spec Hgetc.
+      unfold uctx_set_errno_spec in Hgetc; destruct_spec Hgetc.
+      unfold uctx_set_retval1_spec in Heqo2; destruct_spec Heqo2.
+      destruct r1; cbn in *.
+      eapply sys_getc_trace_case in Hspec as []; auto.
+      unfold get_sys_ret; cbn.
+      repeat (rewrite ZMap.gss in * || rewrite ZMap.gso in * by easy); subst; inj; reflexivity.
+    - inversion 1.
+      rewrite common_prefix_full, strip_all; auto.
+  Admitted.
 
-(*  Lemma OS_trace_correct' : forall n t traces z s0 c m
-    (Hvalid : valid_trace s0),
+  Lemma app_trace_end : forall t, app_trace (trace_of_ostrace t) TEnd = trace_of_ostrace t.
+  Proof.
+    induction t; auto; simpl.
+    destruct io_event_of_io_tevent as [[]|]; auto; simpl.
+    rewrite IHt; auto.
+  Qed.
+
+  Lemma app_trace_strip : forall t1 t2, common_prefix IOEvent_eq t1 t2 = t1 ->
+    app_trace (trace_of_ostrace t1) (trace_of_ostrace (strip_common_prefix IOEvent_eq t1 t2)) = trace_of_ostrace t2.
+  Proof.
+    intros; rewrite (strip_common_prefix_correct IOEvent_eq t1 t2) at 2.
+    rewrite trace_of_ostrace_app, H; auto.
+    { rewrite <- H, common_prefix_sym; apply common_prefix_length. }
+  Qed.
+
+  Lemma IO_valid : forall e args s s' ret t, IO_ext_sem e args s = Some (s', ret, t) -> valid_trace s -> valid_trace s'.
+  Admitted.
+
+  Lemma OS_trace_correct' : forall n t traces z s0 c m
+    (Hvalid : valid_trace s0) (Ht : t = trace_of_ostrace s0.(io_log)),
     OS_safeN_trace n t traces z s0 c m ->
-    forall t sf, In _ traces (t, sf) -> valid_trace sf /\ app_trace (trace_of_ostrace s0.(io_log)) t = trace_of_ostrace sf.(io_log).
+    forall t' sf, In _ traces (t', sf) -> valid_trace sf /\ app_trace (trace_of_ostrace s0.(io_log)) t' = trace_of_ostrace sf.(io_log).
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
     - inversion H0; subst.
-      split; auto.
-      admit.
+      rewrite app_trace_end; auto.
     - eauto.
-    - destruct (H3 _ H0) as (? & ? & ? & ? & ? & ? & ? & ? & Htrace & ? & Hext & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & ? & ? & Heq).
+    - destruct (H3 _ H0) as (? & s' & ? & ? & ? & ? & ? & ? & Hinj & Hcall & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & ? & ? & Heq).
       inversion Heq; subst.
+      destruct Hinj as [? Htrace].
+      assert (valid_trace s') by (eapply IO_valid; eauto).
+      apply IO_ext_sem_trace in Hcall as [Hprefix]; auto; subst.
       eapply IHn in Hsafe as [? Htrace']; eauto; try omega.
       split; auto.
-      rewrite <- Htrace, <- Htrace'.
-      admit.
-      { admit. }
-  Admitted.*)
+      rewrite Htrace, <- Htrace', <- app_trace_assoc, app_trace_strip; auto.
+      { rewrite Htrace, app_trace_strip; auto. }
+  Qed.
 
-(*  Lemma OS_trace_correct : forall n traces z s0 c m
+  Lemma init_log_valid : forall s, io_log s = [] -> console s = {| cons_buf := []; rpos := 0 |} -> valid_trace s.
+  Proof.
+    intros s Hinit Hcon.
+    constructor; rewrite Hinit; repeat intro; try (pose proof app_cons_not_nil; congruence).
+    + constructor.
+    + hnf.
+      rewrite Hcon; auto.
+  Qed.
+
+  Lemma OS_trace_correct : forall n traces z s0 c m
     (Hinit : s0.(io_log) = []) (Hcon : s0.(console) = {| cons_buf := []; rpos := 0 |}),
-    OS_safeN_trace n traces z s0 c m ->
+    OS_safeN_trace n TEnd traces z s0 c m ->
     forall t sf, In _ traces (t, sf) -> valid_trace sf /\ t = trace_of_ostrace sf.(io_log).
   Proof.
     intros; eapply OS_trace_correct' in H as [? Htrace]; eauto.
     split; auto.
     rewrite Hinit in Htrace; auto.
-    { constructor; rewrite Hinit; repeat intro; try (pose proof app_cons_not_nil; congruence).
-      + constructor.
-      + hnf.
-        rewrite Hcon; auto. }
-  Qed.*)
-
-(*  Lemma OS_safe_ext_safe : forall n traces z s0 q m,
-    OS_safeN_trace n traces z s0 q m ->
-    exists traces', ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n traces' z q m /\
-      forall t, In _ traces' t <-> exists s, In _ traces (t, s).
-  Proof.
-    induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
-    - exists (Singleton _ TEnd); split; [constructor|].
-      intros; split.
-      + inversion 1; eexists; constructor.
-      + intros (? & Hin); inversion Hin; constructor.
-    - edestruct IHn as (traces' & ? & ?); eauto.
-      do 2 eexists; eauto.
-      eapply ext_safeN_trace_step; eauto.
-    - exists (fun t1 => exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
-         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         IO_inj_mem m s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
-         (n' <= n0)%nat /\ exists traces' z' c', consume_trace z z' t /\
-           cl_after_external ret q = Some c' /\ ext_safeN_trace(J := @OK_spec IO_Espec) prog IO_ext_sem IO_inj_mem OS_mem n' traces' z' c' m' /\
-        exists t', In _ traces' t' /\ t1 = app_trace t t'); split.
-      + eapply ext_safeN_trace_external; eauto; intros.
-        edestruct (H1 (update_console (update_io_log s (io_log s0)) (console s0))) as (? & ? & ? & ? & ? & Hsafe & ?); eauto.
-        { destruct s; reflexivity. }
-        { admit. }
-        { admit. }
-        eapply IHn in Hsafe as (? & ? & ?); [|omega].
-        do 4 eexists; eauto; split; eauto; split; eauto.
-        intros; unfold In; eauto 25.
-      + unfold In in *; split.
-        * intro Hin; destruct (H2 _ Hin) as (s & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & ? & ?); subst.
-          eapply IHn in Hsafe as (? & ? & ?); [|omega].
-          eexists; exists (update_console (update_io_log s (io_log s0)) (console s0)); do 6 eexists; eauto; split; eauto; split.
-          { destruct s; reflexivity. }
-          split.
-          { admit. }
-          admit.
-        * intros (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Heq).
-          inversion Heq; subst.
-          edestruct H1 as (? & ? & ? & ? & ? & Hsafe & Htrace); eauto; apply Htrace.*)
-
-  Lemma IO_valid : forall e args s s' ret t, IO_ext_sem e args s = Some (s', ret, t) -> valid_trace s -> valid_trace s'.
-  Admitted.
+    { apply init_log_valid; auto. }
+    { rewrite Hinit; auto. }
+  Qed.
 
   Lemma ext_safe_OS_safe : forall n t traces z q m s0 (Hvalid : valid_trace s0),
     ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n t traces z q m ->
@@ -281,6 +299,7 @@ Proof.
   destruct (Htrace t).
   { apply Htrace'; eauto. }
   inversion Hvalid; eauto.
+  { apply init_log_valid; auto. }
 Qed.
 
 End IO_safety.
