@@ -134,7 +134,9 @@ Inductive SyscallEvent :=
 
 Inductive IOEvent :=
 | IOEvRecv (logIdx : Z) (strIdx : nat) (c : Z)
-| IOEvGetc (logIdx : Z) (strIdx : nat) (c : Z).
+| IOEvSend (logIdx : Z) (c : Z)
+| IOEvGetc (logIdx : Z) (strIdx : nat) (c : Z)
+| IOEvPutc (logIdx : Z) (c : Z).
 
 Record RData := mkRData {
   CPU_ID : Z; (* current CPU_ID *)
@@ -151,7 +153,8 @@ Record RData := mkRData {
   ioapic : IoApicData; (* I/O Advanced Programmable Interrupt Controller *)
   intr_flag : bool;
   in_intr : bool; (* in the interrupt handler *)
-  io_log : list IOEvent
+  io_rx_log : list IOEvent;
+  io_tx_log : list IOEvent
 }.
 
 Class ThreadsConfigurationOps := {
@@ -159,50 +162,53 @@ Class ThreadsConfigurationOps := {
 }.
 
 Definition update_CPU_ID (a : RData) b :=
-  let (_, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData b pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (_, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData b pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_pg (a : RData) b :=
-  let (CPU_ID, _, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID b ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, _, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID b ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_ikern (a : RData) b :=
-  let (CPU_ID, pg, _, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg b ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, _, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg b ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_ihost (a : RData) b :=
-  let (CPU_ID, pg, ikern, _, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern b cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, _, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern b cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_cid (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, _, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost b init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, _, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost b init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_init (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, _, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid b big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, _, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid b big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_big_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, _, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init b uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, _, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init b uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_uctxt (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, _, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log b com1 drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, _, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log b com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_com1 (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, _, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt b drv_serial console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, _, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt b drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_drv_serial (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, _, console, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 b console ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, _, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 b console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_console (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, _, ioapic, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial b ioapic intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, _, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial b ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_ioapic (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, _, intr_flag, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console b intr_flag in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, _, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console b intr_flag in_intr io_rx_log io_tx_log.
 Definition update_intr_flag (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, _, in_intr, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic b in_intr io_log.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, _, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic b in_intr io_rx_log io_tx_log.
 Definition update_in_intr (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, _, io_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag b io_log.
-Definition update_io_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, _) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr b.
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, _, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag b io_rx_log io_tx_log.
+Definition update_io_rx_log (a : RData) b :=
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, _, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr b io_tx_log.
+Definition update_io_tx_log (a : RData) b :=
+  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, _) := a in
+  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log b.
 
 Notation "a '{' 'CPU_ID' : x }" := (update_CPU_ID a x) (at level 1).
 Notation "a '{' 'pg' : x }" := (update_pg a x) (at level 1).
@@ -218,7 +224,8 @@ Notation "a '{' 'console' : x }" := (update_console a x) (at level 1).
 Notation "a '{' 'ioapic' : x }" := (update_ioapic a x) (at level 1).
 Notation "a '{' 'intr_flag' : x }" := (update_intr_flag a x) (at level 1).
 Notation "a '{' 'in_intr' : x }" := (update_in_intr a x) (at level 1).
-Notation "a '{' 'io_log' : x }" := (update_io_log a x) (at level 1).
+Notation "a '{' 'io_rx_log' : x }" := (update_io_rx_log a x) (at level 1).
+Notation "a '{' 'io_tx_log' : x }" := (update_io_tx_log a x) (at level 1).
 
 Definition update_cons_buf (a : ConsoleDriver) b :=
   let (_, rpos) := a in mkConsoleDriver b rpos.
@@ -390,6 +397,7 @@ Notation CHAR_LF := 10.
 Notation NEXT_SEND_MAX_REC := (Nat.of_uint 12800%uint).
 Notation E_SUCC := 0.
 Notation E_NOCHAR := 1.
+Notation E_SENDFAIL := 2.
 
 Section Specs.
 Context `{ThreadsConfigurationOps}.
@@ -413,7 +421,7 @@ Definition cons_intr_aux (abd : RData) : option RData :=
                           {com1 / l1 : lrx + Zlength rxbuf' * 2 + 1}
                           {com1 / s / RxBuf : nil}
                           {com1 / s / SerialIrq : false}
-                          {io_log : abd.(io_log) ++ mkRecvEvents (lrx - 1) str}
+                          {io_rx_log : abd.(io_rx_log) ++ mkRecvEvents (lrx - 1) str}
             else Some abd {console / cons_buf :
                             skipn (Z.to_nat (Zlength (abd.(console).(cons_buf) ++ rxbuf') - CONS_BUFFER_MAX_CHARS))
                                   (abd.(console).(cons_buf) ++ rxbuf')}
@@ -421,7 +429,7 @@ Definition cons_intr_aux (abd : RData) : option RData :=
                           {com1 / l1 : lrx + Zlength rxbuf' * 2 + 1}
                           {com1 / s /RxBuf : nil}
                           {com1 / s /SerialIrq : false}
-                          {io_log : abd.(io_log) ++ mkRecvEvents (lrx - 1) str}
+                          {io_rx_log : abd.(io_rx_log) ++ mkRecvEvents (lrx - 1) str}
           else None
         | _ => None
         end
@@ -443,27 +451,35 @@ Fixpoint serial_intr_enable_aux (n : nat) (abd : RData) : option RData :=
     else Some abd
   end.
 
-Definition serial_trans_env (e : SerialEvent) (s : SerialState) : SerialState :=
+Definition serial_trans_env_rx (e : SerialEvent) (s : SerialState) : SerialState :=
   let (_, _, _, rxint, _, rxbuf, _, _, _, _, _, _, _) := s in
   match e with
   | SerialPlugin => s {SerialOn : true}
   | SerialRecv str =>
     let s' := s {RxBuf : skipn (length (rxbuf ++ str) - SERIAL_HW_BUF_SIZE) (rxbuf ++ str)} in
     if rxint then s' {SerialIrq : true} else s'
-  | SerialSendComplete => s {TxBuf : nil}
   | _ => s
   end.
 
-Definition serial_intr (d : SerialData) : (SerialData * SerialEvent) :=
-  let e := SerialEnv d.(l1) in
-  (d {s : serial_trans_env e d.(s)} {l1 : d.(l1) + 1}, e).
+Definition serial_trans_env_tx (e : SerialEvent) (s : SerialState) : SerialState * option Z :=
+  match e with
+  | SerialSendComplete => (s {TxBuf : nil}, hd_error s.(TxBuf))
+  | _ => (s, None)
+  end.
+
+Definition serial_intr (d : SerialData) : SerialData * list IOEvent :=
+  let s' := serial_trans_env_rx (SerialEnv d.(l1)) d.(s) in
+  let (s'', c) := serial_trans_env_tx (SerialEnv d.(l2)) s' in
+  (* TODO: fake logIdx for now until figure out how to relate to Putc events *)
+  let new := match c with Some c' => IOEvSend 0 c' :: nil | _ => nil end in
+  (d {s : s''} {l1 : d.(l1) + 1} {l2 : d.(l2) + 1}, new).
 
 Fixpoint serial_intr_disable_aux (n : nat) (masked : bool) (abd : RData) : option RData :=
   match n with
   | O => Some abd
   | S n' =>
-    let (data, ev) := serial_intr abd.(com1) in
-    let d0 := abd {com1 : data} in
+    let (data, new) := serial_intr abd.(com1) in
+    let d0 := abd {com1 : data} {io_tx_log : abd.(io_tx_log) ++ new}in
     if d0.(com1).(s).(SerialIrq) then
       if masked then serial_intr_disable_aux n' true d0
       else match cons_intr_aux d0 with
@@ -604,33 +620,31 @@ Fixpoint putc_scan_log (t : Z) (bound : nat) : option Z :=
 
 Definition next_sendcomplete (t : Z) :=
   match putc_scan_log t NEXT_SEND_MAX_REC with
-  | None => t + Z.of_nat NEXT_SEND_MAX_REC
-  | Some i => i + 1
+  | None => None
+  | Some i => Some (i + 1)
   end.
 
-Definition serial_putc_spec (c : Z) (abd : RData) : option RData :=
+Definition serial_putc_spec (c : Z) (abd : RData) : option (RData * Z) :=
+  let c' := c mod 256 in
   match (abd.(ikern), abd.(init), abd.(ihost)) with
   | (true, true, true) =>
     if zeq 1 abd.(drv_serial).(serial_exists) then
       match abd.(com1) with
       | mkDevData (mkSerialState _ true _ _ txbuf nil false _ _ _ _ _ _) _ ltx _ =>
+        let cs := if zeq c' CHAR_LF then CHAR_LF :: CHAR_CR :: nil else c' :: nil in
         match txbuf with
-        | nil =>
-          if zeq c CHAR_LF
-          then Some abd {com1 / s / TxBuf : CHAR_LF :: CHAR_CR :: nil}
-                        {com1 / l2 : ltx + 1}
-          else Some abd {com1 / s / TxBuf : c :: nil}
-                        {com1 / l2 : ltx + 1}
+        | nil => Some (abd {com1 / s / TxBuf : cs} {com1 / l2 : ltx + 1}
+                           {io_tx_log : abd.(io_tx_log) ++ IOEvPutc ltx c :: nil}, c')
         | _ =>
-          if zeq c CHAR_LF
-          then Some abd {com1 / s / TxBuf : CHAR_LF :: CHAR_CR :: nil}
-                        {com1 / l2 : next_sendcomplete ltx}
-          else Some abd {com1 / s / TxBuf : c :: nil}
-                        {com1 / l2 : next_sendcomplete ltx}
+          match next_sendcomplete ltx with
+          | Some ltx' => Some (abd {com1 / s / TxBuf : cs} {com1 / l2 : ltx'}
+                                   {io_tx_log : abd.(io_tx_log) ++ IOEvPutc ltx c :: nil}, c')
+          | None => None
+          end
         end
       | _ => None
       end
-    else Some abd
+    else Some (abd, -1)
   | _ => None
   end.
 
@@ -646,7 +660,7 @@ Definition cons_buf_read_spec (abd : RData) : option (RData * Z) :=
     | (c, logIdx, strIdx) :: tl =>
       Some (abd {console : s {cons_buf : tl}
                              {rpos : (r + 1) mod CONS_BUFFER_SIZE}}
-                {io_log : abd.(io_log) ++ IOEvGetc logIdx strIdx c :: nil}, c)
+                {io_rx_log : abd.(io_rx_log) ++ IOEvGetc logIdx strIdx c :: nil}, c)
     end
   | _ => None
   end.
@@ -655,7 +669,7 @@ Definition thread_cons_buf_read_spec (abd : RData) : option (RData * Z) :=
   if zeq (ZMap.get abd.(CPU_ID) abd.(cid)) dev_handling_cid
   then if abd.(init) then cons_buf_read_spec abd else None else None.
 
-Definition thread_serial_putc_spec (c : Z) (abd : RData) : option RData :=
+Definition thread_serial_putc_spec (c : Z) (abd : RData) : option (RData * Z) :=
   if zeq (ZMap.get abd.(CPU_ID) abd.(cid)) dev_handling_cid
   then if abd.(init) then serial_putc_spec c abd else None else None.
 
@@ -683,20 +697,24 @@ Definition sys_getc_spec (abd : RData) : option RData :=
 Definition sys_putc_spec (abd : RData) : option RData :=
   match uctx_arg2_spec abd with
   | Some c =>
-    if zle_le 0 c 255 then
-      match thread_serial_intr_disable_spec abd with
-      | Some d1 =>
-        match thread_serial_putc_spec c d1 with
-        | Some d2 =>
-          match thread_serial_intr_enable_spec d2 with
-          | Some d3 => uctx_set_errno_spec E_SUCC d3
+    match thread_serial_intr_disable_spec abd with
+    | Some d1 =>
+      match thread_serial_putc_spec c d1 with
+      | Some (d2, x) =>
+        match thread_serial_intr_enable_spec d2 with
+        | Some d3 =>
+          match uctx_set_retval1_spec x d3 with
+          | Some d4 =>
+            let err := if zeq x (-1) then E_SENDFAIL else E_SUCC in
+            uctx_set_errno_spec err d4
           | None => None
           end
         | None => None
         end
       | None => None
       end
-    else None
+    | None => None
+    end
   | None => None
   end.
 End Specs.

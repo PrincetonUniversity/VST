@@ -36,23 +36,33 @@ Definition ext_link := ext_link_prog prog.
 
 Definition sys_getc_wrap_spec (abd : RData) : option (RData * val * trace) :=
   match sys_getc_spec abd with
-  | Some abd' => Some (abd', get_sys_ret abd', trace_of_ostrace (strip_common_prefix IOEvent_eq abd.(io_log) abd'.(io_log)))
+  | Some abd' => Some (abd', get_sys_ret abd', trace_of_ostrace (strip_common_prefix IOEvent_eq abd.(io_rx_log) abd'.(io_rx_log)))
   | None => None
   end.
 
-Definition sys_putc_wrap_spec (abd : RData) : option (RData * val * trace) :=
-  match sys_putc_spec abd with
-  | Some abd' => Some (abd', get_sys_ret abd', trace_of_ostrace (strip_common_prefix IOEvent_eq abd.(io_log) abd'.(io_log)))
-  | None => None
+Definition sys_putc_wrap_spec (cv : val) (abd : RData) : option (RData * val * trace) :=
+  (* Make sure argument is set *)
+  match cv, get_sys_arg abd with
+  | Vint c, Vint c' =>
+    if eq_dec.eq_dec c c' then
+      match sys_putc_spec abd with
+      | Some abd' => Some (abd', get_sys_ret abd', trace_of_ostrace (strip_common_prefix IOEvent_eq abd.(io_tx_log) abd'.(io_tx_log)))
+      | None => None
+      end
+    else None
+  | _, _ => None
   end.
 
 Definition IO_ext_sem e (args : list val) s :=
   if oi_eq_dec (Some (ext_link "putchar"%string, funsig2signature ([(1%positive, tint)], tint) cc_default))
     (ef_id_sig ext_link e) then
-    match sys_putc_wrap_spec s with
-    | Some (s', ret, t') => Some (s', Some ret, t')
-    | None => None
-    end else
+    match args with
+    | c :: nil =>
+      match sys_putc_wrap_spec c s with
+      | Some (s', ret, t') => Some (s', Some ret, t')
+      | None => None
+      end
+    | _ => None end else
   if oi_eq_dec  (Some (ext_link "getchar"%string, funsig2signature ([], tint) cc_default))
     (ef_id_sig ext_link e) then
     match sys_getc_wrap_spec s with
@@ -86,8 +96,18 @@ Proof.
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
       unfold sys_putc_wrap_spec in *.
-      destruct (sys_putc_spec) eqn:Hspec; inv H3.
-      admit. (* need putc_correct *)
+      destruct args as [| [] [|]] eqn:?; try discriminate.
+      destruct get_sys_arg eqn:Harg; try discriminate.
+      destruct (eq_dec i1 i2); subst; try discriminate.
+      destruct sys_putc_spec eqn:Hspec; inv H3.
+      eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
+      * do 2 eexists; eauto.
+        unfold putchar_post in *.
+        destruct Hpost as [? Hpost]; split; auto.
+        admit. (* memory not handled yet *)
+      * enough (i = i2); subst; auto.
+        (* TODO: Need to know char in itree matches the argument passed to putchar *)
+        admit.
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
@@ -123,7 +143,7 @@ Admitted.
       (forall s s' ret m' t n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
-         io_log s = io_log s0 -> IO_inj_mem m s ->
+         io_rx_log s = io_rx_log s0 -> IO_inj_mem m s ->
          IO_ext_sem e args s = Some (s', ret, t) ->
          m' = OS_mem s' ->
          (n' <= n)%nat ->
@@ -134,7 +154,7 @@ Admitted.
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         io_log s = io_log s0 /\ valid_trace s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
+         io_rx_log s = io_rx_log s0 /\ valid_trace s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
          (n' <= n)%nat /\ exists traces' z' c', consume_trace z z' t /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' traces' z' s' c' m' /\
         exists t' sf, In _ traces' (t', sf) /\ t1 = (app_trace t t', sf)) ->
@@ -143,7 +163,7 @@ Admitted.
   Lemma OS_trace_correct' : forall n traces z s0 c m
     (Hvalid : valid_trace s0),
     OS_safeN_trace n traces z s0 c m ->
-    forall t sf, In _ traces (t, sf) -> valid_trace sf /\ app_trace (trace_of_ostrace s0.(io_log)) t = trace_of_ostrace sf.(io_log).
+    forall t sf, In _ traces (t, sf) -> valid_trace sf /\ app_trace (trace_of_ostrace s0.(io_rx_log)) t = trace_of_ostrace sf.(io_rx_log).
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
     - inversion H0; subst.
@@ -160,9 +180,9 @@ Admitted.
   Admitted.
 
   Lemma OS_trace_correct : forall n traces z s0 c m
-    (Hinit : s0.(io_log) = []) (Hcon : s0.(console) = {| cons_buf := []; rpos := 0 |}),
+    (Hinit : s0.(io_rx_log) = []) (Hcon : s0.(console) = {| cons_buf := []; rpos := 0 |}),
     OS_safeN_trace n traces z s0 c m ->
-    forall t sf, In _ traces (t, sf) -> valid_trace sf /\ t = trace_of_ostrace sf.(io_log).
+    forall t sf, In _ traces (t, sf) -> valid_trace sf /\ t = trace_of_ostrace sf.(io_rx_log).
   Proof.
     intros; eapply OS_trace_correct' in H as [? Htrace]; eauto.
     split; auto.
@@ -187,7 +207,7 @@ Admitted.
       eapply OS_safeN_trace_step; eauto.
     - exists (fun t1 => exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         io_log s = io_log s0 /\ IO_inj_mem m s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
+         io_rx_log s = io_rx_log s0 /\ IO_inj_mem m s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
          (n' <= n0)%nat /\ exists traces' z' c', consume_trace z z' t /\
            cl_after_external ret q = Some c' /\ OS_safeN_trace n' traces' z' s' c' m' /\
         exists t' sf, In _ traces' (t', sf) /\ t1 = (app_trace t t', sf)); split.
@@ -199,7 +219,7 @@ Admitted.
       + unfold In in *; split.
         * intro Hin; destruct (H2 _ Hin) as (s & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & ? & ?); subst.
           eapply IHn in Hsafe as (? & ? & ?); [|omega].
-          eexists; exists (update_console (update_io_log s (io_log s0)) (console s0)); do 6 eexists; eauto; split; eauto; split.
+          eexists; exists (update_console (update_io_rx_log s (io_rx_log s0)) (console s0)); do 6 eexists; eauto; split; eauto; split.
           { destruct s; reflexivity. }
           split.
           { admit. }
@@ -211,7 +231,7 @@ Admitted.
           admit.
   Admitted.
 
-Theorem IO_OS_ext: 
+Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
    semax_prog_ext prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
@@ -219,10 +239,10 @@ Theorem IO_OS_ext:
      Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
      initial_core (cl_core_sem (globalenv prog))
          0 m q m' (Vptr b Ptrofs.zero) nil /\
-   forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
+   forall n s0, s0.(io_rx_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
     exists traces, OS_safeN_trace n traces initial_oracle s0 q m' /\
-     forall t s, In _ traces (t, s) -> exists z', consume_trace initial_oracle z' t /\ t = trace_of_ostrace s.(io_log) /\
-      valid_trace_user s.(io_log).
+     forall t s, In _ traces (t, s) -> exists z', consume_trace initial_oracle z' t /\ t = trace_of_ostrace s.(io_rx_log) /\
+      valid_trace_user s.(io_rx_log).
 Proof.
   intros; eapply IO_OS_soundness in H as (? & ? & ? & ? & ? & Hsafe); eauto.
   do 4 eexists; eauto; split; eauto; intros.

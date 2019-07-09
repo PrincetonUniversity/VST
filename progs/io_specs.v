@@ -42,9 +42,10 @@ Definition putchar_spec :=
     LOCAL (temp 1%positive (Vint c))
     SEP (ITREE (write c ;; k))
   POST [ tint ]
-    PROP ()
-    LOCAL (temp ret_temp (Vint c))
-    SEP (ITREE k).
+   EX i : int,
+    PROP (Int.signed i = -1 \/ i = Int.repr (Int.unsigned c mod 256))
+    LOCAL (temp ret_temp (Vint i))
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (write c ;; k) else k)).
 
 Definition getchar_spec :=
   WITH k : int -> IO_itree
