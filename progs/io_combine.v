@@ -61,7 +61,7 @@ Definition IO_ext_sem e (args : list val) s :=
     end
   else Some (s, None, TEnd).
 
-Definition IO_inj_mem (m : mem) s := valid_trace s. (* stub *)
+Definition IO_inj_mem (m : mem) t s := valid_trace s /\ t = trace_of_ostrace s.(io_log). (* stub *)
 Definition OS_mem (s : RData) : mem := Mem.empty. (* stub *)
 
 Instance IO_Espec : OracleKind := io_specs.IO_Espec ext_link.
@@ -76,11 +76,12 @@ Theorem IO_OS_soundness:
      Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
      initial_core (cl_core_sem (globalenv prog))
          0 m q m' (Vptr b Ptrofs.zero) nil /\
-   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n traces initial_oracle q m' /\
+   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n TEnd traces initial_oracle q m' /\
      forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
 Proof.
   intros; eapply OS_soundness with (dryspec := io_dry_spec ext_link); eauto.
   - unfold IO_ext_sem; intros; simpl in *.
+    destruct H2 as [Hvalid Htrace].
     if_tac; [|if_tac; [|contradiction]].
     + destruct w as (? & _ & ? & ?).
       destruct H1 as (? & ? & Hpre); subst.
@@ -110,39 +111,45 @@ Admitted.
 (* relate to OS's external events *)
   Notation ge := (globalenv prog).
 
-  Inductive OS_safeN_trace : nat -> Ensemble (@trace io_specs.IO_event unit * RData) -> OK_ty -> RData -> corestate -> mem -> Prop :=
-  | OS_safeN_trace_0: forall z s c m, OS_safeN_trace O (Singleton _ (TEnd, s)) z s c m
+  Inductive OS_safeN_trace : nat -> @trace io_specs.IO_event unit -> Ensemble (@trace io_specs.IO_event unit * RData) -> OK_ty -> RData -> corestate -> mem -> Prop :=
+  | OS_safeN_trace_0: forall t z s c m, OS_safeN_trace O t (Singleton _ (TEnd, s)) z s c m
   | OS_safeN_trace_step:
-      forall n traces z s c m c' m',
+      forall n t traces z s c m c' m',
       cl_step ge c m c' m' ->
-      OS_safeN_trace n traces z s c' m' ->
-      OS_safeN_trace (S n) traces z s c m
+      OS_safeN_trace n t traces z s c' m' ->
+      OS_safeN_trace (S n) t traces z s c m
   | OS_safeN_trace_external:
-      forall n traces z s0 c m e args,
+      forall n t traces z s0 c m e args,
       cl_at_external c = Some (e,args) ->
-      (forall s s' ret m' t n'
+      (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
-         io_log s = io_log s0 -> IO_inj_mem m s ->
-         IO_ext_sem e args s = Some (s', ret, t) ->
+         IO_inj_mem m t s ->
+         IO_ext_sem e args s = Some (s', ret, t') ->
          m' = OS_mem s' ->
          (n' <= n)%nat ->
-         exists traces' z' c', consume_trace z z' t /\
+         exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\
-           OS_safeN_trace n' traces' z' s' c' m' /\
-           (forall t' sf, In _ traces' (t', sf) -> In _ traces (app_trace t t', sf))) ->
+           OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
+           (forall t'' sf, In _ traces' (t'', sf) -> In _ traces (app_trace t' t'', sf))) ->
       (forall t1, In _ traces t1 ->
-        exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
+        exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         io_log s = io_log s0 /\ valid_trace s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
-         (n' <= n)%nat /\ exists traces' z' c', consume_trace z z' t /\
-           cl_after_external ret c = Some c' /\ OS_safeN_trace n' traces' z' s' c' m' /\
-        exists t' sf, In _ traces' (t', sf) /\ t1 = (app_trace t t', sf)) ->
-      OS_safeN_trace (S n) traces z s0 c m.
+         IO_inj_mem m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem s' /\
+         (n' <= n)%nat /\ exists traces' z' c', consume_trace z z' t' /\
+           cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
+        exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)) ->
+      OS_safeN_trace (S n) t traces z s0 c m.
 
-  Lemma OS_trace_correct' : forall n traces z s0 c m
+(*  Lemma IO_ext_sem_trace : forall e args s s' ret t, IO_ext_sem e args s = Some (s', ret, t) ->
+    t = trace_of_ostrace (strip_common_prefix IOEvent_eq s.(io_log) s'.(io_log)).
+  Proof.
+    intros until t.
+    unfold IO_ext_sem.*)
+
+(*  Lemma OS_trace_correct' : forall n t traces z s0 c m
     (Hvalid : valid_trace s0),
-    OS_safeN_trace n traces z s0 c m ->
+    OS_safeN_trace n t traces z s0 c m ->
     forall t sf, In _ traces (t, sf) -> valid_trace sf /\ app_trace (trace_of_ostrace s0.(io_log)) t = trace_of_ostrace sf.(io_log).
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
@@ -157,9 +164,9 @@ Admitted.
       rewrite <- Htrace, <- Htrace'.
       admit.
       { admit. }
-  Admitted.
+  Admitted.*)
 
-  Lemma OS_trace_correct : forall n traces z s0 c m
+(*  Lemma OS_trace_correct : forall n traces z s0 c m
     (Hinit : s0.(io_log) = []) (Hcon : s0.(console) = {| cons_buf := []; rpos := 0 |}),
     OS_safeN_trace n traces z s0 c m ->
     forall t sf, In _ traces (t, sf) -> valid_trace sf /\ t = trace_of_ostrace sf.(io_log).
@@ -171,28 +178,32 @@ Admitted.
       + constructor.
       + hnf.
         rewrite Hcon; auto. }
-  Qed.
+  Qed.*)
 
-  Lemma ext_safe_OS_safe : forall n traces z q m s0,
-    ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n traces z q m ->
-    exists traces', OS_safeN_trace n traces' z s0 q m /\ forall t, In _ traces t <-> exists s, In _ traces' (t, s).
+(*  Lemma OS_safe_ext_safe : forall n traces z s0 q m,
+    OS_safeN_trace n traces z s0 q m ->
+    exists traces', ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n traces' z q m /\
+      forall t, In _ traces' t <-> exists s, In _ traces (t, s).
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
-    - exists (Singleton _ (TEnd, s0)); split; [constructor|].
+    - exists (Singleton _ TEnd); split; [constructor|].
       intros; split.
       + inversion 1; eexists; constructor.
       + intros (? & Hin); inversion Hin; constructor.
     - edestruct IHn as (traces' & ? & ?); eauto.
       do 2 eexists; eauto.
-      eapply OS_safeN_trace_step; eauto.
+      eapply ext_safeN_trace_step; eauto.
     - exists (fun t1 => exists s s' ret m' t n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         io_log s = io_log s0 /\ IO_inj_mem m s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
+         IO_inj_mem m s /\ IO_ext_sem e args s = Some (s', ret, t) /\ m' = OS_mem s' /\
          (n' <= n0)%nat /\ exists traces' z' c', consume_trace z z' t /\
-           cl_after_external ret q = Some c' /\ OS_safeN_trace n' traces' z' s' c' m' /\
-        exists t' sf, In _ traces' (t', sf) /\ t1 = (app_trace t t', sf)); split.
-      + eapply OS_safeN_trace_external; eauto; intros.
-        edestruct H1 as (? & ? & ? & ? & ? & Hsafe & ?); eauto.
+           cl_after_external ret q = Some c' /\ ext_safeN_trace(J := @OK_spec IO_Espec) prog IO_ext_sem IO_inj_mem OS_mem n' traces' z' c' m' /\
+        exists t', In _ traces' t' /\ t1 = app_trace t t'); split.
+      + eapply ext_safeN_trace_external; eauto; intros.
+        edestruct (H1 (update_console (update_io_log s (io_log s0)) (console s0))) as (? & ? & ? & ? & ? & Hsafe & ?); eauto.
+        { destruct s; reflexivity. }
+        { admit. }
+        { admit. }
         eapply IHn in Hsafe as (? & ? & ?); [|omega].
         do 4 eexists; eauto; split; eauto; split; eauto.
         intros; unfold In; eauto 25.
@@ -206,8 +217,45 @@ Admitted.
           admit.
         * intros (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Heq).
           inversion Heq; subst.
+          edestruct H1 as (? & ? & ? & ? & ? & Hsafe & Htrace); eauto; apply Htrace.*)
+
+  Lemma IO_valid : forall e args s s' ret t, IO_ext_sem e args s = Some (s', ret, t) -> valid_trace s -> valid_trace s'.
+  Admitted.
+
+  Lemma ext_safe_OS_safe : forall n t traces z q m s0 (Hvalid : valid_trace s0),
+    ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem n t traces z q m ->
+    exists traces', OS_safeN_trace n t traces' z s0 q m /\ forall t, In _ traces t <-> exists s, In _ traces' (t, s).
+  Proof.
+    induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
+    - exists (Singleton _ (TEnd, s0)); split; [constructor|].
+      intros; split.
+      + inversion 1; eexists; constructor.
+      + intros (? & Hin); inversion Hin; constructor.
+    - edestruct IHn as (traces' & ? & ?); eauto.
+      do 2 eexists; eauto.
+      eapply OS_safeN_trace_step; eauto.
+    - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
+         step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
+         IO_inj_mem m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem s' /\
+         (n' <= n0)%nat /\ exists traces' z' c', consume_trace z z' t' /\
+           cl_after_external ret q = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
+        exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)); split.
+      + eapply OS_safeN_trace_external; eauto; intros.
+        edestruct H1 as (? & ? & ? & ? & ? & Hsafe & ?); eauto.
+        assert (valid_trace s') by (destruct H3; eapply IO_valid; eauto).
+        eapply IHn with (s0 := s') in Hsafe as (? & ? & ?); eauto; try omega.
+        do 4 eexists; eauto; split; eauto; split; eauto.
+        intros; unfold In; eauto 25.
+      + unfold In in *; split.
+        * intro Hin; destruct (H2 _ Hin) as (s & s' & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hsafe & ? & Htrace & ?); subst.
+          assert (valid_trace s') by (destruct H5; eapply IO_valid; eauto).
+          eapply IHn in Hsafe as (? & ? & Htraces); eauto; try omega.
+          apply Htraces in Htrace as []; eauto 25.
+        * intros (? & ? & s' & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Heq).
+          inversion Heq; subst.
           edestruct H1 as (? & ? & ? & ? & ? & Hsafe & Htrace); eauto; apply Htrace.
-          eapply IHn in Hsafe as (? & ? & ->); [|omega].
+          assert (valid_trace s') by (destruct H5; eapply IO_valid; eauto).
+          eapply IHn in Hsafe as (? & ? & ->); eauto; try omega.
           admit.
   Admitted.
 
@@ -220,7 +268,7 @@ Theorem IO_OS_ext:
      initial_core (cl_core_sem (globalenv prog))
          0 m q m' (Vptr b Ptrofs.zero) nil /\
    forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
-    exists traces, OS_safeN_trace n traces initial_oracle s0 q m' /\
+    exists traces, OS_safeN_trace n TEnd traces initial_oracle s0 q m' /\
      forall t s, In _ traces (t, s) -> exists z', consume_trace initial_oracle z' t /\ t = trace_of_ostrace s.(io_log) /\
       valid_trace_user s.(io_log).
 Proof.

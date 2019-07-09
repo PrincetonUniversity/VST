@@ -73,9 +73,9 @@ Proof.
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ putchars_pre X3 w X2).
+      exact ((let '(_, buf, msg, _, _, _) := w in X1 = [buf; Vint (Int.repr (Zlength msg))]) /\ m0 = X3 /\ putchars_pre X3 w X2).
     + destruct X as (m0 & _ & w).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ getchars_pre X3 w X2).
+      exact ((let '(_, buf, len, _) := w in X1 = [buf; Vint (Int.repr len)]) /\ m0 = X3 /\ getchars_pre X3 w X2).
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
@@ -105,10 +105,16 @@ Proof.
     + intros; subst.
       destruct t as (? & ? & (((((sh, buf), msg), len), rest), k)); simpl in *.
       destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      unfold putchars_pre; split; auto; split; auto.
+      destruct e; inv H; simpl in *.
+      destruct vl; try contradiction; simpl in *.
+      destruct H0, vl; try contradiction; simpl in *.
+      destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hreadable _] & _ & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
+      destruct Hpre as ([Hreadable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
+      destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2.
+      split; [rewrite Harg1, Harg2, eval_id_same, eval_id_other, eval_id_same by discriminate; auto|].
+      split; auto.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       split.
@@ -139,10 +145,16 @@ Proof.
       intros; subst.
       destruct t as (? & ? & (((sh, buf), len), k)); simpl in *.
       destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      unfold getchars_pre; split; auto; split; auto.
+      destruct e; inv H; simpl in *.
+      destruct vl; try contradiction; simpl in *.
+      destruct H0, vl; try contradiction; simpl in *.
+      destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as ([Hwritable _] & _ & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
+      destruct Hpre as ([Hwritable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
+      destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2.
+      split; [rewrite Harg1, Harg2, eval_id_same, eval_id_other, eval_id_same by discriminate; auto|].
+      split; auto.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       split.
