@@ -42,7 +42,7 @@ Definition sys_getc_wrap_spec (abd : RData) : option (RData * val * trace) :=
 
 Definition sys_putc_wrap_spec (cv : val) (abd : RData) : option (RData * val * trace) :=
   (* Make sure argument is set *)
-  match cv, get_sys_arg abd with
+  match cv, get_sys_arg1 abd with
   | Vint c, Vint c' =>
     if eq_dec.eq_dec c c' then
       match sys_putc_spec abd with
@@ -76,7 +76,7 @@ Definition OS_mem (s : RData) : mem := Mem.empty. (* stub *)
 
 Instance IO_Espec : OracleKind := io_specs.IO_Espec ext_link.
 
-Definition lift_IO_event e := existT (fun X => option (io_specs.IO_event X * X)%type) (trace_event_rtype e) (io_event_of_io_tevent e).
+Definition lift_IO_event e := existT (fun X => option (io_events.IO_event X * X)%type) (trace_event_rtype e) (io_event_of_io_tevent e).
 
 Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
@@ -97,7 +97,7 @@ Proof.
       destruct s; simpl in *.
       unfold sys_putc_wrap_spec in *.
       destruct args as [| [] [|]] eqn:?; try discriminate.
-      destruct get_sys_arg eqn:Harg; try discriminate.
+      destruct get_sys_arg1 eqn:Harg; try discriminate.
       destruct (eq_dec i1 i2); subst; try discriminate.
       destruct sys_putc_spec eqn:Hspec; inv H3.
       eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
@@ -130,7 +130,7 @@ Admitted.
 (* relate to OS's external events *)
   Notation ge := (globalenv prog).
 
-  Inductive OS_safeN_trace : nat -> Ensemble (@trace io_specs.IO_event unit * RData) -> OK_ty -> RData -> corestate -> mem -> Prop :=
+  Inductive OS_safeN_trace : nat -> Ensemble (@trace io_events.IO_event unit * RData) -> OK_ty -> RData -> corestate -> mem -> Prop :=
   | OS_safeN_trace_0: forall z s c m, OS_safeN_trace O (Singleton _ (TEnd, s)) z s c m
   | OS_safeN_trace_step:
       forall n traces z s c m c' m',

@@ -8,7 +8,9 @@ Require Import compcert.lib.Integers.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import VST.progs.io_specs.
+Require Import VST.progs.io_mem_specs.
 Require Import VST.progs.io_dry.
+Require Import VST.progs.io_mem_dry.
 Require Import VST.progs.io_os_specs.
 Require Import VST.floyd.sublist.
 Require Import VST.progs.os_combine.
@@ -286,6 +288,18 @@ Fixpoint trace_of_ostrace (t : ostrace) : @trace IO_event unit :=
 
 (** Trace Invariants *)
 Section Invariants.
+
+  Definition get_sys_ret (st : RData) :=
+    let curid := ZMap.get st.(CPU_ID) st.(cid) in
+    ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
+
+  Definition get_sys_arg1 (st : RData) :=
+    let curid := ZMap.get st.(CPU_ID) st.(cid) in
+    ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
+
+  Definition get_sys_arg2 (st : RData) :=
+    let curid := ZMap.get st.(CPU_ID) st.(cid) in
+    ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
 
   Fixpoint compute_console' (tr : ostrace) : list (Z * Z * nat) :=
     match tr with
@@ -776,15 +790,17 @@ Section Invariants.
        serial_intr_disable_spec
        thread_serial_intr_enable_spec
        thread_serial_intr_disable_spec
-       uctx_arg2_spec
        uctx_set_retval1_spec
        uctx_set_errno_spec
        serial_putc_spec
        cons_buf_read_spec
+       cons_buf_read_loop_spec
        thread_cons_buf_read_spec
        thread_serial_putc_spec
+       thread_cons_buf_read_loop_spec
        sys_getc_spec
        sys_putc_spec
+       sys_getcs_spec
   *)
   Context `{ThreadsConfigurationOps}.
 
@@ -1058,6 +1074,19 @@ Section Invariants.
       rewrite <- vt_trace_console0; cbn; auto.
   Qed.
 
+  Lemma cons_buf_read_loop_preserve_valid_trace : forall n st st' read addr read',
+    valid_trace st ->
+    cons_buf_read_loop_spec n read addr st = Some (st', read') ->
+    valid_trace st'.
+  Proof.
+    induction n; intros * Hvalid Hspec; cbn [cons_buf_read_loop_spec] in Hspec; inj; auto.
+    destruct_spec Hspec; inj; auto.
+    eapply IHn in Hspec; eauto.
+    prename cons_buf_read_spec into Hspec'.
+    eapply cons_buf_read_preserve_valid_trace in Hspec'; auto.
+    inv Hspec'; destruct r; constructor; auto.
+  Qed.
+
   Lemma thread_cons_buf_read_preserve_valid_trace : forall st st' c,
     valid_trace st ->
     thread_cons_buf_read_spec st = Some (st', c) ->
@@ -1074,6 +1103,15 @@ Section Invariants.
   Proof.
     unfold thread_serial_putc_spec; intros * Hvalid Hspec; destruct_spec Hspec.
     eapply serial_putc_preserve_valid_trace; eauto.
+  Qed.
+
+  Lemma thread_cons_buf_read_loop_preserve_valid_trace : forall st st' len addr read,
+    valid_trace st ->
+    thread_cons_buf_read_loop_spec len addr st = Some (st', read) ->
+    valid_trace st'.
+  Proof.
+    unfold thread_cons_buf_read_loop_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply cons_buf_read_loop_preserve_valid_trace; eauto.
   Qed.
 
   Lemma sys_getc_preserve_valid_trace : forall st st',
@@ -1101,6 +1139,163 @@ Section Invariants.
     eapply thread_serial_intr_enable_preserve_valid_trace; [| eauto].
     eapply thread_serial_putc_preserve_valid_trace; [| eauto].
     eapply thread_serial_intr_disable_preserve_valid_trace; [| eauto].
+    eauto.
+  Qed.
+
+  Lemma sys_getcs_preserve_valid_trace : forall st st',
+    valid_trace st ->
+    sys_getcs_spec st = Some st' ->
+    valid_trace st'.
+  Proof.
+    unfold sys_getcs_spec; intros * Hvalid Hspec; destruct_spec Hspec.
+    eapply uctx_set_errno_preserve_valid_trace; [| eauto].
+    eapply uctx_set_retval1_preserve_valid_trace; [| eauto].
+    eapply thread_serial_intr_enable_preserve_valid_trace; [| eauto].
+    eapply thread_cons_buf_read_loop_preserve_valid_trace; [| eauto].
+    eapply thread_serial_intr_disable_preserve_valid_trace; [| eauto].
+    eauto.
+  Qed.
+
+  (* Memory is unchanged *)
+  Lemma cons_intr_aux_mem_unchanged : forall st st',
+    cons_intr_aux st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold cons_intr_aux; intros * Hspec; destruct_spec Hspec.
+    all: destruct st; auto.
+  Qed.
+
+  Lemma serial_intr_enable_aux_mem_unchanged : forall n st st',
+    serial_intr_enable_aux n st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    induction n; intros * Hspec; cbn -[cons_intr_aux] in Hspec; inj; auto.
+    destruct_spec Hspec; auto.
+    etransitivity.
+    eapply cons_intr_aux_mem_unchanged; eauto.
+    eauto.
+  Qed.
+
+  Lemma serial_intr_enable_mem_unchanged : forall st st',
+    serial_intr_enable_spec st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold serial_intr_enable_spec; intros * Hspec; destruct_spec Hspec.
+    prename serial_intr_enable_aux into Hspec.
+    eapply serial_intr_enable_aux_mem_unchanged in Hspec.
+    destruct r, st; inv Hspec; auto.
+  Qed.
+
+  Lemma serial_intr_disable_aux_mem_unchanged : forall n mask st st',
+    serial_intr_disable_aux n mask st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    induction n; intros * Hspec; cbn -[cons_intr_aux] in Hspec; inj; auto.
+    destruct_spec Hspec; auto.
+    - etransitivity; [| eapply IHn; eauto].
+      destruct st; auto.
+    - etransitivity; [| eapply IHn; eauto].
+      etransitivity; [| eapply cons_intr_aux_mem_unchanged; eauto].
+      destruct st; auto.
+  Qed.
+
+  Lemma serial_intr_disable_mem_unchanged : forall st st',
+    serial_intr_disable_spec st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold serial_intr_disable_spec; intros * Hspec; destruct_spec Hspec.
+    prename serial_intr_disable_aux into Hspec.
+    eapply serial_intr_disable_aux_mem_unchanged in Hspec.
+    destruct r, st; inv Hspec; auto.
+  Qed.
+
+  Lemma thread_serial_intr_enable_mem_unchanged : forall st st',
+    thread_serial_intr_enable_spec st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold thread_serial_intr_enable_spec; intros * Hspec; destruct_spec Hspec.
+    eapply serial_intr_enable_mem_unchanged; eauto.
+  Qed.
+
+  Lemma thread_serial_intr_disable_mem_unchanged : forall st st',
+    thread_serial_intr_disable_spec st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold thread_serial_intr_disable_spec; intros * Hspec; destruct_spec Hspec.
+    eapply serial_intr_disable_mem_unchanged; eauto.
+  Qed.
+
+  Lemma uctx_set_retval1_mem_unchanged : forall st v st',
+    uctx_set_retval1_spec v st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold uctx_set_retval1_spec; intros * Hspec; destruct_spec Hspec.
+    destruct st; auto.
+  Qed.
+
+  Lemma uctx_set_errno_mem_unchanged : forall st e st',
+    uctx_set_errno_spec e st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold uctx_set_errno_spec; intros * Hspec; destruct_spec Hspec.
+    destruct st; auto.
+  Qed.
+
+  Lemma serial_putc_mem_unchanged : forall st c st' r,
+    serial_putc_spec c st = Some (st', r) ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold serial_putc_spec; intros * Hspec; destruct_spec Hspec; eauto.
+    all: destruct st; auto.
+  Qed.
+
+  Lemma cons_buf_read_mem_unchanged : forall st st' c,
+    cons_buf_read_spec st = Some (st', c) ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold cons_buf_read_spec; intros * Hspec; destruct_spec Hspec; eauto.
+    destruct st; auto.
+  Qed.
+
+  Lemma thread_cons_buf_read_mem_unchanged : forall st st' c,
+    thread_cons_buf_read_spec st = Some (st', c) ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold thread_cons_buf_read_spec; intros * Hspec; destruct_spec Hspec.
+    eapply cons_buf_read_mem_unchanged; eauto.
+  Qed.
+
+  Lemma thread_serial_putc_mem_unchanged : forall st c st' r,
+    thread_serial_putc_spec c st = Some (st', r) ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold thread_serial_putc_spec; intros * Hspec; destruct_spec Hspec.
+    eapply serial_putc_mem_unchanged; eauto.
+  Qed.
+
+  Lemma sys_getc_mem_unchanged : forall st st',
+    sys_getc_spec st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold sys_getc_spec; intros * Hspec; destruct_spec Hspec.
+    etransitivity; [| eapply uctx_set_errno_mem_unchanged; eauto].
+    etransitivity; [| eapply uctx_set_retval1_mem_unchanged; eauto].
+    etransitivity; [| eapply thread_serial_intr_enable_mem_unchanged; eauto].
+    etransitivity; [| eapply thread_cons_buf_read_mem_unchanged; eauto].
+    etransitivity; [| eapply thread_serial_intr_disable_mem_unchanged; eauto].
+    eauto.
+  Qed.
+
+  Lemma sys_putc_mem_unchanged : forall st st',
+    sys_putc_spec st = Some st' ->
+    st.(HP) = st'.(HP).
+  Proof.
+    unfold sys_putc_spec; intros * Hspec; destruct_spec Hspec.
+    etransitivity; [| eapply uctx_set_errno_mem_unchanged; eauto].
+    etransitivity; [| eapply uctx_set_retval1_mem_unchanged; eauto].
+    etransitivity; [| eapply thread_serial_intr_enable_mem_unchanged; eauto].
+    etransitivity; [| eapply thread_serial_putc_mem_unchanged; eauto].
+    etransitivity; [| eapply thread_serial_intr_disable_mem_unchanged; eauto].
     eauto.
   Qed.
 
@@ -1309,10 +1504,6 @@ Section Invariants.
     unfold thread_cons_buf_read_spec; intros * Hvalid Hspec; destruct_spec Hspec.
     eapply cons_buf_read_getc_trace_case; eauto.
   Qed.
-
-  Definition get_sys_ret (st : RData) :=
-    let curid := ZMap.get st.(CPU_ID) st.(cid) in
-    ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
 
   Lemma sys_getc_trace_case : forall st st' ret,
     valid_trace st ->
@@ -1542,17 +1733,13 @@ Section Invariants.
     eapply serial_putc_putc_trace_case; eauto.
   Qed.
 
-  Definition get_sys_arg (st : RData) :=
-    let curid := ZMap.get st.(CPU_ID) st.(cid) in
-    ZMap.get U_EBX (ZMap.get curid st.(uctxt)).
-
   Lemma sys_putc_trace_case : forall st st' c ret,
     sys_putc_spec st = Some st' ->
-    get_sys_arg st = Vint c ->
+    get_sys_arg1 st = Vint c ->
     get_sys_ret st' = Vint ret ->
     putc_trace_case st.(io_tx_log) st'.(io_tx_log) (Int.unsigned c) (Int.signed ret).
   Proof.
-    unfold sys_putc_spec, get_sys_arg, get_sys_ret; intros * Hspec Harg Hret; destruct_spec Hspec.
+    unfold sys_putc_spec, get_sys_arg1, get_sys_ret; intros * Hspec Harg Hret; destruct_spec Hspec.
     prename thread_serial_intr_disable_spec into Hspec1.
     prename thread_serial_putc_spec into Hspec2.
     prename thread_serial_intr_enable_spec into Hspec3.
@@ -1596,7 +1783,26 @@ Section SpecsCorrect.
     (* The new itree 'consumed' the OS-generated trace *)
     consume_trace z0 z t.
 
-  (* TODO: memory *)
+  Import Mem.
+  Variable block_to_addr : block -> Z.
+
+  Definition mem_to_flatmem (f : flatmem) (m : mem) (b : block) (ofs len : Z) : flatmem :=
+    let contents := getN (Z.to_nat len) ofs (m.(mem_contents) !! b) in
+    let addr := block_to_addr b + ofs in
+    FlatMem.setN contents addr f.
+
+  Program Definition flatmem_to_mem (f : flatmem) (m : mem) (b : block) (ofs len : Z) : mem :=
+    let (cont, acc, nxt, amax, nxt_no, _) := m in
+    let addr := block_to_addr b + ofs in
+    let bytes := FlatMem.getN (Z.to_nat len) addr f in
+    let contents := setN bytes ofs (cont !! b) in
+    mkmem (PMap.set b contents cont) acc nxt amax nxt_no _.
+  Next Obligation.
+    cbn; intros; destruct (Pos.eq_dec b b0) eqn:?; subst.
+    - rewrite PMap.gss, setN_default; auto.
+    - rewrite PMap.gso; auto.
+  Defined.
+
   Record R_sys_getc_correct k z m st st' ret := {
     (* New itree is old k applied to result, or same as old itree if nothing
        to read *)
@@ -1608,6 +1814,8 @@ Section SpecsCorrect.
     getc_itree_trace_ok : trace_itree_match z getc_z' st.(io_rx_log) st'.(io_rx_log);
     (* The new trace is valid *)
     getc_trace_ok : valid_trace st';
+    (* The memory is unchanged *)
+    getc_mem_ok : st.(HP) = st'.(HP)
   }.
 
   Lemma sys_getc_correct k z m st st' :
@@ -1623,6 +1831,7 @@ Section SpecsCorrect.
   Proof.
     unfold getchar_pre', get_sys_ret; intros Hvalid Hpre Hspec.
     apply sys_getc_preserve_valid_trace in Hspec as Hvalid'; auto.
+    apply sys_getc_mem_unchanged in Hspec as Hmem.
     pose proof Hspec as Htrace_case.
     unfold sys_getc_spec in Hspec; destruct_spec Hspec.
     prename (thread_cons_buf_read_spec) into Hread.
@@ -1665,6 +1874,8 @@ Section SpecsCorrect.
     (* The new trace is valid *)
     (* TODO: have to define valid trace condition for putc *)
     (* putc_trace_ok : valid_trace st'; *)
+    (* The memory is unchanged *)
+    putc_mem_ok : st.(HP) = st'.(HP)
   }.
 
   Lemma sys_putc_correct c k z m st st' :
@@ -1673,14 +1884,15 @@ Section SpecsCorrect.
     (* Pre condition holds *)
     putchar_pre m (c, k) z ->
     (* c is passed as an argument *)
-    get_sys_arg st = Vint c ->
+    get_sys_arg1 st = Vint c ->
     (* sys_putc returns some state *)
     sys_putc_spec st = Some st' ->
     exists ret,
       get_sys_ret st' = Vint ret /\
       R_sys_putc_correct c k z m st st' ret.
   Proof.
-    unfold putchar_pre, get_sys_arg, get_sys_ret; intros Hvalid Hpre Harg Hspec.
+    unfold putchar_pre, get_sys_arg1, get_sys_ret; intros Hvalid Hpre Harg Hspec.
+    apply sys_putc_mem_unchanged in Hspec as Hmem.
     pose proof Hspec as Htrace_case.
     unfold sys_putc_spec in Hspec; destruct_spec Hspec.
     prename (thread_serial_putc_spec) into Hput.
@@ -1719,5 +1931,62 @@ Section SpecsCorrect.
       rewrite Int.repr_unsigned.
       hnf; cbn; repeat constructor; auto.
   Qed.
+
+  (* TODO: memory *)
+  Record R_sys_getcs_correct sh buf len k z m st st' ret := {
+    vals := nil; (* TODO *)
+    getcs_z' := if 0 <=? Int.signed ret then k vals else z;
+
+    (* Post condition holds on new state, itree, and result *)
+    getcs_post_ok : getchars_post m m ret (sh, buf, len, k) getcs_z';
+    (* The itrees and OS traces agree on the external events *)
+    getcs_itree_trace_ok : trace_itree_match z getcs_z' st.(io_rx_log) st'.(io_rx_log);
+    (* The new trace is valid *)
+    getcs_trace_ok : valid_trace st';
+    (* The memory has changed *)
+    (* TODO *)
+    (* getcs_mem_ok : st.(HP) = st'.(HP) *)
+  }.
+
+  Lemma sys_getcs_correct sh buf ofs len k z m st st' :
+    let addr := block_to_addr buf + Ptrofs.unsigned ofs in
+    (* Initial trace is valid *)
+    valid_trace st ->
+    (* Pre condition holds *)
+    getchars_pre m (sh, Vptr buf ofs, len, k) z ->
+    (* addr and len are passed as arguments *)
+    get_sys_arg1 st = Vint (Int.repr addr) ->
+    get_sys_arg2 st = Vint (Int.repr len) ->
+    (* sys_getcs returns some state *)
+    sys_getcs_spec st = Some st' ->
+    exists ret,
+      get_sys_ret st' = Vint ret /\
+      R_sys_getcs_correct sh (Vptr buf ofs) len k z m st st' ret.
+  Proof.
+    unfold getchars_pre, get_sys_ret; intros Hvalid Hpre Harg1 Harg2 Hspec.
+    apply sys_getcs_preserve_valid_trace in Hspec as Hvalid'; auto.
+    (* pose proof Hspec as Htrace_case. *)
+    unfold sys_getcs_spec in Hspec; destruct_spec Hspec.
+    prename (thread_cons_buf_read_loop_spec) into Hread.
+    (* apply thread_cons_buf_read_getcs_trace_case in Hread as (_ & ?). *)
+    (* 2: eapply (thread_serial_intr_disable_preserve_valid_trace st); eauto. *)
+    unfold uctx_set_errno_spec in Hspec; destruct_spec Hspec.
+    prename (uctx_set_retval1_spec) into Hspec.
+    unfold uctx_set_retval1_spec in Hspec; destruct_spec Hspec.
+    prename (uctx_arg2_spec) into Hspec.
+    unfold uctx_arg2_spec in Hspec; destruct_spec Hspec.
+    prename (uctx_arg3_spec) into Hspec.
+    unfold uctx_arg3_spec in Hspec; destruct_spec Hspec.
+    destruct r1; cbn in *.
+    repeat (rewrite ZMap.gss in * || rewrite ZMap.gso in * by easy); subst; inj.
+    do 2 esplit; eauto.
+    (* eapply sys_putc_trace_case in Htrace_case; eauto. *)
+    (* 2: unfold get_sys_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto. *)
+    constructor; eauto; hnf.
+    - (* getchars_post *)
+      admit.
+    - (* trace_itree_match *)
+      admit.
+  Admitted.
 
 End SpecsCorrect.

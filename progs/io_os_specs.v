@@ -1,6 +1,8 @@
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Maps.
 Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
+Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import Decimal.
 Require Import List.
@@ -24,6 +26,70 @@ Fixpoint replace {A} (a : A) (n : nat) (l : list A) :=
 Definition enumerate {A} (xs : list A) : list (nat * A) := combine (seq 0 (length xs)) xs.
 
 (** Datatypes *)
+Module FlatMem.
+
+  Local Notation "a # b" := (ZMap.get b a) (at level 1).
+
+  Inductive flatmem_val :=
+    | HUndef
+    | HByte : byte -> flatmem_val.
+
+  Definition flatmem := ZMap.t flatmem_val.
+
+  Definition empty_flatmem : flatmem := ZMap.init HUndef.
+
+  Definition FlatMem2MemVal (hv : flatmem_val) : memval :=
+    match hv with
+    | HUndef => Undef
+    | HByte b => Byte b
+    end.
+
+  Fixpoint getN (n : nat) (p : Z) (c : flatmem) : list memval :=
+    match n with
+    | O => nil
+    | S n' => FlatMem2MemVal c#p :: getN n' (p + 1) c
+    end.
+
+  Definition load (chunk : memory_chunk) (h : flatmem) (addr : Z) : val :=
+    decode_val chunk (getN (size_chunk_nat chunk) addr h).
+
+  Definition loadv (chunk : memory_chunk) (h : flatmem) (addr : val) : option val :=
+    match addr with
+    | Vint n => Some (load chunk h (Int.unsigned n))
+    | _ => None
+    end.
+
+  Definition loadbytes (h : flatmem) (addr n : Z) : (list memval) :=
+    getN (Z.to_nat n) addr h.
+
+  Definition Mem2FlatMemVal (mv : memval) : flatmem_val :=
+    match mv with
+    | Byte b => (HByte b)
+    | _ => HUndef
+    end.
+
+  Fixpoint setN (vl : list memval) (p : Z) (c : flatmem) : flatmem :=
+    match vl with
+    | nil => c
+    | v :: vl' => setN vl' (p + 1) (ZMap.set p (Mem2FlatMemVal v) c)
+    end.
+
+  Definition store (chunk : memory_chunk) (h : flatmem) (addr : Z) (v : val) : flatmem :=
+    setN (encode_val chunk v) addr h.
+
+  Definition storev (chunk : memory_chunk) (h : flatmem) (addr v : val) : option flatmem :=
+    match addr with
+    | Vint n => Some (store chunk h (Int.unsigned n) v)
+    | _ => None
+    end.
+
+  Definition storebytes (h : flatmem) (addr : Z) (bytes : list memval) : flatmem :=
+    setN bytes addr h.
+
+End FlatMem.
+
+Notation flatmem := FlatMem.flatmem.
+
 Inductive SyncChannel :=
   | SyncChanUndef
   | SyncChanValid (to senderpaddr count busy : int).
@@ -143,6 +209,7 @@ Record RData := mkRData {
   pg : bool; (* abstract of CR0, indicates whether the paging is enabled or not *)
   ikern : bool; (* pure logic flag, shows whether it's in kernel mode or not *)
   ihost : bool; (* logic flag, shows whether it's in the host mode or not *)
+  HP : flatmem;
   cid : ZMap.t Z; (* current thread id *)
   init : bool; (* pure logic flag, show whether the initialization at this layer has been called or not *)
   big_log : BigLogType;
@@ -162,58 +229,62 @@ Class ThreadsConfigurationOps := {
 }.
 
 Definition update_CPU_ID (a : RData) b :=
-  let (_, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData b pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (_, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData b pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_pg (a : RData) b :=
-  let (CPU_ID, _, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID b ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, _, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID b ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_ikern (a : RData) b :=
-  let (CPU_ID, pg, _, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg b ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, _, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg b ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_ihost (a : RData) b :=
-  let (CPU_ID, pg, ikern, _, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern b cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, _, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern b HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+Definition update_HP (a : RData) b :=
+  let (CPU_ID, pg, ikern, ihost, _, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost b cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_cid (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, _, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost b init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, _, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP b init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_init (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, _, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid b big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, _, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid b big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_big_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, _, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init b uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, _, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init b uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_uctxt (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, _, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log b com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, _, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log b com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_com1 (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, _, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt b drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, _, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt b drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_drv_serial (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, _, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 b console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, _, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 b console ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_console (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, _, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial b ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, _, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial b ioapic intr_flag in_intr io_rx_log io_tx_log.
 Definition update_ioapic (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, _, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console b intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, _, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console b intr_flag in_intr io_rx_log io_tx_log.
 Definition update_intr_flag (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, _, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic b in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, _, in_intr, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic b in_intr io_rx_log io_tx_log.
 Definition update_in_intr (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, _, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag b io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, _, io_rx_log, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag b io_rx_log io_tx_log.
 Definition update_io_rx_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, _, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr b io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, _, io_tx_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr b io_tx_log.
 Definition update_io_tx_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, _) := a in
-  mkRData CPU_ID pg ikern ihost cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log b.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, _) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log b.
 
 Notation "a '{' 'CPU_ID' : x }" := (update_CPU_ID a x) (at level 1).
 Notation "a '{' 'pg' : x }" := (update_pg a x) (at level 1).
 Notation "a '{' 'ikern' : x }" := (update_ikern a x) (at level 1).
 Notation "a '{' 'ihost' : x }" := (update_ihost a x) (at level 1).
+Notation "a '{' 'HP' : x }" := (update_HP a x) (at level 1).
 Notation "a '{' 'cid' : x }" := (update_cid a x) (at level 1).
 Notation "a '{' 'init' : x }" := (update_init a x) (at level 1).
 Notation "a '{' 'big_log' : x }" := (update_big_log a x) (at level 1).
@@ -390,6 +461,7 @@ Notation CONS_BUFFER_MAX_CHARS := (CONS_BUFFER_SIZE - 1).
 Notation SERIAL_HW_BUF_SIZE := 12%nat.
 Notation INTR_ENABLE_REC_MAX := 100%nat.
 Notation INTR_DISABLE_REC_MAX := 100%nat.
+Notation U_ESI := 1.
 Notation U_EBX := 4.
 Notation U_EAX := 7.
 Notation CHAR_CR := 13.
@@ -573,6 +645,24 @@ Definition uctx_arg2_spec (adt : RData) : option Z :=
   | _ => None
   end.
 
+Definition uctx_arg3_spec (adt : RData) : option Z :=
+  let cpu := adt.(CPU_ID) in
+  let curid := ZMap.get adt.(CPU_ID) adt.(cid) in
+  match (adt.(init), adt.(ikern), adt.(pg), adt.(ihost)) with
+  | (true, true, true, true) =>
+    match adt.(big_log) with
+    | BigDef l =>
+      if B_GetContainerUsed curid cpu l then
+        match (ZMap.get U_ESI (ZMap.get curid adt.(uctxt))) with
+        | Vint n => Some (Int.unsigned n)
+        | _ => None
+        end
+      else None
+    | _ => None
+    end
+  | _ => None
+  end.
+
 Definition uctx_set_retval1_spec (n : Z) (adt : RData) : option RData :=
   let cpu := adt.(CPU_ID) in
   let curid := ZMap.get adt.(CPU_ID) adt.(cid) in
@@ -665,6 +755,20 @@ Definition cons_buf_read_spec (abd : RData) : option (RData * Z) :=
   | _ => None
   end.
 
+Fixpoint cons_buf_read_loop_spec (n : nat) (read : nat) (addr : Z) (abd : RData) : option (RData * Z) :=
+  match n with
+  | O => Some (abd, Z.of_nat read)
+  | S n' =>
+    match cons_buf_read_spec abd with
+    | Some (abd', c) =>
+      if zeq c (-1) then Some (abd, Z.of_nat read)
+      else
+        let m' := FlatMem.store Mint8unsigned abd.(HP) addr (Vint (Int.repr c)) in
+        cons_buf_read_loop_spec n' (S read) addr (abd' {HP : m'})
+    | None => None
+    end
+  end.
+
 Definition thread_cons_buf_read_spec (abd : RData) : option (RData * Z) :=
   if zeq (ZMap.get abd.(CPU_ID) abd.(cid)) dev_handling_cid
   then if abd.(init) then cons_buf_read_spec abd else None else None.
@@ -672,6 +776,10 @@ Definition thread_cons_buf_read_spec (abd : RData) : option (RData * Z) :=
 Definition thread_serial_putc_spec (c : Z) (abd : RData) : option (RData * Z) :=
   if zeq (ZMap.get abd.(CPU_ID) abd.(cid)) dev_handling_cid
   then if abd.(init) then serial_putc_spec c abd else None else None.
+
+Definition thread_cons_buf_read_loop_spec (len addr : Z) (abd : RData) : option (RData * Z) :=
+  if zeq (ZMap.get abd.(CPU_ID) abd.(cid)) dev_handling_cid
+  then if abd.(init) then cons_buf_read_loop_spec (Z.to_nat len) O addr abd else None else None.
 
 (** Syscalls *)
 Definition sys_getc_spec (abd : RData) : option RData :=
@@ -717,4 +825,28 @@ Definition sys_putc_spec (abd : RData) : option RData :=
     end
   | None => None
   end.
+
+Definition sys_getcs_spec (abd : RData) : option RData :=
+  match uctx_arg2_spec abd, uctx_arg3_spec abd with
+  | Some buf_vaddr, Some len =>
+    match thread_serial_intr_disable_spec abd with
+    | Some d1 =>
+      match thread_cons_buf_read_loop_spec len buf_vaddr d1 with
+      | Some (d2, read) =>
+        match thread_serial_intr_enable_spec d2 with
+        | Some d3 =>
+          match uctx_set_retval1_spec read d3 with
+          | Some d4 =>
+            uctx_set_errno_spec E_SUCC d4
+          | None => None
+          end
+        | None => None
+        end
+      | None => None
+      end
+    | None => None
+    end
+  | _, _ => None
+  end.
+
 End Specs.
