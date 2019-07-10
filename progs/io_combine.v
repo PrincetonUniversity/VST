@@ -277,7 +277,7 @@ Local Ltac destruct_spec Hspec :=
           admit.
   Admitted.
 
-Theorem IO_OS_ext: 
+Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
    semax_prog_ext prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
