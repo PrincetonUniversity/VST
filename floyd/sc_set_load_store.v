@@ -1260,7 +1260,9 @@ Ltac SEP_field_at_unify' gfs :=
       unify shl shr;
       unify vl vr;
       generalize vl; intro;
-      rewrite <- ?field_at_offset_zero; reflexivity
+      rewrite <- ?field_at_offset_zero;
+      f_equal; (* this line is important to prevent blow-ups *)
+      reflexivity
   end.
 
 Ltac SEP_field_at_unify gfs :=
