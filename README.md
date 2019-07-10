@@ -2,7 +2,7 @@
 
 (as described in _Connecting Higher-Order Separation Logic with a First-Order Outside World_)
 
-To build all relevant proofs, run `make -j7 progs/verif_io.vo progs/verif_io_mem.vo`
+Building the repository requires Coq 8.9.0 and the [Interaction Trees](https://github.com/DeepSpec/InteractionTrees) library. The latter can be installed via OPAM by running `opam install coq-itree`. To build all relevant proofs, run `make -j8 progs/verif_io.vo progs/verif_io_mem.vo` (replace the 8 with the number of cores on your computer).
 
 The definitions and theorems of the paper can be found in the following locations:
 
@@ -51,4 +51,4 @@ soundness of putchar + getchar (Theorem 19): progs/io_combine.v, IO_OS_soundness
 Section 8:
 
 getchar invariant (Lemma 20): progs/io_os_connection.v, stated in valid_trace, proved in sys_getc_correct<br/>
-Corollary 21: progs/io_combine.v, IO_OS_ext (proof incomplete)
+Corollary 21: progs/io_combine.v, IO_OS_ext
