@@ -40,19 +40,29 @@ Definition sys_getc_wrap_spec (abd : RData) : option (RData * val * trace) :=
   | None => None
   end.
 
-Definition sys_putc_wrap_spec (abd : RData) : option (RData * val * trace) :=
-  match sys_putc_spec abd with
-  | Some abd' => Some (abd', get_sys_ret abd', trace_of_ostrace (strip_common_prefix IOEvent_eq abd.(io_log) abd'.(io_log)))
-  | None => None
-  end.
+Definition sys_putc_wrap_spec (cv : val) (abd : RData) : option (RData * val * trace) :=
+(*  (* Make sure argument is set *)
+  match cv, get_sys_arg1 abd with
+  | Vint c, Vint c' =>
+    if eq_dec.eq_dec c c' then*)
+      match sys_putc_spec abd with
+      | Some abd' => Some (abd', get_sys_ret abd', trace_of_ostrace (strip_common_prefix IOEvent_eq abd.(io_log) abd'.(io_log)))
+      | None => None
+      end
+(*    else None
+  | _, _ => None
+  end*).
 
 Definition IO_ext_sem e (args : list val) s :=
   if oi_eq_dec (Some (ext_link "putchar"%string, funsig2signature ([(1%positive, tint)], tint) cc_default))
     (ef_id_sig ext_link e) then
-    match sys_putc_wrap_spec s with
-    | Some (s', ret, t') => Some (s', Some ret, t')
-    | None => None
-    end else
+    match args with
+    | c :: nil =>
+      match sys_putc_wrap_spec c s with
+      | Some (s', ret, t') => Some (s', Some ret, t')
+      | None => None
+      end
+    | _ => None end else
   if oi_eq_dec  (Some (ext_link "getchar"%string, funsig2signature ([], tint) cc_default))
     (ef_id_sig ext_link e) then
     match sys_getc_wrap_spec s with
@@ -61,12 +71,21 @@ Definition IO_ext_sem e (args : list val) s :=
     end
   else Some (s, None, TEnd).
 
-Definition IO_inj_mem (m : mem) t s := valid_trace s /\ t = trace_of_ostrace s.(io_log). (* stub *)
-Definition OS_mem (s : RData) : mem := Mem.empty. (* stub *)
+Variable (R_mem : block -> Z).
+
+(* Because putchar and getchar don't use memory, these functions don't either. *)
+Definition IO_inj_mem (e : external_function) (args : list val) (m : mem) t s :=
+  valid_trace s /\ t = trace_of_ostrace s.(io_log).
+Definition OS_mem (e : external_function) (args : list val) m (s : RData) : mem := m.
+(* In general, this could look like:
+  if oi_eq_dec (Some (ext_link "putchars"%string, ...) (ef_id_sig ext_link e) then
+    match args with
+    | (Vptr b ofs) :: len :: nil => flatmem_to_mem R_mem s.(HP) m b ofs (ofs + len)
+    | _ => m end
+  else ...
+*)
 
 Instance IO_Espec : OracleKind := io_specs.IO_Espec ext_link.
-
-Definition lift_IO_event e := existT (fun X => option (io_specs.IO_event X * X)%type) (trace_event_rtype e) (io_event_of_io_tevent e).
 
 Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
@@ -87,8 +106,13 @@ Proof.
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
       unfold sys_putc_wrap_spec in *.
-      destruct (sys_putc_spec) eqn:Hspec; inv H3.
-      admit. (* need putc_correct *)
+(*      destruct get_sys_arg1 eqn:Harg; try discriminate.
+      destruct (eq_dec _ _); subst; try discriminate.*)
+      destruct sys_putc_spec eqn:Hspec; inv H3.
+(*      eapply sys_putc_correct in Hspec as (? & -> & [? Hpost ?]); eauto.
+      split.
+      { admit. (* waiting for valid trace condition *) }
+      eauto.*) admit. (* waiting for putc proof *)
     + destruct w as (? & _ & ?).
       destruct H1 as (? & ? & Hpre); subst.
       destruct s; simpl in *.
@@ -98,7 +122,6 @@ Proof.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto.
-        admit. (* memory not handled yet *)
         destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; omega).
         -- rewrite if_false by omega; eauto.
         -- rewrite if_true; auto.
@@ -124,9 +147,9 @@ Admitted.
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
-         IO_inj_mem m t s ->
+         IO_inj_mem e args m t s ->
          IO_ext_sem e args s = Some (s', ret, t') ->
-         m' = OS_mem s' ->
+         m' = OS_mem e args m s' ->
          (n' <= n)%nat ->
          valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\
@@ -135,7 +158,7 @@ Admitted.
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         IO_inj_mem m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem s' /\
+         IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)) ->
@@ -165,8 +188,12 @@ Local Ltac destruct_spec Hspec :=
     unfold IO_ext_sem.
     if_tac; [|if_tac].
     - unfold sys_putc_wrap_spec.
+      destruct args as [| (*[]*)? [|]]; try discriminate.
+      (*destruct get_sys_arg1 eqn: Harg; try discriminate.
+      destruct (eq_dec _ _); try discriminate.*)
       destruct sys_putc_spec eqn: Hputc; inversion 1; subst; split; auto.
-      admit. (* waiting for putc *)
+      (* TODO: Fix rx vs tx log *)
+      admit. (* waiting for putc proof *)
     - unfold sys_getc_wrap_spec.
       destruct sys_getc_spec eqn: Hgetc; inversion 1; subst; split; auto.
       pose proof Hgetc as Hspec.
@@ -274,7 +301,7 @@ Local Ltac destruct_spec Hspec :=
       eapply OS_safeN_trace_step; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         IO_inj_mem m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem s' /\
+         IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n0)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)); split.

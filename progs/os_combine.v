@@ -28,8 +28,8 @@ Section ext_trace.
   Context {event : Type -> Type} {J : juicy_ext_spec (itree event unit)} {OS_state : Type}.
   Variable prog : Clight.program.
   Variable ext_sem : external_function -> list val -> OS_state -> option (OS_state * option val * @trace event unit).
-  Variable inj_mem : mem -> @trace event unit -> OS_state -> Prop.
-  Variable extr_mem : OS_state -> mem.
+  Variable inj_mem : external_function -> list val -> mem -> @trace event unit -> OS_state -> Prop.
+  Variable extr_mem : external_function -> list val -> mem -> OS_state -> mem.
   Variable OS_valid : OS_state -> Prop.
   Notation ge := (globalenv prog).
 
@@ -72,9 +72,9 @@ Section ext_trace.
       (forall s s' ret m' t' n'
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
-         inj_mem m t s ->
+         inj_mem e args m t s ->
          ext_sem e args s = Some (s', ret, t') ->
-         m' = extr_mem s' ->
+         m' = extr_mem e args m s' ->
          (n' <= n)%nat ->
          OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\
@@ -83,7 +83,7 @@ Section ext_trace.
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         inj_mem m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem s' /\
+         inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
         exists t'', In _ traces' t'' /\ t1 = app_trace t' t'') ->
@@ -91,10 +91,10 @@ Section ext_trace.
 
   Variable dryspec : ext_spec OK_ty.
   Hypothesis extcalls_correct : forall e w b tl args z m t s, ext_spec_pre dryspec e w b tl args z m ->
-    inj_mem m t s ->
+    inj_mem e args m t s ->
     forall s' ret t', Some (s', ret, t') = ext_sem e args s ->
     OS_valid s' /\ exists z', consume_trace z z' t' /\
-    ext_spec_post dryspec e w b (sig_res (ef_sig e)) ret z' (extr_mem s').
+    ext_spec_post dryspec e w b (sig_res (ef_sig e)) ret z' (extr_mem e args m s').
 
   Lemma dry_safe_ext_trace_safe : forall n t z q m,
     step_lemmas.dry_safeN(genv_symb := Clight_sim.genv_symb_injective)
@@ -107,7 +107,7 @@ Section ext_trace.
     - edestruct IHn as [traces ?]; eauto; exists traces; econstructor; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         inj_mem m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem s' /\
+         inj_mem e args m t s /\ ext_sem e args s = Some (s', ret, t') /\ m' = extr_mem e args m s' /\
          (n' <= n0)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
         exists t'', In _ traces' t'' /\ t1 = app_trace t' t'').
