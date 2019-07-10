@@ -12,7 +12,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "progs/io_mem.c"%string.
-  Definition normalized := false.
+  Definition normalized := true.
 End Info.
 
 Definition ___builtin_ais_annot : ident := 1%positive.
@@ -68,36 +68,37 @@ Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___compcert_va_int32 : ident := 15%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
 Definition _buf : ident := 59%positive.
-Definition _c : ident := 68%positive.
-Definition _d : ident := 67%positive.
+Definition _c : ident := 67%positive.
+Definition _d : ident := 66%positive.
 Definition _exit : ident := 53%positive.
 Definition _free : ident := 54%positive.
 Definition _getchars : ident := 56%positive.
 Definition _i : ident := 58%positive.
-Definition _j : ident := 60%positive.
-Definition _k : ident := 63%positive.
+Definition _j : ident := 68%positive.
+Definition _k : ident := 62%positive.
 Definition _main : ident := 69%positive.
 Definition _malloc : ident := 55%positive.
-Definition _n : ident := 66%positive.
-Definition _print_int : ident := 65%positive.
-Definition _print_intr : ident := 64%positive.
+Definition _n : ident := 65%positive.
+Definition _print_int : ident := 64%positive.
+Definition _print_intr : ident := 63%positive.
 Definition _putchars : ident := 57%positive.
-Definition _q : ident := 61%positive.
-Definition _r : ident := 62%positive.
+Definition _q : ident := 60%positive.
+Definition _r : ident := 61%positive.
 Definition _t'1 : ident := 70%positive.
 Definition _t'2 : ident := 71%positive.
 Definition _t'3 : ident := 72%positive.
+Definition _t'4 : ident := 73%positive.
 
 Definition f_print_intr := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_i, tuint) :: (_buf, (tptr tuchar)) :: (_j, tint) :: nil);
+  fn_params := ((_i, tuint) :: (_buf, (tptr tuchar)) :: nil);
   fn_vars := nil;
   fn_temps := ((_q, tuint) :: (_r, tuchar) :: (_k, tint) :: (_t'1, tint) ::
                nil);
   fn_body :=
 (Ssequence
-  (Sset _k (Econst_int (Int.repr 0) tint))
+  (Sset _k (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
   (Ssequence
     (Sifthenelse (Ebinop One (Etempvar _i tuint)
                    (Econst_int (Int.repr 0) tint) tint)
@@ -114,11 +115,9 @@ Definition f_print_intr := {|
             (Ssequence
               (Scall (Some _t'1)
                 (Evar _print_intr (Tfunction
-                                    (Tcons tuint
-                                      (Tcons (tptr tuchar) (Tcons tint Tnil)))
+                                    (Tcons tuint (Tcons (tptr tuchar) Tnil))
                                     tint cc_default))
-                ((Etempvar _q tuint) :: (Etempvar _buf (tptr tuchar)) ::
-                 (Etempvar _j tint) :: nil))
+                ((Etempvar _q tuint) :: (Etempvar _buf (tptr tuchar)) :: nil))
               (Sset _k (Etempvar _t'1 tint)))
             (Sassign
               (Ederef
@@ -170,11 +169,9 @@ Definition f_print_int := {|
           (Ssequence
             (Scall (Some _t'2)
               (Evar _print_intr (Tfunction
-                                  (Tcons tuint
-                                    (Tcons (tptr tuchar) (Tcons tint Tnil)))
+                                  (Tcons tuint (Tcons (tptr tuchar) Tnil))
                                   tint cc_default))
-              ((Etempvar _i tuint) :: (Etempvar _buf (tptr tuchar)) ::
-               (Econst_int (Int.repr 0) tint) :: nil))
+              ((Etempvar _i tuint) :: (Etempvar _buf (tptr tuchar)) :: nil))
             (Sset _k (Etempvar _t'2 tint)))
           (Ssequence
             (Sassign
@@ -201,7 +198,8 @@ Definition f_main := {|
   fn_vars := nil;
   fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tuchar) ::
                (_buf, (tptr tuchar)) :: (_i, tint) :: (_j, tint) ::
-               (_t'3, tint) :: (_t'2, tint) :: (_t'1, (tptr tvoid)) :: nil);
+               (_t'3, tint) :: (_t'2, tint) :: (_t'1, (tptr tvoid)) ::
+               (_t'4, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -242,12 +240,12 @@ Definition f_main := {|
                         Sskip
                         Sbreak)
                       (Ssequence
-                        (Sset _c
-                          (Ecast
+                        (Ssequence
+                          (Sset _t'4
                             (Ederef
                               (Ebinop Oadd (Etempvar _buf (tptr tuchar))
-                                (Etempvar _j tint) (tptr tuchar)) tuchar)
-                            tuchar))
+                                (Etempvar _j tint) (tptr tuchar)) tuchar))
+                          (Sset _c (Ecast (Etempvar _t'4 tuchar) tuchar)))
                         (Ssequence
                           (Sset _d
                             (Ebinop Osub (Ecast (Etempvar _c tuchar) tuint)

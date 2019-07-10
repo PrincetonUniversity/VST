@@ -345,10 +345,18 @@ Qed.
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.io_dry.
 
-Definition init_mem_exists : { m | Genv.init_mem prog = Some m }.
+Lemma init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
   unfold Genv.init_mem; simpl.
-Admitted. (* seems true, but hard to prove -- can we compute it? *)
+Ltac alloc_block m n := match n with
+  | O => idtac
+  | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
+    destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
+  end.
+  alloc_block Mem.empty 58%nat.
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
+  reflexivity.
+Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.
 
@@ -360,7 +368,7 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
-Theorem prog_toplevel : exists q : Clight_new.corestate,
+Theorem prog_ext_correct : exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
   forall n, @step_lemmas.dry_safeN _ _ _ _ Clight_sim.genv_symb_injective (Clight_sim.coresem_extract_cenv (Clight_new.cl_core_sem (globalenv prog)) (prog_comp_env prog))
              (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
@@ -377,14 +385,15 @@ Proof.
     destruct Hq; tauto.
 Qed.
 
+Require Import VST.progs.os_combine.
 Require Import VST.progs.io_combine.
 Require Import VST.progs.io_os_connection.
 
-Theorem prog_OSlevel : forall {H : io_os_specs.ThreadsConfigurationOps},
+Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem lift_IO_event n traces main_itree q init_mem /\
-      forall t, Ensembles.In _ traces t -> exists z', consume_trace lift_IO_event main_itree z' t.
+     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem n Traces.TEnd traces main_itree q init_mem /\
+      forall t, Ensembles.In _ traces t -> exists z', consume_trace main_itree z' t.
 Proof.
   intros.
   edestruct IO_OS_soundness with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).

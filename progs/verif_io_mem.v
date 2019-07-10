@@ -72,16 +72,15 @@ Definition replace_list {X} i (l : list X) (l' : list X) :=
 
 Definition print_intr_spec :=
  DECLARE _print_intr
-  WITH sh : share, i : Z, buf : val, j : Z, contents : list val
-  PRE [ _i OF tuint, _buf OF tptr tuchar, _j OF tint ]
-    PROP (writable_share sh; 0 <= i <= Int.max_unsigned;
-               0 <= j; j + Zlength (intr i) <= Zlength contents < Int.max_signed)
-    LOCAL (temp _i (Vint (Int.repr i)); temp _buf buf; temp _j (Vint (Int.repr j)))
+  WITH sh : share, i : Z, buf : val, contents : list val
+  PRE [ _i OF tuint, _buf OF tptr tuchar ]
+    PROP (writable_share sh; 0 <= i <= Int.max_unsigned; Zlength (intr i) <= Zlength contents <= Int.max_signed)
+    LOCAL (temp _i (Vint (Int.repr i)); temp _buf buf)
     SEP (data_at sh (tarray tuchar (Zlength contents)) contents buf)
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint (Int.repr (j + Zlength (intr i)))))
-    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list j contents (map Vint (intr i))) buf).
+    LOCAL (temp ret_temp (Vint (Int.repr (Zlength (intr i)))))
+    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list 0 contents (map Vint (intr i))) buf).
 
 Definition print_int_spec :=
  DECLARE _print_int
@@ -214,12 +213,12 @@ Proof.
   start_function.
   forward.
   forward_if (PROP ()
-    LOCAL (temp _k (Vint (Int.repr (j + Zlength (intr i) - 1))))
-    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list j contents (map Vint (intr i))) buf)).
+    LOCAL (temp _k (Vint (Int.repr (Zlength (intr i) - 1))))
+    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list 0 contents (map Vint (intr i))) buf)).
   - forward.
     rewrite divu_repr by rep_omega.
     forward.
-    forward_call (sh, i / 10, buf, j, contents).
+    forward_call (sh, i / 10, buf, contents).
     { rewrite intr_lt by omega; split; auto.
       assert (i / 10 < i).
       { apply Z.div_lt; omega. }
@@ -229,14 +228,13 @@ Proof.
     forward.
     { entailer!.
       split; try rep_omega.
-      rewrite intr_lt; omega. }
+      rewrite intr_lt; try omega. }
     entailer!.
-    { rewrite intr_lt by omega.
-      rewrite Z.add_sub_assoc; auto. }
+    { rewrite intr_lt by omega; auto. }
     rewrite (intr_eq i).
     destruct (i <=? 0) eqn: Hi; [apply Zle_bool_imp_le in Hi; omega|].
     pose proof (Z_mod_lt i 10).
-    rewrite <- (Zlength_map _ _ Vint), replace_list_upd_snoc.
+    rewrite <- (Zlength_map _ _ Vint), <- (Z.add_0_l (Zlength (map _ _))), replace_list_upd_snoc.
     rewrite (zero_ext_inrange 8 (Int.repr (i mod 10))), add_repr.
     rewrite zero_ext_inrange, map_app.
     apply derives_refl.
@@ -246,12 +244,10 @@ Proof.
     { rewrite Zlength_map, intr_lt; rep_omega. }
   - forward.
     entailer!.
-    (* spec has an off-by-one error *)
-    { admit. }
     rewrite replace_list_nil by rep_omega; auto.
   - forward.
     rewrite Z.sub_simpl_r; entailer!.
-Admitted.
+Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
   let n' := n / 10 in
@@ -479,8 +475,8 @@ Proof.
     + simpl.
       forward.
       { entailer!.
-        rewrite zero_ext_inrange by (apply Forall_Znth; auto; omega).
         apply Forall_Znth; auto; omega. }
+      forward.
       forward.
       rewrite zero_ext_inrange by (apply Forall_Znth; auto; omega).
       forward_if (0 <= Int.unsigned (Znth i lc) - char0 < 10).
@@ -562,21 +558,23 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-Instance Espec : OracleKind := IO_Espec ext_link.
+Instance Espec : OracleKind := add_funspecs (IO_Espec ext_link) ext_link Gprog.
 
 Lemma prog_correct:
   semax_prog_ext prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
-(*semax_func_cons_ext.
-{ simpl; Intro i.
+semax_func_cons_ext.
+semax_func_cons body_free.
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+semax_func_cons_ext.
+{ simpl; Intro msg.
   apply typecheck_return_value; auto. }
 semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
 semax_func_cons body_main.
-Qed.*)
-Admitted.
+Qed.
 
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.io_mem_dry.
@@ -584,7 +582,15 @@ Require Import VST.progs.io_mem_dry.
 Definition init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
   unfold Genv.init_mem; simpl.
-Admitted. (* seems true, but hard to prove -- can we compute it? *)
+Ltac alloc_block m n := match n with
+  | O => idtac
+  | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
+    destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
+  end.
+  alloc_block Mem.empty 60%nat.
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
+  reflexivity.
+Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.
 

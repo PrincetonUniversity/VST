@@ -2,6 +2,8 @@
 
 (as described in _Connecting Higher-Order Separation Logic with a First-Order Outside World_)
 
+To build all relevant proofs, run `make -j7 progs/verif_io.vo progs/verif_io_mem.vo`
+
 The definitions and theorems of the paper can be found in the following locations:
 
 Section 2:
@@ -44,7 +46,7 @@ CertiKOS specifications, including serial_in_spec, serial_putc_spec, etc.: progs
 consume (Definition 13), dry-syscall correspondence (Definition 14): progs/os_combine.v, consume_trace, extcalls_correct<br/>
 correctness of putchar and getchar: progs/io_os_connection.v<br/>
 OS safety (Definition 16), trace correctness (Lemma 17), soundness of VST + CertiKOS (Theorem 18): progs/os_combine.v, ext_safeN_trace, trace_correct, OS_soundness<br/>
-soundness of putchar + getchar (Theorem 19): progs/io_combine.v, IO_OS_soundness
+soundness of putchar + getchar (Theorem 19): progs/io_combine.v, IO_OS_soundness, also applied to a program in progs/verif_io.v, prog_OS_correct
 
 Section 8:
 
