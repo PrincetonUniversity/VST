@@ -154,6 +154,7 @@ Proof.
       destruct Hpre as ([Hwritable _] & Hargs & ? & ? & J1 & (? & ? & Htrace) & Hbuf).
       destruct Hargs as ([Harg1 _] & [Harg2 _] & _); hnf in Harg1, Harg2.
       split; [rewrite Harg1, Harg2, eval_id_same, eval_id_other, eval_id_same by discriminate; auto|].
+      clear Harg1.
       split; auto.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].

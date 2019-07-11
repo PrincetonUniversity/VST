@@ -8,8 +8,34 @@ Require Import VST.veric.SequentialClight.
 Require Import VST.veric.mem_lessdef.
 
 (* functions on byte arrays and CompCert mems *)
+Lemma drop_alloc m : { m' | (let (m1, b) := Mem.alloc m 0 1 in Mem.drop_perm m1 b 0 1 Nonempty) = Some m' }.
+Proof.
+  destruct (Mem.alloc m 0 1) eqn: Halloc.
+  apply Mem.range_perm_drop_2.
+  intro; eapply Mem.perm_alloc_2; eauto.
+Qed.
+
 Definition store_byte_list m b ofs lv :=
   Mem.storebytes m b ofs (concat (map (encode_val Mint8unsigned) lv)).
+
+Lemma access_at_readable : forall m b o sh (Hsh : readable_share sh),
+  access_at m (b, o) Cur = perm_of_sh sh ->
+  Mem.perm m b o Cur Readable.
+Proof.
+  unfold access_at, perm_of_sh, Mem.perm; intros.
+  simpl in H; rewrite H.
+  if_tac; if_tac; constructor || contradiction.
+Qed.
+
+Lemma access_at_writable : forall m b o sh (Hsh : writable_share sh),
+  access_at m (b, o) Cur = perm_of_sh sh ->
+  Mem.perm m b o Cur Writable.
+Proof.
+  unfold access_at, perm_of_sh, Mem.perm; intros.
+  simpl in H; rewrite H.
+  apply writable_writable0 in Hsh.
+  if_tac; if_tac; constructor || contradiction.
+Qed.
 
 Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
   ghost_of phi = [Some (ext_ghost z, NoneP)] /\ forall l, identity (phi @ l).
@@ -163,25 +189,6 @@ Proof.
     eapply change_ext in J; eauto.
     apply ghost_fmap_join with (f := approx (level w'))(g := approx (level w')) in J.
     apply J.
-Qed.
-
-Lemma access_at_readable : forall m b o sh (Hsh : readable_share sh),
-  access_at m (b, o) Cur = perm_of_sh sh ->
-  Mem.perm m b o Cur Readable.
-Proof.
-  unfold access_at, perm_of_sh, Mem.perm; intros.
-  simpl in H; rewrite H.
-  if_tac; if_tac; constructor || contradiction.
-Qed.
-
-Lemma access_at_writable : forall m b o sh (Hsh : writable_share sh),
-  access_at m (b, o) Cur = perm_of_sh sh ->
-  Mem.perm m b o Cur Writable.
-Proof.
-  unfold access_at, perm_of_sh, Mem.perm; intros.
-  simpl in H; rewrite H.
-  apply writable_writable0 in Hsh.
-  if_tac; if_tac; constructor || contradiction.
 Qed.
 
 Lemma memory_block_writable_perm : forall sh n b ofs r jm, writable_share sh ->
