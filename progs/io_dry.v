@@ -35,7 +35,9 @@ Definition putchar_pre (m : mem) (witness : int * IO_itree) (z : IO_itree) :=
   let '(c, k) := witness in (sutt eq (write c;; k) z).
 
 Definition putchar_post (m0 m : mem) r (witness : int * IO_itree) (z : IO_itree) :=
-  m0 = m /\ let '(c, k) := witness in r = c /\ z = k.
+  m0 = m /\ let '(c, k) := witness in
+  (Int.signed r = -1 \/ r = Int.repr (Int.unsigned c mod two_p 8)) /\
+  if eq_dec (Int.signed r) (-1) then sutt eq (write c;; k) z else z = k.
 
 Context (ext_link : String.string -> ident).
 
@@ -123,19 +125,21 @@ Proof.
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & ?); subst.
+      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
-      * split3; simpl.
+      * exists i.
+        split3; simpl.
         -- split; auto.
         -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
-             unfold ITREE; exists k; split; [apply eutt_sutt, UpToTausCore.Reflexive_eutt|].
+             unfold ITREE; exists x; split; [if_tac; auto|].
+             { subst; apply eutt_sutt, UpToTausCore.Reflexive_eutt. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.

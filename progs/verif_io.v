@@ -20,6 +20,31 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition putchar_spec := DECLARE _putchar putchar_spec.
 Definition getchar_spec := DECLARE _getchar getchar_spec.
 
+Definition getchar_blocking_spec :=
+ DECLARE _getchar_blocking
+  WITH k : int -> IO_itree
+  PRE [ ]
+    PROP ()
+    LOCAL ()
+    SEP (ITREE (r <- read ;; k r))
+  POST [ tint ]
+   EX i : int,
+    PROP (0 <= Int.signed i <= two_p 8 - 1)
+    LOCAL (temp ret_temp (Vint i))
+    SEP (ITREE (k i)).
+
+Definition putchar_blocking_spec :=
+ DECLARE _putchar_blocking
+  WITH c : int, k : IO_itree
+  PRE [ _c OF tint ]
+    PROP (0 <= Int.unsigned c < 256)
+    LOCAL (temp _c (Vint c))
+    SEP (ITREE (r <- write c ;; k))
+  POST [ tint ]
+    PROP ()
+    LOCAL (temp ret_temp (Vint c))
+    SEP (ITREE k).
+
 Lemma div_10_dec : forall n, 0 < n ->
   (Z.to_nat (n / 10) < Z.to_nat n)%nat.
 Proof.
@@ -79,19 +104,6 @@ Definition print_int_spec :=
     LOCAL ()
     SEP (ITREE tr).
 
-Definition getchar_blocking_spec :=
- DECLARE _getchar_blocking
-  WITH k : int -> IO_itree
-  PRE [ ]
-    PROP ()
-    LOCAL ()
-    SEP (ITREE (r <- read ;; k r))
-  POST [ tint ]
-   EX i : int,
-    PROP (0 <= Int.signed i <= two_p 8 - 1)
-    LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (k i)).
-
 Definition read_sum n d : IO_itree :=
    ITree.aloop (fun '(n, d) =>
        if zlt n 1000 then if zlt d 10 then
@@ -110,7 +122,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchar_spec; getchar_spec;
-  print_intr_spec; print_int_spec; getchar_blocking_spec; main_spec]).
+  print_intr_spec; print_int_spec; getchar_blocking_spec; putchar_blocking_spec; main_spec]).
 
 Lemma divu_repr : forall x y,
   0 <= x <= Int.max_unsigned -> 0 <= y <= Int.max_unsigned ->
@@ -141,31 +153,6 @@ Proof.
   apply eutt_bind; [intros []|]; reflexivity.
 Qed.
 
-Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
-Proof.
-  start_function.
-  forward_if (PROP () LOCAL () SEP (ITREE tr)).
-  - forward.
-    forward.
-    rewrite modu_repr, divu_repr by (omega || computable).
-    rewrite intr_eq.
-    destruct (Z.leb_spec i 0); try omega.
-    erewrite ITREE_ext by (rewrite write_list_app, bind_bind; reflexivity).
-    forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
-    { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
-    simpl write_list.
-    forward_call (Int.repr (i mod 10 + char0), tr).
-    { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      apply ITREE_impl; rewrite bind_ret'; reflexivity. }
-    entailer!.
-  - forward.
-    subst; entailer!.
-    erewrite ITREE_ext; [apply derives_refl|].
-    simpl.
-    rewrite Shallow.bind_ret; reflexivity.
-  - forward.
-Qed.
-
 Lemma body_getchar_blocking: semax_body Vprog Gprog f_getchar_blocking getchar_blocking_spec.
 Proof.
   start_function.
@@ -189,6 +176,59 @@ Proof.
     rewrite if_false by auto.
     forward.
     Exists i; entailer!.
+Qed.
+
+Lemma body_putchar_blocking: semax_body Vprog Gprog f_putchar_blocking putchar_blocking_spec.
+Proof.
+  start_function.
+  forward.
+  forward_while (EX i : int, PROP (Int.signed i = -1 \/ i = c) LOCAL (temp _r (Vint i); temp _c (Vint c))
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- write c;; k) else k))).
+  - Exists (Int.neg (Int.repr 1)); entailer!.
+    rewrite if_true; auto.
+  - entailer!.
+  - subst; rewrite Int.signed_repr by rep_omega.
+    rewrite if_true by auto.
+    forward_call (c, k).
+    Intros i.
+    forward.
+    Exists i; entailer!.
+    rewrite Zmod_small in * by auto.
+    rewrite Int.repr_unsigned in *; auto.
+  - assert (Int.signed i <> -1).
+    { intro X.
+      apply f_equal with (f := Int.repr) in X.
+      rewrite Int.repr_signed in X; auto. }
+    rewrite if_false by auto.
+    destruct H0; [contradiction | subst].
+    forward.
+Qed.
+
+Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
+Proof.
+  start_function.
+  forward_if (PROP () LOCAL () SEP (ITREE tr)).
+  - forward.
+    forward.
+    rewrite modu_repr, divu_repr by (omega || computable).
+    rewrite intr_eq.
+    destruct (Z.leb_spec i 0); try omega.
+    erewrite ITREE_ext by (rewrite write_list_app, bind_bind; reflexivity).
+    forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
+    { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
+    simpl write_list.
+    forward_call (Int.repr (i mod 10 + char0), tr).
+    { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
+      apply ITREE_impl; rewrite bind_ret'; reflexivity. }
+    { pose proof (Z_mod_lt i 10); unfold char0.
+      rewrite Int.unsigned_repr; rep_omega. }
+    entailer!.
+  - forward.
+    subst; entailer!.
+    erewrite ITREE_ext; [apply derives_refl|].
+    simpl.
+    rewrite Shallow.bind_ret; reflexivity.
+  - forward.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -232,6 +272,7 @@ Proof.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
       rewrite bind_ret'; reflexivity. }
+    { unfold char0; computable. }
     entailer!.
   - forward_call (i, tr).
     { rewrite chars_of_Z_intr by omega; cancel. }
@@ -311,6 +352,7 @@ Proof.
     rewrite sub_repr, add_repr; auto. }
   { unfold char0 in *; rep_omega. }
   forward_call (Int.repr newline, c' <- read;; read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
+  { unfold newline; computable. }
   forward_call (fun c' => read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
   Intros c'.
   forward.
@@ -336,9 +378,12 @@ semax_func_cons_ext.
 { simpl; Intro i.
   apply typecheck_return_value; auto. }
 semax_func_cons_ext.
+{ simpl; Intro i'.
+  apply typecheck_return_value; auto. }
+semax_func_cons body_getchar_blocking.
+semax_func_cons body_putchar_blocking.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
-semax_func_cons body_getchar_blocking.
 semax_func_cons body_main.
 Qed.
 
@@ -353,7 +398,7 @@ Ltac alloc_block m n := match n with
   | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
     destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
   end.
-  alloc_block Mem.empty 58%nat.
+  alloc_block Mem.empty 59%nat.
   eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
   reflexivity.
 Qed.
@@ -392,7 +437,7 @@ Require Import VST.progs.io_os_connection.
 Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem n Traces.TEnd traces main_itree q init_mem /\
+     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem valid_trace n Traces.TEnd traces main_itree q init_mem /\
       forall t, Ensembles.In _ traces t -> exists z', consume_trace main_itree z' t.
 Proof.
   intros.

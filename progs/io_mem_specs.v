@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.veric.juicy_extspec.
+Require Export VST.progs.io_events.
 Require Import ITree.ITree.
 Require Export ITree.Eq.UpToTausEquivalence.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
@@ -12,16 +13,6 @@ Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
 Notation "' p <- t1 ;; t2" :=
   (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
 (at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
-
-Inductive IO_event : Type -> Type :=
-| ERead : IO_event int
-| EWrite (c : int) : IO_event unit.
-
-Definition read : itree IO_event int := embed ERead.
-
-Definition write (c : int) : itree IO_event unit := embed (EWrite c).
-
-Definition IO_itree := itree IO_event unit.
 
 Fixpoint write_list l : IO_itree :=
   match l with

@@ -8,7 +8,7 @@ Require Import compcert.lib.Integers.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import VST.progs.io_specs.
-(*Require Import VST.progs.io_mem_specs.*)
+Require Import VST.progs.io_mem_specs.
 Require Import VST.progs.io_dry.
 Require Import VST.progs.io_mem_dry.
 Require Import VST.progs.io_os_specs.

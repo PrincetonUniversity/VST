@@ -20,18 +20,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition putchars_spec := DECLARE _putchars putchars_spec.
 Definition getchars_spec := DECLARE _getchars getchars_spec.
 
-(* make a new exit_spec that only allows exit code 0 if the ITREE is fully used, or that exit is only done w/ 1,
-and put empty itree in main_post *)
-
-(* This tells us that exit(0) is never called, so if we terminate successfully, the postcondition of main
-  must hold. *)
-Definition exit_spec := DECLARE _exit
- WITH i : Z
- PRE [1%positive OF tint]
-   PROP (repable_signed i; i <> 0) LOCAL(temp 1%positive (Vint (Int.repr i))) SEP()
- POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
-
 Lemma div_10_dec : forall n, 0 < n ->
   (Z.to_nat (n / 10) < Z.to_nat n)%nat.
 Proof.
@@ -111,34 +99,16 @@ Definition read_sum n lc : IO_itree :=
     lc' <- read_list 4;; Ret (false, n + sum_Z nums, lc'))
   else inr tt) (false, n, lc).
 
-Definition main_itree := lc <- read_list 4;; read_sum 0 lc (* ;; exit 0 *).
-(* !! Making exit an effect and requiring it to be called at the end of a program is a good
-   way to get around the problem of dropping suffixes of an itree. *)
+Definition main_itree := lc <- read_list 4;; read_sum 0 lc.
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre_ext prog main_itree nil gv
   POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt)).
-(* making the post false forces user to call exit to terminate *)
-
-(* override default spec for exit *)
-Definition library_G  {cs: compspecs} prog :=
- let defs := prog_defs prog in
-  try_spec "_malloc" malloc_spec' defs ++
-  try_spec "_free" free_spec' defs.
-
-Ltac with_library prog G :=
-  let pr := eval unfold prog in prog in  
- let x := constr:(library_G pr ++ G) in
-  let x := eval cbv beta delta [app library_G] in x in
-  let x := simpl_prog_defs x in 
-  let x := eval cbv beta iota zeta delta [try_spec] in x in 
-  let x := eval simpl in x in 
-    with_library' pr x.
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
-  exit_spec; print_intr_spec; print_int_spec; main_spec]).
+  print_intr_spec; print_int_spec; main_spec]).
 
 Lemma divu_repr : forall x y,
   0 <= x <= Int.max_unsigned -> 0 <= y <= Int.max_unsigned ->
@@ -321,9 +291,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call 1.
-    rep_omega.
-    entailer!. }
+  { forward_call tt; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -439,9 +407,7 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call 1.
-    rep_omega.
-    entailer!. }
+  { forward_call tt; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -558,13 +524,13 @@ Qed.
 
 Definition ext_link := ext_link_prog prog.
 
-Instance Espec : OracleKind := add_funspecs (IO_Espec ext_link) ext_link Gprog.
+Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
   semax_prog_ext prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
-semax_func_cons_ext.
+semax_func_cons body_exit.
 semax_func_cons body_free.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons_ext.
