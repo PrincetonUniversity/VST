@@ -320,8 +320,8 @@ Section safety_equivalence.
 
         clear - H1.
         match goal with
-          [H1: pacon.paco ?AA ?BB ?CC |- _ ] =>
-          pose (curry3 (pacon.paco AA BB)) 
+          [H1: ?P ?AA ?BB ?CC |- _ ] =>
+          pose (curry3 (P AA BB)) 
         end.
 
         (* there must be e problem, where soemthing is unfolded too much.

@@ -59,6 +59,7 @@ ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.c
 BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
 
 ifeq ($(COMPCERT), compcert_new)
+EXTPACO= -Q concurrency/paco/src Paco
 BACKEND=backend
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
@@ -66,6 +67,7 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 else
+EXTPACO=
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
 else
@@ -77,7 +79,7 @@ endif
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
-EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
+EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d)) $(EXTPACO)
 
 # for SSReflect
 ifdef MATHCOMP
