@@ -2717,7 +2717,8 @@ Qed.
       (* cann be used to expose the implicit arguemtns. *)
       Definition restrPermMap' a b H:= @restrPermMap a b H.
       Lemma RPM: restrPermMap = restrPermMap'. Proof. reflexivity. Qed.
-    
+      Arguments restrPermMap' a b H.
+      
       Lemma restr_proof_irr':
         forall (perm1 perm2 : access_map) (m1 m2 : mem)
                (Hlt1 : permMapLt perm1 (getMaxPerm m1))

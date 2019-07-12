@@ -51,7 +51,8 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 
 Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
 
-  Module MyThreadSimulationDefinitions := ThreadSimulationDefinitions CC_correct Args.
+  Module MyThreadSimulationDefinitions :=
+    ThreadSimulationDefinitions CC_correct Args.
   Export MyThreadSimulationDefinitions.
   Import HybridMachineSig.
   Import DryHybridMachine.

@@ -126,7 +126,7 @@ Lemma Asm_preserves_invariant:
     invariant (cast_t st').
 Proof.
   intros.
-  (* This is proven somwhere *)
+  (* This is proven somewhere *)
 Admitted.
 
   Lemma Asm_preserves_compat:
@@ -145,6 +145,18 @@ Admitted.
 Proof.
   intros.
   (* This is proven somwhere *)
+Admitted.
+
+Lemma step_nil_trace_not_atx:
+  forall ge s1 s2,
+    Asm.step ge s1 nil s2 ->
+    Asm.at_external Asm_g s1 = None.
+Proof.
+  (* Needs to add something about externall calls
+     Or force such that at_ext only works for synchronisations:
+     What I mean is that our at_external... really only means 
+     "at_sync".
+   *)
 Admitted.
 
       (* Where to move this:*)
@@ -268,6 +280,14 @@ Admitted.
         intros; normal.
         repeat (econstructor; eauto).
       Qed.
+      Ltac dilute_mem_goal m:=
+            replace m with (HybridMachineSig.diluteMem  m) by reflexivity.
+          
+      Ltac dilute_mem_in m H:=
+            replace m with (HybridMachineSig.diluteMem  m) in H by reflexivity.
+      Tactic Notation "dilute_mem" constr(m):= dilute_mem_goal m.
+      Tactic Notation "dilute_mem" constr(m) "in" hyp(H):= dilute_mem_in m H.
+      
       Lemma thread_step_plus_from_corestep':
         forall NN m tge U i st2 m2
           (Hinv: @invariant (HybridSem _) (@OrdinalThreadPool dryResources _) st2)
@@ -289,8 +309,7 @@ Admitted.
         - subst; destruct H as (c2 & m3 & STEP & Heq). inv Heq.
           simpl in STEP. inv STEP.
           exists O; simpl; do 2 eexists. split; try reflexivity.
-          replace (Asm.get_mem s4') with (HybridMachineSig.diluteMem  (Asm.get_mem s4'))
-            by reflexivity.
+          dilute_mem (Asm.get_mem s4').
           exploit Asm_event.asm_ev_ax2.
           econstructor; simpl in *; eassumption.
           intros (T&HH).
@@ -302,9 +321,7 @@ Admitted.
           simpl in H. inv H; simpl in *.
           eapply break_existensial_of_thread_stepN.
           + (* first step *)
-            replace (Asm.get_mem s4') with
-                (HybridMachineSig.diluteMem  (Asm.get_mem s4'))
-              by reflexivity.
+            dilute_mem (Asm.get_mem s4').
             exploit Asm_event.asm_ev_ax2.
             { econstructor; simpl in *; eassumption. }
             intros (T&HH).
@@ -383,14 +400,17 @@ Admitted.
               
       Lemma thread_step_plus_from_corestep:
         forall (m : option mem) (tge : ClightSemanticsForMachines.G * Asm.genv)
-          (U : list nat) (st1 : t) (m1 : mem) (Htid : containsThread st1 hb) 
+          i
+          (U : list nat) (st1 : t) (m1 : mem) (Htid : containsThread st1 i) 
           (st2 : t) (mu : meminj) (m2 : mem) (cd0 : compiler_index)
           (CMatch : concur_match (Some cd0) mu st1 m1 st2 m2) (code2 : Asm.state)
           (s4' : Smallstep.state (Asm.part_semantics Asm_g)) 
-          (m4' : mem) (cnt2 : containsThread st2 hb),
+          (m4' : mem) (cnt2 : containsThread st2 i),
+          getThreadC cnt2 = Krun (TST code2) ->
+          HybridMachineSig.schedPeek U = Some i ->
           corestep_plus (Asm_core.Asm_core_sem Asm_g) code2
                         (restrPermMap
-                           (proj1 ((memcompat2 CMatch) hb (contains12 CMatch Htid))))
+                           (proj1 ((memcompat2 CMatch) i (contains12 CMatch Htid))))
                         s4' m4' ->
             machine_semantics_lemmas.thread_step_plus
               (HybConcSem (Some (S hb)) m) tge U st2
@@ -401,26 +421,72 @@ Admitted.
                   If this is the case, we might need to thread that through the compiler...
                   although it should be easy, I would prefere if there is any other way...
          *)
-        intros.
+        intros * HgetC Hschedule H.
         destruct H as (NN& H).
         clean_proofs.
-        eapply thread_step_plus_from_corestep'; eauto;
-          try apply CMatch.
-      Admitted.
-      (** *Need an extra fact about simulations*)
+        eapply thread_step_plus_from_corestep'; eauto; try apply CMatch.
+      Qed.
+
+      
+
+      
+          Lemma nil_eapp:
+            forall t1 t2,
+            Events.Eapp t1 t2 = nil ->
+            t1 = nil /\ t2 = nil.
+          Proof.
+            intros t1 t2; destruct t1; destruct t2; simpl; intros;
+              eauto; congruence. 
+          Qed.
+          
+          (** *Need an extra fact about simulations*)
+          Lemma step2corestep_star:
+            forall (s1 s2: Smallstep.state (Asm.part_semantics Asm_g)),
+              Smallstep.star
+            (Asm.step (Genv.globalenv Asm_program))
+            s1 nil s2 ->
+              (corestep_star (Asm_core.Asm_core_sem Asm_g))
+                s1 (Smallstep.get_mem s1) s2 (Smallstep.get_mem s2).
+          Proof.
+            intros * H. eapply Smallstep.star_starN in H as [n H].
+            exists n.
+            revert s1 s2 H. induction n.
+            - intros. simpl; intros; inv H. 
+              reflexivity.
+            - intros; inv H.
+              symmetry in H3; eapply nil_eapp in H3 as [? ?];subst.
+              exploit IHn; eauto; intros Hsteps.
+              do 2 eexists; split.
+              + econstructor; eauto; simpl.
+                rewrite asm_set_mem_get_mem; eauto.
+                rewrite asm_set_mem_get_mem;
+                  eapply step_nil_trace_not_atx; eauto.
+              + eauto.
+          Qed.
       Lemma step2corestep_plus:
-        forall (s1 s2: Smallstep.state (Asm.part_semantics Asm_g)) m1 t,
+        forall (s1 s2: Smallstep.state (Asm.part_semantics Asm_g)) m1,
           Smallstep.plus
             (Asm.step (Genv.globalenv Asm_program))
-            (Smallstep.set_mem s1 m1) t s2 ->
+            (Smallstep.set_mem s1 m1) nil s2 ->
           (corestep_plus (Asm_core.Asm_core_sem Asm_g))
             s1 m1 s2 (Smallstep.get_mem s2).
+      Proof.
+        intros; inv H.
+        symmetry in H2; eapply nil_eapp in H2 as [? ?]; subst.
+        eapply corestep_plus_star_trans.
+        - exists 0%nat; simpl.
+          do 2 eexists; split; try reflexivity.
+          econstructor; eauto.
+          + eapply step_nil_trace_not_atx; eauto.
+        - apply step2corestep_star in H1. simpl.
+          destruct s3; eassumption.
+      Qed.
+          
       (* This in principle is not provable. We should get it somehow from the simulation.
               Possibly, by showing that the (internal) Clight step has no traces and allo
               external function calls have traces, so the "matching" Asm execution must be
               all internal steps (because otherwise the traces wouldn't match).
        *)
-      Admitted.
       
       
       (* When a thread takes an internal step (i.e. not changing the schedule) *)
@@ -498,7 +564,7 @@ Admitted.
           + (* Construct the step *)
             exists 0%nat; simpl.
             do 2 eexists; split; [|reflexivity].
-            replace m2' with (HybridMachineSig.diluteMem m2') by reflexivity.
+            dilute_mem m2'.
             econstructor; eauto; simpl.
             econstructor; eauto.
             * simpl in *.
@@ -512,7 +578,7 @@ Admitted.
           pose proof (mtch_compiled _ _ _ _ _ _ H0 _ e Htid (contains12 H0 Htid)) as HH.
           subst.
           simpl in *.
-
+          
           exploit_match ltac:(apply H0).
 
           
@@ -521,7 +587,7 @@ Admitted.
            2. Simulation of the compiler (Clight and Asm) 
            3. Simulation of the Asm semantics 
            *)
-
+          
           rename H6 into Compiler_Match; simpl in *.
           
           (* (1) Clight step *)
@@ -530,18 +596,26 @@ Admitted.
           
           (* (2) Compiler step/s *)
           rename H2 into CoreStep.
+          simpl in CoreStep.
           inversion CoreStep. subst s1 m0 s2.
-          eapply compiler_sim in H1; simpl in *; eauto.
-          2: { erewrite restr_proof_irr; eassumption. }
-          destruct H1 as (cd' & s2' & j2' & t'' & step & comp_match & Hincr2 & inj_event).
+          pose fsim_properties_inj_relaxed.
 
+          eapply compiler_sim in H1 as HH; simpl in *; eauto.
+          2: { erewrite restr_proof_irr; eassumption. }
+          destruct HH as (cd' & s2' & j2' & t'' & step &
+                          comp_match & Hincr2 & inj_event).
+          assert (Ht0: t0 = nil).
+          { admit. } subst t0.
+          assert (Ht'': t'' = nil).
+          { inv inj_event; reflexivity. } subst t''.
+          
           eapply simulation_equivlanence in step.
           assert ( HH: Asm.state =
                        Smallstep.state (Asm.part_semantics Asm_g)) by
               reflexivity.
           remember (@Smallstep.get_mem (Asm.part_semantics Asm_g) s2') as m2'.
           pose proof (contains12 H0 Htid) as Htid'.
-
+          
           destruct step as [plus_step | (? & ? & ?)].
           + exists (updThread Htid' (Krun (TState Clight.state Asm.state s2'))
                          (getCurPerm m2', snd (getThreadR Htid'))), m2', (Some i), mu.
@@ -552,14 +626,15 @@ Admitted.
               apply inject_incr_refl.
             * left.
               eapply thread_step_plus_from_corestep; eauto.
-              eauto; simpl.
-              subst m2'.
-              instantiate(1:=Htid).
-              instantiate(21:=code2).
-              instantiate (5:=H0).
-              erewrite restr_proof_irr; eauto.
-              eapply step2corestep_plus; eassumption.
-              
+              -- symmetry; clean_proofs; eauto.
+              -- subst m2'.
+                 instantiate(1:=Htid).
+                 instantiate (5:=H0).
+                 erewrite restr_proof_irr; eauto.
+                 instantiate(1:=Hlt2).
+                 eapply step2corestep_plus; simpl in *. 
+                 eauto.
+                 
           + exists st2, m2, (Some cd'), mu.
             split; [|split].
             * assert (CMatch := H0). inversion H0; subst.
@@ -620,7 +695,7 @@ Admitted.
           + (* Construct the step *)
             exists 0%nat; simpl.
             do 2 eexists; split; [|reflexivity].
-            replace m2' with (HybridMachineSig.diluteMem m2') by reflexivity.
+            dilute_mem m2'.
             econstructor; eauto; simpl.
             econstructor; eauto.
             * simpl in *.
@@ -682,6 +757,20 @@ Admitted.
       
       (* What to do with this? *)
       Hint Resolve inject_incr_refl.
+      Instance at_ext_sum_Proper:
+              Proper (Logic.eq ==> mem_equiv ==> Logic.eq )
+                      (at_external_sum Clight.state Asm.state mem
+                      (fun s m => Clight.at_external (Clight.set_mem s m))
+                      (fun s m => Asm.at_external (Genv.globalenv Asm_program)
+                                               (Asm.set_mem s m))).
+            Proof.
+              intros ??? ???; subst.
+              change
+                   (at_external (sem_coresem (HybridSem (Some hb))) y x0 =
+                    at_external (sem_coresem (HybridSem (Some hb))) y y0).
+              rewrite H0; reflexivity.
+            Qed.
+
       
       Lemma external_step_diagram:
         forall (U : list nat) (tr1 tr2 : HybridMachineSig.event_trace) (st1 : ThreadPool.t) 
@@ -695,9 +784,11 @@ Admitted.
             exists ev' (st2' : t) (m2' : mem) (cd' : option compiler_index) 
                    (mu' : meminj),
               concur_match cd' mu' st1' m1' st2' m2' /\
-              List.Forall2 (inject_mevent mu') (tr1 ++ (Events.external tid ev :: nil)) (tr2 ++ (Events.external tid ev' :: nil)) /\
+              List.Forall2 (inject_mevent mu') (tr1 ++ (Events.external tid ev :: nil))
+                           (tr2 ++ (Events.external tid ev' :: nil)) /\
               HybridMachineSig.external_step
-                (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler) U tr2 st2 m2 (HybridMachineSig.schedSkip U)
+                (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
+                U tr2 st2 m2 (HybridMachineSig.schedSkip U)
                 (seq.cat tr2 (Events.external tid ev' :: nil)) st2' m2'.
       Proof.
         intros.
@@ -738,30 +829,28 @@ Admitted.
           remember (Build_virtue virtueThread (getThreadR cnt1)) as angel'.
           edestruct (acquire_step_diagram hb angel' m1) as
               (?&?&?&?&?&?); subst angel'; simpl in *; eauto;
-            try rewrite (restr_proof_irr _ (proj1 (Hcmpt tid cnt1)));
-            eauto.
+            try rewrite (restr_proof_irr _ (proj1 (Hcmpt tid cnt1))).
           + !goal(access_map_equiv _ (_ m1) ).
             subst. symmetry; apply getCur_restr.
           + !goal(access_map_equiv _ (_ m2) ).
             subst. symmetry; apply getCur_restr.
-          + !goal(concur_match _ _ _ _ _ _).
+         (* + !goal(concur_match _ _ _ _ _ _).
             eapply concur_match_perm_restrict in H.
             instantiate (1:= mu).
             instantiate (1:= cd).
-            subst m1 m2. eapply H.
+            subst m1 m2. eapply H.*)
           + !goal(pair21_prop sub_map _ _).
             move Hbounded at bottom.
+            change (sub_map (fst virtueThread) (snd (getMaxPerm m1)) /\
+                    sub_map (snd virtueThread) (snd (getMaxPerm m1))).
             unfold Max_equiv in *.
-            repeat (autounfold with pair);
-              unfold pair_prop; simpl.
-            unfold sub_map in Hbounded.
-            (*Hmax_equiv is not enough here.
-              m1 and m1_base have the same max (even the structure)
-              
-             *)
-            admit.
-          + simpl. admit. (* at_external up to mem_equiv*)
-          + instantiate(1:= m1').
+            replace (getMaxPerm m1) with (getMaxPerm m1_base); auto.
+            subst m1.
+            symmetry; apply restr_Max_eq.
+          + !goal(at_external_sum _ _ _ _ _ _ _ = _).
+            subst m1; rewrite restr_proof_irr_equiv; eauto.
+          + !context_goal lock_update_mem_strict_load.
+            instantiate(1:= m1').
             assert (Hlock_update_mem_strict_load:
                       lock_update_mem_strict_load
                         b (unsigned ofs) (lock_perms _ _ cnt1)
@@ -776,8 +865,40 @@ Admitted.
             subst newThreadPerm.
             simpl in H3.
             do 5 econstructor; repeat (weak_split eauto).
-            econstructor; eauto.
-            instantiate(1:=tr2) in H5.
+            * econstructor; eauto.
+            * econstructor; eauto.
+              simpl.
+              
+              lazymatch goal with
+              | [ H: syncStep _ ?cnt ?Hcmpt _ _ _ |- syncStep _ _ _ _ _ _ ] =>
+                instantiate(1:=cnt)
+              end.
+                
+
+
+            HybridMachineSig.syncStep isCoarse Htid Hcmpt ms' m' ev ->
+            HybridMachineSig.external_step U tr ms m U' (tr ++ new_event) ms' m'
+
+
+            
+
+            
+            Lemma external_step_restr res sem tp ms SC:
+              forall U t st m U' t' st' m' p Hlt,
+              (@HybridMachineSig.external_step
+                   res sem tp _ ms SC) U t st m U' t' st' m' ->
+              (@HybridMachineSig.external_step
+                 res sem tp _ ms SC) U t st (@restrPermMap p m Hlt) U' t' st' m'.
+            Proof.
+              intros.
+              dilute_mem (restrPermMap Hlt); inv H.
+              - econstructor; eauto; simpl.
+                admit.
+              - simpl; econstructor; eauto; simpl.
+                
+                
+
+              
 
             (*Can I prove HybridMachineSig.external_step works 
               "up to cur. " 
