@@ -1,0 +1,3 @@
+[submodule "concurrency/paco"]
+	path = concurrency/paco
+	url = git@github.com:snu-sf/paco.git
