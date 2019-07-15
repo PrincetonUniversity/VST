@@ -1059,7 +1059,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             exists event2 (m2' : mem),
               match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2 /\
               inject_sync_event mu event1 event2 /\
-              (* (inject_mevent mu) (Events.external tid event1) (Events.external tid event2) /\ *)
               let angel2:= inject_virtue m2 mu angel in
               let new_perms2:= Build_virtue (virtueThread angel2) (empty_map, empty_map) in
               let st2'':= fullThUpd_comp st2 tid cnt2 (Kresume sum_state2 Vundef)
@@ -3419,8 +3418,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       
       Lemma release_step_diagram:
         let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
-        forall (angel: virtue) (m1 m1' : mem)  (U : list nat) (tid : nat) cd tr2 mu
-          (HSched: HybridMachineSig.schedPeek U = Some tid)
+        forall (angel: virtue) (m1 m1' : mem) (tid : nat) cd mu
           (st1 : ThreadPool (Some hb)) 
           (st2 : ThreadPool (Some (S hb))) (m2 : mem)
           (cnt1 : containsThread(Sem:=HybridSem _) st1 tid)
@@ -3441,17 +3439,14 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           (Hrmap: empty_doublemap rmap),
           let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
           forall (Hjoin_angel: permMapJoin_pair newThreadPerm1 (virtueLP angel) (getThreadR cnt1)),
-          exists evnt' (st2' : t) (m2' : mem),
+          exists ev2 (st2' : t) (m2' : mem),
             let evnt:= build_release_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
             let st1':= fullThUpd_comp
                          st1 tid cnt1 (Kresume c Vundef) angel (b, unsigned ofs) in
             concur_match cd mu st1' m1' st2' m2' /\
-            inject_sync_event mu evnt evnt' /\
-            (* (inject_mevent mu (Events.external tid evnt) (Events.external tid evnt')) /\ *)
-            HybridMachineSig.external_step
-              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-              U tr2 st2 m2 (HybridMachineSig.schedSkip U)
-              (tr2 ++ (Events.external tid evnt' :: nil)) st2' m2'.
+            inject_sync_event mu evnt ev2 /\
+          let Hcmpt2:= memcompat2 CMatch in
+            syncStep(Sem:=HybridSem (Some (S hb))) true cnt2 Hcmpt2 st2' m2' ev2.
       Proof.
         intros; simpl in *.
         pose proof (memcompat1 CMatch) as Hcmpt1.
@@ -3510,11 +3505,11 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             split ; [|split].
             * (* reestablish concur *)
               rename b into BB.
-              admit.
-              
+              !goal (concur_match _ _ (fullThUpd_comp _ _ _ _ _ _ ) _ _ _).
+              admit. (* Haven't proven this? *)
             * clear - Htrace_inj. 
-              unfold build_release_event in *. eauto.
-            * econstructor; eauto.
+              unfold build_release_event in *. (*subst virtueThread0; *) eauto.
+            * clean_proofs; eauto.
               
         (** *tid = hb*)
         - subst tid. 
@@ -3565,11 +3560,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           + econstructor; eauto.
             * !goal(mem_interference m1 lev1 m1'). admit.   
             * !goal(mem_interference m2 lev2 m2'). admit.
-          + clear. subst virtueThread1.
-            intros (?&?&?&?&?&?).
-            do 3 eexists; repeat weak_split eauto.
-            econstructor; eauto.
-            
+          + subst virtueThread1; simpl; clean_proofs.
+            intros; normal; eauto.
             
         - (* hb < tid *)
           pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1)) as match_thread.
@@ -3612,16 +3604,14 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           + exists e'. eexists. exists m2'.
             split ; [|split].
             * (* reestablish concur *)
-              admit.
-            *  clear - Htrace_inj.
-               unfold build_release_event in *. auto.
-            (*
-              (* eapply List.Forall2_app.
-              -- eapply inject_incr_trace; eauto. *)     
-              -- simpl. econstructor; try solve[constructor]; eauto. *)
-            * econstructor; eauto.
+              rename b into BB.
+              !goal (concur_match _ _ (fullThUpd_comp _ _ _ _ _ _ ) _ _ _).
+              admit. (* Haven't proven this? *)
+            * clear - Htrace_inj. 
+              unfold build_release_event in *. (*subst virtueThread0; *) eauto.
+            * clean_proofs; eauto.
 
-              
+
               (** *Shelve *)
               Unshelve.
               all: eauto.
@@ -3629,6 +3619,9 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               all: try apply CMatch.
               
       Admitted.
+      
+      Definition compat_restr {Sem tpool m} perms {st} Hlt Hcmpt:=
+        @mem_compat_restrPermMap Sem tpool m perms st Hlt Hcmpt.
       
       Lemma acquire_step_diagram:
         let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
@@ -3647,9 +3640,10 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                (Hcode: getThreadC cnt1 = Kblocked c)
                (Hat_external: semantics.at_external hybrid_sem c m1 =
                               Some (LOCK, (Vptr b ofs :: nil)%list))
-               (Hlock_update_mem_strict_load: lock_update_mem_strict_load b (unsigned ofs)
-                                                                          (snd (getThreadR cnt1))
-                                                                          m1 m1' vone vzero )
+               (Hlock_update_mem_strict_load:
+                  lock_update_mem_strict_load b (unsigned ofs)
+                                              (snd (getThreadR cnt1))
+                                              m1 m1' vone vzero )
                (HisLock: lockRes st1 (b, unsigned ofs) = Some lock_perms),
           let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
           let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
@@ -3660,15 +3654,9 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             let st1':= fullThUpd_comp st1 tid cnt1 (Kresume c Vundef) new_perms (b, unsigned ofs) in
             concur_match cd mu st1' m1' st2' m2' /\
             inject_sync_event mu evnt evnt2 /\
-            let Hcmpt2:= memcompat2 CMatch in
+            let Hcmpt2:=  (memcompat2 CMatch) in
             syncStep(Sem:=HybridSem (Some (S hb)))
                     true cnt2 Hcmpt2 st2' m2' evnt2.
-            
-            (* (inject_mevent mu (Events.external tid evnt) (Events.external tid evnt')) /\ 
-            HybridMachineSig.external_step
-              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-              U tr2 st2 m2 (HybridMachineSig.schedSkip U)
-              (tr2 ++ (Events.external tid evnt' :: nil)) st2' m2'. *)
       Proof.
         intros; simpl in *.
         pose proof (memcompat1 CMatch) as Hcmpt1.
@@ -3855,11 +3843,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             let Hcmpt2:= memcompat2 CMatch in
             syncStep(Sem:=HybridSem (Some (S hb)))
                     true cnt2 Hcmpt2 st2' m2' evnt2.
-        
-            (* HybridMachineSig.external_step
-              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-              U tr2 st2 m2 (HybridMachineSig.schedSkip U)
-              (seq.cat tr2 (Events.external tid evnt' :: nil)) st2' m2'. *)
       Proof.
         intros; simpl in *.
         inv Hsame_sch.
@@ -4047,12 +4030,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             let Hcmpt2:= memcompat2 CMatch in
             syncStep(Sem:=HybridSem (Some (S hb)))
                     true Hcnt2 Hcmpt2 st2' m2'' evnt2.
-            (* (inject_mevent mu (Events.external hb evnt) (Events.external hb evnt')) /\
-            
-            HybridMachineSig.external_step
-              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-              U tr2 st2 m2' (HybridMachineSig.schedSkip U)
-              (tr2 ++ (Events.external hb evnt' :: nil)) st2' m2''. *)
       Proof.
         
         intros.
@@ -4239,11 +4216,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             let Hcmpt2:= memcompat2 CMatch in
             syncStep(Sem:=HybridSem (Some (S hb)))
                     true cnt2 Hcmpt2 st2' m2' evnt2.
-          (* HybridMachineSig.external_step
-            (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-            U tr2 st2 m2
-            (HybridMachineSig.schedSkip U)
-            (tr2 ++ (Events.external tid evnt' :: nil)) st2' m2'.*)
       Proof.
         
         intros; simpl in *.
@@ -4649,9 +4621,318 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                  eapply CMatch. 
                  
       Admitted.
+      
+      Instance at_ext_sum_Proper:
+              Proper (Logic.eq ==> mem_equiv ==> Logic.eq )
+                      (at_external_sum Clight.state Asm.state mem
+                      (fun s m => Clight.at_external (Clight.set_mem s m))
+                      (fun s m => Asm.at_external (Genv.globalenv Asm_program)
+                                               (Asm.set_mem s m))).
+            Proof.
+              intros ??? ???; subst.
+              change
+                   (at_external (sem_coresem (HybridSem (Some hb))) y x0 =
+                    at_external (sem_coresem (HybridSem (Some hb))) y y0).
+              rewrite H0; reflexivity.
+            Qed.
+      
 
       
-  
+      Lemma syncStep_restr:
+        forall Sem tpool i st cnt m Hcmpt st' m' ev, 
+          @syncStep Sem tpool true i st m cnt Hcmpt st' m' ev ->
+          forall p Hlt, let Hcmpt_new:= compat_restr p Hlt Hcmpt in
+          exists p' Hlt',
+            syncStep true cnt Hcmpt_new st' (@restrPermMap p' m' Hlt') ev.
+      Admitted.
+              
+      Lemma external_step_diagram:
+        forall (U : list nat)
+          (tr1 tr2 : HybridMachineSig.event_trace)
+          (st1 : ThreadPool.t) 
+          (m1 : mem)
+          (st1' : ThreadPool.t)
+          (m1' : mem) (tid : nat) (ev : Events.sync_event),
+        forall (cd : option compiler_index) (st2 : ThreadPool.t) (mu : meminj) (m2 : mem),
+          concur_match cd mu st1 m1 st2 m2 ->
+          List.Forall2 (inject_mevent mu) tr1 tr2 ->
+          forall (cnt1 : ThreadPool.containsThread st1 tid) (Hcmpt : mem_compatible st1 m1),
+            HybridMachineSig.schedPeek U = Some tid ->
+            syncStep true cnt1 Hcmpt st1' m1' ev ->
+            exists ev' (st2' : t) (m2' : mem) (cd' : option compiler_index) 
+                   (mu' : meminj),
+              concur_match cd' mu' st1' m1' st2' m2' /\
+              List.Forall2 (inject_mevent mu') (tr1 ++ (Events.external tid ev :: nil))
+                           (tr2 ++ (Events.external tid ev' :: nil)) /\
+              HybridMachineSig.external_step
+                (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
+                U tr2 st2 m2 (HybridMachineSig.schedSkip U)
+                (seq.cat tr2 (Events.external tid ev' :: nil)) st2' m2'.
+      Proof.
+        intros.
+        match goal with
+          |- exists (a:?A) (b:?B) (c:?C) (d:?D) (e:?E),
+            ?H1 /\
+            (Forall2 (inject_mevent e) (_ ++ (?ev1::nil)) (_ ++ (?ev1'::nil))) /\
+            ?H3 =>
+          cut (exists (a:A) (b:B) (c:C) (d:D) (e:E), H1 /\ 
+                                                     inject_incr mu e /\
+                                                     (inject_mevent e ev1 ev1') /\
+                                                     H3)
+        end.
+        { intros (a&b&c&d&e&(HH1 & HH2 & HH3 & HH4)).
+          exists a, b, c, d, e; repeat weak_split (try assumption).
+          eapply List.Forall2_app; auto.
+          eapply inject_incr_trace; eauto. }
+        
+        assert (thread_compat1:thread_compat _ _ cnt1 m1) by
+            (apply mem_compatible_thread_compat; assumption).
+        assert (cnt2: ThreadPool.containsThread st2 tid) by
+            (eapply contains12; eauto).
+        assert (thread_compat2:thread_compat _ _ cnt2 m2) by
+            (apply mem_compatible_thread_compat; eapply H).
+        inversion H2; subst.
+        - (*Acquire*)
+          rename m1 into m1_base.
+          remember (fst (thread_mems thread_compat1)) as m1.
+          rename m2 into m2_base.
+          remember (fst (thread_mems thread_compat2)) as m2.
+          assert (Hmax_equiv1: Max_equiv m1_base m1).
+          { subst. symmetry.  eapply restr_Max_equiv. }
+          assert (Hnb1: Mem.nextblock m1_base = Mem.nextblock m1).
+          { subst;reflexivity. }
+          assert (Hmem_compat: mem_compatible st1 m1).
+          { eapply mem_compat_Max; try eapply Hcmpt; eauto. }
+
+          remember (Build_virtue virtueThread (getThreadR cnt1)) as angel'.
+          edestruct (acquire_step_diagram angel' m1) as
+              (?&?&?&?&?&?); subst angel'; simpl in *; eauto;
+            try rewrite (restr_proof_irr _ (proj1 (Hcmpt tid cnt1))).
+          + !goal(access_map_equiv _ (_ m1) ).
+            subst. symmetry; apply getCur_restr.
+          + !goal(access_map_equiv _ (_ m2) ).
+            subst. symmetry; apply getCur_restr.
+         (* + !goal(concur_match _ _ _ _ _ _).
+            eapply concur_match_perm_restrist in H.
+            instantiate (1:= mu).
+            instantiate (1:= cd).
+            subst m1 m2. eapply H.*)
+          + !goal(pair21_prop sub_map _ _).
+            move Hbounded at bottom.
+            change (sub_map (fst virtueThread) (snd (getMaxPerm m1)) /\
+                    sub_map (snd virtueThread) (snd (getMaxPerm m1))).
+            unfold Max_equiv in *.
+            replace (getMaxPerm m1) with (getMaxPerm m1_base); auto.
+            subst m1.
+            symmetry; apply restr_Max_eq.
+          + !goal(at_external_sum _ _ _ _ _ _ _ = _).
+            subst m1; rewrite restr_proof_irr_equiv; eauto.
+          + !context_goal lock_update_mem_strict_load.
+            instantiate(1:= m1').
+            assert (Hlock_update_mem_strict_load:
+                      lock_update_mem_strict_load
+                        b (unsigned ofs) (lock_perms _ _ cnt1)
+                        m1_base m1' vone vzero).
+            { econstructor; eauto. }
+            subst m1; eapply lock_update_mem_strict_load_restr; eauto.
+          + econstructor; eauto.
+          + unfold Max_equiv in *.
+            rewrite <- Hmax_equiv1.
+            eapply Hlt_new.
+          + unfold fullThUpd_comp, fullThreadUpdate in *.
+            subst newThreadPerm.
+            simpl in H3.
+            assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
+            { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
+
+            apply syncStep_restr with (Hlt:=Hlt2') in H5
+                as (?&?&Hstep).
+            do 5 econstructor; repeat (weak_split idtac);
+              try eapply Hstep.
+            * eapply concur_match_perm_restrict2; eauto.
+            * apply inject_incr_refl.
+            * econstructor; eauto.
+            * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
+              econstructor; eauto; simpl.
+              symmetry; subst.
+              erewrite <- restrPermMap_idempotent_eq.
+              eapply mem_is_restr_eq.
+            
+              
+        - (*Release*)
+          (*Shifting to the threads cur.*)
+          rename m1 into m1_base.
+          remember (fst (thread_mems thread_compat1)) as m1.
+          rename m2 into m2_base.
+          remember (fst (thread_mems thread_compat2)) as m2.
+          remember (Build_virtue virtueThread virtueLP) as angel'.
+          assert (Hmax_equiv1: Max_equiv m1_base m1).
+          { subst. symmetry.  eapply restr_Max_equiv. }
+          assert (Hnb1: Mem.nextblock m1_base = Mem.nextblock m1).
+          { subst;reflexivity. }
+          assert (Hmem_compat: mem_compatible st1 m1).
+          { eapply mem_compat_Max; try eapply Hcmpt; eauto. }
+          
+          unshelve edestruct (release_step_diagram angel' m1 m1') as
+              (?&?&?&?&?&?); subst angel';
+            try apply HisLock; simpl in *; eauto.
+          + !goal(concur_match _ _ _ _ _ _).
+            eapply concur_match_perm_restrict in H.
+            do 2 rewrite <- mem_is_restr_eq in H.
+            subst m1 m2; apply concur_match_perm_restrict.
+            assumption.
+          + !goal(access_map_equiv _ (_ m1) ).
+            subst. symmetry. apply getCur_restr.
+          + !goal(access_map_equiv _ (_ m2) ).
+            subst. symmetry; apply getCur_restr.
+          + !goal(sub_map_virtue _ _).
+            unfold Max_equiv in *;
+              rewrite <- Hmax_equiv1.
+            constructor; eauto.
+          + !context_goal(at_external_sum).
+            simpl. subst m1; simpl.
+            rewrite <- Hat_external.
+            repeat f_equal; eapply Axioms.proof_irr.
+          + (* instantiate(1:= m1'). *)
+            assert (Hlock_update_mem_strict_load:
+                      lock_update_mem_strict_load
+                        b (unsigned ofs) (lock_perms _ _ cnt1)
+                        m1_base m1' vzero vone).
+            { econstructor; eauto. }
+            subst m1; eapply lock_update_mem_strict_load_restr; auto.
+          + eapply empty_map_useful; auto.
+          + econstructor; eauto.
+          + clean_proofs.
+            unfold fullThUpd_comp, fullThreadUpdate in *.
+            subst newThreadPerm; simpl in H3.
+            
+            assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
+            { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
+
+            apply syncStep_restr with (Hlt:=Hlt2') in H5.
+            destruct H5 as (?&?&Hstep).
+            do 5 econstructor; repeat (weak_split idtac).
+            * eapply concur_match_perm_restrict2; eauto.
+            * apply inject_incr_refl.
+            * econstructor; eauto.
+            * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
+              econstructor; eauto; simpl.
+              symmetry; subst.
+              erewrite <- restrPermMap_idempotent_eq.
+              eapply mem_is_restr_eq.
+            
+        - (*Create/Spawn*)
+          admit.
+        - (*Make Lock*)
+          pose proof (memcompat2 H) as Hcmpt2.
+          rename m1 into m1_base.
+          rename m2 into m2_base.
+          simpl in *.
+          remember (restrPermMap (proj1 (Hcmpt2 tid cnt2))) as m2.
+          remember (restrPermMap (proj1 (Hcmpt tid cnt1))) as m1.
+          clean_proofs.
+
+          assert (HH:set_new_mems b (unsigned ofs) (getThreadR cnt1) LKSIZE_nat pmap_tid').
+          { econstructor; destruct pmap_tid'; simpl in *; subst a a0; reflexivity. }
+          
+          unshelve edestruct (make_step_diagram m1 m1' m2) as (?&?&?&?&?&?);
+            eauto; simpl; try solve[subst; eauto].
+          + subst; eapply concur_match_perm_restrict; assumption.
+          + econstructor; eauto.
+          + subst. symmetry; apply getCur_restr.
+          + subst. symmetry; apply getCur_restr.
+          + econstructor; subst; eauto.
+          + clean_proofs.
+            unfold fullThUpd_comp, fullThreadUpdate in *.
+            
+            assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
+            { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
+
+            simpl in *.
+            apply syncStep_restr with (Hlt:=Hlt2') in H5.
+            destruct H5 as (?&?&?).
+            clean_proofs.
+            
+            do 5 econstructor; repeat (weak_split idtac).
+            * eapply concur_match_perm_restrict2; eauto.
+            * apply inject_incr_refl.
+            * econstructor; eauto.
+            * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
+              econstructor; eauto; simpl.
+              symmetry; subst.
+              erewrite <- restrPermMap_idempotent_eq.
+              eapply mem_is_restr_eq.
+              
+        - (*Free Lock*)
+          simpl in Hlock_perm.
+          simpl in Hfreeable.
+          set (m_restr:= restrPermMap (proj1 (Hcmpt tid cnt1))).
+          unshelve edestruct (free_step_diagram m_restr) as (?&?&?&?&?&?);
+            eauto; simpl; try solve[subst; eauto]; simpl in *;
+              try eassumption.
+          + subst m_restr.
+            eapply concur_match_perm_restrict; eauto.
+          + constructor; eassumption.
+          + subst m_restr; symmetry.
+            eapply getCur_restr.
+          + symmetry; eapply getCur_restr.
+          (* + eapply concur_match_perm_restrict; eauto. *)
+          + repeat (autounfold with pair; simpl).
+            clear - Hrmap.
+            intros b ofs. specialize (Hrmap b ofs) as [A B].
+            unfold pair0.
+            f_equal; assumption.
+          + subst m_restr.
+            unfold perm_interval.
+            rewrite RPM.
+            rewrite <- restrPermMap_idempotent; eassumption.
+          + do 5 econstructor; repeat (weak_split; eauto).
+            
+            
+        - (*AcquireFail*)
+          set (m_restr:= restrPermMap (proj1 (Hcmpt tid cnt1))).
+          
+          edestruct (acquire_fail_step_diagram m_restr) as (?&?&?&?);
+            eauto; simpl; try solve[subst; eauto]; simpl in *;
+              try eassumption.
+          + econstructor; eauto.
+          + eapply concur_match_perm_restrict; eauto.
+          + subst m_restr; symmetry.
+            eapply getCur_restr.
+          + symmetry; eapply getCur_restr.
+          + subst m_restr.
+            rewrite <- restrPermMap_idempotent; eauto.
+          + subst m_restr. unfold perm_interval.
+            rewrite <- restrPermMap_idempotent; eauto.
+          + match type of H5 with
+              forall Hcmpt2, syncStep _ _ _ ?st2' ?m2' ?ev2 =>
+              exists ev2, st2', m2', cd, mu
+            end; repeat (weak_split eauto).
+            * subst m_restr.
+              (* TODO: change acq_fail to say "any restr mem. "*)
+              rewrite (mem_is_restr_eq m1').
+              eapply concur_match_perm_restrict; eauto.
+              rewrite (mem_is_restr_eq m1').
+              eapply concur_match_perm_restrict; eauto.
+            * econstructor; eauto.
+            * eauto.
+              erewrite <- restrPermMap_idempotent_eq.
+              rewrite <- (mem_is_restr_eq m2).
+              rewrite (mem_is_restr_eq m2).
+              erewrite <- restrPermMap_idempotent_eq in H5.
+              econstructor; eauto; simpl.
+              eapply H5.
+              
+              
+              
+              Unshelve.
+              all: try eassumption.
+              
+
+              
+      Admitted.
+
+      
   End SyncCallsDiagrams.
   
 End SyncSimulation.

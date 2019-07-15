@@ -394,6 +394,27 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             try (erewrite <- getMax_restr; eauto).
       Qed.
       
+      Lemma concur_match_perm_restrict1:
+        forall cd j st1 m1 st2 m2,
+          concur_match cd j st1 m1 st2 m2 ->
+          forall perms1 (permMapLt1: permMapLt perms1 (getMaxPerm m1)),
+            concur_match cd j st1 (restrPermMap permMapLt1) st2 m2.
+      Proof.
+        intros;
+          rewrite (mem_is_restr_eq m2). apply concur_match_perm_restrict; auto.
+      Qed.
+      Lemma concur_match_perm_restrict2:
+        forall cd j st1 m1 st2 m2,
+          concur_match cd j st1 m1 st2 m2 ->
+          forall perms2
+            (permMapLt2: permMapLt perms2 (getMaxPerm m2)),
+            concur_match cd j st1 m1 st2 (restrPermMap permMapLt2).
+      Proof.
+        intros;
+          rewrite (mem_is_restr_eq m1). apply concur_match_perm_restrict; auto.
+      Qed.
+      
+      
 
       Inductive state_indicator:=
       | Krun_indi
