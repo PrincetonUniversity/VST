@@ -5,6 +5,7 @@
 (** printing /\ $\land$ #&and;# *)
 
 Require Import Setoid Program.
+Print LoadPath.
 From Paco Require Import paco.
 
 Section safety_equivalence.
