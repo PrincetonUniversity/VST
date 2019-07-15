@@ -59,7 +59,7 @@ ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.c
 BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
 
 ifeq ($(COMPCERT), compcert_new)
-EXTPACO= -Q concurrency/paco/src Paco
+EXTPACO= -Q paco/src Paco
 BACKEND=backend
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
@@ -567,7 +567,7 @@ floyd/floyd.coq: floyd/proofauto.vo
 	@echo 'coqdep ... >.depend'
 	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 ifeq ($(COMPCERT), compcert_new)
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/paco concurrency/sc_drf) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy paco concurrency/sc_drf) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
 	echo "" >>.depend
 	$(COQDEP) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric.Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
 else
@@ -575,7 +575,7 @@ else
 endif
 
 depend-paco:
-	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
+	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=paco/src/%.v)
 
 clean:
 	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo  compcert_new/*/*.vo compcert_new/*/*/*.vo
