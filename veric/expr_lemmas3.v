@@ -15,6 +15,8 @@ Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
+Import Ctypes.
+Import Clight.
 
 Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
@@ -461,9 +463,9 @@ Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
  (denote_tc_assert (typecheck_expr Delta e) rho m ->
-   tc_val (typeof e) (eval_expr e rho))  ->
+   tc_val (typeof e) (expr.eval_expr e rho))  ->
 denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
-tc_val (typeof (Ecast e t)) (eval_expr (Ecast e t) rho).
+tc_val (typeof (Ecast e t)) (expr.eval_expr (Ecast e t) rho).
 Proof.
 intros until t; intros H H1 H0.
 simpl in *. unfold_lift.
@@ -509,7 +511,7 @@ destruct (classify_cast (typeof e) t)
              unfold denote_tc_assert, denote_tc_Zle, denote_tc_Zge in H;
              unfold_lift in H
        end;
-   destruct (eval_expr e rho); try solve [contradiction H1];
+   destruct (expr.eval_expr e rho); try solve [contradiction H1];
    try apply I;
    try solve [contradiction];
    unfold sem_cast_pointer, sem_cast_i2i, sem_cast_f2f, sem_cast_s2s,

@@ -15,6 +15,8 @@ Require Import VST.veric.semax.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.own.
 
+Import Ctypes.
+
 Local Open Scope pred.
 
 Hint Resolve @now_later @andp_derives @sepcon_derives.

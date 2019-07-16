@@ -177,6 +177,8 @@ Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 
+Import VST.msl.seplog VST.veric.lift.
+
 Lemma semax_call {CS : compspecs} {Espec : OracleKind}:
   forall (Delta : tycontext) (A : rmaps.TypeTree)
          (P Q : forall ts : list Type, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)
