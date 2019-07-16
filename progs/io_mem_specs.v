@@ -1,8 +1,9 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.veric.juicy_extspec.
-Require Export VST.progs.io_events.
+Require Export VST.floyd.io_events.
 Require Import ITree.ITree.
-Require Export ITree.Eq.UpToTausEquivalence.
+Require Export ITree.Eq.Eq.
+Require Export ITree.Eq.SimUpToTaus.
 (* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
   (at level 50, left associativity) : itree_scope.
@@ -14,88 +15,43 @@ Notation "' p <- t1 ;; t2" :=
   (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
 (at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
-Fixpoint write_list l : IO_itree :=
-  match l with
-  | nil => Ret tt
-  | c :: rest => write c ;; write_list rest
-  end.
-
-Fixpoint read_list_aux n d : itree IO_event (list int) :=
+Fixpoint read_list_aux {file_id : Type} f n d : itree (@IO_event file_id) (list byte) :=
   match n with
   | O => Ret d
-  | S n' => x <- read ;; read_list_aux n' (x :: d)
+  | S n' => x <- read f ;; read_list_aux f n' (x :: d)
   end.
 
-Definition read_list n : itree IO_event (list int) := read_list_aux n [].
+Definition read_list {file_id : Type} f n : itree (@IO_event file_id) (list byte) := read_list_aux f n [].
 
-(* We need a layer of equivalence to allow us to use the monad laws. *)
-Definition ITREE (tr : IO_itree) := EX tr' : _, !!(eutt eq tr tr') &&
-  has_ext tr'.
-
-Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
-Proof.
-  intro; unfold ITREE.
-  Exists tr; entailer!.
-Qed.
+Definition stdout := 1%nat.
 
 Definition putchars_spec {CS : compspecs} :=
-  WITH sh : share, buf : val, msg : list int, len : Z, rest : list val, k : IO_itree
+  WITH sh : share, buf : val, msg : list byte, len : Z, rest : list val, k : IO_itree
   PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
     PROP (readable_share sh)
     LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr (Zlength msg))))
-    SEP (ITREE (write_list msg ;; k);
-           data_at sh (tarray tuchar len) (map Vint msg ++ rest) buf)
+    SEP (ITREE (write_list stdout msg ;; k);
+           data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf)
   POST [ tint ]
     PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr (Zlength msg))))
     SEP (ITREE k;
-           data_at sh (tarray tuchar len) (map Vint msg ++ rest) buf).
+           data_at sh (tarray tuchar len) (map Vubyte msg ++ rest) buf).
 
 Definition getchars_spec {CS : compspecs} :=
-  WITH sh : share, buf : val, len : Z, k : list int -> IO_itree
+  WITH sh : share, buf : val, len : Z, k : list byte -> IO_itree
   PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
     PROP (writable_share sh)
     LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
-    SEP (ITREE (r <- read_list (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
-                                                                  (* buf |-> _ *)
+    SEP (ITREE (r <- read_list stdout (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
   POST [ tint ]
-   EX msg : list int,
-    PROP (Forall (fun i => Int.unsigned i <= Byte.max_unsigned) msg)
+   EX msg : list byte,
+    PROP ()
     LOCAL (temp ret_temp (Vint (Int.repr len)))
-    SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vint msg) buf).
-                                                                  (* buf |-> msg *)
-
-Lemma ITREE_impl : forall tr tr', eutt eq tr tr' ->
-  ITREE tr |-- ITREE tr'.
-Proof.
-  intros.
-  unfold ITREE.
-  Intros tr1; Exists tr1; entailer!.
-  etransitivity; eauto.
-  symmetry; auto.
-Qed.
-
-Lemma ITREE_ext : forall tr tr', eutt eq tr tr' ->
-  ITREE tr = ITREE tr'.
-Proof.
-  intros; apply pred_ext; apply ITREE_impl; auto.
-  symmetry; auto.
-Qed.
-
-Lemma write_list_app : forall l1 l2,
-  eutt eq (write_list (l1 ++ l2)) (write_list l1;; write_list l2).
-Proof.
-  induction l1; simpl in *; intros.
-  - rewrite bind_ret; reflexivity.
-  - rewrite bind_bind.
-    setoid_rewrite IHl1; reflexivity.
-Qed.
-
-Definition char0 : Z := 48.
-Definition newline := 10.
+    SEP (ITREE (k msg); data_at sh (tarray tuchar len) (map Vubyte msg) buf).
 
 (* Build the external specification. *)
-Definition IO_void_Espec : OracleKind := ok_void_spec IO_itree.
+Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree nat).
 
 Definition IO_specs {CS : compspecs} (ext_link : string -> ident) :=
   [(ext_link "putchars"%string, putchars_spec); (ext_link "getchars"%string, getchars_spec)].

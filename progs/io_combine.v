@@ -150,7 +150,7 @@ Instance IO_Espec' : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs
 
 Definition io_ext_spec := OK_spec.
 
-Program Definition io_dry_spec : external_specification mem external_function IO_itree.
+Program Definition io_dry_spec : external_specification mem external_function (@IO_itree nat).
 Proof.
   unshelve econstructor.
   - intro e.
@@ -223,7 +223,7 @@ Proof.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
              unfold ITREE; exists x; split; [if_tac; auto|].
-             { subst; apply eutt_sutt, UpToTausCore.Reflexive_eutt. }
+             { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.

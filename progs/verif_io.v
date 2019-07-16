@@ -2,7 +2,7 @@ Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
 Require Import ITree.ITree.
-Require Import ITree.Eq.UpToTausEquivalence.
+Require Import ITree.Eq.Eq.
 (*Import ITreeNotations.*)
 Notation "t1 >>= k2" := (ITree.bind t1 k2)
   (at level 50, left associativity) : itree_scope.
@@ -22,27 +22,27 @@ Definition getchar_spec := DECLARE _getchar getchar_spec.
 
 Definition getchar_blocking_spec :=
  DECLARE _getchar_blocking
-  WITH k : int -> IO_itree
+  WITH k : byte -> IO_itree
   PRE [ ]
     PROP ()
     LOCAL ()
-    SEP (ITREE (r <- read ;; k r))
+    SEP (ITREE (r <- read stdout;; k r))
   POST [ tint ]
-   EX i : int,
-    PROP (0 <= Int.signed i <= two_p 8 - 1)
-    LOCAL (temp ret_temp (Vint i))
+   EX i : byte,
+    PROP ()
+    LOCAL (temp ret_temp (Vubyte i))
     SEP (ITREE (k i)).
 
 Definition putchar_blocking_spec :=
  DECLARE _putchar_blocking
-  WITH c : int, k : IO_itree
+  WITH c : byte, k : IO_itree
   PRE [ _c OF tint ]
-    PROP (0 <= Int.unsigned c < 256)
-    LOCAL (temp _c (Vint c))
-    SEP (ITREE (r <- write c ;; k))
+    PROP ()
+    LOCAL (temp _c (Vubyte c))
+    SEP (ITREE (r <- write stdout c ;; k))
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint c))
+    LOCAL (temp ret_temp (Vubyte c))
     SEP (ITREE k).
 
 Lemma div_10_dec : forall n, 0 < n ->
@@ -58,9 +58,9 @@ Proof.
   apply Z.div_lt; auto; omega.
 Qed.
 
-Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list int :=
+Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
   let n' := n / 10 in
-  match n' <=? 0 with true => [Int.repr (n + char0)] | false => chars_of_Z n' ++ [Int.repr (n mod 10 + char0)] end.
+  match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
   apply div_10_dec.
@@ -69,10 +69,10 @@ Proof.
 Defined.
 
 (* The function computed by print_intr *)
-Program Fixpoint intr n { measure (Z.to_nat n) } : list int :=
+Program Fixpoint intr n { measure (Z.to_nat n) } : list byte :=
   match n <=? 0 with
   | true => []
-  | false => intr (n / 10) ++ [Int.repr (n mod 10 + char0)]
+  | false => intr (n / 10) ++ [Byte.repr (n mod 10 + char0)]
   end.
 Next Obligation.
 Proof.
@@ -86,7 +86,7 @@ Definition print_intr_spec :=
   PRE [ _i OF tuint ]
     PROP (0 <= i <= Int.max_unsigned)
     LOCAL (temp _i (Vint (Int.repr i)))
-    SEP (ITREE (write_list (intr i) ;; tr))
+    SEP (ITREE (write_list stdout (intr i) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -98,7 +98,7 @@ Definition print_int_spec :=
   PRE [ _i OF tuint ]
     PROP (0 <= i <= Int.max_unsigned)
     LOCAL (temp _i (Vint (Int.repr i)))
-    SEP (ITREE (write_list (chars_of_Z i) ;; tr))
+    SEP (ITREE (write_list stdout (chars_of_Z i) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -107,13 +107,13 @@ Definition print_int_spec :=
 Definition read_sum n d : IO_itree :=
    ITree.aloop (fun '(n, d) =>
        if zlt n 1000 then if zlt d 10 then
-         inl (write_list (chars_of_Z (n + d));; write (Int.repr newline);;
-              c <- read;;
-              Ret (n + d, Int.unsigned c - char0)) (* loop again with these parameters *)
+         inl (write_list stdout (chars_of_Z (n + d));; write stdout (Byte.repr newline);;
+              c <- read stdout;;
+              Ret (n + d, Byte.unsigned c - char0)) (* loop again with these parameters *)
        else inr tt else inr tt) (* inr to end the loop *)
      (n, d).
 
-Definition main_itree := c <- read;; read_sum 0 (Int.unsigned c - char0).
+Definition main_itree := c <- read stdout;; read_sum 0 (Byte.unsigned c - char0).
 
 Definition main_spec :=
  DECLARE _main
@@ -137,7 +137,7 @@ Opaque Nat.div Nat.modulo.
 Lemma intr_eq : forall n, intr n =
   match n <=? 0 with
   | true => []
-  | false => intr (n / 10) ++ [Int.repr (n mod 10 + char0)]
+  | false => intr (n / 10) ++ [Byte.repr (n mod 10 + char0)]
   end.
 Proof.
   intros.
@@ -149,8 +149,8 @@ Qed.
 Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
 Proof.
   intros.
-  etransitivity; [|apply subrelation_eq_eutt, bind_ret2].
-  apply eutt_bind; [intros []|]; reflexivity.
+  etransitivity; [|apply eq_sub_eutt, bind_ret2].
+  apply eqit_bind; [intros []|]; reflexivity.
 Qed.
 
 Lemma body_getchar_blocking: semax_body Vprog Gprog f_getchar_blocking getchar_blocking_spec.
@@ -158,7 +158,7 @@ Proof.
   start_function.
   forward.
   forward_while (EX i : int, PROP (-1 <= Int.signed i <= two_p 8 - 1) LOCAL (temp _r (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read;; k r) else k i))).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdout;; k r) else k (Byte.repr (Int.signed i))))).
   - Exists (Int.neg (Int.repr 1)); entailer!.
     { simpl; omega. }
     rewrite if_true; auto.
@@ -175,15 +175,19 @@ Proof.
       rewrite Int.repr_signed in X; auto. }
     rewrite if_false by auto.
     forward.
-    Exists i; entailer!.
+    Exists (Byte.repr (Int.signed i)); entailer!.
+    unfold Vubyte; rewrite Byte.unsigned_repr, Int.repr_signed; auto.
+    split; try omega.
+    etransitivity; [apply H|].
+    simpl; rep_omega.
 Qed.
 
 Lemma body_putchar_blocking: semax_body Vprog Gprog f_putchar_blocking putchar_blocking_spec.
 Proof.
   start_function.
   forward.
-  forward_while (EX i : int, PROP (Int.signed i = -1 \/ i = c) LOCAL (temp _r (Vint i); temp _c (Vint c))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- write c;; k) else k))).
+  forward_while (EX i : int, PROP (Int.signed i = -1 \/ Int.signed i = Byte.unsigned c) LOCAL (temp _r (Vint i); temp _c (Vubyte c))
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- write stdout c;; k) else k))).
   - Exists (Int.neg (Int.repr 1)); entailer!.
     rewrite if_true; auto.
   - entailer!.
@@ -193,15 +197,16 @@ Proof.
     Intros i.
     forward.
     Exists i; entailer!.
-    rewrite Zmod_small in * by auto.
-    rewrite Int.repr_unsigned in *; auto.
   - assert (Int.signed i <> -1).
     { intro X.
       apply f_equal with (f := Int.repr) in X.
       rewrite Int.repr_signed in X; auto. }
     rewrite if_false by auto.
-    destruct H0; [contradiction | subst].
+    destruct H; [contradiction | subst].
     forward.
+    entailer!.
+    unfold Vubyte.
+    rewrite <- H, Int.repr_signed; auto.
 Qed.
 
 Lemma body_print_intr: semax_body Vprog Gprog f_print_intr print_intr_spec.
@@ -214,26 +219,27 @@ Proof.
     rewrite intr_eq.
     destruct (Z.leb_spec i 0); try omega.
     erewrite ITREE_ext by (rewrite write_list_app, bind_bind; reflexivity).
-    forward_call (i / 10, write_list [Int.repr (i mod 10 + char0)];; tr).
+    forward_call (i / 10, write_list stdout [Byte.repr (i mod 10 + char0)];; tr).
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
     simpl write_list.
-    forward_call (Int.repr (i mod 10 + char0), tr).
+    forward_call (Byte.repr (i mod 10 + char0), tr).
+    { entailer!.
+      unfold Vubyte; rewrite Byte.unsigned_repr; auto.
+      pose proof (Z_mod_lt i 10); unfold char0; rep_omega. }
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       apply ITREE_impl; rewrite bind_ret'; reflexivity. }
-    { pose proof (Z_mod_lt i 10); unfold char0.
-      rewrite Int.unsigned_repr; rep_omega. }
     entailer!.
   - forward.
     subst; entailer!.
     erewrite ITREE_ext; [apply derives_refl|].
     simpl.
-    rewrite Shallow.bind_ret; reflexivity.
+    rewrite Eq.bind_ret; reflexivity.
   - forward.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
   let n' := n / 10 in
-  match n' <=? 0 with true => [Int.repr (n + char0)] | false => chars_of_Z n' ++ [Int.repr (n mod 10 + char0)] end.
+  match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Proof.
   intros.
   unfold chars_of_Z at 1.
@@ -267,12 +273,11 @@ Proof.
   start_function.
   forward_if (PROP () LOCAL () SEP (ITREE tr)).
   - subst.
-    forward_call (Int.repr char0, tr).
+    forward_call (Byte.repr char0, tr).
     { rewrite chars_of_Z_eq; simpl.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
       erewrite ITREE_ext; [apply derives_refl|].
       rewrite bind_ret'; reflexivity. }
-    { unfold char0; computable. }
     entailer!.
   - forward_call (i, tr).
     { rewrite chars_of_Z_intr by omega; cancel. }
@@ -282,8 +287,8 @@ Qed.
 
 Lemma read_sum_eq : forall n d, read_sum n d ≈
   (if zlt n 1000 then if zlt d 10 then
-     write_list (chars_of_Z (n + d));; write (Int.repr newline);;
-     c <- read;; read_sum (n + d) (Int.unsigned c - char0)
+     write_list stdout (chars_of_Z (n + d));; write stdout (Byte.repr newline);;
+     c <- read stdout;; read_sum (n + d) (Byte.unsigned c - char0)
    else Ret tt else Ret tt).
 Proof.
   intros.
@@ -292,39 +297,35 @@ Proof.
   if_tac; [|reflexivity].
   if_tac; [|reflexivity].
   unfold id.
+  rewrite tau_eutt.
   repeat setoid_rewrite bind_bind.
-  setoid_rewrite Shallow.bind_ret.
+  setoid_rewrite Eq.bind_ret.
   reflexivity.
 Qed.
 
-Lemma signed_char_unsigned : forall c,
-  0 <= Int.signed c <= two_p 8 - 1 -> Int.unsigned c <= two_p 8 - 1.
+Lemma signed_char_unsigned : forall c, Byte.unsigned c <= two_p 8 - 1.
 Proof.
   intros.
-  rewrite Int.unsigned_signed.
-  unfold Int.lt.
-  rewrite Int.signed_zero.
-  if_tac; omega.
+  pose proof (Byte.unsigned_range c).
+  unfold Byte.modulus, two_power_nat in H; simpl in *; omega.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   unfold main_pre_ext.
-  replace_SEP 0 (ITREE main_itree).
-  { go_lower.
-    apply has_ext_ITREE. }
+  sep_apply (has_ext_ITREE(file_id := nat)).
   forward.
   unfold main_itree.
   rewrite <- !seq_assoc. (* Without this, forward_call gives a type error! *)
-  forward_call (fun c => read_sum 0 (Int.unsigned c - char0)).
+  forward_call (fun c => read_sum 0 (Byte.unsigned c - char0)).
   Intros c.
   forward.
-  rewrite zero_ext_inrange by (apply signed_char_unsigned; auto).
-  set (Inv := EX n : Z, EX c : int,
+  rewrite zero_ext_inrange by (pose proof (signed_char_unsigned c); rewrite Int.unsigned_repr; rep_omega).
+  set (Inv := EX n : Z, EX c : byte,
     PROP (0 <= n < 1009)
-    LOCAL (temp _c (Vint c); temp _n (Vint (Int.repr n)))
-    SEP (ITREE (read_sum n (Int.unsigned c - char0)))).
+    LOCAL (temp _c (Vubyte c); temp _n (Vint (Int.repr n)))
+    SEP (ITREE (read_sum n (Byte.unsigned c - char0)))).
   unfold Swhile; forward_loop Inv break: Inv.
   { Exists 0 c; entailer!. }
   subst Inv.
@@ -335,30 +336,22 @@ Proof.
   { forward.
     Exists n c; entailer!. }
   forward.
-  rewrite <- (Int.repr_unsigned c) in H1.
-  rewrite sub_repr in H1.
-  pose proof (Int.unsigned_range c).
-  destruct (zlt (Int.unsigned c) char0).
+  destruct (zlt (Byte.unsigned c) char0).
   { rewrite Int.unsigned_repr_eq in H1.
     rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in H1; unfold char0 in *; rep_omega. }
   rewrite Int.unsigned_repr in H1 by (unfold char0 in *; rep_omega).
   erewrite ITREE_ext by apply read_sum_eq.
   rewrite if_true by auto.
   destruct (zlt _ _); [|unfold char0 in *; omega].
-  forward_call (n + (Int.unsigned c - char0),
-    write (Int.repr newline);; c' <- read;; read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
-  { entailer!.
-    rewrite <- (Int.repr_unsigned c) at 1.
-    rewrite sub_repr, add_repr; auto. }
-  { unfold char0 in *; rep_omega. }
-  forward_call (Int.repr newline, c' <- read;; read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
-  { unfold newline; computable. }
-  forward_call (fun c' => read_sum (n + (Int.unsigned c - char0)) (Int.unsigned c' - char0)).
+  forward_call (n + (Byte.unsigned c - char0),
+    write stdout (Byte.repr newline);; c' <- read stdout;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
+  { rep_omega. }
+  forward_call (Byte.repr newline, c' <- read stdout;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
+  forward_call (fun c' => read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   Intros c'.
   forward.
-  rewrite zero_ext_inrange by (apply signed_char_unsigned; auto).
-  Exists (n + (Int.unsigned c - char0)) c'; entailer!.
-  rewrite <- (Int.repr_unsigned c) at 2; rewrite sub_repr, add_repr; auto.
+  rewrite zero_ext_inrange by (pose proof (signed_char_unsigned c'); rewrite Int.unsigned_repr; rep_omega).
+  Exists (n + (Byte.unsigned c - char0)) c'; entailer!.
   { forward.
     Exists n c; entailer!. }
   subst Inv.

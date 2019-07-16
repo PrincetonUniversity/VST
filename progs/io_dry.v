@@ -24,20 +24,20 @@ Notation "' p <- t1 ;; t2" :=
 
 Section IO_Dry.
 
-Definition getchar_pre (m : mem) (witness : int -> IO_itree) (z : IO_itree) :=
-  let k := witness in (sutt eq (r <- read;; k r) z).
+Definition getchar_pre (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
+  let k := witness in (sutt eq (r <- read stdout;; k r) z).
 
-Definition getchar_post (m0 m : mem) r (witness : int -> IO_itree) (z : IO_itree) :=
+Definition getchar_post (m0 m : mem) (r : int) (witness : byte -> IO_itree) (z : IO_itree) :=
   m0 = m /\ -1 <= Int.signed r <= two_p 8 - 1 /\
-  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- read;; k r) z else z = k r.
+  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- read stdout;; k r) z else z = k (Byte.repr (Int.signed r)).
 
-Definition putchar_pre (m : mem) (witness : int * IO_itree) (z : IO_itree) :=
-  let '(c, k) := witness in (sutt eq (write c;; k) z).
+Definition putchar_pre (m : mem) (witness : byte * IO_itree) (z : IO_itree) :=
+  let '(c, k) := witness in (sutt eq (write stdout c;; k) z).
 
-Definition putchar_post (m0 m : mem) r (witness : int * IO_itree) (z : IO_itree) :=
+Definition putchar_post (m0 m : mem) (r : int) (witness : byte * IO_itree) (z : IO_itree) :=
   m0 = m /\ let '(c, k) := witness in
-  (Int.signed r = -1 \/ r = Int.repr (Int.unsigned c mod two_p 8)) /\
-  if eq_dec (Int.signed r) (-1) then sutt eq (write c;; k) z else z = k.
+  (Int.signed r = -1 \/ Int.signed r = Byte.unsigned c) /\
+  if eq_dec (Int.signed r) (-1) then sutt eq (write stdout c;; k) z else z = k.
 
 Context (ext_link : String.string -> ident).
 
@@ -45,7 +45,7 @@ Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
 
-Program Definition io_dry_spec : external_specification mem external_function IO_itree.
+Program Definition io_dry_spec : external_specification mem external_function (@IO_itree nat).
 Proof.
   unshelve econstructor.
   - intro e.
@@ -55,7 +55,7 @@ Proof.
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
-      exact (X1 = [Vint (fst w)] /\ m0 = X3 /\ putchar_pre X3 w X2).
+      exact (X1 = [Vubyte (fst w)] /\ m0 = X3 /\ putchar_pre X3 w X2).
     + destruct X as (m0 & _ & w).
       exact (X1 = [] /\ m0 = X3 /\ getchar_pre X3 w X2).
   - simpl; intros.
@@ -137,10 +137,10 @@ Proof.
         -- split; auto.
         -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
         -- unfold SEPx; simpl.
-             rewrite seplog.sepcon_emp.
-             unfold ITREE; exists x; split; [if_tac; auto|].
-             { subst; apply eutt_sutt, UpToTausCore.Reflexive_eutt. }
-             eapply age_to.age_to_pred, change_has_ext; eauto.
+           rewrite seplog.sepcon_emp.
+           unfold ITREE; exists x; split; [if_tac; auto|].
+           { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
+           eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
@@ -173,7 +173,7 @@ Proof.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
              unfold ITREE; exists x; split; [if_tac; auto|].
-             { subst; apply eutt_sutt, UpToTausCore.Reflexive_eutt. }
+             { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.
