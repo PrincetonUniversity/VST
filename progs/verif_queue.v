@@ -3,6 +3,8 @@ Require Import VST.floyd.library.
 Require Import VST.progs.list_dt. Import Links.
 Require Import VST.progs.queue.
 
+Open Scope logic.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

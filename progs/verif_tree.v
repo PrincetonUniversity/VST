@@ -4,6 +4,8 @@ Require Import VST.msl.iter_sepcon.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.wandQ_frame.
 
+Open Scope logic.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 

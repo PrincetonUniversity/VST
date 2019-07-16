@@ -6,6 +6,7 @@ Require Import VST.veric.shares.
 Require Import VST.veric.address_conflict.
 
 Import RML. Import R.
+Local Open Scope Z_scope.
 Local Open Scope pred.
 
 

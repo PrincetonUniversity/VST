@@ -25,6 +25,8 @@ Require Import Coq.Logic.JMeq.
 Require Import Coq.Logic.JMeq.
 Require Import VST.veric.ghost_PCM.
 
+Import Ctypes Clight.
+
 Local Open Scope pred.
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
@@ -201,7 +203,7 @@ fun v => exists H: A=A',
                                 forall x: A, (P x <=> u3 x) v
  end P'.
 Next Obligation.
-intros; intro; intros.
+try (intros; intro; intros).
 destruct H0. exists x.
 destruct x.
 intros. specialize (H0 x). eapply pred_hereditary; eauto.
