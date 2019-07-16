@@ -70,12 +70,10 @@ make -jN link_pile.vo
 IF YOU WANT TO BUILD THE FASTPILE EXAMPLE:
 make -jN fast/link_fastpile.vo
 
-Install VST at some  path/to/VST
-  (VST github: https://github.com/PrincetonUniversity/VST, commit number 750a531e488b31fc8062d69c4ce251f365e7549a)
-Install CompCert/clightgen at some   path/to/CompCert/clightgen
-  (CompCert 3.4 or 3.5 works fine, whatever matches your VST/compcert/VERSION)
-
-In this directory, create a CONFIGURE file 
+IF YOU WANT TO BUILD THIS OUTSIDE VST:
+  You can move this VST/progs/pile directory to some location outside
+  VST, in which case you'll need to create a CONFIGURE file
+  with the following contents:
 VST_LOC= path/to/VST
 COMPCERT_LOC= path/to/CompCert
 
