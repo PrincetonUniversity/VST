@@ -16,11 +16,8 @@ VFILES = linking.v spec_stdlib.v verif_stdlib.v spec_pile.v verif_pile.v \
 CC=ccomp
 CFLAGS=-O
 
-ifeq ($(ls CONFIGURE),"")
-  $(error Please create a CONFIGURE file defining VST_LOC.  If you also want to rerun clightgen to build foo.v from foo.c (etc.), also define COMPCERT_LOC in the CONFIGURE.)
-else
-  include CONFIGURE
-endif
+-include CONFIGURE
+VST_LOC ?= ../..
 
 ifdef COMPCERT_LOC
 CLIGHTGEN ?= $(COMPCERT_LOC)/clightgen
@@ -62,7 +59,7 @@ endif
 
 incr/verif_incr.vo: incr/verif_incr.v incr/incr.vo
 
-_CoqProject: Makefile CONFIGURE
+_CoqProject: Makefile
 	@echo $(VSTFLAGS) > _CoqProject
 
 clean:
