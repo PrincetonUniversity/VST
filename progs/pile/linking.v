@@ -201,7 +201,10 @@ Ltac semax_func_cons' L H :=
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | LookupID | LookupB | simpl; precondition_closed | 
+           | reflexivity | LookupID | LookupB |
+(* next line not needed in alphaconvert branch 
+	   simpl; precondition_closed |
+*)
                apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
