@@ -84,6 +84,8 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
+# for ITrees
+EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
 
 # for SSReflect
 ifdef MATHCOMP
