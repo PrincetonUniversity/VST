@@ -11,9 +11,7 @@ Require Import ITree.Eq.Eq.
 Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
   (at level 100, right associativity) : itree_scope.
 
-Instance nat_id : FileId := { file_id := nat; FILEid := ___sFILE; get_file_id f := O; stdout := tt }.
-
-Definition stdout := O.
+Instance nat_id : FileId := { file_id := nat; stdout := 1%nat }.
 
 Definition main_spec :=
  DECLARE _main
@@ -36,22 +34,17 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
+sep_apply (init_stdio gv __stdout).
 repeat do_string2bytes.
 repeat (sep_apply data_at_to_cstring; []).
-replace_SEP 3 (ITREE (write_list stdout (string2bytes "Hello, world!
-");; write_list stdout (string2bytes "This is line 2.
-"))).
-{ go_lower; apply has_ext_ITREE. }
+sep_apply (has_ext_ITREE(file_id := file_id)).
 forward_printf tt (write_list stdout (string2bytes "This is line 2.
 ")).
-{ rewrite sepcon_comm; apply sepcon_derives; cancel.
+{ rewrite !sepcon_assoc; apply sepcon_derives; cancel.
   apply derives_refl. }
-forward_fprintf (gv __stdout) ((Ers, string2bytes "line", gv ___stringlit_2), (Int.repr 2, tt)) (tt, Ret tt : @IO_itree file_id).
-{ (* need to know that stdout actually points to a file object? or should that be a dummy? *)
-  rewrite <- emp_sepcon at 1.
-  rewrite !sepcon_assoc; apply sepcon_derives; [admit|].
-  rewrite sepcon_comm; apply sepcon_derives; cancel.
+forward_fprintf (gv __stdout) ((Ers, string2bytes "line", gv ___stringlit_2), (Int.repr 2, tt)) (stdout, Ret tt : @IO_itree file_id).
+{ rewrite sepcon_comm; apply sepcon_derives; cancel.
   apply ITREE_impl.
   rewrite bind_ret'; reflexivity. }
 forward.
-Admitted.
+Qed.

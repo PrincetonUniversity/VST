@@ -175,10 +175,15 @@ Defined.
 Section file_id.
 
 Context {CS : compspecs}.
-Class FileId := { file_id : Type; FILEid : ident; t_file := Tstruct FILEid noattr; get_file_id : reptype t_file -> file_id; stdout : reptype t_file }.
+Class FileId := { file_id : Type; stdout : file_id }.
 Context {FI : FileId}.
 
-Definition fprintf_spec_parametrized (fmtz: list Z) :=
+Axiom file_at : file_id -> val -> mpred.
+
+(* id should actually be the universal static identifier for stdout. *)
+Axiom init_stdio : forall (gv : globals) id, emp |-- file_at stdout (gv id).
+
+Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
   let fl := interpret_format_string fmtz in
   NDmk_funspec
     (((1%positive, tptr (Tstruct FILEid noattr)) ::
@@ -186,21 +191,21 @@ Definition fprintf_spec_parametrized (fmtz: list Z) :=
       format_argtys 3%positive fl),
      tint)
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}
-     (val * share * list byte * val * format_stuff fl * (reptype t_file * IO_itree))
-     (fun x : (val * share * list byte * val * format_stuff fl * (reptype t_file * IO_itree)) => 
+     (val * share * list byte * val * format_stuff fl * (file_id * IO_itree))
+     (fun x : (val * share * list byte * val * format_stuff fl * (file_id * IO_itree)) => 
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
         PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) ::
                       PROP_of_format fl stuff)
         (LOCALx (temp 1 outp ::
                       LOCAL_of_format fl 3%positive stuff)
-         (SEPx (cstring sh fmt fmtp :: data_at sh t_file out outp :: ITREE (write_list (get_file_id out) (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff)))
+         (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE (write_list out (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff)))
       end)
-     (fun x : (val * share * list byte * val * format_stuff fl * (reptype t_file * IO_itree)) => 
+     (fun x : (val * share * list byte * val * format_stuff fl * (file_id * IO_itree)) => 
       match x with (outp,sh,fmt,fmtp,stuff,(out,k)) =>
        EX n:int,
         PROPx nil 
         (LOCALx (temp ret_temp (Vint n)::nil)
-         (SEPx (cstring sh fmt fmtp :: ITREE k :: SEP_of_format fl stuff)))
+         (SEPx (cstring sh fmt fmtp :: file_at out outp :: ITREE k :: SEP_of_format fl stuff)))
        end).
 
 Definition printf_spec_parametrized (fmtz: list Z) :=
@@ -216,7 +221,7 @@ Definition printf_spec_parametrized (fmtz: list Z) :=
         PROPx (readable_share sh :: (fmt = map Byte.repr fmtz) :: 
                       PROP_of_format fl stuff)
         (LOCALx (LOCAL_of_format fl 2%positive stuff)
-         (SEPx (cstring sh fmt fmtp :: ITREE (write_list (get_file_id stdout) (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff)))
+         (SEPx (cstring sh fmt fmtp :: ITREE (write_list stdout (string_of_format fl stuff);; k) :: SEP_of_format  fl stuff)))
       end)
      (fun x : (val * share * list byte * val * format_stuff fl * IO_itree) => 
       match x with (outp,sh,fmt,fmtp,stuff,k) =>
@@ -246,9 +251,9 @@ Definition printf_placeholder_spec : funspec :=
      (fun x : unit =>  PROP () LOCAL () SEP ()).
 
 Axiom fprintf_spec_sub:
-  forall fmtz, 
+  forall FILEid fmtz, 
    funspec_sub (fprintf_placeholder_spec FILEid)
-      (fprintf_spec_parametrized fmtz).
+      (fprintf_spec_parametrized FILEid fmtz).
 
 Axiom printf_spec_sub:
   forall fmtz, 
@@ -358,7 +363,7 @@ lazymatch goal with
    let tf := constr:(typeof f) in
    let tf := eval hnf in tf in
    lazymatch tf with Tpointer (Tstruct ?FILEid _) _ =>
-     let sub := constr:(fprintf_spec_sub(CS := cs)) in
+     let sub := constr:(fprintf_spec_sub(CS := cs) FILEid) in
        forward_fprintf' gv Pre id sub outv w w'
    end
 end.
