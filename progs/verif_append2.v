@@ -1,5 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.progs.append.
+
+Open Scope logic.
+
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.

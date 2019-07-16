@@ -10,6 +10,8 @@ Require Export VST.veric.val_lemmas.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 
+Import Ctypes.
+
 (*moved to compcert_rmaps
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 

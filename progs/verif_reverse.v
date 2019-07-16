@@ -25,6 +25,8 @@ Require Import VST.progs.list_dt. Import LsegSpecial.
  **)
 Require Import VST.progs.reverse.
 
+Open Scope logic.
+
 (* The C programming language has a special namespace for struct
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
 ** in the program logic need access to an interpretation of this namespace,

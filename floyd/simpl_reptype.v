@@ -192,8 +192,16 @@ Ltac solve_load_rule_evaluation :=
     match goal with
     | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
         let opaque_v := fresh "opaque_v" in
-        set (opaque_v := v);
-        cbv - [opaque_v sublist.Znth Int.repr JMeq];
+        (* in next line, using "remember" instead of "set" 
+            prevents blowup in some cases. *)
+        remember v as opaque_v (*set (opaque_v := v)*) ;
+        (* BEGIN this part substantially speeds up certain cases *)
+        simpl; unfold eq_rect_r; simpl;
+        try match goal with |- JMeq (Znth ?z ?A) _ =>
+           change (Znth z A) with (Znth z opaque_v)
+        end;
+        (* END this part substantially... *)
+        cbv - [ (*opaque_v*) sublist.Znth Int.repr JMeq];
         subst opaque_v; subst; apply JMeq_refl
     end
   | canon_load_result; apply JMeq_refl ].

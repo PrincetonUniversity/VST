@@ -277,6 +277,8 @@ Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
   SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)).
 
+Open Scope logic.
+
 Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
   P |-- P * (Q -* Q).
 Proof.

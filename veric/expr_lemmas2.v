@@ -13,6 +13,7 @@ Require Import VST.veric.seplog. (*For definition of tycontext*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
+Import Ctypes.
 
 Lemma eval_lvalue_ptr : forall {CS: compspecs} rho m e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho ->

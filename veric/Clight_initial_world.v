@@ -11,6 +11,8 @@ Require Import VST.veric.expr_lemmas.
 
 Require Export VST.veric.initial_world.
 
+Import Clight.
+
 Local Open Scope pred.
 
 Obligation Tactic := idtac.
@@ -671,6 +673,9 @@ Definition initial_jm_ext {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
            (initial_core_ext_ok _ _ _ _ m H1 H2 H).
 
 Require Import VST.veric.ghost_PCM.
+
+Import Clight.
+
 Lemma initial_jm_ext_eq : forall {Z} (ora : Z) (prog: program) m (G: funspecs) (n: nat)
         (H: Genv.init_mem prog = Some m)
         (H1: list_norepet (prog_defs_names prog))
