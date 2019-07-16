@@ -4705,9 +4705,14 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           { eapply mem_compat_Max; try eapply Hcmpt; eauto. }
 
           remember (Build_virtue virtueThread (getThreadR cnt1)) as angel'.
-          edestruct (acquire_step_diagram angel' m1) as
+          unshelve edestruct (acquire_step_diagram angel' m1 m1') as
               (?&?&?&?&?&?); subst angel'; simpl in *; eauto;
             try rewrite (restr_proof_irr _ (proj1 (Hcmpt tid cnt1))).
+          + !goal(concur_match _ _ _ _ _ _).
+            eapply concur_match_perm_restrict in H.
+            do 2 rewrite <- mem_is_restr_eq in H.
+            subst m1 m2; apply concur_match_perm_restrict.
+            assumption. 
           + !goal(access_map_equiv _ (_ m1) ).
             subst. symmetry; apply getCur_restr.
           + !goal(access_map_equiv _ (_ m2) ).
@@ -4728,7 +4733,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           + !goal(at_external_sum _ _ _ _ _ _ _ = _).
             subst m1; rewrite restr_proof_irr_equiv; eauto.
           + !context_goal lock_update_mem_strict_load.
-            instantiate(1:= m1').
             assert (Hlock_update_mem_strict_load:
                       lock_update_mem_strict_load
                         b (unsigned ofs) (lock_perms _ _ cnt1)
@@ -4744,9 +4748,9 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             simpl in H3.
             assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
             { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
-
-            apply syncStep_restr with (Hlt:=Hlt2') in H5
-                as (?&?&Hstep).
+            clean_proofs.
+            apply syncStep_restr with (Hlt:=Hlt2') in H5.
+            destruct H5 as (?&?&Hstep).
             do 5 econstructor; repeat (weak_split idtac);
               try eapply Hstep.
             * eapply concur_match_perm_restrict2; eauto.
@@ -4866,69 +4870,111 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         - (*Free Lock*)
           simpl in Hlock_perm.
           simpl in Hfreeable.
-          set (m_restr:= restrPermMap (proj1 (Hcmpt tid cnt1))).
-          unshelve edestruct (free_step_diagram m_restr) as (?&?&?&?&?&?);
+          pose proof (memcompat2 H) as Hcmpt2.
+          rename m1' into m1_base.
+          rename m2 into m2_base.
+          simpl in *.
+          remember (restrPermMap (proj1 (Hcmpt2 tid cnt2))) as m2.
+          remember (restrPermMap (proj1 (Hcmpt tid cnt1))) as m1.
+          clean_proofs.
+
+          unshelve edestruct (free_step_diagram m1 m2)
+            with (new_perms:=pmap_tid') as (?&?&?&?&?&?);
             eauto; simpl; try solve[subst; eauto]; simpl in *;
               try eassumption.
-          + subst m_restr.
-            eapply concur_match_perm_restrict; eauto.
+          + subst m1 m2. eapply concur_match_perm_restrict; eauto.
+          + subst m1. rewrite getMax_restr; eapply Hcmpt.
           + constructor; eassumption.
-          + subst m_restr; symmetry.
-            eapply getCur_restr.
-          + symmetry; eapply getCur_restr.
-          (* + eapply concur_match_perm_restrict; eauto. *)
-          + repeat (autounfold with pair; simpl).
-            clear - Hrmap.
-            intros b ofs. specialize (Hrmap b ofs) as [A B].
-            unfold pair0.
-            f_equal; assumption.
-          + subst m_restr.
-            unfold perm_interval.
-            rewrite RPM.
-            rewrite <- restrPermMap_idempotent; eassumption.
-          + do 5 econstructor; repeat (weak_split; eauto).
+          + subst m1; symmetry; eapply getCur_restr.
+          + symmetry; subst m2; eapply getCur_restr.
+          + intros b0 ofs0. destruct rmap as (a1 & a2).
+            destruct (Hrmap b0 ofs0); simpl in *.
+            autounfold with pair; unfold pair_appl; simpl.
+            f_equal; eauto.
+          + simpl. clean_proofs. unfold perm_interval.
+            simpl in *; subst m1.
+            assert (Hcur_equiv: Cur_equiv
+                                  (restrPermMap abs_proof1) (restrPermMap abs_proof2) ).
+            { eapply Cur_equiv_restr. reflexivity. }
+            rewrite <- Hcur_equiv; eauto.
             
+          + destruct pmap_tid' as (a&a0); simpl in *; subst a a0.
+            reflexivity.
+          + clean_proofs.
+            unfold fullThUpd_comp, fullThreadUpdate in *.
             
+            assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
+            { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
+            
+            assert (Hlt1': permMapLt (getCurPerm m1_base) (getMaxPerm m1)).
+            { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
+
+            apply syncStep_restr with (Hlt:=Hlt2') in H5.
+            destruct H5 as (?&?&Hstep).
+            do 5 econstructor; repeat (weak_split idtac).
+            * replace m1_base with (@restrPermMap (getCurPerm m1_base) m1 Hlt1').
+              eapply concur_match_perm_restrict; eauto.
+              { subst m1.
+                rewrite mem_is_restr_eq.
+                symmetry. eapply restrPermMap_idempotent_eq. }
+              
+            * apply inject_incr_refl.
+            * econstructor; eauto.
+            * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
+              econstructor; eauto; simpl.
+              symmetry; subst.
+              erewrite <- restrPermMap_idempotent_eq.
+              eapply mem_is_restr_eq.
+
         - (*AcquireFail*)
-          set (m_restr:= restrPermMap (proj1 (Hcmpt tid cnt1))).
+          remember (memcompat2 H) as Hcmpt2.
+          set (m1_restr:= restrPermMap (proj1 (Hcmpt tid cnt1))).
+          set (m2_restr:= restrPermMap (proj1 (Hcmpt2 tid cnt2))).
           
-          edestruct (acquire_fail_step_diagram m_restr) as (?&?&?&?);
+          unshelve edestruct (acquire_fail_step_diagram m1_restr m2_restr) as (?&?&?&?);
             eauto; simpl; try solve[subst; eauto]; simpl in *;
               try eassumption.
+          + subst m1_restr; rewrite restr_Max_eq. apply Hcmpt.
+          + exact (getCurPerm m2).
+          + subst m2_restr; rewrite restr_Max_eq. apply cur_lt_max.
           + econstructor; eauto.
           + eapply concur_match_perm_restrict; eauto.
-          + subst m_restr; symmetry.
+          + subst m1_restr; symmetry.
             eapply getCur_restr.
           + symmetry; eapply getCur_restr.
-          + subst m_restr.
+          + subst m1_restr.
             rewrite <- restrPermMap_idempotent; eauto.
-          + subst m_restr. unfold perm_interval.
+          + subst m1_restr. unfold perm_interval.
             rewrite <- restrPermMap_idempotent; eauto.
-          + match type of H5 with
+          + clean_proofs.
+            match type of H5 with
               forall Hcmpt2, syncStep _ _ _ ?st2' ?m2' ?ev2 =>
               exists ev2, st2', m2', cd, mu
             end; repeat (weak_split eauto).
-            * subst m_restr.
-              (* TODO: change acq_fail to say "any restr mem. "*)
+            * subst m1_restr.
+              clean_proofs.
               rewrite (mem_is_restr_eq m1').
               eapply concur_match_perm_restrict; eauto.
               rewrite (mem_is_restr_eq m1').
               eapply concur_match_perm_restrict; eauto.
             * econstructor; eauto.
-            * eauto.
-              erewrite <- restrPermMap_idempotent_eq.
-              rewrite <- (mem_is_restr_eq m2).
-              rewrite (mem_is_restr_eq m2).
-              erewrite <- restrPermMap_idempotent_eq in H5.
-              econstructor; eauto; simpl.
-              eapply H5.
-              
-              
+            * unshelve econstructor; eauto.
+              clean_proofs; simpl.
+              unshelve exploit H5. 
+              subst  m2_restr; do 2 eapply compat_restr; eauto.
+              clean_proofs; simpl in *.
+              Set Printing Implicit.
+              subst m2_restr.
+              intros Hstep.
+              assert (HH:(@restrPermMap (getCurPerm m2) (@restrPermMap (thread_perms tid st2 cnt2) m2 abs_proof0)
+                                     abs_proof) = m2) .
+              { unshelve erewrite <- (restrPermMap_idempotent_eq abs_proof0). 
+              apply cur_lt_max.
+              symmetry. eapply mem_is_restr_eq. }
+              rewrite HH in *.
+              dependent_rewrite HH. auto.
               
               Unshelve.
-              all: try eassumption.
-              
-
               
       Admitted.
 
