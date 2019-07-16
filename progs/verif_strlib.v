@@ -138,6 +138,8 @@ forward_loop (EX i : Z,
   }
 Qed.
 
+Open Scope logic.
+
 Lemma split_data_at_app_tschar:
  forall sh n (al bl: list val) p ,
    n = Zlength (al++bl) ->

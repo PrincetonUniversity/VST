@@ -84,6 +84,8 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
+# for ITrees
+EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
 
 # for SSReflect
 ifdef MATHCOMP
@@ -274,7 +276,7 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v deadvars.v Clightnotations.v unfold_data_at.v hints.v reassoc_seq.v \
    SeparationLogicAsLogicSoundness.v SeparationLogicAsLogic.v SeparationLogicFacts.v \
-   subsume_funspec.v linking.v list_solver.v data_at_lemmas.v printf.v
+   subsume_funspec.v linking.v list_solver.v data_at_lemmas.v
 #real_forward.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
@@ -299,7 +301,7 @@ PROGS_FILES= \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
   libglob.v verif_libglob.v peel.v verif_peel.v \
-  printf.v verif_printf.v
+  printf.v
 # verif_insertion_sort.v
 
 SHA_FILES= \
@@ -456,7 +458,7 @@ else
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.9+alpha or-else 8.9.0 or-else 8.8.2
+COQVERSION= 8.9.1 or-else 8.9+alpha or-else 8.9.0 or-else 8.8.2
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -534,6 +536,7 @@ hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
+io: _CoqProject progs/verif_printf.v progs/verif_io.v progs/verif_io_mem.v
 
 CGFLAGS =  -DCOMPCERT
 
@@ -555,6 +558,12 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
+VERSION1= $(lastword $(shell $(CLIGHTGEN) --version))
+VERSION2= $(subst version=,,$(shell grep version compcert/VERSION))
+ifneq ($(VERSION1),$(VERSION2))
+$(warning clightgen version $(VERSION1) does not match VST/compcert/VERSION $(VERSION2))
+endif
+
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^

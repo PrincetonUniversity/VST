@@ -10,6 +10,8 @@ Require Export VST.veric.val_lemmas.
 
 Require Import VST.veric.seplog. (*For definition of tycontext*)
 
+Import Ctypes.
+
 (*moved to compcert_rmaps
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
@@ -625,6 +627,8 @@ match classify_cast tfrom tto with
       if is_pointer_type tfrom
       then tc_test_eq a (Econst_int Int.zero (Tint I32 Unsigned noattr))
       else tc_TT
+| Cop.cast_case_i2s _ => tc_TT
+| Cop.cast_case_i2f _ => tc_TT
 | _ => match tto with
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
       | Tfloat F64 _  => tc_bool (is_anyfloat_type tfrom) (invalid_cast_result tto tto)

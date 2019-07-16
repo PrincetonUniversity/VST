@@ -587,7 +587,7 @@ destruct s as [id fs].
 destruct fs.
 intros.
 specialize (H0 Espec ts x).
-eapply semax_extensionality_Delta; [ | apply H0].
+eapply semax_Delta_subsumption; [ | apply H0].
 clear - H.
 split3; [ | | split3; [ | | split]]; auto.
 -

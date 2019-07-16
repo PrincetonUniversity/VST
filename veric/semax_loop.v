@@ -321,8 +321,8 @@ Proof.
   generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
   remember (construct_rho (filter_genv psi) vx tx) as rho.
   pose proof I.
-  eapply semax_extensionality_Delta in H; try apply TS; auto.
-  eapply semax_extensionality_Delta in H0; try apply TS; auto.
+  eapply semax_Delta_subsumption in H; try apply TS; auto.
+  eapply semax_Delta_subsumption in H0; try apply TS; auto.
   clear Delta TS.
   generalize H; rewrite semax_unfold; intros H'.
 (*  change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.*)

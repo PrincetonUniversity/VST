@@ -251,6 +251,8 @@ Proof.
   contradiction (app_cons_not_nil l [] x); auto.
 Qed.
 
+Open Scope logic.
+
 Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
   iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
@@ -1920,7 +1922,7 @@ Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
 Proof.
   unfold semax_body; intros.
   destruct s, f0.
-  intros; eapply semax_extensionality_Delta, H.
+  intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.
 

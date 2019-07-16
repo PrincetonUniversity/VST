@@ -151,7 +151,7 @@ Definition semax_func_cons := @semax_func_cons.
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
-Definition semax_extensionality_Delta := @semax_lemmas.semax_extensionality_Delta.
+Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
 Definition semax_func_mono := semax_func_mono.
 Definition semax_func_app := semax_func_app.
@@ -176,6 +176,8 @@ Definition semax_call := @semax_call_si.*)
 Definition semax_set_forward := @semax_set_forward.
 Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
+
+Import VST.msl.seplog VST.veric.lift.
 
 Lemma semax_call {CS : compspecs} {Espec : OracleKind}:
   forall (Delta : tycontext) (A : rmaps.TypeTree)

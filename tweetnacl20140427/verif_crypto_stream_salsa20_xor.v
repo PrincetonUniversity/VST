@@ -934,7 +934,7 @@ rewrite SNR.
 forward_seq. (*
 mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta.
-eapply semax_extensionality_Delta.*)
+eapply semax_Delta_subsumption.*)
   apply (loop1 Espec (FRZL FR3) v_x v_z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k m sr_bytes mCont).
     eassumption.
     clear - SRL R64next R64old HRE Heqr64 MLEN. rewrite MLEN. omega. omega.
@@ -1087,7 +1087,7 @@ forward_if (IfPost v_z v_x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit)
      rep_omega. 
 (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta.*)
-(*  eapply semax_extensionality_Delta.*)
+(*  eapply semax_Delta_subsumption.*)
   rewrite SNR, <- RR.
   eapply semax_post_flipped'.
   eapply (loop2 Espec (FRZL FR1) v_x v_z c mInit); try eassumption; try omega.

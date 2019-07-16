@@ -192,8 +192,16 @@ Ltac solve_load_rule_evaluation :=
     match goal with
     | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
         let opaque_v := fresh "opaque_v" in
-        set (opaque_v := v);
-        cbv - [opaque_v sublist.Znth Int.repr JMeq];
+        (* in next line, using "remember" instead of "set" 
+            prevents blowup in some cases. *)
+        remember v as opaque_v (*set (opaque_v := v)*) ;
+        (* BEGIN this part substantially speeds up certain cases *)
+        simpl; unfold eq_rect_r; simpl;
+        try match goal with |- JMeq (Znth ?z ?A) _ =>
+           change (Znth z A) with (Znth z opaque_v)
+        end;
+        (* END this part substantially... *)
+        cbv - [ (*opaque_v*) sublist.Znth Int.repr JMeq];
         subst opaque_v; subst; apply JMeq_refl
     end
   | canon_load_result; apply JMeq_refl ].
@@ -222,8 +230,15 @@ Ltac subst_indexes gfs :=
 Ltac solve_store_rule_evaluation :=
   match goal with |- upd_reptype ?t ?gfs ?v0 ?v1 = ?B =>
    let rhs := fresh "rhs" in set (rhs := B);
+(*
    lazy beta zeta iota delta [reptype reptype_gen] in rhs;
-   simpl in rhs;
+   cbn in rhs;
+*)
+  match type of rhs with ?A =>
+   let a := fresh "a" in set (a:=A) in rhs; 
+    lazy beta zeta iota delta [reptype reptype_gen] in a;
+    cbn in a; subst a
+  end;
    let h0 := fresh "h0" in let h1 := fresh "h1" in
    set (h0:=v0); set (h1:=v1); change (upd_reptype t gfs h0 h1 = rhs);
    remember_indexes gfs;

@@ -339,6 +339,97 @@ intros. destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); auto.
 intros. apply Annotation_sub_refl.
 Qed.
 
+  Lemma find_id_app1 i x G2: forall G1, initial_world.find_id i G1 = Some x ->
+                                        initial_world.find_id i (G1++G2) = Some x.
+  Proof.
+    induction G1; simpl; intros. inv H.
+    destruct a. destruct (eq_dec i i0); [trivial | auto].
+  Qed. 
+  Lemma find_id_app2 i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
+                                        initial_world.find_id i G2 = Some x ->
+                                        initial_world.find_id i (G1++G2) = Some x.
+  Proof.
+    induction G1; simpl; intros. trivial. 
+    destruct a. inv H. destruct (eq_dec i i0); [subst i0; elim H3; clear - H0 | auto].
+    apply initial_world.find_id_e in H0. apply (in_map fst) in H0.
+    rewrite map_app. apply in_or_app; right. apply H0.
+  Qed. 
+
+  Lemma make_tycontext_s_app1 G1 G2 i:
+    sub_option (make_tycontext_s G1) ! i (make_tycontext_s (G1++G2)) ! i.
+  Proof.
+    red; rewrite 2 semax_prog.find_id_maketycontext_s.
+    remember (initial_world.find_id i G1) as q; destruct q; [symmetry in Heqq | trivial].
+    apply find_id_app1; trivial.
+  Qed.
+  Lemma make_tycontext_s_app2 G1 G2 i: list_norepet (map fst (G1++G2)) ->
+    sub_option (make_tycontext_s G2) ! i (make_tycontext_s (G1++G2)) ! i.
+  Proof.
+    intros; red; rewrite 2 semax_prog.find_id_maketycontext_s.
+    remember (initial_world.find_id i G2) as q; destruct q; [symmetry in Heqq | trivial].
+    apply find_id_app2; trivial.
+  Qed.
+  
+  Lemma make_tycontext_g_app1 V G1 G2 (HG1: list_norepet (map fst G1))
+        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))) i:
+    sub_option ((make_tycontext_g V G1) ! i) ((make_tycontext_g V (G1 ++ G2)) ! i).
+  Proof.
+    intros. apply semax_prog.suboption_make_tycontext_s_g; trivial.
+    intros. eapply make_tycontext_s_app1. 
+  Qed.
+  Lemma make_tycontext_g_app2 V G1 G2 (HG1: list_norepet (map fst G2))
+        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))) i:
+    sub_option ((make_tycontext_g V G2) ! i) ((make_tycontext_g V (G1 ++ G2)) ! i).
+  Proof.
+    intros. apply semax_prog.suboption_make_tycontext_s_g; trivial.
+    apply list_norepet_append_right in HG12. 
+    intros. eapply make_tycontext_s_app2; trivial. 
+  Qed.
+  
+  Lemma subsumespec_app1 G1 G2 i:
+    subsumespec ((make_tycontext_s G1) ! i) ((make_tycontext_s (G1++G2)) ! i).
+  Proof.
+    red. remember ((make_tycontext_s G1) ! i) as q; destruct q; [symmetry in Heqq | trivial].
+    specialize (make_tycontext_s_app1 G1 G2 i). rewrite Heqq; simpl. intros X; rewrite X; clear X.
+    exists f; split. trivial. apply funspec_sub_si_refl.
+  Qed.
+  
+  Lemma subsumespec_app2 G1 G2 i: list_norepet (map fst (G1++G2)) ->
+    subsumespec ((make_tycontext_s G2) ! i) ((make_tycontext_s (G1++G2)) ! i).
+  Proof.
+    intros; red. remember ((make_tycontext_s G2) ! i) as q; destruct q; [symmetry in Heqq | trivial].
+    specialize (make_tycontext_s_app2 G1 G2 i H). rewrite Heqq; simpl. intros X; rewrite X; clear X.
+    exists f; split. trivial. apply funspec_sub_si_refl.
+  Qed.
+
+  Lemma tycontext_sub_Gprog_app1 f V G1 G2 (HG1: list_norepet (map fst G1))
+        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))):
+    tycontext_sub (func_tycontext f V G1 [])
+                  (func_tycontext f V (G1++G2) []).
+  Proof.
+     apply tycontext_sub_i99. split; intros.
+     + apply make_tycontext_g_app1; trivial.
+     + apply subsumespec_app1.
+  Qed.
+
+  Lemma tycontext_sub_Gprog_app2 f V G1 G2 (HG1: list_norepet (map fst G2))
+        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))):
+    tycontext_sub (func_tycontext f V G2 [])
+                  (func_tycontext f V (G1++G2) []).
+  Proof.
+     apply tycontext_sub_i99. split; intros.
+     + apply make_tycontext_g_app2; trivial.
+     + apply list_norepet_append_right in HG12. apply subsumespec_app2; trivial.
+  Qed.
+  
+  Lemma tycontext_sub_Gprog_nil f V G (VG:list_norepet (map fst V ++ map fst G)):
+    tycontext_sub (func_tycontext f V [] [])
+                  (func_tycontext f V G []).
+  Proof.
+    specialize (tycontext_sub_Gprog_app1 f V nil G); simpl.
+    intros H; apply H; clear H; [ constructor | trivial].
+  Qed.
+  
 Lemma subsume_spec_get:
   forall (s t: PTree.t funspec),
    Forall (fun x => subsumespec (Some (snd x)) (t ! (fst x))) (PTree.elements s) ->
@@ -1120,46 +1211,90 @@ inv H1.
 auto.
 Qed.
 
+(*
 Ltac prove_call_setup1 subsumes :=
-    match goal with
-    | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
-      fail 1 "forward_call fails because your precondition starts with EX.
-Use Intros to move          the existentially bound variables above the line"
-    | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
-      lazymatch c with
-      | context [Scall _ (Evar ?id ?ty) ?bl] =>
-        let R := strip1_later R' in
-        exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
-        [check_prove_local2ptree
-        | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
-          [ check_function_name
-          | lookup_spec id
-          | find_spec_in_globals'
-          | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
-          ]
-        | apply subsumes
-        | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
-        |check_typecheck
-        |check_typecheck
-        |check_cast_params
-        |reflexivity
-        | ..
+  match goal with
+  | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+    fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros  to move          the existentially bound variables above the line"
+  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+    lazymatch c with
+    | context [Scall _ (Evar ?id ?ty) ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
+      [check_prove_local2ptree
+      | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
+        [ check_function_name
+        | lookup_spec id
+        | find_spec_in_globals'
+        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
         ]
- | context [Scall _ ?a ?bl] =>
-    let R := strip1_later R' in
- exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
- [check_prove_local2ptree
- |reflexivity
- |prove_func_ptr
- | apply subsumes
- |check_parameter_types
- |check_typecheck
- |check_typecheck
- |check_cast_params
- |reflexivity
- | ]
-      end
-    end.
+      | apply subsumes
+      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ..
+      ]
+    | context [Scall _ ?a ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
+      [check_prove_local2ptree
+      |reflexivity
+      |prove_func_ptr
+      | apply subsumes
+      |check_parameter_types
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ]
+    end
+  end.
+ *)
+(*The following version swaps the two context-cases and replaces the lazymatch by a match-
+  we believe this priorizitizes func_ptr lookup over Delta-lookup*)
+Ltac prove_call_setup1 subsumes :=
+  match goal with
+  | |- @semax _ _ _ (@exp _ _ _ _) _ _ =>
+    fail 1 "forward_call fails because your precondition starts with EX.
+Use Intros  to move          the existentially bound variables above the line"
+  | |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R'))) ?c _ =>
+    match c with
+    | context [Scall _ ?a ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i CS Delta P Q (*R*) R' a bl);
+      [check_prove_local2ptree
+      |reflexivity
+      |prove_func_ptr
+      | apply subsumes
+      |check_parameter_types
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ]
+    | context [Scall _ (Evar ?id ?ty) ?bl] =>
+      let R := strip1_later R' in
+      exploit (call_setup1_i2 CS Delta P Q R' (*R*) id ty bl) ;
+      [check_prove_local2ptree
+      | apply can_assume_funcptr2; (*(can_assume_funcptr3 _ _ subsumes);*)
+        [ check_function_name
+        | lookup_spec id
+        | find_spec_in_globals'
+        | simpl; reflexivity  (* function-id type in AST matches type in funspec *)
+        ]
+      | apply subsumes
+      | try reflexivity; (eapply classify_fun_ty_hack; [apply subsumes| reflexivity ..])  (* function-id type in AST matches type in funspec *)
+      |check_typecheck
+      |check_typecheck
+      |check_cast_params
+      |reflexivity
+      | ..
+      ]
+    end
+  end.
 
 Ltac check_gvars :=
   first [exact Logic.I

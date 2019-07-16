@@ -10,7 +10,7 @@ Require Export VST.veric.juicy_extspec.
 Require Import VST.veric.NullExtension.
 Require Import VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
-Import LiftNotation.
+Import Ctypes LiftNotation.
 Local Open Scope logic.
 
 Fixpoint all_suf_of_labeled_statements (P: labeled_statements -> Prop) (L: labeled_statements): Prop :=
@@ -1364,7 +1364,7 @@ Proof.
   + inv H0.
 Qed.
 
-Theorem semax_extensionality_Delta:
+Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
@@ -1912,7 +1912,7 @@ Lemma semax_body_subsumption: forall cs V V' F F' f spec
 Proof.
   unfold semax_body. 
   destruct spec. destruct f0; hnf; intros. 
-  eapply semax_extensionality_Delta. apply TS. apply (SF Espec ts x).
+  eapply semax_Delta_subsumption. apply TS. apply (SF Espec ts x).
 Qed. 
 
 Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
@@ -2314,7 +2314,7 @@ Proof.
   + inv H0.
 Qed.
 
-Theorem semax_extensionality_Delta:
+Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->

@@ -165,7 +165,7 @@ rewrite semax_skip_seq in H.
 rewrite sequence_rsequence in H.
 rewrite <- semax_seq_skip in H.
 eapply semax_seq'; [apply H | ].
-eapply semax_extensionality_Delta; try apply H0.
+eapply semax_Delta_subsumption; try apply H0.
 clear.
 apply tycontext_sub_refl.
 Qed.
