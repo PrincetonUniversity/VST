@@ -4,12 +4,7 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Require Import VST.floyd.printf.
-Require Import VST.floyd.io_events.
-Require Import ITree.ITree.
 Require Import ITree.Eq.Eq.
-(*Import ITreeNotations.*)
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
 
 Instance nat_id : FileId := { file_id := nat; stdout := 1%nat }.
 

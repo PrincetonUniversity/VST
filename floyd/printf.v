@@ -1,8 +1,8 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.io_events.
-Require Import ITree.ITree.
+Require Export VST.floyd.io_events.
+Require Export ITree.ITree.
 (*Import ITreeNotations.*)
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
+Global Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
   (at level 100, right associativity) : itree_scope.
 
 
