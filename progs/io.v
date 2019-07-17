@@ -3,7 +3,7 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 
 Module Info.
-  Definition version := "3.3"%string.
+  Definition version := "3.4"%string.
   Definition build_number := ""%string.
   Definition build_tag := ""%string.
   Definition arch := "x86"%string.
@@ -67,19 +67,62 @@ Definition ___compcert_va_composite : ident := 18%positive.
 Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___compcert_va_int32 : ident := 15%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
-Definition _c : ident := 62%positive.
-Definition _d : ident := 61%positive.
+Definition _c : ident := 57%positive.
+Definition _d : ident := 64%positive.
 Definition _getchar : ident := 53%positive.
-Definition _i : ident := 55%positive.
-Definition _main : ident := 63%positive.
-Definition _n : ident := 60%positive.
-Definition _print_int : ident := 59%positive.
-Definition _print_intr : ident := 58%positive.
+Definition _getchar_blocking : ident := 56%positive.
+Definition _i : ident := 59%positive.
+Definition _main : ident := 65%positive.
+Definition _n : ident := 63%positive.
+Definition _print_int : ident := 62%positive.
+Definition _print_intr : ident := 61%positive.
 Definition _putchar : ident := 54%positive.
-Definition _q : ident := 56%positive.
-Definition _r : ident := 57%positive.
-Definition _t'1 : ident := 64%positive.
-Definition _t'2 : ident := 65%positive.
+Definition _putchar_blocking : ident := 58%positive.
+Definition _q : ident := 60%positive.
+Definition _r : ident := 55%positive.
+Definition _t'1 : ident := 66%positive.
+Definition _t'2 : ident := 67%positive.
+
+Definition f_getchar_blocking := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := ((_r, tint) :: (_t'1, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _r (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
+  (Ssequence
+    (Swhile
+      (Ebinop Oeq (Etempvar _r tint)
+        (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) tint)
+      (Ssequence
+        (Scall (Some _t'1) (Evar _getchar (Tfunction Tnil tint cc_default))
+          nil)
+        (Sset _r (Etempvar _t'1 tint))))
+    (Sreturn (Some (Etempvar _r tint)))))
+|}.
+
+Definition f_putchar_blocking := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_c, tint) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_r, tint) :: (_t'1, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _r (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
+  (Ssequence
+    (Swhile
+      (Ebinop Oeq (Etempvar _r tint)
+        (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) tint)
+      (Ssequence
+        (Scall (Some _t'1)
+          (Evar _putchar (Tfunction (Tcons tint Tnil) tint cc_default))
+          ((Etempvar _c tint) :: nil))
+        (Sset _r (Etempvar _t'1 tint))))
+    (Sreturn (Some (Etempvar _r tint)))))
+|}.
 
 Definition f_print_intr := {|
   fn_return := tvoid;
@@ -103,7 +146,8 @@ Definition f_print_intr := {|
           (Evar _print_intr (Tfunction (Tcons tuint Tnil) tvoid cc_default))
           ((Etempvar _q tuint) :: nil))
         (Scall None
-          (Evar _putchar (Tfunction (Tcons tint Tnil) tint cc_default))
+          (Evar _putchar_blocking (Tfunction (Tcons tint Tnil) tint
+                                    cc_default))
           ((Ebinop Oadd (Etempvar _r tuint) (Econst_int (Int.repr 48) tint)
              tuint) :: nil)))))
   Sskip)
@@ -118,7 +162,8 @@ Definition f_print_int := {|
   fn_body :=
 (Sifthenelse (Ebinop Oeq (Etempvar _i tuint) (Econst_int (Int.repr 0) tint)
                tint)
-  (Scall None (Evar _putchar (Tfunction (Tcons tint Tnil) tint cc_default))
+  (Scall None
+    (Evar _putchar_blocking (Tfunction (Tcons tint Tnil) tint cc_default))
     ((Econst_int (Int.repr 48) tint) :: nil))
   (Scall None
     (Evar _print_intr (Tfunction (Tcons tuint Tnil) tvoid cc_default))
@@ -130,7 +175,7 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tschar) :: (_t'2, tint) ::
+  fn_temps := ((_n, tuint) :: (_d, tuint) :: (_c, tuchar) :: (_t'2, tint) ::
                (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
@@ -138,16 +183,16 @@ Definition f_main := {|
     (Sset _n (Econst_int (Int.repr 0) tint))
     (Ssequence
       (Ssequence
-        (Scall (Some _t'1) (Evar _getchar (Tfunction Tnil tint cc_default))
-          nil)
-        (Sset _c (Ecast (Etempvar _t'1 tint) tschar)))
+        (Scall (Some _t'1)
+          (Evar _getchar_blocking (Tfunction Tnil tint cc_default)) nil)
+        (Sset _c (Ecast (Etempvar _t'1 tint) tuchar)))
       (Ssequence
         (Swhile
           (Ebinop Olt (Etempvar _n tuint) (Econst_int (Int.repr 1000) tint)
             tint)
           (Ssequence
             (Sset _d
-              (Ebinop Osub (Ecast (Etempvar _c tschar) tuint)
+              (Ebinop Osub (Etempvar _c tuchar)
                 (Ecast (Econst_int (Int.repr 48) tint) tuint) tuint))
             (Ssequence
               (Sifthenelse (Ebinop Oge (Etempvar _d tuint)
@@ -164,13 +209,14 @@ Definition f_main := {|
                     ((Etempvar _n tuint) :: nil))
                   (Ssequence
                     (Scall None
-                      (Evar _putchar (Tfunction (Tcons tint Tnil) tint
-                                       cc_default))
+                      (Evar _putchar_blocking (Tfunction (Tcons tint Tnil)
+                                                tint cc_default))
                       ((Econst_int (Int.repr 10) tint) :: nil))
                     (Ssequence
                       (Scall (Some _t'2)
-                        (Evar _getchar (Tfunction Tnil tint cc_default)) nil)
-                      (Sset _c (Ecast (Etempvar _t'2 tint) tschar)))))))))
+                        (Evar _getchar_blocking (Tfunction Tnil tint
+                                                  cc_default)) nil)
+                      (Sset _c (Ecast (Etempvar _t'2 tint) tuchar)))))))))
         (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
@@ -434,13 +480,16 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_external "putchar"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tint Tnil) tint cc_default)) ::
+ (_getchar_blocking, Gfun(Internal f_getchar_blocking)) ::
+ (_putchar_blocking, Gfun(Internal f_putchar_blocking)) ::
  (_print_intr, Gfun(Internal f_print_intr)) ::
  (_print_int, Gfun(Internal f_print_int)) ::
  (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _print_int :: _print_intr :: _putchar :: _getchar ::
- ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
+(_main :: _print_int :: _print_intr :: _putchar_blocking ::
+ _getchar_blocking :: _putchar :: _getchar :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

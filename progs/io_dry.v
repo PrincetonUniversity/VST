@@ -24,17 +24,20 @@ Notation "' p <- t1 ;; t2" :=
 
 Section IO_Dry.
 
-Definition getchar_pre (m : mem) (witness : int -> IO_itree) (z : IO_itree) :=
-  let k := witness in (eutt eq z (r <- read;; k r)).
+Definition getchar_pre (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
+  let k := witness in (sutt eq (r <- read stdout;; k r) z).
 
-Definition getchar_post (m0 m : mem) r (witness : int -> IO_itree) (z : IO_itree) :=
-  m0 = m /\ - two_p 7 <= Int.signed r <= two_p 7 - 1 /\ let k := witness in z = k r.
+Definition getchar_post (m0 m : mem) (r : int) (witness : byte -> IO_itree) (z : IO_itree) :=
+  m0 = m /\ -1 <= Int.signed r <= two_p 8 - 1 /\
+  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- read stdout;; k r) z else z = k (Byte.repr (Int.signed r)).
 
-Definition putchar_pre (m : mem) (witness : int * IO_itree) (z : IO_itree) :=
-  let '(c, k) := witness in (eutt eq z (write c;; k)).
+Definition putchar_pre (m : mem) (witness : byte * IO_itree) (z : IO_itree) :=
+  let '(c, k) := witness in (sutt eq (write stdout c;; k) z).
 
-Definition putchar_post (m0 m : mem) r (witness : int * IO_itree) (z : IO_itree) :=
-  m0 = m /\ let '(c, k) := witness in r = c /\ z = k.
+Definition putchar_post (m0 m : mem) (r : int) (witness : byte * IO_itree) (z : IO_itree) :=
+  m0 = m /\ let '(c, k) := witness in
+  (Int.signed r = -1 \/ Int.signed r = Byte.unsigned c) /\
+  if eq_dec (Int.signed r) (-1) then sutt eq (write stdout c;; k) z else z = k.
 
 Context (ext_link : String.string -> ident).
 
@@ -42,7 +45,7 @@ Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
 
-Program Definition io_dry_spec : external_specification mem external_function IO_itree.
+Program Definition io_dry_spec : external_specification mem external_function (@IO_itree nat).
 Proof.
   unshelve econstructor.
   - intro e.
@@ -52,9 +55,9 @@ Proof.
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ putchar_pre X3 w X2).
+      exact (X1 = [Vubyte (fst w)] /\ m0 = X3 /\ putchar_pre X3 w X2).
     + destruct X as (m0 & _ & w).
-      exact (Val.has_type_list X1 (sig_args (ef_sig e)) /\ m0 = X3 /\ getchar_pre X3 w X2).
+      exact (X1 = [] /\ m0 = X3 /\ getchar_pre X3 w X2).
   - simpl; intros.
     destruct (oi_eq_dec _ _); [|destruct (oi_eq_dec _ _); [|contradiction]].
     + destruct X as (m0 & _ & w).
@@ -84,19 +87,24 @@ Proof.
     + intros; subst.
       destruct t as (? & ? & (c, k)); simpl in *.
       destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      unfold getchar_pre; split; auto; split; auto.
+      destruct e; inv H; simpl in *.
+      destruct vl; try contradiction; simpl in *.
+      destruct H0, vl; try contradiction.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
+      destruct Hpre as (_ & Hargs & ? & ? & Htrace).
+      destruct Hargs as [[Harg _] _]; hnf in Harg.
+      rewrite Harg, eval_id_same.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
-      symmetry.
       eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
     + unfold funspec2pre; simpl.
       if_tac; [|contradiction].
       intros; subst.
       destruct t as (? & ? & k); simpl in *.
       destruct H2 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
+      destruct e; inv H0; simpl in *.
+      destruct vl; try contradiction.
       unfold putchar_pre; split; auto; split; auto.
       unfold SEPx in Hpre; simpl in Hpre.
       rewrite seplog.sepcon_emp in Hpre.
@@ -104,7 +112,6 @@ Proof.
       apply has_ext_eq in Htrace.
       eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
       unfold getchar_pre.
-      symmetry.
       eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
   - unfold funspec2pre, funspec2post, dessicate; simpl.
     intros ?; if_tac.
@@ -118,20 +125,22 @@ Proof.
       pose proof (has_ext_eq _ _ Htrace) as Hgx.
       destruct v; try contradiction.
       destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & ?); subst.
+      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost k, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
-      * split3; simpl.
+      * exists i.
+        split3; simpl.
         -- split; auto.
         -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
         -- unfold SEPx; simpl.
-             rewrite seplog.sepcon_emp.
-             unfold ITREE; exists k; split; [apply Reflexive_eutt|].
-             eapply age_to.age_to_pred, change_has_ext; eauto.
+           rewrite seplog.sepcon_emp.
+           unfold ITREE; exists x; split; [if_tac; auto|].
+           { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
+           eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.
         instantiate (1 := (_, _)).
@@ -141,7 +150,7 @@ Proof.
       if_tac; [|contradiction].
       clear H0.
       intros; subst.
-      destruct H0 as (_ & vl& z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
+      destruct H0 as (_ & vl & z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
       destruct t as (phi1 & t); subst; simpl in *.
       destruct t as (? & k); simpl in *.
       unfold SEPx in Hpre; simpl in Hpre.
@@ -153,7 +162,7 @@ Proof.
       destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
       rewrite <- Hmem in *.
       rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost (k i), NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
+      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
       split; [|split3].
       * eapply age_rejoin; eauto.
         intro; rewrite H2; auto.
@@ -163,7 +172,8 @@ Proof.
         -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
         -- unfold SEPx; simpl.
              rewrite seplog.sepcon_emp.
-             unfold ITREE; exists (k i); split; [apply Reflexive_eutt|].
+             unfold ITREE; exists x; split; [if_tac; auto|].
+             { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
              eapply age_to.age_to_pred, change_has_ext; eauto.
       * eapply necR_trans; eauto; apply age_to.age_to_necR.
       * rewrite H3; eexists; constructor; constructor.

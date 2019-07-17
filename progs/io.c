@@ -5,19 +5,31 @@
 extern int getchar(void);
 extern int putchar(int c);
 
+int getchar_blocking(){
+  int r = -1;
+  while(r == -1) r = getchar();
+  return r;
+}
+
+int putchar_blocking(int c){
+  int r = -1;
+  while(r == -1) r = putchar(c);
+  return r;
+}
+
 void print_intr(unsigned int i) {
   unsigned int q,r;
   if (i!=0) {
     q=i/10u;
     r=i%10u;
     print_intr(q);
-    putchar(r+'0');
+    putchar_blocking(r+'0');
   }
 }
 
 void print_int(unsigned int i) {
   if (i==0)
-    putchar('0');
+    putchar_blocking('0');
   else print_intr(i);
 }
 
@@ -29,21 +41,17 @@ void print_int(unsigned int i) {
 */
 
 int main(void) {
-  unsigned int n, d; char c;
+  unsigned int n, d; unsigned char c;
 
   n=0;
-  c=getchar();
+  c=getchar_blocking();
   while (n<1000) {
-    d = ((unsigned)c)-(unsigned)'0';
+    d = c-(unsigned)'0';
     if (d>=10) break;
     n+=d;
     print_int(n);
-    putchar('\n');
-    c=getchar();
+    putchar_blocking('\n');
+    c=getchar_blocking();
   }
   return 0;
 }
-
-  
-
-  
