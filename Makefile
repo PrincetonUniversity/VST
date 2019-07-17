@@ -536,7 +536,7 @@ hkdf:    _CoqProject $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: _CoqProject $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 mailbox: _CoqProject mailbox/verif_mailbox_all.vo
 atomics: _CoqProject atomics/verif_kvnode_atomic.vo atomics/verif_kvnode_atomic_ra.vo atomics/verif_hashtable_atomic.vo atomics/verif_hashtable_atomic_ra.vo
-io: _CoqProject progs/verif_printf.v progs/verif_io.v progs/verif_io_mem.v
+io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo
 
 CGFLAGS =  -DCOMPCERT
 
