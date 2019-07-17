@@ -35,7 +35,7 @@ Proof.
 Qed.
 
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list byte -> IO_itree)) (z : IO_itree) :=
-  let '(sh, buf, len, k) := witness in (sutt eq (r <- read_list stdout (Z.to_nat len);; k r) z) /\
+  let '(sh, buf, len, k) := witness in (sutt eq (r <- read_list stdin (Z.to_nat len);; k r) z) /\
     match buf with Vptr b ofs =>
       Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + Z.max 0 len) Memtype.Cur Memtype.Writable
       | _ => False end.

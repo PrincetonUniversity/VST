@@ -15,6 +15,7 @@ Notation "' p <- t1 ;; t2" :=
   (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
 (at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
+Definition stdin := 0%nat.
 Definition stdout := 1%nat.
 
 Definition putchar_spec :=
@@ -34,12 +35,12 @@ Definition getchar_spec :=
   PRE [ ]
     PROP ()
     LOCAL ()
-    SEP (ITREE (r <- read stdout ;; k r))
+    SEP (ITREE (r <- read stdin ;; k r))
   POST [ tint ]
    EX i : int,
     PROP (-1 <= Int.signed i <= two_p 8 - 1)
     LOCAL (temp ret_temp (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdout ;; k r) else k (Byte.repr (Int.signed i)))).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r) else k (Byte.repr (Int.signed i)))).
 
 (* Build the external specification. *)
 Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree nat).

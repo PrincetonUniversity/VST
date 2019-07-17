@@ -96,10 +96,10 @@ Definition read_sum n lc : IO_itree :=
   if zlt n 1000 then
     let nums := map (fun c => Byte.unsigned c - char0) lc in
     inl (b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (true, n, lc) else
-    lc' <- read_list stdout 4;; Ret (false, n + sum_Z nums, lc'))
+    lc' <- read_list stdin 4;; Ret (false, n + sum_Z nums, lc'))
   else inr tt) (false, n, lc).
 
-Definition main_itree := lc <- read_list stdout 4;; read_sum 0 lc.
+Definition main_itree := lc <- read_list stdin 4;; read_sum 0 lc.
 
 Definition main_spec :=
  DECLARE _main
@@ -353,7 +353,7 @@ Lemma read_sum_eq : forall n lc, read_sum n lc ≈
   if zlt n 1000 then
     let nums := map (fun c => Byte.unsigned c - char0) lc in
     b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else
-    lc' <- read_list stdout 4;; read_sum (n + sum_Z nums) lc'
+    lc' <- read_list stdin 4;; read_sum (n + sum_Z nums) lc'
   else Ret tt.
 Proof.
   intros.
@@ -433,7 +433,7 @@ Proof.
     forward_for_simple_bound 4 (EX j : Z, PROP (0 <= n + sum_Z (sublist 0 j nums) < 1000 + 10 * j)
      LOCAL (temp _i (Vint (Int.repr 4)); temp _buf buf; temp _n (Vint (Int.repr (n + sum_Z (sublist 0 j nums)))); gvars gv)
      SEP (ITREE (b <- for_loop j 4
-         (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdout 4 ;; read_sum (n + sum_Z nums) lc');
+         (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc');
              data_at Ews (tarray tuchar 4) (map Vubyte lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
     + entailer!.
       { omega. }
@@ -485,7 +485,7 @@ Proof.
         f_equal; subst nums.
         rewrite Znth_map by omega; auto. }
       forward_call (gv, n + sum_Z (sublist 0 (i + 1) nums),
-        b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdout 4 ;; read_sum (n + sum_Z nums) lc').
+        b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc').
       { entailer!.
         rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_assoc, Z.add_0_r; auto. }

@@ -26,7 +26,7 @@ Definition getchar_blocking_spec :=
   PRE [ ]
     PROP ()
     LOCAL ()
-    SEP (ITREE (r <- read stdout;; k r))
+    SEP (ITREE (r <- read stdin;; k r))
   POST [ tint ]
    EX i : byte,
     PROP ()
@@ -108,12 +108,12 @@ Definition read_sum n d : IO_itree :=
    ITree.aloop (fun '(n, d) =>
        if zlt n 1000 then if zlt d 10 then
          inl (write_list stdout (chars_of_Z (n + d));; write stdout (Byte.repr newline);;
-              c <- read stdout;;
+              c <- read stdin;;
               Ret (n + d, Byte.unsigned c - char0)) (* loop again with these parameters *)
        else inr tt else inr tt) (* inr to end the loop *)
      (n, d).
 
-Definition main_itree := c <- read stdout;; read_sum 0 (Byte.unsigned c - char0).
+Definition main_itree := c <- read stdin;; read_sum 0 (Byte.unsigned c - char0).
 
 Definition main_spec :=
  DECLARE _main
@@ -158,7 +158,7 @@ Proof.
   start_function.
   forward.
   forward_while (EX i : int, PROP (-1 <= Int.signed i <= two_p 8 - 1) LOCAL (temp _r (Vint i))
-    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdout;; k r) else k (Byte.repr (Int.signed i))))).
+    SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin;; k r) else k (Byte.repr (Int.signed i))))).
   - Exists (Int.neg (Int.repr 1)); entailer!.
     { simpl; omega. }
     rewrite if_true; auto.
@@ -288,7 +288,7 @@ Qed.
 Lemma read_sum_eq : forall n d, read_sum n d ≈
   (if zlt n 1000 then if zlt d 10 then
      write_list stdout (chars_of_Z (n + d));; write stdout (Byte.repr newline);;
-     c <- read stdout;; read_sum (n + d) (Byte.unsigned c - char0)
+     c <- read stdin;; read_sum (n + d) (Byte.unsigned c - char0)
    else Ret tt else Ret tt).
 Proof.
   intros.
@@ -344,9 +344,9 @@ Proof.
   rewrite if_true by auto.
   destruct (zlt _ _); [|unfold char0 in *; omega].
   forward_call (n + (Byte.unsigned c - char0),
-    write stdout (Byte.repr newline);; c' <- read stdout;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
+    write stdout (Byte.repr newline);; c' <- read stdin;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   { rep_omega. }
-  forward_call (Byte.repr newline, c' <- read stdout;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
+  forward_call (Byte.repr newline, c' <- read stdin;; read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   forward_call (fun c' => read_sum (n + (Byte.unsigned c - char0)) (Byte.unsigned c' - char0)).
   Intros c'.
   forward.

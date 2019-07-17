@@ -241,7 +241,7 @@ Local Open Scope Z.
 
 (* Weaker pre condition using trace_incl instead of eutt. *)
 Definition getchar_pre' (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
-  let k := witness in trace_incl (r <- read stdout;; k r) z.
+  let k := witness in trace_incl (r <- read stdin;; k r) z.
 
 (* CertiKOS specs must terminate. Could get blocking version back by
    wrapping getchar in a loop. *)
@@ -271,7 +271,7 @@ Definition io_event_of_io_tevent (e : IOEvent)
   match e with
   | IOEvRecv _ _ _ => None
   | IOEvSend _ _ => None
-  | IOEvGetc _ _ r => Some (ERead stdout, Byte.repr r)
+  | IOEvGetc _ _ r => Some (ERead stdin, Byte.repr r)
   | IOEvPutc _ r => Some (EWrite stdout (Byte.repr r), tt)
   end.
 

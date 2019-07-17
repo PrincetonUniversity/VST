@@ -23,6 +23,7 @@ Fixpoint read_list_aux {file_id : Type} f n d : itree (@IO_event file_id) (list 
 
 Definition read_list {file_id : Type} f n : itree (@IO_event file_id) (list byte) := read_list_aux f n [].
 
+Definition stdin := 0%nat.
 Definition stdout := 1%nat.
 
 Definition putchars_spec {CS : compspecs} :=
@@ -43,7 +44,7 @@ Definition getchars_spec {CS : compspecs} :=
   PRE [ 1%positive OF tptr tuchar, 2%positive OF tint ]
     PROP (writable_share sh)
     LOCAL (temp 1%positive buf; temp 2%positive (Vint (Int.repr len)))
-    SEP (ITREE (r <- read_list stdout (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
+    SEP (ITREE (r <- read_list stdin (Z.to_nat len) ;; k r); data_at_ sh (tarray tuchar len) buf)
   POST [ tint ]
    EX msg : list byte,
     PROP ()

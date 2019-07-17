@@ -25,11 +25,11 @@ Notation "' p <- t1 ;; t2" :=
 Section IO_Dry.
 
 Definition getchar_pre (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
-  let k := witness in (sutt eq (r <- read stdout;; k r) z).
+  let k := witness in (sutt eq (r <- read stdin;; k r) z).
 
 Definition getchar_post (m0 m : mem) (r : int) (witness : byte -> IO_itree) (z : IO_itree) :=
   m0 = m /\ -1 <= Int.signed r <= two_p 8 - 1 /\
-  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- read stdout;; k r) z else z = k (Byte.repr (Int.signed r)).
+  let k := witness in if eq_dec (Int.signed r) (-1) then sutt eq (r <- read stdin;; k r) z else z = k (Byte.repr (Int.signed r)).
 
 Definition putchar_pre (m : mem) (witness : byte * IO_itree) (z : IO_itree) :=
   let '(c, k) := witness in (sutt eq (write stdout c;; k) z).
