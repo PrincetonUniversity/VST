@@ -218,7 +218,7 @@ Proof.
     rewrite modu_repr, divu_repr by (omega || computable).
     rewrite intr_eq.
     destruct (Z.leb_spec i 0); try omega.
-    erewrite ITREE_ext by (rewrite write_list_app, bind_bind; reflexivity).
+    rewrite write_list_app, bind_bind.
     forward_call (i / 10, write_list stdout [Byte.repr (i mod 10 + char0)];; tr).
     { split; [apply Z.div_pos; omega | apply Z.div_le_upper_bound; omega]. }
     simpl write_list.
@@ -227,13 +227,12 @@ Proof.
       unfold Vubyte; rewrite Byte.unsigned_repr; auto.
       pose proof (Z_mod_lt i 10); unfold char0; rep_omega. }
     { rewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      apply ITREE_impl; rewrite bind_ret'; reflexivity. }
+      rewrite bind_ret'; auto. }
     entailer!.
   - forward.
     subst; entailer!.
-    erewrite ITREE_ext; [apply derives_refl|].
     simpl.
-    rewrite Eq.bind_ret; reflexivity.
+    rewrite Eq.bind_ret; auto.
   - forward.
 Qed.
 
@@ -276,8 +275,7 @@ Proof.
     forward_call (Byte.repr char0, tr).
     { rewrite chars_of_Z_eq; simpl.
       erewrite <- sepcon_emp at 1; apply sepcon_derives; [|cancel].
-      erewrite ITREE_ext; [apply derives_refl|].
-      rewrite bind_ret'; reflexivity. }
+      rewrite bind_ret'; apply derives_refl. }
     entailer!.
   - forward_call (i, tr).
     { rewrite chars_of_Z_intr by omega; cancel. }
@@ -340,7 +338,7 @@ Proof.
   { rewrite Int.unsigned_repr_eq in H1.
     rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in H1; unfold char0 in *; rep_omega. }
   rewrite Int.unsigned_repr in H1 by (unfold char0 in *; rep_omega).
-  erewrite ITREE_ext by apply read_sum_eq.
+  rewrite read_sum_eq.
   rewrite if_true by auto.
   destruct (zlt _ _); [|unfold char0 in *; omega].
   forward_call (n + (Byte.unsigned c - char0),

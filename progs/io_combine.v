@@ -121,7 +121,7 @@ Proof.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto.
-        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; omega).
+        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_omega).
         -- rewrite if_false by omega; eauto.
         -- rewrite if_true; auto.
       * unfold getchar_pre, getchar_pre' in *.
@@ -277,7 +277,7 @@ Proof.
       * split; auto; do 2 eexists; eauto.
         unfold getchar_post, getchar_post' in *.
         destruct Hpost as [? Hpost]; split; auto.
-        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; omega).
+        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_omega).
         -- rewrite if_false by omega; eauto.
         -- rewrite if_true; auto.
       * unfold getchar_pre, getchar_pre' in *.

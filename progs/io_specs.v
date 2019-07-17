@@ -38,7 +38,7 @@ Definition getchar_spec :=
     SEP (ITREE (r <- read stdin ;; k r))
   POST [ tint ]
    EX i : int,
-    PROP (-1 <= Int.signed i <= two_p 8 - 1)
+    PROP (-1 <= Int.signed i <= Byte.max_unsigned)
     LOCAL (temp ret_temp (Vint i))
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r) else k (Byte.repr (Int.signed i)))).
 

@@ -6,6 +6,7 @@ Require Import ITree.Interp.Traces.
 (*Import ITreeNotations.*)
 Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
   (at level 100, right associativity) : itree_scope.
+Require Import Morphisms.
 
 Section IO_events.
 
@@ -54,6 +55,10 @@ Proof.
   intros; apply pred_ext; apply ITREE_impl; auto.
   symmetry; auto.
 Qed.
+
+Global Instance eutt_ITREE :
+  Proper (eutt eq ==> eq) ITREE.
+Proof. repeat intro. apply ITREE_ext; auto. Qed.
 
 Fixpoint write_list f l : IO_itree :=
   match l with

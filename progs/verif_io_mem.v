@@ -423,7 +423,7 @@ Proof.
   { Exists 0 lc; entailer!. }
   { entailer!. }
   - clear dependent lc; rename lc0 into lc.
-    erewrite ITREE_ext by apply read_sum_eq.
+    rewrite read_sum_eq.
     rewrite if_true by auto; simpl ITREE.
     set (nums := map (fun i => Byte.unsigned i - char0) lc).
     assert_PROP (Zlength lc = 4).
@@ -453,17 +453,16 @@ Proof.
         { rewrite if_false by auto; cancel. }
         forward.
         entailer!.
-        apply ITREE_impl.
         rewrite for_loop_eq.
         destruct (Z.ltb_spec i 4); try omega.
         unfold read_sum_inner at 2.
         replace (_ || _)%bool with true.
-        rewrite !Eq.bind_ret; reflexivity.
-        symmetry; rewrite orb_true_iff.
-        subst nums; rewrite Znth_map by omega.
-        destruct (Z.ltb_spec (Byte.unsigned (Znth i lc) - char0) 0); auto.
-        rewrite Int.unsigned_repr in * by (unfold char0 in *; rep_omega).
-        left; apply Z.leb_le; unfold char0 in *; omega. }
+        rewrite !Eq.bind_ret; auto.
+        { symmetry; rewrite orb_true_iff.
+          subst nums; rewrite Znth_map by omega.
+          destruct (Z.ltb_spec (Byte.unsigned (Znth i lc) - char0) 0); auto.
+          rewrite Int.unsigned_repr in * by (unfold char0 in *; rep_omega).
+          left; apply Z.leb_le; unfold char0 in *; omega. } }
       { forward.
         entailer!.
         rewrite Int.unsigned_repr_eq in *.
@@ -472,7 +471,7 @@ Proof.
         unfold char0 in *; rewrite Zmod_small in *; rep_omega. }
       forward.
       rewrite add_repr.
-      erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
+      rewrite for_loop_eq.
       destruct (Z.ltb_spec i 4); try omega.
       unfold read_sum_inner at 2.
       unfold nums; rewrite Znth_map by omega.
@@ -490,7 +489,8 @@ Proof.
         rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_assoc, Z.add_0_r; auto. }
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        apply ITREE_impl; rewrite !bind_bind.
+        rewrite !bind_bind.
+        apply ITREE_impl.
         apply eqit_bind; [|reflexivity].
         intros [].
         rewrite Eq.bind_ret; reflexivity. }
@@ -501,12 +501,11 @@ Proof.
       { rewrite Int.unsigned_repr by rep_omega.
         pose proof (Byte.unsigned_range (Znth i lc)) as [_ Hmax].
         unfold Byte.modulus, two_power_nat in Hmax; simpl in *; omega. }
-    + erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
+    + rewrite for_loop_eq.
       destruct (Z.ltb_spec 4 4); try omega.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        apply ITREE_impl.
-        simpl; rewrite Eq.bind_ret; reflexivity. }
+        simpl; rewrite Eq.bind_ret; auto. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.
@@ -516,9 +515,9 @@ Proof.
     forward_call (tarray tuchar 4, buf, gv).
     { rewrite if_false by auto; cancel. }
     forward.
-    cancel; apply ITREE_impl.
+    cancel.
     rewrite read_sum_eq.
-    rewrite if_false; [reflexivity | omega].
+    rewrite if_false; [auto | omega].
 Qed.
 
 Definition ext_link := ext_link_prog prog.
