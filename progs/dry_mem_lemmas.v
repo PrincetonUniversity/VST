@@ -8,15 +8,47 @@ Require Import VST.veric.SequentialClight.
 Require Import VST.veric.mem_lessdef.
 
 (* functions on byte arrays and CompCert mems *)
+Lemma drop_alloc m : { m' | (let (m1, b) := Mem.alloc m 0 1 in Mem.drop_perm m1 b 0 1 Nonempty) = Some m' }.
+Proof.
+  destruct (Mem.alloc m 0 1) eqn: Halloc.
+  apply Mem.range_perm_drop_2.
+  intro; eapply Mem.perm_alloc_2; eauto.
+Qed.
+
 Definition store_byte_list m b ofs lv :=
   Mem.storebytes m b ofs (concat (map (encode_val Mint8unsigned) lv)).
 
-Lemma has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
-  ghost_of phi = [Some (ext_ghost z, NoneP)].
+Lemma access_at_readable : forall m b o sh (Hsh : readable_share sh),
+  access_at m (b, o) Cur = perm_of_sh sh ->
+  Mem.perm m b o Cur Readable.
 Proof.
-  intros ??? (? & _ & ->); simpl.
+  unfold access_at, perm_of_sh, Mem.perm; intros.
+  simpl in H; rewrite H.
+  if_tac; if_tac; constructor || contradiction.
+Qed.
+
+Lemma access_at_writable : forall m b o sh (Hsh : writable_share sh),
+  access_at m (b, o) Cur = perm_of_sh sh ->
+  Mem.perm m b o Cur Writable.
+Proof.
+  unfold access_at, perm_of_sh, Mem.perm; intros.
+  simpl in H; rewrite H.
+  apply writable_writable0 in Hsh.
+  if_tac; if_tac; constructor || contradiction.
+Qed.
+
+Lemma has_ext_eq' : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
+  ghost_of phi = [Some (ext_ghost z, NoneP)] /\ forall l, identity (phi @ l).
+Proof.
+  intros ??? (? & Hno & ->); simpl; split; auto.
   unfold ext_ghost; simpl; repeat f_equal.
   apply proof_irr.
+Qed.
+
+Corollary has_ext_eq : forall {Z} (z : Z) phi, app_pred (has_ext z) phi ->
+  ghost_of phi = [Some (ext_ghost z, NoneP)].
+Proof.
+  intros; apply has_ext_eq'; auto.
 Qed.
 
 Lemma nth_nil : forall {A} n (d : A), nth n nil d = d.
@@ -157,25 +189,6 @@ Proof.
     eapply change_ext in J; eauto.
     apply ghost_fmap_join with (f := approx (level w'))(g := approx (level w')) in J.
     apply J.
-Qed.
-
-Lemma access_at_readable : forall m b o sh (Hsh : readable_share sh),
-  access_at m (b, o) Cur = perm_of_sh sh ->
-  Mem.perm m b o Cur Readable.
-Proof.
-  unfold access_at, perm_of_sh, Mem.perm; intros.
-  simpl in H; rewrite H.
-  if_tac; if_tac; constructor || contradiction.
-Qed.
-
-Lemma access_at_writable : forall m b o sh (Hsh : writable_share sh),
-  access_at m (b, o) Cur = perm_of_sh sh ->
-  Mem.perm m b o Cur Writable.
-Proof.
-  unfold access_at, perm_of_sh, Mem.perm; intros.
-  simpl in H; rewrite H.
-  apply writable_writable0 in Hsh.
-  if_tac; if_tac; constructor || contradiction.
 Qed.
 
 Lemma memory_block_writable_perm : forall sh n b ofs r jm, writable_share sh ->
@@ -726,4 +739,63 @@ Proof.
       { rewrite <- sublist_next, sublist_rejoin, sublist_same by omega; auto. }
   + destruct (phi1 @ l); auto.
     apply YES_not_identity in Hval1; contradiction.
+Qed.
+
+Definition main_pre_dry {Z} (m : mem) (prog : Clight.program) (ora : Z)
+  (ts : list Type) (gv : globals) (z : Z) :=
+  Genv.globals_initialized (Genv.globalenv prog) (Genv.globalenv prog) m /\ z = ora.
+
+Definition main_post_dry {Z} (m0 m : mem) (prog : Clight.program) (ora : Z)
+  (ts : list Type) (gv : globals) (z : Z) := True. (* the desired postcondition might vary by program *)
+
+(* simulate funspec2pre/post *)
+
+Definition main_pre_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) (tys : list typ) args (z : Z) (m : juicy_mem) :=
+    Val.has_type_list args [] /\
+(*    (exists phi0 phi1 : rmap,
+       join phi0 phi1 (m_phi m) /\*)
+       (app_pred (main_pre_ext prog ora ts gv
+          (semax.make_ext_args (filter_genv (semax_ext.symb2genv ge_s)) [] []))
+         (m_phi m) (*phi0 /\
+       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
+
+Definition main_post_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type & unit})
+  (ge_s: extspec.injective_PTree block) (tret : option typ) ret (z : Z) (m : juicy_mem) :=
+  (*exists phi0 phi1 : rmap,
+       join phi0 phi1 (m_phi m) /\*)
+       (app_pred (main_post prog ts gv
+          (semax.make_ext_rval (filter_genv (semax_ext.symb2genv ge_s)) ret))
+         (m_phi m)(*phi0 /\
+       necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
+
+Lemma main_dry : forall {Z} prog (ora : Z) ts gv,
+  (forall t b tl vl x jm,
+  Genv.init_mem (program_of_program prog) = Some (m_dry jm) ->
+  main_pre_juicy prog ora ts gv t b tl vl x jm ->
+  main_pre_dry (m_dry jm) prog ora ts gv x) /\
+  (forall t b ot v x jm0 jm,
+    (exists tl vl x0, main_pre_juicy prog ora ts gv t b tl vl x0 jm0) ->
+    (level jm <= level jm0)%nat ->
+    resource_at (m_phi jm) = resource_fmap (approx (level jm)) (approx (level jm)) oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 (m_dry jm) ->
+    ghost_of (m_phi jm) = Some (ghost_PCM.ext_ghost x, compcert_rmaps.RML.R.NoneP) :: ghost_fmap (approx (level jm)) (approx (level jm)) (tl (ghost_of (m_phi jm0))) ->
+    (main_post_dry (m_dry jm0) (m_dry jm) prog ora ts gv x ->
+     main_post_juicy prog ora ts gv t b ot v x jm)).
+Proof.
+  split; intros.
+  - unfold main_pre_juicy, main_pre_dry in *.
+    destruct H0 as (? & Hpre & Hext).
+    unfold main_pre_ext in Hpre.
+    destruct Hpre as (? & ? & J & Hglobals & Htrace).
+    apply has_ext_eq in Htrace.
+    split.
+    + apply Genv.init_mem_characterization_gen; auto.
+    + eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join, join_comm; eauto].
+      eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
+  - unfold main_post_juicy.
+    split; [apply I|].
+    rewrite H2.
+    eexists; constructor; constructor.
+    instantiate (1 := (_, _)); constructor; simpl; [|constructor; auto].
+    apply ext_ref_join.
 Qed.

@@ -20,18 +20,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition putchars_spec := DECLARE _putchars putchars_spec.
 Definition getchars_spec := DECLARE _getchars getchars_spec.
 
-(* make a new exit_spec that only allows exit code 0 if the ITREE is fully used, or that exit is only done w/ 1,
-and put empty itree in main_post *)
-
-(* This tells us that exit(0) is never called, so if we terminate successfully, the postcondition of main
-  must hold. *)
-Definition exit_spec := DECLARE _exit
- WITH i : Z
- PRE [1%positive OF tint]
-   PROP (repable_signed i; i <> 0) LOCAL(temp 1%positive (Vint (Int.repr i))) SEP()
- POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
-
 Lemma div_10_dec : forall n, 0 < n ->
   (Z.to_nat (n / 10) < Z.to_nat n)%nat.
 Proof.
@@ -45,9 +33,9 @@ Proof.
   apply Z.div_lt; auto; omega.
 Qed.
 
-Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list int :=
+Program Fixpoint chars_of_Z (n : Z) { measure (Z.to_nat n) } : list byte :=
   let n' := n / 10 in
-  match n' <=? 0 with true => [Int.repr (n + char0)] | false => chars_of_Z n' ++ [Int.repr (n mod 10 + char0)] end.
+  match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Next Obligation.
 Proof.
   apply div_10_dec.
@@ -56,10 +44,10 @@ Proof.
 Defined.
 
 (* The function computed by print_intr *)
-Program Fixpoint intr n { measure (Z.to_nat n) } : list int :=
+Program Fixpoint intr n { measure (Z.to_nat n) } : list byte :=
   match n <=? 0 with
   | true => []
-  | false => intr (n / 10) ++ [Int.repr (n mod 10 + char0)]
+  | false => intr (n / 10) ++ [Byte.repr (n mod 10 + char0)]
   end.
 Next Obligation.
 Proof.
@@ -72,16 +60,15 @@ Definition replace_list {X} i (l : list X) (l' : list X) :=
 
 Definition print_intr_spec :=
  DECLARE _print_intr
-  WITH sh : share, i : Z, buf : val, j : Z, contents : list val
-  PRE [ _i OF tuint, _buf OF tptr tuchar, _j OF tint ]
-    PROP (writable_share sh; 0 <= i <= Int.max_unsigned;
-               0 <= j; j + Zlength (intr i) <= Zlength contents < Int.max_signed)
-    LOCAL (temp _i (Vint (Int.repr i)); temp _buf buf; temp _j (Vint (Int.repr j)))
+  WITH sh : share, i : Z, buf : val, contents : list val
+  PRE [ _i OF tuint, _buf OF tptr tuchar ]
+    PROP (writable_share sh; 0 <= i <= Int.max_unsigned; Zlength (intr i) <= Zlength contents <= Int.max_signed)
+    LOCAL (temp _i (Vint (Int.repr i)); temp _buf buf)
     SEP (data_at sh (tarray tuchar (Zlength contents)) contents buf)
   POST [ tint ]
     PROP ()
-    LOCAL (temp ret_temp (Vint (Int.repr (j + Zlength (intr i)))))
-    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list j contents (map Vint (intr i))) buf).
+    LOCAL (temp ret_temp (Vint (Int.repr (Zlength (intr i)))))
+    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list 0 contents (map Vubyte (intr i))) buf).
 
 Definition print_int_spec :=
  DECLARE _print_int
@@ -89,57 +76,39 @@ Definition print_int_spec :=
   PRE [ _i OF tuint ]
     PROP (0 <= i < 10000)
     LOCAL (gvars gv; temp _i (Vint (Int.repr i)))
-    SEP (mem_mgr gv; ITREE (write_list (chars_of_Z i ++ [Int.repr newline]) ;; tr))
+    SEP (mem_mgr gv; ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]) ;; tr))
   POST [ tvoid ]
     PROP ()
     LOCAL ()
     SEP (mem_mgr gv; ITREE tr).
 
-Definition for_loop i z (body : Z -> itree IO_event bool) :=
+Definition for_loop {file_id} i z (body : Z -> itree (@IO_event file_id) bool) :=
   ITree.aloop (fun '(b, j) => if (b : bool) then inr true else if j <? z then inl (b <- body j ;; Ret (b, j + 1)) else inr false) (false, i).
 
 Definition sum_Z l := fold_right Z.add 0 l.
 
 Definition read_sum_inner n nums j :=
   if orb (10 <=? Znth j nums) (Znth j nums <? 0) then Ret true
-  else write_list (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Int.repr newline]);; Ret false.
+  else write_list stdout (chars_of_Z (n + sum_Z (sublist 0 (j + 1) nums)) ++ [Byte.repr newline]);; Ret false.
 
 Definition read_sum n lc : IO_itree :=
   ITree.aloop (fun '(b, n, lc) => if (b : bool) then inr tt else
   if zlt n 1000 then
-    let nums := map (fun c => Int.unsigned c - char0) lc in
+    let nums := map (fun c => Byte.unsigned c - char0) lc in
     inl (b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret (true, n, lc) else
-    lc' <- read_list 4;; Ret (false, n + sum_Z nums, lc'))
+    lc' <- read_list stdin 4;; Ret (false, n + sum_Z nums, lc'))
   else inr tt) (false, n, lc).
 
-Definition main_itree := lc <- read_list 4;; read_sum 0 lc (* ;; exit 0 *).
-(* !! Making exit an effect and requiring it to be called at the end of a program is a good
-   way to get around the problem of dropping suffixes of an itree. *)
+Definition main_itree := lc <- read_list stdin 4;; read_sum 0 lc.
 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre_ext prog main_itree nil gv
-  POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt)).
-(* making the post false forces user to call exit to terminate *)
-
-(* override default spec for exit *)
-Definition library_G  {cs: compspecs} prog :=
- let defs := prog_defs prog in
-  try_spec "_malloc" malloc_spec' defs ++
-  try_spec "_free" free_spec' defs.
-
-Ltac with_library prog G :=
-  let pr := eval unfold prog in prog in  
- let x := constr:(library_G pr ++ G) in
-  let x := eval cbv beta delta [app library_G] in x in
-  let x := simpl_prog_defs x in 
-  let x := eval cbv beta iota zeta delta [try_spec] in x in 
-  let x := eval simpl in x in 
-    with_library' pr x.
+  POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree nat)).
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
-  exit_spec; print_intr_spec; print_int_spec; main_spec]).
+  print_intr_spec; print_int_spec; main_spec]).
 
 Lemma divu_repr : forall x y,
   0 <= x <= Int.max_unsigned -> 0 <= y <= Int.max_unsigned ->
@@ -156,7 +125,7 @@ Opaque Nat.div Nat.modulo.*)
 Lemma intr_eq : forall n, intr n =
   match n <=? 0 with
   | true => []
-  | false => intr (n / 10) ++ [Int.repr (n mod 10 + char0)]
+  | false => intr (n / 10) ++ [Byte.repr (n mod 10 + char0)]
   end.
 Proof.
   intros.
@@ -214,12 +183,12 @@ Proof.
   start_function.
   forward.
   forward_if (PROP ()
-    LOCAL (temp _k (Vint (Int.repr (j + Zlength (intr i) - 1))))
-    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list j contents (map Vint (intr i))) buf)).
+    LOCAL (temp _k (Vint (Int.repr (Zlength (intr i) - 1))))
+    SEP (data_at sh (tarray tuchar (Zlength contents)) (replace_list 0 contents (map Vubyte (intr i))) buf)).
   - forward.
     rewrite divu_repr by rep_omega.
     forward.
-    forward_call (sh, i / 10, buf, j, contents).
+    forward_call (sh, i / 10, buf, contents).
     { rewrite intr_lt by omega; split; auto.
       assert (i / 10 < i).
       { apply Z.div_lt; omega. }
@@ -229,33 +198,31 @@ Proof.
     forward.
     { entailer!.
       split; try rep_omega.
-      rewrite intr_lt; omega. }
+      rewrite intr_lt; try omega. }
     entailer!.
-    { rewrite intr_lt by omega.
-      rewrite Z.add_sub_assoc; auto. }
+    { rewrite intr_lt by omega; auto. }
     rewrite (intr_eq i).
     destruct (i <=? 0) eqn: Hi; [apply Zle_bool_imp_le in Hi; omega|].
     pose proof (Z_mod_lt i 10).
-    rewrite <- (Zlength_map _ _ Vint), replace_list_upd_snoc.
+    rewrite <- (Zlength_map _ _ Vubyte), <- (Z.add_0_l (Zlength (map _ _))), replace_list_upd_snoc.
     rewrite (zero_ext_inrange 8 (Int.repr (i mod 10))), add_repr.
     rewrite zero_ext_inrange, map_app.
-    apply derives_refl.
+    unfold Vubyte at 3; simpl.
+    rewrite Byte.unsigned_repr by (unfold char0; rep_omega); apply derives_refl.
     { rewrite Int.unsigned_repr; simpl; rep_omega. }
     { rewrite Int.unsigned_repr; simpl; rep_omega. }
     { omega. }
     { rewrite Zlength_map, intr_lt; rep_omega. }
   - forward.
     entailer!.
-    (* spec has an off-by-one error *)
-    { admit. }
     rewrite replace_list_nil by rep_omega; auto.
   - forward.
     rewrite Z.sub_simpl_r; entailer!.
-Admitted.
+Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
   let n' := n / 10 in
-  match n' <=? 0 with true => [Int.repr (n + char0)] | false => chars_of_Z n' ++ [Int.repr (n mod 10 + char0)] end.
+  match n' <=? 0 with true => [Byte.repr (n + char0)] | false => chars_of_Z n' ++ [Byte.repr (n mod 10 + char0)] end.
 Proof.
   intros.
   unfold chars_of_Z at 1.
@@ -264,7 +231,7 @@ Proof.
 Qed.
 
 Lemma chars_of_Z_intr : forall n,
-  chars_of_Z n = if n <=? 0 then [Int.repr (n + char0)] else intr n.
+  chars_of_Z n = if n <=? 0 then [Byte.repr (n + char0)] else intr n.
 Proof.
   intros.
   destruct (Z.leb_spec n 0).
@@ -325,19 +292,17 @@ Proof.
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call 1.
-    rep_omega.
-    entailer!. }
+  { forward_call tt; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
   forward_if (PROP ()
     LOCAL (temp _buf buf; gvars gv; temp _i (Vint (Int.repr i));
-                 temp _k (Vint (Int.repr (Zlength (chars_of_Z i ++ [Int.repr newline])))))
+                 temp _k (Vint (Int.repr (Zlength (chars_of_Z i ++ [Byte.repr newline])))))
     SEP (mem_mgr gv; malloc_token Ews (tarray tuchar 5) buf;
-            data_at Ews (tarray tuchar 5) (map Vint (chars_of_Z i) ++ Vint (Int.repr newline) ::
+            data_at Ews (tarray tuchar 5) (map Vubyte (chars_of_Z i) ++ Vubyte (Byte.repr newline) ::
               list_repeat (Z.to_nat (4 - Zlength (chars_of_Z i))) Vundef) buf;
-            ITREE (write_list (chars_of_Z i ++ [Int.repr newline]);; tr))).
+            ITREE (write_list stdout (chars_of_Z i ++ [Byte.repr newline]);; tr))).
   - Intros.
     forward.
     forward.
@@ -376,7 +341,7 @@ Proof.
     { rewrite Zlength_map, Zlength_list_repeat; omega. }
     { rewrite Zlength_map; rep_omega. }
     { rewrite !Zlength_cons, Zlength_nil, Zlength_map; omega. }
-  - forward_call (Ews, buf, chars_of_Z i ++ [Int.repr newline],
+  - forward_call (Ews, buf, chars_of_Z i ++ [Byte.repr newline],
       5, list_repeat (Z.to_nat (4 - Zlength (chars_of_Z i))) Vundef, tr).
     { rewrite map_app, <- app_assoc; simpl; cancel. }
     forward_call (tarray tuchar 5, buf, gv).
@@ -386,9 +351,9 @@ Qed.
 
 Lemma read_sum_eq : forall n lc, read_sum n lc ≈
   if zlt n 1000 then
-    let nums := map (fun c => Int.unsigned c - char0) lc in
+    let nums := map (fun c => Byte.unsigned c - char0) lc in
     b <- for_loop 0 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else
-    lc' <- read_list 4;; read_sum (n + sum_Z nums) lc'
+    lc' <- read_list stdin 4;; read_sum (n + sum_Z nums) lc'
   else Ret tt.
 Proof.
   intros.
@@ -396,31 +361,31 @@ Proof.
   rewrite unfold_aloop.
   if_tac; [|reflexivity].
   unfold ITree._aloop, id.
-  rewrite bind_bind.
-  apply eutt_bind; [|reflexivity].
+  rewrite tau_eutt, bind_bind.
+  apply eqit_bind; [|reflexivity].
   intros [].
-  - rewrite Shallow.bind_ret, unfold_aloop.
+  - rewrite Eq.bind_ret, unfold_aloop.
     reflexivity.
   - rewrite bind_bind.
-    apply eutt_bind; [|reflexivity].
+    apply eqit_bind; [|reflexivity].
     intro.
-    rewrite Shallow.bind_ret; reflexivity.
+    rewrite Eq.bind_ret; reflexivity.
 Qed.
 
-Lemma for_loop_eq : forall i z body,
-  for_loop i z body ≈ if i <? z then b <- body i ;; if (b : bool) then Ret true else for_loop (i + 1) z body else Ret false.
+Lemma for_loop_eq : forall {file_id} i z body,
+  @for_loop file_id i z body ≈ if i <? z then b <- body i ;; if (b : bool) then Ret true else for_loop (i + 1) z body else Ret false.
 Proof.
   intros.
   unfold for_loop.
   rewrite unfold_aloop.
   simple_if_tac; [|reflexivity].
   unfold ITree._aloop, id.
-  rewrite bind_bind.
-  apply eutt_bind; [|reflexivity].
+  rewrite tau_eutt, bind_bind.
+  apply eqit_bind; [|reflexivity].
   intros [].
-  - rewrite Shallow.bind_ret, unfold_aloop.
+  - rewrite Eq.bind_ret, unfold_aloop.
     reflexivity.
-  - rewrite Shallow.bind_ret; reflexivity.
+  - rewrite Eq.bind_ret; reflexivity.
 Qed.
 
 Lemma sum_Z_app : forall l1 l2, sum_Z (l1 ++ l2) = sum_Z l1 + sum_Z l2.
@@ -432,20 +397,16 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  replace_SEP 0 (ITREE main_itree).
-  { go_lower; apply has_ext_ITREE. }
+  sep_apply (has_ext_ITREE(file_id := nat)).
+  rewrite <- (emp_sepcon (ITREE _)); Intros.
+  replace_SEP 0 (mem_mgr gv) by (go_lower; apply create_mem_mgr).
   forward.
-  rewrite <- (emp_sepcon (ITREE main_itree)); Intros.
-  replace_SEP 0 (mem_mgr gv).
-  { go_lower; apply create_mem_mgr. }
   forward_call (tarray tuchar 4, gv).
   { simpl; repeat (split; auto); rep_omega. }
   Intro buf.
   forward_if (buf <> nullval).
   { if_tac; entailer!. }
-  { forward_call 1.
-    rep_omega.
-    entailer!. }
+  { forward_call tt; contradiction. }
   { forward.
     entailer!. }
   Intros; rewrite if_false by auto.
@@ -453,18 +414,18 @@ Proof.
   forward_call (Ews, buf, 4, fun lc => read_sum 0 lc).
   { simpl; cancel. }
   Intros lc.
-  set (Inv := EX n : Z, EX lc : list int,
-    PROP (0 <= n < 1040; Forall (fun i => Int.unsigned i <= Byte.max_unsigned) lc)
+  set (Inv := EX n : Z, EX lc : list byte,
+    PROP (0 <= n < 1040)
     LOCAL (temp _i (Vint (Int.repr 4)); temp _buf buf; temp _n (Vint (Int.repr n)); gvars gv)
-    SEP (ITREE (read_sum n lc); data_at Ews (tarray tuchar 4) (map Vint lc) buf;
+    SEP (ITREE (read_sum n lc); data_at Ews (tarray tuchar 4) (map Vubyte lc) buf;
       mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
   forward_while Inv.
   { Exists 0 lc; entailer!. }
   { entailer!. }
   - clear dependent lc; rename lc0 into lc.
-    erewrite ITREE_ext by apply read_sum_eq.
+    rewrite read_sum_eq.
     rewrite if_true by auto; simpl ITREE.
-    set (nums := map (fun i => Int.unsigned i - char0) lc).
+    set (nums := map (fun i => Byte.unsigned i - char0) lc).
     assert_PROP (Zlength lc = 4).
     { entailer!.
       rewrite Zlength_map in *; auto. }
@@ -472,80 +433,79 @@ Proof.
     forward_for_simple_bound 4 (EX j : Z, PROP (0 <= n + sum_Z (sublist 0 j nums) < 1000 + 10 * j)
      LOCAL (temp _i (Vint (Int.repr 4)); temp _buf buf; temp _n (Vint (Int.repr (n + sum_Z (sublist 0 j nums)))); gvars gv)
      SEP (ITREE (b <- for_loop j 4
-         (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc');
-             data_at Ews (tarray tuchar 4) (map Vint lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
+         (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc');
+             data_at Ews (tarray tuchar 4) (map Vubyte lc) buf; mem_mgr gv; malloc_token Ews (tarray tuchar 4) buf)).
     + entailer!.
       { omega. }
     + simpl.
       forward.
       { entailer!.
-        rewrite zero_ext_inrange by (apply Forall_Znth; auto; omega).
-        apply Forall_Znth; auto; omega. }
+        unfold Vubyte; simpl.
+        rewrite Int.unsigned_repr; rep_omega. }
       forward.
-      rewrite zero_ext_inrange by (apply Forall_Znth; auto; omega).
-      forward_if (0 <= Int.unsigned (Znth i lc) - char0 < 10).
+      rewrite Znth_map by omega; simpl.
+      rewrite zero_ext_inrange.
+      forward.
+      unfold Int.sub.
+      rewrite !Int.unsigned_repr by rep_omega.
+      forward_if (0 <= Byte.unsigned (Znth i lc) - char0 < 10).
       { forward_call (tarray tuchar 4, buf, gv).
         { rewrite if_false by auto; cancel. }
         forward.
         entailer!.
-        apply ITREE_impl.
         rewrite for_loop_eq.
         destruct (Z.ltb_spec i 4); try omega.
         unfold read_sum_inner at 2.
         replace (_ || _)%bool with true.
-        rewrite !Shallow.bind_ret; reflexivity.
-        symmetry; rewrite orb_true_iff.
-        rewrite Int.unsigned_sub_borrow in *.
-        unfold Int.sub_borrow in *.
-        subst nums; rewrite Znth_map by omega.
-        rewrite (Int.unsigned_repr 48), Int.unsigned_zero, Z.sub_0_r in * by rep_omega.
-        destruct (zlt _ _); [right; apply Z.ltb_lt | left; apply Z.leb_le]; auto.
-        rewrite Int.unsigned_zero in *; simpl in *.
-        unfold char0; omega. }
+        rewrite !Eq.bind_ret; auto.
+        { symmetry; rewrite orb_true_iff.
+          subst nums; rewrite Znth_map by omega.
+          destruct (Z.ltb_spec (Byte.unsigned (Znth i lc) - char0) 0); auto.
+          rewrite Int.unsigned_repr in * by (unfold char0 in *; rep_omega).
+          left; apply Z.leb_le; unfold char0 in *; omega. } }
       { forward.
         entailer!.
-        unfold Int.sub in *.
-        rewrite Int.unsigned_repr_eq, Int.unsigned_repr in * by computable.
-        pose proof (Int.unsigned_range (Znth i lc)).
-        destruct (zlt (Int.unsigned (Znth i lc)) char0).
+        rewrite Int.unsigned_repr_eq in *.
+        destruct (zlt (Byte.unsigned (Znth i lc)) char0).
         { unfold char0 in *; rewrite <- Z_mod_plus_full with (b := 1), Zmod_small in *; rep_omega. }
-        unfold char0 in *; rewrite Zmod_small in *; omega. }
-      unfold Int.sub.
-      rewrite Int.unsigned_repr by computable.
+        unfold char0 in *; rewrite Zmod_small in *; rep_omega. }
       forward.
       rewrite add_repr.
-      erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
+      rewrite for_loop_eq.
       destruct (Z.ltb_spec i 4); try omega.
       unfold read_sum_inner at 2.
       unfold nums; rewrite Znth_map by omega.
-      assert (((10 <=? Int.unsigned (Znth i lc) - char0) || (Int.unsigned (Znth i lc) - char0 <? 0))%bool = false) as Hin.
+      assert (((10 <=? Byte.unsigned (Znth i lc) - char0) || (Byte.unsigned (Znth i lc) - char0 <? 0))%bool = false) as Hin.
       { rewrite orb_false_iff.
         split; [apply Z.leb_nle | apply Z.ltb_nlt]; omega. }
       rewrite Hin.
-      assert (sublist 0 (i + 1) nums = sublist 0 i nums ++ [Int.unsigned (Znth i lc) - char0]) as Hi.
+      assert (sublist 0 (i + 1) nums = sublist 0 i nums ++ [Byte.unsigned (Znth i lc) - char0]) as Hi.
       { rewrite (sublist_split _ i (i + 1)), (sublist_one i (i + 1)) by omega.
         f_equal; subst nums.
         rewrite Znth_map by omega; auto. }
       forward_call (gv, n + sum_Z (sublist 0 (i + 1) nums),
-        b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list 4 ;; read_sum (n + sum_Z nums) lc').
+        b <- for_loop (i + 1) 4 (read_sum_inner n nums) ;; if (b : bool) then Ret tt else lc' <- read_list stdin 4 ;; read_sum (n + sum_Z nums) lc').
       { entailer!.
         rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_assoc, Z.add_0_r; auto. }
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        apply ITREE_impl; rewrite !bind_bind.
-        apply eutt_bind; [|reflexivity].
+        rewrite !bind_bind.
+        apply ITREE_impl.
+        apply eqit_bind; [|reflexivity].
         intros [].
-        rewrite Shallow.bind_ret; reflexivity. }
+        rewrite Eq.bind_ret; reflexivity. }
       { rewrite Hi, sum_Z_app; simpl; omega. }
       entailer!.
       { rewrite Hi, sum_Z_app; simpl.
         rewrite Z.add_0_r, Z.add_assoc; split; auto; omega. }
-    + erewrite ITREE_ext by (rewrite for_loop_eq; reflexivity).
+      { rewrite Int.unsigned_repr by rep_omega.
+        pose proof (Byte.unsigned_range (Znth i lc)) as [_ Hmax].
+        unfold Byte.modulus, two_power_nat in Hmax; simpl in *; omega. }
+    + rewrite for_loop_eq.
       destruct (Z.ltb_spec 4 4); try omega.
       forward_call (Ews, buf, 4, fun lc' => read_sum (n + sum_Z nums) lc').
       { rewrite sepcon_assoc; apply sepcon_derives; cancel.
-        apply ITREE_impl.
-        simpl; rewrite Shallow.bind_ret; reflexivity. }
+        simpl; rewrite Eq.bind_ret; auto. }
       Intros lc'.
       forward.
       rewrite sublist_same in * by auto.
@@ -555,9 +515,9 @@ Proof.
     forward_call (tarray tuchar 4, buf, gv).
     { rewrite if_false by auto; cancel. }
     forward.
-    cancel; apply ITREE_impl.
+    cancel.
     rewrite read_sum_eq.
-    rewrite if_false; [reflexivity | omega].
+    rewrite if_false; [auto | omega].
 Qed.
 
 Definition ext_link := ext_link_prog prog.
@@ -568,15 +528,17 @@ Lemma prog_correct:
   semax_prog_ext prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
-(*semax_func_cons_ext.
-{ simpl; Intro i.
+semax_func_cons body_exit.
+semax_func_cons body_free.
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+semax_func_cons_ext.
+{ simpl; Intro msg.
   apply typecheck_return_value; auto. }
 semax_func_cons_ext.
 semax_func_cons body_print_intr.
 semax_func_cons body_print_int.
 semax_func_cons body_main.
-Qed.*)
-Admitted.
+Qed.
 
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.io_mem_dry.
@@ -584,7 +546,15 @@ Require Import VST.progs.io_mem_dry.
 Definition init_mem_exists : { m | Genv.init_mem prog = Some m }.
 Proof.
   unfold Genv.init_mem; simpl.
-Admitted. (* seems true, but hard to prove -- can we compute it? *)
+Ltac alloc_block m n := match n with
+  | O => idtac
+  | S ?n' => let m' := fresh "m" in let Hm' := fresh "Hm" in
+    destruct (dry_mem_lemmas.drop_alloc m) as [m' Hm']; alloc_block m' n'
+  end.
+  alloc_block Mem.empty 60%nat.
+  eexists; repeat match goal with H : ?a = _ |- match ?a with Some m' => _ | None => None end = _ => rewrite H end.
+  reflexivity.
+Qed.
 
 Definition init_mem := proj1_sig init_mem_exists.
 
