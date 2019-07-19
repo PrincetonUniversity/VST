@@ -10,16 +10,6 @@ Require Import VST.veric.Clight_new.
 Require Import VST.progs.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
-(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
-Notation "t1 >>= k2" := (ITree.bind t1 k2)
-  (at level 50, left associativity) : itree_scope.
-Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
-  (at level 100, t1 at next level, right associativity) : itree_scope.
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
-Notation "' p <- t1 ;; t2" :=
-  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
-(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 Require Import ITree.Interp.Traces.
 Require Import Ensembles.
 Require Import VST.progs.io_specs.
@@ -131,7 +121,7 @@ Proof.
 Qed.
 
 (* relate to OS's external events *)
-  Notation ge := (globalenv prog).
+Notation ge := (globalenv prog).
 
 (* for now, this is only proved for getchar *)
 Definition IO_ext_sem' e (args : list val) s :=
@@ -146,11 +136,11 @@ Definition IO_ext_sem' e (args : list val) s :=
 Definition IO_specs' (ext_link : string -> ident) :=
   [(ext_link "getchar"%string, getchar_spec)].
 
-Instance IO_Espec' : OracleKind := add_funspecs IO_void_Espec ext_link (IO_specs' ext_link).
+Instance IO_Espec' : OracleKind := add_funspecs (@IO_void_Espec (@IO_event nat)) ext_link (IO_specs' ext_link).
 
 Definition io_ext_spec := OK_spec.
 
-Program Definition io_dry_spec : external_specification mem external_function (@IO_itree nat).
+Program Definition io_dry_spec : external_specification mem external_function (@IO_itree (@IO_event nat)).
 Proof.
   unshelve econstructor.
   - intro e.

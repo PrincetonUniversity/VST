@@ -1,4 +1,3 @@
-Require Import ITree.ITree.
 Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.sepcomp.extspec.
@@ -11,16 +10,6 @@ Require Import VST.veric.SequentialClight.
 Require Import VST.progs.conclib.
 Require Import VST.progs.dry_mem_lemmas.
 Require Import VST.veric.mem_lessdef.
-(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
-Notation "t1 >>= k2" := (ITree.bind t1 k2)
-  (at level 50, left associativity) : itree_scope.
-Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
-  (at level 100, t1 at next level, right associativity) : itree_scope.
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
-Notation "' p <- t1 ;; t2" :=
-  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
-(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Section IO_Dry.
 
@@ -34,13 +23,15 @@ Proof.
   rewrite <- map_map, encode_vals_length, map_length; auto.
 Qed.
 
+Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
+
 Definition getchars_pre (m : mem) (witness : share * val * Z * (list byte -> IO_itree)) (z : IO_itree) :=
   let '(sh, buf, len, k) := witness in (sutt eq (r <- read_list stdin (Z.to_nat len);; k r) z) /\
     match buf with Vptr b ofs =>
       Mem.range_perm m b (Ptrofs.unsigned ofs) (Ptrofs.unsigned ofs + Z.max 0 len) Memtype.Cur Memtype.Writable
       | _ => False end.
 
-Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list byte -> IO_itree)) (z : @IO_itree nat) :=
+Definition getchars_post (m0 m : mem) r (witness : share * val * Z * (list byte -> IO_itree)) (z : @IO_itree E) :=
   let '(sh, buf, len, k) := witness in r = Int.repr len /\
     exists msg, Zlength msg = len /\ z = k msg /\
     match buf with Vptr b ofs => exists m', Mem.storebytes m0 b (Ptrofs.unsigned ofs) (bytes_to_memvals msg) = Some m' /\
@@ -54,7 +45,7 @@ Definition putchars_pre (m : mem) (witness : share * val * list byte * Z * list 
       Some (bytes_to_memvals msg)
     | _ => False end.
 
-Definition putchars_post (m0 m : mem) r (witness : share * val * list byte * Z * list val * IO_itree) (z : @IO_itree nat) :=
+Definition putchars_post (m0 m : mem) r (witness : share * val * list byte * Z * list val * IO_itree) (z : @IO_itree E) :=
   let '(sh, buf, msg, _, _, k) := witness in m0 = m /\ r = Int.repr (Zlength msg) /\ z = k.
 
 Context {CS : compspecs} (ext_link : String.string -> ident).
@@ -63,7 +54,7 @@ Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
 
-Program Definition io_dry_spec : external_specification mem external_function (@IO_itree nat).
+Program Definition io_dry_spec : external_specification mem external_function (@IO_itree E).
 Proof.
   unshelve econstructor.
   - intro e.

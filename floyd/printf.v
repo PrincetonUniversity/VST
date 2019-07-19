@@ -1,9 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Export VST.floyd.io_events.
 Require Export ITree.ITree.
-(*Import ITreeNotations.*)
-Global Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
 
 
 Inductive format_item :=
@@ -174,14 +171,36 @@ Defined.
 
 Section file_id.
 
-Context {CS : compspecs}.
-Class FileId := { file_id : Type; stdout : file_id }.
+Class FileId := { file_id : Type; stdin : file_id; stdout : file_id }.
 Context {FI : FileId}.
+Context {E : Type -> Type} `{IO_event(file_id := file_id) -< E} {CS : compspecs}.
 
 Axiom file_at : file_id -> val -> mpred.
 
-(* id should actually be the universal static identifier for stdout. *)
-Axiom init_stdio : forall (gv : globals) id, emp |-- file_at stdout (gv id).
+Axiom file_at_local_facts:
+   forall f p, file_at f p |-- !! (isptr p).
+
+Class FileStruct := { abs_file :> FileId; FILEid : ident; reent : ident; f_stdin : ident; f_stdout : ident }.
+Context {FS : FileStruct}.
+
+Axiom reent_struct : val -> mpred.
+
+Axiom init_stdio : emp |-- EX p : val, EX inp : val, EX outp : val, EX inp' : _, EX outp' : _,
+  !!(JMeq inp' inp /\ JMeq outp' outp) && reent_struct p *
+  field_at Ews (Tstruct reent noattr) [StructField f_stdin] inp' p *
+  field_at Ews (Tstruct reent noattr) [StructField f_stdout] outp' p *
+  file_at stdin inp * file_at stdout outp.
+
+Definition get_reent_spec :=
+  WITH p : val
+  PRE [ ]
+    PROP ()
+    LOCAL ()
+    SEP (reent_struct p)
+  POST [ tptr (Tstruct reent noattr) ]
+    PROP ()
+    LOCAL (temp ret_temp p)
+    SEP (reent_struct p).
 
 Definition fprintf_spec_parametrized FILEid (fmtz: list Z) :=
   let fl := interpret_format_string fmtz in
@@ -261,6 +280,14 @@ Axiom printf_spec_sub:
       (printf_spec_parametrized fmtz).
 
 End file_id.
+
+Hint Resolve file_at_local_facts : saturate_local.
+
+Ltac make_stdio :=
+  sep_apply (@init_stdio _ _ _); let p := fresh "reentp" in let inp := fresh "inp" in let outp := fresh "outp" in
+  let inp' := fresh "inp'" in let outp' := fresh "outp'" in Intros p inp outp inp' outp';
+  change (reptype (tptr (Tstruct _ noattr))) with val in inp', outp';
+  repeat match goal with H : JMeq _ _ |- _ => apply JMeq_eq in H; subst end.
 
 Definition ascii2byte (a: Ascii.ascii) : byte :=
  Byte.repr (Z.of_N (Ascii.N_of_ascii a)).
@@ -378,13 +405,15 @@ match goal with
        forward_fprintf' gv Pre id (printf_spec_sub(CS := cs)) nullval w w'
 end.
 
-Fixpoint make_printf_specs' (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
+Fixpoint make_printf_specs' {FS : FileStruct} (defs: list (ident * globdef (fundef function) type)) : list (ident*funspec) :=
  match defs with
  | (i, Gfun (External (EF_external "fprintf" _) 
                        (Tcons (Tpointer (Tstruct id _) _) _) _ _)) :: defs' => 
          (i, fprintf_placeholder_spec id) :: make_printf_specs' defs'
  | (i, Gfun (External (EF_external "printf" _) _ _ _)) :: defs' => 
          (i, printf_placeholder_spec) :: make_printf_specs' defs'
+ | (i, Gfun (External (EF_external "__getreent" _) _ _ _)) :: defs' =>
+        (i, get_reent_spec) :: make_printf_specs' defs'
  | _ :: defs' => make_printf_specs' defs'
  | nil => nil
  end.

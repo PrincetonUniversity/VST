@@ -245,7 +245,7 @@ Definition getchar_pre' (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
 
 (* CertiKOS specs must terminate. Could get blocking version back by
    wrapping getchar in a loop. *)
-Definition getchar_post' (m0 m : mem) r (witness : (byte -> IO_itree) * IO_itree) (z : @IO_itree nat) :=
+Definition getchar_post' (m0 m : mem) r (witness : (byte -> IO_itree) * IO_itree) (z : @IO_itree (@IO_event nat)) :=
   m0 = m /\
     (* Success *)
     ((0 <= Int.signed r <= two_p 8 - 1 /\ let (k, _) := witness in z = k (Byte.repr (Int.signed r))) \/
