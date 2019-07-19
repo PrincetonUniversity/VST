@@ -473,7 +473,11 @@ Ltac semax_func_cons L :=
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | LookupID | LookupB | precondition_closed 
+(*<<<<<<< HEAD
+           | reflexivity | LookupID | LookupB | apply L
+=======
+*)
+           | reflexivity | LookupID | LookupB
            | try solve [apply L]; apply_semax_body L
            | ]
         | eapply semax_func_cons_ext;
@@ -3885,25 +3889,162 @@ match x with
 | DE_nothing ?e => fail 99 "The expression " e " contains a dereference of an expression with a 'By_nothing' access mode, which is quite unexpected"
 end.
 
+Lemma elim_close_precondition:
+  forall {CS: compspecs} {Espec: OracleKind} al Delta P F c Q,
+   closed_wrt_vars (fun i => ~ In i al) P  ->
+   closed_wrt_lvars (fun _ => True) P ->    
+   semax Delta (P * F) c Q ->
+   semax Delta (Clight_seplog.close_precondition al al P * F) c Q.
+Proof.
+intros.
+ apply semax_pre with (P*F); auto.
+ apply andp_left2.
+ apply sepcon_derives; [ | apply derives_refl].
+ intro rho.
+ apply Clight_seplog.close_precondition_e'; auto.
+Qed.
+
+Ltac check_parameter_types' :=
+ try reflexivity;
+ simpl;
+ match goal with |- ?A = ?B =>
+   fail "Parameter types of funspec don't match types of fundef.
+funspec:" A "
+fundef:" B
+  end.
+
+Ltac check_return_type :=
+ try reflexivity;
+ simpl;
+ match goal with |- ?A = ?B =>
+   fail "Return type of funspec doesn't match return type of fundef.
+funspec:" A "
+fundef:" B
+  end.
+
+Fixpoint rename_ident (olds news: list ident) i :=
+ match olds, news with
+ | a::al, b::bl => if ident_eq i a then Some b else rename_ident al bl i
+ | _,_ => None
+ end.
+
+Fixpoint rename_localdefs (olds news: list ident) (ds: list localdef) : option (list localdef) :=
+ match ds with
+ | temp i v :: ds' => match rename_ident olds news i, rename_localdefs olds news ds' with
+                              | Some j, Some r => Some (temp j v::r)
+                              | _, _ => None
+                              end
+ | lvar _ _ _ :: _ => None
+ | gvars gv ::ds' => match rename_localdefs olds news ds' with
+                  | Some r => Some (gvars gv :: r)
+                  | None => None
+                  end
+ | nil => Some nil
+ end.
+
+Lemma compute_close_precondition: 
+  forall olds news P Q Q' R,
+  compute_list_norepet olds = true ->
+  rename_localdefs olds news Q = Some Q' ->
+  Clight_seplog.close_precondition olds news (PROPx P (LOCALx Q (SEPx R))) =
+    (PROPx P (LOCALx Q' (SEPx R))).
+Proof.
+intros *. intros Hno. intros.
+apply compute_list_norepet_e in Hno.
+extensionality rho.
+apply predicates_hered.pred_ext.
+-
+ intros ? [ve' [te' [? ?]]].
+ destruct H1; split; auto. clear H1.
+ destruct H2; split; auto. clear H2.
+ revert Q' H H1; induction Q; intros; destruct Q'.
+ inv H.
+ apply H1.
+ inv H.
+ elimtype False; clear - H. destruct a0; simpl in H.
+ destruct (rename_ident olds news i); try discriminate.
+ destruct (rename_localdefs olds news Q); try discriminate.
+ destruct (rename_localdefs olds news Q); try discriminate.
+ destruct (rename_localdefs olds news Q); try discriminate.
+ simpl in H.
+ destruct (rename_localdefs olds news Q) eqn:H3.
+2:{ destruct a0; try discriminate. destruct (rename_ident olds news i); discriminate. }
+ destruct H1.
+ split.
+2:{ apply IHQ; auto. clear - H. destruct a0; try solve [inv H; auto].
+     destruct (rename_ident olds news i); inv H; auto.
+  }
+ clear dependent Q.
+ destruct a0.
+ 2,3: inv H; apply H1.
+ destruct (rename_ident olds news i) eqn:?H; try discriminate.
+ inv H.
+ clear - H2 H1 H0.
+ hnf in H1|-*. unfold_lift in *. destruct H1; subst v.
+ split; auto.
+ clear H1.
+ unfold eval_id in *; simpl in *.
+ f_equal.
+ revert news H2 H0; induction olds; destruct news; simpl; intros; inv H2.
+ if_tac in H1. inv H1.
+ rewrite (H0 O a i0); auto.
+ apply (IHolds news); auto.
+ intros. apply (H0 (S n)); auto.
+-
+intros ? ?.
+exists (ve_of rho).
+destruct rho as [ge ve te].
+simpl te_of.
+pose (f (i: ident) := 
+      match rename_ident olds news i with
+      | Some j => Map.get te j
+      | None => None
+      end).
+exists f.
+split; simpl.
+ *
+ clear - Hno.
+ unfold Map.get in *.
+ subst f.
+ intros.
+ simpl.
+ revert olds news i j H H0 Hno; induction n; destruct olds, news; simpl; intros; try discriminate.
+ inv H0. inv H. rewrite if_true by auto. auto.
+ inv Hno.
+ if_tac.
+ subst.
+ apply nth_error_in in H. contradiction.
+ apply (IHn _ _ _ _ H H0 H4).
+ *
+  destruct H0 as [? [? ?]]; split3; auto.
+ clear - Hno H H1.
+ revert Q' H H1; induction Q; destruct Q'; simpl; intros; auto.
+ inv H.
+ elimtype False; clear - H.
+ destruct a0; try discriminate;
+ try destruct (rename_ident olds news i); try discriminate;
+ destruct (rename_localdefs olds news Q); discriminate.
+ destruct H1.
+ destruct (rename_localdefs olds news Q) eqn:?H.
+2:{ destruct a0; try discriminate; destruct (rename_ident olds news i); try discriminate. }
+  assert (l0 = Q'). { destruct a0; inv H; auto. 
+      destruct (rename_ident olds news i); inv H4; auto.
+  }
+ subst l0. 
+ split; [ | apply (IHQ Q'); auto].
+ destruct a0; try solve [inv H; auto].
+ destruct (rename_ident olds news i) eqn:?H; inv H.
+ hnf in H0|-*. unfold_lift in *.
+ destruct H0; subst. split; auto.
+ unfold eval_id; simpl. f_equal.
+ unfold Map.get; subst f.
+ simpl. rewrite H3. reflexivity.
+Qed.
+
 Ltac start_function :=
  leaf_function;
- match goal with |- semax_body _ _ ?F ?spec =>
-   let D := constr:(type_of_function F) in 
-   let S := constr:(type_of_funspec (snd spec)) in
-   let D := eval hnf in D in let D := eval simpl in D in 
-   let S := eval hnf in S in let S := eval simpl in S in 
-   tryif (unify D S) then idtac else
-   tryif function_types_compatible D S 
-   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
-Function body:" D "
-Function spec:" S
-   else
-   (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
-Function body: " D "
-Function spec: " S);
-   check_normalized F
- end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
+    check_normalized F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
     match goal with
@@ -3916,18 +4057,30 @@ Function spec: " S);
  end;
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
+   split; [split3; [check_parameter_types' | check_return_type
+          | try (apply compute_list_norepet_e; reflexivity);
+             fail "Duplicate formal parameter names in funspec signature"  ] 
+         |];
    match Pre with
    | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
+ try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
+     change (fun rho => ?A rho * ?B rho) with (A * B)
+  end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
- repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+ repeat match goal with
+ | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
-           end;
+ | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+       end;
+ first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
+        | erewrite compute_close_precondition by reflexivity];
  simplify_func_tycontext;
  repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>

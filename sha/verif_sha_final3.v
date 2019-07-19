@@ -144,7 +144,7 @@ semax
         data_at_ wsh t_struct_SHA256state_st c;
         data_block shmd (SHA_256 msg) md))) emp).
 Proof.
-  intros. Intros.
+  intros.
   unfold sha_final_epilog.
   abbreviate_semax.
   Time unfold_data_at (data_at _ _ _ _).
@@ -155,25 +155,25 @@ Proof.
       field_address t_struct_SHA256state_st [StructField _data] c,
        wsh, gv).
   {
-    unfold data_block. simpl.
-    Time entailer!. autorewrite with sublist.
+    unfold data_block.
+    autorewrite with sublist.
     rewrite H0.
     rewrite field_at_data_at with (gfs := [StructField _data]).
     Time cancel.
   }
   rewrite hash_blocks_last by auto.
   unfold data_block.
-  simpl.
   rewrite <- H1.
   Time forward. (* c->num=0; *)
   Time forward_call (* memset (p,0,SHA_CBLOCK); *)
-    (wsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
+    (wsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64, Int.zero).
   {
-    replace (Zlength (intlist_to_bytelist lastblock)) with 64
-        by (rewrite Zlength_intlist_to_bytelist, H0; reflexivity).
-    change (memory_block wsh 64) with (memory_block wsh (sizeof (tarray tuchar 64))).
+    rewrite Zlength_intlist_to_bytelist, H0.
+    change (memory_block wsh 64) 
+      with (memory_block wsh (sizeof (tarray tuchar 64))).
     entailer!.
     rewrite memory_block_data_at_ by auto.
+    change (LBLOCKz*4)%Z with 64.
     cancel.
   }
  gather_SEP 0 1 3 4 5.
@@ -181,12 +181,13 @@ Proof.
        (map Vint (hash_blocks init_registers (generate_and_pad msg)),
         (Vundef,
          (Vundef,
-          (list_repeat (Z.to_nat CBLOCKz) (Vint Int.zero), Vint Int.zero)))) c).
- unfold_data_at (data_at _ _ _ c).
- change (Z.to_nat 64) with (Z.to_nat CBLOCKz).
- rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
- entailer!.
- drop_LOCAL 0%nat. drop_LOCAL 2%nat.
+          (list_repeat (Z.to_nat CBLOCKz) (Vint Int.zero), Vint Int.zero)))) c). {
+   unfold_data_at (data_at _ _ _ c).
+   change (Z.to_nat 64) with (Z.to_nat CBLOCKz).
+   rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
+   entailer!.
+ }
+ deadvars!.
  assert (H': Zlength (hash_blocks init_registers (generate_and_pad msg)) = 8). {
    rewrite Zlength_correct, length_hash_blocks; auto.
     rewrite H1.
@@ -216,10 +217,7 @@ Proof.
 *
  entailer!.
  change 32%Z with (sizeof (tarray tuchar 32)) at 1.
- rewrite memory_block_size_compatible by (compute; auto).
- (* memory_block_size_compatible should perhaps(?) be
-     woven into memory_block_local_facts *)
- Intros.
+ saturate_local.
  rewrite memory_block_data_at_.
  apply derives_refl.
  repeat split; auto; try reflexivity.
@@ -249,7 +247,7 @@ Proof.
      rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
  autorewrite with sublist.
  replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
- Intros.
+  Intros.
   change 64 with CBLOCKz. set (N32 := 32).
   change (Z.to_nat 4) with (Z.to_nat WORD).
  assert (COMPAT: field_compatible0 (tarray tuchar 32) [ArraySubsc (i * 4)] md).
@@ -267,63 +265,28 @@ Proof.
   rewrite BYTES. f_equal.
   change WORD with 4; clear; omega.
   simpl; f_equal.
-  destruct md; try contradiction; simpl.
   rewrite field_address0_offset by auto with field_compatible.
   simpl. normalize.
  +
-assert (forall m,
-  array_at shmd (tarray tuchar N32) [] (i * 4) (i * 4 + 4) m md
-   |-- memory_block shmd 4
-      (field_address0 (tarray tuchar 32) [ArraySubsc (i * 4)] md));
- [ | cancel].
-intro.
-clear Frame.
-rewrite array_at_data_at by omega.
-simpl.
-Intros.
-unfold at_offset.
-autorewrite with sublist.
-eapply derives_trans; [apply data_at_data_at_ | ].
-rewrite <- memory_block_data_at_.
-1:{
-  rewrite field_address0_offset by auto with field_compatible.
-  apply derives_refl.
-} 
-clear - COMPAT FCmd H1.
-hnf in COMPAT |- *.
-(* TODO: simplify this proof. *)
-intuition.
-- hnf in H6|-*. unfold offset_val. destruct md; auto.
-  rewrite <- (Ptrofs.repr_unsigned i0).
-  rewrite ptrofs_add_repr.
-  simpl in H6|-*.
-  simpl in H2; inv_int i0.
-  rewrite Ptrofs.unsigned_repr; try omega.
-  rewrite Z.mul_1_l.
-  change (Ptrofs.max_unsigned) with (Ptrofs.modulus-1).
-  omega.
-- apply align_compatible_tarray_tuchar.
-- destruct H6; auto.
+sep_apply (array_at_memory_block shmd (tarray tuchar N32) nil (i*4)).
+omega. simpl. normalize. replace  (i * 4 + 4 - i * 4) with 4 by omega.
+cancel.
 +
-     split; auto.
-      rewrite Zlength_correct; subst bytes.
-      simpl.
-      clear; omega.
+     split; auto. subst bytes. simpl. autorewrite with sublist. clear; omega.
  +
   forward. (* md += 4; *)
   replace (32 - WORD * (i+1)) with (N32 - i*4-WORD)
     by  (subst N32; change WORD with 4; omega).
   change 64 with CBLOCKz.
   set (vbytes := map Vubyte bytes).
-  simpl (temp _md _).
   entailer!.
   f_equal. omega.
    unfold data_at.
    erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
    erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
   unfold N32; change WORD with 4.
-     rewrite (split2_array_at _ _ _ 0 (i*4) 32) by (autorewrite with sublist; omega).
-     rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by (autorewrite with sublist; omega).
+  rewrite (split2_array_at _ _ _ 0 (i*4) 32) by (autorewrite with sublist; omega).
+  rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by (autorewrite with sublist; omega).
   autorewrite with sublist.
    replace (32 - i * 4 - 4 - (4 + i * 4 - (i + 1) * 4))
         with (32-i*4-4)
@@ -409,8 +372,8 @@ Proof.
   unfold sha_final_part2, sha_final_epilog; abbreviate_semax.
   pose (hibytes := intlist_to_bytelist [hi_part bitlen]).
   pose (lobytes := intlist_to_bytelist [lo_part bitlen]).
-  assert_PROP (field_compatible t_struct_SHA256state_st [StructField _data] c).
-    Time entailer!. (*2.3*) rename H6 into FC.
+  assert_PROP (field_compatible t_struct_SHA256state_st [StructField _data] c) as FC
+     by entailer!.
 
   Time forward. (* cNh=c->Nh; *) (*3.5*)
 
@@ -418,31 +381,35 @@ Proof.
     pattern A;
     match goal with |- ?F A => set (GOAL := F) end
   end.
-  erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity;
+  erewrite field_at_Tarray;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
-   | omega].
+   | reflexivity | omega | apply JMeq_refl].
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite <- list_repeat_app.
    rewrite (split3seg_array_at _ _ _ 0 56 60) by (autorewrite with sublist; rep_omega).
+   rewrite <- !app_ass.
    assert (CBZ := CBLOCKz_eq).
-   Time autorewrite with sublist. (*11.5*)
-   clear CBZ; subst GOAL. cbv beta.
-   Intros.  (* to flatten the SEP *)
+   Time autorewrite with sublist. (*7*)
+    clear CBZ.
+  subst GOAL. cbv beta. Intros.
   Time forward_call (* (void)HOST_l2c(cNh,p); *)
      (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
       wsh, hibytes). (*9*)
   apply prop_right; repeat constructor; hnf; simpl.
   rewrite (nth_big_endian_integer 0 [hi_part bitlen]) at 1; reflexivity.
-
   rewrite field_address_offset by auto.
   rewrite field_address0_offset by auto with field_compatible.
-  destruct c; try contradiction; simpl; auto.
+  reflexivity.
   split; auto.
   clear; compute; congruence.
   Time forward. (* p += 4; *) (*11 secs*)
-  simpl (temp _p _).
+  replace (force_val _) 
+   with  (field_address t_struct_SHA256state_st [ArraySubsc 60; StructField _data] c)
+    by (rewrite CBLOCKz_eq; 
+         rewrite !field_address_offset by auto with field_compatible;
+         make_Vptr c;  simpl; normalize).
   Time forward. (* cNl=c->Nl; *) (*12*)
   Time forward_call (* (void)HOST_l2c(cNl,p); *)
     (field_address0 t_struct_SHA256state_st
@@ -453,8 +420,8 @@ Proof.
 
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address_offset by (pose proof CBLOCKz_eq; auto with field_compatible).
-  make_Vptr c. simpl. unfold Ptrofs.of_ints. normalize.
-  split; auto.  clear; compute; congruence.
+  reflexivity.
+  split; auto. clear; compute; congruence.
 
   match goal with |- context [SEPx (?A :: _)] =>
    replace A with (array_at wsh t_struct_SHA256state_st [StructField _data] 60 64
@@ -476,48 +443,34 @@ Proof.
   erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
    | omega].
-   rewrite <- app_ass.
    Time autorewrite with sublist in *|-.
    rewrite (split3seg_array_at _ _ _ 0 56 60 64)
-     by (autorewrite with sublist; Omega1).
+     by (autorewrite with sublist; omega).
    rewrite CBLOCKz_eq in *.
-   pose proof (Zlength_nonneg dd').
+   rewrite <- !app_ass.
    Time autorewrite with sublist. (*7*)
-   cancel.
-   rewrite array_at_data_at'; auto.  apply derives_refl.
+   change (64-8) with 56.
+   rewrite (array_at_data_at' _ _ _ 56 60) by auto.
+   simpl. cancel.
  }
-  Time forward. (* p += 4; *) (*5.1*) {
-   go_lower. apply prop_right.
-    pose proof CBLOCKz_eq.
-    rewrite field_address_offset by auto with field_compatible.
-    normalize.
-  }
+  Time forward. (* p += 4; *) (*5.1*)
   Time forward. (* p -= SHA_CBLOCK; *) (*5.9*)
   {
-   go_lower. apply prop_right.
-    pose proof CBLOCKz_eq.
+    go_lower; apply prop_right.
     rewrite field_address_offset by auto with field_compatible.
-    make_Vptr c; simpl in *; auto.
+    make_Vptr c. auto.
   }
-  drop_LOCAL 1%nat. (* drop cNl *)
-  drop_LOCAL 1%nat. (* drop cNh *)
-  match goal with
-  | |- context [temp _p ?X] =>
-     replace X with  (field_address t_struct_SHA256state_st [StructField _data] c)
-      by (pose proof CBLOCKz_eq;
-            rewrite !field_address_offset by auto with field_compatible;
+  deadvars!.
+  replace (force_val _) with  (field_address t_struct_SHA256state_st [StructField _data] c)
+    by ( rewrite !field_address_offset by auto with field_compatible;
            make_Vptr c;  simpl;  rewrite Ptrofs.sub_add_opp;
-           rewrite !Ptrofs.add_assoc; normalize)
-   end.
+           rewrite !Ptrofs.add_assoc; normalize).
   subst hibytes; subst lobytes.
-(*  change (Vint Int.zero) with (Vint (Int.repr 0)). *)
   rewrite <- !map_list_repeat.
   rewrite <- !map_app.
   rewrite <- intlist_to_bytelist_app.
-  simpl ([hi_part bitlen] ++ [lo_part bitlen]).
-  set (lastblock :=
-          dd' ++ list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) Byte.zero
-              ++ intlist_to_bytelist [hi_part bitlen; lo_part bitlen]).
+  simpl ([_] ++ [_]).
+  set (lastblock := dd' ++ _ ++ _).
   assert (H99: Zlength lastblock = CBLOCKz)
     by (unfold lastblock; autorewrite with sublist; omega).
   unfold POSTCONDITION, abbreviate.
@@ -527,8 +480,8 @@ Proof.
   * Time entailer!.
      Time unfold_data_at (data_at _ _ _ _). (*0.62*)
       unfold lastblock'.
-      rewrite bytelist_to_intlist_to_bytelist; auto.
-      2:    rewrite H99; exists LBLOCKz; reflexivity.
+      rewrite bytelist_to_intlist_to_bytelist
+        by (rewrite H99; exists LBLOCKz; reflexivity).
       cancel.
   * apply Zlength_bytelist_to_intlist.
      assumption.

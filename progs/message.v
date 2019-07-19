@@ -89,20 +89,21 @@ Definition _t'1 : ident := 70%positive.
 Definition f_intpair_serialize := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _intpair noattr))) ::
-                (_buf, (tptr tuchar)) :: nil);
+  fn_params := ((_p, (tptr tvoid)) :: (_buf, (tptr tuchar)) :: nil);
   fn_vars := nil;
   fn_temps := ((_x, tint) :: (_y, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _x
     (Efield
-      (Ederef (Etempvar _p (tptr (Tstruct _intpair noattr)))
+      (Ederef
+        (Ecast (Etempvar _p (tptr tvoid)) (tptr (Tstruct _intpair noattr)))
         (Tstruct _intpair noattr)) _x tint))
   (Ssequence
     (Sset _y
       (Efield
-        (Ederef (Etempvar _p (tptr (Tstruct _intpair noattr)))
+        (Ederef
+          (Ecast (Etempvar _p (tptr tvoid)) (tptr (Tstruct _intpair noattr)))
           (Tstruct _intpair noattr)) _y tint))
     (Ssequence
       (Sassign
@@ -122,8 +123,8 @@ Definition f_intpair_serialize := {|
 Definition f_intpair_deserialize := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _intpair noattr))) ::
-                (_buf, (tptr tuchar)) :: (_length, tint) :: nil);
+  fn_params := ((_p, (tptr tvoid)) :: (_buf, (tptr tuchar)) ::
+                (_length, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_x, tint) :: (_y, tint) :: nil);
   fn_body :=
@@ -140,12 +141,16 @@ Definition f_intpair_deserialize := {|
     (Ssequence
       (Sassign
         (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _intpair noattr)))
-            (Tstruct _intpair noattr)) _x tint) (Etempvar _x tint))
+          (Ederef
+            (Ecast (Etempvar _p (tptr tvoid))
+              (tptr (Tstruct _intpair noattr))) (Tstruct _intpair noattr)) _x
+          tint) (Etempvar _x tint))
       (Sassign
         (Efield
-          (Ederef (Etempvar _p (tptr (Tstruct _intpair noattr)))
-            (Tstruct _intpair noattr)) _y tint) (Etempvar _y tint)))))
+          (Ederef
+            (Ecast (Etempvar _p (tptr tvoid))
+              (tptr (Tstruct _intpair noattr))) (Tstruct _intpair noattr)) _y
+          tint) (Etempvar _y tint)))))
 |}.
 
 Definition v_intpair_message := {|

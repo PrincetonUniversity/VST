@@ -92,21 +92,22 @@ Definition _t'2 : ident := 73%positive.
 Definition f_foo_reset := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_self, (tptr (Tstruct _foo_object noattr))) :: nil);
+  fn_params := ((_self, (tptr (Tstruct _object noattr))) :: nil);
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
 (Sassign
   (Efield
-    (Ederef (Etempvar _self (tptr (Tstruct _foo_object noattr)))
-      (Tstruct _foo_object noattr)) _data tint)
-  (Econst_int (Int.repr 0) tint))
+    (Ederef
+      (Ecast (Etempvar _self (tptr (Tstruct _object noattr)))
+        (tptr (Tstruct _foo_object noattr))) (Tstruct _foo_object noattr))
+    _data tint) (Econst_int (Int.repr 0) tint))
 |}.
 
 Definition f_foo_twiddle := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_self, (tptr (Tstruct _foo_object noattr))) :: (_i, tint) ::
+  fn_params := ((_self, (tptr (Tstruct _object noattr))) :: (_i, tint) ::
                 nil);
   fn_vars := nil;
   fn_temps := ((_d, tint) :: nil);
@@ -114,12 +115,16 @@ Definition f_foo_twiddle := {|
 (Ssequence
   (Sset _d
     (Efield
-      (Ederef (Etempvar _self (tptr (Tstruct _foo_object noattr)))
-        (Tstruct _foo_object noattr)) _data tint))
+      (Ederef
+        (Ecast (Etempvar _self (tptr (Tstruct _object noattr)))
+          (tptr (Tstruct _foo_object noattr))) (Tstruct _foo_object noattr))
+      _data tint))
   (Ssequence
     (Sassign
       (Efield
-        (Ederef (Etempvar _self (tptr (Tstruct _foo_object noattr)))
+        (Ederef
+          (Ecast (Etempvar _self (tptr (Tstruct _object noattr)))
+            (tptr (Tstruct _foo_object noattr)))
           (Tstruct _foo_object noattr)) _data tint)
       (Ebinop Oadd (Etempvar _d tint)
         (Ebinop Omul (Econst_int (Int.repr 2) tint) (Etempvar _i tint) tint)

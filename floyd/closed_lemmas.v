@@ -1856,7 +1856,7 @@ intros; right; auto.
 Qed.
 Hint Resolve in_map_fst2 : closed.
 
-Ltac precondition_closed :=
+Ltac precondition_closed :=  (* obsolete? DELETE_ME *)
  match goal with |- precondition_closed _ _ => idtac end;
  let x := fresh "x" in intro x;
  split;

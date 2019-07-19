@@ -12,7 +12,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "progs/printf.c"%string.
-  Definition normalized := false.
+  Definition normalized := true.
 End Info.
 
 Definition ___builtin_annot : ident := 7%positive.

@@ -585,6 +585,8 @@ intros.
 unfold semax_body in *.
 destruct s as [id fs].
 destruct fs.
+destruct H0 as [H0' H0]; split; auto.
+clear H0'.
 intros.
 specialize (H0 Espec ts x).
 eapply semax_Delta_subsumption; [ | apply H0].
