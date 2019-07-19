@@ -16,7 +16,7 @@ Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation.
 Require Import VST.concurrency.compiler.sequential_compiler_correct.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
-Require Import VST.concurrency.common.HybridMachine.
+Require Import VST.concurrency.common.HybridsMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
 
 Require Import VST.concurrency.compiler.Clight_self_simulation.

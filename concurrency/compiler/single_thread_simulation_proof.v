@@ -19,7 +19,9 @@ Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
+Require Import VST.concurrency.compiler.list_order.
 Require Import VST.concurrency.compiler.synchronisation_symulations.
+
 
 
 Require Import VST.concurrency.lib.Coqlib3.
@@ -1027,49 +1029,293 @@ Admitted.
     
     Section CompileNThreads.
       
-      Definition nth_index:= list (option compiler_index).
-      Definition list_lt: nth_index -> nth_index -> Prop.
-      Admitted.
-      Lemma list_lt_wf:
-        well_founded list_lt.
-      Admitted.
+      Definition nth_index:= (list (option compiler_index)).
+      Definition list_lt: nth_index -> nth_index -> Prop:=
+        list_ord (opt_rel' (InjorderX compiler_sim)).
+
+      Lemma list_lt_wf: well_founded list_lt.
+      Proof. eapply list_ord_wf, option_wf, Injfsim_order_wfX. Qed.
+      
       Inductive match_state:
-        forall n,
-          nth_index ->
+        forall n, nth_index ->
           Values.Val.meminj ->
           ThreadPool (Some 0)%nat -> Memory.Mem.mem -> ThreadPool (Some n) -> Memory.Mem.mem -> Prop:=
-      | refl_match: forall j tp m,
-          match_state 0 nil j tp m tp m
+      | refl_match: forall tp m,
+          match_state 0 nil (Mem.flat_inj (Mem.nextblock m)) tp m tp m
       | step_match_state:
           forall n ocd ils jn jSn tp0 m0 tpn mn tpSn mSn,
             match_state n ils jn tp0 m0 tpn mn ->
             concur_match n ocd jSn tpn mn tpSn mSn ->
             match_state (S n) (cons ocd ils) (compose_meminj jn jSn) tp0 m0 tpSn mSn.
-
+      Lemma thread_step_mem_fwd:
+        forall hb m sge U st1 m1 st1' m1',
+          machine_semantics.thread_step (HybConcSem hb m) sge U st1 m1 st1' m1' ->
+          ((Mem.nextblock m1) <= (Mem.nextblock m1'))%positive.
+      Proof.
+      Admitted.
+      Lemma machine_step_mem_fwd:
+        forall hb m sge U tr1 st1 m1 U' tr1' st1' m1',
+          machine_semantics.machine_step (HybConcSem hb m)
+                                         sge U tr1 st1 m1 U' tr1' st1' m1'->
+          ((Mem.nextblock m1) <= (Mem.nextblock m1'))%positive.
+      Proof. Admitted.
+      
+      Lemma machine_step_trace_wf:
+        forall hb m sge U tr1 st1 m1 U' x st1' m1',
+          machine_semantics.machine_step (HybConcSem hb m)
+                                         sge U tr1 st1 m1 U' (tr1++x) st1' m1'->
+          Forall2 (inject_mevent (Mem.flat_inj (Mem.nextblock m1'))) x x.
+      Proof.
+      Admitted. (*This comes from self injection? *)
+      Lemma flat_inj_lt:
+        forall b b', (b <= b')%positive ->
+                inject_incr (Mem.flat_inj b) (Mem.flat_inj b').
+      Proof. Admitted.
+      Local Ltac subst_sig:=
+        match goal with
+          H': existT _ _ _ = existT _ _ _ |- _ =>
+          eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
+        end.
+      Local Ltac inv_match0:=
+        match goal with
+              H: match_state 0 _ _ _ _ _ _ |- _ =>
+              inversion H; subst_sig; try clear H
+        end.
+      Lemma Forall_cat:
+        forall {A B} (f: A -> B -> Prop) a1 a2 b1 b2,
+          Forall2 f a1 b1 ->
+          Forall2 f a2 b2 ->
+          Forall2 f (a1 ++  a2) (b1 ++ b2).
+      Proof.
+        intros.
+      Admitted.
+      Lemma machine_step_traces:
+        forall hb m sge U tr1 st1 m1 U' tr1' st1' m1',
+          machine_semantics.machine_step
+            (HybConcSem hb m)
+            sge U tr1 st1 m1 U' tr1' st1' m1'->
+          exists tr_tail, tr1' = tr1 ++ tr_tail /\
+                     forall tr2, 
+                       machine_semantics.machine_step
+                         (HybConcSem hb m)
+                         sge U tr2 st1 m1 U' (tr2 ++ tr_tail) st1' m1'.
+      Admitted.
       Lemma trivial_self_injection:
         forall m : option mem,
-          HybridMachine_simulation_properties (HybConcSem (Some 0)%nat m)
-                                              (HybConcSem (Some 0)%nat m) (match_state 0).
+          HybridMachine_simulation_properties
+            (HybConcSem (Some 0)%nat m)
+            (HybConcSem (Some 0)%nat m) (match_state 0).
       Proof.
-      (* NOTE: If this lemma is not trivial, we can start the induction at 1,
-         an the first case follow immediately by lemma
-         compile_one_thread
-       *)
-      Admitted.
+        simpl; intros.
+        econstructor.
+        - eapply list_lt_wf.
+        - intros; normal; eauto.
+          + econstructor.
+        - intros; normal.
+          + econstructor.
+          + eapply inject_incr_trace; try eassumption.
+            inv_match0; eapply flat_inj_lt.
+            eapply thread_step_mem_fwd; apply H.
+          + left. exists 0%nat; inv_match0.
+            do 2 eexists; split; try reflexivity; eauto.
+        - intros; inv_match0.
+          eapply machine_step_traces in H; normal; subst; eauto.
+          + econstructor.
+          + eapply Forall_cat.
+            eapply inject_incr_trace; try eassumption.
+            apply flat_inj_lt.
+            eapply machine_step_mem_fwd; eauto.
+            eapply machine_step_trace_wf; eapply H0.
+          + eapply H0.
+        - intros; inv_match0; normal; eauto.
+        - intros; inv_match0; reflexivity.
 
+          Unshelve.
+          all: eauto.
+      Qed.
+      
+      
+      Lemma step_diagram_helper:
+        forall (ord: relation nth_index) tr1 tr2 m U hb cd m1' st1' tge st2 m2, 
+          (exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : nth_index) 
+             (mu' : meminj),
+              match_state hb cd' mu' st1' m1' st2' m2' /\
+              Forall2 (inject_mevent mu') tr1 tr2 /\
+              (machine_semantics_lemmas.thread_step_plus
+                 (HybConcSem (Some hb) m) 
+                 tge U st2 m2 st2' m2' \/
+               machine_semantics_lemmas.thread_step_star
+                 (HybConcSem (Some hb) m) 
+                 tge U st2 m2 st2' m2' /\ ord cd' cd))
+          <->
+          exists (st2' : ThreadPool (Some hb)) (m2' : mem) (cd' : nth_index) 
+            (mu' : meminj),
+            match_state hb cd' mu' st1' m1' st2' m2' /\
+            Forall2 (inject_mevent mu') tr1 tr2 /\
+            (machine_semantics_lemmas.thread_step_plus
+               (HybConcSem (Some hb) m) 
+               tge U st2 m2 st2' m2' \/  m2=m2' /\ st2=st2' /\ ord cd' cd).
+      Proof.
+        intros.
+        split; intros; normal; eauto.
+        - destruct H1; auto.
+          destruct H1 as [[n H1] Hord]; destruct n.
+          + inv H1; auto.
+          + left; exists n; auto.
+        - destruct H1; [left| right]; auto.
+          normal; subst; auto.
+          exists 0%nat. constructor.
+      Qed.
+      
+      Lemma inject_mem_event_interpolation:
+            forall jn jSn ev1 ev3,
+            (inject_mem_event (compose_meminj jn jSn)) ev1 ev3 ->
+            exists ev2,
+              inject_mem_event jn ev1 ev2 /\
+              inject_mem_event jSn ev2 ev3 .
+          Proof.
+            intros.
+            destruct ev1.
+            - inv H.
+          Admitted.
+          Lemma inject_mem_sync_interpolation:
+            forall jn jSn ev1 ev3,
+            (inject_sync_event (compose_meminj jn jSn)) ev1 ev3 ->
+            exists ev2,
+              inject_sync_event jn ev1 ev2 /\
+              inject_sync_event jSn ev2 ev3 .
+          Proof.
+            intros.
+            destruct ev1.
+            - inv H.
+          Admitted.
+          Lemma inject_mevent_interpolation:
+            forall jn jSn ev1 ev3,
+            (inject_mevent (compose_meminj jn jSn)) ev1 ev3 ->
+            exists ev2,
+              inject_mevent jn ev1 ev2 /\
+              inject_mevent jSn ev2 ev3 .
+          Proof.
+            intros.
+            destruct ev1.
+            - inv H.
+              eapply inject_mem_event_interpolation in H3.
+              normal_hyp; repeat (econstructor; eauto).
+            - inv H.
+              eapply inject_mem_sync_interpolation in H3.
+              normal_hyp; repeat (econstructor; eauto).
+          Qed.
+              
+          
+          Lemma list_inject_mevent_interpolation:
+            forall jn jSn tr1 tr3,
+            Forall2 (inject_mevent (compose_meminj jn jSn)) tr1 tr3 ->
+            exists tr2,
+              Forall2 (inject_mevent jn) tr1 tr2 /\
+              Forall2 (inject_mevent jSn) tr2 tr3 .
+          Proof.
+            intros ?? tr1.
+            induction tr1.
+            - intros tr3 HH; inv HH.
+              econstructor; eauto.
+            - intros tr3 HH; inv HH.
+              eapply IHtr1 in H3.
+              eapply inject_mevent_interpolation in H1.
+              normal_hyp.
+              eexists; repeat (econstructor; eauto).
+          Qed.            
+Lemma inject_mevent_compose:
+              forall j1 j2 t1 t2 t3,
+              inject_mevent j1 t1 t2->
+              inject_mevent j2 t2 t3->
+              inject_mevent (compose_meminj j1 j2) t1 t3.
+            Admitted.
+            Lemma forall_inject_mevent_compose:
+              forall j1 j2 t1 t2 t3,
+              Forall2 (inject_mevent j1) t1 t2->
+              Forall2 (inject_mevent j2) t2 t3->
+              Forall2 (inject_mevent (compose_meminj j1 j2)) t1 t3.
+            Proof.
+              intros ?? t1.
+              induction t1.
+              - intros. inv H. inv H0. constructor.
+              - intros. inv H. inv H0. constructor; eauto.
+                eapply inject_mevent_compose; eauto.
+            Qed.
       Lemma simulation_inductive_case:
         forall n : nat,
           (forall m : option mem,
-              HybridMachine_simulation_properties (HybConcSem (Some 0)%nat m)
-                                                  (HybConcSem (Some n) m) (match_state n)) ->
+              HybridMachine_simulation_properties
+                (HybConcSem (Some 0)%nat m)
+                (HybConcSem (Some n) m) (match_state n)) ->
           (forall m : option mem,
-              HybridMachine_simulation_properties (HybConcSem (Some n) m)
-                                                  (HybConcSem (Some (S n)) m) (concur_match n)) ->
+              HybridMachine_simulation_properties
+                (HybConcSem (Some n) m)
+                (HybConcSem (Some (S n)) m) (concur_match n)) ->
           forall m : option mem,
-            HybridMachine_simulation_properties (HybConcSem (Some 0)%nat m)
-                                                (HybConcSem (Some (S n)) m) (match_state (S n)).
+            HybridMachine_simulation_properties
+              (HybConcSem (Some 0)%nat m)
+              (HybConcSem (Some (S n)) m) (match_state (S n)).
       Proof.
-        intros n.
+        intros n Hsim0 Hsimn m.
+        specialize (Hsim0 m).
+        specialize (Hsimn m).
+        econstructor.
+        - !goal (well_founded _).
+          eapply list_ord_part_wf.
+          eapply Hsimn.
+          eapply Hsim0.
+        - intros.
+          eapply Hsim0 in H; normal_hyp.
+          eapply Hsimn in H; eauto.
+          normal; eauto.
+          !goal(match_state _ _ _ _ _ _ _). econstructor; eauto.
+        - intros.
+          inv H0. subst_sig.
+          eapply Hsim0 in H; eauto.
+          apply step_diagram_helper in H.
+          apply step_diagram_helper.
+          normal_hyp. destruct H2.
+          + revert H H0.
+            revert x0 x2.
+            
+            
+
+            admit.
+          + normal_hyp; subst.
+            assert (Forall2 (inject_mevent (compose_meminj x2 jSn)) tr1 tr2).
+            { admit. }
+            clear H1.
+            normal_goal; eauto.
+            * econstructor; eauto.
+            * right; repeat weak_split auto.
+              constructor; auto.
+        - intros.
+          inv H0; subst_sig.
+          eapply list_inject_mevent_interpolation in H1;
+            normal_hyp.
+          eapply Hsim0 in H; eauto.
+          normal_hyp.
+          eapply Hsimn in H3; eauto.
+          normal.
+          + econstructor; eauto.
+          + instantiate(1:= x5).
+            eapply forall_inject_mevent_compose; eauto.
+          + auto.
+        -
+
+            
+          + econstructor.
+          econstructor.
+          
+          normal_hyp; eauto.
+          
+          
+          eapply Hsimn in H; eauto.
+          
+          
+        
+        
       Admitted.
       
       Lemma compile_n_threads:
