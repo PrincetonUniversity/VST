@@ -112,3 +112,5 @@ Proof.
       * eapply Pos.max_lub_lt_iff in H1 as [? ?]; auto.
     + exfalso. eapply Pos.nlt_1_r; eassumption.
 Qed.
+
+Infix "++":= seq.cat.
