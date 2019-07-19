@@ -1277,10 +1277,6 @@ Lemma inject_mevent_compose:
           apply step_diagram_helper.
           normal_hyp. destruct H2.
           + revert H H0.
-            revert x0 x2.
-            
-            
-
             admit.
           + normal_hyp; subst.
             assert (Forall2 (inject_mevent (compose_meminj x2 jSn)) tr1 tr2).
@@ -1302,20 +1298,19 @@ Lemma inject_mevent_compose:
           + instantiate(1:= x5).
             eapply forall_inject_mevent_compose; eauto.
           + auto.
-        -
+        - econstructor; simpl in *.
+          unfold HybridMachineSig.halted_machine in *;
+            simpl in *.
+          match_case_hyp H0.
+        - intros * Hmatch i. inv Hmatch.
+          (eapply thread_running with (i:=i) in Hsimn); eauto. 
+          (eapply thread_running with (i:=i)  in Hsim0); eauto.
+          split; intros HH; eauto.
+          + eapply Hsimn; eapply Hsim0; assumption.
+          + eapply Hsim0; eapply Hsimn; assumption.
 
-            
-          + econstructor.
-          econstructor.
-          
-          normal_hyp; eauto.
-          
-          
-          eapply Hsimn in H; eauto.
-          
-          
-        
-        
+            Unshelve.
+            all: assumption.
       Admitted.
       
       Lemma compile_n_threads:
