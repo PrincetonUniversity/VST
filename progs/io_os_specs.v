@@ -220,8 +220,7 @@ Record RData := mkRData {
   ioapic : IoApicData; (* I/O Advanced Programmable Interrupt Controller *)
   intr_flag : bool;
   in_intr : bool; (* in the interrupt handler *)
-  io_rx_log : list IOEvent;
-  io_tx_log : list IOEvent
+  io_log : list IOEvent;
 }.
 
 Class ThreadsConfigurationOps := {
@@ -229,56 +228,53 @@ Class ThreadsConfigurationOps := {
 }.
 
 Definition update_CPU_ID (a : RData) b :=
-  let (_, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData b pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (_, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData b pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log .
 Definition update_pg (a : RData) b :=
-  let (CPU_ID, _, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID b ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, _, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID b ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_ikern (a : RData) b :=
-  let (CPU_ID, pg, _, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg b ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, _, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg b ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_ihost (a : RData) b :=
-  let (CPU_ID, pg, ikern, _, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern b HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, _, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern b HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_HP (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, _, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost b cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, _, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost b cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_cid (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, _, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP b init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, _, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP b init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_init (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, _, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid b big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, _, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid b big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_big_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, _, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init b uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, _, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init b uctxt com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_uctxt (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, _, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log b com1 drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, _, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log b com1 drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_com1 (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, _, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt b drv_serial console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, _, drv_serial, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt b drv_serial console ioapic intr_flag in_intr io_log.
 Definition update_drv_serial (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, _, console, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 b console ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, _, console, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 b console ioapic intr_flag in_intr io_log.
 Definition update_console (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, _, ioapic, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial b ioapic intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, _, ioapic, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial b ioapic intr_flag in_intr io_log.
 Definition update_ioapic (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, _, intr_flag, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console b intr_flag in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, _, intr_flag, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console b intr_flag in_intr io_log.
 Definition update_intr_flag (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, _, in_intr, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic b in_intr io_rx_log io_tx_log.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, _, in_intr, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic b in_intr io_log.
 Definition update_in_intr (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, _, io_rx_log, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag b io_rx_log io_tx_log.
-Definition update_io_rx_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, _, io_tx_log) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr b io_tx_log.
-Definition update_io_tx_log (a : RData) b :=
-  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, io_rx_log, _) := a in
-  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr io_rx_log b.
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, _, io_log) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag b io_log.
+Definition update_io_log (a : RData) b :=
+  let (CPU_ID, pg, ikern, ihost, HP, cid, init, big_log, uctxt, com1, drv_serial, console, ioapic, intr_flag, in_intr, _) := a in
+  mkRData CPU_ID pg ikern ihost HP cid init big_log uctxt com1 drv_serial console ioapic intr_flag in_intr b.
 
 Notation "a '{' 'CPU_ID' : x }" := (update_CPU_ID a x) (at level 1).
 Notation "a '{' 'pg' : x }" := (update_pg a x) (at level 1).
@@ -295,8 +291,7 @@ Notation "a '{' 'console' : x }" := (update_console a x) (at level 1).
 Notation "a '{' 'ioapic' : x }" := (update_ioapic a x) (at level 1).
 Notation "a '{' 'intr_flag' : x }" := (update_intr_flag a x) (at level 1).
 Notation "a '{' 'in_intr' : x }" := (update_in_intr a x) (at level 1).
-Notation "a '{' 'io_rx_log' : x }" := (update_io_rx_log a x) (at level 1).
-Notation "a '{' 'io_tx_log' : x }" := (update_io_tx_log a x) (at level 1).
+Notation "a '{' 'io_log' : x }" := (update_io_log a x) (at level 1).
 
 Definition update_cons_buf (a : ConsoleDriver) b :=
   let (_, rpos) := a in mkConsoleDriver b rpos.
@@ -493,7 +488,7 @@ Definition cons_intr_aux (abd : RData) : option RData :=
                           {com1 / l1 : lrx + Zlength rxbuf' * 2 + 1}
                           {com1 / s / RxBuf : nil}
                           {com1 / s / SerialIrq : false}
-                          {io_rx_log : abd.(io_rx_log) ++ mkRecvEvents (lrx - 1) str}
+                          {io_log : abd.(io_log) ++ mkRecvEvents (lrx - 1) str}
             else Some abd {console / cons_buf :
                             skipn (Z.to_nat (Zlength (abd.(console).(cons_buf) ++ rxbuf') - CONS_BUFFER_MAX_CHARS))
                                   (abd.(console).(cons_buf) ++ rxbuf')}
@@ -501,7 +496,7 @@ Definition cons_intr_aux (abd : RData) : option RData :=
                           {com1 / l1 : lrx + Zlength rxbuf' * 2 + 1}
                           {com1 / s /RxBuf : nil}
                           {com1 / s /SerialIrq : false}
-                          {io_rx_log : abd.(io_rx_log) ++ mkRecvEvents (lrx - 1) str}
+                          {io_log : abd.(io_log) ++ mkRecvEvents (lrx - 1) str}
           else None
         | _ => None
         end
@@ -551,7 +546,7 @@ Fixpoint serial_intr_disable_aux (n : nat) (masked : bool) (abd : RData) : optio
   | O => Some abd
   | S n' =>
     let (data, new) := serial_intr abd.(com1) in
-    let d0 := abd {com1 : data} {io_tx_log : abd.(io_tx_log) ++ new}in
+    let d0 := abd {com1 : data} {io_log : abd.(io_log) ++ new}in
     if d0.(com1).(s).(SerialIrq) then
       if masked then serial_intr_disable_aux n' true d0
       else match cons_intr_aux d0 with
@@ -724,11 +719,11 @@ Definition serial_putc_spec (c : Z) (abd : RData) : option (RData * Z) :=
         let cs := if zeq c' CHAR_LF then CHAR_LF :: CHAR_CR :: nil else c' :: nil in
         match txbuf with
         | nil => Some (abd {com1 / s / TxBuf : cs} {com1 / l2 : ltx + 1}
-                           {io_tx_log : abd.(io_tx_log) ++ IOEvPutc ltx c :: nil}, c')
+                           {io_log : abd.(io_log) ++ IOEvPutc ltx c :: nil}, c')
         | _ =>
           match next_sendcomplete ltx with
           | Some ltx' => Some (abd {com1 / s / TxBuf : cs} {com1 / l2 : ltx'}
-                                   {io_tx_log : abd.(io_tx_log) ++ IOEvPutc ltx c :: nil}, c')
+                                   {io_log : abd.(io_log) ++ IOEvPutc ltx c :: nil}, c')
           | None => None
           end
         end
@@ -750,7 +745,7 @@ Definition cons_buf_read_spec (abd : RData) : option (RData * Z) :=
     | (c, logIdx, strIdx) :: tl =>
       Some (abd {console : s {cons_buf : tl}
                              {rpos : (r + 1) mod CONS_BUFFER_SIZE}}
-                {io_rx_log : abd.(io_rx_log) ++ IOEvGetc logIdx strIdx c :: nil}, c)
+                {io_log : abd.(io_log) ++ IOEvGetc logIdx strIdx c :: nil}, c)
     end
   | _ => None
   end.
