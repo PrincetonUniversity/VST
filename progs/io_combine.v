@@ -123,159 +123,6 @@ Qed.
 (* relate to OS's external events *)
 Notation ge := (globalenv prog).
 
-(* for now, this is only proved for getchar *)
-Definition IO_ext_sem' e (args : list val) s :=
-  if oi_eq_dec  (Some (ext_link "getchar"%string, funsig2signature ([], tint) cc_default))
-    (ef_id_sig ext_link e) then
-    match sys_getc_wrap_spec s with
-    | Some (s', ret, t') => Some (s', Some ret, t')
-    | None => None
-    end
-  else Some (s, None, TEnd).
-
-Definition IO_specs' (ext_link : string -> ident) :=
-  [(ext_link "getchar"%string, getchar_spec)].
-
-Instance IO_Espec' : OracleKind := add_funspecs (@IO_void_Espec (@IO_event nat)) ext_link (IO_specs' ext_link).
-
-Definition io_ext_spec := OK_spec.
-
-Program Definition io_dry_spec : external_specification mem external_function (@IO_itree (@IO_event nat)).
-Proof.
-  unshelve econstructor.
-  - intro e.
-    pose (ext_spec_type io_ext_spec e) as T; simpl in T.
-    destruct (oi_eq_dec _ _); [|exact False];
-      match goal with T := (_ * ?A)%type |- _ => exact (mem * A)%type end.
-  - simpl; intros.
-    destruct (oi_eq_dec _ _); [|contradiction].
-    + destruct X as (m0 & _ & w).
-      exact (X1 = [] /\ m0 = X3 /\ getchar_pre X3 w X2).
-  - simpl; intros.
-    destruct (oi_eq_dec _ _); [|contradiction].
-    + destruct X as (m0 & _ & w).
-      destruct X1; [|exact False].
-      destruct v; [exact False | | exact False | exact False | exact False | exact False].
-      exact (getchar_post m0 X3 i w X2).
-  - intros; exact False.
-Defined.
-
-Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.
-Proof.
-  simpl; intros.
-  destruct (oi_eq_dec _ _); [|assumption].
-  destruct X as [_ X]; exact (m_dry jm, X).
-Defined.
-
-Theorem juicy_dry_specs : juicy_dry_ext_spec _ io_ext_spec io_dry_spec dessicate.
-Proof.
-  split; [|split]; try reflexivity; simpl.
-  - unfold funspec2pre, dessicate; simpl.
-    intros ?; if_tac; [|contradiction].
-    + unfold funspec2pre; simpl.
-      intros; subst.
-      destruct t as (? & ? & k); simpl in *.
-      destruct H1 as (? & phi0 & phi1 & J & Hpre & Hr & Hext).
-      destruct e; inv H; simpl in *.
-      destruct vl; try contradiction.
-      unfold putchar_pre; split; auto; split; auto.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
-      apply has_ext_eq in Htrace.
-      eapply join_sub_joins_trans in Hext; [|eexists; apply ghost_of_join; eauto].
-      unfold getchar_pre.
-      eapply has_ext_join in Hext as []; [| rewrite Htrace; reflexivity | apply join_comm, core_unit]; subst; auto.
-  - unfold funspec2pre, funspec2post, dessicate; simpl.
-    intros ?; if_tac; [|contradiction].
-    + unfold funspec2pre, funspec2post, dessicate; simpl.
-      intros; subst.
-      destruct H0 as (_ & vl & z0 & ? & _ & phi0 & phi1' & J & Hpre & ? & ?).
-      destruct t as (phi1 & t); subst; simpl in *.
-      destruct t as (? & k); simpl in *.
-      unfold SEPx in Hpre; simpl in Hpre.
-      rewrite seplog.sepcon_emp in Hpre.
-      destruct Hpre as (_ & _ & ? & ? & Htrace).
-      pose proof (has_ext_eq _ _ Htrace) as Hgx.
-      destruct v; try contradiction.
-      destruct v; try contradiction.
-      destruct H4 as (Hmem & ? & Hw); simpl in Hw; subst.
-      rewrite <- Hmem in *.
-      rewrite rebuild_same in H2.
-      unshelve eexists (age_to.age_to (level jm) (set_ghost phi0 [Some (ext_ghost x, NoneP)] _)), (age_to.age_to (level jm) phi1'); auto.
-      split; [|split3].
-      * eapply age_rejoin; eauto.
-        intro; rewrite H2; auto.
-      * exists i.
-        split3; simpl.
-        -- split; auto.
-        -- split; auto; split; unfold liftx; simpl; unfold lift.lift; auto; discriminate.
-        -- unfold SEPx; simpl.
-             rewrite seplog.sepcon_emp.
-             unfold ITREE; exists x; split; [if_tac; auto|].
-             { subst; apply eutt_sutt, Eq.Reflexive_eqit_eq. }
-             eapply age_to.age_to_pred, change_has_ext; eauto.
-      * eapply necR_trans; eauto; apply age_to.age_to_necR.
-      * rewrite H3; eexists; constructor; constructor.
-        instantiate (1 := (_, _)).
-        constructor; simpl; [|constructor; auto].
-        apply ext_ref_join.
-Qed.
-
-Instance mem_evolve_refl : Reflexive mem_evolve.
-Proof.
-  repeat intro.
-  destruct (access_at x loc Cur); auto.
-  destruct p; auto.
-Qed.
-
-Lemma dry_spec_mem : ext_spec_mem_evolve _ io_dry_spec.
-Proof.
-  intros ??????????? Hpre Hpost.
-  simpl in Hpre, Hpost.
-  simpl in *.
-  if_tac in Hpre; [|contradiction].
-  - destruct w as (m0 & _ & w).
-    destruct Hpre as (_ & ? & Hpre); subst.
-    destruct v; try contradiction.
-    destruct v; try contradiction.
-    destruct Hpost; subst.
-    reflexivity.
-Qed.
-
-Theorem IO_OS_soundness':
- forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
-   semax_prog_ext prog initial_oracle V G ->
-   Genv.init_mem prog = Some m ->
-   exists b, exists q, exists m',
-     Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-     initial_core (cl_core_sem (globalenv prog))
-         0 m q m' (Vptr b Ptrofs.zero) nil /\
-   forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem' IO_inj_mem OS_mem valid_trace n TEnd traces initial_oracle q m' /\
-     forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
-Proof.
-  intros; eapply OS_soundness with (dryspec := io_dry_spec); eauto.
-  - unfold IO_ext_sem'; intros; simpl in *.
-    destruct H2 as [Hvalid Htrace].
-    if_tac; [|contradiction].
-    + destruct w as (? & _ & ?).
-      destruct H1 as (? & ? & Hpre); subst.
-      destruct s; simpl in *.
-      unfold sys_getc_wrap_spec in *.
-      destruct (sys_getc_spec) eqn:Hspec; inv H3.
-      eapply sys_getc_correct with (m1 := m) in Hspec as (? & -> & [? Hpost ? ?]); eauto.
-      * split; auto; do 2 eexists; eauto.
-        unfold getchar_post, getchar_post' in *.
-        destruct Hpost as [? Hpost]; split; auto.
-        destruct Hpost as [[]|[-> ->]]; split; try (simpl in *; rep_omega).
-        -- rewrite if_false by omega; eauto.
-        -- rewrite if_true; auto.
-      * unfold getchar_pre, getchar_pre' in *.
-        apply Traces.sutt_trace_incl; auto.
-  - apply juicy_dry_specs.
-  - apply dry_spec_mem.
-Qed.
-
   Inductive OS_safeN_trace : nat -> @trace io_events.IO_event unit -> Ensemble (@trace io_events.IO_event unit * RData) -> OK_ty -> RData -> corestate -> mem -> Prop :=
   | OS_safeN_trace_0: forall t z s c m, OS_safeN_trace O t (Singleton _ (TEnd, s)) z s c m
   | OS_safeN_trace_step:
@@ -290,7 +137,7 @@ Qed.
          (Hargsty : Val.has_type_list args (sig_args (ef_sig e)))
          (Hretty : step_lemmas.has_opttyp ret (sig_res (ef_sig e))),
          IO_inj_mem e args m t s ->
-         IO_ext_sem' e args s = Some (s', ret, t') ->
+         IO_ext_sem e args s = Some (s', ret, t') ->
          m' = OS_mem e args m s' ->
          (n' <= n)%nat ->
          valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
@@ -300,7 +147,7 @@ Qed.
       (forall t1, In _ traces t1 ->
         exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         IO_inj_mem e args m t s /\ IO_ext_sem' e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
+         IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)) ->
@@ -322,13 +169,26 @@ Local Ltac destruct_spec Hspec :=
   | match ?x with _ => _ end = _ => destruct x eqn:?; subst; inj; try discriminate
   end.
 
-  Lemma IO_ext_sem_trace : forall e args s s' ret t, valid_trace s -> IO_ext_sem' e args s = Some (s', ret, t) ->
+  Lemma IO_ext_sem_trace : forall e args s s' ret t, valid_trace s -> IO_ext_sem e args s = Some (s', ret, t) ->
     s.(io_log) = common_prefix IOEvent_eq s.(io_log) s'.(io_log) /\
     t = trace_of_ostrace (strip_common_prefix IOEvent_eq s.(io_log) s'.(io_log)).
   Proof.
     intros until 1.
-    unfold IO_ext_sem'.
-    if_tac.
+    unfold IO_ext_sem.
+    if_tac; [|if_tac].
+    - unfold sys_putc_wrap_spec.
+      destruct args as [| [] [|]]; try discriminate.
+      destruct get_sys_arg1 eqn: Harg; try discriminate.
+      destruct (eq_dec _ _); try discriminate.
+      destruct sys_putc_spec eqn: Hputc; inversion 1; subst; split; auto.
+      pose proof Hputc as Hspec.
+      unfold sys_putc_spec in Hputc; destruct_spec Hputc.
+      unfold uctx_set_errno_spec in Hputc; destruct_spec Hputc.
+      unfold uctx_set_retval1_spec in Heqo3; destruct_spec Heqo3.
+      destruct r1; cbn in *.
+      eapply sys_putc_trace_case in Hspec as []; eauto.
+      unfold get_sys_ret; cbn.
+      repeat (rewrite ZMap.gss in * || rewrite ZMap.gso in * by easy); subst; inj; reflexivity.
     - unfold sys_getc_wrap_spec.
       destruct sys_getc_spec eqn: Hgetc; inversion 1; subst; split; auto.
       pose proof Hgetc as Hspec.
@@ -423,7 +283,7 @@ Local Ltac destruct_spec Hspec :=
   Qed.
 
   Lemma ext_safe_OS_safe : forall n t traces z q m s0 (Hvalid : valid_trace s0),
-    ext_safeN_trace(J := OK_spec) prog IO_ext_sem' IO_inj_mem OS_mem valid_trace n t traces z q m ->
+    ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem valid_trace n t traces z q m ->
     exists traces', OS_safeN_trace n t traces' z s0 q m /\ forall t, In _ traces t <-> exists s, In _ traces' (t, s).
   Proof.
     induction n as [n IHn] using lt_wf_ind; intros; inv H.
@@ -436,7 +296,7 @@ Local Ltac destruct_spec Hspec :=
       eapply OS_safeN_trace_step; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
          step_lemmas.has_opttyp ret (sig_res (ef_sig e)) /\
-         IO_inj_mem e args m t s /\ IO_ext_sem' e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
+         IO_inj_mem e args m t s /\ IO_ext_sem e args s = Some (s', ret, t') /\ m' = OS_mem e args m s' /\
          (n' <= n0)%nat /\ valid_trace s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret q = Some c' /\ OS_safeN_trace n' (app_trace t t') traces' z' s' c' m' /\
         exists t'' sf, In _ traces' (t'', sf) /\ t1 = (app_trace t' t'', sf)); split.
@@ -470,7 +330,7 @@ Theorem IO_OS_ext:
      forall t s, In _ traces (t, s) -> exists z', consume_trace initial_oracle z' t /\ t = trace_of_ostrace s.(io_log) /\
       valid_trace_user s.(io_log).
 Proof.
-  intros; eapply IO_OS_soundness' in H as (? & ? & ? & ? & ? & Hsafe); eauto.
+  intros; eapply IO_OS_soundness in H as (? & ? & ? & ? & ? & Hsafe); eauto.
   do 4 eexists; eauto; split; eauto; intros.
   destruct (Hsafe n) as (? & Hsafen & Htrace).
   eapply ext_safe_OS_safe in Hsafen as (? & Hsafen & Htrace').
