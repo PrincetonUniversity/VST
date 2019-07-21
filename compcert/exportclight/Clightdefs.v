@@ -80,3 +80,52 @@ Definition mkprogram (types: list composite_definition)
      prog_types := types;
      prog_comp_env := ce;
      prog_comp_env_eq := EQ |}.
+
+Definition bool2posdigit (b: bool) : positive -> positive :=
+ if b then xI else xO.
+
+Definition string2ident_base : positive := 512.
+(* This function converts an Ascii string representing a C identifier
+  into a positive number >= string2ident_base.   Characters that more
+  frequently appear in C identifiers have shorter encodings. *)
+Fixpoint string2ident (s: string) : ident :=
+ match s with
+ | EmptyString => 512%positive
+ | String (Ascii.Ascii b0 b1 b2 b3 b4 b5 b6 b7) r =>
+    let r' := string2ident r in
+    if (b7 ||
+      negb b6 && negb b5 ||
+      negb b6 && b5 && negb b4 ||
+      b6 && negb b5 && b4 && b3 && negb b2 ||
+      b6 && b5 && negb (b4 || b3 || b2 || b1 || b0) ||
+      b6 && b5 && b3 && b2)%bool
+    then (*these characters should not appear in idents *)
+           xI (xI (xI (bool2posdigit b6 (bool2posdigit b5
+              (bool2posdigit b4 (bool2posdigit b3
+               (bool2posdigit b2 (bool2posdigit b1 
+                (bool2posdigit b0 r')))))))))
+    else if b6  
+    then (* letters, etc. *)
+        if b5
+        then (* lowercase letters, etc. *)
+           xO (bool2posdigit b4 (bool2posdigit b3
+               (bool2posdigit b2 (bool2posdigit b1 
+                (bool2posdigit b0 r')))))
+        else (* uppercase letters, etc. *)
+           if (b4 && b3 && b2 && b1 && b0)%bool
+           then (* underscore *)
+                  xO (xI (xI (xI r')))
+           else
+           xI (xO (bool2posdigit b4 (bool2posdigit b3
+               (bool2posdigit b2 (bool2posdigit b1 
+                (bool2posdigit b0 r'))))))
+     else (* numbers, etc. *)
+          xI (xI (xO (bool2posdigit b4 (bool2posdigit b3
+               (bool2posdigit b2 (bool2posdigit b1 
+                (bool2posdigit b0 r')))))))
+ end.
+
+Ltac string2ident s :=
+  let s' := constr:(string2ident s) in
+  let s' := eval compute in s' in
+  exact s'.

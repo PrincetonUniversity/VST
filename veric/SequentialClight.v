@@ -18,6 +18,7 @@ Import VericSound.
 Import VericMinimumSeparationLogic.
 Import VericMinimumSeparationLogic.CSHL_Def.
 Import VericMinimumSeparationLogic.CSHL_Defs.
+Import Clight.
 
 Definition ignores_juice Z (J: external_specification juicy_mem external_function Z) : Prop :=
   (forall e t b tl vl x jm jm',

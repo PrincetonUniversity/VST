@@ -10,7 +10,7 @@ Require Export VST.veric.juicy_extspec.
 Require Import VST.veric.NullExtension.
 Require Import VST.floyd.assert_lemmas.
 Require Import VST.floyd.SeparationLogicFacts.
-Import LiftNotation.
+Import Ctypes LiftNotation.
 Local Open Scope logic.
 
 Fixpoint all_suf_of_labeled_statements (P: labeled_statements -> Prop) (L: labeled_statements): Prop :=
@@ -254,21 +254,24 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
 Definition semax_body
-       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
-  match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
-    forall Espec ts x, (*exists Ann,*)
-      @semax C Espec (func_tycontext f V G nil (*Ann*))
-          (P ts x *  stackframe_of f)
-          (Ssequence f.(fn_body) (Sreturn None))
-          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
- end.
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+match spec with (_, mk_funspec fsig cc A P Q _ _) =>
+  (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
+                      /\ snd fsig = snd (fn_funsig f)
+                      /\ list_norepet (map fst (fst fsig))) /\
+forall Espec ts x, 
+  @semax C Espec (func_tycontext f V G nil)
+      (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
+       (Ssequence f.(fn_body) (Sreturn None))
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
+end.
 
 Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)(fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
     forall V G C ge, @semax_func Espec V G C ge nil nil
 | semax_func_cons:
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+     forall fs id f fsig cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
       andb (id_in_list id (map (@fst _ _) G))
       (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -278,12 +281,11 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
           true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
- (*NEW*)  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
-       precondition_closed f P ->
-      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)->
+       Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
+      semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ)->
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, Internal f)::fs)
-                 ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G')
+                 ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G')
 | semax_func_cons_ext:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
@@ -1364,7 +1366,7 @@ Proof.
   + inv H0.
 Qed.
 
-Theorem semax_extensionality_Delta:
+Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
@@ -1746,41 +1748,7 @@ Proof.
       apply exp_derives; intros NEQ.
       apply exp_derives; intros ts.
       apply exp_derives; intros x. rewrite ! andp_assoc.
-      apply andp_derives. trivial. (* unfold liftx, lift; simpl.
-      assert (ZZ: (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) (@eval_expr CS' a rho) =
-                   |> (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) (@eval_expr CS' a rho)))).
-      { apply func_ptr_later_iff. }
-      rewrite ZZ, func_ptr_later_iff; clear ZZ.
-      (*rewrite <- ! later_andp.
-      apply later_derives.*)
-      apply derives_trans with
-      ( ( (!!(@eval_expr CS a rho =  @eval_expr CS' a rho)) &&
-          (!!((@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl) rho = 
-              (@eval_exprlist CS' (@snd (list ident) (list type) (@split ident type argsig)) bl) rho))) &&
-          (@tc_expr CS Delta a rho &&
-          @tc_exprlist CS Delta (@snd (list ident) (list type) (@split ident type argsig)) bl rho &&
-          (func_ptr (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) (@eval_expr CS a rho) &&
-                    (P ts x (make_args' (argsig, retsig) (@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl) rho) *
-                     oboxopt Delta ret (fun rho0 : environ => maybe_retval (Q ts x) retsig ret rho0 -* R rho0) rho)))).
-      { apply andp_right; trivial.
-        apply andp_left1. apply andp_derives. apply rvalue_cspecs_sub; trivial. apply eval_exprlist_cspecs_sub; trivial. }
-      normalize. rewrite ! H. unfold make_args'. simpl. rewrite ! H0.
-      apply andp_derives; [ apply andp_derives | trivial].
-      eapply tc_expr_cspecs_sub; trivial. apply tc_exprlist_cspecs_sub; trivial. 
-    - eapply semax_pre; [| apply AuxDefs.semax_call_backward].
-      simpl. intros rho.
-      apply derives_extract_prop; intros TC.
-      apply andp_left2. unfold CALLpre; simpl.
-      apply exp_derives; intros argsig.
-      apply exp_derives; intros retsig.
-      apply exp_derives; intros cc.
-      apply exp_derives; intros A.
-      apply exp_derives; intros P.
-      apply exp_derives; intros Q.
-      apply exp_derives; intros NEP.
-      apply exp_derives; intros NEQ.
-      apply exp_derives; intros ts.
-      apply exp_derives; intros x. apply derives_refl. *) Set Printing Implicit.
+      apply andp_derives. trivial. 
       apply derives_trans with
       ( ( (!!(@eval_expr CS a rho =  @eval_expr CS' a rho)) &&
           (!!((@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl) rho = 
@@ -1910,16 +1878,20 @@ Lemma semax_body_subsumption: forall cs V V' F F' f spec
       (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
     @semax_body V' F' cs f spec.
 Proof.
-  unfold semax_body. 
-  destruct spec. destruct f0; hnf; intros. 
-  eapply semax_extensionality_Delta. apply TS. apply (SF Espec ts x).
+  destruct spec. destruct f0.
+  intros [? SF] ?; split; auto.
+  intros.
+  eapply semax_Delta_subsumption. apply TS.
+  apply (SF Espec ts x).
 Qed. 
 
 Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
       (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
     @semax_body V G CS f spec -> @semax_body V G CS' f spec.
 Proof.
-  destruct spec. simpl. destruct f0; intros.  specialize (H Espec ts x). 
+  destruct spec. destruct f0.
+  intros [H' H]; split; auto.
+  intros.  specialize (H Espec ts x). 
   rewrite <- (semax_prog.stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
 Qed. 
 
@@ -2314,7 +2286,7 @@ Proof.
   + inv H0.
 Qed.
 
-Theorem semax_extensionality_Delta:
+Theorem semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->

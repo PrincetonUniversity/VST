@@ -5,26 +5,32 @@
 extern int getchar(void);
 extern int putchar(int c);
 
+int getchar_blocking(){
+  int r = -1;
+  while(r == -1) r = getchar();
+  return r;
+}
+
+int putchar_blocking(int c){
+  int r = -1;
+  while(r == -1) r = putchar(c);
+  return r;
+}
+
 void print_intr(unsigned int i) {
   unsigned int q,r;
   if (i!=0) {
     q=i/10u;
     r=i%10u;
     print_intr(q);
-    putchar(r+'0');
+    putchar_blocking(r+'0');
   }
 }
 
 void print_int(unsigned int i) {
   if (i==0)
-    putchar('0');
+    putchar_blocking('0');
   else print_intr(i);
-}
-
-int getchar_blocking(){
-  int r = -1;
-  while(r == -1) r = getchar();
-  return r;
 }
 
 /* Specification:
@@ -44,12 +50,8 @@ int main(void) {
     if (d>=10) break;
     n+=d;
     print_int(n);
-    putchar('\n');
+    putchar_blocking('\n');
     c=getchar_blocking();
   }
   return 0;
 }
-
-  
-
-  

@@ -78,10 +78,12 @@ Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
 
 (*This definition, and lemma close_precondition_i below, could be moved to general_seplog*)
-Program Definition close_precondition (params: list (ident * type)) (P: environ -> pred rmap) (rho: environ) : pred rmap :=
+Program Definition close_precondition (specparams bodyparams: list ident) (P: environ -> pred rmap) (rho: environ) : pred rmap :=
  fun phi =>
    exists ve', exists te',
-   (forall i, In i (map (@fst _ _) params) -> Map.get te' i = Map.get (te_of rho) i) /\
+   (forall n i j, nth_error specparams n = Some i -> 
+                    nth_error bodyparams n = Some j ->
+                     Map.get te' i = Map.get (te_of rho) j) /\
    app_pred (P (mkEnviron (ge_of rho) ve' te')) phi.
 Next Obligation.
 intros.
@@ -90,28 +92,17 @@ destruct H0 as [ve' [te' [? ?]]]; exists ve',te'; split; auto.
 eapply pred_hereditary; eauto.
 Qed.
 
-Lemma close_precondition_i:
-  forall params P rho,
-  P rho |-- close_precondition params P rho.
-Proof.
-intros.
-intros ? ?.
-hnf. exists (ve_of rho), (te_of rho).
-split; auto.
-destruct rho; apply H.
-Qed.
-
-Definition precondition_closed (f: function) {A: TypeTree}
+Definition precondition_closed (fs: list (ident*type)) {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) : Prop :=
  forall ts x,
-  closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\
+  closed_wrt_vars (not_a_param fs) (P ts x) /\
   closed_wrt_lvars (fun _ => True) (P ts x).
 
 Lemma close_precondition_e:
-   forall f (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),
-    precondition_closed f P ->
+   forall al (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),
+    precondition_closed al P ->
   forall ts x rho,
-   close_precondition (fn_params f) (P ts x) rho |-- P ts x rho.
+   close_precondition (map fst al) (map fst al)  (P ts x) rho |-- P ts x rho.
 Proof.
 intros.
 intros ? ?.
@@ -125,13 +116,34 @@ intros.
 simpl; auto.
 intros.
 unfold not_a_param.
-destruct (In_dec ident_eq i (map (@fst _ _) (fn_params f))); auto.
-right; symmetry; apply H0; auto.
+destruct (In_dec ident_eq i (map (@fst _ _) al)); auto.
+right; symmetry.
+destruct (In_nth_error _ _ i0) as [n ?].
+apply (H0 _ _ _ H4 H4).
 Qed.
 
-Definition bind_args (formals: list (ident * type)) (P: environ -> pred rmap) : assert :=
-          fun rho => !! tc_formals formals rho && close_precondition formals P rho.
+Lemma close_precondition_e':
+   forall al (P:  environ-> pred rmap),
+   closed_wrt_vars (fun i => ~ In i al) P  ->
+   closed_wrt_lvars (fun _ => True) P ->
+   forall rho, close_precondition al al P rho |-- P rho.
+Proof.
+intros.
+intros ? ?.
+destruct H1 as [ve' [te' [? ?]]].
+hnf in H,H0.
+rewrite (H0 rho ve') by auto. clear H0.
+rewrite (H _ te'); auto.
+intros.
+destruct (In_dec ident_eq i al); auto.
+right; symmetry.
+destruct (In_nth_error _ _ i0) as [n ?].
+eapply H1; eauto.
+Qed.
 
+Definition bind_args (specparams bodyparams: list (ident * type)) (P: environ -> pred rmap) : assert :=
+          fun rho => !! tc_formals bodyparams rho 
+                          && close_precondition (map fst specparams) (map fst bodyparams) P rho.
 
 Definition ret_temp : ident := 1%positive.
 

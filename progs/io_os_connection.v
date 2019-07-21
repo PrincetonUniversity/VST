@@ -236,20 +236,19 @@ Definition lex_le (p1 p2 : Z * Z) : Prop :=
   p1 = p2 \/ p1 <l p2 .
 Local Infix "<=l" := lex_le (at level 70).
 
-Import MonadNotation.
 Local Open Scope monad_scope.
 Local Open Scope Z.
 
 (* Weaker pre condition using trace_incl instead of eutt. *)
-Definition getchar_pre' (m : mem) (witness : int -> IO_itree) (z : IO_itree) :=
-  let k := witness in trace_incl (r <- read;; k r) z.
+Definition getchar_pre' (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
+  let k := witness in trace_incl (r <- read stdin;; k r) z.
 
 (* CertiKOS specs must terminate. Could get blocking version back by
    wrapping getchar in a loop. *)
-Definition getchar_post' (m0 m : mem) r (witness : (int -> IO_itree) * IO_itree) (z : IO_itree) :=
+Definition getchar_post' (m0 m : mem) r (witness : (byte -> IO_itree) * IO_itree) (z : @IO_itree (@IO_event nat)) :=
   m0 = m /\
     (* Success *)
-    ((0 <= Int.signed r <= two_p 8 - 1 /\ let (k, _) := witness in z = k r) \/
+    ((0 <= Int.signed r <= two_p 8 - 1 /\ let (k, _) := witness in z = k (Byte.repr (Int.signed r))) \/
     (* No character to read *)
     (Int.signed r = -1 /\ let (_, z0) := witness in z = z0)).
 
@@ -263,7 +262,7 @@ Definition trace_event_rtype (e : IOEvent) :=
   match e with
   | IOEvRecv _ _ _ => void
   | IOEvSend _ _ => void
-  | IOEvGetc _ _ _ => int
+  | IOEvGetc _ _ _ => byte
   | IOEvPutc _ _ => unit
   end.
 
@@ -272,8 +271,8 @@ Definition io_event_of_io_tevent (e : IOEvent)
   match e with
   | IOEvRecv _ _ _ => None
   | IOEvSend _ _ => None
-  | IOEvGetc _ _ r => Some (ERead, Int.repr r)
-  | IOEvPutc _ r => Some (EWrite (Int.repr r), tt)
+  | IOEvGetc _ _ r => Some (ERead stdin, Byte.repr r)
+  | IOEvPutc _ r => Some (EWrite stdout (Byte.repr r), tt)
   end.
 
 Fixpoint trace_of_ostrace (t : ostrace) : @trace IO_event unit :=
@@ -1103,7 +1102,7 @@ Section Invariants.
       intros * Heq.
       apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq.
       destruct (rev post); cbn in Heq; inj; prename (rev _ = _) into Heq.
-      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq; subst; info_eauto.
+      apply (f_equal (@rev _)) in Heq; simpl_rev_in Heq; subst; eauto.
     - (* valid_trace_user *)
       intros * Heq.
       symmetry in Heq.
@@ -1675,7 +1674,7 @@ Section Invariants.
     split; auto; lia.
   Qed.
 
-  Lemma thread_serial_putc_putc_trace_case : forall st c st' r,
+  Lemma thread_serial_putc_trace_case : forall st c st' r,
     thread_serial_putc_spec c st = Some (st', r) ->
     putc_trace_case st.(io_log) st'.(io_log) c r.
   Proof.
@@ -1739,7 +1738,7 @@ Section Invariants.
     prename uctx_set_retval1_spec into Hspec4.
     prename uctx_arg2_spec into Hspec5.
     eapply thread_serial_intr_disable_trace_case in Hspec1 as Htr.
-    eapply thread_serial_putc_putc_trace_case in Hspec2 as (Htr1 & Hrange); auto.
+    eapply thread_serial_putc_trace_case in Hspec2 as (Htr1 & Hrange); auto.
     eapply thread_serial_intr_enable_trace_case in Hspec3 as Htr2.
     eapply uctx_set_retval1_trace_case in Hspec4 as Htr3.
     eapply uctx_set_errno_trace_case in Hspec as Htr4.
@@ -1799,7 +1798,7 @@ Section SpecsCorrect.
   Record R_sys_getc_correct k z m st st' ret := {
     (* New itree is old k applied to result, or same as old itree if nothing
        to read *)
-    getc_z' := if 0 <=? Int.signed ret then k ret else z;
+    getc_z' := if 0 <=? Int.signed ret then k (Byte.repr (Int.signed ret)) else z;
 
     (* Post condition holds on new state, itree, and result *)
     getc_post_ok : getchar_post' m m ret (k, z) getc_z';
@@ -1866,7 +1865,7 @@ Section SpecsCorrect.
     putc_itree_trace_ok : trace_itree_match z putc_z' st.(io_log) st'.(io_log);
     (* The new trace is valid *)
     (* TODO: have to define valid trace condition for putc *)
-    (* putc_trace_ok : valid_trace st'; *)
+    putc_trace_ok : valid_trace st';
     (* The memory is unchanged *)
     putc_mem_ok : st.(HP) = st'.(HP)
   }.
@@ -1877,7 +1876,7 @@ Section SpecsCorrect.
     (* Pre condition holds *)
     putchar_pre m (c, k) z ->
     (* c is passed as an argument *)
-    get_sys_arg1 st = Vint c ->
+    get_sys_arg1 st = functional_base.Vubyte c ->
     (* sys_putc returns some state *)
     sys_putc_spec st = Some st' ->
     exists ret,
@@ -1886,10 +1885,11 @@ Section SpecsCorrect.
   Proof.
     unfold putchar_pre, get_sys_arg1, get_sys_ret; intros Hvalid Hpre Harg Hspec.
     apply sys_putc_mem_unchanged in Hspec as Hmem.
+    pose proof (sys_putc_preserve_valid_trace _ _ Hvalid Hspec).
     pose proof Hspec as Htrace_case.
     unfold sys_putc_spec in Hspec; destruct_spec Hspec.
     prename (thread_serial_putc_spec) into Hput.
-    apply thread_serial_putc_putc_trace_case in Hput.
+    apply thread_serial_putc_trace_case in Hput.
     assert (-1 <= z1 <= 255).
     { pose proof (Z.mod_pos_bound z0 256 ltac:(lia)).
       destruct Hput as (? & [(? & ?) | (? & ?)]); subst; lia.
@@ -1904,6 +1904,8 @@ Section SpecsCorrect.
     do 2 esplit; eauto.
     eapply sys_putc_trace_case in Htrace_case; eauto.
     2: unfold get_sys_ret; cbn; repeat (rewrite ZMap.gss || rewrite ZMap.gso by easy); auto.
+    pose proof (Byte.unsigned_range_2 c).
+    rewrite Int.unsigned_repr in * by functional_base.rep_omega.
     constructor; eauto; hnf.
     - (* putchar_post *)
       split; auto; cbn in *.
@@ -1911,17 +1913,18 @@ Section SpecsCorrect.
       destruct (Coqlib.zeq z1 (-1)); subst; auto.
       destruct (eq_dec.eq_dec _ _); try easy.
       rewrite Zle_imp_le_bool by lia.
-      destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; lia.
+      destruct Hput as (? & [(? & ?) | (? & ?)]); subst; auto; try lia.
+      rewrite Zmod_small; auto; functional_base.rep_omega.
     - (* trace_itree_match *)
       rewrite Int.signed_repr in * by (cbn; lia).
       cbn in *; destruct Htrace_case as (Htr & Hcase).
       intros * Htrace; cbn.
       destruct Hcase as [(? & ->) | (? & Heq)]; subst; auto.
-      pose proof (Z.mod_pos_bound (Int.unsigned c) 256 ltac:(lia)).
+      pose proof (Z.mod_pos_bound (Byte.unsigned c) 256 ltac:(lia)).
       rewrite Zle_imp_le_bool in Htrace by lia.
       unshelve erewrite Heq; try solve [constructor].
       eapply Traces.sutt_trace_incl; eauto; cbn.
-      rewrite Int.repr_unsigned.
+      rewrite Byte.repr_unsigned.
       hnf; cbn; repeat constructor; auto.
   Qed.
 

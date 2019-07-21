@@ -251,6 +251,8 @@ Proof.
   contradiction (app_cons_not_nil l [] x); auto.
 Qed.
 
+Open Scope logic.
+
 Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
   iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
@@ -1920,7 +1922,8 @@ Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
 Proof.
   unfold semax_body; intros.
   destruct s, f0.
-  intros; eapply semax_extensionality_Delta, H.
+  destruct H as [H' H]; split; auto.
+  intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.
 
@@ -3090,6 +3093,7 @@ eapply (semax_fun_id'' _f); try reflexivity.
 
 (* revised start_function that mostly works for dependent specs *)
 Ltac start_dep_function := 
+ leaf_function;
   match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
     pose (s:=spec); hnf in s;
@@ -3103,6 +3107,10 @@ Ltac start_dep_function :=
  end;
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+   split; [split3; [check_parameter_types' | check_return_type
+          | try (apply compute_list_norepet_e; reflexivity);
+             fail "Duplicate formal parameter names in funspec signature"  ] 
+         |];
    match Pre with 
    | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
    | (fun i => _) => intros Espec DependedTypeList i
@@ -3111,9 +3119,29 @@ Ltac start_dep_function :=
  end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
- repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+ try match goal with
+  | w:_ |- @semax _ _ _ (Clight_seplog.close_precondition _ _ (let pb := ?f0 in _)  * _) _ _ =>
+             match type of f0 with ?T => match T with
+    | forall a b, eq _ _ -> _ => destruct w as [a b]
+    | forall a b c, eq _ _ -> _ => destruct w as [[a b] c]
+    | forall a b c d, eq _ _ -> _ => destruct w as [[[a b] c] d]
+    | forall a b c d e, eq _ _ -> _ => destruct w as [[[[a b] c] d] e]
+    | forall a b c d e f, eq _ _ -> _ => destruct w as [[[[[a b] c] d] e] f]
+    | forall a b c d e f g, eq _ _ -> _ => destruct w as [[[[[[a b] c] d] e] f] g]
+    | forall a b c d e f g h, eq _ _ -> _ => destruct w as [[[[[[[a b] c] d] e] f] g] h]
+    | forall a b c d e f g h i, eq _ _ -> _ => destruct w as [[[[[[[[a b] c] d] e] f] g] h] i]
+    | forall a b c d e f g h i j, eq _ _ -> _ => destruct w as [[[[[[[[[a b] c] d] e] f] g] h] i] j]
+    | forall a b c d e f g h i j k, eq _ _ -> _ => destruct w as [[[[[[[[[[a b] c] d] e] f] g] h] i] j] k]
+    end end;
+    cbv zeta
+ end;
+ repeat match goal with
+ | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
-           end;
+ | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+       end; 
+ try (apply elim_close_precondition; [auto 50 with closed | auto 50 with closed | ]);
  simplify_func_tycontext;
  repeat match goal with 
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>

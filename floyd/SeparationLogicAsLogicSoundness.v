@@ -31,6 +31,8 @@ Require Import VST.veric.SeparationLogicSoundness.
 Local Open Scope logic.
 Require Import VST.veric.ghost_PCM.
 
+Import Clight.
+
 Module DeepEmbeddedSoundness
        (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF)
        (MinimumLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with Module CSHL_Def := Def)
@@ -121,7 +123,7 @@ Theorem semax_sound: forall Espec CS Delta P c Q,
 Proof.
   intros.
   induction H.
-  + rewrite andp_assoc.
+  + rewrite log_normalize.andp_assoc.
     apply semax_extract_prop.
     intros.
     apply MinimumLogic.semax_ifthenelse; auto.
@@ -137,13 +139,13 @@ Proof.
   + apply Sset.semax_set_ptr_compare_load_cast_load_backward.
   + apply StoreB.semax_store_backward.
   + apply MinimumLogic.semax_skip.
-  + rewrite <- (andp_dup FF).
-    unfold FF at 1.
+  + rewrite <- (log_normalize.andp_dup seplog.FF).
+    unfold seplog.FF at 1.
     apply semax_extract_prop.
     tauto.
   + apply MinimumLogic.semax_Slabel; auto.
-  + rewrite <- (andp_dup FF).
-    unfold FF at 1.
+  + rewrite <- (log_normalize.andp_dup seplog.FF).
+    unfold seplog.FF at 1.
     apply semax_extract_prop.
     tauto.
   + eapply MinimumLogic.semax_conseq; eauto.
@@ -157,7 +159,7 @@ Proof.
   unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
   destruct id.
   destruct f0.
-  intros.
+  destruct H as [H' H]; split; auto. clear H'; intros.
   apply semax_sound.
   apply H.
 Qed.

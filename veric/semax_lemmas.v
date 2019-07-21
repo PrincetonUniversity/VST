@@ -15,6 +15,8 @@ Require Import VST.veric.semax.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.own.
 
+Import Ctypes.
+
 Local Open Scope pred.
 
 Hint Resolve @now_later @andp_derives @sepcon_derives.
@@ -1447,7 +1449,7 @@ Proof.
       apply <- (age1_resource_at_identity _ _ loc' H1); auto.
 Qed.
 
-Lemma semax_extensionality_Delta {CS: compspecs} {Espec: OracleKind}:
+Lemma semax_Delta_subsumption {CS: compspecs} {Espec: OracleKind}:
   forall Delta Delta' P c R,
        tycontext_sub Delta Delta' ->
      semax Espec Delta P c R -> semax Espec Delta' P c R.
