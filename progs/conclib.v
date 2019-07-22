@@ -3092,12 +3092,12 @@ Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
 (* revised start_function that mostly works for dependent specs *)
-Ltac start_dep_function := 
+Ltac start_dep_function :=
  leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
     let s := fresh "spec" in
-    pose (s:=spec); hnf in s; simpl in s;
+    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
     match goal with
     | s :=  (DECLARE _ WITH _: globals
                PRE  [] main_pre _ nil _
