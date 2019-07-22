@@ -12,16 +12,16 @@ Set Bullet Behavior "Strict Subproofs".
 
 (* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
 Parameter objective : mpred -> Prop.
-Axiom emp_objective : objective emp.
+Axiom emp_objective : objective emp%I.
 Axiom data_at_objective : forall {cs : compspecs} sh t v p, objective (data_at sh t v p).
 Axiom own_objective : forall {RA : Ghost} g (a : G) pp, objective (own g a pp).
-Axiom prop_objective : forall P, objective (!!P).
+Axiom prop_objective : forall P, objective ( !!P).
 Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
 Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
 Axiom sepcon_objective : forall P Q, objective P -> objective Q -> objective (P * Q).
-Lemma sepcon_list_objective : forall P, Forall objective P -> objective (fold_right sepcon emp P).
+Lemma sepcon_list_objective : forall {A} f (l : list A), Forall (fun x => objective (f x)) l -> objective (iter_sepcon f l).
 Proof.
-  induction P; simpl; intros.
+  induction l; simpl; intros.
   - apply emp_objective.
   - inv H; apply sepcon_objective; auto.
 Qed.
@@ -31,9 +31,9 @@ Section inv.
 Context {inv_names : invG}.
 
 (* unsound without objective, until we redefine protocols to use thread-local info *)
-Axiom inv_alloc : forall N E P, objective P -> |> P |-- |={E}=> invariant N P.
+Axiom inv_alloc : forall E P, objective P -> |> P |-- (|={E}=> EX i : _, invariant i P)%I.
 
-Corollary make_inv : forall N E P Q, P |-- Q -> objective Q -> P |-- |={E}=> invariant N Q.
+Corollary make_inv : forall E P Q, P |-- Q -> objective Q -> P |-- (|={E}=> EX i : _, invariant i Q)%I.
 Proof.
   intros.
   eapply derives_trans, inv_alloc; auto.
@@ -51,8 +51,8 @@ Ltac prove_objective := repeat
   | |-objective(own _ _ _) => apply own_objective
   | |-objective(data_at _ _ _ _) => apply data_at_objective
   | |-objective(data_at_ _ _ _) => rewrite data_at__eq; apply data_at_objective
-  | |-objective(fold_right sepcon emp _) => apply sepcon_list_objective;
-        rewrite ?Forall_map, Forall_forall; intros; simpl
+  | |-objective(iter_sepcon _ _) => apply sepcon_list_objective;
+        rewrite -> ?Forall_map, Forall_forall; intros; simpl
   | _ => try apply own_objective
   end.
 
@@ -60,48 +60,37 @@ Hint Resolve emp_objective data_at_objective own_objective prop_objective andp_o
   sepcon_objective sepcon_list_objective : objective.
 
 
-
 Section dup.
 
-Definition duplicable P := P |-- |==> P * P.
+Definition duplicable P := P |-- (|==> P * P)%I.
 
-Lemma emp_duplicable : duplicable emp.
+Lemma emp_duplicable : duplicable emp%I.
 Proof.
-  unfold duplicable.
-  rewrite sepcon_emp; apply bupd_intro.
+  iIntros "? !>"; iFrame.
 Qed.
 Hint Resolve emp_duplicable : dup.
 
 Lemma sepcon_duplicable : forall P Q, duplicable P -> duplicable Q -> duplicable (P * Q).
 Proof.
-  intros; unfold duplicable.
-  rewrite <- sepcon_assoc, (sepcon_comm (_ * Q)), <- sepcon_assoc, sepcon_assoc.
-  eapply derives_trans, bupd_sepcon.
-  apply sepcon_derives; auto.
+  intros; unfold duplicable in *.
+  sep_apply H; sep_apply H0.
+  iIntros "[>[$ $] >[$ $]]"; auto.
 Qed.
 Hint Resolve sepcon_duplicable : dup.
-
-Lemma sepcon_list_duplicable : forall lP, Forall duplicable lP -> duplicable (fold_right sepcon emp lP).
-Proof.
-  induction 1; simpl; auto with dup.
-Qed.
 
 Lemma iter_sepcon_duplicable : forall {B} (f : B -> mpred) l, (forall a, duplicable (f a)) -> duplicable (iter_sepcon f l).
 Proof.
   induction l; simpl; auto with dup.
 Qed.
 
-Lemma list_duplicate : forall Q lP, duplicable Q ->
-  fold_right sepcon emp lP * Q |-- |==> fold_right sepcon emp (map (sepcon Q) lP) * Q.
+Lemma list_duplicate : forall {B} (f : B -> mpred) l Q, duplicable Q ->
+  iter_sepcon f l * Q |-- (|==> iter_sepcon (fun x => Q * f x) l * Q)%I.
 Proof.
-  induction lP; simpl; intros; [apply bupd_intro|].
-  rewrite sepcon_assoc; eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IHlP]; auto|].
-  eapply derives_trans; [apply sepcon_derives, bupd_mono, sepcon_derives, H; apply derives_refl|].
-  eapply derives_trans; [apply bupd_frame_l|].
-  eapply derives_trans, bupd_trans.
-  apply bupd_mono; cancel.
-  eapply derives_trans; [apply bupd_frame_l|].
-  apply bupd_mono; cancel.
+  induction l; simpl; intros.
+  { iIntros "[$ $]"; auto. }
+  iIntros "(($ & ?) & Q)".
+  iDestruct (H with "Q") as ">[$ Q]".
+  iApply IHl; auto; iFrame.
 Qed.
 
 (* Should all duplicables be of this form? *)
@@ -120,7 +109,7 @@ Proof.
 Qed.
 Hint Resolve ghost_snap_duplicable : dup.
 
-Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable (!!P && Q).
+Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable ( !!P && Q).
 Proof.
   intros; unfold duplicable.
   Intros.
@@ -133,7 +122,7 @@ Proof.
   unfold duplicable; intros.
   Intro x.
   eapply derives_trans; eauto.
-  apply bupd_mono; Exists x x; auto.
+  iIntros ">[H ?] !>"; iSplitL "H"; iApply (bi.exist_intro(Ψ := P) with "[$]").
 Qed.
 
 Definition weak_dup P := P -* |==> (P * P).
@@ -202,48 +191,23 @@ Axiom protocol_A_delay : forall l s,
 
 End protocols.
 
-Lemma approx_later : forall n P, approx (S n) (|> P) = |> approx n P.
-Proof.
-  intros; apply predicates_hered.pred_ext.
-  - intros ? [].
-    change ((|> approx n P)%pred a); intros ??; split; auto.
-    apply laterR_level in H1; omega.
-  - intros ??.
-    destruct (level a) eqn: Hl.
-    + split; [omega|].
-      intros ??.
-      apply laterR_level in H0; omega.
-    + destruct (levelS_age _ _ (eq_sym Hl)) as (a' & ? & ?); subst.
-      destruct (H a').
-      { constructor; auto. }
-      split; [omega|].
-      intros ? HL; apply (H _ HL).
-Qed.
-
-Lemma approx_0 : forall P, approx 0 P = FF.
-Proof.
-  intros; apply predicates_hered.pred_ext.
-  - intros ? []; omega.
-  - intros ??; contradiction.
-Qed.
-
 Definition OrdType s := ArrowType s (ArrowType s (ConstType Prop)).
 Definition PredType s := ArrowType s (ArrowType (ConstType Z) Mpred).
 
-Definition LA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
+Definition LA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
   (ConstType val) (DependentType 0)) (OrdType (DependentType 0)))
   (ProdType (PredType (DependentType 0)) (PredType (DependentType 0))))
-  Mpred) (ConstType (iname -> Prop))) (PredType (DependentType 0))) (ConstType invG).
+  (ConstType coPset)) (PredType (DependentType 0))) (ConstType invG).
 
 Program Definition load_acq_spec := TYPE LA_type
   WITH l : val, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
-       P : mpred, E : Ensemble iname, Q : _ -> Z -> mpred, inv_names : invG
+       E : _, Q : _ -> Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint ]
    PROP ()
    LOCAL (temp 1%positive l)
    SEP ((ALL s' : _, !!(st_ord s s') --> ALL v : _,
-          (fst T s' v * P * protocol_A l s' st_ord T) -* |={E}=> Q s' v) && cored;
-        P; protocol_A l s st_ord T)
+          (fst T s' v * protocol_A l s' st_ord T) -* |={E}=> Q s' v);
+        protocol_A l s st_ord T)%I
   POST [ tint ]
    EX v : Z, EX s' : _,
    PROP (repable_signed v; st_ord s s')
@@ -252,25 +216,24 @@ Program Definition load_acq_spec := TYPE LA_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((?, s), ?), (?, ?)), P), ?), Q), ?); simpl.
+  destruct x as ((((((?, s), ?), (?, ?)), ?), Q), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   rewrite protocol_A_super_non_expansive; f_equal.
-  rewrite !approx_andp; f_equal.
-  rewrite !approx_allp by auto; f_equal; extensionality.
+  rewrite -> !approx_allp by auto; f_equal; extensionality.
   setoid_rewrite approx_imp; f_equal; f_equal.
   rewrite !(approx_allp _ _ _ 0); f_equal; extensionality.
   setoid_rewrite fview_shift_nonexpansive.
-  rewrite !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
+  rewrite -> !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
 Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality.
   rewrite !approx_exp; apply f_equal; extensionality.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
-    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
 
 (*Definition SR_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
@@ -400,24 +363,24 @@ Proof.
   intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.*)
 
-Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType (ProdType
+Definition CRA_type := ProdType (ProdType (ProdType (ProdType (ProdType
   (ProdType (ProdType (ConstType (val * Z * Z)) (DependentType 0)) (OrdType (DependentType 0)))
-  (ProdType (PredType (DependentType 0)) (PredType (DependentType 0)))) Mpred)
-  (ConstType (iname -> Prop))) (ArrowType (DependentType 0) Mpred))
+  (ProdType (PredType (DependentType 0)) (PredType (DependentType 0))))
+  (ConstType coPset)) (ArrowType (DependentType 0) Mpred))
   (PredType (DependentType 0))) (ConstType invG).
 
 Program Definition CAS_RA_spec := TYPE CRA_type
   WITH l : val, c : Z, v : Z, s : _, st_ord : _ -> _ -> Prop, T : ((_ -> Z -> mpred) * (_ -> Z -> mpred)),
-       P : mpred, E : _, Q : _ -> mpred, R : _ -> Z -> mpred, inv_names : invG
+       E : _, Q : _ -> mpred, R : _ -> Z -> mpred, inv_names : invG
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
-   SEP (ALL s' : _, !!(st_ord s s') --> ((snd T s' c * P) -* |={E}=>
+   SEP (ALL s' : _, !!(st_ord s s') --> (snd T s' c -* |={E}=>
           (EX s'' : _, !!(st_ord s' s'') && (protocol_A l s'' st_ord T) -* |={E}=> |> snd T s'' v *
-           Q s'')) && cored; (* is this right? *)
+           Q s'')); (* is this right? *)
         ALL s' : _, ALL v' : _, !!(st_ord s s' /\ repable_signed v' /\ v' <> c) -->
-          ((|> fst T s' v' * protocol_A l s' st_ord T * P) -* |={E}=> (R s' v')) && cored;
-        protocol_A l s st_ord T; P)
+          ((|> fst T s' v' * protocol_A l s' st_ord T) -* |={E}=> (R s' v'));
+        protocol_A l s st_ord T)%I
   POST [ tint ]
    EX v' : Z, EX s' : _,
    PROP (repable_signed v'; st_ord s s')
@@ -426,31 +389,28 @@ Program Definition CAS_RA_spec := TYPE CRA_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((((((?, ?), ?), s), ?), (?, ?)), ?), ?), ?), ?), ?); simpl.
-  unfold PROPx; simpl; rewrite !approx_andp; f_equal.
-  unfold LOCALx; simpl; rewrite !approx_andp; f_equal.
-  unfold SEPx; simpl; rewrite !sepcon_emp, !approx_sepcon, !approx_idem.
+  destruct x as (((((((((?, ?), ?), s), ?), (?, ?)), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal; [|rewrite protocol_A_super_non_expansive; f_equal].
-  - rewrite !approx_allp by auto; f_equal; extensionality.
+  - rewrite -> !approx_allp by auto; f_equal; extensionality.
     setoid_rewrite approx_imp; f_equal; f_equal.
-    rewrite !approx_andp; f_equal.
     setoid_rewrite fview_shift_nonexpansive.
-    rewrite !approx_sepcon, !approx_idem; f_equal; f_equal; f_equal.
+    rewrite !approx_idem; f_equal; f_equal; f_equal.
     rewrite !approx_exp; f_equal; extensionality.
     rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 3; f_equal; f_equal.
-    + rewrite !approx_andp, protocol_A_super_non_expansive; reflexivity.
+    + rewrite -> !approx_andp, protocol_A_super_non_expansive; reflexivity.
     + rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2; f_equal; f_equal.
-      rewrite !approx_sepcon, approx_idem; f_equal.
+      rewrite -> !approx_sepcon, approx_idem; f_equal.
       destruct n; [rewrite !approx_0; auto|].
       setoid_rewrite approx_later.
       etransitivity; [rewrite <- approx_oo_approx' with (n' := S n)|]; auto.
-  - rewrite !approx_allp by auto; f_equal; extensionality.
-    rewrite !approx_allp by auto; f_equal; extensionality.
+  - rewrite -> !approx_allp by auto; f_equal; extensionality.
+    rewrite -> !approx_allp by auto; f_equal; extensionality.
     setoid_rewrite approx_imp; f_equal; f_equal.
-    rewrite !approx_andp; f_equal.
     setoid_rewrite fview_shift_nonexpansive.
-    rewrite !approx_sepcon, !approx_idem; f_equal; f_equal.
-    rewrite protocol_A_super_non_expansive; f_equal; f_equal.
+    rewrite -> !approx_sepcon, !approx_idem; f_equal; f_equal.
+    rewrite protocol_A_super_non_expansive; f_equal.
     destruct n; [rewrite !approx_0; auto|].
     setoid_rewrite approx_later.
     etransitivity; [rewrite <- approx_oo_approx' with (n' := S n)|]; auto.
@@ -458,12 +418,12 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
+  destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality.
   rewrite !approx_exp; apply f_equal; extensionality.
-  unfold PROPx; simpl; rewrite !approx_andp; f_equal.
-  unfold LOCALx; simpl; rewrite !approx_andp; f_equal.
-  unfold SEPx; simpl; rewrite !sepcon_emp; if_tac; rewrite approx_idem; auto.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
+  if_tac; rewrite approx_idem; auto.
 Qed.
 
 End atomics.
