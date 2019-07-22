@@ -29,7 +29,7 @@ Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
   has_ext tr'.
 
 (* this should be in ITrees *)
-Instance Reflexive_sutt {E R} : RelationClasses.Reflexive (@sutt E R R eq).
+Global Instance Reflexive_sutt {E R} : RelationClasses.Reflexive (@sutt E R R eq).
 Proof. intro; apply eutt_sutt; reflexivity. Qed.
 
 (* not in ITree currently because it's specific to unit *)
