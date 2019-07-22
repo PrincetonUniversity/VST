@@ -20,13 +20,6 @@ Definition main_spec :=
 Definition Gprog : funspecs :=  
    ltac:(with_library prog (ltac:(make_printf_specs prog) ++ [ main_spec ])).
 
-Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
-Proof.
-  intros.
-  etransitivity; [|apply eq_sub_eutt, bind_ret2].
-  apply eqit_bind; [intros []|]; reflexivity.
-Qed.
-
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.

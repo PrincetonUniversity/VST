@@ -28,11 +28,22 @@ Definition IO_itree := itree E unit.
 Definition ITREE (tr : IO_itree) := EX tr' : _, !!(sutt eq tr tr') &&
   has_ext tr'.
 
+(* this should be in ITrees *)
+Instance Reflexive_sutt {E R} : RelationClasses.Reflexive (@sutt E R R eq).
+Proof. intro; apply eutt_sutt; reflexivity. Qed.
+
+(* not in ITree currently because it's specific to unit *)
+Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
+Proof.
+  intros.
+  etransitivity; [|apply eq_sub_eutt, bind_ret2].
+  apply eqit_bind; [intros []|]; reflexivity.
+Qed.
+
 Lemma has_ext_ITREE : forall tr, has_ext tr |-- ITREE tr.
 Proof.
   intro; unfold ITREE.
   Exists tr; entailer!.
-  apply eutt_sutt; reflexivity.
 Qed.
 
 Lemma ITREE_impl' : forall tr tr', sutt eq tr' tr ->

@@ -134,13 +134,6 @@ Proof.
   destruct n; reflexivity.
 Qed.
 
-Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
-Proof.
-  intros.
-  etransitivity; [|apply eq_sub_eutt, bind_ret2].
-  apply eqit_bind; [intros []|]; reflexivity.
-Qed.
-
 Lemma body_getchar_blocking: semax_body Vprog Gprog f_getchar_blocking getchar_blocking_spec.
 Proof.
   start_function.
@@ -411,16 +404,20 @@ Qed.
 
 Require Import VST.progs.os_combine.
 Require Import VST.progs.io_combine.
+Require Import VST.progs.io_os_specs.
 Require Import VST.progs.io_os_connection.
 
+(* correctness down to OS traces, with relationship between syscall events and actual external reads/writes *)
 Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem valid_trace n Traces.TEnd traces main_itree q init_mem /\
-      forall t, Ensembles.In _ traces t -> exists z', consume_trace main_itree z' t.
+     forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
+    exists traces, OS_safeN_trace prog n Traces.TEnd traces main_itree s0 q init_mem /\
+     forall t s, Ensembles.In _ traces (t, s) -> exists z', consume_trace main_itree z' t /\ t = trace_of_ostrace s.(io_log) /\
+      valid_trace_user s.(io_log).
 Proof.
   intros.
-  edestruct IO_OS_soundness with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct IO_OS_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.
