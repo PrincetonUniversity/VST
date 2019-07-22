@@ -3094,23 +3094,8 @@ eapply (semax_fun_id'' _f); try reflexivity.
 (* revised start_function that mostly works for dependent specs *)
 Ltac start_dep_function := 
  leaf_function;
- match goal with |- semax_body _ _ ?F ?spec =>
-   let D := constr:(type_of_function F) in 
-   let S := constr:(type_of_funspec (snd spec)) in
-   let D := eval hnf in D in let D := eval simpl in D in 
-   let S := eval hnf in S in let S := eval simpl in S in 
-   tryif (unify D S) then idtac else
-   tryif function_types_compatible D S 
-   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
-Function body:" D "
-Function spec:" S
-   else
-   (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
-Function body: " D "
-Function spec: " S);
-   check_normalized F
- end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
+    check_normalized F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s; simpl in s;
     match goal with
@@ -3123,20 +3108,34 @@ Function spec: " S);
  end;
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+   split; [split3; [check_parameter_types' | check_return_type
+          | try (apply compute_list_norepet_e; reflexivity);
+             fail "Duplicate formal parameter names in funspec signature"  ] 
+         |];
    match Pre with
    | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
+ try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
+     change (fun rho => ?A rho * ?B rho) with (A * B)
+  end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
  clear DependedTypeList;
- repeat match goal with | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+ repeat match goal with
+ | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
-                                          | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
+ | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
-           end;
+ | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
+             destruct p as [a b]
+ | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
+             destruct p as [a b]
+       end;
+ first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
+        | erewrite compute_close_precondition by reflexivity];
  simplify_func_tycontext;
  repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
