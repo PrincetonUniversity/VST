@@ -1,18 +1,6 @@
 Require Import VST.progs.io.
 Require Import VST.progs.io_specs.
 Require Import VST.floyd.proofauto.
-Require Import ITree.ITree.
-Require Import ITree.Eq.Eq.
-(*Import ITreeNotations.*)
-Notation "t1 >>= k2" := (ITree.bind t1 k2)
-  (at level 50, left associativity) : itree_scope.
-Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
-  (at level 100, t1 at next level, right associativity) : itree_scope.
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
-Notation "' p <- t1 ;; t2" :=
-  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
-(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -144,13 +132,6 @@ Proof.
   unfold intr at 1.
   rewrite Wf.WfExtensionality.fix_sub_eq_ext; simpl; fold intr.
   destruct n; reflexivity.
-Qed.
-
-Lemma bind_ret' : forall E (s : itree E unit), eutt eq (s;; Ret tt) s.
-Proof.
-  intros.
-  etransitivity; [|apply eq_sub_eutt, bind_ret2].
-  apply eqit_bind; [intros []|]; reflexivity.
 Qed.
 
 Lemma body_getchar_blocking: semax_body Vprog Gprog f_getchar_blocking getchar_blocking_spec.
@@ -312,7 +293,7 @@ Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
   unfold main_pre_ext.
-  sep_apply (has_ext_ITREE(file_id := nat)).
+  sep_apply (has_ext_ITREE(E := @IO_event nat)).
   forward.
   unfold main_itree.
   rewrite <- !seq_assoc. (* Without this, forward_call gives a type error! *)
@@ -423,16 +404,20 @@ Qed.
 
 Require Import VST.progs.os_combine.
 Require Import VST.progs.io_combine.
+Require Import VST.progs.io_os_specs.
 Require Import VST.progs.io_os_connection.
 
+(* correctness down to OS traces, with relationship between syscall events and actual external reads/writes *)
 Theorem prog_OS_correct : forall {H : io_os_specs.ThreadsConfigurationOps},
   exists q : Clight_new.corestate,
   semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-     forall n, exists traces, ext_safeN_trace(J := OK_spec) prog (IO_ext_sem prog) IO_inj_mem OS_mem valid_trace n Traces.TEnd traces main_itree q init_mem /\
-      forall t, Ensembles.In _ traces t -> exists z', consume_trace main_itree z' t.
+     forall n s0, s0.(io_log) = [] -> s0.(console) = {| cons_buf := []; rpos := 0 |} ->
+    exists traces, OS_safeN_trace prog n Traces.TEnd traces main_itree s0 q init_mem /\
+     forall t s, Ensembles.In _ traces (t, s) -> exists z', consume_trace main_itree z' t /\ t = trace_of_ostrace s.(io_log) /\
+      valid_trace_user s.(io_log).
 Proof.
   intros.
-  edestruct IO_OS_soundness with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  edestruct IO_OS_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
   - apply prog_correct.
   - apply (proj2_sig init_mem_exists).
   - exists q.

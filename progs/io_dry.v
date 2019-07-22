@@ -10,19 +10,10 @@ Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
 Require Import VST.progs.conclib.
 Require Import VST.progs.dry_mem_lemmas.
-Require Import ITree.ITree.
-(* Import ITreeNotations. *) (* one piece conflicts with subp notation *)
-Notation "t1 >>= k2" := (ITree.bind t1 k2)
-  (at level 50, left associativity) : itree_scope.
-Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
-  (at level 100, t1 at next level, right associativity) : itree_scope.
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
-Notation "' p <- t1 ;; t2" :=
-  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
-(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Section IO_Dry.
+
+Context {E : Type -> Type} {IO_E : @IO_event nat -< E}.
 
 Definition getchar_pre (m : mem) (witness : byte -> IO_itree) (z : IO_itree) :=
   let k := witness in (sutt eq (r <- read stdin;; k r) z).
@@ -45,7 +36,7 @@ Instance Espec : OracleKind := IO_Espec ext_link.
 
 Definition io_ext_spec := OK_spec.
 
-Program Definition io_dry_spec : external_specification mem external_function (@IO_itree nat).
+Program Definition io_dry_spec : external_specification mem external_function (@IO_itree E).
 Proof.
   unshelve econstructor.
   - intro e.

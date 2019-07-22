@@ -2,17 +2,6 @@ Require Import VST.progs.io_mem.
 Require Import VST.progs.io_mem_specs.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import ITree.ITree.
-(*Import ITreeNotations.*)
-Notation "t1 >>= k2" := (ITree.bind t1 k2)
-  (at level 50, left associativity) : itree_scope.
-Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
-  (at level 100, t1 at next level, right associativity) : itree_scope.
-Notation "t1 ;; t2" := (ITree.bind t1 (fun _ => t2))
-  (at level 100, right associativity) : itree_scope.
-Notation "' p <- t1 ;; t2" :=
-  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
-(at level 100, t1 at next level, p pattern, right associativity) : itree_scope.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -105,7 +94,7 @@ Definition main_spec :=
  DECLARE _main
   WITH gv : globals
   PRE  [] main_pre_ext prog main_itree nil gv
-  POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree nat)).
+  POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree (@IO_event nat))).
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
   print_intr_spec; print_int_spec; main_spec]).
@@ -397,7 +386,7 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  sep_apply (has_ext_ITREE(file_id := nat)).
+  sep_apply (has_ext_ITREE(E := @IO_event nat)).
   rewrite <- (emp_sepcon (ITREE _)); Intros.
   replace_SEP 0 (mem_mgr gv) by (go_lower; apply create_mem_mgr).
   forward.
