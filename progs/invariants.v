@@ -408,9 +408,10 @@ Qed.
 Instance list_order A : @PCM_order (list_PCM (discrete_PCM A)) list_incl.
 Proof.
   constructor.
-  - repeat intro; split; auto.
-  - repeat intro.
-    destruct H, H0; split; auto; lia.
+  - constructor.
+    + repeat intro; split; auto.
+    + repeat intro.
+      destruct H, H0; split; auto; lia.
   - intro a.
     remember (length a) as n.
     revert dependent a; induction n; intros.

@@ -135,8 +135,7 @@ Next Obligation.
 Defined.
 
 (* Can we use Santiago and Qinxiang's paper to simplify this? *)
-Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_refl :> RelationClasses.Reflexive ord;
-  ord_trans :> RelationClasses.Transitive ord;
+Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_preorder :> PreOrder ord;
   ord_lub : forall a b c, ord a c -> ord b c -> {c' | join a b c' /\ ord c' c};
   join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
 
@@ -410,7 +409,7 @@ Lemma master_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
   ghost_master sh1 v p * ghost_master sh2 v p = ghost_master sh v p.
 Proof.
   intros; symmetry; apply own_op; split; auto; simpl.
-  if_tac; if_tac; try split; auto; try apply ord_refl; apply join_refl.
+  if_tac; if_tac; try split; auto; try reflexivity; apply join_refl.
 Qed.
 
 Lemma master_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
@@ -636,7 +635,7 @@ Defined.
 Global Instance max_order : PCM_order le.
 Proof.
   constructor; auto; intros.
-  - intros ???; omega.
+  - apply _.
   - eexists; unfold join; simpl; split; eauto.
     apply Nat.max_lub; auto.
   - hnf in H; subst.
@@ -840,8 +839,7 @@ Defined.
 Instance fmap_order : PCM_order map_incl.
 Proof.
   constructor.
-  - apply map_incl_refl.
-  - apply map_incl_trans.
+  - split; [apply map_incl_refl | apply map_incl_trans].
   - intros ??? Ha Hb; exists (map_add a b); split; simpl.
     + rewrite map_join_spec; split; auto.
       eapply map_incl_compatible; eauto.

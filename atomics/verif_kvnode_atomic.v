@@ -1,7 +1,7 @@
 Require Import VST.veric.rmaps.
+Require Import VST.progs.conclib.
 Require Import VST.progs.ghosts.
 Require Import atomics.SC_atomics.
-Require Import VST.progs.conclib.
 Require Import atomics.maps.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.

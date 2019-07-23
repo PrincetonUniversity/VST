@@ -98,8 +98,9 @@ Defined.
 Instance zero_order : PCM_order (fun a b => a = 0 \/ a = b).
 Proof.
   constructor; simpl; intros.
-  - intro; auto.
-  - intros ???[|][|]; subst; auto.
+  - constructor.
+    + intro; auto.
+    + intros ???[|][|]; subst; auto.
   - exists (if eq_dec a 0 then b else a).
     unfold sepalg.join; simpl.
     if_tac; auto.
@@ -340,48 +341,6 @@ Qed.
 Arguments size : simpl never.
 Arguments hash : simpl never.
 
-(* up *)
-Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f l i j,
-  0 <= i < Zlength l -> 0 <= j < Zlength l -> i <> j ->
-  iter_sepcon f (remove_Znth j l) =
-  f (Znth i l) * iter_sepcon f (remove_Znth (if zlt i j then i else i - 1) (remove_Znth j l)).
-Proof.
-  intros ?????? Hi Hj Hn.
-  pose proof (Zlength_remove_Znth _ _ Hj) as Hlen.
-  unfold remove_Znth at 1 2; rewrite Hlen.
-  unfold remove_Znth in *.
-  if_tac.
-  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; omega).
-    autorewrite with sublist.
-    rewrite -> (sublist_split 0 i j) by omega.
-    rewrite !iter_sepcon_app.
-    rewrite -> (sublist_next i _) by omega; simpl.
-    replace (Zlength l - _ - _ + _) with (Zlength l) by omega.
-    apply pred_ext; cancel.
-  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; omega).
-    autorewrite with sublist.
-    rewrite -> (sublist_split (j + 1) i (Zlength l)) by omega.
-    rewrite !iter_sepcon_app.
-    rewrite -> (sublist_next i _) by omega; simpl.
-    replace (Zlength l - _ - _ + _) with (Zlength l) by omega.
-    replace (i - _ - _ + _) with i by omega.
-    replace (i - _ + _) with (i + 1) by omega.
-    apply pred_ext; cancel.
-Qed.
-
-Lemma iter_sepcon_Znth' : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
-  0 <= i < Zlength l -> iter_sepcon f l = f (Znth i l) * (f (Znth i l) -* iter_sepcon f l).
-Proof.
-  intros; eapply wand_eq, iter_sepcon_Znth; auto.
-Qed.
-
-Lemma iter_sepcon_remove_wand : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
-  0 <= i < Zlength l -> iter_sepcon f (remove_Znth i l) |-- f (Znth i l) -* iter_sepcon f l.
-Proof.
-  intros; rewrite <- wand_sepcon_adjoint.
-  erewrite iter_sepcon_Znth with (l0 := l) by eauto; cancel.
-Qed.
-
 Lemma failed_entries : forall k i i1 keys lg T entries (Hk : k <> 0) (Hi : 0 <= i < size)
   (Hi1 : (i + hash k) mod size = i1 mod size) (HT : Zlength T = size) (Hlg : Zlength lg = size)
   (Hkeys: Zlength keys = size)
@@ -466,23 +425,12 @@ Qed.
 
 Lemma snaps_dealloc : forall {A} (l : list A) f g, (iter_sepcon (fun i => ghost_snap (f i) (g i)) l |-- |==> emp)%I.
 Proof.
-  induction l; simpl; intros.
-  - apply bupd_intro.
-  - iIntros "[snap snaps]".
-    iMod (own_dealloc(RA := snap_PCM) with "snap").
-    iMod (IHl with "snaps"); auto.
+  intros; apply (own_list_dealloc(RA := snap_PCM)).
+  intro; do 3 eexists; apply derives_refl.
 Qed.
 
 Notation empty := (@empty coPset _).
 Notation top := (@top coPset _).
-
-(* up *)
-Lemma In_remove_upto : forall i j k, 0 <= j -> In i (remove_Znth j (upto k)) ->
-  0 <= i < k /\ i <> j.
-Proof.
-  unfold remove_Znth; intros ???? Hin%in_app.
-  destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; omega.
-Qed.
 
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
@@ -525,11 +473,12 @@ Proof.
     { entailer!. }
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
-    replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+    sep_apply cored_dup.
     forward_call (pki, top, empty,
       fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
-    { rewrite <- !sepcon_assoc, -> 2sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
-      iIntros "(P & [AS1 _])".
+    { rewrite -> !sepcon_assoc, sepcon_comm.
+      rewrite <- !sepcon_assoc, -> 2sepcon_assoc; apply sepcon_derives; cancel. (* IPM doesn't do cancel_frame *)
+      iIntros "([AS1 _] & P)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
@@ -586,13 +535,13 @@ Proof.
       { forward.
         entailer!. }
       Intros; subst.
-      replace_SEP 2 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+      sep_apply cored_dup.
       forward_call (pki, 0, k, top, empty,
         fun v : Z => |> P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg) *
           iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
              (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i)), inv_names).
       { subst Frame; instantiate (1 := [AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
-        iIntros "(((snap & P) & [AS1 _]) & snaps)".
+        iIntros "((([AS1 _] & snap) & P) & snaps)".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -648,13 +597,13 @@ Proof.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
-        replace_SEP 3 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+        sep_apply cored_dup.
         forward_call (pki, top, empty,
           fun v : Z => |> P * ( !!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { simpl; cancel.
           subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
-          rewrite sepcon_assoc (sepcon_comm _ (_ && _)) -sepcon_assoc; apply sepcon_derives, derives_refl.
-          iIntros "((snap & P) & [AS1 _])".
+          apply sepcon_derives, derives_refl.
+          iIntros "(([AS1 _] & snap) & P)".
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
           iDestruct "hashtable" as (T) "((% & excl) & entries)".
           rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
@@ -708,7 +657,7 @@ Proof.
       { entailer!. }
       forward_call (pvi, v, top, empty, Q tt, inv_names).
       { subst Frame; instantiate (1 := nil); simpl; cancel.
-        iIntros "((((snap & P) & [AS1 _]) & data) & snaps)".
+        iIntros "((((snap & P) & data) & snaps) & [AS1 _])".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -816,14 +765,14 @@ Proof.
     { entailer!. }
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
-    replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+    sep_apply cored_dup.
     forward_call (pki, top, empty,
       fun v => if eq_dec v 0 then Q v else |> P * ghost_snap v (Znth (i1 mod size) lg) *
         iter_sepcon (fun i0 : Z => ghost_snap (Znth ((i0 + hash k) mod size) keys)
           (Znth ((i0 + hash k) mod size) lg)) (upto (Z.to_nat i)) *
         data_at sh (tarray tentry size) entries (gv _m_entries), inv_names).
     { subst Frame; instantiate (1 := [AS && cored]); simpl; cancel.
-      iIntros "(((P & [AS1 _]) & data) & snaps)".
+      iIntros "((([AS1 _] & P) & data) & snaps)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -1015,11 +964,11 @@ Proof.
     { entailer!. }
     assert (Zlength (rebase keys (hash k)) = size) as Hrebase.
     { rewrite Zlength_rebase; replace (Zlength keys) with size; auto; apply hash_range. }
-    replace_SEP 1 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+    sep_apply cored_dup.
     forward_call (pki, top, empty, fun v : Z => |> P * ghost_snap v (Znth (i1 mod size) lg), inv_names).
     { subst Frame; instantiate (1 := [AS && cored; data_at _ (tarray tentry _) entries _; iter_sepcon _ _]); simpl; cancel.
       apply sepcon_derives, derives_refl.
-      iIntros "(P & [AS1 _])".
+      iIntros "([AS1 _] & P)".
       iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
       iDestruct "hashtable" as (T) "((% & excl) & entries)".
       rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)
@@ -1077,13 +1026,13 @@ Proof.
       { forward.
         entailer!. }
       Intros; subst.
-      replace_SEP 2 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+      sep_apply cored_dup.
       forward_call (pki, 0, k, top, empty,
         fun v : Z => |> P * ghost_snap (if eq_dec v 0 then k else v) (Znth (i1 mod size) lg) *
           iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) keys)
             (Znth ((i + hash k) mod size) lg)) (upto (Z.to_nat i)), inv_names).
       { subst Frame; instantiate (1 := [AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
-        iIntros "(((snap & P) & [AS1 _]) & snaps)".
+        iIntros "((([AS1 _] & snap) & P) & snaps)".
         iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
         iDestruct "hashtable" as (T) "((% & excl) & entries)".
         match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
@@ -1139,11 +1088,11 @@ Proof.
       match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
-        replace_SEP 3 ((AS && cored) * (AS && cored)) by (go_lower; apply cored_dup).
+        sep_apply cored_dup.
         forward_call (pki, top, empty, fun v : Z => |> P * ( !!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
-          rewrite sepcon_assoc (sepcon_comm _ (_ && _)) -sepcon_assoc; apply sepcon_derives, derives_refl.
-          iIntros "((snap & P) & [AS1 _])".
+          apply sepcon_derives, derives_refl.
+          iIntros "(([AS1 _] & snap) & P)".
           iMod ("AS1" with "P") as (HT) "[hashtable Hclose]".
           iDestruct "hashtable" as (T) "((% & excl) & entries)".
           rewrite -> iter_sepcon_Znth' with (i0 := i1 mod size)

@@ -259,14 +259,6 @@ Proof.
   rewrite H, IHl; apply pred_ext; cancel.
 Qed.
 
-Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
-  fold_right sepcon emp l1 * fold_right sepcon emp l2.
-Proof.
-  induction l1; simpl; intros.
-  - rewrite emp_sepcon; auto.
-  - rewrite IHl1, sepcon_assoc; auto.
-Qed.
-
 Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
   sublist 0 (m - n) l.
 
@@ -838,13 +830,6 @@ Proof.
     rewrite Zlength_cons in *.
     rewrite !app_length, IHl by omega.
     exploit (length_concat_min l (i - 1)); omega.
-Qed.
-
-Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
-Proof.
-  induction l; simpl; auto.
-  rewrite sepcon_app; simpl.
-  rewrite sepcon_emp, sepcon_comm, IHl; auto.
 Qed.
 
 Lemma incl_nil : forall {A} (l : list A), incl [] l.
@@ -1868,6 +1853,34 @@ Proof.
     intro; contradiction Ha; auto.
 Qed.
 
+(* various seplog lemmas *)
+(* wand lemmas *)
+Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
+Proof.
+  intros.
+  apply seplog.pred_ext, modus_ponens_wand.
+  subst; cancel.
+  rewrite <- wand_sepcon_adjoint; auto.
+  rewrite sepcon_comm; auto.
+Qed.
+
+Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
+Proof.
+  intros; apply seplog.pred_ext.
+  - rewrite <- wand_sepcon_adjoint.
+    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
+    rewrite sepcon_comm; apply modus_ponens_wand.
+  - rewrite <- !wand_sepcon_adjoint.
+    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint; cancel.
+  rewrite sepcon_comm; apply modus_ponens_wand.
+Qed.
+
 Lemma data_at__eq : forall {cs : compspecs} sh t p, data_at_ sh t p = data_at sh t (default_val t) p.
 Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
@@ -2454,6 +2467,13 @@ Proof.
   congruence.
 Qed.
 
+Lemma In_remove_upto : forall i j k, 0 <= j -> In i (remove_Znth j (upto k)) ->
+  0 <= i < Z.of_nat k /\ i <> j.
+Proof.
+  unfold remove_Znth; intros ???? Hin%in_app.
+  destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; omega.
+Qed.
+
 Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
   iter_sepcon f l = f (Znth i l) * iter_sepcon f (remove_Znth i l).
 Proof.
@@ -2483,6 +2503,47 @@ Proof.
     rewrite Znth_combine, remove_Znth_combine by auto.
     rewrite H1, H2, combine_eq; unfold uncurry; entailer!.
     apply derives_refl.
+Qed.
+
+Lemma iter_sepcon_Znth_remove : forall {A} {d : Inhabitant A} f l i j,
+  0 <= i < Zlength l -> 0 <= j < Zlength l -> i <> j ->
+  iter_sepcon f (remove_Znth j l) =
+  f (Znth i l) * iter_sepcon f (remove_Znth (if zlt i j then i else i - 1) (remove_Znth j l)).
+Proof.
+  intros ?????? Hi Hj Hn.
+  pose proof (Zlength_remove_Znth _ _ Hj) as Hlen.
+  unfold remove_Znth at 1 2; rewrite Hlen.
+  unfold remove_Znth in *.
+  if_tac.
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; omega).
+    autorewrite with sublist.
+    rewrite -> (sublist_split 0 i j) by omega.
+    rewrite !iter_sepcon_app.
+    rewrite -> (sublist_next i _) by omega; simpl.
+    replace (Zlength l - _ - _ + _) with (Zlength l) by omega.
+    apply pred_ext; cancel.
+  - rewrite -> !sublist_app by (rewrite -> ?Zlength_app in *; omega).
+    autorewrite with sublist.
+    rewrite -> (sublist_split (j + 1) i (Zlength l)) by omega.
+    rewrite !iter_sepcon_app.
+    rewrite -> (sublist_next i _) by omega; simpl.
+    replace (Zlength l - _ - _ + _) with (Zlength l) by omega.
+    replace (i - _ - _ + _) with i by omega.
+    replace (i - _ + _) with (i + 1) by omega.
+    apply pred_ext; cancel.
+Qed.
+
+Lemma iter_sepcon_Znth' : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
+  0 <= i < Zlength l -> iter_sepcon f l = f (Znth i l) * (f (Znth i l) -* iter_sepcon f l).
+Proof.
+  intros; eapply wand_eq, iter_sepcon_Znth; auto.
+Qed.
+
+Lemma iter_sepcon_remove_wand : forall {A} {d : Inhabitant A} (f : A -> mpred) l i,
+  0 <= i < Zlength l -> iter_sepcon f (remove_Znth i l) |-- f (Znth i l) -* iter_sepcon f l.
+Proof.
+  intros; rewrite <- wand_sepcon_adjoint.
+  erewrite iter_sepcon_Znth with (l0 := l) by eauto; cancel.
 Qed.
 
 Instance Inhabitant_share : Inhabitant share := Share.bot. (* TODO: remove this, it's already in sublist.v *) 
@@ -2767,116 +2828,11 @@ Proof.
     eapply readable_share_join; eauto.
 Qed.*)
 
-Lemma extract_nth_sepcon : forall l i, 0 <= i < Zlength l ->
-  fold_right sepcon emp l = Znth i l * fold_right sepcon emp (upd_Znth i l emp).
-Proof.
-  intros.
-  erewrite <- sublist_same with (al := l) at 1; auto.
-  rewrite sublist_split with (mid := i); try omega.
-  rewrite sublist_next with (i0 := i); try omega.
-  rewrite sepcon_app; simpl.
-  rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l)).
-  unfold upd_Znth; rewrite sepcon_app, sepcon_assoc; simpl.
-  rewrite emp_sepcon; auto.
-Qed.
-
-Lemma replace_nth_sepcon : forall P l i, P * fold_right sepcon emp (upd_Znth i l emp) =
-  fold_right sepcon emp (upd_Znth i l P).
-Proof.
-  intros; unfold upd_Znth.
-  rewrite !sepcon_app; simpl.
-  rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
-Qed.
-
 Lemma sepcon_derives_prop : forall P Q R, P |-- !!R -> P * Q |-- !!R.
 Proof.
   intros; eapply derives_trans; [apply saturate_aux20 with (Q' := True); eauto|].
   - entailer!.
   - apply prop_left; intros (? & ?); apply prop_right; auto.
-Qed.
-
-Lemma sepcon_map : forall {A} P Q (l : list A), fold_right sepcon emp (map (fun x => P x * Q x) l) =
-  fold_right sepcon emp (map P l) * fold_right sepcon emp (map Q l).
-Proof.
-  induction l; simpl.
-  - rewrite sepcon_emp; auto.
-  - rewrite !sepcon_assoc, <- (sepcon_assoc (fold_right _ _ _) (Q a)), (sepcon_comm (fold_right _ _ _) (Q _)).
-    rewrite IHl; rewrite sepcon_assoc; auto.
-Qed.
-
-Lemma sepcon_list_derives : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
-  (Heq : forall i, 0 <= i < Zlength l1 -> Znth i l1 |-- Znth i l2),
-  fold_right sepcon emp l1 |-- fold_right sepcon emp l2.
-Proof.
-  induction l1; destruct l2; auto; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
-    try (rewrite Zlength_correct in *; omega).
-  apply sepcon_derives.
-  - specialize (Heq 0); rewrite !Znth_0_cons in Heq; apply Heq.
-    rewrite Zlength_correct; omega.
-  - apply IHl1; [omega|].
-    intros; specialize (Heq (i + 1)); rewrite !Znth_pos_cons, !Z.add_simpl_r in Heq; try omega.
-    apply Heq; omega.
-Qed.
-
-Lemma sepcon_rotate : forall lP m n, 0 <= n - m < Zlength lP ->
-  fold_right sepcon emp lP = fold_right sepcon emp (rotate lP m n).
-Proof.
-  intros.
-  unfold rotate.
-  rewrite sepcon_app, sepcon_comm, <- sepcon_app, sublist_rejoin, sublist_same by omega; auto.
-Qed.
-
-(* wand lemmas *)
-Lemma wand_eq : forall P Q R, P = Q * R -> P = Q * (Q -* P).
-Proof.
-  intros.
-  apply seplog.pred_ext, modus_ponens_wand.
-  subst; cancel.
-  rewrite <- wand_sepcon_adjoint; auto.
-  rewrite sepcon_comm; auto.
-Qed.
-
-Lemma wand_twice : forall P Q R, P -* Q -* R = P * Q -* R.
-Proof.
-  intros; apply seplog.pred_ext.
-  - rewrite <- wand_sepcon_adjoint.
-    rewrite <- sepcon_assoc, wand_sepcon_adjoint.
-    rewrite sepcon_comm; apply modus_ponens_wand.
-  - rewrite <- !wand_sepcon_adjoint.
-    rewrite sepcon_assoc, sepcon_comm; apply modus_ponens_wand.
-Qed.
-
-Lemma sepcon_In : forall l P, In P l -> exists Q, fold_right sepcon emp l = P * Q.
-Proof.
-  induction l; [contradiction|].
-  intros ? [|]; simpl; subst; eauto.
-  destruct (IHl _ H) as [? ->].
-  rewrite sepcon_comm, sepcon_assoc; eauto.
-Qed.
-
-Lemma extract_wand_sepcon : forall l P, In P l ->
-  fold_right sepcon emp l = P * (P -* fold_right sepcon emp l).
-Proof.
-  intros.
-  destruct (sepcon_In _ _ H).
-  eapply wand_eq; eauto.
-Qed.
-
-Lemma wand_sepcon_map : forall {A} (R : A -> mpred) l P Q
-  (HR : forall i, In i l -> R i = P i * Q i),
-  fold_right sepcon emp (map R l) = fold_right sepcon emp (map P l) *
-    (fold_right sepcon emp (map P l) -* fold_right sepcon emp (map R l)).
-Proof.
-  intros; eapply wand_eq.
-  erewrite map_ext_in, sepcon_map; eauto.
-  apply HR.
-Qed.
-
-Lemma wand_frame : forall P Q R, P -* Q |-- P * R -* Q * R.
-Proof.
-  intros.
-  rewrite <- wand_sepcon_adjoint; cancel.
-  rewrite sepcon_comm; apply modus_ponens_wand.
 Qed.
 
 Lemma semax_extract_later_prop'':
@@ -3110,7 +3066,7 @@ Function spec: " S);
  end;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
-    pose (s:=spec); hnf in s; simpl in s;
+    pose (s:=spec); hnf in s; cbn zeta in s;
     match goal with
     | s :=  (DECLARE _ WITH _: globals
                PRE  [] main_pre _ nil _

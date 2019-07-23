@@ -375,11 +375,11 @@ Program Definition CAS_RA_spec := TYPE CRA_type
   PRE [ 1%positive OF tptr tint, 2%positive OF tint, 3%positive OF tint ]
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
-   SEP (ALL s' : _, !!(st_ord s s') --> (snd T s' c -* |={E}=>
+   SEP ((ALL s' : _, !!(st_ord s s') --> (snd T s' c -* |={E}=>
           (EX s'' : _, !!(st_ord s' s'') && (protocol_A l s'' st_ord T) -* |={E}=> |> snd T s'' v *
-           Q s'')); (* is this right? *)
-        ALL s' : _, ALL v' : _, !!(st_ord s s' /\ repable_signed v' /\ v' <> c) -->
-          ((|> fst T s' v' * protocol_A l s' st_ord T) -* |={E}=> (R s' v'));
+           Q s''))) && (* is this right? *)
+        (ALL s' : _, ALL v' : _, !!(st_ord s s' /\ repable_signed v' /\ v' <> c) -->
+          ((|> fst T s' v' * protocol_A l s' st_ord T) -* |={E}=> (R s' v')));
         protocol_A l s st_ord T)%I
   POST [ tint ]
    EX v' : Z, EX s' : _,
