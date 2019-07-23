@@ -3093,7 +3093,7 @@ eapply (semax_fun_id'' _f); try reflexivity.
 
 (* revised start_function that mostly works for dependent specs *)
 Ltac start_dep_function :=
- leaf_function;
+(* leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
     let s := fresh "spec" in
@@ -3173,7 +3173,7 @@ Ltac start_dep_function :=
  try match goal with DS := @abbreviate (PTree.t funspec) PTree.Leaf |- _ =>
      clearbody DS
  end;
- start_function_hint.
+ start_function_hint.*) start_function.
 
 (* Notations for dependent funspecs *)
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=

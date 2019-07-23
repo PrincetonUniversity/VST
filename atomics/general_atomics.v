@@ -79,6 +79,7 @@ Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
   Forall (fun l => approx n (!! locald_denote (l ts w v) rho) = approx n (!! locald_denote (l ts
     (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) v) rho)) lb.
 
+(* Todo: make a notation *)
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
 Program Definition atomic_spec {A T} W args tz la P a (t : T) lb b Ei Eo
@@ -145,6 +146,7 @@ Proof.
     unfold SEPx; simpl; rewrite map_map; auto.
 Qed.
 
+(* needs to be updated *)
 Ltac start_atomic_function :=
   match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
