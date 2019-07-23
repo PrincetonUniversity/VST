@@ -4046,7 +4046,7 @@ Ltac start_function :=
  match goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
     let s := fresh "spec" in
-    pose (s:=spec); hnf in s;
+    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
     match goal with
     | s :=  (DECLARE _ WITH _: globals
                PRE  [] main_pre _ nil _
@@ -4056,14 +4056,15 @@ Ltac start_function :=
    change (semax_body V G F s); subst s
  end;
  let DependedTypeList := fresh "DependedTypeList" in
- match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
+ unfold NDmk_funspec; 
+ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
    split; [split3; [check_parameter_types' | check_return_type
           | try (apply compute_list_norepet_e; reflexivity);
              fail "Duplicate formal parameter names in funspec signature"  ] 
          |];
    match Pre with
-   | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
-   | (fun i => _) => intros Espec DependedTypeList i
+   | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
+   | (fun _ i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
@@ -4077,6 +4078,10 @@ Ltac start_function :=
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
  | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+ | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
+             destruct p as [a b]
+ | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
              destruct p as [a b]
        end;
  first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
