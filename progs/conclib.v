@@ -2717,6 +2717,17 @@ Proof.
     erewrite <- sepcon_assoc, data_at_share_join; eauto.
 Qed.
 
+Lemma data_at_shares_join_old : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+  @data_at cs sh1 t v p * fold_right sepcon emp (map (fun sh => data_at sh t v p) shs) =
+  data_at sh t v p.
+Proof.
+  induction shs; intros; simpl.
+  - inv Hsplit.
+    rewrite sepcon_emp; auto.
+  - inv Hsplit.
+    erewrite <- sepcon_assoc, data_at_share_join; eauto.
+Qed.
+
 (* These lemmas should probably be in veric. *)
 Lemma exp_comm : forall {A B} P,
   (EX x : A, EX y : B, P x y) = EX y : B, EX x : A, P x y.
@@ -3079,6 +3090,58 @@ Proof.
       destruct (zlt i 0).
       { rewrite !(Znth_underflow _ _ l); apply eqp_refl. }
       rewrite !Znth_pos_cons, Z.add_simpl_r by omega; auto.
+Qed.
+
+Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
+  fold_right sepcon emp l1 * fold_right sepcon emp l2.
+Proof.
+  induction l1; simpl; intros.
+  - rewrite emp_sepcon; auto.
+  - rewrite IHl1, sepcon_assoc; auto.
+Qed.
+
+Lemma extract_nth_sepcon : forall l i, 0 <= i < Zlength l ->
+  fold_right sepcon emp l = Znth i l * fold_right sepcon emp (upd_Znth i l emp).
+Proof.
+  intros.
+  erewrite <- sublist_same with (al := l) at 1; auto.
+  rewrite sublist_split with (mid := i); try omega.
+  rewrite sublist_next with (i0 := i); try omega.
+  rewrite sepcon_app; simpl.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l)).
+  unfold upd_Znth; rewrite sepcon_app, sepcon_assoc; simpl.
+  rewrite emp_sepcon; auto.
+Qed.
+
+Lemma replace_nth_sepcon : forall P l i, P * fold_right sepcon emp (upd_Znth i l emp) =
+  fold_right sepcon emp (upd_Znth i l P).
+Proof.
+  intros; unfold upd_Znth.
+  rewrite !sepcon_app; simpl.
+  rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
+Qed.
+
+Lemma sepcon_map : forall {A} P Q (l : list A), fold_right sepcon emp (map (fun x => P x * Q x) l) =
+  fold_right sepcon emp (map P l) * fold_right sepcon emp (map Q l).
+Proof.
+  induction l; simpl.
+  - rewrite sepcon_emp; auto.
+  - rewrite !sepcon_assoc, <- (sepcon_assoc (fold_right _ _ _) (Q a)), (sepcon_comm (fold_right _ _ _) (Q _)).
+    rewrite IHl; rewrite sepcon_assoc; auto.
+Qed.
+
+Lemma sepcon_list_derives : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
+  (Heq : forall i, 0 <= i < Zlength l1 -> Znth i l1 |-- Znth i l2),
+  fold_right sepcon emp l1 |-- fold_right sepcon emp l2.
+Proof.
+  induction l1; destruct l2; auto; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
+    try (rewrite Zlength_correct in *; omega).
+  apply sepcon_derives.
+  - specialize (Heq 0); rewrite !Znth_0_cons in Heq; apply Heq.
+    rewrite Zlength_correct; omega.
+  - apply IHl1; [omega|].
+    intros; specialize (Heq (i + 1)); rewrite !Znth_pos_cons, !Z.add_simpl_r in Heq; try omega.
+    apply Heq; omega.
 Qed.
 
 (* tactics *)

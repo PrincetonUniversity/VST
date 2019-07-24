@@ -67,7 +67,63 @@ Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
 
 Import List.
 
-(* Todo: make a notation *)
+(* A is the type of the abstract data. T is the type quantified over in the postcondition.
+   W is the TypeTree of the witness for the rest of the function. *)
+Notation atomic_spec1 T W args tz la P a t lb b Ei Eo :=
+  (mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
+   (fun (ts: list Type) '(w, Q, inv_names) =>
+     PROP ()
+     (LOCALx (map (fun l => l ts w) la)
+     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
+   (fun (ts: list Type) '(w, Q, inv_names) => EX v : T,
+     PROP () (LOCALx (map (fun l => l ts w v) lb)
+     (SEP (Q v)))) _ _).
+
+Lemma atomic_spec_nonexpansive_pre : forall {A T} (t : T) W P L R S2 Ei Eo SQ
+  (HP : Forall (fun x => super_non_expansive (fun ts w _ => !! (x ts w))) P)
+  (HL : Forall (fun x => super_non_expansive (fun ts w rho => !! (locald_denote (x ts w) rho))) L)
+  (HR : Forall (fun x => super_non_expansive (fun ts w _ => x ts w)) R),
+  super_non_expansive_a S2 ->
+  super_non_expansive_b SQ ->
+  @super_non_expansive (atomic_spec_type W T)
+  (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) =>
+    let '(w, Q, inv_names) := _a in
+    PROPx (map (fun P => P ts w) P) (LOCALx (map (fun L => L ts w) L)
+     (SEPx (atomic_shift(A := A)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q :: map (fun R => R ts w) R)))).
+Proof.
+  intros.
+  replace _ with (fun ts (_a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) rho =>
+    PROPx (map (fun P => P ts _a) (map (fun P ts _a => let '(w, _, _) := _a in P ts w) P)) (LOCALx (map (fun P => P ts _a) (map (fun P ts _a => let '(w, _, _) := _a in P ts w) L))
+     (SEPx (map (fun R => R ts _a) ((fun ts _a => let '(w, Q, inv_names) := _a in atomic_shift(A := A)(inv_names := inv_names) (S2 ts w) Ei Eo (SQ ts w) Q) ::
+        map (fun R ts _a => let '(w, _, _) := _a in R ts w) R)))) rho).
+  apply PROP_LOCAL_SEP_super_non_expansive.
+  - rewrite Forall_map.
+    eapply Forall_impl, HP; simpl; intros.
+    intros ?? ((?, ?), ?) ?; simpl; auto.
+  - rewrite Forall_map.
+    eapply Forall_impl, HL; simpl; intros.
+    intros ?? ((?, ?), ?) ?; simpl; auto.
+  - constructor.
+    + intros ?? ((?, ?), ?) ?.
+      unfold atomic_shift; simpl.
+      rewrite !approx_exp; f_equal; extensionality.
+      rewrite -> !approx_sepcon, !approx_andp; f_equal; f_equal.
+      setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; f_equal.
+      rewrite !approx_exp; f_equal; extensionality.
+      rewrite -> !approx_sepcon, !approx_andp; f_equal; auto.
+      f_equal.
+      * setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
+      * rewrite -> !approx_allp by auto; f_equal; extensionality.
+        setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
+        rewrite approx_idem; auto.
+    + rewrite Forall_map.
+      eapply Forall_impl, HR; simpl; intros.
+      intros ?? ((?, ?), ?) ?; simpl; auto.
+  - extensionality ts x rho.
+    destruct x as ((?, ?), ?).
+    simpl; rewrite !map_map; reflexivity.
+Qed.
+
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
 Program Definition atomic_spec {A T} W args tz la P a (t : T) lb b Ei Eo
@@ -84,33 +140,17 @@ Program Definition atomic_spec {A T} W args tz la P a (t : T) lb b Ei Eo
 Next Obligation.
 Proof.
   intros.
-  replace _ with (fun (ts : list Type) (x : _ * (T -> mpred) * _) rho =>
+  replace _ with (fun (ts : list Type) '(w, Q, inv_names) =>
     PROP ()
-    (LOCALx (map (fun Q0 => Q0 ts x) (map (fun l ts x => let '(x, Q, _) := x in l ts x) la))
-     SEP (let '(x, Q, inv_names) := x in
-          atomic_shift(inv_names := inv_names) (a ts x) Ei Eo (b ts x) Q * P ts x)) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive (atomic_spec_type W T) []
-    (map (fun l ts x => let '(x, Q, _) := x in l ts x) la) [fun _ => _]);
-    repeat constructor; hnf; intros; try destruct x as ((x, Q), ?); auto; simpl.
-  - rewrite Forall_forall; intros ? Hin.
-    rewrite -> in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
-    intros ?? ((x, Q), ?) ?.
-    specialize (Hla n ts x rho); rewrite -> Forall_forall in Hla; apply (Hla _ Hin).
-  - unfold atomic_shift.
-    rewrite !approx_sepcon; f_equal; auto.
-    rewrite !approx_exp; f_equal; extensionality.
-    rewrite -> !approx_sepcon, !approx_andp; f_equal; f_equal.
-    setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; f_equal.
-    rewrite !approx_exp; f_equal; extensionality.
-    rewrite -> !approx_sepcon, !approx_andp; f_equal; auto.
-    f_equal.
-    + setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
-    + rewrite -> !approx_allp by auto; f_equal; extensionality.
-      setoid_rewrite fview_shift_nonexpansive; f_equal; f_equal; auto.
-      rewrite approx_idem; auto.
+    (LOCALx (map (fun l => l ts w) la)
+     (SEPx (atomic_shift(A := A)(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q :: map (fun R => R ts w) [P])))).
+  apply atomic_spec_nonexpansive_pre with (P0 := []); auto.
+  - rewrite Forall_forall; repeat intro.
+    exploit Hla.
+    rewrite Forall_forall; intro X; apply X; auto.
+  - repeat constructor; repeat intro; auto.
   - extensionality ts x rho.
-    destruct x as ((?, ?), ?).
-    unfold SEPx; simpl; rewrite -> map_map, !sepcon_assoc; auto.
+    destruct x as ((?, ?), ?); simpl; auto.
 Qed.
 Next Obligation.
 Proof.

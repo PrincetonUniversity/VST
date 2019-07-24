@@ -129,20 +129,65 @@ Definition hashtable H g lg entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
   excl g H * iter_sepcon (hashtable_entry T lg entries) (upto (Z.to_nat size)).
 
-Program Definition set_item_spec := DECLARE _set_item atomic_spec
+Notation "'ATOMIC' 'TYPE' W 'RETURN' T 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEPS' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] SQ" :=
+  (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type W T)
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7), Q, inv_names) := __a in
+     PROPx (cons Px%type .. (cons Py%type nil) ..)
+     (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
+     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => SQ) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7), Q, inv_names) := __a in
+    EX r : T,
+     PROP () LOCAL () SEP (Q r)) _ _) (at level 200, x at level 0, Ei at level 0, Eo at level 0, x1 at level 0, x2 at level 0,
+        x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, x6 at level 0, x7 at level 0,
+             S2 at level 0, SQ at level 100).
+
+Program Definition set_item_spec := DECLARE _set_item
+  ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) RETURN unit OBJ H INVS empty top
+  WITH k : _, v : _, gv : _, sh : _, entries : _, g : _, lg : _
+  PRE [ _key OF tint, _value OF tint ]
+    PROP (readable_share sh /\ repable_signed k /\ repable_signed v /\
+     k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size)
+    LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
+    SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
+  POST [ tvoid ]
+    (data_at sh (tarray tentry size) entries (gv _m_entries) * hashtable (map_upd H k v) g lg entries).
+Next Obligation.
+  repeat intro.
+  destruct x as ((((((?, s), ?), (?, ?)), ?), Q), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite protocol_A_super_non_expansive; f_equal.
+  rewrite -> !approx_allp by auto; f_equal; extensionality.
+  setoid_rewrite approx_imp; f_equal; f_equal.
+  rewrite !(approx_allp _ _ _ 0); f_equal; extensionality.
+  setoid_rewrite fview_shift_nonexpansive.
+  rewrite -> !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
+  
+ args tz la P a t lb b Ei Eo :=
+  (mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(w, Q, inv_names) := __a in
+     PROP ()
+     (LOCALx (map (fun l => l ts w) la)
+     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(w, Q, inv_names) := __a in
+    EX v : T,
+     PROP () (LOCALx (map (fun l => l ts w v) lb)
+     (SEP (Q v)))) _ _).
+
+Program Definition set_item_spec := DECLARE _set_item atomic_spec1 unit
   (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname))
   [(_key, tint); (_value, tint)] tvoid
-  [fun _ '(k, v, gv, sh, entries, g, lg) => temp _key (vint k);
-   fun _ '(k, v, gv, sh, entries, g, lg) => temp _value (vint v);
-   fun _ '(k, v, gv, sh, entries, g, lg) => gvars gv]
-  (fun _ '(k, v, gv, sh, entries, g, lg) => !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
+  [fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in temp _key (vint k);
+   fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in temp _value (vint v);
+   fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in gvars gv]
+  (fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
    k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
    data_at sh (tarray tentry size) entries (gv _m_entries))
-  (fun _ '(k, v, gv, sh, entries, g, lg) H => hashtable H g lg entries)
+  (fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) H => let '(k, v, gv, sh, entries, g, lg) := w in hashtable H g lg entries)
   tt []
-  (fun _ '(k, v, gv, sh, entries, g, lg) H _ =>
+  (fun _ w H _ => let (k, v, gv, sh, entries, g, lg) := w in
    data_at sh (tarray tentry size) entries (gv _m_entries) * hashtable (map_upd H k v) g lg entries)
-  empty top _ _ _ _ _.
+  empty top.
 Next Obligation.
 Proof.
   intros ?? ((((((k, v), p), sh), entries), g), lg); auto.

@@ -42,10 +42,10 @@ Proof.
       [|intro; erewrite <- AE_loc_join with (h1 := empty_map)(h2 := empty_map);
         try apply incl_compatible; eauto; reflexivity].
     rewrite !sepcon_map.
-    do 3 (erewrite <- (data_at_shares_join Ews); eauto).
+    do 3 (erewrite <- (data_at_shares_join_old Ews); eauto).
     rewrite (extract_nth_sepcon (map (data_at _ _ _) (sublist 1 _ bufs)) 0), Znth_map;
       rewrite ?Zlength_map, ?Zlength_sublist; try (unfold B, N in *; omega).
-    erewrite <- (data_at_shares_join Ews tbuffer) by eauto.
+    erewrite <- (data_at_shares_join_old Ews tbuffer) by eauto.
     rewrite (sepcon_comm (data_at sh0 _ _ (Znth 0 (sublist _ _ bufs)))),
       (sepcon_assoc _ (data_at sh0 _ _ (Znth 0 (sublist _ _ bufs)))).
     rewrite replace_nth_sepcon.
