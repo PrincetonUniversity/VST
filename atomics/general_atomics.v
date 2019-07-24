@@ -67,6 +67,7 @@ Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
 
 Import List.
 
+(* Todo: make a notation *)
 (* A is the type of the abstract data. T is the type quantified over in the postcondition.
    W is the TypeTree of the witness for the rest of the function. *)
 Program Definition atomic_spec {A T} W args tz la P a (t : T) lb b Ei Eo
@@ -135,6 +136,7 @@ Proof.
     unfold SEPx; simpl; rewrite map_map; auto.
 Qed.
 
+(* needs to be updated *)
 Ltac start_atomic_function :=
   match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in

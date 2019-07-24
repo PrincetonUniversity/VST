@@ -463,6 +463,7 @@ Qed.
    For this purpose, we use the reference PCM. *)
 
 Require Import VST.veric.ghost_PCM.
+Import Ctypes.
 
 Program Definition initial_core_ext {F Z} (ora : Z) (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat): rmap :=
   proj1_sig (make_rmap (initial_core' ge G n) (Some (ext_ghost ora, NoneP) :: nil) n _ eq_refl).
@@ -496,7 +497,9 @@ rewrite In_rev; auto.
 Qed.
 
 Require Import VST.veric.mapsto_memory_block.
- 
+
+Open Scope pred.
+
 Lemma writable_blocks_app:
   forall bl bl' rho, writable_blocks (bl++bl') rho = writable_blocks bl rho * writable_blocks bl' rho.
 Proof.

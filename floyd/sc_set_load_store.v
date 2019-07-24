@@ -1261,7 +1261,9 @@ Ltac SEP_field_at_unify' gfs :=
       unify shl shr;
       unify vl vr;
       generalize vl; intro;
-      rewrite <- ?field_at_offset_zero; reflexivity
+      rewrite <- ?field_at_offset_zero;
+      f_equal; (* this line is important to prevent blow-ups *)
+      reflexivity
   end.
 
 Ltac SEP_field_at_unify gfs :=
@@ -1386,7 +1388,7 @@ Ltac load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_lvalue               || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | check_hint_type
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in load_tac_with_hint."
@@ -1408,8 +1410,8 @@ Ltac load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
-  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_LR                   || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1447,7 +1449,7 @@ Ltac cast_load_tac_with_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_lvalue               || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | check_hint_type
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in cast_load_tac_with_hint."
@@ -1470,8 +1472,8 @@ Ltac cast_load_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
-  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_LR                   || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)
@@ -1546,8 +1548,8 @@ Ltac store_tac_with_hint LOCAL2PTREE :=
   [ exact LOCAL2PTREE
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
-  | (solve_msubst_eval_lvalue               || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_expr                 || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_lvalue               || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | eassumption (* This line can fail. If it does not, the following should not fail. *)
   | check_hint_type
   | (search_field_at_in_SEP                 || fail 1000 "unexpected failure in store_tac_with_hint."
@@ -1568,9 +1570,9 @@ Ltac store_tac_no_hint LOCAL2PTREE :=
   | reflexivity
   | reflexivity
   | reflexivity
-  | (solve_msubst_eval_expr                 || fail 1 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
-  | (solve_msubst_eval_LR                   || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
-  | (solve_msubst_efield_denote             || fail 1 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_expr                 || fail 1000 "Cannot evaluate right-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_eval_LR                   || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
+  | (solve_msubst_efield_denote             || fail 1000 "Cannot evaluate left-hand-side expression (sometimes this is caused by missing LOCALs in your precondition)")
   | econstructor
   | solve_field_address_gen
   | search_field_at_in_SEP (* This line can fail. If it does not, the following should not fail. *)

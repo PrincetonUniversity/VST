@@ -252,6 +252,8 @@ Proof.
   contradiction (app_cons_not_nil l [] x); auto.
 Qed.
 
+Open Scope logic.
+
 Lemma iter_sepcon_sepcon: forall {A} f g1 g2 l, (forall b : A, f b = g1 b * g2 b) ->
   iter_sepcon f l = iter_sepcon g1 l * iter_sepcon g2 l.
 Proof.
@@ -1968,7 +1970,8 @@ Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
 Proof.
   unfold semax_body; intros.
   destruct s, f0.
-  intros; eapply semax_extensionality_Delta, H.
+  destruct H as [H' H]; split; auto.
+  intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.
 
@@ -3158,90 +3161,8 @@ Qed.
 Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
-(* revised start_function that mostly works for dependent specs *)
-Ltac start_dep_function := 
- leaf_function;
- match goal with |- semax_body _ _ ?F ?spec =>
-   let D := constr:(type_of_function F) in 
-   let S := constr:(type_of_funspec (snd spec)) in
-   let D := eval hnf in D in let D := eval simpl in D in 
-   let S := eval hnf in S in let S := eval simpl in S in 
-   tryif (unify D S) then idtac else
-   tryif function_types_compatible D S 
-   then idtac "Warning: the function-body parameter/return types are not identical to the funspec types, although they are compatible:
-Function body:" D "
-Function spec:" S
-   else
-   (fail "Function signature (param types, return type) from function-body does not match function signature from funspec
-Function body: " D "
-Function spec: " S);
-   check_normalized F
- end;
- match goal with |- semax_body ?V ?G ?F ?spec =>
-    let s := fresh "spec" in
-    pose (s:=spec); hnf in s; cbn zeta in s;
-    match goal with
-    | s :=  (DECLARE _ WITH _: globals
-               PRE  [] main_pre _ nil _
-               POST [ tint ] _) |- _ => idtac
-    | s := ?spec' |- _ => check_canonical_funspec spec'
-   end;
-   change (semax_body V G F s); subst s
- end;
- let DependedTypeList := fresh "DependedTypeList" in
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-   match Pre with
-   | (fun x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
-   | (fun i => _) => intros Espec DependedTypeList i
-   end;
-   simpl fn_body; simpl fn_params; simpl fn_return
- end;
- simpl functors.MixVariantFunctor._functor in *;
- simpl rmaps.dependent_type_functor_rec;
- clear DependedTypeList;
- repeat match goal with | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
-             destruct p as [a b]
-                                          | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
-             destruct p as [a b]
-           end;
- simplify_func_tycontext;
- repeat match goal with
- | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
-       fold (Swhile e s)
- | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
-      match s3 with
-      | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
-      end;
-      fold (Sfor s1 e s2 s3)
- end;
- try expand_main_pre;
- process_stackframe_of;
- repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
-                                  but it needs to come after process_stackframe_of *)
- repeat rewrite <- data_at__offset_zero;
- try apply start_function_aux1;
- repeat (apply semax_extract_PROP;
-              match goal with
-              | |- _ ?sh -> _ =>
-                 match type of sh with
-                 | share => intros ?SH
-                 | Share.t => intros ?SH
-                 | _ => intro
-                 end
-               | |- _ => intro
-               end);
- first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
-        | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
-        | idtac];
- abbreviate_semax;
- lazymatch goal with 
- | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L
- | _ => idtac
- end;
- try match goal with DS := @abbreviate (PTree.t funspec) PTree.Leaf |- _ =>
-     clearbody DS
- end;
- start_function_hint.
+(* legacy *)
+Ltac start_dep_function := start_function.
 
 (* Notations for dependent funspecs *)
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=

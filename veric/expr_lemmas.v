@@ -18,6 +18,7 @@ Require Import VST.veric.seplog. (*For definition of typecheck_environ*)
 Import Cop.
 Import Cop2.
 Import Clight_Cop2.
+Import Ctypes.
 Import LiftNotation.
 Import compcert.lib.Maps.
 

@@ -8,6 +8,8 @@ Require Import VST.veric.align_mem.
 Require Import VST.veric.val_lemmas.
 Import compcert.lib.Maps.
 
+Open Scope Z_scope.
+
 Definition strict_bool_val (v: val) (t: type) : option bool :=
    match v, t with
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))

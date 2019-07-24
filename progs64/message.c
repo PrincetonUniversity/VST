@@ -11,19 +11,19 @@ struct message {
 
 struct intpair {int x, y;};
 
-int intpair_serialize(struct intpair *p, unsigned char *buf) {
-  int x = p->x;
-  int y = p->y;
+int intpair_serialize(void *p, unsigned char *buf) {
+  int x = ((struct intpair *)p)->x;
+  int y = ((struct intpair *)p)->y;
   ((int *)buf)[0]=x;
   ((int *)buf)[1]=y;
   return 8;
 }
 
-void intpair_deserialize(struct intpair *p, unsigned char *buf, int length) {
+void intpair_deserialize(void *p, unsigned char *buf, int length) {
   int x = ((int *)buf)[0];
   int y = ((int *)buf)[1];
-  p->x = x;
-  p->y = y;
+  ((struct intpair *)p)->x = x;
+  ((struct intpair *)p)->y = y;
 }
 
 struct message intpair_message =

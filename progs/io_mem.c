@@ -7,14 +7,14 @@ extern int getchars(unsigned char *buf, int len);
 extern int putchars(unsigned char *buf, int len);
 
 
-int print_intr(unsigned int i, unsigned char *buf, int j) {
+int print_intr(unsigned int i, unsigned char *buf) {
   unsigned int q;
   unsigned char r;
-  int k = 0;
+  int k = -1;
   if (i!=0) {
     q=i/10u;
     r=i%10u;
-    k = print_intr(q, buf, j);
+    k = print_intr(q, buf);
     buf[k] = r+'0';
   }
   return k + 1;
@@ -30,7 +30,7 @@ void print_int(unsigned int i) {
     k = 2;
   }
   else{
-    k = print_intr(i, buf, 0);
+    k = print_intr(i, buf);
     buf[k] = '\n';
     k++;
   }

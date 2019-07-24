@@ -13,6 +13,8 @@ Require Import VST.veric.Clight_lemmas.
 Require Import VST.veric.Clight_initial_world.
 Import compcert.lib.Maps.
 
+Import Clight.
+
 Definition only_blocks {S: block -> Prop} (S_dec: forall b, {S b}+{~S b}) (w: rmap) : rmap.
  refine (proj1_sig (make_rmap (fun loc => if S_dec (fst loc) then w @ loc else core (w @ loc))
                               _ (level w) _ (ghost_of_approx w))).
@@ -857,7 +859,7 @@ Proof.
   rewrite <- Zeq_is_eq_bool in *.
   apply Zmod_divides; [ omega | ].
   apply Zmod_divides in AL; [ | omega].
-  destruct AL as [c ?]. exists (2 * c). rewrite Z.mul_assoc. apply H.
+  destruct AL as [c ?]. exists (2 * c)%Z. rewrite Z.mul_assoc. apply H.
 *  intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
   exists READABLE.
@@ -1211,9 +1213,9 @@ Proof.
   transitivity (access_at m0).
   clear - H.
   destruct a; simpl in H;
-   try solve [unfold access_at; extensionality loc; rewrite (store_access _ _ _ _ _ _ H); auto].
+   try solve [unfold access_at; extensionality loc; rewrite (Mem.store_access _ _ _ _ _ _ H); auto].
   inv H; auto. invSome.
-  unfold access_at; extensionality loc; rewrite (store_access _ _ _ _ _ _ H2); auto.
+  unfold access_at; extensionality loc; rewrite (Mem.store_access _ _ _ _ _ _ H2); auto.
   eapply IHdl; eauto.
 Qed.
 
