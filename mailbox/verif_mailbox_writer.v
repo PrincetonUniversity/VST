@@ -25,19 +25,19 @@ Proof.
    data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
    data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
    data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
-   iter_sepcon (fun r0 => comm_loc lsh (Znth r0 locks) (Znth r0 comms)
+   fold_right sepcon emp (map (fun r0 => comm_loc lsh (Znth r0 locks) (Znth r0 comms)
      (Znth r0 g) (Znth r0 g0) (Znth r0 g1) (Znth r0 g2) bufs
-     (Znth r0 shs) gsh2 (Znth r0 h)) (upto (Z.to_nat N));
-   iter_sepcon (fun r0 => ghost_var gsh1 (vint b0) (Znth r0 g1) *
-     ghost_var gsh1 (vint (@Znth Z (-1) r0 lasts)) (Znth r0 g2)) (upto (Z.to_nat N));
-   iter_sepcon (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
+     (Znth r0 shs) gsh2 (Znth r0 h)) (upto (Z.to_nat N)));
+   fold_right sepcon emp (map (fun r0 => ghost_var gsh1 (vint b0) (Znth r0 g1) *
+     ghost_var gsh1 (vint (@Znth Z (-1) r0 lasts)) (Znth r0 g2)) (upto (Z.to_nat N)));
+   fold_right sepcon emp (map (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
-     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B))))
+     (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs))) (upto (Z.to_nat B)))))
   break: (@FF (environ->mpred) _).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat (empty_map : hist) (Z.to_nat N)); entailer!; simpl.
     my_auto.
     { split. unfold B, N. computable. repeat constructor; computable. }
-    erewrite (iter_sepcon_sepcon (fun _ => _ * _)) by reflexivity.
+    rewrite sepcon_map.
     apply derives_refl'.
     rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
     - rewrite list_Znth_eq with (l := g1) at 1.
@@ -81,9 +81,9 @@ Proof.
   assert (sh = Ews) by (eapply list_join_eq; eauto); subst.
   forward.
   gather_SEP 7 8; rewrite <- sepcon_map.
-  gather_SEP 8 9; replace_SEP 0 (iter_sepcon (fun i => EX sh2 : share,
+  gather_SEP 8 9; replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
-    (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs))) (upto (Z.to_nat B))).
+    (EX v1 : Z, data_at sh2 tbuffer (vint v1) (Znth i bufs))) (upto (Z.to_nat B)))).
   { Opaque B.
     go_lowerx; eapply derives_trans with (Q := _ * _);
       [|erewrite replace_nth_sepcon, upd_Znth_triv; try apply derives_refl; eauto].

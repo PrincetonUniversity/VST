@@ -129,22 +129,22 @@ Definition initialize_channels_spec :=
         data_at Ews (tarray (tptr tbuffer) B) bufs (gv _bufs);
         data_at Ews (tarray (tptr tint) N) reads (gv _reading);
         data_at Ews (tarray (tptr tint) N) lasts (gv _last_read);
-        iter_sepcon (fun r =>
+        fold_right sepcon emp (map (fun r =>
           comm_loc Ews (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N));
-        iter_sepcon (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g;
-        iter_sepcon (ghost_var gsh1 (vint 1)) g0;
-        iter_sepcon (ghost_var gsh1 (vint 0)) g1;
-        iter_sepcon (ghost_var gsh1 (vint 1)) g2;
-        iter_sepcon (malloc_token Ews tint) comms;
-        iter_sepcon (malloc_token Ews tlock) locks;
-        iter_sepcon (malloc_token Ews tbuffer) bufs;
-        iter_sepcon (malloc_token Ews tint) reads;
-        iter_sepcon (malloc_token Ews tint) lasts;
+            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (ghost_hist(hist_el := AE_hist_el) Ish empty_map) g);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
+        fold_right sepcon emp (map (malloc_token Ews tint) comms);
+        fold_right sepcon emp (map (malloc_token Ews tlock) locks);
+        fold_right sepcon emp (map (malloc_token Ews tbuffer) bufs);
+        fold_right sepcon emp (map (malloc_token Ews tint) reads);
+        fold_right sepcon emp (map (malloc_token Ews tint) lasts);
         data_at sh1 tbuffer (vint 0) (Znth 0 bufs);
-        iter_sepcon (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs);
-        iter_sepcon (data_at_ Ews tint) reads;
-        iter_sepcon (data_at_ Ews tint) lasts;
+        fold_right sepcon emp (map (data_at Ews tbuffer (vint 0)) (sublist 1 (Zlength bufs) bufs));
+        fold_right sepcon emp (map (data_at_ Ews tint) reads);
+        fold_right sepcon emp (map (data_at_ Ews tint) lasts);
         mem_mgr gv).
 (* All the communication channels are now inside locks. Buffer 0 also starts distributed among the channels. *)
 
@@ -261,14 +261,14 @@ Definition finish_write_spec :=
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) (gv _last_taken);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
         data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
-        iter_sepcon (fun r =>
+        fold_right sepcon emp (map (fun r =>
           comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (Znth r h)) (upto (Z.to_nat N));
-        iter_sepcon (fun r => ghost_var gsh1 (vint b0) (Znth r g1) *
-          ghost_var gsh1 (vint (@Znth Z (-1) r lasts)) (Znth r g2)) (upto (Z.to_nat N));
-        iter_sepcon (fun i => EX sh : share,
+            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (Znth r h)) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b0) (Znth r g1) *
+          ghost_var gsh1 (vint (@Znth Z (-1) r lasts)) (Znth r g2)) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i b0 then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
-          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B)))
+          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B))))
   POST [ tvoid ]
    EX lasts' : list Z, EX h' : list hist,
    PROP (Forall (fun x => 0 <= x < B) lasts';
@@ -279,14 +279,14 @@ Definition finish_write_spec :=
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts') (gv _last_taken);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
         data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
-        iter_sepcon (fun r =>
+        fold_right sepcon emp (map (fun r =>
           comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (Znth r h')) (upto (Z.to_nat N));
-        iter_sepcon (fun r => ghost_var gsh1 (vint b) (Znth r g1) *
-          ghost_var gsh1 (vint (@Znth Z (-1) r lasts')) (Znth r g2)) (upto (Z.to_nat N));
-        iter_sepcon (fun i => EX sh : share,
+            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (Znth r h')) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b) (Znth r g1) *
+          ghost_var gsh1 (vint (@Znth Z (-1) r lasts')) (Znth r g2)) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i b then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts' i) sh) &&
-          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B))).
+          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B)))).
 
 (* client function specs *)
 Definition reader_spec :=
@@ -320,14 +320,14 @@ Definition writer_spec :=
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm);
         data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
         data_at sh1 (tarray (tptr tbuffer) B) bufs (gv _bufs);
-        iter_sepcon (fun r =>
+        fold_right sepcon emp (map (fun r =>
           comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
-            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N));
-        iter_sepcon (ghost_var gsh1 (vint 0)) g1;
-        iter_sepcon (ghost_var gsh1 (vint 1)) g2;
-        iter_sepcon (fun i => EX sh : share,
+            (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 empty_map) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
+        fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Ews) &&
-          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B)))
+          EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs)) (upto (Z.to_nat B))))
   POST [ tptr tvoid ] PROP () LOCAL () SEP ().
 
 Definition main_spec :=

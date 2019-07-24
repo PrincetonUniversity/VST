@@ -481,13 +481,13 @@ Lemma upd_write_shares : forall bufs b b0 lasts shs sh0 (Hb : 0 <= b < B) (Hb0 :
       else sepalg_list.list_join sh0 (make_shares shs
       (map (fun i : Z => if eq_dec (Znth i h') Empty then b0 else Znth i lasts) (upto (Z.to_nat N))) a) sh) &&
       (EX v0 : Z, data_at sh tbuffer (vint v0) (Znth a bufs))) (upto (Z.to_nat B))) emp))
-  |-- iter_sepcon (fun a => EX sh : share, !! (if eq_dec a b0 then
+  |-- fold_right sepcon emp (map (fun a => EX sh : share, !! (if eq_dec a b0 then
         sepalg_list.list_join sh0 (make_shares shs (sublist 0 (Zlength h' + 1)
           (map (fun i : Z => if eq_dec (Znth i (h' ++ [vint v'])) Empty then b0 else Znth i lasts) (upto (Z.to_nat N)))) a) sh
           else if eq_dec a b then sepalg_list.list_join sh0 (sublist (Zlength h' + 1) N shs) sh
           else sepalg_list.list_join sh0 (make_shares shs
           (map (fun i : Z => if eq_dec (Znth i (h' ++ [vint v'])) Empty then b0 else Znth i lasts) (upto (Z.to_nat N))) a) sh) &&
-          (EX v0 : Z, data_at sh tbuffer (vint v0) (Znth a bufs))) (upto (Z.to_nat B)).
+          (EX v0 : Z, data_at sh tbuffer (vint v0) (Znth a bufs))) (upto (Z.to_nat B))).
 Proof.
   intros; set (shi := Znth (Zlength h') shs).
   assert (readable_share shi).
@@ -712,18 +712,18 @@ Proof.
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
         data_at sh1 (tarray (tptr tint) N) comms (gv _comm); data_at sh1 (tarray (tptr tlock) N) locks (gv _lock);
         EX t' : list nat, EX h' : list val, !!(Zlength t' = i /\ Zlength h' = i /\ Forall2 newer (sublist 0 i h) t') &&
-          iter_sepcon (fun r => comm_loc lsh (Znth r locks) (Znth r comms)
+          fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks) (Znth r comms)
             (Znth r g) (Znth r g0) (Znth r g1) (Znth r g2) bufs (Znth r shs)
             gsh2 (map_add (Znth r h) (if zlt r i then singleton (Znth r t') (AE (Znth r h') (vint b)) else empty_map)))
             (upto (Z.to_nat N))) *
           let lasts' := map (fun i => if eq_dec (Znth i h') Empty then b0 else Znth i lasts)
                             (upto (Z.to_nat N)) in
             data_at Ews (tarray tint N) (map (fun i => vint i) lasts') (gv _last_taken) *
-            iter_sepcon (fun r =>
+            fold_right sepcon emp (map (fun r =>
               ghost_var gsh1 (vint (if zlt r i then b else b0)) (Znth r g1)) (upto (Z.to_nat N))) *
-            iter_sepcon (fun r =>
+            fold_right sepcon emp (map (fun r =>
               ghost_var gsh1 (vint (@Znth Z (-1) r lasts')) (Znth r g2)) (upto (Z.to_nat N))) *
-            iter_sepcon (fun a => EX sh : share,
+            fold_right sepcon emp (map (fun a => EX sh : share,
               !!(if eq_dec a b0 then sepalg_list.list_join sh0 (make_shares shs (sublist 0 i lasts') a) sh
                  else if eq_dec a b then sepalg_list.list_join sh0 (sublist i N shs) sh
                  else sepalg_list.list_join sh0 (make_shares shs lasts' a) sh) &&
@@ -889,7 +889,7 @@ Proof.
         simpl; entailer!. }
     { repeat (split; auto). }
     Intros x b'; destruct x as (t, v); simpl in *.
-    gather_SEP 0 9; replace_SEP 0 (iter_sepcon (fun r =>
+    gather_SEP 0 9; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       comm_loc lsh (Znth r locks) (Znth r comms) (Znth r g) (Znth r g0)
         (Znth r g1) (Znth r g2) bufs (Znth r shs) gsh2 (map_add (Znth r h)
         (if zlt r (i + 1) then singleton (Znth r (t' ++ [t])) (AE (Znth r (h' ++ [v])) (vint b)) else empty_map)))
@@ -912,7 +912,7 @@ Proof.
         rewrite !(@Znth_map _ N), !Znth_upto by (auto; omega).
         if_tac; if_tac; rewrite ?map_add_empty; try omega; try apply derives_refl.
         rewrite !app_Znth1 by omega; apply derives_refl. }
-    gather_SEP 1 10; replace_SEP 0 (iter_sepcon (fun r =>
+    gather_SEP 1 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       ghost_var gsh1 (vint (if zlt r (i + 1) then b else b0)) (Znth r g1)) (upto (Z.to_nat N)))).
     { go_lowerx.
       rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i);
@@ -925,7 +925,7 @@ Proof.
       rewrite !upd_Znth_diff' by (rewrite ?Zlength_map; auto).
       erewrite !Znth_map, !Znth_upto by (auto; rewrite Zlength_upto in *; omega).
       destruct (zlt i0 i), (zlt i0 (i + 1)); auto; omega. }
-    gather_SEP 2 10; replace_SEP 0 (iter_sepcon (fun r =>
+    gather_SEP 2 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       ghost_var gsh1 (vint (@Znth Z (-1) r (map (fun i0 => if eq_dec (Znth i0 (h' ++ [v])) Empty then b0
         else Znth i0 lasts) (upto (Z.to_nat N))))) (Znth r g2)) (upto (Z.to_nat N)))).
     { go_lowerx.

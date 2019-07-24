@@ -376,8 +376,8 @@ Program Definition CAS_RA_spec := TYPE CRA_type
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
    SEP ((ALL s' : _, !!(st_ord s s') --> (snd T s' c -* |={E}=>
-          (EX s'' : _, !!(st_ord s' s'') && (protocol_A l s'' st_ord T) -* |={E}=> |> snd T s'' v *
-           Q s''))) && (* is this right? *)
+          (EX s'' : _, ( !!(st_ord s' s'')) && ((protocol_A l s'' st_ord T) -* |={E}=> |> snd T s'' v *
+           Q s'')))) && (* is this right? *)
         (ALL s' : _, ALL v' : _, !!(st_ord s s' /\ repable_signed v' /\ v' <> c) -->
           ((|> fst T s' v' * protocol_A l s' st_ord T) -* |={E}=> (R s' v')));
         protocol_A l s st_ord T)%I
@@ -393,13 +393,15 @@ Proof.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal; [|rewrite protocol_A_super_non_expansive; f_equal].
+  rewrite !approx_andp; f_equal.
   - rewrite -> !approx_allp by auto; f_equal; extensionality.
     setoid_rewrite approx_imp; f_equal; f_equal.
     setoid_rewrite fview_shift_nonexpansive.
     rewrite !approx_idem; f_equal; f_equal; f_equal.
     rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_andp; f_equal.
     rewrite wand_nonexpansive; setoid_rewrite wand_nonexpansive at 3; f_equal; f_equal.
-    + rewrite -> !approx_andp, protocol_A_super_non_expansive; reflexivity.
+    + rewrite protocol_A_super_non_expansive; reflexivity.
     + rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2; f_equal; f_equal.
       rewrite -> !approx_sepcon, approx_idem; f_equal.
       destruct n; [rewrite !approx_0; auto|].

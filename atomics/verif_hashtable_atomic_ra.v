@@ -925,43 +925,58 @@ Proof.
             (Znth ((i + hash k) mod size) lgk)) (upto (Z.to_nat i)))), inv_names).
       { subst Frame; instantiate (1 := [data_at _ (tarray tentry _) entries _; v_state (i1 `mod` size) lgv pvi lvi;
           iter_sepcon (hashtable_entry_A T lgk lgv entries) (remove_Znth (i1 mod size) (upto (Z.to_nat size)))]); simpl; cancel.
-        * apply allp_right; intro s'.
-          rewrite <- imp_andp_adjoint; Intros.
-          apply andp_right, emp_cored; simpl.
-          rewrite <- wand_sepcon_adjoint.
-          rewrite ->sepcon_comm, sepcon_assoc, sepcon_comm, !sepcon_assoc.
-          eapply derives_trans; [apply sepcon_derives, derives_refl; apply cored_dup|].
-          rewrite ->sepcon_assoc; eapply derives_trans; [apply sepcon_derives, derives_refl; apply andp_left1, derives_refl|].
-          rewrite ->(sepcon_comm (AS && cored)).
-          rewrite ->!sepcon_assoc, <- sepcon_assoc; eapply derives_trans; [apply sepcon_derives, derives_refl; rewrite ->sepcon_comm; apply modus_ponens_wand'; cancel|].
-          eapply derives_trans, fupd_trans; eapply derives_trans, fupd_mono; [apply fupd_frame_r|].
-          Intros H'.
-          unfold k_T, hashtable; Intros T1.
-          rewrite ->extract_nth_sepcon with (i := (i1 mod size))(l := map _ (upto (Z.to_nat size))) by (rewrite Zlength_map; auto).
-          erewrite Znth_map, Znth_upto by (auto; rewrite ->Z2Nat.id; omega).
+        iIntros "(((snap & P) & [AS _]) & snaps)"; iSplit.
+        * iIntros (s' Hs') "[% master2]".
+          iMod ("AS" with "P") as (HT) "[hashtable [HP _]]".
+          unfold hashtable; iDestruct "hashtable" as (T1) "((% & excl) & entries)".
+          match goal with H : _ /\ _ /\ _ |- _ => destruct H as (? & ? & ?) end.
+          rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size)) by auto.
+          erewrite Znth_upto by (rewrite -> ?Zlength_upto, Z2Nat.id; omega).
           unfold hashtable_entry at 1.
-          destruct (Znth (i1 mod size) T1) as (?, lv) eqn: HT1; Intros.
-          rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master gsh2 _ (Znth _ lgk))).
-          rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_master gsh1 _ (Znth _ lgk))).
-          erewrite <- !sepcon_assoc, master_share_join' by eauto; Intros.
-          rewrite ->(sepcon_comm _ (ghost_snap _ _)), <- !sepcon_assoc, snap_master_join by auto; Intros.
-          sep_apply (master_update 0 k); auto.
-          eapply derives_trans; [apply bupd_frame_r|].
-          apply fupd_bupd, bupd_mono.
-          erewrite <- master_share_join by eauto.
+          destruct (Znth (i1 mod size) T1) as (?, lvi') eqn: HT1.
+          iDestruct "entries" as "(((% & master) & masterv) & entries)".
+          iCombine "master master2" as "master"; erewrite (master_share_join'(ORD := zero_order)) by eauto; iDestruct "master" as "[% master]".
+          iAssert ( !!(lookup' T1 k = Some (i1 mod size))) as %Hindex.
+          { iApply (entries_lookup with "[$entries $snaps]"); auto.
+            { rewrite -> Zlength_map; auto. }
+            { rewrite -> HT1; auto. } }
+          iMod (own_dealloc(RA := snap_PCM) with "snap") as "_".
+          iMod (master_update(ORD := zero_order) _ k with "master") as "master"; first auto.
+          erewrite <- (master_share_join(ORD := zero_order)) by eauto; iDestruct "master" as "[master ?]".
           subst; match goal with H : exists v, _ /\ _ |- _ => destruct H as (? & ? & Hz & ?);
             specialize (Hz eq_refl); subst end.
-          rewrite <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc, sepcon_comm, <- !sepcon_assoc.
-          eapply derives_trans; [apply sepcon_derives, andp_left1; apply derives_refl|].
+          iMod ("HP" with "[$excl master masterv entries]") as "P".
+          { iExists (upd_Znth (i1 mod size) T1 (k, lvi')); iSplitL ""; auto.
+            { iSplit; auto; iPureIntro.
+              assert (Zlength (upd_Znth (i1 mod size) T1 (k, lvi')) = size)
+                by (rewrite upd_Znth_Zlength; auto; omega).
+              split; auto.
+              split; [apply wf_table_upd; auto|].
+              intros.
+              etransitivity; eauto; split; intros (Hin & ?); split; auto.
+              - eapply In_upd_Znth_old; auto; try omega.
+                intro X; rewrite <- X in HT1; inv HT1.
+                match goal with H : exists v, _ /\ _ |- _ => destruct H as (? & ? & Hnz) end.
+                contradiction Hnz; eapply value_of_inj; eauto.
+              - apply In_upd_Znth in Hin; destruct Hin as [X|]; auto.
+                inv X.
+                match goal with H : exists v, _ /\ _ |- _ => destruct H as (? & ? & Hnz) end.
+                contradiction Hnz; eapply value_of_inj; eauto. }
+            rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto _) by auto.
+            rewrite -> Znth_upto by (auto; rewrite -> Zlength_upto in *; omega).
+            unfold hashtable_entry; rewrite -> upd_Znth_same by omega; iFrame.
+            iSplitL ""; [iSplit; eauto|].
+            erewrite iter_sepcon_func_strong; [iApply "entries"|].
+            intros ??%In_remove_upto; try omega; simpl.
+            rewrite -> upd_Znth_diff' by omega; auto. }
+          iModIntro; iExists k; iSplit; auto.
+            destruct (Znth x T1); auto.
+eauto.
+            rewrite 
           eapply derives_trans with (Q0 := AS && cored * ghost_master(ORD := zero_order) gsh2 k (Znth (i1 mod size) lgk) * 
             iter_sepcon (fun i0 : Z => ghost_snap(ORD := zero_order) (Znth ((i0 + hash k) mod size) (map fst T))
             (Znth ((i0 + hash k) mod size) lgk)) (upto (Z.to_nat i))) * _).
-          { assert_PROP (lookup' T1 k = Some (i1 mod size)) as Hindex.
-            { rewrite ->sepcon_assoc, (sepcon_comm (fold_right _ _ (upd_Znth _ _ _))), <- !sepcon_assoc,
-                sepcon_comm, !sepcon_assoc, <- sepcon_assoc.
-              apply sepcon_derives_prop; apply entries_lookup; auto.
-              { rewrite ->Zlength_map; auto. }
-              { rewrite ->HT1; auto. } }
+          { 
             cancel.
             apply modus_ponens_wand'.
             Exists (upd_Znth (i1 mod size) T1 (k, lv)); entailer!.

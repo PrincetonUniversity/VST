@@ -259,6 +259,17 @@ Proof.
   rewrite H, IHl; apply pred_ext; cancel.
 Qed.
 
+Lemma iter_sepcon_sepcon': forall {A} g1 g2 (l : list A),
+  iter_sepcon (fun x => g1 x * g2 x) l = iter_sepcon g1 l * iter_sepcon g2 l.
+Proof.
+  intros; apply iter_sepcon_sepcon; auto.
+Qed.
+
+Lemma iter_sepcon_derives : forall {B} f g (l : list B), (forall x, In x l -> f x |-- g x) -> iter_sepcon f l |-- iter_sepcon g l.
+Proof.
+  induction l; simpl; auto; intros.
+  apply sepcon_derives; auto.
+Qed.
 Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
   sublist 0 (m - n) l.
 
@@ -683,6 +694,29 @@ Proof.
       rewrite Znth_pos_cons by omega.
       rewrite Znth_map. rewrite IHm. omega. omega.
       rewrite Zlength_upto. omega.
+Qed.
+
+Lemma sublist_upto : forall n a b, 0 <= a <= b -> sublist a b (upto n) = map (Z.add a) (upto (Min.min n (Z.to_nat b) - Z.to_nat a)).
+Proof.
+  induction n; intros.
+  - simpl; rewrite sublist_of_nil by omega; auto.
+  - simpl.
+    destruct (Z.to_nat b) eqn: Hb.
+    { apply Z2Nat_inj_0 in Hb; try omega.
+      assert (a = 0) by omega; subst.
+      rewrite sublist_nil; auto. }
+    destruct (zlt 0 b).
+    destruct (eq_dec a 0).
+    + subst; rewrite sublist_0_cons, sublist_map, IHn by omega; simpl; f_equal.
+      rewrite Z2Nat.inj_sub, Hb by omega; simpl.
+      rewrite !Nat.sub_0_r, !map_map; auto.
+    + rewrite sublist_S_cons, sublist_map, IHn by omega; simpl.
+      destruct (Z.to_nat a) eqn: Ha.
+      { apply Z2Nat_inj_0 in Ha; omega. }
+      rewrite !Z2Nat.inj_sub, Ha, Hb by omega; simpl.
+      rewrite !Nat.sub_0_r, !map_map; apply map_ext; intros; omega.
+    + destruct (eq_dec b 0); try omega.
+      subst; discriminate.
 Qed.
 
 Transparent Z.of_nat.
@@ -2474,6 +2508,63 @@ Proof.
   destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; omega.
 Qed.
 
+Lemma In_remove_upto' : forall i j k, 0 <= j < Z.of_nat k -> In i (remove_Znth j (upto k)) <->
+  0 <= i < Z.of_nat k /\ i <> j.
+Proof.
+  unfold remove_Znth; split.
+  - intros Hin%in_app.
+    destruct Hin as [Hin | Hin]; apply In_sublist_upto in Hin; omega.
+  - intros []; rewrite Zlength_upto.
+    rewrite !sublist_upto by omega; simpl.
+    rewrite Nat2Z.id, Nat.sub_0_r, !Nat.min_r by rep_omega.
+    rewrite in_app_iff; destruct (zlt i j); [left | right]; rewrite in_map_iff; do 2 eexists; rewrite ?In_upto.
+    + rewrite Z.add_0_l; reflexivity.
+    + rep_omega.
+    + apply Zplus_minus.
+    + rep_omega.
+Qed.
+
+Lemma remove_Znth_app : forall {A} i (l1 l2 : list A), 0 <= i < Zlength l1 + Zlength l2 -> remove_Znth i (l1 ++ l2) =
+  if zlt i (Zlength l1) then remove_Znth i l1 ++ l2 else l1 ++ remove_Znth (i - Zlength l1) l2.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_app by omega.
+  rewrite Z.min_l, Z.max_r by rep_omega.
+  rewrite Zlength_app, sublist_app by omega.
+  rewrite Z.add_simpl_l, (Z.min_r (_ + Zlength l2)), (Z.max_l (Zlength l2)) by rep_omega.
+  if_tac.
+  - rewrite Z.min_l, Z.max_r, sublist_nil, app_nil_r by rep_omega.
+    rewrite Z.min_l, Z.max_r by rep_omega.
+    rewrite app_assoc, (sublist_same _ _ l2) by omega; auto.
+  - rewrite Z.min_r, Z.max_l, sublist_same by omega.
+    rewrite Z.min_r, Z.max_l, sublist_nil by omega; simpl.
+    rewrite app_assoc; f_equal; f_equal; omega.
+Qed.
+
+Lemma In_remove_upto2: forall (i j k : Z) (l : nat), 0 <= j < Z.of_nat l -> 0 <= k < Z.of_nat l -> j <> k ->
+  In i (remove_Znth (if zlt j k then j else j - 1) (remove_Znth k (upto l))) -> 0 <= i < Z.of_nat l /\ i <> j /\ i <> k.
+Proof.
+  unfold remove_Znth at 2; intros ??????? Hin.
+  assert (Zlength (sublist 0 k (upto l)) = k) as Hk.
+  { rewrite Zlength_sublist; rewrite ?Zlength_upto; omega. }
+  rewrite remove_Znth_app in Hin; rewrite Hk, Zlength_upto in *.
+  destruct (zlt j k).
+  - rewrite if_true in Hin by auto.
+    apply in_app_iff in Hin as [Hin|Hin].
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_remove_upto); try omega.
+      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
+    + rewrite sublist_upto, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_upto); try omega.
+      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
+  - rewrite if_false in Hin by omega.
+    apply in_app_iff in Hin as [Hin|Hin].
+    + rewrite sublist_upto, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_upto); try omega.
+      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
+    + rewrite sublist_upto, remove_Znth_map, in_map_iff in Hin by omega; destruct Hin as (? & ? & ?%In_remove_upto); try omega.
+      rewrite Nat.min_r, Nat2Z.inj_sub, !Z2Nat.id in *; rep_omega.
+  - rewrite Zlength_sublist by (rewrite ?Zlength_upto; omega).
+    if_tac; omega.
+Qed.
+
 Lemma iter_sepcon_Znth: forall {A} {d : Inhabitant A} f (l : list A) i, 0 <= i < Zlength l ->
   iter_sepcon f l = f (Znth i l) * iter_sepcon f (remove_Znth i l).
 Proof.
@@ -2546,6 +2637,13 @@ Proof.
   erewrite iter_sepcon_Znth with (l0 := l) by eauto; cancel.
 Qed.
 
+Lemma iter_sepcon_In : forall {B} (x : B) f l, In x l -> iter_sepcon f l = f x * (f x -* iter_sepcon f l).
+Proof.
+  intros.
+  apply (@In_Znth _ x) in H as (? & ? & Heq).
+  rewrite <- Heq; apply iter_sepcon_Znth'; auto.
+Qed.
+
 Instance Inhabitant_share : Inhabitant share := Share.bot. (* TODO: remove this, it's already in sublist.v *) 
 Instance Inhabitant_mpred : Inhabitant mpred := @FF mpred Nveric. (* TODO: remove this, it's already in sublist.v *) 
 
@@ -2606,7 +2704,7 @@ Proof.
 Qed.
 
 Lemma data_at_shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
-  @data_at cs sh1 t v p * fold_right sepcon emp (map (fun sh => data_at sh t v p) shs) =
+  @data_at cs sh1 t v p * iter_sepcon (fun sh => data_at sh t v p) shs =
   data_at sh t v p.
 Proof.
   induction shs; intros; simpl.
@@ -2883,23 +2981,38 @@ Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.app
   compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (rmaps.dependent_type_functor_rec ts A)
         (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
 
-Lemma approx_sepcon_list: forall n lP, lP <> [] ->
-  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP) =
-  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP).
+Lemma approx_0 : forall P, compcert_rmaps.RML.R.approx 0 P = FF.
 Proof.
-  induction lP; [contradiction | intros].
-  destruct lP; simpl in *.
-  - simpl; rewrite !sepcon_emp; auto.
-  - rewrite approx_sepcon, IHlP; auto; discriminate.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? []; omega.
+  - intros ??; contradiction.
 Qed.
 
-Corollary approx_sepcon_list' : forall n lP P,
-  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP)  * compcert_rmaps.RML.R.approx n P =
-  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP) * compcert_rmaps.RML.R.approx n P.
+Lemma approx_eq : forall n P r, (compcert_rmaps.RML.R.approx n P) r = (if lt_dec (level r) n then P r else False).
 Proof.
-  intros.
-  rewrite <- !approx_sepcon, !(sepcon_comm (fold_right _ _ _)).
-  setoid_rewrite approx_sepcon_list with (lP := _ :: _); auto; discriminate.
+  intros; apply prop_ext; split.
+  - intros []; if_tac; auto.
+  - if_tac; split; auto; omega.
+Qed.
+
+Lemma approx_iter_sepcon' : forall {B} n f (lP : list B) P,
+  compcert_rmaps.RML.R.approx n (iter_sepcon f lP)  * compcert_rmaps.RML.R.approx n P =
+  iter_sepcon (compcert_rmaps.RML.R.approx n oo f) lP * compcert_rmaps.RML.R.approx n P.
+Proof.
+  induction lP; simpl; intros.
+  - apply predicates_hered.pred_ext; intros ? (? & ? & ? & ? & ?).
+    + destruct H0; do 3 eexists; eauto.
+    + do 3 eexists; eauto; split; auto; split; auto.
+      destruct H1; apply join_level in H as []; omega.
+  - rewrite approx_sepcon, !sepcon_assoc, IHlP; auto.
+Qed.
+
+Corollary approx_iter_sepcon: forall {B} n f (lP : list B), lP <> [] ->
+  compcert_rmaps.RML.R.approx n (iter_sepcon f lP) =
+  iter_sepcon (compcert_rmaps.RML.R.approx n oo f) lP.
+Proof.
+  destruct lP; [contradiction | simpl].
+  intros; rewrite approx_sepcon, !(sepcon_comm (compcert_rmaps.RML.R.approx n (f b))), approx_iter_sepcon'; auto.
 Qed.
 
 Lemma approx_FF : forall n, compcert_rmaps.RML.R.approx n FF = FF.
