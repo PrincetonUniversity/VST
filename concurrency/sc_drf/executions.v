@@ -1905,7 +1905,7 @@ Module Executions.
               eauto; simpl; now constructor.
             destruct i.
             zify.
-            erewrite! Z.to_nat
+            erewrite! Z2Nat.id
               by (unfold lksize.LKSIZE in *; simpl in *; ssromega).
             omega.
             rewrite setPermBlock_var_other_1 in Hperm'.

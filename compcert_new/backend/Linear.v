@@ -132,55 +132,7 @@ Inductive state: Type :=
       forall (stack: list stackframe) (**r call stack *)
              (rs: locset)             (**r location state at point of return *)
              (m: mem),                (**r memory state *)
-        state.
-
-
-(**NEW *)
-Definition get_mem (s:state):=
-  match s with
-  | State _ _ _ _ _ m => m
-  | Callstate _ _ _ m => m
-  | Returnstate _ _ m => m
-  end.
-
-(**NEW *)
-Definition set_mem (s:state)(m:mem):=
-  match s with
-  | State f s k e le _ => State f s k e le m
-  | Callstate fd args k _ => Callstate fd args k m
-  | Returnstate res k _ => Returnstate res k m
-  end.
-
-(**NEW *)
-Definition at_external (c: state) : option (external_function * list val) :=
-  match c with
-  | State _ _ _ _ _ _ => None
-  | Callstate _ fd rs _ =>
-      match fd with
-        Internal f => None
-      | External ef =>
-        let args := map (fun p => Locmap.getpair p rs) (loc_arguments (ef_sig ef)) in
-          Some (ef, args)
-      end
-  | Returnstate _ _ _ => None
- end.
-
-(**NEW *)
-Definition after_external (rv: option val) (c: state) (m:mem): option state :=
-  match c with
-     Callstate s fd rs _ =>
-        match fd with
-          Internal _ => None
-        | External ef =>
-          let rs' := fun res => Locmap.setpair (loc_result (ef_sig ef)) res rs in
-          match rv with
-              Some v => Some (Returnstate s (rs' v) m)
-            | None  => Some (Returnstate s (rs' Vundef) m )
-            end
-        end
-   | _ => None
-  end.
-
+      state.
 
 (** [parent_locset cs] returns the mapping of values for locations
   of the caller function. *)
@@ -306,35 +258,10 @@ Inductive initial_state (p: program): state -> Prop :=
       funsig f = signature_main ->
       initial_state p (Callstate nil f (Locmap.init Vundef) m0).
 
-(* This lets the stack frame for a spawned thread be an arbitrary internal function, but in fact
-   it should be fixed or possibly passed as an argument to entry_point. *)
-Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
-  | entry_point_intro: forall b f b0 f0 m0 m1 stk args,
-      let ge := Genv.globalenv p in
-      Mem.mem_wd m0 ->
-      globals_not_fresh ge m0 ->
-      Mem.arg_well_formed args m0 ->
-      Genv.find_funct_ptr ge b = Some f ->
-      Val.has_type_list args (sig_args (funsig f)) ->
-      Genv.find_funct_ptr ge b0 = Some (Internal f0) ->
-(*      size_arguments (funsig f) <= Z.max (max_over_instrs outgoing_space) (max_over_slots_of_funct outgoing_slot) ->*)
-      Mem.alloc m0 0 (fn_stacksize f0) = (m1, stk) ->
-      let ls := build_ls_from_arguments (funsig f) args in
-      entry_point p m0 (Callstate (Stackframe f0 (Vptr stk Ptrofs.zero) ls nil :: nil) f ls m1) (Vptr b Ptrofs.zero) args.
-
 Inductive final_state: state -> int -> Prop :=
   | final_state_intro: forall rs m retcode,
       Locmap.getpair (map_rpair R (loc_result signature_main)) rs = Vint retcode ->
       final_state (Returnstate nil rs m) retcode.
 
 Definition semantics (p: program) :=
-  let ge:= (Genv.globalenv p) in
-  Semantics
-    get_mem set_mem
-    (step ge)
-    (entry_point p)
-    (at_external )
-    (after_external )
-    final_state ge
-    (Genv.find_symbol ge  p.(prog_main))
-    (Genv.init_mem p ).
+  Semantics step (initial_state p) final_state (Genv.globalenv p).
