@@ -23,6 +23,8 @@ Import cjoins.
 (*IM using proof irrelevance!*)
 Require Import ProofIrrelevance.
 
+Set Nested Proofs Allowed.
+
 Lemma po_refl: forall p, Mem.perm_order'' p p.
 Proof.
   destruct p; [apply perm_refl| simpl]; auto.
@@ -1230,7 +1232,7 @@ Proof.*)
     forall p b ofs ofs' pmap sz
       (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
       (Maps.PMap.get b (setPermBlock_var p b ofs pmap sz)) ofs' =
-      p (compcert.lib.Coqlib.nat_of_Z (ofs' - ofs +1)).
+      p (Z.to_nat (ofs' - ofs +1)).
   Proof.
     intros.
     generalize dependent ofs'.
@@ -1241,13 +1243,15 @@ Proof.*)
       rewrite PMap.gss.
       destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs'); simpl.
       + f_equal. rewrite -e.
-        replace (ofs + Z.of_nat sz - ofs +1 )%Z with (Z.of_nat sz + 1)%Z; try omega.
-        rewrite compcert.lib.Coqlib.nat_of_Z_plus; simpl; try omega.
-        rewrite compcert.lib.Coqlib.nat_of_Z_of_nat Pos2Nat.inj_1; omega.
-      + apply IHsz; split; try omega.
-        move : Hofs n=> [] l.
-        rewrite Zpos_P_of_succ_nat.
-        intros; omega.
+        replace (ofs + Z.of_nat sz - ofs +1 )%Z with
+            (Z.of_nat sz + 1)%Z; try omega.
+        rewrite <- (coqlib4.nat_of_Z_eq sz.+1); f_equal.
+        apply Nat2Z.inj_succ.
+        apply IHsz; simpl. 
+        rewrite Zpos_P_of_succ_nat in Hofs.
+        replace (ofs + Z.succ (Z.of_nat sz))%Z with
+            (Z.succ (ofs + Z.of_nat sz))%Z in Hofs;
+          omega.
   Qed.
 
   Lemma setPermBlock_setPermBlock_var:
@@ -2601,7 +2605,7 @@ Proof.
 
   specialize (H _ ltac:(reflexivity)).
   destruct H; auto.
-  destruct (Clight_lemmas.block_eq_dec b1' b2'); subst; auto.
+  destruct (base.block_eq_dec b1' b2'); subst; auto.
 Qed.
 
 Lemma setPermBLock_no_overlap:

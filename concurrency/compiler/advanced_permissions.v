@@ -202,7 +202,7 @@ Lemma setPermBlock_inject_permMapLt':
                               cur_perm2 n) max_perm2.
 Proof.
   intros; intros b0 ofs0.
-  destruct (Clight_lemmas.block_eq_dec b' b0);
+  destruct (base.block_eq_dec b' b0);
     [destruct (Intv.In_dec ofs0 ((ofs + delt)%Z, (ofs + delt + (Z.of_nat n))%Z))|
     ].
   - subst. unfold Intv.In in i; simpl in *.
@@ -816,7 +816,7 @@ Lemma perm_no_over_point_to_range:
     map_no_overlap_range f p.
 Proof.
   intros ** ? **.
-  destruct (Clight_lemmas.block_eq_dec b1' b2');
+  destruct (base.block_eq_dec b1' b2');
     auto; (* solevs the case b1' <> b2' *) subst.
   remember ((ofs1 + delta1)-(ofs2 + delta2)) as ofs2'.
   right; intros [LEFT RIGHT]; simpl in *.
@@ -857,7 +857,7 @@ Proof.
     eapply Intv.range_notin in Hrange; simpl in *; omega.
     eapply Intv.range_notin in Hrange; simpl in *; omega.
   - rewrite (@setPermBlock_other_2); auto.
-    destruct (Clight_lemmas.block_eq_dec b' b2); try subst.  
+    destruct (base.block_eq_dec b' b2); try subst.  
     2: { rewrite (@setPermBlock_other_2); auto.
          eapply H3; auto . }
     + match_case; try solve[intros HH; inv HH].
@@ -1096,13 +1096,13 @@ Lemma no_overlapp_iff:
 Proof.
   intros; unfold maps_no_overlap_contra, maps_no_overlap.
   split; intros H **.
-  - destruct (Clight_lemmas.block_eq_dec b1 b1').
+  - destruct (base.block_eq_dec b1 b1').
     + subst; eauto. rewrite H0 in H1; inv H1.
       repeat split; eauto. omega.
     + exploit H; eauto; intros [?|  ?].
       * contradict H5; reflexivity.
       * contradict H5; assumption.
-  - destruct (Clight_lemmas.block_eq_dec b1' b2'); eauto.
+  - destruct (base.block_eq_dec b1' b2'); eauto.
     destruct (Z.eq_dec (ofs1 + delta1) (ofs2 + delta2)); eauto.
     subst; exploit (H b1 b2); eauto.
     intros (?&?&?); subst.
@@ -1302,7 +1302,7 @@ Lemma maps_no_overlap_under_mem:
 Proof.
   intros **. eapply no_overlapp_iff;
                intros ????????????.
-  destruct (Clight_lemmas.block_eq_dec b1 b1').
+  destruct (base.block_eq_dec b1 b1').
   - subst; unify_injection.
     repeat (split; auto); omega.
   - exfalso.
@@ -1680,7 +1680,7 @@ Proof.
       intros; normal. rewrite HA2 in H2.
 
       assert (x = b).
-      { destruct (Clight_lemmas.block_eq_dec x b); auto.
+      { destruct (base.block_eq_dec x b); auto.
         exploit Hno_overlap; eauto.
         unfold Mem.perm. rewrite_getPerm; eauto. 
         intros [HH | HH]; contradict HH; auto.
