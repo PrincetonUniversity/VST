@@ -1093,6 +1093,11 @@ Definition loc_external_result (sg: signature) : rpair preg :=
 Inductive state: Type :=
   | State: regset -> mem -> state.
 
+Definition get_mem (s:state) :=
+  match s with
+  | State _ m => m
+  end.
+
 Inductive step: state -> trace -> state -> Prop :=
   | exec_step_internal:
       forall b ofs f i rs m rs' m',
@@ -1136,14 +1141,174 @@ Inductive initial_state (p: program): state -> Prop :=
         # RSP <- Vnullptr in
       initial_state p (State rs0 m0).
 
+
+(*NEW*)
+(* The following parameters are simple and reasonable, *)
+(* but might not be needed. All definitions come from  *)
+(* compcomp/core/val_casted.v                          *)
+
+Definition funsig (fd: fundef) :=
+  match fd with
+  | Internal f => fn_sig f
+  | External ef => ef_sig ef
+  end.
+
+Definition make_arg (rs: regset) (m: mem) (l: loc) (v: val) : option (regset * mem) :=
+  match l with
+  | R r => Some (rs # (preg_of r) <- v, m)
+  | S _ ofs ty =>
+      let bofs := (Stacklayout.fe_ofs_arg + 4 * ofs)%Z  in
+      match Mem.storev (chunk_of_type ty) m (Val.offset_ptr (rs (IR SP)) (Ptrofs.repr bofs)) v with
+      | Some m' => Some (rs, m')
+      | None => None
+      end
+  end.
+
+Fixpoint make_arguments (rs: regset) (m: mem) (al: list (rpair loc)) (lv: list val) :
+  option (regset * mem) :=
+  match al, lv with
+  | a :: al', v :: lv' =>
+    match make_arguments rs m al' lv' with
+    | Some (rs', m') =>
+      match a with
+      | One l => make_arg rs' m' l v
+      | Twolong hi lo =>
+        match make_arg rs' m' hi (Val.hiword v) with
+        | Some (rs'', m'') => make_arg rs'' m'' lo (Val.loword v)
+        | None => None
+        end
+      end
+    | _ => None
+    end
+  | nil, nil => Some (rs, m)
+  | _, _ => None
+ end.
+
+Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop:=
+| INIT_CORE:
+    forall f b rs stk m0 m1 m2 m3 m args,
+      Genv.find_funct_ptr ge b = Some f ->
+      Mem.alloc m0 0 (3 * size_chunk Mptr) = (m1, stk) ->
+      let sp := Vptr stk Ptrofs.zero in
+      Mem.storev Mptr m1 (Val.offset_ptr sp (Ptrofs.repr (2 * size_chunk Mptr))) Vnullptr = Some m2 ->
+      Mem.storev Mptr m2 (Val.offset_ptr sp Ptrofs.zero) Vnullptr = Some m3 ->
+      let rs0 :=
+        (Pregmap.init Vundef)
+        # PC <- (Vptr b Ptrofs.zero) 
+        # RA <- Vnullptr
+        # RSP <- sp in
+      make_arguments rs0 m3 (loc_arguments (funsig f)) args = Some (rs, m) ->
+      entry_point ge m0 (State rs m) (Vptr b Ptrofs.zero) args.
+
+Definition get_extcall_arg (rs: regset) (m: mem) (l: Locations.loc) : option val :=
+ match l with
+  | Locations.R r => Some (rs (preg_of r))
+  | Locations.S Locations.Outgoing ofs ty => 
+      let bofs := (Stacklayout.fe_ofs_arg + 4 * ofs)%Z  in
+      Mem.loadv (chunk_of_type ty) m
+                (Val.offset_ptr (rs (IR SP)) (Ptrofs.repr bofs))
+  | _ => None
+  end.
+
+Fixpoint get_extcall_arguments
+    (rs: regset) (m: mem) (al: list (rpair Locations.loc)) : option (list val) :=
+  match al with
+  | One l :: al' => 
+     match get_extcall_arg rs m l with
+     | Some v => match get_extcall_arguments rs m al' with
+                         | Some vl => Some (v::vl)
+                         | None => None
+                        end
+     | None => None
+    end
+  | Twolong hi lo :: al' =>
+     match get_extcall_arg rs m hi with
+     | Some vhi => 
+       match get_extcall_arg rs m lo with
+       | Some vlo => 
+        match get_extcall_arguments rs m al' with
+                         | Some vl => Some (Val.longofwords vhi vlo :: vl)
+                         | None => None
+        end
+        | None => None
+      end
+     | None => None
+    end
+  | nil => Some nil
+ end.
+
+Definition at_external (ge:genv) (c: state) : option (external_function * list val) :=
+  match c with
+    State rs m =>
+    match rs PC with
+    | Vptr b i => if Ptrofs.eq_dec i Ptrofs.zero then
+                   match  Genv.find_funct_ptr ge b with
+                   | Some (External ef) =>
+                     match get_extcall_arguments rs m
+                                                 (Conventions1.loc_arguments (ef_sig ef)) with
+                     | Some args => Some (ef, args)
+                     | None => None
+                     end
+                   | _ => None
+                   end
+                 else None
+    | _ => None
+    end
+  end.
+
+
+     
+
+Definition after_external_regset (ge:genv)(vret: option val) (rs: regset) : option regset :=
+  match rs PC with
+  | Vptr b i => if Ptrofs.eq_dec i Ptrofs.zero then
+    match  Genv.find_funct_ptr ge b with
+    | Some (External ef) =>
+      match vret with
+      | Some res => 
+        Some ((set_pair (loc_external_result (ef_sig ef)) res (undef_caller_save_regs rs))
+                #PC <- (rs RA))
+      | None => 
+          Some ((undef_caller_save_regs rs)#(IR RAX) <- Vundef #PC <- (rs RA))
+     end
+    | _ => None
+   end
+   else None
+ | _ => None
+ end.
+  
+Definition after_external (ge:genv)(vret: option val)(c:state)(m:mem): option state:=
+  match c with
+    State rs m' =>
+    match after_external_regset ge vret rs with
+      Some rs' => Some (State rs' m)
+    | None => None
+    end
+  end.
+
 Inductive final_state: state -> int -> Prop :=
   | final_state_intro: forall rs m r,
       rs#PC = Vnullptr ->
       rs#RAX = Vint r ->
       final_state (State rs m) r.
 
+
+Definition set_mem (s:state)(m:mem) :=
+  match s with
+  | State rs _ => State rs m
+  end.
+
+Definition part_semantics (ge: genv) :=
+  Build_part_semantics get_mem set_mem (step ge)
+                       (entry_point ge)
+                       (at_external ge)
+                       (after_external ge)
+                       final_state ge (Genv.to_senv ge).
+
 Definition semantics (p: program) :=
-  Semantics step (initial_state p) final_state (Genv.globalenv p).
+  Build_semantics (part_semantics (Genv.globalenv p))
+                  (Genv.find_symbol (Genv.globalenv p) p.(prog_main))
+                  (Genv.init_mem p).
 
 (** Determinacy of the [Asm] semantics. *)
 
@@ -1194,8 +1359,14 @@ Ltac Equalities :=
   omega.
   eapply external_call_trace_length; eauto.
   eapply external_call_trace_length; eauto.
-- (* initial states *)
-  inv H; inv H0. f_equal. congruence.
+- (* initial cores *)
+  inv H; inv H0.
+  rewrite H7 in H2; inv H2.
+  subst sp sp0.
+  rewrite H8 in H3; inv H3.
+  rewrite H9 in H4; inv H4.
+  rewrite H6 in H1; inv H1.
+  subst rs0 rs2; congruence.
 - (* final no step *)
   assert (NOTNULL: forall b ofs, Vnullptr <> Vptr b ofs).
   { intros; unfold Vnullptr; destruct Archi.ptr64; congruence. }
@@ -1203,7 +1374,6 @@ Ltac Equalities :=
 - (* final states *)
   inv H; inv H0. congruence.
 Qed.
-
 (** Classification functions for processor registers (used in Asmgenproof). *)
 
 Definition data_preg (r: preg) : bool :=
