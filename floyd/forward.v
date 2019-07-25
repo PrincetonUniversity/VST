@@ -4074,7 +4074,6 @@ Ltac start_function :=
   end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
- clear DependedTypeList;
  repeat match goal with
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
@@ -4085,6 +4084,7 @@ Ltac start_function :=
  | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
              destruct p as [a b]
        end;
+ clear DependedTypeList;
  first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
         | erewrite compute_close_precondition by reflexivity];
  simplify_func_tycontext;

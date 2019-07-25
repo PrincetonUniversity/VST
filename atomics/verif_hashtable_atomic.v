@@ -1,5 +1,4 @@
 Require Import VST.veric.rmaps.
-Require Import atomics.general_atomics.
 Require Import VST.progs.conclib.
 Require Import atomics.SC_atomics.
 Require Import VST.veric.bi.
@@ -7,6 +6,7 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import atomics.hashtable_atomic.
 Require Import atomics.hashtable.
+Require Import atomics.general_atomics.
 Import List.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -129,155 +129,50 @@ Definition hashtable H g lg entries := EX T : list (Z * Z),
   !!(Zlength T = size /\ wf_table T /\ forall k v, H k = Some v <-> In (k, v) T /\ v <> 0) &&
   excl g H * iter_sepcon (hashtable_entry T lg entries) (upto (Z.to_nat size)).
 
-Notation "'ATOMIC' 'TYPE' W 'RETURN' T 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEPS' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] SQ" :=
-  (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7), Q, inv_names) := __a in
-     PROPx (cons Px%type .. (cons Py%type nil) ..)
-     (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
-     (SEPx (cons (atomic_shift(inv_names := inv_names) (fun x => S2) Ei Eo (fun x r => SQ) Q) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
-   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '((x1, x2, x3, x4, x5, x6, x7), Q, inv_names) := __a in
-    EX r : T,
-     PROP () LOCAL () SEP (Q r)) _ _) (at level 200, x at level 0, Ei at level 0, Eo at level 0, x1 at level 0, x2 at level 0,
-        x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, x6 at level 0, x7 at level 0,
-             S2 at level 0, SQ at level 100).
+Instance Inhabitant_unit : Inhabitant unit := tt.
 
 Program Definition set_item_spec := DECLARE _set_item
-  ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) RETURN unit OBJ H INVS empty top
+  ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
   WITH k : _, v : _, gv : _, sh : _, entries : _, g : _, lg : _
   PRE [ _key OF tint, _value OF tint ]
-    PROP (readable_share sh /\ repable_signed k /\ repable_signed v /\
-     k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size)
+    PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
+      Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
     LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
     SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
   POST [ tvoid ]
-    (data_at sh (tarray tentry size) entries (gv _m_entries) * hashtable (map_upd H k v) g lg entries).
-Next Obligation.
-  repeat intro.
-  destruct x as ((((((?, s), ?), (?, ?)), ?), Q), ?); simpl.
-  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
-    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
-  rewrite protocol_A_super_non_expansive; f_equal.
-  rewrite -> !approx_allp by auto; f_equal; extensionality.
-  setoid_rewrite approx_imp; f_equal; f_equal.
-  rewrite !(approx_allp _ _ _ 0); f_equal; extensionality.
-  setoid_rewrite fview_shift_nonexpansive.
-  rewrite -> !approx_sepcon, !approx_idem, protocol_A_super_non_expansive; auto.
-  
- args tz la P a t lb b Ei Eo :=
-  (mk_funspec (pair args tz) cc_default (atomic_spec_type W T)
-   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(w, Q, inv_names) := __a in
-     PROP ()
-     (LOCALx (map (fun l => l ts w) la)
-     (SEP (atomic_shift(inv_names := inv_names) (a ts w) Ei Eo (b ts w) Q; P ts w))))
-   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * (T -> mpred) * invG) => let '(w, Q, inv_names) := __a in
-    EX v : T,
-     PROP () (LOCALx (map (fun l => l ts w v) lb)
-     (SEP (Q v)))) _ _).
-
-Program Definition set_item_spec := DECLARE _set_item atomic_spec1 unit
-  (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname))
-  [(_key, tint); (_value, tint)] tvoid
-  [fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in temp _key (vint k);
-   fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in temp _value (vint v);
-   fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in gvars gv]
-  (fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) => let '(k, v, gv, sh, entries, g, lg) := w in !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
-   k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
-   data_at sh (tarray tentry size) entries (gv _m_entries))
-  (fun _ (w : (Z * Z * globals * share * list (val * val) * gname * list gname)) H => let '(k, v, gv, sh, entries, g, lg) := w in hashtable H g lg entries)
-  tt []
-  (fun _ w H _ => let (k, v, gv, sh, entries, g, lg) := w in
-   data_at sh (tarray tentry size) entries (gv _m_entries) * hashtable (map_upd H k v) g lg entries)
-  empty top.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
+   EX r : unit,
+    PROP ()
+    LOCAL ()
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries); hashtable (map_upd H k v) g lg entries).
 
 (* Read the most recently written value. *)
-Program Definition get_item_spec := DECLARE _get_item atomic_spec
-  (ConstType (Z * globals * share * list (val * val) * gname * list gname))
-  [(_key, tint)] tint
-  [fun _ '(k, p, sh, entries, g, lg) => temp _key (vint k);
-   fun _ '(k, gv, sh, entries, g, lg) => gvars gv]
-  (fun _ '(k, gv, sh, entries, g, lg) => !!(readable_share sh /\ repable_signed k /\ k <> 0 /\
-   Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
-   data_at sh (tarray tentry size) entries (gv _m_entries))
-  (fun _ '(k, p, sh, entries, g, lg) H => hashtable H g lg entries)
-  0 [fun _ _ v => temp ret_temp (vint v)]
-  (fun _ '(k, gv, sh, entries, g, lg) H v => data_at sh (tarray tentry size) entries (gv _m_entries) *
-   ( !!(if eq_dec v 0 then H k = None else H k = Some v) && hashtable H g lg entries))
-  empty top _ _ _ _ _.
-Next Obligation.
-Proof.
-  intros ?? (((((k, p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? (((((k, p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? (((((k, p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? (((((k, p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? (((((k, p), sh), entries), g), lg); auto.
-Qed.
+Program Definition get_item_spec := DECLARE _get_item
+  ATOMIC TYPE (ConstType (Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
+  WITH k : _, gv : _, sh : _, entries : _, g : _, lg : _
+  PRE [ _key OF tint ]
+    PROP (readable_share sh; repable_signed k; k <> 0; Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
+    LOCAL (temp _key (vint k); gvars gv)
+    SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
+  POST [ tint ]
+   EX v : Z,
+    PROP ()
+    LOCAL (temp ret_temp (vint v))
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries); !!(if eq_dec v 0 then H k = None else H k = Some v) && hashtable H g lg entries).
 
-Program Definition add_item_spec := DECLARE _add_item atomic_spec
-  (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname))
-  [(_key, tint); (_value, tint)] tint
-  [fun _ '(k, v, p, sh, entries, g, lg) => temp _key (vint k);
-   fun _ '(k, v, p, sh, entries, g, lg) => temp _value (vint v);
-   fun _ '(k, v, gv, sh, entries, g, lg) => gvars gv]
-  (fun _ '(k, v, gv, sh, entries, g, lg) => !!(readable_share sh /\ repable_signed k /\ repable_signed v /\
-   k <> 0 /\ v <> 0 /\ Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries /\ Zlength lg = size) &&
-   data_at sh (tarray tentry size) entries (gv _m_entries))
-  (fun _ '(k, v, p, sh, entries, g, lg) H => hashtable H g lg entries)
-  true [fun _ _ b => temp ret_temp (Val.of_bool b)]
-  (fun _ '(k, v, gv, sh, entries, g, lg) H b => data_at sh (tarray tentry size) entries (gv _m_entries) *
-   ( !!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries))
-  empty top _ _ _ _ _.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
-Next Obligation.
-Proof.
-  intros ?? ((((((k, v), p), sh), entries), g), lg); auto.
-Qed.
+Program Definition add_item_spec := DECLARE _add_item
+  ATOMIC TYPE (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname)) OBJ H INVS empty top
+  WITH k : _, v : _, gv : _, sh : _, entries : _, g : _, lg : _
+  PRE [ _key OF tint, _value OF tint ]
+    PROP (readable_share sh; repable_signed k; repable_signed v; k <> 0; v <> 0;
+      Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength lg = size)
+    LOCAL (temp _key (vint k); temp _value (vint v); gvars gv)
+    SEPS (data_at sh (tarray tentry size) entries (gv _m_entries)) | (hashtable H g lg entries)
+  POST [ tint ]
+   EX b : bool,
+    PROP ()
+    LOCAL (temp ret_temp (Val.of_bool b))
+    SEP (data_at sh (tarray tentry size) entries (gv _m_entries) *
+   ( !!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries)).
 
 Definition init_table_spec :=
  DECLARE _init_table
@@ -479,8 +374,7 @@ Notation top := (@top coPset _).
 
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
-  start_atomic_function.
-  destruct x as ((((((k, v), gv), sh), entries), g), lg); Intros.
+  start_function.
   unfold atomic_shift; Intros P.
   set (AS := _ -* _).
   forward_call k.
@@ -725,7 +619,8 @@ Proof.
         iMod (snaps_dealloc with "snaps") as "_".
         iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose".
         iFrame "data"; unfold hashtable.
-        iExists (upd_Znth (i1 mod size) T (k, v)); iFrame "excl".
+        iFrame.
+        iExists (upd_Znth (i1 mod size) T (k, v)).
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
             by (rewrite -> Zlength_upto, Z2Nat.id; omega).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
@@ -772,8 +667,7 @@ Admitted.
 
 Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
-  start_atomic_function.
-  destruct x as (((((k, gv), sh), entries), g), lg); Intros.
+  start_function.
   unfold atomic_shift; Intros P.
   set (AS := _ -* _).
   forward_call k.
@@ -838,7 +732,7 @@ Proof.
           rewrite HHi; auto. }
         iMod (snaps_dealloc with "snaps") as "_".
         iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose".
-        iFrame "data".
+        iFrame.
         rewrite -> if_true by auto; iSplit.
         { destruct (HT k) eqn: Hk; auto.
           match goal with H : forall k v, _ <-> _ |- _ => rewrite -> H in Hk end.
@@ -847,7 +741,7 @@ Proof.
           match goal with H : wf_table T |- _ => exploit (H k j); rewrite ?Hjth; auto end.
           rewrite Hindex; congruence. }
         unfold hashtable; iExists T.
-        iFrame "excl"; iSplitL ""; [auto|].
+        iSplitL ""; [auto|].
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; omega).
         rewrite -> Znth_upto by (rewrite Z2Nat.id; omega).
@@ -893,7 +787,7 @@ Proof.
         iMod (own_dealloc(RA := snap_PCM) with "snap") as "_".
         iMod (snaps_dealloc with "snaps") as "_".
         iDestruct "Hclose" as "[_ Hclose]"; iApply "Hclose".
-        iFrame "data"; iSplit.
+        simpl; iFrame; iSplit.
         { iPureIntro; if_tac.
           * destruct (HT k) eqn: Hk; auto.
             match goal with H : forall k v, _ <-> _ |- _ => rewrite -> H in Hk end.
@@ -905,7 +799,7 @@ Proof.
             split; auto.
             exploit (Znth_In (i1 mod size) T); [omega|].
             rewrite HHi; auto. }
-        unfold hashtable; iExists T; iFrame "excl".
+        unfold hashtable; iExists T.
         iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
        rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size))
           by (rewrite -> Zlength_upto, Z2Nat.id; omega).
@@ -971,8 +865,7 @@ Admitted.
 
 Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
-  start_atomic_function.
-  destruct x as ((((((k, v), gv), sh), entries), g), lg); Intros.
+  start_function.
   unfold atomic_shift; Intros P.
   set (AS := _ -* _).
   forward_call k.
@@ -1459,8 +1352,6 @@ Proof.
       fun b => EX h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh *
         data_at sh (tarray tentry size) entries (gv _m_entries), inv_names).
     { simpl; entailer!.
-      { match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
-          eapply Forall_impl, H end; intros (?, ?); auto. }
       rewrite -> !sepcon_assoc, sepcon_comm.
       rewrite -> invariant_dup, !sepcon_assoc, sepcon_comm.
       rewrite <- !sepcon_assoc, 5sepcon_assoc; apply sepcon_derives; [|cancel].
@@ -1480,20 +1371,23 @@ Proof.
         iMod "Hclose'"; iMod ("Hclose" with "[hashtable ref]"); auto.
         iNext; iExists HT; iFrame.
         iExists hr; iFrame; auto.
-      + iIntros (b) "[entries [% hashtable]]".
+      + iIntros (b) "[[entries [% hashtable]] _]".
         iPoseProof (hist_ref_incl with "[$hist $ref]") as "%"; [auto|].
         iMod (hist_add' _ _ _ (HAdd (i0 + 1) 1 b) with "[$hist $ref]") as "[hist ref]"; [auto|].
         iMod "Hclose'"; iMod ("Hclose" with "[hashtable ref]").
         * iNext; iExists (if b then map_upd HT (i0 + 1) 1 else HT); iFrame.
           iExists (hr ++ [HAdd (i0 + 1) 1 b]); iSplit; auto.
-          iPureIntro; rewrite apply_hist_app H15; simpl.
+          iPureIntro; rewrite apply_hist_app H12; simpl.
           destruct (HT (i0 + 1)), b; try congruence.
-          -- destruct H16 as [_ X]; specialize (X eq_refl); discriminate.
-          -- destruct H16 as [X _]; specialize (X eq_refl); discriminate.
+          -- destruct H13 as [_ X]; specialize (X eq_refl); discriminate.
+          -- destruct H13 as [X _]; specialize (X eq_refl); discriminate.
         * iModIntro; iExists (map_upd h (length hr) (HAdd (i0 + 1) 1 b)); iFrame.
           iSplit; auto; iPureIntro.
           apply (add_events_snoc _ nil); [constructor|].
           apply hist_incl_lt; auto. }
+    { repeat (split; auto); try rep_omega.
+      match goal with H : Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries |- _ =>
+          eapply Forall_impl, H end; intros (?, ?); auto. }
     Intros b h'.
     forward_if (temp _total (vint (Zlength (filter id (ls ++ [b]))))).
     + pose proof (Zlength_filter id ls).
