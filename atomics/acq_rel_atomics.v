@@ -181,7 +181,7 @@ Axiom protocol_A_join' : forall l s1 s2,
 
 Axiom make_protocol : forall {P : protocol Tread Tfull} sh l v s,
   writable_share sh -> repable_signed v ->
-  data_at sh tint (vint v) l * |> Tfull s v |-- |==> protocol_A l s ord T.
+  data_at sh tint (vint v) l * |> Tfull s v |-- (|==> protocol_A l s ord T)%I.
 
 Axiom protocol_A_later : forall l s,
   protocol_A l s ord (|>Tread, |>Tfull) |-- |>protocol_A l s ord T.
