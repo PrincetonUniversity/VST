@@ -25,6 +25,7 @@ if [ -e "$1" -a ./GRAB ]; then
     cp $1/flocq/Calc/*.v flocq/Calc
     mkdir -p flocq/IEEE754; cp $1/flocq/IEEE754/*.v flocq/IEEE754
     cp $1/exportclight/*.v exportclight
+    cp $1/x86/{Asm,Conventions1,Machregs,Op,Stacklayout}.v x86
     cp $1/backend/{Bounds,Conventions,Linear,Locations,LTL}.v backend
 else
     echo "Usage:  ./GRABNEW ~/compcert_new"
