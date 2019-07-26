@@ -95,7 +95,7 @@ Proof.
     rewrite found in W.
     autospec W. specialize (W ofs).
     spec W. now split; simpl; auto; lkomega.
-    unfold "!!" in W. destruct ((snd (mem_access m)) ! b). congruence.
+    unfold PMap.get in W. destruct ((snd (mem_access m)) ! b). congruence.
     pose proof Max_isCanonical m as can. hnf in can. apply equal_f with (x := ofs) in can.
     unfold getMaxPerm in *.
     simpl in *.
@@ -111,7 +111,7 @@ Proof.
   - unfold juice2Perm_locks in *.
     unfold mapmap in *.
     unfold getCurPerm in *.
-    unfold "!!".
+    unfold PMap.get.
     simpl.
     rewrite PTree.gmap.
     unfold option_map.

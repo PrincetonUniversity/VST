@@ -4139,14 +4139,14 @@ Here be dragons
             - rewrite setPermBlock_var_same; auto.
               unfold pdata.
               replace
-                (Ptrofs.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Ptrofs.intval ofs + 1)) -1)
+                (Ptrofs.intval ofs + Z.of_nat (Z.to_nat (ofs0 - Ptrofs.intval ofs + 1)) -1)
               with
               ofs0.
-              assert ((LKSIZE_nat < nat_of_Z (ofs0 - Ptrofs.intval ofs + 1) )%N = false).
+              assert ((LKSIZE_nat < Z.to_nat (ofs0 - Ptrofs.intval ofs + 1) )%N = false).
               {
                 move: i0. clear.
                 move => [] /= A B.
-                rewrite /LKSIZE_nat /nat_of_Z.
+                rewrite /LKSIZE_nat. 
                 apply /ltP => / lt_not_le HH.
                 apply: HH.
                 (* rewrite -Z2Nat.inj_succ .*)
@@ -4157,7 +4157,7 @@ Here be dragons
               }
               rewrite H.
               reflexivity.
-              rewrite Coqlib.nat_of_Z_eq.
+              rewrite Z2Nat.id.
               xomega.
 
               unfold LKSIZE in i0; destruct i0 as [A B].

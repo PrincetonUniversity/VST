@@ -564,12 +564,17 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend depend:
+	@echo "Copying Clight_core.v ... "
+ifeq ($(COMPCERT), compcert_new)
+	@cp concurrency/shim/Clight_core.v veric/Clight_core.v
+else
+	@cp veric/Clight_core_standard.v veric/Clight_core.v
+endif
 	@echo 'coqdep ... >.depend'
 	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 ifeq ($(COMPCERT), compcert_new)
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
-	echo "" >>.depend
-	$(COQDEP) $(COQFLAGS)  2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric.Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v" -a` | grep -v 'Warning:.*found in the loadpath' || true
+	@echo "" >>.depend
 else
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif

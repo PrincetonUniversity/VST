@@ -726,9 +726,9 @@ Proof.
       destruct (range_perm_dec _ _ _) as [R2|R2].
     + simpl.
       destruct n as [ | n | ]; auto.
-      assert (Z.pos n = Z.of_nat (nat_of_Z (Z.pos n))) as R.
-      { rewrite Coqlib.nat_of_Z_eq; auto. zify. omega. }
-      rewrite R in R1, R2. remember (nat_of_Z (Z.pos n)) as k.
+      assert (Z.pos n = Z.of_nat (Z.to_nat (Z.pos n))) as R.
+      { rewrite Z2Nat.id; auto. zify. omega. }
+      rewrite R in R1, R2. remember (Z.to_nat (Z.pos n)) as k.
       clear Heqk R n.
       revert ofs R1 R2; induction k; intros ofs R1 R2; auto.
       simpl.

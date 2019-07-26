@@ -283,8 +283,8 @@ Proof.
     rewrite !(compose_rewr (approx _) (approx _)).
     rewrite approx_oo_approx'; auto.
     rewrite approx'_oo_approx; auto.
-  - intros b fs phi2' necr. destruct fs eqn:Efs. intros [pp pat].
-    specialize (FA2 b fs phi1 (necR_refl phi1)). subst fs.
+  - intros b fs cc phi2'  necr. destruct fs eqn:Efs. intros [pp pat].
+    specialize (FA2 b fs cc phi1 (necR_refl phi1)). subst fs.
     spec FA2; [ | auto]. simpl. clear -pat necr SP.
     simpl in pat. specialize (SP (b, Z0)).
     destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E).
@@ -639,7 +639,7 @@ Proof.
   apply restrPermMap_ext; intros b.
   extensionality ofs.
   unfold mapmap in *.
-  unfold "!!".
+  unfold PMap.get.
   simpl.
   do 2 rewrite PTree.gmap.
   unfold option_map in *.

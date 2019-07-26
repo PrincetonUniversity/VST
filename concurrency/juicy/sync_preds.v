@@ -467,14 +467,14 @@ Proof.
     extensionality ofs k.
     destruct k; auto.
     specialize (pres (b, ofs)).
-    unfold "!!" in pres.
+    unfold PMap.get in pres.
     simpl in pres.
     rewrite E in pres.
     rewrite <-pres.
     simpl.
     unfold juice2Perm in *.
     unfold mapmap in *.
-    unfold "!!".
+    unfold PMap.get.
     simpl.
     rewrite Eat; simpl.
     rewrite PTree.gmap.
