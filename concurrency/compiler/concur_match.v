@@ -755,7 +755,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           meminj_no_overlap_one f m adr1 adr2.
       Proof.
         intros ** ? **.
-        destruct (Clight_lemmas.block_eq_dec b1 (fst adr1)); auto.
+        destruct (base.block_eq_dec b1 (fst adr1)); auto.
         exploit H0; eauto.
         intros [ ? | ? ].
         - contradict H5; reflexivity.
@@ -766,7 +766,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
       Proof.
         intros. destruct a as (a1& a2);
                   destruct b as (b1& b2).
-        destruct (Clight_lemmas.block_eq_dec a1 b1) as [eq|n];
+        destruct (base.block_eq_dec a1 b1) as [eq|n];
           destruct (Z.eq_dec a2 b2)as [eq'|n']; try subst;
             simpl in *; auto;
               try (right; intros HH; inv HH; try apply n; try apply n'; auto). 

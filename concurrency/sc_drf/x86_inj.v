@@ -2045,7 +2045,7 @@ Module X86Inj.
     erewrite Pregmap.gso by congruence...
     erewrite !Pregmap.gso in * by discriminate.
     pose proof (Hrs_eq PC) as HPC.
-    unfold reg_ren, Pregmap.get in HPC; rewrite Heqv in HPC; inv HPC.
+    unfold reg_ren, Pregmap.get in HPC. rewrite Heqv in HPC; inv HPC.
     repeat match goal with
         | [|- exists _ _, _ ] => do 2 eexists; split; first by eauto
         | [|- _ /\ _] => split; eauto 3 with renamings

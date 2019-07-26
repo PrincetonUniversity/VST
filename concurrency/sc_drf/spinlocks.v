@@ -888,10 +888,10 @@ Module SpinLocks.
                 unfold Mptr in *;
                 destruct Archi.ptr64; simpl in *;
                 ssromega).
-          replace ((nat_of_Z (ofs' - Ptrofs.intval ofs)).+1) with
-          (nat_of_Z (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
+          replace ((Z.to_nat (ofs' - Ptrofs.intval ofs)).+1) with
+          (Z.to_nat (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
             by (zify;
-                erewrite! nat_of_Z_eq
+                erewrite! Z2Nat.id
                   by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
                 omega).
           eapply po_trans; eauto; simpl;
