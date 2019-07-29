@@ -473,10 +473,6 @@ Ltac semax_func_cons L :=
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-(*<<<<<<< HEAD
-           | reflexivity | LookupID | LookupB | apply L
-=======
-*)
            | reflexivity | LookupID | LookupB
            | try solve [apply L]; apply_semax_body L
            | ]
@@ -4047,7 +4043,16 @@ Ltac start_function :=
     check_normalized F;
     let s := fresh "spec" in
     pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
-    match goal with
+   repeat lazymatch goal with
+    | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
+    | s := (_, mk_funspec _ _ _ _ _ _ _) |- _ => fail
+    | s := (_, ?a _ _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _) |- _ => unfold a in s
+    | s := (_, ?a _) |- _ => unfold a in s
+    | s := (_, ?a) |- _ => unfold a in s
+    end;
+    lazymatch goal with
     | s :=  (DECLARE _ WITH _: globals
                PRE  [] main_pre _ nil _
                POST [ tint ] _) |- _ => idtac
