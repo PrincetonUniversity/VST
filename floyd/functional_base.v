@@ -709,6 +709,9 @@ intros.
 congruence.
 Qed.
 
+Lemma opaque_constant {A: Type} (N: A) : {x: A | x=N}.
+Proof. exists N. reflexivity. Qed.
+
 Ltac hint := idtac "Hints are only available when verifying C programs,
 that is, when VST.floyd.proofauto has been imported.  But you have
 imported only VST.floyd.functional_base, without separation logic.

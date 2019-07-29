@@ -66,6 +66,7 @@ Qed.
 (**  How to manage semi-opaque constants, using Hint Rewrite : rep_omega. *)
 (* Suppose you have an uninitialized array of size N: *)
 
+Module Test1.
 Definition N : Z := 20.
 
 Lemma exercise4:
@@ -86,6 +87,15 @@ Abort.
 
 Global Opaque N.
 
+(* Unfortunately, that's not good enough:
+  Opaque prevents "simpl" and "simple apply" from unfolding N,
+  but "reflexivity" and "auto" will still unfold N, causing some
+  proofs to blow up. *)
+End Test1.
+
+
+Definition N : Z := proj1_sig (opaque_constant 20).
+
 Lemma exercise4b:
  let Delta := @abbreviate _ Delta1 in 
  forall sh p,
@@ -103,8 +113,7 @@ Abort.
 
 (* To tell rep_omega that N=20, just add a hint to the rep_omega database: *)
 
-Lemma N_eq: N=20.
-Proof. reflexivity. Qed.
+Definition N_eq : N=20 := proj2_sig (opaque_constant _).
 Hint Rewrite N_eq : rep_omega.
 
 Lemma exercise4c:
@@ -122,7 +131,9 @@ rep_omega.
 rep_omega.
 Qed.
 
-(* Summary: Make your constant Global Opaque, but add a Hint Rewrite rule to the rep_omega database. *)
+(* Summary: Make opaque constants using opaque_constant,
+  but Rewrite rule to the rep_omega database. *)
+
 
 
 
