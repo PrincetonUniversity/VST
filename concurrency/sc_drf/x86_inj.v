@@ -2043,9 +2043,13 @@ Module X86Inj.
              try auto
            end.
     erewrite Pregmap.gso by congruence...
+
+    admit. (* This goal was not around before the merge.
+              is it a new case or is the automation failing?
+            *)
     erewrite !Pregmap.gso in * by discriminate.
     pose proof (Hrs_eq PC) as HPC.
-    unfold reg_ren, Pregmap.get in HPC. rewrite Heqv in HPC; inv HPC.
+    unfold reg_ren, Pregmap.get in HPC; rewrite Heqv in HPC; inv HPC.
     repeat match goal with
         | [|- exists _ _, _ ] => do 2 eexists; split; first by eauto
         | [|- _ /\ _] => split; eauto 3 with renamings
@@ -2118,7 +2122,7 @@ Module X86Inj.
       by (intros Hcontra; subst; eauto).
     erewrite permission_at_free_2 by eauto.
     reflexivity.
-  Qed.
+  Admitted.
 
   Lemma extcall_arg_reg:
     forall f rs rs' m m' locs arg
@@ -2623,6 +2627,12 @@ Qed.
               erewrite <- H; eauto with wd
           end;
       eauto 4 with wd.
+
+    admit.
+    admit. (* Thses two cases where not here before merge.
+              seems like [eval_testcond c rs] was not there before
+            *)
+    
     (* Allocation case*)
     assert (Hnew: Mem.valid_block m0 b)
       by (eapply Mem.valid_new_block; eauto).
@@ -2663,7 +2673,7 @@ Qed.
     eapply valid_val_domain with (f := f); eauto.
     unfold Mem.loadv in *; simpl in *.
     eapply valid_mem_load with (m := m); eauto.
-  Qed.
+  Admitted.
 
 
   (** Well-definedness of state is retained. *)

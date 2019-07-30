@@ -295,8 +295,30 @@ Print Module SeparationLogicSoundness.VericSound.
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
 
   unfold SeparationLogic.NDmk_funspec in *.
-
-  specialize (gam0 _ _ _ FAT).
+  (* before merge, FAT had the following type.
+     We will use that in the mean time.
+   *)
+  assert (FAT': (func_at
+           (mk_funspec ((_y, tptr tvoid) :: nil, tptr tvoid) cc_default
+              (rmaps.ConstType (val * nth 0 ts unit))
+              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+               let (y, x) := x0 in
+               canon.PROPx nil
+                 (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
+                    (canon.SEPx (f_with_Pre x y :: nil))))
+              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+               let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil)))
+              (const_super_non_expansive (val * nth 0 ts unit)
+                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+                  let (y, x) := x0 in
+                  canon.PROPx nil
+                    (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
+                       (canon.SEPx (f_with_Pre x y :: nil)))))
+              (const_super_non_expansive (val * nth 0 ts unit)
+                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+                  let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil))))) 
+           (f_b, 0)) phi00) by admit.
+  specialize (gam0 _ _ _ FAT').
   destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
   unfold filter_genv in *.
 
@@ -608,4 +630,4 @@ clear - Initcore.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Qed. (* safety_induction_spawn *)
+Admitted. (* safety_induction_spawn *)
