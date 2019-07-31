@@ -837,7 +837,7 @@ Proof.
   intros ** ? **.
   eapply H0 in H1.
   eapply H in H1.
-  destruct (f b) as [[? ?]| ?] eqn:HHH; try contradiction.
+  destruct (f b) as [[? ?]| ] eqn:HHH; try contradiction.
   econstructor; eauto.
 Qed.
 Lemma full_inject_map_pair:

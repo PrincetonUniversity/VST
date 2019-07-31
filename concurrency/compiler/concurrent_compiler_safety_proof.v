@@ -404,13 +404,13 @@ Module Concurrent_Safety
 
     
     Lemma ConcurrentCompilerSafety:
-      forall (p : Clight.program) (tp : Asm.program),
-        CC_correct.CompCert_compiler p = Some tp ->
+      forall (tp : Asm.program),
+        CC_correct.CompCert_compiler Args.C_program = Some tp ->
         forall asm_genv_safety : Asm_core.safe_genv (@the_ge tp),
-          let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
+          let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv Args.C_program)) in
           let SemTarget:= @X86Sem tp asm_genv_safety in
           concurrent_simulation_safety_preservation
-            (Genv.init_mem (Ctypes.program_of_program p))
+            (Genv.init_mem (Ctypes.program_of_program Args.C_program))
             (Genv.init_mem tp)
             (SemSource:= SemSource)
             (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
@@ -420,7 +420,7 @@ Module Concurrent_Safety
             (TargetMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
     .
       unfold concurrent_simulation_safety_preservation; intros.
-      pose proof (ConcurrentCompilerCorrectness p tp H asm_genv_safety) as SIM.
+      pose proof (ConcurrentCompilerCorrectness tp H asm_genv_safety) as SIM.
       unfold ConcurrentCompilerCorrectness_specification in SIM.
       (*Construct the initial state*)
       apply (HybridMachine_simulation.initial_setup SIM) in H1 as

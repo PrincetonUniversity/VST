@@ -4166,7 +4166,7 @@ Here be dragons
               omega.
               omega.
             - rewrite setPermBlock_var_other_1; auto.
-              move: Hrmap  => [] [] H1 [].
+              move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4179,7 +4179,7 @@ Here be dragons
                 apply Intv.range_notin in n; auto.
                 pose proof LKSIZE_pos; simpl; omega.
             - rewrite setPermBlock_var_other_2; auto.
-              move: Hrmap  => [] [] H1 [].
+              move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4199,13 +4199,13 @@ Here be dragons
             destruct (peq b b0);
               [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
             - rewrite setPermBlock_same; auto.
-              move: Hrmap  => [] [] H1 [] _.
+              move: Hrmap  => [] H1 [] _.
               assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
               intros [X Hg]; destruct (X _ H3) as (sh & Rsh & -> & Wsh & BB); clear X.
               reflexivity.
             - rewrite setPermBlock_other_1; auto.
-               move: Hrmap  => [] [] H1 [].
+               move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4219,7 +4219,7 @@ Here be dragons
                 apply Intv.range_notin in n; auto.
                 pose proof LKSIZE_pos; simpl; omega.
             - rewrite setPermBlock_other_2; auto.
-              move: Hrmap  => [] [] H1 [].
+              move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4450,7 +4450,7 @@ Here be dragons
               (MTCH_cnt MATCH Hi)).2 b ofs0).
               unfold permission_at in HH. rewrite HH.
               rewrite -(MTCH_perm2 _ MATCH).
-              move: Hrmap  => [] [] H1 [] AA.
+              move: Hrmap  => [] H1 [] AA.
               assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
               intros [X Hg]; destruct (X _ H3) as (sh & Rsh & _ & Wsh & Heq); clear X.
@@ -4475,8 +4475,8 @@ Here be dragons
                 move: H0 => /ltP.
                 intros. unfold LKSIZE_nat in *. apply Z2Nat.inj_lt in H0; try omega. rewrite Nat2Z.id in H0; omega. }
               rewrite H.
-
-              move: Hrmap  => [] [] H1 [] AA.
+              
+              move: Hrmap  => [] H1 [] AA.
               assert (H3: adr_range (b, Ptrofs.unsigned ofs)
                                     LKSIZE
                      (b, Ptrofs.unsigned ofs + Z.of_nat indx.+1 - 1)).
@@ -4861,7 +4861,7 @@ Here be dragons
    - eassumption.
    - econstructor; try eassumption.
       3: reflexivity.
-     Focus 2. eapply (MTCH_getThreadC _ _ _ _ _ _ _ Hthread).
+     2: { eapply (MTCH_getThreadC _ _ _ _ _ _ _ Hthread). }
      instantiate(1:=Hcmpt').
      apply MTCH_restrict_personal.
      assumption.

@@ -43,6 +43,7 @@ Module Main
   (*Assumptions *)
   Context (CPROOF : semax_to_juicy_machine.CSL_proof).
   Definition Clight_prog:= semax_to_juicy_machine.CSL_prog CPROOF.
+  Context (program_proof : Clight_prog = Args.C_program).
   Definition Main_ptr:=Values.Vptr (Ctypes.prog_main Clight_prog) Integers.Ptrofs.zero.
   Context (Asm_prog: Asm.program).
   Context (compilation : CC_correct.CompCert_compiler Clight_prog = Some Asm_prog).
@@ -128,9 +129,12 @@ Qed.
       init_MachState_target init_mem_target' n.
   Proof.
     intros.
-    pose proof (@ConcurrentCompilerSafety _ _ compilation asm_genv_safe) as H.
+    assert(compilation':= compilation).  
+    rewrite program_proof in compilation'. 
+    pose proof (@ConcurrentCompilerSafety _ compilation' asm_genv_safe) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (init_mem CPROOF) (init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
+    rewrite <- program_proof in *.
     match type of H with
       | ?A -> _ => cut A
     end.
@@ -140,10 +144,9 @@ Qed.
     end.
     intros HH'; specialize (H HH');
       match type of H with
-      | ?A -> _ => cut A; try (intros; eapply Clight_initial_safe; auto)  (*That didn't work?*)
+      | ?A -> _ => cut A
       end.
     intros HH''; specialize (H HH'').
-
     - destruct H as (mem_t& mem_t' & thread_target & INIT_mem & INIT & SAFE).
       exists mem_t, mem_t', thread_target; split (*;[|split] *).
       + eauto. (*Initial memory*)
@@ -173,8 +176,9 @@ Qed.
           subst C1; auto.
           f_equal. eapply Axioms.proof_irr. *)
       + eapply SAFE.
-
+    - intros. eapply Clight_initial_safe; auto.
     - clear H. split; eauto; econstructor; repeat split; try reflexivity; eauto.
+      
     - apply CPROOF_initial_mem.
   Qed.
 

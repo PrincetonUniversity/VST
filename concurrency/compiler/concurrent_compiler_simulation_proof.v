@@ -33,8 +33,9 @@ Import Integers.
 Import Ptrofs.
 Import Basics.
 Import FunctionalExtensionality.
-
+ 
 Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 (*Clight Machine *)
 Require Import VST.concurrency.common.ClightMachine.
@@ -61,14 +62,70 @@ Module Concurrent_correctness
 
   
   Section TrivialSimulations.
+    Definition lift_state {resources Sem1 Sem2}
+               (f: @semC Sem1 -> @semC Sem2):
+      @OrdinalPool.t resources Sem1 ->
+      @OrdinalPool.t resources Sem2.
+      intros X; inv X.
+      econstructor; eauto.
+      intros h; specialize (pool h).
+      inv pool; [econstructor 1|
+                 econstructor 2|
+                 econstructor 3|
+                 econstructor 4]; eauto.
+    Defined.
+    Inductive refl_match {st_t:Type}: unit -> meminj -> st_t -> mem -> st_t -> mem -> Prop :=
+    | Build_refl_match:
+        forall m st, refl_match tt (Mem.flat_inj (Mem.nextblock m)) st m st m.
+    Definition trivial_order: unit -> unit -> Prop := (fun _ _=> False).
+    Lemma trivial_order_wf: well_founded trivial_order.
+    Proof. do 2 econstructor. inv H. Qed.
     
-      Lemma trivial_clight_simulation:
-        forall (cp: Clight.program),
-        (HybridMachine_simulation
+    Lemma trivial_clight_simulation:
+      (HybridMachine_simulation
            (ClightMachine.DMS.ClightConcurSem
-              (ge:=(Clight.globalenv cp))
-              (Genv.init_mem (Ctypes.program_of_program cp)))
-           (HybConcSem (Some 0)%nat (Genv.init_mem (Ctypes.program_of_program cp)))).
+              (ge:=Clight_g)
+              (Genv.init_mem (Ctypes.program_of_program C_program)))
+           (HybConcSem (Some 0)%nat (Genv.init_mem (Ctypes.program_of_program C_program)))).
+    Proof.
+        intros.
+        unshelve econstructor.
+        - exact unit.
+        - simpl; intros; eapply refl_match; eauto.
+        - unshelve econstructor.
+          + exact trivial_order.
+          + exact trivial_order_wf.
+          + (*initial_setup*)
+
+            simpl; intros.
+            exists (Mem.flat_inj (Mem.nextblock s_mem')), tt.
+            unshelve eexists.
+            eapply lift_state;
+              [|eapply s_mach_state]; apply SState. (*needs to go after*)
+            exists s_mem, s_mem', r1; split.
+            2: { econstructor. }
+            inv H; econstructor; eauto.
+            simpl in *.
+            destruct r1; inv H1.
+            econstructor; simpl in *.
+            normal.
+            2: { simpl. unfold lift_state.
+                 rewrite e; simpl.
+                 unfold  OrdinalPool.mkPool.
+                 f_equal. }
+            econstructor.
+            admit. (* wrong order! *)
+            split; eauto.
+
+          + (*thread_diagram*)
+            intros; unfold Clight_g; auto.
+            unshelve eexists. {
+              simpl.
+              eapply lift_state;
+                [|eapply st1']; apply SState. }
+            
+        
+        
       Admitted.
       Lemma trivial_asm_simulation:
         forall ap (Hsafe:Asm_core.safe_genv (@the_ge ap)), 
@@ -128,12 +185,11 @@ Module Concurrent_correctness
   Admitted.
   
   Lemma ConcurrentCompilerCorrectness:
-    forall (p:Clight.program) (tp:Asm.program),
-      CC_correct.CompCert_compiler p = Some tp ->
+    forall (tp:Asm.program),
+      CC_correct.CompCert_compiler C_program = Some tp ->
       forall asm_genv_safety,
-        ConcurrentCompilerCorrectness_specification
-          (Clight.globalenv p) tp asm_genv_safety
-          (Genv.init_mem (Ctypes.program_of_program p)) (Genv.init_mem tp)
+        ConcurrentCompilerCorrectness_specification Clight_g tp asm_genv_safety
+          (Genv.init_mem (Ctypes.program_of_program C_program)) (Genv.init_mem tp)
   .
   Proof.
     unfold ConcurrentCompilerCorrectness_specification.
@@ -143,7 +199,8 @@ Module Concurrent_correctness
     - eapply HBSimulation_transitivity.
       + econstructor.
         eapply compile_all_threads.
-      + replace (Genv.init_mem (Ctypes.program_of_program p)) with (Genv.init_mem tp) by
+      + replace (Genv.init_mem (Ctypes.program_of_program C_program))
+          with (Genv.init_mem tp) by
             eapply initial_memories_are_equal.
         eapply trivial_asm_simulation; eauto.
   Qed.

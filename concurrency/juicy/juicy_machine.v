@@ -121,7 +121,7 @@ Module Concur.
         all_coh: alloc_cohere m phi
       }.
     Definition mem_thcohere (tp : thread_pool) m :=
-      forall {tid} (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt).
+      forall tid (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt).
 
     Definition mem_lock_cohere (ls:lockMap) m:=
       forall loc rm, AMap.find loc ls = SSome rm -> mem_cohere' m rm.
@@ -1763,10 +1763,10 @@ Qed.
        replace (enums_equality.enum (num_threads js)) with (ord_enum (num_threads js)) in H by apply ord_enum_enum.
        simpl in *; forget  (AMap.elements (elt:=option rmap) (lset js)) as el.
        match goal with |- joins ?A ?B => assert (H3: joins (Some A) (Some B)) end.
-      Focus 2. destruct H3; inv H3; eexists; eauto.
+       2 : { destruct H3; inv H3; eexists; eauto. }
        eapply join_sub_joins'. 2: instantiate (1:=r1). instantiate (1:= Some r0).
        assert (join_sub (perm_maps js (Ordinal (n:=n (num_threads js)) (m:=i) cnti)) r0).
-       Focus 2. destruct H3 as [xx H3];  exists (Some xx); constructor; auto.
+       2 : { destruct H3 as [xx H3];  exists (Some xx); constructor; auto. }
        3: eauto.
        { clear - H.
            unfold join_threads in H. unfold getThreadsR in H.
