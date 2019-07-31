@@ -566,9 +566,9 @@ floyd/floyd.coq: floyd/proofauto.vo
 .depend depend:
 	@echo "Copying Clight_core.v ... "
 ifeq ($(COMPCERT), compcert_new)
-	@cp concurrency/shim/Clight_core.v veric/Clight_core.v
+	@cp -p concurrency/shim/Clight_core.v veric/Clight_core.v
 else
-	@cp veric/Clight_core_standard.v veric/Clight_core.v
+	@cp -p veric/Clight_core_standard.v veric/Clight_core.v
 endif
 	@echo 'coqdep ... >.depend'
 	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
