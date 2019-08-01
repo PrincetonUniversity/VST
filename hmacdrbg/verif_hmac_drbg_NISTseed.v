@@ -910,7 +910,8 @@ Proof.
   Exists Int.zero. simpl. symmetry in Heqd. apply orb_false_iff in Heqd. destruct Heqd as [Heqd1 Heqd2].
   destruct (zlt 256 (Zlength Data)); try discriminate.
   apply andp_right. apply prop_right; split; trivial. 
-  thaw XX. thaw OLD_MD. cancel. simpl in *. rewrite Heqd2, <- HeqMRS.
+  thaw XX. thaw OLD_MD. cancel. simpl in *.
+  rewrite Heqd2. (* rewrite <- HeqMRS. *)
   Exists p. 
   apply andp_right. apply prop_right; trivial.
   unfold_data_at 1%nat. cancel. entailer!.
