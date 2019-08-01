@@ -1,3 +1,6 @@
+[submodule "InteractionTrees"]
+	path = InteractionTrees
+	url = https://github.com/DeepSpec/InteractionTrees
 [submodule "paco"]
 	path = paco
 	url = https://github.com/snu-sf/paco.git
