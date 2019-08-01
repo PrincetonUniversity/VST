@@ -508,6 +508,7 @@ progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
 hmac:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
+sha-hmac: sha hmac
 hmacequiv:    _CoqProject $(HMAC_FILES:%.v=sha/%.vo)
 fcf:     _CoqProject $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: _CoqProject $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
