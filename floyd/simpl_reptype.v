@@ -192,18 +192,40 @@ Ltac solve_load_rule_evaluation :=
     match goal with
     | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
         let opaque_v := fresh "opaque_v" in
-        (* in next line, using "remember" instead of "set" 
-            prevents blowup in some cases. *)
-        remember v as opaque_v (*set (opaque_v := v)*) ;
-        (* BEGIN this part substantially speeds up certain cases *)
-        simpl; unfold eq_rect_r; simpl;
-        try match goal with |- JMeq (Znth ?z ?A) _ =>
-           change (Znth z A) with (Znth z opaque_v)
+              remember v as opaque_v;
+              (* alternate: set (opaque_v := v); *)
+(* first attempt: blows up in aes/verif_encryption_LL_loop_body 
+             simpl;
+             repeat match goal with
+             | |- _ => unfold eq_rect_r at 1; simpl
+             | |- context [reptype ?t] => 
+                  let x := constr:(reptype t) in
+                  let x := eval compute in x in
+                  change (reptype t) with x
+             | |- context [default_val ?t] =>
+               let x := constr:(reptype t) in
+               let x := eval compute in x in
+               unify x val;
+               change (default_val t) with Vundef
+            | |- context [@unfold_reptype ?cs ?t ?v] =>
+                 change (@unfold_reptype cs t v) with v
+              end;
+*)
+(* second attempt: blows up, but not as badly, in aes/verif_encryption_LL_loop_body 
+             simpl;
+             repeat match goal with 
+             | |- context [@eq_rect_r] =>
+                    unfold eq_rect_r at 1; unfold eq_rect at 1; unfold eq_sym at 1; cbv iota;
+                    simpl nested_field_type
+             | |- context [unfold_reptype ?t] => change (unfold_reptype t) with t
+             | |- context [@proj_gfield_reptype] =>
+                    (simpl proj_gfield_reptype at -1 || simpl proj_gfield_reptype)
+              end;
+*)
+              cbv - [ (* alternate: opaque_v *) sublist.Znth Int.repr JMeq];
+              subst opaque_v
         end;
-        (* END this part substantially... *)
-        cbv - [ (*opaque_v*) sublist.Znth Int.repr JMeq];
-        subst opaque_v; subst; apply JMeq_refl
-    end
+        subst; apply JMeq_refl
   | canon_load_result; apply JMeq_refl ].
 
 Ltac simplify_casts := 
