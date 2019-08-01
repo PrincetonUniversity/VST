@@ -95,7 +95,7 @@ Proof.
     rewrite found in W.
     autospec W. specialize (W ofs).
     spec W. now split; simpl; auto; lkomega.
-    unfold "!!" in W. destruct ((snd (mem_access m)) ! b). congruence.
+    unfold PMap.get in W. destruct ((snd (mem_access m)) ! b). congruence.
     pose proof Max_isCanonical m as can. hnf in can. apply equal_f with (x := ofs) in can.
     unfold getMaxPerm in *.
     simpl in *.
@@ -111,7 +111,7 @@ Proof.
   - unfold juice2Perm_locks in *.
     unfold mapmap in *.
     unfold getCurPerm in *.
-    unfold "!!".
+    unfold PMap.get.
     simpl.
     rewrite PTree.gmap.
     unfold option_map.
@@ -931,7 +931,8 @@ Section Progress.
           apply (predat_join_sub SUB) in E3.
           assert (level phi_lockinv = level Phi) by apply join_sub_level, SUB.
           assert (level unlockedphi = level Phi).
-          { eapply join_sub_level, compatible_lockRes_sub; simpl; eauto; apply compat. }
+          { eapply join_sub_level, compatible_lockRes_sub_all; simpl;
+              eauto; apply compat. }
           rewr (level phi_lockinv) in E3.
           assert (join_sub phi_sat Phi). {
             apply join_sub_trans with phi0. hnf; eauto.
@@ -1261,7 +1262,7 @@ Section Progress.
               apply join_sub_trans with phi0; eauto. eexists; eauto.
             }
             assert (Ja : join_sub phi_sat Phi). {
-              eapply compatible_lockRes_sub; simpl; eauto.
+              eapply compatible_lockRes_sub_all; simpl; eauto.
               apply compat.
             }
             assert (J01 : join_sub phi0lockinv Phi). {

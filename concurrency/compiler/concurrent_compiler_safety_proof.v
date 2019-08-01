@@ -1,8 +1,8 @@
+From Paco Require Import paco.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype.
 
 Require Import compcert.common.Globalenvs.
-Require Import VST.concurrency.paco.src.paco.
 
 Require Import VST.concurrency.common.HybridMachineSig.
 Import HybridMachineSig.
@@ -24,21 +24,28 @@ Require Import VST.concurrency.common.ClightMachine.
 (*Asm Machine*)
 Require Import VST.concurrency.common.x86_context.
 
-Module Concurrent_Safety (CC_correct: CompCert_correctness).
+
+Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
+
+Module Concurrent_Safety
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
   (*Import the Clight Hybrid Machine*)
   Import ClightMachine.
   Import DMS.
   (*Import the Asm X86 Hybrid Machine*)
   Import X86Context.
 
-  Module ConcurCC_correct:= (Concurrent_correctness CC_correct).
+  Module ConcurCC_correct:= (Concurrent_correctness CC_correct Args).
   Import ConcurCC_correct.
-  
+
+
+  (*USed to be start_stack*)
   Definition Clight_init_state (p: Clight.program):=
-    Clight.start_stack (Clight.globalenv p).
+    Clight.initial_state p.
   
   Definition Asm_init_state (p: Asm.program):=
-    Asm.start_stack (@the_ge p).
+    Asm.initial_state  p.
 
   Notation valid Sem:=
     (valid dryResources Sem OrdinalPool.OrdinalThreadPool).
@@ -229,11 +236,12 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
             simpl.
             now eauto.
         + (* Step Star case *)
-          eapply paco3_pfold; eauto.
+          eapply paco3_fold; eauto.
           destruct HstepT as [n HstepN].
           destruct n.
           * simpl in HstepN; inversion HstepN; subst.
             econstructor 4; eauto.
+            right.
             eapply HsafeT; try apply Hevs'; eauto.
             intros.
             eapply explicit_safety_trace_irr with (tr := evS).
@@ -262,6 +270,7 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
                    destruct HstepN as [C_target'' [m_t'' [HstepT' HstepN]]].
                    econstructor 2 with (_y := (tr2, C_target'', m_t'')); simpl; eauto.
             ** intros.
+               right.
                eapply HsafeT; try apply Hevs'; eauto.
                intros.
                eapply explicit_safety_trace_irr with (tr := evS); eauto.
@@ -395,13 +404,13 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
 
     
     Lemma ConcurrentCompilerSafety:
-      forall (p : Clight.program) (tp : Asm.program),
-        CC_correct.CompCert_compiler p = Some tp ->
+      forall (tp : Asm.program),
+        CC_correct.CompCert_compiler Args.C_program = Some tp ->
         forall asm_genv_safety : Asm_core.safe_genv (@the_ge tp),
-          let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
+          let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv Args.C_program)) in
           let SemTarget:= @X86Sem tp asm_genv_safety in
           concurrent_simulation_safety_preservation
-            (Genv.init_mem (Ctypes.program_of_program p))
+            (Genv.init_mem (Ctypes.program_of_program Args.C_program))
             (Genv.init_mem tp)
             (SemSource:= SemSource)
             (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
@@ -411,7 +420,7 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
             (TargetMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
     .
       unfold concurrent_simulation_safety_preservation; intros.
-      pose proof (ConcurrentCompilerCorrectness p tp H asm_genv_safety) as SIM.
+      pose proof (ConcurrentCompilerCorrectness tp H asm_genv_safety) as SIM.
       unfold ConcurrentCompilerCorrectness_specification in SIM.
       (*Construct the initial state*)
       apply (HybridMachine_simulation.initial_setup SIM) in H1 as

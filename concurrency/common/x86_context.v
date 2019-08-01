@@ -99,7 +99,7 @@ Module X86SEMAxioms.
         unfold safe_genv in Hsafe;
         specialize (Hsafe _ _ _ _ _ _ _ _ _ _ _ _ H5 H6 H7 H13);
         simpl in *;
-        try (destruct Hsafe as [_ [_ Hcontra]]; now exfalso).
+        try (destruct Hsafe; now exfalso).
         inversion H13. inversion H8; subst.
         reflexivity.
         inversion H13; inversion H8; subst.

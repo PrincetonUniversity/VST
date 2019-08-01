@@ -678,7 +678,7 @@ Opaque age_tp_to.
                    unfold age_to in *. f_equal.
                    replace (level d_phi) with (level Phi); swap 1 2.
                    {
-                     pose proof @compatible_lockRes_sub _ _ _ _ His_unlocked Phi ltac:(apply compat).
+                     pose proof @compatible_lockRes_sub_all _ _ _ _ His_unlocked Phi ltac:(apply compat).
                      join_level_tac.
                    }
                    omega.

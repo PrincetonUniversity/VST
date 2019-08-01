@@ -140,8 +140,3 @@ Ltac range_tac :=
     pose proof LKSIZE_pos;
     omega
   end.
-
-Ltac eassert :=
-  let mp := fresh "mp" in
-  pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
-  eapply mp; clear mp.

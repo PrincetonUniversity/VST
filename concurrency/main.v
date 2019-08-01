@@ -21,15 +21,18 @@ Require Import VST.concurrency.common.threadPool.
 Require Import VST.concurrency.common.erased_machine.
 Require Import VST.concurrency.common.HybridMachineSig.
 
+Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Module Main (CC_correct: CompCert_correctness).
+Module Main
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
   (*Import the *)
   (*Import the safety of the compiler for concurrent programs*)
   
   (* Module ConcurCC_safe:= (SafetyStatement CC_correct). *)
-  Module ConcurCC_safe := (Concurrent_Safety CC_correct).
+  Module ConcurCC_safe := (Concurrent_Safety CC_correct Args).
   Import ConcurCC_safe.
 
   (*Importing the definition for ASM semantics and machines*)
@@ -40,6 +43,7 @@ Module Main (CC_correct: CompCert_correctness).
   (*Assumptions *)
   Context (CPROOF : semax_to_juicy_machine.CSL_proof).
   Definition Clight_prog:= semax_to_juicy_machine.CSL_prog CPROOF.
+  Context (program_proof : Clight_prog = Args.C_program).
   Definition Main_ptr:=Values.Vptr (Ctypes.prog_main Clight_prog) Integers.Ptrofs.zero.
   Context (Asm_prog: Asm.program).
   Context (compilation : CC_correct.CompCert_compiler Clight_prog = Some Asm_prog).
@@ -56,8 +60,9 @@ Module Main (CC_correct: CompCert_correctness).
   (* This should be instantiated:
      it says initial_Clight_state taken from CPROOF, is an initial state of CompCert.
    *)
+  
   Context (CPROOF_initial:
-             Clight.start_stack (Clight.globalenv Clight_prog)
+             entry_point (Clight.globalenv Clight_prog)
                                 (init_mem CPROOF)
                                 (Clight_safety.initial_Clight_state CPROOF)
                                 Main_ptr nil).
@@ -124,9 +129,12 @@ Qed.
       init_MachState_target init_mem_target' n.
   Proof.
     intros.
-    pose proof (@ConcurrentCompilerSafety _ _ compilation asm_genv_safe) as H.
+    assert(compilation':= compilation).  
+    rewrite program_proof in compilation'. 
+    pose proof (@ConcurrentCompilerSafety _ compilation' asm_genv_safe) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (init_mem CPROOF) (init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
+    rewrite <- program_proof in *.
     match type of H with
       | ?A -> _ => cut A
     end.
@@ -136,10 +144,9 @@ Qed.
     end.
     intros HH'; specialize (H HH');
       match type of H with
-      | ?A -> _ => cut A; try (intros; eapply Clight_initial_safe; auto)  (*That didn't work?*)
+      | ?A -> _ => cut A
       end.
     intros HH''; specialize (H HH'').
-
     - destruct H as (mem_t& mem_t' & thread_target & INIT_mem & INIT & SAFE).
       exists mem_t, mem_t', thread_target; split (*;[|split] *).
       + eauto. (*Initial memory*)
@@ -169,8 +176,9 @@ Qed.
           subst C1; auto.
           f_equal. eapply Axioms.proof_irr. *)
       + eapply SAFE.
-
+    - intros. eapply Clight_initial_safe; auto.
     - clear H. split; eauto; econstructor; repeat split; try reflexivity; eauto.
+      
     - apply CPROOF_initial_mem.
   Qed.
 
@@ -268,12 +276,22 @@ Module CC_correct: CompCert_correctness.
   Axiom simpl_clight_semantic_preservation :
     forall (p : Clight.program) (tp : Asm.program),
       CompCert_compiler p = Some tp ->
-      ExposedSimulations.fsim_properties_inj (Clight.semantics2 p) (Asm.semantics tp)
+      ExposedSimulations.fsim_properties_inj_relaxed (Clight.semantics2 p) (Asm.semantics tp)
                                              Clight.get_mem Asm.get_mem.
 
 End CC_correct.
 
-Module Test_Main:= (Main CC_correct).
+Module ProgramArgs: ThreadSimulationArguments.
+
+  Parameter C_program: Clight.program.
+  Parameter Asm_program: Asm.program.
+  Definition Asm_g := (@x86_context.X86Context.the_ge Asm_program).
+  Parameter Asm_genv_safe: Asm_core.safe_genv Asm_g.
+    
+End ProgramArgs.
+
+
+Module Test_Main:= (Main CC_correct ProgramArgs).
 Import Test_Main.
 
 Check CSL2FineBareAsm_safety.

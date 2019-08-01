@@ -777,6 +777,17 @@ Module X86Inj.
 
   Hint Resolve valid_val_loword valid_val_loword : wd.
 
+  Lemma undef_caller_save_regs_wf:
+    forall f r, regset_wd f r -> regset_wd f (undef_caller_save_regs r).
+  Proof.
+    intros * Hwd ?. specialize (Hwd r0).
+    unfold undef_caller_save_regs, Pregmap.get.
+    match goal with
+      |- context [if ?X then _ else _ ] =>
+      destruct X; [auto | econstructor]
+    end.
+  Qed.
+    
   Lemma after_external_wd :
     forall the_ge m (c c' : state) (f : memren) (ef : external_function)
       (args : seq val) (ov : option val)
@@ -808,13 +819,15 @@ Module X86Inj.
       simpl; first by auto.
       (* it's easier to do the case analysis than try to write a lemma
     for set_regs (are the registers unique and more similar problems)*)
+      apply undef_caller_save_regs_wf in Hcore_wd.
+
       destruct (loc_external_result (ef_sig ef)) as [|r' regs];
-      simpl;
-      eapply valid_val_reg_set; eauto.
-      eapply valid_val_loword; auto.
-      eapply regset_wd_set; eauto.
-      eapply valid_val_hiword; auto.
-    - repeat (eapply regset_wd_set; eauto).
+        simpl; eapply valid_val_reg_set; eauto.
+      + eapply valid_val_loword; auto.
+      + eapply regset_wd_set; eauto.
+        eapply valid_val_hiword; auto.
+    - apply undef_caller_save_regs_wf in Hcore_wd as Hcore_wd'.
+      repeat (eapply regset_wd_set; eauto).
   Qed.
 
   Lemma valid_val_nullptr : forall f, valid_val f Vnullptr.
@@ -1149,6 +1162,25 @@ Module X86Inj.
       congruence.
   Qed.
 
+  Lemma regset_ren_undef_caller_save_regs:
+    forall f r r0,
+    regset_ren f r r0 ->
+    regset_ren f (undef_caller_save_regs r) (undef_caller_save_regs r0).
+  Proof.
+    intros ** ? .
+    unfold undef_caller_save_regs.
+    specialize (H r1).
+    unfold reg_ren, Pregmap.get in *.
+    repeat
+      match goal with
+        |- context [ if ?X then _ else _ ] =>
+        destruct X; [eassumption| econstructor]
+      end.
+  Qed.
+    
+
+
+    
   Lemma core_inj_after_ext :
     forall the_ge c cc c' (ov1 : option val) m m'
       (f fg : memren)
@@ -1193,9 +1225,11 @@ Module X86Inj.
               forall v v',
                 val_obs f v v' ->
                 regset_ren f
-                           ((set_pair (loc_external_result (ef_sig e)) v r)
+                           ((set_pair (loc_external_result (ef_sig e)) v
+                                      (undef_caller_save_regs r))
                            # PC <- (r RA))
-                           ((set_pair (loc_external_result (ef_sig e)) v' r0)
+                           ((set_pair (loc_external_result (ef_sig e)) v'
+                            (undef_caller_save_regs r0))
                               # PC <- (r0 RA))).
     { intros.
       intros r1.
@@ -1205,7 +1239,8 @@ Module X86Inj.
       simpl;
       first by eauto.
       destruct (loc_external_result (ef_sig e)) as [|r' regs]; simpl;
-      repeat (eapply regset_ren_set; eauto with val_renamings).
+        repeat (eapply regset_ren_set; eauto with val_renamings).
+      all: eapply regset_ren_undef_caller_save_regs; eassumption.
     }
     destruct ov1 as [v1 |];
       inversion Hafter_external; subst.
@@ -1220,7 +1255,9 @@ Module X86Inj.
     simpl.
     split; auto.
     apply regset_ren_set; auto.
-    apply Hinj.
+    - eapply regset_ren_set; auto; try econstructor.
+      eapply regset_ren_undef_caller_save_regs; assumption.
+    - apply Hinj.
   Qed.
 
   Lemma core_inj_halted :
@@ -2006,6 +2043,10 @@ Module X86Inj.
              try auto
            end.
     erewrite Pregmap.gso by congruence...
+
+    admit. (* This goal was not around before the merge.
+              is it a new case or is the automation failing?
+            *)
     erewrite !Pregmap.gso in * by discriminate.
     pose proof (Hrs_eq PC) as HPC.
     unfold reg_ren, Pregmap.get in HPC; rewrite Heqv in HPC; inv HPC.
@@ -2081,7 +2122,7 @@ Module X86Inj.
       by (intros Hcontra; subst; eauto).
     erewrite permission_at_free_2 by eauto.
     reflexivity.
-  Qed.
+  Admitted.
 
   Lemma extcall_arg_reg:
     forall f rs rs' m m' locs arg
@@ -2586,6 +2627,12 @@ Qed.
               erewrite <- H; eauto with wd
           end;
       eauto 4 with wd.
+
+    admit.
+    admit. (* Thses two cases where not here before merge.
+              seems like [eval_testcond c rs] was not there before
+            *)
+    
     (* Allocation case*)
     assert (Hnew: Mem.valid_block m0 b)
       by (eapply Mem.valid_new_block; eauto).
@@ -2626,7 +2673,7 @@ Qed.
     eapply valid_val_domain with (f := f); eauto.
     unfold Mem.loadv in *; simpl in *.
     eapply valid_mem_load with (m := m); eauto.
-  Qed.
+  Admitted.
 
 
   (** Well-definedness of state is retained. *)

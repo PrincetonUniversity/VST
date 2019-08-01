@@ -410,7 +410,7 @@ Proof.
   assert_specialize H. {
     intros.
     exact_eq AT; repeat f_equal.
-    rewrite Coqlib.nat_of_Z_eq; omega.
+    rewrite Z2Nat.id; omega.
   }
   specialize (H loc).
   if_tac [If|If] in H; auto.
@@ -420,7 +420,7 @@ Proof.
   destruct range as (<- & A & B).
   split; auto.
   split; auto.
-  rewrite Coqlib.nat_of_Z_eq; omega.
+  rewrite Z2Nat.id; omega.
 Qed.
 
 Lemma data_at_noghost CS sh b ofs phi :
@@ -753,10 +753,11 @@ Proof.
       rewrite Hlev; reflexivity.
 Qed.
 
-Lemma nat_of_Z_nonzero z n: n <> O -> nat_of_Z z = n -> z = Z.of_nat n.
+Lemma nat_of_Z_nonzero z n: n <> O -> Z.to_nat z = n -> z = Z.of_nat n.
 Proof.
   intros nz <-.
-  symmetry; apply Coqlib.nat_of_Z_eq. unfold Z.ge.
+  symmetry; apply Z2Nat.id.
+  unfold Z.le.
   destruct z; simpl in *; congruence.
 Qed.
 

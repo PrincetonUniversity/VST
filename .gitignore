@@ -14,6 +14,7 @@
 *~
 # Executables and configuration
 CONFIGURE
+veric/Clight_core.v
 compcert/ccomp
 compcert/ccomp.byte
 compcert/ccomp.prof

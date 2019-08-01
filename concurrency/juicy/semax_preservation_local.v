@@ -446,7 +446,7 @@ Proof.
         change ofs0 with (snd (b, ofs0)).
         unfold mi.
         destruct compat_ as [_ MC _ _ _].
-        destruct MC as [_ AC _ _].
+        destruct MC as [_ AC _ ].
         unfold jm_, personal_mem, m_dry.
         rewrite (H _ _  _ (b, ofs0)).
         cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))). {

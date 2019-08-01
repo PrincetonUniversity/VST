@@ -362,7 +362,7 @@ assert (val_ok (Mem.nextblock m) v). {
  specialize (H0 loc ofs).
  apply mem_lemmas.loadbytes_D in H1.
  destruct H1.
- destruct (nat_of_Z sz).
+ destruct (Z.to_nat sz).
  inv H2.
  simpl in H2.
  inv H2.
@@ -588,11 +588,11 @@ subst bytes.
 generalize (H b'); intro.
 forget ((Mem.mem_contents m) !! b') as f.
 assert (Forall (fun x => memval_inject (Mem.flat_inj (Mem.nextblock m))  x x) 
-  (Mem.getN (nat_of_Z sz) z' f)).
+  (Mem.getN (Z.to_nat sz) z' f)).
 clear H0 H1. revert z'.
-induction (nat_of_Z sz); intros. simpl. constructor.
+induction (Z.to_nat sz); intros. simpl. constructor.
 constructor. auto. auto.
-forget (Mem.getN (nat_of_Z sz) z' f) as bytes.
+forget (Mem.getN (Z.to_nat sz) z' f) as bytes.
 generalize (H b); intro.
 red.
 rewrite (Mem.nextblock_storebytes _ _ _ _ _ H1).

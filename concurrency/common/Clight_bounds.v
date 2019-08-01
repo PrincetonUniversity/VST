@@ -343,8 +343,8 @@ Proof.
   - rewrite Globalenvs.store_zeros_equation in H0.
     rewrite AA in H0; inversion H0; subst; auto.
   - assert (exists n, Z.of_nat n = a).
-    { exists (nat_of_Z a).
-      apply nat_of_Z_eq. omega. }
+    { exists (Z.to_nat a).
+      apply Z2Nat.id. omega. }
     destruct H1 as [n H1].
     subst a.
     clear g AA.

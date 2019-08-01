@@ -284,6 +284,7 @@ Inductive instruction: Type :=
   | Pmovsb
   | Pmovsw
   | Pmovw_rm (rd: ireg) (ad: addrmode)
+  | Pnop
   | Prep_movsl
   | Psbbl_rr (rd: ireg) (r2: ireg)
   | Psqrtsd (rd: freg) (r1: freg)
@@ -441,8 +442,8 @@ Definition compare_longs (x y: val) (rs: regset) (m: mem): regset :=
      #PF  <- Vundef.
 
 (** Floating-point comparison between x and y:
--       ZF = 1 if x=y or unordered, 0 if x<>y
--       CF = 1 if x<y or unordered, 0 if x>=y
+-       ZF = 1 if x=y or unordered, 0 if x<>y and ordered
+-       CF = 1 if x<y or unordered, 0 if x>=y.
 -       PF = 1 if unordered, 0 if ordered.
 -       SF and 0F are undefined
 *)
@@ -450,9 +451,9 @@ Definition compare_longs (x y: val) (rs: regset) (m: mem): regset :=
 Definition compare_floats (vx vy: val) (rs: regset) : regset :=
   match vx, vy with
   | Vfloat x, Vfloat y =>
-      rs #ZF  <- (Val.of_bool (negb (Float.cmp Cne x y)))
+      rs #ZF  <- (Val.of_bool (Float.cmp Ceq x y || negb (Float.ordered x y)))
          #CF  <- (Val.of_bool (negb (Float.cmp Cge x y)))
-         #PF  <- (Val.of_bool (negb (Float.cmp Ceq x y || Float.cmp Clt x y || Float.cmp Cgt x y)))
+         #PF  <- (Val.of_bool (negb (Float.ordered x y)))
          #SF  <- Vundef
          #OF  <- Vundef
   | _, _ =>
@@ -462,9 +463,9 @@ Definition compare_floats (vx vy: val) (rs: regset) : regset :=
 Definition compare_floats32 (vx vy: val) (rs: regset) : regset :=
   match vx, vy with
   | Vsingle x, Vsingle y =>
-      rs #ZF  <- (Val.of_bool (negb (Float32.cmp Cne x y)))
+      rs #ZF  <- (Val.of_bool (Float32.cmp Ceq x y || negb (Float32.ordered x y)))
          #CF  <- (Val.of_bool (negb (Float32.cmp Cge x y)))
-         #PF  <- (Val.of_bool (negb (Float32.cmp Ceq x y || Float32.cmp Clt x y || Float32.cmp Cgt x y)))
+         #PF  <- (Val.of_bool (negb (Float32.ordered x y)))
          #SF  <- Vundef
          #OF  <- Vundef
   | _, _ =>
@@ -850,11 +851,12 @@ Definition exec_instr (f: function) (i: instruction) (rs: regset) (m: mem) : out
   | Ptestq_ri r1 n =>
       Next (nextinstr (compare_longs (Val.andl (rs r1) (Vlong n)) (Vlong Int64.zero) rs m)) m
   | Pcmov c rd r1 =>
-      match eval_testcond c rs with
-      | Some true => Next (nextinstr (rs#rd <- (rs#r1))) m
-      | Some false => Next (nextinstr rs) m
-      | None => Next (nextinstr (rs#rd <- Vundef)) m
-      end
+      let v :=
+        match eval_testcond c rs with
+        | Some b => if b then rs#r1 else rs#rd
+        | None   => Vundef
+      end in
+      Next (nextinstr (rs#rd <- v)) m
   | Psetcc c rd =>
       Next (nextinstr (rs#rd <- (Val.of_optbool (eval_testcond c rs)))) m
   (** Arithmetic operations over double-precision floats *)
@@ -1001,6 +1003,7 @@ Definition exec_instr (f: function) (i: instruction) (rs: regset) (m: mem) : out
   | Pmovsb
   | Pmovsw
   | Pmovw_rm _ _
+  | Pnop
   | Prep_movsl
   | Psbbl_rr _ _
   | Psqrtsd _ _
@@ -1046,6 +1049,15 @@ Definition preg_of (r: mreg) : preg :=
   | X15 => FR XMM15
   | FP0 => ST0
   end.
+
+(** Undefine all registers except SP and callee-save registers *)
+
+Definition undef_caller_save_regs (rs: regset) : regset :=
+  fun r =>
+    if preg_eq r SP
+    || In_dec preg_eq r (List.map preg_of (List.filter is_callee_save all_mregs))
+    then rs r
+    else Vundef.
 
 (** Extract the values of the arguments of an external call.
     We exploit the calling conventions from module [Conventions], except that
@@ -1111,7 +1123,7 @@ Inductive step: state -> trace -> state -> Prop :=
       Genv.find_funct_ptr ge b = Some (External ef) ->
       extcall_arguments rs m (ef_sig ef) args ->
       external_call ef ge args m t res m' ->
-      rs' = (set_pair (loc_external_result (ef_sig ef)) res rs) #PC <- (rs RA) ->
+      rs' = (set_pair (loc_external_result (ef_sig ef)) res (undef_caller_save_regs rs)) #PC <- (rs RA) ->
       step (State rs m) t (State rs' m').
 
 End RELSEM.
@@ -1172,7 +1184,7 @@ Fixpoint make_arguments (rs: regset) (m: mem) (al: list (rpair loc)) (lv: list v
   | _, _ => None
  end.
 
-Inductive start_stack (ge:genv): mem -> state -> val -> list val -> Prop:=
+Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop:=
 | INIT_CORE:
     forall f b rs stk m0 m1 m2 m3 m args,
       Genv.find_funct_ptr ge b = Some f ->
@@ -1186,7 +1198,7 @@ Inductive start_stack (ge:genv): mem -> state -> val -> list val -> Prop:=
         # RA <- Vnullptr
         # RSP <- sp in
       make_arguments rs0 m3 (loc_arguments (funsig f)) args = Some (rs, m) ->
-      start_stack ge m0 (State rs m) (Vptr b Ptrofs.zero) args.
+      entry_point ge m0 (State rs m) (Vptr b Ptrofs.zero) args.
 
 Definition get_extcall_arg (rs: regset) (m: mem) (l: Locations.loc) : option val :=
  match l with
@@ -1254,16 +1266,17 @@ Definition after_external_regset (ge:genv)(vret: option val) (rs: regset) : opti
     | Some (External ef) =>
       match vret with
       | Some res => 
-          Some ((set_pair (loc_external_result (ef_sig ef)) res rs) #PC <- (rs RA))
+        Some ((set_pair (loc_external_result (ef_sig ef)) res (undef_caller_save_regs rs))
+                #PC <- (rs RA))
       | None => 
-          Some ( rs #PC <- (rs RA))
+          Some ((undef_caller_save_regs rs)#(IR RAX) <- Vundef #PC <- (rs RA))
      end
     | _ => None
    end
    else None
  | _ => None
  end.
-
+  
 Definition after_external (ge:genv)(vret: option val)(c:state)(m:mem): option state:=
   match c with
     State rs m' =>
@@ -1287,7 +1300,7 @@ Definition set_mem (s:state)(m:mem) :=
 
 Definition part_semantics (ge: genv) :=
   Build_part_semantics get_mem set_mem (step ge)
-                       (start_stack ge)
+                       (entry_point ge)
                        (at_external ge)
                        (after_external ge)
                        final_state ge (Genv.to_senv ge).

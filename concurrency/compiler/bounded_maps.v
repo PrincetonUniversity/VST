@@ -1149,3 +1149,15 @@ Proof.
             rewrite - H0.
             apply NPeano.Nat.mod_small; auto.
 Qed.
+
+
+Lemma sub_map_lt:
+  forall {A B} dmap amap,
+    @sub_map A B dmap (amap) ->
+    forall b,
+      fun_leq (dmap ! b) (amap ! b).
+Proof.
+  intros. eapply strong_tree_leq_spec; try constructor.
+  eapply H.
+Qed.
+

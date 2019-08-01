@@ -1,0 +1,24 @@
+1. “Archi is not found”
+
+   Make sure compcert_new/Makefile.configure has BITESIZE=32
+
+2. Error: Unable to locate library _
+
+	Make sure to add files:
+	-  backend/Bounds.v
+	-  backend/Conventions.v
+	-  backend/Linear.v
+	-  backend/Locations.v
+	-  backend/LTL.v
+	- x86/Asm.v
+	- x86/Conventions1.v
+	- x86/Machregs.v
+	- x86/Op.v
+	- x86/Stacklayout.v
+
+3. File "./concurrency/juicy/Clight_safety.v", line 72, characters 14-34:
+   Error: The reference Clight.temp_bindings was not found in the current
+   environment.
+
+   Replace with Clight.temp_bindings with Clight_new.temp_bindings
+	

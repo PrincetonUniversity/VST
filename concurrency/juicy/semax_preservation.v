@@ -18,6 +18,7 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
+        
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_new.
 Require Import VST.veric.Clightnew_coop.
@@ -218,7 +219,7 @@ Proof.
   split; zify; omega.
 Qed.
 
-Lemma not_Pge_Plt a b : ~ Pge a b -> Plt a b.
+Lemma not_Pge_Plt a b : ~ Pos.ge a b -> Plt a b.
 Proof.
   unfold Plt. zify. omega.
 Qed.
@@ -271,7 +272,7 @@ Proof.
   pose proof cl_step_mem_step _ _ _ _ _ step as ms.
   pose proof cl_step_decay _ _ _ _ _ step as dec.
 
-  destruct MC as [A B C D].
+  destruct MC as [A B C].
   unfold contents_cohere in *.
   constructor.
   (* apply mem_cohere'_redundant. *)
@@ -640,7 +641,7 @@ Proof.
   intros Hcmpt lock Hlt' Hstore compat HLKspec.
   pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
   destruct compat as [J MC LW JL LJ].
-  destruct MC as [Co Ac Ma N].
+  destruct MC as [Co Ac Ma].
   split.
   - intros sh sh' v (b', ofs') pp E.
     specialize (Co sh sh' v (b', ofs') pp E).
@@ -726,9 +727,9 @@ Proof.
       destruct (range_perm_dec _ _ _) as [R2|R2].
     + simpl.
       destruct n as [ | n | ]; auto.
-      assert (Z.pos n = Z.of_nat (nat_of_Z (Z.pos n))) as R.
-      { rewrite Coqlib.nat_of_Z_eq; auto. zify. omega. }
-      rewrite R in R1, R2. remember (nat_of_Z (Z.pos n)) as k.
+      assert (Z.pos n = Z.of_nat (Z.to_nat (Z.pos n))) as R.
+      { rewrite Z2Nat.id; auto. zify. omega. }
+      rewrite R in R1, R2. remember (Z.to_nat (Z.pos n)) as k.
       clear Heqk R n.
       revert ofs R1 R2; induction k; intros ofs R1 R2; auto.
       simpl.
@@ -1221,7 +1222,7 @@ Qed. (* Lemma preservation_Kinit *)
     {
       pose (jmi := jm_ cnti compat).
 
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef sig args lid ve te ] eqn:Heqc.
 
       (* thread[i] is running and some internal step *)
       {

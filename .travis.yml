@@ -45,7 +45,8 @@ notifications:
     - vst-push@lists.cs.princeton.edu
 git:
   depth: 3
-
+  submodules: false
+  
 install:
 - opam --version
 - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"

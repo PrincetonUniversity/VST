@@ -2,12 +2,15 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
+Require Import Coq.Classes.RelationClasses.
+
 Require Import VST.msl.Coqlib2.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.threads_lemmas.
 Require Import VST.concurrency.common.permjoin_def.
 Require Import compcert.common.Memory.
+Require Import VST.concurrency.lib.Coqlib3.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
 Require Export compcert.lib.Maps.
@@ -19,6 +22,8 @@ Import cjoins.
 
 (*IM using proof irrelevance!*)
 Require Import ProofIrrelevance.
+
+Set Nested Proofs Allowed.
 
 Lemma po_refl: forall p, Mem.perm_order'' p p.
 Proof.
@@ -41,6 +46,50 @@ Qed.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
 Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
+
+
+Definition dmap_get' (dm:delta_map) b ofs:=
+  match dm ! b with
+    Some f =>
+    match f ofs with
+      Some p => Some p
+    | None => None 
+    end
+  |None => None
+  end.
+
+Definition dmap_get (dm:delta_map) b ofs:=
+  (fun _ => None, dm) !! b ofs.
+Hint Transparent dmap_get.
+(* go back in time 
+   It is to go back to the previous definition.
+   only to help transitioning. Hopefully one day we get rid of this.
+ *)
+Lemma dmap_get_bit':
+  forall dm b ofs, dmap_get dm b ofs  = dmap_get' dm b ofs.
+Proof.
+  unfold dmap_get, dmap_get', PMap.get.
+  intros; simpl.
+  destruct (dm ! b); auto.
+  destruct (o ofs); auto.
+Qed.
+Lemma dmap_get_bit:
+  forall dm b, dmap_get dm b = dmap_get' dm b.
+Proof. intros. extensionality ofs; eapply dmap_get_bit'. Qed.
+
+Lemma dmap_get_Some:
+  forall dm b ofs p,
+    dmap_get dm b ofs = Some p ->
+    exists f, dm ! b = Some f /\
+         f ofs = Some p.
+Proof.
+  intros * H.
+  rewrite dmap_get_bit in H.
+  unfold dmap_get' in *.
+  destruct (dm ! b) eqn:HH1; try solve[inversion H].
+  destruct (o ofs) eqn: HH2; inv H.
+  do 2 econstructor; eauto.
+Qed.
 
 Section permMapDefs.
 
@@ -426,17 +475,13 @@ Qed.
   Lemma getMaxPerm_correct :
     forall m b ofs,
       Maps.PMap.get b (getMaxPerm m) ofs = permission_at m b ofs Max.
-  Proof.
-    intros. unfold getMaxPerm. by rewrite Maps.PMap.gmap.
-  Qed.
+  Proof. intros. unfold getMaxPerm. by rewrite Maps.PMap.gmap. Qed.
 
   Lemma getCurPerm_correct :
     forall m b ofs,
       Maps.PMap.get b (getCurPerm m) ofs = permission_at m b ofs Cur.
-  Proof.
-    intros. unfold getCurPerm. by rewrite Maps.PMap.gmap.
-  Qed.
-
+  Proof. intros. unfold getCurPerm. by rewrite Maps.PMap.gmap. Qed.
+  
 
   Definition permDisjoint p1 p2:=
     exists pu : option permission,
@@ -1187,7 +1232,7 @@ Proof.*)
     forall p b ofs ofs' pmap sz
       (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
       (Maps.PMap.get b (setPermBlock_var p b ofs pmap sz)) ofs' =
-      p (compcert.lib.Coqlib.nat_of_Z (ofs' - ofs +1)).
+      p (Z.to_nat (ofs' - ofs +1)).
   Proof.
     intros.
     generalize dependent ofs'.
@@ -1198,13 +1243,15 @@ Proof.*)
       rewrite PMap.gss.
       destruct (compcert.lib.Coqlib.zeq (ofs + Z.of_nat sz) ofs'); simpl.
       + f_equal. rewrite -e.
-        replace (ofs + Z.of_nat sz - ofs +1 )%Z with (Z.of_nat sz + 1)%Z; try omega.
-        rewrite compcert.lib.Coqlib.nat_of_Z_plus; simpl; try omega.
-        rewrite compcert.lib.Coqlib.nat_of_Z_of_nat Pos2Nat.inj_1; omega.
-      + apply IHsz; split; try omega.
-        move : Hofs n=> [] l.
-        rewrite Zpos_P_of_succ_nat.
-        intros; omega.
+        replace (ofs + Z.of_nat sz - ofs +1 )%Z with
+            (Z.of_nat sz + 1)%Z; try omega.
+        rewrite <- (coqlib4.nat_of_Z_eq sz.+1); f_equal.
+        apply Nat2Z.inj_succ.
+        apply IHsz; simpl. 
+        rewrite Zpos_P_of_succ_nat in Hofs.
+        replace (ofs + Z.succ (Z.of_nat sz))%Z with
+            (Z.succ (ofs + Z.of_nat sz))%Z in Hofs;
+          omega.
   Qed.
 
   Lemma setPermBlock_setPermBlock_var:
@@ -1221,7 +1268,23 @@ Proof.*)
       reflexivity.
   Qed.
 
-
+  Lemma setPermBlock_range_perm:
+    forall (m1 : mem) (b : block) (ofs : Z) (n : nat)
+      perm perm_map,
+      permMapLt
+        (setPermBlock (Some perm) b ofs
+                      perm_map n) (getMaxPerm m1) ->
+      Mem.range_perm m1 b ofs (ofs + Z.of_nat n) Max
+                     perm.
+  Proof.
+    intros m1 b ofs n perm perm_map H0.
+    intros ? ?.
+    specialize (H0 b ofs0).
+    rewrite setPermBlock_same in H0; auto.
+    unfold Mem.perm.
+    rewrite mem_lemmas.po_oo.
+    rewrite getMaxPerm_correct in H0; auto.
+  Qed.
 
   (*Lemma setPermBlock_var_or:
     forall p b ofs sz pmap b' ofs',
@@ -1374,7 +1437,8 @@ Proof.*)
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
-     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission))
+     @Maps.PTree.combine (Z -> option permission)
+                         (Z -> option (option permission))
                          (Z -> option permission)
                          (fun p1 pd => match pd, p1 with
                                     | Some pd', Some p1' =>
@@ -1433,7 +1497,56 @@ Proof.*)
     rewrite Hdmap.
       by reflexivity.
   Qed.
-
+  
+      Lemma dmap_get_copmute_Some:
+        forall C A b ofs p,
+          dmap_get A b ofs = Some p ->
+          (computeMap C A) !! b ofs = p.
+      Proof.
+        intros; rewrite dmap_get_bit in H.
+        unfold dmap_get' in H.
+        destruct (A ! b) eqn:Ab; try solve[inversion H].
+        destruct (o ofs) eqn:oofs; try solve[inversion H].
+        erewrite computeMap_1; eauto.
+        rewrite oofs; assumption.
+      Qed.
+      Lemma dmap_get_copmute_None:
+        forall C A b ofs,
+          dmap_get A b ofs = None ->
+          (computeMap C A) !! b ofs = C !! b ofs.
+      Proof.
+        intros; rewrite dmap_get_bit in H.
+        unfold dmap_get' in H.
+        destruct (A ! b) eqn:Ab.
+        destruct (o ofs) eqn:oofs; try solve[inversion H].
+        - erewrite computeMap_2; eauto.
+        - erewrite computeMap_3; eauto.
+      Qed.
+  
+  Lemma computeMap_backwards:
+    forall (pmap : access_map) (dmap : delta_map)
+      b ofs (p : option permission),
+      (computeMap pmap dmap) !! b ofs = p ->
+      (fun _=> None, dmap) !! b ofs = Some p \/
+      (fun _=> None, dmap) !! b ofs = None /\
+      pmap !! b ofs = p.
+  Proof.
+    intros.
+    unfold PMap.get; simpl.
+    destruct (dmap ! b) eqn:HH1.
+    1: destruct (o ofs) eqn:HH2.
+    - left. eapply computeMap_1 in HH1; eauto.
+      rewrite HH1 in H; inversion H; auto.
+    - right. split; auto.
+      eapply computeMap_2 in HH1; eauto.
+      rewrite HH1 in H; inversion H; auto.
+    - right; split; auto.
+      eapply computeMap_3 in HH1; eauto.
+      rewrite HH1 in H; inversion H; auto.
+      Unshelve.
+      all: assumption.
+  Qed.
+  
   Import Maps BlockList.
 
   Definition maxF (f : Z -> perm_kind -> option permission) :=
@@ -2298,6 +2411,20 @@ Lemma restrPermMap_irr:
 
 End permMapDefs.
 
+Ltac unfold_getMaxPerm:=
+  repeat rewrite getMaxPerm_correct in *;
+  repeat rewrite getMaxPerm_correct;
+  unfold permission_at in *;
+  unfold permission_at.
+Ltac unfold_getCurPerm:=
+  repeat rewrite getCurPerm_correct in *;
+  repeat rewrite getCurPerm_correct;
+  unfold permission_at in *;
+  unfold permission_at.
+Ltac unfold_getPerm:=
+  try unfold_getMaxPerm;
+  try unfold_getCurPerm.
+
 Require Import VST.concurrency.common.core_semantics.
 Require Import compcert.lib.Coqlib.
 
@@ -2431,4 +2558,227 @@ Proof.
   eapply Pos.lt_le_trans; eauto.
 Qed.
 
-    
+
+
+Lemma range_no_overlap:
+  forall (mu : meminj) (m1 : mem) (b1 b1' b2 b2': block)
+    (ofs delt delta ofs0 : Z) (n : nat),
+    Mem.meminj_no_overlap mu m1 ->
+    mu b1 = Some (b1', delt) ->
+    mu b2 = Some (b2', delta) ->
+    b1 <> b2 ->
+    Mem.perm m1 b1 ofs0 Max Nonempty ->
+    Mem.range_perm m1 b2 ofs (ofs + Z.of_nat n) Max Nonempty ->
+    b1' <> b2' \/ b1' = b2' /\
+    ~ Intv.In (ofs0 + delt)
+      ((ofs + delta)%Z, (ofs + delta + Z.of_nat n)%Z).
+Proof.
+  intros ??????????? Hno_overlap Hinj1
+         Hinj2 Hneq Hperm1 Hrange_perm2.
+  
+  (* The key is to do an induction over the length of the range
+   *)
+  assert(H: forall m, (m <= n)%coq_nat -> b1' <> b2' \/
+                             (~ Intv.In (ofs0 + delt)
+                                (ofs + delta, ofs + delta + Z.of_nat m))%Z).
+  { induction m.
+    - intros ?. simpl; right.
+      unfold Intv.In; simpl. clear.
+      intros ?; omega.
+    -  intros ?.
+       specialize (Hno_overlap
+                     _ _ _ _ _ _
+                     ofs0 (ofs+Z.of_nat m)%Z
+                     Hneq Hinj1 Hinj2).
+       apply Hno_overlap in Hperm1.
+       2: { eapply Hrange_perm2. omega.     }
+       destruct Hperm1 as [Hperm1|Hperm1]; auto.
+       specialize (IHm ltac:(omega)).
+       destruct IHm as [IHm|IHm]; auto.
+       right; clear - IHm Hperm1.
+       intros [? ?]; eapply IHm.
+       split; auto.
+       unfold Intv.In; simpl in *.
+       clear IHm H.
+       rewrite Zpos_P_of_succ_nat in H0.
+       omega. }
+
+  specialize (H _ ltac:(reflexivity)).
+  destruct H; auto.
+  destruct (base.block_eq_dec b1' b2'); subst; auto.
+Qed.
+
+Lemma setPermBLock_no_overlap:
+  forall (mu : meminj) (m1 : mem) (b b' b1 b2 : block)
+    (ofs delt delta ofs0 : Z) (n : nat),
+    Mem.meminj_no_overlap mu m1 ->
+    permMapLt (setPermBlock (Some Writable)
+                            b ofs (getCurPerm m1) n)
+              (getMaxPerm m1) ->
+    mu b = Some (b', delt) ->
+    mu b1 = Some (b2, delta) ->
+    b1 <> b ->
+    Mem.perm m1 b1 ofs0 Max Nonempty ->
+    b2 <> b' \/
+    b2 = b' /\
+    ~ Intv.In (ofs0 + delta)
+      ((ofs + delt)%Z, (ofs + delt + Z.of_nat n)%Z).
+Proof.
+  intros; eapply range_no_overlap; eauto.
+  clear H4.
+  eapply setPermBlock_range_perm in H0; eauto.
+  unfold Mem.range_perm, Mem.perm in *; intros.
+  rewrite mem_lemmas.po_oo.
+  specialize (H0 _ H4).
+  rewrite mem_lemmas.po_oo in H0.
+  eapply mem_lemmas.po_trans; eauto.
+  constructor.
+Qed.
+
+
+Lemma range_perm_trans:
+  forall m b ofs0 ofs1 k p1 p2,
+    Mem.range_perm m b ofs0 ofs1 k p1 ->
+    perm_order p1 p2 ->
+    Mem.range_perm m b ofs0 ofs1 k p2.
+Proof.
+  unfold Mem.range_perm, Mem.perm; intros.
+  eapply H in H1.
+  rewrite mem_lemmas.po_oo.
+  rewrite mem_lemmas.po_oo in H1.
+  eapply juicy_mem.perm_order''_trans; eauto.
+Qed.
+
+Lemma perm_order''_trans:
+  transitive _ Mem.perm_order''.
+  intros a b c H1 H2; destruct a, b, c; inversion H1;
+    inversion H2; subst; eauto;
+      eapply perm_order_trans; eauto.
+Qed.
+
+Lemma perm_order_trans211:
+  forall oa ob c,
+    Mem.perm_order'' oa ob ->
+    Mem.perm_order' ob c ->
+    Mem.perm_order' oa c.
+Proof.
+  intros. rewrite mem_lemmas.po_oo in H0.
+  eapply (perm_order''_trans _ _ (Some c)); eassumption.
+Qed.
+
+Lemma permMapJoin_lt:
+  forall p1 p2 p3
+    (Hjoin: permMapJoin p1 p2 p3), permMapLt p1 p3.
+Proof. intros ** ??; eapply permMapJoin_order in Hjoin; eapply Hjoin. Qed.
+
+Lemma perm_order_from_map:
+  forall perm b (ofs : Z) p,
+    perm !! b ofs  = Some p ->
+    Mem.perm_order' (perm !! b ofs) Nonempty.
+Proof. intros * H; rewrite H; constructor. Qed.
+
+Lemma restr_proof_irr:
+  forall m perm Hlt Hlt',
+    (@restrPermMap m perm Hlt) = (@restrPermMap m perm Hlt').
+  intros. replace Hlt with Hlt'.
+  - reflexivity.
+  - apply Axioms.proof_irr.
+Qed.
+Lemma restrPermMap_rewrite:
+  forall p1 p2 m H1 H2,
+    p1 = p2 -> @restrPermMap p1 m H1 = @restrPermMap p2 m H2.
+Proof. intros; subst p1; apply restr_proof_irr. Qed.
+Lemma permMapLt_eq:
+  forall {p1 p2 m}, p1 = p2 -> permMapLt p1 m -> permMapLt p2 m.
+Proof. intros; subst; assumption. Qed.
+Lemma restrPermMap_rewrite_strong:
+  forall p1 p2 m H1
+    (Heq: p1 = p2),
+    @restrPermMap p1 m H1 =
+    @restrPermMap p2 m (permMapLt_eq Heq H1).
+Proof. intros; eapply restrPermMap_rewrite; auto. Qed.
+
+Lemma permMapJoin_comm:
+  forall A B C, permMapJoin A B C -> permMapJoin B A C.
+Proof.
+  unfold permMapJoin; intros * HH b ofs.
+  specialize (HH b ofs); inversion HH; econstructor.
+Qed.
+
+
+
+
+
+
+
+
+
+
+(* End of old Permissions. *)
+
+
+
+      (* cann be used to expose the implicit arguemtns. *)
+      Definition restrPermMap' a b H:= @restrPermMap a b H.
+      Lemma RPM: restrPermMap = restrPermMap'. Proof. reflexivity. Qed.
+      Arguments restrPermMap' a b H.
+      
+      Lemma restr_proof_irr':
+        forall (perm1 perm2 : access_map) (m1 m2 : mem)
+               (Hlt1 : permMapLt perm1 (getMaxPerm m1))
+               (Hlt2 : permMapLt perm2 (getMaxPerm m2)),
+          perm1 = perm2 ->
+          m1 = m2 ->
+          restrPermMap Hlt1 = restrPermMap Hlt2.
+      Proof. intros. subst. apply restr_proof_irr. Qed.
+      
+
+      Lemma cur_lt_max:
+        forall m, permMapLt (getCurPerm m) (getMaxPerm m).
+      Proof.
+        intros ** ??.
+        rewrite getCurPerm_correct getMaxPerm_correct; eapply m.
+      Qed.
+      
+      Lemma mem_cur_lt_max:
+        forall m, permMapLt (getCurPerm m) (getMaxPerm m).
+      Proof.
+        intros.
+        intros ??.
+        rewrite getCurPerm_correct getMaxPerm_correct.
+        unfold permission_at.
+        eapply Mem.access_max.
+      Qed.
+      Lemma restr_Max_eq:
+        forall p m Hlt,
+          getMaxPerm (@restrPermMap p m Hlt) = getMaxPerm m.  
+      Proof.
+        intros.
+        unfold getMaxPerm, restrPermMap.
+        simpl. unfold PMap.map; simpl.
+        f_equal.
+        repeat rewrite map_map1; simpl.
+        unfold PTree.map.
+        rewrite xmap_compose.
+        reflexivity.
+      Qed.
+      
+      Lemma setPermBlock_setPermBlock_var':
+        forall v, setPermBlock v = setPermBlock_var (fun _ : nat => v).
+      Proof.
+        intros.
+        extensionality b.
+        extensionality ofs.
+        extensionality pmap.
+        extensionality n.
+        eapply setPermBlock_setPermBlock_var.
+      Qed.
+      Lemma perm_range_perm:
+        forall m b low high k p,
+          Mem.range_perm m b low high k p ->
+          forall ofs', Intv.In ofs' (low,high) ->
+                  Mem.perm m b ofs' k p.
+      Proof.
+        unfold Mem.range_perm, Mem.perm; intros.
+        eapply H; eauto.
+      Qed.
