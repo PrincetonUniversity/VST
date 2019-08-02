@@ -570,7 +570,7 @@ ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend 
 endif
 ifneq ($(wildcard paco/src),)
-	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend 
+	$(COQDEP) -R paco/src Paco paco/src/*.v >>.depend 
 endif
 
 
