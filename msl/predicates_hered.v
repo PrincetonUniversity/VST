@@ -283,7 +283,8 @@ Qed.
 Definition boxy {A} `{ageable A} (m: modality) (p: pred A): Prop :=  box m p = p.
 
 (* A pile of notations for the operators we have defined *)
-Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
+Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity) : pred_derives.
+Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
   (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
 Notation "'ALL' x .. y , P " :=

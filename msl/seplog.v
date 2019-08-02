@@ -100,7 +100,8 @@ Defined.
 
 Delimit Scope logic with logic.
 Local Open Scope logic.
-Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
+Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity) : logic_derives.
+Open Scope logic_derives.
 Notation "'EX' x .. y , P " :=
   (exp (fun x => .. (exp (fun y => P%logic)) ..)) (at level 65, x binder, y binder, right associativity) : logic.
 Notation "'ALL' x .. y , P " :=

@@ -59,7 +59,8 @@ Definition sepcon {A} {JA: Join A}(p q:pred A) := fun z:A =>
 Definition wand {A}  {JA: Join A}  (p q:pred A) := fun y =>
   forall x z, join x y z -> p x -> q z.
 
-Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
+Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity) : pred_derives.
+Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
   (exp (fun x => .. (exp (fun y => P%pred)) ..)) (at level 65, x binder, y binder, right associativity) : pred.
 Notation "'ALL' x .. y , P " :=

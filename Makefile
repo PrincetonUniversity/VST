@@ -105,17 +105,11 @@ endif
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
 
-
-
-
 #COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
-# The warning setting -overriding-logical-loadpath is needed until
-#  CompCert issue 199 is resolve satisfactorily: 
-#  https://github.com/AbsInt/CompCert/issues/199
-COQC=$(COQBIN)coqc -w -overriding-logical-loadpath,-notation-overridden
+COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
@@ -579,6 +573,9 @@ endif
 
 clean:
 	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo  compcert_new/*/*.vo compcert_new/*/*/*.vo
+	rm -f InteractionTrees/theories/*.{vo,glob}
+	rm -f paco/src/*.{vo,glob}
+	rm -f fcf/src/FCF/*.{vo,glob}
 	rm -fr doc/html
 
 clean-concur:

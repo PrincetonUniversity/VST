@@ -2500,7 +2500,7 @@ Proof.
  omega.
 Set Warnings "-funind-cannot-build-inversion,-funind-cannot-define-graph".
  Defined.
-Set Warnings "+funind-cannot-build-inversion,+funind-cannot-define-graph".
+Set Warnings "funind-cannot-build-inversion,funind-cannot-define-graph".
 
 Lemma canonTree_Leaf : forall b, canonicalTree (Leaf b).
 Proof.
