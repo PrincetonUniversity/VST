@@ -4,3 +4,6 @@
 [submodule "paco"]
 	path = paco
 	url = https://github.com/snu-sf/paco.git
+[submodule "fcf"]
+	path = fcf
+	url = https://github.com/adampetcher/fcf.git

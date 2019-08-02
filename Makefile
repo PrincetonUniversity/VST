@@ -41,7 +41,7 @@ ANNOTATE=silent   # suppress chatty output from coqc
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86
-OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics  boringssl_fips_20180730
+OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox atomics  boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
@@ -65,7 +65,6 @@ ARCH ?= $(shell awk 'BEGIN{FS="="}$$1=="ARCH"{print $$2}' $(COMPCERT)/Makefile.c
 BITSIZE ?= $(shell awk 'BEGIN{FS="="}$$1=="BITSIZE"{print $$2}' $(COMPCERT)/Makefile.config)
 
 ifeq ($(COMPCERT), compcert_new)
-EXTPACO= -Q paco/src Paco
 BACKEND=backend
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
@@ -73,7 +72,6 @@ else
 ARCHDIRS=$(ARCH)_$(BITSIZE) $(ARCH)
 endif
 else
-EXTPACO=
 ifeq ($(wildcard $(COMPCERT)/$(ARCH)_$(BITSIZE)),)
 ARCHDIRS=$(ARCH)
 else
@@ -85,9 +83,15 @@ endif
 COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
-EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d)) $(EXTPACO)
+EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
 ifneq ($(wildcard InteractionTrees/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
+endif
+ifneq ($(wildcard fcf/src/FCF),)
+EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
+endif
+ifneq ($(wildcard paco/src),)
+EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
 endif
 
 # for SSReflect
@@ -201,23 +205,6 @@ CONCUR_COMPILER_FILES= \
 CONCUR_FILES= lksize.v semax_conc.v semax_conc_pred.v \
         memsem_lemmas.v main.v memory_lemmas.v  \
 
-PACO_FILES= \
-  hpattern.v\
-  paco.v\
-  paco0.v\
-  paco1.v\
-  paco2.v\
-  paco3.v\
-  paco4.v\
-  paco5.v\
-  paco6.v\
-  paco7.v\
-  pacodef.v\
-  paconotation.v\
-  pacotac.v\
-  pacotacuser.v\
-  tutorial.v
-
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
   Decidableplus.v Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \
@@ -328,32 +315,6 @@ HKDF_FILES= \
   hkdf_functional_prog.v hkdf.v spec_hkdf.v \
   verif_hkdf_extract.v verif_hkdf_expand.v verif_hkdf.v
 
-FCF_FILES= \
-  Admissibility.v Encryption.v NotationV1.v RndDup.v \
-  Array.v NotationV2.v RndGrpElem.v \
-  Asymptotic.v  Encryption_PK.v OracleCompFold.v RndInList.v \
-  Bernoulli.v EqDec.v OracleHybrid.v RndListElem.v \
-  Blist.v ExpectedPolyTime.v OTP.v RndNat.v \
-  Class.v FCF.v PRF.v RndPerm.v \
-  Comp.v Fold.v PRF_Convert.v SemEquiv.v \
-  CompFold.v GenTacs.v PRG.v GroupTheory.v  \
-  Crypto.v HasDups.v ProgramLogic.v StdNat.v \
-  DetSem.v Hybrid.v ProgTacs.v Tactics.v \
-  DiffieHellman.v Limit.v TwoWorldsEquiv.v \
-  DistRules.v  WC_PolyTime.v \
-  DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
-  DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v
-# ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
-
-#FCF_FILES= \
-#  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
-#  DistRules.v DistTacs.v ProgTacs.v GenTacs.v Crypto.v SemEquiv.v \
-#  ProgramLogic.v RndNat.v Bernoulli.v FCF.v HasDups.v CompFold.v \
-#  RepeatCore.v PRF_Encryption_IND_CPA.v PRF.v Array.v Encryption.v \
-#  Asymptotic.v Admissibility.v RndInList.v OTP.v RndGrpElem.v \
-#  GroupTheory.v WC_PolyTime.v RndListElem.v RndPerm.v NoDup_gen.v \
-#  Hybrid.v OracleCompFold.v PRF_Convert.v
-
 HMACFCF_FILES= \
   splitVector.v cAU.v hF.v HMAC_spec.v NMAC_to_HMAC.v \
   GNMAC_PRF.v GHMAC_PRF.v HMAC_PRF.v
@@ -425,7 +386,7 @@ FILES = \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FIPSDIGEST_FILES:%=boringssl-fips20180730/%) \
- $(FCF_FILES:%=FCF/%) \
+# $(FCF_FILES:%=fcf/src/FCF/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
@@ -517,7 +478,6 @@ msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
-paco: _CoqProject $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -603,11 +563,19 @@ ifeq ($(COMPCERT), compcert_new)
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+ifneq ($(wildcard InteractionTrees/theories),)
+	$(COQDEP) -Q InteractionTrees/theories ITree InteractionTrees/theories/*.v >>.depend 
+endif
+ifneq ($(wildcard fcf/src/FCF),)
+	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend 
+endif
+ifneq ($(wildcard paco/src),)
+	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend 
 endif
 
-depend-paco:
-	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=paco/src/%.v)
+
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+endif
 
 clean:
 	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo  compcert_new/*/*.vo compcert_new/*/*/*.vo

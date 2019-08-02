@@ -45,7 +45,7 @@ notifications:
     - vst-push@lists.cs.princeton.edu
 git:
   depth: 3
-  submodules: false
+#  submodules: false
   
 install:
 - opam --version
