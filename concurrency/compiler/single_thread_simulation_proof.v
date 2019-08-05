@@ -1045,7 +1045,12 @@ Admitted.
           machine_semantics.thread_step (HybConcSem hb m) sge U st1 m1 st1' m1' ->
           ((Mem.nextblock m1) <= (Mem.nextblock m1'))%positive.
       Proof.
-      Admitted.
+        intros.
+        inv H; simpl in *.
+        inv Htstep.
+        eapply event_semantics_mem_fw in Hcorestep.
+        simpl in Hcorestep; auto.
+      Qed.
       Lemma machine_step_mem_fwd:
         forall hb m sge U tr1 st1 m1 U' tr1' st1' m1',
           machine_semantics.machine_step (HybConcSem hb m)

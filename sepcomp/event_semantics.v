@@ -520,3 +520,40 @@ Proof.
       remember ((Mem.mem_access m) !! bb ofs Cur) as q. destruct q; try contradiction.
       left; split; trivial. destruct p; simpl in *; trivial; inv r.
 Qed.
+
+Lemma ev_elim_mem_fw:
+  forall ev m m',
+    event_semantics.ev_elim m ev m' -> 
+    ((Mem.nextblock m) <= (Mem.nextblock m'))%positive.
+Proof.
+  induction ev.
+  - simpl; intros; subst; reflexivity.
+  - intros. simpl in H. match_case in H.
+    + destruct H as (?&?&?).
+      etransitivity.
+      * eapply Mem.nextblock_storebytes in H.
+        rewrite <- H; reflexivity.
+      * eapply IHev; eauto.
+    + destruct H as (?&?).
+      eapply IHev; eauto.            
+    + destruct H as (?&?&?).
+      etransitivity.
+      * eapply Mem.nextblock_alloc in H.
+        instantiate(1:=  Mem.nextblock x); rewrite H.
+        xomega.
+      * eapply IHev; eauto.
+    + destruct H as (?&?&?).
+      etransitivity.
+      * eapply nextblock_freelist in H.
+        rewrite <- H; reflexivity.
+      * eapply IHev; eauto.        
+Qed.
+Lemma event_semantics_mem_fw:
+  forall C semSem c m ev c' m',
+    @event_semantics.ev_step C semSem c m ev c' m' ->
+    ((Mem.nextblock m) <= (Mem.nextblock m'))%positive.
+Proof.
+  intros.
+  eapply event_semantics.ev_step_elim in H.
+  eapply ev_elim_mem_fw; eassumption.
+Qed.
