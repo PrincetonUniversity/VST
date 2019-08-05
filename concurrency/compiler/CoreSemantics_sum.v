@@ -42,8 +42,8 @@ Definition state_sum_optionmt {Cs Ct M:Type} (cto: option (Ct * option M)): opti
 
 Definition lt_op (n: nat) (no:option nat): Prop :=
   match no with
-    | None => False
-    | Some n' => n < n' 
+    | None => True
+    | Some n' => n <= n' (* smallest is (Some 0) largest is None*) 
   end.
 
 Definition initial_core_sum (no:option nat) (Cs Ct:Type) (M: Type)

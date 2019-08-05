@@ -280,13 +280,6 @@ Admitted.
         intros; normal.
         repeat (econstructor; eauto).
       Qed.
-      Ltac dilute_mem_goal m:=
-            replace m with (HybridMachineSig.diluteMem  m) by reflexivity.
-          
-      Ltac dilute_mem_in m H:=
-            replace m with (HybridMachineSig.diluteMem  m) in H by reflexivity.
-      Tactic Notation "dilute_mem" constr(m):= dilute_mem_goal m.
-      Tactic Notation "dilute_mem" constr(m) "in" hyp(H):= dilute_mem_in m H.
       
       Lemma thread_step_plus_from_corestep':
         forall NN m tge U i st2 m2

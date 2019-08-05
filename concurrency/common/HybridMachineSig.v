@@ -792,3 +792,10 @@ Module HybridMachineSig.
 End HybridFineMachine.
 
 End HybridMachineSig.
+
+Ltac dilute_mem_goal m:=
+  replace m with (HybridMachineSig.diluteMem  m) by reflexivity.
+Ltac dilute_mem_in m H:=
+  replace m with (HybridMachineSig.diluteMem  m) in H by reflexivity.
+Tactic Notation "dilute_mem" constr(m):= dilute_mem_goal m.
+Tactic Notation "dilute_mem" constr(m) "in" hyp(H):= dilute_mem_in m H.
