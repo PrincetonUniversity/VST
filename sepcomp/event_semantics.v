@@ -523,12 +523,12 @@ Qed.
 
 Lemma ev_elim_mem_fw:
   forall ev m m',
-    event_semantics.ev_elim m ev m' -> 
+    ev_elim m ev m' -> 
     ((Mem.nextblock m) <= (Mem.nextblock m'))%positive.
 Proof.
   induction ev.
   - simpl; intros; subst; reflexivity.
-  - intros. simpl in H. match_case in H.
+  - intros. simpl in H. destruct a.
     + destruct H as (?&?&?).
       etransitivity.
       * eapply Mem.nextblock_storebytes in H.
@@ -550,10 +550,10 @@ Proof.
 Qed.
 Lemma event_semantics_mem_fw:
   forall C semSem c m ev c' m',
-    @event_semantics.ev_step C semSem c m ev c' m' ->
+    @ev_step C semSem c m ev c' m' ->
     ((Mem.nextblock m) <= (Mem.nextblock m'))%positive.
 Proof.
   intros.
-  eapply event_semantics.ev_step_elim in H.
+  eapply ev_step_elim in H.
   eapply ev_elim_mem_fw; eassumption.
 Qed.
