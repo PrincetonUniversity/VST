@@ -86,7 +86,7 @@ forall (ge': Genv.t fundef type) (Gfs: forall i,  sub_option (Genv.find_symbol g
          (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b)) 
 n, believe Espec (nofunc_tycontext V G) (Build_genv ge' (@cenv_cs C)) (nofunc_tycontext V G1) n.
 
-Lemma semax_func_mono CS CS' (CSUB: cspecs_sub CS CS') ge ge'
+Lemma semax_func_cenv_sub CS CS' (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
   V G fdecs G1 (H: @semax_func  V G CS ge fdecs G1): @semax_func  V G CS' ge' fdecs G1.
@@ -100,8 +100,28 @@ assert (Q1: forall i, sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge2 i
 { intros. eapply sub_option_trans. apply Gfs. apply Gfs0. }
 assert (Q2: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge2 b)).
 { intros. eapply sub_option_trans. apply Gffp. apply Gffp0. }
-apply (@believe_monoL CS Espec CS' {| genv_genv := ge2; genv_cenv := cenv_cs |} (nofunc_tycontext V G) (nofunc_tycontext V G)).
+apply (@believe_cenv_sub_L CS Espec CS' {| genv_genv := ge2; genv_cenv := cenv_cs |} (nofunc_tycontext V G) (nofunc_tycontext V G)).
 intros; apply tycontext_sub_refl. apply CSUB. apply (B _ Q1 Q2 n).
+Qed. 
+Lemma semax_func_mono CS CS' (CSUB: cspecs_sub CS CS') ge ge'
+  (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
+  (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
+  V G fdecs G1 (H: @semax_func  V G CS ge fdecs G1): @semax_func  V G CS' ge' fdecs G1.
+Proof.
+  destruct CSUB as [CSUB _].
+  eapply (@semax_func_cenv_sub _ _ CSUB); eassumption.
+  (*explicit proof:
+    destruct H as [MF [GC B]]; split; [trivial | split].
+  + hnf; intros. destruct (GC _ _ H) as [b [Hb1 Hb2]]. exists b; split.
+    specialize (Gfs id); rewrite Hb1 in Gfs; apply Gfs.
+    specialize (Gffp b); rewrite Hb2 in Gffp; apply Gffp.
+  + intros ge2; intros. 
+    assert (Q1: forall i, sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge2 i)).
+    { intros. eapply sub_option_trans. apply Gfs. apply Gfs0. }
+    assert (Q2: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge2 b)).
+    { intros. eapply sub_option_trans. apply Gffp. apply Gffp0. }
+    apply (@believe_monoL CS Espec CS' {| genv_genv := ge2; genv_cenv := cenv_cs |} (nofunc_tycontext V G) (nofunc_tycontext V G)).
+    intros; apply tycontext_sub_refl. apply CSUB. apply (B _ Q1 Q2 n).*)
 Qed. 
 
 Definition main_pre (prog: program) : list Type -> (ident->val) -> assert :=
@@ -324,22 +344,22 @@ induction vars; simpl; trivial.
 inv COMPLETE. rewrite (var_block'_cenv_sub CSUB _ _ H1), IHvars; clear IHvars; trivial.
 Qed.
 
-Lemma var_block_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') sh a
+Lemma var_block_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') sh a
 (CT: complete_type (@cenv_cs CS) (@snd ident type a) = true):
 @var_block sh CS a = @var_block sh CS' a.
 Proof.
-extensionality rho.
+extensionality rho. destruct CSUB as [CSUB _].
 unfold var_block. rewrite (cenv_sub_sizeof CSUB); trivial.
 Qed. 
 
-Lemma stackframe_of_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') f
+Lemma stackframe_of_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') f
   (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
 @stackframe_of CS f = @stackframe_of CS' f .
 Proof.
 extensionality rho. 
 unfold stackframe_of. forget (fn_vars f) as vars.
 induction vars; simpl; trivial.
-inv COMPLETE. rewrite (var_block_cenv_sub CSUB _ _ H1), IHvars; clear IHvars; trivial.
+inv COMPLETE. rewrite (var_block_cspecs_sub CSUB _ _ H1), IHvars; clear IHvars; trivial.
 Qed.
 
 Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
@@ -351,7 +371,7 @@ destruct f0.
 intros [H' H]; split; auto. clear H'.
 intros.
   specialize (H Espec0 ts x).
-rewrite <- (stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+rewrite <- (stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
 Qed. 
 
 Lemma semax_func_cons: forall 
@@ -446,7 +466,7 @@ pose proof I.
 (*specialize (H4 n).*)specialize (H4 k).
 apply now_later. 
 rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
-apply (semax'_cssub CSUB).
+apply (semax'_cenv_sub CSUB). (*apply (semax'_cssub CSUB).*)
 (*rewrite HGG.*)
 clear - H4 NK KW HDelta'.
 rewrite semax_fold_unfold in H4|-*. intros gx DD CS' u WU [SUB GX] v UV BEL.
@@ -2478,9 +2498,10 @@ exists i, HP, HQ; split; trivial.
 clear - GS HV. simpl in *. rewrite find_id_maketycontext_s.
 rewrite find_id_maketycontext_s in GS. apply find_id_skipn in GS; trivial.
 Qed.
-Lemma semax_func_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) V H ge funs G:
+
+Lemma semax_func_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) V H ge funs G:
 @semax_func V H CS ge funs G -> @semax_func V H CS' ge funs G.
-Proof. apply semax_func_mono; [ apply CSUB | | ]; intros ?; apply sub_option_refl. Qed. 
+Proof. eapply (@semax_func_cenv_sub _ _ CSUB); intros ?; apply sub_option_refl. Qed. 
 
 Lemma semax_body_subsumption cs V V' F F' f spec
       (SF: @semax_body V F cs f spec)
@@ -2491,7 +2512,7 @@ Proof.
   destruct SF as [H SF]; split; auto. clear H.
   intros.
   intros n. 
-  eapply semax_mono.  apply TS. apply (SF Espec0 ts x n).
+  eapply semax_mono. apply TS. apply (SF Espec0 ts x n).
 Qed. 
   
 (*

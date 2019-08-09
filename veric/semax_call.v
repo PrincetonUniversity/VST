@@ -3695,22 +3695,29 @@ Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
                                       end.
 Proof. reflexivity. Qed.
 
-Lemma RA_return_castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+Lemma RA_return_castexpropt_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
 Proof.
-  intros w W. simpl. unfold tc_expropt in W. destruct ret.
+  intros w W. simpl. unfold tc_expropt in W. destruct ret. 
   + simpl in W. simpl.
     unfold force_val1, liftx, lift; simpl. rewrite denote_tc_assert_andp in W. destruct W.
     rewrite <- (typecheck_expr_sound_cenv_sub CSUB Delta rho D w); trivial.
   + simpl in W; subst. simpl; trivial.
 Qed.
 
-Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+Lemma tc_expropt_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
 Proof.
   intros w W. simpl. rewrite  tc_expropt_char in W; rewrite tc_expropt_char.
   specialize (tc_expr_cenv_sub CSUB); intros.
   destruct ret; trivial; auto.
+Qed.
+
+Lemma tc_expropt_cspecs_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
+  @tc_expropt CS Delta ret t rho |-- @tc_expropt CS' Delta ret t rho.
+Proof.
+  destruct CSUB as [CSUB _].
+  apply (@tc_expropt_cenv_sub _ _ CSUB _ _ D).     
 Qed.
 
 Lemma tc_expropt_sub {CS} Delta Delta' rho (TS:tycontext_sub Delta Delta') (D:typecheck_environ Delta rho) ret t:
@@ -3763,7 +3770,7 @@ Proof.
     eapply sepcon_derives; try apply H1; auto. (*apply andp_left2. simpl. destrforget (ret_type Delta') as t.*)
     intros w [W1 W2]. simpl in H3; destruct H3 as [TCD' _].
     assert (TCD: typecheck_environ Delta rho) by (eapply typecheck_environ_sub; eauto). 
-    apply (tc_expropt_sub _ _ _ TS) in W1; trivial. 
+    apply (tc_expropt_sub _ _ _ TS) in W1; trivial.
 (*    apply (tc_expropt_cenv_sub CSUB _ _ TCD) in W1. *)
     rewrite <- (RA_return_castexpropt_cenv_sub CSUB Delta' rho TCD' _ _ _ W1); trivial.
   }

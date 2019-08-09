@@ -442,7 +442,7 @@ rewrite Forall_forall in H.
 apply H in H1.
 auto.
 Qed.
-
+(*
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
  [red; red; apply @sub_option_get; 
@@ -450,6 +450,15 @@ eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
  | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
  | simple apply tycontext_sub_refl ||
   (apply tycontext_sub_i99; assumption)].
+*)
+Ltac apply_semax_body L := 
+eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
+  [ first [ apply cspecs_sub_refl
+          | split3; red; apply @sub_option_get; 
+            repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil ]
+ | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
+ | simple apply tycontext_sub_refl ||
+          (apply tycontext_sub_i99; assumption)].
 
 Ltac try_prove_tycontext_subVG L :=
   match goal with |- semax_func ?V2 ?G2 _ _ _ =>

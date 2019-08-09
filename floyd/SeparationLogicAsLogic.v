@@ -1559,7 +1559,7 @@ unfold local, lift1; intro rho; simpl; normalize.
       * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
-Lemma rvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+Lemma rvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- !! (@eval_expr CS e rho = @eval_expr CS' e rho).
 Proof.
@@ -1568,8 +1568,12 @@ Proof.
   normalize. rewrite (expr_lemmas.eval_expr_cenv_sub_eq CSUB). normalize.
   intros N; rewrite N in H0; clear N. apply tc_val_Vundef in H0; trivial.
 Qed.
+Lemma rvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_expr CS Delta e rho |-- !! (@eval_expr CS e rho = @eval_expr CS' e rho).
+Proof. intros. destruct CSUB as [CSUB _]. apply (rvalue_cenv_sub CSUB); trivial. Qed. 
 
-Lemma lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+Lemma lvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
   tc_environ Delta rho ->
   @tc_lvalue CS Delta e rho |-- !! (@eval_lvalue CS e rho = @eval_lvalue CS' e rho).
 Proof. 
@@ -1578,7 +1582,10 @@ Proof.
   normalize. rewrite (expr_lemmas.eval_lvalue_cenv_sub_eq CSUB). normalize.
   intros N; rewrite N in H0; clear N. apply H0.
 Qed.
-
+Lemma lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_lvalue CS Delta e rho |-- !! (@eval_lvalue CS e rho = @eval_lvalue CS' e rho).
+Proof. intros. destruct CSUB as [CSUB _]. apply (lvalue_cenv_sub CSUB); trivial. Qed.  
 
 Lemma denote_tc_bool_CSCS' {CS CS'} v e: @denote_tc_assert CS (tc_bool v e) = @denote_tc_assert CS' (tc_bool v e).
 Proof. destruct v; simpl; trivial. Qed.
@@ -1659,7 +1666,8 @@ Definition CALLpre CS Delta ret a bl R :=
                    (@liftx (Tarrow environ (LiftEnviron mpred)) (P ts x)
                             (@make_args' (argsig, retsig) (@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl))) 
                    (oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R))).
-    
+
+(*A variant where (CSUB: cspecs_sub  CS CS') is replaced by (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) may be provable once tc_expr lemmas (and maybe eval_expr lemmas, sem_binop etc have been modified to only take a composite_env rather than a compspecs*) 
 Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
       @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
 Proof.
@@ -1883,8 +1891,9 @@ Proof.
   intros.
   eapply semax_Delta_subsumption. apply TS.
   apply (SF Espec ts x).
-Qed. 
+Qed.
 
+(*Should perhaps be called semax_body_cespecs_sub, also in the Module Type *)
 Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
       (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
     @semax_body V G CS f spec -> @semax_body V G CS' f spec.
@@ -1892,7 +1901,7 @@ Proof.
   destruct spec. destruct f0.
   intros [H' H]; split; auto.
   intros.  specialize (H Espec ts x). 
-  rewrite <- (semax_prog.stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+  rewrite <- (semax_prog.stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
 Qed. 
 
 End DeepEmbeddedMinimumSeparationLogic.

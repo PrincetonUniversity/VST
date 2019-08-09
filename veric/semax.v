@@ -388,7 +388,7 @@ apply subp_exp; intros.
 auto 50 with contractive.
 Qed.
 
-Lemma semax'_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
+Lemma semax'_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Espec Delta P c R:
       @semax' CS Espec Delta P c R |-- @semax' CS' Espec Delta P c R.
 Proof.
   rewrite 2 semax_fold_unfold.
@@ -399,6 +399,12 @@ Proof.
   assert (X: (!! (tycontext_sub Delta Delta' /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS'') /\ cenv_sub (@cenv_cs CS'') gx)) m).
   { clear W U. split. apply TC. split; trivial. intros i. eapply sub_option_trans. apply CSUB. apply M1. }
   apply (W X); trivial.
+Qed.
+Lemma semax'_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
+      @semax' CS Espec Delta P c R |-- @semax' CS' Espec Delta P c R.
+Proof.
+  destruct CSUB as [CSUB _].
+  apply (@semax'_cenv_sub _ _ CSUB).
 Qed.
 
 Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c Q: assert :=
@@ -679,24 +685,36 @@ Lemma believe_antimonoR gx Delta Gamma Gamma'
   @believe CS Espec Delta gx Gamma |-- @believe CS Espec Delta gx Gamma'.
 Proof. intros n B v sig cc A P Q k nec CL. apply B; trivial. eapply claims_antimono; eauto. Qed.
 
+Lemma cenv_sub_complete_legal_cosu_type cenv1 cenv2 (CSUB: cenv_sub cenv1 cenv2): forall t,
+    @composite_compute.complete_legal_cosu_type cenv1 t = true ->
+    @composite_compute.complete_legal_cosu_type cenv2 t = true.
+Proof.
+  induction t; simpl; intros; auto. 
+  + specialize (CSUB i). red in CSUB.
+    destruct (cenv1 ! i); [rewrite CSUB; trivial | inv H].
+  + specialize (CSUB i). red in CSUB.
+    destruct (cenv1 ! i); [rewrite CSUB; trivial | inv H].
+Qed.
+
+Lemma complete_type_cenv_sub {ce ce'} (C: cenv_sub ce ce') t (T:complete_type ce t = true):
+  complete_type ce' t = true.
+Proof. apply (complete_type_stable ce ce'); trivial. intros. specialize (C id). rewrite H in C; apply C.
+Qed.
 Lemma complete_type_cspecs_sub {cs cs'} (C: cspecs_sub cs cs') t (T:complete_type (@cenv_cs cs) t = true):
   complete_type (@cenv_cs cs') t = true.
-Proof. apply (complete_type_stable (@cenv_cs cs) (@cenv_cs cs')); trivial. intros. specialize (C id). rewrite H in C; apply C.
-Qed.
-(*
-Lemma cenv_sub_stackframe_of' {cs cs'} (C: cspecs_sub cs cs') f
-*)
-Lemma believe_internal_mono {CS'} gx Delta Delta' v sig cc A P Q
+Proof. destruct C. apply (complete_type_cenv_sub H _ T). Qed.
+
+Lemma believe_internal_cenv_sub {CS'} gx Delta Delta' v sig cc A P Q
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
                                 (func_tycontext' f Delta')) k
-  (CSUB: cspecs_sub  CS CS')
+  (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS'))
   (BI: @believe_internal CS Espec gx Delta v sig cc A P Q k):
   @believe_internal CS' Espec gx Delta' v sig cc A P Q k.
-Proof. destruct BI as [b [f [Hv X]]].
+Proof. destruct BI as [b [f [Hv X]]]. 
   exists b, f; split; [clear X | clear Hv].
   - simpl; simpl in Hv. intuition.
     + eapply Forall_impl. 2: apply H0. simpl; intros.
-       apply (complete_type_cspecs_sub CSUB); auto.
+       apply (complete_type_cenv_sub CSUB); auto.
     + clear - CSUB H0 H4. forget (fn_vars f) as vars. induction vars.
       constructor. inv H4. inv H0.  specialize (IHvars H5 H3).
       constructor; [ rewrite (cenv_sub_sizeof CSUB); trivial | apply IHvars].
@@ -704,11 +722,21 @@ Proof. destruct BI as [b [f [Hv X]]].
     + simpl; intros. eapply tycontext_sub_trans. 2: apply HSUB. eauto.
     + clear - CSUB HU; simpl. apply (cenv_sub_trans CSUB HU). 
 Qed.
+Lemma believe_internal_mono {CS'} gx Delta Delta' v sig cc A P Q
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+                                (func_tycontext' f Delta')) k
+  (CSUB: cspecs_sub  CS CS')
+  (BI: @believe_internal CS Espec gx Delta v sig cc A P Q k):
+  @believe_internal CS' Espec gx Delta' v sig cc A P Q k.
+Proof.
+  destruct CSUB as [CSUB _].
+  eapply (@believe_internal_cenv_sub CS'). apply SUB. apply CSUB. apply BI.
+Qed. 
 
-Lemma believe_monoL {CS'} gx Delta Delta' Gamma
+Lemma believe_cenv_sub_L {CS'} gx Delta Delta' Gamma
   (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
                                 (func_tycontext' f Delta'))
-  (CSUB: cspecs_sub  CS CS'):
+  (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')):
   @believe CS Espec Delta gx Gamma |-- @believe CS' Espec Delta' gx Gamma.
 Proof.
  intros n B v sig cc A P Q k nec CL.
@@ -716,7 +744,23 @@ Proof.
 + eapply claims_antimono; eauto.
 + left; trivial.
 + right. clear -SUB CSUB H.
-  apply (@believe_internal_mono CS' gx Delta); eauto.
+  apply (@believe_internal_cenv_sub CS' gx Delta); eauto.
+Qed.
+Lemma believe_monoL {CS'} gx Delta Delta' Gamma
+  (SUB: forall f, tycontext_sub (func_tycontext' f Delta)
+                                (func_tycontext' f Delta'))
+  (CSUB: cspecs_sub  CS CS'):
+  @believe CS Espec Delta gx Gamma |-- @believe CS' Espec Delta' gx Gamma.
+Proof.
+  destruct CSUB as [CSUB _].
+  eapply (@believe_cenv_sub_L CS'). apply SUB. apply CSUB.
+  (*explicit proof:
+ intros n B v sig cc A P Q k nec CL.
+ destruct (B v sig cc A P Q k nec).
++ eapply claims_antimono; eauto.
++ left; trivial.
++ right. clear -SUB CSUB H.
+  apply (@believe_internal_mono CS' gx Delta); eauto.*)
 Qed.
 
 Lemma believe_internal__mono sem gx Delta Delta' v sig cc A P Q
@@ -773,6 +817,11 @@ Lemma semax_mono' {CS} Espec Delta Delta' P Q
           (@semax' CS Espec (func_tycontext' f Delta') P c Q) w.
 Proof. eapply semax_mono_box. eauto. eassumption. Qed.
 
+Lemma semax_cenv_sub {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Espec Delta P c R:
+      @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
+Proof.
+  intros. intros n. apply (semax'_cenv_sub CSUB); trivial. 
+Qed.
 Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
       @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
 Proof.
