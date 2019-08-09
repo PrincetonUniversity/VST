@@ -1041,7 +1041,7 @@ Qed.
 Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
-Proof. intros. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
+Proof. intros. destruct CSUB as [CSUB _]. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
 
 Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
                                       match e with None => `!!(t=Tvoid)
@@ -1059,17 +1059,17 @@ Qed.
 Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_lvalue CS Delta e rho |-- @tc_lvalue CS' Delta e rho.
-Proof. intros; simpl. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
+Proof. intros; simpl. destruct CSUB as [CSUB _]. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
 
 Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
   tc_environ Delta rho ->
   @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
-Proof. intros. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
+Proof. intros. destruct CSUB as [CSUB _]. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
 
 Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
   forall types e,
   @tc_exprlist CS Delta types e rho |-- !! (@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho).
-Proof. intros. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
+Proof. intros. destruct CSUB as [CSUB _]. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
 
 Lemma denote_tc_assert_tc_bool_cs_invariant {CS CS'} b E:
   @denote_tc_assert CS (tc_bool b E) = @denote_tc_assert CS' (tc_bool b E).
@@ -1091,7 +1091,7 @@ Qed.
 Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
 Proof.
-  intros w W. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
+  intros w W. destruct CSUB as [CSUB _]. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
   specialize (expr_lemmas.typecheck_expr_sound_cenv_sub CSUB Delta rho D w (Ecast e t) W); clear W; intros H.
   hnf. unfold cast_expropt. simpl; simpl in H. 
   unfold force_val1, force_val, sem_cast, liftx, lift; simpl.
