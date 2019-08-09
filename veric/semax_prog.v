@@ -1389,7 +1389,7 @@ Proof.
     apply find_id_e in Heqo. destruct H4 as [post ?]. exists post.
     subst. split; auto. inv Hfind. auto. inv Hfind.
   } clear H4. rename H4' into H4.
-  assert ({ f | In (prog_main prog, f) (prog_funct prog)}).
+  assert (H5:{ f | In (prog_main prog, f) (prog_funct prog)}).
   forget (prog_main prog) as id.
   assert (H4': In id (map fst G)). {
   destruct H4 as [? [H4 _]].
@@ -1610,7 +1610,7 @@ destruct (find_id (prog_main prog) G) eqn:?.
 apply find_id_e in Heqo. destruct H4 as [post ?]. exists post.
 subst. split; auto. inv Hfind. auto. inv Hfind.
 } clear H4. rename H4' into H4.
-assert ({ f | In (prog_main prog, f) (prog_funct prog)}).
+assert (H5:{ f | In (prog_main prog, f) (prog_funct prog)}).
 forget (prog_main prog) as id.
 assert (H4': In id (map fst G)). {
 destruct H4 as [? [H4 _]].
