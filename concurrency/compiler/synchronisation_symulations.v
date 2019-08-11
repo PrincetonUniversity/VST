@@ -4675,10 +4675,11 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             ?H1 /\
             (Forall2 (inject_mevent e) (_ ++ (?ev1::nil)) (_ ++ (?ev1'::nil))) /\
             ?H3 =>
-          cut (exists (a:A) (b:B) (c:C) (d:D) (e:E), H1 /\ 
-                                                     inject_incr mu e /\
-                                                     (inject_mevent e ev1 ev1') /\
-                                                     H3)
+          cut (exists (a:A) (b:B) (c:C) (d:D) (e:E),
+                  H1 /\ 
+                  inject_incr mu e /\
+                  (inject_mevent e ev1 ev1') /\
+                  H3)
         end.
         { intros (a&b&c&d&e&(HH1 & HH2 & HH3 & HH4)).
           exists a, b, c, d, e; repeat weak_split (try assumption).

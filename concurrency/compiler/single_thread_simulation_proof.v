@@ -1113,8 +1113,13 @@ Admitted.
           Forall2 f a2 b2 ->
           Forall2 f (a1 ++  a2) (b1 ++ b2).
       Proof.
-        intros.
-      Admitted.
+        intros A B f a1.
+        induction a1.
+        - intros. inv H.
+          do 2 rewrite seq.cat0s; auto.
+        - simpl; intros.
+          inv H. econstructor; auto.
+      Qed.
       Lemma machine_step_traces:
         forall hb m sge U tr1 st1 m1 U' tr1' st1' m1',
           machine_semantics.machine_step (HybConcSem hb m)

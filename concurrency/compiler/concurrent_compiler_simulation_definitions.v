@@ -72,8 +72,7 @@ Module ThreadSimulationDefinitions
 
   (* Assumption of compilation. *)
   Parameter compiled: 
-    CC_correct.CompCert_compiler C_program =
-    Some Asm_program.
+    CC_correct.CompCert_compiler C_program = Some Asm_program.
   
   
     Notation sem_coresem Sem:=
