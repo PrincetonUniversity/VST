@@ -330,6 +330,11 @@ Qed.
          Genv.find_symbol (globalenv c_prog) (prog_main c_prog) = Some b_main ->
          Genv.find_funct_ptr (Genv.globalenv (program_of_program c_prog)) b_main = Some f_main ->
          CSL_init_setup init_mem_source init_st.
+
+  Definition spinlock_safe {sem} U (st: @t resources sem _) m: Prop:=
+    forall final_st final_m tr,
+      sc_execution (U, nil, st) m (nil,tr,final_st) final_m ->
+      SpinLocks.spinlock_synchronized tr.
   
   Theorem main_safety_clean:
   forall Asm_prog,
@@ -348,20 +353,20 @@ Qed.
          asm_prog_well_formed Asm_prog asm_genv_safe ->
          
          forall U, exists init_mem_tgt init_mem_tgt' init_thread_tgt,
-         let init_tp_tgt := mkPool(resources:=resources) (Krun init_thread_tgt) tt in
-         barebones_init_machine Asm_prog asm_genv_safe init_mem_tgt
-           init_tp_tgt init_mem_tgt' (main_ptr c_prog) [::] /\
+             let init_tp_tgt := mkPool(resources:=resources) (Krun init_thread_tgt) tt in
+
+             (* inital asm setup*)
+             barebones_init_machine Asm_prog asm_genv_safe init_mem_tgt
+                                    init_tp_tgt init_mem_tgt' (main_ptr c_prog) [::] /\
+             (* it's safe *)
          (forall n, fsafe (machineSig:= BareMachineSig)
                      (dilMem:= BareDilMem)
                      init_tp_tgt (bare_mem init_mem_tgt') U n)
-      /\ (forall final_state final_mem tr,
-            sc_execution (U, [::], init_tp_tgt)
-                         (bare_mem init_mem_tgt')
-                         ([::], tr, final_state) final_mem ->
-            SpinLocks.spinlock_synchronized tr).
+         (* It's spinlock safe *)
+         /\ spinlock_safe U init_tp_tgt (bare_mem init_mem_tgt').
   Proof.
     intros * Hcsafe Hcompiled * HCSL_init Hentry Hasm_wf *.
-
+    
     inv Hcsafe. inversion HCSL_init. subst init_st0.
 
     assert (Hprog: semax_to_juicy_machine.CSL_prog CPROOF = c_prog).
