@@ -331,16 +331,22 @@ Qed.
          Genv.find_funct_ptr (Genv.globalenv (program_of_program c_prog)) b_main = Some f_main ->
          CSL_init_setup init_mem_source init_st.
 
-  Definition spinlock_safe {sem} U (st: @t resources sem _) m: Prop:=
+  Definition spinlock_well_synchronized {sem} U (st: @t resources sem _) m: Prop:=
     forall final_st final_m tr,
       sc_execution (U, nil, st) m (nil,tr,final_st) final_m ->
       SpinLocks.spinlock_synchronized tr.
+  
+  Notation bare_safe := (@fsafe _ _ _ BareMachineSig BareDilMem).
+  Record spinlock_safe {sem} U tgt_cpm tgt_m:=
+    { spin_sync: spinlock_well_synchronized U tgt_cpm (bare_mem tgt_m);
+      safe_execution: forall n, @fsafe _ sem _ BareMachineSig BareDilMem tgt_cpm (bare_mem tgt_m) U n
+    }.
+      
   Ltac destruct_sig:=
         match goal with
           |- context[sval ?X] => destruct X
         end.
   Definition init_tp {Sem TP}(thread:semC):=  @mkPool resources Sem TP (Krun thread) tt.
-  Notation bare_safe := (@fsafe _ _ _ BareMachineSig BareDilMem).
   Theorem main_safety_clean:
     forall Asm_prog,
       (* C program is proven to be safe in CSL*)
@@ -362,18 +368,14 @@ Qed.
         asm_prog_well_formed Asm_prog asm_genv_safe ->
         
         forall U, exists tgt_m0 tgt_m tgt_cpm,
-            (* inital asm setup*)
+            (* inital asm machine *)
             barebones_init_machine Asm_prog asm_genv_safe tgt_m0
                                    tgt_cpm tgt_m (main_ptr c_prog) [::] /\
-            (* it's safe *)
-            (forall n, bare_safe tgt_cpm (bare_mem tgt_m) U n)
-              
-            (* It's spinlock safe *)
-            /\ spinlock_safe U tgt_cpm (bare_mem tgt_m).
+
+            (*it's spinlock safe: well synchronized and safe *)
+            spinlock_safe U tgt_cpm tgt_m.
   Proof.
     intros * Hcsafe Hcompiled * HCSL_init Hentry Hasm_wf *.
-    
-  
     
     inv Hcsafe. inversion HCSL_init. subst init_st.
 
@@ -413,9 +415,9 @@ Qed.
     - simpl; intros;
         (*The following line constructs the machine with [init_tp] *)
         (unshelve normal; try eapply init_tp; shelve_unifiable); eauto.
+      constructor; eauto.
   Qed.
-      
-
+  End CleanMainTheorem.
 End Main.
 
 
@@ -444,4 +446,5 @@ Module Test_Main:= (Main CC_correct ProgramArgs).
 Import Test_Main.
 
 Check CSL2FineBareAsm_safety.
+Check main_safety_clean.
 Print Assumptions CSL2FineBareAsm_safety.
