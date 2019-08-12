@@ -77,9 +77,9 @@ Module ProgramArgs: ThreadSimulationArguments.
 End ProgramArgs.
 
 
-Module Test_Main:= (Main CC_correct ProgramArgs).
+Module Test_Main:= (MainTheorem_Proof CC_correct ProgramArgs).
 Import Test_Main.
 
-Check CSL2FineBareAsm_safety.
-Check main_safety_clean.
-Print Assumptions CSL2FineBareAsm_safety.
+Check Theorem_statement.top2bottom_safety.
+Check top2bottom_safety_proof.
+Print Assumptions top2bottom_safety_proof.
