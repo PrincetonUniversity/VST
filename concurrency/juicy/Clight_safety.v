@@ -1027,6 +1027,7 @@ Definition f_wrapper : Clight.function :=
      Clight.fn_vars := []; Clight.fn_temps := [];
      Clight.fn_body := Clight.Scall None (Clight.Etempvar 1%positive tvoidfun) [Clight.Etempvar 2%positive tvoidptr] |}.
 
+(*Todo Explain the following definition *)
 Class spawn_wrapper := { lookup_wrapper: exists b_wrapper, Genv.find_funct_ptr (Clight.genv_genv ge) b_wrapper = Some (Ctypes.Internal f_wrapper)}.
 Context {SW : spawn_wrapper}.
 
