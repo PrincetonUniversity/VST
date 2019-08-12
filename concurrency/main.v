@@ -335,39 +335,47 @@ Qed.
     forall final_st final_m tr,
       sc_execution (U, nil, st) m (nil,tr,final_st) final_m ->
       SpinLocks.spinlock_synchronized tr.
-  
+  Ltac destruct_sig:=
+        match goal with
+          |- context[sval ?X] => destruct X
+        end.
+  Definition init_tp {Sem TP}(thread:semC):=  @mkPool resources Sem TP (Krun thread) tt.
+  Notation bare_safe := (@fsafe _ _ _ BareMachineSig BareDilMem).
   Theorem main_safety_clean:
-  forall Asm_prog,
-       clight_safe_prog c_prog -> 
-       CompCert_compiler c_prog = Some Asm_prog ->
-       forall  asm_genv_safe init_mem_source init_st,
-         
-         (* Initial State for CSL *)
-         CSL_init_setup init_mem_source init_st ->
-         
-         (*Correct entry point Clight (There is inconsistencies with CSL_init_Setup)*)
-         (* TODO: fix initial state inconsistenciees and unify. *)
-         entry_point (globalenv c_prog) init_mem_source init_st (main_ptr c_prog) nil ->
-         
-         (* ASM memory good. *)
-         asm_prog_well_formed Asm_prog asm_genv_safe ->
-         
-         forall U, exists init_mem_tgt init_mem_tgt' init_thread_tgt,
-             let init_tp_tgt := mkPool(resources:=resources) (Krun init_thread_tgt) tt in
+    forall Asm_prog,
+      (* C program is proven to be safe in CSL*)
+      clight_safe_prog c_prog ->
 
-             (* inital asm setup*)
-             barebones_init_machine Asm_prog asm_genv_safe init_mem_tgt
-                                    init_tp_tgt init_mem_tgt' (main_ptr c_prog) [::] /\
-             (* it's safe *)
-         (forall n, fsafe (machineSig:= BareMachineSig)
-                     (dilMem:= BareDilMem)
-                     init_tp_tgt (bare_mem init_mem_tgt') U n)
-         (* It's spinlock safe *)
-         /\ spinlock_safe U init_tp_tgt (bare_mem init_mem_tgt').
+      (* C program compiles to some assembly program*)
+      CompCert_compiler c_prog = Some Asm_prog ->
+      
+      forall  asm_genv_safe src_m src_cpm,
+        
+        (* Initial State for CSL *)
+        CSL_init_setup src_m src_cpm ->
+        
+        (*Correct entry point Clight (There is inconsistencies with CSL_init_Setup)*)
+        (* TODO: fix initial state inconsistenciees and unify. *)
+        entry_point (globalenv c_prog) src_m src_cpm (main_ptr c_prog) nil ->
+        
+        (* ASM memory good. *)
+        asm_prog_well_formed Asm_prog asm_genv_safe ->
+        
+        forall U, exists tgt_m0 tgt_m tgt_cpm,
+            (* inital asm setup*)
+            barebones_init_machine Asm_prog asm_genv_safe tgt_m0
+                                   tgt_cpm tgt_m (main_ptr c_prog) [::] /\
+            (* it's safe *)
+            (forall n, bare_safe tgt_cpm (bare_mem tgt_m) U n)
+              
+            (* It's spinlock safe *)
+            /\ spinlock_safe U tgt_cpm (bare_mem tgt_m).
   Proof.
     intros * Hcsafe Hcompiled * HCSL_init Hentry Hasm_wf *.
     
-    inv Hcsafe. inversion HCSL_init. subst init_st0.
+  
+    
+    inv Hcsafe. inversion HCSL_init. subst init_st.
 
     assert (Hprog: semax_to_juicy_machine.CSL_prog CPROOF = c_prog).
     { rewrite <- H; reflexivity. }
@@ -380,23 +388,19 @@ Qed.
       rewrite HH in H3; inversion H3; reflexivity. }
     assert (sval (Clight_safety.f_main CPROOF) = f_main).
     {
-      Ltac destruct_sig:=
-        match goal with
-          |- context[sval ?X] => destruct X
-        end.
-        destruct_sig; simpl.
-        unfold Clight_safety.ge, Clight_safety.prog in e.
-        rewrite Hprog in e.
-        rewrite HH2 in e. rewrite H4 in e; inversion e; reflexivity.
+      destruct_sig; simpl.
+      unfold Clight_safety.ge, Clight_safety.prog in e.
+      rewrite Hprog in e.
+      rewrite HH2 in e. rewrite H4 in e; inversion e; reflexivity.
     }
-    assert (HH4: init_mem CPROOF = init_mem_source).
+    assert (HH4: init_mem CPROOF = src_m).
     { unfold init_mem.
       clear - Hprog H2.
       destruct_sig; simpl.
       unfold semax_to_juicy_machine.prog in *.
       rewrite Hprog in e.
-      rewrite H2 in e; inversion e; reflexivity. }
-    assert (HH5: Clight_safety.initial_Clight_state CPROOF = init_st).
+      rewrite H2 in e; inv e; reflexivity. }
+    assert (HH5: Clight_safety.initial_Clight_state CPROOF = src_cpm).
     { unfold Clight_safety.initial_Clight_state.
       rewrite <- H1, <- Hprog.
       unfold Clight_init_state, Clight_safety.initial_Clight_state; repeat (f_equal; eauto). }
@@ -406,6 +410,9 @@ Qed.
     - unfold asm_prog_well_formed in *; eauto.
     - unfold Clight_prog in *. rewrite Hprog; eauto.
       rewrite HH1 HH4 HH5; eauto.
+    - simpl; intros;
+        (*The following line constructs the machine with [init_tp] *)
+        (unshelve normal; try eapply init_tp; shelve_unifiable); eauto.
   Qed.
       
 
