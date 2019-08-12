@@ -533,22 +533,22 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
       Qed.
       
       Inductive individual_match i:
-        meminj -> ctl -> mem -> ctl -> mem -> Prop:= 
+        (option compiler_index) -> meminj -> ctl -> mem -> ctl -> mem -> Prop:= 
       |individual_mtch_source:
          (i > hb)%nat ->
-         forall j s1 m1 s2 m2,
+         forall j s1 m1 s2 m2 cd,
            match_thread_source j s1 m1 s2 m2 ->
-           individual_match i j s1 m1 s2 m2
+           individual_match i cd j s1 m1 s2 m2
       |individual_mtch_target:
          (i < hb)%nat ->
-         forall j s1 m1 s2 m2,
+         forall j s1 m1 s2 m2 cd,
            match_thread_target j s1 m1 s2 m2 ->
-           individual_match i j s1 m1 s2 m2
+           individual_match  i cd j s1 m1 s2 m2
       | individual_mtch_compiled:
           (i = hb)%nat ->
           forall cd j s1 m1 s2 m2,
             match_thread_compiled cd j s1 m1 s2 m2 ->
-            individual_match i j s1 m1 s2 m2.
+            individual_match i cd j s1 m1 s2 m2.
 
       
       Inductive lock_update {hb}: nat -> ThreadPool hb -> Address.address ->
@@ -1061,6 +1061,127 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           admit.
         - intros. admit.
       Admitted.
+
+      Lemma mem_compat_upd:
+        forall hb tid st cnt c m,
+          @mem_compatible (HybridSem hb) _ st m ->
+          @mem_compatible (HybridSem hb) _
+                          (@updThreadC _ (HybridSem hb) tid st cnt c) m.
+      Proof.
+        intros * Hcmpt. 
+        econstructor; intros.
+        - erewrite <- ThreadPool.gThreadCR.
+          eapply Hcmpt.
+        - eapply Hcmpt.
+          erewrite <- ThreadPool.gsoThreadCLPool; eauto.
+        - eapply Hcmpt.
+          erewrite <- ThreadPool.gsoThreadCLPool; eauto.
+          Unshelve.
+          all: eauto.
+      Qed.
+
+      Lemma invariant_updateC:
+        forall hb st1 tid Htid c1,
+          @invariant (HybridSem hb) _ st1 ->
+          @invariant (HybridSem hb) _
+                     (@updThreadC _ (HybridSem hb) tid st1 Htid c1).
+      Proof.
+        intros * Hinv.
+        econstructor; intros; try solve[eapply Hinv].
+        - pose proof (ThreadPool.cntUpdateC' _ _ cnti) as cnti'.
+          pose proof (ThreadPool.cntUpdateC' _ _ cntj) as cntj'. 
+          pose proof (ThreadPool.gThreadCR _ cnti' _ cnti) as Hi.
+          pose proof (ThreadPool.gThreadCR _ cntj' _ cntj) as Hj.
+          match goal with
+            |- permMapsDisjoint2 ?X ?Y =>
+            replace X with (ThreadPool.getThreadR cnti');
+              replace Y with (ThreadPool.getThreadR cntj')
+          end.
+          apply Hinv; auto.
+        - eapply Hinv; eauto.
+        - eapply no_race in Hinv.
+          eapply Hinv.
+          eapply Hres.
+        - eapply Hinv.
+          eapply Hres.
+      Qed.
+      Definition thmem_from_concur1 { cd mu st1 m1 st2 m2 i}
+                 (Hconcur: concur_match cd mu st1 m1 st2 m2)
+                 (cnt: ThreadPool.containsThread st1 i) 
+        : mem.
+        unshelve (eapply restrPermMap, th_comp, 
+                  mem_compatible_thread_compat, memcompat1;  eassumption).
+        2: eassumption.
+      Defined.
+      Definition thmem_from_concur2 { cd mu st1 m1 st2 m2 i}
+                 (Hconcur: concur_match cd mu st1 m1 st2 m2)
+                 (cnt: ThreadPool.containsThread st2 i) 
+        : mem.
+        unshelve (eapply restrPermMap, th_comp, 
+                  mem_compatible_thread_compat, memcompat2;  eassumption).
+        2: eassumption.
+      Defined.
+      Lemma concur_match_updateC:
+        forall (st1: ThreadPool.t) (m1 : mem) (tid : nat)
+          (Htid : ThreadPool.containsThread st1 tid)
+          c1 (cd : option compiler_index) (st2 : ThreadPool.t) 
+          (mu : meminj) (m2 : mem)
+          c2 (Htid' : ThreadPool.containsThread st2 tid)
+          (Hconcur:concur_match cd mu st1 m1 st2 m2),
+          individual_match tid cd mu c1 (thmem_from_concur1 Hconcur Htid)
+                           c2 (thmem_from_concur2 Hconcur Htid') ->
+          concur_match cd mu
+                       (updThreadC Htid  c1) m1
+                       (updThreadC Htid' c2) m2.
+      Proof.
+        intros **.
+        (econstructor; try solve[simpl; eauto]);
+          try (simpl; eapply Hconcur).
+        - eapply mem_compat_upd; apply Hconcur.
+        - eapply mem_compat_upd; apply Hconcur.
+        - apply invariant_updateC, Hconcur.
+        - apply invariant_updateC, Hconcur.
+        - intros.
+          destruct (Nat.eq_dec i tid).
+          + subst.
+            do 2 erewrite (gssThreadCC).
+            move H at bottom.
+            inv H; try omega.
+            unfold thmem_from_concur1,
+              thmem_from_concur2 in *.
+            clean_proofs.
+            assumption.
+          + do 2 (erewrite <- gsoThreadCC; auto).
+            eapply Hconcur; auto.
+        - intros.
+          destruct (Nat.eq_dec i tid).
+          + subst.
+            do 2 erewrite (gssThreadCC).
+            move H at bottom.
+            inv H; try omega.
+            unfold thmem_from_concur1,
+              thmem_from_concur2 in *.
+            clean_proofs.
+            assumption.
+          + do 2 (erewrite <- gsoThreadCC; auto).
+            eapply Hconcur; auto.
+        - intros.
+          destruct (Nat.eq_dec i tid).
+          + subst i; subst tid.
+            do 2 erewrite (gssThreadCC).
+            move H at bottom.
+            inv H; try omega.
+            unfold thmem_from_concur1,
+              thmem_from_concur2 in *.
+            clean_proofs.
+            assumption.
+          + do 2 (erewrite <- gsoThreadCC; auto).
+            eapply Hconcur in H0. 
+              
+
+            
+        (* TODO! *)
+      Admitted.
       
       Lemma concur_match_update1:
         forall (st1: ThreadPool.t) (m1 m1' : mem) (tid : nat) (Htid : ThreadPool.containsThread st1 tid)
@@ -1077,7 +1198,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           invariant st1 ->
           invariant st2 ->
           concur_match cd mu st1 m1 st2 m2 ->
-          individual_match tid f' c1 m1' c2 m2' ->
+          individual_match tid cd' f' c1 m1' c2 m2' ->
           self_simulation.is_ext mu (Mem.nextblock m1) f' (Mem.nextblock m2) ->
           concur_match cd' f'
                        (updThread Htid c1
@@ -1087,6 +1208,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
       Proof.
         (* TODO! *)
       Admitted.
+
       
       (* concur_match *)
 

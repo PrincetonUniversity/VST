@@ -280,13 +280,6 @@ Admitted.
         intros; normal.
         repeat (econstructor; eauto).
       Qed.
-      Ltac dilute_mem_goal m:=
-            replace m with (HybridMachineSig.diluteMem  m) by reflexivity.
-          
-      Ltac dilute_mem_in m H:=
-            replace m with (HybridMachineSig.diluteMem  m) in H by reflexivity.
-      Tactic Notation "dilute_mem" constr(m):= dilute_mem_goal m.
-      Tactic Notation "dilute_mem" constr(m) "in" hyp(H):= dilute_mem_in m H.
       
       Lemma thread_step_plus_from_corestep':
         forall NN m tge U i st2 m2
@@ -781,10 +774,15 @@ Admitted.
                          m2' /\
             List.Forall2 (inject_mevent mu') tr1 tr2 /\
             machine_semantics.machine_step(HybConcSem (Some (S hb)) m) tge
-                                          U tr2 st2 m2 (HybridMachineSig.yield
-                                                          (Scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-                                                          U) tr2 st2' m2'.
+                                          U tr2 st2 m2
+                                          (HybridMachineSig.yield
+                                             (Scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
+                                             U) tr2 st2' m2'.
       Proof.
+        intros.
+        inv H2.
+        
+        
       Admitted.
 
       
@@ -807,10 +805,11 @@ Admitted.
             List.Forall2 (inject_mevent mu') tr1 tr2 /\
             machine_semantics.machine_step (HybConcSem (Some (S hb)) m) tge
                                            U tr2 st2 m2
-                                           (HybridMachineSig.yield(Scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
+                                           (HybridMachineSig.yield
+                                              (Scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
                                                                   U) tr2 st2' m2'.
       Proof.
-        intros.
+        intros * Hconcur Htrace Hchs_peek Hresume.
 
         assert (Hcnt2: containsThread st2 tid).
         { eapply contains12; eauto. }
@@ -818,12 +817,26 @@ Admitted.
         (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
         destruct (Compare_dec.lt_eq_lt_dec tid hb) as [[?|?]|?].
         - (* tid < hb *)
-          admit.
-          
+          intros. inv Hresume; normal; try solve[eauto].
+          + unshelve eapply concur_match_updateC; eauto; shelve_unifiable.
+            admit.
+          + replace U with
+                (@HybridMachineSig.yield HybridMachineSig.HybridCoarseMachine.scheduler U)
+              by reflexivity.
+            eapply HybridMachineSig.resume_step'; eauto.
+            simpl in Hperm.
+            econstructor.
+            * simpl; admit.
+            * eauto.
+            * eauto.
+            * admit.
+            * eapply Hconcur.
+            * simpl. eauto.
+              
         - (* tid = hb *)
           subst.
-          inversion H2; subst.
-          inversion H. simpl in *.
+          inversion Hresume; subst.
+          inversion Hconcur. simpl in *.
           clean_proofs.
           assert (m1_restr: permMapLt (thread_perms _ _ ctn) (getMaxPerm m1')) by
               eapply memcompat1.
@@ -843,18 +856,18 @@ Admitted.
              current values. All the precontidions are refelxive.
 
            *)
-          simpl in H10.
+          simpl in H6.
           inv Hafter_external.
-          erewrite (restr_proof_irr m1_restr) in H10.
-          destruct ((Clight.after_external None code1 m')) eqn:Hafter_x1; inv H4.
+          erewrite (restr_proof_irr m1_restr) in H6.
+          destruct ((Clight.after_external None code1 m')) eqn:Hafter_x1; inv H0.
           rewrite Hperm in Hafter_x1.
-          specialize (H10 mu s (restrPermMap _) (restrPermMap m2_restr) nil nil
+          specialize (H6 mu s (restrPermMap _) (restrPermMap m2_restr) nil nil
                           ltac:(constructor)
                                  ltac:(constructor)
                                         ltac:(constructor)
                                                Hafter_x1
                      ).
-          destruct H10 as (cd' & mu' & s2' & Hafter_x2 & INJ1 & Hcompiler_match).
+          destruct H6 as (cd' & mu' & s2' & Hafter_x2 & INJ1 & Hcompiler_match).
           remember 
             (updThreadC Hcnt2 (Krun (TState Clight.state Asm.state s2'))) as st2'.
           exists st2',m2,(Some cd'), mu'. 
@@ -1052,7 +1065,12 @@ Admitted.
           machine_semantics.thread_step (HybConcSem hb m) sge U st1 m1 st1' m1' ->
           ((Mem.nextblock m1) <= (Mem.nextblock m1'))%positive.
       Proof.
-      Admitted.
+        intros.
+        inv H; simpl in *.
+        inv Htstep.
+        eapply event_semantics.event_semantics_mem_fw in Hcorestep.
+        simpl in Hcorestep; auto.
+      Qed.
       Lemma machine_step_mem_fwd:
         forall hb m sge U tr1 st1 m1 U' tr1' st1' m1',
           machine_semantics.machine_step (HybConcSem hb m)
@@ -1067,10 +1085,18 @@ Admitted.
           Forall2 (inject_mevent (Mem.flat_inj (Mem.nextblock m1'))) x x.
       Proof.
       Admitted. (*This comes from self injection? *)
+
+      (*This should probably go soewhere else? *)
       Lemma flat_inj_lt:
         forall b b', (b <= b')%positive ->
                 inject_incr (Mem.flat_inj b) (Mem.flat_inj b').
-      Proof. Admitted.
+      Proof.
+        unfold Mem.flat_inj.
+        intros ** ??? HH.
+        match_case in HH. rewrite <- HH.
+        match_case.
+        xomega.
+      Qed.
       Local Ltac subst_sig:=
         match goal with
           H': existT _ _ _ = existT _ _ _ |- _ =>
@@ -1087,17 +1113,19 @@ Admitted.
           Forall2 f a2 b2 ->
           Forall2 f (a1 ++  a2) (b1 ++ b2).
       Proof.
-        intros.
-      Admitted.
+        intros A B f a1.
+        induction a1.
+        - intros. inv H.
+          do 2 rewrite seq.cat0s; auto.
+        - simpl; intros.
+          inv H. econstructor; auto.
+      Qed.
       Lemma machine_step_traces:
         forall hb m sge U tr1 st1 m1 U' tr1' st1' m1',
-          machine_semantics.machine_step
-            (HybConcSem hb m)
+          machine_semantics.machine_step (HybConcSem hb m)
             sge U tr1 st1 m1 U' tr1' st1' m1'->
           exists tr_tail, tr1' = tr1 ++ tr_tail /\
-                     forall tr2, 
-                       machine_semantics.machine_step
-                         (HybConcSem hb m)
+                     forall tr2, machine_semantics.machine_step (HybConcSem hb m)
                          sge U tr2 st1 m1 U' (tr2 ++ tr_tail) st1' m1'.
       Admitted.
       Lemma trivial_self_injection:
@@ -1280,7 +1308,8 @@ Lemma inject_mevent_compose:
             admit.
           + normal_hyp; subst.
             assert (Forall2 (inject_mevent (compose_meminj x2 jSn)) tr1 tr2).
-            { admit. }
+            { admit. (*Need an inject_incr or something about x2. *)
+            }
             clear H1.
             normal_goal; eauto.
             * econstructor; eauto.
@@ -1331,8 +1360,17 @@ Lemma inject_mevent_compose:
 
     Section CompileInftyThread.
 
-      Parameter lift_state: forall on, ThreadPool on -> forall on', ThreadPool on' -> Prop.
-      
+      Definition lift_state': forall {on on'},
+         ThreadPool on -> ThreadPool on'.
+      Proof.
+        intros; inv X; econstructor; eauto.
+      Defined.
+                                   
+      Inductive lift_state: forall on, ThreadPool on -> forall on', ThreadPool on' -> Prop:=
+        | build_lift_state: forall on on' st st',
+            st' = lift_state' st ->
+            lift_state on st on' st'.
+            
       Inductive infty_match:
         nth_index -> meminj ->
         ThreadPool (Some 0)%nat -> mem ->
@@ -1441,6 +1479,9 @@ Lemma inject_mevent_compose:
             machine_semantics.running_thread (HybConcSem None m) c2 i.
       Proof.
         intros m.
+        (*When you solve this, first check where "running thread" is used. And how is this usefull!
+          If it is, write it in the thesis. If it's not delete.
+         *)
       (* Should follow from the match relation. And there should be a similar lemma 
              for the [match_states]
        *)
