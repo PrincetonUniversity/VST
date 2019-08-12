@@ -91,7 +91,7 @@ ifneq ($(wildcard fcf/src/FCF),)
 EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
 endif
 ifneq ($(wildcard paco/src),)
-EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
+EXTFLAGS:=$(EXTFLAGS) -R paco/src Paco   # change this back to -Q when possible; see also https://github.com/snu-sf/paco/issues/24
 endif
 
 # for SSReflect
@@ -557,6 +557,8 @@ ifeq ($(COMPCERT), compcert_new)
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 	@echo "" >>.depend
 else
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+endif
 ifneq ($(wildcard InteractionTrees/theories),)
 	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q InteractionTrees/theories ITree coq-ext-lib/theories InteractionTrees/theories >>.depend 
 endif
@@ -568,8 +570,6 @@ ifneq ($(wildcard paco/src),)
 endif
 
 
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
-endif
 
 clean:
 	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo  compcert_new/*/*.vo compcert_new/*/*/*.vo
