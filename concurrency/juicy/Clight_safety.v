@@ -1123,9 +1123,8 @@ Proof.
         - destruct H6; auto.
         - eapply mem_ok_wd; destruct H6; eauto.
         - clear - H2. inv H2. constructor; auto. inv H4; constructor; auto.
-        -  auto.
-           admit.
-        - admit.
+        -  auto. admit.
+        - reflexivity.
       }
       { eapply MTCH_invariant; eauto. } }
     simpl.
@@ -1278,12 +1277,13 @@ Proof.
       inv H16.
       destruct tyargs; try contradiction.
       destruct H3, tyargs; try contradiction; simpl in *.
-      inv H18.
-      inv H13.
-      inv H2.
-      inv H8; [|inv H1].
-      inv H10.
-      rewrite Cop.cast_val_casted in H12 by auto; inv H12.
+      inv H18. (*eval_exprTlist*)
+      inv H15. (* eval_exprTlist ... [] Tnil vl T0*)
+      inv H2. (* Clight_new.val_casted_list [arg] (Tcons t0 Tnil) *)
+      inv H11; (*eval_exprT ge Clight.empty_env*)
+        [|inv H2 (*eval_lvalueT ge Clight.empty_env*) ].
+      inv H12 (*(PTree.Node ... ) ! 2 = Some v1*).
+      rewrite Cop.cast_val_casted in H14 by auto; inv H14.
       rewrite app_nil_r in Hsafe0.
        inv Hperm.
       eapply IHn.
