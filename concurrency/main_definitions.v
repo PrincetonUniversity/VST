@@ -23,14 +23,14 @@ Export BareMachine.
 Export semax_to_juicy_machine.
 Import x86_context.X86Context Asm_core.
 
-Definition barebones_concursem (SemTarget : Semantics) m:=
+Definition permissionless_concursem (SemTarget : Semantics) m:=
     (HybridMachineSig.HybridMachineSig.ConcurMachineSemantics
        (Sem:=SemTarget)
        (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
        (HybridMachine:=@bareMach SemTarget)
        (machineSig:= BareMachine.BareMachineSig) m).
-Definition barebones_init_machine (asm_prog: Asm.program) limited_builtins:=
-  machine_semantics.initial_machine (barebones_concursem
+Definition permissionless_init_machine (asm_prog: Asm.program) limited_builtins:=
+  machine_semantics.initial_machine (permissionless_concursem
                                        (@X86Sem asm_prog limited_builtins)
                                        (Genv.init_mem asm_prog)) (Some tt).
 
@@ -49,6 +49,7 @@ Definition main_ptr (prog:Ctypes.program function):=
   Vptr (Ctypes.prog_main prog) zero.
 
 (*Constructs the initial state *)
+(* This comes from initial_Clight_state in juicy/Clight_safety*)
 Definition Clight_init_state (prog:Ctypes.program function) main_symb f_main init_mem :=
   State main_handler
         (Scall None (Etempvar BinNums.xH (type_of_fundef f_main))

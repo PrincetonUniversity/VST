@@ -251,4 +251,7 @@ Section DrySafety.
     apply dry_safety_initial_state.
   Qed.
 
+  (*Print Assumptions Clight_initial_safe.*)
 End DrySafety.
+
+

@@ -43,52 +43,48 @@ Module Main
 
   (*Use a section to contain the parameters.*)
   Section MainTheorem.
+    Import semax_to_juicy_machine.
+    Import Args.
   (*Assumptions *)
   Context (CPROOF : semax_to_juicy_machine.CSL_proof).
-  Definition Clight_prog:= semax_to_juicy_machine.CSL_prog CPROOF.
-  Context (program_proof : Clight_prog = Args.C_program).
-  Definition Main_ptr:=Values.Vptr (Ctypes.prog_main Clight_prog) Integers.Ptrofs.zero.
-  Context (Asm_prog: Asm.program).
-  Context (compilation : CC_correct.CompCert_compiler Clight_prog = Some Asm_prog).
-  Context (asm_genv_safe: Asm_core.safe_genv (@x86_context.X86Context.the_ge Asm_prog)).
-  Instance SemTarget : Semantics:= @x86_context.X86Context.X86Sem Asm_prog asm_genv_safe.
+  Context (program_proof : CSL_prog CPROOF = C_program).
+  Definition Main_ptr:=Values.Vptr (Ctypes.prog_main C_program) Integers.Ptrofs.zero.
+  Context (compilation : CC_correct.CompCert_compiler C_program = Some Asm_program).
+  Context (asm_genv_safe: Asm_core.safe_genv (@x86_context.X86Context.the_ge Asm_program)).
+  Instance SemTarget : Semantics:= @x86_context.X86Context.X86Sem Asm_program asm_genv_safe.
   Existing Instance X86Inj.X86Inj.
 
   Variable init_mem_wd:
     forall m,
-      Genv.init_mem Asm_prog = Some m ->
+      Genv.init_mem Asm_program = Some m ->
       mem_obs_eq.MemoryWD.valid_mem m /\
-      mem_obs_eq.CoreInjections.ge_wd (Renamings.id_ren m) the_ge.
+      mem_obs_eq.CoreInjections.ge_wd (Renamings.id_ren m) semantics.the_ge.
         
   (* This should be instantiated:
      it says initial_Clight_state taken from CPROOF, is an initial state of CompCert.
    *)
   
   Context (CPROOF_initial:
-             entry_point (Clight.globalenv Clight_prog)
+             entry_point (Clight.globalenv C_program)
                                 (erasure_safety.init_mem CPROOF)
                                 (Clight_safety.initial_Clight_state CPROOF)
                                 Main_ptr nil).
 
  (* MOVE THIS TO ANOTHER FILE *)
-  Lemma CPROOF_initial_mem:  Genv.init_mem (Ctypes.program_of_program Clight_prog) = Some (erasure_safety.init_mem CPROOF).
+  Lemma CPROOF_initial_mem:  Genv.init_mem (Ctypes.program_of_program C_program) = Some (erasure_safety.init_mem CPROOF).
   Proof.
-  unfold Clight_prog, erasure_safety.init_mem, semax_to_juicy_machine.init_mem, 
+    unfold erasure_safety.init_mem, semax_to_juicy_machine.init_mem, 
     semax_initial.init_m, semax_to_juicy_machine.prog, Ctypes.program_of_program.
-  clear.
-  set (H := (semax_to_juicy_machine.init_mem_not_none CPROOF)).
-  clearbody H.
-  set (p := semax_to_juicy_machine.CSL_prog CPROOF) in *.
+    rewrite <- program_proof.
+    
+  clear - program_proof.
+  pose proof (semax_to_juicy_machine.init_mem_not_none CPROOF) as H.
   unfold Ctypes.program_of_program in H.
-  clearbody p.
-  set (m := Genv.init_mem
-          {|
-          AST.prog_defs := Ctypes.prog_defs p;
-          AST.prog_public := Ctypes.prog_public p;
-          AST.prog_main := Ctypes.prog_main p |}) in *.
- clearbody m.
- destruct m. reflexivity. contradiction H; auto.
-Qed. 
+  match goal with
+      |- ?LHS = ?RHS => destruct RHS eqn:HH
+  end; inversion HH; clear HH. revert H1.
+  destruct_sig; simpl; auto.
+  Qed. 
 
   (*Safety from CSL to Coarse Asm*)
   Definition SemSource p:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)).
@@ -99,11 +95,8 @@ Qed.
        (HybridMachine:=concurrent_compiler_safety.TargetHybridMachine)
        (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig) m).
   Definition asm_init_machine:=
-    machine_semantics.initial_machine (asm_concursem (Genv.init_mem Asm_prog)).
+    machine_semantics.initial_machine (asm_concursem (Genv.init_mem Asm_program)).
   Context {SW : Clight_safety.spawn_wrapper CPROOF}.
-  
-  (* Variable ConcurrentCompilerSafety:
-    ConcurrentCompilerSafety_statement. *)
   
   Lemma CSL2CoarseAsm_safety:
     forall U,
@@ -127,8 +120,7 @@ Qed.
   Proof.
     intros.
     assert(compilation':= compilation).  
-    rewrite program_proof in compilation'. 
-    pose proof (@ConcurrentCompilerSafety _ compilation' asm_genv_safe) as H.
+    pose proof (@ConcurrentCompilerSafety compilation' asm_genv_safe) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (erasure_safety.init_mem CPROOF) (erasure_safety.init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
     rewrite <- program_proof in *.
@@ -178,7 +170,7 @@ Qed.
     - intros. eapply Clight_initial_safe; auto.
     - clear H. split; eauto; econstructor; repeat split; try reflexivity; eauto.
       
-    - apply CPROOF_initial_mem.
+    - rewrite program_proof; apply CPROOF_initial_mem.
   Qed.
 
   Notation sc_execution := (@Executions.fine_execution _ BareDilMem BareMachine.resources
@@ -191,7 +183,7 @@ Qed.
             (Sem:=SemTarget)
             (resources:=BareMachine.resources)
             (Krun init_thread_target) tt in  
-      barebones_init_machine Asm_prog _
+      permissionless_init_machine Asm_program _
                              init_mem_target
                              init_tp_target
                              init_mem_target'
@@ -259,7 +251,7 @@ Qed.
       simpl in Hinit2.
       unfold HybridMachine.DryHybridMachine.init_mach in Hinit2.
       destruct Hinit2 as [c2 [Hinit2 Heq2]].
-      destruct (Asm.semantics_determinate Asm_prog).
+      destruct (Asm.semantics_determinate Asm_program).
       simpl in sd_initial_determ.
       simpl in Hinit, Hinit2.
       destruct Hinit as [Hinit ?], Hinit2 as [Hinit2 ?]; subst.
@@ -270,7 +262,7 @@ Qed.
 
     
   End MainTheorem.
-  Arguments barebones_init_machine _ _ _ _ _ _ _: clear implicits.
+  Arguments permissionless_init_machine _ _ _ _ _ _ _: clear implicits.
 
   Section CleanMainTheorem.
     Import CC_correct.
@@ -279,83 +271,74 @@ Qed.
     Import HybridMachineSig.HybridMachineSig.HybridFineMachine.
     Import ThreadPool BareMachine CoreInjections HybridMachineSig.
     Import main_definitions.
-
-    Notation c_prog:= Args.C_program.
+    Import Args.
     
   Theorem main_safety_clean:
       (* C program is proven to be safe in CSL*)
-      CSL_correct c_prog ->
+      CSL_correct C_program ->
 
       (* C program compiles to some assembly program*)
-      forall (asm_prog:Asm.program),
-      CompCert_compiler c_prog = Some asm_prog ->
+      CompCert_compiler C_program = Some Asm_program ->
       
       forall (src_m:Memory.mem) (src_cpm:state),
         
         (* Initial State for CSL *)
-        CSL_init_setup c_prog src_m src_cpm ->
+        CSL_init_setup C_program src_m src_cpm ->
         
         (*Correct entry point Clight (There is inconsistencies with CSL_init_Setup)*)
         (* TODO: fix initial state inconsistenciees and unify. *)
-        entry_point (globalenv c_prog) src_m src_cpm (main_ptr c_prog) nil ->
+        entry_point (globalenv C_program) src_m src_cpm (main_ptr C_program) nil ->
         
         (* ASM memory good. *)
         forall (limited_builtins:Asm_core.safe_genv x86_context.X86Context.the_ge),
-        asm_prog_well_formed asm_prog limited_builtins ->
+        asm_prog_well_formed Asm_program limited_builtins ->
         
         forall U, exists tgt_m0 tgt_m tgt_cpm,
             (* inital asm machine *)
-            barebones_init_machine
-              asm_prog limited_builtins
-              tgt_m0 tgt_cpm tgt_m (main_ptr c_prog) nil /\
+            permissionless_init_machine
+              Asm_program limited_builtins
+              tgt_m0 tgt_cpm tgt_m (main_ptr C_program) nil /\
 
             (*it's spinlock safe: well synchronized and safe *)
             spinlock_safe U tgt_cpm tgt_m.
   Proof.
     intros * Hcsafe * Hcompiled * HCSL_init Hentry Hlimit_biltin  Hasm_wf *.
     
-    inv Hcsafe; inversion HCSL_init. subst init_st.
-
-    (*Temp to  look at inconsistent states *)
-    (* inv Hentry.
-    unfold Clight_init_state in *. *)
+    inv Hcsafe.
+    rename H into Hprog.
+    rename H0 into Hwrapper.
     
-    assert (Hprog: semax_to_juicy_machine.CSL_prog CPROOF = c_prog).
-    { rewrite <- H; reflexivity. }
-    assert (HH1: Main_ptr CPROOF = main_ptr c_prog).
-    { unfold Main_ptr, main_ptr; do 2 f_equal; auto. }
+    inversion HCSL_init. subst init_st.
+    
     assert (HH2 : projT1 (semax_to_juicy_machine.spr CPROOF) = b_main).
     { destruct (semax_to_juicy_machine.spr CPROOF) as (BB & q & [HH Hinit] & ?); simpl.
-      unfold Clight_prog, semax_to_juicy_machine.prog in *.
+      unfold semax_to_juicy_machine.prog in *.
       rewrite Hprog in HH.
-      rewrite HH in H3; inversion H3; reflexivity. }
+      rewrite HH in H1; inversion H1; reflexivity. }
     assert (sval (Clight_safety.f_main CPROOF) = f_main).
-    {
-      destruct_sig; simpl.
+    { destruct_sig; simpl.
       unfold Clight_safety.ge, Clight_safety.prog in e.
-      rewrite Hprog in e.
-      rewrite HH2 in e. rewrite H4 in e; inversion e; reflexivity.
+      rewrite HH2 Hprog in e.
+      rewrite H2 in e; inversion e; reflexivity.
     }
     assert (HH4: erasure_safety.init_mem CPROOF = src_m).
     { unfold erasure_safety.init_mem.
-      clear - Hprog H2.
+      clear - Hprog H0.
       destruct_sig; simpl.
       unfold semax_to_juicy_machine.prog in *.
       rewrite Hprog in e.
-      rewrite H2 in e; inv e; reflexivity. }
+      rewrite H0 in e; inv e; reflexivity. }
     assert (HH5: Clight_safety.initial_Clight_state CPROOF = src_cpm).
     { unfold Clight_safety.initial_Clight_state.
-      rewrite <- H1, <- Hprog.
+      rewrite <- H, <- Hprog.
       unfold Clight_init_state, Clight_safety.initial_Clight_state; repeat (f_equal; eauto). }
 
+    subst; rewrite Hprog. 
     exploit CSL2FineBareAsm_safety; eauto.
-    - unfold Clight_prog. rewrite Hprog; eauto.
-    - unfold asm_prog_well_formed in *; eauto.
-    - unfold Clight_prog in *. rewrite Hprog; eauto.
-      rewrite HH1 HH4 HH5; eauto.
     - simpl; intros;
         (*The following line constructs the machine with [init_tp] *)
         (unshelve normal; try eapply init_tp; shelve_unifiable); eauto.
+      (*spinlock_safe*)
       constructor; eauto.
   Qed.
   End CleanMainTheorem.
