@@ -57,9 +57,6 @@ Module MainTheorem
      *)
     rename f into f_main2.
     - admit.
-    - 
-    
-    - admit. (* initial states don't match. *)
   Admitted.
       
 
