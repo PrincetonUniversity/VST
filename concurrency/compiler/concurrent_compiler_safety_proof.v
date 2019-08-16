@@ -471,8 +471,8 @@ Module Concurrent_Safety
   
   Definition SourceSemantics:= (fun m => ConcurMachineSemantics(HybridMachine:=SourceHybridMachine) m).
   Definition TargetSemantics ags:= (fun m => ConcurMachineSemantics(HybridMachine:=TargetHybridMachine ags) m).
-  (*
-    Lemma blah:
+  
+    Lemma clean_theorem_equivalence:
       forall asm_genv_safety : Asm_core.safe_genv (@the_ge Args.Asm_program),
         let SemSource:= (ClightSemanticsForMachines.ClightSem
                            (Clight.globalenv Args.C_program)) in
@@ -491,44 +491,24 @@ Module Concurrent_Safety
         unfold main_safety_preservation,
         concurrent_simulation_safety_preservation.
         intros * HSafety1 Asm_prog C_prog * Hinit Hsafe.
-        unfold initial_machine_state .
+
+
         inversion Hinit; subst; clear Hinit.
-        simpl in H0; destruct H0; simpl in *.
-        destruct H0 as (c&Hinit&HH); simpl in *.
-        inversion HH. 
-        eapply Eqdep.EqdepTheory.inj_pair2 in H1.
-        match type of H1 with
-          ?F1 = ?F2 => assert (Hstates: forall x, F1 x =  F2 x)
-        end.
-        intros X.
-        assert (Hf: forall {A B} (f1 f2: A -> B),  (f1 = f2) -> forall a,  f1 a= f2 a).
-        { clear. intros. rewrite H; reflexivity. }
-        apply Hf in H1; auto.
-        unshelve exploit Hstates.
-        econstructor; eauto.
-        clear Hstates.
-        simpl; intros Hstates; inversion Hstates.
-        subst c.
-        clear HH H1 Hstates.
-        destruct Hinit as (Hinit & Hinit_mem).
+        simpl in H0; unfold init_machine'' in *.
+        destruct H0 as (_ & Hinit_mach); simpl in *.
+        destruct Hinit_mach as (c&(Hinit&Hmem)&HH); simpl in *.
+        assert (c = src_tp0).
+        { clear - HH; inversion HH.
+          eapply Eqdep.EqdepTheory.inj_pair2 in H0.
+          eapply FunctionalExtensionality.equal_f in H0.
+          - inversion H0; auto.
+          - econstructor; auto.
+        }
+        subst c; clear HH.
+
         inversion Hinit; subst; simpl in *.
-        inversion Hinit; simpl in *.
-
-        exploit H.
-        
-
-        clear Hf.
-        
-        injection H3.
-        match goal with
-          |- existT
-        end.
-        
-        unfold init_mach in H2.
-        unfold SourceMachineSig in H2.
-        exploit H; clear H.
-
-      *)
+        exploit HSafety1.
+      Admitted.
 
     
 End Concurrent_Safety.
