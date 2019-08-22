@@ -49,7 +49,11 @@ Definition main_ptr (prog:Ctypes.program function):=
   Vptr (Ctypes.prog_main prog) zero.
 
 (*Constructs the initial state *)
-(* This comes from initial_Clight_state in juicy/Clight_safety*)
+(** * This comes from initial_Clight_state in juicy/Clight_safety.v
+    I think that is wheree it comes from. 
+    In any case, this is what appears, when one uses the CSL safety proof.
+ *)
+
 Definition Clight_init_state (prog:Ctypes.program function) main_symb f_main init_mem :=
   State main_handler
         (Scall None (Etempvar BinNums.xH (type_of_fundef f_main))

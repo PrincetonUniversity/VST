@@ -33,8 +33,10 @@ Module MainTheorem
   Module Theorem_proofs:=Main CC_correct Args.
   Import Theorem_proofs.
   
-
-  (* Temporary lemma for exposition. Deleete until ["Delete until here"]*)
+  Section Temporary_to_see_inconsistency.
+    (*Initial states are inconsistent.
+      Here is how
+     *)
   Import Clight.
   
   (* We want to prove something like this. Maybe with extra assumptions, 
@@ -54,17 +56,14 @@ Module MainTheorem
                 (entry points)
      *)
     rename f into f_main2.
-    destruct f_main2.
     - admit.
-    - 
-    
-    - admit. (* initial states don't match. *)
   Admitted.
       
 
       (* End of temporary exposition *)
   Goal True.
     idtac "Delete until here". auto. Qed.
+  End Temporary_to_see_inconsistency.
 
   Theorem top2bottom_correct:
     (* C program is proven to be safe in CSL*)

@@ -91,7 +91,7 @@ ifneq ($(wildcard fcf/src/FCF),)
 EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
 endif
 ifneq ($(wildcard paco/src),)
-EXTFLAGS:=$(EXTFLAGS) -R paco/src Paco   # change this back to -Q when possible; see also https://github.com/snu-sf/paco/issues/24
+EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
 endif
 
 # for SSReflect
@@ -566,7 +566,7 @@ ifneq ($(wildcard fcf/src/FCF),)
 	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend 
 endif
 ifneq ($(wildcard paco/src),)
-	$(COQDEP) -R paco/src Paco paco/src/*.v >>.depend 
+	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend 
 endif
 
 
