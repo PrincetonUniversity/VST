@@ -59,7 +59,7 @@ andb
     (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
     (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
-Definition semax_body
+Definition semax_body_orig
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
@@ -71,6 +71,30 @@ forall Espec ts x,
        (Ssequence f.(fn_body) (Sreturn None))
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
+
+Definition semax_body
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+exists spec', funspec_sub spec' (snd spec) /\ 
+              @semax_body_orig V G C f (fst spec, spec') .
+
+Definition semax_body_UNIV
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+forall spec', funspec_sub (snd spec) spec' ->
+              @semax_body_orig V G C f (fst spec, spec') .
+
+Lemma semax_body_orig_semax_body V G cs f spec (H: @semax_body_orig V G cs f spec):
+  @semax_body V G cs f spec.
+Proof. exists (snd spec); split. apply funspec_sub_refl. destruct spec; simpl in *; trivial. Qed.
+
+Lemma semax_body_orig_semax_body_UNIV V G cs f spec (H: @semax_body_orig V G cs f spec):
+  @semax_body_UNIV V G cs f spec.
+Proof. red; intros. Abort. (*If we could prove this, there wouldn't be any need for a modified def of semax_body...*)
+
+Lemma semax_body_sub V G cs f i phi (H: @semax_body V G cs f (i,phi))
+  psi (FS: funspec_sub phi psi): @semax_body V G cs f (i,psi).
+Proof. destruct H as [phi' [Hphi SB]]. simpl fst in *; simpl snd in *.
+  exists phi'; simpl fst; simpl snd. split; trivial. eapply funspec_sub_trans; eassumption. 
+Qed.
 
 Definition genv_contains (ge: Genv.t fundef type) (fdecs : list (ident * fundef)) : Prop :=
  forall id f, In (id,f) fdecs ->
@@ -362,9 +386,9 @@ induction vars; simpl; trivial.
 inv COMPLETE. rewrite (var_block_cspecs_sub CSUB _ _ H1), IHvars; clear IHvars; trivial.
 Qed.
 
-Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+Lemma semax_body_orig_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
 (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
-@semax_body V G CS f spec -> @semax_body V G CS' f spec.
+@semax_body_orig V G CS f spec -> @semax_body_orig V G CS' f spec.
 Proof.
 destruct spec.
 destruct f0.
@@ -373,6 +397,265 @@ intros.
   specialize (H Espec0 ts x).
 rewrite <- (stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
 Qed. 
+Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+(COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+@semax_body V G CS f spec -> @semax_body V G CS' f spec.
+Proof.
+intros [spec' [Sub SB]]. exists spec'; split; trivial. apply (semax_body_orig_cenv_sub CSUB); trivial.
+Qed. 
+
+Lemma semax_func_cons_case_internal_orig {cs ge V G} f i b fsig A P Q NEP NEQ n
+    (ParamsOK: semax_body_params_ok f = true)
+    (COMPLETE : Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
+    (Hvars : var_sizes_ok (@cenv_cs cs)(fn_vars f))
+    (SB : semax_body_orig V G f (i, mk_funspec fsig (fn_callconv f) A P Q NEP NEQ))
+    (HGG : Genv.find_funct_ptr ge b = Some (Internal f)):
+  believe_internal Espec {| genv_genv := ge; genv_cenv := (@cenv_cs cs) |}
+    (nofunc_tycontext V G) (Vptr b Ptrofs.zero) fsig (fn_callconv f) A P Q n.
+Proof.
+  exists b; exists f.
+  destruct SB as [XX SEMAX].
+  split(*; auto*).
+  + clear - XX ParamsOK HGG COMPLETE Hvars.
+    apply andb_true_iff in ParamsOK.
+    destruct ParamsOK as [H H'].
+    apply compute_list_norepet_e in H.
+    apply compute_list_norepet_e in H'.
+    split. trivial.
+    split; auto.
+    split; auto.
+  + clear - XX SEMAX COMPLETE.
+    intros Delta' CS' k NK HDelta' w KW CSUB ts x.
+    (*specialize (SEMAX Espec ts x k).*)
+    apply now_later. 
+    rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
+    apply (semax'_cenv_sub CSUB). (*apply (semax'_cssub CSUB).*) simpl in HDelta'.
+
+    specialize (SEMAX Espec ts x k).
+    clear - SEMAX NK KW HDelta'.
+    rewrite semax_fold_unfold in SEMAX|-*. intros gx DD CS' u WU [SUB GX] v UV BEL.
+    assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
+    { unfold func_tycontext, func_tycontext'. simpl.
+    eapply tycontext_sub_trans; eauto. }
+    assert (WV: @necR nat ag_nat w v). { eapply necR_trans.  apply WU. apply UV. }
+    specialize (SEMAX gx DD CS' _ KW (conj HDD GX) v WV BEL).
+    revert SEMAX.
+    apply allp_derives; intro kk.
+    apply allp_derives; intro F.
+    apply imp_derives; auto.
+    unfold guard.
+    apply allp_derives; intro tx.
+    eapply allp_derives; intro vx.
+    eapply subp_derives; auto.
+    apply andp_derives; auto.
+    apply andp_derives; auto.
+    apply sepcon_derives; auto.
+    apply andp_left1.
+    apply sepcon_derives; auto.
+    apply andp_left2.
+    auto.
+Qed.
+
+Lemma semax_func_cons_orig: forall 
+     fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok cenv_cs (f.(fn_vars)) ->
+   f.(fn_callconv) = cc ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+  semax_body_orig V G f (id, mk_funspec fsig cc A P Q NEP NEQ) ->
+  semax_func V G ge fs G' ->
+  semax_func V G ge ((id, Internal f)::fs)
+       ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
+Proof.
+intros until C.
+intros ge b H' COMPLETE Hvars Hcc Hb1 Hb2 H3 [HfsG' [Hfs HG]].
+apply andb_true_iff in H'.
+destruct H' as [Hin H'].
+apply andb_true_iff in H'.
+destruct H' as [Hni H]. 
+split.
+{ simpl. econstructor 2; auto.
+simpl.
+unfold type_of_function.
+clear - H3 Hcc.
+destruct H3 as [[? [? _]] _].
+rewrite (map_snd_typeof_params _ _ H).
+f_equal; auto. }
+apply id_in_list_true in Hin. rewrite negb_true_iff in Hni.
+split.
+{ hnf; intros. destruct H0; [ symmetry in H0; inv H0 | apply (Hfs _ _ H0)].
+exists b; split; trivial. } 
+intros ge' H0 HGG n.
+specialize (HG _ H0 HGG).
+hnf in HG |- *. 
+intros v fsig cc' A' P' Q'.
+apply derives_imp.
+clear n.
+intros n ?.
+subst cc. 
+rewrite <- Genv.find_funct_find_funct_ptr in Hb2.
+apply id_in_list_false in Hni.
+specialize (H0 id). unfold fundef in H0. rewrite Hb1 in H0. simpl in H0. 
+clear Hb1 Hfs.
+rewrite Genv.find_funct_find_funct_ptr in Hb2.
+specialize (HGG b). unfold fundef in HGG;  rewrite Hb2 in HGG; simpl in HGG.
+clear Hb2 ge Hin.
+destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [Hv|Hv].
+* (* Vptr b Ptrofs.zero = v *)
+  subst v. clear HG.
+  right.
+  destruct (semax_func_cons_aux (Build_genv ge' cenv_cs) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni HfsG' H1)
+     as [? [? [? [QQ' PP']]]]; subst A'.
+  apply JMeq_eq in QQ'; apply JMeq_eq in PP'; subst P' Q' fsig0 cc'.
+  clear H1.
+  clear - H3 COMPLETE H HGG Hvars. rename ge' into ge.
+  eapply semax_func_cons_case_internal_orig; eassumption.
+* (***   Vptr b Ptrofs.zero <> v'  ********)
+  clear - HG Hv H0 H1. apply (HG n v fsig cc' A' P' Q'); auto; clear HG.
+  destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
+  simpl in H.
+  destruct (eq_dec id id').
+  + exfalso. subst. rewrite PTree.gss in H.
+    destruct H1 as [? [? ?]]. unfold fundef in H1. simpl in H1. congruence.
+  + rewrite PTree.gso in H by auto.
+    exists id', NEP', NEQ'; split; auto.
+Qed.
+
+Lemma semax_func_cons_case_internal_EX {cs ge V G} f i b fsig A P Q NEP NEQ n (Hi: In i (map fst G))
+    (ParamsOK: semax_body_params_ok f = true)
+    (COMPLETE : Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
+    (Hvars : var_sizes_ok (@cenv_cs cs)(fn_vars f))
+    (SB : semax_body V G f (i, mk_funspec fsig (fn_callconv f) A P Q NEP NEQ))
+    (HGG : Genv.find_funct_ptr ge b = Some (Internal f))
+    (TP: type_of_function f = type_of_funspec (mk_funspec fsig (fn_callconv f) A P Q NEP NEQ)):
+  believe_internal Espec {| genv_genv := ge; genv_cenv := (@cenv_cs cs) |}
+    (nofunc_tycontext V G) (Vptr b Ptrofs.zero) fsig (fn_callconv f) A P Q n.
+Proof.
+  exists b; exists f.
+  destruct SB as [spec' [Spec' SEMAX]]. simpl snd in Spec'. simpl fst in SEMAX.
+  destruct spec' as [sig' cc' A' P' Q' NEP' NEQ'].
+  destruct SEMAX as [XX SEMAX].
+  split(*; auto*).
+  + clear - XX Spec' ParamsOK HGG COMPLETE Hvars. destruct Spec' as [YY [ZZ _]]; subst.
+    apply andb_true_iff in ParamsOK.
+    destruct ParamsOK as [H H'].
+    apply compute_list_norepet_e in H.
+    apply compute_list_norepet_e in H'.
+    split. trivial.
+    split; auto.
+    split; auto.
+  + clear - XX SEMAX COMPLETE Spec' ParamsOK Hvars Hi TP. destruct Spec' as [SP1 [SP2 SP3]]. subst sig' cc'.
+    intros Delta' CS' k NK HDelta' w KW CSUB ts x.
+    apply now_later. 
+    rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
+    apply (semax'_cenv_sub CSUB). (*apply (semax'_cssub CSUB).*) simpl in SP3, HDelta'.
+
+    (*Need to exploit YY before we can instantiate SEMAX*)
+    unfold funsig_tycontext in SP3. destruct fsig as [paramtypes rettype]. simpl fst in *. simpl snd in *.
+    rewrite semax_fold_unfold. intros gx DD CS u WU [SUB GX] v UV BEL.
+    intros kont FR m VM RG.
+    intros te e y MY l YL [[GE ?] DDl].
+    remember (construct_rho (filter_genv gx) e te) as rho.
+    rewrite sepcon_comm in H.
+    destruct H as [l1 [l2 [Jl [[L1a L1b] L2]]]].
+    destruct L1a as [ll1 [ll2 [Jl1 [LL1 LL2]]]]. Locate bind_args.
+    unfold filter_genv, construct_rho in Heqrho. Locate funspec_sub.
+    destruct LL1 as [LL1a [ve [te' [LL1b HP]]]].
+    destruct (SP3 ts x (mkEnviron (ge_of rho) ve te') ll1)
+      as [ts' [x' [FRAME [HPRE HPOST]]]]; clear SP3.
+    { clear SEMAX BEL. split; trivial. simpl. simpl in LL1a, LL1b.
+      red in LL1a. (*simpl in TP. unfold type_of_function in *.  destruct f.*) do 2 red. simpl.
+      apply andb_true_iff in ParamsOK.
+      destruct ParamsOK as [H H'].
+      apply compute_list_norepet_e in H.
+      apply compute_list_norepet_e in H'.
+      destruct XX as [XX1 [XX2 XX3]]. destruct GE as [GE1 GE2]; simpl in GE1, GE2.
+      red in GE1; clear GE2; simpl in GE1. split3; simpl; red; intros.      
+      + clear - LL1a LL1b XX1 H0. unfold fn_funsig in XX1. simpl in XX1.
+        rename paramtypes into l. forget (fn_params f) as ll. generalize dependent ll. clear - H0. 
+        induction l; simpl in *; intros. 
+        - rewrite PTree.gempty in H0. discriminate.
+        - destruct ll; inv XX1. simpl in *. destruct LL1a. rewrite PTree.gsspec in H0.
+          destruct (peq id (fst a)).
+          * inv H0. clear IHl. rewrite (LL1b O _ _ (eq_refl _) (eq_refl _)); clear LL1b.
+            clear H3. unfold construct_rho, eval_id in H. simpl in H. unfold tc_val'; rewrite H1.
+            eexists; split. 2: intros; eassumption. unfold force_val in *. 
+            remember (Map.get (te_of rho) (fst p)) as u. destruct u; trivial.
+            destruct (snd p); simpl in *; simpl; try contradiction.
+            destruct f; simpl in *; contradiction.
+            destruct ((eqb_type t Tvoid && eqb_attr a0 {| attr_volatile := false; attr_alignas := Some log2_sizeof_pointer |})%bool); simpl in H; contradiction.
+          * apply (IHl H0 _ H2 H3); intros. apply (LL1b (S n0)); trivial. 
+      + split; intros.
+        * rewrite PTree.gempty in H0; discriminate.
+        * red in SUB; simpl in SUB. unfold fn_funsig in *. subst. destruct RG as [CL _].
+          unfold make_venv in *. clear DDl L1b. admit. (*tc*)
+      + rewrite PTree.gempty in *; discriminate. }
+     simpl in HPOST.
+
+    specialize (SEMAX Espec ts' x' k).
+    clear - SEMAX NK KW HDelta' gx DD CS u WU SUB GX v UV BEL
+            kont FR m VM RG Heqrho (*HeqHFR HeqSTFR*) Jl Jl1 L1b LL2 L2 LL1a ve te' LL1b HP FRAME HPRE HPOST DDl CS'
+            MY YL GE.
+    assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
+    { unfold func_tycontext, func_tycontext'.
+      eapply tycontext_sub_trans; eauto. }
+    assert (WV: @necR nat ag_nat w v). { eapply necR_trans.  apply WU. apply UV. }
+    rewrite semax_fold_unfold in SEMAX.
+    specialize (SEMAX gx DD CS _ KW (conj HDD GX) v WV BEL).
+
+    specialize (SEMAX kont (fun rh => FRAME * FR rh) _ VM).
+    assert (RG2 :(!! closed_wrt_modvars (Ssequence (fn_body f) (Sreturn None)) (fun rh : environ => FRAME * FR rh) &&
+         rguard Espec gx DD
+           (frame_ret_assert (frame_ret_assert (function_body_ret_assert (fn_return f) (Q' ts' x')) (@stackframe_of cs f)) (fun rh : environ => FRAME * FR rh))
+           kont) m).
+    { destruct RG as [RG1 RG2]. split. 
+      + intros rh tte TTE. specialize (RG1 rh tte TTE). rewrite RG1. trivial.
+      + intros ek vl tenv vx q MQ p QP [[HH1 HH2] HH3].
+        apply (RG2 ek vl tenv vx q MQ p QP); clear RG2.
+        split; [ | trivial]. 
+        split; [ trivial |]. 
+        destruct ek; simpl; simpl in HH2; destruct HH2 as [? [? [? [XX YY]]]];
+        destruct XX as [? [? [? [? ?]]]]; try solve [contradiction].
+        destruct YY as [? [? [? [? ?]]]].
+        destruct (join_assoc (join_comm H3) (join_comm H)) as [? [? ?]].
+        exists x6, x5; apply join_comm in H7; split3; trivial.
+        destruct (join_assoc (join_comm H0) (join_comm H6)) as [? [? ?]].
+        exists x7, x3; apply join_comm in H9; split3; trivial.
+        red in H1; simpl in H1. red; simpl. destruct vl; simpl; simpl in H1.
+        - destruct H1; split; trivial. apply HPOST.
+          split.
+          { clear; split3; simpl; red; intros.
+            + rewrite PTree.gempty in H; discriminate.
+            + split; intros. rewrite PTree.gempty in H; discriminate.
+              destruct H. unfold Map.get, Map.empty in H; discriminate.
+            + rewrite PTree.gempty in H; discriminate. }
+          exists x4, x2; apply join_comm in H8; split3; trivial.
+        - destruct (fn_return f); trivial. apply HPOST.
+          split. 
+          { clear; split3; simpl; red; intros.
+            + rewrite PTree.gempty in H; discriminate.
+            + split; intros. rewrite PTree.gempty in H; discriminate.
+              destruct H. unfold Map.get, Map.empty in H; discriminate.
+            + rewrite PTree.gempty in H; discriminate. }
+          exists x4, x2; apply join_comm in H8; split3; trivial.
+    }
+    specialize (SEMAX RG2). clear RG2.
+    subst rho; apply (SEMAX te e y MY l YL); clear SEMAX.
+    split; trivial.
+    split; trivial. rewrite sepcon_comm. rewrite <- sepcon_assoc.
+    exists l1, l2; split3; trivial. rewrite sepcon_comm. rewrite <- sepcon_assoc.
+    exists ll1, ll2; split3; trivial.
+    destruct HPRE as [kk1 [kk2 [KK [KK1 KK2]]]].
+    exists kk1, kk2; split3; trivial.
+    exists ve, te'; split; trivial.
+Admitted. (*1 hole in a tc condition, concerns ve of bind_args*)
 
 Lemma semax_func_cons: forall 
      fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
@@ -398,17 +681,19 @@ apply andb_true_iff in H'.
 destruct H' as [Hin H'].
 apply andb_true_iff in H'.
 destruct H' as [Hni H]. 
+assert (TP: type_of_function f = Tfunction (type_of_params (fst fsig0)) (snd fsig0) (fn_callconv f)).
+{ unfold type_of_function.
+  clear - H3 Hcc. destruct H3 as [spec' [Spec' H3]]. simpl fst in H3.
+  destruct spec'. destruct Spec' as [Spec1' [Spec2' Spec']]. subst c f0.
+  destruct H3 as [[? [? _]] _].
+  rewrite (map_snd_typeof_params _ _ H).
+  f_equal; auto. }
 split.
-{ simpl. econstructor 2; auto.
-simpl.
-unfold type_of_function.
-clear - H3 Hcc. destruct H3 as [[? [? _]] _].
-rewrite (map_snd_typeof_params _ _ H).
-f_equal; auto. }
+{ econstructor 2; auto. simpl. subst; trivial. }
 apply id_in_list_true in Hin. rewrite negb_true_iff in Hni.
 split.
 { hnf; intros. destruct H0; [ symmetry in H0; inv H0 | apply (Hfs _ _ H0)].
-exists b; split; trivial. } 
+  exists b; split; trivial. } 
 intros ge' H0 HGG n.
 specialize (HG _ H0 HGG).
 hnf in HG |- *. 
@@ -419,86 +704,30 @@ intros n ?.
 subst cc. 
 rewrite <- Genv.find_funct_find_funct_ptr in Hb2.
 apply id_in_list_false in Hni.
-destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [?H|?H].
+specialize (H0 id). unfold fundef in H0. rewrite Hb1 in H0. simpl in H0. 
+clear Hb1 Hfs.
+rewrite Genv.find_funct_find_funct_ptr in Hb2.
+specialize (HGG b). unfold fundef in HGG;  rewrite Hb2 in HGG; simpl in HGG.
+clear Hb2 ge.
+destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [Hv|Hv].
 * (* Vptr b Ptrofs.zero = v *)
-subst v.
-right.
-exists b; exists f.
-split(*; auto*).
-+
-apply andb_true_iff in H.
-destruct H as [H H'].
-apply compute_list_norepet_e in H.
-apply compute_list_norepet_e in H'.
-(*split3; auto.*)
-rewrite Genv.find_funct_find_funct_ptr in Hb2; auto.
-split; auto.
-split. { specialize (HGG b). unfold fundef in HGG;  rewrite Hb2 in HGG; simpl in HGG.
-      unfold fundef; simpl. rewrite HGG; trivial. } 
-split; auto.
-split; auto.
-split; auto.
-destruct H1 as [id' [NEP' [NEQ' [? [b' [? ?]]]]]].
-symmetry in H4; inv H4.
-destruct (eq_dec id id').
- - subst. simpl in H1. rewrite PTree.gss in H1.
-    inv H1; auto.
-   split3; auto.
-   destruct H3; auto.
- -
-   specialize (H0 id); unfold fundef in H0. simpl in H0.  rewrite Hb1 in H0; simpl in H0.
-   simpl in H2.
-   contradiction (Genv.global_addresses_distinct ge' n0 H0 H2); auto.
-+
-(*destruct H. *) 
-intros Delta' CS' k NK HDelta' w KW CSUB.
-intros ts x.
-simpl in H1. specialize (H0 id); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0.
-pose proof (semax_func_cons_aux (Build_genv ge' cenv_cs) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni HfsG' H1).
-destruct H2 as [H4' [H4 [H4a [H4b H4c]]]].
-subst A' fsig cc'.
-apply JMeq_eq in H4b.
-apply JMeq_eq in H4c.
-subst P' Q'.
-destruct H3 as [_ H3]; specialize (H3 Espec ts x). 
-rename H3 into H4. (* destruct H3 as [Ann H4].*)
-pose proof I.
-(*specialize (H4 n).*)specialize (H4 k).
-apply now_later. 
-rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
-apply (semax'_cenv_sub CSUB). (*apply (semax'_cssub CSUB).*)
-(*rewrite HGG.*)
-clear - H4 NK KW HDelta'.
-rewrite semax_fold_unfold in H4|-*. intros gx DD CS' u WU [SUB GX] v UV BEL.
-assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
-{ unfold func_tycontext, func_tycontext'. simpl.
-eapply tycontext_sub_trans; eauto. }
-assert (WV: @necR nat ag_nat w v). { eapply necR_trans.  apply WU. apply UV. }
-specialize (H4 gx DD CS' _ KW (conj HDD GX) v WV BEL). 
-revert H4.
-apply allp_derives; intro kk.
-apply allp_derives; intro F.
-apply imp_derives; auto.
-unfold guard.
-apply allp_derives; intro tx.
-eapply allp_derives; intro vx.
-eapply subp_derives; auto.
-apply andp_derives; auto.
-apply andp_derives; auto.
-apply sepcon_derives; auto.
-apply andp_left1.
-apply sepcon_derives; auto.
-apply andp_left2.
-auto.
+  subst v. simpl in H1.
+  right.
+  destruct (semax_func_cons_aux (Build_genv ge' cenv_cs) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni HfsG' H1)
+     as [? [? [? [QQ' PP']]]]; subst A'.
+  apply JMeq_eq in QQ'; apply JMeq_eq in PP'; subst P' Q' fsig0 cc'.
+  clear H1.
+  clear - H3 COMPLETE H HGG Hvars Hin TP. rename ge' into ge.
+  eapply semax_func_cons_case_internal_EX; eassumption.
 * (***   Vptr b Ptrofs.zero <> v'  ********)
-apply (HG n v fsig cc' A' P' Q'); auto.
-destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
-simpl in H1.
-destruct (eq_dec id id').
-subst. rewrite PTree.gss in H1.
-destruct H4 as [? [? ?]]. specialize (H0 id'); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0. unfold fundef in H4; simpl in H4; congruence.
-rewrite PTree.gso in H1 by auto.
-exists id', NEP', NEQ'; split; auto.
+  clear - HG Hv H0 H1. apply (HG n v fsig cc' A' P' Q'); auto; clear HG.
+  destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
+  simpl in H.
+  destruct (eq_dec id id').
+  + exfalso. subst. rewrite PTree.gss in H.
+    destruct H1 as [? [? ?]]. unfold fundef in H1. simpl in H1. congruence.
+  + rewrite PTree.gso in H by auto.
+    exists id', NEP', NEQ'; split; auto.
 Qed.
 
 (* EXPERIMENT
@@ -2503,10 +2732,10 @@ Lemma semax_func_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')
 @semax_func V H CS ge funs G -> @semax_func V H CS' ge funs G.
 Proof. eapply (@semax_func_cenv_sub _ _ CSUB); intros ?; apply sub_option_refl. Qed. 
 
-Lemma semax_body_subsumption cs V V' F F' f spec
-      (SF: @semax_body V F cs f spec)
+Lemma semax_body_orig_subsumption cs V V' F F' f spec
+      (SF: @semax_body_orig V F cs f spec)
       (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
-  @semax_body V' F' cs f spec.
+  @semax_body_orig V' F' cs f spec.
 Proof.
   destruct spec. destruct f0.
   destruct SF as [H SF]; split; auto. clear H.
@@ -2515,6 +2744,14 @@ Proof.
   eapply semax_mono. apply TS. apply (SF Espec0 ts x n).
 Qed. 
   
+Lemma semax_body_subsumption cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  @semax_body V' F' cs f spec.
+Proof.
+  destruct SF as [spec' [Spec' SF]]. exists spec'; split; trivial.
+  eapply semax_body_orig_subsumption; eassumption.
+Qed.
 (*
 Lemma semax_func_loeb V G C (prog:program):
 @semax_func V G C (Genv.globalenv prog) (prog_funct prog) G ->

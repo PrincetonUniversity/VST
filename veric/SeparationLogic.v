@@ -1162,7 +1162,7 @@ Module DerivedDefs (Def: CLIGHT_SEPARATION_HOARE_LOGIC_DEF).
 
 Local Open Scope pred.
 
-Definition semax_body
+Definition semax_body_orig
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
@@ -1174,6 +1174,11 @@ forall Espec ts x,
        (Ssequence f.(fn_body) (Sreturn None))
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
+
+Definition semax_body
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+exists spec', funspec_sub spec' (snd spec) /\ 
+              @semax_body_orig V G C f (fst spec, spec') .
 
 Definition semax_prog
     {Espec: OracleKind} {C: compspecs}
