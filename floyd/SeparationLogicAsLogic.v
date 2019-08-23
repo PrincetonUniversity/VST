@@ -253,7 +253,7 @@ Inductive semax {CS: compspecs} {Espec: OracleKind} (Delta: tycontext): (environ
     (forall vl, local (tc_environ Delta) && ((allp_fun_id Delta) && RA_return R' vl) |-- |==> |> FF || RA_return R vl) ->
     @semax CS Espec Delta P' c R' -> @semax CS Espec Delta P c R.
 
-Definition semax_body
+Definition semax_body_orig
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
@@ -265,6 +265,17 @@ forall Espec ts x,
        (Ssequence f.(fn_body) (Sreturn None))
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
+
+Definition Pre_is_Lvar_Closed (spec:funspec) :=
+  match spec with mk_funspec _ _ _ P _ _ _ => 
+    forall ts x, closed_wrt_lvars (fun i => True) (P ts x)
+end.
+              
+Definition semax_body
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+Pre_is_Lvar_Closed (snd spec) /\
+exists spec', funspec_sub spec' (snd spec) /\
+              @semax_body_orig V G C f (fst spec, spec') .
 
 Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)(fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
@@ -1881,27 +1892,45 @@ Proof.
   + eapply semax_conseq; [.. | exact IHsemax]; auto.
 Qed.
 
-Lemma semax_body_subsumption: forall cs V V' F F' f spec
-      (SF: @semax_body V F cs f spec)
-      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
-    @semax_body V' F' cs f spec.
+Lemma semax_body_orig_subsumption cs V V' F F' f spec
+      (SF: @semax_body_orig V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  @semax_body_orig V' F' cs f spec.
 Proof.
   destruct spec. destruct f0.
-  intros [? SF] ?; split; auto.
+  destruct SF as [H SF]; split; auto. clear H.
   intros.
   eapply semax_Delta_subsumption. apply TS.
   apply (SF Espec ts x).
+Qed. 
+  
+Lemma semax_body_subsumption cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  @semax_body V' F' cs f spec.
+Proof.
+  destruct SF as [PCL [spec' [Spec' SF]]]. split; trivial. exists spec'; split; trivial.
+  eapply semax_body_orig_subsumption; eassumption.
 Qed.
 
 (*Should perhaps be called semax_body_cespecs_sub, also in the Module Type *)
-Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
-      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
-    @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+Lemma semax_body_orig_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+(COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+@semax_body_orig V G CS f spec -> @semax_body_orig V G CS' f spec.
 Proof.
-  destruct spec. destruct f0.
-  intros [H' H]; split; auto.
-  intros.  specialize (H Espec ts x). 
-  rewrite <- (semax_prog.stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+destruct spec.
+destruct f0.
+intros [H' H]; split; auto. clear H'.
+intros.
+  specialize (H Espec ts x).
+rewrite <- (semax_prog.stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+Qed. 
+Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+(COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
+@semax_body V G CS f spec -> @semax_body V G CS' f spec.
+Proof.
+  intros [CL [spec' [Sub SB]]]. split; trivial.
+  exists spec'; split; trivial. apply (semax_body_orig_cenv_sub CSUB); trivial.
 Qed. 
 
 End DeepEmbeddedMinimumSeparationLogic.

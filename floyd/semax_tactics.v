@@ -575,14 +575,14 @@ destruct H.
 auto.
 Qed.
 
-Lemma leaf_function': 
+Lemma leaf_function_orig': 
  forall Vprog Gprog (CS: compspecs) f s,
  check_no_overlap Vprog Gprog = true ->
- semax_body Vprog nil f s ->
- semax_body Vprog Gprog f s.
+ semax_body_orig Vprog nil f s ->
+ semax_body_orig Vprog Gprog f s.
 Proof.
 intros.
-unfold semax_body in *.
+unfold semax_body_orig in *.
 destruct s as [id fs].
 destruct fs.
 destruct H0 as [H0' H0]; split; auto.
@@ -634,6 +634,16 @@ hnf; intros.
 simpl.
 rewrite !PTree.gempty; auto.
 Qed.
+Lemma leaf_function': 
+ forall Vprog Gprog (CS: compspecs) f s,
+ check_no_overlap Vprog Gprog = true ->
+ semax_body Vprog nil f s ->
+ semax_body Vprog Gprog f s.
+Proof.
+intros.
+destruct H0 as [CL [spec [Sub SB]]].
+split; [ trivial | exists spec; split; trivial]. apply leaf_function_orig'; trivial.
+Qed.
 
 Definition check_no_overlap'
     (V: varspecs) (Gtable: PTree.t unit) : bool :=
@@ -643,6 +653,23 @@ Definition check_no_Gvars (Gtable: PTree.t unit) (s: statement) : bool :=
   find_expressions 
     (find_vars (fun i b => match Gtable!i with Some _=> false | None => b end))
     s true.
+
+Lemma leaf_function_orig: 
+ forall Vprog Gprog (CS: compspecs) f s Gtable,
+ Gtable = fold_left
+    (fun (t : PTree.t unit) (v : ident * funspec) =>
+     PTree.set (fst v) tt t) Gprog (PTree.empty unit) ->
+ check_no_overlap' Vprog Gtable = true ->
+ check_no_Gvars Gtable (fn_body f) = true ->
+ semax_body_orig Vprog nil f s ->
+ semax_body_orig Vprog Gprog f s.
+Proof.
+intros.
+clear H1.
+eapply leaf_function_orig'; try apply H2.
+subst Gtable.
+apply H0.
+Qed.
 
 Lemma leaf_function: 
  forall Vprog Gprog (CS: compspecs) f s Gtable,
@@ -666,7 +693,7 @@ Ltac function_pointers :=
  let x := fresh "there_are" in
  pose (x := function_pointers).
 
-Ltac leaf_function := 
+Ltac leaf_function_orig := 
  try lazymatch goal with
  | x := function_pointers |- _ => clear x
  | |- semax_body ?Vprog ?Gprog _ _ =>
@@ -677,6 +704,16 @@ Ltac leaf_function :=
  | ]
 end.
 
+Ltac leaf_function := 
+ try lazymatch goal with
+ | x := function_pointers |- _ => clear x
+ | |- semax_body ?Vprog ?Gprog _ _ =>
+ eapply leaf_function;
+ [reflexivity 
+ | reflexivity; fail "Error in leaf_function tactic: your" Vprog "and" Gprog "overlap!"
+ | reflexivity; fail "Error in leaf_function tactic: your function body refers to an identifier in" Gprog
+ | ]
+end.
 (*
 Definition any_gvars (ds: PTree.t funspec) (s: statement) : bool :=
   find_expressions 

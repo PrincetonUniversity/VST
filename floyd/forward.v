@@ -3764,7 +3764,7 @@ Ltac function_types_compatible t1 t2 :=
      type_lists_compatible al1 al2;
      first [unify r1 r2 | unify (classify_cast r1 r2) cast_case_pointer]
  end end.
-
+(*
 Ltac check_parameter_vals Delta al :=
  (* Work very carefully here to avoid simplifying or computing v,
     in case v contains something that will blow up *)
@@ -3793,6 +3793,7 @@ Ltac check_parameter_vals Delta al :=
  | _ :: ?al' => check_parameter_vals Delta al'
  | nil => idtac
  end.
+*)
 
 Fixpoint find_lvars (locals: list localdef)  (m: PTree.t unit) : PTree.t unit :=
  match locals with
@@ -4046,7 +4047,7 @@ split; simpl.
  simpl. rewrite H3. reflexivity.
 Qed.
 
-Ltac start_function :=
+Ltac start_function_part1 :=
  leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
@@ -4081,13 +4082,101 @@ Ltac start_function :=
    | (fun _ i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
+ end.
+
+Ltac solve_closed_wrtl :=
+  first 
+  [ auto with closed
+  | eapply closed_wrtl_PROPx;
+    apply closed_wrtl_LOCALx;
+    [ |  apply closed_wrtl_SEPx];
+    first [ repeat constructor |
+          repeat (constructor; [ 
+             first [ apply closed_wrtl_gvars | apply closed_wrtl_temp | apply closed_wrtl_eval_id | idtac] 
+                   | ]); constructor ]
+  ]; try constructor.
+
+Ltac solve_Closed :=
+intros ts x; simpl in x;
+  repeat (match goal with x : ?T1 * ?T2 |- _ => destruct x as [x ?y] end);
+  solve_closed_wrtl.
+
+Ltac sf_part1 subsume :=
+ leaf_function;
+ match goal with |- semax_body ?V ?G ?F ?spec =>
+    check_normalized F;
+    let s := fresh "spec" in
+    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
+   repeat lazymatch goal with
+    | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
+    | s := (_, mk_funspec _ _ _ _ _ _ _) |- _ => fail
+    | s := (_, ?a _ _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _) |- _ => unfold a in s
+    | s := (_, ?a _) |- _ => unfold a in s
+    | s := (_, ?a) |- _ => unfold a in s
+    end;
+    lazymatch goal with
+    | s :=  (_,  WITH _: globals
+               PRE  [] main_pre _ nil _
+               POST [ tint ] _) |- _ => idtac
+    | s := ?spec' |- _ => check_canonical_funspec spec'
+   end;
+   split; [ first [ solve_Closed | idtac ]
+          | eexists; split; 
+            [ apply subsume
+            | change (semax_body_orig V G F s); subst s ]]
  end;
+ let DependedTypeList := fresh "DependedTypeList" in
+ unfold NDmk_funspec; 
+ match goal with |- semax_body_orig _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+   split; [split3; [check_parameter_types' | check_return_type
+          | try (apply compute_list_norepet_e; reflexivity);
+             fail "Duplicate formal parameter names in funspec signature"  ] 
+         |];
+   match Pre with
+   | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
+   | (fun _ i => _) => intros Espec DependedTypeList i
+   end;
+   simpl fn_body; simpl fn_params; simpl fn_return
+ end.
+
+ (* Work very carefully here to avoid simplifying or computing v,
+    in case v contains something that will blow up *)
+Ltac check_parameter_vals Delta al :=
+ match al with
+ | temp ?i ?v :: ?al' =>
+    let ti := constr:((temp_types Delta) ! i) in
+    let ti := eval compute in ti in 
+    match ti with
+    | Some ?t =>
+        let w := constr:(tc_val_dec t v) in
+        let y := eval cbv beta iota delta [is_int_dec is_long_dec 
+                         is_float_dec is_single_dec is_pointer_or_integer_dec
+                         is_pointer_or_null_dec isptr_dec tc_val_dec] in w in
+        match y with
+          | right _ => fail 4 "Local variable" i "cannot hold the value" v "(wrong type)"
+          | left _ => idtac
+(*  optionally, give warning
+          | _ => let W := fresh "Warning_could_not_prove_this_if_its_false_then_the_caller_wont_be_able_satisfy_the_function_precondition" in 
+                       pose (W := tc_val t v)
+*)
+          | _ => idtac (* no optional warning *)
+        end
+    | None => fail 3 "Identifer" i "is not a local variable of this function"
+    end;
+    check_parameter_vals Delta al'
+ | _ :: ?al' => check_parameter_vals Delta al'
+ | nil => idtac
+ end.
+
+Ltac start_function_part2 :=
  try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
      change (fun rho => ?A rho * ?B rho) with (A * B)
   end;
  simpl functors.MixVariantFunctor._functor in *;
  simpl rmaps.dependent_type_functor_rec;
- clear DependedTypeList;
+ (*clear DependedTypeList;*)
  repeat match goal with
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
@@ -4138,6 +4227,14 @@ Ltac start_function :=
      clearbody DS
  end;
  start_function_hint.
+
+Ltac start_function_orig := start_function_part1; start_function_part2.
+
+Tactic Notation "start_function" constr(subsumes) := 
+  sf_part1 subsumes ; start_function_part2.
+
+Tactic Notation "start_function" := 
+  sf_part1 funspec_sub_refl; start_function_part2.
 
 Opaque sepcon.
 Opaque emp.

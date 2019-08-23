@@ -151,17 +151,25 @@ Proof.
   + eapply MinimumLogic.semax_conseq; eauto.
 Qed.
 
+Theorem semax_body_orig_sound: forall Vspec Gspec CS f id,
+  @DeepEmbedded.DeepEmbeddedDefs.semax_body_orig Vspec Gspec CS f id ->
+  @MinimumLogic.CSHL_Defs.semax_body_orig Vspec Gspec CS f id.
+Proof.
+  intros.
+  unfold MinimumLogic.CSHL_Defs.semax_body_orig, CSHL_Defs.semax_body_orig in H |- *.
+  destruct id.
+  destruct f0.
+  destruct H as [H' H]; split; auto. clear H'; intros. 
+  apply semax_sound.
+  apply H.
+Qed.
 Theorem semax_body_sound: forall Vspec Gspec CS f id,
   @DeepEmbedded.DeepEmbeddedDefs.semax_body Vspec Gspec CS f id ->
   @MinimumLogic.CSHL_Defs.semax_body Vspec Gspec CS f id.
 Proof.
   intros.
-  unfold MinimumLogic.CSHL_Defs.semax_body, CSHL_Defs.semax_body in H |- *.
-  destruct id.
-  destruct f0.
-  destruct H as [H' H]; split; auto. clear H'; intros.
-  apply semax_sound.
-  apply H.
+  destruct H as [CL [spec' [H' H]]]. split. apply CL.
+  exists spec'. split; auto. apply semax_body_orig_sound. apply H.
 Qed.
 
 Theorem semax_func_sound: forall Espec Vspec Gspec CS ge ids fs,

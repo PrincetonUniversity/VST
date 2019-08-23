@@ -1916,17 +1916,25 @@ Proof.
 Qed.
 
 (* This lets us use a library as a client. *)
-Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
+Lemma semax_body_orig_mono : forall V G {cs : compspecs} f s V2 G2
   (HV : incl V V2) (HG : incl G G2) (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
-  semax_body V G f s -> semax_body V2 G2 f s.
+  semax_body_orig V G f s -> semax_body_orig V2 G2 f s.
 Proof.
-  unfold semax_body; intros.
+  unfold semax_body_orig; intros.
   destruct s, f0.
   destruct H as [H' H]; split; auto.
   intros; eapply semax_Delta_subsumption, H.
   apply func_tycontext_sub; auto.
 Qed.
 
+Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
+  (HV : incl V V2) (HG : incl G G2) (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
+  semax_body V G f s -> semax_body V2 G2 f s.
+Proof.
+  intros. destruct H as [CL [spec' [Spec' SB]]].
+  split; [ | exists spec'; split]; trivial.
+  eapply semax_body_orig_mono; eauto.
+Qed.
 (* We could also consider an alpha-renaming axiom, although this may be unnecessary. *)
 
 (* exclusive *)
