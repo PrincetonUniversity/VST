@@ -186,7 +186,7 @@ Qed.
 
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
- [red; red; apply @sub_option_get; 
+ [split3; red; apply @sub_option_get; 
     repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
  | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
  | simple apply tycontext_sub_refl ||
@@ -205,7 +205,7 @@ Ltac semax_func_cons' L H :=
 (* next line not needed in alphaconvert branch 
 	   simpl; precondition_closed |
 *)
-               apply_semax_body L
+               (*apply_semax_body L*)first [ apply_semax_body L | idtac ]
            | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -219,6 +219,16 @@ Ltac do_semax_body_proofs x :=
  match x with
  | mk_external _ _ ?H ?P :: ?y => semax_func_cons' P H; [do_semax_body_proofs y]
  | mk_body ?P :: ?y => semax_func_cons' P I; [do_semax_body_proofs y]
+ | nil =>  apply semax_func_nil
+ | _ => pose (jj := x)
+ end.
+
+(*For debugging*)
+Ltac do_a_semax_body_proof x :=
+ let x := eval hnf in x in
+ match x with
+ | mk_external _ _ ?H ?P :: ?y => semax_func_cons' P H; try clear x; pose (yy:=y) (*[do_semax_body_proofs y]*)
+ | mk_body ?P :: ?y => semax_func_cons' P I; try clear x; pose (yy:=y) (*[do_semax_body_proofs y]*)
  | nil =>  apply semax_func_nil
  | _ => pose (jj := x)
  end.

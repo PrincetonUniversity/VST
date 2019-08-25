@@ -83,11 +83,6 @@ Pre_is_Lvar_Closed (snd spec) /\
 exists spec', funspec_sub spec' (snd spec) /\
               @semax_body_orig V G C f (fst spec, spec') .
 
-Definition semax_body_UNIV
-   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
-forall spec', funspec_sub (snd spec) spec' ->
-              @semax_body_orig V G C f (fst spec, spec') .
-
 Lemma semax_body_orig_semax_body V G cs f spec (HP: Pre_is_Lvar_Closed (snd spec)) 
   (H: @semax_body_orig V G cs f spec): @semax_body V G cs f spec.
 Proof.
@@ -95,9 +90,16 @@ Proof.
   destruct spec; simpl in *; trivial.
 Qed.
 
+Definition semax_body_UNIV
+   (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
+forall spec', funspec_sub (snd spec) spec' ->
+              @semax_body_orig V G C f (fst spec, spec') .
+
 Lemma semax_body_orig_semax_body_UNIV V G cs f spec (H: @semax_body_orig V G cs f spec):
   @semax_body_UNIV V G cs f spec.
-Proof. red; intros. Abort. (*If we could prove this, there wouldn't be any need for a modified def of semax_body...*)
+Proof. red; intros. Abort. (*If we could prove this, there wouldn't be any need for a
+modified def of semax_body. Perhaps this is provable if add the assumption 
+Pre_is_Lvar_Closed (snd spec') to the definition of semax_body_UNIV but it's not immediate.*)
 
 Lemma semax_body_sub V G cs f i phi (H: @semax_body V G cs f (i,phi))
   psi (HPsi: Pre_is_Lvar_Closed psi) (FS: funspec_sub phi psi): @semax_body V G cs f (i,psi).
@@ -576,21 +578,21 @@ Proof.
     remember (construct_rho (filter_genv gx) e te) as rho.
     rewrite sepcon_comm in H.
     destruct H as [l1 [l2 [Jl [[L1a L1b] L2]]]].
-    destruct L1a as [ll1 [ll2 [Jl1 [LL1 LL2]]]]. Locate bind_args.
-    unfold filter_genv, construct_rho in Heqrho. Locate funspec_sub.
+    destruct L1a as [ll1 [ll2 [Jl1 [LL1 LL2]]]].
+    unfold filter_genv, construct_rho in Heqrho.
     destruct LL1 as [LL1a [ve [te' [LL1b HP]]]].
     specialize (PCL ts x (mkEnviron (ge_of rho) ve te') empty_venv).
     rewrite PCL in HP by auto.
     destruct (SP3 ts x (mkEnviron (ge_of rho) empty_venv te') ll1)
       as [ts' [x' [FRAME [HPRE HPOST]]]]; clear SP3.
     { clear SEMAX BEL. split; trivial. simpl. simpl in LL1a, LL1b.
-      red in LL1a. (*simpl in TP. unfold type_of_function in *.  destruct f.*) do 2 red. simpl.
+      red in LL1a. do 2 red. simpl.
       apply andb_true_iff in ParamsOK.
       destruct ParamsOK as [H H'].
       apply compute_list_norepet_e in H.
       apply compute_list_norepet_e in H'.
       destruct XX as [XX1 [XX2 XX3]]. destruct GE as [GE1 GE2]; simpl in GE1, GE2.
-      red in GE1; clear GE2; simpl in GE1. split3; simpl; red; intros.      
+      red in GE1; clear GE2; simpl in GE1. split3; simpl; red; intros.
       + clear - LL1a LL1b XX1 H0. unfold fn_funsig in XX1. simpl in XX1.
         rename paramtypes into l. forget (fn_params f) as ll. generalize dependent ll. clear - H0. 
         induction l; simpl in *; intros. 
