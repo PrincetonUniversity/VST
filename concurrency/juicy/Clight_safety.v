@@ -1698,6 +1698,7 @@ Definition main_pointer:= Vptr (projT1 (spr CPROOF)) Ptrofs.zero.
 *)
 Lemma initial_Clight_state_is_initial:
   Clight.entry_point ge init_mem initial_Clight_state' main_pointer nil.
+Admitted.
 
   Local Ltac solve_schedule:=
       match goal with
