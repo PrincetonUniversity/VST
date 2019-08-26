@@ -1095,10 +1095,10 @@ Proof.
   induction n; intros; [constructor|].
   inv H; simpl in *; [constructor; auto | ..];
     pose proof (mem_ok_step (sch,tr,tp) _ _ _ Hmem Hstep) as Hmem';
-    [inv Hstep; simpl in *; try (apply schedSkip_id in HschedS; subst); try discriminate |
-     inv Hstep; simpl in *; try match goal with H : sch = schedSkip sch |- _ =>
+  [inv Hstep; simpl in *; try (apply schedSkip_id in HschedS; subst); try discriminate|
+    inv Hstep; simpl in *; try match goal with H : sch = schedSkip sch |- _ =>
        symmetry in H; apply schedSkip_id in H; subst end; try discriminate].
-  - inv Htstep.
+  - inv Htstep. simpl in Hinitial.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
     destruct Hinitial as (Hinit & Harg & ?); subst.
@@ -1118,18 +1118,19 @@ Proof.
         hnf in Hperm; subst.
         destruct lookup_wrapper.
         assert (mem_ok tp (restrPermMap (proj1 (compat_th tp m Hcmpt ctn))))
-               by (apply mem_ok_restr; auto).
+               by (apply mem_ok_restr; auto). 
         econstructor; eauto.
         - destruct H6; auto.
         - eapply mem_ok_wd; destruct H6; eauto.
         - clear - H2. inv H2. constructor; auto. inv H4; constructor; auto.
-        -  auto. admit.
+        - auto. admit.
         - reflexivity.
       }
       { eapply MTCH_invariant; eauto. } }
     simpl.
     destruct n; [constructor|].
-    (* Clight_new needs to take another step to enter the call; then, if it's an internal
+    (* Clight_new needs to take another step to enter the call; 
+       then, if it's an internal
        function, Clight needs to take another step to match. *)
     inv Hsafe; simpl in *.
     { unfold halted_machine in H1; simpl in H1.
@@ -1682,20 +1683,91 @@ Proof.
   rewrite Hty; repeat constructor.
 Qed.
 
-(*
 
-Theorem Clight_initial_safe (sch : HybridMachineSig.schedule) (n : nat) :
-    HybridMachineSig.HybridCoarseMachine.csafe
+(*New safety theorem, with the correct initial state: 
+  TODO: swap the names when we think it's ready.
+ *)
+
+(* This is the right initial state, should be a [Callstate]*)
+Definition initial_Clight_state' : Clight.state.
+Admitted.
+Definition main_pointer:= Vptr (projT1 (spr CPROOF)) Ptrofs.zero.
+
+(* Question: this proof assumes no arguments to main. 
+   can we cahnge that? 
+*)
+Lemma initial_Clight_state_is_initial:
+  Clight.entry_point ge init_mem initial_Clight_state' main_pointer nil.
+Admitted.
+
+  Local Ltac solve_schedule:=
+      match goal with
+      | [H: ?sch = schedSkip ?sch |- _ ] =>
+        symmetry in H; apply schedSkip_id in H; subst
+      | [H: schedSkip ?sch = ?sch |- _ ] =>
+        apply schedSkip_id in H; subst
+      end; simpl in *; congruence.
+  
+Lemma Clight_new_Clight_safety':
+  (forall sch n,
+    csafe
+      (Sem := Clight_newSem ge)
+      (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=Clight_newSem ge))
+      (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
+      (sch, nil,
+       DryHybridMachine.initial_machine
+         (Sem := Clight_newSem ge)
+         (permissions.getCurPerm init_mem)
+        (initial_corestate CPROOF)) init_mem n) ->
+  forall sch n,
+    csafe
       (Sem := ClightSem ge)
       (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=ClightSem ge))
       (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
-      (sch, nil,
-       DryHybridMachine.initial_machine(Sem := ClightSem ge)
-                                       (permissions.getCurPerm init_mem)
-        (initial_Clight_state CPROOF)) init_mem n.
-  Proof.
-
- *)
+      (sch, nil, (DryHybridMachine.initial_machine
+         (Sem := ClightSem ge)
+         (permissions.getCurPerm init_mem)
+         initial_Clight_state')) init_mem n.
+Proof.
+  intros * Hsafe_new sch n.
+  unshelve (exploit Clight_new_Clight_safety; eauto).
+  exact sch. apply S; exact n.
+  clear. revert sch.
+  induction n; try solve[constructor].
+  intros sch Hsafe.
+  inv Hsafe; swap 2 3.
+  - (*Halted*) constructor; auto.
+  - (*Angelic steps, that change the schedule*)
+    (* all of these cases should be impossible.*)
+    simpl in *.
+    inv Hstep; simpl in *; subst; try solve_schedule.
+    + inv Htstep; simpl in *. inv Hcode.
+      unfold Clight.at_external in *.
+      unfold initial_Clight_state in Hat_external; inv Hat_external.
+    + inv Htstep; simpl in *; inversion Hcode.
+    + eapply AngelSafe; simpl; eauto.
+      eapply schedfail; simpl; eauto.
+      * admit. (*initial state satisfies invarian*)
+      * admit. (*initial state is mem compatible*)
+  - (* regular step. *)
+    simpl in *.
+    unfold MachStep in *; simpl in *.
+    inv Hstep; simpl in *; subst; try solve_schedule.
+    + inv Htstep. inv Hcode.
+    + inv Htstep. inv Hcode.
+    + inv Htstep. simpl in Hcorestep.
+      simpl in Hcorestep.
+      inv Hcode.
+      remember (restrPermMap (proj1 (Hcmpt tid Htid))) as init_mem'.
+      (* We need this rewrite to get the right semantics*)
+      eapply (@ev_step_ax1 _ (CLC_evsem ge)) in Hcorestep.
+      admit. (* Hopefully, the step in Hcorestep takes 
+                us directly to [initial_Clight_state']
+                i.e., initial_Clight_state' = c'.
+                then, with some auxiliary proofs for memory,
+                result follows from the induction hypothesis IHn.
+              *)
+Admitted.
 
 
 
