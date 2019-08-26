@@ -1443,8 +1443,15 @@ Proof.
   repeat split; eauto.
   {
     intros. eexists; split. reflexivity.
-    rewrite E.  
-    repeat split; eauto; try solve [constructor].
+    rewrite E.
+    split3; eauto. split3; eauto. constructor.
+    constructor. split; auto.
+    split. 
+    rewrite H8. apply Genv.initmem_inject in H1.
+    clear - H1. unfold inject_neutral. inv H1; auto.
+    rewrite H8. clear - H1.
+    apply Genv.init_mem_genv_next in H1.
+    unfold globalenv. simpl. rewrite H1. apply Coqlib.Ple_refl.
   }
   intros n.
   exists (initial_jm_ext z _ _ _ n H1 H0 H2).
@@ -1665,7 +1672,14 @@ repeat split; eauto.
 {
 intros. eexists; split. reflexivity.
 rewrite E.  
-repeat split; eauto; try solve [constructor].
+    split3; eauto. split3; eauto. constructor.
+    constructor. split; auto.
+    split. 
+    rewrite H8. apply Genv.initmem_inject in H1.
+    clear - H1. unfold inject_neutral. inv H1; auto.
+    rewrite H8. clear - H1.
+    apply Genv.init_mem_genv_next in H1.
+    unfold globalenv. simpl. rewrite H1. apply Coqlib.Ple_refl.
 }
 intros n z.
 exists (initial_jm_ext z _ _ _ n H1 H0 H2).
@@ -1927,6 +1941,8 @@ let rho1 : environ :=
 
 { q : corestate |
 (forall jm, Val.inject (Mem.flat_inj (nextblock (m_dry jm))) arg arg ->
+     inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\
+     Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->
   exists jm', semantics.initial_core
   (juicy_core_sem (cl_core_sem (globalenv prog))) h
   jm q jm' (Vptr b Ptrofs.zero) (arg :: nil)) /\
@@ -2000,18 +2016,19 @@ destruct Believe as [BE|BI].
 }
 rewrite Ef.
 eexists. split.
-intros. eexists; repeat split; eauto.
-repeat constructor.
+intros. eexists.
+split3; eauto. split3; eauto. constructor.
 {clear - arg_p.
 destruct arg; try contradiction.
 first [apply val_casted_long_ptr |  apply val_casted_int_ptr]; reflexivity.
 apply val_casted_ptr_ptr. }
+constructor.
 { clear - arg_p. destruct arg; try contradiction; simpl in *.
   unfold Tptr. destruct Archi.ptr64; try contradiction; auto.
   unfold Tptr. destruct Archi.ptr64; auto.
 }
-{ unfold arg_well_formed. constructor; auto. } 
-
+split3; auto.
+{ unfold arg_well_formed. constructor; auto. }
 intros jm ts a m_sat_Pa m_funassert.
 
 assert (Pf : params_of_fundef f = Tpointer Tvoid noattr :: nil).
