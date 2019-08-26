@@ -286,6 +286,7 @@ Lemma invariant_thread_step
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
   (envcoh : env_coherence Jspec ge Gamma Phi)
   (extcompat : joins (ghost_of Phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil))
+  (mwellformed: @mem_wellformed ge m)
   (compat : mem_compatible_with tp m Phi)
   (En : level Phi = S n)
   (lock_bound : lockSet_block_bound (lset tp) (Mem.nextblock m))
@@ -608,7 +609,10 @@ Proof.
 
   - (* env_coherence *)
     eapply env_coherence_resource_decay with _ Phi; eauto. setoid_rewrite En''; omega.
-
+  - destruct stepi as [? _].
+     forget (m_dry jmi') as m'. 
+    clear - mwellformed H. simpl in H.
+     admit.   (* Santiago ... use memsem *)
   - rewrite G.
     destruct extcompat as [? Je]; eapply ghost_fmap_join in Je; eexists; eauto.
 
@@ -864,4 +868,4 @@ Proof.
       unfold tp'',  tp'.
       unshelve erewrite gsoThreadCode; auto.
       unshelve erewrite <-gtc_age; auto.
-Qed.
+Admitted.

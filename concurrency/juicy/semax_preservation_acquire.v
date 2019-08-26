@@ -324,7 +324,9 @@ Proof.
 
   + (* env_coherence *)
     apply env_coherence_age_to. auto.
-
+  + inv INV. clear -mwellformed Hstore.
+      simpl in Hlt'.
+      admit. (* Santiago *)
   + rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
@@ -755,4 +757,4 @@ Opaque age_tp_to.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewrite Hthread.
     congruence.
-Qed. (* preservation_acquire *)
+Admitted. (* preservation_acquire *)

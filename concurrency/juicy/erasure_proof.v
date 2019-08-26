@@ -4713,7 +4713,7 @@ Here be dragons
         exists ds'.
         assert (DryHybridMachine.invariant ds').
         { eapply step_decay_invariant with (Hcompatible := MTCH_compat _ _ _ MATCH Hcmpt); auto.
-          destruct Hinitial as (? & Harg & ?); subst.
+          destruct Hinitial as (? & Harg & [H0 [H0a H0b]]); subst.
           hnf in Hperm; subst.
           split; intros.
           + right; intro. contradiction H0. 
@@ -4734,7 +4734,7 @@ Here be dragons
               inversion MATCH.
               symmetry; apply mtch_perm1. }
         split; auto; split.
-        - hnf in Hperm; destruct Hinitial as (? & ? & ?); subst; auto.
+        - hnf in Hperm; destruct Hinitial as (? & ? & [? [H0ab]]); subst; auto.
         - exists nil; rewrite <- app_nil_end.
           eapply (HybridMachineSig.start_step tid) with (Htid0 := @MTCH_cnt js tid ds MATCH Htid).
           + assumption.
@@ -4743,13 +4743,17 @@ Here be dragons
               - eapply MTCH_getThreadC. eassumption. eassumption.
               - reflexivity.
               - simpl in *.
-                destruct Hinitial as (? & ? & ?); split; eauto.
+                destruct Hinitial as (? & ? & [? H0ab]); split; eauto.
                 split; auto.
                 replace Htid with ctn by apply proof_irr.
                 remember (Concur.install_perm _ _) as m1.
                 apply mtch_install_perm with (ds := ds)(MATCH := MATCH) in Heqm1; hnf in Heqm1.
                 rewrite Heqm1 in e; rewrite e; simpl.
-                replace Htid with ctn by apply proof_irr; reflexivity.
+                replace Htid with ctn by apply proof_irr.
+                split. reflexivity.
+                split; [ | apply H0ab].
+                destruct H0ab as [H0a _].
+                subst m1. apply H0a.
               - eassumption.
               - replace Htid with ctn by apply proof_irr; reflexivity.
             }

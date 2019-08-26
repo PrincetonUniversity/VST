@@ -1021,6 +1021,7 @@ Section Preservation.
              tr' tp' m')
   (INV : @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m, (tr, i :: sch, tp)))
   (Phi : rmap)
+  (mwellformed: @mem_wellformed ge m)
   (compat : mem_compatible_with tp m Phi)
   (extcompat : joins (ghost_of Phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil))
   (lev : @level rmap ag_rmap Phi = S n)
@@ -1058,7 +1059,7 @@ Section Preservation.
      destruct (type_of_fundef f); try contradiction.
      decompose [and] E_c_new. decompose [and] H. congruence.
   } subst c_new_.
-   destruct Hinitial as (Hinitial & ? & ?); subst.
+   destruct Hinitial as (Hinitial & ? & [? H0ab]); subst.
       simpl JuicyMachine.add_block in *.
       unfold add_block in *.
       assert (mem_compatible_with (updThread i tp cnti (Krun c_new) (getThreadR i tp cnti))
@@ -1073,6 +1074,15 @@ Section Preservation.
       assert (B : rmap_bound (Mem.nextblock m) Phi) by apply compat.
       right.  (* ? *)
       apply state_invariant_c with (mcompat := Hcmpt'); auto.
+      - red. clear - Hperm mwellformed H0ab.
+          red in Hperm. simpl in Hperm. subst.
+          unfold install_perm; simpl.
+          (* NOTE from Andrew to Santiago:  H0ab seems to be useless here. *)
+          clear H0ab.
+          destruct (thread_mem_compatible Hcmpt cnti). simpl.
+          destruct mwellformed. split; auto.
+          clear - H.
+          admit. (* Santiago *)
       - intro; simpl.
         pose proof (lock_coh loc) as lock_coh'.
         destruct (AMap.find _ _) eqn: Hloc; auto.
@@ -1150,7 +1160,7 @@ Section Preservation.
   jmstep_inv; getThread_inv; congruence.*)
 *
   contradiction Htid.
-Qed. (* Lemma preservation_Kinit *)
+Admitted. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
   Kblocked at acquire, but preservation does not hold for
@@ -1173,7 +1183,7 @@ Qed. (* Lemma preservation_Kinit *)
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 tr0 sch0 tp0 Phi lev envcoh compat extcompat sparse lock_coh safety wellformed unique E].
+    inversion INV as [m0 tr0 sch0 tp0 Phi lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E].
     subst m0 sch0 tp0.
 
     destruct sch as [ | i sch ].
@@ -1364,7 +1374,7 @@ Qed. (* Lemma preservation_Kinit *)
 
           + (* env_coherence *)
             assumption.
-
+           + (* mwellformed *) auto.
           + (* external coherence *)
             auto.
 
@@ -1551,6 +1561,7 @@ Qed. (* Lemma preservation_Kinit *)
 
       + (* env_coherence *)
         assumption.
+      + (* mwellformed *) auto.
 
       + (* external coherence *)
         assumption.

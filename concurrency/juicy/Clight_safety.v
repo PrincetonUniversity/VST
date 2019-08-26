@@ -886,7 +886,7 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
   - (* start_thread *)
      inv Htstep.
     hnf in Hperm; subst.
-    destruct Hinitial as (? & ? & ?); subst.
+    destruct Hinitial as (? & ? & [? H0ab]); subst.
     destruct Hmem as [H1 [H2 H2']]; split; [|split].
     + unfold Smallstep.globals_not_fresh.
       etransitivity; eauto. simpl. apply Pos.le_refl. 
@@ -1101,7 +1101,7 @@ Proof.
   - inv Htstep. simpl in Hinitial.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
-    destruct Hinitial as (Hinit & Harg & ?); subst.
+    destruct Hinitial as (Hinit & Harg & [? H0ab]); subst.
     unfold Clight_new.cl_initial_core in Hinit.
     destruct vf; try contradiction.
     destruct (Ptrofs.eq_dec _ _); try contradiction.

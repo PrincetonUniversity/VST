@@ -224,7 +224,7 @@ Section Progress.
       state_step(ge := ge) state state'.
   Proof.
     intros not_spawn I.
-    inversion I as [m tr sch tp Phi En envcoh compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m tr sch tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
 
     (* empty schedule: we loop in the same state *)
@@ -1453,14 +1453,30 @@ Section Progress.
         + eapply JuicyMachine.StartThread with (c_new := q_new)(Hcmpt := mem_compatible_forget compat).
           * apply Eci.
           * simpl; reflexivity.
-          * repeat split; eauto.
+          * split3; eauto.
             repeat constructor; auto.
+            split. reflexivity. simpl.
+            destruct mwellformed; split; auto.
+            clear - H0.
+             change (Mem.nextblock m) with 
+               (Mem.nextblock (@install_perm (ClightSemanticsForMachines.Clight_newSem ge) tp m
+              i (@mem_compatible_forget ge tp m Phi compat) cnti)).
+      apply  maxedmem_neutral.
+      simpl nextblock.
+      assert (mem_equiv.mem_equiv (maxedmem (@install_perm (ClightSemanticsForMachines.Clight_newSem ge) tp
+        m i (@mem_compatible_forget ge tp m Phi compat) cnti))
+                  (maxedmem m)). {
+         clear. simpl.
+         unfold install_perm. simpl.
+         admit.  (* for Santiago to do. *)
+         }
+         red. rewrite H. auto.
           * reflexivity.
           * reflexivity.
     }
     (* end of Kinit *)
     Unshelve.
      eexists; eauto.
-Qed. (* Theorem progress *)
+Admitted. (* Theorem progress *)
 
 End Progress.

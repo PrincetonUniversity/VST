@@ -2782,3 +2782,10 @@ Qed.
         unfold Mem.range_perm, Mem.perm; intros.
         eapply H; eauto.
       Qed.
+
+Lemma mem_max_lt_max:
+ forall m, permMapLt (getMaxPerm m) (getMaxPerm m).
+Proof.
+ intros.
+ intros ? ?. apply po_refl.
+Qed.
