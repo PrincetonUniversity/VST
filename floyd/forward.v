@@ -4122,6 +4122,9 @@ Ltac sf_part1 subsume :=
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
+
+   (*Maybe replace the tactic for the second subgoal here with calls to
+       semax_body_funspec_sub and semax_body_orig_semax_body?*)
    split; [ first [ solve_Closed | idtac ]
           | eexists; split; 
             [ apply subsume

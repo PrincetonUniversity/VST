@@ -1887,3 +1887,15 @@ constructor; auto.
 Qed.
 Hint Resolve @Forall_map_cons @Forall_map_nil : closed.
 Hint Resolve Forall_cons Forall_nil : closed.
+
+Lemma closed_wrt_FF:
+ forall {cs: compspecs} S, closed_wrt_vars S FF.
+Proof.
+ intros. hnf; intros. reflexivity.
+Qed.
+Lemma closed_wrtl_FF:
+ forall {cs: compspecs} S, closed_wrt_lvars S FF.
+Proof.
+ intros. hnf; intros. reflexivity.
+Qed.
+Hint Resolve @closed_wrt_FF @closed_wrtl_FF : closed.

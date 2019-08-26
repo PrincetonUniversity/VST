@@ -270,7 +270,7 @@ Definition Pre_is_Lvar_Closed (spec:funspec) :=
   match spec with mk_funspec _ _ _ P _ _ _ => 
     forall ts x, closed_wrt_lvars (fun i => True) (P ts x)
 end.
-              
+
 Definition semax_body
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 Pre_is_Lvar_Closed (snd spec) /\
@@ -1892,25 +1892,17 @@ Proof.
   + eapply semax_conseq; [.. | exact IHsemax]; auto.
 Qed.
 
-Lemma semax_body_orig_subsumption cs V V' F F' f spec
-      (SF: @semax_body_orig V F cs f spec)
-      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
-  @semax_body_orig V' F' cs f spec.
+Lemma semax_body_orig_semax_body: forall V G cs f spec (HP: Pre_is_Lvar_Closed (snd spec)) 
+  (H: @semax_body_orig V G cs f spec), @semax_body V G cs f spec.
 Proof.
-  destruct spec. destruct f0.
-  destruct SF as [H SF]; split; auto. clear H.
-  intros.
-  eapply semax_Delta_subsumption. apply TS.
-  apply (SF Espec ts x).
-Qed. 
-  
-Lemma semax_body_subsumption cs V V' F F' f spec
-      (SF: @semax_body V F cs f spec)
-      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
-  @semax_body V' F' cs f spec.
-Proof.
-  destruct SF as [PCL [spec' [Spec' SF]]]. split; trivial. exists spec'; split; trivial.
-  eapply semax_body_orig_subsumption; eassumption.
+  split; trivial. exists (snd spec); split. apply funspec_sub_refl.
+  destruct spec; simpl in *; trivial.
+Qed.
+
+Lemma semax_body_funspec_sub: forall V G cs f i phi (H: @semax_body V G cs f (i,phi))
+  psi (HPsi: Pre_is_Lvar_Closed psi) (FS: funspec_sub phi psi), @semax_body V G cs f (i,psi).
+Proof. intros; destruct H as [CL [phi' [Hphi SB]]]. split; [ trivial | simpl fst in *; simpl snd in *].
+  exists phi'; simpl fst; simpl snd. split; trivial. eapply funspec_sub_trans; eassumption.
 Qed.
 
 (*Should perhaps be called semax_body_cespecs_sub, also in the Module Type *)
@@ -1932,6 +1924,27 @@ Proof.
   intros [CL [spec' [Sub SB]]]. split; trivial.
   exists spec'; split; trivial. apply (semax_body_orig_cenv_sub CSUB); trivial.
 Qed. 
+
+Lemma semax_body_orig_subsumption: forall cs V V' F F' f spec
+      (SF: @semax_body_orig V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
+  @semax_body_orig V' F' cs f spec.
+Proof.
+  intros. destruct spec. destruct f0.
+  destruct SF as [H SF]; split; auto. clear H.
+  intros. 
+  eapply semax_Delta_subsumption. apply TS.
+  apply (SF Espec ts x).
+Qed.
+
+Lemma semax_body_subsumption cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)):
+  @semax_body V' F' cs f spec.
+Proof.
+  destruct SF as [PCL [spec' [Spec' SF]]]. split; trivial. exists spec'; split; trivial.
+  eapply semax_body_orig_subsumption; eassumption.
+Qed.
 
 End DeepEmbeddedMinimumSeparationLogic.
 

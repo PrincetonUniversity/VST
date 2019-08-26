@@ -76,7 +76,7 @@ Definition Pre_is_Lvar_Closed (spec:funspec) :=
   match spec with mk_funspec _ _ _ P _ _ _ => 
     forall ts x, closed_wrt_lvars (fun i => True) (P ts x)
 end.
-              
+
 Definition semax_body
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 Pre_is_Lvar_Closed (snd spec) /\
@@ -101,7 +101,7 @@ Proof. red; intros. Abort. (*If we could prove this, there wouldn't be any need 
 modified def of semax_body. Perhaps this is provable if add the assumption 
 Pre_is_Lvar_Closed (snd spec') to the definition of semax_body_UNIV but it's not immediate.*)
 
-Lemma semax_body_sub V G cs f i phi (H: @semax_body V G cs f (i,phi))
+Lemma semax_body_funspec_sub V G cs f i phi (H: @semax_body V G cs f (i,phi))
   psi (HPsi: Pre_is_Lvar_Closed psi) (FS: funspec_sub phi psi): @semax_body V G cs f (i,psi).
 Proof. destruct H as [CL [phi' [Hphi SB]]]. split; [ trivial | simpl fst in *; simpl snd in *].
   exists phi'; simpl fst; simpl snd. split; trivial. eapply funspec_sub_trans; eassumption. 

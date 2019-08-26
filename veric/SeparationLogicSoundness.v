@@ -162,6 +162,11 @@ Definition semax_func_skipn := semax_func_skipn.
 Definition semax_body_subsumption:= semax_body_subsumption.
 Definition semax_body_cenv_sub:= @semax_body_cenv_sub.
 
+Definition semax_body_orig_semax_body:= semax_body_orig_semax_body.
+Definition semax_body_funspec_sub:= semax_body_funspec_sub.
+Definition semax_body_orig_cenv_sub:= @semax_body_orig_cenv_sub.
+Definition semax_body_orig_subsumption:= semax_body_orig_subsumption.
+
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.

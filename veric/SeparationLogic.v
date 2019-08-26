@@ -1184,7 +1184,7 @@ Definition semax_body
    (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec): Prop :=
 Pre_is_Lvar_Closed (snd spec) /\
 exists spec', funspec_sub spec' (snd spec) /\
-              @semax_body_orig V G C f (fst spec, spec') .
+              @semax_body_orig V G C f (fst spec, spec').
 
 Definition semax_prog
     {Espec: OracleKind} {C: compspecs}
@@ -1225,6 +1225,30 @@ Import CSHL_Defs.
 
 (***************** SEMAX_LEMMAS ****************)
 
+Axiom semax_body_orig_semax_body: forall V G cs f spec (HP: Pre_is_Lvar_Closed (snd spec)) 
+  (H: @semax_body_orig V G cs f spec), @semax_body V G cs f spec.
+
+Axiom semax_body_funspec_sub: forall V G cs f i phi (H: @semax_body V G cs f (i,phi))
+  psi (HPsi: Pre_is_Lvar_Closed psi) (FS: funspec_sub phi psi), @semax_body V G cs f (i,psi).
+
+Axiom semax_body_orig_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
+@  semax_body_orig V G CS f spec -> @semax_body_orig V G CS' f spec.
+
+Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
+      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
+  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
+
+Axiom semax_body_orig_subsumption: forall cs V V' F F' f spec
+      (SF: @semax_body_orig V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
+  @semax_body_orig V' F' cs f spec.
+
+Axiom semax_body_subsumption: forall cs V V' F F' f spec
+      (SF: @semax_body V F cs f spec)
+      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
+  @semax_body V' F' cs f spec.
+
 Axiom semax_extract_exists:
   forall {CS: compspecs} {Espec: OracleKind},
   forall (A : Type) (P : A -> environ->mpred) c (Delta: tycontext) (R: ret_assert),
@@ -1235,22 +1259,7 @@ Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C ge, @semax_func Espec V G C ge nil nil.
 
 Axiom semax_func_cons:
-  forall {Espec: OracleKind}, (*
-     forall fs id f fsig cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
-      andb (id_in_list id (map (@fst _ _) G))
-      (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
-        (semax_body_params_ok f)) = true ->
-      Forall
-         (fun it : ident * type =>
-          complete_type cenv_cs (snd it) =
-          true) (fn_vars f) ->
-       var_sizes_ok (f.(fn_vars)) ->
-       f.(fn_callconv) = cc ->
-       Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
-      semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ)->
-      semax_func V G ge fs G' ->
-      semax_func V G ge ((id, Internal f)::fs)
-           ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').*)
+  forall {Espec: OracleKind},
    forall  fs id f fsig cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
   andb (id_in_list id (map (@fst _ _) G))
   (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
@@ -1265,7 +1274,6 @@ Axiom semax_func_cons:
    Genv.find_funct_ptr ge b = Some (Internal f) -> 
   semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ) ->
   semax_func V G ge fs G' ->
-  (*Now part of semax_body: (forall ts x, closed_wrt_lvars (fun i => True) (P ts x)) ->*)
   semax_func V G ge ((id, Internal f)::fs)
        ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
 
@@ -1331,15 +1339,6 @@ Axiom semax_func_skipn:
   forall {Espec cs ge H V funs G} (HV:list_norepet (map fst funs))
          (SF: @semax_func Espec V H cs ge funs G) n,
     @semax_func Espec V H cs ge (skipn n funs) (skipn n G).
-
-Axiom semax_body_subsumption: forall cs V V' F F' f spec
-      (SF: @semax_body V F cs f spec)
-      (TS: tycontext_sub (func_tycontext f V F nil) (func_tycontext f V' F' nil)),
-  @semax_body V' F' cs f spec.
-  
-Axiom semax_body_cenv_sub: forall {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
-      (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)),
-  @semax_body V G CS f spec -> @semax_body V G CS' f spec.
 
 (* THESE RULES FROM semax_loop *)
 

@@ -184,10 +184,13 @@ Proof. (*eapply (semax_body_cenv_sub CSUB); trivial.*)
   apply tycontext_sub_refl.
 Qed. 
 
-Ltac apply_semax_body L :=
+Ltac apply_semax_body L ::=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
- [split3; red; apply @sub_option_get; 
-    repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
+ [ (solve[auto]
+    || solve [ split3; red; apply @sub_option_get; 
+            repeat (apply Forall_cons; [reflexivity | ]);  
+            apply Forall_nil ]
+    || fail 99 "cspecs_sub failed")
  | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
  | simple apply tycontext_sub_refl ||
   (apply tycontext_sub_i99;
@@ -195,8 +198,28 @@ eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
   | apply subsume_spec_get;
     repeat (apply Forall_cons; [apply subsumespec_refl | ]); apply Forall_nil])].
 
+Ltac ifneeded_assert assertion prover :=
+lazymatch goal with
+| H: assertion |- _ => idtac
+| _ => assert assertion by prover
+end.
+
+Ltac prove_cspecs_sub :=
+ split3;
+  repeat red; apply @sub_option_get; 
+     repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil.
+
+Ltac assert_cspecs_sub L :=
+ try match goal with 
+| |- @semax_func _ _ _ ?cs _ _ _ =>
+     match type of L with
+     | @semax_body _ _ ?cs' _ _ =>
+        ifneeded_assert (cspecs_sub cs' cs) prove_cspecs_sub
+ end end.
+
 Ltac semax_func_cons' L H :=
  repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
+ assert_cspecs_sub L; 
  first [eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
@@ -205,7 +228,7 @@ Ltac semax_func_cons' L H :=
 (* next line not needed in alphaconvert branch 
 	   simpl; precondition_closed |
 *)
-               (*apply_semax_body L*)first [ apply_semax_body L | idtac ]
+              first [ apply_semax_body L | idtac ]
            | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
@@ -232,16 +255,4 @@ Ltac do_a_semax_body_proof x :=
  | nil =>  apply semax_func_nil
  | _ => pose (jj := x)
  end.
-
-Lemma closed_wrt_FF:
- forall {cs: compspecs} S, closed_wrt_vars S FF.
-Proof.
- intros. hnf; intros. reflexivity.
-Qed.
-Lemma closed_wrtl_FF:
- forall {cs: compspecs} S, closed_wrt_lvars S FF.
-Proof.
- intros. hnf; intros. reflexivity.
-Qed.
-Hint Resolve @closed_wrt_FF @closed_wrtl_FF : closed.
 
