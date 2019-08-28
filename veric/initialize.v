@@ -1339,8 +1339,8 @@ Proof.
  unfold upto_block, only_blocks, inflate_initial_mem; rewrite !ghost_of_make_rmap; auto.
 Qed.
 
-Lemma find_id_rev: forall i G,
- list_norepet (map fst G) -> find_id i (rev G) = find_id i G.
+Lemma find_id_rev {A}: forall i G,
+ list_norepet (map fst G) -> find_id i (rev G) = @find_id A i G.
 Proof.
 intros.
 induction G; simpl; intros; auto.
@@ -1349,14 +1349,43 @@ if_tac. subst.
 clear - H2.
 rewrite In_rev in H2. rewrite <- map_rev in H2.
  induction (rev G); simpl; auto. rewrite if_true; auto.
- destruct a;  simpl in *.
+ destruct a0;  simpl in *.
  if_tac. subst. intuition. apply IHl; intuition.
  rewrite <- IHG. clear IHG.
  clear - H.
  induction (rev G); simpl; auto. rewrite if_false; auto.
- destruct a; simpl in *. if_tac; auto.
+ destruct a0; simpl in *. if_tac; auto.
 Qed.
 
+Lemma find_id_firstn {A} i fs: forall n G (N: find_id i (firstn n G) = Some fs), @find_id A i G = Some fs.
+Proof.
+induction n; simpl; intros. inv N.
+destruct G; simpl in *. inv N.
+destruct p as [j gs]; simpl in *.
+destruct (eq_dec i j); subst; trivial. auto.
+Qed.
+
+Lemma find_id_skipn {A} i fs: forall n G (HG: list_norepet (map fst G))
+                             (N: find_id i (skipn n G) = Some fs), @find_id A i G = Some fs.
+Proof.
+induction n; simpl; intros; trivial.
+destruct G; simpl in *; trivial.
+destruct p as [j gs]; simpl in *. inv HG.
+destruct (eq_dec i j); [ subst | auto].
+apply IHn in N; [clear IHn; exfalso| trivial].
+apply find_id_e in N. apply in_map_fst in N; auto.
+Qed.
+
+Lemma In_firstn {A} (a:A): forall n l, In a (firstn n l) -> In a l.
+Proof.
+induction n; simpl; intros. contradiction.
+destruct l; inv H. left; trivial. right; auto.
+Qed.
+Lemma In_skipn {A} (a:A): forall n l, In a (skipn n l) -> In a l.
+Proof.
+induction n; simpl; intros. trivial. 
+destruct l. inv H. right; auto.
+Qed.
 
 Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
   Exists (fun id => match ge_of rho id with Some b' => b'=b | _ => False end) il.

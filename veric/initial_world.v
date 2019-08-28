@@ -380,7 +380,7 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 Lemma initblocksize_name: forall V a id n, initblocksize V a = (id,n) -> fst a = id.
 Proof. destruct a; intros; simpl; inv H; auto.  Qed.
 
-Fixpoint find_id (id: ident) (G: funspecs) : option funspec  :=
+Fixpoint find_id {A} (id: ident) (G: list (ident * A)) : option A  :=
  match G with
  | (id', f)::G' => if eq_dec id id' then Some f else find_id id G'
  | nil => None
@@ -393,11 +393,11 @@ Proof.
  destruct H; [left|right]. subst; simpl; auto. auto.
 Qed.
 
-Lemma find_id_i:
+Lemma find_id_i {A}:
   forall id fs G,
             In (id,fs) G ->
              list_norepet (map (@fst _ _) G) ->
-                  find_id id G = Some fs.
+                  @find_id A id G = Some fs.
 Proof.
 induction G; simpl; intros.
 contradiction.
@@ -411,12 +411,40 @@ apply in_map_fst in H. contradiction.
 auto.
 Qed.
 
-Lemma find_id_e:
-   forall id G fs, find_id id G = Some fs -> In (id,fs) G.
+Lemma find_id_e {A}:
+   forall id G fs, @find_id A id G = Some fs -> In (id,fs) G.
 Proof.
  induction G; simpl; intros. inv H. destruct a. if_tac in H.
  inv H; subst; auto. right; apply (IHG fs); auto.
 Qed.
+ 
+Lemma find_id_In_map_fst {A} i t: forall V (Hi: @find_id A i V = Some t), In i (map fst V).
+Proof.
+induction V; simpl; intros. inv Hi.
+destruct a as [j u]; simpl. unfold eq_dec, EqDec_ident, ident_eq in Hi.
+destruct (peq i j); subst; [left | right]; auto.
+Qed.
+
+Lemma find_id_app {A} i fs: forall G1 G2 (G: find_id i (G1 ++ G2) = Some fs),
+@find_id A i G1 = Some fs \/ find_id i G2 = Some fs.
+Proof. induction G1; simpl; intros. right; trivial. 
+destruct a. destruct (eq_dec i i0); [ left; trivial | eauto].
+Qed.
+
+Lemma find_id_app1 {A} i x G2: forall G1, find_id i G1 = Some x -> @find_id A i (G1++G2) = Some x.
+  Proof.
+    induction G1; simpl; intros. inv H.
+    destruct a. destruct (eq_dec i i0); [trivial | auto].
+  Qed.
+
+Lemma find_id_app2 {A} i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
+                   find_id i G2 = Some x -> @find_id A i (G1++G2) = Some x.
+  Proof.
+    induction G1; simpl; intros. trivial. 
+    destruct a. inv H. destruct (eq_dec i i0); [subst i0; elim H3; clear - H0 | auto].
+    apply initial_world.find_id_e in H0. apply (in_map fst) in H0.
+    rewrite map_app. apply in_or_app; right. apply H0.
+  Qed. 
 
 Definition initial_core' {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat) (loc: address) : resource :=
    if Z.eq_dec (snd loc) 0

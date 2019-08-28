@@ -2139,14 +2139,6 @@ intros [? ?]; discriminate.
 - eapply tc_ge_denote_initial; eauto.
 Qed.
 
-Lemma find_id_maketycontext_s G id : (make_tycontext_s G) ! id = find_id id G.
-Proof.
-induction G as [|(i,t) G]; simpl.
-- destruct id; reflexivity.
-- rewrite PTree.gsspec.
-do 2 if_tac; congruence.
-Qed.
-
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A 
 (P Q: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
 NEP NEQ h:
@@ -2196,7 +2188,7 @@ specialize (Believe 5%nat).
 unfold claims in *.
 unfold nofunc_tycontext in *.
 simpl glob_specs in Believe.
-rewrite <-find_id_maketycontext_s in id_in_G.
+rewrite <-make_tycontext_s_find_id in id_in_G.
 
 specialize (Believe (Vptr b Ptrofs.zero)
                   ((id_arg, Tpointer Tvoid noattr) :: nil, tptr Tvoid)
@@ -2421,15 +2413,9 @@ Lemma genv_contains_app ge funs1 funs2 (G1:genv_contains ge funs1) (G2: genv_con
 genv_contains ge (funs1 ++ funs2).
 Proof. red; intros. apply in_app_or in H; destruct H; [apply G1 | apply G2]; trivial. Qed. 
 
-Lemma find_id_app i fs: forall (G1 G2: funspecs) (G: find_id i (G1 ++ G2) = Some fs),
-find_id i G1 = Some fs \/ find_id i G2 = Some fs.
-Proof. induction G1; simpl; intros. right; trivial. 
-destruct a. destruct (eq_dec i i0); [ left; trivial | eauto].
-Qed.
-
 Lemma make_tycontext_s_app_inv i fs G1 G2 (G: (make_tycontext_s (G1 ++ G2)) ! i = Some fs):
   (make_tycontext_s G1) ! i = Some fs \/ (make_tycontext_s G2) ! i = Some fs.
-Proof. rewrite ! find_id_maketycontext_s  in *. apply find_id_app; trivial. Qed.
+Proof. rewrite ! make_tycontext_s_find_id  in *. apply find_id_app; trivial. Qed.
 
 Lemma believe_app {cs} ge V H G1 G2 n 
 (B1: @believe cs Espec (nofunc_tycontext V H) ge (nofunc_tycontext V G1) n)
@@ -2520,12 +2506,6 @@ rewrite PTree.gsspec in H. destruct (peq i j); subst; simpl; eauto.
 inv H. exists fs; split; trivial.
 Qed.
 
-Fixpoint find_idV (id : ident) (G : varspecs) {struct G} : option type:=
-match G with
-| nil => None
-| (id', f) :: G' => if peq id id' then Some f else find_idV id G'
-end.
-
 Lemma make_tycontext_s_g V H i fs (HH: (make_tycontext_s H) ! i = Some fs):
   (make_tycontext_g V H) ! i = Some (type_of_funspec fs).
 Proof.
@@ -2573,11 +2553,11 @@ destruct H2 as [? [? ?]]. constructor.
   clear - H2. hnf; intros. apply H2; trivial.  right; trivial.
 Qed.
 
-Lemma make_tycontext_g_nilG_findV V i: (make_tycontext_g V nil) ! i = find_idV i V.
+Lemma make_tycontext_g_nilG_find_id V i: (make_tycontext_g V nil) ! i = find_id i V.
 Proof.
 induction V; simpl. apply PTree.gempty.
 destruct a as [j t]; simpl.
-rewrite PTree.gsspec. destruct (peq i j); subst; simpl; eauto.
+rewrite PTree.gsspec. unfold eq_dec, EqDec_ident, ident_eq. destruct (peq i j); subst; simpl; eauto.
 Qed.
 
 Lemma make_tycontext_g_consG_elim i t V g G (HG: (make_tycontext_g V (g::G)) ! i = Some t):
@@ -2594,12 +2574,6 @@ destruct g as [j fs]; simpl in *.
 rewrite PTree.gsspec. destruct (peq i j); subst; auto.
 Qed.
 
-Lemma find_idV_In_map_fst i t: forall V (Hi: find_idV i V = Some t), In i (map fst V).
-Proof.
-induction V; simpl; intros. inv Hi.
-destruct a as [j u]; simpl. destruct (peq i j); subst; [left | right]; auto.
-Qed.
-
 Lemma list_norepet_cut_middle {A:Set} l1 l2 (a:A) (Ha: list_norepet (l1 ++ (a :: l2))): list_norepet (l1 ++ l2).
 Proof.
 apply list_norepet_append_inv in Ha. destruct Ha as [VH1 [VH2 D]]. inv VH2.
@@ -2608,27 +2582,27 @@ intros x y X Y. apply D; [ trivial | right; trivial].
 Qed.
 
 Lemma make_context_g_mk_findV_mk: forall H V (VH:list_norepet (map fst V ++ map fst H)) i t
-(Heqd : find_idV i V = Some t), (make_tycontext_g V H) ! i = Some t.
+(Heqd : find_id i V = Some t), (make_tycontext_g V H) ! i = Some t.
 Proof.
 induction H; intros.
-+ rewrite make_tycontext_g_nilG_findV; trivial.
++ rewrite make_tycontext_g_nilG_find_id; trivial.
 + apply make_tycontext_g_consG_mk. destruct a as [j fs]; simpl in *.
 destruct (peq i j); subst; simpl.
 - apply list_norepet_append_inv in VH. destruct VH as [_ [_ VH]].
 elim (VH j j); trivial.
-apply (find_idV_In_map_fst _ _ _ Heqd). left; trivial.
+apply (find_id_In_map_fst _ _ _ Heqd). left; trivial.
 - apply list_norepet_cut_middle in VH. apply IHlist; trivial.
 Qed.
 
 Lemma make_context_g_char:
 forall H V (VH:list_norepet (map fst V ++ map fst H)) i,
 (make_tycontext_g V H) ! i = match (make_tycontext_s H)!i with
-                               None => find_idV i V
+                               None => find_id i V
                              | Some fs => Some (type_of_funspec fs)
                              end.
 Proof.
 induction H; intros.
-+ rewrite make_tycontext_g_nilG_findV.
++ rewrite make_tycontext_g_nilG_find_id.
 simpl; rewrite PTree.gleaf; trivial.
 + apply list_norepet_cut_middle in VH.
 remember ((make_tycontext_g V (a :: H)) ! i) as d; symmetry in Heqd; destruct d. 
@@ -2649,14 +2623,14 @@ remember ((make_tycontext_g V G) ! i) as d; destruct d; simpl; trivial; symmetry
 rewrite make_context_g_char in *; trivial.
 - remember ((make_tycontext_s G) ! i) as q; destruct q.
 * specialize (GH i). rewrite <- Heqq in GH; simpl in GH. rewrite GH; trivial.
-* rewrite Heqd, find_id_maketycontext_s. apply find_idV_In_map_fst in Heqd.
+* rewrite Heqd, make_tycontext_s_find_id. apply find_id_In_map_fst in Heqd.
   remember (find_id i H) as w; destruct w; trivial. symmetry in Heqw; apply find_id_e in Heqw.
   apply list_norepet_append_inv in VH. destruct VH as [_ [_ D]].
   elim (D i i); trivial. eapply in_map_fst in Heqw; apply Heqw.
 - clear Heqd i t. apply list_norepet_append_inv in VH. destruct VH as [LNRV [LNRH D]].
 apply list_norepet_append; trivial.
 intros x y ? ?. apply D; trivial.  specialize (GH y). clear - GH H1 LNR.
-hnf in GH. rewrite 2 find_id_maketycontext_s in GH. apply list_in_map_inv in H1.
+hnf in GH. rewrite 2 make_tycontext_s_find_id in GH. apply list_in_map_inv in H1.
 destruct H1 as [[i fs] [? ?]]; subst.
 erewrite find_id_i in GH; [| apply H1 | trivial]. apply find_id_e in GH. apply in_map_fst in GH. apply GH.
 Qed.
@@ -2678,36 +2652,6 @@ apply (semax_func_join_sameV SF1 SF2); try eassumption.
 + intros; apply sub_option_subsumespec; auto.
 Qed.
 
-Lemma find_id_firstn i fs: forall n G (N: find_id i (firstn n G) = Some fs), find_id i G = Some fs.
-Proof.
-induction n; simpl; intros. inv N.
-destruct G; simpl in *. inv N.
-destruct p as [j gs]; simpl in *.
-destruct (eq_dec i j); subst; trivial. auto.
-Qed.
-
-Lemma find_id_skipn i fs: forall n G (HG: list_norepet (map fst G))
-                             (N: find_id i (skipn n G) = Some fs), find_id i G = Some fs.
-Proof.
-induction n; simpl; intros; trivial.
-destruct G; simpl in *; trivial.
-destruct p as [j gs]; simpl in *. inv HG.
-destruct (eq_dec i j); [ subst | auto].
-apply IHn in N; [clear IHn; exfalso| trivial].
-apply find_id_e in N. apply in_map_fst in N; auto.
-Qed.
-
-Lemma In_firstn {A} (a:A): forall n l, In a (firstn n l) -> In a l.
-Proof.
-induction n; simpl; intros. contradiction.
-destruct l; inv H. left; trivial. right; auto.
-Qed.
-Lemma In_skipn {A} (a:A): forall n l, In a (skipn n l) -> In a l.
-Proof.
-induction n; simpl; intros. trivial. 
-destruct l. inv H. right; auto.
-Qed.
-
 Lemma semax_func_firstn {cs ge H V n funs G}:
   forall (SF: @semax_func V H cs ge funs G),
     @semax_func V H cs ge (firstn n funs) (firstn n G).
@@ -2722,8 +2666,8 @@ destruct G; simpl in *. congruence. inv SF1. inv H0. constructor; auto.
 apply (SF3 ge' Gfs Gffp k v fsig cc A P Q p KP); clear SF3.
 hnf; hnf in HP. destruct HP as [i [HP [HQ [GS B]]]].
 exists i, HP, HQ; split; trivial.
-clear -GS. simpl in*. rewrite find_id_maketycontext_s.
-rewrite find_id_maketycontext_s in GS. apply find_id_firstn in GS; trivial.
+clear -GS. simpl in*. rewrite make_tycontext_s_find_id.
+rewrite make_tycontext_s_find_id in GS. apply find_id_firstn in GS; trivial.
 Qed.
 
 Lemma semax_func_skipn {cs ge H V funs G} (HV:list_norepet (map fst funs)) (SF: @semax_func V H cs ge funs G):
@@ -2740,8 +2684,8 @@ apply (SF3 ge' Gfs Gffp k v fsig cc A P Q p KP); clear SF3.
 eapply match_fdecs_norepet in HV; [|eassumption ].
 hnf; hnf in HP. destruct HP as [i [HP [HQ [GS B]]]].
 exists i, HP, HQ; split; trivial.
-clear - GS HV. simpl in *. rewrite find_id_maketycontext_s.
-rewrite find_id_maketycontext_s in GS. apply find_id_skipn in GS; trivial.
+clear - GS HV. simpl in *. rewrite make_tycontext_s_find_id.
+rewrite make_tycontext_s_find_id in GS. apply find_id_skipn in GS; trivial.
 Qed.
 
 Lemma semax_func_cenv_sub' {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) V H ge funs G:

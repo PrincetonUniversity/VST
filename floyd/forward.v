@@ -339,35 +339,20 @@ intros. destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); auto.
 intros. apply Annotation_sub_refl.
 Qed.
 
-  Lemma find_id_app1 i x G2: forall G1, initial_world.find_id i G1 = Some x ->
-                                        initial_world.find_id i (G1++G2) = Some x.
-  Proof.
-    induction G1; simpl; intros. inv H.
-    destruct a. destruct (eq_dec i i0); [trivial | auto].
-  Qed. 
-  Lemma find_id_app2 i x G2: forall G1, list_norepet (map fst (G1++G2)) ->
-                                        initial_world.find_id i G2 = Some x ->
-                                        initial_world.find_id i (G1++G2) = Some x.
-  Proof.
-    induction G1; simpl; intros. trivial. 
-    destruct a. inv H. destruct (eq_dec i i0); [subst i0; elim H3; clear - H0 | auto].
-    apply initial_world.find_id_e in H0. apply (in_map fst) in H0.
-    rewrite map_app. apply in_or_app; right. apply H0.
-  Qed. 
 
   Lemma make_tycontext_s_app1 G1 G2 i:
     sub_option (make_tycontext_s G1) ! i (make_tycontext_s (G1++G2)) ! i.
   Proof.
-    red; rewrite 2 semax_prog.find_id_maketycontext_s.
+    red; rewrite 2 initial_world.make_tycontext_s_find_id.
     remember (initial_world.find_id i G1) as q; destruct q; [symmetry in Heqq | trivial].
-    apply find_id_app1; trivial.
+    apply initial_world.find_id_app1; trivial.
   Qed.
   Lemma make_tycontext_s_app2 G1 G2 i: list_norepet (map fst (G1++G2)) ->
     sub_option (make_tycontext_s G2) ! i (make_tycontext_s (G1++G2)) ! i.
   Proof.
-    intros; red; rewrite 2 semax_prog.find_id_maketycontext_s.
+    intros; red; rewrite 2 initial_world.make_tycontext_s_find_id.
     remember (initial_world.find_id i G2) as q; destruct q; [symmetry in Heqq | trivial].
-    apply find_id_app2; trivial.
+    apply initial_world.find_id_app2; trivial.
   Qed.
   
   Lemma make_tycontext_g_app1 V G1 G2 (HG1: list_norepet (map fst G1))
@@ -4046,7 +4031,7 @@ split; simpl.
  unfold Map.get; subst f.
  simpl. rewrite H3. reflexivity.
 Qed.
-
+(*
 Ltac start_function_part1 :=
  leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
@@ -4082,7 +4067,7 @@ Ltac start_function_part1 :=
    | (fun _ i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
- end.
+ end.*)
 
 Ltac solve_closed_wrtl :=
   first 
@@ -4100,49 +4085,6 @@ Ltac solve_Closed :=
 intros ts x; simpl in x;
   repeat (match goal with x : ?T1 * ?T2 |- _ => destruct x as [x ?y] end);
   solve_closed_wrtl.
-
-Ltac sf_part1 subsume :=
- leaf_function;
- match goal with |- semax_body ?V ?G ?F ?spec =>
-    check_normalized F;
-    let s := fresh "spec" in
-    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
-   repeat lazymatch goal with
-    | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
-    | s := (_, mk_funspec _ _ _ _ _ _ _) |- _ => fail
-    | s := (_, ?a _ _ _ _) |- _ => unfold a in s
-    | s := (_, ?a _ _ _) |- _ => unfold a in s
-    | s := (_, ?a _ _) |- _ => unfold a in s
-    | s := (_, ?a _) |- _ => unfold a in s
-    | s := (_, ?a) |- _ => unfold a in s
-    end;
-    lazymatch goal with
-    | s :=  (_,  WITH _: globals
-               PRE  [] main_pre _ nil _
-               POST [ tint ] _) |- _ => idtac
-    | s := ?spec' |- _ => check_canonical_funspec spec'
-   end;
-
-   (*Maybe replace the tactic for the second subgoal here with calls to
-       semax_body_funspec_sub and semax_body_orig_semax_body?*)
-   split; [ first [ solve_Closed | idtac ]
-          | eexists; split; 
-            [ apply subsume
-            | change (semax_body_orig V G F s); subst s ]]
- end;
- let DependedTypeList := fresh "DependedTypeList" in
- unfold NDmk_funspec; 
- match goal with |- semax_body_orig _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-   split; [split3; [check_parameter_types' | check_return_type
-          | try (apply compute_list_norepet_e; reflexivity);
-             fail "Duplicate formal parameter names in funspec signature"  ] 
-         |];
-   match Pre with
-   | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
-   | (fun _ i => _) => intros Espec DependedTypeList i
-   end;
-   simpl fn_body; simpl fn_params; simpl fn_return
- end.
 
  (* Work very carefully here to avoid simplifying or computing v,
     in case v contains something that will blow up *)
@@ -4174,6 +4116,19 @@ Ltac check_parameter_vals Delta al :=
  end.
 
 Ltac start_function_part2 :=
+ let DependedTypeList := fresh "DependedTypeList" in
+ unfold NDmk_funspec; 
+ match goal with |- semax_body_orig _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+   split; [split3; [check_parameter_types' | check_return_type
+          | try (apply compute_list_norepet_e; reflexivity);
+             fail "Duplicate formal parameter names in funspec signature"  ] 
+         |];
+   match Pre with
+   | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
+   | (fun _ i => _) => intros Espec DependedTypeList i
+   end;
+   simpl fn_body; simpl fn_params; simpl fn_return
+ end;
  try match goal with |- semax _ (fun rho => ?A rho * ?B rho) _ _ =>
      change (fun rho => ?A rho * ?B rho) with (A * B)
   end;
@@ -4231,13 +4186,44 @@ Ltac start_function_part2 :=
  end;
  start_function_hint.
 
-Ltac start_function_orig := start_function_part1; start_function_part2.
+Ltac sf subsume :=
+ leaf_function;
+ match goal with |- semax_body ?V ?G ?F ?spec =>
+    check_normalized F;
+    let s := fresh "spec" in
+    pose (s:=spec); hnf in s; cbn zeta in s; (* dependent specs defined with Program Definition often have extra lets *)
+   repeat lazymatch goal with
+    | s := (_, NDmk_funspec _ _ _ _ _) |- _ => fail
+    | s := (_, mk_funspec _ _ _ _ _ _ _) |- _ => fail
+    | s := (_, ?a _ _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _ _) |- _ => unfold a in s
+    | s := (_, ?a _ _) |- _ => unfold a in s
+    | s := (_, ?a _) |- _ => unfold a in s
+    | s := (_, ?a) |- _ => unfold a in s
+    end;
+    lazymatch goal with
+    | s :=  (_,  WITH _: globals
+               PRE  [] main_pre _ nil _
+               POST [ tint ] _) |- _ => idtac
+    | s := ?spec' |- _ => check_canonical_funspec spec'
+   end;
+
+   (*Maybe replace the tactic for the second subgoal here with calls to
+       semax_body_funspec_sub and semax_body_orig_semax_body?*)
+   split; [ first [ solve_Closed | idtac ]
+          | eexists; split; 
+            [ apply subsume
+            | change (semax_body_orig V G F s); subst s; start_function_part2 ]]
+ end.
+
+
+(*Ltac start_function_orig := start_function_part1; start_function_part2.*)
 
 Tactic Notation "start_function" constr(subsumes) := 
-  sf_part1 subsumes ; start_function_part2.
+  sf subsumes (*; start_function_part2*).
 
 Tactic Notation "start_function" := 
-  sf_part1 funspec_sub_refl; start_function_part2.
+  sf funspec_sub_refl(*; start_function_part2*).
 
 Opaque sepcon.
 Opaque emp.
