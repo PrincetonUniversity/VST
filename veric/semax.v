@@ -73,33 +73,56 @@ Proof.
   apply ext_join_approx; auto.
 Qed.
 
-Program Definition assert_safe
+Inductive contx :=
+| Cont: cont -> contx
+| Ret: option val -> cont -> contx.
+
+
+Definition assert_safe'_ 
      (Espec : OracleKind)
-     (ge: genv) f ve te (ctl: cont) : assert :=
-  fun rho =>
-       bupd (fun w => 
+     (ge: genv) (f: function) (ve: env) (te: temp_env) (ctl: contx) (rho: environ) 
+     (w : rmap) :=
        forall ora (jm:juicy_mem),
        ext_compat ora w ->
        rho = construct_rho (filter_genv ge) ve te ->
        m_phi jm = w ->
        forall (LW: level w > O),
-       exists s ctl', ctl = Kseq s ctl' /\
-             jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm).
- Next Obligation.
+       match ctl with
+       | Cont (Kseq s ctl') => 
+             jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm
+       | Cont _ => False
+       | Ret None ctl' =>
+                jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm
+       | Ret (Some v) ctl' =>  forall e v',
+                  Clight.eval_expr ge ve te (m_dry jm) e v' ->
+                  Cop.sem_cast v' (typeof e) (fn_return f) (m_dry jm) = Some v ->
+              jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn (Some e)) ctl' ve te) jm
+       end.
+
+Program Definition assert_safe
+     (Espec : OracleKind) (ge: genv) (f: function) (ve: env) (te: temp_env) 
+     (ctl: contx) : assert :=
+  fun rho => bupd (assert_safe'_ (Espec : OracleKind) ge f ve te ctl rho).
+Next Obligation.
   intro; intros.
+   hnf; intros.
    subst.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
-   subst.
-   specialize (H0 ora jm0); spec H0.
-   { erewrite age1_ghost_of in H1 by eauto.
+   specialize (H0 ora jm0).
+   spec H0. 
+   {simpl in H1|-*. erewrite age1_ghost_of in H1 by eauto.
       eapply ext_join_unapprox; eauto. }
-   specialize (H0 (eq_refl _) (eq_refl _)).
+   specialize (H0 (eq_refl _) H3).
    spec H0. apply age_level in H. omega.
-   destruct H0 as [s [ctl' [? ?]]]. subst ctl. exists s, ctl'.
-   split; auto; intros.
-   forget (State f s ctl' ve te) as c. clear ve te s ctl'.
+  subst.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in *.
+  destruct ctl. destruct c; try contradiction.
+  eapply age_safe; eauto.
+  destruct o; intros.
+  eapply age_safe; eauto. apply (H0 e v'); auto.
+  rewrite (age_jm_dry H2); auto.
+  rewrite (age_jm_dry H2); auto.
   eapply age_safe; eauto.
 Qed.
 
@@ -120,7 +143,7 @@ Lemma guard_environ_e1:
 Proof. intros. destruct H; auto. Qed.
 
 Definition _guard (Espec : OracleKind)
-    (gx: genv) (Delta: tycontext) (f: function) (P : assert) (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: tycontext) (f: function) (P : assert) (ctl: contx) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
           !! guard_environ Delta f rho
@@ -129,7 +152,7 @@ Definition _guard (Espec : OracleKind)
 
 Definition guard (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) f (P : assert)  (ctl: cont) : pred nat :=
-  _guard Espec gx Delta f P ctl.
+  _guard Espec gx Delta f P (Cont ctl).
 
 Fixpoint break_cont (k: cont) :=
 match k with
@@ -148,18 +171,13 @@ match k with
 | _ => k (* oops! *)
 end.
 
-Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
+Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : contx :=
   match ek with
-  | EK_normal => k
-  | EK_break => break_cont k
-  | EK_continue => continue_cont k
-  | EK_return =>
-         match vl, call_cont k with
-         | Some v, Kcall (Some x) f ve te k' =>
-                    Kseq (Sreturn None) (Kcall None f ve (PTree.set x v te) k')
-         | _,_ => Kseq (Sreturn None) (call_cont k)
-         end
-   end.
+  | EK_normal => Cont k
+  | EK_break => Cont (break_cont k)
+  | EK_continue => Cont (continue_cont k)
+  | EK_return => Ret vl (call_cont k)
+  end.
 
 Definition rguard (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) (f: function) (R : ret_assert) (ctl: cont) : pred nat :=
@@ -435,7 +453,7 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
           ((!! guard_environ Delta' f rho && funassert Delta' rho) -->
-             (F rho -* assert_safe Espec gx f vx tx (Kseq c k) rho)).
+             (F rho -* assert_safe Espec gx f vx tx (Cont (Kseq c k)) rho)).
 
 Opaque semax'.
 

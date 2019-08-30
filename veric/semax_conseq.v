@@ -263,7 +263,7 @@ Proof.
       split; auto.
       split; auto.
       simpl.
-      intros. omega.
+      hnf; intros. omega.
     - apply H.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.
@@ -339,8 +339,7 @@ Proof.
       split; auto.
       split; auto.
       simpl.
-      intros.
-      hnf. omega.
+      hnf; intros. omega.
     - apply H.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.

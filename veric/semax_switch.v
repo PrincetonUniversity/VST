@@ -301,9 +301,9 @@ Lemma assert_safe_step_nostore:
     app_pred (tc_expr Delta e rho) (m_phi jm) ->
      cl_step psi (State f c1 k1 vx tx)
       (m_dry jm) (State f c2 k2 vx2 tx2) (m_dry jm)) ->
-  assert_safe Espec psi f vx2 tx2 (Kseq c2 k2) (construct_rho (filter_genv psi) vx2 tx2)
+  assert_safe Espec psi f vx2 tx2 (Cont (Kseq c2 k2)) (construct_rho (filter_genv psi) vx2 tx2)
  && tc_expr Delta e rho
-|-- assert_safe Espec psi f vx tx (Kseq c1 k1) (construct_rho (filter_genv psi) vx tx).
+|-- assert_safe Espec psi f vx tx (Cont (Kseq c1 k1)) (construct_rho (filter_genv psi) vx tx).
 Proof.
 intros.
 intros w [Hw Hw'] ? J.
@@ -313,7 +313,7 @@ destruct (level (m_phi jm)) eqn:?; try omega. clear LW.
 destruct (levelS_age1 _ _ Heqn) as [phi' H1].
 destruct (can_age1_juicy_mem _ _ H1) as [jm' H9].
 clear phi' H1.
-do 2 eexists; split; eauto.
+simpl.
 econstructor 2 with (m' := jm').
 econstructor.
 rewrite <- (age_jm_dry H9).

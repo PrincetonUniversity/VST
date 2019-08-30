@@ -291,11 +291,11 @@ eapply sepcon_derives; try apply H0; auto.
 repeat intro.
 destruct (H0 _ H1) as (b & ? & m' & ? & ? & ? & HP); clear H0.
 exists b; split; auto; exists m'; repeat split; auto.
-repeat intro.
+simpl.
+intros ? ? ? ? ? ?.
 specialize (HP ora jm H0 H6 H7 LW).
-destruct HP as [s [ctl' [? HP]]].
-subst k.
-exists Sskip, (Kseq s ctl'); split; auto.
+simpl in HP.
+destruct k as [ | s ctl' | | | |]; try contradiction.
 rewrite <- H7 in HP|-*.
 change (level (m_phi jm)) with (level jm) in HP|-*.
 eapply jsafeN_local_step. constructor.
@@ -402,8 +402,7 @@ apply H10.
 exists w1.
 split3; auto. split; auto.
 simpl.
-exists c,k; split; auto.
-intros.
+hnf; intros.
 rewrite H9.
 constructor.
 Qed.
@@ -623,8 +622,8 @@ Qed.
 
 Lemma assert_safe_last:
   forall {Espec: OracleKind} f ge ve te c k rho w,
-   (forall w', age w w' -> assert_safe Espec f ge ve te (Kseq c k) rho w) ->
-    assert_safe Espec f ge ve te (Kseq c k) rho w.
+   (forall w', age w w' -> assert_safe Espec f ge ve te (Cont (Kseq c k)) rho w) ->
+    assert_safe Espec f ge ve te (Cont (Kseq c k)) rho w.
 Proof.
 intros.
 case_eq (age1 w). auto.
@@ -866,46 +865,7 @@ Proof.
  contradiction.
 Qed.
 
-(*
-Lemma safeN_strip {Espec: OracleKind}:
-  forall ge n ora ve te k m,
-     jsafeN (@OK_spec Espec) ge n ora (State ve te (strip_skip k)) m =
-     jsafeN (@OK_spec Espec) ge n ora (State ve te k) m.
-Proof.
- intros.
- destruct n. apply prop_ext; simpl; intuition.
- constructor. constructor.
- apply prop_ext; split; intros H.
- { induction k. simpl in H. auto. destruct a; auto.
-   destruct (dec_skip s); subst.
-   simpl in H|-*. apply IHk in H. apply safe_seq_skip; auto.
-   destruct s; simpl in *; congruence. }
- { induction k. simpl. auto. destruct a; auto.
-   destruct (dec_skip s); subst.
-   simpl in *. apply IHk. apply safe_seq_skip'; auto.
-   destruct s; simpl in *; congruence. }
-Qed.
-*)
-
 Local Open Scope nat_scope.
-
-(*
-Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
- (exists c1 k1, ctl1 = Kseq c1 k1 /\
-  exists c2 k2, ctl2 = Kseq c2 k2 /\
-  forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
-     n' <= n ->
-     jsafeN (@OK_spec Espec) ge n' ora (State f c1 k1 ve te) m ->
-     jsafeN (@OK_spec Espec) ge n' ora (State f c2 k2 ve te) m)
- /\ 
-    (forall ora f args m n',
-     jsafeN (@OK_spec Espec) ge n' ora (Callstate f args ctl1) m ->
-     jsafeN (@OK_spec Espec) ge n' ora (Callstate f args ctl2) m)
- /\ 
-    (forall ora res m n',
-     jsafeN (@OK_spec Espec) ge n' ora (Returnstate res ctl1) m ->
-     jsafeN (@OK_spec Espec) ge n' ora (Returnstate res ctl2) m).
-*)
 
 Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
  exists c1 k1, ctl1 = Kseq c1 k1 /\
@@ -1009,79 +969,6 @@ clear find_label_ls_None; induction s; simpl; intros; try congruence;
  rewrite (find_label_None _ _ _ H). eauto.
 Qed.
 
-(*
-Lemma find_label_prefix2':
- forall lbl s k1 pre, find_label lbl s k1 = Some (app_cont pre k1) ->
-               forall k2, find_label lbl s k2 = Some (app_cont pre k2)
-with find_label_ls_prefix2':
- forall lbl s k1 pre, find_label_ls lbl s k1 = Some (pre++k1) ->
-               forall k2, find_label_ls lbl s k2 = Some (pre++k2) .
-Proof.
-intros. clear find_label_prefix2'.
-revert pre k1 H k2; induction s; simpl; intros; try congruence;
- try match type of H with match ?A with Some _ => _| None => _ end = _
-                => revert H; case_eq A; intros; [inv H0 | ]
-       end;
- try
- (destruct (find_label_prefix _ _ _ _ H) as [j Hj];
- rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre;
-  erewrite app_ass in H; simpl in H;
-  rewrite (IHs1 _ _ H); rewrite app_ass; reflexivity);
- try solve [erewrite (find_label_None); eauto].
- rewrite (IHs1 _ _ H); auto.
- change (Kseq Scontinue :: Kloop1 s1 s2 :: k1) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k1)
-   in H.
- change (Kseq Scontinue :: Kloop1 s1 s2 :: k2) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k2).
-destruct (find_label_prefix _ _ _ _ H) as [j Hj];
- rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre.
-  erewrite app_ass in H; simpl in H;
-  rewrite (IHs1 _ _ H); rewrite app_ass; reflexivity.
- change (Kseq Scontinue :: Kloop1 s1 s2 :: k1) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k1)
-   in H.
- change (Kseq Scontinue :: Kloop1 s1 s2 :: k2) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k2).
- erewrite (find_label_None); eauto.
- destruct (find_label_prefix _ _ _ _ H0) as [j Hj];
-  rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre.
-  erewrite app_ass in H0; simpl in H0;
-  rewrite (IHs2 _ _ H0); rewrite app_ass; reflexivity.
-destruct (find_label_ls_prefix _ _ _ _ H) as [j Hj];
- rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre.
-  erewrite app_ass in H; simpl in H.
-  rewrite (find_label_ls_prefix2' _ _ _ _ H); rewrite app_ass; reflexivity.
-  if_tac. inv H. rewrite cons_app in H2. apply app_inv_tail in H2; subst. reflexivity.
-  eauto.
-
-intros. clear find_label_ls_prefix2'.
-revert pre k1 H k2; induction s; simpl; intros; try congruence;
- try match type of H with match ?A with Some _ => _| None => _ end = _
-                => revert H; case_eq A; intros; [inv H0 | ]
-       end;
- eauto.
- (destruct (find_label_prefix _ _ _ _ H) as [j Hj];
- rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre;
-  erewrite app_ass in H; simpl in H).
-  rewrite (find_label_prefix2' _ _ _ _ H); rewrite app_ass; reflexivity;
- try solve [erewrite (find_label_ls_None); eauto].
-  erewrite (find_label_None); eauto.
-Qed.
-
-Lemma find_label_prefix2:
-  forall lbl s pre j ctl1 ctl2,
-   find_label lbl s (pre++ctl1) = Some (j++ctl1) ->
-   find_label lbl s (pre++ctl2) = Some (j++ctl2).
-Proof.
-intros.
- destruct (find_label_prefix _ _ _ _ H).
- rewrite <- app_ass in H0.
- apply  app_inv_tail in H0. subst j.
- rewrite app_ass in *.
- forget (pre++ctl1) as k1. forget (pre++ctl2) as k2.
- clear - H. rename x into pre.
- eapply find_label_prefix2'; eauto.
-Qed.
-
-*)
-
 Lemma control_as_safe_le {Espec: OracleKind}:
   forall n' n ge ctl1 ctl2, n' <= n -> control_as_safe ge n ctl1 ctl2 -> control_as_safe ge n' ctl1 ctl2.
 Proof.
@@ -1111,12 +998,9 @@ apply bupd_mono.
 intros w ? ? ? ? .
 simpl in H0.
 specialize (H0 ora jm H1).
+simpl.
 intros.
-destruct H0 as [? [? [? ?]]]; auto.
-do 2 eexists; split; eauto.
-inv H0.
-apply H.
-eapply H4; eauto.
+apply H; auto.
 Qed.
 
 Lemma guard_safe_adj' {Espec: OracleKind}:
@@ -1133,33 +1017,33 @@ apply allp_derives. intros tx.
 apply allp_derives. intros vx.
 apply subp_derives; auto.
 apply bupd_mono.
-do 2 eexists; split; eauto.
-specialize (H0 ora jm).
-destruct H0 as [? [? [? ?]]]; auto. symmetry in H0; inv H0.
-apply H.
-eapply H4; eauto.
+simpl.
+intros ? ? ? ? ? ? ? ?.
+simpl in H0.
+subst.
+apply H; auto.
 Qed.
 
 Lemma assert_safe_adj:
   forall {Espec: OracleKind} ge f ve te k k' rho,
       (forall n, control_as_safe ge n k k') ->
-     assert_safe Espec ge f ve te k rho |-- assert_safe Espec ge f ve te k' rho.
+     assert_safe Espec ge f ve te (Cont k) rho |-- assert_safe Espec ge f ve te (Cont k') rho.
 Proof.
  intros. apply bupd_mono.
+ simpl in *.
  intros w ? ? ?. specialize (H0 ora jm).
- intros.
- destruct H0 as [? [? [? ?]]]; auto. subst k.
+ intros. specialize (H0 H1 H2 H3 LW).
+ destruct k as [ | s ctl' | | | |]; try contradiction.
  specialize (H (level w)). hnf in H.
- destruct H as [c1 [k1 [? ?]]]. inv H.
- destruct H0 as [c2 [k2 [? ?]]]. 
- do 2 eexists; split; eauto.
+ destruct H as [c [k [? [c2 [k2 [? ?]]]]]]. inv H.
+ auto.
 Qed.
 
 Lemma assert_safe_adj':
   forall {Espec: OracleKind} ge f ve te k k' rho P w,
       (forall n, control_as_safe ge n k k') ->
-     app_pred (P >=> assert_safe Espec ge f ve te k rho) w ->
-     app_pred (P >=> assert_safe Espec ge f ve te k' rho) w.
+     app_pred (P >=> assert_safe Espec ge f ve te (Cont k) rho) w ->
+     app_pred (P >=> assert_safe Espec ge f ve te (Cont k') rho) w.
 Proof.
  intros.
  eapply subp_trans'; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
@@ -1167,8 +1051,8 @@ Proof.
 Qed.
 
 Lemma assert_safe_last': forall {Espec: OracleKind} ge f ve te c k rho w,
-            (age1 w <> None -> assert_safe Espec ge f ve te (Kseq c k) rho w) ->
-             assert_safe Espec ge f ve te (Kseq c k) rho w.
+            (age1 w <> None -> assert_safe Espec ge f ve te (Cont (Kseq c k)) rho w) ->
+             assert_safe Espec ge f ve te (Cont (Kseq c k)) rho w.
 Proof.
  intros. apply assert_safe_last; intros. apply H. rewrite H0. congruence.
 Qed.
@@ -1654,48 +1538,50 @@ Proof.
 Qed.
 
 Lemma assert_safe_jsafe: forall {Espec: OracleKind} ge f ve te c k ora jm,
-  assert_safe Espec ge f ve te (Kseq c k) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
+  assert_safe Espec ge f ve te (Cont (Kseq c k)) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
   jm_bupd ora (jsafeN OK_spec ge (level jm) ora (State f c k ve te)) jm.
 Proof.
   repeat intro.
   destruct (H _ H1) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
+  do 2 red in Hsafe.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
   rewrite level_juice_level_phi, <- Hl.
-  specialize (Hsafe ora jm').
   destruct (gt_dec (level (m_phi jm')) O).
-  destruct Hsafe as [c1 [k1 [? Hsafe]]]; auto.
-  simpl.
+  specialize (Hsafe ora jm').
+  apply Hsafe; auto.
   eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
   destruct H0.
   change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
     (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
-  inv H3. auto. 
   replace (level (m_phi jm')) with O by omega. constructor.
 Qed.
 
 Lemma assert_safe_jsafe': forall {Espec: OracleKind} ge f ve te k ora jm,
-  assert_safe Espec ge f ve te k (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
+  assert_safe Espec ge f ve te (Cont k) (construct_rho (filter_genv ge) ve te) (m_phi jm) ->
   jm_bupd ora (jsafeN OK_spec ge (level jm) ora (State f Sskip k ve te)) jm.
 Proof.
   intros.
   repeat intro.
   destruct (H _ H1) as (? & ? & ? & Hl & Hr & ? & Hsafe); subst.
+  simpl in Hsafe.
   destruct (juicy_mem_resource _ _ Hr) as (jm' & ? & ?); subst.
   exists jm'; repeat split; auto.
   rewrite level_juice_level_phi, <- Hl.
   specialize (Hsafe ora jm').
+  spec Hsafe. {
+    eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
+    destruct H0.
+    change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
+      (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
+    eexists; apply ghost_fmap_join; eauto.
+  }
+  do 2 (spec Hsafe; [auto|]).
   destruct (gt_dec (level (m_phi jm')) O).
 2:   replace (level (m_phi jm')) with O by omega; constructor.
-  destruct Hsafe as [c1 [k1 [? Hsafe]]]; auto.
-  simpl.
-  eapply joins_comm, join_sub_joins_trans, joins_comm, H2.
-  destruct H0.
-  change (Some (ghost_PCM.ext_ref ora, NoneP) :: nil) with
-    (ghost_approx (m_phi jm) (Some (ghost_PCM.ext_ref ora, NoneP) :: nil)).
-  eexists; apply ghost_fmap_join; eauto.
-  inv H3.
+  spec Hsafe; [auto |].
+  destruct k; try contradiction.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
