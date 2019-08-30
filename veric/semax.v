@@ -131,9 +131,6 @@ Definition guard (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) f (P : assert)  (ctl: cont) : pred nat :=
   _guard Espec gx Delta f P ctl.
 
-Definition zap_fn_return (f: function) : function :=
- mkfunction Tvoid f.(fn_callconv) f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
-
 Fixpoint break_cont (k: cont) :=
 match k with
 | Kseq _ k' => break_cont k'
@@ -159,7 +156,7 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
   | EK_return =>
          match vl, call_cont k with
          | Some v, Kcall (Some x) f ve te k' =>
-                    Kseq (Sreturn None) (Kcall None (zap_fn_return f) ve (PTree.set x v te) k')
+                    Kseq (Sreturn None) (Kcall None f ve (PTree.set x v te) k')
          | _,_ => Kseq (Sreturn None) (call_cont k)
          end
    end.
