@@ -4,7 +4,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -1525,7 +1525,7 @@ Proof.
       hnf in H10', H11.
       destruct H9.
       subst a.
-      change Clight_new.true_expr with true_expr.
+      change Clight_core.true_expr with true_expr.
       change (level (m_phi jm)) with (level jm).
       apply safe_loop_skip.
 (*    +rewrite HGG. apply cenv_sub_refl.*)
@@ -1760,7 +1760,7 @@ eapply (semax_call_aux (Delta1 V G) (ConstType (ident->val))
   hnf in H10', H11.
   destruct H9.
   subst a.
-  change Clight_new.true_expr with true_expr.
+  change Clight_core.true_expr with true_expr.
   change (level (m_phi jm)) with (level jm).
   apply safe_loop_skip.
 + unfold glob_types, Delta1. simpl @snd.

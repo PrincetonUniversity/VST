@@ -5,7 +5,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -53,38 +53,6 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) ! i). {
  rewrite modifiedvars'_union in H|-*.
  destruct H;[left|right]; auto.
 Qed.
-(*
-Lemma typecheck_environ_join_switch2:
-   forall sl Delta rho,
-    typecheck_environ Delta rho ->
-    typecheck_environ (join_tycon_labeled sl Delta) rho.
-Proof.
- intros.
- induction sl; simpl; auto.
- apply typecheck_environ_join2 with Delta; auto.
-apply tycontext_evolve_update_tycon.
- clear.
- induction sl; simpl; auto.
-apply tycontext_evolve_refl.
-apply tycontext_evolve_join; auto.
-apply tycontext_evolve_update_tycon.
-Qed.
-
-Lemma typecheck_environ_join_switch1:
-  forall n sl rho Delta,
-    typecheck_environ
-      (update_tycon Delta (seq_of_labeled_statement (select_switch n sl))) rho ->
-    typecheck_environ (join_tycon_labeled sl Delta) rho.
-Proof.
- intros.
- unfold select_switch in H.
- destruct (select_switch_case n sl) eqn:?.
- apply typecheck_environ_update in H.
- apply typecheck_environ_join_switch2; auto.
- apply typecheck_environ_update in H.
- apply typecheck_environ_join_switch2; auto.
-Qed.
-*) 
 
 Lemma frame_tc_expr:
   forall {CS: compspecs} (Q F: mpred) Delta e rho,
@@ -143,26 +111,6 @@ intros.
 intros w ? ? ? ?.
 apply H; auto. eapply pred_nec_hereditary; eauto.
 Qed.
-
-(*Moved to semax_lemmas
-Lemma semax_eq:
- forall {Espec: OracleKind} {CS: compspecs} Delta P c R,
-  semax Espec Delta P c R = 
-  (TT |-- (ALL psi : genv,
-         ALL Delta' : tycontext,
-         !! (tycontext_sub Delta Delta' /\ genv_cenv psi = cenv_cs) -->
-         believe Espec Delta' psi Delta' -->
-         ALL k : cont ,
-         ALL F : assert ,
-         !! closed_wrt_modvars c F &&
-         rguard Espec psi (exit_tycon c Delta') (frame_ret_assert R F) k -->
-         guard Espec psi Delta' (fun rho : environ => F rho * P rho) (Kseq c :: k))).
-Proof.
-intros.
-extensionality w.
-rewrite semax_fold_unfold.
-apply prop_ext; intuition.
-Qed.*)
 
 Lemma imp_right:
  forall A (agA: ageable A) (P Q R : pred A),
@@ -295,13 +243,14 @@ Lemma switch_rguard:
   (R : ret_assert)
   (psi : genv)
   (F : assert)
+  (f: function)
   (Delta' : tycontext)
   (k : cont),
- rguard Espec psi Delta'
+ rguard Espec psi Delta' f
         (frame_ret_assert R F) k |--
-(rguard Espec psi  Delta'
+(rguard Espec psi  Delta' f
    (frame_ret_assert (switch_ret_assert R) F) 
-   (Kswitch :: k)).
+   (Kswitch k)).
 Proof.
 intros.
 unfold rguard.
@@ -325,7 +274,6 @@ apply allp_right; intro vx'.
  apply allp_left with vl'.
  apply allp_left with tx'.
  apply allp_left with vx'.
- simpl current_function.
  set (rho' := construct_rho (filter_genv psi) vx' tx') in *.
  forget (funassert Delta' rho') as FDR.
  rewrite !proj_frame_ret_assert.
@@ -348,24 +296,24 @@ apply necR_level; auto.
 Qed.
 
 Lemma assert_safe_step_nostore:
-  forall {cs: compspecs} Espec psi vx vx2 tx tx2 k1 k2 Delta e rho,
+  forall {cs: compspecs} Espec psi f vx vx2 tx tx2 c1 k1 c2 k2 Delta e rho,
   (forall jm jm', age1 jm = Some jm' ->
     app_pred (tc_expr Delta e rho) (m_phi jm) ->
-     cl_step psi (State vx tx k1)
-      (m_dry jm) (State vx2 tx2 k2) (m_dry jm)) ->
-  assert_safe Espec psi vx2 tx2 k2 (construct_rho (filter_genv psi) vx2 tx2)
+     cl_step psi (State f c1 k1 vx tx)
+      (m_dry jm) (State f c2 k2 vx2 tx2) (m_dry jm)) ->
+  assert_safe Espec psi f vx2 tx2 (Kseq c2 k2) (construct_rho (filter_genv psi) vx2 tx2)
  && tc_expr Delta e rho
-|-- assert_safe Espec psi vx tx k1 (construct_rho (filter_genv psi) vx tx).
+|-- assert_safe Espec psi f vx tx (Kseq c1 k1) (construct_rho (filter_genv psi) vx tx).
 Proof.
 intros.
 intros w [Hw Hw'] ? J.
 eexists; split; eauto; eexists; repeat split; eauto.
-intros ora jm Hora ? ?. subst.
-destruct (level (m_phi jm)) eqn:?.
-constructor.
+intros ora jm Hora ? ? ?. subst.
+destruct (level (m_phi jm)) eqn:?; try omega. clear LW.
 destruct (levelS_age1 _ _ Heqn) as [phi' H1].
 destruct (can_age1_juicy_mem _ _ H1) as [jm' H9].
 clear phi' H1.
+do 2 eexists; split; eauto.
 econstructor 2 with (m' := jm').
 econstructor.
 rewrite <- (age_jm_dry H9).
@@ -403,6 +351,7 @@ apply imp_right.
 rewrite TT_and.
 apply allp_right; intro k.
 apply allp_right; intro F.
+apply allp_right; intro f.
 apply imp_right.
 rewrite <- andp_assoc;
  rewrite (andp_comm (believe _ _ _ _));
@@ -455,8 +404,9 @@ apply andp_derives; [ | apply derives_refl].
 apply andp_derives; [ | apply derives_refl].
 rewrite andp_comm.
 apply andp_imp_e.
-rewrite unfash_allp. rewrite !(allp_andp (Kswitch :: k)). apply allp_left with (Kswitch :: k).
+rewrite unfash_allp. rewrite !(allp_andp (Kswitch k)). apply allp_left with (Kswitch k).
 rewrite unfash_allp. rewrite !(allp_andp F). apply allp_left with F.
+rewrite unfash_allp. rewrite !(allp_andp f). apply allp_left with f.
 rewrite prop_true_andp 
   by (eapply closed_wrt_modvars_switch with (n:= Int.unsigned n); eauto).
 eapply derives_trans.
@@ -483,7 +433,6 @@ rewrite !andp_assoc.
 rewrite (andp_comm (sepcon _ _)).
 rewrite <- (andp_assoc (funassert _ _)).
 forget (funassert Delta' rho && (F rho * Q rho))%pred as FQ.
-simpl current_function.
 rewrite prop_true_andp by (split; auto).
 rewrite <- andp_assoc.
 eapply derives_trans.
@@ -494,9 +443,9 @@ eapply derives_trans.
 apply andp_derives; [ | apply derives_refl].
 rewrite andp_comm. apply andp_imp_e.
 eapply typecheck_environ_sub in H4; try eassumption.
-(*clear - H4 HGG Heqv Heqt;*) destruct HGG as [ HGG].
+destruct HGG as [ HGG].
 apply assert_safe_step_nostore.
-intros. Set Printing Implicit. 
+intros.
 assert (H1': (@tc_expr CS' Delta a rho) (m_phi jm)) by apply (@tc_expr_cenv_sub _ _ HGG a rho _ _ H3). 
 clear H1; rename H1' into H1.
 econstructor.
@@ -505,71 +454,3 @@ econstructor.
  rewrite (*Heqv,*) (eval_expr_cenv_sub_Vint HGG _ _ _ Heqv), Heqt.
 reflexivity.
 Qed.
-
-(*
-Lemma semax_switch_orig: 
-  forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
-     is_int_type (typeof a) = true ->
-     (forall rho, Q rho |-- tc_expr Delta a rho) ->
-     (forall n,
-     semax Espec Delta (fun rho => andp (prop (eval_expr a rho = Vint n)) (Q rho))
-               (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
-               (switch_ret_assert R)) ->
-     semax Espec Delta Q (Sswitch a sl) R.
-Proof.
-intros.
-rewrite semax_unfold.
-intros.
-unfold guard.
-intros tx vx.
-set (rho := construct_rho (filter_genv psi) vx tx) in *.
-specialize (H0 rho).
-apply frame_tc_expr with (F0 := F rho) in  H0.
-intros w' Hw' w'' Hw'' [[[H4 H4'] H5] H6].
-rewrite sepcon_comm in H0; specialize (H0 _ H5).
-assert (H0' := typecheck_expr_sound _ _ _ _ (typecheck_environ_sub _ _ TS _ H4) H0).
-destruct (typeof a) eqn:?; inv H.
-destruct (eval_expr a rho) as [ | n | | | |] eqn:?;  try contradiction H0'.
-specialize (H1 n).
-rewrite semax_unfold in H1.
-specialize (H1 psi Delta' CS' w TS HGG Prog_OK (Kswitch :: k) F).
-specialize (H1 (closed_wrt_modvars_switch _ _ _ _ H2)); clear H2.
-set (c := seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) in *.
-spec H1.
-{ eapply switch_rguard; eauto. }
-specialize (H1 tx vx w' Hw' _ Hw'').
-spec H1.
-{ clear H1.
-  split; auto.
-  split; auto.
-  do 3 red. split; auto.
-  fold rho. rewrite prop_true_andp by auto. auto. }
-intros ? J; eexists; split; eauto; repeat eexists; auto.
-intros ora jm Hora H7 H8. subst; clear H7.
-destruct (level (m_phi jm)) eqn:?.
-constructor.
-destruct (levelS_age1 _ _ Heqn0) as [phi' ?].
-destruct (can_age1_juicy_mem _ _ H) as [jm' H9].
-clear phi' H. destruct HGG as [CSUB HGG].
-specialize (tc_expr_cenv_sub CSUB _ _ _ _ H0); intros TCa'. 
-econstructor 2 with (m' := jm').
-+ econstructor.
-  - rewrite <- (age_jm_dry H9).
-    econstructor.
-    * eapply eval_expr_relate; eauto.
-      eapply tc_expr_sub; eauto.
-      eapply typecheck_environ_sub; eauto.
-    * fold rho. rewrite (*Heqv*) (eval_expr_cenv_sub_Vint CSUB _ _ _ Heqv), Heqt.
-      reflexivity.
-  - split.
-    apply age1_resource_decay; assumption.
-    split; [apply age_level; assumption|].
-    apply age1_ghost_of, age_jm_phi; auto.
-+ pose  proof (age_level _ _ H9).
-  rewrite <- level_juice_level_phi in Heqn0.
-  rewrite Heqn0 in H.
-   inv H. clear Heqn0.
-   eapply assert_safe_jsafe, pred_hereditary, H1.
-   apply age_jm_phi; auto.
-Qed.
-*)

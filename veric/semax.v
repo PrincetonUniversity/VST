@@ -4,7 +4,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
@@ -15,7 +15,7 @@ Require Import VST.veric.expr2.
 Require Import VST.veric.expr_lemmas.
 Require Import VST.veric.own.
 
-Import Ctypes Clight_new.
+Import Ctypes Clight_core.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -75,24 +75,31 @@ Qed.
 
 Program Definition assert_safe
      (Espec : OracleKind)
-     (ge: genv) ve te (ctl: cont) : assert :=
-  fun rho => bupd (fun w => forall ora (jm:juicy_mem),
+     (ge: genv) f ve te (ctl: cont) : assert :=
+  fun rho =>
+       bupd (fun w => 
+       forall ora (jm:juicy_mem),
        ext_compat ora w ->
        rho = construct_rho (filter_genv ge) ve te ->
        m_phi jm = w ->
-             jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm).
+       forall (LW: level w > O),
+       exists s ctl', ctl = Kseq s ctl' /\
+             jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm).
  Next Obligation.
   intro; intros.
-  subst.
+   subst.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
    subst.
    specialize (H0 ora jm0); spec H0.
    { erewrite age1_ghost_of in H1 by eauto.
       eapply ext_join_unapprox; eauto. }
    specialize (H0 (eq_refl _) (eq_refl _)).
-   forget (State ve te ctl) as c. clear H ve te ctl.
+   spec H0. apply age_level in H. omega.
+   destruct H0 as [s [ctl' [? ?]]]. subst ctl. exists s, ctl'.
+   split; auto; intros.
+   forget (State f s ctl' ve te) as c. clear ve te s ctl'.
   change (level (m_phi jm)) with (level jm).
-  change (level (m_phi jm0)) with (level jm0) in H0.
+  change (level (m_phi jm0)) with (level jm0) in *.
   eapply age_safe; eauto.
 Qed.
 
@@ -102,13 +109,10 @@ Definition list2opt {T: Type} (vl: list T) : option T :=
 Definition match_venv (ve: venviron) (vars: list (ident * type)) :=
  forall id, match ve id with Some (b,t) => In (id,t) vars | _ => True end.
 
-Definition guard_environ (Delta: tycontext) (f: option function) (rho: environ) : Prop :=
+Definition guard_environ (Delta: tycontext) (f: function) (rho: environ) : Prop :=
    typecheck_environ Delta rho /\
-  match f with
-  | Some f' => match_venv (ve_of rho) (fn_vars f')
-                /\ ret_type Delta = fn_return f'
-  | None => True
-  end.
+    match_venv (ve_of rho) (fn_vars f)
+   /\ ret_type Delta = fn_return f.
 
 Lemma guard_environ_e1:
    forall Delta f rho, guard_environ Delta f rho ->
@@ -116,19 +120,36 @@ Lemma guard_environ_e1:
 Proof. intros. destruct H; auto. Qed.
 
 Definition _guard (Espec : OracleKind)
-    (gx: genv) (Delta: tycontext) (P : assert) (f: option function) (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: tycontext) (f: function) (P : assert) (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in
           !! guard_environ Delta f rho
                   && P rho && funassert Delta rho
-             >=> assert_safe Espec gx vx tx ctl rho.
+             >=> assert_safe Espec gx f vx tx ctl rho.
 
 Definition guard (Espec : OracleKind)
-    (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
-  _guard Espec gx Delta P (current_function ctl) ctl.
+    (gx: genv) (Delta: tycontext) f (P : assert)  (ctl: cont) : pred nat :=
+  _guard Espec gx Delta f P ctl.
 
 Definition zap_fn_return (f: function) : function :=
  mkfunction Tvoid f.(fn_callconv) f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
+
+Fixpoint break_cont (k: cont) :=
+match k with
+| Kseq _ k' => break_cont k'
+| Kloop1 _ _ k' => k'
+| Kloop2 _ _ k' => k'
+| Kswitch k' => k'
+| _ => k (* oops! *)
+end.
+
+Fixpoint continue_cont (k: cont) :=
+match k with
+| Kseq _ k' => continue_cont k'
+| Kloop1 s1 s2 k' => Kseq s2 (Kloop2 s1 s2 k')
+| Kswitch k' => continue_cont k'
+| _ => k (* oops! *)
+end.
 
 Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
   match ek with
@@ -137,16 +158,16 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
   | EK_continue => continue_cont k
   | EK_return =>
          match vl, call_cont k with
-         | Some v, Kcall (Some x) f ve te :: k' =>
-                    Kseq (Sreturn None) :: Kcall None (zap_fn_return f) ve (PTree.set x v te) :: k'
-         | _,_ => Kseq (Sreturn None) :: call_cont k
+         | Some v, Kcall (Some x) f ve te k' =>
+                    Kseq (Sreturn None) (Kcall None (zap_fn_return f) ve (PTree.set x v te) k')
+         | _,_ => Kseq (Sreturn None) (call_cont k)
          end
    end.
 
 Definition rguard (Espec : OracleKind)
-    (gx: genv) (Delta: tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: tycontext) (f: function) (R : ret_assert) (ctl: cont) : pred nat :=
   ALL ek: exitkind, ALL vl: option val,
-    _guard Espec gx Delta (proj_ret_assert R ek vl) (current_function ctl) (exit_cont ek vl ctl).
+    _guard Espec gx Delta f (proj_ret_assert R ek vl)  (exit_cont ek vl ctl).
 
 Record semaxArg :Type := SemaxArg {
  sa_cs: compspecs;
@@ -278,7 +299,7 @@ Definition believe_internal_ CS
                          (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho 
                                               * stackframe_of' (@cenv_cs CS') f rho)
                                         && funassert (func_tycontext' f Delta') rho)
-                          (Ssequence f.(fn_body) (Sreturn None))
+                          (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) 
               (stackframe_of' (@cenv_cs CS') f)))) )).
 
@@ -306,10 +327,10 @@ Definition semax_ (Espec: OracleKind)
             /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS') 
             /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)) -->
       (believepred CS' Espec semax Delta' gx Delta') -->
-     ALL k: cont, ALL F: assert,
+     ALL k: cont, ALL F: assert, ALL f:function,
        (!! (closed_wrt_modvars c F) &&
-              rguard Espec gx Delta' (frame_ret_assert R F) k) -->
-        guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
+              rguard Espec gx Delta' f (frame_ret_assert R F) k) -->
+        guard Espec gx Delta' f (fun rho => F rho * P rho) (Kseq c k)
   end.
 
 Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
@@ -338,7 +359,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
      |> @semax' CS' Espec (func_tycontext' f Delta')
                                 (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
                                              && funassert (func_tycontext' f Delta') rho)
-                               (Ssequence f.(fn_body) (Sreturn None))
+                               (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
@@ -358,9 +379,9 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
            /\ cenv_sub (@cenv_cs CS) (@cenv_cs CS')
            /\ cenv_sub (@cenv_cs CS') (genv_cenv gx)) -->
        @believe CS' Espec Delta' gx Delta' -->
-     ALL k: cont, ALL F: assert,
-        (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert R F) k) -->
-        guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
+     ALL k: cont, ALL F: assert, ALL f: function,
+        (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' f (frame_ret_assert R F) k) -->
+        guard Espec gx Delta' f (fun rho => F rho * P rho) (Kseq c k).
 Proof.
 intros ? ?.
 extensionality G P. extensionality c R.
@@ -412,12 +433,12 @@ Definition weakest_pre {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) c 
   ALL gx: genv, ALL Delta': tycontext,
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        unfash (believe Espec Delta' gx Delta') -->
-     ALL k: cont, ALL F: assert,
-        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' (frame_ret_assert Q F) k) -->
+     ALL k: cont, ALL F: assert, ALL f: function, 
+        unfash (!! (closed_wrt_modvars c F) && rguard Espec gx Delta' f (frame_ret_assert Q F) k) -->
         ALL tx : Clight.temp_env, ALL vx : env,
           (!! (rho = construct_rho (filter_genv gx) vx tx)) -->
-          ((!! guard_environ Delta' (current_function (Kseq c :: k)) rho && funassert Delta' rho) -->
-             (F rho -* assert_safe Espec gx vx tx (Kseq c :: k) rho)).
+          ((!! guard_environ Delta' f rho && funassert Delta' rho) -->
+             (F rho -* assert_safe Espec gx f vx tx (Kseq c k) rho)).
 
 Opaque semax'.
 
@@ -657,7 +678,7 @@ Qed.
 Section believe_monotonicity.
 Context {CS: compspecs} {Espec: OracleKind}.
 
-Lemma guard_mono gx Delta Gamma (P Q:assert) ctl
+Lemma guard_mono gx Delta Gamma f (P Q:assert) ctl
   (GD1: forall e te, typecheck_environ Gamma (construct_rho (filter_genv gx) e te) ->
                      typecheck_environ Delta (construct_rho (filter_genv gx) e te))
   (GD2: ret_type Delta = ret_type Gamma)
@@ -665,8 +686,8 @@ Lemma guard_mono gx Delta Gamma (P Q:assert) ctl
                         P (construct_rho (filter_genv gx) e te))
   (GD4: forall e te, (funassert Gamma (construct_rho (filter_genv gx) e te)) |--
                      (funassert Delta (construct_rho (filter_genv gx) e te))):
-  @guard Espec gx Delta P ctl |--
-  @guard Espec gx Gamma Q ctl.
+  @guard Espec gx Delta f P ctl |--
+  @guard Espec gx Gamma f Q ctl.
 Proof. intros n G te e r R a' A' [[[X1 X2] X3] X4].
   apply (G te e r R a' A').
   split; [split; [split;[auto | rewrite GD2; trivial] | apply GD3; trivial] | apply GD4; trivial].
