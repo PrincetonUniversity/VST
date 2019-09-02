@@ -280,6 +280,14 @@ simpl in H1. unfold cl_halted in H1. congruence.
 Qed.
 *)
 
+(*
+Definition control_as_safex {Espec: OracleKind} ge n c1 k1 c2 k2 :=
+    forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
+        n' <= n ->
+        jsafeN (@OK_spec Espec) ge n' ora (State f c1 k1 ve te) m ->
+          jsafeN (@OK_spec Espec) ge n' ora (State f c2 k2 ve te) m.
+*)
+
 Lemma semax_loop:
 forall Delta Q Q' incr body R,
      semax Espec Delta Q body (loop1_ret_assert Q' R) ->
@@ -365,7 +373,18 @@ Proof.
   clear jm LEVa2 LEVa2' LW H10 H10' H9.
   rename H3' into H3. rename Prog_OK2 into Prog_OK.
   specialize (H' psi Delta' CS' (level jm2) (tycontext_sub_refl _) HGG Prog_OK).
-  specialize (H' (Kseq Sskip (Kloop1 body incr k)) F f CLO_body).
+  specialize (H' (Kloop1 body incr k) F f CLO_body).
+  spec H'. {
+   clear H'.
+  intros ek vl.
+  destruct ek.
+  + simpl exit_cont.
+    intros tx2 vx2.
+    eapply (assert_safe_adj') with (k0:= Kseq incr (Kloop2 body incr k)); auto.
+    intros.
+    simpl.
+    intro.
+
 Abort. (* stuck here.*)
 
 Lemma semax_break:
@@ -388,31 +407,48 @@ Proof.
   apply own.bupd_mono.
   intros ???? Hora ?? ?.
   specialize (H0 ora jm Hora H1 H2 LW). subst a.
-  destruct (break_cont k) eqn:?H; try contradiction. rename c into k'.
+  destruct (break_cont k) eqn:?H; try contradiction.
+-
+  rename c into k'.
   revert s k' H2 H0.
   induction k; simpl; intros; try discriminate.
--
+ +
   eapply jsafeN_local_step. constructor. intros.
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
--
+ +
   subst k. 
   eapply jsafeN_local_step. apply step_break_loop1. intros.
   eapply age_safe; try eassumption.
   eapply jsafeN_local_step. apply step_skip_seq. intros.
   eapply age_safe; try eassumption.
--
+ +
  subst k.
   eapply jsafeN_local_step. apply step_break_loop2. intros.
   eapply age_safe; try eassumption.
   eapply jsafeN_local_step. apply step_skip_seq. intros.
   eapply age_safe; try eassumption.
--
+ +
  subst k.
   eapply jsafeN_local_step. apply step_skip_break_switch; auto. intros.
   eapply age_safe; try eassumption.
   eapply jsafeN_local_step. apply step_skip_seq. intros.
   eapply age_safe; try eassumption.
+-
+  induction k; try discriminate.
+ + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in H2. subst k. clear IHk.
+    eapply jsafeN_local_step. apply step_break_loop1.
+    intros.
+    eapply age_safe; eauto.
+ + simpl in H2. subst k. clear IHk.
+    eapply jsafeN_local_step. apply step_break_loop2.
+    intros.
+    eapply age_safe; eauto.
+ + simpl in H2. subst k. clear IHk.
+    eapply jsafeN_local_step. apply step_skip_break_switch; auto.
+    intros.
+    eapply age_safe; eauto.
 Qed.
 
 Lemma semax_continue:
@@ -437,21 +473,26 @@ intros ???? Hora ???.
 specialize (H0 ora jm Hora H1 H2 LW). 
 subst a.
 destruct (continue_cont k) eqn:?H; try contradiction.
-rename c into k'.
-revert s k' H2 H0.
-induction k; simpl; intros; try discriminate.
 -
+ rename c into k'.
+ revert s k' H2 H0.
+ induction k; simpl; intros; try discriminate.
+ +
   eapply jsafeN_local_step. constructor. intros.
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
--
+ +
   inv H2.
   eapply jsafeN_local_step. apply step_skip_or_continue_loop1; auto. intros.
   eapply age_safe; try eassumption.
--  
+ +
   eapply jsafeN_local_step. apply step_continue_switch. intros.
   eapply age_safe; try eassumption.
   eapply IHk; eauto.
+-
+  induction k; try discriminate.
+ + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. apply step_continue_switch. intros. eapply age_safe; eauto.
 Qed.
 
 End extensions.

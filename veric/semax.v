@@ -90,6 +90,8 @@ Definition assert_safe'_
        match ctl with
        | Cont (Kseq s ctl') => 
              jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm
+       | Cont (Kloop1 body incr ctl') =>
+             jsafeN (@OK_spec Espec) ge (level w) ora (State f Sskip (Kloop1 body incr ctl') ve te) jm
        | Cont _ => False
        | Ret None ctl' =>
                 jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm
@@ -118,6 +120,7 @@ Next Obligation.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in *.
   destruct ctl. destruct c; try contradiction.
+  eapply age_safe; eauto.
   eapply age_safe; eauto.
   destruct o; intros.
   eapply age_safe; eauto. apply (H0 e v'); auto.

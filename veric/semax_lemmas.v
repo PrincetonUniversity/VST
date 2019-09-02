@@ -302,6 +302,7 @@ eapply jsafeN_local_step. constructor.
 intros.
 eapply age_safe in HP; try apply H8.
 auto.
+auto.
 Qed.
 
 Lemma jsafe_corestep_forward:
@@ -867,6 +868,30 @@ Qed.
 
 Local Open Scope nat_scope.
 
+Definition control_as_safex {Espec: OracleKind} ge n c1 k1 c2 k2 :=
+    forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
+        n' <= n ->
+        jsafeN (@OK_spec Espec) ge n' ora (State f c1 k1 ve te) m ->
+          jsafeN (@OK_spec Espec) ge n' ora (State f c2 k2 ve te) m.
+
+Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
+ match ctl1 with
+ | Kseq c1 k1 =>
+        match ctl2 with
+        | Kseq c2 k2 => control_as_safex ge n c1 k1 c2 k2
+        | Kloop1 _ _ _ => control_as_safex ge n c1 k1 Sskip ctl2
+        | _ => False
+        end
+  | Kloop1 _ _ _ => 
+        match ctl2 with
+        | Kseq c2 k2 => control_as_safex ge n Sskip ctl1 c2 k2
+        | Kloop1 _ _ _ => control_as_safex ge n Sskip ctl1 Sskip ctl2
+        | _ => False
+        end
+   | _ => False
+   end.
+
+(*
 Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
  exists c1 k1, ctl1 = Kseq c1 k1 /\
  exists c2 k2, ctl2 = Kseq c2 k2 /\
@@ -874,12 +899,7 @@ Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
      n' <= n ->
      jsafeN (@OK_spec Espec) ge n' ora (State f c1 k1 ve te) m ->
      jsafeN (@OK_spec Espec) ge n' ora (State f c2 k2 ve te) m.
-
-Definition control_as_safe' {Espec: OracleKind} ge n c1 ctl1 c2 ctl2 :=
- forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
-     n' <= n ->
-     jsafeN (@OK_spec Espec) ge n' ora (State f c1 ctl1 ve te) m ->
-     jsafeN (@OK_spec Espec) ge n' ora (State f c2 ctl2 ve te) m.
+*)
 
 Fixpoint prebreak_cont (k: cont) : cont :=
   match k with
@@ -973,12 +993,8 @@ Lemma control_as_safe_le {Espec: OracleKind}:
   forall n' n ge ctl1 ctl2, n' <= n -> control_as_safe ge n ctl1 ctl2 -> control_as_safe ge n' ctl1 ctl2.
 Proof.
  intros.
- destruct H0 as [? [? [? [? [? [? ?]]]]]].
-  subst.
-  do 2 eexists; split; eauto.
-  do 2 eexists; split; eauto.
- intros.
- eapply H2; auto; omega.
+ destruct ctl1; try contradiction; destruct ctl2; try contradiction; simpl in *;
+ repeat intro; eapply H0; auto; omega.
 Qed.
 
 Lemma guard_safe_adj {Espec: OracleKind}:
@@ -1033,10 +1049,11 @@ Proof.
  simpl in *.
  intros w ? ? ?. specialize (H0 ora jm).
  intros. specialize (H0 H1 H2 H3 LW).
- destruct k as [ | s ctl' | | | |]; try contradiction.
+ simpl in H0.
  specialize (H (level w)). hnf in H.
- destruct H as [c [k [? [c2 [k2 [? ?]]]]]]. inv H.
- auto.
+ destruct k as [ | s ctl' | | | |]; try contradiction;
+ destruct k' as [ | s2 ctl2' | | | |]; try contradiction;
+ apply H; auto.
 Qed.
 
 Lemma assert_safe_adj':
@@ -1581,7 +1598,7 @@ Proof.
   destruct (gt_dec (level (m_phi jm')) O).
 2:   replace (level (m_phi jm')) with O by omega; constructor.
   spec Hsafe; [auto |].
-  destruct k; try contradiction.
+  destruct k; try contradiction; auto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
