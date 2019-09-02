@@ -68,7 +68,7 @@ match spec with (_, mk_funspec fsig cc A P Q _ _) =>
 forall Espec ts x, 
   semax Espec (func_tycontext f V G nil)
       (fun rho => close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) rho * stackframe_of f rho)
-       (Ssequence f.(fn_body) (Sreturn None))
+       f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
 
@@ -478,6 +478,7 @@ specialize (H4 gx DD CS' _ KW (conj HDD GX) v WV BEL).
 revert H4.
 apply allp_derives; intro kk.
 apply allp_derives; intro F.
+apply allp_derives; intro curf.
 apply imp_derives; auto.
 unfold guard.
 apply allp_derives; intro tx.
@@ -1366,10 +1367,11 @@ Lemma semax_prog_rule_ext {CS: compspecs} :
   forall V G prog m h z,
      @semax_prog_ext CS prog z V G ->
      Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
+     { b : block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
+       (forall jm, m_dry jm = m -> exists jm',
+                    semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                       jm q jm' (Vptr b Ptrofs.zero) nil) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -1441,6 +1443,7 @@ Proof.
   rewrite H6, H7.
   rewrite if_true by auto.
   repeat split; eauto.
+(*
   {
     intros. eexists; split. reflexivity.
     rewrite E.
@@ -1453,6 +1456,7 @@ Proof.
     apply Genv.init_mem_genv_next in H1.
     unfold globalenv. simpl. rewrite H1. apply Coqlib.Ple_refl.
   }
+*)
   intros n.
   exists (initial_jm_ext z _ _ _ n H1 H0 H2).
   repeat split.
@@ -1470,15 +1474,37 @@ Proof.
     spec H3. intros; apply sub_option_refl.
 (*    specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).*)
     destruct H4 as [post [? ?]].
-    unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
     pattern n at 1; replace n with (level (m_phi (initial_jm_ext z prog m G n H1 H0 H2))).
+   2:{ simpl.
+    rewrite inflate_initial_mem_level.
+    unfold initial_core_ext. rewrite level_make_rmap; auto. 
+    }
     pose (rho1 := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
                            (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
     pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
+    
+
+stop here.
+SearchHead function.
+   assert (
+jsafeN OK_spec (globalenv prog)
+  (level (m_phi (initial_jm_ext z prog m G n H1 H0 H2))) z
+  (Clight_core.State empty_function
+          (Scall None
+           (Etempvar 1%positive
+              (Tfunction Tnil tint cc_default))
+           (map
+              (fun x : ident * type =>
+               Etempvar (fst x) (snd x))
+              (params_of_types 2 (params_of_fundef f))))
+       (Kseq (Sloop Sskip Sskip) Kstop)
+      empty_env
+     (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
+  (initial_jm_ext z prog m G n H1 H0 H2)). {
     eapply (semax_call_aux (Delta1 V G) (ConstType (ident->val))
               _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
-              None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
+              None empty_function (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
               (construct_rho (filter_genv (globalenv prog)) empty_env
                  (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
               _ _ b (prog_main prog));
@@ -1496,7 +1522,9 @@ Proof.
     + clear - GV H2 H0.
       split.
       eapply semax_prog_typecheck_aux; eauto.
-      simpl.
+      simpl. split; auto.
+      intro i. 
+      unfold empty_env, make_venv; simpl. rewrite PTree.gempty.
       auto.
     + hnf; intros; intuition.
     +       intros rho' u U y UY k YK K.
@@ -1525,7 +1553,7 @@ Proof.
       hnf in H10', H11.
       destruct H9.
       subst a.
-      change Clight_core.true_expr with true_expr.
+      intro.
       change (level (m_phi jm)) with (level jm).
       apply safe_loop_skip.
 (*    +rewrite HGG. apply cenv_sub_refl.*)
@@ -1578,10 +1606,30 @@ Proof.
         split; [apply resource_at_core_identity|].
         unfold ext_ghost; repeat f_equal.
         apply proof_irr.
+}
+  forget (initial_jm_ext z prog m G n H1 H0 H2) as jm.
+  clear - H9.
+  assert (params_of_fundef f = nil) by admit.
+  rewrite H in H9.
+  inv H9; [ constructor | | inv H1 | inv H0 ].
+  destruct H1.
+  inv H1.
+
+2:{ simpl in H1.
+Search jsafeN.
+   inv H9. constructor.
+   inv H1.
+   inv H3.
+   Search jm_bupd.
+   eapply jsafeN_step; try eassumption.
+   constructor.
+    admit.
+(*
     + simpl.
       rewrite inflate_initial_mem_level.
       unfold initial_core.
       apply level_make_rmap.
+*)
   - apply initial_jm_ext_without_locks.
   - apply initial_jm_ext_matchfunspecs. 
   -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.

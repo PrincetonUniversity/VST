@@ -94,16 +94,9 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
     Vptr b i =>
     if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
-        Some f =>
-        Some (State empty_function 
-                    (Scall None
-                                 (Etempvar 1%positive (type_of_fundef f))
-                                 (map (fun x => Etempvar (fst x) (snd x))
-                                      (params_of_types 2%positive
-                                                       (params_of_fundef f))))
-                     (Kseq (Sloop Sskip Sskip) Kstop)
-             empty_env
-             (temp_bindings 1%positive (v::args)))
+        Some (Internal f) =>
+        Some (Callstate (Internal f) args 
+                     (Kseq (Sloop Sskip Sskip) Kstop))
       | _ => None end
     else None
   | _ => None

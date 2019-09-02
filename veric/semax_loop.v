@@ -374,18 +374,122 @@ Proof.
   rename H3' into H3. rename Prog_OK2 into Prog_OK.
   specialize (H' psi Delta' CS' (level jm2) (tycontext_sub_refl _) HGG Prog_OK).
   specialize (H' (Kloop1 body incr k) F f CLO_body).
+  specialize (H1 Prog_OK H3).
+  rename jm2 into jm.
   spec H'. {
    clear H'.
   intros ek vl.
   destruct ek.
   + simpl exit_cont.
+    rewrite semax_unfold in H0.
+    specialize (H0 psi _ CS' (level jm) (tycontext_sub_refl _)  HGG Prog_OK (Kloop2 body incr k) F f CLO_incr).
+    spec H0.    {
+      intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
+      destruct ek2.
+      + unfold exit_cont.
+        apply (assert_safe_adj') with (k0:=Kseq (Sloop body incr) k); auto.
+        - simpl; repeat intro. auto.
+        - eapply subp_trans'; [ |  eapply H1].
+          apply derives_subp.
+          apply andp_derives; auto.
+          apply andp_derives; auto.
+          destruct POST; simpl.
+          unfold frame_ret_assert. normalize.
+          rewrite sepcon_comm. auto.
+      + unfold exit_cont.
+        apply (assert_safe_adj') with (k0:= k); auto.
+        - simpl. destruct k; simpl; auto; hnf; auto.
+        - 
+          eapply subp_trans'; [ |  eapply (H3 EK_normal vl2 tx2 vx2)].
+          apply derives_subp.
+          apply andp_derives; auto.
+          apply andp_derives; auto.
+          simpl exit_cont.
+          rewrite proj_frame_ret_assert. simpl proj_ret_assert. simpl seplog.sepcon.
+          normalize.
+          destruct POST; simpl; auto.
+      + rewrite proj_frame_ret_assert. simpl seplog.sepcon.
+        destruct POST; simpl tycontext.RA_continue. cbv zeta. normalize.
+      + rewrite proj_frame_ret_assert.
+        change (exit_cont EK_return vl2 (Kloop2 body incr k))
+          with (exit_cont EK_return vl2 k).
+        eapply subp_trans'; [ | apply H3].
+        rewrite proj_frame_ret_assert.
+        clear. simpl proj_ret_assert.
+        destruct POST; simpl tycontext.RA_return.
+        apply subp_refl'.
+    }
     intros tx2 vx2.
-    eapply (assert_safe_adj') with (k0:= Kseq incr (Kloop2 body incr k)); auto.
-    intros.
-    simpl.
-    intro.
-
-Abort. (* stuck here.*)
+    apply (assert_safe_adj') with (k0:= Kseq incr (Kloop2 body incr k)); auto.
+    simpl. repeat intro. eapply jsafeN_local_step. econstructor; auto.
+    intros; eapply age_safe; eauto.
+    eapply subp_trans'; [ | apply H0].
+    apply derives_subp.
+    unfold frame_ret_assert.
+    apply andp_derives; auto.
+    apply andp_derives; auto.
+    simpl exit_cont.
+    rewrite sepcon_comm. destruct POST; simpl proj_ret_assert. normalize.
+  + intros tx3 vx3.
+    rewrite proj_frame_ret_assert. simpl proj_ret_assert.
+    simpl seplog.sepcon. cbv zeta.
+    eapply subp_trans'; [ | apply (H3 EK_normal None tx3 vx3)].
+    rewrite proj_frame_ret_assert.
+    destruct POST; simpl tycontext.RA_break; simpl proj_ret_assert.
+    apply derives_subp. simpl seplog.sepcon.
+    apply andp_derives; auto.
+  + simpl exit_cont.
+    rewrite proj_frame_ret_assert.
+    intros tx2 vx2. cbv zeta. simpl seplog.sepcon.
+    destruct POST; simpl tycontext.RA_continue.
+    rewrite semax_unfold in H0.
+    eapply subp_trans'; [ | apply (H0 _ _ CS' _ (tycontext_sub_refl _) HGG Prog_OK (Kloop2 body incr k) F f CLO_incr)].
+    {
+      apply derives_subp.
+      apply andp_derives; auto.
+      rewrite sepcon_comm.
+      apply andp_derives; auto.
+    }
+    clear tx2 vx2.
+    intros ek2 vl2 tx2 vx2.
+    destruct ek2.
+    {
+    unfold exit_cont.
+    apply (assert_safe_adj') with (k0:=Kseq (Sloop body incr) k); auto.
+    - repeat intro. auto.
+    - eapply subp_trans'; [ | eapply H1; eauto].
+      apply derives_subp.
+      apply andp_derives; auto.
+      apply andp_derives; auto.
+      * unfold exit_cont, loop2_ret_assert; normalize.
+        specialize (H3 EK_return vl2 tx2 vx2).
+        intros tx4 vx4.
+        rewrite proj_frame_ret_assert in H3, vx4.
+        simpl seplog.sepcon in H3,vx4. cbv zeta in H3, vx4.
+        normalize in vx4.        
+        rewrite sepcon_comm; auto.
+    }
+    {
+    unfold exit_cont.
+    apply (assert_safe_adj') with (k0 := k); auto.
+    - simpl. destruct k; simpl; repeat intro; auto.
+    - eapply subp_trans'; [ |  eapply (H3 EK_normal vl2 tx2 vx2)].
+      apply derives_subp.
+      auto.
+    }
+    - simpl proj_ret_assert in H3|-*. cbv zeta. normalize.
+    - simpl proj_ret_assert in H3|-*. cbv zeta. 
+      specialize (H3 EK_return vl2).
+      eapply subp_trans'; [ | eapply H3; eauto].
+      auto.
+  + intros tx4 vx4. cbv zeta.
+    eapply subp_trans'; [ | eapply (H3 EK_return) ; eauto].
+    simpl proj_ret_assert. destruct POST; simpl tycontext.RA_return.
+    apply subp_refl'. }
+  specialize (H' tx vx _ (le_refl _) _ (necR_refl _)); spec H'.
+  { subst; split; auto; split; auto. }
+ auto.
+Qed.
 
 Lemma semax_break:
    forall Delta Q,        semax Espec Delta (RA_break Q) Sbreak Q.
@@ -449,6 +553,30 @@ Proof.
     eapply jsafeN_local_step. apply step_skip_break_switch; auto.
     intros.
     eapply age_safe; eauto.
+-
+  induction k; try discriminate.
+ + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in H2. subst k. clear IHk.
+    eapply jsafeN_local_step. apply step_break_loop1.
+    intros.
+    eapply age_safe; eauto.
+    eapply jsafeN_local_step. apply step_skip_loop2.
+    intros.
+    eapply age_safe; eauto.
+ + simpl in H2. subst k. clear IHk.
+    eapply jsafeN_local_step. apply step_break_loop2.
+    intros.
+    eapply age_safe; eauto.
+    eapply jsafeN_local_step. apply step_skip_loop2.
+    intros.
+    eapply age_safe; eauto.
+ + simpl in H2. subst k. clear IHk.
+    eapply jsafeN_local_step. apply step_skip_break_switch; auto.
+    intros.
+    eapply age_safe; eauto.
+    eapply jsafeN_local_step. constructor.
+    intros.
+    eapply age_safe; eauto.
 Qed.
 
 Lemma semax_continue:
@@ -493,6 +621,12 @@ destruct (continue_cont k) eqn:?H; try contradiction.
   induction k; try discriminate.
  + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
  + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. apply step_continue_switch. intros. eapply age_safe; eauto.
+-
+  induction k; try discriminate.
+ + simpl in H2. apply IHk in H2. eapply jsafeN_local_step. constructor. intros. eapply age_safe; eauto.
+ + simpl in H2.
+     elimtype False; clear - H2.
+     induction k; simpl in *; try discriminate; auto.
 Qed.
 
 End extensions.

@@ -92,6 +92,8 @@ Definition assert_safe'_
              jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm
        | Cont (Kloop1 body incr ctl') =>
              jsafeN (@OK_spec Espec) ge (level w) ora (State f Sskip (Kloop1 body incr ctl') ve te) jm
+       | Cont (Kloop2 body incr ctl') =>
+             jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sloop body incr) ctl' ve te) jm
        | Cont _ => False
        | Ret None ctl' =>
                 jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm
@@ -120,6 +122,7 @@ Next Obligation.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in *.
   destruct ctl. destruct c; try contradiction.
+  eapply age_safe; eauto.
   eapply age_safe; eauto.
   eapply age_safe; eauto.
   destruct o; intros.
@@ -171,7 +174,7 @@ match k with
 | Kseq _ k' => continue_cont k'
 | Kloop1 s1 s2 k' => Kseq s2 (Kloop2 s1 s2 k')
 | Kswitch k' => continue_cont k'
-| _ => k (* oops! *)
+| _ => Kstop (* oops! *)
 end.
 
 Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : contx :=

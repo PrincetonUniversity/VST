@@ -1870,6 +1870,12 @@ spec Hsafe. {
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
+  eapply jsafeN_local_step. constructor.
+  intros.
+  eapply age_safe; eauto.
+  eapply jsafeN_local_step. constructor.
+  intros.
+  eapply age_safe; eauto.
 Qed.
 
 Lemma alloc_juicy_variables_age:

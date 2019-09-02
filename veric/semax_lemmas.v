@@ -295,13 +295,18 @@ simpl.
 intros ? ? ? ? ? ?.
 specialize (HP ora jm H0 H6 H7 LW).
 simpl in HP.
-destruct k as [ | s ctl' | | | |]; try contradiction.
+destruct k as [ | s ctl' | | | |]; try contradiction; auto.
 rewrite <- H7 in HP|-*.
 change (level (m_phi jm)) with (level jm) in HP|-*.
 eapply jsafeN_local_step. constructor.
 intros.
 eapply age_safe in HP; try apply H8.
 auto.
+rewrite <- H7 in HP|-*.
+change (level (m_phi jm)) with (level jm) in HP|-*.
+eapply jsafeN_local_step. constructor.
+intros.
+eapply age_safe in HP; try apply H8.
 auto.
 Qed.
 
@@ -868,38 +873,39 @@ Qed.
 
 Local Open Scope nat_scope.
 
-Definition control_as_safex {Espec: OracleKind} ge n c1 k1 c2 k2 :=
-    forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
-        n' <= n ->
-        jsafeN (@OK_spec Espec) ge n' ora (State f c1 k1 ve te) m ->
-          jsafeN (@OK_spec Espec) ge n' ora (State f c2 k2 ve te) m.
+Definition control_as_safex {Espec: OracleKind} ge c1 k1 c2 k2 :=
+    forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem),
+        jsafeN (@OK_spec Espec) ge (level m) ora (State f c1 k1 ve te) m ->
+          jsafeN (@OK_spec Espec) ge (level m) ora (State f c2 k2 ve te) m.
 
-Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
- match ctl1 with
- | Kseq c1 k1 =>
-        match ctl2 with
-        | Kseq c2 k2 => control_as_safex ge n c1 k1 c2 k2
-        | Kloop1 _ _ _ => control_as_safex ge n c1 k1 Sskip ctl2
-        | _ => False
-        end
-  | Kloop1 _ _ _ => 
-        match ctl2 with
-        | Kseq c2 k2 => control_as_safex ge n Sskip ctl1 c2 k2
-        | Kloop1 _ _ _ => control_as_safex ge n Sskip ctl1 Sskip ctl2
-        | _ => False
-        end
-   | _ => False
+Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
+ match ctl1, ctl2 with
+ | Kseq c1 k1, Kseq c2 k2 =>
+                   control_as_safex ge c1 k1 c2 k2
+ | Kseq c1 k1, Kloop1 _ _ _ => 
+                   control_as_safex ge c1 k1 Sskip ctl2
+ | Kseq c1 k1, Kloop2 body incr k2 => 
+                   control_as_safex ge c1 k1 (Sloop body incr) k2
+ | Kseq _ _, _ => 
+                   False
+ | Kloop1 _ _ _, Kseq c2 k2 =>
+                   control_as_safex ge Sskip ctl1 c2 k2
+ | Kloop1 _ _ _, Kloop1 _ _ _ => 
+                   control_as_safex ge Sskip ctl1 Sskip ctl2
+ | Kloop1 _ _ _, Kloop2 body incr k2 => 
+                   control_as_safex ge Sskip ctl1 (Sloop body incr) k2
+ | Kloop1 _ _ _, _ => 
+                   False
+ | Kloop2 b1 i1 k1, Kseq c2 k2 =>
+                   control_as_safex ge (Sloop b1 i1) k1 c2 k2
+ | Kloop2 b1 i1 k1, Kloop1 _ _ _ =>
+                   control_as_safex ge (Sloop b1 i1) k1 Sskip ctl2
+ | Kloop2 b1 i1 k1, Kloop2 b2 i2 k2 =>
+                   control_as_safex ge (Sloop b1 i1) k1 (Sloop b2 i2) k2
+ | Kloop2 _ _ _, _ =>
+                   False
+  | _, _ => True
    end.
-
-(*
-Definition control_as_safe {Espec: OracleKind} ge n ctl1 ctl2 :=
- exists c1 k1, ctl1 = Kseq c1 k1 /\
- exists c2 k2, ctl2 = Kseq c2 k2 /\
- forall (ora : OK_ty) f (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
-     n' <= n ->
-     jsafeN (@OK_spec Espec) ge n' ora (State f c1 k1 ve te) m ->
-     jsafeN (@OK_spec Espec) ge n' ora (State f c2 k2 ve te) m.
-*)
 
 Fixpoint prebreak_cont (k: cont) : cont :=
   match k with
@@ -989,14 +995,6 @@ clear find_label_ls_None; induction s; simpl; intros; try congruence;
  rewrite (find_label_None _ _ _ H). eauto.
 Qed.
 
-Lemma control_as_safe_le {Espec: OracleKind}:
-  forall n' n ge ctl1 ctl2, n' <= n -> control_as_safe ge n ctl1 ctl2 -> control_as_safe ge n' ctl1 ctl2.
-Proof.
- intros.
- destruct ctl1; try contradiction; destruct ctl2; try contradiction; simpl in *;
- repeat intro; eapply H0; auto; omega.
-Qed.
-
 Lemma guard_safe_adj {Espec: OracleKind}:
  forall
    psi Delta f P c1 k1 c2 k2,
@@ -1042,7 +1040,7 @@ Qed.
 
 Lemma assert_safe_adj:
   forall {Espec: OracleKind} ge f ve te k k' rho,
-      (forall n, control_as_safe ge n k k') ->
+     control_as_safe ge k k' ->
      assert_safe Espec ge f ve te (Cont k) rho |-- assert_safe Espec ge f ve te (Cont k') rho.
 Proof.
  intros. apply bupd_mono.
@@ -1050,15 +1048,16 @@ Proof.
  intros w ? ? ?. specialize (H0 ora jm).
  intros. specialize (H0 H1 H2 H3 LW).
  simpl in H0.
- specialize (H (level w)). hnf in H.
+ subst w. change (level (m_phi jm)) with (level jm).
+ red in H.
  destruct k as [ | s ctl' | | | |]; try contradiction;
  destruct k' as [ | s2 ctl2' | | | |]; try contradiction;
- apply H; auto.
+ try apply H; auto.
 Qed.
 
 Lemma assert_safe_adj':
   forall {Espec: OracleKind} ge f ve te k k' rho P w,
-      (forall n, control_as_safe ge n k k') ->
+      (control_as_safe ge k k') ->
      app_pred (P >=> assert_safe Espec ge f ve te (Cont k) rho) w ->
      app_pred (P >=> assert_safe Espec ge f ve te (Cont k') rho) w.
 Proof.
@@ -1599,6 +1598,9 @@ Proof.
 2:   replace (level (m_phi jm')) with O by omega; constructor.
   spec Hsafe; [auto |].
   destruct k; try contradiction; auto.
+  eapply jsafeN_local_step. constructor.
+  intros.
+  eapply age_safe; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
