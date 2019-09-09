@@ -249,7 +249,7 @@ Program Definition get_item_spec := DECLARE _get_item
     SEP (let '(v, lv) := x in data_at sh (tarray tentry size) entries (gv _m_entries) *
       EX T : _, !!(table_incl T0 T /\ Zlength T = size /\ (*wf_table T /\*) exists i,
         lookup' T k = Some i /\ snd (Znth i T) = lv) && hashtable_A T lgk lgv entries *
-        ( !!(value_of lv v /\ (v <> 0 -> exists lv', H k = Some lv' /\ map_incl lv lv')) && hashtable H g lgk lgv)).
+        (!!(value_of lv v /\ (v <> 0 -> exists lv', H k = Some lv' /\ map_incl lv lv')) && hashtable H g lgk lgv)).
 
 Program Definition add_item_spec := DECLARE _add_item
   ATOMIC TYPE  (ConstType (Z * Z * globals * share * list (val * val) * gname * list gname * list gname * list (Z * (_ -> option Z)))) OBJ H INVS empty top
@@ -266,7 +266,7 @@ Program Definition add_item_spec := DECLARE _add_item
     SEP (let '(b, lv) := x in data_at sh (tarray tentry size) entries (gv _m_entries) *
    EX T : _, !!(table_incl T0 T /\ Zlength T = size (*/\ wf_table T*) /\ exists i, lookup' T k = Some i /\
      Znth i T = (k, lv)) && hashtable_A T lgk lgv entries *
-   ( !!((H k = None <-> b = true) /\ (b = true -> value_of lv v)) &&
+   (!!((H k = None <-> b = true) /\ (b = true -> value_of lv v)) &&
      hashtable (if b then map_upd H k lv else H) g lgk lgv)).
 
 Definition init_table_spec :=
@@ -689,7 +689,7 @@ Proof.
       iMod ("AS" with "P") as (HT) "[hashtable [_ HQ]]".
       rewrite ->prop_true_andp by auto.
       match goal with H : value_of _ _ /\ _ |- _ => destruct H end.
-      iAssert ( !!(v <> 0 -> exists lv' : _ -> option Z, HT k = Some lv' /\ map_incl s' lv')) as %?.
+      iAssert (!!(v <> 0 -> exists lv' : _ -> option Z, HT k = Some lv' /\ map_incl s' lv')) as %?.
       { unfold hashtable.
         iDestruct "hashtable" as (T1) "(((% & % & %) & ?) & entries)".
         rewrite -> iter_sepcon_Znth with (i0 := i1 mod size)(l := upto (Z.to_nat size)) by auto.
@@ -873,11 +873,11 @@ Proof.
         entailer!. }
       Intros; subst.
       forward_call [Z : Type] funspec_sub_refl (pki, 0, k, 0, zero_ord, k_T' (Znth (i1 mod size) lgk), top,
-        fun s => AS && cored * |> P * ( !!(s = k) && k_state (i1 mod size) lgk pki s *
+        fun s => AS && cored * |> P * (!!(s = k) && k_state (i1 mod size) lgk pki s *
           ghost_snap s (Znth (i1 mod size) lgk) *
           iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) (map fst T))
             (Znth ((i + hash k) mod size) lgk)) (upto (Z.to_nat i))),
-        fun s v => |> (AS && cored * P * ( !!(s = v) && k_state (i1 mod size) lgk pki s *
+        fun s v => |> (AS && cored * P * (!!(s = v) && k_state (i1 mod size) lgk pki s *
           ghost_snap s (Znth (i1 mod size) lgk) *
           iter_sepcon (fun i => ghost_snap (Znth ((i + hash k) mod size) (map fst T))
             (Znth ((i + hash k) mod size) lgk)) (upto (Z.to_nat i)))), inv_names).
@@ -895,7 +895,7 @@ Proof.
           destruct (Znth (i1 mod size) T1) as (?, lvi') eqn: HT1.
           iDestruct "entries" as "(((% & master) & masterv) & entries)".
           iCombine "master master2" as "master"; erewrite (master_share_join'(ORD := zero_order)) by eauto; iDestruct "master" as "[% master]".
-          iAssert ( !!(lookup' T1 k = Some (i1 mod size))) as %Hindex.
+          iAssert (!!(lookup' T1 k = Some (i1 mod size))) as %Hindex.
           { iApply (entries_lookup with "[$entries $snaps]"); auto.
             { rewrite -> Zlength_map; auto. }
             { rewrite -> HT1; auto. } }
@@ -1005,7 +1005,7 @@ Proof.
           iDestruct "master" as "[?$]".
           iMod (exclusive_update H' (map_upd H' k (map_upd s' (j + 1)%nat v)) with "excl").
           assert (value_of (map_upd s' (j + 1)%nat v) v) by (eexists; eauto).
-          iAssert ( !!(lookup' T1 k = Some (i1 mod size))) as %PP.
+          iAssert (!!(lookup' T1 k = Some (i1 mod size))) as %PP.
           { iApply (entries_lookup with "[$entries $snaps]"); auto.
             { rewrite -> Zlength_map; auto. }
             { rewrite -> HT1; auto. } }

@@ -839,7 +839,7 @@ Lemma wsat_open : forall i P,
 Proof.
   intros; unfold wsat, invariant.
   iIntros "((H & inv1) & en1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
-  iAssert ( !! (i < length lg /\ Znth (Z.of_nat i) lg = g /\
+  iAssert (!! (i < length lg /\ Znth (Z.of_nat i) lg = g /\
     exists b, Znth (Z.of_nat i) lb = Some b)%nat) as %Hi.
   { iCombine "snap" "inv" as "inv"; unfold master_list; erewrite snap_master_join1.
     iDestruct "inv" as "[% inv]".
@@ -923,7 +923,7 @@ Lemma wsat_close : forall i P,
 Proof.
   intros; unfold wsat, invariant.
   iIntros "(((H & inv1) & HP) & dis1)". iDestruct "H" as (l lg lb) "((((% & inv) & dis) & en) & I)". iDestruct "inv1" as (g) "[snap agree]".
-  iAssert ( !!(i < length lg /\ Znth (Z.of_nat i) lg = g /\
+  iAssert (!!(i < length lg /\ Znth (Z.of_nat i) lg = g /\
     exists b, Znth (Z.of_nat i) lb = Some b)%nat) as %Hi.
   { iCombine "snap inv" as "inv"; unfold master_list; erewrite snap_master_join1.
     iDestruct "inv" as "[% inv]".

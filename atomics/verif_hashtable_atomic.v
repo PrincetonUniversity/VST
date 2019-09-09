@@ -172,7 +172,7 @@ Program Definition add_item_spec := DECLARE _add_item
     PROP ()
     LOCAL (temp ret_temp (Val.of_bool b))
     SEP (data_at sh (tarray tentry size) entries (gv _m_entries) *
-   ( !!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries)).
+   (!!(H k = None <-> b = true) && hashtable (if b then map_upd H k v else H) g lg entries)).
 
 Definition init_table_spec :=
  DECLARE _init_table
@@ -502,7 +502,7 @@ Proof.
         assert (fst (Znth i (rebase T (hash k))) = ki).
         { rewrite -> Znth_rebase by (auto; omega).
           replace (Zlength T) with size by omega; replace ((i + hash k) mod size) with (i1 mod size); rewrite HHi; auto. }
-        iAssert ( !!((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size))) as %Hindex.
+        iAssert (!!((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size))) as %Hindex.
         { iIntros "%".
           iApply (entries_lookup with "[$entries $snaps]"); auto.
           rewrite HHi; destruct a; subst; auto. }
@@ -538,7 +538,7 @@ Proof.
       * if_tac; [discriminate|].
         sep_apply cored_dup.
         forward_call (pki, top, empty,
-          fun v : Z => |> P * ( !!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
+          fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { simpl; cancel.
           subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
           apply sepcon_derives, derives_refl.
@@ -555,7 +555,7 @@ Proof.
           iModIntro; iExists Ews, ki; iFrame "k".
           iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
           iIntros "k".
-          iAssert ( !!(ki = k1)) as %Heq.
+          iAssert (!!(ki = k1)) as %Heq.
           { iCombine "snap master" as "master"; rewrite -> snap_master_join1.
             iDestruct "master" as "[[% | %] master]"; auto; contradiction. }
           rewrite -> prop_true_andp by auto.
@@ -611,7 +611,7 @@ Proof.
         iPoseProof (data_at_data_at_ _ tint with "v") as "$".
         iSplitL ""; [auto|].
         iIntros "v".
-        iAssert ( !! (ki = k)) as %Hk.
+        iAssert (!! (ki = k)) as %Hk.
         { iCombine "snap master" as "master"; rewrite -> snap_master_join1.
           iDestruct "master" as "[[% | %] ?]"; auto; contradiction. }
         iMod (exclusive_update _ (map_upd HT k v) with "excl") as "excl".
@@ -727,7 +727,7 @@ Proof.
       iIntros "k".
       if_tac.
       * subst ki.
-        iAssert ( !! (lookup T k = Some (i1 mod size))) as %Hindex.
+        iAssert (!! (lookup T k = Some (i1 mod size))) as %Hindex.
         { iApply (entries_lookup with "[$entries $snaps]"); auto.
           rewrite HHi; auto. }
         iMod (snaps_dealloc with "snaps") as "_".
@@ -777,11 +777,11 @@ Proof.
         iModIntro; iExists Ews, vi; iFrame "v".
         iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
         iIntros "v".
-        iAssert ( !! (ki = k)) as %Hk.
+        iAssert (!! (ki = k)) as %Hk.
         { iCombine "snap master" as "master"; rewrite -> snap_master_join1.
           iDestruct "master" as "[[% | %] ?]"; auto; contradiction. }
         subst ki.
-        iAssert ( !! (lookup T k = Some (i1 mod size))) as %Hindex.
+        iAssert (!! (lookup T k = Some (i1 mod size))) as %Hindex.
         { iApply (entries_lookup with "[$entries $snaps]"); auto.
           rewrite HHi; auto. }
         iMod (own_dealloc(RA := snap_PCM) with "snap") as "_".
@@ -992,7 +992,7 @@ Proof.
         assert (fst (Znth i (rebase T (hash k))) = ki).
         { rewrite -> Znth_rebase by (auto; omega).
           replace (Zlength T) with size by omega; replace ((i + hash k) mod size) with (i1 mod size); rewrite HHi; auto. }
-        iAssert ( !!((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size))) as %Hindex.
+        iAssert (!!((ki = k \/ ki = 0) -> lookup T k = Some (i1 mod size))) as %Hindex.
         { iIntros "%".
           iApply (entries_lookup with "[$entries $snaps]"); auto.
           rewrite HHi; destruct a; subst; auto. }
@@ -1027,7 +1027,7 @@ Proof.
         forward_if (PROP () ((LOCALx Q) (SEPx (ghost_snap k (Znth (i1 mod size) lg) :: R)))) end.
       * if_tac; [discriminate|].
         sep_apply cored_dup.
-        forward_call (pki, top, empty, fun v : Z => |> P * ( !!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
+        forward_call (pki, top, empty, fun v : Z => |> P * (!!(v = k1) && ghost_snap k1 (Znth (i1 mod size) lg)), inv_names).
         { subst Frame; instantiate (1 := [iter_sepcon _ _; AS && cored; data_at _ (tarray tentry _) entries _]); simpl; cancel.
           apply sepcon_derives, derives_refl.
           iIntros "(([AS1 _] & snap) & P)".
@@ -1043,7 +1043,7 @@ Proof.
           iModIntro; iExists Ews, ki; iFrame "k".
           iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
           iIntros "k".
-          iAssert ( !!(ki = k1)) as %Heq.
+          iAssert (!!(ki = k1)) as %Heq.
           { iCombine "snap master" as "master"; rewrite -> snap_master_join1.
             iDestruct "master" as "[[% | %] master]"; auto; contradiction. }
           rewrite -> prop_true_andp by auto.
@@ -1101,11 +1101,11 @@ Proof.
         iSplitL ""; [iSplit; auto; iPureIntro; split; auto; tauto|].
         iIntros "v".
         iMod (exclusive_update _ (if eq_dec vi 0 then map_upd HT k v else HT) with "excl") as "excl".
-        iAssert ( !! (ki = k)) as %Hk.
+        iAssert (!! (ki = k)) as %Hk.
         { iCombine "snap master" as "master"; rewrite -> snap_master_join1.
           iDestruct "master" as "[[% | %] ?]"; auto; contradiction. }
         subst ki.
-        iAssert ( !! (lookup T k = Some (i1 mod size))) as %Hindex.
+        iAssert (!! (lookup T k = Some (i1 mod size))) as %Hindex.
         { iApply (entries_lookup with "[$entries $snaps]"); auto.
           rewrite HHi; auto. }
         iMod (own_dealloc(RA := snap_PCM) with "snap") as "_".
@@ -1858,7 +1858,7 @@ Proof.
       rewrite <- !(data_at_share_join _ _ _ _ _ _ Hj3).
       replace empty_map with (@map_add nat hashtable_hist_el empty_map empty_map) by apply map_add_empty.
       pose proof (@empty_map_disjoint nat hashtable_hist_el empty_map) as Hdisj.
-      erewrite (add_andp (ghost_hist _ _ _) ( !!_)) by (apply prop_right, Hdisj).
+      erewrite (add_andp (ghost_hist _ _ _) (!!_)) by (apply prop_right, Hdisj).
       rewrite -> andp_comm, <- (ghost_hist_join _ _ _ _ _ _ Hj3'); auto.
       rewrite <- (lock_inv_share_join sh1 sh2) by auto.
       fast_cancel; cancel.
@@ -2012,7 +2012,7 @@ Proof.
     iMod (inv_open (inv i1) with "inv") as "[>inv Hclose]"; [auto|].
     unfold hashtable_inv.
     iDestruct "inv" as (HT) "[hashtable ref]"; iDestruct "ref" as (hr) "[% ref]".
-    iAssert ( !!(exists l HT, hist_list (fold_right map_add empty_map (map fst lr)) l /\
+    iAssert (!!(exists l HT, hist_list (fold_right map_add empty_map (map fst lr)) l /\
         apply_hist empty_map l = Some HT)) as %Hhist.
     { iCombine "hist ref" as "hist"; rewrite -> hist_ref_join by auto.
       iDestruct "hist" as (l) "[[% %] hist]".

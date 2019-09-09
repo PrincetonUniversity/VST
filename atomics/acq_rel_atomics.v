@@ -15,7 +15,7 @@ Parameter objective : mpred -> Prop.
 Axiom emp_objective : objective emp%I.
 Axiom data_at_objective : forall {cs : compspecs} sh t v p, objective (data_at sh t v p).
 Axiom own_objective : forall {RA : Ghost} g (a : G) pp, objective (own g a pp).
-Axiom prop_objective : forall P, objective ( !!P).
+Axiom prop_objective : forall P, objective (!!P).
 Axiom andp_objective : forall P Q, objective P -> objective Q -> objective (P && Q).
 Axiom exp_objective : forall {A} P, (forall x, objective (P x)) -> objective (EX x : A, P x).
 Axiom sepcon_objective : forall P Q, objective P -> objective Q -> objective (P * Q).
@@ -109,7 +109,7 @@ Proof.
 Qed.
 Hint Resolve ghost_snap_duplicable : dup.
 
-Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable ( !!P && Q).
+Lemma prop_duplicable : forall P Q, duplicable Q -> duplicable (!!P && Q).
 Proof.
   intros; unfold duplicable.
   Intros.
@@ -376,7 +376,7 @@ Program Definition CAS_RA_spec := TYPE CRA_type
    PROP (repable_signed c; repable_signed v)
    LOCAL (temp 1%positive l; temp 2%positive (vint c); temp 3%positive (vint v))
    SEP ((ALL s' : _, !!(st_ord s s') --> (snd T s' c -* |={E}=>
-          (EX s'' : _, ( !!(st_ord s' s'')) && ((protocol_A l s'' st_ord T) -* |={E}=> |> snd T s'' v *
+          (EX s'' : _, (!!(st_ord s' s'')) && ((protocol_A l s'' st_ord T) -* |={E}=> |> snd T s'' v *
            Q s'')))) && (* is this right? *)
         (ALL s' : _, ALL v' : _, !!(st_ord s s' /\ repable_signed v' /\ v' <> c) -->
           ((|> fst T s' v' * protocol_A l s' st_ord T) -* |={E}=> (R s' v')));

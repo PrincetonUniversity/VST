@@ -58,11 +58,11 @@ Definition super_non_expansive_b {A B W} (b : forall ts : list Type, functors.Mi
   approx n (b ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) x y).
 
 Definition super_non_expansive_la {W} la := forall n ts w rho,
-  Forall (fun l => approx n ( !! locald_denote (l ts w) rho) = approx n ( !! locald_denote (l ts
+  Forall (fun l => approx n (!! locald_denote (l ts w) rho) = approx n (!! locald_denote (l ts
     (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w)) rho)) la.
 
 Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
-  Forall (fun l => approx n ( !! locald_denote (l ts w v) rho) = approx n ( !! locald_denote (l ts
+  Forall (fun l => approx n (!! locald_denote (l ts w v) rho) = approx n (!! locald_denote (l ts
     (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts W) (approx n) (approx n) w) v) rho)) lb.
 
 Import List.

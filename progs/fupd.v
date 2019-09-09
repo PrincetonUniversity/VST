@@ -405,7 +405,7 @@ Proof.
   erewrite ghost_set_subset with (s' := E1) by auto.
   iDestruct "Hpre" as "(wsat & en1 & en2)".
   iCombine ("wsat en1 Q") as "Q".
-  erewrite (add_andp (_ ∗ _ ∗ Q)%I (sbi_except_0 ( !! P))) at 1.
+  erewrite (add_andp (_ ∗ _ ∗ Q)%I (sbi_except_0 (!! P))) at 1.
   rewrite sepcon_andp_prop bi.except_0_and.
   iModIntro; iSplit.
   { iDestruct "Q" as "[? ?]"; auto. }
