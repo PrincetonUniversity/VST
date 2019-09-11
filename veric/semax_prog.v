@@ -1443,204 +1443,226 @@ Proof.
   rewrite H6, H7.
   rewrite if_true by auto.
   repeat split; eauto.
-(*
-  {
-    intros. eexists; split. reflexivity.
-    rewrite E.
-    split3; eauto. split3; eauto. constructor.
-    constructor. split; auto.
-    split. 
-    rewrite H8. apply Genv.initmem_inject in H1.
-    clear - H1. unfold inject_neutral. inv H1; auto.
-    rewrite H8. clear - H1.
-    apply Genv.init_mem_genv_next in H1.
-    unfold globalenv. simpl. rewrite H1. apply Coqlib.Ple_refl.
-  }
-*)
   intros n.
-  exists (initial_jm_ext z _ _ _ n H1 H0 H2).
-  repeat split.
-  - simpl.
-    rewrite inflate_initial_mem_level.
-    unfold initial_core_ext. rewrite level_make_rmap; auto.
-
-  - unfold initial_jm_ext; simpl.
-    unfold inflate_initial_mem; rewrite ghost_of_make_rmap.
-    unfold initial_core_ext; rewrite ghost_of_make_rmap.
+  pose (jm := initial_jm_ext z _ _ _ n H1 H0 H2).
+  exists jm.
+  split3; [  | | split3; [ | | split3]].
+  unfold jm; reflexivity.
+  unfold jm; simpl;  rewrite inflate_initial_mem_level;
+    unfold initial_core_ext; rewrite level_make_rmap; auto.
+  unfold jm, initial_jm_ext; simpl;
+    unfold inflate_initial_mem; rewrite ghost_of_make_rmap;
+    unfold initial_core_ext; rewrite ghost_of_make_rmap;
     reflexivity.
+  2: apply initial_jm_ext_without_locks.
+  2: apply initial_jm_ext_matchfunspecs.
+  2: apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
 
-  - specialize (H3 (genv_genv (globalenv prog))).
-    spec H3. intros; apply sub_option_refl.
-    spec H3. intros; apply sub_option_refl.
-(*    specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).*)
-    destruct H4 as [post [? ?]].
-    pattern n at 1; replace n with (level (m_phi (initial_jm_ext z prog m G n H1 H0 H2))).
-   2:{ simpl.
-    rewrite inflate_initial_mem_level.
-    unfold initial_core_ext. rewrite level_make_rmap; auto. 
-    }
-    pose (rho1 := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
-                           (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
-    pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
-    
-
-stop here.
-SearchHead function.
-   assert (
-jsafeN OK_spec (globalenv prog)
-  (level (m_phi (initial_jm_ext z prog m G n H1 H0 H2))) z
-  (Clight_core.State empty_function
-          (Scall None
-           (Etempvar 1%positive
-              (Tfunction Tnil tint cc_default))
-           (map
-              (fun x : ident * type =>
-               Etempvar (fst x) (snd x))
-              (params_of_types 2 (params_of_fundef f))))
-       (Kseq (Sloop Sskip Sskip) Kstop)
-      empty_env
-     (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
-  (initial_jm_ext z prog m G n H1 H0 H2)). {
-    eapply (semax_call_aux (Delta1 V G) (ConstType (ident->val))
-              _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
-              nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
-              None empty_function (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
-              (construct_rho (filter_genv (globalenv prog)) empty_env
-                 (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
-              _ _ b (prog_main prog));
-      try apply H3; try eassumption; auto.
-    + simpl.
-        unfold inflate_initial_mem; rewrite ghost_of_make_rmap.
-        unfold initial_core_ext; rewrite ghost_of_make_rmap.
-        exists (Some (ext_both z, NoneP) :: nil); repeat constructor.
-    + simpl.
-      exists (Vptr b Ptrofs.zero).
-      split; auto.
-    + simpl snd.
-      replace (params_of_fundef f) with (@nil type). simpl; auto. clear -E.
-      destruct f as [[? ? [ | [] ]] | e [|] ? c] ; compute in *; congruence.
-    + clear - GV H2 H0.
-      split.
-      eapply semax_prog_typecheck_aux; eauto.
-      simpl. split; auto.
-      intro i. 
-      unfold empty_env, make_venv; simpl. rewrite PTree.gempty.
-      auto.
-    + hnf; intros; intuition.
-    +       intros rho' u U y UY k YK K.
-      unfold normal_ret_assert; simpl.
-      destruct K as [v [a1 [a2 [J [A1 [w A2]]]]]]. exists a1, a2; intuition. exists w; trivial.
-    + rewrite HGG. apply cenv_sub_refl.
-    + rewrite (corable_funassert _ _).
-      simpl m_phi.
-      rewrite core_inflate_initial_mem'; auto.
-      do 3 (pose proof I).
-      replace (funassert (Delta1 V G)) with
-      (funassert (@nofunc_tycontext V G)).
-      unfold rho1; apply funassert_initial_core; auto.
-      apply same_glob_funassert.
-      reflexivity.
-    + apply now_later. intros ek vl tx' vx'.
-      cbv zeta. rewrite proj_frame_ret_assert. simpl seplog.sepcon.
-      subst post'. cbv beta.
-      destruct ek; simpl proj_ret_assert; normalize.
-      apply derives_subp.
-      normalize. intro rv.
-      simpl.
-      eapply derives_trans, own.bupd_intro.
-      intros ? ? ? ? Hora _ ?.
-      destruct H9 as [[? [H10' [H11 ?]]] ?].
-      hnf in H10', H11.
-      destruct H9.
-      subst a.
-      intro.
-      change (level (m_phi jm)) with (level jm).
-      apply safe_loop_skip.
-(*    +rewrite HGG. apply cenv_sub_refl.*)
-    + unfold glob_types, Delta1. simpl @snd.
-      forget (prog_main prog) as main.
-      instantiate (1:= post).
-      instantiate (1:= main_pre_ext prog z).
-      assert (H8': list_norepet (map (@fst _ _) (prog_funct prog))). {
-      clear - H0.
-      unfold prog_defs_names in H0. unfold prog_funct.
-      change (AST.prog_defs prog) with (prog_defs prog) in H0.
-      induction (prog_defs prog); auto. inv H0.
-      destruct a; destruct g; simpl; auto. constructor; auto.
-      clear - H2; simpl in H2; contradict H2; induction l; simpl in *; auto.
-      destruct a; destruct g; simpl in *; auto. destruct H2; auto.
-      }
-      forget (prog_funct prog) as fs.
-      clear - H4 H8' H2. rename H8' into H8.
-      fold (main_spec prog).
-      forget (main_spec prog) as fd.
-      revert G H2 H4 H8; induction fs; intros; inv H2.
-      contradiction H4.
-      simpl in *.
-      destruct (ident_eq i main). subst. rewrite PTree.gss.
-      destruct H4. inv H; auto.
-      inv H8.
-      contradiction H3.
-      eapply match_fdecs_in; eauto.
-      apply in_map_fst in H; auto.
-      rewrite PTree.gso by auto.
-      destruct H4; try congruence.
-      inv H8.
-      eapply IHfs; eauto.
-    + intros.
-      intros ? ?.
-      split; apply derives_imp; auto.
-    + unfold main_pre_ext.
-      apply now_later.
-      rewrite TT_sepcon_TT.
-      eexists _, _; split; [apply core_unit|]; split; auto.
-      eexists; eexists; split; [apply initial_jm_ext_eq|].
-      split.
-      * match goal with |- app_pred (globvars2pred (globals_of_env ?A) _ ?B) _ => 
-           change (globals_of_env A) with (globals_of_env B)
-          end.
-          apply global_initializers; auto.
-      * simpl.
-        unshelve eexists; [split; auto; apply Share.nontrivial|].
-        unfold set_ghost; rewrite ghost_of_make_rmap, resource_at_make_rmap.
-        split; [apply resource_at_core_identity|].
-        unfold ext_ghost; repeat f_equal.
-        apply proof_irr.
+  specialize (H3 (genv_genv (globalenv prog))).
+  spec H3. intros; apply sub_option_refl.
+  spec H3. intros; apply sub_option_refl.
+  destruct H4 as [post [? ?]].
+  replace n with (level jm).
+2:{ change (level (m_phi jm) = n); unfold jm, initial_jm_ext.
+    rewrite initial_mem_level; [ | reflexivity].
+    unfold initial_core_ext. apply level_make_rmap.
+   }
+replace (Kseq (Sloop Sskip Sskip) Kstop) with Kstop by admit.
+replace {|
+          genv_genv := genv_genv (globalenv prog);
+          genv_cenv := @cenv_cs CS |} with (globalenv prog) in H3
+  by (unfold globalenv; simpl; f_equal; auto).
+specialize (H3 (S n)).
+hnf in H3.
+clear H5.
+assert (H5 := H3).
+specialize (H5 (Vptr b Ptrofs.zero)).
+specialize (H5 (funsig_of_funspec fspec) (callingconvention_of_funspec fspec)).
+specialize (H5  (ConstType (ident->val))).
+specialize (H5 (main_pre_ext prog z) post).
+specialize (H5 _ (necR_refl _)).
+spec H5.
+exists (prog_main prog).
+exists (const_super_non_expansive _ _).
+exists (const_super_non_expansive _ _).
+split.
+{
+unfold glob_specs, nofunc_tycontext, make_tycontext; cbv iota zeta.
+rewrite make_tycontext_s_find_id, Hfind, H8.
+reflexivity.
 }
-  forget (initial_jm_ext z prog m G n H1 H0 H2) as jm.
-  clear - H9.
-  assert (params_of_fundef f = nil) by admit.
-  rewrite H in H9.
-  inv H9; [ constructor | | inv H1 | inv H0 ].
-  destruct H1.
-  inv H1.
+exists b; split; auto.
+destruct H5;
+  [admit | ].  (* external case *)
+(* internal case *)
+hnf in H5.
+destruct H5 as [b' [f' [[? [? ?]] ?]]].
+symmetry in H5; inv H5.
+fold fundef in *.
+inversion2 H7 H9. rename f' into f.
+specialize (H11 (Delta1 V G) CS _ (necR_refl _)).
+spec H11. { intro; apply tycontext_sub_refl. }
+specialize (H11 _ (necR_refl _) cenv_sub_refl nil).
+SearchHead (ident->val).
+pose (gvars1 := fun i => match filter_genv (globalenv prog) i with Some  b => Vptr b Ptrofs.zero | None => Vundef end).
+specialize (H11 gvars1 n).
+  spec H11. apply later_nat; clear; omega.
+  rewrite semax_fold_unfold in H11.
+  specialize (H11 (globalenv prog) (func_tycontext f V G nil) CS _ (necR_refl _)).
+  spec H11. {
+   split3.
+   - split3; [ | | split3; [ | | split]]; auto;
+       unfold func_tycontext, func_tycontext', Delta1; simpl.
+       intros; destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id); auto.
+       intros; apply sub_option_refl.
+       intros. apply subsumespec_refl.
+       intros; apply Annotation_sub_refl.
+    - apply cenv_sub_refl.
+    - rewrite HGG. apply cenv_sub_refl.
+  }       
+  specialize (H11 _ (necR_refl _)).
+  spec H11. clear - H3.
+  intro b; specialize (H3 b). 
+  eapply pred_nec_hereditary; try apply H3.
+  apply nec_nat. omega.
+  clear H3.
+  specialize (H11 Kstop (fun _ => TT) f _ (necR_refl _)).
+  simpl in E.
+  assert (Hret: fn_return f = tint) by (destruct f; inv E; auto).
+  spec H11. { clear H11.
+   split. hnf; intros; reflexivity.
+   intros ek vl te ve.
+   intros ? ? ? ? [[? ?] ?].
+   destruct ek; 
+   try solve [destruct H9 as [? [? [_ [[? [? [_ [? _]]]] _]]]]; contradiction].
+   simpl exit_cont.
+   unfold proj_ret_assert, frame_ret_assert,
+   function_body_ret_assert, RA_return in H9.
+   rewrite Hret in *.
+   destruct vl; simpl bind_ret in H9.
+   2: rewrite !FF_sepcon in H9; contradiction H9.
+   autorewrite with norm in H9.
+    rewrite !sepcon_andp_prop1 in H9. 
+   destruct H9 as [H9 H13].
+   simpl in H9.
+   destruct v; try contradiction. clear H9.
+   intros ? ?. exists (ghost_of a'); split; auto.
+   exists a'; split; auto. split; auto. split; auto.
+   simpl.
+   hnf; intros.
+   subst a'.
+   destruct (can_free_list (func_tycontext f V G nil) TT f jm0
+                       (globalenv prog) ve te)
+     as [m2 ?].
+  - destruct H10 as [_ [_ [? _]]]; auto.
+  - destruct H10; auto.
+  - rewrite HGG; apply cenv_sub_refl.
+  - apply H8.
+  - clear - H13. rewrite <- (sepcon_comm TT) in H13.
+     rewrite <- sepcon_assoc in H13.
+     eapply sepcon_derives; try apply H13; auto.
+  - 
+     clear H14.
+     set (rho := construct_rho (filter_genv (globalenv prog))
+            ve te) in *.
+     destruct H10 as [COMPLETE [_ [H17' _]]].
+  assert (cenv_sub (@cenv_cs CS) (globalenv prog))
+    by (rewrite HGG; apply cenv_sub_refl).
+ assert (SFFB := stackframe_of_freeable_blocks (func_tycontext f V G nil) f rho (globalenv prog) ve
+     H10 COMPLETE H17'  (eq_refl _) H8).
+     rewrite sepcon_comm in H13. rewrite <- sepcon_assoc in H13.
+     rewrite sepcon_comm in H13.
+     exploit sepcon_derives; [ | | apply H13 |].
+     apply SFFB.  apply derives_refl.  clear H13; intro.     
+    destruct (free_list_juicy_mem_i _ _ _ _ H15 H13) as [jm2 [? [? ?]]].
+    subst m2.
+     change (level (m_phi jm0)) with (level jm0).
+    destruct (age1 jm0) as [jm0' ? | ] eqn:?.
+   2: apply age1_level0 in Heqo; rewrite Heqo; constructor.
+    rewrite (age_level _ _ Heqo).
+    destruct (age_twin' _ _ _ H19 Heqo) 
+       as [jm2' [? ?]].
+    econstructor. instantiate (1 := jm2').
+   split. econstructor; eauto.
+   rewrite <- (age_jm_dry H20). auto.
+   admit.
+   apply jm_bupd_intro.
+   simpl. 
+   apply jsafeN_halted with i0.
+   admit.
+   admit.
+}
+ replace n with (level jm) in *
+   by (clear; subst jm; simpl; rewrite inflate_initial_mem_level;
+         apply level_make_rmap).
+ remember (alloc_juicy_variables (globalenv prog) empty_env jm (fn_vars f)) eqn:AJV.
+ destruct p as [ve' jm']; symmetry in AJV.
+ destruct (alloc_juicy_variables_e _ _ _ _ _ _ AJV) as [H15 [H20' CORE]].
+ assert (MATCH := alloc_juicy_variables_match_venv _ _ _ _ _ AJV).
+ assert (H20 := alloc_juicy_variables_resource_decay _ _ _ _ _ _ AJV).
+ destruct (build_call_temp_env f nil)
+  as [te' H21]; auto. 
+  { clear - E; destruct f; inv E; simpl. destruct fn_params as [|[??]]; inv H0; auto. }
+destruct (level jm) eqn:?H. constructor.
+destruct (levelS_age1 _ _ H3) as [jm2 H13].
+rewrite <- H3 in H20'.
+pose proof (age_twin' _ _ _ H20' H13) as [jm'' [_ H20x]].
+apply jsafeN_step
+  with (c' := Clight_core.State f (f.(fn_body)) Kstop ve' te')
+       (m' := jm''); auto.
+constructor.
+constructor.
+constructor.
+clear - H10. decompose [and] H10; auto.
+clear - H10. destruct H10 as [_ [? _]].
+apply list_norepet_append_left in H. auto.
+clear - H10. destruct H10 as [_ [? _]].
+apply list_norepet_app in H; destruct H as [? [? ?]]; auto.
+rewrite <- (age_jm_dry H20x).
+auto.
+auto.
+admit.  (* should be fine *)
+hnf in H11.
+assert (n0 = level jm''). apply age_level in H20x; omega.
+subst n0.
+apply assert_safe_jsafe.
+apply H11 with (m_phi jm'').
+simpl. omega.
+apply necR_refl.
+split3; [split | | ].
+split3; simpl; auto.
+-
+unfold func_tycontext, construct_rho.
+eapply semax_call_typecheck_environ; eauto.
+clear - H10. destruct H10 as [_ [? _]]; auto.
+clear - H10. destruct H10 as [_ [_ [? _]]]; auto.
+instantiate (1:=te').
+admit.
+instantiate (1:=ve').
+admit.
+admit.
+admit.
+clear - E. destruct f; inv E.
+destruct fn_params as [|[??]]; inv H0. simpl. auto.
+rewrite Hret.
+admit.
+-
+admit.
+-
+intros id fs. apply derives_imp; intros ? ?.
+simpl in H5|-*.
+clear - H2 H5.
+admit.
+-
+admit.
+Admitted.
 
-2:{ simpl in H1.
-Search jsafeN.
-   inv H9. constructor.
-   inv H1.
-   inv H3.
-   Search jm_bupd.
-   eapply jsafeN_step; try eassumption.
-   constructor.
-    admit.
-(*
-    + simpl.
-      rewrite inflate_initial_mem_level.
-      unfold initial_core.
-      apply level_make_rmap.
-*)
-  - apply initial_jm_ext_without_locks.
-  - apply initial_jm_ext_matchfunspecs. 
-  -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
-  -  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
-Qed.
 
 Lemma semax_prog_rule' {CS: compspecs} :
 forall V G prog m h,
  @semax_prog CS prog V G ->
  Genv.init_mem prog = Some m ->
- { b : block & { q : corestate &
+ { b : block & { q : CC_core &
    (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
    (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
                 jm q jm' (Vptr b Ptrofs.zero) nil) *
@@ -1653,216 +1675,7 @@ forall V G prog m h,
        matchfunspecs (globalenv prog) G (m_phi jm) /\
        (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
  } } }%type.
-Proof.
-intros until m.
-pose proof I; intros.
-destruct H0 as [? [AL [HGG [[? [Gcontains ?]] [GV ?]]]]].
-assert (CSUBmain: cenv_sub  (@cenv_cs CS) (@prog_comp_env function prog)).
-{ rewrite HGG; apply cenv_sub_refl. }
-destruct (find_id (prog_main prog) G) as [fspec|] eqn:Hfind; try contradiction.
-assert (H4': exists post, In (prog_main prog, main_spec' prog post) G /\ fspec = main_spec' prog post). {
-destruct (find_id (prog_main prog) G) eqn:?.
-apply find_id_e in Heqo. destruct H4 as [post ?]. exists post.
-subst. split; auto. inv Hfind. auto. inv Hfind.
-} clear H4. rename H4' into H4.
-assert (H5:{ f | In (prog_main prog, f) (prog_funct prog)}).
-forget (prog_main prog) as id.
-assert (H4': In id (map fst G)). {
-destruct H4 as [? [H4 _]].
-apply in_map_fst in H4. auto.
-}
-pose proof (match_fdecs_in _ _ _ H4' H2).
-apply in_map_sig in H5. 2:decide equality.
-destruct H5 as [[? ?] [? ?]]; subst.
-eauto.
-destruct H5 as [f ?].
-apply compute_list_norepet_e in H0.
-assert (indefs: In (prog_main prog, Gfun f) (AST.prog_defs prog))
-by (apply in_prog_funct_in_prog_defs; auto).
-pose proof (find_funct_ptr_exists prog (prog_main prog) f) as EXx.
-(* Genv.find_funct_ptr_exists is a Prop existential, we use constructive epsilon and
- decidability on a countable set to transform it to a Type existential *)
-apply find_symbol_funct_ptr_ex_sig in EXx; auto.
-
-pose proof I.
-destruct EXx as [b [? ?]]; auto.
-assert (E: type_of_fundef f = Tfunction Tnil tint cc_default). {
- destruct H4 as [post [? ?]].
-  destruct (match_fdecs_exists_Gfun
-              prog G (prog_main prog)
-              (main_spec' prog post))
-    as (fd, (Ifd, sametypes)); auto.
-  {
-    apply find_id_i; auto.
-    eapply match_fdecs_norepet; eauto.
-    clear -H0; revert H0.
-    apply sublist_norepet.
-    unfold prog_funct, prog_funct', prog_defs_names.
-    replace (AST.prog_defs prog) with (prog_defs prog) by reflexivity.
-    generalize (prog_defs prog); intros l; induction l as [|(i,[g|]) l];
-      constructor; auto.
-  }
-  assert (fd = f).
-  cut (Gfun fd = @Gfun _ type f); [ intros E; injection E; auto | ].
-  apply (list_norepet_In_In (prog_main prog) _ _ (prog_defs prog)); auto.
-  subst fd.
-  auto.
-}
-exists b.
-unfold semantics.initial_core, juicy_core_sem.
-unfold j_initial_core, semantics.initial_core, cl_core_sem, cl_initial_core.
-eexists.
-unfold fundef in *.
-change (Genv.globalenv prog) with (genv_genv (globalenv prog)) in *.
-rewrite H6, H7.
-rewrite if_true by auto.
-repeat split; eauto.
-{
-intros. eexists; split. reflexivity.
-rewrite E.  
-    split3; eauto. split3; eauto. constructor.
-    constructor. split; auto.
-    split. 
-    rewrite H8. apply Genv.initmem_inject in H1.
-    clear - H1. unfold inject_neutral. inv H1; auto.
-    rewrite H8. clear - H1.
-    apply Genv.init_mem_genv_next in H1.
-    unfold globalenv. simpl. rewrite H1. apply Coqlib.Ple_refl.
-}
-intros n z.
-exists (initial_jm_ext z _ _ _ n H1 H0 H2).
-repeat split.
-- simpl.
-rewrite inflate_initial_mem_level.
-unfold initial_core_ext. rewrite level_make_rmap; auto.
-
-- unfold initial_jm_ext; simpl.
-unfold inflate_initial_mem; rewrite ghost_of_make_rmap.
-unfold initial_core_ext; rewrite ghost_of_make_rmap.
-reflexivity.
-
-- specialize (H3 (globalenv prog)).
-spec H3; [ intros; apply sub_option_refl |].
-spec H3; [ intros; apply sub_option_refl |]. 
-destruct H4 as [post [? ?]].
-unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
-pattern n at 1; replace n with (level (m_phi (initial_jm_ext z prog m G n H1 H0 H2))).
-pose (rho1 := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type))
-                       (Map.set 1 (Vptr b Ptrofs.zero) (Map.empty val))).
-pose (post' := fun rho => TT * EX rv:val, post nil (globals_of_env rho1) (env_set (globals_only rho) ret_temp rv)).
-eapply (semax_call_aux (Delta1 V G) (ConstType (ident->val))
-          _ post _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
-          nil (globals_of_env rho1) (fun _ => TT) (fun _ => TT)
-          None (nil, tint) cc_default _ _ (normal_ret_assert post') _ _ _ _
-          (construct_rho (filter_genv (globalenv prog)) empty_env
-             (PTree.set 1 (Vptr b Ptrofs.zero) (PTree.empty val)))
-          _ _ b (prog_main prog));
-  try apply H3; try eassumption; auto.
-+ simpl.
-    unfold inflate_initial_mem; rewrite ghost_of_make_rmap.
-    unfold initial_core_ext; rewrite ghost_of_make_rmap.
-    exists (Some (ext_both z, NoneP) :: nil); repeat constructor.
-+ simpl.
-  exists (Vptr b Ptrofs.zero).
-  split; auto.
-+ simpl snd.
-  replace (params_of_fundef f) with (@nil type). simpl; auto. clear -E.
-  destruct f as [[? ? [ | [] ]] | e [|] ? c] ; compute in *; congruence.
-+ clear - GV H2 H0.
-  split.
-  eapply semax_prog_typecheck_aux; eauto.
-  simpl.
-  auto.
-+ hnf; intros; intuition.
-+ (*hnf; intros; intuition.
-  unfold normal_ret_assert; simpl.
-  extensionality rho'.
-  normalize.
-  unfold post'.
-  apply pred_ext.
-       normalize. intro rv. do 2 apply exp_right with rv; auto.
-       normalize. intro rv. apply exp_right with rv; auto. *)
-  intros rho' u U y UY k YK K.
-  unfold normal_ret_assert; simpl.
-  destruct K as [v [a1 [a2 [J [A1 [w A2]]]]]]. exists a1, a2; intuition. exists w; trivial.
-+ rewrite (corable_funassert _ _).
-  simpl m_phi.
-  rewrite core_inflate_initial_mem'; auto.
-  do 3 (pose proof I).
-  replace (funassert (Delta1 V G)) with
-  (funassert (@nofunc_tycontext V G)).
-  unfold rho1; apply funassert_initial_core; auto.
-  apply same_glob_funassert.
-  reflexivity.
-+ apply now_later.
-  intros ek vl tx' vx'.
-  cbv zeta. rewrite proj_frame_ret_assert. simpl seplog.sepcon.
-  subst post'. cbv beta.
-  destruct ek; simpl proj_ret_assert; normalize.
-  apply derives_subp.
-  normalize. intro rv.
-  simpl.
-  eapply derives_trans, own.bupd_intro.
-  intros ? ? ? ? Hora _ ?.
-  destruct H9 as [[? [H10' [H11 ?]]] ?].
-  hnf in H10', H11.
-  destruct H9.
-  subst a.
-  change Clight_core.true_expr with true_expr.
-  change (level (m_phi jm)) with (level jm).
-  apply safe_loop_skip.
-+ unfold glob_types, Delta1. simpl @snd.
-  forget (prog_main prog) as main.
-  instantiate (1:= post).
-  instantiate (1:= main_pre prog).
-  assert (H8': list_norepet (map (@fst _ _) (prog_funct prog))). {
-  clear - H0.
-  unfold prog_defs_names in H0. unfold prog_funct.
-  change (AST.prog_defs prog) with (prog_defs prog) in H0.
-  induction (prog_defs prog); auto. inv H0.
-  destruct a; destruct g; simpl; auto. constructor; auto.
-  clear - H2; simpl in H2; contradict H2; induction l; simpl in *; auto.
-  destruct a; destruct g; simpl in *; auto. destruct H2; auto.
-  }
-  forget (prog_funct prog) as fs.
-  clear - H4 H8' H2. rename H8' into H8.
-  fold (main_spec prog).
-  forget (main_spec prog) as fd.
-  revert G H2 H4 H8; induction fs; intros; inv H2.
-  contradiction H4.
-  simpl in *.
-  destruct (ident_eq i main). subst. rewrite PTree.gss.
-  destruct H4. inv H; auto.
-  inv H8.
-  contradiction H3.
-  eapply match_fdecs_in; eauto.
-  apply in_map_fst in H; auto.
-  rewrite PTree.gso by auto.
-  destruct H4; try congruence.
-  inv H8.
-  eapply IHfs; eauto.
-+ intros.
-  intros ? ?.
-  split; apply derives_imp; auto.
-+ unfold main_pre.
-  apply now_later.
-  rewrite TT_sepcon_TT.
-  rewrite sepcon_comm.
-  eexists; eexists; split; [apply initial_jm_ext_eq|].
-  split; auto.
- match goal with |- app_pred (globvars2pred (globals_of_env ?A) _ ?B) _ => 
-   change (globals_of_env A) with (globals_of_env B)
-  end.
-  apply global_initializers; auto.
-+ simpl.
-  rewrite inflate_initial_mem_level.
-  unfold initial_core.
-  apply level_make_rmap.
-- apply initial_jm_ext_without_locks.
-- apply initial_jm_ext_matchfunspecs. 
--  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
--  destruct (initial_jm_ext_funassert z V prog m G n H1 H0 H2). auto.
-Qed.
+Admitted.
 
 (* This version works if we don't need to know anything about the external state. *)
 Lemma semax_prog_rule {CS: compspecs} :
@@ -1870,7 +1683,7 @@ OK_ty = unit ->
 forall V G prog m h,
  @semax_prog CS prog V G ->
  Genv.init_mem prog = Some m ->
- { b : block & { q : corestate &
+ { b : block & { q : CC_core &
    (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
    (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
                 jm q jm' (Vptr b Ptrofs.zero) nil) *
@@ -1987,7 +1800,7 @@ let rho1 : environ :=
     ((* PTree.set 1 (Vptr b Ptrofs.zero) *)
       (PTree.set id_arg arg (PTree.empty val))) in
 
-{ q : corestate |
+{ q : CC_core |
 (forall jm, Val.inject (Mem.flat_inj (nextblock (m_dry jm))) arg arg ->
      inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\
      Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->

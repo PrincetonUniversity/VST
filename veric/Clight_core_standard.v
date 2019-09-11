@@ -61,7 +61,11 @@ Lemma CC_core_to_CC_state_inj: forall c m c' m',
        apply  CC_core_CC_state_3 in H. rewrite  CC_core_CC_state_1 in H.  inv H. trivial.
   Qed.
 
-Definition cl_halted (c: CC_core) : option val := None.
+Definition cl_halted (c: CC_core) : option val := 
+  match c with
+  | Returnstate v Kstop => Some v
+  | _ => None
+  end.
 
 Definition empty_function : function := mkfunction Tvoid cc_default nil nil nil Sskip.
 
@@ -94,9 +98,8 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
     Vptr b i =>
     if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
-        Some (Internal f) =>
-        Some (Callstate (Internal f) args 
-                     (Kseq (Sloop Sskip Sskip) Kstop))
+        Some f =>
+        Some (Callstate f args Kstop)
       | _ => None end
     else None
   | _ => None
@@ -255,7 +258,7 @@ Lemma cl_corestep_not_halted :
   forall ge m q m' q', cl_step ge q m q' m' -> cl_halted q = None.
 Proof.
   intros.
-  simpl; auto.
+  inv H; simpl; auto.
 Qed.
 
 Lemma cl_after_at_external_excl :
