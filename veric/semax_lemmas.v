@@ -321,7 +321,10 @@ Proof.
   { eapply juicy_core_sem_preserves_corestep_fun with (csem := cl_core_sem ge); eauto. }
   inv H0; auto.
   setoid_rewrite (semantics.corestep_not_at_external (juicy_core_sem _)) in H2; eauto; congruence.
-  contradiction.
+  destruct H.
+  elimtype False.
+  eapply cl_corestep_not_halted. apply Int.zero.
+  simpl in H. apply H. apply H1. 
 Qed.
 
 Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
@@ -856,20 +859,6 @@ simpl in *; congruence.
 contradiction.
 Qed.
 *)
-
-Lemma safe_step_forward {Espec: OracleKind}:
-  forall psi n ora st m,
-   cl_at_external st = None ->
-   jsafeN (@OK_spec Espec) psi (S n) ora st m ->
- exists st', exists m',
-   jstep (cl_core_sem psi) st m st' m' /\ jm_bupd ora (jsafeN (@OK_spec Espec) psi n ora  st') m'.
-Proof.
- intros.
- inv H0.
- eexists; eexists; split; eauto.
- simpl in H2; rewrite H2 in H; congruence.
- contradiction.
-Qed.
 
 Local Open Scope nat_scope.
 

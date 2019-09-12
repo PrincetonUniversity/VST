@@ -255,9 +255,10 @@ Proof.
 Qed.
 
 Lemma cl_corestep_not_halted :
-  forall ge m q m' q', cl_step ge q m q' m' -> cl_halted q = None.
+  forall ge m q m' q' (i: int), cl_step ge q m q' m' -> ~ cl_halted q <> None.
 Proof.
   intros.
+  intro. apply H0.
   inv H; simpl; auto.
 Qed.
 
@@ -276,9 +277,9 @@ Program Definition cl_core_sem (ge: genv) :
     (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m /\ m' = m *))
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
-    (fun c _ =>  False (*cl_halted c <> None*))
+    (fun c _ =>  cl_halted c <> None)
     (cl_step ge)
-    _
+    (cl_corestep_not_halted ge)
     (cl_corestep_not_at_external ge).
 
 (*Clight_core is also a memsem!*)
