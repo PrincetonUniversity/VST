@@ -95,7 +95,8 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   with
     | left _ => fun x' => Val.has_type_list args (sig_args (ef_sig ef)) /\
                       exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ P (projT1 (snd x')) (projT2 (snd x')) (make_ext_args (filter_genv (symb2genv ge_s)) ids args) phi0
+                       /\ P (projT1 (snd x')) (projT2 (snd x')) 
+     (seplog.make_args ids args (empty_environ (symb2genv ge_s)) ) phi0
                        /\ necR (fst x') phi1 /\ joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
@@ -131,18 +132,18 @@ Definition wf_funspec (f : funspec) :=
     | mk_funspec sig cc A P Q _ _ =>
         forall ts a (ge ge': genv) n args,
           Genv.genv_symb ge = Genv.genv_symb ge' ->
-          P ts a (make_ext_args (filter_genv ge) n args) |-- P ts a (make_ext_args (filter_genv ge') n args)
+          P ts a (seplog.make_args n args (empty_environ ge)) 
+         |-- P ts a (seplog.make_args n args (empty_environ ge'))
   end.
 
 Lemma make_ext_args_symb (ge ge' : genv)
       (H: Genv.genv_symb ge = Genv.genv_symb ge') n args :
-  make_ext_args (filter_genv ge) n args = make_ext_args (filter_genv ge') n args.
+  (seplog.make_args n args (empty_environ ge)) = (seplog.make_args n args (empty_environ ge')).
 Proof.
-revert ge ge' n H; induction args.
-* simpl; unfold filter_genv, Genv.find_symbol. intros ? ? ? ->; auto.
-* intros ge ge' n H. simpl. destruct n; auto.
-  erewrite IHargs; eauto.
-  erewrite IHargs; eauto.
+intros.
+f_equal.
+unfold empty_environ, filter_genv, Genv.find_symbol.
+rewrite H; auto.
 Qed.
 
 Lemma all_funspecs_wf f : wf_funspec f.
@@ -218,7 +219,7 @@ Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
   In (ext_link id, (mk_funspec sig cc A P Q NEP NEQ)) fs ->
   join phi0 phi1 (m_phi m) ->
   Val.has_type_list args (sig_args (ef_sig ef)) ->
-  P (projT1 x) (projT2 x) (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split (fst sig))) args) phi0 ->
+  P (projT1 x) (projT2 x) (seplog.make_args (fst (split (fst sig))) args (empty_environ (symb2genv ge_s))) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
     /\ forall z, joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
@@ -262,7 +263,7 @@ Lemma add_funspecs_pre_void  (ext_link: Strings.String.string -> ident)
   In (ext_link id, (mk_funspec (sig, tvoid) cc A P Q NEP NEQ)) fs ->
   join phi0 phi1 (m_phi m) ->
   Val.has_type_list args (sig_args (ef_sig ef)) ->
-  P (projT1 x) (projT2 x) (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split sig)) args) phi0 ->
+  P (projT1 x) (projT2 x) (seplog.make_args (fst (split sig)) args (empty_environ (symb2genv ge_s)) ) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
     /\ forall z, joins (ghost_of (m_phi m)) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
@@ -408,8 +409,9 @@ intros n ge Ts x n0 Hlater F ts args jm H jm' H2 [Hargsty H3].
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 destruct Espec.
 
-assert (Hp'': P Ts x (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge)))
-                                 (fst (split (fst sig))) args) s).
+assert (Hp'': P Ts x (seplog.make_args (fst (split (fst sig))) args
+                                (empty_environ (symb2genv (genv_symb_injective ge))))
+                    s).
 { generalize (all_funspecs_wf f) as Hwf2; intro.
   specialize (Hwf2 Ts x ge (symb2genv (genv_symb_injective ge)) (fst (split (fst sig))) args).
   spec Hwf2.
@@ -467,8 +469,7 @@ unfold semax_external.
 intros n ge Ts x n0 Hlater F ts args jm H jm' H2 [Hargsty H3].
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 destruct Espec.
-assert (Hp'': P Ts x (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge)))
-                                 (fst (split sig)) args) s).
+assert (Hp'': P Ts x (seplog.make_args (fst (split sig)) args (empty_environ (symb2genv (genv_symb_injective ge)))) s).
 { generalize (all_funspecs_wf f) as Hwf2; intro.
   specialize (Hwf2 Ts x ge (symb2genv (genv_symb_injective ge)) (fst (split sig)) args).
   spec Hwf2.

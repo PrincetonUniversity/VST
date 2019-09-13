@@ -593,9 +593,7 @@ Lemma semax_call_typecheck_environ:
         func_at b0 (b1,0) a')
    (TC8 : tc_vals (snd (split (fn_params f))) args)
    (H21 : bind_parameter_temps (fn_params f) args
-              (create_undef_temps (fn_temps f)) = Some te')
-   (TE : typecheck_environ
-        Delta (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx))),
+              (create_undef_temps (fn_temps f)) = Some te'),
    typecheck_environ
     (mk_tycontext
       (make_tycontext_t (fn_params f) (fn_temps f))
@@ -603,7 +601,7 @@ Lemma semax_call_typecheck_environ:
       (fn_return f)  (glob_types Delta) (glob_specs Delta) (annotations Delta))
      (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 Proof. assert (H1:= True).
- intros. 
+ intros.
  pose (rho3 := mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 
 unfold typecheck_environ. repeat rewrite andb_true_iff.
@@ -613,7 +611,7 @@ clear H H1 H15.
 unfold typecheck_temp_environ in *. intros. simpl.
 unfold temp_types in *. simpl in *.
 apply func_tycontext_t_sound in H; auto.
- clear - H21 H TC8 TC3 H17 TE.
+ clear - H21 H TC8 TC3 H17.
 
 destruct H. (*in params*)
 forget (create_undef_temps (fn_temps f)) as temps.
@@ -1373,7 +1371,7 @@ spec H15; [ clear; omega | ].
 specialize (H15 _ (necR_refl _)).
 spec H15. { clear H15.
 assert (app_pred ((P ts x
-      (make_ext_args (filter_genv psi) (map fst params) args) *
+      (make_args (map fst params) args (tycontext.empty_environ psi)) *
     (F0 (construct_rho (filter_genv psi) vx tx) *
      F (construct_rho (filter_genv psi) vx tx)))) (m_phi jm)). {
 rewrite sepcon_comm.
@@ -2811,7 +2809,6 @@ spec H19; [clear H19|]. {
   unfold rho3 in *. simpl in *. destruct H23.
   destruct rho. inv H0. simpl in *.
   remember (split (fn_params f)). destruct p.
-  assert (TE := proj1 TC3). 
   simpl in *. if_tac in H16; try congruence.
   destruct TC3 as [TC3 TC3'].
   destruct TC3 as [TC3 [TC4 TC5]].

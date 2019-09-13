@@ -215,13 +215,6 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
-Fixpoint make_ext_args (gx: genviron) (ids: list ident) (vl: list val)  :=
-  match ids, vl with
-  | id::ids', v::vl' => env_set (make_ext_args gx ids' vl') id v
-  | _, v::vl' => env_set (make_ext_args gx ids vl') 1%positive v
-  | _, _ => mkEnviron gx (Map.empty _) (Map.empty _)
- end.
-
 Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
@@ -239,7 +232,7 @@ Definition semax_external
    |>  ALL F: pred rmap, ALL ts: list typ,
    ALL args: list val,
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
-   juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=>
+   juicy_mem_op (P Ts x (make_args ids args (tycontext.empty_environ gx)) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     (ALL z:_, juicy_mem_op (ext_compat z) -->
      ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
