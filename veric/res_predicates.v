@@ -1763,8 +1763,8 @@ Proof.
  rewrite Hall1 in Hall2; inversion Hall2.
  replace (z + Z.of_nat i - z) with (Z.of_nat i) in H2 by omega.
  rewrite Nat2Z.id in H2.
- rewrite nth_error_nth with (z:=Undef) by omega.
- rewrite nth_error_nth with (z:=Undef) by omega.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
  f_equal; auto.
  assert (~(i<n)%nat).
  contradict H. split; auto. omega.
@@ -1803,8 +1803,8 @@ Proof.
  clear - H2 H10 H1.
  replace (z + Z.of_nat i - z) with (Z.of_nat i) in H10 by omega.
  rewrite Nat2Z.id in H10.
- rewrite nth_error_nth with (z:=Undef) by omega.
- rewrite nth_error_nth with (z:=Undef) by omega.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
+ rewrite coqlib4.nth_error_nth with (z:=Undef) by omega.
  f_equal; auto.
  assert (~(i<n)%nat).
  contradict H2. split; auto. omega.
