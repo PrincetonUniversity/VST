@@ -49,8 +49,7 @@ Axiom semax_prog_ext_sound :
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
   OK_ty = unit -> 
- (forall (v : val) (ora : OK_ty) (jm : juicy_mem),
-  ext_spec_exit OK_spec (Some v) ora jm) ->
+  postcondition_allows_exit Espec tint ->
   forall ora V G prog m h,
      @semax_prog_ext Espec CS prog ora V G ->
      Genv.init_mem prog = Some m ->
@@ -72,8 +71,7 @@ Axiom semax_prog_rule :
 Axiom semax_prog_rule_ext :
   forall {Espec: OracleKind}{CS: compspecs},
   forall V G prog m h z,
-    (forall v ora jm,
-     ext_spec_exit (JE_spec OK_ty OK_spec) (Some v) ora jm) ->
+     postcondition_allows_exit Espec tint ->
      @semax_prog_ext Espec CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : CC_core &
@@ -115,6 +113,7 @@ Definition semax_func := @semax_func.
 
 Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
+
 (*
 Definition semax_cssub := @semax_cssub.
   *)
@@ -265,7 +264,15 @@ Lemma semax_prog_ext_sound :
 Proof.
   intros; apply H.
 Qed.
-
+(*
+Lemma postcondition_allows_exit_sound :
+  forall {Espec} t,
+  @CSHL_Defs.postcondition_allows_exit Espec t ->
+  @semax_prog.postcondition_allows_exit Espec t.
+Proof.
+  intros; apply H.
+Qed.
+*)
 Definition semax_prog_rule := @semax_prog_rule.
 Definition semax_prog_rule_ext := @semax_prog_rule_ext.
 

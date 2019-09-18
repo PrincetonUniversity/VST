@@ -1197,7 +1197,8 @@ Definition semax_prog_ext
   @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
-  | Some s => exists post, s = main_spec_ext' prog z post
+  | Some s => exists post,
+             s = main_spec_ext' prog z post
   | None => False
   end.
 

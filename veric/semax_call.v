@@ -2737,11 +2737,12 @@ clear a bl TC0.
 clear Q HR H11; rename HR' into HR; rename Q' into Q; assert (H11 := I).
 rename NEQ' into NEQ.
 
+(*** cut here *****)
 
-(*************************************************)
 assert (Prog_OK' := Prog_OK).
-specialize (Prog_OK' (Vptr b Ptrofs.zero) (params,retty) cc A P Q _ (necR_refl _)). 
-(*************************************************)
+specialize (Prog_OK' (Vptr b Ptrofs.zero)
+    (params,retty) cc A P Q _ (necR_refl _)). 
+
 spec Prog_OK'.
 { hnf. exists id, NEP, NEQ; split; auto.
   exists b; split; auto.
@@ -2771,11 +2772,11 @@ rewrite H16 in H3b. injection H3b; clear H3b; intros; subst ff.
 destruct H3 as [COMPLETE [H17 [H17' [Hvars [H18 H18']]]]].
 pose proof I.
 
-assert (HDelta: forall f : function, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta))
-   by (intro; apply tycontext_sub_refl).
-specialize (H19 Delta CS (level (m_phi jm)) (necR_refl _) HDelta _ (necR_refl _) (cenv_sub_refl) ts x).
+specialize (H19 Delta CS _ (necR_refl _)).
+spec H19. { intro; apply tycontext_sub_refl. }
+specialize (H19 _ (necR_refl _) (cenv_sub_refl) ts x).
 red in H19.
-clear HDelta.
+
 change (level (m_phi jm)) with (level jm) in *.
 clear H2. destruct (level jm) eqn:H2; [constructor |].
 destruct (levelS_age1 _ _ H2) as [jm2 H13]. change (age jm jm2) in H13.

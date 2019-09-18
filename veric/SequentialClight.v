@@ -387,8 +387,7 @@ Qed.
 
 Lemma whole_program_sequential_safety_ext:
    forall {CS: compspecs} {Espec: OracleKind} (initial_oracle: OK_ty) 
-   (EXIT: forall (v : val) (ora : OK_ty) (jm : juicy_mem),
-       ext_spec_exit OK_spec (Some v) ora jm)
+     (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (dryspec: ext_spec OK_ty)
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
@@ -555,8 +554,6 @@ Require Import VST.veric.juicy_safety.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.
-
-Print genv.
 
 Lemma module_sequential_safety : (*TODO*)
    forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
