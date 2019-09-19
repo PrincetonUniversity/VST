@@ -1769,12 +1769,38 @@ specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
   assert (Hret: fn_return f = retty) by (destruct f; inv Ef; auto).
   spec H11. { clear H11.
    split. hnf; intros; reflexivity.
-   intros ek vl te ve y H3 a' H5 [[H8 H9] H11].
-   destruct ek; 
-   try solve [destruct H9 as [? [? [_ [[? [? [_ [? _]]]] _]]]]; contradiction].
+red. red. red. intros ek vl te ve.
+set (rhox := construct_rho (filter_genv psi) ve te).
+cbv zeta.
+cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
+ (stackframe_of' cenv_cs f rhox *
+  bind_ret vl (fn_return f) (Q ts a) rhox * 
+  TT) && funassert (func_tycontext' f Delta) rhox >=>
+ assert_safe Espec psi f ve te (exit_cont EK_return vl Kstop) rhox)
+  (level jm)). {
+  clearbody rhox; clear.
+  evar (j: mpred).
+  replace (proj_ret_assert
+   (frame_ret_assert
+      (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts a))
+         (stackframe_of' cenv_cs f)) (fun _ : environ => TT)) ek vl rhox)
+    with j.
+  subst j.
+  apply guard_fallthrough_return; auto.
+  subst j.
+  destruct ek; simpl; normalize.
+  destruct (fn_return f); simpl; normalize;
+  f_equal; pull_left (stackframe_of' cenv_cs f rhox); auto.
+  pull_left (stackframe_of' cenv_cs f rhox); auto.
+}
+  subst rhox.
+   intros y H3 a' H5 [[H8 H9] H11].
+   clear ek.
    simpl exit_cont.
    unfold proj_ret_assert, frame_ret_assert,
    function_body_ret_assert, RA_return in H9.
+     rewrite sepcon_assoc in H9.
+    rewrite sepcon_comm in H9. 
    rewrite Hret in *.
    intros ? ?. exists (ghost_of a'); split; auto.
    exists a'; split; auto. split; auto. split; auto.
@@ -1789,7 +1815,6 @@ specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
   - apply H8.
   -
     subst a'.
-    rewrite sepcon_comm in H9. rewrite <- sepcon_assoc in H9.
      eapply sepcon_derives; try apply H9; auto.
   - 
      clear H4.
@@ -1800,9 +1825,11 @@ specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
  assert (SFFB := stackframe_of_freeable_blocks Delta f rho' (globalenv prog) ve
      HGG COMPLETE H17'  (eq_refl _) H8).
   subst a'.
-  rewrite sepcon_comm, <- sepcon_assoc, sepcon_comm in H9.
   exploit sepcon_derives; [ | | apply H9 |].
-     apply SFFB.  apply derives_refl.  clear H9; intro H13.    
+   2:  apply SFFB.  apply derives_refl.  clear H9.
+  pull_left (freeable_blocks (blocks_of_env (globalenv prog) ve)).
+ intro H13.
+  rewrite sepcon_assoc in H13.
   destruct (free_list_juicy_mem_i _ _ _ _ H12 H13) as [jm2 [? [? ?]]].
   change (level (m_phi jm0)) with (level jm0).
   destruct (age1 jm0) as [jm0' | ] eqn:?.
@@ -1841,8 +1868,9 @@ specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
  specialize (EXIT vl ora0 jm2').
  assert (tc_option_val retty vl). {
   clear - H13.
-  rewrite <- !sepcon_assoc in H13.
-  destruct H13 as [? [? [? [_ ?]]]].
+  rewrite sepcon_comm in H13.
+  rewrite !sepcon_assoc in H13.
+  destruct H13 as [? [? [? [? _]]]].
   subst retty.  destruct vl; simpl in H0; try contradiction.
   destruct H0 as [? _]. destruct v; try contradiction. eauto.
  }

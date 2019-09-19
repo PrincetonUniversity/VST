@@ -803,7 +803,7 @@ Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
  end.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert :=
- {| RA_normal := seplog.FF;
+ {| RA_normal := bind_ret None ret Q;
     RA_break := seplog.FF; 
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.

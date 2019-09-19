@@ -79,10 +79,10 @@ specialize (Hsafe _ (necR_refl _)).
 destruct H4.
 spec Hsafe; [clear Hsafe| ].
 split; auto.
+simpl proj_ret_assert.
+rewrite (prop_true_andp (None=None)) by auto.
 split; auto.
 subst rho'; auto.
-rewrite proj_frame_ret_assert.
-simpl seplog.sepcon.
 rewrite sepcon_comm; subst rho'; auto.
 subst rho'.
 replace (level jm1) with (level jm').

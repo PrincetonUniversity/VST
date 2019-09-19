@@ -224,7 +224,7 @@ Qed.
 
 Ltac process_stackframe_of :=
  match goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
-   let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
+   let sf := fresh "sf" in set (sf:= stackframe_of F);
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
@@ -242,12 +242,12 @@ Ltac process_stackframe_of :=
      rewrite <- (@emp_sepcon (environ->mpred) _ _ _ (fold_right _ _ _));
      subst p
   end;
+*)
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
-*)
  change (fold_right sepcon emp (@nil (environ->mpred))) with
    (@emp (environ->mpred) _ _);
- rewrite ?sepcon_emp, ?emp_sepcon.
+ rewrite ?sepcon_emp, ?emp_sepcon, ?frame_ret_assert_emp.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
@@ -3694,6 +3694,7 @@ Qed.
 Definition must_return (ek: exitkind) : bool :=
   match ek with EK_return => true | _ => false end.
 
+(*
 Lemma eliminate_extra_return:
   forall Espec {cs: compspecs} Delta P c ty Q Post,
   quickflow c must_return = true ->
@@ -3705,6 +3706,13 @@ intros.
 apply semax_seq with FF; [  | apply semax_ff].
 replace (overridePost FF Post) with Post; auto.
 subst; clear.
+unfold function_body_ret_assert.
+simpl.
+destruct ty; auto.
+f_equal; auto.
+unfold_
+simpl.
+destruct 
 reflexivity.
 Qed.
 
@@ -3721,6 +3729,7 @@ replace (overridePost FF Post) with Post; auto.
 subst; clear.
 simpl; f_equal. extensionality rho; normalize.
 Qed.
+*)
 
 Ltac make_func_ptr id :=
   eapply (make_func_ptr id);
@@ -4126,9 +4135,11 @@ Ltac start_function :=
                  end
                | |- _ => intro
                end);
+(*
  first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
+*)
  abbreviate_semax;
  lazymatch goal with 
  | |- semax ?Delta (PROPx _ (LOCALx ?L _)) _ _ => check_parameter_vals Delta L

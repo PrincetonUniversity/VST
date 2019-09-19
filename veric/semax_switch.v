@@ -279,8 +279,16 @@ apply allp_right; intro vx'.
  rewrite !proj_frame_ret_assert.
  simpl.
  apply fash_derives.
- destruct R as [?R ?R ?R ?R]; destruct ek; subst ek' vl'; simpl; auto.
- apply imp_right. normalize.
+ destruct R as [?R ?R ?R ?R]; destruct ek eqn:?H; subst ek' vl'; simpl; auto.
+ apply imp_right; normalize; apply imp_derives; auto.
+ apply imp_derives; normalize.
+ rewrite !andp_assoc.
+ repeat apply andp_derives; auto.
+ repeat intro; hnf; auto.
+ apply imp_derives; normalize.
+ rewrite !andp_assoc.
+ repeat apply andp_derives; auto.
+ repeat intro; hnf; auto.
 Qed.
 
 Lemma unfash_fash_imp:

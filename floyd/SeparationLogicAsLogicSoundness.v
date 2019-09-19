@@ -224,8 +224,7 @@ Require Import VST.veric.Clight_core.
 Theorem semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
   OK_ty = unit -> 
-       (forall (v : val) (ora : OK_ty) (jm : juicy_mem),
-        ext_spec_exit OK_spec (Some v) ora jm) ->
+   postcondition_allows_exit Espec tint ->
   forall ora V G prog m h,
      @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog ora V G ->
      Genv.init_mem prog = Some m ->
@@ -250,8 +249,7 @@ Qed.
 Theorem semax_prog_rule_ext :
   forall {Espec: OracleKind}{CS: compspecs},
   forall V G prog m h z,
-       (forall (v : val) (ora : OK_ty) (jm : juicy_mem),
-        ext_spec_exit OK_spec (Some v) ora jm) ->
+  postcondition_allows_exit Espec tint ->
      @DeepEmbedded.DeepEmbeddedDefs.semax_prog_ext Espec CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : Clight_core.state &

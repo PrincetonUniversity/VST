@@ -1454,6 +1454,7 @@ assert (H1' : forall a' : rmap,
   destruct Ha' as [HX HY].
   split; trivial. clear HY. destruct HX as [HA HB]. split; trivial. clear HA.
   destruct HB as [a1 [a2 [J [A1 A2]]]]. exists a1, a2; split; [trivial | split ;[| trivial]].
+  split. hnf; auto.
   destruct (nec_join4 _ _ _ _ J NEC) as [a1' [a2' [J' [NA1 NA2]]]].
   eapply HR; try eassumption.
   apply join_level in J'; destruct J' as [J' _]; rewrite J'.
@@ -1748,21 +1749,47 @@ spec Hsafe. {
 2:   replace (level (m_phi jm')) with O by omega; constructor.
   spec Hsafe; [auto |].
   destruct k; try contradiction.
+-
+  eapply jsafeN_local_step. constructor.
+  intros.
+  eapply age_safe; eauto.
+  change (level (m_phi jm')) with (level jm') in Hsafe.
+  destruct (level jm'). constructor.
+  inv Hsafe; [ | discriminate | contradiction].
+  destruct H6.
+  inv H5.
+  econstructor.
+  split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
+-
+  eapply jsafeN_local_step. constructor.
+  hnf; auto. eauto.
+  intros.
+  eapply age_safe; eauto.
+  eapply jsafeN_local_step. constructor.
+  intros.
+  eapply age_safe; eauto.
+-
+  eapply jsafeN_local_step. constructor.
+  intros.
+  eapply age_safe; eauto.
+-
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
+-
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
-  eapply jsafeN_local_step. constructor.
-  intros.
-  eapply age_safe; eauto.
-  eapply jsafeN_local_step. constructor.
-  intros.
-  eapply age_safe; eauto.
+  change (level (m_phi jm')) with (level jm') in Hsafe.
+  destruct (level jm'). constructor.
+  inv Hsafe; [ | discriminate | contradiction].
+  destruct H6.
+  inv H5.
+  econstructor.
+  split. eapply step_skip_call; eauto. hnf; auto. auto. auto.
 Qed.
 
 Lemma alloc_juicy_variables_age:
@@ -2188,6 +2215,47 @@ Proof.
 induction k; intros; simpl; auto.
 Qed.
 
+Lemma guard_fallthrough_return:
+ forall (Espec : OracleKind) (psi : genv) (f : function)
+   (ctl : cont) (ek : exitkind) (vl : option val) 
+  (te : temp_env) (ve : env) (rho' : environ)
+  (P1 : Prop) (P2 P3 P5 : mpred)
+  (P4 : (ffunc (fconst environ) fidentity) mpred)
+  (n : nat),
+  call_cont ctl = ctl ->
+  (!! P1 && (P2 * bind_ret vl (fn_return f) P4 rho' * P5) && P3 >=>
+    assert_safe Espec psi f ve te (exit_cont EK_return vl ctl) rho')  n ->
+  (!! P1 && (P2 *proj_ret_assert (function_body_ret_assert (fn_return f) P4) ek
+      vl rho' * P5) && P3 >=>
+   assert_safe Espec psi f ve te (exit_cont ek vl ctl) rho') n.
+Proof.
+intros.
+destruct ek; try solve [intros; simpl proj_ret_assert; normalize];
+ unfold function_body_ret_assert, proj_ret_assert,
+               RA_normal, RA_return.
+destruct (type_eq (fn_return f) Tvoid).
+2:{
+intros ? ? ? ? [[_ [? [? [? [[? [? [? [_ [? ?]]]]] _]]]]] _].
+destruct (fn_return f); contradiction.
+}
+destruct vl. normalize.
+intros ? ? ? ? [[_ [? _]] _]; discriminate.
+eapply subp_trans'; [ | eapply subp_trans'; [apply H0 | ]]; clear H0.
+rewrite e.
+apply derives_subp.
+normalize.
+apply andp_derives; auto. apply andp_derives; auto.
+apply andp_left2; auto.
+simpl exit_cont.
+apply derives_subp.
+apply own.bupd_mono.
+intros ?. simpl.
+destruct ctl; auto;
+elimtype False; clear - H; simpl in H; set (k:=ctl) in *;
+unfold k at 1 in H; clearbody k;
+induction ctl; try discriminate; eauto.
+Qed.
+
 Lemma semax_call_aux2: 
  forall (CS : compspecs) (Espec : OracleKind) (Delta : tycontext)
   (A : TypeTree) 
@@ -2254,9 +2322,16 @@ do 2 pose proof I.
  unfold seplog.sepcon, seplog.LiftSepLog .
  remember ((construct_rho (filter_genv psi) ve te)) as rho'.
  simpl seplog.sepcon.
- rewrite <- (sepcon_comm (stackframe_of' cenv_cs f rho')).
- unfold function_body_ret_assert.
- destruct ek; simpl proj_ret_assert; try solve [normalize].
+ rewrite <- (sepcon_comm (stackframe_of' cenv_cs f rho')). 
+cut ((!! guard_environ (func_tycontext' f Delta) f rho' &&
+ (stackframe_of' cenv_cs f rho' *
+  bind_ret vl 
+(fn_return f) (Q ts x) rho' * 
+  (F0 rho * F rho)) && funassert (func_tycontext' f Delta) rho' >=>
+ assert_safe Espec psi f ve te (exit_cont EK_return vl ctl) rho')
+  (level jmx)). 
+apply guard_fallthrough_return; auto.
+
  rewrite andp_assoc.
  apply prop_andp_subp; intro. simpl in H5.
  repeat rewrite andp_assoc.
@@ -2286,7 +2361,7 @@ do 2 pose proof I.
     destruct H10 as [H10 _].
     eapply can_free_list; try eassumption.
     }
-
+ unfold ctl. fold ctl.
  clear Hora ora NEP P.
  fold ctl.
  destruct FL as [m2 FL2].
@@ -2336,6 +2411,7 @@ do 2 pose proof I.
      assert (JMX_u1: (level (m_phi jmx) >= level u1)%nat).
      { rewrite LevU1; clear -H8 LATER2' H2 H13. apply necR_level in H8. apply age_level in H13.
         rewrite <- !level_juice_level_phi in *. omega. }
+     split. reflexivity.
      apply (HR (construct_rho (filter_genv psi) vx (set_opttemp ret rval tx)) _ JMX _ JMX_u1 _ (necR_refl _) U1). 
    }
    clear H1.
@@ -3440,7 +3516,7 @@ Lemma semax_call_early {CS Espec}:
 Proof.
 rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
-rename H into Cloased; rename H0 into RGUARD. Locate guard.
+rename H into Cloased; rename H0 into RGUARD.
 intros tx vx.
 intros ? ? ? NecR_ya' [[TC3 ?] funassertDelta'].
 

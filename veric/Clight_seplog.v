@@ -181,9 +181,9 @@ Record ret_assert : Type := {
 *)
 Definition proj_ret_assert (Q: ret_assert) (ek: exitkind) (vl: option val) : assert :=
  match ek with
- | EK_normal => RA_normal Q
- | EK_break => RA_break Q
- | EK_continue => RA_continue Q
+ | EK_normal => fun rho => !! (vl=None) && RA_normal Q rho
+ | EK_break => fun rho => !! (vl=None) && RA_break Q rho
+ | EK_continue => fun rho => !! (vl=None) && RA_continue Q rho
  | EK_return => RA_return Q vl
  end.
 
@@ -241,7 +241,7 @@ Lemma normal_ret_assert_derives:
             |-- proj_ret_assert (normal_ret_assert Q) ek vl rho.
 Proof.
  intros.
- destruct ek; normalize.
+ destruct ek; simpl; normalize.
 Qed.
 Hint Resolve normal_ret_assert_derives.
 
@@ -269,7 +269,8 @@ Proof.
   intros.
   extensionality rho.
   rewrite sepcon_comm.
-  destruct ek; simpl; destruct P; auto.
+  destruct ek; simpl; destruct P; auto;
+  normalize.
 Qed.
 
 Lemma proj_conj:
@@ -279,7 +280,7 @@ Proof.
   intros.
   extensionality rho.
   rewrite andp_comm.
-  destruct ek; simpl; destruct P; auto.
+  destruct ek; simpl; destruct P; auto; simpl; normalize; rewrite andp_assoc; auto.
 Qed.
 
 Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
@@ -330,7 +331,7 @@ Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
- {| RA_normal := seplog.FF;
+ {| RA_normal := bind_ret None ret Q;
     RA_break := seplog.FF; 
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.

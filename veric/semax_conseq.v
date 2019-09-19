@@ -62,12 +62,32 @@ Definition bupd_ret_assert (Q: ret_assert): ret_assert :=
              RA_continue := fun rho => bupd (RA_continue Q rho);
              RA_return := fun v rho => bupd (RA_return Q v rho) |}.
 
+Lemma bupd_andp_prop:
+  forall P Q, bupd (!! P && Q) = !!P && bupd Q.
+Proof.
+intros.
+apply pred_ext; repeat intro.
+2:{ destruct H. rewrite prop_true_andp by auto. auto. }
+assert P. {
+hnf in H.
+specialize (H nil).
+spec H.
+exists (ghost_of a).
+constructor.
+destruct H as [b [? [m [_ [_ [_ [? _]]]]]]].
+auto.
+}
+rewrite prop_true_andp in * by auto.
+auto.
+Qed.
+
 Lemma proj_bupd_ret_assert: forall Q ek vl,
   proj_ret_assert (bupd_ret_assert Q) ek vl = fun rho => bupd (proj_ret_assert Q ek vl rho).
 Proof.
   intros.
-  destruct ek;
-  auto.
+ extensionality rho.
+  destruct ek; simpl; auto;
+  rewrite bupd_andp_prop; auto.
 Qed.
 
 (* The following four lemmas is not now used. but after deep embedded hoare logic (SL_as_Logic) is
@@ -232,9 +252,9 @@ Lemma proj_except_0_ret_assert: forall Q ek vl,
   proj_ret_assert (except_0_ret_assert Q) ek vl = fun rho => |> FF || proj_ret_assert Q ek vl rho.
 Proof.
   intros.
-  destruct ek;
-  auto.
-Qed.
+  extensionality rho;
+  destruct ek; simpl; auto.
+Abort.
 
 (* The following two lemmas is not now used. but after deep embedded hoare logic (SL_as_Logic) is
 ported, the frame does not need to be quantified in the semantic definition of semax. Then,
@@ -312,9 +332,18 @@ Proof.
   unfold rguard.
   f_equal; extensionality ek.
   f_equal; extensionality vl.
-  rewrite proj_except_0_ret_assert.
-  apply _guard_except_0'.
-Qed.
+  rewrite _guard_except_0' at 1.
+  destruct ek; simpl; auto.
+  unfold _guard.
+  apply pred_ext;
+  apply allp_derives; intro tx;
+  apply allp_derives; intro vx;
+  apply fash_derives;
+  (apply imp_derives; [| auto]);
+  apply andp_derives; auto;
+  apply andp_derives; auto.
+  apply prop_andp_left; intro. rewrite prop_true_andp; auto.
+Abort.
 
 Lemma assert_safe_except_0:
   forall {Espec: OracleKind} gx f vx tx PP1 PP2 rho (F P: environ -> pred rmap) k,
@@ -389,6 +418,29 @@ Proof.
   apply _guard_except_0.
 Qed.
 
+
+Lemma rguard_except_0:
+  forall {Espec: OracleKind} ge Delta f (F: environ -> pred rmap) Q k,
+    rguard Espec ge Delta f (frame_ret_assert Q F) k |--
+    rguard Espec ge Delta f (frame_ret_assert (except_0_ret_assert Q) F) k.
+Proof.
+  intros.
+  unfold rguard.
+  apply allp_derives; intro ek.
+  apply allp_derives; intro vl.
+  rewrite !proj_frame.
+  destruct ek; unfold exit_cont;
+  try solve [rewrite _guard_except_0; auto];
+  simpl;
+  apply allp_derives; intro tx;
+  apply allp_derives; intro vx;
+  forget (construct_rho (filter_genv ge) vx tx) as rho;
+  cbv beta iota zeta;
+  (destruct vl; simpl; [intros ? ? ? ? ? ? [[_ [? [? [? [_ [? _]]]]]] _]; discriminate | ]);
+  rewrite !(prop_true_andp (None=None)) by auto;
+  rewrite assert_safe_except_0; auto.
+Qed.
+(*
 Lemma rguard_except_0:
   forall {Espec: OracleKind} ge Delta f (F: environ -> pred rmap) Q k,
     rguard Espec ge Delta f (frame_ret_assert Q F) k =
@@ -399,9 +451,12 @@ Proof.
   f_equal; extensionality ek.
   f_equal; extensionality vl.
   rewrite !proj_frame.
+Abort.
+
   rewrite proj_except_0_ret_assert.
   apply _guard_except_0.
 Qed.
+*)
 
 Lemma _guard_allp_fun_id:
   forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
@@ -514,17 +569,28 @@ Proof.
   apply allp_derives; intros k.
   apply allp_derives; intros F.
   apply allp_derives; intros f.
-  apply imp_derives; [apply andp_derives; auto |].
-  + erewrite (rguard_allp_fun_id _ _ _ _ _ R') by eauto.
+  apply imp_derives; [apply andp_derives; auto |]. 
+ + erewrite (rguard_allp_fun_id _ _ _ _ _ R') by eauto.
     erewrite (rguard_tc_environ _ _ _ _ _ (conj_ret_assert R' _)) by eauto.
-    rewrite (rguard_except_0 _ _ _ _ R).
+    eapply derives_trans; [apply  (rguard_except_0 _ _ _ _ R) |].
     rewrite (rguard_bupd _ _ _ _ (except_0_ret_assert _)).
     apply rguard_mono.
     intros.
     rewrite proj_frame, proj_conj, proj_conj.
-    rewrite proj_frame, proj_bupd_ret_assert, proj_except_0_ret_assert.
+    rewrite proj_frame, proj_bupd_ret_assert.
     apply sepcon_derives; auto.
-    destruct rk; unfold proj_ret_assert; auto.
+    destruct rk;
+         [rename H0 into Hx; pose (ek:=RA_normal)
+         | rename H1 into Hx; pose (ek:=RA_break)
+         | rename H2 into Hx ; pose (ek:=RA_continue)
+         | apply H3]; clear H3.
+all:    specialize (Hx rho);  simpl in *;
+    apply derives_trans with (!! (vl = None) && 
+       (!! typecheck_environ Delta rho &&
+        (allp_fun_id Delta rho && ek R' rho))); subst ek;
+     [  intros ? [? [? [? ?]]];  split3; auto; split; auto | ];
+    apply prop_andp_left; intro Hvl;
+    rewrite (prop_true_andp _ _ _ Hvl); auto.
   + erewrite (guard_allp_fun_id _ _ _ _ _ P) by eauto.
     erewrite (guard_tc_environ _ _ _ _ _ (fun rho => allp_fun_id Delta rho && P rho)) by eauto.
     rewrite (guard_except_0 _ _ _ _ P').
@@ -566,16 +632,23 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
   (construct_rho (filter_genv psi) ve te)) a') as HFP'.
 { specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
   rewrite prop_true_andp in H.
-  destruct ek; simpl in * |-.
-  * destruct R'.
+  destruct ek; [ | simpl in * |- .. ].
+  * simpl proj_ret_assert in H.
+    destruct R'.
+    destruct HFP as [Hvl HFP]. rewrite !prop_true_andp in H by auto.
+    simpl proj_ret_assert. rewrite prop_true_andp by auto.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
   * destruct R'.
+    destruct HFP as [Hvl HFP]. rewrite !prop_true_andp in H by auto.
+    simpl proj_ret_assert. rewrite prop_true_andp by auto.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
   * destruct R'.
+    destruct HFP as [Hvl HFP]. rewrite !prop_true_andp in H by auto.
+    simpl proj_ret_assert. rewrite prop_true_andp by auto.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
@@ -832,6 +905,7 @@ intros.
 apply derives_skip.
 intros.
 simpl.
+rewrite prop_true_andp by auto.
 auto.
 Qed.
 

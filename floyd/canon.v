@@ -1893,6 +1893,11 @@ Proof.
     unfold bind_ret; unfold_lift;
     destruct x; simpl; normalize.
     destruct t; simpl; normalize.
+    unfold bind_ret. destruct x; 
+    unfold_lift; simpl; normalize.
+    rewrite sepcon_comm; auto.
+    destruct t; simpl; normalize.
+    apply sepcon_comm.
 Qed.
 
 Definition is_void_type (ty: type) : bool :=
@@ -1909,6 +1914,24 @@ Definition ret_tycon (Delta: tycontext): tycontext :=
      (glob_specs Delta)
      (annotations Delta).
 
+Lemma tc_environ_Tvoid:
+  forall Delta rho, tc_environ Delta rho -> ret_type Delta = Tvoid ->
+   tc_environ (ret_tycon Delta) (globals_only rho).
+Proof.
+intros.
+  unfold ret_tycon. rewrite H0. simpl is_void_type. cbv beta iota.
+  destruct H as [? [? ?]]; split3; auto.
+  unfold globals_only; simpl.
+  hnf; intros. rewrite PTree.gempty in H3; inv H3.
+  simpl.
+  clear - H1.
+  unfold ret_tycon, var_types.
+  hnf; intros. rewrite PTree.gempty.
+  split; intro. inv H. destruct H as [v ?].
+   unfold ve_of, globals_only, Map.get, Map.empty in H. inv H.
+Qed.
+
+
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
            t = ret_type Delta ->
            ENTAIL ret_tycon Delta, R' |-- R ->
@@ -1917,6 +1940,17 @@ Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
 Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
   intros.
   all: try solve [intro rho; simpl; normalize].
+  simpl RA_normal.
+  destruct (ret_type Delta) eqn:?H; normalize.
+  simpl; intro rho; unfold_lift.
+  rewrite !sepcon_emp.
+  unfold local, lift1.
+  normalize.
+  pose proof (tc_environ_Tvoid _ _ H1 H0).
+  eapply derives_trans; [ | apply H]. clear H.
+  simpl.
+  normalize. apply andp_right; auto.
+  apply prop_right. auto.
   intro vl.
   intro rho; simpl in H0|-*; normalize.
   clear H1.
@@ -1954,11 +1988,7 @@ Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
   unfold_lift. simpl.
   specialize (H (globals_only rho)).
   simpl in H. rewrite prop_true_andp in H; auto.
-  clear H.
-  unfold ret_tycon. rewrite Heqt. simpl is_void_type. cbv beta iota.
-  destruct H0 as [? [? ?]]; split3; auto.
-  unfold globals_only; simpl.
-  hnf; intros. rewrite PTree.gempty in H2; inv H2.
+  apply tc_environ_Tvoid; auto.
 Qed.
 
 Definition ret0_tycon (Delta: tycontext): tycontext :=
@@ -2024,6 +2054,8 @@ Lemma semax_post_ret1: forall P' R' Espec {cs: compspecs} Delta P v R Pre c,
 Proof.
   intros.
   eapply semax_post; eauto; try solve [intro rho; simpl; normalize].
+  simpl RA_normal.
+  destruct (ret_type Delta); try congruence; normalize.
   intros vl rho; simpl. unfold local, lift1.
   simpl; rewrite !sepcon_emp.
   unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize ; try congruence.
@@ -2049,12 +2081,23 @@ Proof.
   intros.
   intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
   simpl; rewrite !sepcon_emp. unfold local, lift1.
+  rewrite H.
+  unfold_lift.
+  normalize.
+  eapply derives_trans; [ | apply H0].
+  simpl.
+  apply andp_right; auto.
+  apply prop_right.
+    apply make_args0_tc_environ; auto.
   unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize.
-  + rewrite H in H3.
-    inversion H3.
-  + eapply derives_trans; [| apply (H0 _)].
-    Opaque PTree.set. simpl; apply andp_right; auto. Transparent PTree.set.
-    apply prop_right.
+  + rewrite H in H2.
+    inversion H2.
+  + intro rho.
+      unfold_lift; simpl.
+     eapply derives_trans; [| apply (H0 _)].
+     simpl.
+     apply andp_derives; auto.
+    apply prop_derives; intros.
     apply make_args0_tc_environ; auto.
 Qed.
 

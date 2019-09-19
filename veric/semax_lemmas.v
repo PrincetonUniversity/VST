@@ -284,7 +284,9 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 repeat intro. (* simpl exit_tycon. *)
 simpl.
+split; auto.
 specialize (H rho). destruct R; simpl in H. simpl tycontext.RA_normal.
+rewrite prop_true_andp in H by auto.
 rewrite sepcon_comm.
 eapply sepcon_derives; try apply H0; auto.
 
@@ -295,19 +297,41 @@ simpl.
 intros ? ? ? ? ? ?.
 specialize (HP ora jm H0 H6 H7 LW).
 simpl in HP.
+rewrite <- H7 in HP|-*.
+change (level (m_phi jm)) with (level jm) in HP|-*.
 destruct k as [ | s ctl' | | | |]; try contradiction; auto.
-rewrite <- H7 in HP|-*.
-change (level (m_phi jm)) with (level jm) in HP|-*.
+-
+inv HP; try contradiction.
+change (level jm) with (level (m_phi jm)); rewrite <- H9.
+constructor.
+change (level jm) with (level (m_phi jm)); rewrite <- H8.
+eapply jsafeN_step; eauto.
+destruct H9; split; auto.
+inv H5.
+econstructor; eauto.
+simpl. auto.
+inv H9.
+-
 eapply jsafeN_local_step. constructor.
 intros.
 eapply age_safe in HP; try apply H8.
 auto.
-rewrite <- H7 in HP|-*.
-change (level (m_phi jm)) with (level jm) in HP|-*.
+-
 eapply jsafeN_local_step. constructor.
 intros.
 eapply age_safe in HP; try apply H8.
 auto.
+-
+inv HP; try contradiction.
+change (level jm) with (level (m_phi jm)); rewrite <- H9.
+constructor.
+change (level jm) with (level (m_phi jm)); rewrite <- H8.
+eapply jsafeN_step; eauto.
+destruct H9; split; auto.
+inv H5.
+econstructor; eauto.
+simpl. auto.
+inv H9.
 Qed.
 
 Lemma jsafe_corestep_forward:
@@ -875,6 +899,10 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
                    control_as_safex ge c1 k1 Sskip ctl2
  | Kseq c1 k1, Kloop2 body incr k2 => 
                    control_as_safex ge c1 k1 (Sloop body incr) k2
+ | Kseq c1 k1, Kstop => 
+                   control_as_safex ge c1 k1 (Sreturn None) Kstop
+ | Kseq c1 k1, Kcall _ _ _ _ _ => 
+                   control_as_safex ge c1 k1 (Sreturn None) ctl2
  | Kseq _ _, _ => 
                    False
  | Kloop1 _ _ _, Kseq c2 k2 =>
@@ -893,7 +921,12 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
                    control_as_safex ge (Sloop b1 i1) k1 (Sloop b2 i2) k2
  | Kloop2 _ _ _, _ =>
                    False
-  | _, _ => True
+ | Kstop, Kseq c2 k2 => 
+                   control_as_safex ge (Sreturn None) Kstop c2 k2 
+ | Kcall _ _ _ _ _, Kseq c2 k2=> 
+                   control_as_safex ge (Sreturn None) ctl1 c2 k2 
+
+  | _, _ => ctl1 = ctl2
    end.
 
 Fixpoint prebreak_cont (k: cont) : cont :=
@@ -1030,18 +1063,22 @@ Qed.
 Lemma assert_safe_adj:
   forall {Espec: OracleKind} ge f ve te k k' rho,
      control_as_safe ge k k' ->
-     assert_safe Espec ge f ve te (Cont k) rho |-- assert_safe Espec ge f ve te (Cont k') rho.
+     assert_safe Espec ge f ve te (Cont k) rho 
+    |-- assert_safe Espec ge f ve te (Cont k') rho.
 Proof.
  intros. apply bupd_mono.
  simpl in *.
- intros w ? ? ?. specialize (H0 ora jm).
+ intros w ?. simpl in H0|-*.
+ intros ? ?. specialize (H0 ora jm).
  intros. specialize (H0 H1 H2 H3 LW).
  simpl in H0.
  subst w. change (level (m_phi jm)) with (level jm).
  red in H.
- destruct k as [ | s ctl' | | | |]; try contradiction;
- destruct k' as [ | s2 ctl2' | | | |]; try contradiction;
- try apply H; auto.
+ destruct k as [ | s ctl' | | | |] eqn:Hk; try contradiction;
+ destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
+ try discriminate; auto;
+ try solve [apply H; auto].
+ inv H; auto.
 Qed.
 
 Lemma assert_safe_adj':
@@ -1587,12 +1624,20 @@ Proof.
 2:   replace (level (m_phi jm')) with O by omega; constructor.
   spec Hsafe; [auto |].
   destruct k; try contradiction; auto.
+  destruct (level (m_phi jm')); try omega.
+  inv Hsafe; try discriminate; try contradiction.
+  eapply jsafeN_step; eauto.
+  destruct H5; split; auto. inv H3; econstructor; simpl; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
   eapply jsafeN_local_step. constructor.
   intros.
   eapply age_safe; eauto.
+  destruct (level (m_phi jm')); try omega.
+  inv Hsafe; try discriminate; try contradiction.
+  eapply jsafeN_step; eauto.
+  destruct H5; split; auto. inv H3; econstructor; simpl; eauto.
 Qed.
 
 Lemma jm_bupd_local_step

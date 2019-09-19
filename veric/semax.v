@@ -74,6 +74,7 @@ Proof.
 Qed.
 
 Inductive contx :=
+| Stuck
 | Cont: cont -> contx
 | Ret: option val -> cont -> contx.
 
@@ -88,12 +89,17 @@ Definition assert_safe'_
        m_phi jm = w ->
        forall (LW: level w > O),
        match ctl with
+       | Stuck => False
        | Cont (Kseq s ctl') => 
              jsafeN (@OK_spec Espec) ge (level w) ora (State f s ctl' ve te) jm
        | Cont (Kloop1 body incr ctl') =>
              jsafeN (@OK_spec Espec) ge (level w) ora (State f Sskip (Kloop1 body incr ctl') ve te) jm
        | Cont (Kloop2 body incr ctl') =>
              jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sloop body incr) ctl' ve te) jm
+       | Cont (Kcall id' f' ve' te' k') => 
+               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te) jm
+       | Cont Kstop =>
+               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) Kstop ve te) jm
        | Cont _ => False
        | Ret None ctl' =>
                 jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm
@@ -121,14 +127,16 @@ Next Obligation.
   subst.
   change (level (m_phi jm)) with (level jm).
   change (level (m_phi jm0)) with (level jm0) in *.
-  destruct ctl. destruct c; try contradiction.
+  destruct ctl; auto. destruct c; try contradiction.
   eapply age_safe; eauto.
   eapply age_safe; eauto.
   eapply age_safe; eauto.
-  destruct o; intros.
-  eapply age_safe; eauto. apply (H0 e v'); auto.
-  rewrite (age_jm_dry H2); auto.
-  rewrite (age_jm_dry H2); auto.
+  eapply age_safe; eauto.
+  destruct o; intros; auto;
+  eapply age_safe; eauto.
+  destruct o; intros; auto.
+  eapply age_safe; eauto.
+  apply (H0 e v'); auto;  rewrite (age_jm_dry H2); auto.
   eapply age_safe; eauto.
 Qed.
 
@@ -163,25 +171,25 @@ Definition guard (Espec : OracleKind)
 Fixpoint break_cont (k: cont) :=
 match k with
 | Kseq _ k' => break_cont k'
-| Kloop1 _ _ k' => k'
-| Kloop2 _ _ k' => k'
-| Kswitch k' => k'
-| _ => k (* oops! *)
+| Kloop1 _ _ k' => Cont k'
+| Kloop2 _ _ k' => Cont k'
+| Kswitch k' => Cont k'
+| _ => Stuck
 end.
 
 Fixpoint continue_cont (k: cont) :=
 match k with
 | Kseq _ k' => continue_cont k'
-| Kloop1 s1 s2 k' => Kseq s2 (Kloop2 s1 s2 k')
+| Kloop1 s1 s2 k' => Cont (Kseq s2 (Kloop2 s1 s2 k'))
 | Kswitch k' => continue_cont k'
-| _ => Kstop (* oops! *)
+| _ => Stuck
 end.
 
 Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : contx :=
   match ek with
-  | EK_normal => Cont k
-  | EK_break => Cont (break_cont k)
-  | EK_continue => Cont (continue_cont k)
+  | EK_normal => match vl with None => Cont k | Some _ => Stuck end
+  | EK_break => break_cont k
+  | EK_continue => continue_cont k
   | EK_return => Ret vl (call_cont k)
   end.
 
