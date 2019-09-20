@@ -476,8 +476,6 @@ forward_if
        apply (lseg_cons_right_neq _ _ _ _ _ ((Vundef,Vundef) : elemtype QS));
         auto ].
      cancel.
-* (* after the if *)
-     forward. (* return ; *)
 Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.

@@ -7,7 +7,8 @@ Require Export VST.floyd.go_lower.
 Require Export VST.floyd.closed_lemmas.
 Require Export VST.floyd.compare_lemmas.
 Require Export VST.floyd.semax_tactics.
-Require Export VST.floyd.forward.
+Require Export VST.floyd.entailer.
+Require Export VST.floyd.forward. (* must come after entailer because of Ltac override *)
 Require Export VST.floyd.subsume_funspec.
 Require Export VST.floyd.call_lemmas.
 Require Export VST.floyd.forward_lemmas.
@@ -35,7 +36,6 @@ Require Export VST.floyd.proj_reptype_lemmas.
 Require Export VST.floyd.replace_refill_reptype_lemmas.
 Require Export VST.floyd.sc_set_load_store.
 Require Export VST.floyd.unfold_data_at.
-Require Export VST.floyd.entailer.
 Require Export VST.floyd.globals_lemmas.
 Require Export VST.floyd.diagnosis.
 Require Export VST.floyd.freezer.

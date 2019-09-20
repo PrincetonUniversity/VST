@@ -203,7 +203,6 @@ forward.
 entailer!.
 unfold LG.data_ok.
 entailer!.
-forward.
 *
 Intros.
 forward.
@@ -217,7 +216,6 @@ forward.
 unfold LG.data_ok.
 entailer!.
 inv H0.
-forward.
 Qed.
 
 Lemma body_bump:  semax_body Vprog Gprog f_LG_bump bump_spec.

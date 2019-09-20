@@ -187,7 +187,11 @@ Ltac inhabited_value T :=
  | prod ?A ?B => let x := inhabited_value A in
                            let y := inhabited_value B in
                                constr:(pair x y)
- | _ => match goal with x:T |- _ => x | x := _ : T |- _ => x end
+ | _ => match goal with
+            | x:T |- _ => x 
+            | x := _ : T |- _ => x
+            | _ => fail 3 "cannot prove that type" T "is inhabited, so cannot compute deadvars.  Fix this by asserting (X:"T") above the line"
+            end
  end.
 
 Fixpoint expr_temps (e: expr) (vl: list ident) : list ident :=
@@ -203,25 +207,27 @@ Fixpoint expr_temps (e: expr) (vl: list ident) : list ident :=
  end.
 
 Ltac locals_of_assert P :=
- match P with
+ lazymatch P with
  | (PROPx _ (LOCALx ?Q _)) => constr:(temps_of_localdefs Q)
  | emp => constr:(@nil ident)
  | andp ?A ?B => let a := locals_of_assert A in
                   let b := locals_of_assert B in
                   constr:(a++b)
- | stackframe_of _ => constr:(@nil ident)
+ | sepcon ?A ?B => let a := locals_of_assert A in
+                  let b := locals_of_assert B in
+                  constr:(a++b)
+ | @stackframe_of _ _ => constr:(@nil ident)
  | local (liftx (eq _) (eval_expr ?E)) =>
             let vl := constr:(expr_temps E nil) in vl
  | @exp _ _ ?T ?F =>
     let x := inhabited_value T in
      let d := constr:(F x) in
-      let d := eval cbv beta in d in 
-       let d := locals_of_assert d in
+      let d := eval cbv beta in d in        let d := locals_of_assert d in
            d
  end.
 
 Ltac locals_of_ret_assert Post :=
- match Post with
+ lazymatch Post with
  | @abbreviate ret_assert ?P => locals_of_ret_assert P
  | normal_ret_assert ?P => let a := locals_of_assert P in
                                           constr:(pair a (@nil ident))
@@ -252,7 +258,7 @@ Ltac find_dead_vars P c Q :=
       d.
 
 Ltac deadvars := 
- match goal with
+ lazymatch goal with
  | X := @abbreviate ret_assert ?Q |-
     semax _ ?P ?c ?Y =>
     constr_eq X Y;

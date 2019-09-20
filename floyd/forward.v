@@ -224,7 +224,7 @@ Qed.
 
 Ltac process_stackframe_of :=
  match goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
-   let sf := fresh "sf" in set (sf:= stackframe_of F);
+   let sf := fresh "sf" in set (sf:= stackframe_of F) at 1;
      unfold stackframe_of in sf; simpl map in sf; subst sf
   end;
  repeat
@@ -247,7 +247,7 @@ Ltac process_stackframe_of :=
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
  change (fold_right sepcon emp (@nil (environ->mpred))) with
    (@emp (environ->mpred) _ _);
- rewrite ?sepcon_emp, ?emp_sepcon, ?frame_ret_assert_emp.
+ rewrite ?sepcon_emp, ?emp_sepcon.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
@@ -3394,6 +3394,103 @@ match goal with |- semax _ _ _ ?R =>
  end
 end.
 
+Lemma fold_another_var_block:
+  forall {cs: compspecs} Delta P Q R P' Q' R' i (t: type) vbs T1 T2 GV p,
+  local2ptree Q = (T1,T2,[],GV) ->
+  complete_legal_cosu_type t = true ->
+  sizeof t <? Ptrofs.modulus = true ->
+  is_aligned cenv_cs ha_env_cs la_env_cs t 0 = true ->
+  (var_types Delta) ! i = Some t ->
+  T2 ! i = Some (t,p) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
+      |-- PROPx P' (LOCALx Q' (SEPx (data_at_ Tsh t p :: R')))
+             * fold_right sepcon emp (map (var_block Tsh) vbs) ->
+  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
+    |-- PROPx P' (LOCALx Q' (SEPx R')) 
+           * fold_right sepcon emp (map (var_block Tsh) ((i,t)::vbs)).
+Proof.
+intros until 1.
+intros H1 H2 H3 H4 H5 H0.
+set (r1 := data_at_ Tsh t p) in *.
+change (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
+    PROPx P' (LOCALx Q' (SEPx R')) * (var_block Tsh (i,t) * fold_right sepcon emp (map (var_block Tsh) vbs))).
+forget  (fold_right sepcon emp (map (var_block Tsh) vbs)) as VBS.
+replace (PROPx P' (LOCALx Q' (SEPx (r1 :: R'))) * VBS)
+   with (PROPx P' (LOCALx Q' (SEPx R')) * (liftx r1 * VBS)) in H0.
+2:{
+  extensionality rho;
+ unfold PROPx, LOCALx, SEPx; unfold_lift; simpl.
+ unfold local, lift1.
+ normalize. f_equal. rewrite <- sepcon_assoc.
+ pull_left r1. auto.
+}
+apply derives_trans with
+((local (tc_environ Delta) &&  PROPx P (LOCALx Q (SEPx R))) 
+   && (local (tc_environ Delta) &&  PROPx nil (LOCALx Q (SEP(TT))))).
+go_lowerx.
+repeat apply andp_right; auto; try apply prop_right; auto.
+rewrite sepcon_emp. apply TT_right.
+erewrite (local2ptree_soundness nil Q) by eassumption.
+eapply derives_trans.
+apply andp_derives.
+apply H0. apply derives_refl.
+forget (PROPx P' (LOCALx Q' (SEPx R'))) as PQR'.
+clear H0.
+simpl app.
+inv H1.
+assert (  msubst_extract_local Delta T1 T2 GV (lvar i t p)).
+hnf.
+rewrite H5. rewrite eqb_type_refl. auto.
+apply localdef_local_facts_inv with (P:=nil)(R := [TT]) in H0.
+forget (LocalD T1 T2 GV) as L.
+eapply derives_trans with
+(PQR' * (liftx r1 * VBS) && 
+(local (tc_environ Delta) && local (locald_denote (lvar i t p)))).
+apply andp_derives; auto.
+apply andp_right.
+apply andp_left1; auto.
+auto.
+go_lowerx.
+normalize.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+eapply var_block_lvar0; try eassumption.
+apply Z.ltb_lt; auto.
+Qed.
+
+Lemma no_more_var_blocks:
+ forall {cs: compspecs} Delta PQR PQR',
+  ENTAIL Delta, PQR |-- PQR' ->
+  ENTAIL Delta, PQR |-- PQR' * fold_right sepcon emp (map (var_block Tsh) []).
+Proof.
+intros.
+unfold map.
+unfold fold_right.
+rewrite sepcon_emp.
+auto.
+Qed.
+
+Ltac clean_up_stackframe ::=
+  lazymatch goal with |-
+     ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) |--
+        PROPx _ (LOCALx _ (SEPx _)) * stackframe_of _ =>
+     unfold stackframe_of;
+     simpl fn_vars;
+     repeat (
+     simple eapply fold_another_var_block;
+       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+         | reflexivity | ]);
+     try simple apply no_more_var_blocks
+  | |- ENTAIL _ , _ |-- exp _ * stackframe_of _ =>
+      fail 2 "In this case, because stackframe_of is present, use Exists to instantiate the existential before calling entailer!"
+  | |- ENTAIL _ , _ |-- exp ?P =>
+        lazymatch P with context [@stackframe_of] => 
+         fail 2 "In this case, because stackframe_of is present, use Exists to instantiate the existential before calling entailer!"
+       | _ => idtac
+       end
+  | |- _ => idtac
+ end.
+
 Ltac forward_return :=
   try fold_frame_function_body;
   match goal with
@@ -3635,11 +3732,16 @@ or else hide the * by making a Definition or using a freezer"
        | _ => idtac
     end
   | |- semax _ (exp _) _ _ => 
-             fail "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
+             fail 3 "Before going 'forward', you need to move the existentially quantified variable at the head of your precondition 'above the line'.  Do this by the tactic 'Intros x', where 'x' is the name you want to give to this Coq variable"
   | |- _ => fail "Your precondition is not in canonical form (PROP (..) LOCAL (..) SEP (..))"
  end.
 
 Ltac forward :=
+ lazymatch goal with
+ | |- ENTAIL _, _ |-- _ * stackframe_of _ =>
+     (* backward-compatibility hack *)
+      clean_up_stackframe; entailer_for_return
+ | |- _ =>
   try apply semax_ff;
   check_Delta; check_POSTCONDITION;
   repeat rewrite <- seq_assoc;
@@ -3670,7 +3772,8 @@ Ltac forward :=
         abbreviate_semax;
         try fwd_skip ]
     end
-  end.
+  end
+ end.
 
 Lemma start_function_aux1:
   forall (Espec: OracleKind) {cs: compspecs} Delta R1 P Q R c Post,
@@ -4054,6 +4157,7 @@ split; simpl.
  unfold Map.get; subst f.
  simpl. rewrite H3. reflexivity.
 Qed.
+
 
 Ltac start_function :=
  leaf_function;
