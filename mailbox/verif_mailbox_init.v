@@ -101,7 +101,6 @@ Hint Resolve malloc_compatible_isptr.
 Lemma body_initialize_channels : semax_body Vprog Gprog f_initialize_channels initialize_channels_spec.
 Proof.
   start_function.
-  rewrite <- seq_assoc.
   forward_for_simple_bound B (EX i : Z, PROP ()
     LOCAL (gvars gv)
     SEP (data_at_ Ews (tarray (tptr tint) N) (gv _comm); data_at_ Ews (tarray (tptr tlock) N) (gv _lock);
@@ -257,10 +256,7 @@ Proof.
   Intros locks comms g g0 g1 g2 reads lasts sh.
   match goal with H : sepalg_list.list_join sh1 (sublist N N shs) sh |- _ =>
     rewrite sublist_nil in H; inv H end.
-  forward.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts g g0 g1 g2.
-  (* entailer! is slow *)
-  apply andp_right; [apply prop_right; repeat (split; auto)|].
-  cancel.
+  entailer!.
 Qed.

@@ -154,13 +154,14 @@ cancel.
 rewrite array_at_data_at'; auto; try apply derives_refl; omega.
 +
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
+rewrite hashed_data_recombine by auto.
+auto.
 +
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
 +
 subst POSTCONDITION; unfold abbreviate; simpl_ret_assert; normalize.
 +
-intros.
-subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
+intros. subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
 rewrite hashed_data_recombine by auto.
 apply ENTAIL_refl.
 +

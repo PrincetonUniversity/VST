@@ -256,7 +256,7 @@ with is_sequential_ls co ls :=
  | LScons _ ?s ?ls' => is_sequential true co s; is_sequential_ls co ls'
  end.
 
-Ltac force_sequential :=
+Ltac force_sequential  :=
 match goal with
 | P := @abbreviate ret_assert (normal_ret_assert _) |- semax _ _ _ ?P' =>
     constr_eq P P'

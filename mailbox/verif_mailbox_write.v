@@ -30,7 +30,6 @@ Qed.
 Lemma body_start_write : semax_body Vprog Gprog f_start_write start_write_spec.
 Proof.
   start_function.
-  rewrite <- seq_assoc.
   forward_for_simple_bound B (EX i : Z, PROP ( )
    LOCAL (lvar _available (tarray tint B) v_available; gvars gv)
    SEP (data_at Tsh (tarray tint B) (repeat (vint 1) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (B - i))) v_available;
@@ -43,7 +42,6 @@ Proof.
   rewrite Zminus_diag, app_nil_r.
   forward.
   forward.
-  rewrite <- seq_assoc.
   assert_PROP (Zlength lasts = N).
   { gather_SEP 3.
     go_lowerx.
@@ -112,7 +110,6 @@ Proof.
   rewrite sublist_same; auto.
   set (available := map (fun x => vint (if eq_dec x b0 then 0 else if in_dec eq_dec x lasts then 0 else 1))
          (upto (Z.to_nat B))).
-  rewrite <- seq_assoc.
   unfold Sfor.
   forward.
   eapply semax_seq, semax_ff.
@@ -706,7 +703,6 @@ Proof.
   forward.
   assert_PROP (Zlength (map (fun i => vint i) lasts) = N) by entailer!.
   rewrite Zlength_map in *.
-  rewrite <- seq_assoc.
   forward_for_simple_bound N (EX i : Z, PROP ( )
    LOCAL (temp _w (vint b); temp _last (vint b0); gvars gv)
    SEP (data_at Ews tint (vint b) (gv _writing); data_at Ews tint (vint b0) (gv _last_given);
@@ -996,7 +992,6 @@ Proof.
       * simpl; fast_cancel.
         replace (Zlength t') with (Zlength h') in *; eapply upd_write_shares; eauto.
   - Intros t' h'.
-    forward.
     forward.
     forward.
     rewrite sublist_nil, sublist_same; rewrite ?Zlength_map; auto.

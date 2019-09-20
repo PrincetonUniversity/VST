@@ -47,14 +47,14 @@ Lemma initbodyproof Espec c k l wsh sh key gv h1 pad ctxkey
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
          data_at_ Tsh (tarray tuchar 64) pad;
          K_vector gv; initPre wsh sh c k h1 l key))
-  (Ssequence (fn_body f_HMAC_Init) (Sreturn None))
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (hmacstate_ wsh (hmacInit key) c; 
-                 initPostKey sh k key; K_vector gv)))
-     (stackframe_of f_HMAC_Init)).
+  (fn_body f_HMAC_Init)
+  (normal_ret_assert
+                   (PROP ( )
+                    LOCAL ()
+                    SEP (hmacstate_ wsh (hmacInit key) c;
+                    initPostKey sh k key; 
+                    K_vector gv) *
+                    stackframe_of f_HMAC_Init)).
 Proof. abbreviate_semax.
 simpl. 
 Time forward. (*0.8 versus 1.3*)
@@ -157,7 +157,6 @@ subst c.
 rename H0 into R.
 
 (*isolate branch if (reset) *)
-apply seq_assoc.
 forward_if (EX shaStates:_ ,
           PROP  (innerShaInit (HMAC_SHA256.mkKey key) =(fst shaStates) /\
                   s256_relate (fst shaStates) (fst (snd shaStates)) /\

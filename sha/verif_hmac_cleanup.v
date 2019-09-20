@@ -24,7 +24,6 @@ forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { eapply derives_trans. apply data_at_data_at_.
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
-subst POSTCONDITION; unfold abbreviate.
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
@@ -40,15 +39,14 @@ Lemma cleanupbodyproof1 Espec wsh c h
   (PROP  ()
    LOCAL  (temp _ctx c)
    SEP  (EX  key : list byte, hmacstate_PreInitNull wsh key h c))
-  (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None))
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP
-         (data_block wsh
-            (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) Byte.zero)
-            c))) emp).
+  (fn_body f_HMAC_cleanup)
+  (normal_ret_assert
+     (PROP ( )
+      LOCAL ()
+      SEP (data_block wsh
+             (list_repeat
+                (Z.to_nat (sizeof t_struct_hmac_ctx_st))
+                Byte.zero) c) * stackframe_of f_HMAC_cleanup)).
 Proof. abbreviate_semax.
 set (x := fn_body f_HMAC_cleanup); hnf in x; subst x.
 Intros key.
@@ -59,7 +57,6 @@ forward_call (wsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { eapply derives_trans. apply data_at_data_at_.
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
-subst POSTCONDITION; unfold abbreviate.
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
 forward.
@@ -72,5 +69,6 @@ Lemma body_hmac_cleanup1: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_cleanup HMAC_Cleanup_spec1.
 Proof.
 start_function.
+subst POSTCONDITION; unfold abbreviate.
 apply cleanupbodyproof1; auto.
 Qed.
