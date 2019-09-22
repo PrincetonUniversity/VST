@@ -282,16 +282,16 @@ freeze [0;1;2;3;4] FR1.
 Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
 rewrite Z.max_r in ZL_OUT.
 2:{ unfold OutLen. simple_if_tac; omega. }
-apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
-  + thaw FR1. freeze [0;1;3;5] FR2.
-    forward_seq.
-    apply (f_core_loop1 Espec (FRZL FR2) c k h nonce out w x y t data); trivial.
-
-    (*/FOR(i,16) y[i] = x[i]*)
-    Intros xInit. red in H. rename H into XInit.
-    thaw FR2. freeze [0;2;3;5] FR3.
-    forward_seq.
-    apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
+(* apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data). *)
+thaw FR1. freeze [0;1;3;5] FR2.
+eapply semax_seq.
+apply (f_core_loop1 Espec (FRZL FR2) c k h nonce out w x y t data); trivial.
+(*/FOR(i,16) y[i] = x[i]*)
+Intros xInit. red in H. rename H into XInit.
+thaw FR2. freeze [0;2;3;5] FR3.
+subst MORE_COMMANDS; unfold abbreviate.
+eapply semax_seq.
+apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
     (* mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
 
     Intros YS.
@@ -345,34 +345,42 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
       apply andp_left2.
         apply HFalsePOST; trivial. rewrite H. trivial. subst; trivial.
         thaw FR6. cancel.
-  + unfold fcore_EpiloguePOST.
-    destruct data as [[Nonce C] [Key1 Key2]].
-    abbreviate_semax.
-    Intros snuffleRes ys.
-    freeze [0;1;2;3;4] FR2.
-    Time forward. (*4 versus 18*)
-    thaw FR2. Time entailer!. (*4.6 versus 8.4*)
+- 
+   clear - ZL_OUT. clearbody Delta_specs.
+   set (data :=(N1, N2, N3, N4, (C1, C2, C3, C4),
+  (K1, K2, K3, K4, (L1, L2, L3, L4)))).
+  change (N1, N2, N3, N4, (C1, C2, C3, C4),
+             (K1, K2, K3, K4, (L1, L2, L3, L4))) with data.
+   destruct data as [[Nonce C] [Key1 Key2]].
+   unfold fcore_EpiloguePOST.
+    Intros snuffleRes ys. subst ys.
+    destruct (Int.eq (Int.repr h) Int.zero) eqn:hh.
+ + Intros l. Exists l. rename H into H99. entailer!.
     rewrite Zlength_map in H1.
     specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     unfold fcore_result.
     unfold Snuffle20, bind. rewrite H0; clear H0.
-    remember (Int.eq (Int.repr h) Int.zero) as hh.
-    destruct hh.
-    - Intros l. Exists l.
-        destruct (HFalse_inv16_char _ _ _ H0) as [sums [SUMS1 SUMS2]].
+        destruct (HFalse_inv16_char _ _ _ H99) as [sums [SUMS1 SUMS2]].
           rewrite Zlength_correct, L; reflexivity. trivial.
-        rewrite <- SUMS1, <- SUMS2.
-        unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh.
-        Time entailer!. (*1.7*)
-    - Intros intsums.
+        rewrite <- SUMS1, <- SUMS2. rewrite hh. auto.
+        unfold fcorePOST_SEP, OutLen.  
+        rewrite hh. auto.
+  +  Intros intsums.   unfold fcorePOST_SEP.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).
-      apply HTrue_inv_char in H0. rewrite <- H0.
+      rename H into H99. entailer!.    unfold fcore_result.
+    unfold Snuffle20, bind. rewrite H0.
+      apply HTrue_inv_char in H99. rewrite <- H99.
+      rewrite hh.
+    rewrite Zlength_map in H1.
+    specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
       destruct Nonce as [[[? ?] ?] ?]. destruct C as [[[? ?] ?] ?].
+     auto.
       rewrite <- TP with (OUT:=OUT).
-      unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh.
-      Time entailer!. (*4.3*)
-       rewrite Zlength_correct, (sumlist_length _ _ _ H0), prepare_data_length; trivial.
-        rewrite ZL_OUT. unfold OutLen; rewrite <- Heqhh. trivial.
+      unfold fcorePOST_SEP, OutLen. auto.
+       rewrite Zlength_correct, (sumlist_length _ _ _ H99), prepare_data_length; trivial.
+        rewrite ZL_OUT. unfold OutLen; rewrite hh. trivial.
+    specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct, prepare_data_length; reflexivity.
+     unfold OutLen. rewrite hh. auto.
 Time Qed. (*20 versus 58*)

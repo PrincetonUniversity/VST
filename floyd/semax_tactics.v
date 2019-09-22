@@ -414,7 +414,6 @@ Ltac no_reassociate_stmt S := S.
 
 Ltac find_statement_in_body f reassoc pat :=
   let body := eval hnf in (fn_body f)
-      in let body := constr:(Ssequence body (Sreturn None))
       in let body := reassoc body
       in let S := pat body
       in exact S.
