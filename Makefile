@@ -1,14 +1,6 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-ifeq ($(BITSIZE),64)
-PROGSDIR=progs64
-else
-PROGSDIR=progs
-endif
-
-default_target: _CoqProject msl veric floyd $(PROGSDIR)
-
 COMPCERT ?= compcert
 -include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
@@ -23,6 +15,15 @@ COMPCERT ?= compcert
 #
 # You can override ARCH and BITSIZE in the configure file, too;
 # otherwise ARCH and BITSIZE are taken from $(COMPCERT)/Makefile.config.
+
+ifeq ($(BITSIZE),64)
+PROGSDIR=progs64
+else
+PROGSDIR=progs
+endif
+
+default_target: _CoqProject msl veric floyd $(PROGSDIR)
+
 
 
 #Note2:  By default, the rules for converting .c files to .v files
@@ -270,7 +271,7 @@ FLOYD_FILES= \
 # each line that contains the word CONCPROGS must be deletable independently
 CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghosts.v
 
-PROGS_FILES= \
+PROGS32_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_reverse_client.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v reverse_client.v queue.v sumarray.v message.v string.v object.v \
@@ -290,6 +291,24 @@ PROGS_FILES= \
   libglob.v verif_libglob.v peel.v verif_peel.v \
   printf.v
 # verif_insertion_sort.v
+
+C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
+    bst.c field_loadstore.c float.c object.c \
+    global.c min.c nest2.c nest3.c \
+    logical_compare.c \
+    strlib.c switch.c union.c message.c
+V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
+    verif_append2.v verif_bin_search.v \
+    verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
+    verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
+    verif_logical_compare.v \
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v
+
+ifeq ($(BITSIZE),64)
+PROGS_FILES=$(V64_ORDINARY)
+else
+PROGS_FILES=$(PROGS32_FILES)
+endif
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -378,7 +397,7 @@ FILES = \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
- $(PROGS_FILES:%=progs/%) \
+ $(PROGS_FILES:%=$(PROGSDIR)/%) \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
@@ -451,7 +470,7 @@ endif
 # 	@
 
 ifeq ($(BITSIZE),64)
-travis: default_target progs64
+travis: default_target progs
 else
 travis: default_target progs sha hmac mailbox
 endif
@@ -478,7 +497,7 @@ concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
-progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
+progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
 progsdir: $(PROGSDIR)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
@@ -500,9 +519,9 @@ io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo
 
 CGFLAGS =  -DCOMPCERT
 
-$(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
+$(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES)): compcert
 
-CVFILES = $(patsubst %.c,progs/%.v,$(C_FILES))
+CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
 
 cvfiles: $(CVFILES)
 
@@ -527,13 +546,13 @@ endif
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
-progs/even.v: progs/even.c progs/odd.c
+$(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
-progs/odd.v: progs/even.v
+$(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
-$(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
+$(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)/%.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
@@ -601,24 +620,8 @@ util/calibrate: util/calibrate.ml
 calibrate: util/calibrate
 	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
 
-C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
-    bst.c field_loadstore.c float.c object.c \
-    global.c min.c nest2.c nest3.c \
-    logical_compare.c \
-    strlib.c switch.c union.c message.c
-V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
-    verif_append2.v verif_bin_search.v \
-    verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
-    verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
-    verif_logical_compare.v \
-    verif_strlib.v verif_switch.v verif_union.v verif_message.v
 progs64/%.c: progs/%.c
 	$(if $(findstring $(@F), $(C64_ORDINARY)), cp $< $@)
-
-ifdef CLIGHTGEN
-$(patsubst %.c,progs64/%.v, $(C64_ORDINARY)): progs64/%.v: progs64/%.c
-	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
-endif
 
 FIX64= "BEGIN{print \"(* Do not edit this file, it was generated automatically *)\"} 1 {sub(/VST[.]progs[.]/,\"VST.progs64.\"); print}"
 progs64/verif_%.v: progs/verif_%.v
