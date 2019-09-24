@@ -542,8 +542,6 @@ Proof.
   forward. (* l->right=mid *)
   forward. (* r->left=l *)
   forward. (* _l = r *)
-  Opaque tree_rep. forward. Transparent tree_rep. (* return *)
-  (* TODO: simplify the following proof *)
   Exists pc.
   entailer!.
   simpl.

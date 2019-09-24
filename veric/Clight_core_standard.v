@@ -10,23 +10,26 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
 
-Inductive CC_core : Type :=
-    CC_core_State : function ->
-            statement -> cont -> env -> temp_env -> CC_core
-  | CC_core_Callstate : fundef -> list val -> cont -> CC_core
-  | CC_core_Returnstate : val -> cont -> CC_core.
+Inductive state : Type :=
+    State : function ->
+            statement -> cont -> env -> temp_env -> state
+  | Callstate : fundef -> list val -> cont -> state
+  | Returnstate : val -> cont -> state.
 
-Definition CC_core_to_CC_state (c:CC_core) (m:mem) : state :=
+Definition CC_core := state.
+
+Definition CC_core_to_CC_state (c:state) (m:mem) : Clight.state :=
   match c with
-     CC_core_State f st k e te => State f st k e te m
-  |  CC_core_Callstate fd args k => Callstate fd args k m
-  | CC_core_Returnstate v k => Returnstate v k m
+     State f st k e te => Clight.State f st k e te m
+  |  Callstate fd args k => Clight.Callstate fd args k m
+  | Returnstate v k => Clight.Returnstate v k m
  end.
-Definition CC_state_to_CC_core (c:state): CC_core * mem :=
+
+Definition CC_state_to_CC_core (c:Clight.state): state * mem :=
   match c with
-     State f st k e te m => (CC_core_State f st k e te, m)
-  |  Callstate fd args k m => (CC_core_Callstate fd args k, m)
-  | Returnstate v k m => (CC_core_Returnstate v k, m)
+     Clight.State f st k e te m => (State f st k e te, m)
+  |  Clight.Callstate fd args k m => (Callstate fd args k, m)
+  | Clight.Returnstate v k m => (Returnstate v k, m)
  end.
 
 Lemma  CC_core_CC_state_1: forall c m,
@@ -47,9 +50,9 @@ Lemma  CC_core_CC_state_3: forall s c m,
 
 Lemma  CC_core_CC_state_4: forall s, exists c, exists m, s =  CC_core_to_CC_state c m.
   Proof. intros. destruct s.
-             exists (CC_core_State f s k e le). exists m; reflexivity.
-             exists (CC_core_Callstate fd args k). exists m; reflexivity.
-             exists (CC_core_Returnstate res k). exists m; reflexivity.
+             exists (State f s k e le). exists m; reflexivity.
+             exists (Callstate fd args k). exists m; reflexivity.
+             exists (Returnstate res k). exists m; reflexivity.
   Qed.
 
 Lemma CC_core_to_CC_state_inj: forall c m c' m',
@@ -58,7 +61,11 @@ Lemma CC_core_to_CC_state_inj: forall c m c' m',
        apply  CC_core_CC_state_3 in H. rewrite  CC_core_CC_state_1 in H.  inv H. trivial.
   Qed.
 
-Definition cl_halted (c: CC_core) : option val := None.
+Definition cl_halted (c: CC_core) : option val := 
+  match c with
+  | Returnstate v Kstop => Some v
+  | _ => None
+  end.
 
 Definition empty_function : function := mkfunction Tvoid cc_default nil nil nil Sskip.
 
@@ -92,15 +99,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
     if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
-        Some (CC_core_State empty_function 
-                    (Scall None
-                                 (Etempvar 1%positive (type_of_fundef f))
-                                 (map (fun x => Etempvar (fst x) (snd x))
-                                      (params_of_types 2%positive
-                                                       (params_of_fundef f))))
-                     (Kseq (Sloop Sskip Sskip) Kstop)
-             empty_env
-             (temp_bindings 1%positive (v::args)))
+        Some (Callstate f args Kstop)
       | _ => None end
     else None
   | _ => None
@@ -110,36 +109,157 @@ Definition stuck_signature : signature := mksignature nil None cc_default.
 
 Definition cl_at_external (c: CC_core) : option (external_function * list val) :=
   match c with
-  | CC_core_Callstate (External ef _ _ _) args _ => Some (ef, args)
-  | CC_core_State _ (Sbuiltin _ ef _ args) _ _ _ => Some (EF_external "stuck" stuck_signature, nil)
+  | Callstate (External ef _ _ _) args _ => Some (ef, args)
+  | State _ (Sbuiltin _ ef _ args) _ _ _ => Some (EF_external "stuck" stuck_signature, nil)
   | _ => None
 end.
 
 Definition cl_after_external (vret: option val) (c: CC_core) : option CC_core :=
    match c with
-   | CC_core_Callstate (External ef _ _ _) _ k => 
-        Some (CC_core_Returnstate (match vret with Some v => v | _ => Vundef end) k)
+   | Callstate (External ef _ _ _) _ k => 
+        Some (Returnstate (match vret with Some v => v | _ => Vundef end) k)
    | _ => None
    end.
 
-Definition cl_step ge (q: CC_core) (m: mem) (q': CC_core) (m': mem) : Prop :=
-    cl_at_external q = None /\ 
-     Clight.step ge (Clight.function_entry2 ge)
+Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
+
+  | step_assign:   forall ge f a1 a2 k e le m loc ofs v2 v m',
+      eval_lvalue ge e le m a1 loc ofs ->
+      eval_expr ge e le m a2 v2 ->
+      sem_cast v2 (typeof a2) (typeof a1) m = Some v ->
+      assign_loc ge (typeof a1) m loc ofs v m' ->
+      step ge (State f (Sassign a1 a2) k e le) m
+                  (State f Sskip k e le) m'
+
+  | step_set:   forall ge f id a k e le m v,
+      eval_expr ge e le m a v ->
+      step ge (State f (Sset id a) k e le) m
+              (State f Sskip k e (PTree.set id v le)) m
+
+  | step_call:   forall ge f optid a al k e le m tyargs tyres cconv vf vargs fd,
+      classify_fun (typeof a) = fun_case_f tyargs tyres cconv ->
+      eval_expr ge e le m a vf ->
+      eval_exprlist ge e le m al tyargs vargs ->
+      Genv.find_funct ge vf = Some fd ->
+      type_of_fundef fd = Tfunction tyargs tyres cconv ->
+      step ge (State f (Scall optid a al) k e le) m
+                  (Callstate fd vargs (Kcall optid f e le k)) m
+
+  | step_seq:  forall ge f s1 s2 k e le m,
+      step ge (State f (Ssequence s1 s2) k e le) m
+                 (State f s1 (Kseq s2 k) e le) m
+
+  | step_skip_seq: forall ge f s k e le m,
+      step ge (State f Sskip (Kseq s k) e le) m
+              (State f s k e le) m
+  | step_continue_seq: forall ge f s k e le m,
+      step ge (State f Scontinue (Kseq s k) e le) m
+             (State f Scontinue k e le) m
+  | step_break_seq: forall ge f s k e le m,
+      step ge (State f Sbreak (Kseq s k) e le) m
+            (State f Sbreak k e le) m
+
+  | step_ifthenelse:  forall ge f a s1 s2 k e le m v1 b,
+      eval_expr ge e le m a v1 ->
+      bool_val v1 (typeof a) m = Some b ->
+      step ge (State f (Sifthenelse a s1 s2) k e le) m
+            (State f (if b then s1 else s2) k e le) m
+
+  | step_loop: forall ge f s1 s2 k e le m,
+      step ge (State f (Sloop s1 s2) k e le) m
+            (State f s1 (Kloop1 s1 s2 k) e le) m
+  | step_skip_or_continue_loop1:  forall ge f s1 s2 k e le m x,
+      x = Sskip \/ x = Scontinue ->
+      step ge (State f x (Kloop1 s1 s2 k) e le) m
+            (State f s2 (Kloop2 s1 s2 k) e le) m
+  | step_break_loop1:  forall ge f s1 s2 k e le m,
+      step ge (State f Sbreak (Kloop1 s1 s2 k) e le) m
+             (State f Sskip k e le) m
+  | step_skip_loop2: forall ge f s1 s2 k e le m,
+      step ge (State f Sskip (Kloop2 s1 s2 k) e le) m
+             (State f (Sloop s1 s2) k e le) m
+  | step_break_loop2: forall ge f s1 s2 k e le m,
+      step ge (State f Sbreak (Kloop2 s1 s2 k) e le) m
+            (State f Sskip k e le) m
+
+  | step_return_0: forall ge f k e le m m',
+      Mem.free_list m (blocks_of_env ge e) = Some m' ->
+      step ge (State f (Sreturn None) k e le) m
+            (Returnstate Vundef (call_cont k)) m'
+  | step_return_1: forall ge f a k e le m v v' m',
+      eval_expr ge e le m a v ->
+      sem_cast v (typeof a) f.(fn_return) m = Some v' ->
+      Mem.free_list m (blocks_of_env ge e) = Some m' ->
+      step ge (State f (Sreturn (Some a)) k e le) m
+           (Returnstate v' (call_cont k)) m'
+  | step_skip_call: forall ge f k e le m m',
+      is_call_cont k ->
+      Mem.free_list m (blocks_of_env ge e) = Some m' ->
+      step ge (State f Sskip k e le) m
+              (Returnstate Vundef k) m'
+
+  | step_switch: forall ge f a sl k e le m v n,
+      eval_expr ge e le m a v ->
+      sem_switch_arg v (typeof a) = Some n ->
+      step ge (State f (Sswitch a sl) k e le) m
+            (State f (seq_of_labeled_statement (select_switch n sl)) (Kswitch k) e le) m
+  | step_skip_break_switch: forall ge f x k e le m,
+      x = Sskip \/ x = Sbreak ->
+      step ge (State f x (Kswitch k) e le) m
+             (State f Sskip k e le) m
+  | step_continue_switch: forall ge f k e le m,
+      step ge (State f Scontinue (Kswitch k) e le) m
+             (State f Scontinue k e le) m
+
+  | step_label: forall ge f lbl s k e le m,
+      step ge (State f (Slabel lbl s) k e le) m
+             (State f s k e le) m
+
+  | step_goto: forall ge f lbl k e le m s' k',
+      find_label lbl f.(fn_body) (call_cont k) = Some (s', k') ->
+      step ge (State f (Sgoto lbl) k e le) m
+             (State f s' k' e le) m
+
+  | step_internal_function: forall ge f vargs k m e le m1,
+      function_entry2 ge f vargs m e le m1 ->
+      step ge (Callstate (Internal f) vargs k) m
+            (State f f.(fn_body) k e le) m1
+
+  | step_returnstate: forall ge v optid f e le k m,
+      step ge (Returnstate v (Kcall optid f e le k)) m
+           (State f Sskip k e (set_opttemp optid v le)) m.
+
+Lemma cl_step_equiv: forall ge (q: CC_core) (m: mem) q' m',
+  cl_at_external q = None ->
+  step ge q m q' m' <-> Clight.step ge (Clight.function_entry2 ge) 
       (CC_core_to_CC_state q m) Events.E0 (CC_core_to_CC_state q' m').
+Proof.
+intros.
+split; intro H0; inv H0; inv H;
+repeat match goal with H: _ = CC_core_to_CC_state ?q _ |- _ => destruct q; inv H end;
+try solve [econstructor; eassumption].
+inv H4.
+inv H3.
+Qed.
+
+Definition cl_step: genv -> CC_core -> mem -> CC_core -> mem -> Prop := step.
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', 
           cl_step ge q m q' m' -> cl_at_external q = None.
 Proof.
-  intros.
-  unfold cl_step in H. destruct H; auto.  
+ simpl; intros.
+ inv H; try reflexivity; simpl.
+ destruct H0; subst; reflexivity.
+ destruct H0; subst; reflexivity.
 Qed.
 
 Lemma cl_corestep_not_halted :
-  forall ge m q m' q', cl_step ge q m q' m' -> cl_halted q = None.
+  forall ge m q m' q' (i: int), cl_step ge q m q' m' -> ~ cl_halted q <> None.
 Proof.
   intros.
-  simpl; auto.
+  intro. apply H0.
+  inv H; simpl; auto.
 Qed.
 
 Lemma cl_after_at_external_excl :
@@ -157,9 +277,9 @@ Program Definition cl_core_sem (ge: genv) :
     (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m /\ m' = m *))
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
-    (fun c _ =>  False (*cl_halted c <> None*))
+    (fun c _ =>  cl_halted c <> None)
     (cl_step ge)
-    _
+    (cl_corestep_not_halted ge)
     (cl_corestep_not_at_external ge).
 
 (*Clight_core is also a memsem!*)
@@ -174,7 +294,7 @@ Qed.
 
 Lemma CC_core_to_State_mem:
     forall f STEP k e le m c m',
-    State f STEP k e le m = CC_core_to_CC_state c m' ->
+    Clight.State f STEP k e le m = CC_core_to_CC_state c m' ->
     m = m'.
   Proof.
     intros;
@@ -197,37 +317,20 @@ Program Definition CLNC_memsem (ge: genv):
   @MemSem (*(Genv.t fundef type)*) CC_core.
 apply Build_MemSem with (csem := cl_core_sem ge).
   intros.
-  induction CS. simpl in H0.
-  inversion H0;
-  try solve [do 2 match goal with
-    | [ H: State _ _ _ _ _ ?m = CC_core_to_CC_state _ _ |- _ ] => apply CC_core_to_State_mem in H
-             end; subst; try apply mem_step_refl; trivial];
-  destruct c; inv H1; destruct c'; inv H2;
+  induction CS;
   try apply mem_step_refl;
   try ( eapply mem_step_freelist; eassumption).
 *
- inv H6.
- unfold Mem.storev in H2. apply Mem.store_storebytes in H2.
+ inv H2.
+ unfold Mem.storev in H4. apply Mem.store_storebytes in H4.
  eapply mem_step_storebytes; eauto.
- eapply mem_step_storebytes; eauto. 
-*
-  inv H.
-*
- inv H3.
- clear - H5.
- induction H5.
- apply mem_step_refl.
- eapply mem_step_trans. eapply mem_step_alloc; eassumption. auto.
+ eapply mem_step_storebytes; eauto.
 *
  inv H.
-*
- simpl in H4. inv H4.
+ clear - H3.
+ induction H3.
  apply mem_step_refl.
-*
- inv H4.
-*
- inv H4.
+ eapply mem_step_trans. eapply mem_step_alloc; eassumption. auto.
 Qed.
 
 Definition at_external c := cl_at_external (fst (CC_state_to_CC_core c)). (* Temporary definition for compatibility between CompCert 3.3 and new-compcert *)
-

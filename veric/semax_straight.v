@@ -5,7 +5,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -27,10 +27,10 @@ Section extensions.
 Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
-  (forall jm jm1 Delta' ge ve te rho k F,
+  (forall jm jm1 Delta' ge ve te rho k F f,
               tycontext_sub Delta Delta' ->
               app_pred (B rho) (m_phi jm) ->
-              guard_environ Delta' (current_function k) rho ->
+              guard_environ Delta' f rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
               age jm jm1 ->
@@ -39,15 +39,15 @@ Lemma semax_straight_simple:
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
-                guard_environ Delta' (current_function k) rho'  /\
-                jstep (cl_core_sem ge) (State ve te (Kseq c :: k)) jm
-                                 (State ve te' k) jm' /\
+                guard_environ Delta' f rho'  /\
+                jstep (cl_core_sem ge) (State f c k ve te) jm
+                                 (State f Sskip k ve te') jm' /\
               ((F rho' * Q rho') && funassert Delta' rho) (m_phi jm')) ->
   semax Espec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold.
-intros psi Delta' CS' n TS [CSUB HGG'] _ k F Hcl Hsafe te ve w Hx w0 H Hglob.
+intros psi Delta' CS' n TS [CSUB HGG'] _ k F f Hcl Hsafe te ve w Hx w0 H Hglob.
 specialize (cenv_sub_trans CSUB HGG'); intros HGG.
 apply nec_nat in Hx.
 apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
@@ -62,7 +62,7 @@ destruct Hglob as [[TC' Hglob] Hglob'].
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
 apply extend_sepcon_andp in Hglob; auto.
 destruct Hglob as [TC2 Hglob].
-specialize (Hc jm jm1 Delta' psi ve te _ k F TS TC2 TC' Hcl (eq_refl _) Hage).
+specialize (Hc jm jm1 Delta' psi ve te _ k F f TS TC2 TC' Hcl (eq_refl _) Hage).
 specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
 change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
@@ -79,14 +79,15 @@ specialize (Hsafe _ (necR_refl _)).
 destruct H4.
 spec Hsafe; [clear Hsafe| ].
 split; auto.
+simpl proj_ret_assert.
+rewrite (prop_true_andp (None=None)) by auto.
 split; auto.
 subst rho'; auto.
-rewrite proj_frame_ret_assert.
-simpl seplog.sepcon.
 rewrite sepcon_comm; subst rho'; auto.
 subst rho'.
 replace (level jm1) with (level jm').
-apply assert_safe_jsafe; auto.
+simpl exit_cont in Hsafe.
+apply assert_safe_jsafe'; auto.
 rewrite <- !level_juice_level_phi in H2.
 apply age_level in Hage; omega.
 Qed.
@@ -392,7 +393,7 @@ Proof.
   intros CMP TC2.
   apply semax_straight_simple; auto.
   intros; repeat apply boxy_andp; auto;  apply extend_later'; apply extend_sepcon_TT.
-  intros jm jm' Delta' ge vx tx rho k F TS [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ? HGG.
+  intros jm jm' Delta' ge vx tx rho k F f TS [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ? HGG.
   specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
   specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
   specialize (TC4 (m_phi jm') (age_laterR (age_jm_phi H))).
@@ -551,7 +552,7 @@ Proof.
         |> P rho))
     by (extensionality rho;  repeat rewrite later_andp; auto).
   apply semax_straight_simple; auto.
-  intros jm jm' Delta' ge vx tx rho k F TS [TC3 TC2] TC' Hcl Hge ? ? HGG'.
+  intros jm jm' Delta' ge vx tx rho k F f TS [TC3 TC2] TC' Hcl Hge ? ? HGG'.
   specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
   specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
   assert (typecheck_environ Delta rho) as TC.
@@ -673,7 +674,7 @@ replace (fun rho : environ =>
      (|> tc_expr Delta e rho && |> P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple; auto.
-intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ? HGG'.
+intros jm jm' Delta' ge vx tx rho k F f TS TC3 TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
 {
@@ -797,7 +798,7 @@ replace (fun rho : environ =>
      (|> tc_expr Delta (Ecast e t) rho && |> P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple; auto.
-intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ? HGG'.
+intros jm jm' Delta' ge vx tx rho k F f TS TC3 TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
 {
@@ -961,7 +962,7 @@ repeat rewrite andp_assoc.
 unfold mapsto.
 apply semax_straight_simple.
 intro. apply boxy_andp; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
+intros jm jm1 Delta' ge ve te rho k F f TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
@@ -1102,7 +1103,7 @@ repeat rewrite andp_assoc.
 unfold mapsto.
 apply semax_straight_simple.
 intro. apply boxy_andp; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
+intros jm jm1 Delta' ge ve te rho k F f TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
 assert (typecheck_environ Delta rho) as TC.
@@ -1429,7 +1430,7 @@ apply exp_right with Vundef.
 repeat rewrite later_andp; auto.
 apply extract_exists_pre; intro v3.
 apply semax_straight_simple; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] HGG'.
+intros jm jm1 Delta' ge ve te rho k F f TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] HGG'.
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 assert (typecheck_environ Delta rho) as TC.

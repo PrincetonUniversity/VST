@@ -62,19 +62,14 @@ Lemma CLC_corestep_mem:
   forall (g : genv) c (m : mem) c'  (m' : mem),
     semantics.corestep (cl_core_sem g) c m c' m' ->
     semantics.mem_step m m'.
-Proof. simpl; intros. inv H; simpl in *. unfold step2 in H0.
-  remember (set_mem c m) as C.
-  generalize dependent m. generalize dependent c.
-  induction H0; unfold set_mem; simpl; intros;
-  symmetry in HeqC;
-    destruct c; inv HeqC; try solve [apply mem_step_refl].
-  { eapply assign_loc_mem_step; eauto. }
-  { simpl in *. eapply extcall_mem_step; eassumption. } 
-  { eapply mem_step_freelist; eauto. }
-  { eapply mem_step_freelist; eauto. }
-  { eapply mem_step_freelist; eauto. }
-  { inv H. eapply alloc_variables_mem_step; eauto. }
-  { inv H1. }
+Proof. simpl; intros. inv H; simpl in *;
+  try apply mem_step_refl.
+   eapply assign_loc_mem_step; eauto.
+   eapply mem_step_freelist; eauto.
+   eapply mem_step_freelist; eauto.
+   eapply mem_step_freelist; eauto.
+   inv H0.
+   eapply alloc_variables_mem_step; eauto.
 Qed. 
 
 Program Definition CLC_memsem  (ge : Clight.genv) :

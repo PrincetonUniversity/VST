@@ -445,19 +445,22 @@ apply semax_pre with (P':=EX h1:hmacabs,
 Intros h1.
 eapply semax_post.
 5: apply (initbodyproof Espec c nullval l sh sh key gv h1 pad ctxkey); auto.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-
-  intros.
-  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
++
+subst POSTCONDITION; unfold abbreviate;
+simpl_ret_assert.
 apply andp_left2.
 apply sepcon_derives; auto.
-apply bind_ret_derives.
   old_go_lower.
   entailer!.
   unfold hmacstate_, REP. Intros r. Exists r. entailer!.
   red. rewrite hmacUpdate_nil. assumption. 
++
+simpl_ret_assert; normalize.
++
+simpl_ret_assert; normalize.
++
+  intros.
+  subst POSTCONDITION; unfold abbreviate; simpl_ret_assert. auto.
 Qed.
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs 
@@ -471,18 +474,17 @@ eapply semax_pre_post.
   6: apply (finalbodyproof Espec c md sh shmd gv buf (hmacUpdate data (hmacInit key)) SH SH0).
   
   apply andp_left2. unfold hmacstate_. Exists r. old_go_lower. entailer!.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-
++
   intros. apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
-  apply bind_ret_derives.
   rewrite <- hmac_sound. unfold FULL.
   change (hmacFinal (hmacUpdate data (hmacInit key))) with (hmac key data).
   Exists (fst (hmac key data)). old_go_lower. entailer!.
   eapply hmacstate_PostFinal_PreInitNull; reflexivity.
++ simpl_ret_assert; normalize.
++ simpl_ret_assert; normalize.
++ intros; simpl_ret_assert; normalize.
 Qed.
 
 Lemma body_hmac_update: semax_body HmacVarSpecs HmacFunSpecs 
@@ -494,16 +496,16 @@ eapply semax_pre_post.
   6: apply (updatebodyproof Espec shc shd c d (Zlength data1) data1 gv (hmacUpdate data (hmacInit key))); auto.
 
   apply andp_left2. old_go_lower. entailer!; try apply derives_refl.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-
-  intros. apply andp_left2.
++
+  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
-  apply bind_ret_derives.
   rewrite hmacUpdate_app. old_go_lower. entailer!; try apply derives_refl.
-  apply derives_refl.
+
++ simpl_ret_assert; normalize.
++ simpl_ret_assert; normalize.
++ intros. simpl_ret_assert; normalize.
++ 
   split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
   rewrite Zlength_app, Zlength_mkArgZ, mkKey_length, Min.min_idempotent.
@@ -522,20 +524,17 @@ unfold EMPTY.
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
 eapply semax_pre_post.
 6: apply (initbodyproof Espec c (Vptr b i) l sh shk key gv hdummy pad ctxkey); auto.
-
- entailer!; simpl.
-normalize.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-
-  intros. apply andp_left2.
++
+ entailer!; simpl. normalize.
++ apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
   apply sepcon_derives; auto.
-  apply bind_ret_derives.
   old_go_lower. entailer!.
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. rewrite hmacUpdate_nil. assumption.
++ simpl_ret_assert; normalize.
++ simpl_ret_assert; normalize.
++ simpl_ret_assert; normalize.
 Qed.
 
 Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs 
@@ -547,22 +546,19 @@ assert_PROP (field_compatible t_struct_hmac_ctx_st [] c).
 { unfold hmacstate_PreInitNull. Intros r v. entailer!. }
 eapply semax_pre_post.
   6: apply (cleanupbodyproof1 Espec sh c h); auto.
-  Exists key. apply andp_left2. apply derives_refl. 
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-simpl_ret_assert; normalize.
-
-  intros. apply andp_left2.
++
+  Exists key. apply andp_left2. apply derives_refl.
++  apply andp_left2.
   subst POSTCONDITION; unfold abbreviate; simpl_ret_assert.
-  apply sepcon_derives; auto.
-  apply bind_ret_derives.
-  old_go_lower. entailer!.
-
+  Opaque list_repeat. old_go_lower. Transparent list_repeat.
+  normalize.
   unfold EMPTY. 
-  rewrite <- memory_block_data_at_. simpl. unfold data_block.
+  rewrite <- memory_block_data_at_.  unfold data_block.
   clear. simpl. apply data_at_memory_block.
   trivial.
-  apply derives_refl.
++ simpl_ret_assert; normalize.
++ simpl_ret_assert; normalize.
++ simpl_ret_assert; normalize.
 Qed. 
 
 End OPENSSL_HMAC_ABSTRACT_SPEC.

@@ -1867,7 +1867,10 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
 
       
       
-      
+      (* Large diagram:
+         Diagram of steps over external calls. Called "Large"
+         because in a thread-local view, it steps all interactions in one step. 
+       *)
       Lemma large_external_diagram:
         forall cd f mu j'' code1 code2 cge age args1 rel_trace m1 m1'''
                args2 rel_trace2 FUN
@@ -1905,7 +1908,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       Proof.
         intros; subst FUN.
         
-        
+        (*HERE*)
         (** *1. Prove that this is a CompCert step (en external step).
          *)
         exploit C_large_step_as_compcert_step; eauto.
@@ -1965,11 +1968,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         { eapply inject_incr_trans.
           eapply (evolution_inject_incr).
           all: eassumption. }
-        
-
-        (* remember
-            (Events.Event_acq_rel lev2 dpm1 (*fst virtueThread2*) lev2' :: nil)  as
-                rel_trace2. *)
 
         assert (Hinj_trace: Events.inject_trace j2' rel_trace rel_trace2).
         { subst rel_trace rel_trace2.
@@ -1986,14 +1984,12 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
 
         subst rel_trace.
         destruct  (Hstep _ Hinj_trace)
-          as (cd' & s2' & step & comp_match ).
-        
+          as (cd' & s2' & step & comp_match).
 
         (* Assert the after_external we know:
                Given from 
                Hat_external2: Asm.at_externalge (c2, m2) = Blah
-               step: (c2, m2) --> s2'
-         *)
+               step: (c2, m2) --> s2' *)
         exploit asm_after_external_when_external_step;
           subst rel_trace2; simpl in *; eauto; try reflexivity.
         intros Hafter_x.
