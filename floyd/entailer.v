@@ -620,6 +620,8 @@ Proof.
 apply prop_right; auto.
 Qed.
 
+Ltac clean_up_stackframe := idtac.
+
 Ltac entailer :=
  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
         clear POSTCONDITION
@@ -630,7 +632,7 @@ Ltac entailer :=
  match goal with
  | |- ?P |-- _ =>
     match type of P with
-    | ?T => unify T (environ->mpred); go_lower
+    | ?T => unify T (environ->mpred); clean_up_stackframe; go_lower
     | _ => clear_Delta; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
@@ -686,7 +688,7 @@ Ltac entbang :=
         clear MORE_COMMANDS
       end;
  match goal with
- | |- local _ && ?P |-- _ => go_lower; (*simpl;*) try (*simple*) apply empTrue
+ | |- local _ && ?P |-- _ => clean_up_stackframe; go_lower; (*simpl;*) try (*simple*) apply empTrue
  | |- ?P |-- _ =>
     match type of P with
     | ?T => unify T mpred; pull_out_props

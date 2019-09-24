@@ -30,14 +30,15 @@ Lemma finalbodyproof Espec c md wsh shmd gv buf (h1 : hmacabs)
            temp _ctx c; gvars gv)
    SEP  (data_at_ Tsh (tarray tuchar 32) buf; hmacstate_ wsh h1 c;
          K_vector gv; memory_block shmd 32 md))
-  (Ssequence (fn_body f_HMAC_Final) (Sreturn None))
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (K_vector gv; hmacstate_PostFinal wsh (fst (hmacFinal h1)) c;
-               data_block shmd (snd (hmacFinal h1)) md)))
-     (stackframe_of f_HMAC_Final)%assert).
+  (fn_body f_HMAC_Final)
+  (normal_ret_assert
+                   (PROP ( )
+                    LOCAL ()
+                    SEP (K_vector gv;
+                    hmacstate_PostFinal wsh
+                      (fst (hmacFinal h1)) c;
+                    data_block shmd (snd (hmacFinal h1))
+                      md) * stackframe_of f_HMAC_Final)).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
 unfold hmacstate_.

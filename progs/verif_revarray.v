@@ -188,6 +188,7 @@ forward. (* hi--; *)
  reflexivity.
 * (* after the loop *)
 forward. (* return; *)
+entailer!.
 rewrite map_rev. rewrite flip_fact_1; try omega; auto.
 cancel.
 Qed.

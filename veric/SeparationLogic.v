@@ -803,7 +803,7 @@ Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
  end.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert :=
- {| RA_normal := seplog.FF;
+ {| RA_normal := bind_ret None ret Q;
     RA_break := seplog.FF; 
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.
@@ -1171,7 +1171,7 @@ match spec with (_, mk_funspec fsig cc A P Q _ _) =>
 forall Espec ts x, 
   @Def.semax C Espec (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
-       (Ssequence f.(fn_body) (Sreturn None))
+       f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
 
@@ -1197,7 +1197,8 @@ Definition semax_prog_ext
   @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
-  | Some s => exists post, s = main_spec_ext' prog z post
+  | Some s => exists post,
+             s = main_spec_ext' prog z post
   | None => False
   end.
 

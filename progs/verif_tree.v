@@ -698,9 +698,10 @@ Proof.
       Exists q'.
       cancel.
   }
-  forward.
-  simpl.
-  Exists q_root; cancel.
+  unfold POSTCONDITION, abbreviate.
+   simpl_ret_assert.
+  entailer!.
+  Exists q_root. cancel.
   Exists (map snd tl).
   cancel.
   rewrite iter_sepcon2_spec.
@@ -739,7 +740,8 @@ Proof.
     Exists q r.
     entailer!.
   }
-  deadvars!.
+ assert (XTree_inhabited := XLeaf).
+ deadvars!.
   forward_call (v_q, XNode tl v).
   simpl xtree_rep.
   Intros q' r'.
@@ -757,7 +759,6 @@ Proof.
   }
   change ((XNode (map x_add1 tl) (v + 1))) with (x_add1 (XNode tl v)).
   forget (XNode tl v) as t.
-  forward.
   Exists (x_add1 t).
   entailer!.
   apply add1_pos; auto.
@@ -810,6 +811,7 @@ Proof.
   unfold lt_ytree_rep.
   Intros r.
   destruct r; [simpl; normalize |].
+  abbreviate_semax.
   simpl.
   Intros y.
   forward.
@@ -852,6 +854,7 @@ Proof.
   unfold t_ytree_rep.
   Intros s.
   destruct s; [simpl; normalize |].
+  abbreviate_semax.
   simpl.
   Intros pa pb.
   forward.

@@ -6,7 +6,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -49,10 +49,11 @@ Axiom semax_prog_ext_sound :
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
   OK_ty = unit -> 
-  forall V G prog m h,
-     @semax_prog Espec CS prog V G ->
+  postcondition_allows_exit Espec tint ->
+  forall ora V G prog m h,
+     @semax_prog_ext Espec CS prog ora V G ->
      Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
+     { b : block & { q : Clight_core.state &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
        (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
                     jm q jm' (Vptr b Ptrofs.zero) nil) *
@@ -65,37 +66,19 @@ Axiom semax_prog_rule :
            app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 
-(* This version lets the user choose the external state instead of quantifying over it. *)
-Axiom semax_prog_rule' :
-  forall {Espec: OracleKind}{CS: compspecs},
-  forall V G prog m h,
-     @semax_prog Espec CS prog V G ->
-     Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
-       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
-       forall n z,
-         { jm |
-           m_dry jm = m /\ level jm = n /\
-           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
-           jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
-           no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm) /\
-           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
-     } } }%type.
-
 (* This version lets the user choose the external state instead of quantifying over it,
     and start with knowledge of that state in the precondition of main. *)
 Axiom semax_prog_rule_ext :
   forall {Espec: OracleKind}{CS: compspecs},
   forall V G prog m h z,
+     postcondition_allows_exit Espec tint ->
      @semax_prog_ext Espec CS prog z V G ->
      Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
+     { b : block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
+       (forall jm, m_dry jm = m -> exists jm',
+                    semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                       jm q jm' (Vptr b Ptrofs.zero) nil) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -105,7 +88,6 @@ Axiom semax_prog_rule_ext :
            matchfunspecs (globalenv prog) G (m_phi jm) /\
            app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
-
 
 End SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
@@ -131,6 +113,7 @@ Definition semax_func := @semax_func.
 
 Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
+
 (*
 Definition semax_cssub := @semax_cssub.
   *)
@@ -281,9 +264,16 @@ Lemma semax_prog_ext_sound :
 Proof.
   intros; apply H.
 Qed.
-
+(*
+Lemma postcondition_allows_exit_sound :
+  forall {Espec} t,
+  @CSHL_Defs.postcondition_allows_exit Espec t ->
+  @semax_prog.postcondition_allows_exit Espec t.
+Proof.
+  intros; apply H.
+Qed.
+*)
 Definition semax_prog_rule := @semax_prog_rule.
-Definition semax_prog_rule' := @semax_prog_rule'.
 Definition semax_prog_rule_ext := @semax_prog_rule_ext.
 
 End VericSound.

@@ -359,12 +359,7 @@ semax
       LOCAL ()
       SEP  (K_vector gv;
         data_at_ wsh t_struct_SHA256state_st c;
-        data_block shmd
-          (intlist_to_bytelist
-             (hash_blocks init_registers
-                (generate_and_pad
-                   (intlist_to_bytelist hashed ++ dd))))
-          md))) emp).
+        data_block shmd (SHA_256 (intlist_to_bytelist hashed ++ dd)) md))) emp).
 Proof.
   intros Espec hashed md c wsh shmd kv Hwsh H
   bitlen dd H4 H7 H3 hashed' dd' pad

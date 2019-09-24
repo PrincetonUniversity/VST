@@ -822,7 +822,6 @@ Proof.
   (* loop invariant at 256 implies postcondition of gen_tables: *)
   (* TODO floyd "forward" takes forever here, because RT0 is so complex (even thoug it's opaque for
      reduction) *)
-  unfold POSTCONDITION, abbreviate.
   unfold tables_initialized.
   unfold_data_at 3%nat.
   change (fill_list 256 calc_FT0) with FT0.
@@ -839,7 +838,6 @@ Proof.
   forget RT2 as RT2'.
   forget RT3 as RT3'.
 
-  forward.
   entailer!.
 } }
 (*  Show.*)
