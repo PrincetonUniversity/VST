@@ -104,6 +104,63 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma eqp_refl : forall (G : Triv) P, G |-- (P <=> P)%logic.
+Proof.
+  intros; rewrite andp_dup; apply subp_refl.
+Qed.
+
+Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : (G |-- P <=> P')%logic) (HQ : (G |-- Q <=> Q')%logic), (G |-- P * Q <=> P' * Q')%logic.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_sepcon; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : (G |-- P <=> P')%logic) (HQ : (G |-- Q <=> Q')%logic), G |-- (P && Q <=> P' && Q')%logic.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
+    (G : Triv) (B : Type) (X Y : B -> A),
+  (forall x : B, (G |-- X x <=> Y x)%logic) ->
+  G |-- ((EX x : _, X x) <=> (EX x : _, Y x))%logic.
+Proof.
+  intros.
+  rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
+    intros ? Ha; destruct (H _ Ha); auto.
+Qed.
+
+Lemma lock_inv_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x, (ALL x : _, |> (P x <=> Q x) |--
+  |> lock_inv sh p (P x) <=> |> lock_inv sh p (Q x))%logic.
+Proof.
+  intros.
+  apply allp_left with x.
+  rewrite <- eqp_later; apply later_derives.
+  apply nonexpansive_entail; apply nonexpansive_lock_inv.
+Qed.
+
+Lemma selflock_nonexpansive : forall sh p, nonexpansive (fun P => selflock P sh p).
+Proof.
+  intros ????.
+  unfold selflock, selflock'.
+  apply (HORec_nonexpansive _ (fun P => selflock_fun P sh p)).
+  - intros ???.
+    unfold selflock_fun.
+    apply predicates_hered.allp_right; intro.
+    apply eqp_sepcon; [apply eqp_refl|].
+    match goal with |- _ |-- ?Q => change ((ALL x : _, |> (P0 x <=> Q0 x))%logic |-- Q) end.
+    apply lock_inv_nonexpansive2.
+  - intros ????.
+    unfold selflock_fun.
+    apply eqp_sepcon, eqp_refl.
+    apply derives_refl.
+Qed.
+
 (* In fact we need locks to two resources:
    1) the resource invariant, for passing the resources
    2) the join resource invariant, for returning all resources, including itself
