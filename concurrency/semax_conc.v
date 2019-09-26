@@ -12,7 +12,7 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_safety.
-Require Import VST.veric.Clight_new.
+(*Require Import VST.veric.Clight_new.*)
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.sepcomp.semantics.
