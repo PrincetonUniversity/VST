@@ -1326,7 +1326,7 @@ Lemma semax_call_external: forall
               P ts x (make_args (map fst (fst fsig)) args rho))%pred
               (m_phi jm))
  (H5 : (believe_external Espec psi (Vptr b Ptrofs.zero) fsig cc A P Q) (S (level jm)))
- (ff : fundef)
+ (ff : Clight.fundef)
  (H16 : Genv.find_funct psi (Vptr b Ptrofs.zero) = Some ff)
  (H16' : type_of_fundef ff =
        Tfunction (type_of_params (fst fsig)) (snd fsig) cc)
