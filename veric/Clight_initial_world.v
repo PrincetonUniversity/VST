@@ -82,7 +82,7 @@ Notation initial_core_ext := (@initial_core_ext  function).
 (*Definition prog_funct (p: program) := prog_funct' (prog_defs p).*)
 Notation prog_funct := (@prog_funct function).
 
-Inductive match_fdecs: list  (ident * fundef) -> funspecs -> Prop :=
+Inductive match_fdecs: list  (ident * Clight.fundef) -> funspecs -> Prop :=
 | match_fdecs_nil: match_fdecs nil nil
 | match_fdecs_cons: forall i fd fspec fs G,
                   type_of_fundef fd = type_of_funspec fspec ->

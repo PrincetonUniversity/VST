@@ -2617,7 +2617,7 @@ Lemma believe_exists_fundef:
   (Findb : Genv.find_symbol (genv_genv psi) id_fun = Some b)
   (Believe : app_pred (believe Espec Delta psi Delta) n)
   (H3: (glob_specs Delta) ! id_fun = Some fspec),
- {f : fundef |
+ {f : Clight.fundef |
   Genv.find_funct_ptr (genv_genv psi) b = Some f /\
   type_of_fundef f =
    Tfunction (type_of_params (params_of_funspec fspec))

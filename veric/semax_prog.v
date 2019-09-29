@@ -182,7 +182,7 @@ Qed.
 Section semax_prog.
 Context (Espec: OracleKind).
 
-Definition prog_contains (ge: genv) (fdecs : list (ident * fundef)) : Prop :=
+Definition prog_contains (ge: genv) (fdecs : list (ident * Clight.fundef)) : Prop :=
      forall id f, In (id,f) fdecs ->
          exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some f.
 
@@ -211,17 +211,17 @@ forall Espec ts x,
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
 
-Definition genv_contains (ge: Genv.t fundef type) (fdecs : list (ident * fundef)) : Prop :=
+Definition genv_contains (ge: Genv.t Clight.fundef type) (fdecs : list (ident * Clight.fundef)) : Prop :=
  forall id f, In (id,f) fdecs ->
               exists b, Genv.find_symbol ge id = Some b /\ Genv.find_funct_ptr ge b = Some f.
 
 Lemma genv_prog_contains (ge:genv) fdecs: prog_contains ge fdecs = genv_contains ge fdecs.
 Proof. reflexivity. Qed.
 
-Definition semax_func (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t fundef type)
-       (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
+Definition semax_func (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)
+       (fdecs: list (ident * Clight.fundef)) (G1: funspecs) : Prop :=
 match_fdecs fdecs G1 /\ genv_contains ge fdecs /\
-forall (ge': Genv.t fundef type) (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
+forall (ge': Genv.t Clight.fundef type) (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
          (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b)) 
 n, believe Espec (nofunc_tycontext V G) (Build_genv ge' (@cenv_cs C)) (nofunc_tycontext V G1) n.
 
@@ -436,7 +436,7 @@ Qed.
 Lemma semax_func_cons_aux:
 forall (psi: genv) id fsig1 cc1 A1 P1 Q1 NEP1 NEQ1 fsig2 cc2 A2 P2 Q2 (V: varspecs) (G': funspecs) {C: compspecs} b fs,
 Genv.find_symbol psi id = Some b ->
-~ In id (map (fst (A:=ident) (B:=fundef)) fs) ->
+~ In id (map (fst (A:=ident) (B:=Clight.fundef)) fs) ->
 match_fdecs fs G'  ->
 claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 cc1 A1 P1 Q1 NEP1 NEQ1) :: G')) (Vptr b Ptrofs.zero) fsig2 cc2 A2 P2 Q2 ->
 fsig1=fsig2 /\ cc1 = cc2 /\ A1=A2 /\ JMeq P1 P2 /\ JMeq Q1 Q2.
@@ -524,7 +524,7 @@ Qed.
 Lemma semax_func_cons: forall 
      fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
   andb (id_in_list id (map (@fst _ _) G))
-  (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
     (semax_body_params_ok f)) = true ->
   Forall
      (fun it : ident * type =>
@@ -891,7 +891,7 @@ simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
 unfold fundef; rewrite H3.
 split; auto.
-assert (exists f, In (i,f) (prog_funct prog)
+assert (exists (f:Clight.fundef), In (i,f) (prog_funct prog)
                   /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig') cc'). {
   clear - H0 H5.
   forget (prog_funct prog) as g.
@@ -1038,7 +1038,7 @@ simpl ge_of. unfold filter_genv, Map.get.
 unfold globalenv; simpl.
 unfold fundef; rewrite H3.
 split; auto.
-assert (exists f, In (i,f) (prog_funct prog)
+assert (exists (f:Clight.fundef), In (i,f) (prog_funct prog)
           /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig') cc'). {
 clear - H0 H5.
 forget (prog_funct prog) as g.
