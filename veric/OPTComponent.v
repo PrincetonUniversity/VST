@@ -2085,8 +2085,8 @@ Proof.
         eapply IntIDs_i. eassumption. }
   eexists; reflexivity.
 Qed.
-(*
-Definition semax_OPTprog_ext {Espec V cs} (ora:OK_ty) (prog: Clight.program) (G: funspecs) : Prop :=
+
+Definition semax_OPTprog_ext {Espec V cs} (ora: @OK_ty Espec) (prog: Clight.program) (G: funspecs) : Prop :=
 exists funs,
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
@@ -2099,4 +2099,35 @@ match find_id prog.(prog_main) G with
 end /\
 forall i fd, find_id i funs = Some fd -> find_id i (prog_funct prog) = Some fd.
 
-(*yields Anomaly "grounding a non evar-free term" Please report at http://coq.inria.fr/bugs/.*)*)
+Lemma Canonical_OPTPROG_ext {Espec cs V E} ora (p:Clight.program) Exp funs
+      (c: @CanonicalComponent Espec V cs (Genv.globalenv p) E nil funs Exp)
+       (HE : map fst E = map fst (filter (fun x => negb (in_dec ident_eq (fst x) (IntIDs (prog_funct p)))) funs))
+
+      (LNR_Names: compute_list_norepet (prog_defs_names p) = true)
+      (ALGN: all_initializers_aligned p)
+      (HCS: cenv_cs = prog_comp_env p)
+      (HV: match_globvars (prog_vars p) V = true) MainPost
+      (Main: find_id (prog_main p) (Comp_G c) = Some (main_spec_ext' p ora MainPost))
+      (Funs: forall i fd, find_id i funs = Some fd -> find_id i (prog_funct p) = Some fd):
+      @semax_OPTprog_ext Espec V cs ora p (Comp_G c).
+Proof.
+  red. exists funs. rewrite Main. intuition.
+  apply  Canonical_semax_func; trivial.
+  { rewrite HE. f_equal. apply filter_fg; intros.
+    destruct x as [i d]; simpl. apply find_id_i in H; [ specialize (Funs _ _ H) | apply c].
+    f_equal. destruct (in_dec ident_eq i (IntIDs (prog_funct p))); destruct (in_dec ident_eq i (IntIDs funs)); trivial; simpl.
+    + elim n; clear - i0 H Funs LNR_Names. unfold prog_defs_names in LNR_Names. 
+      apply compute_list_norepet_e in LNR_Names.
+      destruct (IntIDs_e i0) as [f Hf].
+      - eapply sublist_norepet. 2: apply LNR_Names.
+        unfold prog_funct. destruct p; simpl. clear. induction prog_defs; simpl. constructor.
+        destruct a. destruct g; simpl; constructor; trivial.
+      - unfold fundef in *. rewrite Funs in Hf. inv Hf.
+        eapply IntIDs_i. eassumption.
+    + elim n; clear - i0 H Funs c.
+      destruct (IntIDs_e i0) as [f Hf].
+      - apply (Comp_funs_LNR c).
+      - unfold fundef in *. rewrite H in Hf. inv Hf.
+        eapply IntIDs_i. eassumption. }
+  eexists; reflexivity.
+Qed.
