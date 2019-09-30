@@ -243,7 +243,7 @@ VERIC_FILES= \
   semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v Clight_initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
-  semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v
+  semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v assoclists.v Component.v
 
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
