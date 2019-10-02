@@ -3,13 +3,14 @@ Require Import VST.progs.float.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 Local Open Scope logic.
 
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition t_struct_foo := Tstruct _foo noattr.

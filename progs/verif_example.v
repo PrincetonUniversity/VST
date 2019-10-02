@@ -3,6 +3,7 @@ Require Import VST.progs.example.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -46,7 +47,7 @@ Definition g_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog nil u
+  PRE  [] main_pre prog tt nil u
   POST [ tint ] main_post prog nil u.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;

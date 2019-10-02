@@ -14,11 +14,6 @@ Require Import mailbox.verif_mailbox_main.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Definition extlink := ext_link_prog prog.
-
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 (* This lemma ties all the function proofs into a single proof for the entire program. *)
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) 

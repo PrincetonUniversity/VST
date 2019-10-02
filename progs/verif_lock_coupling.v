@@ -7,6 +7,10 @@ Require Import Sorting.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Definition extlink := ext_link_prog prog.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
+
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -195,7 +199,7 @@ Definition remove_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog nil u
+  PRE  [] main_pre prog tt nil u
   POST [ tint ] main_post prog nil u.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
@@ -365,13 +369,8 @@ Proof.
   forward.
 Qed.
 
-Definition extlink := ext_link_prog prog.
-
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).

@@ -6,6 +6,7 @@ Require Import VST.floyd.library.
 Require Import VST.progs.malloc.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 Local Open Scope Z.
 Local Open Scope logic.  
 
@@ -231,7 +232,7 @@ Definition fill_bin_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog nil u
+  PRE  [] main_pre prog tt nil u
   POST [ tint ]  main_post prog nil u.
 
 Definition Gprog : funspecs := 
@@ -448,7 +449,7 @@ Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_size2bin.

@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.message.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 (* This program, and its verification, are described in Chapter 29
    of _Program Logics for Certified Compilers_, by Appel et al., 2014 *)
@@ -90,7 +91,7 @@ Definition intpair_deserialize_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=

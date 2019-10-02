@@ -4,6 +4,9 @@ Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog even.prog) Gprog.
+Existing Instance Espec.
+
 Local Open Scope assert.
 
 Definition odd_spec :=
@@ -25,6 +28,6 @@ Definition even_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]
     PROP() LOCAL(temp ret_temp (Vint (if Z.even 42 then Int.one else Int.zero))) SEP().

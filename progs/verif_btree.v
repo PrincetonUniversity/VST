@@ -4,6 +4,7 @@ Require Import progs.btree. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 Inductive bnode :=
 | BNode (keys : list Z) (children : list bnode).
@@ -883,7 +884,7 @@ Definition search_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
+  PRE  [] main_pre prog tt u
   POST [ tint ] main_post prog u.
 
 (* Packaging the API spec all together. *)
@@ -1134,8 +1135,6 @@ Proof.
     * repeat constructor; computable. }
   Intro r; forward.
 Qed.
-
-Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.

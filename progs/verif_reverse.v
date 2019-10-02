@@ -35,6 +35,7 @@ Open Scope logic.
 ** interpretation, called "CompSpecs" *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 (** The reverse.c program uses the linked list structure [struct list].
  ** This satisfies the linked-list pattern, in that it has one self-reference
@@ -84,7 +85,7 @@ Definition reverse_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]
      PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
 
@@ -295,10 +296,8 @@ forward_call  (* s = sumlist(r); *)
 forward.  (* return s; *)
 Qed.
 
-Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_sumlist.

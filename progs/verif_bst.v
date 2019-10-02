@@ -3,6 +3,7 @@ Require Import VST.progs.bst.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 Definition t_struct_tree := Tstruct _tree noattr.
 
@@ -869,7 +870,7 @@ Definition abs_treebox_free_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Lemma subsume_insert:

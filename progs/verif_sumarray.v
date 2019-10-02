@@ -3,7 +3,7 @@ Require Import VST.progs.sumarray. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-
+Existing Instance NullExtension.Espec.
 
 (* Functional spec of this program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
@@ -35,7 +35,7 @@ Definition sumarray_spec : ident * funspec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]  
      PROP() 
      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
@@ -118,10 +118,8 @@ forward_call (*  s = sumarray(four,4); *)
 forward. (* return s; *)
 Qed.
 
-Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
   prove_semax_prog.
   semax_func_cons body_sumarray.

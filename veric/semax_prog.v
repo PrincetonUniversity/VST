@@ -263,10 +263,7 @@ Proof.
     intros; apply tycontext_sub_refl. apply CSUB. apply (B _ Q1 Q2 n).*)
 Qed. 
 
-Definition main_pre (prog: program) : list Type -> (ident->val) -> assert :=
-(fun nil gv => globvars2pred gv (prog_vars prog)).
-
-Definition main_pre_ext {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
+Definition main_pre {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
 (fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition Tint32s := Tint I32 Signed noattr.
@@ -274,26 +271,15 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition main_post (prog: program) : list Type -> (ident->val) -> assert :=
 (fun nil _ _ => TT).
 
-Definition main_spec' (prog: program) 
-(post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
-mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre prog) post
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
-
-Definition main_spec (prog: program): funspec :=
-mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre prog) (main_post prog)
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
-
 Definition main_spec_ext' {Z} (prog: program) (ora: Z)
 (post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
 mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre_ext prog ora) post
+ (ConstType (ident->val)) (main_pre prog ora) post
    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
 mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre_ext prog ora) (main_post prog)
+ (ConstType (ident->val)) (main_pre prog ora) (main_post prog)
    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition is_Internal (prog : program) (f : ident) :=
@@ -318,19 +304,6 @@ Definition postcondition_allows_exit retty :=
       ext_spec_exit OK_spec v ora jm.
 
 Definition semax_prog {C: compspecs}
-       (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
-compute_list_norepet (prog_defs_names prog) = true  /\
-all_initializers_aligned prog /\
-cenv_cs = prog_comp_env prog /\
-(*  @semax_func V G C (prog_funct prog) G /\*)
-@semax_func V G C (Genv.globalenv prog) (prog_funct prog) G /\
-match_globvars (prog_vars prog) V = true /\
-match find_id prog.(prog_main) G with
-| Some s => exists post, s = main_spec' prog post
-| None => False
-end.
-
-Definition semax_prog_ext {C: compspecs}
        (prog: program) (ora: OK_ty) (V: varspecs) (G: funspecs) : Prop :=
 compute_list_norepet (prog_defs_names prog) = true  /\
 all_initializers_aligned prog /\
@@ -1535,7 +1508,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   NEP NEQ h z:
   let retty := tint in
   postcondition_allows_exit retty ->
-  @semax_prog_ext CS prog z V G ->
+  @semax_prog CS prog z V G ->
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
   find_id id_fun G =
      Some (mk_funspec (params, retty) cc_default A P Q NEP NEQ) ->
@@ -2049,10 +2022,10 @@ apply age_level in H20x.
 congruence.
 Qed.
 
-Lemma semax_prog_rule_ext {CS: compspecs} :
+Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m h z,
      postcondition_allows_exit tint ->
-     @semax_prog_ext CS prog z V G ->
+     @semax_prog CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
@@ -2162,42 +2135,6 @@ Proof.
   apply initial_jm_ext_matchfunspecs.
 +
   apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
-Qed.
-
-(* This version works if we don't need to know anything about the external state. *)
-Lemma semax_prog_rule {CS: compspecs} :
-OK_ty = unit ->
-postcondition_allows_exit tint ->
-forall ora V G prog m h,
- @semax_prog_ext CS prog ora V G ->
- Genv.init_mem prog = Some m ->
- { b : block & { q : CC_core &
-   (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-   (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                jm q jm' (Vptr b Ptrofs.zero) nil) *
-   forall n,
-     { jm |
-       m_dry jm = m /\ level jm = n /\
-       (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
-       no_locks (m_phi jm) /\
-       matchfunspecs (globalenv prog) G (m_phi jm) /\
-       (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
- } } }%type.
-Proof.
-intros OKunit EXIT; intros.
-assert (Hora: forall a b : OK_ty, a=b). {
-  rewrite OKunit. intros. destruct a,b. auto.
-}
-destruct (semax_prog_rule_ext V G prog m h ora EXIT H H0) as [b [q [[?H ?H] ?H]]].
-clear H H0.
-destruct Espec. simpl in *.
-exists b, q; split; auto.
-clear H1 H2.
-intros n. specialize (H3 n).
-destruct H3 as [jm [? [? ?]]]; exists jm; split3; auto.
-destruct H1 as [? [? [? [? ?]]]]. split3; auto.
-intro.
-replace z with ora; auto.
 Qed.
 
 Lemma match_fdecs_length funs K:

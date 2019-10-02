@@ -3,6 +3,7 @@ Require Import VST.floyd.library.
 Require Import VST.progs.object.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 Local Open Scope Z.
 Local Open Scope logic.
@@ -81,7 +82,7 @@ Definition make_foo_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]
      EX i:Z, PROP(0<=i<=6) LOCAL (temp ret_temp (Vint (Int.repr i))) SEP(TT).
 

@@ -7,6 +7,10 @@ Require Import VST.progs.incrN.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Definition extlink := ext_link_prog prog.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
+
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -110,7 +114,7 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
@@ -398,13 +402,8 @@ Proof.
   forward.
 Qed.
 
-Definition extlink := ext_link_prog prog.
-
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 do 7 semax_func_cons_ext.

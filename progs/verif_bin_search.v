@@ -4,6 +4,8 @@ Require Import VST.progs.bin_search. (* Import the AST of this C program *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
+Existing Instance NullExtension.Espec.
+
 Fixpoint sorted (l : list Z) : Prop :=
   match l with
   | [] => True
@@ -36,7 +38,7 @@ Definition search_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 (* Packaging the API spec all together. *)
@@ -272,10 +274,8 @@ Proof.
   Intro r; forward.
 Qed.
 
-Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_search.

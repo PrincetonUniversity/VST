@@ -8,6 +8,7 @@ Open Scope logic.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Existing Instance NullExtension.Espec.
 
 Definition t_struct_Xnode := Tstruct _Xnode noattr.
 Definition t_struct_Xlist := Tstruct _XList noattr.
@@ -547,7 +548,7 @@ Definition YList_add_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]
      PROP() LOCAL () SEP(TT).
 
@@ -893,10 +894,8 @@ Proof.
   forward.
 Qed.
 
-Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_Xnode_add.

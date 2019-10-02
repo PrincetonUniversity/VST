@@ -4160,7 +4160,7 @@ Ltac start_function :=
     end;
     lazymatch goal with
     | s :=  (_,  WITH _: globals
-               PRE  [] main_pre _ nil _
+               PRE  [] main_pre _ _ nil _
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;
@@ -4487,12 +4487,8 @@ Ltac with_library' p G :=
 Ltac with_library prog G :=
   let pr := eval unfold prog in prog in  with_library' pr G.
 
-Definition semax_prog {Espec} {CS} prog V G :=
+Definition semax_prog {Espec} {CS} prog z V G :=
  @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
-  Espec CS prog V (augment_funspecs prog G).
-
-Definition semax_prog_ext {Espec} {CS} prog z V G :=
- @SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog_ext
   Espec CS prog z V (augment_funspecs prog G).
 
 Lemma mk_funspec_congr:
@@ -4654,13 +4650,9 @@ Ltac solve_cenvcs_goal :=
 
 Ltac prove_semax_prog_aux tac :=
   match goal with
-    |- semax_prog ?prog ?Vprog ?Gprog =>
+    | |- semax_prog ?prog ?z ?Vprog ?Gprog =>
      let x := constr:(ltac:(old_with_library prog Gprog))
      in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog
-                    prog Vprog x)
-    | |- semax_prog_ext ?prog ?z ?Vprog ?Gprog =>
-     let x := constr:(ltac:(old_with_library prog Gprog))
-     in change ( SeparationLogicAsLogicSoundness.MainTheorem.CSHL_MinimumLogic.CSHL_Defs.semax_prog_ext
                     prog z Vprog x)
   end;
  split3; [ | | split3; [ | | split]];
