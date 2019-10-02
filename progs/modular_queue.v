@@ -236,8 +236,6 @@ Definition module_fifo : module := {|
 |}.
 
 (***************************************************)
-Existing Instance NullExtension.Espec.
-
 Definition make_elem_spec :=
  DECLARE _make_elem
   WITH a: int, b: int
@@ -265,6 +263,8 @@ Admitted.
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Admitted.
+
+Existing Instance NullExtension.Espec.
 
 Lemma two_correct:
   semax_func Vprog Gtot

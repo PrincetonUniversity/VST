@@ -4,11 +4,6 @@ Require Import VST.progs.cond_queue.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition extlink := ext_link_prog prog.
-
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
@@ -592,6 +587,11 @@ Proof.
       forward; entailer!. }
   forward.
 Qed.
+
+Definition extlink := ext_link_prog prog.
+
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

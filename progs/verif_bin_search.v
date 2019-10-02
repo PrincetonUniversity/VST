@@ -4,8 +4,6 @@ Require Import VST.progs.bin_search. (* Import the AST of this C program *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-Existing Instance NullExtension.Espec.
-
 Fixpoint sorted (l : list Z) : Prop :=
   match l with
   | [] => True
@@ -273,6 +271,8 @@ Proof.
   }
   Intro r; forward.
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

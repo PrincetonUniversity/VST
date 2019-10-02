@@ -4,11 +4,6 @@ Require Import VST.progs.cond.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition extlink := ext_link_prog prog.
-
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
@@ -120,7 +115,7 @@ Proof.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c cond; temp _t lockt; temp _l lock; gvars gv)
    SEP (lock_inv sh2 lockt (tlock_inv sh1 lockt lock cond data);
-        lock_inv sh2 lock (dlock_inv data); cond_var sh2 cond; dlock_inv data)).
+        lock_inv sh2 lock (dlock_inv data); cond_var sh2 cond; dlock_inv data; has_ext tt)).
   { Exists 0; entailer!.
     Exists 0; entailer. }
   { entailer. }
@@ -143,9 +138,15 @@ Proof.
     { lock_props.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
     forward_call (cond, Ews).
-    { erewrite !sepcon_assoc, cond_var_share_join; eauto; cancel. }
+    { rewrite sepcon_comm. rewrite !sepcon_assoc.
+      erewrite cond_var_share_join; eauto; cancel. }
     forward.
 Qed.
+
+Definition extlink := ext_link_prog prog.
+
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

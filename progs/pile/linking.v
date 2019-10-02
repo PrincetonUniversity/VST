@@ -186,8 +186,9 @@ Qed.
 
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
- [red; red; apply @sub_option_get; 
-    repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil
+ [first [ apply cspecs_sub_refl
+          | split3; red; apply @sub_option_get; 
+            repeat (apply Forall_cons; [reflexivity | ]);  apply Forall_nil ]
  | repeat (apply Forall_cons; [ reflexivity | ]); apply Forall_nil
  | simple apply tycontext_sub_refl ||
   (apply tycontext_sub_i99;

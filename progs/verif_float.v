@@ -3,7 +3,6 @@ Require Import VST.progs.float.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 Local Open Scope logic.
 
@@ -29,7 +28,7 @@ start_function.
 pose (f :=  PROP () LOCAL (gvars gv)
   SEP (data_at Ews t_struct_foo (Vint (Int.repr 5),
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),
-           Vfloat (Float.of_bits (Int64.repr 0)))) (gv _s))).
+           Vfloat (Float.of_bits (Int64.repr 0)))) (gv _s); has_ext tt)).
 apply semax_pre with f; subst f. (* factored out "f" to work around a bug
    in Coq 8.4pl6 (and earlier versions back at least to 8.4pl3).
   To exhibit the bug, put the r.h.s. of the "pose" as in place of f

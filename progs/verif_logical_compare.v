@@ -3,8 +3,6 @@ Require Import VST.progs.logical_compare.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Existing Instance NullExtension.Espec.
-
 (****  START *)
 
 Definition logical_and_result v1 v2 : int :=
@@ -140,6 +138,8 @@ Proof.
 start_function.
 forward.
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

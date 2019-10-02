@@ -3,7 +3,6 @@ Require Import VST.floyd.library.
 Require Import VST.progs.object.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 Local Open Scope Z.
 Local Open Scope logic.

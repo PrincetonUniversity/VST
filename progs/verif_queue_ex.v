@@ -8,9 +8,6 @@ Set Bullet Behavior "Strict Subproofs".
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Definition extlink := ext_link_prog prog.
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 (*Definition release_spec := DECLARE _release release_spec.*)
@@ -763,6 +760,10 @@ Proof.
     after_forward_call].
   forward.
 Admitted.
+
+Definition extlink := ext_link_prog prog.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

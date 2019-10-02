@@ -3,7 +3,6 @@ Require Import VST.progs.sumarray2. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 (* Some definitions relating to the functional spec of this particular program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
@@ -121,12 +120,15 @@ forward_call (*  s = sumarray(four+2,2); *)
  normalize.
 + split. auto. computable.
 +
-  gather_SEP 1 2.
+  gather_SEP (data_at Ews (tarray tuint 2) (sublist 0 2 contents) _) 
+                   (data_at Ews (tarray tuint 2) (map Vint _) _).
   erewrite <- (split2_data_at_Tarray_app 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
   rewrite <- !sublist_map. fold contents. autorewrite with sublist.
   rewrite (sublist_same 0 4) by auto.
   forward. (* return *)
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

@@ -4,7 +4,6 @@ Require Import VST.progs.insertionsort.
 Require Import Sorted.
 Require Import Omega.
 Require Import Coq.Sorting.Permutation.
-Existing Instance NullExtension.Espec.
 
 Local Open Scope logic.
 

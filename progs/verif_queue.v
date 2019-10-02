@@ -7,7 +7,6 @@ Open Scope logic.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
@@ -564,6 +563,8 @@ forward_call (*  free(p, sizeof( *p)); *)
 }
 forward. (* return i+j; *)
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

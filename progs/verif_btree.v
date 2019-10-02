@@ -4,7 +4,6 @@ Require Import progs.btree. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 Inductive bnode :=
 | BNode (keys : list Z) (children : list bnode).
@@ -1135,6 +1134,8 @@ Proof.
     * repeat constructor; computable. }
   Intro r; forward.
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.

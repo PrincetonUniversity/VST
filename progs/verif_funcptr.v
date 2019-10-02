@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.funcptr.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 Local Open Scope Z.
 Local Open Scope logic.

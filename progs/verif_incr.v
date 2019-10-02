@@ -4,10 +4,6 @@ Require Import VST.progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Definition extlink := ext_link_prog prog.
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -212,6 +208,10 @@ Proof.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
   forward.
 Qed.
+
+Definition extlink := ext_link_prog prog.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

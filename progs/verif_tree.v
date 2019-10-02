@@ -8,7 +8,6 @@ Open Scope logic.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 Definition t_struct_Xnode := Tstruct _Xnode noattr.
 Definition t_struct_Xlist := Tstruct _XList noattr.
@@ -893,6 +892,8 @@ Proof.
   start_function.
   forward.
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.

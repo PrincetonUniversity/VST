@@ -14,10 +14,6 @@ Instance CompSpecs_Preserve: change_composite_env verif_atomic_exchange.CompSpec
 Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Definition extlink := ext_link_prog prog.
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
-Existing Instance Espec.
-
 (* import funspecs from concurrency library *)
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).

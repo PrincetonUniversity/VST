@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.progs.message.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 
 (* This program, and its verification, are described in Chapter 29
    of _Program Logics for Certified Compilers_, by Appel et al., 2014 *)

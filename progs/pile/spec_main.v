@@ -22,7 +22,7 @@ Local Open Scope assert.
 Definition main_spec :=
  DECLARE _main
  WITH gv: globals
- PRE [ ] main_pre linked_prog nil gv
+ PRE [ ] main_pre linked_prog tt nil gv
  POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Vint (Int.repr 0)))

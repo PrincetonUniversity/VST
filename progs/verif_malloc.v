@@ -6,7 +6,6 @@ Require Import VST.floyd.library.
 Require Import VST.progs.malloc.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Existing Instance NullExtension.Espec.
 Local Open Scope Z.
 Local Open Scope logic.  
 
@@ -447,6 +446,8 @@ Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
    and an interesting main, before verifying these. *)
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+
+Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
   semax_prog prog tt Vprog Gprog.
