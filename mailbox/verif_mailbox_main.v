@@ -97,7 +97,7 @@ Proof.
         fold_right sepcon emp (map (malloc_token Ews tint) reads);
         fold_right sepcon emp (map (malloc_token Ews tint) lasts);
         fold_right sepcon emp (map (fun sh => @data_at CompSpecs sh tbuffer (vint 0) (Znth 1 bufs)) (sublist i N shs));
-        mem_mgr gv)).
+        mem_mgr gv; has_ext tt)).
   { unfold N; computable. }
   { Exists Ews; rewrite !sublist_same; auto; unfold N; entailer!.
     apply derives_refl. }

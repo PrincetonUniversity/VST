@@ -814,29 +814,11 @@ Lemma map_instantiate:
 Proof. intros. subst. reflexivity. Qed.
 
 Lemma main_pre_start:
- forall prog u gv,
-   main_pre prog u gv = (PROP() LOCAL(gvars gv) SEP())%assert * globvars2pred gv (prog_vars prog).
+ forall {Z} prog u gv (ora : Z),
+   main_pre prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
 Proof.
 intros.
 unfold main_pre.
-unfold globvars2pred,  PROPx, LOCALx, SEPx.
-unfold lift2.
-extensionality rho.
-simpl.
-normalize.
-unfold gvars_denote. unfold_lift. unfold local, lift1.
-fold (globals_of_env rho).
-apply pred_ext; intros; normalize.
-rewrite prop_true_andp by auto.
-auto.
-Qed.
-
-Lemma main_pre_ext_start:
- forall {Z} prog u gv (ora : Z),
-   main_pre_ext prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
-Proof.
-intros.
-unfold main_pre_ext.
 unfold globvars2pred,  PROPx, LOCALx, SEPx.
 unfold lift2.
 extensionality rho.
@@ -1099,17 +1081,11 @@ reflexivity.
 Qed.
 
 Ltac expand_main_pre :=
- match goal with |- semax _ (main_pre ?prog _ _ * _) _ _ =>
+ match goal with | |- semax _ (main_pre ?prog _ _ _ * _) _ _ =>
     rewrite main_pre_start;
     unfold prog_vars, prog
-                          | |- semax _ (main_pre ?prog _ _) _ _ =>
+                          | |- semax _ (main_pre ?prog _ _ _) _ _ =>
     rewrite main_pre_start;
-    unfold prog_vars, prog
-                          | |- semax _ (main_pre_ext ?prog _ _ _ * _) _ _ =>
-    rewrite main_pre_ext_start;
-    unfold prog_vars, prog
-                          | |- semax _ (main_pre_ext ?prog _ _ _) _ _ =>
-    rewrite main_pre_ext_start;
     unfold prog_vars, prog
  end;
  (match goal with |- context C [prog_defs (Build_program ?d _ _ _ _)] =>

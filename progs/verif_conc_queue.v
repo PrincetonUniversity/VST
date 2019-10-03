@@ -496,7 +496,7 @@ Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog
 Existing Instance Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_exit.

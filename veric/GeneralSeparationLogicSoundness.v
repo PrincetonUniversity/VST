@@ -11,10 +11,6 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.mpred.
 Require Import VST.veric.seplog.
 
-(*Require Import VST.veric.initial_world. 
-Require Import VST.veric.SeparationLogic.
- *)
-
 (*********copied from initial_world***********)
 Fixpoint find_id (id: ident) (G: funspecs) : option funspec  :=
  match G with
@@ -36,16 +32,8 @@ Definition func_at'' fsig cc A P Q :=
 
 Module Type GENERAL_SEPARATION_LOGIC_SOUNDNESS.
 
-(*Declare Module ExtSpec: EXTERNAL_SPEC. *) 
-(*Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
-Import CSL. for semax_prog*)
-
-
 Parameter F T: Type. (*Clight instantiates := fundef V:=type*)
-(*Record genv : Type := Build_genv { genv_genv : @Genv.t F T;  genv_cenv : composite_env }.
 
-Parameter genv:Type.
-*)
 Definition genv:Type := Genv.t F T.
 
 (*duplicated from tycontext to prevent specialization to Clight*)
@@ -54,14 +42,6 @@ Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) 
 
 Parameter C: Type.
 Parameter Sem: genv -> CoreSemantics C Memory.mem.
-
-(*Definition genv_symb_injective {F V} (ge: Genv.t F V) : extspec.injective_PTree block.
-Proof.
-exists (Genv.genv_symb ge).
-hnf; intros.
-eapply Genv.genv_vars_inj; eauto.
-Defined.*)
-(*Parameter genv_symb_injective: forall {F V:Type} (ge: Genv.t F V), extspec.injective_PTree block.*)
 Parameter genv_symb_injective: genv -> extspec.injective_PTree block.
 
 Definition jsafeN {Z} (Hspec : juicy_ext_spec Z) (ge: genv) :=
@@ -97,16 +77,5 @@ Definition EPoint_sound {Espec: OracleKind} FS m (h:nat) (entryPT:ident) (g:genv
            res_predicates.no_locks (m_phi jm) /\
            matchfunspecs g FS (m_phi jm) /\
            app_pred (funspecs_assert (make_tycontext_s FS) (empty_environ g))  (m_phi jm) } } }%type.
-
-(*maybe generalize from single EP ("main") to multiple entry points?
-Axiom module_sound: forall Espec G m h entryPT g,
-      @EPoint_sound Espec G m h entryPT g.
-
-Definition prog_sound {Espec: OracleKind} CS prog :=
-     @semax_prog Espec CS prog V G ->
-     forall h m,
-     @Genv.init_mem F T prog = Some m ->
-     @EPoint_sound Espec G m h (prog_main prog)  (globalenv prog).
-                                    *)
 
 End GENERAL_SEPARATION_LOGIC_SOUNDNESS.

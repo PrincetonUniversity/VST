@@ -37,42 +37,15 @@ Import CSHL_Def.
 Import CSHL_Defs.
 
 Axiom semax_prog_sound :
-  forall {Espec: OracleKind}{CS: compspecs} prog Vspec Gspec,
-  @semax_prog Espec CS prog Vspec Gspec ->
-  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
-
-Axiom semax_prog_ext_sound :
   forall {Espec: OracleKind}{CS: compspecs} prog z Vspec Gspec,
-  @semax_prog_ext Espec CS prog z Vspec Gspec ->
-  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+  @semax_prog Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog z Vspec Gspec.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
-  OK_ty = unit -> 
-  postcondition_allows_exit Espec tint ->
-  forall ora V G prog m h,
-     @semax_prog_ext Espec CS prog ora V G ->
-     Genv.init_mem prog = Some m ->
-     { b : block & { q : Clight_core.state &
-       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
-       forall n,
-         { jm |
-           m_dry jm = m /\ level jm = n /\
-           (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
-           no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm) /\
-           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
-     } } }%type.
-
-(* This version lets the user choose the external state instead of quantifying over it,
-    and start with knowledge of that state in the precondition of main. *)
-Axiom semax_prog_rule_ext :
-  forall {Espec: OracleKind}{CS: compspecs},
   forall V G prog m h z,
      postcondition_allows_exit Espec tint ->
-     @semax_prog_ext Espec CS prog z V G ->
+     @semax_prog Espec CS prog z V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
@@ -127,7 +100,6 @@ Module CSHL_Defs := DerivedDefs (VericDef).
 Definition semax_extract_exists := @extract_exists_pre.
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
-Definition semax_prog_ext := @semax_prog_ext.
 Definition semax_func_nil := @semax_func_nil.
 Definition semax_func_cons := @semax_func_cons.
 (* Definition semax_func_skip := @semax_func_skip. *)
@@ -250,31 +222,14 @@ Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
 
 Lemma semax_prog_sound :
-  forall {Espec}{CS} prog Vspec Gspec,
-  @CSHL_Defs.semax_prog Espec CS prog Vspec Gspec ->
-  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
+  forall {Espec}{CS} prog z Vspec Gspec,
+  @CSHL_Defs.semax_prog Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog z Vspec Gspec.
 Proof.
   intros; apply H.
 Qed.
 
-Lemma semax_prog_ext_sound :
-  forall {Espec}{CS} prog z Vspec Gspec,
-  @CSHL_Defs.semax_prog_ext Espec CS prog z Vspec Gspec ->
-  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
-Proof.
-  intros; apply H.
-Qed.
-(*
-Lemma postcondition_allows_exit_sound :
-  forall {Espec} t,
-  @CSHL_Defs.postcondition_allows_exit Espec t ->
-  @semax_prog.postcondition_allows_exit Espec t.
-Proof.
-  intros; apply H.
-Qed.
-*)
 Definition semax_prog_rule := @semax_prog_rule.
-Definition semax_prog_rule_ext := @semax_prog_rule_ext.
 
 End VericSound.
 

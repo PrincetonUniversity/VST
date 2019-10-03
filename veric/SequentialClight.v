@@ -395,7 +395,7 @@ Lemma whole_program_sequential_safety_ext:
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
      prog V G m,
-     @semax_prog_ext Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
+     @semax_prog Espec (*NullExtension.Espec*) CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -409,7 +409,7 @@ Lemma whole_program_sequential_safety_ext:
              n initial_oracle q m'.
 Proof.
  intros.
- destruct (@semax_prog_rule_ext (*NullExtension.*)Espec CS _ _ _ _ 
+ destruct (@semax_prog_rule Espec CS _ _ _ _ 
      0 (*additional temporary argument - TODO (Santiago): FIXME*)
      initial_oracle EXIT H H0) as [b [q [[H1 H2] H3]]].
  destruct (H3 O) as [jmx [H4x [H5x [H6x [H7x _]]]]].
@@ -554,26 +554,3 @@ Require Import VST.veric.juicy_safety.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.
-
-Lemma module_sequential_safety : (*TODO*)
-   forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
-     let ge := Genv.globalenv prog in
-     let ext_link := ext_link_prog prog in
-     let spec := add_funspecs NullExtension.Espec ext_link G in
-     let tys := sig_args (ef_sig f) in
-     let rty := sig_res (ef_sig f) in
-     let sem := juicy_core_sem (cl_core_sem (Build_genv ge (prog_comp_env prog))) in
-     @semax_prog spec CS prog V G ->
-     fun_id ext_link f = Some f_id ->
-     Genv.find_symbol ge f_id = Some f_b ->
-     Genv.find_funct  ge (Vptr f_b Ptrofs.zero) = Some f_body ->
-     forall x : ext_spec_type (@OK_spec spec) f,
-     ext_spec_pre (@OK_spec spec) f x (semax.genv_symb_injective ge) tys args ora m ->
-     exists q,
-       initial_core sem 
-         0 (*additional temporary argument - TODO (Santiago): FIXME*)
-             m q m
-              (Vptr f_b Ptrofs.zero) args /\
-       forall n, safeN_(genv_symb := @semax.genv_symb_injective _ _)(Hrel := juicy_extspec.Hrel) sem
-(upd_exit (@OK_spec spec) x (semax.genv_symb_injective ge)) ge n ora q m.
-Abort.

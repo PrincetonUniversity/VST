@@ -236,7 +236,6 @@ Definition module_fifo : module := {|
 |}.
 
 (***************************************************)
-
 Definition make_elem_spec :=
  DECLARE _make_elem
   WITH a: int, b: int
@@ -247,7 +246,7 @@ Definition make_elem_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
+  PRE  [] main_pre prog tt u
   POST [ tint ] main_post prog u.
 
 Definition Vprog : varspecs := nil.
@@ -310,7 +309,7 @@ apply semax_func_nil.
 Qed.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
  next_module builtins_correct.

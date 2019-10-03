@@ -47,7 +47,7 @@ Definition insertionsort_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
+  PRE  [] main_pre prog tt u
   POST [ tint ] main_post prog u.
 
 Definition Vprog : varspecs := nil.
