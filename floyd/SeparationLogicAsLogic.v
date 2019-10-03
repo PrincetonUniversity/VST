@@ -1293,6 +1293,23 @@ Definition semax_ext := @MinimumLogic.semax_ext.
 Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
+Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
+Definition semax_body_binaryintersection:
+forall {V G cs} f sp1 sp2 phi
+  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+  (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
+  @semax_body V G cs f (fst sp1, phi).
+Proof. intros.
+  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 A1 P1 Q1 P1_ne Q1_ne]. 
+  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 A2 P2 Q2 P2_ne Q2_ne]. 
+  destruct phi as [sig cc A P Q P_ne Q_ne]. simpl snd in BI.
+  simpl in BI.
+  if_tac in BI; [inv BI | discriminate]. if_tac in H1; inv H1.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H6.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H5. subst. simpl fst; clear - SB1 SB2.
+  destruct SB1 as [X SB1]; destruct SB2 as [_ SB2]; split; [ apply X | simpl in X; intros].
+  destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
+Qed.
 
 Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).
 
