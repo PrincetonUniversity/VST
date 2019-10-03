@@ -15,7 +15,6 @@ Require Import mailbox.verif_mailbox_main.
 Set Bullet Behavior "Strict Subproofs".
 
 Definition extlink := ext_link_prog prog.
-
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 

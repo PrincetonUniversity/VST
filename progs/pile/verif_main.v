@@ -27,7 +27,7 @@ forward_for_simple_bound 10
    PROP() LOCAL(gvars gv)
    SEP (onepile gv (Some (verif_triang.decreasing (Z.to_nat i)));
           apile gv (verif_triang.decreasing (Z.to_nat i));
-          mem_mgr gv)).
+          mem_mgr gv; has_ext tt)).
 -
  entailer!.
 -
