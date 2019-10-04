@@ -1228,6 +1228,7 @@ Axiom semax_func_cons_ext:
         (opttyp_of_type retsig) cc ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
+      ef_inline ef = false ->
       (forall gx ts x (ret : option val),
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)

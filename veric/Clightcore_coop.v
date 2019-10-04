@@ -70,6 +70,7 @@ Proof. simpl; intros. inv H; simpl in *;
    eapply mem_step_freelist; eauto.
    inv H0.
    eapply alloc_variables_mem_step; eauto.
+   apply extcall_mem_step in H1; auto.
 Qed. 
 
 Program Definition CLC_memsem  (ge : Clight.genv) :

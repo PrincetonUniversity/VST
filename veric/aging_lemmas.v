@@ -145,7 +145,7 @@ Proof.
         apply age_level in A.
         omega. }
     + econstructor 3.
-      * unfold j_at_external in *; rewrite <- (age_jm_dry A); eassumption. 
+      * unfold j_at_external in *; rewrite <- (age_jm_dry A); eassumption.
       * eapply (proj1 heredspec); eauto.
       * intros ret jm' z' n' Hargsty Hretty H rel post.
         destruct (H2 ret jm' z' n' Hargsty Hretty H) as (c' & atex' & safe'); eauto.

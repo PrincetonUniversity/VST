@@ -23,8 +23,7 @@ Require Import VST.concurrency.common.dry_machine_lemmas.
 Require Import VST.concurrency.common.erased_machine.
 
 (*Semantics*)
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clightcore_coop.
 Require Import VST.sepcomp.event_semantics.
 (*Require Import VST.veric.Clight_sim.*)
 Require Import VST.concurrency.common.ClightSemanticsForMachines.
@@ -38,32 +37,6 @@ Require Import VST.concurrency.common.ssromega. (*omega in ssrnat *)
 Set Bullet Behavior "Strict Subproofs".
 
 Import threadPool.
-
-Module Clight_newMachine.
-
-  Import HybridMachineSig.
-
-  Module DMS.
-  Section DMS.
-
-  Context {ge : Clight.genv}.
-  Existing Instance OrdinalPool.OrdinalThreadPool.
-  Instance DSem : Semantics := Clight_newSem ge.
-
-
-  (* First construct the Clight machine and the two projections:
-     - ClightMachineSem (i.e.  MachineSemantics) 
-     - ClightConcurSem (i.e. ConcurMachineSemantics)
-  *)
-  
-  Definition ClightMachine :=(HybridCoarseMachine.HybridCoarseMachine
-                                 (machineSig := DryHybridMachine.DryHybridMachineSig)).
-  Definition ClightMachineSem := (MachineSemantics(HybridMachine := ClightMachine)).
-  Definition ClightConcurSem := (ConcurMachineSemantics(HybridMachine := ClightMachine)).   
-  End DMS.
-  End DMS.
-End Clight_newMachine.
-
 
 Module ClightMachine.
 
@@ -89,8 +62,6 @@ Module ClightMachine.
   End DMS.
   End DMS.
 End ClightMachine.
-
-
 
 Module FiniteBranching.
 

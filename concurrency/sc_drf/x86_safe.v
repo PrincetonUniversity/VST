@@ -411,6 +411,20 @@ Module X86Safe.
                                                   OrdinalPool.OrdinalThreadPool
                                                   BareMachine.BareMachineSig BareDilMem).
 
+    Lemma semSem_fun: event_semantics.ev_step_fun semSem.
+    Proof.
+    hnf; intros.
+    hnf in H,H0.
+    inv H; inv H0; try congruence.
+    inversion2 H1 H7. inversion2 H2 H8. inversion2 H3 H9. inv H4.
+    inversion2 H1 H8. inversion2 H2 H9. inversion2 H3 H10. inv H11.
+    inversion2 H1 H8. inversion2 H2 H9. inversion2 H3 H10.
+    assert (vargs=vargs0 /\ T1=T0) by (eapply Asm_event.eval_builtin_args_ev_determ; eauto).
+    destruct H; subst T0 vargs0.
+    f_equal.    
+    eapply Asm_event.builtin_event_determ; eauto.
+    Qed.
+
     Lemma x86SC_safe:
       forall Main_ptr init_thread_target new_mem_target,
         initial_core (event_semantics.msem semSem) 0 init_mem init_thread_target new_mem_target Main_ptr nil ->
@@ -506,7 +520,7 @@ Module X86Safe.
       destruct (Hexec _ _ _ HexecF) as [tpsc' [msc' [tr' [HexecSC' [_ [_ Htr_erasure]]]]]].
       eapply fine_execution_multi_step in HexecF.
       simpl in HexecF.
-      pose proof (@bare_execution_det _ X86Det _ _ _ _ _ _ HSCexec HexecSC') as Heq.
+      pose proof (@bare_execution_det _ X86Det semSem_fun _ _ _ _ _ _ HSCexec HexecSC') as Heq.
       destruct Heq as [Heq1 Heq2].
       inversion Heq1; subst.
       simpl in Htr_erasure.

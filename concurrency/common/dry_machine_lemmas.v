@@ -954,17 +954,17 @@ Module CoreLanguage.
       Qed.
 
       Definition ev_step_det:
+        ev_step_fun semSem ->
         forall (m m' m'' : mem) (c c' c'' : semC) ev ev',
           ev_step semSem c m ev c' m' ->
           ev_step semSem c m ev' c'' m'' -> c' = c'' /\ m' = m'' /\ ev = ev'.
       Proof.
-        intros.
+        intro Hfun; intros.
         assert (Hcore := ev_step_ax1 _ _ _ _ _ _ H).
         assert (Hcore' := ev_step_ax1 _ _ _ _ _ _ H0).
         assert (Heq := corestep_det _ _  _ _ _ _ Hcore Hcore').
         destruct Heq; repeat split; auto.
-        eapply ev_step_fun;
-          now eauto.
+        eapply Hfun; eauto.
       Qed.
 
       Lemma ev_unchanged_on:

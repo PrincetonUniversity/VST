@@ -273,7 +273,8 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
            /\ ef_sig ef = mksignature
                            (typlist_of_typelist (type_of_params (fst fsig)))
                            (opttyp_of_type (snd fsig)) cc
-           /\ length (typelist2list sigargs)=length ids)
+           /\ length (typelist2list sigargs)=length ids
+           /\ ef_inline ef = false)
         && semax_external Hspec ids ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),

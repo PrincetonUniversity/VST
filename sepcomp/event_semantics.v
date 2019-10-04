@@ -182,14 +182,18 @@ Record EvSem {C} :=
   ; ev_step_ax2: forall c m c' m',
        corestep msem c m c' m' ->
        exists T, ev_step c m T c' m'
-  ; ev_step_fun: forall c m T' c' m' T'' c'' m'',
-       ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T''
+(*  ; ev_step_fun: forall c m T' c' m' T'' c'' m'',
+       ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T'' *)
 (*  ; ev_step_elim: forall g c m T c' m',
        ev_step g c m T c' m' -> ev_elim m T m'*)
   ; ev_step_elim: forall c m T c' m' (STEP: ev_step c m T c' m'),
        ev_elim m T m' (*/\
        (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step c mm T cc' mm')*)
   }.
+
+Definition ev_step_fun {C} (sem: @EvSem C) : Prop :=
+  forall c m T' c' m' T'' c'' m'',
+       ev_step sem c m T' c' m' -> ev_step sem c m T'' c'' m'' -> T'=T''.
 
 Lemma Ev_sem_cur_perm {C} (R: @EvSem C) c m T c' m' b ofs (D: ev_step R c m T c' m'):
       Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).

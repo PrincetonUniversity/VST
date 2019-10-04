@@ -665,6 +665,7 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
     (opttyp_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   length ids = length (typelist2list argsig) ->
+  ef_inline ef = false ->
   (forall gx ts x (ret : option val),
      (Q ts x (make_ext_rval gx ret)
         && !!has_opttyp ret (opttyp_of_type retsig)
@@ -676,7 +677,7 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
        ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until ids.
-intros b Hids Hargsig Hef Hni Hlen Hretty B1 B2 H [Hf' [GC Hf]].
+intros b Hids Hargsig Hef Hni Hlen Hinline Hretty B1 B2 H [Hf' [GC Hf]].
 rewrite Hargsig in *.  clear Hids Hargsig argsig'.
 apply id_in_list_false in Hni.
 split.
@@ -1627,7 +1628,7 @@ destruct H5 as [H5|H5].
    with (Genv.find_funct_ptr (genv_genv psi) b) in H5.
   rewrite Eb in H5.
   destruct f; try contradiction.
- destruct H5 as [[[? [? [? ?]]] ?] ?].
+ destruct H5 as [[[? [? [? [? Hinline]]]] ?] ?].
  subst c.
  simpl in H4, H5.
  rewrite fst_split in H5. rewrite map_length in H5.
@@ -1661,6 +1662,7 @@ destruct H5 as [H5|H5].
  specialize (H6 ora _ (necR_refl _)).
  clear H1 H5 H3 m_funassert m_sat_Pa rho Ef Eb.
  eapply jsafeN_external.
+ simpl. rewrite Hinline.
  reflexivity.
  rewrite H4. simpl.
  apply H6.
