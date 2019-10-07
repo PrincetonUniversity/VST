@@ -24,7 +24,6 @@ Lemma semax_func_cons_ext_vacuous:
          (argsig : typelist) (retsig : type)
          (G' : funspecs) cc b,
        (id_in_list id (map fst fs)) = false ->
-       ef_inline ef = false ->
        ef_sig ef =
        {|
          sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
@@ -47,6 +46,7 @@ eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
   forget 1%positive as i.
   clear.
   revert i; induction argsig; simpl; intros; auto.
+* right. clear. hnf. intros. destruct X.
 *
   intros. simpl. apply andp_left1, FF_left.
 *  apply semax_external_FF.

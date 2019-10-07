@@ -1399,7 +1399,11 @@ clear H5.
 destruct H15 as [H5 H15].
 specialize (H15 (opttyp_of_type retty)).
 do 3 red in H15.
-
+destruct Hinline as [Hinline|Hempty].
+2:{
+elimtype False; clear - Hempty x.
+eapply Hempty. eassumption.
+}
 assert (Hty: type_of_params params = tys).
 { clear -H7 Hlen.
   rewrite H7. clear H7. revert tys Hlen. induction params.

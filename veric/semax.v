@@ -262,6 +262,9 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
     | _, _ => nil
   end.
 
+Definition withtype_empty (A: TypeTree) : Prop :=
+  forall ts (x: dependent_type_functor_rec ts A (pred rmap)), False.
+
 Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig) cc
   (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
@@ -274,7 +277,7 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
                            (typlist_of_typelist (type_of_params (fst fsig)))
                            (opttyp_of_type (snd fsig)) cc
            /\ length (typelist2list sigargs)=length ids
-           /\ ef_inline ef = false)
+           /\ (ef_inline ef = false \/ withtype_empty A))
         && semax_external Hspec ids ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),

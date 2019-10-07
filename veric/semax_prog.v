@@ -665,7 +665,7 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
     (opttyp_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
   length ids = length (typelist2list argsig) ->
-  ef_inline ef = false ->
+  (ef_inline ef = false \/ withtype_empty A) ->
   (forall gx ts x (ret : option val),
      (Q ts x (make_ext_rval gx ret)
         && !!has_opttyp ret (opttyp_of_type retsig)
@@ -1607,7 +1607,6 @@ assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog))
 
 (***  cut here ****)
 
-
 assert (H5 := Prog_OK).
 specialize (H5 (Vptr b Ptrofs.zero)).
 specialize (H5 (funsig_of_funspec fspec) 
@@ -1629,6 +1628,8 @@ destruct H5 as [H5|H5].
   rewrite Eb in H5.
   destruct f; try contradiction.
  destruct H5 as [[[? [? [? [? Hinline]]]] ?] ?].
+ destruct Hinline as [Hinline|Hempty].
+ 2:{ elimtype False; clear - a Hempty. eapply Hempty; eauto. }
  subst c.
  simpl in H4, H5.
  rewrite fst_split in H5. rewrite map_length in H5.

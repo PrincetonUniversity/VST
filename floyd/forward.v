@@ -460,7 +460,7 @@ Ltac try_prove_tycontext_subVG L :=
      end end end.
 
 Ltac semax_func_cons L := 
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
  try_prove_tycontext_subVG L;
  first [eapply semax_func_cons;
            [ reflexivity
@@ -471,10 +471,11 @@ Ltac semax_func_cons L :=
            | ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             | left; reflexivity
              | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
              ]
         ];
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
  try apply semax_func_nil.
 
 (* This is a better way of finding an element in a long list. *)
@@ -506,9 +507,10 @@ intros.
 Qed.
 
 Ltac semax_func_cons_ext :=
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]);
+ repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]);
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | left; reflexivity
     | semax_func_cons_ext_tc;
       try solve [apply typecheck_return_value; auto]
     | LookupID | LookupB
@@ -4676,7 +4678,7 @@ Ltac prove_semax_prog_aux tac :=
  end;
  tac.
 
-Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]).
+Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]).
 
 Ltac prove_semax_prog := prove_semax_prog_aux finish_semax_prog.
 
