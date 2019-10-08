@@ -46,6 +46,7 @@ eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
   forget 1%positive as i.
   clear.
   revert i; induction argsig; simpl; intros; auto.
+* right. clear. hnf. intros. destruct X.
 *
   intros. simpl. apply andp_left1, FF_left.
 *  apply semax_external_FF.

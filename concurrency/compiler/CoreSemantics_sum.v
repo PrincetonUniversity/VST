@@ -202,7 +202,7 @@ Inductive ev_step_sum {Cs Ct:Type}
 Program Definition EvSemanticsSum (hb:option nat) Cs Ct
         (CSs: @EvSem Cs )
         (CSt: @EvSem Ct ): @EvSem (state_sum Cs Ct):=
-  Build_EvSem _ (MemSemanticsSum hb Cs Ct CSs CSt) (ev_step_sum (ev_step CSs) (ev_step CSt)) _ _ _ _.
+  Build_EvSem _ (MemSemanticsSum hb Cs Ct CSs CSt) (ev_step_sum (ev_step CSs) (ev_step CSt)) _ _ _.
 Next Obligation.
   intros.
   inversion H; subst.
@@ -217,6 +217,7 @@ Next Obligation.
   - eapply CSt in H0; destruct H0 as [T ?]. 
     exists T; constructor; eauto.
 Defined.
+(*  evstep_fun 
 Next Obligation.
   intros.
   inversion H; subst;
@@ -224,6 +225,7 @@ Next Obligation.
   - eapply CSs; eauto.
   - eapply CSt; eauto.
 Defined.
+*)
 Next Obligation.
   intros.
   inversion STEP; subst.

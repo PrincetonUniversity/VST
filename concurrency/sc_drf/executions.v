@@ -4088,16 +4088,22 @@ Module Executions.
     Qed.
 
     Lemma step_thread_det:
+      ev_step_fun semSem ->
       forall tp m tid (cnt: containsThread tp tid) tp' m' tp'' m'' ev ev'
         (Hcmpt: mem_compatible tp m)
         (Hstep: threadStep cnt Hcmpt tp' m' ev)
         (Hstep': threadStep cnt Hcmpt tp'' m'' ev'),
         tp' = tp'' /\ m' = m'' /\ ev = ev'.
     Proof.
-      intros.
+      intro ESF; intros.
       inv Hstep; inv Hstep'.
       rewrite Hcode in Hcode0; inv Hcode0.
-      destruct (CoreLanguage.ev_step_det _ _ _ _ _ _ _ _ Hcorestep Hcorestep0) as [? [? ?]];
+      assert (corestep_fun semSem) by (inv SemD; auto).
+      pose proof (ev_step_ax1 _ _ _ _ _ _ Hcorestep).
+      pose proof (ev_step_ax1 _ _ _ _ _ _ Hcorestep0).
+      destruct (H _ _ _ _ _ _ H0 H1).
+      subst c'0 m''. split3; auto. clear H H0 H1.
+      destruct (CoreLanguage.ev_step_det ESF _ _ _ _ _ _ _ _ Hcorestep Hcorestep0) as [? [? ?]];
         subst.
       now auto.
     Qed.
@@ -4120,6 +4126,7 @@ Module Executions.
     Qed.
     
     Lemma bareStep_det:
+      ev_step_fun semSem ->
       forall U tr tp m U' tr' tp' m' U'' tr'' tp'' m''
         (Hstep: MachStep (U, tr, tp) m
                          (U', tr', tp') m')
@@ -4127,7 +4134,7 @@ Module Executions.
                           (U'', tr'', tp'') m''),
         U' = U'' /\ tr' = tr'' /\ tp' = tp'' /\ m' = m''.
     Proof.
-      intros.
+      intro ESF; intros.
       inv Hstep; simpl in *; subst;
       inv Hstep'; simpl in *; subst;
       match goal with
@@ -4163,7 +4170,7 @@ Module Executions.
         now auto.
       destruct (resume_thread_det Htstep Htstep0); subst;
         now auto.
-      destruct (step_thread_det Htstep Htstep0) as [? [? ?]]; subst;
+      destruct (step_thread_det ESF Htstep Htstep0) as [? [? ?]]; subst;
         now auto.
       destruct (suspend_thread_det Htstep Htstep0); subst;
         now auto.      
@@ -4174,12 +4181,13 @@ Module Executions.
 
 
     Lemma bare_execution_det:
+      ev_step_fun semSem ->
       forall st m st' m' st'' m''
         (Hstep: fine_execution st m st' m')
         (Hstep': fine_execution st m st'' m''),
         st' = st'' /\ m' = m''.
     Proof.
-      intros st.
+      intros ESF st.
       destruct st as [[U tr] tp].
       generalize dependent tr.
       generalize dependent tp.
@@ -4192,7 +4200,7 @@ Module Executions.
         inv Hstep';
           [simpl in H;
            now exfalso|].
-        destruct (bareStep_det H6 H8) as [? [? [? ?]]];
+        destruct (bareStep_det ESF H6 H8) as [? [? [? ?]]];
           subst.
         apply app_inv_head in H0; subst.
         now eauto.

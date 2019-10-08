@@ -1123,6 +1123,12 @@ with nocontinue_ls sl :=
  match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
  end.
 
+Definition withtype_empty (A: rmaps.TypeTree) : Prop :=
+  forall ts : list Type,
+ functors.MixVariantFunctor._functor
+   (rmaps.dependent_type_functor_rec ts A)
+   (predicates_hered.pred compcert_rmaps.RML.R.rmap) -> False.
+
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
@@ -1228,6 +1234,7 @@ Axiom semax_func_cons_ext:
         (opttyp_of_type retsig) cc ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
+      (ef_inline ef = false \/ withtype_empty A) ->
       (forall gx ts x (ret : option val),
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)

@@ -205,15 +205,22 @@ intros.
 inv H; inv H0; repeat fun_tac; auto;
 repeat match goal with H: _ = _ \/ _ = _ |- _ => destruct H; try discriminate end;
 try contradiction.
+-
 inversion2 H1 H16; fun_tac; auto.
+-
+admit.
+-
 inv H1. inv H8.
 fun_tac.
 pose proof (alloc_variables_fun H3 H7). inv H8. auto.
-Qed.
+- (* not true *)
+Abort.
 
+(*
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
 Proof.  repeat intro. eapply cl_corestep_fun; simpl in *; eauto. Qed.
 Hint Resolve cl_corestep_fun'.
+*)
 
 Lemma age1_resource_decay:
   forall jm jm', age jm jm' -> resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
@@ -334,6 +341,7 @@ simpl. auto.
 inv H9.
 Qed.
 
+(*
 Lemma jsafe_corestep_forward:
   forall {Espec: OracleKind} ge c m c' m' n z,
     jstep (cl_core_sem ge) c m c' m' -> jsafeN (@OK_spec Espec) ge (S n) z c m ->
@@ -350,6 +358,7 @@ Proof.
   eapply cl_corestep_not_halted. apply Int.zero.
   simpl in H. apply H. apply H1. 
 Qed.
+*)
 
 Lemma semax_unfold {CS: compspecs} {Espec: OracleKind}:
   semax Espec = fun Delta P c R =>

@@ -1348,7 +1348,7 @@ rewrite H16 in H15.
 destruct ff; try contradiction H15.
 
 destruct H15 as [[H5 H15] Hretty]. hnf in H5.
-destruct H5 as [H5 [H5' [Eef Hlen]]]. subst c.
+destruct H5 as [H5 [H5' [Eef [Hlen Hinline]]]]. subst c.
 inversion H5. destruct fsig0 as [params retty].
 injection H2; clear H2; intros H8 H7. subst t0.
 rename t into tys. subst rho.
@@ -1399,7 +1399,11 @@ clear H5.
 destruct H15 as [H5 H15].
 specialize (H15 (opttyp_of_type retty)).
 do 3 red in H15.
-
+destruct Hinline as [Hinline|Hempty].
+2:{
+elimtype False; clear - Hempty x.
+eapply Hempty. eassumption.
+}
 assert (Hty: type_of_params params = tys).
 { clear -H7 Hlen.
   rewrite H7. clear H7. revert tys Hlen. induction params.
@@ -1409,6 +1413,8 @@ assert (Hty: type_of_params params = tys).
   simpl in Hlen|-*. rewrite Heq in Hlen. inv Hlen. rewrite Heq. auto. }
 rewrite (age_level _ _ Hage).
 eapply jsafeN_external with (x0 := x'); eauto.
+simpl.
+rewrite Hinline.
 reflexivity.
 rewrite Eef. subst tys. apply H5; auto.
 assert (H2 := I). assert (H3 := I).
@@ -2647,7 +2653,7 @@ destruct Believe as [BE|BI].
     rewrite Eb in BE.
     destruct f as [ | ef sigargs sigret c'']. tauto.
     simpl.
-    destruct BE as [((Es & -> & ASD & LEN) & ?) _].
+    destruct BE as [((Es & -> & ASD & [LEN _]) & ?) _].
     inv Es. f_equal.
     clear - LEN H1.
     rewrite fst_split in *.
