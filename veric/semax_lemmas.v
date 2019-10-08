@@ -205,10 +205,15 @@ intros.
 inv H; inv H0; repeat fun_tac; auto;
 repeat match goal with H: _ = _ \/ _ = _ |- _ => destruct H; try discriminate end;
 try contradiction.
+-
 inversion2 H1 H16; fun_tac; auto.
+-
+admit.
+-
 inv H1. inv H8.
 fun_tac.
 pose proof (alloc_variables_fun H3 H7). inv H8. auto.
+- (* not true *)
 Abort.
 
 (*
