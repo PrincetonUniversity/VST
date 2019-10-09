@@ -17,8 +17,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -84,7 +84,7 @@ Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
     (ext_link : string -> ident) (prog : Clight.program)
-    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
+    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog tt V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
   Definition Jspec := @OK_spec (Concurrent_Espec unit CS ext_link).
@@ -95,14 +95,18 @@ Section Initial_State.
     | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
     end init_mem_not_none.
 
+  Lemma PAE: postcondition_allows_exit
+    (Concurrent_Espec unit CS ext_link) Clightdefs.tint.
+  Proof. hnf; intros. hnf; intros. auto. Qed.
+
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      (nil, sch,
-      let spr := semax_prog_rule'
+      let spr := semax_prog_rule
                    (Concurrent_Espec unit CS ext_link) V G prog
-                   (proj1_sig init_m) 0 all_safe (proj2_sig init_m) in
-      let q : corestate := projT1 (projT2 spr) in
-      let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n tt) in
+                   (proj1_sig init_m) 0 tt PAE all_safe (proj2_sig init_m) in
+      let q : Clight_core.state := projT1 (projT2 spr) in
+      let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
       @OrdinalPool.mk LocksAndResources (ClightSemanticsForMachines.Clight_newSem (globalenv prog))
         (pos.mkPos (le_n 1))
         (* (fun _ => Kresume q Vundef) *)
@@ -130,9 +134,9 @@ Section Initial_State.
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
-    set (spr := semax_prog_rule' (Concurrent_Espec unit CS ext_link) V G prog m 0 all_safe Hm).
+    set (spr := semax_prog_rule (Concurrent_Espec unit CS ext_link) V G prog m 0 tt PAE all_safe Hm).
     set (q := projT1 (projT2 spr)).
-    set (jm := proj1_sig (snd (projT2 (projT2 spr)) n tt)).
+    set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.
 
     (*! compatibility of memories *)
@@ -140,7 +144,7 @@ Section Initial_State.
     {
       constructor.
       + apply AllJuice with (m_phi jm) None.
-        * change (proj1_sig (snd (projT2 (projT2 spr)) n tt)) with jm.
+        * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
           unfold join_threads.
           unfold getThreadsR.
 
@@ -202,7 +206,7 @@ Section Initial_State.
       simpl in jm. unfold jm.
       split.
       + apply MFS.
-      + exists prog, CS, V. auto.
+      + exists prog, CS, tt, V. auto.
     - clear - Hm.
       split.
       pose proof ( Genv.initmem_inject _ Hm).
@@ -256,7 +260,7 @@ Section Initial_State.
       subst jm. rewrite <-Ejm.
       simpl in Ec. replace c with q in * by congruence.
       destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
-      destruct (JS n tt) as (jm' & jmm & lev & ? & Safe & notlock); simpl projT1 in *; simpl projT2 in *.
+      destruct (JS n) as (jm' & jmm & lev & ? & Safe & notlock); simpl projT1 in *; simpl projT2 in *.
       subst q.
       simpl proj1_sig in *; simpl proj2_sig in *. subst n.
       destruct ora; apply Safe.

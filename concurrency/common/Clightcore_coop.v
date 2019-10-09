@@ -2,7 +2,7 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.veric.Clight_base.
-Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clight_core.
 
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
       (M: alloc_variables cenv e m vars e2 m'), mem_step m m'.
@@ -62,15 +62,18 @@ Lemma CLC_corestep_mem:
   forall (g : genv) c (m : mem) c'  (m' : mem),
     semantics.corestep (cl_core_sem g) c m c' m' ->
     semantics.mem_step m m'.
-Proof. simpl; intros. inv H; simpl in *;
-  try apply mem_step_refl.
+Proof.
+  simpl; intros.
+  destruct H.
+  destruct s1, s2; inv H; simpl in *;  try apply mem_step_refl.
    eapply assign_loc_mem_step; eauto.
+   apply extcall_mem_step in H15; auto.
    eapply mem_step_freelist; eauto.
    eapply mem_step_freelist; eauto.
    eapply mem_step_freelist; eauto.
-   inv H0.
+   inv H6.
    eapply alloc_variables_mem_step; eauto.
-   apply extcall_mem_step in H1; auto.
+   apply extcall_mem_step in H6; auto.
 Qed. 
 
 Program Definition CLC_memsem  (ge : Clight.genv) :

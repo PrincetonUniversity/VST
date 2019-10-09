@@ -18,7 +18,7 @@ Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.permissions.
 
 (*Semantics*)
-Require Import VST.veric.Clightcore_coop.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.sepcomp.event_semantics.
 Require Import VST.concurrency.common.ClightSemanticsForMachines.
 
@@ -30,7 +30,7 @@ Module THE_JUICY_MACHINE.
   Section THE_JUICY_MACHINE.
 
   Context {ge : Clight.genv}.
-  Instance JSem : Semantics := ClightSem ge.
+  Instance JSem : Semantics := Clight_newSem ge.
   Definition JMachineSem := MachineSemantics(HybridMachine := HybridCoarseMachine.HybridCoarseMachine(machineSig:=JuicyMachineShell)).
   Definition jstate := ThreadPool.t(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).
   Definition jmachine_state := MachState(resources := LocksAndResources)(ThreadPool := OrdinalPool.OrdinalThreadPool).

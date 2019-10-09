@@ -32,7 +32,7 @@ Arguments sizeof {env} !t / .
 
 (*Semantics*)
 Require Import VST.veric.Clight_core.
-Require Import VST.veric.Clightcore_coop. 
+Require Import VST.concurrency.common.Clightcore_coop. 
 Require Import VST.sepcomp.event_semantics.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -386,7 +386,7 @@ Proof.
     constructor; eassumption. }
 Qed. 
 
-Section CLC_SEM.
+Section CLN_SEM.
   Definition F: Type := fundef.
   Definition V: Type := type.
   Definition G := genv.
@@ -419,6 +419,14 @@ Inductive cl_evstep (ge: Clight.genv): forall (q: CC_core) (m: mem) (T:list mem_
       type_of_fundef fd = Tfunction tyargs tyres cconv ->
       cl_evstep ge (State f (Scall optid a al) k e le) m (T1++T2)
                   (Callstate fd vargs (Kcall optid f e le k)) m
+
+  | evstep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m' T1 T2
+      (EFI: ef_inline ef = true)
+      (H: eval_exprTlist ge e le m al tyargs vargs T1)
+      (EC: Events.external_call ef ge vargs m t vres m'),
+      T2 = proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EC) ->
+      cl_evstep ge (State f (Sbuiltin optid ef tyargs al) k e le) m (T1++T2)
+           (State f Sskip k e (set_opttemp optid vres le)) m'
 
   | evstep_seq:  forall f s1 s2 k e le m,
       cl_evstep ge (State f (Ssequence s1 s2) k e le) m nil
@@ -528,8 +536,8 @@ le ->
       cl_evstep ge (Returnstate v (Kcall optid f e le k)) m nil
            (State f Sskip k e (set_opttemp optid v le)) m.
 
-  Lemma CLC_evstep_ax1 ge : forall c m T c' m' (H: cl_evstep ge c m T c' m' ),
-    corestep (CLC_memsem ge) c m c' m'.
+  Lemma CLN_evstep_ax1 ge : forall c m T c' m' (H: cl_evstep ge c m T c' m' ),
+    corestep (CLN_memsem ge) c m c' m'.
   Proof.
     induction 1; try solve [econstructor; eassumption].
     +  apply eval_lvalueT_ax1 in H. apply eval_exprT_ax1 in H0.
@@ -537,6 +545,7 @@ le ->
     +  apply eval_exprT_ax1 in H. econstructor; eauto.
     + apply eval_exprT_ax1 in H0.
       apply eval_exprTlist_ax1 in H1. econstructor; eauto.
+    + apply eval_exprTlist_ax1 in H. econstructor; eauto.
     +  apply eval_exprT_ax1 in H. econstructor; eauto.
     +  apply eval_exprT_ax1 in H. econstructor; eauto.
     +  apply eval_exprT_ax1 in H. econstructor; eauto.
@@ -544,10 +553,11 @@ le ->
          econstructor; eauto.
   Qed.   
   
-  Lemma CLC_evstep_ax2 ge : forall c m c' m' (H:corestep (CLC_memsem ge) c m c' m'),
+  Lemma CLN_evstep_ax2 ge : forall c m c' m' (H:corestep (CLN_memsem ge) c m c' m'),
       exists T : list mem_event, cl_evstep ge c m T c' m'.
   Proof.
-    induction 1; try solve [ destruct IHcl_step as [T HT]; eexists; econstructor; eauto];
+    induction 1; 
+      try solve [ destruct IHcl_step as [T HT]; eexists; econstructor; eauto];
       try solve [eexists; econstructor; eauto]. 
   + apply eval_lvalueT_ax2 in H. destruct H as [T1 A1].
       apply eval_exprT_ax2 in H0. destruct H0 as [T2 A2].
@@ -558,6 +568,11 @@ le ->
   + apply eval_exprT_ax2 in H0. destruct H0 as [T1 K1].
       apply eval_exprTlist_ax2 in H1. destruct H1 as [T2 K2].
       eexists; econstructor; eauto.
+  + apply eval_exprTlist_ax2 in H0. destruct H0 as [T1 K1].
+      destruct (inline_external_call_mem_events _ _ _ _ _ _ _ H H1)
+          as [T2 ?] eqn:?H. exists (T1++T2).
+      apply evstep_builtin with (vargs := vargs)(EFI:=H)(EC:=H1).
+      auto. rewrite H0. simpl. auto.
   + apply eval_exprT_ax2 in H; destruct H as [T H].
       eexists; econstructor; eauto.
   + apply eval_exprT_ax2 in H; destruct H as [T H].
@@ -571,7 +586,7 @@ Unshelve.
 auto.
 Qed.
 
-  Lemma CLC_evstep_fun ge : forall c m T' c' m' T'' c'' m''
+  Lemma CLN_evstep_fun ge : forall c m T' c' m' T'' c'' m''
                                    (K: cl_evstep ge c m T' c' m') (K': cl_evstep ge c m T'' c'' m''), T' = T''.
   Proof. intros. generalize dependent m''. generalize dependent c''. generalize dependent T''.
          induction K; simpl; intros; try solve [ inv K'; eauto ].
@@ -592,6 +607,11 @@ Qed.
       rewrite H19 in H3; inv H3. auto.
     + destruct H13; discriminate.
     + destruct H13; discriminate.
+ - inv K'. 2,3: destruct H10; discriminate.
+    exploit eval_exprTlist_fun. eassumption. apply H. intros X; inv X.
+    exploit Events.external_call_determ. apply EC0. apply EC.
+    intros [? ?].
+    admit.
  - inv K'; auto. contradiction.
  - inv K'. exploit eval_exprT_fun. eassumption. eapply H. intros X; inv X. auto.
     destruct H10; discriminate.
@@ -610,7 +630,7 @@ Qed.
  - inv K'. simpl.
 Abort.
 
-  Lemma CLC_evstep_elim ge : forall c m T c' m' (K: cl_evstep ge c m T c' m'),
+  Lemma CLN_evstep_elim ge : forall c m T c' m' (K: cl_evstep ge c m T c' m'),
         ev_elim m T m'.
   Proof.
     induction 1; try solve [constructor];
@@ -621,6 +641,10 @@ Abort.
       eapply ev_elim_app; eauto. eapply ev_elim_app; eauto.
   + apply eval_exprT_elim in H0.
       apply eval_exprTlist_elim in H1.
+      eapply ev_elim_app; eauto.
+  + apply eval_exprTlist_elim in H.
+      destruct (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EC) as [T2' ?].
+      simpl in H0. subst T2'.
       eapply ev_elim_app; eauto.
   + eexists; split; eauto. reflexivity.
   + apply eval_exprT_elim in H.
@@ -636,30 +660,30 @@ Abort.
   (** *Event semantics for Clight_new*)
    (* This should be a version of CLN_memsem annotated with memory events.*)
   
-  Program Definition CLC_evsem ge : @EvSem C := {| msem := CLC_memsem ge; ev_step := cl_evstep ge |}.
-  Next Obligation. apply CLC_evstep_ax1. Qed.
-  Next Obligation. apply CLC_evstep_ax2. Qed.
-(*  Next Obligation. apply CLC_evstep_fun. Qed. *)
-  Next Obligation. apply CLC_evstep_elim. Qed.  
+  Program Definition CLN_evsem ge : @EvSem C := {| msem := CLN_memsem ge; ev_step := cl_evstep ge |}.
+  Next Obligation. apply CLN_evstep_ax1. Qed.
+  Next Obligation. apply CLN_evstep_ax2. Qed.
+(*  Next Obligation. apply CLN_evstep_fun. Qed. *)
+  Next Obligation. apply CLN_evstep_elim. Qed.  
 
-  Lemma CLC_msem : forall ge, msem (CLC_evsem ge) = CLC_memsem ge.
+  Lemma CLN_msem : forall ge, msem (CLN_evsem ge) = CLN_memsem ge.
   Proof. auto. Qed.
-End CLC_SEM.
+End CLN_SEM.
 
-  Lemma CLC_step_decay: forall g c m tr c' m',
-      event_semantics.ev_step (CLC_evsem g) c m tr c' m' ->
+  Lemma CLN_step_decay: forall g c m tr c' m',
+      event_semantics.ev_step (CLN_evsem g) c m tr c' m' ->
       decay m m'.
 Proof.
 intros.
-pose proof (msem_decay (CLC_memsem g) c m c' m').
+pose proof (msem_decay (CLN_memsem g) c m c' m').
 apply H0. clear H0.
 simpl in *.
-apply CLC_evstep_ax1 in H.
+apply CLN_evstep_ax1 in H.
 auto.
 Qed.
 
   Lemma at_external_SEM_eq:
-     forall ge c m, semantics.at_external (CLC_evsem ge) c m =
+     forall ge c m, semantics.at_external (CLN_evsem ge) c m =
      match c with
      | Callstate (External ef _ _ _) args _ => 
          if ef_inline ef then None else Some (ef, args)
@@ -667,8 +691,8 @@ Qed.
    end.
   Proof. auto. Qed.
 
-  Instance ClightSem ge : Semantics :=
-    { semG := G; semC := C; semSem := CLC_evsem ge; the_ge := ge }.
+  Instance Clight_newSem ge : Semantics :=
+    { semG := G; semC := C; semSem := CLN_evsem ge; the_ge := ge }.
 
   Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop :=
   BE_malloc: forall m n m'' b m'
@@ -742,18 +766,18 @@ Inductive ev_star ge: state -> mem -> _ -> state -> mem -> Prop :=
   | ev_star_refl: forall s m,
       ev_star ge s m nil s m
   | ev_star_step: forall s1 m1 ev1 s2 m2 ev2 s3 m3,
-      ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
+      ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
       ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
 
 Lemma ev_star_one:
-  forall ge s1 m1 ev s2 m2, ev_step (CLC_evsem ge) s1 m1 ev s2 m2 -> ev_star ge s1 m1 ev s2 m2.
+  forall ge s1 m1 ev s2 m2, ev_step (CLN_evsem ge) s1 m1 ev s2 m2 -> ev_star ge s1 m1 ev s2 m2.
 Proof.
   intros. rewrite <- (app_nil_r ev). eapply ev_star_step; eauto. apply ev_star_refl.
 Qed.
 
 Lemma ev_star_two:
   forall ge s1 m1 ev1 s2 m2 ev2 s3 m3,
-  ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLC_evsem ge) s2 m2 ev2 s3 m3 ->
+  ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLN_evsem ge) s2 m2 ev2 s3 m3 ->
   ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
 Proof.
   intros. eapply ev_star_step; eauto. apply ev_star_one; auto.
@@ -771,18 +795,18 @@ Qed.
 
 Inductive ev_plus ge: state -> mem -> _ -> state -> mem -> Prop :=
   | ev_plus_left: forall s1 m1 ev1 s2 m2 ev2 s3 m3,
-      ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
+      ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
       ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
 
 Lemma ev_plus_one:
-  forall ge s1 m1 ev s2 m2, ev_step (CLC_evsem ge) s1 m1 ev s2 m2 -> ev_plus ge s1 m1 ev s2 m2.
+  forall ge s1 m1 ev s2 m2, ev_step (CLN_evsem ge) s1 m1 ev s2 m2 -> ev_plus ge s1 m1 ev s2 m2.
 Proof.
   intros. rewrite <- (app_nil_r ev). eapply ev_plus_left; eauto. apply ev_star_refl.
 Qed.
 
 Lemma ev_plus_two:
   forall ge s1 m1 ev1 s2 m2 ev2 s3 m3,
-  ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLC_evsem ge) s2 m2 ev2 s3 m3 ->
+  ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLN_evsem ge) s2 m2 ev2 s3 m3 ->
   ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
 Proof.
   intros. eapply ev_plus_left; eauto. apply ev_star_one; auto.
@@ -825,4 +849,344 @@ Proof.
   eapply ev_plus_left; eauto. eapply ev_star_trans; eauto.
 Qed.
 
+Import Clight.
+Section CLC_SEM.
+  Variable g: Clight.genv.
+    
+  Section CLC_step.
+    Variable function_entryT: function -> list val -> mem -> env -> temp_env -> mem -> list mem_event -> Prop.
+
+    Inductive clc_evstep: state -> mem -> list mem_event -> state -> mem -> Prop :=
+  | clc_evstep_assign: forall f a1 a2 k e le m loc ofs v2 v m' T1 T2 T3 mx,
+      eval_lvalueT g e le m a1 loc ofs T1 ->
+      eval_exprT g e le m a2 v2 T2 ->
+      sem_cast v2 (typeof a2) (typeof a1) m = Some v ->
+      assign_locT g (typeof a1) m loc ofs v m' T3 ->
+      clc_evstep (Clight.State f (Sassign a1 a2) k e le mx) m (T1++T2++T3)
+                 (Clight.State f Sskip k e le m') m'
+
+  | clc_evstep_set: forall f id a k e le m v T mx,
+      eval_exprT g e le m a v T ->
+      clc_evstep (Clight.State f (Sset id a) k e le mx) m
+        T (Clight.State f Sskip k e (PTree.set id v le) m) m
+
+  | clc_evstep_call: forall f optid a al k e le m tyargs tyres cconv vf vargs fd T1 T2 mx,
+      classify_fun (typeof a) = fun_case_f tyargs tyres cconv ->
+      eval_exprT g e le m a vf T1 ->
+      eval_exprTlist g e le m al tyargs vargs T2 ->
+      Genv.find_funct g vf = Some fd ->
+      type_of_fundef fd = Tfunction tyargs tyres cconv ->
+      clc_evstep (Clight.State f (Scall optid a al) k e le mx) m 
+        (T1++T2) (Clight.Callstate fd vargs (Clight.Kcall optid f e le k) m) m
+
+  | clc_evstep_builtin: forall f optid ef tyargs al k e le m vargs t vres m' T1 T2 mx,
+      eval_exprTlist g e le m al tyargs vargs T1 ->
+      builtin_event ef m vargs T2 ->
+      Events.external_call ef g vargs m t vres m' ->
+      clc_evstep (Clight.State f (Sbuiltin optid ef tyargs al) k e le mx) m
+                 (T1++T2) (Clight.State f Sskip k e (set_opttemp optid vres le) m') m'
+    
+  | clc_evstep_seq:  forall f s1 s2 k e le m mx,
+      clc_evstep (Clight.State f (Ssequence s1 s2) k e le mx) m
+        nil (Clight.State f s1 (Clight.Kseq s2 k) e le m) m
+  | clc_evstep_skip_seq: forall f s k e le m mx,
+      (*~ is_call_cont k ->*)
+      clc_evstep (Clight.State f Sskip (Clight.Kseq s k) e le mx) m
+        nil (Clight.State f s k e le m) m
+  | clc_evstep_continue_seq: forall f s k e le m mx,
+      clc_evstep (Clight.State f Scontinue (Clight.Kseq s k) e le mx) m
+        nil (Clight.State f Scontinue k e le m) m
+  | clc_evstep_break_seq: forall f s k e le m mx,
+      clc_evstep (Clight.State f Sbreak (Clight.Kseq s k) e le mx) m
+        nil (Clight.State f Sbreak k e le m) m
+
+  | clc_evstep_ifthenelse:  forall f a s1 s2 k e le m v1 b T mx,
+      eval_exprT g e le m a v1 T ->
+      bool_val v1 (typeof a) m = Some b ->
+      clc_evstep (Clight.State f (Sifthenelse a s1 s2) k e le mx) m
+        T (Clight.State f (if b then s1 else s2) k e le m) m
+
+  | clc_evstep_loop: forall f s1 s2 k e le m mx,
+      clc_evstep (Clight.State f (Sloop s1 s2) k e le mx) m
+        nil (Clight.State f s1 (Clight.Kloop1 s1 s2 k) e le m) m
+  | clc_evstep_skip_or_continue_loop1:  forall f s1 s2 k e le m x mx,
+      x = Sskip \/ x = Scontinue ->
+      clc_evstep (Clight.State f x (Clight.Kloop1 s1 s2 k) e le mx) m
+        nil (Clight.State f s2 (Clight.Kloop2 s1 s2 k) e le m) m
+  | clc_evstep_break_loop1:  forall f s1 s2 k e le m mx,
+      clc_evstep (Clight.State f Sbreak (Clight.Kloop1 s1 s2 k) e le mx) m
+        nil (Clight.State f Sskip k e le m) m
+  | clc_evstep_skip_loop2: forall f s1 s2 k e le m mx,
+      clc_evstep (Clight.State f Sskip (Clight.Kloop2 s1 s2 k) e le mx) m
+        nil (Clight.State f (Sloop s1 s2) k e le m) m
+  | clc_evstep_break_loop2: forall f s1 s2 k e le m mx,
+      clc_evstep (Clight.State f Sbreak (Clight.Kloop2 s1 s2 k) e le mx) m
+                 nil (Clight.State f Sskip k e le m) m
+                 
+  | clc_evstep_return_0: forall f k e le m m' mx,
+      Mem.free_list m (blocks_of_env g e) = Some m' ->
+      clc_evstep (Clight.State f (Sreturn None) k e le mx) m
+        (Free (blocks_of_env g e)::nil) (Returnstate Vundef (Clight.call_cont k) m') m'
+  | clc_evstep_return_1: forall f a k e le m v v' m' T mx,
+      eval_exprT g e le m a v T ->
+      sem_cast v (typeof a) f.(fn_return) m = Some v' ->
+      Mem.free_list m (blocks_of_env g e) = Some m' ->
+      clc_evstep (Clight.State f (Sreturn (Some a)) k e le mx) m
+        (T++Free (blocks_of_env g e)::nil) (Returnstate v' (Clight.call_cont k) m') m'
+  | clc_evstep_skip_call: forall f k e le m m' mx,
+      is_call_cont k ->
+      Mem.free_list m (blocks_of_env g e) = Some m' ->
+      clc_evstep (Clight.State f Sskip k e le mx) m
+        (Free (blocks_of_env g e)::nil) (Returnstate Vundef k m') m'
+
+  | clc_evstep_switch: forall f a sl k e le m v n T mx,
+      eval_exprT g e le m a v T ->
+      sem_switch_arg v (typeof a) = Some n ->
+      clc_evstep (Clight.State f (Sswitch a sl) k e le mx) m
+        T (Clight.State f (seq_of_labeled_statement (select_switch n sl)) (Clight.Kswitch k) e le m) m
+  | clc_evstep_skip_break_switch: forall f x k e le m mx,
+      x = Sskip \/ x = Sbreak ->
+      clc_evstep (Clight.State f x (Clight.Kswitch k) e le mx) m
+        nil (Clight.State f Sskip k e le m) m
+  | clc_evstep_continue_switch: forall f k e le m mx,
+      clc_evstep (Clight.State f Scontinue (Clight.Kswitch k) e le mx) m
+        nil (Clight.State f Scontinue k e le m) m
+
+  | clc_evstep_label: forall f lbl s k e le m mx,
+      clc_evstep (Clight.State f (Slabel lbl s) k e le mx) m
+        nil (Clight.State f s k e le m) m
+
+  | clc_evstep_goto: forall f lbl k e le m s' k' mx,
+      Clight.find_label lbl f.(fn_body) (Clight.call_cont k) = Some (s', k') ->
+      clc_evstep (Clight.State f (Sgoto lbl) k e le mx) m
+        nil (Clight.State f s' k' e le m) m
+
+  | clc_evstep_internal_function: forall f vargs k m e le m1 T mx,
+      function_entryT f vargs m e le m1 T ->
+      clc_evstep (Clight.Callstate (Internal f) vargs k mx) m
+        T (Clight.State f f.(fn_body) k e le m1) m1
+(*
+  | clc_evstep_external_function: forall ef targs tres cconv vargs k m vres t m',
+      external_call ef ge vargs m t vres m' ->
+      clc_evstep (Clight.Callstate (External ef targs tres cconv) vargs k m)
+         t (Clight.Returnstate vres k m')*)
+
+  | clc_evstep_returnstate: forall v optid f e le k m mx,
+      clc_evstep (Clight.Returnstate v (Clight.Kcall optid f e le k) mx) m
+        nil (Clight.State f Sskip k e (set_opttemp optid v le) m) m.
+
+  Lemma clc_ax1 
+        (HFe: forall f vargs m e le m1 T,
+            function_entryT f vargs m e le m1 T -> function_entry2 g f vargs m e le m1):
+    forall c m T c' m', clc_evstep c m T c' m' ->
+        Clight.at_external (set_mem c m) = None /\
+        m' = get_mem c' /\
+        exists t, step g (function_entry2 g) (set_mem c m) t c'.
+  Proof.
+    induction 1; simpl; split; trivial; split; trivial; intros;
+     try solve [ apply eval_exprT_ax1 in H; eexists; econstructor; eauto ];
+     try solve [ eexists; econstructor; eauto ].
+    { apply eval_lvalueT_ax1 in H. apply eval_exprT_ax1 in H0.
+      apply assign_locT_ax1 in H2. eexists; econstructor; eauto. }
+    { apply eval_exprT_ax1 in H0. apply eval_exprTlist_ax1 in H1.
+      eexists; econstructor; eauto. }
+    { apply eval_exprTlist_ax1 in H. 
+      eexists; econstructor; eauto. }
+  Qed.
+  
+  Lemma clc_ax2
+        (Hfe: forall f vargs m e le m1, function_entry2 g f vargs m e le m1 ->
+            exists T, function_entryT f vargs m e le m1 T):
+        forall d t c' 
+                        (H: step g (function_entry2 g) d t c')
+                        c m (HD : d = set_mem c m)
+                        (AE : Clight.at_external d = None),
+      exists T : list mem_event, clc_evstep c m T c' (get_mem c').
+  Proof.
+    induction 1; simpl; intros; destruct c; inv HD; simpl in *;
+      try solve [eexists; econstructor; eauto]; try solve [congruence].
+    { apply eval_lvalueT_ax2 in H; destruct H as [T1 K1].
+      apply eval_exprT_ax2 in H0; destruct H0 as [T2 A2].
+      apply assign_locT_ax2 in H2; destruct H2 as [T3 A3].
+      eexists. econstructor; eauto. }
+    { apply eval_exprT_ax2 in H. destruct H as [T H].
+      eexists. eapply clc_evstep_set; eauto. }
+    { apply eval_exprT_ax2 in H0. destruct H0 as [T1 K1].
+      apply eval_exprTlist_ax2 in H1. destruct H1 as [T2 K2].
+      eexists; eapply clc_evstep_call; eauto. }
+    { apply eval_exprTlist_ax2 in H. destruct H as [T1 K1].
+      assert (BE: exists T2, builtin_event ef m0 vargs T2).
+      { destruct ef; try solve [ exists nil; econstructor; eauto].
+        { (*EF_malloc*) inv H0. exploit Mem.store_valid_access_3; eauto. intros [_ ALGN].
+          apply Mem.store_storebytes in H1.
+          eexists. eapply BE_malloc; eauto. }
+        { (*EF_free*) inv H0. exploit Mem.load_valid_access; eauto. intros [_ ALGN].
+          exploit Mem.load_loadbytes; eauto. intros [bytes [LD X]].
+          eexists. eapply BE_free; eauto. }
+        { (*EF_memcpy*) inv H0.
+          eexists. eapply BE_memcpy; eauto. } } 
+      destruct BE as [T2 BE].
+      eexists; econstructor; eauto. }
+    { apply eval_exprT_ax2 in H. destruct H as [T HT].
+      eexists; econstructor; eauto. }
+    { apply eval_exprT_ax2 in H. destruct H as [T HT].
+      eexists; econstructor; eauto. }
+    { apply eval_exprT_ax2 in H. destruct H as [T HT].
+      eexists; econstructor; eauto. }
+    { apply Hfe in H; destruct H as [T HT].
+      eexists. econstructor; eauto. }
+  Qed.
+
+  Lemma clc_fun (HFe: forall f vargs m e1 le1 m1 T1 (FE1:function_entryT f vargs m e1 le1 m1 T1)
+                             e2 le2 m2 T2 (FE2:function_entryT f vargs m e2 le2 m2 T2), T1=T2):
+    forall c m T1 c1 m1 T2 c2 m2 (EX1: clc_evstep c m T1 c1 m1)
+           (EX2:clc_evstep c m T2 c2 m2), T1 = T2.
+  Proof.
+    induction 1; simpl; intros; try solve [inv EX2; split; reflexivity].
+    { inv EX2. exploit eval_lvalueT_fun. apply H14. apply H. intros X; inv X.
+      exploit eval_exprT_fun. apply H15. apply H0. intros X; inv X.
+      rewrite H16 in H1; inv H1.
+      exploit assign_locT_fun. apply H17. apply H2. intros X; inv X. trivial.
+      destruct H13; subst; congruence.
+      destruct H13; subst; congruence. }
+    { inv EX2. exploit eval_exprT_fun. apply H11. apply H. intros X; inv X. trivial.
+      destruct H10; subst; congruence.
+      destruct H10; subst; congruence. } 
+    { inv EX2.
+      { rewrite H16 in H; inv H.
+        exploit eval_exprT_fun. apply H17. apply H0. intros X; inv X.
+        exploit eval_exprTlist_fun. apply H18. apply H1. intros X; inv X. trivial. }
+      destruct H14; subst; congruence.
+      destruct H14; subst; congruence. }
+    { inv EX2.
+      { exploit eval_exprTlist_fun. apply H15. apply H. intros X; inv X.
+        exploit builtin_event_determ. apply H16. apply H0. congruence. }
+      destruct H12; congruence. 
+      destruct H12; congruence. }
+    { inv EX2. trivial. contradiction. }
+    { inv EX2. 
+      exploit eval_exprT_fun. apply H13. apply H. congruence.
+      destruct H11; congruence. destruct H11; congruence. }
+    { destruct H; subst; inv EX2; trivial. contradiction. }
+    { inv EX2; trivial. contradiction. }
+    { inv EX2. destruct H10; congruence. congruence. destruct H10; congruence. }
+    { inv EX2. destruct H12; congruence.  
+      exploit eval_exprT_fun. apply H12. apply H. congruence.
+      destruct H12; congruence. }
+    { inv EX2; try solve [ contradiction ]; trivial. }
+    { inv EX2. destruct H11; congruence.
+      exploit eval_exprT_fun. apply H12. apply H. congruence.
+      destruct H11; congruence. }
+    { destruct H; subst; inv EX2; try solve [contradiction]; trivial. }
+    { inv EX2. eauto. }
+  Qed.
+
+  Lemma extcall_ev_elim: forall ef g vargs m t vres m' ev
+    (Hext: Events.external_call ef g vargs m t vres m')
+    (Hev: builtin_event ef m vargs ev)
+    (Hef: match ef with EF_malloc | EF_free | EF_memcpy _ _ => False | _ => True end),
+    ev_elim m ev m'.
+  Proof.
+  Admitted.
+
+  Lemma clc_ev_elim (FE: forall f vargs m e le m1 T (E:function_entryT f vargs m e le m1 T), ev_elim m T m1):
+    forall c m T c' m' (E: clc_evstep c m T c' m'), ev_elim m T m'.
+  Proof.
+    induction 1; try solve [constructor];
+      try solve [ apply eval_exprT_elim in H; trivial]; trivial.
+    - eapply assign_locT_elim in H2. destruct H2 as [EV3 _ ].
+      eapply eval_lvalueT_elim in H.
+      eapply eval_exprT_elim in H0.
+      eapply ev_elim_app; eauto. eapply ev_elim_app; eauto.
+    - apply eval_exprT_elim in H0.
+      apply eval_exprTlist_elim in H1.
+      eapply ev_elim_app; eauto.
+    - apply eval_exprTlist_elim in H. eapply ev_elim_app; eauto. clear H.
+      inv H0.
+      { exploit extcall_malloc_sem_inv. apply H1. clear H1. intros [m1 [bb [sz [X [Ht [Hres [A STORE]]]]]]]; subst.
+        assert (HV: Vptrofs n = Vptrofs sz).
+        { clear -X. remember (Vptrofs n). remember  (Vptrofs sz).  clear Heqv Heqv0. inv X; trivial. }
+        rewrite (Vptrofs_inj _ _ HV) in *. rewrite HV in *. clear X.
+        rewrite A in ALLOC. inv ALLOC. apply Mem.store_storebytes in STORE.
+        rewrite ST in STORE. inv STORE.
+        econstructor; split. eassumption. econstructor; split. eassumption. reflexivity. }
+      {  inv H1. apply Mem.load_loadbytes in H2. destruct H2 as [bytes1 [LD V]]; subst.
+         rewrite LD in LB; inv LB. rewrite <- SZ in V. rewrite (Vptrofs_inj _ _ V) in *. clear V SZ.
+         rewrite FR in H8; inv H8.
+         econstructor. eassumption. econstructor. split. { simpl. rewrite FR. reflexivity. } reflexivity. }
+      { inv H1. rewrite H14 in LB; inv LB. rewrite ST in H15; inv H15.
+        econstructor. eassumption. econstructor; split. eassumption. reflexivity. }
+        eapply extcall_ev_elim; eauto; constructor; auto.
+    - do 2 eexists; eauto; constructor.
+    - apply eval_exprT_elim in H.
+      eapply ev_elim_app; eauto.
+      do 2 eexists; eauto; constructor.
+    - do 2 eexists; eauto; constructor.
+    - eauto.
+  Qed.
+
+End CLC_step.
+
+  Inductive function_entryT2 (f: function) (vargs: list val) (m: mem) (e: env) (le: temp_env) (m': mem) (T:list mem_event): Prop :=
+  | function_entry2_intro:
+      list_norepet (var_names f.(fn_vars)) ->
+      list_norepet (var_names f.(fn_params)) ->
+      list_disjoint (var_names f.(fn_params)) (var_names f.(fn_temps)) ->
+      alloc_variablesT g empty_env m f.(fn_vars) e m' T ->
+      bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some le ->
+      function_entryT2 f vargs m e le m' T. 
+
+  Lemma Hfe2_ax1 f vargs m e le m1 T (FE: function_entryT2 f vargs m e le m1 T):
+    function_entry2 g f vargs m e le m1.
+  Proof. inv FE. apply alloc_variablesT_ax1 in H2. econstructor; eauto. Qed.
+
+  Lemma Hfe2_ax2 f vargs m e le m1 (FE: function_entry2 g f vargs m e le m1):
+    exists T, function_entryT2 f vargs m e le m1 T.
+  Proof. inv FE. apply alloc_variablesT_ax2 in H2. destruct H2 as [T HT].
+         eexists; econstructor; eauto.
+  Qed.
+
+  Lemma Hfe2_fun f vargs m e1 le1 m1 T1 (FE1: function_entryT2 f vargs m e1 le1 m1 T1)
+        e2 le2 m2 T2 (FE2: function_entryT2 f vargs m e2 le2 m2 T2): (e1,m1,T1)=(e2,m2,T2).
+  Proof. inv FE1. inv FE2.
+         exploit alloc_variablesT_fun. apply H7. apply H2. congruence.
+  Qed.
+  
+  Lemma Hfe2_ev_elim f vargs m e le m1 T (FE: function_entryT2 f vargs m e le m1 T): ev_elim m T m1.
+  Proof. inv FE. eapply alloc_variablesT_elim. eassumption. Qed. 
+
+  Program Definition CLC_evsem : @EvSem state := {| msem := CLC_memsem g; ev_step := clc_evstep function_entryT2 |}.
+  Next Obligation. simpl. intros. unfold part_semantics2; simpl.
+                   apply clc_ax1 in H. destruct H as [AE [? [t Ht]]]; subst.
+                   econstructor; simpl; trivial. apply Ht. apply Hfe2_ax1. Qed.
+  Next Obligation. simpl. unfold part_semantics2; simpl. intros.
+                   inv H; simpl in *. unfold step2 in H0. simpl in *.
+                   eapply clc_ax2; eauto. apply Hfe2_ax2. Qed.
+(*  Next Obligation. simpl. unfold part_semantics2; simpl. intros.
+                   eapply clc_fun; try eassumption. intros.
+                   exploit Hfe2_fun. apply FE2. apply FE1. congruence. Qed. *)
+  Next Obligation. simpl; intros. eapply clc_ev_elim; eauto. apply Hfe2_ev_elim. Qed.
+
+  Lemma CLC_msem : msem CLC_evsem = CLC_memsem g.
+  Proof. auto. Qed.
+
+  Lemma CLC_step_decay: forall c m tr c' m',
+      event_semantics.ev_step (CLC_evsem) c m tr c' m' ->
+      decay m m'.
+Proof.
+intros.
+apply (msem_decay (CLC_memsem g) c m c' m').
+simpl in *.
+apply clc_ax1 in H.
+destruct H as [? [? [t ?]]]; subst.
+exploit (coreify (part_semantics2 g)); eauto.
+intros.
+inv H0.
+constructor; auto.
+eapply alloc_variablesT_ax1; eauto.
+Qed.
+
+  Instance ClightSem : Semantics :=
+    { semG := G; semC := state; semSem := CLC_evsem; the_ge := g }.
+End CLC_SEM.
 

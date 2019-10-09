@@ -1528,7 +1528,8 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   forall (jm : juicy_mem) ts (a: (dependent_type_functor_rec ts A) mpred),
     app_pred (P ts a rho1) (m_phi jm) ->
     app_pred (funassert (nofunc_tycontext V G) rho1) (m_phi jm) ->
-    nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) ->
+    app_pred (ext_compat z) (m_phi jm) ->
+(*    nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) -> *)
     jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
 intro retty.
@@ -1557,6 +1558,11 @@ rewrite if_true by auto.
 change (Genv.globalenv (program_of_program prog))
   with (genv_genv (globalenv prog)).
 rewrite Eb; auto.
+split3; auto.
+clear - H.
+red.
+induction H. constructor.
+constructor; auto.
 intros jm ts a m_sat_Pa m_funassert.
 intros HZ.
 set (psi := globalenv prog) in *.
@@ -1575,18 +1581,7 @@ replace {|
 rename H3 into Prog_OK. assert (H3 := I).
 
 rename z into ora.
-assert (Hora: app_pred (ext_compat ora) (m_phi jm)). {
- red. red. red.
- pose proof (ext_ref_join ora).
- exists ((Some (ext_both ora, NoneP)) :: tl (ghost_of (m_phi jm))).
- destruct (ghost_of (m_phi jm)). inv HZ.
- simpl in HZ. inv HZ.
- constructor; auto.
- constructor.
- constructor; auto. simpl. constructor; auto.
- simpl.
- apply ghost_join_nil_r.
-}
+assert (Hora: app_pred (ext_compat ora) (m_phi jm)) by auto.
 clear HZ. clear AL.
 set (Delta := nofunc_tycontext V G) in *.
 change (make_tycontext_s G) 
@@ -2132,6 +2127,15 @@ Proof.
     pose proof (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
     apply (funassert_rho _ (empty_environ (globalenv prog))).
     reflexivity. auto.
+  * red. red. red.
+    pose proof (ext_ref_join z).
+    exists ((Some (ext_both z, NoneP)) :: tl (ghost_of (m_phi jm))).
+    destruct (ghost_of (m_phi jm)). inv H10. simpl in H10.
+    injection H10; clear H10; intro; subst o.
+    constructor; auto.
+    constructor.
+    constructor; auto. simpl. constructor; auto.
+    simpl. apply ghost_join_nil_r.
 +
   apply initial_jm_ext_without_locks.
 +

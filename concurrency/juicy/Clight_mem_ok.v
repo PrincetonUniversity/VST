@@ -7,22 +7,8 @@ Require Import compcert.common.Memory.
 Require Import compcert.cfrontend.Ctypes.
 Require Import compcert.cfrontend.Clight.
 Require Import VST.sepcomp.event_semantics.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.concurrency.juicy.mem_wd2.
-(*
-Require Import VST.concurrency.common.core_semantics.
-Require Import VST.concurrency.common.bounded_maps.
-Require Import VST.concurrency.common.threadPool.
-Require Import VST.concurrency.common.permissions.
-Require Import VST.concurrency.common.HybridMachineSig.
-Require Import VST.concurrency.common.ClightSemanticsForMachines.
-Require Import VST.concurrency.common.ClightMachine.
-Require Import VST.concurrency.common.dry_machine_lemmas.
-Require Import VST.concurrency.juicy.semax_simlemmas.
-Require Import VST.concurrency.juicy.semax_to_juicy_machine.
-Require Import VST.concurrency.juicy.mem_wd2.
-Require Import VST.veric.Clight_sim.
-*)
 Require Import VST.msl.eq_dec.
 Require Import BinNums.
 Require Import List. Import ListNotations.
@@ -51,18 +37,22 @@ Definition venv_ok (ve: Clight.env) :=
 Definition tenv_ok (te: Clight.temp_env) :=
   forall i (v: val), PTree.get i te = Some v -> val_ok v.
 
-Definition cont'_ok (k: Clight_new.cont') := 
+Fixpoint cont_ok (k: cont) := 
  match k with
- | Clight_new.Kcall _ _ ve te => venv_ok ve /\ tenv_ok te
- | _ => True
+ | Kstop => True
+ | Kseq _ k' => cont_ok k'
+ | Kloop1 _ _ k' => cont_ok k'
+ | Kloop2 _ _ k' => cont_ok k'
+ | Kswitch k' => cont_ok k'
+ | Kcall _ _ ve te k' => venv_ok ve /\ tenv_ok te /\ cont_ok k'
  end.
 
-Definition cont_ok (k: Clight_new.cont) := Forall cont'_ok k.
-
-Definition corestate_ok (q: Clight_new.corestate) : Prop :=
+Definition corestate_ok (q: Clight_core.state) : Prop :=
  match q with
- | Clight_new.State ve te k => venv_ok ve /\ tenv_ok te /\ cont_ok k
- | Clight_new.ExtCall f vl _ ve te k => Forall val_ok vl /\ venv_ok ve /\ tenv_ok te /\ cont_ok k
+ | Clight_core.State _ _ k ve te => venv_ok ve /\ tenv_ok te /\ cont_ok k
+ | Clight_core.Callstate f args k =>
+       Forall val_ok args /\  cont_ok k
+ | Clight_core.Returnstate v k => val_ok v /\ cont_ok k
  end.
 
 End CTL_OK.
@@ -100,6 +90,7 @@ red in H|-*; intros.
 eapply alloc_val_ok; eauto.
 Qed.
 
+(*
 Lemma alloc_cont'_ok: forall k, cont'_ok nextb k -> cont'_ok nextb' k.
 Proof.
 destruct k; simpl; auto.
@@ -107,13 +98,14 @@ intros [? ?]; split.
 eapply alloc_venv_ok; eauto.
 eapply alloc_tenv_ok; eauto.
 Qed.
+*)
 
 Lemma alloc_cont_ok: forall k, cont_ok nextb k -> cont_ok nextb' k.
 Proof.
-intros.
-red in H|-*.
-revert H; apply Forall_impl.
-apply alloc_cont'_ok.
+induction k; simpl; intros; auto.
+destruct H as [? [? ?]]. split3; auto.
+eapply alloc_venv_ok; eauto.
+eapply alloc_tenv_ok; eauto.
 Qed.
 
 Lemma alloc_corestate_ok: forall q, corestate_ok nextb q -> corestate_ok nextb' q.
@@ -123,12 +115,12 @@ intros [? [? ?]]; split; [|split].
 eapply alloc_venv_ok; eauto.
 eapply alloc_tenv_ok; eauto.
 eapply alloc_cont_ok; eauto.
-intros [? [? [? ?]]]; split; [|split; [|split]].
-revert H; apply Forall_impl.
-apply alloc_val_ok.
-eapply alloc_venv_ok; eauto.
-eapply alloc_tenv_ok; eauto.
-eapply alloc_cont_ok; eauto.
+intros [? ?]; split.
+eapply Forall_impl; try eassumption. apply alloc_val_ok.
+apply alloc_cont_ok; auto.
+intros [? ?]; split.
+eapply alloc_val_ok; eauto.
+apply alloc_cont_ok; auto.
 Qed.
 
 End ALLOC_OK.
@@ -491,87 +483,69 @@ eapply sem_cast_ok in H4; eauto.
 Qed.
 
 Lemma find_label_ok:
- forall nextb lbl s (al : list cont') (k' : cont),
-  cont_ok nextb al ->
-  find_label lbl s al = Some k' ->
+ forall nextb lbl s s' (k : cont) (k' : cont),
+  cont_ok nextb k ->
+  find_label lbl s k = Some (s',k') ->
   cont_ok nextb k'
 with find_label_ls_ok:
- forall nextb lbl s (al : list cont') (k' : cont),
-  cont_ok nextb al ->
-  find_label_ls lbl s al = Some k' ->
+ forall nextb lbl s s' (k : cont) (k' : cont),
+  cont_ok nextb k ->
+  find_label_ls lbl s k = Some (s', k') ->
   cont_ok nextb k'.
 Proof.
 * clear find_label_ok.
 induction s; simpl; intros; try discriminate.
 -
 destruct (find_label lbl s1
-         (Kseq s2 :: al)) eqn:?; inv H0.
+         (Kseq s2 k)) eqn:?; inv H0.
 apply IHs1 in Heqo; auto.
 repeat constructor; auto.
 apply IHs2 in H2; auto.
 -
-destruct (find_label lbl s1 al) eqn:?; inv H0.
+destruct (find_label lbl s1 k) eqn:?; inv H0.
 apply IHs1 in Heqo; auto.
 apply IHs2 in H2; auto.
 -
-destruct (Kseq Scontinue :: Kloop1 s1 s2 :: al) eqn:?; inv H0.
-destruct (find_label lbl s1 []) eqn:?; inv H2.
-simpl in Heql. inv Heql.
-apply IHs2 in H1; auto.
-repeat constructor; auto.
-simpl in Heql. inv Heql.
-destruct  (Kseq Scontinue :: Kloop1 s1 s2 :: al) eqn:?; inv H2.
-simpl in Heql; inv Heql.
-simpl in Heql; inv Heql.
-destruct (find_label lbl s1
-         (Kseq Scontinue :: Kloop1 s1 s2 :: al)) eqn:?; inv H1.
+destruct (find_label lbl s1 (Kloop1 s1 s2 k)) eqn:?; inv H0.
 apply IHs1 in Heqo; auto.
-repeat constructor; auto.
 apply IHs2 in H2; auto.
-repeat constructor; auto.
-- 
- eapply find_label_ls_ok; try apply H0; eauto.
- repeat constructor; auto.
 -
- if_tac in H0. subst. inv H0. constructor; auto. constructor; auto.
- apply IHs in H0; auto.
-* clear find_label_ls_ok.
+eapply find_label_ls_ok in H0; eauto.
+-
+if_tac in H0.
+subst. inv H0. auto.
+apply IHs in H0; auto.
+*
+clear find_label_ls_ok.
 induction s; intros.
 inv H0.
 simpl in H0.
 destruct (find_label lbl s
-         (Kseq (seq_of_labeled_statement s0) :: al)) eqn:?H; inv H0.
+         (Kseq (seq_of_labeled_statement s0) k)) eqn:?H; inv H0.
 eapply find_label_ok; try apply H1; eauto.
 repeat constructor; auto.
 apply IHs in H3; auto.
 Qed.
 
+Lemma call_cont_ok_lemma:
+  forall b k, 
+    cont_ok b k -> cont_ok b (call_cont k).
+Proof.
+induction k; simpl; intros; auto.
+Qed.
+
 Lemma mem_ok_goto:
- forall (k : cont) (lbl : Clight.label)
+ forall f (k k' : cont) (lbl : Clight.label)
        (s' : Clight.statement) (nextb : block),
-   cont_ok nextb k ->
-   forall (s : Clight.statement) (k' : cont),
-   find_label lbl s
-     (Kseq s' :: Clight_new.call_cont k) = 
-    Some k' -> cont_ok nextb k'.
+  cont_ok nextb k -> 
+  find_label lbl (fn_body f) (call_cont k) = Some (s', k') ->
+  cont_ok nextb k'.
 Proof.
 intros.
-change (Clight_new.Kseq s' :: Clight_new.call_cont k) with
-  ([Clight_new.Kseq s'] ++ Clight_new.call_cont k) in H0.
-assert (Forall (cont'_ok nextb) [Clight_new.Kseq s'] ).
-repeat constructor.
-remember [Clight_new.Kseq s'] as al.
-clear Heqal.
-eapply find_label_ok; try apply H0.
-red.
-apply sublist.Forall_app.
-split; auto.
-red in H.
-clear - H.
-induction k.
-constructor.
-inv H.
-destruct a; simpl; auto.
+apply call_cont_ok_lemma in H.
+forget (call_cont k) as k0. clear k; rename k0 into k.
+revert H H0.
+apply find_label_ok.
 Qed.
 
 Lemma loadbytes_storebytes_wd2:
@@ -689,166 +663,131 @@ apply IHfl in H2; auto.
 apply set_tenv_ok; auto.
 Qed.
 
-Lemma call_cont_ok_lemma:
- forall f optid k m ve' te' k',
-call_cont k = Kcall optid f ve' te' :: k' ->
-Forall (cont'_ok (Mem.nextblock m)) k ->
-venv_ok (Mem.nextblock m) ve' /\
-tenv_ok (Mem.nextblock m) te' /\ cont_ok (Mem.nextblock m) k'.
-Proof.
-intros.
-revert H; induction k; simpl; intros. inv H.
-inv H0.
-destruct a; try solve [apply IHk in H; auto].
-inv H.
-inv H3. split3; auto.
-Qed.
+End GE.
+
+Lemma inline_external_call_mem_wd:
+  forall (ge: genv) ef vargs m t vres m',
+  Events.external_call ef ge vargs m t vres m' ->
+  AST.ef_inline ef = true ->
+  Forall (val_ok (Mem.nextblock m)) vargs ->
+  Smallstep.globals_not_fresh ge m ->
+  mem_wd2 m ->
+  mem_wd2 m' /\ val_ok (Mem.nextblock m') vres /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
+Admitted.
 
 Lemma cl_step_ok:
-  forall c m c' m',
-Clight_new.cl_step ge c m c' m' ->
+  forall (ge: genv) c m c' m',
+ cl_step ge c m c' m' ->
 Smallstep.globals_not_fresh (Clight.genv_genv ge) m /\
 mem_wd2 m /\ corestate_ok (Mem.nextblock m) c ->
 mem_wd2 m' /\
 corestate_ok (Mem.nextblock m') c' /\
 (Mem.nextblock m <= Mem.nextblock m')%positive.
+Proof.
 intros until m'. intro Hstep.
- induction Hstep; intros [? [? ?]]. 
+ induction Hstep; intros [? [? ?]];
+  try (split3; [solve [auto] | solve [auto] | try apply Pos.le_refl]). 
 * (* assign *)
-  destruct H6 as [? [? Hk]].
-  eapply eval_expr_ok in H1; eauto.
-  eapply eval_lvalue_ok in H0; eauto.
-  eapply sem_cast_ok in H2; eauto.
+  destruct H5 as [? [? Hk]].
+  eapply eval_expr_ok in H0; eauto.
+  eapply eval_lvalue_ok in H; eauto.
+  eapply sem_cast_ok in H1; eauto.
   assert (mem_wd.val_valid v m). {
-   clear - H2.
-    hnf. hnf in H2. destruct v; auto.
+   clear - H1.
+    hnf. hnf in H1. destruct v; auto.
  }
-  inv H3.
-  unfold Mem.storev in H10.
-  pose proof (mem_wd2_store _ _ _ _ _ _ H5 H10 H8).
-  rewrite (Mem.nextblock_store _ _ _ _ _ _ H10).
+  inv H2.
+  unfold Mem.storev in H9.
+  pose proof (mem_wd2_store _ _ _ _ _ _ H4 H9 H7).
+  rewrite (Mem.nextblock_store _ _ _ _ _ _ H9).
   split3; auto.
-  split3; auto. inv Hk; auto.
+  split3; auto.
   apply Pos.le_refl.
-  rewrite (Mem.nextblock_storebytes _ _ _ _ _ H14).
+  rewrite (Mem.nextblock_storebytes _ _ _ _ _ H13).
   split3.
   2: split3; auto; inv Hk; auto.
   2: apply Pos.le_refl.
   eapply loadbytes_storebytes_wd2; eauto.
 * (* set *)
-   destruct H2 as [? [? ?]]. inv H4.
+   destruct H2 as [? [? ?]].
    repeat split;  auto.
    2: apply Pos.le_refl.
    apply set_tenv_ok; auto.
    eapply eval_expr_ok; eauto.
-* (* call_internal *)
- destruct H9 as [? [? ?]]. inv H11. clear H14.
-  eapply eval_expr_ok in H0; eauto.
+*  destruct H6 as [? [? ?]].
+  eapply eval_expr_ok in H0; try eassumption. (* *)
   eapply eval_exprlist_ok in H1; eauto.
-  eapply alloc_variables_ok in H5; eauto;
-   [ | clear; hnf; intros; rewrite PTree.gempty in H; inv H].
-  destruct H5 as [? [? ?]].
-  eapply bind_parameter_temps_ok in H6; eauto.
   split3; auto.
   split3; auto.
-  eapply alloc_tenv_ok; eauto.
-  repeat constructor; auto.
+  apply Pos.le_refl.
+* (* builtin *)
+  destruct H4 as [? [? ?]].
+  eapply eval_exprlist_ok in H0; eauto.
+  exploit inline_external_call_mem_wd; eauto.
+  intros [? [? ?]].
+  split3; auto. split3; auto.
   eapply alloc_venv_ok; eauto.
+  destruct optid; auto.
+  apply set_tenv_ok; auto.
   eapply alloc_tenv_ok; eauto.
-  clear - H12 H15.
-  revert H15; apply Forall_impl.
-  apply alloc_cont'_ok; auto.
-  clear. induction (fn_temps f); simpl. intros ? ? ?. rewrite PTree.gempty in H. inv H. destruct a.
-  apply set_tenv_ok; auto. hnf; auto.  
-*  (* call_external *)
- destruct H5 as [? [? ?]]. inv H7. clear H10.
-  eapply eval_expr_ok in H0; eauto.
-  eapply eval_exprlist_ok in H1; eauto.
-  split3; auto.
-  2: apply Pos.le_refl.
-  split3; auto.
-* (* seq *)
-  apply IHHstep. split; [|split]; auto.
-  destruct H1 as [? [? ?]];  split; [|split]; auto.
-  repeat constructor. inv H3; auto.
-* (* skip *)
-  apply IHHstep. split; [|split]; auto.
-  simpl in H1. destruct H1 as [? [? ?]]. split; [|split]; auto. inv H3. auto.
-* (* continue *)
-  apply IHHstep. split; [|split]; auto.
-  simpl in H1. destruct H1 as [? [? ?]]. split; [|split]; auto. inv H3.
-  clear - H7.
-  induction k. constructor.
-  inv H7.
-  specialize (IHk H2).
-  destruct a; auto. simpl in *. repeat constructor. auto.
-  repeat constructor. simpl in *. constructor.
-* (* break *)
-  apply IHHstep. split; [|split]; auto.
-  simpl in H1. destruct H1 as [? [? ?]]. split; [|split]; auto. inv H3.
-  clear - H7.
-  induction k. constructor.
-  inv H7.
-  specialize (IHk H2).
-  destruct a; auto. simpl in *. repeat constructor.
-* (* ifthenelse *)
-  split; auto.
+  eapply alloc_tenv_ok; eauto.
+  eapply alloc_cont_ok; eauto.
+* (* return None *)
+  rewrite (mem_lemmas.nextblock_freelist _ _ _ H).
+  split3.
+  eapply mem_wd_freelist; eassumption.
+  destruct H2 as [? [? ?]].
+  split. hnf; auto.
+  apply call_cont_ok_lemma; auto.
+  apply Pos.le_refl.
+* (* return Some *)
+  rewrite (mem_lemmas.nextblock_freelist _ _ _ H1).
+  split3.
+  eapply mem_wd_freelist; eassumption.
+  destruct H4 as [? [? ?]]. hnf.
   split.
-   2: apply Pos.le_refl.
-  destruct H3 as [? [? ?]]. split;[ |split]; auto.
-  constructor. constructor. inv H5; auto.
-* (* for *)
-  split; auto.
-  split.
-   2: apply Pos.le_refl.
-  destruct H1 as [? [? ?]]. split;[ |split]; auto.
-  repeat constructor.
-  inv H3. auto.
-* (* loop2 *)
-  split; auto.
-  split.
-   2: apply Pos.le_refl.
-  destruct H1 as [? [? ?]]. split;[ |split]; auto.
-  repeat constructor.
-  inv H3. auto.
-* (* return *)
+  eapply eval_expr_ok in H; eauto.
+  eapply sem_cast_ok; eauto.
+  apply call_cont_ok_lemma; auto.
+  apply Pos.le_refl.
+* (* return fall-through *)
   rewrite (mem_lemmas.nextblock_freelist _ _ _ H0).
   split3.
   eapply mem_wd_freelist; eassumption.
-  2: apply Pos.le_refl.
-  clear - H H3 H1 H2 H4 H5.
-  destruct H5 as [? [? ?]].
-  inv H6. clear H9.
-  assert (val_ok (Mem.nextblock m) v'). {
-    destruct optexp.
-    destruct H1  as [? [? ?]]. eapply eval_expr_ok in H1; eauto.
-    eapply sem_cast_ok in H6; eauto. subst; hnf; auto.
-  }
-  clear H1.
-  assert (venv_ok (Mem.nextblock m) ve' /\ tenv_ok (Mem.nextblock m) te' /\ cont_ok (Mem.nextblock m) k'). {
-   eapply call_cont_ok_lemma; eauto.
-  }
-  destruct H1 as [? [? ?]].
-  split3; auto.
-  clear - H7 H2 H6.
-  destruct optid; destruct H2; subst; auto.
-  apply set_tenv_ok; auto.
-* (* switch *)
-  destruct H3 as [? [? ?]].
-  split3; auto.
-  2: apply Pos.le_refl.
-  split3; auto. inv H5. constructor; auto.
-* (* label *)
-  apply IHHstep. split; [|split]; auto.
-  simpl in H1. destruct H1 as [? [? ?]]. split; [|split]; auto. inv H3.
-  constructor; auto.
+  simpl. destruct H3 as [? [? ?]]. auto.
+  apply Pos.le_refl.
 * (* goto *)
   split; auto.
-  split.
-   2: apply Pos.le_refl.
+  split; [ | apply Pos.le_refl].
   destruct H2 as [? [? ?]]. split; [|split]; auto.
-  inv H4.
+  inv H.
   eapply mem_ok_goto; eauto.
+* (* call_internal *)
+  destruct H2 as [H2' H2].
+  inv H.
+  eapply alloc_variables_ok in H6; eauto;
+   [ | clear; hnf; intros; rewrite PTree.gempty in H; inv H].
+  destruct H6 as [? [? ?]].
+  eapply bind_parameter_temps_ok in H7; eauto.
+  split3; auto.
+  split3; auto.
+  eapply alloc_tenv_ok; eauto.
+  eapply alloc_cont_ok; eauto.
+  eapply alloc_tenv_ok; eauto.
+  clear. induction (fn_temps f); simpl. intros ? ? ?. rewrite PTree.gempty in H. inv H. destruct a.
+  apply set_tenv_ok; auto. hnf; auto.
+* (* call_external inline *)
+  destruct H3 as [? ?].
+  exploit inline_external_call_mem_wd; eauto.
+  intros [? [? ?]]; split3; auto.
+  split; auto.
+  eapply alloc_cont_ok; eauto.
+* (* returnstate *)
+  destruct H1.
+  split3; auto.
+  destruct H2 as [? [? ?]].
+  split3; auto.
+  destruct optid; auto.
+  apply set_tenv_ok; auto. 
+  apply Pos.le_refl.
 Qed.
-
-End GE.

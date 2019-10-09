@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -79,7 +79,8 @@ Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
   Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
-  eval_id _args (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (_f :: _args :: nil) args) ->
+  eval_id _args (make_args (_f :: _args :: nil) args
+                    (empty_environ (symb2genv (genv_symb_injective ge))) ) ->
   exists arg1, args = arg1 :: v :: nil.
 Proof.
   intros Hargsty Nu.
@@ -102,7 +103,8 @@ Lemma shape_of_args3 (F V : Type) (args : list val) v (ge : Genv.t F V) :
   Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
-  eval_id _f (make_ext_args (filter_genv (symb2genv (genv_symb_injective ge))) (_f :: _args :: nil) args) ->
+  eval_id _f (make_args (_f :: _args :: nil) args
+                   (empty_environ (symb2genv (genv_symb_injective ge))) ) ->
   exists arg2, args = v :: arg2 :: nil.
 Proof.
   intros Hargsty Nu.
@@ -205,8 +207,7 @@ Proof.
   inversion safei
     as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
   apply (corestep_not_at_external (juicy_core_sem _)) in bad. elimtype False; subst; clear - bad atex.
-   simpl in bad. unfold cl_at_external in *; simpl in *. rewrite atex in bad; inv bad.
-  2: inversion bad.
+   simpl in bad. congruence.
   subst.
   simpl in at_ex.
   unfold cl_at_external in atex, at_ex.
@@ -263,15 +264,16 @@ Print Module SeparationLogicSoundness.VericSound.
   destruct args as [ | args2 args]; [destruct Hargsty; contradiction | ].
   destruct args as [ | args]; [ | destruct Hargsty as [_ [_ Hargsty]]; contradiction ].
 
-  apply shape_of_args3 in PreB1; auto. 2: congruence.
-  apply shape_of_args2 in PreB2; auto.
+ apply  (shape_of_args3 _ _ (args1 :: args2 :: nil) _ ge) in PreB1; auto.
+     2: congruence.
+  apply (shape_of_args2 _ _ (args1 :: args2 :: nil) _ ge) in PreB2; auto.
    2: clear - PreA; hnf in PreA; destruct b; try contradiction; congruence.
 
   destruct PreB1 as (arg1, Eargs). symmetry in Eargs; inv Eargs.
   destruct PreB2 as [arg1 PreB2]. inv PreB2.
 
   destruct ((fun x => x) envcoh) as (gam, SP).
-  destruct SP as (prog & CS_ & V & semaxprog & Ege & FA).
+  destruct SP as (prog & CS_ & ora & V & semaxprog & Ege & FA).
 
   unfold SeparationLogic.NDmk_funspec in Func.
   match type of Func with
@@ -290,7 +292,7 @@ Print Module SeparationLogicSoundness.VericSound.
     join_sub_tac.
   }
 
-  specialize (gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default).
+  specialize (gam0 f_b ((_y, tptr tvoid) :: nil, tint) cc_default).
 
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
 
@@ -299,7 +301,7 @@ Print Module SeparationLogicSoundness.VericSound.
      We will use that in the mean time.
    *)
   assert (FAT': (func_at
-           (mk_funspec ((_y, tptr tvoid) :: nil, tptr tvoid) cc_default
+           (mk_funspec ((_y, tptr tvoid) :: nil, tint) cc_default
               (rmaps.ConstType (val * nth 0 ts unit))
               (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
                let (y, x) := x0 in
@@ -321,16 +323,19 @@ Print Module SeparationLogicSoundness.VericSound.
   specialize (gam0 _ _ _ FAT').
   destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
   unfold filter_genv in *.
-
+  assert (PAE: postcondition_allows_exit
+    (Concurrent_Espec unit CS ext_link) tint)
+     by (hnf; intros; hnf; auto).
+  pose (args := b::nil).
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun _y b A P' Q' NEP' NEQ' 0 semaxprog as HEP.
-
+       id_fun (fst fsig) args A P' Q' NEP' NEQ' 0 ora PAE semaxprog as HEP.
+  clear PAE.
   subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
   spec HEP. auto.
 
   spec HEP. {
-    unfold A.
+    unfold A. simpl fst.
     rewrite <-Eid.
     apply make_tycontext_s_find_id.
   }
@@ -360,8 +365,7 @@ Print Module SeparationLogicSoundness.VericSound.
     destruct HQ as (_ & _ & []).
   }
   *)
-
-  specialize (HEP PreA).
+  specialize (HEP (conj PreA Logic.I)).
   destruct HEP as (q_new & Initcore & Safety).
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
@@ -460,7 +464,10 @@ clear - Initcore.
        - new thread #n+1 (spawned),
        - thread #i (after spawning),
        - other threads *)
+    rename ora into ora0.
     intros j lj ora.
+    assert (ora0=ora) by (destruct ora0,ora; auto).
+    subst ora0.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
     + (* safety of new thread *)
       subst j.
@@ -471,6 +478,7 @@ clear - Initcore.
       split.
 {
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
+      subst args; repeat constructor. auto.
       clear Initcore Post lj ora Safety FAT' Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' NEQ NEP P Q FA semaxprog.
       clear jphi' jphi1' q_new id_fun A cc fsig CS_ V gam.
       clear l1 l0 l00 l01 necr li fPRE FAT PreA PreB3.
@@ -503,7 +511,7 @@ clear - Initcore.
   }
   red. simpl Mem.nextblock. rewrite H0. auto.
 }
-      intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
+      intros jm. REWR. rewrite gssAddRes by reflexivity.
       specialize (Safety jm ts).
       intros Ejm.
       replace (level jm) with n in Safety; swap 1 2.
@@ -542,11 +550,8 @@ clear - Initcore.
         unfold liftx, lift. simpl.
         unfold eval_id in *.
         unfold val_lemmas.force_val in *.
-        unfold te_of in *.
-        unfold construct_rho in *.
-        unfold make_tenv in *.
-        unfold Map.get in *.
-        rewrite PTree.gss.
+        unfold te_of in *. simpl.
+        rewrite Map.gss.
         reflexivity.
        do 8 red. intro Hx; subst; contradiction PreA.
       
@@ -555,7 +560,7 @@ clear - Initcore.
         split3. hnf.
         clear - PreB3. destruct PreB3 as [PreB3 _].
         hnf in PreB3. rewrite PreB3; clear PreB3.
-        unfold Map.get, make_ext_args. unfold env_set. 
+        unfold Map.get, make_args. unfold env_set. 
         unfold ge_of.
         unfold filter_genv.
         extensionality i. unfold Genv.find_symbol. simpl. auto.
@@ -575,7 +580,7 @@ clear - Initcore.
           apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
           apply compatible_threadRes_sub, compat. }
         apply FA.
-      * rewrite Ejm; simpl.
+      * hnf. rewrite Ejm; simpl.
          rewrite age_to_ghost_of.
          destruct ora.
          eapply join_sub_joins_trans, ext_join_approx, extcompat.

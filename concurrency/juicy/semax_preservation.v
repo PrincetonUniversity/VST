@@ -20,8 +20,8 @@ Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
         
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -1053,13 +1053,9 @@ Section Preservation.
    substwith Htid cnti.
    setoid_rewrite Eci in Hcode; inv Hcode.
    assert (c_new_ = c_new). {
-     destruct Hinitial. clear - E_c_new H.
-    hnf in E_c_new,H. destruct vf; try contradiction. if_tac in H; try contradiction.
-     destruct (Genv.find_funct_ptr ge b); try contradiction.
-     destruct (type_of_fundef f); try contradiction.
-     decompose [and] E_c_new. decompose [and] H. congruence.
+     destruct Hinitial. clear - E_c_new H. congruence.
   } subst c_new_.
-   destruct Hinitial as (Hinitial & ? & [? H0ab]); subst.
+   destruct Hinitial as (Hinitial & ? & H0ab); subst.
       simpl JuicyMachine.add_block in *.
       unfold add_block in *.
       assert (mem_compatible_with (updThread i tp cnti (Krun c_new) (getThreadR i tp cnti))
@@ -1074,11 +1070,9 @@ Section Preservation.
       assert (B : rmap_bound (Mem.nextblock m) Phi) by apply compat.
       right.  (* ? *)
       apply state_invariant_c with (mcompat := Hcmpt'); auto.
-      - red. clear - Hperm mwellformed H0ab.
+      - red. clear - Hperm mwellformed.
           red in Hperm. simpl in Hperm. subst.
           unfold install_perm; simpl.
-          (* NOTE from Andrew to Santiago:  H0ab seems to be useless here. *)
-          clear H0ab.
           destruct (thread_mem_compatible Hcmpt cnti). simpl.
           destruct mwellformed. split; auto.
           clear - H.
@@ -1232,10 +1226,16 @@ Admitted. (* Lemma preservation_Kinit *)
     {
       pose (jmi := jm_ cnti compat).
 
-      destruct ci as [ve te k | ef sig args lid ve te ] eqn:Heqc.
+(*      destruct ci as [ve te k | ef sig args lid ve te ] eqn:Heqc. *)
 
       (* thread[i] is running and some internal step *)
       {
+        destruct (cl_halted ci) eqn:Halted.
+           (* halted *)  admit.
+
+       destruct (cl_at_external ci) eqn:Hatex.
+       2:{ (* corestep *)
+
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem (cl_core_sem ge)) ci jmi ci' jmi'
@@ -1246,17 +1246,15 @@ Admitted. (* Lemma preservation_Kinit *)
           unfold JSem in *. rewrite Eci in safei, safety.
           subst.
           inversion safei as [ | ? ? ? ? c' m'' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : j_at_external _ _ _ = _ |- _ => inversion H end.
-          2: now match goal with H : halted _ _ _ |- _ => inversion H end.
+          2: elimtype False; clear - H Hatex; simpl in *; congruence.
+          2: elimtype False; clear - H Halted; simpl in *; congruence.
           exists c', m''. split; [ apply step | ].
           revert step safety safe; clear.
           generalize (jm_ cnti compat).
-          generalize (State ve te k).
+          generalize ci.
           unfold jsafeN.
           intros c j step safety safe ora.
-          eapply semax_lemmas.jsafe_corestep_forward.
-          - apply step.
-          - apply safety.
+          destruct ora; auto.
         }
 
         destruct next as (ci' & jmi' & stepi & safei').
@@ -1300,7 +1298,7 @@ Admitted. (* Lemma preservation_Kinit *)
             extensionality ora.
             cut ((ci', jmi') = (c', jm')). now intros H; injection H as -> ->; auto.
             eapply juicy_core_sem_preserves_corestep_fun; eauto.
-            * apply semax_lemmas.cl_corestep_fun'.
+            * admit. (* OOPS! *) (*  apply semax_lemmas.cl_corestep_fun'. *)
             * exact_eq Hcorestep.
               unfold jm_.
               f_equal.
@@ -1311,7 +1309,7 @@ Admitted. (* Lemma preservation_Kinit *)
           inv Htstep. getThread_inv.
           injection H as <-.
           evar (mx: Memory.mem).
-          assert (H: at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) (State ve te k) mx = Some X). {
+          assert (H: at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) ci mx = Some X). {
             simpl in *.
             subst mx; eassumption.
           }
@@ -1345,7 +1343,7 @@ Admitted. (* Lemma preservation_Kinit *)
           jmstep_inv. getThread_inv. injection H as <-.
           pose proof corestep_not_at_external _ _ _ _ _ Hcorestep.
           rewrite Ejuicy_sem in H.
-          discriminate.
+          elimtype False; clear - Hatex H. simpl in *. congruence.
 
         - (* we are at an at_ex now *)
           jmstep_inv. getThread_inv.
@@ -1396,7 +1394,7 @@ Admitted. (* Lemma preservation_Kinit *)
               REWR. REWR.
               specialize (safety i cnti ora).
               unfold JSem in *. rewrite Eci in safety.
-              eapply Jspec'_jsafe_phi in safety. 2:reflexivity.
+              eapply Jspec'_jsafe_phi in safety. 2: eassumption.
               replace cnti with ctn in safety by apply proof_irr.
               substwith cnti0' ctn.
               apply safety.
@@ -1462,7 +1460,7 @@ Admitted. (* Lemma preservation_Kinit *)
           jmstep_inv. contradiction.*)
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
-
+    }
     (* thread[i] is in Kblocked *)
     { (* only one possible jmstep, in fact divided into 6 sync steps *)
       inversion jmstep; try inversion HschedN; subst tid;
@@ -1655,6 +1653,6 @@ Admitted. (* Lemma preservation_Kinit *)
     {
       edestruct preservation_Kinit; eauto; [left | right]; apply state_bupd_intro'; auto.
     }
-  Qed.
+  Admitted.
 
 End Preservation.

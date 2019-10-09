@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -107,10 +107,10 @@ Proof.
 
   fixsafe safei.
   inversion safei
-    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-    [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
-    | subst | now inversion bad ].
+    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+  now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ].
   subst.
+  2: elimtype False; clear - atex bad; destruct ci; simpl in *; congruence.
   simpl in at_ex. assert (args0 = args) by congruence; subst args0.
   assert (e = UNLOCK) by congruence; subst e.
   hnf in x.

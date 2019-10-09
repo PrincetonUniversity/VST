@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -269,9 +269,7 @@ Proof.
             clear.
             unfold mpred.eval_id in *.
             unfold val_lemmas.force_val in *.
-            unfold make_ext_args in *.
             unfold te_of in *.
-            unfold filter_genv in *.
             unfold Genv.find_symbol in *.
             unfold mpred.env_set in *.
             rewrite Map.gss.
@@ -283,8 +281,9 @@ Proof.
           eapply join_sub_trans; [eexists; eauto|].
           apply compatible_threadRes_sub; auto.
         * (* not halted *)
-          contradiction.
-
+          subst. 
+          elimtype False; clear - Ha Hat_external.
+          destruct c; simpl in *; congruence.
     - (* lockSet_Writable *)
       eapply lockSet_Writable_updLockSet_updThread; eauto.
 
@@ -537,7 +536,8 @@ Proof.
           congruence.
 
         - (* not halted *)
-          contradiction.
+           subst; clear - Ha Hat_external.
+           destruct c; simpl in *; congruence.
 
         - (* at_external : we can now use safety *)
           subst z c0 m0.
@@ -657,9 +657,7 @@ Opaque age_tp_to.
                    clear.
                    unfold eval_id in *.
                    unfold val_lemmas.force_val in *.
-                   unfold make_ext_args in *.
                    unfold te_of in *.
-                   unfold filter_genv in *.
                    unfold Genv.find_symbol in *.
                    unfold env_set in *.
                    rewrite Map.gss.

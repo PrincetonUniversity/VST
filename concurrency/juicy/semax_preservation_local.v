@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -267,10 +267,10 @@ Qed.
 
 Lemma invariant_thread_step
  (mem_cohere_step
-     : forall (c c' : corestate) (jm jm' : juicy_mem) (Phi X : rmap) (ge : genv),
+     : forall (c c' : Clight_core.state) (jm jm' : juicy_mem) (Phi X : rmap) (ge : genv),
        mem_cohere' (m_dry jm) Phi ->
        join (m_phi jm) X Phi ->
-       @corestep corestate juicy_mem (@juicy_core_sem corestate (cl_core_sem ge)) c jm c' jm' ->
+       @corestep Clight_core.state juicy_mem (@juicy_core_sem Clight_core.state (cl_core_sem ge)) c jm c' jm' ->
        exists Phi' : rmap,
          join (m_phi jm') (@age_to (@level rmap ag_rmap (m_phi jm')) rmap ag_rmap X) Phi' /\
          mem_cohere' (m_dry jm') Phi')

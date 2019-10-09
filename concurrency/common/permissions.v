@@ -2530,6 +2530,20 @@ inv H.
 Opaque Mem.free.
 Qed.
 
+Lemma free_list_decay: forall m l m', Mem.free_list m l = Some m' -> decay m m'.
+Proof.
+intros.
+revert m m' H; induction l; simpl; intros; auto.
+inv H.
+apply decay_refl.
+destruct a. destruct p.
+destruct (Mem.free m b z0 z) eqn:?H; try discriminate.
+apply decay_trans with m0.
+intros.
+eapply Mem.valid_block_free_1; eauto.
+apply free_decay in H0; auto.
+auto.
+Qed.
 
 Lemma msem_decay: 
   forall C (Sem: MemSem C) c m c' m',
@@ -2541,13 +2555,7 @@ Proof.
  induction H.
  eapply storebytes_decay; eauto.
  eapply alloc_decay; eauto.
- revert m H; induction l; simpl; intros. inv H. apply decay_refl.
- destruct a as [[? ?] ?].
- destruct (Mem.free m b z z0) eqn:?; inv H.
- apply IHl in H1.
- apply decay_trans with m0; auto.
- eapply Mem.valid_block_free_1; eauto.
- eapply free_decay; eauto.
+ eapply free_list_decay; eauto.
  apply decay_trans with m''; auto.
  apply semantics_lemmas.mem_step_nextblock' in H.
  apply semantics_lemmas.mem_step_nextblock' in H0.
@@ -2557,8 +2565,6 @@ Proof.
   unfold Plt in *.
   eapply Pos.lt_le_trans; eauto.
 Qed.
-
-
 
 Lemma range_no_overlap:
   forall (mu : meminj) (m1 : mem) (b1 b1' b2 b2': block)

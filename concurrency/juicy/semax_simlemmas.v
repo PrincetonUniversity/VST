@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -302,7 +302,8 @@ Proof.
   sync C; eauto.
   sync C; eauto.
   sync C; eauto.
-  revert C. apply pred_hered, A.
+  destruct C; split; auto.
+  revert H4. apply pred_hered, A.
 Qed.
 
 Lemma env_coherence_age_to Z Jspec ge G phi n :
@@ -326,6 +327,7 @@ Proof.
   sync C; eauto.
   sync C; eauto.
   sync C; eauto.
+  destruct C; split; auto.
   apply funassert_pures_eq with phi; auto.
 Qed.
 
@@ -780,7 +782,9 @@ Qed.
 
 Lemma shape_of_args F V args b ofs ge :
   Val.has_type_list args (AST.Tint :: nil) ->
-  Vptr b ofs = mpred.eval_id _lock (make_ext_args (filter_genv (symb2genv (@genv_symb_injective F V ge))) (_lock :: nil) args) ->
+  Vptr b ofs = mpred.eval_id _lock
+     (make_args (_lock :: nil) args
+    (empty_environ ((symb2genv (@genv_symb_injective F V ge))))) ->
   args = Vptr b ofs :: nil.
 Proof.
   intros Hargsty.
@@ -827,7 +831,7 @@ Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge (tp : jstate ge) PH
     | Kinit v1 v2 =>
       val_inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
       exists q_new,
-      cl_initial_core ge v1 (v2 :: nil) q_new /\
+      Clight_core.cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
       jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
     end.
 

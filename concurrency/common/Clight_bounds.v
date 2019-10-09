@@ -15,18 +15,20 @@ Require Import VST.concurrency.common.permissions.
 
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import compcert.lib.Coqlib.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 
+(*
 Lemma CLight_Deterministic: forall ge c m c1 m1 c2 m2,
-    veric.Clight_new.cl_step ge c m c2 m2 ->
-    veric.Clight_new.cl_step ge c m c1 m1 ->
+    veric.Clight_core.cl_step ge c m c2 m2 ->
+    veric.Clight_core.cl_step ge c m c1 m1 ->
     c1 = c2 /\ m1 = m2.
 Proof. intros.
        specialize (cl_corestep_fun _ _ _ _ _ _ _ H H0); intros X; inversion X; subst. split; trivial.
 Qed.
+*)
 
 Definition bnd_from_init m := bounded_maps.bounded_map (snd (getMaxPerm m)) /\ (Mem.mem_access m).1 = fun z k => None.
 
@@ -196,7 +198,7 @@ Proof.
 Qed.
 
 Lemma CLight_step_mem_bound' ge c m c' m':
-  veric.Clight_new.cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
+  veric.Clight_core.cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
 Proof.
   intros.
   apply (memsem_preserves (CLN_memsem ge) _ preserve_bnd _ _ _ _ H H0).
@@ -236,7 +238,7 @@ Proof.
 Qed.
 
 Lemma CLight_step_mem_bound ge c m c' m':
-  veric.Clight_new.cl_step ge c m c' m' ->
+  veric.Clight_core.cl_step ge c m c' m' ->
   bounded_maps.bounded_map (snd (getMaxPerm m)) ->
   bounded_maps.bounded_map (snd (getMaxPerm m')).
 Proof.

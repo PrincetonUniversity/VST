@@ -309,7 +309,7 @@ Program Definition cl_core_sem (ge: genv) :
   @CoreSemantics CC_core mem :=
   @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ m c m' v args => cl_initial_core ge v args = Some c(* /\ Mem.arg_well_formed args m /\ m' = m *))
+    (fun _ m c m' v args => cl_initial_core ge v args = Some c /\ Mem.arg_well_formed args m /\ m' = m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun c _ =>  cl_halted c <> None)
@@ -383,7 +383,7 @@ apply ev_elim_mem_step in e; auto.
 Qed.
 
 
-Program Definition CLC_memsem (ge: genv):
+Program Definition CLN_memsem (ge: genv):
   @MemSem (*(Genv.t fundef type)*) CC_core.
 apply Build_MemSem with (csem := cl_core_sem ge).
   intros.
@@ -404,6 +404,6 @@ apply Build_MemSem with (csem := cl_core_sem ge).
  eapply mem_step_trans. eapply mem_step_alloc; eassumption. auto.
 *
  eapply inline_external_call_mem_step; eauto.
-Qed.
+Defined.
 
 Definition at_external c := cl_at_external (fst (CC_state_to_CC_core c)). (* Temporary definition for compatibility between CompCert 3.3 and new-compcert *)

@@ -4566,8 +4566,7 @@ Here be dragons
                assumption.
                eapply Concur.compatible_threadRes_sub; eauto.
     }
-  Admitted.
-
+Qed.
 
   (* 'Decaying memory' preserves invariant.
      Note that the invariant doesnt depend on the "core" c.
@@ -4713,10 +4712,22 @@ Here be dragons
         exists ds'.
         assert (DryHybridMachine.invariant ds').
         { eapply step_decay_invariant with (Hcompatible := MTCH_compat _ _ _ MATCH Hcmpt); auto.
-          destruct Hinitial as (? & Harg & [H0 [H0a H0b]]); subst.
+hnf in Hinitial.
+          destruct Hinitial as [? [Harg H0]]; subst.
+(*
+          destruct vf eqn:Hvf; try discriminate Hinitial.
+          rename b into b0.
+do 9 red in Hinitial.
+          simpl in Hinitial.
+          if_tac in Hinitial; try discriminate Hinitial.
+          destruct (Genv.find_funct_ptr (Clight.genv_genv ge) b0) eqn:Hfind; 
+                   try discriminate Hinitial.
+          inv Hinitial.
+*)
+(*          destruct Hinitial as (? & Harg & [H0 [H0a H0b]]); subst.*)
           hnf in Hperm; subst.
           split; intros.
-          + right; intro. contradiction H0. 
+          + right; intro. contradiction.
           + apply restrPermMap_valid in H0.
             right; intro. (*rewrite <- Haccess by (right; omega). *)
             unfold Concur.install_perm; destruct k.
@@ -4725,7 +4736,8 @@ Here be dragons
               apply equal_f with (b, ofs) in Hmax1.
               pose proof Concur.juicyRestrictMax (Concur.max_acc_coh_acc_coh (Concur.max_coh (Concur.thread_mem_compatible Hcmpt ctn)))
                 (b, ofs) as Hmax2.
-              unfold max_access_at, access_at in Hmax1, Hmax2; rewrite Hmax1 -Hmax2; auto.
+              unfold max_access_at, access_at in Hmax1, Hmax2; 
+                      rewrite Hmax1 -Hmax2; auto.
             * destruct (restrPermMap_correct ((MTCH_compat js ds m MATCH Hcmpt) tid (MTCH_cnt MATCH ctn)).1 b ofs) as [_ Hcur1].
               unfold permission_at in Hcur1; rewrite Hcur1.
               pose proof Concur.juicyRestrictCurEq (Concur.max_acc_coh_acc_coh (Concur.max_coh (Concur.thread_mem_compatible Hcmpt ctn)))
@@ -4734,7 +4746,8 @@ Here be dragons
               inversion MATCH.
               symmetry; apply mtch_perm1. }
         split; auto; split.
-        - hnf in Hperm; destruct Hinitial as (? & ? & [? [H0ab]]); subst; auto.
+        - hnf in Hperm.
+          destruct Hinitial as [? [Harg ?]]; subst; auto.
         - exists nil; rewrite <- app_nil_end.
           eapply (HybridMachineSig.start_step tid) with (Htid0 := @MTCH_cnt js tid ds MATCH Htid).
           + assumption.
@@ -4742,18 +4755,14 @@ Here be dragons
               econstructor.
               - eapply MTCH_getThreadC. eassumption. eassumption.
               - reflexivity.
-              - simpl in *.
-                destruct Hinitial as (? & ? & [? H0ab]); split; eauto.
+              - 
+                destruct Hinitial as [? [Harg ?]]; subst; split; eauto.
+                simpl in *.
                 split; auto.
                 replace Htid with ctn by apply proof_irr.
                 remember (Concur.install_perm _ _) as m1.
                 apply mtch_install_perm with (ds := ds)(MATCH := MATCH) in Heqm1; hnf in Heqm1.
-                rewrite Heqm1 in e; rewrite e; simpl.
-                replace Htid with ctn by apply proof_irr.
-                split. reflexivity.
-                split; [ | apply H0ab].
-                destruct H0ab as [H0a _].
-                subst m1. apply H0a.
+                apply Heqm1.
               - eassumption.
               - replace Htid with ctn by apply proof_irr; reflexivity.
             }

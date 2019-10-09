@@ -12,7 +12,7 @@ Require Import VST.veric.semax.
 Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_safety.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.sepcomp.extspec.
@@ -36,7 +36,7 @@ Definition _cond := 2%positive.   (* alpha-convertible *)
 (*Definition _lock_t := 2%positive. (* 2 (* or sometimes 3 -WM *) is the number given by
 clightgen when threads.h is included first *)*)
 
-Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
+Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) tint cc_default.
 (* Definition tlock := Tstruct _lock_t noattr. *)
 Definition tlock := (Tarray (Tpointer Tvoid noattr) 2 noattr).
 (* Notation tlock := tuint (only parsing). *)
@@ -798,7 +798,7 @@ Definition spawn_pre :=
                PROP ()
                (LOCALx (temp _y y :: gvars (gv x) :: nil)
                (SEP   (pre x y)))
-             POST [tptr tvoid]
+             POST [tint]
                PROP  ()
                LOCAL ()
                SEP   ())
@@ -863,14 +863,14 @@ Definition void_spec T : external_specification juicy_mem external_function T :=
       (fun ef => False)
       (fun ef Hef ge tys vl m z => False)
       (fun ef Hef ge ty vl m z => False)
-      (fun rv m z => False).
+      (fun rv m z => True).
 
 Definition ok_void_spec (T : Type) : OracleKind.
  refine (Build_OracleKind T (Build_juicy_ext_spec _ (void_spec T) _ _ _)).
 Proof.
   simpl; intros; contradiction.
   simpl; intros; contradiction.
-  simpl; intros; intros ? ? ? ?; contradiction.
+  simpl; intros; intros ? ? ? ?; auto.
 Defined.
 
 Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=

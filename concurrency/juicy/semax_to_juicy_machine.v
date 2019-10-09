@@ -17,8 +17,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.semax_lemmas.
@@ -159,7 +159,7 @@ Record CSL_proof := {
   CSL_ext_link : string -> ident;
   CSL_ext_link_inj : forall s1 s2, CSL_ext_link s1 = CSL_ext_link s2 -> s1 = s2;
   CSL_all_safe : semax_prog.semax_prog (Concurrent_Espec unit CSL_CS CSL_ext_link)
-                                       CSL_prog CSL_V CSL_G;
+                                       CSL_prog tt CSL_V CSL_G;
   CSL_init_mem_not_none : Genv.init_mem CSL_prog <> None;
                    }.
 
@@ -374,13 +374,13 @@ Section Safety.
   Definition init_mem : { m | Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
 
   Definition spr :=
-    semax_prog_rule'
+    semax_prog_rule
       (Concurrent_Espec unit CS ext_link) V G prog
-      (proj1_sig init_mem) 0 all_safe (proj2_sig init_mem).
+      (proj1_sig init_mem) 0 tt (semax_initial.PAE _ _) all_safe (proj2_sig init_mem).
 
-  Definition initial_corestate : corestate := projT1 (projT2 spr).
+  Definition initial_corestate : Clight_core.state := projT1 (projT2 spr).
 
-  Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n tt).
+  Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n).
 
   Definition initial_machine_state (n : nat) :=
     @OrdinalPool.mk LocksAndResources (@JSem (globalenv prog))
@@ -474,18 +474,17 @@ Section Safety.
   Lemma initial_corestate_initial :
     exists b, Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
     exists m', forall n,
-    initial_core (Clight_new.cl_core_sem (globalenv prog)) n (proj1_sig init_mem)
+    initial_core (cl_core_sem (globalenv prog)) n (proj1_sig init_mem)
       initial_corestate m' (Vptr b Ptrofs.zero) nil.
   Proof.
     unfold initial_corestate.
     destruct spr as (b & ? & [? Hinit] & s).
-    destruct (s O tt) as (jm & ? & _).
+    destruct (s O) as (jm & ? & _).
     exists b; split; auto; simpl in *; clear s.
     specialize (Hinit _ H) as (? & Hinit); hnf in Hinit.
     destruct Hinit as [_ Hinit]; simpl in Hinit.
-    destruct Hinit as (? & ? & [? ?]); eexists.
+    destruct Hinit as (? & ? & ?); eexists.
     split3; auto. constructor.
-    split. reflexivity. rewrite <- H. auto.
   Qed.
 
   Lemma jmsafe_csafe n m tr sch s : jmsafe (globalenv prog) n (m, (tr, sch, s)) -> jm_csafe (sch, tr, s) m n.

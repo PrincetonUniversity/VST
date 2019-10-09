@@ -16,8 +16,6 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -280,13 +278,13 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
-        cl_after_external None c = Some c' ->
+        veric.Clight_core.cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
         jsafe_phi_bupd ge n ora c' (getThreadR cnti)
     | Kinit v1 v2 =>
       val_inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
       exists q_new,
-      cl_initial_core ge v1 (v2 :: nil) q_new /\
+      veric.Clight_core.cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
       jsafe_phi ge n ora q_new (getThreadR cnti)
     end.
 
@@ -294,8 +292,8 @@ Definition threads_wellformed (tp : jstate ge) :=
   forall i (cnti : containsThread tp i),
     match getThreadC cnti with
     | Krun q => Logic.True
-    | Kblocked q => cl_at_external q <> None
-    | Kresume q v => cl_at_external q <> None /\ v = Vundef
+    | Kblocked q => veric.Clight_core.cl_at_external q <> None
+    | Kresume q v => veric.Clight_core.cl_at_external q <> None /\ v = Vundef
     | Kinit _ _ => Logic.True
     end.
 
@@ -471,12 +469,12 @@ Import Clight_seplog.
 Import ghost_PCM.
 
 Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
-  matchfunspecs ge Gamma PHI /\
-  exists prog CS V,
-    @semax_prog {|OK_ty := Z; OK_spec := Jspec|} CS prog V Gamma /\
+  matchfunspecs ge (Gamma: funspecs) PHI /\
+  exists prog CS ora (V: varspecs),
+    @semax_prog {|OK_ty := Z; OK_spec := Jspec|} CS prog ora V Gamma /\
     ge = globalenv prog /\
     app_pred
-      (funassert (Delta_types V Gamma (Tpointer Tvoid noattr :: nil))
+      (funassert (nofunc_tycontext V Gamma)
                  (empty_environ ge)) PHI.
 
 Definition maxedmem (m: mem) :=
@@ -545,7 +543,7 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
     exists j cntj sch' c args,
       sch = j :: sch' /\
       @getThreadC _ _ _ j tp cntj = Kblocked c /\
-      cl_at_external c = Some (ef, args)
+      Clight_core.cl_at_external c = Some (ef, args)
   end.
 
 Definition state_bupd P (state : cm_state) := let '(m, (tr, sch, tp)) := state in
@@ -637,8 +635,8 @@ Proof.
     + repeat intro.
       simpl in H0.
       rewrite Hl, Hr in H0; rewrite Hl; auto.
-    + destruct coh as (? & ? & ? & ? & ? & Happ).
-      do 4 eexists; eauto; split; auto.
+    + destruct coh as (? & ? & ? & ? & ? & [Hge Happ]).
+      exists x, x0, x1, x2. split3; auto.
       eapply semax_lemmas.funassert_resource, Happ; auto.
   - auto.
   - eapply joins_comm, join_sub_joins_trans, joins_comm, J'.

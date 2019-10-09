@@ -18,8 +18,8 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
 Require Import VST.veric.compcert_rmaps.
-Require Import VST.veric.Clight_new.
-Require Import VST.veric.Clightnew_coop.
+Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clightcore_coop.
 Require Import VST.veric.semax.
 Require Import VST.veric.semax_ext.
 Require Import VST.veric.juicy_extspec.
@@ -264,11 +264,12 @@ Section Progress.
       pose (jmi := jm_ cnti compat).
       (* pose (phii := m_phi jmi). *)
       (* pose (mi := m_dry jmi). *)
-
-      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
-
-      (* thread[i] is running and some internal step *)
-      {
+      destruct (cl_halted ci) eqn:?Halted. admit.
+      destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex.
+      2:{
+         (* thread[i] is running and some internal step *)
+(*      destruct ci as [f s k ve te | f args k | retval k] eqn:Heqc.
+*)
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem (cl_core_sem ge)) ci jmi ci' jmi'
@@ -278,17 +279,15 @@ Section Progress.
           pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
-          2: now match goal with H : j_at_external _ _ _ = _ |- _ => inversion H end.
-          2: now match goal with H : halted _ _ _ |- _ => inversion H end.
+          2: elimtype False; clear - H Hatex; simpl in H; congruence.
+          2: elimtype False; clear - H Halted; simpl in H; contradiction.
           exists c', m'. split; [ apply step | ].
           revert step safety safe; clear.
           generalize (jm_ cnti compat).
-          generalize (State ve te k).
+          generalize ci.
           unfold jsafeN.
           intros c j step safety safe ora.
-          eapply semax_lemmas.jsafe_corestep_forward.
-          - apply step.
-          - apply safety.
+          destruct ora; auto.
         }
 
         destruct next as (ci' & jmi' & stepi & safei').
@@ -318,8 +317,7 @@ Section Progress.
         + reflexivity.
         + reflexivity.
       }
-      (* end of internal step *)
-
+      
       (* thread[i] is running and about to call an external: Krun (at_ex c) -> Kblocked c *)
       {
         eexists.
@@ -331,7 +329,7 @@ Section Progress.
         + econstructor.
           * eassumption.
           * instantiate (2 := mem_compatible_forget compat); reflexivity.
-          * reflexivity.
+          * eassumption.
           * constructor.
           * reflexivity.
       } (* end of Krun (at_ex c) -> Kblocked c *)
@@ -339,12 +337,13 @@ Section Progress.
 
     (* thread[i] is in Kblocked *)
     {
+      destruct (cl_halted ci) eqn:?Halted. admit.
+      destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex. 
+
       (* goes to Kresume ci' according to the rules of syncStep  *)
-
-      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
-
+(*      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc. *)
       (* internal step: impossible, because in state Kblocked *)
-      {
+      2: {
         exfalso.
         pose proof (wellformed i cnti) as W.
         rewrite Eci in W.
@@ -358,8 +357,12 @@ Section Progress.
         pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
         fixsafe safe_i.
-        inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
-        inversion H0; subst; [].
+        destruct ci; simpl in Hatex; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e) eqn:Hinline; inv Hatex.
+        inversion safe_i; subst. destruct H0. inversion H. inversion2 Hinline H12.
+        2: simpl in H;  contradiction H; auto.
+        simpl in H0. rewrite Hinline in H0. inv H0.
         match goal with x : ext_spec_type _ _  |- _ => clear -x end.
         now destruct e eqn:Ee; [ apply I | .. ];
           simpl in x;
@@ -382,8 +385,12 @@ Section Progress.
         pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
         fixsafe safe_i.
-        inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
-        inversion H0; subst; [].
+        destruct ci; simpl in Hatex; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e) eqn:Hinline; inv Hatex.
+        inversion safe_i; subst. destruct H0. inversion H. inversion2 Hinline H12.
+        2: simpl in H;  contradiction H; auto.
+        simpl in H0. inv H0.
         match goal with H : ext_spec_type _ _  |- _ => clear -H end.
         simpl in *.
         repeat match goal with
@@ -415,10 +422,16 @@ Section Progress.
         rewrite Eci in safei.
         fixsafe safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H4 | subst | now inversion bad ].
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+         destruct bad.
+         apply cl_corestep_not_at_external in H4. inversion2 Hatex H4.
+         2: elimtype False; clear - bad Hatex; destruct ci; simpl in *; congruence.
         subst.
-        simpl in at_ex. injection at_ex as <- <-.
+        simpl in at_ex. unfold cl_at_external in at_ex.
+        destruct ci; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e0) eqn:?H; inv at_ex.
+        simpl in Hatex. rewrite H in Hatex. inv Hatex.
         hnf in x.
         revert x Pre SafePost.
 
@@ -543,8 +556,10 @@ Section Progress.
             }
 
             assert (Ecall: EF_external name sg = LOCK) by congruence.
-
-            assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) (ExtCall (EF_external name sg) args lid ve te k) m =
+            pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
+            assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
+                                       (Callstate (External (EF_external name sg) 
+                                               tyl Tvoid cc_default) args c) m =
                     Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
               repeat f_equal; congruence.
@@ -618,9 +633,11 @@ Section Progress.
           }
 
           assert (Ecall: EF_external name sg = LOCK) by congruence.
-
-          assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) (ExtCall (EF_external name sg) args lid ve te k) m =
-                        Some (LOCK, Vptr b ofs :: nil)). {
+          pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
+          assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
+                                       (Callstate (External (EF_external name sg) 
+                                               tyl Tvoid cc_default) args c) m =
+                    Some (LOCK, Vptr b ofs :: nil)). {
             simpl.
             repeat f_equal; congruence.
           }
@@ -692,11 +709,11 @@ Section Progress.
             * apply (mem_compatible_forget compat).
             * reflexivity.
             * instantiate (1:=shx). hnf; intros.
-              specialize (ex i0 H).
+              specialize (ex i0 H0).
               assert (Join0 := resource_at_join _ _ _ (b, Ptrofs.intval ofs + i0) Join).
               destruct (join_YES_l Join0 ex) as (sh3 & sh3' & E3).
               exists sh3, sh3'. split; auto. subst.
-              clear - Join0 ex E3 LKSPEC H.
+              clear - Join0 ex E3 LKSPEC H0.
               rewrite ex in Join0. rewrite E3 in Join0.
               destruct LKSPEC as [LKSPEC _]. specialize (LKSPEC (b, Ptrofs.intval ofs + i0)).
               rewrite jam_true in LKSPEC.
@@ -720,10 +737,16 @@ Section Progress.
         rewrite Eci in safei.
         fixsafe safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H4 | subst | now inversion bad ].
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+        destruct bad as [bad _].
+        apply cl_corestep_not_at_external in bad. inversion2 Hatex bad.
+         2: elimtype False; clear - bad Hatex; destruct ci; simpl in *; congruence.
         subst.
-        simpl in at_ex. injection at_ex as <- <-.
+        simpl in at_ex. unfold cl_at_external in at_ex.
+        destruct ci; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e0) eqn:?H; inv at_ex.
+        simpl in Hatex. rewrite H in Hatex. inv Hatex.
         hnf in x.
         revert x Pre SafePost.
 
@@ -806,16 +829,18 @@ Section Progress.
           }
 
           assert (Ecall: EF_external name sg = UNLOCK) by congruence.
-
-          assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) (ExtCall (EF_external name sg) args lid ve te k) m =
-                        Some (UNLOCK, Vptr b ofs :: nil)). {
+            pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
+            assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
+                                       (Callstate (External (EF_external name sg) 
+                                               tyl Tvoid cc_default) args c) m =
+                    Some (UNLOCK, Vptr b ofs :: nil)). {
             simpl.
             auto.
           }
           subst z.
           assert (E1: exists sh, lock_at_least sh (approx (level phi_lockinv) Rx) (getThreadR cnti) b (Ptrofs.intval ofs)).
           { exists shx. hnf; intros. SearchAbout phi_lockinv.
-            clear - Join jphi Hlockinv H.
+            clear - Join jphi Hlockinv H0. rename H0 into H.
             assert (join_sub phi_lockinv  (getThreadR cnti)).
             eapply join_sub_trans. eexists; apply jphi. eexists; eassumption.
             apply (resource_at_join_sub _ _ (b, Ptrofs.intval ofs + i0)) in H0.
@@ -887,7 +912,9 @@ Section Progress.
           eapply state_step_c.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release
-          with (c := (ExtCall (EF_external name sg) args lid ve te k))
+          with (c1 := Callstate
+                               (External (EF_external name sg) t0 t1
+                               c0) args c)
                  (Hcompat := mem_compatible_forget compat);
               try apply Eci;
             try apply Eae;
@@ -992,10 +1019,16 @@ Section Progress.
         rewrite Eci in safei.
         fixsafe safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H4 | subst | now inversion bad ].
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+       destruct bad as [bad _].
+        apply cl_corestep_not_at_external in bad. inversion2 Hatex bad.
+         2: elimtype False; clear - bad Hatex; destruct ci; simpl in *; congruence.
         subst.
-        simpl in at_ex. injection at_ex as <- <-.
+        simpl in at_ex. unfold cl_at_external in at_ex.
+        destruct ci; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e0) eqn:?H; inv at_ex.
+        simpl in Hatex. rewrite H in Hatex. inv Hatex.
         hnf in x.
         revert x Pre SafePost.
 
@@ -1041,9 +1074,11 @@ Section Progress.
         }
 
         assert (Ecall: EF_external name sg = MKLOCK) by congruence.
-
-        assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) (ExtCall (EF_external name sg) args lid ve te k) m =
-                      Some (MKLOCK, Vptr b ofs :: nil)). {
+        pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
+        assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
+                                       (Callstate (External (EF_external name sg) 
+                                               tyl Tvoid cc_default) args c) m =
+                    Some (MKLOCK, Vptr b ofs :: nil)). {
           simpl.
           repeat f_equal; congruence.
         }
@@ -1110,7 +1145,8 @@ Section Progress.
         with (Htid := cnti); auto.
 
         eapply step_mklock
-        with (c := (ExtCall (EF_external name sg) args lid ve te k))
+          with (c1 := Callstate
+                               (External (EF_external name sg) t0 t1 c0) args c)
                (Hcompatible := mem_compatible_forget compat)
                (R := Rx)
                (phi'0 := phi')
@@ -1125,10 +1161,16 @@ Section Progress.
         rewrite Eci in safei.
         fixsafe safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H4 | subst | now inversion bad ].
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+       destruct bad as [bad _].
+        apply cl_corestep_not_at_external in bad. inversion2 Hatex bad.
+         2: elimtype False; clear - bad Hatex; destruct ci; simpl in *; congruence.
         subst.
-        simpl in at_ex. injection at_ex as <- <-.
+        simpl in at_ex. unfold cl_at_external in at_ex.
+        destruct ci; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e0) eqn:?H; inv at_ex.
+        simpl in Hatex. rewrite H in Hatex. inv Hatex.
         hnf in x.
         revert x Pre SafePost.
 
@@ -1187,9 +1229,11 @@ Section Progress.
         }
 
         assert (Ecall: EF_external name sg = FREE_LOCK) by congruence.
-
-        assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) (ExtCall (EF_external name sg) args lid ve te k) m =
-                      Some (FREE_LOCK, Vptr b ofs :: nil)). {
+        pose (tyl := Tcons (Tpointer Tvoid noattr) Tnil).
+        assert (Eae : at_external (@semSem (ClightSemanticsForMachines.Clight_newSem ge)) 
+                                       (Callstate (External (EF_external name sg) 
+                                               tyl Tvoid cc_default) args c) m =
+                    Some (FREE_LOCK, Vptr b ofs :: nil)). {
           simpl.
           repeat f_equal; congruence.
         }
@@ -1343,7 +1387,8 @@ Section Progress.
         with (Htid := cnti); auto.
 
         eapply step_freelock
-        with (c := (ExtCall (EF_external name sg) args lid ve te k))
+          with (c1 := Callstate
+                               (External (EF_external name sg) t0 t1 c0) args c)
                (Hcompat := mem_compatible_forget compat)
                (R := Rx)
                (phi'0 := phi')
@@ -1367,10 +1412,16 @@ Section Progress.
         rewrite Eci in safei.
         fixsafe safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
-          [ now inversion bad; inversion H4 | subst | now inversion bad ].
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ].
+       destruct bad as [bad _].
+        apply cl_corestep_not_at_external in bad. inversion2 Hatex bad.
+         2: elimtype False; clear - bad Hatex; destruct ci; simpl in *; congruence.
         subst.
-        simpl in at_ex. injection at_ex as <- <-.
+        simpl in at_ex. unfold cl_at_external in at_ex.
+        destruct ci; try discriminate.
+        destruct f; try discriminate.
+        destruct (ef_inline e0) eqn:?H; inv at_ex.
+        simpl in Hatex. rewrite H in Hatex. inv Hatex.
         hnf in x.
         revert x Pre SafePost.
 
@@ -1398,40 +1449,46 @@ Section Progress.
 
     (* thread[i] is in Kresume *)
     {
+      destruct (cl_halted ci) eqn:?Halted. admit.
+      destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex. 
+      2:{
       (* goes to Krun ci' with after_ex ci = ci'  *)
-      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
+(*      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc. *)
 
-      - (* contradiction: has to be an extcall *)
+        (* contradiction: has to be an extcall *)
         specialize (wellformed i cnti).
         rewrite Eci in wellformed.
         simpl in wellformed.
         tauto.
-
-      - (* extcall *)
+      }
+       unfold cl_at_external in Hatex.
+       destruct ci; try discriminate Hatex.
+       destruct f; try discriminate Hatex.
+       destruct (ef_inline e) eqn:?H; inv Hatex.
+       rename c into k. 
+       (* extcall *)
+(*
         pose (ci':=
                 match lid with
                 | Some id => State ve (Maps.PTree.set id Vundef te) k
                 | None => State ve te k
                 end).
-        exists (m, (tr, i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
+*)
+        exists (m, (tr, i :: sch, ThreadPool.updThreadC cnti (Krun (Returnstate Vundef k))))(* ; split *).
         + (* taking the step Kresume->Krun *)
           constructor.
           apply @JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
           * eapply JuicyMachine.ResumeThread with (Hcmpt := mem_compatible_forget compat)
-              (c := ci) (c' := ci');
+              (c := Callstate (External ef t0 t1 c0) args k)
+             (c' := Returnstate Vundef k);
               simpl in *; try rewrite ClightSemanticsForMachines.CLN_msem in *;
               simpl.
             -- reflexivity.
-            -- subst.
+            -- rewrite H.
                reflexivity.
-            -- subst.
-               destruct lid.
-               ++ specialize (wellformed i cnti). simpl in wellformed. rewrite Eci in wellformed. destruct wellformed.
-                  unfold ci'. reflexivity.
-               ++ reflexivity.
+            -- auto.
             -- setoid_rewrite Eci.
-               subst ci.
                f_equal.
                specialize (wellformed i cnti).
                simpl in wellformed. rewrite Eci in wellformed.
@@ -1455,22 +1512,6 @@ Section Progress.
           * simpl; reflexivity.
           * split3; eauto.
             repeat constructor; auto.
-            split. reflexivity. simpl.
-            destruct mwellformed; split; auto.
-            clear - H0.
-             change (Mem.nextblock m) with 
-               (Mem.nextblock (@install_perm (ClightSemanticsForMachines.Clight_newSem ge) tp m
-              i (@mem_compatible_forget ge tp m Phi compat) cnti)).
-      apply  maxedmem_neutral.
-      simpl nextblock.
-      assert (mem_equiv.mem_equiv (maxedmem (@install_perm (ClightSemanticsForMachines.Clight_newSem ge) tp
-        m i (@mem_compatible_forget ge tp m Phi compat) cnti))
-                  (maxedmem m)). {
-         clear. simpl.
-         unfold install_perm. simpl.
-         admit.  (* for Santiago to do. *)
-         }
-         red. rewrite H. auto.
           * reflexivity.
           * reflexivity.
     }
