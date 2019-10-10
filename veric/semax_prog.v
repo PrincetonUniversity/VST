@@ -1514,6 +1514,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
   find_id id_fun G =
      Some (mk_funspec (params, retty) cc_default A P Q NEP NEQ) ->
   tc_vals (map snd params) args ->
+  val_casted_list args (type_of_params params) ->
   let rho1 : environ := make_args (map fst params) args 
                                     (empty_environ (globalenv prog)) in
   { q : CC_core |
@@ -1533,7 +1534,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
 intro retty.
-intros EXIT SP Findb id_in_G arg_p.
+intros EXIT SP Findb id_in_G arg_p Hca.
 rewrite <-find_id_maketycontext_s in id_in_G.
 generalize SP; intros [_ [_ [CSEQ _]]].
 destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & (Gcontains & Believe)) & _).
@@ -1559,6 +1560,12 @@ change (Genv.globalenv (program_of_program prog))
   with (genv_genv (globalenv prog)).
 rewrite Eb; auto.
 split3; auto.
+unfold params_of_funspec in Ef; simpl in Ef.
+rewrite Ef. split; [ | split3]; auto.
+{ clear - arg_p.
+   revert args arg_p; induction params as [|[??]]; destruct args; simpl; intros; inv arg_p; constructor.
+   apply tc_val_has_type; auto. auto.
+}
 clear - H.
 red.
 induction H. constructor.
@@ -2080,6 +2087,7 @@ Proof.
   subst retty.
   assert (SPEP := semax_prog_entry_point V G prog b (prog_main prog)
        params nil A P Q NEP NEQ h z EXIT H H5 Hfind).
+  spec SPEP. subst params; constructor.
   spec SPEP. subst params; constructor.
   set (rho1 := make_args (map fst params) nil (empty_environ (globalenv prog))) in *.
   cbv beta iota zeta in SPEP.

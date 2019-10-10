@@ -93,16 +93,21 @@ Definition params_of_fundef (f: fundef) : list type :=
   | External _ t _ _ => typelist2list t
   end.
 
-Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
+Definition cl_initial_core (ge: genv) (v: val) (args: list val) (q: CC_core) : Prop :=
   match v with
     Vptr b i =>
     if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
-        Some (Callstate f args Kstop)
-      | _ => None end
-    else None
-  | _ => None
+        match type_of_fundef f with Tfunction targs _ c =>
+           c = cc_default /\
+           val_casted_list args targs /\
+           Val.has_type_list args (Ctypes.typlist_of_typelist targs) /\
+           q = Callstate f args Kstop
+        | _ => False  end
+      | _ => False end
+    else False
+  | _ => False
   end.
 
 Definition stuck_signature : signature := mksignature nil None cc_default.
@@ -313,7 +318,7 @@ Program Definition cl_core_sem (ge: genv) :
   @CoreSemantics CC_core mem :=
   @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ m c m' v args => cl_initial_core ge v args = Some c /\ arg_well_formed args m /\ m' = m)
+    (fun _ m c m' v args => cl_initial_core ge v args c /\ arg_well_formed args m /\ m' = m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun c _ =>  cl_halted c <> None)

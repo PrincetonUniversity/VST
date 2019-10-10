@@ -831,7 +831,7 @@ Definition thread_safety {Z} (Jspec : juicy_ext_spec Z) m ge (tp : jstate ge) PH
     | Kinit v1 v2 =>
       val_inject (Mem.flat_inj (Mem.nextblock m)) v2 v2 /\
       exists q_new,
-      Clight_core.cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
+      Clight_core.cl_initial_core ge v1 (v2 :: nil)  q_new /\
       jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
     end.
 

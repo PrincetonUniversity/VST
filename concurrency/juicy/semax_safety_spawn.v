@@ -366,6 +366,8 @@ Print Module SeparationLogicSoundness.VericSound.
   }
   *)
   specialize (HEP (conj PreA Logic.I)).
+  spec HEP.
+    admit. (* val_casted_list *)
   destruct HEP as (q_new & Initcore & Safety).
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
@@ -478,7 +480,7 @@ clear - Initcore.
       split.
 {
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
-      subst args; repeat constructor. auto.
+      subst args; repeat constructor; auto.
       clear Initcore Post lj ora Safety FAT' Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' NEQ NEP P Q FA semaxprog.
       clear jphi' jphi1' q_new id_fun A cc fsig CS_ V gam.
       clear l1 l0 l00 l01 necr li fPRE FAT PreA PreB3.

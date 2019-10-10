@@ -1053,7 +1053,13 @@ Section Preservation.
    substwith Htid cnti.
    setoid_rewrite Eci in Hcode; inv Hcode.
    assert (c_new_ = c_new). {
-     destruct Hinitial. clear - E_c_new H. congruence.
+     destruct Hinitial. clear - E_c_new H.
+     hnf in E_c_new, H.
+     destruct vf; try contradiction. if_tac in H; try contradiction.
+    destruct (Genv.find_funct_ptr ge b); try contradiction.
+    destruct (type_of_fundef f); try contradiction.
+    destruct E_c_new as [_ [_ [_ ?]]].
+    destruct H as [_ [_ [_ ?]]]. subst. auto.
   } subst c_new_.
    destruct Hinitial as (Hinitial & ? & H0ab); subst.
       simpl JuicyMachine.add_block in *.

@@ -21,7 +21,7 @@ Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.semax_to_juicy_machine.
 Require Import VST.concurrency.juicy.mem_wd2.
 Require Import VST.concurrency.juicy.Clight_mem_ok.
-Require Import VST.veric.Clight_sim.
+(*Require Import VST.veric.Clight_sim.*)
 Require Import VST.msl.eq_dec.
 Require Import VST.concurrency.memsem_lemmas.
 Require Import BinNums.
@@ -48,12 +48,12 @@ Definition f_main : {f | Genv.find_funct_ptr (Clight.genv_genv ge) (projT1 (spr 
 Proof.
   destruct (spr CPROOF) as (b & q & [? Hinit] & s); simpl in *.
   unfold juicy_extspec.j_initial_core in Hinit; simpl semantics.initial_core in Hinit.
-  destruct (s O tt) as (jm & Hjm & _).
+  destruct (s O) as (jm & Hjm & _).
   specialize (Hinit _ Hjm); simpl Genv.find_funct_ptr in Hinit.
   unfold prog, semax_to_juicy_machine.prog in *.
   destruct (Genv.find_funct_ptr _ _); eauto.
   exfalso.
-  destruct Hinit as (? & ? & ? & ?); contradiction.
+  destruct Hinit as (? & ? & ? & ?). contradiction.
 Defined.
 
 (* Clight_new starts a step earlier than Clight, with a sequence of the initial call to main and
@@ -66,12 +66,16 @@ Definition main_handler : Clight.function :=
 (* This could be simplified if we made some assumptions about main (e.g., that it has no arguments). *)
 Definition initial_Clight_state : Clight.state :=
   let f := proj1_sig f_main in
+  Clight.Callstate f [Vptr (projT1 (spr CPROOF)) Ptrofs.zero] Clight.Kstop init_mem.
+(*
   Clight.State main_handler (Clight.Scall None (Clight.Etempvar 1%positive (Clight.type_of_fundef f))
              (map (fun x => Clight.Etempvar (fst x) (snd x))
-             (Clight_new.params_of_types 2 (Clight_new.params_of_fundef f))))
+             (Clight_core.params_of_types 2 (Clight_core.params_of_fundef f))))
                (Clight.Kseq (Clight.Sloop Clight.Sskip Clight.Sskip) Clight.Kstop) Clight.empty_env
              (temp_bindings 1 [Vptr (projT1 (spr CPROOF)) Ptrofs.zero]) init_mem.
+*)
 
+(*
 (*...And we should be able to construct an initial state from the Clight_new and mem.*)
 (* See also veric/Clight_sim.v. *)
 Fixpoint make_cont k :=
@@ -85,7 +89,7 @@ Fixpoint make_cont k :=
   end.
 
 (* This function assumes that q is an initial state. *)
-Definition new2Clight_state (q : Clight_new.corestate) (m : mem) : option Clight.state :=
+Definition new2Clight_state (q : Clight_core.state) (m : mem) : option Clight.state :=
   match q with
   | Clight_new.State e te (Clight_new.Kseq s :: k) =>
       Some (Clight.State main_handler s (make_cont k) e te m)
@@ -111,11 +115,12 @@ Proof.
   destruct (Clight.type_of_fundef f); try contradiction.
   destruct Hinit' as (? & ? & ? & ?); subst; auto.
 Qed.
+*)
 
 Inductive match_ctl : ctl -> ctl -> Prop :=
-| match_Krun c c' : match_states c (fst (CC'.CC_state_to_CC_core c')) -> match_ctl (Krun c) (Krun c')
-| match_Kblocked c c' : match_states c (fst (CC'.CC_state_to_CC_core c')) -> match_ctl (Kblocked c) (Kblocked c')
-| match_Kresume c c' v : match_states c (fst (CC'.CC_state_to_CC_core c')) -> match_ctl (Kresume c v) (Kresume c' v)
+| match_Krun c c' :  c = (fst (veric.Clight_core.CC_state_to_CC_core c')) -> match_ctl (Krun c) (Krun c')
+| match_Kblocked c c' : c = (fst (veric.Clight_core.CC_state_to_CC_core c')) -> match_ctl (Kblocked c) (Kblocked c')
+| match_Kresume c c' v : c = (fst (veric.Clight_core.CC_state_to_CC_core c')) -> match_ctl (Kresume c v) (Kresume c' v)
 | match_Kinit v v' : match_ctl (Kinit v v') (Kinit v v').
 
 (* This should essentially reproduce Clight_sim at the hybrid machine level. *)
@@ -675,7 +680,7 @@ Definition threadpool_of (st: MachStateDry) :=    match st with (_, _, tp) => tp
 Definition dryThreadPool := @ThreadPool.t dryResources (Clight_newSem ge)
                                   (@OrdinalPool.OrdinalThreadPool dryResources (Clight_newSem ge)).
 
-Definition ctl_ok nextb (c: @ctl Clight_new.corestate) : Prop :=
+Definition ctl_ok nextb (c: @ctl veric.Clight_core.state) : Prop :=
  match c with
  | Krun q => corestate_ok nextb q 
  | Kblocked q => corestate_ok nextb q
@@ -827,7 +832,7 @@ Lemma mem_ok_threadStep:
       (Hmem : mem_ok ms m)
       (Htid : containsThread ms tid)
       (Hcmpt : mem_compatible ms m)
-      (c c': Clight_new.corestate)
+      (c c': veric.Clight_core.state)
       (Hcode : getThreadC Htid = Krun c)
       (Hcorestep : cl_evstep ge c (restrPermMap (proj1 (Hcmpt tid Htid))) ev c' m'),
      mem_ok (updThread Htid (Krun c') (getCurPerm m', snd (getThreadR Htid))) m'.
@@ -886,7 +891,7 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
   - (* start_thread *)
      inv Htstep.
     hnf in Hperm; subst.
-    destruct Hinitial as (? & ? & [? H0ab]); subst.
+    destruct Hinitial as (? & ? & H0ab); subst.
     destruct Hmem as [H1 [H2 H2']]; split; [|split].
     + unfold Smallstep.globals_not_fresh.
       etransitivity; eauto. simpl. apply Pos.le_refl. 
@@ -905,20 +910,14 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
         specialize (H2x tid ctn). rewrite Hcode in H2x. 
         set  (nextb := Mem.nextblock m) in *; clearbody nextb.
         clear - H H2x.
-        hnf in H. destruct vf; try contradiction.
+        destruct H2x; hnf; auto.
+        unfold Clight_core.cl_initial_core in H.
+        destruct vf; try contradiction.
         destruct (Ptrofs.eq_dec i Ptrofs.zero);  try contradiction.
         destruct (Genv.find_funct_ptr (Clight.genv_genv ge) b); try contradiction.
         destruct (Clight.type_of_fundef f); try contradiction.
-        destruct H as [? [? [? ?]]]. subst.
-        unfold ctl_ok. unfold corestate_ok.
-        split; [|split].
-        hnf; intros. rewrite PTree.gempty in H. inv H.
-        (* unfold Clight.temp_bindings. *)
-        unfold Clight_new.temp_bindings.
-          destruct H2x.
-          repeat apply set_tenv_ok; auto.
-        hnf; intros. rewrite PTree.gempty in H3. inv H3.
-        repeat constructor.
+        destruct H as [? [? [? ?]]]; subst.
+        split. constructor; auto. hnf; auto.
   - (* resume_thread *)
     destruct Hmem as [Hmem1 [Hmem2 Hmem3]].
     split; [|split]; auto.
@@ -928,9 +927,9 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
     generalize Hmem3; apply ctl_ok_updThreadC.
     specialize (Hmem3 _ ctn). rewrite Hcode in Hmem3.
     destruct Hmem3.   
-    simpl. destruct c; inv H0; destruct lid; simpl in H; inv H3; simpl; auto.
-    intuition. apply set_tenv_ok; auto.
-    intuition.
+    simpl.
+    destruct c; inv H0. destruct f; inv H3.
+    simpl in H|-*. destruct H; split; auto.
   - (* threadStep *)
    inv Htstep. simpl in *. hnf in c,c'.
     eapply mem_ok_threadStep; eauto.
@@ -981,7 +980,9 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
        assert (block_ok (Mem.nextblock m') b /\ val_ok (Mem.nextblock m') arg). {
              specialize (H2' _ Htid). rewrite Hcode in H2'.
         simpl in H2'. clear - H2' Hat_external. inv Hat_external.
-         destruct c; inv H0. simpl in H2'. destruct H2' as [? _].
+         destruct c; inv H0. destruct f; inv H1.
+         destruct (AST.ef_inline e) eqn:Hinline; inv H0.
+         simpl in H2'. destruct H2' as [? _].
           inv H. inv H3. split; auto.
        }
       apply ctl_ok_addThread with (tid:=tid).
@@ -1031,6 +1032,7 @@ Definition f_wrapper : Clight.function :=
 Class spawn_wrapper := { lookup_wrapper: exists b_wrapper, Genv.find_funct_ptr (Clight.genv_genv ge) b_wrapper = Some (Ctypes.Internal f_wrapper)}.
 Context {SW : spawn_wrapper}.
 
+(*
 Lemma match_cont_prefix: forall k k1 k2, match_cont (Clight_new.strip_skip k1) (strip_skip' k2) ->
   match_cont (Clight_new.strip_skip (Clight_new.Kseq k :: k1))
              (strip_skip' (CC.Kseq k k2)).
@@ -1065,6 +1067,7 @@ Proof.
   intros; constructor; simpl; auto.
   constructor. constructor.
 Qed.
+*)
 
 Lemma mem_compatible_updThreadC: forall {Sem ThreadPool} (tp : @t _ Sem ThreadPool)
   m i c (cnti : containsThread tp i),
@@ -1084,7 +1087,7 @@ Lemma Clight_new_Clight_safety_gen:
   csafe
     (Sem := Clight_newSem ge)
     (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
-    (sch, tr, tp) m (n * 2) ->
+    (sch, tr, tp) m n ->
   match_st tp tp' ->
   csafe
     (Sem := ClightSem ge)
@@ -1095,22 +1098,21 @@ Proof.
   induction n; intros; [constructor|].
   inv H; simpl in *; [constructor; auto | ..];
     pose proof (mem_ok_step (sch,tr,tp) _ _ _ Hmem Hstep) as Hmem';
-  [inv Hstep; simpl in *; try (apply schedSkip_id in HschedS; subst); try discriminate|
-    inv Hstep; simpl in *; try match goal with H : sch = schedSkip sch |- _ =>
+    [inv Hstep; simpl in *; try (apply schedSkip_id in HschedS; subst); try discriminate |
+     inv Hstep; simpl in *; try match goal with H : sch = schedSkip sch |- _ =>
        symmetry in H; apply schedSkip_id in H; subst end; try discriminate].
-  - inv Htstep. simpl in Hinitial.
+  - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
-    destruct Hinitial as (Hinit & Harg & [? H0ab]); subst.
-    unfold Clight_new.cl_initial_core in Hinit.
+    destruct Hinitial as (Hinit & Harg & H0ab); subst.
+    unfold Clight_core.cl_initial_core in Hinit.
     destruct vf; try contradiction.
     destruct (Ptrofs.eq_dec _ _); try contradiction.
     destruct (Genv.find_funct_ptr _ b) eqn: Hb; try contradiction.
     destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
     destruct Hinit as (? & ? & ? & ?); subst.
     eapply CoreSafe.
-    { hnf; simpl.
-      rewrite <- H5.
+    { hnf; simpl.      rewrite <- H5.
       change sch with (yield sch) at 2.
       eapply start_step; eauto; econstructor; eauto.
       { eapply MTCH_install_perm, Hperm. }
@@ -1118,13 +1120,13 @@ Proof.
         hnf in Hperm; subst.
         destruct lookup_wrapper.
         assert (mem_ok tp (restrPermMap (proj1 (compat_th tp m Hcmpt ctn))))
-               by (apply mem_ok_restr; auto). 
+               by (apply mem_ok_restr; auto).
+       simpl. 
         econstructor; eauto.
         - destruct H6; auto.
         - eapply mem_ok_wd; destruct H6; eauto.
-        - clear - H2. inv H2. constructor; auto. inv H4; constructor; auto.
-        - auto. admit.
-        - reflexivity.
+        - clear - H2. inv H2. constructor; auto.
+        - auto.
       }
       { eapply MTCH_invariant; eauto. } }
     simpl.
@@ -1589,6 +1591,7 @@ Proof.
   + erewrite <- mtch_gtr2; eauto.
   + erewrite <- mtch_gtr2; eauto.
 Admitted.
+*)
 
 Definition init_threadpool := 
    @initial_machine (Clight_newSem ge)
@@ -1599,15 +1602,20 @@ Transparent getThreadC.
 
 Lemma init_mem_ok: mem_ok init_threadpool init_mem.
 Proof.
-  unfold mem_ok, init_mem, semax_to_juicy_machine.init_mem, init_mem_not_none, CSL_init_mem_not_none,
+(*  unfold mem_ok, init_mem, semax_to_juicy_machine.init_mem, init_mem_not_none, CSL_init_mem_not_none,
     semax_initial.init_m, ge, prog.
+*)
   split; [|split].
-  - destruct CPROOF; simpl.
+  - unfold init_mem, semax_to_juicy_machine.init_mem, init_mem_not_none, 
+         semax_initial.init_m, ge, prog; simpl.
+     destruct CPROOF; simpl.    
      destruct (Genv.init_mem CSL_prog) eqn: Hinit; try contradiction; simpl.
     unfold Smallstep.globals_not_fresh; simpl.
-    erewrite Genv.init_mem_genv_next by eauto.
+    erewrite Genv.init_mem_genv_next;  eauto.
     apply Pos.le_refl.
-  - destruct CPROOF; simpl.
+  - unfold init_mem, semax_to_juicy_machine.init_mem, init_mem_not_none, 
+         semax_initial.init_m, ge, prog; simpl.
+     destruct CPROOF; simpl.
      destruct (Genv.init_mem CSL_prog) eqn: Hinit; try contradiction; simpl.
      unfold Genv.init_mem in Hinit.
     eapply mem_wd2_alloc_globals; eauto.
@@ -1628,22 +1636,11 @@ Proof.
   - simpl.
     unfold initial_corestate; simpl.
     destruct spr as (q & ? & [? Hinit] & s); simpl.
-    destruct (s O tt) as (jm & Hjm & _).
+    destruct (s O) as (jm & Hjm & _).
     specialize (Hinit _ Hjm) as (? & ? & Hinit & _).
-    unfold Clight_new.cl_initial_core in Hinit; simpl in Hinit.
-    destruct (Genv.find_funct_ptr _ _) eqn: Hfind; [|contradiction].
-    destruct (Clight.type_of_fundef f); try contradiction.
-    destruct Hinit as (? & ? & ? & ?); subst; simpl; repeat split.
-    + unfold Clight.empty_env; repeat intro.
-      rewrite PTree.gempty in H; discriminate.
-    + clear - Hfind.
-      destruct CPROOF; simpl in *.
-      destruct (Genv.init_mem CSL_prog) eqn: Hmem; [simpl | contradiction].
-      repeat intro.
-      destruct i; simpl in H; try (rewrite PTree.gleaf in H; discriminate).
-      inv H; simpl.
-      eapply Genv.find_funct_ptr_not_fresh; eauto.
-    + repeat constructor.
+    unfold veric.Clight_core.cl_initial_core in Hinit; simpl in Hinit.
+    destruct (Genv.find_funct_ptr _ _) eqn: Hfind; [|discriminate].
+    inv Hinit. simpl. intros. split; auto.
 Qed.
 
 Lemma Clight_new_Clight_safety:

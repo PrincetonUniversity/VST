@@ -761,94 +761,6 @@ inversion BE1; inv BE2; try discriminate; try contradiction; simpl in *; trivial
   rewrite LB0 in LB; inv LB; trivial.
 Qed.
 
-  (* extending Clight_sim to event semantics *)
-Inductive ev_star ge: state -> mem -> _ -> state -> mem -> Prop :=
-  | ev_star_refl: forall s m,
-      ev_star ge s m nil s m
-  | ev_star_step: forall s1 m1 ev1 s2 m2 ev2 s3 m3,
-      ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
-      ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
-
-Lemma ev_star_one:
-  forall ge s1 m1 ev s2 m2, ev_step (CLN_evsem ge) s1 m1 ev s2 m2 -> ev_star ge s1 m1 ev s2 m2.
-Proof.
-  intros. rewrite <- (app_nil_r ev). eapply ev_star_step; eauto. apply ev_star_refl.
-Qed.
-
-Lemma ev_star_two:
-  forall ge s1 m1 ev1 s2 m2 ev2 s3 m3,
-  ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLN_evsem ge) s2 m2 ev2 s3 m3 ->
-  ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
-Proof.
-  intros. eapply ev_star_step; eauto. apply ev_star_one; auto.
-Qed.
-
-Lemma ev_star_trans:
-  forall ge {s1 m1 ev1 s2 m2}, ev_star ge s1 m1 ev1 s2 m2 ->
-  forall {ev2 s3 m3}, ev_star ge s2 m2 ev2 s3 m3 -> ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
-Proof.
-  induction 1; intros; auto.
-  rewrite <- app_assoc.
-  eapply ev_star_step; eauto.
-Qed.
-
-
-Inductive ev_plus ge: state -> mem -> _ -> state -> mem -> Prop :=
-  | ev_plus_left: forall s1 m1 ev1 s2 m2 ev2 s3 m3,
-      ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
-      ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
-
-Lemma ev_plus_one:
-  forall ge s1 m1 ev s2 m2, ev_step (CLN_evsem ge) s1 m1 ev s2 m2 -> ev_plus ge s1 m1 ev s2 m2.
-Proof.
-  intros. rewrite <- (app_nil_r ev). eapply ev_plus_left; eauto. apply ev_star_refl.
-Qed.
-
-Lemma ev_plus_two:
-  forall ge s1 m1 ev1 s2 m2 ev2 s3 m3,
-  ev_step (CLN_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLN_evsem ge) s2 m2 ev2 s3 m3 ->
-  ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
-Proof.
-  intros. eapply ev_plus_left; eauto. apply ev_star_one; auto.
-Qed.
-
-Lemma ev_plus_star: forall ge s1 m1 ev s2 m2, ev_plus ge s1 m1 ev s2 m2 -> ev_star ge s1 m1 ev s2 m2.
-Proof.
-  intros. inv H. eapply ev_star_step; eauto.
-Qed.
-
-Lemma ev_plus_trans:
-  forall ge {s1 m1 ev1 s2 m2}, ev_plus ge s1 m1 ev1 s2 m2 ->
-  forall {ev2 s3 m3}, ev_plus ge s2 m2 ev2 s3 m3 -> ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
-Proof.
-  intros.
-  inv H.
-  rewrite <- app_assoc.
-  eapply ev_plus_left. eauto.
-  eapply ev_star_trans; eauto.
-  apply ev_plus_star. auto.
-Qed.
-
-Lemma ev_star_plus_trans:
-  forall ge {s1 m1 ev1 s2 m2}, ev_star ge s1 m1 ev1 s2 m2 ->
-  forall {ev2 s3 m3}, ev_plus ge s2 m2 ev2 s3 m3 -> ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
-Proof.
-  intros. inv H. auto.
-  rewrite <- app_assoc.
-  eapply ev_plus_left; eauto.
-  eapply ev_star_trans; eauto. apply ev_plus_star; auto.
-Qed.
-
-Lemma ev_plus_star_trans:
-  forall ge {s1 m1 ev1 s2 m2}, ev_plus ge s1 m1 ev1 s2 m2 ->
-  forall {ev2 s3 m3}, ev_star ge s2 m2 ev2 s3 m3 -> ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
-Proof.
-  intros.
-  inv H.
-  rewrite <- app_assoc.
-  eapply ev_plus_left; eauto. eapply ev_star_trans; eauto.
-Qed.
-
 Import Clight.
 Section CLC_SEM.
   Variable g: Clight.genv.
@@ -1189,4 +1101,92 @@ Qed.
   Instance ClightSem : Semantics :=
     { semG := G; semC := state; semSem := CLC_evsem; the_ge := g }.
 End CLC_SEM.
+
+  (* extending Clight_sim to event semantics *)
+Inductive ev_star ge: state -> mem -> _ -> state -> mem -> Prop :=
+  | ev_star_refl: forall s m,
+      ev_star ge s m nil s m
+  | ev_star_step: forall s1 m1 ev1 s2 m2 ev2 s3 m3,
+      ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
+      ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
+
+Lemma ev_star_one:
+  forall ge s1 m1 ev s2 m2, ev_step (CLC_evsem ge) s1 m1 ev s2 m2 -> ev_star ge s1 m1 ev s2 m2.
+Proof.
+  intros. rewrite <- (app_nil_r ev). eapply ev_star_step; eauto. apply ev_star_refl.
+Qed.
+
+Lemma ev_star_two:
+  forall ge s1 m1 ev1 s2 m2 ev2 s3 m3,
+  ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLC_evsem ge) s2 m2 ev2 s3 m3 ->
+  ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
+Proof.
+  intros. eapply ev_star_step; eauto. apply ev_star_one; auto.
+Qed.
+
+Lemma ev_star_trans:
+  forall ge {s1 m1 ev1 s2 m2}, ev_star ge s1 m1 ev1 s2 m2 ->
+  forall {ev2 s3 m3}, ev_star ge s2 m2 ev2 s3 m3 -> ev_star ge s1 m1 (ev1 ++ ev2) s3 m3.
+Proof.
+  induction 1; intros; auto.
+  rewrite <- app_assoc.
+  eapply ev_star_step; eauto.
+Qed.
+
+
+Inductive ev_plus ge: state -> mem -> _ -> state -> mem -> Prop :=
+  | ev_plus_left: forall s1 m1 ev1 s2 m2 ev2 s3 m3,
+      ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_star ge s2 m2 ev2 s3 m3 ->
+      ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
+
+Lemma ev_plus_one:
+  forall ge s1 m1 ev s2 m2, ev_step (CLC_evsem ge) s1 m1 ev s2 m2 -> ev_plus ge s1 m1 ev s2 m2.
+Proof.
+  intros. rewrite <- (app_nil_r ev). eapply ev_plus_left; eauto. apply ev_star_refl.
+Qed.
+
+Lemma ev_plus_two:
+  forall ge s1 m1 ev1 s2 m2 ev2 s3 m3,
+  ev_step (CLC_evsem ge) s1 m1 ev1 s2 m2 -> ev_step (CLC_evsem ge) s2 m2 ev2 s3 m3 ->
+  ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
+Proof.
+  intros. eapply ev_plus_left; eauto. apply ev_star_one; auto.
+Qed.
+
+Lemma ev_plus_star: forall ge s1 m1 ev s2 m2, ev_plus ge s1 m1 ev s2 m2 -> ev_star ge s1 m1 ev s2 m2.
+Proof.
+  intros. inv H. eapply ev_star_step; eauto.
+Qed.
+
+Lemma ev_plus_trans:
+  forall ge {s1 m1 ev1 s2 m2}, ev_plus ge s1 m1 ev1 s2 m2 ->
+  forall {ev2 s3 m3}, ev_plus ge s2 m2 ev2 s3 m3 -> ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
+Proof.
+  intros.
+  inv H.
+  rewrite <- app_assoc.
+  eapply ev_plus_left. eauto.
+  eapply ev_star_trans; eauto.
+  apply ev_plus_star. auto.
+Qed.
+
+Lemma ev_star_plus_trans:
+  forall ge {s1 m1 ev1 s2 m2}, ev_star ge s1 m1 ev1 s2 m2 ->
+  forall {ev2 s3 m3}, ev_plus ge s2 m2 ev2 s3 m3 -> ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
+Proof.
+  intros. inv H. auto.
+  rewrite <- app_assoc.
+  eapply ev_plus_left; eauto.
+  eapply ev_star_trans; eauto. apply ev_plus_star; auto.
+Qed.
+
+Lemma ev_plus_star_trans:
+  forall ge {s1 m1 ev1 s2 m2}, ev_plus ge s1 m1 ev1 s2 m2 ->
+  forall {ev2 s3 m3}, ev_star ge s2 m2 ev2 s3 m3 -> ev_plus ge s1 m1 (ev1 ++ ev2) s3 m3.
+Proof.
+  intros.
+  inv H.
+  rewrite <- app_assoc.
+  eapply ev_plus_left; eauto. eapply ev_star_trans; eauto.
+Qed.
 
