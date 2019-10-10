@@ -305,11 +305,15 @@ unfold cl_after_external in H.
 destruct q; inv H. destruct f; inv H1. reflexivity.
 Qed.
 
+
+Definition arg_well_formed args m0:= (* here for compatibility *)
+  Val.inject_list (Mem.flat_inj (Mem.nextblock m0)) args args.
+
 Program Definition cl_core_sem (ge: genv) :
   @CoreSemantics CC_core mem :=
   @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ m c m' v args => cl_initial_core ge v args = Some c /\ Mem.arg_well_formed args m /\ m' = m)
+    (fun _ m c m' v args => cl_initial_core ge v args = Some c /\ arg_well_formed args m /\ m' = m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun c _ =>  cl_halted c <> None)
