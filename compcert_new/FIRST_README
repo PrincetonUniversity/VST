@@ -9,7 +9,7 @@ Every file in this directory tree is verbatim from CompCert EXCEPT
   the file you are reading, FIRST_README
 
 To create (or to update when there's a new version of compcert),
-  ../util/GRAB ~/compcert
+  ../util/GRABNEW ~/compcert_new
   (see the Usage instructions at the beginning of the GRAB file)
 
 To build (this step is now done automatically in VST's main makefile):
