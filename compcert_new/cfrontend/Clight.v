@@ -30,6 +30,7 @@ Require Import Globalenvs.
 Require Import Smallstep.
 Require Import Ctypes.
 Require Import Cop.
+Require Import Premain.
 
 (** * Abstract syntax *)
 
@@ -444,7 +445,7 @@ End EXPR.
 (** Continuations *)
 
 Inductive cont: Type :=
-  | Kstop: cont
+  | Kstop: typelist -> cont
   | Kseq: statement -> cont -> cont       (**r [Kseq s2 k] = after [s1] in [s1;s2] *)
   | Kloop1: statement -> statement -> cont -> cont (**r [Kloop1 s1 s2 k] = after [s1] in [Sloop s1 s2] *)
   | Kloop2: statement -> statement -> cont -> cont (**r [Kloop1 s1 s2 k] = after [s2] in [Sloop s1 s2] *)
@@ -468,7 +469,7 @@ Fixpoint call_cont (k: cont) : cont :=
 
 Definition is_call_cont (k: cont) : Prop :=
   match k with
-  | Kstop => True
+  | Kstop _ => True
   | Kcall _ _ _ _ _ => True
   | _ => False
   end.
@@ -517,7 +518,7 @@ Definition at_external (c: state) : option (external_function * list val) :=
       match fd with
         Internal f => None
       | External ef targs tres cc => 
-          Some (ef, args)
+        if ef_inline ef then None else Some (ef, args)
       end
   | Returnstate _ _ _ => None
  end.
@@ -615,7 +616,7 @@ Inductive step: state -> trace -> state -> Prop :=
 
   | step_builtin:   forall f optid ef tyargs al k e le m vargs t vres m',
       eval_exprlist e le m al tyargs vargs ->
-      external_call ef ge vargs m t vres m' ->
+      builtin_call ef ge vargs m t vres m' ->
       step (State f (Sbuiltin optid ef tyargs al) k e le m)
          t (State f Sskip k e (set_opttemp optid vres le) m')
 
@@ -715,16 +716,6 @@ Inductive step: state -> trace -> state -> Prop :=
   without arguments and with an empty continuation. *)
 
 
-(*Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
-  | entry_point_intro: forall b f args m0,
-      let ge := Genv.globalenv p in
-      Genv.init_mem p = Some m0 ->
-      Genv.find_symbol ge p.(prog_main) = Some b ->
-      Genv.find_funct_ptr ge b = Some f ->
-      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
-      entry_point p m0 (Callstate f nil Kstop m0) (Vptr b Ptrofs.zero) args.*)
-
-
 Inductive initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall b f m0,
       let ge := Genv.globalenv p in
@@ -732,7 +723,7 @@ Inductive initial_state (p: program): state -> Prop :=
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
       type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
-      initial_state p (Callstate f nil Kstop m0).
+      initial_state p (Callstate f nil (Kstop Tnil) m0).
 
 (*NEW*)
 (* The following parameters are simple and reasonable, *)
@@ -759,33 +750,35 @@ Inductive val_casted_list: list val -> typelist -> Prop :=
       val_casted v1 ty1 -> val_casted_list vl tyl ->
       val_casted_list (v1 :: vl) (Tcons  ty1 tyl).
 
-(* Require Import Conventions.
-
-Definition loc_arguments' l := if Archi.ptr64 then loc_arguments_64 l 0 0 0 else loc_arguments_32 l 0. *)
-
-(*NOTE: DOUBLE CHECK TARGS (it's not used right now)*)
+Definition vars_have_type (vars: list  (ident * type)) (typs:typelist):=
+  typlist_of_typelist typs =
+  (map (fun x => typ_of_type (snd x)) vars).
+Definition vals_have_type (vals: list val) (typs:typelist):=
+  Val.has_type_list vals (typlist_of_typelist typs). 
+  
 Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop :=
 | initi_core:
-    forall f fb b0 f0 m0 m1 stk args targs tres,
-      Genv.find_funct_ptr ge fb = Some f ->
-      type_of_fundef f = Tfunction targs tres cc_default ->
+    forall f fb m0 args targs,
+      let sg:= signature_of_type targs type_int32s cc_default in
+      type_of_fundef (Internal f) = Tfunction targs type_int32s cc_default ->
+      Genv.find_funct_ptr ge fb = Some (Internal f) ->
       globals_not_fresh ge m0 ->
       Mem.mem_wd m0 ->
-      Mem.arg_well_formed args m0 ->
-      val_casted_list args targs ->
       Val.has_type_list args (typlist_of_typelist targs) ->
-      (*val_casted_list_func args targs 
-                           && tys_nonvoid targs 
-                           && vals_defined args
-                           && zlt (4*(2*(Zlength args))) Int.max_unsigned = true ->*)
-      Genv.find_funct_ptr ge b0 = Some (Internal f0) ->
-      Mem.alloc m0 0 0 = (m1, stk) ->
-      entry_point ge m0 (Callstate f args Kstop m1) (Vptr fb Ptrofs.zero) args.
+      vars_have_type (fn_vars f) targs ->
+      vals_have_type args targs ->
+      Mem.arg_well_formed args m0 ->
+      bounded_args sg ->
+      entry_point ge m0
+                  (Callstate (Internal f) args (Kstop targs) m0)
+                  (Vptr fb Ptrofs.zero) args.
+  
+  
 
 (** A final state is a [Returnstate] with an empty continuation. *)
 Inductive final_state: state -> int -> Prop :=
-  | final_state_intro: forall r m,
-      final_state (Returnstate (Vint r) Kstop m) r.
+  | final_state_intro: forall r m targs,
+      final_state (Returnstate (Vint r) (Kstop targs) m) r.
 
 End SEMANTICS.
 

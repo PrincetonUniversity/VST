@@ -18,6 +18,7 @@
 Require Import Coqlib Maps.
 Require Import AST Integers Values Events Memory Globalenvs Smallstep.
 Require Import Op Locations Conventions.
+Require Import Premain.
 
 (** * Abstract syntax *)
 
@@ -291,7 +292,7 @@ Inductive step: state -> trace -> state -> Prop :=
         E0 (Callstate s fd rs' m')
   | exec_Lbuiltin: forall s f sp ef args res bb rs m vargs t vres rs' m',
       eval_builtin_args ge rs sp m args vargs ->
-      external_call ef ge vargs m t vres m' ->
+      builtin_call ef ge vargs m t vres m' ->
       rs' = Locmap.setres res vres (undef_regs (destroyed_by_builtin ef) rs) ->
       step (Block s f sp (Lbuiltin ef args res :: bb) rs m)
          t (Block s f sp bb rs' m')
@@ -325,7 +326,8 @@ Inductive step: state -> trace -> state -> Prop :=
       rs' = Locmap.setpair (loc_result (ef_sig ef)) res (undef_caller_save_regs rs) ->
       step (Callstate s (External ef) rs m)
          t (Returnstate s rs' m')
-  | exec_return: forall f sp rs1 bb s rs m,
+  | exec_return: forall f sp rs1 bb s rs m
+      (Hnot_empty: not_empty s),
       step (Returnstate (Stackframe f sp rs1 bb :: s) rs m)
         E0 (Block s f sp bb rs m).
 
@@ -358,23 +360,65 @@ Fixpoint setlist (locs: list (rpair loc))(args:list val) base :=
 Definition build_ls_from_arguments (fs: signature)(args:list val) :=
   setlist (loc_arguments fs) args (Locmap.init Vundef).
 
+
+
+Definition pre_main_sig: signature:=
+  {| sig_args := nil;
+     sig_res := None ;
+     sig_cc := cc_default |}.
+Definition pre_main_code: code:= PTree.Leaf.
+Definition pre_main (stck_sz:Z): function:=
+  {| fn_sig := pre_main_sig;
+     fn_stacksize := stck_sz;
+     fn_code := pre_main_code;
+     fn_entrypoint := 1%positive |}.
+
+(* loc_arguments takes a signature, 
+   It generally only needs the types of arguemtns targs.
+   For RISC-V, it also takes calling conventions.
+ *)
+
+Definition sig_wrapper targs:signature :=
+  {| sig_args := targs;
+              sig_res := None;
+              sig_cc := cc_default |}.
+Definition arg_size (args : list typ):= Z.of_nat (Datatypes.length args).
+Definition pre_main_stack targs args: stackframe:=
+  Stackframe
+    (pre_main (arg_size targs))
+    Vundef                                (* no stack pointere for pre_main *)
+    (pre_main_locset_all targs args) (* empty environment in pre_main *)
+    nil                                   (* No continuation in pre_main *).
+Definition pre_main_staklist sig args:=
+  (pre_main_stack sig args)::nil.
+
+(* build_ls_from_arguments *)
 Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
-  | entry_point_intro: forall b f b0 f0 m0 m1 stk args,
+  | entry_point_intro: 
       let ge := Genv.globalenv p in
-      Mem.mem_wd m0 ->
-      Mem.arg_well_formed args m0 ->
-      globals_not_fresh ge m0 ->
-      Genv.find_funct_ptr ge b = Some f ->
-      Val.has_type_list args (sig_args (funsig f)) ->
-      Genv.find_funct_ptr ge b0 = Some (Internal f0) ->
-      Mem.alloc m0 0 (fn_stacksize f0) = (m1, stk) ->
-      let ls := build_ls_from_arguments (funsig f) args in
-      entry_point p m0 (Callstate (Stackframe f0 (Vptr stk Ptrofs.zero) ls nil :: nil) f ls m1) (Vptr b Ptrofs.zero) args.
+      forall f fb m0 m1 args targs stk l,
+      let sg:= fn_sig f in
+        Genv.find_funct_ptr ge fb = Some (Internal f) ->
+        (*Make sure the memory is well formed *)
+        globals_not_fresh ge m0 ->
+        Mem.mem_wd m0 ->
+        (* Allocate a stackframe, to pass arguments in the stack*)
+        Mem.alloc m0 0 0  = (m1, stk) ->
+        targs = sig_args sg ->
+        Val.has_type_list args targs ->
+        Mem.arg_well_formed args m0 ->
+        (* arguments fit in the stack *)
+        bounded_args sg ->
+        l = pre_main_locset_all targs args ->
+        entry_point p m0
+                    (Callstate (pre_main_staklist targs args)
+                               (Internal f) l m1)
+                    (Vptr fb Ptrofs.zero) (args).
 
 Inductive final_state: state -> int -> Prop :=
-  | final_state_intro: forall rs m retcode,
+  | final_state_intro: forall rs m retcode sig args,
       Locmap.getpair (map_rpair R (loc_result signature_main)) rs = Vint retcode ->
-      final_state (Returnstate nil rs m) retcode.
+      final_state (Returnstate (pre_main_staklist sig args) rs m) retcode.
 
 Definition semantics (p: program) :=
   let ge:= (Genv.globalenv p) in

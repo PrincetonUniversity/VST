@@ -28,13 +28,6 @@ Require Import Integers.
 Require Import Smallstep.
 
 
-(*Require Import compcert.lib.Coqlib.
-Require Import compcert.common.Events.
-Require Import compcert.common.Globalenvs.
-Require Import compcert.lib.Integers.
-Require Import compcert.common.Smallstep.
-*)
-
 Set Nested Proofs Allowed.
 
 Require Import compcert.common.Values. (*for meminj, compose_meminj,...*)
@@ -62,7 +55,7 @@ Section ExposingMemory.
           exists args',
             @at_external L2 s2 = Some (f,args') /\
             Val.lessdef_list args args'.
-
+  
   Definition simulation_atx {index:Type} {L1 L2} (match_states: index -> _ -> _ -> Prop)
     :=
         forall s1 f args,
@@ -81,12 +74,9 @@ Section ExposingMemory.
         Eqmatch_states: Eqindex -> state L1 -> state L2 -> Prop;  
         Eqfsim_order_wf: well_founded Eqorder;
         Eqfsim_match_meminj: forall i s1 s2, Eqmatch_states i s1 s2 ->  (get_mem1 s1) = (get_mem2 s2);
-        (*    fsim_match_initial_states:
-      forall s1 m1 f m2, initial_state L1 (s1,m1) -> Mem.inject f m1 m2 ->
-      exists i, exists s2, initial_state L2 (s2,m2) /\ match_states i f (s1,m1) (s2,m2);*)
-        Eqfsim_match_initial_states:
-          forall s1, initial_state L1 s1 -> 
-                exists i s2, initial_state L2 s2 /\ Eqmatch_states i s1 s2;
+        Eqfsim_match_entry_points:
+          forall s1 m0 fb args, entry_point L1 m0 s1 fb args -> 
+                exists i s2, entry_point L2 m0 s2 fb args /\ Eqmatch_states i s1 s2;
         Eqfsim_match_final_states:
           forall i s1 s2 r ,
             Eqmatch_states i s1 s2 -> final_state L1 s1 r -> (final_state L2 s2 r);
@@ -104,9 +94,6 @@ Section ExposingMemory.
           forall id, Senv.public_symbol (symbolenv L2) id = Senv.public_symbol (symbolenv L1) id
       }.
   
-
-        
-    
     Lemma sim_eqSim':
       forall index order (match_states:index -> state L1 -> state L2 -> Prop),
         (simulation_atx match_states) ->
@@ -132,12 +119,9 @@ Section ExposingMemory.
     Extmatch_states: Extindex -> state L1 -> state L2 -> Prop;  
     Extfsim_order_wf: well_founded Extorder;
     Extfsim_match_meminj: forall i s1 s2, Extmatch_states i s1 s2 ->  Mem.extends (get_mem1 s1) (get_mem2 s2);
-(*    fsim_match_initial_states:
-      forall s1 m1 f m2, initial_state L1 (s1,m1) -> Mem.inject f m1 m2 ->
-      exists i, exists s2, initial_state L2 (s2,m2) /\ match_states i f (s1,m1) (s2,m2);*)
-    Extfsim_match_initial_states:
-      forall s1, initial_state L1 s1 -> 
-               exists i s2, initial_state L2 s2 /\ Extmatch_states i s1 s2;
+    Extfsim_match_entry_points:
+          forall s1 m0 fb args, entry_point L1 m0 s1 fb args -> 
+                exists i s2, entry_point L2 m0 s2 fb args /\ Extmatch_states i s1 s2;
     Extfsim_match_final_states:
       forall i s1 s2 r ,
       Extmatch_states i s1 s2 -> final_state L1 s1 r -> (final_state L2 s2 r);
@@ -271,23 +255,24 @@ Section ExposingMemory.
         forall s1 f args,
           @at_external L1 s1 = Some (f,args) -> 
           forall t s1', Step L1 s1 t s1' ->
-                    forall i f s2, match_states i f s1 s2 ->
-                              exists i', exists s2' f' t',
+                    forall i j s2, match_states i j s1 s2 ->
+                              exists i', exists s2' j' t',
                                   Step L2 s2 t' s2' /\
-                                  match_states i' f' s1' s2' /\
-                                  Values.inject_incr f f' /\
-                                  inject_trace_strong f' t t'.
+                                  match_states i' j' s1' s2' /\
+                                  Values.inject_incr j j' /\
+                                  inject_trace_strong j' t t'.
     
     Record fsim_properties_inj: Type :=
       {  Injindex: Type;
         Injorder: Injindex -> Injindex -> Prop;
         Injmatch_states: Injindex -> meminj -> state L1 -> state L2 -> Prop;  
         Injfsim_order_wf: well_founded Injorder;
-        Injfsim_match_meminj: forall i f s1 s2, Injmatch_states i f s1 s2 ->  Mem.inject f (get_mem1 s1) (get_mem2 s2);
+        Injfsim_match_meminj: forall i f s1 s2, Injmatch_states i f s1 s2 ->
+                                           Mem.inject f (get_mem1 s1) (get_mem2 s2);
         Injfsim_match_full: forall i f s1 s2, Injmatch_states i f s1 s2 ->  injection_full f (get_mem1 s1);
-        Injfsim_match_initial_states:
-          forall s1, initial_state L1 s1 -> 
-                exists i f s2, initial_state L2 s2 /\ Injmatch_states i f s1 s2;
+        Injfsim_match_entry_points:
+          forall s1 m0 fb args, entry_point L1 m0 s1 fb args -> 
+                exists i f s2, entry_point L2 m0 s2 fb args /\ Injmatch_states i f s1 s2;
         Injfsim_match_final_states:
           forall i s1 s2 r f,
             Injmatch_states i f s1 s2 -> final_state L1 s1 r -> (final_state L2 s2 r);
@@ -325,10 +310,6 @@ Section ExposingMemory.
                                  exists i', exists s2',
                                      Step L2 s2 t' s2' /\
                                      match_states i' f' s1' s2'.
-
-
-
-        
         Record fsim_properties_inj_relaxed: Type :=
       {  InjindexX: Type;
         InjorderX: InjindexX -> InjindexX -> Prop;
@@ -336,9 +317,9 @@ Section ExposingMemory.
         Injfsim_order_wfX: well_founded InjorderX;
         Injfsim_match_meminjX: forall i f s1 s2, Injmatch_statesX i f s1 s2 ->  Mem.inject f (get_mem1 s1) (get_mem2 s2);
         Injfsim_match_fullX: forall i f s1 s2, Injmatch_statesX i f s1 s2 ->  injection_full f (get_mem1 s1);
-        Injfsim_match_initial_statesX:
-          forall s1, initial_state L1 s1 -> 
-                exists i f s2, initial_state L2 s2 /\ Injmatch_statesX i f s1 s2;
+        Injfsim_match_entry_pointsX:
+          forall s1 m0 fb args, entry_point L1 m0 s1 fb args -> 
+                exists i f s2, entry_point L2 m0 s2 fb args /\ Injmatch_statesX i f s1 s2;
         Injfsim_match_final_statesX:
           forall i s1 s2 r f,
             Injmatch_statesX i f s1 s2 -> final_state L1 s1 r -> (final_state L2 s2 r);
@@ -385,26 +366,24 @@ Section ExposingMemory.
     Lemma Injsimulation_star:
         forall (SIM:fsim_properties_inj),
       forall s1 t s1', Star L1 s1 t s1' ->
-                  forall i f s2,
-                    Injmatch_states SIM i f s1 s2 ->
-                    exists i' f', exists s2' t', Star L2 s2 t' s2' /\ Injmatch_states SIM i' f' s1' s2'
-                                       /\ inject_incr f f' /\ inject_trace f' t t'.
+      forall i f s2,
+        Injmatch_states SIM i f s1 s2 ->
+        exists i' f', exists s2' t', Star L2 s2 t' s2' /\ Injmatch_states SIM i' f' s1' s2'
+                           /\ inject_incr f f' /\ inject_trace_strong f' t t'.
     Proof.
       intros S.
-      induction 1; intros.
-      exists i, f; exists s2 , nil; split; auto. apply star_refl.
-      split; auto; constructor.
-      apply inject_incr_refl. constructor.
-      exploit Injfsim_simulation; eauto.
-      intros [i' [s2' [f'[t' [A [B [C D]]]]]]].
-      exploit IHstar; eauto. intros [i'' [f'' [s2'' [t'' [E [F [G HH]]]]]]].
-      exists i'';exists f''; exists s2'', (t' ** t''); split; auto. eapply star_trans; eauto.
-      intuition auto. apply plus_star; auto.
-      split; auto. subst t.
-      split; auto.
-      eapply inject_incr_trans; eauto.
-      admit. (*inject trace properties*)
-    Admitted.
+      induction 1; intros; subst.
+      - repeat (econstructor; eauto).
+      - exploit Injfsim_simulation; eauto. intros [i' [s2' [f'[t' [A [B [C D]]]]]]].
+        exploit IHstar; eauto. intros [i'' [f'' [s2'' [t'' [E [F [G HH]]]]]]].
+        exists i'', f'', s2'', (t' ** t''); split; auto. 
+        eapply star_trans; eauto.
+        intuition auto. apply plus_star; auto.
+        repeat (econstructor; eauto).
+        eapply inject_incr_trans; eauto.
+        apply injtrace_strong_app; auto.
+        eapply inject_incr_trace_strong; eauto.
+    Qed.
     
     (** *Plus version of simulation*)
     Lemma Injsimulation_plus:
@@ -419,31 +398,31 @@ Section ExposingMemory.
       intros S.
       induction 1 using plus_ind2; intros.
       (* base case *)
-      exploit Injfsim_simulation'; eauto.
-      intros [[i' [s2' [f' [t' [A [B [C D]]]]]]] | [i' [f' [t' A]]]].
-      left. exists i', f', s2', t'; auto.
-      right; exists i', f' ; intuition.
+      - exploit Injfsim_simulation'; eauto.
+        intros [[i' [s2' [f' [t' [A [B [C D]]]]]]] | [i' [f' [t' A]]]].
+        + repeat (econstructor; eauto).
+        + right; exists i', f' ; intuition.
       (* inductive case *)
-      exploit Injfsim_simulation'; eauto.
-      intros [[i' [s2' [f' [t' [A [B [C D]]]]]]] | [i' [f' [A [B [C D]]]]]].
-      exploit Injsimulation_star; eauto. apply plus_star; eauto. eauto.
-      intros [i'' [f'' [s2'' [t'' [P [Q [R SS]]]]]]].
-      left; exists i''; exists f''; exists s2'', (t'**t''); split; auto. eapply plus_star_trans; eauto.
-      repeat split; auto.
-      eapply inject_incr_trans; eauto.
-      subst t.
-      admit. (*Some properties about inject_trace_strong*)
- 
-      
-      exploit IHplus; eauto.
-      intros [[i'' [f'' [s2'' [t' [P [Q [R SS]]]]]]] | [i'' [f'' [P [Q R]]]]].
-      subst. simpl. left; exists i''; exists f''; exists s2'', (t'); auto.
-      repeat split; eauto.
-      eapply inject_incr_trans; eauto.
-      subst. simpl. right; exists i''; exists f''; intuition auto.
-      eapply t_trans; eauto. eapply t_step; eauto.
-      eapply inject_incr_trans; eauto.
-    Admitted.
+      - subst; exploit Injfsim_simulation'; eauto.
+        intros [[i' [s2' [f' [t' [A [B [C D]]]]]]] | [i' [f' [A [B [C D]]]]]].
+        + exploit Injsimulation_star; eauto. apply plus_star; eauto. 
+          intros [i'' [f'' [s2'' [t'' [P [Q [R SS]]]]]]].
+          left; exists i''; exists f''; exists s2'', (t'**t''); split; auto.
+          eapply plus_star_trans; eauto.
+          repeat split; auto.
+          eapply inject_incr_trans; eauto.
+          eapply injtrace_strong_app; eauto.
+          eapply inject_incr_trace_strong; eauto.
+        + exploit IHplus; eauto. intros [(?&?&?&?&?&?&?&?)| (?&?&?&?&?&?)]. 
+          * left. repeat (econstructor; eauto).
+            eapply inject_incr_trans; eauto.
+            subst; simpl; auto.
+          * right.
+            exists x, x0. split.
+            eapply t_trans; eauto. econstructor; eauto.
+            subst; repeat (econstructor; eauto).
+            eapply inject_incr_trans; eauto.
+    Qed.
 
     Lemma Injsimulation_plus_relaxed:
       forall (SIM:fsim_properties_inj_relaxed),
@@ -460,53 +439,6 @@ Section ExposingMemory.
     
   End Injection.
 End ExposingMemory.
-
-(*
-Section InductiveDefinitions.
-  
-  
-  Variables L1 L2: semantics.
-  Variable get_mem1: state L1 -> mem.
-  Variable get_mem2: state L2 -> mem.
-  
-Arguments fsim_properties_eq: clear implicits.
-
-Inductive forward_equality: Prop :=
-  Forward_equality (index: Type)
-                   (order: index -> index -> Prop)
-                   (match_states: index -> state L1 -> state L2 -> Prop)
-                   (props: fsim_properties_eq
-                             L1 L2 get_mem1 get_mem2
-                             index order match_states).
-
-Arguments fsim_properties_ext: clear implicits.
-
-Inductive forward_extension: Prop :=
-  Forward_extension (index: Type)
-                   (order: index -> index -> Prop)
-                   (match_states: index -> state L1 -> state L2 -> Prop)
-                   (props: fsim_properties_ext
-                             L1 L2 get_mem1 get_mem2
-                             index order match_states).
-
-Lemma EqEx_sim: forward_equality -> forward_extension.
-Proof.
-  intros H; inv H.
-  apply EqEx_sim' in props; econstructor; eauto.
-Qed.
-
-
-Arguments fsim_properties_inj: clear implicits.
-
-Inductive forward_injection: Prop :=
-  Forward_injection (index: Type)
-                   (order: index -> index -> Prop)
-                   (match_states: index -> meminj -> state L1 -> state L2 -> Prop)
-                   (props: fsim_properties_inj
-                             L1 L2 get_mem1 get_mem2
-                             index order match_states).
-
-End InductiveDefinitions. *)
 
 Section Composition.
     
@@ -537,8 +469,8 @@ Section Composition.
   intros ? ? ? ? [s2' [MATCH12 MATCH23]] b VALID.
   eapply SIM12; eauto.
 - (* initial states *)
-  intros. exploit (Injfsim_match_initial_states SIM12); eauto. intros [i [ f [s2 [A B]]]].
-  exploit (Extfsim_match_initial_states SIM23); eauto. intros [i' [s3 [C D]]].
+  intros. exploit (Injfsim_match_entry_points SIM12); eauto. intros [i [ f [s2 [A B]]]].
+  exploit (Extfsim_match_entry_points SIM23); eauto. intros [i' [s3 [C D]]].
   exists (i', i); exists f; exists s3; split; auto. exists s2; auto.
 - (* final states *)
   intros. destruct H as [s3 [A B]].
@@ -603,18 +535,6 @@ Section Composition.
             [eapply Extfsim_public_preserved|eapply Injfsim_public_preserved]; eauto.
   Qed.
 
-  (*
-  Lemma injection_extension_composition:
-    forward_injection L1 L2 get_mem1 get_mem2 ->
-    forward_extension L2 L3 get_mem2 get_mem3 ->
-    forward_injection L1 L3 get_mem1 get_mem3.
-  Proof.
-    intros S12 S23.
-    inv S12; inv S23.
-    econstructor.
-    eapply injection_extension_composition'; eauto.
-  Qed. *)
-  
     Lemma extension_injection_composition:
     @fsim_properties_ext L1 L2 get_mem1 get_mem2 ->
     @fsim_properties_inj L2 L3 get_mem2 get_mem3 ->
@@ -640,9 +560,9 @@ Section Composition.
   eapply Extfsim_match_meminj in MATCH12; eauto.
   inv MATCH12. unfold Mem.valid_block; rewrite <- mext_next; auto.
   
-- (* initial states *)
-  intros. exploit (Extfsim_match_initial_states SIM12); eauto. intros [i [s2 [A B]]].
-  exploit (Injfsim_match_initial_states SIM23); eauto. intros [i' [f [s3 [C D]]]].
+- (* entry points *)
+  intros. exploit (Extfsim_match_entry_points SIM12); eauto. intros [i [s2 [A B]]].
+  exploit (Injfsim_match_entry_points SIM23); eauto. intros [i' [f [s3 [C D]]]].
   exists (i', i); exists f; exists s3; split; auto. exists s2; auto.
 - (* final states *)
   intros. destruct H as [s3 [A B]].
@@ -703,18 +623,6 @@ Section Composition.
   intros. transitivity (Senv.public_symbol (symbolenv L2) id);
             [eapply Injfsim_public_preserved|eapply Extfsim_public_preserved]; eauto.
   Qed.
-
- (* Lemma extension_injection_composition:
-    forward_extension L1 L2 get_mem1 get_mem2 ->
-    forward_injection L2 L3 get_mem2 get_mem3 ->
-    forward_injection L1 L3 get_mem1 get_mem3.
-  Proof.
-    intros S12 S23.
-    inv S12; inv S23.
-    econstructor.
-    eapply extension_injection_composition'; eauto.
-  Qed. *)
-
   Lemma compose_inject_incr: forall f1 f2 f1' f2',
       inject_incr f1 f1' ->
       inject_incr f2 f2' ->
@@ -731,21 +639,7 @@ Section Composition.
     reflexivity.
   Qed.
   
-  Lemma inject_trace_strong_trans:
-    forall f12 f23 t1 t2 t3,
-      inject_trace_strong f12 t1 t2 ->
-      inject_trace_strong f23 t2 t3 ->
-      inject_trace_strong (compose_meminj f12 f23) t1 t3.
-  Proof.
-  Admitted.
 
-  Lemma inject_trace_compose:
-    forall f12 f23 t1 t2 t3,
-      inject_trace f12 t1 t2 ->
-      inject_trace f23 t2 t3 ->
-      inject_trace (compose_meminj f12 f23) t1 t3.
-  Proof.
-  Admitted.
 
   
   Lemma injection_injection_composition:
@@ -780,9 +674,9 @@ Section Composition.
   intros HH. apply VALID2. destruct (f23 b0); inversion HH; auto.
   destruct p. inversion HH.
 - (* initial states *)
-  intros. exploit (Injfsim_match_initial_states SIM12); eauto.
+  intros. exploit (Injfsim_match_entry_points SIM12); eauto.
   intros [i [ f12 [s2 [A B]]]].
-  exploit (Injfsim_match_initial_states SIM23); eauto. intros [i' [f23 [s3 [C D]]]].
+  exploit (Injfsim_match_entry_points SIM23); eauto. intros [i' [f23 [s3 [C D]]]].
   exists (i', i); exists (compose_meminj f12 f23); exists s3; split; auto. exists s2; auto.
   exists f12, f23; repeat (split; auto). 
 - (* final states *)
@@ -803,8 +697,8 @@ Section Composition.
   exists s3', f', f''; repeat (split; auto).
   subst f.
   eapply compose_inject_incr; eauto.
-  
-  eapply inject_trace_strong_trans; eauto.
+  admit. (*this is in Events.v *)
+  (* eapply inject_trace_strong_compose; eauto. *)
   
 * (* L3 makes no step *)
   exists (i2', i1'); exists s2; exists (compose_meminj f' f''), t'. repeat (split; auto).
@@ -835,7 +729,9 @@ Section Composition.
   exists (i2', i1'); exists s3'; exists (compose_meminj f12' f23'), t3'. repeat (split; auto).
   + exists s2',f12', f23'; auto.
   + subst; eapply compose_inject_incr; auto.
-  + subst; eapply inject_trace_strong_trans ; eauto.
+  + subst.
+  admit. (*this is in Events.v *)
+  (* eapply inject_trace_strong_compose; eauto. *)
   
 - (*match_states preserves at_external *)
   unfold preserves_atx_inj; intros.
@@ -872,7 +768,7 @@ Section Composition.
 - (* symbols *)
   intros. transitivity (Senv.public_symbol (symbolenv L2) id);
             [eapply Injfsim_public_preserved|eapply Injfsim_public_preserved]; eauto.
-  Qed.
+  Admitted.
 
 
    Lemma injection_injection_relaxed_composition:
@@ -907,9 +803,9 @@ Section Composition.
   intros HH. apply VALID2. destruct (f23 b0); inversion HH; auto.
   destruct p. inversion HH.
 - (* initial states *)
-  intros. exploit (Injfsim_match_initial_states SIM12); eauto.
+  intros. exploit (Injfsim_match_entry_points SIM12); eauto.
   intros [i [ f12 [s2 [A B]]]].
-  exploit (Injfsim_match_initial_statesX SIM23); eauto. intros [i' [f23 [s3 [C D]]]].
+  exploit (Injfsim_match_entry_pointsX SIM23); eauto. intros [i' [f23 [s3 [C D]]]].
   exists (i', i); exists (compose_meminj f12 f23); exists s3; split; auto. exists s2; auto.
   exists f12, f23; repeat (split; auto). 
 - (* final states *)
@@ -930,7 +826,7 @@ Section Composition.
   exists s3', f', f''; repeat (split; auto).
   subst f.
   eapply compose_inject_incr; eauto.
-  eapply inject_trace_strong_compose; eauto.
+  eapply inject_trace_compose; eauto.
   
 * (* L3 makes no step *)
   exists (i2', i1'); exists s2; exists (compose_meminj f' f''), t'. repeat (split; auto).
@@ -967,7 +863,15 @@ Section Composition.
     * econstructor.
       do 2 eexists.
       repeat split; eauto.
-    * eapply inject_trace_strong_trans; eassumption.
+    *
+      Lemma inject_trace_strong_trans:
+        forall f12 f23 t1 t2 t3,
+        inject_trace_strong f12 t1 t2 ->
+        inject_trace_strong f23 t2 t3 ->
+        inject_trace_strong (compose_meminj f12 f23) t1 t3.
+        
+      Admitted.
+      eapply inject_trace_strong_trans; eassumption.
   + intros t' Htrace.
     destruct (inject_trace_strong_interpolation Htrace) as (t2&Htrace12&Htrace23).
     assert (t2 = t2') by (eapply inject_trace_strong_determ; eassumption).
@@ -996,3 +900,29 @@ Section Composition.
    Qed.
   
   End Composition.
+
+
+(*   *)
+Ltac atx_sim_start_proof:=
+  intros ? *  Hatx t s1' Hstep * MATCH;
+  repeat match type of MATCH with
+    _ /\ _ => destruct MATCH as [? MATCH]; subst
+  end;
+  inv MATCH; try discriminate;
+  inv Hstep; try discriminate;
+  try do 7 (first [ econstructor | solve[eauto]]).
+Ltac atx_preserved_start_proof:=
+  intros ? * MATCH f args Hatx;
+  repeat match type of MATCH with
+    _ /\ _ => destruct MATCH as [? MATCH]; subst
+  end;
+  inv MATCH; simpl in *;
+  try (match_case in Hatx; inv Hatx);
+  try discriminate; subst; simpl in *;
+  try match goal with
+    |[H:?F _ = ?F _ |- _] => inversion H
+    |[H:?F _ _ = ?F _ _ |- _] => inversion H
+    |[H:?F _ _ _ = ?F _ _ _ |- _] => inversion H
+      end;
+  try solve[do 2 econstructor; eauto;
+            apply Val.lessdef_list_refl].
