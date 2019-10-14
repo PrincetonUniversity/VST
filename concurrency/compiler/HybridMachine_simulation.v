@@ -5,6 +5,7 @@ Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
+Require Import compcert.common.EventsAux.
 
 Require Import VST.msl.Axioms.
 Require Import Coq.ZArith.ZArith.
@@ -137,7 +138,7 @@ Section HybridSimulation.
       inject_sync_event f (spawn l1 r1 r1') (spawn l2 r2 r2')
   | inj_failacq : forall l1 l2, inject_address f l1 l2 ->
       inject_sync_event f (failacq l1) (failacq l2).
-  Inductive inj_free (f:meminj): block * Z * Z -> block * Z * Z -> Prop:=
+  (* Inductive inj_free (f:meminj): block * Z * Z -> block * Z * Z -> Prop:=
   | build_inj_free:  forall b1 b2 lo1 lo2 hi1 hi2 delt,
       f b1 = Some (b2, delt) ->
       lo2 = lo1 + delt ->
@@ -148,7 +149,7 @@ Section HybridSimulation.
       inject_incr f f' ->
       inj_free f  ls1 ls2 ->
       inj_free f' ls1 ls2.
-  Proof. intros; inv H0; econstructor; eauto. Qed.
+  Proof. intros; inv H0; econstructor; eauto. Qed. *)
     
   Inductive inject_mem_event : meminj -> mem_event -> mem_event -> Prop:=
   | inject_Write: forall f b1 b2 ofs1 ofs2 delt ls1 ls2,
@@ -167,21 +168,12 @@ Section HybridSimulation.
       hi2 = hi1 + delt ->
       inject_mem_event f (Alloc b1 lo1 hi1) (Alloc b2 lo2 hi2)
   | inject_Free: forall f ls1 ls2,
-      List.Forall2 (inj_free f) ls1 ls2 ->
+      list_inject_hi_low f ls1 ls2 ->
       inject_mem_event f (Free ls1) (Free ls2).
   Lemma list_memval_inject_incr:
-        forall f f' ls1 ls2,
-          inject_incr f f' ->
-          list_memval_inject f  ls1 ls2 ->
-          list_memval_inject f' ls1 ls2.
-  Proof.
-    intros.
-    eapply list_map_rel_ind; eauto.
-    - constructor.
-    - constructor; eauto.
-      eapply memval_inject_incr; eassumption.
-  Qed.
-  
+    inj_monotone (fun f => Forall2 (memval_inject f)).
+  Proof. inj_mono_tac. Qed.
+  Hint Resolve list_memval_inject_incr: inj_mono.
   Lemma Forall2_impl: forall {A B} (P Q : A -> B -> Prop) l1 l2,
       (forall a b, P a b -> Q a b) -> List.Forall2 P l1 l2 -> List.Forall2 Q l1 l2.
   Proof.
@@ -200,9 +192,7 @@ Section HybridSimulation.
             |econstructor 4]; eauto.
     - eapply list_memval_inject_incr; eauto.
     - eapply list_memval_inject_incr; eauto.
-    - eapply Forall2_impl.
-      2: apply H1.
-      intros. eapply inj_free_incr; eauto.
+    - eapply list_inject_hi_low_mono; eauto.
   Qed.
   
   Inductive inject_mevent (f : meminj) : machine_event -> machine_event -> Prop :=

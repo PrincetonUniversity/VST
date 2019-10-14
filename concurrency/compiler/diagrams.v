@@ -2,8 +2,10 @@
 Require Import compcert.common.Events.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
+Require Import compcert.common.EventsAux.
 
 Require Import VST.msl.Coqlib2.
+Require Import VST.concurrency.lib.tactics.
 
 Import BinInt.
 Import List.
@@ -27,7 +29,7 @@ Ltac emonotonicity:=
 Instance list_map_rel_monotonicity:
   forall {A} {R: meminj -> relation A},
     Inject_Monotonic R ->
-    Inject_Monotonic (fun j => list_map_rel (R j)).
+    Inject_Monotonic (fun j => Forall2 (R j)).
 Proof.
   intros ? ? ? j j' vals1.
   induction vals1; intros.
@@ -43,9 +45,9 @@ Lemma list_map_rel_monotonicity':
         inject_incr j j' ->
         R j' vals1 vals2) ->
     forall j j' vals1 vals2,
-      (list_map_rel (R j)) vals1 vals2 ->
+      (Forall2 (R j)) vals1 vals2 ->
       inject_incr j j' ->
-      (list_map_rel (R j')) vals1 vals2.
+      (Forall2 (R j')) vals1 vals2.
 Proof.
   intros ? ? ? j j' vals1.
   eapply list_map_rel_monotonicity.
@@ -135,9 +137,10 @@ Lemma evolution_inject_effect:
     Events.inject_mem_effect j' ev1 ev2.
 Proof.
   intros. inversion H; subst; eauto.
-  econstructor.
-  destruct (eq_block b1 b1); eauto.
+  replace (Alloc b2 ofs1 ofs1') with (Alloc b2 (ofs1 + 0) (ofs1' + 0)).
+  econstructor; destruct (eq_block b1 b1); eauto.
   contradict n; reflexivity.
+  f_equal; Omega.omega.
 Qed.
 Lemma effect_evolution_incr:
   forall j j' ev1 ev2,
@@ -183,8 +186,8 @@ Qed.
 
 
 (** *Lessdef*)
-Instance list_map_rel_preorder {A} (R: relation A) {Pre: PreOrder R}:
-  PreOrder (list_map_rel R).
+Instance Forall2_preorder {A} (R: relation A) {Pre: PreOrder R}:
+  PreOrder (Forall2 R).
 Proof. constructor.
        - intros ls; induction ls; econstructor; auto.
          reflexivity.
@@ -214,7 +217,7 @@ Inductive effect_lessdef:
   relation Events.mem_effect:=
 | EvWriteLessDef:
     forall b ofs mvs mvs',
-      (list_map_rel memval_lessdef) mvs mvs' ->
+      (Forall2 memval_lessdef) mvs mvs' ->
       effect_lessdef (common.Events.Write b ofs mvs)
                      (common.Events.Write b ofs mvs')
 | EvReflLessDef: forall eff,  effect_lessdef eff eff.
@@ -228,7 +231,7 @@ Qed.
 
 Definition effects_lessdef:
   relation (list Events.mem_effect):=
-  Events.list_map_rel effect_lessdef.
+  Forall2 effect_lessdef.
 
 
 (** *Consecutive*)
@@ -299,7 +302,7 @@ Lemma principaled_val_exists:
   forall j v1 v2,
     Val.inject j v1 v2 ->
     exists v20,
-      Events.inject_strong j v1 v20 /\
+      inject_strong j v1 v20 /\
       Val.lessdef v20 v2.
 Proof.
   intros. induction H;
@@ -309,7 +312,7 @@ Lemma principaled_memval_exists:
   forall j mv1 mv2,
     memval_inject j mv1 mv2 ->
     exists mv20,
-      Events.memval_inject_strong j mv1 mv20 /\
+      memval_inject_strong j mv1 mv20 /\
       memval_lessdef mv20 mv2.
 Proof.
   intros. induction H;
@@ -321,15 +324,15 @@ Proof.
 Qed.
 Lemma principaled_memvals_exists:
   forall j mv1 mv2,
-    Events.list_memval_inject j mv1 mv2 ->
+    list_memval_inject j mv1 mv2 ->
     exists mv20,
-      Events.list_memval_inject_strong j mv1 mv20 /\
-      Events.list_map_rel memval_lessdef mv20 mv2.
+      list_memval_inject_strong j mv1 mv20 /\
+      Forall2 memval_lessdef mv20 mv2.
 Proof.
   intros. induction H; subst.
   - exists nil; split; econstructor.
   - destruct (principaled_memval_exists _ _ _ H) as (v20&?&?).
-    destruct IHlist_map_rel as (mv20&?&?).
+    destruct IHForall2 as (mv20&?&?).
     exists (v20::mv20); split. constructor; eassumption.
     econstructor; eauto.
 Qed.
@@ -471,7 +474,7 @@ Lemma list_inject_memval_lessdef:
     forall vals2 : list memval,
       list_memval_inject j' mvs1 vals2 ->
       list_memval_inject_strong j0 mvs1 mvs2 ->
-      list_map_rel memval_lessdef mvs2 vals2.
+      Forall2 memval_lessdef mvs2 vals2.
 Proof.
   intros j' j0 mvs1. revert j' j0.
   induction mvs1; intros.
@@ -552,6 +555,9 @@ Proof.
     eapply incr_memval_inject_strong; eassumption.
     eapply IHvals1; eauto.
 Qed.
+(*j0 is the strict evolution of j.
+  so j' has to also be j0<j'.
+ *)
 Lemma evolution_injection_lessdef:
   forall j j' j0 ev1 ev2 ev20 nb,
     inject_incr j j' ->
@@ -564,16 +570,22 @@ Lemma evolution_injection_lessdef:
 Proof.
   intros
     ??????? Hincr Hevol Hinj_str Hinject Hconsec Hconsec'.
-  inversion Hevol; subst; clear Hevol;
+  inversion Hevol; subst; clear Hevol; 
     inversion Hinject; subst; clear Hinject.
   - inversion Hinj_str; subst.
     apply Hincr in H2.
     rewrite H2 in H4; inversion H4; subst.
     econstructor.
-    
     eapply list_inject_memval_lessdef; eassumption.
+
   - inversion Hconsec; subst.
     inversion Hconsec'; subst.
+    inversion Hinj_str; subst.
+    match_case in H1. inversion H1; subst.
+    repeat match goal with
+             | [|- context[(?x + 0)%Z]] => replace (x + 0)%Z with x by Omega.omega
+             | [|- context[(0 + ?x)%Z]] => replace (0 + x)%Z with x by Omega.omega
+           end.
     econstructor.
   - inversion H; subst.
     inversion Hinj_str; subst.
@@ -622,7 +634,7 @@ Proof.
      { econstructor; eauto.
        eapply consecutive_tail; eassumption. }
 
-     assert (Hdiagram: diagram (nextblock_eff nb b) j'0 j' lev1 l2).
+     assert (Hdiagram: diagram (nextblock_eff nb y) j'0 j' lev1 ls2).
      {  econstructor; try eassumption.
         - clear - Hincr H5 H10 Hconsec' Hconsec.
           inversion H5; subst; eauto.
@@ -634,7 +646,7 @@ Proof.
             inversion Hconsec; subst.
             auto.
         - eapply consecutive_tail; eassumption.
-     }
+     }*)
 
      assert (Hlessdef: effect_lessdef ev2 b).
      { 

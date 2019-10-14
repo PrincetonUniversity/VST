@@ -39,7 +39,7 @@ Definition tenv_ok (te: Clight.temp_env) :=
 
 Fixpoint cont_ok (k: cont) := 
  match k with
- | Kstop => True
+ | Kstop _ => True
  | Kseq _ k' => cont_ok k'
  | Kloop1 _ _ k' => cont_ok k'
  | Kloop2 _ _ k' => cont_ok k'

@@ -66,7 +66,7 @@ Definition main_handler : Clight.function :=
 (* This could be simplified if we made some assumptions about main (e.g., that it has no arguments). *)
 Definition initial_Clight_state : Clight.state :=
   let f := proj1_sig f_main in
-  Clight.Callstate f [Vptr (projT1 (spr CPROOF)) Ptrofs.zero] Clight.Kstop init_mem.
+  Clight.Callstate f [Vptr (projT1 (spr CPROOF)) Ptrofs.zero] (Clight.Kstop Tnil) init_mem.
 (*
   Clight.State main_handler (Clight.Scall None (Clight.Etempvar 1%positive (Clight.type_of_fundef f))
              (map (fun x => Clight.Etempvar (fst x) (snd x))
@@ -526,36 +526,18 @@ Proof.
     inv H.
   - intros.
     inv Hstep.
-    inv H; simpl.
-    apply memsem_lemmas.mem_step_obeys_cur_write; auto.
-  (* apply memsem_lemmas.mem_step_refl. *)
-    eapply mem_step_alloc; eauto.
+    inv H; simpl. reflexivity.
+    (* eapply mem_step_alloc; eauto. *) 
   - intros.
     inv H.
     inv H0; simpl.
-    split; intros.
+    split; intros; eauto.
     + (*contradiction. *)
-      eapply juicy_mem.fullempty_after_alloc in H8.
-      admit. 
-      (* destruct H8; [right|left].
-     
-       should be able to prove that 
-                1. b = Mem.nextblock m
-                which satisfies the goal at all offsets.
-              *)
-        
-    + auto. inv H8.
-      simpl.
-      Transparent Mem.alloc.
-      unfold Mem.alloc; simpl.
-      admit.
-      
+      exfalso; eauto.
   - intros.
     inv H.
-    inv H0; simpl.
-    erewrite (Mem.nextblock_alloc _ _ _ _ _ H8).
-    xomega.
-Admitted.
+    inv H0; simpl. reflexivity.
+Qed.
 
 Lemma CoreSafe_star: forall n U tr tp m tid (c : @semC (ClightSem ge)) c' tp' m' ev
   (HschedN: schedPeek U = Some tid)
@@ -1094,7 +1076,7 @@ Lemma ev_step_sim:
  ev_step (@semSem (ClightSem ge)) c m ev
     (veric.Clight_core.CC_core_to_CC_state c' m') m'.
 Proof.
-intros.
+intros. simpl in H.
 inv H; destruct c; try discriminate; simpl in *;
 match goal with
 | H: Clight_core.State _ _ _ _ _ = Clight_core.State _ _ _ _ _ |- _ =>
@@ -1104,12 +1086,14 @@ match goal with
 | H: Clight_core.Returnstate _ _  = Clight_core.Returnstate _ _ |- _ =>
      symmetry in H; inv H
 end;
-try solve [econstructor; eauto].
+try solve [econstructor; eauto];
 econstructor; eauto.
-admit.  (* builtin *)
-econstructor; eauto.
-econstructor; eauto.
-admit. (* external function *)
+- (* builtin *)
+  unfold AST.ef_inline in *.
+  
+  admit. (* ask andrew: maybe change inline_external_call_mem_events? *) 
+- econstructor; eauto.
+- admit. (* external function *)
 Admitted.
 
 Lemma Clight_new_Clight_safety_gen:
@@ -1142,7 +1126,7 @@ Proof.
     destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
     destruct Hinit as (? & ? & ? & ?); subst.
     eapply CoreSafe with (tp'0 := updThread (mtch_cnt _ ctn)
-            (Krun (Clight.Callstate f [arg] Clight.Kstop m'))
+            (Krun (Clight.Callstate f [arg] (Clight.Kstop t0) m'))
             (HybridMachineSig.add_block Hcmpt ctn m')).
     2:{ eapply IHn; eauto. apply MTCH_updThread; eauto.
          constructor. reflexivity.
@@ -1150,7 +1134,8 @@ Proof.
     clear IHn. simpl.
     hnf; simpl.      rewrite <- H5.
     change sch with (yield sch) at 2.
-    set (m'0 := fst (Mem.alloc (restrPermMap (proj1 (Hcmpt tid ctn))) 0 0)).
+    set (m'0 := restrPermMap (proj1 (Hcmpt tid ctn))).
+    (*fst (Mem.alloc (restrPermMap (proj1 (Hcmpt tid ctn))) 0 0)). *)
     pattern m' at 1 2 3; replace m' with (diluteMem m'0). 
     eapply start_step; eauto.
     econstructor; eauto.
@@ -1161,12 +1146,16 @@ Proof.
          f_equal; auto.
       { split.
         hnf in Hperm; subst.
-        destruct lookup_wrapper.
+        (* destruct lookup_wrapper. *)
         assert (mem_ok tp (restrPermMap (proj1 (compat_th tp m Hcmpt ctn))))
                by (apply mem_ok_restr; auto).
        simpl. 
-        econstructor; eauto.
-        - destruct H6; auto.
+       assert (exists f', f =  Internal f').
+       { admit. (* change 'f' to 'internal f' in [Clight_core.cl_initial_core] *) }
+       destruct H6 as [f' ?]; subst f.
+       econstructor; eauto.
+        - rewrite Hty; f_equal. (* We haven't changed the return type, it's still an int. *) admit.
+        - 
         - eapply mem_ok_wd; destruct H6; eauto.
         - clear - H2. inv H2. constructor; auto.
         - subst m'0; reflexivity.
