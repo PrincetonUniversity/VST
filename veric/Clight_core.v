@@ -63,7 +63,7 @@ Lemma CC_core_to_CC_state_inj: forall c m c' m',
 
 Definition cl_halted (c: CC_core) : option val := 
   match c with
-  | Returnstate v Kstop => Some v
+  | Returnstate v (Kstop _) => Some v
   | _ => None
   end.
 
@@ -103,7 +103,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) (q: CC_core) : P
            c = cc_default /\
            val_casted_list args targs /\
            Val.has_type_list args (Ctypes.typlist_of_typelist targs) /\
-           q = Callstate f args Kstop
+           q = Callstate f args (Kstop targs) 
         | _ => False  end
       | _ => False end
     else False
@@ -283,6 +283,8 @@ rename H into Hat.
 inv H0; 
 repeat match goal with H: _ = CC_core_to_CC_state ?q _ |- _ => destruct q; inv H end;
 try solve [do 2 econstructor; eassumption].
+do 2 econstructor; try eassumption.
+econstructor; eauto.
 Qed.
 
 Lemma cl_corestep_not_at_external:

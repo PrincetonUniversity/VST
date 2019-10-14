@@ -144,9 +144,9 @@ Proof. intros.
   inv MV1. apply MV2.
   inv MV2. constructor.
   inv MV1; try solve[constructor]. inv MV2; constructor.
-    specialize (val_inject_compose _ _ _ _ _ H2 H3).
-    rewrite <- compose_meminj_idL; trivial.
-  Qed.
+  specialize (val_inject_compose H2 H3).
+  rewrite <- compose_meminj_idL; trivial.
+Qed.
 
 Lemma extends_trans: forall m1 m2
   (Ext12: Mem.extends m1 m2) m3 (Ext23: Mem.extends m2 m3), Mem.extends m1 m3.
@@ -546,7 +546,7 @@ Lemma val_lessdef_inject_compose:
     (InjV23 : val_inject j v2 v3), val_inject j v1 v3.
 Proof. intros.
   apply val_inject_id in LD12.
-  apply (val_inject_compose _ _ _ _ _ LD12) in InjV23.
+  apply (val_inject_compose LD12) in InjV23.
   rewrite <- compose_meminj_idL in InjV23. assumption.
 Qed.
 

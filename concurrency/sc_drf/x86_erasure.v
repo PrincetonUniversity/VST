@@ -385,20 +385,24 @@ Module X86CoreErasure.
     destruct Hinit as [Hinit ?].
     inversion Hinit; subst.
     simpl in Hv; subst.
-    remember (Mem.alloc m' 0 (3 * size_chunk Mptr)) eqn:Halloc'.
+    remember (Bounds.fe_size
+                (Stacklayout.make_env (Bounds.function_bounds (Linear.pre_main (fn_sig f) 0))))
+      as stck_sz.
+    remember (Mem.alloc m' 0 (stck_sz)) eqn:Halloc'.
     destruct p.
     symmetry in Halloc'.
-    eapply alloc_erasure' with (m := m) (m' := m') in H1; eauto.
-    destruct H1 as [Hmem' ?]; subst.
-    eapply mem_storev_erased' in H2; eauto with val_erasure.
-    destruct H2 as [m2' [Hstore2' Hmem2']].
+    eapply alloc_erasure' with (m := m) (m' := m') in H2; eauto.
+    destruct H2 as [Hmem' ?]; subst.
     eapply mem_storev_erased' in H3; eauto with val_erasure.
-    destruct H3 as [m4' [Hstore4' Hmem4']].
-    eapply @make_arguments_erasure with (m' := m4') in H4; eauto with regs_erasure.
-    destruct H4 as [? [? [? [? ?]]]].
+    destruct H3 as [m2' [Hstore2' Hmem2']].
+    eapply mem_storev_erased' in H4; eauto with val_erasure.
+    destruct H4 as [m4' [Hstore4' Hmem4']].
+    eapply @make_arguments_erasure with (m' := m4') in H5; eauto with regs_erasure.
+    destruct H5 as [? [? [? [? ?]]]].
     exists (State x x0), x0.
     split; simpl; split; eauto.
     econstructor; eauto.
+    
     eapply mem_erasure'_erase;
       eauto.
   Qed.    

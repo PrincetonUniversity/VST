@@ -794,7 +794,7 @@ Section CLC_SEM.
   | clc_evstep_builtin: forall f optid ef tyargs al k e le m vargs t vres m' T1 T2 mx,
       eval_exprTlist g e le m al tyargs vargs T1 ->
       builtin_event ef m vargs T2 ->
-      Events.external_call ef g vargs m t vres m' ->
+      Events.builtin_call ef g vargs m t vres m' ->
       clc_evstep (Clight.State f (Sbuiltin optid ef tyargs al) k e le mx) m
                  (T1++T2) (Clight.State f Sskip k e (set_opttemp optid vres le) m') m'
     
@@ -877,11 +877,13 @@ Section CLC_SEM.
       function_entryT f vargs m e le m1 T ->
       clc_evstep (Clight.Callstate (Internal f) vargs k mx) m
         T (Clight.State f f.(fn_body) k e le m1) m1
-(*
-  | clc_evstep_external_function: forall ef targs tres cconv vargs k m vres t m',
-      external_call ef ge vargs m t vres m' ->
-      clc_evstep (Clight.Callstate (External ef targs tres cconv) vargs k m)
-         t (Clight.Returnstate vres k m')*)
+
+  | clc_evstep_external_function: forall ef targs tres cconv vargs k m mx vres t T m',
+      Events.external_call ef g vargs m t vres m' ->
+      ef_inline ef = true ->
+      builtin_event ef m vargs T -> (*ef_inline ef = true ensures this is a builtin*)
+      clc_evstep (Clight.Callstate (External ef targs tres cconv) vargs k mx)
+         m T (Clight.Returnstate vres k m') m'
 
   | clc_evstep_returnstate: forall v optid f e le k m mx,
       clc_evstep (Clight.Returnstate v (Clight.Kcall optid f e le k) mx) m
@@ -895,7 +897,8 @@ Section CLC_SEM.
         m' = get_mem c' /\
         exists t, step g (function_entry2 g) (set_mem c m) t c'.
   Proof.
-    induction 1; simpl; split; trivial; split; trivial; intros;
+    induction 1; simpl; split; try solve[rewrite H0; auto]; trivial;
+    split; trivial; intros;
      try solve [ apply eval_exprT_ax1 in H; eexists; econstructor; eauto ];
      try solve [ eexists; econstructor; eauto ].
     { apply eval_lvalueT_ax1 in H. apply eval_exprT_ax1 in H0.
@@ -903,7 +906,8 @@ Section CLC_SEM.
     { apply eval_exprT_ax1 in H0. apply eval_exprTlist_ax1 in H1.
       eexists; econstructor; eauto. }
     { apply eval_exprTlist_ax1 in H. 
-      eexists; econstructor; eauto. }
+      eexists; econstructor; eauto.
+    }
   Qed.
   
   Lemma clc_ax2
@@ -929,13 +933,19 @@ Section CLC_SEM.
     { apply eval_exprTlist_ax2 in H. destruct H as [T1 K1].
       assert (BE: exists T2, builtin_event ef m0 vargs T2).
       { destruct ef; try solve [ exists nil; econstructor; eauto].
-        { (*EF_malloc*) inv H0. exploit Mem.store_valid_access_3; eauto. intros [_ ALGN].
+        { (*EF_malloc*)
+          destruct H0 as [?HH H0];
+            inv H0. exploit Mem.store_valid_access_3; eauto. intros [_ ALGN].
           apply Mem.store_storebytes in H1.
           eexists. eapply BE_malloc; eauto. }
-        { (*EF_free*) inv H0. exploit Mem.load_valid_access; eauto. intros [_ ALGN].
+        { (*EF_free*) 
+          destruct H0 as [?HH H0];
+            inv H0. exploit Mem.load_valid_access; eauto. intros [_ ALGN].
           exploit Mem.load_loadbytes; eauto. intros [bytes [LD X]].
           eexists. eapply BE_free; eauto. }
-        { (*EF_memcpy*) inv H0.
+        { (*EF_memcpy*) 
+          destruct H0 as [?HH H0];
+            inv H0.
           eexists. eapply BE_memcpy; eauto. } } 
       destruct BE as [T2 BE].
       eexists; econstructor; eauto. }
@@ -947,6 +957,14 @@ Section CLC_SEM.
       eexists; econstructor; eauto. }
     { apply Hfe in H; destruct H as [T HT].
       eexists. econstructor; eauto. }
+    { match_case in AE.
+      assert (BE: exists T2, builtin_event ef m0 args T2).
+      { destruct ef; try solve [ exists nil; econstructor; eauto].
+        { (*EF_memcpy*) 
+          inv H.
+          eexists. eapply BE_memcpy; eauto. } } 
+      destruct BE as [T BE].
+      exists T. econstructor; eauto. }
   Qed.
 
   Lemma clc_fun (HFe: forall f vargs m e1 le1 m1 T1 (FE1:function_entryT f vargs m e1 le1 m1 T1)
@@ -991,6 +1009,9 @@ Section CLC_SEM.
       destruct H11; congruence. }
     { destruct H; subst; inv EX2; try solve [contradiction]; trivial. }
     { inv EX2. eauto. }
+    { inv EX2.
+      { exploit builtin_event_determ. apply H15. apply H1. congruence. }
+    }
   Qed.
 
   Lemma extcall_ev_elim: forall ef g vargs m t vres m' ev
@@ -1022,11 +1043,11 @@ Section CLC_SEM.
         rewrite A in ALLOC. inv ALLOC. apply Mem.store_storebytes in STORE.
         rewrite ST in STORE. inv STORE.
         econstructor; split. eassumption. econstructor; split. eassumption. reflexivity. }
-      {  inv H1. apply Mem.load_loadbytes in H2. destruct H2 as [bytes1 [LD V]]; subst.
+      {  destruct H1 as [?HH H1]. inv H1. apply Mem.load_loadbytes in H2. destruct H2 as [bytes1 [LD V]]; subst.
          rewrite LD in LB; inv LB. rewrite <- SZ in V. rewrite (Vptrofs_inj _ _ V) in *. clear V SZ.
          rewrite FR in H8; inv H8.
          econstructor. eassumption. econstructor. split. { simpl. rewrite FR. reflexivity. } reflexivity. }
-      { inv H1. rewrite H14 in LB; inv LB. rewrite ST in H15; inv H15.
+      { destruct H1 as [?HH H1]. inv H1. rewrite H14 in LB; inv LB. rewrite ST in H15; inv H15.
         econstructor. eassumption. econstructor; split. eassumption. reflexivity. }
         eapply extcall_ev_elim; eauto; constructor; auto.
     - do 2 eexists; eauto; constructor.
@@ -1035,6 +1056,21 @@ Section CLC_SEM.
       do 2 eexists; eauto; constructor.
     - do 2 eexists; eauto; constructor.
     - eauto.
+    - inv H1.
+      { exploit extcall_malloc_sem_inv. apply H. clear H. intros [m1 [bb [sz [X [Ht [Hres [A STORE]]]]]]]; subst.
+        assert (HV: Vptrofs n = Vptrofs sz).
+        { clear -X. remember (Vptrofs n). remember  (Vptrofs sz).  clear Heqv Heqv0. inv X; trivial. }
+        rewrite (Vptrofs_inj _ _ HV) in *. rewrite HV in *. clear X.
+        rewrite A in ALLOC. inv ALLOC. apply Mem.store_storebytes in STORE.
+        rewrite ST in STORE. inv STORE.
+        econstructor; split. eassumption. econstructor; split. eassumption. reflexivity. }
+      {  inv H. apply Mem.load_loadbytes in H3. destruct H3 as [bytes1 [LD V]]; subst.
+         rewrite LD in LB; inv LB. rewrite <- SZ in V. rewrite (Vptrofs_inj _ _ V) in *. clear V SZ.
+         rewrite FR in H9; inv H9.
+         econstructor. eassumption. econstructor. split. { simpl. rewrite FR. reflexivity. } reflexivity. }
+      { inv H. rewrite H15 in LB; inv LB. rewrite ST in H16; inv H16.
+        econstructor. eassumption. econstructor; split. eassumption. reflexivity. }
+        eapply extcall_ev_elim; eauto; constructor; auto.
   Qed.
 
 End CLC_step.

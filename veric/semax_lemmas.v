@@ -708,7 +708,7 @@ Fixpoint filter_seq (k: cont) : cont :=
 
 Fixpoint app_cont (k1 k2: cont) : cont :=
  match k1 with
- | Kstop => k2
+ | Kstop _ => k2
  | Kseq c k1' => Kseq c (app_cont k1' k2)
  | Kloop1 c1 c2 k1' => Kloop1 c1 c2 (app_cont k1' k2)
  | Kloop2 c1 c2 k1' => Kloop2 c1 c2 (app_cont k1' k2)
@@ -716,8 +716,8 @@ Fixpoint app_cont (k1 k2: cont) : cont :=
  | Kcall i f ve te k1' => Kcall i f ve te (app_cont k1' k2)
  end.
 
-Lemma cons_app: forall x y, 
-  Kseq x y = app_cont (Kseq x Kstop) y.
+Lemma cons_app: forall x y targ, 
+  Kseq x y = app_cont (Kseq x (Kstop targ)) y.
 Proof. auto. Qed.
 
 Lemma cons_app': forall x y z,
@@ -726,7 +726,7 @@ Proof. auto. Qed.
 
 Fixpoint length_cont (k: cont) :=
 match k with
-| Kstop => O
+| Kstop _ => O
 | Kseq _ k' => S (length_cont k')
 | Kloop1 _ _ k' =>  S (length_cont k')
 | Kloop2 _ _ k' =>  S (length_cont k')
@@ -741,7 +741,7 @@ induction k1; simpl; intros; auto.
 Qed.
 
 Lemma cat_prefix_empty:
-   forall prefix ctl, ctl =  app_cont prefix ctl -> prefix = Kstop.
+   forall prefix ctl, ctl =  app_cont prefix ctl -> exists targs, prefix = (Kstop targs).
 Proof.
 intros.
 pose proof (app_cont_length prefix ctl).
@@ -749,6 +749,7 @@ rewrite <- H in H0.
 assert (length_cont prefix = O) by omega.
 clear - H1. 
 destruct prefix; inv H1; auto.
+eexists; reflexivity.
 Qed.
 
 Definition true_expr : Clight.expr := Clight.Econst_int Int.one (Tint I32 Signed noattr).
@@ -819,17 +820,17 @@ Proof.
 Qed.
 
 Lemma call_cont_app_nil:
-  forall l k, call_cont l = Kstop -> call_cont (app_cont l k) = call_cont k.
+  forall l k targs, call_cont l = Kstop targs -> call_cont (app_cont l k) = call_cont k.
 Proof.
- intros l k; revert k; induction l; simpl; intros;
-   try destruct a; simpl in *; try congruence; auto.
+  intros l k; revert k; induction l; simpl; intros ?? HH; try inv HH; eauto.
 Qed.
 
 Lemma call_cont_app_cons:
-  forall l, call_cont l <> Kstop -> 
+  forall l, (forall targs, call_cont l <> Kstop targs) -> 
     forall k, call_cont (app_cont l k) = app_cont (call_cont l)  k.
 Proof.
-  induction l; simpl; intros; try congruence; auto.
+  induction l; simpl; intros; eauto.
+  specialize (H t); congruence.
 Qed.
 
 Lemma and_FF : forall {A} `{ageable A} (P:pred A),
@@ -908,8 +909,8 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
                    control_as_safex ge c1 k1 Sskip ctl2
  | Kseq c1 k1, Kloop2 body incr k2 => 
                    control_as_safex ge c1 k1 (Sloop body incr) k2
- | Kseq c1 k1, Kstop => 
-                   control_as_safex ge c1 k1 (Sreturn None) Kstop
+ | Kseq c1 k1, Kstop targ => 
+                   control_as_safex ge c1 k1 (Sreturn None) (Kstop targ)
  | Kseq c1 k1, Kcall _ _ _ _ _ => 
                    control_as_safex ge c1 k1 (Sreturn None) ctl2
  | Kseq _ _, _ => 
@@ -930,8 +931,8 @@ Definition control_as_safe {Espec: OracleKind} ge ctl1 ctl2 :=
                    control_as_safex ge (Sloop b1 i1) k1 (Sloop b2 i2) k2
  | Kloop2 _ _ _, _ =>
                    False
- | Kstop, Kseq c2 k2 => 
-                   control_as_safex ge (Sreturn None) Kstop c2 k2 
+ | Kstop targ, Kseq c2 k2 => 
+                   control_as_safex ge (Sreturn None) (Kstop targ) c2 k2 
  | Kcall _ _ _ _ _, Kseq c2 k2=> 
                    control_as_safex ge (Sreturn None) ctl1 c2 k2 
 
@@ -944,7 +945,7 @@ Fixpoint prebreak_cont (k: cont) : cont :=
   | Kseq s k' => prebreak_cont k'
   | Kloop2 s e3 k' => k
   | Kswitch k' => k
-  | _ =>  Kstop (* stuck *)
+  | _ =>  Kstop Tnil (* stuck *)
   end.
 
 Lemma prebreak_cont_is: forall k,
@@ -952,7 +953,7 @@ Lemma prebreak_cont_is: forall k,
   | Kloop1 _ _ _ => True
   | Kloop2 _ _ _ => True
   | Kswitch _ => True
-  | Kstop => True
+  | Kstop _ => True
   | _ => False
   end.
 Proof.

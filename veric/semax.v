@@ -98,8 +98,8 @@ Definition assert_safe'_
              jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sloop body incr) ctl' ve te) jm
        | Cont (Kcall id' f' ve' te' k') => 
                jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) (Kcall id' f' ve' te' k') ve te) jm
-       | Cont Kstop =>
-               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) Kstop ve te) jm
+       | Cont (Kstop targs) =>
+               jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) (Kstop targs) ve te) jm
        | Cont _ => False
        | Ret None ctl' =>
                 jsafeN (@OK_spec Espec) ge (level w) ora (State f (Sreturn None) ctl' ve te) jm

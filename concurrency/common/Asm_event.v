@@ -471,7 +471,7 @@ Inductive asm_ev_step ge: state -> mem -> list mem_event -> state -> mem -> Prop
       builtin_event ef m vargs T2 ->
 (*      ev_elim m (T1++T2) m' ->*)
   (* Must it be the case that builtins don't produce trace events? *)
-      external_call ef ge vargs m (*nil*) t vres m' ->
+      builtin_call ef ge vargs m (*nil*) t vres m' ->
       rs' = nextinstr_nf
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
@@ -555,14 +555,17 @@ Proof.
 - exploit Hsafe; eauto.
   apply eval_builtin_args_eval_builtin_args_ev in H9 as [T H9].
   destruct ef; try solve [intros []; subst; exists (T ++ nil); econstructor 2; eauto; constructor; auto]; intros _.
-  + inv H10. destruct (Mem.store_valid_access_3 _ _ _ _ _ _ H1) as [_ ALGN].
-    pose proof (Mem.store_storebytes _ _ _ _ _ _ H1).
+  + inv H10. inv H1. destruct (Mem.store_valid_access_3 _ _ _ _ _ _ H3) as [_ ALGN].
+    pose proof (Mem.store_storebytes _ _ _ _ _ _ H3).
     eexists; econstructor 2; eauto; econstructor; eauto.
-  + inv H10. destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
-    pose proof (Mem.load_loadbytes _ _ _ _ _ H) as (? & ? & ?).
+    econstructor; eauto.
+  + inv H10. inv H1. destruct (Mem.load_valid_access _ _ _ _ _ H2) as [_ ALGN].
+    pose proof (Mem.load_loadbytes _ _ _ _ _ H2) as (? & ? & ?).
     eexists; econstructor 2; eauto; econstructor; eauto.
-  + inv H10.
+    econstructor; eauto.
+  + inv H10. inv H1.
     eexists; econstructor 2; eauto; econstructor; eauto.
+    econstructor; eauto.
 - simpl in *.
   rewrite H5 in H0.
   destruct (Ptrofs.eq_dec _ _); [|contradiction].
@@ -652,7 +655,7 @@ try match goal with
   { eapply eval_builtin_args_ev_eval_builtin_args; eauto. }
   inversion H3; subst ef; [.. | destruct ef0; try contradiction; intros []; simpl; auto]; intros _.
   + (*malloc*)
-    inv H4.
+    destruct H4 as [EFinline H4]; inv H4.
     rewrite Vptrofs_inj with (o2 := n) in H7 by congruence.
     rewrite H7 in ALLOC. inv ALLOC.
     apply Mem.store_storebytes in H11.
@@ -660,7 +663,7 @@ try match goal with
     econstructor. split. eassumption.
     econstructor. split. eassumption. constructor.
   + (*free*)
-    inv H4.
+    destruct H4 as [EFinline H4]; inv H4.
     inv H13.
     destruct (Mem.load_loadbytes _ _ _ _ _ H7) as [bytes1 [LB1 SZ1]].
     rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ.
@@ -669,7 +672,8 @@ try match goal with
     econstructor. eassumption.
     econstructor. split. simpl. rewrite H12. reflexivity. constructor.
   + (*memcpy*)
-    inv H4. inv H18. rewrite LB in H16; inv H16. rewrite ST in H17; inv H17.
+    destruct H4 as [EFinline H4]; inv H4.
+    inv H18. rewrite LB in H16; inv H16. rewrite ST in H17; inv H17.
     econstructor. eassumption.
     econstructor. split. eassumption. constructor.
 Qed.

@@ -93,6 +93,8 @@ Module X86SEMAxioms.
                eauto);
           try (unfold exec_instr in *; discriminate).
       simpl.
+      destruct H13 as [EFinline H13].
+      destruct H8 as [EFinline' H8].
       pose proof (Events.eval_builtin_args_determ H7 H12); subst.
       assert (t = t0).
       { destruct ef0; simpl in *;
@@ -102,12 +104,13 @@ Module X86SEMAxioms.
         try (destruct Hsafe; now exfalso).
         inversion H13. inversion H8; subst.
         reflexivity.
-        inversion H13; inversion H8; subst.
+        (* inversion H13; inversion H8; subst.
         reflexivity.
         inversion H13; inversion H8; subst.
-        reflexivity.
+        reflexivity. *)
       }
       subst.
+      
       destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H8 H13);
         subst.
       now auto.
@@ -507,15 +510,15 @@ Module X86SEMAxioms.
       destruct H.
       inv H.
       simpl.
+      eapply MemoryLemmas.mem_storev_store in H7.
+      destruct H7 as [? [? [? Hstore7]]].
       eapply MemoryLemmas.mem_storev_store in H6.
       destruct H6 as [? [? [? Hstore6]]].
-      eapply MemoryLemmas.mem_storev_store in H5.
-      destruct H5 as [? [? [? Hstore5]]].
       assert ( ~ Mem.perm m1 b ofs Cur Writable).
       { intros Hcontra.
         eapply H1.
         eapply Mem.perm_alloc_4; eauto.
-        apply Mem.fresh_block_alloc in H4.
+        apply Mem.fresh_block_alloc in H5.
         intros ?; subst;
           now auto.
       }
@@ -529,8 +532,8 @@ Module X86SEMAxioms.
         erewrite Mem.store_access with (m2:= m3) (m1 := m2) by eauto.
         assumption.
       } 
-      eapply make_arguments_unchanged_on in H7; eauto.
-      destruct H7 as [Hvaleq34 [Hpermeq34 _]].
+      eapply make_arguments_unchanged_on in H8; eauto.
+      destruct H8 as [Hvaleq34 [Hpermeq34 _]].
       specialize (Hvaleq34 b ofs ltac:(eauto)).
       specialize (Hpermeq34 b ofs).
       erewrite <- Hvaleq34.
@@ -570,52 +573,53 @@ Module X86SEMAxioms.
       simpl.
       split.
       - intros.
-        eapply make_arguments_unchanged_on in H3; eauto.
-        destruct H3 as [Hval3 [Hperm3 Hblock3]].
+        eapply make_arguments_unchanged_on in H4; eauto.
+        destruct H4 as [Hval3 [Hperm3 Hblock3]].
         unfold permission_at in Hperm3.
-        eapply MemoryLemmas.mem_storev_store in H1.
-        destruct H1 as [? [? [? Hstore1]]].
         eapply MemoryLemmas.mem_storev_store in H2.
-        destruct H2 as [? [? [? Hstore2]]].
-        assert (b0 = stk).
+        destruct H2 as [? [? [? Hstore1]]].
+        eapply MemoryLemmas.mem_storev_store in H3.
+        destruct H3 as [? [? [? Hstore2]]].
+        assert (b0 = spb).
           { eapply Hblock3 in H5.
             eapply Mem.store_valid_block_2 in H5; eauto.
             eapply Mem.store_valid_block_2 in H5; eauto.
-            eapply Mem.valid_block_alloc_inv in H0; eauto.
-            destruct H0; [assumption | exfalso; now auto].
+            eapply Mem.valid_block_alloc_inv in H1; eauto.
+            destruct H1; [assumption | exfalso; now auto].
           }
           subst.
-          destruct (Intv.In_dec ofs (0%Z,(3*size_chunk AST.Mptr))).
+          destruct (Intv.In_dec ofs (0%Z,Bounds.fe_size pre_main_env)).
         + left.
           intros k.
           erewrite <- Hperm3.
           erewrite Mem.store_access with (m2 := m3) by eauto.
           erewrite Mem.store_access with (m2 := m2) by eauto.
-          eapply MemoryLemmas.permission_at_alloc_2 in H0;
-            now eauto.
+          eapply MemoryLemmas.permission_at_alloc_2 in H1. 
+          eapply H1. eapply i0.
         + right.
           intros k.
           erewrite <- Hperm3.
           erewrite Mem.store_access with (m2 := m3) by eauto.
           erewrite Mem.store_access with (m2 := m2) by eauto.
-          eapply MemoryLemmas.permission_at_alloc_3 in H0;
+          eapply MemoryLemmas.permission_at_alloc_3 in H1;
             eauto.
-          eapply Intv.range_notin in n; eauto.
-          simpl.
-          unfold AST.Mptr. destruct Archi.ptr64; simpl; omega.
+          forget (Bounds.fe_size pre_main_env) as bound.
+          clear - n. unfold Intv.In in *.
+          apply Classical_Prop.not_and_or in n.
+          simpl in n. omega.
       - intros Hvalid.
-        eapply make_arguments_unchanged_on in H3; eauto.
-        destruct H3 as [_ [Hperm3 Hblock3]].
+        eapply make_arguments_unchanged_on in H4; eauto.
+        destruct H4 as [_ [Hperm3 Hblock3]].
         unfold permission_at in Hperm3.
-        eapply MemoryLemmas.mem_storev_store in H1.
-        destruct H1 as [? [? [? Hstore1]]].
         eapply MemoryLemmas.mem_storev_store in H2.
-        destruct H2 as [? [? [? Hstore2]]].
+        destruct H2 as [? [? [? Hstore1]]].
+        eapply MemoryLemmas.mem_storev_store in H3.
+        destruct H3 as [? [? [? Hstore2]]].
         intros k.
         erewrite <- Hperm3.
         erewrite Mem.store_access with (m2 := m3) by eauto.
         erewrite Mem.store_access with (m2 := m2) by eauto.
-        pose proof (MemoryLemmas.permission_at_alloc_1 _ _ _ _ _ _ ofs H0 Hvalid k) as Heq_perm.
+        pose proof (MemoryLemmas.permission_at_alloc_1 _ _ _ _ _ _ ofs H1 Hvalid k) as Heq_perm.
         unfold permission_at in Heq_perm.
         assumption.
     Qed.
@@ -630,12 +634,12 @@ Module X86SEMAxioms.
       simpl.
       inv H0.
       simpl.
-      eapply make_arguments_unchanged_on in H4.
-      destruct H4 as [_ [_ Hvalid4]].
+      eapply make_arguments_unchanged_on in H5.
+      destruct H5 as [_ [_ Hvalid4]].
       unfold Mem.valid_block, Plt in Hvalid4.
-      eapply Mem.nextblock_alloc in H1.
-      eapply Mem.nextblock_store in H2.
+      eapply Mem.nextblock_alloc in H2.
       eapply Mem.nextblock_store in H3.
+      eapply Mem.nextblock_store in H4.
       assert ((Mem.nextblock m4 = Mem.nextblock m3)%positive).
       { destruct (Pos.lt_total (Mem.nextblock m4) (Mem.nextblock m3)); auto.
         exfalso.
@@ -646,8 +650,8 @@ Module X86SEMAxioms.
         pose proof (proj1 (Hvalid4 (Mem.nextblock m3)) H0).
         zify; omega.
       }
-      clear - H1 H2 H3 H0.
-      rewrite H0, H3, H2, H1.
+      clear - H2 H3 H4 H0.
+      rewrite H0, H4, H3, H2.
       clear.
       zify; omega.
     Qed.

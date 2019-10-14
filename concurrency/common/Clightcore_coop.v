@@ -66,14 +66,14 @@ Proof.
   simpl; intros.
   destruct H.
   destruct s1, s2; inv H; simpl in *;  try apply mem_step_refl.
-   eapply assign_loc_mem_step; eauto.
-   apply extcall_mem_step in H15; auto.
-   eapply mem_step_freelist; eauto.
-   eapply mem_step_freelist; eauto.
-   eapply mem_step_freelist; eauto.
-   inv H6.
+  - eapply assign_loc_mem_step; eauto.
+  - inv H15. apply extcall_mem_step in H1; auto.
+  - eapply mem_step_freelist; eauto.
+  - eapply mem_step_freelist; eauto.
+  - eapply mem_step_freelist; eauto.
+  - inv H6.
    eapply alloc_variables_mem_step; eauto.
-   apply extcall_mem_step in H6; auto.
+  - apply extcall_mem_step in H6; auto.
 Qed. 
 
 Program Definition CLC_memsem  (ge : Clight.genv) :

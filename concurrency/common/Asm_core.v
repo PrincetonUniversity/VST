@@ -254,13 +254,13 @@ Proof. intros.
  + eapply exec_instr_mem_step; try eassumption.
  + exploit Hsafe; eauto.
    destruct ef; try solve [intros []; subst; apply mem_step_refl]; intros _.
-   * (* malloc *) inv H10.
+   * (* malloc *) inv H10. inv H1.
      eapply mem_step_trans.
      -- eapply mem_step_alloc; eauto.
      -- eapply mem_step_storebytes, Mem.store_storebytes; eauto.
-   * (* free *) inv H10.
+   * (* free *) inv H10. inv H1.
      eapply mem_step_free; eauto.
-   * (* memcpy *) inv H10.
+   * (* memcpy *) inv H10. inv H1.
      eapply mem_step_storebytes; eauto.
  + rewrite H5 in H0.
    destruct (Ptrofs.eq_dec _ _); [|contradiction].
