@@ -1548,7 +1548,7 @@ unfold nofunc_tycontext in *.
 specialize (Believe 0%nat).
 destruct (believe_exists_fundef Findb Believe id_in_G) as [f [Eb Ef]].
 clear Believe.
-exists (Clight_core.Callstate f args Kstop).
+exists (Clight_core.Callstate f args (Kstop (type_of_params params))).
 simpl semantics.initial_core.
 unfold j_initial_core.
 simpl semantics.initial_core.
@@ -1742,7 +1742,7 @@ specialize (H11 psi (func_tycontext' f Delta) CS _ (necR_refl _)
   eapply pred_nec_hereditary; try apply Prog_OK.
   apply nec_nat; omega.
   clear Prog_OK H3.
-  specialize (H11 Kstop (fun _ => TT) f _ (necR_refl _)).
+  specialize (H11 (Kstop (type_of_params params)) (fun _ => TT) f _ (necR_refl _)).
   simpl in Ef.
   assert (Hret: fn_return f = retty) by (destruct f; inv Ef; auto).
   spec H11. { clear H11.
@@ -1754,7 +1754,7 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
  (stackframe_of' cenv_cs f rhox *
   bind_ret vl (fn_return f) (Q ts a) rhox * 
   TT) && funassert (func_tycontext' f Delta) rhox >=>
- assert_safe Espec psi f ve te (exit_cont EK_return vl Kstop) rhox)
+ assert_safe Espec psi f ve te (exit_cont EK_return vl (Kstop (type_of_params params))) rhox)
   (level jm)). {
   clearbody rhox; clear.
   evar (j: mpred).
@@ -1891,7 +1891,7 @@ rewrite (age_level _ _ H13).
 destruct H10 as [COMPLETE [H17 [H17' [Hvars H18]]]].
 
 eapply jsafeN_step
-  with (c' := Clight_core.State f (f.(fn_body)) Kstop ve' te')
+  with (c' := Clight_core.State f (f.(fn_body)) (Kstop (type_of_params params)) ve' te')
        (m' := jm''); auto.
 split; auto.
 apply Clight_core.step_internal_function.

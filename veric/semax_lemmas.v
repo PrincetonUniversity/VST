@@ -981,25 +981,25 @@ Proof.
   revert ctl k H; induction s; simpl; intros; try congruence.
  + revert H; case_eq (find_label lbl s1 (Kseq s2 ctl)); intros; [inv H0 | auto ].
     destruct (IHs1 _ _ H) as [j ?]. 
-    exists (app_cont j (Kseq s2 Kstop)); rewrite app_cont_ass; auto.
+    exists (app_cont j (Kseq s2 (Kstop Tnil))); rewrite app_cont_ass; auto.
   + revert H; case_eq (find_label lbl s1 ctl); intros; [inv H0 | auto ]; auto.
   + destruct (find_label lbl s1 (Kloop1 s1 s2 ctl)) eqn:H0; inv H.
-      apply IHs1 in H0. destruct H0 as [j ?]. exists (app_cont j (Kloop1 s1 s2 Kstop)).
+      apply IHs1 in H0. destruct H0 as [j ?]. exists (app_cont j (Kloop1 s1 s2 (Kstop Tnil))).
       rewrite app_cont_ass. auto.
       apply IHs2 in H2. destruct H2 as [j ?].
-      exists (app_cont j (Kloop2 s1 s2 Kstop)). rewrite app_cont_ass; auto.
+      exists (app_cont j (Kloop2 s1 s2 (Kstop Tnil))). rewrite app_cont_ass; auto.
   + destruct (find_label_ls_prefix _ _ _ _ _ H) as [j ?].
-      exists (app_cont j (Kswitch Kstop)); rewrite app_cont_ass; auto.
+      exists (app_cont j (Kswitch (Kstop Tnil))); rewrite app_cont_ass; auto.
   +
   if_tac in H. subst l. inv H.
-  exists (Kseq s' Kstop); auto.
+  exists (Kseq s' (Kstop Tnil)); auto.
   apply IHs; auto.
 -
  induction s; simpl; intros. inv H.
  destruct (find_label lbl s (Kseq (seq_of_labeled_statement s0) ctl)) eqn:?H.
  inv H.
  destruct (find_label_prefix _ _ _ _ _ H0) as [j ?].
- exists (app_cont j (Kseq (seq_of_labeled_statement s0) Kstop)).
+ exists (app_cont j (Kseq (seq_of_labeled_statement s0) (Kstop Tnil))).
  rewrite app_cont_ass; auto.
  auto.
 Qed.
@@ -1088,6 +1088,7 @@ Proof.
  destruct k' as [ | s2 ctl2' | | | |] eqn:Hk'; try contradiction;
  try discriminate; auto;
  try solve [apply H; auto].
+ inv H; auto.
  inv H; auto.
 Qed.
 
