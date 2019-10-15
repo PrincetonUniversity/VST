@@ -1155,18 +1155,13 @@ Proof.
        destruct H6 as [f' ?]; subst f.
        econstructor; eauto.
         - rewrite Hty; f_equal. (* We haven't changed the return type, it's still an int. *) admit.
-        - 
-        - eapply mem_ok_wd; destruct H6; eauto.
-        - clear - H2. inv H2. constructor; auto.
-        - subst m'0; reflexivity.
+        - admit. (* add to initial_core *)
+        - eapply mem_ok_wd; destruct H1; eauto.
+        - admit. (* add to initial_core *)
+        - admit. (* add to initial_core *)
+        - clear - H2. inv H2; constructor; auto.
       }
-      subst m'0.
-      unfold diluteMem, DilMem.
-      clear - Hperm.
-      hnf in Hperm.
-      simpl fst in Hperm. rewrite <- Hperm.
-      admit. (* Santiago:  extra alloc *)
-
+      
   - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
@@ -1180,6 +1175,7 @@ Proof.
       change sch with (yield sch) at 2.
       eapply resume_step; eauto; econstructor; eauto; simpl; eauto.
       - eapply MTCH_install_perm, Hperm.
+      - match_case; reflexivity.
       - eapply MTCH_invariant; eauto. }
     eapply IHn; eauto.
     apply MTCH_updThreadC; auto. constructor. simpl.
@@ -1229,6 +1225,7 @@ Proof.
       rewrite app_nil_r.
       eapply suspend_step; eauto; econstructor; eauto; simpl; eauto.
       - eapply MTCH_install_perm, Hperm.
+      - match_case; reflexivity.
       - eapply MTCH_invariant; eauto. }
     { rewrite app_nil_r; rewrite <- H5 in Hsafe.
       intro; eapply IHn; auto.
@@ -1237,11 +1234,11 @@ Proof.
       apply MTCH_updThreadC; auto.
       constructor; constructor; auto. }
 
-done to here.
-
   - inv Htstep; inversion H0; pose proof (mtch_gtc _ Htid (mtch_cnt _ Htid)) as Hc;
-      rewrite Hcode in Hc; inv Hc; destruct c; inv Hat_external; destruct c'; inv H2.
-    + eapply AngelSafe.
+      rewrite Hcode in Hc; inv Hc; try destruct c; inv Hat_external; destruct c'; inv H2.
+    + do 2 match_case in H3; inv H3.
+      eapply AngelSafe.
+      
       { eapply sync_step with (Hcmpt0 := MTCH_compat _ _ _ H0 Hcmpt); eauto.
         eapply step_acquire; simpl; eauto; simpl; eauto.
         * eapply MTCH_invariant; eauto.
@@ -1274,8 +1271,7 @@ done to here.
         * erewrite <- mtch_gtr2; apply Hangel2. }
       { rewrite <- H6 in Hsafe.
         intro; eapply IHn; auto.
-        2:{ eapply (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto. }
-        { auto. }
+        auto.
         apply MTCH_updLockSet, MTCH_updThread; auto.
         - constructor; constructor; auto.
         - apply computeMap_ext; auto.
@@ -1297,7 +1293,6 @@ done to here.
         * erewrite <- mtch_gtr2; apply Hangel2. }
       { rewrite <- H6 in Hsafe.
         intro; eapply IHn; auto.
-        2:{ eapply (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto. }
         { auto. }
         apply MTCH_updLockSet, MTCH_updThread; auto.
         - constructor; constructor; auto.
@@ -1314,8 +1309,6 @@ done to here.
         * erewrite <- mtch_gtr2; apply Hangel2. }
       { rewrite <- H6 in Hsafe.
         intro; eapply IHn; auto.
-        2:{ eapply (csafe_trace(ThreadPool := OrdinalPool.OrdinalThreadPool)),
-            (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto. }
         { auto. }
         apply MTCH_addThread; auto.
         apply MTCH_updThread; auto.
@@ -1334,7 +1327,6 @@ done to here.
         * rewrite <- mtch_locks; auto. }
       { rewrite <- H6 in Hsafe.
         intro; eapply IHn; auto.
-        2:{ eapply (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto. }
         { auto. }
         apply MTCH_updLockSet, MTCH_updThread; auto.
         * constructor; constructor; auto.
@@ -1353,7 +1345,6 @@ done to here.
         * erewrite restrPermMap_irr; eauto. }
       { rewrite <- H6 in Hsafe.
         intro; eapply IHn; auto.
-        2:{ eapply (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto. }
         { auto. }
         apply MTCH_remLockSet, MTCH_updThread; auto.
         * constructor; constructor; auto.
@@ -1375,10 +1366,8 @@ done to here.
         * eapply MTCH_invariant; eauto.
         * erewrite restrPermMap_irr; eauto.
         * erewrite restrPermMap_irr; eauto. }
-      { rewrite <- H6 in Hsafe.
+      { rewrite <- H6 in Hsafe; auto.
         intro; eapply IHn; auto.
-        2:eapply (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto.
-        { auto. }
         auto.
        }
 (*  - inv Hhalted; contradiction.*)
@@ -1390,13 +1379,11 @@ done to here.
       - eapply MTCH_invariant; eauto.
       - eapply MTCH_compat; eauto. }
     { intro; eapply IHn; auto.
-      2: eapply (csafe_reduce(ThreadPool := OrdinalPool.OrdinalThreadPool)); eauto.
       { auto. }
-      auto.
     }
   Unshelve.
   all: auto.
-  2: apply cntUpdate; auto.
+  (*2: apply cntUpdate; auto.
   + unfold add_block.
     hnf in Hperm; subst.
     unshelve eapply @CoreLanguageDry.decay_compatible with (m := m); auto.
@@ -1411,11 +1398,11 @@ done to here.
       right; intro. 
         erewrite restrPermMap_ext; eauto.
         intro; extensionality ofs2; auto.
-  + eapply mem_compatible_updThreadC, MTCH_compat; eauto.
+  + eapply mem_compatible_updThreadC, MTCH_compat; eauto.*)
   + erewrite <- mtch_gtr2; eauto.
   + erewrite <- mtch_gtr2; eauto.
 Admitted.
-*)
+
 
 Definition init_threadpool := 
    @initial_machine (Clight_newSem ge)
@@ -1463,8 +1450,10 @@ Proof.
     destruct (s O) as (jm & Hjm & _).
     specialize (Hinit _ Hjm) as (? & ? & Hinit & _).
     unfold veric.Clight_core.cl_initial_core in Hinit; simpl in Hinit.
-    destruct (Genv.find_funct_ptr _ _) eqn: Hfind; [|discriminate].
-    inv Hinit. simpl. intros. split; auto.
+    destruct (Genv.find_funct_ptr _ _) eqn: Hfind; [|exfalso; auto].
+    match_case in Hinit.
+    destruct Hinit as (?&?&?&?). match_case in H2; subst.
+    simpl. intros. split; auto.
 Qed.
 
 Lemma Clight_new_Clight_safety:
@@ -1494,15 +1483,15 @@ Proof.
   constructor.
   unfold initial_corestate, initial_Clight_state in *.
   destruct f_main as [? Hf]; destruct spr as (b & q & [? Hinit] & s); simpl in *.
-  destruct (s O tt) as (jm & Hjm & _).
+  destruct (s O) as (jm & Hjm & _).
+  simpl in Hinit. 
   specialize (Hinit _ Hjm) as (? & ? & Hinit & ?); subst; simpl in *.
   destruct (Genv.find_funct_ptr _ b); try contradiction.
   destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
   destruct Hinit as (? & ? & ? & ?); subst.
-  inv Hf.
-  constructor; simpl; auto.
-  rewrite Hty; repeat constructor.
-Qed.
+  inv Hf. inv H2.
+  admit. (* discrepancies in the initial states.*)
+Admitted.
 
 
 (*New safety theorem, with the correct initial state: 
@@ -1564,6 +1553,12 @@ Proof.
     inv Hstep; simpl in *; subst; try solve_schedule.
     + inv Htstep; simpl in *. inv Hcode.
       unfold Clight.at_external in *.
+      unfold initial_Clight_state in *; simpl in *.
+      do 3 match_case in Hat_external.
+      unfold initial_Clight_state in Heqs. simpl in Heqs.
+      inv Heqs. unfold f_main in H0; simpl in H0.
+      repeat match_case in H0; simpl in H0.
+      inv H0.
       unfold initial_Clight_state in Hat_external; inv Hat_external.
     + inv Htstep; simpl in *; inversion Hcode.
     + eapply AngelSafe; simpl; eauto.
