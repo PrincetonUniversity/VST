@@ -54,14 +54,14 @@ Definition main_ptr (prog:Ctypes.program function):=
     In any case, this is what appears, when one uses the CSL safety proof.
  *)
 
-Definition Clight_init_state (prog:Ctypes.program function) main_symb f_main init_mem :=
+(*Definition Clight_init_state (prog:Ctypes.program function) main_symb f_main init_mem :=
   State main_handler
         (Scall None (Etempvar BinNums.xH (type_of_fundef f_main))
                (List.map (fun x : AST.ident * Ctypes.type => Etempvar (fst x) (snd x))
                          (Clight_new.params_of_types (BinNums.xO BinNums.xH)
                                                      (Clight_new.params_of_fundef f_main))))
         (Kseq (Sloop Sskip Sskip) Kstop) empty_env
-        (temp_bindings BinNums.xH (main_symb:: nil)) init_mem.
+        (temp_bindings BinNums.xH (main_symb:: nil)) init_mem. *)
 
 (* Erasing permissions from memory. *)
 Definition bare_mem:= @diluteMem dry_context.AsmContext.BareDilMem.
@@ -83,7 +83,7 @@ Definition asm_prog_well_formed (Asm_prog: Asm.program) asm_genv_safe:=
 Inductive CSL_init_setup c_prog: Memory.mem -> state -> Prop :=
 | Build_CSL_initial_setup:
     forall init_mem_source init_st b_main f_main,
-      Clight_init_state c_prog (Vptr b_main zero) f_main init_mem_source = init_st ->
+      (*Clight_init_state c_prog (Vptr b_main zero) f_main init_mem_source = init_st ->*)
       Genv.init_mem (Ctypes.program_of_program c_prog) = Some init_mem_source ->
       Genv.find_symbol (globalenv c_prog) (prog_main c_prog) = Some b_main ->
       Genv.find_funct_ptr (Genv.globalenv (program_of_program c_prog)) b_main = Some f_main ->

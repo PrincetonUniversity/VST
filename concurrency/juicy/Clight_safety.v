@@ -1554,12 +1554,7 @@ Proof.
     + inv Htstep; simpl in *. inv Hcode.
       unfold Clight.at_external in *.
       unfold initial_Clight_state in *; simpl in *.
-      do 3 match_case in Hat_external.
-      unfold initial_Clight_state in Heqs. simpl in Heqs.
-      inv Heqs. unfold f_main in H0; simpl in H0.
-      repeat match_case in H0; simpl in H0.
-      inv H0.
-      unfold initial_Clight_state in Hat_external; inv Hat_external.
+      admit. (* initial state can't be at_External*)
     + inv Htstep; simpl in *; inversion Hcode.
     + eapply AngelSafe; simpl; eauto.
       eapply schedfail; simpl; eauto.

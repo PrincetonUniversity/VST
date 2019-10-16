@@ -558,9 +558,16 @@ Qed.
 (*j0 is the strict evolution of j.
   so j' has to also be j0<j'.
  *)
-Lemma evolution_injection_lessdef:
+(* simpl_incr defines an injection that increases only, with 0 ofsets *)
+Definition simpl_incr (f1 f2 : meminj):=
+  forall (b b' : block) (delta : Z),
+    f2 b = Some (b', delta) ->
+    f1 b = None -> delta = 0%Z.
+
+  Lemma evolution_injection_lessdef:
   forall j j' j0 ev1 ev2 ev20 nb,
     inject_incr j j' ->
+    simpl_incr j j' ->
     injection_evolution_effect j j0 ev1 ev2 ->
     inject_mem_effect_strong j0 ev1 ev2 ->
     inject_mem_effect j' ev1 ev20 ->
@@ -569,7 +576,7 @@ Lemma evolution_injection_lessdef:
     effect_lessdef ev2 ev20.
 Proof.
   intros
-    ??????? Hincr Hevol Hinj_str Hinject Hconsec Hconsec'.
+    ??????? Hincr Hsimpl_incr  Hevol Hinj_str Hinject Hconsec Hconsec'.
   inversion Hevol; subst; clear Hevol; 
     inversion Hinject; subst; clear Hinject.
   - inversion Hinj_str; subst.
@@ -582,6 +589,7 @@ Proof.
     inversion Hconsec'; subst.
     inversion Hinj_str; subst.
     match_case in H1. inversion H1; subst.
+    rewrite (Hsimpl_incr b1 nb delt); auto.
     repeat match goal with
              | [|- context[(?x + 0)%Z]] => replace (x + 0)%Z with x by Omega.omega
              | [|- context[(0 + ?x)%Z]] => replace (0 + x)%Z with x by Omega.omega
@@ -646,7 +654,7 @@ Proof.
             inversion Hconsec; subst.
             auto.
         - eapply consecutive_tail; eassumption.
-     }*)
+     }
 
      assert (Hlessdef: effect_lessdef ev2 b).
      { 

@@ -26,7 +26,7 @@ Require Import Events.
 Require Import Globalenvs.
 Require Import Integers.
 Require Import Smallstep.
-
+Require Import EventsAux.
 
 Set Nested Proofs Allowed.
 
@@ -39,6 +39,113 @@ Set Implicit Arguments.
 
 (** The general form of a transition semantics. *)
 Require Import compcert.common.Memory.
+
+
+Section MoreDefinedInjection.
+  Create HintDb more_defined. 
+
+  Definition compose_more_defined
+              {A} (R: meminj -> A -> A -> Prop)
+              (R_strong: meminj -> A -> A -> Prop):=
+    forall f12 f23 t1 t2 t3 t_str,
+      R (compose_meminj f12 f23) t1 t3 ->
+      R_strong f12 t1 t2 ->
+      R_strong f23 t2 t_str ->
+      R f23 t2 t3.
+  Lemma compose_more_defined_list:
+    forall {A} (R: meminj -> A -> A -> Prop)
+      (R_strong: meminj -> A -> A -> Prop),
+      compose_more_defined R R_strong ->
+      compose_more_defined (fun f => Forall2 (R f)) (fun f => Forall2 (R_strong f)).      
+  Proof.
+    intros ??? ** ?? t1. induction t1.
+      - intros ??? **.
+        inv H0; inv H1. econstructor.
+      - intros ??? **.
+        inv H0; inv H1; inv H2. econstructor; eauto.
+  Qed.
+  Hint Resolve compose_more_defined_list: more_defined.
+
+  Ltac unify_compose_meminj:=
+    match goal with
+      [ H1: ?f12 ?b1 = Some _,
+            H2: ?f23 _ = Some _,
+                H3:  compose_meminj ?f12 ?f23 ?b1 = Some _ |- _ ] =>
+      unfold compose_meminj in H3; rewrite H1, H2 in H3; inv H3
+    end.
+  Lemma compose_more_defined_val_inject:
+        compose_more_defined Val.inject inject_strong.
+  Proof.
+    intros ? **; inv H; inv H0; inv H1;
+      try solve[econstructor; eauto with more_defined].
+    - unify_compose_meminj. econstructor; eauto.
+      composition_arithmetic.
+  Qed.
+  Hint Resolve compose_more_defined_val_inject: more_defined.
+  Lemma compose_more_defined_memval_inject:
+        compose_more_defined memval_inject memval_inject_strong.
+  Proof.
+    intros ?? t1 **.
+    inv H; inv H0; inv H1;
+      try solve[econstructor; eauto with more_defined].
+  Qed.
+  Lemma inject_hi_low_determ:
+    forall f, deterministic (inject_hi_low f).
+  Proof. intros ? ?; intros. inv H; inv H0.
+         rewrite H1 in H5; inv H5; auto.
+  Qed.
+  Hint Resolve inject_hi_low_determ: determ.
+  Lemma list_inject_hi_low_determ:
+    forall f, deterministic (list_inject_hi_low f).
+  Proof. intros; eauto with determ. Qed.
+  Hint Resolve compose_more_defined_memval_inject: more_defined.
+  Lemma compose_more_defined_memval_inject_list:
+    compose_more_defined list_memval_inject list_memval_inject_strong.
+  Proof. eauto with more_defined. Qed.
+  Hint Resolve compose_more_defined_memval_inject_list: more_defined.
+  
+  Lemma compose_more_defined_mem_effect:
+    compose_more_defined inject_mem_effect inject_mem_effect_strong.
+  Proof. intros ? **.
+         inv H0; inv H1; inv H; try unify_compose_meminj.
+    - rewrite Z.add_assoc.
+      econstructor; eauto with more_defined.
+    - repeat rewrite Z.add_assoc.
+      econstructor; eauto with more_defined.
+    - econstructor. replace l4 with l3; eauto.
+      eapply list_inject_hi_low_determ; try apply H1.
+      eapply list_inject_hi_low_compose; eauto.
+  Qed.
+  Hint Resolve compose_more_defined_mem_effect: more_defined.
+  Lemma compose_more_defined_mem_effect_list:
+    compose_more_defined list_inject_mem_effect list_inject_mem_effect_strong.
+  Proof. eauto with more_defined. Qed.
+  Hint Resolve compose_more_defined_mem_effect_list: more_defined.
+  Lemma compose_more_defined_inject_delta_map:
+    compose_more_defined EventsAux.inject_delta_map EventsAux.inject_delta_map.
+  Proof. intros ? **.
+         replace t3 with t_str; auto.
+         eapply EventsAux.inject_delta_map_determ; try apply H.
+         eapply EventsAux.inject_delta_map_compose; eauto.
+  Qed.
+  Hint Resolve compose_more_defined_inject_delta_map: more_defined.
+  Lemma inject_event_strong_define:
+    compose_more_defined inject_event inject_event_strong.
+  Proof.
+    intros ? **.
+    inv H0; inv H1; inv H; try solve[econstructor].
+    - econstructor; eauto with more_defined.
+    - econstructor; eauto with more_defined.
+      unfold compose_meminj in H7.
+      rewrite H2,H8 in H7. inv H7. eauto.
+  Qed.
+  Hint Resolve inject_event_strong_define: more_defined.
+  Lemma inject_trace_strong_define:
+    compose_more_defined inject_trace inject_trace_strong.
+  Proof. eauto with more_defined. Qed.
+  
+End MoreDefinedInjection.
+  
 
 Section ExposingMemory.
   
@@ -729,9 +836,7 @@ Section Composition.
   exists (i2', i1'); exists s3'; exists (compose_meminj f12' f23'), t3'. repeat (split; auto).
   + exists s2',f12', f23'; auto.
   + subst; eapply compose_inject_incr; auto.
-  + subst.
-  admit. (*this is in Events.v *)
-  (* eapply inject_trace_strong_compose; eauto. *)
+  + subst. eapply inject_trace_strong_compose; eauto.
   
 - (*match_states preserves at_external *)
   unfold preserves_atx_inj; intros.
@@ -742,14 +847,6 @@ Section Composition.
   destruct H0 as (args'&Hatx&Hinj).
   exists args'.
   split; eauto.
-  Lemma inject_compose_meminj:
-    forall v1 v2 v3 j12 j23 j13,
-      Val.inject j12 v1 v2 ->
-      Val.inject j23 v2 v3 ->
-      j13 = compose_meminj j12 j23 ->
-      Val.inject j13 v1 v3.
-  Proof.
-  Admitted.
   Lemma inject_list_compose_meminj:
     forall lv1 lv2 lv3 j12 j23 j13,
       Val.inject_list j12 lv1 lv2 ->
@@ -760,7 +857,7 @@ Section Composition.
     induction lv1.
     - intros. inversion H; subst; inversion H0; constructor.
     - intros. inversion H; subst; inversion H0; subst; constructor.
-      + eapply inject_compose_meminj; eauto.
+      + eapply Events.val_inject_compose; eauto.
       + eapply IHlv1; eauto.
   Qed.
   eapply inject_list_compose_meminj; eassumption.
@@ -863,20 +960,13 @@ Section Composition.
     * econstructor.
       do 2 eexists.
       repeat split; eauto.
-    *
-      Lemma inject_trace_strong_trans:
-        forall f12 f23 t1 t2 t3,
-        inject_trace_strong f12 t1 t2 ->
-        inject_trace_strong f23 t2 t3 ->
-        inject_trace_strong (compose_meminj f12 f23) t1 t3.
-        
-      Admitted.
-      eapply inject_trace_strong_trans; eassumption.
+    * eapply inject_trace_strong_compose; eauto.
   + intros t' Htrace.
-    destruct (inject_trace_strong_interpolation Htrace) as (t2&Htrace12&Htrace23).
-    assert (t2 = t2') by (eapply inject_trace_strong_determ; eassumption).
-    subst t2'.
-    destruct (Hsim23 t' Htrace23) as 
+    exploit inject_trace_strong_define; eauto; intros Htrace23'.
+    (* destruct (inject_trace_strong_interpolation Htrace) as 
+       (t2&Htrace12&Htrace23). *)
+    (* assert (t2 = t2') by (eapply inject_trace_strong_determ; eassumption).*)
+    destruct (Hsim23 _ Htrace23') as 
         [i2' [s3' [? ?]]].
     exists (i2', i1'); exists s3'. repeat (split; auto).
     exists s2',f12', f23'; auto.

@@ -80,9 +80,9 @@ Inductive inject_mem_effect (mu: meminj): mem_effect -> mem_effect -> Prop :=
     mu b1 = Some (b2, delt) ->
     list_memval_inject mu vals1 vals2 ->
     inject_mem_effect mu (Write b1 ofs1 vals1) (Write b2 (ofs1 + delt) vals2)
-| InjectAlloc: forall lo hi b1 b2 delt,
-    mu b1 = Some (b2, delt) -> (* should delt = 0 *)
-    inject_mem_effect mu (Alloc b1 hi lo) (Alloc b2 (hi+delt) (lo+delt))
+| InjectAlloc: forall lo hi b1 b2,
+    mu b1 = Some (b2, 0) -> 
+    inject_mem_effect mu (Alloc b1 hi lo) (Alloc b2 hi lo)
 | InjectFree: forall l1 l2,
     list_inject_hi_low mu l1 l2 ->
     inject_mem_effect mu (Free l1) (Free l2).
@@ -94,9 +94,9 @@ Inductive inject_mem_effect_strong (mu: meminj): mem_effect -> mem_effect -> Pro
     mu b1 = Some (b2, delt) ->
     list_memval_inject_strong mu vals1 vals2 ->
     inject_mem_effect_strong mu (Write b1 ofs1 vals1) (Write b2 (ofs1 + delt) vals2)
-| InjectAllocStrong:forall lo hi b1 b2 delt,
-    mu b1 = Some (b2, delt) -> (* should delt = 0 *)
-    inject_mem_effect_strong mu (Alloc b1 hi lo) (Alloc b2 (hi+delt) (lo+delt))
+| InjectAllocStrong:forall lo hi b1 b2,
+    mu b1 = Some (b2, 0) -> 
+    inject_mem_effect_strong mu (Alloc b1 hi lo)(Alloc b2 hi lo)
 | InjectFreeStrong: forall l1 l2,
     list_inject_hi_low mu l1 l2 ->
     inject_mem_effect_strong mu (Free l1) (Free l2).
@@ -791,24 +791,24 @@ Section StrongRelaxedInjections.
            - rewrite Zplus_assoc_reverse.
              econstructor; eauto with compose_inj.
              (unfold compose_meminj; rewrite H; rewrite H6); eauto.
-           - repeat rewrite <- Z.add_assoc. econstructor.
-             unfold compose_meminj; rewrite H, H5; auto.
+           (*- repeat rewrite <- Z.add_assoc. econstructor.
+             unfold compose_meminj; rewrite H, H5; auto.*)
     Qed.
-    Hint Resolve inject_mem_effect_compose: compose_inj.
+    Hint Resolve inject_mem_effect_compose: compose_inj. 
     Lemma inject_mem_effect_strong_compose: composes_inj inject_mem_effect_strong.
     Proof. composed_injections.
            - rewrite Zplus_assoc_reverse.
              econstructor; eauto with compose_inj.
              (unfold compose_meminj; rewrite H; rewrite H6); auto.
-           - repeat rewrite <- Z.add_assoc. econstructor.
-             unfold compose_meminj; rewrite H, H5; auto.
+           (*- repeat rewrite <- Z.add_assoc. econstructor.
+              unfold compose_meminj; rewrite H, H5; auto.*)
     Qed.
     Hint Resolve inject_mem_effect_strong_compose: compose_inj.
     Lemma list_inject_event_compose: composes_inj list_inject_mem_effect.
-    Proof. eauto with compose_inj. Qed.
-    Hint Resolve list_inject_event_compose: compose_inj.
+    Proof. eauto with compose_inj. Qed. 
+    Hint Resolve list_inject_event_compose: compose_inj. 
     Lemma list_inject_event_strong_compose: composes_inj list_inject_mem_effect_strong.
-    Proof. eauto with compose_inj. Qed.
+    Proof. eauto with compose_inj. Qed. 
     Hint Resolve list_inject_event_strong_compose: compose_inj.
     Lemma inject_event_compose: composes_inj inject_event.
     Proof. composed_injections. Qed.
@@ -850,24 +850,24 @@ Section StrongRelaxedInjections.
            repeat (econstructor; eauto; repeat rewrite Z.add_assoc).
     Qed.
     Hint Resolve str_interpolation_list_inject_hi_low: str_interp.
-    Lemma str_interpolation_mem_effect:
+    (* Lemma str_interpolation_mem_effect:
       strong_interpolation inject_mem_effect inject_mem_effect_strong.
-    Proof. str_interp; repeat (econstructor; eauto; repeat rewrite Z.add_assoc). Qed.
-    Hint Resolve str_interpolation_mem_effect: str_interp.
+    Proof. str_interp; repeat (econstructor; eauto; repeat rewrite Z.add_assoc). Qed. 
+    Hint Resolve str_interpolation_mem_effect: str_interp. 
     Lemma str_interpolation_list_mem_effect:
       strong_interpolation list_inject_mem_effect list_inject_mem_effect_strong.
-    Proof.  str_interp. Qed.
-    Hint Resolve str_interpolation_list_mem_effect: str_interp.
+    Proof.  str_interp. Qed. 
+    Hint Resolve str_interpolation_list_mem_effect: str_interp. 
     Lemma list_inject_mem_effectstrong_interpolation:
       strong_interpolation list_inject_mem_effect list_inject_mem_effect_strong.
-    Proof.  str_interp. Qed.
-    Hint Resolve list_inject_mem_effectstrong_interpolation: str_interp.
+    Proof.  str_interp. Qed. 
+    Hint Resolve list_inject_mem_effectstrong_interpolation: str_interp. 
     Lemma inject_event_strong_interpolation:
       strong_interpolation inject_event inject_event_strong.
-    Proof. str_interp. Qed.
+    Proof. str_interp. Qed. 
     Lemma inject_trace_strong_interpolation:
       strong_interpolation inject_trace inject_trace_strong.
-    Proof. str_interp. Qed.
+    Proof. str_interp. Qed. *)
   End INTERPOLATION.
 
   Section DETERMINISM.

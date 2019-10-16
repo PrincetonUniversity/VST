@@ -399,12 +399,14 @@ Module X86CoreErasure.
     destruct H4 as [m4' [Hstore4' Hmem4']].
     eapply @make_arguments_erasure with (m' := m4') in H5; eauto with regs_erasure.
     destruct H5 as [? [? [? [? ?]]]].
-    exists (State x x0), x0.
+    exists (State x x0), x0. instantiate(1:=b0) in H; subst b0.
     split; simpl; split; eauto.
     econstructor; eauto.
     
-    eapply mem_erasure'_erase;
-      eauto.
+    eapply mem_erasure'_erase; eauto.
+
+    subst stck_sz; eauto.
+    
   Qed.    
         
   Lemma halted_erase:
@@ -1290,6 +1292,7 @@ Module X86CoreErasure.
       destruct H4 as [vargs' [T1' [Hargs_ev [Hargs_erasure Htrace_erasure]]]].
       eapply builtin_event_erasure in H5...
       destruct H5 as [T2' [Hbuiltin  Htrace_erasure2]].
+      destruct H6 as [?HH H6].
       eapply external_call_erasure in H6; eauto.
       destruct H6 as [vres' [m2' [Hextcall' [Hvres_erasure Hmem2']]]].
       exists (State

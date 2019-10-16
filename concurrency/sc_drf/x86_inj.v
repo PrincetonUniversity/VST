@@ -968,17 +968,17 @@ Module X86Inj.
     subst; simpl.
     inv H1.
     simpl.
-    assert (Hstk: Mem.valid_block m1 stk)
+    assert (Hstk: Mem.valid_block m1 spb)
       by (eapply Mem.valid_new_block; eauto).
-    eapply mem_valid_alloc in H6; eauto.
-    destruct H6 as [Hvalid_m1 Hf'].
+    eapply mem_valid_alloc in H7; eauto.
+    destruct H7 as [Hvalid_m1 Hf'].
     destruct Hf' as [f' [Hincr' Hren']].
-    eapply storev_wd_domain in H7; eauto.
-    destruct H7 as [Hvalid_m2 Hmemren2].
     eapply storev_wd_domain in H8; eauto.
-    destruct H8 as [Hvalid_m3 Hmemren3].
-    eapply make_arguments_wd in H9; eauto.
-    destruct H9 as [? [? ?]].
+    destruct H8 as [Hvalid_m2 Hmemren2].
+    eapply storev_wd_domain in H9; eauto.
+    destruct H9 as [Hvalid_m3 Hmemren3].
+    eapply make_arguments_wd in H10; eauto.
+    destruct H10 as [? [? ?]].
     split; auto.
     split.
     eexists; eauto.
@@ -989,7 +989,7 @@ Module X86Inj.
     subst sp.
     simpl.
     eapply Hren' in Hstk.
-    destruct (f' stk); [eexists; eauto | by exfalso].
+    destruct (f' spb); [eexists; eauto | by exfalso].
     apply regset_wd_set.
     unfold Vnullptr.
     destruct Archi.ptr64; simpl; auto.
@@ -1428,27 +1428,27 @@ Module X86Inj.
     inv Hvf.
     exploit find_funct_ptr_inj; eauto; intro; subst.
     assert (Hnext23: Mem.nextblock m2 = Mem.nextblock m3)
-      by(eapply nextblock_storev in H1; eauto).
+      by(eapply nextblock_storev in H2; eauto).
     assert (Hnext34: Mem.nextblock m3 = Mem.nextblock m4)
-      by (eapply nextblock_storev in H2; eauto).
-    assert (Hnext4: Mem.nextblock m4 = Mem.nextblock m).
-    { eapply X86SEMAxioms.make_arguments_unchanged_on in H3.
-      destruct H3 as [_ [_ Hvalid_eq]].
+      by (eapply nextblock_storev in H3; eauto).
+    assert (Hnext4: Mem.nextblock m4 = Mem.nextblock m5).
+    { eapply X86SEMAxioms.make_arguments_unchanged_on in H4.
+      destruct H4 as [_ [_ Hvalid_eq]].
       unfold Mem.valid_block, Plt in Hvalid_eq.
-      destruct (Pos.lt_total (Mem.nextblock m4) (Mem.nextblock m)); auto.
+      destruct (Pos.lt_total (Mem.nextblock m4) (Mem.nextblock m5)); auto.
       exfalso.
-      pose proof (proj1 (Hvalid_eq (Mem.nextblock m4)) H3).
+      pose proof (proj1 (Hvalid_eq (Mem.nextblock m4)) H0).
       zify; omega.
-      destruct H3; auto.
+      destruct H0; auto.
       exfalso.
-      pose proof (proj2 (Hvalid_eq (Mem.nextblock m)) H3).
+      pose proof (proj2 (Hvalid_eq (Mem.nextblock m5)) H0).
       zify; omega.
     }
 
-    remember (Mem.alloc m1' 0 (3 * size_chunk Mptr)) eqn:Halloc'.
+    remember (Mem.alloc m1' 0 (Bounds.fe_size pre_main_env)) eqn:Halloc'.
     destruct p as [m2' stk'].
     symmetry in Halloc'.
-    destruct (alloc_obs_eq Hmem_obs_eq H0 Halloc') as
+    destruct (alloc_obs_eq Hmem_obs_eq H1 Halloc') as
         (f' & Hf' & Hmem_obs_eq1' & Hincr' & Hsep & Hnextblock & Hinverse & Hid).
     pose (Vptr stk' Ptrofs.zero) as sp'.
     assert (Hval_sp: val_obs f' sp sp')
@@ -1456,12 +1456,14 @@ Module X86Inj.
           econstructor; now eauto).
     assert(Hvnull: val_obs f' Vnullptr Vnullptr)
       by (unfold Vnullptr; destruct (Archi.ptr64); econstructor).
-    eapply storev_val_obs with (vptr2 := Val.offset_ptr sp' (Ptrofs.repr (2 * size_chunk Mptr)))
-                               (v2 := Vnullptr) in H1; eauto with val_renamings.
-    destruct H1 as [m3' [Hstorev3' Hmem_obs_eq3']].
-    eapply storev_val_obs with (vptr2 := (Val.offset_ptr sp' Ptrofs.zero))
+    eapply storev_val_obs with (vptr2 := Val.offset_ptr sp' (Ptrofs.repr (Bounds.fe_ofs_link pre_main_env)))
                                (v2 := Vnullptr) in H2; eauto with val_renamings.
-    destruct H2 as [m4'  [Hstorev4' Hmem_obs_eq4']].
+    destruct H2 as [m3' [Hstorev3' Hmem_obs_eq3']].
+    eapply storev_val_obs with (vptr2 := (Val.offset_ptr
+                                            sp'
+                                            (Ptrofs.repr (Bounds.fe_ofs_retaddr pre_main_env))))
+                               (v2 := Vnullptr) in H3; eauto with val_renamings.
+    destruct H3 as [m4'  [Hstorev4' Hmem_obs_eq4']].
     pose ((((Pregmap.init Vundef) # PC <- (Vptr b Ptrofs.zero)) # RA <- Vnullptr) # RSP <- sp') as rs0'.
     assert (Hregset: regset_ren f' rs0 rs0').
     { subst rs0 rs0'.
@@ -1471,8 +1473,8 @@ Module X86Inj.
         econstructor;
         now eauto.
     }
-    eapply make_arguments_inj in H3; eauto using val_obs_list_incr.
-    destruct H3 as [rs' [m' [Hmake_args' [Hregs' Hmem_obs_eq']]]].
+    eapply make_arguments_inj in H4; eauto using val_obs_list_incr.
+    destruct H4 as [rs' [m' [Hmake_args' [Hregs' Hmem_obs_eq']]]].
     assert (Hnext23': Mem.nextblock m2' = Mem.nextblock m3')
       by(eapply nextblock_storev in Hstorev3'; eauto).
     assert (Hnext34': Mem.nextblock m3' = Mem.nextblock m4')
@@ -1483,11 +1485,11 @@ Module X86Inj.
       unfold Mem.valid_block, Plt in Hvalid_eq.
       destruct (Pos.lt_total (Mem.nextblock m4') (Mem.nextblock m')); auto.
       exfalso.
-      pose proof (proj1 (Hvalid_eq (Mem.nextblock m4')) H1).
+      pose proof (proj1 (Hvalid_eq (Mem.nextblock m4')) H0).
       zify; omega.
-      destruct H1; auto.
+      destruct H0; auto.
       exfalso.
-      pose proof (proj2 (Hvalid_eq (Mem.nextblock m')) H1).
+      pose proof (proj2 (Hvalid_eq (Mem.nextblock m')) H0).
       zify; omega.
     }
     exists (State rs' m'), m', f'.
@@ -1495,34 +1497,34 @@ Module X86Inj.
     repeat match goal with
            | [ |- _ /\ _] =>
              split; simpl; eauto with renamings reg_renamings
-           end; try (econstructor; now eauto).
-    rewrite <- Hnext4', <- Hnext34', <- Hnext23'.
-    rewrite <- Hnext4, <- Hnext34, <- Hnext23.
-    eassumption.
-    intros b0 Hvalidm' Hinvalidm1'.
-    unfold Mem.valid_block in *.
-    rewrite <- Hnext4', <- Hnext34', <- Hnext23' in Hvalidm'.
-    now eauto.
-    intros b2 Hunmapped ofs.
-    eapply X86SEMAxioms.make_arguments_unchanged_on in Hmake_args'.
-    destruct Hmake_args' as [_ [Hperm_Eq _]].
-    erewrite <- Hperm_Eq.
-    eapply MemoryLemmas.mem_storev_store in Hstorev4'.
-    destruct Hstorev4' as [? [? [? Hstore4']]].
-    eapply Mem.store_access in Hstore4'.
-    eapply MemoryLemmas.mem_storev_store in Hstorev3'.
-    destruct Hstorev3' as [? [? [? Hstore3']]].
-    eapply Mem.store_access in Hstore3'.
-    unfold permissions.permission_at in *.
-    erewrite Hstore4', Hstore3'.
-    pose proof (MemoryLemmas.permission_at_alloc_4 _ _ _ _ _ b2 ofs Halloc') as Hperm_alloc.
-    unfold permissions.permission_at in Hperm_alloc.
-    eapply Hperm_alloc.
-    intros Hcontra.
-    subst.
-    apply Hunmapped.
-    eexists;
+           end; try solve [econstructor; eauto].
+    - rewrite <- Hnext4', <- Hnext34', <- Hnext23'.
+      rewrite <- Hnext4, <- Hnext34, <- Hnext23.
+      eassumption.
+    - intros b0 Hvalidm' Hinvalidm1'.
+      unfold Mem.valid_block in *.
+      rewrite <- Hnext4', <- Hnext34', <- Hnext23' in Hvalidm'.
       now eauto.
+    - intros b2 Hunmapped ofs.
+      eapply X86SEMAxioms.make_arguments_unchanged_on in Hmake_args'.
+      destruct Hmake_args' as [_ [Hperm_Eq _]].
+      erewrite <- Hperm_Eq.
+      eapply MemoryLemmas.mem_storev_store in Hstorev4'.
+      destruct Hstorev4' as [? [? [? Hstore4']]].
+      eapply Mem.store_access in Hstore4'.
+      eapply MemoryLemmas.mem_storev_store in Hstorev3'.
+      destruct Hstorev3' as [? [? [? Hstore3']]].
+      eapply Mem.store_access in Hstore3'.
+      unfold permissions.permission_at in *.
+      erewrite Hstore4', Hstore3'.
+      pose proof (MemoryLemmas.permission_at_alloc_4 _ _ _ _ _ b2 ofs Halloc') as Hperm_alloc.
+      unfold permissions.permission_at in Hperm_alloc.
+      eapply Hperm_alloc.
+      intros Hcontra.
+      subst.
+      apply Hunmapped.
+      eexists;
+        now eauto.
   Qed.
 
   Lemma core_inj_id :
@@ -2283,6 +2285,7 @@ Module X86Inj.
                try (intros (_ & _ & Hcontra);
                     now exfalso).
       + (* EF_malloc case*)
+        destruct H10 as [?HH H10]. 
         pose proof H10 as Hext_call.
         simpl in H10.
         inv H10.
@@ -2312,9 +2315,7 @@ Module X86Inj.
           assert (v' = Vptrofs sz)
             by (unfold Vptrofs in *;
                 destruct Archi.ptr64; inv H11; reflexivity); subst.
-          econstructor.
-          eauto.
-          eauto.
+          do 2 (econstructor; eauto).
         * (* injection on cores is preserved *)
           simpl.
           unfold nextinstr_nf, nextinstr.
@@ -2340,6 +2341,7 @@ Module X86Inj.
           reflexivity.
         * econstructor.
       + (*EF_free*)
+        destruct H10 as [?HH H10]. 
         pose proof H10 as Hext_call.
         simpl in H10.
         inv H10.
@@ -2385,14 +2387,15 @@ Module X86Inj.
           eapply Mem.valid_block_free_2; eauto.
         * intros b1 Hunmmaped ofs0.
           erewrite permission_at_free_2; eauto.
-          intros Hcontra.
-          subst. now eauto.
+          (* intros Hcontra.
+          subst. now eauto. *)
         * destruct Hobs_eq.
           destruct weak_obs_eq0.
           now eauto.
         * destruct Hobs_eq;
             now eauto.
       + (* EF_memcpy *)
+        destruct H10 as [?HH H10]. 
         pose proof H10 as Hext_call.
         simpl in H10.
         inv H10.
@@ -2420,7 +2423,7 @@ Module X86Inj.
           simpl.
           eapply Asm.exec_step_builtin; eauto.
           simpl.
-          econstructor; eauto.
+          do 2 (econstructor; eauto).
           destruct H13 as [Hneq | ?]; [|now auto].
           left.
           intros Hcontra.
@@ -2458,6 +2461,9 @@ Module X86Inj.
       destruct (Ptrofs.eq_dec _ _); [|contradiction].
       rewrite H6 in H0.
       apply get_extcall_arguments_spec in H8; rewrite H8 in H0; discriminate.
+
+      Unshelve.
+      econstructor.
   Qed.
 
   (** Coresteps maintain well-definedness *)
@@ -2699,6 +2705,7 @@ Qed.
     - exploit Hsafe; eauto.
       destruct ef; try (intros (? & ? &?) ; exfalso; now auto).
       + (* EF_malloc case*) 
+        destruct H7 as [?HH H7]. 
         intros.
         simpl in H7.
         inversion H7; subst.
@@ -2734,6 +2741,7 @@ Qed.
         eapply X86WD.regset_wd_incr;
           eauto.
       + (* EF_free case*)
+        destruct H7 as [?HH H7]. 
         intros _.
         simpl in H7.
         inversion H7; subst.
@@ -2754,7 +2762,8 @@ Qed.
                  destruct H; try discriminate
                end; auto.
         eapply X86WD.regset_wd_undef...
-      + (* EF_memcpy case*) 
+      + (* EF_memcpy case*)
+        destruct H7 as [?HH H7]. 
         intros.
         simpl in H7.
         inversion H7; subst.
