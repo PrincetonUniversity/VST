@@ -137,10 +137,10 @@ Lemma evolution_inject_effect:
     Events.inject_mem_effect j' ev1 ev2.
 Proof.
   intros. inversion H; subst; eauto.
-  replace (Alloc b2 ofs1 ofs1') with (Alloc b2 (ofs1 + 0) (ofs1' + 0)).
+  (*replace (Alloc b2 ofs1 ofs1') with (Alloc b2 (ofs1 + 0) (ofs1' + 0)). *)
   econstructor; destruct (eq_block b1 b1); eauto.
   contradict n; reflexivity.
-  f_equal; Omega.omega.
+  (*f_equal; Omega.omega.*)
 Qed.
 Lemma effect_evolution_incr:
   forall j j' ev1 ev2,
@@ -589,11 +589,11 @@ Proof.
     inversion Hconsec'; subst.
     inversion Hinj_str; subst.
     match_case in H1. inversion H1; subst.
-    rewrite (Hsimpl_incr b1 nb delt); auto.
+    (*rewrite (Hsimpl_incr b1 nb delt); auto.
     repeat match goal with
              | [|- context[(?x + 0)%Z]] => replace (x + 0)%Z with x by Omega.omega
              | [|- context[(0 + ?x)%Z]] => replace (0 + x)%Z with x by Omega.omega
-           end.
+           end. *)
     econstructor.
   - inversion H; subst.
     inversion Hinj_str; subst.
