@@ -48,8 +48,14 @@ Module Main
   (*Assumptions *)
   Context (CPROOF : semax_to_juicy_machine.CSL_proof).
   Context (program_proof : CSL_prog CPROOF = C_program).
-  Definition Main_ptr:=Values.Vptr (Ctypes.prog_main C_program) Integers.Ptrofs.zero.
+  Definition main_ident_src:= Ctypes.prog_main C_program.
+  Definition main_ident_tgt:= AST.prog_main Asm_program.
+  Context (fb: positive).
+  Context (main_symbol_source : Genv.find_symbol (Clight.globalenv C_program) main_ident_src = Some fb).
+    Context (main_symbol_target : Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some fb).
+  Definition Main_ptr:= Values.Vptr fb Integers.Ptrofs.zero.
   Context (compilation : CC_correct.CompCert_compiler C_program = Some Asm_program).
+  
   Context (asm_genv_safe: Asm_core.safe_genv (@x86_context.X86Context.the_ge Asm_program)).
   Instance SemTarget : Semantics:= @x86_context.X86Context.X86Sem Asm_program asm_genv_safe.
   Existing Instance X86Inj.X86Inj.
@@ -168,8 +174,7 @@ Module Main
           f_equal. eapply Axioms.proof_irr. *)
       + eapply SAFE.
     - intros. eapply Clight_initial_safe; auto.
-    - clear H. split; eauto; econstructor; repeat split; try reflexivity; eauto.
-      
+    - clear H. split; eauto; econstructor; repeat (split; try reflexivity; eauto).
     - rewrite program_proof; apply CPROOF_initial_mem.
   Qed.
 
@@ -187,7 +192,7 @@ Module Main
                              init_mem_target
                              init_tp_target
                              init_mem_target'
-                             Main_ptr nil /\
+                             main_ident_tgt nil /\
       
       (forall n,
         HybridMachineSig.HybridMachineSig.HybridFineMachine.fsafe
@@ -229,9 +234,8 @@ Module Main
     split.
     - simpl.
       unfold HybridMachineSig.init_machine''.
-      split; auto.
-      simpl.
-      unfold BareMachine.init_mach.
+      exists fb; split; auto.
+      + simpl. split; eauto. simpl. unfold BareMachine.init_mach.
       exists c. simpl.
       split; auto.
     - intros.
@@ -256,7 +260,15 @@ Module Main
       simpl in Hinit, Hinit2.
       destruct Hinit as [Hinit ?], Hinit2 as [Hinit2 ?]; subst.
       specialize (sd_initial_determ _ _ _ _ _ Hinit Hinit2); subst.
-      now eauto.
+      simpl.
+      replace init_thread_target2 with c2 in Hsafe2; eauto.
+      clear - Heq2.
+      inv Heq2.
+      eapply Eqdep.EqdepTheory.inj_pair2 in H0; eauto.
+      simpl in H0.
+      assert (x:'I_1).
+      apply (@Ordinal _ 0). constructor.
+      eapply (f_equal (fun F=> F x)) in H0. inv H0; reflexivity.
   Qed.
   
 
@@ -272,7 +284,52 @@ Module Main
     Import ThreadPool BareMachine CoreInjections HybridMachineSig.
     Import main_definitions.
     Import Args.
-    
+
+    Lemma blah:
+      CSL_correct C_program ->
+      exists src_m src_cpm,
+        CSL_init_setup C_program src_m src_cpm.
+    Proof.
+      intros.
+      inv H. inv H1. destruct (spr CPROOF) as (?&?&(?&?)&?&?&?).
+
+      destruct lookup_wrapper as (b_wrapper & Hb_main).
+      
+      exploit e0.
+      { eauto. }
+      intros (jm'&Hjm&Hinit_core).
+      dup Hinit_core as Hinit_core'.
+      inv Hinit_core.
+      simpl in H2.
+      do 2 match_case in H2. normal_hyp.
+      match_case in H6.
+      (* clear the ones that clearly are not.*) 
+      clear H1. clear H6.
+      destruct f; swap 1 2.
+        { (*there is no external case! *)
+          admit. }
+        
+      do 2 eexists. econstructor; eauto. (* solves the find_funct_ptr*)
+      - instantiate(1:= sval (init_mem CPROOF)).
+        clear.
+        destruct (init_mem CPROOF); simpl; auto.
+      - clear - Hinit_core'.
+        simpl in Hinit_core'.
+        econstructor; eauto.
+        + rewrite Heqt0; f_equal; auto.
+          admit. 
+        + admit. (* needs to be added *)
+        + admit.
+        + simpl. rewrite Heql; auto.
+        + admit.
+        +  admit.
+        + constructor.
+        + admit.
+
+          Unshelve. exact O.
+    Admitted.
+        
+        
   Theorem main_safety_clean:
       (* C program is proven to be safe in CSL*)
       CSL_correct C_program ->
@@ -285,10 +342,6 @@ Module Main
         (* Initial State for CSL *)
         CSL_init_setup C_program src_m src_cpm ->
         
-        (*Correct entry point Clight (There is inconsistencies with CSL_init_Setup)*)
-        (* TODO: fix initial state inconsistenciees and unify. *)
-        entry_point (globalenv C_program) src_m src_cpm (main_ptr C_program) nil ->
-        
         (* ASM memory good. *)
         forall (limited_builtins:Asm_core.safe_genv x86_context.X86Context.the_ge),
         asm_prog_well_formed Asm_program limited_builtins ->
@@ -297,12 +350,12 @@ Module Main
             (* inital asm machine *)
             permissionless_init_machine
               Asm_program limited_builtins
-              tgt_m0 tgt_cpm tgt_m (main_ptr C_program) nil /\
+              tgt_m0 tgt_cpm tgt_m main_ident_tgt nil /\
 
             (*it's spinlock safe: well synchronized and safe *)
             spinlock_safe U tgt_cpm tgt_m.
   Proof.
-    intros * Hcsafe * Hcompiled * HCSL_init Hentry Hlimit_biltin  Hasm_wf *.
+    intros * Hcsafe * Hcompiled * HCSL_init Hlimit_biltin  Hasm_wf *.
     
     inv Hcsafe.
     rename H into Hprog.
@@ -314,32 +367,52 @@ Module Main
     { destruct (semax_to_juicy_machine.spr CPROOF) as (BB & q & [HH Hinit] & ?); simpl.
       unfold semax_to_juicy_machine.prog in *.
       rewrite Hprog in HH.
-      rewrite HH in H1; inversion H1; reflexivity. }
+      rewrite HH in H0; inversion H0; reflexivity. }
     assert (sval (Clight_safety.f_main CPROOF) = f_main).
     { destruct_sig; simpl.
       unfold Clight_safety.ge, Clight_safety.prog in e.
       rewrite HH2 Hprog in e.
-      rewrite H2 in e; inversion e; reflexivity.
+      rewrite H1 in e; inversion e; reflexivity.
     }
     assert (HH4: erasure_safety.init_mem CPROOF = src_m).
     { unfold erasure_safety.init_mem.
-      clear - Hprog H0.
+      clear - Hprog H.
       destruct_sig; simpl.
       unfold semax_to_juicy_machine.prog in *.
       rewrite Hprog in e.
-      rewrite H0 in e; inv e; reflexivity. }
-    assert (HH5: Clight_safety.initial_Clight_state CPROOF = src_cpm).
-    { unfold Clight_safety.initial_Clight_state.
-      rewrite <- H, <- Hprog.
-      unfold Clight_init_state, Clight_safety.initial_Clight_state; repeat (f_equal; eauto). }
+      rewrite H in e; inv e; reflexivity. }
 
-    subst; rewrite Hprog. 
+    subst. 
     exploit CSL2FineBareAsm_safety; eauto.
+    - admit.
+    - inv HCSL_init. unfold Main_ptr.
+
+      replace b_main with (projT1 (spr CPROOF)) in *.
+      replace src_cpm with (Clight_safety.initial_Clight_state CPROOF)
+        in H6; auto.
+      + unfold Clight_safety.initial_Clight_state.
+        inv H6. f_equal.
+        * simpl. rewrite <- Hprog in H9.
+          destruct (Clight_safety.f_main CPROOF) as (?&HH); simpl.
+          clear - HH H9.
+          unfold Clight_safety.ge, Clight_safety.prog in *.
+          rewrite H9 in HH; inv HH; reflexivity.
+        * clear - H14. unfold vals_have_type in H14.
+          destruct targs; eauto.
+          inv H14.
+      + (* b_main = projT1 (spr CPROOF) *)
+        rewrite <- Hprog in H4.
+        clear - H5 H4.
+        destruct (spr CPROOF) as (?&?&(?&?)&?); simpl.
+        rewrite H4 in e; inv e; auto.
+          
     - simpl; intros;
         (*The following line constructs the machine with [init_tp] *)
         (unshelve normal; try eapply init_tp; shelve_unifiable); eauto.
       (*spinlock_safe*)
       constructor; eauto.
-  Qed.
-  End CleanMainTheorem.
+  Admitted.
+
+  Lemma blah: 
+  End CleanMainThe
 End Main.

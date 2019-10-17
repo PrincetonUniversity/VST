@@ -30,10 +30,13 @@ Definition permissionless_concursem (SemTarget : Semantics) m:=
        (HybridMachine:=@bareMach SemTarget)
        (machineSig:= BareMachine.BareMachineSig) m).
 Definition permissionless_init_machine (asm_prog: Asm.program) limited_builtins:=
+  fun m0 tp m (main_id: AST.ident) args =>
+  exists b_main, Genv.find_symbol (Genv.globalenv asm_prog) main_id = Some b_main /\
   machine_semantics.initial_machine (permissionless_concursem
                                        (@X86Sem asm_prog limited_builtins)
-                                       (Genv.init_mem asm_prog)) (Some tt).
-
+                                       (Genv.init_mem asm_prog)) (Some tt)
+                                    m0 tp m (Vptr b_main zero) args.
+  
 (* Predicate stating the a Clight program is:
    1. Correct: with Consurrent Separation Logic proof
    2. Has spawn wrappers for spawning threads.
@@ -87,6 +90,7 @@ Inductive CSL_init_setup c_prog: Memory.mem -> state -> Prop :=
       Genv.init_mem (Ctypes.program_of_program c_prog) = Some init_mem_source ->
       Genv.find_symbol (globalenv c_prog) (prog_main c_prog) = Some b_main ->
       Genv.find_funct_ptr (Genv.globalenv (program_of_program c_prog)) b_main = Some f_main ->
+      entry_point (globalenv c_prog) init_mem_source init_st (Vptr b_main zero) nil ->
       CSL_init_setup c_prog init_mem_source init_st.
 
 

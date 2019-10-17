@@ -42,10 +42,11 @@ Require Import VST.concurrency.common.ClightMachine.
 Require Import VST.concurrency.common.x86_context.
 
 Instance inject_delta_map_monotonic:
-  Inject_Monotonic Events.inject_delta_map.
+  Inject_Monotonic EventsAux.inject_delta_map.
 Proof.
   intros ??????.
-Admitted.
+  eapply EventsAux.inj_delta_map_mono; eauto.
+Qed.
 
 (** *One thread simulation*)
 Module Type ThreadSimulationArguments.

@@ -383,11 +383,14 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         unfold Clight.after_external in Hafter_ext.
         unfold Clight.at_external in Hat_external1.
         simpl.
-        destruct code1 eqn:Hcallstate; try discriminate.
-        destruct fd eqn:Hext_func; try discriminate.
+        do 2 match_case in Hafter_ext.
+        do 3 match_case in Hat_external1.
+        (*destruct code1 eqn:Hcallstate; try discriminate.
+        destruct fd eqn:Hext_func; try discriminate.*)
         inversion Hat_external1.
         inversion Hafter_ext.
-        subst e args. simpl in *.
+        subst e0 args. simpl in *.
+        inv Heqs0.
         eapply Clight.step_external_function; eauto.
       Qed.
 
@@ -1879,7 +1882,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                (Hfun: FUN = AST.EF_external name signature)
                (Hun_dsnt_ret: doesnt_return FUN)
                (Hun_dsnt_ret_sig: AST.sig_res signature = None)
-               (Hinj_delts: Events.inject_delta_map mu dpm1 dpm2)
+               (Hinj_delts: EventsAux.inject_delta_map mu dpm1 dpm2)
                (Heqrel_trace1 : rel_trace = Events.Event_acq_rel lev1 dpm1 lev1' :: nil)
                (Heqrel_trace : rel_trace2 = Events.Event_acq_rel lev2 dpm2 lev2' :: nil)
                (HAge: age =  (Genv.globalenv Asm_program))
@@ -2642,7 +2645,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               eapply large_external_diagram; try reflexivity; eauto.
               - exact unlock_doesnt_return.
               - reflexivity.
-              - !goal(Events.inject_delta_map _ _ _ ).
+              - !goal(EventsAux.inject_delta_map _ _ _ ).
                 admit. (* by constructions the birtues inject*)
               - simpl; rewrite ReleaseExists; eauto.
               - exploit (interference_consecutive_until Hinterference2).
@@ -3063,7 +3066,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               eapply large_external_diagram; try reflexivity; eauto.
               - exact lock_doesnt_return.
               - reflexivity.
-              - !goal(Events.inject_delta_map _ _ _ ).
+              - !goal(EventsAux.inject_delta_map _ _ _ ).
                 admit. (* by constructions the birtues inject*)
               - simpl; rewrite AcquireExists; eauto.
               - exploit (interference_consecutive_until Hinterference2).

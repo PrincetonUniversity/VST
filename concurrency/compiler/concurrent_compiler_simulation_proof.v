@@ -47,12 +47,6 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 Require Import VST.concurrency.compiler.single_thread_simulation_proof.
 
 
-Instance inject_delta_map_monotonic:
-  Inject_Monotonic Events.inject_delta_map.
-Proof.
-  intros ??????.
-Admitted.
-
 Module Concurrent_correctness
        (CC_correct: CompCert_correctness)
        (Args: ThreadSimulationArguments).

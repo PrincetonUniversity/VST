@@ -12,7 +12,7 @@ Require Import compcert.cfrontend.Clight.
 Require Import VST.veric.Clight_core.
 
 Require Import VST.concurrency.compiler.self_simulation.
-Require Import VST.veric.Clight_core.
+Require Import VST.concurrency.common.Clight_core.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -22,8 +22,7 @@ Section ClightSelfSim.
   
 
   Context (ge: genv).
-  Lemma clight_self_simulation:
-    self_simulation _ (cl_core_sem ge).
+  Lemma clight_self_simulation: self_simulation _ (cl_core_sem ge).
   Admitted.
 
 End ClightSelfSim.

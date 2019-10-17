@@ -195,8 +195,8 @@ Section DrySafety.
   Proof.
     split; auto; simpl.
     unfold init_rmap, initial_jm, spr.
-    destruct (semax_prog.semax_prog_rule' _ _ _ _ _ _ _ _) as (? & ? & ? & s); simpl.
-    destruct (s n tt) as (jm & ? & ? & ? & ? & ? & ?); simpl.
+    destruct (semax_prog.semax_prog_rule _ _ _ _ _ _ _ _) as (? & ? & ? & s); simpl.
+    destruct (s n) as (jm & ? & ? & ? & ? & ? & ?); simpl.
     destruct jm; simpl in *; subst; intros.
     rewrite <- (JMaccess (b, ofs)).
     unfold access_at, PMap.get; simpl.
@@ -208,8 +208,8 @@ Section DrySafety.
   Proof.
     apply no_locks_no_locks_perm.
     unfold init_rmap, initial_jm, spr.
-    destruct (semax_prog.semax_prog_rule' _ _ _ _ _ _ _ _) as (? & ? & ? & s); simpl.
-    destruct (s n tt) as (jm & ? & ? & ? & ? & ? & ?); auto.
+    destruct (semax_prog.semax_prog_rule _ _ _ _ _ _ _ _) as (? & ? & ? & s); simpl.
+    destruct (s n) as (jm & ? & ? & ? & ? & ? & ?); auto.
   Qed.
 
 
