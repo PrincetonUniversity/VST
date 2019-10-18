@@ -285,7 +285,34 @@ Module Main
     Import main_definitions.
     Import Args.
 
-    Lemma blah:
+    Inductive parch_CSL_proof (prog: Clight.program): Prop:=
+    | CSL_witness:
+      forall (b : block)
+        (q : veric.Clight_core.CC_core)
+        m_init,
+        Genv.init_mem prog = Some m_init ->
+        Genv.find_symbol (globalenv prog) (prog_main prog) = Some b ->
+         initial_core (veric.Clight_core.cl_core_sem (globalenv prog)) 0 m_init q m_init (Vptr b zero) [::] ->
+         parch_CSL_proof prog.
+    Lemma CSL_proof_parch:
+      forall CPROOF : CSL_proof,
+        parch_CSL_proof (prog CPROOF).
+    Proof.
+      intros CPROOF. destruct (spr CPROOF) as (a&b&(c&d)&e&f&g).
+      specialize (d e f).
+      destruct d as (m & Hinit_core).
+      inv Hinit_core. inv H0.
+      destruct (init_mem CPROOF) as (m_init & Hm).
+      econstructor; eauto.
+      econstructor; eauto.
+      split; auto.
+      econstructor.
+
+      Unshelve.
+      exact O.
+    Qed.
+        
+    (* Lemma blah:
       CSL_correct C_program ->
       exists src_m src_cpm,
         CSL_init_setup C_program src_m src_cpm.
@@ -327,7 +354,7 @@ Module Main
         + admit.
 
           Unshelve. exact O.
-    Admitted.
+    Admitted. *)
         
         
   Theorem main_safety_clean:

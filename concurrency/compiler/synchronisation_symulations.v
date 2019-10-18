@@ -3596,6 +3596,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             rewrite Hmem_equiv; simpl; assumption.  *)*)
           + (*match_self*)
             econstructor.
+
             * eapply H3.
             * simpl.
               move matchmem at bottom.

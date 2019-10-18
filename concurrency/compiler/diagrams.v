@@ -567,7 +567,6 @@ Definition simpl_incr (f1 f2 : meminj):=
   Lemma evolution_injection_lessdef:
   forall j j' j0 ev1 ev2 ev20 nb,
     inject_incr j j' ->
-    simpl_incr j j' ->
     injection_evolution_effect j j0 ev1 ev2 ->
     inject_mem_effect_strong j0 ev1 ev2 ->
     inject_mem_effect j' ev1 ev20 ->
@@ -576,7 +575,7 @@ Definition simpl_incr (f1 f2 : meminj):=
     effect_lessdef ev2 ev20.
 Proof.
   intros
-    ??????? Hincr Hsimpl_incr  Hevol Hinj_str Hinject Hconsec Hconsec'.
+    ??????? Hincr Hevol Hinj_str Hinject Hconsec Hconsec'.
   inversion Hevol; subst; clear Hevol; 
     inversion Hinject; subst; clear Hinject.
   - inversion Hinj_str; subst.
@@ -632,7 +631,7 @@ Proof.
     split; auto. reflexivity.
   -  inversion H as [Hevol Hinj_str Hconsec];
        inversion H0 as [Hincr  Hinj Hconsec'].
-     inversion Hevol; inversion Hinj; subst.
+     inversion Hevol; subst. inversion Hinj; subst.
      inversion Hinj_str; subst.
 
      assert (Hincr0: inject_incr j'0 j0).
@@ -641,22 +640,24 @@ Proof.
      assert (Hpdiagram: principled_diagram (nextblock_eff nb ev2) j'0 j0 lev1 ls2).
      { econstructor; eauto.
        eapply consecutive_tail; eassumption. }
-
-     assert (Hdiagram: diagram (nextblock_eff nb y) j'0 j' lev1 ls2).
+     
+     assert (Hdiagram: diagram (nextblock_eff nb y) j'0 j' lev1 l').
      {  econstructor; try eassumption.
-        - clear - Hincr H5 H10 Hconsec' Hconsec.
+        - clear - Hincr H5 H3 Hconsec' Hconsec.
+          (*    H5 : injection_evolution_effect j j'0 a ev2
+                H10 : inject_mem_effect j' a y *)             
           inversion H5; subst; eauto.
-          inversion H10; subst.
+          inversion H3; subst.
           intros ????.
           if_tac in H0; subst; auto.
           + inversion H0; subst.
             inversion Hconsec'; subst.
             inversion Hconsec; subst.
             auto.
-        - eapply consecutive_tail; eassumption.
+        - eapply consecutive_tail. eassumption.
      }
 
-     assert (Hlessdef: effect_lessdef ev2 b).
+     assert (Hlessdef: effect_lessdef ev2 y).
      { 
        eapply (evolution_injection_lessdef j j'); try eassumption.
        * eapply incr_inject_mem_effect_strong; try eassumption.
@@ -665,7 +666,7 @@ Proof.
        * eapply consecutive_head; eauto.
        * eapply consecutive_head; eauto. }
      
-     replace (nextblock_eff nb b) with (nextblock_eff nb ev2) in Hdiagram by
+     replace (nextblock_eff nb y) with (nextblock_eff nb ev2) in Hdiagram by
          (inversion Hlessdef; reflexivity).
      
      edestruct (IHlev1 _ _ _ _ _ _ Hpdiagram Hdiagram) as (Hincr'&Hlessdef').

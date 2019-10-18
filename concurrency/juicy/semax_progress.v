@@ -272,7 +272,7 @@ Section Progress.
 *)
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
-                   corestep (juicy_core_sem (cl_core_sem ge)) ci jmi ci' jmi'
+                   corestep (juicy_core_sem (Clight_core.cl_core_sem ge)) ci jmi ci' jmi'
                    /\ forall ora, jm_bupd ora (jsafeN Jspec' ge n ora ci') jmi').
         {
           specialize (safety i cnti).

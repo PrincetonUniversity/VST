@@ -21,6 +21,7 @@ Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.semax_to_juicy_machine.
 Require Import VST.concurrency.juicy.mem_wd2.
 Require Import VST.concurrency.juicy.Clight_mem_ok.
+Require Import VST.concurrency.lib.tactics.
 (*Require Import VST.veric.Clight_sim.*)
 Require Import VST.msl.eq_dec.
 Require Import VST.concurrency.memsem_lemmas.
@@ -63,10 +64,13 @@ Definition main_handler : Clight.function :=
   {| Clight.fn_return := Ctypes.Tvoid; Clight.fn_callconv := AST.cc_default; Clight.fn_params := nil;
      Clight.fn_vars := nil; Clight.fn_temps := nil; Clight.fn_body := Clight.Sskip |}.
 
-(* This could be simplified if we made some assumptions about main (e.g., that it has no arguments). *)
+(* For now, we assume that main takes no arguemnts. 
+   We demonstrate how to handle arguemtns in thread spawn. It should be easy to modify.
+ *)
 Definition initial_Clight_state : Clight.state :=
   let f := proj1_sig f_main in
-  Clight.Callstate f [Vptr (projT1 (spr CPROOF)) Ptrofs.zero] (Clight.Kstop Tnil) init_mem.
+  (* Clight.Callstate f [Vptr (projT1 (spr CPROOF)) Ptrofs.zero] (Clight.Kstop Tnil) init_mem. *)
+  Clight.Callstate f [] (Clight.Kstop Tnil) init_mem.
 (*
   Clight.State main_handler (Clight.Scall None (Clight.Etempvar 1%positive (Clight.type_of_fundef f))
              (map (fun x => Clight.Etempvar (fst x) (snd x))
@@ -1090,12 +1094,49 @@ try solve [econstructor; eauto];
 econstructor; eauto.
 - (* builtin *)
   unfold AST.ef_inline in *.
-  
   admit. (* ask andrew: maybe change inline_external_call_mem_events? *) 
 - econstructor; eauto.
 - admit. (* external function *)
 Admitted.
 
+(* Move this to the Clight_new -> Clight simulation *)
+
+
+Lemma intial_simulation:
+  forall tid m_init c_init m' fb args,
+    initial_core (@semSem (Clight_newSem ge)) tid m_init c_init m' fb args ->
+    let lifted_c_init := veric.Clight_core.CC_core_to_CC_state c_init m' in
+    initial_core (@semSem (ClightSem ge)) tid m_init lifted_c_init  m' fb args.
+Proof.
+  simpl; intros.
+  split; swap 1 2.
+  - destruct c_init; simpl; reflexivity.
+  - unfold Clight_core.cl_initial_core in *.
+    tactics.normal_hyp.
+    repeat match_case in H.
+    tactics.normal_hyp; subst.
+    simpl.
+    destruct f. 2:{ admit. (* main is not external *) }
+    econstructor; eauto.
+    + rewrite Heqt0; f_equal.
+      admit. (* For now, assume main returns int? 
+                Santiago: I'll investigate how easy is to generalize 
+                this in CompCert, but we should probably stick to a 
+                type_int32s for now.
+              *)
+    + !goal (Smallstep.globals_not_fresh (Clight.genv_genv ge) m_init).
+      admit. (* add this to Clight_core.cl_initial_core*)
+    + !goal (Mem.mem_wd m_init).
+      admit. (* add this to Clight_core.cl_initial_core*)
+    + !goal (Clight.vars_have_type (Clight.fn_vars _) _).
+      admit. (* add this to Clight_core.cl_initial_core*)
+    + !goal (Premain.bounded_args (signature_of_type _ type_int32s AST.cc_default)).
+      admit. (* add this to Clight_core.cl_initial_core
+                
+              *)
+Admitted.
+  
+               
 Lemma Clight_new_Clight_safety_gen:
   forall n sch tr tp m tp' (Hmem: mem_ok tp m),
   csafe
@@ -1118,6 +1159,7 @@ Proof.
   - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
+    simpl in Hinitial.
     destruct Hinitial as (Hinit & Harg & H0ab); subst.
     unfold Clight_core.cl_initial_core in Hinit.
     destruct vf; try contradiction.
@@ -1144,7 +1186,9 @@ Proof.
     2: f_equal; instantiate (1:=H0);
          unfold HybridMachineSig.add_block; simpl; unfold add_block;
          f_equal; auto.
-      { split.
+
+    Set Printing Implicit.
+    { split.
         hnf in Hperm; subst.
         (* destruct lookup_wrapper. *)
         assert (mem_ok tp (restrPermMap (proj1 (compat_th tp m Hcmpt ctn))))
@@ -1490,8 +1534,8 @@ Proof.
   destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
   destruct Hinit as (? & ? & ? & ?); subst.
   inv Hf. inv H2.
-  admit. (* discrepancies in the initial states.*)
-Admitted.
+  reflexivity.
+Qed.
 
 
 (*New safety theorem, with the correct initial state: 
@@ -1541,7 +1585,7 @@ Lemma Clight_new_Clight_safety':
 Proof.
   intros * Hsafe_new sch n.
   unshelve (exploit Clight_new_Clight_safety; eauto).
-  exact sch. apply S; exact n.
+  apply S; exact n. exact sch. 
   clear. revert sch.
   induction n; try solve[constructor].
   intros sch Hsafe.

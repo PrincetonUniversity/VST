@@ -2,7 +2,21 @@ Require Import VST.sepcomp.semantics.
 Require Import VST.sepcomp.semantics_lemmas.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.veric.Clight_base.
-Require Import VST.concurrency.common.Clight_core.
+(*Require Import VST.concurrency.common.Clight_core.*)
+Require Import VST.concurrency.common.core_semantics.
+
+Section CoreSem. (* build a core semantics from CompCert's sem*)
+Lemma cl_corestep_not_halted : forall ge m q m' q' i,
+  step2corestep (part_semantics2 ge) q m q' m' -> ~final_state q i.
+Proof.
+  repeat intro.
+  inv H0. inv H. inv H0.
+Qed.
+
+Definition cl_core_sem (ge : genv) := sem2coresem (part_semantics2 ge) (cl_corestep_not_halted ge).
+
+End CoreSem.
+
 
 Lemma alloc_variables_mem_step: forall cenv vars m e e2 m'
       (M: alloc_variables cenv e m vars e2 m'), mem_step m m'.

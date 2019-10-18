@@ -23,7 +23,7 @@ Require Import compcert.cfrontend.Clight.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.concurrency.common.core_semantics.
 
-
+(*
 Inductive CC_core : Type :=
     CC_core_State : function ->
             statement -> cont -> env -> temp_env -> CC_core
@@ -71,7 +71,7 @@ Lemma CC_core_to_CC_state_inj: forall c m c' m',
   Proof. intros.
        apply  CC_core_CC_state_3 in H. rewrite  CC_core_CC_state_1 in H.  inv H. trivial.
   Qed.
-
+*)
 Lemma cl_corestep_not_halted : forall ge m q m' q' i,
   step2corestep (part_semantics2 ge) q m q' m' -> ~final_state q i.
 Proof.

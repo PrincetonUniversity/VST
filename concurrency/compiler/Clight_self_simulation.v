@@ -22,7 +22,7 @@ Section ClightSelfSim.
   
 
   Context (ge: genv).
-  Lemma clight_self_simulation: self_simulation _ (cl_core_sem ge).
+  Lemma clight_self_simulation: self_simulation _ (Clightcore_coop.cl_core_sem ge).
   Admitted.
 
 End ClightSelfSim.
