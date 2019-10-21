@@ -1113,7 +1113,7 @@ Proof.
   - destruct c_init; simpl; reflexivity.
   - unfold Clight_core.cl_initial_core in *.
     tactics.normal_hyp.
-    repeat match_case in H.
+    repeat match_case in H. 
     tactics.normal_hyp; subst.
     simpl.
     destruct f. 2:{ admit. (* main is not external *) }
@@ -1126,9 +1126,12 @@ Proof.
               *)
     + !goal (Smallstep.globals_not_fresh (Clight.genv_genv ge) m_init).
       admit. (* add this to Clight_core.cl_initial_core*)
-    + !goal (Mem.mem_wd m_init).
+    + !goal (Mem.mem_wd _).
+      !context_goal (Mem.mem_wd). 
+
       admit. (* add this to Clight_core.cl_initial_core*)
     + !goal (Clight.vars_have_type (Clight.fn_vars _) _).
+      (* BOGUS *)
       admit. (* add this to Clight_core.cl_initial_core*)
     + !goal (Premain.bounded_args (signature_of_type _ type_int32s AST.cc_default)).
       admit. (* add this to Clight_core.cl_initial_core

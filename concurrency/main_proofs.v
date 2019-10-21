@@ -6,6 +6,7 @@ Set Implicit Arguments.
 Require Import compcert.common.Globalenvs.
 
 Require Import compcert.cfrontend.Clight.
+Require Import compcert.common.Memory.
 Require Import VST.concurrency.juicy.erasure_safety.
 
 Require Import VST.concurrency.compiler.concurrent_compiler_safety_proof.
@@ -52,7 +53,7 @@ Module Main
   Definition main_ident_tgt:= AST.prog_main Asm_program.
   Context (fb: positive).
   Context (main_symbol_source : Genv.find_symbol (Clight.globalenv C_program) main_ident_src = Some fb).
-    Context (main_symbol_target : Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some fb).
+  Context (main_symbol_target : Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some fb).
   Definition Main_ptr:= Values.Vptr fb Integers.Ptrofs.zero.
   Context (compilation : CC_correct.CompCert_compiler C_program = Some Asm_program).
   
@@ -312,52 +313,8 @@ Module Main
       exact O.
     Qed.
         
-    (* Lemma blah:
-      CSL_correct C_program ->
-      exists src_m src_cpm,
-        CSL_init_setup C_program src_m src_cpm.
-    Proof.
-      intros.
-      inv H. inv H1. destruct (spr CPROOF) as (?&?&(?&?)&?&?&?).
-
-      destruct lookup_wrapper as (b_wrapper & Hb_main).
-      
-      exploit e0.
-      { eauto. }
-      intros (jm'&Hjm&Hinit_core).
-      dup Hinit_core as Hinit_core'.
-      inv Hinit_core.
-      simpl in H2.
-      do 2 match_case in H2. normal_hyp.
-      match_case in H6.
-      (* clear the ones that clearly are not.*) 
-      clear H1. clear H6.
-      destruct f; swap 1 2.
-        { (*there is no external case! *)
-          admit. }
         
-      do 2 eexists. econstructor; eauto. (* solves the find_funct_ptr*)
-      - instantiate(1:= sval (init_mem CPROOF)).
-        clear.
-        destruct (init_mem CPROOF); simpl; auto.
-      - clear - Hinit_core'.
-        simpl in Hinit_core'.
-        econstructor; eauto.
-        + rewrite Heqt0; f_equal; auto.
-          admit. 
-        + admit. (* needs to be added *)
-        + admit.
-        + simpl. rewrite Heql; auto.
-        + admit.
-        +  admit.
-        + constructor.
-        + admit.
-
-          Unshelve. exact O.
-    Admitted. *)
-        
-        
-  Theorem main_safety_clean:
+  Theorem main_safety_clean':
       (* C program is proven to be safe in CSL*)
       CSL_correct C_program ->
 
@@ -411,7 +368,7 @@ Module Main
 
     subst. 
     exploit CSL2FineBareAsm_safety; eauto.
-    - admit.
+    - admit. (* we have it for source... assum it for target?*)
     - inv HCSL_init. unfold Main_ptr.
 
       replace b_main with (projT1 (spr CPROOF)) in *.
@@ -440,6 +397,95 @@ Module Main
       constructor; eauto.
   Admitted.
 
-  Lemma blah: 
-  End CleanMainThe
+  Inductive asm_prog_well_formed' (Asm_prog: Asm.program):=
+| AM_WF: forall asm_genv_safe, asm_prog_well_formed Asm_prog asm_genv_safe ->
+                          asm_prog_well_formed' Asm_prog.
+
+  Inductive initial_state (Asm_program : Asm.program) limited_builtins:
+    t -> Memory.Mem.mem -> Prop :=
+    | Build_init_state:
+        forall tgt_m0 tgt_m tgt_cpm,
+            permissionless_init_machine
+              Asm_program limited_builtins
+              tgt_m0 tgt_cpm tgt_m (AST.prog_main Asm_program) nil ->
+            initial_state Asm_program limited_builtins tgt_cpm tgt_m.
+  Arguments initial_state _ _ _ _: clear implicits.
+
+  Notation CPM:=t.
+  Record static_validation (asm_prog:Asm.program) :=
+    {   limited_builtins:> Asm_core.safe_genv (Genv.globalenv asm_prog)
+        ; init_mem_no_dangling: forall init_mem_target,
+            Genv.init_mem asm_prog = Some init_mem_target ->
+                              valid_mem init_mem_target
+        ; global_envs_allocated: forall init_mem_target,
+            Genv.init_mem asm_prog = Some init_mem_target ->
+            X86Inj.ge_wd (Renamings.id_ren init_mem_target) (Genv.globalenv asm_prog)
+                         (* This last one should be provable and can remove. *)
+          }.
+  
+  Theorem main_safety_clean:
+      (* C program is proven to be safe in CSL*)
+      CSL_correct C_program ->
+
+      (* C program compiles to some assembly program*)
+      CompCert_compiler C_program = Some Asm_program ->
+        
+      (* Statically checkable properties of ASM program *)
+      forall (STATIC: static_validation Asm_program),
+
+      (* For all schedule, *)
+      forall U : schedule,
+        
+      (*The asm program can be initialized with a memory and CPM state*)
+      exists (tgt_m : mem) (tgt_cpm : CPM),
+        initial_state Asm_program STATIC tgt_cpm tgt_m /\
+        
+        (* the initial state and memory 
+           are safe and well-synchronized  *)
+        spinlock_safe U tgt_cpm tgt_m.
+  Proof.
+    intros.
+    dup STATIC as HH; inv HH.
+    dup H as HH; inv HH.
+    unshelve(exploit CSL_proof_parch); eauto.
+    intros HH; destruct HH.
+    inv H5. dup H6 as Hinit.
+    simpl in H6.
+    repeat match_case in H6;
+      destruct H6 as (?&?&?&?).
+    2:{ exfalso; assumption. }
+    
+    exploit main_safety_clean'; eauto.
+    - !goal (CSL_init_setup _ _ _).
+      rewrite <- H1.
+      econstructor; eauto.
+      eapply Clight_safety.intial_simulation; eauto.
+      
+      econstructor; eauto.
+    - econstructor.
+      eapply init_mem_no_dangling0; eauto.
+      eapply global_envs_allocated0; eauto.
+
+    - intros (?&?&?&?&?).
+      do 3 econstructor.
+      + econstructor; eauto.
+      + eauto.
+
+        Unshelve.
+        exact O.
+  Qed.
+  End CleanMainTheorem.
 End Main.
+
+
+Module TestMain 
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
+
+  Module MyMain := Main CC_correct Args.
+  Import MyMain.
+
+  Check main_safety_clean.
+  
+End TestMain.
+  

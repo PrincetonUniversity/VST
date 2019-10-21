@@ -765,7 +765,7 @@ Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop :=
       globals_not_fresh ge m0 ->
       Mem.mem_wd m0 ->
       Val.has_type_list args (typlist_of_typelist targs) ->
-      vars_have_type (fn_vars f) targs ->
+      (*vars_have_type (fn_vars f) targs -> *)
       vals_have_type args targs ->
       Mem.arg_well_formed args m0 ->
       bounded_args sg ->

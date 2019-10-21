@@ -83,7 +83,10 @@ Qed.
 
 Definition cl_core_sem (ge : genv) := sem2coresem (part_semantics2 ge) (cl_corestep_not_halted ge).
 
-Definition at_external := at_external.  (* Temporary definition for compatibility between CompCert 3.3 and new-compcert *)
+Definition at_external := at_external.
+
+
+(* Temporary definition for compatibility between CompCert 3.3 and new-compcert *)
 (*
 Require Import VST.sepcomp.semantics_lemmas.
 Lemma CLC_corestep_mem:

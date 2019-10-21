@@ -83,6 +83,8 @@ Definition asm_prog_well_formed (Asm_prog: Asm.program) asm_genv_safe:=
              (Renamings.id_ren init_mem_target)
              (Genv.globalenv Asm_prog)).
 
+
+
 Inductive CSL_init_setup c_prog: Memory.mem -> state -> Prop :=
 | Build_CSL_initial_setup:
     forall init_mem_source init_st b_main f_main,
