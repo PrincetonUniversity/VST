@@ -103,7 +103,7 @@ Module Main
        (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig) m).
   Definition asm_init_machine:=
     machine_semantics.initial_machine (asm_concursem (Genv.init_mem Asm_program)).
-  Context {SW : Clight_safety.spawn_wrapper CPROOF}.
+  (* Context {SW : Clight_safety.spawn_wrapper CPROOF}. *)
   
   Lemma CSL2CoarseAsm_safety:
     forall U,
@@ -148,31 +148,6 @@ Module Main
     - destruct H as (mem_t& mem_t' & thread_target & INIT_mem & INIT & SAFE).
       exists mem_t, mem_t', thread_target; split (*;[|split] *).
       + eauto. (*Initial memory*)
-        (*
-      + (**) 
-        clear - INIT.
-        simpl in INIT.
-        destruct INIT as (INIT_mem' & c & (INIT&mem_eq) & EQ); simpl in *.
-        cut (c = thread_target).
-        * intros ?; subst c; eauto.
-        * clear - EQ.
-          cut (Krun c = Krun thread_target).
-          { intros HH; inversion HH; eauto. }
-          match type of EQ with
-          | ?A = ?B =>
-            remember A as C1; remember B as C2
-          end.
-          assert (cnt1: OrdinalPool.containsThread C1 0).
-          { clear - HeqC1. unfold OrdinalPool.containsThread.
-            subst C1; auto. }
-          assert (cnt2: OrdinalPool.containsThread C2 0).
-          { clear - HeqC2. unfold OrdinalPool.containsThread.
-            subst C2; auto. }
-          replace (Krun c) with (OrdinalPool.getThreadC cnt2) by (subst C2; simpl; auto).
-          replace (Krun thread_target) with (OrdinalPool.getThreadC cnt1) by (subst C1; simpl; auto).
-          clear - EQ.
-          subst C1; auto.
-          f_equal. eapply Axioms.proof_irr. *)
       + eapply SAFE.
     - intros. eapply Clight_initial_safe; auto.
     - clear H. split; eauto; econstructor; repeat (split; try reflexivity; eauto).
@@ -316,7 +291,7 @@ Module Main
         
   Theorem main_safety_clean':
       (* C program is proven to be safe in CSL*)
-      CSL_correct C_program ->
+      forall main, CSL_correct C_program main ->
 
       (* C program compiles to some assembly program*)
       CompCert_compiler C_program = Some Asm_program ->
@@ -328,6 +303,7 @@ Module Main
         
         (* ASM memory good. *)
         forall (limited_builtins:Asm_core.safe_genv x86_context.X86Context.the_ge),
+          Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some main ->
         asm_prog_well_formed Asm_program limited_builtins ->
         
         forall U, exists tgt_m0 tgt_m tgt_cpm,
@@ -339,11 +315,11 @@ Module Main
             (*it's spinlock safe: well synchronized and safe *)
             spinlock_safe U tgt_cpm tgt_m.
   Proof.
-    intros * Hcsafe * Hcompiled * HCSL_init Hlimit_biltin  Hasm_wf *.
+    intros * Hcsafe * Hcompiled * HCSL_init Hlimit_biltin  Hfind_main Hasm_wf *.
     
     inv Hcsafe.
     rename H into Hprog.
-    rename H0 into Hwrapper.
+    rename H0 into Hfind_main_src.
     
     inversion HCSL_init. subst init_st.
     
@@ -368,7 +344,12 @@ Module Main
 
     subst. 
     exploit CSL2FineBareAsm_safety; eauto.
-    - admit. (* we have it for source... assum it for target?*)
+    - rewrite Hfind_main.
+      f_equal.
+      clear - Hfind_main_src H0 Hprog.
+      rewrite <- Hprog in H0; simpl in *. 
+      rewrite H0 in Hfind_main_src.
+      inv Hfind_main_src; auto.
     - inv HCSL_init. unfold Main_ptr.
 
       replace b_main with (projT1 (spr CPROOF)) in *.
@@ -381,9 +362,9 @@ Module Main
           clear - HH H9.
           unfold Clight_safety.ge, Clight_safety.prog in *.
           rewrite H9 in HH; inv HH; reflexivity.
-        * clear - H14. unfold vals_have_type in H14.
+        * clear - H13. unfold vals_have_type in H13.
           destruct targs; eauto.
-          inv H14.
+          inv H13.
       + (* b_main = projT1 (spr CPROOF) *)
         rewrite <- Hprog in H4.
         clear - H5 H4.
@@ -395,7 +376,7 @@ Module Main
         (unshelve normal; try eapply init_tp; shelve_unifiable); eauto.
       (*spinlock_safe*)
       constructor; eauto.
-  Admitted.
+  Qed.
 
   Inductive asm_prog_well_formed' (Asm_prog: Asm.program):=
 | AM_WF: forall asm_genv_safe, asm_prog_well_formed Asm_prog asm_genv_safe ->
@@ -412,7 +393,7 @@ Module Main
   Arguments initial_state _ _ _ _: clear implicits.
 
   Notation CPM:=t.
-  Record static_validation (asm_prog:Asm.program) :=
+  Record static_validation (asm_prog:Asm.program) (main:AST.ident) :=
     {   limited_builtins:> Asm_core.safe_genv (Genv.globalenv asm_prog)
         ; init_mem_no_dangling: forall init_mem_target,
             Genv.init_mem asm_prog = Some init_mem_target ->
@@ -421,27 +402,29 @@ Module Main
             Genv.init_mem asm_prog = Some init_mem_target ->
             X86Inj.ge_wd (Renamings.id_ren init_mem_target) (Genv.globalenv asm_prog)
                          (* This last one should be provable and can remove. *)
+        ; main_ident_correct: Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt
+                              = Some main
           }.
   
   Theorem main_safety_clean:
       (* C program is proven to be safe in CSL*)
-      CSL_correct C_program ->
+      forall (main:AST.ident), CSL_correct C_program main ->
 
       (* C program compiles to some assembly program*)
       CompCert_compiler C_program = Some Asm_program ->
         
       (* Statically checkable properties of ASM program *)
-      forall (STATIC: static_validation Asm_program),
+      forall (STATIC: static_validation Asm_program main),
 
-      (* For all schedule, *)
+      (* For all schedules, *)
       forall U : schedule,
         
       (*The asm program can be initialized with a memory and CPM state*)
       exists (tgt_m : mem) (tgt_cpm : CPM),
         initial_state Asm_program STATIC tgt_cpm tgt_m /\
         
-        (* the initial state and memory 
-           are safe and well-synchronized  *)
+        (* The assembly language program 
+         is correct  and well-synchronized  *)
         spinlock_safe U tgt_cpm tgt_m.
   Proof.
     intros.

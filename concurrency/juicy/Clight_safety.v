@@ -1015,8 +1015,8 @@ Definition f_wrapper : Clight.function :=
      Clight.fn_body := Clight.Scall None (Clight.Etempvar 1%positive tvoidfun) [Clight.Etempvar 2%positive tvoidptr] |}.
 
 (*Todo Explain the following definition *)
-Class spawn_wrapper := { lookup_wrapper: exists b_wrapper, Genv.find_funct_ptr (Clight.genv_genv ge) b_wrapper = Some (Ctypes.Internal f_wrapper)}.
-Context {SW : spawn_wrapper}.
+(*Class spawn_wrapper := { lookup_wrapper: exists b_wrapper, Genv.find_funct_ptr (Clight.genv_genv ge) b_wrapper = Some (Ctypes.Internal f_wrapper)}.
+Context {SW : spawn_wrapper}. *)
 
 (*
 Lemma match_cont_prefix: forall k k1 k2, match_cont (Clight_new.strip_skip k1) (strip_skip' k2) ->
@@ -1128,12 +1128,8 @@ Proof.
       admit. (* add this to Clight_core.cl_initial_core*)
     + !goal (Mem.mem_wd _).
       !context_goal (Mem.mem_wd). 
-
       admit. (* add this to Clight_core.cl_initial_core*)
-    + !goal (Clight.vars_have_type (Clight.fn_vars _) _).
-      (* BOGUS *)
-      admit. (* add this to Clight_core.cl_initial_core*)
-    + !goal (Premain.bounded_args (signature_of_type _ type_int32s AST.cc_default)).
+   + !goal (Premain.bounded_args (signature_of_type _ type_int32s AST.cc_default)).
       admit. (* add this to Clight_core.cl_initial_core
                 
               *)
@@ -1164,12 +1160,13 @@ Proof.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
     simpl in Hinitial.
     destruct Hinitial as (Hinit & Harg & H0ab); subst.
-    unfold Clight_core.cl_initial_core in Hinit.
+    dup Hinit as Hinit'.
+    unfold Clight_core.cl_initial_core in Hinit'.
     destruct vf; try contradiction.
     destruct (Ptrofs.eq_dec _ _); try contradiction.
     destruct (Genv.find_funct_ptr _ b) eqn: Hb; try contradiction.
     destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
-    destruct Hinit as (? & ? & ? & ?); subst.
+    destruct Hinit' as (? & ? & ? & ?); subst.
     eapply CoreSafe with (tp'0 := updThread (mtch_cnt _ ctn)
             (Krun (Clight.Callstate f [arg] (Clight.Kstop t0) m'))
             (HybridMachineSig.add_block Hcmpt ctn m')).
@@ -1190,25 +1187,14 @@ Proof.
          unfold HybridMachineSig.add_block; simpl; unfold add_block;
          f_equal; auto.
 
-    Set Printing Implicit.
-    { split.
-        hnf in Hperm; subst.
-        (* destruct lookup_wrapper. *)
-        assert (mem_ok tp (restrPermMap (proj1 (compat_th tp m Hcmpt ctn))))
-               by (apply mem_ok_restr; auto).
-       simpl. 
-       assert (exists f', f =  Internal f').
-       { admit. (* change 'f' to 'internal f' in [Clight_core.cl_initial_core] *) }
-       destruct H6 as [f' ?]; subst f.
-       econstructor; eauto.
-        - rewrite Hty; f_equal. (* We haven't changed the return type, it's still an int. *) admit.
-        - admit. (* add to initial_core *)
-        - eapply mem_ok_wd; destruct H1; eauto.
-        - admit. (* add to initial_core *)
-        - admit. (* add to initial_core *)
-        - clear - H2. inv H2; constructor; auto.
-      }
-      
+    { exploit intial_simulation; eauto .
+      econstructor; eauto.
+      simpl; eauto.
+      unfold HybridMachineSig.install_perm in Hperm; simpl in Hperm.
+      unfold install_perm in Hperm; subst m' m'0.
+      eauto.
+    }
+    
   - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
@@ -1257,8 +1243,8 @@ Proof.
  simpl. apply restrPermMap_ext.
  intros. extensionality ofs. apply mtch_gtr1.
  }
- eapply ev_step_sim; eauto.
- admit.  (* diluteMem *)
+eapply ev_step_sim; eauto.
+reflexivity.
   - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
@@ -1448,7 +1434,7 @@ Proof.
   + eapply mem_compatible_updThreadC, MTCH_compat; eauto.*)
   + erewrite <- mtch_gtr2; eauto.
   + erewrite <- mtch_gtr2; eauto.
-Admitted.
+Qed.
 
 
 Definition init_threadpool := 
@@ -1598,9 +1584,11 @@ Proof.
     (* all of these cases should be impossible.*)
     simpl in *.
     inv Hstep; simpl in *; subst; try solve_schedule.
-    + inv Htstep; simpl in *. inv Hcode.
+    + unfold suspend_thread in Htstep. simpl in Htstep.
+      inv Htstep; simpl in *. inv Hcode.
       unfold Clight.at_external in *.
       unfold initial_Clight_state in *; simpl in *.
+      (* eapply AngelSafe; eauto. *)
       admit. (* initial state can't be at_External*)
     + inv Htstep; simpl in *; inversion Hcode.
     + eapply AngelSafe; simpl; eauto.

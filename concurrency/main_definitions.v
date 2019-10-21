@@ -41,11 +41,14 @@ Definition permissionless_init_machine (asm_prog: Asm.program) limited_builtins:
    1. Correct: with Consurrent Separation Logic proof
    2. Has spawn wrappers for spawning threads.
  *)
-Inductive CSL_correct: Ctypes.program Clight.function -> Prop:=
+Inductive CSL_correct: Ctypes.program Clight.function -> AST.ident -> Prop:=
 | Build_safe_prog:
-    forall (CPROOF: CSL_proof),
-      spawn_wrapper CPROOF ->
-      CSL_correct (CSL_prog CPROOF).
+    forall (CPROOF: CSL_proof) main,
+      (*spawn_wrapper CPROOF ->*)
+      Genv.find_symbol
+        (Genv.globalenv (CSL_prog CPROOF))
+        (AST.prog_main (CSL_prog CPROOF)) = Some main ->
+      CSL_correct (CSL_prog CPROOF) main.
 
 (* Get a pointr to Main function from the main in block*)
 Definition main_ptr (prog:Ctypes.program function):=
