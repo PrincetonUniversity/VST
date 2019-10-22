@@ -1067,7 +1067,7 @@ Proof.
 unfold is_pointer_or_null, nullval.
 simple_if_tac; auto.
 Qed.
-Hint Resolve is_pointer_or_null_nullval.
+Hint Resolve is_pointer_or_null_nullval : core.
 
 Lemma tc_val_pointer_nullval':
  forall t a, tc_val (Tpointer t a) nullval.
@@ -1076,7 +1076,7 @@ Proof.
  simple_if_tac; hnf;
  simple_if_tac; auto.
 Qed.
-Hint Resolve tc_val_pointer_nullval'.
+Hint Resolve tc_val_pointer_nullval' : core.
 
 Arguments type_is_volatile ty / .
 
@@ -1129,7 +1129,7 @@ Proof.
  rewrite andb_false_r.
  hnf. simple_if_tac; auto.
 Qed.
-Hint Resolve tc_val_pointer_nullval.
+Hint Resolve tc_val_pointer_nullval : core.
 
 Lemma mapsto_tuint_tptr_nullval:
   forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh size_t p nullval.

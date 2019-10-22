@@ -19,7 +19,7 @@ Import Ctypes.
 
 Local Open Scope pred.
 
-Hint Resolve @now_later @andp_derives @sepcon_derives.
+Hint Resolve @now_later @andp_derives @sepcon_derives : core.
 
 Lemma no_dups_swap:
   forall F V a b c, @no_dups F V (a++b) c -> @no_dups F V (b++a) c.
@@ -117,7 +117,7 @@ Lemma age_laterR {A} `{ageable A}: forall {x y}, age x y -> laterR x y.
 Proof.
 intros. constructor 1; auto.
 Qed.
-Hint Resolve @age_laterR.
+Hint Resolve @age_laterR : core.
 
 Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
@@ -219,7 +219,7 @@ Abort.
 (*
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
 Proof.  repeat intro. eapply cl_corestep_fun; simpl in *; eauto. Qed.
-Hint Resolve cl_corestep_fun'.
+Hint Resolve cl_corestep_fun' : core.
 *)
 
 Lemma age1_resource_decay:
@@ -698,7 +698,7 @@ Qed.
 
 End SemaxContext.
 
-Hint Resolve @age_laterR.
+Hint Resolve @age_laterR : core.
 
 Fixpoint filter_seq (k: cont) : cont :=
  match k with

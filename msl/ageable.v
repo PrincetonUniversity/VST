@@ -185,7 +185,7 @@ Section RtRft.
   Qed.
 End RtRft.
 
-Hint Resolve rt_refl.
+Hint Resolve rt_refl : core.
 
 Definition laterR {A} `{ageable A} : relation A := clos_trans A age.
 Definition necR   {A} `{ageable A} : relation A := clos_refl_trans A age.
@@ -920,7 +920,7 @@ Proof.
 intros; constructor 2.
 Qed.
 
-Hint Resolve @necR_refl.
+Hint Resolve @necR_refl : core.
 
 Lemma necR_trans  {A} `{H : ageable A}:
   forall phi1 phi2 phi3, necR phi1 phi2 -> necR phi2 phi3 -> necR phi1 phi3.

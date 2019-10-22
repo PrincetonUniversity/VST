@@ -261,7 +261,7 @@ Hint Resolve field_compatible0_ArraySubsc0 : field_compatible.
 Hint Extern 2 (legal_nested_field0 _ _) =>
   (apply compute_legal_nested_field0_spec'; repeat constructor; omega) : field_compatible.
 Hint Extern 2 (field_compatible0 _ _ (offset_val _ _)) =>
-  (apply field_compatible0_nested_field_array; auto with field_compatible).
+  (apply field_compatible0_nested_field_array; auto with field_compatible) : core. (*FIXME: should be field_compatible*)
 
 Lemma split2_data_at_Tarray_unfold {cs: compspecs}
      sh t n n1 (v v' v1 v2: list (reptype t)) p:

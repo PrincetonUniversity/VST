@@ -6,7 +6,7 @@ Require Import Coq.Setoids.Setoid.
 
 Local Open Scope logic.
 
-Hint Extern 0 (_ |-- _) => match goal with |- ?A |-- ?B => constr_eq A B; simple apply derives_refl end.
+Hint Extern 0 (_ |-- _) => match goal with |- ?A |-- ?B => constr_eq A B; simple apply derives_refl end : core.
 (* Hint Resolve @derives_refl.    too expensive sometimes when it fails . . . *)
 
 Ltac solve_andp' :=
@@ -751,7 +751,7 @@ apply @derives_trans with (P * emp).
 rewrite sepcon_emp...
 apply sepcon_derives...
 Qed.
-Hint Resolve @sepcon_TT.
+Hint Resolve @sepcon_TT : core.
 
 Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall (P: A), P |-- (TT * P).
@@ -932,7 +932,7 @@ intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; au
 Qed.
 
 Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp
-                    @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later.
+                    @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later : core.
 Hint Resolve @corable_prop : norm.
 
 (* The followings are not in auto-rewrite lib. *)

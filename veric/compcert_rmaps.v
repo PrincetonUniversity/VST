@@ -40,7 +40,7 @@ Definition isFUN (k: kind) := match k with | FUN _ _ => True | _ => False end.
 
 Lemma isVAL_i: forall v, isVAL (VAL v).
 Proof. intros; simpl; auto. Qed.
-Hint Resolve isVAL_i.
+Hint Resolve isVAL_i : core.
 
 Lemma isVAL_dec: forall k, {isVAL k}+{~isVAL k}.
 Proof.

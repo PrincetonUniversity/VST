@@ -39,6 +39,7 @@ Instance baseDerivesOp {A}{agA: ageable A}
 Instance funDerivesOp (B: Type)(A: Type)(DerivesA: DerivesOp A) : DerivesOp (B -> A)
  := {| derivesOp := fun (P Q : B -> A)  => forall b, derivesOp (P b) (Q b) |}.
 Set Warnings "-notation-overridden".
+Declare Scope logic_derives.
 Notation "P '|--' Q" := (derivesOp P%pred Q%pred) : logic_derives.
 Set Warnings "notation-overridden".
 Open Scope logic_derives.

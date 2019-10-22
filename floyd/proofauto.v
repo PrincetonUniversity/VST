@@ -112,7 +112,7 @@ Arguments Z.add !x !y.
 Global Transparent peq.
 Global Transparent Archi.ptr64.
 
-Hint Resolve readable_Ers.
+Hint Resolve readable_Ers : core.
 
 Ltac EExists_unify1 x P :=
  match P with
