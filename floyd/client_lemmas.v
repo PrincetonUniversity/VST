@@ -487,7 +487,7 @@ apply H0; auto.
 Qed.
 
 Definition abbreviate {A:Type} (x:A) := x.
-Arguments abbreviate [A] [x].
+Arguments abbreviate {A} {x}.
 
 Ltac clear_Delta :=
 match goal with
@@ -941,6 +941,7 @@ Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
 Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
+Declare Scope formals.
 Delimit Scope formals with formals.
 
 Definition NDsemax_external {Hspec: OracleKind} (ids: list ident) (ef: external_function)

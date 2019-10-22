@@ -156,7 +156,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
   Axiom expandM_refl : reflexive _ expandM.
   Axiom expandM_trans : transitive _ expandM.
-  Hint Resolve expandM_refl expandM_trans.
+  Hint Resolve expandM_refl expandM_trans : core.
 
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
@@ -677,7 +677,7 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     eapply KI.ORel_trans; eauto.
   Qed.
 
-  Hint Resolve expandM_refl expandM_trans.
+  Hint Resolve expandM_refl expandM_trans : core.
 
   Definition assert := { p:pred (K0.knot * KI.other) | boxy expandM p }.
 

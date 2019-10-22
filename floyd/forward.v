@@ -52,7 +52,7 @@ rewrite H; simpl; auto.
 Qed.
 
 Hint Extern 2 (isptr (force_val (sem_add_ptr_int _ _ _ _))) =>
-    apply isptr_force_sem_add_ptr_int; [reflexivity | auto with prove_it_now].
+    apply isptr_force_sem_add_ptr_int; [reflexivity | auto with prove_it_now] : core.
 
 (* Done in this tail-recursive style so that "hnf" fully reduces it *)
 Fixpoint mk_varspecs' (dl: list (ident * globdef Clight.fundef type)) (el: list (ident * type)) :
@@ -2724,10 +2724,10 @@ Proof.
 intros. simpl_ret_assert. apply andp_left2; apply FF_left.
 Qed.
 
-Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal.
+Hint Resolve ENTAIL_break_normal ENTAIL_continue_normal ENTAIL_return_normal : core.
 
 Hint Extern 0 (ENTAIL _, _ |-- _) =>
- match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end.
+ match goal with |- ENTAIL _, ?A |-- ?B => constr_eq A B; simple apply ENTAIL_refl end : core.
 
 Ltac forward_if_tac post :=
   check_Delta; check_POSTCONDITION;

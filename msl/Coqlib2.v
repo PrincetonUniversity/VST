@@ -79,7 +79,7 @@ Proof.
 intros; f_equal; auto.
 Qed.
 
-Hint Resolve f_equal_Some f_equal_prod.
+Hint Resolve f_equal_Some f_equal_prod : core.
 
 Unset Implicit Arguments.
 
@@ -266,7 +266,7 @@ Ltac super_pattern_in_func t x :=
     end;
     match goal with
     | |- ?left _ _ = _ =>
-      instantiate (1 := fun a => left a x) in (Value of t0)
+      instantiate (1 := fun a => left a x) in (value of t0)
     end;
     reflexivity
   |
