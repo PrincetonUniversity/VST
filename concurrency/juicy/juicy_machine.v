@@ -476,7 +476,7 @@ Qed.
       rewrite PTree.gmap.
       destruct (((getMaxPerm m)#2) ! b) eqn: inBounds; simpl.
       - destruct ((perm_of_res (phi @ (b, ofs)))) eqn:AA; rewrite AA; simpl; try reflexivity.
-        apply perm_refl.
+        apply Memtype.perm_refl.
       - unfold Mem.perm_order''.
         destruct (perm_of_res (phi @ (b, ofs))); trivial.
     Qed.
@@ -488,7 +488,7 @@ Qed.
       rewrite PTree.gmap.
       destruct (((getMaxPerm m)#2) ! b) eqn: inBounds; simpl.
       - destruct ((perm_of_res_lock (phi @ (b, ofs)))) eqn:AA; rewrite AA; simpl; try reflexivity.
-        apply perm_refl.
+        apply Memtype.perm_refl.
       - unfold Mem.perm_order''.
         destruct (perm_of_res_lock (phi @ (b, ofs))); trivial.
     Qed.
@@ -810,14 +810,15 @@ Qed.
       revert H H0; clear; revert r0; induction el; intros. inv H.
       unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
       pose proof @orP.
-      specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j)).
+      specialize (H1 (j == a)(pred_of_seq (T:=ordinal_eqType (n num_threads0)) el j)).
+     change (mem_seq (T:=ordinal_eqType num_threads0) el j) with (pred_of_seq el j) in H.
       destruct ((j == a)
-                || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
+                || pred_of_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
       inv H1. destruct H.
       pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
       simpl in H0. destruct H0 as [? [? ?]].
       exists x; auto.
-      unfold pred_of_eq_seq in H.
+      unfold pred_of_seq in H.
       destruct H0 as [? [? ?]].
       apply (IHel x) in H; auto. apply join_sub_trans with x; auto. eexists; eauto.
 
@@ -1778,15 +1779,17 @@ Qed.
            revert H H0; clear; revert r0; induction el; intros. inv H.
             unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
            pose proof @orP.
-           specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n (num_threads js))) el j)).
+          change (mem_seq (T:=ordinal_eqType (n (num_threads js))) el j)
+             with (pred_of_seq el j) in H.
+           specialize (H1 (j == a)(pred_of_seq (T:=ordinal_eqType (n (num_threads js))) el j)).
         destruct ((j == a)
-       || pred_of_eq_seq (T:=ordinal_eqType (n (num_threads js))) el j); inv H.
+       || pred_of_seq (T:=ordinal_eqType (n (num_threads js))) el j); inv H.
     inv H1. destruct H.
     pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
     simpl in H0.
  destruct H0 as [? [? ?]].
     exists x; auto.
-    unfold pred_of_eq_seq in H.
+    unfold pred_of_seq in H.
     destruct H0 as [? [? ?]].
     apply (IHel x) in H. apply join_sub_trans with x; auto. eexists; eauto.
     auto.

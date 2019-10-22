@@ -27,8 +27,8 @@ Module AsmContext.
     Existing Instance DryHybridMachine.DryHybridMachineSig.
 
     (** Instantiating the Dry Fine Concurrency Machine *)
-    Instance FineDilMem : DiluteMem :=
-      {| diluteMem := setMaxPerm |}.
+      Instance FineDilMem : DiluteMem.
+       apply Build_DiluteMem with setMaxPerm.
     intros.
     split; auto.
     Defined.
@@ -44,8 +44,8 @@ Module AsmContext.
     (** Instatiating the Bare Concurrency Machine *)
     Existing Instance BareMachine.resources.
 
-    Instance BareDilMem : DiluteMem :=
-      {| diluteMem := erasePerm |}.
+    Instance BareDilMem : DiluteMem.
+     apply Build_DiluteMem with erasePerm.
     intros.
     split; auto.
     Defined.

@@ -2801,14 +2801,13 @@ Qed.
   Notation the_ge := (@the_ge the_program).
   Context (Hsafe : safe_genv the_ge).
 
-  Instance X86Inj : @CoreInj (@X86Sem the_program Hsafe) :=
-    @Build_CoreInj (@X86Sem the_program Hsafe) core_wd ge_wd ge_wd_incr ge_wd_domain
+  Instance X86Inj : @CoreInj (@X86Sem the_program Hsafe).
+  eapply (@Build_CoreInj (@X86Sem the_program Hsafe) core_wd ge_wd ge_wd_incr ge_wd_domain
       core_wd_incr core_wd_domain (at_external_wd the_ge) (@after_external_wd the_ge) (@initial_core_wd the_ge)
       core_inj _ (@core_inj_after_ext the_ge)
-      (core_inj_halted the_ge) (@core_inj_init the_ge) core_inj_id core_inj_trans (corestep_obs_eq Hsafe) (corestep_wd Hsafe).
-  Proof.
-    intros; eapply core_inj_ext; eauto using core_inj_wd.
-    
+      (core_inj_halted the_ge) (@core_inj_init the_ge) core_inj_id core_inj_trans (corestep_obs_eq Hsafe) (corestep_wd Hsafe)).
+  Unshelve.
+    intros; eapply core_inj_ext; eauto using core_inj_wd.    
   Defined.
 
   End Inj.

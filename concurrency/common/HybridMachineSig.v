@@ -562,8 +562,8 @@ Module HybridMachineSig.
               {ThreadPool : ThreadPool.ThreadPool}
               {machineSig: MachineSig}.
 
-      Instance DilMem : DiluteMem :=
-        {| diluteMem := fun x => x |}.
+      Instance DilMem : DiluteMem.
+       apply Build_DiluteMem with (fun x=>x).
       intros.
       split; auto.
       Defined.

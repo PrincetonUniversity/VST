@@ -1319,7 +1319,7 @@ Module X86CoreErasure.
         now exfalso.
   Qed.
 
-  Instance X86Erasure : CoreErasure.CoreErasure :=
+  Program Instance X86Erasure : CoreErasure.CoreErasure :=
     { core_erasure := core_erasure;
       core_erasure_refl := core_erasure_refl;
       after_external_erase := after_external_erase;
@@ -1327,6 +1327,7 @@ Module X86CoreErasure.
       halted_erase := halted_erase;
       evstep_erase := evstep_erase
     }.
+ Next Obligation.
   intros.
   simpl in *.
   unfold set_mem in *.

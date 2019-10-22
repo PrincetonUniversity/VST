@@ -553,7 +553,7 @@ Proof.
     + omega.
     + rewrite - speci.
       simpl; repeat f_equal.
-      rewrite - addn1 - addnBA=> //.
+      rewrite - addn1 - addnBA=> //; ssromega.
   - exists 0; split; auto.
     + omega.
 Qed.
@@ -576,7 +576,7 @@ Proof.
     + omega.
     + rewrite - speci.
       simpl; repeat f_equal.
-      rewrite - addn1 - addnBA=> //.
+      rewrite - addn1 - addnBA=> //; ssromega.
   - exists 0; split; auto.
     + omega.
 Qed.
@@ -713,8 +713,7 @@ Proof.
                    apply /ltP; omega.
                    rewrite mulnDr.
                    rewrite mulnC.
-                   f_equal.
-                   compute; auto.
+                   f_equal. ssromega.
                    rewrite mulnC; auto.
               * do 2 rewrite - mulnA.
                 f_equal. rewrite mulnC; auto.
@@ -732,8 +731,8 @@ Proof.
               rewrite mulnA.
               rewrite mulnC; auto.
             + f_equal.
-              rewrite mulnC.
-              compute; auto. }
+              rewrite mulnC. 
+              ssromega. }
       -- simpl; f_equal.
          ++ rewrite - fi1.
             f_equal.
@@ -839,7 +838,7 @@ Proof.
               rewrite mulnC; auto.
             + f_equal.
               rewrite mulnC.
-              compute; auto. }
+              ssromega. }
       -- simpl; f_equal.
          ++ rewrite - fi1.
             f_equal.
@@ -999,7 +998,7 @@ Proof.
                    rewrite mulnDr.
                    rewrite mulnC.
                    f_equal.
-                   compute; auto.
+                   ssromega.
                    rewrite mulnC; auto.
               * do 2 rewrite - mulnA.
                 f_equal. rewrite mulnC; auto.
@@ -1018,7 +1017,7 @@ Proof.
               rewrite mulnC; auto.
             + f_equal.
               rewrite mulnC.
-              compute; auto. }
+              ssromega. }
       -- simpl; f_equal.
          ++ rewrite - fi1.
             f_equal.
@@ -1124,7 +1123,7 @@ Proof.
               rewrite mulnC; auto.
             + f_equal.
               rewrite mulnC.
-              compute; auto. }
+              ssromega. }
       -- simpl; f_equal.
          ++ rewrite - fi1.
             f_equal.
