@@ -122,7 +122,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (rmap* (sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef)
         (funspec2pre ext_link A P (fst (split params)) id sig)
         (funspec2post ext_link A Q id sig)
-        (fun rv z m => False)
+        (fun rv z m => True)
   end.
 
 Local Open Scope pred.

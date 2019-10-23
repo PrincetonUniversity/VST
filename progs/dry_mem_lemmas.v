@@ -625,6 +625,106 @@ Proof.
       if_tac; if_tac; constructor || contradiction. }
 Qed.
 
+Lemma rebuild_alloc : forall jm0 phi m len phi0 phi1 loc
+  (Hlevel : (level phi <= level (m_phi jm0))%nat)
+  (Hrebuild : compcert_rmaps.R.resource_at phi =
+     compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level phi))
+       (compcert_rmaps.R.approx (level phi))
+     oo juicy_mem_lemmas.rebuild_juicy_mem_fmap jm0 m)
+  (Hno : forall ofs : Z,
+      phi0 @ (Mem.nextblock (m_dry jm0), ofs) = NO Share.bot bot_unreadable)
+  (Heq : mem_equiv m (fst (Mem.alloc (m_dry jm0) 0 len)))
+  (J : join phi0 phi1 (m_phi jm0)),
+  join (age_to.age_to (level phi) (after_alloc 0 len (Mem.nextblock (m_dry jm0)) phi0 Hno) @ loc)
+         (age_to.age_to (level phi) phi1 @ loc) (phi @ loc).
+Proof.
+  intros.
+  destruct (join_level _ _ _ J).
+  rewrite Hrebuild, !age_to_resource_at.age_to_resource_at.
+  unfold compose, after_alloc, juicy_mem_lemmas.rebuild_juicy_mem_fmap; rewrite !resource_at_make_rmap.
+  unfold after_alloc'.
+  apply (resource_at_join _ _ _ loc) in J.
+  assert (Mem.alloc (m_dry jm0) 0 len = (fst (Mem.alloc (m_dry jm0) 0 len), Mem.nextblock (m_dry jm0))) as Halloc.
+  { destruct (Mem.alloc (m_dry jm0) 0 len) eqn: Halloc; simpl; f_equal.
+      eapply Mem.alloc_result; eauto. }
+  if_tac.
+  - (* allocated block *)
+    edestruct alloc_dry_updated_on as [Haccess Hcontents]; eauto.
+    destruct loc, H1; subst.
+    destruct jm0; simpl in *.
+    rewrite JMalloc in * by (simpl; Lia.lia).
+    inv J.
+    rewrite if_true.
+    erewrite mem_equiv_contents, Hcontents; try apply Heq.
+    apply join_Bot in RJ as []; subst.
+    constructor; auto.
+    { destruct Heq as (_ & -> & _).
+      eapply Mem.perm_implies; [eapply Mem.perm_alloc_2; eauto; omega | constructor]. }
+    { erewrite mem_equiv_access, Haccess by apply Heq; constructor. }
+  - edestruct alloc_dry_unchanged_on as [Haccess Hcontents]; eauto.
+    inv J; try constructor.
+    + rewrite if_false; [constructor; auto|].
+      erewrite mem_equiv_access by eauto.
+      rewrite <- Haccess.
+      destruct jm0; simpl in *.
+      rewrite (JMaccess loc), <- H5; simpl.
+      if_tac; auto.
+      intro X; inv X.
+    + destruct k; try (constructor; auto).
+      destruct jm0; simpl in *.
+      pose proof (JMaccess loc) as Haccess'.
+      rewrite <- H5 in Haccess'; simpl in Haccess'.
+      erewrite Haccess, <- mem_equiv_access in Haccess' by eauto.
+      destruct loc as (b', o').
+      assert (Mem.perm_order'' (perm_of_sh sh3) (Some Readable)).
+      { unfold perm_of_sh.
+        if_tac; if_tac; constructor || contradiction. }
+      erewrite mem_equiv_contents; eauto.
+      rewrite Haccess', <- Hcontents, if_true; auto.
+      symmetry in H5; apply JMcontents in H5 as []; subst.
+      constructor; auto.
+      { rewrite JMaccess, <- H5; simpl.
+        unfold perm_of_sh.
+        if_tac; if_tac; auto; discriminate. }
+      { rewrite perm_access, Haccess'; auto. }
+    + destruct k; try (constructor; auto).
+      pose proof (juicy_mem_access jm0 loc) as Haccess'.
+      rewrite <- H5 in Haccess'; simpl in Haccess'.
+      erewrite Haccess, <- mem_equiv_access in Haccess' by eauto.
+      assert (Mem.perm_order'' (perm_of_sh sh3) (Some Readable)).
+      { unfold perm_of_sh.
+        if_tac; if_tac; constructor || contradiction. }
+      rewrite Haccess', if_true; auto.
+      destruct loc as (b', o').
+      destruct jm0; simpl in *.
+      erewrite mem_equiv_contents; eauto.
+      rewrite <- Hcontents.
+      symmetry in H5; apply JMcontents in H5 as []; subst.
+      constructor; auto.
+      { rewrite JMaccess, <- H5; simpl.
+        unfold perm_of_sh.
+        if_tac; if_tac; auto; discriminate. }
+      { rewrite perm_access, Haccess'; auto. }
+  + destruct k; try (constructor; auto).
+      pose proof (juicy_mem_access jm0 loc) as Haccess'.
+      rewrite <- H5 in Haccess'; simpl in Haccess'.
+      erewrite Haccess, <- mem_equiv_access in Haccess' by eauto.
+      assert (Mem.perm_order'' (perm_of_sh sh3) (Some Readable)).
+      { unfold perm_of_sh.
+        if_tac; if_tac; constructor || contradiction. }
+      rewrite Haccess', if_true; auto.
+      destruct loc as (b', o').
+      destruct jm0; simpl in *.
+      erewrite mem_equiv_contents; eauto.
+      rewrite <- Hcontents.
+      symmetry in H5; apply JMcontents in H5 as []; subst.
+      constructor; auto.
+      { rewrite JMaccess, <- H5; simpl.
+        unfold perm_of_sh.
+        if_tac; if_tac; auto; discriminate. }
+      { rewrite perm_access, Haccess'; auto. }
+Qed.
+
 Lemma inflate_emp : forall m phi, app_pred emp phi -> app_pred emp (inflate_store m phi).
 Proof.
   simpl; intros.
@@ -755,8 +855,8 @@ Definition main_pre_juicy {Z} prog (ora : Z) ts gv (x' : rmap * {ts : list Type 
     Val.has_type_list args [] /\
 (*    (exists phi0 phi1 : rmap,
        join phi0 phi1 (m_phi m) /\*)
-       (app_pred (main_pre_ext prog ora ts gv
-          (semax.make_ext_args (filter_genv (semax_ext.symb2genv ge_s)) [] []))
+       (app_pred (main_pre prog ora ts gv
+          (seplog.make_args [] [] (empty_environ (semax_ext.symb2genv ge_s))))
          (m_phi m) (*phi0 /\
        necR (fst x') phi1*) /\ joins (ghost_of (m_phi m)) [Some (ext_ref z, NoneP)]).
 
@@ -785,7 +885,7 @@ Proof.
   split; intros.
   - unfold main_pre_juicy, main_pre_dry in *.
     destruct H0 as (? & Hpre & Hext).
-    unfold main_pre_ext in Hpre.
+    unfold main_pre in Hpre.
     destruct Hpre as (? & ? & J & Hglobals & Htrace).
     apply has_ext_eq in Htrace.
     split.

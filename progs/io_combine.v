@@ -6,7 +6,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.progs.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
@@ -81,11 +81,11 @@ Instance IO_Espec : OracleKind := IO_Espec ext_link.
 
 Theorem IO_OS_soundness:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
-   semax_prog_ext prog initial_oracle V G ->
+   semax_prog prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
    exists b, exists q, exists m',
      Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-     initial_core (cl_core_sem (globalenv prog))
+     initial_core (Clight_core.cl_core_sem (globalenv prog))
          0 m q m' (Vptr b Ptrofs.zero) nil /\
    forall n, exists traces, ext_safeN_trace(J := OK_spec) prog IO_ext_sem IO_inj_mem OS_mem valid_trace n TEnd traces initial_oracle q m' /\
      forall t, In _ traces t -> exists z', consume_trace initial_oracle z' t.
@@ -116,6 +116,7 @@ Proof.
         -- rewrite if_true; auto.
       * unfold getchar_pre, getchar_pre' in *.
         apply Traces.sutt_trace_incl; auto.
+  - constructor.
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
 Qed.
@@ -123,7 +124,7 @@ Qed.
 (* relate to OS's external events *)
 Notation ge := (globalenv prog).
 
-  Inductive OS_safeN_trace : nat -> @trace io_events.IO_event unit -> Ensemble (@trace io_events.IO_event unit * RData) -> OK_ty -> RData -> corestate -> mem -> Prop :=
+  Inductive OS_safeN_trace : nat -> @trace io_events.IO_event unit -> Ensemble (@trace io_events.IO_event unit * RData) -> OK_ty -> RData -> CC_core -> mem -> Prop :=
   | OS_safeN_trace_0: forall t z s c m, OS_safeN_trace O t (Singleton _ (TEnd, s)) z s c m
   | OS_safeN_trace_step:
       forall n t traces z s c m c' m',
@@ -319,7 +320,7 @@ Local Ltac destruct_spec Hspec :=
 
 Theorem IO_OS_ext:
  forall {CS: compspecs} (initial_oracle: OK_ty) V G m,
-   semax_prog_ext prog initial_oracle V G ->
+   semax_prog prog initial_oracle V G ->
    Genv.init_mem prog = Some m ->
    exists b, exists q, exists m',
      Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
