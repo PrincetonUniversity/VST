@@ -210,7 +210,7 @@ Lemma tc_val_pointer_nullval:
 Proof.
  intros. apply tc_val_pointer_nullval.
 Qed.
-Hint Resolve tc_val_pointer_nullval.
+Hint Resolve tc_val_pointer_nullval : core.
 
 
 Lemma mapsto_null_mapsto_pointer:

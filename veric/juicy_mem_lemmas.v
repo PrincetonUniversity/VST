@@ -23,7 +23,7 @@ simpl.
 rewrite PMap.gi.
 destruct (max_access_at empty (b,z)); try destruct p; try apply NO_identity.
 Qed.
-Local Hint Resolve inflate_initial_mem_empty.*)
+Local Hint Resolve inflate_initial_mem_empty : core.*)
 
 (* fancy initial mem *)
 
@@ -532,7 +532,7 @@ inversion H.
 clear H.
 exists (Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents (m_dry m)))).
 generalize H0 as H0'; intro.
-Local Hint Resolve Mem.getN_length.
+Local Hint Resolve Mem.getN_length : core.
 unfold Mem.valid_access in H0'.
 destruct H0' as [H0'1 H0'2].
 repeat split; auto.

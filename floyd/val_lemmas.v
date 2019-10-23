@@ -95,7 +95,7 @@ Proof.
 intros.
 hnf. auto.
 Qed.
-Hint Resolve is_int_I32_Vint.
+Hint Resolve is_int_I32_Vint : core.
 
 Lemma sem_cast_neutral_int: forall v,
   isVint v ->
@@ -135,12 +135,12 @@ Lemma eval_expr_unop: forall {cs: compspecs} op a1 t, eval_expr (Eunop op a1 t) 
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expr_unop : eval.
 
-Hint Resolve  eval_expr_Etempvar.
+Hint Resolve  eval_expr_Etempvar : core.
 
 Lemma eval_expr_Etempvar' : forall {cs: compspecs}  i t, eval_id i = eval_expr (Etempvar i t).
 Proof. intros. symmetry; auto.
 Qed.
-Hint Resolve  @eval_expr_Etempvar'.
+Hint Resolve  @eval_expr_Etempvar' : core.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
 Hint Rewrite Ptrofs.add_zero  Ptrofs.add_zero_l Ptrofs.sub_zero_l : norm.
@@ -182,7 +182,7 @@ Lemma isptr_is_pointer_or_null:
   forall v, isptr v -> is_pointer_or_null v.
 Proof. intros. destruct v; inv H; simpl; auto.
 Qed.
-Hint Resolve isptr_is_pointer_or_null.
+Hint Resolve isptr_is_pointer_or_null : core.
 
 Definition add_ptr_int  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
            eval_binop Cop.Oadd (tptr ty) tint v (Vint (Int.repr i)).
@@ -317,7 +317,7 @@ Proof.
   subst.
   hnf; auto.
 Qed.
-Hint Resolve headptr_isptr.
+Hint Resolve headptr_isptr : core.
 
 Lemma headptr_offset_zero: forall v,
   headptr (offset_val 0 v) <->
@@ -531,5 +531,5 @@ Lemma is_int_Vbyte: forall c, is_int I8 Signed (Vbyte c).
 Proof.
 intros. simpl. normalize. rewrite Int.signed_repr by rep_omega. rep_omega.
 Qed.
-Hint Resolve is_int_Vbyte.
+Hint Resolve is_int_Vbyte : core.
 

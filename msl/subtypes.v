@@ -36,7 +36,7 @@ Qed.
 Definition fashionM {A} `{ageable A} : modality
   := exist _ fashionR valid_rel_fashion.
 
-Existing Instance ag_nat. Hint Resolve ag_nat.
+Existing Instance ag_nat. Hint Resolve ag_nat : core.
 
 Program Definition fash {A: Type} `{NA: ageable A} (P: pred A): pred nat :=
       fun n => forall y, n >= level y -> P y.
@@ -423,7 +423,7 @@ intros.
 unfold fashionable.
 rewrite fash_fash. auto.
 Qed.
-Hint Resolve @fash_subp.
+Hint Resolve @fash_subp : core.
 
 Lemma fash_allp {A} {agA:ageable A}:
   forall  (B: Type) (F: B -> pred A),

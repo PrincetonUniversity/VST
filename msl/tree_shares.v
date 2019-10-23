@@ -134,11 +134,11 @@ Module Share <: SHARE_MODEL.
        shareTreeOrd r1 r2 ->
        shareTreeOrd (Node l1 r1) (Node l2 r2)
   .
-  Hint Constructors shareTreeOrd.
+  Hint Constructors shareTreeOrd : core.
 
   Definition shareTreeEq (x y:ShareTree) :=
       shareTreeOrd x y /\ shareTreeOrd y x.
-  Hint Unfold shareTreeEq.
+  Hint Unfold shareTreeEq : core.
 
   Ltac destruct_bool :=
     repeat (match goal with [ b:bool |- _ ] => destruct b end).
@@ -203,7 +203,7 @@ Module Share <: SHARE_MODEL.
   Qed.
 
   Hint Resolve geTrueFull leFalseEmpty emptyLeFalse fullGeTrue
-     falseLeaf_bottom trueLeaf_top.
+     falseLeaf_bottom trueLeaf_top : core.
 
   Lemma eqFalseLeaf_empty : forall x,
     shareTreeEq (Leaf false) x -> ~nonEmptyTree x.
@@ -235,7 +235,7 @@ Module Share <: SHARE_MODEL.
   Qed.
 
   Hint Resolve eqFalseLeaf_empty eqTrueLeaf_full emptyTree_canonical_falseLeaf
-    fullTree_canonical_trueLeaf.
+    fullTree_canonical_trueLeaf : core.
 
   (* Show that shareTreeOrd is a preorder (reflexive and transitive). *)
 
@@ -340,7 +340,7 @@ Module Share <: SHARE_MODEL.
     destruct (bool_dec b b0); subst; intuition; simpl; auto.
   Qed.
 
-  Hint Resolve mkCanon_nonEmpty mkCanon_correct mkCanon_eq.
+  Hint Resolve mkCanon_nonEmpty mkCanon_correct mkCanon_eq : core.
 
   (* Show that union and intersection are the LUB and GLB
      for the lattice, respectively. *)
@@ -748,7 +748,7 @@ Module Share <: SHARE_MODEL.
   Qed.
 
   Hint Resolve relativ_empty relativ_empty1 relativ_empty2
-    relativ_full relativ_full1 relativ_full2 relativ_inv.
+    relativ_full relativ_full1 relativ_full2 relativ_inv : core.
 
   Lemma relativ_almost_canon : forall a x,
     canonicalTree a ->
@@ -1079,7 +1079,7 @@ Module Share <: SHARE_MODEL.
     intro x; induction x; simpl; intros; destruct_bool; intuition.
   Qed.
 
-  Hint Resolve comp_full_empty comp_empty_full.
+  Hint Resolve comp_full_empty comp_empty_full : core.
 
   Lemma comp_canonical : forall x,
     canonicalTree x -> canonicalTree (comp_tree x).

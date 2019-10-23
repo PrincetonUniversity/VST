@@ -351,7 +351,7 @@ match goal with
    is_evar v;
    apply fold_right_sepconx_eqx;
    let w := unfold_right_sepcon A
-    in instantiate (1:=w) in (Value of F);
+    in instantiate (1:=w) in (value of F);
     unfold F;
     unfold fold_right_sepconx;
     simple apply derives_refl
@@ -370,7 +370,7 @@ match goal with
                    apply cancel_frame2
                     end;
     try (unfold F; apply cancel_frame1);
-    try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
+    try (instantiate (1:=nil) in (value of F); unfold F; apply cancel_frame0)
  end.
 
 

@@ -61,6 +61,7 @@ Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8).
 Notation " 'SEP' () " := (SEPx nil) (at level 8).
 
+Declare Scope assert.
 Delimit Scope assert with assert.
 
 Lemma PROPx_Permutation: forall P Q,

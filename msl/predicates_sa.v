@@ -6,6 +6,7 @@ Require Coq.Wellfounded.Wellfounded. (* Can't Import this, because that brings t
            scope, which breaks things like `{ageable B}  in this file.
           Stupid feature of Coq, that the B in `{ageable B} is not unambiguously a
         binding occurrence of B.  *)
+Declare Scope pred.
 Delimit Scope pred with pred.
 Local Open Scope pred.
 
@@ -33,7 +34,7 @@ Proof.
 Qed.
 
 Definition prop {A: Type}  (P: Prop) : pred A := (fun _  => P).
-Hint Unfold prop.
+Hint Unfold prop : core.
 
 Definition TT {A}: pred A := prop True.
 Definition FF  {A}: pred A := prop False.
@@ -59,6 +60,7 @@ Definition sepcon {A} {JA: Join A}(p q:pred A) := fun z:A =>
 Definition wand {A}  {JA: Join A}  (p q:pred A) := fun y =>
   forall x z, join x y z -> p x -> q z.
 
+Declare Scope pred_derives.
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity) : pred_derives.
 Open Scope pred_derives.
 Notation "'EX' x .. y , P " :=
@@ -273,7 +275,7 @@ Proof.
 unfold TT, prop; simpl; auto.
 Qed.
 
-Hint Resolve @TT_i.
+Hint Resolve @TT_i : core.
 
 Lemma TT_and {A}: forall (Q: pred A), TT && Q = Q.
 intros; unfold andp,  TT, prop; extensionality w.
@@ -357,14 +359,14 @@ Lemma derives_refl {A: Type}:
 Proof. firstorder.
 Qed.
 
-Hint Resolve @derives_refl.
+Hint Resolve @derives_refl : core.
 
 Lemma derives_TT {A}: forall (P: pred A), P |-- TT.
 Proof.
 intros.
 intros ? ?; auto.
 Qed.
-Hint Resolve @derives_TT.
+Hint Resolve @derives_TT : core.
 
 Lemma sepcon_derives {A} {JA: Join A}{PA: Perm_alg A}:
   forall p q p' q', (p |-- p') -> (q |-- q') -> (p * q |-- p' * q').
@@ -535,14 +537,14 @@ Require Import VST.msl.cross_split.
 Lemma exactly_i {A} : forall x: A, exactly x x.
 Proof. intros. reflexivity.
 Qed.
-Hint Resolve @exactly_i.
+Hint Resolve @exactly_i : core.
 
 Lemma superprecise_exactly {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall x, superprecise (exactly x).
 Proof.
 unfold exactly, superprecise; intros.
 subst; auto.
 Qed.
-Hint Resolve @superprecise_exactly.
+Hint Resolve @superprecise_exactly : core.
 
 Lemma find_overlap {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      Cross_alg A ->

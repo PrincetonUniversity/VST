@@ -33,8 +33,8 @@ env:
   # system is == 4.02.3
 #  - COMPILER="4.02.3+32bit"
   - COMPILER="default"
-  - COQ_VERSION="8.9.0"
-  - NEXT_VERSION="8.9.0"
+  - COQ_VERSION="8.10.0"
+  - NEXT_VERSION="8.10.0"
 
 branches:
   only:
@@ -58,7 +58,7 @@ install:
 - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
 - opam update
 - opam show coq
-- opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
+- travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
 - opam list
 - file `which coqc`
 
