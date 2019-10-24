@@ -55,6 +55,15 @@ Proof.
  auto.
 Qed.
 
+Lemma compute_list_norepet_i: forall ids,
+     list_norepet ids -> compute_list_norepet ids = true.
+Proof.
+ induction ids; simpl; intros; trivial.
+ inv H. rewrite (IHids H3).
+ case_eq (id_in_list a ids); intros; trivial.
+ apply id_in_list_true in H. congruence.
+Qed.
+
 Lemma list_norepet_rev:
   forall A (l: list A), list_norepet (rev l) = list_norepet l.
 Proof.
