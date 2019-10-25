@@ -170,10 +170,10 @@ CONCUR_JUICY_FILES= \
   semax_safety_makelock.v \
   semax_safety_freelock.v \
   semax_safety_spawn.v \
-  sync_preds_defs.v sync_preds.v
+  sync_preds_defs.v sync_preds.v Clight_safety.v
 
 CONCUR_COMMON_FILES= \
-  addressFiniteMap.v \
+  addressFiniteMap.v advanced_permissions.v \
   bounded_maps.v \
   Clight_bounds.v ClightSemantincsForMachines.v  \
   core_semantics.v \
@@ -193,9 +193,15 @@ CONCUR_COMMON_FILES= \
   tactics.v \
   threadPool.v konig.v \
   threads_lemmas.v \
+  Asm_core.v Asm_event.v Clight_core.v Clight_mem_ok.v \
+  Clightcore_coop.v ClightMachine.v ClightSemanticsForMachines.v \
+  Compcert_lemmas.v
+
 
 CONCUR_COMPILER_FILES= \
   safety.v CoreSemantics_sum.v concurrent_compiler_safety_proof.v \
+  Asm_self_simulation.v Clight_self_simulation.v advanced_permissions.v \
+  coinductive_safety.v 
 #  self_simulation.v Clight_self_simulation.v Asm_self_simulation.v \
 #  lifting.v lifting_safety.v \
 #  compiler_correct.v
@@ -603,7 +609,11 @@ clean:
 	rm -fr doc/html
 
 clean-concur:
-	rm -f $(CONCUR_FILES:%.v=concurrency/%.vo) $(CONCUR_FILES:%.v=concurrency/%.glob) $(CONCUR_COMPILER_FILES:%.v=concurrency/compiler/%.vo) $(CONCUR_COMPILER_FILES:%.v=concurrency/compiler/%.glob) $(CONCUR_COMMON_FILES:%.v=concurrency/common/%.vo) $(CONCUR_COMMON_FILES:%.v=concurrency/common/%.glob) $(CONCUR_JUICY_FILES:%.v=concurrency/juicy/%.vo) $(CONCUR_JUICY_FILES:%.v=concurrency/juicy/%.glob)
+	rm -f concurrency/*/*.{vo,glob} concurrency/*.{vo,glob}
+#	rm -f $(CONCUR_FILES:%.v=concurrency/%.vo) $(CONCUR_FILES:%.v=concurrency/%.glob) $(CONCUR_COMPILER_FILES:%.v=concurrency/compiler/%.vo) $(CONCUR_COMPILER_FILES:%.v=concurrency/compiler/%.glob) $(CONCUR_COMMON_FILES:%.v=concurrency/common/%.vo) $(CONCUR_COMMON_FILES:%.v=concurrency/common/%.glob) $(CONCUR_JUICY_FILES:%.v=concurrency/juicy/%.vo) $(CONCUR_JUICY_FILES:%.v=concurrency/juicy/%.glob)
+
+clean-compcert_new:
+	rm -f compcert_new/*/*.{vo,glob}
 
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob)
