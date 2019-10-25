@@ -41,7 +41,7 @@ Module MainTheorem
   
   (* We want to prove something like this. Maybe with extra assumptions, 
      or (probably) the convers. In the end we want to unify the two predicates. *)
-  Lemma entry_point_problem:
+  (* Lemma entry_point_problem:
     forall src_m src_cpm1 src_cpm2,
       Clight.entry_point
         (Clight.globalenv C_program) src_m src_cpm1 (main_ptr C_program) nil ->
@@ -57,41 +57,35 @@ Module MainTheorem
      *)
     rename f into f_main2.
     - admit.
-  Admitted.
+  Admitted. *)
       
 
       (* End of temporary exposition *)
   Goal True.
     idtac "Delete until here". auto. Qed.
   End Temporary_to_see_inconsistency.
-
+  
+  Notation CPM:=ThreadPool.t.
   Theorem top2bottom_correct:
-    (* C program is proven to be safe in CSL*)
-      CSL_correct C_program ->
+      (* C program is proven to be safe in CSL*)
+      forall (main:AST.ident), CSL_correct C_program main ->
 
       (* C program compiles to some assembly program*)
       CompCert_compiler C_program = Some Asm_program ->
-      
-      forall (src_m:Memory.mem) (src_cpm:Clight.state),
-        (* Initial State for CSL *)
-        CSL_init_setup C_program src_m src_cpm ->
         
-        (*Correct entry point Clight (There is inconsistencies with CSL_init_Setup)*)
-        (* TODO: fix initial state inconsistenciees and unify. *)
-        Clight.entry_point (Clight.globalenv C_program) src_m src_cpm (main_ptr C_program) nil ->
-        
-        (* ASM memory good. *)
-        forall (limited_builtins:Asm_core.safe_genv x86_context.X86Context.the_ge),
-        asm_prog_well_formed Asm_program limited_builtins ->
-        
-        forall (U:schedule), exists (tgt_m0 tgt_m: mem) (tgt_cpm:ThreadPool.t),
-            (* inital asm machine *)
-            permissionless_init_machine
-              Asm_program limited_builtins
-              tgt_m0 tgt_cpm tgt_m (main_ptr C_program) nil /\
+      (* Statically checkable properties of ASM program *)
+      forall (STATIC: static_validation Asm_program main),
 
-            (*it's spinlock safe: well synchronized and safe *)
-            spinlock_safe U tgt_cpm tgt_m.
+      (* For all schedules, *)
+      forall U : schedule,
+        
+      (*The asm program can be initialized with a memory and CPM state*)
+      exists (tgt_m : mem) (tgt_cpm:CPM),
+        @initial_state Asm_program STATIC tgt_cpm tgt_m /\
+        
+        (* The assembly language program 
+         is correct  and well-synchronized  *)
+        spinlock_safe U tgt_cpm tgt_m.
     Proof. eapply main_safety_clean. Qed.
 End MainTheorem.
 
