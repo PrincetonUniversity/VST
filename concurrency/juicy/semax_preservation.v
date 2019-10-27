@@ -1058,10 +1058,10 @@ Section Preservation.
      destruct vf; try contradiction. if_tac in H; try contradiction.
     destruct (Genv.find_funct_ptr ge b); try contradiction.
     destruct (type_of_fundef f); try contradiction.
-    destruct E_c_new as [_ [_ [_ ?]]].
-    destruct H as [_ [_ [_ ?]]]. subst. auto.
+    destruct E_c_new as [_ [_ [_ [_ [_ ?]]]]].
+    destruct H as [_ [_ [_ [_ [_ ?]]]]]. subst. auto.
   } subst c_new_.
-   destruct Hinitial as (Hinitial & ? & H0ab); subst.
+   destruct Hinitial as (Hinitial & ? & [H0ab [Hgnf Hwd]]); subst.
       simpl JuicyMachine.add_block in *.
       unfold add_block in *.
       assert (mem_compatible_with (updThread i tp cnti (Krun c_new) (getThreadR i tp cnti))

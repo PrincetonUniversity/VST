@@ -276,16 +276,18 @@ Module Main
     Proof.
       intros CPROOF. destruct (spr CPROOF) as (a&b&(c&d)&e&f&g).
       specialize (d e f).
+      instantiate (1:=O) in g.
       destruct d as (m & Hinit_core).
       inv Hinit_core. inv H0.
       destruct (init_mem CPROOF) as (m_init & Hm).
       econstructor; eauto.
       econstructor; eauto.
+      destruct H1 as [? [? [? ?]]].
       split; auto.
       econstructor.
-
-      Unshelve.
-      exact O.
+      split; auto.
+      simpl. simpl in f. rewrite <- f.
+      split; auto.
     Qed.
         
         
@@ -434,8 +436,10 @@ Module Main
     intros HH; destruct HH.
     inv H5. dup H6 as Hinit.
     simpl in H6.
+    destruct H7 as [? [? ?]].
     repeat match_case in H6;
-      destruct H6 as (?&?&?&?).
+      destruct H6 as (?&?&?&?&?).
+     
     2:{ exfalso; assumption. }
     
     exploit main_safety_clean'; eauto.

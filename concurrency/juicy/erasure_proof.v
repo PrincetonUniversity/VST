@@ -4713,7 +4713,7 @@ Qed.
         assert (DryHybridMachine.invariant ds').
         { eapply step_decay_invariant with (Hcompatible := MTCH_compat _ _ _ MATCH Hcmpt); auto.
 hnf in Hinitial.
-          destruct Hinitial as [? [Harg H0]]; subst.
+          destruct Hinitial as [? [Harg [H0 [Hgnf Hwd]]]]; subst.
 (*
           destruct vf eqn:Hvf; try discriminate Hinitial.
           rename b into b0.
@@ -4747,7 +4747,7 @@ do 9 red in Hinitial.
               symmetry; apply mtch_perm1. }
         split; auto; split.
         - hnf in Hperm.
-          destruct Hinitial as [? [Harg ?]]; subst; auto.
+          destruct Hinitial as [? [Harg [? [Hgnf Hwd]]]]; subst; auto.
         - exists nil; rewrite <- app_nil_end.
           eapply (HybridMachineSig.start_step tid) with (Htid0 := @MTCH_cnt js tid ds MATCH Htid).
           + assumption.
@@ -4756,13 +4756,16 @@ do 9 red in Hinitial.
               - eapply MTCH_getThreadC. eassumption. eassumption.
               - reflexivity.
               - 
-                destruct Hinitial as [? [Harg ?]]; subst; split; eauto.
+                destruct Hinitial as [? [Harg [? [Hgnf Hwd]]]]; subst; split; eauto.
                 simpl in *.
-                split; auto.
+                split3; auto.
                 replace Htid with ctn by apply proof_irr.
                 remember (Concur.install_perm _ _) as m1.
                 apply mtch_install_perm with (ds := ds)(MATCH := MATCH) in Heqm1; hnf in Heqm1.
                 apply Heqm1.
+                split; simpl.
+                admit. (* preserve globals_not_fresh in Concur.invariant *)
+                admit. (* preserve mem_wd in Concur.invariant *)
               - eassumption.
               - replace Htid with ctn by apply proof_irr; reflexivity.
             }
@@ -4938,7 +4941,9 @@ inversion MATCH; subst.
   - assumption.
   - assumption.
   - assumption.
-  Qed.
+  - admit. (* preserve mem_wd in Concur.invariant *)
+  - admit. (* preserve globals_not_fresh in Concur.invariant *) 
+ Admitted.
 
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap

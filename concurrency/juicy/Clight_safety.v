@@ -878,9 +878,10 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
      inv Htstep.
     hnf in Hperm; subst.
     destruct Hinitial as (? & ? & H0ab); subst.
+    destruct H0ab as [H0ab [Hgnf Hwd]]; subst m'.
     destruct Hmem as [H1 [H2 H2']]; split; [|split].
     + unfold Smallstep.globals_not_fresh.
-      etransitivity; eauto. simpl. apply Pos.le_refl. 
+      etransitivity; try eassumption. simpl. apply Pos.le_refl. 
     + intros.
       hnf; intros.
        eapply memval_inject_incr, flat_inj_incr, Pos.le_refl; auto.
@@ -902,7 +903,7 @@ hnf in H. destruct st as [[sch tr] tp]. destruct st' as [[sch' tr'] tp'].
         destruct (Ptrofs.eq_dec i Ptrofs.zero);  try contradiction.
         destruct (Genv.find_funct_ptr (Clight.genv_genv ge) b); try contradiction.
         destruct (Clight.type_of_fundef f); try contradiction.
-        destruct H as [? [? [? ?]]]; subst.
+        destruct H as [? [? [? [? [? ?]]]]]; subst.
         split. constructor; auto. hnf; auto.
   - (* resume_thread *)
     destruct Hmem as [Hmem1 [Hmem2 Hmem3]].
@@ -1118,21 +1119,6 @@ Proof.
     simpl.
     destruct f. 2:{ admit. (* main is not external *) }
     econstructor; eauto.
-    + rewrite Heqt0; f_equal.
-      admit. (* For now, assume main returns int? 
-                Santiago: I'll investigate how easy is to generalize 
-                this in CompCert, but we should probably stick to a 
-                type_int32s for now.
-              *)
-    + !goal (Smallstep.globals_not_fresh (Clight.genv_genv ge) m_init).
-      admit. (* add this to Clight_core.cl_initial_core*)
-    + !goal (Mem.mem_wd _).
-      !context_goal (Mem.mem_wd). 
-      admit. (* add this to Clight_core.cl_initial_core*)
-   + !goal (Premain.bounded_args (signature_of_type _ type_int32s AST.cc_default)).
-      admit. (* add this to Clight_core.cl_initial_core
-                
-              *)
 Admitted.
   
                
@@ -1159,14 +1145,14 @@ Proof.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
     simpl in Hinitial.
-    destruct Hinitial as (Hinit & Harg & H0ab); subst.
+    destruct Hinitial as (Hinit & Harg & H0ab & Hgnf & Hwd); subst.
     dup Hinit as Hinit'.
     unfold Clight_core.cl_initial_core in Hinit'.
     destruct vf; try contradiction.
     destruct (Ptrofs.eq_dec _ _); try contradiction.
     destruct (Genv.find_funct_ptr _ b) eqn: Hb; try contradiction.
     destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
-    destruct Hinit' as (? & ? & ? & ?); subst.
+    destruct Hinit' as (? & ? & ? & ? & ? & ?); subst.
     eapply CoreSafe with (tp'0 := updThread (mtch_cnt _ ctn)
             (Krun (Clight.Callstate f [arg] (Clight.Kstop t0) m'))
             (HybridMachineSig.add_block Hcmpt ctn m')).
@@ -1485,8 +1471,10 @@ Proof.
     unfold veric.Clight_core.cl_initial_core in Hinit; simpl in Hinit.
     destruct (Genv.find_funct_ptr _ _) eqn: Hfind; [|exfalso; auto].
     match_case in Hinit.
-    destruct Hinit as (?&?&?&?). match_case in H2; subst.
+    destruct Hinit as (?&?&?&?). match_case in H3; subst.
+    destruct H3 as [_ [? ?]]. subst.
     simpl. intros. split; auto.
+    destruct H3; contradiction.
 Qed.
 
 Lemma Clight_new_Clight_safety:
@@ -1521,8 +1509,8 @@ Proof.
   specialize (Hinit _ Hjm) as (? & ? & Hinit & ?); subst; simpl in *.
   destruct (Genv.find_funct_ptr _ b); try contradiction.
   destruct (Clight.type_of_fundef f) eqn: Hty; try contradiction.
-  destruct Hinit as (? & ? & ? & ?); subst.
-  inv Hf. inv H2.
+  destruct Hinit as (? & ? & ? & ? & ? & ?); subst.
+  inv Hf. inv H3.
   reflexivity.
 Qed.
 

@@ -1510,8 +1510,9 @@ Section Progress.
         + eapply JuicyMachine.StartThread with (c_new := q_new)(Hcmpt := mem_compatible_forget compat).
           * apply Eci.
           * simpl; reflexivity.
-          * split3; eauto.
+          * split; [|split3]; eauto.
             repeat constructor; auto.
+            admit.  (* need to add these to state_invariant? *)
           * reflexivity.
           * reflexivity.
     }

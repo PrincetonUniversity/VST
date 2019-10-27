@@ -1515,6 +1515,8 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
      Some (mk_funspec (params, retty) cc_default A P Q NEP NEQ) ->
   tc_vals (map snd params) args ->
   val_casted_list args (type_of_params params) ->
+  Premain.bounded_args
+    (signature_of_type (type_of_params params) type_int32s cc_default) ->
   let rho1 : environ := make_args (map fst params) args 
                                     (empty_environ (globalenv prog)) in
   { q : CC_core |
@@ -1522,6 +1524,8 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
      Forall (fun v => Val.inject (Mem.flat_inj (nextblock (m_dry jm))) v v)  args->
      inject_neutral (nextblock (m_dry jm)) (m_dry jm) /\
      Coqlib.Ple (Genv.genv_next (Genv.globalenv prog)) (nextblock (m_dry jm)) ->
+     Smallstep.globals_not_fresh (genv_genv (globalenv prog)) (m_dry jm) ->
+     mem_wd (m_dry jm) ->
     exists jm', semantics.initial_core
     (juicy_core_sem (cl_core_sem (globalenv prog))) h
     jm q jm' (Vptr b Ptrofs.zero) args) /\
@@ -1534,7 +1538,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
 intro retty.
-intros EXIT SP Findb id_in_G arg_p Hca.
+intros EXIT SP Findb id_in_G arg_p Hca Hba.
 rewrite <-find_id_maketycontext_s in id_in_G.
 generalize SP; intros [_ [_ [CSEQ _]]].
 destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & (Gcontains & Believe)) & _).
@@ -1555,19 +1559,19 @@ simpl semantics.initial_core.
 fold fundef in *.
 split.
 intros; exists jm; split; auto.
+rename H1 into Hgnf. rename H2 into Hwd.
 rewrite if_true by auto.
 change (Genv.globalenv (program_of_program prog))
   with (genv_genv (globalenv prog)).
 rewrite Eb; auto.
 split3; auto.
 unfold params_of_funspec in Ef; simpl in Ef.
-rewrite Ef. split; [ | split3]; auto.
+rewrite Ef. split; auto. split; [ | split3]; auto.
 { clear - arg_p.
    revert args arg_p; induction params as [|[??]]; destruct args; simpl; intros; inv arg_p; constructor.
    apply tc_val_has_type; auto. auto.
 }
 clear - H.
-red.
 induction H. constructor.
 constructor; auto.
 intros jm ts a m_sat_Pa m_funassert.
@@ -1607,6 +1611,7 @@ change (prog_comp_env prog) with (genv_cenv psi) in *.
 assert (HGG: cenv_sub (@cenv_cs CS) (globalenv prog))
   by (rewrite CSEQ; apply cenv_sub_refl).
 
+clear Hba.
 (***  cut here ****)
 
 assert (H5 := Prog_OK).
@@ -2092,6 +2097,10 @@ Proof.
   set (rho1 := make_args (map fst params) nil (empty_environ (globalenv prog))) in *.
   cbv beta iota zeta in SPEP.
   destruct SPEP as [q [? ?]].
+  { (* bounded_args *)
+    subst params; clear; simpl. hnf; simpl. unfold Conventions1.size_arguments; simpl.
+    first [change Archi.ptr64 with true | change Archi.ptr64 with false]; compute; auto.
+ }
   exists b, q.
   split; [split |]; auto.
  - 
@@ -2100,6 +2109,9 @@ Proof.
   rewrite H10.
   split.  red.  apply neutral_inject. eapply Genv.initmem_inject; eauto.
   erewrite Genv.init_mem_genv_next; eauto. apply Coqlib.Ple_refl.
+  rewrite H10. clear - H1. apply Genv.init_mem_genv_next in H1. 
+  red. simpl in *. fold fundef in *. rewrite H1. apply Ple_refl. 
+  rewrite H10. clear - H1. hnf. eapply Genv.initmem_inject; eauto.
  - clear H7.
   intro n.
   pose (jm := initial_jm_ext z prog m G n H1 H0 H2).

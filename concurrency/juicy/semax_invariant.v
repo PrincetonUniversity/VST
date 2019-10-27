@@ -484,6 +484,92 @@ Definition mem_wellformed (m: mem) :=
  Mem.inject_neutral (Mem.nextblock m) (maxedmem m) /\
   Ple (Genv.genv_next ge) (Mem.nextblock m).
 
+
+Lemma access_at_maxedmem: 
+ forall m loc, access_at (maxedmem m) loc Cur =  access_at m loc Max.
+Proof.
+intros.
+destruct loc.
+unfold maxedmem.
+pose proof (mem_equiv.getCur_restr (getMaxPerm m) m (mem_max_lt_max m)).
+specialize (H b).
+apply equal_f with z in H.
+rewrite getCurPerm_correct in H.
+unfold permission_at in H.
+unfold access_at.
+simpl fst; simpl snd.
+rewrite H.
+rewrite getMaxPerm_correct.
+auto.
+Qed.
+
+(*
+Lemma access_at_maxedmem': 
+ forall m loc, access_at (maxedmem m) loc Cur =  access_at (maxedmem m) loc Max.
+Proof.
+intros.
+destruct loc.
+unfold maxedmem.
+pose proof (mem_equiv.restr_Max_equiv (mem_max_lt_max m)).
+specialize (H b).
+apply (equal_f ) with z in H.
+rewrite !getMaxPerm_correct in H.
+unfold permission_at in H.
+unfold access_at.
+simpl fst; simpl snd.
+rewrite H.
+clear H.
+pose proof (mem_equiv.getCur_restr (getMaxPerm m) m (mem_max_lt_max m)).
+specialize (H b).
+apply equal_f with z in H.
+rewrite getCurPerm_correct in H.
+unfold permission_at in H.
+rewrite H.
+rewrite getMaxPerm_correct.
+auto.
+Qed.
+*)
+
+Lemma maxedmem_neutral':
+ forall m y x, 
+   Mem.inject_neutral (Mem.nextblock m) (maxedmem m) ->
+Mem.inject_neutral (Mem.nextblock m) (@juicyRestrict y m x).
+Proof.
+intros.
+unfold Mem.inject_neutral in *.
+inv H.
+constructor; intros; simpl in *.
+-
+unfold Mem.flat_inj in H.
+if_tac in H; inv H.
+rewrite Z.add_0_r. auto.
+-
+eapply mi_align; eauto.
+intros ? ?.
+specialize (H0 _ H1).
+pose proof (juicyRestrictMax).
+rewrite perm_access in H0.
+unfold max_access_at in H2.
+rewrite <- H2 in H0.
+unfold maxedmem.
+rewrite mem_equiv.restr_Max_equiv.
+rewrite perm_access.
+eassumption.
+-
+apply mi_memval; auto.
+clear - H0.
+rewrite perm_access in H0.
+rewrite perm_access.
+eapply perm_order''_trans; try eassumption.
+clear H0.
+rewrite access_at_maxedmem.
+replace (access_at m (b1,ofs) Max)
+ with (access_at (juicyRestrict x) (b1,ofs) Max).
+apply access_cur_max.
+symmetry.
+apply juicyRestrictMax.
+Qed.
+
 Lemma maxedmem_neutral:
   forall m,
  Mem.inject_neutral (Mem.nextblock (maxedmem m)) (maxedmem m) ->
@@ -491,20 +577,64 @@ Lemma maxedmem_neutral:
 Proof.
 intros.
 unfold Mem.inject_neutral in *.
-inv H. 
-constructor; intros; simpl in *.
-unfold Mem.flat_inj in H.
-if_tac in H; try discriminate.
 inv H.
+constructor; intros; simpl in *.
+-
+unfold Mem.flat_inj in H.
+if_tac in H; inv H.
 rewrite Z.add_0_r. auto.
+-
 eapply mi_align; eauto.
 intros ? ?.
 unfold maxedmem.
 rewrite mem_equiv.restr_Max_equiv. eauto.
+-
 apply mi_memval; auto.
 clear - H0.
-unfold maxedmem.
-Admitted.  (* Santiago will finish this one *)
+rewrite perm_access in H0.
+rewrite perm_access.
+eapply perm_order''_trans; try eassumption.
+clear H0.
+rewrite access_at_maxedmem.
+apply access_cur_max.
+Qed.
+
+Lemma mem_equiv_restr_max:
+ forall m j (k: permMapLt j (getMaxPerm m)),
+mem_equiv.mem_equiv (restrPermMap (mem_max_lt_max (@restrPermMap j m k)))
+  (restrPermMap (mem_max_lt_max m)).
+Proof.
+intros.
+constructor.
+-
+red.
+etransitivity.
+apply mem_equiv.getCur_restr.
+fold (maxedmem m).
+intro b.
+extensionality z.
+rewrite getCurPerm_correct.
+rewrite getMaxPerm_correct.
+unfold permission_at.
+symmetry.
+pose proof (access_at_maxedmem m (b,z)).
+unfold access_at in H.
+simpl fst in H; simpl snd in H.
+rewrite H.
+symmetry.
+pose proof (restrPermMap_Max k b z).
+unfold permission_at in H0.
+rewrite getMaxPerm_correct in H0.
+apply H0.
+-
+rewrite !mem_equiv.restr_Max_equiv.
+reflexivity.
+-
+rewrite !mem_equiv.restr_content_equiv.
+reflexivity.
+-
+reflexivity.
+Qed.
 
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c

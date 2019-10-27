@@ -485,6 +485,8 @@ Section Safety.
     destruct Hinit as [_ Hinit]; simpl in Hinit.
     destruct Hinit as (? & ? & ?); eexists.
     split3; auto. constructor.
+    rewrite <- H;
+    destruct H2 as [? [? ?]]; split3; auto.
   Qed.
 
   Lemma jmsafe_csafe n m tr sch s : jmsafe (globalenv prog) n (m, (tr, sch, s)) -> jm_csafe (sch, tr, s) m n.

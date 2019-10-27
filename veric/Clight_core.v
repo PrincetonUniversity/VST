@@ -99,10 +99,13 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) (q: CC_core) : P
     if Ptrofs.eq_dec i Ptrofs.zero then
       match Genv.find_funct_ptr ge b with
         Some f =>
-        match type_of_fundef f with Tfunction targs _ c =>
+        match type_of_fundef f with Tfunction targs tret c =>
+ (*          match f with Internal _ => True | _ => False end /\ *)
+           tret = type_int32s /\
            c = cc_default /\
            val_casted_list args targs /\
            Val.has_type_list args (Ctypes.typlist_of_typelist targs) /\
+           Premain.bounded_args (signature_of_type targs type_int32s c) /\
            q = Callstate f args (Kstop targs) 
         | _ => False  end
       | _ => False end
@@ -320,7 +323,12 @@ Program Definition cl_core_sem (ge: genv) :
   @CoreSemantics CC_core mem :=
   @Build_CoreSemantics _ _
     (*deprecated cl_init_mem*)
-    (fun _ m c m' v args => cl_initial_core ge v args c /\ arg_well_formed args m /\ m' = m)
+    (fun _ m c m' v args => 
+        cl_initial_core ge v args c
+       /\ arg_well_formed args m
+       /\ m' = m
+       /\ Smallstep.globals_not_fresh (Clight.genv_genv ge) m
+       /\ Mem.mem_wd m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
     (fun c _ =>  cl_halted c <> None)

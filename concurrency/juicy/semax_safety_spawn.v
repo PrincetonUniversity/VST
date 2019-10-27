@@ -366,9 +366,16 @@ Print Module SeparationLogicSoundness.VericSound.
   }
   *)
   specialize (HEP (conj PreA Logic.I)).
-  spec HEP.
-    admit. (* val_casted_list *)
-  destruct HEP as (q_new & Initcore & Safety).
+  spec HEP. {
+   subst fsig args; simpl. repeat constructor; auto.
+   clear - PreA. destruct b; try contradiction;
+   try constructor; reflexivity.
+  }
+  destruct HEP as (q_new & Initcore & Safety). {
+    destruct ci; inv at_ex. clear FAT' FAT. clear NEP NEQ Post P Q.
+    subst fsig; simpl. hnf. unfold Conventions1.size_arguments. simpl.
+    destruct Archi.ptr64; reflexivity.
+  }
 (*  specialize (Initcore (jm_ cnti compat)). 
 clear - Initcore.
   change (initial_core (juicy_core_sem cl_core_sem) _) with cl_initial_core in Initcore.
@@ -396,6 +403,7 @@ clear - Initcore.
       rewrite Z.add_0_r in Hvalid; destruct (phi0 @ _) eqn: Hb; inv jphi.
       apply join_to_bot_l in RJ; subst.
       contradiction Hvalid; apply bot_identity. } }
+  
   eexists.
   split.
   {
@@ -493,26 +501,20 @@ clear - Initcore.
        with (Mem.nextblock (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat))).
       apply  maxedmem_neutral.
       assert (mem_equiv.mem_equiv (maxedmem (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat)))
-                  (maxedmem m)). {
-         clear. simpl.
-         unfold maxedmem, juicyRestrict.
-     set (j := (juice2Perm
-           (@OrdinalPool.getThreadR LocksAndResources
-              (@JSem (globalenv prog)) i tp cnti) m)).
-     set (k := (@juice2Perm_cohere
-           (@OrdinalPool.getThreadR LocksAndResources
-              (@JSem (globalenv prog)) i tp cnti))).
-     set (q := (@acc_coh m
-              (@OrdinalPool.getThreadR LocksAndResources
-                 (@JSem (globalenv prog)) i tp cnti)
-              (@thread_mem_compatible (@JSem (globalenv prog)) tp m
-                 (@mem_compatible_forget (globalenv prog) tp m Phi
-                    compat) i cnti))).
-   clearbody q. clearbody k.
-   admit.  (* for Santiago to do. *)
-  }
+                  (maxedmem m))
+       by apply mem_equiv_restr_max.
   red. simpl Mem.nextblock. rewrite H0. auto.
-}
+  clear Safety jphi' jphi1' Initcore Post FAT PreB3 FAT' Heq_P Heq_Q NEQ NEP.
+  simpl. red; simpl. 
+  clear - I. inv I. destruct mwellformed. apply H0.
+  clear -mwellformed; destruct mwellformed as [? _].
+  hnf. 
+simpl.
+  change (Mem.inject_neutral (Mem.nextblock m)
+  (juicyRestrict (OrdinalPool.getThreadR cnti) m
+     (acc_coh (thread_mem_compatible (mem_compatible_forget compat) cnti)))).
+  apply maxedmem_neutral'; auto.
+ }
       intros jm. REWR. rewrite gssAddRes by reflexivity.
       specialize (Safety jm ts).
       intros Ejm.
