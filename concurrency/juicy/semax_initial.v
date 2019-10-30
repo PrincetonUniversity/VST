@@ -49,14 +49,82 @@ Set Bullet Behavior "Strict Subproofs".
 
 (*+ Initial state *)
 
+Lemma mem_equiv_maxedmem_self:
+ forall m, 
+   mem_equiv.Cur_equiv (maxedmem m) m ->  
+   mem_equiv.mem_equiv (maxedmem m) m.
+Proof.
+intros.
+constructor; auto; hnf; intros; try reflexivity.
+unfold maxedmem.
+rewrite restr_Max_eq.
+auto.
+Qed.
+
+Lemma initmem_maxedmem_aux1:
+ forall m b0 n p m1 b z,
+  Mem.drop_perm m b0 0 n p = Some m1 ->
+  (Mem.mem_access m) !! b z Max = (Mem.mem_access m) !! b z Cur ->
+  (Mem.mem_access m1) !! b z Max = (Mem.mem_access m1) !! b z Cur.
+Proof.
+intros.
+unfold Mem.drop_perm in H.
+destruct (Mem.range_perm_dec m b0 0 n Cur Freeable); inv H.
+simpl.
+destruct (eq_dec b0 b).
+subst.
+rewrite PMap.gss.
+destruct (range_dec 0 z n).
+destruct a.
+destruct (zle 0 z); try contradiction.
+destruct (zlt z n); try contradiction.
+reflexivity.
+destruct (zle 0 z); try contradiction.
+destruct (zlt z n); try contradiction.
+reflexivity.
+simpl. auto.
+simpl. auto.
+rewrite PMap.gso by auto.
+auto.
+Qed.
+
+Lemma initmem_maxedmem_aux2:
+ forall m n b0 m1 b z,
+  Mem.alloc m 0 n =  (m1,b0) ->
+  (Mem.mem_access m) !! b z Max = (Mem.mem_access m) !! b z Cur ->
+  (Mem.mem_access m1) !! b z Max = (Mem.mem_access m1) !! b z Cur.
+Proof.
+intros.
+Transparent Mem.alloc.
+unfold Mem.alloc in H.
+Opaque Mem.alloc.
+inv H.
+simpl in *.
+destruct (eq_dec (Mem.nextblock m) b).
+subst.
+rewrite PMap.gss.
+destruct (range_dec 0 z n).
+destruct a.
+destruct (zle 0 z); try contradiction.
+destruct (zlt z n); try contradiction.
+reflexivity.
+destruct (zle 0 z); try contradiction.
+destruct (zlt z n); try contradiction.
+reflexivity.
+simpl. auto.
+simpl. auto.
+rewrite PMap.gso by auto.
+auto.
+Qed.
+
 Lemma initmem_maxedmem:
   forall prog m, @Genv.init_mem Clight.fundef type  prog = Some m -> 
     mem_equiv.mem_equiv (maxedmem m) m.
 Proof.
 intros.
 unfold Genv.init_mem in H.
-assert (mem_equiv.mem_equiv (maxedmem Mem.empty) Mem.empty) 
-  by admit.
+assert (mem_equiv.mem_equiv (maxedmem Mem.empty) Mem.empty)
+  by (constructor; hnf; simpl; intros; reflexivity).
 forget Mem.empty as m0.
 revert m0 m H H0; induction (AST.prog_defs prog); intros.
 simpl in H. inv H.
@@ -66,19 +134,44 @@ destruct (Genv.alloc_global (Genv.globalenv prog) m0 a) eqn:?H; try discriminate
 apply IHl in H; auto.
 clear - H1 H0.
 destruct a.
+apply mem_equiv_maxedmem_self.
+hnf; intros; rewrite (mem_equiv.getCur_restr _ _ ((mem_max_lt_max m1))).
+inv H0.
+rename cur_eqv into H2.
+clear max_eqv content_eqv nextblock_eqv.
+specialize (H2 b).
+unfold maxedmem in H2.
+rewrite mem_equiv.getCur_restr in H2.
+unfold getMaxPerm in *.
+rewrite PMap.gmap in *.
+unfold getCurPerm in *.
+rewrite PMap.gmap in *.
+extensionality z.
+pose proof (equal_f H2 z). simpl in H. clear H2.
 destruct g.
+-
 simpl in H1.
 destruct (Mem.alloc m0 0 1) eqn:?H.
-admit.
+Set Nested Proofs Allowed.
+eapply initmem_maxedmem_aux1; eauto.
+eapply initmem_maxedmem_aux2; eauto.
+- 
 simpl in H1.
 destruct (Mem.alloc m0 0 (init_data_list_size (gvar_init v))) eqn:?H.
-destruct (store_zeros m b 0 (init_data_list_size (gvar_init v))) eqn:?H; try discriminate.
-destruct (Genv.store_init_data_list (Genv.globalenv prog) m2 b 0 (gvar_init v)) eqn:?H; try discriminate.
+destruct (store_zeros m b0 0 (init_data_list_size (gvar_init v))) eqn:?H; try discriminate.
+destruct (Genv.store_init_data_list (Genv.globalenv prog) m2 b0 0 (gvar_init v)) eqn:?H; try discriminate.
 apply initialize.store_init_data_list_access in H3.
 apply store_zeros_access in H2.
 rewrite H2 in H3; clear dependent m2.
-admit.
-Admitted. 
+eapply initmem_maxedmem_aux1; eauto.
+unfold access_at in H3.
+pose proof (equal_f (equal_f H3 (b,z)) Max). simpl in H2.
+rewrite <- H2. clear H2.
+pose proof (equal_f (equal_f H3 (b,z)) Cur). simpl in H2.
+rewrite <- H2. clear H2.
+eapply initmem_maxedmem_aux2; eauto.
+Qed.
+
 
 Section Initial_State.
   Variables

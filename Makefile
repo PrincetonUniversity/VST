@@ -591,7 +591,6 @@ ifneq ($(wildcard coq-ext-lib/theories),)
 	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend 
 endif
 ifneq ($(wildcard InteractionTrees/theories),)
-	$(warning foo)
 	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend 
 endif
 ifneq ($(wildcard fcf/src/FCF),)
