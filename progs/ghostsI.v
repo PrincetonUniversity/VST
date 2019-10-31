@@ -133,6 +133,18 @@ Qed.
 
 End PVar.
 
+Section Reference.
+
+Context {P : Ghost}.
+
+Lemma ref_update : forall g a r a',
+  (ghost_part_ref g Tsh a r |-- |==> ghost_part_ref g Tsh a' a')%I.
+Proof.
+  exact ref_update.
+Qed.
+
+End Reference.
+
 Section GHist.
 
 (* Ghost histories in the style of Nanevsky *)

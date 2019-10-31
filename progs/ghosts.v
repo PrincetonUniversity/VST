@@ -476,7 +476,7 @@ Proof.
   split; auto; constructor.
 Qed.
 
-Lemma ref_sub : forall g sh a b pp,
+Lemma ref_sub_gen : forall g sh a b pp,
   own(RA := ref_PCM P) g (Some (sh, a), None) pp * own(RA := ref_PCM P) g (None, Some b) pp |--
     !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
 Proof.
@@ -494,6 +494,40 @@ Proof.
     apply join_Tsh in Hsh; tauto.
   - inv Hsub.
     rewrite eq_dec_refl; auto.
+Qed.
+
+Lemma ref_sub : forall g sh a b,
+  ghost_part g sh a * ghost_reference g b |--
+    !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
+Proof.
+  intros; apply ref_sub_gen.
+Qed.
+
+Lemma self_completable : forall a, completable (Some (Tsh, a)) a.
+Proof.
+  intros; unfold completable.
+  exists None; constructor.
+Qed.
+
+Lemma ref_update_gen : forall g a r a' pp,
+  own(RA := ref_PCM P) g (Some (Tsh, a), Some r) pp |-- |==>
+  own(RA := ref_PCM P) g (Some (Tsh, a'), Some a') pp.
+Proof.
+  intros; apply own_update.
+  intros (c, ?) ((x, ?) & [J1 J2] & [? Hvalid]); simpl in *.
+  inv J2; [|contradiction].
+  destruct c as [(?, c)|], x as [(shx, x)|]; try contradiction.
+  - destruct J1 as (? & ? & J & Hx).
+    apply join_Tsh in J as []; contradiction.
+  - inv J1.
+    exists (Some (Tsh, a'), Some a'); repeat split; simpl; auto; try constructor.
+    apply self_completable.
+Qed.
+
+Lemma ref_update : forall g a r a',
+  ghost_part_ref g Tsh a r |-- |==> ghost_part_ref g Tsh a' a'.
+Proof.
+  intros; apply ref_update_gen.
 Qed.
 
 Lemma ref_add : forall g sh a r b a' r' pp
@@ -532,12 +566,6 @@ Proof.
       eapply join_eq; eauto.
 Qed.
 
-Lemma self_completable : forall a, completable (Some (Tsh, a)) a.
-Proof.
-  intros; unfold completable.
-  exists None; constructor.
-Qed.
-
 End Reference.
 
 Hint Resolve self_completable : init.
@@ -548,6 +576,17 @@ Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
   Join_G := Join_equiv A }.
 Next Obligation.
   auto.
+Defined.
+
+Context {A : Type}.
+
+Global Instance discrete_order : PCM_order(P := discrete_PCM A) eq.
+Proof.
+  constructor; intros.
+  - typeclasses eauto.
+  - exists c; subst; split; hnf; auto.
+  - inv H; auto.
+  - subst; hnf; auto.
 Defined.
 
 End Discrete.
@@ -608,7 +647,17 @@ Proof.
   - exists (Some (Tsh, v')); split; [constructor | auto].
 Qed.
 
+Lemma ghost_var_exclusive : forall sh v p, sh <> Share.bot -> exclusive_mpred (ghost_var sh v p).
+Proof.
+  intros; unfold exclusive_mpred.
+  rewrite ghost_var_share_join_gen.
+  Intros sh'.
+  apply join_self, identity_share_bot in H1; contradiction.
+Qed.
+
 End GVar.
+
+Hint Resolve ghost_var_exclusive.
 
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)

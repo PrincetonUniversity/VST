@@ -385,7 +385,7 @@ Proof.
     rewrite app_cons_assoc in Hshs.
     apply sepalg_list.list_join_unapp in Hshs as (sh' & Hshs1 & ?).
     apply sepalg_list.list_join_unapp in Hshs1 as (? & J & J1).
-    apply list_join_eq with (c := x) in J; auto; subst.
+    apply list_join_eq with (c := sh) in J; auto; subst.
     rewrite <- sepalg_list.list_join_1 in J1.
     gather_SEP 3 1; erewrite lock_inv_share_join; eauto.
     rewrite !(sublist_split 0 i (i + 1)), !sublist_len_1 by omega.
@@ -393,15 +393,14 @@ Proof.
     Exists sh'; entailer!.
     { eapply sepalg_list.list_join_app; eauto.
       econstructor; eauto; constructor. }
-    rewrite (sepcon_comm _ (ghost_var _ _ _)), !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
-    rewrite sepcon_comm, sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+    simpl; cancel.
     rewrite !data_at__tarray.
     rewrite Z2Nat.inj_add, <- list_repeat_app by omega.
     erewrite split2_data_at_Tarray_app by (rewrite Zlength_list_repeat; auto; omega).
     rewrite Z.add_simpl_l; cancel.
     simpl; erewrite data_at_singleton_array_eq by eauto.
     rewrite field_address0_offset.
-    cancel.
+    unfold thread_lock_inv, thread_lock_R; cancel.
     { rewrite field_compatible0_cons; split; auto; try omega.
       apply field_compatible_array_smaller0 with (n' := N); auto; omega. }
     { eapply readable_share_list_join; eauto. }

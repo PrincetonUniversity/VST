@@ -6,7 +6,7 @@ Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
 Require Import VST.progs.invariants.
 Require Import VST.progs.fupd.
-Require Import atomics.general_atomics.
+Require Import VST.atomics.general_atomics.
 
 Set Bullet Behavior "Strict Subproofs".
 
