@@ -232,7 +232,7 @@ apply identity_share_bot in Heqp.
 apply Share.nontrivial; auto.
 simpl in H; auto.
 Qed.
-Hint Resolve writable_readable.
+Hint Resolve writable_readable : core.
 
 Lemma top_pfullshare: forall psh, pshare_sh psh = Share.top -> psh = pfullshare.
 Proof.
@@ -299,14 +299,14 @@ unfold Share.Lsh, Share.Rsh, Tsh.
 destruct (Share.split Share.top) eqn:?. simpl.
 apply split_join; auto.
 Qed.
-Hint Resolve writable_share_top.
+Hint Resolve writable_share_top : core.
 
 Lemma writable_readable_share:
  forall sh, writable_share sh -> readable_share sh.
 Proof.
 apply writable_readable; auto.
 Qed.
-Hint Resolve writable_readable_share.
+Hint Resolve writable_readable_share : core.
 
 Definition extern_retainer := fst (Share.split Share.Lsh).
 
@@ -346,7 +346,7 @@ Proof.
   unfold writable_share.
 Abort.  (* Not true any more *)
 
-Hint Resolve writable_Ews.
+Hint Resolve writable_Ews : core.
 
 Definition Ers (* Extern read share *) := 
   Share.lub extern_retainer (fst (Share.split Share.Rsh)).
@@ -361,7 +361,7 @@ rewrite Share.glb_bot.
 apply bot_identity.
 Qed.
 
-Hint Resolve readable_nonidentity.
+Hint Resolve readable_nonidentity : core.
 
 Lemma sub_glb_bot:
   forall r a c : share,
@@ -1027,7 +1027,7 @@ Proof.
 intros.
 destruct H. auto.
 Qed.
-Hint Resolve writable_writable0.
+Hint Resolve writable_writable0 : core.
 
 Lemma writable0_readable: forall sh,
   writable0_share sh -> readable_share sh.
@@ -1044,7 +1044,7 @@ destruct (Share.split Share.top) eqn:?. simpl in H0.
 apply split_nontrivial' in Heqp; auto.
 apply top_share_nonidentity in Heqp. auto.
 Qed.
-Hint Resolve writable0_readable.
+Hint Resolve writable0_readable : core.
 
 Lemma writable0_Rsh: writable0_share Share.Rsh.
 Proof.

@@ -1,4 +1,6 @@
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrfun.
+Require Import Coq.Classes.Morphisms.
+
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
@@ -15,6 +17,7 @@ Require Import VST.concurrency.common.threadPool.
 
 Require Import VST.concurrency.common.machine_semantics.
 Require Import VST.concurrency.common.permissions.
+Require Import VST.concurrency.compiler.mem_equiv.
 Require Import VST.concurrency.common.bounded_maps.
 Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.scheduler.
@@ -63,6 +66,25 @@ Module DryHybridMachine.
         lockRes_blocks: forall l rmap, lockRes tp l = Some rmap ->
                                   Mem.valid_block m l.1}.
 
+    
+      Lemma  mem_compat_restrPermMap:
+        forall m perms st
+          (permMapLt: permMapLt perms (getMaxPerm m)),
+          (mem_compatible st m) ->
+          (mem_compatible st (restrPermMap permMapLt)).
+      Proof.
+        intros.
+        inversion H; econstructor.
+        - intros; unfold permissions.permMapLt.
+          split; intros;
+            erewrite getMax_restr; 
+            eapply compat_th0.
+        - intros; unfold permissions.permMapLt.
+          split; intros;
+            erewrite getMax_restr; 
+            eapply compat_lp0; eauto.
+        - intros. eapply restrPermMap_valid; eauto.
+      Qed.
 
     (* should there be something that says that if something is a lock then
      someone has at least readable permission on it?*)
@@ -136,6 +158,8 @@ Module DryHybridMachine.
                      | Some _ => Some (ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)))
                      end) dm.
     
+      
+    
     Inductive ext_step {isCoarse:bool} {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
@@ -167,6 +191,10 @@ Module DryHybridMachine.
             (Hset_perm: setPermBlock (Some Writable)
                                      b (Ptrofs.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
+            (Hlt_new: if isCoarse then
+                       ( permMapLt (fst newThreadPerm) (getMaxPerm m) /\
+                         permMapLt (snd newThreadPerm) (getMaxPerm m))
+                     else True )
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (** acquire the lock*)
             (Hstore: Mem.store Mint32 m1 b (Ptrofs.intval ofs) (Vint Int.zero) = Some m')
@@ -574,31 +602,9 @@ Module DryHybridMachine.
       exists c, semantics.initial_core semSem 0 m c m' v args /\
            ms = mkPool (Krun c) (getCurPerm m', empty_map).
     Set Printing All.
-    Section HybDryMachineLemmas.
 
-      Lemma build_delta_content_restr: forall d m p Hlt,
-        build_delta_content d (@restrPermMap p m Hlt) = build_delta_content d m.
-      Proof.
-        reflexivity.
-      Qed.
 
-      (*TODO: This lemma should probably be moved. *)
-      Lemma threads_canonical:
-        forall ds m i (cnt:containsThread ds i),
-          mem_compatible ds m ->
-          isCanonical (getThreadR cnt).1 /\
-          isCanonical (getThreadR cnt).2.
-        intros.
-        destruct (compat_th _ _ H cnt);
-          eauto using canonical_lt.
-      Qed.
-      (** most of these lemmas are in DryMachinLemmas*)
 
-      (** *Invariant Lemmas*)
-
-      (** ** Updating the machine state**)
-      (* Many invaraint lemmas were removed from here. *)
-    End HybDryMachineLemmas.
 
 
     Definition install_perm tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) m' :=
@@ -630,6 +636,86 @@ Module DryHybridMachine.
 
     
   End DryHybridMachine.
+
+  
+  
+  Section HybDryMachineLemmas.
+
+    (* Lemmas that don't need semantics/threadpool*)
+    
+      Lemma build_delta_content_restr: forall d m p Hlt,
+        build_delta_content d (@restrPermMap p m Hlt) = build_delta_content d m.
+      Proof.
+        reflexivity.
+      Qed.
+
+      (** Assume some threadwise semantics *)
+      Context {Sem: Semantics}
+            {tpool : @ThreadPool.ThreadPool dryResources Sem}.
+    
+      
+      (*TODO: This lemma should probably be moved. *)
+      Lemma threads_canonical:
+        forall ds m i (cnt:containsThread ds i),
+          mem_compatible ds m ->
+          isCanonical (getThreadR cnt).1 /\
+          isCanonical (getThreadR cnt).2.
+        intros.
+        destruct (compat_th _ _ H cnt);
+          eauto using canonical_lt.
+      Qed.
+      (** most of these lemmas are in DryMachinLemmas*)
+
+      (** *Invariant Lemmas*)
+
+      (** ** Updating the machine state**)
+      (* Many invaraint lemmas were removed from here. *)
+      
+    
+    Notation thread_perms st i cnt:= (fst (@getThreadR _ _ _ st i cnt)).
+    Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ _ st i cnt)).
+    Record thread_compat st i
+           (cnt:containsThread st i) m:=
+      { th_comp: permMapLt (thread_perms _ _ cnt) (getMaxPerm m);
+        lock_comp: permMapLt (lock_perms _ _ cnt) (getMaxPerm m)}.
+    Instance thread_compat_proper st i:
+        Proper (Logic.eq ==> Max_equiv ==> iff) (@thread_compat st i).
+      Proof. setoid_help.proper_iff;
+               setoid_help.proper_intros; subst.
+             constructor.
+             - eapply permMapLt_equiv.
+               reflexivity.
+               symmetry; apply H0.
+               eapply H1.
+             - eapply permMapLt_equiv.
+               reflexivity.
+               symmetry; apply H0.
+               eapply H1.
+      Qed.
+    Lemma mem_compatible_thread_compat:
+      forall (st1 : ThreadPool.t) (m1 : mem) (tid : nat)
+        (cnt1 : containsThread st1 tid),
+        mem_compatible st1 m1 -> thread_compat _ _ cnt1 m1.
+    Proof. intros * H; constructor; apply H. Qed.
+    Lemma mem_compat_Max:
+        forall Sem Tp st m m',
+          Max_equiv m m' ->
+          Mem.nextblock m = Mem.nextblock m' ->
+          @mem_compatible Sem Tp st m ->
+          @mem_compatible Sem Tp st m'.
+      Proof.
+        intros * Hmax Hnb H.
+        assert (Hmax':access_map_equiv (getMaxPerm m) (getMaxPerm m'))
+          by eapply Hmax.
+        constructor; intros;
+          repeat rewrite <- Hmax';
+          try eapply H; eauto.
+        unfold Mem.valid_block; rewrite <- Hnb;
+          eapply H; eauto.
+      Qed.
+
+  End HybDryMachineLemmas.
+    
 End DryHybridMachine.
 
 Export DryHybridMachine.

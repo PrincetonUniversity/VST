@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013) (format=pdflatex 2013.5.30)  9 DEC 2015 15:44
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013) (format=pdflatex 2013.5.30)  11 FEB 2019 14:21
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -202,12 +202,12 @@ Package xcolor Info: Model `Gray' substituted by `gray' on input line 1359.
 Package xcolor Info: Model `wave' substituted by `hsb' on input line 1360.
 )
 (/usr/local/texlive/2013/texmf-dist/tex/latex/semantic/semantic.sty
-Package: semantic 2003/10/28 v2.0(epsilon)
+Package: semantic 2003/10/28 v2.0(epsilon) 
 
 Semantic Package v2.0(epsilon) [2003/10/28]
 CVSId: $Id: semantic.dtx,v 1.11 2003/10/28 13:45:57 turtle Exp $
 \c@@@conflict=\count113
-Loading features:
+Loading features: 
 (/usr/local/texlive/2013/texmf-dist/tex/latex/semantic/ligature.sty
 \@pushedtoks=\toks22
 \@seentoks=\toks23
@@ -390,79 +390,40 @@ e
 \makeMPintoPDFobject=\count131
 \everyMPtoPDFconversion=\toks31
 )
-LaTeX Font Info:    Try loading font information for U+msa on input line 61.
+LaTeX Font Info:    Try loading font information for U+msa on input line 63.
  (/usr/local/texlive/2013/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 61.
+LaTeX Font Info:    Try loading font information for U+msb on input line 63.
 
 (/usr/local/texlive/2013/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Try loading font information for U+wasy on input line 61.
+LaTeX Font Info:    Try loading font information for U+wasy on input line 63.
 
 (/usr/local/texlive/2013/texmf-dist/tex/latex/wasysym/uwasy.fd
 File: uwasy.fd 2003/10/30 v2.0 Wasy-2 symbol font definitions
-)
-
-LaTeX Warning: No \author given.
-
-LaTeX Font Info:    Try loading font information for OMS+cmr on input line 65.
-(/usr/local/texlive/2013/texmf-dist/tex/latex/base/omscmr.fd
-File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
-)
-LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 65.
- [1
+) [1
 
 {/usr/local/texlive/2013/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
-Overfull \hbox (40.39377pt too wide) detected at line 108
-[]
- []
-
-[2]
-Overfull \hbox (25.37378pt too wide) detected at line 127
-[]
- []
-
-[3] (./Concurrency-rules.aux) )
+(./Concurrency-rules.aux) ) 
 Here is how much of TeX's memory you used:
- 5283 strings out of 493315
- 73080 string characters out of 6137904
- 159556 words of memory out of 5000000
- 8625 multiletter control sequences out of 15000+600000
- 13483 words of font info for 53 fonts, out of 8000000 for 9000
+ 5218 strings out of 493315
+ 72278 string characters out of 6137904
+ 142556 words of memory out of 5000000
+ 8579 multiletter control sequences out of 15000+600000
+ 5980 words of font info for 25 fonts, out of 8000000 for 9000
  957 hyphenation exceptions out of 8191
- 51i,15n,35p,567b,272s stack positions out of 5000i,500n,10000p,200000b,80000s
-</usr/local/texlive/2013/texmf-dist/fonts/type1/
-public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmbx12.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmex10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/pub
-lic/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/publ
-ic/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public
-/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmmi8.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/ams
-fonts/cm/cmr10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfo
-nts/cm/cmr12.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfont
-s/cm/cmr17.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmr5.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/
-cmr6.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmr
-7.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.p
-fb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pf
-b></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb>
-</usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></
-usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></u
-sr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/cm/cmti8.pfb></usr
-/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb><
-/usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/symbols/msam5.pf
-b></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/symbols/msam7
-.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/amsfonts/symbols/ms
-bm10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/wasy/wasy10.pfb
->
-Output written on Concurrency-rules.pdf (3 pages, 218914 bytes).
+ 51i,9n,35p,314b,219s stack positions out of 5000i,500n,10000p,200000b,80000s
+</usr/local/texlive/2013/texmf-dist/fonts/type1/publ
+ic/amsfonts/cm/cmex10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/publi
+c/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public
+/amsfonts/cm/cmr10.pfb></usr/local/texlive/2013/texmf-dist/fonts/type1/public/a
+msfonts/cm/cmsy7.pfb>
+Output written on Concurrency-rules.pdf (1 page, 34877 bytes).
 PDF statistics:
- 110 PDF objects out of 1000 (max. 8388607)
- 80 compressed objects within 1 object stream
+ 24 PDF objects out of 1000 (max. 8388607)
+ 16 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -104,7 +104,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros isfreelock.
   intros I.
-  inversion I as [m tr sch_ tp Phi En envcoh compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isfreelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -179,7 +179,7 @@ Proof.
         apply join_sub_trans with phi0; eauto. eexists; eauto.
       }
       assert (Ja : join_sub phi_sat Phi). {
-        eapply compatible_lockRes_sub; simpl; eauto.
+        eapply compatible_lockRes_sub_all; simpl; eauto.
         apply compat.
       }
       assert (J01 : join_sub phi0lockinv Phi). {
@@ -483,7 +483,7 @@ Proof.
     apply env_coherence_pures_eq with Phi; auto. omega.
     apply pures_same_pures_eq. auto.
     eapply rmap_freelock_pures_same; eauto.
-
+  - auto.
   - rewrite age_to_ghost_of.
     destruct Hrmap' as (? & ? & ? & <-).
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.

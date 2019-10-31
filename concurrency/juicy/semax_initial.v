@@ -49,6 +49,37 @@ Set Bullet Behavior "Strict Subproofs".
 
 (*+ Initial state *)
 
+Lemma initmem_maxedmem:
+  forall prog m, @Genv.init_mem Clight.fundef type  prog = Some m -> 
+    mem_equiv.mem_equiv (maxedmem m) m.
+Proof.
+intros.
+unfold Genv.init_mem in H.
+assert (mem_equiv.mem_equiv (maxedmem Mem.empty) Mem.empty) 
+  by admit.
+forget Mem.empty as m0.
+revert m0 m H H0; induction (AST.prog_defs prog); intros.
+simpl in H. inv H.
+auto.
+simpl in H.
+destruct (Genv.alloc_global (Genv.globalenv prog) m0 a) eqn:?H; try discriminate.
+apply IHl in H; auto.
+clear - H1 H0.
+destruct a.
+destruct g.
+simpl in H1.
+destruct (Mem.alloc m0 0 1) eqn:?H.
+admit.
+simpl in H1.
+destruct (Mem.alloc m0 0 (init_data_list_size (gvar_init v))) eqn:?H.
+destruct (store_zeros m b 0 (init_data_list_size (gvar_init v))) eqn:?H; try discriminate.
+destruct (Genv.store_init_data_list (Genv.globalenv prog) m2 b 0 (gvar_init v)) eqn:?H; try discriminate.
+apply initialize.store_init_data_list_access in H3.
+apply store_zeros_access in H2.
+rewrite H2 in H3; clear dependent m2.
+admit.
+Admitted. 
+
 Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
@@ -172,7 +203,13 @@ Section Initial_State.
       split.
       + apply MFS.
       + exists prog, CS, V. auto.
-
+    - clear - Hm.
+      split.
+      pose proof ( Genv.initmem_inject _ Hm).
+      apply initmem_maxedmem in Hm.
+      red. rewrite Hm. apply H.
+      apply Genv.init_mem_genv_next in Hm. rewrite <- Hm.
+     unfold globalenv. simpl. apply Ple_refl.
     - (*! external coherence *)
       destruct (snd (projT2 (projT2 spr))) as (jm' & D & H & E & A & NL & MFS & FA).
       simpl in jm. unfold jm.

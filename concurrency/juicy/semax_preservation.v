@@ -18,6 +18,7 @@ Require Import VST.veric.initial_world.
 Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.semax_prog.
+        
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.Clight_new.
 Require Import VST.veric.Clightnew_coop.
@@ -218,7 +219,7 @@ Proof.
   split; zify; omega.
 Qed.
 
-Lemma not_Pge_Plt a b : ~ Pge a b -> Plt a b.
+Lemma not_Pge_Plt a b : ~ Pos.ge a b -> Plt a b.
 Proof.
   unfold Plt. zify. omega.
 Qed.
@@ -271,7 +272,7 @@ Proof.
   pose proof cl_step_mem_step _ _ _ _ _ step as ms.
   pose proof cl_step_decay _ _ _ _ _ step as dec.
 
-  destruct MC as [A B C D].
+  destruct MC as [A B C].
   unfold contents_cohere in *.
   constructor.
   (* apply mem_cohere'_redundant. *)
@@ -640,7 +641,7 @@ Proof.
   intros Hcmpt lock Hlt' Hstore compat HLKspec.
   pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
   destruct compat as [J MC LW JL LJ].
-  destruct MC as [Co Ac Ma N].
+  destruct MC as [Co Ac Ma].
   split.
   - intros sh sh' v (b', ofs') pp E.
     specialize (Co sh sh' v (b', ofs') pp E).
@@ -726,9 +727,9 @@ Proof.
       destruct (range_perm_dec _ _ _) as [R2|R2].
     + simpl.
       destruct n as [ | n | ]; auto.
-      assert (Z.pos n = Z.of_nat (nat_of_Z (Z.pos n))) as R.
-      { rewrite Coqlib.nat_of_Z_eq; auto. zify. omega. }
-      rewrite R in R1, R2. remember (nat_of_Z (Z.pos n)) as k.
+      assert (Z.pos n = Z.of_nat (Z.to_nat (Z.pos n))) as R.
+      { rewrite Z2Nat.id; auto. zify. omega. }
+      rewrite R in R1, R2. remember (Z.to_nat (Z.pos n)) as k.
       clear Heqk R n.
       revert ofs R1 R2; induction k; intros ofs R1 R2; auto.
       simpl.
@@ -1020,6 +1021,7 @@ Section Preservation.
              tr' tp' m')
   (INV : @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ Gamma (S n) (m, (tr, i :: sch, tp)))
   (Phi : rmap)
+  (mwellformed: @mem_wellformed ge m)
   (compat : mem_compatible_with tp m Phi)
   (extcompat : joins (ghost_of Phi) (Some (ghost_PCM.ext_ref tt, NoneP) :: nil))
   (lev : @level rmap ag_rmap Phi = S n)
@@ -1057,7 +1059,7 @@ Section Preservation.
      destruct (type_of_fundef f); try contradiction.
      decompose [and] E_c_new. decompose [and] H. congruence.
   } subst c_new_.
-   destruct Hinitial as (Hinitial & ? & ?); subst.
+   destruct Hinitial as (Hinitial & ? & [? H0ab]); subst.
       simpl JuicyMachine.add_block in *.
       unfold add_block in *.
       assert (mem_compatible_with (updThread i tp cnti (Krun c_new) (getThreadR i tp cnti))
@@ -1072,6 +1074,15 @@ Section Preservation.
       assert (B : rmap_bound (Mem.nextblock m) Phi) by apply compat.
       right.  (* ? *)
       apply state_invariant_c with (mcompat := Hcmpt'); auto.
+      - red. clear - Hperm mwellformed H0ab.
+          red in Hperm. simpl in Hperm. subst.
+          unfold install_perm; simpl.
+          (* NOTE from Andrew to Santiago:  H0ab seems to be useless here. *)
+          clear H0ab.
+          destruct (thread_mem_compatible Hcmpt cnti). simpl.
+          destruct mwellformed. split; auto.
+          clear - H.
+          admit. (* Santiago *)
       - intro; simpl.
         pose proof (lock_coh loc) as lock_coh'.
         destruct (AMap.find _ _) eqn: Hloc; auto.
@@ -1149,7 +1160,7 @@ Section Preservation.
   jmstep_inv; getThread_inv; congruence.*)
 *
   contradiction Htid.
-Qed. (* Lemma preservation_Kinit *)
+Admitted. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
   Kblocked at acquire, but preservation does not hold for
@@ -1172,7 +1183,7 @@ Qed. (* Lemma preservation_Kinit *)
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 tr0 sch0 tp0 Phi lev envcoh compat extcompat sparse lock_coh safety wellformed unique E].
+    inversion INV as [m0 tr0 sch0 tp0 Phi lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E].
     subst m0 sch0 tp0.
 
     destruct sch as [ | i sch ].
@@ -1221,7 +1232,7 @@ Qed. (* Lemma preservation_Kinit *)
     {
       pose (jmi := jm_ cnti compat).
 
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef sig args lid ve te ] eqn:Heqc.
 
       (* thread[i] is running and some internal step *)
       {
@@ -1363,7 +1374,7 @@ Qed. (* Lemma preservation_Kinit *)
 
           + (* env_coherence *)
             assumption.
-
+           + (* mwellformed *) auto.
           + (* external coherence *)
             auto.
 
@@ -1550,6 +1561,7 @@ Qed. (* Lemma preservation_Kinit *)
 
       + (* env_coherence *)
         assumption.
+      + (* mwellformed *) auto.
 
       + (* external coherence *)
         assumption.

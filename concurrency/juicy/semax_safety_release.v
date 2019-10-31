@@ -98,7 +98,7 @@ Lemma safety_induction_release ge Gamma n state
 Proof.
   intros isrelease.
   intros I.
-  inversion I as [m tr sch_ tp Phi En envcoh compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isrelease as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -300,7 +300,11 @@ Proof.
 
   + (* env_coherence *)
     apply env_coherence_age_to. auto.
-
+  
+  + (* mem_wellformed *)
+    clear - mwellformed Hstore.
+    apply store_access in Hstore.
+    admit.  (* Santiago *)
   + (* external coherence *)
     rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
@@ -625,4 +629,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). unfold JSem; rewrite Hthread.
     congruence.
-Qed.
+Admitted.

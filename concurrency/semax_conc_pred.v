@@ -13,7 +13,7 @@ Require Import VST.veric.semax_call.
 Require Import VST.veric.semax_ext.
 (*Require Import VST.veric.semax_ext_oracle.*)
 Require Import VST.veric.juicy_safety.
-Require Import VST.veric.Clight_new.
+(*Require Import VST.veric.Clight_new.*)
 Require Import VST.veric.res_predicates.
 Require Import VST.veric.SeparationLogic.
 Require Import VST.sepcomp.semantics.
@@ -215,6 +215,13 @@ Proof.
     + unfold lock_inv. Transparent mpred. Intros b ofs. Opaque mpred. subst; simpl in *; tauto.
     + apply FF_left.
 Qed.
+
+Corollary lock_inv_saturate_local sh v R : lock_inv sh v R |-- (!! isptr v)%logic.
+Proof.
+  rewrite lockinv_isptr; Intros.
+  apply prop_right; auto.
+Qed.
+Hint Resolve lock_inv_saturate_local : saturate_local.
 
 Lemma unfash_fash_equiv: forall P Q: mpred,
   (P <=> Q |--

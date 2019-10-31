@@ -29,21 +29,37 @@ Require Import compcert.exportclight.Clightdefs.
 From Coq Require Import String List ZArith.
 From compcert Require Import Integers Floats Maps Errors AST Ctypes Cop Clight.
 
+Declare Scope None_scope.
 Delimit Scope None_scope with None.
+Declare Scope C_scope.
 Delimit Scope C_scope with C.
+Declare Scope Z_scope.
 Delimit Scope Z_scope with Z.
+Declare Scope camlfloat_of_coqfloat_scope.
 Delimit Scope camlfloat_of_coqfloat_scope with camlfloat_of_coqfloat.
+Declare Scope camlfloat_of_coqfloat32_scope.
 Delimit Scope camlfloat_of_coqfloat32_scope with camlfloat_of_coqfloat32.
+Declare Scope int64_repr_scope.
 Delimit Scope int64_repr_scope with int64_repr.
+Declare Scope int_repr_scope.
 Delimit Scope int_repr_scope with int_repr.
+Declare Scope expr_scope.
 Delimit Scope expr_scope with expr.
+Declare Scope extern_atom_scope.
 Delimit Scope extern_atom_scope with extern_atom.
+Declare Scope name_of_external_scope.
 Delimit Scope name_of_external_scope with name_of_external.
+Declare Scope name_type_scope.
 Delimit Scope name_type_scope with name_type.
+Declare Scope positive_scope.
 Delimit Scope positive_scope with positive.
+Declare Scope print_case_label_scope.
 Delimit Scope print_case_label_scope with print_case_label.
+Declare Scope print_cases_scope.
 Delimit Scope print_cases_scope with print_cases.
+Declare Scope print_expr_list_true_scope.
 Delimit Scope print_expr_list_true_scope with print_expr_list_true.
+Declare Scope print_stmt_for_scope.
 Delimit Scope print_stmt_for_scope with print_stmt_for.
 
 Notation "x" := (Int.repr x%Z) (only printing, at level 10) : int_repr_scope.

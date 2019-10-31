@@ -34,13 +34,16 @@ Proof.
     forward_if.
     + elim H; trivial.
     + clear H. Intros.
-      destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
+      destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]].
+      rewrite if_false by discriminate.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
       unfold_data_at 1%nat.
       freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
-      destruct C1 as [? [? ?]]. rewrite field_at_data_at. simpl.
-      unfold field_address. rewrite if_true. simpl. rewrite Ptrofs.add_zero. 2: trivial.
-      unfold md_full; simpl. Intros.
+      2: apply tt.
+      destruct C1 as [? [? ?]]. rewrite field_at_data_at.
+      unfold field_address. rewrite if_true by trivial. 
+      simpl offset_val. rewrite Ptrofs.add_zero.
+      unfold md_full. simpl snd. Intros.
       sep_apply (UNDER_SPEC.FULL_EMPTY Ews key v1).
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
       destruct  H0 as [xx XX]. 
@@ -91,7 +94,7 @@ Proof.
             }
       clear FR1. clear FR.
       forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i, shc).
-      forward. apply tt.
+      simpl Z.to_nat. entailer!.
 Qed.
 
 Lemma body_hmac_drbg_random: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -385,11 +388,6 @@ Proof.
    SEP (data_at sh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
                                        list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b i)))).
   { Exists 0. rewrite Zminus_0_r. entailer!. simpl; cancel. }
-  eapply semax_seq with (Q:=
-         PROP ( )
-         LOCAL ()
-         SEP (data_block sh (list_repeat (Z.to_nat n) Byte.zero) (Vptr b i))).
-  2: solve [unfold MORE_COMMANDS, abbreviate; forward]. 
   apply semax_loop with (
   (EX k : Z,
    PROP (0 <= k <= n)

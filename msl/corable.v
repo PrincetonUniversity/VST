@@ -145,7 +145,7 @@ Proof.
 Qed.
 
 Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp
-                    @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later.
+                    @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later : core.
 
 Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
    forall P Q R, corable P ->  (P && Q) * R = P && (Q * R).
@@ -185,4 +185,4 @@ Qed.
 
 (* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
 Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
-                    @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances].
+                    @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances] : core.

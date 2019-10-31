@@ -159,9 +159,20 @@ Record CSL_proof := {
   CSL_ext_link : string -> ident;
   CSL_ext_link_inj : forall s1 s2, CSL_ext_link s1 = CSL_ext_link s2 -> s1 = s2;
   CSL_all_safe : semax_prog.semax_prog (Concurrent_Espec unit CSL_CS CSL_ext_link)
-                             CSL_prog CSL_V CSL_G;
+                                       CSL_prog CSL_V CSL_G;
   CSL_init_mem_not_none : Genv.init_mem CSL_prog <> None;
-}.
+                   }.
+
+(*
+Definition Clight_init_state (prog:Ctypes.program function) main_symb f_main init_mem :=
+  State Clight_safety.main_handler
+        (Scall None (Etempvar BinNums.xH (type_of_fundef f_main))
+               (List.map (fun x : AST.ident * Ctypes.type => Etempvar (fst x) (snd x))
+                         (Clight_new.params_of_types (BinNums.xO BinNums.xH)
+                                                     (Clight_new.params_of_fundef f_main))))
+        (Kseq (Sloop Sskip Sskip) Kstop) empty_env
+        (temp_bindings BinNums.xH (cons main_symb nil)) init_mem.
+*)
 
 Section Safety.
   Variable CPROOF: CSL_proof.
@@ -472,7 +483,9 @@ Section Safety.
     exists b; split; auto; simpl in *; clear s.
     specialize (Hinit _ H) as (? & Hinit); hnf in Hinit.
     destruct Hinit as [_ Hinit]; simpl in Hinit.
-    destruct Hinit as (? & ? & ?); eexists; repeat split; auto; constructor.
+    destruct Hinit as (? & ? & [? ?]); eexists.
+    split3; auto. constructor.
+    split. reflexivity. rewrite <- H. auto.
   Qed.
 
   Lemma jmsafe_csafe n m tr sch s : jmsafe (globalenv prog) n (m, (tr, sch, s)) -> jm_csafe (sch, tr, s) m n.

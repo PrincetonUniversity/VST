@@ -64,19 +64,21 @@ semax (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog nil)
          map Vint (map Int.repr buf)))
            ctx))
   encryption_after_loop
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP ( )
-         LOCAL ()
-         SEP (data_at ctx_sh t_struct_aesctx
-                (Vint (Int.repr spec_utils_LL.Nr),
-                (field_address t_struct_aesctx [StructField _buf] ctx,
-                map Vint (map Int.repr buf))) ctx;
-         data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
-           input;
-         data_at out_sh (tarray tuchar 16)
-           (map Vint (mbed_tls_aes_enc plaintext buf)) output;
-         tables_initialized (gv _tables)))) emp).
+  (normal_ret_assert
+    (@sepcon (environ->mpred) _ _
+     (PROP ( )
+      LOCAL ()
+      SEP (data_at ctx_sh t_struct_aesctx
+             (Vint (Int.repr spec_utils_LL.Nr),
+             (field_address t_struct_aesctx
+                [StructField _buf] ctx,
+             map Vint (map Int.repr buf))) ctx;
+      data_at in_sh (tarray tuchar 16)
+        (map Vint (map Int.repr plaintext)) input;
+      data_at out_sh (tarray tuchar 16)
+        (map Vint (mbed_tls_aes_enc plaintext buf)) output;
+      tables_initialized (gv _tables))) 
+      (stackframe_of f_mbedtls_aes_encrypt))).
 Proof.
 intros.
   unfold encryption_after_loop.
@@ -158,8 +160,6 @@ intros.
     with (field_address t_struct_aesctx [StructField _buf] ctx)
      in * by (rewrite !field_compatible_field_address by auto with field_compatible;
                  reflexivity).
-
-  subst POSTCONDITION; unfold abbreviate.
   forget (mbed_tls_aes_enc plaintext buf) as Res.
   unfold tables_initialized.
   (* return None *)

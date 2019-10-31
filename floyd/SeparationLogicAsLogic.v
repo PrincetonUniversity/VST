@@ -264,7 +264,7 @@ match spec with (_, mk_funspec fsig cc A P Q _ _) =>
 forall Espec ts x, 
   @semax C Espec (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
-       (Ssequence f.(fn_body) (Sreturn None))
+       f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
 
@@ -302,6 +302,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
         (opttyp_of_type retsig) cc ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
+      (ef_inline ef = false \/ withtype_empty A) ->
       (forall gx ts x (ret : option val),
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
@@ -1295,6 +1296,23 @@ Definition semax_ext := @MinimumLogic.semax_ext.
 Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
+Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
+Definition semax_body_binaryintersection:
+forall {V G cs} f sp1 sp2 phi
+  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+  (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
+  @semax_body V G cs f (fst sp1, phi).
+Proof. intros.
+  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 A1 P1 Q1 P1_ne Q1_ne]. 
+  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 A2 P2 Q2 P2_ne Q2_ne]. 
+  destruct phi as [sig cc A P Q P_ne Q_ne]. simpl snd in BI.
+  simpl in BI.
+  if_tac in BI; [inv BI | discriminate]. if_tac in H1; inv H1.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H6.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H5. subst. simpl fst; clear - SB1 SB2.
+  destruct SB1 as [X SB1]; destruct SB2 as [_ SB2]; split; [ apply X | simpl in X; intros].
+  destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
+Qed.
 
 Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).
 
@@ -1561,7 +1579,7 @@ unfold local, lift1; intro rho; simpl; normalize.
       * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.
 
-Lemma rvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+Lemma rvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- !! (@eval_expr CS e rho = @eval_expr CS' e rho).
 Proof.
@@ -1570,8 +1588,12 @@ Proof.
   normalize. rewrite (expr_lemmas.eval_expr_cenv_sub_eq CSUB). normalize.
   intros N; rewrite N in H0; clear N. apply tc_val_Vundef in H0; trivial.
 Qed.
+Lemma rvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_expr CS Delta e rho |-- !! (@eval_expr CS e rho = @eval_expr CS' e rho).
+Proof. intros. destruct CSUB as [CSUB _]. apply (rvalue_cenv_sub CSUB); trivial. Qed. 
 
-Lemma lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+Lemma lvalue_cenv_sub: forall {CS CS'} (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) Delta e rho,
   tc_environ Delta rho ->
   @tc_lvalue CS Delta e rho |-- !! (@eval_lvalue CS e rho = @eval_lvalue CS' e rho).
 Proof. 
@@ -1580,7 +1602,10 @@ Proof.
   normalize. rewrite (expr_lemmas.eval_lvalue_cenv_sub_eq CSUB). normalize.
   intros N; rewrite N in H0; clear N. apply H0.
 Qed.
-
+Lemma lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
+  tc_environ Delta rho ->
+  @tc_lvalue CS Delta e rho |-- !! (@eval_lvalue CS e rho = @eval_lvalue CS' e rho).
+Proof. intros. destruct CSUB as [CSUB _]. apply (lvalue_cenv_sub CSUB); trivial. Qed.  
 
 Lemma denote_tc_bool_CSCS' {CS CS'} v e: @denote_tc_assert CS (tc_bool v e) = @denote_tc_assert CS' (tc_bool v e).
 Proof. destruct v; simpl; trivial. Qed.
@@ -1661,7 +1686,8 @@ Definition CALLpre CS Delta ret a bl R :=
                    (@liftx (Tarrow environ (LiftEnviron mpred)) (P ts x)
                             (@make_args' (argsig, retsig) (@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl))) 
                    (oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R))).
-    
+
+(*A variant where (CSUB: cspecs_sub  CS CS') is replaced by (CSUB: cenv_sub (@cenv_cs CS) (@cenv_cs CS')) may be provable once tc_expr lemmas (and maybe eval_expr lemmas, sem_binop etc have been modified to only take a composite_env rather than a compspecs*) 
 Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
       @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
 Proof.
@@ -1885,8 +1911,9 @@ Proof.
   intros.
   eapply semax_Delta_subsumption. apply TS.
   apply (SF Espec ts x).
-Qed. 
+Qed.
 
+(*Should perhaps be called semax_body_cespecs_sub, also in the Module Type *)
 Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
       (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
     @semax_body V G CS f spec -> @semax_body V G CS' f spec.
@@ -1894,7 +1921,7 @@ Proof.
   destruct spec. destruct f0.
   intros [H' H]; split; auto.
   intros.  specialize (H Espec ts x). 
-  rewrite <- (semax_prog.stackframe_of_cenv_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
+  rewrite <- (semax_prog.stackframe_of_cspecs_sub CSUB); [apply (semax_cssub CSUB); apply H | trivial].
 Qed. 
 
 End DeepEmbeddedMinimumSeparationLogic.

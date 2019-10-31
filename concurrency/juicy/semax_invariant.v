@@ -479,11 +479,41 @@ Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
       (funassert (Delta_types V Gamma (Tpointer Tvoid noattr :: nil))
                  (empty_environ ge)) PHI.
 
+Definition maxedmem (m: mem) :=
+  restrPermMap (mem_max_lt_max m).
+
+Definition mem_wellformed (m: mem) :=
+ Mem.inject_neutral (Mem.nextblock m) (maxedmem m) /\
+  Ple (Genv.genv_next ge) (Mem.nextblock m).
+
+Lemma maxedmem_neutral:
+  forall m,
+ Mem.inject_neutral (Mem.nextblock (maxedmem m)) (maxedmem m) ->
+  Mem.inject_neutral (Mem.nextblock m) m.
+Proof.
+intros.
+unfold Mem.inject_neutral in *.
+inv H. 
+constructor; intros; simpl in *.
+unfold Mem.flat_inj in H.
+if_tac in H; try discriminate.
+inv H.
+rewrite Z.add_0_r. auto.
+eapply mi_align; eauto.
+intros ? ?.
+unfold maxedmem.
+rewrite mem_equiv.restr_Max_equiv. eauto.
+apply mi_memval; auto.
+clear - H0.
+unfold maxedmem.
+Admitted.  (* Santiago will finish this one *)
+
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
+      (mwellformed: mem_wellformed m)
       (mcompat : mem_compatible_with tp m PHI)
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
@@ -499,9 +529,9 @@ Lemma state_invariant_sch_irr Gamma n m i tr sch sch' tp :
   state_invariant Gamma n (m, (tr, i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh compat extcompat sparse lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 tr0 sch0 tp0 PHI lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed uniqkrun H0];
     subst m0 tr0 sch0 tp0.
-  refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh compat extcompat sparse lock_coh safety wellformed _).
+  refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
@@ -570,6 +600,7 @@ Lemma state_inv_upd : forall Gamma (n : nat)
   (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
+      (mwellformed: mem_wellformed m)
       (mcompat : mem_compatible_with tp m PHI)
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
@@ -609,6 +640,7 @@ Proof.
     + destruct coh as (? & ? & ? & ? & ? & Happ).
       do 4 eexists; eauto; split; auto.
       eapply semax_lemmas.funassert_resource, Happ; auto.
+  - auto.
   - eapply joins_comm, join_sub_joins_trans, joins_comm, J'.
     destruct Hc as [? Hc].
     eapply ghost_fmap_join in Hc; eexists; eauto.

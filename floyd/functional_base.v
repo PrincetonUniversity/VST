@@ -73,7 +73,7 @@ Proof. destruct v; simpl; try solve [right; intros N; trivial]; left; trivial. D
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
-Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val'.
+Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val' : core.
 Hint Resolve isptr_offset_val': norm.
 
 Lemma offset_val_force_ptr:
@@ -384,10 +384,10 @@ omega.
 Qed.
 
 Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
-    (apply sign_ext_range2; [computable | reflexivity | reflexivity]).
+    (apply sign_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
 Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
-    (apply zero_ext_range2; [computable | reflexivity | reflexivity]).
+    (apply zero_ext_range2; [computable | reflexivity | reflexivity]) : core.
 
 Hint Rewrite sign_ext_inrange using assumption : norm.
 Hint Rewrite zero_ext_inrange using assumption : norm.
@@ -708,6 +708,9 @@ Proof.
 intros.
 congruence.
 Qed.
+
+Lemma opaque_constant {A: Type} (N: A) : {x: A | x=N}.
+Proof. exists N. reflexivity. Qed.
 
 Ltac hint := idtac "Hints are only available when verifying C programs,
 that is, when VST.floyd.proofauto has been imported.  But you have

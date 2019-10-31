@@ -16,7 +16,7 @@ Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)
   | nil => None
  end.
 
-Inductive NOTE__Perhaps_you_need_to_Import_floyd_library___See_reference_manual_chapter___with_library : Type := .
+Inductive Impossible : Type := .
 
 Definition cc_of_fundef (fd: Clight.fundef) : calling_convention :=
  match fd with
@@ -32,7 +32,8 @@ Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
  end.
 
 Definition vacuous_funspec (fd: Clight.fundef): funspec :=
-   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) (rmaps.ConstType NOTE__Perhaps_you_need_to_Import_floyd_library___See_reference_manual_chapter___with_library) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) 
+   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Fixpoint augment_funspecs' (fds: list (ident * Clight.fundef)) (G:funspecs) : option funspecs :=
  match fds with

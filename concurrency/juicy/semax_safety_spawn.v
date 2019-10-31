@@ -194,7 +194,7 @@ Lemma safety_induction_spawn ge Gamma n state
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m tr sch_ tp Phi En envcoh compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -295,8 +295,30 @@ Print Module SeparationLogicSoundness.VericSound.
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
 
   unfold SeparationLogic.NDmk_funspec in *.
-
-  specialize (gam0 _ _ _ FAT).
+  (* before merge, FAT had the following type.
+     We will use that in the mean time.
+   *)
+  assert (FAT': (func_at
+           (mk_funspec ((_y, tptr tvoid) :: nil, tptr tvoid) cc_default
+              (rmaps.ConstType (val * nth 0 ts unit))
+              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+               let (y, x) := x0 in
+               canon.PROPx nil
+                 (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
+                    (canon.SEPx (f_with_Pre x y :: nil))))
+              (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+               let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil)))
+              (const_super_non_expansive (val * nth 0 ts unit)
+                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+                  let (y, x) := x0 in
+                  canon.PROPx nil
+                    (canon.LOCALx (canon.temp _y y :: canon.gvars (globals x) :: nil)
+                       (canon.SEPx (f_with_Pre x y :: nil)))))
+              (const_super_non_expansive (val * nth 0 ts unit)
+                 (fun (_ : list Type) (x0 : val * nth 0 ts unit) =>
+                  let (_, _) := x0 in canon.PROPx nil (canon.LOCALx nil (canon.SEPx nil))))) 
+           (f_b, 0)) phi00) by admit.
+  specialize (gam0 _ _ _ FAT').
   destruct gam0 as (id_fun & P' & Q' & NEP' & NEQ' & Eb & Eid & Heq_P & Heq_Q).
   unfold filter_genv in *.
 
@@ -417,7 +439,7 @@ clear - Initcore.
 
   - (* env_coherence *)
     apply env_coherence_age_to; auto.
-
+  - auto.
   - rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
@@ -447,8 +469,40 @@ clear - Initcore.
       split; auto.
       exists q_new.
       split.
+{
       destruct (Initcore (jm_ cnti compat)) as [? [? [? ?]]]; auto.
-
+      clear Initcore Post lj ora Safety FAT' Heq_P Heq_Q Eid Eb NEP' NEQ' P' Q' NEQ NEP P Q FA semaxprog.
+      clear jphi' jphi1' q_new id_fun A cc fsig CS_ V gam.
+      clear l1 l0 l00 l01 necr li fPRE FAT PreA PreB3.
+      clear Hargsty f_with_Pre f_with_x Hphi00 _y globals ts H_spawn unique wellformed at_ex En.
+      clear atex safei safety lock_coh.
+      simpl Mem.nextblock.
+      destruct mwellformed. split; auto.
+      clear - H.
+      change (Mem.nextblock m)
+       with (Mem.nextblock (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat))).
+      apply  maxedmem_neutral.
+      assert (mem_equiv.mem_equiv (maxedmem (m_dry (@jm_ (globalenv prog) tp m Phi i cnti compat)))
+                  (maxedmem m)). {
+         clear. simpl.
+         unfold maxedmem, juicyRestrict.
+     set (j := (juice2Perm
+           (@OrdinalPool.getThreadR LocksAndResources
+              (@JSem (globalenv prog)) i tp cnti) m)).
+     set (k := (@juice2Perm_cohere
+           (@OrdinalPool.getThreadR LocksAndResources
+              (@JSem (globalenv prog)) i tp cnti))).
+     set (q := (@acc_coh m
+              (@OrdinalPool.getThreadR LocksAndResources
+                 (@JSem (globalenv prog)) i tp cnti)
+              (@thread_mem_compatible (@JSem (globalenv prog)) tp m
+                 (@mem_compatible_forget (globalenv prog) tp m Phi
+                    compat) i cnti))).
+   clearbody q. clearbody k.
+   admit.  (* for Santiago to do. *)
+  }
+  red. simpl Mem.nextblock. rewrite H0. auto.
+}
       intros jm. REWR. rewrite gssAddRes. 2:reflexivity.
       specialize (Safety jm ts).
       intros Ejm.
@@ -608,4 +662,4 @@ clear - Initcore.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Qed. (* safety_induction_spawn *)
+Admitted. (* safety_induction_spawn *)

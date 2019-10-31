@@ -26,7 +26,9 @@ Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_al
 Instance funStarOp (B: Type)(A: Type)(StarA: StarOp A) : StarOp (B -> A) :=
    {| starOp := fun (P Q : B -> A) (b : B) =>  starOp (P b) (Q b) |}.
 
+Set Warnings "-notation-overridden".
 Notation "P '*' Q" := (starOp P Q) : pred.
+Set Warnings "notation-overridden".
 (* Opaque baseStarOp *)
 
 Class DerivesOp A := {  derivesOp : A -> A -> Prop }.
@@ -36,7 +38,11 @@ Instance baseDerivesOp {A}{agA: ageable A}
 
 Instance funDerivesOp (B: Type)(A: Type)(DerivesA: DerivesOp A) : DerivesOp (B -> A)
  := {| derivesOp := fun (P Q : B -> A)  => forall b, derivesOp (P b) (Q b) |}.
-Notation "P '|--' Q" := (derivesOp P%pred Q%pred).
+Set Warnings "-notation-overridden".
+Declare Scope logic_derives.
+Notation "P '|--' Q" := (derivesOp P%pred Q%pred) : logic_derives.
+Set Warnings "notation-overridden".
+Open Scope logic_derives.
 (* Opaque baseDerivesOp. *)
 
 Class WandOp A := {  wandOp : A -> A -> A }.
@@ -47,7 +53,9 @@ Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_al
 Instance funWandOp (B: Type)(A: Type)(WandA: WandOp A) : WandOp (B -> A) :=
    {| wandOp := fun (P Q : B -> A) (b : B) =>  wandOp (P b) (Q b) |}.
 
+Set Warnings "-notation-overridden".
 Notation "P '-*' Q" := (wandOp P Q) : pred.
+Set Warnings "notation-overridden".
 (* Opaque baseWandOp *)
 
 Class EmpOp A := { Emp: A}.

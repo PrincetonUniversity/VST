@@ -48,7 +48,6 @@ normalize.
 rep_omega.
 forward.
 entailer!.
-unfold MORE_COMMANDS, abbreviate.
 destruct (zle 0 n); try omega. clear l.
 destruct (zle n (Int.max_signed - s)).
 -

@@ -1,3 +1,12 @@
 [submodule "InteractionTrees"]
 	path = InteractionTrees
 	url = https://github.com/DeepSpec/InteractionTrees
+[submodule "paco"]
+	path = paco
+	url = https://github.com/snu-sf/paco.git
+[submodule "fcf"]
+	path = fcf
+	url = https://github.com/adampetcher/fcf.git
+[submodule "coq-ext-lib"]
+	path = coq-ext-lib
+	url = https://github.com/coq-ext-lib/coq-ext-lib.git

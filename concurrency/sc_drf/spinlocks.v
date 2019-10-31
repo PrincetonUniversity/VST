@@ -258,7 +258,7 @@ Module SpinLocks.
           apply Mem.loadbytes_range_perm in Hload.
           rewrite Hlength in Hintv.
           unfold Mem.range_perm in Hload.
-          rewrite nat_of_Z_max in Hintv.
+          rewrite Z_to_nat_max in Hintv.
           destruct (Z.max_dec n 0) as [Hmax | Hmax];
             rewrite Hmax in Hintv.
           * specialize (Hload ofs' Hintv).
@@ -784,19 +784,19 @@ Module SpinLocks.
             rewrite <- Hdata_perm.
             erewrite setPermBlock_var_same by eauto.
             left; simpl; auto using perm_order.
-            specialize (Hneq_perms (nat_of_Z (ofs' - Ptrofs.intval ofs))).
+            specialize (Hneq_perms (Z.to_nat (ofs' - Ptrofs.intval ofs))).
             destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
-            erewrite nat_of_Z_eq in Hneq_perms
+            erewrite Z2Nat.id in Hneq_perms
               by (simpl in *; now ssromega).
             assert ((0 <= ofs' - Ptrofs.intval ofs < lksize.LKSIZE)%Z)
               by (unfold LKSIZE;
                   unfold Mptr in *;
                   destruct Archi.ptr64; simpl in *;
                   ssromega).
-            replace ((nat_of_Z (ofs' - Ptrofs.intval ofs)).+1) with
-            (nat_of_Z (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
+            replace ((Z.to_nat (ofs' - Ptrofs.intval ofs)).+1) with
+            (Z.to_nat (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
               by (zify;
-                  erewrite! nat_of_Z_eq
+                  erewrite! Z2Nat.id
                     by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
                   omega).
             now eauto.
@@ -879,19 +879,19 @@ Module SpinLocks.
           rewrite <- Hdata_perm.
           left.
           erewrite setPermBlock_var_same by eauto.
-          specialize (Hneq_perms (nat_of_Z (ofs' - Ptrofs.intval ofs))).
+          specialize (Hneq_perms (Z.to_nat (ofs' - Ptrofs.intval ofs))).
           destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
-          erewrite nat_of_Z_eq in Hneq_perms
+          erewrite Z2Nat.id in Hneq_perms
             by (simpl in *; now ssromega).
           assert ((0 <= ofs' - Ptrofs.intval ofs < lksize.LKSIZE)%Z)
             by (unfold LKSIZE;
                 unfold Mptr in *;
                 destruct Archi.ptr64; simpl in *;
                 ssromega).
-          replace ((nat_of_Z (ofs' - Ptrofs.intval ofs)).+1) with
-          (nat_of_Z (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
+          replace ((Z.to_nat (ofs' - Ptrofs.intval ofs)).+1) with
+          (Z.to_nat (ofs' - Ptrofs.intval ofs +1)) in Hneq_perms
             by (zify;
-                erewrite! nat_of_Z_eq
+                erewrite! Z2Nat.id
                   by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
                 omega).
           eapply po_trans; eauto; simpl;

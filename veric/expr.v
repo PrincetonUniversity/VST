@@ -48,7 +48,7 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
 (* LIFTING METHOD TWO: *)
 Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
 Canonical Structure LiftEnviron := Tend environ.
-Set Warnings "+projection-no-head-constant,+redundant-canonical-projection".
+Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
@@ -1252,14 +1252,42 @@ Qed.
 
 (*Could weaken and say that only the data components of the composite need to identical, not the proofs*)
 Definition cenv_sub (ce ce':composite_env) := forall i, sub_option (ce!i) (ce'!i).
-Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs').
 
 Lemma cenv_sub_refl {ce}: cenv_sub ce ce.
 Proof. intros i; apply sub_option_refl. Qed.
+
 Lemma cenv_sub_trans {ce ce' ce''}: cenv_sub ce ce' -> cenv_sub ce' ce'' -> cenv_sub ce ce''.
 Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
 
+Definition ha_env_cs_sub (t t': PTree.t Z) := forall i, sub_option (t!i) (t'!i).
+
+Lemma ha_env_cs_refl {ce}: ha_env_cs_sub ce ce.
+Proof. intros i; apply sub_option_refl. Qed.
+
+Lemma ha_env_cs_sub_trans {ce ce' ce''}: ha_env_cs_sub ce ce' -> ha_env_cs_sub ce' ce'' -> ha_env_cs_sub ce ce''.
+Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
+
+Definition la_env_cs_sub (t t': PTree.t align_mem.LegalAlignasFacts.LegalAlignas.legal_alignas_obs) :=
+  forall i, sub_option (t!i) (t'!i).
+
+Lemma la_env_cs_refl {ce}: la_env_cs_sub ce ce.
+Proof. intros i; apply sub_option_refl. Qed.
+
+Lemma la_env_cs_sub_trans {ce ce' ce''}: la_env_cs_sub ce ce' -> la_env_cs_sub ce' ce'' -> la_env_cs_sub ce ce''.
+Proof. intros X X' i; specialize (X i); specialize (X' i). eapply sub_option_trans; eassumption. Qed.
+
+Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs') /\
+                                            ha_env_cs_sub (@ha_env_cs cs) (@ha_env_cs cs') /\
+                                            la_env_cs_sub (@la_env_cs cs) (@la_env_cs cs').
+(*Definition cspecs_sub (cs cs':compspecs) := cenv_sub (@cenv_cs cs) (@cenv_cs cs').*)
+
 Lemma cspecs_sub_refl {cs}: cspecs_sub cs cs.
-Proof. apply cenv_sub_refl. Qed. 
+Proof. split3; [ apply cenv_sub_refl | apply ha_env_cs_refl | apply la_env_cs_refl]. Qed.
+
 Lemma cspecs_sub_trans {cs cs' cs''}: cspecs_sub cs cs' -> cspecs_sub cs' cs'' -> cspecs_sub cs cs''.
-Proof. apply cenv_sub_trans. Qed.
+Proof.
+  intros [A1 [A2 A3]] [B1 [B2 B3]]. split3.
+  apply (cenv_sub_trans A1 B1). 
+  apply (ha_env_cs_sub_trans A2 B2). 
+  apply (la_env_cs_sub_trans A3 B3).
+Qed.

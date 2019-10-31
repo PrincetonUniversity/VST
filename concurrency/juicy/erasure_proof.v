@@ -45,6 +45,7 @@ Require Import VST.concurrency.common.ssromega. (*omega in ssrnat *)
 From mathcomp.ssreflect Require Import ssreflect seq.
 
 Set Bullet Behavior "Strict Subproofs".
+Set Nested Proofs Allowed.
 
 Module Parching <: ErasureSig.
   Import THE_JUICY_MACHINE.
@@ -1306,7 +1307,7 @@ Qed.
                   symmetry. inversion MATCH; auto.
                 }
                 destruct Hcmpt as [x Hcmpt']; inversion Hcmpt'.
-                move: juice_join => /Concur.compatible_lockRes_sub.
+                move: juice_join => /Concur.compatible_lockRes_sub_all.
                 move => /(_ _ _ His_unlocked) /(resource_at_join_sub _ _ (b0, ofs0)) .
                 cut (x @ (b0, ofs0) = NO Share.bot shares.bot_unreadable).
                 { move=> -> . elim=> X Join. inversion Join; subst.
@@ -1376,7 +1377,7 @@ Qed.
                   symmetry. inversion MATCH; auto.
                 }
                 destruct Hcmpt as [x Hcmpt']; inversion Hcmpt'.
-                move: juice_join => /Concur.compatible_lockRes_sub.
+                move: juice_join => /Concur.compatible_lockRes_sub_all.
                 move => /(_ _ _ His_unlocked) /(resource_at_join_sub _ _ (b0, ofs0)) .
                 cut (x @ (b0, ofs0) = NO Share.bot shares.bot_unreadable).
                 { move=> -> . elim=> X Join. inversion Join; subst.
@@ -1791,10 +1792,10 @@ Qed.
       change virtue1 with (virtue1, virtue2).1.
       econstructor 1.
 
-      15: reflexivity.
-      15: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+      16: reflexivity.
+      16: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
       8: eassumption.
-      10: eassumption.
+      11: eassumption.
       + (*boundedness*)
         split.
         * eapply sub_map_and_shape;
@@ -1873,12 +1874,43 @@ Qed.
         assumption.
       + eapply lock_range_perm;  eauto.
       + reflexivity.
+      + (*permMapLt 1*) simpl.
+        replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
+        destruct Hcmpt as [all_juice Hcmpt].
+        assert (Hcmpt':= Hcmpt).
+        inv Hcmpt'.
+        apply Concur.max_coh in  all_cohere.
+        unfold max_access_at,access_at in all_cohere.
+          
+
+        split; intros b0 ofs0.
+        * rewrite virtue_correct1.
+          specialize (all_cohere (b0,ofs0)).
+          rewrite getMaxPerm_correct. unfold permission_at.
+          eapply juicy_mem.perm_order''_trans; eauto.
+          eapply juicy_mem.perm_order''_trans; eauto. 
+          apply perm_of_res_op1.
+          eapply juicy_mem_lemmas.po_join_sub.
+          eapply resource_at_join_sub.
+          eapply Concur.lock_thread_sub_all_juice; eauto.
+          
+        * rewrite virtue_correct2.
+          specialize (all_cohere (b0,ofs0)).
+          rewrite getMaxPerm_correct. unfold permission_at.
+          eapply juicy_mem.perm_order''_trans; eauto.
+          eapply juicy_mem.perm_order''_trans; eauto.
+          2:{ eapply perm_of_res_op2. }
+          eapply Concur.po_join_sub'.
+          eapply resource_at_join_sub.
+          eapply Concur.lock_thread_sub_all_juice; eauto.
+          
       + instantiate (1:= Hlt'').
         apply restrPermMap_ext.
         intros b0.
         extensionality ofs0.
         destruct (ident_eq b b0); [
-            destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z) |].
+          destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs,
+                                      Ptrofs.intval ofs + lksize.LKSIZE)%Z) |].
         * unfold Intv.In in i0.
           subst. repeat (rewrite setPermBlock_same; auto).
         * subst. apply Intv.range_notin in n; auto.
@@ -2442,6 +2474,7 @@ SearchAbout access_map delta_map.
         rewrite His_locked in mtch_locks.
         destruct (lockRes ds (b, Ptrofs.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
            destruct H as [l dlockRes].
+      simpl.
       econstructor 2.
       17: reflexivity.
       16: instantiate (2:= (virtue1, virtue2));
@@ -4106,14 +4139,14 @@ Here be dragons
             - rewrite setPermBlock_var_same; auto.
               unfold pdata.
               replace
-                (Ptrofs.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Ptrofs.intval ofs + 1)) -1)
+                (Ptrofs.intval ofs + Z.of_nat (Z.to_nat (ofs0 - Ptrofs.intval ofs + 1)) -1)
               with
               ofs0.
-              assert ((LKSIZE_nat < nat_of_Z (ofs0 - Ptrofs.intval ofs + 1) )%N = false).
+              assert ((LKSIZE_nat < Z.to_nat (ofs0 - Ptrofs.intval ofs + 1) )%N = false).
               {
                 move: i0. clear.
                 move => [] /= A B.
-                rewrite /LKSIZE_nat /nat_of_Z.
+                rewrite /LKSIZE_nat. 
                 apply /ltP => / lt_not_le HH.
                 apply: HH.
                 (* rewrite -Z2Nat.inj_succ .*)
@@ -4124,7 +4157,7 @@ Here be dragons
               }
               rewrite H.
               reflexivity.
-              rewrite Coqlib.nat_of_Z_eq.
+              rewrite Z2Nat.id.
               xomega.
 
               unfold LKSIZE in i0; destruct i0 as [A B].
@@ -4133,7 +4166,7 @@ Here be dragons
               omega.
               omega.
             - rewrite setPermBlock_var_other_1; auto.
-              move: Hrmap  => [] [] H1 [].
+              move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4146,7 +4179,7 @@ Here be dragons
                 apply Intv.range_notin in n; auto.
                 pose proof LKSIZE_pos; simpl; omega.
             - rewrite setPermBlock_var_other_2; auto.
-              move: Hrmap  => [] [] H1 [].
+              move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4166,13 +4199,13 @@ Here be dragons
             destruct (peq b b0);
               [subst b0; destruct (Intv.In_dec ofs0 (Ptrofs.intval ofs, Ptrofs.intval ofs + lksize.LKSIZE)%Z ) | ].
             - rewrite setPermBlock_same; auto.
-              move: Hrmap  => [] [] H1 [] _.
+              move: Hrmap  => [] H1 [] _.
               assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
               intros [X Hg]; destruct (X _ H3) as (sh & Rsh & -> & Wsh & BB); clear X.
               reflexivity.
             - rewrite setPermBlock_other_1; auto.
-               move: Hrmap  => [] [] H1 [].
+               move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4186,7 +4219,7 @@ Here be dragons
                 apply Intv.range_notin in n; auto.
                 pose proof LKSIZE_pos; simpl; omega.
             - rewrite setPermBlock_other_2; auto.
-              move: Hrmap  => [] [] H1 [].
+              move: Hrmap  => [] H1 [].
               assert (H3: ~ adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b0, ofs0)).
               { move => [] AA BB.
                 apply: n; auto. }
@@ -4417,7 +4450,7 @@ Here be dragons
               (MTCH_cnt MATCH Hi)).2 b ofs0).
               unfold permission_at in HH. rewrite HH.
               rewrite -(MTCH_perm2 _ MATCH).
-              move: Hrmap  => [] [] H1 [] AA.
+              move: Hrmap  => [] H1 [] AA.
               assert (H3: adr_range (b, Ptrofs.unsigned ofs) LKSIZE (b, ofs0)).
               { split; auto. }
               intros [X Hg]; destruct (X _ H3) as (sh & Rsh & _ & Wsh & Heq); clear X.
@@ -4442,8 +4475,8 @@ Here be dragons
                 move: H0 => /ltP.
                 intros. unfold LKSIZE_nat in *. apply Z2Nat.inj_lt in H0; try omega. rewrite Nat2Z.id in H0; omega. }
               rewrite H.
-
-              move: Hrmap  => [] [] H1 [] AA.
+              
+              move: Hrmap  => [] H1 [] AA.
               assert (H3: adr_range (b, Ptrofs.unsigned ofs)
                                     LKSIZE
                      (b, Ptrofs.unsigned ofs + Z.of_nat indx.+1 - 1)).
@@ -4533,7 +4566,7 @@ Here be dragons
                assumption.
                eapply Concur.compatible_threadRes_sub; eauto.
     }
-  Qed.
+  Admitted.
 
 
   (* 'Decaying memory' preserves invariant.
@@ -4680,7 +4713,7 @@ Here be dragons
         exists ds'.
         assert (DryHybridMachine.invariant ds').
         { eapply step_decay_invariant with (Hcompatible := MTCH_compat _ _ _ MATCH Hcmpt); auto.
-          destruct Hinitial as (? & Harg & ?); subst.
+          destruct Hinitial as (? & Harg & [H0 [H0a H0b]]); subst.
           hnf in Hperm; subst.
           split; intros.
           + right; intro. contradiction H0. 
@@ -4701,7 +4734,7 @@ Here be dragons
               inversion MATCH.
               symmetry; apply mtch_perm1. }
         split; auto; split.
-        - hnf in Hperm; destruct Hinitial as (? & ? & ?); subst; auto.
+        - hnf in Hperm; destruct Hinitial as (? & ? & [? [H0ab]]); subst; auto.
         - exists nil; rewrite <- app_nil_end.
           eapply (HybridMachineSig.start_step tid) with (Htid0 := @MTCH_cnt js tid ds MATCH Htid).
           + assumption.
@@ -4710,13 +4743,17 @@ Here be dragons
               - eapply MTCH_getThreadC. eassumption. eassumption.
               - reflexivity.
               - simpl in *.
-                destruct Hinitial as (? & ? & ?); split; eauto.
+                destruct Hinitial as (? & ? & [? H0ab]); split; eauto.
                 split; auto.
                 replace Htid with ctn by apply proof_irr.
                 remember (Concur.install_perm _ _) as m1.
                 apply mtch_install_perm with (ds := ds)(MATCH := MATCH) in Heqm1; hnf in Heqm1.
                 rewrite Heqm1 in e; rewrite e; simpl.
-                replace Htid with ctn by apply proof_irr; reflexivity.
+                replace Htid with ctn by apply proof_irr.
+                split. reflexivity.
+                split; [ | apply H0ab].
+                destruct H0ab as [H0a _].
+                subst m1. apply H0a.
               - eassumption.
               - replace Htid with ctn by apply proof_irr; reflexivity.
             }
@@ -4828,7 +4865,7 @@ Here be dragons
    - eassumption.
    - econstructor; try eassumption.
       3: reflexivity.
-     Focus 2. eapply (MTCH_getThreadC _ _ _ _ _ _ _ Hthread).
+     2: { eapply (MTCH_getThreadC _ _ _ _ _ _ _ Hthread). }
      instantiate(1:=Hcmpt').
      apply MTCH_restrict_personal.
      assumption.

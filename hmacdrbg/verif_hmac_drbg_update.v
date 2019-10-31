@@ -42,18 +42,19 @@ Lemma BDY_update: forall
    hmac256drbg_relate initial_state_abs initial_state;
    data_at shc t_struct_mbedtls_md_info info_contents
      (hmac256drbgstate_md_info_pointer initial_state); K_vector gv))
-  (Ssequence (fn_body f_mbedtls_hmac_drbg_update) (Sreturn None))
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP ( )
-         LOCAL ()
-         SEP (hmac256drbgabs_common_mpreds shc
-                (hmac256drbgabs_hmac_drbg_update initial_state_abs
-                   (contents_with_add additional add_len contents))
-                initial_state ctx info_contents;
-         da_emp sha (tarray tuchar (Zlength contents))
-           (map Vubyte contents) additional; K_vector gv)))
-     (stackframe_of f_mbedtls_hmac_drbg_update)).
+  (fn_body f_mbedtls_hmac_drbg_update)
+  (normal_ret_assert
+     (PROP ( )
+      LOCAL ()
+      SEP (hmac256drbgabs_common_mpreds shc
+             (hmac256drbgabs_hmac_drbg_update initial_state_abs
+                (contents_with_add additional add_len
+                   contents)) initial_state ctx
+             info_contents;
+      da_emp sha (tarray tuchar (Zlength contents))
+        (map Vubyte contents) additional; 
+      K_vector gv) *
+      stackframe_of f_mbedtls_hmac_drbg_update)).
 Proof. intros. do 2 pose proof I.
   abbreviate_semax.
   destruct initial_state as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].

@@ -12,7 +12,7 @@ Instance file_struct : FileStruct := {| FILEid := ___sFILE64; reent := __reent; 
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre_ext prog (write_list stdout (string2bytes "Hello, world!
+  PRE  [] main_pre prog (write_list stdout (string2bytes "Hello, world!
 ");; write_list stdout (string2bytes "This is line 2.
 ")) nil gv
   POST [ tint ] main_post prog nil gv.

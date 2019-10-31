@@ -39,7 +39,7 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
@@ -115,7 +115,7 @@ Proof.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c cond; temp _t lockt; temp _l lock; gvars gv)
    SEP (lock_inv sh2 lockt (tlock_inv sh1 lockt lock cond data);
-        lock_inv sh2 lock (dlock_inv data); cond_var sh2 cond; dlock_inv data)).
+        lock_inv sh2 lock (dlock_inv data); cond_var sh2 cond; dlock_inv data; has_ext tt)).
   { Exists 0; entailer!.
     Exists 0; entailer. }
   { entailer. }
@@ -138,7 +138,8 @@ Proof.
     { lock_props.
       erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel. }
     forward_call (cond, Ews).
-    { erewrite !sepcon_assoc, cond_var_share_join; eauto; cancel. }
+    { rewrite sepcon_comm. rewrite !sepcon_assoc.
+      erewrite cond_var_share_join; eauto; cancel. }
     forward.
 Qed.
 
@@ -148,7 +149,7 @@ Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog
 Existing Instance Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 do 11 semax_func_cons_ext.

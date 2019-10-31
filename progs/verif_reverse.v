@@ -84,7 +84,7 @@ Definition reverse_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]
      PROP() LOCAL (temp ret_temp (Vint (Int.repr (3+2+1)))) SEP(TT).
 
@@ -236,10 +236,11 @@ Lemma setup_globals:
    mapsto Ews (tptr t_struct_list) (offset_val 12 (gv _three))
        (offset_val 16 (gv _three));
    mapsto Ews tuint (offset_val 16 (gv _three)) (Vint (Int.repr 3));
-   mapsto Ews tuint (offset_val 20 (gv _three)) (Vint (Int.repr 0)))
+   mapsto Ews tuint (offset_val 20 (gv _three)) (Vint (Int.repr 0));
+   has_ext tt)
   |-- PROP() LOCAL(gvars gv)
         SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
-                  (gv _three) nullval).
+                  (gv _three) nullval; has_ext tt).
 Proof.
   intros.
   go_lowerx.
@@ -254,6 +255,10 @@ Proof.
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace (gv _three) with (offset_val 0 (gv _three)) by normalize.
   subst a.
+
+  rewrite (sepcon_comm (has_ext tt)).
+  rewrite <- !sepcon_assoc. apply sepcon_derives; auto.
+  rewrite !sepcon_assoc.
   rewrite (sepcon_emp (lseg _ _ _ _ _)).
   rewrite sepcon_emp.
   repeat
@@ -300,7 +305,7 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_sumlist.

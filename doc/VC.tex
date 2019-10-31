@@ -3782,11 +3782,49 @@ and so on.
 
 The \lstinline{rep_omega} tactic does this.
 In addition, it ``knows'' all the facts in the 
-\lstinline{Hint Rewrite : rep_omega} database.
-This is very helpful when using Opaque constants,
-as explained in \file{progs/tutorial1.v}, Lemmas
-\lstinline{exercise4} through \lstinline{exercise4c}.
+\lstinline{Hint Rewrite : rep_omega} database;
+see the next chapter.
 
+\ychapter{Opaque constants}
+
+Suppose your C program has an array of a million elements:
+\begin{lstlisting}
+int a[1000000];
+\end{lstlisting}
+\noindent Then you will have SEP conjuncts such as
+\begin{lstlisting}
+data_at sh (tarray tint 1000000) (default_val (tarray tint 1000000)) p
+\end{lstlisting}
+That \lstinline{default_val (tarray tint 1000000)} ``simplifies''
+to:\newline \lstinline{Vundef::Vundef::$\ldots\mbox{\small{999997}}\ldots$ Vundef::Vundef::nil}, which will blow up Coq.
+
+You might try to avoid blow-ups by writing,
+\begin{lstlisting}
+Definition N = 1000000.
+Opaque N.
+data_at sh (tarray tint N) (default_val (tarray tint N)) p
+\end{lstlisting}
+\vspace{-2ex}
+and indeed, that's better (because \lstinline{simpl} and
+\lstinline{simple apply} won't unfold \lstinline{N}),
+but it's not good enough (because \lstinline{reflexivity}
+and \lstinline{auto} \emph{will} unfold \lstinline{N}).
+See Coq issue \#5301.
+
+A better solution is:
+
+\begin{lstlisting}
+Definition N : Z    := proj1_sig (opaque_constant 1000000).
+Definition N_eq : N=1000000    := proj2_sig (opaque_constant _).
+Hint Rewrite N_eq : rep_omega.
+\end{lstlisting}
+
+This makes \lstinline{N} opaque to all tactics, \emph{except} that the
+\lstinline{rep_omega} tactic (and any that use the
+\lstinline{rep_omega} hint database) can expand N.
+
+The \file{progs/tutorial1.v}, shows an example of this, in Lemmas
+\lstinline{exercise4} through \lstinline{exercise4c}.
 
 \ychapter{Loop peeling and other manipulations}
 

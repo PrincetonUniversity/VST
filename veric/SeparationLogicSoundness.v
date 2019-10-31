@@ -6,7 +6,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.juicy_extspec.
@@ -37,65 +37,21 @@ Import CSHL_Def.
 Import CSHL_Defs.
 
 Axiom semax_prog_sound :
-  forall {Espec: OracleKind}{CS: compspecs} prog Vspec Gspec,
-  @semax_prog Espec CS prog Vspec Gspec ->
-  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
-
-Axiom semax_prog_ext_sound :
   forall {Espec: OracleKind}{CS: compspecs} prog z Vspec Gspec,
-  @semax_prog_ext Espec CS prog z Vspec Gspec ->
-  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+  @semax_prog Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog z Vspec Gspec.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
-  OK_ty = unit -> 
-  forall V G prog m h,
-     @semax_prog Espec CS prog V G ->
-     Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
-       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
-       forall n,
-         { jm |
-           m_dry jm = m /\ level jm = n /\
-           (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
-           no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm) /\
-           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
-     } } }%type.
-
-(* This version lets the user choose the external state instead of quantifying over it. *)
-Axiom semax_prog_rule' :
-  forall {Espec: OracleKind}{CS: compspecs},
-  forall V G prog m h,
-     @semax_prog Espec CS prog V G ->
-     Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
-       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
-       forall n z,
-         { jm |
-           m_dry jm = m /\ level jm = n /\
-           nth_error (ghost_of (m_phi jm)) 0 = Some (Some (ext_ghost z, NoneP)) /\
-           jsafeN (@OK_spec Espec) (globalenv prog) n z q jm /\
-           no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm) /\
-           app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
-     } } }%type.
-
-(* This version lets the user choose the external state instead of quantifying over it,
-    and start with knowledge of that state in the precondition of main. *)
-Axiom semax_prog_rule_ext :
-  forall {Espec: OracleKind}{CS: compspecs},
   forall V G prog m h z,
-     @semax_prog_ext Espec CS prog z V G ->
+     postcondition_allows_exit Espec tint ->
+     @semax_prog Espec CS prog z V G ->
      Genv.init_mem prog = Some m ->
-     { b : block & { q : corestate &
+     { b : block & { q : CC_core &
        (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
-       (forall jm, m_dry jm = m -> exists jm', semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
-                    jm q jm' (Vptr b Ptrofs.zero) nil) *
+       (forall jm, m_dry jm = m -> exists jm',
+                    semantics.initial_core (juicy_core_sem (cl_core_sem (globalenv prog))) h
+                       jm q jm' (Vptr b Ptrofs.zero) nil) *
        forall n,
          { jm |
            m_dry jm = m /\ level jm = n /\
@@ -105,7 +61,6 @@ Axiom semax_prog_rule_ext :
            matchfunspecs (globalenv prog) G (m_phi jm) /\
            app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
-
 
 End SEPARATION_HOARE_LOGIC_SOUNDNESS.
 
@@ -131,6 +86,7 @@ Definition semax_func := @semax_func.
 
 Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
+
 (*
 Definition semax_cssub := @semax_cssub.
   *)
@@ -144,7 +100,6 @@ Module CSHL_Defs := DerivedDefs (VericDef).
 Definition semax_extract_exists := @extract_exists_pre.
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
-Definition semax_prog_ext := @semax_prog_ext.
 Definition semax_func_nil := @semax_func_nil.
 Definition semax_func_cons := @semax_func_cons.
 (* Definition semax_func_skip := @semax_func_skip. *)
@@ -152,6 +107,19 @@ Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
+
+Lemma semax_external_binaryintersection: forall
+ {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne A P Q P_ne Q_ne sig cc ids}
+  (EXT1: @CSHL_Def.semax_external Espec ids ef A1 P1 Q1)
+  (EXT2: @CSHL_Def.semax_external Espec ids ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
+     Some (mk_funspec sig cc A P Q P_ne Q_ne))
+  (IDS: ids = map fst (fst sig)),
+  @CSHL_Def.semax_external Espec ids ef A P Q. 
+Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
+
+Definition semax_body_binaryintersection := @semax_body_binaryintersection.
 
 Definition semax_func_mono := semax_func_mono.
 Definition semax_func_app := semax_func_app.
@@ -267,24 +235,14 @@ Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
 
 Lemma semax_prog_sound :
-  forall {Espec}{CS} prog Vspec Gspec,
-  @CSHL_Defs.semax_prog Espec CS prog Vspec Gspec ->
-  @semax_prog.semax_prog Espec CS prog Vspec Gspec.
-Proof.
-  intros; apply H.
-Qed.
-
-Lemma semax_prog_ext_sound :
   forall {Espec}{CS} prog z Vspec Gspec,
-  @CSHL_Defs.semax_prog_ext Espec CS prog z Vspec Gspec ->
-  @semax_prog.semax_prog_ext Espec CS prog z Vspec Gspec.
+  @CSHL_Defs.semax_prog Espec CS prog z Vspec Gspec ->
+  @semax_prog.semax_prog Espec CS prog z Vspec Gspec.
 Proof.
   intros; apply H.
 Qed.
 
 Definition semax_prog_rule := @semax_prog_rule.
-Definition semax_prog_rule' := @semax_prog_rule'.
-Definition semax_prog_rule_ext := @semax_prog_rule_ext.
 
 End VericSound.
 

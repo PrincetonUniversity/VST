@@ -159,7 +159,7 @@ Qed.
    forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
   Proof.  intros. apply assert_truth. apply Val_is_true_Vtrue. Qed.
 
-Hint Resolve Val_is_true_Vtrue  @assert_Val_is_true.
+Hint Resolve Val_is_true_Vtrue  @assert_Val_is_true : core.
 *)
 
 (****************** stuff moved from semax_prog  *****************)
@@ -325,7 +325,7 @@ Proof.
   apply corable_func_at.
 Qed.
 
-Hint Resolve corable_func_ptr corable_func_ptr_si corable_func_ptr_early.
+Hint Resolve corable_func_ptr corable_func_ptr_si corable_func_ptr_early : core.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).
@@ -344,7 +344,7 @@ Proof.
 (* + apply corable_pureat.*)
 Qed.
 
-Hint Resolve corable_funspecs_assert.
+Hint Resolve corable_funspecs_assert : core.
 
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
     (forall loc, corable (P loc)) ->

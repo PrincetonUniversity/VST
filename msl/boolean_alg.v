@@ -28,6 +28,7 @@ Module Type BOOLEAN_ALGEBRA.
   Parameters (t:Type) (Ord : t -> t -> Prop)
      (top bot : t) (lub glb : t -> t -> t) (comp : t -> t).
 
+  Declare Scope ba.
   Delimit Scope ba with ba. Open Scope ba.
   Notation "x <= y" := (Ord x y) (at level 70, no associativity) : ba.
 

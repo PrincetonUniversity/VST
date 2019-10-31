@@ -20,7 +20,7 @@ Class Perm_alg (t: Type) {J: Join t} : Type :=
    join_comm: forall {a b c}, join a b c -> join b a c;
    join_positivity: forall {a a' b b'}, join a a' b -> join b b' a -> a=b
 }.
-Arguments Perm_alg _ [J].
+Arguments Perm_alg _ {J}.
 
 Definition unit_for {t}{J: Join t} (e a: t) := join e a a.
 Definition identity {t} {J: Join t} (e: t) := forall a b, join e a b -> a=b.
@@ -31,10 +31,11 @@ Hint Extern 2 (@join _ _ _ _ _) =>
      (* This next line looks superfluous, but it is not: it catches the
       case where H is join at a function type, where the goal is
       join at an applied function. *)
-     match goal with H: @join _ _ _ _ _ |- _ => apply H end).
+     match goal with H: @join _ _ _ _ _ |- _ => apply H end)
+    : core.
  (* Hint Immediate @join_comm. *)
 
-Hint Unfold unit_for.
+Hint Unfold unit_for : core.
 
 Lemma join_assoc_uniq:
   forall {t} {J: Join t} (PA1 PA2: @Perm_alg t J),
@@ -56,7 +57,7 @@ Qed.
       core_unit: forall t, unit_for (core t) t;
       join_core: forall {a b c}, join a b c -> core a = core c
     }.
-Arguments Sep_alg _ [J].
+Arguments Sep_alg _ {J}.
 
 Lemma core_duplicable {A}{J: Join A}{SA: Sep_alg A}:
   forall a, join (core a) (core a) (core a).
@@ -148,7 +149,7 @@ Qed.
 (* Disj_alg: adds the property that no nonempty element can join with itself. *)
 Class Disj_alg  (t: Type) {J: Join t} :=
    join_self: forall {a b}, join a a b -> identity a.
-Arguments Disj_alg _ [J].
+Arguments Disj_alg _ {J}.
 
 Lemma join_self' {A}{J: Join A}{DA: Disj_alg A} :
   forall {a b}, join a a b -> a = b.
@@ -201,13 +202,13 @@ Class Sing_alg A {J: Join A}{SA: Sep_alg A} :=
       the_unit: A;
       the_unit_core: forall a, core a = the_unit
     }.
-Arguments Sing_alg _ [J] [SA].
+Arguments Sing_alg _ {J} {SA}.
 Arguments mkSing [A] [J] [SA] _ _.
 
   (* Positive Permission Algebra: there are no units, every element is nonempty *)
   Class Pos_alg  {A} {J: Join A} :=
     no_units: forall e a, ~unit_for e a.
-Arguments Pos_alg _ [J].
+Arguments Pos_alg _ {J}.
 
 (* Has the "cross-split" property described in Dockins et al,
     "A fresh look at separation algebras and share accounting", 2009 *)
@@ -220,14 +221,14 @@ Class Cross_alg (t: Type)  `{J: Join t} :=
          join ac ad a /\ join bc bd b /\ join ac bc c /\ join ad bd d
        end
     }.
-Arguments Cross_alg _ [J].
+Arguments Cross_alg _ {J}.
 
 (* Has the "triple join" property  *)
 Class Trip_alg {A} {J: Join A} :=
   triple_join_exists:
   forall (a b c ab bc ac : A), join a b ab -> join b c bc -> join a c ac ->
        {abc | join ab c abc}.
-Arguments Trip_alg _ [J].
+Arguments Trip_alg _ {J}.
 
 (* We do NOT yet introduce "emp" as a notation or synonym for "identity".
   This is because "emp" is a predicate of Separation Logic, but this file
@@ -328,7 +329,7 @@ Qed.
     apply core_unit.
   Qed.
 
-  Hint Resolve @join_sub_refl.
+  Hint Resolve @join_sub_refl : core.
 
   Lemma join_sub_trans {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall a b c,
     join_sub a b ->
@@ -478,7 +479,7 @@ Qed.
     auto.
   Qed.
 
-Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
+Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub' : core.
 
   Definition nonidentity {A} `{Perm_alg A} (a: A) := ~(identity a).
 
@@ -806,4 +807,4 @@ Qed.
 (* Canc_alg: makes a Permission Algebra into a cancellative Perm.Alg. *)
 Class Canc_alg (t: Type) {J: Join t} :=
     join_canc: forall {a1 a2 b c}, join a1 b c -> join a2 b c -> a1 = a2.
-Arguments Canc_alg _ [J].
+Arguments Canc_alg _ {J}.

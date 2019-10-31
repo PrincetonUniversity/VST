@@ -30,6 +30,9 @@
 *)
 
 
+Require Import Strings.String.
+Require Import Coq.ZArith.ZArith.
+
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
@@ -38,7 +41,6 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 
-Require Import Coq.ZArith.ZArith.
 Require Import VST.concurrency.common.core_semantics.
 Require Import VST.sepcomp.event_semantics.
 Require Export VST.concurrency.common.semantics.
@@ -148,8 +150,8 @@ footprints of permissions moved  when applicable*)
     match ev with
     | internal _ mev =>
       match mev with
-      | event_semantics.Write b ofs vs => Some ((b, ofs), length vs)
-      | event_semantics.Read b ofs _ vs => Some ((b, ofs), length vs)
+      | event_semantics.Write b ofs vs => Some ((b, ofs), Datatypes.length vs)
+      | event_semantics.Read b ofs _ vs => Some ((b, ofs), Datatypes.length vs)
       | _ => None
       end
     | external _ sev =>
@@ -790,3 +792,10 @@ Module HybridMachineSig.
 End HybridFineMachine.
 
 End HybridMachineSig.
+
+Ltac dilute_mem_goal m:=
+  replace m with (HybridMachineSig.diluteMem  m) by reflexivity.
+Ltac dilute_mem_in m H:=
+  replace m with (HybridMachineSig.diluteMem  m) in H by reflexivity.
+Tactic Notation "dilute_mem" constr(m):= dilute_mem_goal m.
+Tactic Notation "dilute_mem" constr(m) "in" hyp(H):= dilute_mem_in m H.

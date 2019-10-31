@@ -104,7 +104,7 @@ Definition do_and_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition Vprog : varspecs := nil.
@@ -144,7 +144,7 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_do_or.

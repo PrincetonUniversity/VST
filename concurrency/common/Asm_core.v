@@ -120,9 +120,9 @@ Proof. intros.
    destruct (Int64.divmods2 _ _ _) as [[]|]; inv H1.
    apply mem_step_refl.
 
-   destruct (eval_testcond c0 rs); inversion H0; clear H0; subst.
+   (*destruct (eval_testcond c0 rs); inversion H0; clear H0; subst.
    destruct b; inversion H1; clear H1; subst; apply mem_step_refl.
-   apply mem_step_refl.
+   apply mem_step_refl.*)
 
    eapply goto_label_mem_step; eassumption.
 

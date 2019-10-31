@@ -102,7 +102,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
   intros I.
-  inversion I as [m tr sch_ tp Phi En envcoh compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m tr sch_ tp Phi En envcoh mwellformed compat extcompat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct ismakelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -528,7 +528,10 @@ Proof.
     apply env_coherence_pures_eq with Phi; auto. omega.
     apply pures_same_pures_eq. auto.
     eapply rmap_makelock_pures_same; eauto.
-
+  - clear -Hstore mwellformed.
+     unfold personal_mem in Hstore; simpl in Hstore.
+     unfold juicyRestrict in Hstore; simpl in Hstore.
+     admit.  (* Santiago *)
   - rewrite age_to_ghost_of.
     destruct Hrmap' as (? & ? & ? & <-).
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
@@ -725,7 +728,7 @@ Proof.
               eauto.
            ++ destruct sat as [sat | ?]. 2:omega. left.
               unfold age_to. replace (level r) with (level Phi); swap 1 2.
-              { symmetry. apply join_sub_level. eapply compatible_lockRes_sub; simpl; eauto. apply compat. }
+              { symmetry. apply join_sub_level. eapply compatible_lockRes_sub_all; simpl; eauto. apply compat. }
               rewr (level Phi). replace (S n - n)%nat with 1%nat by omega.
               apply age_by_ind. destruct R as [x h]. apply h. apply sat.
 
@@ -857,4 +860,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
-Qed.
+Admitted.

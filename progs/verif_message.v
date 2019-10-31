@@ -90,7 +90,7 @@ Definition intpair_deserialize_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=

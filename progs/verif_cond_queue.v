@@ -128,7 +128,7 @@ Definition consumer_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog [] u
+  PRE  [] main_pre prog tt [] u
   POST [ tint ] main_post prog [] u.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; (*release2_spec;*) makelock_spec;
@@ -594,7 +594,7 @@ Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog
 Existing Instance Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity|]).

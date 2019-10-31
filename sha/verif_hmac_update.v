@@ -22,13 +22,14 @@ Lemma updatebodyproof Espec wsh sh c d len data gv (h1 : hmacabs)
    LOCAL  (temp _ctx c; temp _data d;
            temp _len (Vint (Int.repr len)); gvars gv)
    SEP  (K_vector gv; hmacstate_ wsh h1 c; data_block sh data d))
-  (Ssequence (fn_body f_HMAC_Update) (Sreturn None))
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (K_vector gv; hmacstate_ wsh (hmacUpdate data h1) c;
-         data_block sh data d))) emp).
+  (fn_body f_HMAC_Update)
+  (normal_ret_assert
+                   (PROP ( )
+                    LOCAL ()
+                    SEP (K_vector gv;
+                    hmacstate_ wsh (hmacUpdate data h1) c;
+                    data_block sh data d) *
+                    stackframe_of f_HMAC_Update)).
 Proof. abbreviate_semax.
 unfold hmacstate_.
 Intros ST.

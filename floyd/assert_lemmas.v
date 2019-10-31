@@ -107,7 +107,8 @@ Ltac simpl_ret_assert :=
       normal_ret_assert overridePost loop1_ret_assert
       loop2_ret_assert function_body_ret_assert frame_ret_assert
       switch_ret_assert loop1x_ret_assert loop1y_ret_assert
-      for_ret_assert loop_nocontinue_ret_assert].
+      for_ret_assert loop_nocontinue_ret_assert];
+     try change (bind_ret None tvoid ?P) with P.
 
 Lemma RA_normal_loop2_ret_assert: (* MOVE TO assert_lemmas *)
   forall Inv R, RA_normal (loop2_ret_assert Inv R) = Inv.
@@ -116,7 +117,7 @@ Hint Rewrite RA_normal_loop2_ret_assert : ret_assert.
 
 Lemma liftTrue: forall rho, `True rho.
 Proof. intro. unfold_lift; apply Coq.Init.Logic.I. Qed.
-Hint Resolve liftTrue.
+Hint Resolve liftTrue : core.
 
 Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
@@ -156,7 +157,7 @@ Qed.
 
 Hint Rewrite frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
-Hint Resolve @TT_right.
+Hint Resolve @TT_right : core.
 
 Lemma overridePost_overridePost:
  forall P Q R, overridePost P (overridePost Q R) = overridePost P R.

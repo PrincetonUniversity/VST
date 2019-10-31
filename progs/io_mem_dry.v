@@ -77,7 +77,7 @@ Proof.
       destruct X1; [|exact False].
       destruct v; [exact False | | exact False | exact False | exact False | exact False].
       exact (getchars_post m0 X3 i w X2).
-  - intros; exact False.
+  - intros; exact True.
 Defined.
 
 Definition dessicate : forall ef (jm : juicy_mem), ext_spec_type io_ext_spec ef -> ext_spec_type io_dry_spec ef.

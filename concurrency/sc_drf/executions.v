@@ -1421,7 +1421,7 @@ Module Executions.
                     rewrite Z.add_0_r in Hintv.
                     ssromega.
                   * rewrite Hlength in Hintv.
-                    erewrite nat_of_Z_eq in Hintv by omega.
+                    erewrite Z2Nat.id in Hintv by omega.
                     apply Mem.loadbytes_range_perm in Hload.
                     specialize (Hload _ Hintv).
                     unfold Mem.perm, permission_at in *.
@@ -1541,13 +1541,13 @@ Module Executions.
             destruct Hin as [Heq | Hin].
             exfalso.
             inv Heq.
-            assert (Hlength: nat_of_Z n0 = length bytes)
+            assert (Hlength: Z.to_nat n0 = length bytes)
               by (apply Mem.loadbytes_length in Hload; auto).
             apply Mem.loadbytes_range_perm in Hload.
             rewrite <- Hlength in Hintv.
             specialize (Hload ofs').
             assert (Hintv': (ofs <= ofs' < ofs + n0)%Z).
-            { rewrite nat_of_Z_max in Hintv.
+            { rewrite Z_to_nat_max in Hintv.
               destruct (Z.max_dec n0 0);
                 erewrite e in *;
                 eauto.
@@ -1887,11 +1887,11 @@ Module Executions.
             destruct (Intv.In_dec ofs (Ptrofs.intval ofs0, Ptrofs.intval ofs0 + lksize.LKSIZE)%Z); auto.
             erewrite setPermBlock_var_same in Hperm' by eauto.
             apply Hperm'.
-            specialize (Hneq_perms (nat_of_Z (ofs - Ptrofs.intval ofs0))).
-            assert (Hrange: (0 <= Z.of_nat (nat_of_Z (ofs - Ptrofs.intval ofs0))
+            specialize (Hneq_perms (Z.to_nat (ofs - Ptrofs.intval ofs0))).
+            assert (Hrange: (0 <= Z.of_nat (Z.to_nat (ofs - Ptrofs.intval ofs0))
                              < lksize.LKSIZE)%Z).
             { unfold Intv.In, lksize.LKSIZE in *.
-              rewrite nat_of_Z_eq.
+              rewrite Z2Nat.id.
               simpl in i.
               destruct i; split; ssromega.
               unfold Intv.In, lksize.LKSIZE in i.
@@ -1899,13 +1899,13 @@ Module Executions.
               ssromega.
             }
             specialize (Hneq_perms Hrange).
-            replace ((nat_of_Z (ofs - Ptrofs.intval ofs0)).+1) with
-                (nat_of_Z (ofs - Ptrofs.intval ofs0 +1)) in Hneq_perms.
+            replace ((Z.to_nat (ofs - Ptrofs.intval ofs0)).+1) with
+                (Z.to_nat (ofs - Ptrofs.intval ofs0 +1)) in Hneq_perms.
             eapply po_trans;
               eauto; simpl; now constructor.
             destruct i.
             zify.
-            erewrite! nat_of_Z_eq
+            erewrite! Z2Nat.id
               by (unfold lksize.LKSIZE in *; simpl in *; ssromega).
             omega.
             rewrite setPermBlock_var_other_1 in Hperm'.
@@ -4088,16 +4088,22 @@ Module Executions.
     Qed.
 
     Lemma step_thread_det:
+      ev_step_fun semSem ->
       forall tp m tid (cnt: containsThread tp tid) tp' m' tp'' m'' ev ev'
         (Hcmpt: mem_compatible tp m)
         (Hstep: threadStep cnt Hcmpt tp' m' ev)
         (Hstep': threadStep cnt Hcmpt tp'' m'' ev'),
         tp' = tp'' /\ m' = m'' /\ ev = ev'.
     Proof.
-      intros.
+      intro ESF; intros.
       inv Hstep; inv Hstep'.
       rewrite Hcode in Hcode0; inv Hcode0.
-      destruct (CoreLanguage.ev_step_det _ _ _ _ _ _ _ _ Hcorestep Hcorestep0) as [? [? ?]];
+      assert (corestep_fun semSem) by (inv SemD; auto).
+      pose proof (ev_step_ax1 _ _ _ _ _ _ Hcorestep).
+      pose proof (ev_step_ax1 _ _ _ _ _ _ Hcorestep0).
+      destruct (H _ _ _ _ _ _ H0 H1).
+      subst c'0 m''. split3; auto. clear H H0 H1.
+      destruct (CoreLanguage.ev_step_det ESF _ _ _ _ _ _ _ _ Hcorestep Hcorestep0) as [? [? ?]];
         subst.
       now auto.
     Qed.
@@ -4120,6 +4126,7 @@ Module Executions.
     Qed.
     
     Lemma bareStep_det:
+      ev_step_fun semSem ->
       forall U tr tp m U' tr' tp' m' U'' tr'' tp'' m''
         (Hstep: MachStep (U, tr, tp) m
                          (U', tr', tp') m')
@@ -4127,7 +4134,7 @@ Module Executions.
                           (U'', tr'', tp'') m''),
         U' = U'' /\ tr' = tr'' /\ tp' = tp'' /\ m' = m''.
     Proof.
-      intros.
+      intro ESF; intros.
       inv Hstep; simpl in *; subst;
       inv Hstep'; simpl in *; subst;
       match goal with
@@ -4163,7 +4170,7 @@ Module Executions.
         now auto.
       destruct (resume_thread_det Htstep Htstep0); subst;
         now auto.
-      destruct (step_thread_det Htstep Htstep0) as [? [? ?]]; subst;
+      destruct (step_thread_det ESF Htstep Htstep0) as [? [? ?]]; subst;
         now auto.
       destruct (suspend_thread_det Htstep Htstep0); subst;
         now auto.      
@@ -4174,12 +4181,13 @@ Module Executions.
 
 
     Lemma bare_execution_det:
+      ev_step_fun semSem ->
       forall st m st' m' st'' m''
         (Hstep: fine_execution st m st' m')
         (Hstep': fine_execution st m st'' m''),
         st' = st'' /\ m' = m''.
     Proof.
-      intros st.
+      intros ESF st.
       destruct st as [[U tr] tp].
       generalize dependent tr.
       generalize dependent tp.
@@ -4192,7 +4200,7 @@ Module Executions.
         inv Hstep';
           [simpl in H;
            now exfalso|].
-        destruct (bareStep_det H6 H8) as [? [? [? ?]]];
+        destruct (bareStep_det ESF H6 H8) as [? [? [? ?]]];
           subst.
         apply app_inv_head in H0; subst.
         now eauto.

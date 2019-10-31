@@ -145,8 +145,9 @@ Module SimDefs.
     (forall b', (~exists b, f b = Some b') ->
            Maps.PTree.get b' deltaMap' = None).
 
+
    
-  Definition delta_content_inj (f : memren) (deltaMap deltaMap' : delta_content) : Prop :=
+  Definition delta_content_inj (f : memren) (deltaMap deltaMap' : Events.delta_content) : Prop :=
     (forall b b',
         f b = Some b' ->
         match Maps.PTree.get b deltaMap, Maps.PTree.get b' deltaMap' with
@@ -8449,8 +8450,9 @@ relation*)
         intros U.
         assert (HsyncStepF: syncStep false pff (mem_compf Hsim) tpf'' mf'
                                      (acquire (b2, Ptrofs.intval ofs)
-                                              (Some (build_delta_content virtueF#1 mf'))))
-          by (eapply step_acquire with (b0:=b2); eauto).
+                                              (Some (build_delta_content virtueF#1 mf')))).
+        { eapply step_acquire with (b0:=b2); eauto.  }
+
         econstructor;
            now eauto.
         (** Proof that the new coarse and fine state are in simulation*)

@@ -104,10 +104,8 @@ forward_call (42,Vint (Int.repr 42))... after_call.
 forward.
 Qed.
 
-Existing Instance NullExtension.Espec.
-
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_odd.

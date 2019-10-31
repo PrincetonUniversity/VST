@@ -21,7 +21,7 @@ Definition myfunc_spec := DECLARE _myfunc myspec.
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [

@@ -1,8 +1,8 @@
+From Paco Require Import paco.
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype.
 
 Require Import compcert.common.Globalenvs.
-Require Import VST.concurrency.paco.src.paco.
 
 Require Import VST.concurrency.common.HybridMachineSig.
 Import HybridMachineSig.
@@ -17,28 +17,36 @@ Require Import VST.concurrency.compiler.safety_equivalence.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import Omega.
-            
+Require Import VST.concurrency.lib.tactics.
+      
 
 (*Clight Machine *)
 Require Import VST.concurrency.common.ClightMachine.
 (*Asm Machine*)
 Require Import VST.concurrency.common.x86_context.
 
-Module Concurrent_Safety (CC_correct: CompCert_correctness).
+
+Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
+
+Module Concurrent_Safety
+       (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments).
   (*Import the Clight Hybrid Machine*)
   Import ClightMachine.
   Import DMS.
   (*Import the Asm X86 Hybrid Machine*)
   Import X86Context.
 
-  Module ConcurCC_correct:= (Concurrent_correctness CC_correct).
+  Module ConcurCC_correct:= (Concurrent_correctness CC_correct Args).
   Import ConcurCC_correct.
-  
+
+
+  (*USed to be start_stack*)
   Definition Clight_init_state (p: Clight.program):=
-    Clight.start_stack (Clight.globalenv p).
+    Clight.initial_state p.
   
   Definition Asm_init_state (p: Asm.program):=
-    Asm.start_stack (@the_ge p).
+    Asm.initial_state  p.
 
   Notation valid Sem:=
     (valid dryResources Sem OrdinalPool.OrdinalThreadPool).
@@ -229,11 +237,12 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
             simpl.
             now eauto.
         + (* Step Star case *)
-          eapply paco3_pfold; eauto.
+          eapply paco3_fold; eauto.
           destruct HstepT as [n HstepN].
           destruct n.
           * simpl in HstepN; inversion HstepN; subst.
             econstructor 4; eauto.
+            right.
             eapply HsafeT; try apply Hevs'; eauto.
             intros.
             eapply explicit_safety_trace_irr with (tr := evS).
@@ -262,6 +271,7 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
                    destruct HstepN as [C_target'' [m_t'' [HstepT' HstepN]]].
                    econstructor 2 with (_y := (tr2, C_target'', m_t'')); simpl; eauto.
             ** intros.
+               right.
                eapply HsafeT; try apply Hevs'; eauto.
                intros.
                eapply explicit_safety_trace_irr with (tr := evS); eauto.
@@ -395,27 +405,37 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
 
     
     Lemma ConcurrentCompilerSafety:
-      forall (p : Clight.program) (tp : Asm.program),
-        CC_correct.CompCert_compiler p = Some tp ->
-        forall asm_genv_safety : Asm_core.safe_genv (@the_ge tp),
-          let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
-          let SemTarget:= @X86Sem tp asm_genv_safety in
-          concurrent_simulation_safety_preservation
-            (Genv.init_mem (Ctypes.program_of_program p))
-            (Genv.init_mem tp)
-            (SemSource:= SemSource)
-            (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
-            (SourceMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
-            (SemTarget :=  SemTarget)
-            (TargetThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
-            (TargetMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
+      CC_correct.CompCert_compiler Args.C_program = Some Args.Asm_program ->
+      forall asm_genv_safety : Asm_core.safe_genv (@the_ge Args.Asm_program),
+        let SemSource:= (ClightSemanticsForMachines.ClightSem
+                           (Clight.globalenv Args.C_program)) in
+        let SemTarget:= @X86Sem Args.Asm_program asm_genv_safety in
+        concurrent_simulation_safety_preservation
+          (Genv.init_mem (Ctypes.program_of_program Args.C_program))
+          (Genv.init_mem Args.Asm_program)
+          (SemSource:= SemSource)
+          (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
+          (SourceMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
+          (SemTarget :=  SemTarget)
+          (TargetThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
+          (TargetMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
     .
       unfold concurrent_simulation_safety_preservation; intros.
-      pose proof (ConcurrentCompilerCorrectness p tp H asm_genv_safety) as SIM.
+      (* destruct H0. simpl in H2.
+         unfold init_mach in *.
+      *)
+      pose proof (ConcurrentCompilerCorrectness Args.Asm_program H asm_genv_safety) as SIM.
       unfold ConcurrentCompilerCorrectness_specification in SIM.
       (*Construct the initial state*)
-      apply (HybridMachine_simulation.initial_setup SIM) in H1 as
-          (j&cd&t_mach_state&t_mem&t_mem'&r2&(INIT_mem & INIT)&?).
+      exploit HybridMachine_simulation.initial_setup.
+      eapply SIM.
+      match goal with
+        [H: machine_semantics.initial_machine ?SEM1 _ _ _ _ _ _ |-
+         machine_semantics.initial_machine ?SEM2 _ _ _ _ _ _] =>
+        replace SEM2 with SEM1 by (rewrite H0; reflexivity)
+      end.
+      eapply H1. 
+      intro HH; destruct HH as (j&cd&t_mach_state&t_mem&t_mem'&r2&(INIT_mem & INIT)&?).
       assert(INIT':= INIT).
       destruct r2; try solve[inversion INIT'].
       destruct INIT' as (c&?&?).
@@ -423,13 +443,72 @@ Module Concurrent_Safety (CC_correct: CompCert_correctness).
       do 3 eexists; repeat split; eauto.
       eapply INIT.
       
-      destruct H3 as (H21 & H22); subst.
+      destruct H4 as (H21 & H22); subst.
       clear INIT H21.
 
       (* Now, we strip out the scheudle, until it starts with 1*)
       eapply initial_csafe_all_schedule.
       intros; eapply csafety_step; eauto.
-      eapply H1.
+      eapply H3.
     Qed.
+
+    Definition SemSource:= (ClightSemanticsForMachines.ClightSem
+                           (Clight.globalenv Args.C_program)).
+    Definition SemTarget asm_genv_safety:= @X86Sem Args.Asm_program asm_genv_safety.
+    Definition SourceMachineSig:= 
+         (@DryHybridMachineSig SemSource (@OrdinalPool.OrdinalThreadPool dryResources SemSource)).
+    Definition TargetMachineSig ags:= 
+      (@DryHybridMachineSig (SemTarget ags) (@OrdinalPool.OrdinalThreadPool dryResources (SemTarget ags))).
+
+    Definition SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource).
+    Definition TargetThreadPool ags:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=(SemTarget ags)).
+          
+  Notation resources:= HybridMachine.DryHybridMachine.dryResources.
+  Definition SourceHybridMachine:=
+    @HybridCoarseMachine.HybridCoarseMachine resources SemSource SourceThreadPool SourceMachineSig.
+  Definition TargetHybridMachine ags:=
+    @HybridCoarseMachine.HybridCoarseMachine resources (SemTarget ags) (TargetThreadPool ags) (TargetMachineSig ags).
+  
+  Definition SourceSemantics:= (fun m => ConcurMachineSemantics(HybridMachine:=SourceHybridMachine) m).
+  Definition TargetSemantics ags:= (fun m => ConcurMachineSemantics(HybridMachine:=TargetHybridMachine ags) m).
+  
+    Lemma clean_theorem_equivalence:
+      forall asm_genv_safety : Asm_core.safe_genv (@the_ge Args.Asm_program),
+        let SemSource:= (ClightSemanticsForMachines.ClightSem
+                           (Clight.globalenv Args.C_program)) in
+        let SemTarget:= @X86Sem Args.Asm_program asm_genv_safety in
+        concurrent_simulation_safety_preservation
+          (Genv.init_mem (Ctypes.program_of_program Args.C_program))
+          (Genv.init_mem Args.Asm_program)
+          (SemSource:= SemSource)
+          (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
+          (SourceMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
+          (SemTarget :=  SemTarget)
+          (TargetThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
+          (TargetMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig) ->
+      main_safety_preservation SourceSemantics (TargetSemantics asm_genv_safety).
+      Proof.
+        unfold main_safety_preservation,
+        concurrent_simulation_safety_preservation.
+        intros * HSafety1 Asm_prog C_prog * Hinit Hsafe.
+
+
+        inversion Hinit; subst; clear Hinit.
+        simpl in H0; unfold init_machine'' in *.
+        destruct H0 as (_ & Hinit_mach); simpl in *.
+        destruct Hinit_mach as (c&(Hinit&Hmem)&HH); simpl in *.
+        assert (c = src_tp0).
+        { clear - HH; inversion HH.
+          eapply Eqdep.EqdepTheory.inj_pair2 in H0.
+          eapply FunctionalExtensionality.equal_f in H0.
+          - inversion H0; auto.
+          - econstructor; auto.
+        }
+        subst c; clear HH.
+
+        inversion Hinit; subst; simpl in *.
+        exploit HSafety1.
+      Admitted.
+
     
 End Concurrent_Safety.

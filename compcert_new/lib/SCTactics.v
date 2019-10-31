@@ -27,18 +27,11 @@ Definition neq_rel (A:Type): relation A:=
 Global Instance Symmetric_neq: forall A, @Symmetric A (neq_rel A).
 Proof. intros ? ? ? H ?. apply H; auto. Qed.
 
-(* Duplicate hypothesis *)
-Ltac duplicate H:= let HH := fresh "HH" in assert (HH:=H).
-
 (* "Normal form"  hypothesis*)
 Ltac destruct_and:=
-  repeat match goal with
-         | [ H: _ /\ _  |- _ ] => destruct H
-         end.
+  repeat match goal with [ H: _ /\ _  |- _ ] => destruct H end.
 Ltac reduce_and:=
-  repeat match goal with
-         | [ |- _ /\ _  ] => split
-         end.
+  repeat match goal with [ |- _ /\ _  ] => split end.
 
 (* Stronger form of inversion. Similar to inv (from CompCert) *)
 (* It inverts and rewrites every *new* equality*)
@@ -88,15 +81,53 @@ Ltac solve_Equivalence:=
          ]
   end.
 
+(* Make unification variable into a goal. 
+   you can just use unshelve(instantiate(n:= _))
+*)
+Tactic Notation "unshelve_one" constr(n):=
+  (lazymatch n with
+   | 1 => unshelve(instantiate(1:= _))
+   | 2 => unshelve(instantiate(2:= _))
+   | 3 => unshelve(instantiate(3:= _))
+   | 4 => unshelve(instantiate(4:= _))
+   | 5 => unshelve(instantiate(5:= _))
+   | 6 => unshelve(instantiate(6:= _))
+   | 7 => unshelve(instantiate(5:= _))
+   | 8 => unshelve(instantiate(6:= _))
+   | _ => fail "This tactic is not implemented for" n
+   end).
 
 (** *Bookkeeping tactics*)
+(**
+   Many of these tactics are very useful for exploration,
+   but not efficient. Be careful if using on any script.
+*)
 
 (** Claim what the current goal looks like *)
 Ltac print_goal:= match goal with [|- ?G] => idtac G end.
 Ltac errors_for_current current:= 
   idtac "That's not the current goal. " ;
   idtac current;
-  idtac " expected, but found";
+  idtac " provided, but found";
   print_goal.
-Ltac current_goal goal:= first[change goal| errors_for_current goal].
-Tactic Notation "!goal " constr(goal) := current_goal goal.
+Ltac equate x y :=
+  let dummy := constr:(eq_refl x : x = y) in idtac.
+Ltac goal_is g:=
+  match goal with |- ?g_targ => equate g g_targ end.
+Ltac current_goal goal:= first[goal_is goal|change goal| errors_for_current goal].
+Tactic Notation "!goal " uconstr(goal) := current_goal goal.
+
+(* Print type for and ident*)
+Ltac get_type x:= match type of x with ?T => T end. 
+Ltac print_type x:= let t:= get_type x in idtac t.
+
+
+(* Print name and type for all evars*)
+(* This is an simpler version of Show Existentials. *)
+Ltac get_evars tac:=
+  multimatch goal with
+    |- context[?x] => is_evar x; tac x; fail
+  | _ => idtac
+  end.
+Ltac show_evars:= get_evars ltac:(fun x=> let t:=(get_type x) in idtac x ":" t).
+  

@@ -122,7 +122,7 @@ Definition make_elem_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv: globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ]
        PROP() LOCAL (temp ret_temp (Vint (Int.repr 1))) SEP(TT).
 
@@ -268,8 +268,6 @@ forward_if
      eapply derives_trans;
         [ | apply (lseg_cons_right_neq QS Ews prefix hd last0 tl nullval p ); auto].
      simpl sizeof.  cancel.
-* (* after the if *)
-     forward. (* return ; *)
 Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
@@ -353,7 +351,7 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
   prove_semax_prog.
   semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.

@@ -1602,7 +1602,7 @@ Module MemErasure.
     unfold Mem.loadbytes in *.
     destruct (Mem.range_perm_dec m b ofs (ofs + sz) Cur Readable).
     inv Hloadbytes.
-    exists (Mem.getN (nat_of_Z sz) ofs (m'.(Mem.mem_contents)#b)).
+    exists (Mem.getN (Z.to_nat sz) ofs (m'.(Mem.mem_contents)#b)).
     split. apply pred_dec_true.
     unfold Mem.range_perm in r.
     intros ofs' Hrange.

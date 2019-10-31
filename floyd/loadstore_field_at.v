@@ -218,7 +218,7 @@ Lemma semax_max_path_field_load_nth_ram'':
               (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
-  intros until 0. intros TId Cast Rsh EqLr Volatile Lnf JM GetR F Evale1 Tc.
+  intros *. intros TId Cast Rsh EqLr Volatile Lnf JM GetR F Evale1 Tc.
   pose proof is_neutral_cast_by_value _ _ Cast as ByVal.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
     rewrite <- nested_field_type_nested_field_type.
@@ -517,7 +517,7 @@ Lemma semax_partial_path_field_store_nth_ram:
                 (SEPx
                   (replace_nth n R Post))))).
 Proof.
-  intros until 0. intros ByVal Wsh LRo Volatile JM GetR F Evale1 Evale2 Tc Lnef.
+  intros *. intros ByVal Wsh LRo Volatile JM GetR F Evale1 Evale2 Tc Lnef.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
     rewrite <- nested_field_type_nested_field_type.
     eapply derives_trans; [exact Tc |].
@@ -591,7 +591,7 @@ Lemma semax_no_path_field_store_nth_ram:
                 (SEPx
                   (replace_nth n R Post))))).
 Proof.
-  intros until 0. intros ByVal Wsh Volatile EqT JM GetR F Evale1 Evale2 Tc.
+  intros *. intros ByVal Wsh Volatile EqT JM GetR F Evale1 Evale2 Tc.
   rewrite EqT in ByVal.
   eapply semax_store_nth_ram with (p := (field_address t_root gfs a)).
   + exact EqT.

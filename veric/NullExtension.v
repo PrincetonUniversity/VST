@@ -2,7 +2,7 @@ Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.base.
 (*Lenb - do we need these?
-  Require Import VST.veric.Clight_new.
+  Require Import VST.veric.Clight_core.
 Require Import VST.veric.Clight_lemmas.*)
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.juicy_mem.

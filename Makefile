@@ -24,9 +24,11 @@ endif
 
 default_target: _CoqProject msl veric floyd $(PROGSDIR)
 
+
+
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-#CLIGHTGEN=$(COMPCERT)/clightgen
+#CLIGHTGEN=$(COMPCERT)/clightgen 
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -40,8 +42,7 @@ ANNOTATE=silent   # suppress chatty output from coqc
 CC_TARGET= $(COMPCERT)/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VSTDIRS= msl sepcomp veric floyd $(PROGSDIR) concurrency ccc26x86 atomics
-OTHERDIRS= wand_demo sha FCF hmacfcf tweetnacl20140427 hmacdrbg aes mailbox  boringssl_fips_20180730
-
+OTHERDIRS= wand_demo sha hmacfcf tweetnacl20140427 hmacdrbg aes mailbox boringssl_fips_20180730
 DIRS = $(VSTDIRS) $(OTHERDIRS)
 CONCUR = concurrency
 
@@ -84,9 +85,17 @@ COMPCERTDIRS=lib common $(ARCHDIRS) cfrontend flocq exportclight $(BACKEND)
 
 COMPCERT_R_FLAGS= $(foreach d, $(COMPCERTDIRS), -R $(COMPCERT)/$(d) compcert.$(d))
 EXTFLAGS= $(foreach d, $(COMPCERTDIRS), -Q $(COMPCERT)/$(d) compcert.$(d))
-# for ITrees
+ifneq ($(wildcard coq-ext-lib/theories),)
+EXTFLAGS:=$(EXTFLAGS) -Q coq-ext-lib/theories ExtLib
+endif
 ifneq ($(wildcard InteractionTrees/theories),)
 EXTFLAGS:=$(EXTFLAGS) -Q InteractionTrees/theories ITree
+endif
+ifneq ($(wildcard fcf/src/FCF),)
+EXTFLAGS:=$(EXTFLAGS) -Q fcf/src/FCF FCF
+endif
+ifneq ($(wildcard paco/src),)
+EXTFLAGS:=$(EXTFLAGS) -Q paco/src Paco
 endif
 
 # for SSReflect
@@ -94,23 +103,17 @@ ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-ifeq ($(COMPCERT), compcert_new)
-SHIM= -Q concurrency/shim VST.veric
-endif
+#ifeq ($(COMPCERT), compcert_new)
+#SHIM= -Q concurrency/shim VST.veric
+#endif
 
 COQFLAGS=$(foreach d, $(VSTDIRS), $(if $(wildcard $(d)), -Q $(d) VST.$(d))) $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS) $(SHIM)
-
-
-
 
 #COQFLAGS= -Q . VST $(foreach d, $(OTHERDIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
 # DO NOT DISABLE coqc WARNINGS!  That would hinder the Coq team's continuous integration.
-# The warning setting -overriding-logical-loadpath is needed until
-#  CompCert issue 199 is resolve satisfactorily:
-#  https://github.com/AbsInt/CompCert/issues/199
-COQC=$(COQBIN)coqc -w -overriding-logical-loadpath,-notation-overridden
+COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep
 COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
@@ -188,7 +191,7 @@ CONCUR_COMMON_FILES= \
   sepcomp.v \
   ssromega.v \
   tactics.v \
-  threadPool.v \
+  threadPool.v konig.v \
   threads_lemmas.v \
 
 CONCUR_COMPILER_FILES= \
@@ -199,23 +202,6 @@ CONCUR_COMPILER_FILES= \
 
 CONCUR_FILES= lksize.v semax_conc.v semax_conc_pred.v \
         memsem_lemmas.v main.v memory_lemmas.v  \
-
-PACO_FILES= \
-  hpattern.v\
-  paco.v\
-  paco0.v\
-  paco1.v\
-  paco2.v\
-  paco3.v\
-  paco4.v\
-  paco5.v\
-  paco6.v\
-  paco7.v\
-  pacodef.v\
-  paconotation.v\
-  pacotac.v\
-  pacotacuser.v\
-  tutorial.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
@@ -246,18 +232,18 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Clight_base.v val_lemmas.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v Clight_Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
+  base.v Clight_base.v val_lemmas.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v type_induction.v composite_compute.v align_mem.v change_compspecs.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v \
   binop_lemmas.v binop_lemmas2.v binop_lemmas3.v binop_lemmas4.v binop_lemmas5.v binop_lemmas6.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_lemmas4.v \
   extend_tc.v \
-  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
+  Clight_lemmas.v Clight_core.v  \
   slice.v res_predicates.v own.v seplog.v Clight_seplog.v mapsto_memory_block.v Clight_mapsto_memory_block.v assert_lemmas.v Clight_assert_lemmas.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_conseq.v semax_call.v semax_straight.v semax_loop.v semax_switch.v \
   initial_world.v Clight_initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
-  semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v Clight_sim.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v
+  semax_ext_oracle.v mem_lessdef.v Clight_mem_lessdef.v age_to_resource_at.v aging_lemmas.v Clight_aging_lemmas.v ghost_PCM.v mpred.v
 
 FLOYD_FILES= \
    coqlib3.v base.v seplog_tactics.v typecheck_lemmas.v val_lemmas.v assert_lemmas.v find_nth_tactic.v const_only_eval.v \
@@ -285,7 +271,7 @@ FLOYD_FILES= \
 # each line that contains the word CONCPROGS must be deletable independently
 CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v ghosts.v
 
-PROGS_FILES= \
+PROGS32_FILES= \
   $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_reverse2.v verif_reverse3.v verif_reverse_client.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v reverse_client.v queue.v sumarray.v message.v string.v object.v \
@@ -305,6 +291,24 @@ PROGS_FILES= \
   libglob.v verif_libglob.v peel.v verif_peel.v \
   printf.v
 # verif_insertion_sort.v
+
+C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
+    bst.c field_loadstore.c float.c object.c \
+    global.c min.c nest2.c nest3.c \
+    logical_compare.c \
+    strlib.c switch.c union.c message.c
+V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
+    verif_append2.v verif_bin_search.v \
+    verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
+    verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
+    verif_logical_compare.v \
+    verif_strlib.v verif_switch.v verif_union.v verif_message.v
+
+ifeq ($(BITSIZE),64)
+PROGS_FILES=$(V64_ORDINARY)
+else
+PROGS_FILES=$(PROGS32_FILES)
+endif
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -326,32 +330,6 @@ HMAC_FILES= \
 HKDF_FILES= \
   hkdf_functional_prog.v hkdf.v spec_hkdf.v \
   verif_hkdf_extract.v verif_hkdf_expand.v verif_hkdf.v
-
-FCF_FILES= \
-  Admissibility.v Encryption.v NotationV1.v RndDup.v \
-  Array.v NotationV2.v RndGrpElem.v \
-  Asymptotic.v  Encryption_PK.v OracleCompFold.v RndInList.v \
-  Bernoulli.v EqDec.v OracleHybrid.v RndListElem.v \
-  Blist.v ExpectedPolyTime.v OTP.v RndNat.v \
-  Class.v FCF.v PRF.v RndPerm.v \
-  Comp.v Fold.v PRF_Convert.v SemEquiv.v \
-  CompFold.v GenTacs.v PRG.v GroupTheory.v  \
-  Crypto.v HasDups.v ProgramLogic.v StdNat.v \
-  DetSem.v Hybrid.v ProgTacs.v Tactics.v \
-  DiffieHellman.v Limit.v TwoWorldsEquiv.v \
-  DistRules.v  WC_PolyTime.v \
-  DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
-  DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v
-# ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
-
-#FCF_FILES= \
-#  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
-#  DistRules.v DistTacs.v ProgTacs.v GenTacs.v Crypto.v SemEquiv.v \
-#  ProgramLogic.v RndNat.v Bernoulli.v FCF.v HasDups.v CompFold.v \
-#  RepeatCore.v PRF_Encryption_IND_CPA.v PRF.v Array.v Encryption.v \
-#  Asymptotic.v Admissibility.v RndInList.v OTP.v RndGrpElem.v \
-#  GroupTheory.v WC_PolyTime.v RndListElem.v RndPerm.v NoDup_gen.v \
-#  Hybrid.v OracleCompFold.v PRF_Convert.v
 
 HMACFCF_FILES= \
   splitVector.v cAU.v hF.v HMAC_spec.v NMAC_to_HMAC.v \
@@ -419,12 +397,12 @@ FILES = \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
- $(PROGS_FILES:%=progs/%) \
+ $(PROGS_FILES:%=$(PROGSDIR)/%) \
  $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FIPSDIGEST_FILES:%=boringssl-fips20180730/%) \
- $(FCF_FILES:%=FCF/%) \
+# $(FCF_FILES:%=fcf/src/FCF/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
@@ -454,13 +432,13 @@ else ifeq ($(strip $(ANNOTATE)), true)
 	@$(COQC) $(COQF) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
 else ifeq ($(strip $(ANNOTATE)), silent)
 	@$(COQC) $(COQF) $*.v >/dev/null
-else
+else 
 	@$(COQC) $(COQF) $*.v
-#	@util/annotate $(COQC) $(COQF) $*.v
+#	@util/annotate $(COQC) $(COQF) $*.v 
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
-COQVERSION= 8.9.1 or-else 8.9+alpha or-else 8.9.0 or-else 8.8.2
+COQVERSION= 8.10.0 or-else 8.9.1 or-else 8.9.0 or-else 8.10+alpha
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
@@ -492,14 +470,14 @@ endif
 # 	@
 
 ifeq ($(BITSIZE),64)
-travis: default_target progs64
+travis: default_target progs
 else
 travis: default_target progs sha hmac mailbox
 endif
 
 files: _CoqProject $(FILES:.v=.vo)
 
-all: default_target files travis hkdf hmacdrbg tweetnacl aes
+all: default_target files travis hmacdrbg tweetnacl aes
 
 
 # ifeq ($(COMPCERT), compcert)
@@ -511,16 +489,15 @@ all: default_target files travis hkdf hmacdrbg tweetnacl aes
 # $(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
 # msl/Coqlib2.vo: compcert
 # endif
-
+ 
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
-paco: _CoqProject $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: _CoqProject $(LINKING_FILES:%.v=linking/%.vo)
 veric:   _CoqProject $(VERIC_FILES:%.v=veric/%.vo) veric/version.vo
 floyd:   _CoqProject $(FLOYD_FILES:%.v=floyd/%.vo)
-progs:   _CoqProject $(PROGS_FILES:%.v=progs/%.vo)
+progs:   _CoqProject $(PROGS_FILES:%.v=$(PROGSDIR)/%.vo)
 progsdir: $(PROGSDIR)
 wand_demo:   _CoqProject $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     _CoqProject $(SHA_FILES:%.v=sha/%.vo)
@@ -542,9 +519,9 @@ io: _CoqProject progs/verif_printf.vo progs/verif_io.vo progs/verif_io_mem.vo
 
 CGFLAGS =  -DCOMPCERT
 
-$(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
+$(patsubst %.c,$(PROGSDIR)/%.vo,$(C_FILES)): compcert
 
-CVFILES = $(patsubst %.c,progs/%.v,$(C_FILES))
+CVFILES = $(patsubst %.c,$(PROGSDIR)/%.v,$(C_FILES))
 
 cvfiles: $(CVFILES)
 
@@ -569,20 +546,20 @@ endif
 # SPECIAL-CASE RULES FOR LINKED_C_FILES:
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
-progs/even.v: progs/even.c progs/odd.c
+$(PROGSDIR)/even.v: $(PROGSDIR)/even.c $(PROGSDIR)/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
-progs/odd.v: progs/even.v
+$(PROGSDIR)/odd.v: $(PROGSDIR)/even.v
 mailbox/mailbox.v: mailbox/atomic_exchange.c mailbox/mailbox.c
 	$(CLIGHTGEN) ${CGFLAGS} $^
 # GENERAL RULES FOR SINGLE_C_FILES and NORMAL_C_FILES
-$(patsubst %.c,progs/%.v, $(SINGLE_C_FILES)): progs/%.v: progs/%.c
+$(patsubst %.c,$(PROGSDIR)/%.v, $(SINGLE_C_FILES)): $(PROGSDIR)/%.v: $(PROGSDIR)/%.c
 	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
 endif
 
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export: Makefile util/coqflags
+_CoqProject _CoqProject-export: Makefile util/coqflags 
 	echo $(COQFLAGS) > _CoqProject
 	util/coqflags > _CoqProject-export
 
@@ -590,25 +567,43 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend depend:
+#	@echo "Copying Clight_core.v ... "
+# ifeq ($(COMPCERT), compcert_new)
+#	@cp -p concurrency/shim/Clight_core.v veric/Clight_core.v
+# else
+# 	@cp -p veric/Clight_core_standard.v veric/Clight_core.v
+# endif
 	@echo 'coqdep ... >.depend'
 	$(COQDEP) $(COMPCERT_R_FLAGS) 2>&1 >.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS))  -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 ifeq ($(COMPCERT), compcert_new)
-	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/paco concurrency/sc_drf) -name "*.v" -a -not -name Clight_core.v` | grep -v 'Warning:.*found in the loadpath' || true
-	echo "" >>.depend
-	$(COQDEP) $(COQFLAGS) 2>&1 concurrency/shim/Clight_core.v | grep -v 'Warning:.*found in the loadpath' | awk '{gsub(/veric[/]Clight_core/,"concurrency/shim/Clight_core",$$0); print}' >>.depend || true
+	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(filter $(wildcard *), $(DIRS) concurrency/common concurrency/compiler concurrency/juicy concurrency/util paco concurrency/sc_drf) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
+	@echo "" >>.depend
 else
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
-
-depend-paco:
-	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
+ifneq ($(wildcard coq-ext-lib/theories),)
+	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend 
+endif
+ifneq ($(wildcard InteractionTrees/theories),)
+	$(warning foo)
+	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend 
+endif
+ifneq ($(wildcard fcf/src/FCF),)
+	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend 
+endif
+ifneq ($(wildcard paco/src),)
+	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend 
+endif
 
 clean:
-	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo
+	rm -f $(addprefix veric/version., v vo glob) .lia.cache .nia.cache floyd/floyd.coq .depend _CoqProject _CoqProject-export $(wildcard */.*.aux)  $(wildcard */*.glob) $(wildcard */*.vo) compcert/*/*.vo compcert/*/*/*.vo  compcert_new/*/*.vo compcert_new/*/*/*.vo
+	rm -f coq-ext-lib/theories/*.{vo,glob} InteractionTrees/theories/*.{vo,glob}
+	rm -f paco/src/*.{vo,glob}
+	rm -f fcf/src/FCF/*.{vo,glob}
 	rm -fr doc/html
 
 clean-concur:
-	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
+	rm -f $(CONCUR_FILES:%.v=concurrency/%.vo) $(CONCUR_FILES:%.v=concurrency/%.glob) $(CONCUR_COMPILER_FILES:%.v=concurrency/compiler/%.vo) $(CONCUR_COMPILER_FILES:%.v=concurrency/compiler/%.glob) $(CONCUR_COMMON_FILES:%.v=concurrency/common/%.vo) $(CONCUR_COMMON_FILES:%.v=concurrency/common/%.glob) $(CONCUR_JUICY_FILES:%.v=concurrency/juicy/%.vo) $(CONCUR_JUICY_FILES:%.v=concurrency/juicy/%.glob)
 
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob)
@@ -625,24 +620,8 @@ util/calibrate: util/calibrate.ml
 calibrate: util/calibrate
 	-/usr/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: CALIBRATE' util/calibrate
 
-C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
-    bst.c field_loadstore.c float.c object.c \
-    global.c min.c nest2.c nest3.c \
-    logical_compare.c \
-    strlib.c switch.c union.c message.c
-V64_ORDINARY = verif_reverse2.v verif_revarray.v verif_sumarray.v \
-    verif_append2.v verif_bin_search.v \
-    verif_bst.v verif_field_loadstore.v verif_float.v verif_object.v \
-    verif_global.v verif_min.v verif_nest2.v verif_nest3.v \
-    verif_logical_compare.v \
-    verif_strlib.v verif_switch.v verif_union.v verif_message.v
 progs64/%.c: progs/%.c
 	$(if $(findstring $(@F), $(C64_ORDINARY)), cp $< $@)
-
-ifdef CLIGHTGEN
-$(patsubst %.c,progs64/%.v, $(C64_ORDINARY)): progs64/%.v: progs64/%.c
-	$(CLIGHTGEN) ${CGFLAGS} -normalize $^
-endif
 
 FIX64= "BEGIN{print \"(* Do not edit this file, it was generated automatically *)\"} 1 {sub(/VST[.]progs[.]/,\"VST.progs64.\"); print}"
 progs64/verif_%.v: progs/verif_%.v

@@ -23,7 +23,7 @@ Definition Gprog := ltac:
    exact x).
 
 Lemma prog_correct:
-  semax_prog spec_fastmain.linked_prog spec_fastmain.Vprog Gprog.
+  semax_prog spec_fastmain.linked_prog tt spec_fastmain.Vprog Gprog.
 Proof.
   prove_semax_prog.
   do_semax_body_proofs (SortBodyProof.sort allmodules).

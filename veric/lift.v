@@ -27,7 +27,7 @@ Canonical Structure Tarrow (A: Type) (H: Lift) :=
       ((lift_S H -> A) -> lifted H)
       (fun f x => match x with (x1,x2) => lift_curry H (f x1) x2 end)
       (fun f x => lift_uncurry_open H (fun y: lift_S H -> lift_prod H => f (fun z => (x z, y z)))).
-Set Warnings "+projection-no-head-constant".
+Set Warnings "projection-no-head-constant".
 
 Set Implicit Arguments.
 Unset Strict Implicit.

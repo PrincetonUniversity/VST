@@ -266,9 +266,9 @@ Section SA_LOWER.
   Qed.
 
 End SA_LOWER.
-Arguments Perm_lower _ [Pj_A][PA_A].
-Arguments Sep_lower _ [Pj_A].
-Arguments Sing_lower _ [Pj_A].
+Arguments Perm_lower _ {Pj_A}{PA_A}.
+Arguments Sep_lower _ {Pj_A}.
+Arguments Sing_lower _ {Pj_A}.
 Arguments Canc_lower _ [Pj_A][psa_A][CA] _ _ _ _ _ _.
 Arguments Disj_lower _ [Pj_A][PA_A][psa_A][DA] _ _ _.
 
@@ -288,7 +288,7 @@ intros. simpl. auto.
 constructor.
 Qed.
 
-Hint Resolve @None_unit.
+Hint Resolve @None_unit : core.
 
 Lemma None_identity {A} {JA: Join A}{psaA: Pos_alg A}: 
      @identity (option A) (Join_lower _) None.
@@ -297,7 +297,7 @@ intros.
 intros x y ?. inv H; auto.
 Qed.
 
-Hint Resolve @None_identity.
+Hint Resolve @None_identity : core.
 
   Lemma lower_inv: forall {A}{JA: Join A} {PA: Perm_alg A} {psa_A: Pos_alg A} (a b c : option A),
     join a b c ->
@@ -338,14 +338,14 @@ Section SA_SMASH.
   Qed.
 End SA_SMASH.
 
-Arguments smashed _  [J_T].
+Arguments smashed _  {J_T}.
 Existing Instance Perm_smash. (* Must not be inside a Section *)
 Existing Instance Sep_smash. (* Must not be inside a Section *)
 
 Lemma smashed_lifted_None_identity {A}`{Perm_alg A}:
   @identity (smashed A) _ None.
 Proof. intros; apply None_identity. Qed.
-Hint Resolve @smashed_lifted_None_identity.
+Hint Resolve @smashed_lifted_None_identity : core.
 (** The option separation algebra.  The bool sepalg is isomorphic
      to the option sepalg applied to units. *)
 

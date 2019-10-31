@@ -369,11 +369,11 @@ Ltac formalize :=
         end;
         match goal with
         | |- ?L' _ -* exp (fun a => ?G' a _) = _ =>
-             instantiate (1 := L') in (Value of l');
-             instantiate (1 := exp G') in (Value of g')
+             instantiate (1 := L') in (value of l');
+             instantiate (1 := exp G') in (value of g')
         | |- ?L' _ -* ?G' _ = _ =>
-             instantiate (1 := L') in (Value of l');
-             instantiate (1 := G') in (Value of g')
+             instantiate (1 := L') in (value of l');
+             instantiate (1 := G') in (value of g')
         end;
         subst g' l';
         reflexivity
@@ -630,13 +630,13 @@ Ltac formalize :=
         end;
         match goal with
         | |- ?P _ --> (?L' _ -* exp (fun a => ?G' a _)) = _ =>
-             instantiate (1 := P) in (Value of p);
-             instantiate (1 := L') in (Value of l');
-             instantiate (1 := exp G') in (Value of g')
+             instantiate (1 := P) in (value of p);
+             instantiate (1 := L') in (value of l');
+             instantiate (1 := exp G') in (value of g')
         | |- ?P _ --> (?L' _ -* ?G' _) = _ =>
-             instantiate (1 := P) in (Value of p);
-             instantiate (1 := L') in (Value of l');
-             instantiate (1 := G') in (Value of g')
+             instantiate (1 := P) in (value of p);
+             instantiate (1 := L') in (value of l');
+             instantiate (1 := G') in (value of g')
         end;
         subst p g' l';
         reflexivity

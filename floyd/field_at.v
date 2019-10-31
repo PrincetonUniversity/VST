@@ -1707,7 +1707,7 @@ Hint Extern 1 (_ |-- valid_pointer ?Q) =>
   lazymatch Q with
   | offset_val _ _ => fail 
   | _ => apply valid_pointer_offset_zero
-  end.
+  end : core.
 
 Hint Extern 2 (memory_block _ _ _ |-- weak_valid_pointer _) =>
   (apply SeparationLogic.memory_block_weak_valid_pointer;
@@ -1818,7 +1818,7 @@ Qed.
 
 Hint Extern 2 (field_compatible _ nil _) =>
  (apply malloc_compatible_field_compatible;
-  [assumption | reflexivity | reflexivity]).
+  [assumption | reflexivity | reflexivity]) : core.
 
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh (v: list (reptype t')) p,
@@ -1994,8 +1994,8 @@ Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
 
 Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
   (simple apply array_at_array_at_) : cancel.
-Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
-Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
+Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption) : core.
+Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption) : core.
 Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
 Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
 
@@ -2752,7 +2752,7 @@ Hint Extern 1 (_ = @default_val _ _) =>
  match goal with |- ?A = ?B => 
      let x := fresh "x" in set (x := B); hnf in x; subst x;
      match goal with |- ?A = ?B => constr_eq A B; reflexivity
-  end end.
+  end end : core.
 
 Hint Extern 1 (_ = _) => 
   match goal with |- ?A = ?B => constr_eq A B; reflexivity end : cancel.

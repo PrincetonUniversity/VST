@@ -542,8 +542,6 @@ Proof.
   forward. (* l->right=mid *)
   forward. (* r->left=l *)
   forward. (* _l = r *)
-  Opaque tree_rep. forward. Transparent tree_rep. (* return *)
-  (* TODO: simplify the following proof *)
   Exists pc.
   entailer!.
   simpl.
@@ -871,7 +869,7 @@ Definition abs_treebox_free_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Lemma subsume_insert:

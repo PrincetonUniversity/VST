@@ -803,7 +803,7 @@ Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
  end.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert :=
- {| RA_normal := seplog.FF;
+ {| RA_normal := bind_ret None ret Q;
     RA_break := seplog.FF; 
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.
@@ -893,36 +893,21 @@ Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
-Definition main_pre (prog: program) : list Type -> globals -> environ -> mpred :=
-(fun nil gv => globvars2pred gv (prog_vars prog)).
-
-Definition main_pre_ext {Z: Type} (prog: program) (ora: Z) : list Type -> globals -> environ -> mpred :=
+Definition main_pre {Z: Type} (prog: program) (ora: Z) : list Type -> globals -> environ -> mpred :=
 (fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=
   (fun nil _ _ => TT).
 
-
-Definition main_spec' (prog: program) 
-    (post: list Type -> globals -> environ -> mpred): funspec :=
-  mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType globals) (main_pre prog) post
-       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
-
-Definition main_spec (prog: program): funspec :=
-  mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType globals) (main_pre prog) (main_post prog)
-       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
-
 Definition main_spec_ext' {Espec: OracleKind} (prog: program) (ora: OK_ty)
     (post: list Type -> globals -> environ -> mpred): funspec :=
   mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType globals) (main_pre_ext prog ora) post
+     (rmaps.ConstType globals) (main_pre prog ora) post
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition main_spec_ext {Espec: OracleKind} (prog: program) (ora: OK_ty) : funspec :=
   mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType globals) (main_pre_ext prog ora) (main_post prog)
+     (rmaps.ConstType globals) (main_pre prog ora) (main_post prog)
        (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
@@ -1041,7 +1026,7 @@ Qed.
 Lemma tc_expr_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_expr CS Delta e rho |-- @tc_expr CS' Delta e rho.
-Proof. intros. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
+Proof. intros. destruct CSUB as [CSUB _]. rewrite tc_expr_eq. intros w W. apply (extend_tc.tc_expr_cenv_sub CSUB e rho Delta). trivial. Qed.
 
 Lemma tc_expropt_char {CS} Delta e t: @tc_expropt CS Delta e t =
                                       match e with None => `!!(t=Tvoid)
@@ -1059,17 +1044,17 @@ Qed.
 Lemma tc_lvalue_cspecs_sub: forall {CS CS'} (CSUB: cspecs_sub  CS CS') Delta e rho,
   tc_environ Delta rho ->
   @tc_lvalue CS Delta e rho |-- @tc_lvalue CS' Delta e rho.
-Proof. intros; simpl. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
+Proof. intros; simpl. destruct CSUB as [CSUB _]. red; intros. apply (extend_tc.tc_lvalue_cenv_sub CSUB e rho Delta). apply H0. Qed.
 
 Lemma tc_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho: forall types e,
   tc_environ Delta rho ->
   @tc_exprlist CS Delta types e rho |-- @tc_exprlist CS' Delta types e rho.
-Proof. intros. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
+Proof. intros. destruct CSUB as [CSUB _]. intros w W. apply (extend_tc.tc_exprlist_cenv_sub CSUB Delta rho w types e W). Qed.
 
 Lemma eval_exprlist_cspecs_sub {CS CS'} (CSUB: cspecs_sub  CS CS') Delta rho (TCD: tc_environ Delta rho):
   forall types e,
   @tc_exprlist CS Delta types e rho |-- !! (@eval_exprlist CS types e rho = @eval_exprlist CS' types e rho).
-Proof. intros. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
+Proof. intros. destruct CSUB as [CSUB _]. intros w W. eapply (expr_lemmas.typecheck_exprlist_sound_cenv_sub CSUB); eassumption. Qed.
 
 Lemma denote_tc_assert_tc_bool_cs_invariant {CS CS'} b E:
   @denote_tc_assert CS (tc_bool b E) = @denote_tc_assert CS' (tc_bool b E).
@@ -1091,7 +1076,7 @@ Qed.
 Lemma castexpropt_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') Delta rho (D:typecheck_environ Delta rho) ret t:
   @tc_expropt CS Delta ret t rho |-- !!(@cast_expropt CS ret t rho = @cast_expropt CS' ret t rho).
 Proof.
-  intros w W. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
+  intros w W. destruct CSUB as [CSUB _]. rewrite tc_expropt_char in W. destruct ret; [ | reflexivity].
   specialize (expr_lemmas.typecheck_expr_sound_cenv_sub CSUB Delta rho D w (Ecast e t) W); clear W; intros H.
   hnf. unfold cast_expropt. simpl; simpl in H. 
   unfold force_val1, force_val, sem_cast, liftx, lift; simpl.
@@ -1138,6 +1123,12 @@ with nocontinue_ls sl :=
  match sl with LSnil => true | LScons _ s sl' => if nocontinue s then nocontinue_ls sl' else false
  end.
 
+Definition withtype_empty (A: rmaps.TypeTree) : Prop :=
+  forall ts : list Type,
+ functors.MixVariantFunctor._functor
+   (rmaps.dependent_type_functor_rec ts A)
+   (predicates_hered.pred compcert_rmaps.RML.R.rmap) -> False.
+
 Module Type CLIGHT_SEPARATION_HOARE_LOGIC_DEF.
 
 Parameter semax: forall {CS: compspecs} {Espec: OracleKind},
@@ -1171,24 +1162,11 @@ match spec with (_, mk_funspec fsig cc A P Q _ _) =>
 forall Espec ts x, 
   @Def.semax C Espec (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
-       (Ssequence f.(fn_body) (Sreturn None))
+       f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
 
 Definition semax_prog
-    {Espec: OracleKind} {C: compspecs}
-     (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
-  compute_list_norepet (prog_defs_names prog) = true  /\
-  all_initializers_aligned prog /\
-  cenv_cs = prog_comp_env prog /\
-  @Def.semax_func Espec V G C  (Genv.globalenv prog) (prog_funct prog) G /\
-  match_globvars (prog_vars prog) V = true /\
-  match initial_world.find_id prog.(prog_main) G with
-  | Some s => exists post, s = main_spec' prog post
-  | None => False
-  end.
-
-Definition semax_prog_ext
     {Espec: OracleKind} {C: compspecs}
      (prog: program) (z : OK_ty) (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true  /\
@@ -1197,7 +1175,8 @@ Definition semax_prog_ext
   @Def.semax_func Espec V G C (Genv.globalenv prog)  (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
   match initial_world.find_id prog.(prog_main) G with
-  | Some s => exists post, s = main_spec_ext' prog z post
+  | Some s => exists post,
+             s = main_spec_ext' prog z post
   | None => False
   end.
 
@@ -1255,6 +1234,7 @@ Axiom semax_func_cons_ext:
         (opttyp_of_type retsig) cc ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
+      (ef_inline ef = false \/ withtype_empty A) ->
       (forall gx ts x (ret : option val),
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
@@ -1538,6 +1518,23 @@ Axiom semax_ext_void:
 Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
+
+Axiom semax_external_binaryintersection: 
+forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
+      A P Q P_ne Q_ne sig cc ids}
+  (EXT1: @semax_external Espec ids ef A1 P1 Q1)
+  (EXT2: @semax_external Espec ids ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
+     Some (mk_funspec sig cc A P Q P_ne Q_ne))
+  (IDS: ids = map fst (fst sig)),
+  @semax_external Espec ids ef A P Q.
+
+Axiom semax_body_binaryintersection:
+forall {V G cs} f sp1 sp2 phi
+  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+  (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
+  @semax_body V G cs f (fst sp1, phi).
 
 Axiom semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},

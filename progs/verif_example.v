@@ -46,7 +46,7 @@ Definition g_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog nil u
+  PRE  [] main_pre prog tt nil u
   POST [ tint ] main_post prog nil u.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;

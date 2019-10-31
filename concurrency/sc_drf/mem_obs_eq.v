@@ -27,6 +27,8 @@ Require Import VST.concurrency.common.dry_context.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.sepcomp.mem_wd.
 
+Set Nested Proofs Allowed.
+
 (** ** Block renamings*)
 Module Renamings.
   Definition memren := block -> option block.
@@ -3338,9 +3340,9 @@ as big as [m] *)
     unfold Mem.loadbytes in *.
     destruct (Mem.range_perm_dec mc b1 ofs (ofs + sz) Cur Readable) as [Hperm|]; try discriminate.
     destruct (Mem.range_perm_dec mf b2 ofs (ofs + sz) Cur Readable) as [Hperm'|Hcontra].
-    - replace sz with (Z.of_nat (nat_of_Z sz)) in Hperm by (eapply Z2Nat.id; ssromega).
+    - replace sz with (Z.of_nat (Z.to_nat sz)) in Hperm by (eapply Z2Nat.id; ssromega).
       eapply getN_obs in Hperm; eauto.
-      exists (Mem.getN (nat_of_Z sz) ofs (Mem.mem_contents mf) # b2).
+      exists (Mem.getN (Z.to_nat sz) ofs (Mem.mem_contents mf) # b2).
       inv Hload.
       split;
         now auto.

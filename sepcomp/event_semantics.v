@@ -182,14 +182,18 @@ Record EvSem {C} :=
   ; ev_step_ax2: forall c m c' m',
        corestep msem c m c' m' ->
        exists T, ev_step c m T c' m'
-  ; ev_step_fun: forall c m T' c' m' T'' c'' m'',
-       ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T''
+(*  ; ev_step_fun: forall c m T' c' m' T'' c'' m'',
+       ev_step c m T' c' m' -> ev_step c m T'' c'' m'' -> T'=T'' *)
 (*  ; ev_step_elim: forall g c m T c' m',
        ev_step g c m T c' m' -> ev_elim m T m'*)
   ; ev_step_elim: forall c m T c' m' (STEP: ev_step c m T c' m'),
        ev_elim m T m' (*/\
        (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step c mm T cc' mm')*)
   }.
+
+Definition ev_step_fun {C} (sem: @EvSem C) : Prop :=
+  forall c m T' c' m' T'' c'' m'',
+       ev_step sem c m T' c' m' -> ev_step sem c m T'' c'' m'' -> T'=T''.
 
 Lemma Ev_sem_cur_perm {C} (R: @EvSem C) c m T c' m' b ofs (D: ev_step R c m T c' m'):
       Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
@@ -519,4 +523,41 @@ Proof.
       specialize (r _ A). unfold Mem.perm, Mem.perm_order' in r.
       remember ((Mem.mem_access m) !! bb ofs Cur) as q. destruct q; try contradiction.
       left; split; trivial. destruct p; simpl in *; trivial; inv r.
+Qed.
+
+Lemma ev_elim_mem_fw:
+  forall ev m m',
+    ev_elim m ev m' -> 
+    ((Mem.nextblock m) <= (Mem.nextblock m'))%positive.
+Proof.
+  induction ev.
+  - simpl; intros; subst; reflexivity.
+  - intros. simpl in H. destruct a.
+    + destruct H as (?&?&?).
+      etransitivity.
+      * eapply Mem.nextblock_storebytes in H.
+        rewrite <- H; reflexivity.
+      * eapply IHev; eauto.
+    + destruct H as (?&?).
+      eapply IHev; eauto.            
+    + destruct H as (?&?&?).
+      etransitivity.
+      * eapply Mem.nextblock_alloc in H.
+        instantiate(1:=  Mem.nextblock x); rewrite H.
+        xomega.
+      * eapply IHev; eauto.
+    + destruct H as (?&?&?).
+      etransitivity.
+      * eapply nextblock_freelist in H.
+        rewrite <- H; reflexivity.
+      * eapply IHev; eauto.        
+Qed.
+Lemma event_semantics_mem_fw:
+  forall C semSem c m ev c' m',
+    @ev_step C semSem c m ev c' m' ->
+    ((Mem.nextblock m) <= (Mem.nextblock m'))%positive.
+Proof.
+  intros.
+  eapply ev_step_elim in H.
+  eapply ev_elim_mem_fw; eassumption.
 Qed.

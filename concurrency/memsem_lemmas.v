@@ -776,7 +776,7 @@ apply loadbytes_D in LD. destruct LD as [RP1 CONT].
 destruct PLE.
 destruct (Mem.range_perm_dec m1 b ofs (ofs + n) Cur Readable).
 + rewrite CONT; f_equal. eapply Mem.getN_exten.
-  intros. apply perm_le_cont. apply RP1. rewrite nat_of_Z_eq in H; omega.
+  intros. apply perm_le_cont. apply RP1. rewrite Z2Nat.id in H; omega.
 + elim n0; clear - RP1 perm_le_Cur.
   red; intros. specialize (RP1 _ H). specialize (perm_le_Cur b ofs0).
   unfold Mem.perm in *.

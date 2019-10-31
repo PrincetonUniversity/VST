@@ -4,7 +4,7 @@ Require Import VST.veric.res_predicates.
 Require Import VST.veric.extend_tc.
 Require Import VST.veric.Clight_seplog.
 Require Import VST.veric.Clight_assert_lemmas.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.sepcomp.extspec.
 Require Import VST.sepcomp.step_lemmas.
 Require Import VST.veric.tycontext.
@@ -24,9 +24,9 @@ Local Open Scope pred.
 
 (* Part 1: Proof of semax_conseq *)
 
-Lemma _guard_mono: forall Espec ge Delta (P Q: assert) f k,
+Lemma _guard_mono: forall Espec ge Delta f (P Q: assert) k,
   (forall rho, P rho |-- Q rho) ->
-  _guard Espec ge Delta Q f k |-- _guard Espec ge Delta P f k.
+  _guard Espec ge Delta f Q k |-- _guard Espec ge Delta f P k.
 Proof.
   intros.
   unfold _guard.
@@ -36,18 +36,18 @@ Proof.
   apply imp_derives; auto.
 Qed.
 
-Lemma guard_mono: forall Espec ge Delta (P Q: assert) k,
+Lemma guard_mono: forall Espec ge Delta f (P Q: assert) k,
   (forall rho, P rho |-- Q rho) ->
-  guard Espec ge Delta Q k |-- guard Espec ge Delta P k.
+  guard Espec ge Delta f Q k |-- guard Espec ge Delta f P k.
 Proof.
   intros.
   unfold guard.
   apply _guard_mono; auto.
 Qed.
 
-Lemma rguard_mono: forall Espec ge Delta (P Q: ret_assert) k,
+Lemma rguard_mono: forall Espec ge Delta f (P Q: ret_assert) k,
   (forall rk vl rho, proj_ret_assert P rk vl rho |-- proj_ret_assert Q rk vl rho) ->
-  rguard Espec ge Delta Q k |-- rguard Espec ge Delta P k.
+  rguard Espec ge Delta f Q k |-- rguard Espec ge Delta f P k.
 Proof.
   intros.
   unfold rguard.
@@ -62,12 +62,32 @@ Definition bupd_ret_assert (Q: ret_assert): ret_assert :=
              RA_continue := fun rho => bupd (RA_continue Q rho);
              RA_return := fun v rho => bupd (RA_return Q v rho) |}.
 
+Lemma bupd_andp_prop:
+  forall P Q, bupd (!! P && Q) = !!P && bupd Q.
+Proof.
+intros.
+apply pred_ext; repeat intro.
+2:{ destruct H. rewrite prop_true_andp by auto. auto. }
+assert P. {
+hnf in H.
+specialize (H nil).
+spec H.
+exists (ghost_of a).
+constructor.
+destruct H as [b [? [m [_ [_ [_ [? _]]]]]]].
+auto.
+}
+rewrite prop_true_andp in * by auto.
+auto.
+Qed.
+
 Lemma proj_bupd_ret_assert: forall Q ek vl,
   proj_ret_assert (bupd_ret_assert Q) ek vl = fun rho => bupd (proj_ret_assert Q ek vl rho).
 Proof.
   intros.
-  destruct ek;
-  auto.
+ extensionality rho.
+  destruct ek; simpl; auto;
+  rewrite bupd_andp_prop; auto.
 Qed.
 
 (* The following four lemmas is not now used. but after deep embedded hoare logic (SL_as_Logic) is
@@ -79,9 +99,9 @@ Lemma assert_safe_bupd':
     let PP1 := !! guard_environ Delta f rho in
     let PP2 := funassert Delta rho in
     PP1 && (P rho) && PP2 >=>
-    assert_safe Espec gx vx tx k rho =
+    assert_safe Espec gx f vx tx k rho =
     PP1 && (bupd (P rho)) && PP2 >=>
-    assert_safe Espec gx vx tx k rho.
+    assert_safe Espec gx f vx tx k rho.
 Proof.
   intros.
   apply pred_ext.
@@ -96,7 +116,7 @@ Proof.
     destruct H3 as [b [? [m' [? [? [? ?]]]]]].
     exists b; split; auto.
     exists m'; split; [| split; [| split]]; auto.
-    change (assert_safe Espec gx vx tx k rho m').
+    change (assert_safe Espec gx f vx tx k rho m').
     specialize (H m' ltac: (apply necR_level in H1; omega)).
     specialize (H m' ltac: (apply necR_refl)).
     apply H.
@@ -117,7 +137,7 @@ Qed.
 
 Lemma _guard_bupd':
   forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) f k,
-    _guard Espec ge Delta P f k = _guard Espec ge Delta (fun rho => bupd (P rho)) f k.
+    _guard Espec ge Delta f P k = _guard Espec ge Delta f (fun rho => bupd (P rho)) k.
 Proof.
   intros.
   unfold _guard.
@@ -127,16 +147,16 @@ Proof.
 Qed.
   
 Lemma guard_bupd':
-  forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) k,
-    guard Espec ge Delta P k = guard Espec ge Delta (fun rho => bupd (P rho)) k.
+  forall {Espec: OracleKind} ge Delta f (P: environ -> pred rmap) k,
+    guard Espec ge Delta f P k = guard Espec ge Delta f (fun rho => bupd (P rho)) k.
 Proof.
   intros.
   apply _guard_bupd'.
 Qed.
 
 Lemma rguard_bupd':
-  forall {Espec: OracleKind} ge Delta (P: ret_assert) k,
-    rguard Espec ge Delta P k = rguard Espec ge Delta (bupd_ret_assert P) k.
+  forall {Espec: OracleKind} ge Delta f (P: ret_assert) k,
+    rguard Espec ge Delta f P k = rguard Espec ge Delta f (bupd_ret_assert P) k.
 Proof.
   intros.
   unfold rguard.
@@ -151,9 +171,9 @@ Lemma assert_safe_bupd:
     let PP1 := !! guard_environ Delta f rho in
     let PP2 := funassert Delta rho in
     PP1 && (F rho * P rho) && PP2 >=>
-    assert_safe Espec gx vx tx k rho =
+    assert_safe Espec gx f vx tx k rho =
     PP1 && (F rho * bupd (P rho)) && PP2 >=>
-    assert_safe Espec gx vx tx k rho.
+    assert_safe Espec gx f vx tx k rho.
 Proof.
   intros.
   apply pred_ext.
@@ -169,7 +189,7 @@ Proof.
     destruct H3 as [b [? [m' [? [? [? ?]]]]]].
     exists b; split; auto.
     exists m'; split; [| split; [| split]]; auto.
-    change (assert_safe Espec gx vx tx k rho m').
+    change (assert_safe Espec gx f vx tx k rho m').
     specialize (H m' ltac: (apply necR_level in H1; omega)).
     specialize (H m' ltac: (apply necR_refl)).
     apply H.
@@ -191,8 +211,8 @@ Proof.
 Qed.
 
 Lemma _guard_bupd:
-  forall {Espec: OracleKind} ge Delta (F P: environ -> pred rmap) f k,
-    _guard Espec ge Delta (fun rho => F rho * P rho) f k = _guard Espec ge Delta (fun rho => F rho * bupd (P rho)) f k.
+  forall {Espec: OracleKind} ge Delta f (F P: environ -> pred rmap) k,
+    _guard Espec ge Delta f (fun rho => F rho * P rho) k = _guard Espec ge Delta f (fun rho => F rho * bupd (P rho)) k.
 Proof.
   intros.
   unfold _guard.
@@ -202,16 +222,16 @@ Proof.
 Qed.
   
 Lemma guard_bupd:
-  forall {Espec: OracleKind} ge Delta (F P: environ -> pred rmap) k,
-    guard Espec ge Delta (fun rho => F rho * P rho) k = guard Espec ge Delta (fun rho => F rho * bupd (P rho)) k.
+  forall {Espec: OracleKind} ge Delta f (F P: environ -> pred rmap) k,
+    guard Espec ge Delta f (fun rho => F rho * P rho) k = guard Espec ge Delta f (fun rho => F rho * bupd (P rho)) k.
 Proof.
   intros.
   apply _guard_bupd.
 Qed.
 
 Lemma rguard_bupd:
-  forall {Espec: OracleKind} ge Delta F (P: ret_assert) k,
-    rguard Espec ge Delta (frame_ret_assert P F) k = rguard Espec ge Delta (frame_ret_assert (bupd_ret_assert P) F) k.
+  forall {Espec: OracleKind} ge Delta F f (P: ret_assert) k,
+    rguard Espec ge Delta f (frame_ret_assert P F) k = rguard Espec ge Delta f (frame_ret_assert (bupd_ret_assert P) F) k.
 Proof.
   intros.
   unfold rguard.
@@ -232,20 +252,20 @@ Lemma proj_except_0_ret_assert: forall Q ek vl,
   proj_ret_assert (except_0_ret_assert Q) ek vl = fun rho => |> FF || proj_ret_assert Q ek vl rho.
 Proof.
   intros.
-  destruct ek;
-  auto.
-Qed.
+  extensionality rho;
+  destruct ek; simpl; auto.
+Abort.
 
 (* The following two lemmas is not now used. but after deep embedded hoare logic (SL_as_Logic) is
 ported, the frame does not need to be quantified in the semantic definition of semax. Then,
 these two lemmas can replace the other two afterwards. *)
 
 Lemma assert_safe_except_0':
-  forall {Espec: OracleKind} gx vx tx PP1 PP2 rho (P: environ -> pred rmap) k,
+  forall {Espec: OracleKind} gx f vx tx PP1 PP2 rho (P: environ -> pred rmap) k,
     PP1 && (P rho) && PP2 >=>
-    assert_safe Espec gx vx tx k rho =
+    assert_safe Espec gx f vx tx k rho =
     PP1 && ((|> FF || P rho)) && PP2 >=>
-    assert_safe Espec gx vx tx k rho.
+    assert_safe Espec gx f vx tx k rho.
 Proof.
   intros.
   apply pred_ext.
@@ -263,9 +283,7 @@ Proof.
       split; auto.
       split; auto.
       simpl.
-      intros.
-      hnf.
-      rewrite H0; constructor.
+      hnf; intros. omega.
     - apply H.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.
@@ -289,7 +307,7 @@ Qed.
 
 Lemma _guard_except_0':
   forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) f k,
-    _guard Espec ge Delta P f k = _guard Espec ge Delta (fun rho => |> FF || P rho) f k.
+    _guard Espec ge Delta f P k = _guard Espec ge Delta f (fun rho => |> FF || P rho) k.
 Proof.
   intros.
   unfold _guard.
@@ -299,31 +317,40 @@ Proof.
 Qed.
   
 Lemma guard_except_0':
-  forall {Espec: OracleKind} ge Delta (P: environ -> pred rmap) k,
-    guard Espec ge Delta P k = guard Espec ge Delta (fun rho => |> FF || P rho) k.
+  forall {Espec: OracleKind} ge Delta f (P: environ -> pred rmap) k,
+    guard Espec ge Delta f P k = guard Espec ge Delta f (fun rho => |> FF || P rho) k.
 Proof.
   intros.
   apply _guard_except_0'.
 Qed.
 
 Lemma rguard_except_0':
-  forall {Espec: OracleKind} ge Delta (P: ret_assert) k,
-    rguard Espec ge Delta P k = rguard Espec ge Delta (except_0_ret_assert P) k.
+  forall {Espec: OracleKind} ge Delta (P: ret_assert) f k,
+    rguard Espec ge Delta f P k = rguard Espec ge Delta f (except_0_ret_assert P) k.
 Proof.
   intros.
   unfold rguard.
   f_equal; extensionality ek.
   f_equal; extensionality vl.
-  rewrite proj_except_0_ret_assert.
-  apply _guard_except_0'.
-Qed.
+  rewrite _guard_except_0' at 1.
+  destruct ek; simpl; auto.
+  unfold _guard.
+  apply pred_ext;
+  apply allp_derives; intro tx;
+  apply allp_derives; intro vx;
+  apply fash_derives;
+  (apply imp_derives; [| auto]);
+  apply andp_derives; auto;
+  apply andp_derives; auto.
+  apply prop_andp_left; intro. rewrite prop_true_andp; auto.
+Abort.
 
 Lemma assert_safe_except_0:
-  forall {Espec: OracleKind} gx vx tx PP1 PP2 rho (F P: environ -> pred rmap) k,
+  forall {Espec: OracleKind} gx f vx tx PP1 PP2 rho (F P: environ -> pred rmap) k,
     PP1 && (F rho * P rho) && PP2 >=>
-    assert_safe Espec gx vx tx k rho =
+    assert_safe Espec gx f vx tx k rho =
     PP1 && (F rho * (|> FF || P rho)) && PP2 >=>
-    assert_safe Espec gx vx tx k rho.
+    assert_safe Espec gx f vx tx k rho.
 Proof.
   intros.
   apply pred_ext.
@@ -341,9 +368,7 @@ Proof.
       split; auto.
       split; auto.
       simpl.
-      intros.
-      hnf.
-      rewrite H0; constructor.
+      hnf; intros. omega.
     - apply H.
       destruct H2 as [[? ?] ?].
       split; [split |]; auto.
@@ -375,7 +400,7 @@ Qed.
 
 Lemma _guard_except_0:
   forall {Espec: OracleKind} ge Delta (F P: environ -> pred rmap) f k,
-    _guard Espec ge Delta (fun rho => F rho * P rho) f k = _guard Espec ge Delta (fun rho => F rho * (|> FF || P rho)) f k.
+    _guard Espec ge Delta f (fun rho => F rho * P rho) k = _guard Espec ge Delta f (fun rho => F rho * (|> FF || P rho)) k.
 Proof.
   intros.
   unfold _guard.
@@ -385,32 +410,58 @@ Proof.
 Qed.
 
 Lemma guard_except_0: 
-  forall {Espec: OracleKind} ge Delta (F P: environ -> pred rmap) k,
-    guard Espec ge Delta (fun rho => F rho * P rho) k =
-    guard Espec ge Delta (fun rho => F rho * (|> FF || P rho)) k.
+  forall {Espec: OracleKind} ge Delta f (F P: environ -> pred rmap) k,
+    guard Espec ge Delta f (fun rho => F rho * P rho) k =
+    guard Espec ge Delta f (fun rho => F rho * (|> FF || P rho)) k.
 Proof.
   intros.
   apply _guard_except_0.
 Qed.
 
+
 Lemma rguard_except_0:
-  forall {Espec: OracleKind} ge Delta (F: environ -> pred rmap) Q k,
-    rguard Espec ge Delta (frame_ret_assert Q F) k =
-    rguard Espec ge Delta (frame_ret_assert (except_0_ret_assert Q) F) k.
+  forall {Espec: OracleKind} ge Delta f (F: environ -> pred rmap) Q k,
+    rguard Espec ge Delta f (frame_ret_assert Q F) k |--
+    rguard Espec ge Delta f (frame_ret_assert (except_0_ret_assert Q) F) k.
+Proof.
+  intros.
+  unfold rguard.
+  apply allp_derives; intro ek.
+  apply allp_derives; intro vl.
+  rewrite !proj_frame.
+  destruct ek; unfold exit_cont;
+  try solve [rewrite _guard_except_0; auto];
+  simpl;
+  apply allp_derives; intro tx;
+  apply allp_derives; intro vx;
+  forget (construct_rho (filter_genv ge) vx tx) as rho;
+  cbv beta iota zeta;
+  (destruct vl; simpl; [intros ? ? ? ? ? ? [[_ [? [? [? [_ [? _]]]]]] _]; discriminate | ]);
+  rewrite !(prop_true_andp (None=None)) by auto;
+  rewrite assert_safe_except_0; auto.
+Qed.
+(*
+Lemma rguard_except_0:
+  forall {Espec: OracleKind} ge Delta f (F: environ -> pred rmap) Q k,
+    rguard Espec ge Delta f (frame_ret_assert Q F) k =
+    rguard Espec ge Delta f (frame_ret_assert (except_0_ret_assert Q) F) k.
 Proof.
   intros.
   unfold rguard.
   f_equal; extensionality ek.
   f_equal; extensionality vl.
   rewrite !proj_frame.
+Abort.
+
   rewrite proj_except_0_ret_assert.
   apply _guard_except_0.
 Qed.
+*)
 
 Lemma _guard_allp_fun_id:
-  forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) f k,
+  forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
     tycontext_sub Delta Delta' ->
-    _guard Espec ge Delta' (fun rho => F rho * P rho) f k = _guard Espec ge Delta' (fun rho => F rho * (allp_fun_id Delta rho && P rho)) f k.
+    _guard Espec ge Delta' f (fun rho => F rho * P rho) k = _guard Espec ge Delta' f (fun rho => F rho * (allp_fun_id Delta rho && P rho)) k.
 Proof.
   intros.
   unfold _guard.
@@ -428,17 +479,17 @@ Proof.
   eapply funassert_allp_fun_id_sub; eauto.
 Qed.
 
-Lemma guard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) k,
+Lemma guard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
   tycontext_sub Delta Delta' ->
-  guard Espec ge Delta' (fun rho => F rho * P rho) k = guard Espec ge Delta' (fun rho => F rho * (allp_fun_id Delta rho && P rho)) k.
+  guard Espec ge Delta' f (fun rho => F rho * P rho) k = guard Espec ge Delta' f (fun rho => F rho * (allp_fun_id Delta rho && P rho)) k.
 Proof.
   intros.
   apply _guard_allp_fun_id; auto.
 Qed.
 
-Lemma rguard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta (F: environ -> pred rmap) P k,
+Lemma rguard_allp_fun_id: forall {Espec: OracleKind} ge Delta' Delta f (F: environ -> pred rmap) P k,
   tycontext_sub Delta Delta' ->
-  rguard Espec ge Delta' (frame_ret_assert P F) k = rguard Espec ge Delta' (frame_ret_assert (conj_ret_assert P (allp_fun_id Delta)) F) k.
+  rguard Espec ge Delta' f (frame_ret_assert P F) k = rguard Espec ge Delta' f (frame_ret_assert (conj_ret_assert P (allp_fun_id Delta)) F) k.
 Proof.
   intros.
   unfold rguard.
@@ -450,9 +501,10 @@ Proof.
 Qed. 
 
 Lemma _guard_tc_environ:
-  forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) f k,
+  forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
     tycontext_sub Delta Delta' ->
-    _guard Espec ge Delta' (fun rho => F rho * P rho) f k = _guard Espec ge Delta' (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) f k.
+    _guard Espec ge Delta' f (fun rho => F rho * P rho) k = 
+    _guard Espec ge Delta' f (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) k.
 Proof.
   intros.
   unfold _guard.
@@ -470,17 +522,17 @@ Proof.
   eapply typecheck_environ_sub; eauto.
 Qed.
 
-Lemma guard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta (F P: environ -> pred rmap) k,
+Lemma guard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta f (F P: environ -> pred rmap) k,
   tycontext_sub Delta Delta' ->
-  guard Espec ge Delta' (fun rho => F rho * P rho) k = guard Espec ge Delta' (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) k.
+  guard Espec ge Delta' f (fun rho => F rho * P rho) k = guard Espec ge Delta' f (fun rho => F rho * (!! typecheck_environ Delta rho && P rho)) k.
 Proof.
   intros.
   apply _guard_tc_environ; auto.
 Qed.
 
-Lemma rguard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta (F: environ -> pred rmap) P k,
+Lemma rguard_tc_environ: forall {Espec: OracleKind} ge Delta' Delta f (F: environ -> pred rmap) P k,
   tycontext_sub Delta Delta' ->
-  rguard Espec ge Delta' (frame_ret_assert P F) k = rguard Espec ge Delta' (frame_ret_assert (conj_ret_assert P (fun rho => !! typecheck_environ Delta rho)) F) k.
+  rguard Espec ge Delta' f (frame_ret_assert P F) k = rguard Espec ge Delta'  f (frame_ret_assert (conj_ret_assert P (fun rho => !! typecheck_environ Delta rho)) F) k.
 Proof.
   intros.
   unfold rguard.
@@ -515,22 +567,34 @@ Proof.
   apply prop_imp_derives; intros [? _].
   apply imp_derives; auto.
   apply allp_derives; intros k.
+  apply allp_derives; intros F.
   apply allp_derives; intros f.
-  apply imp_derives; [apply andp_derives; auto |].
-  + erewrite (rguard_allp_fun_id _ _ _ _ R') by eauto.
-    erewrite (rguard_tc_environ _ _ _ _ (conj_ret_assert R' _)) by eauto.
-    rewrite (rguard_except_0 _ _ _ R).
-    rewrite (rguard_bupd _ _ _ (except_0_ret_assert _)).
+  apply imp_derives; [apply andp_derives; auto |]. 
+ + erewrite (rguard_allp_fun_id _ _ _ _ _ R') by eauto.
+    erewrite (rguard_tc_environ _ _ _ _ _ (conj_ret_assert R' _)) by eauto.
+    eapply derives_trans; [apply  (rguard_except_0 _ _ _ _ R) |].
+    rewrite (rguard_bupd _ _ _ _ (except_0_ret_assert _)).
     apply rguard_mono.
     intros.
     rewrite proj_frame, proj_conj, proj_conj.
-    rewrite proj_frame, proj_bupd_ret_assert, proj_except_0_ret_assert.
+    rewrite proj_frame, proj_bupd_ret_assert.
     apply sepcon_derives; auto.
-    destruct rk; unfold proj_ret_assert; auto.
-  + erewrite (guard_allp_fun_id _ _ _ _ P) by eauto.
-    erewrite (guard_tc_environ _ _ _ _ (fun rho => allp_fun_id Delta rho && P rho)) by eauto.
-    rewrite (guard_except_0 _ _ _ P').
-    rewrite (guard_bupd _ _ _ (fun rho => |> FF || P' rho)).
+    destruct rk;
+         [rename H0 into Hx; pose (ek:=RA_normal)
+         | rename H1 into Hx; pose (ek:=RA_break)
+         | rename H2 into Hx ; pose (ek:=RA_continue)
+         | apply H3]; clear H3.
+all:    specialize (Hx rho);  simpl in *;
+    apply derives_trans with (!! (vl = None) && 
+       (!! typecheck_environ Delta rho &&
+        (allp_fun_id Delta rho && ek R' rho))); subst ek;
+     [  intros ? [? [? [? ?]]];  split3; auto; split; auto | ];
+    apply prop_andp_left; intro Hvl;
+    rewrite (prop_true_andp _ _ _ Hvl); auto.
+  + erewrite (guard_allp_fun_id _ _ _ _ _ P) by eauto.
+    erewrite (guard_tc_environ _ _ _ _ _ (fun rho => allp_fun_id Delta rho && P rho)) by eauto.
+    rewrite (guard_except_0 _ _ _ _ P').
+    rewrite (guard_bupd _ _ _ _ (fun rho => |> FF || P' rho)).
     apply guard_mono.
     intros.
     apply sepcon_derives; auto.
@@ -553,6 +617,7 @@ apply prop_imp_derives; intros [TS HGG].
 apply imp_derives; auto.
 apply allp_derives; intro k.
 apply allp_derives; intro F.
+apply allp_derives; intro f.
 apply imp_derives; auto.
 unfold rguard, guard.
 apply andp_derives; auto.
@@ -567,16 +632,23 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
   (construct_rho (filter_genv psi) ve te)) a') as HFP'.
 { specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
   rewrite prop_true_andp in H.
-  destruct ek; simpl in * |-.
-  * destruct R'.
+  destruct ek; [ | simpl in * |- .. ].
+  * simpl proj_ret_assert in H.
+    destruct R'.
+    destruct HFP as [Hvl HFP]. rewrite !prop_true_andp in H by auto.
+    simpl proj_ret_assert. rewrite prop_true_andp by auto.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
   * destruct R'.
+    destruct HFP as [Hvl HFP]. rewrite !prop_true_andp in H by auto.
+    simpl proj_ret_assert. rewrite prop_true_andp by auto.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
   * destruct R'.
+    destruct HFP as [Hvl HFP]. rewrite !prop_true_andp in H by auto.
+    simpl proj_ret_assert. rewrite prop_true_andp by auto.
     eapply sepcon_derives in HFP; [| apply H | apply derives_refl].
     apply bupd_frame_r in HFP.
     destruct R; auto.
@@ -585,7 +657,7 @@ assert (bupd (proj_ret_assert (frame_ret_assert R F) ek vl
     apply bupd_frame_r in HFP.
     destruct R; auto.
   * destruct H3; eapply typecheck_environ_sub; eauto. }
-assert ((bupd (assert_safe Espec psi ve te (exit_cont ek vl k)
+assert ((bupd (assert_safe Espec psi f ve te (exit_cont ek vl k)
   (construct_rho (filter_genv psi) ve te))) a') as Hsafe.
 { intros ? J.
   destruct (HFP' _ J) as (b & ? & m' & ? & ? & ? & ?).
@@ -624,6 +696,7 @@ apply prop_imp_derives; intros [TS HGG].
 apply imp_derives; auto.
 apply allp_derives; intro k.
 apply allp_derives; intro F.
+apply allp_derives; intro f.
 apply imp_derives; auto.
 unfold guard.
 apply allp_derives; intro te.
@@ -832,6 +905,7 @@ intros.
 apply derives_skip.
 intros.
 simpl.
+rewrite prop_true_andp by auto.
 auto.
 Qed.
 

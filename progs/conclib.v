@@ -3041,37 +3041,6 @@ Proof.
   intros ??; auto.
 Qed.
 
-Lemma eqp_refl : forall (G : Triv) P, G |-- P <=> P.
-Proof.
-  intros; rewrite andp_dup; apply subp_refl.
-Qed.
-
-Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
-  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P * Q <=> P' * Q'.
-Proof.
-  intros.
-  rewrite fash_andp in HP, HQ |- *.
-  apply andp_right; apply subp_sepcon; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
-Qed.
-
-Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
-  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P && Q <=> P' && Q'.
-Proof.
-  intros.
-  rewrite fash_andp in HP, HQ |- *.
-  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
-Qed.
-
-Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
-    (G : Triv) (B : Type) (X Y : B -> A),
-  (forall x : B, G |-- X x <=> Y x) ->
-  G |-- (EX x : _, X x) <=> (EX x : _, Y x).
-Proof.
-  intros.
-  rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
-    intros ? Ha; destruct (H _ Ha); auto.
-Qed.
-
 Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->
   (ALL i : Z, Znth i lP1 <=> Znth i lP2) |--
   fold_right sepcon emp lP1 <=> fold_right sepcon emp lP2.

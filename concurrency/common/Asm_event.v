@@ -1257,7 +1257,7 @@ Proof.
 eapply Build_EvSem with (msem := Asm_mem_sem ge Hsafe (*hf*)) (ev_step:=asm_ev_step ge).
 + intros. eapply asm_ev_ax1; try eassumption. (*helper_functions declared*)
 + eapply asm_ev_ax2; eassumption.
-+ eapply asm_ev_fun; eassumption.
+(* + eapply asm_ev_fun; eassumption. *)
 + eapply asm_ev_elim; eassumption.
 Defined.
 

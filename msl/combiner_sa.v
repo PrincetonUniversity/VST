@@ -410,7 +410,7 @@ End CombineJoin.
 
 Arguments combiner [A] _ _ _.
 Arguments Join_combiner [A] [JA] _ [T1 T2] _ _ _ _ _.
-Arguments CEmpty [A JA T1 T2].
+Arguments CEmpty {A JA T1 T2}.
 Arguments CPart [A JA T1 T2] _ _.
 Arguments CFull [A JA T1 T2] _.
 (*
@@ -626,7 +626,7 @@ Arguments fcombiner [S] _ _ _ _.
 Arguments combjoin_hom [T1 T2] _ [A B] _ _.
 Arguments combjoin_unmap_left [T1 T2] _ [A B] _ _.
 Arguments combjoin_unmap_right [T1 T2] _ [A B] _ _.
-Arguments f_combiner [S JS T1 T2].
+Arguments f_combiner {S JS T1 T2}.
 (*
 Arguments paf_combiner.
 *)

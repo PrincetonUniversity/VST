@@ -20,7 +20,7 @@ Definition reverse_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [reverse_spec; main_spec]).
@@ -189,6 +189,7 @@ forward. (* hi--; *)
  reflexivity.
 * (* after the loop *)
 forward. (* return; *)
+entailer!.
 rewrite map_rev. rewrite flip_fact_1; try omega; auto.
 cancel.
 Qed.
@@ -213,9 +214,77 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
+  semax_prog prog tt Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
 Qed.
+
+Module Alternate.
+
+Hint Rewrite @Znth_rev using Zlength_solve : Znth.
+Hint Rewrite Zlength_rev using Zlength_solve : Zlength.
+Hint Unfold flip_ends : list_solve_unfold.
+
+Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
+Proof.
+start_function.
+repeat step.
+
+assert_PROP (Zlength (map Vint contents) = size)
+    as ZL by entailer!.
+forward_while (reverse_Inv a0 sh (map Vint contents) size).
+* (* Prove that current precondition implies loop invariant *)
+simpl (data_at _ _ _).
+Time repeat step!.
+* (* Prove that loop invariant implies typechecking condition *)
+Time repeat step!.
+* (* Prove that loop body preserves invariant *)
+(* unfold flip_ends. *) (* seems good to do this, but it makes step VERY slow *)
+Time repeat step!.
+(* Finished transaction in 32.154 secs (32.031u,0.s) (successful) *)
+(* solved in step! *)
+(* + unfold flip_ends. list_solve2.
++ unfold flip_ends. list_solve2.
++ list_solve2.
++ list_solve2. (* a better way is eq_solve *)
++ simpl. unfold flip_ends. Time list_solve!. *)
+(* Finished transaction in 29.44 secs (29.25u,0.171s) (successful) *)
+* (* after the loop *)
+repeat step!.
+(* simpl.
+forward. (* return; *)
+unfold flip_ends. Time list_solve!. *)
+(* Finished transaction in 2.587 secs (2.593u,0.s) (successful) *) 
+Time Qed.
+(* Finished transaction in 6.801 secs (6.796u,0.015s) (successful) *)
+
+Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
+
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Proof.
+name four _four.
+start_function.
+
+forward_call  (*  revarray(four,4); *)
+  (gv _four, Ews, four_contents, 4).
+   split; [computable | auto].
+forward_call  (*  revarray(four,4); *)
+    (gv _four,Ews, rev four_contents,4).
+   split; [computable | auto].
+rewrite rev_involutive.
+forward. (* return s; *)
+Qed.
+
+Existing Instance NullExtension.Espec.
+
+Lemma prog_correct:
+  semax_prog prog tt Vprog Gprog.
+Proof.
+prove_semax_prog.
+semax_func_cons body_reverse.
+semax_func_cons body_main.
+Qed.
+
+End Alternate.
