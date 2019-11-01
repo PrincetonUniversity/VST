@@ -31,6 +31,7 @@ Require Import VST.concurrency.common.dry_machine_lemmas.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.juicy.sync_preds.
+Require Import VST.concurrency.lib.tactics.
 (*The semantics*)
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.common.ClightMachine.
@@ -4937,7 +4938,11 @@ inversion MATCH; subst.
     destruct Htid as [Htid|Htid]; [left|right].
     + unfold not; simpl; intros.
       apply Htid. inversion MATCH; apply mtch_cnt'; assumption.
-    + 
+    + intros. unshelve exploit Htid; eauto.
+      eapply (MTCH_cnt' MATCH); auto.
+      intros [? ?]. split; eauto.
+      clean_proofs; eauto.
+      eapply MTCH_getThreadC; eauto.
       }
 
   Grab Existential Variables.
