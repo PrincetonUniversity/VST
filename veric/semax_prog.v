@@ -2544,6 +2544,39 @@ intros. red; simpl. intuition; intros.
 + red; intros. Search make_tycontext_g.
     *)
 
+Lemma semax_external_binaryintersection {ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
+      A P Q P_ne Q_ne sig cc ids n}
+  (EXT1: semax_external Espec ids ef A1 P1 Q1 n)
+  (EXT2: semax_external Espec ids ef A2 P2 Q2 n)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
+     Some (mk_funspec sig cc A P Q P_ne Q_ne))
+  (IDS: ids = map fst (fst sig)):
+  semax_external Espec ids ef A P Q n.
+Proof.
+  intros ge ts x.
+  simpl in BI. rewrite 2 if_true in BI by trivial. inv BI.
+  apply inj_pair2 in H1; subst P. apply inj_pair2 in H2; subst Q.
+  destruct x as [bb BB]; destruct bb.
+  * apply (EXT1 ge ts BB). 
+  * apply (EXT2 ge ts BB).
+Qed.
+
+Lemma semax_body_binaryintersection {V G cs} f sp1 sp2 phi
+  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+  (BI: binary_intersection (snd sp1) (snd sp2) = Some phi):
+  @semax_body V G cs f (fst sp1, phi).
+Proof.
+  destruct sp1 as [i phi1]. destruct phi1 as [[tys1 rt1] cc1 A1 P1 Q1 P1_ne Q1_ne]. 
+  destruct sp2 as [i2 phi2]. destruct phi2 as [[tys2 rt2] cc2 A2 P2 Q2 P2_ne Q2_ne]. 
+  destruct phi as [[tys rt] cc A P Q P_ne Q_ne]. simpl in BI.
+  if_tac in BI; [ inv H | discriminate]. if_tac in BI; [inv BI | discriminate].
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H6.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H5. subst. simpl fst; clear - SB1 SB2.
+  destruct SB1 as [X SB1]; destruct SB2 as [_ SB2]; split; [ apply X | simpl in X; intros].
+  destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
+Qed.
+
 End semax_prog.
 
       (*

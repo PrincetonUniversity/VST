@@ -43,7 +43,7 @@ Definition getchar_spec :=
     SEP (ITREE (if eq_dec (Int.signed i) (-1) then (r <- read stdin ;; k r) else k (Byte.repr (Int.signed i)))).
 
 (* Build the external specification. *)
-Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree E).
+Program Definition IO_void_Espec : OracleKind := ok_void_spec (@IO_itree E).
 
 Definition IO_specs (ext_link : string -> ident) :=
   [(ext_link "putchar"%string, putchar_spec); (ext_link "getchar"%string, getchar_spec)].

@@ -93,7 +93,7 @@ Definition main_itree := lc <- read_list stdin 4;; read_sum 0 lc.
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre_ext prog main_itree nil gv
+  PRE  [] main_pre prog main_itree nil gv
   POST [ tint ] PROP () LOCAL () SEP (mem_mgr gv; ITREE (Ret tt : @IO_itree (@IO_event nat))).
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchars_spec; getchars_spec;
@@ -514,7 +514,7 @@ Definition ext_link := ext_link_prog prog.
 Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
-  semax_prog_ext prog main_itree Vprog Gprog.
+  semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons body_exit.
@@ -555,13 +555,14 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
-Theorem prog_toplevel : exists q : Clight_new.corestate,
-  semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-  forall n, @step_lemmas.dry_safeN _ _ _ _ Clight_sim.genv_symb_injective (Clight_sim.coresem_extract_cenv (Clight_new.cl_core_sem (globalenv prog)) (prog_comp_env prog))
-             (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
+Theorem prog_toplevel : exists q,
+  semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
+  forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
+             (io_dry_spec ext_link) (Genv.globalenv prog) n
             main_itree q init_mem.
 Proof.
   edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  - repeat intro; simpl. (* need to allow exit! *)
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
   - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.
