@@ -218,7 +218,12 @@ Ltac print_type x:= let t:= get_type x in idtac t.
 
 (** *Unification variables*)
 
-
+(*Make a term a unification variable*)
+Ltac make_abstract t:=
+  match type of t with
+    ?T => let X:=fresh in evar (X:nat); replace t with X; unfold X; clear X
+  end.
+          
 (* Make unification variable into a goal. 
    you can just use unshelve(instantiate(n:= _))
  *)

@@ -336,7 +336,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           self_simulation _ sem ->
           forall c m m' f_and_args,
             same_visible m m' ->
-            semantics.at_external sem c m = Some f_and_args->
+            semantics.at_external sem c m = Some f_and_args ->
             semantics.at_external sem c m' = Some f_and_args.
       Admitted.
       Lemma Asm_step_consecutive:
@@ -885,32 +885,70 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                                   Some (FUN, args2))
                  (Hinj_args: Val.inject_list f args1 args2)
           , interference_diagram_atx i code1 code2 m1 f' m1' m2'.
-
+      Lemma store_almost_same:
+        forall m b ofs vstore m',
+          Mem.store AST.Mint32 m b ofs vstore = Some m' ->
+          content_almost_same m m' (b, ofs).
+      Proof.
+        intros * H0 ?? H1; unfold same_content_in.
+        erewrite Mem.store_mem_contents; eauto;clear H0.
+        destruct (base.block_eq_dec b b0) as [HH|HH]; subst.
+        + destruct H1; try solve[exfalso; eauto].
+          rewrite PMap.gss.
+          rewrite Mem.setN_outside; auto.
+          rewrite encode_val_length; simpl.
+          unfold Mem.setN; simpl in *.
+          eapply Intv.range_notin in H;
+            simpl in *; omega.
+        + clear H1. rewrite PMap.gso; eauto.
+      Qed.
       Lemma lock_update_mem_strict_mem_update:
         forall b ofs m m' vstore,
           lock_update_mem_strict b ofs m m' vstore ->
-          lock_update_mem m (b, ofs) (Fragment vstore Q32 1) m'.
+          lock_update_mem m (b, ofs) (encode_val AST.Mint32 vstore) m'.
       Proof.
         intros. inv H.
         econstructor.
-        - intros ? ? HH. unfold same_content_in.
-          eapply Mem.store_mem_contents in Hstore.
-          rewrite Hstore.
-          simpl in HH.
-          admit.
-      Admitted.
+        - eapply store_almost_same; eauto.
+        - unfold get_vals_at.
+          erewrite Mem.store_mem_contents; eauto.
+          rewrite PMap.gss.
+          make_abstract 4%nat.
+          eapply Mem.getN_setN_same.
+          rewrite encode_val_length; reflexivity.
+        - eapply store_cur_equiv; eauto.
+        - eapply store_max_equiv; eauto.
+        - unfold max_valid_perm; simpl.
+          exploit Mem.store_valid_access_3; eauto.
+          intros (?&?) ? ?. apply Mem.perm_cur_max.
+          eapply H; eauto.
+        - symmetry; eapply Mem.nextblock_store; eauto.
+      Qed.
       Lemma lock_update_mem_strict_load_mem_update:
         forall b ofs p m m' vload vstore,
           lock_update_mem_strict_load b ofs p m m' vload vstore ->
-          lock_update_mem m (b, ofs) (Fragment vstore Q32 1) m'.
+          lock_update_mem m (b, ofs) (encode_val AST.Mint32 vstore) m'.
       Proof.
         intros. inv H.
         econstructor.
-        - intros ? ? HH. unfold same_content_in.
-          eapply Mem.store_mem_contents in Hstore.
-          rewrite Hstore.
-          simpl in HH.
+        - pose proof (restr_content_equiv Hwritable_lock1) as HH.
+          symmetry in HH. 
+          eapply content_almost_same_proper; eauto.
+          reflexivity.
+          eapply store_almost_same; eauto.
+        - unfold get_vals_at.
+          erewrite Mem.store_mem_contents; eauto.
+          rewrite PMap.gss.
+          make_abstract 4%nat.
+          eapply Mem.getN_setN_same.
+          rewrite encode_val_length; reflexivity.
+        - eapply store_cur_equiv; eauto. admit.
+        - eapply store_max_equiv; eauto. admit.
+        - unfold max_valid_perm; simpl.
+          exploit Mem.store_valid_access_3; eauto.
+          intros (?&?) ? ?. apply Mem.perm_cur_max.
           admit.
+        - symmetry; eapply Mem.nextblock_store; eauto.
       Admitted.
       
       Lemma lock_update_mem_strict_Max_equiv:
@@ -2526,7 +2564,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           
           cut (concur_match (Some cd) mu st1' m1'' st2' m2''); [subst st1'; auto|].
           
-          eapply concur_match_update_lock; eauto.
+          eapply concur_match_update_lock;
+            try match goal with |- context[Forall2] => idtac | _ => eauto end.
           + !context_goal lock_update_mem.
             eapply lock_update_mem_strict_load_mem_update.
             eapply Hlock_update_mem_strict_load1.
@@ -2934,7 +2973,10 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           assert (Hlt21 : permMapLt (fst new_cur2) (getMaxPerm m2'')).
           { unfold Max_equiv in *; rewrite <- Hmax_eq; solve_permMapLt. }
           
-          eapply concur_match_update_lock; eauto; try solve[subst st1'; eauto].
+          eapply concur_match_update_lock; 
+            try match goal with |- context[Forall2] => idtac
+                           | _ => 
+          eauto; try solve[subst st1'; eauto] end.
           + !context_goal lock_update_mem.
             eapply lock_update_mem_strict_load_mem_update.
             eapply Hlock_update_mem_strict_load1.
@@ -3318,7 +3360,9 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         
         exists evnt2, st2', m2''.
         split; [|split].
-        - eapply concur_match_update_lock; eauto; try solve[subst st1'; eauto].
+        - eapply concur_match_update_lock; 
+            match goal with |- context[Forall2] => idtac
+                       | _ => eauto; try solve[subst st1'; eauto] end.
           + !context_goal lock_update_mem.
             eapply lock_update_mem_strict_mem_update.
             eapply Hlock_update_mem_strict1.
@@ -3355,16 +3399,21 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               eapply build_match_compiled; auto.
               admit.
             }
-          + constructor; constructor.
-          + simpl in *. econstructor.
-            subst st1'; destruct new_perms1; reflexivity.
-          + simpl in *. econstructor.
+          + !context_goal Forall2.
+            simpl. unfold encode_int; simpl.
+            repeat econstructor.
+          + !context_goal (@lock_update (@Some nat hb)).
+            subst st1'. econstructor.
+            destruct new_perms1; eauto.
+          + (*!context_goal (@lock_update (@Some nat (S hb))).
+            subst st2'; econstructor. simpl.
+          + *)
+            simpl in *. econstructor.
             subst st2' ofs2; destruct new_perms2. repeat f_equal.
             !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta).
             admit.
             !goal (pair0 empty_map = virtueLP_inject _ _ (pair0 empty_map)).
             admit.
-
         - subst evnt2. replace (unsigned ofs2) with (unsigned ofs + delta).
           repeat econstructor; eassumption.
           admit.
@@ -4827,6 +4876,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               eapply mem_is_restr_eq.
             
         - (*Create/Spawn*)
+          simpl in *.
+
           admit.
         - (*Make Lock*)
           pose proof (memcompat2 H) as Hcmpt2.

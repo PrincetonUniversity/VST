@@ -676,29 +676,75 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           
       Qed.
 
+
+      (*To load a val, you need to "getN",
+        which gives you a list memval.
+        use decode_val to get a val (see Mem.load)
+       *)
+      (* Definition same_content_in m m' ofs b:=
+        Mem.getN 4 ofs (Mem.mem_contents m') !! b =
+        Mem.getN 4 ofs (Mem.mem_contents m) !! b.*)
       
       Definition same_content_in m m' ofs b:=
         ZMap.get ofs (Mem.mem_contents m') !! b =
         ZMap.get ofs (Mem.mem_contents m) !! b.
       Definition content_almost_same m m' adr:=
         forall  b ofs,
-          (* b <> fst adr \/ ~ Intv.In ofs (snd adr,snd adr+ LKSIZE) -> *)
-          (b, ofs) <> adr ->  same_content_in m m' ofs b.
+          b <> fst adr \/ ~ Intv.In ofs (snd adr,snd adr+ 4) ->
+          (*(b, ofs) <> adr ->*)  same_content_in m m' ofs b.
       Definition contnet_same_intval m m' adr SIZE:=
         forall b ofs,
           b = fst adr /\ Intv.In ofs (snd adr, snd adr + SIZE) ->
           same_content_in m m' ofs b.
-      
-      Definition get_val_at (m:mem) (adr: block * Z):=
-        (ZMap.get (snd adr) (Mem.mem_contents m) !! (fst adr)).
-      Inductive lock_update_mem: mem -> Address.address -> memval -> mem -> Prop:=
+       Lemma content_equiv_getN:
+          forall x y,
+            content_equiv x y ->
+            forall z ofs b,
+              Mem.getN z ofs (Mem.mem_contents x) !! b =
+              Mem.getN z ofs (Mem.mem_contents y) !! b.
+        Proof.
+          intros ???. induction z; simpl; auto.
+          intros; f_equal; auto.
+        Qed.
+        Lemma getN_content_equiv:
+          forall x y,
+            (forall ofs b,
+              Mem.getN 4 ofs (Mem.mem_contents x) !! b =
+              Mem.getN 4 ofs (Mem.mem_contents y) !! b) ->
+            content_equiv x y.
+        Proof.
+          intros ** ? **.
+          specialize (H ofs b).
+          inv H; auto.
+        Qed.
+        (* Change 4 to something that depends the architecture 32-64 *)
+      Definition get_vals_at (m:mem) (adr: block * Z):=
+        (Mem.getN 4 (snd adr) (Mem.mem_contents m) !! (fst adr)).
+      (*  (ZMap.get (snd adr) (Mem.mem_contents m) !! (fst adr)). *)
+      Definition max_valid_perm
+                 (m : mem) (chunk : AST.memory_chunk)
+                 (b : block) (ofs : Z) (p : permission):=
+        Mem.range_perm m b ofs (ofs + size_chunk chunk) Max p.
+
+      Instance Proper_max_valid_perm:
+        Proper
+          (Max_equiv ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> iff)
+          max_valid_perm.
+      Proof.
+         unfold max_valid_perm.
+        setoid_help.proper_iff;
+          setoid_help.proper_intros; subst.
+        rewrite <- H; assumption.
+      Qed.
+      Inductive lock_update_mem: mem -> Address.address -> list memval -> mem -> Prop:=
       | Build_lock_update_mem:
           forall m m' adr v
             (Hcontent_almost_equiv: content_almost_same m m' adr)
-            (Hnew_val: get_val_at m' adr = v)
+            (Hnew_val: get_vals_at m' adr = v)
             (Hcur_equiv: Cur_equiv m m')
             (Hmax_equiv: Max_equiv m m')
-            (Hmax_wrt: Mem.perm m (fst adr) (snd adr) Max Writable)
+            (Hmax_wrt: max_valid_perm m AST.Mint32 (fst adr) (snd adr) Writable)
+            (*Hmax_wrt: Mem.perm m (fst adr) (snd adr) Max Writable *)
             (Hnb_equiv: Mem.nextblock m = Mem.nextblock m'),
             lock_update_mem m adr v m'.
       Instance content_almost_same_proper:
@@ -708,6 +754,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
         unfold content_almost_same, same_content_in.
         setoid_help.proper_iff;
           setoid_help.proper_intros; subst.
+       
         rewrite <- H, <- H0; eauto.
       Qed.
       Ltac destruct_lock_update_getters:=
@@ -746,20 +793,26 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           f (fst adr1) = Some (fst adr2, delta1) ->
           f b1 = Some (fst adr2, delta2) ->
           Mem.perm m b1 ofs1 Max Nonempty ->
-          ofs1 + delta2 = (snd adr1) + delta1 ->
+          Intv.In (ofs1 + delta2) ((snd adr1) + delta1, (snd adr1) + delta1 + 4) ->
+          (* ofs1 + delta2 = (snd adr1) + delta1 -> *)
           b1 = (fst adr1).
       Lemma meminj_no_overlap_to_on:
         forall f m adr1 adr2,
-          Mem.perm m (fst adr1) (snd adr1) Max Nonempty ->
+          max_valid_perm m AST.Mint32 (fst adr1) (snd adr1) Writable ->
           Mem.meminj_no_overlap f m ->
           meminj_no_overlap_one f m adr1 adr2.
       Proof.
         intros ** ? **.
         destruct (base.block_eq_dec b1 (fst adr1)); auto.
         exploit H0; eauto.
+        { eapply Mem.perm_implies.
+          eapply H. 2:constructor.
+          unfold max_valid_perm, Mem.range_perm in H.
+          instantiate(1:= ofs1 + delta2 - delta1).
+          clear - H4. destruct H4. simpl in *. omega. }
         intros [ ? | ? ].
         - contradict H5; reflexivity.
-        - contradict H5; assumption. 
+        - contradict H5. omega. 
       Qed.
       Lemma adddress_eq_dec:
         forall (a b: block * Z), {a = b} + {a <> b}.
@@ -771,7 +824,26 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             simpl in *; auto;
               try (right; intros HH; inv HH; try apply n; try apply n'; auto). 
       Qed.
-      
+      Lemma address_range_dec':
+        forall (b b':block) ofs ofs' delta,
+        (b = b' /\ Intv.In ofs (ofs', ofs' + delta))
+        \/ (b <> b' \/ ~ Intv.In ofs (ofs', ofs' + delta)).
+      Proof.
+        intros.
+        cut (forall (P Q R:Prop), (P -> Q) -> (R \/ P)-> R \/ Q ); swap 1 2.
+        { tauto. }
+        intros HH. eapply HH.
+        2: { eapply Classical_Prop.classic. }
+        destruct (base.block_eq_dec b b'); auto.
+      Qed.
+      Lemma address_range_dec:
+        forall (a1 a2: block * Z) delta,
+        (fst a1 = fst a2 /\ Intv.In (snd a1)
+                             (snd a2, snd a2 + delta))
+        \/ (fst a1 <> fst a2 \/ ~ Intv.In (snd a1)
+                             (snd a2, snd a2 + delta)).
+      Proof. intros; eapply address_range_dec'. Qed.
+        
       Lemma perm_order_trans101:
         forall oa b c, Mem.perm_order' oa b ->
                   perm_order b c -> Mem.perm_order' oa c.
@@ -779,6 +851,67 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
         intros. eapply (perm_order_trans211 _ (Some b));
                   simpl; auto.
       Qed.
+      Lemma inj_getN_range:
+              forall F f ofs ofs' b1 b2 delt m1 m2 LKSIZE,
+              f b1 = Some (b2, delt) ->
+              Intv.In ofs (ofs', ofs' + LKSIZE) ->
+              Forall2 F
+              (Mem.getN (Z.to_nat LKSIZE) ofs' (Mem.mem_contents m1) !! b1)
+              (Mem.getN (Z.to_nat LKSIZE) (ofs' + delt) (Mem.mem_contents m2) !! b2) ->
+              F (ZMap.get ofs (Mem.mem_contents m1) !! b1)
+                (ZMap.get (ofs + delt) (Mem.mem_contents m2) !! b2).
+            Proof.
+              induction LKSIZE; swap 2 3.
+              - intros. exfalso; clear -H0.
+                destruct H0; simpl in *. omega.
+              - intros. exfalso; clear -H0.
+                eapply Intv.in_notempty in H0.
+                apply H0. unfold Intv.empty; simpl.
+                pose proof (Zlt_neg_0 p). omega.
+              - simpl. rewrite <- (Pos2Nat.id p).
+                remember (Pos.to_nat p) as n.
+                intros. replace (Pos.to_nat (Pos.of_nat n)) with n in *.
+                2:{ subst n. rewrite Pos2Nat.id; auto. }
+                revert H1 H0.
+                destruct n.
+                { exfalso; clear - Heqn. 
+                  pose proof (Pos2Nat.is_pos p).
+                  rewrite Heqn in *. omega. }
+                clear Heqn.
+                revert ofs ofs'. 
+                induction n.
+                + intros; simpl.
+                  simpl in H0.
+                  assert (ofs = ofs').
+                  { destruct H0. simpl in *. omega. }
+                  inv H1; auto. 
+                + intros. simpl in H1; inv H1.
+                  replace (Z.pos (Pos.of_nat (S (S n)))) with
+                               (Z.pos (Pos.of_nat (S n)) + 1) in *.
+                  2:{  do 2 f_equal.
+                       symmetry; rewrite <- Pos.of_nat_succ .
+                       rewrite <- Pos.of_nat_succ.
+                       simpl. rewrite Pos.add_comm.
+                       simpl. destruct (Pos.of_succ_nat n); auto. }
+                  Lemma blah: forall a b ofs,
+                    Intv.In ofs (a,b) ->
+                    Intv.In ofs (a+1,b) \/ ofs = a.
+                  Admitted.
+                  rewrite Z.add_assoc in H0.
+                  eapply blah in H0.
+                  destruct H0; auto; swap 1 2.
+                  * subst; eauto.
+                  * clear H5.
+                    exploit IHn; eauto.
+                    2:{ instantiate(1:=ofs' +1).
+                        rewrite <- Z.add_assoc.
+                        rewrite (Z.add_comm 1).
+                        rewrite Z.add_assoc.
+                        eauto.
+                    }
+                    replace (ofs' + 1 + delt) with (ofs' + delt  + 1) by omega.
+                    auto.
+            Qed.
       Lemma mem_inj_update:
         forall (f:meminj) m1 m2 m1' m2' adr1 adr2
           (Hno_overlap:
@@ -790,7 +923,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           (Hadr_inj: inject_address f adr1 adr2)
           (Halmost1: content_almost_same m1 m1' adr1)
           (Halmost2: content_almost_same m2 m2' adr2)
-          (Hsame12: memval_inject f (get_val_at m1' adr1) (get_val_at m2' adr2))
+          (Hsame12: (Forall2 (memval_inject f))
+                      (get_vals_at m1' adr1) (get_vals_at m2' adr2))
           (Hmem_inj: Mem.mem_inj f m1 m2),
           Mem.mem_inj f m1' m2'.
       Proof.
@@ -803,31 +937,51 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
         - eapply Hmem_inj; eauto.
           rewrite Hmax_eq1; eassumption.
         - rewrite <- Hcur_eq1 in H0.
-          unfold get_val_at in Hsame12.
-          destruct (adddress_eq_dec (b1, ofs) adr1).
-          + subst adr1; eauto.
-            inv Hadr_inj. unify_injection.
-            simpl in *. eapply Hsame12.
-          + rewrite Halmost1; auto.
-            destruct (adddress_eq_dec (b2, ofs + delta) adr2).
-            * subst adr2. inv Hadr_inj.
-              move Hno_overlap at bottom.
-              unfold meminj_no_overlap_one in *; simpl in *.
-              exploit (Hno_overlap delt b1 delta ofs);
-                try reflexivity; try eassumption.
-              -- simpl. cut (Mem.perm m1 b1 ofs Cur Nonempty).
-                 eapply Mem.perm_cur_max.
-                 eapply perm_order_trans101.
-                 eapply H0. constructor.
-              -- intros HH; subst b0. eauto.
-                 unify_injection. assert (ofs1 = ofs) by omega. subst ofs.
-                 contradict n; reflexivity.
-            * rewrite Halmost2; auto. eapply Hmem_inj; auto.
-      Qed.
+          unfold get_vals_at in Hsame12.
+          destruct (address_range_dec (b1, ofs) adr1 4).
+          (*destruct (adddress_eq_dec (b1, ofs) adr1). *)
+          + (* (b1,ofs) \in (adr1, adr1+LKSIZE) *)
+            simpl in H1; destruct H1; subst.
+            (*subst adr1; eauto.*)
+            inv Hadr_inj. simpl in *; unify_injection.
+            eapply inj_getN_range; eauto.
+          + (*eapply getN_content_equiv in Halmost1.*)
+            (* (b1,ofs) \not \in (adr1, adr1+LKSIZE) *)
+            simpl in H1. destruct (base.block_eq_dec b1 (fst adr1)).
+            * subst; destruct H1 as [H1 | H1];
+                try solve [exfalso; apply H1; auto].
+              erewrite Halmost1; eauto.
+              erewrite Halmost2; eauto.
+              2:{ right. inv Hadr_inj; simpl in *.
+                  unify_injection. clear - H1.
+                  intros [HH1 HH2]; eapply H1; split; simpl in *.
+                  omega. clear - HH2.
+                  rewrite <- Z.add_assoc in HH2.
+                  rewrite (Z.add_comm delt) in HH2.
+                  rewrite Z.add_assoc in HH2. 
+                  omega.
+              }
+              eapply Hmem_inj; eauto.
+            * clear H1.
+              erewrite Halmost1; eauto.
+              destruct (address_range_dec (b2, ofs + delta) adr2 LKSIZE).
+              -- (* (b2,ofs+delta) \in (adr2, adr2+LKSIZE) *)
+                
+                simpl in *. destruct H1; subst.
+                inv Hadr_inj; simpl in *.
+                assert (HH: exists x, ofs+delta = (ofs1+delt +x) /\ x>=0 ).
+                { exists (ofs + delta - (ofs1 + delt)); split; try omega.
+                  clear - H2.
+                  destruct H2; simpl in *. omega. }
+                destruct HH as (x&HH1&HH2).
+                admit.
+              -- (* (b2,ofs+delta) \not \in (adr2, adr2+LKSIZE) *)
+                admit.
+      Admitted.
       
       Lemma injection_update:
         forall f m1 m2 m1' m2' adr1 adr2
-          (Hnonempty: Mem.perm m1 (fst adr1) (snd adr1) Max Nonempty)
+          (Hnonempty: max_valid_perm m1 AST.Mint32 (fst adr1) (snd adr1) Writable)
           (Hsame_nb1: Mem.nextblock m1 = Mem.nextblock m1')
           (Hsame_nb2: Mem.nextblock m2 = Mem.nextblock m2')
           (Hmax_eq1: Max_equiv m1 m1')
@@ -837,7 +991,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           (Hadr_inj: inject_address f adr1 adr2)
           (Halmost1: content_almost_same m1 m1' adr1)
           (Halmost2: content_almost_same m2 m2' adr2)
-          (Hsame12: memval_inject f (get_val_at m1' adr1) (get_val_at m2' adr2))
+          (Hsame12: Forall2 (memval_inject f)
+                            (get_vals_at m1' adr1) (get_vals_at m2' adr2))
           (Hmem_inj: Mem.inject f m1 m2),
           Mem.inject f m1' m2'.
       Proof.
@@ -860,7 +1015,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
               first [left; rewrite <- Hcur_eq1;assumption |right; rewrite <- Hmax_eq1; assumption].
       Qed.
       
-
       Lemma lock_update_mem_restr:
         forall m adr1 v1 m',
           lock_update_mem m adr1 v1 m' ->
@@ -912,11 +1066,11 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           update_mem m m' adr.
       Lemma injection_update_restrict:
         forall f m1 m1' m2 m2' p1 p2 adr1 adr2,
-          Mem.perm m1 (fst adr1) (snd adr1) Max Writable ->
+          max_valid_perm m1 AST.Mint32 (fst adr1) (snd adr1) Writable ->
           update_mem m1 m1' adr1 ->
           update_mem m2 m2' adr2 ->
           inject_address f adr1 adr2 ->
-          memval_inject f (get_val_at m1' adr1) (get_val_at m2' adr2) ->
+          Forall2 (memval_inject f) (get_vals_at m1' adr1) (get_vals_at m2' adr2) ->
           forall Hlt1' Hlt2',
             (forall Hlt1 Hlt2,
                 Mem.inject f (@restrPermMap p1 m1 Hlt1) (@restrPermMap p2 m2 Hlt2)) ->
@@ -932,7 +1086,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
                        | eapply max_equiv_restr; eassumption
                        | eapply cur_equiv_restr
                        | eauto].
-        - rewrite restr_Max_equiv; simpl in *.
+        - unfold max_valid_perm, Mem.range_perm; intros.
+          rewrite restr_Max_equiv; simpl in *.
           eapply Mem.perm_implies; eauto. constructor.
       Qed.
       Lemma concur_match_update_lock:
@@ -963,7 +1118,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             (Hthread_match: one_thread_match hb i ocd f  
                                              c1 (restrPermMap Hlt1)
                                              c2 (restrPermMap Hlt2))
-            (Hval_inj: memval_inject f v1 v2),
+            (Hval_inj: Forall2 (memval_inject f) v1 v2),
           forall lock_perms1
             (cnt1 : containsThread st1 i)
             (cnt2 : containsThread st2 i),
@@ -994,7 +1149,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           intros i0 ??; destruct (Nat.eq_dec i i0); subst.
           + lock_update_rewrite.
             intros; repeat unify_proofs; assumption.
-          + intros; simpl in *.
+          + !context_goal  Mem.inject.
+            intros; simpl in *.
             eapply injection_update_restrict; 
               eauto; simpl; eauto; try solve [econstructor; eauto].
             intros.

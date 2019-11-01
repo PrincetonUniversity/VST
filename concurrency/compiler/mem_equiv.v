@@ -529,3 +529,23 @@ Proof.
   intros. intros ?.
   erewrite store_max_eq; eauto.
 Qed.
+
+Lemma store_cur_eq:
+  forall cnk  m b ofs v m',
+    Mem.store cnk  m b ofs v = Some m' ->
+    getCurPerm m = getCurPerm m'.
+Proof.
+  intros.
+  Transparent Mem.store.
+  unfold Mem.store in H; simpl in *.
+  destruct (Mem.valid_access_dec m cnk b ofs Writable); try discriminate.
+  inversion H. reflexivity.
+Qed.
+Lemma store_cur_equiv:
+  forall sz m b ofs v m',
+    Mem.store sz m b ofs v = Some m' ->
+    Cur_equiv m m'.
+Proof.
+  intros. intros ?.
+  erewrite store_cur_eq; eauto.
+Qed.

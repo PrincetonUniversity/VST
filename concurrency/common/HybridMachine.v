@@ -88,12 +88,16 @@ Module DryHybridMachine.
 
     (* should there be something that says that if something is a lock then
      someone has at least readable permission on it?*)
-    Record invariant (tp: thread_pool) :=
-      { no_race_thr :
+      Notation lock_coherence:=permMapCoherence.
+      Record invariant (tp: thread_pool) :=
+      {  (* The permissions of any two threads 
+           (both permissions $\pi_1$ and $\pi_2$), are not competing *)
+       no_race_thr :
           forall i j (cnti: containsThread tp i) (cntj: containsThread tp j)
             (Hneq: i <> j),
             permMapsDisjoint2 (getThreadR cnti)
-                              (getThreadR cntj); (*thread's resources are disjoint *)
+                              (getThreadR cntj);
+       (*  The permissions protected by any two unlocked locks are not competing *)
         no_race_lr:
           forall laddr1 laddr2 rmap1 rmap2
             (Hneq: laddr1 <> laddr2)
@@ -111,18 +115,18 @@ Module DryHybridMachine.
         thread_data_lock_coh:
           forall i (cnti: containsThread tp i),
             (forall j (cntj: containsThread tp j),
-                permMapCoherence (getThreadR cntj).1 (getThreadR cnti).2) /\
+                lock_coherence (getThreadR cntj).1 (getThreadR cnti).2) /\
             (forall laddr rmap,
                 lockRes tp laddr = Some rmap ->
-                permMapCoherence rmap.1 (getThreadR cnti).2);
+                lock_coherence rmap.1 (getThreadR cnti).2);
         locks_data_lock_coh:
           forall laddr rmap
             (Hres: lockRes tp laddr = Some rmap),
             (forall j (cntj: containsThread tp j),
-                permMapCoherence (getThreadR cntj).1 rmap.2) /\
+                lock_coherence (getThreadR cntj).1 rmap.2) /\
             (forall laddr' rmap',
                 lockRes tp laddr' = Some rmap' ->
-                permMapCoherence rmap'.1 rmap.2);
+                lock_coherence rmap'.1 rmap.2);
         lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
       }.
 
