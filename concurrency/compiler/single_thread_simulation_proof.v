@@ -927,7 +927,10 @@ Admitted.
           concur_match cd mu st1' m1' st2 m2 ->
           List.Forall2 (inject_mevent mu) tr1 tr2 ->
           HybridMachineSig.schedPeek U = Some tid ->
-          ~ ThreadPool.containsThread st1' tid ->
+          (~ ThreadPool.containsThread st1' tid \/
+         (forall (cnt : ThreadPool.containsThread st1' tid) (c : semC),
+          ThreadPool.getThreadC cnt = Krun c /\
+          halted (sem_coresem (HybridSem (Some hb))) c Int.zero)) ->
           HybridMachineSig.invariant st1' ->
           HybridMachineSig.mem_compatible st1' m1' ->
           exists
@@ -975,8 +978,9 @@ Admitted.
         - (* sync step. *)
           edestruct external_step_diagram as (? & ? & ? & ? & ? & ? & ? & ?); eauto 8.
 
-        - (*schedfail. *)
-          exists tr2; eapply schedfail_step_diagram; eauto.
+        - (*schedfail. *) simpl.
+          exists tr2; unshelve(eapply schedfail_step_diagram; eauto);
+            eauto.
       Qed.
 
 

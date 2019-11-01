@@ -4928,13 +4928,17 @@ inversion MATCH; subst.
 
 
 *  (* schedfail *)
+  (*two case, not a thread ort halted*) 
   { exists ds.
     split;[|split]; try eassumption.
     exists nil; rewrite <- app_nil_end.
     econstructor 6; try eassumption; try reflexivity.
-    unfold not; simpl; intros.
-    apply Htid. inversion MATCH; apply mtch_cnt'; assumption.
-    { eapply MTCH_compat; eassumption. } }
+    2:  { eapply MTCH_compat; eassumption. }
+    destruct Htid as [Htid|Htid]; [left|right].
+    + unfold not; simpl; intros.
+      apply Htid. inversion MATCH; apply mtch_cnt'; assumption.
+    + 
+      }
 
   Grab Existential Variables.
 (*  - simpl. apply mtch_cnt. assumption.*)

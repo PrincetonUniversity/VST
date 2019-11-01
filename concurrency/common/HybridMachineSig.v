@@ -357,7 +357,9 @@ Module HybridMachineSig.
     | schedfail :
         forall tid U U' ms m tr
           (HschedN: schedPeek U = Some tid)
-          (Htid: ~ containsThread ms tid)
+          (Htid: ~ containsThread ms tid \/
+                 forall (cnt: containsThread ms tid) c,
+          getThreadC cnt = Krun c /\ halted semSem c Int.zero)
           (Hinv: invariant ms)
           (Hcmpt: mem_compatible ms m)
           (HschedS: schedSkip U = U'),        (*Schedule Forward*)
@@ -476,7 +478,9 @@ Module HybridMachineSig.
       | schedfail':
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)
-            (Htid: ~ containsThread ms tid)
+          (Htid: ~ containsThread ms tid \/
+                 forall (cnt: containsThread ms tid) c,
+          getThreadC cnt = Krun c /\ halted semSem c Int.zero)
             (Hinv: invariant ms)
             (Hcmpt: mem_compatible ms m)
             (HschedS: schedSkip U = U'),        (*Schedule Forward*)

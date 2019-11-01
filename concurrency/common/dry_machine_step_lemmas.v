@@ -2142,7 +2142,8 @@ Module StepType.
                rewrite H in Hint; simpl in Hint
            | [H1: match ?Expr with _ => _ end = _,
                   H2: ?Expr = _ |- _] => rewrite H2 in H1
-           end; try discriminate; try (exfalso; by auto).
+           end; try discriminate; try (exfalso; by auto);
+    auto.
 
   Opaque getThreadC updThreadC containsThread updThread updLockSet addThread remLockSet getThreadR lockSet.
   
