@@ -328,7 +328,7 @@ Print Module SeparationLogicSoundness.VericSound.
      by (hnf; intros; hnf; auto).
   pose (args := b::nil).
   pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V Gamma prog f_b
-       id_fun (fst fsig) args A P' Q' NEP' NEQ' 0 ora PAE semaxprog as HEP.
+       id_fun (fst fsig) args A P' Q' NEP' NEQ' 0 ora semaxprog as HEP.
   clear PAE.
   subst ge.
   rewrite <-make_tycontext_s_find_id in HEP.
@@ -526,6 +526,7 @@ simpl.
         apply compatible_threadRes_sub. apply compat. }
 
       eapply Safety.
+      * apply juicy_postcondition_allows_exit_i0. hnf; intros. hnf. auto.
       * rewrite Ejm.
         eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (b, f_with_x)).
 
