@@ -296,11 +296,15 @@ match Genv.find_funct_ptr (Genv.globalenv prog) b with
 end
 end.
 
-Definition postcondition_allows_exit retty :=
+Definition postcondition_allows_exit (*prog*) retty :=
    forall 
       v  ora (jm : juicy_mem),
       tc_option_val retty v ->
       app_pred (ext_compat ora) (m_phi jm) ->
+(*      (forall x' z',
+         ext_spec_post OK_spec _ x' (genv_symb_injective (Genv.globalenv prog))
+          (opttyp_of_type retty) v z' jm) ->
+*)
       ext_spec_exit OK_spec v ora jm.
 
 Definition semax_prog {C: compspecs}
@@ -1504,11 +1508,34 @@ Proof.
   intros; repeat constructor.
 Qed.
 
+Definition juicy_postcondition_allows_exit
+  (prog: program)
+  (retty: type)
+  (A: TypeTree) (Q: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
+  (lev: nat)
+  := 
+  forall ts a ora v jm,
+     (level jm <= lev)%nat ->
+     (bind_ret v retty (Q ts a) ((tycontext.empty_environ (globalenv prog))) * TT)%pred (m_phi jm) ->
+      tc_option_val retty v -> 
+      ext_compat ora (m_phi jm) -> 
+      ext_spec_exit OK_spec v ora jm.
+
+Lemma juicy_postcondition_allows_exit_i0:
+  forall prog retty A Q lev,
+  postcondition_allows_exit retty  ->
+  juicy_postcondition_allows_exit prog retty A Q lev.
+Proof.
+intros.
+hnf; intros.
+apply H; auto.
+Qed.  
+
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A 
    (P Q: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
   NEP NEQ h z:
   let retty := tint in
-  postcondition_allows_exit retty ->
+(*   postcondition_allows_exit retty -> *)
   @semax_prog CS prog z V G ->
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
   find_id id_fun G =
@@ -1531,6 +1558,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     jm q jm' (Vptr b Ptrofs.zero) args) /\
 
   forall (jm : juicy_mem) ts (a: (dependent_type_functor_rec ts A) mpred),
+    juicy_postcondition_allows_exit prog retty A Q (level jm) ->
     app_pred (P ts a rho1) (m_phi jm) ->
     app_pred (funassert (nofunc_tycontext V G) rho1) (m_phi jm) ->
     app_pred (ext_compat z) (m_phi jm) ->
@@ -1538,7 +1566,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A
     jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
 intro retty.
-intros EXIT SP Findb id_in_G arg_p Hca Hba.
+intros SP Findb id_in_G arg_p Hca Hba.
 rewrite <-find_id_maketycontext_s in id_in_G.
 generalize SP; intros [_ [_ [CSEQ _]]].
 destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & (Gcontains & Believe)) & _).
@@ -1574,7 +1602,7 @@ rewrite Ef. split; auto. split; [ | split3]; auto.
 clear - H.
 induction H. constructor.
 constructor; auto.
-intros jm ts a m_sat_Pa m_funassert.
+intros jm ts a EXIT m_sat_Pa m_funassert.
 intros HZ.
 set (psi := globalenv prog) in *.
 destruct SP as [H0 [AL [_ [[H2 [GC H3]] [GV _]]]]].
@@ -1707,14 +1735,23 @@ destruct H5 as [H5|H5].
  destruct v; try contradiction H8.
  eapply jsafeN_halted with i.
  simpl. congruence.
- apply (EXIT (Some (Vint i)) z' m').
- reflexivity.
+ assert (ext_compat z' (m_phi m')). {
  clear - H10 H7.
  eapply joins_comm, join_sub_joins_trans, joins_comm, H10.
  destruct H7.
  change (Some (ghost_PCM.ext_ref z', NoneP) :: nil) with
       (own.ghost_approx (m_phi m') (Some (ghost_PCM.ext_ref z', NoneP) :: nil)).
   eexists; apply ghost_fmap_join; eauto.
+ }
+ specialize (H9 (opttyp_of_type retty) (Some (Vint i)) z' m').
+ hnf in H9; spec H9.
+ destruct H3 as [? [? _]]. omega.
+ specialize (H9 m' (necR_refl _) H5).
+ red in H9. red in H9. red in H9.
+ apply (EXIT ts a); auto.
+ clear - H1 H3. destruct H3 as [? [? ?]]; omega.
+ unfold bind_ret. rewrite prop_true_andp by auto.
+ assumption.
 -
 (* internal case *)
 
@@ -1848,7 +1885,10 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
  apply (pred_nec_hereditary _ _ _ (laterR_necR (age_laterR (age_jm_phi H15)))) in H4.
  apply (pred_nec_hereditary _ _ _ (laterR_necR (age_laterR (age_jm_phi H15)))) in H16.
  move EXIT after H4.
- specialize (EXIT vl ora0 jm2').
+ replace (bind_ret vl retty (Q ts a) rho')
+   with (bind_ret vl retty (Q ts a) (tycontext.empty_environ psi)) in H4
+   by (destruct vl; reflexivity).
+ specialize (EXIT ts a ora0 vl jm2').
  assert (tc_option_val retty vl). {
   clear - H13.
   rewrite sepcon_comm in H13.
@@ -1857,7 +1897,11 @@ cut ((!! guard_environ (func_tycontext' f Delta) f rhox &&
   subst retty.  destruct vl; simpl in H0; try contradiction.
   destruct H0 as [? _]. destruct v; try contradiction. eauto.
  }
- specialize (EXIT H17 H16).
+ spec EXIT.
+ clear - H14 Heqo H3 H5.
+ apply age_level in Heqo. apply necR_level in H5. change (level (m_phi jm0)) with (level jm0) in H5.
+ omega.
+ specialize (EXIT H4 H17 H16).
  destruct vl; try contradiction.
  destruct v; try contradiction.
  clear H17.
@@ -2091,7 +2135,7 @@ Proof.
   }
   subst retty.
   assert (SPEP := semax_prog_entry_point V G prog b (prog_main prog)
-       params nil A P Q NEP NEQ h z EXIT H H5 Hfind).
+       params nil A P Q NEP NEQ h z H H5 Hfind).
   spec SPEP. subst params; constructor.
   spec SPEP. subst params; constructor.
   set (rho1 := make_args (map fst params) nil (empty_environ (globalenv prog))) in *.
@@ -2130,6 +2174,7 @@ Proof.
   apply inj_pair2 in H11.
   apply inj_pair2 in H12. subst P Q. clear H14.
   apply (H9 _ nil  (globals_of_env rho1)); auto.
+  * apply juicy_postcondition_allows_exit_i0; auto.
   *
    eexists; eexists; split; [apply initial_jm_ext_eq|].
    split.
