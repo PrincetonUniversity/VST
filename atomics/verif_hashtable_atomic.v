@@ -56,43 +56,52 @@ Proof.
   eexists; eauto.
 Qed.
 
-Instance hf1 : hash_fun := { size := proj1_sig has_size; hash i := (i * 654435761) mod (proj1_sig has_size) }.
+Program Instance hf1 : hash_fun := { size := proj1_sig has_size; hash i := (i * 654435761) mod (proj1_sig has_size) }.
+Next Obligation.
 Proof.
-  - rewrite (proj2_sig has_size); computable.
-  - intro; apply Z_mod_lt; rewrite (proj2_sig has_size); computable.
-Defined.
+  rewrite (proj2_sig has_size); computable.
+Qed.
+Next Obligation.
+  - apply Z_mod_lt; rewrite (proj2_sig has_size); computable.
+  - apply Z_mod_lt; rewrite (proj2_sig has_size); computable.
+Qed.
 
 (* We don't need histories, but we do need to know that a non-zero key is persistent. *)
-Instance zero_PCM : Ghost := { valid a := True;
-  Join_G a b c := if eq_dec a 0 then c = b else c = a /\ (b = 0 \/ a = b) }.
+
+Instance zero_perm : @sepalg.Perm_alg Z (fun a b c => if eq_dec a 0 then c = b else c = a /\ (b = 0 \/ a = b)).
 Proof.
-  - exists (fun _ => 0); auto.
-    intro; hnf; auto.
-  - constructor.
-    + intros; hnf in *.
-      if_tac in H; subst; auto.
-      destruct H, H0; subst; auto.
-    + intros; hnf in *.
-      exists (if eq_dec b 0 then c else b); split; hnf.
-      * if_tac; auto; split; auto.
-        if_tac in H; subst.
-        { rewrite -> if_false in H0 by auto; tauto. }
-        destruct H as [? [|]]; try contradiction; subst.
-        rewrite -> if_false in H0 by auto; tauto.
-      * if_tac; subst.
-        { if_tac in H0; tauto. }
-        destruct H; subst.
-        if_tac; subst.
-        { if_tac in H0; subst; auto; contradiction. }
-        destruct H2; try contradiction; subst.
-        rewrite -> if_false in H0 by auto; tauto.
-    + intros; hnf in *.
+  constructor.
+  + intros; hnf in *.
+    if_tac in H; subst; auto.
+    destruct H, H0; subst; auto.
+  + intros; hnf in *.
+    exists (if eq_dec b 0 then c else b); split; hnf.
+    * if_tac; auto; split; auto.
+      if_tac in H; subst.
+      { rewrite -> if_false in H0 by auto; tauto. }
+      destruct H as [? [|]]; try contradiction; subst.
+      rewrite -> if_false in H0 by auto; tauto.
+    * if_tac; subst.
+      { if_tac in H0; tauto. }
+      destruct H; subst.
+      if_tac; subst.
+      { if_tac in H0; subst; auto; contradiction. }
+      destruct H2; try contradiction; subst.
+      rewrite -> if_false in H0 by auto; tauto.
+  + intros; hnf in *.
       if_tac; if_tac in H; subst; auto; try tauto.
       destruct H as [? [|]]; subst; auto; contradiction.
-    + intros; hnf in *.
-      if_tac in H; if_tac in H0; subst; auto; try tauto.
-      destruct H; subst; contradiction.
-  - auto.
+  + intros; hnf in *.
+    if_tac in H; if_tac in H0; subst; try tauto.
+    destruct H; auto.
+Qed.
+
+Program Instance zero_PCM : Ghost := { valid a := True;
+  Join_G a b c := if eq_dec a 0 then c = b else c = a /\ (b = 0 \/ a = b) }.
+Next Obligation.
+Proof.
+  exists (fun _ => 0); auto.
+  intro; hnf; auto.
 Defined.
 
 Instance zero_order : PCM_order (fun a b => a = 0 \/ a = b).
@@ -241,7 +250,7 @@ Definition f_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog [] gv
+  PRE  [] main_pre prog tt [] gv
   POST [ tint ] main_post prog [] gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; freelock2_spec; acquire_spec;
@@ -376,7 +385,7 @@ Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_function.
   unfold atomic_shift; Intros P.
-  set (AS := _ -* _).
+  set (AS := ashift _ _ _ _ _ _).
   forward_call k.
   pose proof size_pos.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
@@ -669,7 +678,7 @@ Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
   start_function.
   unfold atomic_shift; Intros P.
-  set (AS := _ -* _).
+  set (AS := ashift _ _ _ _ _ _).
   forward_call k.
   pose proof size_pos.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
@@ -867,7 +876,7 @@ Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
   start_function.
   unfold atomic_shift; Intros P.
-  set (AS := _ -* _).
+  set (AS := ashift _ _ _ _ _ _).
   forward_call k.
   pose proof size_pos.
   forward_loop (EX i : Z, EX i1 : Z, EX keys : list Z,
@@ -1177,10 +1186,12 @@ Opaque Znth.
 Lemma body_init_table : semax_body Vprog Gprog f_init_table init_table_spec.
 Proof.
   start_function.
+  ghost_alloc (fun g => excl g (@empty_map Z Z)).
+  Intro g.
   forward_for_simple_bound size (EX i : Z, EX entries : list (val * val),
     PROP (Forall (fun '(pk, pv) => isptr pk /\ isptr pv) entries; Zlength entries = i)
     LOCAL (gvars gv)
-    SEP (mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i))) (gv _m_entries);
+    SEP (excl g (@empty_map Z Z); mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i))) (gv _m_entries);
          iter_sepcon (fun x =>
            malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x)) entries;
          EX lg : list gname, !!(Zlength lg = i) && iter_sepcon (fun j =>
@@ -1223,10 +1234,8 @@ Proof.
     unfold hashtable_entry; rewrite -> !app_Znth1 by omega; auto.
   - Intros entries lg.
     rewrite -> Zminus_diag, app_nil_r.
-    ghost_alloc (fun g => excl g (@empty_map Z Z)).
-    Intro g.
-    forward.
-    unfold hashtable; Exists entries g lg (repeat (0, 0) (Z.to_nat size)); entailer!.
+    unfold hashtable; Exists entries g lg; entailer!.
+    Exists (repeat (0, 0) (Z.to_nat size)); entailer!.
     split; [rewrite -> Zlength_repeat, Z2Nat.id; auto; pose proof size_pos; omega|].
     split.
     + intros ??? Hj.
@@ -1763,7 +1772,7 @@ Proof.
            (locks ++ repeat Vundef (Z.to_nat (3 - i))) (gv _thread_locks) *
          iter_sepcon (malloc_token Ews (Tstruct _lock_t noattr)) locks *
          iter_sepcon (fun j => lock_inv Ews (Znth j locks)
-           (f_lock j (Znth j locks) (Znth j res))) (upto (Z.to_nat i)))).
+           (f_lock j (Znth j locks) (Znth j res))) (upto (Z.to_nat i)); has_ext tt)).
   { Exists (@nil val) (@nil val); rewrite !data_at__eq; entailer!.
     erewrite iter_sepcon_func; [apply derives_refl|]; intros (?, ?); auto. }
   { (* first loop *)
@@ -1816,7 +1825,7 @@ Proof.
          data_at sh (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks);
          iter_sepcon (malloc_token Ews (Tstruct _lock_t noattr)) locks;
          iter_sepcon (fun j => lock_inv (if zlt j i then sh1 else Ews) (Znth j locks)
-           (f_lock j (Znth j locks) (Znth j res))) (upto 3))).
+           (f_lock j (Znth j locks) (Znth j res))) (upto 3); has_ext tt)).
   { rewrite -> !sublist_same by auto; unfold f_lock; Exists Ews Tsh; entailer!.
     erewrite iter_sepcon_func_strong; [apply derives_refl|].
     intros ??%In_upto.
@@ -1912,7 +1921,7 @@ Proof.
          data_at (fst x) (tarray (tptr (Tstruct _lock_t noattr)) 3) locks (gv _thread_locks);
          iter_sepcon (malloc_token Ews (Tstruct _lock_t noattr)) (sublist i 3 locks);
          iter_sepcon (fun j => lock_inv sh1 (Znth j locks)
-           (f_lock j (Znth j locks) (Znth j res))) (sublist i 3 (upto 3)))).
+           (f_lock j (Znth j locks) (Znth j res))) (sublist i 3 (upto 3)); has_ext tt)).
   { rewrite -> !(sublist_same 0 3) by auto.
     Exists (sh, @nil (hist * list bool)) sh'; entailer!.
     erewrite iter_sepcon_func_strong; [apply derives_refl|].

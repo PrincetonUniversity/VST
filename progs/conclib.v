@@ -2311,7 +2311,7 @@ Proof.
 Qed. *)
 
 Hint Resolve lock_inv_exclusive selflock_exclusive cond_var_exclusive data_at_exclusive
-  data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec.
+  data_at__exclusive field_at_exclusive field_at__exclusive selflock_rec : exclusive.
 
 Lemma eq_dec_refl : forall {A B} {A_eq : EqDec A} (a : A) (b c : B), (if eq_dec a a then b else c) = b.
 Proof.
@@ -3134,7 +3134,7 @@ Qed.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
-   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto |
+   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto with exclusive |
    try timeout 20 cancel].
 
 Ltac join_sub := repeat (eapply sepalg.join_sub_trans;

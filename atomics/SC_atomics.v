@@ -36,7 +36,6 @@ Program Definition load_SC_spec := TYPE AL_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((?, ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
@@ -48,7 +47,6 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((?, ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality v.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
@@ -71,7 +69,6 @@ Program Definition store_SC_spec := TYPE AS_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
@@ -82,7 +79,6 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
 Qed.
@@ -107,7 +103,6 @@ Program Definition CAS_SC_spec := TYPE ACAS_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
@@ -119,7 +114,6 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality vr.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
@@ -145,7 +139,6 @@ Program Definition AEX_SC_spec := TYPE AEX_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   setoid_rewrite fupd_nonexpansive; do 2 f_equal.
@@ -157,7 +150,6 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality vr.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.

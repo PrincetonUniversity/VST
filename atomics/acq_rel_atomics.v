@@ -216,7 +216,7 @@ Program Definition load_acq_spec := TYPE LA_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, s), ?), (?, ?)), ?), Q), ?); simpl.
+  destruct _f2.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   rewrite protocol_A_super_non_expansive; f_equal.
@@ -229,7 +229,6 @@ Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality.
   rewrite !approx_exp; apply f_equal; extensionality.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
@@ -389,7 +388,7 @@ Program Definition CAS_RA_spec := TYPE CRA_type
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((((?, ?), ?), s), ?), (?, ?)), ?), ?), ?), ?); simpl.
+  destruct _f3.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
     f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
   f_equal; [|rewrite protocol_A_super_non_expansive; f_equal].
@@ -404,23 +403,18 @@ Proof.
     + rewrite protocol_A_super_non_expansive; reflexivity.
     + rewrite fupd_nonexpansive; setoid_rewrite fupd_nonexpansive at 2; f_equal; f_equal.
       rewrite -> !approx_sepcon, approx_idem; f_equal.
-      destruct n; [rewrite !approx_0; auto|].
-      setoid_rewrite approx_later.
-      etransitivity; [rewrite <- approx_oo_approx' with (n' := S n)|]; auto.
+      rewrite later_nonexpansive; auto.
   - rewrite -> !approx_allp by auto; f_equal; extensionality.
     rewrite -> !approx_allp by auto; f_equal; extensionality.
     setoid_rewrite approx_imp; f_equal; f_equal.
     setoid_rewrite fview_shift_nonexpansive.
     rewrite -> !approx_sepcon, !approx_idem; f_equal; f_equal.
     rewrite protocol_A_super_non_expansive; f_equal.
-    destruct n; [rewrite !approx_0; auto|].
-    setoid_rewrite approx_later.
-    etransitivity; [rewrite <- approx_oo_approx' with (n' := S n)|]; auto.
+    rewrite later_nonexpansive; auto.
 Qed.
 Next Obligation.
 Proof.
   repeat intro.
-  destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?); simpl.
   rewrite !approx_exp; apply f_equal; extensionality.
   rewrite !approx_exp; apply f_equal; extensionality.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;

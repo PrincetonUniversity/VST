@@ -16,6 +16,13 @@ Proof.
   apply own.cored_dup.
 Qed.
 
+Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
+Proof.
+  intros; apply andp_right.
+  - apply cored_dup.
+  - apply andp_left2; auto.
+Qed.
+
 Lemma cored_duplicable : cored = cored * cored.
 Proof.
   apply own.cored_duplicable.
@@ -41,8 +48,7 @@ Qed.
 
 Section Invariants.
 
-Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
-Proof. auto. Defined.
+Program Instance unit_PCM : Ghost := { valid a := True; Join_G a b c := True }.
 
 Definition pred_of (P : mpred) := SomeP rmaps.Mpred (fun _ => P).
 
@@ -158,10 +164,13 @@ Proof.
   destruct m; simpl; auto.
 Qed.
 
-Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
+Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
+Next Obligation.
 Proof.
-  - exists (fun _ => nil); auto; constructor.
-  - constructor.
+  exists (fun _ => nil); auto; constructor.
+Defined.
+Next Obligation.
+  constructor.
     + intros until 1.
       revert z'; induction H; inversion 1; auto; subst.
       f_equal; eauto.
@@ -183,8 +192,7 @@ Proof.
       revert b'; induction H; inversion 1; auto; subst.
       f_equal; eauto.
       eapply join_positivity; eauto.
-  - auto.
-Defined.
+Qed.
 
 Definition ghost_list {P : Ghost} g l := own(RA := list_PCM P) g l NoneP.
 
@@ -524,12 +532,15 @@ Qed.
 
 Notation union := base.union.
 
-Instance set_PCM : Ghost := { valid := fun _ : coPset => True;
+Program Instance set_PCM : Ghost := { valid := fun _ : coPset => True;
   Join_G a b c := a ## b /\ c = union a b }.
+Next Obligation.
 Proof.
-  - exists (fun _ => empty); auto.
-    intro; split; set_solver.
-  - constructor.
+  exists (fun _ => empty); auto.
+  intro; split; set_solver.
+Defined.
+Next Obligation.
+  constructor.
     + intros.
       inv H; inv H0; auto.
     + intros.
@@ -541,8 +552,7 @@ Proof.
     + intros.
       inv H; inv H0.
       set_solver.
-  - auto.
-Defined.
+Qed.
 
 Definition ghost_set g s := own(RA := set_PCM) g s NoneP.
 

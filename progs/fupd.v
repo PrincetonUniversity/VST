@@ -98,7 +98,7 @@ Proof.
   - apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply nonlock_permission_bytes_timeless].
 Qed.
 
-Lemma emp_timeless : Timeless seplog.emp.
+Instance emp_timeless : Timeless seplog.emp.
 Proof.
   apply timeless'_timeless; intros ????.
   apply all_resource_at_identity.
@@ -208,7 +208,7 @@ Proof.
   - apply union_pred_timeless; auto.
 Qed.
 
-Lemma data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
+Instance data_at_timeless : forall {CS : compspecs} sh t v p, Timeless (data_at sh t v p).
 Proof.
   intros; apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply data_at_rec_timeless].
 Qed.
