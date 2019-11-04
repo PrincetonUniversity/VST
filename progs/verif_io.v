@@ -106,7 +106,7 @@ Definition main_itree := c <- read stdin;; read_sum 0 (Byte.unsigned c - char0).
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre_ext prog main_itree nil gv
+  PRE  [] main_pre prog main_itree nil gv
   POST [ tint ] main_post prog nil gv.
 
 Definition Gprog : funspecs := ltac:(with_library prog [putchar_spec; getchar_spec;
@@ -214,7 +214,6 @@ Proof.
     subst; entailer!.
     simpl.
     rewrite Eq.bind_ret; auto.
-  - forward.
 Qed.
 
 Lemma chars_of_Z_eq : forall n, chars_of_Z n =
@@ -261,7 +260,6 @@ Proof.
   - forward_call (i, tr).
     { rewrite chars_of_Z_intr by omega; cancel. }
     entailer!.
-  - forward.
 Qed.
 
 Lemma read_sum_eq : forall n d, read_sum n d ≈
@@ -292,7 +290,7 @@ Qed.
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  unfold main_pre_ext.
+  unfold main_pre.
   sep_apply (has_ext_ITREE(E := @IO_event nat)).
   forward.
   unfold main_itree.
@@ -343,7 +341,7 @@ Definition ext_link := ext_link_prog prog.
 Instance Espec : OracleKind := IO_Espec ext_link.
 
 Lemma prog_correct:
-  semax_prog_ext prog main_itree Vprog Gprog.
+  semax_prog prog main_itree Vprog Gprog.
 Proof.
 prove_semax_prog.
 semax_func_cons_ext.
@@ -385,13 +383,14 @@ Qed.
 
 Definition main_block := proj1_sig main_block_exists.
 
-Theorem prog_ext_correct : exists q : Clight_new.corestate,
-  semantics.initial_core (Clight_new.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
-  forall n, @step_lemmas.dry_safeN _ _ _ _ Clight_sim.genv_symb_injective (Clight_sim.coresem_extract_cenv (Clight_new.cl_core_sem (globalenv prog)) (prog_comp_env prog))
-             (io_dry_spec ext_link) {| Clight_sim.CC.genv_genv := Genv.globalenv prog; Clight_sim.CC.genv_cenv := prog_comp_env prog |} n
+Theorem prog_ext_correct : exists q,
+  semantics.initial_core (Clight_core.cl_core_sem (globalenv prog)) 0 init_mem q init_mem (Vptr main_block Ptrofs.zero) [] /\
+  forall n, @step_lemmas.dry_safeN _ _ _ _ semax.genv_symb_injective (Clight_core.cl_core_sem (globalenv prog))
+             (io_dry_spec ext_link) (Genv.globalenv prog) n
             main_itree q init_mem.
 Proof.
   edestruct whole_program_sequential_safety_ext with (V := Vprog) as (b & q & m' & Hb & Hq & Hsafe).
+  - (* exit *)
   - apply juicy_dry_specs.
   - apply dry_spec_mem.
   - apply CSHL_Sound.semax_prog_ext_sound, prog_correct.

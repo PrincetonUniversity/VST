@@ -2024,25 +2024,23 @@ eapply nth_error_In; eauto.
   rewrite PTree.gso; auto.
 Qed.
 
-Lemma juicy_mem_alloc_block:
- forall jm n jm2 b F,
-   juicy_mem_alloc jm 0 n = (jm2, b) ->
-   app_pred F (m_phi jm)  ->
+Lemma after_alloc_block:
+ forall phi n F b (Hno : forall ofs : Z, phi @ (b, ofs) = NO Share.bot bot_unreadable),
+   app_pred F phi ->
    0 <= n < Ptrofs.modulus ->
-   app_pred (F * memory_block Share.top n (Vptr b Ptrofs.zero)) (m_phi jm2).
+   app_pred (F * memory_block Share.top n (Vptr b Ptrofs.zero)) (after_alloc 0 n b phi Hno).
 Proof.
-intros. rename H1 into Hn.
-inv H.
-unfold after_alloc; simpl m_phi.
+intros. rename H0 into Hn.
+unfold after_alloc.
 match goal with |- context [proj1_sig ?A] => destruct A; simpl proj1_sig end.
 rename x into phi2.
 destruct a as (? & ? & Hg).
 unfold after_alloc' in H1.
-destruct (allocate (m_phi jm)
+destruct (allocate phi
     (fun loc : address =>
-      if adr_range_dec (snd (alloc (m_dry jm) 0 n), 0) (n - 0) loc
+      if adr_range_dec (b, 0) (n - 0) loc
       then YES Share.top readable_share_top (VAL Undef) NoneP
-      else core (m_phi jm @ loc)) (core (ghost_of phi2)))
+      else core (phi @ loc)) (core (ghost_of phi2)))
   as [phi3 [phi4  [? [? Hg']]]].
 * extensionality loc; unfold compose.
   if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
@@ -2053,13 +2051,10 @@ destruct (allocate (m_phi jm)
  intros.
  simpl; if_tac.
  exists (YES Share.top readable_share_top (VAL Undef) NoneP).
- destruct l as [b ofs]; destruct H2.
- rewrite juicy_mem_alloc_cohere. constructor.
+ destruct l as [b0 ofs]; destruct H2.
+ subst; rewrite Hno; constructor.
  apply join_unit1; auto.
- destruct (alloc (m_dry jm) 0 n) eqn:?H.
- apply alloc_result in H4. subst. simpl.
- xomega.
- exists (m_phi jm @ l).
+ exists (phi @ l).
  apply join_comm.
  apply core_unit.
 *
@@ -2080,7 +2075,7 @@ assert (phi4 = phi2). {
  apply join_comm, core_identity in H2; congruence.
 }
 subst phi4.
-exists (m_phi jm), phi3; split3; auto.
+exists phi, phi3; split3; auto.
 split.
 do 3 red.
 rewrite Ptrofs.unsigned_zero.
@@ -2108,6 +2103,18 @@ rewrite Z.sub_0_r.
 rewrite if_false by auto.
 apply core_identity.
 simpl; rewrite Hg'; apply core_identity.
+Qed.
+
+Lemma juicy_mem_alloc_block:
+ forall jm n jm2 b F,
+   juicy_mem_alloc jm 0 n = (jm2, b) ->
+   app_pred F (m_phi jm)  ->
+   0 <= n < Ptrofs.modulus ->
+   app_pred (F * memory_block Share.top n (Vptr b Ptrofs.zero)) (m_phi jm2).
+Proof.
+intros.
+inv H; simpl m_phi.
+apply after_alloc_block; auto.
 Qed.
 
 Lemma alloc_juicy_variables_lem2 {CS}:

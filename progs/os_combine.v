@@ -6,7 +6,7 @@ Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.initial_world.
 Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.SequentialClight.
-Require Import VST.veric.Clight_new.
+Require Import VST.veric.Clight_core.
 Require Import VST.progs.conclib.
 Require Import VST.sepcomp.semantics.
 Require Import ITree.ITree.
@@ -59,7 +59,7 @@ Section ext_trace.
     rewrite app_trace_assoc; auto.
   Qed.
 
-  Inductive ext_safeN_trace : nat -> @trace event unit -> Ensemble (@trace event unit) -> OK_ty -> corestate -> mem -> Prop :=
+  Inductive ext_safeN_trace : nat -> @trace event unit -> Ensemble (@trace event unit) -> OK_ty -> CC_core -> mem -> Prop :=
   | ext_safeN_trace_0: forall z t c m, ext_safeN_trace O t (Singleton _ TEnd) z c m
   | ext_safeN_trace_step:
       forall n t traces z c m c' m',
@@ -87,7 +87,10 @@ Section ext_trace.
          (n' <= n)%nat /\ OS_valid s' /\ exists traces' z' c', consume_trace z z' t' /\
            cl_after_external ret c = Some c' /\ ext_safeN_trace n' (app_trace t t') traces' z' c' m' /\
         exists t'', In _ traces' t'' /\ t1 = app_trace t' t'') ->
-      ext_safeN_trace (S n) t traces z c m.
+      ext_safeN_trace (S n) t traces z c m
+  | ext_safeN_trace_halted: forall n z t c m i,
+      halted (cl_core_sem ge) c i ->
+      ext_safeN_trace n t (Singleton _ TEnd) z c m.
 
   Variable dryspec : ext_spec OK_ty.
   Hypothesis extcalls_correct : forall e w b tl args z m t s, ext_spec_pre dryspec e w b tl args z m ->
@@ -97,12 +100,12 @@ Section ext_trace.
     ext_spec_post dryspec e w b (sig_res (ef_sig e)) ret z' (extr_mem e args m s').
 
   Lemma dry_safe_ext_trace_safe : forall n t z q m,
-    step_lemmas.dry_safeN(genv_symb := Clight_sim.genv_symb_injective)
-     (Clight_sim.coresem_extract_cenv (cl_core_sem (globalenv prog)) (prog_comp_env prog)) dryspec
+    step_lemmas.dry_safeN(genv_symb := semax.genv_symb_injective)
+     (cl_core_sem (globalenv prog)) dryspec
      (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n z q m ->
     exists traces, ext_safeN_trace n t traces z q m.
   Proof.
-    induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst; try contradiction.
+    induction n as [n IHn] using lt_wf_ind; intros; inversion H; subst.
     - eexists; constructor.
     - edestruct IHn as [traces ?]; eauto; exists traces; econstructor; eauto.
     - exists (fun t1 => exists s s' ret m' t' n', Val.has_type_list args (sig_args (ef_sig e)) /\
@@ -118,17 +121,19 @@ Section ext_trace.
       eapply IHn in Hsafe as [traces ?]; [|omega].
       subst; do 4 eexists; eauto; split; eauto; split; eauto.
       intros; unfold In; eauto 25.
+    - eexists; econstructor; eauto.
   Qed.
 
   Lemma safety_trace:
    forall {CS: compspecs} (initial_oracle: OK_ty)
+     (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
      V G m,
-     @semax_prog_ext Espec CS prog initial_oracle V G ->
+     @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -137,7 +142,7 @@ Section ext_trace.
        forall n, exists traces, ext_safeN_trace n TEnd traces initial_oracle q m'.
   Proof.
     intros.
-    eapply CSHL_Sound.semax_prog_ext_sound, whole_program_sequential_safety_ext in H as (b & q & m' & ? & ? & Hsafe); eauto.
+    eapply CSHL_Sound.semax_prog_sound, whole_program_sequential_safety_ext in H as (b & q & m' & ? & ? & Hsafe); eauto.
     do 4 eexists; eauto; split; eauto; intros n.
     eapply dry_safe_ext_trace_safe; eauto.
   Qed.
@@ -155,17 +160,20 @@ Section ext_trace.
     - destruct (H3 _ H0) as (s & s' & ret & m' & t1 & n' & ? & ? & ? & ? & ? & ? & ? & traces' & z' & c' & ? & ? & ? & ? & ? & ?).
       edestruct (IHn n') as [z'' ?]; eauto; [omega|].
       subst; eexists; eapply consume_trace_app; eauto.
+    - inversion H0.
+      exists z; apply consume_trace_nil.
   Qed.
 
   Theorem OS_soundness:
    forall {CS: compspecs} (initial_oracle: OK_ty)
+     (EXIT: semax_prog.postcondition_allows_exit Espec tint)
      (dessicate : forall (ef : external_function) jm,
                ext_spec_type OK_spec ef ->
                ext_spec_type dryspec ef)
      (JDE: juicy_dry_ext_spec _ (@JE_spec OK_ty OK_spec) dryspec dessicate)
      (DME: ext_spec_mem_evolve _ dryspec)
      V G m,
-     @semax_prog_ext Espec CS prog initial_oracle V G ->
+     @semax_prog Espec CS prog initial_oracle V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, exists m',
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\

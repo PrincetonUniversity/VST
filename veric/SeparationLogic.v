@@ -1519,6 +1519,23 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
+Axiom semax_external_binaryintersection: 
+forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
+      A P Q P_ne Q_ne sig cc ids}
+  (EXT1: @semax_external Espec ids ef A1 P1 Q1)
+  (EXT2: @semax_external Espec ids ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
+     Some (mk_funspec sig cc A P Q P_ne Q_ne))
+  (IDS: ids = map fst (fst sig)),
+  @semax_external Espec ids ef A P Q.
+
+Axiom semax_body_binaryintersection:
+forall {V G cs} f sp1 sp2 phi
+  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
+  (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
+  @semax_body V G cs f (fst sp1, phi).
+
 Axiom semax_Delta_subsumption:
   forall {CS: compspecs} {Espec: OracleKind},
   forall Delta Delta' P c R,
