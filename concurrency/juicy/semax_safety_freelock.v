@@ -791,7 +791,10 @@ Proof.
 
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
+      -- destruct (cl_halted s) eqn:Halted.
+           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
+           instantiate (1:=Int.zero). apply Logic.I.  
+           edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (? & q_new & Einit & safety).
@@ -817,9 +820,9 @@ Proof.
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.
     apply no_Krun_remLockSet.
-    apply no_Krun_stable. congruence.
+    apply no_Krun_stable.  intros ? [Hx _]; inv Hx.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). simpl.
-    congruence.
+     intros ? [? ?]. congruence.
  - clear - atex bad. destruct ci; simpl in *; congruence.
 Qed.

@@ -725,7 +725,10 @@ Opaque age_tp_to.
 
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
+      -- destruct (cl_halted s) eqn:Halted.
+           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
+           instantiate (1:=Int.zero). apply Logic.I.  
+           edestruct (unique_Krun_neq(ge := ge) i j); try split; eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto.
          apply jsafe_phi_bupd_downward. assumption.
@@ -751,8 +754,9 @@ Opaque age_tp_to.
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.
     apply no_Krun_updLockSet.
-    apply no_Krun_stable. congruence.
+    apply no_Krun_stable.
+    intros. intros [Hx ?]. inv Hx.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewrite Hthread.
-    congruence.
+    intros. intros [Hx ?]. inv Hx.
 Admitted. (* preservation_acquire *)

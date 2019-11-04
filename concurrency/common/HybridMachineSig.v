@@ -358,7 +358,7 @@ Module HybridMachineSig.
         forall tid U U' ms m tr
           (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid \/
-                 forall (cnt: containsThread ms tid) c,
+                 exists (cnt: containsThread ms tid) c,
           getThreadC cnt = Krun c /\ halted semSem c Int.zero)
           (Hinv: invariant ms)
           (Hcmpt: mem_compatible ms m)
@@ -479,7 +479,7 @@ Module HybridMachineSig.
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid \/
-                 forall (cnt: containsThread ms tid) c,
+                 exists (cnt: containsThread ms tid) c,
           getThreadC cnt = Krun c /\ halted semSem c Int.zero)
             (Hinv: invariant ms)
             (Hcmpt: mem_compatible ms m)

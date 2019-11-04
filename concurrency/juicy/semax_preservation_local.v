@@ -791,7 +791,8 @@ Proof.
 
       clear Ecompat Hext' Hext'' J'' Jext Jext' Hext RD J' LW LJ JL.
 
-      assert (notkrun : forall c, getThreadC j (age_tp_to (level jmi') tp) cntj <> Krun c). {
+      assert (notkrun : forall c, ~ (getThreadC j (age_tp_to (level jmi') tp) cntj = Krun c
+                                                  /\ Clight_core.cl_halted c = None)). {
         eapply (unique_Krun_neq i j); eauto.
         apply unique_Krun_age_tp_to; eauto.
       }
@@ -811,7 +812,14 @@ Proof.
 
       destruct (getThreadC j tp cntj') as [c | c | c v | v v0] eqn:Ej.
       * (* krun: impossible *)
-        exfalso. eapply notkrun. unshelve erewrite <-age_getThreadCode; eauto.
+        specialize (notkrun c).
+        unshelve erewrite <-age_getThreadCode in notkrun; eauto.
+        destruct (cl_halted c) eqn:?Halted.
+        2:  contradiction notkrun; split; auto.
+        eapply jsafeN_halted. simpl. rewrite Halted; intro Hx; inv Hx.
+        instantiate (1 := Int.zero).
+        assert (CanExit: forall ora q, ext_spec_exit Jspec (Some (Vint Int.zero)) ora q) by admit.
+        apply CanExit.  
       * unfold tp'', tp'.
         REWR.
         REWR.
@@ -856,12 +864,12 @@ Proof.
       unshelve erewrite <-gtc_age; auto.
 
   - (* uniqueness *)
-    intros notalone j cntj q Ecj.
+    intros notalone j cntj q [Ecj Ecj'].
     hnf in unique.
     assert_specialize unique by (destruct tp; apply notalone).
     specialize (unique j).
     destruct (eq_dec i j) as [ <- | ij].
-    + apply unique with (cnti := cnti) (q := ci); eauto.
+    + unfold tp'' in Ecj. eauto.
     + assert_specialize unique by (destruct tp; auto).
       apply unique with (q := q); eauto.
       exact_eq Ecj. f_equal.

@@ -304,15 +304,16 @@ Definition threads_wellformed (tp : jstate ge) :=
  * threads...)  *)
 Definition unique_Krun (tp : jstate ge) sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
-      @getThreadC _ _ _ i tp cnti = Krun q ->
+      (@getThreadC _ _ _ i tp cnti = Krun q /\ Clight_core.cl_halted q = None) ->
       exists sch', sch = i :: sch').
 
 Definition no_Krun (tp : jstate ge) :=
-  forall i cnti q, @getThreadC _ _ _ i tp cnti <> Krun q.
+  forall i cnti q, ~ (@getThreadC _ _ _ i tp cnti = Krun q /\ Clight_core.cl_halted q = None).
 
 Lemma no_Krun_unique_Krun tp sch : no_Krun tp -> unique_Krun tp sch.
 Proof.
-  intros H _ i cnti q E; destruct (H i cnti q E).
+  intros H _ i cnti q E.
+  contradiction (H i cnti q); auto.
 Qed.
 
 Lemma containsThread_age_tp_to_eq (tp : jstate ge) n :
@@ -334,7 +335,7 @@ Proof.
 Qed.
 
 Lemma no_Krun_stable tp i cnti c' phi' :
-  (forall q, c' <> Krun q) ->
+  (forall q, ~ (c' = Krun q /\ Clight_core.cl_halted q = None)) ->
   no_Krun tp ->
   no_Krun (@updThread _ _ _ i tp cnti c' phi').
 Proof.
@@ -365,9 +366,11 @@ Proof.
   destruct (eq_dec i j).
   - subst.
     rewrite gssThreadCode.
-    injection 1 as <-. eauto.
-  - unshelve erewrite gsoThreadCode; auto.
-    intros E; specialize (NO _ _ _ E). destruct NO.
+    intros [? ?]. inv H0. eauto.
+  -
+    unshelve erewrite gsoThreadCode; auto.
+    intros E.
+    contradiction (NO _ cntj q'); auto.
 Qed.
 
 Lemma no_Krun_updLockSet tp loc ophi :
@@ -408,7 +411,7 @@ Qed.
 
 Lemma unique_Krun_no_Krun tp i sch cnti :
   unique_Krun tp (i :: sch) ->
-  (forall q, @getThreadC _ _ _ i tp cnti <> Krun q) ->
+  (forall q, ~ (@getThreadC _ _ _ i tp cnti = Krun q /\ Clight_core.cl_halted q = None)) ->
   no_Krun tp.
 Proof.
   intros U N j cntj q E.
@@ -416,7 +419,7 @@ Proof.
     intros <-.
     apply N with q.
     exact_eq E; do 2 f_equal.
-    apply proof_irr.
+    f_equal; apply proof_irr.
   }
   unfold unique_Krun in *.
   assert_specialize U.
@@ -425,7 +428,7 @@ Proof.
 Qed.
 
 Lemma unique_Krun_no_Krun_updThread tp i sch cnti c' phi' :
-  (forall q, c' <> Krun q) ->
+  (forall q, ~ (c' = Krun q /\ Clight_core.cl_halted q = None)) ->
   unique_Krun tp (i :: sch) ->
   no_Krun (@updThread _ _ _ i tp cnti c' phi').
 Proof.
@@ -448,7 +451,7 @@ Lemma unique_Krun_neq i j tp sch
       (cntj : containsThread tp j) :
   i <> j ->
   unique_Krun tp (i :: sch) ->
-  forall q, @getThreadC _ _ _ j tp cntj <> Krun q.
+  forall q, ~ (@getThreadC _ _ _ j tp cntj = Krun q /\ Clight_core.cl_halted q = None).
 Proof.
   intros ne U q E.
   hnf in U.
@@ -662,7 +665,7 @@ Proof.
   refine (state_invariant_c Gamma n m tr (i :: sch') tp PHI lev envcoh mwellformed compat extcompat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
-  destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
+  destruct (uniqkrun H i0 cnti q H0) as [sch'' E]; auto.
   injection E as <- <-.
   eauto.
 Qed.

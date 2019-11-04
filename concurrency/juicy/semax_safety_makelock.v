@@ -832,7 +832,10 @@ Proof.
         gLockSetRes; auto.
       specialize (safety j cntj ora).
       destruct (getThreadC j tp cntj) eqn: Hget.
-      * edestruct (unique_Krun_neq(ge := ge) i j); eauto.
+      * destruct (cl_halted s) eqn:Halted.
+           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
+           instantiate (1:=Int.zero). apply Logic.I.
+          edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       * apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       * intros ? Hc'; apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. auto.
       * destruct safety as (? & q_new & Einit & safety).
@@ -853,10 +856,10 @@ Proof.
 
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
-    apply no_Krun_stable. congruence.
+    apply no_Krun_stable. intros ? [Hx _]; inv Hx. 
     rewrite no_Krun_age_tp_to.
     apply no_Krun_updLockSet.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
-    congruence.
+    intros ? [? ?]. congruence.
 Admitted.

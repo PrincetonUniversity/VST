@@ -637,7 +637,10 @@ simpl.
       specialize (safety j cntj ora).
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
-      -- edestruct (unique_Krun_neq(ge := globalenv prog) i j); eauto.
+      -- destruct (cl_halted s) eqn:Halted.
+           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
+           instantiate (1:=Int.zero). apply Logic.I.  
+           edestruct (unique_Krun_neq(ge := globalenv prog) i j); try split; eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
          unshelve erewrite gsoAddRes; auto. REWR.
       -- intros c' Ec'; specialize (safety c' Ec').
@@ -664,12 +667,12 @@ simpl.
     (* rewrite no_Krun_age_tp_to. *)
     intros j cntj q.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. clear; congruence.
-    + subst j. REWR. REWR. REWR. clear; congruence.
+    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. intros [Hx _]; inv Hx.
+    + subst j. REWR. REWR. REWR.  intros [Hx _]; inv Hx.
     + assert (cntj' : containsThread tp j).
       { apply cnt_age, cntAdd' in cntj. destruct cntj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
       REWR. REWR. REWR.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
-      congruence.
+      intros ? [Hx _]; inv Hx.
 Admitted. (* safety_induction_spawn *)

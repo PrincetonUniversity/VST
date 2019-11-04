@@ -1122,7 +1122,9 @@ Section Preservation.
           specialize (safety' j cntj tt).
           destruct (getThreadC j tp cntj) eqn: Ej; try solve [erewrite gsoThreadRes; eauto].
           pose proof cntUpdate'(ThreadPool := OrdinalThreadPool) _ _ cnti cntj as cntj'.
-          eapply unique_Krun_neq in Ej; try apply unique; auto; contradiction.
+          destruct (cl_halted s) eqn:Halted.
+          admit.
+          contradiction (unique_Krun_neq _ _ tp sch cnti cntj ne unique s); split; auto.
           { destruct safety' as [Hvalid' ?].
             split; [|erewrite gsoThreadRes; eauto].
 (*            destruct (alloc m' 0 0) eqn: Halloc.
@@ -1159,7 +1161,13 @@ Section Preservation.
 (* *
   jmstep_inv; getThread_inv; congruence.*)
 *
-  contradiction Htid.
+  destruct Htid as [Htid|[?cnt [?c [? ?]]]].
+  contradiction.
+  assert (cnt = cnti) by apply proof_irr. subst cnt.
+  elimtype False; clear - Eci H.
+  simpl in *.
+  change  (ClightSemanticsForMachines.Clight_newSem ge)
+      with (@JSem ge) in H. congruence.
 Admitted. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
@@ -1197,24 +1205,36 @@ Admitted. (* Lemma preservation_Kinit *)
 
     (* bad schedule *)
     {
+      subst tr0.
+      right; apply state_bupd_intro'.
       inversion jmstep; subst; try inversion HschedN; subst tid;
         unfold containsThread, is_true in *;
         try congruence.
-      right; apply state_bupd_intro'.
-      simpl.
-
+      simpl in Htid |- *.
       assert (i :: sch <> sch) by (clear; induction sch; congruence).
+(*
       inversion jmstep; subst; simpl in *; try tauto;
         unfold containsThread, is_true in *;
         try congruence.
+      clear H5 H6 H7 HschedS. inv HschedN0.
+*)
       apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
       (* invariant about "only one Krun and it is scheduled": the
        bad schedule case is not possible *)
       intros H0 i0 cnti q H1.
-      exfalso.
       specialize (unique H0 i0 cnti q H1).
       destruct unique as [sch' unique]; injection unique as <- <- .
-      contradiction Htid.
+      destruct Htid as [Htid|[?cnt [?c [? ?]]]].
+      exfalso.
+      apply Htid. apply cnti.
+      assert (cnti = cnt) by apply proof_irr; auto. subst cnt.
+      destruct H1.
+      change (OrdinalPool.getThreadC cnti = Krun q) in H1.
+      simpl in H1, H2.
+      change (ClightSemanticsForMachines.Clight_newSem ge)
+        with (@JSem ge) in H2.
+      rewrite H2 in H1; inv H1.
+      elimtype False; clear - H3 H4; congruence.
     }
 
     (* the schedule selected one thread *)
@@ -1236,9 +1256,9 @@ Admitted. (* Lemma preservation_Kinit *)
 
       (* thread[i] is running and some internal step *)
       {
-        destruct (cl_halted ci) eqn:Halted.
+        destruct (cl_halted ci) eqn:Halted. {   
            (* halted *)  admit.
-
+        }
        destruct (cl_at_external ci) eqn:Hatex.
        2:{ (* corestep *)
 
@@ -1327,9 +1347,10 @@ Admitted. (* Lemma preservation_Kinit *)
           jmstep_inv.
           all: getThread_inv.
           all: congruence.
-
-(*        - (* not halted *)
-          jmstep_inv. contradiction.*)
+        - (* not halted *)
+          destruct Htid as [Htid | [? [? [? ?]]]].
+          contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
+          rewrite Eci in H. inv H. hnf in H0. contradiction.
       }
       (* end of internal step *)
 
@@ -1447,14 +1468,15 @@ Admitted. (* Lemma preservation_Kinit *)
             destruct (eq_dec i i0) as [ii0 | ii0].
             * subst i0.
               unfold tp' in Eci0.
-              rewrite gssThreadCC in Eci0.
+              rewrite gssThreadCC in Eci0. destruct Eci0.
               discriminate.
             * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp' in Eci0.
               clear safety wellformed.
               rewrite <- (@gsoThreadCC _ _ _ _ _ tp ii0 ctn cnti0) in Eci0.
-              destruct (unique notalone i cnti _ Eci).
-              destruct (unique notalone i0 cnti0 q Eci0).
+              destruct Eci0 as [Eci0 ?].
+              destruct (unique notalone i cnti _ (conj Eci Halted)).
+              destruct (unique notalone i0 cnti0 q (conj Eci0 H)).
               congruence.
 
         - (* not in Kblocked *)
@@ -1462,8 +1484,10 @@ Admitted. (* Lemma preservation_Kinit *)
           all: getThread_inv.
           all: congruence.
 
-(*        - (* not halted *)
-          jmstep_inv. contradiction.*)
+        - (* not halted *)
+          destruct Htid as [Htid | [? [? [? ?]]]].
+          contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
+          rewrite Eci in H. inv H. hnf in H0. contradiction.
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
     }
@@ -1533,7 +1557,13 @@ Admitted. (* Lemma preservation_Kinit *)
         eapply state_bupd_intro', state_invariant_c with (PHI := Phi); eauto.
         apply no_Krun_unique_Krun.
         eapply unique_Krun_no_Krun; eauto.
-        setoid_rewrite Eci. congruence.
+        intros ? [? ?].
+        setoid_rewrite Eci in H4. congruence.
+     - (* not halted *) 
+          subst.
+          destruct Htid as [Htid | [? [? [? ?]]]].          
+          contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
+          rewrite Eci in H. inv H.
     }
 
     (*thread[i] is in Kresume *)
@@ -1653,6 +1683,11 @@ Admitted. (* Lemma preservation_Kinit *)
           rewrite <- (@gsoThreadCC _ _ _ _ _ tp ii0 ctn cnti0) in Eci0.
           destruct (unique notalone i0 cnti0 q Eci0).
           congruence.
+     + simpl in *.
+          subst.
+          destruct Htid as [Htid | [? [? [? ?]]]].          
+          contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
+          rewrite Eci in H. inv H.
     }
 
     (* thread[i] is in Kinit *)

@@ -914,9 +914,9 @@ Proof.
     unshelve erewrite gThreadRC; auto.
     destruct (eq_dec j i).
     + subst.
-      replace cntj with cnti by apply proof_irr.
+      replace cntj with cnti by apply proof_irr. clear cntj.
       rewrite Hk.
-      specialize (Hsafe' ora); exact_eq Hsafe'.
+      specialize (Hsafe' ora). exact_eq Hsafe'.
       unfold jm_; f_equal.
       apply personal_mem_ext; simpl.
       rewrite eqtype_refl; auto.

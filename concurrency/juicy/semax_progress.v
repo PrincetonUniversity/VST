@@ -241,7 +241,7 @@ Section Progress.
       (* -  *)constructor.
         apply JuicyMachine.schedfail with i.
         + reflexivity.
-        + simpl.
+        + left. simpl.
           unfold OrdinalPool.containsThread.
           now setoid_rewrite Ei; auto.
         + constructor.
@@ -264,7 +264,21 @@ Section Progress.
       pose (jmi := jm_ cnti compat).
       (* pose (phii := m_phi jmi). *)
       (* pose (mi := m_dry jmi). *)
-      destruct (cl_halted ci) eqn:?Halted. admit.
+      destruct (cl_halted ci) eqn:?Halted. {
+        (* Halted *)
+        eexists. constructor. 
+        apply JuicyMachine.schedfail with i.
+        + reflexivity.
+        + right. intros.
+            assert (cnt=cnti). apply proof_irr. subst cnt.
+            assert (c=ci) by admit.
+            subst c.
+            split; auto.
+            admit.
+        + constructor.
+        + eexists; eauto.
+        + reflexivity.
+    }
       destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex.
       2:{
          (* thread[i] is running and some internal step *)
