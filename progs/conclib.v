@@ -2368,13 +2368,20 @@ Proof.
   - rewrite Share.glb_commute, Share.comp2; auto.
 Qed.
 
+Hint Resolve bot_unreadable : share.
+
+Lemma readable_not_bot : forall sh, readable_share sh -> ~sh = Share.bot.
+Proof.
+  repeat intro; subst; auto with share.
+Qed.
+
+Hint Resolve readable_not_bot : share.
+
 Lemma unreadable_bot : ~readable_share Share.bot.
 Proof.
   unfold readable_share, nonempty_share, sepalg.nonidentity.
   rewrite Share.glb_bot; auto.
 Qed.
-Hint Resolve unreadable_bot.
-
 Definition join_Bot := join_Bot.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
@@ -3134,7 +3141,7 @@ Qed.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
   [repeat apply andp_right; auto; eapply derives_trans;
-   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto with exclusive |
+   try (apply exclusive_weak_exclusive || (apply rec_inv_weak_rec_inv; try apply selflock_rec)); auto with share exclusive |
    try timeout 20 cancel].
 
 Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
