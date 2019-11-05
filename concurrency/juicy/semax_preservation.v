@@ -1122,8 +1122,10 @@ Section Preservation.
           specialize (safety' j cntj tt).
           destruct (getThreadC j tp cntj) eqn: Ej; try solve [erewrite gsoThreadRes; eauto].
           pose proof cntUpdate'(ThreadPool := OrdinalThreadPool) _ _ cnti cntj as cntj'.
-          destruct (cl_halted s) eqn:Halted.
-          admit.
+          destruct (cl_halted s) eqn:Halted. {
+            eapply jsafeN_halted. simpl. rewrite Halted. clear; congruence.
+            instantiate (1:=Int.zero). simpl. auto.
+          }
           contradiction (unique_Krun_neq _ _ tp sch cnti cntj ne unique s); split; auto.
           { destruct safety' as [Hvalid' ?].
             split; [|erewrite gsoThreadRes; eauto].
@@ -1257,29 +1259,67 @@ Admitted. (* Lemma preservation_Kinit *)
       (* thread[i] is running and some internal step *)
       {
         destruct (cl_halted ci) eqn:Halted. {   
-           (* halted *)  admit.
-        }
+           subst tr0.
+           inv jmstep; inv HschedN; repeat proof_irr.
+           + inv Htstep. proof_irr. congruence.
+           + inv Htstep. proof_irr. congruence.
+           + inv Htstep. assert (c=ci) by congruence. subst c.
+               destruct Hcorestep.
+               apply Clight_core.cl_corestep_not_halted in H. rewrite Halted in H.
+               contradiction H. intro Hx; inv Hx. apply Int.zero.
+           + inv Htstep. proof_irr. assert (c=ci) by congruence. subst c.
+               simpl in Hat_external. elimtype False; clear - Hat_external Halted.
+               destruct ci; inv Halted. destruct c; inv H0. simpl in Hat_external.
+               inv Hat_external.       
+           + hnf in Htstep.
+               elimtype False. clear - Halted Eci Htstep.
+               inv Htstep; clear - Hthread Eci; congruence.
+           + (* picked a halted thread *)
+                right; apply state_bupd_intro'.
+(*
+                inversion jmstep; subst; try inversion HschedN; subst tid;
+        unfold containsThread, is_true in *;
+        try congruence.
+*)
+                simpl in Htid |- *.
+                assert (tid :: sch <> sch) by (clear; induction sch; congruence).
+                apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
+                (* invariant about "only one Krun and it is scheduled": the
+                     bad schedule case is not possible *)
+                intros H0 i0 cnti q H1.
+                specialize (unique H0 i0 cnti q H1).
+                destruct unique as [sch' unique]; injection unique as <- <- .
+                destruct Htid as [Htid|[?cnt [?c [? ?]]]].
+                contradiction Htid.
+                assert (cnti = cnt) by apply proof_irr; auto. subst cnt.
+                destruct H1.
+                change (OrdinalPool.getThreadC cnti = Krun q) in H1.
+                simpl in H1, H2.
+                change (ClightSemanticsForMachines.Clight_newSem ge)
+                           with (@JSem ge) in H2.
+                rewrite H2 in H1; inv H1.
+                elimtype False; clear - H3 H4; congruence.
+    }
+
        destruct (cl_at_external ci) eqn:Hatex.
        2:{ (* corestep *)
-
         (* get the next step of this particular thread (with safety for all oracles) *)
         assert (next: exists ci' jmi',
                    corestep (juicy_core_sem (Clight_core.cl_core_sem ge)) ci jmi ci' jmi'
                    /\ forall ora, jm_bupd ora (jsafeN Jspec' ge n ora ci') jmi').
         {
-          specialize (safety i cnti).
-          pose proof (safety tt) as safei.
-          unfold JSem in *. rewrite Eci in safei, safety.
+          pose proof (safety i cnti tt) as safei.
+          unfold JSem in *. rewrite Eci in safei.
           subst.
           inversion safei as [ | ? ? ? ? c' m'' step safe H H2 H3 H4 | | ]; subst.
           2: elimtype False; clear - H Hatex; simpl in *; congruence.
           2: elimtype False; clear - H Halted; simpl in *; congruence.
           exists c', m''. split; [ apply step | ].
-          revert step safety safe; clear.
+          revert step safe; clear.
           generalize (jm_ cnti compat).
           generalize ci.
           unfold jsafeN.
-          intros c j step safety safe ora.
+          intros c j step safe ora.
           destruct ora; auto.
         }
 
