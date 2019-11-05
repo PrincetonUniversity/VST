@@ -420,10 +420,10 @@ Inductive cl_evstep (ge: Clight.genv): forall (q: CC_core) (m: mem) (T:list mem_
       cl_evstep ge (State f (Scall optid a al) k e le) m (T1++T2)
                   (Callstate fd vargs (Kcall optid f e le k)) m
 
-  | evstep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m' T1 T2
+  | evstep_builtin:   forall f optid ef tyargs al k e le m vargs vres m' T1 T2
       (EFI: ef_inline ef = true)
       (H: eval_exprTlist ge e le m al tyargs vargs T1)
-      (EC: Events.external_call ef ge vargs m t vres m'),
+      (EC: Events.external_call ef ge vargs m Events.E0 vres m'),
       T2 = proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EC) ->
       cl_evstep ge (State f (Sbuiltin optid ef tyargs al) k e le) m (T1++T2)
            (State f Sskip k e (set_opttemp optid vres le)) m'
@@ -525,9 +525,9 @@ le ->
       cl_evstep ge (Callstate (Internal f) vargs k) m T
             (State f f.(fn_body) k e le) m1
 
-  | evstep_external_function: forall ef targs tres cconv vargs k m t vres m' T
+  | evstep_external_function: forall ef targs tres cconv vargs k m vres m' T
           (EFI: ef_inline ef = true)
-          (EC: Events.external_call ef ge vargs m t vres m'),
+          (EC: Events.external_call ef ge vargs m Events.E0 vres m'),
       T = proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EC) ->
       cl_evstep ge (Callstate (External ef targs tres cconv) vargs k) m T
           (Returnstate vres k) m'
@@ -582,7 +582,7 @@ le ->
   + inv H. apply alloc_variablesT_ax2 in H3. destruct H3 as [T3 K3].
       eexists; econstructor; eauto.
 Unshelve.
-3: eassumption.
+auto.
 auto.
 Qed.
 
@@ -653,7 +653,7 @@ Abort.
   + eexists; split; eauto. reflexivity.
   + apply alloc_variablesT_elim in H1.
       destruct H1; auto.
-  + destruct  (inline_external_call_mem_events ef ge vargs m t
+  + destruct  (inline_external_call_mem_events ef ge vargs m Events.E0
          vres m' EFI EC). simpl in H. subst x. auto.
   Qed.
   

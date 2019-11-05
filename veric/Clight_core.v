@@ -175,10 +175,10 @@ Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
       step ge (State f (Scall optid a al) k e le) m
                   (Callstate fd vargs (Kcall optid f e le k)) m
 
-  | step_builtin:   forall ge f optid ef tyargs al k e le m vargs t vres m',
+  | step_builtin:   forall ge f optid ef tyargs al k e le m vargs vres m',
       ef_inline ef = true ->
       eval_exprlist ge e le m al tyargs vargs ->
-      external_call ef ge vargs m t vres m' ->
+      external_call ef ge vargs m E0 vres m' ->
       step ge (State f (Sbuiltin optid ef tyargs al) k e le) m
            (State f Sskip k e (set_opttemp optid vres le)) m'
 
@@ -262,9 +262,9 @@ Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
       step ge (Callstate (Internal f) vargs k) m
             (State f f.(fn_body) k e le) m1
 
-  | step_external_function: forall (ge: genv) ef targs tres cconv vargs k m t vres m',
+  | step_external_function: forall (ge: genv) ef targs tres cconv vargs k m vres m',
       ef_inline ef = true ->
-      external_call ef ge vargs m t vres m' ->
+      external_call ef ge vargs m E0 vres m' ->
       step ge (Callstate (External ef targs tres cconv) vargs k) m
           (Returnstate vres k) m'
 
@@ -276,8 +276,8 @@ Definition cl_step: genv -> CC_core -> mem -> CC_core -> mem -> Prop := step.
 
 Lemma cl_step_equiv: forall ge (q: CC_core) (m: mem) q' m',
   cl_at_external q = None ->
-  step ge q m q' m' -> exists t, Clight.step ge (Clight.function_entry2 ge) 
-      (CC_core_to_CC_state q m) t (CC_core_to_CC_state q' m').
+  step ge q m q' m' -> Clight.step ge (Clight.function_entry2 ge) 
+      (CC_core_to_CC_state q m) E0 (CC_core_to_CC_state q' m').
 Proof.
 intros.
 rename H into Hat.
@@ -285,8 +285,7 @@ rename H into Hat.
 -
 inv H0; 
 repeat match goal with H: _ = CC_core_to_CC_state ?q _ |- _ => destruct q; inv H end;
-try solve [do 2 econstructor; eassumption].
-do 2 econstructor; try eassumption.
+try solve [econstructor; eassumption].
 econstructor; eauto.
 Qed.
 

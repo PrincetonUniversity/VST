@@ -208,19 +208,18 @@ try contradiction.
 -
 inversion2 H1 H16; fun_tac; auto.
 -
-admit.
+destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H3 H17); subst; auto.
 -
 inv H1. inv H8.
 fun_tac.
 pose proof (alloc_variables_fun H3 H7). inv H8. auto.
-- (* not true *)
-Abort.
+- 
+destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H2 H13); subst; auto.
+Qed.
 
-(*
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).
 Proof.  repeat intro. eapply cl_corestep_fun; simpl in *; eauto. Qed.
 Hint Resolve cl_corestep_fun' : core.
-*)
 
 Lemma age1_resource_decay:
   forall jm jm', age jm jm' -> resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').

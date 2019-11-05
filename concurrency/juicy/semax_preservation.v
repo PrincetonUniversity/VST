@@ -1364,7 +1364,7 @@ Admitted. (* Lemma preservation_Kinit *)
             extensionality ora.
             cut ((ci', jmi') = (c', jm')). now intros H; injection H as -> ->; auto.
             eapply juicy_core_sem_preserves_corestep_fun; eauto.
-            * admit. (* OOPS! *) (*  apply semax_lemmas.cl_corestep_fun'. *)
+            * apply semax_lemmas.cl_corestep_fun'.
             * exact_eq Hcorestep.
               unfold jm_.
               f_equal.
@@ -1734,6 +1734,6 @@ Admitted. (* Lemma preservation_Kinit *)
     {
       edestruct preservation_Kinit; eauto; [left | right]; apply state_bupd_intro'; auto.
     }
-  Admitted.
+  Qed.
 
 End Preservation.
