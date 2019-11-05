@@ -125,16 +125,16 @@ Proof.
   Intro z; apply sepcon_derives; [cancel|].
   Exists z; apply derives_refl.
 Qed.
-Hint Resolve ctr_inv_exclusive.
+Hint Resolve ctr_inv_exclusive : exclusive.
 
 Lemma thread_inv_exclusive : forall tsh sh gsh g ctr lock lockt,
   exclusive_mpred (thread_lock_inv tsh sh gsh g ctr lock lockt).
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
-  apply exclusive_sepcon1; auto.
+  apply exclusive_sepcon1; auto with exclusive.
 Qed.
-Hint Resolve thread_inv_exclusive.
+Hint Resolve thread_inv_exclusive : exclusive.
 
 Lemma body_init_ctr: semax_body Vprog Gprog f_init_ctr init_ctr_spec.
 Proof.

@@ -98,16 +98,16 @@ Proof.
   Intro z; apply sepcon_derives; [cancel|].
   Intros lv; Exists lv; apply derives_refl.
 Qed.
-Hint Resolve ctr_inv_exclusive.
+Hint Resolve ctr_inv_exclusive : exclusive.
 
 Lemma thread_inv_exclusive : forall tsh sh lg i ctr lock lockt,
   exclusive_mpred (thread_lock_inv tsh sh lg i ctr lock lockt).
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
-  apply exclusive_sepcon1; auto.
+  apply exclusive_sepcon1; auto with exclusive.
 Qed.
-Hint Resolve thread_inv_exclusive.
+Hint Resolve thread_inv_exclusive : exclusive.
 
 Lemma sum_repeat: forall i n, sum (repeat i n) = (i * Z.of_nat n)%Z.
 Proof.

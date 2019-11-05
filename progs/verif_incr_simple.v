@@ -75,15 +75,15 @@ Proof.
   eapply derives_exclusive, data_at__exclusive with (sh := Ews)(t := tuint); auto; simpl; try omega.
   Intro z; cancel.
 Qed.
-Hint Resolve ctr_inv_exclusive.
+Hint Resolve ctr_inv_exclusive : exclusive.
 
 Lemma thread_inv_exclusive : forall sh ctr lock lockt,
   exclusive_mpred (thread_lock_inv sh ctr lock lockt).
 Proof.
   intros; apply selflock_exclusive.
-  unfold thread_lock_R; auto.
+  unfold thread_lock_R; auto with exclusive.
 Qed.
-Hint Resolve thread_inv_exclusive.
+Hint Resolve thread_inv_exclusive : exclusive.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
