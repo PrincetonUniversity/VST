@@ -98,7 +98,7 @@ Proof.
   - apply (@bi.and_timeless mpredSI); [apply (@bi.pure_timeless mpredSI) | apply nonlock_permission_bytes_timeless].
 Qed.
 
-Instance emp_timeless : Timeless seplog.emp.
+Instance emp_timeless : (@Timeless mpredSI) emp.
 Proof.
   apply timeless'_timeless; intros ????.
   apply all_resource_at_identity.
@@ -248,7 +248,7 @@ Proof.
   intros; unfold fupd; iIntros "P Hpre".
   erewrite ghost_set_subset with (s' := E2) by auto.
   iDestruct "Hpre" as "(? & ? & en)".
-  do 2 iModIntro; iSplitR "P en"; iFrame; auto.
+  iIntros "!> !>"; iSplitR "P en"; iFrame; auto.
 Qed.
 
 Lemma fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
@@ -273,13 +273,13 @@ Lemma fupd_mono' : forall E1 E2 P Q (a : rmap) (Himp : (P >=> Q) (level a)),
   app_pred (fupd E1 E2 P) a -> app_pred (fupd E1 E2 Q) a.
 Proof.
   intros.
-  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) seplog.emp)) a) as HP'.
+  assert (app_pred ((|={E1,E2}=> P * approx (S (level a)) emp)) a) as HP'.
   { apply (fupd_frame_r _ _ _ _ a).
     do 3 eexists; [apply join_comm, core_unit | split; auto].
     split; [|apply core_identity].
     rewrite level_core; auto. }
   eapply fupd_mono in HP'; eauto.
-  change (predicates_hered.derives (P * approx (S (level a)) seplog.emp) Q).
+  change (predicates_hered.derives (P * approx (S (level a)) emp) Q).
   intros a0 (? & ? & J & HP & [? Hemp]).
   destruct (join_level _ _ _ J).
   apply join_comm, Hemp in J; subst.
@@ -451,7 +451,7 @@ Qed.
 
 Definition inv i : coPset := base.singleton (Pos.of_nat (S i)).
 
-Lemma inv_open : forall E i P, elem_of (Pos.of_nat (S i)) E ->
+Lemma inv_open : forall E i P, subseteq (inv i) E ->
   (invariant i P |-- |={E, difference E (inv i)}=> (|> P) * (|>P -* |={difference E (inv i), E}=> emp))%I.
 Proof.
   unfold updates.fupd, bi_fupd_fupd; simpl.
@@ -466,10 +466,11 @@ Proof.
   rewrite <- !wand_sepcon_adjoint.
   rewrite sepcon_emp.
   apply inv_close_aux.
+  { apply elem_of_subseteq_singleton; auto. }
 Qed.
 
 (* these last two are probably redundant *)
-Lemma inv_close : forall E i P, elem_of (Pos.of_nat (S i)) E ->
+Lemma inv_close : forall E i P, subseteq (inv i) E ->
   invariant i P * |> P * ghost_list(P := exclusive_PCM _) g_dis (list_singleton i (Some tt)) |--
   (|={difference E (inv i), E}=> TT)%I.
 Proof.
@@ -477,10 +478,11 @@ Proof.
   intros; unfold fupd; iIntros "((? & ?) & ?) ?".
   iMod (inv_close_aux with "[-]") as ">H"; [iFrame|].
   do 2 iModIntro.
-  erewrite (ghost_set_remove _ _ E) by eauto; iFrame; auto.
+  erewrite (ghost_set_remove _ _ E); first by iFrame; auto.
+  { apply elem_of_subseteq_singleton; auto. }
 Qed.
 
-Lemma inv_access : forall E i P, elem_of (Pos.of_nat (S i)) E ->
+Lemma inv_access : forall E i P, subseteq (inv i) E ->
   (invariant i P |-- |={E, difference E (inv i)}=>
     |> P * (|> P -* |={difference E (inv i), E}=> TT))%I.
 Proof.
@@ -497,7 +499,7 @@ Lemma inv_in : forall i, elem_of (Pos.of_nat (S i)) (inv i).
 Proof.
   intros; rewrite elem_of_singleton; reflexivity.
 Qed.
-Hint Resolve inv_in.
+Hint Resolve inv_in : ghost.
 
 Global Opaque fupd.
 

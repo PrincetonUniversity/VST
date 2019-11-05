@@ -38,7 +38,7 @@ Class hash_fun := { size : Z; hash : Z -> Z; size_pos : size > 0; hash_range : f
 Section Hashtable.
 
 Context {hf : hash_fun}.
-Hint Resolve size_pos hash_range.
+Hint Resolve size_pos hash_range : hash.
 
 Definition rebase {A} (m : list A) i := rotate m (Zlength m - i) (Zlength m).
 
@@ -192,7 +192,7 @@ Proof.
   unfold lookup; intros.
   pose proof (index_of'_spec k (rebase m (hash k))) as Hspec.
   destruct (index_of' (rebase m (hash k)) k); [inv H | discriminate].
-  replace (Zlength m) with size; apply Z_mod_lt; auto.
+  replace (Zlength m) with size; apply Z_mod_lt; auto with hash.
 Qed.
 
 Lemma index_of'_upd2 : forall m k i k' v' (Hrange : 0 <= i < Zlength m)

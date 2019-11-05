@@ -12,7 +12,7 @@ Set Bullet Behavior "Strict Subproofs".
 
 (* To avoid carrying views with protocol assertions, we instead forbid them from appearing in invariants. *)
 Parameter objective : mpred -> Prop.
-Axiom emp_objective : objective emp%I.
+Axiom emp_objective : objective emp.
 Axiom data_at_objective : forall {cs : compspecs} sh t v p, objective (data_at sh t v p).
 Axiom own_objective : forall {RA : Ghost} g (a : G) pp, objective (own g a pp).
 Axiom prop_objective : forall P, objective (!!P).
@@ -64,7 +64,7 @@ Section dup.
 
 Definition duplicable P := P |-- (|==> P * P)%I.
 
-Lemma emp_duplicable : duplicable emp%I.
+Lemma emp_duplicable : duplicable emp.
 Proof.
   iIntros "? !>"; iFrame.
 Qed.

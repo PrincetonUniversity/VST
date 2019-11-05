@@ -6,7 +6,6 @@ Require Import VST.progs.invariants.
 Require Import VST.progs.fupd.
 Require Import VST.floyd.library.
 Require Import VST.floyd.sublist.
-Require Export Ensembles.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -28,16 +27,6 @@ Set Bullet Behavior "Strict Subproofs".
    since we can't insert it into the definition of semax? Well, iGPS still uses it in the RA atomic
    rules, so maybe it's still useful. *)
 
-(* up *)
-Lemma later_nonexpansive : forall n P, approx n (|> P) = approx n (|> approx n P).
-Proof.
-  intros.
-  destruct n; [rewrite !approx_0; auto|].
-  rewrite !approx_later; f_equal.
-  change (approx n (approx (S n) P)) with ((approx n oo approx (S n)) P).
-  rewrite -> approx_oo_approx'; auto.
-Qed.
-
 Section atomics.
 
 Context {CS : compspecs} {inv_names : invG}.
@@ -53,15 +42,6 @@ Definition ashift {A B} P (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B ->
 
 Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
   EX P : mpred, |> P * (ashift P a Ei Eo b Q && cored).
-
-(* up *)
-Lemma allp_nonexpansive : forall {A} n P, approx n (ALL y : A, P y) = approx n (ALL y, approx n (P y)).
-Proof.
-  intros.
-  apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro; simpl in *.
-  - split; auto.
-  - apply Hall.
-Qed.
 
 Lemma ashift_nonexpansive : forall {A B} P n a Ei Eo (b : A -> B -> mpred) Q,
   approx n (ashift P a Ei Eo b Q) =
@@ -84,22 +64,6 @@ Proof.
   intros; unfold atomic_shift.
   rewrite !approx_exp; f_equal; extensionality.
   rewrite !approx_sepcon !approx_andp ashift_nonexpansive; auto.
-Qed.
-
-(* up *)
-Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
-Proof.
-  intros.
-  apply andp_right.
-  + apply sepcon_derives; apply andp_left1; auto.
-  + eapply derives_trans; [apply sepcon_derives; apply andp_left2, derives_refl|].
-      rewrite <- cored_duplicable; auto.
-Qed.
-
-Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
-Proof.
-  intros.
-  erewrite (add_andp P) by apply H; apply cored_dup.
 Qed.
 
 Lemma atomic_shift_derives_frame_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
@@ -529,7 +493,7 @@ Proof.
   simpl funsig_of_funspec.
   rewrite Hpre2.
   set (AS := atomic_shift _ _ _ _ _).
-  Exists ts2 (w, (fun v2 => AS * EX v1 : _, Q' ts2 w v1 v2), inv_names) seplog.emp.
+  Exists ts2 (w, (fun v2 => AS * EX v1 : _, Q' ts2 w v1 v2), inv_names) emp.
   simpl in *; intro.
   unfold liftx; simpl.
   unfold lift.
@@ -587,7 +551,7 @@ Proof.
   simpl funsig_of_funspec.
   rewrite Hpre2.
   set (AS := atomic_shift _ _ _ _ _).
-  Exists ts2 (w, (AS * EX v1 : _, Q' ts2 w v1), inv_names) seplog.emp.
+  Exists ts2 (w, (AS * EX v1 : _, Q' ts2 w v1), inv_names) emp.
   simpl in *; intro.
   unfold liftx; simpl.
   unfold lift.

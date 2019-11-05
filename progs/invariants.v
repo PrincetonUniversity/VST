@@ -33,6 +33,21 @@ Proof.
   intros; apply own.own_cored; auto.
 Qed.
 
+Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
+Proof.
+  intros.
+  apply andp_right.
+  + apply sepcon_derives; apply andp_left1; auto.
+  + eapply derives_trans; [apply sepcon_derives; apply andp_left2, derives_refl|].
+      rewrite <- cored_duplicable; auto.
+Qed.
+
+Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
+Proof.
+  intros.
+  erewrite (add_andp P) by apply H; apply cored_dup.
+Qed.
+
 Require Import VST.veric.bi.
 Require Import VST.msl.sepalg.
 
@@ -613,7 +628,7 @@ Definition wsat : mpred := EX I : list mpred, EX lg : list gname, EX lb : list (
   iter_sepcon (fun i => match Znth i lb with
                         | Some true => agree (Znth i lg) (Znth i I) * |> Znth i I
                         | Some false => agree (Znth i lg) (Znth i I)
-                        | _ => emp%I end) (upto (length I)).
+                        | _ => emp end) (upto (length I)).
 
 (* This is what's called ownI in Iris; we could build another layer with namespaces. *)
 Definition invariant (i : iname) P : mpred := EX g : gname,
@@ -772,7 +787,7 @@ Proof.
         (map (fun j => match Znth j ((lb ++ repeat None i) ++ [Some true]) with
                        | Some _ => Some (Znth j ((lg ++ repeat O i) ++ [g]))
                        | None => None
-                       end) (upto (length ((l ++ repeat emp%I i) ++ [P])))) with "inv") as "inv".
+                       end) (upto (length ((l ++ repeat emp i) ++ [P])))) with "inv") as "inv".
   { rewrite <- !app_assoc, app_length, upto_app, map_app.
     split.
     { erewrite app_length, !map_length; lia. }
@@ -795,7 +810,7 @@ Proof.
     rewrite !app_Znth2; erewrite !Zlength_app, !Zlength_repeat, <- Zlength_correct; try lia.
     replace (_ - _) with 0 by lia; replace (_ - _) with 0 by lia; auto. }
   iModIntro; iSplitR "agree2 snap".
-  - iExists ((l ++ repeat emp%I i) ++ [P]), ((lg ++ repeat O i) ++ [g]),
+  - iExists ((l ++ repeat emp i) ++ [P]), ((lg ++ repeat O i) ++ [g]),
          ((lb ++ repeat None i) ++ [Some true]).
     erewrite !(app_length (_ ++ _)); simpl.
     erewrite upto_app, iter_sepcon_app; simpl.

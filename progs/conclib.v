@@ -67,7 +67,7 @@ Lemma repable_0 : repable_signed 0.
 Proof.
   split; computable.
 Qed.
-Hint Resolve repable_0.
+Hint Resolve repable_0 : rep.
 
 Definition complete MAX l := l ++ repeat (vptrofs 0) (Z.to_nat MAX - length l).
 
@@ -872,7 +872,7 @@ Lemma incl_nil : forall {A} (l : list A), incl [] l.
 Proof.
   repeat intro; contradiction.
 Qed.
-Hint Resolve incl_nil.
+Hint Resolve incl_nil : list.
 
 Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
 Proof.
@@ -2410,18 +2410,18 @@ Proof.
   apply slice.cleave_join; unfold gsh1, gsh2; destruct (slice.cleave Tsh); auto.
 Qed.
 
-Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join.
+Hint Resolve readable_gsh1 readable_gsh2 gsh1_gsh2_join : share.
 
 Lemma gsh1_not_bot : gsh1 <> Share.bot.
 Proof.
-  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto with share.
 Qed.
 
 Lemma gsh2_not_bot : gsh2 <> Share.bot.
 Proof.
-  intro X; contradiction unreadable_bot; rewrite <- X; auto.
+  intro X; contradiction unreadable_bot; rewrite <- X; auto with share.
 Qed.
-Hint Resolve gsh1_not_bot gsh2_not_bot.
+Hint Resolve gsh1_not_bot gsh2_not_bot : share.
 
 (*
 Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
@@ -3042,10 +3042,32 @@ Proof.
   destruct H; contradiction.
 Qed.
 
-Lemma later_nonexpansive : nonexpansive (@later mpred _ _).
+Lemma later_nonexpansive' : nonexpansive (@later mpred _ _).
 Proof.
   apply contractive_nonexpansive, later_contractive.
   intros ??; auto.
+Qed.
+
+Lemma later_nonexpansive : forall n P, compcert_rmaps.RML.R.approx n (|> P) =
+  compcert_rmaps.RML.R.approx n (|> compcert_rmaps.RML.R.approx n P).
+Proof.
+  intros.
+  intros; apply predicates_hered.pred_ext.
+  - intros ? []; split; auto.
+    intros ? Hlater; split; auto.
+    apply laterR_level in Hlater; omega.
+  - intros ? []; split; auto.
+    intros ? Hlater.
+    specialize (H0 _ Hlater) as []; auto.
+Qed.
+
+Lemma allp_nonexpansive : forall {A} n P, compcert_rmaps.RML.R.approx n (ALL y : A, P y) =
+  compcert_rmaps.RML.R.approx n (ALL y, compcert_rmaps.RML.R.approx n (P y)).
+Proof.
+  intros.
+  apply predicates_hered.pred_ext; intros ? [? Hall]; split; auto; intro; simpl in *.
+  - split; auto.
+  - apply Hall.
 Qed.
 
 Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->

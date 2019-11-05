@@ -138,7 +138,7 @@ Section Reference.
 Context {P : Ghost}.
 
 Lemma ref_update : forall g a r a',
-  (ghost_part_ref g Tsh a r |-- |==> ghost_part_ref g Tsh a' a')%I.
+  (ghost_part_ref Tsh a r g |-- |==> ghost_part_ref Tsh a' a' g)%I.
 Proof.
   exact ref_update.
 Qed.

@@ -164,12 +164,12 @@ match f1 with
                ((local (tc_environ Delta) rho) && (P2 ts2 x2 rho))
            |--
                (EX ts1:_,  EX x1:_, EX F:_, 
-                           (F * (P1 ts1 x1 rho)) &&
+                           (F * (bupd (P1 ts1 x1 rho))) &&
                                (!! (forall rho',
                                            ((local (tc_environ (ret0_tycon Delta)) rho') &&
                                                  (F * (Q1 ts1 x1 rho')))
                                          |--
-                                           (Q2 ts2 x2 rho'))))
+                                           (bupd (Q2 ts2 x2 rho')))))
     end
 end.
 

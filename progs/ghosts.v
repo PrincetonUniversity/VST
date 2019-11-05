@@ -7,7 +7,7 @@ Import List.
 (* Lemmas about ghost state and common instances *)
 (* Where should this sit? *)
 
-Hint Resolve Share.nontrivial.
+Hint Resolve Share.nontrivial : share.
 
 Definition gname := own.gname.
 
@@ -368,13 +368,14 @@ Proof.
   apply join_refl.
 Qed.
 
-Hint Resolve bupd_intro.
+Hint Resolve bupd_intro : ghost.
+
 Lemma make_snap : forall (sh : share) v p, ghost_master sh v p |-- |==> ghost_snap v p * ghost_master sh v p.
 Proof.
   intros.
   destruct (eq_dec sh Share.bot).
-  - subst; setoid_rewrite ghost_snap_join; [|apply join_refl]; auto.
-  - rewrite snap_master_join; auto; entailer!.
+  - subst; setoid_rewrite ghost_snap_join; [|apply join_refl]; auto with ghost.
+  - rewrite snap_master_join; auto; entailer!; auto with ghost.
 Qed.
 
 Lemma ghost_snap_forget : forall v1 v2 p, ord v1 v2 -> ghost_snap v2 p |-- |==> ghost_snap v1 p.
@@ -462,13 +463,13 @@ Section Reference.
 
 Context {P : Ghost}.
 
-Definition ghost_reference g a := own(RA := ref_PCM P) g (None, Some a) NoneP.
-Definition ghost_part g sh a := own(RA := ref_PCM P) g (Some (sh, a), None) NoneP.
-Definition ghost_part_ref g sh a r :=
+Definition ghost_reference a g := own(RA := ref_PCM P) g (None, Some a) NoneP.
+Definition ghost_part sh a g := own(RA := ref_PCM P) g (Some (sh, a), None) NoneP.
+Definition ghost_part_ref sh a r g :=
   own(RA := ref_PCM P) g (Some (sh, a), Some r) NoneP.
 
 Lemma ghost_part_ref_join : forall g (sh : share) a b,
-  ghost_part g sh a * ghost_reference g b = ghost_part_ref g sh a b.
+  ghost_part sh a g * ghost_reference b g = ghost_part_ref sh a b g.
 Proof.
   intros.
   symmetry; apply own_op.
@@ -497,7 +498,7 @@ Proof.
 Qed.
 
 Lemma ref_sub : forall g sh a b,
-  ghost_part g sh a * ghost_reference g b |--
+  ghost_part sh a g * ghost_reference b g |--
     !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
 Proof.
   intros; apply ref_sub_gen.
@@ -525,7 +526,7 @@ Proof.
 Qed.
 
 Lemma ref_update : forall g a r a',
-  ghost_part_ref g Tsh a r |-- |==> ghost_part_ref g Tsh a' a'.
+  ghost_part_ref Tsh a r g |-- |==> ghost_part_ref Tsh a' a' g.
 Proof.
   intros; apply ref_update_gen.
 Qed.
@@ -569,7 +570,7 @@ Qed.
 End Reference.
 
 Hint Resolve self_completable : init.
-
+ 
 Section Discrete.
 
 Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
@@ -657,7 +658,7 @@ Qed.
 
 End GVar.
 
-Hint Resolve ghost_var_exclusive.
+Hint Resolve ghost_var_exclusive : exclusive.
 
 Section PVar.
 (* Like ghost variables, but the partial values may be out of date. *)
@@ -1197,7 +1198,7 @@ Proof.
   rewrite rev_involutive in H0; auto.
 Qed.
 
-Lemma maps_add_rev : forall l, all_compatible l -> maps_add (rev l) = maps_add l.
+Lemma  maps_add_rev : forall l, all_compatible l -> maps_add (rev l) = maps_add l.
 Proof.
   induction l; auto; simpl; intros.
   apply all_compatible_cons in H as [].
@@ -1250,7 +1251,7 @@ End Maps.
 
 Notation maps_add l := (fold_right map_add empty_map l).
 
-Hint Resolve empty_map_incl empty_map_disjoint all_disjoint_nil.
+Hint Resolve empty_map_incl empty_map_disjoint all_disjoint_nil : ghost.
 
 Section GHist.
 
@@ -1273,7 +1274,7 @@ Proof.
         apply map_incl_add.
     + hnf in Hcase.
       inv Hcase.
-      rewrite eq_dec_refl; auto.
+      rewrite eq_dec_refl; auto with share.
   - if_tac.
     + intros []; subst; exists None; split; auto.
     + intros [? Hincl].
@@ -1436,7 +1437,7 @@ Qed.
 
 Lemma hist_sub_Tsh : forall h h', hist_sub Tsh h h' <-> (h = h').
 Proof.
-  intros; unfold hist_sub; rewrite eq_dec_refl; repeat split; auto; tauto.
+  intros; unfold hist_sub; rewrite eq_dec_refl; repeat split; auto with share; tauto.
 Qed.
 
 Lemma hist_ref_join : forall sh h l p, sh <> Share.bot ->
@@ -1467,7 +1468,7 @@ Proof.
   - Exists (fun _ : nat => @None hist_el); apply andp_right, derives_refl.
     apply prop_right; split; [apply hist_list_nil|].
     split; auto.
-    if_tac; auto.
+    if_tac; auto with ghost.
 Qed.
 
 Lemma hist_ref_incl : forall sh h h' p, sh <> Share.bot ->
@@ -1560,7 +1561,7 @@ Inductive hist_list' : hist_part -> list hist_el -> Prop :=
 | hist_list'_nil : hist_list' empty_map []
 | hist_list'_snoc : forall h l t e (Hlast : newer h t) (Hrest : hist_list' h l),
     hist_list' (map_upd h t e) (l ++ [e]).
-Hint Resolve hist_list'_nil.
+Hint Resolve hist_list'_nil : ghost.
 
 Lemma hist_list'_in : forall h l (Hl : hist_list' h l) e, (exists t, h t = Some e) <-> In e l.
 Proof.
@@ -1580,7 +1581,7 @@ Qed.
 Lemma hist_list_weak : forall l h (Hl : hist_list h l), hist_list' h l.
 Proof.
   induction l using rev_ind; intros.
-  - apply hist_list_nil_inv2 in Hl; subst; auto.
+  - apply hist_list_nil_inv2 in Hl; subst; auto with ghost.
   - destruct (Hl (length l) x) as (_ & H); exploit H.
     { erewrite nth_error_app2, minus_diag by omega; auto. }
     intro Hx.
@@ -1667,8 +1668,8 @@ Qed.
 
 Lemma ghost_hist_init : @valid (ref_PCM (@map_disj_PCM nat hist_el)) (Some (Tsh, empty_map), Some empty_map).
 Proof.
-  split; simpl; auto.
-  rewrite completable_alt; split; auto.
+  split; simpl; auto with share.
+  rewrite completable_alt; split; auto with share.
   rewrite eq_dec_refl; auto.
 Qed.
 
@@ -1676,11 +1677,11 @@ Inductive add_events h : list hist_el -> hist_part -> Prop :=
 | add_events_nil : add_events h [] h
 | add_events_snoc : forall le h' t e (Hh' : add_events h le h') (Ht : newer h' t),
     add_events h (le ++ [e]) (map_upd h' t e).
-Hint Resolve add_events_nil.
+Hint Resolve add_events_nil : ghost.
 
 Lemma add_events_1 : forall h t e (Ht : newer h t), add_events h [e] (map_upd h t e).
 Proof.
-  intros; apply (add_events_snoc _ []); auto.
+  intros; apply (add_events_snoc _ []); auto with ghost.
 Qed.
 
 Lemma add_events_trans : forall h le h' le' h'' (H1 : add_events h le h') (H2 : add_events h' le' h''),
@@ -1755,7 +1756,7 @@ Qed.
 
 End GHist.
 
-Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil.
+Hint Resolve hist_incl_nil hist_list_nil hist_list'_nil add_events_nil : ghost.
 (*Hint Resolve ghost_var_precise ghost_var_precise'.*)
 Hint Resolve (*ghost_var_init*) master_init (*ghost_map_init*) ghost_hist_init : init.
 
@@ -1764,14 +1765,14 @@ Ltac ghost_alloc G :=
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX g : _, G g) :: R)))));
   [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, ghost_seplog.bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init|] end.
+   apply sepcon_derives, derives_refl; apply own_alloc; auto; simpl; auto with init share ghost|] end.
 
 Ltac ghosts_alloc G n :=
   match goal with |-semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
     apply (semax_pre_bupd (PROPx P (LOCALx Q (SEPx ((EX lg : _, !!(Zlength lg = n) && iter_sepcon G lg) :: R)))));
   [go_lower; erewrite !prop_true_andp by (repeat (split; auto));
    rewrite <- emp_sepcon at 1; eapply derives_trans, bupd_frame_r;
-   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init|] end.
+   apply sepcon_derives, derives_refl; apply own_list_alloc'; auto; simpl; auto with init share ghost|] end.
 
 Lemma wand_nonexpansive_l: forall P Q n,
   approx n (P -* Q)%logic = approx n (approx n P  -* Q)%logic.

@@ -105,16 +105,16 @@ Proof.
   { go_lower.
     destruct left.
     - rewrite (sepcon_comm _ (ghost_var _ _ _)), <- sepcon_assoc.
-      erewrite ghost_var_share_join' by eauto.
+      erewrite ghost_var_share_join' by eauto with share.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update.
-    - erewrite ghost_var_share_join' by eauto.
+    - erewrite ghost_var_share_join' by eauto with share.
       Intros; rewrite prop_true_andp by auto; eapply derives_trans, bupd_frame_r; cancel.
       apply ghost_var_update. }
   Intros; forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
     unfold cptr_lock_inv; Exists (z + 1).
-    erewrite <- ghost_var_share_join by eauto.
+    rewrite <- (ghost_var_share_join gsh1 gsh2) by auto with share.
     unfold Frame; instantiate (1 := [ghost_var gsh2 (n+1) (if left then g1 else g2)]); simpl.
     destruct left.
     - Exists (n+1) y; entailer!.
@@ -131,9 +131,9 @@ Proof.
   forward.
   assert_PROP (x = n1 /\ y = n2) as Heq.
   { gather_SEP 2 4.
-    erewrite ghost_var_share_join' by eauto.
+    erewrite ghost_var_share_join' by eauto with share.
     gather_SEP 3 4.
-    erewrite ghost_var_share_join' by eauto.
+    erewrite ghost_var_share_join' by eauto with share.
     entailer!. }
   forward_call (gv _ctr_lock, sh, cptr_lock_inv g1 g2 (gv _ctr)).
   { lock_props.
@@ -169,7 +169,7 @@ Proof.
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   forward_call (lock, Ews, cptr_lock_inv g1 g2 ctr).
   { lock_props.
-    rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto.
+    rewrite <- !(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
     unfold cptr_lock_inv; Exists 0 0 0; entailer!. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).

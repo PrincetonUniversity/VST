@@ -822,7 +822,7 @@ Proof.
       entailer!.
     + Intros; forward_if (k1 <> 0).
       * subst; rewrite -> eq_dec_refl.
-        viewshift_SEP 1 seplog.emp.
+        viewshift_SEP 1 emp.
         { go_lower; simpl.
           apply andp_left2, cored_emp. }
         unfold POSTCONDITION, abbreviate; simpl map.
@@ -1165,6 +1165,7 @@ Proof.
           assert (HT k = Some vi) as X; [|rewrite X; discriminate].
           match goal with H : forall k v, _ <-> _ |- _ => rewrite H end.
           split; auto; rewrite <- HHi; apply Znth_In; omega. }
+      { auto with rep. }
       unfold POSTCONDITION, abbreviate; simpl map.
       Intros v'; forward.
       Exists (if eq_dec v' 0 then true else false); entailer!.
@@ -1357,6 +1358,7 @@ Proof.
          lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh (gv _m_entries) t
                                          (gv _thread_locks) lockt (gv _results) res gv))).
   - Exists (@nil bool) (@empty_map nat hashtable_hist_el); entailer!.
+    auto with ghost.
   - forward_call (i0 + 1, 1, gv, sh, entries, g, lg,
       fun b => EX h' : _, !!(add_events h [HAdd (i0 + 1) 1 b] h') && ghost_hist gsh h' gh *
         data_at sh (tarray tentry size) entries (gv _m_entries), inv_names).
@@ -1369,11 +1371,11 @@ Proof.
       iSplitL ""; [auto|].
       iSplit; [|iApply invariant_cored; auto].
       iIntros ">hist".
-      iMod (inv_open top with "inv") as "[>inv Hclose]"; [hnf; auto|].
+      iMod (inv_open top with "inv") as "[>inv Hclose]"; [auto|].
       unfold hashtable_inv.
       iDestruct "inv" as (HT) "[hashtable inv]"; iDestruct "inv" as (hr) "[% ref]".
       iExists HT; iFrame "hashtable".
-      iMod (updates.fupd_intro_mask (top ∖ inv i) empty emp%I with "[]") as "Hclose'"; auto.
+      iMod (updates.fupd_intro_mask (top ∖ inv i) empty emp with "[]") as "Hclose'"; auto.
       { apply empty_subseteq. }
       iModIntro; iSplit.
       + iIntros "hashtable".
@@ -1416,7 +1418,7 @@ Proof.
       intros j Hj; rewrite app_Znth1; auto.
       rewrite -> In_upto, Z2Nat.id in Hj; omega.
   - Intros ls h.
-    viewshift_SEP 2 seplog.emp.
+    viewshift_SEP 2 emp.
     { go_lower; apply invariant_dealloc. }
     simpl; forward.
     forward_call (lockt, tsh, f_lock_inv sh gsh entries gh (gv _m_entries) t
@@ -1735,7 +1737,7 @@ Proof.
   forward_call gv.
   Intros x; destruct x as ((entries, g), lg).
   ghost_alloc (ghost_hist_ref(hist_el := hashtable_hist_el) Tsh empty_map empty_map).
-  { split; auto; apply @self_completable. }
+  { split; auto with share; apply @self_completable. }
   Intro gh.
   rewrite <- hist_ref_join_nil by (apply Share.nontrivial); Intros.
   rewrite <- (emp_sepcon (ghost_hist _ _ _)); Intros.
@@ -1924,6 +1926,7 @@ Proof.
            (f_lock j (Znth j locks) (Znth j res))) (sublist i 3 (upto 3)); has_ext tt)).
   { rewrite -> !(sublist_same 0 3) by auto.
     Exists (sh, @nil (hist * list bool)) sh'; entailer!.
+    { auto with ghost. }
     erewrite iter_sepcon_func_strong; [apply derives_refl|].
     intros ??%In_upto; simpl in *.
     if_tac; auto; lia. }
@@ -2023,7 +2026,7 @@ Proof.
     iDestruct "inv" as (HT) "[hashtable ref]"; iDestruct "ref" as (hr) "[% ref]".
     iAssert (!!(exists l HT, hist_list (fold_right map_add empty_map (map fst lr)) l /\
         apply_hist empty_map l = Some HT)) as %Hhist.
-    { iCombine "hist ref" as "hist"; rewrite -> hist_ref_join by auto.
+    { iCombine "hist ref" as "hist"; rewrite -> hist_ref_join by auto with share.
       iDestruct "hist" as (l) "[[% %] hist]".
       iPureIntro.
       match goal with H : hist_sub _ _ _ |- _ => apply hist_sub_Tsh in H; subst end.

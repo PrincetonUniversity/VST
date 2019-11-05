@@ -18,6 +18,8 @@ Arguments Z.to_nat : simpl nomatch.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.veric.SeparationLogic.
 
+Notation "'emp'" := seplog.emp.
+
 Section cofe.
   Instance mpred_equiv : Equiv mpred := eq.
   Instance mpred_dist : Dist mpred := fun n P Q => approx (S n) P = approx (S n) Q.
@@ -167,7 +169,7 @@ Qed.
 
 Lemma mpred_bi_mixin :
   BiMixin
-    derives seplog.emp prop andp orp imp (@allp _ _) (@exp _ _) sepcon wand persistently.
+    derives emp prop andp orp imp (@allp _ _) (@exp _ _) sepcon wand persistently.
 Proof.
   split.
   - constructor; auto. intro. apply derives_trans.
@@ -230,7 +232,7 @@ Proof.
   - intros; rewrite wand_sepcon_adjoint; auto.
   - apply persistently_derives.
   - apply persistently_persists.
-  - change (predicates_hered.derives seplog.emp (persistently seplog.emp)).
+  - change (predicates_hered.derives emp (persistently emp)).
     intros ??; unfold persistently; simpl.
     apply core_identity.
   - intros.
