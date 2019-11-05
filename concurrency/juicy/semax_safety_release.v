@@ -155,9 +155,15 @@ Proof.
   destruct (progress _ _ ext_link_inj _ _ _ _ Hnot_create I) as [? Hstep0].
   inv Hstep0.
   inv H4; try inversion HschedN; subst tid;
-      try contradiction; jmstep_inv; getThread_inv; try congruence;
+  try (jmstep_inv; getThread_inv; try congruence;
       inv H; simpl in Hat_external;
-      rewrite atex in Hat_external; inv Hat_external.
+      rewrite atex in Hat_external; inv Hat_external).
+  2:{ clear Post Hjoin Hlockinv Hsat HnecR Hexclusive.
+       destruct Htid as [Htid | [? [? [? ?]]]]; [contradiction |].
+(*       assert (i :: sch <> sch) by (clear; induction sch; congruence).*)
+       assert (x = cnti) by apply proof_irr; subst x.
+       elimtype False. clear - H Eci. unfold JSem in *; congruence.
+  }
   clear dependent d_phi; clear dependent phi'.
 
   inv PreB1.
@@ -600,7 +606,10 @@ Proof.
       }
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
-      -- edestruct (unique_Krun_neq(ge := ge) i j); eauto.
+      -- destruct (cl_halted s) eqn:Halted.
+           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
+           instantiate (1:=Int.zero).  apply Logic.I.
+           edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
       -- destruct safety as (? & q_new & Einit & safety).
@@ -625,8 +634,8 @@ Proof.
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.
     apply no_Krun_updLockSet.
-    apply no_Krun_stable. congruence.
+    apply no_Krun_stable. intros ? [? ?]; congruence.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). unfold JSem; rewrite Hthread.
-    congruence.
+    intros ? [? ?]; congruence.
 Admitted.

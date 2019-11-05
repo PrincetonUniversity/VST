@@ -100,46 +100,45 @@ Proof.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
   assert (D: (forall i j, containsThread tp i -> containsThread tp j -> i <> j -> 1 < pos.n tp.(num_threads))%nat).
   { clear. intros; eapply (different_threads_means_several_threads i j); eauto. }
-  assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC _ _ _ j tp cntj <> @Krun _ q).
+  assert (forall j cntj q, containsThread tp i -> i <> j -> 
+                ~ (@getThreadC _ _ _ j tp cntj = @Krun _ q /\ cl_halted q = None)).
   { intros j cntj q cnti ne E. autospec uniq. specialize (uniq j cntj q E). breakhyps. }
 
   inversion step; try tauto.
   all: try inversion Htstep; repeat match goal with H : ?x = ?y |- _ => subst x || subst y end.
   all: intros j cnti q.
   all: assert (tid = i) by (simpl in *; congruence); subst tid.
-  all: destruct (eq_dec i j).
-  all: try subst j.
-
+  all: destruct (eq_dec i j); [ subst j |].
   all: try (assert (cnti = Htid) by apply proof_irr; subst Htid).
   all: try (assert (ctn = cnti) by apply proof_irr; subst cnt).
 
   all: try (unshelve erewrite <-gtc_age; eauto).
   all: try (unshelve erewrite gLockSetCode; eauto).
   all: try (unshelve erewrite gRemLockSetCode; eauto).
-  all: try (rewrite gssThreadCode; congruence).
-  all: try (rewrite gssThreadCC; congruence).
-  all: try (unshelve erewrite gsoThreadCode; eauto).
-  all: try (unshelve erewrite <-gsoThreadCC; eauto).
+  all: try (rewrite gssThreadCode; intros [? ?]; congruence).
+  all: try (rewrite gssThreadCC; intros [? ?]; congruence).
+  all: try (unshelve erewrite gsoThreadCode by auto; eauto).
+  all: try (unshelve erewrite <-gsoThreadCC by auto; eauto).
 
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
   destruct (@cntAdd' _ _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
-  rewrite gssThreadCode; congruence.
-  rewrite gssAddCode. congruence. apply Ei.
+  rewrite gssThreadCode; intros [? ?]; congruence.
+  rewrite gssAddCode. intros [? ?]; congruence. apply Ei.
 
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
   destruct (@cntAdd' _ _ _ _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
-  rewrite gssAddCode. congruence. apply Ei.
+  rewrite gssAddCode. intros [? ?]; congruence. apply Ei.
 
-  all: try congruence.
+  all: try (intros [? ?]; congruence).
   all: eauto.
 
-(*  inversion Hhalted.
-  inversion Hcant.*)
+  destruct Htid as [? | [?cnt [?c [? ?]]]]; try contradiction. proof_irr.
+  intros [? ?]; congruence.
 
   intros E.
   hnf in uniq.

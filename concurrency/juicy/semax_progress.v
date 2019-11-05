@@ -269,12 +269,7 @@ Section Progress.
         eexists. constructor. 
         apply JuicyMachine.schedfail with i.
         + reflexivity.
-        + right. intros.
-            assert (cnt=cnti). apply proof_irr. subst cnt.
-            assert (c=ci) by admit.
-            subst c.
-            split; auto.
-            admit.
+        + right. intros. exists cnti, ci. split; auto. intro Hx; congruence. 
         + constructor.
         + eexists; eauto.
         + reflexivity.

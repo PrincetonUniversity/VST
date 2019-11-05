@@ -1394,7 +1394,13 @@ reflexivity.
     { simpl; rewrite <- H5.
       eapply schedfail; eauto; simpl.
       - inv H0.
-        intro; contradiction Htid; apply mtch_cnt'; auto.
+        destruct Htid as [Htid | [?cnt [?c [? ?]]]];
+         [left; intro; contradiction Htid; apply mtch_cnt'; auto | right ].
+         specialize (mtch_gtc _ cnt (mtch_cnt _ cnt)).
+         exists (mtch_cnt _ cnt). rewrite H in mtch_gtc. inv mtch_gtc. exists c'; split; auto.
+         destruct c'; simpl in H0; try contradiction. destruct k; try contradiction.
+         assert (res = Vint Int.zero) by admit. 
+         subst res. constructor.
       - eapply MTCH_invariant; eauto.
       - eapply MTCH_compat; eauto. }
     { intro; eapply IHn; auto.
@@ -1420,7 +1426,7 @@ reflexivity.
   + eapply mem_compatible_updThreadC, MTCH_compat; eauto.*)
   + erewrite <- mtch_gtr2; eauto.
   + erewrite <- mtch_gtr2; eauto.
-Qed.
+Admitted.
 
 
 Definition init_threadpool := 
@@ -1581,6 +1587,8 @@ Proof.
     + inv Htstep; simpl in *; inversion Hcode.
     + eapply AngelSafe; simpl; eauto.
       eapply schedfail; simpl; eauto.
+      * destruct Htid as [? | [?cnt [?c [? ?]]]] ; [left|right]; auto.
+         inv H. inv H0.
       * admit. (*initial state satisfies invarian*)
       * admit. (*initial state is mem compatible*)
   - (* regular step. *)
