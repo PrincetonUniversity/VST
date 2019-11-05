@@ -86,7 +86,7 @@ Lemma thread_inv_exclusive : forall sh g1 g2 ctr lock lockt,
 Proof.
   intros; apply selflock_exclusive.
   unfold thread_lock_R.
-  apply exclusive_sepcon1; auto.
+  apply exclusive_sepcon1; auto; try apply lock_inv_exclusive.
 Qed.
 Hint Resolve thread_inv_exclusive.
 
