@@ -346,7 +346,11 @@ Section Progress.
 
     (* thread[i] is in Kblocked *)
     {
-      destruct (cl_halted ci) eqn:?Halted. admit.
+(*      destruct (cl_halted ci) eqn:?Halted. {
+        (* halted *)
+          
+      }
+*)
       destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex. 
 
       (* goes to Kresume ci' according to the rules of syncStep  *)
@@ -1458,7 +1462,6 @@ Section Progress.
 
     (* thread[i] is in Kresume *)
     {
-      destruct (cl_halted ci) eqn:?Halted. admit.
       destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex. 
       2:{
       (* goes to Krun ci' with after_ex ci = ci'  *)
@@ -1521,13 +1524,17 @@ Section Progress.
           * simpl; reflexivity.
           * split; [|split3]; eauto.
             repeat constructor; auto.
-            admit.  (* need to add these to state_invariant? *)
+            clear - mwellformed.
+            destruct mwellformed; split.
+            red. simpl. auto.
+            red. simpl. unfold install_perm.
+            apply maxedmem_neutral'. auto.
           * reflexivity.
           * reflexivity.
     }
     (* end of Kinit *)
     Unshelve.
      eexists; eauto.
-Admitted. (* Theorem progress *)
+Qed. (* Theorem progress *)
 
 End Progress.

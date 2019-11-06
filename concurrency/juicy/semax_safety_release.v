@@ -309,8 +309,7 @@ Proof.
   
   + (* mem_wellformed *)
     clear - mwellformed Hstore.
-    apply store_access in Hstore.
-    admit.  (* Santiago *)
+    eapply mem_wellformed_store; try eassumption. constructor.
   + (* external coherence *)
     rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
@@ -638,4 +637,4 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). unfold JSem; rewrite Hthread.
     intros ? [? ?]; congruence.
-Admitted.
+Qed.

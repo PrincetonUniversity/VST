@@ -527,10 +527,7 @@ Proof.
     apply env_coherence_pures_eq with Phi; auto. omega.
     apply pures_same_pures_eq. auto.
     eapply rmap_makelock_pures_same; eauto.
-  - clear -Hstore mwellformed.
-     unfold personal_mem in Hstore; simpl in Hstore.
-     unfold juicyRestrict in Hstore; simpl in Hstore.
-     admit.  (* Santiago *)
+  - eapply mem_wellformed_store in Hstore; try eassumption. constructor.
   - rewrite age_to_ghost_of.
     destruct Hrmap' as (? & ? & ? & <-).
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
@@ -862,4 +859,7 @@ Proof.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     intros ? [? ?]. congruence.
-Admitted.
+ - subst.
+    elimtype False; clear - atex bad.
+    destruct ci; simpl in *; congruence.
+Qed.

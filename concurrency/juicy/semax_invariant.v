@@ -916,3 +916,39 @@ Tactic Notation "specialize" hyp(H) "_" "_" "_" "_" constr(t) :=
 
 Tactic Notation "specialize" hyp(H) "_" "_" "_" "_" "_" constr(t) :=
   forall_bringvar 6 H; specialize (H t).
+
+
+Lemma mem_wellformed_store:
+  forall  (ge: genv) (m : mem) (b : block) (z: Z) (m' : mem) (v: val)
+   (pm : access_map)
+   (Hm: @mem_wellformed ge m)
+   (Hlt' : permMapLt pm (getMaxPerm m))
+   (Hstore : Mem.store Mint32 (restrPermMap Hlt') b z v = Some m')
+   (H : val_inject (Mem.flat_inj (Mem.nextblock m)) v v),
+   (@mem_wellformed ge m').
+Proof.
+intros.
+destruct Hm.
+pose proof (Mem.nextblock_store _ _ _ _ _ _ Hstore).
+simpl in H2.
+split.
+2: rewrite H2; auto.
+rewrite H2.
+Admitted.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
