@@ -666,13 +666,98 @@ Qed.
 End GE.
 
 Lemma inline_external_call_mem_wd:
-  forall (ge: genv) ef vargs m t vres m',
-  Events.external_call ef ge vargs m t vres m' ->
+  forall (ge: genv) ef vargs m vres m',
+  Events.external_call ef ge vargs m Events.E0 vres m' ->
   AST.ef_inline ef = true ->
   Forall (val_ok (Mem.nextblock m)) vargs ->
   Smallstep.globals_not_fresh ge m ->
   mem_wd2 m ->
   mem_wd2 m' /\ val_ok (Mem.nextblock m') vres /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
+Proof.
+intros.
+destruct ef; try solve [inv H0].
+hnf in H.
+assert (EFP := (Events.external_functions_properties name sg)).
+pose proof (Events.ec_mem_inject' EFP).
+specialize (H4 (Genv.to_senv ge)  (Genv.to_senv ge)
+   vargs m Events.E0 vres m' (Mem.flat_inj (Mem.nextblock m))
+   m vargs).
+spec H4. {
+ split; [|split3]; auto.
+ intros.
+ apply mem_lemmas.flatinj_E in H5.
+  destruct H5 as [? [? ?]]; split; subst; auto.
+ intros.
+ exists b1; split; auto.
+ unfold Mem.flat_inj. rewrite if_true; auto.
+ clear - H2 H6.
+ admit.  (* looks OK *)
+ intros.
+ apply mem_lemmas.flatinj_E in H5.
+  destruct H5 as [? [? ?]]; subst; auto.
+}
+ specialize (H4 H).
+ spec H4. {
+   clear - H3.
+  admit.  (* needs work *)
+ }
+ spec H4. {
+   clear - H1. 
+ admit.  (* looks OK *)
+}
+ destruct H4 as [f' [vres' [m2' [t' [? [? [? [? [? [? [? ?]]]]]]]]]]].
+ assert (m2'=m'). {
+   inv H11.
+  eapply (Events.ec_determ EFP (Genv.to_senv ge) ); eauto.
+}
+ subst m2'.
+ assert (Mem.inject (Mem.flat_inj (Mem.nextblock m')) m' m'). {
+ clear - H6.
+ admit. (* Santiago conjectures... *)
+}
+ split3; auto.
+ clear - H12; admit.
+{
+ clear - H5 H6. hnf. destruct vres; auto. red.
+  pose proof (Mem.mi_freeblocks _ _ _ H6 b).
+  unfold Mem.valid_block in H.
+  destruct (plt b (Mem.nextblock m')); auto.
+  apply H in n.
+  inv H5. congruence.
+}
+ eapply (Events.ec_valid_block EFP) with (b:=Pos.pred (Mem.nextblock m)) in H.
+ clear - H.
+ red in H. unfold Plt in H. admit.
+ clear. red. admit.
+-
+inv H. inv H4.
+split3; auto.
+admit.  (* OK *)
+apply Ple_refl.
+-
+inv H.
+inv H4.
+inv H1. inv H8. inv H9.
+split3.
+eapply mem_wd2_store in H5; eauto.
+constructor.
+apply Mem.nextblock_store in H5. rewrite H5.
+apply Ple_refl.
+-
+admit.  (* factor out extcall_properties from the first case above,
+   and then use extcall_memcpy_ok *)
+-
+inv H.
+-
+inv H.
+-
+admit.  (* factor out extcall_properties from the first case above,
+   and then use inline_assembly_properties *)
+-
+inv H.
+split3; auto.
+constructor.
+apply Ple_refl.
 Admitted.
 
 Lemma cl_step_ok:
