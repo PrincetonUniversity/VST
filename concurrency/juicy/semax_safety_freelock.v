@@ -813,7 +813,7 @@ Proof.
       rewrite gssThreadCode.
       replace lj with cnti in wellformed by apply proof_irr.
       simpl in wellformed; rewrite Eci in wellformed.
-      destruct ci; auto.
+      destruct wellformed; split3; auto.
     + unshelve erewrite gsoThreadCode; auto.
 
   - (* unique_Krun *)

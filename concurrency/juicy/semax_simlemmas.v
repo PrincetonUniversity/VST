@@ -860,7 +860,7 @@ Lemma state_inv_upd1 : forall {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat)
         forall ora, jsafeN Jspec ge n ora k
           (personal_mem (mem_cohere'_res _ _ _ (compatible_threadRes_cohere cnti (mem_compatible_forget mcompat)) Hr))) /\
        forall j (cntj : containsThread tp j), j <> i -> thread_safety Jspec m ge tp PHI mcompat n j cntj)
-      (wellformed : threads_wellformed tp)
+      (wellformed : threads_wellformed (Mem.nextblock m) tp)
       (uniqkrun :  unique_Krun tp sch),
   state_bupd (state_invariant Jspec Gamma n) (m, (tr, sch, tp)).
 Proof.

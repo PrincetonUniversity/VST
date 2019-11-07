@@ -655,9 +655,18 @@ simpl.
   - (* wellformed *)
     intros j cntj.
     destruct (eq_dec j tp.(num_threads).(pos.n)); [ | destruct (eq_dec i j)].
-    + subst j. REWR. rewrite gssAddCode. 2:reflexivity. constructor.
+    + subst j. REWR. rewrite gssAddCode. 2:reflexivity.
+        clear - atex Hinj wellformed Eci.
+        specialize (wellformed _ cnti). rewrite Eci in  wellformed.
+        destruct wellformed. destruct ci; inv atex. destruct f; inv H2.
+        destruct (ef_inline e); inv H3.
+        split. clear - H.
+        admit.  (* OK *)
+        clear - Hinj. apply Hinj. 
     + subst j. REWR. REWR. REWR.
-       unfold cl_at_external; simpl. split; congruence.
+       unfold cl_at_external; simpl. split3; try congruence.
+       clear - Eci wellformed. 
+        specialize (wellformed _ cnti). rewrite Eci in  wellformed. apply wellformed.
     + assert (cntj' : containsThread tp j).
       { apply cnt_age, cntAdd' in cntj. destruct cntj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
       REWR. REWR. REWR. apply wellformed.

@@ -293,7 +293,7 @@ Lemma invariant_thread_step
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec m tp Phi compat (S n))
-  (wellformed : threads_wellformed tp)
+  (wellformed : threads_wellformed (Mem.nextblock m) tp)
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ci (jm_ cnti compat) ci' jmi')
@@ -611,8 +611,9 @@ Proof.
     eapply env_coherence_resource_decay with _ Phi; eauto. setoid_rewrite En''; omega.
   - destruct stepi as [? _].
      forget (m_dry jmi') as m'. 
-    clear - mwellformed H. simpl in H.
-     admit.   (* Santiago ... use memsem *)
+     specialize (wellformed _ cnti). rewrite Eci in wellformed.
+     eapply cl_step_wellformed in H; eauto.
+     destruct H; auto.
   - rewrite G.
     destruct extcompat as [? Je]; eapply ghost_fmap_join in Je; eexists; eauto.
 
@@ -858,10 +859,30 @@ Proof.
     unfold tp'', tp'.
     destruct (eq_dec i j) as [ <- | ij].
     + unshelve erewrite gssThreadCode; auto.
+        clear - mwellformed wellformed Eci stepi.
+        specialize (wellformed _ cnti). rewrite Eci in wellformed.
+        destruct stepi as [?H _].
+        clear - mwellformed wellformed H.
+        simpl in H. forget (thread_mem_compatible (mem_compatible_forget compat) cnti) as a.
+        unfold juicyRestrict in H.
+       eapply cl_step_wellformed; eauto.
     + unshelve erewrite gsoThreadCode; auto.
-      specialize (wellformed j). clear -wellformed.
-      assert_specialize wellformed by (destruct tp; auto).
-      unshelve erewrite <-gtc_age; auto.
+      assert (cntj1: containsThread tp j). {
+        clear - cntj. subst tp'' tp'.
+        hnf in cntj|-*. simpl in cntj.
+         destruct tp; simpl in *. auto.
+      }
+      specialize (wellformed j cntj1).
+      erewrite <- gtc_age. instantiate (1:=cntj1).
+      destruct (getThreadC j tp cntj1); auto.
+      clear -wellformed ij stepi.
+      destruct stepi as [? _]. hnf in H.
+      assert (Ple (Mem.nextblock m) (Mem.nextblock (m_dry jmi'))). {
+          clear - H.
+           admit.  (* OK *)
+      }
+      clear - H0 wellformed. 
+      admit. (* OK *)
 
   - (* uniqueness *)
     intros notalone j cntj q [Ecj Ecj'].

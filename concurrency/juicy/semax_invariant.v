@@ -288,13 +288,19 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
       jsafe_phi ge n ora q_new (getThreadR cnti)
     end.
 
-Definition threads_wellformed (tp : jstate ge) :=
+Definition val_wellformed (nextb: block)  (v: val) : Prop :=
+   Val.inject (Mem.flat_inj nextb) v v.
+
+Definition core_wellformed (nextb: block) (q:  Clight_core.CC_core) : Prop :=
+  Logic.True.  (* fill this in later *)
+
+Definition threads_wellformed (nextb: block) (tp : jstate ge) :=
   forall i (cnti : containsThread tp i),
     match getThreadC cnti with
-    | Krun q => Logic.True
-    | Kblocked q => veric.Clight_core.cl_at_external q <> None
-    | Kresume q v => veric.Clight_core.cl_at_external q <> None /\ v = Vundef
-    | Kinit _ _ => Logic.True
+    | Krun q => core_wellformed nextb q
+    | Kblocked q => core_wellformed nextb q /\ veric.Clight_core.cl_at_external q <> None
+    | Kresume q v => core_wellformed nextb q /\ veric.Clight_core.cl_at_external q <> None /\ v = Vundef
+    | Kinit v1 v2 => val_wellformed nextb v1 /\ val_wellformed nextb v2
     end.
 
 (* Havent' move this, but it's already defined in the concurrent_machien...
@@ -487,51 +493,41 @@ Definition mem_wellformed (m: mem) :=
  Mem.inject_neutral (Mem.nextblock m) (maxedmem m) /\
   Ple (Genv.genv_next ge) (Mem.nextblock m).
 
+Lemma access_at_restr_Cur: 
+ forall loc p m Hlt, access_at (@restrPermMap p m Hlt) loc Cur =  p !! (fst loc) (snd loc).
+Proof.
+intros.
+destruct loc.
+rewrite <- restrPermMap_Cur with (m:=m) (Hlt:=Hlt).
+reflexivity.
+Qed.
+
+Lemma access_at_restr_Max: 
+ forall loc p m Hlt, access_at (@restrPermMap p m Hlt) loc Max =  access_at m loc Max.
+Proof.
+intros.
+destruct loc.
+simpl.
+change (permission_at (restrPermMap Hlt) b z Max = permission_at m b z Max).
+rewrite restrPermMap_Max.
+unfold getMaxPerm.
+rewrite PMap.gmap.
+reflexivity.
+Qed.
 
 Lemma access_at_maxedmem: 
- forall m loc, access_at (maxedmem m) loc Cur =  access_at m loc Max.
+ forall k m loc, access_at (maxedmem m) loc k =  access_at m loc Max.
 Proof.
 intros.
 destruct loc.
 unfold maxedmem.
-pose proof (mem_equiv.getCur_restr (getMaxPerm m) m (mem_max_lt_max m)).
-specialize (H b).
-apply equal_f with z in H.
-rewrite getCurPerm_correct in H.
-unfold permission_at in H.
-unfold access_at.
-simpl fst; simpl snd.
-rewrite H.
-rewrite getMaxPerm_correct.
-auto.
+destruct k.
+apply access_at_restr_Max.
+rewrite access_at_restr_Cur.
+unfold getMaxPerm.
+rewrite PMap.gmap.
+reflexivity.
 Qed.
-
-(*
-Lemma access_at_maxedmem': 
- forall m loc, access_at (maxedmem m) loc Cur =  access_at (maxedmem m) loc Max.
-Proof.
-intros.
-destruct loc.
-unfold maxedmem.
-pose proof (mem_equiv.restr_Max_equiv (mem_max_lt_max m)).
-specialize (H b).
-apply (equal_f ) with z in H.
-rewrite !getMaxPerm_correct in H.
-unfold permission_at in H.
-unfold access_at.
-simpl fst; simpl snd.
-rewrite H.
-clear H.
-pose proof (mem_equiv.getCur_restr (getMaxPerm m) m (mem_max_lt_max m)).
-specialize (H b).
-apply equal_f with z in H.
-rewrite getCurPerm_correct in H.
-unfold permission_at in H.
-rewrite H.
-rewrite getMaxPerm_correct.
-auto.
-Qed.
-*)
 
 Lemma maxedmem_neutral':
  forall m y x, 
@@ -565,7 +561,7 @@ rewrite perm_access in H0.
 rewrite perm_access.
 eapply perm_order''_trans; try eassumption.
 clear H0.
-rewrite access_at_maxedmem.
+rewrite (access_at_maxedmem Cur).
 replace (access_at m (b1,ofs) Max)
  with (access_at (juicyRestrict x) (b1,ofs) Max).
 apply access_cur_max.
@@ -620,7 +616,7 @@ rewrite getCurPerm_correct.
 rewrite getMaxPerm_correct.
 unfold permission_at.
 symmetry.
-pose proof (access_at_maxedmem m (b,z)).
+pose proof (access_at_maxedmem Cur m (b,z)).
 unfold access_at in H.
 simpl fst in H; simpl snd in H.
 rewrite H.
@@ -650,7 +646,7 @@ Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety m tp PHI mcompat n)
-      (wellformed : threads_wellformed tp)
+      (wellformed : threads_wellformed (Mem.nextblock m) tp)
       (uniqkrun :  unique_Krun tp sch)
     : state_invariant Gamma n (m, (tr, sch, tp)).
 
@@ -741,7 +737,7 @@ Lemma state_inv_upd : forall Gamma (n : nat)
         exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
         joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
         threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
-      (wellformed : threads_wellformed tp)
+      (wellformed : threads_wellformed (Mem.nextblock m) tp)
       (uniqkrun :  unique_Krun tp sch),
   state_bupd (state_invariant Gamma n) (m, (tr, sch, tp)).
 Proof.
@@ -917,6 +913,71 @@ Tactic Notation "specialize" hyp(H) "_" "_" "_" "_" constr(t) :=
 Tactic Notation "specialize" hyp(H) "_" "_" "_" "_" "_" constr(t) :=
   forall_bringvar 6 H; specialize (H t).
 
+Import mem_equiv.
+
+Lemma mem_store_maxedmem:
+  forall {m : mem} {b : block} {z : Z} {m' : mem} {v : val} {pm : access_map}
+  {Hlt' : permMapLt pm (getMaxPerm m)},
+  Mem.store Mint32 (restrPermMap Hlt') b z v = Some m' ->
+exists m'' : mem,
+  Mem.store Mint32 (maxedmem m) b z v = Some m'' /\
+  mem_equiv m'' (maxedmem m').
+Proof.
+intros *. intros Hstore.
+destruct (Mem.valid_access_store (maxedmem m) Mint32 b z v) as [m'' ?H].
+pose proof (Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
+clear - H.  {
+ destruct H; split; auto. 
+ hnf; intros. apply H in H1.
+ rewrite perm_access in H1|-*.
+ eapply po_trans; try eassumption.
+ clear.
+ pose proof (Hlt' b ofs).
+ unfold maxedmem.
+ unfold getMaxPerm in H. rewrite PMap.gmap in H.
+ change ((Mem.mem_access m) !! b ofs Max)
+  with (access_at m (b,ofs) Max) in H.
+ rewrite !access_at_restr_Cur.
+ simpl fst; simpl snd. 
+ unfold getMaxPerm. rewrite PMap.gmap. auto.
+}
+exists m''; split; auto.
+apply Build_mem_equiv.
+-
+red.
+unfold maxedmem; rewrite getCur_restr.
+apply store_cur_eq in H.
+rewrite <- H.
+apply store_max_eq in Hstore.
+rewrite <- Hstore.
+unfold maxedmem; rewrite getCur_restr.
+rewrite getMax_restr. reflexivity.
+-
+apply store_max_eq in H.
+red. unfold maxedmem. rewrite getMax_restr.
+apply store_max_eq in Hstore.
+rewrite <- Hstore.
+rewrite getMax_restr.
+rewrite <- H.
+unfold maxedmem. rewrite getMax_restr.
+reflexivity.
+-
+unfold maxedmem in *.
+rewrite restr_content_equiv.
+hnf; intros.
+apply Mem.store_mem_contents in Hstore.
+apply Mem.store_mem_contents in H.
+rewrite Hstore, H.
+simpl.
+auto.
+-
+simpl.
+apply Mem.nextblock_store in Hstore.
+apply Mem.nextblock_store in H.
+rewrite Hstore, H.
+simpl.
+auto.
+Qed.
 
 Lemma mem_wellformed_store:
   forall  (ge: genv) (m : mem) (b : block) (z: Z) (m' : mem) (v: val)
@@ -934,12 +995,43 @@ simpl in H2.
 split.
 2: rewrite H2; auto.
 rewrite H2.
+destruct (mem_store_maxedmem Hstore) as [m'' [? Heq]].
+ eapply Mem.store_inject_neutral in H3; eauto.
+ clear - Heq H3.
+ red in H3|-*.
+ unfold maxedmem in *.
+rewrite Heq in H3.
+auto.
+ clear - H3.
+ apply Mem.store_valid_access_3 in H3.
+ destruct H3 as [? _].
+ specialize (H z).
+ spec H. simpl. omega.
+ rewrite perm_access in H.
+ rewrite access_at_maxedmem in H.
+ pose proof (nextblock_access_empty m b z Max).
+ destruct (plt b (Mem.nextblock m)); auto.
+ unfold block in *; rewrite H0 in H.
+ inv H.
+ apply n.
+Qed.
+
+Lemma cl_step_wellformed:
+  forall ge m c pm Hlt c' m',
+      @mem_wellformed ge m ->
+      core_wellformed (Mem.nextblock m) c ->
+      Clight_core.cl_step ge c (@restrPermMap pm m Hlt) c' m' ->
+      @mem_wellformed ge m' /\ 
+      core_wellformed (Mem.nextblock m') c'.
+Admitted.  (* Santiago will prove this, generically over all injections not just flat ones *)
+
+Lemma initial_core_wellformed:
+  forall ge v args c m,
+     Clight_core.cl_initial_core ge v args c ->
+     Clight_core.arg_well_formed args m ->
+     Smallstep.globals_not_fresh ge m ->
+     core_wellformed (Mem.nextblock m) c.
 Admitted.
-
-
-
-
-
 
 
 

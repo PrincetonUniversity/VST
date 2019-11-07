@@ -626,8 +626,12 @@ Proof.
       rewrite gssThreadCode.
       replace lj with cnti in wellformed by apply proof_irr.
       unfold JSem in *; rewrite Hthread in wellformed.
-      auto.
+      destruct wellformed; split3; auto.
     * unshelve erewrite gsoThreadCode; auto.
+       destruct (getThreadC j tp lj) eqn:?H; auto.
+       clear - wellformed Hstore.
+       apply Mem.nextblock_store in Hstore. simpl in Hstore.
+       rewrite Hstore; auto.
 
   + (* uniqueness *)
     apply no_Krun_unique_Krun.

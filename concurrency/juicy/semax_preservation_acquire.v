@@ -146,7 +146,7 @@ Lemma preservation_acquire
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m tp Phi compat (S n))
-  (wellformed : threads_wellformed tp)
+  (wellformed : threads_wellformed (Mem.nextblock m) tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei cnti : containsThread tp i)
   (ci : semC)
@@ -325,7 +325,7 @@ Proof.
     apply env_coherence_age_to. auto.
   + inv INV. clear -mwellformed Hstore.
       simpl in Hlt'.
-      admit. (* Santiago *)
+      eapply mem_wellformed_store; eauto.
   + rewrite age_to_ghost_of.
     destruct extcompat as [? J]; eapply ghost_fmap_join in J; eexists; eauto.
 
@@ -747,9 +747,13 @@ Opaque age_tp_to.
       REWR.
       replace lj with cnti in wellformed by apply proof_irr.
       rewrite Hthread in wellformed.
-      auto.
+      destruct wellformed.
+      split3; auto.
     * REWR.
-
+       destruct (getThreadC j tp lj) eqn:?H; auto.
+       clear - wellformed Hstore.
+       apply Mem.nextblock_store in Hstore. simpl in Hstore.
+       rewrite Hstore; auto.
   + (* uniqueness *)
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.
@@ -759,4 +763,4 @@ Opaque age_tp_to.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewrite Hthread.
     intros. intros [Hx ?]. inv Hx.
-Admitted. (* preservation_acquire *)
+Qed.

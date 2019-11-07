@@ -848,9 +848,14 @@ Proof.
       rewrite gssThreadCode.
       replace lj with cnti in wellformed by apply proof_irr.
       rewr (getThreadC i tp cnti) in wellformed.
-      auto.
+      destruct wellformed; split3; auto.
     + unshelve erewrite gsoThreadCode; auto.
-
+      erewrite <- gtc_age. instantiate (1:=lj).
+      apply Mem.nextblock_store in Hstore. simpl in Hstore. 
+      clear - wellformed lj Hstore.
+      erewrite gLockSetCode. instantiate (1:=lj).
+      rewrite Hstore.
+      destruct (getThreadC j tp lj); auto.
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
     apply no_Krun_stable. intros ? [Hx _]; inv Hx. 

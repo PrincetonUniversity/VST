@@ -1029,7 +1029,7 @@ Section Preservation.
   (sparse : @lock_sparsity lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ m tp Phi compat (S n))
-  (wellformed : threads_wellformed tp)
+  (wellformed : threads_wellformed (Mem.nextblock m) tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
   (cnti : containsThread tp i)
@@ -1082,7 +1082,8 @@ Section Preservation.
           destruct (thread_mem_compatible Hcmpt cnti). simpl.
           destruct mwellformed. split; auto.
           clear - H.
-          admit. (* Santiago *)
+          unfold juicyRestrict. unfold maxedmem.
+          hnf in H|-*. rewrite mem_equiv_restr_max. auto.
       - intro; simpl.
         pose proof (lock_coh loc) as lock_coh'.
         destruct (AMap.find _ _) eqn: Hloc; auto.
@@ -1137,7 +1138,11 @@ Section Preservation.
             apply flat_inj_incr. apply Pos.le_refl. }
       - intros j cntj.
         destruct (eq_dec i j) as [<-|ne]; REWR.
-        specialize (wellformed j cntj). auto.
+        eapply initial_core_wellformed; eauto.
+        specialize (wellformed j cntj).
+        destruct (getThreadC j tp cntj); auto.
+        clear - wellformed Hperm.
+        hnf in Hperm. subst. simpl. auto.
       - intros more j cntj q.
         destruct (eq_dec i j) as [<-|ne]; REWR.
         + simpl; eauto.
@@ -1170,7 +1175,7 @@ Section Preservation.
   simpl in *.
   change  (ClightSemanticsForMachines.Clight_newSem ge)
       with (@JSem ge) in H. congruence.
-Admitted. (* Lemma preservation_Kinit *)
+Qed. (* Lemma preservation_Kinit *)
 
   (* We prove preservation for most states of the machine, including
   Kblocked at acquire, but preservation does not hold for
@@ -1489,7 +1494,11 @@ Admitted. (* Lemma preservation_Kinit *)
             * subst i0.
               unfold tp'.
               rewrite gssThreadCC.
-              simpl.
+              split.
+              clear - wellformed Eci. specialize (wellformed _ cnti).
+              fold (@JSem ge) in Eci.
+              rewrite Eci in wellformed.
+              auto.
               congruence.
             * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp'.
@@ -1500,7 +1509,7 @@ Admitted. (* Lemma preservation_Kinit *)
               -- constructor.
               -- apply wellformed.
               -- apply wellformed.
-              -- constructor.
+              -- auto.
 
           + (* uniqueness *)
             intros notalone i0 cnti0' q Eci0.
@@ -1710,7 +1719,7 @@ Admitted. (* Lemma preservation_Kinit *)
           -- constructor.
           -- apply wellformed.
           -- apply wellformed.
-          -- constructor.
+          -- auto.
 
       + (* uniqueness *)
         intros notalone i0 cnti0' q Eci0.
