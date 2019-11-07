@@ -240,6 +240,8 @@ Section SelfSimulation.
         Some (func_name, Vptr b2 (add ofs (repr delt)) :: nil)
       ; ssim_preserves_atx:
           self_preserves_atx_inj Sem (match_self code_inject)
+      ; ssim_visible_atx:
+          atx_only_visible Sem (match_self code_inject)
     }. 
 
  

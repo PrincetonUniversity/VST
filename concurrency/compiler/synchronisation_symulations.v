@@ -323,22 +323,156 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         all: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
       Qed.
 
+
+      (*Move the asm lemmas somewhere else?*)
       Lemma asm_step_determ:
-        forall g_env s1 lev s2 s2',
-          Asm.step g_env s1 lev s2 -> 
-          Asm.step g_env s1 lev s2' ->
+        forall p s1 lev s2 s2',
+          Asm.step (Genv.globalenv p) s1 lev s2 -> 
+          Asm.step (Genv.globalenv p) s1 lev s2' ->
           s2 = s2'.
-      Admitted.
-      
+      Proof.
+        intros.
+        exploit Smallstep.sd_determ;
+          try eapply Asm.semantics_determinate.
+        3:{ intros (?&?); eapply H2; reflexivity. }
+        all: simpl; eassumption.
+      Qed.
+
+(* Definition reflexive_up2_meminj {A} (R: meminj -> A -> A -> Prop):=
+        forall c, exists b, R (Mem.flat_inj b) c c.
+      (*Add this to self simulation*)
+      Lemma code_inject_reflexive_up2_meminj:
+        forall C (sem: semantics.CoreSemantics C mem)
+        (self_inj:self_simulation _ sem),
+          reflexive_up2_meminj (code_inject _ _ self_inj).
+      Proof.
+      Admi tted.*)
+
+      (*This should be parameters of the result.*)
+  Definition atx_only_visible {s} (Sem:semantics.CoreSemantics s mem):=
+    forall c m m' f_and_args,
+            same_visible m m' ->
+            semantics.at_external Sem c m = Some f_and_args ->
+            semantics.at_external Sem c m' = Some f_and_args.
+  Lemma atx_only_visible_Clight:
+    atx_only_visible (Clightcore_coop.cl_core_sem Clight_g).
+  Proof.
+    intros ?* . simpl. unfold Clight.at_external.
+    destruct c; simpl; intros; congruence.
+  Qed.
+
+  
+  Instance range_perm_visible:
+    Proper (same_visible ==> Logic.eq ==> Logic.eq ==> Logic.eq ==>
+                         trieq Cur ==> Logic.eq ==> iff)
+           Mem.range_perm.
+  Proof.
+    unfold Mem.range_perm.
+    setoid_help.proper_iff; setoid_help.proper_intros; subst.
+    inv H3; eapply H; auto.
+  Qed.
+  Instance valid_acccess_visible:
+    Proper (same_visible ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> iff)
+           Mem.valid_access.
+  Proof.
+    unfold Mem.valid_access.
+    setoid_help.proper_iff;
+    setoid_help.proper_intros; subst.
+    unfold Mem.valid_access in *.
+    rewrite <- H; auto.
+  Qed.
+  Lemma same_visible_range:
+    forall m1 m2,
+      (forall (b : block) (ofs : Z),
+          Mem.perm m1 b ofs Cur Readable ->
+          ZMap.get ofs (Mem.mem_contents m1) !! b =
+          ZMap.get ofs (Mem.mem_contents m2) !! b) ->
+      forall ofs b x, 
+        Mem.range_perm m1 b ofs (ofs + x) Cur Readable ->
+        Mem.getN (Z.to_nat x) ofs (Mem.mem_contents m1) !! b =
+        Mem.getN (Z.to_nat x) ofs (Mem.mem_contents m2) !! b.
+  Proof.
+  Admitted.
+  Instance load_Proper_visible:
+    Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq  ==> Logic.eq) Mem.load.
+  Proof.
+    setoid_help.proper_intros; subst.
+    Transparent Mem.load.
+    unfold Mem.load.
+    do 2 match_case;
+    try match goal with
+          [H: ~ _ |- _ ]=>
+          exfalso; apply H;
+            first [ rewrite <- H0| rewrite H0]; auto
+        end.
+    do 2 f_equal.
+    unfold Mem.valid_access in *.
+    destruct v, v0.
+    unfold size_chunk_nat.
+    eapply same_visible_range; eauto.
+    eapply H0.
+  Qed.
+
+Instance loadv_visible:
+  Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq) Mem.loadv.
+Proof.
+  setoid_help.proper_intros; subst.
+  destruct y1; simpl; auto.
+  rewrite H0; reflexivity.
+Qed.
+    
+Instance Asm_get_extcall_arg_visible:
+  Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq)
+         Asm.get_extcall_arg.
+Proof.
+  intros ??? ??? ???; subst.
+  destruct y1; auto.
+  destruct sl; auto. simpl.
+  rewrite H0; auto.
+Qed.
+
+Instance Asm_get_extcall_arguments_visible:
+  Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq)
+         Asm.get_extcall_arguments.
+Proof.
+  intros ??? ??? ???; subst.
+  induction y1; auto.
+  destruct a; simpl.
+  rewrite IHy1. try rewrite H0; reflexivity.
+  rewrite IHy1; repeat rewrite H0.
+  destruct (Asm.get_extcall_arg y y0 rhi); auto.
+  rewrite H0; reflexivity.
+Qed.
+  Lemma atx_only_visible_Asm:
+    atx_only_visible (Asm_core.Asm_core_sem Asm_g).
+  Proof.
+    intros ?* . simpl. unfold Asm.at_external; simpl.
+    destruct c; simpl.
+    intros. repeat match_case in H0. inv H0.
+    rewrite <- H, Heqo0; auto.
+  Qed.
+    
+  
       (* this lemma should be included in the self simulation. *)
-      Lemma same_visible_at_external:
+  (*Doesn't seem to be used *)
+  
+  (*Lemma same_visible_at_external:
         forall C (sem: semantics.CoreSemantics C mem), 
           self_simulation _ sem ->
           forall c m m' f_and_args,
             same_visible m m' ->
             semantics.at_external sem c m = Some f_and_args ->
             semantics.at_external sem c m' = Some f_and_args.
-      Admitted.
+      Proof.
+        intros; destruct f_and_args.
+        (*pose proof (code_inject_reflexive_up2_meminj C sem X c)
+              as (?&?); eauto. *)
+        exploit ssim_preserves_atx; try apply H0.
+        - econstructor; simpl; eauto.
+            admit.
+          + admit. (* maybe provable. *)
+        - intros (?&?&?); eauto.
+      Admitted.*)
       Lemma Asm_step_consecutive:
         forall ge st m t st',
           Asm.step ge (Asm.set_mem st m) t st' ->
@@ -592,7 +726,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       Admitted.
       
 
-      Lemma at_external_mem_interference:
+      (*Lemma at_external_mem_interference:
         forall C Sem m lev m' th_state,
           self_simulation C Sem ->
           mem_interference m lev m' ->
@@ -607,7 +741,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           exploit same_visible_at_external; eauto.
           + symmetry. eapply interference_same_visible; eassumption.
           + intros HH; rewrite HH in Heqo; congruence.
-      Qed.
+      Qed. *)
       Definition all_threads_inject_perm
                  (f:meminj) {n m} (st1: ThreadPool n) (st2: ThreadPool m) m1 m2:=
         forall (i : nat) (cnt1 : containsThread st1 i) (cnt2 : containsThread st2 i)
