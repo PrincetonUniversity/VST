@@ -52,6 +52,7 @@ Require Import VST.concurrency.juicy.join_lemmas.
 (*Require Import VST.concurrency.cl_step_lemmas.
 Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.*)
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -849,13 +850,15 @@ Proof.
       replace lj with cnti in wellformed by apply proof_irr.
       rewr (getThreadC i tp cnti) in wellformed.
       destruct wellformed; split3; auto.
+      clear - Eci Hstore H. apply Mem.nextblock_store in Hstore. simpl in Hstore; rewrite Hstore; auto.
     + unshelve erewrite gsoThreadCode; auto.
       erewrite <- gtc_age. instantiate (1:=lj).
       apply Mem.nextblock_store in Hstore. simpl in Hstore. 
       clear - wellformed lj Hstore.
       erewrite gLockSetCode. instantiate (1:=lj).
-      rewrite Hstore.
-      destruct (getThreadC j tp lj); auto.
+      eapply alloc_ctl_wellformed; eauto.
+      apply alloc_core_wellformed.
+      rewrite Hstore; apply Ple_refl.
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
     apply no_Krun_stable. intros ? [Hx _]; inv Hx. 

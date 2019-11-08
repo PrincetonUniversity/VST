@@ -50,6 +50,7 @@ Require Import VST.concurrency.juicy.join_lemmas.
 (*Require Import VST.concurrency.cl_step_lemmas.
 Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.*)
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -660,16 +661,15 @@ simpl.
         specialize (wellformed _ cnti). rewrite Eci in  wellformed.
         destruct wellformed. destruct ci; inv atex. destruct f; inv H2.
         destruct (ef_inline e); inv H3.
-        split. clear - H.
-        admit.  (* OK *)
-        clear - Hinj. apply Hinj. 
+        clear - H. simpl in H. destruct H. inv H. inv H4.
+        split; auto.
     + subst j. REWR. REWR. REWR.
-       unfold cl_at_external; simpl. split3; try congruence.
        clear - Eci wellformed. 
-        specialize (wellformed _ cnti). rewrite Eci in  wellformed. apply wellformed.
+        specialize (wellformed _ cnti). rewrite Eci in wellformed.
+        simpl in *. intuition.
     + assert (cntj' : containsThread tp j).
       { apply cnt_age, cntAdd' in cntj. destruct cntj as [[lj ?] | lj ]. apply lj. simpl in lj. tauto. }
-      REWR. REWR. REWR. apply wellformed.
+      REWR. REWR. REWR.
 
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
@@ -684,4 +684,6 @@ simpl.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       intros ? [Hx _]; inv Hx.
+ -
+    subst. clear - bad atex. destruct ci; simpl in *; try discriminate; try congruence.
 Admitted. (* safety_induction_spawn *)

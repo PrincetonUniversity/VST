@@ -40,6 +40,7 @@ Require Import VST.concurrency.common.ClightSemanticsForMachines.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
 Require Import VST.concurrency.juicy.join_lemmas.
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.common.lksize.
 Import threadPool Events.
 
@@ -288,21 +289,6 @@ Definition threads_safety m (tp : jstate ge) PHI (mcompat : mem_compatible_with 
       jsafe_phi ge n ora q_new (getThreadR cnti)
     end.
 
-Definition val_wellformed (nextb: block)  (v: val) : Prop :=
-   Val.inject (Mem.flat_inj nextb) v v.
-
-Definition core_wellformed (nextb: block) (q:  Clight_core.CC_core) : Prop :=
-  Logic.True.  (* fill this in later *)
-
-Definition threads_wellformed (nextb: block) (tp : jstate ge) :=
-  forall i (cnti : containsThread tp i),
-    match getThreadC cnti with
-    | Krun q => core_wellformed nextb q
-    | Kblocked q => core_wellformed nextb q /\ veric.Clight_core.cl_at_external q <> None
-    | Kresume q v => core_wellformed nextb q /\ veric.Clight_core.cl_at_external q <> None /\ v = Vundef
-    | Kinit v1 v2 => val_wellformed nextb v1 /\ val_wellformed nextb v2
-    end.
-
 (* Havent' move this, but it's already defined in the concurrent_machien...
  * Probably in the wrong part...
  * SC: I had to change unique_Krun to include ~ Halted. Because halted
@@ -486,49 +472,6 @@ Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
       (funassert (nofunc_tycontext V Gamma)
                  (empty_environ ge)) PHI.
 
-Definition maxedmem (m: mem) :=
-  restrPermMap (mem_max_lt_max m).
-
-Definition mem_wellformed (m: mem) :=
- Mem.inject_neutral (Mem.nextblock m) (maxedmem m) /\
-  Ple (Genv.genv_next ge) (Mem.nextblock m).
-
-Lemma access_at_restr_Cur: 
- forall loc p m Hlt, access_at (@restrPermMap p m Hlt) loc Cur =  p !! (fst loc) (snd loc).
-Proof.
-intros.
-destruct loc.
-rewrite <- restrPermMap_Cur with (m:=m) (Hlt:=Hlt).
-reflexivity.
-Qed.
-
-Lemma access_at_restr_Max: 
- forall loc p m Hlt, access_at (@restrPermMap p m Hlt) loc Max =  access_at m loc Max.
-Proof.
-intros.
-destruct loc.
-simpl.
-change (permission_at (restrPermMap Hlt) b z Max = permission_at m b z Max).
-rewrite restrPermMap_Max.
-unfold getMaxPerm.
-rewrite PMap.gmap.
-reflexivity.
-Qed.
-
-Lemma access_at_maxedmem: 
- forall k m loc, access_at (maxedmem m) loc k =  access_at m loc Max.
-Proof.
-intros.
-destruct loc.
-unfold maxedmem.
-destruct k.
-apply access_at_restr_Max.
-rewrite access_at_restr_Cur.
-unfold getMaxPerm.
-rewrite PMap.gmap.
-reflexivity.
-Qed.
-
 Lemma maxedmem_neutral':
  forall m y x, 
    Mem.inject_neutral (Mem.nextblock m) (maxedmem m) ->
@@ -569,84 +512,19 @@ symmetry.
 apply juicyRestrictMax.
 Qed.
 
-Lemma maxedmem_neutral:
-  forall m,
- Mem.inject_neutral (Mem.nextblock (maxedmem m)) (maxedmem m) ->
-  Mem.inject_neutral (Mem.nextblock m) m.
-Proof.
-intros.
-unfold Mem.inject_neutral in *.
-inv H.
-constructor; intros; simpl in *.
--
-unfold Mem.flat_inj in H.
-if_tac in H; inv H.
-rewrite Z.add_0_r. auto.
--
-eapply mi_align; eauto.
-intros ? ?.
-unfold maxedmem.
-rewrite mem_equiv.restr_Max_equiv. eauto.
--
-apply mi_memval; auto.
-clear - H0.
-rewrite perm_access in H0.
-rewrite perm_access.
-eapply perm_order''_trans; try eassumption.
-clear H0.
-rewrite access_at_maxedmem.
-apply access_cur_max.
-Qed.
-
-Lemma mem_equiv_restr_max:
- forall m j (k: permMapLt j (getMaxPerm m)),
-mem_equiv.mem_equiv (restrPermMap (mem_max_lt_max (@restrPermMap j m k)))
-  (restrPermMap (mem_max_lt_max m)).
-Proof.
-intros.
-constructor.
--
-red.
-etransitivity.
-apply mem_equiv.getCur_restr.
-fold (maxedmem m).
-intro b.
-extensionality z.
-rewrite getCurPerm_correct.
-rewrite getMaxPerm_correct.
-unfold permission_at.
-symmetry.
-pose proof (access_at_maxedmem Cur m (b,z)).
-unfold access_at in H.
-simpl fst in H; simpl snd in H.
-rewrite H.
-symmetry.
-pose proof (restrPermMap_Max k b z).
-unfold permission_at in H0.
-rewrite getMaxPerm_correct in H0.
-apply H0.
--
-rewrite !mem_equiv.restr_Max_equiv.
-reflexivity.
--
-rewrite !mem_equiv.restr_content_equiv.
-reflexivity.
--
-reflexivity.
-Qed.
 
 Inductive state_invariant Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
-      (mwellformed: mem_wellformed m)
+      (mwellformed: mem_wellformed ge m)
       (mcompat : mem_compatible_with tp m PHI)
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety m tp PHI mcompat n)
-      (wellformed : threads_wellformed (Mem.nextblock m) tp)
+      (wellformed : @threads_wellformed _ JSem core_wellformed m tp)
       (uniqkrun :  unique_Krun tp sch)
     : state_invariant Gamma n (m, (tr, sch, tp)).
 
@@ -727,7 +605,7 @@ Lemma state_inv_upd : forall Gamma (n : nat)
   (m : mem) (tr : event_trace) (sch : schedule) (tp : jstate ge) (PHI : rmap)
       (lev : level PHI = n)
       (envcoh : env_coherence Jspec ge Gamma PHI)
-      (mwellformed: mem_wellformed m)
+      (mwellformed: mem_wellformed ge m)
       (mcompat : mem_compatible_with tp m PHI)
       (extcompat : joins (ghost_of PHI) (Some (ext_ref tt, NoneP) :: nil))
       (lock_sparse : lock_sparsity (lset tp))
@@ -737,7 +615,7 @@ Lemma state_inv_upd : forall Gamma (n : nat)
         exists tp' PHI' (Hupd : tp_update tp PHI tp' PHI'),
         joins (ghost_of PHI') (ghost_fmap (approx (level PHI)) (approx (level PHI)) C) /\
         threads_safety m tp' PHI' (mem_compatible_upd _ _ _ _ _ mcompat Hupd) n)
-      (wellformed : threads_wellformed (Mem.nextblock m) tp)
+      (wellformed : @threads_wellformed _ JSem core_wellformed m tp)
       (uniqkrun :  unique_Krun tp sch),
   state_bupd (state_invariant Gamma n) (m, (tr, sch, tp)).
 Proof.
@@ -792,7 +670,9 @@ Proof.
     pose proof (proj1 (Hiff _) cnti) as cnti0.
     destruct (Hthreads _ cnti0) as (HC & _).
     replace (proj2 (Hiff i) cnti0) with cnti in HC by (apply proof_irr).
-    rewrite <- HC; apply wellformed.
+    specialize (wellformed _ cnti0).
+    rewrite HC in wellformed.
+    auto.
   - repeat intro.
     pose proof (proj1 (Hiff _) cnti) as cnti0.
     destruct (Hthreads _ cnti0) as (HC & _).
@@ -1015,23 +895,6 @@ auto.
  inv H.
  apply n.
 Qed.
-
-Lemma cl_step_wellformed:
-  forall ge m c pm Hlt c' m',
-      @mem_wellformed ge m ->
-      core_wellformed (Mem.nextblock m) c ->
-      Clight_core.cl_step ge c (@restrPermMap pm m Hlt) c' m' ->
-      @mem_wellformed ge m' /\ 
-      core_wellformed (Mem.nextblock m') c'.
-Admitted.  (* Santiago will prove this, generically over all injections not just flat ones *)
-
-Lemma initial_core_wellformed:
-  forall ge v args c m,
-     Clight_core.cl_initial_core ge v args c ->
-     Clight_core.arg_well_formed args m ->
-     Smallstep.globals_not_fresh ge m ->
-     core_wellformed (Mem.nextblock m) c.
-Admitted.
 
 
 

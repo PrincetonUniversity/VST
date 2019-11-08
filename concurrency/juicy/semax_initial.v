@@ -42,6 +42,7 @@ Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.permissions.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Require Import VST.concurrency.juicy.sync_preds_defs.
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.sync_preds.
 
@@ -360,7 +361,26 @@ Section Initial_State.
 
     - (* well-formedness *)
       intros i cnti.
-      constructor.
+      pose proof (ssr_leP_inv _ _ cnti). unfold tp in H. simpl in H.
+      assert (i=O) by omega. subst i.
+      assert (getThreadC cnti = Krun q) by reflexivity.
+      rewrite H0.
+      clear En H cnti H0 tp compat.
+      subst q.
+      destruct spr as [b [q ?]]. simpl in jm|-*.
+      destruct p as [? [? [? [? [? [? [? [? ?]]]]]]]].
+      destruct p as [? ?].
+      specialize (e3 x e).
+      destruct e3 as [jm' ?].
+      subst m. subst n.
+      simpl in jm. subst jm. rename x into jm.
+      destruct H. subst jm'.
+      destruct H0 as [? [? [? [? ?]]]]. clear H1.
+      hnf in H. 
+      destruct (Genv.find_funct_ptr (globalenv prog) b) eqn:?H; try contradiction.
+      destruct (type_of_fundef f) eqn:?H; try contradiction.
+      destruct H as [? [? [? [? [? ?]]]]]; subst.
+      simpl. split; auto.
 
     - (* only one thread running *)
       intros F; exfalso. simpl in F. omega.

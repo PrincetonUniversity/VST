@@ -50,6 +50,7 @@ Require Import VST.concurrency.juicy.join_lemmas.
 (*Require Import VST.concurrency.cl_step_lemmas.
 Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.*)
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -627,11 +628,13 @@ Proof.
       replace lj with cnti in wellformed by apply proof_irr.
       unfold JSem in *; rewrite Hthread in wellformed.
       destruct wellformed; split3; auto.
-    * unshelve erewrite gsoThreadCode; auto.
-       destruct (getThreadC j tp lj) eqn:?H; auto.
-       clear - wellformed Hstore.
        apply Mem.nextblock_store in Hstore. simpl in Hstore.
        rewrite Hstore; auto.
+    * unshelve erewrite gsoThreadCode; auto.
+       apply Mem.nextblock_store in Hstore. simpl in Hstore.
+       eapply alloc_ctl_wellformed; eauto.
+       apply alloc_core_wellformed.
+       rewrite Hstore; apply Ple_refl.
 
   + (* uniqueness *)
     apply no_Krun_unique_Krun.

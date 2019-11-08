@@ -49,6 +49,7 @@ Require Import VST.concurrency.juicy.join_lemmas.
 Require Import VST.concurrency.juicy.cl_step_lemmas.
 Require Import VST.concurrency.juicy.resource_decay_lemmas.
 Require Import VST.concurrency.juicy.resource_decay_join.
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -265,6 +266,25 @@ Proof.
   intros ->; f_equal. apply proof_irr.
 Qed.
 
+Lemma corestep_nextblock:
+  forall core (msem: MemSem core) c m c' m',
+     @corestep core mem (csem msem) c m c' m' ->
+      Ple (Mem.nextblock m) (Mem.nextblock m').
+Proof.
+intros.
+destruct msem.
+apply corestep_mem in H.
+clear - H.
+induction H.
+apply Mem.nextblock_storebytes in H.
+rewrite H; apply Ple_refl.
+apply Mem.nextblock_alloc in H.
+rewrite H. apply Ple_succ.
+apply nextblock_freelist in H.
+rewrite H; apply Ple_refl.
+eapply Ple_trans; eauto.
+Qed.
+ 
 Lemma invariant_thread_step
  (mem_cohere_step
      : forall (c c' : Clight_core.state) (jm jm' : juicy_mem) (Phi X : rmap) (ge : genv),
@@ -293,7 +313,7 @@ Lemma invariant_thread_step
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec m tp Phi compat (S n))
-  (wellformed : threads_wellformed (Mem.nextblock m) tp)
+  (wellformed : @threads_wellformed _ JSem core_wellformed m tp)
   (unique : unique_Krun tp (i :: sch))
   (cnti : containsThread tp i)
   (stepi : corestep (juicy_core_sem (cl_core_sem ge)) ci (jm_ cnti compat) ci' jmi')
@@ -874,16 +894,11 @@ Proof.
       }
       specialize (wellformed j cntj1).
       erewrite <- gtc_age. instantiate (1:=cntj1).
-      destruct (getThreadC j tp cntj1); auto.
-      clear -wellformed ij stepi.
-      destruct stepi as [? _]. hnf in H.
-      assert (Ple (Mem.nextblock m) (Mem.nextblock (m_dry jmi'))). {
-          clear - H.
-           admit.  (* OK *)
-      }
-      clear - H0 wellformed. 
-      admit. (* OK *)
-
+      clear - wellformed stepi mwellformed. 
+      destruct stepi as [H _].
+     apply (corestep_nextblock _ (CLN_memsem ge)) in H.
+     eapply alloc_ctl_wellformed; eauto.
+     apply alloc_core_wellformed.
   - (* uniqueness *)
     intros notalone j cntj q [Ecj Ecj'].
     hnf in unique.

@@ -54,6 +54,7 @@ Require Import VST.concurrency.juicy.cl_step_lemmas.
 Require Import VST.concurrency.juicy.resource_decay_lemmas.
 Require Import VST.concurrency.juicy.resource_decay_join.
 Require Import VST.concurrency.juicy.sync_preds.
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.semax_preservation_jspec.
@@ -997,6 +998,14 @@ Proof.
       eapply AMap.Raw.MX.lt_strorder; eauto.
 Qed.
 
+Lemma machine_step_nextblock:
+  forall sem res TP DM MS SCH sch tr tp m sch' tr' tp' m',
+      @machine_step res sem TP DM MS SCH sch tr tp m sch' tr' tp' m' ->
+          Ple (nextblock m) (nextblock m').
+Proof.
+intros.
+Admitted.
+
 Section Preservation.
   Variables
     (CS : compspecs)
@@ -1029,7 +1038,7 @@ Section Preservation.
   (sparse : @lock_sparsity lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' _ m tp Phi compat (S n))
-  (wellformed : threads_wellformed (Mem.nextblock m) tp)
+  (wellformed : @threads_wellformed _ JSem core_wellformed m tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei : ssrnat.leq (S i) (pos.n (num_threads tp)) = true)
   (cnti : containsThread tp i)
@@ -1140,9 +1149,10 @@ Section Preservation.
         destruct (eq_dec i j) as [<-|ne]; REWR.
         eapply initial_core_wellformed; eauto.
         specialize (wellformed j cntj).
-        destruct (getThreadC j tp cntj); auto.
-        clear - wellformed Hperm.
-        hnf in Hperm. subst. simpl. auto.
+        apply machine_step_nextblock in jmstep.
+        clear - wellformed Hperm jmstep. simpl in jmstep.
+        eapply alloc_ctl_wellformed; eauto.
+        apply alloc_core_wellformed.
       - intros more j cntj q.
         destruct (eq_dec i j) as [<-|ne]; REWR.
         + simpl; eauto.
@@ -1498,19 +1508,13 @@ Qed. (* Lemma preservation_Kinit *)
               clear - wellformed Eci. specialize (wellformed _ cnti).
               fold (@JSem ge) in Eci.
               rewrite Eci in wellformed.
-              auto.
+              auto. 
+              clear - Hatex. unfold at_external; simpl.
               congruence.
             * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp'.
               rewrite <- (@gsoThreadCC _ _ _ _ _ tp ii0 ctn cnti0).
-              specialize (wellformed i0 cnti0).
-              unfold JSem in *.
-              destruct (getThreadC i0 tp cnti0).
-              -- constructor.
-              -- apply wellformed.
-              -- apply wellformed.
-              -- auto.
-
+              apply (wellformed i0 cnti0).
           + (* uniqueness *)
             intros notalone i0 cnti0' q Eci0.
             pose proof (unique notalone i0 cnti0' q) as unique'.
@@ -1710,16 +1714,15 @@ Qed. (* Lemma preservation_Kinit *)
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
           rewrite gssThreadCC.
-          constructor.
+          clear - Hafter_external Hcode wellformed.
+          specialize (wellformed _ ctn).
+          unfold JSem in *. rewrite Hcode in wellformed.
+          destruct wellformed.
+          destruct c; inv Hafter_external. destruct f; inv H2.
+          simpl in H|-*. destruct H; split; auto. constructor.  
         * assert (cnti0 : containsThread tp i0) by auto.
           rewrite <- (@gsoThreadCC _ _ _ _ _ tp ii0 ctn cnti0).
-          specialize (wellformed i0 cnti0).
-          unfold JSem in *.
-          destruct (getThreadC i0 tp cnti0).
-          -- constructor.
-          -- apply wellformed.
-          -- apply wellformed.
-          -- auto.
+          apply (wellformed i0 cnti0).
 
       + (* uniqueness *)
         intros notalone i0 cnti0' q Eci0.

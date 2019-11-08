@@ -51,6 +51,7 @@ Require Import VST.concurrency.juicy.join_lemmas.
 (*Require Import VST.concurrency.cl_step_lemmas.
 Require Import VST.concurrency.resource_decay_lemmas.
 Require Import VST.concurrency.resource_decay_join.*)
+Require Import VST.concurrency.juicy.Clight_mem_ok.
 Require Import VST.concurrency.juicy.semax_invariant.
 Require Import VST.concurrency.juicy.semax_simlemmas.
 Require Import VST.concurrency.juicy.sync_preds.
@@ -146,7 +147,7 @@ Lemma preservation_acquire
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m tp Phi compat (S n))
-  (wellformed : threads_wellformed (Mem.nextblock m) tp)
+  (wellformed : @threads_wellformed _ JSem core_wellformed m tp)
   (unique : unique_Krun tp (i :: sch))
   (Ei cnti : containsThread tp i)
   (ci : semC)
@@ -749,11 +750,13 @@ Opaque age_tp_to.
       rewrite Hthread in wellformed.
       destruct wellformed.
       split3; auto.
+      assert (ci=c) by congruence. subst ci.
+      apply Mem.nextblock_store in Hstore. simpl in Hstore; rewrite Hstore; auto.
     * REWR.
-       destruct (getThreadC j tp lj) eqn:?H; auto.
-       clear - wellformed Hstore.
-       apply Mem.nextblock_store in Hstore. simpl in Hstore.
-       rewrite Hstore; auto.
+      apply Mem.nextblock_store in Hstore. simpl in Hstore.
+      eapply alloc_ctl_wellformed; eauto.
+      apply alloc_core_wellformed.
+      rewrite Hstore; apply Ple_refl.
   + (* uniqueness *)
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.

@@ -8,11 +8,21 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.mem_wd.
-Require Import VST.concurrency.juicy.semax_simlemmas.
+(* Require Import VST.concurrency.juicy.semax_simlemmas. *)
 Require Import VST.msl.eq_dec.
 
 Definition mem_wd2 m := forall b ofs, memval_inject (Mem.flat_inj (Mem.nextblock m))
     (ZMap.get ofs (PMap.get b (Mem.mem_contents m))) (ZMap.get ofs (PMap.get b (Mem.mem_contents m))).
+
+Lemma flat_inj_incr : forall b b', (b <= b')%positive ->
+  inject_incr (Mem.flat_inj b) (Mem.flat_inj b').
+Proof.
+  unfold Mem.flat_inj; repeat intro.
+  destruct (plt b0 b); inv H0.
+  destruct (plt b'0 b'); auto.
+  eapply Plt_Ple_trans in p; eauto; contradiction.
+Qed.
+
 
 Lemma mem_wd2_alloc: forall m b lo hi m' (ALL: Mem.alloc m lo hi = (m',b))
      (WDm: mem_wd2 m), mem_wd2 m'.
