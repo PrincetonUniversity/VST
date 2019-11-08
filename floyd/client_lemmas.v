@@ -940,8 +940,8 @@ Hint Resolve @andp_later_derives @sepcon_later_derives @sepcon_derives
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
 Declare Scope formals.
+Notation " a 'OF' ta " := (a%positive,ta%type) (at level 100, only parsing): formals.
 Delimit Scope formals with formals.
 
 Definition NDsemax_external {Hspec: OracleKind} (ids: list ident) (ef: external_function)

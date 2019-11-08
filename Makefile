@@ -289,7 +289,7 @@ PROGS32_FILES= \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
   libglob.v verif_libglob.v peel.v verif_peel.v \
-  printf.v stackframe_demo.v
+  printf.v stackframe_demo.v verif_stackframe_demo.v
 # verif_insertion_sort.v
 
 C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
@@ -439,6 +439,7 @@ endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
 COQVERSION= 8.10.1 or-else 8.10.0 or-else 8.10+alpha
+
 COQV=$(shell $(COQC) -v)
 ifeq ($(IGNORECOQVERSION),true)
 else
