@@ -46,10 +46,14 @@ simpl in H0.
 specialize (H0 ts1). destruct H0 as [H0 H0'].
 rewrite H0.
 eapply predicates_hered.derives_trans; [apply H3 | clear H3 ].
+eapply predicates_hered.derives_trans, own.bupd_intro.
 apply (predicates_hered.exp_right (@nil Type)).
 apply predicates_hered.exp_derives; intros x2.
 apply predicates_hered.exp_derives; intros F.
-apply predicates_hered.andp_derives; trivial. hnf. rewrite H0'. auto.
+apply predicates_hered.andp_derives; trivial. hnf. rewrite H0'.
+intros; simpl in *.
+intros; eapply predicates_hered.derives_trans, own.bupd_intro.
+specialize (H1 rho'); auto.
 Qed.
 
 Definition funspec_sub' (f1 f2 : funspec):Prop :=
@@ -62,12 +66,12 @@ match f1 with
         forall (ts2 : list Type) x2,
                ENTAIL Delta, P2 ts2 x2
            |--
-               (EX ts1:_,  EX x1:_, EX F:_, 
+               |==> (EX ts1:_,  EX x1:_, EX F:_, 
                            (`F * (P1 ts1 x1)) &&
                                (!! ENTAIL (ret0_tycon Delta),
                                                  (`F * (Q1 ts1 x1))
                                          |--
-                                           (Q2 ts2 x2)))
+                                           |==> (Q2 ts2 x2)))
     end
 end.
 

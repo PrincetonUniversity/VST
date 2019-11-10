@@ -9,6 +9,7 @@ Require Import VST.veric.mpred.
 Require Import VST.veric.address_conflict.
 Require Export VST.veric.shares.
 Require Import VST.veric.Cop2. (*for definition of tc_val'*)
+Require Import VST.veric.own.
 Import compcert.lib.Maps.
 
 Local Open Scope pred.
@@ -130,10 +131,10 @@ match f1 with
         !!(fsig1 = fsig2 /\ cc1=cc2) &&
         ! (ALL ts2 :_, ALL x2:_, ALL rho:_,
         (((local (tc_environ Delta) rho) && (P2 ts2 x2 rho))
-         >=> EX ts1:_,  EX x1:_, EX F:_, 
+         >=> bupd (EX ts1:_,  EX x1:_, EX F:_, 
             (F * (P1 ts1 x1 rho)) &&
             ALL rho':_, (     !( ((local (tc_environ (ret0_tycon Delta)) rho') && (F * (Q1 ts1 x1 rho')))
-                         >=> (Q2 ts2 x2 rho')))))
+                         >=> bupd (Q2 ts2 x2 rho'))))))
     end
 end.
 
@@ -146,10 +147,10 @@ match f1 with
         !!(fsig1 = fsig2 /\ cc1=cc2) &&
         ! (ALL ts2 :_, ALL x2:_, ALL rho:_, EX ts1:_,  EX x1:_, EX F:_,
         (((local (tc_environ Delta) rho) && (P2 ts2 x2 rho))
-         >=> (*EX ts1:_,  EX x1:_, EX F:_, *)
+         >=> bupd (*EX ts1:_,  EX x1:_, EX F:_, *)
             (F * (P1 ts1 x1 rho)) &&
             ALL rho':_, (     !( ((local (tc_environ (ret0_tycon Delta)) rho') && (F * (Q1 ts1 x1 rho')))
-                         >=> (Q2 ts2 x2 rho')))))
+                         >=> bupd (Q2 ts2 x2 rho')))))
     end
 end.
 
@@ -162,22 +163,24 @@ match f1 with
         fsig1 = fsig2 /\ cc1=cc2 /\
         forall (ts2 : list Type) x2 rho,
                ((local (tc_environ Delta) rho) && (P2 ts2 x2 rho))
-           |--
+           |-- bupd
                (EX ts1:_,  EX x1:_, EX F:_, 
                            (F * (P1 ts1 x1 rho)) &&
                                (!! (forall rho',
                                            ((local (tc_environ (ret0_tycon Delta)) rho') &&
                                                  (F * (Q1 ts1 x1 rho')))
                                          |--
-                                           (Q2 ts2 x2 rho'))))
+                                           bupd (Q2 ts2 x2 rho'))))
     end
 end.
 
 Lemma funspec_sub_sub_si f1 f2: funspec_sub f1 f2 -> TT |-- funspec_sub_si f1 f2.
 Proof. intros. destruct f1; destruct f2; simpl in *.
 destruct H as [? [? H']]; subst. intros w _. split; [split; trivial |].
-intros ts2 x2 rho y WY k YK K.
-destruct (H' ts2 x2 rho _ K) as [ts1 [x1 [F [HF1 HF2]]]]; clear H'.
+intros ts2 x2 rho y WY k YK K c J.
+destruct (H' ts2 x2 rho _ K c J) as (c' & J' & m' & ? & ? & ? & H''); subst.
+destruct H'' as [ts1 [x1 [F [HF1 HF2]]]]; clear H'.
+eexists; split; eauto; exists m'; repeat (split; auto).
 exists ts1, x1, F; split; trivial.
 intros rho' v KV z VZ Z. hnf in HF2. apply HF2; trivial.
 Qed.
@@ -188,15 +191,18 @@ Qed.
 Lemma funspec_sub_early_sub_si f1 f2: funspec_sub_early f1 f2 |-- funspec_sub_si f1 f2.
 Proof. intros p P. destruct f1; destruct f2; simpl in *.
 destruct P as [[? ?] H']; subst. split; [split; trivial |].
-intros ts2 x2 rho y WY k YK K.
+intros ts2 x2 rho y WY k YK K c J.
 destruct (H' ts2 x2 rho) as [ts1 [x1 [F HF]]]; clear H'.
-exists ts1, x1, F. apply (HF _ WY _ YK K).
+destruct (HF _ WY _ YK K) as [(? & J' & m' & Hl & ? & ? & HF1) HF2]; eauto; subst.
+eexists; split; eauto; exists m'; repeat (split; auto).
+exists ts1, x1, F. rewrite Hl; auto.
 Qed.
 
 Lemma funspec_sub_refl f: funspec_sub f f.
 Proof. destruct f; split; [ trivial | split; [trivial | intros ts2 x2 rho w [T W]]].
+apply bupd_intro.
 exists ts2, x2, emp. rewrite emp_sepcon. split; trivial. hnf; intros. 
-rewrite emp_sepcon. apply andp_left2; trivial.
+rewrite emp_sepcon. apply andp_left2, bupd_intro.
 Qed.
 
 Lemma funspec_sub_trans f1 f2 f3: funspec_sub f1 f2 -> 
@@ -204,80 +210,272 @@ Lemma funspec_sub_trans f1 f2 f3: funspec_sub f1 f2 ->
 Proof. destruct f1; destruct f2; destruct f3; intros.
 destruct H as [? [? H12]]; subst f0 c0.
 destruct H0 as [? [? H23]]; subst f1 c1.
-split; [ trivial | split; [ trivial | intros ts x rho m M]]; simpl in M.
-destruct (H23 ts x rho _ M) as [ts1 [x1 [F [X23 Y23]]]]; clear H23; hnf in Y23.
-destruct X23 as [m1 [m2 [JM [M1 M2]]]]; destruct (join_level _ _ _ JM) as [Lev_m1 Lev_m2].
-destruct (H12 ts1 x1 rho m2) as [ts2 [x2 [G [X12 Y12]]]]; clear H12; try hnf in Y12.
-{ split; simpl; [ apply M | trivial]. }
-exists ts2, x2, (F*G); split.
-+ rewrite sepcon_assoc. exists m1, m2; auto.
-+ intros rho'. simpl. unfold local, lift1.
-   specialize (derives_extract_prop (tc_environ (ret0_tycon (funsig_tycontext f)) rho')
-              (sepcon (sepcon F G) (Q ts2 x2 rho')) (Q1 ts x rho')). intros.
-   unfold seplog.derives in H. apply H; clear H. simpl. intros.
-   eapply derives_trans. 2: apply Y23. clear Y23.
-   unfold local, lift1; simpl.  rewrite <- sepcon_andp_prop, sepcon_assoc.
-   apply sepcon_derives; trivial. apply andp_right.
-   intros w W; apply H.
-   eapply derives_trans. 2: apply Y12. simpl. apply prop_andp_right; trivial.
+split; [ trivial | split; [ trivial | intros ts x rho]].
+apply prop_andp_left; intro Hlocal.
+eapply derives_trans.
+{ eapply derives_trans, H23; apply andp_right; eauto; intros ??; auto. }
+eapply derives_trans, bupd_trans; apply bupd_mono.
+apply exp_left; intro ts1.
+apply exp_left; intro x1.
+apply exp_left; intro F.
+eapply derives_trans; [apply andp_derives, derives_refl|].
+{ eapply sepcon_derives, derives_trans, H12; [apply derives_refl|].
+  apply andp_right; eauto; intros ??; auto. }
+rewrite andp_comm, <- normalize.sepcon_andp_prop'.
+eapply derives_trans; [apply bupd_frame_l | apply bupd_mono].
+rewrite exp_sepcon2; apply exp_left; intros ts2.
+rewrite exp_sepcon2; apply exp_left; intros x2.
+rewrite exp_sepcon2; apply exp_left; intros G.
+apply exp_right with ts2; apply exp_right with x2; apply exp_right with (F*G).
+rewrite normalize.sepcon_andp_prop'.
+rewrite (andp_comm _ (!! _)), sepcon_andp_prop.
+rewrite <- andp_assoc, andp_comm; apply andp_derives.
+{ rewrite sepcon_assoc; auto. }
+intros ? [H1 H2]; simpl in *.
+intros rho'; eapply derives_trans, bupd_trans.
+eapply derives_trans, bupd_mono, H1.
+apply prop_andp_left; intros Hlocal'.
+unfold local; simpl; unfold lift1; simpl.
+rewrite bupd_andp_prop; apply andp_right; [intros ??; auto|].
+eapply derives_trans, bupd_frame_l.
+rewrite sepcon_assoc; eapply sepcon_derives, derives_trans, H2; auto.
+apply andp_right; auto; intros ??; auto.
 Qed.
 
 Lemma funspec_sub_early_refl f: TT |-- funspec_sub_early f f.
 Proof. destruct f; split; [ split; trivial | clear H]. intros ts2 x2 rho.
-exists ts2, x2, emp. intros y AY m YM [M1 M2]. rewrite emp_sepcon. split; trivial.
-intros rho' k WK u necKU U. rewrite emp_sepcon in U. apply U.
+exists ts2, x2, emp. intros y AY m YM [M1 M2]. rewrite emp_sepcon. split; [apply bupd_intro; trivial|].
+intros rho' k WK u necKU U. rewrite emp_sepcon in U. apply bupd_intro, U.
+Qed.
+
+Lemma unfash_allp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
+  @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
+Proof.
+intros.
+apply pred_ext.
+intros ? ? ?.
+specialize (H b). auto.
+repeat intro. apply (H b).
+Qed.
+
+Lemma allp_andp1 : forall {A} {agA: ageable A} {B} (P : B -> pred A) Q, (ALL a : B, P a) && Q |-- ALL a : B, P a && Q.
+Proof.
+  intros; apply allp_right; intro x.
+  apply andp_derives; auto.
+  apply allp_left with x; auto.
+Qed.
+
+Lemma unfash_exp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
+  @unfash _ agA (exp f) = exp (fun x:B => unfash (f x)).
+Proof.
+intros.
+apply pred_ext.
+intros ? [? ?]; simpl; eauto.
+intros ? [? ?]; simpl in *; eauto.
+Qed.
+
+Lemma unfash_andp:  forall {A} {agA: ageable A} (P Q : pred nat),
+  @unfash _ agA (andp P Q) = andp (unfash P) (unfash Q).
+Proof.
+intros.
+apply pred_ext; intros ? []; split; auto.
+Qed.
+
+Lemma allp_sepcon1: forall {A} P Q, (ALL x : A, P x) * Q |-- ALL x : A, P x * Q.
+Proof.
+  intros.
+  apply allp_right; intro x.
+  apply sepcon_derives; auto.
+  apply allp_left with x; auto.
+Qed.
+
+(* up *)
+Lemma bupd_allp: forall {A} P, bupd (ALL x : A, P x) |-- ALL x : A, bupd (P x).
+Proof.
+  intros.
+  apply allp_right; intro x.
+  apply bupd_mono, allp_left with x; auto.
+Qed.
+
+Lemma bupd_unfash: forall P, bupd (! P) |-- ! P.
+Proof.
+  repeat intro; simpl in *.
+  destruct (H (core (ghost_of a))) as (? & ? & ? & <- & ? & ? & ?); auto.
+  rewrite ghost_core; eexists; constructor.
+Qed.
+
+Lemma bupd_andp_unfash: forall P Q, bupd (!P && Q) = !P && bupd Q.
+Proof.
+  intros; apply pred_ext.
+  - apply andp_right.
+    + eapply derives_trans; [apply bupd_mono, andp_left1, derives_refl|].
+      apply bupd_unfash.
+    + apply bupd_mono, andp_left2, derives_refl.
+  - intros ? [? HQ] ? J.
+    destruct (HQ _ J) as (? & ? & a' & Hl & ? & ? & ?); subst.
+    eexists; split; eauto.
+    exists a'; repeat (split; auto).
+    simpl in *.
+    rewrite Hl; auto.
+Qed.
+
+Lemma unfash_sepcon: forall P Q, !P * Q |-- !P.
+Proof.
+  intros ??? (? & ? & J & ? & ?); simpl in *.
+  apply join_level in J as [<- _]; auto.
+Qed.
+
+Lemma subp_exp_left: forall {A} G P Q, (forall x, G |-- P x >=> Q) -> G |-- (EX x : A, P x) >=> Q.
+Proof.
+  repeat intro.
+  destruct H3 as [x HP].
+  eapply H; eauto.
 Qed.
 
 Lemma funspec_sub_early_trans f1 f2 f3: funspec_sub_early f1 f2 && funspec_sub_early f2 f3 |--
       funspec_sub_early f1 f3.
 Proof. destruct f1; destruct f2; destruct f3.
-intros w [[X H12] [Y H23]]; destruct X; subst; destruct Y; subst; split; [split; trivial|].
-intros ts x rho. 
-destruct (H23 ts x rho) as [ts1 [x1 [F X23]]]; clear H23. hnf in X23.
-destruct (H12 ts1 x1 rho) as [ts3 [x3 [G X12]]]; clear H12. hnf in X12.
-exists ts3, x3, (F * G). intros y WY m YM M.
-destruct (X23 _ WY _ YM M) as [A23 B23]; clear X23.
-destruct A23 as [m1 [m2 [JM [M1 M2]]]]; destruct (join_level _ _ _ JM) as [Lev_m1 Lev_m2].
-assert (Wm2: (level w >= level m2)%nat) by (apply necR_level in YM; omega).
-specialize (X12 _ Wm2 _ (necR_refl _)). destruct X12 as [A12 B12].
-{ destruct M as [HM1 HM2]; simpl in HM1. split; simpl; trivial. }
-split.
-+ rewrite sepcon_assoc. exists m1, m2; auto. 
-+ intros rho' k MK v KV [Z V]. rewrite sepcon_assoc in V.
-  destruct V as [v1 [v2 [JV [V1 V2]]]]; destruct (join_level _ _ _ JV) as [Lev_v1 Lev_v2].
-  assert (M2v2: (level m2 >= level v2)%nat) by (apply necR_level in KV; omega).
-  specialize (B12 rho' _ M2v2 _ (necR_refl _)). spec B12.
-  { split; trivial. }
-  assert (Mv: (level m >= level v)%nat) by (apply necR_level in KV; omega).
-  apply (B23 rho' _ Mv _ (necR_refl _)). split; [ trivial | exists v1, v2; auto].
+unfold funspec_sub_early; simpl.
+rewrite !andp_assoc; apply prop_andp_left; intros []; subst.
+rewrite andp_comm, andp_assoc; apply prop_andp_left; intros []; subst.
+apply andp_right; [intros ??; simpl; auto|].
+rewrite <- unfash_andp; apply unfash_derives.
+apply allp_right; intros ts.
+apply allp_right; intros x.
+apply allp_right; intros rho.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with ts.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with x.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with rho.
+rewrite exp_andp1; apply exp_left; intro ts1.
+rewrite exp_andp1; apply exp_left; intro x1.
+rewrite exp_andp1; apply exp_left; intro F.
+rewrite andp_comm; eapply derives_trans; [apply allp_andp1|].
+apply allp_left with ts1.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with x1.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with rho.
+rewrite exp_andp1; apply exp_left; intro ts2.
+rewrite exp_andp1; apply exp_left; intro x2.
+rewrite exp_andp1; apply exp_left; intro G.
+apply exp_right with ts2; apply exp_right with x2; apply exp_right with (F*G).
+eapply subp_trans.
+{ apply andp_left2.
+  rewrite <- (andp_dup (local _ _)) at 2; rewrite andp_assoc; apply subp_andp, derives_refl; apply subp_refl. }
+eapply subp_trans.
+{ apply andp_left1.
+  unfold local at 3; unfold lift1 at 1; simpl.
+  rewrite <- andp_assoc, <- bupd_andp_prop.
+  rewrite <- sepcon_andp_prop, (sepcon_comm F).
+  eapply subp_andp, subp_refl; apply subp_bupd, subp_sepcon, subp_refl; apply derives_refl. }
+apply derives_trans with TT; auto.
+rewrite <- (andp_dup (bupd _)), andp_assoc; apply subp_andp.
++ eapply derives_trans, subp_derives, bupd_trans; [apply subp_refl|].
+  apply bupd_mono.
+  eapply derives_trans; [apply sepcon_derives, derives_refl; apply andp_left1, derives_refl|].
+  rewrite sepcon_assoc; eapply derives_trans, bupd_frame_l.
+  rewrite sepcon_comm; auto.
++ intros ? _; apply derives_subp.
+  apply allp_right; intro rho'.
+  eapply derives_trans.
+  { eapply derives_trans, allp_andp1.
+     apply andp_derives, derives_refl.
+     eapply derives_trans, bupd_allp.
+     apply bupd_mono; eapply derives_trans, allp_sepcon1. apply sepcon_derives, derives_refl; apply andp_left2, derives_refl. }
+  apply allp_left with rho'.
+  rewrite andp_comm; eapply derives_trans; [apply allp_andp1|].
+  apply allp_left with rho'.
+  eapply derives_trans; [apply andp_derives, bupd_mono, unfash_sepcon; apply derives_refl|].
+  eapply derives_trans; [apply andp_derives, bupd_unfash; apply derives_refl|].
+  rewrite <- unfash_andp; apply unfash_derives.
+  eapply subp_trans.
+  { apply andp_left2.
+    rewrite <- (andp_dup (local _ _)) at 2; rewrite andp_assoc; apply subp_andp; [apply subp_refl|].
+    unfold local, lift1; simpl.
+    rewrite sepcon_assoc, <- (sepcon_andp_prop F).
+    apply subp_sepcon, derives_refl; apply subp_refl. }
+  eapply derives_trans, subp_derives, bupd_trans.
+  2: { eapply andp_derives, bupd_frame_l; apply derives_refl. }
+  unfold local at 3; unfold lift1; simpl.
+  rewrite <- bupd_andp_prop; apply subp_bupd.
+  apply andp_left1; auto.
 Qed.
 
 Lemma funspec_sub_si_refl f: TT |-- funspec_sub_si f f.
 Proof. destruct f; split; [ split; trivial | clear H; intros ts2 x2 rho].
+intros ?????; apply bupd_intro.
 exists ts2, x2, emp; rewrite emp_sepcon. split. apply H1. 
-intros rho' k WK u necKU Z. 
-rewrite emp_sepcon in Z. apply Z.
+intros rho' k WK u necKU Z.
+rewrite emp_sepcon in Z. apply bupd_intro, Z.
 Qed.
 
 Lemma funspec_sub_si_trans f1 f2 f3: funspec_sub_si f1 f2 && funspec_sub_si f2 f3 |--
       funspec_sub_si f1 f3.
 Proof. destruct f1; destruct f2; destruct f3.
-intros w [[X H12] [Y H23]]; destruct X; subst; destruct Y; subst; split; [split; trivial|].
-intros ts x rho y WY m YM M. 
-destruct (H23 ts x rho _ WY _ YM M) as [ts1 [x1 [F [A23 B23]]]]; clear H23. hnf in B23.
-destruct A23 as [m1 [m2 [JM [M1 M2]]]]; destruct (join_level _ _ _ JM) as [Lev_m1 Lev_m2].
-assert (Wm2: (level w >= level m2)%nat) by (apply necR_level in YM; omega).
-destruct (H12 ts1 x1 rho _ Wm2 _ (necR_refl _)) as [ts3 [x3 [G [A12 B12]]]]; clear H12.
-{ split; trivial; apply M. }
-exists ts3, x3, (F * G); split.
-+ rewrite sepcon_assoc. exists m1, m2; auto.
-+ intros rho' k MK v KV [Z V]. rewrite sepcon_assoc in V.
-  destruct V as [v1 [v2 [JV [V1 V2]]]]; destruct (join_level _ _ _ JV) as [Lev_v1 Lev_v2].
-  assert (M2v2: (level m2 >= level v2)%nat) by (apply necR_level in KV; omega).
-  specialize (B12 rho' _ M2v2 _ (necR_refl _)). spec B12.
-  { split; trivial. }
-  assert (Mv: (level m >= level v)%nat) by (apply necR_level in KV; omega).
-  apply (B23 rho' _ Mv _ (necR_refl _)). split; [ trivial | exists v1, v2; auto].
+unfold funspec_sub_si; simpl.
+rewrite !andp_assoc; apply prop_andp_left; intros []; subst.
+rewrite andp_comm, andp_assoc; apply prop_andp_left; intros []; subst.
+apply andp_right; [intros ??; simpl; auto|].
+rewrite <- unfash_andp; apply unfash_derives.
+apply allp_right; intros ts.
+apply allp_right; intros x.
+apply allp_right; intros rho.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with ts.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with x.
+eapply derives_trans; [apply allp_andp1|].
+apply allp_left with rho.
+eapply subp_trans.
+{ apply andp_left1.
+  rewrite <- (andp_dup (local _ _)) at 2; rewrite andp_assoc; apply subp_andp, derives_refl; apply subp_refl. }
+eapply subp_trans.
+{ apply andp_left2.
+  unfold local at 3; unfold lift1 at 1; simpl.
+  rewrite <- bupd_andp_prop; apply subp_bupd.
+  rewrite exp_andp2; apply subp_exp; intro ts1.
+  rewrite exp_andp2; apply subp_exp; intro x1.
+  rewrite exp_andp2; apply subp_exp; intro F.
+  apply allp_left with ts1; apply allp_left with x1; apply allp_left with rho.
+  rewrite <- andp_assoc, <- sepcon_andp_prop.
+  apply subp_andp, subp_refl; apply subp_sepcon, derives_refl; apply subp_refl. }
+apply derives_trans with TT; auto.
+eapply derives_trans, subp_derives, bupd_trans; [|apply derives_refl].
+apply subp_bupd.
+apply subp_exp_left; intro ts1.
+apply subp_exp_left; intro x1.
+apply subp_exp_left; intro F.
+rewrite <- unfash_allp, andp_comm.
+eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, bupd_frame_l; apply derives_refl].
+rewrite <- bupd_andp_unfash; apply subp_bupd.
+rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro ts2.
+rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro x2.
+rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro G.
+eapply subp_trans, subp_exp_spec.
+eapply subp_trans, subp_exp_spec.
+eapply subp_trans, subp_exp_spec with (x0 := F*G).
+eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, distrib_sepcon_andp; apply derives_refl].
+rewrite andp_comm, andp_assoc; apply subp_andp.
++ rewrite sepcon_assoc; apply subp_refl.
++ rewrite <- unfash_allp; eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, derives_refl; rewrite sepcon_comm; apply unfash_sepcon].
+  rewrite <- unfash_andp, <- unfash_allp; intros ? _; apply subp_unfash, derives_subp.
+  apply allp_right; intro rho'.
+  eapply derives_trans; [apply allp_andp1|].
+  apply allp_left with rho'.
+  eapply subp_trans.
+  { apply andp_left1.
+    rewrite <- (andp_dup (local _ _)) at 2; rewrite andp_assoc; apply subp_andp; [apply subp_refl|].
+    unfold local, lift1; simpl.
+    rewrite sepcon_assoc, <- (sepcon_andp_prop F).
+    apply subp_sepcon, derives_refl; apply subp_refl. }
+  eapply derives_trans, subp_derives, bupd_trans.
+  2: { eapply andp_derives, bupd_frame_l; apply derives_refl. }
+  unfold local at 3; unfold lift1; simpl.
+  rewrite <- bupd_andp_prop; apply subp_bupd.
+  apply andp_left2, allp_left with rho'; auto.
 Qed.
 
 (*******************end of material moved here from expr.v *******************)
@@ -535,6 +733,23 @@ Proof.
   + intros w ?. simpl in *. if_tac; firstorder.
   + intros w ?. simpl in *. if_tac; firstorder.
 Qed.
+
+Lemma own_super_non_expansive: forall {RA: ghost.Ghost} n g a pp,
+  approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).
+Proof.
+  intros; unfold own.
+  rewrite !approx_exp; f_equal; extensionality v.
+  unfold Own.
+  rewrite !approx_andp; f_equal.
+  apply pred_ext; intros ? [? Hg]; split; auto; simpl in *.
+  - rewrite <- ghost_of_approx, Hg.
+    rewrite !ghost_fmap_singleton, !preds_fmap_fmap.
+    rewrite approx_oo_approx, approx_oo_approx', approx'_oo_approx by omega; auto.
+  - rewrite ghost_fmap_singleton in *.
+    rewrite preds_fmap_fmap in Hg.
+    rewrite approx_oo_approx', approx'_oo_approx in Hg by omega; auto.
+Qed.
+
 (*
 Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
@@ -569,6 +784,22 @@ Proof.
       intros rho' k UP j KJ z JZ HZ. hnf in HZ.
       rewrite emp_sepcon in HZ. simpl in HZ. apply HZ. 
 Qed. *)
+
+Lemma approx_bupd: forall n P, approx n (bupd P) = bupd (approx n P).
+Proof.
+  intros; apply pred_ext.
+  - intros ? [? HP] ? J.
+    destruct (HP _ J) as (? & ? & m' & ? & ? & ? & ?);
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
+  - intros ? HP.
+    destruct (HP nil) as (? & ? & m' & ? & ? & ? & []).
+    { eexists; constructor. }
+    split; [omega|].
+    intros ? J.
+    destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);
+      eexists; split; eauto; eexists; split; eauto; repeat split; auto.
+Qed.
+
 Lemma approx_func_ptr_early: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   approx n (func_ptr_early (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr_early (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
 Proof.
@@ -584,13 +815,14 @@ Proof.
     exists ts1, x1, F. hnf; intros y Y z YZ [Z1 Z2]; specialize (HF _ Y _ YZ). apply approx_p in Z2.
     destruct HF as [HF1 HF2]. { split; trivial. }
     split. apply HF1. intros rho' u YU m UM M. specialize (HF2 rho' u YU m UM M).
-    apply approx_lt; trivial. apply necR_level in UM. apply necR_level in YZ. omega.
+    rewrite <- approx_bupd; split; auto.
+    apply necR_level in UM. apply necR_level in YZ. omega.
   + exists g; split; trivial. destruct g; clear H0; hnf; hnf in G; destruct G; split; trivial.
     intros ts x rho. destruct (H1 ts x rho) as [ts1 [x1 [F HF]]]; clear H1.
     exists ts1, x1, F. hnf; intros y Y z YZ [Z1 Z2]; specialize (HF _ Y _ YZ).
     destruct HF as [HF1 HF2]. { split; trivial. apply approx_lt; trivial. apply necR_level in YZ. omega. }
     split. apply HF1. intros rho' u YU m UM M. specialize (HF2 rho' u YU m UM M).
-    apply approx_p in HF2. trivial.
+    rewrite <- approx_bupd in HF2; apply HF2.
 Qed.
 
 Lemma approx_func_ptr_si: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
@@ -613,17 +845,20 @@ Proof.
     eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial. 
     intros ts2 a rho m WM u necU [U1 U2]. simpl in U1.
-    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. } 
-    intros rho' y UY k YK K; hnf; intros. rewrite emp_sepcon in K. simpl in K.
-    apply necR_level in necU.  apply necR_level in YK. split; [ omega | apply K]. 
+    apply bupd_intro.
+    exists ts2, a, emp. rewrite emp_sepcon; split. { apply approx_p in U2; trivial. }
+    intros rho' y UY k YK K. rewrite emp_sepcon in K. simpl in K.
+    rewrite <- approx_bupd.
+    apply necR_level in necU.  apply necR_level in YK. split; [ omega | apply bupd_intro, K]. 
   + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
     eapply funspec_sub_si_trans; split. apply SUBS. clear SUBS H0; hnf.
     split. split; trivial.
     intros ts2 a rho m WM u necU [U1 U2]. simpl in U1.
+    apply bupd_intro.
     exists ts2, a, emp. rewrite emp_sepcon; split. 
     - apply necR_level in necU. apply approx_lt; trivial; omega.
     - intros rho' k UP j KJ J.
-      rewrite emp_sepcon in J. simpl in J. apply J.
+      rewrite emp_sepcon in J. simpl in J. apply bupd_intro, J.
 Qed. 
 
 Definition funspecs_assert (FunSpecs: PTree.t funspec): assert :=
@@ -691,13 +926,13 @@ Proof.
   destruct (eq_dec cA cB); [subst cB | discriminate]. inv I.
   split.
   + split. trivial. split. trivial. intros. simpl. intros w [W1 W2].
-    exists ts2, (inl x2), emp. rewrite emp_sepcon.
+    apply bupd_intro. exists ts2, (inl x2), emp. rewrite emp_sepcon.
     split. trivial. simpl; intros. rewrite emp_sepcon.
-    intros u U. apply U.                                      
+    apply andp_left2, bupd_intro.
   + split. trivial. split. trivial. intros. simpl. intros w [W1 W2].
-    exists ts2, (inr x2), emp. rewrite emp_sepcon.
+    apply bupd_intro. exists ts2, (inr x2), emp. rewrite emp_sepcon.
     split. trivial. simpl; intros. rewrite emp_sepcon.
-    intros u U. apply U.
+    apply andp_left2, bupd_intro.
 Qed.
 
 (*Rule S-inter3 from page 206 of TAPL*)
@@ -726,10 +961,11 @@ Defined.
 Lemma funspec_Sigma_ND_sub fsig cc I A Pre Post i:
   funspec_sub (funspec_Sigma_ND fsig cc I A Pre Post) (NDmk_funspec fsig cc (A i) (Pre i) (Post i)).
 Proof.
-  unfold funspec_Sigma_ND. split. trivial. split. trivial. intros; simpl in *. 
+  unfold funspec_Sigma_ND. split. trivial. split. trivial. intros; simpl in *.
+  eapply derives_trans, bupd_intro.
   exists ts2, (existT A i x2), emp. rewrite emp_sepcon.
   split. apply H. simpl; intros. rewrite emp_sepcon.
-  intros u U. apply U.                                      
+  intros u U. apply bupd_intro, U.
 Qed.
 
 (*Rule S-inter3 from page 206 of TAPL*)
@@ -769,18 +1005,18 @@ Proof.
   destruct (eq_dec ccA ccB); [ inv F; split; trivial | discriminate]. 
   split.
   + split. trivial. split. trivial. simpl; intros. destruct x2 as [i p].
-    destruct i; simpl in *.
+    eapply derives_trans, bupd_intro. destruct i; simpl in *.
   - exists ts2, (inl p), emp. rewrite emp_sepcon. split; simpl. apply H.
-    intros. rewrite emp_sepcon. intros u U; apply U.
+    intros. rewrite emp_sepcon. intros u U; apply bupd_intro, U.
   - exists ts2, (inr p), emp. rewrite emp_sepcon. split; simpl. apply H.
-    intros. rewrite emp_sepcon. intros u U; apply U. 
+    intros. rewrite emp_sepcon. intros u U; apply bupd_intro, U. 
     + split. trivial. split. trivial. intros. intros u [L U]. destruct x2.
-  - exists ts2, (existT (BinarySigma_obligation_1 A B) true a), emp.
+  - apply bupd_intro. exists ts2, (existT (BinarySigma_obligation_1 A B) true a), emp.
     rewrite emp_sepcon. simpl; split. apply U. intros. rewrite emp_sepcon.
-    intros w W. apply W.
-  -  exists ts2, (existT (BinarySigma_obligation_1 A B) false b), emp.
-     rewrite emp_sepcon. simpl; split. apply U. intros. rewrite emp_sepcon.
-     intros w W. apply W.
+    apply andp_left2, bupd_intro.
+  - apply bupd_intro. exists ts2, (existT (BinarySigma_obligation_1 A B) false b), emp.
+    rewrite emp_sepcon. simpl; split. apply U. intros. rewrite emp_sepcon.
+    apply andp_left2, bupd_intro.
 Qed.
 
 Lemma Intersection_sameSigCC_Some sig cc A PA QA fsA PrfA B PB QB fsB PrfB:
@@ -836,20 +1072,20 @@ Proof.
   destruct (eq_dec f1 f2); [ subst f2 | inv H]. 
   destruct (eq_dec c1 c2); inv H.
   apply inj_pair2 in H5. apply inj_pair2 in H4. subst P Q. split.
-  + split3; try solve [reflexivity]; intros. exists ts2.
+  + split3; try solve [reflexivity]; intros. eapply derives_trans, bupd_intro. exists ts2.
     fold (@dependent_type_functor_rec ts2) in *. simpl funsig_of_funspec in *.
     simpl in H; destruct H.
     exists (existT _ true x2), emp.
     rewrite emp_sepcon.
     split. apply H0.
-    simpl. intros rho'; rewrite emp_sepcon. apply andp_left2; trivial.
-  + split3; try solve [reflexivity]; intros. exists ts2.
+    simpl. intros rho'; rewrite emp_sepcon. apply andp_left2; apply bupd_intro.
+  + split3; try solve [reflexivity]; intros. eapply derives_trans, bupd_intro. exists ts2.
     fold (@dependent_type_functor_rec ts2) in *. simpl funsig_of_funspec in *.
     simpl in H; destruct H.
     exists (existT _ false x2), emp.
     rewrite emp_sepcon.
     split. apply H0.
-    simpl. intros rho'; rewrite emp_sepcon. apply andp_left2; trivial.
+    simpl. intros rho'; rewrite emp_sepcon. apply andp_left2; apply bupd_intro.
 Qed.    
 Lemma BINARY_intersection_sub3  phi psi omega:
   binary_intersection phi psi = Some omega ->
@@ -958,6 +1194,7 @@ Proof.
   specialize (Hsig i); specialize (Hcc i); subst.
   unfold  general_intersection; simpl.
   remember (phi i) as zz; destruct zz; intros; split3; try reflexivity; intros.
+  eapply derives_trans, bupd_intro.
   exists ts2. simpl in H; destruct H.
   assert (exists D: (dependent_type_functor_rec ts2 (WithType_of_funspec (phi i))) mpred,
          JMeq.JMeq x2 D).
@@ -971,7 +1208,8 @@ Proof.
     apply inj_pair2 in H5; apply inj_pair2 in H6; subst P0 Q0.
     inv HD. apply inj_pair2 in H1; subst; trivial. 
   + intros; rewrite emp_sepcon. unfold intersectionPOST.
-    intros x [X1 X2]. destruct (phi i). 
+    intros x [X1 X2]. destruct (phi i).
+    apply bupd_intro.
     simpl in *; inv Heqzz.
     apply inj_pair2 in H5; apply inj_pair2 in H6; subst P0 Q0.
     inv HD. apply inj_pair2 in H1; subst; trivial. 

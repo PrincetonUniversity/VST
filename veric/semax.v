@@ -46,6 +46,17 @@ Proof.
   eexists; apply ghost_fmap_join; eauto.
 Qed.
 
+Lemma ext_join_sub_approx : forall {Z} (z : Z) n g,
+  join_sub (Some (ghost_PCM.ext_ref z, NoneP) :: nil) g ->
+  join_sub (Some (ghost_PCM.ext_ref z, NoneP) :: nil) (ghost_fmap (approx n) (approx n) g).
+Proof.
+  intros.
+  destruct H.
+  change (Some (ghost_PCM.ext_ref z, NoneP) :: nil) with
+    (ghost_fmap (approx n) (approx n) (Some (ghost_PCM.ext_ref z, NoneP) :: nil)).
+  eexists; apply ghost_fmap_join; eauto.
+Qed.
+
 Lemma ext_join_unapprox : forall {Z} (z : Z) n g,
   joins (ghost_fmap (approx n) (approx n) g) (Some (ghost_PCM.ext_ref z, NoneP) :: nil) ->
   joins g (Some (ghost_PCM.ext_ref z, NoneP) :: nil).
@@ -512,16 +523,6 @@ Proof.
 Qed.
 
 (* Copied from semax_switch. *)
-
-Lemma unfash_allp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
-  @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
-Proof.
-intros.
-apply pred_ext.
-intros ? ? ?.
-specialize (H b). auto.
-repeat intro. apply (H b).
-Qed.
 
 Lemma fash_TT: forall {A} {agA: ageable A}, @unfash A agA TT = TT.
 Proof.

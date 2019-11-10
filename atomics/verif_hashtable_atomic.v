@@ -1722,9 +1722,6 @@ Qed.
 
 Axiom mem_mgr_dup : forall gv, mem_mgr gv = mem_mgr gv * mem_mgr gv.
 
-(* avoids some fragility in tactics *)
-Definition except0 : mpred -> mpred := sbi_except_0.
-
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   name m_entries _m_entries.
@@ -1744,15 +1741,11 @@ Proof.
   viewshift_SEP 0 (EX inv_names : invG, wsat).
   { go_lower; apply make_wsat. }
   simpl; Intro inv_names.
-  gather_SEP wsat (hashtable _ _ _ _) (ghost_ref _ _); viewshift_SEP 0 (except0 wsat * EX i : _, except0 (invariant i (hashtable_inv gh g lg entries))).
+  gather_SEP wsat (hashtable _ _ _ _) (ghost_ref _ _); viewshift_SEP 0 (EX i : _, |> (wsat * invariant i (hashtable_inv gh g lg entries))).
   { go_lower.
-    eapply derives_trans, derives_refl'.
-    eapply derives_trans, wsat_fupd_elim.
-    simpl; cancel.
-    apply (make_inv empty _ (hashtable_inv gh g lg entries)).
+    rewrite sepcon_assoc; apply make_inv'.
     unfold hashtable_inv.
-    Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!.
-    { rewrite bi.except_0_sep; f_equal; f_equal. rewrite bi.except_0_exist; reflexivity. } }
+    Exists (@empty_map Z Z) (@nil hashtable_hist_el); entailer!. }
   simpl; Intros i1.
   destruct (split_shares 3 Ews) as (sh0 & shs & ? & ? & ? & Hshs); auto.
   destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
@@ -1764,7 +1757,7 @@ Proof.
     PROP (Zlength res = i; Zlength locks = i)
     LOCAL (temp _total (vint 0); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs Ews (tarray tentry size) entries (gv _m_entries);
-         except0 wsat; except0 (invariant i1 (hashtable_inv gh g lg entries));
+         |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          ghost_hist(hist_el := hashtable_hist_el) Tsh empty_map gh;
          iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x))
            entries;
@@ -1775,7 +1768,7 @@ Proof.
          iter_sepcon (malloc_token Ews (Tstruct _lock_t noattr)) locks *
          iter_sepcon (fun j => lock_inv Ews (Znth j locks)
            (f_lock j (Znth j locks) (Znth j res))) (upto (Z.to_nat i)); has_ext tt)).
-  { Exists (@nil val) (@nil val); rewrite !data_at__eq; entailer!.
+  { Exists (@nil val) (@nil val); rewrite !data_at__eq later_sepcon; entailer!.
     erewrite iter_sepcon_func; [apply derives_refl|]; intros (?, ?); auto. }
   { (* first loop *)
     forward_call (Tstruct _lock_t noattr, gv).
@@ -1818,7 +1811,7 @@ Proof.
     PROP (sepalg_list.list_join sh0 (sublist i 3 shs) sh; sepalg_list.list_join sh0' (sublist i 3 shs') sh')
     LOCAL (temp _total (vint 0); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs sh (tarray tentry size) entries (gv _m_entries);
-         except0 wsat; except0 (invariant i1 (hashtable_inv gh g lg entries));
+         |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          ghost_hist(hist_el := hashtable_hist_el) sh' empty_map gh;
          iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x))
            entries;
@@ -1833,12 +1826,6 @@ Proof.
     intros ??%In_upto.
     simpl; if_tac; auto; omega. }
   { (* second loop *)
-    replace_SEP 3 (|> (invariant i1 (hashtable_inv gh g lg entries) || FF)).
-    { go_lower; unfold except0, sbi_except_0.
-      simpl.
-      rewrite later_orp.
-      apply orp_left; [apply orp_right2; auto | apply orp_right1, now_later].
-      apply later_derives, bi.False_elim. }
     forward_call (tint, gv).
     { repeat split; auto; simpl; computable. }
     Intros t.
@@ -1851,7 +1838,7 @@ Proof.
     match goal with H : sepalg_list.list_join sh0' _ _ |- _ => rewrite -> sublist_next in H by auto;
       inversion H as [|????? Hj1' Hj2']; subst end.
     apply sepalg.join_comm in Hj1'; destruct (sepalg_list.list_join_assoc1 Hj1' Hj2') as (sh3' & ? & Hj3').
-    rewrite invariant_dup orp_FF.
+    rewrite invariant_dup.
     assert_PROP (isptr t) by entailer!.
     rewrite mem_mgr_dup.
     forward_spawn _f t (Znth i shs, Znth i shs', sh2, entries, i1, gh, g, lg, gv, i, gv _thread_locks, Znth i locks, gv _results,
@@ -1896,8 +1883,6 @@ Proof.
     { simpl; auto. }
     go_lowerx.
     Exists sh3 sh3'; entailer!.
-    iIntros "(($ & lock) & locks)".
-    iSplitL ""; [auto|].
     rewrite -> (iter_sepcon_Znth _ (upto 3) i), Znth_upto by auto.
     rewrite -> if_true by omega; iFrame.
     erewrite iter_sepcon_func_strong; [auto|].
@@ -1915,7 +1900,7 @@ Proof.
           readable_share sh'; sepalg_list.list_join sh' (sublist i 3 shs') Tsh)
     LOCAL (let ls := map snd (snd x) in temp _total (vint (Zlength (filter id (concat ls)))); gvars gv)
     SEP (mem_mgr gv; @data_at CompSpecs (fst x) (tarray tentry size) entries (gv _m_entries);
-         except0 wsat; except0 (invariant i1 (hashtable_inv gh g lg entries));
+         |>wsat; |>invariant i1 (hashtable_inv gh g lg entries);
          let h := map fst (snd x) in ghost_hist sh' (fold_right map_add empty_map h) gh;
          iter_sepcon (fun x => malloc_token Ews tint (fst x) * malloc_token Ews tint (snd x)) entries;
          data_at (fst x) (tarray (tptr tint) 3) res (gv _results);

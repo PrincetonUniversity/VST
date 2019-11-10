@@ -411,24 +411,6 @@ Canonical Structure mpredSI : sbi :=
   {| sbi_ofe_mixin := mpred_ofe_mixin;
      sbi_bi_mixin := mpred_bi_mixin; sbi_sbi_mixin := mpred_sbi_mixin |}.
 
-Lemma approx_bupd: forall P n, (approx n (own.bupd P) = (own.bupd (approx n P)))%logic.
-Proof.
-  intros; apply predicates_hered.pred_ext.
-  - intros ? [? HP].
-    change ((own.bupd (approx n P)) a).
-    intros ? J.
-    destruct (HP _ J) as (? & ? & m' & ? & ? & ? & ?);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto; omega.
-  - intros ? HP.
-    destruct (HP nil) as (? & ? & m' & ? & ? & ? & []).
-    { eexists; constructor. }
-    split; [omega|].
-    change ((own.bupd P) a).
-    intros ? J.
-    destruct (HP _ J) as (? & ? & m'' & ? & ? & ? & []);
-      eexists; split; eauto; eexists; split; eauto; repeat split; auto.
-Qed.
-
 Lemma mpred_bupd_mixin : BiBUpdMixin mpredI own.bupd.
 Proof.
   split.

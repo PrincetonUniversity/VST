@@ -11,8 +11,143 @@ Section locks.
 
 Context {CS : compspecs}.
 
+Definition lock_syncer {A} sh p g R := lock_inv sh p (EX a : A, R a * ghost_reference(P := discrete_PCM A) a g).
+
+Lemma lock_syncer_nonexpansive : forall {A} n sh p g (R : A -> mpred),
+  approx n (lock_syncer sh p g R) = approx n (lock_syncer sh p g (fun a => approx n (R a))).
+Proof.
+  intros; unfold lock_syncer.
+  etransitivity; [apply nonexpansive_super_non_expansive, nonexpansive_lock_inv|].
+  etransitivity; [|symmetry; apply nonexpansive_super_non_expansive, nonexpansive_lock_inv].
+  f_equal; f_equal.
+  rewrite !approx_exp; f_equal; extensionality.
+  rewrite !approx_sepcon approx_idem; auto.
+Qed.
+
+Definition makelock_type := ProdType (ConstType (val * share)) (ArrowType (DependentType 0) Mpred).
+
+Program Definition makelock_spec' :=
+  TYPE makelock_type WITH p : val, sh : share, R : _ -> mpred
+  PRE [ 1%positive OF tptr tvoid ]
+    PROP (writable_share sh)
+    LOCAL (temp 1%positive p)
+    SEP (data_at_ sh tlock p)
+  POST [ tvoid ]
+   EX g : gname,
+    PROP ()
+    LOCAL ()
+    SEP (lock_syncer sh p g R).
+Next Obligation.
+Proof.
+  intros; rewrite !approx_exp; f_equal; extensionality.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp !approx_sepcon; f_equal; f_equal; f_equal.
+  apply lock_syncer_nonexpansive.
+Qed.
+
+Definition acquire_type := ProdType (ProdType (ConstType (val * share * gname))
+  (ArrowType (DependentType 0) Mpred)) (ArrowType (DependentType 0) Mpred).
+
+Program Definition acquire_spec' :=
+  TYPE acquire_type WITH p : val, sh : share, g : gname, R : _ -> mpred, a : _ -> mpred
+  PRE [ 1%positive OF tptr tvoid ]
+    PROP ()
+    LOCAL (temp 1%positive p)
+    SEP (lock_syncer sh p g R)
+  POST [ tvoid ]
+   EX x : _,
+    PROP ()
+    LOCAL ()
+    SEP (lock_syncer sh p g R; R x; a x; ghost_reference(P := discrete_PCM _) x g).
+Next Obligation.
+Proof.
+  intros.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp !approx_sepcon; f_equal; f_equal; f_equal.
+  apply lock_syncer_nonexpansive.
+Qed.
+Next Obligation.
+Proof.
+  intros; rewrite !approx_exp; f_equal; extensionality.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp !approx_sepcon !approx_idem; f_equal; f_equal; f_equal.
+  apply lock_syncer_nonexpansive.
+Qed.
+
+Definition release_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * gname))
+  (ArrowType (DependentType 0) Mpred)) (DependentType 0)) (ArrowType (DependentType 0) Mpred)) (ArrowType (DependentType 0) Mpred).
+
+Program Definition release_spec' :=
+  ATOMIC TYPE release_type OBJ x INVS empty top
+  WITH p : val, sh : share, g : gname, R : _ -> mpred, x0 : _, a : _ -> mpred, b : _ -> mpred
+  PRE [ 1%positive OF tptr tvoid ]
+    PROP (True)
+    LOCAL (temp 1%positive p)
+    SEPS (lock_syncer sh p g R; EX x', R x' * b x'; ghost_reference(P := discrete_PCM _) x0 g) | ((a x * ghost_part_ref Tsh(P := discrete_PCM _) x x g) || ghost_part(P := discrete_PCM _) Tsh x g)
+  POST [ tvoid ]
+    PROP ()
+    LOCAL ()
+    SEP (lock_syncer sh p g R; EX x', b x').
+Next Obligation.
+Proof.
+  - intros; apply lock_syncer_nonexpansive.
+  - intros; rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_sepcon !approx_idem; auto.
+Qed.
+Next Obligation.
+Proof.
+  intros; rewrite !approx_orp !approx_sepcon !approx_idem; auto.
+Qed.
+
+Lemma makelock_sub : funspec_sub (makelock_spec _) makelock_spec'.
+Proof.
+  apply subsume_subsume.
+  unfold funspec_sub', makelock_spec, makelock_spec'; intros; repeat (split; auto); intros.
+  destruct x2 as ((p, sh), R).
+  simpl funsig_of_funspec.
+  Exists (@nil Type) (p, sh, EX a, R a * ghost_reference(P := discrete_PCM A) a g) emp.
+  simpl; intro.
+  unfold liftx; simpl.
+  unfold lift.
+  rewrite emp_sepcon.
+  apply andp_right.
+  - apply andp_left2.
+    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
+    apply andp_derives; auto.
+    rewrite sepcon_assoc; eapply derives_trans, atomic_shift_derives_frame_cored.
+    { apply sepcon_derives; [apply derives_refl|].
+      setoid_rewrite later_sepcon; apply sepcon_derives; [apply now_later | apply derives_refl]. }
+    { apply andp_left2, emp_cored. }
+    iIntros (a) "[[lock timeless] [>b R]] !>"; iExists tt.
+    unfold lock_inv' at 1; iDestruct "lock" as "[[[u a'] R'] | [l a]]".
+    + iCombine "b a'" as "a".
+      iPoseProof (own_valid_2(RA := ref_PCM (discrete_PCM _)) with "a") as "%".
+      hnf in H.
+      destruct H as ((?, ?) & J & _).
+      inv J; simpl in *.
+      inv H0.
+      inv H3.
+    + iFrame; iSplit.
+      * iIntros "l".
+        iFrame; iSplitR "timeless"; auto.
+        unfold lock_inv'; iRight; iFrame; auto.
+      * iIntros (_) "u".
+        iCombine "a b" as "a".
+        iPoseProof (ref_sub(P := discrete_PCM _) with "a") as "%".
+        rewrite eq_dec_refl in H; subst.
+        setoid_rewrite ghost_part_ref_join.
+        iMod (ref_update(P := discrete_PCM _) with "a").
+        unfold timeless_inv.
+        iMod ("timeless" with "R").
+        iIntros "!>"; iExists tt; iFrame.
+        iSplitR ""; [|by iIntros "?"].
+        iSplit; auto; iSplit; auto.
+        unfold lock_inv'; iLeft; iFrame.
+  - apply prop_right; intros.
+    apply andp_left2; rewrite emp_sepcon; auto.
+Qed.
+
+
 Parameters (locked unlocked : val -> mpred). (* instantiation depends on the lock implementation *)
 Axioms (locked_timeless : forall p, Timeless (locked p)) (unlocked_timeless : forall p, Timeless (unlocked p)).
+Axioms (locked_isptr : forall p, locked p |-- !!isptr p) (unlocked_isptr : forall p, unlocked p |-- !!isptr p).
 
 Definition makelock_spec :=
   WITH p : val
@@ -138,7 +273,7 @@ Proof.
     apply andp_derives; auto.
     apply atomic_shift_derives'; intros.
     iIntros "lock !>".
-    unfold lock_inv' at 1; iDestruct "lock" as "[[[u a] R] | [l a]]".
+    unfold lock_inv' at 1. iDestruct "lock" as "[[[u a] R] | [l a]]".
     + iExists true; iSplitL "u"; first by iRight; iFrame.
       iSplit.
       * iIntros "[[% ?] | [% ?]] !>"; try discriminate.
@@ -237,7 +372,7 @@ Program Definition acquire_inv_spec :=
   PRE [ 1%positive OF tptr tvoid ]
     PROP (True)
     LOCAL (temp 1%positive p)
-    SEP (atomic_shift (fun a => lock_inv' p g a R) empty top b Q)
+    SEP (atomic_shift (fun a => lock_inv' p g a R) empty top b Q) (* would it be simpler if this was inv? Inv isn't freeable, but atomic_shift isn't duplicable. *)
   POST [ tvoid ]
    EX a : _,
     PROP ()
@@ -302,7 +437,7 @@ Program Definition release_inv_spec :=
     PROP (True)
     LOCAL (temp 1%positive p)
     SEP (timeless_inv R && emp; atomic_shift (fun a => lock_inv' p g a R) empty top b Q;
-            ghost_reference(P := discrete_PCM _) a g; R a)
+            ghost_reference(P := discrete_PCM _) a g; |>R a)
   POST [ tvoid ]
     PROP ()
     LOCAL ()
@@ -316,7 +451,8 @@ Proof.
   f_equal.
   rewrite atomic_shift_nonexpansive; setoid_rewrite atomic_shift_nonexpansive at 2.
   f_equal; f_equal; repeat extensionality; rewrite ?approx_idem; auto.
-  apply lock_inv'_nonexpansive.
+  - apply lock_inv'_nonexpansive.
+  - rewrite later_nonexpansive; auto.
 Qed.
 Next Obligation.
 Proof.
@@ -375,16 +511,15 @@ Program Definition makelock_inv_spec :=
     LOCAL (temp 1%positive p)
     SEP (data_at_ Ews tlock p)
   POST [ tvoid ]
-   EX g : gname,
     PROP ()
     LOCAL ()
-    SEP (|==>lock_inv' p g a R * ghost_reference(P := discrete_PCM _) a g).
+    SEP (|==>EX g : gname, lock_inv' p g a R * ghost_reference(P := discrete_PCM _) a g).
 Next Obligation.
   intros.
-  rewrite !approx_exp; f_equal; extensionality.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
-  rewrite !approx_bupd !approx_sepcon lock_inv'_nonexpansive; auto.
+  rewrite !approx_bupd !approx_exp; f_equal; f_equal; extensionality.
+  rewrite !approx_sepcon lock_inv'_nonexpansive; auto.
 Qed.
 
 Lemma makelock_inv : funspec_sub makelock_spec makelock_inv_spec.
@@ -395,68 +530,77 @@ Proof.
   simpl funsig_of_funspec.
   Exists (@nil Type) p emp.
   rewrite !emp_sepcon; apply andp_right; entailer!.
-  rewrite <- !exp_andp2, TT_andp.
-  apply andp_derives.
-  { simpl; intros; entailer!. }
-  simpl; intro.
-  iIntros "[lock _]".
-  rewrite <- exp_sepcon1, sepcon_emp.
-  iMod (own_alloc(RA := ref_PCM (discrete_PCM _)) (Some (Tsh, a), Some a) NoneP with "[]") as "g"; auto.
+  apply andp_left2; simpl; intro.
+  iIntros "[lock e]".
+  rewrite sepcon_emp.
+  iMod (own_alloc(RA := ref_PCM (discrete_PCM _)) (Some (Tsh, a), Some a) NoneP with "e") as (g) "g"; auto.
   { simpl; split; auto with share; apply @self_completable. }
-  setoid_rewrite sepcon_emp.
-  SearchAbout bupd bi_sep.
-  iMod "g" as (g) "g".
-  iIntros "H".
-  SearchAbout bupd bi_exist.
-    
-    hnf.
-  viewshift_SEP 0 (EX g : _, ghost_part(P := discrete_PCM _) Tsh a g).
-  ghost_alloc (ghost_part(P := discrete_PCM _) Tsh a).
-  iIntros "H".
-  setoid_rewrite TT_andp.
-  SearchAbout TT andp.
-  iIntros 
-  - rewrite sepcon_
-apply andp_left2; unfold liftx; simpl; intros.
-    unfold lift; simpl.
-    unfold PROPx, LOCALx, SEPx; entailer!.
-    unfold local; simpl.
-    unfold lift1; simpl.
-    rewrite sepcon_andp_prop; apply andp_derives; auto; cancel.
-  - intros; apply andp_left2.
-    unfold liftx; simpl.
-    unfold lift; simpl.
-    ghost_alloc (ghost_part Tsh a).
+  iExists g; unfold lock_inv'.
+  setoid_rewrite <- ghost_part_ref_join.
+  iDestruct "g" as "[g $]".
+  iIntros "!>"; iRight; iFrame.
+Qed.
 
-    
-  
-    SearchAbout local andp.
-  set (AS := atomic_shift _ _ _ _ _).
-  unfold AS, atomic_shift; Intros P.
-  Exists ts2 (p, g, a, a, R, AS, inv_names) emp.
+Definition freelock_type := ProdType (ProdType (ProdType (ConstType (val * gname))
+   (DependentType 0)) (ArrowType (DependentType 0) Mpred)) (ConstType invG).
+
+Program Definition freelock_inv_spec :=
+  TYPE freelock_type WITH p : val, g : gname, a : _, R : _ -> mpred, inv_names : invG
+  PRE [ 1%positive OF tptr tvoid ]
+   PROP ()
+   LOCAL (temp 1%positive p)
+   SEP (atomic_shift(B := unit) (fun a => lock_inv' p g a R) empty top (fun _ _ => emp) (fun _ => emp);
+           ghost_reference(P := discrete_PCM _) a g)
+  POST [ tvoid ]
+   PROP ()
+   LOCAL ()
+   SEP (data_at_ Ews tlock p)%I.
+Next Obligation.
+Proof.
+  intros; unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal;
+    f_equal; rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  f_equal.
+  rewrite atomic_shift_nonexpansive; setoid_rewrite atomic_shift_nonexpansive at 2.
+  f_equal; f_equal; repeat extensionality; rewrite ?approx_idem; auto.
+  apply lock_inv'_nonexpansive.
+Qed.
+
+Lemma freelock_inv : funspec_sub freelock_spec freelock_inv_spec.
+Proof.
+  (* need to be able to do fupd in precondition of funspec_sub *)
+  apply subsume_subsume; unfold funspec_sub', freelock_spec, freelock_inv_spec.
+  repeat split; auto; intros.
+  destruct x2 as ((((p, g), a), R), inv_names).
+  simpl funsig_of_funspec.
+  Exists ts2 p emp.
   simpl; intro.
   unfold liftx; simpl.
   unfold lift.
   rewrite emp_sepcon.
   apply andp_right.
   - apply andp_left2.
-    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
-    Exists P.
-    apply andp_derives; auto.
-    cancel.
-    sep_apply cored_dup_cored.
-    apply andp_derives; auto.
-    unfold ashift at 1 3.
-    iIntros "[H AS] P"; iMod ("H" with "P") as (a') "[lock H]".
-    iExists a'; iFrame.
-    iIntros "!>"; iSplit.
-    + iDestruct "AS" as "[_ e]"; iMod (cored_emp with "e") as "_".
-      by iApply bi.and_elim_l.
-    + iIntros (_) "[[% lock] _]"; subst.
-      iMod ("H" with "lock").
-      unfold AS, atomic_shift; iExists P; iFrame; auto.
+    unfold PROPx, LOCALx, SEPx; simpl; apply andp_derives; auto; apply andp_derives; auto.
+    unfold atomic_shift; Intros P.
+    eapply derives_trans with (|={top}=>locked p)%I; [|admit].
+    iIntros "[[P H] [g _]]".
+    iMod ("H" with "P") as (?) "[lock H]".
+    unfold lock_inv' at 1.
+    iDestruct "lock" as "[[[? g'] ?] | [$ g']]".
+    + iCombine "g g'" as "g".
+      iPoseProof (own_valid_2(RA := ref_PCM (discrete_PCM _)) with "g") as "%".
+      hnf in H0.
+      destruct H0 as ((?, ?) & J & _).
+      inv J; simpl in *.
+      inv H1.
+      inv H4.
+    + iMod (own_dealloc(RA := ref_PCM (discrete_PCM _)) with "g").
+      iMod (own_dealloc(RA := ref_PCM (discrete_PCM _)) with "g'").
+      iDestruct "H" as "[_ H]"; iApply ("H" $! tt); auto.
   - apply prop_right; intros.
     apply andp_left2; rewrite emp_sepcon.
     apply derives_refl.
-Qed.
+Admitted.
+
 End locks.
+
+Hint Resolve locked_isptr unlocked_isptr : saturate_local.

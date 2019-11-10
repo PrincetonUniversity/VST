@@ -8,6 +8,7 @@ Require Import VST.veric.juicy_mem. (*VST.veric.juicy_mem_lemmas VST.veric.juicy
 
 Require Import VST.veric.ghost_PCM. (*avoids doing Require Import VST.veric.initial_world.*)
 Require Import VST.veric.own. (*for ghost_approx*)
+Require Import VST.veric.tycontext.
 
 Require Import VST.veric.age_to_resource_at.
 

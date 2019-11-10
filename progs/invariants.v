@@ -1040,7 +1040,7 @@ Proof.
   intros; unfold invariant.
   rewrite !approx_exp; f_equal; extensionality g.
   rewrite !approx_sepcon; f_equal.
-  apply own.own_super_non_expansive.
+  apply own_super_non_expansive.
 Qed.
 
 Lemma invariant_cored : forall i P, invariant i P |-- cored.

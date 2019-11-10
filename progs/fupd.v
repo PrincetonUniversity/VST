@@ -438,6 +438,19 @@ Proof.
   eapply derives_trans, now_later; auto.
 Qed.
 
+Lemma make_inv' : forall P Q, P |-- Q -> (wsat * P |-- |==> EX i : _, |> (wsat * (invariant i Q)))%I.
+Proof.
+  intros.
+  iIntros "[wsat P]".
+  iPoseProof (make_inv empty _ _ H with "P") as "inv".
+  iMod (wsat_fupd_elim with "[$wsat $inv]") as "[wsat inv]".
+  iDestruct "inv" as (i) "inv"; iExists i.
+  unfold sbi_except_0.
+  iIntros "!> !>".
+  iDestruct "wsat" as "[? | $]"; auto.
+  iDestruct "inv" as "[? | ?]"; auto.
+Qed.
+
 Lemma inv_close_aux : forall E (i : iname) P,
   (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
   (wsat * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))
@@ -500,6 +513,9 @@ Proof.
   intros; rewrite elem_of_singleton; reflexivity.
 Qed.
 Hint Resolve inv_in : ghost.
+
+(* avoids some fragility in tactics *)
+Definition except0 : mpred -> mpred := sbi_except_0.
 
 Global Opaque fupd.
 

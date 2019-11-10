@@ -19,6 +19,11 @@ void acquire(void *lock) {
   return;
 }
 
+void acquire2(void *lock) {
+  pthread_mutex_lock((pthread_mutex_t*)lock);
+  return;
+}
+
 void release(void *lock) {
   pthread_mutex_unlock((pthread_mutex_t*)lock);
   return;

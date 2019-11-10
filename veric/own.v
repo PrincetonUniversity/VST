@@ -229,6 +229,24 @@ Proof.
     do 2 eexists; eauto.
 Qed.
 
+Lemma bupd_andp_prop : forall P Q, bupd (!! P && Q) = !! P && bupd Q.
+Proof.
+  intros; apply pred_ext.
+  - intros ??; simpl in *.
+    split.
+    + destruct (H (core (ghost_of a))) as (? & ? & ? & ? & ? & ? & ? & ?); auto.
+      eexists.
+      rewrite ghost_core; simpl; erewrite <- ghost_core.
+      apply join_comm, core_unit.
+    + intros ? J; destruct (H _ J) as (? & ? & m & ? & ? & ? & ? & ?).
+      do 2 eexists; eauto.
+  - intros ? [? HQ] ? J.
+    destruct (HQ _ J) as (? & ? & m & ? & ? & ? & ?).
+    do 2 eexists; eauto.
+    do 2 eexists; eauto.
+    repeat split; auto.
+Qed.
+
 Lemma subp_bupd: forall (G : pred nat) (P P' : pred rmap), G |-- P >=> P' ->
     G |-- (bupd P >=> bupd P')%pred.
 Proof.
@@ -671,23 +689,4 @@ Proof.
     eapply necR_resource_at_identity; eauto.
   - rewrite Hg, ghost_fmap_singleton.
     apply singleton_join; repeat constructor; auto.
-Qed.
-
-Require Import VST.veric.tycontext.
-Require Import VST.veric.Clight_seplog.
- 
-Lemma own_super_non_expansive: forall {RA: Ghost} n g a pp,
-  approx n (own g a pp) = approx n (own g a (preds_fmap (approx n) (approx n) pp)).
-Proof.
-  intros; unfold own.
-  rewrite !approx_exp; f_equal; extensionality v.
-  unfold Own.
-  rewrite !approx_andp; f_equal.
-  apply pred_ext; intros ? [? Hg]; split; auto; simpl in *.
-  - rewrite <- ghost_of_approx, Hg.
-    rewrite !ghost_fmap_singleton, !preds_fmap_fmap.
-    rewrite approx_oo_approx, approx_oo_approx', approx'_oo_approx by omega; auto.
-  - rewrite ghost_fmap_singleton in *.
-    rewrite preds_fmap_fmap in Hg.
-    rewrite approx_oo_approx', approx'_oo_approx in Hg by omega; auto.
 Qed.

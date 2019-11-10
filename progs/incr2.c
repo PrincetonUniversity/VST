@@ -47,7 +47,7 @@ int main(void)
   incr();
 
   /*JOIN */
-  acquire((void*)lockt);
+  acquire2((void*)lockt);
   unsigned t = read();
   acquire((void*)lockc);
   /* free the locks */

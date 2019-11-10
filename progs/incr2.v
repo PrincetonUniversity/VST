@@ -3,7 +3,7 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 
 Module Info.
-  Definition version := "3.5"%string.
+  Definition version := "3.4"%string.
   Definition build_number := ""%string.
   Definition build_tag := ""%string.
   Definition arch := "x86"%string.
@@ -12,7 +12,7 @@ Module Info.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "progs/incr2.c"%string.
-  Definition normalized := true.
+  Definition normalized := false.
 End Info.
 
 Definition ___builtin_ais_annot : ident := 1%positive.
@@ -68,26 +68,27 @@ Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___compcert_va_int32 : ident := 15%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
 Definition _acquire : ident := 55%positive.
-Definition _args : ident := 68%positive.
-Definition _ctr : ident := 63%positive.
-Definition _ctr_lock : ident := 61%positive.
+Definition _acquire2 : ident := 59%positive.
+Definition _args : ident := 69%positive.
+Definition _ctr : ident := 64%positive.
+Definition _ctr_lock : ident := 62%positive.
 Definition _freelock : ident := 54%positive.
 Definition _freelock2 : ident := 58%positive.
-Definition _incr : ident := 66%positive.
-Definition _l : ident := 64%positive.
-Definition _lockc : ident := 70%positive.
-Definition _lockt : ident := 71%positive.
-Definition _main : ident := 72%positive.
+Definition _incr : ident := 67%positive.
+Definition _l : ident := 65%positive.
+Definition _lockc : ident := 71%positive.
+Definition _lockt : ident := 72%positive.
+Definition _main : ident := 73%positive.
 Definition _makelock : ident := 53%positive.
 Definition _makelock2 : ident := 57%positive.
-Definition _read : ident := 67%positive.
+Definition _read : ident := 68%positive.
 Definition _release : ident := 56%positive.
-Definition _release2 : ident := 59%positive.
-Definition _spawn : ident := 60%positive.
-Definition _t : ident := 65%positive.
-Definition _thread_func : ident := 69%positive.
-Definition _thread_lock : ident := 62%positive.
-Definition _t'1 : ident := 73%positive.
+Definition _release2 : ident := 60%positive.
+Definition _spawn : ident := 61%positive.
+Definition _t : ident := 66%positive.
+Definition _thread_func : ident := 70%positive.
+Definition _thread_lock : ident := 63%positive.
+Definition _t'1 : ident := 74%positive.
 
 Definition v_ctr_lock := {|
   gvar_info := (tarray (tptr tvoid) 2);
@@ -245,8 +246,8 @@ Definition f_main := {|
                     nil)
                   (Ssequence
                     (Scall None
-                      (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       tvoid cc_default))
+                      (Evar _acquire2 (Tfunction (Tcons (tptr tvoid) Tnil)
+                                        tvoid cc_default))
                       ((Ecast
                          (Etempvar _lockt (tptr (tarray (tptr tvoid) 2)))
                          (tptr tvoid)) :: nil))
@@ -557,6 +558,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_external "freelock2"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_acquire2,
+   Gfun(External (EF_external "acquire2"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_release2,
    Gfun(External (EF_external "release2"
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -576,26 +581,26 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 
 Definition public_idents : list ident :=
 (_main :: _thread_func :: _read :: _incr :: _ctr :: _thread_lock ::
- _ctr_lock :: _spawn :: _release2 :: _freelock2 :: _makelock2 :: _release ::
- _acquire :: _freelock :: _makelock :: ___builtin_debug :: ___builtin_nop ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_memcpy_aligned :: ___builtin_fsqrt :: ___builtin_fabs ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___builtin_ais_annot :: nil).
+ _ctr_lock :: _spawn :: _release2 :: _acquire2 :: _freelock2 :: _makelock2 ::
+ _release :: _acquire :: _freelock :: _makelock :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
+ ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
+ ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
+ ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
+ ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
+ ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
+ ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
+ ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fsqrt ::
+ ___builtin_fabs :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: ___builtin_ais_annot :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.
