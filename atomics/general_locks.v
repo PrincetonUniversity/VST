@@ -11,7 +11,7 @@ Section locks.
 
 Context {CS : compspecs}.
 
-Definition lock_syncer {A} sh p g R := lock_inv sh p (EX a : A, R a * ghost_reference(P := discrete_PCM A) a g).
+(*Definition lock_syncer {A} sh p g R := lock_inv sh p (EX a : A, R a * ghost_reference(P := discrete_PCM A) a g).
 
 Lemma lock_syncer_nonexpansive : forall {A} n sh p g (R : A -> mpred),
   approx n (lock_syncer sh p g R) = approx n (lock_syncer sh p g (fun a => approx n (R a))).
@@ -24,10 +24,10 @@ Proof.
   rewrite !approx_sepcon approx_idem; auto.
 Qed.
 
-Definition makelock_type := ProdType (ConstType (val * share)) (ArrowType (DependentType 0) Mpred).
+Definition makelock_sync_type := ProdType (ProdType (ConstType (val * share)) (ArrowType (DependentType 0) Mpred)) (DependentType 0).
 
-Program Definition makelock_spec' :=
-  TYPE makelock_type WITH p : val, sh : share, R : _ -> mpred
+Program Definition makelock_sync_spec :=
+  TYPE makelock_sync_type WITH p : val, sh : share, R : _ -> mpred, x : _
   PRE [ 1%positive OF tptr tvoid ]
     PROP (writable_share sh)
     LOCAL (temp 1%positive p)
@@ -36,7 +36,7 @@ Program Definition makelock_spec' :=
    EX g : gname,
     PROP ()
     LOCAL ()
-    SEP (lock_syncer sh p g R).
+    SEP (lock_syncer sh p g R; ghost_part_ref(P := discrete_PCM _) Tsh x x g).
 Next Obligation.
 Proof.
   intros; rewrite !approx_exp; f_equal; extensionality.
@@ -44,11 +44,11 @@ Proof.
   apply lock_syncer_nonexpansive.
 Qed.
 
-Definition acquire_type := ProdType (ProdType (ConstType (val * share * gname))
+Definition acquire_sync_type := ProdType (ProdType (ConstType (val * share * gname))
   (ArrowType (DependentType 0) Mpred)) (ArrowType (DependentType 0) Mpred).
 
-Program Definition acquire_spec' :=
-  TYPE acquire_type WITH p : val, sh : share, g : gname, R : _ -> mpred, a : _ -> mpred
+Program Definition acquire_sync_spec :=
+  TYPE acquire_sync_type WITH p : val, sh : share, g : gname, R : _ -> mpred, a : _ -> mpred
   PRE [ 1%positive OF tptr tvoid ]
     PROP ()
     LOCAL (temp 1%positive p)
@@ -71,11 +71,11 @@ Proof.
   apply lock_syncer_nonexpansive.
 Qed.
 
-Definition release_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * gname))
+Definition release_sync_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * gname))
   (ArrowType (DependentType 0) Mpred)) (DependentType 0)) (ArrowType (DependentType 0) Mpred)) (ArrowType (DependentType 0) Mpred).
 
-Program Definition release_spec' :=
-  ATOMIC TYPE release_type OBJ x INVS empty top
+Program Definition release_sync_spec :=
+  ATOMIC TYPE release_sync_type OBJ x INVS empty top
   WITH p : val, sh : share, g : gname, R : _ -> mpred, x0 : _, a : _ -> mpred, b : _ -> mpred
   PRE [ 1%positive OF tptr tvoid ]
     PROP (True)
@@ -96,54 +96,29 @@ Proof.
   intros; rewrite !approx_orp !approx_sepcon !approx_idem; auto.
 Qed.
 
-Lemma makelock_sub : funspec_sub (makelock_spec _) makelock_spec'.
+Lemma makelock_sub : funspec_sub (makelock_spec _) makelock_sync_spec.
 Proof.
   apply subsume_subsume.
-  unfold funspec_sub', makelock_spec, makelock_spec'; intros; repeat (split; auto); intros.
-  destruct x2 as ((p, sh), R).
-  simpl funsig_of_funspec.
-  Exists (@nil Type) (p, sh, EX a, R a * ghost_reference(P := discrete_PCM A) a g) emp.
+  unfold funspec_sub', makelock_spec, makelock_sync_spec; intros; repeat (split; auto); intros.
+  destruct x2 as (((p, sh), R), x).
   simpl; intro.
-  unfold liftx; simpl.
-  unfold lift.
-  rewrite emp_sepcon.
-  apply andp_right.
-  - apply andp_left2.
-    unfold PROPx, LOCALx, SEPx; simpl; entailer!.
-    apply andp_derives; auto.
-    rewrite sepcon_assoc; eapply derives_trans, atomic_shift_derives_frame_cored.
-    { apply sepcon_derives; [apply derives_refl|].
-      setoid_rewrite later_sepcon; apply sepcon_derives; [apply now_later | apply derives_refl]. }
-    { apply andp_left2, emp_cored. }
-    iIntros (a) "[[lock timeless] [>b R]] !>"; iExists tt.
-    unfold lock_inv' at 1; iDestruct "lock" as "[[[u a'] R'] | [l a]]".
-    + iCombine "b a'" as "a".
-      iPoseProof (own_valid_2(RA := ref_PCM (discrete_PCM _)) with "a") as "%".
-      hnf in H.
-      destruct H as ((?, ?) & J & _).
-      inv J; simpl in *.
-      inv H0.
-      inv H3.
-    + iFrame; iSplit.
-      * iIntros "l".
-        iFrame; iSplitR "timeless"; auto.
-        unfold lock_inv'; iRight; iFrame; auto.
-      * iIntros (_) "u".
-        iCombine "a b" as "a".
-        iPoseProof (ref_sub(P := discrete_PCM _) with "a") as "%".
-        rewrite eq_dec_refl in H; subst.
-        setoid_rewrite ghost_part_ref_join.
-        iMod (ref_update(P := discrete_PCM _) with "a").
-        unfold timeless_inv.
-        iMod ("timeless" with "R").
-        iIntros "!>"; iExists tt; iFrame.
-        iSplitR ""; [|by iIntros "?"].
-        iSplit; auto; iSplit; auto.
-        unfold lock_inv'; iLeft; iFrame.
-  - apply prop_right; intros.
+  iIntros "H".
+  iMod (own_alloc(RA := ref_PCM (discrete_PCM _)) (Some (Tsh, x), Some x) NoneP with "[]") as (g) "g"; auto.
+  { simpl; split; auto with share; apply @self_completable. }
+  iExists (@nil Type), (p, sh, EX a, R a * ghost_reference(P := discrete_PCM _) a g), (ghost_part_ref(P := discrete_PCM _) Tsh x x g).
+  iIntros "!>"; iSplit.
+  - iSplitL "g"; [auto|].
+    iDestruct "H" as "(_ & H)".
+    unfold PROPx, LOCALx, SEPx; simpl.
+    iDestruct "H" as "(? & ? & H)".
+    iSplit; auto; iSplit; auto.
+  - iPureIntro.
+    iIntros (?) "[_ H]".
+    iExists g.
+    iExists
+apply prop_right; intros.
     apply andp_left2; rewrite emp_sepcon; auto.
-Qed.
-
+Qed.*)
 
 Parameters (locked unlocked : val -> mpred). (* instantiation depends on the lock implementation *)
 Axioms (locked_timeless : forall p, Timeless (locked p)) (unlocked_timeless : forall p, Timeless (unlocked p)).
@@ -262,6 +237,7 @@ Proof.
   unfold funspec_sub', acquire_spec, acquire_spec'; intros; repeat (split; auto); intros.
   destruct x2 as ((((p, g), R), Q), inv_names).
   simpl funsig_of_funspec.
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists (@nil Type) (p, Q, inv_names) emp.
   simpl; intro.
   unfold liftx; simpl.
@@ -287,7 +263,7 @@ Proof.
         unfold lock_inv'; iRight; iFrame.
       * iIntros (_) "[[% l] _]"; discriminate.
   - apply prop_right; intros.
-    apply andp_left2; rewrite emp_sepcon; auto.
+    apply andp_left2; rewrite emp_sepcon; apply ghost_seplog.bupd_intro.
 Qed.
 
 Definition release_type' := (ProdType (ProdType (ProdType (ConstType (val * gname))
@@ -321,6 +297,7 @@ Proof.
   unfold funspec_sub', release_spec, release_spec'; intros; repeat (split; auto); intros.
   destruct x2 as ((((((p, g), b), b'), R), Q), inv_names).
   simpl funsig_of_funspec.
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists (@nil Type) (p, Q, inv_names) emp.
   simpl; intro.
   unfold liftx; simpl.
@@ -360,7 +337,7 @@ Proof.
         iSplit; auto; iSplit; auto.
         unfold lock_inv'; iLeft; iFrame.
   - apply prop_right; intros.
-    apply andp_left2; rewrite emp_sepcon; auto.
+    apply andp_left2; rewrite emp_sepcon; apply ghost_seplog.bupd_intro.
 Qed.
 
 Definition acq_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * gname))
@@ -474,6 +451,7 @@ Proof.
   simpl funsig_of_funspec.
   set (AS := atomic_shift _ _ _ _ _).
   unfold AS, atomic_shift; Intros P.
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists ts2 (p, g, a, a, R, AS, inv_names) emp.
   simpl; intro.
   unfold liftx; simpl.
@@ -497,8 +475,7 @@ Proof.
       iMod ("H" with "lock").
       unfold AS, atomic_shift; iExists P; iFrame; auto.
   - apply prop_right; intros.
-    apply andp_left2; rewrite emp_sepcon.
-    apply derives_refl.
+    apply andp_left2; rewrite emp_sepcon; apply ghost_seplog.bupd_intro.
 Qed.
 
 Definition makelock_type := ProdType (ProdType (ConstType val) (DependentType 0))
@@ -513,12 +490,12 @@ Program Definition makelock_inv_spec :=
   POST [ tvoid ]
     PROP ()
     LOCAL ()
-    SEP (|==>EX g : gname, lock_inv' p g a R * ghost_reference(P := discrete_PCM _) a g).
+    SEP (EX g : gname, lock_inv' p g a R * ghost_reference(P := discrete_PCM _) a g).
 Next Obligation.
   intros.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
     rewrite -> !sepcon_emp, ?approx_sepcon, ?approx_idem; auto.
-  rewrite !approx_bupd !approx_exp; f_equal; f_equal; extensionality.
+  rewrite !approx_exp; f_equal; f_equal; extensionality.
   rewrite !approx_sepcon lock_inv'_nonexpansive; auto.
 Qed.
 
@@ -528,6 +505,7 @@ Proof.
   repeat split; auto; intros.
   destruct x2 as ((p, a), R).
   simpl funsig_of_funspec.
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists (@nil Type) p emp.
   rewrite !emp_sepcon; apply andp_right; entailer!.
   apply andp_left2; simpl; intro.
@@ -572,6 +550,7 @@ Proof.
   repeat split; auto; intros.
   destruct x2 as ((((p, g), a), R), inv_names).
   simpl funsig_of_funspec.
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists ts2 p emp.
   simpl; intro.
   unfold liftx; simpl.
@@ -597,8 +576,7 @@ Proof.
       iMod (own_dealloc(RA := ref_PCM (discrete_PCM _)) with "g'").
       iDestruct "H" as "[_ H]"; iApply ("H" $! tt); auto.
   - apply prop_right; intros.
-    apply andp_left2; rewrite emp_sepcon.
-    apply derives_refl.
+    apply andp_left2; rewrite emp_sepcon; apply ghost_seplog.bupd_intro.
 Admitted.
 
 End locks.

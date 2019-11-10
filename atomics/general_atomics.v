@@ -497,6 +497,7 @@ Proof.
   simpl funsig_of_funspec.
   rewrite Hpre2.
   set (AS := atomic_shift _ _ _ _ _).
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists ts2 (w, (fun v2 => AS * EX v1 : _, Q' ts2 w v1 v2), inv_names) emp.
   simpl in *; intro.
   unfold liftx; simpl.
@@ -526,6 +527,7 @@ Proof.
     apply andp_left2; rewrite emp_sepcon; auto.
     rewrite Hpost1 Hpost2.
     unfold PROPx, LOCALx, SEPx; simpl.
+    eapply derives_trans, ghost_seplog.bupd_intro.
     Intros v2 v1; Exists v1 v2; rewrite sepcon_assoc; unfold AS; auto.
 Qed.
 
@@ -555,6 +557,7 @@ Proof.
   simpl funsig_of_funspec.
   rewrite Hpre2.
   set (AS := atomic_shift _ _ _ _ _).
+  eapply derives_trans, ghost_seplog.bupd_intro.
   Exists ts2 (w, (AS * EX v1 : _, Q' ts2 w v1), inv_names) emp.
   simpl in *; intro.
   unfold liftx; simpl.
@@ -584,6 +587,7 @@ Proof.
     apply andp_left2; rewrite emp_sepcon; auto.
     rewrite Hpost1 Hpost2.
     unfold PROPx, LOCALx, SEPx; simpl.
+    eapply derives_trans, ghost_seplog.bupd_intro.
     Intros v1; Exists v1; rewrite sepcon_assoc; unfold AS; auto.
 Qed.
 
