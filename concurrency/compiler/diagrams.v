@@ -791,29 +791,7 @@ Proof.
   destruct y1; simpl; auto.
   rewrite H0; reflexivity.
 Qed.
-    
-Instance Asm_get_extcall_arg_visible:
-  Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq)
-         Asm.get_extcall_arg.
-Proof.
-  intros ??? ??? ???; subst.
-  destruct y1; auto.
-  destruct sl; auto. simpl.
-  rewrite H0; auto.
-Qed.
-
-Instance Asm_get_extcall_arguments_visible:
-  Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq)
-         Asm.get_extcall_arguments.
-Proof.
-  intros ??? ??? ???; subst.
-  induction y1; auto.
-  destruct a; simpl.
-  rewrite IHy1. try rewrite H0; reflexivity.
-  rewrite IHy1; repeat rewrite H0.
-  destruct (Asm.get_extcall_arg y y0 rhi); auto.
-  rewrite H0; reflexivity.
-Qed.
+   
 
 
 
