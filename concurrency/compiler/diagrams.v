@@ -1,11 +1,16 @@
+Require Import Omega.
+Require Import Coq.Classes.Morphisms.
 
 Require Import compcert.common.Events.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.EventsAux.
 
+Require Import VST.concurrency.common.permissions. Import permissions.
+
 Require Import VST.msl.Coqlib2.
 Require Import VST.concurrency.lib.tactics.
+Require Import VST.concurrency.compiler.mem_equiv.
 
 Import BinInt.
 Import List.
@@ -381,10 +386,7 @@ Proof.
   - inversion H0; inversion H; subst; inversion H1; 
       subst.
     econstructor; eauto.
-    + 
-
-
-      admit. (*  injection_evolution_effect j j'0 a ev2 
+    + admit. (*  injection_evolution_effect j j'0 a ev2 
                                      effect_lessdef b ev2
                                      injection_evolution_effect j j'0 a b*) 
 Admitted.
@@ -707,7 +709,89 @@ Qed.
           (Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2)));
     }.
   Instance same_vis_equiv: (Equivalence same_visible).
-  Admitted.
+Admitted.
+
+Instance range_perm_visible:
+  Proper (same_visible ==> Logic.eq ==> Logic.eq ==> Logic.eq ==>
+                       trieq Cur ==> Logic.eq ==> iff)
+         Mem.range_perm.
+Proof.
+  unfold Mem.range_perm.
+  setoid_help.proper_iff; setoid_help.proper_intros; subst.
+  inversion H3; subst; eapply H; auto.
+Qed.
+  Instance valid_acccess_visible:
+    Proper (same_visible ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> iff)
+           Mem.valid_access.
+  Proof.
+    unfold Mem.valid_access.
+    setoid_help.proper_iff;
+    setoid_help.proper_intros; subst.
+    unfold Mem.valid_access in *.
+    rewrite <- H; auto.
+  Qed.
+  Lemma same_visible_range:
+    forall m1 m2,
+      (forall (b : block) (ofs : Z),
+          Mem.perm m1 b ofs Cur Readable ->
+          ZMap.get ofs (Mem.mem_contents m1) !! b =
+          ZMap.get ofs (Mem.mem_contents m2) !! b) ->
+      forall ofs b x, 
+        Mem.range_perm m1 b ofs (ofs + x) Cur Readable ->
+        Mem.getN (Z.to_nat x) ofs (Mem.mem_contents m1) !! b =
+        Mem.getN (Z.to_nat x) ofs (Mem.mem_contents m2) !! b.
+  Proof.
+    unfold Mem.range_perm. intros. 
+    destruct x; simpl; auto.
+    rewrite <- (Pos2Nat.id p) in H0.
+    remember (Pos.to_nat p) as n eqn:HH; clear HH.
+    destruct n; try reflexivity.
+    revert  b ofs H0. induction n.
+    - simpl. intros. f_equal. apply H. apply H0. omega.
+    - intros.
+      simpl; f_equal; eauto.
+      + eapply H. apply H0. clear.
+        remember ( Z.pos (Pos.of_nat (S (S n)))) as P.
+        assert (0 < P)%Z.
+        { subst. reflexivity. }
+        omega.                        
+      + eapply IHn. intros.
+        eapply H0.
+        replace (Z.pos (Pos.of_nat (S (S n))))%Z
+          with (1 + Z.pos (Pos.of_nat (S n)))%Z.
+        2:{ do 2 rewrite <- Pos.of_nat_succ.
+            do 2 rewrite Zpos_P_of_succ_nat.
+            rewrite Nat2Z.inj_succ. omega. }
+        omega.
+  Qed.
+  Instance load_Proper_visible:
+    Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq  ==> Logic.eq) Mem.load.
+  Proof.
+    setoid_help.proper_intros; subst.
+    Transparent Mem.load.
+    unfold Mem.load.
+    do 2 match_case;
+    try match goal with
+          [H: ~ _ |- _ ]=>
+          exfalso; apply H;
+            first [ rewrite <- H0| rewrite H0]; auto
+        end.
+    do 2 f_equal.
+    unfold Mem.valid_access in *.
+    destruct v, v0.
+    unfold size_chunk_nat.
+    eapply same_visible_range; eauto.
+    eapply H0.
+  Qed.
+
+Instance loadv_visible:
+  Proper (Logic.eq ==> same_visible ==> Logic.eq ==> Logic.eq) Mem.loadv.
+Proof.
+  setoid_help.proper_intros; subst.
+  destruct y1; simpl; auto.
+  rewrite H0; reflexivity.
+Qed.
+   
 
 
 

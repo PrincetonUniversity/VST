@@ -750,9 +750,39 @@ Proof.
   - eapply inject_perm_inj; auto.
 Admitted.
 
-
-
-Lemma inject_virtue_perm_perfect_image_dmap:
+Lemma sub_map_implication_dmap:
+  forall m a,
+    sub_map a (snd (getMaxPerm m)) ->
+    option_implication_dmap_access a (getMaxPerm m).
+Proof.
+  intros ** ? **.
+  hnf.
+  eapply sub_map_filtered in H.
+  match_case; auto.
+  apply H in Heqo. unfold Mem.perm in *.
+  rewrite getMaxPerm_correct.
+  unfold permission_at.
+  match_case; auto.
+Qed.
+Lemma sub_map_implication_dmap_pair:
+  forall m a,
+    pair21_prop sub_map a (snd (getMaxPerm m)) ->
+    option_implication_dmap_access_pair a (getMaxPerm m).
+Proof.
+  intros m. solve_pair.
+  apply sub_map_implication_dmap.
+Qed.
+Lemma inject_virtue_max_eq:
+  forall m1 m2 mu angel,
+    (getMaxPerm m1) = (getMaxPerm m2) ->
+    inject_virtue m1 mu angel = inject_virtue m2 mu angel.
+Proof.
+  intros.
+  unfold inject_virtue, virtueThread_inject, virtueLP_inject.
+  unfold inject_access_map, tree_map_inject_over_mem.
+  rewrite H; auto.
+Qed.
+Lemma inject_virtue_perm_perfect_image_dmap':
   forall mu m1 m2 angel ,
     Mem.inject mu m1 m2 ->
     (option_implication_dmap_access_pair
@@ -769,7 +799,18 @@ Proof.
   solve_pair.
   eapply inject_perm_perfect_image_dmap.
 Qed.
-
+Lemma inject_virtue_perm_perfect_image_dmap:
+  forall mu m1 m2 angel ,
+    Mem.inject mu m1 m2 ->
+    (pair21_prop sub_map (virtueThread angel) (snd (getMaxPerm m1))) ->
+    injects_dmap_pair mu (virtueThread angel) ->
+    perm_perfect_image_dmap_pair mu
+                                 (virtueThread angel)
+                                 (virtueThread (inject_virtue m2 mu angel)).
+Proof.
+  intros **. eapply inject_virtue_perm_perfect_image_dmap';
+               try eapply sub_map_implication_dmap_pair; eassumption.
+Qed.
 
 Lemma full_inject_dmap:
   forall f m dm,
@@ -793,10 +834,29 @@ Lemma full_inject_dmap_pair:
 Proof. intros ??; solve_pair; eapply full_inject_dmap. Qed.
 
 
+Lemma inject_virtue_perm_perfect_image_oneinject_preimage:
+  forall mu m1 m2, forall a : access_map,
+  Mem.inject mu m1 m2 ->
+  injects_map mu a ->
+  (forall (b : positive) (ofs : Z),
+        option_implication (a !! b ofs) ((getMaxPerm m1) !! b ofs)) ->
+  perm_perfect_image mu a (inject_access_map m2 mu a).
+Proof.
+  intros.
+  constructor.
+  - eapply inject_perm_inj; eauto.
+  - eapply inject_preimage.
+Qed.
+
+Definition full_map_option_implication {A B} x y: Prop :=
+  forall b (ofs:Z),
+      @option_implication A B (x !! b ofs) (y !! b ofs).
+  
 Lemma inject_virtue_perm_perfect_image:
   forall mu m1 m2 angel,
     Mem.inject mu m1 m2 ->
     injects_map_pair mu (virtueLP angel) ->
+    (pair21_prop full_map_option_implication  (virtueLP angel) (getMaxPerm m1)) ->
     perm_perfect_image_pair mu (virtueLP angel)
                             (virtueLP (inject_virtue m2 mu angel)).
 Proof.
@@ -804,10 +864,9 @@ Proof.
   unfold inject_virtue; simpl.
   remember (virtueLP angel) as VLP; generalize VLP.
   solve_pair.
-
-  pose proof inject_virtue_perm_perfect_image_dmap; eauto.
-
-Admitted.
+  intros; eapply inject_virtue_perm_perfect_image_oneinject_preimage; eauto.
+Qed.
+ 
 
 
 
@@ -819,12 +878,13 @@ Lemma inject_virtue_perm_perfect:
   forall f angel1 m1 m2,
     Mem.inject f m1 m2 ->
     injects_angel f angel1 ->
+    pair21_prop full_map_option_implication (virtueLP angel1)(getMaxPerm m1) ->
     option_implication_dmap_access_pair (virtueThread angel1) (getMaxPerm m1) ->
     perm_perfect_virtue f angel1 (inject_virtue m2 f angel1).
 Proof.
   intros ? ? ? ? Hinj [? ?]; econstructor.
   - eapply inject_virtue_perm_perfect_image; eauto.
-  - eapply inject_virtue_perm_perfect_image_dmap; eauto.
+  - eapply inject_virtue_perm_perfect_image_dmap'; eauto.
 Qed.
 
 
