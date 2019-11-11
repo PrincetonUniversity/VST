@@ -300,7 +300,9 @@ Lemma invariant_thread_step
        (forall loc : address, max_access_at m loc = max_access_at m' loc) ->
        (forall loc : AV.address, isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
        mem_equiv (m_dry (personal_mem m phi pr)) (m_dry (personal_mem m' phi pr')))
-  (Jspec : juicy_ext_spec unit) Gamma
+  (Jspec : juicy_ext_spec unit)
+  (CanExit: forall ora q, ext_spec_exit Jspec (Some (Vint Int.zero)) ora q)
+  Gamma
   n m ge i tr sch tp Phi ci ci' jmi'
   (Stable : ext_spec_stable age Jspec)
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
@@ -839,7 +841,6 @@ Proof.
         2:  contradiction notkrun; split; auto.
         eapply jsafeN_halted. simpl. rewrite Halted; intro Hx; inv Hx.
         instantiate (1 := Int.zero).
-        assert (CanExit: forall ora q, ext_spec_exit Jspec (Some (Vint Int.zero)) ora q) by admit.
         apply CanExit.  
       * unfold tp'', tp'.
         REWR.
@@ -912,4 +913,5 @@ Proof.
       unfold tp'',  tp'.
       unshelve erewrite gsoThreadCode; auto.
       unshelve erewrite <-gtc_age; auto.
-Admitted.
+      clear - Ecj'; apply prop_ext; intuition.
+Qed.

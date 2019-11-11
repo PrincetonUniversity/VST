@@ -1363,6 +1363,7 @@ Qed. (* Lemma preservation_Kinit *)
           eapply invariant_thread_step; eauto.
           + apply mem_cohere_step.
           + apply personal_mem_equiv_spec.
+          + intros. apply Logic.I.
           + apply Jspec'_hered.
           + apply Jspec'_juicy_mem_equiv.
           + eapply lock_coh_bound; eauto.

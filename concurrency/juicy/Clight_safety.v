@@ -1082,6 +1082,8 @@ try solve [econstructor; eauto];
 econstructor; eauto.
 - (* builtin *)
   unfold AST.ef_inline in *.
+  match goal with |- context [proj1_sig ?A] => destruct A end.
+   simpl. 
   admit. (* ask andrew: maybe change inline_external_call_mem_events? *) 
 - econstructor; eauto.
 - admit. (* external function *)
@@ -1104,10 +1106,42 @@ Proof.
     repeat match_case in H. 
     tactics.normal_hyp; subst.
     simpl.
-    destruct f. 2:{ admit. (* main is not external *) }
+    destruct f. 2:{
+        admit. (* main is not external *) }
     econstructor; eauto.
 Admitted.
   
+Lemma computeMap_eq:
+    forall x x' y y',
+       (forall b ofs, x !! b ofs = x' !! b ofs) -> 
+       (forall b, PTree.get b y = PTree.get b y') -> 
+       forall b ofs,
+       (computeMap x y) # b ofs = (computeMap x' y') # b ofs.
+Proof.
+ intros.
+ unfold PMap.get.
+ unfold computeMap; simpl.
+ rewrite !PTree.gcombine by auto.
+ rewrite <- H0.
+ unfold PMap.get in H.
+ pose proof (H b).
+ destruct ((snd x) ! b) eqn:?H.
+ destruct (y ! b) eqn:?H.
+ destruct ((snd x')!b) eqn:?H.
+ assert (o = o1) by (extensionality u; auto). subst o1.
+ auto.
+ destruct (o0 ofs) eqn:?H; auto.
+ auto.
+ destruct (y ! b) eqn:?H; auto.
+ rewrite H1.
+ destruct (o ofs) eqn:?H; auto.
+ destruct ((snd x')!b) eqn:?H; auto.
+ rewrite H4. auto.
+ rewrite H4; auto.
+ destruct ((snd x')!b) eqn:?H; auto.
+ rewrite H4; auto.
+ rewrite H4; auto.
+Qed.
                
 Lemma Clight_new_Clight_safety_gen:
   forall n sch tr tp m tp' (Hmem: mem_ok tp m),
@@ -1252,15 +1286,6 @@ reflexivity.
         * erewrite restrPermMap_irr; eauto.
         * subst newThreadPerm; eauto.
           destruct Hlt_new as [Hlt_new1 Hlt_new2].
-          Lemma computeMap_eq:
-            forall x x' y y',
-            (forall b ofs, x !! b ofs = x' !! b ofs) -> 
-            (forall b, PTree.get b y = PTree.get b y') -> 
-            forall b ofs,
-            (computeMap x y) # b ofs = (computeMap x' y') # b ofs.
-          Proof.
-          Admitted.
-
           split;intros  ??.
           -- erewrite computeMap_eq; try eapply Hlt_new1.
              move mtch_gtr1 at bottom.
@@ -1563,7 +1588,7 @@ Proof.
     (* all of these cases should be impossible.*)
     simpl in *.
     inv Hstep; simpl in *; subst; try solve_schedule.
-    + unfold suspend_thread in Htstep. simpl in Htstep.
+    + unfold suspend_thread in Htstep.
       inv Htstep; simpl in *. inv Hcode.
       unfold Clight.at_external in *.
       unfold initial_Clight_state in *; simpl in *.
