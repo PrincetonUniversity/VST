@@ -1446,11 +1446,6 @@ Definition init_threadpool :=
      (@OrdinalPool.OrdinalThreadPool dryResources (Clight_newSem ge))
      (getCurPerm init_mem) (initial_corestate CPROOF).
 
-Lemma alloc_globals_maxedmem:
-  forall (prog: program Clight.function) m, Genv.alloc_globals (Genv.globalenv prog) Mem.empty
-          (AST.prog_defs prog) = Some m -> maxedmem m = m.
-Admitted.
-
 Transparent getThreadC.
 
 Lemma init_mem_ok: mem_ok init_threadpool init_mem.
@@ -1474,7 +1469,7 @@ Proof.
      pose proof Hinit. eapply Genv.alloc_globals_neutral in H; eauto.
      2:{ intros. eapply Genv.find_symbol_not_fresh with (m:=m) in H0. apply H0.
           apply H. }
-      apply alloc_globals_maxedmem in Hinit. rewrite Hinit; auto.
+      red. rewrite  (semax_initial.initmem_maxedmem _ _ Hinit); auto.
      apply Mem.empty_inject_neutral.
      apply Ple_refl.
   - hnf; intros.
@@ -1535,16 +1530,67 @@ Qed.
   TODO: swap the names when we think it's ready.
  *)
 
-(* This is the right initial state, should be a [Callstate]*)
-Definition initial_Clight_state' : Clight.state.
-Admitted.
 Definition main_pointer:= Vptr (projT1 (spr CPROOF)) Ptrofs.zero.
 
-(* Question: this proof assumes no arguments to main. 
-   can we cahnge that? 
-*)
+(* This is the right initial state, should be a [Callstate]*)
+
+Definition initial_Clight_state' : Clight.state :=
+ let (b, s0) := spr CPROOF in
+ let (q, _) := s0 in
+ let m := proj1_sig (semax_to_juicy_machine.init_mem CPROOF) in
+ Clight_core.CC_core_to_CC_state q m.
+
+Lemma iCs_eq: initial_Clight_state' = initial_Clight_state.
+Proof.
+intros.
+unfold initial_Clight_state', initial_Clight_state.
+destruct f_main as [f ?H].
+simpl.
+unfold init_mem.
+destruct (spr CPROOF) as [b [q [[? ?] ?]]].
+simpl in *.
+specialize (s O).
+destruct s as [jm [? [? [? [? [? [? ?]]]]]]].
+destruct (e0 jm  H0) as [jm' [? [? [? [? [? ?]]]]]]. subst jm'.
+simpl in *.  
+unfold prog in H.
+change (semax_to_juicy_machine.prog CPROOF)
+  with (CSL_prog CPROOF) in *.
+rewrite H in H8.
+destruct (Clight.type_of_fundef f) eqn:?H; try contradiction.
+destruct H8 as [? [? [? [? [? ?]]]]]; subst.
+simpl.
+destruct t0; try contradiction.
+auto.
+Qed.
+
 Lemma initial_Clight_state_is_initial:
-  Clight.entry_point ge init_mem initial_Clight_state' main_pointer nil.
+  Clight.entry_point ge init_mem initial_Clight_state main_pointer nil.
+Proof.
+rewrite <- iCs_eq.
+unfold initial_Clight_state'.
+unfold init_mem, main_pointer.
+destruct (spr CPROOF) as [b [q [[? ?] ?]]].
+simpl.
+simpl in *.
+specialize (s O).
+destruct s as [jm [? [? [? [? [? [? ?]]]]]]].
+specialize (e0 jm H).
+destruct e0 as [jm' ?].
+destruct (semax_to_juicy_machine.init_mem CPROOF) as [m ?]; simpl in *.
+destruct H6; subst jm'.
+simpl in H7.
+destruct H7 as [H7 [? [? ?]]].
+match type of H7 with match ?A with _ => _ end => destruct A eqn:?H end; try contradiction.
+destruct (Clight.type_of_fundef f) eqn:?H; try contradiction.
+destruct H7 as [? [? [? [? ?]]]].
+destruct H9.
+subst.
+destruct H15; subst.
+simpl.
+destruct f.
+2: admit.  (* main External *)
+econstructor; eauto.
 Admitted.
 
   Local Ltac solve_schedule:=
@@ -1577,50 +1623,8 @@ Lemma Clight_new_Clight_safety':
          initial_Clight_state')) init_mem n.
 Proof.
   intros * Hsafe_new sch n.
+  rewrite iCs_eq.
   unshelve (exploit Clight_new_Clight_safety; eauto).
-  apply S; exact n. exact sch. 
-  clear. revert sch.
-  induction n; try solve[constructor].
-  intros sch Hsafe.
-  inv Hsafe; swap 2 3.
-  - (*Halted*) constructor; auto.
-  - (*Angelic steps, that change the schedule*)
-    (* all of these cases should be impossible.*)
-    simpl in *.
-    inv Hstep; simpl in *; subst; try solve_schedule.
-    + unfold suspend_thread in Htstep.
-      inv Htstep; simpl in *. inv Hcode.
-      unfold Clight.at_external in *.
-      unfold initial_Clight_state in *; simpl in *.
-      (* eapply AngelSafe; eauto. *)
-      admit. (* initial state can't be at_External*)
-    + inv Htstep; simpl in *; inversion Hcode.
-    + eapply AngelSafe; simpl; eauto.
-      eapply schedfail; simpl; eauto.
-      * destruct Htid as [? | [?cnt [?c [? ?]]]] ; [left|right]; auto.
-         inv H. inv H0.
-      * admit. (*initial state satisfies invarian*)
-      * admit. (*initial state is mem compatible*)
-  - (* regular step. *)
-    simpl in *.
-    unfold MachStep in *; simpl in *.
-    inv Hstep; simpl in *; subst; try solve_schedule.
-    + inv Htstep. inv Hcode.
-    + inv Htstep. inv Hcode.
-    + inv Htstep. simpl in Hcorestep.
-      simpl in Hcorestep.
-      inv Hcode.
-      remember (restrPermMap (proj1 (Hcmpt tid Htid))) as init_mem'.
-      (* We need this rewrite to get the right semantics*)
-      eapply (@ev_step_ax1 _ (CLC_evsem ge)) in Hcorestep.
-      admit. (* Hopefully, the step in Hcorestep takes 
-                us directly to [initial_Clight_state']
-                i.e., initial_Clight_state' = c'.
-                then, with some auxiliary proofs for memory,
-                result follows from the induction hypothesis IHn.
-              *)
-Admitted.
-
-
+Qed.
 
 End Clight_safety_equivalence.

@@ -999,12 +999,33 @@ Proof.
 Qed.
 
 Lemma machine_step_nextblock:
-  forall sem res TP DM MS SCH sch tr tp m sch' tr' tp' m',
-      @machine_step res sem TP DM MS SCH sch tr tp m sch' tr' tp' m' ->
+  forall ge sch tr tp m sch' tr' tp' m',
+@machine_step LocksAndResources
+  (ClightSemanticsForMachines.Clight_newSem ge)
+  (@OrdinalThreadPool LocksAndResources
+     (ClightSemanticsForMachines.Clight_newSem ge))
+  HybridCoarseMachine.DilMem
+  (@JuicyMachineShell (ClightSemanticsForMachines.Clight_newSem ge))
+  HybridMachineSig.HybridCoarseMachine.scheduler 
+  sch tr tp m sch' tr' tp' m' ->
           Ple (nextblock m) (nextblock m').
 Proof.
 intros.
-Admitted.
+inv H; try apply Ple_refl.
+-
+inv Htstep.
+simpl in *. destruct Hinitial as [? [? [? [? ?]]]]. subst.
+apply Ple_refl.
+-
+inv Htstep. 
+destruct Hcorestep as [? _].
+apply corestep_nextblock in H.
+simpl in H. apply H.
+-
+inv Htstep;
+  try apply Ple_refl;
+  try (apply Mem.nextblock_store in Hstore; rewrite Hstore; apply Ple_refl).
+Qed.
 
 Section Preservation.
   Variables
