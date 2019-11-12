@@ -34,7 +34,7 @@ env:
 #  - COMPILER="4.02.3+32bit"
   - COMPILER="default"
   - COQ_VERSION="8.10.0"
-  - NEXT_VERSION="8.10.1"
+  - NEXT_VERSION="dev"
 
 branches:
   only:
@@ -75,7 +75,7 @@ jobs:
     - opam list
     - file `which coqc`
   - stage: install
-    env: COQ=next
+    env: COQ=dev
     script:
     - opam --version
     - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
@@ -93,6 +93,12 @@ jobs:
   - stage: setup
     name: "Floyd 32-bit"
     script: ./.travis-script floyd
+    env: COQ=standard
+    env: BITSIZE=32
+  - stage: setup
+    name: "Floyd 32-bit"
+    script: ./.travis-script floyd
+    env: COQ=dev
     env: BITSIZE=32
   - stage: setup
     name: "Floyd 64-bit"
