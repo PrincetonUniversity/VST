@@ -248,7 +248,7 @@ exists ts2, x2, emp. intros y AY m YM [M1 M2]. rewrite emp_sepcon. split; [apply
 intros rho' k WK u necKU U. rewrite emp_sepcon in U. apply bupd_intro, U.
 Qed.
 
-Lemma unfash_allp:  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
+Lemma unfash_allp':  forall {A} {agA: ageable A} {B} (f: B -> pred nat),
   @unfash _ agA (allp f) = allp (fun x:B => unfash (f x)).
 Proof.
 intros.
@@ -258,7 +258,7 @@ specialize (H b). auto.
 repeat intro. apply (H b).
 Qed.
 
-Lemma allp_andp1 : forall {A} {agA: ageable A} {B} (P : B -> pred A) Q, (ALL a : B, P a) && Q |-- ALL a : B, P a && Q.
+Lemma allp_andp1: forall {A} {agA: ageable A} {B} (P : B -> pred A) Q, (ALL a : B, P a) && Q |-- ALL a : B, P a && Q.
 Proof.
   intros; apply allp_right; intro x.
   apply andp_derives; auto.
@@ -281,7 +281,7 @@ intros.
 apply pred_ext; intros ? []; split; auto.
 Qed.
 
-Lemma allp_sepcon1: forall {A} P Q, (ALL x : A, P x) * Q |-- ALL x : A, P x * Q.
+Lemma allp_sepcon1': forall {A} P Q, (ALL x : A, P x) * Q |-- ALL x : A, P x * Q.
 Proof.
   intros.
   apply allp_right; intro x.
@@ -384,7 +384,7 @@ rewrite <- (andp_dup (bupd _)), andp_assoc; apply subp_andp.
   { eapply derives_trans, allp_andp1.
      apply andp_derives, derives_refl.
      eapply derives_trans, bupd_allp.
-     apply bupd_mono; eapply derives_trans, allp_sepcon1. apply sepcon_derives, derives_refl; apply andp_left2, derives_refl. }
+     apply bupd_mono; eapply derives_trans, allp_sepcon1'. apply sepcon_derives, derives_refl; apply andp_left2, derives_refl. }
   apply allp_left with rho'.
   rewrite andp_comm; eapply derives_trans; [apply allp_andp1|].
   apply allp_left with rho'.
@@ -448,7 +448,7 @@ apply subp_bupd.
 apply subp_exp_left; intro ts1.
 apply subp_exp_left; intro x1.
 apply subp_exp_left; intro F.
-rewrite <- unfash_allp, andp_comm.
+rewrite <- unfash_allp', andp_comm.
 eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, bupd_frame_l; apply derives_refl].
 rewrite <- bupd_andp_unfash; apply subp_bupd.
 rewrite exp_sepcon2, exp_andp2; apply subp_exp_left; intro ts2.
@@ -460,8 +460,8 @@ eapply subp_trans, subp_exp_spec with (x0 := F*G).
 eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, distrib_sepcon_andp; apply derives_refl].
 rewrite andp_comm, andp_assoc; apply subp_andp.
 + rewrite sepcon_assoc; apply subp_refl.
-+ rewrite <- unfash_allp; eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, derives_refl; rewrite sepcon_comm; apply unfash_sepcon].
-  rewrite <- unfash_andp, <- unfash_allp; intros ? _; apply subp_unfash, derives_subp.
++ rewrite <- unfash_allp'; eapply derives_trans, subp_derives, derives_refl; [|apply andp_derives, derives_refl; rewrite sepcon_comm; apply unfash_sepcon].
+  rewrite <- unfash_andp, <- unfash_allp'; intros ? _; apply subp_unfash, derives_subp.
   apply allp_right; intro rho'.
   eapply derives_trans; [apply allp_andp1|].
   apply allp_left with rho'.

@@ -34,7 +34,19 @@ Context {CS : compspecs} {inv_names : invG}.
 
 Section atomicity.
 
-(* The logical atomicity of Iris. *)
+Definition tele_single (A : Type) := @TeleS A (fun A => TeleO).
+
+Program Definition tele_extract {A} (x : tele_arg (tele_single A)) : A.
+Proof.
+  inv x.
+  exact x0.
+Defined.
+
+Definition atomic_shift {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
+  @atomic_update mpredSI _ (tele_single A) (tele_single B) Eo Ei
+    (fun x => a (tele_extract x)) (fun x y => b (tele_extract x) (tele_extract y)) (fun _ y => Q (tele_extract y)).
+
+(*(* The logical atomicity of Iris. *)
 (* We use the cored predicate to mimic Iris's persistent modality. *)
 Definition ashift {A B} P (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) :=
   ((|> P -* |={Eo,Ei}=> (EX x : A, a x *
@@ -59,25 +71,40 @@ Proof.
   * setoid_rewrite fview_shift_nonexpansive; rewrite !approx_idem; f_equal; f_equal; auto.
   * rewrite allp_nonexpansive; setoid_rewrite allp_nonexpansive at 2; f_equal; f_equal; extensionality.
     setoid_rewrite fview_shift_nonexpansive; rewrite !approx_idem; auto.
-Qed.
+Qed.*)
 
 Lemma atomic_shift_nonexpansive : forall {A B} n a Ei Eo (b : A -> B -> mpred) Q,
   approx n (atomic_shift a Ei Eo b Q) =
   approx n (atomic_shift (fun x => approx n (a x)) Ei Eo (fun x y => approx n (b x y)) (fun y => approx n (Q y))).
 Proof.
   intros; unfold atomic_shift.
-  rewrite !approx_exp; f_equal; extensionality.
-  rewrite !approx_sepcon !approx_andp ashift_nonexpansive; auto.
-Qed.
+  apply pred_ext.
+  - iIntros "AU".
+    SearchAbout approx.
+  Check atomic_update_ne.
+Admitted.
 
-Lemma atomic_shift_derives_frame_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
+(*Lemma atomic_shift_derives_frame_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
   (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred) F R
   (HF : F |-- cored)
   (Ha : (forall x, a x * F * |>R |-- |={Ei}=> EX x' : A', a' x' *
     ((a' x' -* |={Ei}=> a x * |>R) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
   atomic_shift a Ei Eo b Q * F * |>R |-- atomic_shift a' Ei Eo b' Q'.
 Proof.
-  intros; unfold atomic_shift, ashift.
+  intros; unfold atomic_shift.
+  iIntros "AU".
+  eapply tac_aupd_intro.
+iSolveTC.
+repeat constructor.
+SearchAbout atomic_update bi_sep.
+apply (@aupd_laterable mpredSI _ (tele_single A) (tele_single B) _ _ _).
+SearchAbout atomic_update Laterable.
+apply 
+constructor; auto.
+iSolveTC.
+  iAuIntro.
+
+iApply aupd_intro.
   Intros P; Exists (P * R); rewrite later_sepcon; cancel.
   erewrite (add_andp F) by apply HF.
   sep_apply cored_sepcon.
@@ -138,7 +165,7 @@ Proof.
     iMod ("Hb" $! y' with "[$b $AS]") as (y) "[b HQ]".
     iMod ("H" with "b").
     iApply "HQ"; auto.
-Qed.
+Qed.*)
 
 Lemma atomic_shift_derives : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
   (b : A -> B -> mpred) (b' : A' -> B' -> mpred) (Q : B -> mpred) (Q' : B' -> mpred)
@@ -146,13 +173,21 @@ Lemma atomic_shift_derives : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpr
     ((a' x' -* |={Ei}=> a x) && ALL y' : _, b' x' y' -* |={Ei}=> EX y : _, b x y * (Q y -* |={Eo}=> Q' y')))%I),
   atomic_shift a Ei Eo b Q |-- atomic_shift a' Ei Eo b' Q'.
 Proof.
-  intros; eapply derives_trans, atomic_shift_derives_frame.
-  { rewrite <- sepcon_emp at 1; apply sepcon_derives; [apply derives_refl | apply now_later]. }
-  iIntros (x) "[a >_]".
-  iMod (Ha with "a") as (x') "[? H]".
-  iExists x'; iFrame; iIntros "!>"; iSplit.
-  - iIntros "a"; iMod ("H" with "a") as "$"; auto.
-  - iDestruct "H" as "[_ H]"; auto.
+  intros; iIntros "AU".
+  unfold atomic_shift.
+  iAuIntro.
+  unfold atomic_acc; simpl.
+  iMod "AU" as (x) "[a H]"; simpl.
+  unfold eq_rect_r; simpl.
+  iMod (Ha with "a") as (x') "[? H']".
+  iIntros "!>"; iExists x'; iFrame; iSplit.
+  - iIntros "a'".
+    iMod ("H'" with "a'") as "a'".
+    iApply "H"; auto.
+  - iIntros (y) "b'".
+    iMod ("H'" with "b'") as (?) "[b Q]".
+    iMod ("H" with "b").
+    iApply "Q"; auto.
 Qed.
 
 Lemma atomic_shift_derives_cored : forall {A A' B B'} (a : A -> mpred) (a' : A' -> mpred) Ei Eo
@@ -863,22 +898,6 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEPS' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type0 W)
-   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3), Q, inv_names) := __a in
-     PROPx (cons Px%type .. (cons Py%type nil) ..)
-     (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
-     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
-   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3), Q, inv_names) := __a in
-     PROP () (LOCALx nil (SEP (Q))))
-   (@atomic_spec_nonexpansive_pre0 _ W (cons (fun ts __a => let '(x1, x2, x3) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in Py%type) nil) ..)
-      (cons (fun ts __a => let '(x1, x2, x3) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in Ly%type) nil) ..)
-      (cons (fun ts __a => let '(x1, x2, x3) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3) := __a in S1y%logic) nil) ..)
-      (fun ts __a x => let '(x1, x2, x3) := __a in S2) Ei Eo
-     (fun ts __a x _ => let '(x1, x2, x3) := __a in fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) _ _ _ _ _)
-   (atomic_spec_nonexpansive_post0 W nil _)) (at level 200, x at level 0, Ei at level 0, Eo at level 0,
-        x1 at level 0, x2 at level 0, x3 at level 0, S2 at level 0).
-
-Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEPS' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SQx ; .. ; SQy )" :=
-  (mk_funspec (pair nil tz) cc_default (atomic_spec_type0 W)
    (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3), Q, inv_names) := __a in
      PROPx (cons Px%type .. (cons Py%type nil) ..)
      (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)

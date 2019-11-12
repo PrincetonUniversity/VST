@@ -3539,7 +3539,7 @@ assert (ArgsW: app_pred (|> own.bupd (EX ts1 x1 G, F0 rho * (F rho * G) * P' ts1
   rewrite !exp_sepcon2; f_equal; extensionality.
   rewrite !exp_sepcon2; f_equal; extensionality.
   rewrite !exp_sepcon2; f_equal; extensionality.
-  rewrite !(andp_comm _ (allp _)), <- !unfash_allp, !sepcon_andp_unfash.
+  rewrite !(andp_comm _ (allp _)), <- !unfash_allp', !sepcon_andp_unfash.
   rewrite <- !sepcon_assoc; auto.
 }
 apply now_later in  RGUARD.
@@ -3805,7 +3805,7 @@ apply (later_derives(P := own.bupd (F0 (construct_rho (filter_genv psi) vx tx) *
                  (funsig_tycontext
                     (funsig_of_funspec (mk_funspec (argsig, retsig) cc A' P0 Q0 P_ne Q_ne))))) rho' &&
          (G * Q0 ts1 x1 rho') >=> own.bupd (Q ts x rho'))))).
-{ rewrite <- unfash_allp, andp_comm, <- bupd_andp_unfash.
+{ rewrite <- unfash_allp', andp_comm, <- bupd_andp_unfash.
   apply own.bupd_mono.
   apply exp_right with ts1, exp_right with x1, exp_right with (fun rho => F rho * G).
   rewrite andp_comm; apply andp_derives; auto.
@@ -3855,10 +3855,10 @@ apply (later_derives(P := own.bupd (F0 (construct_rho (filter_genv psi) vx tx) *
       * eapply own.bupd_mono, BB.
         destruct retsig; try solve [ congruence]; exists vv; trivial. }
 rewrite later_andp; split; auto.
-rewrite <- unfash_allp, later_unfash.
+rewrite <- unfash_allp', later_unfash.
 apply unfash_sepcon with TT.
 rewrite sepcon_comm; exists w1, w2; repeat (split; auto).
-rewrite <- later_unfash, unfash_allp.
+rewrite <- later_unfash, unfash_allp'.
 intros ? H. specialize (age_later_nec _ _ _ Age2 H). intros.
 apply (pred_nec_hereditary _ _ a') in BB; auto.
 Qed.
