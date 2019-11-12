@@ -47,22 +47,10 @@ git:
   depth: 3
 #  submodules: false
   
-install:
-- opam --version
-- "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
-- opam switch list
-- opam switch ${COMPILER}
-- eval $(opam config env)
-- opam config list
-- opam config var root
-- opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
-- opam update
-- opam show coq
-- travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
-- opam list
-- file `which coqc`
+install: skip
 
 stages:
+  - instal
   - setup
   - test
 
@@ -70,6 +58,38 @@ script: echo "No script"
 
 jobs:
  include:
+  - stage: instal
+    env: COQ=standard
+    script:
+    - opam --version
+    - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
+    - opam switch list
+    - opam switch ${COMPILER}
+    - eval $(opam config env)
+    - opam config list
+    - opam config var root
+    - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
+    - opam update
+    - opam show coq
+    - travis_wait 15 opam install -j ${NJOBS} -y coq=${COQ_VERSION} ${EXTRA_OPAM}
+    - opam list
+    - file `which coqc`
+  - stage: instal
+    env: COQ=next
+    script:
+    - opam --version
+    - "[ -e .opam ] || opam init -j ${NJOBS} -n -y"
+    - opam switch list
+    - opam switch ${COMPILER}
+    - eval $(opam config env)
+    - opam config list
+    - opam config var root
+    - opam repo add coq-core-dev https://coq.inria.fr/opam/core-dev || true
+    - opam update
+    - opam show coq
+    - travis_wait 15 opam install -j ${NJOBS} -y coq=coq.dev ${EXTRA_OPAM}
+    - opam list
+    - file `which coqc`
   - stage: setup
     name: "Floyd 32-bit"
     script: ./.travis-script floyd
@@ -77,22 +97,27 @@ jobs:
   - stage: setup
     name: "Floyd 64-bit"
     script: ./.travis-script floyd
+    env: COQ=standard
     env: BITSIZE=64
   - stage: test
     name: "Progs 32-bit"
     script: ./.travis-script progs
+    env: COQ=standard
     env: BITSIZE=32
   - stage: test
     name: "Progs 64-bit"
     script: ./.travis-script progs64
+    env: COQ=standard
     env: BITSIZE=64
   - stage: test
     name: "SHA-HMAC 32-bit"
     script: ./.travis-script sha-hmac
+    env: COQ=standard
     env: BITSIZE=32
   - stage: test
     name: "Mailbox 32-bit"
     script: ./.travis-script mailbox
+    env: COQ=standard
     env: BITSIZE=32
 #    script:
 #    - echo 'Building VST (Coq beta)...' && echo -en 'travis_fold:start:VST.build_beta\\r'
