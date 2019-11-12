@@ -2744,6 +2744,8 @@ Qed.
                   eapply CMatch.
                ** !goal (dmap_valid_pair _ _).
                   apply join_dmap_valid_pair.
+                  move Hangel_bound at bottom.
+                  rewrite getMax_restr_eq.
                   eapply Hangel_bound.
           + !goal (Mem.inject mu _ _).
             apply inject_restr; auto.
@@ -3012,6 +3014,64 @@ Qed.
       
       (* angel,lock permissions and new thread permissions *)
       
+          Lemma concur_match_perm_restrict' perms1 perms2:
+            forall (hb : nat) (cd : option compiler_index) (j : meminj)
+              (st1 : ThreadPool (Some hb)) (m1 : mem) (st2 : ThreadPool (Some (S hb)))
+              (m2 : mem)(permMapLt1 : permMapLt perms1 (getMaxPerm m1))
+              (permMapLt2 : permMapLt perms2 (getMaxPerm m2)),
+              MyConcurMatch.concur_match hb cd j st1 (restrPermMap permMapLt1) st2
+                                         (restrPermMap permMapLt2) ->
+                MyConcurMatch.concur_match hb cd j st1 m1 st2 m2.
+          Proof.
+            intros.
+            rewrite (mem_is_restr_eq m1), (mem_is_restr_eq m2).
+            erewrite (@restrPermMap_idempotent_eq _ _ m1).
+            erewrite (@restrPermMap_idempotent_eq _ _ m2).
+            eapply concur_match_perm_restrict; eauto.
+
+            Unshelve.
+            all: rewrite getMax_restr; apply mem_cur_lt_max.
+          Qed.
+          
+          Lemma lock_update_mem_restr' p p':
+            forall (m : mem) (adr1 : address) (v1 : list memval) (m' : mem)
+              (Hlt : permMapLt p (getMaxPerm m))
+              (Hlt' : permMapLt p' (getMaxPerm m')),
+              lock_update_mem (restrPermMap Hlt) adr1 v1 (restrPermMap Hlt') ->
+              Cur_equiv m m' ->
+              lock_update_mem m adr1 v1 m'.
+          Proof.
+            intros.
+            rewrite (mem_is_restr_eq m), (mem_is_restr_eq m').
+            erewrite (@restrPermMap_idempotent_eq _ _ m).
+            erewrite (@restrPermMap_idempotent_eq _ _ m').
+            eapply lock_update_mem_restr; eauto.
+            Unshelve.
+            all: rewrite getMax_restr; apply mem_cur_lt_max.
+          Qed. 
+          Lemma lock_update_mem_strict_load_mem_update_restr:
+            forall (b : block) (ofs : Z) (p : access_map) (m m' : mem) (vload vstore : val),
+              lock_update_mem_strict_load b ofs p m m' vload vstore ->
+              forall (Hlt: @permMapLt (getCurPerm m) (getMaxPerm m')),  
+                lock_update_mem m (b, ofs) (encode_val AST.Mint32 vstore) (restrPermMap Hlt).
+          Proof.
+            intros.
+            unshelve eapply lock_update_mem_restr'; swap 5 1; swap 6 2.
+            eapply lock_update_mem_strict_load_mem_update.
+            * eapply lock_update_mem_strict_load_restr.
+              erewrite <- restrPermMap_idempotent_eq.
+              erewrite <- (mem_is_restr_eq).
+              eapply H.
+            * red. eapply getCur_restr.
+            * symmetry; eapply getCur_restr.
+            * rewrite getCur_restr.
+              eapply lock_update_mem_strict_load_Max_equiv in H.
+              unfold Max_equiv in *.
+              rewrite H.
+              apply mem_cur_lt_max.
+            * rewrite getMax_restr.
+              apply mem_cur_lt_max.
+          Qed.
       Lemma acquire_step_diagram_compiled:
         let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
         forall (angel: virtue) (cd : compiler_index)
@@ -3114,19 +3174,23 @@ Qed.
 
           assert (Hlt21 : permMapLt (fst new_cur2) (getMaxPerm m2'')).
           { unfold Max_equiv in *; rewrite <- Hmax_eq; solve_permMapLt. }
+
+          unshelve eapply (concur_match_perm_restrict' (getCurPerm m1') (getCurPerm m2')).
+          (*1,2: apply mem_cur_lt_max. *)
+           1,2: unfold Max_equiv in *; first [rewrite <- Hmax_eq0|rewrite <- Hmax_eq];
+            apply mem_cur_lt_max. 
+          clean_proofs_goal.
           
           eapply concur_match_update_lock; 
             try match goal with |- context[Forall2] => idtac
                            | _ => 
           eauto; try solve[subst st1'; eauto] end.
           + !context_goal lock_update_mem.
-            eapply lock_update_mem_strict_load_mem_update.
-            eapply Hlock_update_mem_strict_load1.
+            eapply lock_update_mem_strict_load_mem_update_restr; eauto.
           + !context_goal (lock_update_mem).
-            eapply lock_update_mem_strict_load_mem_update.
-            eapply Hlock_update_mem_strict_load2.
+            eapply lock_update_mem_strict_load_mem_update_restr; eauto.
           + !context_goal Mem.inject.
-            rewrite RPM.
+            do 2 erewrite <- restrPermMap_idempotent_eq.
             instantiate(2:=fst new_cur2);
               instantiate(3:=fst newThreadPerm1).
             apply inject_restr; auto.
@@ -3139,6 +3203,8 @@ Qed.
               admit.
           + !goal (@invariant (HybridSem _) _ _). admit.
           + !goal (invariant st2'). admit.
+          + !goal (mem_compatible _ _ ). apply mem_compat_restrPermMap; auto.
+          + !goal (mem_compatible _ _ ). apply mem_compat_restrPermMap; auto.
           + !goal(perm_surj mu _ _).
             instantiate(1:=snd new_cur2); instantiate (1:=snd newThreadPerm1).
             subst newThreadPerm1 new_cur2; simpl.
@@ -3150,13 +3216,6 @@ Qed.
                { intros HH; apply HH. }
                subst virtueThread1.
                eapply inject_virtue_perm_perfect_image_dmap; eauto.
-               admit. (* from join but using a stronger one:
-                         lockres + th_res = (th_res | virtue)
-                         if virtue = Some, then one of the things that joins 
-                         (lockres or th_res) is Some... and that is smaller 
-                         than max.
-                         
-                       *)
                eapply full_inject_dmap_pair.
                ** !goal (Events.injection_full mu _ ).
                   eapply CMatch.
@@ -3164,18 +3223,20 @@ Qed.
                   apply join_dmap_valid_pair.
                   eapply Hangel_bound.
           + !goal (Mem.inject mu _ _).
+            do 2 erewrite <- restrPermMap_idempotent_eq.
             apply inject_restr; auto.
             * !goal (mi_perm_perm mu (snd newThreadPerm1) (snd new_cur2)).
               admit.
             * !goal (mi_memval_perm mu (snd newThreadPerm1)
                                     (Mem.mem_contents m1'') (Mem.mem_contents m2'')).
               admit.
-            * !goal (mi_perm_inv_perm mu (snd newThreadPerm1) (snd new_cur2) m1'').
+            * !goal (mi_perm_inv_perm mu (snd newThreadPerm1) (snd new_cur2) _).
               admit.
           +  (* Proof of match goes after the comment *)
             
             (* LINE: 6135 *) 
             { !context_goal one_thread_match.
+            do 2 erewrite <- restrPermMap_idempotent_eq.
               eapply build_match_compiled; auto.
               instantiate(1:= Hlt21).
               instantiate(1:=(Kresume (TST code2) Vundef)).
@@ -3270,7 +3331,7 @@ Qed.
 
             
           + !goal(lock_update _ st2 _ _ _ _ st2').
-            (* replace (virtueLP new_perms) with (virtueLP angel). *)
+            
             econstructor;
               subst st2' new_cur2 virtueLP2  ofs2 virtueLP1;
               unfold fullThUpd_comp, fullThreadUpdate.
@@ -3279,7 +3340,7 @@ Qed.
               !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta);
                 admit.
             * simpl.
-              !goal (pair0 empty_map = virtueLP_inject m2'' mu (empty_map, empty_map)).
+              !goal (pair0 empty_map = virtueLP_inject _ mu (empty_map, empty_map)).
               admit. (*These are equivalente but not equal... 
                        since they will have the shape of m2''
                       *)

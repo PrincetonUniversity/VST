@@ -324,23 +324,23 @@ Definition pre_main_staklist sp sig targs args:=
 
 Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
 | entry_point_intro: forall fb f m0 m1 sp args targs,
-    let sg:= fn_sig f in
+    let sg:= funsig f in
     let ge := Genv.globalenv p in
     Mem.mem_wd m0 ->
     globals_not_fresh ge m0 ->
-    Genv.find_funct_ptr ge fb = Some (Internal f) ->
+    Genv.find_funct_ptr ge fb = Some f ->
     Val.has_type_list args (sig_args sg) ->
     (* Allocate a stackframe, to pass arguments in the stack*)
     Mem.alloc m0 0 0 = (m1, sp) ->
-    targs = sig_args (fn_sig f) ->
+    targs = sig_args (funsig f) ->
     Val.has_type_list args targs ->
     Mem.arg_well_formed args m0 ->
     (* arguments fit in the stack *)
     bounded_args sg ->
     let ls := pre_main_locset_all targs args 
-              (*LTL.build_ls_from_arguments (funsig (Internal f)) args*) in
-    entry_point p m0 (Callstate (pre_main_staklist (fn_sig f) sp targs args)
-                                (Internal f) ls m1)
+              (*LTL.build_ls_from_arguments (funsig f) args*) in
+    entry_point p m0 (Callstate (pre_main_staklist (funsig f) sp targs args)
+                                f ls m1)
                 (Vptr fb Ptrofs.zero) args.
 
 Inductive final_state: state -> int -> Prop :=

@@ -760,8 +760,8 @@ Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop :=
 | initi_core:
     forall f fb m0 args targs,
       let sg:= signature_of_type targs type_int32s cc_default in
-      type_of_fundef (Internal f) = Tfunction targs type_int32s cc_default ->
-      Genv.find_funct_ptr ge fb = Some (Internal f) ->
+      type_of_fundef f = Tfunction targs type_int32s cc_default ->
+      Genv.find_funct_ptr ge fb = Some f ->
       globals_not_fresh ge m0 ->
       Mem.mem_wd m0 ->
       Val.has_type_list args (typlist_of_typelist targs) ->
@@ -770,7 +770,7 @@ Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop :=
       Mem.arg_well_formed args m0 ->
       bounded_args sg ->
       entry_point ge m0
-                  (Callstate (Internal f) args (Kstop targs) m0)
+                  (Callstate f args (Kstop targs) m0)
                   (Vptr fb Ptrofs.zero) args.
   
   

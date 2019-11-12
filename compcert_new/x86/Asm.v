@@ -1189,9 +1189,9 @@ Definition store_stack (m: mem) (sp: val) (ty: typ) (ofs: ptrofs) (v: val) :=
 Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop:=
 | INIT_CORE:
     forall f b rs spb m0 m1 m2 m3 m4 args stk_sz,
-      let linear_pre_main:= Linear.pre_main (fn_sig f) 0 in
+      let linear_pre_main:= Linear.pre_main (funsig f) 0 in
       let pre_main_env:= Stacklayout.make_env (Bounds.function_bounds linear_pre_main) in
-      Genv.find_funct_ptr ge b = Some (Internal f) ->
+      Genv.find_funct_ptr ge b = Some f ->
       (*Allocatee the stack block *)
       stk_sz = Bounds.fe_size pre_main_env ->
       Mem.alloc m0 0 stk_sz = (m1, spb) ->
@@ -1207,7 +1207,7 @@ Inductive entry_point (ge:genv): mem -> state -> val -> list val -> Prop:=
         # PC <- (Vptr b Ptrofs.zero) 
         # RA <- Vnullptr
         # RSP <- sp in
-      make_arguments rs0 m3 (loc_arguments (funsig (Internal f))) args = Some (rs, m4) ->
+      make_arguments rs0 m3 (loc_arguments (funsig f)) args = Some (rs, m4) ->
       entry_point ge m0 (State rs m4) (Vptr b Ptrofs.zero) args.
 
 Definition get_extcall_arg (rs: regset) (m: mem) (l: Locations.loc) : option val :=

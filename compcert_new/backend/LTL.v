@@ -397,8 +397,8 @@ Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
   | entry_point_intro: 
       let ge := Genv.globalenv p in
       forall f fb m0 m1 args targs stk l,
-      let sg:= fn_sig f in
-        Genv.find_funct_ptr ge fb = Some (Internal f) ->
+      let sg:= funsig f in
+        Genv.find_funct_ptr ge fb = Some f ->
         (*Make sure the memory is well formed *)
         globals_not_fresh ge m0 ->
         Mem.mem_wd m0 ->
@@ -411,8 +411,7 @@ Inductive entry_point (p: program): mem -> state -> val -> list val -> Prop :=
         bounded_args sg ->
         l = pre_main_locset_all targs args ->
         entry_point p m0
-                    (Callstate (pre_main_staklist targs args)
-                               (Internal f) l m1)
+                    (Callstate (pre_main_staklist targs args) f l m1)
                     (Vptr fb Ptrofs.zero) (args).
 
 Inductive final_state: state -> int -> Prop :=
