@@ -422,6 +422,7 @@ Inductive cl_evstep (ge: Clight.genv): forall (q: CC_core) (m: mem) (T:list mem_
 
   | evstep_builtin:   forall f optid ef tyargs al k e le m vargs vres m' T1 T2
       (EFI: ef_inline ef = true)
+      (EFP: ef_permitted ef = true)
       (H: eval_exprTlist ge e le m al tyargs vargs T1)
       (EC: Events.external_call ef ge vargs m Events.E0 vres m'),
       T2 = proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EC) ->
@@ -527,6 +528,7 @@ le ->
 
   | evstep_external_function: forall ef targs tres cconv vargs k m vres m' T
           (EFI: ef_inline ef = true)
+          (EFP: ef_permitted ef = true)
           (EC: Events.external_call ef ge vargs m Events.E0 vres m'),
       T = proj1_sig (inline_external_call_mem_events _ _ _ _ _ _ _ EFI EC) ->
       cl_evstep ge (Callstate (External ef targs tres cconv) vargs k) m T
@@ -568,11 +570,11 @@ le ->
   + apply eval_exprT_ax2 in H0. destruct H0 as [T1 K1].
       apply eval_exprTlist_ax2 in H1. destruct H1 as [T2 K2].
       eexists; econstructor; eauto.
-  + apply eval_exprTlist_ax2 in H0. destruct H0 as [T1 K1].
-      destruct (inline_external_call_mem_events _ _ _ _ _ _ _ H H1)
+  + apply eval_exprTlist_ax2 in H1. destruct H1 as [T1 K1].
+      destruct (inline_external_call_mem_events _ _ _ _ _ _ _ H H2)
           as [T2 ?] eqn:?H. exists (T1++T2).
-      apply evstep_builtin with (vargs := vargs)(EFI:=H)(EC:=H1).
-      auto. rewrite H0. simpl. auto.
+      apply evstep_builtin with (vargs := vargs)(EFI:=H)(EC:=H2); auto.
+      rewrite H1. simpl. auto.
   + apply eval_exprT_ax2 in H; destruct H as [T H].
       eexists; econstructor; eauto.
   + apply eval_exprT_ax2 in H; destruct H as [T H].
@@ -1023,6 +1025,7 @@ Section CLC_SEM.
     (Hef: match ef with EF_malloc | EF_free | EF_memcpy _ _ => False | _ => True end),
     ev_elim m ev m'.
   Proof.
+  intros.
   Admitted.
 
   Lemma clc_ev_elim (FE: forall f vargs m e le m1 T (E:function_entryT f vargs m e le m1 T), ev_elim m T m1):

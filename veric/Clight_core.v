@@ -115,23 +115,23 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) (q: CC_core) : P
 
 Definition stuck_signature : signature := mksignature nil None cc_default.
 
-(*
-Definition ef_no_event (ef: external_function) : bool :=
+Definition ef_permitted (ef: external_function) : bool :=
   match ef with
   | EF_external name sg => false
   | EF_builtin name sg => false
   | EF_runtime name sg => false
   | EF_vload chunk => false
   | EF_vstore chunk => false
-  | EF_malloc => true
-  | EF_free => true
-  | EF_memcpy sz al => true
-  | EF_annot kind text targs => true
-  | EF_annot_val kind Text rg => true
-  | EF_inline_asm text sg clob => true
-  | EF_debug kind text targs => true
+  | EF_malloc => false
+  | EF_free => false
+  | EF_memcpy sz al => false
+  | EF_annot kind text targs => false
+  | EF_annot_val kind Text rg => false
+  | EF_inline_asm text sg clob => false
+  | EF_debug kind text targs => false
   end.
 
+(*
 Axiom no_event_sound:
   forall ef, ef_no_event ef = true ->
   forall ge args m t v m',
@@ -177,6 +177,7 @@ Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
 
   | step_builtin:   forall ge f optid ef tyargs al k e le m vargs vres m',
       ef_inline ef = true ->
+      ef_permitted ef = true ->
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m E0 vres m' ->
       step ge (State f (Sbuiltin optid ef tyargs al) k e le) m
@@ -264,6 +265,7 @@ Inductive step: genv -> state -> mem -> state -> mem -> Prop :=
 
   | step_external_function: forall (ge: genv) ef targs tres cconv vargs k m vres m',
       ef_inline ef = true ->
+      ef_permitted ef = true ->
       external_call ef ge vargs m E0 vres m' ->
       step ge (Callstate (External ef targs tres cconv) vargs k) m
           (Returnstate vres k) m'

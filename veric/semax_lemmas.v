@@ -208,13 +208,13 @@ try contradiction.
 -
 inversion2 H1 H16; fun_tac; auto.
 -
-destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H3 H17); subst; auto.
+destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H4 H19); subst; auto.
 -
 inv H1. inv H8.
 fun_tac.
 pose proof (alloc_variables_fun H3 H7). inv H8. auto.
 - 
-destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H2 H13); subst; auto.
+destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ H3 H15); subst; auto.
 Qed.
 
 Lemma cl_corestep_fun': forall ge, corestep_fun (cl_core_sem ge).

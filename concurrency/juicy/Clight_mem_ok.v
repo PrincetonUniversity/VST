@@ -943,8 +943,8 @@ split3.
 eapply mem_wd2_store in H5; eauto.
 admit.
 apply Mem.nextblock_store in H5. rewrite H5.
-admit.(* but this whole lemma is probably obsolete *)
-admit.(* but this whole lemma is probably obsolete *)
+admit. (* but this whole lemma is probably obsolete *)
+admit. (* but this whole lemma is probably obsolete *)
 -
 admit.  (* factor out extcall_properties from the first case above,
    and then use extcall_memcpy_ok *)(* but this whole lemma is probably obsolete *)
@@ -1009,8 +1009,8 @@ intros until m'. intro Hstep.
   split3; auto.
   apply Pos.le_refl.
 * (* builtin *)
-  destruct H4 as [? [? ?]].
-  eapply eval_exprlist_wellformed in H0; eauto.
+  destruct H5 as [? [? ?]].
+  eapply eval_exprlist_wellformed in H1; eauto.
   exploit inline_external_call_mem_wd; eauto.
   intros [? [? ?]].
   split3; auto. split3; auto.
@@ -1066,7 +1066,7 @@ intros until m'. intro Hstep.
   clear. induction (fn_temps f); simpl. intros ? ? ?. rewrite PTree.gempty in H. inv H. destruct a.
   apply set_tenv_wellformed; auto. hnf; auto.
 * (* call_external inline *)
-  destruct H3 as [? ?].
+  destruct H4 as [? ?].
   exploit inline_external_call_mem_wd; eauto.
   intros [? [? ?]]; split3; auto.
   split; auto.

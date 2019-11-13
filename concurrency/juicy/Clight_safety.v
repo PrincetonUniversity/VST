@@ -1081,13 +1081,12 @@ end;
 try solve [econstructor; eauto];
 econstructor; eauto.
 - (* builtin *)
-  unfold AST.ef_inline in *.
   match goal with |- context [proj1_sig ?A] => destruct A end.
-   simpl. 
-  admit. (* ask andrew: maybe change inline_external_call_mem_events? *) 
+  destruct ef; discriminate.
 - econstructor; eauto.
-- admit. (* external function *)
-Admitted.
+- match goal with |- context [proj1_sig ?A] => destruct A end.
+  destruct ef; discriminate.
+Qed.
 
 (* Move this to the Clight_new -> Clight simulation *)
 
