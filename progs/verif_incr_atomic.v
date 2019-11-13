@@ -102,7 +102,7 @@ Proof.
   forward.
   forward.
   rewrite add_repr.
-  forward_call [nat : Type; unit : Type] release_inv (gv _ctr_lock, g, (n + 1)%nat, ctr_state (gv _ctr), fun (n : nat) (_ : unit) => emp, fun (_ : unit) => Q, inv_names).
+  forward_call [nat : Type] release_sub (gv _ctr_lock, g, n, (n + 1)%nat, ctr_state (gv _ctr), Q, inv_names).
   { sep_apply (timeless_inv_timeless (ctr_state (gv _ctr))).
     subst Frame; instantiate (1 := nil); simpl.
     unfold ctr_state; rewrite Nat2Z.inj_add; simpl; cancel.
@@ -191,8 +191,6 @@ Proof.
   ghost_alloc (ghost_var Tsh O).
   Intro g2.
   forward_call [nat : Type] makelock_inv (lock, O, ctr_state ctr).
-  match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ((|==> ?Q) :: _)))) _ _ => viewshift_SEP 0 Q end.
-  { entailer!. }
   Intros g.
   rewrite <- (emp_sepcon (lock_inv' _ _ _ _)); Intros.
   viewshift_SEP 0 (EX inv_names : invG, wsat).
