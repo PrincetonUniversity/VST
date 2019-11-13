@@ -611,7 +611,7 @@ Qed.
     exploit eval_exprTlist_fun. eassumption. apply H. intros X; inv X.
     exploit Events.external_call_determ. apply EC0. apply EC.
     intros [? ?].
-    admit.
+    destruct H1; auto. subst. repeat proof_irr. auto.
  - inv K'; auto. contradiction.
  - inv K'. exploit eval_exprT_fun. eassumption. eapply H. intros X; inv X. auto.
     destruct H10; discriminate.
@@ -628,7 +628,10 @@ Qed.
  - inv K'. 
       exploit alloc_variablesT_fun. eassumption. apply H1. intros X; inv X. auto.
  - inv K'. simpl.
-Abort.
+    destruct (Events.external_call_deterministic _ _ _ _ _ _ _ _ _ EC EC0); subst; auto.
+    repeat proof_irr.
+    auto.
+Qed.
 
   Lemma CLN_evstep_elim ge : forall c m T c' m' (K: cl_evstep ge c m T c' m'),
         ev_elim m T m'.

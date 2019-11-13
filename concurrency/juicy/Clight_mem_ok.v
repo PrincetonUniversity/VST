@@ -886,8 +886,10 @@ spec H4. {
  intros.
  exists b1; split; auto.
  unfold Mem.flat_inj. rewrite if_true; auto.
- clear - H2 H6.
- admit.  (* looks OK *)
+ clear - H2 H6. {
+   red in H2. apply Senv.find_symbol_below in H6.
+   eapply Plt_Ple_trans; eauto.
+ }
  intros.
  apply mem_lemmas.flatinj_E in H5.
   destruct H5 as [? [? ?]]; subst; auto.
@@ -895,11 +897,11 @@ spec H4. {
  specialize (H4 H).
  spec H4. {
    clear - H3.
-  admit.  (* needs work *)
+  admit.  (* needs work *)(* but this whole lemma is probably obsolete *)
  }
  spec H4. {
    clear - H1. 
- admit.  (* looks OK *)
+ admit.  (* looks OK *)(* but this whole lemma is probably obsolete *)
 }
  destruct H4 as [f' [vres' [m2' [t' [? [? [? [? [? [? [? ?]]]]]]]]]]].
  assert (m2'=m'). {
@@ -909,7 +911,7 @@ spec H4. {
  subst m2'.
  assert (Mem.inject (Mem.flat_inj (Mem.nextblock m')) m' m'). {
  clear - H6.
- admit. (* Santiago conjectures... *)
+ admit. (* Santiago conjectures... *)(* but this whole lemma is probably obsolete *)
 }
  split3; auto.
  clear - H12; admit.
@@ -941,11 +943,11 @@ split3.
 eapply mem_wd2_store in H5; eauto.
 admit.
 apply Mem.nextblock_store in H5. rewrite H5.
-admit.
-admit.
+admit.(* but this whole lemma is probably obsolete *)
+admit.(* but this whole lemma is probably obsolete *)
 -
 admit.  (* factor out extcall_properties from the first case above,
-   and then use extcall_memcpy_ok *)
+   and then use extcall_memcpy_ok *)(* but this whole lemma is probably obsolete *)
 -
 inv H.
 -
@@ -958,7 +960,7 @@ inv H.
 split3; auto.
 constructor.
 apply Ple_refl.
-Admitted.
+Admitted. (* but this whole lemma is probably obsolete *)
 
 Lemma cl_step_wellformed':
   forall (ge: genv) c m c' m',
