@@ -639,8 +639,9 @@ simpl.
       REWR. REWR. REWR. REWR.
       destruct (getThreadC j tp cntj) eqn:Ej.
       -- destruct (cl_halted s) eqn:Halted.
-           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
-           instantiate (1:=Int.zero). apply Logic.I.  
+           destruct s; inv Halted. destruct v0; inv H0; destruct c; inv H1.
+           eapply jsafeN_halted; eauto. simpl. reflexivity.
+           apply Logic.I.  
            edestruct (unique_Krun_neq(ge := globalenv prog) i j); try split; eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward.
          unshelve erewrite gsoAddRes; auto. REWR.

@@ -358,8 +358,8 @@ Module HybridMachineSig.
         forall tid U U' ms m tr
           (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid \/
-                 exists (cnt: containsThread ms tid) c,
-          getThreadC cnt = Krun c /\ halted semSem c Int.zero)
+                 exists (cnt: containsThread ms tid) c i,
+          getThreadC cnt = Krun c /\ halted semSem c i)
           (Hinv: invariant ms)
           (Hcmpt: mem_compatible ms m)
           (HschedS: schedSkip U = U'),        (*Schedule Forward*)
@@ -479,8 +479,8 @@ Module HybridMachineSig.
           forall tid U U' ms m tr
             (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid \/
-                 exists (cnt: containsThread ms tid) c,
-          getThreadC cnt = Krun c /\ halted semSem c Int.zero)
+                 exists (cnt: containsThread ms tid) c i,
+          getThreadC cnt = Krun c /\ halted semSem c i)
             (Hinv: invariant ms)
             (Hcmpt: mem_compatible ms m)
             (HschedS: schedSkip U = U'),        (*Schedule Forward*)

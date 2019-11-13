@@ -4929,7 +4929,7 @@ inversion MATCH; subst.
 
 
 *  (* schedfail *)
-  (*two case, not a thread ort halted*) 
+  (*two cases, not a thread or halted*) 
   { exists ds.
     split;[|split]; try eassumption.
     exists nil; rewrite <- app_nil_end.
@@ -4938,10 +4938,10 @@ inversion MATCH; subst.
     destruct Htid as [Htid|Htid]; [left|right].
     + unfold not; simpl; intros.
       apply Htid. inversion MATCH; apply mtch_cnt'; assumption.
-    + intros. unshelve exploit Htid; eauto.
-      eapply (MTCH_cnt' MATCH); auto.
-      intros [? ?]. split; eauto.
-      clean_proofs; eauto.
+    +
+       destruct Htid as [cnt [c [? ?]]].
+       pose proof (MTCH_cnt MATCH cnt).
+       exists H1, c. split; auto.
       eapply MTCH_getThreadC; eauto.
       }
 
@@ -4950,7 +4950,7 @@ inversion MATCH; subst.
   - assumption.
   - assumption.
   - assumption.
-  - admit. (* preserve mem_wd in Concur.invariant *)
+  -  admit. (* preserve mem_wd in Concur.invariant *)
   - admit. (* preserve globals_not_fresh in Concur.invariant *) 
  Admitted.
 

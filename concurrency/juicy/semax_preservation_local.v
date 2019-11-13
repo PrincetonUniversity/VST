@@ -301,7 +301,7 @@ Lemma invariant_thread_step
        (forall loc : AV.address, isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
        mem_equiv (m_dry (personal_mem m phi pr)) (m_dry (personal_mem m' phi pr')))
   (Jspec : juicy_ext_spec unit)
-  (CanExit: forall ora q, ext_spec_exit Jspec (Some (Vint Int.zero)) ora q)
+  (CanExit: forall ora q i, ext_spec_exit Jspec (Some (Vint i)) ora q)
   Gamma
   n m ge i tr sch tp Phi ci ci' jmi'
   (Stable : ext_spec_stable age Jspec)
@@ -839,9 +839,9 @@ Proof.
         unshelve erewrite <-age_getThreadCode in notkrun; eauto.
         destruct (cl_halted c) eqn:?Halted.
         2:  contradiction notkrun; split; auto.
-        eapply jsafeN_halted. simpl. rewrite Halted; intro Hx; inv Hx.
-        instantiate (1 := Int.zero).
-        apply CanExit.  
+        destruct c; inv Halted. destruct v0; inv H1. destruct c; inv H2.
+        eapply jsafeN_halted; try eassumption. reflexivity.
+        apply  CanExit.
       * unfold tp'', tp'.
         REWR.
         REWR.

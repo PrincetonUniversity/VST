@@ -137,7 +137,7 @@ Proof.
   all: try (intros [? ?]; congruence).
   all: eauto.
 
-  destruct Htid as [? | [?cnt [?c [? ?]]]]; try contradiction. proof_irr.
+  destruct Htid as [? | [?cnt [?c [retv [? ?]]]]]; try contradiction. proof_irr.
   intros [? ?]; congruence.
 
   intros E.

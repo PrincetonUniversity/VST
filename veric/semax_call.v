@@ -1761,7 +1761,7 @@ spec Hsafe. {
   eapply age_safe; eauto.
   change (level (m_phi jm')) with (level jm') in Hsafe.
   destruct (level jm'). constructor.
-  inv Hsafe; [ | discriminate | contradiction].
+  inv Hsafe; [ | discriminate | inv H5 ].
   destruct H6.
   inv H5.
   econstructor.
@@ -1791,7 +1791,7 @@ spec Hsafe. {
   eapply age_safe; eauto.
   change (level (m_phi jm')) with (level jm') in Hsafe.
   destruct (level jm'). constructor.
-  inv Hsafe; [ | discriminate | contradiction].
+  inv Hsafe; [ | discriminate | inv H5 ].
   destruct H6.
   inv H5.
   econstructor.

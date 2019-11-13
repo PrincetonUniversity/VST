@@ -1154,8 +1154,9 @@ Section Preservation.
           destruct (getThreadC j tp cntj) eqn: Ej; try solve [erewrite gsoThreadRes; eauto].
           pose proof cntUpdate'(ThreadPool := OrdinalThreadPool) _ _ cnti cntj as cntj'.
           destruct (cl_halted s) eqn:Halted. {
-            eapply jsafeN_halted. simpl. rewrite Halted. clear; congruence.
-            instantiate (1:=Int.zero). simpl. auto.
+           destruct s; inv Halted; destruct v0; inv H1; destruct c; inv H2.
+           eapply jsafeN_halted; try eassumption. reflexivity.
+           apply Logic.I.  
           }
           contradiction (unique_Krun_neq _ _ tp sch cnti cntj ne unique s); split; auto.
           { destruct safety' as [Hvalid' ?].
@@ -1199,7 +1200,7 @@ Section Preservation.
 (* *
   jmstep_inv; getThread_inv; congruence.*)
 *
-  destruct Htid as [Htid|[?cnt [?c [? ?]]]].
+  destruct Htid as [Htid|[?cnt [?c [retv [? ?]]]]].
   contradiction.
   assert (cnt = cnti) by apply proof_irr. subst cnt.
   elimtype False; clear - Eci H.
@@ -1262,7 +1263,7 @@ Qed. (* Lemma preservation_Kinit *)
       intros H0 i0 cnti q H1.
       specialize (unique H0 i0 cnti q H1).
       destruct unique as [sch' unique]; injection unique as <- <- .
-      destruct Htid as [Htid|[?cnt [?c [? ?]]]].
+      destruct Htid as [Htid|[?cnt [?c [retv [? ?]]]]].
       exfalso.
       apply Htid. apply cnti.
       assert (cnti = cnt) by apply proof_irr; auto. subst cnt.
@@ -1301,11 +1302,12 @@ Qed. (* Lemma preservation_Kinit *)
            + inv Htstep. proof_irr. congruence.
            + inv Htstep. assert (c=ci) by congruence. subst c.
                destruct Hcorestep.
-               apply Clight_core.cl_corestep_not_halted in H. rewrite Halted in H.
-               contradiction H. intro Hx; inv Hx. apply Int.zero.
+               elimtype False; clear - H Halted.
+               destruct ci; inv Halted. destruct v0; inv H1. destruct c; inv H2.
+               inv H.
            + inv Htstep. proof_irr. assert (c=ci) by congruence. subst c.
                simpl in Hat_external. elimtype False; clear - Hat_external Halted.
-               destruct ci; inv Halted. destruct c; inv H0. simpl in Hat_external.
+               destruct ci; inv Halted. destruct v0; inv H0. destruct c; inv H1. simpl in Hat_external.
                inv Hat_external.       
            + hnf in Htstep.
                elimtype False. clear - Halted Eci Htstep.
@@ -1325,7 +1327,7 @@ Qed. (* Lemma preservation_Kinit *)
                 intros H0 i0 cnti q H1.
                 specialize (unique H0 i0 cnti q H1).
                 destruct unique as [sch' unique]; injection unique as <- <- .
-                destruct Htid as [Htid|[?cnt [?c [? ?]]]].
+                destruct Htid as [Htid|[?cnt [?c [retv [? ?]]]]].
                 contradiction Htid.
                 assert (cnti = cnt) by apply proof_irr; auto. subst cnt.
                 destruct H1.
@@ -1425,9 +1427,9 @@ Qed. (* Lemma preservation_Kinit *)
           all: getThread_inv.
           all: congruence.
         - (* not halted *)
-          destruct Htid as [Htid | [? [? [? ?]]]].
+          destruct Htid as [Htid | [? [? [? [? ?]]]]].
           contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
-          rewrite Eci in H. inv H. hnf in H0. contradiction.
+          rewrite Eci in H. inv H. hnf in H0. congruence.
       }
       (* end of internal step *)
 
@@ -1560,9 +1562,9 @@ Qed. (* Lemma preservation_Kinit *)
           all: congruence.
 
         - (* not halted *)
-          destruct Htid as [Htid | [? [? [? ?]]]].
+          destruct Htid as [Htid | [? [? [? [? ?]]]]].
           contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
-          rewrite Eci in H. inv H. hnf in H0. contradiction.
+          rewrite Eci in H. inv H. hnf in H0. congruence.
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
     }
@@ -1636,7 +1638,7 @@ Qed. (* Lemma preservation_Kinit *)
         setoid_rewrite Eci in H4. congruence.
      - (* not halted *) 
           subst.
-          destruct Htid as [Htid | [? [? [? ?]]]].          
+          destruct Htid as [Htid | [? [? [? [? ?]]]]].          
           contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
           rewrite Eci in H. inv H.
     }
@@ -1759,7 +1761,7 @@ Qed. (* Lemma preservation_Kinit *)
           congruence.
      + simpl in *.
           subst.
-          destruct Htid as [Htid | [? [? [? ?]]]].          
+          destruct Htid as [Htid | [? [? [? [? ?]]]]].          
           contradiction. assert (x=cnti) by (apply proof_irr; auto). subst x.
           rewrite Eci in H. inv H.
     }

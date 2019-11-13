@@ -63,7 +63,7 @@ Lemma CC_core_to_CC_state_inj: forall c m c' m',
 
 Definition cl_halted (c: CC_core) : option val := 
   match c with
-  | Returnstate v (Kstop _) => Some v
+  | Returnstate (Vint i) (Kstop _) => Some (Vint i)
   | _ => None
   end.
 
@@ -299,11 +299,12 @@ Proof.
 Qed.
 
 Lemma cl_corestep_not_halted :
-  forall ge m q m' q' (i: int), cl_step ge q m q' m' -> ~ cl_halted q <> None.
+  forall ge m q m' q' (i: int), cl_step ge q m q' m' -> ~ cl_halted q = Some (Vint i).
 Proof.
   intros.
-  intro. apply H0.
-  inv H; simpl; auto.
+  intro.
+  destruct q; inv H0. destruct v; try discriminate. destruct c; try discriminate.
+  inv H.
 Qed.
 
 Lemma cl_after_at_external_excl :
@@ -330,7 +331,7 @@ Program Definition cl_core_sem (ge: genv) :
        /\ Mem.mem_wd m)
     (fun c _ => cl_at_external c)
     (fun ret c _ => cl_after_external ret c)
-    (fun c _ =>  cl_halted c <> None)
+    (fun c i =>  cl_halted c = Some (Vint i))
     (cl_step ge)
     (cl_corestep_not_halted ge)
     (cl_corestep_not_at_external ge).

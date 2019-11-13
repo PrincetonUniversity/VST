@@ -1106,10 +1106,8 @@ Proof.
     repeat match_case in H. 
     tactics.normal_hyp; subst.
     simpl.
-    destruct f. 2:{
-        admit. (* main is not external *) }
     econstructor; eauto.
-Admitted.
+Qed.
   
 Lemma computeMap_eq:
     forall x x' y y',
@@ -1406,13 +1404,14 @@ reflexivity.
     { simpl; rewrite <- H5.
       eapply schedfail; eauto; simpl.
       - inv H0.
-        destruct Htid as [Htid | [?cnt [?c [? ?]]]];
+        destruct Htid as [Htid | [?cnt [?c [retv [? ?]]]]];
          [left; intro; contradiction Htid; apply mtch_cnt'; auto | right ].
          specialize (mtch_gtc _ cnt (mtch_cnt _ cnt)).
-         exists (mtch_cnt _ cnt). rewrite H in mtch_gtc. inv mtch_gtc. exists c'; split; auto.
-         destruct c'; simpl in H0; try contradiction. destruct k; try contradiction.
-         assert (res = Vint Int.zero) by admit. 
-         subst res. constructor.
+         exists (mtch_cnt _ cnt). rewrite H in mtch_gtc. inv mtch_gtc.
+         exists c', retv; split; auto. clear - H0.
+         destruct c'; simpl in H0; try congruence.
+         destruct res; try congruence. destruct k; inv H0.
+         constructor.
       - eapply MTCH_invariant; eauto.
       - eapply MTCH_compat; eauto. }
     { intro; eapply IHn; auto.
@@ -1438,7 +1437,7 @@ reflexivity.
   + eapply mem_compatible_updThreadC, MTCH_compat; eauto.*)
   + erewrite <- mtch_gtr2; eauto.
   + erewrite <- mtch_gtr2; eauto.
-Admitted.
+Qed.
 
 
 Definition init_threadpool := 
@@ -1588,10 +1587,8 @@ destruct H9.
 subst.
 destruct H15; subst.
 simpl.
-destruct f.
-2: admit.  (* main External *)
 econstructor; eauto.
-Admitted.
+Qed.
 
   Local Ltac solve_schedule:=
       match goal with

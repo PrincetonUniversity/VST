@@ -538,7 +538,7 @@ Proof.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
     destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
+    inv H0; [ | discriminate | inv H3 ].
     destruct H4.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
@@ -549,7 +549,7 @@ Proof.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
     destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
+    inv H0; [ | discriminate | inv H3].
     destruct H4.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
@@ -560,7 +560,7 @@ Proof.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
     destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
+    inv H0; [ | discriminate | discriminate ].
     destruct H4.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
@@ -639,7 +639,7 @@ Proof.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
     destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
+    inv H0; [ | discriminate | discriminate ].
     destruct H4.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
@@ -650,7 +650,7 @@ Proof.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
     destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
+    inv H0; [ | discriminate | discriminate].
     destruct H4.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.
@@ -661,7 +661,7 @@ Proof.
     eapply age_safe; eauto.
     change (level (m_phi jm)) with (level jm) in H0.
     destruct (level jm). constructor.
-    inv H0; [ | discriminate | contradiction].
+    inv H0; [ | discriminate | discriminate].
     destruct H4.
     inv H0.
     eapply jsafeN_step.  split. econstructor; try eassumption.

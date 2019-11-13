@@ -317,6 +317,7 @@ inv H5.
 econstructor; eauto.
 simpl. auto.
 inv H9.
+inv H8.
 -
 eapply jsafeN_local_step. constructor.
 intros.
@@ -338,6 +339,7 @@ inv H5.
 econstructor; eauto.
 simpl. auto.
 inv H9.
+inv H8.
 Qed.
 
 (*

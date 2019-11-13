@@ -269,7 +269,10 @@ Section Progress.
         eexists. constructor. 
         apply JuicyMachine.schedfail with i.
         + reflexivity.
-        + right. intros. exists cnti, ci. split; auto. intro Hx; congruence. 
+        + right. intros.
+            destruct ci; inv Halted. destruct v0; inv H0. destruct c; inv H1.
+            exists cnti, (Returnstate (Vint i0) (Kstop t0)), i0. split; auto.
+            reflexivity.         
         + constructor.
         + eexists; eauto.
         + reflexivity.
@@ -289,7 +292,7 @@ Section Progress.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
           2: elimtype False; clear - H Hatex; simpl in H; congruence.
-          2: elimtype False; clear - H Halted; simpl in H; contradiction.
+          2: elimtype False; clear - H Halted; simpl in H; congruence.
           exists c', m'. split; [ apply step | ].
           revert step safety safe; clear.
           generalize (jm_ cnti compat).
@@ -374,7 +377,7 @@ Section Progress.
         destruct f; try discriminate.
         destruct (ef_inline e) eqn:Hinline; inv Hatex.
         inversion safe_i; subst. destruct H0. inversion H. inversion2 Hinline H12.
-        2: simpl in H;  contradiction H; auto.
+        2: inv H.
         simpl in H0. rewrite Hinline in H0. inv H0.
         match goal with x : ext_spec_type _ _  |- _ => clear -x end.
         now destruct e eqn:Ee; [ apply I | .. ];
@@ -402,7 +405,7 @@ Section Progress.
         destruct f; try discriminate.
         destruct (ef_inline e) eqn:Hinline; inv Hatex.
         inversion safe_i; subst. destruct H0. inversion H. inversion2 Hinline H12.
-        2: simpl in H;  contradiction H; auto.
+        2: inv H. 
         simpl in H0. inv H0.
         match goal with H : ext_spec_type _ _  |- _ => clear -H end.
         simpl in *.

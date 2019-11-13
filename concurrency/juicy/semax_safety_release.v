@@ -160,7 +160,7 @@ Proof.
       inv H; simpl in Hat_external;
       rewrite atex in Hat_external; inv Hat_external).
   2:{ clear Post Hjoin Hlockinv Hsat HnecR Hexclusive.
-       destruct Htid as [Htid | [? [? [? ?]]]]; [contradiction |].
+       destruct Htid as [Htid | [? [? [? [? ?]]]]]; [contradiction |].
 (*       assert (i :: sch <> sch) by (clear; induction sch; congruence).*)
        assert (x = cnti) by apply proof_irr; subst x.
        elimtype False. clear - H Eci. unfold JSem in *; congruence.
@@ -607,8 +607,9 @@ Proof.
     * repeat REWR.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- destruct (cl_halted s) eqn:Halted.
-           eapply jsafeN_halted; eauto. simpl. rewrite Halted; intro Hx; inv Hx.
-           instantiate (1:=Int.zero).  apply Logic.I.
+           destruct s; inv Halted. destruct v0; inv H1; destruct c0; inv H2.
+           eapply jsafeN_halted; try eassumption. reflexivity.
+           apply Logic.I.
            edestruct (unique_Krun_neq(ge := ge) i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; specialize (safety c' Ec'). apply jsafe_phi_bupd_age_to; auto. apply jsafe_phi_bupd_downward. assumption.
