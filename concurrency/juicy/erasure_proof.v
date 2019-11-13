@@ -4941,7 +4941,8 @@ inversion MATCH; subst.
     +
        destruct Htid as [cnt [c [? ?]]].
        pose proof (MTCH_cnt MATCH cnt).
-       exists H1, c. split; auto.
+       destruct H.
+       exists H0, c,x. split; auto.
       eapply MTCH_getThreadC; eauto.
       }
 
