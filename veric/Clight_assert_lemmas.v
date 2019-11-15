@@ -39,9 +39,13 @@ Proof.
   apply imp_derives; trivial.
   apply exp_derives; intros b.
   apply andp_derives; trivial.
-  unfold func_ptr. intros w [bb [H [gs [GS F]]]].
-  simpl in H; inv H. destruct gs; destruct fs; destruct GS as [[? ?] ?]; subst.
-  simpl. eexists; rewrite F; clear F. reflexivity.
+  unfold func_ptr_si. intros w [bb [H [gs [GS F]]]].
+  simpl in H; inv H. destruct gs; destruct fs. destruct GS as [[? ?] _]; subst c0.
+  simpl. 
+  specialize (funsigs_match_LNR2 H); intros. 
+  apply funsigs_match_typesigs_eq in H. rewrite <- H.
+  destruct F as [LNR F].
+  eexists; rewrite F; clear F. split; trivial.
 Qed.
 
 Lemma corable_allp_fun_id: forall Delta rho,
@@ -65,7 +69,8 @@ Proof.
   apply corable_imp; [apply corable_prop |].
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
-  destruct fs. apply corable_exp; intros cc. apply corable_pureat.
+  destruct fs. apply corable_exp; intros cc.
+  apply corable_andp; [apply corable_prop |]. apply corable_pureat.
 Qed.
 
 Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
@@ -78,10 +83,11 @@ Proof.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
-  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  rewrite FS in H. destruct H as [LNR [gs [GSA GSB]]]. specialize (GSB u I).
   destruct (W gs u WU GSA) as [b [B1 B2]].
   exists b; split; [trivial | destruct fs; destruct gs]. 
-  destruct GSB as [[GSBa GCBb] _]. subst c0 f0. trivial. 
+  destruct GSB as [[GSBa GCBb] _]. subst c0.
+  apply funsigs_match_siggcc_eq in GSBa. rewrite GSBa in B2. trivial.
 Qed.
 
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
@@ -94,7 +100,7 @@ Proof.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
-  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  rewrite FS in H. destruct H as [LNR [gs [GSA GSB]]]. specialize (GSB u I).
   destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
   simpl in X; inv X.
   exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
@@ -102,17 +108,12 @@ Proof.
 Qed.
 
 Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
-Proof. apply andp_left1.
-  apply allp_derives; intros id.
-  apply allp_derives; intros fs.
-  apply imp_derives; trivial.
-  apply exp_derives; intros b.
-  apply andp_derives; trivial.
-  eapply exp_right with (x:=b).
-  apply prop_andp_right; trivial.
-  eapply exp_right with (x:=fs).
-  apply andp_right; trivial.
-  eapply derives_trans. 2: apply funspec_sub_si_refl. trivial.
+Proof. 
+  intros w [W1 _]. simpl in W1. intros b fs a WA B.
+  destruct (W1 _ _ _ WA B) as [bl [BL FA]]; clear W1. exists bl; split; trivial.
+  red. simpl. exists bl; split; trivial. exists fs; split; trivial.
+  apply funspec_sub_si_refl. 2: trivial.
+  destruct fs. simpl. apply FA.
 Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,

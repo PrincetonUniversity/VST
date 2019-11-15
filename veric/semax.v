@@ -240,13 +240,49 @@ Definition semax_external
    |>  ALL F: pred rmap, ALL ts: list typ,
    ALL args: list val,
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
-   juicy_mem_op (P Ts x (make_args ids args (tycontext.empty_environ gx)) * F) >=>
+   juicy_mem_op ((P Ts x) (make_args ids args (tycontext.empty_environ gx)) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     (ALL z:_, juicy_mem_op (ext_compat z) -->
      ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
+(*
+Definition semax_external
+  (Hspec: OracleKind) (ids: list ident) ef
+  (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+        pred nat :=
+ ALL gx: genv, ALL Ts: list Type,
+ ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
+   |>  ALL F: pred rmap, ALL ts: list typ,
+   ALL args: list val,
+   !!Val.has_type_list args (sig_args (ef_sig ef)) &&
+   juicy_mem_op (port ids ids (P Ts x) (make_args ids args (tycontext.empty_environ gx)) * F) >=>
+   EX x': ext_spec_type OK_spec ef,
+    (ALL z:_, juicy_mem_op (ext_compat z) -->
+     ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
+      ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
+          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
+
+Lemma semax_external_rename {Hspec ef A P Q ids1 ids2} (L: length ids1=length ids2):
+       semax_external Hspec ids1 ef A P Q |-- semax_external Hspec ids2 ef A P Q .
+Proof.
+  unfold semax_external; intros n N ge ts x k NK FRM typs vals m KM r MR [R JM].
+  apply (N ge ts x k NK FRM typs vals m KM r MR); split; trivial.
+  clear - JM R L. destruct JM as [r1 [r2 [J [? ?]]]].
+  exists r1, r2. split3; trivial. remember (P ts x) as PP. clear - H L. simpl in PP.
+  unfold port in *. rewrite make_args_eq in *. simpl in *.
+  rewrite tr_make_args' in *; trivial.
+  generalize dependent ids2. unfold port; induction ids1; intros; destruct ids2; inv L; simpl; simpl in *.
+  + destruct vals; trivial.
+  + specialize (IHids1 _ H1). destruct vals; simpl in *.
+  red. simpl. ; intros.
+  induction ids1; simpl; intros; destruct ids2; inv L; simpl; trivial.
+  simpl.
+*)
+
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with

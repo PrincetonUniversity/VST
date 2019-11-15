@@ -1177,28 +1177,34 @@ Definition return_of_funspec (fs: funspec) : type :=
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
+Definition params_LNR (f: option funspec): Prop := 
+  match f with None => False
+   | Some phi => list_norepet (map fst (params_of_funspec phi))
+  end.
+
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
    definition (and in NDfunspec_sub). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
+| Some hspec => list_norepet (map fst (params_of_funspec hspec)) /\
+                exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
 | None => True
 end. 
 
 Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
      subsumespec x z.
 Proof. unfold subsumespec in *.
- destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
- destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
+ destruct x; trivial. destruct SUB1 as [? [? [? ?]]]; subst.
+ destruct SUB2 as [? [? [? ?]]]; subst. split; trivial. exists x0; split; trivial.
  intros w W.
  eapply funspec_sub_si_trans; split; eauto.
 Qed.
 
-Lemma subsumespec_refl x: subsumespec x x.
-Proof. unfold subsumespec.
- destruct x; trivial. exists f; split; [trivial| apply funspec_sub_si_refl ].
+Lemma subsumespec_refl x (X: params_LNR x): subsumespec x x.
+Proof. unfold subsumespec. 
+ destruct x; trivial. split; [ apply X |]. exists f; split; [trivial| apply funspec_sub_si_refl; apply X].
 Qed.
 
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
@@ -1235,13 +1241,15 @@ Proof.
   * clear - H5 G5. intros. eapply subsumespec_trans; eauto.
   * intros. eapply Annotation_sub_trans; eauto.
 Qed.
-
-Lemma tycontext_sub_refl Delta: tycontext_sub Delta Delta.
+Lemma tycontext_sub_refl Delta 
+      (HDelta: forall i phi, (glob_specs Delta) ! i = Some phi -> params_LNR (Some phi)):
+      tycontext_sub Delta Delta.
 Proof.
   repeat split; trivial.
   * intros. destruct ((temp_types Delta) ! id); trivial. 
   * intros. apply sub_option_refl. 
-  * intros. apply subsumespec_refl.
+  * intros. specialize (HDelta id). remember ((glob_specs Delta) ! id). destruct o; [ | simpl; trivial].
+    apply subsumespec_refl. apply HDelta; trivial.
   * intros. eapply Annotation_sub_refl.
 Qed.
 

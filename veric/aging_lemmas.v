@@ -51,13 +51,12 @@ Lemma anti_hereditary_func_at' loc fs :
   hereditary (fun x y => age y x) (func_at' fs loc).
 Proof.
   intros x y a; destruct fs as [f cc A P Q]; simpl.
-  intros [pp E].
-  destruct (proj2 (age1_PURE _ _ loc (FUN f cc) a)) as [pp' Ey]; eauto.
-  pose proof resource_at_approx y loc as H.
+  intros [pp [LNR E]].
+  destruct (proj2 (age1_PURE _ _ loc (FUN (typesig_of_funsig f) cc) a)) as [pp' Ey]; eauto.
+  pose proof resource_at_approx y loc as H. 
   rewrite Ey in H at 1; simpl in H.
   rewrite <-H.
-  exists pp'.
-  reflexivity.
+  exists pp'. split; trivial.
 Qed.
 
 Lemma pures_eq_unage {phi1 phi1' phi2}:

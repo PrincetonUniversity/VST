@@ -108,7 +108,23 @@ Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
-Lemma semax_external_binaryintersection: forall
+Lemma semax_external_binaryintersection: forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
+      A P Q P_ne Q_ne sig1 sig2 cc ids1 ids2}
+  (EXT1: @CSHL_Def.semax_external Espec ids1 ef A1 P1 Q1)
+  (EXT2: @CSHL_Def.semax_external Espec ids2 ef A2 P2 Q2)
+  (BI: binary_intersection (mk_funspec sig1 cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_funspec sig2 cc A2 P2 Q2 P2ne Q2ne) =
+     Some (mk_funspec sig1 cc A P Q P_ne Q_ne))
+  (IDS1: ids1 = map fst (fst sig1))
+  (IDS2: ids2 = map fst (fst sig2))
+  (FSM: funsigs_match sig1 sig2 = true)
+  (LENef: length (fst sig1) = length (sig_args (ef_sig ef))),
+  @CSHL_Def.semax_external Espec ids1 ef A P Q.
+Proof.
+  intros. intros n. eapply @semax_external_binaryintersection.
+  apply EXT1. apply EXT2. apply BI. all: trivial.
+Qed.
+(*Lemma semax_external_binaryintersection: forall
  {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne A P Q P_ne Q_ne sig cc ids}
   (EXT1: @CSHL_Def.semax_external Espec ids ef A1 P1 Q1)
   (EXT2: @CSHL_Def.semax_external Espec ids ef A2 P2 Q2)
@@ -118,6 +134,7 @@ Lemma semax_external_binaryintersection: forall
   (IDS: ids = map fst (fst sig)),
   @CSHL_Def.semax_external Espec ids ef A P Q. 
 Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
+*)
 
 Definition semax_body_binaryintersection := @semax_body_binaryintersection.
 

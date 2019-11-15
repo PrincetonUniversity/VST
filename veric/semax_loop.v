@@ -375,8 +375,12 @@ Proof.
   apply (pred_nec_hereditary _ _ _  H10') in H7.
   apply (pred_nec_hereditary _ _ _  H10') in H8.
   clear jm LEVa2 LEVa2' LW H10 H10' H9.
-  rename H3' into H3. rename Prog_OK2 into Prog_OK.
-  specialize (H' psi Delta' CS' (level jm2) (tycontext_sub_refl _) HGG Prog_OK).
+  rename H3' into H3. rename Prog_OK2 into Prog_OK. 
+  assert (TCsub_Deltarefl: tycontext_sub Delta' Delta').
+  { clear H'. apply tycontext_sub_refl. destruct H8 as [X _]; clear - X. 
+    simpl; intros. destruct (X i phi _ (necR_refl _) H) as [bb [? Y]]; clear - Y.
+    destruct phi; apply Y. }
+  specialize (H' psi Delta' CS' (level jm2) (* (tycontext_sub_refl _)*) TCsub_Deltarefl HGG Prog_OK).
   specialize (H' (Kloop1 body incr k) F f CLO_body).
   specialize (H1 Prog_OK H3).
   rename jm2 into jm.
@@ -386,7 +390,7 @@ Proof.
   destruct ek.
   + simpl exit_cont.
     rewrite semax_unfold in H0.
-    specialize (H0 psi _ CS' (level jm) (tycontext_sub_refl _)  HGG Prog_OK (Kloop2 body incr k) F f CLO_incr).
+    specialize (H0 psi _ CS' (level jm) (*(tycontext_sub_refl _)*) TCsub_Deltarefl HGG Prog_OK (Kloop2 body incr k) F f CLO_incr).
     spec H0.    {
       intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
       destruct ek2.
@@ -453,7 +457,7 @@ Proof.
     intros tx2 vx2. cbv zeta. simpl seplog.sepcon.
     destruct POST; simpl tycontext.RA_continue.
     rewrite semax_unfold in H0.
-    eapply subp_trans'; [ | apply (H0 _ _ CS' _ (tycontext_sub_refl _) HGG Prog_OK (Kloop2 body incr k) F f CLO_incr)].
+    eapply subp_trans'; [ | apply (H0 _ _ CS' _ (*(tycontext_sub_refl _)*)TCsub_Deltarefl HGG Prog_OK (Kloop2 body incr k) F f CLO_incr)].
     {
       apply derives_subp.
       apply andp_derives; auto.

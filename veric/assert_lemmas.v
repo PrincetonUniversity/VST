@@ -248,12 +248,13 @@ Proof.
 + intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
 Qed.
 
+(*
 Lemma corable_funspec_sub_early f g: corable (funspec_sub_early f g).
 Proof.
  intros. intro w. destruct f; destruct g. apply prop_ext; split; intro Hx; inv Hx; split; trivial.
 + intros ts. rewrite level_core. specialize (H0 ts); auto.
 + intros ts. specialize (H0 ts). rewrite level_core in H0; auto.
-Qed.
+Qed.*)
 
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.
@@ -270,7 +271,8 @@ Lemma corable_func_at: forall f l, corable (func_at f l).
 Proof.
   intros.
   unfold func_at.
-  destruct f as [fsig0 cc A P Q]. 
+  destruct f as [fsig0 cc A P Q].  
+  apply corable_andp. apply corable_prop.
   (*apply corable_exp; intro.
   apply corable_andp. apply corable_funspec_sub.
   destruct b.*) apply corable_pureat.
@@ -281,7 +283,8 @@ Proof.
   intros.
   unfold func_at'.
   destruct f as [fsig0 cc A P Q].
-  apply corable_exp; intro.
+  apply corable_exp; intro. 
+  apply corable_andp. apply corable_prop.
   apply corable_pureat.
 Qed.
 
@@ -290,6 +293,7 @@ Proof.
   intros.
   unfold sigcc_at.
   apply corable_exp; intro.
+  apply corable_andp. apply corable_prop.
   apply corable_pureat.
 Qed.
 
@@ -303,6 +307,7 @@ Proof.
   apply corable_andp. apply corable_funspec_sub_si.
   apply corable_func_at.
 Qed.
+(*
 Lemma corable_func_ptr_early : forall f v, corable (func_ptr_early f v).
 Proof.
   intros.
@@ -313,10 +318,11 @@ Proof.
   apply corable_andp. apply corable_funspec_sub_early.
   apply corable_func_at.
 Qed.
+*)
 Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
 Proof.
-  intros.
-  unfold func_ptr_early.
+  intros. 
+  unfold func_ptr.
   apply corable_exp; intro.
   apply corable_andp; auto.
   apply corable_exp; intro.
@@ -324,7 +330,7 @@ Proof.
   apply corable_func_at.
 Qed.
 
-Hint Resolve corable_func_ptr corable_func_ptr_si corable_func_ptr_early : core.
+Hint Resolve corable_func_ptr corable_func_ptr_si (*corable_func_ptr_early*) : core.
 
 Lemma corable_funspecs_assert:
   forall FS rho, corable (funspecs_assert FS rho).

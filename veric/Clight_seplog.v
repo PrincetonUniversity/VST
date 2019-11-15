@@ -141,6 +141,24 @@ destruct (In_nth_error _ _ i0) as [n ?].
 eapply H1; eauto.
 Qed.
 
+Lemma port_close_precondition {P ids l1 l2 rho}
+      (LNR2: list_norepet l2) (LNR: list_norepet l1)
+      (L : Datatypes.length l1 = Datatypes.length l2):
+  close_precondition l1 ids (fun rho0 => port l2 l1 P rho0) rho
+  |-- close_precondition l2 ids P rho.
+Proof. 
+  unfold close_precondition. intros w W. simpl. simpl in W. destruct W as [ve' [te' [W1 W2]]].
+  exists ve', (tr (combine l1 l2) te'); split; [ | apply W2].
+  intros n i2 i Hi2 Hi.
+  assert (II: exists j, nth_error l1 n = Some j).
+  { clear - Hi2 L.
+    apply nth_error_split in Hi2; destruct Hi2 as [? [? [? ?]]].
+    eexists. apply nth_error_nth with (z:=i2).
+    subst l2. rewrite app_length in L; simpl in L; omega. }
+  destruct II as [j Hj]. rewrite <- (W1 n _ _ Hj Hi); clear W1. clear - L Hi2 Hj LNR LNR2.
+  eapply get_combine; eassumption. 
+Qed.
+
 Definition bind_args (specparams bodyparams: list (ident * type)) (P: environ -> pred rmap) : assert :=
           fun rho => !! tc_formals bodyparams rho 
                           && close_precondition (map fst specparams) (map fst bodyparams) P rho.
@@ -341,3 +359,10 @@ Lemma same_glob_funassert:
      (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
               funassert Delta1 = funassert Delta2.
 Proof. intros; eapply same_FS_funspecs_assert; trivial. Qed.
+
+Lemma funassert_paramsLNR {Delta rho m} (FA: funassert Delta rho m): 
+  forall i phi, (glob_specs Delta)!i=Some phi -> params_LNR(Some phi).
+Proof.
+  intros. destruct FA as [X _]; simpl in X.
+  destruct (X _ _ _ (necR_refl _) H) as [z [_ ?]]. destruct phi. apply H0.
+Qed. 

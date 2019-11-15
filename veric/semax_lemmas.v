@@ -177,11 +177,11 @@ Proof.
   destruct H as [H1 H2]; split; repeat intro. (*rename H into H1; repeat intro.*)
   - destruct (H1 _ _ _ (rt_refl _ _ _) H0) as (b1 & ? & ?).
     exists b1; split; auto.
-    destruct b0; simpl in *.
+    destruct b0; simpl in *. destruct H4 as [LNR ?]; split; [ trivial |].
     rewrite Hr in H4.
     pose proof (necR_level _ _ H).
     eapply necR_PURE in H; eauto.
-    rewrite H; simpl; f_equal; f_equal.
+    rewrite H; simpl; f_equal; f_equal. 
     extensionality i a0 a1 a2.
     match goal with |-context[compcert_rmaps.R.approx ?a (approx ?b ?c)] =>
       change (compcert_rmaps.R.approx a (approx b c)) with ((approx a oo approx b) c) end.
@@ -190,7 +190,7 @@ Proof.
     destruct b0; simpl in *.
     apply (H2 _  (rt_refl _ _ _)).
     rewrite Hr, Hl.
-    destruct H0 as [p Hp].
+    destruct H0 as [p [LNR Hp]].
     pose proof (necR_level _ _ H).
     rewrite <- resource_at_approx.
     eapply necR_PURE' in H as [? ->]; simpl; eauto.

@@ -452,7 +452,7 @@ Definition initial_core' {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat)
            | Some id =>
                   match find_id id G with
                   | Some (mk_funspec fsig cc A P Q _ _) =>
-                           PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
+                           PURE (FUN (typesig_of_funsig fsig) cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
                   | None => NO Share.bot bot_unreadable
                   end
            | None => NO Share.bot bot_unreadable
@@ -1272,5 +1272,6 @@ Proof.
 Qed.
 
 (* func_at'': func_at without requiring a proof of non-expansiveness *)
-Definition func_at'' fsig cc A P Q :=
-  pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc).
+Definition func_at'' fsig cc A P Q := fun l =>
+  !!(list_norepet (map fst (fst fsig))) &&
+  pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN (typesig_of_funsig fsig) cc) l.
