@@ -247,42 +247,6 @@ Definition semax_external
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
-(*
-Definition semax_external
-  (Hspec: OracleKind) (ids: list ident) ef
-  (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
-        pred nat :=
- ALL gx: genv, ALL Ts: list Type,
- ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
-   |>  ALL F: pred rmap, ALL ts: list typ,
-   ALL args: list val,
-   !!Val.has_type_list args (sig_args (ef_sig ef)) &&
-   juicy_mem_op (port ids ids (P Ts x) (make_args ids args (tycontext.empty_environ gx)) * F) >=>
-   EX x': ext_spec_type OK_spec ef,
-    (ALL z:_, juicy_mem_op (ext_compat z) -->
-     ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
-      ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
-          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
-
-Lemma semax_external_rename {Hspec ef A P Q ids1 ids2} (L: length ids1=length ids2):
-       semax_external Hspec ids1 ef A P Q |-- semax_external Hspec ids2 ef A P Q .
-Proof.
-  unfold semax_external; intros n N ge ts x k NK FRM typs vals m KM r MR [R JM].
-  apply (N ge ts x k NK FRM typs vals m KM r MR); split; trivial.
-  clear - JM R L. destruct JM as [r1 [r2 [J [? ?]]]].
-  exists r1, r2. split3; trivial. remember (P ts x) as PP. clear - H L. simpl in PP.
-  unfold port in *. rewrite make_args_eq in *. simpl in *.
-  rewrite tr_make_args' in *; trivial.
-  generalize dependent ids2. unfold port; induction ids1; intros; destruct ids2; inv L; simpl; simpl in *.
-  + destruct vals; trivial.
-  + specialize (IHids1 _ H1). destruct vals; simpl in *.
-  red. simpl. ; intros.
-  induction ids1; simpl; intros; destruct ids2; inv L; simpl; trivial.
-  simpl.
-*)
-
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -323,6 +287,140 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
                   >=> !! tc_option_val sigret ret)
   | _ => FF
   end.
+
+Definition rename_pre {A} (ids1 ids2:list ident)(P: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap).
+Proof.
+  intros ts x rho. 
+  apply (P ts x (mkEnviron (ge_of rho) (ve_of rho) (tr (combine ids1 ids2) (te_of rho)))).
+Defined.
+
+Lemma semax_external_rename {Hspec e A P Q ids1 ids2}
+      (L: length ids1 = Datatypes.length ids2)
+      (LE: length (sig_args (ef_sig e)) = length ids2)
+      (LNR1: list_norepet ids1) (LNR2 : list_norepet ids2):
+  semax_external Hspec ids1 e A P Q =
+  semax_external Hspec ids2 e A (rename_pre ids2 ids1 P) Q.
+Proof. apply pred_ext; intros k K.
++ intros gx ts x a NA FRM typs vals m KM r MR [R JM].
+  apply (K gx ts x a NA FRM typs vals m KM r MR); split; trivial.
+  apply has_type_list_length in R; rewrite LE in R.
+  clear - JM LNR1 LNR2 L R.
+  destruct JM as [r1 [r2 [J [? ?]]]].
+  exists r1, r2. split3; trivial.
+  unfold rename_pre in H. rewrite make_args_eq by (rewrite R; trivial).
+  rewrite make_args_eq in H; [ simpl in H; simpl | rewrite R; trivial].
+  rewrite tr_make_args' in H; trivial; auto.
++ intros gx ts x a NA FRM typs vals m KM r MR [R JM].
+  apply (K gx ts x a NA FRM typs vals m KM r MR); split; trivial.
+  apply has_type_list_length in R; rewrite LE in R.
+  clear - JM LNR1 LNR2 L R.
+  destruct JM as [r1 [r2 [J [? ?]]]].
+  exists r1, r2. split3; trivial.
+  unfold rename_pre. rewrite make_args_eq by (rewrite R; trivial). simpl.
+  rewrite make_args_eq in H; [ simpl in H; simpl | rewrite R; trivial].
+  rewrite tr_make_args'; trivial; auto.
+Qed.
+
+Lemma zip_with_tl_aux {A1 A2}: forall l1 l2  (L:map snd l1 = map snd l2) 
+      (t:typelist) (T: length (typelist2list t) = length l1)
+      (L1: l1 = @zip_with_tl A1 (fst (split l1)) t),
+      l2 = @zip_with_tl A2 (fst (split l2)) t.
+Proof.
+  induction l1; intros; destruct l2; try discriminate. simpl in *; trivial.
+  inv L. destruct a as [a1 t1]. destruct p as [a2 t2]. simpl in H0; inv H0.
+  destruct t; inv T. specialize (IHl1 _ H1 _ H0).
+  remember (split l1) as l.
+  destruct l as [l types1]. simpl in *. rewrite <- Heql in *. simpl in L1; inv L1.
+  specialize (IHl1 (eq_refl _)).
+  remember (split l2) as k. destruct k as [k types2]. simpl.
+  rewrite IHl1. simpl. trivial.
+Qed.
+
+Lemma split_zip {A}: forall {l t} (T: length (typelist2list t) = length l),
+      fst (@split A _ (zip_with_tl l t)) = l.
+Proof.
+  induction l; simpl; intros; trivial.
+  destruct t; simpl; inv T.
+  specialize (IHl _ H0). destruct (split (zip_with_tl l t0)).
+  simpl in IHl; subst; trivial.
+Qed.
+
+Lemma fst_split {A B}: forall l, fst (@split A B l) = map fst l.
+Proof.
+  induction l; simpl; trivial.
+  destruct a. destruct (split l); simpl in *; subst; trivial. 
+Qed.
+
+Lemma snd_split {A B}: forall l, snd (@split A B l) = map snd l.
+Proof.
+  induction l; simpl; trivial.
+  destruct a. destruct (split l); simpl in *; subst; trivial.
+Qed.
+
+Lemma length_fst_split {A B l}: length (fst (@split A B l)) = length l.
+Proof. rewrite fst_split, map_length; trivial. Qed.
+
+Lemma length_snd_split {A B l}: length (snd (@split A B l)) = length l.
+Proof. rewrite snd_split, map_length; trivial. Qed.
+
+Lemma length_typlist_of_typelist_type_of_params: forall l, 
+      length (typlist_of_typelist (type_of_params l)) = length l.
+Proof.
+  induction l; simpl; trivial.
+  destruct a. simpl; rewrite IHl; trivial.
+Qed.
+
+Lemma believe_external_rename {Hspec gx v cc fs1 fs2 A P Q}:
+  funsigs_match fs1 fs2 = true ->
+  let ids1 := map fst (fst fs1) in
+  let ids2 := map fst (fst fs2) in 
+  believe_external Hspec gx v fs1 cc A P Q = 
+  believe_external Hspec gx v fs2 cc A (@rename_pre A ids2 ids1 P) Q.
+Proof.
+  intros. unfold believe_external. destruct (Genv.find_funct gx v); [ | trivial].
+  specialize (funsigs_match_rettypes H); intros Rtypes.
+  specialize (funsigs_match_type_of_params H); intros PARAMtypes.
+  specialize (funsigs_match_argtypes H); intros ARGtypes.
+  specialize (funsigs_match_LNR1 H); intros LNR1.
+  specialize (funsigs_match_LNR2 H); intros LNR2.
+  destruct f; [ trivial | rename t0 into tp].
+  specialize (funsigs_match_arglengths H); rewrite ! map_length; intros L.
+  destruct fs1 as [args1 rt1]. destruct fs2 as [args2 rt2]. simpl in *; subst.
+  apply pred_ext.
++ intros k [[K1 K2] K]. split; trivial.
+  rewrite <- PARAMtypes. clear K. simpl in K1. rewrite split_length_l in *.
+  destruct K1 as [? [? [? [? ?]]]]; subst.
+  assert (FS2: ((args2, rt2) = (zip_with_tl (fst (split args2)) t, tp))).
+    { clear K2. inv H0. f_equal. eapply zip_with_tl_aux; try eassumption. }
+  rewrite <- L.
+  split; [ simpl; intuition | inv FS2]. inv H0.
+  rewrite split_zip. 2: rewrite H3, L, length_fst_split; trivial.
+  rewrite fst_split in *.
+  clear - K2 ARGtypes LNR1 H2 LNR2. subst ids1 ids2.
+  assert (L: length args1 = length args2).
+  { assert (HH: length (map snd args1) = length (map snd args2)) by (rewrite ARGtypes; trivial).
+    rewrite ! map_length in *; trivial. }
+  rewrite <- semax_external_rename; trivial.
+  - rewrite ! map_length; trivial.
+  - rewrite H2; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
++ intros k [[K1 K2] K]. symmetry in L. symmetry in ARGtypes. symmetry in PARAMtypes. split; trivial.
+  rewrite <- PARAMtypes. clear K. simpl in K1. rewrite split_length_l in *.
+  destruct K1 as [? [? [? [? ?]]]]; subst.
+  assert (FS2: ((args1, rt2) = (zip_with_tl (fst (split args1)) t, tp))).
+    { clear K2. inv H0. f_equal. eapply zip_with_tl_aux; try eassumption. }
+  rewrite <- L.
+  split; [ simpl; intuition | inv FS2]. inv H0.
+  rewrite split_zip. 2: rewrite H3, L, length_fst_split; trivial.
+  rewrite fst_split in *.
+  clear - K2 ARGtypes LNR1 H2 LNR2. subst ids1 ids2.
+  assert (L: length args1 = length args2).
+  { assert (HH: length (map snd args1) = length (map snd args2)) by (rewrite ARGtypes; trivial).
+    rewrite ! map_length in *; trivial. }
+  rewrite <- semax_external_rename in K2; trivial.
+  - rewrite ! map_length; trivial.
+  - rewrite H2; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
+Qed.
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
