@@ -291,9 +291,13 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 Definition rename_pre {A} (ids1 ids2:list ident)(P: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
   forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap).
 Proof.
-  intros ts x rho. 
+  intros ts x rho.
   apply (P ts x (mkEnviron (ge_of rho) (ve_of rho) (tr (combine ids1 ids2) (te_of rho)))).
 Defined.
+
+Lemma  rename_port_eq {A ts} {x:dependent_type_functor_rec ts A (pred rmap)} {ids1 ids2:list ident} P:
+  (@rename_pre A ids1 ids2 P) ts x = port ids2 ids1 (P ts x).
+Proof. reflexivity. Qed.
 
 Lemma semax_external_rename {Hspec e A P Q ids1 ids2}
       (L: length ids1 = Datatypes.length ids2)
@@ -385,41 +389,41 @@ Proof.
   specialize (funsigs_match_LNR1 H); intros LNR1.
   specialize (funsigs_match_LNR2 H); intros LNR2.
   destruct f; [ trivial | rename t0 into tp].
-  specialize (funsigs_match_arglengths H); rewrite ! map_length; intros L.
+  specialize (funsigs_match_arglengths H); rewrite ! map_length; intros L; clear H.
   destruct fs1 as [args1 rt1]. destruct fs2 as [args2 rt2]. simpl in *; subst.
   apply pred_ext.
 + intros k [[K1 K2] K]. split; trivial.
   rewrite <- PARAMtypes. clear K. simpl in K1. rewrite split_length_l in *.
   destruct K1 as [? [? [? [? ?]]]]; subst.
   assert (FS2: ((args2, rt2) = (zip_with_tl (fst (split args2)) t, tp))).
-    { clear K2. inv H0. f_equal. eapply zip_with_tl_aux; try eassumption. }
+    { clear K2. inv H. f_equal. eapply zip_with_tl_aux; try eassumption. }
   rewrite <- L.
-  split; [ simpl; intuition | inv FS2]. inv H0.
-  rewrite split_zip. 2: rewrite H3, L, length_fst_split; trivial.
+  split; [ simpl; intuition | inv FS2]. inv H.
+  rewrite split_zip. 2: rewrite H2, L, length_fst_split; trivial.
   rewrite fst_split in *.
-  clear - K2 ARGtypes LNR1 H2 LNR2. subst ids1 ids2.
+  clear - K2 ARGtypes LNR1 H1 LNR2. subst ids1 ids2.
   assert (L: length args1 = length args2).
   { assert (HH: length (map snd args1) = length (map snd args2)) by (rewrite ARGtypes; trivial).
     rewrite ! map_length in *; trivial. }
   rewrite <- semax_external_rename; trivial.
   - rewrite ! map_length; trivial.
-  - rewrite H2; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
+  - rewrite H1; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
 + intros k [[K1 K2] K]. symmetry in L. symmetry in ARGtypes. symmetry in PARAMtypes. split; trivial.
   rewrite <- PARAMtypes. clear K. simpl in K1. rewrite split_length_l in *.
   destruct K1 as [? [? [? [? ?]]]]; subst.
   assert (FS2: ((args1, rt2) = (zip_with_tl (fst (split args1)) t, tp))).
-    { clear K2. inv H0. f_equal. eapply zip_with_tl_aux; try eassumption. }
+    { clear K2. inv H. f_equal. eapply zip_with_tl_aux; try eassumption. }
   rewrite <- L.
-  split; [ simpl; intuition | inv FS2]. inv H0.
-  rewrite split_zip. 2: rewrite H3, L, length_fst_split; trivial.
+  split; [ simpl; intuition | inv FS2]. inv H.
+  rewrite split_zip. 2: rewrite H2, L, length_fst_split; trivial.
   rewrite fst_split in *.
-  clear - K2 ARGtypes LNR1 H2 LNR2. subst ids1 ids2.
+  clear - K2 ARGtypes LNR1 H1 LNR2. subst ids1 ids2.
   assert (L: length args1 = length args2).
   { assert (HH: length (map snd args1) = length (map snd args2)) by (rewrite ARGtypes; trivial).
     rewrite ! map_length in *; trivial. }
   rewrite <- semax_external_rename in K2; trivial.
   - rewrite ! map_length; trivial.
-  - rewrite H2; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
+  - rewrite H1; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
 Qed.
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
@@ -440,6 +444,7 @@ Definition believe_internal_ CS
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   let ce := (@cenv_cs CS) in
+(*new*)  let ids1 := map fst (fst fsig) in
   (EX b: block, EX f: function,
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
@@ -456,12 +461,56 @@ Definition believe_internal_ CS
       (ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
         |> semax (SemaxArg CS' (func_tycontext' f Delta')
-                         (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho 
+                         (fun rho => (bind_args (fst fsig) (f.(fn_params)) (rename_pre ids1 ids1 P ts x) rho (*was: (P ts x) rho*)
                                               * stackframe_of' (@cenv_cs CS') f rho)
                                         && funassert (func_tycontext' f Delta') rho)
                           (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) 
               (stackframe_of' (@cenv_cs CS') f)))) )).
+
+Lemma port_trans {l1 l2 l3 P} (L12: length l1 = length l2) (L23: length l2 = length l3)
+                 (L1:list_norepet l1) (L2:list_norepet l2) (L3:list_norepet l3):
+      port l1 l3 P = port l2 l3 (port l1 l2 P).
+Proof. unfold port. extensionality rho; simpl. rewrite tr_trans; trivial. Qed.
+
+Lemma believe_internal__rename {cs semax gx Delta v cc fs1 fs2 A P Q}:
+  funsigs_match fs1 fs2 = true ->
+  let ids1 := map fst (fst fs1) in
+  let ids2 := map fst (fst fs2) in 
+  believe_internal_ cs semax gx Delta v fs1 cc A P Q =
+  believe_internal_ cs semax gx Delta v fs2 cc A (@rename_pre A ids2 ids1 P) Q.
+Proof.
+  intros. unfold believe_internal_.
+  specialize (funsigs_match_rettypes H); intros Rtypes.
+  specialize (funsigs_match_type_of_params H); intros PARAMtypes.
+  specialize (funsigs_match_argtypes H); intros ARGtypes.
+  specialize (funsigs_match_LNR1 H); intros LNR1.
+  specialize (funsigs_match_LNR2 H); intros LNR2.
+  specialize (funsigs_match_arglengths H); rewrite ! map_length; intros L. clear H.
+  destruct fs1 as [args1 rt1]. destruct fs2 as [args2 rt2]. simpl in *; subst.
+  assert (H_saP: forall ts (x:dependent_type_functor_rec ts A (pred rmap)) f, 
+              bind_args args1 (fn_params f) ((rename_pre ids1 ids1 P) ts x) 
+           =  bind_args args2 (fn_params f)
+                 (rename_pre (map fst args2) (map fst args2) (rename_pre ids2 ids1 P) ts x)).
+    { intros. rewrite ! rename_port_eq. extensionality rho.  apply pred_ext; subst ids1 ids2.
+      + eapply derives_trans. apply (@port_bind_args1 _ args2); trivial.
+        rewrite <- port_trans; trivial; rewrite 2 map_length; trivial. 
+      + eapply derives_trans. 2: apply (@port_bind_args2 _ args2); trivial.
+        rewrite <- 2 port_trans; trivial; rewrite 2 map_length; trivial. }
+  apply pred_ext.
++ intros w [b [f [K1 K2]]]. exists b, f. rewrite <- ARGtypes.
+  split.
+  - clear K2; simpl in K1. simpl; intuition.
+  - intros Delta' cs' n WN TCsub m NM CSUB ts x a' MA'.
+    specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
+    subst ids1 ids2. rewrite H_saP in K2; clear H_saP; trivial.
++ intros w [b [f [K1 K2]]]. exists b, f. symmetry in ARGtypes. rewrite <- ARGtypes.
+  split.
+  - clear K2; simpl in K1. simpl; intuition.
+  - intros Delta' cs' n WN TCsub m NM CSUB ts x a' MA'.
+    specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
+    subst ids1 ids2. rewrite H_saP; clear H_saP; trivial.
+Qed.
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -500,6 +549,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   let ce := @cenv_cs CS in
+(*new*)  let ids1 := map fst (fst fsig) in
   (EX b: block, EX f: function,
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
@@ -517,10 +567,50 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
        (ALL ts: list Type,
      ALL x : dependent_type_functor_rec ts A (pred rmap),
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args (fst fsig) (f.(fn_params)) (P ts x) rho * stackframe_of' (@cenv_cs CS') f rho)
+                                (fun rho => (bind_args (fst fsig) (f.(fn_params)) (rename_pre ids1 ids1 P ts x) rho * stackframe_of' (@cenv_cs CS') f rho) (*use of rename_pre is new here*)
                                              && funassert (func_tycontext' f Delta') rho)
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
+
+(*virtually same proof as believe_internal__rename*)
+Lemma believe_internal_rename {cs Espec gx Delta v cc fs1 fs2 A P Q}:
+  funsigs_match fs1 fs2 = true ->
+  let ids1 := map fst (fst fs1) in
+  let ids2 := map fst (fst fs2) in 
+  @believe_internal cs Espec gx Delta v fs1 cc A P Q =
+  @believe_internal cs Espec gx Delta v fs2 cc A (@rename_pre A ids2 ids1 P) Q.
+Proof.
+  intros. unfold believe_internal.
+  specialize (funsigs_match_rettypes H); intros Rtypes.
+  specialize (funsigs_match_type_of_params H); intros PARAMtypes.
+  specialize (funsigs_match_argtypes H); intros ARGtypes.
+  specialize (funsigs_match_LNR1 H); intros LNR1.
+  specialize (funsigs_match_LNR2 H); intros LNR2.
+  specialize (funsigs_match_arglengths H); rewrite ! map_length; intros L. clear H.
+  destruct fs1 as [args1 rt1]. destruct fs2 as [args2 rt2]. simpl in *; subst.
+  assert (H_saP: forall ts (x:dependent_type_functor_rec ts A (pred rmap)) f, 
+              bind_args args1 (fn_params f) ((rename_pre ids1 ids1 P) ts x) 
+           =  bind_args args2 (fn_params f)
+                 (rename_pre (map fst args2) (map fst args2) (rename_pre ids2 ids1 P) ts x)).
+    { intros. rewrite ! rename_port_eq. extensionality rho.  apply pred_ext; subst ids1 ids2.
+      + eapply derives_trans. apply (@port_bind_args1 _ args2); trivial.
+        rewrite <- port_trans; trivial; rewrite 2 map_length; trivial. 
+      + eapply derives_trans. 2: apply (@port_bind_args2 _ args2); trivial.
+        rewrite <- 2 port_trans; trivial; rewrite 2 map_length; trivial. }
+  apply pred_ext.
++ intros w [b [f [K1 K2]]]. exists b, f. rewrite <- ARGtypes.
+  split.
+  - clear K2; simpl in K1. simpl; intuition.
+  - intros Delta' cs' n WN TCsub m NM CSUB ts x a' MA'.
+    specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
+    subst ids1 ids2. rewrite H_saP in K2; clear H_saP; trivial.
++ intros w [b [f [K1 K2]]]. exists b, f. symmetry in ARGtypes. rewrite <- ARGtypes.
+  split.
+  - clear K2; simpl in K1. simpl; intuition.
+  - intros Delta' cs' n WN TCsub m NM CSUB ts x a' MA'.
+    specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
+    subst ids1 ids2. rewrite H_saP; clear H_saP; trivial.
+Qed.
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
@@ -531,6 +621,36 @@ Definition believe {CS: compspecs} (Espec:OracleKind)
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
         || believe_internal Espec gx Delta v fsig cc A P Q).
+
+Definition believe_rename {CS: compspecs} (Espec:OracleKind)
+              (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
+  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
+  ALL A: TypeTree,
+  ALL P: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
+  ALL Q: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
+  ALL fsig2:funsig, !!(funsigs_match fsig fsig2 =true) -->
+       !! claims gx Delta' v fsig cc A P Q  -->
+      (believe_external Espec gx v fsig2 cc A (rename_pre (map fst (fst fsig2)) (map fst (fst fsig)) P) Q
+        || believe_internal Espec gx Delta v fsig2 cc A (rename_pre (map fst (fst fsig2)) (map fst (fst fsig)) P) Q).
+
+Lemma believe_ren {cs Espec Delta gx Delta'}: @believe cs Espec Delta gx Delta' |-- @believe_rename cs Espec Delta gx Delta'.
+Proof.
+  intros n B v fsig1 cc A P Q fsig2 k NK FSM m KM CL.
+  specialize (B v fsig1 cc A P Q m (necR_trans _ _ _ NK KM) CL).
+  rewrite <- believe_external_rename, <- believe_internal_rename; trivial.
+Qed. 
+
+Lemma believe_ren_inv {cs Espec Delta gx Delta'}
+   (HDelta': forall i phi, (glob_specs Delta') ! i = Some phi -> params_LNR (Some phi)):
+   @believe_rename cs Espec Delta gx Delta' |-- @believe cs Espec Delta gx Delta'.
+Proof.
+  intros n B v fsig1 cc A P Q m NM CL.
+  assert (FSM1: funsigs_match fsig1 fsig1 = true).
+  { apply funsigs_match_refl. destruct CL as [i [Pne [Qne [Hi GX]]]].
+    apply HDelta' in Hi. apply Hi. }
+  specialize (B v fsig1 cc A P Q fsig1 _ (necR_refl _) FSM1 m NM CL).
+  rewrite <- believe_external_rename, <- believe_internal_rename in B; trivial.
+Qed. 
 
 Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>

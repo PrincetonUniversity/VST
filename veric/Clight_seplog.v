@@ -141,28 +141,87 @@ destruct (In_nth_error _ _ i0) as [n ?].
 eapply H1; eauto.
 Qed.
 
-Lemma port_close_precondition {P ids l1 l2 rho}
+Lemma port_close_precondition_char1 {P ids l1 l2 rho}
       (LNR2: list_norepet l2) (LNR: list_norepet l1)
       (L : Datatypes.length l1 = Datatypes.length l2):
-  close_precondition l1 ids (fun rho0 => port l2 l1 P rho0) rho
-  |-- close_precondition l2 ids P rho.
+  close_precondition l1 ids (port l2 l1 P) rho |-- close_precondition l2 ids (port l2 l2 P) rho.
 Proof. 
-  unfold close_precondition. intros w W. simpl. simpl in W. destruct W as [ve' [te' [W1 W2]]].
-  exists ve', (tr (combine l1 l2) te'); split; [ | apply W2].
-  intros n i2 i Hi2 Hi.
+  intros w W. destruct W as [ve' [te' [W1 W2]]].
+  exists ve', (tr (combine l1 l2) te'); split.
++ intros n i2 i Hi2 Hi.
   assert (II: exists j, nth_error l1 n = Some j).
   { clear - Hi2 L.
     apply nth_error_split in Hi2; destruct Hi2 as [? [? [? ?]]].
     eexists. apply nth_error_nth with (z:=i2).
     subst l2. rewrite app_length in L; simpl in L; omega. }
   destruct II as [j Hj]. rewrite <- (W1 n _ _ Hj Hi); clear W1. clear - L Hi2 Hj LNR LNR2.
-  eapply get_combine; eassumption. 
+  eapply get_combine; eassumption.
++ unfold port in *. simpl in *. unfold ident in L; symmetry in L. rewrite tr_trans; trivial.
+Qed.
+
+Lemma port_close_precondition_char2 {P ids l1 l2 rho}
+      (LNR2: list_norepet l2) (LNR: list_norepet l1)
+      (L : Datatypes.length l1 = Datatypes.length l2):
+  close_precondition l2 ids (port l2 l2 P) rho |--
+  close_precondition l1 ids (port l2 l1 P) rho.
+Proof.
+  intros w W. destruct W as [ve' [te' [W1 W2]]].
+  exists ve', (tr (combine l2 l1) te'); split.
++ intros n i2 i Hi1 Hi.
+  assert (II: exists j, nth_error l2 n = Some j).
+  { clear - Hi1 L.
+    apply nth_error_split in Hi1; destruct Hi1 as [? [? [? ?]]].
+    eexists. apply nth_error_nth with (z:=i2).
+    subst l1. rewrite <- L, app_length, H0; simpl; omega. }
+  destruct II as [j Hj]. rewrite <- (W1 n _ _ Hj Hi); clear W1. clear - L Hi1 Hj LNR LNR2.
+  eapply get_combine; try eassumption. unfold ident in *; rewrite L; trivial.
++ unfold port. simpl. rewrite tr_trans; trivial. unfold ident in *; rewrite L; trivial.
+Qed.
+
+Lemma close_precondition_port_refl {P ids l rho} (LNR: list_norepet l):
+  close_precondition l ids (port l l P) rho |--
+  close_precondition l ids P rho.
+Proof.
+  intros w W. destruct W as [ve' [te' [W1 W2]]].
+  exists ve', (tr (combine l l) te'); split; [ | apply W2].
+  intros n i2 i Hi1 Hi. rewrite <- (W1 n _ _ Hi1 Hi); clear - Hi1 LNR.
+  eapply get_combine; try eassumption; trivial.
+Qed.
+
+Lemma port_close_precondition {P ids l1 l2 rho}
+      (LNR2: list_norepet l2) (LNR: list_norepet l1)
+      (L : Datatypes.length l1 = Datatypes.length l2):
+  close_precondition l1 ids (port l2 l1 P) rho
+  |-- close_precondition l2 ids P rho.
+Proof.
+  eapply derives_trans. 2: apply (close_precondition_port_refl LNR2).
+  apply port_close_precondition_char1; trivial.
 Qed.
 
 Definition bind_args (specparams bodyparams: list (ident * type)) (P: environ -> pred rmap) : assert :=
           fun rho => !! tc_formals bodyparams rho 
                           && close_precondition (map fst specparams) (map fst bodyparams) P rho.
 
+Lemma port_bind_args1 {l1 l2 bodyparams P rho}
+      (LNR2: list_norepet (map fst l2)) (LNR: list_norepet (map fst l1))
+      (L : Datatypes.length l1 = Datatypes.length l2):
+      bind_args l1 bodyparams (port (map fst l1) (map fst l1) P) rho 
+  |-- bind_args l2 bodyparams (port (map fst l1) (map fst l2) P) rho.
+Proof. 
+  intros w [W1 W2]. split; [trivial |].
+  apply port_close_precondition_char2; trivial. rewrite 2 map_length, L; trivial.
+Qed. 
+
+Lemma port_bind_args2 {l1 l2 bodyparams P rho}
+      (LNR2: list_norepet (map fst l2)) (LNR: list_norepet (map fst l1))
+      (L : Datatypes.length l1 = Datatypes.length l2):
+      bind_args l2 bodyparams (port (map fst l1) (map fst l2) P) rho 
+  |-- bind_args l1 bodyparams P rho.
+Proof. 
+  intros w [W1 W2]. split; [trivial |].
+  apply port_close_precondition in W2; trivial. rewrite 2 map_length, L; trivial.
+Qed.
+ 
 Definition ret_temp : ident := 1%positive.
 
 Definition get_result1 (ret: ident) (rho: environ) : environ :=
