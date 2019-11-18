@@ -440,6 +440,12 @@ match op with
                           | Tlong Signed _ => tc_nosignedover Z.sub (Econst_long Int64.zero (typeof a)) a
                           | _ => tc_TT
                           end
+                    | Cop.neg_case_l sg => 
+                          tc_andp (tc_bool (is_long_type ty) (op_result_type a))
+                          match (typeof a) with
+                          | Tlong Signed _ => tc_nosignedover Z.sub (Econst_long Int64.zero (typeof a)) a
+                          | _ => tc_TT
+                          end
                     | Cop.neg_case_f => tc_bool (is_float_type ty) (op_result_type a)
                     | Cop.neg_case_s => tc_bool (is_single_type ty) (op_result_type a)
                     | _ => tc_FF (op_result_type a)

@@ -424,6 +424,7 @@ try solve [
    unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
    unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
    unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
+   unfold denote_tc_assert. unfold_lift. apply extend_tc_nosignedover.
  + repeat extend_tc_prover. eapply extend_tc_binop; eauto.
  + 
   destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];

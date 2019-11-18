@@ -1655,7 +1655,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  repeat apply closed_wrt_tc_andp; auto with closed.
  unfold isUnOpResultType.
  destruct u;
- destruct (typeof e) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ destruct (typeof e) as   [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl; repeat apply closed_wrt_tc_andp; auto 50 with closed;
   rewrite binop_lemmas2.denote_tc_assert_test_eq';
   simpl; unfold_lift;
