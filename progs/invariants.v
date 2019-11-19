@@ -5,61 +5,9 @@ Require Import VST.msl.sepalg_generators.
 Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.conclib.
 Require Export VST.progs.ghostsI.
-Require Import List.
-
-(* Where should this sit? *)
-
-Definition cored : mpred := own.cored.
-
-Lemma cored_dup : forall P, P && cored |-- (P && cored) * (P && cored).
-Proof.
-  apply own.cored_dup.
-Qed.
-
-Lemma cored_dup_cored : forall P, P && cored |-- ((P && cored) * (P && cored)) && cored.
-Proof.
-  intros; apply andp_right.
-  - apply cored_dup.
-  - apply andp_left2; auto.
-Qed.
-
-Lemma cored_duplicable : cored = cored * cored.
-Proof.
-  apply own.cored_duplicable.
-Qed.
-
-Lemma own_cored: forall {RA: Ghost} g a pp, join a a a -> own g a pp |-- cored.
-Proof.
-  intros; apply own.own_cored; auto.
-Qed.
-
-Lemma cored_sepcon: forall P Q, (P && cored) * (Q && cored) |-- (P * Q) && cored.
-Proof.
-  intros.
-  apply andp_right.
-  + apply sepcon_derives; apply andp_left1; auto.
-  + eapply derives_trans; [apply sepcon_derives; apply andp_left2, derives_refl|].
-      rewrite <- cored_duplicable; auto.
-Qed.
-
-Lemma cored_dup_gen : forall P, P |-- cored -> P |-- P * P.
-Proof.
-  intros.
-  erewrite (add_andp P) by apply H; apply cored_dup.
-Qed.
-
 Require Import VST.veric.bi.
 Require Import VST.msl.sepalg.
-
-Lemma cored_emp: (cored |-- |==> emp)%I.
-Proof.
-  apply own.cored_emp.
-Qed.
-
-Lemma emp_cored : (emp |-- cored)%I.
-Proof.
-  apply own.emp_cored.
-Qed.
+Require Import List.
 
 Section Invariants.
 
@@ -179,7 +127,7 @@ Proof.
   destruct m; simpl; auto.
 Qed.
 
-Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join }.
+Program Instance list_PCM (P : Ghost) : Ghost := { valid a := True; Join_G := list_join(*; core2 := map core2*) }.
 Next Obligation.
 Proof.
   exists (fun _ => nil); auto; constructor.
@@ -548,7 +496,7 @@ Qed.
 Notation union := base.union.
 
 Program Instance set_PCM : Ghost := { valid := fun _ : coPset => True;
-  Join_G a b c := a ## b /\ c = union a b }.
+  Join_G a b c := a ## b /\ c = union a b(*; core2 a := empty*) }.
 Next Obligation.
 Proof.
   exists (fun _ => empty); auto.
@@ -663,22 +611,12 @@ Proof.
   + rewrite nth_singleton; repeat constructor; auto.
 Qed.
 
-Lemma invariant_dup : forall i P, invariant i P = invariant i P * invariant i P.
+Global Instance invariant_persistent i P : Persistent (invariant i P).
 Proof.
-  intros; unfold invariant; apply pred_ext.
-  - Intros g; Exists g g.
-    rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- sepcon_assoc.
-    erewrite ghost_snap_join.
-    erewrite sepcon_assoc, <- agree_dup; apply derives_refl.
-    { apply (singleton_join_self(P := discrete_PCM _)).
-      constructor; auto. }
-  - Intros g1 g2.
-    erewrite <- sepcon_assoc, (sepcon_comm _ (ghost_snap _ _)), <- sepcon_assoc.
-    rewrite ghost_snap_join'; Intros l.
-    apply (list_join_singleton_inv(P := discrete_PCM _)) in H as (g & H & ?); subst.
-    inv H.
-    erewrite sepcon_assoc, <- agree_dup.
-    Exists g; apply derives_refl.
+  apply bi.exist_persistent; intro.
+  apply bi.sep_persistent; apply own_persistent; hnf; simpl; auto.
+  rewrite !eq_dec_refl; split; auto.
+  apply @singleton_join_self, join_refl.
 Qed.
 
 (* up *)
@@ -1041,18 +979,6 @@ Proof.
   rewrite !approx_exp; f_equal; extensionality g.
   rewrite !approx_sepcon; f_equal.
   apply own_super_non_expansive.
-Qed.
-
-Lemma invariant_cored : forall i P, invariant i P |-- cored.
-Proof.
-  intros; unfold invariant.
-  apply exp_left; intro g.
-  rewrite cored_duplicable.
-  apply sepcon_derives; apply own_cored; hnf; auto; simpl.
-  split; auto.
-  rewrite !eq_dec_refl.
-  apply (singleton_join_self(P := discrete_PCM _)).
-  constructor; auto.
 Qed.
 
 (* Consider putting rules for invariants and fancy updates in msl (a la ghost_seplog), and proofs

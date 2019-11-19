@@ -820,27 +820,3 @@ apply writable_readable; auto.
 Qed.
 
 Hint Resolve bytes_writable_readable : mem.
-
-Lemma rmap_age_i:
- forall w w' : rmap,
-    level w = S (level w') ->
-   (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) ->
-    ghost_fmap (approx (level w')) (approx (level w')) (ghost_of w) = ghost_of w' ->
-    age w w'.
-Proof.
-intros.
-hnf.
-destruct (levelS_age1 _ _ H).
-assert (x=w'); [ | subst; auto].
-assert (level x = level w')
-  by (apply age_level in H2; omega).
-apply rmap_ext; auto.
-intros.
-specialize (H0 l).
-rewrite (age1_resource_at w x H2 l (w@l)).
-rewrite H3.
-apply H0.
-symmetry; apply resource_at_approx.
-erewrite age1_ghost_of; eauto.
-rewrite H3; apply H1.
-Qed.

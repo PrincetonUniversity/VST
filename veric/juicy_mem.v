@@ -624,13 +624,13 @@ Qed.
 
 Lemma ghost_of_make_rmap: forall f g lev H Hg, ghost_of (proj1_sig (make_rmap f g lev H Hg)) = g.
 refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
-                           | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
+                           | conj _ (conj _ GHOST) => GHOST
                          end).
 Qed.
 
 Lemma ghost_of_remake_rmap: forall f g lev H Hg, ghost_of (proj1_sig (remake_rmap f g lev H Hg)) = g.
 refine (fun f g lev H Hg => match proj2_sig (remake_rmap f g lev H Hg) with
-                           | conj _ (conj _ RESOURCE_AT) => RESOURCE_AT
+                           | conj _ (conj _ GHOST) => GHOST
                          end).
 Qed.
 

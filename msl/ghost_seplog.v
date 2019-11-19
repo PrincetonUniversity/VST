@@ -89,15 +89,26 @@ Proof.
   apply core_identity in J; subst; auto.
 Qed.
 
+Lemma own_sub: forall `{BupdSepLog} {RA: Ghost} g (a b: G) pp,
+  join_sub b a ->
+  own g a pp |-- |==> own g b pp.
+Proof.
+  intros; apply own_update, fp_update_sub; auto.
+Qed.
+
 Lemma own_core: forall `{BupdSepLog} {RA: Ghost} g (a: G) pp,
   own g a pp |-- |==> own g (core a) pp.
 Proof.
-  intros; apply own_update.
-  intros ? (? & J & ?).
-  exists c; split.
-  - rewrite (join_core J), <- (join_core (join_comm J)); apply core_unit.
-  - eapply join_valid; eauto.
+  intros; apply own_sub.
+  eexists; apply core_unit.
 Qed.
+
+(*Lemma own_core2: forall `{BupdSepLog} {RA: Ghost} g (a: G) pp,
+  own g a pp |-- |==> own g (core2 a) pp.
+Proof.
+  intros; apply own_sub.
+  eexists; apply core2_unit.
+Qed.*)
 
 Instance LiftBupdSepLog (A B N D: Type) {NB: NatDed B}{SB: SepLog B}{BSLB: BupdSepLog B N D} :
   BupdSepLog (A -> B) N D.

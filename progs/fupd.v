@@ -54,7 +54,7 @@ Proof.
   intro b'; specialize (HYES b').
   if_tac.
   - destruct HYES as (rsh & Ha'); exists rsh.
-    erewrite age_to_resource_at.age_resource_at in Ha' by eauto.
+    erewrite age_resource_at in Ha' by eauto.
     destruct (a @ b'); try discriminate; inv Ha'.
     destruct p0; inv H6; simpl.
     f_equal.
@@ -470,8 +470,7 @@ Proof.
   unfold updates.fupd, bi_fupd_fupd; simpl.
   intros; unfold fupd.
   rewrite <- wand_sepcon_adjoint.
-  erewrite ghost_set_remove; eauto.
-  rewrite invariant_dup.
+  erewrite ghost_set_remove by (apply elem_of_subseteq_singleton; eauto).
   sep_apply (wsat_open i P).
   eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
   eapply derives_trans, bi.except_0_intro.

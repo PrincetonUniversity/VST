@@ -106,48 +106,22 @@ Proof.
   intros; rewrite wand_nonexpansive_l wand_nonexpansive_r; reflexivity.
 Qed.
 
-(*Program Definition persistently (P : mpred) : mpred :=
-  fun w => exists w1, join_sub w1 w /\ join w1 w1 w1 /\ P w1.
-Next Obligation.
-Proof.
-  repeat intro.
-  destruct H0 as (w1 & [] & ? & ?).
-  eapply age1_join2 in H as (? & ? & ? & ? & ?); eauto.
-  eexists; split; [eexists; eauto|].
-  split.
-  - eapply age1_join_eq in H1; eauto.
-  - eapply pred_hereditary; eauto.
-Qed.
+Ltac unseal_derives := match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
 
-Lemma approx_persistently: forall P n, approx n (persistently P) = persistently (approx n P).
-Proof.
-  intros; apply pred_ext; intros ??; hnf in *.
-  - destruct H as (? & w1 & J & ? & ?); exists w1; repeat split; auto.
-    destruct J as [? J]; apply join_level in J as []; omega.
-  - destruct H as (w1 & J & ? & ? & ?); split; [|exists w1; auto].
-    destruct J as [? J]; apply join_level in J as []; omega.
-Qed.
-
-Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
-Proof.
-  repeat intro; hnf in *.
-  destruct H0 as (w1 & ? & ? & ?); eauto.
-Qed.*)
-
-(* try box? *)
-Program Definition persistently (P : mpred) : mpred := fun w => P (core w).
+(*Program Definition persistently (P : mpred) : mpred := fun w => P (ghost_core2 w).
 Next Obligation.
 Proof.
   repeat intro.
   eapply pred_hereditary; eauto.
-  apply age_core; auto.
+  apply age_ghost_core; auto.
 Qed.
 
 Lemma approx_persistently: forall P n, approx n (persistently P) = persistently (approx n P).
 Proof.
-  intros; apply predicates_hered.pred_ext; intros ??; hnf in *.
-  - rewrite level_core; auto.
-  - rewrite level_core in H; auto.
+  intros; apply predicates_hered.pred_ext; intros ??; simpl in *; intros.
+  - rewrite level_ghost_core; auto.
+  - rewrite -> level_ghost_core in *.
+    destruct H as ([] & ?); repeat (split; auto).
 Qed.
 
 Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
@@ -156,15 +130,68 @@ Proof.
   change (predicates_hered.derives (persistently P) (persistently Q)).
   change (predicates_hered.derives P Q) in H.
   repeat intro.
-  apply H; auto.
+  apply H, H0; auto.
 Qed.
 
-Lemma persistently_persists: forall P, persistently P |-- persistently (persistently P).
+Lemma persistently_persists : forall P, persistently P |-- persistently (persistently P).
 Proof.
   intros.
   change (predicates_hered.derives (persistently P) (persistently (persistently P))).
-  repeat intro; hnf in *.
-  rewrite core_idem; auto.
+  repeat intro; simpl in *.
+  rewrite -> ghost_core_idem in *.
+  apply H; eapply join_sub_trans; eauto.
+Qed.
+
+Lemma ghost_core_identity : forall w, identity w -> identity (ghost_core2 w).
+Proof.
+  intros.
+  apply resource_at_empty2.
+  - intros; rewrite resource_at_ghost_core.
+    apply resource_at_core_identity.
+  - rewrite ghost_of_ghost_core.
+    apply ghost_of_identity in H.
+    rewrite (identity_core H) R.ghost_core; simpl.
+    rewrite <- (R.ghost_core nil); apply core_identity.
+Qed.*)
+
+Definition persistently (P : mpred) : mpred := ((P && own.cored) * TT)%logic.
+
+Lemma approx_persistently: forall P n, approx n (persistently P) = approx n (persistently (approx n P)).
+Proof.
+  intros; unfold persistently.
+  rewrite !approx_sepcon !approx_andp; f_equal; f_equal.
+  change (approx n (approx n P)) with ((approx n oo approx n) P); rewrite approx_oo_approx; auto.
+Qed.
+
+Lemma persistently_derives: forall P Q, P |-- Q -> persistently P |-- persistently Q.
+Proof.
+  intros.
+  apply sepcon_derives; auto.
+  apply andp_derives; auto.
+  apply derives_refl.
+Qed.
+
+Lemma persistently_persists : forall P, persistently P |-- persistently (persistently P).
+Proof.
+  intros.
+  unfold persistently.
+  apply sepcon_derives; auto.
+  apply andp_right.
+  - apply sepcon_TT.
+  - apply andp_left2, derives_refl.
+Qed.
+
+Lemma own_persistent : forall {RA : ghost.Ghost} g a p, join a a a -> own g a p |-- persistently (own g a p).
+Proof.
+  intros; unfold persistently.
+  eapply derives_trans, sepcon_TT.
+  unseal_derives; repeat intro; split; auto.
+  rewrite own.cored_unit.
+  destruct H0 as (? & Hr & Hg); simpl in *.
+  apply resource_at_join2; auto.
+  - intros; apply identity_unit'; auto.
+  - rewrite Hg own.ghost_fmap_singleton; apply own.singleton_join.
+    repeat constructor; auto.
 Qed.
 
 Lemma mpred_bi_mixin :
@@ -205,7 +232,7 @@ Proof.
   - intros ? P Q ????; hnf in *.
     rewrite wand_nonexpansive (wand_nonexpansive Q); congruence.
   - intros ????; hnf in *.
-    rewrite !approx_persistently; congruence.
+    rewrite approx_persistently H; setoid_rewrite approx_persistently at 2; auto.
   - apply prop_right.
   - intros.
     apply prop_left; intro.
@@ -230,31 +257,31 @@ Proof.
   - intros; rewrite sepcon_assoc; auto.
   - intros; rewrite <- wand_sepcon_adjoint; auto.
   - intros; rewrite wand_sepcon_adjoint; auto.
-  - apply persistently_derives.
-  - apply persistently_persists.
-  - change (predicates_hered.derives emp (persistently emp)).
-    intros ??; unfold persistently; simpl.
-    apply core_identity.
+  - intros; apply persistently_derives; auto.
+  - intros; apply persistently_persists.
+  - unfold persistently.
+    eapply derives_trans, sepcon_TT.
+    apply andp_right; auto.
+    apply own.emp_cored.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro; hnf in *.
-    apply H.
+    admit.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro; hnf in *.
-    destruct H as [x ?]; exists x; auto.
+    unfold persistently.
+    rewrite exp_andp1 exp_sepcon1.
+    apply exp_left; intro x.
+    apply exp_right with x; auto.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro; hnf in *.
-    destruct H as (? & ? & J%join_core & ? & ?).
-    rewrite <- J; auto.
+    unfold persistently.
+    rewrite sepcon_assoc; apply sepcon_derives; auto.
+    apply TT_right.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro; hnf in *.
-    destruct H.
-    exists (core a), a; repeat split; auto.
-    apply core_unit.
-Qed.
+    unfold persistently; unseal_derives.
+    intros ? [(c & ? & J & [? Hcored] & ?)].
+    exists c, a; repeat (split; auto).
+    rewrite own.cored_unit in Hcored.
+    destruct (join_assoc Hcored J) as (? & J' & ?).
+    eapply join_eq in J; eauto; subst; auto.
+Admitted.
 
 Lemma approx_later : forall n P, approx (S n) (|> P) = seplog.later (approx n P).
 Proof.
@@ -290,32 +317,7 @@ Proof.
   apply dist_S; auto.
 Qed.
 
-(* to msl.age_sepalg *)
-Lemma laterR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall x y : A, laterR x y -> laterR (core x) (core y).
-Proof.
- induction 1.
- constructor 1; apply age_core; auto.
- constructor 2 with (core y); auto.
-Qed.
-
-Lemma unlaterR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall x y : A, laterR (core x) y -> exists y0, laterR x y0 /\ y = core y0.
-Proof.
-  intros; remember (core x) as cx; revert dependent x; induction H; intros; subst.
-  - pose proof (age_level _ _ H) as Hlevel.
-    rewrite level_core in Hlevel.
-    symmetry in Hlevel.
-    destruct (levelS_age _ _ Hlevel) as (y0 & Hage & ?).
-    exists y0; split; [constructor; auto|].
-    apply age_core in Hage.
-    unfold age in *; congruence.
-  - edestruct IHclos_trans1 as (y0 & ? & ?); eauto; subst.
-    edestruct IHclos_trans2 as (? & ? & ?); eauto; subst.
-    eexists; split; [|reflexivity].
-    econstructor 2; eauto.
-Qed.
-
+Locate rmap_age_i.
 Lemma mpred_sbi_mixin : SbiMixin
   derives prop orp imp (@allp _ _) (@exp _ _) sepcon persistently (@internal_eq) seplog.later.
 Proof.
@@ -346,16 +348,13 @@ Proof.
     eapply dist_le; eauto.
     apply necR_level in H1; lia.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro.
+    unseal_derives; repeat intro.
     specialize (H x); auto.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro.
+    unseal_derives; repeat intro.
     apply H.
   - intros.
-    match goal with |- ?P |-- ?Q => change (predicates_hered.derives P Q) end.
-    repeat intro; simpl in *.
+    unseal_derives; repeat intro; simpl in *.
     rewrite discrete_iff; apply H0.
   - intros.
     match goal with |- ?P |-- (|> ?Q)%logic => change (predicates_hered.derives P (box laterM Q)) end.
@@ -381,17 +380,30 @@ Proof.
   - intros; rewrite later_sepcon; auto.
   - intros; rewrite later_sepcon; auto.
   - intros.
-    match goal with |- (|> ?P |-- persistently (|> ?Q))%logic =>
-      change (predicates_hered.derives (box laterM P) (persistently (box laterM Q))) end.
-    repeat intro; simpl in *.
-    apply unlaterR_core in H0 as (? & ? & ?); subst.
-    apply H; auto.
+    unfold persistently.
+    rewrite !later_sepcon !later_andp.
+    setoid_rewrite own.cored_later.
+    rewrite andp_comm distrib_orp_andp distrib_orp_sepcon; apply orp_left.
+    + apply sepcon_derives, TT_right.
+      rewrite andp_comm; auto.
+    + unseal_derives.
+      intros ? (? & ? & ? & [F] & ?).
+      exists (core a), a; split; [apply core_unit|].
+      split; [|constructor].
+      split; [|apply own.cored_core].
+      eapply predicates_hered.later_derives; [apply FF_derives|].
+      intros ? Hlater%laterR_level.
+      rewrite level_core in Hlater.
+      apply join_level in H as [Hl _]; rewrite <- Hl in Hlater.
+      destruct (level x) eqn: Hx; [omega|].
+      symmetry in Hx; apply levelS_age in Hx as (b & ? & ?).
+      contradiction (F b).
+      constructor; auto.
   - intros.
-    match goal with |- (persistently (|> ?P) |-- |> ?Q)%logic =>
-      change (predicates_hered.derives (persistently (box laterM P)) (box laterM Q)) end.
-    repeat intro; simpl in *.
-    apply H.
-    apply laterR_core; auto.
+    unfold persistently.
+    rewrite !later_sepcon !later_andp.
+    apply sepcon_derives, now_later.
+    apply andp_derives, now_later; auto.
   - intros.
     change (predicates_hered.derives (box laterM P)
       (box laterM (prop False) || predicates_hered.imp (box laterM (prop False)) P)).

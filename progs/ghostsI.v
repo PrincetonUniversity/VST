@@ -57,6 +57,11 @@ Proof.
   intros; apply own_list_dealloc'.
 Qed.
 
+Lemma own_persistent : forall g a p, join a a a -> Persistent (own g a p).
+Proof.
+  exact own_persistent.
+Qed.
+
 End ghost.
 
 Lemma exclusive_update : forall {A} (v v' : A) p, (excl p v |-- |==> excl p v')%I.
@@ -92,6 +97,13 @@ Lemma snap_master_update1 : forall v1 v2 p v', ord v2 v' ->
   (ghost_snap v1 p * ghost_master1 v2 p |-- |==> ghost_snap v' p * ghost_master1 v' p)%I.
 Proof.
   exact snap_master_update1.
+Qed.
+
+Global Instance snap_persistent v p : Persistent (ghost_snap v p).
+Proof.
+  apply own_persistent; hnf; simpl.
+  rewrite !eq_dec_refl; split; auto.
+  apply join_refl.
 Qed.
 
 End Snapshot.

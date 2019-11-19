@@ -1218,6 +1218,13 @@ refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                          end).
 Qed.
 
+Lemma ghost_of_make_rmap: forall f g lev H Hg, 
+     ghost_of (proj1_sig (make_rmap f g lev H Hg)) = g.
+refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
+                           | conj _ (conj _ GHOST) => GHOST
+                         end).
+Qed.
+
 Lemma level_make_rmap: forall f g lev H Hg, @level rmap _ (proj1_sig (make_rmap f g lev H Hg)) = lev.
 refine (fun f g lev H Hg => match proj2_sig (make_rmap f g lev H Hg) with
                            | conj LEVEL _ => LEVEL
@@ -1921,13 +1928,175 @@ Proof.
   apply all_resource_at_identity. (* This was already proved. *)
 Qed.
 
+Lemma resource_fmap_core':
+  forall n w loc, resource_fmap (approx n) (approx n) (core (w @ loc)) = core (resource_fmap (approx n) (approx n) (w @ loc)).
+Proof.
+intros.
+destruct (w @ loc); simpl;
+ [rewrite core_NO | rewrite !core_YES | rewrite !core_PURE]; auto.
+Qed.
+
 Lemma resource_fmap_core:
   forall w loc, resource_fmap (approx (level w)) (approx (level w)) (core (w @ loc)) = core (w @ loc).
 Proof.
-intros.
-case_eq (w @ loc); intros;
- [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
-rewrite <- H. apply resource_at_approx.
+  intros; rewrite resource_fmap_core', resource_at_approx; auto.
 Qed.
+
+(*Definition core2_elem (e : option ({g: ghost.Ghost & {a: @ghost.G g | ghost.valid a}} * preds)) :
+  (option ({g: ghost.Ghost & {a: @ghost.G g | ghost.valid a}} * preds)) :=
+  match e with
+  | Some (existT RA (exist a v), pp) => Some (existT _ RA (exist _ (ghost.core2 a) (ghost.core2_valid _ v)), pp)
+  | None => None
+  end.
+
+Lemma ghost_fmap_core2 : forall a f g, ghost_fmap f g (map core2_elem a) = map core2_elem (ghost_fmap f g a).
+Proof.
+  intros; unfold ghost_fmap; rewrite !map_map; apply map_ext; intros.
+  destruct a0 as [[[? []]]|]; auto.
+Qed.
+
+Program Definition ghost_core2 w :=
+  proj1_sig (make_rmap (resource_at (core w)) (map core2_elem (ghost_of w)) (level w) _ _).
+Next Obligation.
+  intros.
+  extensionality; unfold compose.
+  rewrite <- !core_resource_at, resource_fmap_core; auto.
+Qed.
+Next Obligation.
+  intros.
+  rewrite <- ghost_of_approx at 2.
+  apply ghost_fmap_core2.
+Qed.
+
+Lemma level_ghost_core : forall w, level (ghost_core2 w) = level w.
+Proof.
+  intros; apply level_make_rmap.
+Qed.
+
+Lemma resource_at_ghost_core : forall w, resource_at (ghost_core2 w) = resource_at (core w).
+Proof.
+  intros; apply resource_at_make_rmap.
+Qed.
+
+Lemma ghost_of_ghost_core : forall w, ghost_of (ghost_core2 w) = map core2_elem (ghost_of w).
+Proof.
+  intros; apply ghost_of_make_rmap.
+Qed.*)
+
+Lemma rmap_age_i:
+ forall w w' : rmap,
+    level w = S (level w') ->
+   (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) ->
+    ghost_fmap (approx (level w')) (approx (level w')) (ghost_of w) = ghost_of w' ->
+    age w w'.
+Proof.
+intros.
+hnf.
+destruct (levelS_age1 _ _ H).
+assert (x=w'); [ | subst; auto].
+assert (level x = level w')
+  by (apply age_level in H2; omega).
+apply rmap_ext; auto.
+intros.
+specialize (H0 l).
+rewrite (age1_resource_at w x H2 l (w@l)).
+rewrite H3.
+apply H0.
+symmetry; apply resource_at_approx.
+erewrite age1_ghost_of; eauto.
+rewrite H3; apply H1.
+Qed.
+
+Lemma age_resource_at {phi phi' loc} :
+  age phi phi' ->
+  phi' @ loc = resource_fmap (approx (level phi')) (approx (level phi')) (phi @ loc).
+Proof.
+  intros A.
+  rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
+  - reflexivity.
+  - rewrite resource_at_approx. reflexivity.
+Qed.
+
+(*Lemma age_ghost_core : forall x y, age x y -> age (ghost_core2 x) (ghost_core2 y).
+Proof.
+  intros; apply rmap_age_i.
+  - rewrite !level_ghost_core.
+    apply age_level; auto.
+  - intros; rewrite !level_ghost_core, !resource_at_ghost_core.
+    rewrite <- !core_resource_at.
+    rewrite (age_resource_at H).
+    apply resource_fmap_core'.
+  - rewrite !level_ghost_core, !ghost_of_ghost_core.
+    rewrite (age1_ghost_of _ _ H).
+    apply ghost_fmap_core2.
+Qed.
+
+Lemma ghost_core_idem : forall w, ghost_core2 (ghost_core2 w) = ghost_core2 w.
+Proof.
+  intros; apply rmap_ext.
+  - apply level_ghost_core.
+  - intros; rewrite !resource_at_ghost_core.
+    rewrite <- core_resource_at, resource_at_ghost_core, core_resource_at, core_idem; auto.
+  - rewrite !ghost_of_ghost_core, map_map; apply map_ext.
+    intros [[[? []]]|]; auto; simpl.
+    f_equal; f_equal; f_equal.
+    apply exist_ext, ghost.core2_idem.
+Qed.
+
+Lemma ghost_join_sub_core : forall a b, join_sub a b -> join_sub (map core2_elem a) (map core2_elem b).
+Proof.
+  induction a; intros.
+  { eexists; constructor. }
+  destruct H.
+  inv H.
+  { eexists; constructor. }
+  destruct (IHa m3); [eexists; eauto|].
+  inv H2.
+  { eexists; constructor; eauto; constructor. }
+  { eexists; constructor; eauto; constructor. }
+  destruct a1, a4, a5; inv H0; simpl in *.
+  inv H1.
+  destruct (ghost.core2_mono a c); [eexists; eauto|].
+  eexists; constructor; eauto; constructor.
+  instantiate (1 := (_, _)); constructor; eauto; simpl.
+  constructor; eauto.
+Unshelve.
+  eapply ghost.join_valid; eauto.
+  apply ghost.core2_valid; auto.
+Qed.
+
+Lemma ghost_core_mono : forall a b, join_sub a b -> join_sub (ghost_core2 a) (ghost_core2 b).
+Proof.
+  intros.
+  destruct H.
+  destruct (join_level _ _ _ H) as [Hla Hlb].
+  destruct (ghost_join_sub_core (ghost_of a) (ghost_of b)) as [g ?].
+  { eexists; apply ghost_of_join; eauto. }
+  destruct (make_rmap (resource_at (core x)) (ghost_fmap (approx (level x)) (approx (level x)) g) (level x)) as (x' & ? & Hr & Hg).
+  { extensionality; unfold compose.
+    rewrite <- !core_resource_at, resource_fmap_core; auto. }
+  { rewrite ghost_fmap_fmap, approx_oo_approx; auto. }
+  exists x'; apply resource_at_join2.
+  - rewrite !level_ghost_core; auto.
+  - rewrite !level_ghost_core; omega.
+  - intros; rewrite !resource_at_ghost_core, Hr.
+    apply resource_at_join, core_hom; auto.
+  - rewrite !ghost_of_ghost_core, Hg.
+    apply (ghost_fmap_join _ _ _ (approx (level x)) (approx (level x))) in H0.
+    rewrite !ghost_fmap_core2, Hlb, <- Hla, ghost_of_approx, Hla, ghost_of_approx, <- Hlb in H0; auto.
+Qed.
+
+Lemma ghost_core_unit : forall a, unit_for (ghost_core2 a) a.
+Proof.
+  intros; apply resource_at_join2; auto.
+  - apply level_ghost_core.
+  - intros; rewrite resource_at_ghost_core.
+    rewrite <- core_resource_at; apply core_unit.
+  - rewrite ghost_of_ghost_core.
+    induction (ghost_of a); constructor; auto.
+    unfold core2_elem.
+    destruct a0 as [[[? []]]|]; repeat constructor.
+    apply ghost.core2_unit.
+Qed.*)
 
 End Rmaps_Lemmas.

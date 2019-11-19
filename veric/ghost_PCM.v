@@ -22,19 +22,20 @@ Global Program Instance pos_PCM (P : Ghost) : Ghost := { G := option (share * G)
   | Some (sh, a), None, Some c' | None, Some (sh, a), Some c' => c' = (sh, a)
   | None, None, None => True
   | _, _, _ => False
-  end }.
+  end(*;
+  core2 a := None*) }.
 Next Obligation.
 repeat split; intros; intro H; decompose [and] H; congruence.
-Defined.
+Qed.
 Next Obligation.
 repeat split; intros; intro H; decompose [and] H; congruence.
-Defined.
+Qed.
 Next Obligation.
 repeat split; intros; intro H; decompose [and] H; congruence.
-Defined.
+Qed.
 Next Obligation.
 repeat split; intros; intro H; decompose [and] H; congruence.
-Defined.
+Qed.
 Next Obligation.
 exists (fun _ => None); auto.
 intros [[]|]; constructor.
@@ -56,13 +57,20 @@ constructor.
     intros (? & ? & ? & ?); split; auto; split; auto; split; apply join_comm; auto.
   - intros [[]|] [[]|] [[]|] [[]|]; try contradiction; auto.
     intros (? & ? & ? & ?) (? & ? & ? & ?); f_equal; f_equal; eapply join_positivity; eauto.
-Defined.
+Qed.
+(*Next Obligation.
+  hnf.
+  destruct a as [[]|]; auto.
+Qed.
+Next Obligation.
+  exists None; hnf; auto.
+Qed.*)
 Next Obligation.
 destruct a as [[]|]; destruct b as [[]|]; destruct c as [[]|]; try trivial;
 unfold join in *; try contradiction.
 - decompose [and] H; assumption.
 - congruence.
-Defined.
+Qed.
 
 Definition completable {P : Ghost} (a: @G (pos_PCM P)) r := exists x, join a x (Some (Tsh, r)).
 
@@ -71,7 +79,8 @@ Local Obligation Tactic := idtac.
 Global Program Instance ref_PCM (P : Ghost) : Ghost :=
 { valid a := valid (fst a) /\ match snd a with Some r => completable (fst a) r | None => True end;
   Join_G a b c := @Join_G (pos_PCM P) (fst a) (fst b) (fst c) /\
-    @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c) }.
+    @psepalg.Join_lower _ (psepalg.Join_discrete _) (snd a) (snd b) (snd c)(*;
+  core2 a := (None, None)*) }.
 Next Obligation.
   intros P; apply sepalg_generators.Sep_prod.
   + apply @Sep_G.
@@ -81,7 +90,18 @@ Next Obligation.
   intros P; apply sepalg_generators.Perm_prod.
   + apply @Perm_G.
   + apply psepalg.Perm_option.
-Defined.
+Qed.
+(*Next Obligation.
+  intros; hnf.
+  split; [apply (@core2_unit (pos_PCM P)) | constructor].
+Qed.
+Next Obligation.
+  intros; reflexivity.
+Qed.
+Next Obligation.
+  intros; exists (None, None); hnf.
+  split; constructor.
+Qed.*)
 Next Obligation.
   intros P ??? [? J] []; split; [eapply join_valid; eauto|].
   destruct a, b, c; simpl in *; inv J; auto.
@@ -89,12 +109,16 @@ Next Obligation.
     destruct H1.
     destruct (join_assoc H H1) as (? & ? & ?); eexists; eauto.
   + inv H2.
-Defined.
+Qed.
 
 End Reference.
 
-Program Instance exclusive_PCM A : Ghost := { valid a := True; Join_G := Join_lower (Join_discrete A) }.
-
+Program Instance exclusive_PCM A : Ghost :=
+  { valid a := True; Join_G := Join_lower (Join_discrete A)(*; core2 a := None*) }.
+(*Next Obligation.
+Proof.
+  eexists; constructor.
+Qed.*)
 
 Definition ext_PCM Z : Ghost := ref_PCM (exclusive_PCM Z).
 

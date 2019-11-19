@@ -263,7 +263,7 @@ Proof.
   - rewrite <- (age_jm_dry Hage), <- (age_jm_dry Hage2); auto.
   - extensionality l.
     apply age_jm_phi in Hage; apply age_jm_phi in Hage2.
-    rewrite (age_to_resource_at.age_resource_at Hage), (age_to_resource_at.age_resource_at Hage2).
+    rewrite (age_resource_at Hage), (age_resource_at Hage2).
     rewrite <- !level_juice_level_phi; congruence.
 Qed.
 

@@ -572,18 +572,10 @@ Qed.
 Definition cored: pred rmap := ALL P : pred rmap, ALL Q : pred rmap,
   P && Q --> P * Q.
 
-Program Definition is_w w: pred rmap := fun w' => necR w w'.
-Next Obligation.
-Proof.
-  repeat intro.
-  eapply necR_trans; eauto.
-  constructor; auto.
-Qed.
-
 Lemma cored_unit: forall w, cored w = join w w w.
 Proof.
   intro; apply prop_ext; split; unfold cored; intro.
-  - edestruct (H (is_w w) (is_w w)) as (? & ? & J & Hw1 & Hw2).
+  - edestruct (H (exactly w) (exactly w)) as (? & ? & J & Hw1 & Hw2).
     { apply necR_refl. }
     { split; apply necR_refl. }
     simpl in *.
@@ -658,6 +650,33 @@ Proof.
   repeat intro; simpl in *.
   destruct H1.
   eapply nec_identity, identity_unit' in H; eauto.
+Qed.
+
+Lemma cored_later : |> cored = cored || |> FF.
+Proof.
+  apply pred_ext.
+  - repeat intro.
+    destruct (age1 a) eqn: Ha.
+    + left; rewrite cored_unit.
+      specialize (H r); spec H.
+      { constructor; auto. }
+      rewrite cored_unit in H.
+      apply resource_at_join2; auto.
+      * intros.
+        apply (resource_at_join _ _ _ loc) in H.
+        erewrite age_resource_at in H by eauto.
+        destruct (a @ loc); inv H; constructor; auto.
+      * apply ghost_of_join in H.
+        erewrite age1_ghost_of in H by eauto.
+        induction (ghost_of a); constructor; inv H; [|apply IHg; auto].
+        destruct a0 as [[]|]; [inv H3 | constructor].
+        inv H2; repeat constructor; auto.
+    + right; repeat intro.
+      apply laterR_power_age in H0 as (? & ? & ? & ?).
+      unfold age in *; congruence.
+  - apply orp_left.
+    + apply now_later.
+    + apply later_derives, FF_derives.
 Qed.
 
 Lemma join_singleton_inv: forall k a b RA c v pp,
