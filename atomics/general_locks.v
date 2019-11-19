@@ -11,7 +11,23 @@ Section locks.
 
 Context {CS : compspecs}.
 
-Definition lock_syncer {A} sh p g R := lock_inv sh p (EX a : A, R a * ghost_reference(P := discrete_PCM A) a g).
+Definition my_half {A} g (a : A) := ghost_part(P := discrete_PCM A) Tsh a g.
+Definition public_half {A} g (a : A) := ghost_reference(P := discrete_PCM A) a g.
+
+Lemma public_update : forall {A} g (a b a' : A),
+  (my_half g a * public_half g b |-- !!(b = a) && |==> my_half g a' * public_half g a')%I.
+Proof.
+  intros.
+  iIntros "H".
+  iPoseProof (ref_sub(P := discrete_PCM A) with "H") as "%".
+  rewrite eq_dec_refl in H; subst.
+  iSplit; auto.
+  rewrite !ghost_part_ref_join.
+  iApply (ref_update(P := discrete_PCM A)); eauto.
+Qed.
+
+Definition sync_inv {A} g R := EX a : A, R a * my_half g a.
+(*Definition lock_syncer {A} sh p g R := lock_inv sh p (EX a : A, R a * ghost_reference(P := discrete_PCM A) a g).
 
 Lemma lock_syncer_nonexpansive : forall {A} n sh p g (R : A -> mpred),
   approx n (lock_syncer sh p g R) = approx n (lock_syncer sh p g (fun a => approx n (R a))).
@@ -44,87 +60,72 @@ Proof.
   apply lock_syncer_nonexpansive.
 Qed.
 
-Definition acquire_sync_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * share * gname))
-  (ArrowType (DependentType 0) Mpred)) (ArrowType (DependentType 0) Mpred))
-  (ArrowType (DependentType 0) (ArrowType (ConstType unit) Mpred))) Mpred) (ConstType invG).
+Definition acquire_sync_type := ProdType (ConstType (val * share * gname))
+  (ArrowType (DependentType 0) Mpred).
 
 (* What's the distinction between R and a (ϕ and α in mk_sync)? R is in the sync invariant, while a is in the view shift. *)
-
-Definition sync_inv {A : Type} g a (x : A) := a x * ghost_part(P := discrete_PCM _) Tsh x g || ghost_reference(P := discrete_PCM _) x g.
+(* More importantly, a must be intuitionistic! *)
 
 Program Definition acquire_sync_spec :=
-  TYPE acquire_sync_type WITH p : val, sh : share, g : gname, R : _ -> mpred, a : _ -> mpred, b : _ -> unit -> mpred, Q : mpred, inv_names : invG
+  TYPE acquire_sync_type WITH p : val, sh : share, g : gname, R : _ -> mpred
   PRE [ 1%positive OF tptr tvoid ]
     PROP (readable_share sh)
     LOCAL (temp 1%positive p)
-    SEP (lock_syncer sh p g R;
-            atomic_shift (sync_inv g a) ∅ ⊤ b (fun _ => Q))
+    SEP (lock_syncer sh p g R)
   POST [ tvoid ]
    EX x : _,
     PROP ()
     LOCAL ()
-    SEP (lock_syncer sh p g R; R x; a x; ghost_part(P := discrete_PCM _) Tsh x g;
-            atomic_shift (sync_inv g a) ∅ ⊤ b (fun _ => Q)).
+    SEP (lock_syncer sh p g R; R x; ghost_part(P := discrete_PCM _) Tsh x g).
 Next Obligation.
 Proof.
   intros.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp !approx_sepcon; f_equal; f_equal; f_equal.
-  - apply lock_syncer_nonexpansive.
-  - f_equal; rewrite atomic_shift_nonexpansive; setoid_rewrite atomic_shift_nonexpansive at 2.
-    f_equal; f_equal; repeat extensionality; rewrite ?approx_orp ?approx_sepcon ?approx_idem; auto.
+  apply lock_syncer_nonexpansive.
 Qed.
 Next Obligation.
 Proof.
   intros; rewrite !approx_exp; f_equal; extensionality.
   unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp !approx_sepcon !approx_idem; f_equal; f_equal; f_equal.
-  - apply lock_syncer_nonexpansive.
-  - f_equal; f_equal; f_equal; f_equal.
-    rewrite atomic_shift_nonexpansive; setoid_rewrite atomic_shift_nonexpansive at 2.
-    f_equal; f_equal; repeat extensionality; rewrite ?approx_orp ?approx_sepcon ?approx_idem; auto.
-Qed.
+  apply lock_syncer_nonexpansive.
+Qed.*)
 
-Definition release_sync_type := ProdType (ProdType (ProdType (ProdType (ConstType (val * share * gname))
-  (ArrowType (DependentType 0) Mpred)) (DependentType 0)) (ArrowType (DependentType 0) Mpred)) (ArrowType (DependentType 0) Mpred).
+Definition release_sync_type := ProdType (ProdType (ProdType (ConstType (val * share * gname))
+  (ArrowType (DependentType 0) Mpred)) (DependentType 0)) (DependentType 0).
 
-(* Can we use a forall on the shift to get a generic shift in makelock, and only specialize it at release? *)
-(* remove x0 *)
-(* Don't we still need an abort spec for release as well? *)
+(* Don't we still need an abort spec for release as well? We should just be able to use the normal release spec. *)
 Program Definition release_sync_spec :=
   ATOMIC TYPE release_sync_type OBJ x INVS empty top
-  WITH p : val, sh : share, g : gname, R : _ -> mpred, x' : _, a : _ -> mpred, b : _ -> mpred
+  WITH p : val, sh : share, g : gname, R : _ -> mpred, x0 : _, x' : _
   PRE [ 1%positive OF tptr tvoid ]
     PROP (readable_share sh)
     LOCAL (temp 1%positive p)
-    SEPS (lock_syncer sh p g R; R x'; b x'; EX x0, ghost_part(P := discrete_PCM _) Tsh x0 g) |
-             (sync_inv g a x)
+    SEPS (lock_inv sh p (sync_inv g R); R x'; my_half g x0) | (public_half g x)
   POST [ tvoid ]
     PROP ()
     LOCAL ()
-    SEP (lock_syncer sh p g R (* private *); b x'; ghost_part(P := discrete_PCM _) Tsh x' g).
+    SEP (lock_inv sh p (sync_inv g R) (* private *); !!(x = x0) && public_half g x').
 Next Obligation.
-Proof.
-  apply (nth O ts unit).
-Defined.
-Next Obligation.
-  intros; apply (nth O ts unit).
-Defined.
-Next Obligation.
-  - intros; apply lock_syncer_nonexpansive.
-  - rewrite !approx_idem; auto.
+  - intros.
+    etransitivity; [apply nonexpansive_super_non_expansive, nonexpansive_lock_inv|].
+    etransitivity; [|symmetry; apply nonexpansive_super_non_expansive, nonexpansive_lock_inv].
+    f_equal; f_equal.
+    rewrite !approx_exp; f_equal; extensionality.
+    rewrite !approx_sepcon approx_idem; auto.
   - rewrite !approx_idem; auto.
 Qed.
 Next Obligation.
 Proof.
-  intros; rewrite !approx_orp !approx_sepcon !approx_idem; auto.
-Qed.
-Next Obligation.
   intros.
   rewrite !approx_sepcon; f_equal.
-  - apply lock_syncer_nonexpansive.
-  - rewrite ?approx_sepcon approx_idem; auto.
+  etransitivity; [apply nonexpansive_super_non_expansive, nonexpansive_lock_inv|].
+  etransitivity; [|symmetry; apply nonexpansive_super_non_expansive, nonexpansive_lock_inv].
+  f_equal; f_equal.
+  rewrite !approx_exp; f_equal; extensionality.
+  rewrite !approx_sepcon approx_idem; auto.
 Qed.
 
-Lemma makelock_sync : funspec_sub (makelock_spec _) makelock_sync_spec.
+(*Lemma makelock_sync : funspec_sub (makelock_spec _) makelock_sync_spec.
 Proof.
   apply subsume_subsume.
   unfold funspec_sub', makelock_spec, makelock_sync_spec; intros; repeat (split; auto); intros.
@@ -187,41 +188,25 @@ Proof.
       inv H0.
       inv H3. }
     admit.
-Admitted.
+Admitted.*)
 
 Lemma release_sync : funspec_sub release_spec release_sync_spec.
 Proof.
   apply subsume_subsume.
   unfold funspec_sub', release_spec, release_sync_spec; intros; repeat (split; auto); intros.
-  destruct x2 as ((((((((p, sh), g), R), x'), a), b), Q), inv_names).
+  destruct x2 as (((((((p, sh), g), R), x0), x'), Q), inv_names).
   simpl; intro.
   match goal with |- _ |-- (|==> ?Q)%logic => apply derives_trans with (@bi_fupd_fupd _ (@mpred_bi_fupd inv_names) top top Q) end.
   iIntros "[_ H]".
   unfold release_pre, PROPx, LOCALx, SEPx; simpl.
-  iDestruct "H" as "(? & ? & AS & ? & R & b & g & _)".
-  iDestruct "g" as (x0) "g".
+  iDestruct "H" as "(? & ? & AS & ? & R & g & _)".
   iDestruct "AS" as (P) "[P AS]"; iMod ("AS" with "P") as (x1) "[a H]".
-  iDestruct "a" as "[[? g'] | g']".
-  { iCombine "g g'" as "g".
-    iPoseProof (own_valid_2(RA := ref_PCM (discrete_PCM _)) with "g") as "%".
-    hnf in H.
-    destruct H as ((g0, ?) & J & _).
-    inv J; simpl in *.
-    destruct g0 as [[]|]; try contradiction.
-    destruct H as (? & ? & HT & ?).
-    apply join_Tsh in HT as []; contradiction. }
-  iCombine "g g'" as "g".
-  iPoseProof (ref_sub(P := discrete_PCM _) with "g") as "%".
-  rewrite eq_dec_refl in H; subst.
-  setoid_rewrite ghost_part_ref_join.
-  iMod (ref_update(P := discrete_PCM _) with "g") as "g".
-  setoid_rewrite <- ghost_part_ref_join.
-  iDestruct "g" as "[g ?]".
+  iPoseProof (public_update(A := nth 0 ts2 unit) with "[$g $a]") as "[% >[? g]]".
   iDestruct "H" as "[_ H]".
-  iMod ("H" $! tt with "[g b]").
+  iMod ("H" $! tt with "[$g]").
   { admit. }
   iIntros "!>".
-  iExists (@nil Type), (p, sh, EX a, R a * ghost_reference(P := discrete_PCM _) a g), Q.
+  iExists (@nil Type), (p, sh, sync_inv(A := nth 0 ts2 unit) g R), Q.
   iFrame.
   iSplit.
   - iSplitL "".
@@ -229,11 +214,12 @@ Proof.
       iIntros "[P1 P2]"; iDestruct "P1" as (a1) "[? g1]"; iDestruct "P2" as (a2) "[? g2]".
       iCombine "g1 g2" as "g".
       iPoseProof (own_valid_2(RA := ref_PCM (discrete_PCM _)) with "g") as "%".
-      hnf in H.
-      destruct H as ((?, ?) & J & _).
+      hnf in H0.
+      destruct H0 as ((?, ?) & J & _).
       inv J; simpl in *.
-      inv H0.
-      inv H3. }
+      destruct g0 as [(?, ?)|]; auto.
+      destruct H0 as (? & ? & J & ?).
+      apply join_Tsh in J as []; contradiction. }
     rewrite sepcon_emp.
     iExists x'; iFrame.
   - iPureIntro; iIntros (?) "(_ & Q & H)".
@@ -243,7 +229,7 @@ Proof.
     admit.
 Admitted.
 
-Parameters (locked unlocked : val -> mpred). (* instantiation depends on the lock implementation *)
+(*Parameters (locked unlocked : val -> mpred). (* instantiation depends on the lock implementation *)
 Axioms (locked_timeless : forall p, Timeless (locked p)) (unlocked_timeless : forall p, Timeless (unlocked p)).
 Axioms (locked_isptr : forall p, locked p |-- !!isptr p) (unlocked_isptr : forall p, unlocked p |-- !!isptr p).
 
@@ -700,8 +686,8 @@ Proof.
       iDestruct "H" as "[_ H]"; iApply ("H" $! tt); auto.
   - apply prop_right; intros.
     apply andp_left2; rewrite emp_sepcon; apply ghost_seplog.bupd_intro.
-Admitted.
+Admitted.*)
 
 End locks.
 
-Hint Resolve locked_isptr unlocked_isptr : saturate_local.
+(*Hint Resolve locked_isptr unlocked_isptr : saturate_local.*)
