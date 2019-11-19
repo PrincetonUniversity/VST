@@ -1733,6 +1733,162 @@ Proof.
     + do 2 constructor.
 Qed.
 
+Inductive option_join2 :  option permission -> option permission ->
+                                  option (option permission) -> Prop:=
+        | NoneJoin2 : forall l c, subsumed l c -> option_join2 l c None
+        | SomeJoin2 :forall a b c : option permission,
+            permjoin_def.permjoin a b c -> option_join2 a b (Some c).
+        
+        Definition delta_map_join2 (A B:access_map) (C: delta_map):=
+          forall b ofs, option_join2 (A !! b ofs)(B !! b ofs) (dmap_get C b ofs).
+        Definition delta_map_join2_pair:= pair3_prop delta_map_join2.
+        
+        Lemma compute_map_join2:
+          forall A B C,
+            delta_map_join2 A B C <->
+            permMapJoin A B (computeMap B C).
+        Proof.
+          split;
+            intros ** b ofs.
+          
+          { !goal(permjoin_def.permjoin _ _ _).
+            specialize (H b ofs); inversion H; subst.
+            - unfold dmap_get, PMap.get in H0; simpl in *.
+              destruct (C ! b) eqn:Ab.
+              + destruct (o ofs) eqn:oofs; try inversion H0.
+                erewrite computeMap_2; eauto.
+                rewrite permjoin_def.permjoin_comm.
+                eapply subsume_same_join; auto.
+              + erewrite computeMap_3; eauto.
+                rewrite permjoin_def.permjoin_comm.
+                eapply subsume_same_join; auto. 
+            - unfold dmap_get, PMap.get in H0; simpl in *.
+              destruct (C ! b) eqn:HH; try solve[inversion H0].
+              erewrite computeMap_1.
+              1, 2: eauto.
+              destruct (o ofs) eqn:HH'; inversion H0; auto. }
+          
+          { !goal (option_join2 _ _ _ ).
+            destruct (dmap_get C b ofs) eqn:HH.
+            - eapply dmap_get_copmute_Some in HH.
+              rewrite <- HH.
+              econstructor; eauto.
+            - eapply dmap_get_copmute_None in HH.
+              econstructor.
+              specialize (H b ofs).
+              rewrite HH in H.
+              rewrite permjoin_def.permjoin_comm in H.
+              eapply subsume_same_join; assumption.
+          }
+        Qed.
+        Lemma compute_map_join_fwd_pair2
+          : forall (AA BB : Pair access_map)(CC : Pair delta_map),
+            delta_map_join2_pair AA BB CC ->
+            permMapJoin_pair AA BB (computeMap_pair BB CC).
+        Proof.
+          unfold delta_map_join2_pair. 
+          solve_pair.
+          intros; apply compute_map_join2; assumption. Qed.
+        Lemma compute_map_join_bkw_pair2
+          : forall (AA BB : Pair access_map)(CC : Pair delta_map),
+            permMapJoin_pair AA BB (computeMap_pair BB CC) ->
+            delta_map_join2_pair AA BB CC.
+        Proof.
+          unfold delta_map_join2_pair. solve_pair.
+          intros; apply compute_map_join2; assumption.
+        Qed.
+
+Lemma delta_map_join2_inject:
+  forall (m : mem) (f : meminj) 
+    (A1 A2 B1 B2 : access_map)
+    (C1 C2 : delta_map),
+    Mem.meminj_no_overlap f m ->
+    dmap_vis_filtered C1 m ->
+    permMapLt A1 (getMaxPerm m) ->
+    perm_perfect_image_dmap f C1 C2 ->
+    perm_perfect_image f A1 A2 ->
+    almost_perfect_image f (getMaxPerm m) B1 B2 ->
+    delta_map_join2 A1 B1 C1 -> delta_map_join2 A2 B2 C2.
+Proof.
+  intros * Hno_overlap Hfilter HltC  HppiC HppiA HppiB Hjoin b2 ofs_delta.  
+  
+  (* Case analysis on first term*)
+  match goal with
+  | [ |- option_join2 ?A _ _ ] => destruct A as [o|] eqn:HA2 
+  end.
+  - (*A2 -> Some *)
+    Note A2_Some.
+    auto_exploit_pimage.
+    dup Hinj as Hinj'.
+
+    assert (Hmax: Mem.perm_order' ((getMaxPerm m) !! b ofs) Nonempty).
+    { eapply perm_order_trans211.
+      specialize (HltC b ofs).
+      eapply HltC. rewrite H0; constructor.
+    }
+
+    (* new try*)
+    destruct (dmap_get C2 b2 (ofs + delt)) eqn:HC2.
+    + exploit (ppre_perfect_image_dmap HppiC); eauto.
+      { rewrite HC2; constructor. }
+      intros; normal. rewrite HC2 in H2.
+
+      assert (x = b).
+      { destruct (base.block_eq_dec x b); auto.
+        exploit Hno_overlap; eauto.
+        + unfold Mem.perm. rewrite_getPerm; eauto. 
+        + intros [HH | HH]; contradict HH; eauto.
+      }
+
+      subst; unify_injection.
+      assert (x0 = ofs) by omega; subst.
+      
+      specialize (Hjoin b ofs).
+      rewrite <- H2, H0 in Hjoin.
+      inv Hjoin. constructor.
+      exploit HppiB; eauto.
+      eapply at_least_perm_order; eassumption. 
+      intros <-; auto.
+
+      
+    + specialize (Hjoin b ofs).
+      destruct (dmap_get C1 b ofs) eqn:HC1.
+      * exploit (p_image_dmap HppiC); eauto.
+        { rewrite HC1. constructor. }
+        intros; normal. unify_injection.
+        rewrite HC1, HC2 in H1; congruence.
+      * rewrite H0 in Hjoin. 
+        inv Hjoin. constructor.
+        exploit HppiB; eauto.
+        eapply at_least_perm_order; eassumption. 
+        intros <-; auto.
+
+  - match goal with
+    | [ |- option_join2 _ _ ?C ] => destruct C as [o|] eqn:HC2 
+    end.
+    + auto_exploit_pimage.
+      specialize (Hjoin b ofs).
+      assert (HA1:A1 !! b ofs = None).
+      { match goal with
+          |- ?L = ?R => destruct L eqn:HA1 end; auto.
+        auto_exploit_pimage.
+        inv Hinj.
+        rewrite_double; auto. }
+      rewrite H0, HA1 in Hjoin.
+      inv Hjoin. assert ((B1 !! b ofs) = o) by (inv H3; auto).
+      constructor.
+      exploit HppiB; eauto.
+      * eapply at_least_perm_order.
+        rewrite mem_lemmas.po_oo. 
+        eapply Hfilter in H0.
+        unfold Mem.perm in H0.
+        rewrite_getPerm; eauto.
+      * intros <-; auto.
+    + do 2 constructor.
+Qed.
+
+      
+  
 Definition deltaMapLt2_pair1:= pair21_prop deltaMapLt2.
 Hint Unfold deltaMapLt2_pair1: pair.
 Definition dmap_vis_filtered_pair:= pair21_prop dmap_vis_filtered.

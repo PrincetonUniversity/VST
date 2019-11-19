@@ -21,8 +21,6 @@ Require Import VST.concurrency.common.HybridMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
 
 
-
-
 Require Import VST.concurrency.lib.Coqlib3.
 
 Require Import VST.concurrency.memsem_lemmas.
@@ -1138,6 +1136,115 @@ Qed.
       Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
       Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
       
+
+      
+
+      Lemma map_lt_implication: forall b a,
+          permMapLt_pair a b ->
+          pair21_prop full_map_option_implication a b.
+      Proof.
+        intros b. solve_pair.
+        intros ** ? **.
+        specialize (H b0 ofs).
+        red; repeat match_case; auto.
+      Qed.
+
+      
+      
+      
+      Lemma permMapJoin_pair_inject_rel:
+        forall angel m1
+          m2 mu  th_perms1 th_perms2,
+          sub_map_virtue angel (getMaxPerm m1) ->
+          let newThreadPerm1 := computeMap_pair (th_perms1) (virtueThread angel) in
+          permMapJoin_pair newThreadPerm1 (virtueLP angel) (th_perms1) ->
+          forall 
+            (Hlt_th1 : permMapLt (fst th_perms1) (getMaxPerm m1))
+            (Hlt_th2 : permMapLt (fst th_perms2) (getMaxPerm m2))
+            (Hlt_lk1 : permMapLt (snd th_perms1) (getMaxPerm m1))
+            (Hlt_lk2 : permMapLt (snd th_perms2) (getMaxPerm m2)),
+            Mem.inject mu (restrPermMap Hlt_th1) (restrPermMap Hlt_th2) ->
+            Mem.inject mu (restrPermMap Hlt_lk1) (restrPermMap Hlt_lk2) ->
+            injects_angel mu angel   ->
+            let angel2 := inject_virtue m2 mu angel in
+            let newThreadPerm2 := computeMap_pair (th_perms2)
+                                                  (virtueThread angel2) in
+            permMapJoin_pair newThreadPerm2 (virtueLP angel2) (th_perms2).
+      Proof.
+        intros. subst newThreadPerm2.
+        eapply compute_map_join_fwd_pair.
+        eapply delta_map_join_inject_pair';
+          try match goal with
+                |- delta_map_join_pair _ _ _ =>
+                eapply compute_map_join_bkw_pair; eassumption
+              end; eauto. 
+        - !goal (perm_perfect_virtue mu angel angel2).
+          subst angel2.
+          replace (inject_virtue m2 mu angel) with
+              (inject_virtue (restrPermMap Hlt_th2) mu angel).
+          eapply inject_virtue_perm_perfect; eauto.
+          { eapply map_lt_implication.
+            eapply permMapLt_pair_trans211; swap 1 2.
+            - rewrite getMax_restr_eq; split; simpl; eauto.
+            - eapply permMapJoin_lt_pair2; eauto.
+          }
+          rewrite getMax_restr_eq.
+          pose proof (virtueThread_sub_map _ _ H) as HH.
+          clear -HH.
+          apply sub_map_implication_dmap_pair; eauto.
+          apply inject_virtue_max_eq; eauto.
+          rewrite getMax_restr_eq; auto.              
+        - !goal(Mem.meminj_no_overlap _ m1).
+          rewrite <- (restr_Max_equiv Hlt_th1); eapply H1.
+        - !goal (dmap_vis_filtered_pair (virtueThread angel) m1).
+          eapply sub_map_filtered_pair, virtueThread_sub_map, H.
+        (* - !goal (permMapLt_pair1 (getThreadR cnt1) _).
+              apply compat_permMapLt; assumption. *)
+        - split; eauto.
+        - !goal (almost_perfect_image_pair _ _ _ _).
+          eapply inject_almost_perfect_pair; eauto.
+      Qed.
+
+      
+
+      Lemma at_external_sum_sem:
+        forall Sem,
+          let CoreSem := sem_coresem Sem in
+          forall th_state2 sum_state2 m1 m2
+            (st1:mach_state hb)
+            (st2:mach_state (S hb)) tid cnt1 cnt2 args'
+            (HState2 : coerce_state_type semC sum_state2 th_state2 
+                                         (CSem, Clight.state) (AsmSem, Asm.state) 
+                                         (Sem, semC))
+            (Hthread_mem1 : access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
+            (Hthread_mem2 : access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2))
+            (thread_compat2 : thread_compat st2 tid cnt2 m2)
+            (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2))
+            (Hat_external2 : at_external CoreSem th_state2 m2 = Some (UNLOCK, args')), 
+            at_external
+              (MyThreadSimulationDefinitions.sem_coresem (HybridSem (Some (S hb))))
+              sum_state2 (restrPermMap abs_proof) = Some (UNLOCK, args').
+      Proof.
+        intros.
+        
+        simpl; unfold at_external_sum, sum_func.
+        rewrite <- (restr_proof_irr (th_comp _ thread_compat2)).
+        rewrite <- Hat_external2; simpl.
+        
+        inversion HState2; subst.
+        - !goal ( Clight.at_external _ = _ _ m2).
+          replace c with th_state2; auto.
+          2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+          eapply C_at_external_proper; auto.
+          eapply cur_equiv_restr_mem_equiv; auto.
+        - !goal ( Asm.at_external _ _ = _ _ m2).
+          replace c with th_state2; auto.
+          2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+          simpl.
+          (* why can't I rewrite?*)
+          eapply Asm_at_external_proper; auto.
+          eapply cur_equiv_restr_mem_equiv; auto.
+      Qed.
       
       (* 4490 *)
       Lemma acquire_step_diagram_self Sem:
@@ -1240,15 +1347,151 @@ Qed.
                                   (virtueLP_inject m2 mu lock_perm)
                                   (getThreadR cnt2)
                                   newThreadPerm2).
-          { clear -CMatch Hangel_bound Heqangel2 Hmax_equiv Hinj2 thread_compat1 Hjoin_angel.
+          { clear -CMatch Hangel_bound Heqangel2 Hmax_equiv Hinj2 thread_compat1 Hjoin_angel HisLock.
             (* exploit full_injects_angel; eauto; try apply CMatch. intros Hinject_angel.
             subst newThreadPerm2; simpl. *)
 
             (* Look at how its done on release *)
             !goal(permMapJoin_pair _ _ _).
+
+
+
+
             
-            admit.
-          }
+        Lemma delta_map_join_inject_pair2
+          : forall (m : mem) (f : meminj) 
+              (A1 A2 B1 B2 : Pair access_map)
+              (C1 C2 : Pair delta_map),
+            Mem.meminj_no_overlap f m ->
+            dmap_vis_filtered_pair C1 m ->
+            permMapLt_pair A1 (getMaxPerm m) ->
+            perm_perfect_image_dmap_pair f C1 C2 ->
+            perm_perfect_image_pair f A1 A2 ->
+            almost_perfect_image_pair f (getMaxPerm m) B1 B2 ->
+            delta_map_join2_pair A1 B1 C1 -> delta_map_join2_pair A2 B2 C2.
+        Proof.
+          intros ? ?. unfold delta_map_join2_pair. solve_pair.
+          apply delta_map_join2_inject.
+        Qed.
+        Lemma Lt_valid_map:
+          forall m d,
+            permMapLt_pair d (getMaxPerm m) ->
+            map_valid_pair m d.
+        Proof.
+          intros ?. solve_pair.
+          intros. intros ? **.
+          destruct (valid_block_dec m b); try assumption.
+          eapply Mem.nextblock_noaccess in n.
+          specialize (H b ofs).
+          rewrite H0 in H; hnf in H.
+          rewrite getMaxPerm_correct in H. simpl in H.
+          unfold permission_at in *.
+          rewrite n in H; tauto.
+        Qed.
+        Lemma Lt_option_impl:
+          forall b a,
+            permMapLt_pair a b  ->
+            pair21_prop full_map_option_implication a b.
+        Proof.
+          intros ?. solve_pair.
+          intros ** ??; hnf.
+          repeat match_case; eauto.
+          specialize (H b0 ofs).
+          rewrite Heqo, Heqo0 in H.
+          inv H.
+        Qed.
+        Lemma Lt_inject_map_pair:
+          forall mu b a, 
+            injects_map mu b ->
+            permMapLt_pair a b ->
+            injects_map_pair mu a.
+        Proof.
+          intros ??. solve_pair.
+          intros ** ? **.
+          exploit H0; rewrite H1.
+          intros HH; hnf in HH; match_case in HH.
+          eapply H; eauto.
+        Qed.
+        
+        
+      Lemma max_map_valid:
+        forall m, map_valid m (getMaxPerm m).
+      Proof.
+        intros ???? HH.
+        destruct (valid_block_dec m b); auto.
+        eapply Mem.nextblock_noaccess in n.
+        rewrite getMaxPerm_correct in HH. unfold permission_at in *.
+        rewrite HH in n; congruence.
+      Qed.
+        Lemma permMapJoin_pair_inject_acq:
+          forall m1 lock_perm
+            (st1:  mach_state hb)
+            (st2:  mach_state (S hb))
+            m2 mu  th_perms1 th_perms2 virtueThread
+            (Hangel_bound:
+               pair21_prop sub_map virtueThread (snd (getMaxPerm m1))),
+            let newThreadPerm1 := computeMap_pair th_perms1 virtueThread in
+            permMapJoin_pair lock_perm th_perms1 newThreadPerm1 ->
+            forall
+              (Hlt_locks: permMapLt_pair lock_perm (getMaxPerm m1))
+              (Hlt_th1 : permMapLt (fst th_perms1) (getMaxPerm m1))
+              (Hlt_th2 : permMapLt (fst th_perms2) (getMaxPerm m2))
+              (Hlt_lk1 : permMapLt (snd th_perms1) (getMaxPerm m1))
+              (Hlt_lk2 : permMapLt (snd th_perms2) (getMaxPerm m2)),
+              Mem.inject mu (restrPermMap Hlt_th1) (restrPermMap Hlt_th2) ->
+              Mem.inject mu (restrPermMap Hlt_lk1) (restrPermMap Hlt_lk2) ->
+              injects_angel mu (Build_virtue virtueThread lock_perm) ->
+              let virtueThread2 := virtueThread_inject m2 mu virtueThread in
+              let newThreadPerm2 := computeMap_pair (th_perms2) virtueThread2 in
+              permMapJoin_pair (virtueLP_inject m2 mu lock_perm) th_perms2 newThreadPerm2.
+      Proof.
+        intros. subst newThreadPerm2. inv H2.
+
+        apply compute_map_join_fwd_pair2;
+        apply compute_map_join_bkw_pair2 in H.
+        eapply delta_map_join_inject_pair2; eauto.
+        - !goal(Mem.meminj_no_overlap _ m1).
+          rewrite <- (restr_Max_equiv Hlt_th1); eapply H0.
+        - !goal (dmap_vis_filtered_pair _ m1).
+          eapply sub_map_filtered_pair; eassumption.
+        - !goal(perm_perfect_image_dmap_pair _ _ _).
+          subst virtueThread2.
+          replace (virtueThread_inject m2 mu virtueThread) with
+              (virtueThread_inject (restrPermMap Hlt_th2) mu virtueThread).
+          eapply inject_virtue_perm_perfect_image_dmap; eauto.
+          { rewrite getMax_restr_eq; eauto. }
+          
+          unfold virtueThread_inject, tree_map_inject_over_mem.
+          rewrite getMax_restr_eq; reflexivity.
+        - !goal (perm_perfect_image_pair _ _ _).
+          erewrite virtueLP_inject_max_eq_exteny.
+          
+          { eapply inject_virtue_perm_perfect_image; eauto.
+            + move Hangel_bound at bottom.
+              apply Lt_option_impl; auto.
+              rewrite getMax_restr; auto. }
+          symmetry; apply getMax_restr_eq.
+        - !goal (almost_perfect_image_pair _ _ _ _).
+          eapply inject_almost_perfect_pair; eauto.
+      Qed.
+
+      assert (permMapLt_pair lock_perm (getMaxPerm m1)) by
+          (eapply CMatch; eauto).
+      subst newThreadPerm2; subst.
+      eapply permMapJoin_pair_inject_acq; try eassumption; eauto;
+      try eapply Hangel_bound;
+      try eapply CMatch; eauto.
+
+      !goal (injects_angel _ _).
+      split; simpl.
+      - eapply Lt_inject_map_pair; eauto.
+        eapply full_inject_map; try eapply CMatch.
+        eapply max_map_valid.
+      - eapply full_inject_dmap_pair.
+        eapply CMatch.
+        eapply join_dmap_valid_pair; eauto. }
+        
+          
           rewrite <- Heq in Hlock_update_mem_strict_load2.
           inversion Hlock_update_mem_strict_load2 as [lock_mem_lt2'
                                                         vload vstore
@@ -1298,7 +1541,7 @@ Qed.
                 simpl.
                 (* why can't I rewrite?*)
                 eapply Asm_at_external_proper; auto.
-                 eapply cur_equiv_restr_mem_equiv; auto.
+                eapply cur_equiv_restr_mem_equiv; auto.
               - clear - val_inj Hinj_b.
                 inversion val_inj; subst.
                 inversion H3; f_equal.
@@ -1323,18 +1566,19 @@ Qed.
           + subst angel2; unfold fullThUpd_comp, fullThreadUpdate; simpl.
             repeat (f_equal; simpl).
 
-            (*Only onethreee admit: join.*)
-      Admitted. (* END acquire_step_diagram_self *)
+            Unshelve.
+            all: eauto.
+            all: eapply CMatch.
+      Qed. (* END acquire_step_diagram_self *)
       
-
-
+      
       Lemma release_step_diagram_self Sem:
         let CoreSem:= sem_coresem Sem in
         forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
-               (st1 : mach_state hb) (st2 : mach_state (S hb))
-               (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
-               (Hinj_b : mu b = Some (b', delt))
-               cnt1 cnt2 (* Threads are contained *)
+          (st1 : mach_state hb) (st2 : mach_state (S hb))
+          (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
+          (Hinj_b : mu b = Some (b', delt))
+          cnt1 cnt2 (* Threads are contained *)
                (CMatch: concur_match i mu st1 m1 st2 m2)
 
                (* Thread states *)
@@ -1423,72 +1667,7 @@ Qed.
           assert (Hjoin_angel2: permMapJoin_pair newThreadPerm2
                                                  (virtueLP angel2)
                                                  (getThreadR cnt2)).
-          { 
-            Lemma map_lt_implication: forall b a,
-                  permMapLt_pair a b ->
-                  pair21_prop full_map_option_implication a b.
-                Proof.
-                  intros b. solve_pair.
-                  intros ** ? **.
-                  specialize (H b0 ofs).
-                  red; repeat match_case; auto.
-                Qed.
-                
-            Lemma permMapJoin_pair_inject:
-              forall angel m1
-                (st1:  mach_state hb)
-                (st2:  mach_state (S hb))
-                m2 mu  th_perms1 th_perms2,
-                sub_map_virtue angel (getMaxPerm m1) ->
-                let newThreadPerm1 := computeMap_pair (th_perms1) (virtueThread angel) in
-                permMapJoin_pair newThreadPerm1 (virtueLP angel) (th_perms1) ->
-                forall 
-                (Hlt_th1 : permMapLt (fst th_perms1) (getMaxPerm m1))
-                (Hlt_th2 : permMapLt (fst th_perms2) (getMaxPerm m2))
-                (Hlt_lk1 : permMapLt (snd th_perms1) (getMaxPerm m1))
-                (Hlt_lk2 : permMapLt (snd th_perms2) (getMaxPerm m2)),
-                Mem.inject mu (restrPermMap Hlt_th1) (restrPermMap Hlt_th2) ->
-                Mem.inject mu (restrPermMap Hlt_lk1) (restrPermMap Hlt_lk2) ->
-                injects_angel mu angel   ->
-                let angel2 := inject_virtue m2 mu angel in
-                let newThreadPerm2 := computeMap_pair (th_perms2)
-                                                 (virtueThread angel2) in
-                permMapJoin_pair newThreadPerm2 (virtueLP angel2) (th_perms2).
-            Proof.
-              intros. subst newThreadPerm2.
-              eapply compute_map_join_fwd_pair.
-              eapply delta_map_join_inject_pair';
-              try match goal with
-                    |- delta_map_join_pair _ _ _ =>
-                    eapply compute_map_join_bkw_pair; eassumption
-                  end; eauto.
-            - !goal (perm_perfect_virtue mu angel angel2).
-              subst angel2.
-              replace (inject_virtue m2 mu angel) with
-                  (inject_virtue (restrPermMap Hlt_th2) mu angel).
-              eapply inject_virtue_perm_perfect; eauto.
-              { eapply map_lt_implication.
-                eapply permMapLt_pair_trans211; swap 1 2.
-                - rewrite getMax_restr_eq; split; simpl; eauto.
-                - eapply permMapJoin_lt_pair2; eauto.
-              }
-              rewrite getMax_restr_eq.
-              pose proof (virtueThread_sub_map _ _ H) as HH.
-              clear -HH.
-              apply sub_map_implication_dmap_pair; eauto.
-              apply inject_virtue_max_eq; eauto.
-              rewrite getMax_restr_eq; auto.              
-            - !goal(Mem.meminj_no_overlap _ m1).
-              rewrite <- (restr_Max_equiv Hlt_th1); eapply H1.
-            - !goal (dmap_vis_filtered_pair (virtueThread angel) m1).
-              eapply sub_map_filtered_pair, virtueThread_sub_map, H.
-           (* - !goal (permMapLt_pair1 (getThreadR cnt1) _).
-              apply compat_permMapLt; assumption. *)
-            - split; eauto.
-            - !goal (almost_perfect_image_pair _ _ _ _).
-              eapply inject_almost_perfect_pair; eauto.
-            Qed.
-            subst. eapply permMapJoin_pair_inject; eauto;
+          { subst. eapply permMapJoin_pair_inject_rel; eauto;
                      try eapply full_injects_angel;
                      try eapply CMatch; assumption.
           }
@@ -1511,7 +1690,7 @@ Qed.
               (rmap:=virtueLP_inject m2 mu empty_perms)
           ; eauto; try reflexivity.
           
-          (* 10 goals produced. *)
+          (* 9 goals produced. *)
           
           + subst angelThread2 angel2 lk_mem1 lk_mem2.
             eapply inject_virtue_sub_map_pair; eauto.
@@ -1529,38 +1708,16 @@ Qed.
                 try eapply Hinj_lock; eauto.
           + eapply CMatch.
           + !goal (semantics.at_external _ _ _ = Some (UNLOCK, _)).
-            (* Make this into a lemma !!! *)
-            { clean_proofs.
+            { eapply at_external_sum_sem; eauto.
               eapply ssim_preserves_atx in Hat_external.
-              2: { inversion Amatch. constructor; eauto. }
-              destruct Hat_external as (args' & Hat_external2 & val_inj).
-              replace ( Vptr b' (add ofs (repr delt)) :: nil) with args'.
-              simpl; unfold at_external_sum, sum_func.
-              (* subst CoreSem. *) 
-              rewrite <- (restr_proof_irr (th_comp _ thread_compat2)).
-              rewrite <- Hat_external2; simpl.
-              (* clear - Hthread_mem2 HState2. *)
-              
-              inversion HState2; subst.
-              - !goal ( Clight.at_external _ = _ _ m2).
-                replace c with th_state2; auto.
-                2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
-                (* why can't I rewrite?*)
-                eapply C_at_external_proper; auto.
-                eapply cur_equiv_restr_mem_equiv; auto.
-              - !goal ( Asm.at_external _ _ = _ _ m2).
-                replace c with th_state2; auto.
-                2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
-                simpl.
-                (* why can't I rewrite?*)
-                eapply Asm_at_external_proper; auto.
-                eapply cur_equiv_restr_mem_equiv; auto.
-              - (*clear - val_inj Hinj_b. *)
+              - destruct Hat_external as (args' & Hat_external2 & val_inj).
+                subst CoreSem; rewrite Hat_external2; repeat f_equal.
                 inversion val_inj; subst.
-                inversion H3; f_equal.
-                inversion H1; subst.
+                inversion H3; inversion H1; subst.
                 rewrite Hinj_b in H4; inversion H4; subst.
-                reflexivity. }
+                reflexivity.
+              - inversion Amatch. constructor; eauto. }
+            
           + !goal (lockRes _ (b',_) = Some _).
             eapply INJ_lock_permissions_Some; eauto.
           + (* new lock is empty *)
@@ -1575,7 +1732,9 @@ Qed.
 
           + subst; unfold fullThUpd_comp, fullThreadUpdate; auto.
 
-      Admitted.  (* release_step_diagram_self *)
+            Unshelve.
+            all: eauto.
+      Qed.  (* release_step_diagram_self *)
 
       Lemma make_step_diagram_self Sem: (*5336*) 
         let CoreSem:= sem_coresem Sem in
@@ -2679,7 +2838,28 @@ Qed.
         dependent rewrite <- H in st2'. clear H. *) 
         
         assert (Hjoin_angel2:permMapJoin_pair new_cur2 virtueLP2 (getThreadR Hcnt2)).
-        { admit. }
+        { subst new_cur2.
+          replace virtueLP2 with (virtueLP (inject_virtue m2' mu angel)).
+          2:{ subst virtueLP2 virtueLP1; simpl.
+              erewrite virtueLP_inject_max_eq_exteny; try reflexivity.
+              inv Hlock_update_mem_strict_load2.
+              erewrite <- getMax_restr_eq.
+              eapply store_max_eq; eauto. }
+          
+          match goal with
+            |- permMapJoin_pair ?P _ _ =>
+            replace P with (computeMap_pair
+                              (getThreadR Hcnt2)
+                              virtueThread2) by reflexivity
+          end.
+          
+          pose proof permMapJoin_pair_inject_rel.
+          simpl in H. subst virtueThread2.
+          unfold virtueThread1.
+
+          eapply permMapJoin_pair_inject_rel; eauto;
+            try eapply full_injects_angel;
+            try eapply CMatch; assumption.  }
         repeat pose_max_equiv.
         forward_cmpt_all.
         rename Hcmpt_mem_fwd into Hcmpt2'.
@@ -2719,12 +2899,120 @@ Qed.
               instantiate(3:=fst newThreadPerm1).
             apply inject_restr; auto.
             * !goal (mi_perm_perm mu (fst newThreadPerm1) (fst new_cur2)).
+              subst newThreadPerm1 new_cur2; simpl.
+              
+                Lemma computeMap_get:
+                  forall a1 b1 b ofs,
+                    (computeMap a1 b1) !! b ofs  =
+                    match dmap_get b1 b ofs with
+                      Some x => x | _ => a1 !! b ofs
+                    end.
+                Proof.
+                  intros.
+                  match_case; unfold computeMap, "!!"; simpl.
+                  - rewrite PTree.gcombine; auto.
+                    unfold dmap_get in *.
+                    match_case; simpl in *.
+                    + unfold "!!" in *; simpl in *.
+                      match_case in Heqo.
+                      match_case in Heqo0;
+                        inv Heqo0; rewrite Heqo; reflexivity.
+                    + unfold "!!" in *; simpl in *.
+                      match_case in Heqo.
+                      match_case in Heqo0;
+                        inv Heqo0; rewrite Heqo; reflexivity.
+                  - rewrite PTree.gcombine; auto.
+                    unfold dmap_get in *.
+                    match_case; simpl in *.
+                    + unfold "!!" in *; simpl in *;
+                        match_case in Heqo; match_case.
+                      * inv Heqo0; match_case.
+                      * inv Heqo0; match_case.
+                    +   unfold "!!" in *; simpl in *;
+                          match_case in Heqo; match_case.
+                Qed.
+                Definition mi_perm_perm_dmap f perm1 perm2:=
+                    forall (b1 b2 : block) (delta ofs : Z) (p : permission),
+                      f b1 = Some (b2, delta) ->
+                      (dmap_get perm1 b1 ofs) =
+                      (dmap_get perm2 b2 (ofs + delta)).
+              Lemma computeMap_mi_perm_perm:
+                forall mu x1 y1 x2 y2,
+                  mi_perm_perm mu x1 x2 ->
+                  mi_perm_perm_dmap mu y1 y2 ->
+                  mi_perm_perm mu (computeMap x1 y1) (computeMap x2 y2).
+              Proof.
+                intros ** ????? HH;
+                  unfold Mem.perm_order'; simpl; intros.
+                rename H into Hperm.
+                rename H0 into HHH.
+                rename H1 into H.
+                match_case in H.
+                rewrite computeMap_get in *.
+                match_case in Heqo; subst.
+                - match_case.
+                  + exploit HHH; clear HHH; eauto. 
+                    intros HHH; rewrite <- HHH, Heqo0 in Heqo; inv Heqo.
+                    auto.
+                  + exploit HHH; clear HHH; eauto. 
+                    intros HHH; rewrite <- HHH, Heqo0 in Heqo; inv Heqo.
+                    
+                - match_case.
+                  + exploit HHH; clear HHH; eauto. 
+                    intros HHH; rewrite <- HHH, Heqo0 in Heqo1. 
+                    eapply perm_order_trans; eauto.
+                    exploit Hperm; eauto.
+                    rewrite Heqo; constructor.
+                    rewrite Heqo1; intros HH2. inv HH2; constructor.
+                  + exploit HHH; clear HHH; eauto. 
+                    intros HHH; rewrite <- HHH, Heqo0 in Heqo1. 
+                    exploit Hperm; eauto.
+                    rewrite Heqo; constructor.
+                    rewrite Heqo1; intros HH2. inv HH2.
+              Qed.
+              eapply computeMap_mi_perm_perm.
+              Lemma mi_perm_perm_threads:
+                forall hb cd mu m1 m2 st1 st2 Hcnt1 Hcnt2,
+                  concur_match cd mu st1 m1 st2 m2 ->
+                  mi_perm_perm mu (thread_perms hb st1 Hcnt1) (thread_perms hb st2 Hcnt2).
+              Proof.
+                intros * CMatch.
+                match goal with
+                  |- mi_perm_perm _ ?a ?b =>
+                  rewrite <- (getCur_restr a);
+                  rewrite <- (getCur_restr b)
+                end.
+                eapply mi_inj_mi_perm_perm_Cur, CMatch.
+                Unshelve.  all: eapply CMatch.
+              Qed.
+              eapply mi_perm_perm_threads; eauto.
+              pose proof (inject_dmap_preimage mu m2') as HH.
+              pose proof (inject_perm_inj_dmap mu m1' m2').
+              
+              
+              eapply mi_inj_mi_perm_perm_Cur.
+                    match_case in Heqo1; subst.
+                    * admit.
+                    * 
+                    exploit HHH; clear HHH; eauto. rewrite Heqo0; simpl.
+                    do 2 constructor.
+                    intros HHH; inv HHH. rewrite <- H0 in Heqo; subst.
+                    simpl in H2.
+                    eapply perm_order_trans; eauto.
+                  admit.
+                  admit.
+                  perm_perfect_image_dmap_pair .
+                  assert (mi_perm_perm mu y1 y2).
+              
               admit.
             * !goal (mi_memval_perm mu (fst newThreadPerm1)
                                     (Mem.mem_contents m1'') (Mem.mem_contents m2'')).
               admit.
             * !goal (mi_perm_inv_perm mu (fst newThreadPerm1) (fst new_cur2) m1'').
               admit.
+
+            
+            admit
           + !goal (@invariant (HybridSem _) _ st1'). admit.
           + !goal (@invariant (HybridSem _ ) _ st2'). admit.
           + !goal(perm_surj mu _ _).
