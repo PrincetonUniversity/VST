@@ -469,7 +469,7 @@ Lemma inv_open : forall E i P, subseteq (inv i) E ->
 Proof.
   unfold updates.fupd, bi_fupd_fupd; simpl.
   intros; unfold fupd.
-  rewrite <- wand_sepcon_adjoint.
+  rewrite -> invariant_dup, <- wand_sepcon_adjoint.
   erewrite ghost_set_remove by (apply elem_of_subseteq_singleton; eauto).
   sep_apply (wsat_open i P).
   eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
@@ -478,7 +478,6 @@ Proof.
   rewrite <- !wand_sepcon_adjoint.
   rewrite sepcon_emp.
   apply inv_close_aux.
-  { apply elem_of_subseteq_singleton; auto. }
 Qed.
 
 (* these last two are probably redundant *)
