@@ -1,7 +1,7 @@
+Require Import VST.veric.ghost_PCM.
 Require Import VST.veric.compcert_rmaps.
 Require Export VST.msl.ghost.
 Require Import VST.msl.sepalg_generators.
-Require Export VST.veric.ghost_PCM.
 Require Import VST.progs.conclib.
 Import List.
 
@@ -9,7 +9,7 @@ Import List.
 (* Where should this sit? *)
 
 Hint Resolve Share.nontrivial : share.
-
+ 
 Definition gname := own.gname.
 
 Instance Inhabitant_preds : Inhabitant preds := NoneP.
@@ -113,6 +113,9 @@ Proof.
 Qed.
 
 End ghost.
+
+Definition exclusive_PCM := exclusive_PCM.
+Existing Instance exclusive_PCM.
 
 Definition excl {A} g a := own(RA := exclusive_PCM A) g (Some a) NoneP.
 
@@ -508,6 +511,13 @@ Proof.
   exists None; constructor.
 Qed.
 
+Lemma part_ref_valid : forall a, valid(Ghost := ref_PCM P) (Some (Tsh, a), Some a).
+Proof.
+  intros; hnf; simpl.
+  split; auto with share.
+  apply self_completable.
+Qed.
+
 Lemma ref_update_gen : forall g a r a' pp,
   own(RA := ref_PCM P) g (Some (Tsh, a), Some r) pp |-- |==>
   own(RA := ref_PCM P) g (Some (Tsh, a'), Some a') pp.
@@ -567,7 +577,7 @@ Qed.
 
 End Reference.
 
-Hint Resolve self_completable : init.
+Hint Resolve @part_ref_valid : init.
  
 Section Discrete.
 

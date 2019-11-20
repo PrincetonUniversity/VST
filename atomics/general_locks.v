@@ -13,6 +13,13 @@ Context {CS : compspecs}.
 
 Definition my_half {A} g (a : A) := ghost_part(P := discrete_PCM A) Tsh a g.
 Definition public_half {A} g (a : A) := ghost_reference(P := discrete_PCM A) a g.
+Definition both_halves {A} (a : A) g := ghost_part_ref(P := discrete_PCM A) Tsh a a g.
+
+Lemma both_halves_join : forall {A} g (a : A), my_half g a * public_half g a = both_halves a g.
+Proof.
+  intros.
+  apply (ghost_part_ref_join(P := discrete_PCM A)).
+Qed.
 
 Lemma public_update : forall {A} g (a b a' : A),
   (my_half g a * public_half g b |-- !!(b = a) && |==> my_half g a' * public_half g a')%I.
@@ -27,6 +34,86 @@ Proof.
 Qed.
 
 Definition sync_inv {A} g R := EX a : A, R a * my_half g a.
+
+Lemma sync_inv_exclusive : forall {A} g (R : A -> mpred), exclusive_mpred (sync_inv g R).
+Proof.
+  intros; unfold exclusive_mpred, sync_inv.
+  iIntros "[g1 g2]".
+  iDestruct "g1" as (a1) "[? g1]".
+  iDestruct "g2" as (a2) "[? g2]".
+  iPoseProof (own_valid_2(RA := ref_PCM (discrete_PCM _)) with "[$g1 $g2]") as "%".
+  hnf in H.
+  destruct H as ((b, ?) & J & _).
+  inv J; simpl in *.
+  destruct b as [[]|]; auto.
+  destruct H as (? & ? & J & ?).
+  apply join_Tsh in J as []; contradiction.
+Qed.
+
+Lemma sync_commit_simple : forall {A} {inv_names : invG} Ei Eo (Q : mpred) g (x0 x' : A),
+  (atomic_shift(B := unit) (fun x => public_half g x) Ei Eo (fun x _ => !!(x = x0) && public_half g x') (fun _ => Q) * my_half g x0 |-- |==> Q * my_half g x')%I.
+Proof.
+  intros; eapply derives_trans; [apply atomic_commit with (R' := my_half g x')|].
+  - intros.
+    eapply derives_trans; [apply public_update|].
+    Intros; apply bupd_mono.
+    iIntros "[$ ?]".
+    iExists tt; iSplit; auto.
+  - apply bupd_mono.
+    iIntros "[Q $]"; iDestruct "Q" as (_) "$".
+Qed.
+
+Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q g (x0 x' : C)
+  (Ha : (forall x, a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
+  (Ha' : (forall x x1, public_half g x1 * a' x x1 |-- |==> a x)%I)
+  (Hb : (forall x x1, !!(x1 = x0) && public_half g x' * a' x x1 |-- |==> EX y, b x y)%I),
+  (atomic_shift a Ei Eo b Q * my_half g x0 |-- |==> (EX y, Q y) * my_half g x')%I.
+Proof.
+  intros; eapply derives_trans, sync_commit_simple.
+  apply sepcon_derives, derives_refl.
+  apply atomic_shift_derives; intros.
+  iIntros "a".
+  iMod (Ha with "a") as (x1) "[g a']".
+  iExists x1; iFrame.
+  iIntros "!>"; iSplit.
+  - iIntros "g".
+    iMod (Ha' with "[$g $a']"); auto.
+  - iIntros (_) "g".
+    iMod (Hb with "[$g $a']") as (y) "b".
+    iExists y; iFrame.
+    iIntros "!> ?".
+    iExists y; auto.
+Qed.
+
+(* These are useful when the shared resource matches the lock invariant exactly. *)
+Lemma sync_commit1 : forall {A} {inv_names : invG} Ei Eo (b : A -> unit -> mpred) Q g (x0 x' : A)
+  (Hb : (forall x, !!(x = x0) && public_half g x' |-- |==> b x tt)%I),
+  (atomic_shift (fun x => public_half g x) Ei Eo b (fun _ => Q) * my_half g x0 |-- |==> Q * my_half g x')%I.
+Proof.
+  intros; eapply derives_trans, sync_commit_simple.
+  apply sepcon_derives, derives_refl.
+  apply atomic_shift_derives_simple; intros; try solve [by iIntros].
+  destruct y.
+  iIntros "H"; iMod (Hb with "H"); auto.
+Qed.
+
+Lemma sync_commit2 : forall {A} {inv_names : invG} Ei Eo (b : A -> A -> mpred) Q g (x0 x' : A)
+  (Hb : (forall x, !!(x = x0) && public_half g x' |-- |==> b x x0)%I),
+  (atomic_shift (fun x => public_half g x) Ei Eo b Q * my_half g x0 |-- |==> Q x0 * my_half g x')%I.
+Proof.
+  intros; eapply derives_trans, sync_commit_simple.
+  apply sepcon_derives, derives_refl.
+  apply atomic_shift_derives; intros.
+  iIntros "a".
+  iExists x; iFrame.
+  iIntros "!>"; iSplit.
+  - iIntros "g"; auto.
+  - iIntros (_) "[% g]"; subst.
+    iMod (Hb with "[$g]") as "b"; first by auto.
+    iExists x0; iFrame.
+    iIntros "!> ?"; auto.
+Qed.
+
 (*Definition lock_syncer {A} sh p g R := lock_inv sh p (EX a : A, R a * ghost_reference(P := discrete_PCM A) a g).
 
 Lemma lock_syncer_nonexpansive : forall {A} n sh p g (R : A -> mpred),
@@ -38,10 +125,12 @@ Proof.
   f_equal; f_equal.
   rewrite !approx_exp; f_equal; extensionality.
   rewrite !approx_sepcon approx_idem; auto.
-Qed.
+Qed.*)
 
-Definition makelock_sync_type := ProdType (ProdType (ConstType (val * share)) (ArrowType (DependentType 0) Mpred)) (DependentType 0).
+(*Definition makelock_sync_type := ProdType (ProdType (ConstType (val * share)) (ArrowType (DependentType 0) Mpred)) (DependentType 0).
 
+Typeclasses eauto := 1.
+Set Default Timeout 10.
 Program Definition makelock_sync_spec :=
   TYPE makelock_sync_type WITH p : val, sh : share, R : _ -> mpred, x : _
   PRE [ 1%positive OF tptr tvoid ]
@@ -52,7 +141,12 @@ Program Definition makelock_sync_spec :=
    EX g : gname,
     PROP ()
     LOCAL ()
-    SEP (lock_syncer sh p g R; ghost_part_ref(P := discrete_PCM _) Tsh x x g).
+    SEP (lock_inv sh p (sync_inv g R); public_half g x).
+Next Obligation.
+intros.
+Typeclasses eauto := 3.
+typeclasses eauto.
+Qed.
 Next Obligation.
 Proof.
   intros; rewrite !approx_exp; f_equal; extensionality.
@@ -90,7 +184,7 @@ Proof.
   apply lock_syncer_nonexpansive.
 Qed.*)
 
-Definition release_sync_type := ProdType (ProdType (ProdType (ConstType (val * share * gname))
+(*Definition release_sync_type := ProdType (ProdType (ProdType (ConstType (val * share * gname))
   (ArrowType (DependentType 0) Mpred)) (DependentType 0)) (DependentType 0).
 
 (* Don't we still need an abort spec for release as well? We should just be able to use the normal release spec. *)
@@ -100,11 +194,11 @@ Program Definition release_sync_spec :=
   PRE [ 1%positive OF tptr tvoid ]
     PROP (readable_share sh)
     LOCAL (temp 1%positive p)
-    SEPS (lock_inv sh p (sync_inv g R); R x'; my_half g x0) | (public_half g x)
+    SEP (lock_inv sh p (sync_inv g R); R x'; my_half g x0) | (public_half g x)
   POST [ tvoid ]
     PROP ()
     LOCAL ()
-    SEP (lock_inv sh p (sync_inv g R) (* private *); !!(x = x0) && public_half g x').
+    SEP (lock_inv sh p (sync_inv g R)) | (!!(x = x0) && public_half g x').
 Next Obligation.
   - intros.
     etransitivity; [apply nonexpansive_super_non_expansive, nonexpansive_lock_inv|].
@@ -117,13 +211,12 @@ Qed.
 Next Obligation.
 Proof.
   intros.
-  rewrite !approx_sepcon; f_equal.
   etransitivity; [apply nonexpansive_super_non_expansive, nonexpansive_lock_inv|].
   etransitivity; [|symmetry; apply nonexpansive_super_non_expansive, nonexpansive_lock_inv].
   f_equal; f_equal.
   rewrite !approx_exp; f_equal; extensionality.
   rewrite !approx_sepcon approx_idem; auto.
-Qed.
+Qed.*)
 
 (*Lemma makelock_sync : funspec_sub (makelock_spec _) makelock_sync_spec.
 Proof.
@@ -190,7 +283,7 @@ Proof.
     admit.
 Admitted.*)
 
-Lemma release_sync : funspec_sub release_spec release_sync_spec.
+(*Lemma release_sync : funspec_sub release_spec release_sync_spec.
 Proof.
   apply subsume_subsume.
   unfold funspec_sub', release_spec, release_sync_spec; intros; repeat (split; auto); intros.
@@ -203,8 +296,7 @@ Proof.
   iDestruct "AS" as (P) "[P AS]"; iMod ("AS" with "P") as (x1) "[a H]".
   iPoseProof (public_update(A := nth 0 ts2 unit) with "[$g $a]") as "[% >[? g]]".
   iDestruct "H" as "[_ H]".
-  iMod ("H" $! tt with "[$g]").
-  { admit. }
+  iMod ("H" $! tt with "[$g]"); first by auto.
   iIntros "!>".
   iExists (@nil Type), (p, sh, sync_inv(A := nth 0 ts2 unit) g R), Q.
   iFrame.
@@ -222,12 +314,12 @@ Proof.
       apply join_Tsh in J as []; contradiction. }
     rewrite sepcon_emp.
     iExists x'; iFrame.
-  - iPureIntro; iIntros (?) "(_ & Q & H)".
+  - iPureIntro; iIntros (?) "(_ & Q & [? [? H]])".
     match goal with |-context[(|==>?Q)%logic] => change (|==>Q)%logic with (|==>Q)%I end.
     iIntros "!>".
     iFrame.
-    admit.
-Admitted.
+  - admit. (* fupd in pre *)
+Admitted.*)
 
 (*Parameters (locked unlocked : val -> mpred). (* instantiation depends on the lock implementation *)
 Axioms (locked_timeless : forall p, Timeless (locked p)) (unlocked_timeless : forall p, Timeless (unlocked p)).
@@ -691,3 +783,4 @@ Admitted.*)
 End locks.
 
 (*Hint Resolve locked_isptr unlocked_isptr : saturate_local.*)
+Hint Resolve sync_inv_exclusive : exclusive.
