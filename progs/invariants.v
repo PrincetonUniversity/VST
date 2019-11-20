@@ -664,13 +664,13 @@ Proof.
 Qed.
 
 (* not currently useful *)
-Global Instance invariant_persistent i P : Persistent (invariant i P).
+(*Global Instance invariant_persistent i P : Persistent (invariant i P).
 Proof.
   apply bi.exist_persistent; intro.
   apply bi.sep_persistent; apply own_persistent; hnf; simpl; auto.
   rewrite !eq_dec_refl; split; auto.
   apply @singleton_join_self, join_refl.
-Qed.
+Qed.*)
 
 Lemma invariant_cored : forall i P, invariant i P |-- cored.
 Proof.

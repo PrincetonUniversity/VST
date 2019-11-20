@@ -71,6 +71,32 @@ Proof.
   admit.
 Admitted.
 
+Lemma inv_atomic_shift : forall {A B} a Ei Eo (b : A -> B -> mpred) Q i R P
+  (Hi : inv i ⊆ Eo) (Hio : Ei ⊆ Eo ∖ inv i)
+  (Ha1 : (|>R |-- |={Eo ∖ inv i}=> EX x, a x * ((a x -* |={Eo ∖ inv i}=> |>R) &&
+    (ALL y, |> P * b x y -* |={Eo ∖ inv i}=> |>R * Q y)))%I),
+  invariant i R * P |-- atomic_shift a Ei Eo b Q.
+Proof.
+  intros; unfold atomic_shift.
+  Exists P; cancel.
+  apply andp_right, invariant_cored.
+  unfold ashift.
+  iIntros "I P".
+  iMod (inv_open with "I") as "[R Hclose]"; first done.
+  iMod (Ha1 with "R") as (x) "[a R]".
+  iExists x; iFrame.
+  iMod (updates.fupd_intro_mask (Eo ∖ inv i) Ei emp with "[]") as "mask"; auto.
+  iIntros "!>"; iSplit.
+  - iIntros "a"; iFrame.
+    iMod "mask" as "_".
+    iMod ("R" with "a").
+    iApply "Hclose"; auto.
+  - iIntros (y) "b".
+    iMod "mask" as "_".
+    iMod ("R" with "[$P $b]") as "[R $]".
+    iApply "Hclose"; auto.
+Qed.
+
 Lemma ashift_nonexpansive : forall {A B} P n a Ei Eo (b : A -> B -> mpred) Q,
   approx n (ashift P a Ei Eo b Q) =
   approx n (ashift P (fun x => approx n (a x)) Ei Eo (fun x y => approx n (b x y)) (fun y => approx n (Q y))).
@@ -262,6 +288,8 @@ Qed.
 End atomicity.
 
 End atomics.
+
+Hint Resolve empty_subseteq : core.
 
 Definition atomic_spec_type W T := ProdType (ProdType W (ArrowType (ConstType T) Mpred)) (ConstType invG).
 

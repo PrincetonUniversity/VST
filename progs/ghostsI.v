@@ -57,10 +57,10 @@ Proof.
   intros; apply own_list_dealloc'.
 Qed.
 
-Lemma own_persistent : forall g a p, join a a a -> Persistent (own g a p).
+(*Lemma own_persistent : forall g a p, join a a a -> Persistent (own g a p).
 Proof.
   exact own_persistent.
-Qed.
+Qed.*)
 
 End ghost.
 
@@ -99,12 +99,12 @@ Proof.
   exact snap_master_update1.
 Qed.
 
-Global Instance snap_persistent v p : Persistent (ghost_snap v p).
+(*Global Instance snap_persistent v p : Persistent (ghost_snap v p).
 Proof.
   apply own_persistent; hnf; simpl.
   rewrite !eq_dec_refl; split; auto.
   apply join_refl.
-Qed.
+Qed.*)
 
 End Snapshot.
 
