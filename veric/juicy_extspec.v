@@ -8,6 +8,7 @@ Require Import VST.veric.juicy_mem. (*VST.veric.juicy_mem_lemmas VST.veric.juicy
 
 Require Import VST.veric.ghost_PCM. (*avoids doing Require Import VST.veric.initial_world.*)
 Require Import VST.veric.own. (*for ghost_approx*)
+Require Import VST.veric.invariants.
 Require Import VST.veric.tycontext.
 
 Require Import VST.veric.age_to_resource_at.
@@ -281,6 +282,11 @@ Proof.
   repeat intro.
   eexists; split; eauto; repeat split; auto.
 Qed.
+
+Definition jm_fupd {Z} {inv_names : invG} (ora : Z) E1 E2 P m :=
+  forall y z, app_pred (wsat * ghost_set g_en E1) y -> join (m_phi m) y (m_phi z) -> jm_update m z ->
+    jm_bupd ora (fun z' => level z' = 0 \/ exists m' y', join (m_phi m') y' (m_phi z') /\ jm_update m' z' /\ P y /\
+                                          app_pred (wsat * ghost_set g_en E2) y) z.
 
 Section juicy_safety.
   Context {G C Z:Type}.

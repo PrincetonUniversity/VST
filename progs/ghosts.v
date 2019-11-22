@@ -1,15 +1,12 @@
-Require Import VST.veric.ghost_PCM.
-Require Import VST.veric.compcert_rmaps.
 Require Export VST.msl.ghost.
-Require Import VST.msl.sepalg_generators.
+Require Export VST.veric.ghosts.
+Require Import VST.veric.compcert_rmaps.
 Require Import VST.progs.conclib.
 Import List.
 
-(* Lemmas about ghost state and common instances *)
+(* Lemmas about ghost state and common instances, part 2 *)
 (* Where should this sit? *)
 
-Hint Resolve Share.nontrivial : share.
- 
 Definition gname := own.gname.
 
 Instance Inhabitant_preds : Inhabitant preds := NoneP.
@@ -21,23 +18,13 @@ Context {RA: Ghost}.
 Lemma own_op' : forall g a1 a2 pp,
   own g a1 pp * own g a2 pp = EX a3 : _, !!(join a1 a2 a3 /\ valid a3) && own g a3 pp.
 Proof.
-  intros.
-  apply pred_ext.
-  - assert_PROP (valid_2 a1 a2) as Hjoin by (apply own_valid_2).
-    destruct Hjoin as (a3 & ? & ?); Exists a3; entailer!.
-    erewrite <- own_op by eauto.  apply derives_refl.
-  - Intros a3.
-    erewrite own_op by eauto.  apply derives_refl.
+  exact own_op'.
 Qed.
 
 Lemma own_op_gen : forall g a1 a2 a3 pp, (valid_2 a1 a2 -> join a1 a2 a3) ->
   own g a1 pp * own g a2 pp = !!(valid_2 a1 a2) && own g a3 pp.
 Proof.
-  intros; apply pred_ext.
-  - assert_PROP (valid_2 a1 a2) as Hv by apply own_valid_2.
-    erewrite <- own_op by eauto; entailer!.
-  - Intros.
-    erewrite own_op by eauto; entailer!.
+  exact own_op_gen.
 Qed.
 
 Lemma own_alloc : forall (a : G) (pp : preds), valid a -> emp |-- |==> EX g : own.gname, own g a pp.
@@ -114,9 +101,6 @@ Qed.
 
 End ghost.
 
-Definition exclusive_PCM := exclusive_PCM.
-Existing Instance exclusive_PCM.
-
 Definition excl {A} g a := own(RA := exclusive_PCM A) g (Some a) NoneP.
 
 Lemma exclusive_update : forall {A} (v v' : A) p, excl p v |-- |==> excl p v'.
@@ -127,166 +111,11 @@ Proof.
   inv H1.
 Qed.
 
-Local Obligation Tactic := idtac.
-
-Program Instance prod_PCM (GA GB: Ghost): Ghost := { G := @G GA * @G GB;
-  valid a := valid (fst a) /\ valid (snd a); Join_G := Join_prod _ _ _ _ }.
-Next Obligation.
-  intros GA GB ??? [] []; split; eapply join_valid; eauto.
-Defined.
-
-(* Can we use Santiago and Qinxiang's paper to simplify this? *)
-Class PCM_order `{P : Ghost} (ord : G -> G -> Prop) := { ord_preorder :> PreOrder ord;
-  ord_lub : forall a b c, ord a c -> ord b c -> {c' | join a b c' /\ ord c' c};
-  join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
-
-(*Class lub_ord {A} (ord : A -> A -> Prop) := { lub_ord_refl :> RelationClasses.Reflexive ord;
-  lub_ord_trans :> RelationClasses.Transitive ord;
-  has_lub : forall a b c, ord a c -> ord b c -> exists c', ord a c' /\ ord b c' /\
-    forall d, ord a d -> ord b d -> ord c' d }.
-
-Global Instance ord_PCM `{lub_ord} : Ghost := { Join_G a b c := ord a c /\ ord b c /\
-  forall c', ord a c' -> ord b c' -> ord c c' }.
-Proof.
-  - 
-  - intros ??? (? & ? & ?); eauto.
-  - intros ????? (? & ? & Hc) (? & ? & He).
-    destruct (has_lub b d e) as (c' & ? & ? & Hlub); try solve [etransitivity; eauto].
-    exists c'; repeat split; auto.
-    + etransitivity; eauto.
-    + apply Hlub; auto; transitivity c; auto.
-    + intros.
-      apply He.
-      * apply Hc; auto; etransitivity; eauto.
-      * etransitivity; eauto.
-Defined.
-
-Global Instance ord_PCM_ord `{lub_ord} : PCM_order ord.
-Proof.
-  constructor.
-  - apply lub_ord_refl.
-  - apply lub_ord_trans.
-  - intros ??? Ha Hb.
-    destruct (has_lub _ _ _ Ha Hb) as (c' & ? & ? & ?).
-    exists c'; simpl; eauto.
-  - simpl; intros; tauto.
-  - intros; simpl.
-    repeat split; auto.
-    reflexivity.
-Defined.*)
-
-(* Instances of ghost state *)
 Section Snapshot.
-(* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
-   partial knowledge. *)
 
 Context `{ORD : PCM_order}.
 
-Lemma join_refl : forall (v : G), join v v v.
-Proof.
-  intros. apply ord_join; reflexivity.
-Qed.
-
-Lemma join_compat : forall v1 v2 v' v'', join v2 v' v'' -> ord v1 v2 -> exists v0, join v1 v' v0 /\ ord v0 v''.
-Proof.
-  intros.
-  destruct (join_ord _ _ _ H).
-  destruct (ord_lub v1 v' v'') as (? & ? & ?); eauto.
-  etransitivity; eauto.
-Qed.
-
-Lemma join_ord_eq : forall a b, ord a b <-> exists c, join a c b.
-Proof.
-  split.
-  - intros; exists b.
-    apply ord_join in H.
-    apply join_comm; auto.
-  - intros (? & H); apply join_ord in H; tauto.
-Qed.
-
-(* The master-snapshot PCM in the RCU paper divides the master into shares, which is useful for having both
-   an authoritative writer and an up-to-date invariant. *)
-
-Global Program Instance snap_PCM : Ghost :=
-  { valid _ := True; Join_G a b c := sepalg.join (fst a) (fst b) (fst c) /\
-      if eq_dec (fst a) Share.bot then if eq_dec (fst b) Share.bot then join (snd a) (snd b) (snd c)
-        else ord (snd a) (snd b) /\ snd c = snd b else snd c = snd a /\
-          if eq_dec (fst b) Share.bot then ord (snd b) (snd a) else snd c = snd b }.
-Next Obligation.
-  exists (fun '(sh, a) => (Share.bot, core a)); repeat intro.
-  + destruct t; constructor; auto; simpl.
-    rewrite eq_dec_refl.
-    if_tac; [apply core_unit | split; auto].
-    rewrite join_ord_eq; eexists; apply core_unit.
-  + destruct a, b, c; f_equal.
-    inv H; simpl in *.
-    destruct (eq_dec t Share.bot); [|destruct H1; subst; auto].
-    subst; apply bot_identity in H0; subst.
-    destruct (eq_dec t1 Share.bot); [|destruct H1; subst; auto].
-    * eapply join_core; eauto.
-    * apply join_ord_eq in H; destruct H.
-      eapply join_core; eauto.
-Defined.
-Next Obligation.
-  constructor.
-  - intros ???? [? Hjoin1] [? Hjoin2].
-    assert (fst z = fst z') by (eapply join_eq; eauto).
-    destruct z, z'; simpl in *; subst; f_equal.
-    destruct (eq_dec (fst x) Share.bot); [|destruct Hjoin1, Hjoin2; subst; auto].
-    destruct (eq_dec (fst y) Share.bot); [|destruct Hjoin1, Hjoin2; subst; auto].
-    eapply join_eq; eauto.
-  - intros ????? [Hsh1 Hjoin1] [Hsh2 Hjoin2].
-    destruct (sepalg.join_assoc Hsh1 Hsh2) as [sh' []].
-    destruct (eq_dec (fst b) Share.bot) eqn: Hb.
-    + assert (fst d = fst a) as Hd.
-      { eapply sepalg.join_eq; eauto.
-        rewrite e0; apply join_bot_eq. }
-      rewrite Hd in Hsh1, Hsh2, Hjoin2.
-      assert (sh' = fst c) as Hc.
-      { eapply sepalg.join_eq; eauto.
-        rewrite e0; apply bot_join_eq. }
-      subst sh'.
-      destruct (eq_dec (fst c) Share.bot) eqn: Hc1.
-      * destruct (eq_dec (fst a) Share.bot) eqn: Ha.
-        -- destruct (join_assoc Hjoin1 Hjoin2) as [c' []].
-            destruct a, b, c; simpl in *; subst.
-           exists (Share.bot, c'); split; split; rewrite ?eq_dec_refl; auto.
-        -- destruct Hjoin1 as [Hc' ?]; rewrite Hc' in Hjoin2.
-           destruct Hjoin2, (ord_lub (snd b) (snd c) (snd a)) as [c' []]; eauto.
-           destruct b, c; simpl in *; subst.
-           exists (Share.bot, c'); split; split; rewrite ?eq_dec_refl, ?Ha; auto.
-      * exists c.
-        destruct (eq_dec (fst a) Share.bot) eqn: Ha; try solve [split; split; auto].
-        -- destruct Hjoin2.
-           apply join_ord in Hjoin1; destruct Hjoin1.
-           destruct b; simpl in *; subst.
-           split; split; rewrite ?Ha, ?Hc1, ?eq_dec_refl; auto; split; auto; etransitivity; eauto.
-        -- destruct Hjoin2 as [He1 He2].
-           destruct Hjoin1 as [Hd' ?]; rewrite He2, Hd' in He1; split; split; rewrite ?e0, ?He2, ?He1, ?Ha, ?Hc1, ?eq_dec_refl, ?Hd'; auto.
-    + exists (sh', snd b); simpl.
-      destruct (eq_dec (fst d) Share.bot).
-      { rewrite e0 in Hsh1; apply join_Bot in Hsh1; destruct Hsh1; contradiction. }
-      destruct (eq_dec sh' Share.bot) eqn: Hn'.
-      { subst; apply join_Bot in H; destruct H; contradiction. }
-      assert (snd d = snd b) as Hd by (destruct (eq_dec (fst a) Share.bot); tauto).
-      rewrite Hd in Hjoin1, Hjoin2; destruct Hjoin2 as [He Hjoin2]; rewrite He in Hjoin2; split; split; simpl; rewrite ?Hb, ?Hn', ?Hd, ?He; auto.
-  - intros ??? []; split; [apply join_comm; auto|].
-    if_tac; if_tac; auto; tauto.
-  - intros ???? [? Hjoin1] [? Hjoin2].
-    assert (fst a = fst b) by (eapply join_positivity; eauto).
-    destruct (eq_dec (fst a) Share.bot), a, a', b, b'; simpl in *; subst; f_equal.
-    + rewrite eq_dec_refl in Hjoin2.
-      apply join_Bot in H0 as []; subst.
-      apply join_Bot in H as []; subst.
-      rewrite !eq_dec_refl in Hjoin1, Hjoin2.
-      eapply join_positivity; eauto.
-    + destruct Hjoin1; auto.
-Defined.
-Next Obligation.
-  auto.
-Defined.
-
-Definition ghost_snap (a : @G P) p := own p (Share.bot, a) NoneP.
+Definition ghost_snap (a : @G P) p := own(RA := snap_PCM) p (Share.bot, a) NoneP.
 
 Lemma ghost_snap_join : forall v1 v2 p v, join v1 v2 v ->
   ghost_snap v1 p * ghost_snap v2 p = ghost_snap v p.
@@ -313,7 +142,7 @@ Proof.
   - Intros v; erewrite ghost_snap_join; eauto.  apply derives_refl.
 Qed.
 
-Definition ghost_master sh (a : @G P) p := own p (sh, a) NoneP.
+Definition ghost_master sh (a : @G P) p := own(RA := snap_PCM) p (sh, a) NoneP.
 
 Lemma snap_master_join : forall v1 sh v2 p, sh <> Share.bot ->
   ghost_snap v1 p * ghost_master sh v2 p = !!(ord v1 v2) && ghost_master sh v2 p.
@@ -456,10 +285,6 @@ Qed.
 
 End Snapshot.
 
-Definition pos_PCM := ghost_PCM.pos_PCM.
-Definition ref_PCM := ghost_PCM.ref_PCM.
-Notation completable := ghost_PCM.completable.
-
 Section Reference.
 
 Context {P : Ghost}.
@@ -579,27 +404,6 @@ End Reference.
 
 Hint Resolve @part_ref_valid : init.
  
-Section Discrete.
-
-Program Instance discrete_PCM (A : Type) : Ghost := { valid a := True;
-  Join_G := Join_equiv A }.
-Next Obligation.
-  auto.
-Defined.
-
-Context {A : Type}.
-
-Global Instance discrete_order : PCM_order(P := discrete_PCM A) eq.
-Proof.
-  constructor; intros.
-  - typeclasses eauto.
-  - exists c; subst; split; hnf; auto.
-  - inv H; auto.
-  - subst; hnf; auto.
-Defined.
-
-End Discrete.
-
 Section GVar.
 
 Context {A : Type}.
@@ -685,10 +489,7 @@ Next Obligation.
     rewrite Nat.max_comm; auto.
   - unfold join; intros.
     apply Nat.le_antisymm; [subst b | subst a]; apply Nat.le_max_l.
-Defined.
-Next Obligation.
-  auto.
-Defined.
+Qed.
 
 Global Instance max_order : PCM_order le.
 Proof.
@@ -889,10 +690,7 @@ Next Obligation.
     + apply H0; auto.
     + destruct (H b0) as [_ H']; lapply H'; auto.
     + destruct (H0 b0) as [_ H']; lapply H'; auto.
-Defined.
-Next Obligation.
-  auto.
-Defined.
+Qed.
 
 Instance fmap_order : PCM_order map_incl.
 Proof.
@@ -1126,10 +924,7 @@ Next Obligation.
     + destruct (a' k); [contradiction | auto].
     + destruct (a' k); [contradiction | auto].
     + destruct (b' k); [contradiction | auto].
-Defined.
-Next Obligation.
-  auto.
-Defined.
+Qed.
 
 Lemma disj_join_sub : forall m1 m2, map_incl m1 m2 -> exists m3, join m1 m3 m2.
 Proof.

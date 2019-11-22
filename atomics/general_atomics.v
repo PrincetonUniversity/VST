@@ -61,15 +61,42 @@ Proof.
   iMod ("H" with "b") as "$"; auto.
 Qed.
 
+Corollary atomic_commit_elim : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
+  (forall x, R * a x |-- |==> (EX y, b x y) * R')%I ->
+  (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * atomic_shift a Ei Eo b Q * R |-- |==> ◇ (wsat * ghost_set g_en (coPset_to_Ensemble Eo) * ((EX y, Q y) * R')))%I.
+Proof.
+  intros.
+  iIntros "[[[wsat en] AS] R]".
+  iApply wsat_fupd_elim'; iFrame.
+  iApply atomic_commit_fupd; eauto; iFrame.
+Qed.
+
 (* This is unsound: what we really need is fupd in WP. *)
 Lemma atomic_commit : forall {A B} (a : A -> mpred) Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R',
   (forall x, R * a x |-- |==> (EX y, b x y) * R')%I ->
   (atomic_shift a Ei Eo b Q * R |-- |==> (EX y, Q y) * R')%I.
 Proof.
   intros.
-  eapply atomic_commit_fupd in H.
+  eapply atomic_commit_elim in H.
   admit.
 Admitted.
+
+Lemma atomic_shift_mask_weaken {A B} Eo1 Eo2 Ei a (b : A -> B -> mpred) Q :
+  Eo1 ⊆ Eo2 ->
+  atomic_shift a Ei Eo1 b Q |-- atomic_shift a Ei Eo2 b Q.
+Proof.
+  intros; unfold atomic_shift, ashift.
+  Intros P; Exists P; cancel.
+  apply andp_derives; auto.
+  apply wand_derives; auto.
+  iIntros "H".
+  iMod (updates.fupd_intro_mask Eo2 Eo1 emp with "[]") as "mask"; auto.
+  iMod "H" as (x) "[Ha Hb]".
+  iExists x; iFrame.
+  iIntros "!>"; iSplit.
+  - iIntros "a"; iMod ("Hb" with "a") as "$"; auto.
+  - iIntros (y) "b"; iMod ("Hb" with "b") as "$"; auto.
+Qed.
 
 Lemma inv_atomic_shift : forall {A B} a Ei Eo (b : A -> B -> mpred) Q i R P
   (Hi : inv i ⊆ Eo) (Hio : Ei ⊆ Eo ∖ inv i)

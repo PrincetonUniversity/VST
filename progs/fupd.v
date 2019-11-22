@@ -1,3 +1,4 @@
+From stdpp Require Export coPset.
 Require Import VST.msl.ghost.
 Require Import VST.msl.ghost_seplog.
 Require Import VST.msl.sepalg_generators.
@@ -217,8 +218,10 @@ Section FancyUpdates.
 
 Context {inv_names : invG}.
 
+Definition coPset_to_Ensemble (E : coPset) : Ensemble nat := fun x => elem_of (Pos.of_nat (S x)) E.
+
 Definition fupd E1 E2 P :=
-  (wsat * ghost_set g_en E1) -* (|==> sbi_except_0 (wsat * ghost_set g_en E2 * P))%I.
+  (wsat * ghost_set g_en (coPset_to_Ensemble E1)) -* (|==> sbi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E2) * P))%I.
 
 Notation "|={ E1 , E2 }=> P" := (fupd E1 E2 P) (at level 99, E1 at level 50, E2 at level 50, P at level 200): logic.
 Notation "|={ E }=> P" := (fupd E E P) (at level 99, E at level 50, P at level 200): logic.
@@ -246,9 +249,11 @@ Lemma fupd_intro_mask : forall E1 E2 P,
   subseteq E2 E1 -> P |-- |={E1,E2}=> |={E2,E1}=> P.
 Proof.
   intros; unfold fupd; iIntros "P Hpre".
-  erewrite ghost_set_subset with (s' := E2) by auto.
+  erewrite ghost_set_subset with (s' := (coPset_to_Ensemble E2)).
   iDestruct "Hpre" as "(? & ? & en)".
   iIntros "!> !>"; iSplitR "P en"; iFrame; auto.
+  { intro a; destruct (coPset_elem_of_dec (Pos.of_nat (S a)) E2); auto. }
+  { unfold coPset_to_Ensemble; intros ??; unfold In in *; auto. }
 Qed.
 
 Lemma fupd_trans : forall E1 E2 E3 P, (|={E1,E2}=> |={E2,E3}=> P) |-- |={E1,E3}=> P.
@@ -323,6 +328,27 @@ Qed.
 
 End FancyUpdates.
 
+Lemma coPset_to_Ensemble_union : forall E1 E2,
+  coPset_to_Ensemble (E1 ∪ E2) = Union _ (coPset_to_Ensemble E1) (coPset_to_Ensemble E2).
+Proof.
+  intros.
+  unfold coPset_to_Ensemble; apply Extensionality_Ensembles; constructor; intros ? X.
+  - unfold In in X; apply elem_of_union in X as [|]; [left | right]; auto.
+  - unfold In; inv X; [apply elem_of_union_l | apply elem_of_union_r]; auto.
+Qed.
+
+Lemma coPset_to_Ensemble_disjoint : forall E1 E2,
+  Disjoint _ (coPset_to_Ensemble E1) (coPset_to_Ensemble E2) <-> E1 ## E2.
+Proof.
+  split; intros.
+  - inv H.
+    intros x ??; contradiction (H0 (Nat.pred (Pos.to_nat x))); constructor; unfold In, coPset_to_Ensemble;
+      rewrite -> Nat.succ_pred_pos, Pos2Nat.id by lia; auto.
+  - constructor; intros ? X; inv X.
+    unfold In, coPset_to_Ensemble in *.
+    contradiction (H _ H0).
+Qed.
+
 Lemma mpred_fupd_mixin {inv_names : invG} : BiFUpdMixin mpredSI fupd.
 Proof.
   split.
@@ -336,12 +362,16 @@ Proof.
   - intros E1 E2 Ef P HE1Ef.
     symmetry in HE1Ef.
     unfold updates.fupd, fupd.
-    unfold ghost_set at 3; erewrite (own_op(RA := set_PCM) _ _ _ (union E1 Ef)) by (split; auto).
+    unfold ghost_set at 3.
+    erewrite !coPset_to_Ensemble_union, (own.ghost_op(RA := set_PCM) _ _ _ (Union _ (coPset_to_Ensemble E1) (coPset_to_Ensemble Ef))).
     iIntros "Hvs (Hw & HE1 &HEf)".
-    iMod ("Hvs" with "[Hw HE1]") as ">(($ & HE2) & HP)"; first by iFrame.
+    iMod ("Hvs" with "[$Hw $HE1]") as ">(($ & HE2) & HP)".
     iCombine "HE2 HEf" as "H"; setoid_rewrite ghost_set_join.
-    iDestruct "H" as "[% H]"; iFrame.
-    iIntros "!> !>". iPoseProof ("HP" with "[%]") as "HP"; auto.
+    iDestruct "H" as "[% $]".
+    iPoseProof ("HP" with "[%]") as "HP"; auto.
+    apply coPset_to_Ensemble_disjoint; auto.
+    { constructor; auto.
+      apply coPset_to_Ensemble_disjoint; auto. }
   - exact fupd_frame_r.
 Qed.
 Instance mpred_bi_fupd {inv_names : invG} : BiFUpd mpredSI :=
@@ -369,10 +399,17 @@ Proof.
   iPoseProof (H with "P Hpre") as ">>Q"; iFrame; auto.
 Qed.
 
-Lemma wsat_fupd_elim : forall P, (wsat * (|={empty,empty}=> P) |-- (|==> sbi_except_0 (wsat * P)))%I.
+Lemma wsat_fupd_elim' : forall E P, (wsat * ghost_set g_en (coPset_to_Ensemble E) * (|={E}=> P) |-- (|==> sbi_except_0 (wsat * ghost_set g_en (coPset_to_Ensemble E) * P)))%I.
 Proof.
   intros; unfold updates.fupd, bi_fupd_fupd; simpl; unfold fupd.
-  rewrite <- wsat_empty_eq; apply modus_ponens_wand.
+  apply modus_ponens_wand.
+Qed.
+
+Corollary wsat_fupd_elim : forall P, (wsat * (|={empty}=> P) |-- (|==> sbi_except_0 (wsat * P)))%I.
+Proof.
+  intros; rewrite wsat_empty_eq.
+  replace (Empty_set _) with (coPset_to_Ensemble empty); [apply wsat_fupd_elim'|].
+  apply Extensionality_Ensembles; constructor; intros ? X; inv X.
 Qed.
 
 Lemma bupd_except_0 : forall P, ((|==> sbi_except_0 P) |-- sbi_except_0 (|==> P))%I.
@@ -402,18 +439,20 @@ Proof.
   unfold fupd; intros ?????? HQ.
   iIntros "H Hpre".
   iMod ("H" with "Hpre") as ">(Hpre & Q)".
-  erewrite ghost_set_subset with (s' := E1) by auto.
+  erewrite ghost_set_subset with (s' := coPset_to_Ensemble E1).
   iDestruct "Hpre" as "(wsat & en1 & en2)".
   iCombine ("wsat en1 Q") as "Q".
   erewrite (add_andp (_ ∗ _ ∗ Q)%I (sbi_except_0 (!! P))) at 1.
   rewrite sepcon_andp_prop bi.except_0_and.
   iModIntro; iSplit.
   { iDestruct "Q" as "[? ?]"; auto. }
-  iDestruct "Q" as "[(? & ? & ?) _]"; iFrame; auto.
+  iDestruct "Q" as "[($ & $ & $) _]"; iFrame; auto.
   { iIntros "(? & ? & Q)".
     setoid_rewrite <- (own.bupd_prop P).
     iApply bupd_except_0.
     iMod (HQ with "Q [$]") as ">(? & ?)"; auto. }
+  { intro a; destruct (coPset_elem_of_dec (Pos.of_nat (S a)) E1); auto. }
+  { unfold coPset_to_Ensemble; intros ??; unfold In in *; auto. }
 Qed.
 
 Lemma fupd_prop : forall E1 E2 P Q, subseteq E1 E2 ->
@@ -453,13 +492,12 @@ Qed.
 
 Lemma inv_close_aux : forall E (i : iname) P,
   (ghost_list(P := token_PCM) g_dis (list_singleton i (Some tt)) * invariant i P * |> P *
-  (wsat * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))
-  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (base.singleton (Pos.of_nat (S i))) * ghost_set g_en (difference E (base.singleton (Pos.of_nat (S i)))))))%I.
+  (wsat * ghost_set g_en (Subtract _ E i))
+  |-- |==> sbi_except_0 (wsat * (ghost_set g_en (Singleton _ i) * ghost_set g_en (Subtract _ E i))))%I.
 Proof.
   intros.
-  sep_apply (wsat_close i P).
-  eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
-  rewrite <- sepcon_assoc; apply bi.except_0_intro.
+  iIntros "(((? & ?) & ?) & ? & en)".
+  iMod (wsat_close with "[-en]") as "[$ $]"; iFrame; auto.
 Qed.
 
 Definition inv i : coPset := base.singleton (Pos.of_nat (S i)).
@@ -469,18 +507,29 @@ Lemma inv_open : forall E i P, subseteq (inv i) E ->
 Proof.
   unfold updates.fupd, bi_fupd_fupd; simpl.
   intros; unfold fupd.
-  rewrite -> invariant_dup, <- wand_sepcon_adjoint.
-  erewrite ghost_set_remove by (apply elem_of_subseteq_singleton; eauto).
-  sep_apply (wsat_open i P).
-  eapply derives_trans; [apply updates.bupd_frame_r | apply updates.bupd_mono].
-  eapply derives_trans, bi.except_0_intro.
-  unfold bi_sep; simpl; cancel.
-  rewrite <- !wand_sepcon_adjoint.
-  rewrite sepcon_emp.
-  apply inv_close_aux.
+  rewrite -> invariant_dup.
+  erewrite ghost_set_remove.
+  iIntros "[I ?] (wsat & i & en)".
+  iMod (wsat_open with "[$wsat $I $i]") as "([$ $] & ?)".
+  assert (Subtract _ (coPset_to_Ensemble E) i = (coPset_to_Ensemble (E ∖ inv i))) as Heq.
+  { apply Extensionality_Ensembles; constructor; intros ? X.
+    * inv X; unfold In, coPset_to_Ensemble in *.
+      rewrite elem_of_difference; split; auto.
+      unfold inv; intros X%elem_of_singleton%Nat2Pos.inj; auto.
+      inv X; contradiction.
+    * unfold In, coPset_to_Ensemble in *.
+      apply elem_of_difference in X as [].
+      constructor; auto.
+      intro X; inv X; contradiction H1.
+      unfold inv; apply elem_of_singleton; auto. }
+  rewrite <- Heq; iFrame "en".
+  iIntros "!> !> ? [? ?]".
+  rewrite sepcon_emp; iApply inv_close_aux; iFrame.
+  { unfold In, coPset_to_Ensemble.
+    rewrite elem_of_subseteq_singleton; auto. }
 Qed.
 
-(* these last two are probably redundant *)
+(*(* these last two are probably redundant *)
 Lemma inv_close : forall E i P, subseteq (inv i) E ->
   invariant i P * |> P * ghost_list(P := exclusive_PCM _) g_dis (list_singleton i (Some tt)) |--
   (|={difference E (inv i), E}=> TT)%I.
@@ -502,7 +551,7 @@ Proof.
   apply fupd_mono; cancel.
   apply wand_derives; auto.
   apply fupd_mono; auto.
-Qed.
+Qed.*)
 
 End Invariants.
 
