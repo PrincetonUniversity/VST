@@ -87,7 +87,8 @@ Inductive match_fdecs: list  (ident * Clight.fundef) -> funspecs -> Prop :=
 | match_fdecs_cons: forall i fd fspec fs G,
                   type_of_fundef fd = type_of_funspec fspec ->
                   match_fdecs fs G ->
-                  params_LNR (Some fspec) ->
+                  (*follows from normalized params_LNR (Some fspec) -> *)
+                  funspec_normalized fspec = true ->
                   match_fdecs ((i,fd)::fs) ((i,fspec)::G)
 (* EXPERIMENT
 | match_fdecs_skip: forall ifd fs G,
@@ -116,20 +117,21 @@ Lemma match_fdecs_exists_Gfun:
     find_id i G = Some f ->
     match_fdecs (prog_funct prog) G ->
     exists fd,   In (i, Gfun fd) (prog_defs prog) /\
-                     type_of_fundef fd = type_of_funspec f /\ params_LNR (Some f).
+                 type_of_fundef fd = type_of_funspec f /\
+                 funspec_normalized f = true.
 Proof. unfold prog_funct. unfold prog_defs_names.
 intros ? ? ? ?.
 forget (prog_defs prog) as dl.
 revert G; induction dl; simpl; intros.
-inv H0. inv H.
-destruct a as [i' [?|?]].
-inv H0.
-simpl in H; if_tac in H. subst i'; inv H.
-eauto.
-destruct (IHdl G0) as [fd [? ?]]; auto.
-exists fd; split; auto.
-destruct (IHdl G) as [fd [? ?]]; auto.
-exists fd; split; auto.
++ inv H0. inv H.
++ destruct a as [i' [?|?]].
+  - inv H0.
+    simpl in H; if_tac in H.
+    * subst i'; inv H. exists f0; auto.
+    * destruct (IHdl G0) as [fd [? ?]]; auto.
+      exists fd; split; auto.
+  - destruct (IHdl G) as [fd [? ?]]; auto.
+    exists fd; split; auto.
 (* EXPERIMENT
 destruct (IHdl G) as [fd [? ?]]; auto.
 exists fd; split; auto.
@@ -806,7 +808,7 @@ Proof.
   destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
   destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence. simpl in LNR.
   destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ [_ LNRparams]]]. clear H2.
+  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ [_ NORM]]]. clear H2.
   subst pp. 
 
   (*injection Pi as <- -> (*->*) EE.*) inv Pi. rename H1 into Params. rename H2 into RetTypes. rename H5 into EE.
@@ -816,7 +818,7 @@ Proof.
   unfold filter_genv in *.
   exists i, (fst f1), P0, Q0, P_ne0, Q_ne0.
   split. assumption.
-  split. split; [ apply LNRparams | trivial].
+  split. split; [apply (normalized_params_LNR _ NORM) | trivial].
   split. destruct f1; auto.
 (*  subst n.*)
 
@@ -879,7 +881,7 @@ Proof.
   destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
   destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence.
   destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ [_ LNRparams]]]. clear H2.
+  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ [_ NORM]]]. clear H2.
 
   subst pp.
 
@@ -890,7 +892,7 @@ Proof.
   unfold filter_genv in *.
   exists i, (fst f1), P0, Q0, P_ne0, Q_ne0.
   split. assumption.
-  split. split; [ apply LNRparams | trivial].
+  split. split; [ apply (normalized_params_LNR _ NORM) | trivial].
   split. destruct f1; auto.
   (*subst n.*)
 

@@ -1158,7 +1158,8 @@ Definition semax_body
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig))) /\
+                      /\ list_norepet (map fst (fst fsig))
+                      /\ check_normalized (fst fsig) = true) /\
 forall Espec ts x, 
   @Def.semax C Espec (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)

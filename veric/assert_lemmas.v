@@ -304,7 +304,7 @@ Proof.
   apply corable_exp; intro.
   apply corable_andp; auto.
   apply corable_exp; intro.
-  apply corable_andp. apply corable_funspec_sub_si.
+  apply corable_andp. apply corable_andp. apply corable_prop. apply corable_funspec_sub_si.
   apply corable_func_at.
 Qed.
 (*

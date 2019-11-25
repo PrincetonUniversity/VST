@@ -289,6 +289,7 @@ Defined.
 Definition type_of_funspec (fs: funspec) : type :=
   match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
 
+(*same definition as in Clight_core?*)
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
 

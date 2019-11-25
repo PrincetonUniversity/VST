@@ -39,8 +39,8 @@ Proof.
   apply imp_derives; trivial.
   apply exp_derives; intros b.
   apply andp_derives; trivial.
-  unfold func_ptr_si. intros w [bb [H [gs [GS F]]]].
-  simpl in H; inv H. destruct gs; destruct fs. destruct GS as [[? ?] _]; subst c0.
+  unfold func_ptr_si. intros w [bb [H [gs [[NORM GS] F]]]].
+  simpl in H, NORM; inv H. destruct gs; destruct fs. destruct GS as [[? ?] _]; subst c0.
   simpl. 
   specialize (funsigs_match_LNR2 H); intros. 
   apply funsigs_match_typesigs_eq in H. rewrite <- H.
@@ -101,18 +101,19 @@ Proof.
   specialize (H id).
   hnf in H.
   rewrite FS in H. destruct H as [LNR [gs [GSA GSB]]]. specialize (GSB u I).
-  destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
+  destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [[NORM HS] B2]]]]]]; clear W.
   simpl in X; inv X.
   exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
-  exists hs; split; trivial. eapply funspec_sub_si_trans; split. apply HS. apply GSB.
+  exists hs; split; trivial. split; trivial.
+  eapply funspec_sub_si_trans; split. apply HS. apply GSB.
 Qed.
 
 Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
 Proof. 
   intros w [W1 _]. simpl in W1. intros b fs a WA B.
-  destruct (W1 _ _ _ WA B) as [bl [BL FA]]; clear W1. exists bl; split; trivial.
-  red. simpl. exists bl; split; trivial. exists fs; split; trivial.
-  apply funspec_sub_si_refl. 2: trivial.
+  destruct (W1 _ _ _ WA B) as [bl [[NORM BL] FA]]; clear W1. exists bl; split; trivial.
+  exists bl; split. reflexivity. exists fs; split; trivial.
+  split; trivial. apply funspec_sub_si_refl. 2: trivial.
   destruct fs. simpl. apply FA.
 Qed.
 

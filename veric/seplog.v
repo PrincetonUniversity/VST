@@ -130,56 +130,6 @@ Definition ret0_tycon (Delta: tycontext): tycontext :=
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this
    definition (and in NDfunspec_sub). *)
-(*
-Fixpoint get_elements {A} (m:Map.t A) (l:list ident) :=
-  match l with
-    nil => Some nil
-  | (x::l') => match Map.get m x, get_elements m l' with 
-                   Some v, Some e => Some (v::e)
-                 | _, _ => None
-               end
-  end.
-
-Lemma get_elements_length {A} m: forall l v, 
-      @get_elements A m l = Some v -> length l = length v.
-Proof.
-  induction l; simpl; intros. inv H. reflexivity.
-  destruct (Map.get m a); [ | discriminate].
-  destruct (get_elements m l); inv H. erewrite IHl; reflexivity.
-Qed.
-
-Fixpoint set_elements {A} (l:list (ident * A)): Map.t A :=
-  match l with
-    nil => Map.empty A
-  | (x,v)::l' => Map.set x v (set_elements l')
-  end.
-
-Definition transfer {A} src tgt (Src Tgt:Map.t A) := 
-  exists vals, get_elements Src src = Some vals /\
-               length src = length tgt /\
-               Tgt = set_elements (combine tgt vals).
-
-Lemma transfer_sound A: forall src tgt Src Tgt,
-  list_norepet src -> list_norepet tgt -> transfer src tgt Src Tgt ->
-  forall n dS dT , (n<length src)%nat -> @Map.get A Src (nth n src dS) = Map.get Tgt (nth n tgt dT).
-Proof.
-  induction src; simpl; intros; [omega | destruct H1 as [vals [? [? ?]]]].
-  simpl in H1, H3. destruct tgt; inv H3. inv H; inv H0.
-  remember (Map.get Src a) as SrcA. destruct SrcA; [ | discriminate].
-  remember (get_elements Src src) as q. destruct q; inv H1.
-  symmetry in Heqq, HeqSrcA.
-  destruct n; simpl; [ rewrite Map.gss; trivial | rewrite Map.gso].
-  - erewrite (IHsrc tgt). 2: trivial. 2: trivial. 3: omega.
-    2:{ red. exists l; split3; trivial. }
-    reflexivity.
-  - intros N; subst i. apply H4. apply nth_In; omega.
-Qed.
-
-Definition transfer' {A} src tgt (Src:Map.t A) := 
-  match get_elements Src src with
-    None => None
-  | Some vals => if beq_nat (length src) (length tgt) then Some (set_elements (combine tgt vals)) else None
-  end.*)
 
 Lemma eqb_type_symm t1 t2: eqb_type t1 t2 = eqb_type t2 t1.
 Proof. 
@@ -321,10 +271,6 @@ Definition restrict {A} l rho := @tr A (combine l l) rho.
 Lemma tr_refl {A}: forall l rho, @tr A (combine l l) rho = restrict l rho.
 Proof.
  induction l; simpl; [ trivial | intros]. unfold restrict; simpl. trivial.
-(* remember (Map.get rho a) as x; destruct x; [symmetry in Heqx | simpl; auto].
-+ rewrite IHl; clear IHl. unfold restrict. simpl. rewrite Heqx. trivial.
-+ rewrite IHl; clear IHl. unfold restrict. simpl. rewrite <- Heqx. trivial.
- apply Map.override_same; trivial.*)
 Qed.
 
 Definition funspec_sub_si (f1 f2 : funspec):mpred :=
@@ -777,11 +723,88 @@ Qed.
 
 (*******************end of material moved here from expr.v *******************)
 
+Definition port l1 l2 (P:environ -> mpred) : environ -> mpred :=
+  fun rho => P (mkEnviron (ge_of rho) (ve_of rho) (tr (combine l2 l1) (te_of rho))).
+
+Fixpoint normalparams n:list ident :=
+  match n with
+    O => nil
+  | S n' => Pos.of_nat n :: normalparams n'
+  end.
+
+Fixpoint check_normalized (l: list (ident * type)):bool :=
+  match l with
+    nil => true
+  | (i,t)::l' => peq i (Pos.of_nat (length l)) && check_normalized l'
+  end.
+
+Lemma norm_char: forall l, check_normalized l = true <->
+                 map fst l = normalparams (length l).
+Proof. induction l; simpl; intros.
+split; intros; trivial.
+destruct a. simpl in *. forget (match Datatypes.length l with
+   | 0%nat => 1%positive
+   | S _ => Pos.succ (Pos.of_nat (Datatypes.length l))
+   end) as q.
+destruct IHl as [IH1 IH2].
+destruct (length l); split; intros.
++ clear IH2. simpl in H. destruct (peq i q); simpl in *; [subst | discriminate].
+  rewrite IH1; trivial.
++ clear IH1. inv H. destruct (peq q q); rewrite IH2; simpl; trivial. elim n; trivial.
++ clear IH2. rewrite andb_true_iff in H; destruct H. rewrite <- (IH1 H0); clear IH1 H0. f_equal.
+  destruct (peq i q); trivial. inv H. 
++ clear IH1. inv H. rewrite IH2, andb_true_r; trivial. clear. destruct (peq q q); trivial. elim n; trivial.
+Qed.
+
+Lemma length_normalparams A l: length (normalparams (length l)) = @length A l.
+Proof. induction l; simpl; trivial. rewrite IHl; trivial. Qed.
+
+Definition funspec_normalized (fs:funspec):bool := check_normalized (fst (funsig_of_funspec fs)).
+ 
+Lemma normalparams_bound n m: In m (normalparams n) <-> (Pos.to_nat m <= n)%nat.
+Proof.
+  induction n; simpl.
+{ split; intros. simpl in *; omega. specialize (Pos2Nat.is_pos m); omega. } 
+destruct n. 
++ split; intros.
+  - destruct H; subst.
+    * unfold Pos.to_nat. simpl; omega.
+    * apply IHn in H. specialize (Pos2Nat.is_pos m); omega.
+  - left. apply Pos2Nat.inj. clear IHn.
+    assert (Pos.to_nat m = 1)%nat by (specialize (Pos2Nat.is_pos m); omega).
+    rewrite H0; clear H H0. reflexivity.
++ split; intros.
+  - destruct H. 
+    * subst. specialize (SuccNat2Pos.id_succ (S n)). intros. simpl Pos.of_succ_nat in H.
+      rewrite Pos.of_nat_succ in H. rewrite H. omega.
+    * apply IHn in H. omega.
+  - destruct (peq (Pos.succ (Pos.of_nat (S n))) m).
+    left; trivial. right. apply IHn; clear IHn.
+    destruct (NPeano.Nat.le_gt_cases (Pos.to_nat m) (S n)). trivial. exfalso.
+    apply n0; clear n0. rewrite <- Nat2Pos.inj_succ by omega.
+    assert (Pos.of_nat (Pos.to_nat m) = m) by apply Pos2Nat.id.
+    rewrite <- H1; clear H1. apply Nat2Pos.inj_iff; omega.
+Qed. 
+
+Lemma normalparams_LNR n: list_norepet (normalparams n).
+Proof. induction n. constructor.
+  simpl.
+  destruct n.
++ simpl. constructor. simpl. intros N; trivial. trivial.
++  constructor; trivial. intros N. apply normalparams_bound in N.
+   rewrite Pos2Nat.inj_succ, Nat2Pos.id in N; omega.
+Qed.
+
+Lemma port_super_nonexpansive {A ids1 ids2 P} (NP: @super_non_expansive A P): 
+      super_non_expansive (fun ts (x:dependent_type_functor_rec ts A mpred) => port ids1 ids2 (P ts x)).
+Proof. hnf; intros. unfold port. rewrite <- NP. trivial. Qed.
+
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig cc A P Q _ _ => (fun l => !!(list_norepet (map fst (fst fsig))) &&
-              pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN (typesig_of_funsig fsig) cc) l)
-  end. 
+   | mk_funspec fsig cc A P Q _ _ =>
+    fun l => !! list_norepet (map fst (fst fsig)) &&
+             pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN (typesig_of_funsig fsig) cc) l
+  end.
 
 Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   match f with
@@ -793,13 +816,13 @@ Definition sigcc_at (fsig: funsig) (cc:calling_convention) (loc: address) : pred
   EX pp:_, !!(list_norepet (map fst (fst fsig))) && pureat pp (FUN (typesig_of_funsig fsig) cc) loc.
 
 Definition func_ptr_si (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, funspec_sub_si gs f && func_at gs (b, 0)).
+  EX b:block, !! (v = Vptr b Ptrofs.zero) && (EX gs:funspec, !!(funspec_normalized gs=true) && funspec_sub_si gs f && func_at gs (b, 0)).
 (*
 Definition func_ptr_early (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, funspec_sub_early gs f && func_at gs (b, 0)).
 *)
 Definition func_ptr (f: funspec) (v: val): mpred :=
-  EX b: block, !! (v = Vptr b Ptrofs.zero) && (EX gs: funspec, !!(funspec_sub gs f) && func_at gs (b, 0)).
+  EX b:block, !! (v = Vptr b Ptrofs.zero) && (EX gs:funspec, !!(funspec_normalized gs=true /\ funspec_sub gs f) && func_at gs (b, 0)).
 (*
 Lemma func_ptr_early_func_ptr_si f v: func_ptr_early f v |-- func_ptr_si f v.
 Proof. apply exp_derives; intros b. apply andp_derives; trivial.
@@ -818,7 +841,8 @@ Qed.
 
 Lemma func_ptr_fun_ptr_si f v: func_ptr f v |-- func_ptr_si f v.
 Proof. apply exp_derives; intros b. apply andp_derives; trivial.
- apply exp_derives; intros gs. apply andp_derives; trivial. apply funspec_sub_sub_si'.
+ apply exp_derives; intros gs. apply andp_derives; trivial.
+ intros w [W1 W2]; split; [ | apply funspec_sub_sub_si' ]; trivial.
 Qed.
 
 Lemma func_ptr_si_mono fs gs v: 
@@ -826,8 +850,8 @@ Lemma func_ptr_si_mono fs gs v:
 Proof. unfold func_ptr_si. rewrite exp_andp2. apply exp_derives; intros b.
   rewrite andp_comm, andp_assoc. apply andp_derives; trivial.
   rewrite andp_comm, exp_andp2. apply exp_derives; intros hs.
-  rewrite <- andp_assoc. apply andp_derives; trivial.
-  rewrite andp_comm. apply funspec_sub_si_trans.
+  intros w [W1 [[W2 W3] W4]]; simpl.
+  split; trivial. split; trivial. eapply funspec_sub_si_trans; split; eassumption.
 Qed.
 (*
 Lemma func_ptr_early_mono fs gs v: 
@@ -844,7 +868,7 @@ Lemma func_ptr_mono fs gs v: funspec_sub fs gs ->
 Proof. intros. unfold func_ptr. apply exp_derives; intros b.
   apply andp_derives; trivial. apply exp_derives; intros hs.
   apply andp_derives; trivial. 
-  intros w W. eapply funspec_sub_trans. apply W. apply H.
+  intros w [W1 W2]. split; trivial. eapply funspec_sub_trans; eassumption.
 Qed.
 (*
 Lemma funspec_sub_early_implies_func_prt_si_mono fs gs v: 
@@ -1122,15 +1146,17 @@ Lemma approx_func_ptr_si: forall (A: Type) fs cc (P Q: A -> environ -> mpred) (v
 Proof.
   intros.
   unfold func_ptr_si.
-  rewrite !approx_exp; f_equal; extensionality b.
+  rewrite !approx_exp. f_equal. extensionality b.
   rewrite !approx_andp; f_equal.
+  rewrite !approx_exp. f_equal. extensionality gs.
+  rewrite !approx_andp; f_equal. f_equal.
   unfold func_at, NDmk_funspec.
   simpl.
-  apply pred_ext; intros w; simpl; intros [? ?]. split; auto.
-  + destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply funspec_sub_si_trans; split. apply SUBS.
+  apply pred_ext; intros w; simpl; intros [? SUBS]; split; trivial.
+  + (*destruct H0 as [SUBS H0]. exists gs; split; trivial. *)
+    eapply funspec_sub_si_trans; split. apply SUBS. (* apply SUBS.*)
     apply funspec_sub_si_funsigs_match in SUBS. apply funsigs_match_LNR2 in SUBS. simpl in SUBS.
-    clear H0 gs.
+    (*clear H0 gs.*)
     split. 
     - split; [ apply funsigs_match_refl | ]; trivial.
     - intros ts x rho m WM u necU [TC U]. (*[U1 U2]]. *)simpl in TC.
@@ -1150,11 +1176,10 @@ Proof.
       * intros rho' y UY k YK [TCK K]; hnf; intros. rewrite emp_sepcon in K. simpl in TCK.
         apply necR_level in necU. apply necR_level in YK.
         simpl. split. apply TCK. split; [ omega | apply K]. 
-  + split; trivial. destruct H0 as [gs [SUBS H0]]. exists gs; split; trivial.
-    eapply funspec_sub_si_trans; split. apply SUBS.
+  + eapply funspec_sub_si_trans; split. apply SUBS.
 
     apply funspec_sub_si_funsigs_match in SUBS. apply funsigs_match_LNR2 in SUBS. simpl in SUBS.
-    clear H0 gs.
+    (*clear H0 gs.*)
     split. 
     - split; [ apply funsigs_match_refl | ]; trivial.
     - intros ts x rho m WM u necU [TC U]. (*[U1 U2]]. *)simpl in TC.
@@ -1180,7 +1205,7 @@ Definition funspecs_assert (FunSpecs: PTree.t funspec): assert :=
  fun rho =>
    (ALL  id: ident, ALL fs:funspec,  !! (FunSpecs!id = Some fs) -->
               EX b:block,
-                   !! (Map.get (ge_of rho) id = Some b) && func_at fs (b,0))
+                   !! (funspec_normalized fs=true /\ Map.get (ge_of rho) id = Some b) && func_at fs (b,0))
  &&  (ALL  b: block, ALL fsig:funsig, ALL cc: calling_convention, sigcc_at fsig cc (b,0) -->
              EX id:ident, !! (Map.get (ge_of rho) id = Some b)
                              && !! exists fs, FunSpecs!id = Some fs).
@@ -1218,10 +1243,6 @@ Proof. unfold funspecs_assert; intros. rewrite H; auto. Qed.
 (************** INTERSECTION OF funspecs -- case ND  ************************)
 
 (* --------------------------------- Binary case: 2 specs only ----------  *)
-
-Definition port l1 l2 (P:environ -> mpred) : environ -> mpred :=
-  fun rho => P (mkEnviron (ge_of rho) (ve_of rho)
-                   (tr (combine l2 l1) (te_of rho))).
 
 Definition funspec_intersection_ND fA cA A PA QA FSA (HFSA: FSA = NDmk_funspec fA cA A PA QA) 
                     fB cB B PB QB FSB (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec :=
@@ -1943,4 +1964,41 @@ Lemma has_type_list_length: forall vals tys,
 Proof.
   induction vals; simpl; intros; destruct tys; try contradiction; simpl; trivial.
   destruct H. rewrite (IHvals _ H0); trivial.
+Qed.
+
+Lemma port_trans {l1 l2 l3 P} (L12: length l1 = length l2) (L23: length l2 = length l3)
+                 (L1:list_norepet l1) (L2:list_norepet l2) (L3:list_norepet l3):
+      port l1 l3 P = port l2 l3 (port l1 l2 P).
+Proof. unfold port. extensionality rho; simpl. rewrite tr_trans; trivial. Qed.
+
+Lemma check_normalized_unique_idents: forall l1 l2 (L: length l1 = length l2) 
+      (N1:check_normalized l1 = true) (N2: check_normalized l2=true), map fst l1 = map fst l2.
+Proof.
+  induction l1; intros; destruct l2; inv L; simpl; trivial. inv N1. inv N2.
+  destruct a; destruct p. rewrite H0 in H1. simpl. 
+  apply andb_true_iff in H1; destruct H1. apply andb_true_iff in H2; destruct H2. f_equal; eauto.
+  clear - H H2.
+  destruct (length l2).
+  + destruct (peq i 1); subst; simpl in *; try discriminate.
+    destruct (peq i0 1); subst; simpl in *; trivial. discriminate.
+  + destruct (peq i (Pos.succ (Pos.of_nat (S n)))); try discriminate.
+    rewrite <- e in H2. destruct (peq i0 i); subst; trivial; discriminate.
+Qed.
+
+Lemma ge_of_make_args:  
+    forall s a rho, ge_of (make_args s a rho) = ge_of rho.
+Proof.
+induction s; intros.
+ destruct a; auto.
+ simpl in *. destruct a0; auto.
+ rewrite <- (IHs a0 rho); auto.
+Qed.
+
+Lemma ve_of_make_args:  
+    forall s a rho, length s = length a -> ve_of (make_args s a rho) = (Map.empty (block * type)).
+Proof.
+induction s; intros.
+ destruct a; inv H; auto.
+ simpl in *. destruct a0; inv H; auto.
+ rewrite <- (IHs a0 rho); auto.
 Qed.

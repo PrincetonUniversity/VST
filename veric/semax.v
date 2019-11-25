@@ -20,6 +20,22 @@ Import Ctypes Clight_core.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
+Definition normalize_funspec (fs:funspec):funspec :=
+  match fs with mk_funspec sig cc A P Q NEP NEQ =>
+    match sig with (params, rt) =>
+    let np := normalparams (length params) in
+    mk_funspec (combine np (map snd params), rt) cc A 
+          (fun ts (x:dependent_type_functor_rec ts A mpred) => port np (map fst params) (P ts x)) 
+          Q (port_super_nonexpansive NEP) NEQ 
+  end end.
+
+Lemma normalize_funspec_is_normalized fs: funspec_normalized (normalize_funspec fs) = true.
+Proof.
+destruct fs. destruct f. simpl. unfold funspec_normalized. simpl. apply norm_char. 
+rewrite fst_combine, combine_length; rewrite length_normalparams, map_length; trivial.
+rewrite Nat.min_id; trivial.
+Qed.
+
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
@@ -277,6 +293,7 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
                            (typlist_of_typelist (type_of_params (fst fsig)))
                            (opttyp_of_type (snd fsig)) cc
            /\ length (typelist2list sigargs)=length ids
+           /\ check_normalized (fst fsig) = true
            /\ (ef_inline ef = false \/ withtype_empty A))
         && semax_external Hspec ids ef A P Q
         && ! (ALL ts: list Type,
@@ -300,7 +317,7 @@ Lemma  rename_port_eq {A ts} {x:dependent_type_functor_rec ts A (pred rmap)} {id
 Proof. reflexivity. Qed.
 
 Lemma semax_external_rename {Hspec e A P Q ids1 ids2}
-      (L: length ids1 = Datatypes.length ids2)
+      (L: length ids1 = length ids2)
       (LE: length (sig_args (ef_sig e)) = length ids2)
       (LNR1: list_norepet ids1) (LNR2 : list_norepet ids2):
   semax_external Hspec ids1 e A P Q =
@@ -341,13 +358,21 @@ Proof.
   rewrite IHl1. simpl. trivial.
 Qed.
 
-Lemma split_zip {A}: forall {l t} (T: length (typelist2list t) = length l),
+Lemma fst_split_zip {A}: forall {l t} (T: length (typelist2list t) = length l),
       fst (@split A _ (zip_with_tl l t)) = l.
 Proof.
   induction l; simpl; intros; trivial.
   destruct t; simpl; inv T.
   specialize (IHl _ H0). destruct (split (zip_with_tl l t0)).
   simpl in IHl; subst; trivial.
+Qed.
+
+Lemma type_of_params_split_zip: forall {l t} (T: length (typelist2list t) = length l),
+      type_of_params (zip_with_tl l t) = t.
+Proof.
+  induction l; simpl; intros.
++ destruct t; simpl; inv T; trivial.
++ destruct t; simpl; inv T. f_equal. eauto.
 Qed.
 
 Lemma fst_split {A B}: forall l, fst (@split A B l) = map fst l.
@@ -375,6 +400,7 @@ Proof.
   destruct a. simpl; rewrite IHl; trivial.
 Qed.
 
+(*meaningless as ids1 and ids2 normalized
 Lemma believe_external_rename {Hspec gx v cc fs1 fs2 A P Q}:
   funsigs_match fs1 fs2 = true ->
   let ids1 := map fst (fst fs1) in
@@ -425,6 +451,7 @@ Proof.
   - rewrite ! map_length; trivial.
   - rewrite H1; simpl; rewrite length_typlist_of_typelist_type_of_params, map_length; trivial.
 Qed.
+*)
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
@@ -438,7 +465,7 @@ Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type) (r
 Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
   fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp)
      (map (fun idt => var_block' Share.top cenv idt) (Clight.fn_vars f)).
-
+(*
 Definition believe_internal_ CS
   (semax:semaxArg -> pred nat)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
@@ -466,13 +493,41 @@ Definition believe_internal_ CS
                                         && funassert (func_tycontext' f Delta') rho)
                           (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) 
+              (stackframe_of' (@cenv_cs CS') f)))) )).*)
+
+Definition believe_internal_ CS
+  (semax:semaxArg -> pred nat)
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  let ce := (@cenv_cs CS) in
+  (EX b: block, EX f: function,
+   let specparams := fst fsig in 
+   let fparams := fn_params f in
+   prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+                 /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
+                 /\ list_norepet (map fst fparams ++ map fst f.(fn_temps))
+                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
+                 /\ (map snd specparams = map snd fparams)
+                      /\ snd fsig = snd (fn_funsig f)
+                      /\ list_norepet (map fst fparams)
+                 /\ check_normalized specparams = true /\ f.(fn_callconv) = cc)
+  && 
+   ALL Delta':tycontext, ALL CS':compspecs,
+   imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
+     (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS'))) 
+      (ALL ts: list Type,
+       ALL x : dependent_type_functor_rec ts A (pred rmap),
+       let innerPre := (*port (map fst fparams) (map fst specparams)*) (P ts x) in
+        |> semax (SemaxArg CS' (func_tycontext' f Delta')
+                         (fun rho => (bind_args specparams fparams innerPre rho (*was: (P ts x) rho*)
+                                              * stackframe_of' (@cenv_cs CS') f rho)
+                                        && funassert (func_tycontext' f Delta') rho)
+                          (f.(fn_body))
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) 
               (stackframe_of' (@cenv_cs CS') f)))) )).
 
-Lemma port_trans {l1 l2 l3 P} (L12: length l1 = length l2) (L23: length l2 = length l3)
-                 (L1:list_norepet l1) (L2:list_norepet l2) (L3:list_norepet l3):
-      port l1 l3 P = port l2 l3 (port l1 l2 P).
-Proof. unfold port. extensionality rho; simpl. rewrite tr_trans; trivial. Qed.
 
+(*meaningless as ids1 and ids2 are normalized
 Lemma believe_internal__rename {cs semax gx Delta v cc fs1 fs2 A P Q}:
   funsigs_match fs1 fs2 = true ->
   let ids1 := map fst (fst fs1) in
@@ -488,6 +543,9 @@ Proof.
   specialize (funsigs_match_LNR2 H); intros LNR2.
   specialize (funsigs_match_arglengths H); rewrite ! map_length; intros L. clear H.
   destruct fs1 as [args1 rt1]. destruct fs2 as [args2 rt2]. simpl in *; subst.
+  f_equal. extensionality b. f_equal. extensionality f.
+  f_equal.
+  + f_equal. f_equal. f_equal. f_equal. f_equal. f_equal. f_equal. f_equal. rewrite ARGtypes. trivial.  simpl.
   assert (H_saP: forall ts (x:dependent_type_functor_rec ts A (pred rmap)) f, 
               bind_args args1 (fn_params f) ((rename_pre ids1 ids1 P) ts x) 
            =  bind_args args2 (fn_params f)
@@ -503,7 +561,7 @@ Proof.
   - clear K2; simpl in K1. simpl; intuition.
   - intros Delta' cs' n WN TCsub m NM CSUB ts x a' MA'.
     specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
-    subst ids1 ids2. rewrite H_saP in K2; clear H_saP; trivial.
+    subst ids1 ids2. trivial. rewrite H_saP in K2; clear H_saP; trivial.
 + intros w [b [f [K1 K2]]]. exists b, f. symmetry in ARGtypes. rewrite <- ARGtypes.
   split.
   - clear K2; simpl in K1. simpl; intuition.
@@ -511,11 +569,12 @@ Proof.
     specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
     subst ids1 ids2. rewrite H_saP; clear H_saP; trivial.
 Qed.
-
+*)
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
-  exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\
+  exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\ 
+                   funspec_normalized (mk_funspec fsig cc A P Q HP HQ)=true /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
 
 Definition believepred CS (Espec: OracleKind) (semax: semaxArg -> pred nat)
@@ -549,30 +608,32 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   let ce := @cenv_cs CS in
-(*new*)  let ids1 := map fst (fst fsig) in
   (EX b: block, EX f: function,
+   let specparams := fst fsig in 
+   let fparams := fn_params f in
    prop (v = Vptr b Ptrofs.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
-                 /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ (map snd (fst fsig) = map snd (fst (fn_funsig f))
+                 /\ list_norepet (map fst fparams ++ map fst f.(fn_temps))
+                 /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
+                 /\ (map snd specparams = map snd fparams)
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig)))
-                 /\ f.(fn_callconv) = cc)
+                      /\ list_norepet (map fst fparams)
+                 /\ check_normalized specparams = true /\ f.(fn_callconv) = cc)
   && 
-    ALL Delta':tycontext,ALL CS':compspecs,
-     imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
-      (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS')))
-                                               
-       (ALL ts: list Type,
-     ALL x : dependent_type_functor_rec ts A (pred rmap),
+   ALL Delta':tycontext, ALL CS':compspecs,
+   imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
+     (imp (prop (cenv_sub (@cenv_cs CS) (@cenv_cs CS'))) 
+      (ALL ts: list Type,
+       ALL x : dependent_type_functor_rec ts A (pred rmap),
+       let innerPre := (*port (map fst iparams) (map fst oparams) *)(P ts x) in
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args (fst fsig) (f.(fn_params)) (rename_pre ids1 ids1 P ts x) rho * stackframe_of' (@cenv_cs CS') f rho) (*use of rename_pre is new here*)
+                                (fun rho => (bind_args specparams fparams innerPre rho 
+                                                * stackframe_of' (@cenv_cs CS') f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (f.(fn_body))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
 
-(*virtually same proof as believe_internal__rename*)
+(*meaningless as fs1 and fs2 normalized
 Lemma believe_internal_rename {cs Espec gx Delta v cc fs1 fs2 A P Q}:
   funsigs_match fs1 fs2 = true ->
   let ids1 := map fst (fst fs1) in
@@ -610,7 +671,7 @@ Proof.
   - intros Delta' cs' n WN TCsub m NM CSUB ts x a' MA'.
     specialize (K2 Delta' cs' n WN TCsub m NM CSUB ts x a' MA'). simpl.
     subst ids1 ids2. rewrite H_saP; clear H_saP; trivial.
-Qed.
+Qed.*)
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
@@ -622,6 +683,7 @@ Definition believe {CS: compspecs} (Espec:OracleKind)
       (believe_external Espec gx v fsig cc A P Q
         || believe_internal Espec gx Delta v fsig cc A P Q).
 
+(*probably unnecessary or meaningless
 Definition believe_rename {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
   ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
@@ -650,7 +712,7 @@ Proof.
     apply HDelta' in Hi. apply Hi. }
   specialize (B v fsig1 cc A P Q fsig1 _ (necR_refl _) FSM1 m NM CL).
   rewrite <- believe_external_rename, <- believe_internal_rename in B; trivial.
-Qed. 
+Qed. *)
 
 Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>
@@ -1127,4 +1189,43 @@ Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
       @semax CS Espec Delta P c R -> @semax CS' Espec Delta P c R.
 Proof.
   intros. intros n. apply (semax'_cssub CSUB); trivial. 
+Qed.
+
+(*move to seplog?*)
+
+Lemma rename_pre_super_non_expansive {A} {P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred}
+      (NEP : super_non_expansive P) ids1 ids2:
+      super_non_expansive (rename_pre ids1 ids2 P).
+Proof. unfold rename_pre; simpl. red; intros. apply NEP. Qed.
+
+Lemma rename_pre_trans {A l1 l2 l3} {P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred}
+      (L31: length l3 = length l1) (L12: length l1 = length l2)
+      (LNR1: list_norepet l1) (LNR2: list_norepet l2) (LNR3: list_norepet l3):
+      rename_pre l2 l1 (rename_pre l1 l3 P) = rename_pre l2 l3 P.
+Proof.
+  unfold rename_pre. simpl. extensionality ts. extensionality x. extensionality rho.
+  rewrite tr_trans; trivial.
+Qed.
+
+Lemma port_bind_args {P rho ids l1 l2}: 
+      list_norepet (map fst l2) -> list_norepet (map fst l1) -> Datatypes.length l1 = Datatypes.length l2 ->
+  bind_args l1 ids (fun rho0 : environ => port (map fst l2) (map fst l1) P rho0)  rho 
+  |-- bind_args l2 ids P rho.
+Proof. 
+  intros. unfold bind_args; intros w [W1 W2]. split; trivial. 
+  eapply port_close_precondition. 4: eassumption.
+  3: rewrite 2 map_length. all: trivial.
+Qed.
+
+Lemma length_zip_with_tl {A}: forall (l:list A) t (L: length l = length (typelist2list t)), 
+      length (zip_with_tl l t) = length l.
+Proof. induction l; intros. trivial. destruct t; inv L. simpl. rewrite IHl; trivial. Qed.
+
+Lemma zip_with_normalized_normal: forall l, 
+  check_normalized (zip_with_tl (normalparams (length (typelist2list l))) l) = true.
+Proof. intros.
+  apply norm_char. Search zip_with_tl.
+  specialize (@fst_split_zip _ (normalparams (length (typelist2list l))) l).
+  rewrite length_normalparams, fst_split. intros X; rewrite X; clear X; trivial.
+  rewrite length_zip_with_tl; rewrite length_normalparams; trivial.
 Qed.

@@ -1182,6 +1182,13 @@ Definition params_LNR (f: option funspec): Prop :=
    | Some phi => list_norepet (map fst (params_of_funspec phi))
   end.
 
+Lemma normalized_params_LNR fspec: 
+      funspec_normalized fspec = true -> params_LNR (Some fspec).
+Proof. destruct fspec; simpl; intros.
+  apply norm_char in H; simpl in H. unfold params_of_funspec; simpl; rewrite H.
+  apply normalparams_LNR.
+Qed.
+
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this

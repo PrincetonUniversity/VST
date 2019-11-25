@@ -96,7 +96,7 @@ Module VericMinimumSeparationLogic: MINIMUM_CLIGHT_SEPARATION_HOARE_LOGIC with M
 
 Module CSHL_Def := VericDef.
 Module CSHL_Defs := DerivedDefs (VericDef).
-  
+
 Definition semax_extract_exists := @extract_exists_pre.
 Definition semax_body := @semax_body.
 Definition semax_prog := @semax_prog.
