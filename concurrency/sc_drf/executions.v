@@ -4148,6 +4148,8 @@ Module Executions.
            Tactics.pf_cleanup;
            congruence);
       try (now exfalso);
+      try (destruct Htid0 as [? | Hhalted]; exfalso; first by eauto);
+        try (destruct Htid as [? | Hhalted1]; exfalso; first by eauto);
       try (inv Htstep; inv Htstep0;
       Tactics.pf_cleanup;
       rewrite Hcode in Hcode0; inv Hcode0;
@@ -4165,7 +4167,23 @@ Module Executions.
              now eauto |
              destruct (CoreLanguage.at_external_halted_excl c0 m') as [Hcontra | Hcontra]
                in Hat_external;
-             [congruence | eapply Hcontra; eauto]]).
+             [congruence | eapply Hcontra; eauto]]);
+      try (match goal with
+           | [H: exists _ _ _, _ |- _] => destruct H;
+                                   try (inversion Htstep);
+                                   try (inversion htstep0)
+           end);
+        subst;
+        pf_cleanup;
+        try (match goal with
+        | [H: getThreadC _ = _, H1: exists _ _, OrdinalPool.getThreadC _ = _ /\ halted _ _ _ |- _] =>
+          simpl in H; destruct H1 as (? & ? & HgetCode & ?); rewrite H in HgetCode; subst
+        end;
+             inv HgetCode);
+        try (eapply ev_step_ax1 in Hcorestep;
+             eapply corestep_not_halted in Hcorestep; now eauto);
+         try (pose proof (CoreLanguage.at_external_halted_excl) as Hcontra;
+              destruct (Hcontra ltac:(eauto) ltac:(eauto)) as [| Hcontra1]; [congruence | eapply Hcontra1; now eauto]).
       destruct (start_thread_det Htstep Htstep0); subst;
         now auto.
       destruct (resume_thread_det Htstep Htstep0); subst;
@@ -4173,12 +4191,11 @@ Module Executions.
       destruct (step_thread_det ESF Htstep Htstep0) as [? [? ?]]; subst;
         now auto.
       destruct (suspend_thread_det Htstep Htstep0); subst;
-        now auto.      
+        now auto.
       destruct (sync_step_det Htstep Htstep0) as [? [? ?]]; subst;
         now auto.
-      now auto.      
+      now auto.
     Qed.
-
 
     Lemma bare_execution_det:
       ev_step_fun semSem ->

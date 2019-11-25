@@ -987,7 +987,14 @@ Module SimProofs.
     - destruct (at_external semSem s0 m') as [[? ?]|];
         now tauto.
     - destruct (at_external semSem s0 m') as [[? ?]|]; [tauto|].
-      split; auto.
+      split; intros (? & Hcontra); split; auto;
+      intros ? Hhalted.
+      eapply core_inj_halted in Hhalted;
+      eauto;
+      eapply Hcontra; eauto.
+      destruct (core_inj_halted _ _ _ Hinj i).
+      eapply Hcontra;
+        now eauto.
   Qed.
 
   Lemma stepType_inj:
@@ -1074,19 +1081,29 @@ Module SimProofs.
             eapply internal_step_type in Hstep_internal;
           exfalso; simpl in *;
           unfold getStepType, ctlType in Hstep_internal;
-            try inversion Htstep;
+            try (inversion Htstep);
+            try (destruct Htid as [? | (? & ? & ? & ? & ?)]);
             try (inversion Hhalted); subst; Tactics.pf_cleanup;
-              try inversion Hperm; subst;
+              try inversion Hperm; subst; eauto;
           repeat match goal with
                  | [H1: context[match ?Expr with | _ => _ end],
                         H2: ?Expr = _ |- _] =>
                    rewrite H2 in H1
+                 | [H1: context[match ?Expr with | _ => _ end],
+                        H2: OrdinalPool.getThreadC _ = _ |- _] =>
+                   simpl in H1
                  end; try discriminate;
             try (match goal with
                  | [H: match at_external ?A ?B ?C with _ => _ end |- _] =>
                    destruct (at_external A B C) eqn:Hext
                  end);
             try discriminate.
+          inversion Hcore; subst.
+          eapply ev_step_ax1 in Hcorestep.
+          eapply corestep_not_halted in Hcorestep.
+          simpl in Hcode.
+          rewrite H in Hcode; inversion Hcode; subst.
+          eapply Hcorestep; now eauto.
         }
         destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
         destruct (internal_step_det Hstep_internal Hstep_internal'); subst;
@@ -1109,19 +1126,28 @@ Module SimProofs.
                 eapply internal_step_type in Hstep_internal;
                 exfalso; simpl in *;
                   unfold getStepType, ctlType in Hstep_internal;
-                  try inversion Htstep;
+                  try (inversion Htstep);
+                  try (destruct Htid as [? | (? & ? & ? & ? & ?)]);
                   try (inversion Hhalted); subst; Tactics.pf_cleanup;
-                    try inversion Hperm; subst;
+                    try inversion Hperm; subst; eauto;
                       repeat match goal with
                              | [H1: context[match ?Expr with | _ => _ end],
                                     H2: ?Expr = _ |- _] =>
                                rewrite H2 in H1
+                             | [H1: context[match ?Expr with | _ => _ end],
+                                    H2: OrdinalPool.getThreadC _ = _ |- _] =>
+                               simpl in H1
                              end; try discriminate;
                         try (match goal with
                              | [H: match at_external ?A ?B ?C with _ => _ end |- _] =>
                                destruct (at_external A B C) eqn:Hext
                              end);
                         try discriminate.
+          inversion Hresume; subst.
+          simpl in Hcode.
+          Tactics.pf_cleanup.
+          rewrite H in Hcode.
+          inversion Hcode; subst.
         }
         destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
         destruct (internal_step_det Hstep_internal Hstep_internal'); subst;
@@ -1145,19 +1171,28 @@ Module SimProofs.
                 eapply internal_step_type in Hstep_internal;
                 exfalso; simpl in *;
                   unfold getStepType, ctlType in Hstep_internal;
-                  try inversion Htstep;
+                  try (inversion Htstep);
+                  try (destruct Htid as [? | (? & ? & ? & ? & ?)]);
                   try (inversion Hhalted); subst; Tactics.pf_cleanup;
-                    try inversion Hperm; subst;
+                    try inversion Hperm; subst; eauto;
                       repeat match goal with
                              | [H1: context[match ?Expr with | _ => _ end],
                                     H2: ?Expr = _ |- _] =>
                                rewrite H2 in H1
+                             | [H1: context[match ?Expr with | _ => _ end],
+                                    H2: OrdinalPool.getThreadC _ = _ |- _] =>
+                               simpl in H1
                              end; try discriminate;
                         try (match goal with
                              | [H: match at_external ?A ?B ?C with _ => _ end |- _] =>
                                destruct (at_external A B C) eqn:Hext
                              end);
                         try discriminate.
+          inversion Hstart; subst.
+          simpl in Hcode.
+          Tactics.pf_cleanup.
+          rewrite H in Hcode.
+          inversion Hcode; subst.
         }
         destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
         destruct (internal_step_det Hstep_internal Hstep_internal'); subst;
@@ -1237,6 +1272,7 @@ Module SimProofs.
              rewrite H in Hint; simpl in Hint
            | [H1: match ?Expr with _ => _ end = _,
                   H2: ?Expr = _ |- _] => rewrite H2 in H1
+           | [H1: _ \/ exists _ _ _, _ /\ halted _ _ _ |- _] => destruct H1 as [?|(? & ? & ? & ? & ?)]; Tactics.pf_cleanup
            (*     | [H1: is_true (isSome (halted ?Sem ?C)),
                   H2: match at_external _ _ _ with _ => _ end = _ |- _] =>
              destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
@@ -1244,7 +1280,11 @@ Module SimProofs.
                  destruct (halted Sem C) eqn:Hh;
                  [discriminate | by exfalso] |
                 rewrite Hcontra in H1; by exfalso]*)
-           end; try discriminate; try (exfalso; by auto).
+           end; try discriminate; try (exfalso; by auto);
+    repeat (match goal with
+            | [H: match at_external ?E1 ?E2 ?E3 with _ => _ end |- _] => destruct (at_external E1 E2 E3) eqn:?
+            | [H: _ /\ (forall i : int, ~ halted _ _ _) |- _] => destruct H as [_ Hcontrahalted]; exfalso; eapply Hcontrahalted; now eauto
+            end); try discriminate.
 
   Lemma at_internal_cmachine_step :
     forall i U U' tp tr tr' tp' m m'
@@ -1263,12 +1303,12 @@ Module SimProofs.
     - split; auto.
       right; left;
         by auto.
-    - split; auto.
+    - 
+      split; auto.
       left; now eauto.
     - inversion Hperm; subst.
       subst mrestr.
-      rewrite Hat_external in Hinternal.
-      discriminate.
+      simpl in *. congruence.
   Qed.
 
   (** Starting from a well-defined state, an internal execution
@@ -2200,13 +2240,11 @@ Module SimProofs.
         erewrite OrdinalPool.gsoThreadRes with (cntj := pffj) by eauto.
         assumption.
     - inversion Hperm; subst.
-      unfold mrestr in Hinternal.
-      rewrite Hat_external in Hinternal.
-      discriminate.
+      unfold mrestr in *.
+      simpl in *. congruence.
     - inversion Hperm; subst.
-      unfold mrestr in Hinternal.
-      rewrite Hat_external in Hinternal.
-      discriminate.
+      unfold mrestr in *.
+      simpl in *. congruence.
   Qed.
 
   Lemma cmachine_step_invariant:
@@ -2356,8 +2394,17 @@ Module SimProofs.
       rewrite Hcode in Hinternal;
       simpl in Hinternal;
         by discriminate.
+      destruct Htid as [Hnotcnt | (Hcnt & ? & ? & Hget & Hhalted)].
       exfalso;
         now eauto.
+      exfalso.
+      unfold ctlType in Hinternal.
+      simpl in Hinternal.
+      Tactics.pf_cleanup.
+      rewrite Hget in Hinternal.
+      destruct (at_external semSem x mrestr); try discriminate.
+      destruct Hinternal.
+      eapply H0; now eauto.
   Qed.
 
   (** Proof of simulation for internal steps*)
@@ -2944,9 +2991,20 @@ Module SimProofs.
     apply ev_step_ax1 in Hcorestep.
     eapply corestep_not_at_external in Hcorestep.
     rewrite Hcorestep in Hsuspend.
+    destruct Hsuspend.
     discriminate.
     inversion Hperm; subst.
     repeat (split; eauto).
+    destruct Htid as [? | (? & ? & ? & Hcode & ?)];
+      [exfalso; now eauto|].
+    Tactics.pf_cleanup.
+    rewrite Hcode in Hsuspend.
+    simpl in Hsuspend.
+    destruct (at_external semSem x0 mrestr) eqn:Hat_external; [| destruct Hsuspend; discriminate].
+    destruct (at_external_halted_excl x0 mrestr) as [? | Hcontra].
+    congruence.
+    exfalso.
+    eapply Hcontra; now eauto.
   Qed.
 
   Lemma mem_obs_eq_step:
@@ -3936,6 +3994,16 @@ Module SimProofs.
     (Hlt := snd (compat_th _ _ Hcompf' pff')) (Hlt' := snd (compat_th _ _ Hcompf pff))
       by (erewrite gThreadCR with (cntj := pff); reflexivity);
       by assumption.
+    destruct Htid as [? | (? & ? & ? & Hcode & ?)];
+      [exfalso; now eauto|].
+    Tactics.pf_cleanup.
+    rewrite Hcode in Hsuspend.
+    simpl in Hsuspend.
+    destruct (at_external semSem x0 mrestr) eqn:Hat_external; [| destruct Hsuspend; discriminate].
+    destruct (at_external_halted_excl x0 mrestr) as [? | Hcontra].
+    congruence.
+    exfalso.
+    eapply Hcontra; now eauto.
   Qed.
 
   Opaque lockRes.
@@ -4048,7 +4116,7 @@ Module SimProofs.
       apply ev_step_ax1 in Hcorestep.
       apply corestep_not_at_external in Hcorestep.
       rewrite Hcorestep in Hpop.
-      destruct Hpop as [?|?];
+      destruct Hpop as [[? ?]|[? ?]];
         discriminate.
     - subst.
       exists tp', tr0, m'; split; eauto.
@@ -6015,7 +6083,17 @@ into mcj' with an extension of the id injection (fij). *)
             try (now (split; eexists; split; eauto)).
     destruct (at_external semSem c (restrPermMap (proj1 (compat_th _ _ Hcomp cnti))));
       [discriminate|].
-    discriminate.
+    destruct Hexternal;
+      discriminate.
+    destruct Htid as [? | (? & ? & ? & Hget & ?)]; [exfalso; now eauto|].
+    Tactics.pf_cleanup.
+
+    unfold getStepType, ctlType in Hexternal.
+    rewrite Hget in Hexternal.
+    match goal with
+    | [H: match at_external ?E1 ?E2 ?E3 with | _ => _ end |- _] => destruct (at_external E1 E2 E3)
+    end; try discriminate.
+    destruct Hexternal; discriminate.
   Qed.
     
 
@@ -11085,7 +11163,7 @@ relation*)
             * intros.
               simpl.
               erewrite projectAngel_correct_2 by eauto.
-              reflexivity.   *)
+              reflexivity. *)
           admit.
     }
     { (** Makelock case *)

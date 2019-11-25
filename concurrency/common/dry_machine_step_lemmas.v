@@ -2025,7 +2025,7 @@ Module StepType.
     | Krun c =>
       match at_external semSem c m with
       | None => (* ((exists i, halted semSem c i) /\ st = Halted) \/ *)
-                st = Internal
+                st = Internal /\ forall i, ~ halted semSem c i
       | Some _ => st = Suspend
       end
     | Kblocked c => st = Concurrent
@@ -2054,7 +2054,9 @@ Module StepType.
     apply ev_step_ax1 in Hcorestep.
     assert (H1:= corestep_not_at_external semSem _ _ _ _ Hcorestep).
     rewrite H1.
-    reflexivity.
+    split; [reflexivity|intros i0].
+    eapply corestep_not_halted in Hcorestep;
+    now eauto.
     inversion Hresume; subst.
     Tactics.pf_cleanup;
       by rewrite Hcode.

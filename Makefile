@@ -1,4 +1,5 @@
 # See the file BUILD_ORGANIZATION for
+#
 # explanations of why this is the way it is
 
 COMPCERT ?= compcert
