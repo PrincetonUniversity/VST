@@ -2657,19 +2657,34 @@ Module SCErasure.
         eapply sync_step; eauto.
         simpl in *; subst.
         split...
-      - assert (~ containsThread tp1' tid).
-        { intros Hcontra.
-          destruct HerasePool as [Hnum _].
-          unfold containsThread in *.
+      - destruct Htid as [Htid | (cnt & c & i & HgetC & Hhalted)].
+        +
+          assert (~ containsThread tp1' tid).
+          { intros Hcontra.
+            destruct HerasePool as [Hnum _].
+            unfold containsThread in *.
+            simpl in *; subst.
+            rewrite <- Hnum in Hcontra.
+            auto.
+          }
+          exists tp1', m1',tr1'.
+          split.
+          econstructor 6; simpl; eauto.
           simpl in *; subst.
-          rewrite <- Hnum in Hcontra.
-          auto.
-        }
-        exists tp1', m1',tr1'.
-        split.
-        econstructor 6; simpl; eauto.
-        simpl in *; subst.
-        split; now eauto.
+          split; now eauto.
+        +  exists tp1', m1', tr1'.
+          split; eauto.
+          econstructor 6; simpl; eauto.
+          right.
+          destruct HerasePool as [Hnum Htp].
+          simpl in *; subst.
+          pose proof (proj1 (Hnum tid) cnt).
+          pose proof (Htp _ cnt H) as Herasure.
+          rewrite HgetC in Herasure.
+          simpl in Herasure.
+          destruct (OrdinalPool.getThreadC H) eqn:?; try (now exfalso).
+          do 3 eexists; split; eauto using halted_erase.
+          simpl in *; subst; split; now eauto.
     Qed.
 
     Lemma fsafe_execution:

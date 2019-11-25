@@ -367,6 +367,18 @@ Module SimDefs.
       (forall U, fmachine_step (i :: U, trf, tpf) mf (U, tr', tpf) mf) /\
       sim tpc trc mc tpf trf mf xs f fg fp (S fuelF).
 
+  Definition sim_halted_def :=
+    forall tpc trc tpf trf (mc mf : Mem.mem) fuelF cf
+      (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
+      (pff: containsThread tpf i)
+      (Hsim: sim tpc trc mc tpf trf mf xs f fg fp (S (S fuelF))),
+      let mrestr := restrPermMap (((compat_th _ _ (mem_compf Hsim)) pff).1) in
+      forall (Hinternal: getThreadC pff = Krun cf),
+        (exists i, halted (event_semantics.msem (@semSem asmSem)) cf i) ->
+        exists tr',
+          (forall U, fmachine_step (i :: U, trf, tpf) mf (U, tr', tpf) mf) /\
+          sim tpc trc mc tpf trf mf xs f fg fp (S fuelF).
+
   End SimDefs.
 
   Arguments sim {asmSem} {CI} tpc trc mc tpf trf mf xs f fg fp fuelF.
@@ -398,6 +410,7 @@ Module SimProofs.
 
   Notation csafe := (HybridCoarseMachine.csafe).
   Notation sim_fail_def := (@sim_fail_def _ _ initU).
+  Notation sim_halted_def := (@sim_halted_def _ _ initU).
   Notation threadStep := (HybridMachineSig.threadStep).
   Notation cmachine_step := ((corestep (AsmContext.coarse_semantics initU))).
   Notation fmachine_step := ((corestep (AsmContext.fine_semantics initU))).
@@ -1034,6 +1047,21 @@ Module SimProofs.
     exists trf.
     split.
     intros. econstructor 6; simpl; eauto.
+    eapply (invF Hsim); eauto.
+    eapply (mem_compf Hsim); eauto.
+    eapply sim_reduce; eauto.
+  Qed.
+
+  Lemma sim_halted: sim_halted_def.
+  Proof.
+    unfold sim_halted_def.
+    intros.
+    exists trf.
+    split.
+    intros. econstructor 6; simpl; eauto.
+    right.
+    destruct H as [x ?].
+    exists pff, cf, x; eauto.
     eapply (invF Hsim); eauto.
     eapply (mem_compf Hsim); eauto.
     eapply sim_reduce; eauto.

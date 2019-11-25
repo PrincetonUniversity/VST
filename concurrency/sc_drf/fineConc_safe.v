@@ -447,13 +447,24 @@ Module FineConcSafe.
         forall tp m i (cnti: containsThread tp i),
           getStepType cnti m Concurrent \/
           getStepType cnti m Internal \/
-          getStepType cnti m Suspend.
+          getStepType cnti m Suspend \/
+          (exists c, getThreadC cnti = Krun c /\
+             (exists i : int, halted semSem c i)).
       Proof.
         intros.
         unfold getStepType, ctlType.
-        destruct (getThreadC cnti); try auto.
+        destruct (getThreadC cnti) eqn:?; try auto.
         destruct (at_external semSem s m) eqn:?; try auto.
-       Qed.
+        destruct (em (exists i0, halted semSem s i0)).
+        - right.
+          right.
+          right.
+          exists s.
+          eauto.
+        - right.
+          left.
+          eauto.
+      Qed.
       
       (** Simulation between the two machines implies safety*)
       Lemma fine_safe_sched:
@@ -477,7 +488,7 @@ Module FineConcSafe.
         - (** By case analysis on the step type *)
           pose proof (getStepType_cases (restrPermMap (compat_th _ _ (SimDefs.mem_compf Hsim) cnti).1)
                                         cnti) as Htype.
-          destruct Htype as [Htype | [Htype | Htype]].
+          destruct Htype as [Htype | [Htype | [Htype | Htype]]].
           + assert (~ List.In i xs)
               by (eapply at_external_not_in_xs; eauto).
             pose proof (@SimProofs.sim_external _ _ _ _ sched em _ _ _ _ _ _ _ _ _ _ _ _ cnti H Hsim Htype) as Hsim'.
@@ -503,6 +514,13 @@ Module FineConcSafe.
             simpl in Hstep.
             econstructor 3; simpl;
               now eauto.
+          + destruct Htype as [c [HgetThreadC Hhalted]].
+            pose proof (@SimProofs.sim_halted _ _ sched  _ _ _ _ _ _ _ _ _ _ _ _ _ cnti Hsim HgetThreadC) as
+                (tr' & Hstep & Hsim'); eauto.
+            specialize (IHsched _ _ _ _ _ _ _ _ _ Hsim').
+            unfold corestep in Hstep.
+            simpl in Hstep.
+            econstructor 3; simpl; eauto.
         -  pose proof (@SimProofs.sim_fail _ _  sched _ _ _ _  _  _ _  _ _ _ _ _ invalid Hsim) as
               (tr' & Hstep & Hsim').
            specialize (IHsched _ _ _ _ _ _ _ _ _ Hsim').

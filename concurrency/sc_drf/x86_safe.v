@@ -520,7 +520,7 @@ Module X86Safe.
       destruct (Hexec _ _ _ HexecF) as [tpsc' [msc' [tr' [HexecSC' [_ [_ Htr_erasure]]]]]].
       eapply fine_execution_multi_step in HexecF.
       simpl in HexecF.
-      pose proof (@bare_execution_det _ X86Det semSem_fun _ _ _ _ _ _ HSCexec HexecSC') as Heq.
+      pose proof (@bare_execution_det _ _ X86Det semSem_fun _ _ _ _ _ _ HSCexec HexecSC') as Heq.
       destruct Heq as [Heq1 Heq2].
       inversion Heq1; subst.
       simpl in Htr_erasure.

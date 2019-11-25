@@ -386,7 +386,7 @@ Module X86CoreErasure.
     inversion Hinit; subst.
     simpl in Hv; subst.
     remember (Bounds.fe_size
-                (Stacklayout.make_env (Bounds.function_bounds (Linear.pre_main (fn_sig f) 0))))
+                (Stacklayout.make_env (Bounds.function_bounds (Linear.pre_main (funsig f) 0))))
       as stck_sz.
     remember (Mem.alloc m' 0 (stck_sz)) eqn:Halloc'.
     destruct p.
