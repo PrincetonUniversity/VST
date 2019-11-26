@@ -18,11 +18,21 @@ eapply semax_pre; [ |  apply sequential; apply semax_skip].
 destruct R; apply ENTAIL_refl.
 Qed.
 
-Lemma semax_func_cons_ext_vacuous:
+Definition vacuous_normalizedfunspec (fd: Clight.fundef): funspec :=
+   match (funsig_of_fundef fd) with
+     (params, retty) =>
+   let nids := normalparams (length params) in
+   let nparams := zip_with_tl nids (type_of_params params) in 
+   mk_funspec (nparams, retty) (cc_of_fundef fd) 
+   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) 
+   (const_super_non_expansive _ _) (const_super_non_expansive _ _) end.
+
+Lemma semax_func_cons_ext_vacuous_normalized:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
-         (G' : funspecs) cc b,
+         (G' : funspecs) cc b
+       (LNR: list_norepet (map fst (fst (funsig_of_fundef(External ef argsig retsig cc))))),
        (id_in_list id (map fst fs)) = false ->
        ef_sig ef =
        {|
@@ -33,9 +43,40 @@ Lemma semax_func_cons_ext_vacuous:
        (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
        semax_func V G ge fs G' ->
        semax_func V G ge ((id, External ef argsig retsig cc) :: fs)
-         ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
-Proof.
-intros.
+         ((id, vacuous_normalizedfunspec (External ef argsig retsig cc)) :: G').
+Proof. intros.
+unfold vacuous_normalizedfunspec.
+remember (External ef argsig retsig cc) as fd.
+remember (funsig_of_fundef fd); destruct f as [params retty].
+(*eapply semax_func_cons_ext.*)
+specialize (@semax_func_cons_ext Espec V G C ge fs id ef (type_of_params params) retty
+  (rmaps.ConstType Impossible)
+  (fun (_ : list Type)
+        (_ : functors.MixVariantFunctor._functor
+               (functors.MixVariantFunctorGenerator.fconst Impossible)
+               mpred) => FF)
+     (fun (_ : list Type)
+        (_ : functors.MixVariantFunctor._functor
+               (functors.MixVariantFunctorGenerator.fconst Impossible)
+               mpred) => FF)(*
+   (const_super_non_expansive Impossible
+        (fun (_ : list Type)
+           (_ : functors.MixVariantFunctor._functor
+                  (functors.MixVariantFunctorGenerator.fconst Impossible)
+                  mpred) => FF))
+     (const_super_non_expansive Impossible
+        (fun (_ : list Type)
+           (_ : functors.MixVariantFunctor._functor
+                  (functors.MixVariantFunctorGenerator.fconst Impossible)
+                  mpred) => FF))*)
+    params G' cc (map fst params) b LNR) . intros.
+assert (params = zip_with_tl (normalparams (Datatypes.length params))
+        (type_of_params params)).
+{ 
+subst fd. simpl in Heqf. inv Heqf.
+Locate arglist. (*
+specialize ( 
+simpl.
 eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
 *
  clear.
@@ -50,7 +91,8 @@ eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
 *
   intros. simpl. apply andp_left1, FF_left.
 *  apply semax_external_FF.
-Qed.
+Qed.*)
+Admitted.
 
 Lemma int_eq_false_e:
   forall i j, Int.eq i j = false -> i <> j.

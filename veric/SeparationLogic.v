@@ -1221,6 +1221,40 @@ Axiom semax_func_cons:
       semax_func V G ge ((id, Internal f)::fs)
            ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
 
+Axiom semax_func_cons_ext: forall {Espec: OracleKind}
+      (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
+      (params:list (ident * type))
+      (G': funspecs) cc (ids: list ident) b,
+  (*Now not very meanigful? ids = map fst argsig' -> (* redundant but useful for the client,
+           to calculate ids by reflexivity *)*)
+
+  (*New conditions/abbreviations*) list_norepet ids -> 
+  let nids := normalparams (length ids) in
+  let nP := rename_pre nids ids P in
+
+  params = zip_with_tl nids argtypes ->
+  (*WAS:argsig' = zip_with_tl ids argsig ->*)
+
+  ef_sig ef =
+  mksignature
+    (typlist_of_typelist (type_of_params params))
+    (opttyp_of_type retsig) cc ->
+  id_in_list id (map (@fst _ _) fs) = false ->
+  length ids = length (typelist2list argtypes) ->
+  (ef_inline ef = false \/ withtype_empty A) ->
+
+  (forall gx ts x (ret : option val),
+     (Q ts x (make_ext_rval gx ret)
+        && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+        |-- !!tc_option_val retsig ret)) ->
+  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argtypes retsig cc) ->
+  @semax_external Espec ids ef A P Q ->
+  semax_func V G ge fs G' ->
+forall NEP NEQ,
+  semax_func V G ge ((id, External ef argtypes retsig cc)::fs)
+       ((id, mk_funspec (params, retsig) cc A nP Q 
+                 (*(rename_pre_super_non_expansive NEP nids ids)*)NEP NEQ)  :: G').
+(*OLD:
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
@@ -1245,11 +1279,12 @@ Axiom semax_func_cons_ext:
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, External ef argsig retsig cc)::fs)
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
-
+*)
 Axiom semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
-  V G fdecs G1 (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1.
+  V G fdecs G1 (LNR_G: forall i, params_LNR (initial_world.find_id i G))
+  (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1.
 
 Axiom semax_func_app:
   forall Espec ge cs V H funs1 funs2 G1 G2

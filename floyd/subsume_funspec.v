@@ -8,16 +8,20 @@ Import LiftNotation.
 Local Open Scope logic.
 
 Definition NDfunspec_sub (f1 f2 : funspec) :=
- let Delta := (funsig_tycontext (funsig_of_funspec f1)) in
+let Delta1 := funsig_tycontext (funsig_of_funspec f1) in
+let Delta2 := funsig_tycontext (funsig_of_funspec f2) in
  match f1 with
  | mk_funspec fsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
  match f2 with
  | mk_funspec fsig2 cc2 (rmaps.ConstType A2) P2 Q2 _ _ =>
-   fsig1 = fsig2 /\ cc1 = cc2 /\  forall x2,
-        ENTAIL Delta, P2 nil x2 |-- EX x1:_, EX F:mpred,
-                             ((`F * P1 nil x1) &&
-                             (!! (ENTAIL (ret0_tycon Delta), `F * Q1 nil x1 
-                                      |-- Q2 nil x2)))
+   funsigs_match fsig1 fsig2 = true /\ cc1 = cc2 /\ 
+   let ids1 := map fst (fst fsig1) in
+   let ids2 := map fst (fst fsig2) in
+   forall x2,
+        ENTAIL Delta2, (port ids2 ids2) (P2 nil x2) |-- EX x1:_, EX F:mpred,
+                             ((local (tc_environ Delta1)) && (`F * (port ids1 ids2) (P1 nil x1)) &&
+                              (!! (ENTAIL (ret0_tycon Delta1), `F * Q1 nil x1 
+                                      |-- ((local (tc_environ (ret0_tycon Delta2))) && Q2 nil x2))))
  | _ => False end
  | _ => False end.
 
@@ -35,21 +39,27 @@ Lemma NDsubsume_subsume:
    funspec_sub f1 f2.
 Proof.
 intros f1 f2. pose proof I. intros H0 H1.
-destruct f1, f2; hnf in H1.
-destruct A; try contradiction. destruct A0; try contradiction.
-destruct H1 as [? [? ?]]; split3; auto.
-subst f0 c0.
-intros ts1 x1 rho.
-specialize (H3 x1).
+destruct f1 as [f1 c1 A1 P1 Q1 NEP1 NEQ1].
+destruct f2 as [f2 c2 A2 P2 Q2 NEP2 NEQ2].
+destruct A1; try contradiction. destruct A2; try contradiction.
+destruct H1 as [? [? ?]]. split3; trivial.
+destruct f1 as [params1 retty1]. destruct f2 as [params2 retty2].
+simpl fst in *; simpl snd in *. (*subst c2*)
+intros ts2 x2 rho. simpl funsig_of_funspec in *.
+unfold port, restrict in *.
 simpl in H0.
-specialize (H0 ts1). destruct H0 as [H0 H0'].
-rewrite H0.
+specialize (H0 ts2). destruct H0 as [H0 H0'].
+specialize (H3 x2).
+rewrite H0 in *. rewrite H0' in *. 
 eapply predicates_hered.derives_trans; [apply H3 | clear H3 ].
 apply (predicates_hered.exp_right (@nil Type)).
-apply predicates_hered.exp_derives; intros x2.
+apply predicates_hered.exp_derives; intros x.
 apply predicates_hered.exp_derives; intros F.
-apply predicates_hered.andp_derives; trivial. hnf. rewrite H0'. auto.
-Qed.
+apply predicates_hered.andp_derives; trivial.
+hnf; intros ? [TC X]. simpl in *. split; trivial. clear X. subst.
+destruct TC as [? [? ?]]; split3; trivial. simpl in *. clear - H2. 
+red; intros. destruct (H2 _ _ H) as [u [Hu TCu]]; clear H2.
+Admitted.
 
 Inductive empty_type : Type := .
 
@@ -75,22 +85,21 @@ apply sepcon_derives; auto.
 Qed.
 
 Lemma NDfunspec_sub_refl:
-  forall fsig cc A P Q, 
+  forall fsig cc A P Q, list_norepet (map fst (fst fsig)) ->
    NDfunspec_sub (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
 Proof.
 intros.
 simpl.
-split3; auto.
+split3; auto. apply funsigs_match_refl; trivial.
 intros.
 Exists x2. Exists emp.
 unfold_lift.
 rewrite !emp_sepcon.
-apply andp_right.
+apply andp_right. trivial.
 apply andp_left2; auto.
 apply prop_right.
 intros rho'.
-rewrite emp_sepcon.
-apply andp_left2; auto.
+rewrite emp_sepcon. trivial.
 Qed.
 
 Lemma NDfunspec_sub_trans:
@@ -103,14 +112,16 @@ intros.
 destruct H as [?E [?E H]]. 
 destruct H0 as [?E [?E H0]].
 subst.
-split3; auto.
-intro x3; simpl in x3.
+split3; auto. eapply funsigs_match_trans. eassumption. eassumption.
+hnf.
+intro x3; simpl in x3. hnf in H. hnf in H0.
 specialize (H0 x3).
 eapply ENTAIL_trans; [apply H0 | ].
 clear H0.
 Intros x2 F.
 simpl in x2.
 specialize (H x2).
+Admitted. (*
 eapply derives_trans.
 apply sepcon_ENTAIL.
 apply ENTAIL_refl.
@@ -132,7 +143,7 @@ eapply ENTAIL_trans; [ | apply H0].
 apply sepcon_ENTAIL.
 apply ENTAIL_refl.
  auto.
-Qed.
+Qed.*)
 
 Lemma later_exp'' (A: Type) (ND: NatDed A)(Indir: Indir A):
       forall T : Type,

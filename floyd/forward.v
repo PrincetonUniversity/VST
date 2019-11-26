@@ -371,39 +371,48 @@ Qed.
   Qed.
   
   Lemma subsumespec_app1 G1 G2 i:
+    (forall phi, (make_tycontext_s G1) ! i = Some phi -> list_norepet (map fst (params_of_funspec phi))) ->
     subsumespec ((make_tycontext_s G1) ! i) ((make_tycontext_s (G1++G2)) ! i).
-  Proof.
+  Proof. intros.
     red. remember ((make_tycontext_s G1) ! i) as q; destruct q; [symmetry in Heqq | trivial].
+    specialize (H _ (eq_refl _)). split; trivial.
     specialize (make_tycontext_s_app1 G1 G2 i). rewrite Heqq; simpl. intros X; rewrite X; clear X.
-    exists f; split. trivial. apply funspec_sub_si_refl.
+    exists f; split. trivial. apply funspec_sub_si_refl; trivial.
   Qed.
   
   Lemma subsumespec_app2 G1 G2 i: list_norepet (map fst (G1++G2)) ->
+    (forall phi, (make_tycontext_s G2) ! i = Some phi -> list_norepet (map fst (params_of_funspec phi))) ->
     subsumespec ((make_tycontext_s G2) ! i) ((make_tycontext_s (G1++G2)) ! i).
   Proof.
     intros; red. remember ((make_tycontext_s G2) ! i) as q; destruct q; [symmetry in Heqq | trivial].
+    specialize (H0 _ (eq_refl _)).
+    split. trivial.
     specialize (make_tycontext_s_app2 G1 G2 i H). rewrite Heqq; simpl. intros X; rewrite X; clear X.
-    exists f; split. trivial. apply funspec_sub_si_refl.
+    exists f; split. trivial. apply funspec_sub_si_refl; trivial.
   Qed.
 
   Lemma tycontext_sub_Gprog_app1 f V G1 G2 (HG1: list_norepet (map fst G1))
-        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))):
+        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2)))
+        (LNR: forall i, params_LNR (make_tycontext_s G1)!i):
     tycontext_sub (func_tycontext f V G1 [])
                   (func_tycontext f V (G1++G2) []).
   Proof.
      apply tycontext_sub_i99. split; intros.
      + apply make_tycontext_g_app1; trivial.
      + apply subsumespec_app1.
+       intros. specialize (LNR id); rewrite H in LNR. apply LNR.
   Qed.
 
   Lemma tycontext_sub_Gprog_app2 f V G1 G2 (HG1: list_norepet (map fst G2))
-        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2))):
+        (HG12: list_norepet (map fst V ++ map fst (G1 ++ G2)))
+        (LNR: forall i, params_LNR (make_tycontext_s G2)!i):
     tycontext_sub (func_tycontext f V G2 [])
                   (func_tycontext f V (G1++G2) []).
   Proof.
      apply tycontext_sub_i99. split; intros.
      + apply make_tycontext_g_app2; trivial.
      + apply list_norepet_append_right in HG12. apply subsumespec_app2; trivial.
+       intros. specialize (LNR id); rewrite H in LNR. apply LNR.
   Qed.
   
   Lemma tycontext_sub_Gprog_nil f V G (VG:list_norepet (map fst V ++ map fst G)):
@@ -411,7 +420,7 @@ Qed.
                   (func_tycontext f V G []).
   Proof.
     specialize (tycontext_sub_Gprog_app1 f V nil G); simpl.
-    intros H; apply H; clear H; [ constructor | trivial].
+    intros H; apply H; clear H; [ constructor | trivial | intros; rewrite PTree.gleaf; simpl; trivial].
   Qed.
   
 Lemma subsume_spec_get:
@@ -1202,8 +1211,8 @@ destruct fs, fs'.
 destruct H as [? [? _]].
 subst.
 simpl in H1.
-inv H1.
-auto.
+inv H1. simpl.
+rewrite (funsigs_match_type_of_params H), (funsigs_match_rettypes H); trivial.
 Qed.
 
 (*

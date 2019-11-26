@@ -258,7 +258,8 @@ Definition semax_body
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig))) /\
+                      /\ list_norepet (map fst (fst fsig))
+                      /\ check_normalized (fst fsig) = true) /\
 forall Espec ts x, 
   @semax C Espec (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
@@ -286,7 +287,40 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, Internal f)::fs)
                  ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G')
-| semax_func_cons_ext:
+| semax_func_cons_ext: forall {Espec: OracleKind}
+      (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
+      (params:list (ident * type))
+      (G': funspecs) cc (ids: list ident) b,
+  (*Now not very meanigful? ids = map fst argsig' -> (* redundant but useful for the client,
+           to calculate ids by reflexivity *)*)
+
+  (*New conditions/abbreviations*) list_norepet ids -> 
+  let nids := normalparams (length ids) in
+  let nP := rename_pre nids ids P in
+
+  params = zip_with_tl nids argtypes ->
+  (*WAS:argsig' = zip_with_tl ids argsig ->*)
+
+  ef_sig ef =
+  mksignature
+    (typlist_of_typelist (type_of_params params))
+    (opttyp_of_type retsig) cc ->
+  id_in_list id (map (@fst _ _) fs) = false ->
+  length ids = length (typelist2list argtypes) ->
+  (ef_inline ef = false \/ withtype_empty A) ->
+
+  (forall gx ts x (ret : option val),
+     (Q ts x (make_ext_rval gx ret)
+        && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+        |-- !!tc_option_val retsig ret)) ->
+  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argtypes retsig cc) ->
+  @semax_external Espec ids ef A P Q ->
+  semax_func V G ge fs G' ->
+  forall NEP NEQ,
+  semax_func V G ge ((id, External ef argtypes retsig cc)::fs)
+       ((id, mk_funspec (params, retsig) cc A nP Q 
+                 (*(rename_pre_super_non_expansive NEP nids ids)*)NEP NEQ)  :: G')
+(*WAS:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
           argsig'
@@ -309,11 +343,12 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
       @semax_external Espec ids ef A P Q ->
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G')
+           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G')*)
 | semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))
-  V G fdecs G1 (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1
+  V G fdecs G1 (LNR_G: forall i, params_LNR (initial_world.find_id i G)) 
+  (H: @semax_func Espec V G CS ge fdecs G1), @semax_func Espec V G CS' ge' fdecs G1
                                                                       
 | semax_func_app:
   forall Espec ge cs V H funs1 funs2 G1 G2
@@ -1295,21 +1330,42 @@ Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
 Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
-Definition semax_body_binaryintersection:
-forall {V G cs} f sp1 sp2 phi
-  (SB1: @semax_body V G cs f sp1) (SB2: @semax_body V G cs f sp2)
-  (BI: binary_intersection (snd sp1) (snd sp2) = Some phi),
-  @semax_body V G cs f (fst sp1, phi).
-Proof. intros.
-  destruct sp1 as [i phi1]. destruct phi1 as [sig1 cc1 A1 P1 Q1 P1_ne Q1_ne]. 
-  destruct sp2 as [i2 phi2]. destruct phi2 as [sig2 cc2 A2 P2 Q2 P2_ne Q2_ne]. 
-  destruct phi as [sig cc A P Q P_ne Q_ne]. simpl snd in BI.
-  simpl in BI.
-  if_tac in BI; [inv BI | discriminate]. if_tac in H1; inv H1.
-  apply Classical_Prop.EqdepTheory.inj_pair2 in H6.
-  apply Classical_Prop.EqdepTheory.inj_pair2 in H5. subst. simpl fst; clear - SB1 SB2.
-  destruct SB1 as [X SB1]; destruct SB2 as [_ SB2]; split; [ apply X | simpl in X; intros].
-  destruct x as [b Hb]; destruct b; [ apply SB1 | apply SB2].
+
+Definition semax_body_binaryintersection: forall {V G cs} f i phi1 phi2 phi
+  (SB1: @semax_body V G cs f (i,phi1)) (SB2: @semax_body V G cs f (i,phi2))
+  (BI: binary_intersection phi1 phi2  = Some phi),
+  @semax_body V G cs f (i, phi).
+Proof. intros.  remember (funsigs_match (funsig_of_funspec phi1) (funsig_of_funspec phi2)) as b.
+  destruct phi1 as [[params1 rt1] cc1 A1 P1 Q1 P1_ne Q1_ne]. 
+  destruct phi2 as [[params2 rt2] cc2 A2 P2 Q2 P2_ne Q2_ne]. 
+  destruct phi as [[params rt] cc A P Q P_ne Q_ne].
+  simpl funsig_of_funspec in Heqb. simpl in BI.
+  destruct b; symmetry in Heqb; [ | simpl in Heqb; rewrite Heqb in BI; inv BI].
+  specialize (funsigs_match_typesigs_eq Heqb); unfold compcert_rmaps.typesig_of_funsig; simpl fst; simpl snd; intros.
+  inv H; subst.
+  simpl in Heqb. rewrite Heqb in BI; inv BI.
+  if_tac in H0; inv H0.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H7.
+  apply Classical_Prop.EqdepTheory.inj_pair2 in H8. subst. simpl fst; clear - H1 SB1 SB2 Heqb.
+  apply andb_true_iff in Heqb; destruct Heqb as [_ ?].
+  apply andb_true_iff in H; destruct H.
+  destruct SB1 as [X1 SB1]; destruct SB2 as [X2 SB2]; simpl fst in *; simpl snd in *.
+  split. apply X1. simpl in X1, X2; intros.
+  destruct x as [bb x]; destruct bb; [ apply SB1 | clear SB1; simpl in SB2, x].
+  specialize (SB2 Espec ts x). unfold binarySUM. simpl.
+  assert (HQ2: (fun rho0 : environ => Q2 ts x rho0) = Q2 ts x) by reflexivity. rewrite HQ2.
+  eapply semax_pre; [ | apply SB2].
+
+  clear SB2 X1 HQ2. destruct X2 as [? [? [? ?]]]. subst. clear Q1_ne Q2_ne Q_ne Q1 Q2.
+  assert (L: length (map fst params) = length (map fst params2)).
+  { clear - H1.
+    assert (LL: length (map snd params) = length (map snd params2));
+    [ rewrite H1; trivial | rewrite ! map_length in *; trivial]. }
+  apply compute_list_norepet_e in H. 
+  unfold binarySUMport. intros rho. simpl fst. unfold andp. simpl.
+  eapply derives_trans. apply andp_left2. apply derives_refl.
+  apply sepcon_derives; trivial.  
+  apply Clight_seplog.port_close_precondition; trivial.
 Qed.
 
 Definition semax_func_mono := @AuxDefs.semax_func_mono (@Def.semax_external).

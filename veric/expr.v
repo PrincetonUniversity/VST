@@ -1177,14 +1177,14 @@ Definition return_of_funspec (fs: funspec) : type :=
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
-Definition params_LNR (f: option funspec): Prop := 
-  match f with None => False
+Definition params_LNR (f: option funspec): Prop := (*list_norepet (map fst (params_of_funspec phi)).*)
+  match f with None => True
    | Some phi => list_norepet (map fst (params_of_funspec phi))
   end.
 
-Lemma normalized_params_LNR fspec: 
-      funspec_normalized fspec = true -> params_LNR (Some fspec).
-Proof. destruct fspec; simpl; intros.
+Lemma normalized_params_LNR phi: 
+      funspec_normalized phi = true -> list_norepet (map fst (params_of_funspec phi)).
+Proof. destruct phi; simpl; intros.
   apply norm_char in H; simpl in H. unfold params_of_funspec; simpl; rewrite H.
   apply normalparams_LNR.
 Qed.

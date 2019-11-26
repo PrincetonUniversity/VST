@@ -672,8 +672,8 @@ contradiction.
 Qed.
 
 Lemma semax_func_cons_ext:
-forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
-      argsig'
+forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
+      (params:list (ident * type))
       (G': funspecs) cc (ids: list ident) b,
   (*Now not very meanigful? ids = map fst argsig' -> (* redundant but useful for the client,
            to calculate ids by reflexivity *)*)
@@ -682,37 +682,38 @@ forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P 
   let nids := normalparams (length ids) in
   let nP := rename_pre nids ids P in
 
-  argsig' = zip_with_tl nids argsig ->
+  params = zip_with_tl nids argtypes ->
   (*WAS:argsig' = zip_with_tl ids argsig ->*)
 
   ef_sig ef =
   mksignature
-    (typlist_of_typelist (type_of_params argsig'))
+    (typlist_of_typelist (type_of_params params))
     (opttyp_of_type retsig) cc ->
   id_in_list id (map (@fst _ _) fs) = false ->
-  length ids = length (typelist2list argsig) ->
+  length ids = length (typelist2list argtypes) ->
   (ef_inline ef = false \/ withtype_empty A) ->
 
   (forall gx ts (x:(dependent_type_functor_rec ts A) mpred) (ret : option val),
      (Q ts x (make_ext_rval gx ret)
         && !!has_opttyp ret (opttyp_of_type retsig)
         |-- !!tc_option_val retsig ret)) ->
-  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argtypes retsig cc) ->
   (forall n, semax_external Espec ids ef A P Q n) ->
   semax_func V G ge fs G' ->
-  semax_func V G ge ((id, External ef argsig retsig cc)::fs)
-       ((id, mk_funspec (argsig', retsig) cc A nP Q 
-                 (rename_pre_super_non_expansive NEP nids ids) NEQ)  :: G').
+forall NEP NEQ,
+  semax_func V G ge ((id, External ef argtypes retsig cc)::fs)
+       ((id, mk_funspec (params, retsig) cc A nP Q 
+                 (*(rename_pre_super_non_expansive NEP nids ids*)NEP NEQ)  :: G').
 (*WAS:  semax_func V G ge ((id, External ef argsig retsig cc)::fs)
        ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G')*)
 Proof.
 intros until ids.
-intros b (*Hids*) LNRids nids nP Hargsig' Hef Hni Hlen Hinline Hretty B1 B2 H [Hf' [GC Hf]].
+intros b (*Hids*) LNRids nids nP Hparams Hef Hni Hlen Hinline Hretty B1 B2 H [Hf' [GC Hf]].
 assert (LenNids: length nids = length ids) by (subst nids; apply length_normalparams).
 
 (*assert (LNR': params_LNR (Some (mk_funspec (argsig', retsig) cc A P Q NEP NEQ))).
 {  clear - LNR Hids. simpl.  unfold params_of_funspec. simpl. rewrite <- Hids; trivial. }*)
-rewrite Hargsig' in *.  clear (*Hids*) Hargsig' argsig'.
+rewrite Hparams in *.  clear (*Hids*) Hparams params.
 apply id_in_list_false in Hni.
 split.
 { hnf; simpl; f_equal; auto.
@@ -744,8 +745,8 @@ unfold believe_external; simpl; rewrite if_true; trivial.
 unfold fundef in GE2; unfold fundef; simpl; rewrite GE2.
 (*assert (Hty: map fst (zip_with_tl ids argsig) = ids).
 { clear - Hids. Hlen. revert argsig Hlen. induction ids; auto.*)
-assert (Hnids: fst (split (zip_with_tl nids argsig)) = nids).
-{ apply (@fst_split_zip _ nids argsig). (* rewrite fst_split; intros X; apply X.*)
+assert (Hnids: fst (split (zip_with_tl nids argtypes)) = nids).
+{ apply (@fst_split_zip _ nids argtypes). (* rewrite fst_split; intros X; apply X.*)
   rewrite LenNids, Hlen; reflexivity. }
 (*
 assert (Hnids: map fst (zip_with_tl nids argsig) = nids).
@@ -1502,7 +1503,7 @@ pose proof eq_dec_statement.
 repeat (hnf; decide equality; auto).
 Qed.
 
-Lemma initial_jm_funassert V (prog : Clight.program) m G n H H1 H2 (LNR_G: forall i : ident, params_LNR (find_id i G)):
+Lemma initial_jm_funassert V (prog : Clight.program) m G n H H1 H2:
 (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
 (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
@@ -1518,7 +1519,7 @@ pose proof initial_mem_core as E.
 unfold juicy_mem_core in *. erewrite E; try reflexivity.
 Qed.
 
-Lemma initial_jm_ext_funassert (ora : OK_ty) V (prog : Clight.program) m G n H H1 H2 (LNR_G: forall i : ident, params_LNR (find_id i G)):
+Lemma initial_jm_ext_funassert (ora : OK_ty) V (prog : Clight.program) m G n H H1 H2:
 (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
 (m_phi (initial_jm_ext ora prog m G n H H1 H2)).
 Proof.
@@ -1554,9 +1555,25 @@ Proof.
   intros; repeat constructor.
 Qed.
 
+Lemma semax_func_funspecs_normalized {cs ge H V funs G} (SF: @semax_func V H cs ge funs G):
+      forall i phi, find_id i G = Some phi -> funspec_normalized phi = true.
+Proof. intros. eapply match_fdecs_normalized. apply SF. eassumption. Qed. 
+
+Lemma semax_func_funspecs_LNR {cs ge H V funs G} (SF: @semax_func V H cs ge funs G):
+      forall i phi, find_id i G = Some phi -> list_norepet (map fst (params_of_funspec phi)).
+Proof. intros. apply normalized_params_LNR. apply (semax_func_funspecs_normalized SF _ _ H0). Qed.
+
+Lemma semax_prog_funspecs_normalized {CS prog z V G} (SP: @semax_prog CS prog z V G):
+      forall i phi, find_id i G = Some phi -> funspec_normalized phi = true.
+Proof. intros. eapply semax_func_funspecs_normalized. apply SP. eassumption. Qed.
+
+Lemma semax_prog_funspecs_LNR {CS prog z V G} (SP: @semax_prog CS prog z V G):
+      forall i phi, find_id i G = Some phi -> list_norepet (map fst (params_of_funspec phi)).
+Proof. intros. apply normalized_params_LNR. eapply (semax_prog_funspecs_normalized SP _ _ H). Qed.
+
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun params args A 
    (P Q: forall ts : list Type, (dependent_type_functor_rec ts (AssertTT A)) mpred)
-  NEP NEQ h z (LNR_G: forall i : ident, params_LNR (find_id i G)):
+  NEP NEQ h z:
   let retty := tint in
   postcondition_allows_exit retty ->
   @semax_prog CS prog z V G ->
@@ -1651,8 +1668,8 @@ assert  (TC5: typecheck_glob_environ (filter_genv psi) (glob_types Delta)). {
      apply compute_list_norepet_e; auto.
 }
 (*NEW*) assert (DeltaLNR: forall i phi, (glob_specs Delta) ! i = Some phi -> params_LNR (Some phi)).
-        { subst Delta. simpl. intros. rewrite make_tycontext_s_find_id in H. specialize (LNR_G i).
-          rewrite H in LNR_G; apply LNR_G. }
+        { subst Delta. simpl. intros. rewrite make_tycontext_s_find_id in H. clear - MatchFdecs H.
+          eapply match_fdecs_LNR; eassumption. }
 
 clearbody Delta.
 forget cc_default as cc.
@@ -2083,7 +2100,7 @@ congruence.
 Qed.
 
 Lemma semax_prog_rule {CS: compspecs} :
-  forall V G prog m h z (LNR_G: forall i : ident, params_LNR (find_id i G)),
+  forall V G prog m h z,
      postcondition_allows_exit tint ->
      @semax_prog CS prog z V G ->
      Genv.init_mem prog = Some m ->
@@ -2102,7 +2119,7 @@ Lemma semax_prog_rule {CS: compspecs} :
            (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 Proof.
-  intros until z. intros LNR_G EXIT. intros. rename H0 into H1. 
+  intros until z. intros EXIT. intros. rename H0 into H1.
   generalize H; intros [? [AL [HGG [[? [GC ?]] [GV ?]]]]].
   destruct (find_id (prog_main prog) G) as [fspec|] eqn:Hfind; try contradiction.
   assert (H4': exists post, In (prog_main prog, main_spec_ext' prog z post) G 
@@ -2141,7 +2158,7 @@ Proof.
   }
   subst retty.
   assert (SPEP := semax_prog_entry_point V G prog b (prog_main prog)
-       params nil A P Q NEP NEQ h z LNR_G EXIT H H5 Hfind).
+       params nil A P Q NEP NEQ h z (*LNR_G*) EXIT H H5 Hfind).
   spec SPEP. subst params; constructor.
   set (rho1 := make_args (map fst params) nil (empty_environ (globalenv prog))) in *.
   cbv beta iota zeta in SPEP.
@@ -2185,8 +2202,7 @@ Proof.
         split; [apply resource_at_core_identity|].
         unfold ext_ghost; repeat f_equal.
         apply proof_irr.
-    *
-      pose proof (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
+    * pose proof (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
       apply (funassert_rho _ (empty_environ (globalenv prog))).
       reflexivity. auto.
 +
@@ -2194,7 +2210,7 @@ Proof.
 +
   apply initial_jm_ext_matchfunspecs.
 +
-  apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2 LNR_G).
+  apply (initial_jm_ext_funassert z V prog m G n H1 H0 H2).
 Qed.
 
 Lemma match_fdecs_length funs K:

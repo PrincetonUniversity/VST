@@ -2002,3 +2002,47 @@ induction s; intros.
  simpl in *. destruct a0; inv H; auto.
  rewrite <- (IHs a0 rho); auto.
 Qed.
+
+Definition normalize_funspec (fs:funspec):funspec :=
+  match fs with mk_funspec sig cc A P Q NEP NEQ =>
+    match sig with (params, rt) =>
+    let np := normalparams (length params) in
+    mk_funspec (combine np (map snd params), rt) cc A 
+          (fun ts (x:dependent_type_functor_rec ts A mpred) => port np (map fst params) (P ts x)) 
+          Q (port_super_nonexpansive NEP) NEQ 
+  end end.
+
+Lemma normalize_funspec_is_normalized fs: funspec_normalized (normalize_funspec fs) = true.
+Proof.
+destruct fs. destruct f. simpl. unfold funspec_normalized. simpl. apply norm_char. 
+rewrite fst_combine, combine_length; rewrite length_normalparams, map_length; trivial.
+rewrite Nat.min_id; trivial.
+Qed.
+
+Definition rename_pre {A} (ids1 ids2:list ident)(P: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap).
+Proof.
+  intros ts x rho.
+  apply (P ts x (mkEnviron (ge_of rho) (ve_of rho) (tr (combine ids1 ids2) (te_of rho)))).
+Defined.
+
+Lemma  rename_port_eq {A ts} {x:dependent_type_functor_rec ts A (pred rmap)} {ids1 ids2:list ident} P:
+  (@rename_pre A ids1 ids2 P) ts x = port ids2 ids1 (P ts x).
+Proof. reflexivity. Qed.
+
+(*move to seplog?*)
+
+Lemma rename_pre_super_non_expansive {A} {P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred}
+      (NEP : super_non_expansive P) ids1 ids2:
+      super_non_expansive (rename_pre ids1 ids2 P).
+Proof. unfold rename_pre; simpl. red; intros. apply NEP. Qed.
+
+Lemma rename_pre_trans {A l1 l2 l3} {P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred}
+      (L31: length l3 = length l1) (L12: length l1 = length l2)
+      (LNR1: list_norepet l1) (LNR2: list_norepet l2) (LNR3: list_norepet l3):
+      rename_pre l2 l1 (rename_pre l1 l3 P) = rename_pre l2 l3 P.
+Proof.
+  unfold rename_pre. simpl. extensionality ts. extensionality x. extensionality rho.
+  rewrite tr_trans; trivial.
+Qed.
+

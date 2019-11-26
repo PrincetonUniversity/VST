@@ -258,7 +258,7 @@ Lemma semax_prog_sound :
 Proof.
   intros; apply H.
 Qed.
-
+Locate semax_prog_rule.
 Definition semax_prog_rule := @semax_prog_rule.
 
 End VericSound.
