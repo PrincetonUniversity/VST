@@ -61,15 +61,7 @@ assert_PROP (force_val (sem_add_ptr_int tuint Signed p (eval_unop Oneg tint (Vin
 
 (* Now "forward" succeeds, but leaves a goal open to be proved manually: *)
 forward.
-(*
-{ entailer!.
-  change (eval_unop Oneg tint (Vint (Int.repr 1))) with (Vint (Int.neg (Int.repr 1))) in H.
-  rewrite H0.
-  apply isptr_field_address_lemma.
-  auto with field_compatible.
-}
-*)
-forward.
+entailer!.
 rewrite upd_Znth0. rewrite sublist_1_cons. rewrite Zlength_cons.
 rewrite ?Zlength_map. replace (Z.succ (Zlength contents) - 1) with (Zlength contents) by omega.
 rewrite sublist_same by (rewrite ?Zlength_map; reflexivity).
@@ -93,7 +85,7 @@ assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr
 }
 (* p->snd = v; *)
 forward.
-forward.
+entailer!.
 Qed.
 
 Lemma body_set22_full_expr: semax_body Vprog Gprog f_set22 set22_spec.
@@ -116,8 +108,7 @@ assert_PROP (
 }
 (* int res = p->snd; *)
 forward.
-(* return res; *)
-forward.
+entailer!.
 Qed.
 
 Lemma body_set22_alt: semax_body Vprog Gprog f_set22 set22_spec.
@@ -138,6 +129,5 @@ assert_PROP (offset_val 8 (force_val (sem_add_ptr_int (Tstruct _pair_pair noattr
 rewrite E. clear E.
 (* int res = p->snd; *)
 forward.
-(* return res; *)
-forward.
+entailer!.
 Qed.

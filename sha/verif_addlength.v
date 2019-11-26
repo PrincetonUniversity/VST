@@ -210,7 +210,7 @@ forward_if (temp _cNh (Vint (Int.repr (Int.unsigned (hi_part n) + carry)))).
  forward. (* cNh += (len>>29); *)
  forward. (* c->Nl=l; *)
  forward. (* c->Nh=cNh; *)
- forward. (* return; *)
+ entailer!. (* return; *)
  subst carry.
  clear - MN BOUND H Hn.
  apply derives_refl'; f_equal.

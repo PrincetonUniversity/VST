@@ -20,7 +20,7 @@ Proof.
   forward.
   forward.
   forward.
-  forward.
+  entailer!.
 Qed.
 
 Lemma body_start_read : semax_body Vprog Gprog f_start_read start_read_spec.
@@ -148,5 +148,5 @@ Proof.
     intro Heq; rewrite Heq in *; contradiction. }
   forward.
   forward.
-  forward.
+  entailer!.
 Qed.
