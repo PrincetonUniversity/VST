@@ -76,7 +76,7 @@ Proof.
 intros. rewrite Znth_map; auto.
 Qed.
 Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _))) =>
-  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; omega).
+  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; omega) : core.
 
 Definition minimum_spec :=
  DECLARE _minimum
