@@ -759,7 +759,7 @@ Proof.
 Qed.
 
 (* HERE no overlap *) 
-Definition maps_no_overlap {A} (f:meminj) (p1 p2: PMap.t (Z -> option A)):=
+Definition maps_no_overlap {A B} (f:meminj) (p1: PMap.t (Z -> option A)) (p2: PMap.t (Z -> option B)):=
   forall (b1 b1' : block) (delta1 : Z) (b2 b2' : block) (delta2 ofs1 ofs2 : Z),
     b1 <> b2 ->
     f b1 = Some (b1', delta1) ->
@@ -769,7 +769,7 @@ Definition maps_no_overlap {A} (f:meminj) (p1 p2: PMap.t (Z -> option A)):=
     b1' <> b2' \/ ofs1 + delta1 <> ofs2 + delta2.
 
 Definition map_no_overlap {A} (f:meminj) p:=
-  @maps_no_overlap A f p p.
+  @maps_no_overlap A A f p p.
 
 Lemma meminj_no_overlap_maps_no_overlap:
   forall m mu,
@@ -1078,8 +1078,8 @@ Definition map_no_overlap' {A} (f:meminj) (perm: PMap.t (Z -> option A)):=
     at_least_Some  (perm !! b2 ofs2) ->
     b1' <> b2' \/ ofs1 + delta1 <> ofs2 + delta2.
 
-Definition maps_no_overlap_contra {A} (mu:meminj)
-           (p p': PMap.t (Z -> option A)):=
+Definition maps_no_overlap_contra {A B} (mu:meminj)
+           (p: PMap.t (Z -> option A)) (p': PMap.t (Z -> option B)):=
   forall b1 b1' b2 delt delt',
     mu b1 = Some(b2, delt) ->
     mu b1' = Some(b2, delt') ->
@@ -1091,8 +1091,8 @@ Definition maps_no_overlap_contra {A} (mu:meminj)
 Definition map_no_overlap_contra {A} (mu:meminj) (p: PMap.t (Z -> option A)):=
   maps_no_overlap_contra mu p p.
 Lemma no_overlapp_iff:
-  forall A mu p1 p2,
-    @maps_no_overlap A mu p1 p2 <-> maps_no_overlap_contra mu p1 p2.
+  forall A B mu p1 p2,
+    @maps_no_overlap A B mu p1 p2 <-> maps_no_overlap_contra mu p1 p2.
 Proof.
   intros; unfold maps_no_overlap_contra, maps_no_overlap.
   split; intros H **.
@@ -1230,8 +1230,8 @@ Definition perm_perfect_image_pair mu:=
   pair2_prop (perm_perfect_image mu).
 Hint Unfold perm_perfect_image_pair: pair.
 
-Definition maps_no_overlap_pair {A} mu:=
-  pair2_prop (@maps_no_overlap A mu).
+Definition maps_no_overlap_pair {A B} mu:=
+  pair2_prop (@maps_no_overlap A B mu).
 Hint Unfold maps_no_overlap_pair: pair.
 
 Definition permMapLt_pair2:= pair2_prop permMapLt.
@@ -2558,6 +2558,6 @@ Proof.
     rewrite H; reflexivity.
 Qed.
 
-Instance sub_map_virtue_proper:
+(*Instance sub_map_virtue_proper:
   Proper (Logic.eq ==> access_map_equiv ==> iff) sub_map_virtue.
-Admitted.
+Admitted. *)
