@@ -6,7 +6,7 @@ Require Import VST.floyd.local2ptree_denote.
 Require Import VST.floyd.local2ptree_eval.
 Import LiftNotation.
 Local Open Scope logic.
-
+(*NOW in veric/seplog.v
 Definition NDfunspec_sub (f1 f2 : funspec) :=
 let Delta1 := funsig_tycontext (funsig_of_funspec f1) in
 let Delta2 := funsig_tycontext (funsig_of_funspec f2) in
@@ -22,6 +22,26 @@ let Delta2 := funsig_tycontext (funsig_of_funspec f2) in
                              ((local (tc_environ Delta1)) && (`F * (port ids1 ids2) (P1 nil x1)) &&
                               (!! (ENTAIL (ret0_tycon Delta1), `F * Q1 nil x1 
                                       |-- ((local (tc_environ (ret0_tycon Delta2))) && Q2 nil x2))))
+ | _ => False end
+ | _ => False end.*)
+
+(*
+Definition NDfunspec_sub (f1 f2 : funspec) :=
+let Delta1 := funsig_tycontext (funsig_of_funspec f1) in
+let Delta2 := funsig_tycontext (funsig_of_funspec f2) in
+ match f1 with
+ | mk_funspec fsig1 cc1 (rmaps.ConstType A1) P1 Q1 _ _ =>
+ match f2 with
+ | mk_funspec fsig2 cc2 (rmaps.ConstType A2) P2 Q2 _ _ =>
+   funsigs_match fsig1 fsig2 = true /\ cc1 = cc2 /\ 
+   let ids1 := map fst (fst fsig1) in
+   let ids2 := map fst (fst fsig2) in
+   forall x2,
+        ENTAIL Delta2, (port ids2 ids2) (P2 nil x2) |-- EX x1:_, EX F:mpred,
+                             ((*(local (tc_environ Delta1)) &&*) (`F * (port ids1 ids2) (P1 nil x1)) &&
+                              (!! (forall rho', 
+                                        ((local (tc_environ (ret0_tycon Delta1)) rho') && (F * (Q1 nil x1 rho')))
+                                           |-- ((local (tc_environ (ret0_tycon Delta2)) rho') && Q2 nil x2 rho'))))
  | _ => False end
  | _ => False end.
 
@@ -60,7 +80,7 @@ hnf; intros ? [TC X]. simpl in *. split; trivial. clear X. subst.
 destruct TC as [? [? ?]]; split3; trivial. simpl in *. clear - H2. 
 red; intros. destruct (H2 _ _ H) as [u [Hu TCu]]; clear H2.
 Admitted.
-
+*)
 Inductive empty_type : Type := .
 
 Definition withtype_of_NDfunspec fs := match fs with
@@ -89,17 +109,7 @@ Lemma NDfunspec_sub_refl:
    NDfunspec_sub (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
 Proof.
 intros.
-simpl.
-split3; auto. apply funsigs_match_refl; trivial.
-intros.
-Exists x2. Exists emp.
-unfold_lift.
-rewrite !emp_sepcon.
-apply andp_right. trivial.
-apply andp_left2; auto.
-apply prop_right.
-intros rho'.
-rewrite emp_sepcon. trivial.
+apply isNDfunspec_sub_refl; simpl; [ | intros; split]; trivial.
 Qed.
 
 Lemma NDfunspec_sub_trans:
@@ -107,43 +117,11 @@ Lemma NDfunspec_sub_trans:
    NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
    NDfunspec_sub (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
    NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
-Proof.
-intros.
-destruct H as [?E [?E H]]. 
-destruct H0 as [?E [?E H0]].
-subst.
-split3; auto. eapply funsigs_match_trans. eassumption. eassumption.
-hnf.
-intro x3; simpl in x3. hnf in H. hnf in H0.
-specialize (H0 x3).
-eapply ENTAIL_trans; [apply H0 | ].
-clear H0.
-Intros x2 F.
-simpl in x2.
-specialize (H x2).
-Admitted. (*
-eapply derives_trans.
-apply sepcon_ENTAIL.
-apply ENTAIL_refl.
-apply H.
-clear H.
-Intros x1. simpl in x1.
-Intros F1.
-Exists x1 (F*F1).
-apply andp_right.
-intro rho.
-unfold_lift. unfold local, lift1. simpl. normalize.
-rewrite sepcon_assoc. auto.
-apply prop_right.
-apply ENTAIL_trans with (`F * (`F1 * Q1 x1)).
-apply andp_left2.
-clear. unfold_lift; intro rho; simpl. rewrite sepcon_assoc; auto.
-simpl funsig_tycontext in *.
-eapply ENTAIL_trans; [ | apply H0].
-apply sepcon_ENTAIL.
-apply ENTAIL_refl.
- auto.
-Qed.*)
+Proof. intros.
+eapply isNDfunspec_sub_trans. 4: eassumption.
+all: simpl; trivial.
+all: intros; split; trivial.
+Qed.
 
 Lemma later_exp'' (A: Type) (ND: NatDed A)(Indir: Indir A):
       forall T : Type,

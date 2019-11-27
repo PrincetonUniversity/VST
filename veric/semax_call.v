@@ -3799,18 +3799,27 @@ assert (TCARGS: tc_environ (funsig_tycontext (clientparams, retty)) (make_args (
 
 specialize (ClientAdaptation ts x (make_args (map fst clientparams) args rho)). simpl in ClientAdaptation.
 
+assert (LNRcl:= funsigs_match_LNR2 NSC); simpl in LNRcl.
 destruct (ClientAdaptation w2') as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear ClientAdaptation.
-{ simpl; split; trivial. (*clear - W2 Age2.  apply W2. apply age_laterR; trivial.*)
-  rewrite make_args_eq in W2 by trivial.
-  rewrite make_args_eq by trivial. simpl.
-  apply age_laterR in Age2. specialize (W2 _ Age2). 
-  specialize (funsigs_match_LNR2 NSC); simpl fst; intros.
-  rewrite restrict_make_args'; trivial. }
+{ clear - LENargs LNRcl TCARGS Age2 W2.
+  simpl; split. 
+  + clear- LENargs LNRcl TCARGS.
+    subst rho; simpl in *.
+    rewrite make_args_eq in *; trivial. simpl; subst args. 
+    rewrite restrict_make_args'; trivial.
+  + rewrite make_args_eq in W2 by trivial.
+    apply age_laterR in Age2. specialize (W2 _ Age2). 
+    subst rho; simpl in *.
+    rewrite make_args_eq in *; trivial. simpl; subst args. 
+    rewrite restrict_make_args'; trivial. }
 rewrite ge_of_make_args, ve_of_make_args, make_args_eq in PreAdapt by trivial. 
 simpl te_of in PreAdapt; simpl in PostAdapt.
 
 hnf in PreAdapt. simpl funsig_of_funspec in *.
 clear W2 NEP P.
+assert (Len_Nargs_cl:= funsigs_match_arglengths NSC). simpl in Len_Nargs_cl.
+unfold restrict in PreAdapt; rewrite ! tr_trans in PreAdapt; trivial.
+
 destruct PreAdapt as [TCpreadapt PreAdapt].
 
 (*Environment that binds the arguments to the normalized identifiers nparams = 1, 2,3,...)*)
@@ -3848,7 +3857,7 @@ assert (ARGS: app_pred (|> (F0 rho *
         erewrite get_make_args'; try eassumption. trivial.
         unfold ident in *; rewrite <- LEN; trivial. 
       * rewrite get_tr_None. 2: rewrite snd_combine; [ | unfold ident in *; rewrite LEN]; trivial.
-        symmetry. apply  get_make_args_None'; trivial. }
+        symmetry. apply  get_make_args_None'; trivial. } 
     rewrite EnvsEq in PreAdapt.
     exists w1, w2; split. trivial. split. trivial. hnf; intros.
     destruct (age_later Age2 H); [ subst a' |].
@@ -4109,18 +4118,27 @@ specialize (ClientAdaptation ts x (make_args (map fst clientparams) args rho)). 
 
 assert (LW2': (level w >= level w2')%nat). { apply age_level in Age2. destruct (join_level _ _ _ J); omega. }
 
+assert (LNRcl:= funsigs_match_LNR2 NSC); simpl in LNRcl.
 destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear ClientAdaptation.
-{ simpl; split; trivial. (*clear - W2 Age2.  apply W2. apply age_laterR; trivial.*)
-  rewrite make_args_eq in W2 by trivial.
-  rewrite make_args_eq by trivial. simpl.
-  apply age_laterR in Age2. specialize (W2 _ Age2). 
-  specialize (funsigs_match_LNR2 NSC); simpl fst; intros.
-  rewrite restrict_make_args'; trivial. }
+{ clear - LENargs LNRcl TCARGS Age2 W2.
+  simpl; split. 
+  + clear- LENargs LNRcl TCARGS.
+    subst rho; simpl in *.
+    rewrite make_args_eq in *; trivial. simpl; subst args. 
+    rewrite restrict_make_args'; trivial.
+  + rewrite make_args_eq in W2 by trivial.
+    apply age_laterR in Age2. specialize (W2 _ Age2). 
+    subst rho; simpl in *.
+    rewrite make_args_eq in *; trivial. simpl; subst args. 
+    rewrite restrict_make_args'; trivial. }
 rewrite ge_of_make_args, ve_of_make_args, make_args_eq in PreAdapt by trivial. 
-simpl te_of in PreAdapt. hnf in PostAdapt.
+simpl te_of in PreAdapt; simpl in PostAdapt.
 
 hnf in PreAdapt. simpl funsig_of_funspec in *.
 clear W2 NEP P.
+assert (Len_Nargs_cl:= funsigs_match_arglengths NSC). simpl in Len_Nargs_cl.
+unfold restrict in PreAdapt; rewrite ! tr_trans in PreAdapt; trivial.
+
 destruct PreAdapt as [TCpreadapt PreAdapt].
 
 (*Environment that binds the arguments to the normalized identifiers nparams = 1, 2,3,...)*)
