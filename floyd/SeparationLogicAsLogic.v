@@ -258,8 +258,7 @@ Definition semax_body
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig))
-                      /\ check_normalized (fst fsig) = true) /\
+                      /\ list_norepet (map fst (fst fsig))) /\
 forall Espec ts x, 
   @semax C Espec (func_tycontext f V G nil)
       (Clight_seplog.close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) * stackframe_of f)
@@ -270,23 +269,34 @@ end.
 Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)(fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
     forall V G C ge, @semax_func Espec V G C ge nil nil
-| semax_func_cons:
-  forall {Espec: OracleKind},
-     forall fs id f fsig cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
-      andb (id_in_list id (map (@fst _ _) G))
-      (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
-        (semax_body_params_ok f)) = true ->
-      Forall
-         (fun it : ident * type =>
-          complete_type cenv_cs (snd it) =
-          true) (fn_vars f) ->
-       var_sizes_ok (f.(fn_vars)) ->
-       f.(fn_callconv) = cc ->
-       Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (Internal f) -> 
-      semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ)->
-      semax_func V G ge fs G' ->
-      semax_func V G ge ((id, Internal f)::fs)
-                 ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G')
+| semax_func_cons: forall {Espec:OracleKind} fs (id : ident)
+    (f : function) (fsig : funsig) (cc : calling_convention) A P Q
+    (NEP : @super_non_expansive A P) (NEQ : @super_non_expansive A Q) (V : varspecs)
+    (G G' : funspecs) (C : compspecs) (ge : Genv.t (Ctypes.fundef function) type) (b : block),
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok (f.(fn_vars)) ->
+   f.(fn_callconv) = cc ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+  semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ) ->
+
+  let ids := map fst (fst fsig) in
+  let argtypes := type_of_params (fst fsig) in
+  let retsig := snd fsig in
+  let nids := normalparams (length ids) in
+  let nP := rename_pre nids ids P in
+  let params := zip_with_tl nids argtypes in
+forall nNEP,
+  @semax_func Espec V G C ge fs G' ->
+  @semax_func Espec V G C ge ((id, Internal f)::fs)
+       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G')
+
 | semax_func_cons_ext: forall {Espec: OracleKind}
       (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
       (params:list (ident * type))
@@ -1356,7 +1366,7 @@ Proof. intros.  remember (funsigs_match (funsig_of_funspec phi1) (funsig_of_funs
   assert (HQ2: (fun rho0 : environ => Q2 ts x rho0) = Q2 ts x) by reflexivity. rewrite HQ2.
   eapply semax_pre; [ | apply SB2].
 
-  clear SB2 X1 HQ2. destruct X2 as [? [? [? ?]]]. subst. clear Q1_ne Q2_ne Q_ne Q1 Q2.
+  clear SB2 X1 HQ2. destruct X2 as [? [? ?]]. subst. clear Q1_ne Q2_ne Q_ne Q1 Q2.
   assert (L: length (map fst params) = length (map fst params2)).
   { clear - H1.
     assert (LL: length (map snd params) = length (map snd params2));

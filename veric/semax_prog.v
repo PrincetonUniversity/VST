@@ -204,12 +204,10 @@ Definition semax_body
 match spec with (_, mk_funspec fsig cc A P Q _ _) =>
   (map snd (fst fsig) = map snd (fst (fn_funsig f)) 
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst (fst fsig))
-                      /\ check_normalized (fst fsig) = true) /\
-forall Espec ts (x:dependent_type_functor_rec ts A mpred), 
-  let portP := (*port (map fst f.(fn_params)) (map fst (fst fsig))*) (P ts x) in
+                      /\ list_norepet (map fst (fst fsig))) /\
+forall Espec ts (x:dependent_type_functor_rec ts A mpred),
   semax Espec (func_tycontext f V G nil)
-      (fun rho => close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) portP(*was:(P ts x)*) rho * stackframe_of f rho)
+      (fun rho => close_precondition (map fst (fst fsig)) (map fst f.(fn_params)) (P ts x) rho * stackframe_of f rho)
        f.(fn_body)
       (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
 end.
@@ -505,9 +503,25 @@ Qed.
 
 Lemma semax_body_specparams_LNR {V CS G f spec}: @semax_body V G CS f spec -> params_LNR (Some(snd spec)).
 Proof. destruct spec; destruct f0. intros [[_ H] _]; apply H. Qed.
- 
+ (*
 Lemma semax_body_specnormalized {V CS G f spec}: @semax_body V G CS f spec -> funspec_normalized (snd spec) = true.
 Proof. destruct spec; destruct f0. intros [[_ H] _]; apply H. Qed.
+*)
+Lemma typelist2list_eq t: Clight_core.typelist2list t = typelist2list t .
+Proof. induction t; auto. Qed.
+
+Lemma length_typelist2list l: length (typelist2list (type_of_params l)) = length l.
+Proof. induction l; simpl. trivial. destruct a. simpl. rewrite IHl; trivial. Qed.
+
+Lemma snd_zip_with_tl: forall (l:list ident) t (L: length l = length (typelist2list t)), 
+      map snd (zip_with_tl l t) = typelist2list t.
+Proof. induction l; simpl; intros; destruct t; trivial; inv L.
+  simpl; rewrite IHl; trivial.
+Qed.
+
+Lemma typelist2list_of_type_of_params params:
+      snd (split params) = typelist2list (type_of_params params).
+Proof. rewrite snd_split; induction params; try destruct a; simpl; f_equal; auto. Qed.
 
 Lemma semax_func_cons: forall 
      fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
@@ -523,25 +537,44 @@ Lemma semax_func_cons: forall
    Genv.find_symbol ge id = Some b -> 
    Genv.find_funct_ptr ge b = Some (Internal f) -> 
   semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ) ->
+
+  let ids := map fst (fst fsig) in
+  let argtypes := type_of_params (fst fsig) in
+  let retsig := snd fsig in
+  let nids := normalparams (length ids) in
+  let nP := rename_pre nids ids P in
+  let params := zip_with_tl nids argtypes in
+forall nNEP,
   semax_func V G ge fs G' ->
   semax_func V G ge ((id, Internal f)::fs)
-       ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').
+       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G').
 Proof.
 intros until C.
-intros ge b H' COMPLETE Hvars Hcc Hb1 Hb2 H3 [HfsG' [Hfs HG]].
+intros ge b H' COMPLETE Hvars Hcc Hb1 Hb2 SB ids argtypes retsig nids nP params nNEP [HfsG' [Hfs HG]].
 apply andb_true_iff in H'.
 destruct H' as [Hin H'].
 apply andb_true_iff in H'.
 destruct H' as [Hni H]. 
-specialize (semax_body_specparams_LNR H3); intros LNR.
-specialize (semax_body_specnormalized H3); intros NORM.
+assert (LNRids: list_norepet ids) by apply SB.
+specialize (semax_body_specparams_LNR SB); intros LNR.
+assert (NORM: check_normalized params = true).
+{ subst nids params.
+  specialize (zip_with_normalized_normal argtypes). subst argtypes ids.
+  rewrite typelist2list_eq, length_typelist2list, map_length; trivial. }
+assert (Len1: length nids = length (typelist2list argtypes)).
+{ subst argtypes nids. rewrite length_normalparams, length_typelist2list.
+  subst ids. rewrite map_length; trivial. }
+assert (paramTypes: map snd params = map snd (fn_params f)).
+{ subst params. rewrite snd_zip_with_tl; trivial. subst argtypes.
+  rewrite <- typelist2list_of_type_of_params.
+  clear - SB. destruct SB as [[? _] _].
+  destruct f; simpl in *. rewrite snd_split, <- H; trivial. }
 split.
 { simpl. econstructor 2; auto.
-simpl.
-unfold type_of_function.
-clear - H3 Hcc. destruct H3 as [[? [? _]] _].
-rewrite (map_snd_typeof_params _ _ H).
-f_equal; auto. }
+  simpl. unfold type_of_function.
+  clear - SB Hcc Len1 paramTypes; subst; subst retsig.
+  destruct SB as [[? [Hret _]] _]; rewrite Hret. f_equal.
+  apply map_snd_typeof_params. rewrite paramTypes; trivial. }
 apply id_in_list_true in Hin. rewrite negb_true_iff in Hni.
 split.
 { hnf; intros. destruct H0; [ symmetry in H0; inv H0 | apply (Hfs _ _ H0)].
@@ -575,15 +608,12 @@ split. { specialize (HGG b). unfold fundef in HGG;  rewrite Hb2 in HGG; simpl in
 split; auto.
 split; auto.
 split; auto.
-destruct H1 as [id' [NEP' [NEQ' [? [NORM' [b' [? ?]]]]]]].
-symmetry in H4; inv H4.
+destruct H1 as [id' [NEP' [NEQ' [? [NORM' [b' [? Hbb']]]]]]].
+symmetry in Hbb'; inv Hbb'.
 destruct (eq_dec id id').
  - subst. simpl in H1. rewrite PTree.gss in H1.
-   inv H1; auto. 
-   simpl in NORM. unfold funspec_normalized in NORM. simpl in NORM.
-   clear - H3 H Hvars NORM. 
-   apply list_norepet_app in H.
-   destruct H3. intuition.
+   symmetry in H1; inv H1. apply inj_pair2 in H8. apply inj_pair2 in H7. subst Q' P'. simpl.
+   destruct SB. apply list_norepet_app in H. intuition.
  -
    specialize (H0 id); unfold fundef in H0. simpl in H0.  rewrite Hb1 in H0; simpl in H0.
    simpl in H2.
@@ -599,15 +629,15 @@ subst A' fsig cc'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
-destruct H3 as [_ H3]; specialize (H3 Espec ts x). 
-rename H3 into H4. (* destruct H3 as [Ann H4].*)
+destruct SB as [_ SB]; specialize (SB Espec ts x). 
+rename SB into H4. (* destruct H3 as [Ann H4].*)
 pose proof I.
 (*specialize (H4 n).*)specialize (H4 k).
 apply now_later. 
 rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
 apply (semax'_cenv_sub CSUB). (*apply (semax'_cssub CSUB).*)
 (*rewrite HGG.*)
-clear - H4 NK KW HDelta'.
+clear - H4 NK KW HDelta' Len1 NORM LNRids.
 rewrite semax_fold_unfold in H4|-*. intros gx DD CS' u WU [SUB GX] v UV BEL.
 assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
 { unfold func_tycontext, func_tycontext'. simpl.
@@ -629,14 +659,22 @@ apply sepcon_derives; auto.
 apply andp_left1.
 apply sepcon_derives; auto.
 apply andp_left2.
-auto.
+simpl. subst nP. rewrite rename_port_eq.
+assert (NIDS: nids = map fst params).
+{ subst params. specialize (@fst_split_zip _ nids argtypes).
+  rewrite fst_split. intros H; rewrite H; trivial. 
+  rewrite typelist2list_eq, Len1; trivial. } 
+rewrite NIDS. 
+apply port_close_precondition; trivial.
+  - rewrite <- NIDS; clear NIDS. subst  nids. apply normalparams_LNR. 
+  - rewrite <- NIDS; clear NIDS; subst nids. apply length_normalparams.
 * (***   Vptr b Ptrofs.zero <> v'  ********)
 apply (HG n v fsig cc' A' P' Q'); auto.
 destruct H1 as [id' [NEP' [NEQ' [? [NORM' ?]]]]].
 simpl in H1.
 destruct (eq_dec id id').
 subst. rewrite PTree.gss in H1.
-destruct H4 as [? [? ?]]. specialize (H0 id'); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0. unfold fundef in H4; simpl in H4; congruence.
+destruct H3 as [? [? ?]]. specialize (H0 id'); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0. unfold fundef in H3; simpl in H3; congruence.
 rewrite PTree.gso in H1 by auto.
 exists id', NEP', NEQ'; split; auto.
 Qed.
@@ -2660,7 +2698,7 @@ Proof.
   assert (HQ2: (fun rho0 : environ => Q2 ts x rho0) = Q2 ts x) by reflexivity. rewrite HQ2.
   eapply semax_pre; [ | apply SB2].
 
-  clear SB2 X1 HQ2. destruct X2 as [? [? [? ?]]]. subst. clear Q1_ne Q2_ne Q_ne Q1 Q2.
+  clear SB2 X1 HQ2. destruct X2 as [? [? ?]]. subst. clear Q1_ne Q2_ne Q_ne Q1 Q2.
   assert (L: length (map fst params) = length (map fst params2)).
   { clear - H1.
     assert (LL: length (map snd params) = length (map snd params2));
