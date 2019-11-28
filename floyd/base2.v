@@ -31,9 +31,19 @@ Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
  | External _ t t0 _ => (arglist 1 t, t0)
  end.
 
+(*WAS:
 Definition vacuous_funspec (fd: Clight.fundef): funspec :=
    mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) 
    (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+*)
+Definition vacuous_funspec (fd: Clight.fundef): funspec :=
+   match (funsig_of_fundef fd) with
+     (params, retty) =>
+   let nids := normalparams (length params) in
+   let nparams := zip_with_tl nids (type_of_params params) in 
+   mk_funspec (nparams, retty) (cc_of_fundef fd) 
+   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) 
+   (const_super_non_expansive _ _) (const_super_non_expansive _ _) end.
 
 Fixpoint augment_funspecs' (fds: list (ident * Clight.fundef)) (G:funspecs) : option funspecs :=
  match fds with

@@ -18,16 +18,14 @@ eapply semax_pre; [ |  apply sequential; apply semax_skip].
 destruct R; apply ENTAIL_refl.
 Qed.
 
-Definition vacuous_normalizedfunspec (fd: Clight.fundef): funspec :=
-   match (funsig_of_fundef fd) with
-     (params, retty) =>
-   let nids := normalparams (length params) in
-   let nparams := zip_with_tl nids (type_of_params params) in 
-   mk_funspec (nparams, retty) (cc_of_fundef fd) 
-   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) 
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _) end.
+(*copied from semax_prog*)
+Lemma snd_zip_with_tl: forall (l:list ident) t (L: length l = length (typelist2list t)), 
+      map snd (zip_with_tl l t) = typelist2list t.
+Proof. induction l; simpl; intros; destruct t; trivial; inv L.
+  simpl; rewrite IHl; trivial.
+Qed.
 
-Lemma semax_func_cons_ext_vacuous_normalized:
+Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs) ge
          (fs : list (ident * Clight.fundef)) (id : ident) (ef : external_function)
          (argsig : typelist) (retsig : type)
@@ -39,60 +37,45 @@ Lemma semax_func_cons_ext_vacuous_normalized:
          sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
          sig_res := opttyp_of_type retsig;
          sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
-       (*new*) Genv.find_symbol ge id = Some b ->
-       (*new*) Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+       Genv.find_symbol ge id = Some b ->
+       Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
        semax_func V G ge fs G' ->
        semax_func V G ge ((id, External ef argsig retsig cc) :: fs)
-         ((id, vacuous_normalizedfunspec (External ef argsig retsig cc)) :: G').
+         ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof. intros.
-unfold vacuous_normalizedfunspec.
-remember (External ef argsig retsig cc) as fd.
-remember (funsig_of_fundef fd); destruct f as [params retty].
-(*eapply semax_func_cons_ext.*)
-specialize (@semax_func_cons_ext Espec V G C ge fs id ef (type_of_params params) retty
-  (rmaps.ConstType Impossible)
-  (fun (_ : list Type)
-        (_ : functors.MixVariantFunctor._functor
-               (functors.MixVariantFunctorGenerator.fconst Impossible)
-               mpred) => FF)
-     (fun (_ : list Type)
-        (_ : functors.MixVariantFunctor._functor
-               (functors.MixVariantFunctorGenerator.fconst Impossible)
-               mpred) => FF)(*
-   (const_super_non_expansive Impossible
-        (fun (_ : list Type)
-           (_ : functors.MixVariantFunctor._functor
-                  (functors.MixVariantFunctorGenerator.fconst Impossible)
-                  mpred) => FF))
-     (const_super_non_expansive Impossible
-        (fun (_ : list Type)
-           (_ : functors.MixVariantFunctor._functor
-                  (functors.MixVariantFunctorGenerator.fconst Impossible)
-                  mpred) => FF))*)
-    params G' cc (map fst params) b LNR) . intros.
-assert (params = zip_with_tl (normalparams (Datatypes.length params))
-        (type_of_params params)).
-{ 
-subst fd. simpl in Heqf. inv Heqf.
-Locate arglist. (*
-specialize ( 
-simpl.
-eapply semax_func_cons_ext with (b0:=b); try reflexivity; auto.
-*
- clear.
- forget 1%positive as i.
- revert i; induction argsig; simpl; intros; auto.
- f_equal; auto.
-*
-  forget 1%positive as i.
+remember (funsig_of_fundef (External ef argsig retsig cc)) as sig.
+destruct sig as [params retty]. simpl in Heqsig; inv Heqsig.
+remember (normalparams (length (arglist 1 argsig))) as nids.
+remember (zip_with_tl nids (type_of_params (arglist 1 argsig)) ) as nparams.
+
+assert (L: length (map fst (arglist 1 argsig)) = length (typelist2list argsig)).
+{ forget 1%positive as i.
   clear.
-  revert i; induction argsig; simpl; intros; auto.
+  revert i; induction argsig; simpl; intros; auto. }
+assert (T: type_of_params (arglist 1 argsig) = argsig).
+{ forget 1%positive as i.
+  clear.
+  revert i; induction argsig; simpl; intros; auto. f_equal. auto. }
+assert (A: map snd (arglist 1 argsig) = typelist2list argsig).
+{ forget 1%positive as i.
+  clear.
+  revert i; induction argsig; simpl; intros; auto. f_equal. auto. }
+assert (N: nparams = zip_with_tl (normalparams (length (arglist 1 argsig))) (type_of_params (arglist 1 argsig))) by (subst; trivial).
+
+specialize (@semax_func_cons_ext Espec V G C ge fs id ef argsig retsig
+  (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) 
+nparams G' cc (map fst (arglist 1 argsig)) b LNR); intros.
+simpl in H4; unfold rename_pre in H4; simpl in H4.
+unfold vacuous_funspec; simpl; rewrite <- N.
+apply H4; clear H4 N; trivial.
+* rewrite Heqnparams, Heqnids, map_length, T; trivial.
+* rewrite H0. f_equal. rewrite Heqnparams. f_equal. rewrite T at 2.
+  apply semax_call.map_snd_typeof_params. rewrite snd_zip_with_tl. apply A.
+  rewrite Heqnids, length_normalparams, <- L, map_length; trivial. 
 * right. clear. hnf. intros. destruct X.
-*
-  intros. simpl. apply andp_left1, FF_left.
-*  apply semax_external_FF.
-Qed.*)
-Admitted.
+* intros. simpl. apply andp_left1, FF_left.
+* apply semax_external_FF.
+Qed.
 
 Lemma int_eq_false_e:
   forall i j, Int.eq i j = false -> i <> j.

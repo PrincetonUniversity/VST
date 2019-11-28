@@ -469,7 +469,7 @@ Ltac try_prove_tycontext_subVG L :=
      end end end.
 
 Ltac semax_func_cons L := 
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
  try_prove_tycontext_subVG L;
  first [eapply semax_func_cons;
            [ reflexivity
@@ -484,7 +484,7 @@ Ltac semax_func_cons L :=
              | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
              ]
         ];
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
+ repeat (eapply semax_func_cons_ext_vacuous; [ apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
  try apply semax_func_nil.
 
 (* This is a better way of finding an element in a long list. *)
@@ -516,9 +516,9 @@ intros.
 Qed.
 
 Ltac semax_func_cons_ext :=
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]);
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]);
   eapply semax_func_cons_ext;
-    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [ apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | left; reflexivity
     | semax_func_cons_ext_tc;
       try solve [apply typecheck_return_value; auto]
@@ -1391,7 +1391,8 @@ Tactic Notation "forward_call" constr(ts) constr(subsumes) constr(witness) :=
     fwd_call_dep ts subsumes witness.
 
 Tactic Notation "forward_call" constr(witness) :=
-    fwd_call_dep (@nil Type) funspec_sub_refl witness.
+    fwd_call_dep (@nil Type) funspec_sub_refl witness; 
+    try solve [apply compute_list_norepet_e; reflexivity].
 
 Tactic Notation "forward_call" constr(subsumes) constr(witness) := 
   fwd_call_dep (@nil Type) subsumes witness.
@@ -1427,7 +1428,8 @@ Ltac get_function_witness_type func :=
  in TA''.
 
 Ltac new_prove_call_setup :=
- prove_call_setup1 funspec_sub_refl;
+ prove_call_setup1 funspec_sub_refl; 
+ try solve [ apply compute_list_norepet_e; reflexivity];
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
@@ -3570,6 +3572,7 @@ Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_giv
 
 Ltac advise_forward_call :=
  prove_call_setup1 funspec_sub_refl;
+ try solve [apply compute_list_norepet_e; reflexivity];
  [ .. | 
  match goal with |- call_setup1 _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
   lazymatch A with
@@ -4532,7 +4535,7 @@ Ltac prove_semax_prog_old :=
         fail "Funspec of _main is not in the proper form"
     end
  ];
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]).
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]).
 
 (**************MATERIAL FOR NEW TACTIC prove_semax_prog STARTS HERE ***************)
 
@@ -4687,7 +4690,7 @@ Ltac prove_semax_prog_aux tac :=
  end;
  tac.
 
-Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB | ]).
+Ltac finish_semax_prog := repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]).
 
 Ltac prove_semax_prog := prove_semax_prog_aux finish_semax_prog.
 
