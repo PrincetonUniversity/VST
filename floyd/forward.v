@@ -423,6 +423,69 @@ Qed.
     intros H; apply H; clear H; [ constructor | trivial | intros; rewrite PTree.gleaf; simpl; trivial].
   Qed.
   
+Lemma normalize_funspec_find_id {G i}:
+      initial_world.find_id i (normalizeFunspecs G) = 
+       match initial_world.find_id i G with
+         None => None
+      | Some phi => Some (normalize_funspec phi)
+      end.
+Proof.
+  induction G; simpl; trivial. destruct a as [j phi]; simpl.
+  destruct (eq_dec i j); [ trivial | apply IHG]. 
+Qed.
+
+Lemma normalize_funspec_dom {G}: map fst (normalizeFunspecs G) = map fst G.
+Proof. induction G; simpl; [ | rewrite IHG]; trivial. Qed.
+
+Lemma type_of_normalize_funspec {phi}: type_of_funspec (normalize_funspec phi) = type_of_funspec phi.
+Proof. destruct phi as [[sig rt] cc A P Q Pne Qne]; simpl.
+  f_equal. apply semax_call.map_snd_typeof_params. rewrite snd_combine; trivial.
+  rewrite length_normalparams, map_length; trivial.
+Qed.
+
+Lemma semax_body_normalizeFunspecs {V G cs f phi} (SB: @semax_body V G cs f phi)
+      (LNR: list_norepet (map fst V ++ map fst G))
+      (LNRspecs: forall k, params_LNR (initial_world.find_id k G)):
+      @semax_body V (normalizeFunspecs G) cs f phi.
+Proof.
+eapply semax_body_subsumption. apply SB.
+apply tycontext_sub_i99. split; intros.
++ remember ((make_tycontext_g V G) ! id) as x.
+  destruct x; [ symmetry in Heqx| simpl; trivial]. simpl.
+  rewrite semax_prog.make_context_g_char in Heqx by trivial.
+  rewrite semax_prog.make_context_g_char.
+  2: rewrite normalize_funspec_dom; trivial.
+  rewrite initial_world.make_tycontext_s_find_id in *.
+  rewrite normalize_funspec_find_id.
+  destruct (initial_world.find_id id G); trivial. inv Heqx.
+  f_equal. apply type_of_normalize_funspec.
++ rewrite 2 initial_world.make_tycontext_s_find_id.
+  apply Clight_initial_world.normalizeFunspecs_subsumespec; trivial.
+  apply list_norepet_app in LNR. apply LNR.
+Qed.
+
+(*While we don't have at present a semax_body_funspec_sub, we have the following*)
+Lemma semax_body_normalizespec {V G cs f j phi} (SB: @semax_body V G cs f (j,phi)):
+      @semax_body V G cs f (j, normalize_funspec phi).
+Proof.
+destruct phi as [[sig rt] cc A P Q Pne Qne].
+destruct SB as [[X1 [X2 X3]] SB]. hnf. simpl fst in *; simpl snd in *; subst.
+rewrite snd_combine, fst_combine by (rewrite length_normalparams, map_length; trivial).
+split. 
++ clear SB. repeat split; trivial. apply normalparams_LNR.
++ intros.
+  eapply semax_pre; [ clear SB; intros | apply (SB Espec ts x) ].
+  simpl. intros rho. apply andp_left2. apply sepcon_derives. 2: trivial.
+  apply Clight_seplog.port_close_precondition; trivial.
+  apply normalparams_LNR. rewrite length_normalparams, map_length; trivial.
+Qed.
+
+Lemma semax_body_normalize {V G cs f j phi} (SB: @semax_body V G cs f (j,phi))
+      (LNR: list_norepet (map fst V ++ map fst G))
+      (LNRspecs: forall k, params_LNR (initial_world.find_id k G)):
+      @semax_body V (normalizeFunspecs G) cs f (j, normalize_funspec phi).
+Proof. apply semax_body_normalizespec. apply semax_body_normalizeFunspecs; trivial. Qed.
+
 Lemma subsume_spec_get:
   forall (s t: PTree.t funspec),
    Forall (fun x => subsumespec (Some (snd x)) (t ! (fst x))) (PTree.elements s) ->
@@ -435,6 +498,164 @@ rewrite Forall_forall in H.
 apply H in H1.
 auto.
 Qed.
+
+(****************** material for semax_func_cons_int tactic ************)
+
+Fixpoint check_paramsLNR (G:funspecs): bool :=
+  match G with
+    nil => true
+  | (i,phi)::G' => compute_list_norepet (map fst (params_of_funspec phi)) && check_paramsLNR G'
+  end.
+
+Lemma check_paramsLNR_sound {G}: check_paramsLNR G = true ->
+      forall k, params_LNR (initial_world.find_id k G).
+Proof.
+  induction G; simpl; trivial.
+  destruct a as [j phi]; rewrite andb_true_iff; intros [AA BB] k.
+  destruct (eq_dec k j); [subst | auto].
+  apply compute_list_norepet_e; trivial.
+Qed.
+
+Lemma mysemax_body_normalizeFunspecs {V G cs f phi GG} (SB: @semax_body V G cs f phi)
+      (LNR: list_norepet (map fst V ++ map fst G))
+      (LNRspecs: forall k, params_LNR (initial_world.find_id k G))
+      (HGG: GG = normalizeFunspecs G):
+      @semax_body V GG cs f phi.
+Proof. subst. apply semax_body_normalizeFunspecs; trivial. Qed.
+
+Lemma semax_func_cons_int: forall {Espec:OracleKind} V G C
+   (ge : Genv.t (Ctypes.fundef function) type) 
+    fs (id : ident) (f : function) params retsig cc A nP nNEP Q NEQ G'
+   (fsig : funsig) P GG NEP
+  (SB: semax_body V GG f (id, mk_funspec fsig cc A P Q NEP NEQ))
+  (TS: tycontext_sub (func_tycontext f V GG []) (func_tycontext f V G []))
+  (b : block),
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok (f.(fn_vars)) ->
+   f.(fn_callconv) = cc ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+
+  let ids := map fst (fst fsig) in
+  let argtypes := type_of_params (fst fsig) in
+  let nids := normalparams (length ids) in
+forall 
+  (Hretsig: retsig = snd fsig )
+  (HnP: nP = rename_pre nids ids P)
+  (Hparams: params = zip_with_tl nids argtypes),
+  @semax_func Espec V G C ge fs G' ->
+  @semax_func Espec V G C ge ((id, Internal f)::fs)
+       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G').
+Proof. intros.
+ assert (SB' : semax_body V G f (id, mk_funspec fsig cc A P Q NEP NEQ)).
+ { eapply semax_body_subsumption. apply SB. trivial. } 
+
+ specialize (@semax_func_cons Espec fs id f fsig cc A P Q NEP NEQ
+               V _ G' C ge b H H0 H1 H2 H3 H4 SB'). intros.
+hnf in H6. subst ids argtypes nids. subst nP params retsig.
+eapply H6; trivial. 
+Qed.
+
+Fixpoint match_specs {A} (G G': list (ident * A)) :=
+  match G with 
+    nil => True
+  | (i,fs)::t => initial_world.find_id i G' = Some fs /\ match_specs t G'
+  end.
+
+Lemma match_specs1 {A G G'}: match_specs G G' -> forall i,
+      sub_option (initial_world.find_id i G) (@initial_world.find_id A i G').
+Proof. unfold sub_option. 
+  induction G; intros.
++ simpl; trivial.
++ simpl in H. destruct a. destruct H. simpl. specialize (IHG H0 i). 
+  destruct (eq_dec i i0); subst; trivial.
+Qed.
+
+Lemma match_specs2 {V G G'} (LNR: list_norepet (map fst V ++ map fst G')): match_specs G G' -> forall i,
+      sub_option ((make_tycontext_g V G) ! i) ((make_tycontext_g V G') ! i).
+Proof.
+  induction G; intros.
++ simpl in H. rewrite semax_prog.make_tycontext_g_nilG_find_id.
+  remember (initial_world.find_id i V) as p. destruct p; trivial.
+  symmetry in Heqp. 
+  apply semax_prog.make_context_g_mk_findV_mk; trivial.
++ simpl in H. destruct a as [j fsj]. destruct H.
+  simpl.
+  rewrite PTree.gsspec.
+  destruct (peq i j); [ subst | apply (IHG H0)]. 
+  apply semax_prog.make_tycontext_s_g.
+  rewrite initial_world.make_tycontext_s_find_id; trivial.
+Qed.
+
+Lemma normalizedFunspecs_params_LNR {G}: forall i, 
+      params_LNR (initial_world.find_id i (normalizeFunspecs G)).
+Proof. intros.
+ rewrite normalize_funspec_find_id.
+ destruct (initial_world.find_id i G); simpl; trivial.
+ apply normalized_params_LNR. apply normalize_funspec_is_normalized.
+Qed.
+
+Lemma normalizeFunspec_subsumespec {G G'} (HGG': match_specs (normalizeFunspecs G) G') i:
+  subsumespec (initial_world.find_id i (normalizeFunspecs G)) (initial_world.find_id i G').
+Proof.
+  apply semax_prog.sub_option_subsumespec. 
+  apply match_specs1. trivial.
+  apply normalizedFunspecs_params_LNR.
+Qed.
+
+Lemma match_specs_tycontext_sub {V G G' f} (MS: match_specs G G')
+  (LNR_VG': list_norepet (map fst V ++ map fst G'))
+  (ParamsLNR_G: forall i, params_LNR (initial_world.find_id i G)):
+  tycontext_sub (func_tycontext f V G []) (func_tycontext f V G' []).
+Proof.
+  apply tycontext_sub_i99. split.
+  - apply match_specs2; trivial.
+  - intros. rewrite 2 initial_world.make_tycontext_s_find_id.
+    apply semax_prog.sub_option_subsumespec; trivial. 
+    apply match_specs1; trivial.
+Qed.
+
+Lemma match_specs_tycontext_sub_normal {V G G' f} (MS: match_specs (normalizeFunspecs G) G')
+  (LNRVG': list_norepet (map fst V ++ map fst G')):
+  tycontext_sub (func_tycontext f V (normalizeFunspecs G) [])
+                (func_tycontext f V G' []).
+Proof.
+  apply match_specs_tycontext_sub; trivial.
+  apply normalizedFunspecs_params_LNR.
+Qed.
+ 
+Ltac semax_func_cons_int L :=
+  eapply semax_func_cons_int;
+  [ apply (semax_body_normalize L);
+    [ (*LNR_VG*) apply compute_list_norepet_e; reflexivity
+    | (*LNR_G*)apply check_paramsLNR_sound; reflexivity ]
+  | apply match_specs_tycontext_sub;
+    [ repeat (split; [ trivial |]); simpl; trivial
+    | apply compute_list_norepet_e; reflexivity
+    | apply normalizedFunspecs_params_LNR ]
+  | reflexivity
+  | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
+  | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+  | reflexivity
+  | LookupID
+  | LookupB
+  | reflexivity
+  | extensionality ts; extensionality x; simpl fst; rewrite rename_port_eq; 
+    first [ reflexivity 
+          | simpl; rewrite <- port_trans; trivial; apply compute_list_norepet_e; reflexivity
+          | idtac]
+  | reflexivity
+  | ].
+
+
+(***********************end of material for semax_func_cons_int tactic *********)
+
 (*
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
@@ -471,15 +692,21 @@ Ltac try_prove_tycontext_subVG L :=
 Ltac semax_func_cons L := 
  repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
  try_prove_tycontext_subVG L;
- first [eapply semax_func_cons;
+ first [(*eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
            | reflexivity | LookupID | LookupB
            | try solve [apply L]; apply_semax_body L
-           | ]
+           | ]*)
+          semax_func_cons_int L
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             | left; reflexivity
+             | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
+             ]
+        | eapply semax_func_cons_ext_with_normalization;
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | left; reflexivity
              | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
              ]
@@ -515,9 +742,9 @@ intros.
  apply prop_right; auto.
 Qed.
 
-Ltac semax_func_cons_ext :=
+Ltac semax_func_cons_ext_with_normalization :=
  repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]);
-  eapply semax_func_cons_ext;
+  eapply semax_func_cons_ext_with_normalization;
     [ apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | left; reflexivity
     | semax_func_cons_ext_tc;
@@ -526,6 +753,26 @@ Ltac semax_func_cons_ext :=
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
+          | reflexivity
+          | reflexivity ]]]
+      || fail "Try 'eapply semax_func_cons_ext_with_normalization.'"
+              "To solve [semax_external] judgments, do 'eapply semax_ext_with_normalization.'"
+              "Make sure that the Espec declared using 'Existing Instance'
+               is defined as 'add_funspecs NullExtension.Espec Gprog.'"
+    |
+    ].
+
+Ltac semax_func_cons_ext :=
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]);
+  eapply semax_func_cons_ext;
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | left; reflexivity
+    | semax_func_cons_ext_tc;
+      try solve [apply typecheck_return_value; auto]
+    | LookupID | LookupB
+    | solve[ first [eapply semax_ext;
+          [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
+          | apply extcall_lemmas.compute_funspecs_norepeat_e; reflexivity
           | reflexivity
           | reflexivity ]]]
       || fail "Try 'eapply semax_func_cons_ext.'"
@@ -2571,7 +2818,6 @@ Lemma semax_convert_for_while:
   @semax CS Espec Delta Pre (Sfor s1 e2 s4 s3) Post.
 Proof.
 intros.
-Locate semax_extract_prop.
 pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
 spec H2; auto.
 apply -> semax_seq_skip in H1; auto.

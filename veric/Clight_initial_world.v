@@ -17,6 +17,47 @@ Local Open Scope pred.
 
 Obligation Tactic := idtac.
 
+Lemma normalizeFunspecs_subsumespec: forall {G} (LNR: list_norepet (map fst G)) 
+  (K: forall k, params_LNR (find_id k G)) i,
+  subsumespec (find_id i G) (find_id i (normalizeFunspecs G)).
+Proof.
+induction G; simpl; trivial.
+destruct a as [j phi]; simpl; intros. inv LNR.
+specialize (IHG H2).
+spec IHG. 
+{ clear IHG; intros. specialize (K k).
+     remember (initial_world.find_id k G) as p. destruct p; simpl; trivial.
+     symmetry in Heqp.
+     destruct (eq_dec k j); subst.
+     + apply initial_world.find_id_In_map_fst in Heqp. contradiction. 
+     + apply K.  }
+destruct (eq_dec i j); [subst | auto].
+specialize (K j). rewrite if_true in K by trivial. simpl in K; split.
+trivial. eexists; split. reflexivity. clear - K.
+apply funspec_sub_sub_si. apply normalized_funspec_sub. apply K.
+Qed.
+
+Lemma normalizeFunspecs_subsumespec_inv: forall {G} (LNR: list_norepet (map fst G)) 
+  (K: forall k, params_LNR (find_id k G)) i,
+  subsumespec  (find_id i (normalizeFunspecs G)) (find_id i G).
+Proof.
+induction G; simpl; trivial.
+destruct a as [j phi]; simpl; intros. inv LNR.
+specialize (IHG H2).
+spec IHG. 
+{ clear IHG; intros. specialize (K k).
+     remember (initial_world.find_id k G) as p. destruct p; simpl; trivial.
+     symmetry in Heqp.
+     destruct (eq_dec k j); subst.
+     + apply initial_world.find_id_In_map_fst in Heqp. contradiction. 
+     + apply K.  }
+destruct (eq_dec i j); [subst | auto].
+specialize (K j). rewrite if_true in K by trivial. simpl in K; split.
++ apply normalized_params_LNR. apply normalize_funspec_is_normalized.
++ eexists; split. reflexivity.
+  apply funspec_sub_sub_si. apply normalized_funspec_subinv. apply K.
+Qed.
+
 (*
 Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: address) : resource :=
    if Z.eq_dec (snd loc) 0

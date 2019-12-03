@@ -90,6 +90,7 @@ Ltac cancel_for_forward_call ::=
   end;
   cancel_for_evar_frame.
 
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 (*  name lock _mutex; name lockt _tlock; name cond _cond; name data _data. *)
@@ -145,11 +146,11 @@ Qed.
 
 Definition extlink := ext_link_prog prog.
 
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink (normalizeFunspecs Gprog).
 Existing Instance Espec.
 
 Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
+  semax_prog prog tt Vprog (normalizeFunspecs Gprog).
 Proof.
 prove_semax_prog.
 do 11 semax_func_cons_ext.

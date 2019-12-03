@@ -25,14 +25,14 @@ Qed.
 
 (* The Espec for odd is different from the Espec for even;
   the former has only "even" as an external function, and vice versa. *)
-Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog odd.prog) Gprog.
+Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog odd.prog) (normalizeFunspecs Gprog).
 Existing Instance Espec.
 
 (* Can't prove   prog_correct: semax_prog prog Vprog Gprog
   because there is no _main function, so prove all_funcs_correct instead. *)
 Lemma all_funcs_correct:
-  semax_func Vprog Gprog (Genv.globalenv prog) (prog_funct prog) 
-   ltac:(old_with_library prog Gprog).
+  semax_func Vprog (normalizeFunspecs Gprog) (Genv.globalenv prog) (prog_funct prog) 
+  (ltac:(old_with_library prog (normalizeFunspecs Gprog))).
 Proof.
 semax_func_cons_ext.
 semax_func_cons body_odd.

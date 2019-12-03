@@ -877,19 +877,34 @@ Lemma subsume_insert:
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
-split3; auto.
-intros [[[b x] v] m].
+apply ESNDsubsume_NDsubsume.
+split; reflexivity.
+split. reflexivity. 
+split. reflexivity.
+split. apply compute_list_norepet_e. reflexivity. 
+intros [[[b x] v] m] rho rho2. (* w. simpl in rho2.*)
 unfold tmap_rep.
-Intros t.
-Exists (b, x, v, t).
-Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
-apply andp_right; auto.
-entailer!.
-apply prop_right.
-simplify_Delta.
-Exists (insert x v t).
-entailer!.
+apply predicates_hered.andp_left2.
+eapply predicates_hered.derives_trans with
+  (EX t:_, (PROP (Abs t m; Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
+    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
+    SEP (treebox_rep t b)) rho2).
+{ intros w [W1 [W2 [w3a [w3b [WJ [[t W3a] W3b]]]]]].
+  exists t. split. split. apply W3a. apply W1.
+  split. apply W2. exists w3a, w3b; split3; trivial. apply W3a. }
+intros w [t TW].
+exists (b, x, v, t).
+exists predicates_sl.emp.
+rewrite predicates_sl.emp_sepcon.
+destruct TW as [[ABS PR] TW].
+split. split; trivial.
+intros rho3. apply predicates_hered.andp_left2.
+rewrite predicates_sl.emp_sepcon.
+apply predicates_hered.andp_derives. trivial.
+apply predicates_hered.andp_derives. trivial.
+intros u [u1 [u2 [JU [U1 U2]]]].
+exists u1, u2; split3; trivial.
+exists (insert x v t). split; trivial.
 apply insert_relate; auto.
 Qed.
 
@@ -898,23 +913,27 @@ Lemma subsume_treebox_new:
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
-split3; auto.
-intros x. simpl in x.
-Exists x.
-Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
-apply andp_right; auto.
-apply prop_right.
-simplify_Delta.
-Intros v.
-Exists v.
-unfold tmap_rep.
-Exists (empty_tree val).
-unfold treebox_rep.
-Exists nullval.
-entailer!.
-constructor.
-simpl. entailer!. 
+apply ESNDsubsume_NDsubsume.
+split; reflexivity.
+split. reflexivity. 
+split. reflexivity.
+split. apply compute_list_norepet_e. reflexivity. 
+intros x rho rho2. simpl in x, rho2.
+apply predicates_hered.andp_left2.
+intros w W. exists x.
+exists predicates_sl.emp.
+rewrite ! predicates_sl.emp_sepcon.
+split; trivial.
+intros rho3 u [_ [u1 [u2 [JU [U1 [v [U2a [U2b U2c]]]]]]]]. simpl. 
+exists v. split3; trivial.
+apply sepalg.join_comm in JU.
+exists u2, u1; split3; trivial.
+destruct U2c as [w1 [w2 [JW [W1 W2]]]].
+unfold tmap_rep. 
+exists (empty_tree val).
+split. constructor.
+unfold treebox_rep. exists nullval.
+exists w1, w2; split3; trivial. constructor. constructor. trivial.
 Qed.
 
 Lemma subsume_treebox_free:
@@ -922,17 +941,23 @@ Lemma subsume_treebox_free:
 Proof.
 apply NDsubsume_subsume.
 split; reflexivity.
-split3; auto.
-intros [m p].
+apply ESNDsubsume_NDsubsume.
+split; reflexivity.
+split. reflexivity. 
+split. reflexivity.
+split. apply compute_list_norepet_e. reflexivity. 
+intros [m p] rho rho2.
+apply predicates_hered.andp_left2.
 unfold tmap_rep.
-Intros t.
-Exists (t,p).
-Exists emp.
-change (liftx emp) with (@emp (environ->mpred) _ _); rewrite !emp_sepcon.
-apply andp_right; auto.
-apply prop_right.
-simplify_Delta.
-entailer!.
+intros w [W1 [W2 [w1 [w2 [JW [[t [W3a W3b]] W3c]]]]]].
+unfold tmap_rep.
+exists (t,p).
+exists predicates_sl.emp.
+rewrite ! predicates_sl.emp_sepcon.
+split; trivial.
++ split3; trivial. exists w1, w2; split3; trivial.
++ constructor. trivial. trivial. destruct H.
+  rewrite ! predicates_sl.emp_sepcon in H0. apply H0.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.

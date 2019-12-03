@@ -278,11 +278,15 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition main_post (prog: program) : list Type -> (ident->val) -> assert :=
 (fun nil _ _ => TT).
 
-Definition main_spec_ext' {Z} (prog: program) (ora: Z)
+Definition main_spec_ext_nonnormalized' {Z} (prog: program) (ora: Z)
 (post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
 mk_funspec (nil, tint) cc_default
  (ConstType (ident->val)) (main_pre prog ora) post
    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition main_spec_ext' {Z} (prog: program) (ora: Z)
+(post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
+normalize_funspec (main_spec_ext_nonnormalized' prog ora post).
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
 mk_funspec (nil, tint) cc_default
@@ -709,7 +713,7 @@ destruct H2 as [? [? [? [? [? ?]]]]].
 contradiction.
 Qed.
 
-Lemma semax_func_cons_ext:
+Lemma semax_func_cons_ext_with_normalization:
 forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
       (params:list (ident * type))
       (G': funspecs) cc (ids: list ident) b,
@@ -806,6 +810,86 @@ intros ts x ret phi Hlev Hx Hnec. apply Hretty.
 (* **   Vptr b Ptrofs.zero <> v'  ********)
 apply (Hf n v' fsig' cc' A' P' Q'); auto.
 destruct H0 as [id' [NEP' [NEQ' [? [NORM ?]]]]].
+simpl in H0.
+destruct (eq_dec id id').
+- subst id'. rewrite PTree.gss in H0. inv H0.
+destruct H2 as [? [? ?]]; subst. unfold fundef in H0; simpl in H0. congruence.
+- exists id', NEP', NEQ'; split; auto.
+simpl. rewrite PTree.gso in H0 by auto; auto.
+Qed.
+
+(*This variant requires the spec to be already normalized, but is otherwise identical
+  to what was in VST previously*)
+Lemma semax_func_cons_ext:
+forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
+      argsig'
+      (G': funspecs) cc (ids: list ident) b,
+  ids = map fst argsig' -> (* redundant but useful for the client,
+           to calculate ids by reflexivity *)
+(*New*)  funspec_normalized (mk_funspec (argsig', retsig) cc A P Q NEP NEQ) = true -> 
+  argsig' = zip_with_tl ids argsig ->
+  ef_sig ef =
+  mksignature
+    (typlist_of_typelist (type_of_params argsig'))
+    (opttyp_of_type retsig) cc ->
+  id_in_list id (map (@fst _ _) fs) = false ->
+  length ids = length (typelist2list argsig) ->
+  (ef_inline ef = false \/ withtype_empty A) ->
+  (forall gx ts x (ret : option val),
+     (Q ts x (make_ext_rval gx ret)
+        && !!has_opttyp ret (opttyp_of_type retsig)
+        |-- !!tc_option_val retsig ret)) ->
+  Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+  (forall n, semax_external Espec ids ef A P Q n) ->
+  semax_func V G ge fs G' ->
+  semax_func V G ge ((id, External ef argsig retsig cc)::fs)
+       ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
+Proof.
+intros until ids.
+intros b Hids NORM Hargsig Hef Hni Hlen Hinline Hretty B1 B2 H [Hf' [GC Hf]].
+rewrite Hargsig in *.  clear Hids Hargsig argsig'.
+apply id_in_list_false in Hni.
+split.
+{ hnf; simpl; f_equal; auto.
+  constructor 2.
+  + simpl. f_equal.
+    clear -Hlen. revert ids Hlen; induction argsig; simpl; intros; auto.
+    destruct ids; auto.
+    destruct ids; auto. inv Hlen. simpl. f_equal; auto.
+  + auto.
+  + apply NORM. }
+split; [ clear - B1 B2 GC; red; intros; destruct H; [ symmetry in H; inv H; exists b; auto | apply GC; trivial] |].
+intros ge' GE1 GE2 ?.
+specialize (Hf ge' GE1 GE2). 
+unfold believe.
+intros v' fsig' cc' A' P' Q'.
+apply derives_imp. clear n. intros n ?. 
+specialize (GE1 id); simpl in GE1. unfold fundef in GE1; rewrite B1 in GE1; simpl in GE1. 
+specialize (GE2 b); simpl in GE2. unfold fundef in GE2; rewrite B2 in GE2; simpl in GE2.
+destruct (eq_dec  (Vptr b Ptrofs.zero) v') as [?H|?H].
++ subst v'.
+left.
+specialize (H n).
+destruct (semax_func_cons_aux {| genv_genv := ge'; genv_cenv := cenv_cs |} _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ GE1 Hni Hf' H0)
+as [H4' [H4'' [H4 [H4b H4c]]]].
+subst A' fsig' cc'.
+apply JMeq_eq in H4b.
+apply JMeq_eq in H4c.
+subst P' Q'.
+unfold believe_external; simpl; rewrite if_true; trivial. 
+unfold fundef in GE2; unfold fundef; simpl; rewrite GE2.
+assert (Hty: map fst (zip_with_tl ids argsig) = ids).
+{ clear -Hlen. revert argsig Hlen. induction ids; auto.
+simpl; intros. destruct argsig; auto. inv Hlen.
+simpl. f_equal. auto. }
+rewrite fst_split. simpl map. rewrite Hty.
+split; auto.
+split; auto. split; auto.
+intros ts x ret phi Hlev Hx Hnec. apply Hretty.
++
+(* **   Vptr b Ptrofs.zero <> v'  ********)
+apply (Hf n v' fsig' cc' A' P' Q'); auto.
+destruct H0 as [id' [NEP' [NEQ' [? [NORM' ?]]]]].
 simpl in H0.
 destruct (eq_dec id id').
 - subst id'. rewrite PTree.gss in H0. inv H0.
@@ -2709,6 +2793,23 @@ Proof.
   apply port_close_precondition; trivial.
 Qed.
 
+(*While we don't have at present a semax_body_funspec_sub, we have the following*)
+(*Now derived in forward.v:
+Lemma semax_body_normalize {V G cs f j phi} (SB: @semax_body V G cs f (j,phi)):
+      @semax_body V G cs f (j, normalize_funspec phi).
+Proof. clear Espec.
+destruct phi as [[sig rt] cc A P Q Pne Qne].
+destruct SB as [X SB]. hnf. simpl fst in *; simpl snd in *; subst.
+rewrite snd_combine, fst_combine by (rewrite length_normalparams, map_length; trivial).
+split. 
++ clear SB. intuition. apply normalparams_LNR.
++ intros. specialize (SB Espec ts x). 
+  eapply semax_pre; [ clear SB; intros | apply SB].
+  simpl. intros w [W1 W2]. 
+  eapply sepcon_derives; [ eapply port_close_precondition | apply derives_refl | apply W2].
+  apply X. apply normalparams_LNR. rewrite length_normalparams, map_length; trivial.
+Qed.
+*)
 End semax_prog.
 
       (*

@@ -1875,7 +1875,8 @@ Proof.
 Qed.
 
 Lemma func_tycontext_sub : forall f V G A V2 G2 (HV : incl V V2) (HG : incl G G2)
-  (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
+  (Hdistinct : NoDup (map fst V2 ++ map fst G2))
+  (ParamsLNR2: forall i : ident, params_LNR (initial_world.find_id i G2)),
   tycontext_sub (func_tycontext f V G A) (func_tycontext f V2 G2 A).
 Proof.
   intros.
@@ -1909,7 +1910,11 @@ Proof.
       change (@PTree.set) with @ptree_set in IHG.
       fold make_tycontext_s in *.
       destruct (peq id i); eauto; subst; simpl.
-      * exists f0; split; [ | apply funspec_sub_si_refl].
+      * specialize (ParamsLNR2 i). 
+        rewrite (initial_world.find_id_i _ _ _  H1) in ParamsLNR2
+          by (apply list_norepet_NoDup; trivial).
+        split. trivial.
+        exists f0; split; [ | apply funspec_sub_si_refl; trivial].
         apply make_tycontext_s_distinct with (a:=(i,f0)); auto.
       * apply IHG; auto.
   - apply Annotation_sub_refl.
@@ -1917,7 +1922,8 @@ Qed.
 
 (* This lets us use a library as a client. *)
 Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
-  (HV : incl V V2) (HG : incl G G2) (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
+  (HV : incl V V2) (HG : incl G G2) (Hdistinct : NoDup (map fst V2 ++ map fst G2))
+  (ParamsLNR2: forall i : ident, params_LNR (initial_world.find_id i G2)),
   semax_body V G f s -> semax_body V2 G2 f s.
 Proof.
   unfold semax_body; intros.
@@ -3306,7 +3312,7 @@ Ltac cancel_for_forward_spawn :=
    | fold_abnormal_mpred
    | cbv beta iota delta [before_symbol_cancel]; cancel_for_forward_call].
 
-Ltac forward_spawn id arg wit :=
+Ltac forward_spawnSP SubProof id arg wit :=
   match goal with gv : globals |- _ =>
   make_func_ptr id; let f := fresh "f_" in set (f := gv id);
   match goal with |- context[func_ptr' (NDmk_funspec _ _ (val * ?A) ?Pre _) f] =>
@@ -3320,4 +3326,6 @@ Ltac forward_spawn id arg wit :=
         instantiate (1 := fun '(a, b) => _ a) in (Value of R));
       etransitivity; [|symmetry; apply PROP_into_SEP]; f_equal; f_equal ; [instantiate (1 := fun _ => _) in (Value of Q); subst y Q; f_equal; simpl; f_equal |
        unfold SEPx; extensionality; simpl; rewrite sepcon_emp; instantiate (1 := fun _ => _); reflexivity]];
-  forward_call [A] funspec_sub_refl (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn) end end.
+  forward_call [A] (*funspec_sub_refl*)SubProof (f, arg, Q, wit, R); subst Q R; [ .. | subst y f]; try (Exists y; subst y f; simpl; cancel_for_forward_spawn) end end.
+
+Ltac forward_spawn := forward_spawnSP (funspec_sub_refl LNR_spawn_spec).

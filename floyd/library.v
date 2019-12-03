@@ -36,7 +36,7 @@ Import ListNotations.
 Import String.
 
 Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
-  match f with mk_funspec sig _ A P Q _ _ =>
+  match (normalize_funspec f) with mk_funspec sig _ A P Q _ _ =>
     semax_external (map fst (fst sig)) ef A P Q
   end.
 

@@ -898,12 +898,22 @@ Definition main_pre {Z: Type} (prog: program) (ora: Z) : list Type -> globals ->
 
 Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=
   (fun nil _ _ => TT).
-
+(*
 Definition main_spec_ext' {Espec: OracleKind} (prog: program) (ora: OK_ty)
     (post: list Type -> globals -> environ -> mpred): funspec :=
   mk_funspec (nil, tint) cc_default
      (rmaps.ConstType globals) (main_pre prog ora) post
-       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).*)
+
+Definition main_spec_ext_nonnormalized' {Z} (prog: program) (ora: Z)
+(post: list Type -> (ident->val) -> environ -> mpred): funspec :=
+mk_funspec (nil, tint) cc_default
+ (rmaps.ConstType (ident->val)) (main_pre prog ora) post
+   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition main_spec_ext' {Z} (prog: program) (ora: Z)
+(post: list Type -> (ident->val) -> environ -> mpred): funspec :=
+normalize_funspec (main_spec_ext_nonnormalized' prog ora post).
 
 Definition main_spec_ext {Espec: OracleKind} (prog: program) (ora: OK_ty) : funspec :=
   mk_funspec (nil, tint) cc_default
@@ -1249,7 +1259,7 @@ Axiom semax_func_cons:
       semax_func V G ge ((id, Internal f)::fs)
            ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').*)
 
-Axiom semax_func_cons_ext: forall {Espec: OracleKind}
+Axiom semax_func_cons_ext_with_normalization: forall {Espec: OracleKind}
       (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
       (params:list (ident * type))
       (G': funspecs) cc (ids: list ident) b,
@@ -1282,7 +1292,7 @@ forall NEP NEQ,
   semax_func V G ge ((id, External ef argtypes retsig cc)::fs)
        ((id, mk_funspec (params, retsig) cc A nP Q 
                  (*(rename_pre_super_non_expansive NEP nids ids)*)NEP NEQ)  :: G').
-(*OLD:
+
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ
@@ -1290,6 +1300,7 @@ Axiom semax_func_cons_ext:
           (G': funspecs) cc (ids: list ident) b,
       ids = map fst argsig' -> (* redundant but useful for the client,
                to calculate ids by reflexivity *)
+(*New*)  funspec_normalized (mk_funspec (argsig', retsig) cc A P Q NEP NEQ) = true -> 
       argsig' = zip_with_tl ids argsig ->
       ef_sig ef =
       mksignature
@@ -1307,7 +1318,7 @@ Axiom semax_func_cons_ext:
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, External ef argsig retsig cc)::fs)
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
-*)
+
 Axiom semax_func_mono: forall  {Espec CS CS'} (CSUB: cspecs_sub CS CS') ge ge'
   (Gfs: forall i,  sub_option (Genv.find_symbol ge i) (Genv.find_symbol ge' i))
   (Gffp: forall b, sub_option (Genv.find_funct_ptr ge b) (Genv.find_funct_ptr ge' b))

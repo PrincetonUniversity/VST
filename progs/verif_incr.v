@@ -185,7 +185,7 @@ Proof.
     unfold cptr_lock_inv; Exists 0 0 0; entailer!. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
-  forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt).
+  forward_call (lockt, Ews, thread_lock_inv sh1 g1 g2 ctr lock lockt). 
   forward_spawn _thread_func nullval (sh1, g1, g2, gv).
   { erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
@@ -210,11 +210,11 @@ Proof.
 Qed.
 
 Definition extlink := ext_link_prog prog.
-Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink (normalizeFunspecs Gprog).
 Existing Instance Espec.
 
 Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
+  semax_prog prog tt Vprog (normalizeFunspecs Gprog).
 Proof.
 prove_semax_prog.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).

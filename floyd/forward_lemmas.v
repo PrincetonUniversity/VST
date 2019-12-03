@@ -62,7 +62,7 @@ assert (A: map snd (arglist 1 argsig) = typelist2list argsig).
   revert i; induction argsig; simpl; intros; auto. f_equal. auto. }
 assert (N: nparams = zip_with_tl (normalparams (length (arglist 1 argsig))) (type_of_params (arglist 1 argsig))) by (subst; trivial).
 
-specialize (@semax_func_cons_ext Espec V G C ge fs id ef argsig retsig
+specialize (@semax_func_cons_ext_with_normalization Espec V G C ge fs id ef argsig retsig
   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) 
 nparams G' cc (map fst (arglist 1 argsig)) b LNR); intros.
 simpl in H4; unfold rename_pre in H4; simpl in H4.

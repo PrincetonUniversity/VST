@@ -351,7 +351,7 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma prog_correct:
-  semax_prog prog tt Vprog Gprog.
+  semax_prog prog tt Vprog (normalizeFunspecs Gprog).
 Proof.
   prove_semax_prog.
   semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.

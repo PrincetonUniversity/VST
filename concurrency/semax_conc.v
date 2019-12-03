@@ -914,6 +914,9 @@ Definition spawn_spec := mk_funspec
   spawn_pre_nonexpansive
   spawn_post_nonexpansive.
 
+Lemma LNR_spawn_spec: list_norepet (map fst (fst (funsig_of_funspec (spawn_spec)))).
+Proof. apply compute_list_norepet_e. reflexivity. Qed.
+
 (*+ Adding the specifications to a void ext_spec *)
 
 Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=

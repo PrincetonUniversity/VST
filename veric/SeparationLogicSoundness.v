@@ -105,6 +105,7 @@ Definition semax_func_cons := @semax_func_cons.
 (* Definition semax_func_skip := @semax_func_skip. *)
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
+Definition semax_func_cons_ext_with_normalization := @semax_func_cons_ext_with_normalization.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
