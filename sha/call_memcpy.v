@@ -192,7 +192,7 @@ Lemma semax_call_id0_alt:
    (GLBL: (var_types Delta) ! id = None),
        (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
        (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
-   tfun = type_of_params argsig ->
+   tfun = type_of_params argsig -> list_norepet (map fst argsig) ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
                   && |>((`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))
                          * PROPx P (LOCALx Q (SEPx R)))))
@@ -208,7 +208,7 @@ apply (@semax_call_id0 Espec cs Delta P Q R id bl (NDmk_funspec (argsig, retty) 
                   (fun _ => Pre) (fun _ => Post)
                (const_super_non_expansive _ _)
                (const_super_non_expansive _ _)); auto.
-apply funspec_sub_refl.
+apply funspec_sub_refl. apply H2.
 Qed.
 
 Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
@@ -307,7 +307,8 @@ pose (Frame :=
 eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
-       try (rewrite ?Hspec, ?Hglob; reflexivity)].
+       try (rewrite ?Hspec, ?Hglob; reflexivity);
+       try (apply compute_list_norepet_e; reflexivity) ].
 
 *
  rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
@@ -550,7 +551,8 @@ pose (Frame :=
 eapply semax_pre_post';
   [ | | eapply semax_call_id0_alt with (x:=witness)(P:=nil)(Q:=Q);
        try eassumption;
-       try (rewrite ?Hspec, ?Hglob; reflexivity)].
+       try (rewrite ?Hspec, ?Hglob; reflexivity);
+       try (apply compute_list_norepet_e; reflexivity)].
 *
  rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
  eapply derives_trans; [ apply andp_derives; [apply derives_refl | apply Hpre] | ].

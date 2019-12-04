@@ -154,6 +154,7 @@ Lemma seq_assocN:
   forall {Espec: OracleKind} CS,
    forall Q Delta P cs s R,
         @semax CS Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
+   forall (HDelta: forall i phi, (glob_specs Delta) ! i = Some phi -> params_LNR (Some phi)),
          @semax CS Espec
        Delta  Q s R ->
         @semax CS Espec Delta P (sequence cs s) R.
@@ -166,8 +167,8 @@ rewrite sequence_rsequence in H.
 rewrite <- semax_seq_skip in H.
 eapply semax_seq'; [apply H | ].
 eapply semax_Delta_subsumption; try apply H0.
-clear.
-apply tycontext_sub_refl.
+clear - HDelta.
+apply tycontext_sub_refl; trivial. 
 Qed.
 
 Fixpoint sequenceN (n: nat) (s: statement) : list statement :=

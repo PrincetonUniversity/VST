@@ -296,7 +296,7 @@ forall nNEP,
   @semax_func Espec V G C ge fs G' ->
   @semax_func Espec V G C ge ((id, Internal f)::fs)
        ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G')
-
+(*
 | semax_func_cons_ext_with_normalization: forall {Espec: OracleKind}
       (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
       (params:list (ident * type))
@@ -329,7 +329,7 @@ forall nNEP,
   forall NEP NEQ,
   semax_func V G ge ((id, External ef argtypes retsig cc)::fs)
        ((id, mk_funspec (params, retsig) cc A nP Q 
-                 (*(rename_pre_super_non_expansive NEP nids ids)*)NEP NEQ)  :: G')
+                 (*(rename_pre_super_non_expansive NEP nids ids)*)NEP NEQ)  :: G')*)
 
 | semax_func_cons_ext:
   forall {Espec: OracleKind},
@@ -1233,7 +1233,7 @@ Definition semax_func_nil := @AuxDefs.semax_func_nil (@Def.semax_external).
 
 Definition semax_func_cons := @AuxDefs.semax_func_cons (@Def.semax_external).
 
-Definition semax_func_cons_ext_with_normalization := @AuxDefs.semax_func_cons_ext_with_normalization (@Def.semax_external).
+(*Definition semax_func_cons_ext_with_normalization := @AuxDefs.semax_func_cons_ext_with_normalization (@Def.semax_external).*)
 Definition semax_func_cons_ext := @AuxDefs.semax_func_cons_ext (@Def.semax_external).
 
 Theorem semax_ifthenelse :

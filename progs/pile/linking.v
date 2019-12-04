@@ -45,13 +45,14 @@ Lemma tycontext_sub_nofunc_tycontext:
   forall V1 G1 V2 G2,
   (forall id, sub_option (make_tycontext_g V1 G1) ! id (make_tycontext_g V2 G2) ! id) ->
   (forall id, sub_option (make_tycontext_s G1) ! id (make_tycontext_s G2) ! id) ->
+  (forall id, params_LNR (make_tycontext_s G1) ! id) ->
   tycontext_sub (nofunc_tycontext V1 G1) (nofunc_tycontext V2 G2).
 Proof.
 intros.
 split3; [ | | split3]; simpl; auto.
 intros; destruct ((PTree.empty type) ! id); auto.
 split.
-intros; apply semax_prog.sub_option_subsumespec; auto.
+intros; apply semax_prog.sub_option_subsumespec; auto. 
 intros; apply Annotation_sub_refl.
 Qed.
 
@@ -179,10 +180,7 @@ Qed.
 Lemma semax_body_cenv_sub {CS CS'} (CSUB: cspecs_sub CS CS') V G f spec
 (COMPLETE : Forall (fun it : ident * type => complete_type (@cenv_cs CS) (snd it) = true) (fn_vars f)):
   @semax_body V G CS f spec -> @semax_body V G CS' f spec.
-Proof. (*eapply (semax_body_cenv_sub CSUB); trivial.*)
-  intros. eapply (@semax_body_subsumption' CS CS'); try eassumption. 
-  apply tycontext_sub_refl.
-Qed. 
+Proof. eapply (semax_body_cenv_sub CSUB); trivial. Qed. 
 
 Ltac apply_semax_body L :=
 eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
@@ -197,8 +195,9 @@ eapply (@semax_body_subsumption' _ _ _ _ _ _ _ _ L);
     repeat (apply Forall_cons; [apply subsumespec_refl | ]); apply Forall_nil])].
 
 Ltac semax_func_cons' L H :=
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]);
- first [eapply semax_func_cons;
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity |  reflexivity | reflexivity | LookupID | LookupB |]);
+ try_prove_tycontext_subVG L;
+ first [(*eapply semax_func_cons;
            [ reflexivity
            | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
            | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
@@ -207,13 +206,14 @@ Ltac semax_func_cons' L H :=
 	   simpl; precondition_closed |
 *)
                apply_semax_body L
-           | ]
+           | ]*)
+          semax_func_cons_int L
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | apply H | LookupID | LookupB | apply L |
              ]
         ];
- repeat (eapply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | LookupID | LookupB |]).
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]).
 
 Ltac do_semax_body_proofs x :=
  let x := eval hnf in x in

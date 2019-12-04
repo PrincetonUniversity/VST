@@ -25,6 +25,7 @@ forward. (* data = in; *)
                       K_vector gv].
  simple apply sha256_block_load8 with (ctx:=ctx); assumption.
 }
+{ apply check_globspecsLNR; reflexivity. }
 eapply semax_seq'. {
   semax_frame
       [  ]
@@ -47,6 +48,7 @@ eapply seq_assocN with (cs := add_them_back). {
   simple apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
   apply length_Round; auto.
 }
+{ apply check_globspecsLNR; reflexivity. }
 simpl; abbreviate_semax.
 forward. (* return; *)
 fold (hash_block regs b).

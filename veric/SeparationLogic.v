@@ -1258,7 +1258,7 @@ Axiom semax_func_cons:
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, Internal f)::fs)
            ((id, mk_funspec fsig cc A P Q NEP NEQ)  :: G').*)
-
+(*
 Axiom semax_func_cons_ext_with_normalization: forall {Espec: OracleKind}
       (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)
       (params:list (ident * type))
@@ -1292,7 +1292,7 @@ forall NEP NEQ,
   semax_func V G ge ((id, External ef argtypes retsig cc)::fs)
        ((id, mk_funspec (params, retsig) cc A nP Q 
                  (*(rename_pre_super_non_expansive NEP nids ids)*)NEP NEQ)  :: G').
-
+*)
 Axiom semax_func_cons_ext:
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef argsig retsig A P Q NEP NEQ

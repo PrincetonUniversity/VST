@@ -516,6 +516,16 @@ Proof.
   apply compute_list_norepet_e; trivial.
 Qed.
 
+Lemma check_globspecsLNR {Delta}: check_paramsLNR (PTree.elements (glob_specs Delta)) = true ->
+      forall i phi, (glob_specs Delta) ! i = Some phi -> params_LNR (Some phi).
+Proof. intros. specialize (check_paramsLNR_sound H i); clear H; intros.
+  assert (initial_world.find_id i (PTree.elements (glob_specs Delta)) = Some phi).
+  { clear H. apply PTree.elements_correct in H0.
+    apply initial_world.find_id_i; trivial.
+    apply PTree.elements_keys_norepet. }
+  rewrite <- H1; trivial.
+Qed.
+
 Lemma mysemax_body_normalizeFunspecs {V G cs f phi GG} (SB: @semax_body V G cs f phi)
       (LNR: list_norepet (map fst V ++ map fst G))
       (LNRspecs: forall k, params_LNR (initial_world.find_id k G))
@@ -689,42 +699,6 @@ Ltac try_prove_tycontext_subVG L :=
          repeat (apply Forall_cons; [apply subsumespec_refl | ]); apply Forall_nil])
      end end end.
 
-Ltac semax_func_cons L := 
- repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
- try_prove_tycontext_subVG L;
- first [(*eapply semax_func_cons;
-           [ reflexivity
-           | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
-           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
-           | reflexivity | LookupID | LookupB
-           | try solve [apply L]; apply_semax_body L
-           | ]*)
-          semax_func_cons_int L
-        | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-             | left; reflexivity
-             | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
-             ]
-        | eapply semax_func_cons_ext_with_normalization;
-             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-             | left; reflexivity
-             | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
-             ]
-        ];
- repeat (eapply semax_func_cons_ext_vacuous; [ apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
- try apply semax_func_nil.
-
-(* This is a better way of finding an element in a long list. *)
-Lemma from_elements_In : forall {A} l i (v : A), (pTree_from_elements l) ! i = Some v ->
-  In (i, v) l.
-Proof.
-  induction l; simpl; intros.
-  - rewrite PTree.gempty in H; discriminate.
-  - destruct a as (i', v'); destruct (eq_dec i' i).
-    + subst; rewrite PTree.gss in H; inv H; auto.
-    + rewrite PTree.gso in H; auto.
-Qed.
-
 Lemma typecheck_return_value:
   forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val) P R,
  f v -> 
@@ -742,6 +716,17 @@ intros.
  apply prop_right; auto.
 Qed.
 
+(* This is a better way of finding an element in a long list. *)
+Lemma from_elements_In : forall {A} l i (v : A), (pTree_from_elements l) ! i = Some v ->
+  In (i, v) l.
+Proof.
+  induction l; simpl; intros.
+  - rewrite PTree.gempty in H; discriminate.
+  - destruct a as (i', v'); destruct (eq_dec i' i).
+    + subst; rewrite PTree.gss in H; inv H; auto.
+    + rewrite PTree.gso in H; auto.
+Qed.
+(*
 Ltac semax_func_cons_ext_with_normalization :=
  repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]);
   eapply semax_func_cons_ext_with_normalization;
@@ -760,7 +745,7 @@ Ltac semax_func_cons_ext_with_normalization :=
               "Make sure that the Espec declared using 'Existing Instance'
                is defined as 'add_funspecs NullExtension.Espec Gprog.'"
     |
-    ].
+    ].*)
 
 Ltac semax_func_cons_ext :=
  repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB | ]);
@@ -781,6 +766,31 @@ Ltac semax_func_cons_ext :=
                is defined as 'add_funspecs NullExtension.Espec Gprog.'"
     |
     ].
+
+Ltac semax_func_cons L := 
+ repeat (eapply semax_func_cons_ext_vacuous; [apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
+ try_prove_tycontext_subVG L;
+ first [(*eapply semax_func_cons;
+           [ reflexivity
+           | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
+           | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+           | reflexivity | LookupID | LookupB
+           | try solve [apply L]; apply_semax_body L
+           | ]*)
+          semax_func_cons_int L
+        | eapply semax_func_cons_ext;
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             | left; reflexivity
+             | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
+             ](*
+        | eapply semax_func_cons_ext_with_normalization;
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+             | left; reflexivity
+             | semax_func_cons_ext_tc | LookupID | LookupB | apply L |
+             ]*)
+        ];
+ repeat (eapply semax_func_cons_ext_vacuous; [ apply compute_list_norepet_e; reflexivity | reflexivity | reflexivity | LookupID | LookupB |]);
+ try apply semax_func_nil.
 
 Tactic Notation "forward_seq" :=
   first [eapply semax_seq'; [  | abbreviate_semax ]

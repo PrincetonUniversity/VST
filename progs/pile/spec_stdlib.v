@@ -114,28 +114,36 @@ Lemma malloc_spec_sub:
 Proof.
 intros.
 apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
+split; reflexivity.
+apply ESNDsubsume_NDsubsume.
+split; reflexivity.
 split3; auto.
-intros gv.
+split. apply compute_list_norepet_e; reflexivity.
+intros gv rho rho2.
 simpl in gv.
-Exists (sizeof t, gv) emp.
+apply predicates_hered.andp_left2.
+exists (sizeof t, gv), predicates_sl.emp. rewrite predicates_sl.emp_sepcon.
 change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-entailer!.
-match goal with |- _ |-- prop ?PP => set (P:=PP) end.
-entailer!.
-subst P.
-Intros p.
-Exists p.
-entailer!.
-if_tac; auto.
-unfold malloc_token.
-assert_PROP (field_compatible t [] p).
-entailer!.
-apply malloc_compatible_field_compatible; auto.
-entailer!.
-rewrite memory_block_data_at_; auto.
+(*rewrite !emp_sepcon.*)
+split.
+{ destruct H as [[? ?] ?]. split; trivial. split; trivial. }
+intros rho3. rewrite predicates_sl.emp_sepcon. apply predicates_hered.andp_left2.
+apply predicates_hered.exp_derives; intros p.
+apply predicates_hered.andp_derives; trivial.
+apply predicates_hered.andp_derives; trivial.
+if_tac. trivial.
+unfold malloc_token. intros m [m1 [m2 [JM [M1 M2]]]]. 
+rewrite sepcon_emp in M2.
+exists m1, m2; split3; trivial.
+rewrite sepcon_emp.
+destruct M2 as [n1 [n2 [JN [N1 N2]]]]. 
+assert (field_compatible t [] p).
+{ destruct H as [[[? ?] [? [? ?]]] ?]. simpl in *.
+  apply malloc_compatible_field_compatible; auto.
+  apply malloc_token'_local_facts in N1. apply N1. }
+exists n1, n2; split3; trivial.
++ split; auto.
++ rewrite memory_block_data_at_ in N2; auto. 
 Qed.
 
 Lemma free_spec_sub:
@@ -144,20 +152,25 @@ Lemma free_spec_sub:
 Proof.
 intros.
 apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
+split; reflexivity.
+apply ESNDsubsume_NDsubsume.
+split; reflexivity.
 split3; auto.
-intros (p,gv).
+split. apply compute_list_norepet_e; reflexivity.
+intros (p,gv) rho rho2.
 simpl in gv.
-Exists (sizeof t, p, gv) emp.
+apply predicates_hered.andp_left2.
+exists (sizeof t, p, gv), predicates_sl.emp. rewrite predicates_sl.emp_sepcon.
 change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-if_tac.
-entailer!.
-entailer!. simpl in H0.
-unfold malloc_token. entailer!.
-apply data_at__memory_block_cancel.
-apply prop_right.
-entailer!.
+split.
+{ destruct H as [? [? ?]]. split3; trivial.
+  if_tac; trivial.
+  eapply predicates_sl.sepcon_derives;
+  [ apply predicates_hered.derives_refl | clear H1 | apply H1]; simpl.
+  rewrite ! sepcon_emp.
+  apply predicates_sl.sepcon_derives. 
+  + unfold malloc_token. apply predicates_hered.andp_left2; trivial.
+  + apply data_at__memory_block_cancel. }
+intros rho3. rewrite predicates_sl.emp_sepcon. apply predicates_hered.andp_left2; trivial.
 Qed.
 
