@@ -2227,7 +2227,7 @@ Qed.
       Proof.
         intros; subst FUN.
         
-        (*HERE*)
+        (* remove this comment *)
         (** *1. Prove that this is a CompCert step (en external step).
          *)
         exploit C_large_step_as_compcert_step; eauto.
@@ -2776,7 +2776,141 @@ Qed.
             Unshelve.
             all: rewrite getMax_restr; apply mem_cur_lt_max.
           Qed.
-          
+      Lemma mi_memval_perm_almosequal:
+                forall mu m1 m1' m2 m2' adr1 adr2 p_store p delta
+                  (Hreadable: forall ofs, Intv.In ofs (snd adr1, snd adr1 + 4) ->
+                                     Mem.perm_order' (p_store !! (fst adr1) ofs) Readable)
+                (Hno_over: maps_no_overlap mu p p_store),
+                content_almost_same m1 m1' adr1 ->
+                content_almost_same m2 m2' adr2 ->
+                mu (fst adr1) = Some (fst adr2, delta) ->
+                snd adr2 = snd adr1 + delta ->
+                (forall ofs : Z,
+                  Intv.In ofs (snd adr1, snd adr1 +  4) ->
+                  memval_inject mu
+                                (ZMap.get ofs (Mem.mem_contents m1') !! (fst adr1))
+                                (ZMap.get (ofs + delta) (Mem.mem_contents m2') !! (fst adr2)) ) ->
+                mi_memval_perm mu p 
+                               (Mem.mem_contents m1) (Mem.mem_contents m2) ->
+                mi_memval_perm mu p
+                               (Mem.mem_contents m1') (Mem.mem_contents m2').
+              Proof.
+                intros ** ? **.
+                Definition maps_no_overlap_range 
+                            (f : meminj) (perm1 perm2 : access_map):=
+                             forall (b1 b1' : block) (delta1 : Z) (b2 b2' : block)
+                               (delta2 ofs1 ofs2 SZ : Z),
+                               0 < SZ ->
+                               b1 <> b2 ->
+                               f b1 = Some (b1', delta1) ->
+                               f b2 = Some (b2', delta2) ->
+                               Mem.perm_order' (perm1 !! b1 ofs1) Nonempty ->
+                               (forall ofs2' : Z,
+                                   0 <= ofs2' < SZ -> Mem.perm_order' (perm2 !! b2 (ofs2 + ofs2'))
+                                                                    Nonempty) ->
+                               b1' <> b2' \/ ~ Intv.In (ofs1 + delta1)
+                                             (ofs2 + delta2, ofs2 + delta2 + SZ).
+                Lemma perms_no_over_point_to_range
+                  : forall (f : meminj) (p1 p2 : PMap.t (Z -> option permission)),
+                    maps_no_overlap f p1 p2 -> maps_no_overlap_range f p1 p2.
+                Admitted.
+
+                
+                
+                
+                eapply perms_no_over_point_to_range in Hno_over.
+                pose proof (Classical_Prop.classic (b1 <> fst adr1 \/ ~ Intv.In ofs (snd adr1, snd adr1 +  4))).
+                destruct H7.
+                destruct (base.block_eq_dec b1 (fst adr1)) eqn:HH; subst.
+                destruct H7 as [HH1 |HH1]; try congruence.
+                
+                
+                - (* ~ Intv.In ofs (snd adr1, snd adr1 + LKSIZE) *)
+                  unify_injection.
+                    rewrite H,H0; auto.
+                    rewrite H2; auto.
+                    right. hnf; simpl. intros.
+                    unfold Intv.In in *; simpl in *.
+                    eapply HH1. clear - H7. omega.
+                - (* b1 <> fst adr1 *)
+                  exploit Hno_over; try eassumption.
+                  + !goal(_<_). instantiate(1:= 4). omega.
+                  + !goal(Mem.perm_order' _ Nonempty).
+                    eapply perm_order_trans101; eauto. constructor.
+                  + intros. instantiate(1:=snd adr1).
+                    eapply perm_order_trans101; eauto.
+                    eapply Hreadable. hnf; simpl; omega.
+                    constructor.
+                  + intros.
+                    rewrite H,H0; auto.
+                    rewrite H2; auto.
+                - eapply Classical_Prop.not_or_and in H7; normal.
+                  apply Classical_Prop.NNPP in H7;
+                    apply Classical_Prop.NNPP in H8.
+                  subst b1.
+                  rewrite H1 in H5; inv H5.
+                  auto.
+              Qed.
+              
+              Definition mi_memval_perm_dmap f dm cont1 cont2:=
+                    forall (b1 b2 : block) (delta ofs : Z),
+                      f b1 = Some (b2, delta) ->
+                      opt_rel Mem.perm_order'' (dmap_get dm b1 ofs) (Some (Some Readable)) ->
+                      memval_inject f (ZMap.get ofs cont1 !! b1)
+                                    (ZMap.get (ofs + delta) cont2 !! b2).
+              
+                Lemma computeMap_get:
+                  forall a1 b1 b ofs,
+                    (computeMap a1 b1) !! b ofs  =
+                    match dmap_get b1 b ofs with
+                      Some x => x | _ => a1 !! b ofs
+                    end.
+                Proof.
+                  intros.
+                  match_case; unfold computeMap, "!!"; simpl.
+                  - rewrite PTree.gcombine; auto.
+                    unfold dmap_get in *.
+                    match_case; simpl in *.
+                    + unfold "!!" in *; simpl in *.
+                      match_case in Heqo.
+                      match_case in Heqo0;
+                        inv Heqo0; rewrite Heqo; reflexivity.
+                    + unfold "!!" in *; simpl in *.
+                      match_case in Heqo.
+                      match_case in Heqo0;
+                        inv Heqo0; rewrite Heqo; reflexivity.
+                  - rewrite PTree.gcombine; auto.
+                    unfold dmap_get in *.
+                    match_case; simpl in *.
+                    + unfold "!!" in *; simpl in *;
+                        match_case in Heqo; match_case.
+                      * inv Heqo0; match_case.
+                      * inv Heqo0; match_case.
+                    +   unfold "!!" in *; simpl in *;
+                          match_case in Heqo; match_case.
+                Qed.
+              Lemma mi_memval_perm_computeMap:
+                forall mu x y cont1 cont2,
+                  mi_memval_perm mu x cont1 cont2 ->
+                  mi_memval_perm_dmap mu y cont1 cont2 ->
+                  mi_memval_perm mu (computeMap x y) cont1 cont2.
+              Proof.
+                intros. hnf in *; intros.
+                rewrite computeMap_get in H2.
+                match_case in H2.
+                eapply H0; auto.
+                rewrite Heqo. constructor; auto.
+              Qed.
+              Lemma mi_memval_perm_computeMap_Lt:
+                forall mu cont1 cont2 p p',
+                mi_memval_perm mu p cont1 cont2 ->
+                permMapLt p' p ->
+                mi_memval_perm mu p' cont1 cont2.
+              Proof.
+                intros; hnf; intros.
+                eapply H; eauto.
+                eapply perm_order_trans211; eauto.
+              Qed.    
       Lemma release_step_diagram_compiled:
         let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
         forall (angel: virtue) (cd : compiler_index) mu (*tr2*)
@@ -2919,40 +3053,11 @@ Qed.
             rewrite RPM.
             instantiate(2:=fst new_cur2);
               instantiate(3:=fst newThreadPerm1).
+            (* Set Printing Implicit. *)
             apply inject_restr; auto.
             * !goal (mi_perm_perm mu (fst newThreadPerm1) (fst new_cur2)).
               subst newThreadPerm1 new_cur2; simpl.
               
-                Lemma computeMap_get:
-                  forall a1 b1 b ofs,
-                    (computeMap a1 b1) !! b ofs  =
-                    match dmap_get b1 b ofs with
-                      Some x => x | _ => a1 !! b ofs
-                    end.
-                Proof.
-                  intros.
-                  match_case; unfold computeMap, "!!"; simpl.
-                  - rewrite PTree.gcombine; auto.
-                    unfold dmap_get in *.
-                    match_case; simpl in *.
-                    + unfold "!!" in *; simpl in *.
-                      match_case in Heqo.
-                      match_case in Heqo0;
-                        inv Heqo0; rewrite Heqo; reflexivity.
-                    + unfold "!!" in *; simpl in *.
-                      match_case in Heqo.
-                      match_case in Heqo0;
-                        inv Heqo0; rewrite Heqo; reflexivity.
-                  - rewrite PTree.gcombine; auto.
-                    unfold dmap_get in *.
-                    match_case; simpl in *.
-                    + unfold "!!" in *; simpl in *;
-                        match_case in Heqo; match_case.
-                      * inv Heqo0; match_case.
-                      * inv Heqo0; match_case.
-                    +   unfold "!!" in *; simpl in *;
-                          match_case in Heqo; match_case.
-                Qed.
               (*Definition mi_perm_perm_dmap f perm1 perm2:=
                     forall (b1 b2 : block) (delta ofs : Z) (p : permission),
                       f b1 = Some (b2, delta) ->
@@ -3165,13 +3270,121 @@ Qed.
                  eapply join_dmap_valid, Hangel_bound.
                  
             * !goal (mi_memval_perm mu (fst newThreadPerm1)
-                                    (Mem.mem_contents m1'') (Mem.mem_contents m2'')).
-              admit.
-            * !goal (mi_perm_inv_perm mu (fst newThreadPerm1) (fst new_cur2) m1'').
-              admit.
+                                    (Mem.mem_contents m1'')
+                                    (Mem.mem_contents m2'')).
+              subst newThreadPerm1; simpl.
+              (*Another try*)
+              eapply mi_memval_perm_computeMap_Lt.
+              2:{ eapply permMapJoin_lt. eapply Hjoin_angel. }
+              assert (mi_memval_perm mu (thread_perms hb st1 Hcnt1) (Mem.mem_contents m1')
+                                     (Mem.mem_contents m2')).
+              { rewrite Hthread_mem1. apply mi_inj_mi_memval_perm. eapply Hinj'0. }
+              inv Hlock_update_mem_strict_load1.
+              inv Hlock_update_mem_strict_load2.
+              !goal(mi_memval_perm mu _ _ _ ).
+              
+              eapply (mi_memval_perm_almosequal)
+                with (adr1:= (b1,unsigned ofs) ); eauto; simpl; eauto.
+              
+                 simpl; intros.
+                 unfold Mem.range_perm in Haccess.
+                 
+                (* change (Mem.perm_order'' ((thread_perms hb st1 Hcnt1) !! b1 ofs0)
+                                         (Some Readable)). *)
+                { !goal(Mem.perm_order' ((getCurPerm m_writable_lock_1) !! b1 ofs0) Readable).
+                  subst m_writable_lock_1.
+                  rewrite getCur_restr.
+                  rewrite setPermBlock_same. constructor; simpl.
+                  assert (4< Z.of_nat LKSIZE_nat).
+                  { unfold LKSIZE_nat, LKSIZE in *.
+                    rewrite size_chunk_Mptr.
+                    clear - H0. red in H0; simpl in H0. match_case; simpl; omega. }
+                  clear - H0 H2. hnf in H0; simpl in H0. omega. }
+                ++ !goal(maps_no_overlap _ _ _).
+                   eapply maps_no_overlap_under_mem; eauto.
+                   apply Hinj'.
+                   subst m_writable_lock_1.
+                   rewrite getCur_restr. apply Hwritable_lock1.
+                ++ !goal(content_almost_same _ m1'' _).
+                   pose proof (@restr_content_equiv _  _ Hwritable_lock1); symmetry in H0.
+                   eapply content_almost_same_proper; try eassumption; try reflexivity.
+                   eapply store_almost_same. eassumption.
+                ++ !goal(content_almost_same _ m2'' _).
+                   pose proof (@restr_content_equiv _  _ Hwritable_lock0); symmetry in H0.
+                   eapply content_almost_same_proper; try eassumption; try reflexivity.
+                   eapply store_almost_same. eassumption.
+                ++ eassumption.
+                ++ reflexivity.
+                ++ simpl; intros.
+                    {
+                     move Hstore at bottom.
+                     eapply Mem.loadbytes_store_same,loadbytes_D in Hstore.
+                     destruct Hstore as [? Hstore].
+                     eapply Mem.loadbytes_store_same,loadbytes_D in Hstore0.
+                     destruct Hstore0 as [? HH].
+                     rewrite Hstore in HH.
+                     simpl in HH.
+                     admit.
+                     (* at this point we know the two vals are the same by 
+                        HH: v1 :: v2::v3::v4=  v1 :: v2::v3::v4
+                        H: Intv.In ofs0 (unsigned ofs, unsigned ofs + 4)
+                        
+                        MISSING: need to know all the vals are bytes (No fragments).
+                        
+                      *)
+                    }
+            * hnf; intros.
+              destruct (Classical_Prop.classic (Mem.perm m1'' b0 ofs0 Max Nonempty)) as [HH|HH]; eauto.
+              unfold Mem.perm in HH.
+              
+              (*Lemma about computeMap? *)
+              remember ((fst new_cur2) !! b3 (ofs0 + delta0)) as T.
+              unfold new_cur2 in H0; simpl in *.
+              rewrite HeqT in H0.
+              rewrite computeMap_get; rewrite computeMap_get in H0.
+              (*Maybe best to start destructing the virtue1 and then destruct virtue2*)
+              match_case; [|match_case in H0].
+              -- (*dmap1 = Some *)
+                exploit tree_map_inject_over_mem_correct_forward; eauto.
+                eapply option_implication_trans.
+                eapply sub_map_implictaion.
+                eapply Hangel_bound.
+                instantiate(1:=m2').
+                admit.
+                admit.
+                subst virtueThread1. unfold delta_map in *. intros HH'; rewrite HH' in H0. 
+                auto.
 
-            
-            admit
+              -- (*dmap1 = None | dmap2 = Some *)
+                exploit dmap_inject_correct_backwards; eauto.
+                intros (?&?&?&?&?&?).
+                destruct (base.block_eq_dec b0 x).
+                ++ (*b0 = x*)
+                  subst. repeat unify_injection. assert (ofs0=x1) by omega; subst x1.
+                  unfold delta_map in *. subst virtueThread1.
+                  rewrite Heqo in H5; congruence.
+                ++                
+                subst virtueThread1.
+                assert (HHx : Mem.perm_order' ((Mem.mem_access m1') !! x x1 Max) Nonempty).
+                { exploit sub_map_implication_dmap_pair.
+                  eapply Hangel_bound.
+                  intros [HH1 HH2]; simpl in *.
+                  unfold option_implication_dmap_access in *.
+                  specialize (HH1 x x1). unfold delta_map in *; rewrite H5 in HH1.
+                  simpl in HH1.
+                  rewrite getMaxPerm_correct in HH1. unfold permission_at in HH1.
+                  match_case in HH1.
+                  constructor. }
+                assert (HHb1 : Mem.perm_order' ((Mem.mem_access m1') !! b0 ofs0 Max) Nonempty).
+                { revert HH; do 2 rewrite_getPerm. rewrite Hmax_eq0; auto. }
+                exploit Mem.mi_no_overlap; try eapply Hinj'; eauto.
+                intros [HHH| HHH]; contradict HHH; auto.
+              -- (*dmap1 = None | dmap2 = None *)
+                rewrite Hthread_mem1.
+                rewrite Hthread_mem2 in H0.
+                eapply inject_mi_perm_inv_perm_Cur in H0; eauto.
+                rewrite <- Hmax_eq0. eassumption.
+                 
           + !goal (@invariant (HybridSem _) _ st1'). admit.
           + !goal (@invariant (HybridSem _ ) _ st2'). admit.
           + !goal(perm_surj mu _ _).
@@ -5471,9 +5684,9 @@ Qed.
           + !goal(access_map_equiv _ (_ m2) ).
             subst. symmetry; apply getCur_restr.
           + !goal(sub_map_virtue _ _).
-            unfold Max_equiv in *;
-              rewrite <- Hmax_equiv1.
+            replace (getMaxPerm m1) with  (getMaxPerm m1_base).
             constructor; eauto.
+            subst m1. symmetry; apply getMax_restr_eq. 
           + !context_goal(at_external_sum).
             simpl. subst m1; simpl.
             rewrite <- Hat_external.

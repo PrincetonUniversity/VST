@@ -717,7 +717,9 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           specialize (H ofs b).
           inv H; auto.
         Qed.
-        (* Change 4 to something that depends the architecture 32-64 *)
+        (* DONT HAVE TO Change 4 to something that depends the architecture 32-64 
+           In both architectures we store only 32 bites.
+         *)
       Definition get_vals_at (m:mem) (adr: block * Z):=
         (Mem.getN 4 (snd adr) (Mem.mem_contents m) !! (fst adr)).
       (*  (ZMap.get (snd adr) (Mem.mem_contents m) !! (fst adr)). *)
