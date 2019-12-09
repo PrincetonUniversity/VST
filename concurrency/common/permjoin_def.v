@@ -17,11 +17,11 @@ Inductive permjoin : option permission -> option permission -> option permission
   | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
   | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
   | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
-  (* R + W = W or F *)
+  (*(* R + W = W or F *)
   | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
   | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
   | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
-  | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
+  | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable)*).
 
   Lemma permjoin_comm:
     forall p1 p2 p3,

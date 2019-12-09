@@ -1342,8 +1342,8 @@ Qed.
 
 (* subsumed is different than sub_map:
          submap is that the STRUCTURE of the tree is the same
-         subsumed is that it can join to it:
-         subsumed x y: exists z. x + z = y.
+         subsumed is that it can join to itself. tThat is
+         subsumed x y: y + x = y.
  *)
 Inductive subsumed: option permission -> option permission -> Prop:=
 | subsumedNone: forall x, subsumed None x
@@ -1351,7 +1351,7 @@ Inductive subsumed: option permission -> option permission -> Prop:=
 | subsumedNER: subsumed (Some Nonempty) (Some Readable)
 | subsumedNEW: subsumed (Some Nonempty) (Some Writable)
 | subsumedRR: subsumed (Some Readable) (Some Readable)
-| subsumedRW: subsumed (Some Readable) (Some Writable).
+(*| subsumedRW: subsumed (Some Readable) (Some Writable)*).
 
 
 Lemma subsumed_order:
@@ -1359,11 +1359,9 @@ Lemma subsumed_order:
 Proof. intros b c H; destruct b, c; inv H; constructor. Qed.
 
 Lemma subsume_same_join:
-  forall x y, subsumed x y <->
-         permjoin_def.permjoin y x y.
+  forall x y, subsumed x y <-> permjoin_def.permjoin y x y.
 Proof.
-  intros x y; split;
-    intros HH; inversion HH; subst; constructor.
+  intros x y; split; intros HH; inv HH; econstructor.
 Qed.
 
 
@@ -1389,6 +1387,36 @@ Definition delta_map_join
 Definition delta_map_join_pair:= pair3_prop delta_map_join.
 Hint Unfold delta_map_join_pair: pair.
 
+Lemma computeMap_get:
+  forall a1 b1 b ofs,
+    (computeMap a1 b1) !! b ofs  =
+    match dmap_get b1 b ofs with
+      Some x => x | _ => a1 !! b ofs
+    end.
+Proof.
+  intros.
+  match_case; unfold computeMap, "!!"; simpl.
+  - rewrite PTree.gcombine; auto.
+    unfold dmap_get in *.
+    match_case; simpl in *.
+    + unfold "!!" in *; simpl in *.
+      match_case in Heqo.
+      match_case in Heqo0;
+        inv Heqo0; rewrite Heqo; reflexivity.
+    + unfold "!!" in *; simpl in *.
+      match_case in Heqo.
+      match_case in Heqo0;
+        inv Heqo0; rewrite Heqo; reflexivity.
+  - rewrite PTree.gcombine; auto.
+    unfold dmap_get in *.
+    match_case; simpl in *.
+    + unfold "!!" in *; simpl in *;
+        match_case in Heqo; match_case.
+      * inv Heqo0; match_case.
+      * inv Heqo0; match_case.
+    +   unfold "!!" in *; simpl in *;
+          match_case in Heqo; match_case.
+Qed.
 
 Lemma compute_map_join:
   forall A B C,
@@ -1396,35 +1424,16 @@ Lemma compute_map_join:
     permMapJoin
       (computeMap C A) B C.
 Proof.
-  split;
-    intros ** b ofs.
-  
+  split; intros HH b ofs; specialize (HH b ofs);
+    rewrite computeMap_get in *.
   { !goal(permjoin_def.permjoin _ _ _).
-    specialize (H b ofs); inversion H; subst.
-    - unfold dmap_get, PMap.get in H0; simpl in *.
-      destruct (A ! b) eqn:Ab.
-      + destruct (o ofs) eqn:oofs; try inversion H0.
-        erewrite computeMap_2; eauto.
-        eapply subsume_same_join; auto.
-      + erewrite computeMap_3; eauto.
-        eapply subsume_same_join; auto. 
-    - unfold dmap_get, PMap.get in H0; simpl in *.
-      destruct (A ! b) eqn:HH; try solve[inversion H0].
-      erewrite computeMap_1.
-      1, 2: eauto.
-      destruct (o ofs) eqn:HH'; inversion H0; auto. }
+    inversion HH; subst.
+    - eapply subsume_same_join; auto. 
+    - auto. }
   
   { !goal (option_join _ _ _ ).
-    destruct (dmap_get A b ofs) eqn:HH.
-    - eapply dmap_get_copmute_Some in HH.
-      rewrite <- HH.
-      econstructor; eauto.
-    - eapply dmap_get_copmute_None in HH.
-      econstructor.
-      specialize (H b ofs).
-      rewrite HH in H.
-      eapply subsume_same_join; assumption.
-  }
+    match_case in HH; constructor; auto.
+    eapply subsume_same_join; auto. }
 Qed.
 Lemma compute_map_join_fwd:
   forall A B C,

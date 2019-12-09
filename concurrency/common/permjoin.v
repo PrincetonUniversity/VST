@@ -245,7 +245,13 @@ Proof.
     contradiction (join_readable_unreadable RJ _x _x2).
     contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0); apply writable_share_top.
     contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
-Qed.
+  - exfalso; eapply join_writable0_readable; eauto.
+  - exfalso; eapply join_writable0_readable; eauto.
+  - eapply join_comm in RJ.
+    exfalso; eapply join_writable0_readable; eauto.
+  - eapply join_comm in RJ.
+    exfalso; eapply join_writable0_readable; eauto.
+  Qed.
 
 Lemma join_permjoin_lock
   : forall r1 r2 r3 ,
@@ -281,19 +287,22 @@ Proof.
   functional induction (perm_of_sh  (Share.glb Share.Rsh sh2)) using perm_of_sh_ind;
     simpl; if_simpl;
   functional induction (perm_of_sh  (Share.glb Share.Rsh sh3)) using perm_of_sh_ind;
-  simpl; if_simpl;
+  simpl; if_simpl; try constructor;
     repeat match goal with
            | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
            end;
     try (unfold perm_of_sh; if_simpl; econstructor);
-    try (do 2 join_share_contradictions);
-  try eapply permjoin_None_l;
+    try (do 2 join_share_contradictions).
+  1,2,3: try eapply permjoin_None_l;
   try eapply permjoin_None_r;
   forget (Share.glb Share.Rsh sh1) as s1;
   forget (Share.glb Share.Rsh sh2) as s2;
   forget (Share.glb Share.Rsh sh3) as s3;
-  clear e e0 e1 e2 e3 e4 e5; subst;
+  try clear e e0 e1 e2 e3 e4 e5; subst;
   try contradiction (join_readable_unreadable RJ _x _x2).
   apply join_unit1_e in RJ; auto; subst; contradiction.
   contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
+  exfalso ; eapply join_writable0_readable; eauto.
+  eapply join_comm in RJ.
+  exfalso ; eapply join_writable0_readable; eauto.
 Qed.
