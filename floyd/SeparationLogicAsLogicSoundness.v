@@ -172,7 +172,7 @@ Proof.
   intros.
   induction H.
   + apply MinimumLogic.semax_func_nil.
-  + apply MinimumLogic.semax_func_cons with (NEP0:=NEP) (b0:=b); eauto.
+  + apply MinimumLogic.semax_func_cons with(*(NEP0:=NEP)*) (b0:=b); eauto.
     apply semax_body_sound; auto.
 (*  + eapply MinimumLogic.semax_func_cons_ext_with_normalization; eauto.*)
   + eapply MinimumLogic.semax_func_cons_ext; eauto.

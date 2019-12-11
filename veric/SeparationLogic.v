@@ -1212,6 +1212,25 @@ Axiom semax_extract_exists:
 Axiom semax_func_nil:   forall {Espec: OracleKind},
         forall V G C ge, @semax_func Espec V G C ge nil nil.
 
+Axiom semax_func_cons: forall {Espec:OracleKind} 
+     fs id f phi (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok (f.(fn_vars)) ->
+   f.(fn_callconv) = callingconvention_of_funspec phi ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+  semax_body V G f (id, phi) ->
+
+  semax_func V G ge fs G' ->
+  semax_func V G ge ((id, Internal f)::fs)
+       ((id, normalize_funspec phi)::G').
+(*
 Axiom semax_func_cons: forall {Espec:OracleKind} (fs : list (ident * fundef)) (id : ident) (f : function)
   (fsig : funsig) (cc : calling_convention) A P Q
   (NEP : @super_non_expansive A P) (NEQ : @super_non_expansive A Q) (V : varspecs)
@@ -1239,7 +1258,7 @@ Axiom semax_func_cons: forall {Espec:OracleKind} (fs : list (ident * fundef)) (i
 forall nNEP,
   @semax_func Espec V G C ge fs G' ->
   @semax_func Espec V G C ge ((id, Internal f)::fs)
-       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G').
+       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G').*)
 (*Was:
 Axiom semax_func_cons:
   forall {Espec: OracleKind},
@@ -1313,7 +1332,7 @@ Axiom semax_func_cons_ext:
          (Q ts x (make_ext_rval gx ret)
             && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
             |-- !!tc_option_val retsig ret)) ->
-(*new*) Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
+      Genv.find_symbol ge id = Some b -> Genv.find_funct_ptr ge b = Some (External ef argsig retsig cc) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G ge fs G' ->
       semax_func V G ge ((id, External ef argsig retsig cc)::fs)

@@ -535,6 +535,33 @@ Proof. subst. apply semax_body_normalizeFunspecs; trivial. Qed.
 
 Lemma semax_func_cons_int: forall {Espec:OracleKind} V G C
    (ge : Genv.t (Ctypes.fundef function) type) 
+    fs (id : ident) (f : function) (*params retsig*) phi G' GG
+   (*(fsig : funsig) P GG NEP*)
+  (SB: semax_body V GG f (id, phi))
+  (TS: tycontext_sub (func_tycontext f V GG []) (func_tycontext f V G []))
+  (b : block),
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok (f.(fn_vars)) ->
+   f.(fn_callconv) = callingconvention_of_funspec phi ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+  @semax_func Espec V G C ge fs G' ->
+  @semax_func Espec V G C ge ((id, Internal f)::fs)
+       ((id, normalize_funspec phi)::G').
+Proof. intros.
+ assert (SB' : semax_body V G f (id, phi)).
+ { eapply semax_body_subsumption. apply SB. trivial. } 
+ clear SB. eapply semax_func_cons; eassumption.
+Qed.
+(*
+Lemma semax_func_cons_int: forall {Espec:OracleKind} V G C
+   (ge : Genv.t (Ctypes.fundef function) type) 
     fs (id : ident) (f : function) params retsig cc A nP nNEP Q NEQ G'
    (fsig : funsig) P GG NEP
   (SB: semax_body V GG f (id, mk_funspec fsig cc A P Q NEP NEQ))
@@ -570,7 +597,7 @@ Proof. intros.
                V _ G' C ge b H H0 H1 H2 H3 H4 SB'). intros.
 hnf in H6. subst ids argtypes nids. subst nP params retsig.
 eapply H6; trivial. 
-Qed.
+Qed.*)
 
 Fixpoint match_specs {A} (G G': list (ident * A)) :=
   match G with 
@@ -639,7 +666,8 @@ Proof.
   apply match_specs_tycontext_sub; trivial.
   apply normalizedFunspecs_params_LNR.
 Qed.
- 
+
+ (*
 Ltac semax_func_cons_int L :=
   eapply semax_func_cons_int;
   [ apply (semax_body_normalize L);
@@ -661,8 +689,24 @@ Ltac semax_func_cons_int L :=
           | simpl; rewrite <- port_trans; trivial; apply compute_list_norepet_e; reflexivity
           | idtac]
   | reflexivity
-  | ].
+  | ].*)
 
+Ltac semax_func_cons_int L :=
+  eapply semax_func_cons_int;
+  [ apply (semax_body_normalizeFunspecs L); (*alternative: mysemax_body_normalizeFunspecs L) yields another reflexivity subgoal*)
+    [ (*LNR_VG*) apply compute_list_norepet_e; reflexivity
+    | (*LNR_G*)apply check_paramsLNR_sound; reflexivity ]
+  | apply match_specs_tycontext_sub;
+    [ repeat (split; [ trivial |]); simpl; trivial
+    | apply compute_list_norepet_e; reflexivity
+    | apply normalizedFunspecs_params_LNR ]
+  | reflexivity
+  | repeat apply Forall_cons; try apply Forall_nil; try computable; reflexivity
+  | unfold var_sizes_ok; repeat constructor; try (simpl; rep_omega)
+  | reflexivity
+  | LookupID
+  | LookupB
+  | ].
 
 (***********************end of material for semax_func_cons_int tactic *********)
 

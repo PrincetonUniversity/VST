@@ -3815,12 +3815,12 @@ destruct (ClientAdaptation w2') as [ts1 [x1 [G [PreAdapt PostAdapt]]]]; clear Cl
 rewrite ge_of_make_args, ve_of_make_args, make_args_eq in PreAdapt by trivial. 
 simpl te_of in PreAdapt; simpl in PostAdapt.
 
-hnf in PreAdapt. simpl funsig_of_funspec in *.
+(*hnf in PreAdapt.*) simpl funsig_of_funspec in *.
 clear W2 NEP P.
 assert (Len_Nargs_cl:= funsigs_match_arglengths NSC). simpl in Len_Nargs_cl.
 unfold restrict in PreAdapt; rewrite ! tr_trans in PreAdapt; trivial.
 
-destruct PreAdapt as [TCpreadapt PreAdapt].
+(*destruct PreAdapt as [TCpreadapt PreAdapt].*)
 
 (*Environment that binds the arguments to the normalized identifiers nparams = 1, 2,3,...)*)
 remember (mkEnviron (ge_of rho) (Map.empty (block * type))
@@ -3828,7 +3828,7 @@ remember (mkEnviron (ge_of rho) (Map.empty (block * type))
                           (make_args' (map fst clientparams) args))) as nrho_aux.
 set (nrho := nrho_aux). subst nrho_aux.
 
-clear TCpreadapt. (*nrho is welltyped in w2'*)
+(*clear TCpreadapt.*) (*nrho is welltyped in w2'*)
 
 specialize (Hpre ts1 x1).
 assert (ARGS: app_pred (|> (F0 rho *
@@ -4134,12 +4134,12 @@ destruct (ClientAdaptation w2' LW2' _ (necR_refl _)) as [ts1 [x1 [G [PreAdapt Po
 rewrite ge_of_make_args, ve_of_make_args, make_args_eq in PreAdapt by trivial. 
 simpl te_of in PreAdapt; simpl in PostAdapt.
 
-hnf in PreAdapt. simpl funsig_of_funspec in *.
+(*hnf in PreAdapt.*) simpl funsig_of_funspec in *.
 clear W2 NEP P.
 assert (Len_Nargs_cl:= funsigs_match_arglengths NSC). simpl in Len_Nargs_cl.
 unfold restrict in PreAdapt; rewrite ! tr_trans in PreAdapt; trivial.
 
-destruct PreAdapt as [TCpreadapt PreAdapt].
+(*destruct PreAdapt as [TCpreadapt PreAdapt].*)
 
 (*Environment that binds the arguments to the normalized identifiers nparams = 1, 2,3,...)*)
 remember (mkEnviron (ge_of rho) (Map.empty (block * type))
@@ -4147,7 +4147,7 @@ remember (mkEnviron (ge_of rho) (Map.empty (block * type))
                           (make_args' (map fst clientparams) args))) as nrho_aux.
 set (nrho := nrho_aux). subst nrho_aux.
 
-clear TCpreadapt. (*nrho is welltyped in w2'*)
+(*clear TCpreadapt.*) (*nrho is welltyped in w2'*)
 
 specialize (Hpre ts1 x1).
 assert (ARGS: app_pred (|> (F0 rho *

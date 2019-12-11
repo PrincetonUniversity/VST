@@ -269,6 +269,25 @@ end.
 Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C: compspecs} (ge: Genv.t Clight.fundef type)(fdecs: list (ident * Clight.fundef)) (G1: funspecs), Prop :=
 | semax_func_nil:   forall {Espec: OracleKind},
     forall V G C ge, @semax_func Espec V G C ge nil nil
+| semax_func_cons: forall {Espec:OracleKind} 
+     fs id f phi (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok (f.(fn_vars)) ->
+   f.(fn_callconv) = callingconvention_of_funspec phi ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+  semax_body V G f (id, phi) ->
+
+  semax_func V G ge fs G' ->
+  semax_func V G ge ((id, Internal f)::fs)
+       ((id, normalize_funspec phi)::G')
+(*
 | semax_func_cons: forall {Espec:OracleKind} fs (id : ident)
     (f : function) (fsig : funsig) (cc : calling_convention) A P Q
     (NEP : @super_non_expansive A P) (NEQ : @super_non_expansive A Q) (V : varspecs)
@@ -295,7 +314,7 @@ Inductive semax_func: forall {Espec: OracleKind} (V: varspecs) (G: funspecs) {C:
 forall nNEP,
   @semax_func Espec V G C ge fs G' ->
   @semax_func Espec V G C ge ((id, Internal f)::fs)
-       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G')
+       ((id, mk_funspec (params, retsig) cc A nP Q nNEP NEQ)::G')*)
 (*
 | semax_func_cons_ext_with_normalization: forall {Espec: OracleKind}
       (V: varspecs) (G: funspecs) {C: compspecs} ge fs id ef (argtypes:typelist) retsig A P Q (*NEP NEQ*)

@@ -1189,6 +1189,27 @@ Proof. destruct phi; simpl; intros.
   apply normalparams_LNR.
 Qed.
 
+Lemma binary_intersection_LNR1 {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      list_norepet (map fst (params_of_funspec phi1)).
+Proof. apply binary_intersection_funsigs_match in BI. 
+  apply funsigs_match_LNR1 in BI. apply BI. 
+Qed. 
+Lemma binary_intersection_LNR2 {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      list_norepet (map fst (params_of_funspec phi2)).
+Proof. apply binary_intersection_funsigs_match in BI. 
+  apply funsigs_match_LNR2 in BI. apply BI. 
+Qed.
+
+Lemma binary_intersection_LNR_res {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      list_norepet (map fst (params_of_funspec phi)).
+Proof. specialize (binary_intersection_LNR1 BI). unfold params_of_funspec.
+  rewrite (binary_intersection_funsig BI). trivial.
+Qed.
+
+Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
+      return_of_funspec phi1 = return_of_funspec phi.
+Proof. unfold return_of_funspec. rewrite (binary_intersection_funsig BI); trivial. Qed.
+
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
    then we could change "ret0_tycon" to "ret_tycon" in this

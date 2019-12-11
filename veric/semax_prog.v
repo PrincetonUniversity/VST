@@ -526,7 +526,7 @@ Qed.
 Lemma typelist2list_of_type_of_params params:
       snd (split params) = typelist2list (type_of_params params).
 Proof. rewrite snd_split; induction params; try destruct a; simpl; f_equal; auto. Qed.
-
+(*
 Lemma semax_func_cons: forall 
      fs id f fsig cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
   andb (id_in_list id (map (@fst _ _) G))
@@ -682,7 +682,145 @@ destruct H3 as [? [? ?]]. specialize (H0 id'); unfold fundef in H0; simpl in H0.
 rewrite PTree.gso in H1 by auto.
 exists id', NEP', NEQ'; split; auto.
 Qed.
+*)
 
+Lemma type_of_normalize_funspec {phi}: type_of_funspec (normalize_funspec phi) = type_of_funspec phi.
+Proof. 
+  destruct phi. destruct f. simpl. f_equal. apply map_snd_typeof_params.
+  rewrite snd_combine; trivial. rewrite length_normalparams, map_length; trivial.
+Qed.
+
+Lemma semax_body_type_of_function {V G cs f i phi} (SB : @semax_body V G cs f (i, phi))
+      (CC: fn_callconv f = callingconvention_of_funspec phi):
+type_of_function f = type_of_funspec phi.
+Proof.
+  destruct phi as [[? ?] ? ? ? ? ? ?]. destruct SB as [? _].
+  unfold type_of_function; simpl in *. destruct H as [? [? ?]]; subst.
+  f_equal. apply map_snd_typeof_params. rewrite H; trivial.
+Qed.
+
+Lemma semax_func_cons: forall 
+     fs id f phi (V: varspecs) (G G': funspecs) {C: compspecs} ge b,
+  andb (id_in_list id (map (@fst _ _) G))
+  (andb (negb (id_in_list id (map (@fst ident Clight.fundef) fs)))
+    (semax_body_params_ok f)) = true ->
+  Forall
+     (fun it : ident * type =>
+      complete_type cenv_cs (snd it) =
+      true) (fn_vars f) ->
+   var_sizes_ok cenv_cs (f.(fn_vars)) ->
+   f.(fn_callconv) = callingconvention_of_funspec phi ->
+   Genv.find_symbol ge id = Some b -> 
+   Genv.find_funct_ptr ge b = Some (Internal f) -> 
+  semax_body V G f (id, phi) ->
+
+  semax_func V G ge fs G' ->
+  semax_func V G ge ((id, Internal f)::fs)
+       ((id, normalize_funspec phi)::G').
+Proof.
+intros until C.
+intros ge b H' COMPLETE Hvars Hcc Hb1 Hb2 SB [HfsG' [Hfs HG]].
+apply andb_true_iff in H'.
+destruct H' as [Hin H'].
+apply andb_true_iff in H'.
+destruct H' as [Hni H].
+split.
+{ econstructor 2; auto. 
+  + rewrite type_of_normalize_funspec. 
+    eapply semax_body_type_of_function. apply SB. apply Hcc.
+  + apply normalize_funspec_is_normalized. }
+apply id_in_list_true in Hin. rewrite negb_true_iff in Hni.
+split.
+{ hnf; intros. destruct H0; [ symmetry in H0; inv H0 | apply (Hfs _ _ H0)].
+exists b; split; trivial. } 
+intros ge' H0 HGG n.
+specialize (HG _ H0 HGG).
+hnf in HG |- *. 
+intros v fsig cc' A' P' Q'.
+apply derives_imp.
+clear n.
+intros n ?.
+rewrite <- Genv.find_funct_find_funct_ptr in Hb2.
+apply id_in_list_false in Hni.
+destruct (eq_dec  (Vptr b Ptrofs.zero) v) as [?H|?H].
+* (* Vptr b Ptrofs.zero = v *)
+subst v.
+right.
+exists b; exists f.
+split(*; auto*).
++
+apply andb_true_iff in H.
+destruct H as [H H'].
+apply compute_list_norepet_e in H.
+apply compute_list_norepet_e in H'.
+rewrite Genv.find_funct_find_funct_ptr in Hb2; auto.
+split; auto.
+split. { specialize (HGG b). unfold fundef in HGG;  rewrite Hb2 in HGG; simpl in HGG.
+      unfold fundef; simpl. rewrite HGG; trivial. } 
+split; auto.
+split; auto.
+split; auto.
+destruct H1 as [id' [NEP' [NEQ' [? [NORM' [b' [? Hbb']]]]]]].
+symmetry in Hbb'; inv Hbb'.
+destruct (eq_dec id id').
+ - subst. simpl in H1. rewrite PTree.gss in H1. destruct phi as [[? ?] ? ? ? ? ? ?].
+   symmetry in H1; inv H1. apply inj_pair2 in H8. apply inj_pair2 in H7. subst Q' P'. simpl in *.
+   destruct SB. apply list_norepet_app in H. intuition. rewrite H.
+   rewrite snd_combine; trivial. rewrite <- H. clear. rewrite length_normalparams, map_length; trivial.
+ -
+   specialize (H0 id); unfold fundef in H0. simpl in H0.  rewrite Hb1 in H0; simpl in H0.
+   simpl in H2.
+   contradiction (Genv.global_addresses_distinct ge' n0 H0 H2); auto.
++
+intros Delta' CS' k NK HDelta' w KW CSUB.
+intros ts x.
+simpl in H1. specialize (H0 id); unfold fundef in H0; simpl in H0. rewrite Hb1 in H0; simpl in H0.
+destruct phi as [[? ?] ? ? ? ? ? ?].
+pose proof (semax_func_cons_aux (Build_genv ge' cenv_cs) _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni HfsG' H1).
+destruct H2 as [H4' [H4 [H4a [H4b H4c]]]].
+subst A' fsig cc'.
+apply JMeq_eq in H4b.
+apply JMeq_eq in H4c.
+subst P' Q'.
+destruct SB as [X SB]; specialize (SB Espec ts x). simpl fst in X. simpl snd in X. 
+specialize (SB k).
+apply now_later. 
+rewrite <- (stackframe_of'_cenv_sub CSUB); trivial.
+apply (semax'_cenv_sub CSUB). 
+clear - SB NK KW HDelta' X.
+rewrite semax_fold_unfold in SB|-*. intros gx DD CS' u WU [SUB GX] v UV BEL.
+assert (HDD: tycontext_sub (func_tycontext f V G nil) DD).
+{ unfold func_tycontext, func_tycontext'. simpl.
+eapply tycontext_sub_trans; eauto. }
+assert (WV: @necR nat ag_nat w v). { eapply necR_trans.  apply WU. apply UV. }
+specialize (SB gx DD CS' _ KW (conj HDD GX) v WV BEL). 
+revert SB.
+apply allp_derives; intro kk.
+apply allp_derives; intro F.
+apply allp_derives; intro curf.
+apply imp_derives; auto.
+unfold guard.
+apply allp_derives; intro tx.
+eapply allp_derives; intro vx.
+eapply subp_derives; auto.
+apply andp_derives; auto.
+apply andp_derives; auto.
+apply sepcon_derives; auto.
+apply andp_left1.
+apply sepcon_derives; auto.
+apply andp_left2. simpl fst.
+rewrite fst_combine by (rewrite length_normalparams, map_length; trivial).
+apply port_close_precondition;
+ [ apply X | apply normalparams_LNR | rewrite length_normalparams, map_length; trivial].
+* (***   Vptr b Ptrofs.zero <> v'  ********)
+apply (HG n v fsig cc' A' P' Q'); auto.
+destruct H1 as [id' [NEP' [NEQ' [? [NORM' ?]]]]].
+simpl in H1. rewrite PTree.gsspec in H1.
+destruct (peq id' id); subst.
+- destruct H3 as [? [? ?]]. specialize (H0 id); unfold fundef in H0; simpl in H0.
+  rewrite Hb1 in H0; simpl in H0. unfold fundef in H3; simpl in H3; congruence.
+- exists id', NEP', NEQ'; split; auto.
+Qed.
 (* EXPERIMENT
 Lemma semax_func_skip:
 forall
@@ -2570,6 +2708,14 @@ Lemma make_tycontext_g_consG_mk i t V g G
 Proof.
 destruct g as [j fs]; simpl in *.
 rewrite PTree.gsspec. destruct (peq i j); subst; auto.
+Qed.
+
+Lemma make_tycontext_g_G_None V i: forall G, find_id i G = None ->
+   (make_tycontext_g V G) ! i = find_id i V.
+Proof. induction G; intros.
++ apply semax_prog.make_tycontext_g_nilG_find_id. 
++ simpl in H. destruct a as [j a]; simpl. rewrite PTree.gsspec.
+  if_tac in H; subst. inv H. rewrite if_false; auto.
 Qed.
 
 Lemma list_norepet_cut_middle {A:Set} l1 l2 (a:A) (Ha: list_norepet (l1 ++ (a :: l2))): list_norepet (l1 ++ l2).
