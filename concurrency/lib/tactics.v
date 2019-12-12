@@ -372,6 +372,11 @@ Tactic Notation "clean_proofs" "of" uconstr(pat):=
 
 (** *
     How to rewrite equalities when there are many dependencies.
+    Rewriting in a term with a dependent type is a pain.
+    The tactic [dependent rewrite] often fails to do what I wan.
+    The following tactics are super simple and useful:
+    turns out [subst] is very strong, just by substituting in 
+    the right way, you can rewrite in dependent terms.
  *)
 
 Ltac dependent_rewrite Heq:=
