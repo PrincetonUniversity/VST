@@ -240,6 +240,17 @@ Definition semax_conseq := @semax_conseq.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_external_FF := @semax_external_FF.
 
+Definition semax_external_rename: forall {Espec e A P Q ids1 ids2}
+      (L: length ids1 = length ids2)
+      (LE: length (sig_args (ef_sig e)) = length ids2)
+      (LNR1: list_norepet ids1) (LNR2 : list_norepet ids2),
+  @CSHL_Def.semax_external Espec ids1 e A P Q =
+  @CSHL_Def.semax_external Espec ids2 e A (rename_pre ids2 ids1 P) Q.
+Proof. intros. unfold CSHL_Def.semax_external. apply prop_ext; split; intros.
+  rewrite <- semax_external_rename; trivial. 
+  rewrite <- semax_external_rename in H; trivial.
+Qed.
+
 Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.

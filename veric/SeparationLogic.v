@@ -1613,6 +1613,13 @@ Axiom semax_external_FF:
  forall Espec ids ef A,
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).
 
+Axiom semax_external_rename: forall {Espec e A P Q ids1 ids2}
+      (L: length ids1 = length ids2)
+      (LE: length (sig_args (ef_sig e)) = length ids2)
+      (LNR1: list_norepet ids1) (LNR2 : list_norepet ids2),
+  @semax_external Espec ids1 e A P Q =
+  @semax_external Espec ids2 e A (rename_pre ids2 ids1 P) Q.
+
 Axiom semax_external_binaryintersection: forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
       A P Q P_ne Q_ne sig1 sig2 cc ids1 ids2}
   (EXT1: @semax_external Espec ids1 ef A1 P1 Q1)

@@ -1362,6 +1362,7 @@ Definition semax_ext := @MinimumLogic.semax_ext.
 Definition semax_ext_void := @MinimumLogic.semax_ext_void.
 
 Definition semax_external_FF := @MinimumLogic.semax_external_FF.
+Definition semax_external_rename := @MinimumLogic.semax_external_rename.
 Definition semax_external_binaryintersection := @MinimumLogic.semax_external_binaryintersection.
 
 Definition semax_body_binaryintersection: forall {V G cs} f i phi1 phi2 phi
