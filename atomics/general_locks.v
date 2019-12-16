@@ -63,26 +63,49 @@ Proof.
     iIntros "[Q $]"; iDestruct "Q" as (_) "$".
 Qed.
 
-Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q g (x0 x' : C)
-  (Ha : (forall x, a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
-  (Ha' : (forall x x1, public_half g x1 * a' x x1 |-- |==> a x)%I)
+Lemma sync_commit_gen : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R g (x0 x' : C)
+  {HR : Timeless R}
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
+  (Ha' : (forall x x1, public_half g x1 * a' x x1 |-- |==> R * a x)%I)
   (Hb : (forall x x1, !!(x1 = x0) && public_half g x' * a' x x1 |-- |==> EX y, b x y)%I),
-  (atomic_shift a Ei Eo b Q * my_half g x0 |-- |==> (EX y, Q y) * my_half g x')%I.
+  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- |==> (EX y, Q y) * my_half g x')%I.
 Proof.
-  intros; eapply derives_trans, sync_commit_simple.
-  apply sepcon_derives, derives_refl.
-  apply atomic_shift_derives; intros.
-  iIntros "a".
-  iMod (Ha with "a") as (x1) "[g a']".
+  intros; eapply derives_trans, sync_commit_simple with (x1 := x0); cancel.
+  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
+  apply atomic_shift_derives_frame; intros.
+  iIntros "[a >R]".
+  iMod (Ha with "[$R $a]") as (x1) "[g a']".
   iExists x1; iFrame.
   iIntros "!>"; iSplit.
   - iIntros "g".
-    iMod (Ha' with "[$g $a']"); auto.
+    iMod (Ha' with "[$g $a']") as "[$ $]"; auto.
   - iIntros (_) "g".
     iMod (Hb with "[$g $a']") as (y) "b".
     iExists y; iFrame.
     iIntros "!> ?".
     iExists y; auto.
+Qed.
+
+Lemma sync_commit_gen1 : forall {A B C} {inv_names : invG} a a' Ei Eo (b : A -> B -> mpred) Q R g (x0 x' : C)
+  {HR : Timeless R}
+  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * a' x x1)%I)
+  (Ha' : (forall x x1, public_half g x1 * a' x x1 |-- |==> R * a x)%I)
+  (Hb : (forall x x1, !!(x1 = x0) && public_half g x' * a' x x1 |-- |==> EX y, b x y)%I),
+  (atomic_shift a Ei Eo b (fun _ => Q) * my_half g x0 * R |-- |==> Q * my_half g x')%I.
+Proof.
+  intros; eapply derives_trans, sync_commit_simple with (x1 := x0); cancel.
+  eapply derives_trans; [apply sepcon_derives, now_later; apply derives_refl|].
+  apply atomic_shift_derives_frame; intros.
+  iIntros "[a >R]".
+  iMod (Ha with "[$R $a]") as (x1) "[g a']".
+  iExists x1; iFrame.
+  iIntros "!>"; iSplit.
+  - iIntros "g".
+    iMod (Ha' with "[$g $a']") as "[$ $]"; auto.
+  - iIntros (_) "g".
+    iMod (Hb with "[$g $a']") as (y) "b".
+    iExists y; iFrame.
+    iIntros "!> ?"; auto.
 Qed.
 
 (* These are useful when the shared resource matches the lock invariant exactly. *)
