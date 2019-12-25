@@ -491,8 +491,16 @@ Arguments abbreviate {A} {x}.
 
 Ltac clear_Delta :=
 match goal with
-| Delta := @abbreviate tycontext _ |- _ =>
-   first [clear Delta | clearbody Delta]
+| Delta := @abbreviate tycontext ?G |- _ =>
+   try match goal with |- context [ret_type Delta] =>
+      let x := constr:(ret_type G) in let x := eval simpl in x
+       in change (ret_type Delta) with x
+   end;
+   repeat match goal with H: context [ret_type Delta] |- _ =>
+      let x := constr:(ret_type G) in let x := eval simpl in x
+       in change (ret_type Delta) with x in H
+   end;
+   try clear Delta
 | _ => idtac
 end;
 match goal with

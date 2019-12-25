@@ -849,8 +849,9 @@ first
 unfold fold_right_sepcon; fold fold_right_sepcon; rewrite ?sepcon_emp; (* for the left side *)
 unfold_for_go_lower;
 simpl tc_val; simpl msubst_denote_tc_assert;
-clear_Delta;
-try clear dependent rho].
+try clear dependent rho;
+clear_Delta
+].
 
 Ltac sep_apply_in_lifted_entailment H :=
  apply SEP_entail'; 
