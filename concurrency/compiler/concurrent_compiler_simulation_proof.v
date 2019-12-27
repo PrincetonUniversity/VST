@@ -213,7 +213,7 @@ Module Concurrent_correctness
       intros *; match_case.
     Qed.
         
-    Lemma unique_Krun_lift_c_state:
+    (*Lemma unique_Krun_lift_c_state:
       forall c i,
         @HybridMachineSig.HybridMachineSig.unique_Krun _ _ OrdinalPool.OrdinalThreadPool c i <->
         @HybridMachineSig.HybridMachineSig.unique_Krun _ _ (TP (@Some nat 0%nat)) (lift_c_state c) i.
@@ -236,7 +236,7 @@ Module Concurrent_correctness
           * rewrite <- H. f_equal. simpl. f_equal.
             match_case; simpl.
             eapply Axioms.proof_irr.
-    Qed.
+    Qed.*)
     Definition lifted_refl_match :=
       fun cd j st1 m1 st2 m2 =>
          refl_match cd j (lift_c_state st1) m1 st2 m2.
@@ -304,8 +304,8 @@ Module Concurrent_correctness
         inv H. simpl.
         intros. exists v1. simpl in *.
         eapply halted__lift_c_state; auto.
-      - intros; simpl. inv H.
-        apply unique_Krun_lift_c_state.
+     (* - intros; simpl. inv H.
+        apply unique_Krun_lift_c_state. *)
     Qed.
       Lemma trivial_asm_simulation:
         forall ap (Hsafe:Asm_core.safe_genv (@the_ge ap)), 
@@ -352,8 +352,8 @@ Module Concurrent_correctness
           admit.
         - intros ???????? (? & ? & ? & ? & ? & ? & ?) ?.
           edestruct thread_halted; eauto.
-        - intros ?????? (? & ? & ? & ? & ? & ? & ?) ?.
-          erewrite thread_running; eauto.
+       (* - intros ?????? (? & ? & ? & ? & ? & ? & ?) ?.
+          erewrite thread_running; eauto. *)
       Admitted.
     End SimulationTransitivity.
 

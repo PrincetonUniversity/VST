@@ -46,8 +46,6 @@ Qed.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
 Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
-
-
 Definition dmap_get' (dm:delta_map) b ofs:=
   match dm ! b with
     Some f =>

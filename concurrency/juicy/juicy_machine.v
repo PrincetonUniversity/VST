@@ -15,6 +15,7 @@ Require Import VST.concurrency.juicy.rmap_locking.
 Require Import VST.concurrency.common.lksize.
 Require Import VST.concurrency.common.semantics.
 Require Import VST.concurrency.common.permjoin.
+Require Import VST.concurrency.lib.tactics.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -37,6 +38,7 @@ Require Import VST.veric.juicy_mem.
 Require Import VST.veric.juicy_mem_lemmas.
 Require Import VST.veric.juicy_extspec.
 Require Import VST.veric.jstep.
+
 
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
@@ -1409,6 +1411,18 @@ Qed.
         thread_pool -> mem -> list mem_event -> Prop:=
       @juicy_step.
 
+    Lemma threadStep_at_Krun_neq:
+      forall i tp m cnt cmpt tp' m' tr,
+        @threadStep i tp m cnt cmpt tp' m' tr ->
+        forall j cntj cntj', j <> i ->
+          @getThreadC _ _ _ j tp' cntj' = @getThreadC _ _ _ j tp cntj.
+    Proof. intros.
+           inversion H; subst.
+           assert (HH:i <> j) by auto.
+           erewrite (gsoThreadCode HH).
+           symmetry. apply age_getThreadCode.
+           Unshelve. auto.
+    Qed.
 
     Lemma threadStep_at_Krun:
       forall i tp m cnt cmpt tp' m' tr,
@@ -1468,99 +1482,6 @@ Qed.
       @syncStep' isCoarse.
 
 
-  Lemma syncstep_equal_run:
-    forall b i tp m cnt cmpt tp' m' tr,
-      @syncStep b i tp m cnt cmpt tp' m' tr ->
-      forall j,
-        (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
-        (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q').
-  Proof.
-    intros b i tp m cnt cmpt tp' m' tr H j; split.
-    - intros [cntj [ q running]].
-      destruct (NatTID.eq_tid_dec i j).
-      + subst j. generalize running; clear running.
-        inversion H; subst;
-          match goal with
-          | [ H: getThreadC ?cnt = Kblocked ?c |- _ ] =>
-            replace cnt with cntj in H by apply cnt_irr;
-              intros HH; rewrite HH in H; inversion H
-          end.
-      + (*this should be easy to automate or shorten*)
-        inversion H; subst.
-        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
-          erewrite <- age_getThreadCode.
-          rewrite gLockSetCode.
-          rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
-          erewrite <- age_getThreadCode.
-          rewrite gLockSetCode.
-          rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntAdd _ _ _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
-          erewrite <- age_getThreadCode.
-          erewrite gsoAddCode . (*i? *)
-          rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
-          erewrite <- age_getThreadCode.
-          rewrite gLockSetCode.
-          rewrite gsoThreadCode; assumption.
-        * exists (cnt_age' (cntRemoveL _ (cntUpdate(resources:=LocksAndResources) (Kresume c Vundef) phi' _ cntj))), q.
-          erewrite <- age_getThreadCode.
-          rewrite gRemLockSetCode.
-          rewrite gsoThreadCode; assumption.
-        * exists cntj, q; assumption.
-    - intros [cntj [ q running]].
-      destruct (NatTID.eq_tid_dec i j).
-      + subst j. generalize running; clear running.
-        inversion H; subst;
-        try erewrite <- age_getThreadCode;
-          try rewrite gLockSetCode;
-          try rewrite gRemLockSetCode;
-          try rewrite gssThreadCode;
-          try solve[intros HH; inversion HH].
-        { (*addthread*)
-          assert (cntj':=cntj).
-          eapply cnt_age in cntj'.
-          eapply cntAdd' in cntj'. destruct cntj' as [ [HH HHH] | HH].
-          * erewrite gsoAddCode; eauto.
-            subst; rewrite gssThreadCode; intros AA; inversion AA.
-          * erewrite gssAddCode . intros AA; inversion AA.
-            assumption. }
-          { (*AQCUIRE*)
-            replace cntj with cnt by apply cnt_irr;
-            rewrite Hthread; intros HH; inversion HH. }
-      + generalize running; clear running.
-        inversion H; subst;
-        try erewrite <- age_getThreadCode;
-          try rewrite gLockSetCode;
-          try rewrite gRemLockSetCode;
-          try (rewrite gsoThreadCode; [|auto]);
-        try (intros HH;
-        match goal with
-        | [ H: getThreadC ?cnt = Krun ?c |- _ ] =>
-          exists cntj, c; exact H
-        end).
-      (*Add thread case*)
-        assert (cntj':=cntj).
-        eapply cnt_age in cntj'.
-        eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
-        * erewrite gsoAddCode; eauto.
-          destruct (NatTID.eq_tid_dec i j);
-            [subst; rewrite gssThreadCode; intros AA; inversion AA|].
-          rewrite gsoThreadCode; auto.
-          exists HH, q; assumption.
-        * erewrite gssAddCode . intros AA; inversion AA.
-          assumption.
-
-
-
-          Grab Existential Variables.
-          eauto. eauto. eauto. eauto. eauto. eauto.
-          eauto. eauto. eauto. eauto. eauto. eauto.
-          eauto. eauto. eauto. apply cntAdd. eauto.
-          eauto. eauto.
-  Qed.
-
-
   Lemma syncstep_not_running:
     forall b i tp m cnt cmpt tp' m' tr,
       @syncStep b i tp m cnt cmpt tp' m' tr ->
@@ -1573,6 +1494,61 @@ Qed.
         erewrite (cnt_irr _ _ _ cnt);
           rewrite H; intros AA; inversion AA
       end.
+  Qed.
+  Ltac rewrite_getC:=
+    repeat progress (try erewrite <- age_getThreadCode;
+    try erewrite gLockSetCode;
+    try erewrite gRemLockSetCode;
+    try (erewrite gssAddCode by eauto); 
+    try erewrite gsoAddCode;
+    try (erewrite gsoThreadCode by eauto);
+    try erewrite gLockSetCode;
+    try erewrite gssThreadCode).
+  Lemma syncstep_not_running':
+    forall b i tp m cnt cmpt tp' m' tr,
+      @syncStep b i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC _ _ _ i tp' cntj = Krun q.
+  Proof.
+    intros.
+    unshelve (inversion H; subst;
+              try solve[ rewrite_getC; intros HH; inv HH]);
+      simpl; eauto.
+    - erewrite (cnt_irr _ _ _ cnt); simpl in *; erewrite Hthread.
+      intros HH; congruence.
+  Qed.
+    
+  Lemma syncstep_equal_run:
+    forall b i tp m cnt cmpt tp' m' tr,
+      @syncStep b i tp m cnt cmpt tp' m' tr ->
+      forall j q,
+        (exists cntj, @getThreadC _ _ _ j tp cntj = Krun q) <->
+        (exists cntj', @getThreadC _ _ _ j tp' cntj' = Krun q).
+  Proof.
+    intros.
+    split; intros (?&Hget).
+    - assert (i <> j).
+      { intros HH; subst. eapply syncstep_not_running; eauto. }
+      assert (cntj': containsThread tp' j).
+      { inv H; try now (simpl; eauto). exploit @cntAdd; eauto. }
+      exists cntj'.
+      (* pose proof age_getThreadCode as Hage_getThreadCode; simpl in Hage_getThreadCode. *)
+      inv H; try solve[rewrite_getC; eauto].
+      + erewrite (cnt_irr _ _ _ x); eauto.
+    - assert (i <> j).
+      { intros HH; subst. eapply syncstep_not_running'; eauto. }
+      assert (cntj': containsThread tp j).
+      { revert Hget; inv H; try now (simpl; eauto).
+        destruct (Nat.eq_dec j (@latestThread _ Sem _ tp )).
+        - subst; rewrite_getC; intros; congruence.
+        - intros. simpl in *; unfold OrdinalPool.containsThread in *.
+          simpl in *. clear - n x. 
+          unfold OrdinalPool.latestThread in *; ssromega. }
+      exists cntj'. revert Hget.
+      inv H; rewrite_getC; eauto.
+      + intros; erewrite (cnt_irr _ _ _ x); eauto.
+
+        Unshelve.
+        all: eauto.
   Qed.
 
     (* The initial machine has to be redefined.
@@ -1964,7 +1940,12 @@ Qed.
       HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant
         (fun _ _ _ compat cnt m => m = install_perm compat cnt) (fun _ _ _ => add_block)
         (@threadStep)
-        threadStep_at_Krun threadStep_equal_run syncStep syncstep_equal_run syncstep_not_running
+        threadStep_at_Krun_neq
+        threadStep_at_Krun
+        threadStep_equal_run
+        syncStep
+        syncstep_equal_run
+        syncstep_not_running
         init_mach.
 
   End JuicyMachineShell.

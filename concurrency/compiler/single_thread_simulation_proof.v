@@ -928,9 +928,9 @@ Admitted.
           List.Forall2 (inject_mevent mu) tr1 tr2 ->
           HybridMachineSig.schedPeek U = Some tid ->
           (~ ThreadPool.containsThread st1' tid \/
-         (exists (cnt : ThreadPool.containsThread st1' tid) (c : semC),
+         (exists (cnt : ThreadPool.containsThread st1' tid) (c : semC) i,
              ThreadPool.getThreadC cnt = Krun c /\
-             halted (sem_coresem (HybridSem (Some hb))) c Int.zero)) ->
+             halted (sem_coresem (HybridSem (Some hb))) c i)) ->
           HybridMachineSig.invariant st1' ->
           HybridMachineSig.mem_compatible st1' m1' ->
           exists
@@ -963,8 +963,7 @@ Admitted.
               machine_semantics.machine_step (HybConcSem (Some (S hb)) m) tge U tr2 st2 m2 U' tr2' st2'
                                              m2'.
       Proof.
-        intros.
-        simpl in H.
+        intros; simpl in H. simpl.
         inversion H; subst.
         - (* Start thread. *)
           exists tr2; eapply start_step_diagram; eauto.
@@ -980,6 +979,8 @@ Admitted.
 
         - (*schedfail. *) simpl.
           exists tr2; unshelve(eapply schedfail_step_diagram; eauto); eauto.
+
+          Unshelve. all: eauto.
       Qed.
 
 
@@ -1035,8 +1036,8 @@ Admitted.
           eexists; reflexivity.
 
         (*Same running *)
-        - eapply concur_match_same_running.
-          
+       (* - unfold machine_semantics.running_thread; simpl.
+          *)
       Qed.
       
       
@@ -1159,7 +1160,7 @@ Admitted.
             eapply machine_step_trace_wf; eapply H0.
           + eapply H0.
         - intros; inv_match0; normal; eauto.
-        - intros; inv_match0; reflexivity.
+      (*  - intros; inv_match0; reflexivity. *)
 
           Unshelve.
           all: eauto.
@@ -1331,15 +1332,14 @@ Lemma inject_mevent_compose:
             eapply forall_inject_mevent_compose; eauto.
           + auto.
         - econstructor; simpl in *.
-          unfold HybridMachineSig.halted_machine in *;
-            simpl in *.
-          match_case_hyp H0.
-        - intros * Hmatch i. inv Hmatch.
+          unfold HybridMachineSig.halted_machine in *; simpl in *.
+          match_case in H0.
+       (* - intros * Hmatch i. inv Hmatch.
           (eapply thread_running with (i:=i) in Hsimn); eauto. 
           (eapply thread_running with (i:=i)  in Hsim0); eauto.
           split; intros HH; eauto.
           + eapply Hsimn; eapply Hsim0; assumption.
-          + eapply Hsim0; eapply Hsimn; assumption.
+          + eapply Hsim0; eapply Hsimn; assumption. *)
 
             Unshelve.
             all: assumption.
@@ -1505,7 +1505,7 @@ Lemma inject_mevent_compose:
         - apply infinite_step_diagram.
         - apply infinite_machine_step_diagram.
         - apply infinite_halted.
-        - apply infinite_running.
+       (* - apply infinite_running.*)
 
       Qed.
 

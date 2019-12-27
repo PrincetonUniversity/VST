@@ -211,6 +211,12 @@ Module HybridMachineSig.
               containsThread ms tid0 -> mem_compatible ms m ->
               thread_pool -> mem -> seq mem_event -> Prop
 
+        ; threadStep_at_Krun_neq:
+            forall i tp m cnt cmpt tp' m' tr,
+              @threadStep i tp m cnt cmpt tp' m' tr ->
+              forall j cntj cntj', j <> i ->
+              @getThreadC _ _ _ j tp' cntj' = @getThreadC _ _ _ j tp cntj
+                
         ; threadStep_at_Krun:
             forall i tp m cnt cmpt tp' m' tr,
               @threadStep i tp m cnt cmpt tp' m' tr ->
@@ -232,9 +238,9 @@ Module HybridMachineSig.
         ;  syncstep_equal_run:
              forall b i tp m cnt cmpt tp' m' tr,
                @syncStep b i tp m cnt cmpt tp' m' tr ->
-               forall j,
-                 (exists cntj q, @getThreadC _ _ _ j tp cntj = Krun q) <->
-                 (exists cntj' q', @getThreadC _ _ _ j tp' cntj' = Krun q')
+               forall j q,
+                 (exists cntj, @getThreadC _ _ _ j tp cntj = Krun q) <->
+                 (exists cntj', @getThreadC _ _ _ j tp' cntj' = Krun q)
                    
         ;  syncstep_not_running:
              forall b i tp m cnt cmpt tp' m' tr,
@@ -424,7 +430,7 @@ Module HybridMachineSig.
     Definition unique_Krun tp i :=
       forall j cnti q, 
         @getThreadC _ _ _ j tp cnti = Krun q ->
-        eq_nat_dec i j.
+        eq_nat_dec i j \/ exists ret, halted  semSem q ret.
 
     Lemma hybrid_initial_schedule: forall m m' main vals U p st n,
         initial_core (MachineCoreSemantics U p) n m st m' main vals ->

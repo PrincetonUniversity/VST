@@ -59,6 +59,13 @@ Module ThreadPool.
         remLockSet : t -> address -> t;
         latestThread : t -> tid;
         lr_valid : (address -> option lock_info) -> Prop;
+        (* Properties of latestthread*)
+        latest_updThreadC: forall tp j cnt c,
+            latestThread (@updThreadC j tp cnt c) = latestThread tp;
+        latest_updThreadR: forall tp j cnt perm,
+            latestThread (@updThreadR j tp cnt perm) = latestThread tp;
+        latest_updThread : forall tp j cnt c perm,
+            latestThread (@updThread j tp cnt c perm) = latestThread tp;
         (*Find the first thread i, that satisfiList
 es (filter i) *)
         find_thread_: t -> (ctl -> bool) -> option tid
@@ -665,6 +672,17 @@ Module OrdinalPool.
          (fun n =>
             if n == (Ordinal cnt) then pmap else (perm_maps tp) n)
          (lset tp).
+
+    Lemma latest_updThreadC: forall tp j cnt c,
+            latestThread (@updThreadC j tp cnt c) = latestThread tp.
+    Proof. reflexivity. Qed.
+    Lemma latest_updThreadR: forall tp j cnt perm,
+            latestThread (@updThreadR j tp cnt perm) = latestThread tp.
+    Proof. reflexivity. Qed.
+    Lemma latest_updThread: forall tp j cnt c perm,
+            latestThread (@updThread j tp cnt c perm) = latestThread tp.
+    Proof. reflexivity. Qed.
+    
 
     (*TODO: see if typeclasses can automate these proofs, probably not thanks dep types*)
 
@@ -2048,7 +2066,11 @@ Module OrdinalPool.
                                     updLockSet 
                                     remLockSet 
                                     latestThread 
-                                    lr_valid 
+                                    lr_valid
+                                    (* latest properties *)
+                                    latest_updThreadC
+                                    latest_updThreadR
+                                    latest_updThread
                                     (*Find the first thread i, that satisfies (filter i) *)
                                     find_thread
                                     resourceList_spec
