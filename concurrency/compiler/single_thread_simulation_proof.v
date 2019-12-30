@@ -939,7 +939,7 @@ Admitted.
             concur_match cd' mu' st1' m1' st2' m2' /\
             List.Forall2 (inject_mevent mu') tr1 tr2 /\
             machine_semantics.machine_step (HybConcSem (Some (S hb)) m) tge
-                                           U tr2 st2 m2 (HybridMachineSig.schedSkip U) tr2 st2' m2'.
+                                           U tr2 st2 m2 U tr2 st2' m2'.
       Proof.
         admit.
         (* Easy  since there is no changes to memory. *)
@@ -963,7 +963,7 @@ Admitted.
               machine_semantics.machine_step (HybConcSem (Some (S hb)) m) tge U tr2 st2 m2 U' tr2' st2'
                                              m2'.
       Proof.
-        intros; simpl in H. simpl.
+        intros; simpl in H. 
         inversion H; subst.
         - (* Start thread. *)
           exists tr2; eapply start_step_diagram; eauto.
@@ -977,10 +977,10 @@ Admitted.
         - (* sync step. *)
           edestruct external_step_diagram as (? & ? & ? & ? & ? & ? & ? & ?); eauto 8.
 
-        - (*schedfail. *) simpl.
-          exists tr2; unshelve(eapply schedfail_step_diagram; eauto); eauto.
+        - (*schedfail. *) 
+          exploit schedfail_step_diagram; eauto.
 
-          Unshelve. all: eauto.
+          
       Qed.
 
 

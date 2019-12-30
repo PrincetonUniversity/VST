@@ -1260,7 +1260,7 @@ Qed. (* Lemma preservation_Kinit *)
       apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
       (* invariant about "only one Krun and it is scheduled": the
        bad schedule case is not possible *)
-      intros H0 i0 cnti q H1.
+     (* intros H0 i0 cnti q H1.
       specialize (unique H0 i0 cnti q H1).
       destruct unique as [sch' unique]; injection unique as <- <- .
       destruct Htid as [Htid|[?cnt [?c [retv [? ?]]]]].
@@ -1273,7 +1273,7 @@ Qed. (* Lemma preservation_Kinit *)
       change (ClightSemanticsForMachines.Clight_newSem ge)
         with (@JSem ge) in H2.
       rewrite H2 in H1; inv H1.
-      elimtype False; clear - H3 H4; congruence.
+      elimtype False; clear - H3 H4; congruence. *)
     }
 
     (* the schedule selected one thread *)
@@ -1324,7 +1324,7 @@ Qed. (* Lemma preservation_Kinit *)
                 apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
                 (* invariant about "only one Krun and it is scheduled": the
                      bad schedule case is not possible *)
-                intros H0 i0 cnti q H1.
+                (* intros H0 i0 cnti q H1.
                 specialize (unique H0 i0 cnti q H1).
                 destruct unique as [sch' unique]; injection unique as <- <- .
                 destruct Htid as [Htid|[?cnt [?c [retv [? ?]]]]].
@@ -1336,7 +1336,7 @@ Qed. (* Lemma preservation_Kinit *)
                 change (ClightSemanticsForMachines.Clight_newSem ge)
                            with (@JSem ge) in H2.
                 rewrite H2 in H1; inv H1.
-                elimtype False; clear - H3 H4; congruence.
+                elimtype False; clear - H3 H4; congruence. *)
     }
 
        destruct (cl_at_external ci) eqn:Hatex.

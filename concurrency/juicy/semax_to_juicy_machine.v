@@ -86,8 +86,8 @@ Proof.
   inversion step; try solve [exfalso; eauto].
   - now eapply JuicyMachine.suspend_step; eauto.
   - now eapply JuicyMachine.sync_step; eauto.
-(*  - now eapply JuicyMachine.halted_step; eauto.*)
-  - now eapply JuicyMachine.schedfail; eauto.
+(*  - now eapply JuicyMachine.halted_step; eauto.
+  - now eapply JuicyMachine.schedfail; eauto. *)
 Qed.
 
 Lemma schstep_norun i sch tr tr' tp m tp' m' :
@@ -137,13 +137,13 @@ Proof.
   all: try (intros [? ?]; congruence).
   all: eauto.
 
-  destruct Htid as [? | [?cnt [?c [retv [? ?]]]]]; try contradiction. proof_irr.
+  (* destruct Htid as [? | [?cnt [?c [retv [? ?]]]]]; try contradiction. proof_irr.
   intros [? ?]; congruence.
 
   intros E.
   hnf in uniq.
   autospec uniq.
-  specialize (uniq j cnti q E). breakhyps.
+  specialize (uniq j cnti q E). breakhyps. *)
 Qed.
 
 End juicy.

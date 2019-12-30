@@ -2422,7 +2422,7 @@ Module SimProofs.
       rewrite Hcode in Hinternal;
       simpl in Hinternal;
         by discriminate.
-      destruct Htid as [Hnotcnt | (Hcnt & ? & ? & Hget & Hhalted)].
+      (* destruct Htid as [Hnotcnt | (Hcnt & ? & ? & Hget & Hhalted)].
       exfalso;
         now eauto.
       exfalso.
@@ -2432,7 +2432,7 @@ Module SimProofs.
       rewrite Hget in Hinternal.
       destruct (at_external semSem x mrestr); try discriminate.
       destruct Hinternal.
-      eapply H0; now eauto.
+      eapply H0; now eauto. *)
   Qed.
 
   (** Proof of simulation for internal steps*)
@@ -4022,7 +4022,7 @@ Module SimProofs.
     (Hlt := snd (compat_th _ _ Hcompf' pff')) (Hlt' := snd (compat_th _ _ Hcompf pff))
       by (erewrite gThreadCR with (cntj := pff); reflexivity);
       by assumption.
-    destruct Htid as [? | (? & ? & ? & Hcode & ?)];
+    (* destruct Htid as [? | (? & ? & ? & Hcode & ?)];
       [exfalso; now eauto|].
     Tactics.pf_cleanup.
     rewrite Hcode in Hsuspend.
@@ -4031,7 +4031,7 @@ Module SimProofs.
     destruct (at_external_halted_excl x0 mrestr) as [? | Hcontra].
     congruence.
     exfalso.
-    eapply Hcontra; now eauto.
+    eapply Hcontra; now eauto. *)
   Qed.
 
   Opaque lockRes.
@@ -4121,7 +4121,7 @@ Module SimProofs.
     - subst; by exfalso.
     - unfold getStepType in Hpop.
       inversion Hstep; subst; simpl in *;
-      inversion HschedN; subst tid;
+        inversion HschedN; subst tid;
       try match goal with
           | [H: ?X = ?Y :: ?X |- _] =>
             exfalso;
@@ -4129,27 +4129,36 @@ Module SimProofs.
               inversion HschedS;
                 by auto
           end.
-      inversion Htstep; subst.
-      Tactics.pf_cleanup.
-      rewrite Hcode in Hpop. simpl in Hpop.
-      destruct Hpop;
-        by discriminate.
-      inversion Htstep; subst.
-      Tactics.pf_cleanup.
-      rewrite Hcode in Hpop; simpl in Hpop.
-      destruct Hpop;
-        by discriminate.
-      inversion Htstep; subst; Tactics.pf_cleanup.
-      rewrite Hcode in Hpop. simpl in Hpop.
-      apply ev_step_ax1 in Hcorestep.
-      apply corestep_not_at_external in Hcorestep.
-      rewrite Hcorestep in Hpop.
-      destruct Hpop as [[? ?]|[? ?]];
-        discriminate.
+      + inversion Htstep; subst.
+        Tactics.pf_cleanup.
+        rewrite Hcode in Hpop. simpl in Hpop.
+        destruct Hpop; by discriminate.
+      + inversion Htstep; subst.
+        Tactics.pf_cleanup.
+        rewrite Hcode in Hpop; simpl in Hpop.
+        destruct Hpop; by discriminate.
+      + inversion Htstep; subst; Tactics.pf_cleanup.
+        rewrite Hcode in Hpop. simpl in Hpop.
+        apply ev_step_ax1 in Hcorestep.
+        apply corestep_not_at_external in Hcorestep.
+        rewrite Hcorestep in Hpop.
+        destruct Hpop as [[? ?]|[? ?]]; discriminate.
+      + subst.
+        destruct Htid.
+        * exfalso; apply H; eauto.
+        * destruct H as (?&?&?&?&?).
+          erewrite (cnt_irr _ _ _ cnti) in H;
+            rewrite H in Hpop; simpl in Hpop.
+          destruct Hpop; destruct (at_external semSem x0 mrestr) eqn:HH;
+            try match goal with
+                  [H: _ /\ _ |- _ ]=> destruct H
+                end; try congruence.
+          edestruct at_external_halted_excl.
+          -- erewrite HH in H2; congruence. 
+          -- exfalso. eapply H2. eauto.
     - subst.
       exists tp', tr0, m'; split; eauto.
-      intros.
-      subst mrestr.
+      intros. subst mrestr.
       eapply @suspend_step_inverse with (cnt := cnti) (Hcompc := Hcomp) in Hstep; eauto.
       destruct Hstep as [_ [_ [Heq _]]].
       rewrite <- List.app_nil_r in Heq at 1.

@@ -359,7 +359,7 @@ Module StepLemmas.
     eexists; econstructor 3; simpl; eauto.
     exists U1'; econstructor 4; simpl; eauto.
     exists U1'; econstructor 5; simpl; eauto.
-    exists U1'; econstructor 6; simpl; eauto.
+    eexists; econstructor 6; simpl; eauto.
   Qed.
 
   End StepLemmas.

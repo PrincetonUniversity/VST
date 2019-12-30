@@ -310,14 +310,9 @@ Section Csafe_KSafe.
       destruct Htstep as [_ Hget_eq].
       specialize (Hget_eq ltac:(do 2 eexists; eauto)).
       destruct Hget_eq as [cntj [q Hgetj]].
+      specialize (H _ _ _ Hgetj).
       destruct ((Nat.eq_dec tid j)); simpl; eauto.
-      right; specialize (H _ _ _ Hgetj).
-      destruct H. 
-      destruct ((Nat.eq_dec tid j)); simpl;
-        eauto; subst; try congruence; inversion H.
-      replace q' with q; eauto.
-      erewrite threadStep_at_Krun_neq in Hget'; eauto.
-      rewrite Hgetj in Hget'; inversion Hget'; subst; reflexivity.
+    - destruct Htid; eauto.
   Qed.
 
   Lemma AngelStep_preserve_valid:
@@ -336,15 +331,17 @@ Section Csafe_KSafe.
       rewrite HschedN in H.
       simpl in *.
       intros j cntj' q' Hget'.
-      destruct (Nat.eq_dec tid j); subst.
+      destruct (Nat.eq_dec tid j) eqn:HHn; subst.
       + rewrite ThreadPool.gssThreadCC in Hget'.
         discriminate.
       + assert (cntj: ThreadPool.containsThread st j)
           by (eapply ThreadPool.cntUpdateC'; eauto).
         erewrite <- @ThreadPool.gsoThreadCC with (cntj := cntj) in Hget' by eauto.
         specialize (H _ _ _ Hget').
+        rewrite HHn in H.
         destruct H; auto.
-        * destruct (Nat.eq_dec tid j); subst;
+        * 
+          destruct (Nat.eq_dec tid j); subst;
             simpl in *; exfalso; now auto.
     - (* syncStep case *)
       unfold valid, correct_schedule in *.

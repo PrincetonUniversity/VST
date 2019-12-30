@@ -385,6 +385,12 @@ Proof.
     eapply thread_step; eauto.
     instantiate (1 := Hcmpt').
     econstructor; eauto.
+  - eapply CoreSafe.
+    + hnf; simpl.
+      change U with (yield U) at 2; subst.
+      rewrite <- H4.
+      eapply schedfail; eauto; subst; eauto.
+    + eapply IHn; eauto.
   - hnf in Hperm; subst.
     erewrite restrPermMap_twice in *.
     eapply AngelSafe; [|intro; eapply IHn; eauto].
@@ -468,10 +474,7 @@ Proof.
     hnf; simpl.
     subst; rewrite <- H4.
     eapply halted_step; eauto.*)
-  - eapply AngelSafe; [|intro; eapply IHn; eauto].
-    hnf; simpl.
-    subst; rewrite <- H4.
-    eapply schedfail; eauto.
+
 Qed.
 
 Lemma restr_Cur: forall p m Hlt, p = getCurPerm m -> @restrPermMap p m Hlt = m.
@@ -1249,6 +1252,22 @@ Proof.
  }
 eapply ev_step_sim; eauto.
 reflexivity.
+- subst; eapply CoreSafe.
+    { simpl; rewrite <- H5. unfold MachStep; simpl.
+      change sch with (yield sch) at 2.
+      eapply schedfail; eauto; simpl.
+      inv H0.
+      - destruct Htid as [Htid | [?cnt [?c [retv [? ?]]]]];
+          [left; intro; contradiction Htid; apply mtch_cnt'; auto | right ].
+        specialize (mtch_gtc _ cnt (mtch_cnt _ cnt)).
+        exists (mtch_cnt _ cnt). rewrite H in mtch_gtc. inv mtch_gtc.
+        exists c', retv; split; auto. clear - H0.
+        destruct c'; simpl in H0; try congruence.
+        destruct res; try congruence. destruct k; inv H0.
+        constructor. 
+      - eapply MTCH_invariant; eauto.
+      - eapply MTCH_compat; eauto. }
+    { eapply IHn; eauto. }
   - inv Htstep.
     inversion H0.
     pose proof (mtch_gtc _ ctn (mtch_cnt _ ctn)) as Hc; rewrite Hcode in Hc; inv Hc.
@@ -1399,23 +1418,7 @@ reflexivity.
         auto.
        }
 (*  - inv Hhalted; contradiction.*)
-  - subst; eapply AngelSafe.
-    { simpl; rewrite <- H5.
-      eapply schedfail; eauto; simpl.
-      - inv H0.
-        destruct Htid as [Htid | [?cnt [?c [retv [? ?]]]]];
-         [left; intro; contradiction Htid; apply mtch_cnt'; auto | right ].
-         specialize (mtch_gtc _ cnt (mtch_cnt _ cnt)).
-         exists (mtch_cnt _ cnt). rewrite H in mtch_gtc. inv mtch_gtc.
-         exists c', retv; split; auto. clear - H0.
-         destruct c'; simpl in H0; try congruence.
-         destruct res; try congruence. destruct k; inv H0.
-         constructor.
-      - eapply MTCH_invariant; eauto.
-      - eapply MTCH_compat; eauto. }
-    { intro; eapply IHn; auto.
-      { auto. }
-    }
+  
   Unshelve.
   all: auto.
   (*2: apply cntUpdate; auto.
@@ -1434,8 +1437,8 @@ reflexivity.
         erewrite restrPermMap_ext; eauto.
         intro; extensionality ofs2; auto.
   + eapply mem_compatible_updThreadC, MTCH_compat; eauto.*)
-  + erewrite <- mtch_gtr2; eauto.
-  + erewrite <- mtch_gtr2; eauto.
+  erewrite <- mtch_gtr2; eauto.
+  erewrite <- mtch_gtr2; eauto.
 Qed.
 
 

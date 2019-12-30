@@ -361,15 +361,14 @@ Module HybridMachineSig.
           (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
           machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'
     | schedfail :
-        forall tid U U' ms m tr
+        forall tid U ms m tr
           (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid \/
                  exists (cnt: containsThread ms tid) c i,
           getThreadC cnt = Krun c /\ halted semSem c i)
           (Hinv: invariant ms)
-          (Hcmpt: mem_compatible ms m)
-          (HschedS: schedSkip U = U'),        (*Schedule Forward*)
-          machine_step U tr ms m U' tr ms m.
+          (Hcmpt: mem_compatible ms m),
+          machine_step U tr ms m (yield U) tr ms m.
 
     Definition MachStep (c:MachState) (m:mem)
                (c':MachState) (m':mem) :=
@@ -430,7 +429,7 @@ Module HybridMachineSig.
     Definition unique_Krun tp i :=
       forall j cnti q, 
         @getThreadC _ _ _ j tp cnti = Krun q ->
-        eq_nat_dec i j \/ exists ret, halted  semSem q ret.
+        eq_nat_dec i j (*\/ exists ret, halted  semSem q ret*).
 
     Lemma hybrid_initial_schedule: forall m m' main vals U p st n,
         initial_core (MachineCoreSemantics U p) n m st m' main vals ->
@@ -482,15 +481,14 @@ Module HybridMachineSig.
             (Htstep: syncStep isCoarse Htid Hcmpt ms' m' ev),
             external_step U tr ms m  U' (tr ++ [:: external tid ev]) ms' m'
       | schedfail':
-          forall tid U U' ms m tr
+          forall tid U ms m tr
             (HschedN: schedPeek U = Some tid)
           (Htid: ~ containsThread ms tid \/
                  exists (cnt: containsThread ms tid) c i,
           getThreadC cnt = Krun c /\ halted semSem c i)
             (Hinv: invariant ms)
-            (Hcmpt: mem_compatible ms m)
-            (HschedS: schedSkip U = U'),        (*Schedule Forward*)
-            external_step U tr ms m U' tr ms m.
+            (Hcmpt: mem_compatible ms m),
+            external_step U tr ms m (yield U) tr ms m.
 
       (*Symmetry*)
       (* These steps are basically the same: *)
@@ -678,15 +676,16 @@ Module HybridMachineSig.
           change U with (yield U) at 2.
           change m'0 with (diluteMem m'0) at 2.
           eapply thread_step; eauto.
+        - eapply CoreSafe; eauto.
+          erewrite cats0.
+          change U with (yield U) at 2.
+          change m' with (diluteMem m') at 2.
+          eapply schedfail; eauto.
         - eapply AngelSafe; [|intro; eapply IHn0; eauto].
           erewrite cats0.
           eapply suspend_step; eauto.
         - eapply AngelSafe; eauto.
           eapply sync_step; eauto.
-        - subst.
-          eapply AngelSafe; [|intro; eapply IHn0; eauto].
-          erewrite cats0.
-          eapply schedfail; eauto.
       Qed.
 
       Lemma csafe_concur_safe: forall U tr tp m n, csafe (U, tr, tp) m n -> concur_safe U tp m n.
@@ -725,14 +724,15 @@ Module HybridMachineSig.
           + setoid_rewrite List.app_nil_r.
             rewrite <- H4 at 2.
             eapply resume_step; eauto.
+          + setoid_rewrite List.app_nil_r.
+            rewrite <- H4 at 2.
+            eapply schedfail; eauto.
         - inversion Hstep; subst;
             try solve [symmetry in H4; simpl in H4; apply schedSkip_id in H4; subst; constructor; auto];
             eapply AngelSafe; hnf; simpl; eauto.
           + setoid_rewrite List.app_nil_r.
             eapply suspend_step; eauto.
           + eapply sync_step; eauto.
-          + setoid_rewrite List.app_nil_r.
-            eapply schedfail; eauto.
       Qed.
 
       (** Trace of the coarse-grained machine*)

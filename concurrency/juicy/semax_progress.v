@@ -239,14 +239,13 @@ Section Progress.
       eexists.
       (* split. *)
       (* -  *)constructor.
-        apply JuicyMachine.schedfail with i.
+      apply JuicyMachine.schedfail with i.
         + reflexivity.
         + left. simpl.
           unfold OrdinalPool.containsThread.
           now setoid_rewrite Ei; auto.
         + constructor.
         + eexists; eauto.
-        + reflexivity.
     }
 
     (* the schedule selected one thread *)
@@ -275,7 +274,6 @@ Section Progress.
             reflexivity.         
         + constructor.
         + eexists; eauto.
-        + reflexivity.
     }
       destruct (cl_at_external ci) as [[ef args] | ] eqn:Hatex.
       2:{
