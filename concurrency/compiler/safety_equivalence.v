@@ -45,9 +45,6 @@ Set Bullet Behavior "Strict Subproofs".
 Require Import Coq.Logic.Classical_Prop.
 
 
-Require Import VST.concurrency.lib.tactics.
-
-
 
 Section SafetyEquivalence.
 
@@ -178,11 +175,10 @@ Section Csafe_KSafe.
   (* MachStep that doesn't change the schedule,
     Reduces the set of valid schedules... 
    *)
-  Inductive has_running tp:Prop :=
-  | HasUniqueRun i (cnti : ThreadPool.containsThread tp i) q ret:
+  Inductive has_unique_running tp:Prop :=
+  | HasUniqueRun i (cnti : ThreadPool.containsThread tp i) q:
       ThreadPool.getThreadC cnti = Krun q ->
-      ~ semantics.halted (semantics.csem (event_semantics.msem semantics.semSem)) q ret ->
-      has_running tp.
+      has_unique_running tp.
   
   Lemma schedPeek_Skip:
     forall U tid
@@ -242,18 +238,16 @@ Section Csafe_KSafe.
         now eauto. *)
   Qed.
 
-  (*Lemma MachStep_preserve_unique:
+  Lemma MachStep_preserve_unique:
     forall U tr st tr' st' m m',
       valid (tr, st, m) U -> 
       MachStep (U,tr,st) m (U,tr',st') m' ->
-      has_running st'.
+      has_unique_running st'.
   Proof.
     intros.
-    unfold MachStep in H0; simpl in *.
     inversion H0; simpl in *; subst;
       try solve[exfalso; eapply schedPeek_Skip; eauto].
     - (*start*) inversion Htstep; subst.
-      
       eapply (HasUniqueRun _ _ ltac:(eapply ThreadPool.cntUpdate)).
       eapply ThreadPool.gssThreadCode.
     - (*resume*) inversion Htstep; subst.
@@ -271,7 +265,7 @@ Section Csafe_KSafe.
       econstructor;
         now eauto.
       Unshelve. all:auto.
-  Qed. *)
+  Qed.
 
     Lemma CoreStep_preserve_valid:
     forall U tr st tr' st' m m',
@@ -311,8 +305,7 @@ Section Csafe_KSafe.
       specialize (Hget_eq ltac:(do 2 eexists; eauto)).
       destruct Hget_eq as [cntj [q Hgetj]].
       specialize (H _ _ _ Hgetj).
-      destruct ((Nat.eq_dec tid j)); simpl; eauto.
-    - destruct Htid; eauto.
+      assumption.
   Qed.
 
   Lemma AngelStep_preserve_valid:
@@ -323,7 +316,8 @@ Section Csafe_KSafe.
   Proof.
     intros.
     inversion H0; subst; simpl in *;
-      try (exfalso; eapply schedPeek_Skip; now eauto); subst.
+      try (exfalso; eapply schedPeek_Skip; now eauto);
+      subst.
     - (* suspend thread case*)
       inversion Htstep; subst.
       unfold valid, correct_schedule in *.
@@ -331,49 +325,38 @@ Section Csafe_KSafe.
       rewrite HschedN in H.
       simpl in *.
       intros j cntj' q' Hget'.
-      destruct (Nat.eq_dec tid j) eqn:HHn; subst.
+      destruct (Nat.eq_dec tid j); subst.
       + rewrite ThreadPool.gssThreadCC in Hget'.
         discriminate.
       + assert (cntj: ThreadPool.containsThread st j)
           by (eapply ThreadPool.cntUpdateC'; eauto).
         erewrite <- @ThreadPool.gsoThreadCC with (cntj := cntj) in Hget' by eauto.
         specialize (H _ _ _ Hget').
-        rewrite HHn in H.
-        destruct H; auto.
-        * 
-          destruct (Nat.eq_dec tid j); subst;
-            simpl in *; exfalso; now auto.
+        destruct (Nat.eq_dec tid j); subst;
+          simpl in *; exfalso;
+            now auto.
     - (* syncStep case *)
       unfold valid, correct_schedule in *.
       rewrite HschedN in H.
       simpl in *.
       destruct (schedPeek U') eqn:?; auto.
       intros j cntj' q' Hget'.
-      destruct (syncstep_equal_run _ _ _ _ _ _ _ _ _ Htstep j q') as [? Hrun'].
-      destruct (Hrun' ltac:(eexists; eauto)) as [cntj Hget].
+      destruct (syncstep_equal_run _ _ _ _ _ _ _ _ _ Htstep j) as [? Hrun'].
+      destruct (Hrun' ltac:(do 2 eexists; eauto)) as [cntj [q Hget]].
       specialize (H _ _ _ Hget).
       destruct (Nat.eq_dec tid j); subst;
-        [|destruct H; try now inversion H].
-      + eapply @syncstep_not_running with (cntj:= cntj) (q:=q') in Htstep.
-        exfalso; now auto.
-      + right. auto.
+        [|exfalso; simpl in *; now auto].
+      eapply @syncstep_not_running with (cntj:= cntj) (q:=q) in Htstep.
+      exfalso;
+        now auto.
     - unfold valid, correct_schedule in *.
       rewrite HschedN in H.
       simpl in *.
       destruct (schedPeek U'); auto.
       intros j cntj' q' Hget'.
       specialize (H _ _ _ Hget').
-      destruct (Nat.eq_dec tid j).
-      
-      subst; destruct Htid as [|(?&?&?&?&?)].
-      + exfalso; apply H1; auto.
-      + replace q' with x0.
-        right; econstructor; eauto.
-
-        erewrite (ThreadPool.cnt_irr _ _ _ x) in Hget'.
-        rewrite H1 in Hget'; inversion Hget'.
-        reflexivity.
-      + simpl in H. destruct H as [H|H]; eauto; inversion H.
+      destruct (Nat.eq_dec tid j); subst;
+        simpl in *; exfalso; now auto.
   Qed.
   
   (* *)
@@ -425,13 +408,13 @@ Section Csafe_KSafe.
          auto.
   Qed.
 
-  (* Lemma valid_unique_running:
+  Lemma valid_unique_running:
     forall tp tr m U U' tid tid',
       schedPeek U = Some tid ->
       schedPeek U' = Some tid' ->
       valid (tr, tp, m) U ->
       valid (tr, tp, m) U' ->
-      has_running tp ->
+      has_unique_running tp ->
       tid = tid'.
   Proof.
     unfold valid, correct_schedule; simpl.
@@ -443,14 +426,10 @@ Section Csafe_KSafe.
     specialize (H1 _ _ _ H4).
     specialize (H2 _ _ _ H4).
     destruct (Nat.eq_dec tid i), (Nat.eq_dec tid' i);
-      subst; auto; simpl in *.
-    - destruct H2 as [H2| [cnti' ?]]; try solve[inversion H2].
-      
       subst; auto;
         simpl in *;
         try (exfalso; now auto).
-    
-  Qed. *)
+  Qed.
 
   Lemma csafe_first_tid:
     forall n U U' tr tp m,
@@ -496,33 +475,22 @@ Section Csafe_KSafe.
                   rewrite <- H0; eauto.  *)
   Qed.
   
-  (*Lemma csafe_unique_running:
+  Lemma csafe_unique_running:
     forall U tr tp m n tid,
       schedPeek U = Some tid ->
-      has_running tp ->
+      has_unique_running tp ->
       valid (tr, tp, m) U ->
       csafe (U, tr, tp) m n ->
       forall U', valid (tr, tp, m) U' ->
             csafe (U', tr, tp) m n.
   Proof.
     intros.
-    unfold valid, correct_schedule in *; simpl in *.
-    match_case in H1; inversion H; subst.
-    match_case in H3; swap 1 2.
-    - constructor. unfold halted_machine; simpl.
-      rewrite Heqo0; simpl; auto.
-    - destruct (Nat.eq_dec tid n0).
-      + eapply csafe_first_tid; eauto.
-        subst; rewrite Heqo, Heqo0; reflexivity.
-      + unfold unique_Krun in *.
-    
     destruct (schedPeek U') eqn:UU.
     2: econstructor; unfold halted_machine; simpl; try rewrite UU; auto.
-    
     eapply csafe_first_tid; eauto.
     rewrite H, UU; f_equal.
     eapply valid_unique_running; eauto.
-  Qed.*)
+  Qed.
   
   Lemma csafe_ksafe_equiv:
     forall st_ m tr,
@@ -549,27 +517,12 @@ Section Csafe_KSafe.
         * constructor 2; simpl_state.
           instantiate(1:=( seq.cat tr tr0, tp', m')); simpl.
           eauto.
-        * eapply IHn; simpl.
+        * eapply IHn.
+          simpl.
           assert (Hsched: exists tid, schedPeek U = Some tid)
             by (inversion Hstep; subst;
                 eexists; eauto).
           destruct Hsched.
-          (* TRY *) 
-          intros.
-          (*HERE THERE IS A PROBLEM.
-            The new stutter step allows to take a "thread step"
-            from a state where one thread is running and not halted,
-            to a state where no threads are running (all Krun threads are hatled).
-            This is a problem, bacause in this state all schedules are valid,
-            but Csafe only enforces one shedule to be valid (i.e. the current schedule)
-            that's because CSafe only gives safety of all schedules when 
-            the Schedule changes-- but when a thread halts the schedule doens't 
-            change until the next step.  
-
-           *)
-
-
-          
           eapply csafe_unique_running;
             now eauto using MachStep_preserve_unique, CoreStep_preserve_valid.
       +  (*AngelStep*)
