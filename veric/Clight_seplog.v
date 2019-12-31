@@ -92,6 +92,63 @@ destruct H0 as [ve' [te' [? ?]]]; exists ve',te'; split; auto.
 eapply pred_hereditary; eauto.
 Qed.
 
+Program Definition gclose_precondition (bodyparams: list ident) 
+    (P: genviron * list val -> pred rmap) (rho:environ) : pred rmap :=
+ fun phi => exists vals,
+   map (Map.get (te_of rho)) bodyparams = map Some vals /\
+   app_pred (P (ge_of rho, vals)) phi.
+Next Obligation.
+intros.
+intro; intros.
+destruct H0 as [vals [? ?]]. exists vals; split; auto.
+eapply pred_hereditary; eauto.
+Qed. 
+
+(*
+Definition AUX (ids:list ident) (vals:list val) 
+          (P: genviron * list val -> mpred): environ -> mpred :=
+fun rho => andp (local (fun rho => map (Map.get (te_of rho)) ids = map Some vals) rho)
+                 ( P (ge_of rho, vals)).
+
+Definition cp (ids: list ident) (P: genviron * list val -> mpred): environ -> mpred :=
+fun omega => exp (fun vals => AUX ids vals P omega).
+
+Lemma cp_char l P: cp l P = close_precondition l P.
+Proof. extensionality rho. apply pred_ext; unfold close_precondition. 
++ intros m [vals [PR HP]]. simpl.
+  exists vals. split; trivial.
++ intros m [vals [PR HP]]; simpl. exists vals; split;assumption.
+Qed.
+
+Program Definition cp' (bodyparams: list ident) (P: genviron * list val -> mpred) (rho:environ): mpred :=
+  exp (fun vals =>
+   (andp (prop (map (Map.get (te_of rho)) bodyparams = map Some vals))
+        (P (ge_of rho, vals)))).
+
+Lemma cp_char' l P: cp' l P = close_precondition l P.
+Proof. extensionality rho. apply pred_ext; unfold close_precondition. 
++ intros m [vals [PR HP]]. simpl. exists vals. split; assumption. 
++ intros m [vals [PR HP]]; simpl. exists vals; split;assumption.
+Qed.
+
+Lemma cp_elim': forall ids P
+  (HH: forall (rho : environ) (vals : list val),
+     P (ge_of rho, vals) |-- !! (forall v : val, In v vals -> v <> Vundef))
+  rho,
+Clight_seplog.cp' ids P rho
+|-- P (ge_of rho, map (fun i : ident => eval_id i rho) ids).
+Proof. intros. unfold cp'. intros u [vals [V U]]. simpl in V. 
+  specialize (HH _ _ _ U). simpl in HH.
+  assert (vals = map (fun i : ident => eval_id i rho) ids).
+  { clear - HH V. generalize dependent vals.
+    induction ids; destruct vals; simpl; intros; trivial; inv V.
+    f_equal.
+    + clear IHids. unfold eval_id. rewrite H0; trivial. 
+    + apply IHids; trivial.
+      intros. apply HH. right; trivial. }
+  subst; trivial.
+Qed.*)
+
 Definition precondition_closed (fs: list (ident*type)) {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) : Prop :=
  forall ts x,
@@ -141,87 +198,23 @@ destruct (In_nth_error _ _ i0) as [n ?].
 eapply H1; eauto.
 Qed.
 
-Lemma port_close_precondition_char1 {P ids l1 l2 rho}
-      (LNR2: list_norepet l2) (LNR: list_norepet l1)
-      (L : Datatypes.length l1 = Datatypes.length l2):
-  close_precondition l1 ids (port l2 l1 P) rho |-- close_precondition l2 ids (port l2 l2 P) rho.
-Proof. 
-  intros w W. destruct W as [ve' [te' [W1 W2]]].
-  exists ve', (tr (combine l1 l2) te'); split.
-+ intros n i2 i Hi2 Hi.
-  assert (II: exists j, nth_error l1 n = Some j).
-  { clear - Hi2 L.
-    apply nth_error_split in Hi2; destruct Hi2 as [? [? [? ?]]].
-    eexists. apply nth_error_nth with (z:=i2).
-    subst l2. rewrite app_length in L; simpl in L; omega. }
-  destruct II as [j Hj]. rewrite <- (W1 n _ _ Hj Hi); clear W1. clear - L Hi2 Hj LNR LNR2.
-  eapply get_combine; eassumption.
-+ unfold port in *. simpl in *. unfold ident in L; symmetry in L. rewrite tr_trans; trivial.
-Qed.
+Lemma gclose_precondition_e':
+   forall al (P: genviron * list val -> pred rmap) (rho: environ) ,
+   gclose_precondition al P rho |-- 
+   exp (fun vals =>
+   !!(map (Map.get (te_of rho)) al = map Some vals) &&
+   P (ge_of rho, vals)).
+Proof. intros. intros u p. simpl in p. simpl; trivial. Qed.
 
-Lemma port_close_precondition_char2 {P ids l1 l2 rho}
-      (LNR2: list_norepet l2) (LNR: list_norepet l1)
-      (L : Datatypes.length l1 = Datatypes.length l2):
-  close_precondition l2 ids (port l2 l2 P) rho |--
-  close_precondition l1 ids (port l2 l1 P) rho.
-Proof.
-  intros w W. destruct W as [ve' [te' [W1 W2]]].
-  exists ve', (tr (combine l2 l1) te'); split.
-+ intros n i2 i Hi1 Hi.
-  assert (II: exists j, nth_error l2 n = Some j).
-  { clear - Hi1 L.
-    apply nth_error_split in Hi1; destruct Hi1 as [? [? [? ?]]].
-    eexists. apply nth_error_nth with (z:=i2).
-    subst l1. rewrite <- L, app_length, H0; simpl; omega. }
-  destruct II as [j Hj]. rewrite <- (W1 n _ _ Hj Hi); clear W1. clear - L Hi1 Hj LNR LNR2.
-  eapply get_combine; try eassumption. unfold ident in *; rewrite L; trivial.
-+ unfold port. simpl. rewrite tr_trans; trivial. unfold ident in *; rewrite L; trivial.
-Qed.
-
-Lemma close_precondition_port_refl {P ids l rho} (LNR: list_norepet l):
-  close_precondition l ids (port l l P) rho |--
-  close_precondition l ids P rho.
-Proof.
-  intros w W. destruct W as [ve' [te' [W1 W2]]].
-  exists ve', (tr (combine l l) te'); split; [ | apply W2].
-  intros n i2 i Hi1 Hi. rewrite <- (W1 n _ _ Hi1 Hi); clear - Hi1 LNR.
-  eapply get_combine; try eassumption; trivial.
-Qed.
-
-Lemma port_close_precondition {P ids l1 l2 rho}
-      (LNR2: list_norepet l2) (LNR: list_norepet l1)
-      (L : Datatypes.length l1 = Datatypes.length l2):
-  close_precondition l1 ids (port l2 l1 P) rho
-  |-- close_precondition l2 ids P rho.
-Proof.
-  eapply derives_trans. 2: apply (close_precondition_port_refl LNR2).
-  apply port_close_precondition_char1; trivial.
-Qed.
-
+(*
 Definition bind_args (specparams bodyparams: list (ident * type)) (P: environ -> pred rmap) : assert :=
           fun rho => !! tc_formals bodyparams rho 
-                          && close_precondition (map fst specparams) (map fst bodyparams) P rho.
+                          && close_precondition (map fst specparams) (map fst bodyparams) P rho.*)
 
-Lemma port_bind_args1 {l1 l2 bodyparams P rho}
-      (LNR2: list_norepet (map fst l2)) (LNR: list_norepet (map fst l1))
-      (L : Datatypes.length l1 = Datatypes.length l2):
-      bind_args l1 bodyparams (port (map fst l1) (map fst l1) P) rho 
-  |-- bind_args l2 bodyparams (port (map fst l1) (map fst l2) P) rho.
-Proof. 
-  intros w [W1 W2]. split; [trivial |].
-  apply port_close_precondition_char2; trivial. rewrite 2 map_length, L; trivial.
-Qed. 
+Definition gbind_args (bodyparams: list (ident * type)) (P: genviron * list val -> pred rmap) : assert :=
+  fun rho => !! tc_formals bodyparams rho 
+     && gclose_precondition (map fst bodyparams) P rho.
 
-Lemma port_bind_args2 {l1 l2 bodyparams P rho}
-      (LNR2: list_norepet (map fst l2)) (LNR: list_norepet (map fst l1))
-      (L : Datatypes.length l1 = Datatypes.length l2):
-      bind_args l2 bodyparams (port (map fst l1) (map fst l2) P) rho 
-  |-- bind_args l1 bodyparams P rho.
-Proof. 
-  intros w [W1 W2]. split; [trivial |].
-  apply port_close_precondition in W2; trivial. rewrite 2 map_length, L; trivial.
-Qed.
- 
 Definition ret_temp : ident := 1%positive.
 
 Definition get_result1 (ret: ident) (rho: environ) : environ :=
@@ -238,6 +231,14 @@ Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
      | None, Tvoid => fun rho => Q (make_args nil nil rho)
      | Some v, _ => fun rho => !! (tc_val t v) &&
                                Q (make_args (ret_temp::nil) (v::nil) rho)
+     | _, _ => fun rho => FF
+     end.
+
+Definition gbind_ret (vl: option val) (t: type) (Q: gassert) : assert :=
+     match vl, t with
+     | None, Tvoid => fun rho => Q (ge_of rho, nil)
+     | Some v, _ => fun rho => !! (tc_val t v) &&
+                               Q (ge_of rho, cons v nil)
      | _, _ => fun rho => FF
      end.
 
@@ -413,15 +414,179 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
     RA_continue := seplog.FF;
     RA_return := fun vl => bind_ret vl ret Q |}.
 
+Definition gfunction_body_ret_assert (ret: type) (Q: gassert) : ret_assert :=
+ {| RA_normal := gbind_ret None ret Q;
+    RA_break := seplog.FF; 
+    RA_continue := seplog.FF;
+    RA_return := fun vl => gbind_ret vl ret Q |}.
+
 Lemma same_glob_funassert:
   forall Delta1 Delta2,
      (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
               funassert Delta1 = funassert Delta2.
 Proof. intros; eapply same_FS_funspecs_assert; trivial. Qed.
 
-Lemma funassert_paramsLNR {Delta rho m} (FA: funassert Delta rho m): 
-  forall i phi, (glob_specs Delta)!i=Some phi -> params_LNR(Some phi).
+(**************** CONVERSION BETWEEN AssertTT and ArgsTT predicates **************)
+
+Lemma get_make_args' {x}: forall {ids vals n} (LNR: list_norepet ids)
+      (L:length ids = length vals) (Hx: nth_error ids n = Some x),
+      Map.get (make_args' ids vals) x = nth_error vals n.
 Proof.
-  intros. destruct FA as [X _]; simpl in X.
-  destruct (X _ _ _ (necR_refl _) H) as [z [_ ?]]. destruct phi. apply H0.
-Qed. 
+  induction ids; intros; destruct vals; inv L; inv LNR; simpl.
++ rewrite nth_error_nil in Hx; discriminate.
++ destruct n; simpl in *.
+  - inv Hx. apply Map.gss.
+  - rewrite Map.gso. auto.
+    intros N; subst. apply nth_error_In in Hx. congruence.
+Qed.
+
+Lemma make_context_t_get: forall {params temps i ty} 
+      (T: (make_tycontext_t params temps) ! i = Some ty),
+      In i (map fst params ++ map fst temps).
+Proof.
+  induction params; simpl; intros.
+* induction temps; simpl in *. rewrite PTree.gempty in T; discriminate. 
+  destruct a; simpl in *. rewrite PTree.gsspec in T.
+  destruct (peq i i0); subst. left; trivial. right; auto.
+* destruct a; simpl in *. rewrite PTree.gsspec in T.
+  destruct (peq i i0); subst. left; trivial.
+  right. eapply IHparams. apply T.
+Qed.
+
+Lemma tc_temp_environ_elim: forall {params temps trho},
+      list_norepet (map fst params ++ map fst temps) ->
+      typecheck_temp_environ trho (make_tycontext_t params temps) ->
+      forall i ty, In (i,ty) params -> 
+      exists v : val, Map.get trho i = Some v /\ tc_val' ty v.
+Proof.
+  induction params.
+  + intros. inv H1.
+  + simpl. intros. destruct H1.
+    - subst a. simpl in *. apply (H0 i ty). rewrite PTree.gss; trivial.
+    - inv H. apply (IHparams temps); trivial.
+      red; intros j ? ?. apply H0. rewrite PTree.gso; trivial. clear - H4 H.
+      intros J; subst. destruct a; simpl in *. apply H4; clear - H.
+      apply (make_context_t_get H).
+Qed.
+
+Definition mkEnv g ids vals : environ := 
+      make_args ids vals (mkEnviron g (Map.empty (block * type)) (Map.empty val)).
+
+Definition ArgsTT2AssertTT {A} (ids:list ident) (P: forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (ArgsTT A)) mpred) :
+       forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (AssertTT A)) mpred.
+Proof. intros ts M rho. apply (P ts M (ge_of rho, map (fun i => eval_id i rho) ids)). Defined.
+
+Definition AssertTT2ArgsTT {A} (ids:list ident) (P: forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (AssertTT A)) mpred):
+        forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (ArgsTT A)) mpred.
+Proof. intros ts M x. apply (match x with (g, vals) => P ts M (mkEnv g ids vals) end). Defined.
+(*
+Definition ArgsTT2AssertTT {A} (ids:list ident) (P: forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (ArgsTT A)) mpred) :
+       forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (AssertTT A)) mpred :=
+fun ts M rho => P ts M (ge_of rho, map (fun i => eval_id i rho) ids).
+
+Definition AssertTT2ArgsTT {A} (ids:list ident) (P: forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (AssertTT A)) mpred):
+        forall ts : list Type,
+                        functors.MixVariantFunctor._functor
+                          (rmaps.dependent_type_functor_rec ts
+                             (ArgsTT A)) mpred :=
+fun ts M x => match x with (g, vals) => P ts M (mkEnv g ids vals) end.
+*)
+
+Definition i2o (phi: funspec):Newfunspec.
+destruct phi as [[params rt] c A P Q P_ne Q_ne].
+apply (mk_Newfunspec (map snd params, rt) c A
+                   (AssertTT2ArgsTT (map fst params) P)
+                   (AssertTT2ArgsTT (cons ret_temp nil) Q)).
+red; intros. destruct gargs as [g vals]. apply P_ne.
+red; intros. destruct gargs as [g vals]. apply Q_ne.
+Defined.
+
+Definition o2i (phi: Newfunspec) (ids: list ident):funspec.
+destruct phi as [[types rt] c A P Q P_ne Q_ne].
+apply (mk_funspec (combine ids types, rt) c A 
+                    (ArgsTT2AssertTT ids P) 
+                    (ArgsTT2AssertTT (match rt with
+                                         Tvoid => nil
+                                       |  _ => cons ret_temp nil
+                                      end) Q)).
+red; intros. apply P_ne.
+red; intros. apply Q_ne.
+Defined.
+
+Lemma cp_o2i {A P ts x l ids rho} (LNR:list_norepet l) (LEN: length l = length ids):
+    gclose_precondition ids (@AssertTT2ArgsTT A l P ts x) rho
+|-- close_precondition l ids (P ts x) rho.
+Proof.
+  intros m [args [Args M]]. simpl in M. unfold mkEnv in M.
+  exists (Map.empty (block * type)), (make_args' l args).
+  assert (LENArgs: length l = length args).
+  { assert (length (map (Map.get (te_of rho)) ids) = length (map Some args)) by (rewrite Args; trivial).
+    rewrite 2 map_length in H. rewrite LEN; apply H. }
+  rewrite make_args_eq in M by trivial. simpl in M. split; trivial.
+  intros. erewrite get_make_args'; trivial. 2: apply H.
+  clear M P.
+    specialize (map_nth_error (Map.get (te_of rho)) n ids H0); clear H0.
+    rewrite Args; intros.
+    rewrite list_map_nth in H0; unfold option_map in H0.
+    destruct (nth_error args n); inv H0; trivial.
+Qed.
+
+Lemma cp_i2o_aux {P l params temps rho}
+  (LEN : Datatypes.length l = Datatypes.length params)
+  (LNRf : list_norepet (map fst params ++ map fst temps))
+  (TC : typecheck_temp_environ (te_of rho)
+        (make_tycontext_t params temps)):
+close_precondition l (map fst params)
+  (fun tau => P (ge_of tau, map (fun i => eval_id i tau) l)) rho
+|-- gclose_precondition (map fst params) P rho.
+Proof.
+    intros m [ve' [te' [HH M]]]. 
+    red. simpl. simpl in M.
+    exists (map (fun i : ident => eval_id i (mkEnviron (ge_of rho) ve' te')) l).
+    split; [ clear M | trivial].
+    clear - LEN HH TC LNRf. 
+    assert (L: length l = length (map fst params)).
+    { rewrite LEN,  map_length; trivial. } unfold eval_id; simpl.
+    specialize (tc_temp_environ_elim LNRf TC); clear TC; intros TC.
+    clear - HH L TC.
+    generalize dependent params. induction l; destruct params; simpl; intros; trivial; inv L.
+    destruct p as [pi pt]; simpl in *.
+    rewrite IHl; clear IHl; trivial.
+    - f_equal.
+      rewrite (HH O a pi); trivial.
+      destruct (TC pi pt) as [v [HV V]]. left; trivial.
+      rewrite HV; trivial.
+    - intros. apply (HH (S n)); trivial.
+    - intros. apply TC. right; trivial.
+Qed.
+
+Lemma cp_i2o {A P ts x l params temps rho}
+  (LEN : Datatypes.length l = Datatypes.length params)
+  (LNRf : list_norepet (map fst params ++ map fst temps))
+  (TC : typecheck_temp_environ (te_of rho)
+        (make_tycontext_t params temps)):
+  close_precondition l (map fst params)
+        (@ArgsTT2AssertTT A l P ts x) rho
+|-- gclose_precondition (map fst params) (P ts x) rho.
+Proof. eapply cp_i2o_aux; eassumption. Qed.

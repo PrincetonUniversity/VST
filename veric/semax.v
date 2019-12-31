@@ -223,14 +223,21 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
+(*
 Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with
   | Some v' =>  mkEnviron gx (Map.empty _)
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
+  end.*)
+
+Definition make_ext_rval  (gx: genviron) (v: option val): genviron * list val:=
+  match v with
+  | Some v' =>  (gx, cons v' nil)
+  | None => (gx, nil)
   end.
 
-Definition semax_external
+(*Definition semax_external
   (Hspec: OracleKind) (ids: list ident) ef
   (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
@@ -241,6 +248,24 @@ Definition semax_external
    ALL args: list val,
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
    juicy_mem_op ((P Ts x) (make_args ids args (tycontext.empty_environ gx)) * F) >=>
+   EX x': ext_spec_type OK_spec ef,
+    (ALL z:_, juicy_mem_op (ext_compat z) -->
+     ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
+      ext_spec_post' Hspec ef x' (genv_symb_injective gx) tret ret z' >=>
+          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).*)
+
+Definition semax_external
+  (Hspec: OracleKind) (*(ids: list ident)*) ef
+  (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)):
+        pred nat :=
+ ALL gx: genv, ALL Ts: list Type,
+ ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
+   |>  ALL F: pred rmap, ALL ts: list typ,
+   ALL args: list val,
+   !!Val.has_type_list args (sig_args (ef_sig ef)) &&
+   juicy_mem_op ((P Ts x) (filter_genv gx, args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     (ALL z:_, juicy_mem_op (ext_compat z) -->
      ext_spec_pre' Hspec ef x' (genv_symb_injective gx) ts args z) &&
@@ -265,21 +290,18 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
 Definition withtype_empty (A: TypeTree) : Prop :=
   forall ts (x: dependent_type_functor_rec ts A (pred rmap)), False.
 
-Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig) cc
+Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: typesig) cc
   (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  (P Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)):
   pred nat :=
   match Genv.find_funct gx v with
   | Some (External ef sigargs sigret cc') =>
-      let ids := fst (split (fst fsig)) in
-        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc
+        !! (fsig = (typelist2list sigargs, sigret) /\ cc'=cc
            /\ ef_sig ef = mksignature
-                           (typlist_of_typelist (type_of_params (fst fsig)))
+                           (typlist_of_typelist (typelist_of_type_list (fst fsig)))
                            (opttyp_of_type (snd fsig)) cc
-           /\ length (typelist2list sigargs)=length ids
-           /\ check_normalized (fst fsig) = true
            /\ (ef_inline ef = false \/ withtype_empty A))
-        && semax_external Hspec ids ef A P Q
+        && semax_external Hspec (*ids*) ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
               ALL ret:option val,
@@ -289,32 +311,6 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
   | _ => FF
   end.
 
-Lemma semax_external_rename {Hspec e A P Q ids1 ids2}
-      (L: length ids1 = length ids2)
-      (LE: length (sig_args (ef_sig e)) = length ids2)
-      (LNR1: list_norepet ids1) (LNR2 : list_norepet ids2):
-  semax_external Hspec ids1 e A P Q =
-  semax_external Hspec ids2 e A (rename_pre ids2 ids1 P) Q.
-Proof. apply pred_ext; intros k K.
-+ intros gx ts x a NA FRM typs vals m KM r MR [R JM].
-  apply (K gx ts x a NA FRM typs vals m KM r MR); split; trivial.
-  apply has_type_list_length in R; rewrite LE in R.
-  clear - JM LNR1 LNR2 L R.
-  destruct JM as [r1 [r2 [J [? ?]]]].
-  exists r1, r2. split3; trivial.
-  unfold rename_pre in H. rewrite make_args_eq by (rewrite R; trivial).
-  rewrite make_args_eq in H; [ simpl in H; simpl | rewrite R; trivial].
-  rewrite tr_make_args' in H; trivial; auto.
-+ intros gx ts x a NA FRM typs vals m KM r MR [R JM].
-  apply (K gx ts x a NA FRM typs vals m KM r MR); split; trivial.
-  apply has_type_list_length in R; rewrite LE in R.
-  clear - JM LNR1 LNR2 L R.
-  destruct JM as [r1 [r2 [J [? ?]]]].
-  exists r1, r2. split3; trivial.
-  unfold rename_pre. rewrite make_args_eq by (rewrite R; trivial). simpl.
-  rewrite make_args_eq in H; [ simpl in H; simpl | rewrite R; trivial].
-  rewrite tr_make_args'; trivial; auto.
-Qed.
 
 Lemma zip_with_tl_aux {A1 A2}: forall l1 l2  (L:map snd l1 = map snd l2) 
       (t:typelist) (T: length (typelist2list t) = length l1)
@@ -388,8 +384,8 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
 
 Definition believe_internal_ CS
   (semax:semaxArg -> pred nat)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: typesig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)) : pred nat :=
   let ce := (@cenv_cs CS) in
   (EX b: block, EX f: function,
    let specparams := fst fsig in 
@@ -398,10 +394,10 @@ Definition believe_internal_ CS
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
                  /\ list_norepet (map fst fparams ++ map fst f.(fn_temps))
                  /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ (map snd specparams = map snd fparams)
+                 /\ ((*map snd*) specparams = map snd fparams)
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst fparams)
-                 /\ check_normalized specparams = true /\ f.(fn_callconv) = cc)
+                      (*/\ list_norepet (map fst fparams follows from 3 lines above)*)
+                 /\ (*check_normalized specparams = true /\*) f.(fn_callconv) = cc)
   && 
    ALL Delta':tycontext, ALL CS':compspecs,
    imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
@@ -409,26 +405,25 @@ Definition believe_internal_ CS
       (ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
         |> semax (SemaxArg CS' (func_tycontext' f Delta')
-                         (fun rho => (bind_args specparams fparams (P ts x) rho
+                         (fun rho => (gbind_args (*specparams*) fparams (P ts x) rho
                                               * stackframe_of' (@cenv_cs CS') f rho)
                                         && funassert (func_tycontext' f Delta') rho)
                           (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) 
+           (frame_ret_assert (gfunction_body_ret_assert (fn_return f) (Q ts x)) 
               (stackframe_of' (@cenv_cs CS') f)))) )).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
-  exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\ 
-                   funspec_normalized (mk_funspec fsig cc A P Q HP HQ)=true /\
+  exists id HP HQ, (glob_specs Delta)!id = Some (mk_Newfunspec fsig cc A P Q HP HQ) /\ 
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Ptrofs.zero.
 
 Definition believepred CS (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
-  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
+  ALL v:val, ALL fsig: typesig, ALL cc: calling_convention,
   ALL A: TypeTree,
-  ALL P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
-  ALL Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
+  ALL P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred,
+  ALL Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred,
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
         || believe_internal_ CS semax gx Delta v fsig cc A P Q).
@@ -451,8 +446,8 @@ Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
      HORec (semax_ Espec) (SemaxArg CS Delta P c R).
 
 Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: typesig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)) : pred nat :=
   let ce := @cenv_cs CS in
   (EX b: block, EX f: function,
    let specparams := fst fsig in 
@@ -461,10 +456,9 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
                  /\ Forall (fun it => complete_type ce (snd it) = true) (fn_vars f)
                  /\ list_norepet (map fst fparams ++ map fst f.(fn_temps))
                  /\ list_norepet (map fst f.(fn_vars)) /\ var_sizes_ok ce (f.(fn_vars))
-                 /\ (map snd specparams = map snd fparams)
+                 /\ (specparams = map snd fparams)
                       /\ snd fsig = snd (fn_funsig f)
-                      /\ list_norepet (map fst fparams)
-                 /\ check_normalized specparams = true /\ f.(fn_callconv) = cc)
+                 /\ f.(fn_callconv) = cc)
   && 
    ALL Delta':tycontext, ALL CS':compspecs,
    imp (prop (forall f, tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta')))
@@ -472,18 +466,18 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
       (ALL ts: list Type,
        ALL x : dependent_type_functor_rec ts A (pred rmap),
      |> @semax' CS' Espec (func_tycontext' f Delta')
-                                (fun rho => (bind_args specparams fparams (P ts x) rho 
+                                (fun rho => (gbind_args (*specparams*) fparams (P ts x) rho 
                                                 * stackframe_of' (@cenv_cs CS') f rho)
                                              && funassert (func_tycontext' f Delta') rho)
                                (f.(fn_body))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
+           (frame_ret_assert (gfunction_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (@cenv_cs CS') f))))).
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
-  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
+  ALL v:val, ALL fsig: typesig, ALL cc: calling_convention,
   ALL A: TypeTree,
-  ALL P: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
-  ALL Q: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
+  ALL P: (forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)),
+  ALL Q: (forall ts, dependent_type_functor_rec ts (ArgsTT A) (pred rmap)),
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
         || believe_internal Espec gx Delta v fsig cc A P Q).
@@ -964,7 +958,7 @@ Lemma semax_cssub {CS CS'} (CSUB: cspecs_sub  CS CS') Espec Delta P c R:
 Proof.
   intros. intros n. apply (semax'_cssub CSUB); trivial. 
 Qed.
-
+(*
 Lemma port_bind_args {P rho ids l1 l2}: 
       list_norepet (map fst l2) -> list_norepet (map fst l1) -> Datatypes.length l1 = Datatypes.length l2 ->
   bind_args l1 ids (fun rho0 : environ => port (map fst l2) (map fst l1) P rho0)  rho 
@@ -974,11 +968,11 @@ Proof.
   eapply port_close_precondition. 4: eassumption.
   3: rewrite 2 map_length. all: trivial.
 Qed.
-
+*)
 Lemma length_zip_with_tl {A}: forall (l:list A) t (L: length l = length (typelist2list t)), 
       length (zip_with_tl l t) = length l.
 Proof. induction l; intros. trivial. destruct t; inv L. simpl. rewrite IHl; trivial. Qed.
-
+(*
 Lemma zip_with_normalized_normal: forall l, 
   check_normalized (zip_with_tl (normalparams (length (typelist2list l))) l) = true.
 Proof. intros.
@@ -986,4 +980,4 @@ Proof. intros.
   specialize (@fst_split_zip _ (normalparams (length (typelist2list l))) l).
   rewrite length_normalparams, fst_split. intros X; rewrite X; clear X; trivial.
   rewrite length_zip_with_tl; rewrite length_normalparams; trivial.
-Qed.
+Qed.*)

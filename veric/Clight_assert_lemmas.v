@@ -18,17 +18,17 @@ Qed.
 Hint Resolve corable_funassert : core.
 
 Definition allp_fun_id (Delta : tycontext) (rho : environ): pred rmap :=
- ALL id : ident , ALL fs : funspec ,
+ ALL id : ident , ALL fs : _ ,
   !! ((glob_specs Delta) ! id = Some fs) -->
   (EX b : block, !! (Map.get (ge_of rho) id = Some b) && func_ptr_si fs (Vptr b Ptrofs.zero)).
 
 Definition allp_fun_id_sigcc (Delta : tycontext) (rho : environ): pred rmap :=
 (ALL id : ident ,
- (ALL fs : funspec ,
+ (ALL fs:_ ,
   !! ((glob_specs Delta) ! id = Some fs) -->
   (EX b : block, !! (Map.get (ge_of rho) id = Some b) && 
     match fs with
-    mk_funspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
+    mk_Newfunspec sig cc _ _ _ _ _ => sigcc_at sig cc (b, 0)
     end))).
 
 Lemma allp_fun_id_ex_implies_allp_fun_sigcc Delta rho: 
@@ -39,12 +39,10 @@ Proof.
   apply imp_derives; trivial.
   apply exp_derives; intros b.
   apply andp_derives; trivial.
-  unfold func_ptr_si. intros w [bb [H [gs [[NORM GS] F]]]].
-  simpl in H, NORM; inv H. destruct gs; destruct fs. destruct GS as [[? ?] _]; subst c0.
+  unfold func_ptr_si. intros w [bb [H [gs [GS F]]]].
+  simpl in H; inv H. destruct gs; destruct fs. destruct GS as [[? ?] _]; subst c0.
   simpl. 
-  specialize (funsigs_match_LNR2 H); intros. 
-  apply funsigs_match_typesigs_eq in H. rewrite <- H.
-  destruct F as [LNR F].
+  apply typesigs_match_typesigs_eq in H. rewrite <- H.
   eexists; rewrite F; clear F. split; trivial.
 Qed.
 
@@ -70,7 +68,7 @@ Proof.
   apply corable_exp; intros b.
   apply corable_andp; [apply corable_prop |].
   destruct fs. apply corable_exp; intros cc.
-  apply corable_andp; [apply corable_prop |]. apply corable_pureat.
+  (*apply corable_andp; [apply corable_prop |].*) apply corable_pureat.
 Qed.
 
 Lemma allp_fun_id_sigcc_sub: forall Delta Delta' rho,
@@ -83,11 +81,11 @@ Proof.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
-  rewrite FS in H. destruct H as [LNR [gs [GSA GSB]]]. specialize (GSB u I).
+  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
   destruct (W gs u WU GSA) as [b [B1 B2]].
   exists b; split; [trivial | destruct fs; destruct gs]. 
   destruct GSB as [[GSBa GCBb] _]. subst c0.
-  apply funsigs_match_siggcc_eq in GSBa. rewrite GSBa in B2. trivial.
+  apply typesigs_match_siggcc_eq in GSBa. rewrite GSBa in B2. trivial.
 Qed.
 
 Lemma allp_fun_id_sub: forall Delta Delta' rho,
@@ -100,21 +98,20 @@ Proof.
   destruct H as [_ [_ [_ [_ [? _]]]]].
   specialize (H id).
   hnf in H.
-  rewrite FS in H. destruct H as [LNR [gs [GSA GSB]]]. specialize (GSB u I).
-  destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [[NORM HS] B2]]]]]]; clear W.
+  rewrite FS in H. destruct H as [gs [GSA GSB]]. specialize (GSB u I).
+  destruct (W gs u WU GSA) as [b [B1 [bb [X [hs [HS B2]]]]]]; clear W.
   simpl in X; inv X.
   exists bb; split; [trivial | ]. exists bb; split; [ reflexivity |].
-  exists hs; split; trivial. split; trivial.
+  exists hs; split; trivial.
   eapply funspec_sub_si_trans; split. apply HS. apply GSB.
 Qed.
 
 Lemma funassert_allp_fun_id Delta rho: funassert Delta rho |-- allp_fun_id Delta rho.
 Proof. 
   intros w [W1 _]. simpl in W1. intros b fs a WA B.
-  destruct (W1 _ _ _ WA B) as [bl [[NORM BL] FA]]; clear W1. exists bl; split; trivial.
+  destruct (W1 _ _ _ WA B) as [bl [BL FA]]; clear W1. exists bl; split; trivial.
   exists bl; split. reflexivity. exists fs; split; trivial.
-  split; trivial. apply funspec_sub_si_refl. 2: trivial.
-  destruct fs. simpl. apply FA.
+  apply funspec_sub_si_refl; trivial.
 Qed.
 
 Lemma funassert_allp_fun_id_sub: forall Delta Delta' rho,

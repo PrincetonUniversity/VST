@@ -1582,7 +1582,7 @@ Proof.
  clear - H3 H2 H1 H.
  assert (exists fs', find_id i (G0 ++ (i,fs)::G) = Some fs').
  clear. induction G0; simpl. exists fs; rewrite if_true; eauto.
- destruct IHG0 as [fs' ?]. destruct a. if_tac. subst i0; exists f; auto.
+ destruct IHG0 as [fs' ?]. destruct a. if_tac. subst i0; exists n(*f*); auto.
  eauto.
  forget (G0++(i,fs)::G) as GG.  clear G0 fs G.
  destruct H0 as [fs H0].
@@ -2095,9 +2095,9 @@ Proof.
      apply list_norepet_prog_funct'; auto.
   }
   clear SAME_IDS Heqgev.
-  change (map fst vl) with (map fst (@nil (ident*funspec)) ++ map fst vl) in H2.
+  change (map fst vl) with (map fst (@nil (ident*Newfunspec)) ++ map fst vl) in H2.
   change G with (nil++G).
-  set (G0 := @nil (ident*funspec)) in *.
+  set (G0 := @nil (ident*Newfunspec)) in *.
   change G with (G0++G) in NRG.
   clearbody G0.
   move H2 after H. move H1 after H.
@@ -2217,7 +2217,7 @@ rewrite Pos_to_nat_eq_S.
  inv H2. specialize (H1 i).
  case_eq (find_id i (G0++G)); intros; auto. apply find_id_e in H2.
  contradiction H6. apply in_app. apply in_app_or in H2.
- destruct H2; [right|left].  change i with (fst (i,f)); apply in_map; auto.
+ destruct H2; [right|left].  change i with (fst (i,n0(*f*))); apply in_map; auto.
  contradiction H1. apply in_map_fst in H2. auto.
  left; auto.
  }
@@ -2289,6 +2289,952 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  apply andb_true_iff in H. destruct H; auto.
  specialize (H8 RHO). (* replace (nextblock m0) with b by congruence. *)
  eapply init_datalist_hack; eauto.
+  apply alloc_result in H3; subst b.
+  eassumption.
+ apply hackfun_beyond_block; auto.
+ apply readable_readonly2share.
+ apply IHvl; auto.
+ eapply another_hackfun_lemma; eauto.
+Qed.
+
+Definition ginit_data2pred (d: init_data)  (sh: share) (a: val) (gvals: genviron * list val) : mpred :=
+ match d with
+  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vsingle r)
+  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_space n => mapsto_zeros n sh a
+  | Init_addrof symb ofs =>
+       match Map.get (fst gvals) symb with
+       | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
+       | _ => mapsto_ sh (Tpointer Tvoid noattr) a
+       end
+ end.
+
+Fixpoint ginit_data_list2pred  (dl: list init_data)
+                           (sh: share) (v: val)  : (genviron * list val) -> pred rmap :=
+  match dl with
+  | d::dl' => 
+      glift2 sepcon (ginit_data2pred d sh v) 
+                  (ginit_data_list2pred dl' sh (offset_val (init_data_size d) v))
+  | nil => glift0 emp
+ end.
+
+Definition gglobvar2pred (gv: ident->val) (idv: ident * globvar type) : gassert :=
+   if (gvar_volatile (snd idv))
+   then glift0 TT
+   else ginit_data_list2pred (gvar_init (snd idv))
+                             (readonly2share (gvar_readonly (snd idv))) (gv (fst idv)).
+
+Definition globals_of_genv (g : genviron) (i : ident):=
+  match Map.get g i with
+| Some b => Vptr b Ptrofs.zero
+| None => Vundef
+end.
+
+Lemma ge_of_mkEnv {g v vals}: ge_of (mkEnv g v vals) = g.
+Proof. apply ge_of_make_args. Qed.
+
+Lemma globals_of_genv_char {g v t}: globals_of_env (mkEnviron g v t) = globals_of_genv g.
+Proof. unfold globals_of_env. simpl. trivial. Qed.
+
+Lemma globals_of_genv_mkEnv {g l vals}: globals_of_env (mkEnv g l vals) = globals_of_genv g.
+Proof. unfold globals_of_env. rewrite ge_of_mkEnv. trivial. Qed.
+
+Definition gglobvars2pred (gv: ident->val) (vl: list (ident * globvar type)) : gassert :=
+  (glift2 andp) (fun gvals => prop (gv = globals_of_genv (fst gvals)))
+  (fold_right (glift2 sepcon) (glift0 emp) (map (gglobvar2pred gv) vl)).
+
+Lemma gg1 {a sh v rho vals}: ginit_data2pred a sh v (ge_of rho, vals) =
+         init_data2pred a sh v rho.
+Proof. reflexivity. Qed.
+
+Lemma gg2 {sh rho vals}: forall data v,
+      ginit_data_list2pred data sh v (ge_of rho, vals) =
+      init_data_list2pred data sh v rho.
+Proof. induction data; simpl; trivial. intros.
+  unfold glift2. rewrite IHdata; trivial.
+Qed.
+
+Lemma gg3 {gv a vals rho}: gglobvar2pred gv a (ge_of rho, vals) = globvar2pred gv a rho.
+Proof.
+  intros. unfold gglobvar2pred, globvar2pred, glift0, lift0.
+  destruct (gvar_volatile (snd a)); simpl; trivial. apply gg2.
+Qed.
+
+Lemma gg3' {gv a g v t vals}: gglobvar2pred gv a (g, vals) = globvar2pred gv a (mkEnviron g v t).
+Proof. erewrite <- gg3. reflexivity. Qed.
+
+Lemma gglobvar2pred_vals_irrel {gv a g vals1 vals2}: 
+      gglobvar2pred gv a (g, vals1) = gglobvar2pred gv a (g, vals2).
+Proof. rewrite 2 (@gg3' _ _ _ (Map.empty (block * type)) (make_args' nil nil)); trivial. Qed.
+
+Lemma gg4 {gv l ids}: gassert2assert ids (gglobvars2pred gv l) = globvars2pred gv l.
+Proof.
+  unfold gglobvars2pred, globvars2pred, gassert2assert.
+  unfold lift2, glift2, lift0, glift0. simpl.
+  extensionality rho. destruct rho. 
+  rewrite globals_of_genv_char. simpl.
+  f_equal.
+  induction l; simpl; trivial. f_equal; simpl; trivial.
+  erewrite <- gg3; reflexivity.
+Qed.
+
+Lemma gglobvars2pred_vals_irrel {gv l g vals1 vals2}:
+      gglobvars2pred gv l (g, vals1) = gglobvars2pred gv l (g, vals2).
+Proof.
+  unfold gglobvars2pred, glift2, glift0. simpl. f_equal.
+  induction l; simpl; trivial. f_equal; trivial. apply gglobvar2pred_vals_irrel.
+Qed.
+
+Lemma gglobvars2pred_rev:
+  forall gv l, gglobvars2pred gv (rev l) = gglobvars2pred gv l.
+Proof.
+ intros. unfold gglobvars2pred.
+ rewrite map_rev.
+  rewrite fold_left_rev_right.
+ rewrite fold_symmetric.
+ f_equal.
+ f_equal. extensionality x y rho; apply sepcon_comm.
+ intros; extensionality rho; apply sepcon_assoc.
+ intros; extensionality rho; apply sepcon_comm.
+Qed.
+
+Lemma ginit_data_lem:
+forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
+  (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z) (rho: genviron * list val)
+  (w1 wf : rmap),
+   load_store_init_data1 ge m3 b z a ->
+   contents_at m4 = contents_at m3 ->
+   join w1 wf (beyond_block b (inflate_initial_mem m4 phi0)) ->
+   (forall loc : address,
+     if adr_range_dec (b, z) (init_data_size a) loc
+     then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
+     else identity (w1 @ loc)) ->
+   forall (Hg: noghost w1) (VOL:  gvar_volatile v = false)
+          (AL: initializer_aligned z a = true)
+           (LO:   0 <= z) (HI: z + init_data_size a < Ptrofs.modulus)
+         (RHO: fst rho = filter_genv ge),
+  (ginit_data2pred a  (readonly2share (gvar_readonly v))
+       (Vptr b (Ptrofs.repr z))) rho w1.
+Proof.
+  intros.
+  assert (APOS:= init_data_size_pos a).
+  assert (READABLE:= readable_readonly2share (gvar_readonly v)).
+  Transparent load.
+  unfold ginit_data2pred, mapsto.
+  unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
+    fst,snd.
+  rewrite Ptrofs.unsigned_repr by (unfold Ptrofs.max_unsigned; omega).
+  simpl.
+  unfold mapsto, tc_val, is_int, is_long, is_float.
+  destruct (readable_share_dec
+            (readonly2share (gvar_readonly v))); [clear r | tauto].
+  destruct a; 
+  repeat rewrite prop_true_andp by 
+    first [apply I
+            | apply sign_ext_range'; compute; split; congruence
+            | apply zero_ext_range'; compute; split; congruence
+            ];
+  try left; simpl in H; unfold load in H;
+  try (if_tac in H; [ | discriminate H]);
+  repeat rewrite prop_true_andp by apply I;
+  try match type of H with Some (decode_val ?ch ?B) = Some (?V) =>
+            exists B; replace V with (decode_val ch B) by (inversion H; auto);
+            clear H; repeat split; auto
+       end.
+* (* Int8 *)
+  apply Zone_divide.
+* (* Int8 *)
+  intro loc; specialize (H2 loc).
+  simpl in H2. hnf. if_tac; auto.
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf. rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+* (* Int16 *)
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+* (* Int16 *)
+  intro loc; specialize (H2 loc).
+  simpl in H2. simpl size_chunk. hnf; if_tac; auto.
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+* (* Int32 *)
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+* (* Int32 *)
+  intro loc; specialize (H2 loc).
+  simpl in H2. simpl size_chunk. hnf; if_tac; auto.
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+* (* Int64 *)
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+* (* Int64 *)
+  intro loc; specialize (H2 loc).
+  simpl in H2. simpl size_chunk. hnf; if_tac; auto.
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+* (* Float32 *)
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+* (* Float32 *)
+  intro loc; specialize (H2 loc).
+  simpl in H2. simpl size_chunk. hnf; if_tac; auto.
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+* (* Float64 *)
+   clear - AL.
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  rewrite <- Zeq_is_eq_bool in *.
+  apply Zmod_divides; [ omega | ].
+  apply Zmod_divides in AL; [ | omega].
+  destruct AL as [c ?]. exists (2 * c)%Z. rewrite Z.mul_assoc. apply H.
+*  intro loc; specialize (H2 loc).
+  simpl in H2. simpl size_chunk. hnf; if_tac; auto.
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+* (* address_mapsto_zeros *)
+ rewrite address_mapsto_zeros_eq.
+ split; auto. 
+  split; auto. simpl in HI. clear - HI. destruct (Z.max_spec z0 0); destruct H; omega.
+ split; auto.
+  intro loc. hnf. specialize (H2 loc); simpl in H2.
+rewrite Zmax_Z_of_nat.
+rewrite Z_to_nat_max.
+if_tac; auto.
+
+  exists READABLE.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H3; subst; simpl; unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct loc; destruct H3; subst b0.
+  specialize (H (z1-z)).  spec H; [omega |].
+  if_tac in H; [ | discriminate].
+  replace (z+(z1-z)) with z1 in * by omega.
+  rewrite H0.
+  inv H.
+  assert (contents_at m3 (b,z1) = Byte Byte.zero).
+    unfold contents_at.
+    simpl. forget (ZMap.get z1 (PMap.get b (mem_contents m3))) as byt.
+    clear - H7.
+    unfold decode_val in H7.
+    revert H7; case_eq (proj_bytes (byt::nil)); intros; try discriminate.
+    simpl in  H. destruct byt; inv H.
+    unfold decode_int in H7.
+    replace (rev_if_be (i::nil)) with (i::nil) in H7 by (unfold rev_if_be; destruct Archi.big_endian; auto).
+    simpl int_of_bytes in H7.
+    replace (Byte.unsigned i + 0) with (Byte.unsigned i) in H7 by omega.
+    f_equal.
+   apply zero_ext_inj. forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H7; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+
+* (* symbol case *)
+ destruct rho; simpl in RHO; rewrite RHO.
+  case_eq (Map.get (filter_genv ge) i); try destruct p0; auto; intros.
++
+  unfold filter_genv, Map.get in H4.
+  revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
+  inv H5.
+  left. split; [apply I | ].
+  rewrite H4 in H.
+ exists  (getN (size_chunk_nat Mptr) z (mem_contents m3) !! b).
+ repeat split; auto.
+ clear - H. 
+ cbv iota. congruence.
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  intro loc; specialize (H2 loc). hnf. simpl init_data_size in H2.
+ replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
+   by (unfold Mptr; destruct Archi.ptr64; reflexivity).
+ if_tac; [ | apply H2].
+  exists READABLE. hnf. 
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true
+   by (destruct loc, H,H5; subst; simpl;
+        unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H6.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+  rewrite H0.
+  destruct loc; destruct H5.  subst b1.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H5; subst b1.
+  apply nth_getN; simpl; omega.
++
+  erewrite mapsto__exp_address_mapsto by (auto; reflexivity).
+  rewrite exp_address_mapsto_VALspec_range_eq.
+  rewrite Ptrofs.unsigned_repr by (change Ptrofs.max_unsigned with (Ptrofs.modulus-1); omega).
+  split.
+  simpl in AL|-*.
+  apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  hnf. split; auto. intro loc; specialize (H2 loc). hnf.
+  simpl init_data_size in H2.
+ replace (if Archi.ptr64 then 8 else 4) with (size_chunk Mptr) in H2
+   by (unfold Mptr; destruct Archi.ptr64; reflexivity).
+ if_tac; [ | apply H2].
+ destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1.
+  eexists.
+  hnf. exists READABLE.
+  hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true
+   by (destruct loc, H,H5; subst; simpl;
+        unfold block; xomega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H6.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
+Qed.
+
+Lemma ginit_data_list_lem:
+  forall (ge: genv) m0 (v: globvar type) m1 b m2 m3 m4  phi0 gvals,
+     alloc m0 0 (init_data_list_size (gvar_init v)) = (m1,b) ->
+     store_zeros m1 b 0 (init_data_list_size (gvar_init v)) = Some m2 ->
+     Genv.store_init_data_list ge m2 b 0 (gvar_init v) = Some m3 ->
+     drop_perm m3 b 0 (init_data_list_size (gvar_init v))
+               (Genv.perm_globvar v) = Some m4 ->
+  forall
+   (Hg: noghost phi0) (SANITY: init_data_list_size (gvar_init v) < Ptrofs.modulus)
+   (VOL:  gvar_volatile v = false)
+   (AL: initializers_aligned 0 (gvar_init v) = true)
+   (RHO: (fst gvals) = filter_genv ge),
+     ginit_data_list2pred (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Ptrofs.zero)
+            gvals (beyond_block b (inflate_initial_mem m4 phi0)).
+Proof.
+intros.
+set (phi := beyond_block b (inflate_initial_mem m4 phi0)).
+assert (forall loc, fst loc <> b -> identity (phi @ loc)).
+  unfold phi; intros.
+  unfold beyond_block. rewrite only_blocks_at.
+  if_tac; [ |  apply core_identity].
+  unfold inflate_initial_mem.  rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'.
+  unfold access_at.
+  rewrite nextblock_noaccess. apply NO_identity.
+  rewrite (nextblock_drop _ _ _ _ _ _ H2).
+  rewrite (Genv.store_init_data_list_nextblock _ _ _ _ _ H1).
+  rewrite (Genv.store_zeros_nextblock _ _ _ _ H0).
+  assert (nextblock m1 = Pos.succ b /\ b = nextblock m0).
+   clear - H. Transparent alloc. inv H.  simpl. auto. Opaque alloc.
+ destruct H5; unfold block in *; xomega.
+ assert (forall loc, if adr_range_dec (b,0)  (init_data_list_size (gvar_init v)) loc
+                             then access_at m4 loc Cur = Some (Genv.perm_globvar v)
+                             else identity (phi @ loc)).
+  intro. if_tac.
+     destruct loc; destruct H4; subst b0.
+     unfold access_at. simpl. forget (Genv.perm_globvar v) as p.
+      forget (init_data_list_size (gvar_init v)) as n.
+     clear - H2 H5. unfold drop_perm in H2.
+      destruct (range_perm_dec m3 b 0 n Cur Freeable); inv H2.
+      simpl.  rewrite PMap.gss.
+       destruct (zle 0 z); try omegaContradiction. destruct (zlt z n); try omegaContradiction.
+       simpl; auto.
+    destruct loc.
+  destruct (eq_dec b b0). subst b0.
+  unfold phi. unfold beyond_block. rewrite only_blocks_at.
+   simpl. rewrite if_true by (unfold block; xomega).
+  unfold inflate_initial_mem.  rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'.
+  replace (access_at m4 (b,z) Cur) with (@None permission).
+  apply NO_identity.
+  symmetry.  transitivity (access_at m3 (b,z) Cur).
+  clear - H4 H2. unfold access_at; unfold drop_perm in H2.
+   destruct (range_perm_dec m3 b 0 (init_data_list_size (gvar_init v)) Cur
+         Freeable); inv H2. simpl. rewrite PMap.gss.
+  unfold adr_range in H4. destruct (zle 0 z); auto.
+   destruct (zlt z (init_data_list_size (gvar_init v)) ); auto.
+  contradiction H4. split; auto.
+  transitivity (access_at m2 (b,z) Cur).
+  apply store_init_data_list_outside' in H1.
+  destruct H1 as [? [? ?]]; congruence.
+  transitivity (access_at m1 (b,z) Cur).
+  clear - H0. erewrite store_zeros_access; eauto.
+  clear - H H4. Transparent alloc. inv H. Opaque alloc. unfold access_at; simpl.
+  rewrite PMap.gss. destruct (zle 0 z); auto.
+   destruct (zlt z (init_data_list_size (gvar_init v)) ); auto.
+  contradiction H4. split; auto.
+   apply H3. auto.
+  clear H3.
+  assert (contents_at m4 = contents_at m3).
+  clear - H2; unfold contents_at, drop_perm in *.
+   destruct (range_perm_dec m3 b 0 (init_data_list_size (gvar_init v)) Cur
+         Freeable); inv H2. simpl. auto.
+   clear H2.
+   forget (gvar_init v) as dl.
+   remember dl as D.
+   rewrite HeqD in AL,H4|-*.
+   assert (nil++dl=D) by (subst; auto).
+   remember (@nil init_data) as dl'.
+   remember (core phi) as w'.
+   remember phi as w.
+   assert (join w' w phi). subst. apply core_unit.
+   unfold Ptrofs.zero.
+   remember 0 as z. rewrite Heqz in H,H0,H1.
+   replace z with (init_data_list_size dl') in AL,H4|-* by (subst; auto).
+   clear z Heqz.
+   assert (forall loc, if adr_range_dec (b,init_data_list_size dl') (init_data_list_size dl) loc
+                               then identity (w' @ loc)  else identity (w @ loc)).
+  intro. subst. if_tac. rewrite <- core_resource_at. apply core_identity.
+  specialize (H4 loc). rewrite if_false in H4 by auto; auto.
+  assert (noghost w) as Hgw.
+  { subst w phi.
+    unfold beyond_block, only_blocks, inflate_initial_mem; simpl.
+    rewrite !ghost_of_make_rmap; auto. }
+   clear Heqw' Heqw Heqdl' HeqD.
+   revert dl' w' w AL H2 H4 H5 H6 Hgw; induction dl; simpl; intros.
+   apply all_resource_at_identity; auto; intro loc.
+   specialize (H6 loc); if_tac in H6; auto. destruct loc; destruct H7.
+   omegaContradiction.
+  assert (SANITY': init_data_list_size dl' + init_data_size a + init_data_list_size dl < Ptrofs.modulus).
+  clear - H2 SANITY.
+  subst D.
+ rewrite init_data_list_size_app in SANITY. simpl in SANITY. omega.
+  destruct (split_range w (b,init_data_list_size dl') (init_data_size a)) as [w1 [w2 [? ?]]]; auto.
+  intros. apply (resource_at_join _ _ _ loc) in H5.
+  specialize (H6 loc). rewrite if_true in H6. apply H6 in H5.
+  rewrite H5.
+    unfold phi; clear. unfold beyond_block. rewrite only_blocks_at.
+   if_tac; [ |   destruct (inflate_initial_mem m4 phi0 @ loc);
+                [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto].
+  unfold inflate_initial_mem; rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. destruct (access_at m4 loc); try destruct p; simpl; auto.
+  destruct (phi0 @ loc); auto.
+  destruct loc. destruct H7; split; auto.
+  pose proof (init_data_list_size_pos dl).
+  omega.
+  exists w1; exists w2; split3; auto.
+  clear IHdl.
+  destruct (join_assoc H7 (join_comm H5)) as [wf [? ?]].
+  assert (forall loc, if adr_range_dec (b,init_data_list_size dl') (init_data_size a) loc
+                                 then identity (wf @ loc) /\
+                                         access_at m4 loc Cur = Some (Genv.perm_globvar v)
+                                 else identity (w1 @ loc)).
+     intro. specialize (H8 loc); specialize (H6 loc); specialize (H4 loc).
+       apply (resource_at_join _ _ _ loc) in H9;
+       apply (resource_at_join _ _ _ loc) in H10.
+ if_tac.  rewrite if_true in H6,H4. apply H8 in H9. rewrite <- H9; auto.
+   destruct loc; destruct H11; subst b0. split; auto.
+   pose proof (init_data_list_size_pos dl); omega.
+   destruct loc; destruct H11; subst b0. split; auto.
+   pose proof (init_data_list_size_pos dl); omega.
+ auto.
+  pose proof (load_store_init_data_lem1 H0 H1 _ _ _ H2).
+  unfold phi in *; clear phi.
+  eapply ginit_data_lem; try eassumption.
+  apply ghost_of_join in H7.
+  simpl; eapply split_identity; eauto.
+  clear - AL. apply andb_true_iff in AL. destruct AL; auto.
+  pose proof (init_data_list_size_pos dl'); omega.
+  pose proof (init_data_list_size_pos dl); omega.
+  destruct (join_assoc (join_comm H7) (join_comm H5)) as [wg [? ?]].
+  specialize (IHdl  (dl' ++ (a::nil))  wg w2).
+  replace (init_data_list_size (dl' ++ a :: nil)) with
+             (init_data_list_size dl' + init_data_size a) in IHdl.
+  rewrite Ptrofs.add_unsigned.
+  repeat rewrite Ptrofs.unsigned_repr
+       by (pose proof (init_data_list_size_pos dl'); pose proof (init_data_list_size_pos dl);
+      pose proof (init_data_size_pos a); pose proof max_unsigned_modulus; omega).
+  apply IHdl; auto.
+  apply andb_true_iff in AL; destruct AL; auto.
+  rewrite app_ass; auto.
+  intro loc; specialize (H6 loc); specialize (H8 loc); specialize (H4 loc).
+  if_tac. rewrite if_true in H4; auto.
+  destruct loc; destruct H11; auto.
+  split; auto.
+  pose proof (init_data_size_pos a); omega.
+  if_tac in H8; auto.
+  rewrite if_false in H6.
+  apply join_comm in H5.
+  apply (resource_at_join _ _ _ loc) in H7.
+  apply H8 in H7. rewrite H7; auto.
+  destruct loc.
+  intros [? ?]. subst b0.
+  forget (init_data_list_size dl') as u.
+ destruct (zlt z (u + init_data_size a)).
+ apply H12.  split; auto. omega.
+ apply H11.  split; auto. omega.
+  intro loc. specialize (H4 loc); specialize (H6 loc); specialize (H8 loc).
+  apply (resource_at_join _ _ _ loc) in H7.
+  apply (resource_at_join _ _ _ loc) in H9.
+  apply (resource_at_join _ _ _ loc) in H10.
+  apply (resource_at_join _ _ _ loc) in H5.
+ destruct loc.
+  if_tac in H8.
+  rewrite if_false; auto.
+ clear - H11; destruct H11; intros [? ?]. omega.
+  if_tac in H4.
+  rewrite if_true.
+  apply H8 in H9. rewrite <- H9 in *. auto.
+  destruct H12; subst b0. split; auto.
+  forget (init_data_list_size dl') as u.
+  assert (~ (u <= z < u + init_data_size a)) by (contradict H11; destruct H11; split; auto; omega).
+  omega.
+ rewrite if_false. apply H8 in H7. rewrite H7; auto.
+ contradict H12. destruct H12; split; auto.
+  pose proof (init_data_size_pos a); omega.
+  apply ghost_of_join, join_comm in H7.
+  simpl; eapply split_identity; eauto.
+ clear.
+  induction dl'; simpl; intros; try omega.
+Qed.
+
+Lemma ginit_datalist_hack:
+  forall b sh rho dl phi0 z,
+   (ginit_data_list2pred dl sh (Vptr b z) rho) phi0 ->
+  forall phi,
+     hackfun phi0 phi ->
+   readable_share sh ->
+   (ginit_data_list2pred dl sh (Vptr b z) rho) phi.
+Proof.
+  induction dl; intros. destruct H0 as [H0' [Hg H0]]. simpl in *.
+  apply all_resource_at_identity. intro loc; destruct (H0 loc).
+  apply (resource_at_identity _ loc) in H. apply H2; auto.
+  rewrite <- Hg; apply ghost_of_identity; auto.
+
+  rename H1 into H_READABLE.
+ simpl init_data_list2pred in H|-*.
+ destruct H as [w1 [w2 [? [? ?]]]].
+ destruct (hackfun_sep _ _ _ _ H0 H) as [w1' [w2' [? [? ?]]]].
+ exists w1'; exists w2'; split3; auto.
+ 2: eapply IHdl; eauto.
+ clear - H_READABLE H1 H4. destruct H4 as [H4' [Hg H4]].
+
+  unfold ginit_data2pred in *;
+  unfold mapsto, address_mapsto in *;
+  destruct a; simpl in *;
+  (destruct (readable_share_dec sh); [| tauto]);
+  try
+  (destruct H1 as [[H1' H1]|[H1x _]]; [|solve[inv H1x]];
+        left; split;
+    [ first [ apply I
+           | apply sign_ext_range'; compute; split; congruence
+           | apply zero_ext_range'; compute; split; congruence ]
+    | simpl in H1 |- *;
+      destruct H1 as [bl [[? H8] Hg']]; exists bl; split; [|rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc);
+      if_tac; [ destruct H8 as [p H8]; exists p; destruct (H4 loc) as [_ H5];
+                rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
+              | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
+ rewrite address_mapsto_zeros_eq in H1|-*.
+ rewrite Z_to_nat_max in *.
+ split.  destruct H1; omega.
+ destruct H1 as [H1' [H1 Hg1]]; split; [|simpl; rewrite <- Hg; auto].
+ intro loc; specialize (H1 loc).
+ assert (H99:  Z.max (Z.max z0 0) 0 = Z.max z0 0).
+   apply Z.max_l. apply Zmax_bound_r. omega.
+ rewrite H99 in *.
+ hnf in H1|-*.
+ if_tac; [destruct H1 as [p H1]; exists p; hnf in H1|-*; rewrite <- H4'; destruct (H4 loc) as [_ H5]
+          | destruct (H4 loc) as [HH _]; intuition].
+ rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
+
+ destruct (Map.get (fst rho) i); try destruct p; auto.
+ destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto.
+ destruct H1 as [bl [[? H8] Hg1]].
+ exists bl; split; [|simpl; rewrite <- Hg; auto]; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct (H4 loc).
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
+ intuition.
+ destruct H1 as [bl [? H8]].
+ exists bl,x. destruct H8 as [[H8' H8] Hg1].
+ split; [|simpl; rewrite <- Hg; auto].
+ split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct (H4 loc).
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'. rewrite <- H0. rewrite H8. reflexivity.
+ rewrite H8.
+ apply YES_not_identity.
+ intuition.
+ unfold mapsto_ in *.
+ unfold mapsto in *.
+  simpl in *.
+ rewrite if_true in H1|-* by auto.
+ destruct H1. destruct H. contradiction. destruct H as [ _ ?].
+ right. split. hnf; auto.
+ destruct H as [v2' ?]; exists v2'.
+ destruct H as [x ?]; exists x.
+ destruct H; split; auto.
+ destruct H; split; auto.
+ intros loc; specialize (H1 loc).
+ destruct (H4 loc).
+ rename H1 into H8.
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H3; auto. rewrite H8; apply YES_not_identity.
+ intuition.
+ hnf in H0|-*. rewrite <- Hg; auto.
+Qed.
+
+Lemma gglobal_initializers:
+  forall (prog: program) G m n (gvals:genviron * list val),
+     list_norepet (prog_defs_names prog) ->
+     all_initializers_aligned prog ->
+    match_fdecs (prog_funct prog) G ->
+    (fst gvals) = filter_genv (globalenv prog) ->
+    Genv.init_mem prog = Some m ->
+     app_pred (gglobvars2pred (globals_of_genv (fst gvals)) (prog_vars prog) gvals)
+  (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
+Proof.
+  intros until gvals. intros ? AL SAME_IDS RHO ?.
+  unfold all_initializers_aligned in AL.
+  unfold Genv.init_mem in H0.
+  unfold globalenv, Genv.globalenv in *.
+  unfold prog_vars, prog_funct in *.
+  change (prog_defs prog) with (AST.prog_defs prog) in AL, SAME_IDS |- *.
+  destruct (program_of_program prog) as [fl prog_pub main].
+  forget (prog_comp_env prog) as cenv.
+  clear prog.
+  simpl in *|-. simpl prog_vars'. simpl initial_core.
+  match goal with |- context [initial_core ?A] =>
+     remember A as gev end.
+  rewrite <- (rev_involutive fl) in *.
+  rewrite alloc_globals_rev_eq in H0.
+  forget (rev fl) as vl'. clear fl; rename vl' into vl.
+  unfold prog_defs_names in H. simpl in  H.
+
+  rewrite <- rev_prog_vars' in AL|-*.
+  rewrite <- rev_prog_funct' in SAME_IDS.
+  rewrite gglobvars2pred_rev.
+  rewrite forallb_rev in AL.
+  rewrite <- (rev_involutive G) in  SAME_IDS.
+  rewrite match_fdecs_rev in SAME_IDS.
+  2:{
+    apply list_norepet_prog_funct'.
+    rewrite <- list_norepet_rev, <- map_rev; auto.
+  }
+  rewrite initial_core_rev with (vl:=vl) by auto.
+  rewrite map_rev in H. rewrite list_norepet_rev in H.
+  forget (rev G) as G'; clear G; rename G' into G.
+  rename H into H2.
+  assert (H :=add_globals_hack _ _ prog_pub H2 Heqgev).
+  assert (H1: forall j, In j (map (@fst _ _) G) -> ~ In j (map (@fst _ _) (prog_vars' vl))). {
+    intros.
+    pose proof (match_fdecs_in j _ _ H1 SAME_IDS).
+    clear - H3 H2.
+    intro.
+    induction vl. inv H.
+    inv H2. specialize (IHvl H5).
+    destruct a as [i [a|a]]; simpl in *.
+    destruct H3. subst j.
+    clear - H H4.
+    apply H4; clear H4. induction vl; simpl in *; auto.
+    destruct a as [i' [a|a]]; auto .
+    destruct H. simpl in *; subst; auto.
+    right; auto.
+    apply IHvl; auto.
+    destruct H; subst.
+    apply H4; clear - H3. induction vl; simpl in *; auto.
+    destruct a as [i' [a|a]]; auto .
+    destruct H3. simpl in *; subst; auto.
+    right; auto.
+    apply IHvl; auto.
+  }
+  assert (H1': forall j, In j (map fst (prog_funct' vl)) -> In j (map fst G)). {
+   clear - SAME_IDS.
+   forget (prog_funct' vl) as fs. intro.
+   induction SAME_IDS. auto. simpl. intuition.
+  }
+  assert (NRG: list_norepet (map fst G)). {
+     clear - SAME_IDS H2.
+     eapply match_fdecs_norepet; eauto.
+     apply list_norepet_prog_funct'; auto.
+  }
+  clear SAME_IDS Heqgev.
+  change (map fst vl) with (map fst (@nil (ident*Newfunspec)) ++ map fst vl) in H2.
+  change G with (nil++G).
+  set (G0 := @nil (ident*Newfunspec)) in *.
+  change G with (G0++G) in NRG.
+  clearbody G0.
+  move H2 after H. move H1 after H.
+
+  assert (H3: forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
+           (gglobvars2pred (globals_of_genv (fst gvals)) (prog_vars' vl) gvals) phi).
+  2:{
+    apply H3. clear.
+    split. auto.
+    split; auto.
+    intro loc. intuition.
+  }
+  intros. rename H3 into HACK; revert phi HACK.
+                     (* The purpose of going through hackfun is doing this induction. *)
+  revert H m G0 G NRG H2 H0 H1 H1'; induction vl; intros.
+  + split. hnf; auto. apply resource_at_empty2.
+    intro l. do 2 apply proj2 in HACK; specialize (HACK l).
+    unfold inflate_initial_mem in HACK|-*.
+    rewrite resource_at_make_rmap in *.
+    unfold inflate_initial_mem' in HACK|-*.
+    inversion H0; clear H0; subst m.
+    unfold access_at, empty in HACK; simpl in HACK; rewrite PMap.gi in HACK.
+      destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
+    destruct HACK as (? & <- & _).
+    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
+    rewrite <- (ghost_core nil); apply core_identity.
+  + simpl in H0.
+    revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
+    spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
+      apply andb_true_iff in AL; destruct AL; auto.
+     spec IHvl; [ intros | ].
+    assert (H4': (Pos.to_nat b <= length vl)%nat). {
+    clear - H4. rewrite Zlength_correct in H4.
+      rewrite <- Z2Nat.inj_pos.
+       rewrite <- Nat2Z.id .
+       apply Z2Nat.inj_le. specialize (Pos2Z.is_pos b). omega.
+       omega.
+       omega.
+     }
+ fold fundef in *.
+ assert (POS := Pos2Z.is_pos b). {
+ rewrite H.
+ rewrite Pos_to_nat_eq_S.
+ replace (length vl - (Z.to_nat (Z.pos b) - 1))%nat with (S (length vl - S (Z.to_nat (Z.pos b) - 1)))%nat
+  by (simpl;  pose proof (Pos2Nat.is_pos b); omega).
+ simpl.
+  replace (Datatypes.length vl - (Pos.to_nat b - 1))%nat with
+             (S (Datatypes.length vl - S (Pos.to_nat b - 1)))%nat.
+ apply iff_refl.
+ clear - H4'; pose proof (Pos2Nat.is_pos b); omega.
+ rewrite Zlength_cons. omega.
+ }
+ destruct a.
+ assert (FS: Genv.find_symbol gev i = Some (nextblock m0)).
+  assert (Genv.find_symbol gev i = Some (nextblock m0)).
+    apply H. apply alloc_globals_rev_nextblock in H0. rewrite H0 .
+      rewrite Zlength_cons.
+ rewrite Z2Pos.id.
+ rewrite Zlength_correct. omega.
+ rewrite Zlength_correct. omega.
+ simpl.
+   apply alloc_globals_rev_nextblock in H0. rewrite H0 .
+  replace (Pos.to_nat (Z.to_pos (Z.succ (Zlength vl))))
+    with (S (length vl)).
+2:{
+rewrite Pos_to_nat_eq_S.
+ rewrite Zlength_correct.
+  rewrite Z2Pos.id by omega.
+ rewrite Z2Nat.inj_succ by omega.
+ rewrite Nat2Z.id. omega.
+}
+ rewrite Nat.sub_diag. reflexivity.
+  auto.
+  destruct g.
+* (* Gfun case *)
+  simpl.
+  specialize (IHvl m0 (G0(*++(p::nil)*)) G).
+  apply IHvl; auto.
+ - clear - H2. apply list_norepet_app in H2. destruct H2 as [? [? ?]].
+    inv H0.
+    apply list_norepet_app; split3; auto.
+    apply list_disjoint_cons_right in H1; auto.
+ - clear - H1'; intros; apply H1'. right; auto.
+ -
+  clear - NRG H2 FS HACK H3 H1'.
+  specialize (H1' i). simpl in H1'. spec H1'; [auto | ].
+  destruct HACK as [? ? ].
+  split. rewrite <- H.
+  unfold inflate_initial_mem. repeat rewrite level_make_rmap. auto.
+  destruct H0 as [Hg H0]; split.
+  unfold inflate_initial_mem in *; rewrite ghost_of_make_rmap in *; auto.
+  intro; specialize (H0 loc).
+  destruct H0.
+  clear - NRG H2 FS H0 H1 H3 H1'.
+  split.
+  rewrite <- H0.
+  clear - NRG H2 FS H3 H1'.
+  apply (identity_inflate_at_Gfun n i f); auto.
+  intro.
+  rewrite <- H1.
+  eapply alloc_global_inflate_initial_eq; eauto.
+  clear - H3 H.
+  contradict H.
+  eapply alloc_global_identity_lemma3; eauto.
+* (* Gvar case *)
+  specialize (IHvl m0 G0 G NRG).
+  spec IHvl. { clear - H2. apply list_norepet_app.  apply list_norepet_app in H2.
+      destruct H2 as [? [? ?]].  inv H0.  split3; auto. simpl in H1.
+    apply list_disjoint_cons_right in H1; auto.
+  }
+  specialize (IHvl H0).
+ spec IHvl. intros. clear - H1 H4. specialize (H1 _ H4). contradict H1.
+  right; auto.
+  assert (FI: find_id i (G0++G) = None). {
+  change (list_norepet (map fst G0 ++ (i::nil) ++ (map fst vl))) in H2.
+  apply list_norepet_append_commut in H2. rewrite app_ass in H2.
+ inv H2. specialize (H1 i).
+ case_eq (find_id i (G0++G)); intros; auto. apply find_id_e in H2.
+ contradiction H6. apply in_app. apply in_app_or in H2.
+ destruct H2; [right|left].  change i with (fst (i,n0(*f*))); apply in_map; auto.
+ contradiction H1. apply in_map_fst in H2. auto.
+ left; auto.
+ }
+  split. hnf; auto.
+  simpl map.  simpl fold_right.
+  assert (identity (ghost_of phi)) as Hg.
+  { destruct HACK as (? & <- & _).
+    unfold inflate_initial_mem, initial_core; rewrite !ghost_of_make_rmap.
+    rewrite <- (ghost_core nil); apply core_identity. }
+  pose proof (join_comm (join_upto_beyond_block (nextblock m0) phi Hg)).
+  do 2 econstructor; split3; [ eassumption | |].
+  unfold globvar2pred.
+  unfold globals_of_env.
+  rewrite RHO. unfold filter_genv, Map.get. simpl @fst; simpl @snd.
+  assert (JJ:= alloc_global_inflate_same n i v _ _ (G0++G) _ H3).
+ spec JJ.
+ intro. unfold initial_core. rewrite resource_at_make_rmap. unfold initial_core'.
+  simpl. if_tac; auto.
+ rewrite Genv.find_invert_symbol with (id:=i); auto. rewrite FI; auto.
+ (*simpl genv_genv.*) unfold gglobvar2pred, globals_of_genv. simpl.
+ fold fundef in *. simpl. unfold Map.get.
+ rewrite FS.
+ assert (H99: exists t, match type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0) with
+  | Some t => Some (Vptr (nextblock m0) Ptrofs.zero, t)
+  | None => Some (Vptr (nextblock m0) Ptrofs.zero, Tvoid)
+  end = Some (Vptr (nextblock m0) Ptrofs.zero, t)) by (destruct (type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0)); eauto).
+(* destruct H99 as [t H99]; rewrite H99; clear t H99.*)
+ case_eq (gvar_volatile v); intros; auto. rename H5 into H10.
+  hnf; auto.
+
+  unfold Genv.alloc_global in H3.
+  revert H3; case_eq (alloc m0 0 (init_data_list_size (gvar_init v))); intros.
+  invSome. invSome.
+  assert (H90: Z.pos (nextblock m0) -1 = Zlength vl).
+    clear - H0 H3.
+
+  apply alloc_globals_rev_nextblock in H0. apply alloc_result in H3.
+  subst.  rewrite H0.
+  rewrite Zlength_correct.
+  rewrite Z2Pos.id by omega. omega.
+ destruct (H i (nextblock m0)) as [_ ?].
+  rewrite Zlength_cons. rewrite H90.
+  split; try omega.
+  rewrite Zlength_correct. omega.
+  spec H7. 
+  simpl length.
+  replace (Pos.to_nat (nextblock m0)) with (S (length vl)).
+  rewrite minus_diag. reflexivity.
+  clear - H90. rewrite Zlength_correct in H90. apply inj_eq_rev.
+  rewrite inj_S. rewrite <- H90. clear.
+  rewrite Pos_to_nat_eq_S.
+  replace (Z.succ (Z.pos (nextblock m0) - 1)) with (Z.pos (nextblock m0)) by omega.
+  replace (S (Z.to_nat (Z.pos (nextblock m0)) - 1))
+    with (Z.to_nat (Z.pos (nextblock m0)))
+  by (rewrite Z2Nat.inj_pos; pose proof (Pos2Nat.is_pos (nextblock m0)); omega).
+ rewrite Z2Nat.id by (pose proof (Pos2Z.is_pos (nextblock m0)); omega).
+ auto.
+
+pose proof (ginit_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) gvals
+     H3 H6 H9 H10) .
+ spec H8.
+ { unfold initial_core; simpl; rewrite ghost_of_make_rmap, <- (ghost_core nil); apply core_identity. }
+ spec H8.
+ clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
+ apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.
+ specialize (H8 H5).
+ spec H8.
+ clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
+ apply andb_true_iff in H. destruct H; auto.
+ specialize (H8 RHO). (* replace (nextblock m0) with b by congruence. *)
+ eapply ginit_datalist_hack; eauto.
   apply alloc_result in H3; subst b.
   eassumption.
  apply hackfun_beyond_block; auto.

@@ -451,8 +451,8 @@ Definition initial_core' {F} (ge: Genv.t (fundef F) type) (G: funspecs) (n: nat)
    then match Genv.invert_symbol ge (fst loc) with
            | Some id =>
                   match find_id id G with
-                  | Some (mk_funspec fsig cc A P Q _ _) =>
-                           PURE (FUN (typesig_of_funsig fsig) cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
+                  | Some (mk_Newfunspec fsig cc A P Q _ _) =>
+                           PURE (FUN (*(typesig_of_funsig fsig)*)fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
                   | None => NO Share.bot bot_unreadable
                   end
            | None => NO Share.bot bot_unreadable
@@ -468,7 +468,7 @@ extensionality loc; unfold compose, initial_core'.
 if_tac; [ | simpl; auto].
 destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
 destruct (find_id i G); [ | simpl; auto].
-destruct f.
+destruct n0 (*f*).
 unfold resource_fmap.
 f_equal.
 simpl.
@@ -500,7 +500,7 @@ extensionality loc; unfold compose, initial_core'.
 if_tac; [ | simpl; auto].
 destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
 destruct (find_id i G); [ | simpl; auto].
-destruct f.
+destruct n0(*f*).
 unfold resource_fmap.
 f_equal.
 simpl.
@@ -1228,11 +1228,16 @@ Qed.
    semax proofs?  We define 'matchfunspecs' which will be satisfied by
    the initial memory, and preserved under resource_decay / pures_eq /
    aging. *)
-
+(*
 Definition cond_approx_eq n A P1 P2 :=
   (forall ts,
       fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P1 ts) =
-      fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P2 ts)).
+      fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P2 ts)).*)
+
+Definition cond_approx_eq n A P1 P2 :=
+  (forall ts,
+      fmap (dependent_type_functor_rec ts (ArgsTT A)) (approx n) (approx n) (P1 ts) =
+      fmap (dependent_type_functor_rec ts (ArgsTT A)) (approx n) (approx n) (P2 ts)).
 
 Lemma cond_approx_eq_sym n A P1 P2 :
   cond_approx_eq n A P1 P2 ->
@@ -1273,5 +1278,4 @@ Qed.
 
 (* func_at'': func_at without requiring a proof of non-expansiveness *)
 Definition func_at'' fsig cc A P Q := fun l =>
-  !!(list_norepet (map fst (fst fsig))) &&
-  pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN (typesig_of_funsig fsig) cc) l.
+  pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN (*(typesig_of_funsig fsig)*)fsig cc) l.

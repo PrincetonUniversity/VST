@@ -177,7 +177,7 @@ Proof.
   destruct H as [H1 H2]; split; repeat intro. (*rename H into H1; repeat intro.*)
   - destruct (H1 _ _ _ (rt_refl _ _ _) H0) as (b1 & ? & ?).
     exists b1; split; auto.
-    destruct b0; simpl in *. destruct H4 as [LNR ?]; split; [ trivial |].
+    destruct b0; simpl in *.
     rewrite Hr in H4.
     pose proof (necR_level _ _ H).
     eapply necR_PURE in H; eauto.
@@ -190,7 +190,7 @@ Proof.
     destruct b0; simpl in *.
     apply (H2 _  (rt_refl _ _ _)).
     rewrite Hr, Hl.
-    destruct H0 as [p [LNR Hp]].
+    destruct H0 as [p Hp].
     pose proof (necR_level _ _ H).
     rewrite <- resource_at_approx.
     eapply necR_PURE' in H as [? ->]; simpl; eauto.

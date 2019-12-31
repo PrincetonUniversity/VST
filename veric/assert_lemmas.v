@@ -272,7 +272,7 @@ Proof.
   intros.
   unfold func_at.
   destruct f as [fsig0 cc A P Q].  
-  apply corable_andp. apply corable_prop.
+  (*apply corable_andp. apply corable_prop.*)
   (*apply corable_exp; intro.
   apply corable_andp. apply corable_funspec_sub.
   destruct b.*) apply corable_pureat.
@@ -284,16 +284,16 @@ Proof.
   unfold func_at'.
   destruct f as [fsig0 cc A P Q].
   apply corable_exp; intro. 
-  apply corable_andp. apply corable_prop.
+  (*apply corable_andp. apply corable_prop.*)
   apply corable_pureat.
 Qed.
 
 Lemma corable_sigcc: forall f c b, corable (sigcc_at f c (pair b Z0)).
 Proof. 
   intros.
-  unfold sigcc_at.
+  unfold sigcc_at. 
   apply corable_exp; intro.
-  apply corable_andp. apply corable_prop.
+  (* apply corable_andp. apply corable_prop.*)
   apply corable_pureat.
 Qed.
 
@@ -304,7 +304,7 @@ Proof.
   apply corable_exp; intro.
   apply corable_andp; auto.
   apply corable_exp; intro.
-  apply corable_andp. apply corable_andp. apply corable_prop. apply corable_funspec_sub_si.
+  apply corable_andp. (*apply corable_andp. apply corable_prop.*) apply corable_funspec_sub_si.
   apply corable_func_at.
 Qed.
 (*

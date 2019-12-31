@@ -1167,48 +1167,12 @@ Definition weak_valid_pointer (p: val) : mpred :=
 
 (********************SUBSUME****************)
 
-Definition params_of_funspec (fs: funspec) : list (ident * type) :=
-  fst (funsig_of_funspec fs).
-
-Definition return_of_funspec (fs: funspec) : type :=
-  snd (funsig_of_funspec fs).
-
-
 Definition funsig_of_function (f: function) : funsig :=
   (fn_params f, fn_return f).
 
-Definition params_LNR (f: option funspec): Prop := (*list_norepet (map fst (params_of_funspec phi)).*)
-  match f with None => True
-   | Some phi => list_norepet (map fst (params_of_funspec phi))
-  end.
-
-Lemma normalized_params_LNR phi: 
-      funspec_normalized phi = true -> list_norepet (map fst (params_of_funspec phi)).
-Proof. destruct phi; simpl; intros.
-  apply norm_char in H; simpl in H. unfold params_of_funspec; simpl; rewrite H.
-  apply normalparams_LNR.
-Qed.
-
-Lemma binary_intersection_LNR1 {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      list_norepet (map fst (params_of_funspec phi1)).
-Proof. apply binary_intersection_funsigs_match in BI. 
-  apply funsigs_match_LNR1 in BI. apply BI. 
-Qed. 
-Lemma binary_intersection_LNR2 {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      list_norepet (map fst (params_of_funspec phi2)).
-Proof. apply binary_intersection_funsigs_match in BI. 
-  apply funsigs_match_LNR2 in BI. apply BI. 
-Qed.
-
-Lemma binary_intersection_LNR_res {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      list_norepet (map fst (params_of_funspec phi)).
-Proof. specialize (binary_intersection_LNR1 BI). unfold params_of_funspec.
-  rewrite (binary_intersection_funsig BI). trivial.
-Qed.
-
 Lemma binary_intersection_retty {phi1 phi2 phi} (BI : binary_intersection phi1 phi2 = Some phi):
-      return_of_funspec phi1 = return_of_funspec phi.
-Proof. unfold return_of_funspec. rewrite (binary_intersection_funsig BI); trivial. Qed.
+      rettype_of_Newfunspec phi1 = rettype_of_Newfunspec phi.
+Proof. unfold rettype_of_Newfunspec. rewrite (binary_intersection_typesig BI); trivial. Qed.
 
 (* If we were to require that a non-void-returning function must,
    at a function call, have its result assigned to a temp,
@@ -1216,23 +1180,22 @@ Proof. unfold return_of_funspec. rewrite (binary_intersection_funsig BI); trivia
    definition (and in NDfunspec_sub). *)
 Definition subsumespec x y:=
 match x with
-| Some hspec => list_norepet (map fst (params_of_funspec hspec)) /\
-                exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
+| Some hspec => exists gspec, y = Some gspec /\ TT |-- funspec_sub_si gspec hspec (*contravariance!*)
 | None => True
 end. 
 
 Lemma subsumespec_trans x y z (SUB1: subsumespec x y) (SUB2: subsumespec y z):
      subsumespec x z.
 Proof. unfold subsumespec in *.
- destruct x; trivial. destruct SUB1 as [? [? [? ?]]]; subst.
- destruct SUB2 as [? [? [? ?]]]; subst. split; trivial. exists x0; split; trivial.
+ destruct x; trivial. destruct SUB1 as [? [? ?]]; subst.
+ destruct SUB2 as [? [? ?]]; subst. exists x0; split; trivial.
  intros w W.
  eapply funspec_sub_si_trans; split; eauto.
 Qed.
 
-Lemma subsumespec_refl x (X: params_LNR x): subsumespec x x.
+Lemma subsumespec_refl x: subsumespec x x.
 Proof. unfold subsumespec. 
- destruct x; trivial. split; [ apply X |]. exists f; split; [trivial| apply funspec_sub_si_refl; apply X].
+ destruct x; trivial. exists n(*f*); split; [trivial| apply funspec_sub_si_refl; apply X].
 Qed.
 
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
@@ -1269,15 +1232,13 @@ Proof.
   * clear - H5 G5. intros. eapply subsumespec_trans; eauto.
   * intros. eapply Annotation_sub_trans; eauto.
 Qed.
-Lemma tycontext_sub_refl Delta 
-      (HDelta: forall i phi, (glob_specs Delta) ! i = Some phi -> params_LNR (Some phi)):
+Lemma tycontext_sub_refl Delta:
       tycontext_sub Delta Delta.
 Proof.
   repeat split; trivial.
   * intros. destruct ((temp_types Delta) ! id); trivial. 
   * intros. apply sub_option_refl. 
-  * intros. specialize (HDelta id). remember ((glob_specs Delta) ! id). destruct o; [ | simpl; trivial].
-    apply subsumespec_refl. apply HDelta; trivial.
+  * intros. apply subsumespec_refl.
   * intros. eapply Annotation_sub_refl.
 Qed.
 

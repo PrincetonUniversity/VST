@@ -84,8 +84,8 @@ Definition semax := @semax.
 
 Definition semax_func := @semax_func.
 
-Definition semax_external {Espec: OracleKind} ids ef A P Q :=
-  forall n, semax_external Espec ids ef A P Q n.
+Definition semax_external {Espec: OracleKind} ef A P Q :=
+  forall n, semax_external Espec ef A P Q n.
 
 (*
 Definition semax_cssub := @semax_cssub.
@@ -105,37 +105,24 @@ Definition semax_func_cons := @semax_func_cons.
 (* Definition semax_func_skip := @semax_func_skip. *)
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
-Definition semax_func_cons_ext_with_normalization := @semax_func_cons_ext_with_normalization.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
 Definition semax_Delta_subsumption := @semax_lemmas.semax_Delta_subsumption.
 
-Lemma semax_external_binaryintersection: forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
-      A P Q P_ne Q_ne sig1 sig2 cc ids1 ids2}
-  (EXT1: @CSHL_Def.semax_external Espec ids1 ef A1 P1 Q1)
-  (EXT2: @CSHL_Def.semax_external Espec ids2 ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig1 cc A1 P1 Q1 P1ne Q1ne) 
-                      (mk_funspec sig2 cc A2 P2 Q2 P2ne Q2ne) =
-     Some (mk_funspec sig1 cc A P Q P_ne Q_ne))
-  (IDS1: ids1 = map fst (fst sig1))
-  (IDS2: ids2 = map fst (fst sig2))
-  (FSM: funsigs_match sig1 sig2 = true)
+Lemma semax_external_binaryintersection:
+  forall {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne 
+          A P Q P_ne Q_ne sig1 sig2 cc}
+  (EXT1: @CSHL_Def.semax_external Espec ef A1 P1 Q1)
+  (EXT2: @CSHL_Def.semax_external Espec ef A2 P2 Q2)
+  (BI: binary_intersection (mk_Newfunspec sig1 cc A1 P1 Q1 P1ne Q1ne) 
+                      (mk_Newfunspec sig2 cc A2 P2 Q2 P2ne Q2ne) =
+     Some (mk_Newfunspec sig1 cc A P Q P_ne Q_ne))
+  (FSM: typesigs_match sig1 sig2 = true)
   (LENef: length (fst sig1) = length (sig_args (ef_sig ef))),
-  @CSHL_Def.semax_external Espec ids1 ef A P Q.
+  @CSHL_Def.semax_external Espec ef A P Q.
 Proof.
   intros. intros n. eapply @semax_external_binaryintersection.
   apply EXT1. apply EXT2. apply BI. all: trivial.
 Qed.
-(*Lemma semax_external_binaryintersection: forall
- {Espec ef A1 P1 Q1 P1ne Q1ne A2 P2 Q2 P2ne Q2ne A P Q P_ne Q_ne sig cc ids}
-  (EXT1: @CSHL_Def.semax_external Espec ids ef A1 P1 Q1)
-  (EXT2: @CSHL_Def.semax_external Espec ids ef A2 P2 Q2)
-  (BI: binary_intersection (mk_funspec sig cc A1 P1 Q1 P1ne Q1ne) 
-                      (mk_funspec sig cc A2 P2 Q2 P2ne Q2ne) =
-     Some (mk_funspec sig cc A P Q P_ne Q_ne))
-  (IDS: ids = map fst (fst sig)),
-  @CSHL_Def.semax_external Espec ids ef A P Q. 
-Proof. intros. intros n. eapply semax_external_binaryintersection. apply EXT1. apply EXT2. apply BI. trivial. Qed.
-*)
 
 Definition semax_body_binaryintersection := @semax_body_binaryintersection.
 
@@ -147,6 +134,7 @@ Definition semax_func_firstn := semax_func_firstn.
 Definition semax_func_skipn := semax_func_skipn.
 Definition semax_body_subsumption:= semax_body_subsumption.
 Definition semax_body_cenv_sub:= @semax_body_cenv_sub.
+Definition semax_body_funspec_sub:= @semax_body_funspec_sub.
 
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
@@ -165,48 +153,35 @@ Definition semax_return := @semax_return.
 
 Import VST.msl.seplog VST.veric.lift.
 
-Lemma semax_call {CS : compspecs} {Espec : OracleKind}:
-  forall (Delta : tycontext) (A : rmaps.TypeTree)
-         (P Q : forall ts : list Type, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)
-         (NEP : @super_non_expansive A P) (NEQ : @super_non_expansive A Q) (ts : list Type)
-         (x : functors.MixVariantFunctor._functor
-                ((fix dtfr (T : rmaps.TypeTree) : functors.MixVariantFunctor.functor :=
-                    match T return functors.MixVariantFunctor.functor with
-                    | rmaps.ConstType A0 => functors.MixVariantFunctorGenerator.fconst A0
-                    | rmaps.Mpred => functors.MixVariantFunctorGenerator.fidentity
-                    | rmaps.DependentType n => functors.MixVariantFunctorGenerator.fconst (@nth Type n ts unit)
-                    | rmaps.ProdType T1 T2 => functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
-                    | rmaps.ArrowType T1 T2 => functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
-                    | rmaps.SigType A f => @functors.MixVariantFunctorGenerator.fsig A (fun a => dtfr (f a))
-                    | rmaps.PiType I0 f => @functors.MixVariantFunctorGenerator.fpi I0 (fun i : I0 => dtfr (f i))
-                    | rmaps.ListType T0 => functors.MixVariantFunctorGenerator.flist (dtfr T0)
-                    end) A) mpred) (F : forall _ : environ, mpred) (ret : option ident) (argsig : list (prod ident type)) 
-         (retsig : type) (cc : calling_convention) (a : expr) (bl : list expr)
-         (_ : @eq classify_fun_cases (classify_fun (typeof a)) (fun_case_f (type_of_params argsig) retsig cc))
-         (_ : forall _ : @eq type retsig Tvoid, @eq (option ident) ret (@None ident)) (_ : tc_fn_return Delta ret retsig),
+Lemma semax_call:
+  forall {CS: compspecs} {Espec: OracleKind},
+    forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
+       classify_fun (typeof a) = fun_case_f (typelist_of_type_list argsig) retsig cc ->
+       (retsig = Tvoid -> ret = None) ->
+       tc_fn_return Delta ret retsig ->
        @semax CS Espec Delta
-         (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric)
-            (@andp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@tc_expr CS Delta a)
-               (@tc_exprlist CS Delta (@snd (list ident) (list type) (@split ident type argsig)) bl))
-            (@andp (lifted (LiftEnviron mpred)) (@LiftNatDed' mpred Nveric)
-               (@liftx (Tarrow val (LiftEnviron mpred))
-                  (func_ptr (mk_funspec (@pair (list (prod ident type)) type argsig retsig) cc A P Q NEP NEQ)) (@eval_expr CS a))
-               (@later (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@LiftIndir environ mpred Nveric Iveric)
-                  (@sepcon (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@LiftSepLog' mpred Nveric Sveric) F
-                     (@liftx (Tarrow environ (LiftEnviron mpred)) (P ts x)
-                        (make_args' (@pair (list (prod ident type)) type argsig retsig)
-                           (@eval_exprlist CS (@snd (list ident) (list type) (@split ident type argsig)) bl))))))) (Scall ret a bl)
+       (fun rho =>
+          (((*|>*)((tc_expr Delta a rho) && (tc_exprlist Delta argsig bl rho)))  &&
+         (`(func_ptr (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a rho) &&
+          |>(F rho * (P ts x (ge_of rho, eval_exprlist argsig bl rho))))))
+         (Scall ret a bl)
+         (normal_ret_assert
+         (fun rho => (EX old:val, substopt ret (@liftx _ old) F rho * maybe_retval (Q ts x) retsig ret rho))).
+(*SI variant:         (fun rho : environ =>
+          (*|>*) (tc_expr Delta a rho && tc_exprlist Delta argsig bl rho) &&
+          (func_ptr_si (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) (eval_expr a rho) &&
+           |> (F rho * P ts x (ge_of rho, eval_exprlist argsig bl rho)))) (Scall ret a bl)
          (normal_ret_assert
             (@exp (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) val
                (fun old : val =>
                 @sepcon (forall _ : environ, mpred) (@LiftNatDed' mpred Nveric) (@LiftSepLog' mpred Nveric Sveric)
-                  (@substopt mpred ret (@liftx (LiftEnviron val) old) F) (maybe_retval (Q ts x) retsig ret)))).
+                  (@substopt mpred ret (@liftx (LiftEnviron val) old) F) (maybe_retval (Q ts x) retsig ret)))).*)
 Proof.
   intros. specialize (@semax_call_si CS Espec Delta A P Q NEP NEQ ts x F ret argsig retsig cc a bl H H0 H1); intros X.
   eapply semax_pre; [| apply X].
   intros. simpl. intros w [TC [W1 W2]]; split; trivial.
-  eapply predicates_hered.now_later. rewrite <- tc_expr_eq; apply W1.
-Qed. 
+  specialize (now_later (tc_expr Delta a rho && tc_exprlist Delta argsig bl rho) _ W1); trivial.
+Qed.
   
 Lemma semax_store:forall (CS : compspecs) (Espec : OracleKind) 
          (Delta : tycontext) (e1 e2 : expr) (sh : share)
@@ -240,21 +215,13 @@ Definition semax_conseq := @semax_conseq.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_external_FF := @semax_external_FF.
 
-Definition semax_external_rename: forall {Espec e A P Q ids1 ids2}
-      (L: length ids1 = length ids2)
-      (LE: length (sig_args (ef_sig e)) = length ids2)
-      (LNR1: list_norepet ids1) (LNR2 : list_norepet ids2),
-  @CSHL_Def.semax_external Espec ids1 e A P Q =
-  @CSHL_Def.semax_external Espec ids2 e A (rename_pre ids2 ids1 P) Q.
-Proof. intros. unfold CSHL_Def.semax_external. apply prop_ext; split; intros.
-  rewrite <- semax_external_rename; trivial. 
-  rewrite <- semax_external_rename in H; trivial.
-Qed.
-
 Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
 Definition semax_ext_void := @semax_ext_void.
+
+Definition SB_i2o := @SB_i2o.
+Definition SB_o2i := @SB_o2i.
 
 End VericMinimumSeparationLogic.
 
@@ -270,8 +237,7 @@ Lemma semax_prog_sound :
 Proof.
   intros; apply H.
 Qed.
-Locate semax_prog_rule.
+
 Definition semax_prog_rule := @semax_prog_rule.
 
 End VericSound.
-

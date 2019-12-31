@@ -17,47 +17,6 @@ Local Open Scope pred.
 
 Obligation Tactic := idtac.
 
-Lemma normalizeFunspecs_subsumespec: forall {G} (LNR: list_norepet (map fst G)) 
-  (K: forall k, params_LNR (find_id k G)) i,
-  subsumespec (find_id i G) (find_id i (normalizeFunspecs G)).
-Proof.
-induction G; simpl; trivial.
-destruct a as [j phi]; simpl; intros. inv LNR.
-specialize (IHG H2).
-spec IHG. 
-{ clear IHG; intros. specialize (K k).
-     remember (initial_world.find_id k G) as p. destruct p; simpl; trivial.
-     symmetry in Heqp.
-     destruct (eq_dec k j); subst.
-     + apply initial_world.find_id_In_map_fst in Heqp. contradiction. 
-     + apply K.  }
-destruct (eq_dec i j); [subst | auto].
-specialize (K j). rewrite if_true in K by trivial. simpl in K; split.
-trivial. eexists; split. reflexivity. clear - K.
-apply funspec_sub_sub_si. apply normalized_funspec_sub. apply K.
-Qed.
-
-Lemma normalizeFunspecs_subsumespec_inv: forall {G} (LNR: list_norepet (map fst G)) 
-  (K: forall k, params_LNR (find_id k G)) i,
-  subsumespec  (find_id i (normalizeFunspecs G)) (find_id i G).
-Proof.
-induction G; simpl; trivial.
-destruct a as [j phi]; simpl; intros. inv LNR.
-specialize (IHG H2).
-spec IHG. 
-{ clear IHG; intros. specialize (K k).
-     remember (initial_world.find_id k G) as p. destruct p; simpl; trivial.
-     symmetry in Heqp.
-     destruct (eq_dec k j); subst.
-     + apply initial_world.find_id_In_map_fst in Heqp. contradiction. 
-     + apply K.  }
-destruct (eq_dec i j); [subst | auto].
-specialize (K j). rewrite if_true in K by trivial. simpl in K; split.
-+ apply normalized_params_LNR. apply normalize_funspec_is_normalized.
-+ eexists; split. reflexivity.
-  apply funspec_sub_sub_si. apply normalized_funspec_subinv. apply K.
-Qed.
-
 (*
 Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: address) : resource :=
    if Z.eq_dec (snd loc) 0
@@ -128,8 +87,6 @@ Inductive match_fdecs: list  (ident * Clight.fundef) -> funspecs -> Prop :=
 | match_fdecs_cons: forall i fd fspec fs G,
                   type_of_fundef fd = type_of_funspec fspec ->
                   match_fdecs fs G ->
-                  (*follows from normalized params_LNR (Some fspec) -> *)
-                  funspec_normalized fspec = true ->
                   match_fdecs ((i,fd)::fs) ((i,fspec)::G)
 (* EXPERIMENT
 | match_fdecs_skip: forall ifd fs G,
@@ -158,8 +115,7 @@ Lemma match_fdecs_exists_Gfun:
     find_id i G = Some f ->
     match_fdecs (prog_funct prog) G ->
     exists fd,   In (i, Gfun fd) (prog_defs prog) /\
-                 type_of_fundef fd = type_of_funspec f /\
-                 funspec_normalized f = true.
+                 type_of_fundef fd = type_of_funspec f.
 Proof. unfold prog_funct. unfold prog_defs_names.
 intros ? ? ? ?.
 forget (prog_defs prog) as dl.
@@ -424,7 +380,7 @@ unfold valid_block in H4.
 split; intros.
 contradiction.
 destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd [? _]].
-destruct f.
+destruct n0(*f*).
 split; auto.
 subst z.
 destruct (find_symbol_globalenv _ _ _ H H2) as [RANGE [d ?]].
@@ -562,8 +518,8 @@ if_tac; auto.
 unfold fundef.
 destruct (Genv.invert_symbol (Genv.globalenv (program_of_program prog))
         (fst loc)); auto.
-destruct (find_id i G); auto.
-destruct f; auto.
+destruct (find_id i G); auto. 
+destruct n0(*f*); auto.
 f_equal.
 simpl.
 f_equal.
@@ -605,8 +561,8 @@ pose proof (Genv.find_symbol_not_fresh _ _ Hm H2).
 unfold valid_block in H4.
 split; intros.
 contradiction.
-destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd [? _]].
-destruct f.
+destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd [? _]]. 
+destruct n0(*f*).
 split; auto.
 subst z.
 destruct (find_symbol_globalenv _ _ _ H H2) as [RANGE [d ?]].
@@ -799,10 +755,9 @@ Qed.*)
 Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
   forall (b : block) fsig cc A P Q,
     func_at'' fsig cc A P Q (b, 0%Z) Phi ->
-    exists id params P' Q' P'_ne Q'_ne,
+    exists id P' Q' P'_ne Q'_ne,
       Genv.find_symbol ge id = Some b /\
-      (list_norepet (map fst params) /\ map snd params = map snd (fst fsig)) /\
-      find_id id G = Some (mk_funspec (params,snd fsig) cc A P' Q' P'_ne Q'_ne) /\
+      find_id id G = Some (mk_Newfunspec fsig cc A P' Q' P'_ne Q'_ne) /\
       cond_approx_eq (level Phi) A P P' /\
       cond_approx_eq (level Phi) A Q Q'.
 
@@ -814,14 +769,14 @@ Proof.
   match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
   unfold inflate_initial_mem' in E.
   unfold resource_at in E.
-  intros b fsig cc A P Q [LNR FAT].
+  intros b fsig cc A P Q FAT.
   unfold func_at'' in *.
   rewrite level_initial_core in lev.
 
   set (pp := SomeP _ _) in FAT.
   assert (Pi :
             initial_core (Genv.globalenv prog) G n @ (b, 0)
-            = PURE (FUN (typesig_of_funsig fsig) cc) (preds_fmap (approx n) (approx n) pp)).
+            = PURE (FUN (*(typesig_of_funsig fsig)*)fsig cc) (preds_fmap (approx n) (approx n) pp)).
   {
     simpl in FAT.
     pose proof FAT as E2.
@@ -838,7 +793,7 @@ Proof.
     repeat (f_equal; auto).
   }
 
-  clear -Pi LNR H2 lev.
+  clear -Pi H2 lev.
 
   unfold initial_core in *.
   rewrite resource_at_make_rmap in Pi.
@@ -847,21 +802,19 @@ Proof.
   simpl fst in Pi.
   unfold fundef in *.
   destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
-  destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence. simpl in LNR.
+  destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence. 
   destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ [_ NORM]]]. clear H2.
+  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ _]]. clear H2.
   subst pp. 
 
-  (*injection Pi as <- -> (*->*) EE.*) inv Pi. rename H1 into Params. rename H2 into RetTypes. rename H5 into EE.
+  (*injection Pi as <- -> (*->*) EE.*) inv Pi. (*rename H1 into Params. rename H2 into RetTypes.*) rename H4 into EE.
 
   apply inj_pair2 in EE.
   apply Genv.invert_find_symbol in Eb.
   unfold filter_genv in *.
-  exists i, (fst f1), P0, Q0, P_ne0, Q_ne0.
+  exists i, (*(fst f1), *)P0, Q0, P_ne0, Q_ne0.
   split. assumption.
-  split. split; [apply (normalized_params_LNR _ NORM) | trivial].
-  split. destruct f1; auto.
-(*  subst n.*)
+  split. trivial.
 
   constructor.
   all: intros ts.
@@ -887,14 +840,14 @@ Proof.
   match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E & ?) end; simpl.
   unfold inflate_initial_mem' in E.
   unfold resource_at in E.
-  intros b fsig cc A P Q [LNR FAT].
+  intros b fsig cc A P Q FAT.
   unfold func_at'' in *.
   unfold initial_core_ext in lev; rewrite level_make_rmap in lev.
 
   set (pp := SomeP _ _) in FAT.
   assert (Pi :
             initial_core_ext ora (Genv.globalenv prog) G n @ (b, 0)
-            = PURE (FUN (typesig_of_funsig fsig) cc) (preds_fmap (approx n) (approx n) pp)).
+            = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
   {
     simpl in FAT.
     pose proof FAT as E2.
@@ -911,7 +864,7 @@ Proof.
     repeat (f_equal; auto).
   }
 
-  clear -Pi LNR H2 lev.
+  clear -Pi H2 lev.
 
   unfold initial_core_ext in *.
   rewrite resource_at_make_rmap in Pi.
@@ -922,20 +875,18 @@ Proof.
   destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
   destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence.
   destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
-  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ [_ NORM]]]. clear H2.
+  specialize (match_fdecs_exists_Gfun _ _ _ _ Ei H2); intros [_ [_ _]]. clear H2.
 
   subst pp.
 
-  (*injection Pi as <- -> (*->*) EE.*) inv Pi. rename H1 into Params. rename H2 into RetTypes. rename H5 into EE.
+  (*injection Pi as -> EE. *) inv Pi. (*rename H1 into Params. rename H2 into RetTypes.*) rename H4 into EE.
 
   apply inj_pair2 in EE.
   apply Genv.invert_find_symbol in Eb.
   unfold filter_genv in *.
-  exists i, (fst f1), P0, Q0, P_ne0, Q_ne0.
+  exists i, P0, Q0, P_ne0, Q_ne0.
   split. assumption.
-  split. split; [ apply (normalized_params_LNR _ NORM) | trivial].
-  split. destruct f1; auto.
-  (*subst n.*)
+  split. trivial.
 
   constructor.
   all: intros ts.

@@ -132,8 +132,25 @@ Definition mpred := pred rmap.
 Definition AssertTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType environ) Mpred).
 
+Definition ArgsTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ProdType (ConstType genviron) (ConstType (list val))) Mpred).
+
+(*
 Definition SpecTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
+  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).*)
+(*Definition SpecTT (A: TypeTree): TypeTree :=
+  PiType bool (fun b => if b then ArgsTT A else AssertTT A).*)
+Definition SpecTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType bool)
+              (ArrowType (ProdType (ConstType genviron) (ConstType (list val))) Mpred)).
+
+Definition args_super_non_expansive {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred): Prop :=
+  forall n ts
+    (x: functors.MixVariantFunctor._functor
+                         (rmaps.dependent_type_functor_rec ts A) mpred)
+    (gargs: genviron * list val),
+  approx n (P ts x gargs) = approx n (P ts (fmap _ (approx n) (approx n) x) gargs).
 
 Definition super_non_expansive {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
@@ -147,6 +164,10 @@ Definition const_super_non_expansive: forall (T: Type) P,
   @super_non_expansive (ConstType T) P :=
   fun _ _ _ _ _ _ => eq_refl.
 
+Definition const_args_super_non_expansive: forall (T: Type) P,
+  @args_super_non_expansive (ConstType T) P :=
+  fun _ _ _ _ _ _ => eq_refl.
+
 (*Potential alternative that does not use Ctypes
 Inductive funspec :=
    mk_funspec: AST.signature -> forall (A: TypeTree)
@@ -155,15 +176,23 @@ Inductive funspec :=
     funspec.
  *)
 
+Inductive Newfunspec :=
+   mk_Newfunspec: typesig -> calling_convention -> forall (A: TypeTree)
+     (P Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+     (P_ne: args_super_non_expansive P) (Q_ne: args_super_non_expansive Q),
+     Newfunspec.
+
+Definition varspecs : Type := list (ident * type).
+
+Definition funspecs := list (ident * Newfunspec).
+
 Inductive funspec :=
    mk_funspec: funsig -> calling_convention -> forall (A: TypeTree)
      (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
      (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q),
      funspec.
 
-Definition varspecs : Type := list (ident * type).
-
-Definition funspecs := list (ident * funspec).
+(********************CONVERSION is in seplog ******************************)
 
 End FUNSPEC.
 
@@ -173,9 +202,14 @@ Definition assert := environ -> mpred.  (* Unfortunately
   it confuses the Lift system *)
 
 (*Lenb: moved packPQ here from res_predicates.v*)
-Definition packPQ {A: rmaps.TypeTree}
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+(*Definition packPQ {A: rmaps.TypeTree}
+     (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+     (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
   forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
+  fun ts a b => if b then P ts a else Q ts a.*)
+Definition packPQ {A: rmaps.TypeTree}
+     (P Q: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred):
+  forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap):=
   fun ts a b => if b then P ts a else Q ts a.
 
 (*moved here from Clight_lemmas*)
@@ -286,8 +320,15 @@ Definition compspecs_program (p: program): compspecs.
 Defined.
 *)
 
-Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
+(*plays role of type_of_params *)
+Fixpoint typelist_of_type_list (params : list type) : typelist :=
+  match params with
+  | nil => Tnil
+  | ty :: rem => Tcons ty (typelist_of_type_list rem)
+  end.
+
+Definition type_of_funspec (fs: Newfunspec) : type :=
+  match fs with mk_Newfunspec sig cc _ _ _ _ _ => Tfunction (typelist_of_type_list (fst sig)) (snd sig) cc end.
 
 (*same definition as in Clight_core?*)
 Fixpoint typelist2list (tl: typelist) : list type :=
@@ -343,8 +384,8 @@ Goal forall A, @ptree_set A = @PTree.set _.  reflexivity. Qed.
 
 (* Define it this way to have finer control over unfolding *)
 Fixpoint make_tycontext_s (G: funspecs) :=
- match G with
- | nil => @PTree.Leaf funspec
+ match G with 
+ | nil => @PTree.Leaf Newfunspec
  | b::r => let (id,f) := b in ptree_set id f (make_tycontext_s r)
  end.
 
@@ -367,8 +408,48 @@ Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
 Canonical Structure LiftEnviron := Tend environ.
 Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 
-
-
 Ltac super_unfold_lift :=
   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
+
+(*NEW*) Definition gassert := genviron * list val -> mpred.
+
+(*NEW*) Definition gassert2assert (ids: list ident) (M:gassert):assert :=
+  fun rho => M (ge_of rho, map (fun i => eval_id i rho) ids).
+
+(*NEW*) Definition glift0 := fun {B : Type} (P : B) (_ : genviron * list val) => P.
+
+(*NEW*) Definition glift1 {A1 B} (P: A1 -> B) (f1: genviron * list val -> A1) :
+        genviron * list val -> B := fun rho => P (f1 rho).
+
+(*NEW*) Definition glift2 := fun {A1 A2 B : Type} (P : A1 -> A2 -> B) (f1 : genviron * list val -> A1)
+  (f2 : genviron * list val -> A2) (gvals : genviron * list val) => P (f1 gvals) (f2 gvals).
+
+Canonical Structure LiftGEnviron := Tend (prod  genviron (list val)).
+Set Warnings "projection-no-head-constant,redundant-canonical-projection".
+
+Lemma mk_funspec_congr:
+  forall a b c d e f g a' b' c' d' e' f' g',
+   a=a' -> b=b' -> c=c' -> JMeq.JMeq d d' -> JMeq.JMeq e e' ->
+ mk_funspec a b c d e f g = mk_funspec a' b' c' d' e' f' g'.
+Proof.
+intros.
+subst a' b' c'.
+apply JMeq.JMeq_eq in H2.
+apply JMeq.JMeq_eq in H3.
+subst d' e'.
+f_equal; apply proof_irr.
+Qed.
+
+Lemma mk_Newfunspec_congr:
+  forall a b c d e f g a' b' c' d' e' f' g',
+   a=a' -> b=b' -> c=c' -> JMeq.JMeq d d' -> JMeq.JMeq e e' ->
+ mk_Newfunspec a b c d e f g = mk_Newfunspec a' b' c' d' e' f' g'.
+Proof.
+intros.
+subst a' b' c'.
+apply JMeq.JMeq_eq in H2.
+apply JMeq.JMeq_eq in H3.
+subst d' e'.
+f_equal; apply proof_irr.
+Qed.

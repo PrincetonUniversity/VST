@@ -377,9 +377,9 @@ Proof.
   clear jm LEVa2 LEVa2' LW H10 H10' H9.
   rename H3' into H3. rename Prog_OK2 into Prog_OK. 
   assert (TCsub_Deltarefl: tycontext_sub Delta' Delta').
-  { clear H'. apply tycontext_sub_refl. destruct H8 as [X _]; clear - X. 
+  { clear H'. apply tycontext_sub_refl. (* destruct H8 as [X _]; clear - X. 
     simpl; intros. destruct (X i phi _ (necR_refl _) H) as [bb [? Y]]; clear - Y.
-    destruct phi; apply Y. }
+    destruct phi; apply Y.*) }
   specialize (H' psi Delta' CS' (level jm2) (* (tycontext_sub_refl _)*) TCsub_Deltarefl HGG Prog_OK).
   specialize (H' (Kloop1 body incr k) F f CLO_body).
   specialize (H1 Prog_OK H3).
