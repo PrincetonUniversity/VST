@@ -381,10 +381,13 @@ Module Concurrent_Safety
         eapply semax_invariant.ssr_leP_inv in cnti.
         destruct j; simpl; [auto| omega].
       - intros.
-        eapply HybridCoarseMachine.AngelSafe; simpl.
+        eapply HybridCoarseMachine.CoreSafe; simpl.
+        replace (i.+1 :: U)%list with
+            (@yield HybridCoarseMachine.scheduler (i.+1 :: U)%list) by
+            reflexivity.
         eapply schedfail; simpl.
         * reflexivity.
-        * unfold OrdinalPool.containsThread; simpl.
+        * left; unfold OrdinalPool.containsThread; simpl.
           intros LEQ; eapply semax_invariant.ssr_leP_inv in LEQ.
           omega.
         * assert ((valid SemTarget) (tr, tp, m) (cons 0 nil) ).
@@ -398,9 +401,8 @@ Module Concurrent_Safety
           destruct j; simpl; [auto| omega]. }
           apply (H _ 1) in H0.
           admit. (*Should be able to pull the invariant from H0*)
-        * admit. (*Should be able to pull the invariant from H0*)
-        * reflexivity.
-        * intros U''; eapply IHn.
+        * admit. (*Should be able to pull the mem_compat from H0*)
+        * eapply IHn.
     Admitted.
 
     

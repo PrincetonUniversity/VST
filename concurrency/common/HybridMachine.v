@@ -553,6 +553,31 @@ Module DryHybridMachine.
     (** The signature of a Dry HybridMachine *)
     (** This can be used to instantiate a Dry CoarseHybridMachine or a Dry
     FineHybridMachine *)
+
+    
+    Lemma threadStep_contains:
+             forall i tp m cnt cmpt tp' m' tr,
+               @threadStep i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j.
+    Proof.
+      intros. inv H.
+      apply cntUpdate; assumption.
+    Qed.
+    Lemma syncstep_contains:
+             forall b i tp m cnt cmpt tp' m' tr,
+               @syncStep b i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j.
+    Proof.
+      intros.
+      inv H; auto;
+        try apply cntRemoveL; 
+        try apply cntAdd;
+        try apply cntUpdateL;
+        try apply cntUpdate;
+        try assumption.
+    Qed.
     
     Instance DryHybridMachineSig: @HybridMachineSig.MachineSig dryResources Sem tpool :=
       (@HybridMachineSig.Build_MachineSig dryResources Sem tpool
@@ -563,10 +588,12 @@ Module DryHybridMachine.
                              install_perm
                              add_block
                              (@threadStep)
+                             threadStep_contains
                              threadStep_at_Krun_neq
                              threadStep_at_Krun
                              threadStep_equal_run
                              (@syncStep)
+                             syncstep_contains
                              syncstep_equal_run
                              syncstep_not_running
                              init_mach

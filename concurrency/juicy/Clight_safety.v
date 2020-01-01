@@ -177,11 +177,11 @@ Proof.
   intros; inversion MATCH; inv Hinv; constructor; intros.
   - split.
     + intros ??; erewrite <- !mtch_gtr1; apply no_race_thr0; auto.
-    + erewrite <- !mtch_gtr2; apply no_race_thr0; auto.
+    + repeat autounfold with pair. erewrite <- !mtch_gtr2; apply no_race_thr0; auto.
   - rewrite <- mtch_locks in *; eauto.
   - rewrite <- mtch_locks in *; split.
     + intros ??; erewrite <- mtch_gtr1; eapply no_race0; eauto.
-    + erewrite <- mtch_gtr2; eapply no_race0; eauto.
+    + repeat autounfold with pair. erewrite <- mtch_gtr2; eapply no_race0; eauto.
   - specialize (thread_data_lock_coh0 _ (mtch_cnt' _ cnti)) as [].
     split; intros.
     + erewrite <- mtch_gtr2.

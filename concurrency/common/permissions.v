@@ -1,3 +1,4 @@
+Require Import VST.concurrency.lib.pair.
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
@@ -7,6 +8,7 @@ Require Import Coq.Classes.RelationClasses.
 Require Import VST.msl.Coqlib2.
 Require Import VST.sepcomp.mem_lemmas.
 Require Import VST.sepcomp.event_semantics.
+
 Require Import VST.concurrency.common.threads_lemmas.
 Require Import VST.concurrency.common.permjoin_def.
 Require Import compcert.common.Memory.
@@ -837,9 +839,9 @@ Proof.*)
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
 
-  Definition permMapsDisjoint2 (pmap pmap': access_map * access_map) :=
-    permMapsDisjoint pmap.1 pmap'.1 /\
-    permMapsDisjoint pmap.2 pmap'.2.
+  Definition permMapsDisjoint2:=
+    pair2_prop permMapsDisjoint.
+  Hint Unfold permMapsDisjoint2: pair.
 
   Lemma permDisjoint_permMapsDisjoint: forall r1 r2,
       (forall b ofs, permDisjoint (r1 !! b ofs) (r2 !! b ofs))->
@@ -882,11 +884,9 @@ Proof.*)
 
   Lemma permMapsDisjoint2_comm:
     forall pmaps pmaps',
-      permMapsDisjoint2 pmaps pmaps' <-> permMapsDisjoint2 pmaps' pmaps.
+      permMapsDisjoint2 pmaps pmaps' -> permMapsDisjoint2 pmaps' pmaps.
   Proof.
-    intros.
-    split; intros (? & ?); split;
-      eauto using permMapsDisjoint_comm.
+    solve_pair. eapply permMapsDisjoint_comm.
   Qed.
 
   Lemma disjoint_norace:

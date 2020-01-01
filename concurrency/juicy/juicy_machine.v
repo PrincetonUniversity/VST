@@ -1936,14 +1936,34 @@ Qed.
     Definition add_block {tp m tid} (Hcompat : mem_compatible tp m) (cnt : containsThread tp tid) (m' : mem) :=
       getThreadR cnt.
 
+    Lemma threadStep_contains:
+             forall i tp m cnt cmpt tp' m' tr,
+               @threadStep i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j.
+    Proof.
+      intros. inv H.
+      apply cntUpdate, cnt_age'; assumption.
+    Qed.
+    Lemma syncstep_contains:
+             forall b i tp m cnt cmpt tp' m' tr,
+               @syncStep b i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j.
+    Proof.
+      intros. inv H; auto; try (apply cnt_age'; assumption).
+      apply cnt_age', cntAdd, cntUpdate; assumption.
+    Qed.
     Instance JuicyMachineShell : HybridMachineSig.MachineSig :=
       HybridMachineSig.Build_MachineSig richMem dryMem mem_compatible invariant
         (fun _ _ _ compat cnt m => m = install_perm compat cnt) (fun _ _ _ => add_block)
         (@threadStep)
+        threadStep_contains
         threadStep_at_Krun_neq
         threadStep_at_Krun
         threadStep_equal_run
         syncStep
+        syncstep_contains
         syncstep_equal_run
         syncstep_not_running
         init_mach.

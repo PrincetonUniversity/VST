@@ -17,6 +17,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values.
 Require Import compcert.cfrontend.Clight.
+Require Import compcert.lib.Coqlib.
 
 Require Import VST.veric.tycontext.
 Require Import VST.veric.semax_prog.
@@ -43,6 +44,9 @@ Set Bullet Behavior "Strict Subproofs".
 
 (** *Excluded middle*)
 Require Import Coq.Logic.Classical_Prop.
+
+(** *Tactics*)
+Require Import VST.concurrency.lib.tactics.
 
 
 
@@ -242,19 +246,19 @@ Section Csafe_KSafe.
     forall U tr st tr' st' m m',
       valid (tr, st, m) U -> 
       MachStep (U,tr,st) m (U,tr',st') m' ->
-      has_unique_running st'.
+      has_unique_running st' \/
+      exists tid, schedPeek U = Some tid /\ ~ ThreadPool.containsThread st' tid.
   Proof.
     intros.
     inversion H0; simpl in *; subst;
       try solve[exfalso; eapply schedPeek_Skip; eauto].
-    - (*start*) inversion Htstep; subst.
+    - (*start*) left. inversion Htstep; subst.
       eapply (HasUniqueRun _ _ ltac:(eapply ThreadPool.cntUpdate)).
       eapply ThreadPool.gssThreadCode.
-    - (*resume*) inversion Htstep; subst.
-      
+    - (*resume*) left. inversion Htstep; subst.
       eapply (HasUniqueRun _ _ ltac:(eapply ThreadPool.cntUpdateC)).
       eapply ThreadPool.gssThreadCC.
-    - (*step*)
+    - (*step*) left. 
       pose proof Htstep as Htstep'.
       eapply threadStep_at_Krun in Htstep'.
       destruct Htstep' as [q Hget].
@@ -264,6 +268,10 @@ Section Csafe_KSafe.
       destruct Hget_eq as [? [? ?]].
       econstructor;
         now eauto.
+    - destruct Htid; swap 1 2.
+      + left. destruct H1 as (?&?&?&?&?).
+        econstructor; eauto.
+      + right. eauto.
       Unshelve. all:auto.
   Qed.
 
@@ -306,6 +314,7 @@ Section Csafe_KSafe.
       destruct Hget_eq as [cntj [q Hgetj]].
       specialize (H _ _ _ Hgetj).
       assumption.
+    - auto. 
   Qed.
 
   Lemma AngelStep_preserve_valid:
@@ -341,22 +350,23 @@ Section Csafe_KSafe.
       simpl in *.
       destruct (schedPeek U') eqn:?; auto.
       intros j cntj' q' Hget'.
-      destruct (syncstep_equal_run _ _ _ _ _ _ _ _ _ Htstep j) as [? Hrun'].
-      destruct (Hrun' ltac:(do 2 eexists; eauto)) as [cntj [q Hget]].
-      specialize (H _ _ _ Hget).
+      assert (exists cntj', ThreadPool.getThreadC cntj' = Krun q') by (eexists; eauto).
+      eapply syncstep_equal_run in H1; eauto; destruct H1 as [? Hrun'].
+      (*edestruct (syncstep_equal_run _ _ _ _ _ _ _ _ _ Htstep j) as [? Hrun'].
+      destruct (Hrun' ltac:(do 2 eexists; eauto)) as [cntj [q Hget]]. *)
+      specialize (H _ _ _ Hrun').
       destruct (Nat.eq_dec tid j); subst;
         [|exfalso; simpl in *; now auto].
-      eapply @syncstep_not_running with (cntj:= cntj) (q:=q) in Htstep.
-      exfalso;
-        now auto.
-    - unfold valid, correct_schedule in *.
+      eapply @syncstep_not_running with (cntj:= x) (q:=q') in Htstep.
+      exfalso; now auto.
+   (* - unfold valid, correct_schedule in *.
       rewrite HschedN in H.
       simpl in *.
       destruct (schedPeek U'); auto.
       intros j cntj' q' Hget'.
       specialize (H _ _ _ Hget').
       destruct (Nat.eq_dec tid j); subst;
-        simpl in *; exfalso; now auto.
+        simpl in *; exfalso; now auto. *)
   Qed.
   
   (* *)
@@ -459,6 +469,9 @@ Section Csafe_KSafe.
         * unfold MachStep; simpl. fold_ids.
           econstructor 3; simpl; eauto.
           rewrite <- H0; eauto.
+        *  rewrite <- H6. fold_ids.
+          econstructor 6; simpl; eauto.
+          rewrite <- H0; eauto.
       + econstructor 4; eauto; simpl in *.
         inversion Hstep; simpl in *; subst;
           try match goal with
@@ -469,8 +482,8 @@ Section Csafe_KSafe.
           rewrite <- H0; eauto. 
         * econstructor 5; subst; simpl in *; subst; eauto.
           rewrite <- H0; eauto. 
-        * rewrite <- H6; econstructor 6; subst; simpl in *; subst; eauto.
-          rewrite <- H0; eauto. 
+       (* * rewrite <- H6; econstructor 6; subst; simpl in *; subst; eauto.
+          rewrite <- H0; eauto.  *)
   (* * rewrite <- H6; econstructor 7; subst; simpl in *; subst; eauto.
                   rewrite <- H0; eauto.  *)
   Qed.
@@ -491,7 +504,32 @@ Section Csafe_KSafe.
     rewrite H, UU; f_equal.
     eapply valid_unique_running; eauto.
   Qed.
-  
+  (* Lemma step_contains:
+    forall U tr tp m U' tr' tp' m' i,
+      MachStep (U, tr, tp) m (U', tr', tp') m' ->
+      ThreadPool.containsThread tp i ->
+      ThreadPool.containsThread tp' i.
+  Proof.
+    eapply step_contains.
+  Admitted. *)
+  Lemma failedStep_no_change:
+    forall U tr tp m U' tr' tp' m' i,
+      MachStep (U, tr, tp) m (U', tr', tp') m' ->
+      schedPeek U = Some i ->
+      ~ ThreadPool.containsThread tp' i ->
+      (U, tr, tp, m) = (U', tr', tp', m').
+    intros.
+    assert (HH: ~ ThreadPool.containsThread tp i).
+    {  intros HH; eapply H1, step_contains; eauto. }
+    clear H1.
+    inv H; simpl in *; match goal with
+                         [H: schedPeek ?U = _,
+                             H': schedPeek ?U = _ |- _ ] =>
+                         rewrite H in H'; inv H'
+                       end;
+    try solve [contradict HH; assumption].
+    repeat (split; auto).
+  Qed.
   Lemma csafe_ksafe_equiv:
     forall st_ m tr,
       (forall n U, valid (tr, st_, m) U -> csafe (U, tr, st_) m n) ->
@@ -522,9 +560,17 @@ Section Csafe_KSafe.
           assert (Hsched: exists tid, schedPeek U = Some tid)
             by (inversion Hstep; subst;
                 eexists; eauto).
-          destruct Hsched.
-          eapply csafe_unique_running;
-            now eauto using MachStep_preserve_unique, CoreStep_preserve_valid.
+          destruct Hsched as (i & ?).
+          destruct (classic (ThreadPool.containsThread tp' i)).
+          -- eapply csafe_unique_running;
+              eauto using MachStep_preserve_unique, CoreStep_preserve_valid.
+             edestruct MachStep_preserve_unique; eauto.
+             destruct H2 as (?&?&Hcontra); exfalso; eapply Hcontra.
+             rewrite H0 in H2; inversion H2; subst; eauto.
+          -- exploit failedStep_no_change; eauto;
+               intros HH'; inv HH'.
+             simpl; repeat rewrite <- H3. 
+             intros. eapply csafe_monotone, HH; eauto.
       +  (*AngelStep*)
         econstructor.
         * constructor 2; simpl_state.
@@ -1412,7 +1458,7 @@ Section Clight_safety.
       - unfold ErasureSafety.ErasureProof.no_locks_perm.
          intros.
          admit. (* quite true *)
- Admitted.
+ Adm itted.
 
 
     Lemma dry_initial_state_equality:

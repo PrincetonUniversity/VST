@@ -6551,6 +6551,7 @@ relation*)
       assert (Hno_raceF:= no_race_thr _ HinvF).
       intros k j pffk' pffj' Hkj.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl.
       erewrite <- forall2_and.
       intros bf ofs0.
       assert (Hbf: (exists b1, f b1 = Some bf) \/
@@ -6563,7 +6564,9 @@ relation*)
           by (apply HnumThreads' in pffj'; auto).
         specialize (Hno_raceC _ _ pfck' pfcj' Hkj).
         unfold permMapsDisjoint2, permMapsDisjoint in Hno_raceC.
-        erewrite <- forall2_and in Hno_raceC.
+        revert Hno_raceC.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl.
+        intros; erewrite <- forall2_and in Hno_raceC.
         destruct (Hno_raceC b ofs0) as [HpermD HpermL].
         pose proof (Hthread_mapped _ pfck' pffk' b bf ofs0 Hbfm) as Hk.
         destruct Hk as [HkD HkL].
@@ -6586,12 +6589,15 @@ relation*)
         erewrite (Hthread_unmapped _ pffj pffj' bf ofs0 Hbfu).2.
         specialize (Hno_raceF _ _ pffk pffj Hkj).
         unfold permMapsDisjoint2, permMapsDisjoint in Hno_raceF.
-        erewrite <- forall2_and in Hno_raceF.
+        revert Hno_raceF;
+          repeat autounfold with pair; unfold pair.pair_prop; simpl.
+        intro; erewrite <- forall2_and in Hno_raceF.
         now eauto.
     }
     { (** disjointness between lock resources*)
       intros laddr1 laddr2 rmap0 rmap2 Hneq Hres0 Hres2.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl.
       erewrite <- forall2_and.
       intros bf ofs0.
       assert (Hbf: (exists b1, f b1 = Some bf) \/
@@ -6610,6 +6616,8 @@ relation*)
              now auto).
         pose proof (no_race_lr _ HinvC' _ _ _ _ HneqC HresC Hres2C) as Hdisjoint.
         unfold permMapsDisjoint2, permMapsDisjoint in Hdisjoint.
+        revert Hdisjoint.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and in Hdisjoint.
         destruct (Hdisjoint b ofs0).
         split;
@@ -6622,6 +6630,8 @@ relation*)
         + destruct (Hlock_unmapped _ _ Hres2) as [Heq2 | Hempty2].
           * pose proof (no_race_lr _ HinvF  _ _ _ _ Hneq Heq0 Heq2) as Hdisjoint.
             unfold permMapsDisjoint2, permMapsDisjoint in Hdisjoint.
+            revert Hdisjoint.
+            repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
             erewrite <- forall2_and in Hdisjoint.
             now eauto.
           * specialize (Hempty2 _ Hbfu ofs0).
@@ -6638,6 +6648,7 @@ relation*)
     { (**disjointness between lock resources and threads*)
       intros k laddrF pffk' rmapF HresF.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
       erewrite <- forall2_and.
       intros b0 ofs0.
       assert (Hbf: (exists b1, f b1 = Some b0) \/
@@ -6652,6 +6663,8 @@ relation*)
         destruct Hk as [HkD HkL].
         pose proof (no_race _ HinvC' _ _ pfck' _ HresC).
         unfold permMapsDisjoint2, permMapsDisjoint in H1.
+        revert H1.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and in H1.
         destruct (H1 b ofs0).
         split;
@@ -6668,6 +6681,8 @@ relation*)
         destruct (Hlock_unmapped _ _ HresF) as [Heq0 | Hempty0].
         + pose proof ((no_race _ HinvF) _ _ pffk _ Heq0) as Hno_race.
           unfold permMapsDisjoint2, permMapsDisjoint in Hno_race.
+          revert Hno_race.
+          repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
           erewrite <- forall2_and in Hno_race.
           now eauto.
         + erewrite (Hempty0 _ Hbfu ofs0).1.
@@ -7373,6 +7388,7 @@ relation*)
         rewrite gssThreadRes.
         pose proof (cntUpdate' _ _ _ cntx') as cntx.
         unfold permMapsDisjoint2, permMapsDisjoint.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and.
         intros b' ofs'.
         subst tp'.
@@ -7430,9 +7446,11 @@ relation*)
       destruct (i == i0) eqn:Heq; move/eqP:Heq=>Heq.
       - subst.
         unfold permMapsDisjoint2, permMapsDisjoint.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and.
         intros b' ofs'.
-        erewrite gssThreadRes.
+        pose proof (gssThreadRes _ _ _ cnti0) as gss.
+        rewrite gss; simpl.
         destruct (Pos.eq_dec b b').
         + subst.
           destruct (Intv.In_dec ofs' (ofs, ofs + Z.of_nat (lksize.LKSIZE_nat))%Z).
@@ -7793,6 +7811,7 @@ relation*)
     { (** no_race *)
       intros.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
       erewrite <- forall2_and.
       intros b2 ofs.
       assert (Hb2: (exists b1, f b1 = Some b2) \/
@@ -7803,6 +7822,8 @@ relation*)
         pose proof ((Hthreads j).1 cntj) as pfcj0.
         specialize (no_race_thr0 _ _ pfci0 pfcj0 Hneq).
         unfold permMapsDisjoint2, permMapsDisjoint in no_race_thr0.
+        revert no_race_thr0.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and in no_race_thr0.
         destruct (no_race_thr0 b1 ofs).
         destruct (Hthread_mapped _ pfci0 cnti b1 b2 ofs Hf).
@@ -7837,6 +7858,7 @@ relation*)
     { intros.
       rewrite gsoAddLPool gsoThreadLPool in Hres.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
       erewrite <- forall2_and. intros b2 ofs.
       assert (Hb2: (exists b1, f b1 = Some b2) \/
                    ~ (exists b1, f b1 = Some b2))
@@ -7848,6 +7870,8 @@ relation*)
         destruct (Hthread_mapped _ pfci0 cnti _ _ ofs Hf).
         pose proof (no_race0 _ _ pfci0 _ HresC) as Hno_race.
         unfold permMapsDisjoint2, permMapsDisjoint in Hno_race.
+        revert Hno_race.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and in Hno_race.
         destruct (Hno_race b1 ofs).
         split.
@@ -8128,6 +8152,7 @@ relation*)
       assert (Hno_raceF:= no_race_thr _ HinvF).
       intros k j pffk' pffj' Hkj.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
       erewrite <- forall2_and.
       intros bf ofs0.
       assert (Hbf: (exists b1, f b1 = Some bf) \/
@@ -8140,6 +8165,8 @@ relation*)
           by (apply HnumThreads' in pffj'; auto).
         specialize (Hno_raceC _ _ pfck' pfcj' Hkj).
         unfold permMapsDisjoint2, permMapsDisjoint in Hno_raceC.
+        revert Hno_raceC;
+          repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and in Hno_raceC.
         destruct (Hno_raceC b ofs0) as [HpermD HpermL].
         pose proof (Hthread_mapped _ pfck' pffk' b bf ofs0 Hbfm) as Hk.
@@ -8163,12 +8190,15 @@ relation*)
         erewrite (Hthread_unmapped _ pffj pffj' bf ofs0 Hbfu).2.
         specialize (Hno_raceF _ _ pffk pffj Hkj).
         unfold permMapsDisjoint2, permMapsDisjoint in Hno_raceF.
+        revert Hno_raceF;
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and in Hno_raceF.
         now eauto.
     }
     { (** disjointness between lock resources*)
       intros laddr1 laddr2 rmap0 rmap2 Hneq Hres0 Hres2.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
       erewrite <- forall2_and.
       intros bf ofs0.
       assert (Hbf: (exists b1, f b1 = Some bf) \/
@@ -8187,6 +8217,9 @@ relation*)
              now auto).
         pose proof (no_race_lr _ HinvC' _ _ _ _ HneqC HresC Hres2C) as Hdisjoint.
         unfold permMapsDisjoint2, permMapsDisjoint in Hdisjoint.
+        revert Hdisjoint;
+          repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
+        
         erewrite <- forall2_and in Hdisjoint.
         rewrite <- H1, <- H2, <- H3, <- H4.
         destruct (Hdisjoint b ofs0).
@@ -8196,12 +8229,17 @@ relation*)
         pose proof (Hlock_eq _ _ Hres2) as Heq2.
         pose proof (no_race_lr _ HinvF  _ _ _ _ Hneq Heq0 Heq2) as Hdisjoint.
         unfold permMapsDisjoint2, permMapsDisjoint in Hdisjoint.
+        revert Hdisjoint;
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
+        
         erewrite <- forall2_and in Hdisjoint.
         now eauto.
     }
     { (**disjointness between lock resources and threads*)
       intros k laddrF pffk' rmapF HresF.
       unfold permMapsDisjoint2, permMapsDisjoint.
+      repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
+
       erewrite <- forall2_and.
       intros b0 ofs0.
       assert (Hbf: (exists b1, f b1 = Some b0) \/
@@ -8216,6 +8254,9 @@ relation*)
         destruct Hk as [HkD HkL].
         pose proof (no_race _ HinvC' _ _ pfck' _ HresC).
         unfold permMapsDisjoint2, permMapsDisjoint in H1.
+        revert H1;
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
+
         erewrite <- forall2_and in H1.
         destruct (H1 b ofs0).
         rewrite <- H, <- H0.
@@ -8231,6 +8272,9 @@ relation*)
         pose proof (Hlock_eq _ _ HresF) as Heq0.
         pose proof ((no_race _ HinvF) _ _ pffk _ Heq0) as Hno_race.
         unfold permMapsDisjoint2, permMapsDisjoint in Hno_race.
+        revert Hno_race;
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
+
         erewrite <- forall2_and in Hno_race.
         now eauto.
     }

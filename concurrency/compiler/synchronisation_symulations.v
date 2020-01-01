@@ -37,7 +37,7 @@ Require Import VST.concurrency.compiler.Clight_self_simulation.
 Require Import VST.concurrency.compiler.Asm_self_simulation.
 Require Import VST.concurrency.compiler.diagrams.
 Require Import VST.concurrency.compiler.mem_equiv.
-Require Import VST.concurrency.compiler.pair.
+Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.compiler.inject_virtue.
 Require Import VST.concurrency.compiler.concur_match.
 Require Import VST.concurrency.lib.Coqlib3.
@@ -2816,8 +2816,6 @@ Qed.
                 Admitted.
 
                 
-                
-                
                 eapply perms_no_over_point_to_range in Hno_over.
                 pose proof (Classical_Prop.classic (b1 <> fst adr1 \/ ~ Intv.In ofs (snd adr1, snd adr1 +  4))).
                 destruct H7.
@@ -2912,6 +2910,85 @@ Qed.
                 eapply perm_order_trans211; eauto.
               Qed.    
               
+              Fixpoint list_f {A} (f: Z -> A) (n:nat) ofs:=
+                match n with
+                | S n' => f ofs :: list_f f n' (ofs + 1)
+                | _ => nil
+                end.
+              Lemma forall_range:
+                forall n {A} P (f: Z -> A) ofs,
+                  Forall P (list_f f n ofs) ->
+                  forall ofs0,
+                    Intv.In ofs0 (ofs, ofs + (Z.of_nat n)) ->
+                    P (f ofs0).
+              Proof.
+                induction n; intros.
+                - simpl in H0.
+                  replace (ofs + 0) with ofs in H0 by omega.
+                  exfalso; eapply Intv.empty_notin; eauto.
+                  unfold Intv.empty; simpl; omega.
+                - destruct (Z.eq_dec ofs ofs0).
+                  + subst; inv H; auto.
+                  + assert (Intv.In ofs0 (ofs + 1, (ofs + 1) + Z.of_nat n)).
+                    { unfold Intv.In in *.
+                      simpl in *.
+                      destruct H0; split.
+                      * omega.
+                      * clear - H1.
+                        replace (ofs + 1 + Z.of_nat n)
+                          with (ofs + Z.pos (Pos.of_succ_nat n)); auto.
+                        clear.
+                        rewrite <- Z.add_assoc, Zpos_P_of_succ_nat.
+                        omega. }
+                    clear H0.
+                    eapply IHn; eauto.
+                    inv H; auto.
+              Qed.
+              Lemma fun_range:
+                forall n {A} (f f': Z -> A) ofs,
+                  list_f f n ofs =
+                  list_f f' n ofs  ->
+                  forall ofs0,
+                    Intv.In ofs0 (ofs, ofs + (Z.of_nat n)) ->
+                    f ofs0 = f' ofs0.
+              Proof.
+                induction n; intros.
+                - simpl in H0.
+                  replace (ofs + 0) with ofs in H0 by omega.
+                  exfalso; eapply Intv.empty_notin; eauto.
+                  unfold Intv.empty; simpl; omega.
+                - destruct (Z.eq_dec ofs ofs0).
+                  + subst; inv H; auto.
+                  + assert (Intv.In ofs0 (ofs + 1, (ofs + 1) + Z.of_nat n)).
+                    { unfold Intv.In in *.
+                      simpl in *.
+                      destruct H0; split.
+                      * omega.
+                      * clear - H1.
+                        replace (ofs + 1 + Z.of_nat n)
+                          with (ofs + Z.pos (Pos.of_succ_nat n)); auto.
+                        clear.
+                        rewrite <- Z.add_assoc, Zpos_P_of_succ_nat.
+                        omega. }
+                    clear H0.
+                    eapply IHn; eauto.
+                    inv H; auto.
+              Qed.
+              Lemma fun_range4:
+                forall {A} (f f': Z -> A) ofs,
+                  f ofs :: f (ofs + 1)
+                    :: f (ofs + 1 + 1)
+                    :: f (ofs + 1 + 1 + 1):: nil = 
+                  f' ofs :: f' (ofs + 1)
+                     :: f' (ofs + 1 + 1)
+                     :: f' (ofs + 1 + 1 + 1):: nil ->
+                  forall ofs0,
+                    Intv.In ofs0 (ofs, ofs + 4) ->
+                    f ofs0 = f' ofs0.
+              Proof.
+                intros.
+                eapply (fun_range 4); simpl; eauto.
+              Qed.
               Lemma mi_memval_perm_store:
                 forall (b1 b2 : block)
                   (m1 m1' m2 m2' lock_mem : mem)
@@ -2976,19 +3053,37 @@ Qed.
                      destruct Hstore0 as [? HH].
                      rewrite Hstore in HH.
                      simpl in HH.
-                     admit.
-                     (* at this point we know the two vals are the same by 
-                        HH: v1 :: v2::v3::v4=  v1 :: v2::v3::v4
-                        H: Intv.In ofs0 (ofs, ofs + 4)
-                        
-                        MISSING: need to know all the vals are bytes (No fragments).
-                        
-                      *)
+                     assert (Heq_range: forall ofs0,
+                                Intv.In ofs0 (ofs, ofs + 4) -> 
+                                ZMap.get ofs0 (Mem.mem_contents m1') !! b1 =
+                                ZMap.get (ofs0+delta) (Mem.mem_contents m2') !! b2
+                            ).
+                     { eapply fun_range4; eauto.
+                       repeat match goal with
+                       | |- context [ ?x + delta ] =>
+                         replace (x + delta) with (delta + x) in * by omega
+                              end;
+                         repeat rewrite Z.add_assoc; auto. }
+                     clear HH.
+                     rewrite <- Heq_range; auto.
+                     assert (Heq_range_bytes: forall ofs0,
+                                Intv.In ofs0 (ofs, ofs + 4) -> 
+                                exists bl,
+                                ZMap.get ofs0 (Mem.mem_contents m1') !! b1 =
+                                Byte bl
+                            ).
+                     { eapply (forall_range 4 (fun (X:memval) => exists bl:byte, X = Byte bl)).
+                       simpl in *. rewrite <- Hstore.
+                       repeat econstructor. }
+                     exploit Heq_range_bytes; eauto;
+                       intros (bl& -> ).
+                     econstructor.
+                     
                  }
                  Unshelve.
                  eauto.
                  unfold Max_equiv in *; rewrite Hmax_eq; auto.
-              Admitted.
+              Qed.
               Lemma computeMap_mi_perm_perm_perfect:
                 forall mu x1 y1 x2 y2,
                   @maps_no_overlap permission _ mu x1 (fun _ : Z => None, y1) ->
@@ -3399,6 +3494,15 @@ Qed.
                  invariant st'.
              Proof.
                intros * ? ? Hinv Hjoin; eapply invariant_update; eauto.
+               Lemma disjoint_join:
+                 forall a b c,
+                   permMapJoin a b c ->
+                   permMapsDisjoint a b.
+                 intros ** ??. specialize (H b0 ofs).
+                 unfold perm_union; match_case.
+                 + inv H; eexists; simpl; eauto.
+                 + inv H; eexists; simpl; eauto.
+               Qed.
                Lemma disjoint_lt:
                  forall A A' B,
                    permMapLt A' A ->
@@ -3414,15 +3518,16 @@ Qed.
                    repeat match_case in H0;
                    inv H0; inv H; try econstructor; eauto.
                Qed.
-                 
+               Hint Unfold permMapsDisjoint2: pair.
                Lemma disjoint_lt_pair:
                  forall a a' b,
                    permMapLt_pair2 a' a ->
                    permMapsDisjoint2 a b ->
                    permMapsDisjoint2 a' b.
                Proof.
-                 (* Tune up solve_pair to solve this with disjoint_lt *)
-               Admitted.
+                 solve_pair. apply disjoint_lt.
+               Qed.
+               
                - intros ; eapply disjoint_lt_pair.
                  eapply permMapJoin_lt_pair1; eauto.
                  eapply Hinv; auto.
@@ -3443,7 +3548,9 @@ Qed.
                      permMapJoin_pair A B C ->
                      permMapsDisjoint2 A B.
                  Proof.
-                 Admitted.
+                   solve_pair.
+                   apply disjoint_join.
+                 Qed.
                  eapply join_disjoint_pair; eauto.
                - intros ; eapply disjoint_lt_pair.
                  intros; eapply permMapJoin_lt_pair1; eauto.
@@ -3660,8 +3767,7 @@ Qed.
               
                 
               eapply computeMap_mi_perm_perm_perfect.
-              --
-                 eapply maps_no_overlap_Lt; eauto.
+              -- eapply maps_no_overlap_Lt; eauto.
                  2: eapply Hangel_bound.
                  eapply no_overlap_mem_perm.
                  eapply Hinj'.
@@ -3734,7 +3840,10 @@ Qed.
             * !goal (mi_perm_perm mu (snd newThreadPerm1) (snd new_cur2)).
               { unfold newThreadPerm1, new_cur2; simpl.
                 eapply computeMap_mi_perm_perm_perfect.
-              - admit. (* LT *)
+                - eapply maps_no_overlap_Lt; eauto.
+                  2: eapply Hangel_bound.
+                  eapply no_overlap_mem_perm.
+                  eapply Hinj'.
               - intros ? **. 
                 exploit mi_inj_mi_perm_perm_Cur; try eapply Hinj_lock; eauto.
                 rewrite Heqlk_mem1. unfold thread_mems; simpl.
@@ -3875,7 +3984,6 @@ Qed.
                   @restrPermMap p m Hlt =
                   @restrPermMap p' m Hlt'.
                 Proof.
-                  Set Printing Implicit.
                   intros.
                   unfold restrPermMap.
                   Lemma mem_eq:
@@ -3946,30 +4054,46 @@ Qed.
                 subst dpm1.
                 subst virtueThread2 virtueThread1; simpl.
                 remember (fst (virtueThread angel)) as virt.
-                (*Lemma inject_delta_map_tree_map_inject:
-                  forall mu virt m
-                    (Hinj_virt:injects_dmap mu virt),
-                    EventsAux.inject_delta_map
-                      mu virt (tree_map_inject_over_mem m mu virt).
+                Lemma virtue_inject:
+                  forall mu virt m2',
+                    injects_dmap mu virt ->
+                    map_no_overlap mu (fun _ => None, virt) ->
+                    (forall b1 b2 ofs delta p, dmap_get virt b1 ofs = Some p ->
+                                      mu b1 = Some (b2, delta) ->
+                                      Mem.valid_block m2' b2) -> 
+                    EventsAux.inject_delta_map mu virt (tree_map_inject_over_mem m2' mu virt).
                 Proof.
-                  intros.
-                  econstructor.
-                  - simpl; intros.
-                    exploit Hinj_virt.
-                    unfold dmap_get, "!!"; simpl.
-                    rewrite H.
-                    normal.*)
-
-                (* Here Tuesday Dec 12*)
-                    
-                admit. (* by constructions the birtues inject*)
+                Admitted.
+                Lemma virtue_inject_bounded:
+                  forall mu virt m2 m1,
+                    injects_dmap mu virt ->
+                    sub_map virt (snd (getMaxPerm m1)) ->
+                      Mem.meminj_no_overlap mu m1 ->
+                    (*map_no_overlap mu (fun _ => None, virt) -> *)
+                    (forall b1 b2 delta, mu b1 = Some (b2, delta) ->
+                                    Mem.valid_block m2 b2) -> 
+                    EventsAux.inject_delta_map mu virt (tree_map_inject_over_mem m2 mu virt).
+                Proof.
+                  intros; eapply virtue_inject; eauto.
+                  eapply no_overla_perm_mem; eauto.
+                  eapply sub_map_implication_dmap; eauto.
+                Qed.
+                eapply virtue_inject_bounded; eauto.
+                + eapply full_inject_dmap.
+                  * eapply CMatch.
+                  * eapply join_dmap_valid.
+                    rewrite restr_Max_eq.
+                    subst virt.
+                    eapply Hangel_bound.
+                + subst virt; eapply Hangel_bound.
+                + eapply Hinj'0.
+                + eapply Hinj'0.
               - simpl; rewrite ReleaseExists; eauto.
               - exploit (interference_consecutive_until Hinterference2).
                 rewrite <- Hnb_eq'; simpl; auto.
               - exploit (interference_consecutive_until Hinterference2').
                 simpl; auto.
             }
-
           + !context_goal memval_inject.
             repeat econstructor.
           + !goal(lock_update _ st1 _ _ _ _ st1').
@@ -3978,15 +4102,55 @@ Qed.
               unfold fullThUpd_comp, fullThreadUpdate.
             reflexivity.
 
-            
           + !goal(lock_update _ st2 _ _ _ _ st2').
             econstructor;
               subst st2' new_cur2 virtueLP2  ofs2 virtueLP1;
               unfold fullThUpd_comp, fullThreadUpdate.
             repeat f_equal.
             * f_equal.
-              !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta);
-                admit.
+              !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta).
+              {  Ltac solve_unsigned1:=
+                   (*check the goal *)
+                   try replace intval with unsigned by reflexivity;
+                   match goal with
+                 | [|- unsigned (add ?ofs (repr ?delta)) = unsigned ?ofs + ?delta ] => idtac
+                 | [|- unsigned ?ofs + ?delta = unsigned (add ?ofs (repr ?delta)) ] => symmetry
+                 | _ => fail "Not the right goal"
+                   end.
+                   Ltac solve_unsigned2:=
+                   (* find the "Mem.load" *)
+                   match goal with
+                   | [ H: lock_update_mem_strict_load _ ?uofs _ _ _ _ _ |- _ = ?uofs + _ ] =>
+                     inv H
+                   end.
+                   Ltac solve_unsigned3:=
+                   (* convert "Mem.load" into "Mem.access" and apply the main lemma *)
+                   match goal with
+                   | [ H: Mem.load _ ?m _ ?uofs = _ |- _ = ?uofs + _ ] =>
+                     eapply Mem.load_valid_access in H;
+                       eapply Mem.valid_access_implies with
+                           (p2:=Nonempty) in H; try constructor;
+                         (* Apply the main lemma Mem.address_inject'*)
+                         eapply Mem.address_inject'; try eapply H
+                   end.
+                   
+                   Ltac solve_unsigned4:= idtac;
+                   (* Two goals left: 
+                      Mem.inject mu lock_mem lock_mem 2 
+                      mu b1 = Some (b2, delta)   *)
+                 try (subst_set;
+                      eapply @INJ_locks;
+                      first[
+                          now eapply concur_match_perm_restrict'; eauto|
+                          eassumption]);
+                 (* second goal by assumption *)
+                 try eassumption.
+                   Ltac solve_unsigned:=
+                     solve_unsigned1; solve_unsigned2;
+                     solve_unsigned3; solve_unsigned4.
+
+                   solve_unsigned. } 
+
               
         - econstructor.
           + econstructor; eauto.
@@ -3998,7 +4162,7 @@ Qed.
         (* Should be obvious by construction *)
         - (* HybridMachineSig.external_step *)
           assert (Hofs2: intval ofs2 = unsigned ofs + delta).
-          { admit. }
+          { subst ofs2; solve_unsigned. }
           intros.
           rewrite <- Hofs2.
           

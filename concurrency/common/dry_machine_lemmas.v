@@ -280,9 +280,12 @@ Module ThreadPoolWF.
         rewrite gsoThreadRes; auto.
         specialize (no_race_thr0 _ _ cnti cntj Hkj).
         unfold permMapsDisjoint2, permMapsDisjoint in *.
+        pair.solve_pair.
         erewrite <- forall2_and.
-        erewrite <- forall2_and in no_race_thr0.
         intros b ofs.
+        repeat autounfold with pair in no_race_thr0;
+          unfold pair.pair_prop in no_race_thr0; simpl in *.
+        erewrite <- forall2_and in no_race_thr0.
         destruct (no_race_thr0 b ofs) as [H1 H2].
         split; rewrite perm_union_comm;
           erewrite perm_union_comm in H1, H2;
@@ -294,6 +297,8 @@ Module ThreadPoolWF.
         rewrite gssThreadRes.
         specialize (no_race_thr0 _ _ cntk cnti Hkj).
         unfold permMapsDisjoint2, permMapsDisjoint in *.
+        revert no_race_thr0.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and.
         erewrite <- forall2_and in no_race_thr0.
         intros b ofs.
@@ -313,6 +318,8 @@ Module ThreadPoolWF.
         rewrite gssThreadRes.
         specialize (no_race0 _ _ cnti _ Hres).
         unfold permMapsDisjoint2, permMapsDisjoint in *.
+        revert no_race0.
+        repeat autounfold with pair; unfold pair.pair_prop; simpl; intros.
         erewrite <- forall2_and.
         erewrite <- forall2_and in no_race0.
         intros b ofs.

@@ -40,7 +40,7 @@ Require Import VST.concurrency.compiler.Clight_self_simulation.
 Require Import VST.concurrency.compiler.Asm_self_simulation.
 Require Import VST.concurrency.compiler.diagrams.
 Require Import VST.concurrency.compiler.mem_equiv.
-Require Import VST.concurrency.compiler.pair.
+Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.compiler.inject_virtue.
 Require Import VST.concurrency.compiler.concur_match.
 Require Import VST.concurrency.lib.Coqlib3.

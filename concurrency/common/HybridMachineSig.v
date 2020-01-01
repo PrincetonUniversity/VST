@@ -211,6 +211,11 @@ Module HybridMachineSig.
               containsThread ms tid0 -> mem_compatible ms m ->
               thread_pool -> mem -> seq mem_event -> Prop
 
+        ; threadStep_contains:
+             forall i tp m cnt cmpt tp' m' tr,
+               @threadStep i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j
         ; threadStep_at_Krun_neq:
             forall i tp m cnt cmpt tp' m' tr,
               @threadStep i tp m cnt cmpt tp' m' tr ->
@@ -234,7 +239,11 @@ Module HybridMachineSig.
             forall {tid0 ms m},
                 containsThread ms tid0 -> mem_compatible ms m ->
                 thread_pool -> mem -> sync_event -> Prop
-                                                   
+        ; syncstep_contains:
+             forall b i tp m cnt cmpt tp' m' tr,
+               @syncStep b i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j
         ;  syncstep_equal_run:
              forall b i tp m cnt cmpt tp' m' tr,
                @syncStep b i tp m cnt cmpt tp' m' tr ->
@@ -246,7 +255,6 @@ Module HybridMachineSig.
              forall b i tp m cnt cmpt tp' m' tr,
                @syncStep b i tp m cnt cmpt tp' m' tr ->
                forall cntj q, ~ @getThreadC _ _ _ i tp cntj = Krun q
-
         ; init_mach : option res -> mem -> thread_pool -> mem -> val -> list val -> Prop}.
 
 
@@ -410,6 +418,9 @@ Module HybridMachineSig.
     intros. inversion H; subst; rewrite HschedN; intro Hcontra; discriminate.
     Defined.
 
+      
+      
+    
     Definition make_init_machine c r:= 
         mkPool (Krun c) r.
     Definition init_machine' (the_ge : semG) m
@@ -524,10 +535,26 @@ Module HybridMachineSig.
                  solve[econstructor 6 ; eauto]].
       Qed.
 
-      Set Printing Implicit.
-      Program Definition new_MachineSemantics (op_m:option Mem.mem):
-        @ConcurSemantics G nat schedule event_trace machine_state mem res (*@semC Sem*).
-      apply (@Build_ConcurSemantics _ nat schedule event_trace machine_state _ _ (*_*)
+      
+    Lemma step_contains:
+      forall U tr tp m U' tr' tp' m',
+        MachStep (U, tr, tp) m (U', tr', tp') m' ->
+        forall j, containsThread tp j ->
+             containsThread tp' j.
+    Proof.
+      intros. eapply step_equivalence1 in H; simpl in *.
+      destruct H as [(?&?)|?]; subst.
+      - inversion H1; subst.
+        eapply threadStep_contains; eauto.
+      - inversion H; subst; eauto using syncstep_contains;
+          now inversion Htstep; subst;
+                 first [eapply cntUpdate; eauto |
+                        eapply cntUpdateC; eauto].
+    Qed.
+    Set Printing Implicit.
+    Program Definition new_MachineSemantics (op_m:option Mem.mem):
+      @ConcurSemantics G nat schedule event_trace machine_state mem res (*@semC Sem*).
+    apply (@Build_ConcurSemantics _ nat schedule event_trace machine_state _ _ (*_*)
                                     (init_machine'' op_m)
                                     (fun U st => halted_machine (U, nil, st))
                                     (fun ge U st m st' m' =>

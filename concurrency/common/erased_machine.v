@@ -292,6 +292,31 @@ Module BareMachine.
 
     Definition add_block tp m tid (Hcmpt: mem_compatible tp m) (Hcnt: containsThread tp tid) (m': mem) := tt.
 
+    
+    Lemma threadStep_contains:
+             forall i tp m cnt cmpt tp' m' tr,
+               @threadStep i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j.
+    Proof.
+      intros. inv H.
+      apply cntUpdateC; assumption.
+    Qed.
+    Lemma syncstep_contains:
+             forall b i tp m cnt cmpt tp' m' tr,
+               @syncStep b i tp m cnt cmpt tp' m' tr ->
+               forall j, containsThread tp j ->
+                    containsThread tp' j.
+    Proof.
+      intros.
+      inv H; auto;
+        try apply cntRemoveL; 
+        try apply cntAdd;
+        try apply cntUpdateL;
+        try apply cntUpdate;
+        try assumption.
+    Qed.
+    
     (** The signature of the Bare Machine *)
     Instance BareMachineSig: HybridMachineSig.MachineSig :=
       (HybridMachineSig.Build_MachineSig
@@ -302,10 +327,12 @@ Module BareMachine.
                                        install_perm
                                        add_block
                                        (@threadStep)
+                                       threadStep_contains
                                        threadStep_at_Krun_neq
                                        threadStep_at_Krun
                                        threadStep_equal_run
                                        (@syncStep)
+                                       syncstep_contains
                                        syncstep_equal_run
                                        syncstep_not_running
                                        init_mach
