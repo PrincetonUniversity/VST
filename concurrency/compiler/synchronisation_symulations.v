@@ -4480,8 +4480,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                                (b1, unsigned ofs)) as st1'.
 
       
-      assert (Hofs2: unsigned ofs2 = unsigned ofs + delta).
-      { subst ofs2; solve_unsigned. }
+      (* assert (Hofs2: unsigned ofs2 = unsigned ofs + delta).
+      { subst ofs2; solve_unsigned. } *)
       
       assert (H: ThreadPool (Some (S hb)) =
                  @t dryResources (HybridSem (@Some nat (S hb)))).
@@ -4814,7 +4814,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         + !goal(lock_update _ st2 _ _ _ _ st2').
           
           econstructor;
-            subst st2' new_cur2 virtueLP2  ofs2 virtueLP1;
+            subst st2' new_cur2 virtueLP2  ofs2;
             unfold fullThUpd_comp, fullThreadUpdate.
           repeat f_equal.
           * f_equal.
@@ -4837,7 +4837,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       (* Should be obvious by construction *)
       - (* HybridMachineSig.external_step *)
         assert (Hofs2: intval ofs2 = unsigned ofs + delta).
-        { admit. }
+        { subst ofs2; solve_unsigned. }
         rewrite <- Hofs2.
         
         eapply step_acquire;
@@ -6627,7 +6627,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         + symmetry; subst m2; eapply getCur_restr.
         + intros b0 ofs0. destruct rmap as (a1 & a2).
           destruct (Hrmap b0 ofs0); simpl in *.
-          autounfold with pair; unfold pair_appl; simpl.
+          autounfold with pair; unfold pair_appl, compose; simpl.
           f_equal; eauto.
         + simpl. clean_proofs. unfold perm_interval.
           simpl in *; subst m1.
