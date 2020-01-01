@@ -2990,7 +2990,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       eapply (fun_range 4); simpl; eauto.
     Qed.
     Lemma mi_memval_perm_store:
-      forall (b1 b2 : block)
+      forall (b1 b2 : block) v
              (m1 m1' m2 m2' lock_mem : mem)
              (perm1 perm1' perm2' : access_map)
              (delta ofs : Z)
@@ -3009,8 +3009,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                                   (getMaxPerm m2)),
         let m_writable_lock_1 := restrPermMap Hwritable_lock1 : mem in
         let m_writable_lock_0 := restrPermMap Hwritable_lock0 : mem in
-        forall (Hstore : Mem.store AST.Mint32 m_writable_lock_1 b1 ofs vone = Some m1')
-          (Hstore0 : Mem.store AST.Mint32 m_writable_lock_0 b2 (ofs + delta) vone =
+        forall (Hstore : Mem.store AST.Mint32 m_writable_lock_1 b1 ofs (Vint v) = Some m1')
+          (Hstore0 : Mem.store AST.Mint32 m_writable_lock_0 b2 (ofs + delta) (Vint v) =
                      Some m2'),
           mi_memval_perm mu perm1 (Mem.mem_contents m1) (Mem.mem_contents m2)
           ->
@@ -3033,7 +3033,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
          clear - H0 H1. hnf in H0; simpl in H0.
          omega. 
       ++ !goal(maps_no_overlap _ _ _).
-         eapply maps_no_overlap_under_mem; debug eauto. (* *)
+         eapply maps_no_overlap_under_mem; eauto. (* *)
          apply Hinj'. 
          rewrite getCur_restr. apply Hwritable_lock1.
       ++ !goal(content_almost_same _ m1' _).
@@ -3922,7 +3922,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           simpl; rewrite HisLock. constructor.
           
         + !goal (@invariant (HybridSem _ ) _ st2').
-          eapply invariant_update_join_rel; debug eauto.
+          eapply invariant_update_join_rel; eauto.
           * exploit INJ_lock_permissions; simpl in *; eauto; subst ofs2.
             intros HH; rewrite HH; constructor.
           * reflexivity.
@@ -3977,7 +3977,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           * !goal (mi_memval_perm mu (snd newThreadPerm1)
                                   (Mem.mem_contents m1'')
                                   (Mem.mem_contents m2'')).
-
+            
             inversion Hlock_update_mem_strict_load1.
             inversion Hlock_update_mem_strict_load2.
             
@@ -4052,7 +4052,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             -- subst lk_mem1; simpl. unfold lock_comp; simpl.
                etransitivity; eauto. eapply restr_Max_equiv.
         +  (* Proof of match goes after the comment *)
-          
           { !context_goal one_thread_match.
             eapply build_match_compiled; auto.
             instantiate(1:= Hlt21).
@@ -4445,6 +4444,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       get_mem_compatible.
       get_thread_mems.
       clean_proofs. rename abs_proof into Hcmpt2.
+
       
       remember (virtueThread angel) as virtueThread1.
       (*remember (virtueLP angel) as virtueLP1. *)
@@ -4479,6 +4479,9 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       remember (fullThUpd_comp st1 hb Hcnt1 (Kresume (SST code1) Vundef) new_perms
                                (b1, unsigned ofs)) as st1'.
 
+      
+      assert (Hofs2: unsigned ofs2 = unsigned ofs + delta).
+      { subst ofs2; solve_unsigned. }
       
       assert (H: ThreadPool (Some (S hb)) =
                  @t dryResources (HybridSem (@Some nat (S hb)))).
@@ -4567,11 +4570,120 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                eapply CMatch.  }
           * !goal (mi_memval_perm mu (fst newThreadPerm1)
                                   (Mem.mem_contents m1'') (Mem.mem_contents m2'')).
-            admit.
+            {
+              
+            inversion Hlock_update_mem_strict_load1.
+            inversion Hlock_update_mem_strict_load2. subst vload vstore vload0 vstore0.
+            
+             (* assert (HHlock:mi_memval_perm mu (snd newThreadPerm1)
+                                          (Mem.mem_contents lk_mem1)
+                                          (Mem.mem_contents lk_mem2)).
+            { eapply mi_memval_perm_computeMap_Lt.
+              eapply mi_inj_mi_memval_perm.
+              subst lk_mem1; simpl; rewrite getCur_restr.
+              eapply permMapJoin_lt. Hjoin_angel. } *)
+            
+            (*
+              eapply mi_memval_perm_computeMap_Lt.
+              2:{ eapply permMapJoin_lt. eapply Hjoin_angel. } *)
+
+            assert(Hmxeqv_lk1: Max_equiv lk_mem1 m1').
+            { subst lk_mem1; simpl.
+              eapply restr_Max_equiv. }
+            assert (Hwritable_lock1':=Hwritable_lock1).
+            (*rewrite <- Hmxeqv_lk1 in Hwritable_lock1'. *)
+            
+            assert(Hmxeqv_lk2: Max_equiv lk_mem2 m2').
+            { subst lk_mem2; simpl.
+              eapply restr_Max_equiv. }
+            assert (Hwritable_lock0':=Hwritable_lock0).
+            (*rewrite <- Hmxeqv_lk2 in Hwritable_lock0'.*)
+            
+
+            eapply mi_memval_perm_store
+              with (Hwritable_lock0:=Hwritable_lock0')
+                   (Hwritable_lock1:=Hwritable_lock1')
+            ; try eapply Haccess;
+              try eapply HHlock; eauto.
+            1:{ apply Hlt_new. }
+            3:{ rewrite <- Hstore0. f_equal.
+                subst m_writable_lock_0.
+                apply restr_proof_irr. }
+            2:{ rewrite <- Hstore. f_equal.
+                subst m_writable_lock_1.
+                apply restr_proof_irr. }
+            1:{ apply restr_Max_equiv. }
+            1:{ Lemma mi_memval_perm_join:
+                  forall A B C m1 m2 mu,
+                  permMapJoin A B C -> 
+                  mi_memval_perm mu A
+                                 (Mem.mem_contents m1) (Mem.mem_contents m2) ->
+                  mi_memval_perm mu B
+                                 (Mem.mem_contents m1) (Mem.mem_contents m2) ->
+                  mi_memval_perm mu C
+                                 (Mem.mem_contents m1) (Mem.mem_contents m2).
+                Proof.
+                  (* The key here is that for andy readable location in C, 
+                     there must be a readable one in A or B , maybe make this a lemma and
+                     destruct it *)
+                Admitted.
+                eapply mi_memval_perm_join; try apply Hjoin_angel; swap 1 2.
+                - rewrite Hthread_mem1.
+                  eapply mi_inj_mi_memval_perm, Hinj'0.
+                - revert HisLock.
+                  Lemma INJ_lock_content':
+                    forall hb ocd j cstate1 m1 cstate2 m2,
+                      MyConcurMatch.concur_match hb ocd j cstate1 m1 cstate2 m2 ->
+                      forall (b : block) (ofs : Z) (rmap : lock_info),
+                        lockRes cstate1 (b, ofs) = Some rmap ->
+                        mi_memval_perm j
+                                       (fst rmap)
+                                       (Mem.mem_contents m1)
+                                       (Mem.mem_contents m2).
+                  Proof.
+                    (* Seems like I need to add this to the concur_match*)
+                  Admitted.
+                  eapply INJ_lock_content'; eauto.
+            }
+            }
           * !goal (mi_perm_inv_perm mu (fst newThreadPerm1) (fst new_cur2) m1'').
-            admit.
-        + !goal (@invariant (HybridSem _) _ _). admit.
-        + !goal (invariant st2'). admit.
+            { subst_set; simpl.
+            erewrite tree_map_inject_restr.
+            rewrite <- tree_map_inject_restr.
+            eapply mi_perm_inv_perm_compute with (m1:=m1'); eauto.
+            -- eapply Hangel_bound. }
+            
+        + !goal (@invariant (HybridSem _) _ _).
+          Lemma invariant_update_join_acq:
+            forall Sem (st st': @ThreadPool.t dryResources Sem OrdinalThreadPool)
+              h laddr c lock_perm th_perm
+              (Hcnt:ThreadPool.containsThread st h),
+              ThreadPool.lockRes st laddr = Some lock_perm ->
+              st' =
+              ThreadPool.updLockSet (ThreadPool.updThread Hcnt c th_perm) laddr
+                                    (empty_map, empty_map) ->
+              invariant st ->
+              permMapJoin_pair lock_perm (getThreadR Hcnt) th_perm ->
+              invariant st'.
+          Proof.
+          Admitted.
+          simpl in Heqst1'.
+          eapply invariant_update_join_acq; eauto.
+          eapply CMatch.
+          
+        + !goal (invariant st2'). 
+          eapply invariant_update_join_acq; eauto;
+            try reflexivity; try eapply CMatch.
+          subst ofs2; simpl.
+          erewrite INJ_lock_permissions; eauto.
+          subst virtueLP2; simpl.
+          erewrite virtueLP_inject_max_eq_exteny;
+            try reflexivity.
+          (* this is a bit stronger than equivalence *)
+            inv Hlock_update_mem_strict_load2.
+            erewrite <- getMax_restr_eq.
+            eapply store_max_eq; eauto.
+          
         + !goal (mem_compatible _ _ ). apply mem_compat_restrPermMap; auto.
         + !goal (mem_compatible _ _ ). apply mem_compat_restrPermMap; auto.
         + !goal(perm_surj mu _ _).
