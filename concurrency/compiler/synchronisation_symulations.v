@@ -1,3 +1,4 @@
+
 Require Import Omega.
 
 Require Import Coq.Classes.Morphisms.
@@ -4575,27 +4576,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             inversion Hlock_update_mem_strict_load1.
             inversion Hlock_update_mem_strict_load2. subst vload vstore vload0 vstore0.
             
-             (* assert (HHlock:mi_memval_perm mu (snd newThreadPerm1)
-                                          (Mem.mem_contents lk_mem1)
-                                          (Mem.mem_contents lk_mem2)).
-            { eapply mi_memval_perm_computeMap_Lt.
-              eapply mi_inj_mi_memval_perm.
-              subst lk_mem1; simpl; rewrite getCur_restr.
-              eapply permMapJoin_lt. Hjoin_angel. } *)
-            
-            (*
-              eapply mi_memval_perm_computeMap_Lt.
-              2:{ eapply permMapJoin_lt. eapply Hjoin_angel. } *)
-
-            assert(Hmxeqv_lk1: Max_equiv lk_mem1 m1').
-            { subst lk_mem1; simpl.
-              eapply restr_Max_equiv. }
             assert (Hwritable_lock1':=Hwritable_lock1).
-            (*rewrite <- Hmxeqv_lk1 in Hwritable_lock1'. *)
-            
-            assert(Hmxeqv_lk2: Max_equiv lk_mem2 m2').
-            { subst lk_mem2; simpl.
-              eapply restr_Max_equiv. }
             assert (Hwritable_lock0':=Hwritable_lock0).
             (*rewrite <- Hmxeqv_lk2 in Hwritable_lock0'.*)
             
@@ -4638,6 +4619,18 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                         lockRes cstate1 (b, ofs) = Some rmap ->
                         mi_memval_perm j
                                        (fst rmap)
+                                       (Mem.mem_contents m1)
+                                       (Mem.mem_contents m2).
+                  Proof.
+                    (* Seems like I need to add this to the concur_match*)
+                  Admitted.
+                  Lemma INJ_lock_content'':
+                    forall hb ocd j cstate1 m1 cstate2 m2,
+                      MyConcurMatch.concur_match hb ocd j cstate1 m1 cstate2 m2 ->
+                      forall (b : block) (ofs : Z) (rmap : lock_info),
+                        lockRes cstate1 (b, ofs) = Some rmap ->
+                        mi_memval_perm j
+                                       (snd rmap)
                                        (Mem.mem_contents m1)
                                        (Mem.mem_contents m2).
                   Proof.
@@ -4707,12 +4700,87 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           do 2 erewrite <- restrPermMap_idempotent_eq.
           apply inject_restr; auto.
           * !goal (mi_perm_perm mu (snd newThreadPerm1) (snd new_cur2)).
-            admit.
+            !goal (mi_perm_perm mu (snd newThreadPerm1) (snd new_cur2)).
+            { unfold newThreadPerm1, new_cur2; simpl.
+              eapply computeMap_mi_perm_perm_perfect.
+              - eapply maps_no_overlap_Lt; eauto.
+                2: eapply Hangel_bound.
+                eapply no_overlap_mem_perm.
+                eapply Hinj'0.
+              - intros ? **. 
+                exploit mi_inj_mi_perm_perm_Cur; try eapply Hinj_lock; eauto.
+                rewrite Heqlk_mem1. unfold thread_mems; simpl.
+                rewrite getCur_restr.
+                eauto.
+                rewrite Heqlk_mem2. unfold thread_mems; simpl.
+                rewrite getCur_restr; auto.
+              - eapply inject_perm_perfect_image_dmap; eauto.
+                + eapply sub_map_implication_dmap; eauto.
+                  eapply Hangel_bound.
+                + eapply full_inject_dmap.
+                  eapply CMatch.
+                  eapply join_dmap_valid.
+                  eapply Hangel_bound. }
           * !goal (mi_memval_perm mu (snd newThreadPerm1)
                                   (Mem.mem_contents m1'') (Mem.mem_contents m2'')).
-            admit.
+            
+            inversion Hlock_update_mem_strict_load1.
+            inversion Hlock_update_mem_strict_load2.
+
+            assert(Hmxeqv_lk1: Max_equiv lk_mem1 m1').
+            { subst lk_mem1; simpl.
+              eapply restr_Max_equiv. }
+            assert (Hwritable_lock1':=Hwritable_lock1).
+            
+            assert(Hmxeqv_lk2: Max_equiv lk_mem2 m2').
+            { subst lk_mem2; simpl.
+              eapply restr_Max_equiv. }
+            assert (Hwritable_lock0':=Hwritable_lock0).
+            
+
+            eapply mi_memval_perm_store
+              with (Hwritable_lock0:=Hwritable_lock0')
+                   (Hwritable_lock1:=Hwritable_lock1')
+            ; try eapply Haccess;
+              try eapply HHlock; eauto.
+            1:{ apply Hlt_new. }
+            3:{ rewrite <- Hstore0. f_equal.
+                subst m_writable_lock_0.
+                apply restr_proof_irr. }
+            2:{ rewrite <- Hstore. f_equal.
+                subst m_writable_lock_1.
+                apply restr_proof_irr. }
+            2:{  eapply mi_memval_perm_join; try apply Hjoin_angel; swap 1 2.
+                 - replace (Mem.mem_contents m1') with
+                    (Mem.mem_contents lk_mem1) by
+                  (subst lk_mem1; reflexivity).
+                   replace (Mem.mem_contents m2') with
+                       (Mem.mem_contents lk_mem2) by
+                       (subst lk_mem2; reflexivity).
+                   assert (HH:access_map_equiv
+                             (SyncCallsDiagrams.lock_perms hb st1 Hcnt1)
+                             (getCurPerm lk_mem1)).
+                   { subst lk_mem1; unfold SyncCallsDiagrams.lock_perms.
+                     unfold thread_mems.
+                     rewrite getCur_restr; simpl. reflexivity. }
+                   rewrite HH.
+                   eapply mi_inj_mi_memval_perm, Hinj_lock.
+                 - eapply INJ_lock_content''; eauto. }
+            1:{ eauto. subst lock_mem. apply restr_Max_equiv. }
+            
           * !goal (mi_perm_inv_perm mu (snd newThreadPerm1) (snd new_cur2) _).
-            admit.
+            
+            subst_set; simpl.
+            erewrite tree_map_inject_restr.
+            eapply mi_perm_inv_perm_compute with (m1:=lk_mem1).
+            -- subst lk_mem1; simpl. symmetry; eapply getCur_restr.
+            -- rewrite getCur_restr. reflexivity.
+            -- replace (getMaxPerm lk_mem1) with (getMaxPerm m1').
+               eapply Hangel_bound.
+               subst lk_mem1; simpl. rewrite restr_Max_eq; reflexivity.
+            -- subst lk_mem2. eapply Hinj_lock.
+            -- subst lk_mem1; simpl. unfold lock_comp; simpl.
+               etransitivity; eauto. eapply restr_Max_equiv.
         +  (* Proof of match goes after the comment *)
           
           (* LINE: 6135 *) 
@@ -4749,6 +4817,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               subst rel_trace; econstructor; try eassumption.
               econstructor; eauto.
               subst newThreadPerm1; simpl.
+              Set Printing Implicit.
+              fold delta_map.
               (* need to replace the way we construct virtue 1:
                  do it by replacein thread_perms with (getCurperm m1')
                  they are the same by hypothesis
