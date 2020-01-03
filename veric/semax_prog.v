@@ -30,6 +30,72 @@ Import Ctypes Clight.
 
 Local Open Scope pred.
 
+(*TODO: unify with semax_conseq, add to SeparationLogic interface, derive inductively in SpearationLogicAsLogic*)
+Lemma semax_adapt {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- (P' rho &&
+                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'):
+   @semax cs Espec Delta P c Q.
+Proof.
+  intros.
+  assert (semax' Espec Delta P' c Q' |-- semax' Espec Delta P c Q);
+    [ | exact (fun n => H0 n (SEM n))].
+  rewrite semax_fold_unfold.
+  apply allp_derives; intros gx.
+  apply allp_derives; intros Delta'.
+  apply allp_derives; intros CS'.
+  apply prop_imp_derives; intros [HDelta _].
+  apply imp_derives; auto.
+  apply allp_derives; intros k.
+  apply allp_derives; intros F.
+  apply allp_derives; intros f. 
+  intros n N m NM RG te ve w Levw u WU [[Grd FP] U].
+  simpl in Grd. red in Grd.
+  destruct FP as [u1 [u2 [JU [U1 U2]]]].
+  exploit (H (construct_rho (filter_genv gx) ve te) u2); clear H.
+  { split3; trivial. 
+    - eapply typecheck_environ_sub. eassumption. apply Grd.
+    - eapply funassert_allp_fun_id_sub. eassumption.
+      specialize (corable_funassert Delta' (construct_rho (filter_genv gx) ve te)).
+      rewrite corable_spec. apply join_comm in JU. apply join_core in JU.
+      intros X. eapply X; [ symmetry; apply JU | apply U] . }
+
+  intros [[[[HP' NORM] BREAK] CONT] RET].
+  specialize (N m NM); spec N.
+  + clear N. destruct RG. split; trivial. 
+    eapply rguard_mono. 2: apply H0.
+    clear H0. intros. rewrite 2 proj_frame.
+    apply sepcon_derives; trivial. simpl in *.
+    destruct rk;
+         [rename NORM into Hx; pose (ek:=RA_normal)
+         | rename BREAK into Hx; pose (ek:=RA_break)
+         | rename CONT into Hx ; pose (ek:=RA_continue)
+         | ]; simpl; try apply andp_derives; trivial.
+  + (*semax.guard_mono*) clear RG NORM BREAK CONT RET. 
+    apply (N te ve w Levw u WU).
+    split; trivial. split; trivial.
+    exists u1, u2; split3; trivial.
+Qed.
+
+(*Stolen from floyd.SperationLogicFacts.v*)
+Lemma semax_extract_prop:
+  forall {CS: compspecs} {Espec: OracleKind},
+  forall Delta (PP: Prop) (P:assert) c (Q:ret_assert),
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta (fun rho => !!PP && P rho) c Q.
+Proof.
+  intros.
+  eapply semax_pre with (fun rho => EX H: PP, P rho).
+  + intros. apply andp_left2.
+    apply derives_extract_prop; intros.
+    apply (exp_right H0), derives_refl.
+  + apply extract_exists_pre, H.
+Qed.
+
 Definition sig_of_funspec fs := match fs with mk_funspec sig _ _ _ _ _ _ => sig end.
 
 Lemma funspec_eq {sig cc A P Q P' Q' Pne Qne Pne' Qne'}:
@@ -3144,6 +3210,99 @@ Proof.
  destruct SB as [SB1 [SB2 SB3]].
  apply typesigs_match_typesigs_eq in Tsigs. subst sig'.
  split3; trivial. intros.
+ specialize (Sub ts x).
+ eapply semax_adapt
+ with
+  (Q'0:= frame_ret_assert (gfunction_body_ret_assert (fn_return f) (Q' ts x))
+           (stackframe_of f))
+  (P'0 := fun tau =>
+    EX vals:list val,
+    EX ts1:list Type, EX x1 : dependent_type_functor_rec ts1 A mpred,
+    EX FR: mpred,
+    !!(forall grv : genviron * list val,
+      !! tc_retval (snd sig) grv && (FR * Q ts1 x1 grv) |-- Q' ts x grv) && 
+      (stackframe_of f tau * FR * P ts1 x1 (ge_of tau, vals) &&
+            !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals))).
+ + intros omega m [TC [OM [m1 [m2 [JM [[vals [MAP HP']] M2]]]]]].
+   destruct (Sub (ge_of omega, vals) m1) as [ts1 [x1 [FR1 [M1 RetQ]]]]; clear Sub.
+   { split; trivial.
+     simpl; split.
+     + clear; do 2 red; intros. rewrite PTree.gempty in H; congruence.
+     + rewrite SB1. simpl in TC. destruct TC as [TC1 [TC2 TC3]].
+       unfold fn_funsig. simpl. clear - TC1 MAP LNR.
+     specialize (@tc_temp_environ_elim (fn_params f) (fn_temps f) _ LNR TC1). clear - MAP; intros TE.
+     forget (fn_params f) as params. generalize dependent vals.
+     induction params; simpl; intros.
+     - destruct vals; inv MAP. constructor.
+     - destruct vals; inv MAP. constructor.
+       * destruct (TE (fst a) (snd a)) as [w [W Tw]].
+           left; destruct a; trivial.
+         rewrite W in H0. inv H0. apply Tw.
+       * apply IHparams; trivial.
+         intros. apply TE. right; trivial. }
+    split; [ | simpl; trivial].
+    split; [ | simpl; trivial].
+    split; [ | simpl; trivial].
+    split; [| simpl; trivial].
+    exists vals, ts1, x1, FR1.
+    split3; trivial.
+    apply join_comm in JM. rewrite sepcon_assoc.
+    exists m2, m1; split3; trivial.
+  + clear Sub.
+    apply extract_exists_pre; intros vals.
+    apply extract_exists_pre; intros ts1.
+    apply extract_exists_pre; intros x1.
+    apply extract_exists_pre; intros FRM.
+    apply semax_extract_prop; intros QPOST.
+    unfold fn_funsig in *. simpl in SB2; rewrite SB2 in *. 
+    apply (semax_frame (func_tycontext f V G nil)
+      (fun rho : environ =>
+            gclose_precondition (map fst (fn_params f)) (P ts1 x1) rho * 
+            stackframe_of f rho)
+      (fn_body f)
+      (frame_ret_assert (gfunction_body_ret_assert (fn_return f) (Q ts1 x1)) (stackframe_of f))
+      (fun rho => FRM)) in SB3.
+    - eapply semax_pre_post.
+      6: apply SB3.
+      all: clear SB3; intros; simpl; try solve [normalize]. 
+      * intros m [M1 [[n1 [n2 [JN [N1 N2]]]] VALS]].
+        unfold gclose_precondition. apply join_comm in JN. rewrite sepcon_assoc.
+        exists n2, n1; split3; trivial.
+        exists vals. split; trivial.
+      * intros m [TC M].
+        destruct (fn_return f); 
+        try solve [rewrite sepcon_assoc in M; 
+                   rewrite predicates_sl.FF_sepcon in *; apply M].
+        rewrite sepcon_comm, <- sepcon_assoc in M.
+           eapply sepcon_derives; [ clear M | apply derives_refl | apply M].
+           eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
+           intros k K. simpl; apply I.
+      * apply andp_left2. intros u U.
+        rewrite sepcon_comm, <- sepcon_assoc in U.
+        eapply sepcon_derives; [ clear U | apply derives_refl | apply U].
+        destruct vl; simpl; normalize.
+        ++ eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
+           intros k K. simpl. red; simpl. split; trivial. red; intros; apply H.
+        ++ destruct (fn_return f). 
+           { eapply derives_trans; [ | apply QPOST]; apply andp_right; trivial.
+             intros k K. simpl; apply I. }
+           all: rewrite semax_lemmas.sepcon_FF; trivial. 
+    - do 2 red; intros; trivial.
+Qed.
+
+(*An alternative proof of the same result that uses semax_eq and may hence
+  be more difficult to transfer to floyd.SeparationLogicAsLogic.v*)
+Lemma semax_body_funspec_sub_plain {V G cs f i phi phi'} (SB: @semax_body V G cs f (i, phi))
+  (Sub: funspec_sub phi phi')
+  (LNR: list_norepet (map fst (fn_params f) ++ map fst (fn_temps f))):
+  @semax_body V G cs f (i, phi').
+Proof.
+ destruct phi as [sig cc A P Q Pne Qne].
+ destruct phi' as [sig' cc' A' P' Q' Pne' Qne'].
+ destruct Sub as [Tsigs [CC Sub]]; subst cc'. simpl in Sub.
+ destruct SB as [SB1 [SB2 SB3]].
+ apply typesigs_match_typesigs_eq in Tsigs. subst sig'.
+ split3; trivial. intros.
  rewrite semax_eq. intros m M.
  intros g Delta CS n MN Hn k NK BEL kont FRM fn l KL [CL RG] te e p LP q PQ HQ.
  destruct HQ as [[HQ1 HQ2] HQ3]. simpl in HQ1.
@@ -3221,7 +3380,6 @@ Proof.
      exists p2, u1; split3; trivial. clear V1 U1.
      red. simpl. exists vals. split; trivial.
 Qed.
-
 End semax_prog.
 
       (*
