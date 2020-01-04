@@ -229,8 +229,13 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                   b (unsigned ofs) vzero = Some m_release ->
         (* return to the new, transfered permissions*)
         forall new_perms Hlt',
-          (* Need to relate new_perms and dpm *)
-          new_perms = computeMap (getCurPerm m) dpm ->
+          (* Need to relate new_perms and dpm 
+             having them equiv is the same because,
+             by lemma [restrPermMap_access_equiv],
+             the restriction is the same.
+           *)
+          (*access_map_equiv new_perms (computeMap (getCurPerm m) dpm) ->*)
+           new_perms = computeMap (getCurPerm m) dpm ->
           m' = @restrPermMap new_perms m_release Hlt' ->
           acquire (Vptr b ofs) m dpm m'.
 
@@ -4082,14 +4087,11 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               subst rel_trace; econstructor; try eassumption.
               econstructor; eauto.
               rewrite RPM.
-              f_equal. subst virtueThread1.
+              subst virtueThread1.
               subst newThreadPerm1; simpl.
               unfold delta_map.
               eapply restrPermMap_access_equiv.
-              intros ?. extensionality ofs0.
-              do 2 rewrite computeMap_get.
-              match_case; auto.
-              rewrite Hthread_mem1; auto.
+              erewrite Hthread_mem1. reflexivity.
             } 
             assert (Hext_rel1: Events.external_call UNLOCK
                                                     (Clight.genv_genv Clight_g)
@@ -4807,8 +4809,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
 
 
             (** *0 . Simplifications to do outside the l emma*)
-
-            assert (Hext_rel1': extcall_acquire
+            
+            assert (Hext_acq1': extcall_acquire
                                   (Genv.globalenv (Ctypes.program_of_program C_program)) 
                                   (Vptr b1 ofs :: nil) m1
                                   (Events.Event_acq_rel lev1 (fst virtueThread1) lev1' :: nil)
@@ -4816,24 +4818,18 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             { inversion Hlock_update_mem_strict_load1; subst vload vstore.
               subst rel_trace; econstructor; try eassumption.
               econstructor; eauto.
-              subst newThreadPerm1; simpl.
-              Set Printing Implicit.
-              fold delta_map.
-              (* need to replace the way we construct virtue 1:
-                 do it by replacein thread_perms with (getCurperm m1')
-                 they are the same by hypothesis
-               *)
-              admit.
+              eapply restrPermMap_access_equiv; subst newThreadPerm1; simpl.
+              rewrite Hthread_mem1; reflexivity.
             } 
-            assert (Hext_rel1: Events.external_call LOCK
+            assert (Hext_acq1: Events.external_call LOCK
                                                     (Clight.genv_genv Clight_g)
                                                     (Vptr b1 ofs :: nil)
                                                     m1 rel_trace Vundef m1''').
             { simpl; rewrite AcquireExists.
               subst rel_trace dpm1; eauto. }
-            clear Hext_rel1'.
+            clear Hext_acq1'.
             
-            assert (Hext_rel2: extcall_acquire
+            assert (Hext_acq2: extcall_acquire
                                  Asm_g (Vptr b2 ofs2 :: nil) m2
                                  (Events.Event_acq_rel lev2 (fst virtueThread2)
                                                        lev2' :: nil)
@@ -4841,16 +4837,16 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             { inversion Hlock_update_mem_strict_load2; subst vload vstore.
               econstructor; eauto.
               subst m_writable_lock_1; econstructor.
-              3: { reflexivity. }
+              3: { eapply restrPermMap_access_equiv; subst new_cur2; simpl.
+                   rewrite Hthread_mem2; reflexivity. }
               - clear - Hstore.
                 move Hstore at bottom.
-                replace (unsigned ofs2) with (unsigned ofs + delta) by admit.
+                replace (unsigned ofs2) with (unsigned ofs + delta) by
+                    (subst ofs2; solve_unsigned).
                 eassumption.
               - subst new_cur2; simpl.
-                !goal (computeMap (thread_perms hb st2 Hcnt2) _ =
-                       computeMap (getCurPerm m2') _).
-                (* They are equiv but not equal... *)
-                admit. (* TODO*)
+                !goal (computeMap _ _ = computeMap _ _).
+                reflexivity.
             }
 
             
@@ -4864,7 +4860,19 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             - exact lock_doesnt_return.
             - reflexivity.
             - !goal(EventsAux.inject_delta_map _ _ _ ).
-              admit. (* by constructions the virtues inject*)
+              instantiate(1:=fst virtueThread2).
+              subst dpm1.
+              subst virtueThread2 virtueThread1; simpl.
+              remember (fst (virtueThread angel)) as virt.
+              eapply virtue_inject_bounded; eauto.
+              + eapply full_inject_dmap.
+                * eapply CMatch.
+                * eapply join_dmap_valid.
+                  subst virt.
+                  eapply Hangel_bound.
+              + subst virt; eapply Hangel_bound.
+              + eapply Hinj'0.
+              + eapply Hinj'0.
             - simpl; rewrite AcquireExists; eauto.
             - exploit (interference_consecutive_until Hinterference2).
               rewrite <- Hnb_eq; simpl; auto.
@@ -4882,16 +4890,16 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
 
           
         + !goal(lock_update _ st2 _ _ _ _ st2').
-          
           econstructor;
             subst st2' new_cur2 virtueLP2  ofs2;
             unfold fullThUpd_comp, fullThreadUpdate.
           repeat f_equal.
           * f_equal.
-            !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta);
-              admit.
+            !goal (unsigned (add ofs (repr delta)) = unsigned ofs + delta).
+            solve_unsigned.
           * simpl.
             !goal (pair0 empty_map = virtueLP_inject _ mu (empty_map, empty_map)).
+            
             admit. (*These are equivalente but not equal... 
                        since they will have the shape of m2''
                     *)
