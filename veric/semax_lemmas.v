@@ -619,7 +619,183 @@ split; auto.
 split; auto.
 Qed.
 
+(*TODO: unify with semax_conseq, add to SeparationLogic interface, 
+  derive inductively in SpearationLogicAsLogic*)
+Lemma semax_adapt_frame {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
+                        !!(forall rho, RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'):
+   @semax cs Espec Delta P c Q.
+Proof.
+  intros.
+  assert (semax' Espec Delta P' c Q' |-- semax' Espec Delta P c Q);
+    [ | exact (fun n => H0 n (SEM n))].
+  rewrite semax_fold_unfold.
+  apply allp_derives; intros gx.
+  apply allp_derives; intros Delta'.
+  apply allp_derives; intros CS'.
+  apply prop_imp_derives; intros [HDelta _].
+  apply imp_derives; auto.
+  apply allp_derives; intros k.
+  apply allp_right; intros F.
+  apply allp_right; intros f.
+  intros n Hn m NM RG te ve w Levw u WU [[Grd FP] U].
+  simpl in Grd. red in Grd.
+  destruct FP as [u1 [u2 [JU [U1 U2]]]].
+  specialize (H (construct_rho (filter_genv gx) ve te) u2).
+  spec H. 
+  { split3; trivial. 
+    - eapply typecheck_environ_sub. eassumption. apply Grd.
+    - eapply funassert_allp_fun_id_sub. eassumption.
+      specialize (corable_funassert Delta' (construct_rho (filter_genv gx) ve te)).
+      rewrite corable_spec. apply join_comm in JU. apply join_core in JU.
+      intros X. eapply X; [ symmetry; apply JU | apply U] . }
+  destruct H as [FR H]. rewrite ! andp_assoc in H.
+  destruct H as [CLF [H [NORM [BREAK [CONT RET]]]]]. 
+  specialize (Hn (fun rho => sepcon (F rho) (FR rho)) f m NM).
+  spec Hn.
+  { clear - RG NORM BREAK CONT RET CLF. destruct RG as [RG1 RG2].
+    simpl in RG1, CLF.
+    split. 
+    + simpl. do 2 red; intros.
+      rewrite (RG1 rho te' H), (CLF rho te' H); trivial.
+    + intros ek vl te1 e1 a MA d AD [[D1 D2] D3].
+      apply (RG2 ek vl te1 e1 a MA d AD).
+      split; trivial. split; trivial.
+      clear - D2  NORM BREAK CONT RET. rewrite proj_frame in *. rewrite sepcon_assoc in D2. 
+      eapply sepcon_derives; [ apply derives_refl | | apply D2].
+      simpl in NORM, BREAK, CONT, RET.
+      destruct ek; simpl; intros r; intros.
+      - clear - NORM H. 
+        specialize (NORM (construct_rho (filter_genv gx) e1 te1) r).
+        destruct Q, Q'; simpl in H, NORM; simpl.
+        destruct H as [r1 [r2 [Jr [R1 [VL R2]]]]]. split; trivial.
+        apply NORM. apply join_comm in Jr. exists r2, r1; split3; trivial.
+      - clear - BREAK H. 
+        specialize (BREAK (construct_rho (filter_genv gx) e1 te1) r).
+        destruct Q, Q'; simpl in H, BREAK; simpl.
+        destruct H as [r1 [r2 [Jr [R1 [VL R2]]]]]. split; trivial.
+        apply BREAK. apply join_comm in Jr. exists r2, r1; split3; trivial.
+      - clear - CONT H.
+        specialize (CONT (construct_rho (filter_genv gx) e1 te1) r).
+        destruct Q, Q'; simpl in H, CONT; simpl.
+        destruct H as [r1 [r2 [Jr [R1 [VL R2]]]]]. split; trivial.
+        apply CONT. apply join_comm in Jr. exists r2, r1; split3; trivial.
+      - clear - RET H.
+        specialize (RET vl (construct_rho (filter_genv gx) e1 te1) r).
+        destruct Q, Q'; simpl in H, RET; simpl.
+        destruct H as [r1 [r2 [Jr [R1 R2]]]].
+        apply RET. apply join_comm in Jr. exists r2, r1; split3; trivial. }
+   clear RG CLF NORM BREAK CONT RET U2.
+   apply (Hn te ve w Levw _ WU). clear Hn. 
+   split; trivial.
+   split. apply Grd. rewrite sepcon_assoc. rewrite sepcon_comm in H.
+   exists u1, u2; split3; trivial.
+Qed.
+
+Lemma semax_adapt {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- (P' rho &&
+                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'):
+   @semax cs Espec Delta P c Q.
+Proof.
+  intros. eapply semax_adapt_frame; eauto. intros. exists (fun rho => emp).
+  apply H in H0; clear H.
+  destruct H0 as [[[[HP' NORM] BREAK] CONT] RET]. simpl in NORM, BREAK, CONT, RET.
+  rewrite sepcon_emp. repeat split; auto; simpl; intros.
+  + eapply derives_trans; [ | apply NORM]; clear.
+    destruct Q'; simpl; rewrite sepcon_emp; trivial.
+  + eapply derives_trans; [ | apply BREAK]; clear.
+    destruct Q'; simpl; rewrite sepcon_emp; trivial.
+  + eapply derives_trans; [ | apply CONT]; clear.
+    destruct Q'; simpl; rewrite sepcon_emp; trivial.
+  + eapply derives_trans; [ | apply RET]; clear.
+    destruct Q'; simpl; rewrite sepcon_emp; trivial.
+Qed.
+
+(*Lemma semax_adapt_explicit_proof: -- needs rguardmono, so can only
+be proven in semax_conseq:
+ forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)(*
+                   |-- (P' rho &&
+                        !!(forall rho,  !!(typecheck_environ Delta rho) && 
+                                           (allp_fun_id Delta rho && (RA_normal Q' rho))
+                                         |-- RA_normal Q rho) &&
+                        !!(forall rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && (RA_break Q' rho))
+                                      |-- RA_break Q rho) &&
+                        !!(forall rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && (RA_continue Q' rho))
+                                      |-- RA_continue Q rho) &&
+                        !!(forall vl rho, !! (typecheck_environ Delta rho) && (allp_fun_id Delta rho && (RA_return Q' vl rho))
+                                      |-- RA_return Q vl rho)))*)
+                   |-- (P' rho &&
+                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'),
+   @semax cs Espec Delta P c Q.
+Proof.
+  intros.
+  assert (semax' Espec Delta P' c Q' |-- semax' Espec Delta P c Q);
+    [ | exact (fun n => H0 n (SEM n))].
+  rewrite semax_fold_unfold.
+  apply allp_derives; intros gx.
+  apply allp_derives; intros Delta'.
+  apply allp_derives; intros CS'.
+  apply prop_imp_derives; intros [HDelta _].
+  apply imp_derives; auto.
+  apply allp_derives; intros k.
+  apply allp_derives; intros F.
+  apply allp_derives; intros f. 
+  intros n N m NM RG te ve w Levw u WU [[Grd FP] U].
+  simpl in Grd. red in Grd.
+  destruct FP as [u1 [u2 [JU [U1 U2]]]].
+  exploit (H (construct_rho (filter_genv gx) ve te) u2); clear H.
+  { split3; trivial. 
+    - eapply typecheck_environ_sub. eassumption. apply Grd.
+    - eapply funassert_allp_fun_id_sub. eassumption.
+      specialize (corable_funassert Delta' (construct_rho (filter_genv gx) ve te)).
+      rewrite corable_spec. apply join_comm in JU. apply join_core in JU.
+      intros X. eapply X; [ symmetry; apply JU | apply U] . }
+
+  intros [[[[HP' NORM] BREAK] CONT] RET].
+  specialize (N m NM); spec N.
+  + clear N. destruct RG. split; trivial. 
+
+    eapply rguard_mono. 2: apply H0.
+    clear H0. intros. rewrite 2 proj_frame.
+    apply sepcon_derives; trivial. simpl in *.
+    destruct rk;
+         [rename NORM into Hx; pose (ek:=RA_normal)
+         | rename BREAK into Hx; pose (ek:=RA_break)
+         | rename CONT into Hx ; pose (ek:=RA_continue)
+         | ]; simpl; try apply andp_derives; trivial.
+  + clear RG NORM BREAK CONT RET. 
+    apply (N te ve w Levw u WU).
+    split; trivial. split; trivial.
+    exists u1, u2; split3; trivial.
+Qed.*)
+
+
 Lemma semax_frame {CS: compspecs} {Espec: OracleKind}:  forall Delta P s R F,
+   closed_wrt_modvars s F ->
+  semax Espec Delta P s R ->
+    semax Espec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).
+Proof. intros.
+  eapply semax_adapt_frame; [ clear H0 | apply H0]; intros.
+  exists F.
+  repeat split; try solve [simpl; trivial]. apply H0.
+Qed.
+
+Goal (*semax_frame_explicit_proof*) forall {CS: compspecs} {Espec: OracleKind},  forall Delta P s R F,
    closed_wrt_modvars s F ->
   semax Espec Delta P s R ->
     semax Espec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).
