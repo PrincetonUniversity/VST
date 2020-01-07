@@ -171,6 +171,25 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
       
     
     Section ConcurMatch. (* 360 *)
+      Definition option_map_prop := 
+      fun {A B : Type} (f : A -> B -> Prop) (x : option A) (y : option B) =>
+        match x,y with
+        | Some x', Some y'  => f x' y'
+        | None, None => True
+        | _, _ => False
+        end.
+      Definition access_map_equiv_pair:= pair2_prop access_map_equiv.
+      Lemma equivlance_pair:
+        forall A (r: relation A), Equivalence r ->
+                             Equivalence (pair2_prop r).
+      Proof.
+        intros. inv H.
+        econstructor; hnf; solve_pair; eauto.
+      Qed.
+      Global Instance access_map_equiv_pair_alence : Equivalence access_map_equiv_pair.
+      Proof. eapply equivlance_pair, access_map_equiv_Equivalence. Qed.
+        
+                             
       Record concur_match (ocd: option compiler_index)
              (j:meminj) (cstate1: ThreadPool (Some hb)) (m1: Mem.mem) (cstate2: ThreadPool(Some (S hb))) (m2: mem):=
         { same_length: num_threads cstate1 = num_threads cstate2
@@ -197,12 +216,23 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
                 Mem.inject j
                            (@restrPermMap (snd (ThreadPool.getThreadR cnt1)) m1 Hlt1)
                            (@restrPermMap (snd (ThreadPool.getThreadR cnt2)) m2 Hlt2)
-          ; INJ_lock_permissions:
-              forall b b' delt opt_rmap,
+          ; writable_locks:
+              forall b ofs rec1, lockRes cstate1 (b, ofs) = Some rec1 ->
+                            Mem.perm m1 b ofs Max Writable
+          ; INJ_lock_permissions_image:
+              forall b b' delt,
                 j b = Some (b', delt) ->
-                forall ofs, lockRes cstate1 (b, unsigned ofs) = opt_rmap ->
-                       lockRes cstate2 (b', unsigned (add ofs (repr delt))) =
-                       (option_map (virtueLP_inject m2 j) opt_rmap)
+                forall ofs rec1, lockRes cstate1 (b, ofs) = Some rec1 ->
+                       exists rec2,
+                         lockRes cstate2 (b', ofs + delt) = Some rec2 /\
+                         access_map_equiv_pair (virtueLP_inject m2 j rec1) rec2            
+          ; INJ_lock_permissions_preimage:
+              forall b2 ofs_delt rec2, lockRes cstate2 (b2, ofs_delt) = Some rec2 ->
+                       exists rec1 b1 ofs delt,
+                         j b1 = Some (b2, delt) /\
+                         lockRes cstate1 (b1, ofs) = Some rec1 /\
+                         (pair2_prop access_map_equiv) (virtueLP_inject m2 j rec1) rec2 /\
+                         ofs_delt = ofs + delt          
           ; INJ_lock_content:
               forall b ofs rmap,
                 lockRes cstate1 (b, ofs) = Some rmap ->
@@ -253,18 +283,29 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           forall b b' delt rmap,
             j b = Some (b', delt) ->
             forall ofs, lockRes cstate1 (b, unsigned ofs) = Some rmap ->
-                   lockRes cstate2 (b', unsigned (add ofs (repr delt))) =
-                   Some ( (virtueLP_inject m2 j) rmap).
-      Proof. intros. eapply INJ_lock_permissions in H1; eauto. Qed.
+                   exists X, lockRes cstate2 (b', unsigned ofs + delt) =
+                        Some  X /\
+                        pair2_prop access_map_equiv X
+                                   ((virtueLP_inject m2 j) rmap).
+      Proof. intros. eapply INJ_lock_permissions_image in H1; eauto.
+             destruct H1 as (?&?&?&?); simpl in *.
+             eexists; split; try eassumption.
+             split; simpl; symmetry; eauto.
+      Qed.
       
-      Lemma INJ_lock_permissions_None:
+      (*
+        THIS LEMMA WAS WRONG. Becasue a different lock can map to that location.
+        There is a correct version, backwards, probably don't need it.
+        Lemma INJ_lock_permissions_None:
         forall ocd j cstate1 m1 cstate2 m2,
           concur_match ocd j cstate1 m1 cstate2 m2 -> 
           forall b b' delt,
             j b = Some (b', delt) ->
             forall ofs, lockRes cstate1 (b, unsigned ofs) = None ->
                    lockRes cstate2 (b', unsigned (add ofs (repr delt))) = None.
-      Proof. intros. eapply INJ_lock_permissions in H1; eauto. Qed.
+      Proof. intros. eapply INJ_lock_permissions in H1; eauto.
+             hnf in H1; match_case in H1.
+      Qed. *)
       Lemma virtueLP_inject_max_eq:
         forall m m' mu AA,
           getMaxPerm m = getMaxPerm m' ->
@@ -372,7 +413,10 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             erewrite <- (restrPermMap_idempotent _ _ Hlt1),
             <- (restrPermMap_idempotent _ _ Hlt2)).
           eapply INJ_locks0. 
-          
+        - intros *; erewrite restr_Max_equiv.
+          apply writable_locks0.
+        - erewrite virtueLP_inject_max_eq_exteny. eauto.
+          eapply getMax_restr_eq.
         - erewrite virtueLP_inject_max_eq_exteny; eauto.
           eapply getMax_restr_eq.
         - simpl; intros.
@@ -745,7 +789,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             (Hcontent_almost_equiv: content_almost_same m m' adr)
             (Hnew_val: get_vals_at m' adr = v)
             (Hcur_equiv: Cur_equiv m m')
-            (Hmax_equiv: Max_equiv m m')
+            (Hmax_equiv: getMaxPerm m = getMaxPerm m')
             (Hmax_wrt: max_valid_perm m AST.Mint32 (fst adr) (snd adr) Writable)
             (*Hmax_wrt: Mem.perm m (fst adr) (snd adr) Max Writable *)
             (Hnb_equiv: Mem.nextblock m = Mem.nextblock m'),
@@ -1028,7 +1072,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
       Proof.
         intros. inv H; econstructor; auto.
         - unfold Cur_equiv. do 2 rewrite getCur_restr; assumption.
-        - unfold Max_equiv. do 2 rewrite getMax_restr; assumption.
+        - unfold Max_equiv. do 2 rewrite getMax_restr_eq; assumption.
         - rewrite restr_Max_equiv; assumption.
       Qed.
       Lemma max_equiv_restr:
@@ -1093,6 +1137,15 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           rewrite restr_Max_equiv; simpl in *.
           eapply Mem.perm_implies; eauto. constructor.
       Qed.
+      Lemma neq_prod:
+              forall A B (a a':A) (b b': B),
+                (a,b) <> (a',b') ->
+                (a <> a') \/ (a = a' /\ b <> b').
+            Proof.
+              intros; destruct (Classical_Prop.classic (a=a')); auto.
+              subst. right; split; eauto; intros HH; apply H; eauto.
+            Qed.
+            
       Lemma concur_match_update_lock:
         forall i f ocd st1 m1 st2 m2,
           concur_match ocd f st1 m1 st2 m2 ->
@@ -1124,21 +1177,25 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             (Hval_inj: Forall2 (memval_inject f) v1 v2),
           forall lock_perms1
             (cnt1 : containsThread st1 i)
-            (cnt2 : containsThread st2 i),
+            (cnt2 : containsThread st2 i) pmap
+            (Hpmap_equiv: access_map_equiv_pair (virtueLP_inject m2' f lock_perms1) pmap),
             lock_update i st1 (b_lock1,ofs_lock) (th_perms1,th_lock_perms1)
                         lock_perms1 c1 st1' ->
             lock_update i st2 (b_lock2,ofs_lock+delta) (th_perms2,th_lock_perms2)
-                        (virtueLP_inject m2' f lock_perms1) c2 st2' ->
+                        pmap c2 st2' ->
             concur_match ocd' f st1' m1' st2' m2'.
       Proof.
-        intros.
+        intros. 
         
         assert (Hsame_lenght1: num_threads st1 = num_threads st1').
         { inv H0; reflexivity. }
         assert (Hsame_lenght2: num_threads st2 = num_threads st2').
         { inv H1; reflexivity. }
+        
+        repeat destruct_lock_update_getters.
+        assert (Hmax_equiv0': Max_equiv m1 m1').
+        { intros ?; rewrite Hmax_equiv0; auto. }
 
-        repeat destruct_lock_update_getters. 
         eapply Build_concur_match; simpl; eauto.
         - rewrite <- Hsame_lenght1, <- Hsame_lenght2; apply H.
         - !goal(Events.injection_full _ _ ).
@@ -1155,7 +1212,9 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           + !context_goal  Mem.inject.
             intros; simpl in *.
             eapply injection_update_restrict; 
-              eauto; simpl; eauto; try solve [econstructor; eauto].
+              eauto; simpl; eauto; try solve [econstructor; eauto];
+            try solve[ econstructor; eauto;
+                       intros ?; first [rewrite Hmax_equiv0 | rewrite Hmax_equiv]; auto].
             intros.
             eapply mem_inject_equiv;
               try eapply INJ_threads; try reflexivity;
@@ -1163,14 +1222,14 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
                   try reflexivity; simpl.
             erewrite gto0; eauto; reflexivity.
             erewrite gto; eauto; reflexivity.
-
-            
         - intros i0 ??; destruct (Nat.eq_dec i i0); subst.
           + lock_update_rewrite; simpl.
             intros. unify_proofs. assumption. 
           + intros; simpl in *.
             eapply injection_update_restrict; 
-              eauto; simpl; eauto; try solve [econstructor; eauto].
+              eauto; simpl; eauto; try solve [econstructor; eauto];
+            try solve[ econstructor; eauto;
+                       intros ?; first [rewrite Hmax_equiv0 | rewrite Hmax_equiv]; auto].
             intros.
             eapply mem_inject_equiv;
               try eapply INJ_locks; try reflexivity;
@@ -1178,29 +1237,67 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
                   try reflexivity; simpl.
             erewrite gtlo0; eauto; reflexivity.
             erewrite gtlo; eauto; reflexivity.
-
-        - intros until ofs.
+        - intros *.
+          rewrite  <- Hmax_equiv0'.
+          destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [e|n].
+          + inv e; intros _.
+            eapply Hmax_wrt0; eauto. simpl; omega.
+          + simpl in *; rewrite glo0; auto.
+            eapply writable_locks; eauto. 
+        - intros until rec1.
           lock_update_rewrite; simpl.
-          (* TODO: Change INJ_lock_permissions 
-               1. it is wrong:
-                  If two blocks point to the same one (f b1 = f b1' = Some (b2, _))
-                  and one of them is a lock (lockres st1 b1 = Some _) then the other isnt,
-                  and INJ_permissions is contradicting (lockres st1 b2 = Some _ = None)
-               2. Need to rewrite it in two parts: 
-                  If lockres st1 l1 = Some -> lockres st2 l2 = Some
-                  and
-                  If lockres st2 l2 = Some -> lockres st1 l1 = Some
-           *)
-          replace (unsigned (add ofs (repr delt))) with (unsigned ofs + delt).
-          2: { admit. }
-          destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, unsigned ofs) ).
-          + inv e. unify_injection.
-            lock_update_rewrite.
-            intros HH; inv HH; reflexivity.
-          + lock_update_rewrite.
-            rewrite glo; auto.
-            * admit.
-            * admit.
+          destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [e|n].
+          2: exploit neq_prod; try eassumption; intros [?| [? ?]]; swap 1 2.
+          + inv e. rewrite gls0. intros HH; inv HH. unify_injection.
+            rewrite gls; eexists; split; try reflexivity.
+            auto.
+          + subst; rewrite glo0 by assumption. unify_injection.
+            intros HH; eapply INJ_lock_permissions_image in HH as
+                (?&?&?); try eassumption.
+            eexists; split.
+            2: now (erewrite virtueLP_inject_max_eq_exteny; eauto).
+            rewrite glo; eauto.
+            intros HH; inv HH.
+            eapply H2; clear - H5. omega.
+          + subst; rewrite glo0 by assumption.
+            intros HH.
+            move Hinj_lock at bottom.
+            destruct (peq b' b_lock2); swap 1 2.
+            * erewrite <- virtueLP_inject_max_eq_exteny; try eassumption.
+              rewrite glo. eapply INJ_lock_permissions_image; eauto.
+              intros Hcontra; apply n0; inv Hcontra; eauto.
+            * subst.
+              
+              assert (Mem.perm (restrPermMap Hlt1) b_lock1 ofs_lock Max Nonempty).
+              {  rewrite restr_Max_equiv,  <- Hmax_equiv0'; eapply Mem.perm_implies;
+                   [eapply Hmax_wrt0| constructor]; simpl; omega. }
+              assert (Mem.perm (restrPermMap Hlt1) b ofs Max Nonempty).
+              {  rewrite restr_Max_equiv , <- Hmax_equiv0'; eapply Mem.perm_implies.
+                 eapply writable_locks; eauto. constructor. }
+              
+              exploit Mem.mi_no_overlap; try eapply Hinj_perms;
+                try eassumption.
+
+              intros. destruct H5 as [H5|H5]; try now (contradict H5; eauto).
+              
+              erewrite glo by ( intros AA; inv AA; auto).
+              erewrite <- virtueLP_inject_max_eq_exteny; try eassumption.
+              eapply INJ_lock_permissions_image; eauto.
+        - intros *; simpl in *.
+          destruct (addressFiniteMap.AMap.E.eq_dec (b_lock2, ofs_lock + delta) (b2, ofs_delt) ) as [e|n]. 
+          + inv e.
+            rewrite gls.
+            intros HH;inv HH; do 4 econstructor.
+            repeat (split; eauto; simpl).
+          + erewrite glo; auto.
+            intros HH; eapply INJ_lock_permissions_preimage in HH as
+                (?&?&?&?&?&?&?&?); try eassumption.
+            do 5 econstructor; eauto.
+            split; swap 1 2.
+            split; eauto; simpl.
+            erewrite <- virtueLP_inject_max_eq_exteny; eassumption.
+            rewrite glo0; eauto.
+            intros HH; inv HH. unify_injection; auto.
         - !context_goal inject_lock.
           intros.
           destruct (addressFiniteMap.AMap.E.eq_dec (b,ofs) (b_lock1, ofs_lock)).
