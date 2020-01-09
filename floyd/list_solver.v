@@ -243,7 +243,7 @@ Ltac fassumption :=
   first
   [ assumption
   | match goal with
-    | H : _ |- _ => fapply H; repeat f_equal; match goal with |- (_ = _)%Z => idtac end; Zlength_solve
+    | H : _ |- _ => fapply H; repeat f_equal; match goal with |- @eq Z _ _ => idtac end; Zlength_solve
     end
   ].
 
