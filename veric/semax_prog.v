@@ -358,16 +358,23 @@ Qed.
 
 (* nil as first argument??
 Definition main_pre_old {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
-(fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).*)
+(fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).*)(*
 Definition main_pre_old {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
 (fun ts gv rho => !!(ts=nil) && globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition main_pre {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> gassert :=
-(fun ts gv gvals => !!(ts=nil) && gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
+(fun ts gv gvals => !!(ts=nil) && gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).*)
 
-Lemma main_pre_conversion {Z prog ora ts ids gv}:
-      gassert2assert ids (@main_pre Z prog ora ts gv) =
-      @main_pre_old Z prog ora ts gv.
+
+Definition main_pre_old {Z} (prog: program) (ora: Z) : (ident->val) -> assert :=
+(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+
+Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> gassert :=
+(fun gv gvals =>  gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
+
+Lemma main_pre_conversion {Z prog ora ids gv}:
+      gassert2assert ids (@main_pre Z prog ora gv) =
+      @main_pre_old Z prog ora gv.
 Proof.
   unfold main_pre, main_pre_old. erewrite <- gg4. instantiate(1:=ids).
   extensionality rho. unfold gassert2assert. apply pred_ext; normalize.
@@ -378,50 +385,50 @@ Definition Tint32s := Tint I32 Signed noattr.
 (* nil as first argument???
 Definition main_post_old (prog: program) : list Type -> (ident->val) -> assert :=
 (fun nil _ _ => TT).*)
-
+(*
 Definition main_post_old (prog: program) : list Type -> (ident->val) -> assert :=
 (fun ts _ _ => !!(ts=nil) && TT).
 
 Definition main_post (prog: program) : list Type -> (ident->val) -> gassert :=
-(fun ts _ _ => !!(ts=nil) && TT).
+(fun ts _ _ => !!(ts=nil) && TT).*)
 
-Lemma main_post_conversion {prog ts gv}:
-      gassert2assert nil (@main_post prog ts gv) = @main_post_old prog ts gv.
+Definition main_post_old (prog: program) : (ident->val) -> assert :=
+(fun _ _ => TT).
+
+Definition main_post (prog: program) : (ident->val) -> gassert :=
+(fun _ _ => TT).
+
+Lemma main_post_conversion {prog gv}:
+      gassert2assert nil (@main_post prog gv) = @main_post_old prog gv.
 Proof. 
   unfold main_post, main_post_old. 
   extensionality rho. unfold gassert2assert. apply pred_ext; normalize.
 Qed.
 
-Lemma main_pre_vals_irrel {Z prog ora ts gv g vals1 vals2}:
-      @main_pre Z prog ora ts gv (g, vals1) =
-      @main_pre Z prog ora ts gv (g, vals2).
+Lemma main_pre_vals_irrel {Z prog ora gv g vals1 vals2}:
+      @main_pre Z prog ora gv (g, vals1) =
+      @main_pre Z prog ora gv (g, vals2).
 Proof. unfold main_pre; erewrite gglobvars2pred_vals_irrel; trivial. Qed.
 
-Lemma main_post_vals_irrel {prog ts gv g vals1 vals2}: 
-      main_post prog ts gv (g, vals1) = main_post prog ts gv (g, vals2).
+Lemma main_post_vals_irrel {prog gv g vals1 vals2}: 
+      main_post prog gv (g, vals1) = main_post prog gv (g, vals2).
 Proof. reflexivity. Qed.
 
 Definition main_spec_ext' {Z} (prog: program) (ora: Z)
-(post: list Type -> (ident->val) -> (genviron * list val) ->pred rmap): Newfunspec :=
-mk_Newfunspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre prog ora) post
- (const_args_super_non_expansive _ _) (const_args_super_non_expansive _ _).
+(post: (ident->val) -> (genviron * list val) ->pred rmap): Newfunspec :=
+NDmk_Newfunspec (nil, tint) cc_default (ident->val)
+ (main_pre prog ora) post.
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): Newfunspec :=
-mk_Newfunspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre prog ora) (main_post prog)
-   (const_args_super_non_expansive _ _) (const_args_super_non_expansive _ _).
+NDmk_Newfunspec (nil, tint) cc_default (ident->val)
+   (main_pre prog ora) (main_post prog).
 
 Definition main_spec_ext_old' {Z} (prog: program) (ora: Z)
-(post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
-mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre_old prog ora) post
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+(post: (ident->val) -> environ ->pred rmap): funspec :=
+NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre_old prog ora) post.
 
 Definition main_spec_ext_old (prog: program) (ora: OK_ty): funspec :=
-mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre_old prog ora) (main_post_old prog)
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre_old prog ora) (main_post_old prog).
 
 Lemma main_spec_ext_o2i {prog ora}: 
   o2i (main_spec_ext prog ora) nil = main_spec_ext_old prog ora.
@@ -444,25 +451,28 @@ Proof.
     unfold gassert2assert. simpl. rewrite ge_of_mkEnv.
     apply main_post_vals_irrel.
 Qed.
+Check o2i.
+Check main_spec_ext_old'.
 
 Lemma main_spec_ext'_o2i {Z prog ora post}:
   o2i (@main_spec_ext' Z prog ora post) nil
-  = main_spec_ext_old' prog ora 
-         (fun ts => @ArgsTT2AssertTT (ConstType (ident -> val)) (ret_temp :: nil) post ts).
+  = main_spec_ext_old' prog ora (fun r => gassert2assert (ret_temp :: nil) (post r)).
 Proof.
   apply funspec_eq; extensionality ts; extensionality gv; trivial.
-  erewrite <- main_pre_conversion. instantiate(1:=nil); reflexivity.
+  erewrite <- main_pre_conversion.
+  extensionality rho. instantiate(1:=nil); reflexivity.
 Qed.
 
 Lemma main_spec_ext'_i2o {Z prog ora post}: 
   i2o (@main_spec_ext_old' Z prog ora post)
-  =  main_spec_ext' prog ora (fun ts => @AssertTT2ArgsTT (ConstType (ident -> val)) (ret_temp :: nil) post ts).
+  =  main_spec_ext' prog ora (fun r => (assert2gassert (ret_temp :: nil) (post r))).
 Proof. 
-  apply Newfunspec_eq; extensionality ts; extensionality gv; simpl in gv; trivial.
-  extensionality gvals. destruct gvals as [g vals]. simpl in *.
+  apply Newfunspec_eq; extensionality ts; extensionality gv; simpl in gv.
+ + extensionality gvals. destruct gvals as [g vals]. simpl in *.
   erewrite <- main_pre_conversion. instantiate (1:= nil).
   unfold gassert2assert. simpl. rewrite ge_of_mkEnv.
   apply main_pre_vals_irrel.
+ + extensionality gvals. destruct gvals as [g vals]; trivial.
 Qed.
 
 Definition is_Internal (prog : program) (f : ident) :=

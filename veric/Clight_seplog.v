@@ -472,6 +472,9 @@ Qed.
 Definition mkEnv g ids vals : environ := 
       make_args ids vals (mkEnviron g (Map.empty (block * type)) (Map.empty val)).
 
+(*NEW*) Definition assert2gassert (ids: list ident) (M:assert):gassert :=
+fun gv => M (mkEnv (fst gv) ids (snd gv)).
+
 Definition ArgsTT2AssertTT {A} (ids:list ident) (P: forall ts : list Type,
                         functors.MixVariantFunctor._functor
                           (rmaps.dependent_type_functor_rec ts
@@ -590,3 +593,23 @@ Lemma cp_i2o {A P ts x l params temps rho}
         (@ArgsTT2AssertTT A l P ts x) rho
 |-- gclose_precondition (map fst params) (P ts x) rho.
 Proof. eapply cp_i2o_aux; eassumption. Qed.
+
+Lemma gclose_gassert al P rho: gclose_precondition al P rho |-- 
+      (!!(map (Map.get (te_of rho)) al = map Some (map (fun i => eval_id i rho) al)) 
+          && gassert2assert al P rho).
+Proof. unfold gclose_precondition, gassert2assert. intros u [vals [U1 U2]].
+assert (vals = map (fun i : ident => eval_id i rho) al).
+{ clear -U1. generalize dependent vals.
+  induction al; simpl; intros; destruct vals; inv U1; trivial.
+  rewrite (IHal _ H1). f_equal. unfold eval_id; rewrite H0. simpl; trivial. }
+  simpl in U1.
+rewrite <- H. split; trivial.
+Qed.
+
+Lemma gclose_gassert_inv al P rho: 
+  (!!(map (Map.get (te_of rho)) al = map Some (map (fun i => eval_id i rho) al)) 
+   && gassert2assert al P rho)
+ |-- gclose_precondition al P rho.
+Proof. unfold gclose_precondition, gassert2assert. intros u [U1 U2].
+exists (map (fun i : ident => eval_id i rho) al). split; trivial.
+Qed.

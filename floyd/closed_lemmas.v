@@ -809,18 +809,70 @@ revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
 Qed.
 Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 
+Lemma closed_wrt_gglobvars:
+  forall S gv v r, closed_wrt_vars S 
+    (fun rho => gglobvars2pred gv v
+                   (ge_of rho, map (fun i : ident => eval_id i rho) r)).
+Proof.
+intros.
+unfold gglobvars2pred.
+hnf; intros. unfold glift2. f_equal. simpl.
+induction v; simpl map; auto with closed.
+simpl.
+f_equal; auto.
+unfold gglobvar2pred; destruct a; simpl.
+destruct (gvar_volatile g) eqn:?; auto.
+forget (readonly2share (gvar_readonly g)) as sh.
+forget (gv i) as j.
+revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
+Qed.
 
-Lemma closed_wrt_main_pre:
-  forall {Z} prog (z : Z) u v S, closed_wrt_vars S (main_pre prog z u v).
+Lemma closed_wrtl_gglobvars:
+  forall S gv v r, closed_wrt_lvars S 
+    (fun rho => gglobvars2pred gv v
+                   (ge_of rho, map (fun i : ident => eval_id i rho) r)).
 Proof.
-intros. unfold main_pre. apply closed_wrt_sepcon; [apply closed_wrt_globvars | apply closed_wrt_const].
+intros.
+unfold gglobvars2pred.
+hnf; intros. unfold glift2. f_equal.
 Qed.
+Hint Resolve closed_wrt_gglobvars closed_wrtl_gglobvars: closed.
+
+Lemma closed_wrt_main_pre {Z} prog (z:Z) v r S:
+  closed_wrt_vars S
+  (fun rho : environ =>
+   main_pre prog z v 
+     (pair (ge_of rho) (map (fun i : ident => eval_id i rho) r))).
+Proof.
+intros. unfold main_pre. apply closed_wrt_sepcon;[ | apply closed_wrt_const].
+apply closed_wrt_gglobvars.
+Qed.
+
 Lemma closed_wrtl_main_pre:
-  forall {Z} prog (z : Z) u v S, closed_wrt_lvars S (main_pre prog z u v).
+  forall {Z} prog (z : Z) v r S, closed_wrt_lvars S (fun rho : environ =>
+   main_pre prog z v 
+     (pair (ge_of rho) (map (fun i : ident => eval_id i rho) r))).
 Proof.
-intros. unfold main_pre. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
+intros. unfold main_pre. apply closed_wrtl_sepcon; [ | apply closed_wrtl_const].
+red; intros. f_equal.
 Qed.
-Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre : closed.
+
+Lemma closed_wrt_main_pre_old:
+  forall {Z} prog (z : Z) v S, closed_wrt_vars S (semax_prog.main_pre_old prog z v).
+Proof.
+intros. unfold semax_prog.main_pre_old. apply closed_wrt_sepcon; [(*apply closed_wrt_globvars*) | apply closed_wrt_const].
+eapply closed_wrt_globvars.
+Qed.
+
+Lemma closed_wrtl_main_pre_old:
+  forall {Z} prog (z : Z) v S, closed_wrt_lvars S (semax_prog.main_pre_old prog z v).
+Proof.
+intros. unfold semax_prog.main_pre_old. apply closed_wrtl_sepcon; [(*apply closed_wrtl_globvars*) | apply closed_wrtl_const].
+eapply closed_wrtl_globvars.
+Qed.
+
+Hint Resolve closed_wrt_main_pre_old closed_wrtl_main_pre_old 
+             closed_wrt_main_pre closed_wrtl_main_pre: closed.
 
 Lemma closed_wrt_not1:
   forall (i j: ident),

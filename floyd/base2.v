@@ -24,26 +24,26 @@ Definition cc_of_fundef (fd: Clight.fundef) : calling_convention :=
  | External _ _ _ c => c
  end.
 
+(*REMOVED
 Definition funsig_of_fundef (fd: Clight.fundef) : funsig :=
  match fd with
  | Internal {| fn_return := fn_return; fn_params := fn_params |} =>
     (fn_params, fn_return)
  | External _ t t0 _ => (arglist 1 t, t0)
+ end.*)
+(*NEW*)
+
+Definition typesig_of_fundef (fd: Clight.fundef) : compcert_rmaps.typesig :=
+ match fd with
+ | Internal {| fn_return := fn_return; fn_params := fn_params |} =>
+    (map snd fn_params, fn_return)
+ | External _ t t0 _ => (typelist2list t, t0)
  end.
 
-(*WAS:
-Definition vacuous_funspec (fd: Clight.fundef): funspec :=
-   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) 
-   (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
-*)
-Definition vacuous_funspec (fd: Clight.fundef): funspec :=
-   match (funsig_of_fundef fd) with
-     (params, retty) =>
-   let nids := normalparams (length params) in
-   let nparams := zip_with_tl nids (type_of_params params) in 
-   mk_funspec (nparams, retty) (cc_of_fundef fd) 
+Definition vacuous_funspec (fd: Clight.fundef): Newfunspec :=
+   mk_Newfunspec (typesig_of_fundef fd) (cc_of_fundef fd) 
    (rmaps.ConstType Impossible) (fun _ _ => FF) (fun _ _ => FF) 
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _) end.
+   (const_args_super_non_expansive _ _) (const_args_super_non_expansive _ _).
 
 Fixpoint augment_funspecs' (fds: list (ident * Clight.fundef)) (G:funspecs) : option funspecs :=
  match fds with

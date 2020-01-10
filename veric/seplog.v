@@ -843,9 +843,21 @@ Proof. intros.
   apply andp_right. 2: apply derives_refl. hnf; intros; apply H. 
 Qed.
 
+Definition NDmk_funspec (f: funsig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> environ-> mpred): funspec :=
+  mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
+    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
 Definition NDmk_Newfunspec (f: typesig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> (genviron * list val) -> mpred): Newfunspec :=
-  mk_Newfunspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) 
+  mk_Newfunspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
+             (const_args_super_non_expansive _ _)  (const_args_super_non_expansive _ _).
+
+Definition NDmk_Newfunspec1 (f: typesig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> (genviron * list val) -> mpred): Newfunspec :=
+  mk_Newfunspec f cc (rmaps.ConstType A) 
+             (fun ts a gvals => !!(ts=nil) && Pre a gvals) 
+             (fun ts a gvals=> !!(ts=nil) && Post a gvals) 
              (const_args_super_non_expansive _ _)  (const_args_super_non_expansive _ _).
 
 Lemma type_of_funspec_sub:
@@ -1068,10 +1080,10 @@ Proof.
     - intros ts x rho m WM u necU [TC U]. simpl in TC. unfold typesig_of_Newfunspec in *.
       exists ts, x, emp. rewrite emp_sepcon. 
       split.
-      * simpl. apply approx_p in U. apply U.
+      * simpl. try (destruct U as [U1 U]; split; trivial). apply approx_p in U. apply U.
       * intros rho' y UY k YK [TCK K]; hnf; intros. rewrite emp_sepcon in K. simpl in U.
         apply necR_level in necU. apply necR_level in YK.
-        simpl. split; [ omega | apply K].
+        simpl. try (destruct K as [K1 K]; split; trivial). split; [ omega | apply K].
   + eapply funspec_sub_si_trans; split. apply SUBS.
 
     apply funspec_sub_si_typesigs_match in SUBS. simpl in SUBS.
@@ -1080,9 +1092,9 @@ Proof.
     - intros ts x rho m WM u necU [TC U]. simpl in TC. unfold typesig_of_Newfunspec in *.
       exists ts, x, emp. rewrite emp_sepcon.
       split.
-      * simpl. apply necR_level in necU. split; [ omega | trivial].
+      * simpl. apply necR_level in necU. try (destruct U; split; trivial). split; [ omega | trivial].
       * intros rho' y UY k YK [TCK K]. rewrite emp_sepcon in K. simpl in TCK.
-        apply necR_level in necU. apply necR_level in YK. apply approx_p in K. trivial.
+        apply necR_level in necU. apply necR_level in YK. try (destruct K as [K1 K]; split; trivial). apply approx_p in K. trivial.
 Qed.
 
 Definition funspecs_assert (FunSpecs: PTree.t Newfunspec): assert :=

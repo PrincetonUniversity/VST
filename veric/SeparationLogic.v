@@ -702,11 +702,25 @@ Qed.
 Definition NDmk_Newfunspec (f: compcert_rmaps.typesig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> (genviron * list val) -> mpred): Newfunspec :=
   mk_Newfunspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
-    (const_args_super_non_expansive _ _) (const_args_super_non_expansive _ _).
+             (const_args_super_non_expansive _ _)  (const_args_super_non_expansive _ _).
+
+Definition NDmk_Newfunspec1 (f: compcert_rmaps.typesig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> (genviron * list val) -> mpred): Newfunspec :=
+  mk_Newfunspec f cc (rmaps.ConstType A) 
+             (fun ts a gvals => !!(ts=nil) && Pre a gvals) 
+             (fun ts a gvals=> !!(ts=nil) && Post a gvals) 
+             (const_args_super_non_expansive _ _)  (const_args_super_non_expansive _ _).
 
 Definition NDmk_funspec (f: funsig) (cc: calling_convention)
   (A: Type) (Pre Post: A -> environ-> mpred): funspec :=
   mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
+    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
+Definition NDmk_funspec1 (f: funsig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> environ-> mpred): funspec :=
+  mk_funspec f cc (rmaps.ConstType A) 
+             (fun ts a rho => !!(ts=nil) && Pre a rho) 
+             (fun ts a rho => !!(ts=nil) && Post a rho) 
     (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 (*CH*)
@@ -974,14 +988,15 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 (*CH*)
 (*Definition main_pre {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> gassert :=
 (fun nil gv gvals => gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
-*)
+*)(*
 Definition main_pre {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> gassert :=
-(fun ts gv gvals => !!(ts=nil) && gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
+(fun ts gv gvals => !!(ts=nil) && gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).*)
 
-(*CH*)
-Definition main_post (prog: program) : list Type -> (ident->val) -> gassert :=
-(*(fun nil _ _ => TT).*)
-(fun ts _ _ => !!(ts=nil) && TT).
+Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> gassert :=
+(fun gv gvals =>  gglobvars2pred gv (prog_vars prog) gvals * has_ext ora).
+
+Definition main_post (prog: program) : (ident->val) -> gassert :=
+(fun  _ _ => TT).
 
 (*
 Definition main_spec_ext' {Espec: OracleKind} (prog: program) (ora: OK_ty)
@@ -1000,25 +1015,27 @@ mk_funspec (nil, tint) cc_default
 
 (*CH*)
 Definition main_spec_ext' {Z} (prog: program) (ora: Z)
-(post: list Type -> (ident->val) -> (genviron * list val) -> mpred): Newfunspec :=
-mk_Newfunspec (nil, tint) cc_default
- (rmaps.ConstType (ident->val)) (main_pre prog ora) post 
- (const_args_super_non_expansive _ _) (const_args_super_non_expansive _ _).
+(post: (ident->val) -> (genviron * list val) -> mpred): Newfunspec :=
+NDmk_Newfunspec (nil, tint) cc_default (ident->val)
+ (main_pre prog ora) post.
 
 (*CH*)
 Definition main_spec_ext {Espec: OracleKind} (prog: program) (ora: OK_ty): Newfunspec :=
-mk_Newfunspec (nil, tint) cc_default
- (rmaps.ConstType (ident->val)) (main_pre prog ora) (main_post prog)
-   (const_args_super_non_expansive _ _) (const_args_super_non_expansive _ _).
+NDmk_Newfunspec (nil, tint) cc_default (ident->val)
+   (main_pre prog ora) (main_post prog).
 
 (* nil as first argument??
 Definition main_pre_old {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
 (fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).*)
+Definition main_pre_old {Z} (prog: program) (ora: Z) : (ident->val) -> assert :=
+(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+(*
 Definition main_pre_old {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
 (fun ts gv rho => !!(ts=nil) && globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition main_post_old (prog: program) : list Type -> (ident->val) -> assert :=
 (fun ts _ _ => !!(ts=nil) && TT).
+*)
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
  match V with
@@ -1101,6 +1118,17 @@ Definition typesig2signature (s : compcert_rmaps.typesig) cc : signature :=
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric Bveric.
 
 (* Misc lemmas *)
+Lemma gclose_gassert {al P}: Clight_seplog.gclose_precondition al P
+      |-- local (fun rho => map (Map.get (te_of rho)) al = map Some (map (fun i => eval_id i rho) al)) &&
+          gassert2assert al P.
+Proof. simpl. apply  Clight_seplog.gclose_gassert. Qed.
+
+Lemma gclose_gassert_inv {al P}: 
+  (local (fun rho => map (Map.get (te_of rho)) al = map Some (map (fun i => eval_id i rho) al))
+   && gassert2assert al P)
+ |-- Clight_seplog.gclose_precondition al P.
+Proof. simpl. apply Clight_seplog.gclose_gassert_inv. Qed.
+
 Lemma typecheck_lvalue_sound {CS: compspecs} :
   forall Delta rho e,
     typecheck_environ Delta rho ->
@@ -1209,6 +1237,18 @@ Proof.
   intros. intros w [W1 W2].
   rewrite (castexpropt_cenv_sub CSUB _ _ H e t w W1) in W2. apply W2.
 Qed.
+
+Lemma cp_o2i: forall (A : rmaps.TypeTree)
+         (P : forall ts : list Type,
+              functors.MixVariantFunctor._functor
+                (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) 
+         (ts : list Type) x (l ids : list ident),
+       list_norepet l ->
+       Datatypes.length l = Datatypes.length ids ->
+       derives
+         (Clight_seplog.gclose_precondition ids (Clight_seplog.AssertTT2ArgsTT l P ts x))
+         (Clight_seplog.close_precondition l ids (P ts x)).
+Proof. intros. simpl; intros. apply Clight_seplog.cp_o2i; trivial. Qed. 
 
 (********************************************* LENB: END OF ADDED LEMMAS********************)
 

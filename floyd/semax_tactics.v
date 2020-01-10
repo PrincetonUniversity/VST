@@ -92,7 +92,7 @@ match goal with
 end;
 match goal with
 |  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS ?Ann),
-   DS' := @abbreviate (PTree.t funspec) ?E  |- _ =>
+   DS' := @abbreviate (PTree.t Newfunspec) ?E  |- _ =>
    constr_eq DS DS';
    first [check_ground_ptree E | fail 99 "Delta_specs not a ground PTree"]
 |  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS ?Ann),
@@ -110,7 +110,7 @@ Ltac simplify_func_tycontext' DD :=
     unfold func_tycontext, make_tycontext in Delta;
     let DS := fresh "Delta_specs" in let DS1 := fresh "DS1" in 
     pose (DS1 := make_tycontext_s G);
-    pose (DS := @abbreviate (PTree.t funspec) DS1);
+    pose (DS := @abbreviate (PTree.t Newfunspec) DS1);
     change (make_tycontext_s G) with DS in Delta;
     hnf in DS1;
     cbv beta iota delta [ptree_set] in DS1;
@@ -126,7 +126,7 @@ match goal with
 end.
 
 
-Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
+Definition with_Delta_specs (DS: PTree.t Newfunspec) (Delta: tycontext) : tycontext :=
   match Delta with
     mk_tycontext a b c d _ ann => mk_tycontext a b c d DS ann
   end.
@@ -174,6 +174,8 @@ Ltac simplify_Delta'' DD :=
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
 
+
+(*CH MAYBE THIS CAN NOW BE IMPLIFIED AS SOME BRANCHES ARE DEAD?*)
 Ltac simplify_Delta :=
 match goal with
  | Delta := @abbreviate tycontext _ |- _ => clear Delta; simplify_Delta
@@ -199,21 +201,26 @@ match goal with
  | Delta := @abbreviate tycontext ?D 
       |- ENTAIL ?DD, _ |-- _ => simplify_Delta' Delta D DD; simplify_Delta
  | |- semax ?DD _ _ _ =>  simplify_Delta
- |  |- ENTAIL (ret_tycon ?DD), _ |-- _ => 
+(*NEW*) |  |- ENTAIL ?DD, _ |-- _ =>
+(*REMOVED |  |- ENTAIL (ret_tycon ?DD), _ |-- _ =>*)
         let D := fresh "D" in 
-          set (D := ret_tycon DD);
+          (*REMOVED set (D := ret_tycon DD);*)
+          (*NEW*) set (D := DD);
           hnf in D; simpl is_void_type in D;
           cbv beta iota in D;
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
- |  |- ENTAIL (ret0_tycon ?DD), _ |-- _ => 
+(*NEW*) |  |- ENTAIL ?DD, _ |-- _ => 
+(*REMOVED |  |- ENTAIL (ret0_tycon ?DD), _ |-- _ =>*)
         let D := fresh "D" in 
-          set (D := ret0_tycon DD);
+(*REMOVED          set (D := ret0_tycon DD);*)
+          (*NEW*) set (D := DD);
           hnf in D; simpl is_void_type in D;
           cbv beta iota in D;
           pose (Delta := @abbreviate tycontext D);
           change D with Delta; subst D; simplify_Delta
- | |- ENTAIL (ret_tycon ?DD), _ |-- _ => simplify_Delta
+(*NEW*) | |- ENTAIL ?DD, _ |-- _ => simplify_Delta
+(*REMOVED | |- ENTAIL (ret_tycon ?DD), _ |-- _ => simplify_Delta*)
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
 
@@ -584,7 +591,7 @@ intros.
 unfold semax_body in *.
 destruct s as [id fs].
 destruct fs.
-destruct H0 as [H0' H0]; split; auto.
+destruct H0 as [H0' [H0'' H0]]; split3; auto.
 clear H0'.
 intros.
 specialize (H0 Espec ts x).
@@ -646,7 +653,7 @@ Definition check_no_Gvars (Gtable: PTree.t unit) (s: statement) : bool :=
 Lemma leaf_function: 
  forall Vprog Gprog (CS: compspecs) f s Gtable,
  Gtable = fold_left
-    (fun (t : PTree.t unit) (v : ident * funspec) =>
+    (fun (t : PTree.t unit) (v : ident * Newfunspec) =>
      PTree.set (fst v) tt t) Gprog (PTree.empty unit) ->
  check_no_overlap' Vprog Gtable = true ->
  check_no_Gvars Gtable (fn_body f) = true ->

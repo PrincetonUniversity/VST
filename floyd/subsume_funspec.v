@@ -79,7 +79,7 @@ apply predicates_hered.andp_derives; trivial.
 hnf; intros ? [TC X]. simpl in *. split; trivial. clear X. subst.
 destruct TC as [? [? ?]]; split3; trivial. simpl in *. clear - H2. 
 red; intros. destruct (H2 _ _ H) as [u [Hu TCu]]; clear H2.
-Admitted.
+Abort.
 *)
 Inductive empty_type : Type := .
 
@@ -105,18 +105,18 @@ apply sepcon_derives; auto.
 Qed.
 
 Lemma NDfunspec_sub_refl:
-  forall fsig cc A P Q, list_norepet (map fst (fst fsig)) ->
-   NDfunspec_sub (NDmk_funspec fsig cc A P Q) (NDmk_funspec fsig cc A P Q).
+  forall fsig cc A P Q,
+   NDfunspec_sub (NDmk_Newfunspec fsig cc A P Q) (NDmk_Newfunspec fsig cc A P Q).
 Proof.
 intros.
-apply isNDfunspec_sub_refl; simpl; [ | intros; split]; trivial.
+apply isNDfunspec_sub_refl; simpl; intros; split; trivial.
 Qed.
 
 Lemma NDfunspec_sub_trans:
   forall fsig1 cc1 A1 P1 Q1 fsig2 cc2 A2 P2 Q2 fsig3 cc3 A3 P3 Q3, 
-   NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig2 cc2 A2 P2 Q2) ->
-   NDfunspec_sub (NDmk_funspec fsig2 cc2 A2 P2 Q2) (NDmk_funspec fsig3 cc3 A3 P3 Q3) ->
-   NDfunspec_sub (NDmk_funspec fsig1 cc1 A1 P1 Q1) (NDmk_funspec fsig3 cc3 A3 P3 Q3).
+   NDfunspec_sub (NDmk_Newfunspec fsig1 cc1 A1 P1 Q1) (NDmk_Newfunspec fsig2 cc2 A2 P2 Q2) ->
+   NDfunspec_sub (NDmk_Newfunspec fsig2 cc2 A2 P2 Q2) (NDmk_Newfunspec fsig3 cc3 A3 P3 Q3) ->
+   NDfunspec_sub (NDmk_Newfunspec fsig1 cc1 A1 P1 Q1) (NDmk_Newfunspec fsig3 cc3 A3 P3 Q3).
 Proof. intros.
 eapply isNDfunspec_sub_trans. 4: eassumption.
 all: simpl; trivial.
@@ -135,17 +135,17 @@ apply later_exp'; auto.
 Qed.
 
 Lemma semax_call_subsume:
-  forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
-    funspec_sub fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
-   forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
+  forall fs1 A P Q NEP NEQ argsig retsig cc,
+    funspec_sub fs1 (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)  ->
+   forall {CS: compspecs} {Espec: OracleKind} Delta ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          (`(func_ptr fs1) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -153,24 +153,24 @@ Proof. intros.
 eapply semax_pre. 2: apply semax_call with (P0:=P)(NEP0:=NEP)(NEQ0:=NEQ); trivial; eassumption.
 apply andp_left2. apply andp_derives; trivial. apply andp_derives; trivial.
 unfold liftx, lift. simpl. intros rho. clear - H.
-remember (mk_funspec (argsig, retsig) cc A P Q NEP NEQ) as gs.
+remember (mk_Newfunspec (argsig, retsig) cc A P Q NEP NEQ) as gs.
 remember (eval_expr a rho) as v.
 unfold func_ptr.
 apply func_ptr_mono; trivial.
 Qed.
 
 Lemma semax_call_subsume_si:
-  forall (fs1: funspec) A P Q NEP NEQ argsig retsig cc,
-   forall {CS: compspecs} {Espec: OracleKind} Delta  ts x (F: environ -> mpred) ret  a bl,
+  forall fs1 A P Q NEP NEQ argsig retsig cc,
+   forall {CS: compspecs} {Espec: OracleKind} Delta ts x (F: environ -> mpred) ret  a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->   
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  && 
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  && 
           
-         (`(func_ptr fs1) (eval_expr a) && `(funspec_sub_si fs1 (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+         (`(func_ptr fs1) (eval_expr a) && `(funspec_sub_si fs1 (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)) &&
+          |>(F * (fun rho => P ts x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -182,27 +182,30 @@ rewrite andp_comm. apply func_ptr_si_mono.
 Qed.
 
 Lemma semax_call_NDsubsume :
-  forall (fs1: funspec) A P Q argsig retsig cc,
+  forall fs1 A P Q argsig retsig cc,
     NDfunspec_sub fs1 
-        (NDmk_funspec  (argsig,retsig) cc A P Q)  ->
+        (NDmk_Newfunspec  (argsig,retsig) cc A P Q)  ->
      forall {CS: compspecs} {Espec: OracleKind},
     forall  Delta  x (F: environ -> mpred) ret a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
          (`(func_ptr fs1) (eval_expr a) &&
-          |>(F * `(P x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          |>(F * (fun rho => P x (ge_of rho, eval_exprlist argsig bl rho)))))
          (Scall ret a bl)
          (normal_ret_assert
           (EX old:val, substopt ret (`old) F * maybe_retval (Q x) retsig ret)).
 Proof.
 intros.
 apply (semax_call_subsume fs1 (rmaps.ConstType A) (fun _ => P) (fun _ => Q)
-   (const_super_non_expansive A _) (const_super_non_expansive A _)
+   (const_args_super_non_expansive A _) (const_args_super_non_expansive A _)
     argsig retsig cc); auto.
-clear - H.
-apply NDsubsume_subsume. simpl; auto. apply H. apply nil.
++ clear - H.
+  apply NDsubsume_subsume.
+  - simpl; auto.
+  - apply H.
++ apply nil.
 Qed.

@@ -15,7 +15,7 @@ Ltac unfold_for_go_lower :=
                        eval_binop eval_unop force_val1 force_val2
                       msubst_tc_expropt msubst_tc_expr msubst_tc_exprlist msubst_tc_lvalue msubst_tc_LR (* msubst_tc_LR_strong *) msubst_tc_efield msubst_simpl_tc_assert 
                       function_body_ret_assert frame_ret_assert
-                      make_args' bind_ret get_result1 retval
+                      make_args' bind_ret (*REMOVED get_result1 retval*)
                        classify_cast
                        (* force_val sem_cast_neutral ... NOT THESE TWO!  *)
                       denote_tc_assert (* tc_andp tc_iszero *)

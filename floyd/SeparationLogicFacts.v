@@ -988,13 +988,13 @@ Import CSHL_Def.
 Axiom semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
+         (`(func_ptr (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>(F * (fun rho => (P ts x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
             (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
@@ -1013,12 +1013,12 @@ Axiom semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: ty
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (type_of_params argsig) retsig cc /\
+             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
-          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
+          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
+         `(func_ptr (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>((fun rho => (P ts x (ge_of rho, eval_exprlist argsig bl rho))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 
@@ -1047,12 +1047,12 @@ Theorem semax_call_backward: forall {CS: compspecs} {Espec: OracleKind} (Delta: 
          (EX argsig: _, EX retsig: _, EX cc: _,
           EX A: _, EX P: _, EX Q: _, EX NEP: _, EX NEQ: _, EX ts: _, EX x: _,
          !! (Cop.classify_fun (typeof a) =
-             Cop.fun_case_f (type_of_params argsig) retsig cc /\
+             Cop.fun_case_f (typelist_of_type_list argsig) retsig cc /\
              (retsig = Tvoid -> ret = None) /\
              tc_fn_return Delta ret retsig) &&
-          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         `(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>((`(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
+          ((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
+         `(func_ptr (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>((fun rho => (P ts x (ge_of rho, eval_exprlist argsig bl rho))) * oboxopt Delta ret (maybe_retval (Q ts x) retsig ret -* R)))
          (Scall ret a bl)
          (normal_ret_assert R).
 Proof.
@@ -1148,13 +1148,13 @@ Qed.
 Theorem semax_call_forward: forall {CS: compspecs} {Espec: OracleKind} (Delta: tycontext),
     forall A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc ->
+           Cop.fun_case_f (typelist_of_type_list argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
-          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)))  &&
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
-          |>(F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+          (((*|>*)((tc_expr Delta a) && (tc_exprlist Delta argsig bl)))  &&
+         (`(func_ptr (mk_Newfunspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&
+          |>(F * (fun rho => (P ts x (ge_of rho, eval_exprlist argsig bl rho))))))
          (Scall ret a bl)
          (normal_ret_assert
             (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).

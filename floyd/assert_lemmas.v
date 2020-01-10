@@ -422,6 +422,20 @@ Proof.
 Qed.
 Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
 
+(*Lemma gbind_ret1_unfold:
+  forall v t Q, gbind_ret (Some v) t Q = !!tc_val t v && (fun rho => Q (ge_of rho, cons v nil)).
+Proof. reflexivity. Qed.
+Hint Rewrite bind_ret1_unfold : norm2.
+
+Lemma gbind_ret1_unfold':
+  forall v t Q rho,
+  gbind_ret (Some v) t Q rho = !!(tc_val t v) && Q (ge_of rho, cons v nil).
+Proof.
+ intros. reflexivity.
+Qed.
+Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
+*)
+
 Lemma normal_ret_assert_elim:
  forall P, RA_normal (normal_ret_assert P) = P.
 Proof.
@@ -448,10 +462,12 @@ Proof.
 Qed.
 Hint Rewrite loop1_ret_assert_normal: ret_assert.
 
+(*REMOVED
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
 Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args' : norm2.
+Hint Rewrite unfold_make_args' : norm2.*)
+
 Lemma unfold_make_args_cons: forall i il v vl rho,
    make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
 Proof. reflexivity. Qed.
@@ -467,6 +483,7 @@ Lemma clear_rhox:  (* replaces clear_make_args' *)
 Proof. intros. reflexivity. Qed.
 Hint Rewrite clear_rhox: norm2.
 
+(*REMOVED - MAYBE REACTIVATE?
 Lemma eval_make_args':
   forall (Q: val -> Prop) i fsig args,
   @liftx (Tarrow environ (LiftEnviron Prop))
@@ -511,6 +528,7 @@ Qed.
 
 Hint Rewrite @eval_make_args_same : norm2.
 Hint Rewrite @eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+*)
 
 Infix "oo" := Basics.compose (at level 54, right associativity).
 Arguments Basics.compose {A B C} g f x / .
@@ -521,6 +539,7 @@ Lemma compose_backtick:
 Proof. reflexivity. Qed.
 Hint Rewrite compose_backtick : norm.
 
+(*REOMVED - MAYBE REACTIVATE?
 Lemma compose_eval_make_args_same:
   forall {cs: compspecs}  (Q: val -> Prop) i t fsig t0 tl e el,
   @liftx (Tarrow environ (LiftEnviron Prop))
@@ -546,6 +565,7 @@ Qed.
 
 Hint Rewrite @compose_eval_make_args_same : norm.
 Hint Rewrite @compose_eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+*)
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.
@@ -553,12 +573,13 @@ Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = 
 Proof. reflexivity. Qed.
 Hint Rewrite @substopt_unfold @substopt_unfold_nil : subst.
 
+(*REMOVED
 Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
 Proof. reflexivity. Qed.
 Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite get_result_unfold get_result_None : norm.
-
+*)
 Lemma elim_globals_only:
   forall Delta g i t rho,
   tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
@@ -597,6 +618,7 @@ rewrite Heqo0, Heqo1.
 eauto.
 Qed.
 
+(*
 Lemma globvars2pred_unfold: forall gv vl rho,
     globvars2pred gv vl rho =
      andp (prop (gv = globals_of_env rho))
@@ -606,7 +628,15 @@ Proof. intros. unfold globvars2pred.
    induction vl; simpl; auto. normalize; f_equal; auto.
 Qed.
 Hint Rewrite globvars2pred_unfold : norm.
+*)
 
+Lemma gglobvars2pred_unfold: forall gv vl,
+    gglobvars2pred gv vl = 
+    glift2 andp (fun gvals => prop (gv = globals_of_genv (fst gvals)))
+      (fold_right (glift2 sepcon) (glift0 emp) (map (gglobvar2pred gv) vl)).
+Proof. reflexivity.
+Qed.
+Hint Rewrite gglobvars2pred_unfold : norm.
 Hint Rewrite @exp_trivial : norm.
 
 Lemma eval_var_isptr:

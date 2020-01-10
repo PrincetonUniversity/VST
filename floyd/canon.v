@@ -1870,6 +1870,7 @@ Proof.
     rewrite frame_normal. f_equal. apply sepcon_comm.
 Qed.
 
+(*Maybe redudant given lemmas below*)
 Lemma semax_frame'': forall {Espec: OracleKind}{CS: compspecs},
   forall Delta P1 P2 P3 s t Q1 Q2 Q3 F,
   @semax CS Espec Delta
@@ -1896,6 +1897,93 @@ Proof.
     destruct t; simpl; normalize.
     unfold bind_ret. destruct x; 
     unfold_lift; simpl; normalize.
+    rewrite sepcon_comm; auto.
+    destruct t; simpl; normalize.
+    apply sepcon_comm.
+Qed.
+
+Definition SEPr (R : list mpred) (_: genviron * list val) := fold_right_sepcon R.
+
+Definition GLOBr (gs: list globals) (X:gassert): gassert := fun gvals =>
+  LOCALx (map gvars gs) (gassert2assert nil X) (Clight_seplog.mkEnv (fst gvals) nil nil).
+
+Definition RETr (v:val) (Q: gassert): gassert := 
+  fun grv => !!(snd grv = cons v nil /\ v <> Vundef) && (Q grv).
+
+Definition PROPr (P:list Prop) (Q:gassert): gassert := 
+  fun grv => andp (!! fold_right and True P) (Q grv).
+
+Lemma gbind_ret_char {vl t G}: 
+  gbind_ret vl t G = 
+  match vl with
+   None => bind_ret vl t (fun rho => G (ge_of rho, nil))
+  | Some v => bind_ret vl t (fun rho => G (ge_of rho, cons v nil))
+  end.
+Proof. destruct vl; simpl; extensionality rho; trivial. Qed.
+
+Lemma gfunction_body_ret_assert_char {t Q1 v Q3}:
+ gfunction_body_ret_assert t (PROPr Q1 (RETr v (SEPr Q3))) =
+function_body_ret_assert t (PROPx Q1 (LOCALx (temp ret_temp v::nil) (SEPx Q3))).
+Proof.
+  unfold gfunction_body_ret_assert, function_body_ret_assert.
+  f_equal.
++ extensionality rho. simpl. destruct t; trivial.
+  unfold PROPr, RETr, SEPr, PROPx, LOCALx, SEPx, local, lift1, liftx, lift; simpl.
+  unfold liftx, lift; simpl.
+  apply pred_ext; normalize. inv H0.
++ extensionality vl.
+  unfold PROPr, RETr, SEPr, PROPx, LOCALx, SEPx; simpl.
+  unfold local, liftx, lift, lift1; simpl.
+  extensionality rho. destruct vl; simpl; trivial; normalize;
+  unfold liftx, lift; simpl.
+  apply pred_ext; normalize. inv H1. apply andp_right; trivial.
+  apply prop_right. intuition.
+  apply andp_right; trivial.
+  apply prop_right. intuition.
+  destruct t; simpl; trivial.
+  apply pred_ext; normalize. inv H0.
+Qed.
+
+Lemma gsemax_frame'': forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P1 P2 P3 s t Q1 Q2 Q3 F,
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx P3))) s
+      (frame_ret_assert
+        (gfunction_body_ret_assert t (PROPr Q1 (RETr Q2 (SEPr Q3)))) emp) ->
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
+      (frame_ret_assert
+        (gfunction_body_ret_assert t (PROPr Q1 (RETr Q2 (SEPr (F :: Q3))))) emp).
+Proof.
+  intros.
+  rewrite gfunction_body_ret_assert_char.
+  rewrite gfunction_body_ret_assert_char in H.
+  apply semax_frame''. trivial.
+Qed.
+
+Lemma semax_frame2'': forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P1 P2 P3 s t Q3 F,
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx P3))) s
+      (frame_ret_assert
+        (function_body_ret_assert t Q3) emp) ->
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
+      (frame_ret_assert
+        (function_body_ret_assert t (fun grv => F * Q3 grv)) emp).
+Proof.
+  intros.
+  rewrite !PROP_LOCAL_SEP_cons.
+  replace (frame_ret_assert (function_body_ret_assert t (fun grv => F * Q3 grv)) emp)
+    with (frame_ret_assert (frame_ret_assert (function_body_ret_assert t Q3) emp) (fun grv => F)).
+  + rewrite sepcon_comm.
+    apply semax_frame; auto.
+    hnf. intros; auto.
+  + 
+    simpl. f_equal; extensionality; try extensionality; normalize.
+    rewrite sepcon_comm.
+    destruct t; simpl; normalize.
+    unfold bind_ret. destruct x; simpl; normalize.
     rewrite sepcon_comm; auto.
     destruct t; simpl; normalize.
     apply sepcon_comm.
@@ -1932,6 +2020,29 @@ intros.
    unfold ve_of, globals_only, Map.get, Map.empty in H. inv H.
 Qed.
 
+(*NEW*)
+Lemma gsemax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
+           t = ret_type Delta ->
+           (*ENTAIL ret_tycon Delta,*) R' |-- R ->
+      @semax cs Espec Delta P c (frame_ret_assert (gfunction_body_ret_assert t R') emp) ->
+      @semax cs Espec Delta P c (frame_ret_assert (gfunction_body_ret_assert t R) emp).
+Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
+  intros.
+  all: try solve [intro rho; simpl; normalize].
+  simpl RA_normal.
+  destruct (ret_type Delta) eqn:?H; normalize.
+  simpl; intro rho; unfold_lift.
+  rewrite !sepcon_emp.
+  unfold local, lift1.
+  normalize.
+  (*pose proof (tc_environ_Tvoid _ _ H1 H0).
+  eapply derives_trans; [ | apply H]. clear H.*)
+  simpl.
+  normalize. intros. apply andp_left2.
+  destruct x; unfold liftx, lift; simpl.
+  + apply andp_derives; trivial. (* apply H0.*)
+  + destruct t; trivial; apply H0.
+Qed.
 
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
            t = ret_type Delta ->
@@ -2136,9 +2247,18 @@ Proof.
   destruct P3; auto.
 Qed.
 
+(*TODO: REPAIR
+1. change type to
+   Inductive return_inner_gen (S: list mpred): option val -> (genviron * list val -> mpred) -> (genviron * list val -> mpred) -> Prop :=
+2. maybe cleanup first clause;  particularly, we now seem to need ts=nil here (and in the def of main post in semax_prog.v)
+   check with call to this clause in tactic solve_return_inner_gen  (in forward.v)
+   Maybe move that tactic ot this file*)
+
 Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
-| return_inner_gen_main: forall ov_gen P ts u,
-    return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
+(*| return_inner_gen_main: forall ov_gen P ts u,
+    return_inner_gen S ov_gen (main_post P ts u) (*(PROPx nil (LOCALx nil (SEPx (TT :: S))))*)(SEPr (TT::S))*)
+| return_inner_gen_main: forall ov_gen P (*ts*) u,
+    return_inner_gen S ov_gen (gassert2assert nil (main_post P u)) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
 | return_inner_gen_canon_nil':
     forall ov_gen P R,
       return_inner_gen S ov_gen

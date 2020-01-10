@@ -2,7 +2,7 @@ Require Import VST.floyd.base2.
 Require Import VST.floyd.client_lemmas.
 Local Open Scope logic.
 
-Definition compute_funspecs_norepeat (l : list (ident*funspec)) :=
+Definition compute_funspecs_norepeat (l : list (ident*Newfunspec)) :=
   compute_list_norepet (fst (split l)).
 
 Lemma not_in_funspecs_by_id_i {A B} i (l : list (A * B)) l0 l1 :

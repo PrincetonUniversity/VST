@@ -35,13 +35,13 @@ Require Import VST.floyd.freezer.
 Import ListNotations.
 Import String.
 
-Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
-  match (normalize_funspec f) with mk_funspec sig _ A P Q _ _ =>
-    semax_external (map fst (fst sig)) ef A P Q
+Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) f :=
+  match (*(normalize_funspec f)*)f with mk_Newfunspec sig _ A P Q _ _ =>
+    semax_external (*(map fst (fst sig))*) ef A P Q
   end.
 
-Definition try_spec  (name: string) (spec: funspec) : 
-   list (ident * globdef Clight.fundef type) -> list (ident*funspec) :=
+Definition try_spec  (name: string) (spec: Newfunspec) : 
+   list (ident * globdef Clight.fundef type) -> list (ident*Newfunspec) :=
 fun defs => 
  match ext_link_prog' defs name with
  | Some id => [(id,spec)]
@@ -49,12 +49,14 @@ fun defs =>
  end.
 Arguments try_spec name spec defs / .
 
-Definition exit_spec' :=
- WITH u: unit
- PRE [1%positive OF tint]
-   PROP () LOCAL() SEP()
- POST [ tvoid ]
-   PROP(False) LOCAL() SEP().
+(*CH*)
+Definition exit_spec':Newfunspec :=
+NDmk_Newfunspec (pair (cons tint nil) tvoid)
+  cc_default unit
+  (fun _ : unit =>
+    (SEPr nil))
+  (fun _ : unit =>
+   (PROPr (False::nil)  (SEPr nil))).
 
 Definition exit_spec := try_spec "exit" exit_spec'.
 
@@ -97,37 +99,72 @@ Ltac change_compspecs' cs cs' ::=
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
 *)
-Definition malloc_spec'  {cs: compspecs} :=
-   WITH t:type, gv: globals
-   PRE [ 1%positive OF size_t ]
-       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
-                complete_legal_cosu_type t = true;
-                natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
-       SEP (mem_mgr gv)
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (mem_mgr gv;
-             if eq_dec p nullval then emp
-            else (malloc_token Ews t p * data_at_ Ews t p)).
+Print globals. (*ident -> val*)
+Print genviron. (*Map.t block*)
+Check gvars. (* globals -> localdef*)
+
+Definition gvars_gdenote (gv : globals) (ge : genviron) :=
+gv = fun i  => match Map.get ge i with
+                | Some b => Vptr b Ptrofs.zero
+                | None => Vundef
+               end.
+Check PROPr. Check exp.
+
+Definition mallocPost {cs: compspecs} (x:type * globals) (grv:genviron * list val): mpred.
+destruct x as [t gv].
+destruct grv as [g rv].
+eapply (@exp _ _ val). intros p.
+eapply andp.
++ apply prop. apply (gvars_gdenote gv g /\ rv = [p]).
++ apply fold_right_sepcon. 
+  apply [mem_mgr gv; if eq_dec p nullval
+                     then emp
+                     else
+                      sepcon (malloc_token Ews t p)
+                        (data_at_ Ews t p)].
+Defined.
+
+Program Definition malloc_spec'  {cs: compspecs}: Newfunspec :=
+NDmk_Newfunspec
+  (pair (cons size_t nil) (tptr tvoid))
+  cc_default (prod type globals)
+  (fun (x : prod type globals) (gargs : genviron * list val)=>
+    let (t, gv) := x in
+    !! (0 <= sizeof t <= Ptrofs.max_unsigned /\
+                complete_legal_cosu_type t = true /\
+                natural_aligned natural_alignment t = true /\
+                gvars_gdenote gv (fst gargs) /\
+                snd gargs = [Vptrofs (Ptrofs.repr (sizeof t))]) &&
+    (SEPr [mem_mgr gv]) gargs)
+  (fun (x : type * globals) (grv : genviron * list val) =>
+   let (t, gv) := x in
+   let (g, rv) := grv in
+   EX p : val, !! (gvars_gdenote gv g /\ rv = [p]) &&
+               SEPr [mem_mgr gv; 
+                     if eq_dec p nullval then emp
+                     else malloc_token Ews t p * data_at_ Ews t p] grv).
 
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_malloc malloc_spec'.
 
-Definition free_spec'  {cs: compspecs} :=
-   WITH t: type, p:val, gv: globals
-   PRE [ 1%positive OF tptr tvoid ]
-       PROP ()
-       LOCAL (temp 1%positive p; gvars gv)
-       SEP (mem_mgr gv;
-              if eq_dec p nullval then emp
-              else (malloc_token Ews t p * data_at_ Ews t p))
-    POST [ Tvoid ]
-       PROP ()
-       LOCAL ()
-       SEP (mem_mgr gv).
+Definition free_spec'  {cs: compspecs}:Newfunspec :=
+NDmk_Newfunspec
+  (pair (cons (tptr tvoid) nil) Tvoid)
+  cc_default (prod (prod type val) globals)
+  (fun (x : prod (prod type val) globals) (gargs : genviron * list val) =>
+   let (p0, gv) := x in
+   let (t, p) := p0 in
+   !! (gvars_gdenote gv (fst gargs) /\
+                snd gargs = [p]) &&
+    (SEPr [mem_mgr gv; if eq_dec p nullval
+                       then emp
+                       else
+                       sepcon (malloc_token Ews t p) (data_at_ Ews t p)] ) gargs)
+  (fun (x : prod (prod type val) globals)=>
+   let (p0, gv) := x in
+   let (_, _) := p0 in
+   SEPr [mem_mgr gv]).
 
 Parameter body_free:
  forall {Espec: OracleKind} {cs: compspecs} ,
@@ -148,7 +185,16 @@ Ltac with_library prog G :=
   let x := eval simpl in x in 
     with_library' pr x.
 
-Lemma semax_func_cons_malloc_aux:
+(*TODO: repair
+Lemma semax_func_cons_malloc_aux {cs: compspecs} (gv: globals) (gargs : genviron * list val) =>
+   let (p0, gv) := x in
+   let (t, p) := p0 in
+   !! (gvars_gdenote gv (fst gargs) /\
+                snd gargs = [p]) &&
+    (SEPr [mem_mgr gv; if eq_dec p nullval
+                       then emp
+                       else
+                       sepcon (malloc_token Ews t p) (data_at_ Ews t p)] ) gargs)
   forall {cs: compspecs} (gv: globals) (gx : genviron) (t :type) (ret : option val),
 (EX p : val,
  PROP ( )
@@ -168,4 +214,4 @@ Proof.
  subst p.
  if_tac. rewrite H; entailer!.
  renormalize. entailer!.
-Qed.
+Qed.*)

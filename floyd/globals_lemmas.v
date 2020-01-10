@@ -814,11 +814,50 @@ Lemma map_instantiate:
 Proof. intros. subst. reflexivity. Qed.
 
 Lemma main_pre_start:
- forall {Z} prog u gv (ora : Z),
-   main_pre prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
+ forall {Z} prog (*u*) gv (ora : Z) vals (P: environ -> mpred),
+   (fun rho => main_pre prog ora (*u*) gv (ge_of rho, vals)) = 
+   (PROP((*u=nil*)) LOCAL(gvars gv) SEP(has_ext ora))%assert * 
+     (fun rho => gglobvars2pred gv (prog_vars prog) (ge_of rho, vals)).
 Proof.
 intros.
 unfold main_pre.
+unfold gglobvars2pred,  PROPx, LOCALx, SEPx. simpl.
+unfold glift2.
+extensionality rho.
+simpl.
+normalize.
+unfold gvars_denote. unfold_lift. unfold local, lift1.
+fold (globals_of_env rho).
+rewrite sepcon_comm.
+apply pred_ext; normalize; rewrite prop_true_andp by auto; auto.
+Qed.
+
+Lemma main_pre_start':
+ forall {Z} prog (*u*) gv (ora : Z) vals (P: environ -> mpred),
+   (fun rho => main_pre prog ora (*u*) gv (ge_of rho, vals) * P rho) = 
+   (PROP((*u=nil*)) LOCAL(gvars gv) SEP(has_ext ora))%assert * 
+     (fun rho => gglobvars2pred gv (prog_vars prog) (ge_of rho, vals) * P rho).
+Proof.
+intros.
+unfold main_pre.
+unfold gglobvars2pred,  PROPx, LOCALx, SEPx. simpl.
+unfold glift2.
+extensionality rho.
+simpl.
+normalize.
+unfold gvars_denote. unfold_lift. unfold local, lift1.
+fold (globals_of_env rho).
+(*rewrite sepcon_comm.*)
+apply pred_ext; normalize; try (apply andp_right; [ apply prop_right; intuition | cancel]).
+cancel. (* rewrite prop_true_andp by auto; auto.*)
+Qed.
+
+Lemma main_pre_start_old:
+ forall {Z} prog (*u*) gv (ora : Z),
+   main_pre_old prog ora (*u*) gv = (PROP((*u=nil*)) LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
+Proof.
+intros.
+unfold main_pre_old.
 unfold globvars2pred,  PROPx, LOCALx, SEPx.
 unfold lift2.
 extensionality rho.
@@ -827,9 +866,8 @@ normalize.
 unfold gvars_denote. unfold_lift. unfold local, lift1.
 fold (globals_of_env rho).
 rewrite sepcon_comm.
-apply pred_ext; intros; normalize.
-rewrite prop_true_andp by auto.
-auto.
+apply pred_ext; normalize;
+try (apply andp_right; [ apply prop_right; intuition | cancel]).
 Qed.
 
 Lemma process_globvar_space:
@@ -1068,7 +1106,7 @@ Lemma eliminate_globvars2pred_nil:
 Proof.
 intros.
 eapply semax_pre; [ | apply H].
-go_lowerx; normalize.
+go_lowerx. simpl. unfold globvars2pred, lift2, lift0; simpl; normalize. 
 Qed.
 
 Lemma prog_defs_Clight_mkprogram:
@@ -1080,12 +1118,12 @@ destruct ( build_composite_env' c w).
 reflexivity.
 Qed.
 
-Ltac expand_main_pre :=
- match goal with | |- semax _ (main_pre ?prog _ _ _ * _) _ _ =>
-    rewrite main_pre_start;
+Ltac expand_main_pre_old :=
+ match goal with | |- semax _ (main_pre_old ?prog _ _ * _) _ _ =>
+    rewrite main_pre_start_old;
     unfold prog_vars, prog
-                          | |- semax _ (main_pre ?prog _ _ _) _ _ =>
-    rewrite main_pre_start;
+                          | |- semax _ (main_pre_old ?prog _ _) _ _ =>
+    rewrite main_pre_start_old;
     unfold prog_vars, prog
  end;
  (match goal with |- context C [prog_defs (Build_program ?d _ _ _ _)] =>
@@ -1098,3 +1136,20 @@ Ltac expand_main_pre :=
  rewrite ?offset_val_unsigned_repr;
  simpl readonly2share.
 
+Ltac expand_main_pre :=
+ match goal with | |- semax _ (main_pre ?prog _ _ * _) _ _ =>
+    rewrite main_pre_start;
+    unfold prog_vars, prog
+                          | |- semax _ (main_pre ?prog _ _) _ _ =>
+    rewrite main_pre_start;
+    unfold prog_vars, prog
+ end;
+ (match goal with |- context C [prog_defs (Build_program ?d _ _ _ _)] =>
+    let e := context C[d] in change e
+   end 
+   || rewrite prog_defs_Clight_mkprogram);
+ simpl globvars2pred;
+ repeat  process_idstar;
+ apply eliminate_globvars2pred_nil;
+ rewrite ?offset_val_unsigned_repr;
+ simpl readonly2share.
