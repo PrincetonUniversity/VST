@@ -105,8 +105,6 @@ Example strcat_loop2_alt : forall {cs : compspecs} sh n x ld ls dest,
 Proof.
   intros. fold_Vbyte.
   apply_list_ext. list_form. Znth_solve.
-  apply data_subsume_refl'.
-  do 2 f_equal. omega.
 Qed.
 
 Example strcat_loop2_old : forall {cs : compspecs} sh n x ld ls dest,
@@ -176,7 +174,6 @@ Proof.
   intros.
   list_form. Znth_solve2.
   fold_Vbyte. apply_list_ext. Znth_solve.
-  apply data_subsume_refl'. do 2 f_equal. omega.
 Qed.
 
 Example strcpy_loop_old : forall {cs : compspecs} sh n x ls dest,
@@ -272,5 +269,6 @@ Proof.
   split. rep_omega. split. rep_omega.
   f_equal; auto. f_equal. auto.
 Qed.
+
 
 
