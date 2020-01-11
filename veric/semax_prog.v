@@ -3537,3 +3537,167 @@ Definition hide_auxiliary_functions {cs} V K funs G :=
    exists funs' G', match_fdecs_sub funs G funs' G' /\
                     @semax_func V K cs funs' G'.
 *)
+
+Definition extend (P:mpred): Prop := forall F, F * P |-- P.
+
+Lemma extend_char P: extend P <-> boxy extendM P.
+Proof.
+  split; intros.
++ apply boxy_i. apply extendM_refl. 
+  intros. destruct H0. apply (H TT). exists x, w; split3. apply join_comm; trivial. apply I. trivial.
++ intros F u [u1 [u2 [Ju [U1 U2]]]]. eapply boxy_e. apply H. 2: apply U2.
+  exists u1. apply join_comm; trivial.
+Qed.
+
+Lemma extend_prop {P}: extend (prop P).
+Proof. red; intros. intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2. Qed.
+
+Lemma extend_tc_expr {cs:compspecs} (Delta:tycontext) (e:expr) (rho:environ): 
+      semax_prog.extend (@tc_expr cs Delta e rho).
+Proof. apply semax_prog.extend_char. apply extend_tc.extend_tc_expr. Qed.
+
+Lemma extend_andp P Q: extend P -> extend Q -> extend (P && Q).
+Proof. intros. red; intros.
+eapply derives_trans. apply distrib_sepcon_andp.
+apply andp_derives. apply H. apply H0.
+Qed.
+
+Lemma extend_orp P Q: extend P -> extend Q -> extend (P || Q).
+Proof. intros. red; intros.
+rewrite distrib_orp_sepcon2. apply orp_derives. apply H. apply H0.
+Qed.
+
+Lemma extend_sepcon1 P Q: extend P -> extend (P * Q).
+Proof. intros. red; intros. specialize (H F).
+rewrite <- sepcon_assoc. apply sepcon_derives; trivial.
+Qed.
+
+Lemma extend_sepcon2 P Q: extend Q -> extend (P * Q).
+Proof. intros. red; intros. specialize (H F).
+rewrite sepcon_comm in *; rewrite sepcon_assoc.
+apply sepcon_derives; trivial.
+Qed.
+
+Lemma extend_allp {A} (P: A -> mpred): (forall x, extend (P x)) -> extend (allp (fun x => P x)).
+Proof. intros. red; intros. apply allp_right. intros.
+specialize (H v F). red in H.
+eapply derives_trans. 2: intros a; apply H.
+apply sepcon_derives; trivial.
+eapply allp_left. apply derives_refl.
+Qed.
+
+
+Lemma extend_exp {A} (P: A -> mpred): (forall x, extend (P x)) -> extend (exp (fun x => P x)).
+Proof. intros. red; intros. normalize. intros u.
+apply (exp_right u). apply H.
+Qed. 
+
+Lemma extend_tc_lvalue {cs Delta e rho}: extend (@tc_lvalue cs Delta e rho).
+Proof. apply extend_char. apply extend_tc_lvalue. Qed. 
+(*
+Lemma good_valid_pointer' {b i n}: good (valid_pointer' (Vptr b i) n).
+Proof.
+  red; intros. intros m [m1 [m2 [Jm [M1 M2]]]]. 
+  specialize (extend_valid_pointer' (Vptr b i) n); intros.
+  eapply boxy_e. apply H. 2: eassumption. exists m1. apply join_comm; trivial.
+Qed.
+
+Search boxy extendM. red; intros. Search extendM reflexive. econstructor. simpl. 
+  red.
+Search boxy.
+unfold boxy, box in H. simpl in H.
+Search valid_pointer'.
+exists m1, m2; hnf; intros. red.
+  apply good_orp. simpl. hnf. apply good_exp.
+  red; intros. Print weak_valid_pointer.
+Lemma good_weakvalid_pointer {b i}: good (weak_valid_pointer (Vptr b i)).
+Proof.
+  apply good_orp. simpl. hnf. apply good_exp.
+  red; intros. Print weak_valid_pointer.
+Lemma good_denote_tc_assert {cs rho a}: good (@denote_tc_assert cs a rho).
+Proof.
+induction a; simpl; unfold liftx, lift; simpl; try apply good_prop;
+try solve [ destruct (expr.eval_expr e rho); apply good_prop ].
++ apply good_andp; trivial.
++ apply good_orp; trivial.
++ destruct (expr.eval_expr e rho); destruct (expr.eval_expr e0 rho); simpl;
+  try apply good_prop; try simple_if_tac; try apply good_andp; try apply good_prop.
+
+  apply good_andp; apply good_prop.
+  apply good_orp; apply good_prop.
+  apply good_andp; apply good_prop trivial.
++ destruct (expr.eval_expr e rho); apply good_prop.
+
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ red; intros. unfold denote_tc_nonzero. destruct (expr.eval_expr e rho); normalize.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2.
+  intros x [x1 [x2 [Jx [X1 X2]]]]. apply X2
++ 
+
+
+  (denote_tc_assert
+     (tc_andp
+        (tc_andp (typecheck_expr Delta e)
+           (tc_bool (is_pointer_type (typeof e)) (op_result_type (Ederef e t)))) 
+        (tc_isptr e)) rho)
+Lemma good_typecheck_expr {cs Delta rho e}: good (denote_tc_assert (@typecheck_expr cs Delta e) rho).
+Proof.
+induction e; simpl.
++ destruct t; simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct i0; simpl; unfold liftx, lift; simpl; try apply good_prop.
++ destruct t; simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct f0; simpl; unfold liftx, lift; simpl; try apply good_prop.
++ destruct t; simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct f0; simpl; unfold liftx, lift; simpl; try apply good_prop.
++ unfold liftx, lift; simpl; try apply good_prop.
++ destruct (access_mode t); simpl; try apply good_prop.
+  destruct (get_var_type Delta i); simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct (eqb_type t t0); simpl; unfold liftx, lift; simpl; try apply good_prop.
++ destruct ((temp_types Delta) ! i); simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct ((is_neutral_cast t0 t || same_base_type t0 t)%bool); simpl; unfold liftx, lift; simpl; try apply good_prop.
++ destruct (access_mode t); simpl; try apply good_prop.
+  unfold tc_andp.
+  destruct (typecheck_expr Delta e); simpl; unfold liftx, lift; simpl; try apply good_prop.
+  - destruct (tc_bool (is_pointer_type (typeof e)) (op_result_type (Ederef e t))); simpl; unfold liftx, lift; simpl; try apply good_prop.
+    
+  destruct (eqb_type t t0); simpl; unfold liftx, lift; simpl; try apply good_prop.
++ destruct t; simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct f0; simpl; unfold liftx, lift; simpl; try apply good_prop
++ destruct t; simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct f0; simpl; unfold liftx, lift; simpl; try apply good_prop
++ destruct t; simpl; unfold liftx, lift; simpl; try apply good_prop.
+  destruct f0; simpl; unfold liftx, lift; simpl; try apply good_prop
+
+Print tc_bool.
+  red. simpl.
++
+
+Lemma good_tc_expr {cs Delta rho}: forall e, good (@tc_expr cs Delta e rho).
+unfold tc_expr. intros. red; intros. unfold denote_tc_assert. simpl.
+
+
+apply andp_derives. apply H. apply H0.
+Qed.
+*)
