@@ -354,7 +354,13 @@ Proof.
   rewrite subst_sepcon.
   auto.
 Qed.
-  
+ 
+Lemma sepcon_imp_prop {P} {Q R: mpred}: 
+@derives mpred Nveric
+        (@sepcon mpred Nveric Sveric (imp (prop P) Q) R)
+        (imp (prop P) (@sepcon mpred Nveric Sveric Q R)).
+Proof. apply semax_prog.sepcon_imp_prop. Qed.
+
 Definition oboxopt Delta ret P :=
   match ret with
   | Some id => obox Delta id P
@@ -2090,3 +2096,6 @@ Qed.
 
 End Sset2CastLoad.
 
+
+Lemma TT_imp (P:mpred): TT --> P |-- P.
+Proof. apply semax_prog.TT_imp. Qed.

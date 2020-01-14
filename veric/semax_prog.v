@@ -3594,6 +3594,24 @@ Qed.
 
 Lemma extend_tc_lvalue {cs Delta e rho}: extend (@tc_lvalue cs Delta e rho).
 Proof. apply extend_char. apply extend_tc_lvalue. Qed. 
+
+Lemma extend_tc_exprlist {cs Delta ts bl rho}: extend (@tc_exprlist cs Delta ts bl rho).
+Proof. apply extend_char. apply extend_tc_exprlist. Qed.
+
+Lemma extend_tc_temp_id {cs Delta t e i rho}: extend (@tc_temp_id cs i t Delta e rho).
+Proof. apply extend_char. apply extend_tc_temp_id. Qed.
+
+Lemma sepcon_imp_prop {P} {Q R: mpred}: sepcon (imp (prop P) Q) R |-- imp (prop P) (sepcon Q R).
+Proof.
+  intros w [w1 [w2 [Jw [W1 W2]]]].
+  intros ? ? ?. destruct (nec_join2 Jw H) as [u1 [u2 [Ju [U1 U2]]]].
+  exists u1, u2; split3; trivial.
+  apply (W1 _ U1 H0). eapply pred_nec_hereditary. apply U2. apply W2. 
+Qed.
+
+Lemma TT_imp (P:mpred): TT --> P |-- P.
+Proof. red; intros. apply H. apply necR_refl. trivial. Qed.
+
 (*
 Lemma good_valid_pointer' {b i n}: good (valid_pointer' (Vptr b i) n).
 Proof.

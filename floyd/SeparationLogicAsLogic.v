@@ -825,6 +825,9 @@ Proof.
         rewrite corable_andp_sepcon1, sepcon_comm; trivial. apply corable_allp_fun_id.
 Qed.
 
+(*Completing the semax_adapt_frame case appears difficult, but the 
+          lemma is derivable from semax_seq_inv', semax_extract_exists and
+          semax_extract_prop. The proof is further down in this file.*)
 Lemma semax_seq_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R h t,
     @semax CS Espec Delta P (Ssequence h t) R ->
     exists Q, @semax CS Espec Delta P h (overridePost Q R) /\
@@ -851,22 +854,8 @@ Proof.
       apply derives_full_refl.
   + subst c.
     pose proof IHsemax eq_refl. clear IHsemax.
-    destruct H0 as [QQ [SemP SemQ]]; clear H1. admit. (*
-    exists QQ; split.
-    - eapply AuxDefs.semax_adapt_frame; [ | apply SemP].
-      intros. eapply derives_trans. apply H. clear H. apply exp_derives. intros F.
-      rewrite ! andp_assoc. apply andp_derives.
-      { apply prop_derives. do 2 red; intros. apply H. intros.
-        destruct (H0 i); [ left | right; trivial].
-        rewrite modifiedvars_Ssequence. left; trivial. }
-      apply andp_derives; trivial. clear.
-      apply andp_derives.
-      { apply prop_derives; intros. specialize (H rho).
-        destruct Q, Q'; simpl in *.
-        
-    - eapply AuxDefs.semax_adapt_frame; [ | apply SemQ].
-      admit.*)
-Admitted. (*semax_seq_inv*)
+    destruct H0 as [R' [SemH SemT]]; clear H1.
+Abort.
 
 Lemma semax_seq_inv': forall {CS: compspecs} {Espec: OracleKind} Delta P R h t,
     @semax CS Espec Delta P (Ssequence h t) R ->
@@ -1091,7 +1080,7 @@ Proof.
   apply oboxopt_left2'; auto.
   eapply tc_fn_return_temp_guard_opt; eauto.
 Qed.
-
+ 
 Lemma semax_call_inv: forall {CS: compspecs} {Espec: OracleKind} Delta ret a bl Pre Post,
   @semax CS Espec Delta Pre (Scall ret a bl) Post ->
   local (tc_environ Delta) && (allp_fun_id Delta && Pre) |-- |==> |> FF ||
@@ -1185,8 +1174,8 @@ Proof.
     apply bupd_mono.
     apply orp_derives; trivial.
 Qed.
-*)
-    intros rho. specialize (IHsemax H0 rho).
+*) 
+    intros rho. specialize (IHsemax H0).
     unfold tc_environ, local, lift1 in *; simpl.
     eapply derives_trans with (!! typecheck_environ Delta rho && 
          (allp_fun_id Delta rho && EX F : assert, retProp Delta F P' Q Q' rho &&
@@ -1210,15 +1199,25 @@ Qed.
     { normalize.
       rewrite sepcon_comm, <- corable_sepcon_andp1, sepcon_comm; trivial.
       apply corable_allp_fun_id. }
-    apply derives_extract_prop; intros CL.
-    eapply derives_trans. apply sepcon_derives. apply IHsemax. apply derives_refl. clear IHsemax.
-    clear - CL H. specialize (H rho). normalize.
-    eapply derives_trans. apply bupd_frame_r. apply bupd_mono. simpl.
-    rewrite distrib_orp_sepcon.
+    apply derives_extract_prop; intros CL. simpl in IHsemax.
+    rewrite (add_andp _ _ (IHsemax rho)); subst. clear - CL H; normalize.
+    rewrite sepcon_comm.
+    eapply derives_trans. apply distrib_sepcon_andp.
+    eapply derives_trans.
+    { apply andp_derives.
+      + eapply derives_trans. apply distrib_sepcon_andp. apply andp_left1.
+        rewrite sepcon_comm. apply sepcon_derives. apply derives_refl. apply TT_right.
+      + apply bupd_frame_l. }
+    rewrite corable_sepcon_TT, andp_comm by (apply corable_allp_fun_id).
+    eapply derives_trans. apply bupd_andp2_corable. apply corable_allp_fun_id.
+    apply bupd_mono.
+    rewrite distrib_orp_sepcon2, distrib_orp_andp.
     apply orp_left.
-    - apply orp_right1. eapply derives_trans. apply sepcon_derives. apply derives_refl. apply now_later.
+    - apply orp_right1. eapply derives_trans. apply andp_left1.
+      apply sepcon_derives. apply now_later. apply derives_refl.
       rewrite <- later_sepcon. apply later_derives. normalize.
     - apply orp_right2.
+      rewrite andp_comm, <- corable_andp_sepcon1, sepcon_comm by (apply corable_allp_fun_id).
       rewrite exp_sepcon1. apply exp_derives. intros ts.
       rewrite exp_sepcon1. apply exp_derives. intros x.
       rewrite exp_sepcon1. apply exp_derives. intros cc.
@@ -1228,14 +1227,87 @@ Qed.
       rewrite exp_sepcon1. apply exp_derives. intros PPne.
       rewrite exp_sepcon1. apply exp_derives. intros QQne. 
       rewrite exp_sepcon1. apply exp_derives. intros tss. 
-      rewrite exp_sepcon1. apply exp_derives. intros xx.
-      normalize.  (*apply andp_derives.
-      rewrite exp_sepcon1. apply exp_derives. intros QQne. 
-      rewrite exp_sepcon1. apply exp_derives. intros tssapply exp_derives. intros ts normalize.
-      eapply derives_trans. apply sepcon_derives. apply derives_refl. apply now_later.
-      rewrite <- later_sepcon. apply later_derives.
-      admit.*)
-Admitted. (*semax_call_inv*)
+      rewrite exp_sepcon1. apply exp_derives. intros xx. normalize.
+      rewrite ! andp_assoc, sepcon_comm.
+      eapply derives_trans; [ apply distrib_sepcon_andp | apply andp_right ].
+      { apply andp_left1. apply semax_prog.extend_tc_expr. } 
+      apply andp_right.
+      { apply andp_left2. 
+        eapply derives_trans; [apply distrib_sepcon_andp | apply andp_left1].
+        apply semax_prog.extend_tc_exprlist. }
+      apply andp_right.
+      { apply andp_left2. 
+        eapply derives_trans; [apply distrib_sepcon_andp | apply andp_left2].
+        eapply derives_trans; [apply distrib_sepcon_andp | apply andp_left1].
+        unfold liftx, lift; simpl.
+        rewrite sepcon_comm, sepcon_left_corable by (apply corable_func_ptr).
+        rewrite sepcon_comm.
+        eapply derives_trans; [apply distrib_sepcon_andp | apply andp_left1].
+        rewrite sepcon_comm, corable_sepcon_TT; trivial. apply corable_func_ptr. }
+      apply andp_left2. 
+      eapply derives_trans; [apply distrib_sepcon_andp | apply andp_left2].
+      eapply derives_trans; [apply distrib_sepcon_andp | apply andp_left2].
+      eapply derives_trans. eapply sepcon_derives. apply now_later. apply derives_refl. 
+      rewrite <- later_sepcon, sepcon_comm, sepcon_assoc. apply later_derives.
+      apply sepcon_derives. trivial.
+      unfold oboxopt; destruct ret.
+      * unfold obox. simpl. eapply derives_trans. apply allp_sepcon1.
+        apply allp_derives; intros v.
+        clear - H1 CL H0 H.
+        destruct H1 as [_ [_ TCr]].
+        simpl in TCr.
+        remember ((temp_types Delta) ! i) as ti.
+        destruct ti. 2: normalize. symmetry in Heqti; subst x.
+        apply imp_andp_adjoint. normalize. 
+        eapply derives_trans. apply sepcon_derives. apply TT_imp. apply derives_refl.
+        unfold subst. apply wand_frame_intro'.
+        eapply derives_trans.
+        { rewrite <- sepcon_assoc. apply sepcon_derives.
+          apply wand_frame_elim. apply derives_refl. }
+        clear - H Heqti H1 H0 CL.
+        eapply derives_trans. apply bupd_frame_r. apply bupd_mono.
+        rewrite sepcon_comm, distrib_orp_sepcon2.
+        apply orp_derives.
+        ++ eapply derives_trans. apply sepcon_derives. apply now_later. apply derives_refl.
+           rewrite <- later_sepcon. apply later_derives. normalize.
+        ++ eapply derives_trans; [ clear H | apply H].
+           unfold local, lift1, tc_environ; simpl.
+           apply andp_right.
+           -- apply andp_right.
+              { apply prop_right. red; simpl. split3; try eapply H0. destruct H0.
+                destruct (H _ _ Heqti) as [u [U1 U2]].
+                unfold liftx, lift in *; simpl in *. red; intros. rewrite Map.gsspec.
+                destruct (H _ _ H2) as [w [W1 W2]].
+                destruct (ident_eq id i); subst.
+                - rewrite U1 in W1; inv W1. rewrite Heqti in H2; inv H2. exists v; split; trivial.
+                - eexists; split. eassumption. trivial. }
+              eapply derives_trans.
+              { apply sepcon_derives. apply andp_derives. apply derives_refl. apply TT_right. apply TT_right. }
+              rewrite <- sepcon_left_corable, corable_sepcon_TT by (apply corable_allp_fun_id).
+              unfold allp_fun_id; simpl. trivial.
+           -- unfold frame_ret_assert. simpl.
+              destruct Q'; simpl in *.
+              rewrite sepcon_comm. apply sepcon_derives; trivial. unfold liftx, lift; simpl. apply andp_left2.
+              clear - CL. do 2 red in CL. apply derives_refl'. eapply CL.
+              intros j. rewrite Map.gsspec. destruct (ident_eq j i); subst. 2: right; trivial.
+              left. do 2 red. simpl. unfold insert_idset. rewrite PTree.gss; trivial.
+      * apply wand_frame_intro'.
+        eapply derives_trans. rewrite <- sepcon_assoc. apply sepcon_derives. apply wand_frame_elim. apply derives_refl.
+        clear - H H1 H0. eapply derives_trans. apply bupd_frame_r. apply bupd_mono.
+        rewrite sepcon_comm, distrib_orp_sepcon2.
+        apply orp_derives.
+        ++ eapply derives_trans. apply sepcon_derives. apply now_later. apply derives_refl.
+           rewrite <- later_sepcon. apply later_derives. normalize.
+        ++ simpl. eapply derives_trans; [ clear - H0 | apply H].
+           unfold local, lift1, tc_environ; simpl.
+           apply andp_right.
+           { apply andp_right.
+             + apply prop_right. trivial.
+             + eapply derives_trans.
+               { apply sepcon_derives. apply andp_derives. apply derives_refl. apply TT_right. apply TT_right. }
+               rewrite <- sepcon_left_corable, corable_sepcon_TT by (apply corable_allp_fun_id); trivial. }
+           destruct Q'; simpl. rewrite sepcon_comm. apply sepcon_derives; trivial. apply andp_left2; trivial.
+Qed.
 
 Lemma semax_Sset_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R id e,
   @semax CS Espec Delta P (Sset id e) R ->
@@ -1437,9 +1509,250 @@ Proof.
       apply exp_derives; intros v. normalize.
       apply later_derives; apply andp_derives; trivial.
       apply subst_derives. intros tau. apply bupd_mono.
-      apply orp_derives; trivial.
-Qed.
-*)Admitted. (*semax_Sset_inv*)
+      apply orp_derives; trivial.*)
+    intros rho. specialize (IHsemax H0).
+    unfold tc_environ, local, lift1 in *; simpl.
+    eapply derives_trans with (!! typecheck_environ Delta rho && 
+         (allp_fun_id Delta rho && EX F : assert, retProp Delta F P' Q Q' rho &&
+        (!! closed_wrt_modvars c F && (P' rho * F rho)))).
+    { apply andp_right. normalize.
+      apply andp_right. normalize. apply andp_left1; trivial.
+      eapply derives_trans. apply H. apply exp_derives; intros FR. unfold retProp; normalize. }
+    clear H. rewrite 2 exp_andp2. apply exp_left; intros FR.
+    rewrite  (andp_comm _ (!! closed_wrt_modvars c FR && (P' rho * FR rho))).
+    apply derives_trans with (retProp Delta FR P' Q Q' rho
+       && (!! typecheck_environ Delta rho &&
+           (allp_fun_id Delta rho && (!! closed_wrt_modvars c FR && (P' rho * FR rho)) ))).
+    { normalize. apply andp_right. apply andp_left2. apply andp_left2; trivial.
+      apply andp_derives; trivial. apply andp_left1; trivial. }
+    unfold retProp. rewrite 3 andp_assoc. do 4 (apply derives_extract_prop; intros).
+    rewrite <- sepcon_andp_prop.
+    apply derives_trans with
+      ( !! closed_wrt_modvars c FR && 
+        sepcon (!! typecheck_environ Delta rho && (allp_fun_id Delta rho && P' rho))
+               ( FR rho)).
+    { normalize.
+      rewrite sepcon_comm, <- corable_sepcon_andp1, sepcon_comm; trivial.
+      apply corable_allp_fun_id. }
+    apply derives_extract_prop; intros CL. simpl in IHsemax.
+    rewrite (add_andp _ _ (IHsemax rho)); subst. clear - CL H; normalize.
+    rewrite sepcon_comm.
+    eapply derives_trans. apply distrib_sepcon_andp.
+    eapply derives_trans.
+    { apply andp_derives.
+      + eapply derives_trans. apply distrib_sepcon_andp. apply andp_left1.
+        rewrite sepcon_comm. apply sepcon_derives. apply derives_refl. apply TT_right.
+      + apply bupd_frame_l. }
+    rewrite corable_sepcon_TT, andp_comm by (apply corable_allp_fun_id).
+    eapply derives_trans. apply bupd_andp2_corable. apply corable_allp_fun_id.
+    apply bupd_mono.
+    rewrite distrib_orp_sepcon2, distrib_orp_andp.
+    apply orp_derives.
+    { eapply derives_trans. apply andp_left1.
+      apply sepcon_derives. apply now_later. apply derives_refl.
+      rewrite <- later_sepcon. apply later_derives. normalize. }
+    rewrite ! orp_assoc, distrib_orp_sepcon2, distrib_orp_andp.
+    apply orp_derives.
+    { rewrite andp_comm. 
+      eapply derives_trans. apply andp_derives. apply now_later.
+      apply sepcon_derives. apply now_later. apply derives_refl.
+      rewrite <- later_sepcon, <- later_andp. apply later_derives.
+      rewrite <- corable_andp_sepcon1 by (apply corable_allp_fun_id).
+      eapply derives_trans. apply distrib_sepcon_andp.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply bupd_frame_l.
+      eapply derives_trans. apply andp_derives; [ | apply derives_refl].
+      { apply andp_derives.
+        apply semax_prog.extend_tc_expr. apply semax_prog.extend_tc_temp_id. }
+      apply andp_right. apply andp_left1. apply derives_refl. 
+
+      unfold extend_tc.tc_temp_id, typecheck_temp_id.
+      remember ((temp_types Delta) ! id) as w; destruct w; normalize. 
+      eapply derives_trans. apply andp_derives. apply andp_derives. apply typecheck_expr_sound. trivial. apply derives_refl. apply derives_refl.
+      normalize.
+      unfold tc_bool. remember (is_neutral_cast (implicit_deref (typeof e)) t). 
+      destruct b; normalize. simpl. 
+      assert (TC: typecheck_environ Delta (env_set rho id (eval_expr e rho))).
+      { clear - H0 H1 Heqb Heqw. 
+        split3; try apply H0. destruct H0.
+        red; intros. 
+        simpl; rewrite Map.gsspec. destruct (ident_eq id0 id); subst. 2: apply (H _ _ H2).
+        eexists; split. reflexivity. red; intros.
+        rewrite H2 in Heqw. inv Heqw.
+        eapply expr2.neutral_cast_subsumption'. symmetry; eassumption. trivial. }
+      apply andp_left2. (*throw isCastResultType away*)
+      apply bupd_mono. rewrite distrib_orp_sepcon2.
+      apply orp_derives.
+        + rewrite sepcon_comm. eapply derives_trans. apply sepcon_derives. apply derives_refl.
+          apply now_later. rewrite <- later_sepcon. apply later_derives. normalize. 
+        + eapply derives_trans. 2: apply H. clear H.
+          unfold local, lift1, lift, tc_environ; simpl. normalize.
+          apply andp_right. 
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left1.
+            unfold allp_fun_id; simpl; trivial.
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left2.
+            destruct Q'; simpl in *. rewrite sepcon_comm. apply sepcon_derives; trivial.
+            apply derives_refl'. apply CL. intros. rewrite Map.gsspec.
+            destruct (ident_eq i id); [ subst; left | right; trivial].
+            do 2 red; simpl. unfold insert_idset. rewrite PTree.gss. trivial. }
+    rewrite distrib_orp_sepcon2, distrib_orp_andp.
+    apply orp_derives.
+    { rewrite andp_comm, exp_sepcon2, exp_andp2. apply exp_derives. intros bop.
+      rewrite exp_sepcon2, exp_andp2. apply exp_derives. intros e1.
+      rewrite exp_sepcon2, exp_andp2. apply exp_derives. intros e2.
+      rewrite exp_sepcon2, exp_andp2. apply exp_derives. intros tp.
+      rewrite exp_sepcon2, exp_andp2. apply exp_derives. intros sh1.
+      rewrite exp_sepcon2, exp_andp2. apply exp_derives. intros sh2.
+      normalize.
+      eapply derives_trans.
+      { apply andp_derives. apply now_later. apply sepcon_derives. apply now_later. apply derives_refl. }
+      rewrite <- later_sepcon, <- later_andp. apply later_derives.
+      rewrite <- corable_andp_sepcon1 by (apply corable_allp_fun_id).
+      eapply derives_trans. apply distrib_sepcon_andp.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite andp_assoc.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite andp_assoc.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite andp_assoc.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite ! andp_assoc.
+      apply andp_right.
+      { apply andp_left1. apply semax_prog.extend_tc_expr. } 
+      apply andp_right.
+      { apply andp_left2. apply andp_left1. apply semax_prog.extend_tc_expr. }
+      apply andp_right.
+      { do 2 apply andp_left2. apply andp_left1. apply semax_prog.extend_prop. }
+      apply andp_right.
+      { do 3 apply andp_left2. apply andp_left1.
+        rewrite sepcon_comm, sepcon_assoc.
+        apply sepcon_derives; trivial. normalize. } 
+      apply andp_right.
+      { do 4 apply andp_left2. apply andp_left1.
+        rewrite sepcon_comm, sepcon_assoc.
+        apply sepcon_derives; trivial. normalize. } 
+
+      remember (` (force_val2 (sem_binary_operation' bop (typeof e1) (typeof e2))) (eval_expr e1) (eval_expr e2) )  as LENV.
+
+      eapply derives_trans. apply andp_derives. eapply derives_trans. apply semax_prog.extend_tc_expr. apply typecheck_expr_sound. trivial. apply derives_refl. normalize. rename H2 into TC1.
+      eapply derives_trans. apply andp_derives. eapply derives_trans. apply semax_prog.extend_tc_expr. apply typecheck_expr_sound. trivial. apply derives_refl. normalize. rename H2 into TC2.
+      apply andp_left2. apply andp_left2. apply andp_left2. 
+      assert (TC: typecheck_environ Delta (env_set rho id (LENV rho))).
+      { subst. clear H. Search typecheck_environ. unfold liftx, lift; simpl. split3; try apply H0. simpl.  destruct H0. 
+        red; intros.
+        simpl; rewrite Map.gsspec. destruct (ident_eq id0 id); subst. 2: apply (H _ _ H2).
+        eexists; split. reflexivity.
+        unfold force_val in *.
+        remember (sem_binary_operation' bop (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)). destruct o; [ | congruence].
+        red; intros. admit. (*tiny tc_val hole*)}
+      eapply derives_trans. apply bupd_frame_l. apply bupd_mono.
+      rewrite distrib_orp_sepcon2.
+      apply orp_derives.
+        + rewrite sepcon_comm. eapply derives_trans. apply sepcon_derives. apply derives_refl.
+          apply now_later. rewrite <- later_sepcon. apply later_derives. normalize. 
+        + eapply derives_trans. 2: apply H. clear H.
+          unfold local, lift1, lift, tc_environ; simpl. normalize.
+          apply andp_right. 
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left1.
+            unfold allp_fun_id; simpl; trivial.
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left2.
+            destruct Q'; simpl in *. rewrite sepcon_comm. apply sepcon_derives; trivial.
+            apply derives_refl'. apply CL. intros. rewrite Map.gsspec.
+            destruct (ident_eq i id); [ subst; left | right; trivial].
+            do 2 red; simpl. unfold insert_idset. rewrite PTree.gss. trivial. }
+    rewrite distrib_orp_sepcon2, distrib_orp_andp.
+    apply orp_derives.
+    { rewrite andp_comm, exp_sepcon2, exp_andp2. apply exp_derives. intros sh.
+      normalize. rename x into t. intros v. apply (exp_right t). apply (exp_right v). normalize.
+      eapply derives_trans.
+      { apply andp_derives. apply now_later. apply sepcon_derives. apply now_later. apply derives_refl. }
+      rewrite <- later_sepcon, <- later_andp. apply later_derives.
+      rewrite <- corable_andp_sepcon1 by (apply corable_allp_fun_id).
+      eapply derives_trans. apply distrib_sepcon_andp.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite andp_assoc.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite ! andp_assoc.
+      apply andp_right.
+      { apply andp_left1. apply semax_prog.extend_tc_lvalue. } 
+      apply andp_right.
+      { apply andp_left2. apply andp_left1. apply semax_prog.extend_prop. }
+      apply andp_right.
+      { do 2 apply andp_left2. apply andp_left1. 
+        rewrite sepcon_comm, sepcon_assoc.
+        apply sepcon_derives; trivial. } 
+      eapply derives_trans. 
+      { apply andp_left2. apply andp_derives. instantiate (1:= !!(tc_val (typeof e) v)). apply semax_prog.extend_prop. apply andp_left2. apply derives_refl. }
+      normalize. rename H2 into TV.
+      
+      assert (TC: typecheck_environ Delta (env_set rho id ((` v) rho))).
+      { subst. clear H. split3; try apply H0. simpl. destruct H0. 
+        red; intros.
+        simpl; rewrite Map.gsspec. destruct (ident_eq id0 id); subst. 2: apply (H _ _ H2).
+        eexists; split. reflexivity. unfold liftx, lift; simpl.
+        destruct H1 as [? [? _]]. unfold typeof_temp in H1. rewrite H2 in H1. inv H1.
+        red; intros. eapply expr2.neutral_cast_subsumption. apply H3. apply TV. }
+      eapply derives_trans. apply bupd_frame_l. apply bupd_mono.
+      rewrite distrib_orp_sepcon2.
+      apply orp_derives.
+        + rewrite sepcon_comm. eapply derives_trans. apply sepcon_derives. apply derives_refl.
+          apply now_later. rewrite <- later_sepcon. apply later_derives. normalize. 
+        + eapply derives_trans. 2: apply H. clear H.
+          unfold local, lift1, lift, tc_environ; simpl. normalize.
+          apply andp_right. 
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left1.
+            unfold allp_fun_id; simpl; trivial.
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left2.
+            destruct Q'; simpl in *. rewrite sepcon_comm. apply sepcon_derives; trivial.
+            apply derives_refl'. apply CL. intros. rewrite Map.gsspec.
+            destruct (ident_eq i id); [ subst; left | right; trivial].
+            do 2 red; simpl. unfold insert_idset. rewrite PTree.gss. trivial. }
+    rewrite andp_comm, exp_sepcon2, exp_andp2. apply exp_derives. intros sh.
+    {  normalize. rename x into ee. intros t [E He] v; subst. apply (exp_right ee). apply (exp_right t). apply (exp_right v).
+      apply andp_right. apply prop_right. split; trivial.
+      eapply derives_trans.
+      { apply andp_derives. apply now_later. apply sepcon_derives. apply now_later. apply derives_refl. }
+      rewrite <- later_sepcon, <- later_andp. apply later_derives.
+      rewrite <- corable_andp_sepcon1 by (apply corable_allp_fun_id).
+      eapply derives_trans. apply distrib_sepcon_andp.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite andp_assoc.
+      eapply derives_trans. apply andp_derives. apply distrib_sepcon_andp. apply derives_refl.
+      rewrite ! andp_assoc.
+      apply andp_right.
+      { apply andp_left1. apply semax_prog.extend_tc_lvalue. } 
+      apply andp_right.
+      { apply andp_left2. apply andp_left1. apply semax_prog.extend_prop. }
+      apply andp_right.
+      { do 2 apply andp_left2. apply andp_left1. 
+        rewrite sepcon_comm, sepcon_assoc.
+        apply sepcon_derives; trivial. } 
+      assert (TC: typecheck_environ Delta (env_set rho id ((` (force_val (sem_cast (typeof ee) t v))) rho))).
+      { subst. clear H. split3; try apply H0. simpl. destruct H0. 
+        red; intros.
+        simpl; rewrite Map.gsspec. destruct (ident_eq id0 id); subst. 2: apply (H _ _ H1).
+        eexists; split. reflexivity. unfold liftx, lift; simpl. red; intros.
+        destruct He as [? [? _]]. unfold typeof_temp in H1. rewrite H1 in H1. inv H1.
+        unfold cast_pointer_to_bool in H4. unfold force_val.
+        remember (sem_cast (typeof ee) t v) as o; destruct o; simpl in *; try congruence.
+       Search sem_cast tc_val. admit. (*tiny tc_val hole*) }
+      do 3 apply andp_left2.
+      eapply derives_trans. apply bupd_frame_l. apply bupd_mono.
+      rewrite distrib_orp_sepcon2.
+      apply orp_derives.
+        + rewrite sepcon_comm. eapply derives_trans. apply sepcon_derives. apply derives_refl.
+          apply now_later. rewrite <- later_sepcon. apply later_derives. normalize. 
+        + eapply derives_trans. 2: apply H. clear H.
+          unfold local, lift1, lift, tc_environ; simpl. normalize.
+          apply andp_right. 
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left1.
+            unfold allp_fun_id; simpl; trivial.
+          - rewrite corable_andp_sepcon1 by apply (corable_allp_fun_id). apply andp_left2.
+            destruct Q'; simpl in *. rewrite sepcon_comm. apply sepcon_derives; trivial.
+            apply derives_refl'. apply CL. intros. rewrite Map.gsspec.
+            destruct (ident_eq i id); [ subst; left | right; trivial].
+            do 2 red; simpl. unfold insert_idset. rewrite PTree.gss. trivial. }
+Admitted. (*2 tiny tc_val holes *) 
+
 
 Lemma semax_Sbuiltin_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R opt ext tl el,
   @semax CS Espec Delta P (Sbuiltin opt ext tl el) R -> local (tc_environ Delta) && (allp_fun_id Delta && P) |-- |==> |> FF || FF.
@@ -2949,8 +3262,8 @@ Proof.
       !! tc_retval (snd sig) grv && (FR * Q ts1 x1 grv) |-- Q' ts x grv) && 
       (stackframe_of f tau * FR * P ts1 x1 (ge_of tau, vals) &&
             !! (map (Map.get (te_of tau)) (map fst (fn_params f)) = map Some vals))).
- + intros omega. (*clear SB3. normalize. simpl. simpl in Sub. rewrite SB2 in *. 
-   apply andp_left2. apply andp_left2. Search predicates_hered.exp.
+ + intros omega. clear SB3. normalize. simpl. simpl in Sub. rewrite SB2 in *. 
+   apply andp_left2. apply andp_left2. admit. (*should apply here: eapply predicates_hered.exp_left. _left. Search predicates_hered.exp.
 (* unfold sepcon. simpl. unfold Sveric. *)
    specialize (predicates_sl.exp_sepcon1 (list val)
    (fun vals : list val =>
@@ -2994,9 +3307,9 @@ Check (func_tycontext f V G nil).
     split3; trivial.
     apply join_comm in JM. rewrite sepcon_assoc.
     exists m2, m1; split3; trivial.*)
-    admit.
-  + clear Sub. admit. (*
-    apply semax_extract_exists. Search exp. ; intros vals.
+    
+  + normalize. admit. (*clear Sub. 
+    Locate semax_extract_exists. Search exp. ; intros vals.
     apply extract_exists_pre; intros ts1.
     apply extract_exists_pre; intros x1.
     apply extract_exists_pre; intros FRM.
@@ -3038,9 +3351,6 @@ Check (func_tycontext f V G nil).
 Qed.*)
 Admitted. (*semax_body_funspec_sub. TODO -- see semax_prog.v*)
 
-(*
-Require Import VST.veric.own.
-*)
 Lemma SB_i2o {V G C f i phi} (SB:@semax_body_i V G C f (i,phi)): 
       @semax_body V G C f (i, Clight_seplog.i2o phi).
 Proof. apply AuxDefs.SB_i2o; trivial. Qed. 
@@ -3632,6 +3942,19 @@ unfold local, lift1; intro rho; simpl; normalize.
         eapply semax_lemmas.typecheck_environ_sub; eauto.
       * intro; apply Clight_assert_lemmas.allp_fun_id_sub; auto.
 Qed.*)
+
+Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
+
+(* semax_seq_inv*)
+Lemma semax_seq_inv: forall {CS: compspecs} {Espec: OracleKind} Delta P R h t,
+    @semax CS Espec Delta P (Ssequence h t) R ->
+    exists Q, @semax CS Espec Delta P h (overridePost Q R) /\
+              @semax CS Espec Delta Q t R.
+Proof.
+intros. apply semax_seq_inv' in H. eexists; split. apply H. clear H.
+apply semax_extract_exists. intros G.  apply semax_extract_prop; intros.
+apply H.
+Qed.
 
 Lemma semax_loop_nocontinue:
   forall {CS: compspecs} {Espec: OracleKind},
@@ -4304,8 +4627,6 @@ fold semax.
 apply semax_loop_nocontinue1; auto.
 Qed.
 
-
-Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
 
