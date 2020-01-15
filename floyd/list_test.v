@@ -270,5 +270,61 @@ Proof.
   f_equal; auto. f_equal. auto.
 Qed.
 
+Require Import VST.floyd.proofauto.
 
+Example bug : forall X i (al bl : list X),
+  i < Zlength al ->
+  Zlength (sublist 0 i (al ++ bl)) <= i ->
+  Zlength (sublist 0 i (al ++ bl)) <= i.
+Proof.
+  intros.
+  Zlength_solve.
+Abort.
+
+Example bug : forall X i (al bl : list X),
+  i < Zlength al ->
+  Zlength (sublist 0 i (al ++ bl)) <= i ->
+  Zlength (sublist 0 i (al ++ bl)) <= i.
+Proof.
+  intros.
+  autorewrite with Zlength in H0.
+  Fail Zlength_solve.
+  Fail list_solve.
+Abort.
+
+Example bug : forall X i (al bl : list X),
+  i < Zlength al ->
+  Zlength (sublist 0 i (al ++ bl)) <= i ->
+  Zlength (sublist 0 i (al ++ bl)) <= i.
+Proof.
+  intros.
+  autorewrite with sublist in H0.
+  Fail Zlength_solve.
+  Fail list_solve.
+Abort.
+
+Example bug : forall (s : list Z) (n k i : Z),
+  0 <= n ->
+  0 < k < n ->
+  0 <= i < n - k ->
+  Zlength
+       (map Vint
+          (map Int.repr (sublist k (k + i) s)) ++
+        Zrepeat (n - i) Vundef) = n
+    ->
+  Zlength (map Vint (map Int.repr s)) =
+     Zlength
+       (map Vint
+          (map Int.repr (sublist k (k + i) s)) ++
+        Zrepeat (n - i) Vundef)
+    ->
+  Zlength s = n.
+Proof.
+  intros.
+  Fail Zlength_solve.
+  Fail autorewrite with Zlength in *; Zlength_solve.
+  rewrite <- H2.
+  rewrite <- H3.
+  Zlength_solve.
+Abort.
 

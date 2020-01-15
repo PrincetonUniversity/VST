@@ -28,7 +28,7 @@ default_target: _CoqProject msl veric floyd $(PROGSDIR)
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-#CLIGHTGEN=$(COMPCERT)/clightgen 
+#CLIGHTGEN=$(COMPCERT)/clightgen
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -289,7 +289,8 @@ PROGS32_FILES= \
   verif_strlib.v verif_fib.v bug83.v \
   tree.v verif_tree.v loop_minus1.v verif_loop_minus1.v \
   libglob.v verif_libglob.v peel.v verif_peel.v \
-  printf.v stackframe_demo.v verif_stackframe_demo.v
+  printf.v stackframe_demo.v verif_stackframe_demo.v \
+	rotate.v verif_rotate.v
 # verif_insertion_sort.v
 
 C64_ORDINARY = reverse.c revarray.c sumarray.c append.c bin_search.c \
@@ -432,9 +433,9 @@ else ifeq ($(strip $(ANNOTATE)), true)
 	@$(COQC) $(COQF) $*.v | awk '{printf "%s: %s\n", "'$*.v'", $$0}'
 else ifeq ($(strip $(ANNOTATE)), silent)
 	@$(COQC) $(COQF) $*.v >/dev/null
-else 
+else
 	@$(COQC) $(COQF) $*.v
-#	@util/annotate $(COQC) $(COQF) $*.v 
+#	@util/annotate $(COQC) $(COQF) $*.v
 endif
 
 # you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
@@ -490,7 +491,7 @@ all: default_target files travis hmacdrbg tweetnacl aes
 # $(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
 # msl/Coqlib2.vo: compcert
 # endif
- 
+
 msl:     _CoqProject $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: _CoqProject $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   _CoqProject $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
@@ -560,7 +561,7 @@ endif
 veric/version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-_CoqProject _CoqProject-export: Makefile util/coqflags 
+_CoqProject _CoqProject-export: Makefile util/coqflags
 	echo $(COQFLAGS) > _CoqProject
 	util/coqflags > _CoqProject-export
 
@@ -583,17 +584,17 @@ else
 	$(COQDEP) $(COQFLAGS) 2>&1 >>.depend `find $(addprefix $(COMPCERT)/,$(COMPCERTDIRS)) $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v 'Warning:.*found in the loadpath' || true
 endif
 ifneq ($(wildcard coq-ext-lib/theories),)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend 
+	$(COQDEP) -Q coq-ext-lib/theories ExtLib coq-ext-lib/theories >>.depend
 endif
 ifneq ($(wildcard InteractionTrees/theories),)
 	$(warning foo)
-	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend 
+	$(COQDEP) -Q coq-ext-lib/theories ExtLib -Q paco/src Paco -Q InteractionTrees/theories ITree InteractionTrees/theories >>.depend
 endif
 ifneq ($(wildcard fcf/src/FCF),)
-	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend 
+	$(COQDEP) -Q fcf/src/FCF FCF fcf/src/FCF/*.v >>.depend
 endif
 ifneq ($(wildcard paco/src),)
-	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend 
+	$(COQDEP) -Q paco/src Paco paco/src/*.v >>.depend
 endif
 
 clean:
