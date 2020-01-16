@@ -1657,6 +1657,17 @@ Axiom semax_Slabel:
      forall Delta (P:environ -> mpred) (c:statement) (Q:ret_assert) l,
    @semax cs Espec Delta P c Q -> @semax cs Espec Delta P (Slabel l c) Q.
 
+(*From semax_lemmas; maybe todo: unify with semax_conseq*)
+Axiom semax_adapt_frame: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'),
+   @semax cs Espec Delta P c Q.
+
 (* THESE RULES FROM semax_ext *)
 
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)

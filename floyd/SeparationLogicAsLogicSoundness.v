@@ -150,8 +150,8 @@ Proof.
     apply semax_extract_prop.
     tauto.
   + eapply MinimumLogic.semax_conseq; eauto.
-  + admit.
-Admitted. (*TODO*)
+  + eapply MinimumLogic.semax_adapt_frame; [| apply IHsemax]; apply H.
+Qed.
 
 Theorem semax_body_sound: forall Vspec Gspec CS f id,
   @DeepEmbedded.DeepEmbeddedDefs.semax_body Vspec Gspec CS f id ->

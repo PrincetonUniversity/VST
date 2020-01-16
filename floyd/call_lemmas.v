@@ -1065,6 +1065,120 @@ intros.
 apply H1. right; auto.
 Qed.
 
+Lemma rev_nil_elim {A} {l:list A}: rev l = nil -> l=nil.
+Proof. induction l; simpl; trivial.
+intros. exfalso. eapply app_cons_not_nil. symmetry. apply H. Qed. 
+
+Lemma local2ptree_aux_g_Some: forall Q
+   T1 T2 T3 gg Qvar Qtemp g,
+   local2ptree_aux Q T1 T2 T3 (Some gg) = (Qtemp, Qvar, nil, Some g) -> g=gg.
+Proof. induction Q; simpl; intros.
++ inv H. trivial.
++ destruct a; simpl in *. 
+  - remember (T1 ! i). destruct o; apply (IHQ _ _ _ _ _ _ _ H).
+  - remember (T2 ! i). destruct o; [ destruct p |]; apply (IHQ _ _ _ _ _ _ _ H).
+  - specialize (IHQ _ _ _ _ _ _ _ H); trivial.
+Qed.
+(*
+Lemma local2ptree_aux_g_None rho: forall Q
+   (HQ : fold_right (` and) (` True) (map locald_denote Q) rho)
+   T1 T2 T3 T4 Qvar Qtemp g,
+   local2ptree_aux Q T1 T2 T3 T4 = (Qtemp, Qvar, nil, Some g) ->
+match T4 with Some gg=> g=gg | None => g =
+(fun i : ident =>
+ match Map.get (ge_of rho) i with
+ | Some b => Vptr b Ptrofs.zero
+ | None => Vundef
+ end) end.
+Proof. induction Q; simpl; intros.
++ inv H. trivial.
++ destruct HQ. specialize (IHQ H1).
+  destruct a; simpl in *. 
+  - remember (T1 ! i). destruct o; simpl in H; apply (IHQ _ _ _ _ _ _ _ H).
+  - remember (T2 ! i). destruct o; simpl in H; [ destruct p |]; apply (IHQ _ _ _ _ _ _ _ H).
+  - destruct T4. apply (local2ptree_aux_g_Some _ _ _ _ _ _ _ _ H).
+    specialize (IHQ _ _ _ _ _ _ _ H). simpl in IHQ. subst.
+    specialize (local2ptree_aux_g_Some _ _ _ _ _ _ _ _ H). intros. subst g0.
+    Search local2ptree_aux.
+Lemma local2ptree_aux_g_None rho: forall Q
+   (HQ : fold_right (` and) (` True) (map locald_denote Q) rho)
+   T1 T2 T3 Qvar Qtemp g,
+   local2ptree_aux Q T1 T2 T3 None = (Qtemp, Qvar, nil, Some g) ->
+g =
+(fun i : ident =>
+ match Map.get (ge_of rho) i with
+ | Some b => Vptr b Ptrofs.zero
+ | None => Vundef
+ end).
+Proof. induction Q; simpl; intros.
++ inv H.
++ destruct HQ. specialize (IHQ H1); clear H1.
+  destruct a; simpl in *. 
+  - remember (T1 ! i). destruct o; simpl in H; apply (IHQ _ _ _ _ _ _ H).
+  - remember (T2 ! i). destruct o; simpl in H; [ destruct p |]; apply (IHQ _ _ _ _ _ _ H).
+  - apply local2ptree_aux_g_Some in H.   apply (IHQ _ _ _ _ _ _ H).
+*)
+Check LocalD.
+Lemma LP1: forall Q T1 T2 P X Qtemp Qvar PP OPT, 
+      local2ptree_aux Q T1 T2 P X = (Qtemp, Qvar, PP, OPT) ->
+      exists gv, map gvars gv = LocalD PTree.Leaf PTree.Leaf OPT.
+Proof. induction Q; intros.
++ inv H. destruct OPT. exists (g::nil); reflexivity.
+  exists nil; reflexivity. 
++ destruct a; simpl in H.
+  - destruct (T1 ! i); eapply IHQ; apply H.
+  - destruct (T2 ! i); try (eapply IHQ; apply H).
+    destruct p. eapply IHQ; apply H.
+  - destruct X. eapply IHQ; apply H. eapply IHQ; apply H. 
+Qed.
+
+Lemma LP2: forall Q T1 T2 P X Qtemp Qvar PP OPT, 
+      local2ptree_aux Q T1 T2 P X = (Qtemp, Qvar, PP, OPT) ->
+      exists gv PR, map gvars gv = LocalD PTree.Leaf PTree.Leaf OPT /\ PP = PR ++ P.
+Proof. induction Q; intros.
++ inv H. destruct OPT.
+  - exists (g::nil), nil; split; reflexivity.
+  - exists nil, nil; split; reflexivity.
++ destruct a; simpl in H.
+  - destruct (T1 ! i); apply IHQ in H; trivial.
+    destruct H as [? [? [? ?]]]. subst.
+    eexists; exists (x0 ++ (v=v0)::nil); split. eassumption.
+    rewrite <- app_assoc. simpl; trivial. 
+  - destruct (T2 ! i).
+    * destruct p. apply IHQ in H; trivial. 
+      destruct H as [? [? [? ?]]]. subst.
+      eexists; exists (x0 ++ (v0 = v) :: (t0 = t)::nil); split. eassumption.
+      rewrite <- app_assoc. simpl; trivial.
+    * apply IHQ in H; trivial.
+  - destruct X; apply IHQ in H; trivial.  
+      destruct H as [? [? [? ?]]]. subst.
+      eexists; exists (x0 ++ (g0 = g)::nil); split. eassumption.
+      rewrite <- app_assoc. simpl; trivial.
+Qed.
+
+Lemma LP3: forall Q T1 T2 P X Qtemp Qvar PP OPT, 
+      local2ptree_aux Q T1 T2 P X = (Qtemp, Qvar, PP, OPT) ->
+      exists gv PR, map gvars gv = LocalD PTree.Leaf PTree.Leaf OPT /\ PP = PR ++ P.
+Proof. induction Q; intros.
++ inv H. destruct OPT.
+  - exists (g::nil), nil; split; reflexivity.
+  - exists nil, nil; split; reflexivity.
++ destruct a; simpl in H.
+  - destruct (T1 ! i); apply IHQ in H; trivial.
+    destruct H as [? [? [? ?]]]. subst.
+    eexists; exists (x0 ++ (v=v0)::nil); split. eassumption.
+    rewrite <- app_assoc. simpl; trivial. 
+  - destruct (T2 ! i).
+    * destruct p. apply IHQ in H; trivial. 
+      destruct H as [? [? [? ?]]]. subst.
+      eexists; exists (x0 ++ (v0 = v) :: (t0 = t)::nil); split. eassumption.
+      rewrite <- app_assoc. simpl; trivial.
+    * apply IHQ in H; trivial.
+  - destruct X; apply IHQ in H; trivial.  
+      destruct H as [? [? [? ?]]]. subst.
+      eexists; exists (x0 ++ (g0 = g)::nil); split. eassumption.
+      rewrite <- app_assoc. simpl; trivial.
+Qed.
 Lemma semax_call_aux55:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t (type * val)) GV (a: expr)
      Delta P Q R R' fs argsig (*retty*) ts (A : rmaps.TypeTree)
@@ -1137,30 +1251,32 @@ clear - PTREE LEN PTREE' MSUBST FRAME PPRE (*CHECKTEMP*) CHECKG VUNDEF.
 rewrite <- later_sepcon.
 unfold PROPr, GLOBr, SEPr, gassert2assert, Clight_seplog.mkEnv. simpl fst.
 progress (autorewrite with norm1 norm2). unfold globals_only; simpl ge_of.
-clear PTREE PTREE' CHECKG. unfold liftx, lift. simpl lift_uncurry_open.
+unfold liftx, lift. simpl lift_uncurry_open.
 
-(*(*
-(*rewrite PROP_combine.
+rewrite <- andp_assoc,(andp_comm (local (tc_environ Delta))), VUNDEF; clear VUNDEF.
+eapply derives_trans.
+{ apply andp_derives. apply now_later. apply derives_refl. }
+
+(*
+rewrite PROP_combine.
 rewrite (andp_comm (local (fold_right _ _ _))).*)
-rewrite later_andp; apply andp_right.
-+
-  apply andp_left2. apply andp_left2. apply later_derives.
-(*  apply derives_trans with (|> (TCEXPRLIST && PROPx P (LOCALx Q (SEPx R)))).
-  { rewrite later_andp. apply andp_derives; [ apply now_later | trivial].  }
-  apply later_derives. apply andp_left2.*)
-  apply andp_right.
-  apply andp_left1.
-  rewrite fold_right_and_app_low.
-  apply prop_derives; intros; split; auto.
+rewrite <- later_andp. apply later_derives. 
+normalize. rename H into VL.
+simpl; intros rho. normalize.
+apply andp_right.
++ apply prop_right.
   clear - PPRE.
   revert PPRE; induction Ppre; simpl; intuition.
-  apply andp_left2.
-  apply andp_derives.
-  apply derives_refl.
-  intro rho; unfold SEPx.
-  rewrite fold_right_sepcon_app.
-  assumption.
-+*)
++ apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
+  unfold local, lift1, lift; simpl. normalize.
+  eapply derives_trans. apply FRAME. clear FRAME.
+  apply andp_right; trivial.
+  apply prop_right. split; trivial. clear - PTREE PTREE' CHECKG H0.
+  rewrite  local2ptree_gvars in PTREE'. destruct GV'; simpl in CHECKG; [ subst |].
+  - destruct Gpre; inv PTREE'. apply rev_nil_elim in H1. apply map_eq_nil in H1. subst. simpl.
+    admit.
+  - destruct Gpre; inv PTREE'. simpl. unfold liftx, lift; simpl; trivial.
+(*+
   apply derives_trans
   with (TCEXPRLIST && local (tc_environ Delta) && |> PROPx P (LOCALx Q (SEPx R))).
   { rewrite andp_comm. solve_andp. }
@@ -1207,7 +1323,8 @@ rewrite later_andp; apply andp_right.
   forget (eval_exprlist tys bl rho) as vl.
   eapply check_specs_lemma; try eassumption.*)
 Qed.
-*)Admitted.
+*)
+Admitted.
 
 Lemma semax_call_aux55_nil:
  forall (cs: compspecs) (Qtemp: PTree.t val) (Qvar: PTree.t (type * val)) GV (a: expr)

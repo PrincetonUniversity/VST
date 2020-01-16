@@ -212,6 +212,7 @@ Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
 Definition semax_conseq := @semax_conseq.
+Definition semax_adapt_frame := @semax_adapt_frame.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_external_FF := @semax_external_FF.
 
