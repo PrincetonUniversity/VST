@@ -869,8 +869,8 @@ Definition abs_treebox_free_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
+  PRE  [] main_pre prog tt gv
+  POST [ tint ] main_post prog gv.
 
 Lemma subsume_insert:
  funspec_sub (snd insert_spec) (snd abs_insert_spec).

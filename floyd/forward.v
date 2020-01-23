@@ -2560,7 +2560,6 @@ Lemma semax_convert_for_while:
   @semax CS Espec Delta Pre (Sfor s1 e2 s4 s3) Post.
 Proof.
 intros.
-Locate semax_extract_prop.
 pose proof (semax_convert_for_while' CS Espec Delta Pre s1 e2 s3 s4 Sskip Post H).
 spec H2; auto.
 apply -> semax_seq_skip in H1; auto.
@@ -4176,7 +4175,7 @@ Ltac start_function :=
     end;
     lazymatch goal with
     | s :=  (_,  WITH _: globals
-               PRE  [] main_pre _ _ nil _
+               PRE  [] main_pre _ _ _
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
    end;

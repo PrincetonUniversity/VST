@@ -547,7 +547,7 @@ Definition YList_add_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
+  PRE  [] main_pre prog tt gv
   POST [ tint ]
      PROP() LOCAL () SEP(TT).
 

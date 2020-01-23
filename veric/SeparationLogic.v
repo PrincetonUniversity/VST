@@ -893,22 +893,18 @@ Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
-Definition main_pre {Z: Type} (prog: program) (ora: Z) : list Type -> globals -> environ -> mpred :=
-(fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+Definition main_pre {Z: Type} (prog: program) (ora: Z) : globals -> environ -> mpred :=
+(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
-Definition main_post (prog: program) : list Type -> (ident->val) -> environ->mpred :=
-  (fun nil _ _ => TT).
+Definition main_post (prog: program) : (ident->val) -> environ->mpred :=
+  (fun _ _ => TT).
 
-Definition main_spec_ext' {Espec: OracleKind} (prog: program) (ora: OK_ty)
-    (post: list Type -> globals -> environ -> mpred): funspec :=
-  mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType globals) (main_pre prog ora) post
-       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+Definition main_spec_ext' {Z} (prog: program) (ora: Z)
+(post: (ident->val) -> environ -> mpred): funspec :=
+NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
-Definition main_spec_ext {Espec: OracleKind} (prog: program) (ora: OK_ty) : funspec :=
-  mk_funspec (nil, tint) cc_default
-     (rmaps.ConstType globals) (main_pre prog ora) (main_post prog)
-       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+Definition main_spec_ext {Z} (prog: program) (ora: Z): funspec :=
+NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) (main_post prog).
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
  match V with

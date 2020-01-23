@@ -263,24 +263,20 @@ Proof.
     intros; apply tycontext_sub_refl. apply CSUB. apply (B _ Q1 Q2 n).*)
 Qed. 
 
-Definition main_pre {Z} (prog: program) (ora: Z) : list Type -> (ident->val) -> assert :=
-(fun nil gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
+Definition main_pre {Z} (prog: program) (ora: Z) : (ident->val) -> assert :=
+(fun gv rho => globvars2pred gv (prog_vars prog) rho * has_ext ora).
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : list Type -> (ident->val) -> assert :=
-(fun nil _ _ => TT).
+Definition main_post (prog: program) : (ident->val) -> assert :=
+(fun _ _ => TT).
 
 Definition main_spec_ext' {Z} (prog: program) (ora: Z)
-(post: list Type -> (ident->val) -> environ ->pred rmap): funspec :=
-mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre prog ora) post
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+(post: (ident->val) -> environ ->pred rmap): funspec :=
+NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) post.
 
 Definition main_spec_ext (prog: program) (ora: OK_ty): funspec :=
-mk_funspec (nil, tint) cc_default
- (ConstType (ident->val)) (main_pre prog ora) (main_post prog)
-   (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+NDmk_funspec (nil, tint) cc_default (ident->val) (main_pre prog ora) (main_post prog). 
 
 Definition is_Internal (prog : program) (f : ident) :=
 match Genv.find_symbol (Genv.globalenv prog) f with

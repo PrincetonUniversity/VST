@@ -814,8 +814,8 @@ Lemma map_instantiate:
 Proof. intros. subst. reflexivity. Qed.
 
 Lemma main_pre_start:
- forall {Z} prog u gv (ora : Z),
-   main_pre prog ora u gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
+ forall {Z} prog gv (ora : Z),
+   main_pre prog ora gv = (PROP() LOCAL(gvars gv) SEP(has_ext ora))%assert * globvars2pred gv (prog_vars prog).
 Proof.
 intros.
 unfold main_pre.
@@ -1081,10 +1081,10 @@ reflexivity.
 Qed.
 
 Ltac expand_main_pre :=
- match goal with | |- semax _ (main_pre ?prog _ _ _ * _) _ _ =>
+ match goal with | |- semax _ (main_pre ?prog _ _ * _) _ _ =>
     rewrite main_pre_start;
     unfold prog_vars, prog
-                          | |- semax _ (main_pre ?prog _ _ _) _ _ =>
+                          | |- semax _ (main_pre ?prog _ _) _ _ =>
     rewrite main_pre_start;
     unfold prog_vars, prog
  end;

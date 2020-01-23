@@ -2137,8 +2137,8 @@ Proof.
 Qed.
 
 Inductive return_inner_gen (S: list mpred): option val -> (environ -> mpred) -> (environ -> mpred) -> Prop :=
-| return_inner_gen_main: forall ov_gen P ts u,
-    return_inner_gen S ov_gen (main_post P ts u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
+| return_inner_gen_main: forall ov_gen P u,
+    return_inner_gen S ov_gen (main_post P u) (PROPx nil (LOCALx nil (SEPx (TT :: S))))
 | return_inner_gen_canon_nil':
     forall ov_gen P R,
       return_inner_gen S ov_gen
