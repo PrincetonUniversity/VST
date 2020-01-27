@@ -52,7 +52,6 @@ simpl.
 forward.
 forward.
 forward.
-forward.
 unfold pilerep.
 Exists q.
 unfold listrep at 2; fold listrep.

@@ -1654,6 +1654,26 @@ Axiom semax_extract_later_prop:
            (PP -> @semax CS Espec Delta P c Q) ->
            @semax CS Espec Delta ((|> !!PP) && P) c Q.
 
+Axiom semax_adapt_frame: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho))))
+   (SEM: @semax cs Espec Delta P' c Q'),
+   @semax cs Espec Delta P c Q.
+
+Axiom semax_adapt: forall {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- (P' rho &&
+                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'),
+   @semax cs Espec Delta P c Q.
+
 End PRACTICAL_CLIGHT_SEPARATION_HOARE_LOGIC.
 
 Require Import Coq.Classes.Morphisms.

@@ -3156,6 +3156,136 @@ Qed.
 Definition semax_extract_prop := @ExtrFacts.semax_extract_prop.
 
 Definition semax_extract_later_prop := @ExtrIFacts.semax_extract_later_prop.
+Check semax_extract_later_prop.
+Print DeepEmbedded.Conseq.CSHL_Def.semax.
+Lemma semax_adapt_frame {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  derives (!!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho))
+                   (EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
+                         !!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
+                         !!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho))))
+   (SEM: @DeepEmbedded.Conseq.CSHL_Def.semax cs Espec Delta P' c Q'):
+   @DeepEmbedded.Conseq.CSHL_Def.semax cs Espec Delta P c Q.
+Proof. Locate semax. intros. 
+apply (semax_conseq Delta (fun rho => EX F: assert, !!(closed_wrt_modvars c F) && ((sepcon (P' rho) (F rho)) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
+                         (!!(forall rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
+                         (!!(forall vl rho, (local (tc_environ Delta) rho) && ((allp_fun_id Delta rho)) && RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))))))
+   Q).
++ intros. eapply derives_trans.
+  { unfold local, liftx, lift1, tc_environ; simpl; intros rho. apply H. }
+  clear H.
+  eapply derives_trans. 2: apply bupd_intro.
+  apply orp_right2. simpl; intros rho. apply exp_derives; intros F.
+  rewrite <- ! andp_assoc; trivial.
++ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
+  apply orp_right2. simpl; intros rho. do 2 apply andp_left2; trivial.
++ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
+  apply orp_right2. do 2 apply andp_left2; trivial.
++ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
+  apply orp_right2. do 2 apply andp_left2; trivial.
++ clear H. intros. eapply derives_trans. 2: apply bupd_intro.
+  apply orp_right2. do 2 apply andp_left2; trivial.
++ eapply semax_pre_simple 
+  with (EX (F:assert),
+   !! closed_wrt_modvars c F && 
+   fun rho =>
+   (P' rho * F rho &&
+    (!! (forall rho0 : environ,
+         local (tc_environ Delta) rho0 && allp_fun_id Delta rho0 &&
+         RA_normal (frame_ret_assert Q' F) rho0 |-- RA_normal Q rho0) &&
+     (!! (forall rho0 : environ,
+          local (tc_environ Delta) rho0 && allp_fun_id Delta rho0 &&
+          RA_break (frame_ret_assert Q' F) rho0 |-- RA_break Q rho0) &&
+      (!! (forall rho0 : environ,
+           local (tc_environ Delta) rho0 && allp_fun_id Delta rho0 &&
+           RA_continue (frame_ret_assert Q' F) rho0 |-- RA_continue Q rho0) &&
+       !! (forall (vl : option val) (rho0 : environ),
+           local (tc_environ Delta) rho0 && allp_fun_id Delta rho0 &&
+           RA_return (frame_ret_assert Q' F) vl rho0 |-- RA_return Q vl rho0)))))).
+  { simpl; intros; trivial. }
+  apply semax_extract_exists. intros F; clear H.
+  apply semax_extract_prop; intros.
+  eapply semax_pre.
+  2:{ do 4 (apply semax_extract_prop; intros).
+      eapply semax_conseq.
+      6:{ apply semax_frame. exact H. apply SEM. }
+      2: { intros; eapply derives_trans; [ | apply bupd_intro]. 
+           apply orp_right2. exact H0. }
+      2: { intros; eapply derives_trans; [ | apply bupd_intro]. 
+           apply orp_right2. exact H1. }
+      2: { intros; eapply derives_trans; [ | apply bupd_intro]. 
+           apply orp_right2. exact H2. }
+      2: { intros; eapply derives_trans; [ | apply bupd_intro]. 
+           apply orp_right2. revert vl. exact H3. }
+
+      intros; eapply derives_trans; [ | apply bupd_intro]. 
+      apply orp_right2. do 2 apply andp_left2. apply derives_refl. }
+
+  intros. unfold local, liftx, lift1, tc_environ; simpl; intros rho.
+  apply andp_left2. rewrite (andp_comm (P' rho * F rho)), <- ! andp_assoc.
+  repeat apply andp_derives; auto.
+  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
+  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
+  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
+  apply prop_derives. intros. rewrite <- andp_assoc. apply H0.
+Qed.
+
+Lemma semax_adapt_frame' {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- EX F: assert, (!!(closed_wrt_modvars c F) && (P' rho * F rho) &&
+                        !!(forall rho, RA_normal (frame_ret_assert Q' F) rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break (frame_ret_assert Q' F) rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue (frame_ret_assert Q' F) rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return (frame_ret_assert Q' F) vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'):
+   @semax cs Espec Delta P c Q.
+Proof.
+  intros. eapply semax_adapt_frame. 2: apply SEM.
+  intros. eapply derives_trans. apply H. 
+  clear. apply exp_derives. intros FR.
+  rewrite ! andp_assoc.
+  apply andp_derives; trivial.
+  apply andp_derives; trivial.
+  apply andp_derives. 
+  { apply prop_derives; intros. eapply derives_trans. 2: apply H. apply andp_left2; trivial. }
+  apply andp_derives. 
+  { apply prop_derives; intros. eapply derives_trans. 2: apply H. apply andp_left2; trivial. }
+  apply andp_derives. 
+  { apply prop_derives; intros. eapply derives_trans. 2: apply H. apply andp_left2; trivial. }
+  { apply prop_derives; intros. eapply derives_trans. 2: apply H. apply andp_left2; trivial. }
+Qed.
+
+Lemma semax_adapt {cs Espec} Delta c (P P': assert) (Q Q' : ret_assert)
+   (H: forall rho,  !!(typecheck_environ Delta rho) && (allp_fun_id Delta rho && P rho)
+                   |-- (P' rho &&
+                        !!(forall rho, RA_normal Q' rho |-- RA_normal Q rho) &&
+                        !!(forall rho, RA_break Q' rho |-- RA_break Q rho) &&
+                        !!(forall rho, RA_continue Q' rho |-- RA_continue Q rho) &&
+                        !!(forall vl rho, RA_return Q' vl rho |-- RA_return Q vl rho)))
+   (SEM: @semax cs Espec Delta P' c Q'):
+   @semax cs Espec Delta P c Q.
+Proof.
+  intros. eapply semax_adapt_frame'; eauto. intros.
+  apply (exp_right (fun rho => emp)).
+  eapply derives_trans. apply H. clear H.
+  rewrite ! andp_assoc. normalize.
+  apply andp_right. apply prop_right. do 2 red; simpl; intros; trivial.
+  apply andp_right; trivial.
+  apply andp_right.
+  { apply prop_right; intros. eapply derives_trans; [ | apply H].
+    clear; destruct Q'; simpl. rewrite sepcon_emp; trivial. }
+  apply andp_right.
+  { apply prop_right; intros. eapply derives_trans; [ | apply H0].
+    clear; destruct Q'; simpl. rewrite sepcon_emp; trivial. }
+  apply andp_right.
+  { apply prop_right; intros. eapply derives_trans; [ | apply H1].
+    clear; destruct Q'; simpl. rewrite sepcon_emp; trivial. }
+  { apply prop_right; intros. eapply derives_trans; [ | apply H2].
+    clear; destruct Q'; simpl. rewrite sepcon_emp; trivial. }
+Qed.
 
 End DeepEmbeddedPracticalLogic.
 

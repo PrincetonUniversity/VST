@@ -174,8 +174,8 @@ Definition assert := environ -> mpred.  (* Unfortunately
 
 (*Lenb: moved packPQ here from res_predicates.v*)
 Definition packPQ {A: rmaps.TypeTree}
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
-  forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
+  forall ts, dependent_type_functor_rec ts (SpecTT A) mpred :=
   fun ts a b => if b then P ts a else Q ts a.
 
 (*moved here from Clight_lemmas*)
