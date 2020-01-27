@@ -20,6 +20,7 @@ Require Import VST.concurrency.compiler.CoreSemantics_sum.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
 Require Import VST.concurrency.compiler.list_order.
+Require Import VST.concurrency.compiler.Asm_lemmas.
 Require Import VST.concurrency.compiler.synchronisation_symulations.
 
 
