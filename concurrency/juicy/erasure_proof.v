@@ -4765,8 +4765,61 @@ do 9 red in Hinitial.
                 apply mtch_install_perm with (ds := ds)(MATCH := MATCH) in Heqm1; hnf in Heqm1.
                 apply Heqm1.
                 split; simpl.
-                admit. (* preserve globals_not_fresh in Concur.invariant *)
-                admit. (* preserve mem_wd in Concur.invariant *)
+                + unfold Smallstep.globals_not_fresh; simpl.
+                  eapply Ple_trans.
+                  * eapply Hgnf.
+                  * reflexivity.
+                + clear - Hwd MATCH.
+                  unfold Concur.install_perm,Concur.juicyRestrict in Hwd.
+                  clean_proofs.
+                  inv MATCH.
+                  clear - Hwd mtch_perm1.
+
+                  unfold Mem.mem_wd in *; simpl in *.
+                  revert Hwd.
+
+
+                  assert (HH:mem_equiv.mem_equiv
+                            (restrPermMap abs_proof0)
+                            (restrPermMap abs_proof1)).
+                  { constructor; simpl.
+                    - try intros ? *.
+                      do 2 rewrite mem_equiv.getCur_restr.
+                      extensionality ofs.
+                      remember (OrdinalPool.getThreadR Htid) as pi.
+                      unfold Concur.juice2Perm,Concur.mapmap.
+                      unfold PMap.get at 2.
+                      rewrite PTree.gmap; simpl.
+                      unfold option_map.
+                      unfold permission_at in *.
+                      assert (((Mem.mem_access m).1 ofs Max) = None).
+                      { clear.
+                        change ((Mem.mem_access m).1 ofs Max = (fun=> None) ofs).
+                        rewrite <- (Max_isCanonical m).
+                        destruct m; auto. }
+                      
+                      match_case.
+                      + unshelve erewrite <- mtch_perm1; auto.
+                        match_case in Heqo.
+                        inv Heqo; auto.
+                      + match_case in Heqo.
+                        rewrite PTree.gmap1 in Heqo0; simpl.
+                        unfold option_map in *.
+                        match_case in Heqo0.
+                        assert ((getMaxPerm m) !! b ofs = None).
+                        { rewrite getMaxPerm_correct.
+                          unfold permission_at, "#".
+                          rewrite Heqo1; eauto. } 
+                        specialize (abs_proof0 b ofs).
+                        rewrite H0 in abs_proof0.
+                        simpl in abs_proof0.
+                        match_case in abs_proof0.
+                    - apply mem_equiv.Max_equiv_restr; reflexivity.
+                    - simpl.
+                      etransitivity. apply mem_equiv.restr_content_equiv.
+                      symmetry; apply mem_equiv.restr_content_equiv.
+                    - auto. }
+                  eapply mem_equiv.mem_inj_equiv; try eassumption; eauto.
               - eassumption.
               - replace Htid with ctn by apply proof_irr; reflexivity.
             }
@@ -4951,9 +5004,7 @@ inversion MATCH; subst.
   - assumption.
   - assumption.
   - assumption.
-  -  admit. (* preserve mem_wd in Concur.invariant *)
-  - admit. (* preserve globals_not_fresh in Concur.invariant *) 
- Admitted.
+  Qed.
 
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap

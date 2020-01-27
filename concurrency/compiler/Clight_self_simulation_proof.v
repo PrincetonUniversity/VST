@@ -610,7 +610,7 @@ Proof.
          rewrite (find_label_inject j (Kseq (seq_of_labeled_statement ls) k')). 
            apply (IHls ls j); trivial; reflexivity. 
          split; trivial; reflexivity.
-Admitted. (*Cannot guess decreasing argument of fix.*)*)
+Admitt ed. (*Cannot guess decreasing argument of fix.*)*)
 
 (*Alternative formulation, with same error during Qed:*)
 Lemma find_label_inject:

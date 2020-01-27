@@ -1025,7 +1025,10 @@ Section CLC_SEM.
     (Hef: match ef with EF_malloc | EF_free | EF_memcpy _ _ => False | _ => True end),
     ev_elim m ev m'.
   Proof.
-  intros.
+    intros.
+    inv Hev; simpl in Hef; try solve [inv Hef].
+    
+    
   Admitted.
 
   Lemma clc_ev_elim (FE: forall f vargs m e le m1 T (E:function_entryT f vargs m e le m1 T), ev_elim m T m1):

@@ -56,17 +56,22 @@ Module Concurrent_correctness
 
   
   Section TrivialSimulations.
+    Definition ctl_lifting {c1 c2} (f:c1 -> c2) (C:@ctl c1) :=
+      match C with
+      | Krun X0 => Krun (f X0)
+      | Kblocked X0 => Kblocked (f X0)
+      | Kresume X0 X1 => Kresume (f X0) X1
+      | Kinit X0 X1 => Kinit X0 X1
+      end.
     Definition lift_state {resources Sem1 Sem2}
                (f: @semC Sem1 -> @semC Sem2):
       @OrdinalPool.t resources Sem1 ->
       @OrdinalPool.t resources Sem2.
-      intros X; inv X.
-      econstructor; eauto.
-      intros h; specialize (pool h).
-      inv pool; [econstructor 1|
-                 econstructor 2|
-                 econstructor 3|
-                 econstructor 4]; eauto.
+    Proof. intros X; inv X.
+           econstructor; try eassumption.
+           intros h. eapply ctl_lifting; swap 1 2.
+           eapply pool; auto.
+           exact f.
     Defined.
     Definition lift_c_state:
       @OrdinalPool.t dryResources (@ClightMachine.DMS.DSem Clight_g) ->
@@ -75,6 +80,10 @@ Module Concurrent_correctness
       eapply lift_state. simpl; intros XX.
       apply SState; exact XX.
     Defined.
+
+    Definition ctl_c_lifting:=
+      ctl_lifting (fun XX : Clight.state => SState Clight.state Asm.state XX).
+      
     Inductive refl_match {st_t:Type}: unit -> meminj -> st_t -> mem -> st_t -> mem -> Prop :=
     | Build_refl_match:
         forall m st, refl_match tt (Mem.flat_inj (Mem.nextblock m)) st m st m.
@@ -83,28 +92,45 @@ Module Concurrent_correctness
     Proof. do 2 econstructor. inv H. Qed.
 
     Lemma clight_step_nextblock:
-      forall g f s m t s' m',
-        ClightSemanticsForMachines.clc_evstep g f s m t s' m' ->
+      forall g s m t s' m',
+        ClightSemanticsForMachines.clc_evstep
+          g (ClightSemanticsForMachines.function_entryT2 g) s m t s' m' ->
         (Mem.nextblock m <= Mem.nextblock m')%positive.
-    Admitted.
-    
-    
-
-    
+    Proof.
+      intros.
+      eapply ClightSemanticsForMachines.CLC_evsem_obligation_3 in H.
+      eapply event_semantics.ev_elim_mem_fw; eauto.
+    Qed.
     Lemma contains_lift_c_state:
       forall c j,
         OrdinalPool.containsThread (lift_c_state c) j <->
         OrdinalPool.containsThread c j.
     Proof.
-    Admitted.
+      intros. unfold lift_c_state, lift_state, OrdinalPool.containsThread; simpl.
+      destruct c; simpl; reflexivity.
+    Qed.
     Lemma invariant_lift_c_state:
       forall (st:ThreadPool.t),
         invariant(tpool:=OrdinalPool.OrdinalThreadPool) st ->
         invariant(tpool:=OrdinalPool.OrdinalThreadPool)
                  (lift_c_state st).
     Proof.
-    Admitted.
-    
+      intros. unfold lift_c_state, lift_state, OrdinalPool.containsThread; simpl.
+      destruct st.
+      inv H; simpl in *.
+      econstructor; eauto.
+    Qed.
+    Lemma mem_compatible_lift_c_state:
+      forall st1 m2,
+        @mem_compatible _ OrdinalPool.OrdinalThreadPool st1 m2 ->
+        @HybridMachineSig.HybridMachineSig.mem_compatible
+          _ _ _ (@DryHybridMachineSig _ (TP _)) (lift_c_state st1) m2.
+    Proof.
+      intros. unfold lift_c_state, lift_state, OrdinalPool.containsThread; simpl.
+      destruct st1.
+      inv H; simpl in *.
+      econstructor; eauto.
+    Qed.
     Lemma internal_step_lift_c_state:
       forall U (st1:HybridMachineSig.HybridMachineSig.machine_state)
         m2 st1' m1',
@@ -114,7 +140,56 @@ Module Concurrent_correctness
           (ThreadPool:=OrdinalPool.OrdinalThreadPool)
           U (lift_c_state st1) m2 (lift_c_state st1') m1'.
     Proof.
-    Admitted.
+      intros.
+      inv H; simpl in *.
+      replace m' with  (HybridMachineSig.HybridMachineSig.diluteMem m') by
+          reflexivity.
+      unshelve econstructor; eauto.
+      - eapply contains_lift_c_state; assumption.
+      - eapply mem_compatible_lift_c_state; eauto.
+      - repeat clean_proofs.
+        match goal with 
+          |- HybridMachineSig.HybridMachineSig.threadStep ?X _ _ _ _ =>
+          remember X as HH eqn:HHclear; clear HHclear
+        end.
+        clear - m2 m' st1 st1' tid ev Htid Hcmpt Htstep.
+        revert m2 m' st1 st1' tid ev Htid Hcmpt Htstep abs_proof HH.
+        Lemma thread_step_lift_c_state:
+          forall (m2 m' : Mem.mem)
+            (st1 st1' : OrdinalPool.t)
+            tid (ev : list event_semantics.mem_event)
+            (Htid : OrdinalPool.containsThread st1 tid)
+            (Hcmpt : @mem_compatible _ OrdinalPool.OrdinalThreadPool st1 m2),
+            @threadStep _ OrdinalPool.OrdinalThreadPool tid st1 m2 Htid Hcmpt st1' m' ev ->
+            forall (Hcmpt' : @HybridMachineSig.HybridMachineSig.mem_compatible
+                           _ _ OrdinalPool.OrdinalThreadPool DryHybridMachineSig 
+                           (lift_c_state st1) m2)
+            (Hcnt : OrdinalPool.containsThread (lift_c_state st1) tid),
+            @HybridMachineSig.HybridMachineSig.threadStep _ _
+                                                          OrdinalPool.OrdinalThreadPool
+                                                          _ _
+                                                          (lift_c_state st1)
+                                                          m2 Hcnt
+                                                          Hcmpt' (lift_c_state st1') m' ev.
+        Proof.
+          intros. unfold lift_c_state, lift_state, OrdinalPool.containsThread; simpl.
+          destruct st1.
+          inv H; simpl in *.
+          clean_proofs.
+          econstructor; eauto.
+          - exploit invariant_lift_c_state; eauto.
+          - simpl in *. rewrite Hcode. reflexivity.
+          - unshelve econstructor 1; simpl; eauto.
+            clean_proofs. eauto.
+          - simpl.
+            unfold OrdinalPool.updThread; simpl.
+            f_equal. simpl.
+            extensionality n.
+            match_case; eauto; try(
+             match_case in Heqc0; rewrite Heqc0; auto).
+        Qed.
+        apply thread_step_lift_c_state.
+    Qed.
 
     Lemma internal_step_nextblock:
       let TP:= (@OrdinalPool.OrdinalThreadPool _
@@ -126,21 +201,30 @@ Module Concurrent_correctness
     Proof.
       intros.
       inv H; inv Htstep.
+      simpl in Hcorestep.
       eapply clight_step_nextblock in Hcorestep.
       simpl in *; eauto.
     Qed.
     Lemma machine_step_nextblock:
-      forall res DM MS Sch,
+      forall Sch,
         let TP:= (@OrdinalPool.OrdinalThreadPool _
                                                  (@ClightMachine.DMS.DSem Clight_g)) in
         forall  U U' st m st' m' tr tr',
           (@HybridMachineSig.HybridMachineSig.external_step
-             res _ TP DM MS Sch)
+             _ _ TP HybridMachineSig.HybridMachineSig.HybridCoarseMachine.DilMem
+             (@DryHybridMachineSig (@ClightMachine.DMS.DSem Clight_g)
+                                   _) Sch)
             U tr st m U' tr' st' m' ->
           (Mem.nextblock m <= Mem.nextblock m')%positive.
     Proof.
-      intros.
-    Admitted.
+      intros. inv H; eauto; simpl; try reflexivity.
+      - inv Htstep. inv Hinitial; simpl in *.
+        inv Hperm. inv H. reflexivity.
+      - inv Htstep; try reflexivity.
+        + eapply Mem.nextblock_store in Hstore; rewrite Hstore; reflexivity.
+        + eapply Mem.nextblock_store in Hstore; rewrite Hstore; reflexivity.
+        + eapply Mem.nextblock_store in Hstore; rewrite Hstore; reflexivity.
+    Qed.
     Lemma machine_step_trace_C:
       forall init_m ge sge U tr st m U' tr' st' m',
         machine_semantics.machine_step 
@@ -149,15 +233,89 @@ Module Concurrent_correctness
         exists tr_tail,
           tr' = tr ++ tr_tail.
     Proof.
-    Admitted.
+      intros. inv H; econstructor; try apply app_nil_end.
+      - reflexivity.
+    Qed.
     Lemma external_step_event_injectable:
-      forall SM MS Sch U tr st m U' tr_tail st' m',
+      forall SM Sch U tr st m U' tr_tail st' m',
         @HybridMachineSig.HybridMachineSig.external_step
           _ _ (@OrdinalPool.OrdinalThreadPool dryResources (@ClightMachine.DMS.DSem Clight_g))
-          SM MS Sch
+          SM (@DryHybridMachineSig (@ClightMachine.DMS.DSem Clight_g)
+           (@OrdinalPool.OrdinalThreadPool dryResources
+              (@ClightMachine.DMS.DSem Clight_g))) Sch
           U tr st m U' (tr ++ tr_tail) st' m' ->
         Forall2 (inject_mevent (Mem.flat_inj (Mem.nextblock m'))) tr_tail tr_tail.
-    Admitted.
+      intros. inv H;
+      try (match goal with
+        [ H: ?x = ?x ++ _ |- _ ] =>
+        eapply threads_lemmas.app_eq_refl_nil in H; inv H
+           end; constructor).
+      rewrite Coqlib3.cat_app in H6.
+      eapply app_inv_head in H6. subst tr_tail.
+      econstructor; try solve[econstructor].
+      econstructor.
+      simpl in Htstep. inv Htstep.
+      - econstructor; simpl. 
+        + econstructor. unfold Mem.flat_inj. 
+          * match_case; eauto.
+            clear Heqs. contradict n.
+            erewrite Mem.nextblock_store; eauto; simpl.
+            eapply memory_lemmas.MemoryLemmas.load_valid_block in Hload as HH.
+            eapply HH.
+          * omega.
+        + econstructor.
+      - econstructor; simpl. 
+        + econstructor. unfold Mem.flat_inj. 
+          * match_case; eauto.
+            clear Heqs. contradict n. 
+            erewrite Mem.nextblock_store; eauto; simpl.
+            eapply memory_lemmas.MemoryLemmas.load_valid_block in Hload as HH.
+            eapply HH.
+          * omega.
+        + econstructor.
+      - econstructor; simpl. 
+        + econstructor. unfold Mem.flat_inj. 
+          * match_case; eauto.
+            clear Heqs. contradict n.
+        (* need to know that b is valid, could add it to the semantics? *)
+            admit.
+          * omega.
+        + econstructor.
+        + econstructor.
+      - econstructor; simpl. 
+        + econstructor. unfold Mem.flat_inj. 
+          * match_case; eauto.
+            clear Heqs. contradict n. 
+            eapply Mem.load_store_same in Hstore.
+            eapply memory_lemmas.MemoryLemmas.load_valid_block in Hstore as HH.
+            eapply HH.
+          * omega.
+      - econstructor; simpl. 
+        + econstructor. unfold Mem.flat_inj. 
+          * match_case; eauto.
+            clear Heqs. contradict n.
+            eapply Mem.perm_valid_block.
+            instantiate(1:= Writable).
+            eapply perm_range_perm in Hfreeable.
+            instantiate(1:= intval ofs) in Hfreeable.
+            eapply Mem.perm_cur_max in Hfreeable.
+            unfold Mem.perm in *.
+            repeat rewrite_getPerm.
+            rewrite getMax_restr in Hfreeable.
+            instantiate(1:=Max).
+            instantiate(1:=intval ofs).
+            rewrite_getPerm. auto.
+            hnf; simpl. pose proof LKSIZE_pos; omega.
+          * omega.    
+      - econstructor; simpl. 
+        + econstructor. unfold Mem.flat_inj. 
+          * match_case; eauto.
+            clear Heqs. contradict n. 
+            eapply memory_lemmas.MemoryLemmas.load_valid_block in Hload as HH.
+            eapply HH.
+          * omega.
+    Admitted. (*Checked 1/16/20: only one admit, needs some work *)
+    
     Notation scheduler:=HybridMachineSig.HybridMachineSig.HybridCoarseMachine.scheduler.
     Local Ltac cat_find_and_replace_nil:=
         match goal with
@@ -168,7 +326,43 @@ Module Concurrent_correctness
           rewrite Coqlib3.cat_app in H;
           apply app_inv_head in H; subst x
         end.
-      
+    Lemma getC_lift_c_state:
+      forall (st:OrdinalPool.t) tid c
+        (cnt: OrdinalPool.containsThread st tid)
+        (cnt': OrdinalPool.containsThread (lift_c_state st) tid),
+        OrdinalPool.getThreadC cnt = c ->
+        OrdinalPool.getThreadC cnt' =
+        ctl_c_lifting c.
+    Proof.
+      intros *. unfold OrdinalPool.getThreadC; destruct st; simpl in *.
+      clean_proofs; intros ->; reflexivity.
+    Qed.
+    Lemma getR_lift_c_state:
+      forall (st:OrdinalPool.t) tid
+        (cnt: OrdinalPool.containsThread st tid)
+        (cnt': OrdinalPool.containsThread (lift_c_state st) tid),
+        OrdinalPool.getThreadR cnt' = OrdinalPool.getThreadR cnt.
+    Proof.
+      intros *. unfold OrdinalPool.getThreadR; destruct st; simpl in *.
+      clean_proofs; reflexivity.
+    Qed.
+    Lemma updThread_lift:
+      forall (st:OrdinalPool.t) tid c perms
+        (cnt: OrdinalPool.containsThread st tid)
+        (cnt': OrdinalPool.containsThread (lift_c_state st) tid),
+        lift_c_state  (OrdinalPool.updThread cnt c perms) =
+        OrdinalPool.updThread cnt' (ctl_c_lifting c) perms.
+    Proof.
+      intros. destruct st; simpl.
+      unfold OrdinalPool.updThread; simpl.
+      f_equal. extensionality n.
+      clean_proofs.
+      match_case; eauto; simpl; try reflexivity.
+    Qed.
+    Ltac simpl_rewrite H:=
+      let HH:=fresh in
+                pose proof H as HH;
+                simpl in HH; erewrite HH.
     Lemma external_step_lift_c_state:
       forall U U' tr tr' m st st' m',
         @HybridMachineSig.HybridMachineSig.external_step
@@ -181,10 +375,111 @@ Module Concurrent_correctness
     Proof.
       intros.
       (* this ltac rewrites the traces in the right way*)
-      inv H; try cat_find_and_replace_nil.
-      - econstructor 1; eauto.
-        try solve[econstructor; eauto].
-    Admitted.
+      
+      inv H; try cat_find_and_replace_nil;
+      try match goal with
+        [H: ThreadPool.containsThread ?st ?tid |- _ ]=>
+        try assert (OrdinalPool.containsThread (lift_c_state st) tid)
+            by (eapply contains_lift_c_state; eauto)
+      end.
+        
+      
+      (* Here is the tactics for lifting all the easy subgoals *)
+      Ltac lift_subgoals:=
+        simpl;
+        try solve[ eapply mem_compatible_lift_c_state; eauto];
+        try solve[ eapply invariant_lift_c_state; eauto];
+        try (match goal with
+                |- install_perm _ _ _ _ _ _ =>
+                solve [econstructor]
+               end);
+        try (unshelve simpl_rewrite updThread_lift; eauto; shelve_unifiable);
+        (* solve the getThreadC goals*)
+        try solve[match goal with [Hcode: ThreadPool.getThreadC _ = _  |- _ ]=>
+                                  try eapply getC_lift_c_state in Hcode;
+                                  apply Hcode
+                  end].
+        
+      - (*START_THREAD*)
+        unshelve econstructor 1; eauto.
+        inv Htstep; unshelve econstructor;
+            lift_subgoals; shelve_unifiable.
+        2:{ unfold add_block.
+            simpl; unfold OrdinalPool.updThread. simpl. 
+            clean_proofs. 
+            destruct st; simpl in *.
+            clean_proofs. reflexivity. }
+        + simpl; split.
+          * !goal (tid <= 0)%nat. admit.  (* This is backwards! flip it. *)
+          * destruct Hinitial as [Hinitial  Hinitial_mem].
+            econstructor; eauto. simpl.
+            simpl in Hinitial.
+            match goal with
+              |- ?F ?m _ _ _ => replace m with m'
+            end; eauto.
+            { inv Hperm. clean_proofs.
+              eapply restrPermMap_irr'.
+              simpl. destruct st; simpl.
+              clean_proofs. auto. }
+      - (*RESUME_THREAD*)
+        unshelve exploit getR_lift_c_state;
+          eauto; intros Hsame_R.
+        unshelve econstructor 2; eauto.
+        inv Htstep; unshelve econstructor;
+          lift_subgoals; shelve_unifiable; simpl in  *.
+          * rewrite <- Hat_external. repeat f_equal.
+            inv Hperm. eapply restrPermMap_irr'.
+            erewrite getR_lift_c_state; reflexivity.
+          * unfold state_sum_options.
+            inv Hperm. simpl in *.
+            clean_proofs.
+            erewrite restrPermMap_irr'.
+            rewrite Hafter_external; eauto.
+            rewrite Hsame_R; reflexivity.
+          * simpl; unfold OrdinalPool.updThreadC. simpl. 
+            destruct st; f_equal; simpl.
+            extensionality n; simpl.
+            clean_proofs. 
+            match_case; eauto.
+      - (*SUSPEND_THREAD*)
+        unshelve exploit getR_lift_c_state;
+          eauto; intros Hsame_R.
+        unshelve econstructor 3; eauto.
+        inv Htstep; unshelve econstructor;
+          lift_subgoals; shelve_unifiable; simpl in  *.
+          * rewrite <- Hat_external. repeat f_equal.
+            inv Hperm. eapply restrPermMap_irr'.
+            erewrite getR_lift_c_state; reflexivity.
+          * simpl; unfold OrdinalPool.updThreadC. simpl. 
+            destruct st; f_equal; simpl.
+            extensionality n; simpl.
+            clean_proofs. 
+            match_case; eauto.
+      - (*Sync_THREAD*)
+        unshelve exploit getR_lift_c_state;
+          eauto; intros Hsame_R.
+        unshelve econstructor 4; eauto.
+        + eapply mem_compatible_lift_c_state; eauto.
+        + admit. (* Same Lemma (AS THIS CURRENT ONE) for syncStep*)
+      - (*schedfail*)
+        unshelve econstructor 5; eauto.
+        + destruct Htid; [left| right].
+          * intros HH; eapply H. eapply contains_lift_c_state; eauto.
+          * destruct H as (?&?&?&?&?).
+            repeat (econstructor; eauto).
+            eapply getC_lift_c_state in H.
+            simpl in H. eauto.
+            simpl; eauto.
+        + eapply invariant_lift_c_state; eauto.
+        + eapply mem_compatible_lift_c_state; eauto.
+
+          Unshelve.
+          eapply contains_lift_c_state; eauto.
+    Admitted. (*Checked 1/16/20. adm its: 
+                1. First admit is a mistake in the semantics of sum_sem: fix it and done.
+                2. Its a full new similar to the present one, but for sync_steps. 
+               *)
+    
     Lemma external_step_anytrace:
       forall U U' tr1 tr_trail m st st' m',
         @HybridMachineSig.HybridMachineSig.external_step
@@ -213,7 +508,7 @@ Module Concurrent_correctness
       intros *; match_case.
     Qed.
         
-    (*Lemma unique_Krun_lift_c_state:
+    Lemma unique_Krun_lift_c_state:
       forall c i,
         @HybridMachineSig.HybridMachineSig.unique_Krun _ _ OrdinalPool.OrdinalThreadPool c i <->
         @HybridMachineSig.HybridMachineSig.unique_Krun _ _ (TP (@Some nat 0%nat)) (lift_c_state c) i.
@@ -222,21 +517,15 @@ Module Concurrent_correctness
       split; intros HH; simpl; intros.
       - unfold OrdinalPool.getThreadC,OrdinalPool.pool in *.
         destruct c; simpl in *. 
+        unfold ctl_lifting in H.
         match_case in H.
         unshelve eapply HH; debug eauto.
       - unshelve eapply HH.
         + apply contains_lift_c_state; assumption.
         + apply SState, q.
-        + unfold OrdinalPool.getThreadC,OrdinalPool.pool.
-          destruct c; simpl in *.
-          match goal with
-            |- (match ?X with _ => _ end) = _ => replace X with (Krun q)
-          end.
-          * reflexivity.
-          * rewrite <- H. f_equal. simpl. f_equal.
-            match_case; simpl.
-            eapply Axioms.proof_irr.
-    Qed.*)
+        + eapply getC_lift_c_state in H; simpl in *.
+          eauto.
+    Qed. 
     Definition lifted_refl_match :=
       fun cd j st1 m1 st2 m2 =>
          refl_match cd j (lift_c_state st1) m1 st2 m2.
@@ -304,18 +593,31 @@ Module Concurrent_correctness
         inv H. simpl.
         intros. exists v1. simpl in *.
         eapply halted__lift_c_state; auto.
-     (* - intros; simpl. inv H.
-        apply unique_Krun_lift_c_state. *)
+      - intros; simpl. inv H. 
+        apply unique_Krun_lift_c_state. 
     Qed.
-      Lemma trivial_asm_simulation:
-        forall ap (Hsafe:Asm_core.safe_genv (@the_ge ap)), 
+    Lemma trivial_asm_simulation:
+      forall ap (Hsafe:Asm_core.safe_genv (@the_ge ap)), 
         (HybridMachine_simulation
            (HybConcSem None (Genv.init_mem ap))
            (X86Context.AsmConcurSem
               (the_program:=ap)
               (Hsafe:=Hsafe)
               (Genv.init_mem ap))).
-      Admitted.
+    Proof.
+      intros. do 2 econstructor.
+      - eapply trivial_order_wf.
+      - intros.
+        
+    (* This lemma follows just like the one above 
+           [trivial_clight_simulation] , but for ASM. 
+           will need to repeat many of the lemmas unfortunately.
+     *)
+    Admitted. (*Checked 1/16/20. adm its: 
+                Yes. This should follow exactly like the lemma above for C, 
+                any way to modularize the proofs?
+
+               *)
     End TrivialSimulations.
 
 
@@ -354,15 +656,31 @@ Module Concurrent_correctness
           edestruct thread_halted; eauto.
        (* - intros ?????? (? & ? & ? & ? & ? & ? & ?) ?.
           erewrite thread_running; eauto. *)
-      Admitted.
+      Admitted. (* Checked 1/16/20. adm its: 
+                   Transitivity should be true... 
+                 *)
     End SimulationTransitivity.
 
   Lemma initial_memories_are_equal:
-    forall (p : Clight.program) (tp : Asm.program),
-      Genv.init_mem tp = Genv.init_mem (Ctypes.program_of_program p).
+    forall (tp:Asm.program),
+      CC_correct.CompCert_compiler C_program = Some tp ->
+      Genv.init_mem tp = Genv.init_mem (Ctypes.program_of_program C_program ).
   Proof.
-    intros p tp.
-  Admitted.
+    intros **.
+    eapply CC_correct.simpl_clight_semantic_preservation in H.
+    inv H. clear - Injfsim_match_entry_pointsX.
+    exploit Injfsim_match_entry_pointsX; simpl.
+    simpl.
+    econstructor; simpl; eauto.
+    (* This is not true yet. 
+       Maybe you want to go to compcert and prove this directly, 
+       it will break when remove globals is introduced...
+     *)
+  Admitted. (* Checked 1/16/20. adm its: 
+               This is kind of wrong as explained above. 
+               Need some changes to CompCert? 
+               
+               *)
   
   Lemma ConcurrentCompilerCorrectness:
     forall (tp:Asm.program),
@@ -381,7 +699,8 @@ Module Concurrent_correctness
         eapply compile_all_threads.
       + replace (Genv.init_mem (Ctypes.program_of_program C_program))
           with (Genv.init_mem tp) by
-            eapply initial_memories_are_equal.
+            (eapply initial_memories_are_equal; eauto).
+        pose proof trivial_asm_simulation.
         eapply trivial_asm_simulation; eauto.
   Qed.
 

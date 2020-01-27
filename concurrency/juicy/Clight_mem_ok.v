@@ -205,7 +205,10 @@ Lemma cl_step_wellformed:
       Clight_core.cl_step ge c (@restrPermMap pm m Hlt) c' m' ->
       mem_wellformed ge m' /\ 
       core_wellformed (Mem.nextblock m') c'.
-Admitted.  (* Santiago will prove this, generically over all injections not just flat ones *)
+Admitted.  (* Santiago will prove a similar one in Clight_self_simulation, 
+              (generically over all injections not just flat ones).
+              The proofs will look similar, but can't use one to prove the other.
+            *)
 
 Lemma initial_core_wellformed:
   forall ge v args c m,
@@ -213,6 +216,9 @@ Lemma initial_core_wellformed:
      Clight_core.arg_well_formed args m ->
      Smallstep.globals_not_fresh ge m ->
      core_wellformed (Mem.nextblock m) c.
+Proof.
+  (* Clight_self_simulation needs a weaker version of this, 
+     where the initial state is injected (by any injection, not necessarily flat. *)
 Admitted.
 
 Section ALLOC_OK.
@@ -867,8 +873,9 @@ Lemma inline_external_call_mem_wd:
   AST.ef_inline ef = true ->
   Forall (val_wellformed (Mem.nextblock m)) vargs ->
   Smallstep.globals_not_fresh ge m ->
-  mem_wd2 m ->
-  mem_wd2 m' /\ val_wellformed (Mem.nextblock m') vres /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
+  mem_wd2 m -> mem_wd2 m' /\
+              val_wellformed (Mem.nextblock m') vres /\
+              (Mem.nextblock m <= Mem.nextblock m')%positive.
 Proof.
 intros.
 destruct ef; try solve [inv H0].

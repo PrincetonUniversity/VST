@@ -472,7 +472,7 @@ Qed.
 
 Lemma cur_equiv_restr_mem_equiv:
   forall (m:mem) p
-    (Hlt: permMapLt p (getMaxPerm m)),
+         (Hlt: permMapLt p (getMaxPerm m)),
     access_map_equiv p (getCurPerm m) ->
     mem_equiv (restrPermMap Hlt) m.
 Proof.
@@ -484,13 +484,13 @@ Proof.
 Qed.
 Lemma mem_access_max_equiv:
   forall m1 m2, Mem.mem_access m1 =  Mem.mem_access m2 ->
-           Max_equiv m1 m2.
+                Max_equiv m1 m2.
 Proof. intros ** ?; unfold getMaxPerm; simpl.
        rewrite H; reflexivity.
 Qed.
 Lemma mem_access_cur_equiv:
   forall m1 m2, Mem.mem_access m1 = Mem.mem_access m2 ->
-           Cur_equiv m1 m2.
+                Cur_equiv m1 m2.
 Proof. intros ** ?; unfold getCurPerm; simpl.
        rewrite H; reflexivity.
 Qed.
@@ -549,3 +549,53 @@ Proof.
   intros. intros ?.
   erewrite store_cur_eq; eauto.
 Qed.
+
+Lemma content_equiv_getN:
+  forall x y,
+    content_equiv x y ->
+    forall z ofs b,
+      Mem.getN z ofs (Mem.mem_contents x) !! b =
+      Mem.getN z ofs (Mem.mem_contents y) !! b.
+Proof.
+  intros ???. induction z; simpl; auto.
+  intros; f_equal; auto.
+Qed.
+Lemma getN_content_equiv:
+  forall x y,
+    (forall ofs b,
+        Mem.getN 4 ofs (Mem.mem_contents x) !! b =
+        Mem.getN 4 ofs (Mem.mem_contents y) !! b) ->
+    content_equiv x y.
+Proof.
+  intros ** ? **.
+  specialize (H ofs b).
+  inversion H; subst; auto.
+Qed.
+
+Lemma max_equiv_restr:
+  forall m m' perm perm' Hlt Hlt',
+    Max_equiv m m' ->
+    Max_equiv (@restrPermMap perm m  Hlt )
+              (@restrPermMap perm' m' Hlt').
+Proof.
+  intros. unfold Max_equiv.
+  etransitivity; [|symmetry].
+  eapply restr_Max_equiv.
+  etransitivity; [eapply restr_Max_equiv|].
+  symmetry; eapply H.
+Qed.
+Lemma cur_equiv_restr:
+  forall m m' perm Hlt Hlt',
+    Cur_equiv (@restrPermMap perm m  Hlt )
+              (@restrPermMap perm m' Hlt').
+Proof.
+  intros; unfold Cur_equiv;
+    etransitivity; [|symmetry]; eapply getCur_restr.
+Qed.
+
+Lemma permMapLt_Max_equiv:
+  forall p m m',
+    Max_equiv m m' ->
+    permMapLt p (getMaxPerm m) ->
+    permMapLt p (getMaxPerm m').
+Proof. unfold Max_equiv; intros * <-; auto. Qed.

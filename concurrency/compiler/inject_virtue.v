@@ -271,8 +271,48 @@ Section VirtueInject.
     normal; eauto.
     eapply PTree.elements_complete; auto.
   Qed.
-
   Lemma tree_map_inject_over_mem_correct_forward:
+    forall (mu:meminj) m2 b2 ofs delta b1 (dmap: delta_map) p,
+      mu b1 = Some (b2, delta) ->
+      dmap_get dmap b1 ofs = Some p ->
+      ( forall ofs,
+          option_implication (dmap_get dmap b1 ofs)
+                             ((getMaxPerm m2) !! b2 (ofs + delta))) ->
+      dmap_no_overlap mu dmap ->
+      dmap_get (tree_map_inject_over_mem m2 mu dmap) b2 (ofs + delta) = Some p.
+  Proof.
+    intros. 
+    specialize (H1 ofs).
+    remember ((getMaxPerm m2) !! b2 (ofs + delta)) as PP.
+    unfold tree_map_inject_over_mem,
+    tree_map_inject_over_tree,dmap_get, PMap.get;
+      unfold tree_map_inject_over_mem,
+      tree_map_inject_over_tree,dmap_get, PMap.get in H0, H1, H2;
+      simpl in *; intros.
+    repeat match_case in H0; try congruence.
+    rewrite PTree.gmap, PTree.gmap1; unfold option_map.
+    unfold getMaxPerm in H1.
+    simpl in *.
+    destruct ((snd (Mem.mem_access m2)) ! b2) eqn:HH.
+    - subst PP.
+      exploit (@build_function_for_a_block_correct_forward
+                 (option permission)); eauto.
+      + eapply PTree.elements_correct.
+        unfold dmap_get in *.
+        rewrite Heqo. reflexivity.
+      + eapply list_no_overlap_to_one; eauto.
+        * eapply list_dmap_no_overlap; eauto.
+        * eapply PTree.elements_correct; eauto.
+      + apply PTree.elements_keys_norepet.
+    - subst PP.
+      rewrite H0 in H1; simpl in H1.
+      repeat match_case in H1.
+      assert (forall ofs, (getMaxPerm m2)!! b2 ofs  = None).
+      { intros. rewrite getMaxPerm_correct; unfold permission_at.
+        unfold "!!". rewrite HH. apply canon_mem_access. }
+      rewrite H3 in Heqo0. congruence.
+  Qed.
+  Lemma tree_map_inject_over_mem_correct_forward':
     forall (mu:meminj) m2 b2 ofs delta b1 (dmap: delta_map) p,
       mu b1 = Some (b2, delta) ->
       dmap_get dmap b1 ofs = Some p ->
@@ -396,7 +436,29 @@ Section VirtueInject.
   Definition virtueLP_inject m (mu:meminj):
     (Pair access_map) -> Pair access_map :=
     pair1 (inject_access_map m mu).
-
+  Lemma virtueLP_inject_max_eq:
+    forall m m' mu AA,
+      getMaxPerm m = getMaxPerm m' ->
+      virtueLP_inject m mu AA =
+      virtueLP_inject m' mu AA.
+  Proof.
+    intros.
+    unfold virtueLP_inject, inject_access_map, tree_map_inject_over_mem.
+    rewrite H; reflexivity.
+  Qed.
+  Lemma virtueLP_inject_max_eq_exteny:
+    forall m m',
+      getMaxPerm m = getMaxPerm m' ->
+      virtueLP_inject m =
+      virtueLP_inject m'.
+  Proof.
+    intros.
+    extensionality mu.
+    extensionality AA.
+    apply virtueLP_inject_max_eq; assumption.
+  Qed.
+      
+      
   
   Lemma inject_virtue_sub_map:
     forall (m1 m2 : mem)
@@ -619,7 +681,7 @@ Section VirtueInject.
         destruct (dmap_get dmap b1 ofs) eqn:Hdmap; try solve[inv H].
         specialize (Hinj_dmap _ _ _ Hdmap).
         inv Hinj_dmap. normal; eauto.
-        erewrite tree_map_inject_over_mem_correct_forward; eauto.
+        erewrite tree_map_inject_over_mem_correct_forward'; eauto.
       Qed.
 
       
@@ -914,7 +976,10 @@ Proof.
   intros * Hfull Hsub_map.
   constructor.
   - eapply full_inject_map_pair; try eassumption.
-    eapply sub_map_valid_pair, Hsub_map.
+    assert (isCanonical_pair (virtueLP angel)).
+    { inv Hsub_map. destruct virtueLP_sub_map as (?&?&?).
+      split; simpl; eauto. }
+    eapply sub_map_valid_pair; eauto; try apply Hsub_map.
   - eapply full_inject_dmap_pair; try eassumption.
     apply join_dmap_valid_pair, Hsub_map.
 Qed.

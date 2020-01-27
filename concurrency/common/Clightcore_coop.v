@@ -47,11 +47,15 @@ Proof. intros.
   eapply semantics.mem_step_storebytes; eassumption.
 Qed.
 
-Lemma inline_assembly_memstep: forall text sg g vargs m t vres m' (IA:Events.inline_assembly_sem text sg g vargs m t vres m'),
+Lemma inline_assembly_memstep:
+  forall text sg g vargs m t vres m'
+    (IA:Events.inline_assembly_sem text sg g vargs m t vres m'),
     mem_step m m'.
 Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
 
-Lemma extcall_sem_mem_step: forall name sg g vargs m t vres m' (E:Events.external_functions_sem name sg g vargs m t vres m'),
+Lemma extcall_sem_mem_step:
+  forall name sg g vargs m t vres m'
+    (E:Events.external_functions_sem name sg g vargs m t vres m'),
   mem_step m m'.
 Admitted. (*Maybe include mem_step in Events.extcall_properties.?*)
 
@@ -134,6 +138,6 @@ Program Definition CLN_coop_sem :
   CoopCoreSem Clight.genv (*(Genv.t fundef type)*) corestate.
 apply Build_CoopCoreSem with (coopsem := cl_core_sem).
 apply cln_forward.
-admit. (*This is the new readonly condition which should be easy to prove.*)
-Admitted.
+adm it. (*This is the new readonly condition which should be easy to prove.*)
+Adm itted.
 *)

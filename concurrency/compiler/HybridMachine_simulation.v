@@ -283,11 +283,10 @@ Section HybridSimulation.
             conc_halted SourceHybridMachine U c1 = Some v1 ->
             exists v2,
               conc_halted TargetHybridMachine U c2 = Some v2
-                                                          
-      (*; thread_running:
+      ; thread_running:
           forall cd mu c1 m1 c2 m2 ,
             match_state cd mu c1 m1 c2 m2 ->
-            forall i, running_thread SourceHybridMachine c1 i <-> running_thread TargetHybridMachine c2 i*)
+            forall i, running_thread SourceHybridMachine c1 i <-> running_thread TargetHybridMachine c2 i
     }.
 
   Record HybridMachine_simulation:=

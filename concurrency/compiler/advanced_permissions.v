@@ -26,6 +26,8 @@ Require Import VST.concurrency.compiler.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.lib.setoid_help.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Ltac unify_injection:=
   match goal with
     [H: ?mu ?x = _,H0: ?mu ?x = _ |- _] =>
@@ -126,7 +128,7 @@ Proof.
 Qed.
 Definition perm_image (f:meminj) (a1: access_map): Prop:=
   forall b1 ofs, at_least_Some (a1 !! b1 ofs) ->
-            exists b2 delta, f b1 = Some (b2, delta).
+                 exists b2 delta, f b1 = Some (b2, delta).
 Instance proper_perm_image:
   Proper (Logic.eq ==> access_map_equiv ==> iff) perm_image.
 Proof.
@@ -139,8 +141,8 @@ Definition perm_surj (mu:meminj) (a1 a2: access_map):=
   forall b2 ofs_delt,
     at_least_Some (a2 !! b2 ofs_delt) ->
     exists b1 ofs delt, mu b1 = Some (b2, delt) /\
-                   ofs_delt = ofs + delt /\
-                   a2 !! b2 ofs_delt = a1 !! b1 ofs.
+                        ofs_delt = ofs + delt /\
+                        a2 !! b2 ofs_delt = a1 !! b1 ofs.
 
 
 
@@ -188,9 +190,9 @@ Qed.
 
 Lemma setPermBlock_inject_permMapLt':
   forall n (NZ: (0 < n)%nat)
-    (m1 m2 : mem) 
-    (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
-    (b : block) ofs P,
+         (m1 m2 : mem) 
+         (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
+         (b : block) ofs P,
     permMapLt (setPermBlock P b (ofs) cur_perm1 n)
               max_perm1 ->
     Mem.inject mu m1 m2 ->
@@ -224,9 +226,9 @@ Proof.
 Qed.
 Lemma setPermBlock_inject_permMapLt:
   forall n (NZ: (0 < n)%nat)
-    (m1 m2 : mem) 
-    (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
-    (b : block) ofs P,
+         (m1 m2 : mem) 
+         (mu : meminj) cur_perm1 cur_perm2 max_perm1 max_perm2
+         (b : block) ofs P,
     permMapLt (setPermBlock P b (ofs) cur_perm1 n)
               max_perm1 ->
     Mem.inject mu m1 m2 ->
@@ -277,7 +279,7 @@ Lemma setPermBlock_extensionality:
     (0 < n)%nat ->
     (forall b0, perm_map1 !! b0 = perm_map2 !! b0) -> 
     forall b0, (setPermBlock perm b ofs perm_map1 n) !! b0=
-          (setPermBlock perm b ofs perm_map2 n) !! b0.
+               (setPermBlock perm b ofs perm_map2 n) !! b0.
 Proof.
   intros.
   extensionality ofs0.
@@ -369,7 +371,7 @@ Qed.
 Lemma mem_inj_restr:
   forall mu m1 m2 perm1 perm2,
   forall (Hlt1: permMapLt perm1 (getMaxPerm m1))
-    (Hlt2: permMapLt perm2 (getMaxPerm m2)),
+         (Hlt2: permMapLt perm2 (getMaxPerm m2)),
     mi_perm_perm mu perm1 perm2 ->
     mi_memval_perm mu perm1 (Mem.mem_contents m1) (Mem.mem_contents m2) ->
     Mem.mem_inj mu m1 m2 ->
@@ -396,7 +398,7 @@ Qed.
 
 Definition mi_perm_inv_perm f perm1 perm2 m1:=
   forall (b1 : block) (ofs : Z) (b2 : block) 
-    (delta : Z) (p : permission),
+         (delta : Z) (p : permission),
     f b1 = Some (b2, delta) ->
     Mem.perm_order' (perm2 !! b2 (ofs + delta)) p ->
     Mem.perm_order' (perm1 !! b1 ofs) p
@@ -416,7 +418,7 @@ Qed.
 Lemma inject_restr:
   forall mu m1 m2 perm1 perm2,
   forall (Hlt1: permMapLt perm1 (getMaxPerm m1))
-    (Hlt2: permMapLt perm2 (getMaxPerm m2)),
+         (Hlt2: permMapLt perm2 (getMaxPerm m2)),
     mi_perm_perm mu perm1 perm2 ->
     mi_memval_perm mu perm1 (Mem.mem_contents m1) (Mem.mem_contents m2) ->
     mi_perm_inv_perm mu perm1 perm2 m1 ->
@@ -447,14 +449,14 @@ Qed.
 
 Lemma setPermBlock_mi_perm_Cur:
   forall (mu : meminj) (m1 m2 : mem) (b b' : block) (ofs delt : Z) 
-    (n : nat),
+         (n : nat),
     (0 < n)%nat ->
     forall (Hno_overlap:Mem.meminj_no_overlap mu m1)
-      (Hlt1 : permMapLt (setPermBlock (Some Writable)
-                                      b ofs (getCurPerm m1) n) (getMaxPerm m1))
-      (Hlt2 : permMapLt (setPermBlock (Some Writable)
-                                      b' (ofs + delt) (getCurPerm m2) n)
-                        (getMaxPerm m2)),
+           (Hlt1 : permMapLt (setPermBlock (Some Writable)
+                                           b ofs (getCurPerm m1) n) (getMaxPerm m1))
+           (Hlt2 : permMapLt (setPermBlock (Some Writable)
+                                           b' (ofs + delt) (getCurPerm m2) n)
+                             (getMaxPerm m2)),
       mu b = Some (b', delt) ->
       Mem.mem_inj mu m1 m2 ->
       forall (b1 b2 : block) (delta ofs0 : Z) (p : permission),
@@ -515,16 +517,16 @@ Lemma setPermBlock_mem_inj:
   forall mu m1 m2 b b' ofs delt n,
     (0 < n)%nat ->
     forall (Hinject_lock: inject_lock' (Z.of_nat n) mu b ofs m1 m2)
-      (Hno_overlap:Mem.meminj_no_overlap mu m1)
-      (Hlt1: permMapLt
-               (setPermBlock (Some Writable) b ofs
-                             (getCurPerm m1)
-                             n) (getMaxPerm m1))
-      
-      (Hlt2: permMapLt
-               (setPermBlock (Some Writable) b' (ofs + delt)
-                             (getCurPerm m2)
-                             n) (getMaxPerm m2)),
+           (Hno_overlap:Mem.meminj_no_overlap mu m1)
+           (Hlt1: permMapLt
+                    (setPermBlock (Some Writable) b ofs
+                                  (getCurPerm m1)
+                                  n) (getMaxPerm m1))
+           
+           (Hlt2: permMapLt
+                    (setPermBlock (Some Writable) b' (ofs + delt)
+                                  (getCurPerm m2)
+                                  n) (getMaxPerm m2)),
       mu b = Some (b', delt) ->
       Mem.mem_inj mu m1 m2 ->
       Mem.mem_inj mu (restrPermMap Hlt1) (restrPermMap Hlt2).
@@ -572,14 +574,14 @@ Lemma setPermBlock_mi_perm_inv_Cur:
   forall b1 b1' ofs delt1 m1 m2 n mu,
     (0 < n)%nat -> 
     forall (Hlt1: permMapLt
-               (setPermBlock (Some Writable)
-                             b1 ofs (getCurPerm m1) n)
-               (getMaxPerm m1))
-      (Hlt2: permMapLt
-               (setPermBlock (Some Writable)
-                             b1' (ofs + delt1) (getCurPerm m2) n)
-               (getMaxPerm m2))
-      (Hinject:Mem.inject mu m1 m2),
+                    (setPermBlock (Some Writable)
+                                  b1 ofs (getCurPerm m1) n)
+                    (getMaxPerm m1))
+           (Hlt2: permMapLt
+                    (setPermBlock (Some Writable)
+                                  b1' (ofs + delt1) (getCurPerm m2) n)
+                    (getMaxPerm m2))
+           (Hinject:Mem.inject mu m1 m2),
       mu b1 = Some (b1', delt1) -> 
       forall b2 b2' ofs0 delt2 p,
         let m1_restr := (restrPermMap Hlt1) in
@@ -641,15 +643,15 @@ Lemma setPermBlock_mem_inject:
   forall mu m1 m2 b b' ofs delt LKSIZE_nat,
     (0 < LKSIZE_nat)%nat ->
     forall (Hinject_lock: inject_lock' (Z.of_nat LKSIZE_nat) mu b ofs m1 m2)
-      (Hlt1: permMapLt
-               (setPermBlock (Some Writable) b ofs
-                             (getCurPerm m1)
-                             LKSIZE_nat) (getMaxPerm m1))
-      
-      (Hlt2: permMapLt
-               (setPermBlock (Some Writable) b' (ofs + delt)
-                             (getCurPerm m2)
-                             LKSIZE_nat) (getMaxPerm m2)),
+           (Hlt1: permMapLt
+                    (setPermBlock (Some Writable) b ofs
+                                  (getCurPerm m1)
+                                  LKSIZE_nat) (getMaxPerm m1))
+           
+           (Hlt2: permMapLt
+                    (setPermBlock (Some Writable) b' (ofs + delt)
+                                  (getCurPerm m2)
+                                  LKSIZE_nat) (getMaxPerm m2)),
       mu b = Some (b', delt) ->
       Mem.inject mu m1 m2 ->
       Mem.inject mu (restrPermMap Hlt1) (restrPermMap Hlt2).
@@ -832,7 +834,7 @@ Qed.
 
 Lemma set_perm_block_mi_perm_perm:
   forall (mu:meminj) b ofs p p_max perm1 perm2 LS b' delt
-    (HLSpos: 0 < Z.of_nat LS),
+         (HLSpos: 0 < Z.of_nat LS),
     map_no_overlap mu p_max ->
     mu b = Some (b', delt) ->
     permMapLt perm1 p_max ->
@@ -1117,10 +1119,10 @@ Proof.
 Qed.
 Definition perm_inj (f:meminj) (a1 a2: access_map): Prop:=
   forall b1 ofs, at_least_Some (a1 !! b1 ofs) ->
-            (* Mem.perm_order' (a1 !! b1 ofs) (Nonempty) -> *)
-            exists b2 delta,
-              f b1 = Some (b2, delta) /\
-              a1 !! b1 ofs = a2 !! b2 (ofs + delta).
+                 (* Mem.perm_order' (a1 !! b1 ofs) (Nonempty) -> *)
+                 exists b2 delta,
+                   f b1 = Some (b2, delta) /\
+                   a1 !! b1 ofs = a2 !! b2 (ofs + delta).
 Definition perfect_image (f:meminj) (a1 a2: access_map): Prop:=
   forall b1 b2 delt,
     f b1 = Some (b2, delt) ->
@@ -1244,7 +1246,7 @@ Proof. solve_pair; eapply permMapJoin_lt. Qed.
 
 Lemma permMapJoin_lt_pair2:
   forall p1 p2 p3
-    (Hjoin: permMapJoin_pair p1 p2 p3), permMapLt_pair2 p2 p3.
+         (Hjoin: permMapJoin_pair p1 p2 p3), permMapLt_pair2 p2 p3.
 Proof.
   solve_pair;intros.
   eapply permMapJoin_comm in H;
@@ -1743,74 +1745,74 @@ Proof.
 Qed.
 
 Inductive option_join2 :  option permission -> option permission ->
-                                  option (option permission) -> Prop:=
-        | NoneJoin2 : forall l c, subsumed l c -> option_join2 l c None
-        | SomeJoin2 :forall a b c : option permission,
-            permjoin_def.permjoin a b c -> option_join2 a b (Some c).
-        
-        Definition delta_map_join2 (A B:access_map) (C: delta_map):=
-          forall b ofs, option_join2 (A !! b ofs)(B !! b ofs) (dmap_get C b ofs).
-        Definition delta_map_join2_pair:= pair3_prop delta_map_join2.
-        
-        Lemma compute_map_join2:
-          forall A B C,
-            delta_map_join2 A B C <->
-            permMapJoin A B (computeMap B C).
-        Proof.
-          split;
-            intros ** b ofs.
-          
-          { !goal(permjoin_def.permjoin _ _ _).
-            specialize (H b ofs); inversion H; subst.
-            - unfold dmap_get, PMap.get in H0; simpl in *.
-              destruct (C ! b) eqn:Ab.
-              + destruct (o ofs) eqn:oofs; try inversion H0.
-                erewrite computeMap_2; eauto.
-                rewrite permjoin_def.permjoin_comm.
-                eapply subsume_same_join; auto.
-              + erewrite computeMap_3; eauto.
-                rewrite permjoin_def.permjoin_comm.
-                eapply subsume_same_join; auto. 
-            - unfold dmap_get, PMap.get in H0; simpl in *.
-              destruct (C ! b) eqn:HH; try solve[inversion H0].
-              erewrite computeMap_1.
-              1, 2: eauto.
-              destruct (o ofs) eqn:HH'; inversion H0; auto. }
-          
-          { !goal (option_join2 _ _ _ ).
-            destruct (dmap_get C b ofs) eqn:HH.
-            - eapply dmap_get_copmute_Some in HH.
-              rewrite <- HH.
-              econstructor; eauto.
-            - eapply dmap_get_copmute_None in HH.
-              econstructor.
-              specialize (H b ofs).
-              rewrite HH in H.
-              rewrite permjoin_def.permjoin_comm in H.
-              eapply subsume_same_join; assumption.
-          }
-        Qed.
-        Lemma compute_map_join_fwd_pair2
-          : forall (AA BB : Pair access_map)(CC : Pair delta_map),
-            delta_map_join2_pair AA BB CC ->
-            permMapJoin_pair AA BB (computeMap_pair BB CC).
-        Proof.
-          unfold delta_map_join2_pair. 
-          solve_pair.
-          intros; apply compute_map_join2; assumption. Qed.
-        Lemma compute_map_join_bkw_pair2
-          : forall (AA BB : Pair access_map)(CC : Pair delta_map),
-            permMapJoin_pair AA BB (computeMap_pair BB CC) ->
-            delta_map_join2_pair AA BB CC.
-        Proof.
-          unfold delta_map_join2_pair. solve_pair.
-          intros; apply compute_map_join2; assumption.
-        Qed.
+                          option (option permission) -> Prop:=
+| NoneJoin2 : forall l c, subsumed l c -> option_join2 l c None
+| SomeJoin2 :forall a b c : option permission,
+    permjoin_def.permjoin a b c -> option_join2 a b (Some c).
+
+Definition delta_map_join2 (A B:access_map) (C: delta_map):=
+  forall b ofs, option_join2 (A !! b ofs)(B !! b ofs) (dmap_get C b ofs).
+Definition delta_map_join2_pair:= pair3_prop delta_map_join2.
+
+Lemma compute_map_join2:
+  forall A B C,
+    delta_map_join2 A B C <->
+    permMapJoin A B (computeMap B C).
+Proof.
+  split;
+    intros ** b ofs.
+  
+  { !goal(permjoin_def.permjoin _ _ _).
+    specialize (H b ofs); inversion H; subst.
+    - unfold dmap_get, PMap.get in H0; simpl in *.
+      destruct (C ! b) eqn:Ab.
+      + destruct (o ofs) eqn:oofs; try inversion H0.
+        erewrite computeMap_2; eauto.
+        rewrite permjoin_def.permjoin_comm.
+        eapply subsume_same_join; auto.
+      + erewrite computeMap_3; eauto.
+        rewrite permjoin_def.permjoin_comm.
+        eapply subsume_same_join; auto. 
+    - unfold dmap_get, PMap.get in H0; simpl in *.
+      destruct (C ! b) eqn:HH; try solve[inversion H0].
+      erewrite computeMap_1.
+      1, 2: eauto.
+      destruct (o ofs) eqn:HH'; inversion H0; auto. }
+  
+  { !goal (option_join2 _ _ _ ).
+    destruct (dmap_get C b ofs) eqn:HH.
+    - eapply dmap_get_copmute_Some in HH.
+      rewrite <- HH.
+      econstructor; eauto.
+    - eapply dmap_get_copmute_None in HH.
+      econstructor.
+      specialize (H b ofs).
+      rewrite HH in H.
+      rewrite permjoin_def.permjoin_comm in H.
+      eapply subsume_same_join; assumption.
+  }
+Qed.
+Lemma compute_map_join_fwd_pair2
+  : forall (AA BB : Pair access_map)(CC : Pair delta_map),
+    delta_map_join2_pair AA BB CC ->
+    permMapJoin_pair AA BB (computeMap_pair BB CC).
+Proof.
+  unfold delta_map_join2_pair. 
+  solve_pair.
+  intros; apply compute_map_join2; assumption. Qed.
+Lemma compute_map_join_bkw_pair2
+  : forall (AA BB : Pair access_map)(CC : Pair delta_map),
+    permMapJoin_pair AA BB (computeMap_pair BB CC) ->
+    delta_map_join2_pair AA BB CC.
+Proof.
+  unfold delta_map_join2_pair. solve_pair.
+  intros; apply compute_map_join2; assumption.
+Qed.
 
 Lemma delta_map_join2_inject:
   forall (m : mem) (f : meminj) 
-    (A1 A2 B1 B2 : access_map)
-    (C1 C2 : delta_map),
+         (A1 A2 B1 B2 : access_map)
+         (C1 C2 : delta_map),
     Mem.meminj_no_overlap f m ->
     dmap_vis_filtered C1 m ->
     permMapLt A1 (getMaxPerm m) ->
@@ -1896,8 +1898,8 @@ Proof.
     + do 2 constructor.
 Qed.
 
-      
-  
+
+
 Definition deltaMapLt2_pair1:= pair21_prop deltaMapLt2.
 Hint Unfold deltaMapLt2_pair1: pair.
 Definition dmap_vis_filtered_pair:= pair21_prop dmap_vis_filtered.
@@ -1991,8 +1993,8 @@ Proof.
     unfold isCanonical in *; simpl in *.
     match type of H with
       ?a = ?b => remember a as A eqn:HH;
-                  assert (A ofs = b ofs) by (rewrite H;auto);
-                  subst A; auto
+                   assert (A ofs = b ofs) by (rewrite H;auto);
+                   subst A; auto
     end.
     
   - pose proof (Cur_isCanonical m1).
@@ -2000,8 +2002,8 @@ Proof.
     unfold isCanonical in *; simpl in *.
     match type of H with
       ?a = ?b => remember a as A eqn:HH;
-                  assert (A ofs = b ofs) by (rewrite H;auto);
-                  subst A; auto
+                   assert (A ofs = b ofs) by (rewrite H;auto);
+                   subst A; auto
     end.
 Qed.
 
@@ -2009,12 +2011,12 @@ Definition isCanonical' {A} (pmap: PMap.t (Z-> option A)):=
   fst pmap = (fun _ : Z => None).
 Lemma option_implication_injection:
   forall {A} mu m1 m2 b1 b2 ofs (perm:PMap.t (Z -> option A) ) o delta
-    (Hcanon: isCanonical' perm)
-    (Hdmap: perm !! b1 ofs = Some o)
-    (Himpl: option_implication
-              (perm !! b1 ofs)
-              ((getMaxPerm m1) !! b1 ofs))
-    (Hmi_inj:Mem.mem_inj mu m1 m2),
+         (Hcanon: isCanonical' perm)
+         (Hdmap: perm !! b1 ofs = Some o)
+         (Himpl: option_implication
+                   (perm !! b1 ofs)
+                   ((getMaxPerm m1) !! b1 ofs))
+         (Hmi_inj:Mem.mem_inj mu m1 m2),
     mu b1 = Some (b2, delta) ->
     option_implication
       (snd perm) ! b1 (snd (getMaxPerm m2)) ! b2.
@@ -2060,11 +2062,11 @@ Proof.
 Qed.
 Lemma option_implication_injection_dmap:
   forall mu m1 m2 b1 b2 ofs dmap o delta
-    (Hdmap: dmap_get dmap b1 ofs = Some o)
-    (Himpl: option_implication
-              (dmap_get dmap b1 ofs)
-              ((getMaxPerm m1) !! b1 ofs))
-    (Hmi_inj:Mem.mem_inj mu m1 m2),
+         (Hdmap: dmap_get dmap b1 ofs = Some o)
+         (Himpl: option_implication
+                   (dmap_get dmap b1 ofs)
+                   ((getMaxPerm m1) !! b1 ofs))
+         (Hmi_inj:Mem.mem_inj mu m1 m2),
     mu b1 = Some (b2, delta) ->
     option_implication
       dmap ! b1 (snd (getMaxPerm m2)) ! b2.
@@ -2131,33 +2133,36 @@ Definition map_valid (m:mem) (am:access_map) :=
 Definition map_valid_pair m:= pair1_prop (map_valid m).
 Hint Unfold map_valid_pair: pair.
 
+Definition isCanonical_pair:= pair1_prop isCanonical.
+Hint Unfold isCanonical_pair: pair.
+
 Lemma sub_map_valid:
   forall m (a:access_map),
+    isCanonical a -> 
     (fun a => sub_map (snd a) (snd (getMaxPerm m))) a ->
     map_valid m a.
 Proof.
   intros ** ? **.
-  unfold sub_map in H.
-  eapply strong_tree_leq_spec in H; try constructor.
-  instantiate (1:=b) in H.
-(*
-                        eapply map_get_Some in H0;
-                          destruct H0 as [f [H0 ?]].
-                        rewrite H0 in H.
-                        destruct ((snd (getMaxPerm m)) ! b) eqn:HH1; try solve[ inversion H].
-                        specialize (H ofs ltac:(rewrite H1; auto)).
-                        destruct (o ofs) eqn:HH2; try solve[inversion H].
-                        assert ((getMaxPerm m) !! b ofs = Some p0).
-                        { unfold PMap.get; rewrite HH1; assumption. }
-                        rewrite getMaxPerm_correct in H2.
-                        unfold permission_at in H2.
+  unfold sub_map in H0.
+  eapply strong_tree_leq_spec in H0; try constructor.
+  instantiate (1:=b) in H0.
+  assert (~ (Mem.mem_access m) !! b ofs Max = None).
+  { unfold "!!" in H1; match_case in H1; swap 1 2.
+    - rewrite H in H1; congruence.
+    - rewrite_getPerm.
+      unfold fun_leq in H0.
+      unfold "!!"; match_case in H0.
+      specialize (H0 ofs).
+      intros HH; rewrite HH in H0. simpl in H0.
+      exploit H0; eauto. rewrite H1; eauto. }
 
-                        destruct (mem_lemmas.valid_block_dec m b); auto.
-                        eapply m in n.
-                        rewrite H2 in n; congruence.*)
-Admitted.
+  destruct (valid_block_dec m b); eauto.
+  exfalso. eapply H2. eapply Mem.nextblock_noaccess.
+  intros; eapply n.
+Qed.
 Lemma sub_map_valid_pair:
   forall m (aa:Pair access_map),
+    isCanonical_pair aa ->
     pair1_prop
       (fun a => sub_map (snd a) (snd (getMaxPerm m))) aa ->
     map_valid_pair m aa.
@@ -2211,7 +2216,7 @@ Record perm_perfect_virtue f (angel1 angel2:virtue):=
 
 Lemma delta_map_join_inject_pair' (m:mem) f:
   forall angel1 angel2 C1 C2
-    (Hvirtue_inject: perm_perfect_virtue f angel1 angel2),
+         (Hvirtue_inject: perm_perfect_virtue f angel1 angel2),
     Mem.meminj_no_overlap f m ->
     dmap_vis_filtered_pair (virtueThread angel1) m ->
     permMapLt_pair C1 (getMaxPerm m) ->
@@ -2286,13 +2291,50 @@ Proof.
     do 2 (erewrite setPermBlock_other_1; auto).
   - do 2 (rewrite setPermBlock_other_2; auto).
 Qed.
+Lemma perm_order_inequality:
+  forall a b, perm_order a b ->
+              perm_order b a ->
+              a = b.
+Proof. intros. inv H; inv H0; eauto. Qed.
 
 Lemma inject_almost_perfect:
   forall f m1 m2,
     Mem.inject f m1 m2 ->
     almost_perfect_image f
                          (getMaxPerm m1) (getCurPerm m1) (getCurPerm m2).
-Admitted.
+Proof.
+  intros **.
+  intros ? **.
+  match goal with
+    |- ?lhs = ?rhs =>
+    cut (Mem.perm_order'' lhs rhs /\
+         Mem.perm_order'' rhs lhs)
+  end; try split.
+  - intros [ HH1 HH2].
+    unfold Mem.perm_order'' in *.
+    do 2 match_case in HH1.
+    + f_equal; eapply perm_order_inequality; eauto.
+    + inv HH2.
+  - hnf in H1; match_case in H1.
+    pose proof (Mem.mi_perm_inv _ _ _ H b1 ofs b2 delt Cur) as HH.
+    unfold Mem.perm in HH; repeat rewrite_getPerm.
+    rewrite Heqo in HH.
+    assert (Mem.perm_order' (Some p) Nonempty).
+    { constructor. }
+    hnf; repeat match_case; eauto.
+    + specialize (HH p1). destruct HH as [HH1 | HH2]; eauto.
+      constructor. exfalso; eauto.
+    + specialize (HH p0). destruct HH as [HH1 | HH2]; eauto.
+      constructor.
+  - hnf in H1; match_case in H1.
+    eapply Mem.mi_inj in H.
+    pose proof (Mem.mi_perm _ _ _ H b1 b2 delt ofs Cur) as HH.
+    unfold Mem.perm in HH. repeat rewrite_getPerm.
+    hnf; repeat match_case; eauto.
+    + specialize (HH p1 H0).
+      apply HH. constructor.
+    + specialize (HH p0 H0); eapply HH. constructor.
+Qed.
 Lemma almost_perfect_image_proper:
   Proper (Logic.eq ==> access_map_equiv
                    ==> access_map_equiv
@@ -2308,7 +2350,7 @@ Qed.
 
 Lemma inject_almost_perfect_pair
   : forall (f : meminj) (m1 m2 : mem)
-      p11 p12 p21 p22 Hlt11 Hlt12 Hlt21 Hlt22,
+           p11 p12 p21 p22 Hlt11 Hlt12 Hlt21 Hlt22,
     Mem.inject f (@restrPermMap p12 m1 Hlt12) (@restrPermMap p22 m2 Hlt22) ->
     Mem.inject f (@restrPermMap p11 m1 Hlt11) (@restrPermMap p21 m2 Hlt21) ->
     almost_perfect_image_pair f (getMaxPerm m1) (p11,p12) (p21,p22). 
@@ -2360,7 +2402,7 @@ Proof. intros m; solve_pair.
 
 Definition permMapLt_range (perms:access_map) b lo hi p:=
   forall ofs : Z, lo <= ofs < hi ->
-             Mem.perm_order'' (perms !! b ofs) p.
+                  Mem.perm_order'' (perms !! b ofs) p.
 
 (*Lookup : 
                 setPermBlock_range_perm  *)
@@ -2369,7 +2411,20 @@ Lemma permMapLt_setPermBlock:
     permMapLt_range perm2 b ofs (ofs + Z.of_nat sz) op  ->
     permMapLt perm1 perm2 ->
     permMapLt (setPermBlock op b ofs perm1 sz) perm2.
-Proof. Admitted.
+Proof.
+  intros ** ? **.
+  destruct (peq b b0).
+  - subst.
+    destruct (Intv.In_dec ofs0 (ofs, (ofs + Z.of_nat sz))).
+    + rewrite setPermBlock_same; eauto.
+    + rewrite setPermBlock_other_1; eauto.
+      unfold Intv.In in n; simpl in n.
+      eapply Classical_Prop.not_and_or in n.
+      destruct n. left; omega.
+      right; simpl; omega.
+  - rewrite setPermBlock_other_2; eauto.
+Qed.
+
 Lemma permMapLt_range_mem:
   forall perm b lo hi p m,
     permMapLt_range perm b lo hi (Some p) ->
@@ -2458,15 +2513,20 @@ Lemma permMapLt_range_pair_left:
     Mem.perm_order'' perm1 perm2 ->
     permMapLt_range_pair a b lo hi (perm1, perm2).
 Proof.
-Admitted.
+  intros; split; simpl; eauto.
+  intros ??.
+  eapply perm_order''_trans; eauto.
+Qed.
 Lemma permMapLt_range_pair_right:
   forall a b lo hi perm1 perm2,
     permMapLt_range a b lo hi perm2 ->
     Mem.perm_order'' perm2 perm1 ->
     permMapLt_range_pair a b lo hi (perm1, perm2).
 Proof.
-Admitted.
-
+  intros; split; simpl; eauto.
+  intros ??.
+  eapply perm_order''_trans; eauto.
+Qed.
 Ltac permMapLt_range_pair_simpl:=
   first [eapply permMapLt_range_pair_left; [|constructor]
         |eapply permMapLt_range_pair_right; [|constructor]].
@@ -2475,15 +2535,18 @@ Lemma permMapLt_range_trans:
     permMapLt_range perms1  b lo hi perm ->
     permMapLt perms1 perms2 ->                                
     permMapLt_range perms2  b lo hi perm.
-Proof.
-Admitted.
+Proof. intros ** ??; eapply perm_order''_trans; eauto. Qed.
 Lemma range_mem_permMapLt:
   forall b lo hi p m,
     Mem.range_perm m b lo hi Cur p ->
     permMapLt_range (getCurPerm m) b lo hi (Some p).
 Proof.
-Admitted.
-
+  unfold Mem.range_perm, Mem.perm.
+  intros ** ??.
+  exploit H; eauto.
+  rewrite_getPerm.
+  eauto.
+Qed.
 Lemma make_mem_eq:
   forall m m',
     Mem.mem_contents m = Mem.mem_contents m' ->
@@ -2543,12 +2606,12 @@ Proof.
     destruct k; auto.
   - match goal with
       |- context[
-            PTree.map ?access _
-          ] => replace access with
+             PTree.map ?access _
+           ] => replace access with
         (fun b f ofs k => match k with
-                       | Max => f ofs Max
-                       | Cur => (o, t) !! b ofs Cur
-                       end)
+                          | Max => f ofs Max
+                          | Cur => (o, t) !! b ofs Cur
+                          end)
         
     end.
     2: { extensionality b.
@@ -2567,6 +2630,327 @@ Proof.
     rewrite H; reflexivity.
 Qed.
 
-(*Instance sub_map_virtue_proper:
-  Proper (Logic.eq ==> access_map_equiv ==> iff) sub_map_virtue.
-Admitted. *)
+Require Import VST.concurrency.lib.Coqlib3.
+Lemma getMax_restr_eq:
+  forall perm m (Hlt: permMapLt perm (getMaxPerm m)),
+    (getMaxPerm (restrPermMap Hlt)) = (getMaxPerm m) .
+Proof.
+  intros.
+  pose proof (Cur_isCanonical m) as Hcanon. 
+  unfold restrPermMap, getMaxPerm; simpl.
+  unfold PMap.map; simpl.
+  f_equal.
+  rewrite map1_map_compose.
+  rewrite map1_map.
+  reflexivity.
+Qed.
+Lemma restrPermMap_idempotent_eq:
+  forall {perm0 perm1 m1}
+         (Hlt0 : permMapLt perm0 (getMaxPerm m1))
+         (Hlt1 : permMapLt perm1 (getMaxPerm m1))
+         (Hlt2 : permMapLt perm1 (getMaxPerm (restrPermMap Hlt0))),
+    (restrPermMap Hlt1) = (restrPermMap Hlt2).
+Proof.
+  intros.
+  destruct m1; simpl in *.
+  eapply easy_mem_eq; try reflexivity.
+  simpl.
+  f_equal; simpl.
+  - extensionality ofs.
+    extensionality k.
+    destruct k; auto.
+  - rewrite map_compose; reflexivity.
+Qed.
+
+Definition access_map_equiv_pair:= pair2_prop access_map_equiv.
+Global Instance access_map_equiv_pair_alence : Equivalence access_map_equiv_pair.
+Proof. eapply equivlance_pair, access_map_equiv_Equivalence. Qed.
+
+Definition max_valid_perm
+           (m : mem) (chunk : AST.memory_chunk)
+           (b : block) (ofs : Z) (p : permission):=
+  Mem.range_perm m b ofs (ofs + size_chunk chunk) Max p.
+
+Instance Proper_max_valid_perm:
+  Proper
+    (Max_equiv ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> iff)
+    max_valid_perm.
+Proof.
+  unfold max_valid_perm.
+  setoid_help.proper_iff;
+    setoid_help.proper_intros; subst.
+  rewrite <- H; assumption.
+Qed.
+
+
+Definition maps_no_overlap_range 
+           (f : meminj) (perm1 perm2 : access_map):=
+  forall (b1 b1' : block) (delta1 : Z) (b2 b2' : block)
+    (delta2 ofs1 ofs2 SZ : Z),
+    0 < SZ ->
+    b1 <> b2 ->
+    f b1 = Some (b1', delta1) ->
+    f b2 = Some (b2', delta2) ->
+    Mem.perm_order' (perm1 !! b1 ofs1) Nonempty ->
+    (forall ofs2' : Z,
+        0 <= ofs2' < SZ -> Mem.perm_order' (perm2 !! b2 (ofs2 + ofs2'))
+                                         Nonempty) ->
+    b1' <> b2' \/ ~ Intv.In (ofs1 + delta1)
+                  (ofs2 + delta2, ofs2 + delta2 + SZ).
+Lemma perms_no_over_point_to_range
+  : forall (f : meminj) (p1 p2 : PMap.t (Z -> option permission)),
+    maps_no_overlap f p1 p2 -> maps_no_overlap_range f p1 p2.
+Proof.
+  intros. intros ? **.
+  destruct (Intv.In_dec (ofs1 + delta1) (ofs2 + delta2, ofs2 + delta2 + SZ));
+    eauto.
+  set (z:= ofs1 + delta1 - (ofs2 + delta2)).
+  assert (0 <= z < SZ).
+  { subst_set. clear - i. hnf in i; simpl in *; omega. }
+  eapply H5 in H6.
+  exploit H; eauto.
+  - instantiate(1:=ofs1).
+    hnf; match_case; auto.
+  - instantiate(1:= ofs2 + z).
+    hnf in H6.  match_case in H6; auto.
+    inv H6; constructor.
+  - intros [?|?]; eauto.
+    right; intros HH.
+    eapply H7.
+    clear. subst_set. omega.
+Qed.
+
+
+Instance computeMap_equiv:
+  Proper (access_map_equiv ==> Logic.eq ==> access_map_equiv) computeMap.
+Proof.
+  intros ??? ???; subst.
+  intros ?. extensionality ofs.
+  do 2 rewrite computeMap_get.
+  rewrite H.
+  match_case; eauto.
+Qed.
+
+
+Lemma join_to_readable:
+  forall A B C, permMapJoin A B C ->
+           forall b ofs,
+             Mem.perm_order' (C !! b ofs) Readable ->
+             Mem.perm_order' (A !! b ofs) Readable \/
+             Mem.perm_order' (B !! b ofs) Readable.
+Proof.
+  intros. specialize (H b ofs).
+  match type of H with
+    permjoin_def.permjoin ?aa ?bb ?cc =>
+    remember aa as AA eqn:HH; clear HH;
+      remember bb as BB eqn:HH; clear HH;
+        remember cc as CC eqn:HH; clear HH
+  end.
+  inv H; eauto; inv H0; simpl; eauto;
+    first[right; econstructor|left; econstructor].
+Qed.
+Lemma mi_memval_perm_join:
+  forall A B C m1 m2 mu,
+    permMapJoin A B C -> 
+    mi_memval_perm mu A
+                   (Mem.mem_contents m1) (Mem.mem_contents m2) ->
+    mi_memval_perm mu B
+                   (Mem.mem_contents m1) (Mem.mem_contents m2) ->
+    mi_memval_perm mu C
+                   (Mem.mem_contents m1) (Mem.mem_contents m2).
+Proof.
+  intros ** ? * Hinj Hperm.
+  
+  
+  eapply join_to_readable in Hperm; eauto.
+  destruct Hperm.
+  + eapply H0; eauto.
+  + eapply H1; eauto.
+Qed.
+
+
+Lemma empty_map_is_empty:
+  forall A : access_map, is_empty_map A <-> access_map_equiv A empty_map.
+Proof.
+  intros. split; intros HH ? **; hnf in HH.
+  - extensionality ofs; rewrite HH.
+    symmetry; eapply empty_map_spec.
+  - rewrite HH; eapply empty_map_spec.
+Qed.
+Lemma empty_map_is_empty_pair:
+  forall AA,
+    empty_doublemap AA <-> access_map_equiv_pair AA (pair0 empty_map).
+Proof.
+  unfold access_map_equiv_pair; solve_pair.
+  apply empty_map_is_empty.
+Qed.
+Lemma empty_is_empty: is_empty_map empty_map.
+Proof. intros ??; eapply empty_map_spec. Qed.
+Lemma empty_is_empty_pair:
+  empty_doublemap (pair0 empty_map).
+Proof. solve_pair; apply empty_is_empty. Qed.
+
+Lemma mi_perm_perm_setPermBlock:
+  forall n mu perms1 perms2 p b1 b2 ofs delta m1
+    (Hnonempty: Mem.perm_order' p Nonempty),
+    (* follwoing two is for no overlap*)
+    Mem.meminj_no_overlap mu m1 ->
+    permMapLt  (setPermBlock p b1 ofs perms1 n) (getMaxPerm m1) ->
+    
+    mu b1 = Some (b2, delta) ->
+    mi_perm_perm mu perms1 perms2 ->
+    mi_perm_perm mu
+                 (setPermBlock p b1 ofs perms1 n)
+                 (setPermBlock p b2 (ofs + delta) perms2 n).
+Proof.
+  destruct n. try now (intros; simpl; auto).
+  intros ** ? **.
+  remember (S n) as m.
+  assert (0 < m)%nat.
+  { subst. omega. } clear n Heqm.
+  destruct (peq b0 b1).
+  subst b0; unify_injection;
+    destruct (Intv.In_dec ofs0 (ofs, ofs + Z.of_nat m)).
+  - destruct i; simpl in *.
+    rewrite setPermBlock_same.
+    rewrite setPermBlock_same in H4; auto.
+    omega.
+  - (* b0 = b1 /\ ofs0 \NOT \in (ofs,ofs+n) *)
+    eapply Intv.range_notin in n; simpl in *.
+    2: omega.
+    rewrite setPermBlockFunc_other_1 in H4; auto.
+    rewrite setPermBlockFunc_other_1; try omega.
+    eauto.
+  - rewrite setPermBlockFunc_other_2 in H4; eauto.
+    destruct (peq b2 b3); swap 1 2.
+    + rewrite setPermBlockFunc_other_2; eauto.
+    + subst.
+      destruct (Classical_Prop.classic
+                  (Mem.perm_order' (perms1 !! b0 ofs0) Nonempty))
+        as [HH | HH];
+        swap 1 2.
+      { hnf in H4. match_case in H4. contradict HH.
+        constructor. }
+      exploit perm_no_over_point_to_range;
+        try eapply no_overlap_mem_perm; eauto.
+      * eapply inj_lt in H5; simpl in *; eauto.
+      * eapply perm_order_trans211.
+        eapply H0.
+        rewrite setPermBlockFunc_other_2; eauto.
+      * intros. eapply perm_order_trans211.
+        eapply H0.
+        rewrite setPermBlock_same; eauto.
+        instantiate(1:=ofs); omega.
+      * intros [? | ?].
+        -- contradict H6; eauto.
+        -- rewrite setPermBlockFunc_other_1; eauto.
+           eapply Intv.range_notin in H6;
+             simpl in *; eauto.
+           omega.
+Qed.
+
+
+Inductive set_new_mems: block -> Z -> (Pair access_map) -> nat -> (Pair access_map) -> Prop:=
+  | Build_set_new_mems:
+      forall b ofs res LKSIZE new_perms
+             (Hset_block: setPermBlock_pair
+                            b ofs (Some Nonempty, Some Writable)
+                            res (pair0 LKSIZE) = new_perms),
+        set_new_mems b ofs res LKSIZE new_perms.
+  Definition perm_interval m b ofs size k p:=
+    Mem.range_perm m b ofs (ofs+size) k p.
+
+
+  
+    Lemma  mi_memval_perm_store_easy:
+      forall m1 m2 m1' m2' v mu b1 b2 delt ofs , 
+        mu b1 = Some (b2, delt) ->
+        Mem.meminj_no_overlap mu m1 ->
+        Mem.store AST.Mint32 m1 b1 ofs (Vint v) = Some m1' ->
+        Mem.store AST.Mint32 m2 b2 (ofs +delt) (Vint v) = Some m2' ->
+        mi_memval_perm mu (getCurPerm m1) (Mem.mem_contents m1) (Mem.mem_contents m2) ->
+        mi_memval_perm mu (getCurPerm m1) (Mem.mem_contents m1') (Mem.mem_contents m2').
+    Proof.
+    Admitted.
+    Lemma set_new_mems_LT1:
+      forall b ofs m perms new_perms n_z,
+        set_new_mems b ofs perms (Z.to_nat n_z) new_perms ->
+        Mem.range_perm m b ofs (ofs + n_z) Cur Writable ->
+        access_map_equiv (getCurPerm m) (fst perms) ->
+        permMapLt (fst new_perms) (getCurPerm m). 
+    Proof.
+    Admitted.
+    Lemma set_new_mems_LT2:
+      forall b ofs m perms new_perms n_z,
+        set_new_mems b ofs perms (Z.to_nat n_z) new_perms ->
+        Mem.range_perm m b ofs (ofs + n_z) Cur Writable ->
+        access_map_equiv (getCurPerm m) (fst perms) ->
+        permMapLt (snd new_perms) (getCurPerm m). 
+    Proof.
+    Admitted.
+    Lemma mi_perm_inv_perm_setPerm1:
+      forall mu p1 p2 p1' p2' m1 m1' b1 b2 delt ofs z,
+        mi_perm_inv_perm mu (fst p1) (fst p2) m1 ->
+        (* For using no_overlap*)
+        Mem.range_perm m1 b1 ofs (ofs + z) Cur Writable ->
+        Mem.meminj_no_overlap mu m1 ->
+        set_new_mems b1 ofs p1 (Z.to_nat z) p1' ->
+        set_new_mems b2 (ofs + delt) p2 (Z.to_nat z) p2' -> 
+        mi_perm_inv_perm mu (fst p1') (fst p2') m1'.
+    Proof.
+    Admitted.
+    
+    Lemma mi_perm_inv_perm_setPerm2:
+      forall mu p1 p2 p1' p2' m1 m1' b1 b2 delt ofs z,
+        mi_perm_inv_perm mu (snd p1) (snd p2) m1 ->
+        (* For using no_overlap*)
+        Mem.range_perm m1 b1 ofs (ofs + z) Cur Writable ->
+        Mem.meminj_no_overlap mu m1 ->
+        set_new_mems b1 ofs p1 (Z.to_nat z) p1' ->
+        set_new_mems b2 (ofs + delt) p2 (Z.to_nat z) p2' -> 
+        mi_perm_inv_perm mu (snd p1') (snd p2') m1'.
+    Proof.
+    Admitted.
+
+    Lemma perm_surj_setPermBlock:
+      forall mu perm1 perm2,
+        perm_surj mu perm1 perm2 -> 
+        forall b1 b2 delt,
+          mu b1 = Some (b2, delt) ->
+          forall ofs n,
+            (0 < n)%nat ->
+            perm_surj mu
+                      (setPermBlock (Some Writable) b1 ofs perm1 n)
+                      (setPermBlock (Some Writable) b2 (ofs+delt) perm2 n).
+    Proof.
+      intros ** ? **.
+      destruct (peq b2 b0).
+      destruct (Intv.In_dec ofs_delt (ofs + delt, ofs + delt + Z.of_nat n)).
+      - subst. rewrite setPermBlock_same in *; eauto.
+        do 3 eexists; repeat (split; eauto).
+        instantiate(1:= ofs_delt - delt); omega.
+        rewrite setPermBlock_same; auto.
+        destruct i; simpl in *; omega.
+      - subst. eapply Intv.range_notin in n0 as n1; simpl in *.
+        2:{ omega. }
+        rewrite setPermBlock_other_1 in *; eauto.
+        exploit H; eauto. intros (?&?&?&?&?&?).
+        do 3 eexists; repeat (split; eauto).
+        assert (at_least_Some (perm1 !! x x0)).
+        { rewrite <- H5; eauto. }
+        destruct (peq b1 x).
+        subst x; destruct (Intv.In_dec x0 (ofs, ofs + Z.of_nat n)).
+        + unify_injection.
+          subst ofs_delt. contradiction n0.
+          hnf; hnf in i; simpl in *. omega.
+        + rewrite setPermBlock_other_1; eauto.
+          eapply Intv.range_notin in n2; simpl in *; eauto. omega.
+        + rewrite setPermBlock_other_2; eauto.
+      - rewrite setPermBlock_other_2 in *; eauto.
+        exploit H; eauto. intros (?&?&?&?&?&?).
+        do 3 eexists; repeat (split; eauto).
+        destruct (peq b1 x).
+        + subst x. unify_injection. contradict n0; auto.
+        + rewrite setPermBlock_other_2; eauto.
+    Qed.
+    

@@ -107,7 +107,10 @@ Section permMapDefs.
 
   (** Coherence between permissions. This is used for the relation between data
   and lock permissions*)
-  (** Note: p1 should be data permission and p2 lock permission*)
+  (** Note: p1 should be data permission and p2 lock permission
+      Notice that it is not commutative and behaves different 
+      for the first arg than the second one. 
+   *)
   Definition perm_coh (p1 p2 : option permission) :=
     match p1 with
     | Some Freeable | Some Writable | Some Readable =>
@@ -117,7 +120,8 @@ Section permMapDefs.
                                       end
     | Some Nonempty | None =>
                       match p2 with
-                      | Some Freeable => False
+                      | Some Freeable => False (* we acctually know that Lock permissiom
+                                             is never Freeable! *)
                       | _ => True
                       end
     end.

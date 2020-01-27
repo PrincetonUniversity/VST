@@ -1,7 +1,7 @@
 Require Import Coq.Program.Basics. 
 Import Basics.
 Require Import Relation_Definitions.
-
+Require Import Coq.Classes.RelationClasses.
 
 (* For unfolding all definitions that hide pair constructors 
    (So the tactics can reach them)*)
@@ -115,7 +115,7 @@ Ltac strong_destruct_pair:=
   |[H: ?X _ |- _] => unfold X in H; destruct_pair_and_hyp H
   end.
 
-
+      
 
 (* This is a decent ltac that transforms "pure" Pair lemmas, into their
    non Pair version. Example:
@@ -301,3 +301,12 @@ Ltac solve_pair:=
   pair_prop_implications X1 X2; simpl;
   (*return quantificatiion as it should*)
   unmerge_quant.
+
+
+Lemma equivlance_pair:
+  forall A (r: relation A), Equivalence r ->
+                       Equivalence (pair2_prop r).
+Proof.
+  intros. inversion H; subst.
+  econstructor; hnf; solve_pair; eauto.
+Qed.

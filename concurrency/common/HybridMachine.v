@@ -233,7 +233,8 @@ Module DryHybridMachine.
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
-            (* To check if the machine is at an external step and load its arguments install the thread data permissions*)
+            (* To check if the machine is at an external step and 
+               load its arguments install the thread data permissions*)
             (Hrestrict_pmap_arg: restrPermMap (Hcompat tid0 cnt0).1 = marg)
             (Hat_external: semantics.at_external semSem c marg =
                            Some (UNLOCK, Vptr b ofs::nil))

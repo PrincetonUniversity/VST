@@ -57,36 +57,7 @@ Module Concurrent_Safety
       (Genv.init_mem (Ctypes.program_of_program p)).
   Definition opt_init_mem_target {F V} (tp:AST.program F V ):=
     (Genv.init_mem tp).
-  Lemma explicit_safety_step:
-    forall (p : Clight.program) (tp : Asm.program) (asm_genv_safety : Asm_core.safe_genv the_ge),
-        let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
-         let SemTarget:= @X86Sem tp asm_genv_safety in
-         forall (U : schedule) (m_s m_t : Memory.Mem.mem)
-             (j : Values.Val.meminj) (c : Asm.state)
-             (C_source : OrdinalPool.t(Sem:=SemSource))
-             (C_target : OrdinalPool.t(Sem:=SemTarget)) tr
-             (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
-                                             (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM),
-           match_state SIM cd j C_source m_s C_target
-                    m_t ->
-        (forall U,
-          (valid SemSource) (tr, C_source, m_s) U ->
-            explicit_safety
-              HybridMachine.DryHybridMachine.dryResources
-              SemSource
-              (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
-              HybridMachine.DryHybridMachine.DryHybridMachineSig
-              U tr C_source m_s) ->
-        forall U,
-          (valid SemTarget) (tr, C_target, Asm.get_mem c) U ->
-            explicit_safety
-              HybridMachine.DryHybridMachine.dryResources
-              SemTarget
-              (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
-              HybridMachine.DryHybridMachine.DryHybridMachineSig
-              U tr C_target m_t.
-    Proof.
-    Admitted.
+  
 
     Lemma match_valid_equiv:
       forall U (p : Clight.program) (tp : Asm.program) (asm_genv_safety : Asm_core.safe_genv the_ge),
@@ -104,8 +75,11 @@ Module Concurrent_Safety
       intros.
       unfold valid. simpl.
       unfold correct_schedule.
+      inversion SIM.
       destruct (schedPeek U); [|now auto].
-      (* now eapply (thread_running _ _ j _ _ _ _ Hmatch).  *)
+      unfold unique_Krun; split; intros HH.
+      - 
+        (* now eapply (thread_running _ _ j _ _ _ _ Hmatch).  *)
     Admitted.
 
 
@@ -289,7 +263,44 @@ Module Concurrent_Safety
           eauto.
         Unshelve. all:auto.
     Qed.
-        
+    Lemma explicit_safety_step:
+    forall (p : Clight.program) (tp : Asm.program) (asm_genv_safety : Asm_core.safe_genv the_ge),
+        let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
+         let SemTarget:= @X86Sem tp asm_genv_safety in
+         forall (U : schedule) (m_s m_t : Memory.Mem.mem)
+           (j : Values.Val.meminj) (c : Asm.state)
+           (C_source : OrdinalPool.t(Sem:=SemSource))
+           (C_target : OrdinalPool.t(Sem:=SemTarget)) tr1 tr2
+           (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
+                                           (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM)
+           (Hmatch_events: List.Forall2 (inject_mevent j) tr1 tr2),
+           match_state SIM cd j C_source m_s C_target
+                       m_t ->
+           (forall U,
+               (valid SemSource) (tr1, C_source, m_s) U ->
+               explicit_safety
+                 HybridMachine.DryHybridMachine.dryResources
+                 SemSource
+                 (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
+                 HybridMachine.DryHybridMachine.DryHybridMachineSig
+                 U tr1 C_source m_s) ->
+           forall U,
+          (valid SemTarget) (tr2, C_target, Asm.get_mem c) U ->
+            explicit_safety
+              HybridMachine.DryHybridMachine.dryResources
+              SemTarget
+              (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
+              HybridMachine.DryHybridMachine.DryHybridMachineSig
+              U tr2 C_target m_t.
+    Proof.
+      intros. eapply explicit_safety_step'; eauto.
+    Qed.
+      
+    (* There is a similar theorem [explicit_safety_step] proven bellow,
+       How are they different? Could reuse lemma? Could reuse proof? 
+     *)
+    (* Admitted. *)
+    
     Lemma Clight_finite_branching:
       let ClightSem:= ClightSemanticsForMachines.ClightSem in 
             forall (p : Clight.program)
@@ -313,26 +324,27 @@ Module Concurrent_Safety
          forall (U : schedule) (init_mem_source' : Memory.Mem.mem)
              (j : Values.Val.meminj) (c : Asm.state)
              (C_source : OrdinalPool.t(Sem:=SemSource))
-             (C_target : OrdinalPool.t) tr
+             (C_target : OrdinalPool.t) tr1 tr2
              (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
-                                             (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM),
+                                             (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM)
+         (Hmatch_events: List.Forall2 (inject_mevent j) tr1 tr2),
         match_state SIM cd j C_source init_mem_source' C_target
                     (Asm.get_mem c) ->
         (forall (n : nat) U,
-            (valid SemSource) (tr, C_source, init_mem_source') U ->
+            (valid SemSource) (tr1, C_source, init_mem_source') U ->
             HybridCoarseMachine.csafe(Sem:=SemSource)
                                      (resources:=HybridMachine.DryHybridMachine.dryResources)
                                      (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
       (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
-                                     (U, tr, C_source)
+                                     (U, tr1, C_source)
                                      init_mem_source' n) ->
         forall (n : nat) U ,
-          (valid SemTarget) (tr, C_target, Asm.get_mem c) U ->
+          (valid SemTarget) (tr2, C_target, Asm.get_mem c) U ->
           HybridCoarseMachine.csafe (Sem:=SemTarget)
                                      (resources:=HybridMachine.DryHybridMachine.dryResources)
                                      (ThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemTarget))
       (machineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
-                                     (U, tr, C_target)
+                                     (U, tr2, C_target)
                                      (Asm.get_mem c) n.
     Proof.
       intros until n.

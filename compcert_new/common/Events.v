@@ -116,8 +116,8 @@ Inductive event: Type :=
   | Event_vload: memory_chunk -> ident -> ptrofs -> eventval -> event
   | Event_vstore: memory_chunk -> ident -> ptrofs -> eventval -> event
   | Event_annot: string -> list eventval -> event
-  | Event_acq_rel: list mem_effect -> delta_perm_map -> list mem_effect -> event
-  | Event_spawn: block -> delta_perm_map -> delta_perm_map -> event.
+  | Event_acq_rel: list mem_effect -> delta_map -> list mem_effect -> event
+  | Event_spawn: block -> delta_map -> delta_map -> event.
 
 (** The dynamic semantics for programs collect traces of events.
   Traces are of two kinds: finite (type [trace]) or infinite (type [traceinf]). *)

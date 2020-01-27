@@ -25,6 +25,9 @@ Require Import VST.concurrency.compiler.diagrams.
 Require Import VST.concurrency.compiler.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.compiler.inject_virtue.
+Require Import VST.concurrency.common.Compcert_lemmas.
+
+Require Import VST.sepcomp.Address.
 
 
 Require Import VST.concurrency.memsem_lemmas.
@@ -114,6 +117,159 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
     Definition loc_readable_cur (m: mem) (b: block) (ofs: Z) : Prop :=
       Mem.perm m b ofs Cur Readable.
 
+    Section LockUpdate.
+      (*There is a similar one in common/Compcert_lemmas.v *)
+    (* Some lemmas that might be better put somewhere else *)
+    Inductive lock_update {hb}: nat -> ThreadPool hb -> Address.address ->
+                                (Pair access_map) -> lock_info -> _ -> ThreadPool hb -> Prop:=
+    | Build_lock_update:
+        forall st st' i add th_perms lock_perms c
+          (cnt : containsThread st i),
+          st' = updLockSet
+                  (updThread(resources:=dryResources) cnt c th_perms)
+                  add lock_perms ->
+          @lock_update hb i st add th_perms lock_perms c st'.
+    
+    Lemma lock_update_mem_restr:
+      forall m adr1 v1 m',
+        lock_update_mem m adr1 v1 m' ->
+        forall p p' Hlt Hlt',
+          access_map_equiv p p' ->
+          lock_update_mem (@restrPermMap p m Hlt)
+                          adr1 v1 (@restrPermMap p' m' Hlt').
+    Proof.
+      intros. inv H; econstructor; auto.
+      - unfold Cur_equiv. do 2 rewrite getCur_restr; assumption.
+      - unfold Max_equiv. do 2 rewrite getMax_restr_eq; assumption.
+      - rewrite restr_Max_equiv; assumption.
+    Qed.
+          
+      Inductive lock_update' {hb}:
+        nat -> ThreadPool hb -> Address.address ->
+        (Pair access_map) -> @lock_info dryResources -> _ -> ThreadPool hb -> Prop:=
+      | Build_lock_update':
+          forall (st st': ThreadPool hb)
+            i add th_perms th_lock_perms lk_perms c
+            (* contains *)
+            (Hcnt_iff: forall i, ThreadPool.containsThread st i ->
+                            ThreadPool.containsThread st' i)
+            (Hcnt_iff': forall i, ThreadPool.containsThread st' i ->
+                             ThreadPool.containsThread st i)
+            
+            (* Code  *)
+            (gcs: forall (cnt':ThreadPool.containsThread st' i), 
+                ThreadPool.getThreadC cnt' = c )
+            (gco: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
+                j<>i -> ThreadPool.getThreadC cnt' = ThreadPool.getThreadC cnt)
+
+            (* Thread Perms and Thread lock perms *)
+            (gts: forall (cnt':ThreadPool.containsThread st' i), 
+                ThreadPool.getThreadR(resources:=dryResources) cnt' = (th_perms,th_lock_perms))
+            (gto: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
+                j<>i -> ThreadPool.getThreadR cnt' = ThreadPool.getThreadR cnt)
+
+            (* Thread Perms *)
+            (gtts: forall (cnt':ThreadPool.containsThread st' i), 
+                fst (ThreadPool.getThreadR(resources:=dryResources) cnt') = th_perms)
+            (gtto: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
+                j<>i -> fst (ThreadPool.getThreadR cnt') = fst  (ThreadPool.getThreadR cnt))
+
+            (* Thread lock Perms*) 
+            (gtls: forall (cnt':ThreadPool.containsThread st' i), 
+                snd (ThreadPool.getThreadR(resources:=dryResources) cnt') = th_lock_perms)
+            (gtlo: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
+                j<>i -> snd (ThreadPool.getThreadR cnt') = snd (ThreadPool.getThreadR cnt))
+            
+            (* Lock perms *)
+            (gls: ThreadPool.lockRes st' add  = Some lk_perms)
+            (glo: forall add', add<>add' -> ThreadPool.lockRes st' add' = ThreadPool.lockRes st add'),
+            @lock_update' hb i st add (th_perms,th_lock_perms) lk_perms  c st'.
+      
+      Lemma lock_update_getters:
+        forall {hb  i st b ofs th_perms th_lock_perms lock_perms c st'},
+          @lock_update hb i st (b,ofs) (th_perms,th_lock_perms)
+                       lock_perms  c st' ->
+          @lock_update' hb i st (b,ofs) (th_perms,th_lock_perms)
+                        lock_perms  c st'.
+      Proof.
+        intros * H; inversion H.
+        subst i0 st0 add0 th_perms0 c0 st'0.
+        
+        assert (gcs: forall (cnt': ThreadPool.containsThread st' i) , ThreadPool.getThreadC cnt' = c).
+        { intros; subst st'; eapply gssThreadCC. }
+
+        assert (gco: forall j (neq:j <> i)
+                       (cnt: ThreadPool.containsThread st j)
+                       (cnt': ThreadPool.containsThread st' j),
+                   ThreadPool.getThreadC cnt' = ThreadPool.getThreadC cnt).
+        { intros; subst st'; etransitivity.
+          eapply gLockSetCode.
+          symmetry; eapply gsoThreadCC.
+          symmetry; assumption.
+        }
+
+        assert (gts: forall (cnt': ThreadPool.containsThread st' i) ,
+                   ThreadPool.getThreadR cnt' = (th_perms, th_lock_perms)).
+        { intros; subst st'; eapply gssThreadRR. }
+
+        assert (gto: forall j (neq:j <> i)
+                       (cnt: ThreadPool.containsThread st j)
+                       (cnt': ThreadPool.containsThread st' j),
+                   ThreadPool.getThreadR cnt' = ThreadPool.getThreadR cnt).
+        { intros; subst st'; etransitivity.
+          eapply gLockSetRes.
+          symmetry; eapply gsoThreadRR.
+          symmetry; eassumption.
+        }
+        
+        
+        
+        subst st'.
+        econstructor; intros *; eauto.
+        - rewrite gts; auto.
+        - intros; erewrite gto; auto.
+        - rewrite gts; auto.
+        - intros; erewrite gto; auto.
+        - simpl; rewrite gssLockRes; reflexivity.
+        - intros. simpl.
+          rewrite gsoLockRes, gsoThreadLPool; auto.
+          
+          Unshelve.
+          all: unshelve( eapply cntUpdateR; eauto);
+            eauto.
+          
+      Qed.
+
+    End  LockUpdate.
+
+    Ltac destruct_lock_update_getters:=
+      match goal with
+      | [ H: lock_update _ _ _ _ _ _ _ |- _ ] =>
+        apply lock_update_getters in H; inv H
+      | [H: lock_update_mem _ _ _ _ |- _ ] => inv H
+      end.
+    Ltac lock_update_contains:=
+      match goal with
+      | [ H: containsThread ?st ?i  |- _ ] =>
+        match goal with
+        | [ H: forall x,  ThreadPool.containsThread st ?j ->
+                     ThreadPool.containsThread ?st' _ |- _ ] =>
+          match goal with
+          | [ H: ThreadPool.containsThread st' i  |- _ ] => fail 1
+          | [ H: containsThread st' i  |- _ ] => fail 1
+          | _ => let cnt:=fresh "cnt" in
+                assert (cnt:containsThread st' i); try eapply H; auto;
+                simpl in cnt
+          end
+        end
+      end.
+
+    Ltac lock_update_rewrite:=
+      repeat lock_update_contains;
+      simpl in *;
+      unshelve (repeat (super_rewrite)); try eassumption.
+
+    
 
 
     
@@ -168,28 +324,18 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
                               (Kinit v1 v1') m2.
     (* Inject the value in lock locations *)
 
-      
+    
     
     Section ConcurMatch. (* 360 *)
       Definition option_map_prop := 
-      fun {A B : Type} (f : A -> B -> Prop) (x : option A) (y : option B) =>
-        match x,y with
-        | Some x', Some y'  => f x' y'
-        | None, None => True
-        | _, _ => False
-        end.
-      Definition access_map_equiv_pair:= pair2_prop access_map_equiv.
-      Lemma equivlance_pair:
-        forall A (r: relation A), Equivalence r ->
-                             Equivalence (pair2_prop r).
-      Proof.
-        intros. inv H.
-        econstructor; hnf; solve_pair; eauto.
-      Qed.
-      Global Instance access_map_equiv_pair_alence : Equivalence access_map_equiv_pair.
-      Proof. eapply equivlance_pair, access_map_equiv_Equivalence. Qed.
-        
-                             
+        fun {A B : Type} (f : A -> B -> Prop) (x : option A) (y : option B) =>
+          match x,y with
+          | Some x', Some y'  => f x' y'
+          | None, None => True
+          | _, _ => False
+          end.
+      
+      
       Record concur_match (ocd: option compiler_index)
              (j:meminj) (cstate1: ThreadPool (Some hb)) (m1: Mem.mem) (cstate2: ThreadPool(Some (S hb))) (m2: mem):=
         { same_length: num_threads cstate1 = num_threads cstate2
@@ -223,16 +369,16 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
               forall b b' delt,
                 j b = Some (b', delt) ->
                 forall ofs rec1, lockRes cstate1 (b, ofs) = Some rec1 ->
-                       exists rec2,
-                         lockRes cstate2 (b', ofs + delt) = Some rec2 /\
-                         access_map_equiv_pair (virtueLP_inject m2 j rec1) rec2            
+                            exists rec2,
+                              lockRes cstate2 (b', ofs + delt) = Some rec2 /\
+                              access_map_equiv_pair (virtueLP_inject m2 j rec1) rec2            
           ; INJ_lock_permissions_preimage:
               forall b2 ofs_delt rec2, lockRes cstate2 (b2, ofs_delt) = Some rec2 ->
-                       exists rec1 b1 ofs delt,
-                         j b1 = Some (b2, delt) /\
-                         lockRes cstate1 (b1, ofs) = Some rec1 /\
-                         (pair2_prop access_map_equiv) (virtueLP_inject m2 j rec1) rec2 /\
-                         ofs_delt = ofs + delt          
+                                  exists rec1 b1 ofs delt,
+                                    j b1 = Some (b2, delt) /\
+                                    lockRes cstate1 (b1, ofs) = Some rec1 /\
+                                    (pair2_prop access_map_equiv) (virtueLP_inject m2 j rec1) rec2 /\
+                                    ofs_delt = ofs + delt          
           ; INJ_lock_content:
               forall b ofs rmap,
                 lockRes cstate1 (b, ofs) = Some rmap ->
@@ -291,104 +437,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
              destruct H1 as (?&?&?&?); simpl in *.
              eexists; split; try eassumption.
              split; simpl; symmetry; eauto.
-      Qed.
-      
-      (*
-        THIS LEMMA WAS WRONG. Becasue a different lock can map to that location.
-        There is a correct version, backwards, probably don't need it.
-        Lemma INJ_lock_permissions_None:
-        forall ocd j cstate1 m1 cstate2 m2,
-          concur_match ocd j cstate1 m1 cstate2 m2 -> 
-          forall b b' delt,
-            j b = Some (b', delt) ->
-            forall ofs, lockRes cstate1 (b, unsigned ofs) = None ->
-                   lockRes cstate2 (b', unsigned (add ofs (repr delt))) = None.
-      Proof. intros. eapply INJ_lock_permissions in H1; eauto.
-             hnf in H1; match_case in H1.
-      Qed. *)
-      Lemma virtueLP_inject_max_eq:
-        forall m m' mu AA,
-          getMaxPerm m = getMaxPerm m' ->
-          virtueLP_inject m mu AA =
-          virtueLP_inject m' mu AA.
-      Proof.
-        intros.
-        unfold virtueLP_inject, inject_access_map, tree_map_inject_over_mem.
-        rewrite H; reflexivity.
-      Qed.
-      Lemma virtueLP_inject_max_eq_exteny:
-        forall m m',
-          getMaxPerm m = getMaxPerm m' ->
-          virtueLP_inject m =
-          virtueLP_inject m'.
-      Proof.
-        intros.
-        extensionality mu.
-        extensionality AA.
-        apply virtueLP_inject_max_eq; assumption.
-      Qed.
-      
-      Lemma map_compose:
-        forall {A B C} (f1: _ -> B -> C) (f2: _ -> A -> B) t,
-          PTree.map f1 (PTree.map f2 t) =
-          PTree.map (fun ofs a => f1 ofs (f2 ofs a)) t.
-      Proof.
-        clear.
-        intros. unfold PTree.map.
-        remember 1%positive as p.
-        generalize p.
-        induction t0; auto; simpl.
-        intros. f_equal.
-        - eapply IHt0_1.
-        - simpl; destruct o; simpl; f_equal.
-        - eapply IHt0_2.
-      Qed.
-      Lemma map1_map:
-        forall A B (f: A -> B) t,
-          PTree.map1 f t = PTree.map (fun _ => f) t.
-      Proof.
-        intros. unfold PTree.map.
-        remember 1%positive as p.
-        generalize p.
-        induction t0; auto; simpl.
-        intros. f_equal.
-        - eapply IHt0_1.
-        - eapply IHt0_2.
-      Qed.
-      Lemma map1_map_compose:
-        forall {A B C} (f1: B -> C) (f2: _ -> A -> B) t,
-          PTree.map1 f1 (PTree.map f2 t) =
-          PTree.map (fun ofs a => f1 (f2 ofs a)) t.
-      Proof. intros; rewrite map1_map, map_compose; reflexivity. Qed.
-      Lemma getMax_restr_eq:
-        forall perm m (Hlt: permMapLt perm (getMaxPerm m)),
-          (getMaxPerm (restrPermMap Hlt)) = (getMaxPerm m) .
-      Proof.
-        intros.
-        pose proof (Cur_isCanonical m) as Hcanon. 
-        unfold restrPermMap, getMaxPerm; simpl.
-        unfold PMap.map; simpl.
-        f_equal.
-        rewrite map1_map_compose.
-        rewrite map1_map.
-        reflexivity.
-      Qed.
-      Lemma restrPermMap_idempotent_eq:
-        forall {perm0 perm1 m1}
-          (Hlt0 : permMapLt perm0 (getMaxPerm m1))
-          (Hlt1 : permMapLt perm1 (getMaxPerm m1))
-          (Hlt2 : permMapLt perm1 (getMaxPerm (restrPermMap Hlt0))),
-          (restrPermMap Hlt1) = (restrPermMap Hlt2).
-      Proof.
-        intros.
-        destruct m1; simpl in *.
-        eapply easy_mem_eq; try reflexivity.
-        simpl.
-        f_equal; simpl.
-        - extensionality ofs.
-          extensionality k.
-          destruct k; auto.
-        - rewrite map_compose; reflexivity.
       Qed.
       Lemma concur_match_perm_restrict:
         forall cd j st1 m1 st2 m2,
@@ -537,8 +585,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           (m2 : mem),
           concur_match cd mu c1 m1 c2 m2 ->
           forall i : nat, False ->
-            machine_semantics.running_thread (HybConcSem (Some hb) m) c1 i <->
-            machine_semantics.running_thread (HybConcSem (Some (S hb)) m) c2 i.
+                   machine_semantics.running_thread (HybConcSem (Some hb) m) c1 i <->
+                   machine_semantics.running_thread (HybConcSem (Some (S hb)) m) c2 i.
       Proof. (*
         intros.
         unfold machine_semantics.running_thread; simpl.
@@ -575,7 +623,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
         eapply (contains21); eassumption.
         eapply (contains12); eassumption.
       Qed. *)
-        Admitted.
+      Admitted.
       
       Inductive individual_match i:
         (option compiler_index) -> meminj -> ctl -> mem -> ctl -> mem -> Prop:= 
@@ -596,16 +644,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             individual_match i cd j s1 m1 s2 m2.
 
       
-      Inductive lock_update {hb}: nat -> ThreadPool hb -> Address.address ->
-                                  (Pair access_map) -> lock_info -> _ -> ThreadPool hb -> Prop:=
-      | Build_lock_update:
-          forall st st' i add th_perms lock_perms c
-            (cnt : containsThread st i),
-            st' = updLockSet
-                    (updThread(resources:=dryResources) cnt c th_perms)
-                    add lock_perms ->
-            @lock_update hb i st add th_perms lock_perms c st'.
-      
       Notation sstate:= (state_sum (@semC CSem) (@semC AsmSem)).
       Inductive one_thread_match  (hb i:nat): option compiler_index ->
                                             meminj -> @ctl sstate -> mem -> @ctl sstate -> mem -> Prop:=
@@ -625,340 +663,14 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             match_thread_compiled ocd f c1 m1 c2 m2 ->
             one_thread_match hb i ocd f c1 m1 c2 m2.
       
-      Inductive lock_update' {hb}:
-        nat -> ThreadPool hb -> Address.address ->
-        (Pair access_map) -> @lock_info dryResources -> _ -> ThreadPool hb -> Prop:=
-      | Build_lock_update':
-          forall (st st': ThreadPool hb)
-            i add th_perms th_lock_perms lk_perms c
-            (* contains *)
-            (Hcnt_iff: forall i, ThreadPool.containsThread st i ->
-                            ThreadPool.containsThread st' i)
-            (Hcnt_iff': forall i, ThreadPool.containsThread st' i ->
-                             ThreadPool.containsThread st i)
-            
-            (* Code  *)
-            (gcs: forall (cnt':ThreadPool.containsThread st' i), 
-                ThreadPool.getThreadC cnt' = c )
-            (gco: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
-                j<>i -> ThreadPool.getThreadC cnt' = ThreadPool.getThreadC cnt)
-
-            (* Thread Perms and Thread lock perms *)
-            (gts: forall (cnt':ThreadPool.containsThread st' i), 
-                ThreadPool.getThreadR(resources:=dryResources) cnt' = (th_perms,th_lock_perms))
-            (gto: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
-                j<>i -> ThreadPool.getThreadR cnt' = ThreadPool.getThreadR cnt)
-
-            (* Thread Perms *)
-            (gtts: forall (cnt':ThreadPool.containsThread st' i), 
-                fst (ThreadPool.getThreadR(resources:=dryResources) cnt') = th_perms)
-            (gtto: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
-                j<>i -> fst (ThreadPool.getThreadR cnt') = fst  (ThreadPool.getThreadR cnt))
-
-            (* Thread lock Perms*) 
-            (gtls: forall (cnt':ThreadPool.containsThread st' i), 
-                snd (ThreadPool.getThreadR(resources:=dryResources) cnt') = th_lock_perms)
-            (gtlo: forall j (cnt:ThreadPool.containsThread st j) (cnt':ThreadPool.containsThread st' j), 
-                j<>i -> snd (ThreadPool.getThreadR cnt') = snd (ThreadPool.getThreadR cnt))
-            
-            (* Lock perms *)
-            (gls: ThreadPool.lockRes st' add  = Some lk_perms)
-            (glo: forall add', add<>add' -> ThreadPool.lockRes st' add' = ThreadPool.lockRes st add'),
-            @lock_update' hb i st add (th_perms,th_lock_perms) lk_perms  c st'.
       
-      Lemma lock_update_getters:
-        forall {hb  i st b ofs th_perms th_lock_perms lock_perms c st'},
-          @lock_update hb i st (b,ofs) (th_perms,th_lock_perms)
-                       lock_perms  c st' ->
-          @lock_update' hb i st (b,ofs) (th_perms,th_lock_perms)
-                        lock_perms  c st'.
-      Proof.
-        intros * H; inversion H.
-        subst i0 st0 add0 th_perms0 c0 st'0.
-        
-        assert (gcs: forall (cnt': ThreadPool.containsThread st' i) , ThreadPool.getThreadC cnt' = c).
-        { intros; subst st'; eapply gssThreadCC. }
-
-        assert (gco: forall j (neq:j <> i)
-                       (cnt: ThreadPool.containsThread st j)
-                       (cnt': ThreadPool.containsThread st' j),
-                   ThreadPool.getThreadC cnt' = ThreadPool.getThreadC cnt).
-        { intros; subst st'; etransitivity.
-          eapply gLockSetCode.
-          symmetry; eapply gsoThreadCC.
-          symmetry; assumption.
-        }
-
-        assert (gts: forall (cnt': ThreadPool.containsThread st' i) ,
-                   ThreadPool.getThreadR cnt' = (th_perms, th_lock_perms)).
-        { intros; subst st'; eapply gssThreadRR. }
-
-        assert (gto: forall j (neq:j <> i)
-                       (cnt: ThreadPool.containsThread st j)
-                       (cnt': ThreadPool.containsThread st' j),
-                   ThreadPool.getThreadR cnt' = ThreadPool.getThreadR cnt).
-        { intros; subst st'; etransitivity.
-          eapply gLockSetRes.
-          symmetry; eapply gsoThreadRR.
-          symmetry; eassumption.
-        }
-        
-        
-        
-        subst st'.
-        econstructor; intros *; eauto.
-        - rewrite gts; auto.
-        - intros; erewrite gto; auto.
-        - rewrite gts; auto.
-        - intros; erewrite gto; auto.
-        - simpl; rewrite gssLockRes; reflexivity.
-        - intros. simpl.
-          rewrite gsoLockRes, gsoThreadLPool; auto.
-          
-          Unshelve.
-          all: unshelve( eapply cntUpdateR; eauto);
-            eauto.
-          
-      Qed.
-
-
-      (*To load a val, you need to "getN",
-        which gives you a list memval.
-        use decode_val to get a val (see Mem.load)
-       *)
-      (* Definition same_content_in m m' ofs b:=
-        Mem.getN 4 ofs (Mem.mem_contents m') !! b =
-        Mem.getN 4 ofs (Mem.mem_contents m) !! b.*)
       
-      Definition same_content_in m m' ofs b:=
-        ZMap.get ofs (Mem.mem_contents m') !! b =
-        ZMap.get ofs (Mem.mem_contents m) !! b.
-      Definition content_almost_same m m' adr:=
-        forall  b ofs,
-          b <> fst adr \/ ~ Intv.In ofs (snd adr,snd adr+ 4) ->
-          (*(b, ofs) <> adr ->*)  same_content_in m m' ofs b.
-      Definition contnet_same_intval m m' adr SIZE:=
-        forall b ofs,
-          b = fst adr /\ Intv.In ofs (snd adr, snd adr + SIZE) ->
-          same_content_in m m' ofs b.
-       Lemma content_equiv_getN:
-          forall x y,
-            content_equiv x y ->
-            forall z ofs b,
-              Mem.getN z ofs (Mem.mem_contents x) !! b =
-              Mem.getN z ofs (Mem.mem_contents y) !! b.
-        Proof.
-          intros ???. induction z; simpl; auto.
-          intros; f_equal; auto.
-        Qed.
-        Lemma getN_content_equiv:
-          forall x y,
-            (forall ofs b,
-              Mem.getN 4 ofs (Mem.mem_contents x) !! b =
-              Mem.getN 4 ofs (Mem.mem_contents y) !! b) ->
-            content_equiv x y.
-        Proof.
-          intros ** ? **.
-          specialize (H ofs b).
-          inv H; auto.
-        Qed.
-        (* DONT HAVE TO Change 4 to something that depends the architecture 32-64 
+      (* DONT HAVE TO Change 4 to something that depends the architecture 32-64 
            In both architectures we store only 32 bites.
-         *)
-      Definition get_vals_at (m:mem) (adr: block * Z):=
-        (Mem.getN 4 (snd adr) (Mem.mem_contents m) !! (fst adr)).
-      (*  (ZMap.get (snd adr) (Mem.mem_contents m) !! (fst adr)). *)
-      Definition max_valid_perm
-                 (m : mem) (chunk : AST.memory_chunk)
-                 (b : block) (ofs : Z) (p : permission):=
-        Mem.range_perm m b ofs (ofs + size_chunk chunk) Max p.
+       *)
 
-      Instance Proper_max_valid_perm:
-        Proper
-          (Max_equiv ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> Logic.eq ==> iff)
-          max_valid_perm.
-      Proof.
-         unfold max_valid_perm.
-        setoid_help.proper_iff;
-          setoid_help.proper_intros; subst.
-        rewrite <- H; assumption.
-      Qed.
-      Inductive lock_update_mem: mem -> Address.address -> list memval -> mem -> Prop:=
-      | Build_lock_update_mem:
-          forall m m' adr v
-            (Hcontent_almost_equiv: content_almost_same m m' adr)
-            (Hnew_val: get_vals_at m' adr = v)
-            (Hcur_equiv: Cur_equiv m m')
-            (Hmax_equiv: getMaxPerm m = getMaxPerm m')
-            (Hmax_wrt: max_valid_perm m AST.Mint32 (fst adr) (snd adr) Writable)
-            (*Hmax_wrt: Mem.perm m (fst adr) (snd adr) Max Writable *)
-            (Hnb_equiv: Mem.nextblock m = Mem.nextblock m'),
-            lock_update_mem m adr v m'.
-      Instance content_almost_same_proper:
-        Proper (content_equiv ==> content_equiv ==> Logic.eq ==> iff)
-               content_almost_same.
-      Proof.
-        unfold content_almost_same, same_content_in.
-        setoid_help.proper_iff;
-          setoid_help.proper_intros; subst.
-       
-        rewrite <- H, <- H0; eauto.
-      Qed.
-      Ltac destruct_lock_update_getters:=
-        match goal with
-        | [ H: lock_update _ _ _ _ _ _ _ |- _ ] =>
-          apply lock_update_getters in H; inv H
-        | [H: lock_update_mem _ _ _ _ |- _ ] => inv H
-        end.
-      Ltac lock_update_contains:=
-        match goal with
-        | [ H: containsThread ?st ?i  |- _ ] =>
-          match goal with
-          | [ H: forall x,  ThreadPool.containsThread st ?j ->
-                       ThreadPool.containsThread ?st' _ |- _ ] =>
-            match goal with
-            | [ H: ThreadPool.containsThread st' i  |- _ ] => fail 1
-            | [ H: containsThread st' i  |- _ ] => fail 1
-            | _ => let cnt:=fresh "cnt" in
-                  assert (cnt:containsThread st' i); try eapply H; auto;
-                  simpl in cnt
-            end
-          end
-        end.
+
       
-      Ltac super_rewrite:=
-        match goal with
-        | [ H: _ |- _ ] => erewrite H by solve[eauto] 
-        end.
-      Ltac lock_update_rewrite:=
-        repeat lock_update_contains;
-        simpl in *;
-        unshelve (repeat (super_rewrite)); try eassumption.
-
-      Definition meminj_no_overlap_one (f: meminj) (m: mem) (adr1 adr2: block * Z) := 
-        forall delta1 b1 delta2 ofs1,
-          f (fst adr1) = Some (fst adr2, delta1) ->
-          f b1 = Some (fst adr2, delta2) ->
-          Mem.perm m b1 ofs1 Max Nonempty ->
-          Intv.In (ofs1 + delta2) ((snd adr1) + delta1, (snd adr1) + delta1 + 4) ->
-          (* ofs1 + delta2 = (snd adr1) + delta1 -> *)
-          b1 = (fst adr1).
-      Lemma meminj_no_overlap_to_on:
-        forall f m adr1 adr2,
-          max_valid_perm m AST.Mint32 (fst adr1) (snd adr1) Writable ->
-          Mem.meminj_no_overlap f m ->
-          meminj_no_overlap_one f m adr1 adr2.
-      Proof.
-        intros ** ? **.
-        destruct (base.block_eq_dec b1 (fst adr1)); auto.
-        exploit H0; eauto.
-        { eapply Mem.perm_implies.
-          eapply H. 2:constructor.
-          unfold max_valid_perm, Mem.range_perm in H.
-          instantiate(1:= ofs1 + delta2 - delta1).
-          clear - H4. destruct H4. simpl in *. omega. }
-        intros [ ? | ? ].
-        - contradict H5; reflexivity.
-        - contradict H5. omega. 
-      Qed.
-      Lemma adddress_eq_dec:
-        forall (a b: block * Z), {a = b} + {a <> b}.
-      Proof.
-        intros. destruct a as (a1& a2);
-                  destruct b as (b1& b2).
-        destruct (base.block_eq_dec a1 b1) as [eq|n];
-          destruct (Z.eq_dec a2 b2)as [eq'|n']; try subst;
-            simpl in *; auto;
-              try (right; intros HH; inv HH; try apply n; try apply n'; auto). 
-      Qed.
-      Lemma address_range_dec':
-        forall (b b':block) ofs ofs' delta,
-        (b = b' /\ Intv.In ofs (ofs', ofs' + delta))
-        \/ (b <> b' \/ ~ Intv.In ofs (ofs', ofs' + delta)).
-      Proof.
-        intros.
-        cut (forall (P Q R:Prop), (P -> Q) -> (R \/ P)-> R \/ Q ); swap 1 2.
-        { tauto. }
-        intros HH. eapply HH.
-        2: { eapply Classical_Prop.classic. }
-        destruct (base.block_eq_dec b b'); auto.
-      Qed.
-      Lemma address_range_dec:
-        forall (a1 a2: block * Z) delta,
-        (fst a1 = fst a2 /\ Intv.In (snd a1)
-                             (snd a2, snd a2 + delta))
-        \/ (fst a1 <> fst a2 \/ ~ Intv.In (snd a1)
-                             (snd a2, snd a2 + delta)).
-      Proof. intros; eapply address_range_dec'. Qed.
-        
-      Lemma perm_order_trans101:
-        forall oa b c, Mem.perm_order' oa b ->
-                  perm_order b c -> Mem.perm_order' oa c.
-      Proof.
-        intros. eapply (perm_order_trans211 _ (Some b));
-                  simpl; auto.
-      Qed.
-      Lemma inj_getN_range:
-              forall F f ofs ofs' b1 b2 delt m1 m2 LKSIZE,
-              f b1 = Some (b2, delt) ->
-              Intv.In ofs (ofs', ofs' + LKSIZE) ->
-              Forall2 F
-              (Mem.getN (Z.to_nat LKSIZE) ofs' (Mem.mem_contents m1) !! b1)
-              (Mem.getN (Z.to_nat LKSIZE) (ofs' + delt) (Mem.mem_contents m2) !! b2) ->
-              F (ZMap.get ofs (Mem.mem_contents m1) !! b1)
-                (ZMap.get (ofs + delt) (Mem.mem_contents m2) !! b2).
-            Proof.
-              induction LKSIZE; swap 2 3.
-              - intros. exfalso; clear -H0.
-                destruct H0; simpl in *. omega.
-              - intros. exfalso; clear -H0.
-                eapply Intv.in_notempty in H0.
-                apply H0. unfold Intv.empty; simpl.
-                pose proof (Zlt_neg_0 p). omega.
-              - simpl. rewrite <- (Pos2Nat.id p).
-                remember (Pos.to_nat p) as n.
-                intros. replace (Pos.to_nat (Pos.of_nat n)) with n in *.
-                2:{ subst n. rewrite Pos2Nat.id; auto. }
-                revert H1 H0.
-                destruct n.
-                { exfalso; clear - Heqn. 
-                  pose proof (Pos2Nat.is_pos p).
-                  rewrite Heqn in *. omega. }
-                clear Heqn.
-                revert ofs ofs'. 
-                induction n.
-                + intros; simpl.
-                  simpl in H0.
-                  assert (ofs = ofs').
-                  { destruct H0. simpl in *. omega. }
-                  inv H1; auto. 
-                + intros. simpl in H1; inv H1.
-                  replace (Z.pos (Pos.of_nat (S (S n)))) with
-                               (Z.pos (Pos.of_nat (S n)) + 1) in *.
-                  2:{  do 2 f_equal.
-                       symmetry; rewrite <- Pos.of_nat_succ .
-                       rewrite <- Pos.of_nat_succ.
-                       simpl. rewrite Pos.add_comm.
-                       simpl. destruct (Pos.of_succ_nat n); auto. }
-                  Lemma blah: forall a b ofs,
-                    Intv.In ofs (a,b) ->
-                    Intv.In ofs (a+1,b) \/ ofs = a.
-                  Admitted.
-                  rewrite Z.add_assoc in H0.
-                  eapply blah in H0.
-                  destruct H0; auto; swap 1 2.
-                  * subst; eauto.
-                  * clear H5.
-                    exploit IHn; eauto.
-                    2:{ instantiate(1:=ofs' +1).
-                        rewrite <- Z.add_assoc.
-                        rewrite (Z.add_comm 1).
-                        rewrite Z.add_assoc.
-                        eauto.
-                    }
-                    replace (ofs' + 1 + delt) with (ofs' + delt  + 1) by omega.
-                    auto.
-            Qed.
       Lemma mem_inj_update:
         forall (f:meminj) m1 m2 m1' m2' adr1 adr2
           (Hno_overlap:
@@ -1062,47 +774,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
               first [left; rewrite <- Hcur_eq1;assumption |right; rewrite <- Hmax_eq1; assumption].
       Qed.
       
-      Lemma lock_update_mem_restr:
-        forall m adr1 v1 m',
-          lock_update_mem m adr1 v1 m' ->
-          forall p p' Hlt Hlt',
-            access_map_equiv p p' ->
-            lock_update_mem (@restrPermMap p m Hlt)
-                            adr1 v1 (@restrPermMap p' m' Hlt').
-      Proof.
-        intros. inv H; econstructor; auto.
-        - unfold Cur_equiv. do 2 rewrite getCur_restr; assumption.
-        - unfold Max_equiv. do 2 rewrite getMax_restr_eq; assumption.
-        - rewrite restr_Max_equiv; assumption.
-      Qed.
-      Lemma max_equiv_restr:
-        forall m m' perm perm' Hlt Hlt',
-          Max_equiv m m' ->
-          Max_equiv (@restrPermMap perm m  Hlt )
-                    (@restrPermMap perm' m' Hlt').
-      Proof.
-        intros. unfold Max_equiv.
-        etransitivity; [|symmetry].
-        eapply restr_Max_equiv.
-        etransitivity; [eapply restr_Max_equiv|].
-        symmetry; eapply H.
-      Qed.
-      Lemma cur_equiv_restr:
-        forall m m' perm Hlt Hlt',
-          Cur_equiv (@restrPermMap perm m  Hlt )
-                    (@restrPermMap perm m' Hlt').
-      Proof.
-        intros; unfold Cur_equiv;
-          etransitivity; [|symmetry]; eapply getCur_restr.
-      Qed.
-      
-      
-      Lemma permMapLt_Max_equiv:
-        forall p m m',
-          Max_equiv m m' ->
-          permMapLt p (getMaxPerm m) ->
-          permMapLt p (getMaxPerm m').
-      Proof. unfold Max_equiv; intros * <-; auto. Qed.
       
       Inductive update_mem (m m':mem) (adr:block * Z): Prop:=
       | Build_update_mem:
@@ -1137,15 +808,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           rewrite restr_Max_equiv; simpl in *.
           eapply Mem.perm_implies; eauto. constructor.
       Qed.
-      Lemma neq_prod:
-              forall A B (a a':A) (b b': B),
-                (a,b) <> (a',b') ->
-                (a <> a') \/ (a = a' /\ b <> b').
-            Proof.
-              intros; destruct (Classical_Prop.classic (a=a')); auto.
-              subst. right; split; eauto; intros HH; apply H; eauto.
-            Qed.
-            
+      
       Lemma concur_match_update_lock:
         forall i f ocd st1 m1 st2 m2,
           concur_match ocd f st1 m1 st2 m2 ->
@@ -1213,8 +876,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             intros; simpl in *.
             eapply injection_update_restrict; 
               eauto; simpl; eauto; try solve [econstructor; eauto];
-            try solve[ econstructor; eauto;
-                       intros ?; first [rewrite Hmax_equiv0 | rewrite Hmax_equiv]; auto].
+                try solve[ econstructor; eauto;
+                           intros ?; first [rewrite Hmax_equiv0 | rewrite Hmax_equiv]; auto].
             intros.
             eapply mem_inject_equiv;
               try eapply INJ_threads; try reflexivity;
@@ -1228,8 +891,8 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
           + intros; simpl in *.
             eapply injection_update_restrict; 
               eauto; simpl; eauto; try solve [econstructor; eauto];
-            try solve[ econstructor; eauto;
-                       intros ?; first [rewrite Hmax_equiv0 | rewrite Hmax_equiv]; auto].
+                try solve[ econstructor; eauto;
+                           intros ?; first [rewrite Hmax_equiv0 | rewrite Hmax_equiv]; auto].
             intros.
             eapply mem_inject_equiv;
               try eapply INJ_locks; try reflexivity;
@@ -1247,7 +910,10 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
         - intros until rec1.
           lock_update_rewrite; simpl.
           destruct (addressFiniteMap.AMap.E.eq_dec (b_lock1, ofs_lock) (b, ofs) ) as [e|n].
-          2: exploit neq_prod; try eassumption; intros [?| [? ?]]; swap 1 2.
+          
+          2: exploit Coqlib3.neq_prod; try eassumption;
+               try exact Classical_Prop.classic;
+               intros [?| [? ?]]; swap 1 2.
           + inv e. rewrite gls0. intros HH; inv HH. unify_injection.
             rewrite gls; eexists; split; try reflexivity.
             auto.
@@ -1379,11 +1045,11 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
       Defined.
       Lemma concur_match_updateC:
         forall (st1: ThreadPool.t) (m1 : mem) (tid : nat)
-          (Htid : ThreadPool.containsThread st1 tid)
-          c1 (cd : option compiler_index) (st2 : ThreadPool.t) 
-          (mu : meminj) (m2 : mem)
-          c2 (Htid' : ThreadPool.containsThread st2 tid)
-          (Hconcur:concur_match cd mu st1 m1 st2 m2),
+               (Htid : ThreadPool.containsThread st1 tid)
+               c1 (cd : option compiler_index) (st2 : ThreadPool.t) 
+               (mu : meminj) (m2 : mem)
+               c2 (Htid' : ThreadPool.containsThread st2 tid)
+               (Hconcur:concur_match cd mu st1 m1 st2 m2),
           individual_match tid cd mu c1 (thmem_from_concur1 Hconcur Htid)
                            c2 (thmem_from_concur2 Hconcur Htid') ->
           concur_match cd mu
@@ -1404,7 +1070,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             move H at bottom.
             inv H; try omega.
             unfold thmem_from_concur1,
-              thmem_from_concur2 in *.
+            thmem_from_concur2 in *.
             clean_proofs.
             assumption.
           + do 2 (erewrite <- gsoThreadCC; auto).
@@ -1416,7 +1082,7 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             move H at bottom.
             inv H; try omega.
             unfold thmem_from_concur1,
-              thmem_from_concur2 in *.
+            thmem_from_concur2 in *.
             clean_proofs.
             assumption.
           + do 2 (erewrite <- gsoThreadCC; auto).
@@ -1428,25 +1094,22 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
             move H at bottom.
             inv H; try omega.
             unfold thmem_from_concur1,
-              thmem_from_concur2 in *.
+            thmem_from_concur2 in *.
             clean_proofs.
             assumption.
           + do 2 (erewrite <- gsoThreadCC; auto).
             eapply Hconcur in H0. 
-              
-
-            
-        (* TODO! *)
+            (* TODO! *)
       Admitted.
       
       Lemma concur_match_update1:
         forall (st1: ThreadPool.t) (m1 m1' : mem) (tid : nat) (Htid : ThreadPool.containsThread st1 tid)
-          c1 (cd cd' : option compiler_index) (st2 : ThreadPool.t) 
-          (mu : meminj) (m2 : mem)
-          c2
-          (f' : meminj) (m2' : mem) (Htid' : ThreadPool.containsThread st2 tid)
-          (mcompat1: mem_compatible st1 m1)
-          (mcompat2: mem_compatible st2 m2),
+               c1 (cd cd' : option compiler_index) (st2 : ThreadPool.t) 
+               (mu : meminj) (m2 : mem)
+               c2
+               (f' : meminj) (m2' : mem) (Htid' : ThreadPool.containsThread st2 tid)
+               (mcompat1: mem_compatible st1 m1)
+               (mcompat2: mem_compatible st2 m2),
           semantics.mem_step
             (restrPermMap (proj1 (mcompat1 tid Htid))) m1' ->
           semantics.mem_step
@@ -1486,96 +1149,129 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
   Local Notation lock_perms st i cnt:= (snd (@getThreadR dryResources _ i st cnt)).
 
   
-      Ltac exploit_match tac:=  
-        unfold match_thread_target,match_thread_source in *;
-        repeat match goal with
-               | [ H: ThreadPool.getThreadC ?i = _ ?c |- _] => simpl in H
-               end;
-        match goal with
-        | [ H: getThreadC ?i = _ ?c,
-               H0: context[match_thread] |- _ ] =>
-          match type of H0 with
-          | forall (_: ?Hlt1Type) (_: ?Hlt2Type), _ =>
-            assert (Hlt1:Hlt1Type); [
-              first [eassumption | tac | idtac]|
-              assert (Hlt2:Hlt2Type); [
-                first [eassumption | tac | idtac]|
-                specialize (H0 Hlt1 Hlt2);
-                rewrite H in H0; inversion H0; subst; simpl in *; clear H0
-            ]]
-          end
+  Ltac exploit_match tac:=  
+    unfold match_thread_target,match_thread_source in *;
+    repeat match goal with
+           | [ H: ThreadPool.getThreadC ?i = _ ?c |- _] => simpl in H
+           end;
+    match goal with
+    | [ H: getThreadC ?i = _ ?c,
+           H0: context[match_thread] |- _ ] =>
+      match type of H0 with
+      | forall (_: ?Hlt1Type) (_: ?Hlt2Type), _ =>
+        assert (Hlt1:Hlt1Type); [
+          first [eassumption | tac | idtac]|
+          assert (Hlt2:Hlt2Type); [
+            first [eassumption | tac | idtac]|
+            specialize (H0 Hlt1 Hlt2);
+            rewrite H in H0; inversion H0; subst; simpl in *; clear H0
+        ]]
+      end
 
-        | [ H: getThreadC ?i = _ ?c,
-               H0: context[match_thread_compiled] |- _ ] =>
-          match type of H0 with
-          | forall (_: ?Hlt1Type) (_: ?Hlt2Type), _ =>
-            assert (Hlt1:Hlt1Type); [
-              first [eassumption | tac | idtac]|
-              assert (Hlt2:Hlt2Type); [
-                first [eassumption | tac | idtac]|
-                specialize (H0 Hlt1 Hlt2);
-                rewrite H in H0; inversion H0; subst; simpl in *; clear H0
-            ]]
-          end
-        end;
-        fold match_thread_target in *;
-        fold match_thread_source in *.
+    | [ H: getThreadC ?i = _ ?c,
+           H0: context[match_thread_compiled] |- _ ] =>
+      match type of H0 with
+      | forall (_: ?Hlt1Type) (_: ?Hlt2Type), _ =>
+        assert (Hlt1:Hlt1Type); [
+          first [eassumption | tac | idtac]|
+          assert (Hlt2:Hlt2Type); [
+            first [eassumption | tac | idtac]|
+            specialize (H0 Hlt1 Hlt2);
+            rewrite H in H0; inversion H0; subst; simpl in *; clear H0
+        ]]
+      end
+    end;
+    fold match_thread_target in *;
+    fold match_thread_source in *.
 
   
   Ltac get_mem_compatible:=
-        match goal with
-  | CMatch:concur_match _ _ ?mu ?st1 ?m1 ?st2 ?m2,
-    cnt1:containsThread ?st1 ?tid,
-    cnt2:containsThread ?st2 ?tid
-    |- _ => let Hcmpt1 := fresh "Hcmpt1" in
-        let Hcmpt2 := fresh "Hcmpt2" in
-        pose proof (memcompat1 _ CMatch) as Hcmpt1;
-         (pose proof (memcompat2 _ CMatch) as Hcmpt2;
-         (let thread_compat1 := fresh "thread_compat1" in
-          let thread_compat2 := fresh "thread_compat2" in
-          assert (thread_compat1 : thread_compat(tpool:=OrdinalThreadPool) _ _ cnt1 m1) by
-           (apply mem_compatible_thread_compat; auto);
-           assert (thread_compat2 : thread_compat(tpool:=OrdinalThreadPool) _ _ cnt2 m2) by
-            (apply mem_compatible_thread_compat; auto)))
-        end.
-      
-      Definition thread_mems {Sem st i m}
-                 {cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i}
-                 (th_compat: thread_compat _ _ cnt m):=
-        (restrPermMap (th_comp _ th_compat),restrPermMap (lock_comp _ th_compat)).
-      
-      Ltac get_thread_mems:=
-        match goal with
-          [CMatch : concur_match _ _ ?mu ?st1 ?m1 ?st2 ?m2,
-                    thread_compat1:thread_compat _ _ ?cnt1 ?m1,
-                                   thread_compat2:thread_compat _ _ ?cnt2 ?m2 |- _ ] =>
-          (* Inequalities for the four perms*)
-          let Hlt_th1:=fresh "Hlt_th1" in 
-          let Hlt_th2:=fresh "Hlt_th2" in 
-          let Hlt_lk1:=fresh "Hlt_lk1" in 
-          let Hlt_lk2:=fresh "Hlt_lk2" in
-          assert (Hlt_th1: permMapLt (thread_perms _ _ cnt1) (getMaxPerm m1))
-            by eapply (memcompat1 _ CMatch);
-          assert (Hlt_th2: permMapLt (thread_perms _ _ cnt2) (getMaxPerm m2))
-            by eapply (memcompat2 _ CMatch);
-          assert (Hlt_lk1: permMapLt (lock_perms _ _ cnt1) (getMaxPerm m1))
-            by eapply (memcompat1 _ CMatch);
-          assert (Hlt_lk2: permMapLt (lock_perms _ _ cnt2) (getMaxPerm m2))
-            by eapply (memcompat2 _ CMatch);
-          (* remember the four mems *)
-          let lk_mem1:=fresh "lk_mem1" in 
-          let lk_mem2:=fresh "lk_mem2" in
-          let th_mem1:=fresh "th_mem1" in
-          let th_mem2:=fresh "th_mem2" in
-          remember (snd (thread_mems thread_compat1)) as lk_mem1;
-          remember (snd (thread_mems thread_compat2)) as lk_mem2;
-          remember (fst (thread_mems thread_compat1)) as th_mem1;
-          remember (fst (thread_mems thread_compat2)) as th_mem2;
-          (* Now the injections*)
-          assert (Hinj_lock: Mem.inject mu lk_mem1 lk_mem2 )
-            by (subst lk_mem2 lk_mem1; eapply CMatch);
-          assert (Hinj_th: Mem.inject mu th_mem1 th_mem2)
-            by (subst th_mem2 th_mem1; eapply CMatch)
-        end.
+    match goal with
+    | CMatch:concur_match _ _ ?mu ?st1 ?m1 ?st2 ?m2,
+             cnt1:containsThread ?st1 ?tid,
+                  cnt2:containsThread ?st2 ?tid
+      |- _ => let Hcmpt1 := fresh "Hcmpt1" in
+              let Hcmpt2 := fresh "Hcmpt2" in
+              pose proof (memcompat1 _ CMatch) as Hcmpt1;
+              (pose proof (memcompat2 _ CMatch) as Hcmpt2;
+               (let thread_compat1 := fresh "thread_compat1" in
+                let thread_compat2 := fresh "thread_compat2" in
+                assert (thread_compat1 : thread_compat(tpool:=OrdinalThreadPool) _ _ cnt1 m1) by
+                    (apply mem_compatible_thread_compat; auto);
+                assert (thread_compat2 : thread_compat(tpool:=OrdinalThreadPool) _ _ cnt2 m2) by
+                    (apply mem_compatible_thread_compat; auto)))
+    end.
+  
+  Definition thread_mems {Sem st i m}
+             {cnt:containsThread(resources:=dryResources)(Sem:=Sem) st i}
+             (th_compat: thread_compat _ _ cnt m):=
+    (restrPermMap (th_comp _ th_compat),restrPermMap (lock_comp _ th_compat)).
+  
+  Ltac get_thread_mems:=
+    match goal with
+      [CMatch : concur_match _ _ ?mu ?st1 ?m1 ?st2 ?m2,
+                thread_compat1:thread_compat _ _ ?cnt1 ?m1,
+                               thread_compat2:thread_compat _ _ ?cnt2 ?m2 |- _ ] =>
+      (* Inequalities for the four perms*)
+      let Hlt_th1:=fresh "Hlt_th1" in 
+      let Hlt_th2:=fresh "Hlt_th2" in 
+      let Hlt_lk1:=fresh "Hlt_lk1" in 
+      let Hlt_lk2:=fresh "Hlt_lk2" in
+      assert (Hlt_th1: permMapLt (thread_perms _ _ cnt1) (getMaxPerm m1))
+        by eapply (memcompat1 _ CMatch);
+      assert (Hlt_th2: permMapLt (thread_perms _ _ cnt2) (getMaxPerm m2))
+        by eapply (memcompat2 _ CMatch);
+      assert (Hlt_lk1: permMapLt (lock_perms _ _ cnt1) (getMaxPerm m1))
+        by eapply (memcompat1 _ CMatch);
+      assert (Hlt_lk2: permMapLt (lock_perms _ _ cnt2) (getMaxPerm m2))
+        by eapply (memcompat2 _ CMatch);
+      (* remember the four mems *)
+      let lk_mem1:=fresh "lk_mem1" in 
+      let lk_mem2:=fresh "lk_mem2" in
+      let th_mem1:=fresh "th_mem1" in
+      let th_mem2:=fresh "th_mem2" in
+      remember (snd (thread_mems thread_compat1)) as lk_mem1;
+      remember (snd (thread_mems thread_compat2)) as lk_mem2;
+      remember (fst (thread_mems thread_compat1)) as th_mem1;
+      remember (fst (thread_mems thread_compat2)) as th_mem2;
+      (* Now the injections*)
+      assert (Hinj_lock: Mem.inject mu lk_mem1 lk_mem2 )
+        by (subst lk_mem2 lk_mem1; eapply CMatch);
+      assert (Hinj_th: Mem.inject mu th_mem1 th_mem2)
+        by (subst th_mem2 th_mem1; eapply CMatch)
+    end.
+
+
+  Lemma permMapLt_compute_inject_pair_useful':
+    forall hb ocd mu st1 st2 m1 m2,
+      (concur_match hb) ocd mu st1 m1 st2 m2 ->
+      forall a1 i (cnt1: containsThread st1 i) cnt2 b1 b2 ,
+        permMapLt_pair (computeMap_pair a1 b1) (getMaxPerm m1) ->
+        (*permMapLt_pair (@getThreadR _ _ i st2 cnt2) (getMaxPerm m2) -> *)
+        b2 = virtueThread_inject m2 mu b1 ->
+        permMapLt_pair (computeMap_pair (@getThreadR _ _ i st2 cnt2) b2)
+                       (getMaxPerm m2).
+  Proof.
+    intros **.
+    pose proof (memcompat1 _ H) as Hcmpt1.
+    pose proof (memcompat2 _ H) as Hcmpt2.
+    eapply permMapLt_compute_inject_pair; eauto.
+    eapply H.
+    eapply Hcmpt2.
+
+    Unshelve.
+    all: eauto.
+    eapply Hcmpt1.
+    eapply Hcmpt2.
+  Qed.
+  Lemma permMapLt_compute_inject_pair_useful:
+    forall hb ocd mu st1 st2 m1 m2,
+      (concur_match hb) ocd mu st1 m1 st2 m2 ->
+      forall a1 i (cnt1: containsThread st1 i) cnt2 b1 ,
+        permMapLt_pair (computeMap_pair a1 b1) (getMaxPerm m1) ->
+        permMapLt_pair (computeMap_pair (@getThreadR _ _ i st2 cnt2)
+                                        (virtueThread_inject m2 mu b1))
+                       (getMaxPerm m2).
+  Proof. intros; eapply permMapLt_compute_inject_pair_useful'; eauto. Qed.
   
 End ConcurMatch.

@@ -113,4 +113,48 @@ Proof.
     + exfalso. eapply Pos.nlt_1_r; eassumption.
 Qed.
 
+
+Lemma map_compose:
+  forall {A B C} (f1: _ -> B -> C) (f2: _ -> A -> B) t,
+    PTree.map f1 (PTree.map f2 t) =
+    PTree.map (fun ofs a => f1 ofs (f2 ofs a)) t.
+Proof.
+  intros. unfold PTree.map.
+  remember 1%positive as p.
+  generalize p.
+  induction t; auto; simpl.
+  intros. f_equal.
+  - eapply IHt1.
+  - simpl; destruct o; simpl; f_equal.
+  - eapply IHt2.
+Qed.
+Lemma map1_map:
+  forall A B (f: A -> B) t,
+    PTree.map1 f t = PTree.map (fun _ => f) t.
+Proof.
+  intros. unfold PTree.map.
+  remember 1%positive as p.
+  generalize p.
+  induction t; auto; simpl.
+  intros. f_equal.
+  - eapply IHt1.
+  - eapply IHt2.
+Qed.
+Lemma map1_map_compose:
+  forall {A B C} (f1: B -> C) (f2: _ -> A -> B) t,
+    PTree.map1 f1 (PTree.map f2 t) =
+    PTree.map (fun ofs a => f1 (f2 ofs a)) t.
+Proof. intros; rewrite map1_map, map_compose; reflexivity. Qed.
+
 Infix "++":= seq.cat.
+
+Lemma neq_prod:
+  forall (CLASSIC: forall P:Prop, P \/ ~ P),
+  forall A B (a a':A) (b b': B),
+    (a,b) <> (a',b') ->
+    (a <> a') \/ (a = a' /\ b <> b').
+Proof.
+  intros. 
+  intros; destruct (CLASSIC (a=a')); auto.
+  subst. right; split; eauto; intros HH; apply H; subst; eauto.
+Qed.

@@ -395,3 +395,8 @@ Ltac dependent_subst A B:=
   assert (Heq:A = B);
   [try solve [auto]|
    dependent_rewrite Heq].
+
+Ltac super_rewrite:=
+  match goal with
+  | [ H: _ |- _ ] => erewrite H by solve[eauto] 
+  end.

@@ -1008,7 +1008,45 @@ Admitted.
         + admit. (*identical start!*)
         + admit. (*should follow from compiler simulation*)
       Admitted.
-      
+
+      Inductive state_type:=
+      |  STrun
+      | STblocked
+      | STresume
+      | STinit.
+      Show Match state_type.
+      Show Match ctl.
+      Definition get_state_type {cT} (C:@ctl cT):=
+        match C with
+        | Krun x => STrun
+        | Kblocked x => STblocked
+        | Kresume x x0 => STresume
+        | Kinit x x0 => STinit
+        end.
+      Lemma match_same_state_type:
+        forall dp j tp1 m1 tp2 m2,
+          concur_match dp j tp1 m1 tp2 m2 ->
+          forall i (cnti1 : ThreadPool.containsThread tp1 i)
+            (cnti2 : ThreadPool.containsThread tp2 i),
+          get_state_type (ThreadPool.getThreadC cnti1) =
+          get_state_type (ThreadPool.getThreadC cnti2).
+      Proof.
+        intros.
+        inv H. 
+        destruct (gt_eq_gt_dec hb i) as [[?|?]|?].
+        - unshelve exploit mtch_source; eauto;
+            try eapply memcompat1;
+            try eapply memcompat2. simpl.
+          intros HH. inv HH; reflexivity.
+        - unshelve exploit mtch_compiled; eauto;
+            try eapply memcompat1;
+            try eapply memcompat2. simpl.
+          intros HH. inv HH; reflexivity.
+        - unshelve exploit mtch_target; eauto;
+            try eapply memcompat1;
+            try eapply memcompat2. simpl.
+          intros HH. inv HH; reflexivity.
+      Qed.
       Lemma compile_one_thread:
         forall m,
           HybridMachine_simulation_properties
@@ -1036,8 +1074,26 @@ Admitted.
           eexists; reflexivity.
 
         (*Same running *)
-       (* - unfold machine_semantics.running_thread; simpl.
-          *)
+        - unfold machine_semantics.running_thread; simpl.
+          intros.
+          unfold HybridMachineSig.unique_Krun.
+          split; intros.
+          + assert (cnti': containsThread c1 j).
+            { eapply contains21; eauto. }
+            unshelve exploit match_same_state_type;
+              try eapply H; eauto.
+            erewrite H1; simpl.
+            unfold get_state_type; match_case.
+            intros.
+            unshelve eapply H0; eauto.
+          + assert (cnti': containsThread c2 j).
+            { eapply contains12; eauto. }
+            unshelve exploit match_same_state_type;
+              try eapply H; eauto.
+            erewrite H1; simpl.
+            unfold get_state_type; match_case.
+            intros.
+            unshelve eapply H0; eauto.
       Qed.
       
       
@@ -1160,8 +1216,7 @@ Admitted.
             eapply machine_step_trace_wf; eapply H0.
           + eapply H0.
         - intros; inv_match0; normal; eauto.
-      (*  - intros; inv_match0; reflexivity. *)
-
+        - intros; inv_match0; reflexivity. 
           Unshelve.
           all: eauto.
       Qed.
@@ -1505,7 +1560,7 @@ Lemma inject_mevent_compose:
         - apply infinite_step_diagram.
         - apply infinite_machine_step_diagram.
         - apply infinite_halted.
-       (* - apply infinite_running.*)
+        - apply infinite_running.
 
       Qed.
 
