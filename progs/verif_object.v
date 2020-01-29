@@ -104,7 +104,7 @@ unfold foo_reset_spec, foo_invariant, reset_spec.
 start_function.
 unfold withspacer; simpl; Intros.
 forward.  (* self->data=0; *)
-forward.  (* return; *)
+entailer!.
 all: unfold withspacer; simpl; entailer!.  (* needed if Archi.ptr64=true *)
 Qed.
 

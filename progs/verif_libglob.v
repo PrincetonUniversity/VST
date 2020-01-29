@@ -228,7 +228,7 @@ forward.
 forward.
 forward.
 forward.
-forward.
+entailer!.
 unfold LG.data.
 apply orp_right1.
 unfold LG.data_ok.

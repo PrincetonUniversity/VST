@@ -74,6 +74,6 @@ simpl in v.
 (*destruct v as [a [b c]]; simpl in *. *)
 unfold_repinj.
 Time forward. (* 1.23 sec *)
-Time forward. (* 8.77  -> 5.25 sec *)
+entailer!.
 Time Qed.  (*  28 sec -> 3.45 sec *)
 

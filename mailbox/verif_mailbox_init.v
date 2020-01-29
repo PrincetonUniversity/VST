@@ -96,7 +96,7 @@ Proof.
 intros.
 hnf in H. destruct p; try contradiction; simpl; auto.
 Qed.
-Hint Resolve malloc_compatible_isptr.
+Hint Resolve malloc_compatible_isptr : core.
 
 Lemma body_initialize_channels : semax_body Vprog Gprog f_initialize_channels initialize_channels_spec.
 Proof.

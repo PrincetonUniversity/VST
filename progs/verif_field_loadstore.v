@@ -47,7 +47,7 @@ Proof.
   start_function.
   forward.
   forward.
-  forward.
+  entailer!.
 Qed.
 
 Lemma body_sub2:  semax_body Vprog Gprog f_sub2 (sub_spec _sub2).
@@ -57,7 +57,7 @@ Proof.
   forward.
   forward.
   forward.
-  forward.
+  entailer!.
 Qed.
 
 Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
@@ -68,5 +68,5 @@ Proof.
   forward.
   forward.
   forward.
-  forward.
+  entailer!.
 Qed.

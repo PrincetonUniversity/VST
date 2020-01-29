@@ -471,7 +471,7 @@ rename s into ls.
 Intros.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1; Forall (fun d => d <> c) (sublist 0 i ls))
-  LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vint (Int.repr i)))
+  LOCAL (temp _str str; temp _c (Vbyte c); temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh (tarray tschar (Zlength ls + 1))
           (map Vbyte (ls ++ [Byte.zero])) str)).
 - repeat step!.
@@ -512,14 +512,14 @@ rename sd into ld. rename ss into ls.
 repeat step.
 forward_loop (EX i : Z,
     PROP (0 <= i < Zlength ld + 1)
-    LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
+    LOCAL (temp _i (Vptrofs (Ptrofs.repr i)); temp _dest dest; temp _src src)
     SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
            list_repeat (Z.to_nat (n - (Zlength ld + 1))) Vundef) dest;
    data_at sh' (tarray tschar (Zlength ls + 1))
      (map Vbyte (ls ++ [Byte.zero])) src))
   break: (PROP ( )
-   LOCAL (temp _i (Vint (Int.repr (Zlength ld))); temp _dest dest; 
+   LOCAL (temp _i (Vptrofs (Ptrofs.repr (Zlength ld))); temp _dest dest; 
    temp _src src)
    SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ [Byte.zero]) ++
@@ -534,7 +534,7 @@ forward_loop (EX i : Z,
   repeat step.
   forward_loop (EX j : Z,
     PROP (0 <= j < Zlength ls + 1)
-    LOCAL (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr (Zlength ld)));
+    LOCAL (temp _j (Vptrofs (Ptrofs.repr j)); temp _i (Vptrofs (Ptrofs.repr (Zlength ld)));
            temp _dest dest; temp _src src)
     SEP (data_at sh (tarray tschar n)
           (map Vbyte (ld ++ sublist 0 j ls) ++
@@ -561,7 +561,7 @@ repeat step.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls1 + 1; 0 <= i < Zlength ls2 + 1;
         forall (j:Z), 0 <= j < i -> Znth j ls1 = Znth j ls2)
-  LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vint (Int.repr i)))
+  LOCAL (temp _str1 str1; temp _str2 str2; temp _i (Vptrofs (Ptrofs.repr i)))
   SEP (data_at sh1 (tarray tschar (Zlength ls1 + 1))
           (map Vbyte (ls1 ++ [Byte.zero])) str1;
        data_at sh2 (tarray tschar (Zlength ls2 + 1))
@@ -610,7 +610,7 @@ rename s into ls.
 repeat step.
 forward_loop (EX i : Z,
   PROP (0 <= i < Zlength ls + 1)
-  LOCAL (temp _i (Vint (Int.repr i)); temp _dest dest; temp _src src)
+  LOCAL (temp _i (Vptrofs (Ptrofs.repr i)); temp _dest dest; temp _src src)
   SEP (data_at sh (tarray tschar n)
         (map Vbyte (sublist 0 i ls) ++ list_repeat (Z.to_nat (n - i)) Vundef) dest;
        data_at sh' (tarray tschar (Zlength ls + 1)) (map Vbyte (ls ++ [Byte.zero])) src)).

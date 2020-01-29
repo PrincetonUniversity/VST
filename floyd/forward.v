@@ -3456,6 +3456,20 @@ rewrite sepcon_emp.
 auto.
 Qed.
 
+Ltac try_clean_up_stackframe :=
+  lazymatch goal with |-
+     ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) |--
+        PROPx _ (LOCALx _ (SEPx _)) * stackframe_of _ =>
+     unfold stackframe_of;
+     simpl fn_vars;
+     repeat (
+     simple eapply fold_another_var_block;
+       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+         | reflexivity | ]);
+     try simple apply no_more_var_blocks
+  | |- _ => idtac
+ end.
+
 Ltac clean_up_stackframe ::=
   lazymatch goal with |-
      ENTAIL _, PROPx _ (LOCALx _ (SEPx _)) |--
@@ -3756,7 +3770,7 @@ Ltac forward :=
       | fwd_result;
         Intros;
         abbreviate_semax;
-        try fwd_skip ]
+        try (fwd_skip; try_clean_up_stackframe) ]
     end
   end
  end.

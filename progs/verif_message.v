@@ -148,8 +148,11 @@ forward. (* x = ((int * )buf)[0]; *)
 forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
 forward. (* p->y = y; *)
-forward. (* return; *)
-simpl; entailer!.
+entailer!.
+split; simpl; auto.
+unfold mf_assert.
+simpl.
+entailer!.
 Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
