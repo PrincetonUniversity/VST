@@ -2396,11 +2396,55 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         + eapply mem_inj_Max_implication; eauto.
     Qed.
     
+    Lemma lock_update_mem_strict_load_Max_eq:
+      forall b ofs p m m' v1 v2,
+        lock_update_mem_strict_load b ofs p m m' v1 v2 ->
+        getMaxPerm m = getMaxPerm m'.
+    Proof.
+      intros; inv H.
+      erewrite <- getMax_restr_eq.
+      eapply store_max_eq; eauto.
+    Qed.
+    Lemma perm_image_injects_map:
+      (* should probably replace perm_image 
+                     with full_inject_map*)
+      forall mu mp, perm_image mu mp <-> injects_map mu mp.
+    Proof.
+      split; intros ** ? **.
+      - exploit H. eapply at_least_Some_trivial; eauto.
+        intros (?&?&?); econstructor; eauto.
+      - hnf in H0. match_case in H0.
+        exploit H; eauto. intros HH; inv HH.
+        repeat econstructor; eauto.
+    Qed.
+    Lemma map_valid_Lt:
+      forall m p1 p2,
+        permMapLt p1 p2 ->
+        map_valid m p2 ->
+        map_valid m p1.
+    Proof.
+      intros ** ? **. 
+      specialize (H b ofs).
+      rewrite H1 in H.
+      simpl in H; hnf in H.
+      match_case in H; eauto.
+    Qed.
+    Lemma map_valid_proper:
+      Proper (mem_equiv ==> access_map_equiv ==> iff)
+             map_valid.
+    Proof.
+      setoid_help.proper_iff.
+      setoid_help.proper_intros.
+      intros ? **.
+      hnf. inv H. rewrite <- nextblock_eqv.
+      eapply H1.
+      rewrite H0; eauto.
+    Qed.
     Lemma release_step_diagram_self Sem:
       let CoreSem:= sem_coresem Sem in
-      forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
+      forall (SelfSim: (self_simulation (@semC Sem) CoreSem)) tid
              (st1 : mach_state hb) (st2 : mach_state (S hb))
-             (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
+             (m1 m1' m2 : mem) (mu : meminj) i b b' ofs delt
              (Htid_neq: tid <> hb)
              (Hinj_b : mu b = Some (b', delt))
              cnt1 cnt2 (* Threads are contained *)
@@ -2731,7 +2775,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
 
 
 
-
       
       
       (** *Instantiate some of the existensials *)
@@ -2755,8 +2798,6 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         (*Prove that the new ThreadVirtue Joins in the right way:
                 old_thread "+" delta_map = new_thread.
          *)
-        
-
         
         rewrite <- Heq in Hlock_update_mem_strict_load2.
         inversion Hlock_update_mem_strict_load2 as [lock_mem_lt2'
@@ -2823,6 +2864,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           
       - !goal(concur_match _ _ _ _ _ _).
         clean_proofs.
+        
           
         eapply concur_match_perm_restrict1,concur_match_perm_restrict2 in CMatch.
         simpl in Hlt12'.
@@ -2880,6 +2922,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
                 move Hangel_bound at bottom.
                 rewrite getMax_restr_eq.
                 eapply Hangel_bound.
+                
         +  (* Proof of match goes after the comment *)
            !context_goal one_thread_match. shelve.
         + !context_goal memval_inject.
@@ -2894,21 +2937,14 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             unfold fullThUpd_comp, fullThreadUpdate.
           simpl. 
           reflexivity.
+
+                
         + !goal(lock_update _ st2 _ _ _ _ _).
           econstructor;
             subst newThreadPerm2 angel2;
             unfold fullThUpd_comp, fullThreadUpdate; simpl.
           erewrite virtueLP_inject_max_eq_exteny.
           repeat f_equal; eauto; simpl.
-          Lemma lock_update_mem_strict_load_Max_eq:
-            forall b ofs p m m' v1 v2,
-              lock_update_mem_strict_load b ofs p m m' v1 v2 ->
-              getMaxPerm m = getMaxPerm m'.
-          Proof.
-            intros; inv H.
-            erewrite <- getMax_restr_eq.
-            eapply store_max_eq; eauto.
-          Qed.
           eapply lock_update_mem_strict_load_Max_eq; eauto.
           
           
@@ -2931,21 +2967,35 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               unshelve (repeat erewrite <- restrPermMap_idempotent_eq in Hthmatch);
                 eauto.
               inv Hthmatch. inv H3; simpl in *.
-
+              
               econstructor 2; eauto. simpl.
               do 2 econstructor; eauto.
-
-              econstructor.
-              * !goal(Mem.inject mu _ _ ).
-                (* eapply inject_restr.
-                -- eapply computeMap_mi_perm_perm_perfect. *)
-                admit.
+              (*worth writting this as a lemma, 
+                then use it bellow
+               *)
+              
+              
+              econstructor; debug eauto.
               * rewrite getCur_restr.
-                admit.
+                eapply perm_image_injects_map.
+                eapply full_inject_map; eauto.
+                -- eapply map_valid_Lt; eauto.
+                   eapply map_valid_proper.
+                   reflexivity.
+                   symmetry; eapply Hmax_equiv.
+                   eapply max_map_valid.
               * do 2 rewrite getCur_restr.
                 eapply perm_surj_compute.
-                -- admit.
-                -- admit.
+                -- exploit MyConcurMatch.mtch_target; eauto.
+                   intros HH; inv HH; inv matchmem;
+                   repeat rewrite getCur_restr in *;
+                     eauto.
+                -- eapply inject_perm_perfect_image_dmap; eauto.
+                   eapply sub_map_implication_dmap; eauto.
+                   eapply Hangel_bound.
+                   eapply full_inject_dmap; eauto.
+                   eapply join_dmap_valid, Hangel_bound.
+                   
           - subst tid; congruence.
           - unshelve (eapply CMatch in Htid_neq' as Hthmatch); simpl;
               eauto.
@@ -2959,20 +3009,32 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
               econstructor 1; eauto.
               do 2 econstructor; eauto.
 
-              econstructor.
-              * !goal(Mem.inject mu _ _ ).
-                (* eapply inject_restr.
-                -- eapply computeMap_mi_perm_perm_perfect. *)
-                admit.
+              
+              econstructor; debug eauto.
               * rewrite getCur_restr.
-                admit.
+                eapply perm_image_injects_map.
+                eapply full_inject_map; eauto.
+                -- eapply map_valid_Lt; eauto.
+                   eapply map_valid_proper.
+                   reflexivity.
+                   symmetry; eapply Hmax_equiv.
+                   eapply max_map_valid.
               * do 2 rewrite getCur_restr.
                 eapply perm_surj_compute.
-                -- admit.
-                -- admit.
-            }
-        
-    Admitted.  (* release_step_diagram_self *)
+                -- exploit MyConcurMatch.mtch_source; eauto.
+                   intros HH; inv HH; inv matchmem;
+                   repeat rewrite getCur_restr in *;
+                     eauto.
+                -- eapply inject_perm_perfect_image_dmap; eauto.
+                   eapply sub_map_implication_dmap; eauto.
+                   eapply Hangel_bound.
+                   eapply full_inject_dmap; eauto.
+                   eapply join_dmap_valid, Hangel_bound.
+
+      Unshelve.
+      all: simpl;eauto.
+      all: rewrite getMax_restr; eauto. }
+    Qed.   (* release_step_diagram_self *)
 
     
     Lemma INJ_lock_permissions_None
@@ -5752,12 +5814,14 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         clear sim_atx.
         destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
         
-        (edestruct (release_step_diagram_self AsmSem) as
-            (e' & m2' & Hthread_match & Htrace_inj & external_step);
+        (edestruct (release_step_diagram_self AsmSem)
+                                              with (tid:=tid) as
+            (e' & m2' & Hthread_match & Htrace_inj & external_step & HCMatch');
          first[ eassumption|
                 econstructor; eassumption|
                 solve[econstructor; eauto] |
                 eauto]).
+        + omega.
         + clean_proofs; eassumption.
         (* + (*at external *)
             unfold thread_mems.
@@ -5773,11 +5837,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         + exists e'. eexists. exists m2'.
           split ; [|split].
           * (* reestablish concur *)
-            rename b into BB.
-            !goal (concur_match _ _ (fullThUpd_comp _ _ _ _ _ _ ) _ _ _).
-            simpl.
-            unfold fullThUpd_comp, fullThreadUpdate; simpl.
-            admit. (* Add this to the Lemma release_step_diagram_self  *)
+            eapply HCMatch'.
           * clear - Htrace_inj. 
             unfold build_release_event in *. (*subst virtueThread0; *) eauto.
           * clean_proofs; eauto.
@@ -5853,13 +5913,15 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
 
         
-        (edestruct (release_step_diagram_self CSem) as
-            (e' & m2' & Hthread_match & Htrace_inj & external_step);
+        (edestruct (release_step_diagram_self CSem)
+                   with (tid:=tid)
+          as
+            (e' & m2' & Hthread_match & Htrace_inj & external_step & CMatch');
          first[ eassumption|
                 econstructor; eassumption|
                 solve[econstructor; eauto] |
                 eauto]).
-        
+        + omega.
         + clean_proofs; eassumption.
         + (*match_self*)
           econstructor.
@@ -5876,7 +5938,8 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
           * (* reestablish concur *)
             rename b into BB.
             !goal (concur_match _ _ (fullThUpd_comp _ _ _ _ _ _ ) _ _ _).
-            admit. (* Haven't proven this? *)
+            eapply CMatch'.
+            
           * clear - Htrace_inj. 
             unfold build_release_event in *. (*subst virtueThread0; *) eauto.
           * clean_proofs; eauto.
@@ -5887,8 +5950,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             all: eauto.
             all: try econstructor; eauto.
             all: try apply CMatch.
-            
-    Admitted. (* release_step_diagram *)
+    Qed. (* release_step_diagram *)
     
     
     Lemma acquire_step_diagram:
