@@ -972,7 +972,7 @@ apply IHfl in H2; auto.
 apply set_tenv_wellformed; auto.
 Qed.
 
-Lemma inline_external_call_mem_wd:
+Lemma inline_external_call_mem_wd: (* this whole lemma is probably obsolete *)
   forall (ge: genv) ef vargs m vres m',
   Events.external_call ef ge vargs m Events.E0 vres m' ->
   AST.ef_inline ef = true ->
@@ -1074,127 +1074,6 @@ constructor.
 apply Ple_refl.
 Admitted. (* but this whole lemma is probably obsolete *)
 
-(*
-Lemma cl_step_wellformed':  (* this whole lemma is probably obsolete *)
-  forall (ge: genv) c m c' m',
- cl_step ge c m c' m' ->
-Smallstep.globals_not_fresh (Clight.genv_genv ge) m /\
-mem_wd2 m /\ core_wellformed (Mem.nextblock m) c ->
-mem_wd2 m' /\
-core_wellformed (Mem.nextblock m') c' /\
-(Mem.nextblock m <= Mem.nextblock m')%positive.
-Proof.
-intros until m'. intro Hstep.
- induction Hstep; intros [? [? ?]];
-  try (split3; [solve [auto] | solve [auto] | try apply Pos.le_refl]). 
-* (* assign *)
-  destruct H5 as [? [? Hk]].
-  eapply eval_expr_wellformed in H0; eauto.
-  eapply eval_lvalue_wellformed in H; eauto.
-  eapply sem_cast_wellformed in H1; eauto.
-  assert (mem_wd.val_valid v m). {
-   clear - H1.
-    hnf. hnf in H1. destruct v; auto.
-    inv H1. apply mem_lemmas.flatinj_E in H3. apply H3.
- }
-  inv H2.
-  unfold Mem.storev in H9.
-  pose proof (mem_wd2_store _ _ _ _ _ _ H4 H9 H7).
-  rewrite (Mem.nextblock_store _ _ _ _ _ _ H9).
-  split3; auto.
-  split3; auto.
-  apply Pos.le_refl.
-  rewrite (Mem.nextblock_storebytes _ _ _ _ _ H13).
-  split3.
-  2: split3; auto; inv Hk; auto.
-  2: apply Pos.le_refl.
-  eapply loadbytes_storebytes_wd2; eauto.
-* (* set *)
-   destruct H2 as [? [? ?]].
-   repeat split;  auto.
-   2: apply Pos.le_refl.
-   apply set_tenv_wellformed; auto.
-   eapply eval_expr_wellformed; eauto.
-*  destruct H6 as [? [? ?]].
-  eapply eval_expr_wellformed in H0; try eassumption. (* *)
-  eapply eval_exprlist_wellformed in H1; eauto.
-  split3; auto.
-  split3; auto.
-  apply Pos.le_refl.
-* (* builtin *)
-  destruct H5 as [? [? ?]].
-  eapply eval_exprlist_wellformed in H1; eauto.
-  exploit inline_external_call_mem_wd; eauto.
-  intros [? [? ?]].
-  split3; auto. split3; auto.
-  eapply alloc_venv_wellformed; eauto.
-  destruct optid; auto.
-  apply set_tenv_wellformed; auto.
-  eapply alloc_tenv_wellformed; eauto.
-  eapply alloc_tenv_wellformed; eauto.
-  eapply alloc_cont_wellformed; eauto.
-* (* return None *)
-  rewrite (mem_lemmas.nextblock_freelist _ _ _ H).
-  split3.
-  eapply mem_wd_freelist; eassumption.
-  destruct H2 as [? [? ?]].
-  split. hnf; auto.
-  apply call_cont_wellformed_lemma; auto.
-  apply Pos.le_refl.
-* (* return Some *)
-  rewrite (mem_lemmas.nextblock_freelist _ _ _ H1).
-  split3.
-  eapply mem_wd_freelist; eassumption.
-  destruct H4 as [? [? ?]]. hnf.
-  split.
-  eapply eval_expr_wellformed in H; eauto.
-  eapply sem_cast_wellformed; eauto.
-  apply call_cont_wellformed_lemma; auto.
-  apply Pos.le_refl.
-* (* return fall-through *)
-  rewrite (mem_lemmas.nextblock_freelist _ _ _ H0).
-   destruct H3 as [? [? ?]].
-  split3.
-  eapply mem_wd_freelist; eassumption.
-  simpl. split; auto. constructor. 
-  apply Pos.le_refl.
-* (* goto *)
-  split; auto.
-  split; [ | apply Pos.le_refl].
-  destruct H2 as [? [? ?]]. split; [|split]; auto.
-  inv H.
-  eapply mem_wellformed_goto; eauto.
-* (* call_internal *)
-  destruct H2 as [H2' H2].
-  inv H.
-  eapply alloc_variables_wellformed in H6; eauto;
-   [ | clear; hnf; intros; rewrite PTree.gempty in H; inv H].
-  destruct H6 as [? [? ?]].
-  eapply bind_parameter_temps_wellformed in H7; eauto.
-  split3; auto.
-  split3; auto.
-  eapply alloc_tenv_wellformed; eauto.
-  eapply alloc_cont_wellformed; eauto.
-  eapply alloc_tenv_wellformed; eauto.
-  clear. induction (fn_temps f); simpl. intros ? ? ?. rewrite PTree.gempty in H. inv H. destruct a.
-  apply set_tenv_wellformed; auto. hnf; auto.
-* (* call_external inline *)
-  destruct H4 as [? ?].
-  exploit inline_external_call_mem_wd; eauto.
-  intros [? [? ?]]; split3; auto.
-  split; auto.
-  eapply alloc_cont_wellformed; eauto.
-* (* returnstate *)
-  destruct H1.
-  split3; auto.
-  destruct H2 as [? [? ?]].
-  split3; auto.
-  destruct optid; auto.
-  apply set_tenv_wellformed; auto. 
-  apply Pos.le_refl.
-Qed.
-*)
-
 Module Test.
 Require Import VST.concurrency.juicy.JuicyMachineModule.
 Definition juicy_threads_wellformed ge m tp :=
@@ -1204,17 +1083,19 @@ Definition dry_threads_wellformed ge m tp :=
    @threads_wellformed _ (@ClightSemanticsForMachines.Clight_newSem ge) core_wellformed m tp.
 End Test.
 
-(*
-Lemma cl_step_wellformed':
-  forall (ge: genv) c m c' m',
- cl_step ge c m c' m' ->
-Smallstep.globals_not_fresh (Clight.genv_genv ge) m /\
-mem_wd2 m /\ core_wellformed (Mem.nextblock m) c ->
-mem_wd2 m' /\
-core_wellformed (Mem.nextblock m') c' /\
-(Mem.nextblock m <= Mem.nextblock m')%positive.
 
-*)
+Lemma external_call_wellformed: 
+  forall (ge: genv) ef vargs m vres m',
+  Forall (val_wellformed (Mem.nextblock m)) vargs ->
+  AST.ef_inline ef = true -> (* needed or not? *)
+  ef_permitted ef = true -> (* needed or not? *)
+  Events.external_call ef ge vargs m Events.E0 vres m' ->
+  mem_wellformed ge m ->
+ mem_wellformed ge m' /\
+ val_wellformed (Mem.nextblock m') vres /\
+ Ple (Mem.nextblock m) (Mem.nextblock m').
+Admitted.
+
 Lemma cl_step_wellformed:
   forall ge m c pm Hlt c' m',
       mem_wellformed ge m ->
@@ -1266,7 +1147,16 @@ apply Ht in H0; auto.
 eapply eval_exprlist_wellformed; eauto.
 - (* builtin *)
 apply eval_exprlist_wellformed in H3; auto.
-admit.
+destruct (external_call_wellformed ge ef vargs m vres m' H3 H H1 H4 H2)
+  as [? [? ?]].
+split3; auto.
+eapply alloc_venv_wellformed; try eassumption.
+split; auto.
+destruct optid; simpl; auto.
+eapply set_tenv_wellformed; eauto.
+eapply alloc_tenv_wellformed; try eassumption.
+eapply alloc_tenv_wellformed; try eassumption.
+eapply alloc_cont_wellformed; try eassumption.
 - (* return_0 *)
 pose proof (mem_wellformed_freelist _ _ _ _ H H2).
 split3; auto.
@@ -1300,10 +1190,8 @@ destruct H0.
 eapply bind_parameter_temps_wellformed in H6; eauto.
 split3; auto.
 split.
-clear - H6 H7.
-admit.  (* OK *)
-clear - H8 H7.
-admit.  (* OK *)
+eapply alloc_tenv_wellformed; eauto.
+eapply alloc_cont_wellformed; eauto.
 forget (Mem.nextblock m) as b.
 clear.
 induction (fn_temps f) as [|[??]]; simpl; intros.
@@ -1313,7 +1201,11 @@ destruct (peq i0 i).
 subst i0. rewrite PTree.gss in H. inv H; constructor.
 rewrite PTree.gso in H by auto. apply IHl in H. auto.
 - (* step_external_function *)
-admit.
+destruct H0.
+destruct (external_call_wellformed ge ef vargs m vres m' H0 H H1 H3 H2)
+  as [? [? ?]].
+split3; auto.
+eapply alloc_cont_wellformed; try eassumption.
 - (* step_returnstate *)
 destruct Hc.
 split3; auto.
