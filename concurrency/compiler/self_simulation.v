@@ -90,6 +90,22 @@ Section SelfSim.
       ; ppreimage: perm_surj f (getCurPerm m1) (getCurPerm m2)
     }.
   
+  Instance match_mem_proper:
+    Proper (Logic.eq ==> mem_equiv ==> mem_equiv ==> iff) match_mem.
+  Proof.
+    setoid_help.proper_iff.
+    setoid_help.proper_intros; subst.
+    inv H2; econstructor.
+    - rewrite <- H0, <- H1; auto.
+    - intros ? **. eapply pimage0; eauto.
+      inv H0; rewrite cur_eqv; eauto.
+    - intros b2 ofs2.
+      inv H1. rewrite <- cur_eqv; intros HH.
+      eapply ppreimage0 in HH. normal_hyp.
+      inv H0. rewrite cur_eqv0 in H2.
+      repeat (eexists; eauto).
+  Qed.
+  
   Instance proper_match_mem:
     Proper (Logic.eq ==> mem_equiv ==> mem_equiv ==> iff) match_mem.
   Proof.

@@ -158,3 +158,41 @@ Proof.
   intros; destruct (CLASSIC (a=a')); auto.
   subst. right; split; eauto; intros HH; apply H; subst; eauto.
 Qed.
+
+Lemma PTree_xmap_eq:
+  forall {A} (t:PTree.t A) (F: positive -> A -> A) p,
+    (forall b,
+        t ! b = option_map
+                  (F (PTree.prev_append p b))
+                  (t!b)) ->
+    @PTree.xmap A A F t p = t.
+Proof.
+  intros A; induction t.
+  - intros; simpl; eauto.
+  - intros. simpl.
+    f_equal.
+    + eapply IHt1; intros.
+      specialize (H (xO b)).
+      simpl in H.
+      rewrite H. unfold option_map.
+      match_case. f_equal. simpl.
+      f_equal. inv H. rewrite <- H1 at 2; auto.
+    + specialize (H xH); simpl in H.
+      match_case; simpl.
+      simpl. rewrite H.
+      simpl. f_equal.
+    + eapply IHt2; intros.
+      specialize (H (xI b)).
+      simpl in H.
+      rewrite H. unfold option_map.
+      match_case. f_equal. simpl.
+      f_equal. inv H. rewrite <- H1 at 2; auto.
+Qed.
+Lemma PTree_map_eq:
+  forall {A} (t:PTree.t A) (F: positive -> A -> A),
+    (forall b, t ! b = option_map (F b) (t!b)) ->
+    @PTree.map A A F t = t.
+Proof.
+  intros. eapply PTree_xmap_eq.
+  simpl; eauto.
+Qed.
