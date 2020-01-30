@@ -5250,6 +5250,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
     Proof.
       (* CHECKED: EASY*)
     (* Before solving, solve the lemma invariant preservation for acquire
+       ** *we are adding [invariant st1'] to the lemmas, preserved from the CSL proof*
          We might want to remove the necessity to preserve invariant for source.
      *)
       (* Consider moving this where the invariant lemmas are. *)
