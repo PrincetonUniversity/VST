@@ -189,38 +189,6 @@ Definition threads_wellformed
 
 End GE.
 
-Module Test.
-Require Import VST.concurrency.juicy.JuicyMachineModule.
-Definition juicy_threads_wellformed ge m tp :=
-   @threads_wellformed _ (@THE_JUICY_MACHINE.JSem ge) core_wellformed m tp.
-
-Definition dry_threads_wellformed ge m tp :=
-   @threads_wellformed _ (@ClightSemanticsForMachines.Clight_newSem ge) core_wellformed m tp.
-End Test.
-
-Lemma cl_step_wellformed:
-  forall ge m c pm Hlt c' m',
-      mem_wellformed ge m ->
-      core_wellformed (Mem.nextblock m) c ->
-      Clight_core.cl_step ge c (@restrPermMap pm m Hlt) c' m' ->
-      mem_wellformed ge m' /\ 
-      core_wellformed (Mem.nextblock m') c'.
-Admitted.  (* Santiago will prove a similar one in Clight_self_simulation, 
-              (generically over all injections not just flat ones).
-              The proofs will look similar, but can't use one to prove the other.
-            *)
-
-Lemma initial_core_wellformed:
-  forall ge v args c m,
-     Clight_core.cl_initial_core ge v args c ->
-     Clight_core.arg_well_formed args m ->
-     Smallstep.globals_not_fresh ge m ->
-     core_wellformed (Mem.nextblock m) c.
-Proof.
-  (* Clight_self_simulation needs a weaker version of this, 
-     where the initial state is injected (by any injection, not necessarily flat. *)
-Admitted.
-
 Section ALLOC_OK.
 Variable nextb: positive.
 Variable nextb': positive.
@@ -522,10 +490,15 @@ try solve [
    revert H1; simple_if_tac; intro H1; inv H1; constructor.
 Qed.
 
+Lemma cur_perm_maxedmem:
+ forall m loc ofs p,
+  Mem.perm m loc ofs Cur p -> Mem.perm (maxedmem m) loc ofs Cur p.
+Admitted.
+
 Lemma loadbytes_proj_wellformed:
-  forall m loc ofs sz bl ch q,
+  forall ge m loc ofs sz bl ch q,
   block_wellformed (Mem.nextblock m) loc ->
-  mem_wd2 m ->
+  mem_wellformed ge m ->
   Mem.loadbytes m loc ofs sz = Some bl ->
   val_wellformed (Mem.nextblock m) (Val.load_result ch (proj_value q bl)).
 Proof.
@@ -538,31 +511,38 @@ destruct m0; auto.
 destruct (check_value (size_quantity_nat q) v q (Fragment v q0 n :: bl)) eqn:?H; auto.
 assert (val_wellformed (Mem.nextblock m) v). {
  clear - H1 H H0.
- red in H0.
- specialize (H0 loc ofs).
  apply mem_lemmas.loadbytes_D in H1.
  destruct H1.
- destruct (Z.to_nat sz).
+ destruct (zle sz 0).
+ replace (Z.to_nat sz) with O in H2.
  inv H2.
+ clear - l. symmetry; apply Z_to_nat_neg; auto.
  simpl in H2.
  inv H2.
- rewrite <- H4 in H0.
- inv H0.
- inv H3; try solve [hnf; auto].
- unfold Mem.flat_inj in H6.
- if_tac in H6; inv H6.
- simpl.
- econstructor; try eassumption.
- apply mem_lemmas.flatinj_I; auto.
+ destruct H0.
+ red.
+ destruct (Z.to_nat sz) eqn:?H. inv H4. inv H4.
+ hnf in H0.
+  inv H0. clear mi_perm mi_align.
+  specialize (mi_memval loc ofs loc 0).
+  simpl Mem.mem_contents in mi_memval.
+  rewrite Z.add_0_r in mi_memval.
+  rewrite <- H6 in mi_memval.
+  spec mi_memval. apply mem_lemmas.flatinj_I. apply H.
+  spec mi_memval.
+  specialize (H1 ofs).
+  spec H1. omega.
+  clear - H1.
+  apply cur_perm_maxedmem; auto.
+  inv mi_memval. auto.
 }
-unfold Val.load_result.
-destruct ch; try solve [hnf; auto];
-destruct v; try solve [hnf; auto].
+  clear - H4.
+  destruct ch,v; simpl; auto; constructor.
 Qed.
 
 Lemma deref_loc_wellformed: 
-  forall m loc ofs t1 v,
-  mem_wd2 m ->
+  forall ge m loc ofs t1 v,
+  mem_wellformed ge m ->
   block_wellformed (Mem.nextblock m) loc ->
   deref_loc t1 m loc ofs v -> 
   val_wellformed (Mem.nextblock m) v.
@@ -588,102 +568,100 @@ apply mem_lemmas.flatinj_I; auto.
 rewrite Ptrofs.add_zero; auto.
 Qed.
 
-Lemma eval_expr_wellformed:
-  forall ge (m : mem) (ve : Clight.env) (te : Clight.temp_env)
-  (a : Clight.expr) (v : val),
-@Smallstep.globals_not_fresh Clight.fundef type (Clight.genv_genv ge) m ->
-mem_wd2 m ->
-venv_wellformed (Mem.nextblock m) ve ->
-tenv_wellformed (Mem.nextblock m) te ->
-eval_expr ge ve te m a v -> 
-val_wellformed (Mem.nextblock m) v
- with eval_lvalue_wellformed:
-  forall ge (m : mem) (ve : Clight.env) (te : Clight.temp_env)
-  (a : Clight.expr) (v : block) ofs,
-@Smallstep.globals_not_fresh Clight.fundef type (Clight.genv_genv ge) m ->
-mem_wd2 m ->
-venv_wellformed (Mem.nextblock m) ve ->
-tenv_wellformed (Mem.nextblock m) te ->
-eval_lvalue ge ve te m a v ofs -> 
-block_wellformed (Mem.nextblock m) v.
+Lemma sem_unary_operation_wellformed:
+   forall ge m op t v1 v,
+   mem_wellformed ge m ->
+   val_wellformed (Mem.nextblock m) v1 ->
+   Cop.sem_unary_operation op v1 t m = Some v ->
+  val_wellformed (Mem.nextblock m) v.
 Proof.
-* clear eval_expr_wellformed.
 intros.
-assert (Hof_bool: forall v, val_wellformed (Mem.nextblock m) (Val.of_bool v))
-       by (intro v'; destruct v'; constructor).
-induction H3; try solve [constructor].
- + apply H2 in H3; auto.
- + apply eval_lvalue_wellformed in H3; auto.
-     red in H3.
-     econstructor; eauto. apply mem_lemmas.flatinj_I; auto. rewrite Ptrofs.add_zero; auto.
- + destruct op; simpl in H4. 
-     - clear - Hof_bool H4 IHeval_expr.
-        unfold Cop.sem_notbool, Cop.bool_val in H4. 
-        destruct (Clight.typeof a) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
-        try discriminate;
-        unfold Cop.classify_bool in H4;
-        simpl typeconv in H4; cbv beta zeta iota in H4;
-        try match type of H4 with context [if Archi.ptr64 then Cop.bool_case_l else Cop.bool_case_i]
-            => destruct Archi.ptr64
-        end;
-        destruct v1; inv H4; auto;
-      try match goal with H: option_map _ (if Archi.ptr64 then _ else _) = _ |- _ =>
-        destruct Archi.ptr64; simpl in H; try discriminate end;
-      try match goal with H: option_map _ (if ?A then _ else _) = _ |- _ =>
-        destruct A; inv H; try discriminate end;
-      try apply (Hof_bool false).
-    - clear - Hof_bool H4 IHeval_expr.
-        unfold Cop.sem_notint, Cop.bool_val in H4. 
-        destruct (Clight.typeof a) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
-        simpl in H4; try discriminate;
-        try match type of H4 with context [Archi.ptr64] => 
-                          destruct Archi.ptr64; simpl in H4; try discriminate end;
-        try (destruct v1; inv H4; auto; try constructor;
-           destruct Archi.ptr64; inv H0;
-           destruct (Mem.weak_valid_pointer m b (Ptrofs.unsigned i)); inv H1;
-           constructor).
-    - unfold Cop.sem_neg in H4.
-        destruct (Cop.classify_neg (Clight.typeof a)); inv H4;
-        destruct v1; inv H6; constructor.
-   - unfold Cop.sem_absfloat in H4.
-        destruct (Cop.classify_neg (Clight.typeof a)); inv H4;
-        destruct v1; inv H6; constructor.
- + eapply binary_operation_wellformed; try apply H3; eauto.
- + eapply sem_cast_wellformed; try apply H4; eauto.
- + apply eval_lvalue_wellformed in H3; auto.
-     eapply deref_loc_wellformed; try apply H4; auto.
-* clear eval_lvalue_wellformed.
-  intros.
-  induction H3.
-  apply H1 in H3. auto.
-  clear - H H4.
-  red in H.
-  red. apply Genv.genv_symb_range in H4.
-  eapply Pos.lt_le_trans; eauto.
-  apply eval_expr_wellformed in H3; auto;
-  inv H3; apply mem_lemmas.flatinj_E in H7; destruct H7 as [? [? ?]]; subst; auto.
-  apply eval_expr_wellformed in H3; auto.
-  inv H3. apply mem_lemmas.flatinj_E in H10; destruct H10 as [? [? ?]]; subst; auto.
-  apply eval_expr_wellformed in H3; auto.
-  inv H3. apply mem_lemmas.flatinj_E in H9; destruct H9 as [? [? ?]]; subst; auto.
+unfold Cop.sem_unary_operation in H1.
+unfold Cop.sem_notbool, Cop.sem_notint, Cop.sem_neg, Cop.sem_absfloat in H1.
+destruct op.
+-
+unfold option_map in H1.
+destruct (Cop.bool_val v1 t0 m); inv H1.
+destruct (negb b); constructor.
+-
+destruct (Cop.classify_notint t0); inv H1.
+destruct v1; inv H3. constructor.
+destruct v1; inv H3. constructor.
+-
+destruct (Cop.classify_neg t0); inv H1;
+(destruct v1; inv H3; constructor).
+-
+destruct (Cop.classify_neg t0); inv H1;
+(destruct v1; inv H3; constructor).
+Qed.
+
+
+Lemma eval_expr_wellformed:
+  forall ge e le m a v,
+  venv_wellformed (Mem.nextblock m) e ->
+  tenv_wellformed (Mem.nextblock m) le ->
+  mem_wellformed ge m ->
+  eval_expr ge e le m a v ->
+  val_wellformed (Mem.nextblock m) v
+with eval_lvalue_wellformed: 
+  forall ge e le m a b z,
+  venv_wellformed (Mem.nextblock m) e ->
+  tenv_wellformed (Mem.nextblock m) le ->
+  mem_wellformed ge m ->
+  eval_lvalue ge e le m a b z ->
+  val_wellformed (Mem.nextblock m) (Vptr b z).
+Proof.
+-
+clear eval_expr_wellformed.
+intros.
+induction H2; try constructor; eauto.
++ eapply sem_unary_operation_wellformed in H3; eauto.
++ eapply binary_operation_wellformed in H2; eauto.
++ eapply sem_cast_wellformed; try apply H3; auto.
++ apply eval_lvalue_wellformed in H2; auto.
+   eapply deref_loc_wellformed in H3; eauto.
+   clear - H2. inv H2.
+   unfold Mem.flat_inj in H3. if_tac in H3; inv H3.  auto. 
+-
+clear eval_lvalue_wellformed.
+intros.
+induction H2; try constructor; eauto.
++
+apply H in H2. simpl in H2.
+red.
+econstructor.
+apply mem_lemmas.flatinj_I. apply H2.
+rewrite Ptrofs.add_zero. auto.
++ econstructor.
+instantiate (1:=0).
+destruct H1.
+apply Genv.genv_symb_range in H3.
+unfold Mem.flat_inj.
+rewrite if_true; auto.
+eapply Plt_Ple_trans; eauto.
+reflexivity.
++
+eapply eval_expr_wellformed in H2; eauto.
+inv H2.
+econstructor; eauto.
+unfold Mem.flat_inj in H9.
+if_tac in H9; inv H9.
+rewrite Ptrofs.add_assoc. f_equal.
+rewrite Ptrofs.add_zero; auto.
 Qed.
 
 Lemma eval_exprlist_wellformed:
-  forall ge (m : mem) (ve : Clight.env) (te : Clight.temp_env)
-  (al : list Clight.expr) tl (vl : list val),
-@Smallstep.globals_not_fresh Clight.fundef type (Clight.genv_genv ge) m ->
-mem_wd2 m ->
-venv_wellformed (Mem.nextblock m) ve ->
-tenv_wellformed (Mem.nextblock m) te ->
-eval_exprlist ge ve te m al tl vl -> 
-Forall (val_wellformed (Mem.nextblock m)) vl.
+  forall ge e le m a tl vl,
+  venv_wellformed (Mem.nextblock m) e ->
+  tenv_wellformed (Mem.nextblock m) le ->
+  mem_wellformed ge m ->
+  eval_exprlist ge e le m a tl vl ->
+  Forall (val_wellformed (Mem.nextblock m)) vl.
 Proof.
 intros.
-induction H3.
-constructor.
-eapply eval_expr_wellformed in H3; eauto.
-constructor; auto.
-eapply sem_cast_wellformed in H4; eauto.
+induction H2; constructor; auto.
+apply eval_expr_wellformed in H2; auto.
+eapply sem_cast_wellformed in H3; eauto.
 Qed.
 
 Lemma find_label_wellformed:
@@ -752,52 +730,151 @@ revert H H0.
 apply find_label_wellformed.
 Qed.
 
-Lemma loadbytes_storebytes_wd2:
-   forall m b' z' sz b z bytes m',
-   mem_wd2 m ->
+Lemma storebytes_access_eq:
+  forall m b z x m',
+  Mem.storebytes m b z x = Some m' ->
+  Mem.mem_access m = Mem.mem_access m'.
+Admitted.
+
+Lemma mem_access_eq_maxedmem:
+ forall m m', 
+   Mem.mem_access m = Mem.mem_access m' ->
+  Mem.mem_access (maxedmem m') = Mem.mem_access (maxedmem m).
+Admitted.
+
+Lemma loadbytes_storebytes_wellformed:
+   forall ge m b' z' sz b z bytes m',
+   mem_wellformed ge m ->
    Mem.loadbytes m b' z' sz = Some bytes ->
-   Mem.storebytes m b z bytes = Some m' -> mem_wd2 m'.
+   Mem.storebytes m b z bytes = Some m' -> 
+   mem_wellformed ge m'.
 Proof.
 intros.
+destruct H as [H H5].
+pose proof (Mem.nextblock_storebytes _ _ _ _ _ H1).
+split.
+2: rewrite H2; auto.
 red in H.
 apply mem_lemmas.loadbytes_D in H0.
 destruct H0.
 subst bytes.
-generalize (H b'); intro.
+red.
+assert (H3': forall ofs, 
+     Mem.perm (maxedmem m) b' ofs Cur Readable ->
+     memval_inject (Mem.flat_inj (Mem.nextblock m))
+       (ZMap.get ofs (Mem.mem_contents m) !! b')
+       (ZMap.get ofs (Mem.mem_contents m) !! b')).  {
+ inv H. clear mi_perm mi_align.
+ intros. specialize (mi_memval b' ofs b' 0).
+ rewrite Z.add_0_r in mi_memval.
+ apply mi_memval; auto.
+ apply mem_lemmas.flatinj_I.
+ hnf in H.
+ destruct (plt b' (Mem.nextblock m)); auto. elimtype False.
+ rewrite (Mem.nextblock_noaccess (maxedmem m) b' ofs Cur) in H.
+ auto.
+ simpl; auto.
+}
+assert (H3: forall ofs, 
+     Mem.perm (maxedmem m) b ofs Cur Readable ->
+     memval_inject (Mem.flat_inj (Mem.nextblock m))
+       (ZMap.get ofs (Mem.mem_contents m) !! b)
+       (ZMap.get ofs (Mem.mem_contents m) !! b)).  {
+ inv H. clear mi_perm mi_align.
+ intros. specialize (mi_memval b ofs b 0).
+ rewrite Z.add_0_r in mi_memval.
+ apply mi_memval; auto.
+ apply mem_lemmas.flatinj_I.
+ hnf in H.
+ destruct (plt b (Mem.nextblock m)); auto. elimtype False.
+ rewrite (Mem.nextblock_noaccess (maxedmem m) b ofs Cur) in H.
+ auto.
+ simpl; auto.
+}
+assert (H9: Mem.perm (maxedmem m') = Mem.perm (maxedmem m)). {
+   clear - H1.
+   unfold Mem.perm.
+   extensionality b0 ofs k p.
+   f_equal. f_equal.
+   apply storebytes_access_eq in H1. clear - H1.
+   apply mem_access_eq_maxedmem; auto.
+}
+generalize H; intro H'. 
+inv H.
+constructor.
+-
+clear mi_align mi_memval.
+intros.
+rewrite H2 in H.
+specialize (mi_perm b1 b2 delta ofs k p H).
+rewrite H9 in H4|-*.
+auto.
+-
+intros.
+apply (mi_align b1 b2 delta chunk ofs p).
+rewrite H2 in H; auto.
+red in H4|-*.
+rewrite H9 in H4; auto.
+-
+intros.
+apply mem_lemmas.flatinj_E in H.
+destruct H as [? [? ?]]; subst.
+rewrite Z.add_0_r.
+simpl.
+clear mi_perm mi_align mi_memval.
+rewrite H2.
+rewrite H2 in H7.
 forget ((Mem.mem_contents m) !! b') as f.
 assert (Forall (fun x => memval_inject (Mem.flat_inj (Mem.nextblock m))  x x) 
-  (Mem.getN (Z.to_nat sz) z' f)).
-clear H0 H1. revert z'.
-induction (Z.to_nat sz); intros. simpl. constructor.
-constructor. auto. auto.
+  (Mem.getN (Z.to_nat sz) z' f)). {
+ clear H1.
+ destruct (zlt sz 0). rewrite Z_to_nat_neg by omega. constructor.
+ rewrite <- (Z2Nat.id sz) in H0 by omega. forget (Z.to_nat sz) as n. 
+ clear sz g.
+ revert z' H0; induction n; intros. simpl. constructor.
+ rewrite inj_S in H0.
+ simpl Mem.getN.
+ constructor.
+ 2:{ apply IHn. hnf; intros. apply H0. omega. }
+ clear IHn.
+ apply H3'.
+ apply cur_perm_maxedmem.
+ apply H0.
+ omega.
+}
 forget (Mem.getN (Z.to_nat sz) z' f) as bytes.
-generalize (H b); intro.
-red.
-rewrite (Mem.nextblock_storebytes _ _ _ _ _ H1).
 apply Mem.storebytes_mem_contents in H1.
 rewrite H1. clear H1.
-intros.
-destruct (eq_block b0 b);
-  [  | rewrite PMap.gso by auto; apply H].
-subst.
-rewrite PMap.gss.
+destruct (eq_block b1 b);
+  [subst b1; rewrite PMap.gss  | rewrite PMap.gso by auto].
++
 forget ((Mem.mem_contents m) !! b) as g.
-clear - H4 H3.
-revert g H4.
-revert z H3; induction bytes; intros.
-simpl. auto.
-inv H3.
+rewrite H9 in H4.
+clear - H H3 H4.
+revert z g H3.
+induction bytes; intros.
+simpl. apply H3; auto.
 simpl.
+inv H.
 apply IHbytes; auto.
 intros.
 destruct (zeq ofs0 z).
 subst.
 rewrite ZMap.gss; auto.
 rewrite ZMap.gso; auto.
++
+inv H'.
+specialize (mi_memval b1 ofs b1 0).
+rewrite Z.add_0_r in mi_memval.
+apply mi_memval.
+ apply mem_lemmas.flatinj_I.
+auto.
+rewrite H9 in H4; auto.
 Qed.
 
-Lemma mem_wd_freelist:
-  forall m bl m', Mem.free_list m bl = Some m' -> mem_wd2 m -> mem_wd2 m'.
+Lemma mem_wellformed_freelist:
+  forall ge m bl m', Mem.free_list m bl = Some m' -> 
+  mem_wellformed ge m -> mem_wellformed ge m'.
 Proof.
 intros.
 revert  bl m H H0; induction bl; simpl; intros.
@@ -806,49 +883,77 @@ destruct a as [[??]?].
 destruct (Mem.free m b z z0) eqn:?H; inv H.
 apply IHbl with m0; auto.
 clear - H0 H1.
+destruct H0.
+pose proof (Mem.nextblock_free _ _ _ _ _ H1).
+split; rewrite H2; auto.
+eapply (mem_lemmas.free_neutral (Mem.nextblock m) (maxedmem m) z z0 b); auto.
+clear - H1.
+admit. (* OK *)
+Admitted.
+
+
+Lemma maxedmem_neutral':
+  forall m
+   (pm : access_map)
+   (Hlt : permMapLt pm (getMaxPerm m)),
+  Mem.inject_neutral (Mem.nextblock m) (maxedmem m) ->
+  Mem.inject_neutral (Mem.nextblock m) (maxedmem (restrPermMap Hlt)).
+Proof.
+intros.
+unfold Mem.inject_neutral in *.
+inv H.
+constructor; intros; simpl in *.
+-
+unfold Mem.flat_inj in H.
+if_tac in H; inv H.
+rewrite Z.add_0_r. auto.
+-
+eapply mi_align.
+eassumption.
+instantiate (1:=p); instantiate (1:=ofs).
+clear - H0.
 hnf; intros.
-Transparent Mem.free.
-destruct (eq_block b0 b).
-subst b0.
-unfold Mem.free in H1.
-if_tac in H1.
-inv H1.
-simpl.
-apply H0.
-inv H1.
-unfold Mem.free in H1.
-if_tac in H1.
-inv H1.
-simpl.
-apply H0.
-inv H1.
-Opaque Mem.free.
-Qed.
+specialize (H0 _ H).
+clear - H0.
+admit. (* fine *)
+Admitted.
 
 Lemma alloc_variables_wellformed: 
   forall ge ve m vl ve' m',
-   mem_wd2 m ->
+   mem_wellformed ge m ->
    venv_wellformed (Mem.nextblock m) ve ->
    alloc_variables ge ve m vl ve' m' ->
-   venv_wellformed (Mem.nextblock m') ve' /\ mem_wd2 m' /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
+   venv_wellformed (Mem.nextblock m') ve' /\ mem_wellformed ge m' /\ (Mem.nextblock m <= Mem.nextblock m')%positive.
 Proof.
   intros.
   revert ve m H H0 H1; induction vl; simpl; intros.
   inv H1. split3; auto. apply Pos.le_refl.
   inv H1.
   apply IHvl in H9.
+-
   destruct H9 as [? [? ?]].
   split3; auto.
   eapply Pos.le_trans; try apply H3.
   apply Mem.nextblock_alloc in H6. rewrite H6.
   apply Ple_succ.
-  eapply mem_wd2_alloc; eauto.
+-
+  clear - H6 H.
+  destruct H.
+  split.
+  eapply (Mem.alloc_inject_neutral (Mem.nextblock m1)) in H6.
+  admit.
+  admit.
+  apply Mem.nextblock_alloc in H6. rewrite H6. apply Plt_succ.
+  apply Mem.nextblock_alloc in H6. rewrite H6.
+  eapply Ple_trans; try eassumption.
+  apply Plt_Ple; apply Plt_succ.
+-
   apply set_venv_wellformed.
   apply Mem.valid_new_block in H6. red in H6. apply H6.
   eapply alloc_venv_wellformed; try eassumption.
   apply Mem.nextblock_alloc in H6. rewrite H6.
   apply Ple_succ.
-Qed.
+Admitted.
 
 Lemma bind_parameter_temps_wellformed:
   forall m fl vl te te',
@@ -969,7 +1074,8 @@ constructor.
 apply Ple_refl.
 Admitted. (* but this whole lemma is probably obsolete *)
 
-Lemma cl_step_wellformed':
+(*
+Lemma cl_step_wellformed':  (* this whole lemma is probably obsolete *)
   forall (ge: genv) c m c' m',
  cl_step ge c m c' m' ->
 Smallstep.globals_not_fresh (Clight.genv_genv ge) m /\
@@ -1087,3 +1193,143 @@ intros until m'. intro Hstep.
   apply set_tenv_wellformed; auto. 
   apply Pos.le_refl.
 Qed.
+*)
+
+Module Test.
+Require Import VST.concurrency.juicy.JuicyMachineModule.
+Definition juicy_threads_wellformed ge m tp :=
+   @threads_wellformed _ (@THE_JUICY_MACHINE.JSem ge) core_wellformed m tp.
+
+Definition dry_threads_wellformed ge m tp :=
+   @threads_wellformed _ (@ClightSemanticsForMachines.Clight_newSem ge) core_wellformed m tp.
+End Test.
+
+(*
+Lemma cl_step_wellformed':
+  forall (ge: genv) c m c' m',
+ cl_step ge c m c' m' ->
+Smallstep.globals_not_fresh (Clight.genv_genv ge) m /\
+mem_wd2 m /\ core_wellformed (Mem.nextblock m) c ->
+mem_wd2 m' /\
+core_wellformed (Mem.nextblock m') c' /\
+(Mem.nextblock m <= Mem.nextblock m')%positive.
+
+*)
+Lemma cl_step_wellformed:
+  forall ge m c pm Hlt c' m',
+      mem_wellformed ge m ->
+      core_wellformed (Mem.nextblock m) c ->
+      Clight_core.cl_step ge c (@restrPermMap pm m Hlt) c' m' ->
+      mem_wellformed ge m' /\ 
+      core_wellformed (Mem.nextblock m') c'.
+Proof.
+intros.
+hnf in H1.
+assert (mem_wellformed ge (restrPermMap Hlt)). {
+  clear - Hlt H.
+  hnf in H|-*. simpl.
+  destruct H; split; auto.
+  apply maxedmem_neutral'; auto.
+}
+change (Mem.nextblock m) with (Mem.nextblock (restrPermMap Hlt)) in *.
+forget (restrPermMap Hlt) as m1.
+clear m Hlt pm H.
+rename m1 into m.
+induction H1;
+simpl in H0|-*;
+try (destruct H0 as [Hv [Ht Hc]]);
+try solve [split; [ | split3]; auto];
+try (split; [ | split3]; auto; [idtac]).
+- (* assign *)
+replace (Mem.nextblock m') with (Mem.nextblock m).
+2:{ inv H4. apply mem_lemmas.nextblock_storev in H5; auto.
+    apply Mem.nextblock_storebytes in H9; auto.
+}
+split; [ | split3]; auto.
+clear - H2 H4.
+inv H4; destruct H2; split; auto.
+clear - H0 H1.
+unfold Mem.storev in H0.
+admit.
+apply Mem.nextblock_store in H0; rewrite H0; auto.
+clear - H2 H6.
+admit.
+apply Mem.nextblock_storebytes in H6; rewrite H6; auto.
+- (* set *)
+eapply eval_expr_wellformed in H; eauto.
+intros ? ? ?.
+destruct (peq id i).
+subst. rewrite PTree.gss in H0. inv H0; auto.
+rewrite PTree.gso in H0 by auto.
+apply Ht in H0; auto.
+- (* call *)
+eapply eval_exprlist_wellformed; eauto.
+- (* builtin *)
+apply eval_exprlist_wellformed in H3; auto.
+admit.
+- (* return_0 *)
+pose proof (mem_wellformed_freelist _ _ _ _ H H2).
+split3; auto.
+constructor.
+apply call_cont_wellformed_lemma; auto.
+apply mem_lemmas.nextblock_freelist in H.
+rewrite H; auto.
+- (* return_1 *)
+pose proof (mem_wellformed_freelist _ _ _ _ H3 H2).
+apply mem_lemmas.nextblock_freelist in H3.
+rewrite H3.
+split3; auto.
+eapply eval_expr_wellformed in H; eauto.
+eapply sem_cast_wellformed in H1; eauto.
+apply call_cont_wellformed_lemma; auto.
+- (* skip_call *)
+pose proof (mem_wellformed_freelist _ _ _ _ H1 H2).
+split3; auto.
+constructor.
+apply mem_lemmas.nextblock_freelist in H1.
+rewrite H1; auto.
+- (* step_goto *)
+eapply find_label_wellformed in H; eauto.
+apply call_cont_wellformed_lemma; auto.
+- (* step_internal_function *)
+inv H.
+eapply alloc_variables_wellformed in H5; eauto.
+2:{ unfold empty_env; hnf; intros. rewrite PTree.gempty in H. inv H. }
+destruct H5 as [? [? ?]].
+destruct H0.
+eapply bind_parameter_temps_wellformed in H6; eauto.
+split3; auto.
+split.
+clear - H6 H7.
+admit.  (* OK *)
+clear - H8 H7.
+admit.  (* OK *)
+forget (Mem.nextblock m) as b.
+clear.
+induction (fn_temps f) as [|[??]]; simpl; intros.
+hnf; intros. rewrite PTree.gempty in H; inv H.
+hnf; intros.
+destruct (peq i0 i).
+subst i0. rewrite PTree.gss in H. inv H; constructor.
+rewrite PTree.gso in H by auto. apply IHl in H. auto.
+- (* step_external_function *)
+admit.
+- (* step_returnstate *)
+destruct Hc.
+split3; auto.
+split; auto.
+destruct optid; simpl; auto.
+apply set_tenv_wellformed; auto.
+Admitted.
+
+Lemma initial_core_wellformed:
+  forall ge v args c m,
+     Clight_core.cl_initial_core ge v args c ->
+     Clight_core.arg_well_formed args m ->
+     Smallstep.globals_not_fresh ge m ->
+     core_wellformed (Mem.nextblock m) c.
+Proof.
+  (* Clight_self_simulation needs a weaker version of this, 
+     where the initial state is injected (by any injection, not necessarily flat. *)
+Admitted.
+
