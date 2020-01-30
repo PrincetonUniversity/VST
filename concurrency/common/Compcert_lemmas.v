@@ -8,6 +8,7 @@ Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
+Require Import compcert.lib.Axioms.
 
 Require Import VST.sepcomp.Address.
 
@@ -63,7 +64,7 @@ Qed.
 
 Lemma load_inject':
   forall (f : meminj) (m1 m2 : mem) (chunk : AST.memory_chunk)
-         (b1 : block) (ofs : Z) (b2 : block) (delta : Z) 
+    (b1 : block) (ofs : Z) (b2 : block) (delta : Z) 
          (v1 v2 : val),
     Mem.inject f m1 m2 ->
     Mem.load chunk m1 b1 ofs = Some v1 ->
@@ -187,67 +188,67 @@ Proof.
   Unshelve.
   all: intros ??; rewrite getMax_restr; apply mem_cur_lt_max.
 Qed.       
-  Inductive lock_update_mem_strict b ofs m m': val -> Prop :=
-  | Build_lock_update_mem_strict:
-      forall vstore
-             (Haccess: Mem.range_perm m b ofs (ofs + LKSIZE) Cur Writable)
-             (Hstore: Mem.store AST.Mint32 m b ofs vstore = Some m'),
-        lock_update_mem_strict b ofs m m' vstore.
-  Lemma lock_update_mem_permMapLt_range_Cur:
-    forall b ofs m m' v,
-      lock_update_mem_strict b ofs m m' v -> 
-      permMapLt_range (getCurPerm m) b ofs (ofs + LKSIZE) (Some Writable).
-  Proof.
-    intros * HH; inv HH.
-    eapply range_mem_permMapLt;  eassumption.
-  Qed.
-  Lemma lock_update_mem_permMapLt_range_Max:
-    forall b ofs m m' v,
-      lock_update_mem_strict b ofs m m' v -> 
-      permMapLt_range (getMaxPerm m) b ofs (ofs + LKSIZE) (Some Writable).
-  Proof.
-    intros; eapply permMapLt_range_trans; try eapply cur_lt_max.
-    eapply lock_update_mem_permMapLt_range_Cur; eassumption.
-  Qed.
-  Inductive lock_update_mem_strict_load b ofs lock_perm m m': val -> val -> Prop :=
-  | Build_lock_update_mem_strict_load:
-      forall lock_mem_lt vload vstore
-             (Hwritable_lock1 : writable_lock b ofs lock_perm m),
-        let lock_mem:= @restrPermMap lock_perm m lock_mem_lt in
-        let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
-        forall (Haccess: Mem.range_perm lock_mem b ofs (ofs + LKSIZE) Cur Readable)
-               (Hload: Mem.load AST.Mint32 lock_mem b ofs = Some vload)
-               (Hstore: Mem.store AST.Mint32 m_writable_lock_1 b ofs vstore = Some m'),
-          lock_update_mem_strict_load b ofs lock_perm m m' vload vstore.
-  Lemma lock_update_mem_strict_load_restr:
-    forall b ofs l_perms m m' lval sval p Hlt,
-      lock_update_mem_strict_load b ofs l_perms m m' lval sval ->
-      lock_update_mem_strict_load b ofs l_perms (@restrPermMap p m Hlt) m' lval sval.
-  Proof.
-    intros. inv H.
-    unshelve econstructor.
-    - rewrite restr_Max_eq; auto.
-    - red. rewrite restr_Max_eq; auto.
-    - rewrite <- restrPermMap_idempotent; eauto.
-    - rewrite <- restrPermMap_idempotent; eauto.
-    - erewrite <- restrPermMap_idempotent_eq; eauto.
-  Qed.
-  Lemma lock_update_mem_strict_inject:
-    forall f b b' ofs delt m1 m2 m1' vl,
-    forall (Hinj_b : f b = Some (b', delt))
-           (Hinj_lock: Mem.inject f m1 m2),
-      lock_update_mem_strict b ofs m1 m1' (Vint vl) ->
-      exists m2', lock_update_mem_strict b' (ofs+ delt) m2 m2' (Vint vl) /\
-                  Mem.inject f m1' m2'.
-  Proof.
-    intros; inv H.
-    eapply Mem.store_mapped_inject in Hstore as (m2'&Hstore2&Hinj'); eauto.
-    eexists; split; eauto.
-    econstructor; eauto.
-    replace (ofs + delt + LKSIZE) with ((ofs + LKSIZE) + delt).
-    - eapply Mem.range_perm_inject; eauto.
-    - omega.
-  Qed.
+Inductive lock_update_mem_strict b ofs m m': val -> Prop :=
+| Build_lock_update_mem_strict:
+    forall vstore
+      (Haccess: Mem.range_perm m b ofs (ofs + LKSIZE) Cur Writable)
+      (Hstore: Mem.store AST.Mint32 m b ofs vstore = Some m'),
+      lock_update_mem_strict b ofs m m' vstore.
+Lemma lock_update_mem_permMapLt_range_Cur:
+  forall b ofs m m' v,
+    lock_update_mem_strict b ofs m m' v -> 
+    permMapLt_range (getCurPerm m) b ofs (ofs + LKSIZE) (Some Writable).
+Proof.
+  intros * HH; inv HH.
+  eapply range_mem_permMapLt;  eassumption.
+Qed.
+Lemma lock_update_mem_permMapLt_range_Max:
+  forall b ofs m m' v,
+    lock_update_mem_strict b ofs m m' v -> 
+    permMapLt_range (getMaxPerm m) b ofs (ofs + LKSIZE) (Some Writable).
+Proof.
+  intros; eapply permMapLt_range_trans; try eapply cur_lt_max.
+  eapply lock_update_mem_permMapLt_range_Cur; eassumption.
+Qed.
+Inductive lock_update_mem_strict_load b ofs lock_perm m m': val -> val -> Prop :=
+| Build_lock_update_mem_strict_load:
+    forall lock_mem_lt vload vstore
+      (Hwritable_lock1 : writable_lock b ofs lock_perm m),
+      let lock_mem:= @restrPermMap lock_perm m lock_mem_lt in
+      let m_writable_lock_1:= restrPermMap Hwritable_lock1 in
+      forall (Haccess: Mem.range_perm lock_mem b ofs (ofs + LKSIZE) Cur Readable)
+        (Hload: Mem.load AST.Mint32 lock_mem b ofs = Some vload)
+        (Hstore: Mem.store AST.Mint32 m_writable_lock_1 b ofs vstore = Some m'),
+        lock_update_mem_strict_load b ofs lock_perm m m' vload vstore.
+Lemma lock_update_mem_strict_load_restr:
+  forall b ofs l_perms m m' lval sval p Hlt,
+    lock_update_mem_strict_load b ofs l_perms m m' lval sval ->
+    lock_update_mem_strict_load b ofs l_perms (@restrPermMap p m Hlt) m' lval sval.
+Proof.
+  intros. inv H.
+  unshelve econstructor.
+  - rewrite restr_Max_eq; auto.
+  - red. rewrite restr_Max_eq; auto.
+  - rewrite <- restrPermMap_idempotent; eauto.
+  - rewrite <- restrPermMap_idempotent; eauto.
+  - erewrite <- restrPermMap_idempotent_eq; eauto.
+Qed.
+Lemma lock_update_mem_strict_inject:
+  forall f b b' ofs delt m1 m2 m1' vl,
+  forall (Hinj_b : f b = Some (b', delt))
+    (Hinj_lock: Mem.inject f m1 m2),
+    lock_update_mem_strict b ofs m1 m1' (Vint vl) ->
+    exists m2', lock_update_mem_strict b' (ofs+ delt) m2 m2' (Vint vl) /\
+           Mem.inject f m1' m2'.
+Proof.
+  intros; inv H.
+  eapply Mem.store_mapped_inject in Hstore as (m2'&Hstore2&Hinj'); eauto.
+  eexists; split; eauto.
+  econstructor; eauto.
+  replace (ofs + delt + LKSIZE) with ((ofs + LKSIZE) + delt).
+  - eapply Mem.range_perm_inject; eauto.
+  - omega.
+Qed.
 End LockUpdate.
 
 
@@ -304,14 +305,14 @@ Qed.
 Lemma address_range_dec:
   forall (a1 a2: block * Z) delta,
     (fst a1 = fst a2 /\ Intv.In (snd a1)
-                                (snd a2, snd a2 + delta))
+                               (snd a2, snd a2 + delta))
     \/ (fst a1 <> fst a2 \/ ~ Intv.In (snd a1)
-                              (snd a2, snd a2 + delta)).
+                           (snd a2, snd a2 + delta)).
 Proof. intros; eapply address_range_dec'. Qed.
 
 Lemma perm_order_trans101:
   forall oa b c, Mem.perm_order' oa b ->
-                 perm_order b c -> Mem.perm_order' oa c.
+            perm_order b c -> Mem.perm_order' oa c.
 Proof.
   intros. eapply (perm_order_trans211 _ (Some b));
             simpl; auto.
@@ -517,4 +518,77 @@ Proof.
     eapply restr_Max_equiv.
   - apply mem_access_max_equiv.
     symmetry; eapply Mem.store_access; eauto.
+Qed.
+
+
+Lemma mem_simpl_eq:
+  forall m1 m2,
+    Mem.mem_contents m1 = Mem.mem_contents m2 ->
+    Mem.mem_access m1 = Mem.mem_access m2 ->
+    Mem.nextblock m1 = Mem.nextblock m2 ->
+    m1 = m2.
+Proof.
+  intros. destruct m1; destruct m2.
+  simpl in *.
+  dependent_rewrite H.
+  dependent_rewrite H0.
+  dependent_rewrite H1.
+  f_equal; eapply Axioms.proof_irr.
+Qed.
+
+
+Lemma self_restre_eq:
+  forall p m Hlt,
+    access_map_equiv p (getCurPerm m) ->
+    @restrPermMap p m Hlt = m.
+Proof.
+  intros.
+  eapply mem_simpl_eq; try reflexivity.
+  pose proof (Cur_isCanonical m) as Hcanon.
+  destruct m; simpl in *.
+  clear Hlt.
+  destruct mem_access; f_equal.
+  - eapply (extensionality); intros ofs.
+    eapply (extensionality); intros k.
+    + destruct k; try reflexivity.
+      hnf in Hcanon. unfold getCurPerm in Hcanon; simpl in *.
+      eapply (f_equal) in Hcanon.
+      instantiate(1:= fun x => x ofs) in Hcanon;
+        simpl in *; auto.
+  - simpl.
+    eapply Coqlib3.PTree_map_eq.
+    unfold option_map; intros.
+    match_case. f_equal.
+  - eapply (extensionality); intros ofs.
+    eapply (extensionality); intros k.
+    match_case.
+    hnf in H; rewrite H.
+    rewrite getCurPerm_correct; eauto;
+      unfold permission_at; simpl.
+    unfold "!!"; simpl. rewrite Heqo0; auto.
+Qed.
+Lemma restre_equiv_eq:
+  forall p1 p2 m Hlt1 Hlt2,
+    access_map_equiv p1 p2 ->
+    @restrPermMap p1 m Hlt1 = @restrPermMap p2 m Hlt2.
+Proof.
+  intros.
+  erewrite restrPermMap_idempotent_eq.
+  erewrite self_restre_eq.
+  - reflexivity.
+  - symmetry. etransitivity.
+    + eapply getCur_restr. 
+    + symmetry; eauto.
+      
+      Unshelve.
+      intros ? ?;
+      rewrite getMax_restr; eauto.
+Qed.
+Lemma lock_update_mem_strict_cur:
+  forall b ofs m m' v,
+    lock_update_mem_strict b ofs m m' v ->
+    Cur_equiv m m'.
+Proof.
+  intros. inv H. intros ?.
+  eapply store_cur_equiv; eauto.
 Qed.

@@ -6,6 +6,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
 Require Import compcert.common.EventsAux.
+Require Import compcert.common.Smallstep.
 
 Require Import VST.msl.Axioms.
 Require Import Coq.ZArith.ZArith.
@@ -24,21 +25,13 @@ Require Import VST.concurrency.common.scheduler.
 Require Import Coq.Program.Program.
 
 Require Import VST.concurrency.compiler.safety.
-
 Require Import VST.concurrency.compiler.coinductive_safety.
-
-
 Require Import VST.concurrency.common.HybridMachineSig.
-
 Require Import VST.veric.res_predicates.
-
 Require Import VST.concurrency.common.HybridMachine.
-
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
-
-Require Import compcert.common.Smallstep.
-
 Require Import VST.concurrency.common.machine_semantics_lemmas.
+Require Import VST.concurrency.common.Compcert_lemmas.
 
 Import Events event_semantics Values.
 
@@ -46,56 +39,11 @@ Set Implicit Arguments.
 
 Section HybridSimulation. 
 
-  (*
-  Variable (Sems Semt : semantics.Semantics).
-  Variable (hb1 hb2: option nat).
-  (*Variable (Resources : Resources_rec).
-  Variable (MatchCAsm: meminj -> corestate -> mem -> Asm_coop.state -> mem -> Prop).*)
-  
-  Definition HM1:=HybridMachine hb1 Sems Semt.
-  Definition HM2:=HybridMachine hb2 Sems Semt.
 
-  Notation Sem1:=(ConcurMachineSemantics HM1).
-  Notation Sem2:=(ConcurMachineSemantics HM2).
-  
-  Notation C1:= (MachState HybridMachine.Resources
-                          (Sem hb1 Sems Semt) (ThreadPool hb1 Sems Semt)).
-  Notation C2:= (MachState HybridMachine.Resources
-                          (Sem hb2 Sems Semt) (ThreadPool hb2 Sems Semt)).
-  Notation G1:= (semG (Sem hb1 Sems Semt)).
-  Notation G2:= (semG (Sem hb2 Sems Semt)).
-  Variable ge1:G1.
-  Variable ge2:G2.
-  Variable (ge_inv: G1 -> G2 -> Prop). *)
-
-  Context (SG TG TID SCH SC TC R1 R2 (*s_thread_type t_thread_type*): Type).
+  Context (SG TG TID SCH SC TC R1 R2: Type).
   Variable SourceHybridMachine: @ConcurSemantics SG TID SCH (list machine_event) SC mem R1.
   Variable TargetHybridMachine: @ConcurSemantics TG TID SCH (list machine_event) TC mem R2.
-  (* 
-     Variable opt_init_mem_source : option Memory.Mem.mem.
-     Variable opt_init_mem_target : option Memory.Mem.mem.
-  *)
-
-  (* Inductive inject_address (f : meminj) : address -> address -> Prop :=
-  | inj_addr : forall b1 delt b2 ofs, f b1 = Some (b2, ofs) ->
-      inject_address f (b1, ofs) (b2, ofs + delt). *)
-
-  Inductive inject_address f: address -> address -> Prop :=
-  | build_inject_address:
-      forall b1 b2 ofs1 ofs2 delt,
-        f b1 = Some (b2, delt) ->
-        ofs2 = ofs1 + delt ->
-        inject_address f (b1, ofs1) (b2,ofs2).
-  Lemma inject_address_incr:
-    forall f f' l1 l2,
-      inject_incr f f' ->  
-      inject_address f l1 l2 ->
-      inject_address f' l1 l2.
-  Proof.
-    intros * Hincr Hinj. inv Hinj.
-    econstructor; auto.
-    eapply Hincr; assumption.
-  Qed.
+  
   Definition inject_delta_content: meminj -> delta_content -> delta_content -> Prop:=
     fun f dc1 dc2 =>
     True.
