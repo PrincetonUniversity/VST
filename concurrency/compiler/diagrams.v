@@ -11,7 +11,7 @@ Require Import VST.concurrency.common.permissions. Import permissions.
 
 Require Import VST.msl.Coqlib2.
 Require Import VST.concurrency.lib.tactics.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 
 Import BinInt.
 Import List.

@@ -17,7 +17,7 @@ Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.compiler.diagrams.
 Require Import VST.concurrency.lib.tactics.
 
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.lib.setoid_help.
 Require Import Coq.Classes.Morphisms.
 

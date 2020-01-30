@@ -14,7 +14,7 @@ Require Import VST.msl.eq_dec.
 Require Import BinNums.
 Require Import List. Import ListNotations.
 Require Import VST.msl.Coqlib2.
-Require VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.common.threadPool.
 Set Bullet Behavior "Strict Subproofs".
 Import Memory.
@@ -730,17 +730,21 @@ revert H H0.
 apply find_label_wellformed.
 Qed.
 
-Lemma storebytes_access_eq:
-  forall m b z x m',
-  Mem.storebytes m b z x = Some m' ->
-  Mem.mem_access m = Mem.mem_access m'.
-Admitted.
-
 Lemma mem_access_eq_maxedmem:
  forall m m', 
    Mem.mem_access m = Mem.mem_access m' ->
   Mem.mem_access (maxedmem m') = Mem.mem_access (maxedmem m).
-Admitted.
+Proof.
+intros.
+simpl.
+rewrite <- H.
+f_equal.
+f_equal.
+extensionality b f ofs k.
+destruct k; auto.
+unfold getMaxPerm.
+rewrite <- H; auto.
+Qed.
 
 Lemma loadbytes_storebytes_wellformed:
    forall ge m b' z' sz b z bytes m',
@@ -796,7 +800,7 @@ assert (H9: Mem.perm (maxedmem m') = Mem.perm (maxedmem m)). {
    unfold Mem.perm.
    extensionality b0 ofs k p.
    f_equal. f_equal.
-   apply storebytes_access_eq in H1. clear - H1.
+   apply Mem.storebytes_access in H1. clear - H1.
    apply mem_access_eq_maxedmem; auto.
 }
 generalize H; intro H'. 
@@ -872,6 +876,13 @@ auto.
 rewrite H9 in H4; auto.
 Qed.
 
+Lemma maxedmem_neutral_x:
+  forall m : mem,
+  Mem.inject_neutral (Mem.nextblock m) m ->
+  Mem.inject_neutral (Mem.nextblock (maxedmem m)) (maxedmem m).
+Proof.
+Abort.  (* Not true *)
+
 Lemma mem_wellformed_freelist:
   forall ge m bl m', Mem.free_list m bl = Some m' -> 
   mem_wellformed ge m -> mem_wellformed ge m'.
@@ -886,9 +897,11 @@ clear - H0 H1.
 destruct H0.
 pose proof (Mem.nextblock_free _ _ _ _ _ H1).
 split; rewrite H2; auto.
-eapply (mem_lemmas.free_neutral (Mem.nextblock m) (maxedmem m) z z0 b); auto.
+Search Mem.inject_neutral.
+Search Mem.inject_neutral maxedmem.
+apply (mem_lemmas.free_neutral (Mem.nextblock m) (maxedmem m) z z0 b); auto.
 clear - H1.
-admit. (* OK *)
+admit. (* seems OK, but difficult to prove; and might need to be module mem_equiv *)
 Admitted.
 
 
@@ -915,7 +928,7 @@ clear - H0.
 hnf; intros.
 specialize (H0 _ H).
 clear - H0.
-admit. (* fine *)
+admit. (* OKish: Compiler.mem_equiv might have relevant lemmas *)
 Admitted.
 
 Lemma alloc_variables_wellformed: 
@@ -940,11 +953,11 @@ Proof.
   clear - H6 H.
   destruct H.
   split.
-  eapply (Mem.alloc_inject_neutral (Mem.nextblock m1)) in H6.
+(*  pose proof (@Mem.alloc_inject_neutral (Mem.nextblock m1) m 0 (@sizeof ge ty) b1 m1 H6).
+  ??
+*)
   admit.
-  admit.
-  apply Mem.nextblock_alloc in H6. rewrite H6. apply Plt_succ.
-  apply Mem.nextblock_alloc in H6. rewrite H6.
+  apply Mem.nextblock_alloc in H6. rewrite H6. 
   eapply Ple_trans; try eassumption.
   apply Plt_Ple; apply Plt_succ.
 -
@@ -1085,6 +1098,7 @@ End Test.
 
 
 Lemma external_call_wellformed: 
+ (* Once this is proved, delete the lemma inline_external_call_mem_wd *)
   forall (ge: genv) ef vargs m vres m',
   Forall (val_wellformed (Mem.nextblock m)) vargs ->
   AST.ef_inline ef = true -> (* needed or not? *)

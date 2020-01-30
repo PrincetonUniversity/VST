@@ -14,7 +14,7 @@ Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.common.semantics. 
 Require Import VST.concurrency.common.HybridMachine.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.memsem_lemmas.
 Require Import VST.concurrency.common.bounded_maps.

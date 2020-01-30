@@ -22,7 +22,7 @@ Require Import VST.concurrency.compiler.HybridMachine_simulation.
 Require Import VST.concurrency.compiler.Clight_self_simulation.
 Require Import VST.concurrency.compiler.Asm_self_simulation.
 Require Import VST.concurrency.compiler.diagrams.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.compiler.inject_virtue.
 Require Import VST.concurrency.common.Compcert_lemmas.

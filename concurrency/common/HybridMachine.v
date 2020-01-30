@@ -19,7 +19,7 @@ Require Import VST.concurrency.lib.tactics.
 
 Require Import VST.concurrency.common.machine_semantics.
 Require Import VST.concurrency.common.permissions.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.common.bounded_maps.
 Require Import VST.concurrency.common.addressFiniteMap.
 Require Import VST.concurrency.common.scheduler.

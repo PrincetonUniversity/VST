@@ -26,7 +26,7 @@ Import Basics.
 Import FunctionalExtensionality.
 
 Require Import VST.concurrency.compiler.Clight_self_simulation.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Set Nested Proofs Allowed.
 Set Bullet Behavior "Strict Subproofs".

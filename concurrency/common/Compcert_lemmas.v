@@ -13,7 +13,7 @@ Require Import compcert.lib.Axioms.
 Require Import VST.sepcomp.Address.
 
 Require Import VST.concurrency.common.lksize.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import  VST.concurrency.compiler.advanced_permissions.
 Require Import  VST.concurrency.lib.tactics.
 Import Ptrofs.
