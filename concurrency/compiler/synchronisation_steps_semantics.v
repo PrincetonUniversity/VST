@@ -215,6 +215,15 @@ Proof.
   inversion Hext_call; reflexivity.
 Qed.
 
+Lemma lock_doesnt_return:
+  doesnt_return LOCK.
+Proof.
+  intros ? * Hext_call.
+  unfold Events.external_call in Hext_call.
+  rewrite AcquireExists in Hext_call.
+  inversion Hext_call; reflexivity.
+Qed.
+
 Lemma mklock_doesnt_return: doesnt_return MKLOCK.
 Proof. 
   intros ? * Hext_call.

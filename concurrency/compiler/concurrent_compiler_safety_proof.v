@@ -30,7 +30,7 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 
 Module Concurrent_Safety
        (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments).
+       (Args: ThreadSimulationArguments CC_correct).
   (*Import the Clight Hybrid Machine*)
   Import ClightMachine.
   Import DMS.

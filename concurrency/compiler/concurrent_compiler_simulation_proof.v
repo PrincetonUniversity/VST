@@ -49,7 +49,7 @@ Require Import VST.concurrency.compiler.single_thread_simulation_proof.
 
 Module Concurrent_correctness
        (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments).
+       (Args: ThreadSimulationArguments CC_correct).
   Module TSim:= (ThreadedSimulation CC_correct Args).
   Import TSim.
   Import MySyncSimulation.MySimulationTactics.MyConcurMatch.MyThreadSimulationDefinitions.

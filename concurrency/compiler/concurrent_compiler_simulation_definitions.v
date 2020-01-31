@@ -49,20 +49,25 @@ Proof.
 Qed.
 
 (** *One thread simulation*)
-Module Type ThreadSimulationArguments.
+Module Type ThreadSimulationArguments 
+       (CC_correct: CompCert_correctness).
 
   Export X86Context.
   Parameter C_program: Clight.program.
   Parameter Asm_program: Asm.program.
   Definition Asm_g := (@the_ge Asm_program).
   Parameter Asm_genv_safe: Asm_core.safe_genv (@the_ge Asm_program).
+
+  (* Assumption of compilation. *)
+  Parameter compiled: 
+    CC_correct.CompCert_compiler C_program = Some Asm_program.
     
 End ThreadSimulationArguments.
 
 
 Module ThreadSimulationDefinitions
        (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments).
+       (Args: ThreadSimulationArguments CC_correct).
 
   Import HybridMachineSig.
   Import DryHybridMachine.
@@ -70,10 +75,6 @@ Module ThreadSimulationDefinitions
   Export Args.
 
   (* Bellow are things taken from ThreadSimulation*)
-
-  (* Assumption of compilation. *)
-  Parameter compiled: 
-    CC_correct.CompCert_compiler C_program = Some Asm_program.
   
   
     Notation sem_coresem Sem:=

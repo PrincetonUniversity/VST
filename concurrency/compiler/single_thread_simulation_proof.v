@@ -70,7 +70,8 @@ Import bounded_maps.
 
 
 
-Module ThreadedSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
+Module ThreadedSimulation (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments CC_correct).
 
   Import HybridMachineSig.
   Import DryHybridMachine.

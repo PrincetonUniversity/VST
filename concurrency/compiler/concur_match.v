@@ -52,7 +52,8 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 (* MOVE TO PERMISSIONS.V*)
 
 
-Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments).
+Module ConcurMatch (CC_correct: CompCert_correctness)
+       (Args: ThreadSimulationArguments CC_correct).
 
   Module MyThreadSimulationDefinitions :=
     ThreadSimulationDefinitions CC_correct Args.
@@ -60,9 +61,6 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
   Import HybridMachineSig.
   Import DryHybridMachine.
   Import self_simulation.
-  
-  (* TODO TODO : Things to move *)
-  
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
@@ -1273,5 +1271,25 @@ Module ConcurMatch (CC_correct: CompCert_correctness)(Args: ThreadSimulationArgu
                                         (virtueThread_inject m2 mu b1))
                        (getMaxPerm m2).
   Proof. intros; eapply permMapLt_compute_inject_pair_useful'; eauto. Qed.
+
+  
+    Lemma concur_match_perm_restrict' perms1 perms2:
+      forall (hb : nat) (cd : option compiler_index) (j : meminj)
+        (st1 : ThreadPool (Some hb)) (m1 : mem) (st2 : ThreadPool (Some (S hb)))
+        (m2 : mem)(permMapLt1 : permMapLt perms1 (getMaxPerm m1))
+        (permMapLt2 : permMapLt perms2 (getMaxPerm m2)),
+        concur_match hb cd j st1 (restrPermMap permMapLt1) st2
+                                   (restrPermMap permMapLt2) ->
+        concur_match hb cd j st1 m1 st2 m2.
+    Proof.
+      intros.
+      rewrite (mem_is_restr_eq m1), (mem_is_restr_eq m2).
+      erewrite (@restrPermMap_idempotent_eq _ _ m1).
+      erewrite (@restrPermMap_idempotent_eq _ _ m2).
+      eapply concur_match_perm_restrict; eauto.
+
+      Unshelve.
+      all: rewrite getMax_restr; apply mem_cur_lt_max.
+    Qed.
   
 End ConcurMatch.
