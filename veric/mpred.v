@@ -129,11 +129,24 @@ Definition any_environ : environ :=
 
 Definition mpred := pred rmap.
 
+Definition argsEnviron:Type := genviron * (list val).
+
 Definition AssertTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType environ) Mpred).
 
+Definition ArgsTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType argsEnviron) Mpred).
+
 Definition SpecTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
+
+Definition SpecArgsTT (A: TypeTree): TypeTree :=
+  ArrowType A 
+  (PiType bool (fun b => ArrowType (ConstType 
+                                         (if b 
+                                          then argsEnviron
+                                          else environ))
+                                    Mpred)).
 
 Definition super_non_expansive {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
@@ -143,8 +156,20 @@ Definition super_non_expansive {A: TypeTree}
     (rho: environ),
   approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
 
+Definition args_super_non_expansive {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred): Prop :=
+  forall n ts
+    (x: functors.MixVariantFunctor._functor
+                         (rmaps.dependent_type_functor_rec ts A) mpred)
+    (gargs: argsEnviron),
+  approx n (P ts x gargs) = approx n (P ts (fmap _ (approx n) (approx n) x) gargs).
+
 Definition const_super_non_expansive: forall (T: Type) P,
   @super_non_expansive (ConstType T) P :=
+  fun _ _ _ _ _ _ => eq_refl.
+
+Definition args_const_super_non_expansive: forall (T: Type) P,
+  @args_super_non_expansive (ConstType T) P :=
   fun _ _ _ _ _ _ => eq_refl.
 
 (*Potential alternative that does not use Ctypes
@@ -156,9 +181,10 @@ Inductive funspec :=
  *)
 
 Inductive funspec :=
-   mk_funspec: funsig -> calling_convention -> forall (A: TypeTree)
-     (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-     (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q),
+   mk_funspec: typesig -> calling_convention -> forall (A: TypeTree)
+     (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+     (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+     (P_ne: args_super_non_expansive P) (Q_ne: super_non_expansive Q),
      funspec.
 
 Definition varspecs : Type := list (ident * type).
@@ -172,11 +198,14 @@ Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
 
+Definition argsassert := argsEnviron -> mpred.
+
 (*Lenb: moved packPQ here from res_predicates.v*)
 Definition packPQ {A: rmaps.TypeTree}
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
-  forall ts, dependent_type_functor_rec ts (SpecTT A) mpred :=
-  fun ts a b => if b then P ts a else Q ts a.
+  (P: forall ts, dependent_type_functor_rec ts (ArgsTT A) mpred)
+  (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred):
+  forall ts, dependent_type_functor_rec ts (SpecArgsTT A) mpred.
+Proof. intros ts a b. destruct b. apply (P ts a). apply (Q ts a). Defined.
 
 (*moved here from Clight_lemmas*)
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
@@ -286,11 +315,35 @@ Definition compspecs_program (p: program): compspecs.
 Defined.
 *)
 
-Definition type_of_funspec (fs: funspec) : type :=
-  match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
+(*plays role of type_of_params *)
+Fixpoint typelist_of_type_list (params : list type) : typelist :=
+  match params with
+  | nil => Tnil
+  | ty :: rem => Tcons ty (typelist_of_type_list rem)
+  end.
 
+Definition type_of_funspec (fs: funspec) : type :=
+  match fs with mk_funspec fsig cc _ _ _ _ _ => (*Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.*)
+Tfunction (typelist_of_type_list (fst fsig)) (snd fsig) cc end.
+
+(*same definition as in Clight_core?*)
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
+
+Lemma TTL1 l: typelist_of_type_list (map snd l) = type_of_params l.
+Proof. induction l; simpl; trivial. destruct a. f_equal; trivial. Qed.
+
+Lemma TTL2 l: (typlist_of_typelist (typelist_of_type_list l)) = map typ_of_type l.
+Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
+(*
+Lemma TTL3 l: typelist_of_type_list (Clight_core.typelist2list l) = l.
+Proof. induction l; simpl; trivial. f_equal; trivial . Qed.
+*)
+Lemma TTL4 l: map snd l = typelist2list (type_of_params l).
+Proof. induction l; simpl; trivial. destruct a. simpl. f_equal; trivial. Qed.
+
+Lemma TTL5 {l}: typelist2list (typelist_of_type_list l) = l.
+Proof. induction l; simpl; trivial. f_equal; trivial. Qed.
 
 Definition idset := PTree.t unit.
 
@@ -360,14 +413,27 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4):  environ -> B :=
      fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
 
+Definition alift0 {B} (P: B) : argsEnviron -> B := fun _ => P.
+Definition alift1 {A1 B} (P: A1 -> B) (f1: argsEnviron -> A1) : argsEnviron -> B := fun rho => P (f1 rho).
+Definition alift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: argsEnviron -> A1) (f2: argsEnviron -> A2):
+   argsEnviron -> B := fun rho => P (f1 rho) (f2 rho).
+Definition alift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B)
+     (f1: argsEnviron -> A1) (f2: argsEnviron -> A2) (f3: argsEnviron -> A3) :  argsEnviron -> B :=
+     fun rho => P (f1 rho) (f2 rho) (f3 rho).
+Definition alift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
+     (f1: argsEnviron -> A1) (f2: argsEnviron -> A2) (f3: argsEnviron -> A3)(f4: argsEnviron -> A4):  argsEnviron -> B :=
+     fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
+
 (* LIFTING METHOD TWO: *)
 Require Import VST.veric.lift.
 Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
 Canonical Structure LiftEnviron := Tend environ.
 Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 
-
+Set Warnings "-projection-no-head-constant,-redundant-canonical-projection".
+Canonical Structure LiftAEnviron := Tend argsEnviron.
+Set Warnings "projection-no-head-constant,redundant-canonical-projection".
 
 Ltac super_unfold_lift :=
-  cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod
-  lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
+  cbv delta [liftx LiftEnviron LiftAEnviron Tarrow Tend lift_S lift_T lift_prod
+  lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3 alift0 alift1 alift2 alift3] beta iota in *.

@@ -371,9 +371,9 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
           (Sset id (Ebinop cmp e1 e2 ty))
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !!(eval_id id rho =  subst id old
+                 !!(eval_id id rho =  subst id (`old)
                      (eval_expr (Ebinop cmp e1 e2 ty)) rho) &&
-                            subst id old P rho))).
+                            subst id (`old) P rho))).
 Proof.
   intros until sh2. intros N1 N2. intros ? NE1 NE2. revert H.
   replace (fun rho : environ =>
@@ -539,8 +539,8 @@ forall (Delta: tycontext) (P: assert) id e,
           (Sset id e)
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !! (eval_id id rho =  subst id old (eval_expr e) rho) &&
-                            subst id old P rho))).
+                 !! (eval_id id rho =  subst id (`old) (eval_expr e) rho) &&
+                            subst id (`old) P rho))).
 Proof.
   intros until e.
   replace (fun rho : environ =>
@@ -644,12 +644,12 @@ Proof.
         f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
       }
       apply andp_right.
-      * intros ? _. simpl.
+      * intros ? _. unfold liftx, lift; simpl.
         unfold subst.
         rewrite H4.
         unfold eval_id at 1. unfold force_val; simpl.
-        rewrite Map.gss. auto.
-      * unfold subst; rewrite H4.
+        rewrite Map.gss. auto. 
+      * unfold liftx, lift; simpl. unfold subst; rewrite H4.
         auto.
 Qed.
 
@@ -663,8 +663,8 @@ forall (Delta: tycontext) (P: assert) id e t,
           (Sset id e)
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !! (eval_id id rho =  subst id old (eval_expr e) rho) &&
-                            subst id old P rho))).
+                 !! (eval_id id rho =  subst id (`old) (eval_expr e) rho) &&
+                            subst id (`old) P rho))).
 Proof.
 intros until e.
 intros t H99 H98.
@@ -767,7 +767,7 @@ assert (env_set
   rewrite H4. simpl.
   f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
 }
-
+unfold liftx, lift; simpl.
 apply andp_right.
 intros ? _. simpl.
 unfold subst.
@@ -787,8 +787,8 @@ forall (Delta: tycontext) (P: assert) id e t,
           (Sset id (Ecast e t))
         (normal_ret_assert
           (fun rho => (EX old:val,
-                 !! (eval_id id rho = subst id old (eval_expr (Ecast e t)) rho) &&
-                            subst id old P rho))).
+                 !! (eval_id id rho = subst id (`old) (eval_expr (Ecast e t)) rho) &&
+                            subst id (`old) P rho))).
 Proof.
 intros until e.
 intros t H99.
@@ -894,14 +894,15 @@ assert (env_set
 }
 
 apply andp_right.
-intros ? _. simpl.
-unfold subst.
-change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
-rewrite H4.
-unfold eval_id at 1. unfold force_val; simpl.
-rewrite Map.gss. auto.
-unfold subst; rewrite H4.
-auto.
+- unfold liftx, lift; simpl. intros ? _. simpl. unfold subst.
+  change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
+  rewrite H4.
+  unfold eval_id at 1. unfold force_val; simpl.
+  rewrite Map.gss. auto.
+- unfold liftx, lift; simpl. (*rewrite <- H4. simpl.*)
+  unfold subst. simpl. 
+  change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
+  rewrite H4; trivial.
 Qed.
 
 Lemma eval_cast_Vundef:
@@ -947,7 +948,7 @@ forall (Delta: tycontext) sh id P e1 t2 v2,
        (Sset id e1)
        (normal_ret_assert (fun rho =>
         EX old:val, (!!(eval_id id rho = v2) &&
-                         (subst id old P rho)))).
+                         (subst id (`old) P rho)))).
 Proof.
 intros until v2.
 intros Hid TC1 H_READABLE H99.
@@ -1060,7 +1061,7 @@ split; [split3 | ].
   specialize (TC' _ (eq_refl _)).
    destruct TC'. destruct H4. rewrite H4. simpl.
   rewrite Map.override_same; subst; auto.
-  unfold subst.
+  unfold liftx, lift; simpl. unfold subst.
   rewrite H4.
   apply andp_right; auto.
   intros ? ?; simpl.
@@ -1087,7 +1088,7 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
        (Sset id (Ecast e1 t1))
        (normal_ret_assert (fun rho =>
         EX old:val, (!!(eval_id id rho = (`(eval_cast (typeof e1) t1 v2)) rho) &&
-                         (subst id old P rho)))).
+                         (subst id (`old) P rho)))).
 Proof.
 intros until v2.
 intros Hid HCAST H_READABLE H99.
@@ -1218,11 +1219,12 @@ split; [split3 | ].
   specialize (TC' _ (eq_refl _)).
    destruct TC'. destruct H4. rewrite H4. simpl.
   rewrite Map.override_same; subst; auto.
-  unfold subst.
-  rewrite H4.
+  unfold subst. simpl.
+ (* rewrite H4.*)
   apply andp_right; auto.
-  intros ? ?; simpl.
-  unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
+  - intros ? ?; simpl. unfold liftx, lift; simpl.
+    unfold eval_id, force_val. simpl. rewrite Map.gss. auto. 
+  - unfold eval_cast, force_val1 in H4. unfold liftx, lift; simpl. rewrite H4; trivial.
  + intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
    subst; unfold modifiedvars. simpl.
    unfold insert_idset; rewrite PTree.gss; hnf; auto.

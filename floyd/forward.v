@@ -604,6 +604,9 @@ intros. eapply derives_trans; [apply H0 |].
 normalize.
 Qed.
 
+(*DEAD; was needed for the now check_one_temp_spec condition in prove_call_setup_aux
+ which referred to the definition call_lemmas.check_one_temp_spec.
+  Now, the tactic check_vl_eq_args below is used to discharge new reformulated side condition
 Ltac Forall_pTree_from_elements :=
  cbv beta;
  unfold PTree.elements; simpl PTree.xelements;
@@ -628,7 +631,23 @@ Ltac Forall_pTree_from_elements :=
    | apply prop_Forall_nil'
    | apply prop_Forall_nil
    ];
- unfold check_one_temp_spec; simpl PTree.get.
+ unfold check_one_temp_spec; simpl PTree.get.*)
+Ltac check_vl_eq_args:=
+first [ 
+   cbv beta; go_lower;
+   repeat (( simple apply derives_extract_prop
+                || simple apply derives_extract_prop');
+                fancy_intros true);
+   autorewrite with gather_prop;
+   repeat (( simple apply derives_extract_prop
+                || simple apply derives_extract_prop');
+                fancy_intros true);
+   repeat erewrite unfold_reptype_elim in * by reflexivity;
+   try autorewrite with entailer_rewrite in *;
+   simpl; auto;
+   first [ solve [ apply prop_derives; reflexivity] |
+           solve [normalize] ]
+  | fail 99 "Fail in tactic check_vl_eq_args"] .
 
 Lemma exp_uncurry2:
   forall {T} {ND: NatDed T} A B C F,
@@ -843,7 +862,7 @@ cbv beta iota zeta; unfold_post; extensionality rho;
 
 Ltac  forward_call_id1_wow_nil := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_wow_nil H); 
  clear H; 
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -856,7 +875,7 @@ eapply (semax_call_id1_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac  forward_call_id1_wow := 
 let H := fresh in intro H;
-eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H);
+eapply (semax_call_id1_wow H);
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [check_result_type
@@ -869,10 +888,7 @@ eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 Ltac forward_call_id1_x_wow_nil :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow_nil 
-             _ _ _ _ _ _ _ _ _ _
-             _ _ _ _ _ _ _ _ _ _ 
-             _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow_nil H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -887,10 +903,7 @@ eapply (semax_call_id1_x_wow_nil
 
 Ltac forward_call_id1_x_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_x_wow 
-             _ _ _ _ _ _ _ _ _ _
-             _ _ _ _ _ _ _ _ _ _ 
-             _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_x_wow H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -905,10 +918,7 @@ eapply (semax_call_id1_x_wow
 
 Ltac forward_call_id1_y_wow_nil :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow_nil 
-             _ _ _ _ _ _ _ _ _ _
-             _ _ _ _ _ _ _ _ _ _ 
-             _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow_nil H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -923,10 +933,7 @@ eapply (semax_call_id1_y_wow_nil
 
 Ltac forward_call_id1_y_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id1_y_wow 
-             _ _ _ _ _ _ _ _ _ _
-             _ _ _ _ _ _ _ _ _ _ 
-             _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id1_y_wow H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
@@ -941,7 +948,7 @@ eapply (semax_call_id1_y_wow
 
 Ltac forward_call_id01_wow_nil :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow_nil H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -952,10 +959,7 @@ eapply (semax_call_id01_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
 Ltac forward_call_id01_wow :=
 let H := fresh in intro H;
-eapply (semax_call_id01_wow 
-             _ _ _ _ _ _ _ _ _ _
-             _ _ _ _ _ _ _ _ _ _ 
-             _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id01_wow H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ apply Coq.Init.Logic.I 
@@ -966,7 +970,7 @@ eapply (semax_call_id01_wow
 
 Ltac forward_call_id00_wow_nil  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow_nil _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow_nil H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -985,7 +989,7 @@ should be empty, but it is not")
 
 Ltac forward_call_id00_wow  :=
 let H := fresh in intro H;
-eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+eapply (semax_call_id00_wow H); 
  clear H;
  lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type 
@@ -1187,6 +1191,7 @@ Proof.
 intros. constructor.
 Qed.
 
+(*
 Lemma classify_fun_ty_hack:
  (* This is needed for the varargs (printf) hack *)
   forall fs fs',
@@ -1198,8 +1203,27 @@ Lemma classify_fun_ty_hack:
 Proof.
 intros.
 subst.
-destruct fs, fs'.
-destruct H as [? [? _]].
+destruct fs, fs'. 
+destruct H as [[? ?] _].
+subst.
+simpl in H1.
+inv H1.
+auto.
+Qed.*)
+
+Lemma classify_fun_ty_hack:
+ (* This is needed for the varargs (printf) hack *)
+  forall fs fs',
+  funspec_sub fs fs' ->
+  forall ty (*argsig*)typs retty cc,
+  ty = type_of_funspec fs ->
+  type_of_funspec fs' = Tfunction typs retty cc -> 
+  classify_fun ty = fun_case_f typs retty cc.
+Proof.
+intros.
+subst.
+destruct fs, fs'. 
+destruct H as [[? ?] _].
 subst.
 simpl in H1.
 inv H1.
@@ -1268,7 +1292,7 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_typecheck
       |check_typecheck
       |check_cast_params
-      |reflexivity
+      (*goal has been removed |reflexivity*)
       | ]
     | context [Scall _ (Evar ?id ?ty) ?bl] =>
       let R := strip1_later R' in
@@ -1285,7 +1309,7 @@ Use Intros  to move          the existentially bound variables above the line"
       |check_typecheck
       |check_typecheck
       |check_cast_params
-      |reflexivity
+      (*goal has been removed |reflexivity*)
       | ..
       ]
     end
@@ -1300,16 +1324,16 @@ Ltac check_gvars :=
          ].
 
 Ltac prove_call_setup_aux  ts witness :=
- let H := fresh in
+ let H := fresh "SetupOne" in
  intro H;
  match goal with | |- @semax ?CS _ _ (PROPx ?P (LOCALx ?L (SEPx ?R'))) _ _ =>
  let Frame := fresh "Frame" in evar (Frame: list mpred); 
  let R := strip1_later R' in
- exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ R R' _ _ _ _ ts _ _ _ _ _ _ _ H witness Frame); clear H;
  simpl functors.MixVariantFunctor._functor;
  [ reflexivity
  | check_prove_local2ptree
- | Forall_pTree_from_elements
+ | check_vl_eq_args (*WAS: Forall_pTree_from_elements*)
  | auto 50 with derives
  | unfold check_gvars_spec; solve [exact I | reflexivity]
  | try change_compspecs CS; cancel_for_forward_call
@@ -1320,7 +1344,7 @@ Ltac prove_call_setup_aux  ts witness :=
 Ltac prove_call_setup ts subsumes witness :=
  prove_call_setup1 subsumes;
  [ .. | 
- match goal with |- call_setup1  _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1  _ _ _ _ _ _ _ _ (*_*) _ _ _ _ _ ?A _ _ _ _ _ _ (*OMITTED _*) -> _ =>
       check_witness_type ts A witness
  end;
  prove_call_setup_aux ts witness].
@@ -1338,7 +1362,7 @@ lazymatch goal with
       | |- call_setup2' _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
                 semax _ _ (Scall None _ _) _ =>*)
          forward_call_id1_wow
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (*_*) -> 
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow(*'*)
@@ -1420,7 +1444,7 @@ Ltac get_function_witness_type func :=
 Ltac new_prove_call_setup :=
  prove_call_setup1 funspec_sub_refl;
  [ .. | 
- match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ (*_*) _ _ _ _ ?A _ _ _ _ _ _ (*OMITTED _*) -> _ =>
       let x := fresh "x" in tuple_evar2 x ltac:(get_function_witness_type A)
       ltac:(prove_call_setup_aux (@nil Type))
       ltac:(fun _ => try refine tt; fail "Failed to infer some parts of witness")
@@ -1465,7 +1489,7 @@ lazymatch goal with
          forward_call_id1_wow(*
       | |- call_setup2_nil _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
                 semax _ _ (Scall None _ _) _ =>*)
-      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (*_*) ->
                 semax _ _ (Scall None _ _) _ =>
         tryif (unify retty Tvoid)
         then forward_call_id00_wow
@@ -4005,12 +4029,13 @@ match x with
 | DE_nothing ?e => fail 99 "The expression " e " contains a dereference of an expression with a 'By_nothing' access mode, which is quite unexpected"
 end.
 
+(*DEAD?
 Lemma elim_close_precondition:
   forall {CS: compspecs} {Espec: OracleKind} al Delta P F c Q,
    closed_wrt_vars (fun i => ~ In i al) P  ->
    closed_wrt_lvars (fun _ => True) P ->    
    semax Delta (P * F) c Q ->
-   semax Delta (Clight_seplog.close_precondition al al P * F) c Q.
+   semax Delta (close_precondition al al P * F) c Q.
 Proof.
 intros.
  apply semax_pre with (P*F); auto.
@@ -4018,6 +4043,22 @@ intros.
  apply sepcon_derives; [ | apply derives_refl].
  intro rho.
  apply Clight_seplog.close_precondition_e'; auto.
+Qed.*)
+
+Lemma elim_close_precondition:
+  forall {CS: compspecs} {Espec: OracleKind} al Delta P F c Q,
+   semax Delta ((argsassert2assert al P) * F) c Q ->
+   semax Delta (close_precondition al P * F) c Q.
+Proof.
+intros.
+ apply semax_pre with ((argsassert2assert al P)*F); auto.
+ apply andp_left2.
+ apply sepcon_derives; [ clear H | apply derives_refl].
+ intro rho. unfold close_precondition, argsassert2assert.
+ normalize. apply derives_refl'. f_equal. f_equal.
+  unfold eval_id. simpl. clear - H. generalize dependent vals.
+ induction al; simpl; intros; destruct vals; trivial; inv H.
+ rewrite (IHal _ H2), H1; trivial.
 Qed.
 
 Ltac check_parameter_types' :=
@@ -4058,6 +4099,7 @@ Fixpoint rename_localdefs (olds news: list ident) (ds: list localdef) : option (
  | nil => Some nil
  end.
 
+(*DEAD?
 Lemma compute_close_precondition: 
   forall olds news P Q Q' R,
   compute_list_norepet olds = true ->
@@ -4156,9 +4198,102 @@ split; simpl.
  unfold Map.get; subst f.
  simpl. rewrite H3. reflexivity.
 Qed.
+*)
 
+Fixpoint computeQ (ids:list ident) (vals:list val) : option (list localdef) :=
+  match ids, vals with
+    nil, nil => Some nil
+  | (i::ids'), (v::vals') => match computeQ ids' vals' with
+                              None => None
+                            | Some defs => Some (temp i v :: defs)
+                            end
+  | _, _ => None
+  end.
 
-Ltac start_function :=
+Lemma compute_close_precondition_entails1: 
+  forall ids P gv vals Q R,
+  compute_list_norepet ids = true ->
+  computeQ ids vals = Some Q ->
+  PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R))
+  |-- close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R))).
+Proof.
+intros. rewrite <- insert_locals. intros rho. unfold close_precondition; normalize. 
+Exists vals. unfold LAMBDAx. simpl.
+  unfold argsassert2assert.
+  unfold PROPx, LOCALx, SEPx. simpl. normalize.  
+  apply andp_right.
+  { apply andp_left2. apply andp_left1. unfold local, liftx, lift1, lift; simpl.
+    apply prop_derives; intros.
+    assert (AUX: map (Map.get (te_of rho)) ids = map Some vals /\
+            Forall (fun v : val => v <> Vundef) vals).
+    { generalize dependent Q. generalize dependent vals.
+      induction ids; simpl; intros.
+      - destruct vals; inv H0. simpl; split; trivial.
+      - destruct vals; inv H0. remember (computeQ ids vals) as t; destruct t; try discriminate. inv H4.
+        symmetry in Heqt. inv H.
+        remember (id_in_list a ids) as b; symmetry in Heqb; destruct b. discriminate. destruct H2.
+        destruct (IHids H3 _ _ Heqt) as [X1 X2]; simpl; trivial.
+        red in H. unfold eval_id, liftx, lift in H. simpl in H. destruct H.
+        unfold force_val in H. destruct (Map.get (te_of rho) a); [subst | congruence].
+        rewrite X1. split; auto. }
+     clear - H1 AUX; intuition. }
+  apply andp_right.
+  { apply andp_left1. clear. unfold local, liftx, lift1, lift; simpl. apply prop_derives; intros.
+    unfold Clight_seplog.mkEnv; simpl. unfold seplog.globals_only; simpl.
+    induction gv; simpl in *. trivial. destruct H.
+    split; auto. }
+  do 2 apply andp_left2; trivial.
+Qed.
+
+Lemma compute_close_precondition_entails2: 
+  forall ids P gv vals Q R,
+  compute_list_norepet ids = true ->
+  computeQ ids vals = Some Q ->
+  close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R)))
+  |--  (PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R))).
+Proof.
+intros. rewrite <- insert_locals. intros rho. unfold close_precondition; normalize.
+unfold LAMBDAx, argsassert2assert, PROPx, LOCALx, SEPx. simpl. normalize. 
+  apply andp_right.
+  { apply andp_left1. unfold Clight_seplog.mkEnv. simpl.
+    unfold seplog.globals_only; simpl. unfold local, liftx, lift1, lift; simpl. clear.
+    apply prop_derives; intros.
+    induction gv; simpl in *; trivial.
+    unfold gvars_denote in *; simpl in *; destruct H. split; auto. } 
+  apply andp_derives; trivial.
+  unfold local, liftx ,lift1, lift; simpl. apply prop_right. clear - H H0 H1 H2 H3. 
+  generalize dependent Q. generalize dependent vals.
+  induction ids; simpl; intros.
+  - destruct vals; inv H0. simpl; trivial.
+  - destruct vals; inv H0. remember (computeQ ids vals) as t; destruct t; try discriminate. inv H5.
+    symmetry in Heqt. inv H; inv H1; inv H3.
+    remember (id_in_list a ids) as b; symmetry in Heqb; destruct b. discriminate.
+    split; [ red | eauto].
+    unfold liftx, lift; simpl. unfold eval_id. rewrite H0. split; trivial.
+Qed.
+
+Lemma compute_close_precondition_eq:
+  forall ids P gv vals Q R,
+  compute_list_norepet ids = true ->
+  computeQ ids vals = Some Q ->
+  close_precondition ids (PROPx P (LAMBDAx gv vals (SEPx R)))
+  = (PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R))).
+Proof. intros.
+  apply pred_ext. eapply compute_close_precondition_entails2; trivial.
+  eapply compute_close_precondition_entails1; trivial.
+Qed.
+
+Lemma semax_elim_close_precondition:
+  forall {CS: compspecs} {Espec: OracleKind} ids Delta P gv vals R F c Q T,
+  compute_list_norepet ids = true ->
+  computeQ ids vals = Some Q ->
+   semax Delta (PROPx P (LOCALx ((map gvars gv)++Q) (SEPx R)) * F) c T ->
+   semax Delta (close_precondition ids ((PROPx P (LAMBDAx gv vals (SEPx R)))) * F) c T.
+Proof.
+intros. erewrite compute_close_precondition_eq; [ | eassumption | eassumption ]; trivial.
+Qed.
+
+Ltac start_function1 :=
  leaf_function;
  match goal with |- semax_body ?V ?G ?F ?spec =>
     check_normalized F;
@@ -4174,7 +4309,7 @@ Ltac start_function :=
     | s := (_, ?a) |- _ => unfold a in s
     end;
     lazymatch goal with
-    | s :=  (_,  WITH _: globals
+    | s :=  (_,  (*WITH _: globals*) FOR _: globals
                PRE  [] main_pre _ _ _
                POST [ tint ] _) |- _ => idtac
     | s := ?spec' |- _ => check_canonical_funspec spec'
@@ -4184,10 +4319,13 @@ Ltac start_function :=
  let DependedTypeList := fresh "DependedTypeList" in
  unfold NDmk_funspec; 
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-   split; [split3; [check_parameter_types' | check_return_type
+
+   (*WAS:split; [split3; [check_parameter_types' | check_return_type
           | try (apply compute_list_norepet_e; reflexivity);
              fail "Duplicate formal parameter names in funspec signature"  ] 
-         |];
+         |];*)
+   (*NOW:*)split3; [check_parameter_types' | check_return_type | ];
+
    match Pre with
    | (fun _ x => match _ with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun _ i => _) => intros Espec DependedTypeList i
@@ -4203,15 +4341,19 @@ Ltac start_function :=
  repeat match goal with
  | |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
- | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ match ?p with (a,b) => _ end * _) _ _ =>
+ | |- @semax _ _ _ (close_precondition _ match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
  | |- @semax _ _ _ ((match ?p with (a,b) => _ end) eq_refl * _) _ _ =>
              destruct p as [a b]
- | |- @semax _ _ _ (Clight_seplog.close_precondition _ _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
+ | |- @semax _ _ _ (close_precondition _ ((match ?p with (a,b) => _ end) eq_refl) * _) _ _ =>
              destruct p as [a b]
-       end;
- first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
-        | erewrite compute_close_precondition by reflexivity];
+       end.
+
+(* first [apply elim_close_precondition; [solve [auto 50 with closed] | solve [auto 50 with closed] | ]
+        | erewrite compute_close_precondition by reflexivity];*)
+
+Ltac start_function2 :=
+(*NEW*) simpl map; simpl app;
  simplify_func_tycontext;
  repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
@@ -4222,7 +4364,7 @@ Ltac start_function :=
       end;
       fold (Sfor s1 e s2 s3)
  end;
- try expand_main_pre;
+ try expand_main_pre_old;
  process_stackframe_of;
  repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
                                   but it needs to come after process_stackframe_of *)
@@ -4252,6 +4394,12 @@ Ltac start_function :=
      clearbody DS
  end;
  start_function_hint.
+
+Ltac start_function :=
+  start_function1;
+  first [ erewrite compute_close_precondition_eq; [ | reflexivity | reflexivity]
+        | rewrite close_precondition_main ];
+  start_function2.
 
 Opaque sepcon.
 Opaque emp.

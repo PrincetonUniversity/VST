@@ -29,7 +29,7 @@ Definition typesig_of_funsig (f:funsig):typesig := (map snd (fst f), snd f).
 
 Inductive kind : Type := VAL : memval -> kind
                                    | LK : forall n i : Z, kind
-                                   | FUN: funsig -> calling_convention -> kind.
+                                   | FUN: (*funsig*)typesig -> calling_convention -> kind.
 
 (*Non-Ctypes.v- using variant:
 Inductive kind : Type := VAL : memval -> kind

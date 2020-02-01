@@ -775,7 +775,7 @@ specialize (H x rho ve' H0);
 apply derives_refl'; congruence.
 Qed.
 Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
-
+(*DEAD CODE?
 Lemma closed_wrt_globvars:
   forall S gv v, closed_wrt_vars S (globvars2pred gv v).
 Proof.
@@ -821,7 +821,7 @@ Proof.
 intros. unfold main_pre. apply closed_wrtl_sepcon; [apply closed_wrtl_globvars | apply closed_wrtl_const].
 Qed.
 Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre : closed.
-
+*)
 Lemma closed_wrt_not1:
   forall (i j: ident),
    i<>j ->

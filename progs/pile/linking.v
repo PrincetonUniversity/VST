@@ -13,12 +13,15 @@ Inductive semax_body_proof :=
 | mk_body: forall {Vprog: varspecs} {Gprog: funspecs} {cs: compspecs}
                                {f: function} {id: ident} {fspec: funspec},
     @semax_body Vprog Gprog cs f (id,fspec) -> semax_body_proof
-| mk_external: forall (id: ident) retsig {Espec: OracleKind} {ids: list ident} {ef: external_function} 
-    {A} {P Q: forall ts : list Type,
+| mk_external: forall (id: ident) retsig {Espec: OracleKind} (*{ids: list ident}*) {ef: external_function} 
+    {A} {P: forall ts : list Type,
+          functors.MixVariantFunctor._functor
+            (rmaps.dependent_type_functor_rec ts (ArgsTT A)) mpred}
+         {Q: forall ts : list Type,
           functors.MixVariantFunctor._functor
             (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred},
      tcret_proof retsig A Q ->
-    @semax_external Espec ids ef A P Q -> semax_body_proof.
+    @semax_external Espec (*ids*) ef A P Q -> semax_body_proof.
 
 Lemma sub_option_get' {A: Type} (s t: PTree.t A) B (f:A -> option B):
   Forall (fun x => PTree.get (fst x) t = Some (snd x)) (PTree.elements s) ->
@@ -89,7 +92,7 @@ Module SortFunspec := Mergesort.Sort(FunspecOrder).
 Definition ident_of_proof (p: semax_body_proof) : ident :=
  match p with
  | @mk_body _ _ _ _ id _ _ => id
- | @mk_external id _ _ _ _ _ _ _ _ _ => id
+ | @mk_external id _ _ _ _ _ _ _ _ => id
  end.
 
 Module BodyProofOrder <: Orders.TotalLeBool.
@@ -110,7 +113,7 @@ Module SortBodyProof := Mergesort.Sort(BodyProofOrder).
 Definition Gprog_of_proof (p: semax_body_proof) :=
  match p with
  | @mk_body _ G _ _ _ _ _ => G
- | @mk_external _ _ _ _ _ _ _ _ _ _ => nil
+ | @mk_external _ _ _ _ _ _ _ _ _ => nil
  end.
 
 Fixpoint delete_dups' id f (al: funspecs) : funspecs :=

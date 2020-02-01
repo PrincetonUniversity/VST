@@ -16,12 +16,16 @@ Qed.
 (* Beginning of the API spec for the sumarray.c program *)
 Definition sumarray_spec : ident * funspec :=
  DECLARE _sumarray
-  WITH a: val, sh : share, contents : list Z, size: Z
-  PRE [ _a OF (tptr tuint), _n OF tint ]
+(*  WITH a: val, sh : share, contents : list Z, size: Z*)
+  FOR a: val, sh : share, contents : list Z, size: Z
+(*  PRE [ _a OF (tptr tuint), _n OF tint ]*)
+  PRE [ (tptr tuint), tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed;
           Forall (fun x => 0 <= x <= Int.max_unsigned) contents)
-          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
-          SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)
+          (*LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+          SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)*)
+          (LAMBDAx nil ([a; Vint (Int.repr size)])
+          (SEP   (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a)))
   POST [ tuint ]
         PROP () LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
            SEP (data_at sh (tarray tuint size) (map Vint (map Int.repr contents)) a).
@@ -33,12 +37,17 @@ Definition sumarray_spec : ident * funspec :=
 (* The precondition of "int main(void){}" always looks like this. *)
 Definition main_spec :=
  DECLARE _main
-  WITH gv : globals
+  (*WITH gv : globals*)
+  FOR gv : globals
   PRE  [] main_pre prog tt gv
   POST [ tint ]  
      PROP() 
      LOCAL (temp ret_temp (Vint (Int.repr (1+2+3+4)))) 
      SEP(TT).
+
+(* Note: It would also be reasonable to let [contents] have type [list int].
+  Then the [Forall] would not be needed in the PROP part of PRE.
+*)
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=

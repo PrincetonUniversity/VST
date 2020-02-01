@@ -37,7 +37,7 @@ Import String.
 
 Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
   match f with mk_funspec sig _ A P Q _ _ =>
-    semax_external (map fst (fst sig)) ef A P Q
+    semax_external (*(map fst (fst sig))*) ef A P Q
   end.
 
 Definition try_spec  (name: string) (spec: funspec) : 
@@ -48,11 +48,18 @@ fun defs =>
  | None => nil
  end.
 Arguments try_spec name spec defs / .
-
+(*
 Definition exit_spec' :=
  WITH u: unit
  PRE [1%positive OF tint]
    PROP () LOCAL() SEP()
+ POST [ tvoid ]
+   PROP(False) LOCAL() SEP().
+*)
+Definition exit_spec' :=
+ FOR u: unit
+ PRE [tint]
+   PROP () (LAMBDAx nil nil (SEP()))
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 
@@ -96,7 +103,7 @@ Ltac change_compspecs' cs cs' ::=
 (*
 Parameter malloc_token_precise:
   forall {cs: compspecs} sh t p, predicates_sl.precise (malloc_token sh t p).
-*)
+*)(*
 Definition malloc_spec'  {cs: compspecs} :=
    WITH t:type, gv: globals
    PRE [ 1%positive OF size_t ]
@@ -110,12 +117,26 @@ Definition malloc_spec'  {cs: compspecs} :=
        LOCAL (temp ret_temp p)
        SEP (mem_mgr gv;
              if eq_dec p nullval then emp
+            else (malloc_token Ews t p * data_at_ Ews t p)).*)
+Definition malloc_spec'  {cs: compspecs} :=
+   FOR t:type, gv: globals
+   PRE [ size_t ]
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       (LAMBDAx (gv::nil) (Vptrofs (Ptrofs.repr (sizeof t))::nil)
+       (SEP (mem_mgr gv)))
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (mem_mgr gv;
+             if eq_dec p nullval then emp
             else (malloc_token Ews t p * data_at_ Ews t p)).
 
 Parameter body_malloc:
  forall {Espec: OracleKind} {cs: compspecs} ,
   body_lemma_of_funspec EF_malloc malloc_spec'.
-
+(*
 Definition free_spec'  {cs: compspecs} :=
    WITH t: type, p:val, gv: globals
    PRE [ 1%positive OF tptr tvoid ]
@@ -124,6 +145,18 @@ Definition free_spec'  {cs: compspecs} :=
        SEP (mem_mgr gv;
               if eq_dec p nullval then emp
               else (malloc_token Ews t p * data_at_ Ews t p))
+    POST [ Tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr gv).*)
+Definition free_spec'  {cs: compspecs} :=
+   FOR t: type, p:val, gv: globals
+   PRE [ tvoid ]
+       PROP ()
+       (LAMBDAx (gv::nil) (p::nil)
+       (SEP (mem_mgr gv;
+              if eq_dec p nullval then emp
+              else (malloc_token Ews t p * data_at_ Ews t p))))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
