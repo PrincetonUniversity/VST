@@ -41,7 +41,7 @@ Require Import VST.concurrency.compiler.C_lemmas.
 Require Import VST.concurrency.compiler.Asm_self_simulation.
 Require Import VST.concurrency.compiler.Asm_lemmas.
 Require Import VST.concurrency.compiler.diagrams.
-Require Import VST.concurrency.compiler.mem_equiv.
+Require Import VST.concurrency.common.mem_equiv.
 Require Import VST.concurrency.lib.pair.
 Require Import VST.concurrency.compiler.inject_virtue.
 Require Import VST.concurrency.compiler.concur_match.
@@ -295,7 +295,7 @@ Section FreeDiagrams.
     Proof.
       
       intros.
-
+      (*
       (*Add all the memories and theeir relations *)
       get_mem_compatible.
       get_thread_mems.
@@ -321,8 +321,7 @@ Section FreeDiagrams.
       
       (** * 1. Set all the at_externals for LEFT diagram m1 m1' m2 m2' *)
       left_diagram.
-    Admitted.
-    (*
+      
 
         unify_injection. rename b0 into b2.
         set (ofs2:= add ofs (repr delta)).
@@ -438,10 +437,10 @@ Section FreeDiagrams.
           + simpl; inv HH0; auto.
           + simpl; inv HH0; auto.
           + !goal (lockRes _ (b2,_) = None).
-            eapply INJ_lock_permissions_None; eauto.
+            eapply INJ_lock_permissions_None; eauto. *)
 
         
-      Admitted.*) (* free_step_diagram_compiled *)
+      Admitted. (* free_step_diagram_compiled *)
     
     Lemma free_step_diagram:
       let hybrid_sem:= (sem_coresem (HybridSem(Some hb))) in 
