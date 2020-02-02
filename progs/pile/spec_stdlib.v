@@ -122,20 +122,23 @@ Exists (sizeof t, gv) emp.
 change (liftx emp) with (@emp (environ->mpred) _ _).
 rewrite !emp_sepcon.
 apply andp_right.
-{ unfold LAMBDAx, PROPx, LOCALx, SEPx, argsassert2assert. simpl; entailer!. }
-match goal with |- _ |-- prop ?PP => set (P:=PP) end.
-entailer!.
+{ normalize. clear H. unfold LAMBDAx, PROPx, LOCALx, SEPx, argsassert2assert. simpl; entailer!. }
+ match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+unfold PROPx, LAMBDAx, SEPx, LOCALx, local, lift1, liftx, lift. simpl; entailer!.
 subst P. normalize. intros. simpl.
 apply exp_derives; intros p.
-if_tac; auto.
+if_tac; auto. entailer!.
+unfold PROPx, LOCALx, SEPx; simpl.
+apply andp_derives; trivial.
+apply andp_derives; trivial. entailer!.
+clear - H0 H1 H2 H7.
 unfold malloc_token.
 assert_PROP (field_compatible t [] p).
-Admitted. (* simpl.
-entailer.
-apply malloc_compatible_field_compatible; auto.
+{ entailer!.
+  apply malloc_compatible_field_compatible; auto. }
 entailer!.
 rewrite memory_block_data_at_; auto.
-Qed.*)
+Qed.
 
 Lemma free_spec_sub:
  forall {cs: compspecs} (t: type), 
