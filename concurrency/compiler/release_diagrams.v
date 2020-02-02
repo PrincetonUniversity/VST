@@ -64,8 +64,9 @@ Require Import VST.concurrency.compiler.synchronisation_lemmas.
 
 
 
-Module ReleaseDiagrams
-       (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments CC_correct).
+Section ReleaseDiagrams.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (* this modules hosts lemmas that depend on the Hybrid machine setup.*)
 
   Import HybridMachineSig.
@@ -75,12 +76,12 @@ Module ReleaseDiagrams
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
-  Module MySimulationTactics:= SimulationTactics CC_correct Args.
+  (* Module MySimulationTactics:= SimulationTactics CC_correct Args.
   Import MySimulationTactics.
-  Import MyConcurMatch.
+  Import MyConcurMatch. *)
   
-  (*Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
-  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)). *)
+  Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
+  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
 
 
   
@@ -90,9 +91,6 @@ Module ReleaseDiagrams
   (*Lemmas about the calls: *)
   Notation vone:= (Vint Int.one).
   Notation vzero:= (Vint Int.zero).
-
-
-  Section release.
     Context (hb: nat).
     (*Instantiate definitions in Concur with the current hybridbound*)
     Notation concur_match:= (concur_match hb).
@@ -106,9 +104,6 @@ Module ReleaseDiagrams
     Notation mtch_target:= (mtch_target hb).
     Notation mtch_compiled:= (mtch_compiled hb).
     Notation mtch_source:= (mtch_source hb).
-    
-
-
   
     Lemma at_external_sum_sem:
       forall Sem,
@@ -125,13 +120,13 @@ Module ReleaseDiagrams
                (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2))
                (Hat_external2 : at_external CoreSem th_state2 m2 = Some (UNLOCK, args')), 
           at_external
-            (MyThreadSimulationDefinitions.sem_coresem (HybridSem (Some (S hb))))
+            (sem_coresem (HybridSem (Some (S hb))))
             sum_state2 (restrPermMap abs_proof) = Some (UNLOCK, args').
     Proof.
       intros.
       
       simpl; unfold at_external_sum, sum_func.
-      rewrite <- (restr_proof_irr (th_comp _ thread_compat2)).
+      rewrite <- (restr_proof_irr (th_comp thread_compat2)).
       rewrite <- Hat_external2; simpl.
       
       inversion HState2; subst.
@@ -149,9 +144,9 @@ Module ReleaseDiagrams
         eapply cur_equiv_restr_mem_equiv; auto.
     Qed.
 
-    Lemma release_step_diagram_self Sem:
+    Lemma release_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
-      forall (SelfSim: (self_simulation (@semC Sem) CoreSem)) tid
+      forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
         (st1 : mach_state hb) (st2 : mach_state (S hb))
         (m1 m1' m2 : mem) (mu : meminj) i b b' ofs delt
         (Htid_neq: tid <> hb)
@@ -200,6 +195,7 @@ Module ReleaseDiagrams
 
       
       (*Add all the memories and theeir relations *)
+      
       get_mem_compatible.
       get_thread_mems.
       
@@ -697,7 +693,7 @@ Module ReleaseDiagrams
                      eapply max_map_valid.
                 * do 2 rewrite getCur_restr.
                   eapply perm_surj_compute.
-                  -- exploit MyConcurMatch.mtch_target; eauto.
+                  -- exploit @mtch_target; eauto.
                      intros HH; inv HH; inv matchmem;
                        repeat rewrite getCur_restr in *;
                        eauto.
@@ -732,7 +728,7 @@ Module ReleaseDiagrams
                      eapply max_map_valid.
                 * do 2 rewrite getCur_restr.
                   eapply perm_surj_compute.
-                  -- exploit MyConcurMatch.mtch_source; eauto.
+                  -- exploit @mtch_source; eauto.
                      intros HH; inv HH; inv matchmem;
                        repeat rewrite getCur_restr in *;
                        eauto.
@@ -1421,7 +1417,7 @@ Module ReleaseDiagrams
       get_thread_mems.
       clean_proofs.
       pose proof (cur_equiv_restr_mem_equiv
-                    _ _ (th_comp _ thread_compat1) Hthread_mem1) as
+                    _ _ (th_comp thread_compat1) Hthread_mem1) as
           Hmem_equiv.
       inversion Hlock_update_mem_strict_load. subst vload vstore.
       
@@ -1449,8 +1445,7 @@ Module ReleaseDiagrams
         clear sim_atx.
         destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
         
-        (edestruct (release_step_diagram_self AsmSem)
-           with (tid:=tid) as
+        (edestruct (release_step_diagram_self AsmSem tid) as
             (e' & m2' & Hthread_match & Htrace_inj & external_step & HCMatch');
          first[ eassumption|
                 econstructor; eassumption|
@@ -1548,8 +1543,7 @@ Module ReleaseDiagrams
         destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
 
         
-        (edestruct (release_step_diagram_self CSem)
-           with (tid:=tid)
+        (edestruct (release_step_diagram_self CSem tid)
           as
             (e' & m2' & Hthread_match & Htrace_inj & external_step & CMatch');
          first[ eassumption|
@@ -1586,6 +1580,4 @@ Module ReleaseDiagrams
             all: try econstructor; eauto.
             all: try apply CMatch.
     Qed. (* release_step_diagram *)
-    
-  End release.
 End ReleaseDiagrams.

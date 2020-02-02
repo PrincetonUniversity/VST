@@ -66,7 +66,9 @@ Require Import VST.concurrency.compiler.fail_acq_diagrams.
 Require Import VST.concurrency.compiler.spawn_diagrams.
 
 
-Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments CC_correct).
+Section SyncSimulation.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   
   Import HybridMachineSig.
   Import DryHybridMachine.
@@ -75,7 +77,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
-  Module MySimulationTactics:= SimulationTactics CC_correct Args.
+  (* Module MySimulationTactics:= SimulationTactics CC_correct Args.
   Import MySimulationTactics.
 
   (* We import the proofs for each call *)
@@ -91,9 +93,10 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
   Import MyFailAcqDiagrams.
   Module MySpawnDiagrams:= SpawnDiagrams CC_correct Args.
   Import MySpawnDiagrams.
+  Import MyConcurMatch. *)
+  
   Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
   Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
-  Import MyConcurMatch.
 
 
   Notation vone:= (Vint Int.one).
@@ -128,6 +131,10 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
     Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
 
 
+    Existing Instance HybridSem.
+    Existing Instance dryResources.
+    Existing Instance DryHybridMachineSig.
+    
     
 
 
@@ -149,14 +156,12 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
       change
         (at_external (sem_coresem (HybridSem (Some hb))) y x0 =
          at_external (sem_coresem (HybridSem (Some hb))) y y0).
-      rewrite H0; reflexivity.
+      eapply Sum_at_external_proper'; try assumption; reflexivity.
     Qed.
     
-
     
     Lemma external_step_diagram:
-      forall (U : list nat)
-        (tr1 tr2 : HybridMachineSig.event_trace)
+      forall (U : list nat) (tr1 tr2 : HybridMachineSig.event_trace)
         (st1 : ThreadPool.t) 
         (m1 : mem)
         (st1' : ThreadPool.t)
@@ -218,8 +223,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
             (?&?&?&?&?&?); subst angel'; simpl in *; eauto;
           try rewrite (restr_proof_irr _ (proj1 (Hcmpt tid cnt1))).
         + hnf.
-          unfold MyAcquireDiagrams.MySimulationTactics.MyConcurMatch.concur_match.
-          !goal(concur_match _ _ _ _ _).
+          !goal(concur_match _ _ _ _ _ _).
           eapply concur_match_perm_restrict in H.
           do 2 rewrite <- mem_is_restr_eq in H.
           subst m1 m2; apply concur_match_perm_restrict.
@@ -288,7 +292,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         assert (Hmem_compat: mem_compatible st1 m1).
         { eapply mem_compat_Max; try eapply Hcmpt; eauto. }
         
-        unshelve edestruct (release_step_diagram angel' m1 m1') as
+        unshelve edestruct (release_step_diagram hb angel' m1 m1') as
             (?&?&?&?&?&?); subst angel';
           try apply HisLock; simpl in *; eauto.
         + !goal(concur_match _ _ _ _ _ _).
@@ -352,7 +356,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         assert (HH:set_new_mems b (unsigned ofs) (getThreadR cnt1) LKSIZE_nat pmap_tid').
         { econstructor; destruct pmap_tid'; simpl in *; subst a a0; reflexivity. }
         
-        unshelve edestruct (make_step_diagram m1 m1' m2) as (?&?&?&?&?&?);
+        unshelve edestruct (make_step_diagram hb m1 m1' m2) as (?&?&?&?&?&?);
           eauto; simpl; try solve[subst; eauto].
         + subst; eapply concur_match_perm_restrict; assumption.
         + econstructor; eauto.
@@ -391,7 +395,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         remember (restrPermMap (proj1 (Hcmpt tid cnt1))) as m1.
         clean_proofs.
 
-        unshelve edestruct (free_step_diagram m1 m2)
+        unshelve edestruct (free_step_diagram hb m1 m2)
           with (new_perms:=pmap_tid') as (?&?&?&?&?&?);
           eauto; simpl; try solve[subst; eauto]; simpl in *;
             try eassumption.
@@ -444,7 +448,7 @@ Module SyncSimulation (CC_correct: CompCert_correctness)(Args: ThreadSimulationA
         set (m1_restr:= restrPermMap (proj1 (Hcmpt tid cnt1))).
         set (m2_restr:= restrPermMap (proj1 (Hcmpt2 tid cnt2))).
         
-        unshelve edestruct (acquire_fail_step_diagram m1_restr m2_restr) as (?&?&?&?);
+        unshelve edestruct (acquire_fail_step_diagram hb m1_restr m2_restr) as (?&?&?&?);
           eauto; simpl; try solve[subst; eauto]; simpl in *;
             try eassumption.
         + subst m1_restr; rewrite restr_Max_eq. apply Hcmpt.

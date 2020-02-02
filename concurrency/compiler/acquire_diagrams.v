@@ -64,8 +64,9 @@ Require Import VST.concurrency.compiler.synchronisation_lemmas.
 
 
 
-Module AcquireDiagrams
-       (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments CC_correct).
+Section AcquireDiagrams.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (* this modules hosts lemmas that depend on the Hybrid machine setup.*)
 
   Import HybridMachineSig.
@@ -75,18 +76,13 @@ Module AcquireDiagrams
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
-  Module MySimulationTactics:= SimulationTactics CC_correct Args.
+  (* Module MySimulationTactics:= SimulationTactics CC_correct Args.
   Import MySimulationTactics.
-  Import MyConcurMatch.
+  Import MyConcurMatch. *)
   
-  (*Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
-  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)). *)
-
-
+  Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
+  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
   
-
-  
-
   (*Lemmas about the calls: *)
   Notation vone:= (Vint Int.one).
   Notation vzero:= (Vint Int.zero).
@@ -113,11 +109,11 @@ Module AcquireDiagrams
 
     
     (* 4490 *)
-    Lemma acquire_step_diagram_self Sem:
+    Lemma acquire_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
       forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
              (st1 : mach_state hb) (st2 : mach_state (S hb))
-             (m1 m1' m2 : mem) (mu : meminj) tid i b b' ofs delt
+             (m1 m1' m2 : mem) (mu : meminj) i b b' ofs delt
              (Htid_neq: tid <> hb)
              (Hinj_b : mu b = Some (b', delt))
              cnt1 cnt2 (* Threads are contained *)
@@ -500,7 +496,7 @@ Module AcquireDiagrams
             
             simpl; unfold at_external_sum, sum_func.
             subst CoreSem. 
-            rewrite <- (restr_proof_irr (th_comp _ thread_compat2)).
+            rewrite <- (restr_proof_irr (th_comp thread_compat2)).
             rewrite <- Hat_external2; simpl.
             clear - Hthread_mem2 HState2.
             
@@ -604,9 +600,8 @@ Module AcquireDiagrams
           !context_goal one_thread_match. shelve.
         + !context_goal memval_inject.
           repeat econstructor.
-        + eapply empty_map_is_empty_pair.
-          eapply inject_empty_maps.
-          eapply empty_is_empty_pair.
+        + !goal (access_map_equiv_pair _ (pair0 empty_map)).
+          eapply empty_map_is_empty_pair, inject_empty_maps, empty_is_empty_pair.
         + !goal(lock_update _ st1 _ _ _ _ _).
           simpl. econstructor; simpl.
           subst newThreadPerm1;
@@ -662,7 +657,7 @@ Module AcquireDiagrams
                      eapply max_map_valid.
                 * do 2 rewrite getCur_restr.
                   eapply perm_surj_compute.
-                  -- exploit MyConcurMatch.mtch_target; eauto.
+                  -- exploit @mtch_target; eauto.
                      intros HH; inv HH; inv matchmem;
                        repeat rewrite getCur_restr in *;
                        eauto.
@@ -697,7 +692,7 @@ Module AcquireDiagrams
                      eapply max_map_valid.
                 * do 2 rewrite getCur_restr.
                   eapply perm_surj_compute.
-                  -- exploit MyConcurMatch.mtch_source; eauto.
+                  -- exploit @mtch_source; eauto.
                      intros HH; inv HH; inv matchmem;
                        repeat rewrite getCur_restr in *;
                        eauto.
@@ -721,7 +716,7 @@ Module AcquireDiagrams
         st1 (m1 m1' m1'' : mem) Hcnt1 
         st2 (m2' : mem) Hcnt2
         (Hsame_cnt: same_cnt hb st1 st2 Hcnt1 Hcnt2)
-        b1 ofs lock_perms (code1 : semC)  (code2 : Asm.state)
+        b1 ofs lock_perm (code1 : semC)  (code2 : Asm.state)
         (Hthread_mem1: access_map_equiv (thread_perms hb st1 Hcnt1) (getCurPerm m1'))
         (Hthread_mem2: access_map_equiv (thread_perms hb st2 Hcnt2) (getCurPerm m2'))
         (CMatch: concur_match (Some cd) mu st1 m1' st2 m2')
@@ -735,11 +730,11 @@ Module AcquireDiagrams
         (Hlock_update_mem_strict_load:
            lock_update_mem_strict_load b1 (unsigned ofs)  (snd (getThreadR Hcnt1))
                                        m1' m1'' vone vzero)
-        (HisLock: lockRes st1 (b1, unsigned ofs) = Some lock_perms)
-        (Hvirtue_locks: virtueLP angel= lock_perms),
+        (HisLock: lockRes st1 (b1, unsigned ofs) = Some lock_perm)
+        (Hvirtue_locks: virtueLP angel= lock_perm),
         let newThreadPerm1:= (computeMap_pair (getThreadR Hcnt1) (virtueThread angel)) in
         let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
-        forall (Hjoin_angel: permMapJoin_pair lock_perms (getThreadR Hcnt1) newThreadPerm1)
+        forall (Hjoin_angel: permMapJoin_pair lock_perm (getThreadR Hcnt1) newThreadPerm1)
           (Hlt_new: permMapLt_pair newThreadPerm1 (getMaxPerm m1'))
           (Hlt1 : permMapLt (thread_perms _ _ Hcnt1) (getMaxPerm m1'))
           (Hlt2 : permMapLt (thread_perms _ _ Hcnt2) (getMaxPerm m2'))
@@ -783,12 +778,14 @@ Module AcquireDiagrams
       (** * 0. Stablish facts about m2' *)
       
       (** * 1. Set all the at_externals for LEFT diagram m1 m1' m2 m2' *)
+      
+      
       left_diagram.
 
       exploit INJ_lock_permissions_image; eauto;
         intros (pmap&Hpmap&Hpmap_equiv1&Hpmap_equiv2); simpl in *.
       set (virtueThread2:= virtueThread_inject m2' mu virtueThread1).
-      (*set (virtueLP2:=virtueLP_inject m2'' mu lock_perms). *)
+      (*set (virtueLP2:=virtueLP_inject m2'' mu lock_perm). *)
       set (virtueLP2:=pmap).
       set (ofs2:= add ofs (repr delta)).
       set (new_cur2:= (computeMap_pair (getThreadR Hcnt2) virtueThread2)).
@@ -797,10 +794,6 @@ Module AcquireDiagrams
                      (b2, unsigned ofs2) (pair0 empty_map))).
       remember (fullThUpd_comp st1 hb Hcnt1 (Kresume (SST code1) Vundef) new_perms
                                (b1, unsigned ofs)) as st1'.
-
-      
-      (* assert (Hofs2: unsigned ofs2 = unsigned ofs + delta).
-      { subst ofs2; solve_unsigned. } *)
       
       assert (H: ThreadPool (Some (S hb)) =
                  @t dryResources (HybridSem (@Some nat (S hb)))).
@@ -814,21 +807,21 @@ Module AcquireDiagrams
           (permMapJoin_pair (virtueLP (inject_virtue m2' mu angel)) (getThreadR Hcnt2)
                             (computeMap_pair (getThreadR Hcnt2) virtueThread2)
           ).
-        { intros [HH1 HH2]; simpl in *; subst lock_perms.
+        { intros [HH1 HH2]; simpl in *; subst lock_perm.
           split; simpl; first [rewrite <- Hpmap_equiv1 | rewrite <- Hpmap_equiv2];
             eassumption. }
         
         (* replace virtueLP2 with (virtueLP (inject_virtue m2' mu angel)).
-        2:{ subst virtueLP2; simpl. subst lock_perms.
+        2:{ subst virtueLP2; simpl. subst lock_perm.
             erewrite virtueLP_inject_max_eq_exteny; try reflexivity.
             (* this is a bit stronger than equivalence *)
             inv Hlock_update_mem_strict_load2.
             erewrite <- getMax_restr_eq.
             eapply store_max_eq; eauto. } *)
         
-        assert (HH:permMapLt_pair lock_perms (getMaxPerm m1')) by
+        assert (HH:permMapLt_pair lock_perm (getMaxPerm m1')) by
             (eapply CMatch; eauto).
-        subst lock_perms newThreadPerm1 virtueThread1.
+        subst lock_perm newThreadPerm1 virtueThread1.
 
         eapply permMapJoin_pair_inject_acq; try eassumption; eauto;
           try eapply Hangel_bound;
@@ -844,44 +837,6 @@ Module AcquireDiagrams
           eapply join_dmap_valid_pair; eauto. }
       repeat pose_max_equiv.
       
-      (*
-    let Hcmpt_fwd:= fresh "Hcmpt_update" in
-      repeat unfold_state_forward.
-      (* Find the states and the mems.*)
-      match goal with
-      |[ H: ?st' = updLockSet (@updThread _ _ _ ?st _ _ _) _ _ |- _ ] =>
-       let M:= fresh in mark M st';
-                          
-                        (let Hcmpt_update_state := fresh "Hcmpt_update" in
-  eapply (mem_compatible_fullThreadUpdate _ (TP _)) in H as Hcmpt_update_state;
-   try reflexivity; simpl;
-   [  | eassumption | idtac | idtac | solve_valid_block ];
-   idtac);
-                        
-                        try forward_state_cmpt_all;
-                        clear M
-      end;
-      repeat forward_mem_cmpt_all; swap 1 3.
-      try eassumption; subst_set; try subst;
-          (first
-             [ solve_permMapLt_easy
-             | eapply permMapLt_pair_trans211;
-               [ solve_permMapLt_easy | solve_permMapLt_cmpt ]
-             | solve_permMapLt_set_new_perms
-             (*| solve
-                 [ apply_permMapLt_compute_inject_pair ]*)
-             | idtac "permMapLt_pair cant be solved:"; print_goal ]).
-      try eassumption; subst_set; try subst;
-          (first
-             [ solve_permMapLt_easy
-             | eapply permMapLt_pair_trans211;
-               [ solve_permMapLt_easy | solve_permMapLt_cmpt ]
-             | solve_permMapLt_set_new_perms
-             (*| solve
-                 [ apply_permMapLt_compute_inject_pair ]*)
-             | idtac "permMapLt_pair cant be solved:"; print_goal ]). *)
-      
-
       forward_cmpt_all. 
       rename Hcmpt_mem_fwd into Hcmpt2'.
       rename Hcmpt_mem_fwd0 into Hcmpt1'.
@@ -1089,9 +1044,9 @@ Module AcquireDiagrams
                        (Mem.mem_contents lk_mem2) by
                        (subst lk_mem2; reflexivity).
                    assert (HH:access_map_equiv
-                                (MySimulationTactics.lock_perms hb st1 Hcnt1)
+                                (lock_perms hb st1 Hcnt1)
                                 (getCurPerm lk_mem1)).
-                   { subst lk_mem1; unfold MySimulationTactics.lock_perms.
+                   { subst lk_mem1; unfold lock_perms.
                      unfold thread_mems.
                      rewrite getCur_restr; simpl. reflexivity. }
                    rewrite HH.
@@ -1389,8 +1344,8 @@ Module AcquireDiagrams
         (st2 : ThreadPool (Some (S hb))) (m2 : mem)
         (cnt1 : containsThread(Sem:=HybridSem _) st1 tid)
         (cnt2 : containsThread(Sem:=HybridSem _) st2 tid)
-        (c : semC) (b : block) (ofs : int) lock_perms
-        (Hangel_lock_perms: virtueLP angel = lock_perms)
+        (c : semC) (b : block) (ofs : int) lock_perm
+        (Hangel_lock_perm: virtueLP angel = lock_perm)
         (Hthread_mem1: access_map_equiv (thread_perms _ _ cnt1) (getCurPerm m1))
         (Hthread_mem2: access_map_equiv (thread_perms _ _ cnt2) (getCurPerm m2))
         (CMatch: concur_match cd mu st1 m1 st2 m2)
@@ -1404,10 +1359,10 @@ Module AcquireDiagrams
            lock_update_mem_strict_load b (unsigned ofs)
                                        (snd (getThreadR cnt1))
                                        m1 m1' vone vzero )
-        (HisLock: lockRes st1 (b, unsigned ofs) = Some lock_perms),
+        (HisLock: lockRes st1 (b, unsigned ofs) = Some lock_perm),
         let newThreadPerm1:= (computeMap_pair (getThreadR cnt1) (virtueThread angel)) in
         let new_perms:= Build_virtue (virtueThread angel) (empty_map, empty_map) in
-        forall (Hjoin_angel: permMapJoin_pair lock_perms (getThreadR cnt1) newThreadPerm1)
+        forall (Hjoin_angel: permMapJoin_pair lock_perm (getThreadR cnt1) newThreadPerm1)
           (Hlt_new: permMapLt_pair newThreadPerm1 (getMaxPerm m1)),
         exists evnt2 (st2' : t) (m2' : mem),
           let evnt:= build_acquire_event (b, unsigned ofs) (fst (virtueThread angel)) m1' in
@@ -1422,7 +1377,7 @@ Module AcquireDiagrams
       pose proof (memcompat1 CMatch) as Hcmpt1.
       get_mem_compatible.
       get_thread_mems.
-      pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp _ thread_compat1) Hthread_mem1) as
+      pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
           Hmem_equiv1.
       inversion Hlock_update_mem_strict_load. subst vload vstore.
 
@@ -1446,8 +1401,7 @@ Module AcquireDiagrams
         clear sim_atx.
         destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
 
-        (edestruct (acquire_step_diagram_self AsmSem)
-           with (tid:=tid) as
+        (edestruct (acquire_step_diagram_self AsmSem tid) as
             (e' & m2' & Hthread_match & Htrace_inj & external_step & CMatch');
          first[ eassumption|
                 econstructor; eassumption|
@@ -1541,8 +1495,7 @@ Module AcquireDiagrams
         clear sim_atx.
         destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
         
-        (edestruct (acquire_step_diagram_self CSem)
-           with (tid:=tid) as
+        (edestruct (acquire_step_diagram_self CSem tid) as
             (e' & m2' & Hthread_match & Htrace_inj & external_step & CMatch');
          first[ eassumption|
                 econstructor; eassumption|
@@ -1558,7 +1511,8 @@ Module AcquireDiagrams
           * symmetry in Hmem_equiv1.
             assert (Hmem_equiv2: mem_equiv m2 (restrPermMap Hlt2)).
             { symmetry; eapply cur_equiv_restr_mem_equiv.
-              clean_proofs; auto. }
+              
+clean_proofs; auto. }
             (* why can't you rewrite here? *)
             eapply proper_match_mem;
               try eassumption.

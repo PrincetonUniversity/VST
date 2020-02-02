@@ -64,8 +64,9 @@ Require Import VST.concurrency.compiler.synchronisation_lemmas.
 
 
 
-Module SpawnDiagrams
-       (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments CC_correct).
+Section SpawnDiagrams.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (* this modules hosts lemmas that depend on the Hybrid machine setup.*)
 
   Import HybridMachineSig.
@@ -75,9 +76,9 @@ Module SpawnDiagrams
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
-  Module MySimulationTactics:= SimulationTactics CC_correct Args.
+  (*Module MySimulationTactics:= SimulationTactics CC_correct Args.
   Import MySimulationTactics.
-  Import MyConcurMatch.
+  Import MyConcurMatch.*)
   
   (*Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
   Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)). *)

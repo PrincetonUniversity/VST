@@ -64,8 +64,9 @@ Require Import VST.concurrency.compiler.synchronisation_lemmas.
 
 
 
-Module FreeDiagrams
-       (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments CC_correct).
+Section FreeDiagrams.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (* this modules hosts lemmas that depend on the Hybrid machine setup.*)
 
   Import HybridMachineSig.
@@ -75,12 +76,12 @@ Module FreeDiagrams
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
-  Module MySimulationTactics:= SimulationTactics CC_correct Args.
+  (*Module MySimulationTactics:= SimulationTactics CC_correct Args.
   Import MySimulationTactics.
-  Import MyConcurMatch.
+  Import MyConcurMatch.*)
   
-  (*Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
-  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)). *)
+  Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
+  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
 
   (*Lemmas about the calls: *)
   Notation vone:= (Vint Int.one).
@@ -104,11 +105,11 @@ Module FreeDiagrams
 
 
     
-    Lemma free_step_diagram_self Sem:
+    Lemma free_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
       forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
              (st1 : mach_state hb) (st2 : mach_state (S hb))
-             (m1 m2 : mem) (mu : meminj) tid i b1 b2 ofs delt
+             (m1 m2 : mem) (mu : meminj) i b1 b2 ofs delt
              lock_data pdata
              (Hinj_b : mu b1 = Some (b2, delt))
              cnt1 cnt2 (* Threads are contained *)
@@ -205,11 +206,11 @@ Module FreeDiagrams
         
         (* 8 goals produced. *)
         + !goal (semantics.at_external _ _ _ = Some (FREE_LOCK, _)).
-          erewrite (cur_equiv_restr_mem_equiv _ _ _ Hthread_mem2).
+          erewrite (Sum_at_external_proper' (S hb));
+            try eapply (cur_equiv_restr_mem_equiv _ _ _ Hthread_mem2);
+            try reflexivity.
           erewrite <- coerse_state_atx; eauto.
           eapply atx_injection; eauto.
-          
-          
         + !goal (lockRes _ (b2,_) = Some _).
           simpl in *; rewrite <- Hpmap; repeat f_equal; auto.
         + clear - Hempty_lock Hpmap_equiv1 Hpmap_equiv2.
@@ -485,7 +486,7 @@ Module FreeDiagrams
       get_thread_mems.
       clean_proofs.
       pose proof (cur_equiv_restr_mem_equiv
-                    _ _ (th_comp _ thread_compat1) Hthread_mem1) as
+                    _ _ (th_comp thread_compat1) Hthread_mem1) as
           Hmem_equiv.
       
       (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)

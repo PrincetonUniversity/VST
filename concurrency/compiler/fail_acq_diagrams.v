@@ -64,8 +64,9 @@ Require Import VST.concurrency.compiler.synchronisation_lemmas.
 
 
 
-Module FailAcqDiagrams
-       (CC_correct: CompCert_correctness)(Args: ThreadSimulationArguments CC_correct).
+Section FailAcqDiagrams.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (* this modules hosts lemmas that depend on the Hybrid machine setup.*)
 
   Import HybridMachineSig.
@@ -75,12 +76,12 @@ Module FailAcqDiagrams
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
-  Module MySimulationTactics:= SimulationTactics CC_correct Args.
+  (* Module MySimulationTactics:= SimulationTactics CC_correct Args.
   Import MySimulationTactics.
-  Import MyConcurMatch.
+  Import MyConcurMatch. *)
   
-  (*Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
-  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)). *)
+  Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
+  Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
 
   (*Lemmas about the calls: *)
   Notation vone:= (Vint Int.one).
@@ -105,12 +106,12 @@ Module FailAcqDiagrams
 
 
     
-    Lemma acquire_fail_step_diagram_self Sem:
+    Lemma acquire_fail_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
       forall (m1 m2: mem)
              (SelfSim: (self_simulation (@semC Sem) CoreSem))
              (st1 : mach_state hb) (st2 : mach_state (S hb))
-             (mu : meminj) tid i b b' ofs delt
+             (mu : meminj) i b b' ofs delt
              (Hinj_b : mu b = Some (b', delt))
              cnt1 cnt2 (* Threads are contained *)
              (CMatch: concur_match i mu st1 m1 st2 m2)
@@ -272,7 +273,7 @@ Module FailAcqDiagrams
     
     Lemma acquire_fail_step_diagram_compiled:
       let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
-      forall (m1 m1' m1'' : mem) (cd : compiler_index)
+      forall (m1 m1' : mem) (cd : compiler_index)
         mu st1 st2 (m2' : mem) Hcnt1 Hcnt2
         (Hsame_sch: same_cnt hb st1 st2 Hcnt1 Hcnt2)
         b1 ofs (code1 : semC)  (code2 : Asm.state)
@@ -289,22 +290,69 @@ Module FailAcqDiagrams
           (Hrange_perm: perm_interval m1_locks b1 (unsigned ofs) LKSIZE Cur Readable)
           (Hstrict: strict_evolution_diagram cd mu code1 m1 m1' code2 m2'),
         exists evnt2,
-        forall m2_any (Hcmpt2: mem_compatible st2 m2_any),
+        forall any_perm Hlt,
+          let m2_any:= @restrPermMap any_perm m2' Hlt in
+              forall (Hcmpt2: mem_compatible st2 m2_any),
           let evnt:= (Events.failacq (b1, unsigned ofs)) in
-          concur_match (Some cd) mu st1 m1'' st2 m2_any /\
+          concur_match (Some cd) mu st1 m1' st2 m2_any /\
           inject_sync_event mu evnt evnt2 /\
           forall (Hcmpt2: mem_compatible st2 m2_any),  
             syncStep(Sem:=HybridSem (Some (S hb)))
                     true Hcnt2 Hcmpt2 st2 m2_any evnt2.
-    (*
-            HybridMachineSig.external_step
-              (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-              U tr2 st2 m2_any (HybridMachineSig.schedSkip U)
-              (tr2 ++ (Events.external hb evnt2 :: nil)) st2 m2_any.*)
     Proof.
-      (* TODO SUNDAY: *)
-    Admitted.
+      intros.
+      (*Add all the memories and theeir relations *)
+      get_mem_compatible.
+      get_thread_mems.
+      clean_proofs.
 
+      left_diagram.
+
+      assert (Hmax_locks: Max_equiv m1_locks m1') by
+           eapply restr_Max_equiv.
+        
+      remember (unsigned (add ofs (repr delta))) as ofs2.
+      assert (Heq: ofs2 = unsigned ofs + delta ).
+      { subst ofs2. solve_unsigned. }
+        
+      (* HERE *)
+      econstructor; intros.
+      repeat weak_split.
+      - subst m2_any. eapply concur_match_perm_restrict2; eauto.
+      - do 2 econstructor; eauto.
+      - intros.
+        !context_goal @syncStep.
+        subst ofs2. 
+        eapply step_acqfail; try reflexivity; eauto.
+        + !goal (invariant st2).
+          eapply CMatch.
+        + simpl. rewrite <- Hat_external2'.
+          simpl. repeat f_equal.
+          clean_proofs. subst m2_any.
+          erewrite <- restrPermMap_idempotent_eq.
+          eapply self_restre_eq; assumption.
+        + simpl.
+          move Hrange_perm at bottom.
+          clean_proofs. subst m2_any. 
+          unfold unsigned in Heq.
+          erewrite <- restrPermMap_idempotent_eq, Heq.
+          replace (intval ofs + delta + LKSIZE) with (intval ofs + LKSIZE + delta) by
+              omega.
+          eapply Mem.range_perm_inject; eauto.
+          subst m1_locks.
+          eapply CMatch.
+        + subst m2_any; simpl.
+          unfold unsigned in Heq.
+          unshelve erewrite <- restrPermMap_idempotent_eq, Heq; eauto.
+          exploit Mem.load_inject; try eapply Hload; eauto.
+          subst m1_locks; eapply CMatch.
+          intros; normal_hyp; eauto.
+          inv H0; eauto. rewrite <- H.
+          simpl; f_equal; eauto.
+
+      Unshelve.
+      all: eauto.
+    Qed.
     
     Lemma acquire_fail_step_diagram:
       let hybrid_sem:= (sem_coresem (HybridSem(Some hb))) in 
@@ -331,17 +379,13 @@ Module FailAcqDiagrams
             forall (Hcmpt2: mem_compatible st2 any_mem),  
               syncStep(Sem:=HybridSem (Some (S hb)))
                       true cnt2 Hcmpt2 st2 any_mem evnt2.
-    (* HybridMachineSig.external_step
-                (scheduler:=HybridMachineSig.HybridCoarseMachine.scheduler)
-                U tr2 st2 any_mem (HybridMachineSig.schedSkip U)
-                (seq.cat tr2 (Events.external tid evnt' :: nil)) st2 any_mem. *)
     Proof.
       intros; simpl in *.
       inv Hsame_sch.
       pose proof (memcompat1 CMatch) as Hcmpt1.
       get_mem_compatible.
       get_thread_mems.
-      pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp _ thread_compat1) Hthread_mem1) as
+      pose proof (cur_equiv_restr_mem_equiv _ _ (th_comp thread_compat1) Hthread_mem1) as
           Hmem_equiv.
       
       (* destruct {tid < hb} + {tid = hb} + {hb < tid}  *)
@@ -373,7 +417,7 @@ Module FailAcqDiagrams
         remember (restrPermMap Hth_lt2) as m2_thread.
         
         unshelve (edestruct (acquire_fail_step_diagram_self
-                               AsmSem m1_thread m2_thread) as
+                               AsmSem tid m1_thread m2_thread) as
                      (e' & Htrace_inj & external_step);
                   eauto; try eapply Hlock_lt;
                   first[ eassumption|
@@ -438,24 +482,27 @@ Module FailAcqDiagrams
         (*rename Hlt' into Hlt_setbBlock1. *)
         rename Hat_external into Hat_external1.
         rename b into b1.
+        
         rename Hload into Hload1.
         
         symmetry in H0; clean_proofs.
-        exploit (acquire_fail_step_diagram_compiled m1 m1' m2') ;
+        exploit (acquire_fail_step_diagram_compiled m1 m1' ) ;
           try eapply CMatch; eauto;
             try reflexivity.
         + econstructor; eassumption.
-        + econstructor; debug eauto.
-          * !goal(mem_interference m1 lev1 m1'). admit.   
-          * !goal(mem_interference m2 lev2 m2'). admit.
+        + econstructor; eauto.
+          * !goal(mem_interference m1 lev1 m1'). 
+            rewrite self_restre_eq in Hinterference1; eauto.
+          * !goal(mem_interference m2 lev2 m2').
+            rewrite self_restre_eq in Hinterference2; eauto.
         + clear - CMatch Hcnt1.
           intros (?&?&?&?).
           { apply mem_compat_restrPermMap; apply CMatch. }
-
+          
           eexists; eauto.
-          repeat weak_split eauto.
+          (* repeat weak_split eauto.
           * rewrite (mem_is_restr_eq m1'); subst any_mem.
-            eapply concur_match_perm_restrict; eauto.
+            eapply concur_match_perm_restrict; eauto. *)
             
       - (* hb < tid *)
         pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1))
@@ -483,7 +530,7 @@ Module FailAcqDiagrams
         remember (restrPermMap Hth_lt2) as m2_thread.
         
         unshelve (edestruct (acquire_fail_step_diagram_self
-                               CSem m1_thread m2_thread) as
+                               CSem tid m1_thread m2_thread) as
                      (e' & Htrace_inj & external_step);
                   eauto; try eapply Hlock_lt;
                   first[ eassumption|
@@ -529,7 +576,6 @@ Module FailAcqDiagrams
                Unshelve.
                eapply CMatch.
                eapply CMatch. 
-               
-    Admitted.
+    Qed.    
    End failAcq.
 End FailAcqDiagrams.

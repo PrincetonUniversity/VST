@@ -49,8 +49,8 @@ Proof.
 Qed.
 
 (** *One thread simulation*)
-Module Type ThreadSimulationArguments 
-       (CC_correct: CompCert_correctness).
+Module Type ThreadSimulationArguments' 
+       (CC_correct: CompCert_correctness').
 
   Export X86Context.
   Parameter C_program: Clight.program.
@@ -62,22 +62,34 @@ Module Type ThreadSimulationArguments
   Parameter compiled: 
     CC_correct.CompCert_compiler C_program = Some Asm_program.
     
+End ThreadSimulationArguments'.
+
+Section ThreadSimulationArguments.
+  Context {MyArguments: CompCert_correctness}.
+  
+  Export X86Context.
+  Class ThreadSimulationArguments: Type :=
+    { C_program: Clight.program
+      ; Asm_program: Asm.program
+      ; Asm_genv_safe: Asm_core.safe_genv (@the_ge Asm_program)
+                                          
+      (* Assumption of compilation. *)
+      ; compiled: 
+          CompCert_compiler C_program = Some Asm_program
+      }.
+      Definition Asm_g {MyArgs:ThreadSimulationArguments}:Asm.genv := (@the_ge Asm_program).
 End ThreadSimulationArguments.
+    
+Section ThreadSimulationDefinitions.
+       Context {CC_correct: CompCert_correctness}
+               {Args: ThreadSimulationArguments}.
 
-
-Module ThreadSimulationDefinitions
-       (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments CC_correct).
-
+  Export X86Context.
   Import HybridMachineSig.
   Import DryHybridMachine.
   Import self_simulation.
-  Export Args.
 
-  (* Bellow are things taken from ThreadSimulation*)
-  
-  
-    Notation sem_coresem Sem:=
+  Notation sem_coresem Sem:=
     (semantics.csem (event_semantics.msem (@semSem Sem))).
 
     
@@ -118,7 +130,7 @@ Module ThreadSimulationDefinitions
 
 
     (** *Extracting index and match relation from CompCert*)
-    Definition compiler_sim:= CC_correct.simpl_clight_semantic_preservation _ _ compiled.
+    Definition compiler_sim:= simpl_clight_semantic_preservation _ _ compiled.
     Definition compiler_index: Type:= InjindexX compiler_sim.
     Definition compiler_match (i:compiler_index) (j:meminj)
                (c1:  Smallstep.state (Smallstep.part_sem (Clight.semantics2 C_program)))
@@ -182,7 +194,11 @@ Module ThreadSimulationDefinitions
             compiler_match_resume_padded cd j s1 m1 s4 m4.
   
 End ThreadSimulationDefinitions.
-
+Notation TP h := (threadPool.OrdinalPool.OrdinalThreadPool
+                    (resources:=dryResources)(Sem:=HybridSem h)).
+Notation sem_coresem Sem:=
+  (semantics.csem (event_semantics.msem (@semSem Sem))).
+Notation ThreadPool n := (ThreadPool.t(Sem:= HybridSem n)).
 
 
 (*Useful stuff: *)

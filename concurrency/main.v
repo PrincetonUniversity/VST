@@ -6,7 +6,7 @@ Import Memory.Mem.
 (*PROOFs*)
 Require Import VST.concurrency.main_proofs.
 
-
+(*
 Module CC_correct: CompCert_correctness.
   Axiom CompCert_compiler : Clight.program -> option Asm.program.
   Axiom simpl_clight_semantic_preservation :
@@ -24,14 +24,14 @@ Module ProgramArgs: ThreadSimulationArguments.
   Definition Asm_g := (@x86_context.X86Context.the_ge Asm_program).
   Parameter Asm_genv_safe: Asm_core.safe_genv Asm_g.
     
-End ProgramArgs.
+End ProgramArgs.*)
 
-Module MainTheorem
-       (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments).
-  Import CC_correct Args.
+Section MainTheorem.
+         Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
+  (*Import CC_correct Args.
   Module Theorem_proofs:=Main CC_correct Args.
-  Import Theorem_proofs.
+  Import Theorem_proofs. *)
   
   Section Temporary_to_see_inconsistency.
     (*Initial states are inconsistent.
@@ -89,8 +89,8 @@ Module MainTheorem
     Proof. eapply main_safety_clean. Qed.
 End MainTheorem.
 
-Module Test_Main:= (MainTheorem CC_correct ProgramArgs).
+(*Module Test_Main:= (MainTheorem CC_correct ProgramArgs).
 Import Test_Main.
-
+*)
 Check top2bottom_correct.
 Print Assumptions top2bottom_correct.

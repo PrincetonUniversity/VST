@@ -70,15 +70,16 @@ Import bounded_maps.
 
 
 
-Module ThreadedSimulation (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments CC_correct).
-
+Section ThreadedSimulation.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
+  
   Import HybridMachineSig.
   Import DryHybridMachine.
   Import self_simulation.
   
-  Module MySyncSimulation:= SyncSimulation CC_correct Args.
-  Import MySyncSimulation.
+  (*Module MySyncSimulation:= SyncSimulation CC_correct Args.
+  Import MySyncSimulation.*)
   
   Existing Instance OrdinalPool.OrdinalThreadPool.
   Existing Instance HybridMachineSig.HybridCoarseMachine.DilMem.
@@ -88,7 +89,7 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)
 
   
   Section ThreadedSimulation.
-    Import MySimulationTactics.MyConcurMatch.
+    (*Import MySimulationTactics.MyConcurMatch.*)
     
     
     
@@ -109,6 +110,11 @@ Module ThreadedSimulation (CC_correct: CompCert_correctness)
       Notation mtch_source:= (mtch_source hb).
       Notation thread_perms st i cnt:= (fst (@getThreadR _ _ st i cnt)).
       Notation lock_perms st i cnt:= (snd (@getThreadR  _ _ st i cnt)).
+      
+    Existing Instance HybridSem.
+    Existing Instance dryResources.
+    Existing Instance DryHybridMachineSig.
+    
 
 Definition cast_t {Sem}:
                 @OrdinalPool.t _ Sem -> @ThreadPool.t _ Sem (@OrdinalThreadPool dryResources _):=

@@ -47,13 +47,18 @@ Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitio
 Require Import VST.concurrency.compiler.single_thread_simulation_proof.
 
 
-Module Concurrent_correctness
-       (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments CC_correct).
-  Module TSim:= (ThreadedSimulation CC_correct Args).
-  Import TSim.
+Section Concurrent_correctness.
+  Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
+  (*Import TSim.
   Import MySyncSimulation.MySimulationTactics.MyConcurMatch.MyThreadSimulationDefinitions.
+*)
 
+  
+    Existing Instance HybridSem.
+    Existing Instance dryResources.
+    Existing Instance DryHybridMachineSig.
+    
   
   Section TrivialSimulations.
     Definition ctl_lifting {c1 c2} (f:c1 -> c2) (C:@ctl c1) :=
@@ -597,7 +602,7 @@ Module Concurrent_correctness
         apply unique_Krun_lift_c_state. 
     Qed.
     Lemma trivial_asm_simulation:
-      forall ap (Hsafe:Asm_core.safe_genv (@the_ge ap)), 
+      forall ap (Hsafe:Asm_core.safe_genv (@X86Context.the_ge ap)), 
         (HybridMachine_simulation
            (HybConcSem None (Genv.init_mem ap))
            (X86Context.AsmConcurSem
@@ -663,11 +668,11 @@ Module Concurrent_correctness
 
   Lemma initial_memories_are_equal:
     forall (tp:Asm.program),
-      CC_correct.CompCert_compiler C_program = Some tp ->
+      CompCert_compiler C_program = Some tp ->
       Genv.init_mem tp = Genv.init_mem (Ctypes.program_of_program C_program ).
   Proof.
     intros **.
-    eapply CC_correct.simpl_clight_semantic_preservation in H.
+    eapply simpl_clight_semantic_preservation in H.
     inv H. clear - Injfsim_match_entry_pointsX.
     exploit Injfsim_match_entry_pointsX; simpl.
     simpl.
@@ -684,7 +689,7 @@ Module Concurrent_correctness
   
   Lemma ConcurrentCompilerCorrectness:
     forall (tp:Asm.program),
-      CC_correct.CompCert_compiler C_program = Some tp ->
+      CompCert_compiler C_program = Some tp ->
       forall asm_genv_safety,
         ConcurrentCompilerCorrectness_specification Clight_g tp asm_genv_safety
           (Genv.init_mem (Ctypes.program_of_program C_program)) (Genv.init_mem tp)

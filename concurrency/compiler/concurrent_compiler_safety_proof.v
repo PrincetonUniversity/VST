@@ -8,12 +8,13 @@ Require Import VST.concurrency.common.HybridMachineSig.
 Import HybridMachineSig.
 Set Bullet Behavior "Strict Subproofs".
   
+Require Import VST.concurrency.compiler.safety_equivalence.
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation.
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_proof.
 Require Import VST.concurrency.compiler.sequential_compiler_correct.
 Require Import VST.concurrency.compiler.concurrent_compiler_safety.
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_proof.
-Require Import VST.concurrency.compiler.safety_equivalence.
+(*Here the threadpool becomes juicy...*)
 Require Import VST.concurrency.compiler.HybridMachine_simulation.
 Require Import VST.concurrency.common.HybridMachine.
 Require Import Omega.
@@ -27,18 +28,19 @@ Require Import VST.concurrency.common.x86_context.
 
 
 Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
+    
 
-Module Concurrent_Safety
-       (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments CC_correct).
+Section Concurrent_Safety.
+         Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (*Import the Clight Hybrid Machine*)
   Import ClightMachine.
   Import DMS.
   (*Import the Asm X86 Hybrid Machine*)
   Import X86Context.
 
-  Module ConcurCC_correct:= (Concurrent_correctness CC_correct Args).
-  Import ConcurCC_correct.
+  (*Module ConcurCC_correct:= (Concurrent_correctness CC_correct Args).
+  Import ConcurCC_correct.*)
 
 
   (*USed to be start_stack*)
@@ -50,7 +52,10 @@ Module Concurrent_Safety
 
   Notation valid Sem:=
     (valid dryResources Sem OrdinalPool.OrdinalThreadPool).
-
+  Existing Instance HybridSem.
+    Existing Instance dryResources.
+    Existing Instance DryHybridMachineSig.
+    
   
 
   Definition opt_init_mem_source (p : Clight.program):=
@@ -419,14 +424,14 @@ Module Concurrent_Safety
 
     
     Lemma ConcurrentCompilerSafety:
-      CC_correct.CompCert_compiler Args.C_program = Some Args.Asm_program ->
-      forall asm_genv_safety : Asm_core.safe_genv (@the_ge Args.Asm_program),
+      CompCert_compiler C_program = Some Asm_program ->
+      forall asm_genv_safety : Asm_core.safe_genv (@the_ge Asm_program),
         let SemSource:= (ClightSemanticsForMachines.ClightSem
-                           (Clight.globalenv Args.C_program)) in
-        let SemTarget:= @X86Sem Args.Asm_program asm_genv_safety in
+                           (Clight.globalenv C_program)) in
+        let SemTarget:= @X86Sem Asm_program asm_genv_safety in
         concurrent_simulation_safety_preservation
-          (Genv.init_mem (Ctypes.program_of_program Args.C_program))
-          (Genv.init_mem Args.Asm_program)
+          (Genv.init_mem (Ctypes.program_of_program C_program))
+          (Genv.init_mem Asm_program)
           (SemSource:= SemSource)
           (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
           (SourceMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)
@@ -438,7 +443,7 @@ Module Concurrent_Safety
       (* destruct H0. simpl in H2.
          unfold init_mach in *.
       *)
-      pose proof (ConcurrentCompilerCorrectness Args.Asm_program H asm_genv_safety) as SIM.
+      pose proof (ConcurrentCompilerCorrectness Asm_program H asm_genv_safety) as SIM.
       unfold ConcurrentCompilerCorrectness_specification in SIM.
       (*Construct the initial state*)
       exploit HybridMachine_simulation.initial_setup.
@@ -467,8 +472,8 @@ Module Concurrent_Safety
     Qed.
 
     Definition SemSource:= (ClightSemanticsForMachines.ClightSem
-                           (Clight.globalenv Args.C_program)).
-    Definition SemTarget asm_genv_safety:= @X86Sem Args.Asm_program asm_genv_safety.
+                           (Clight.globalenv C_program)).
+    Definition SemTarget asm_genv_safety:= @X86Sem Asm_program asm_genv_safety.
     Definition SourceMachineSig:= 
          (@DryHybridMachineSig SemSource (@OrdinalPool.OrdinalThreadPool dryResources SemSource)).
     Definition TargetMachineSig ags:= 
@@ -477,9 +482,12 @@ Module Concurrent_Safety
     Definition SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource).
     Definition TargetThreadPool ags:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=(SemTarget ags)).
           
-  Notation resources:= HybridMachine.DryHybridMachine.dryResources.
+    Notation resources:= HybridMachine.DryHybridMachine.dryResources.
+    
   Definition SourceHybridMachine:=
-    @HybridCoarseMachine.HybridCoarseMachine resources SemSource SourceThreadPool SourceMachineSig.
+    @HybridCoarseMachine.HybridCoarseMachine
+      resources SemSource
+      SourceThreadPool SourceMachineSig.
   Definition TargetHybridMachine ags:=
     @HybridCoarseMachine.HybridCoarseMachine resources (SemTarget ags) (TargetThreadPool ags) (TargetMachineSig ags).
   
@@ -487,13 +495,13 @@ Module Concurrent_Safety
   Definition TargetSemantics ags:= (fun m => ConcurMachineSemantics(HybridMachine:=TargetHybridMachine ags) m).
   
     Lemma clean_theorem_equivalence:
-      forall asm_genv_safety : Asm_core.safe_genv (@the_ge Args.Asm_program),
+      forall asm_genv_safety : Asm_core.safe_genv (@the_ge Asm_program),
         let SemSource:= (ClightSemanticsForMachines.ClightSem
-                           (Clight.globalenv Args.C_program)) in
-        let SemTarget:= @X86Sem Args.Asm_program asm_genv_safety in
+                           (Clight.globalenv C_program)) in
+        let SemTarget:= @X86Sem Asm_program asm_genv_safety in
         concurrent_simulation_safety_preservation
-          (Genv.init_mem (Ctypes.program_of_program Args.C_program))
-          (Genv.init_mem Args.Asm_program)
+          (Genv.init_mem (Ctypes.program_of_program C_program))
+          (Genv.init_mem Asm_program)
           (SemSource:= SemSource)
           (SourceThreadPool:= threadPool.OrdinalPool.OrdinalThreadPool(Sem:=SemSource))
           (SourceMachineSig:= HybridMachine.DryHybridMachine.DryHybridMachineSig)

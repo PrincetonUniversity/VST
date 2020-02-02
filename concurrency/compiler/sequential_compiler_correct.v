@@ -3,7 +3,7 @@ Require Import compcert.cfrontend.Clight.
 Require Import compcert.x86.Asm.
 
 
-Module Type CompCert_correctness.
+Module Type CompCert_correctness'.
 
 Parameter CompCert_compiler: Clight.program -> option Asm.program.
 Hypothesis simpl_clight_semantic_preservation:
@@ -12,4 +12,13 @@ Hypothesis simpl_clight_semantic_preservation:
   fsim_properties_inj_relaxed (Clight.semantics2 p) (Asm.semantics tp) Clight.get_mem Asm.get_mem.
 
 
-End CompCert_correctness.
+End CompCert_correctness'. 
+
+Class CompCert_correctness: Type :=
+  { 
+    CompCert_compiler: Clight.program -> option Asm.program
+    ; simpl_clight_semantic_preservation:
+        forall (p:Clight.program) (tp:Asm.program),
+          CompCert_compiler p = Some tp ->
+          fsim_properties_inj_relaxed (Clight.semantics2 p) (Asm.semantics tp) Clight.get_mem Asm.get_mem
+  }.

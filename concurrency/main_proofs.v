@@ -29,15 +29,15 @@ Require Import VST.concurrency.main_definitions. Import main_definitions.
 
 Set Bullet Behavior "Strict Subproofs".
 Set Nested Proofs Allowed.
-Module Main
-       (CC_correct: CompCert_correctness)
-       (Args: ThreadSimulationArguments).
+Section Main.
+         Context {CC_correct: CompCert_correctness}
+          {Args: ThreadSimulationArguments}.
   (*Import the *)
   (*Import the safety of the compiler for concurrent programs*)
   
   (* Module ConcurCC_safe:= (SafetyStatement CC_correct). *)
-  Module ConcurCC_safe := (Concurrent_Safety CC_correct Args).
-  Import ConcurCC_safe.
+  (*Module ConcurCC_safe := (Concurrent_Safety CC_correct Args).
+  Import ConcurCC_safe. *)
 
   (*Importing the definition for ASM semantics and machines*)
   Import dry_context.AsmContext.
@@ -45,7 +45,6 @@ Module Main
   (*Use a section to contain the parameters.*)
   Section MainTheorem.
     Import semax_to_juicy_machine.
-    Import Args.
   (*Assumptions *)
   Context (CPROOF : semax_to_juicy_machine.CSL_proof).
   Context (program_proof : CSL_prog CPROOF = C_program).
@@ -55,7 +54,7 @@ Module Main
   Context (main_symbol_source : Genv.find_symbol (Clight.globalenv C_program) main_ident_src = Some fb).
   Context (main_symbol_target : Genv.find_symbol (Genv.globalenv Asm_program) main_ident_tgt = Some fb).
   Definition Main_ptr:= Values.Vptr fb Integers.Ptrofs.zero.
-  Context (compilation : CC_correct.CompCert_compiler C_program = Some Asm_program).
+  Context (compilation : CompCert_compiler C_program = Some Asm_program).
   
   Context (asm_genv_safe: Asm_core.safe_genv (@x86_context.X86Context.the_ge Asm_program)).
   Instance SemTarget : Semantics:= @x86_context.X86Context.X86Sem Asm_program asm_genv_safe.
@@ -127,7 +126,7 @@ Module Main
   Proof.
     intros.
     assert(compilation':= compilation).  
-    pose proof (@ConcurrentCompilerSafety compilation' asm_genv_safe) as H.
+    pose proof (ConcurrentCompilerSafety compilation' asm_genv_safe) as H.
     unfold concurrent_compiler_safety.concurrent_simulation_safety_preservation in *.
     specialize (H U (erasure_safety.init_mem CPROOF) (erasure_safety.init_mem CPROOF) (Clight_safety.initial_Clight_state CPROOF) Main_ptr nil).
     rewrite <- program_proof in *.
@@ -253,13 +252,11 @@ Module Main
   Arguments permissionless_init_machine _ _ _ _ _ _ _: clear implicits.
 
   Section CleanMainTheorem.
-    Import CC_correct.
     Import Integers.Ptrofs Values Ctypes.
     Import MemoryWD machine_semantics.
     Import HybridMachineSig.HybridMachineSig.HybridFineMachine.
     Import ThreadPool BareMachine CoreInjections HybridMachineSig.
     Import main_definitions.
-    Import Args.
 
     Inductive parch_CSL_proof (prog: Clight.program): Prop:=
     | CSL_witness:
@@ -464,7 +461,7 @@ Module Main
   End CleanMainTheorem.
 End Main.
 
-
+(*
 Module TestMain 
        (CC_correct: CompCert_correctness)
        (Args: ThreadSimulationArguments).
@@ -475,4 +472,4 @@ Module TestMain
   Check main_safety_clean.
   
 End TestMain.
-  
+  *)
