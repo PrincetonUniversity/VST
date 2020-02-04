@@ -712,7 +712,7 @@ Proof.
   subst. intros. destruct H as [[? ?] G1]; subst fA cA. destruct H0 as [[? ?] G2]; subst fB cB.
   unfold funspec_intersection_ND in I. simpl in I.
   do 2 rewrite if_true in I; trivial. inv I. simpl. split. split; trivial. intros.
-  destruct x2 as [a | b]; auto.
+  destruct x2 as [a | b]; [ apply (G1 nil) | apply (G2 nil)].
 Qed.
 
 (*-------------------- ND case, specification Sigma families --------------------- *)
