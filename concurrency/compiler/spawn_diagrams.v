@@ -109,10 +109,10 @@ Section SpawnDiagrams.
                    (Some (build_delta_content dmap2 m)).
 
     
-    Lemma spawn_step_diagram_self Sem tid:
+    Lemma spawn_step_diagram_self Sem tid m1 m2:
       let CoreSem:= sem_coresem Sem in
       forall (SelfSim: (self_simulation (@semC Sem) CoreSem))
-        virtue1 virtue_new1 (m1 m2 : mem) cd
+        virtue1 virtue_new1  cd
         (mu : meminj) (st1 : ThreadPool (Some hb)) 
         (st2 : ThreadPool (Some (S hb)))
         (cnt1 : ThreadPool.containsThread(Sem:=HybridSem _) st1 tid)
@@ -149,7 +149,7 @@ Section SpawnDiagrams.
           (Amatch : match_self (code_inject _ _ SelfSim) mu th_state1 m1 th_state2 m2)
           (Hmatch_mem: match_mem mu m1 m2)
           (Hat_external: semantics.at_external CoreSem th_state1 m1 =
-                         Some (FREE_LOCK, (Vptr b1 ofs :: nil)%list))
+                         Some (CREATE, (Vptr b1 ofs :: arg :: nil)%list))
           (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1)),
 
         exists evnt2 (st2'' : t) m2',
@@ -227,48 +227,71 @@ Section SpawnDiagrams.
         pose proof (self_simulation.ssim_external _ _ Aself_simulation) as sim_atx.
         eapply sim_atx in Hinj'; eauto.
         2: { (*at_external*)
-          simpl. replace (restrPermMap Hlt1) with m1.
-          2:{  rewrite self_restre_eq; eauto. }
-          move Hat_external at bottom.
-          eauto.
-          
-               rewrite Hthread_mem1.
-            
-          erewrite restr_proof_irr.
-          rewrite Hmem_equiv; simpl; eassumption.
-        }
-        clear sim_atx.
-        destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-        (* bounded_nat_func' pdata LKSIZE_nat *)
-        (edestruct (free_step_diagram_self AsmSem tid) as
-            (e' & Hthread_match & CMatch' & Htrace_inj & external_step)); eauto;
+          simpl. replace (restrPermMap Hlt1) with m1; eauto.
+          rewrite self_restre_eq; eauto.
+        } clear sim_atx.
+        destruct Hinj' as (args2 & Hinj_b & Hat_external2); eauto.
+        inversion Hinj_b as [| ? ? ? ? AA BB CC]; subst; clear Hinj_b.
+        inversion AA as [ | | | | ? ? ? ? ? Hinj_b  | ]; subst.
+        inversion BB as [| ? ? ? ? Hargs_inj _ CC]; subst; clear BB.
+
+        clean_proofs.
+        do 2 rewrite self_restre_eq in * by eassumption.
+        
+        (edestruct (spawn_step_diagram_self AsmSem tid m1 m2) as
+            (e' & st2' & m2' &
+             CMatch' & Htrace_inj & external_step); eauto;
           first[ eassumption|
                  econstructor; eassumption|
                  solve[econstructor; eauto] |
-                 eauto].
+                 eauto]).
         + omega.
-        + !goal (access_map_equiv _ _). clean_proofs; eassumption.
-        + (*match_self*)
-          econstructor.
-          * eapply cinject.
-          * simpl. move matchmem at bottom.
-            eapply match_mem_proper; try eapply matchmem; eauto.
-            -- symmetry; eapply cur_equiv_restr_mem_equiv; eauto.
-            -- symmetry; eapply cur_equiv_restr_mem_equiv; eauto.
-               clean_proofs; eauto.
-        + exists e'; eexists; exists m2.
+        + exists e'; eexists; exists m2'.
+          subst_set.
           repeat weak_split eauto.
-          (* * (* reestablish concur *)
-            rename b into BB.
-            !goal (concur_match _ _ (remLockfFullUpdate _ _ _ _ _ _ ) _ _ _).
-            simpl; eauto.
-          * clear - Htrace_inj; auto.*)
-          * clean_proofs; eauto.
+          clean_proofs; eauto.
+      - (* tid = hb *)
+        admit.
             
-            
-            
+      - (* (hb < tid) *)
+        pose proof (mtch_source _ _ _ _ _ _ CMatch _ l cnt1 (contains12 CMatch cnt1))
+          as match_thread.
+        simpl in Hcode; exploit_match ltac:(apply CMatch).
+        inversion H3. (* Asm_match *)
+        
+        (*Destruct the values of the self simulation *)
+        pose proof (self_simulation.minject _ _ _ matchmem) as Hinj.
+        assert (Hinj':=Hinj).
+        pose proof (self_simulation.ssim_external _ _ Cself_simulation) as sim_atx.
+        eapply sim_atx in Hinj'; eauto.
+        2: { (*at_external*)
+          simpl. replace (restrPermMap Hlt1) with m1; eauto.
+          rewrite self_restre_eq; eauto.
+        } clear sim_atx.
+        destruct Hinj' as (args2 & Hinj_b & Hat_external2); eauto.
+        inversion Hinj_b as [| ? ? ? ? AA BB CC]; subst; clear Hinj_b.
+        inversion AA as [ | | | | ? ? ? ? ? Hinj_b  | ]; subst.
+        inversion BB as [| ? ? ? ? Hargs_inj _ CC]; subst; clear BB.
 
-            
+        clean_proofs.
+        do 2 rewrite self_restre_eq in * by eassumption.
+        
+        (edestruct (spawn_step_diagram_self CSem tid m1 m2) as
+            (e' & st2' & m2' &
+             CMatch' & Htrace_inj & external_step); eauto;
+          first[ eassumption|
+                 econstructor; eassumption|
+                 solve[econstructor; eauto] |
+                 eauto]).
+        + omega.
+        + exists e'; eexists; exists m2'.
+          subst_set.
+          repeat weak_split eauto.
+          clean_proofs; eauto.
+
+
+          Unshelve.
+          all: eauto.
             
     Admitted.
 

@@ -1009,8 +1009,10 @@ Section MklockDiagrams.
           rewrite Hmem_equiv; simpl; eassumption.
         }
         clear sim_atx.
-        destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-
+        destruct Hinj' as (args2 & Hinj_b & Hat_external2); eauto.
+        inversion Hinj_b as [| ? ? ? ? AA _ CC]; subst; clear Hinj_b.
+        inversion AA as [ | | | | ? ? ? ? ? Hinj_b  | ]; subst.
+        
         (edestruct (make_step_diagram_self AsmSem tid) as
             (e' & m2' & Hthread_match & Htrace_inj & external_step & CMatch')); eauto;
           first[ eassumption|
@@ -1088,8 +1090,10 @@ Section MklockDiagrams.
           rewrite Hmem_equiv; simpl; eassumption.
         }
         clear sim_atx.
-        destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-
+        destruct Hinj' as (args2 & Hinj_b & Hat_external2); eauto.
+        inversion Hinj_b as [| ? ? ? ? AA _ CC]; subst; clear Hinj_b.
+        inversion AA as [ | | | | ? ? ? ? ? Hinj_b  | ]; subst.
+        
         (edestruct (make_step_diagram_self CSem tid) as
             (e' & m2' & Hthread_match & Htrace_inj & external_step & CMatch')); eauto;
           first[ eassumption|

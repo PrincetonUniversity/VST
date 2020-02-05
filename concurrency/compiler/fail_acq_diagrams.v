@@ -406,8 +406,10 @@ Section FailAcqDiagrams.
           rewrite Hmem_equiv; simpl; eassumption.
         }
         clear sim_atx.
-        destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-
+        destruct Hinj' as (args2 & Hinj_b & Hat_external2); eauto.
+        inversion Hinj_b as [| ? ? ? ? AA _ CC]; subst; clear Hinj_b.
+        inversion AA as [ | | | | ? ? ? ? ? Hinj_b  | ]; subst.
+        
         assert (Hth_lt1: permMapLt (thread_perms tid st1 cnt1) (getMaxPerm m1))
           by eapply CMatch.
         assert (Hth_lt2: permMapLt (thread_perms tid st2 cnt2) (getMaxPerm m2))
@@ -519,8 +521,10 @@ Section FailAcqDiagrams.
           rewrite Hmem_equiv; simpl; eassumption.
         }
         clear sim_atx.
-        destruct Hinj' as (b' & delt & Hinj_b & Hat_external2); eauto.
-
+        destruct Hinj' as (args2 & Hinj_b & Hat_external2); eauto.
+        inversion Hinj_b as [| ? ? ? ? AA _ CC]; subst; clear Hinj_b.
+        inversion AA as [ | | | | ? ? ? ? ? Hinj_b  | ]; subst.
+        
         assert (Hth_lt1: permMapLt (thread_perms tid st1 cnt1) (getMaxPerm m1))
           by eapply CMatch.
         assert (Hth_lt2: permMapLt (thread_perms tid st2 cnt2) (getMaxPerm m2))
