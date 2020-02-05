@@ -1460,7 +1460,7 @@ Section AcquireDiagrams.
           try eapply Hthread_mem1;
           try eapply Hthread_mem2;
           try solve[eapply CMatch; eauto; try reflexivity];
-          eauto; try reflexivity.
+          debug eauto; try reflexivity.
         + econstructor; eassumption.
         + subst virtueThread1; eassumption.
         + subst newThreadPerm1 virtueThread1; eassumption.

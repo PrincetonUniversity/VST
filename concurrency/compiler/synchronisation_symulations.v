@@ -333,7 +333,7 @@ Section SyncSimulation.
           do 5 econstructor; repeat (weak_split idtac).
           * eapply concur_match_perm_restrict2; eauto.
           * apply inject_incr_refl.
-          * econstructor; eauto.
+          * econstructor. debug eauto.
           * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
             econstructor; eauto; simpl.
             symmetry; subst.
@@ -342,15 +342,26 @@ Section SyncSimulation.
             
       - (*Create/Spawn*)
         clear H2.
+        pose proof (memcompat2 H) as Hcmpt2.
+        rename m1' into m1_base.
+        rename m2 into m2_base.
+        simpl in *.
+        remember (restrPermMap (proj1 (Hcmpt2 tid cnt2))) as m2.
+        remember (restrPermMap (proj1 (Hcmpt tid cnt1))) as m1.
+        assert (Hmax1:getMaxPerm m1_base = getMaxPerm m1) by
+            (subst m1; symmetry; apply restr_Max_eq).
+        assert (Hmax2: getMaxPerm m2_base = getMaxPerm m2) by
+            (subst m2; symmetry; apply restr_Max_eq).
+        clean_proofs.
+        
         simpl in *.
         remember  (updThread cnt1 (Kresume c Vundef) threadPerm') as st1'.
         remember (addThread st1' (Vptr b ofs) arg newThreadPerm) as st1''.
-        rename m1' into m1.
         rename virtue2 into virtue_new1.
-        assert (Hangel_bound: pair21_prop sub_map virtue1 (snd (getMaxPerm m1))) by
-        eapply Hbounded; clear Hbounded.
+        assert (Hangel_bound: pair21_prop sub_map virtue1 (snd (getMaxPerm m1)))
+        by (rewrite <- Hmax1; eapply Hbounded); clear Hbounded.
         assert (Hangel_bound_new: pair21_prop sub_map virtue_new1 (snd (getMaxPerm m1))) by
-            eapply Hbounded_new; clear Hbounded_new.
+            (rewrite <- Hmax1; eapply Hbounded_new); clear Hbounded_new.
         set (ThreadPerm1:= (computeMap_pair (getThreadR cnt1) virtue1)).
         set (newThreadPerm1:= (computeMap_pair (pair0 empty_map) virtue_new1)).
         assert (HH1: threadPerm' = ThreadPerm1) by reflexivity.
@@ -359,109 +370,48 @@ Section SyncSimulation.
         rewrite HH2 in *. clear HH2 newThreadPerm.
         assert (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1)).
         { split; simpl; eauto. } clear Hangel1 Hangel2.
-        
-        rename m1 into m1_base.
-        rename m2 into m2_base.
-        pose proof (memcompat2 H) as Hcmpt2.
-        remember (restrPermMap (proj1 (Hcmpt tid cnt1))) as m1.
-        remember (restrPermMap (proj1 (Hcmpt2 tid cnt2))) as m2.
 
-        assert (Hmax_eq1: getMaxPerm m1 = getMaxPerm m1_base).
-        {subst m1; eapply restr_Max_eq. }
-        assert (Hmax_eq2: getMaxPerm m2 = getMaxPerm m2_base).
-        {subst m2; eapply restr_Max_eq. }
-        
-Definition build_spwan_event addr dmap1 dmap2 m:=
-          Events.spawn addr (Some (build_delta_content dmap1 m))
-                         (Some (build_delta_content dmap2 m)).
-    Lemma spawn_step_diagram:
-      let hybrid_sem:= (sem_coresem (HybridSem (Some hb))) in 
-      forall virtue1 virtue_new1 (m1 m2 : mem) (tid : nat) cd
-        (mu : meminj) (st1 : ThreadPool (Some hb)) 
-        (st2 : ThreadPool (Some (S hb)))
-        (cnt1 : ThreadPool.containsThread(Sem:=HybridSem _) st1 tid)
-        (cnt2 : containsThread(Sem:=HybridSem _) st2 tid)
-        (c : semC) (b : block) (ofs : int) arg
-        (CMatch: concur_match cd mu st1 m1 st2 m2)
-        (Hcode: getThreadC cnt1 = Kblocked c)
-        (Harg : val_inject (Mem.flat_inj (Mem.nextblock m1)) arg arg) Htl,
-        let marg:=
-            @restrPermMap (thread_perms tid st1 cnt1) m1 Htl in
-        let ThreadPerm1:= (computeMap_pair (getThreadR cnt1) virtue1) in
-        let newThreadPerm1:= (computeMap_pair (pair0 empty_map) virtue_new1) in
 
-        let st1':= (ThreadPool.updThread cnt1 (Kresume c Vundef) ThreadPerm1) in
-        let st1'':= (ThreadPool.addThread st1' (Vptr b ofs) arg newThreadPerm1) in
-        forall (Hcmpt : mem_compatible  st1'' m1)
-          (Hinv' : invariant st1'')
-          (Hangel_bound: pair21_prop sub_map virtue1 (snd (getMaxPerm m1)))
-          (Hangel_bound_new : pair21_prop sub_map virtue_new1 (snd (getMaxPerm m1)))
-          (Hat_external: semantics.at_external hybrid_sem c marg =
-                         Some (CREATE, Vptr b ofs :: arg :: nil))
-          (Hjoin_angel: permMapJoin_pair newThreadPerm1 ThreadPerm1 (getThreadR cnt1)),
 
-        exists evnt2 (st2'' : t),
-          let evnt:= build_spwan_event (b, unsigned ofs)
-                                       (fst virtue1)
-                                       (fst virtue_new1)
-                                       m1 in 
-          concur_match cd mu st1'' m1 st2'' m2 /\
-          inject_sync_event mu evnt evnt2 /\
-          let Hcmpt2:=  (memcompat2 CMatch) in
-          syncStep(Sem:=HybridSem (Some (S hb)))
-                  true cnt2 Hcmpt2 st2'' m2 evnt2.
-    Proof.
-    Admitted.
-    
-    subst st1' st1'' ThreadPerm1 newThreadPerm1.
-    unshelve exploit (spawn_step_diagram (*hb*)virtue1 virtue_new1 m1 m2);
-      try eassumption; eauto; simpl; try solve[subst; eauto].
-        + rewrite Hmax_eq1; eapply Hcmpt.
-        + subst; eapply concur_match_perm_restrict; assumption.
-        + subst m1. clear - Hcmpt'. clean_proofs.
-          eapply compat_restr in Hcmpt'; eauto.
-        + rewrite <- Hmax_eq1 in Hangel_bound; eauto.
-        + rewrite <- Hmax_eq1 in Hangel_bound_new; eauto.
-        + subst m1; erewrite <- restrPermMap_idempotent_eq; eauto.
-        + assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
+    clean_proofs.
+      
+        subst st1' st1'' ThreadPerm1 newThreadPerm1.
+        unshelve exploit (spawn_step_diagram hb virtue1 virtue_new1 m1 m2);
+          try eassumption; eauto; simpl; try solve[subst; eauto];
+            try (subst m1 m2; rewrite restr_Max_eq; eauto).
+        + subst m1 m2; apply concur_match_perm_restrict; auto.
+        + subst m1 m2; rewrite getCur_restr; reflexivity.
+        + subst m1 m2; rewrite getCur_restr; reflexivity.
+        + subst m1 m2; apply mem_compat_restrPermMap; auto.
+        + clean_proofs.
+          assert (Hlt2': permMapLt (getCurPerm m2_base) (getMaxPerm m2)).
           { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
           
           assert (Hlt1': permMapLt (getCurPerm m1_base) (getMaxPerm m1)).
           { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
 
-          intros HH; normal_hyp.
+          
+          intros; normal_hyp.
+          apply syncStep_restr with (Hlt:=Hlt2') in H4.
+          destruct H4 as (?&?&Hstep).
           normal_goal; eauto.
-          * replace m1_base with (@restrPermMap (getCurPerm m1_base) m1 Hlt1').
+          * !context_goal concur_match. clean_proofs.
+            
+            replace m1_base with (@restrPermMap (getCurPerm m1_base) m1 Hlt1').
             eapply concur_match_perm_restrict; eauto.
-            { subst m1. rewrite mem_is_restr_eq.
+            { subst m1.
+              rewrite mem_is_restr_eq.
               symmetry. eapply restrPermMap_idempotent_eq. }
           * econstructor; eauto.
-            instantiate(1:= x).
-            unfold build_spwan_event in *.
-            subst m1. repeat rewrite build_delta_content_restr in H3.
-            exact H3.
-          * clear - H4.
-            rewrite <- (mem_is_restr_eq m2).
-            clean_proofs.
-            unshelve (econstructor; eauto; simpl in *).
-                      -- simpl. eauto.
-                      -- simpl. eauto.
-                      -- clean_proofs.
-            eapply H4.
-            
-            
-            replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
-            2: { symmetry; subst.
-                 erewrite <- restrPermMap_idempotent_eq.
-                 eapply mem_is_restr_eq. }
-            clean_proofs.
-            Set Printing Implicit.
+            subst m1. unfold build_spwan_event in *.
+            repeat rewrite build_delta_content_restr in H3.
+            eauto.
+          * replace m2_base with (@restrPermMap (getCurPerm m2_base) m2 Hlt2').
+            -- econstructor; eauto; simpl.
+            -- symmetry; subst.
+               erewrite <- restrPermMap_idempotent_eq.
+               eapply mem_is_restr_eq.
 
-          
-          * admit.
-          * admit.
-          * admit.
-          
       - (*Make Lock*)
         pose proof (memcompat2 H) as Hcmpt2.
         rename m1 into m1_base.
@@ -611,9 +561,7 @@ Definition build_spwan_event addr dmap1 dmap2 m:=
             dependent_rewrite HH. auto.
             
             Unshelve.
-            
-    Admitted.
-
+    Qed.
     
   End SyncCallsDiagrams.
   
