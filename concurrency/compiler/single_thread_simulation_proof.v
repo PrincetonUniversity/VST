@@ -960,7 +960,8 @@ Admitted.
                (st1' : ThreadPool (Some hb)) (m1' : mem),
           machine_semantics.machine_step (HybConcSem (Some hb) m) sge U tr1 st1 m1 U' tr1' st1' m1' ->
           forall (cd : option compiler_index) tr2 (st2 : ThreadPool (Some (S hb))) 
-                 (mu : meminj) (m2 : mem),
+                 (mu : meminj) (m2 : mem)
+                 (Hinv:invariant st1') (Hcmpt':mem_compatible st1' m1'),
             concur_match cd mu st1 m1 st2 m2 ->
             List.Forall2 (inject_mevent mu) tr1 tr2 ->
             exists
@@ -1060,6 +1061,8 @@ Admitted.
           HybridMachine_simulation_properties
             (HybConcSem (Some hb) m)
             (HybConcSem (Some (S hb)) m)
+            invariant
+            mem_compatible
             (concur_match).
       Proof.
         intros.
@@ -1200,7 +1203,10 @@ Admitted.
         forall m : option mem,
           HybridMachine_simulation_properties
             (HybConcSem (Some 0)%nat m)
-            (HybConcSem (Some 0)%nat m) (match_state 0).
+            (HybConcSem (Some 0)%nat m)
+            invariant
+            mem_compatible
+            (match_state 0).
       Proof.
         simpl; intros.
         econstructor.
@@ -1221,8 +1227,8 @@ Admitted.
             eapply inject_incr_trace; try eassumption.
             apply flat_inj_lt.
             eapply machine_step_mem_fwd; eauto.
-            eapply machine_step_trace_wf; eapply H0.
-          + eapply H0.
+            eapply machine_step_trace_wf; eapply H2.
+          + eapply H2.
         - intros; inv_match0; normal; eauto.
         - intros; inv_match0; reflexivity. 
           Unshelve.
@@ -1342,15 +1348,24 @@ Lemma inject_mevent_compose:
           (forall m : option mem,
               HybridMachine_simulation_properties
                 (HybConcSem (Some 0)%nat m)
-                (HybConcSem (Some n) m) (match_state n)) ->
+                (HybConcSem (Some n) m)
+                invariant
+                mem_compatible
+                (match_state n)) ->
           (forall m : option mem,
               HybridMachine_simulation_properties
                 (HybConcSem (Some n) m)
-                (HybConcSem (Some (S n)) m) (concur_match n)) ->
+                (HybConcSem (Some (S n)) m)
+                invariant
+                mem_compatible
+                (concur_match n)) ->
           forall m : option mem,
             HybridMachine_simulation_properties
               (HybConcSem (Some 0)%nat m)
-              (HybConcSem (Some (S n)) m) (match_state (S n)).
+              (HybConcSem (Some (S n)) m)
+              invariant
+                mem_compatible
+                (match_state (S n)).
       Proof.
         intros n Hsim0 Hsimn m.
         specialize (Hsim0 m).
@@ -1383,17 +1398,24 @@ Lemma inject_mevent_compose:
             * right; repeat weak_split auto.
               constructor; auto.
         - intros.
-          inv H0; subst_sig.
-          eapply list_inject_mevent_interpolation in H1;
-            normal_hyp.
-          eapply Hsim0 in H; eauto.
+          inv H2; subst_sig.
+          eapply list_inject_mevent_interpolation in H3; normal_hyp.
+          eapply Hsim0 in H.
           normal_hyp.
-          eapply Hsimn in H3; eauto.
+          eapply Hsimn in H5; eauto.
           normal.
           + econstructor; eauto.
           + instantiate(1:= x5).
             eapply forall_inject_mevent_compose; eauto.
           + auto.
+          + (* add match_state _ st1 m1 st2 m2 -> invariant st2 *)
+            admit.
+          + (* add match_state _ st1 m1 st2 m2 -> mem_compat st2 m2 *)
+            admit.
+          + eauto.
+          + eauto.
+          + eauto.
+          + eauto.
         - econstructor; simpl in *.
           unfold HybridMachineSig.halted_machine in *; simpl in *.
           match_case in H0.
@@ -1413,6 +1435,8 @@ Lemma inject_mevent_compose:
           HybridMachine_simulation.HybridMachine_simulation_properties
             (HybConcSem (Some 0)%nat m)
             (HybConcSem (Some n) m)
+            invariant
+            mem_compatible
             (match_state n).
       Proof.
         induction n.
@@ -1552,11 +1576,13 @@ Lemma inject_mevent_compose:
              for the [match_states]
        *)
       Admitted.
-      Lemma compile_all_threads:
+      Lemma compile_all_threads':
         forall m,
           HybridMachine_simulation.HybridMachine_simulation_properties
             (HybConcSem (Some 0)%nat m)
             (HybConcSem None m)
+            invariant
+            mem_compatible
             infty_match.
       Proof.
         intros. 
@@ -1566,9 +1592,50 @@ Lemma inject_mevent_compose:
         - eapply list_lt_wf.
         - apply initial_infty.
         - apply infinite_step_diagram.
-        - apply infinite_machine_step_diagram.
+        - intros; eapply infinite_machine_step_diagram;
+            eauto.
         - apply infinite_halted.
         - apply infinite_running.
+
+      Qed.
+      
+      Lemma compile_all_threads:
+        forall m,
+          HybridMachine_simulation'
+            (HybConcSem (Some 0)%nat m)
+            (HybConcSem None m)
+            invariant
+            invariant
+            mem_compatible
+            mem_compatible.
+      Proof.
+        intros. econstructor; swap 1 3; swap 2 3.
+        {
+         
+        (*All the proofs use the following lemma*)
+        pose proof compile_n_threads as HH.
+        econstructor.
+        - eapply list_lt_wf.
+        - apply initial_infty.
+        - apply infinite_step_diagram.
+        - intros; eapply infinite_machine_step_diagram;
+            eauto.
+        - apply infinite_halted.
+        - apply infinite_running. }
+
+        - intros.
+          Lemma infty_match_invariant:
+            forall cd mu st1 m1 st2 m2,
+            infty_match cd mu st1 m1 st2 m2 ->
+            invariant st2.
+          Admitted.
+          eapply infty_match_invariant; eauto.
+        - Lemma infty_match_cmpt:
+            forall cd mu st1 m1 st2 m2,
+            infty_match cd mu st1 m1 st2 m2 ->
+            mem_compatible st2 m2.
+          Admitted.
+          intros; eapply infty_match_cmpt; eauto.
 
       Qed.
 

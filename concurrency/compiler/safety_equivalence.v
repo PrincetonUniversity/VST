@@ -315,7 +315,7 @@ Section Csafe_KSafe.
       specialize (H _ _ _ Hgetj).
       assumption.
     - auto. 
-  Qed.
+           Qed.
 
   Lemma AngelStep_preserve_valid:
     forall U U' tr st tr' st' m m',
@@ -368,7 +368,44 @@ Section Csafe_KSafe.
       destruct (Nat.eq_dec tid j); subst;
         simpl in *; exfalso; now auto. *)
   Qed.
+
   
+  
+    Set  Nested Proofs Allowed.
+    Lemma step_schedule:
+    forall U U' tr st tr' st' m m',
+      MachStep (U,tr,st) m (U',tr',st') m' ->
+      U' = U \/ U' = schedSkip U.
+    Proof. intros. inv H; simpl in *; subst; eauto. Qed.
+    Lemma step_schedule_nonempty:
+    forall U U' tr st tr' st' m m',
+      MachStep (U,tr,st) m (U',tr',st') m' ->
+      U <> nil.
+    Proof. intros. inv H; simpl in *; subst; eauto;
+                     unfold schedPeek in *.
+           all: try (destruct U'; congruence).
+           all: try (destruct U; congruence).
+    Qed.
+    
+  Lemma Step_exists_valid:
+    forall U U' tr st tr' st' m m',
+      valid (tr, st, m) U ->
+      MachStep (U,tr,st) m (U',tr',st') m' ->
+      exists U'', U'' <> nil /\
+      valid (tr', st', m') U''.
+  Proof.
+    intros; exploit step_schedule; eauto.
+    intros [? | ?].
+    - subst. exploit CoreStep_preserve_valid; eauto.
+      intros HH; econstructor; split; eauto.
+      eapply step_schedule_nonempty; eauto.
+    - subst. unshelve (exploit AngelStep_preserve_valid; eauto).
+      eapply cons. exact O. exact nil.
+      intros HH; econstructor; split; eauto.
+      intros; congruence.
+  Qed.
+    
+    
   (* *)
   Lemma ksafe_csafe_equiv':
     forall st_ m tr,

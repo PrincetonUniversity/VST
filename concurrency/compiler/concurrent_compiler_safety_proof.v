@@ -62,6 +62,12 @@ Section Concurrent_Safety.
       (Genv.init_mem (Ctypes.program_of_program p)).
   Definition opt_init_mem_target {F V} (tp:AST.program F V ):=
     (Genv.init_mem tp).
+  Definition Clight_ASM_simulation p tp:=
+    fun {geS geT} => HybridMachine_simulation'
+                   (@ClightConcurSem geS (opt_init_mem_source p))
+                   (@AsmConcurSem tp geT (opt_init_mem_target tp))
+                   invariant invariant
+                   mem_compatible mem_compatible.
   
 
     Lemma match_valid_equiv:
@@ -72,8 +78,7 @@ Section Concurrent_Safety.
           (j : Values.Val.meminj)
           (C_source : OrdinalPool.t(Sem:=SemSource))
           (C_target : OrdinalPool.t(Sem:=SemTarget)) tr
-          (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
-                                          (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM)
+          (SIM : Clight_ASM_simulation p tp) (cd : index SIM)
           (Hmatch: match_state SIM cd j C_source m_s C_target m_t),
           (valid SemSource) (tr, C_source, m_s) U <-> (valid SemTarget) (tr, C_target, m_t) U.
     Proof.
@@ -115,7 +120,98 @@ Section Concurrent_Safety.
         rewrite <- Hsched;
           now auto.
     Qed.
-  
+    Set Nested Proofs Allowed.
+    Existing Instance HybridCoarseMachine.scheduler.
+    Lemma safety_step:
+      forall Sem U tr1 C_source m_s,
+        U <>  nil ->
+        explicit_safety
+          HybridMachine.DryHybridMachine.dryResources
+          Sem
+          (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=Sem))
+          HybridMachine.DryHybridMachine.DryHybridMachineSig
+          U tr1 C_source m_s ->
+        exists st2' m',
+          MachStep (U, tr1, C_source) m_s st2' m'.
+    Proof.
+      intros. inversion H0.
+      - hnf in H1.
+        unfold halted_machine, schedPeek in *.
+        simpl in *. match_case in H1.
+        match_case in Heqo.
+      - eapply step_equivalence2 in H1. normal_hyp.
+        simpl in *. eauto.
+        destruct y' as [[? ?] ?].
+        simpl in *. unfold MachState.
+        exists ((yield U), (seq.cat tr1 x), t), m.
+        hnf; simpl; eauto.
+      - eapply step_equivalence3 in H1. normal_hyp.
+        simpl in *. eauto.
+        destruct y' as [[? ?] ?].
+        simpl in *. unfold MachState.
+        exists ( x', e, t), m.
+        hnf; simpl; eauto.
+    Qed.
+    Lemma safety_inv:
+      forall Sem U tr1 C_source m_s,
+        U <>  nil ->
+        explicit_safety
+          HybridMachine.DryHybridMachine.dryResources
+          Sem
+          (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=Sem))
+          HybridMachine.DryHybridMachine.DryHybridMachineSig
+          U tr1 C_source m_s ->
+        invariant C_source.
+    Proof.
+      intros.
+      exploit safety_step; eauto; intros; normal.
+      hnf in H1; simpl in *.
+      Existing Instance dryResources.
+      Lemma step_invariant:
+        forall Sem,
+        forall  U tr st m U' tr' st' m',
+          @machine_step dryResources Sem (@OrdinalPool.OrdinalThreadPool dryResources Sem)
+                        HybridCoarseMachine.DilMem
+                        (@DryHybridMachineSig Sem (@OrdinalPool.OrdinalThreadPool dryResources Sem))
+                        HybridCoarseMachine.scheduler U tr st m U' tr' st' m' ->
+          @invariant Sem (@OrdinalPool.OrdinalThreadPool dryResources Sem) st.
+      Proof.
+        intros.
+        inversion H; eauto;
+          try inversion Htstep; eauto.
+      Qed.
+      eapply step_invariant; eauto.
+    Qed.
+    
+    Lemma safety_cmpt:
+      forall Sem U tr1 C_source m,
+        U <>  nil ->
+        explicit_safety
+          HybridMachine.DryHybridMachine.dryResources
+          Sem
+          (threadPool.OrdinalPool.OrdinalThreadPool(Sem:=Sem))
+          HybridMachine.DryHybridMachine.DryHybridMachineSig
+          U tr1 C_source m ->
+        mem_compatible C_source m.
+    Proof.
+      Lemma step_cmpt:
+        forall Sem,
+        forall  U tr st m U' tr' st' m',
+          @machine_step dryResources Sem (@OrdinalPool.OrdinalThreadPool dryResources Sem)
+                        HybridCoarseMachine.DilMem
+                        (@DryHybridMachineSig Sem (@OrdinalPool.OrdinalThreadPool dryResources Sem))
+                        HybridCoarseMachine.scheduler U tr st m U' tr' st' m' ->
+          @mem_compatible Sem (@OrdinalPool.OrdinalThreadPool dryResources Sem) st m.
+      Proof.
+        intros.
+        inversion H; eauto;
+          try inversion Htstep; eauto.
+      Qed.
+      intros.
+      exploit safety_step; eauto; intros; normal.
+      hnf in H1; simpl in *.
+      intros; eapply step_cmpt; eauto.
+    Qed.
     Lemma explicit_safety_step':
       forall (p : Clight.program) (tp : Asm.program) (asm_genv_safety : Asm_core.safe_genv the_ge),
         let SemSource:= (ClightSemanticsForMachines.ClightSem (Clight.globalenv p)) in
@@ -124,8 +220,7 @@ Section Concurrent_Safety.
           (j : Values.Val.meminj)
           (C_source : OrdinalPool.t(Sem:=SemSource))
           (C_target : OrdinalPool.t(Sem:=SemTarget)) tr1 tr2
-          (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
-                                          (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM)
+          (SIM : Clight_ASM_simulation p tp) (cd : index SIM)
           (Hmatch: match_state SIM cd j C_source m_s C_target m_t)
           (Hmatch_events: List.Forall2 (inject_mevent j) tr1 tr2)
           (HsafeS: forall U,
@@ -261,11 +356,28 @@ Section Concurrent_Safety.
         pose proof Hstep as HstepS.
         eapply (machine_diagram SIM) with (sge := Clight.globalenv p) (tge := the_ge) in Hstep;
           eauto.
-        destruct Hstep as [tr2' [C_target' [m_t' [cd' [j' [Hmatch' [Hevs' HstepT]]]]]]].
-        simpl in HstepT.
-        pfold.
-        econstructor 3 with (y' := (tr2', C_target', m_t'));
-          eauto.
+        + destruct Hstep as [tr2' [C_target' [m_t' [cd' [j' [Hmatch' [Hevs' HstepT]]]]]]].
+          simpl in HstepT.
+          pfold.
+          econstructor 3 with (y' := (tr2', C_target', m_t'));
+            eauto.
+        + (* prove that inv is satisfied. *)
+          simpl in CIH.
+          exploit @step_equivalence3; eauto; intros HMachStep.
+          normal.
+          exploit Step_exists_valid; eauto; try eapply H0.
+          intros HH; normal.
+          eapply safety_inv; eauto.
+          eapply CIH; eauto.
+        + simpl in CIH.
+          exploit @step_equivalence3; eauto; intros HMachStep.
+          normal.
+          exploit Step_exists_valid; eauto; try eapply H0.
+          intros HH; normal.
+          eapply safety_cmpt; eauto.
+          eapply CIH; eauto.
+
+          
         Unshelve. all:auto.
     Qed.
     Lemma explicit_safety_step:
@@ -276,8 +388,7 @@ Section Concurrent_Safety.
            (j : Values.Val.meminj) (c : Asm.state)
            (C_source : OrdinalPool.t(Sem:=SemSource))
            (C_target : OrdinalPool.t(Sem:=SemTarget)) tr1 tr2
-           (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
-                                           (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM)
+           (SIM : Clight_ASM_simulation p tp) (cd : index SIM)
            (Hmatch_events: List.Forall2 (inject_mevent j) tr1 tr2),
            match_state SIM cd j C_source m_s C_target
                        m_t ->
@@ -330,8 +441,7 @@ Section Concurrent_Safety.
              (j : Values.Val.meminj) (c : Asm.state)
              (C_source : OrdinalPool.t(Sem:=SemSource))
              (C_target : OrdinalPool.t) tr1 tr2
-             (SIM : HybridMachine_simulation (ClightConcurSem (opt_init_mem_source p))
-                                             (AsmConcurSem (opt_init_mem_target tp))) (cd : index SIM)
+             (SIM : Clight_ASM_simulation p tp) (cd : index SIM)
          (Hmatch_events: List.Forall2 (inject_mevent j) tr1 tr2),
         match_state SIM cd j C_source init_mem_source' C_target
                     (Asm.get_mem c) ->
@@ -469,6 +579,11 @@ Section Concurrent_Safety.
       eapply initial_csafe_all_schedule.
       intros; eapply csafety_step; eauto.
       eapply H3.
+
+      Unshelve.
+      { eapply DryHybridMachineSig. }
+      { eapply DryHybridMachineSig. }
+
     Qed.
 
     Definition SemSource:= (ClightSemanticsForMachines.ClightSem

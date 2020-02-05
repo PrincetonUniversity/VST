@@ -187,6 +187,7 @@ Section HybridSimulation.
   Qed.
 
   Record HybridMachine_simulation_properties
+         (Hinv: SC -> Prop)(Hcmpt: SC -> mem -> Prop)
          (index: Type)(match_state : index -> meminj -> SC -> mem -> TC -> mem -> Prop) :=
     { core_ord : index -> index -> Prop
       ; core_ord_wf : well_founded core_ord
@@ -219,6 +220,8 @@ Section HybridSimulation.
           forall sge tge U tr1 st1 m1 U' tr1' st1' m1',
             machine_step SourceHybridMachine sge U tr1 st1 m1 U' tr1' st1' m1' ->
             forall cd tr2 st2 mu m2,
+              Hinv st1' ->
+              Hcmpt st1' m1' ->
               match_state cd mu st1 m1 st2 m2 ->
               Forall2 (inject_mevent mu) tr1 tr2 ->
               exists tr2', exists st2', exists m2', exists cd', exists mu',
@@ -237,9 +240,27 @@ Section HybridSimulation.
             forall i, running_thread SourceHybridMachine c1 i <-> running_thread TargetHybridMachine c2 i
     }.
 
-  Record HybridMachine_simulation:=
+  Record HybridMachine_simulation'
+         (inv1: SC -> Prop)
+         (inv2: TC -> Prop)
+         (cmpt1: SC -> mem -> Prop) 
+         (cmpt2: TC -> mem -> Prop):=
     { index: Type
       ; match_state : index -> meminj -> SC -> mem -> TC -> mem -> Prop
-      ; SIM:> @HybridMachine_simulation_properties index match_state}.
+      ; match_inv: forall cd mu st1 m1 st2 m2,
+          match_state cd mu st1 m1 st2 m2 ->
+           inv1 st1 -> inv2 st2  
+      ; match_cmpt: forall cd mu st1 m1 st2 m2,
+          match_state cd mu st1 m1 st2 m2 ->
+          cmpt1 st1 m1 -> cmpt2 st2 m2
+      ; SIM':> @HybridMachine_simulation_properties inv1 cmpt1 index match_state}.
+
+  Record HybridMachine_simulation:=
+    { inv1: SC -> Prop
+      ; inv2: TC -> Prop
+      ; cmpt1: SC -> mem -> Prop 
+      ; cmpt2: TC -> mem -> Prop
+      ; SIM:> HybridMachine_simulation' inv1 inv2 cmpt1 cmpt2 }.
+  
 
 End HybridSimulation.

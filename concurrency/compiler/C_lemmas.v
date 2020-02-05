@@ -35,7 +35,6 @@ Set Bullet Behavior "Strict Subproofs".
 Require Import VST.concurrency.common.ClightMachine.
 (*Asm Machine*)
 Require Import VST.concurrency.common.x86_context.
-Require Import VST.concurrency.compiler.concurrent_compiler_simulation_definitions.
 Import bounded_maps.
 
 

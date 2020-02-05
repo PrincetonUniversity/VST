@@ -14,7 +14,6 @@ Require Import VST.concurrency.lib.tactics.
 Require Import VST.concurrency.common.Compcert_lemmas.
 Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.common.semantics. 
-Require Import VST.concurrency.compiler.concurrent_compiler_simulation.
 Require Import VST.concurrency.compiler.sequential_compiler_correct.
 Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
@@ -172,6 +171,7 @@ Section SyncSimulation.
         forall (cnt1 : ThreadPool.containsThread st1 tid) (Hcmpt : mem_compatible st1 m1),
           HybridMachineSig.schedPeek U = Some tid ->
           syncStep true cnt1 Hcmpt st1' m1' ev ->
+          forall (Hinv':invariant st1') (Hcmpt':mem_compatible st1' m1'),
           exists ev' (st2' : t) (m2' : mem) (cd' : option compiler_index) 
             (mu' : meminj),
             concur_match cd' mu' st1' m1' st2' m2' /\
@@ -417,6 +417,8 @@ Section SyncSimulation.
           
         + destruct pmap_tid' as (a&a0); simpl in *; subst a a0.
           reflexivity.
+        + unfold remLockfFullUpdate.
+          subst m1; eapply mem_compat_restrPermMap; eauto.
         + clean_proofs.
           unfold fullThUpd_comp, fullThreadUpdate in *.
           
@@ -425,7 +427,7 @@ Section SyncSimulation.
           
           assert (Hlt1': permMapLt (getCurPerm m1_base) (getMaxPerm m1)).
           { subst. rewrite getMax_restr. apply mem_cur_lt_max. }
-
+          
           apply syncStep_restr with (Hlt:=Hlt2') in H5.
           destruct H5 as (?&?&Hstep).
           do 5 econstructor; repeat (weak_split idtac).

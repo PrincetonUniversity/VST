@@ -18,7 +18,10 @@ Section ConcurrentCopmpilerSpecification.
   Import DMS.  
   (*Import the Asm X86 Hybrid Machine*)
   Import X86Context.
-
+  Import HybridMachineSig.HybridMachineSig.
+  Import HybridMachine.DryHybridMachine.
+  Import OrdinalPool.
+  
   (*Import the Asm Hybrid Machine*)
   Context (Clight_g : Clight.genv).
   Context (Asm_g : Clight.genv).
@@ -27,8 +30,20 @@ Section ConcurrentCopmpilerSpecification.
 
   Variable opt_init_mem_source: option Memory.Mem.mem.
   Variable opt_init_mem_target: option Memory.Mem.mem.
-  Definition ConcurrentCompilerCorrectness_specification: Type:=
-    HybridMachine_simulation (ClightConcurSem(ge:=Clight_g) opt_init_mem_source) (@AsmConcurSem Asm_program Asm_genv_safe opt_init_mem_target).
 
+  Definition MachSig Sem:=
+  @MachineSig dryResources Sem (@OrdinalThreadPool dryResources Sem).
+  Definition MachSigSource:= MachSig (@DSem Clight_g).
+  Definition MachSigTarget:= MachSig (@X86Sem Asm_program Asm_genv_safe).
+  Definition ConcurrentCompilerCorrectness_specification
+             (MSS : MachSigSource)
+             (MST: MachSigTarget): Type:=
+    (HybridMachine_simulation'
+      (@ClightConcurSem Clight_g opt_init_mem_source)
+      (@AsmConcurSem Asm_program Asm_genv_safe opt_init_mem_target)
+      invariant
+      invariant
+      mem_compatible
+      mem_compatible).
 
 End ConcurrentCopmpilerSpecification.

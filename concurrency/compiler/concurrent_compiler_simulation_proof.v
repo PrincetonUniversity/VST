@@ -88,11 +88,7 @@ Section Concurrent_correctness.
 
     Definition ctl_c_lifting:=
       ctl_lifting (fun XX : Clight.state => SState Clight.state Asm.state XX).
-      
-    Inductive refl_match {st_t:Type}: unit -> meminj -> st_t -> mem -> st_t -> mem -> Prop :=
-    | Build_refl_match:
-        forall m st, refl_match tt (Mem.flat_inj (Mem.nextblock m)) st m st m.
-    Definition trivial_order: unit -> unit -> Prop := (fun _ _=> False).
+      Definition trivial_order: unit -> unit -> Prop := (fun _ _=> False).
     Lemma trivial_order_wf: well_founded trivial_order.
     Proof. do 2 econstructor. inv H. Qed.
 
@@ -530,30 +526,43 @@ Section Concurrent_correctness.
         + apply SState, q.
         + eapply getC_lift_c_state in H; simpl in *.
           eauto.
-    Qed. 
+    Qed.
+    
+    Inductive refl_match {st_t:Type}: unit -> meminj -> st_t -> mem -> st_t -> mem -> Prop :=
+    | Build_refl_match:
+        forall m st, refl_match tt (Mem.flat_inj (Mem.nextblock m)) st m st m.
     Definition lifted_refl_match :=
       fun cd j st1 m1 st2 m2 =>
          refl_match cd j (lift_c_state st1) m1 st2 m2.
     Lemma trivial_clight_simulation:
-      (HybridMachine_simulation
+      (HybridMachine_simulation'
          (ClightMachine.DMS.ClightConcurSem
             (ge:=Clight_g)
             (Genv.init_mem (Ctypes.program_of_program C_program)))
-         (HybConcSem (Some 0)%nat (Genv.init_mem (Ctypes.program_of_program C_program)))).
+         (HybConcSem (Some 0)%nat (Genv.init_mem (Ctypes.program_of_program C_program))))
+        (@invariant _ (OrdinalPool.OrdinalThreadPool))
+        (@invariant _ (OrdinalPool.OrdinalThreadPool))
+        (@mem_compatible _ (OrdinalPool.OrdinalThreadPool))
+        (@mem_compatible _ (OrdinalPool.OrdinalThreadPool)).
     Proof.
       intros.
-      eapply Build_HybridMachine_simulation with (match_state:=lifted_refl_match).
-      unshelve econstructor.
-      - exact trivial_order.
-      - exact trivial_order_wf.
-      - (*initial_setup*)
-        simpl; intros.
-        exists (Mem.flat_inj (Mem.nextblock s_mem')), tt.
-        unshelve eexists. eapply lift_c_state; eauto.
-        exists s_mem, s_mem', r1; split.
-        2: { econstructor. }
-        inv H; econstructor; eauto.
-        simpl in *.
+      unshelve eapply Build_HybridMachine_simulation' with
+          (match_state:=lifted_refl_match).
+      - intros. hnf in H. inv H.
+        eapply invariant_lift_c_state; eauto.
+      - intros. hnf in H. inv H.
+        eapply mem_compatible_lift_c_state; eauto.
+      - { unshelve econstructor.
+          - exact trivial_order.
+          - exact trivial_order_wf.
+          - (*initial_setup*)
+            simpl; intros.
+            exists (Mem.flat_inj (Mem.nextblock s_mem')), tt.
+            unshelve eexists. eapply lift_c_state; eauto.
+            exists s_mem, s_mem', r1; split.
+            2: { econstructor. }
+            inv H; econstructor; eauto.
+            simpl in *.
         destruct r1; inv H1.
         econstructor; simpl in *.
         normal.
@@ -577,21 +586,20 @@ Section Concurrent_correctness.
       - (*machine_diagram*)
         intros; unfold Clight_g; auto.
         unshelve (exploit machine_step_trace_C;
-          simpl in *; eauto); eauto.
+                  simpl in *; eauto); eauto; shelve_unifiable.
         eapply Some; assumption. 
         intros [tr_tail Htr].
         subst tr1'.
         exists (tr2 ++ tr_tail), (lift_c_state st1').
         normal. 
-        + econstructor. 
-        
-        + inv H0; simpl in H.
+        + econstructor.
+        + inv H2; simpl in H.
           eapply Forall_cat; auto.
           eapply inject_incr_trace; try eassumption.
           eapply flat_inj_lt, machine_step_nextblock; eauto.
           eapply external_step_event_injectable; eauto.
-        + inv H0.
-          eauto. simpl in *.
+        + inv H2.
+          eauto; simpl in *.
           eapply external_step_anytrace in H.
           eapply external_step_lift_c_state; eauto.
       - intros. revert H0.
@@ -599,21 +607,23 @@ Section Concurrent_correctness.
         intros. exists v1. simpl in *.
         eapply halted__lift_c_state; auto.
       - intros; simpl. inv H. 
-        apply unique_Krun_lift_c_state. 
+        apply unique_Krun_lift_c_state. } 
     Qed.
     Lemma trivial_asm_simulation:
       forall ap (Hsafe:Asm_core.safe_genv (@X86Context.the_ge ap)), 
-        (HybridMachine_simulation
-           (HybConcSem None (Genv.init_mem ap))
-           (X86Context.AsmConcurSem
-              (the_program:=ap)
-              (Hsafe:=Hsafe)
-              (Genv.init_mem ap))).
+        (HybridMachine_simulation'
+         (HybConcSem None (Genv.init_mem ap))
+         (X86Context.AsmConcurSem
+            (the_program:=ap)
+            (Hsafe:=Hsafe)
+            (Genv.init_mem ap))
+         (@invariant _ (OrdinalPool.OrdinalThreadPool))
+         (@invariant _ (OrdinalPool.OrdinalThreadPool))
+         (@mem_compatible _ (OrdinalPool.OrdinalThreadPool))
+         (@mem_compatible _ (OrdinalPool.OrdinalThreadPool))).
+
     Proof.
-      intros. do 2 econstructor.
-      - eapply trivial_order_wf.
-      - intros.
-        
+      intros.
     (* This lemma follows just like the one above 
            [trivial_clight_simulation] , but for ASM. 
            will need to repeat many of the lemmas unfortunately.
@@ -632,17 +642,24 @@ Section Concurrent_correctness.
         forall G1 G2 G3 TID SCH C1 C2 C3 res,
         forall (Machine1 : @machine_semantics.ConcurSemantics G1 TID SCH _ C1 mem res)
                (Machine2 : @machine_semantics.ConcurSemantics G2 TID SCH _ C2 mem res)
-               (Machine3 : @machine_semantics.ConcurSemantics G3 TID SCH _ C3 mem res),
-          HybridMachine_simulation Machine1 Machine2 -> 
-          HybridMachine_simulation Machine2 Machine3 ->
-          HybridMachine_simulation Machine1 Machine3.
+               (Machine3 : @machine_semantics.ConcurSemantics G3 TID SCH _ C3 mem res)
+        inv1 inv2 inv3 cmpt1 cmpt2 cmpt3,
+          HybridMachine_simulation' Machine1 Machine2 inv1 inv2 cmpt1 cmpt2 -> 
+          HybridMachine_simulation' Machine2 Machine3 inv2 inv3 cmpt2 cmpt3 ->
+          HybridMachine_simulation' Machine1 Machine3 inv1 inv3 cmpt1 cmpt3.
       Proof.
-        destruct 1 as [index1 match_state1 SIM1].
-        destruct 1 as [index2 match_state2 SIM2].
-        eapply Build_HybridMachine_simulation with (index := (index1 * index2)%type)
-                                                   (match_state := fun a j c1 m1 c3 m3 => exists j1 j2 c2 m2, j = compose_meminj j1 j2 /\
-                                                                                                              match_state1 (fst a) j1 c1 m1 c2 m2 /\ match_state2 (snd a) j2 c2 m2 c3 m3).
-        inversion SIM1; inversion SIM2; econstructor.
+        destruct 1 as [index1 match_state1 match_inv1 match_cmpt1 SIM1].
+        destruct 1 as [index2 match_state2 match_inv2 match_cmpt2 SIM2].
+        eapply Build_HybridMachine_simulation' with
+            (index := (index1 * index2)%type)
+            (match_state := fun a j c1 m1 c3 m3 => exists j1 j2 c2 m2, j =
+                                                               compose_meminj j1 j2 /\
+                                                               match_state1 (fst a) j1 c1 m1 c2 m2 /\
+                                                               match_state2 (snd a) j2 c2 m2 c3 m3).
+        { intros; normal_hyp; eauto.  }
+        { intros; normal_hyp; eauto. }
+
+        { inversion SIM1; inversion SIM2; econstructor.
         - apply Coqlib.wf_lex_ord; eauto.
         - intros.
           destruct (initial_setup _ _ _ _ _ _ H) as (? & ? & ? & ? & ? & ? & H2 & ?).
@@ -687,27 +704,31 @@ Section Concurrent_correctness.
                
                *)
   
+      Local Ltac subst_sig:=
+        match goal with
+          H': existT _ _ _ = existT _ _ _ |- _ =>
+          eapply Eqdep.EqdepTheory.inj_pair2 in H'; subst
+        end.
   Lemma ConcurrentCompilerCorrectness:
-    forall (tp:Asm.program),
+    forall (tp:Asm.program) ,
       CompCert_compiler C_program = Some tp ->
-      forall asm_genv_safety,
-        ConcurrentCompilerCorrectness_specification Clight_g tp asm_genv_safety
+      forall asm_genv_safety MSS MST,
+        ConcurrentCompilerCorrectness_specification
+          Clight_g tp asm_genv_safety
           (Genv.init_mem (Ctypes.program_of_program C_program)) (Genv.init_mem tp)
-  .
+          MSS MST.
   Proof.
     unfold ConcurrentCompilerCorrectness_specification.
     intros.
-    eapply HBSimulation_transitivity; eauto.
-    - eapply trivial_clight_simulation; eauto.
+    eapply HBSimulation_transitivity.
+    - eapply trivial_clight_simulation; eauto. 
     - eapply HBSimulation_transitivity.
-      + econstructor.
-        eapply compile_all_threads.
-      + replace (Genv.init_mem (Ctypes.program_of_program C_program))
-          with (Genv.init_mem tp) by
-            (eapply initial_memories_are_equal; eauto).
+         + eapply compile_all_threads.
+         + replace (Genv.init_mem (Ctypes.program_of_program C_program))
+                with (Genv.init_mem tp) by
+                  (eapply initial_memories_are_equal; eauto).
         pose proof trivial_asm_simulation.
         eapply trivial_asm_simulation; eauto.
   Qed.
-
   
 End Concurrent_correctness.

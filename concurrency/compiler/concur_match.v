@@ -13,7 +13,6 @@ Require Import VST.concurrency.lib.tactics.
 Require Import VST.concurrency.common.permissions. Import permissions.
 Require Import VST.concurrency.compiler.advanced_permissions.
 Require Import VST.concurrency.common.semantics. 
-Require Import VST.concurrency.compiler.concurrent_compiler_simulation.
 Require Import VST.concurrency.compiler.sequential_compiler_correct.
 Require Import VST.concurrency.compiler.CoreSemantics_sum.
 Require Import VST.concurrency.common.HybridMachine.
