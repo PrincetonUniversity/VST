@@ -748,7 +748,7 @@ Ltac lookup_spec id :=
       t2 t1)]
       end]
    end
- else elimtype  (Cannot_find_function_spec_in_Delta id).
+ else fail 100 "Your Gprog contains no funspec with the name" id.
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
