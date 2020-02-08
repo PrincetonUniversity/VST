@@ -857,7 +857,7 @@ Section FreeDiagrams.
             unfold inject_lock,inject_lock'.
             intros HH'. normal_hyp.
             unify_injection. 
-            eapply H2.  eauto.
+            eapply H1.  eauto.
         - rewrite Heq.
           rewrite Hthread_mem1, Hthread_mem2.
           eapply mi_perm_inv_perm_setPermBlock_var; eauto.
@@ -890,7 +890,7 @@ Section FreeDiagrams.
             unfold inject_lock,inject_lock'.
             intros HH'. normal_hyp.
             unify_injection. 
-            eapply H2.  eauto.
+            eapply H1.  eauto.
         - rewrite Heq.
           rewrite Hlock_mem1, Hlock_mem2.
           assert (HMaxlk:Max_equiv m1' lk_mem1) by

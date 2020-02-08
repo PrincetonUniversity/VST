@@ -646,6 +646,22 @@ Section VirtueInject.
           dmap_get m b ofs = Some p -> injects mu b.
       Definition injects_dmap_pair mu:= pair1_prop (injects_dmap mu).
       Hint Unfold injects_dmap_pair: pair.
+      Lemma inject_virtue_sub_map_pair':
+        forall (m1 m2 : mem)
+          (mu : meminj) angel
+          perm1 perm2 Hlt1 Hlt2,
+          Mem.inject mu (@restrPermMap perm1 m1 Hlt1 ) 
+                     (@restrPermMap perm2 m2 Hlt2 ) ->
+          sub_map_pair angel (snd (getMaxPerm m1)) ->
+          sub_map_pair (virtueThread_inject m2 mu angel) (snd (getMaxPerm m2)).
+      Proof.
+        intros.
+        remember (snd (getMaxPerm m2)) as TEMP.
+        destruct angel as (virtueT_A & virtueT_B).
+        simpl; subst.
+        constructor; simpl;
+          eapply inject_virtue_sub_map; eauto; eapply H0.
+      Qed.
       Lemma inject_virtue_sub_map_pair:
         forall (m1 m2 : mem)
           (mu : meminj)
@@ -656,12 +672,7 @@ Section VirtueInject.
           sub_map_pair (virtueThread angel) (snd (getMaxPerm m1)) ->
           sub_map_pair (virtueThread (inject_virtue m2 mu angel)) (snd (getMaxPerm m2)).
       Proof.
-        intros.
-        remember (snd (getMaxPerm m2)) as TEMP.
-        destruct angel as (virtueT&?); destruct virtueT as (virtueT_A & virtueT_B).
-        simpl; subst.
-        constructor; eapply inject_virtue_sub_map; first [eapply H0|eassumption].
-      Qed.
+        intros. simpl. eapply inject_virtue_sub_map_pair'; eauto. Qed.
 
       
       Lemma inject_perm_inj_dmap':

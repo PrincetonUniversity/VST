@@ -714,10 +714,10 @@ Section MklockDiagrams.
             1, 2: erewrite at_least_perm_order.
             -- eapply perm_order_trans211; swap 1 2.
                instantiate(1:=Some Nonempty); econstructor.
-               eapply lockSet_is_not_readable in H4 as [HH' _];eauto.
+               eapply lockSet_is_not_readable in H2 as [HH' _];eauto.
                exploit HH'. instantiate(1:= (unsigned ofs + delta) - x2).
                rewrite Hunsign in *.
-               subst; clear - H2 H. try omega. intros <-.
+               subst; clear - H1 H. omega. intros <-.
                rewrite <- Hmax_eq0. eapply Hlt_th1.
             -- inv HH1; simpl in *.
                exploit setPermBlock_range_perm; eauto.
@@ -729,8 +729,8 @@ Section MklockDiagrams.
                subst. unify_injection.
                rewrite Hunsign in *.
                
-               eapply lockSet_is_not_readable in H4 as [H4 _]; eauto.
-               exploit H4. instantiate(1:=unsigned ofs); omega.
+               eapply lockSet_is_not_readable in H2 as [H2 _]; eauto.
+               exploit H2. instantiate(1:=unsigned ofs); omega.
 
                inv Hlock_update_mem_strict1.
                rewrite Hthread_mem1. intros contra.

@@ -1495,6 +1495,44 @@ Section SimulationTactics.
     rewrite <- Hafter_x, asm_set_mem_get_mem.
     eassumption.
   Qed.
+
+    
+    Lemma at_external_sum_sem:
+      forall hb Sem,
+        let CoreSem := sem_coresem Sem in
+        forall th_state2 sum_state2 m1 m2
+          (st1:mach_state hb)
+          (st2:mach_state (S hb)) tid cnt1 cnt2 args'
+          (HState2 : coerce_state_type semC sum_state2 th_state2 
+                                       (CSem, Clight.state) (AsmSem, Asm.state) 
+                                       (Sem, semC))
+          (Hthread_mem1 : access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
+          (Hthread_mem2 : access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2))
+          (thread_compat2 : thread_compat st2 tid cnt2 m2)
+          (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2)) F
+          (Hat_external2 : at_external CoreSem th_state2 m2 = Some (F, args')), 
+          at_external
+            (sem_coresem (HybridSem (Some (S hb))))
+            sum_state2 (restrPermMap abs_proof) = Some (F, args').
+    Proof.
+      intros.
+      simpl; unfold at_external_sum, sum_func.
+      rewrite <- (restr_proof_irr (th_comp thread_compat2)).
+      rewrite <- Hat_external2; simpl.
+      inversion HState2; subst.
+      - !goal ( Clight.at_external _ = _ _ m2).
+        replace c with th_state2; auto.
+        2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+        eapply C_at_external_proper; auto.
+        eapply cur_equiv_restr_mem_equiv; auto.
+      - !goal ( Asm.at_external _ _ = _ _ m2).
+        replace c with th_state2; auto.
+        2: eapply (Extensionality.EqdepTh.inj_pair2 Type (fun x => x)); auto.
+        simpl.
+        (* why can't I rewrite?*)
+        eapply Asm_at_external_proper; auto.
+        eapply cur_equiv_restr_mem_equiv; auto.
+  Qed.
   
 End SimulationTactics.
 
@@ -2381,7 +2419,30 @@ Ltac unify_at_ext:=
          H2: Clight.at_external ?X = _ |- _] =>
     rewrite H1 in H2; invert H2
   end.
+Ltac inj_args_inv_followup f:=
+  match goal with
+  | [H:Val.inject f (Vptr ?b1 ?ofs) _ |- _]  =>
+    invert H; try clear H;
+    match goal with
+    | [Hinj_b_badname: f b1 = Some _ |- _ ] =>
+      let Hinj_b:= fresh "Hinj_b" in
+      rename Hinj_b_badname into Hinj_b;
+      try (let Hinj_b':= fresh "Hinj_b'" in
+           eapply evolution_inject_incr in Hinj_b as Hinj_b';
+           eauto; [idtac] (*check only one goal left.*) )
+    end
+  | [H:Val.inject f _ ?arg2 |- _] =>
+    let arg_name:= fresh "arg2" in rename arg2 into arg_name
+  end.
 Ltac inj_args_inv:=
+  repeat match goal with
+         | [Hinj_args: Val.inject_list ?f _ _  |- _ ]=>
+           let Hinj_args1:= fresh "Hinj_args" in
+           let Hinj_args2:= fresh "Hinj_args" in
+           invert Hinj_args; try clear Hinj_args; 
+           try (inj_args_inv_followup f)
+         end.
+Ltac inj_args_inv_old:=
   match goal with
     [Hinj_args: Val.inject_list ?f (Vptr ?b1 ?ofs :: nil) _  |- _ ]=>
     invert Hinj_args;

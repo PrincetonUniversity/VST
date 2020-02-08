@@ -104,30 +104,28 @@ Section ReleaseDiagrams.
     Notation mtch_compiled:= (mtch_compiled hb).
     Notation mtch_source:= (mtch_source hb).
   
-    Lemma at_external_sum_sem:
+    (* Lemma at_external_sum_sem:
       forall Sem,
         let CoreSem := sem_coresem Sem in
         forall th_state2 sum_state2 m1 m2
-               (st1:mach_state hb)
-               (st2:mach_state (S hb)) tid cnt1 cnt2 args'
-               (HState2 : coerce_state_type semC sum_state2 th_state2 
-                                            (CSem, Clight.state) (AsmSem, Asm.state) 
-                                            (Sem, semC))
-               (Hthread_mem1 : access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
-               (Hthread_mem2 : access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2))
-               (thread_compat2 : thread_compat st2 tid cnt2 m2)
-               (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2))
-               (Hat_external2 : at_external CoreSem th_state2 m2 = Some (UNLOCK, args')), 
+          (st1:mach_state hb)
+          (st2:mach_state (S hb)) tid cnt1 cnt2 args'
+          (HState2 : coerce_state_type semC sum_state2 th_state2 
+                                       (CSem, Clight.state) (AsmSem, Asm.state) 
+                                       (Sem, semC))
+          (Hthread_mem1 : access_map_equiv (thread_perms tid st1 cnt1) (getCurPerm m1))
+          (Hthread_mem2 : access_map_equiv (thread_perms tid st2 cnt2) (getCurPerm m2))
+          (thread_compat2 : thread_compat st2 tid cnt2 m2)
+          (abs_proof : permMapLt (fst (getThreadR cnt2)) (getMaxPerm m2)) F
+          (Hat_external2 : at_external CoreSem th_state2 m2 = Some (F, args')), 
           at_external
             (sem_coresem (HybridSem (Some (S hb))))
-            sum_state2 (restrPermMap abs_proof) = Some (UNLOCK, args').
+            sum_state2 (restrPermMap abs_proof) = Some (F, args').
     Proof.
       intros.
-      
       simpl; unfold at_external_sum, sum_func.
       rewrite <- (restr_proof_irr (th_comp thread_compat2)).
       rewrite <- Hat_external2; simpl.
-      
       inversion HState2; subst.
       - !goal ( Clight.at_external _ = _ _ m2).
         replace c with th_state2; auto.
@@ -141,7 +139,7 @@ Section ReleaseDiagrams.
         (* why can't I rewrite?*)
         eapply Asm_at_external_proper; auto.
         eapply cur_equiv_restr_mem_equiv; auto.
-    Qed.
+    Qed. *)
 
     Lemma release_step_diagram_self Sem tid:
       let CoreSem:= sem_coresem Sem in
@@ -407,7 +405,7 @@ Section ReleaseDiagrams.
           with (Hwritable_lock0:=Hwritable_lock0')
                (Hwritable_lock1:=Hwritable_lock1')
         ; try eapply Haccess;
-          try eapply HHlock; debug eauto.
+          try eapply HHlock; eauto.
         1:{ eapply permMapLt_trans.
             destruct Hjoin_angel as [HHjoin1 _].
             simpl in HHjoin1. move HHjoin1 at bottom.
@@ -472,7 +470,7 @@ Section ReleaseDiagrams.
       assert (Hinj2': Mem.inject mu (restrPermMap Hlt12') (restrPermMap Hlt22'))
         by (apply inject_restr; eauto).
       assert (Hinj1': Mem.inject mu (restrPermMap Hlt11') (restrPermMap Hlt21'))
-        by (apply inject_restr; debug eauto). 
+        by (apply inject_restr; eauto). 
       
       
 
@@ -681,7 +679,7 @@ Section ReleaseDiagrams.
                  *)
                 
                 
-                econstructor; debug eauto.
+                econstructor; eauto.
                 * rewrite getCur_restr.
                   eapply perm_image_injects_map.
                   eapply full_inject_map; eauto.
@@ -716,7 +714,7 @@ Section ReleaseDiagrams.
                 do 2 econstructor; eauto.
 
                 
-                econstructor; debug eauto.
+                econstructor; eauto.
                 * rewrite getCur_restr.
                   eapply perm_image_injects_map.
                   eapply full_inject_map; eauto.
@@ -808,6 +806,11 @@ Section ReleaseDiagrams.
 
       
       (** * 1. Set all the at_externals for LEFT diagram m1 m1' m2 m2' *)
+      (* get_injection_thread_mem.
+      use_retroactive_int_diagram_atx.
+      inj_args_inv; (first
+   [ inject_lock_update_mem_strict_load | inject_lock_update_mem_strict | idtac ])
+       *)
       left_diagram.
       set (virtueThread1:= virtueThread angel).
       set (virtueLP1 :=   virtueLP angel   ).
