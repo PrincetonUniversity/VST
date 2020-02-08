@@ -677,6 +677,11 @@ Section SpawnDiagrams.
           (* try eapply CMatch; *)
           eauto; try reflexivity.
         + econstructor; eassumption.
+        + econstructor; eauto.
+          * !goal(mem_interference m1 lev1 m1').
+            rewrite self_restre_eq in Hinterference1; eauto.
+          * !goal(mem_interference m2 lev2 m2').
+            rewrite self_restre_eq in Hinterference2; eauto.
         + simpl; clean_proofs.
           normal; eauto.
           
