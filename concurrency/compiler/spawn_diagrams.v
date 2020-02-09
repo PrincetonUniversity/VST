@@ -681,7 +681,7 @@ Lemma mi_inj_mi_perm_perm_Cur_backwards:
                ++ eapply CMatch.
                ++ eapply join_dmap_valid; eapply Hangel_bound_new.
         + !goal(invariant _). admit. (* HERE sat *)
-        + !context_goal one_thread_match. admit.
+        + !context_goal one_thread_match. shelve.
           
       - subst event2. repeat econstructor; eauto.
       - !goal (syncStep _ _ _ _ _ _).
@@ -718,6 +718,89 @@ Lemma mi_inj_mi_perm_perm_Cur_backwards:
             eapply Hjoin_angel2. }
         + { simpl. subst ThreadPerm2 newThreadPerm2 virtue2 virtue_new2.
             eapply Hjoin_angel2. }
+        + subst event2 virtue2 virtue_new2. unfold build_spwan_event.
+          reflexivity.
+
+          Unshelve.
+          all: try apply empty_LT.
+          
+          { !context_goal one_thread_match. (*shelved above.*)
+            
+            destruct (lt_eq_lt_dec tid hb) as [[Htid_neq'|Htid_neq']|Htid_neq'].
+            - (* (tid < hb)%nat *)
+              
+              unshelve (eapply CMatch in Htid_neq' as Hthmatch); simpl;
+                eauto.
+            (*  + rewrite getMax_restr; eauto.
+              + rewrite getMax_restr; eauto.*)
+              + rewrite Hget_th_state1, Hget_th_state2 in Hthmatch.
+                unshelve (repeat erewrite <- restrPermMap_idempotent_eq in Hthmatch);
+                  eauto.
+                inv Hthmatch. inv H5; simpl in *.
+                
+                econstructor 2; eauto. simpl.
+                do 2 econstructor; eauto.
+                (*worth writting this as a lemma, 
+                then use it bellow
+                 *)
+                
+                
+                econstructor; eauto.
+                * rewrite getCur_restr.
+                  eapply perm_image_injects_map.
+                  eapply full_inject_map; eauto.
+                  eapply CMatch.
+                  -- eapply map_valid_Lt; eauto.
+                     eapply max_map_valid.
+                * do 2 rewrite getCur_restr.
+                  eapply perm_surj_compute.
+                  -- exploit @mtch_target; eauto.
+                     intros HH; inv HH; inv matchmem;
+                       repeat rewrite getCur_restr in *;
+                       eauto.
+                  -- eapply inject_perm_perfect_image_dmap; eauto.
+                     eapply sub_map_implication_dmap; eauto.
+                     eapply Hangel_bound.
+                     eapply full_inject_dmap; eauto.
+                     eapply CMatch.
+                     eapply join_dmap_valid, Hangel_bound.
+                     
+            - subst tid; congruence.
+            - unshelve (eapply CMatch in Htid_neq' as Hthmatch); simpl;
+                eauto.
+              + rewrite Hget_th_state1, Hget_th_state2 in Hthmatch.
+                unshelve (repeat erewrite <- restrPermMap_idempotent_eq in Hthmatch);
+                  eauto.
+                inv Hthmatch. inv H5; simpl in *.
+
+                econstructor 1; eauto.
+                do 2 econstructor; eauto.
+
+                
+                econstructor; eauto.
+                * rewrite getCur_restr.
+                  eapply perm_image_injects_map.
+                  eapply full_inject_map; eauto.
+                  -- apply CMatch.
+                  -- eapply map_valid_Lt; eauto.
+                     eapply max_map_valid.
+                * do 2 rewrite getCur_restr.
+                  eapply perm_surj_compute.
+                  -- exploit @mtch_source; eauto.
+                     intros HH; inv HH; inv matchmem;
+                       repeat rewrite getCur_restr in *;
+                       eauto.
+                  -- eapply inject_perm_perfect_image_dmap; eauto.
+                     eapply sub_map_implication_dmap; eauto.
+                     eapply Hangel_bound.
+                     eapply full_inject_dmap; eauto.
+                     apply CMatch.
+                     eapply join_dmap_valid, Hangel_bound.
+
+                     Unshelve.
+                     all: simpl;eauto. }
+        
+
           
     Admitted.
 
